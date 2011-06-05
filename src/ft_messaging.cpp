@@ -70,8 +70,6 @@ void FTMessaging::gotAck(const string &ftId) {
 
 void FTMessaging::deleteMessage(const string &ftId) {
   struct FTStoredMsg &msg = outMsgs[ftId];
-  if (msg.callback != NULL)
-    delete msg.callback;     // ugly and sad. shared_ptr would have been better
   outMsgs.erase(ftId);
 }
 
@@ -82,11 +80,7 @@ void FTMessaging::sendOutstanding() {
   } 
 
   foreachpair(const string &ftId, struct FTStoredMsg &msg, outMsgs) {
-    if (msg.callback != NULL) {
-      DLOG(INFO) << "FT: calling timeout listener";
-      msg.callback->timeout();
-      deleteMessage(ftId);
-    } else if (msg.count < FT_MAX_RESENDS) {
+    if (msg.count < FT_MAX_RESENDS) {
       DLOG(INFO) << "FT: RE-sending " << msg.ftId << " attempt:" << msg.count;
       Process::post(master, msg.id, msg.data.data(), msg.data.size());
       msg.count++;

@@ -24,7 +24,6 @@ enum MessageType {
   F2M_REREGISTER_FRAMEWORK,
   F2M_UNREGISTER_FRAMEWORK,
   F2M_SLOT_OFFER_REPLY,
-  F2M_FT_SLOT_OFFER_REPLY,
   F2M_REVIVE_OFFERS,
   F2M_KILL_TASK,
   F2M_FRAMEWORK_MESSAGE,
@@ -32,6 +31,7 @@ enum MessageType {
 
   F2F_SLOT_OFFER_REPLY,
   F2F_FRAMEWORK_MESSAGE,
+  F2F_TASK_RUNNING_STATUS,
   
   /* From master to framework. */
   M2F_REGISTER_REPLY,
@@ -144,14 +144,6 @@ TUPLE(F2M_SLOT_OFFER_REPLY,
        std::vector<TaskDescription>,
        Params));
 
-TUPLE(F2M_FT_SLOT_OFFER_REPLY,
-      (std::string, /* FT ID */
-       std::string, /* original sender */
-       FrameworkID,
-       OfferID,
-       std::vector<TaskDescription>,
-       Params));
-
 TUPLE(F2M_REVIVE_OFFERS,
       (FrameworkID));
 
@@ -178,7 +170,8 @@ TUPLE(F2F_SLOT_OFFER_REPLY,
 TUPLE(F2F_FRAMEWORK_MESSAGE,
       (FrameworkMessage));
 
-
+TUPLE(F2F_TASK_RUNNING_STATUS,
+      ());
 
 TUPLE(M2F_REGISTER_REPLY,
       (FrameworkID));

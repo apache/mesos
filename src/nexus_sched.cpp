@@ -57,7 +57,42 @@ namespace nexus { namespace internal {
  * any synchronization necessary is performed.
  */
 
-    
+class ReliableReply : public Tuple<Process>
+{    
+public:
+  ReliableReply(const PID &_p, const TaskID &_tid) : 
+    parent(_p), tid(_tid), terminate(false) {}
+  
+protected:
+  void operator () ()
+  {
+    link(parent);
+    while(!terminate) {
+
+      switch(receive(FT_TIMEOUT)) {
+      case F2F_TASK_RUNNING_STATUS: {
+        terminate = true;
+        break;
+      }
+
+      case PROCESS_TIMEOUT: {
+        terminate = true;
+        DLOG(INFO) << "FT: faking M2F_STATUS_UPDATE due to ReplyToOffer timeout for tid:" << tid;
+        send(parent, 
+             pack<M2F_STATUS_UPDATE>(tid, TASK_LOST, ""));
+        break;
+      }
+
+      }
+    }
+    DLOG(INFO) << "FT: Exiting reliable reply for tid:" << tid;
+  }
+
+private:
+  bool terminate;
+  const PID parent;
+  const TaskID tid;
+};
 
 class SchedulerProcess : public Tuple<Process>
 {
@@ -81,25 +116,7 @@ private:
 
   volatile bool terminate;
 
-  class TimeoutListener;
-  friend class TimeoutListener;
-
-  class TimeoutListener : public FTCallback {
-  public:
-    TimeoutListener(SchedulerProcess *s, const vector<TaskDescription> t) : parent(s), tasks(t) {}
- 
-   virtual void timeout() {
-      foreach (const TaskDescription &t, tasks) {
-        DLOG(INFO) << "FT: faking M2F_STATUS_UPDATE due to timeout to server during ReplyToOffer";
-        parent->send(parent->self(), 
-                     pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
-      }
-    }
-
-  private:
-    SchedulerProcess *parent;
-    vector<TaskDescription> tasks;
-  };
+  unordered_map<TaskID, ReliableReply *> reliableReplies;
 
 public:
   SchedulerProcess(const string &_master,
@@ -246,20 +263,16 @@ protected:
 	// Remove the offer since we saved all the PIDs we might use.
         savedOffers.erase(oid);
 
-	// TODO(alig|benh): Walk through scenario if the master dies
-	// after it sends out M2S_RUN_TASK messages?
-
         if (isFT) {
-          TimeoutListener *tListener = new TimeoutListener(this, tasks);
+          foreach(const TaskDescription &task, tasks) {
+            ReliableReply *rr = new ReliableReply(self(), task.taskId);
+            reliableReplies[task.taskId] = rr;
+            link(spawn(rr));
+          }
+        }
+        
+        send(master, pack<F2M_SLOT_OFFER_REPLY>(fid, oid, tasks, params));
 
-          string ftId = ftMsg->getNextId();
-          DLOG(INFO) << "Sending reliably reply to slot offer for msg " << ftId;
-          ftMsg->reliableSend(ftId,
-			      pack<F2M_FT_SLOT_OFFER_REPLY>(ftId, self(), fid, oid, tasks, params),
-			      tListener);
-        } else {
-          send(master, pack<F2M_SLOT_OFFER_REPLY>(fid, oid, tasks, params));
-	}
 	
         break;
       }
@@ -293,6 +306,11 @@ protected:
         if (!ftMsg->acceptMessageAck(ftId, origPid))
           break;
         DLOG(INFO) << "FT: Received message with id: " << ftId;
+
+        if (state == TASK_RUNNING) {
+          send(reliableReplies[tid]->getPID(), pack<F2F_TASK_RUNNING_STATUS>());
+          reliableReplies.erase(tid);
+        }
 
         TaskStatus status(tid, state, data);
         invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
