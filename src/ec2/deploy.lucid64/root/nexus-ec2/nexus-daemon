@@ -7,7 +7,7 @@ export NEXUS_HOME=/root/nexus
 export NEXUS_PUBLIC_DNS=`wget -q -O - http://instance-data.ec2.internal/latest/meta-data/public-hostname`
 
 # Set PATH to include Scala
-export PATH=$PATH:/root/scala-2.7.7.final/bin
+export PATH=$PATH:/root/scala-2.8.0.RC3/bin
 
 # Set HADOOP variable to allow slaves to get executors from HDFS
 export HADOOP=/root/hadoop-0.20.2/bin/hadoop

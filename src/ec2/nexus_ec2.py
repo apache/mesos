@@ -32,7 +32,7 @@ def parse_args():
       help="Master instance type (leave empty for same as instance-type)")
   parser.add_option("-z", "--zone", default="us-east-1b",
       help="Availability zone to launch instances in")
-  parser.add_option("-a", "--ami", default="ami-19a14870", # nexus-lucid-0.3
+  parser.add_option("-a", "--ami", default="ami-f2e20a9b", # mesos-lucid-0.4
       help="Amazon Machine Image ID to use")
   parser.add_option("-o", "--os", default="lucid64",
       help="OS on the Amazon Machine Image (lucid6 | karmic64 | solaris)")
