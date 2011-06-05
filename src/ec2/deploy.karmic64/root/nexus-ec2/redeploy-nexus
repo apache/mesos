@@ -16,5 +16,6 @@ SERVERS+=`cat $ZOO`
 echo "RSYNC'ing /root/nexus to other servers..."
 for server in $SERVERS; do
     echo $server
-    rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'nexus/frameworks/hadoop-0.20.0/logs/*' /root/nexus $server:/root
+    rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'nexus/frameworks/hadoop-0.20.0/logs/*' /root/nexus $server:/root &
 done
+wait

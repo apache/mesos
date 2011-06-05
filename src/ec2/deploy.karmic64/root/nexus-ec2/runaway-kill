@@ -4,6 +4,8 @@ cd /root/nexus-ec2
 
 MASTER="`cat master`"
 SLAVES="`cat slaves`"
+ZOO="`cat zoo`"
+
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 

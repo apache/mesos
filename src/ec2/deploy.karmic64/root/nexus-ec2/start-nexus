@@ -14,13 +14,22 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 if [[ $ISFT == 0 ]]; then
   master_arg="1@${MASTER}:1111"
 else
-  master_arg="zoo://${ZOO1}:2181"
+  master_arg="zoo://"
+  add=""
+  for zoo in `cat $ZOO`; do
+    master_arg+=$add
+    master_arg+=$zoo":2181"
+    add=","
+  done
 fi
 
+echo "Running with master parameter: "$master_arg
 
 if [[ $ISFT != 0 ]]; then
-  echo "Starting ZooKeeper on $ZOO1"
-  ssh $SSH_OPTS $ZOO1 "/root/nexus/src/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null"
+  echo "Starting ZooKeeper on $ZOO"
+  for zoo in $ZOO; do
+    ssh $SSH_OPTS $zoo "/root/nexus/src/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null"
+  done
 
   sleep 2
 

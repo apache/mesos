@@ -127,6 +127,8 @@ def launch_cluster(conn, opts, cluster_name):
     zoo_group.authorize(src_group=zoo_group)
     zoo_group.authorize('tcp', 22, 22, '0.0.0.0/0')
     zoo_group.authorize('tcp', 2181, 2181, '0.0.0.0/0')
+    zoo_group.authorize('tcp', 2888, 2888, '0.0.0.0/0')
+    zoo_group.authorize('tcp', 3888, 3888, '0.0.0.0/0')
   print "Checking for running cluster..."
   reservations = conn.get_all_instances()
   for res in reservations:
@@ -164,7 +166,9 @@ def launch_cluster(conn, opts, cluster_name):
     zoo_res = image.run(key_name = opts.key_pair,
                         security_groups = [zoo_group],
                         instance_type = opts.instance_type,
-                        placement = opts.zone)
+                        placement = opts.zone,
+                        min_count = 3,
+                        max_count = 3)
     print "Launched zoo, regid = " + zoo_res.id
   return (master_res, slave_res, zoo_res)
 

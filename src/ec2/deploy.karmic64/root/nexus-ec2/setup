@@ -58,10 +58,13 @@ ssh -q $SSH_OPTS localhost echo -n
 
 if [[ $ISFT != 0 ]] ; then
   echo "SSH'ing to Zoo server(s) to approve keys..."
+  zid=1
   for zoo in `cat $ZOO`; do
     echo $zoo
     ssh $SSH_OPTS $zoo echo -n &
     ssh $SSH_OPTS $zoo mkdir -p /tmp/zookeeper &
+    ssh $SSH_OPTS $zoo echo $zid \> /tmp/zookeeper/myid &
+    zid=$(($zid+1))
     sleep 0.3
   done
 fi
@@ -171,6 +174,19 @@ echo "-Dspark.dfs=hdfs://$HOSTNAME:9000 -Djava.io.tmpdir=/nfs" \
 
 echo "Redeploying /root/nexus..."
 ./redeploy-nexus
+
+if [[ $ISFT != 0 ]] ; then
+  echo "Configuring zoo.cfg..."
+  for zoo in `cat $ZOO`; do
+    zid=1
+    for zoop in `cat $ZOO`; do
+      ssh $SSH_OPTS $zoo echo "server."${zid}"="${zoop}":2888:3888" \>\> ~/nexus/src/third_party/zookeeper*/conf/zoo.cfg &
+      zid=$(($zid+1))
+    done
+    sleep 0.1
+  done
+fi
+
 
 echo "Setting up NFS..."
 if [ ! -e /mnt/nfs ] ; then
