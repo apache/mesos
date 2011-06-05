@@ -83,6 +83,7 @@ if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
   rm -rf nexus nexus.tgz
   # Set git SSH command to a script that uses -o StrictHostKeyChecking=no
   GIT_SSH=/root/nexus-ec2/ssh-no-keychecking git clone $REPOSITORY nexus
+  pushd nexus 2>&1
   GIT_SSH=/root/nexus-ec2/ssh-no-keychecking git checkout $BRANCH
   popd > /dev/null 2>&1
   DOWNLOADED=1
