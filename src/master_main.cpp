@@ -64,6 +64,7 @@ int main (int argc, char **argv)
   if (!quiet)
     google::SetStderrLogging(google::INFO);
   
+  FLAGS_log_dir = "/tmp";
   FLAGS_logbufsecs = 1;
   google::InitGoogleLogging(argv[0]);
 
