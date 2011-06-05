@@ -93,29 +93,17 @@ public:
 
   int getInt(const string& key, int defaultValue) const
   {
-    map<string, string>::const_iterator it = params.find(key);
-    if (it != params.end())
-      return lexical_cast<int>(it->second);
-    else
-      return defaultValue;
+    return get<int>(key, defaultValue);
   }
 
   int32_t getInt32(const string& key, int32_t defaultValue) const
   {
-    map<string, string>::const_iterator it = params.find(key);
-    if (it != params.end())
-      return lexical_cast<int32_t>(it->second);
-    else
-      return defaultValue;
+    return get<int32_t>(key, defaultValue);
   }
 
   int64_t getInt64(const string& key, int64_t defaultValue) const
   {
-    map<string, string>::const_iterator it = params.find(key);
-    if (it != params.end())
-      return lexical_cast<int64_t>(it->second);
-    else
-      return defaultValue;
+    return get<int64_t>(key, defaultValue);
   }
 
   template <typename T>
