@@ -1,13 +1,9 @@
-#include <gtest/gtest.h>
-
-#include <boost/lexical_cast.hpp>
+#include <gmock/gmock.h>
 
 #include <mesos_exec.hpp>
 #include <mesos_sched.hpp>
 
-#include "common/date_utils.hpp"
-
-#include "event_history/event_logger.hpp"
+#include <boost/lexical_cast.hpp>
 
 #include "local/local.hpp"
 
@@ -17,629 +13,36 @@
 #include "slave/process_based_isolation_module.hpp"
 #include "slave/slave.hpp"
 
-using std::string;
-using std::vector;
-
-using boost::lexical_cast;
+#include "testing_gmock.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::test;
 
-using mesos::internal::eventhistory::EventLogger;
+using boost::lexical_cast;
+
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::Framework;
 using mesos::internal::slave::IsolationModule;
 using mesos::internal::slave::ProcessBasedIsolationModule;
 
-class NoopScheduler : public Scheduler
-{
-public:
-  bool registeredCalled;
-  int offersGotten;
-  int slavesExpected;
-
-public:
-  NoopScheduler(int _slavesExpected)
-    : slavesExpected(_slavesExpected),
-      registeredCalled(false),
-      offersGotten(0)
-  {}
-
-  virtual ~NoopScheduler() {}
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo("noexecutor", "");
-  }
-
-  virtual void registered(SchedulerDriver*, FrameworkID fid) {
-    LOG(INFO) << "NoopScheduler registered with id " << fid;
-    registeredCalled = true;
-  }
-
-  virtual void resourceOffer(SchedulerDriver *d,
-                             OfferID id,
-                             const vector<SlaveOffer>& offers) {
-    LOG(INFO) << "NoopScheduler got a slot offer";
-    offersGotten++;
-    EXPECT_EQ(slavesExpected, offers.size());
-    foreach (const SlaveOffer& offer, offers) {
-      string cpus = offer.params.find("cpus")->second;
-      string mem = offer.params.find("mem")->second;
-      EXPECT_EQ("2", cpus);
-      EXPECT_EQ(lexical_cast<string>(1 * Gigabyte), mem);
-    }
-    vector<TaskDescription> tasks;
-    d->replyToOffer(id, tasks, map<string, string>());
-    d->stop();
-  }
-}; 
-
-
-TEST(MasterTest, NoopFrameworkWithOneSlave)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
-  NoopScheduler sched(1);
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-  EXPECT_TRUE(sched.registeredCalled);
-  EXPECT_EQ(1, sched.offersGotten);
-  local::shutdown();
-}
-
-
-TEST(MasterTest, NoopFrameworkWithMultipleSlaves)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
-  NoopScheduler sched(10);
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-  EXPECT_TRUE(sched.registeredCalled);
-  EXPECT_EQ(1, sched.offersGotten);
-  local::shutdown();
-}
-
-
-class FixedResponseScheduler : public Scheduler
-{
-public:
-  vector<TaskDescription> response;
-  string errorMessage;
-  
-  FixedResponseScheduler(vector<TaskDescription> _response)
-    : response(_response) {}
-
-  virtual ~FixedResponseScheduler() {}
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo("noexecutor", "");
-  }
-
-  virtual void resourceOffer(SchedulerDriver* d,
-                             OfferID id,
-                             const vector<SlaveOffer>& offers) {
-    LOG(INFO) << "FixedResponseScheduler got a slot offer";
-    d->replyToOffer(id, response, map<string, string>());
-  }
-  
-  virtual void error(SchedulerDriver* d,
-                     int code,
-                     const std::string& message) {
-    errorMessage = message;
-    d->stop();
-  }
-};
-
-
-TEST(MasterTest, DuplicateTaskIdsInResponse)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
-  vector<TaskDescription> tasks;
-  map<string, string> params;
-  params["cpus"] = "1";
-  params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
-  tasks.push_back(TaskDescription(2, "200102030405-0-0", "", params, ""));
-  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
-  FixedResponseScheduler sched(tasks);
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-  EXPECT_EQ("Duplicate task ID: 1", sched.errorMessage);
-  local::shutdown();
-  DateUtils::clearMockDate();
-}
-
-
-TEST(MasterTest, TooMuchMemoryInTask)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
-  vector<TaskDescription> tasks;
-  map<string, string> params;
-  params["cpus"] = "1";
-  params["mem"] = lexical_cast<string>(4 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
-  FixedResponseScheduler sched(tasks);
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-  EXPECT_EQ("Too many resources accepted", sched.errorMessage);
-  local::shutdown();
-  DateUtils::clearMockDate();
-}
-
-
-TEST(MasterTest, TooMuchCpuInTask)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
-  vector<TaskDescription> tasks;
-  map<string, string> params;
-  params["cpus"] = "4";
-  params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
-  FixedResponseScheduler sched(tasks);
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-  EXPECT_EQ("Too many resources accepted", sched.errorMessage);
-  local::shutdown();
-  DateUtils::clearMockDate();
-}
-
-
-TEST(MasterTest, TooLittleCpuInTask)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
-  vector<TaskDescription> tasks;
-  map<string, string> params;
-  params["cpus"] = "0";
-  params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
-  FixedResponseScheduler sched(tasks);
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-  EXPECT_EQ("Invalid task size: <0 CPUs, 1024 MEM>", sched.errorMessage);
-  local::shutdown();
-  DateUtils::clearMockDate();
-}
-
-
-TEST(MasterTest, TooLittleMemoryInTask)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
-  vector<TaskDescription> tasks;
-  map<string, string> params;
-  params["cpus"] = "1";
-  params["mem"] = "1";
-  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
-  FixedResponseScheduler sched(tasks);
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-  EXPECT_EQ("Invalid task size: <1 CPUs, 1 MEM>", sched.errorMessage);
-  local::shutdown();
-  DateUtils::clearMockDate();
-}
-
-
-TEST(MasterTest, TooMuchMemoryAcrossTasks)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
-  vector<TaskDescription> tasks;
-  map<string, string> params;
-  params["cpus"] = "1";
-  params["mem"] = lexical_cast<string>(2 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
-  tasks.push_back(TaskDescription(2, "200102030405-0-0", "", params, ""));
-  FixedResponseScheduler sched(tasks);
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-  EXPECT_EQ("Too many resources accepted", sched.errorMessage);
-  local::shutdown();
-  DateUtils::clearMockDate();
-}
-
-
-TEST(MasterTest, TooMuchCpuAcrossTasks)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
-  vector<TaskDescription> tasks;
-  map<string, string> params;
-  params["cpus"] = "2";
-  params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
-  tasks.push_back(TaskDescription(2, "200102030405-0-0", "", params, ""));
-  FixedResponseScheduler sched(tasks);
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-  EXPECT_EQ("Too many resources accepted", sched.errorMessage);
-  local::shutdown();
-  DateUtils::clearMockDate();
-}
-
-
-TEST(MasterTest, ResourcesReofferedAfterReject)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
-
-  NoopScheduler sched1(10);
-  MesosSchedulerDriver driver1(&sched1, master);
-  driver1.run();
-  EXPECT_TRUE(sched1.registeredCalled);
-  EXPECT_EQ(1, sched1.offersGotten);
-
-  NoopScheduler sched2(10);
-  MesosSchedulerDriver driver2(&sched2, master);
-  driver2.run();
-  EXPECT_TRUE(sched2.registeredCalled);
-  EXPECT_EQ(1, sched2.offersGotten);
-
-  local::shutdown();
-}
-
-
-TEST(MasterTest, ResourcesReofferedAfterBadResponse)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
-
-  vector<TaskDescription> tasks;
-  map<string, string> params;
-  params["cpus"] = "0";
-  params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
-  FixedResponseScheduler sched1(tasks);
-  MesosSchedulerDriver driver1(&sched1, master);
-  driver1.run();
-  EXPECT_EQ("Invalid task size: <0 CPUs, 1024 MEM>", sched1.errorMessage);
-
-  NoopScheduler sched2(1);
-  MesosSchedulerDriver driver2(&sched2, master);
-  driver2.run();
-  EXPECT_TRUE(sched2.registeredCalled);
-  EXPECT_EQ(1, sched2.offersGotten);
-
-  local::shutdown();
-  DateUtils::clearMockDate();
-}
-
-
-class SlaveLostScheduler : public Scheduler
-{
-public:
-  PID slave;
-  bool slaveLostCalled;
-  
-  SlaveLostScheduler(const PID &_slave)
-    : slave(_slave), slaveLostCalled(false) {}
-
-  virtual ~SlaveLostScheduler() {}
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo("noexecutor", "");
-  }
-
-  virtual void resourceOffer(SchedulerDriver* d,
-                             OfferID id,
-                             const vector<SlaveOffer>& offers) {
-    LOG(INFO) << "SlaveLostScheduler got a slot offer";
-    MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
-  }
-  
-  virtual void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
-    slaveLostCalled = true;
-    d->stop();
-  }
-};
-
-
-TEST(MasterTest, SlaveLost)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  EventLogger el;
-  Master m(&el);
-  PID master = Process::spawn(&m);
-
-  ProcessBasedIsolationModule isolationModule;
-  Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
-  PID slave = Process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
-
-  SlaveLostScheduler sched(slave);
-
-  MesosSchedulerDriver driver(&sched, master);
-  driver.run();
-
-  EXPECT_TRUE(sched.slaveLostCalled);
-
-  Process::wait(slave);
-
-  MesosProcess::post(master, pack<M2M_SHUTDOWN>());
-  Process::wait(master);
-}
-
-
-
-class FailoverScheduler : public Scheduler
-{
-public:
-  bool registeredCalled;
-  
-  FailoverScheduler() : registeredCalled(false) {}
-
-  virtual ~FailoverScheduler() {}
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo("noexecutor", "");
-  }
-
-  virtual void registered(SchedulerDriver *d, FrameworkID fid) {
-    LOG(INFO) << "FailoverScheduler registered";
-    registeredCalled = true;
-    d->stop();
-  }
-};
-
-
-class FailingScheduler : public Scheduler
-{
-public:
-  Scheduler *failover;
-  PID master;
-  MesosSchedulerDriver *driver;
-  string errorMessage;
-
-  FailingScheduler(Scheduler *_failover, const PID &_master)
-    : failover(_failover), master(_master) {}
-
-  virtual ~FailingScheduler() {
-    delete driver;
-  }
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo("noexecutor", "");
-  }
-
-  virtual void registered(SchedulerDriver*, FrameworkID fid) {
-    LOG(INFO) << "FailingScheduler registered";
-    driver = new MesosSchedulerDriver(failover, master, fid);
-    driver->start();
-  }
-
-  virtual void error(SchedulerDriver* d,
-                     int code,
-                     const std::string& message) {
-    errorMessage = message;
-    d->stop();
-  }
-};
-
-
-TEST(MasterTest, SchedulerFailover)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
-
-  FailoverScheduler failoverSched;
-  FailingScheduler failingSched(&failoverSched, master);
-
-  MesosSchedulerDriver driver(&failingSched, master);
-  driver.run();
-
-  EXPECT_EQ("Framework failover", failingSched.errorMessage);
-
-  failingSched.driver->join();
-
-  EXPECT_TRUE(failoverSched.registeredCalled);
-
-  local::shutdown();
-}
-
-
-class OfferRescindedScheduler : public Scheduler
-{
-public:
-  const PID slave;
-  bool offerRescindedCalled;
-  
-  OfferRescindedScheduler(const PID &_slave)
-    : slave(_slave), offerRescindedCalled(false) {}
-
-  virtual ~OfferRescindedScheduler() {}
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo("noexecutor", "");
-  }
-
-  virtual void resourceOffer(SchedulerDriver* d,
-                             OfferID id,
-                             const vector<SlaveOffer>& offers) {
-    LOG(INFO) << "OfferRescindedScheduler got a slot offer";
-    vector<TaskDescription> tasks;
-    ASSERT_TRUE(offers.size() == 1);
-    const SlaveOffer &offer = offers[0];
-    TaskDescription desc(0, offer.slaveId, "", offer.params, "");
-    tasks.push_back(desc);
-    d->replyToOffer(id, tasks, map<string, string>());
-    MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
-  }
-
-  virtual void offerRescinded(SchedulerDriver* d, OfferID)
-  {
-    offerRescindedCalled = true;
-    d->stop();
-  }
-};
-
-
-class OfferReplyMessageFilter : public MessageFilter
-{
-public:
-  virtual bool filter(struct msg *msg) {
-    return msg->id == F2M_SLOT_OFFER_REPLY;
-  }
-};
-
-
-TEST(MasterTest, OfferRescinded)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  OfferReplyMessageFilter filter;
-  Process::filter(&filter);
-
-  EventLogger el;
-  Master m(&el);
-  PID master = Process::spawn(&m);
-
-  ProcessBasedIsolationModule isolationModule;
-  Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
-  PID slave = Process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
-
-  OfferRescindedScheduler sched(slave);
-  MesosSchedulerDriver driver(&sched, master);
-
-  driver.run();
-
-  EXPECT_TRUE(sched.offerRescindedCalled);
-
-  Process::wait(slave);
-
-  MesosProcess::post(master, pack<M2M_SHUTDOWN>());
-  Process::wait(master);
-
-  Process::filter(NULL);
-}
-
-
-class SlavePartitionedScheduler : public Scheduler
-{
-public:
-  bool slaveLostCalled;
-  
-  SlavePartitionedScheduler()
-    : slaveLostCalled(false) {}
-
-  virtual ~SlavePartitionedScheduler() {}
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo("noexecutor", "");
-  }
-
-  virtual void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
-    slaveLostCalled = true;
-    d->stop();
-  }
-};
-
-
-class HeartbeatMessageFilter : public MessageFilter
-{
-public:
-  virtual bool filter(struct msg *msg) {
-    return msg->id == SH2M_HEARTBEAT;
-  }
-};
-
-
-TEST(MasterTest, SlavePartitioned)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  HeartbeatMessageFilter filter;
-  Process::filter(&filter);
-
-  ProcessClock::pause();
-
-  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
-
-  SlavePartitionedScheduler sched;
-  MesosSchedulerDriver driver(&sched, master);
-
-  driver.start();
-
-  ProcessClock::advance(master::HEARTBEAT_TIMEOUT);
-
-  driver.join();
-
-  EXPECT_TRUE(sched.slaveLostCalled);
-
-  local::shutdown();
-
-  ProcessClock::resume();
-
-  Process::filter(NULL);
-}
-
-
-class TaskRunningScheduler : public Scheduler
-{
-public:
-  FrameworkID fid;
-  bool statusUpdateCalled;
-  string errorMessage;
-  
-  TaskRunningScheduler()
-    : statusUpdateCalled(false) {}
-
-  virtual ~TaskRunningScheduler() {}
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo("noexecutor", "");
-  }
-
-  virtual void registered(SchedulerDriver*, FrameworkID fid) {
-    LOG(INFO) << "TaskRunningScheduler registered";
-    this->fid = fid;
-  }
-
-  virtual void resourceOffer(SchedulerDriver* d,
-                             OfferID id,
-                             const vector<SlaveOffer>& offers) {
-    LOG(INFO) << "TaskRunningScheduler got a slot offer";
-    vector<TaskDescription> tasks;
-    ASSERT_TRUE(offers.size() == 1);
-    const SlaveOffer &offer = offers[0];
-    TaskDescription desc(0, offer.slaveId, "", offer.params, "");
-    tasks.push_back(desc);
-    d->replyToOffer(id, tasks, map<string, string>());
-  }
-
-  virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
-    EXPECT_EQ(TASK_RUNNING, status.state);
-    statusUpdateCalled = true;
-    d->stop();
-  }
-
-  virtual void error(SchedulerDriver* d,
-                     int code,
-                     const std::string& message) {
-    errorMessage = message;
-    d->stop();
-  }
-};
-
-
-class TaskRunningExecutor : public Executor {};
+using std::string;
+using std::map;
+using std::vector;
+
+using testing::_;
+using testing::A;
+using testing::An;
+using testing::AtMost;
+using testing::DoAll;
+using testing::Eq;
+using testing::ElementsAre;
+using testing::Ne;
+using testing::Return;
+using testing::SaveArg;
+using testing::Sequence;
+using testing::StrEq;
 
 
 class LocalIsolationModule : public IsolationModule
@@ -681,31 +84,258 @@ public:
 };
 
 
-TEST(MasterTest, TaskRunning)
+TEST(MasterTest, ResourceOfferWithMultipleSlaves)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  EventLogger el;
-  Master m(&el);
+  PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, master);
+
+  vector<SlaveOffer> offers;
+
+  trigger resourceOfferCall;
+
+  EXPECT_CALL(sched, getFrameworkName(&driver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched, getExecutorInfo(&driver))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(sched, registered(&driver, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffer(&driver, _, _))
+    .WillOnce(DoAll(SaveArg<2>(&offers), Trigger(&resourceOfferCall)));
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(AtMost(1));
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOfferCall);
+
+  EXPECT_NE(0, offers.size());
+  EXPECT_GE(10, offers.size());
+
+  EXPECT_EQ("2", offers[0].params["cpus"]);
+  EXPECT_EQ("1024", offers[0].params["mem"]);
+
+  driver.stop();
+  driver.join();
+
+  local::shutdown();
+}
+
+
+TEST(MasterTest, ResourcesReofferedAfterReject)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(&sched1, master);
+
+  OfferID offerId;
+
+  trigger sched1ResourceOfferCall;
+
+  EXPECT_CALL(sched1, getFrameworkName(&driver1))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched1, getExecutorInfo(&driver1))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(sched1, registered(&driver1, _))
+    .Times(1);
+
+  EXPECT_CALL(sched1, resourceOffer(&driver1, _, _))
+    .WillOnce(DoAll(SaveArg<1>(&offerId), Trigger(&sched1ResourceOfferCall)));
+
+  driver1.start();
+
+  WAIT_UNTIL(sched1ResourceOfferCall);
+
+  driver1.replyToOffer(offerId, vector<TaskDescription>(), map<string, string>());
+
+  driver1.stop();
+  driver1.join();
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(&sched2, master);
+
+  trigger sched2ResourceOfferCall;
+
+  EXPECT_CALL(sched2, getFrameworkName(&driver2))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched2, getExecutorInfo(&driver2))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(sched2, registered(&driver2, _))
+    .Times(1);
+
+  EXPECT_CALL(sched2, resourceOffer(&driver2, _, _))
+    .WillOnce(Trigger(&sched2ResourceOfferCall));
+
+  EXPECT_CALL(sched2, offerRescinded(&driver2, _))
+    .Times(AtMost(1));
+
+  driver2.start();
+
+  WAIT_UNTIL(sched2ResourceOfferCall);
+
+  driver2.stop();
+  driver2.join();
+
+  local::shutdown();
+}
+
+
+TEST(MasterTest, ResourcesReofferedAfterBadResponse)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(&sched1, master);
+
+  OfferID offerId;
+  vector<SlaveOffer> offers;
+
+  trigger sched1ResourceOfferCall;
+
+  EXPECT_CALL(sched1, getFrameworkName(&driver1))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched1, getExecutorInfo(&driver1))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(sched1, registered(&driver1, _))
+    .Times(1);
+
+  EXPECT_CALL(sched1, resourceOffer(&driver1, _, ElementsAre(_)))
+    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
+                    Trigger(&sched1ResourceOfferCall)));
+
+  driver1.start();
+
+  WAIT_UNTIL(sched1ResourceOfferCall);
+
+  EXPECT_EQ(1, offers.size());
+
+  map<string, string> params;
+  params["cpus"] = "0";
+  params["mem"] = lexical_cast<string>(1 * Gigabyte);
+
+  vector<TaskDescription> tasks;
+  tasks.push_back(TaskDescription(1, offers[0].slaveId, "", params, bytes()));
+
+  trigger errorCall;
+
+  EXPECT_CALL(sched1, error(&driver1, _, "Invalid task size: <0 CPUs, 1024 MEM>"))
+    .WillOnce(Trigger(&errorCall));
+
+  EXPECT_CALL(sched1, offerRescinded(&driver1, offerId))
+    .Times(AtMost(1));
+
+  driver1.replyToOffer(offerId, tasks, map<string, string>());
+
+  WAIT_UNTIL(errorCall);
+
+  driver1.stop();
+  driver1.join();
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(&sched2, master);
+
+  trigger sched2ResourceOfferCall;
+
+  EXPECT_CALL(sched2, getFrameworkName(&driver2))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched2, getExecutorInfo(&driver2))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(sched2, registered(&driver2, _))
+    .Times(1);
+
+  EXPECT_CALL(sched2, resourceOffer(&driver2, _, _))
+    .WillOnce(Trigger(&sched2ResourceOfferCall));
+
+  EXPECT_CALL(sched2, offerRescinded(&driver2, _))
+    .Times(AtMost(1));
+
+  driver2.start();
+
+  WAIT_UNTIL(sched2ResourceOfferCall);
+
+  driver2.stop();
+  driver2.join();
+
+  local::shutdown();
+}
+
+
+TEST(MasterTest, SlaveLost)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Master m;
   PID master = Process::spawn(&m);
 
-  TaskRunningExecutor exec;
-  LocalIsolationModule isolationModule(&exec);
-
+  ProcessBasedIsolationModule isolationModule;
   Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
   PID slave = Process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
-  TaskRunningScheduler sched;
+  MockScheduler sched;
   MesosSchedulerDriver driver(&sched, master);
 
-  driver.run();
+  OfferID offerId;
+  vector<SlaveOffer> offers;
 
-  EXPECT_TRUE(sched.statusUpdateCalled);
-  EXPECT_EQ("", sched.errorMessage);
+  trigger resourceOfferCall;
+
+  EXPECT_CALL(sched, getFrameworkName(&driver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched, getExecutorInfo(&driver))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(sched, registered(&driver, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffer(&driver, _, _))
+    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
+                    Trigger(&resourceOfferCall)));
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOfferCall);
+
+  EXPECT_EQ(1, offers.size());
+
+  trigger offerRescindedCall, slaveLostCall;
+
+  EXPECT_CALL(sched, offerRescinded(&driver, offerId))
+    .WillOnce(Trigger(&offerRescindedCall));
+
+  EXPECT_CALL(sched, slaveLost(&driver, offers[0].slaveId))
+    .WillOnce(Trigger(&slaveLostCall));
 
   MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
+
+  WAIT_UNTIL(offerRescindedCall);
+  WAIT_UNTIL(slaveLostCall);
+
+  driver.stop();
+  driver.join();
+
   Process::wait(slave);
 
   MesosProcess::post(master, pack<M2M_SHUTDOWN>());
@@ -713,52 +343,214 @@ TEST(MasterTest, TaskRunning)
 }
 
 
-class SchedulerFailoverStatusUpdateScheduler : public TaskRunningScheduler
+TEST(MasterTest, SchedulerFailover)
 {
- public:
-  virtual void registered(SchedulerDriver*, FrameworkID fid) {
-    Process::filter(NULL);
-    ProcessClock::advance(RELIABLE_TIMEOUT);
-  }
-};
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
+
+  // Launch the first (i.e., failing) scheduler and wait until
+  // registered gets called to launch the second (i.e., failover)
+  // scheduler.
+
+  MockScheduler failingSched;
+  MesosSchedulerDriver failingDriver(&failingSched, master);
+
+  FrameworkID frameworkId;
+
+  trigger failingRegisteredCall;
+
+  EXPECT_CALL(failingSched, getFrameworkName(&failingDriver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(failingSched, getExecutorInfo(&failingDriver))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(failingSched, registered(&failingDriver, _))
+    .WillOnce(DoAll(SaveArg<1>(&frameworkId), Trigger(&failingRegisteredCall)));
+
+  EXPECT_CALL(failingSched, resourceOffer(&failingDriver, _, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(failingSched, offerRescinded(&failingDriver, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(failingSched, error(&failingDriver, _, "Framework failover"))
+    .Times(1);
+
+  failingDriver.start();
+
+  WAIT_UNTIL(failingRegisteredCall);
+
+  // Now launch the second (i.e., failover) scheduler using the
+  // framework id recorded from the first scheduler and wait until it
+  // gets a registered callback..
+
+  MockScheduler failoverSched;
+  MesosSchedulerDriver failoverDriver(&failoverSched, master, frameworkId);
+
+  trigger failoverRegisteredCall;
+
+  EXPECT_CALL(failoverSched, getFrameworkName(&failoverDriver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(failoverSched, getExecutorInfo(&failoverDriver))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(failoverSched, registered(&failoverDriver, frameworkId))
+    .WillOnce(Trigger(&failoverRegisteredCall));
+
+  EXPECT_CALL(failoverSched, resourceOffer(&failoverDriver, _, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(failoverSched, offerRescinded(&failoverDriver, _))
+    .Times(AtMost(1));
+
+  failoverDriver.start();
+
+  WAIT_UNTIL(failoverRegisteredCall);
+
+  failingDriver.stop();
+  failoverDriver.stop();
+
+  failingDriver.join();
+  failoverDriver.join();
+
+  local::shutdown();
+}
 
 
-class StatusUpdateFilter : public MessageFilter
+TEST(MasterTest, SlavePartitioned)
 {
-public:
-  TaskRunningScheduler *failover;
-  TaskRunningScheduler *failing;
-  const PID master;
-  MesosSchedulerDriver *driver;
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  StatusUpdateFilter(TaskRunningScheduler *_failover,
-                     TaskRunningScheduler *_failing,
-                     const PID &_master)
-    : failover(_failover), failing(_failing), master(_master),
-      driver(NULL) {}
+  ProcessClock::pause();
 
-  ~StatusUpdateFilter() {
-    if (driver != NULL) {
-      driver->join();
-      delete driver;
-      driver = NULL;
-    }
-  }
+  MockFilter filter;
+  Process::filter(&filter);
 
-  virtual bool filter(struct msg *msg) {
-    // TODO(benh): Fix the brokenness of this test due to blocking
-    // S2M_FT_STATUS_UPDATE!
-    if (driver == NULL &&
-        msg->id == S2M_FT_STATUS_UPDATE &&
-        !(msg->to == master)) {
-      driver = new MesosSchedulerDriver(failover, master, failing->fid);
-      driver->start();
-      return true;
-    }
+  EXPECT_MSG(filter, _, _, _)
+    .WillRepeatedly(Return(false));
 
-    return false;
-  }
-};
+  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, master);
+
+  trigger slaveLostCall;
+
+  EXPECT_CALL(sched, getFrameworkName(&driver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched, getExecutorInfo(&driver))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(sched, registered(&driver, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffer(&driver, _, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(Trigger(&slaveLostCall));
+
+  EXPECT_MSG(filter, Eq(SH2M_HEARTBEAT), _, _)
+    .WillRepeatedly(Return(true));
+
+  driver.start();
+
+  ProcessClock::advance(master::HEARTBEAT_TIMEOUT);
+
+  WAIT_UNTIL(slaveLostCall);
+
+  driver.stop();
+  driver.join();
+
+  local::shutdown();
+
+  Process::filter(NULL);
+
+  ProcessClock::resume();
+}
+
+
+TEST(MasterTest, TaskRunning)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Master m;
+  PID master = Process::spawn(&m);
+
+  MockExecutor exec;
+
+  EXPECT_CALL(exec, init(_, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(1);
+
+  LocalIsolationModule isolationModule(&exec);
+
+  Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
+  PID slave = Process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, master);
+
+  OfferID offerId;
+  vector<SlaveOffer> offers;
+  TaskStatus status;
+
+  trigger resourceOfferCall, statusUpdateCall;
+
+  EXPECT_CALL(sched, getFrameworkName(&driver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched, getExecutorInfo(&driver))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(sched, registered(&driver, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffer(&driver, _, _))
+    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
+                    Trigger(&resourceOfferCall)));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOfferCall);
+
+  EXPECT_EQ(1, offers.size());
+
+  vector<TaskDescription> tasks;
+  tasks.push_back(TaskDescription(1, offers[0].slaveId, "", offers[0].params, ""));
+
+  driver.replyToOffer(offerId, tasks, map<string, string>());
+
+  WAIT_UNTIL(statusUpdateCall);
+
+  EXPECT_EQ(TASK_RUNNING, status.state);
+
+  driver.stop();
+  driver.join();
+
+  MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
+  Process::wait(slave);
+
+  MesosProcess::post(master, pack<M2M_SHUTDOWN>());
+  Process::wait(master);
+}
 
 
 TEST(MasterTest, SchedulerFailoverStatusUpdate)
@@ -767,169 +559,232 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
 
   ProcessClock::pause();
 
-  EventLogger el;
-  Master m(&el);
-  PID master = Process::spawn(&m);
+  MockFilter filter;
+  Process::filter(&filter);
 
-  TaskRunningExecutor exec;
+  EXPECT_MSG(filter, _, _, _)
+    .WillRepeatedly(Return(false));
+
+  MockExecutor exec;
+
+  EXPECT_CALL(exec, init(_, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(1);
+
   LocalIsolationModule isolationModule(&exec);
+
+  Master m;
+  PID master = Process::spawn(&m);
 
   Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
   PID slave = Process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
-  SchedulerFailoverStatusUpdateScheduler failoverSched;
-  TaskRunningScheduler failingSched;
+  // Launch the first (i.e., failing) scheduler and wait until the
+  // first status update message is sent to it (drop the message).
 
-  StatusUpdateFilter filter(&failoverSched, &failingSched, master);
-  Process::filter(&filter);
+  MockScheduler failingSched;
+  MesosSchedulerDriver failingDriver(&failingSched, master);
 
-  MesosSchedulerDriver driver(&failingSched, master);
+  FrameworkID frameworkId;
+  OfferID offerId;
+  vector<SlaveOffer> offers;
 
-  driver.run();
+  trigger resourceOfferCall;
 
-  EXPECT_FALSE(failingSched.statusUpdateCalled);
-  EXPECT_EQ("Framework failover", failingSched.errorMessage);
+  EXPECT_CALL(failingSched, getFrameworkName(&failingDriver))
+    .WillOnce(Return(""));
 
-  filter.driver->join();
+  EXPECT_CALL(failingSched, getExecutorInfo(&failingDriver))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
 
-  EXPECT_TRUE(failoverSched.statusUpdateCalled);
-  EXPECT_EQ("", failoverSched.errorMessage);
+  EXPECT_CALL(failingSched, registered(&failingDriver, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
 
-  Process::filter(NULL);
+  EXPECT_CALL(failingSched, resourceOffer(&failingDriver, _, _))
+    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
+                    Trigger(&resourceOfferCall)));
+
+  EXPECT_CALL(failingSched, error(&failingDriver, _, "Framework failover"))
+    .Times(1);
+
+  EXPECT_CALL(failingSched, statusUpdate(&failingDriver, _))
+    .Times(0);
+
+  trigger statusUpdateMsg;
+
+  EXPECT_MSG(filter, Eq(S2M_FT_STATUS_UPDATE), _, Ne(master))
+    .WillOnce(DoAll(Trigger(&statusUpdateMsg), Return(true)))
+    .RetiresOnSaturation();
+
+  failingDriver.start();
+
+  WAIT_UNTIL(resourceOfferCall);
+
+  EXPECT_EQ(1, offers.size());
+
+  vector<TaskDescription> tasks;
+  tasks.push_back(TaskDescription(1, offers[0].slaveId, "", offers[0].params, ""));
+
+  failingDriver.replyToOffer(offerId, tasks, map<string, string>());
+
+  WAIT_UNTIL(statusUpdateMsg);
+
+  // Now launch the second (i.e., failover) scheduler using the
+  // framework id recorded from the first scheduler and wait until it
+  // registers, at which point advance time enough for the reliable
+  // timeout to kick in and another status update message is sent.
+
+  MockScheduler failoverSched;
+  MesosSchedulerDriver failoverDriver(&failoverSched, master, frameworkId);
+
+  trigger registeredCall, statusUpdateCall;
+
+  EXPECT_CALL(failoverSched, getFrameworkName(&failoverDriver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(failoverSched, getExecutorInfo(&failoverDriver))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(failoverSched, registered(&failoverDriver, frameworkId))
+    .WillOnce(Trigger(&registeredCall));
+
+  EXPECT_CALL(failoverSched, statusUpdate(&failoverDriver, _))
+    .WillOnce(Trigger(&statusUpdateCall));
+
+  failoverDriver.start();
+
+  WAIT_UNTIL(registeredCall);
+
+  ProcessClock::advance(RELIABLE_TIMEOUT);
+
+  WAIT_UNTIL(statusUpdateCall);
+
+  failingDriver.stop();
+  failoverDriver.stop();
+
+  failingDriver.join();
+  failoverDriver.join();
 
   MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
   Process::wait(slave);
 
   MesosProcess::post(master, pack<M2M_SHUTDOWN>());
   Process::wait(master);
+
+  Process::filter(NULL);
 
   ProcessClock::resume();
 }
 
 
-// An executor used in the framework message test that just sends a reply
-// to each message received and logs the last message.
-class FrameworkMessageExecutor : public Executor
-{
-public:
-  bool messageReceived;
-  string messageData;
-  SlaveID mySlaveId;
-
-  FrameworkMessageExecutor(): messageReceived(false) {}
-
-  virtual ~FrameworkMessageExecutor() {}
-
-  virtual void init(ExecutorDriver* d, const ExecutorArgs& args) {
-    mySlaveId = args.slaveId;
-  }
-
-  virtual void frameworkMessage(ExecutorDriver* d, const FrameworkMessage& m) {
-    LOG(INFO) << "FrameworkMessageExecutor got a message";
-    messageReceived = true;
-    messageData = m.data;
-    // Send a message back to the scheduler, which will cause it to exit
-    FrameworkMessage reply(mySlaveId, 0, "reply");
-    d->sendFrameworkMessage(reply);
-    LOG(INFO) << "Sent the reply back";
-  }
-};
 
 
-// A scheduler used in the framework message test that launches a task, waits
-// for it to start, sends it a framework message, and waits for a reply.
-class FrameworkMessageScheduler : public Scheduler
-{
-public:
-  FrameworkID fid;
-  string errorMessage;
-  bool messageReceived;
-  string messageData;
-  SlaveID slaveIdOfTask;
-
-  FrameworkMessageScheduler() {}
-
-  virtual ~FrameworkMessageScheduler() {}
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo("noexecutor", "");
-  }
-
-  virtual void registered(SchedulerDriver*, FrameworkID fid) {
-    LOG(INFO) << "FrameworkMessageScheduler registered";
-    this->fid = fid;
-  }
-
-  virtual void resourceOffer(SchedulerDriver* d,
-                             OfferID id,
-                             const vector<SlaveOffer>& offers) {
-    LOG(INFO) << "FrameworkMessageScheduler got a slot offer";
-    vector<TaskDescription> tasks;
-    ASSERT_TRUE(offers.size() == 1);
-    const SlaveOffer &offer = offers[0];
-    TaskDescription desc(0, offer.slaveId, "", offer.params, "");
-    tasks.push_back(desc);
-    slaveIdOfTask = offer.slaveId;
-    d->replyToOffer(id, tasks, map<string, string>());
-  }
-
-
-  virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
-    EXPECT_EQ(TASK_RUNNING, status.state);
-    LOG(INFO) << "Task is running; sending it a framework message";
-    FrameworkMessage message(slaveIdOfTask, 0, "hello");
-    d->sendFrameworkMessage(message);
-  }
-
-
-  virtual void frameworkMessage(SchedulerDriver* d, const FrameworkMessage& m) {
-    LOG(INFO) << "FrameworkMessageScheduler got a message";
-    messageReceived = true;
-    messageData = m.data;
-    // Stop our driver because the test is complete
-    d->stop();
-  }
-
-  virtual void error(SchedulerDriver* d,
-                     int code,
-                     const std::string& message) {
-    errorMessage = message;
-    d->stop();
-  }
-};
-
-
-// Tests that framework messages are sent correctly both in both the
-// scheduler->executor direction and the executor->scheduler direction.
 TEST(MasterTest, FrameworkMessages)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  EventLogger el;
-  Master m(&el);
-  PID master = Process::spawn(&m);
+  MockExecutor exec;
 
-  FrameworkMessageExecutor exec;
+  ExecutorDriver *execDriver;
+  ExecutorArgs args;
+  FrameworkMessage execMessage;
+
+  trigger execFrameworkMessageCall;
+
+  EXPECT_CALL(exec, init(_, _))
+    .WillOnce(DoAll(SaveArg<0>(&execDriver), SaveArg<1>(&args)));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, frameworkMessage(_, _))
+    .WillOnce(DoAll(SaveArg<1>(&execMessage),
+                    Trigger(&execFrameworkMessageCall)));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(1);
 
   LocalIsolationModule isolationModule(&exec);
+
+  Master m;
+  PID master = Process::spawn(&m);
 
   Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
   PID slave = Process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
-  FrameworkMessageScheduler sched;
-  MesosSchedulerDriver driver(&sched, master);
+  // Launch the first (i.e., failing) scheduler and wait until the
+  // first status update message is sent to it (drop the message).
 
-  driver.run();
+  MockScheduler sched;
+  MesosSchedulerDriver schedDriver(&sched, master);
 
-  EXPECT_EQ("", sched.errorMessage);
-  EXPECT_TRUE(exec.messageReceived);
-  EXPECT_EQ("hello", exec.messageData);
-  EXPECT_TRUE(sched.messageReceived);
-  EXPECT_EQ("reply", sched.messageData);
+  OfferID offerId;
+  vector<SlaveOffer> offers;
+  TaskStatus status;
+  FrameworkMessage schedMessage;
+
+  trigger resourceOfferCall, statusUpdateCall, schedFrameworkMessageCall;
+
+  EXPECT_CALL(sched, getFrameworkName(&schedDriver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched, getExecutorInfo(&schedDriver))
+    .WillOnce(Return(ExecutorInfo("noexecutor", "")));
+
+  EXPECT_CALL(sched, registered(&schedDriver, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffer(&schedDriver, _, _))
+    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
+                    Trigger(&resourceOfferCall)));
+
+  EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
+    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+
+  EXPECT_CALL(sched, frameworkMessage(&schedDriver, _))
+    .WillOnce(DoAll(SaveArg<1>(&schedMessage),
+                    Trigger(&schedFrameworkMessageCall)));
+
+  schedDriver.start();
+
+  WAIT_UNTIL(resourceOfferCall);
+
+  EXPECT_EQ(1, offers.size());
+
+  vector<TaskDescription> tasks;
+  tasks.push_back(TaskDescription(1, offers[0].slaveId, "", offers[0].params, ""));
+
+  schedDriver.replyToOffer(offerId, tasks, map<string, string>());
+
+  WAIT_UNTIL(statusUpdateCall);
+
+  EXPECT_EQ(TASK_RUNNING, status.state);
+
+  FrameworkMessage hello(offers[0].slaveId, 1, "hello");
+  schedDriver.sendFrameworkMessage(hello);
+
+  WAIT_UNTIL(execFrameworkMessageCall);
+
+  EXPECT_EQ("hello", execMessage.data);
+
+  FrameworkMessage reply(args.slaveId, 1, "reply");
+  execDriver->sendFrameworkMessage(reply);
+
+  WAIT_UNTIL(schedFrameworkMessageCall);
+
+  EXPECT_EQ("reply", schedMessage.data);
+
+  schedDriver.stop();
+  schedDriver.join();
 
   MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
   Process::wait(slave);
@@ -939,95 +794,3 @@ TEST(MasterTest, FrameworkMessages)
 }
 
 
-class FailoverTaskRunningScheduler : public TaskRunningScheduler
-{
-public:
-  TaskRunningScheduler *failover;
-  const PID master;
-  MesosSchedulerDriver *driver;
-
-  FailoverTaskRunningScheduler(TaskRunningScheduler *_failover,
-			       const PID &_master)
-    : failover(_failover), master(_master), driver(NULL) {}
-
-  virtual ~FailoverTaskRunningScheduler() {
-    if (driver != NULL) {
-      driver->join();
-      delete driver;
-      driver = NULL;
-    }
-  }
-
-  virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
-    EXPECT_EQ(TASK_RUNNING, status.state);
-    statusUpdateCalled = true;
-    driver = new MesosSchedulerDriver(failover, master, fid);
-    driver->start();
-  }
-};
-
-
-class SchedulerFailoverFrameworkMessageScheduler : public TaskRunningScheduler
-{
-public:
-  bool frameworkMessageCalled;
-
-  SchedulerFailoverFrameworkMessageScheduler()
-    : frameworkMessageCalled(false) {}
-
-  virtual void frameworkMessage(SchedulerDriver* d,
-				const FrameworkMessage& message) {
-    frameworkMessageCalled = true;
-    d->stop();
-  }
-};
-
-
-class SchedulerFailoverFrameworkMessageExecutor : public Executor
-{
-public:
-  ExecutorDriver *driver;
-
-  virtual void init(ExecutorDriver* d, const ExecutorArgs& args) {
-    driver = d;
-  }
-};
-
-
-TEST(MasterTest, SchedulerFailoverFrameworkMessage)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  EventLogger el;
-  Master m(&el);
-  PID master = Process::spawn(&m);
-
-  SchedulerFailoverFrameworkMessageExecutor exec;
-  LocalIsolationModule isolationModule(&exec);
-
-  Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
-  PID slave = Process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
-
-  SchedulerFailoverFrameworkMessageScheduler failoverSched;
-  FailoverTaskRunningScheduler failingSched(&failoverSched, master);
-
-  MesosSchedulerDriver driver(&failingSched, master);
-
-  driver.run();
-
-  EXPECT_EQ("Framework failover", failingSched.errorMessage);
-
-  exec.driver->sendFrameworkMessage(FrameworkMessage());
-
-  failingSched.driver->join();
-
-  EXPECT_TRUE(failoverSched.frameworkMessageCalled);
-
-  MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
-  Process::wait(slave);
-
-  MesosProcess::post(master, pack<M2M_SHUTDOWN>());
-  Process::wait(master);
-}
