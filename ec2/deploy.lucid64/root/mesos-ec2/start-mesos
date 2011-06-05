@@ -22,7 +22,7 @@ else
   add=""
   for zoo in $ZOOS; do
     master_arg+=$add
-    master_arg+=$zoo":2181\mesos"
+    master_arg+=$zoo":2181/mesos"
     add=","
   done
 fi
