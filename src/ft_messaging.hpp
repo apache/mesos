@@ -143,7 +143,7 @@ public:
    * Removes any pending message with a given id. This is to be called upon the receipt of a message.
    * @param ftId string representing the unique FT id of the message.
    */
-  void gotAck(string ftId);
+  void gotAck(const string &ftId);
 
   /**
    * Attempts to send all pending messages to the current master. Pending messages are messages that have not been acked yet.
@@ -197,6 +197,8 @@ private:
   long msgId;
 
   static FTMessaging *instance;
+
+  void deleteMessage(const string &ftId);
 
   FTMessaging();
   FTMessaging(PID _master);

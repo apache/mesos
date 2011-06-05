@@ -64,8 +64,15 @@ string FTMessaging::getNextId() {
   return uniqPrefix + ":" + lexical_cast<string>(msgId++);
 }                                                      
   
-void FTMessaging::gotAck(string ftId) {
+void FTMessaging::gotAck(const string &ftId) {
   DLOG(INFO) << "FT: Got ack, deleting outstanding msg " << ftId;
+  deleteMessage(ftId);
+}
+
+void FTMessaging::deleteMessage(const string &ftId) {
+  struct FTStoredMsg & msg = outMsgs[ftId];
+  if (msg.callback != NULL)
+    delete msg.callback;     // ugly and sad. shared_ptr would have been better
   outMsgs.erase(ftId);
 }
 
@@ -79,15 +86,14 @@ void FTMessaging::sendOutstanding() {
     if (msg.callback != NULL) {
       DLOG(INFO) << "FT: calling timeout listener";
       msg.callback->timeout();
-      delete msg.callback; // ugly and sad. shared_ptr would have been better
-      outMsgs.erase(ftId);
+      deleteMessage(ftId);
     } else if (msg.count < FT_MAX_RESENDS) {
       DLOG(INFO) << "FT: RE-sending " << msg.ftId << " attempt:" << msg.count;
       Process::post(master, msg.id, msg.data.data(), msg.data.size());
       msg.count++;
     } else {
       DLOG(INFO) << "FT: Not RE-sending " << msg.ftId << " reached limit " << FT_MAX_RESENDS;
-      outMsgs.erase(ftId);
+      deleteMessage(ftId);
     }
   }
 
