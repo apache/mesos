@@ -1,9 +1,19 @@
 #!/bin/bash
 
+MASTERS=/root/mesos-ec2/masters
 SLAVES=/root/mesos-ec2/slaves
-MASTER=/root/mesos-ec2/master
+
+NUM_MASTERS=`cat $MASTERS | wc -l`
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+
+if [ $NUM_MASTERS -gt 1 ]; then
+  echo "RSYNC'ing /root/mesos to masters..."
+  for master in `cat $MASTERS`; do
+      echo $master
+      rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'mesos/frameworks/hadoop-0.20.0/logs/*' --exclude 'mesos/work' --exclude 'mesos/logs' --exclude 'mesos/test_output' /root/mesos $master:/root
+  done
+fi
 
 echo "RSYNC'ing /root/mesos to slaves..."
 for slave in `cat $SLAVES`; do
