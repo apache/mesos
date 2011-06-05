@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <ev.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <netdb.h>
 #include <pthread.h>
 #include <signal.h>
