@@ -289,7 +289,11 @@ void Slave::operator () ()
         FrameworkMessage message;
         tie(fid, message) = unpack<M2S_FRAMEWORK_MESSAGE>(body());
         if (Executor *ex = getExecutor(fid)) {
+          VLOG(1) << "Relaying framework message for framework " << fid;
           send(ex->pid, pack<S2E_FRAMEWORK_MESSAGE>(message));
+        } else {
+          VLOG(1) << "Dropping framework message for framework " << fid
+                  << " because its executor is not running";
         }
         // TODO(*): If executor is not started, queue framework message?
         // (It's probably okay to just drop it since frameworks can have
@@ -380,6 +384,8 @@ void Slave::operator () ()
 
           // Set slave ID in case framework omitted it.
           message.slaveId = this->id;
+          VLOG(1) << "Sending framework message to framework " << fid
+                  << " with PID " << framework->pid;
           send(framework->pid, pack<M2F_FRAMEWORK_MESSAGE>(message));
         }
         break;
