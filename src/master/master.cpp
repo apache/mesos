@@ -369,11 +369,17 @@ void Master::operator () ()
         foreachpair (_, Task *task, slave->tasks) {
           if (framework->id == task->frameworkId) {
             framework->addTask(task);
-            send(slave->pid, pack<M2S_UPDATE_FRAMEWORK_PID>(framework->id,
-                                                            framework->pid));
           }
         }
       }
+
+      // Broadcast the new framework pid to all the slaves. We have to
+      // broadcast because an executor might be running on a slave but
+      // it currently isn't running any tasks. This could be a
+      // potential scalability issue ...
+      foreachpair (_, Slave *slave, slaves)
+	send(slave->pid, pack<M2S_UPDATE_FRAMEWORK_PID>(framework->id,
+							framework->pid));
       break;
     }
 
@@ -709,9 +715,9 @@ void Master::operator () ()
         FrameworkID fid = pidToFid[from()];
         if (Framework *framework = lookupFramework(fid)) {
           LOG(INFO) << framework << " disconnected";
-//  	  framework->failoverTimer = new FrameworkFailoverTimer(self(), fid);
-//  	  link(spawn(framework->failoverTimer));
-          removeFramework(framework);
+//   	  framework->failoverTimer = new FrameworkFailoverTimer(self(), fid);
+//   	  link(spawn(framework->failoverTimer));
+	  removeFramework(framework);
         }
       } else if (pidToSid.find(from()) != pidToSid.end()) {
         SlaveID sid = pidToSid[from()];
