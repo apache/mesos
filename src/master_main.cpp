@@ -41,7 +41,6 @@ int main (int argc, char **argv)
 
   string url = "";
   string allocator = "simple";
-  string znode = ZNODE;
   bool quiet = false;
 
   int opt;

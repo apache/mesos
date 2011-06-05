@@ -5,9 +5,6 @@
 
 #include <string>
 
-/* Constants. */
-const std::string ZNODE = "/usr/benh/nexus";
-
 #if @WITH_WEBUI@
   #define NEXUS_WEBUI
 #endif

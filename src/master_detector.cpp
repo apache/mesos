@@ -127,8 +127,14 @@ MasterDetector * MasterDetector::create(const std::string &url,
   switch (urlPair.first) {
     // ZooKeeper URL.
     case UrlProcessor::ZOO: {
-      const string &servers = urlPair.second;
-      detector = new ZooKeeperMasterDetector(servers, ZNODE, pid, contend, quiet);
+      // TODO(benh): Consider actually using the chroot feature of
+      // ZooKeeper, rather than just using it's syntax.
+      size_t index = urlPair.second.find("/");
+      if (index == string::npos)
+	fatal("expecting chroot path for ZooKeeper string");
+      const string &znode = urlPair.second.substr(index);
+      const string &servers = urlPair.second.substr(0, index);
+      detector = new ZooKeeperMasterDetector(servers, znode, pid, contend, quiet);
       break;
     }
 
@@ -292,7 +298,7 @@ void ZooKeeperMasterDetector::process(ZooKeeper *zk, int type, int state,
     // Check if this is a reconnect.
     if (!reconnect) {
       // Assume the znode that was created does not end with a "/".
-      CHECK(znode.at(znode.length() - 1) != '/');
+      CHECK(znode.at(znode.length() - 1) != '/' || znode.length() == 1);
 
       // Create directory path znodes as necessary.
       size_t index = znode.find(delimiter, 0);
