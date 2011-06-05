@@ -2486,6 +2486,9 @@ void Process::enqueue(struct msg *msg)
 {
   assert(msg != NULL);
 
+  // TODO(benh): Put filter inside lock statement below so that we can
+  // guarantee the order of the messages seen by a filter are the same
+  // as the order of messages seen by the process.
   synchronized(filterer) {
     if (filterer != NULL) {
       if (filterer->filter(msg)) {
@@ -2567,6 +2570,9 @@ void Process::inject(const PID &from, MSGID id, const char *data, size_t length)
   if (length > 0)
     memcpy((char *) msg + sizeof(struct msg), data, length);
 
+  // TODO(benh): Put filter inside lock statement below so that we can
+  // guarantee the order of the messages seen by a filter are the same
+  // as the order of messages seen by the process.
   synchronized(filterer) {
     if (filterer != NULL) {
       if (filterer->filter(msg)) {
