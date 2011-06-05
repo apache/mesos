@@ -62,7 +62,7 @@ MEM=''
 #fi
 
 for slave in $SLAVES; do
-  echo "Starting $COUNT slave(s) on $slave"
+  echo "Starting slave on $slave"
   ssh $SSH_OPTS $slave "for ((i = 0; i < $COUNT; i++)); do /root/mesos-ec2/mesos-daemon mesos-slave -u ${cluster_url} $CPUS $MEM; done </dev/null >/dev/null" &
   sleep 0.1
 done
