@@ -179,9 +179,9 @@ int NexusExecutorDriver::run()
   if (value == NULL)
     fatal("expecting NEXUS_SLAVE_PID in environment");
 
-  iss.str(value);
+  slave = make_pid(value);
 
-  if (!(iss >> slave))
+  if (!slave)
     fatal("cannot parse NEXUS_SLAVE_PID");
 
   /* Get framework ID from environment. */
@@ -190,7 +190,6 @@ int NexusExecutorDriver::run()
   if (value == NULL)
     fatal("expecting NEXUS_FRAMEWORK_ID in environment");
 
-  iss.clear();
   iss.str(value);
 
   if (!(iss >> fid))

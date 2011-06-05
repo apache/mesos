@@ -35,7 +35,7 @@
 #include "resources.hpp"
 #include "slave_state.hpp"
 #include "master_detector.hpp"
-#include "task_info.hpp"
+#include "task.hpp"
 #include "ft_messaging.hpp"
 
 namespace nexus { namespace internal { namespace slave {
@@ -81,7 +81,7 @@ struct Framework
   string user;
   ExecutorInfo executorInfo;
   list<TaskDescription *> queuedTasks; // Holds tasks until executor starts
-  unordered_map<TaskID, TaskInfo *> tasks;
+  unordered_map<TaskID, Task *> tasks;
   Resources resources;
   PID fwPid;
 
@@ -97,27 +97,27 @@ struct Framework
   {
     foreach(TaskDescription *desc, queuedTasks)
       delete desc;
-    foreachpair (_, TaskInfo *task, tasks)
+    foreachpair (_, Task *task, tasks)
       delete task;
   }
 
-  TaskInfo * lookupTask(TaskID tid)
+  Task * lookupTask(TaskID tid)
   {
-    unordered_map<TaskID, TaskInfo *>::iterator it = tasks.find(tid);
+    unordered_map<TaskID, Task *>::iterator it = tasks.find(tid);
     if (it != tasks.end())
       return it->second;
     else
       return NULL;
   }
 
-  TaskInfo * addTask(TaskID tid, const std::string& name, Resources res)
+  Task * addTask(TaskID tid, const std::string& name, Resources res)
   {
     if (tasks.find(tid) != tasks.end()) {
       // This should never happen - the master will make sure that it never
       // lets a framework launch two tasks with the same ID.
       LOG(FATAL) << "Task ID " << tid << "already exists in framework " << id;
     }
-    TaskInfo *task = new TaskInfo(tid, res);
+    Task *task = new Task(tid, res);
     task->frameworkId = id;
     task->state = TASK_STARTING;
     task->name = name;
@@ -139,7 +139,7 @@ struct Framework
     }
 
     // Remove it from tasks as well
-    unordered_map<TaskID, TaskInfo *>::iterator it = tasks.find(tid);
+    unordered_map<TaskID, Task *>::iterator it = tasks.find(tid);
     if (it != tasks.end()) {
       resources -= it->second->resources;
       delete it->second;

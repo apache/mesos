@@ -122,10 +122,14 @@ public:
     //  } else if (urlPair.first == UrlProcessor::NEXUS) {
   } else {
     isFT = false; 
-    istringstream ss(urlPair.second); // the case nexus://
-    istringstream ss2(_master);       // in case nexus:// is missing
-    if (!((ss >> master) || (ss2 >> master))) { 
-      cerr << "Failed to parse URL for master: " << _master <<endl;
+    if (urlPair.first == UrlProcessor::NEXUS)
+      master = make_pid(urlPair.second.c_str());
+    else
+      master = make_pid(_master.c_str());
+    
+    if (!master)
+    {
+      cerr << "Scheduler failed to resolve master PID " << urlPair.second << endl;
       exit(1);
     }
   }

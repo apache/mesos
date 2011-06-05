@@ -28,9 +28,9 @@ FTMessaging *FTMessaging::getInstance(const PID &_master) {
     
 FTMessaging *FTMessaging::getInstance(const string &_master) {
   if (instance == NULL) {
-    PID mPid;
-    istringstream ss(_master);
-    if (!(ss >> mPid)) {
+    PID mPid = make_pid(_master.c_str());
+    
+    if (!(mPid)) {
       LOG(ERROR) << "Couldn't create PID out of string in constructor.";
       return NULL;
     }

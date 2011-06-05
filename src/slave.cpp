@@ -72,12 +72,17 @@ Slave::Slave(const string &_master, Resources _resources, bool _local)
   if (urlPair.first == UrlProcessor::ZOO) {
     isFT = true;
     zkServers = urlPair.second;
-  } else {
+  } else 
+  {
     isFT = false;
-    istringstream iss(urlPair.second);
-    istringstream iss2(_master);
-    if (!((iss >> master) || (iss2 >> master) )) {
-      cerr << "Failed to resolve master PID " << urlPair.second << endl;
+    if (urlPair.first == UrlProcessor::NEXUS)
+      master = make_pid(urlPair.second.c_str());
+    else
+      master = make_pid(_master.c_str());
+    
+    if (!master)
+    {
+      cerr << "Slave failed to resolve master PID " << urlPair.second << endl;
       exit(1);
     }
   }
@@ -96,10 +101,14 @@ Slave::Slave(const string &_master, Resources _resources, bool _local,
     zkServers = urlPair.second;
   } else {
     isFT = false;
-    istringstream iss(urlPair.second);
-    istringstream iss2(_master);
-    if (!((iss >> master) || (iss2 >> master) )) {
-      cerr << "Failed to resolve master PID " << urlPair.second << endl;
+    if (urlPair.first == UrlProcessor::NEXUS)
+      master = make_pid(urlPair.second.c_str());
+    else
+      master = make_pid(_master.c_str());
+    
+    if (!master)
+    {
+      cerr << "Slave failed to resolve master PID " << urlPair.second << endl;
       exit(1);
     }
   }
@@ -129,7 +138,7 @@ state::SlaveState *Slave::getState()
         f->executorInfo.uri, f->executorStatus, f->resources.cpus,
         f->resources.mem);
     state->frameworks.push_back(framework);
-    foreachpair(_, TaskInfo *t, f->tasks) {
+    foreachpair(_, Task *t, f->tasks) {
       state::Task *task = new state::Task(t->id, t->name, t->state,
           t->resources.cpus, t->resources.mem);
       framework->tasks.push_back(task);
@@ -193,12 +202,12 @@ void Slave::operator () ()
 	} else {
 	  // Reconnecting, so reconstruct resourcesInUse for the master.
 	  Resources resourcesInUse; 
-	  vector<TaskInfo> taskVec;
+	  vector<Task> taskVec;
 
 	  foreachpair(_, Framework *framework, frameworks) {
-	    foreachpair(_, TaskInfo *task, framework->tasks) {
+	    foreachpair(_, Task *task, framework->tasks) {
 	      resourcesInUse += task->resources;
-	      TaskInfo ti = *task;
+	      Task ti = *task;
 	      ti.slaveId = id;
 	      taskVec.push_back(ti);
 	    }
@@ -247,15 +256,16 @@ void Slave::operator () ()
         Framework *framework = getFramework(fid);
         if (framework == NULL) {
           // Framework not yet created on this node - create it
-          PID fwPid;
-          istringstream ss(fwPidStr);
-          ss >> fwPid;
+          PID fwPid = make_pid(fwPidStr.c_str());
+          if (!fwPid) {
+            LOG(ERROR) << "Couldn't create PID out of framework PID string";
+          }
           framework = new Framework(fid, fwName, user, execInfo, fwPid);
           frameworks[fid] = framework;
           isolationModule->frameworkAdded(framework);
           isolationModule->startExecutor(framework);
         }
-        TaskInfo *task = framework->addTask(tid, taskName, res);
+        Task *task = framework->addTask(tid, taskName, res);
         Executor *executor = getExecutor(fid);
         if (executor) {
           send(executor->pid,

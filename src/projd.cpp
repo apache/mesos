@@ -192,7 +192,6 @@ int main(int argc, char **argv)
   PID parent;
 
   char *value;
-  std::istringstream iss;
 
   /* Get parent PID from environment. */
   value = getenv("PARENT_PID");
@@ -200,9 +199,10 @@ int main(int argc, char **argv)
   if (value == NULL)
     fatal("expecting PARENT_PID in environment");
 
-  iss.str(value);
 
-  if (!(iss >> parent))
+  parent = make_pid(value);
+
+  if (!parent)
     fatal("cannot parse PARENT_PID");
 
   nexus::internal::projd::ProjectDaemon projd(parent);

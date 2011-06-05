@@ -19,9 +19,9 @@ public:
   
   virtual void slaveRemoved(Slave *slave) {}
   
-  virtual void taskAdded(TaskInfo *task) {}
+  virtual void taskAdded(Task *task) {}
   
-  virtual void taskRemoved(TaskInfo *task, TaskRemovalReason reason) {}
+  virtual void taskRemoved(Task *task, TaskRemovalReason reason) {}
 
   virtual void offerReturned(SlotOffer* offer,
                              OfferReturnReason reason,
