@@ -71,7 +71,7 @@ class MyScheduler(mesos.Scheduler):
     for offer in slave_offers:
       if int(self.task_count) < int(self.num_tasks) and int(offer.params['mem']) >= 1073741824 and int(offer.params['cpus']) > 0:
         print "accept slot here"
-        params = {"cpus": "1", "mem": "1073741824"}
+        params = {"cpus": "1", "mem": "1024"}
         task_args = self.jar_url + "\t" + self.jar_class + "\t" + self.jar_args
         print "task args are: " + task_args
         td = mesos.TaskDescription(

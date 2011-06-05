@@ -81,7 +81,7 @@ protected:
       unpack<M2M_GET_STATE_REPLY>(*((intptr_t *) &state));
 
       uint32_t total_cpus = 0;
-      uint64_t total_mem = 0;
+      uint32_t total_mem = 0;
 
       foreach (state::Slave *s, state->slaves) {
         total_cpus += s->cpus;
@@ -773,7 +773,7 @@ void Master::processOfferReply(SlotOffer *offer,
     // Check whether this task size is valid
     Params params(t.params);
     Resources res(params.getInt32("cpus", -1),
-                  params.getInt64("mem", -1));
+                  params.getInt32("mem", -1));
     if (res.cpus < MIN_CPUS || res.mem < MIN_MEM || 
         res.cpus > MAX_CPUS || res.mem > MAX_MEM) {
       terminateFramework(framework, 0,
@@ -841,7 +841,7 @@ void Master::launchTask(Framework *framework, const TaskDescription& t)
 {
   Params params(t.params);
   Resources res(params.getInt32("cpus", -1),
-                params.getInt64("mem", -1));
+                params.getInt32("mem", -1));
 
   // The invariant right now is that launchTask is called only for
   // TaskDescriptions where the slave is still valid (see the code

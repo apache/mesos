@@ -63,7 +63,7 @@ class Scheduler(mesos.Scheduler):
     tasks = []
     for slot in slots:
       if not slot.host in self.servers.values() and self.overloaded or len(self.servers) < 1:
-        params = "cpus=1\nmem=1073741824"
+        params = "cpus=1\nmem=1024"
         td = mesos.TaskDescription(self.id, slot.slaveId, "server %s" % self.id, params, "")
         tasks.append(td)
         self.servers[self.id] = slot.host

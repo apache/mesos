@@ -30,7 +30,7 @@ void slot_offer(mesos_sched *sched, offer_id oid,
     task_id tid = tasksStarted++;
     cout << "Accepting it to start task " << tid << endl;
     mesos_task_desc desc = { tid, slots[0].sid, "task",
-      "cpus=1\nmem=33554432", 0, 0 };
+      "cpus=1\nmem=32", 0, 0 };
     mesos_sched_reply_to_offer(sched, oid, &desc, 1, "");
     if (tasksStarted > 4)
       mesos_sched_unreg(sched);

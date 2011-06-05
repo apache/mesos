@@ -17,9 +17,9 @@ def format_time(timestamp):
   else: # Assume it's a datetime object
     return timestamp.strftime(DATE_FORMAT)
   
-def format_mem(bytes):
-  UNITS = ["KB", "MB", "GB", "TB"]
-  num = float(bytes) / 1024
+def format_mem(mbytes):
+  UNITS = ["MB", "GB", "TB"]
+  num = float(mbytes)
   index = 0
   while num >= 1024 and index < len(UNITS)-1:
     index += 1

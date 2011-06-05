@@ -33,7 +33,7 @@ namespace {
 
 const int32_t CPU_SHARES_PER_CPU = 1024;
 const int32_t MIN_CPU_SHARES = 10;
-const int64_t MIN_RSS = 128 * Megabyte;
+const int32_t MIN_RSS = 128 * Megabyte;
 
 }
 
@@ -169,7 +169,7 @@ void LxcIsolationModule::resourcesChanged(Framework* fw)
       return;
     }
 
-    int64_t rssLimit = max(fw->resources.mem, MIN_RSS);
+    int64_t rssLimit = max(fw->resources.mem, MIN_RSS) * 1024LL * 1024LL;
     if (!setResourceLimit(fw, "memory.limit_in_bytes", rssLimit)) {
       // Tell slave to kill framework, which will invoke killExecutor.
       slave->killFramework(fw);

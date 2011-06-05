@@ -103,7 +103,7 @@ public class FrameworkScheduler extends Scheduler {
   private AtomicInteger nextMesosTaskId = new AtomicInteger(0);
   
   private int cpusPerTask;
-  private long memPerTask;
+  private int memPerTask;
   private long localityWait;
   
   private Map<String, TaskTrackerInfo> ttInfos =
@@ -136,7 +136,7 @@ public class FrameworkScheduler extends Scheduler {
     this.conf = mesosSched.getConf();
     this.jobTracker = mesosSched.jobTracker;
     cpusPerTask = conf.getInt("mapred.mesos.task.cpus", 1);
-    memPerTask = conf.getLong("mapred.mesos.task.mem", 1024L * 1024L * 1024L);
+    memPerTask = conf.getInt("mapred.mesos.task.mem", 1024);
     localityWait = conf.getLong("mapred.mesos.localitywait", 5000);
     maxMapsPerNode = conf.getInt("mapred.tasktracker.map.tasks.maximum", 2);
     maxReducesPerNode = conf.getInt("mapred.tasktracker.reduce.tasks.maximum", 2);
@@ -165,13 +165,13 @@ public class FrameworkScheduler extends Scheduler {
         
         int numOffers = (int) offers.size();
         int[] cpus = new int[numOffers];
-        long[] mem = new long[numOffers];
+        int[] mem = new int[numOffers];
 
         // Count up the amount of free CPUs and memory on each node 
         for (int i = 0; i < numOffers; i++) {
           SlaveOffer offer = offers.get(i);
           cpus[i] = Integer.parseInt(offer.getParams().get("cpus"));
-          mem[i] = Long.parseLong(offer.getParams().get("mem"));
+          mem[i] = Integer.parseInt(offer.getParams().get("mem"));
         }
         
         // Assign tasks to the nodes in a round-robin manner, and stop when we
@@ -223,7 +223,7 @@ public class FrameworkScheduler extends Scheduler {
   
   // Find a single task for a given node. Assumes JobTracker is locked.
   private TaskDescription findTask(
-      String slaveId, String host, int cpus, long mem) {
+      String slaveId, String host, int cpus, int mem) {
     if (cpus < cpusPerTask || mem < memPerTask) {
       return null; // Too few resources are left on the node
     }

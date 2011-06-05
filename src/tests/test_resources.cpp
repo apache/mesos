@@ -54,8 +54,8 @@ TEST(ResourcesTest, Subtraction)
 
 TEST(ResourcesTest, PrettyPrinting)
 {
-  Resources r(3, 100100100100100LL);
+  Resources r(3, 1001001001);
   ostringstream oss;
   oss << r;
-  EXPECT_EQ("<3 CPUs, 100100100100100 MEM>", oss.str());
+  EXPECT_EQ("<3 CPUs, 1001001001 MEM>", oss.str());
 }

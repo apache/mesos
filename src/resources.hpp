@@ -4,19 +4,18 @@
 namespace mesos { namespace internal {
 
 // Some memory unit constants.
-const int64_t Kilobyte = 1024;
-const int64_t Megabyte = 1024 * Kilobyte;
-const int64_t Gigabyte = 1024 * Megabyte;
+const int32_t Megabyte = 1;
+const int32_t Gigabyte = 1024 * Megabyte;
 
 
 // A resource vector.
 struct Resources {
   int32_t cpus;
-  int64_t mem;
+  int32_t mem;
 
   Resources(): cpus(0), mem(0) {}
   
-  Resources(int32_t _cpus, int64_t _mem): cpus(_cpus), mem(_mem) {}
+  Resources(int32_t _cpus, int32_t _mem): cpus(_cpus), mem(_mem) {}
   
   Resources operator + (const Resources& r) const
   {

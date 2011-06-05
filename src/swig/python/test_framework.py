@@ -7,7 +7,7 @@ import time
 TOTAL_TASKS = 5
 
 TASK_CPUS = 1
-TASK_MEM = 32 * 1024 * 1024
+TASK_MEM = 32
 
 class MyScheduler(mesos.Scheduler):
   def __init__(self):

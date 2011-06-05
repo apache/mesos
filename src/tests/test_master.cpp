@@ -191,7 +191,7 @@ TEST(MasterTest, TooLittleCpuInTask)
   FixedResponseScheduler sched(tasks);
   MesosSchedulerDriver driver(&sched, master);
   driver.run();
-  EXPECT_EQ("Invalid task size: <0 CPUs, 1073741824 MEM>", sched.errorMessage);
+  EXPECT_EQ("Invalid task size: <0 CPUs, 1024 MEM>", sched.errorMessage);
   local::shutdown();
 }
 
@@ -283,7 +283,7 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
   FixedResponseScheduler sched1(tasks);
   MesosSchedulerDriver driver1(&sched1, master);
   driver1.run();
-  EXPECT_EQ("Invalid task size: <0 CPUs, 1073741824 MEM>", sched1.errorMessage);
+  EXPECT_EQ("Invalid task size: <0 CPUs, 1024 MEM>", sched1.errorMessage);
 
   NoopScheduler sched2(1);
   MesosSchedulerDriver driver2(&sched2, master);

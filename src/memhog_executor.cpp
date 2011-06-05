@@ -18,7 +18,7 @@ struct ThreadArg
   MemHogExecutor* executor;
   TaskID taskId;
   int threadId;
-  int64_t memToHog;
+  int64_t memToHog; // in bytes
   double duration;
 
   ThreadArg(MemHogExecutor* executor_, TaskID taskId_, int threadId_,
@@ -49,6 +49,7 @@ public:
     int numThreads;
     istringstream in(task.arg);
     in >> memToHog >> duration >> numThreads;
+    memToHog *= 1024LL * 1024LL; // Convert from MB to bytes
     for (int i = 0; i < numThreads; i++) {
       ThreadArg* arg = new ThreadArg(this, task.taskId, i, memToHog, duration);
       pthread_t thread;

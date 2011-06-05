@@ -13,7 +13,7 @@ TOTAL_TASKS = 1
 MPI_TASK = ""
 MPD_PID = ""
 CPUS = 1
-MEM = 1073741824
+MEM = 1024
 
 def mpiexec(driver):
   print "Got "+str(TOTAL_TASKS)+" mpd slots, running mpiexec"

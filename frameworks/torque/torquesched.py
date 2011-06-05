@@ -27,8 +27,8 @@ SCHEDULER_ITERATION = 2 #number of seconds torque waits before looping through
                         #is 10min (ie 600) but we want it to be low so jobs 
                         #will run as soon as the framework has acquired enough
                         #resources
-SAFE_ALLOCATION = {"cpus":48,"mem":134217728} #just set statically for now, 128MB
-MIN_SLOT_SIZE = {"cpus":"1","mem":1073741824} #1GB
+SAFE_ALLOCATION = {"cpus":48,"mem":128} #just set statically for now, 128MB
+MIN_SLOT_SIZE = {"cpus":"1","mem":1024} #1GB
 MIN_SLOTS_HELD = 0 #keep at least this many slots even if none are needed
 
 eventlog = logging.getLogger("event_logger")
@@ -93,7 +93,7 @@ class MyScheduler(mesos.Scheduler):
         driverlog.debug("Rejecting slot, already at safe allocation (i.e. %d CPUS)" % SAFE_ALLOCATION["cpus"])
         continue
       driverlog.info("Need %d more nodes, so accepting slot, setting up params for it..." % self.numToRegister)
-      params = {"cpus": "1", "mem": "1073741824"}
+      params = {"cpus": "1", "mem": "1024"}
       td = mesos.TaskDescription(
           self.id, offer.slaveId, "task %d" % self.id, params, "")
       tasks.append(td)

@@ -72,7 +72,7 @@ public:
   char projbuf[PROJECT_BUFSZ];
 
   int32_t cpuShares;
-  int64_t mem;
+  int32_t mem;
 
   class LimitSetter : public RecordProcess
   {
@@ -84,7 +84,7 @@ public:
     void operator () ()
     {
       int32_t prevCpuShares = 1;
-      int64_t prevMem = 512*Megabyte;
+      int32_t prevMem = 512 * Megabyte;
       while (true) {
         pause(LIMIT_UPDATE_INTERVAL);
         if (daemon->cpuShares != prevCpuShares) {
@@ -99,10 +99,11 @@ public:
     }
 
   private:
-    void set_max_rss(int64_t rss)
+    void set_max_rss(int32_t rssInMb)
     {
+      int64_t rssInBytes = rssInMb * 1024LL * 1024LL;
       if (shell("projmod -s -K rcap.max-rss=%lld %s",
-                rss, daemon->proj.pj_name) != 0)
+                rssInBytes, daemon->proj.pj_name) != 0)
         fatal("set_max_rss failed");
     }
 
@@ -153,7 +154,7 @@ public:
     send(parent, pack<PD2S_REGISTER_PROJD>(proj.pj_name));
 
     cpuShares = 1;
-    mem = 512*Megabyte;
+    mem = 512 * Megabyte;
 
     link(spawn(new LimitSetter(this)));
 
@@ -163,12 +164,12 @@ public:
         Resources res;
 	unpack<S2PD_UPDATE_RESOURCES>(res);
 	this->cpuShares = (res.cpus > 0 ? res.cpus*10 : 1);
-	this->mem = (res.mem > 0 ? res.mem : 512*Megabyte);
+	this->mem = (res.mem > 0 ? res.mem : 512 * Megabyte);
 	break;
       }
       case S2PD_KILL_ALL: {
 	this->cpuShares = 1;
-	this->mem = 512*Megabyte;
+	this->mem = 512 * Megabyte;
 	// Some processes might have already terminated themselves, so
 	// don't worry about checking the return value.
 	shell("for pid in $(pgrep -J %s | grep -v %d | grep -v $$); do kill -9 $pid; done", proj.pj_name, getpid());

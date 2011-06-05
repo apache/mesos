@@ -58,13 +58,13 @@ const double DEFAULT_REFUSAL_TIMEOUT = 5;
 const int32_t MIN_CPUS = 1;
 
 // Minimum amount of memory / task.
-const int64_t MIN_MEM = 32 * 1024 * 1024;
+const int32_t MIN_MEM = 32 * Megabyte;
 
 // Maximum number of CPUs per machine.
 const int32_t MAX_CPUS = 1000 * 1000;
 
 // Maximum amount of memory / machine.
-const int64_t MAX_MEM = 1024LL * 1024LL * 1024LL * 1024LL * 1024LL;
+const int32_t MAX_MEM = 1024 * 1024 * Megabyte;
 
 // Interval that slaves should send heartbeats.
 const double HEARTBEAT_INTERVAL = 2;

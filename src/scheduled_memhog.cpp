@@ -28,11 +28,11 @@ struct Task {
   double duration;
   bool launched;
   bool finished;
-  int64_t memToRequest;
-  int64_t memToHog;
+  int memToRequest;
+  int memToHog;
 
   Task(double launchTime_, double duration_,
-       int64_t memToRequest_, int64_t memToHog_)
+       int memToRequest_, int memToHog_)
     : launchTime(launchTime_), duration(duration_),
       memToRequest(memToRequest_), memToHog(memToHog_),
       launched(0), finished(0) {}
@@ -69,11 +69,9 @@ public:
     ifstream in(scheduleFile.c_str());
     double launchTime;
     double duration;
-    int64_t memToRequest;
-    int64_t memToHog;
+    int memToRequest;
+    int memToHog;
     while (in >> launchTime >> duration >> memToRequest >> memToHog) {
-      memToRequest *= (1024 * 1024);
-      memToHog *= (1024 * 1024);
       tasks.push_back(Task(launchTime, duration, memToRequest, memToHog));
     }
     in.close();
@@ -110,8 +108,8 @@ public:
     vector<TaskDescription> toLaunch;
     foreach (const SlaveOffer &offer, offers) {
       // This is kind of ugly because operator[] isn't a const function
-      int32_t cpus = lexical_cast<int32_t>(offer.params.find("cpus")->second);
-      int64_t mem = lexical_cast<int64_t>(offer.params.find("mem")->second);
+      int cpus = lexical_cast<int>(offer.params.find("cpus")->second);
+      int mem = lexical_cast<int>(offer.params.find("mem")->second);
       if (tasksLaunched < tasks.size() &&
           cpus >= 1 &&
           curTime >= tasks[tasksLaunched].launchTime &&

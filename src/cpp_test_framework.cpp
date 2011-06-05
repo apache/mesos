@@ -47,15 +47,15 @@ public:
     foreach (const SlaveOffer &offer, offers) {
       // This is kind of ugly because operator[] isn't a const function
       int32_t cpus = lexical_cast<int32_t>(offer.params.find("cpus")->second);
-      int64_t mem = lexical_cast<int64_t>(offer.params.find("mem")->second);
-      if ((tasksLaunched < totalTasks) && (cpus >= 1 && mem >= 33554432)) {
+      int32_t mem = lexical_cast<int64_t>(offer.params.find("mem")->second);
+      if ((tasksLaunched < totalTasks) && (cpus >= 1 && mem >= 32)) {
         TaskID tid = tasksLaunched++;
 
         cout << endl << "Starting task " << tid << endl;
         string name = "Task " + lexical_cast<string>(tid);
         map<string, string> taskParams;
         taskParams["cpus"] = "1";
-        taskParams["mem"] = "33554432";
+        taskParams["mem"] = "32";
         TaskDescription desc(tid, offer.slaveId, name, taskParams, "");
         tasks.push_back(desc);
       }

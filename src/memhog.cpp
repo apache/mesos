@@ -19,8 +19,8 @@ class MyScheduler : public Scheduler
   string executor;
   double taskLen;
   int threadsPerTask;
-  int64_t memToRequest;
-  int64_t memToHog;
+  int memToRequest;
+  int memToHog;
   int tasksLaunched;
   int tasksFinished;
   int totalTasks;
@@ -53,8 +53,8 @@ public:
     vector<TaskDescription> tasks;
     foreach (const SlaveOffer &offer, offers) {
       // This is kind of ugly because operator[] isn't a const function
-      int32_t cpus = lexical_cast<int32_t>(offer.params.find("cpus")->second);
-      int64_t mem = lexical_cast<int64_t>(offer.params.find("mem")->second);
+      int cpus = lexical_cast<int>(offer.params.find("cpus")->second);
+      int mem = lexical_cast<int>(offer.params.find("mem")->second);
       if ((tasksLaunched < totalTasks) && (cpus >= 1 && mem >= memToRequest)) {
         TaskID tid = tasksLaunched++;
         cout << "Launcing task " << tid << " on " << offer.host << endl;
@@ -91,15 +91,15 @@ int main(int argc, char ** argv) {
          << " <MB_to_request> <MB_per_task>" << endl;
     return -1;
   }
-  char cwd[512];
+  char cwd[4096];
   getcwd(cwd, sizeof(cwd));
   string executor = string(cwd) + "/memhog-executor";
   MyScheduler sched(executor,
                     lexical_cast<int>(argv[2]),
                     lexical_cast<double>(argv[3]),
                     lexical_cast<int>(argv[4]),
-                    lexical_cast<int64_t>(argv[5]) * 1024 * 1024,
-                    lexical_cast<int64_t>(argv[6]) * 1024 * 1024);
+                    lexical_cast<int64_t>(argv[5]),
+                    lexical_cast<int64_t>(argv[6]));
   MesosSchedulerDriver driver(&sched, argv[1]);
   driver.run();
   return 0;
