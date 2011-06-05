@@ -1,5 +1,5 @@
-#ifndef PARAMS_HPP
-#define PARAMS_HPP
+#ifndef __PARAMS_HPP__
+#define __PARAMS_HPP__
 
 #include <map>
 #include <sstream>
@@ -10,6 +10,7 @@
 #include <boost/foreach.hpp>
 
 #include "foreach.hpp"
+#include "string_utils.hpp"
 
 
 namespace nexus { namespace internal {
@@ -67,10 +68,10 @@ public:
   void loadString(const string& str)
   {
     vector<string> lines;
-    split(str, "\n\r", lines);
+    StringUtils::split(str, "\n\r", &lines);
     foreach (string& line, lines) {
       vector<string> parts;
-      split(line, "=", parts);
+      StringUtils::split(line, "=", &parts);
       if (parts.size() != 2) {
         ostringstream oss;
         oss << "Malformed line in params: '" << line << "'";
@@ -144,23 +145,6 @@ public:
   bool contains(const string& key) const
   {
     return params.find(key) != params.end();
-  }
-
-private:
-  void split(const string& str, const string& delims, vector<string>& tokens)
-  {
-    // Start and end of current token; initialize these to the first token in
-    // the string, skipping any leading delimiters
-    size_t start = str.find_first_not_of(delims, 0);
-    size_t end = str.find_first_of(delims, start);
-    while (start != string::npos || end != string::npos) {
-      // Add current token to the vector
-      tokens.push_back(str.substr(start, end-start));
-      // Advance start to first non-delimiter past the current end
-      start = str.find_first_not_of(delims, end);
-      // Advance end to the next delimiter after the new start
-      end = str.find_first_of(delims, start);
-    }
   }
 };
 
