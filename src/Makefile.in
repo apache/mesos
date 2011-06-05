@@ -196,8 +196,8 @@ slave_webui.o: slave_webui.cpp config.hpp messages.hpp
 nexus-slave: slave_main.cpp $(SLAVE_OBJ) $(COMMON_OBJ) slave_webui.o webui/slave/swig/slave_wrap.o
 	$(CXX) $(CXXFLAGS) $(WEBUI_FLAGS) -o $@ $< $(SLAVE_OBJ) slave_webui.o webui/slave/swig/slave_wrap.o $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
-nexus-launcher: launcher_main.cpp launcher.o fatal.o
-	$(CXX) $(CXXFLAGS) -o $@ $< launcher.o fatal.o $(LDFLAGS) $(LIBS)
+nexus-launcher: launcher_main.cpp launcher.o $(COMMON_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $< launcher.o $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
 nexus-projd: projd.cpp $(COMMON_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(COMMON_OBJ) $(LDFLAGS) $(LIBS)

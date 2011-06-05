@@ -56,8 +56,6 @@ PID launch(int numSlaves, int32_t cpus, int64_t mem,
 PID launch(const Params& conf, bool initLogging)
 {
   int numSlaves = conf.get<int>("slaves", 1);
-  int32_t cpus = conf.get<int32_t>("cpus", 1);
-  int64_t mem = conf.get<int64_t>("mem", 1 * Gigabyte);
   bool quiet = conf.get<bool>("quiet", false);
 
   if (master != NULL)
@@ -79,7 +77,7 @@ PID launch(const Params& conf, bool initLogging)
     // TODO(benh): Create a local isolation module?
     ProcessBasedIsolationModule *isolationModule =
       new ProcessBasedIsolationModule();
-    Slave* slave = new Slave(conf, Resources(cpus, mem), true, isolationModule);
+    Slave* slave = new Slave(conf, true, isolationModule);
     slaves[isolationModule] = slave;
     pids.push_back(Process::spawn(slave));
   }

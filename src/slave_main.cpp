@@ -36,9 +36,6 @@ int main(int argc, char **argv)
   conf.addOption<string>("url", 'u', "Master URL");
   conf.addOption<int>("port", 'p', "Port to bind to (default: random)");
   conf.addOption<string>("isolation", 'i', "Isolation module name", "process");
-  conf.addOption<int32_t>("cpus", 'c', "CPU cores to use for tasks", 1);
-  conf.addOption<int64_t>("mem", 'm', "Memory to use for tasks, in bytes\n",
-                          1 * Gigabyte);
 #ifdef NEXUS_WEBUI
   conf.addOption<int>("webui_port", 'w', "Web UI port", 8081);
 #endif
@@ -84,9 +81,7 @@ int main(int argc, char **argv)
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("Could not chdir into %s", dirname(argv[0]));
 
-  Resources resources(params.get<int32_t>("cpus", 1),
-                      params.get<int64_t>("mem", 1 * Gigabyte));
-  Slave* slave = new Slave(params, resources, false, isolationModule);
+  Slave* slave = new Slave(params, false, isolationModule);
   PID pid = Process::spawn(slave);
 
   bool quiet = Logging::isQuiet(params);

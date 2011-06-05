@@ -16,6 +16,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include "foreach.hpp"
+#include "string_utils.hpp"
 
 using std::cerr;
 using std::cout;
@@ -82,15 +83,17 @@ void ExecutorLauncher::run()
 void ExecutorLauncher::createWorkingDirectory()
 {
   // Split the path into tokens by "/" and make each directory
+  cout << "WORK DIR: " << workDirectory << endl;
   vector<string> tokens;
-  split(workDirectory, "/", &tokens);
-  string dir;
+  StringUtils::split(workDirectory, "/", &tokens);
+  string dir = "";
+  if (workDirectory.find_first_of("/") == 0) // We got an absolute path, so
+    dir = "/";                               // keep the leading slash
   foreach (const string& token, tokens) {
-    if (dir != "")
-      dir += "/";
     dir += token;
     if (mkdir(dir.c_str(), 0755) < 0 && errno != EEXIST)
       fatalerror("Failed to mkdir %s", dir.c_str());
+    dir += "/";
   }
   // TODO: chown the final directory to the framework's user
 }
@@ -210,22 +213,4 @@ void ExecutorLauncher::switchUser()
 
   if (setuid(passwd->pw_uid) < 0)
     fatalerror("failed to setuid");
-}
-
-
-void ExecutorLauncher::split(const string& str, const string& delims,
-                             vector<string>* tokens)
-{
-  // Start and end of current token; initialize these to the first token in
-  // the string, skipping any leading delimiters
-  size_t start = str.find_first_not_of(delims, 0);
-  size_t end = str.find_first_of(delims, start);
-  while (start != string::npos || end != string::npos) {
-    // Add current token to the vector
-    tokens->push_back(str.substr(start, end-start));
-    // Advance start to first non-delimiter past the current end
-    start = str.find_first_not_of(delims, end);
-    // Advance end to the next delimiter after the new start
-    end = str.find_first_of(delims, start);
-  }
 }

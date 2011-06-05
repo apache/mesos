@@ -59,9 +59,6 @@ protected:
 
   // Switch to a framework's user in preparation for exec()'ing its executor.
   virtual void switchUser();
-
-  // Split a string into non-empty tokens using the given delimiter chars.
-  void split(const string& str, const string& delims, vector<string>* tokens);
 };
 
 }}}

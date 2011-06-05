@@ -178,10 +178,7 @@ public:
 public:
   Slave(Resources resources, bool local, IsolationModule* isolationModule);
 
-  Slave(const Params& conf,
-        Resources resources,
-        bool local,
-        IsolationModule *isolationModule);
+  Slave(const Params& conf, bool local, IsolationModule *isolationModule);
 
   virtual ~Slave();
 

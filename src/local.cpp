@@ -19,7 +19,11 @@ using nexus::internal::slave::Slave;
 void usage(const char* programName, const Configurator& conf)
 {
   cerr << "Usage: " << programName
-       << " [--port=PORT] [--slaves=NUM] [--cpus=NUM] [--mem=NUM] [...]" << endl
+       << " [--port=PORT] [--slaves=N] [--cpus=CPUS] [--mem=MEM] [...]" << endl
+       << endl
+       << "Launches a single-process cluster containing N slaves, each of "
+       << "which report" << endl << "CPUS cores and MEM bytes of memory."
+       << endl
        << endl
        << "Supported options:" << endl
        << conf.getUsage();
@@ -31,9 +35,6 @@ int main (int argc, char **argv)
   Configurator conf;
   conf.addOption<int>("port", 'p', "Port to listen on", 50010);
   conf.addOption<int>("slaves", 's', "Number of slaves", 1);
-  conf.addOption<int32_t>("cpus", 'c', "CPU cores for tasks per slave", 1);
-  conf.addOption<int64_t>("mem", 'm', "Memory for tasks per slave, in bytes\n",
-                          1 * Gigabyte);
   Logging::registerOptions(&conf);
   Master::registerOptions(&conf);
   Slave::registerOptions(&conf);
