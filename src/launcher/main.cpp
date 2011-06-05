@@ -26,7 +26,11 @@ int main(int argc, char **argv)
   FrameworkID frameworkId;
   frameworkId.set_value(getenvOrFail("MESOS_FRAMEWORK_ID"));
 
+  ExecutorID executorId;
+  executorId.set_value(getenvOrFail("MESOS_EXECUTOR_ID"));
+
   ExecutorLauncher(frameworkId,
+                   executorId,
                    getenvOrFail("MESOS_EXECUTOR_URI"),
                    getenvOrFail("MESOS_USER"),
                    getenvOrFail("MESOS_WORK_DIRECTORY"),

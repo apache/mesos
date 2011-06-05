@@ -726,6 +726,11 @@ int MesosSchedulerDriver::sendFrameworkMessage(const FrameworkMessage& message)
     return -1;
   }
 
+  if (!message.has_executor_id()) {
+    VLOG(1) << "Missing ExecutorID (executor_id), cannot send message";
+    return -1;
+  }
+
   Process::dispatch(process, &SchedulerProcess::sendFrameworkMessage, message);
 
   return 0;

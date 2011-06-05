@@ -36,6 +36,7 @@ public:
   virtual ExecutorInfo getExecutorInfo(SchedulerDriver*)
   {
     ExecutorInfo executor;
+    executor.mutable_executor_id()->set_value("default");
     executor.set_uri(uri);
     return executor;
   }

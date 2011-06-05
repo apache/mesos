@@ -31,6 +31,7 @@ using std::vector;
 class ExecutorLauncher {
 protected:
   FrameworkID frameworkId;
+  ExecutorID executorId;
   string executorUri;
   string user;
   string workDirectory; // Directory in which the framework should run
@@ -43,7 +44,8 @@ protected:
   map<string, string> params; // Key-value params in framework's ExecutorInfo
 
 public:
-  ExecutorLauncher(FrameworkID _frameworkId, const string& _executorUri,
+  ExecutorLauncher(const FrameworkID& _frameworkId,
+                   const ExecutorID& _executorId, const string& _executorUri,
                    const string& _user, const string& _workDirectory,
                    const string& _slavePid, const string& _frameworksHome,
                    const string& _mesosHome, const string& _hadoopHome, 

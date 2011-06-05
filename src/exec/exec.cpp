@@ -18,16 +18,16 @@
 
 #include "messaging/messages.hpp"
 
-using std::cerr;
-using std::endl;
-using std::string;
+using namespace mesos;
+using namespace mesos::internal;
 
 using boost::bind;
 using boost::cref;
 using boost::unordered_map;
 
-using namespace mesos;
-using namespace mesos::internal;
+using std::cerr;
+using std::endl;
+using std::string;
 
 
 namespace mesos { namespace internal {
@@ -37,9 +37,10 @@ class ExecutorProcess : public MesosProcess
 public:
   ExecutorProcess(const PID& _slave, MesosExecutorDriver* _driver,
                   Executor* _executor, const FrameworkID& _frameworkId,
-                  bool _local)
+                  const ExecutorID& _executorId, bool _local)
     : slave(_slave), driver(_driver), executor(_executor),
-      frameworkId(_frameworkId), local(_local), terminate(false) {}
+      frameworkId(_frameworkId), executorId(_executorId),
+      local(_local), terminate(false) {}
 
   ~ExecutorProcess() {}
 
@@ -51,6 +52,7 @@ protected:
     // Register with slave.
     Message<E2S_REGISTER_EXECUTOR> out;
     out.mutable_framework_id()->MergeFrom(frameworkId);
+    out.mutable_executor_id()->MergeFrom(executorId);
     send(slave, out);
 
     while(true) {
@@ -149,6 +151,7 @@ private:
   MesosExecutorDriver* driver;
   Executor* executor;
   FrameworkID frameworkId;
+  ExecutorID executorId;
   SlaveID slaveId;
   bool local;
 
@@ -203,6 +206,7 @@ int MesosExecutorDriver::start()
 
   PID slave;
   FrameworkID frameworkId;
+  ExecutorID executorId;
 
   char* value;
   std::istringstream iss;
@@ -234,7 +238,16 @@ int MesosExecutorDriver::start()
 
   frameworkId.set_value(value);
 
-  process = new ExecutorProcess(slave, this, executor, frameworkId, local);
+  /* Get executor ID from environment. */
+  value = getenv("MESOS_EXECUTOR_ID");
+
+  if (value == NULL)
+    fatal("expecting MESOS_EXECUTOR_ID in environment");
+
+  executorId.set_value(value);
+
+  process =
+    new ExecutorProcess(slave, this, executor, frameworkId, executorId, local);
 
   Process::spawn(process);
 
@@ -312,8 +325,12 @@ int MesosExecutorDriver::sendFrameworkMessage(const FrameworkMessage& message)
     return -1;
   }
 
-  // Validate that they set the correct slave ID.
+  // Validate that they set the correct slave ID and executor ID.
   if (!(process->slaveId == message.slave_id())) {
+    return -1;
+  }
+
+  if (!(process->executorId == message.executor_id())) {
     return -1;
   }
 

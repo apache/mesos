@@ -6,12 +6,15 @@
 #include "slave.hpp"
 #include "webui.hpp"
 
-using boost::lexical_cast;
-using boost::bad_lexical_cast;
-
-using namespace std;
-
+using namespace mesos::internal;
 using namespace mesos::internal::slave;
+
+using boost::bad_lexical_cast;
+using boost::lexical_cast;
+
+using std::cerr;
+using std::endl;
+using std::string;
 
 
 void usage(const char *programName, const Configurator& configurator)

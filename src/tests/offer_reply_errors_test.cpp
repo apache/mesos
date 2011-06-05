@@ -56,6 +56,7 @@ public:
     // TODO(benh): The following line crashes some Linux compilers. :(
     // return DEFAULT_EXECUTOR_INFO;
     ExecutorInfo executor;
+    executor.mutable_executor_id()->set_value("default");
     executor.set_uri("noexecutor");
     return executor;
   }

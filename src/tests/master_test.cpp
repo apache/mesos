@@ -24,8 +24,6 @@ using boost::lexical_cast;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
-using mesos::internal::slave::Framework;
-using mesos::internal::slave::IsolationModule;
 using mesos::internal::slave::ProcessBasedIsolationModule;
 
 using std::string;
@@ -46,7 +44,7 @@ using testing::Sequence;
 using testing::StrEq;
 
 
-class LocalIsolationModule : public IsolationModule
+class LocalIsolationModule : public slave::IsolationModule
 {
 public:
   Executor* executor;
@@ -58,21 +56,22 @@ public:
 
   virtual ~LocalIsolationModule() {}
 
-  virtual void initialize(Slave* slave) {
+  virtual void initialize(slave::Slave* slave) {
     pid = slave->self();
   }
 
-  virtual void startExecutor(Framework* framework) {
+  virtual void launchExecutor(slave::Framework* f, slave::Executor* e) {
     // TODO(benh): Cleanup the way we launch local drivers!
     setenv("MESOS_LOCAL", "1", 1);
     setenv("MESOS_SLAVE_PID", pid.c_str(), 1);
-    setenv("MESOS_FRAMEWORK_ID", framework->frameworkId.value().c_str(), 1);
+    setenv("MESOS_FRAMEWORK_ID", f->frameworkId.value().c_str(), 1);
+    setenv("MESOS_EXECUTOR_ID", e->info.executor_id().value().c_str(), 1);
 
     driver = new MesosExecutorDriver(executor);
     driver->start();
   }
 
-  virtual void killExecutor(Framework* framework) {
+  virtual void killExecutor(slave::Framework* f, slave::Executor* e) {
     driver->stop();
     driver->join();
     delete driver;
@@ -81,6 +80,7 @@ public:
     unsetenv("MESOS_LOCAL");
     unsetenv("MESOS_SLAVE_PID");
     unsetenv("MESOS_FRAMEWORK_ID");
+    unsetenv("MESOS_EXECUTOR_ID");
   }
 };
 
@@ -969,6 +969,7 @@ TEST(MasterTest, FrameworkMessage)
 
   FrameworkMessage hello;
   *hello.mutable_slave_id() = offers[0].slave_id();
+  hello.mutable_executor_id()->set_value("default"); // TODO(benh): No constant!
   hello.set_data("hello");
 
   schedDriver.sendFrameworkMessage(hello);
@@ -979,6 +980,7 @@ TEST(MasterTest, FrameworkMessage)
 
   FrameworkMessage reply;
   *reply.mutable_slave_id() = args.slave_id();
+  reply.mutable_executor_id()->set_value("default"); // TODO(benh): No constant!
   reply.set_data("reply");
 
   execDriver->sendFrameworkMessage(reply);
@@ -1113,6 +1115,7 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
 
   FrameworkMessage message;
   message.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  message.mutable_executor_id()->set_value("default"); // TODO(benh): No constant!
 
   execDriver->sendFrameworkMessage(message);
 

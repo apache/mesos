@@ -32,7 +32,9 @@ public class TestFramework {
       try {
         File file = new File("./test_executor");
         return ExecutorInfo.newBuilder()
-          .setUri(file.getCanonicalPath()).build();
+          .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
+          .setUri(file.getCanonicalPath())
+          .build();
       } catch (Throwable t) {
         throw new RuntimeException(t);
       }

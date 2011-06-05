@@ -13,6 +13,8 @@ using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
+using launcher::ExecutorLauncher;
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -53,13 +55,13 @@ void ProcessBasedIsolationModule::initialize(Slave *slave)
 }
 
 
-void ProcessBasedIsolationModule::startExecutor(Framework* framework)
+void ProcessBasedIsolationModule::launchExecutor(Framework* framework, Executor* executor)
 {
   if (!initialized)
     LOG(FATAL) << "Cannot launch executors before initialization!";
 
   LOG(INFO) << "Starting executor for framework " << framework->frameworkId
-            << ": " << framework->info.executor().uri();
+            << ": " << executor->info.uri();
 
   pid_t pid;
   if ((pid = fork()) == -1)
@@ -68,30 +70,31 @@ void ProcessBasedIsolationModule::startExecutor(Framework* framework)
   if (pid) {
     // In parent process, record the pgid for killpg later.
     LOG(INFO) << "Started executor, OS pid = " << pid;
-    pgids[framework->frameworkId] = pid;
-    framework->executorStatus = "PID: " + lexical_cast<string>(pid);
+    pgids[framework->frameworkId][executor->info.executor_id()] = pid;
+    executor->executorStatus = "PID: " + lexical_cast<string>(pid);
   } else {
     // In child process, make cleanup easier.
 //     if (setpgid(0, 0) < 0)
 //       PLOG(FATAL) << "Failed to put executor in own process group";
     if ((pid = setsid()) == -1)
       PLOG(FATAL) << "Failed to put executor in own session";
-
-    createExecutorLauncher(framework)->run();
+    
+    createExecutorLauncher(framework, executor)->run();
   }
 }
 
 
-void ProcessBasedIsolationModule::killExecutor(Framework* framework)
+void ProcessBasedIsolationModule::killExecutor(Framework* framework, Executor* executor)
 {
-  if (pgids[framework->frameworkId] != -1) {
+  if (pgids[framework->frameworkId][executor->info.executor_id()] != -1) {
     // TODO(benh): Consider sending a SIGTERM, then after so much time
     // if it still hasn't exited do a SIGKILL (can use a libprocess
     // process for this).
-    LOG(INFO) << "Sending SIGKILL to gpid " << pgids[framework->frameworkId];
-    killpg(pgids[framework->frameworkId], SIGKILL);
-    pgids[framework->frameworkId] = -1;
-    framework->executorStatus = "No executor running";
+    LOG(INFO) << "Sending SIGKILL to gpid "
+              << pgids[framework->frameworkId][executor->info.executor_id()];
+    killpg(pgids[framework->frameworkId][executor->info.executor_id()], SIGKILL);
+    pgids[framework->frameworkId][executor->info.executor_id()] = -1;
+    executor->executorStatus = "No executor running";
 
     // TODO(benh): Kill all of the process's descendants? Perhaps
     // create a new libprocess process that continually tries to kill
@@ -99,39 +102,39 @@ void ProcessBasedIsolationModule::killExecutor(Framework* framework)
     // to kill the executor last ... maybe this is just too much of a
     // burden?
 
-    pgids.erase(framework->frameworkId);
+    pgids[framework->frameworkId].erase(executor->info.executor_id());
   }
 }
 
 
-void ProcessBasedIsolationModule::resourcesChanged(Framework* framework)
+void ProcessBasedIsolationModule::resourcesChanged(Framework* framework, Executor* executor)
 {
   // Do nothing; subclasses may override this.
 }
 
 
-ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(Framework* framework)
+ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(Framework* framework, Executor* executor)
 {
-  const Configuration& conf = slave->getConfiguration();
-
+  // Create a map of parameters for the executor launcher.
   map<string, string> params;
 
-  for (int i = 0; i < framework->info.executor().params().param_size(); i++) {
-    params[framework->info.executor().params().param(i).key()] = 
-      framework->info.executor().params().param(i).value();
+  for (int i = 0; i < executor->info.params().param_size(); i++) {
+    params[executor->info.params().param(i).key()] = 
+      executor->info.params().param(i).value();
   }
 
-  return
+  return 
     new ExecutorLauncher(framework->frameworkId,
-                         framework->info.executor().uri(),
+                         executor->info.executor_id(),
+                         executor->info.uri(),
                          framework->info.user(),
                          slave->getUniqueWorkDirectory(framework->frameworkId),
                          slave->self(),
-                         conf.get("frameworks_home", ""),
-                         conf.get("home", ""),
-                         conf.get("hadoop_home", ""),
+                         slave->getConfiguration().get("frameworks_home", ""),
+                         slave->getConfiguration().get("home", ""),
+                         slave->getConfiguration().get("hadoop_home", ""),
                          !slave->local,
-                         conf.get("switch_user", true),
+                         slave->getConfiguration().get("switch_user", true),
                          params);
 }
 
@@ -151,18 +154,20 @@ void ProcessBasedIsolationModule::Reaper::operator () ()
       pid_t pid;
       int status;
       if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
-        foreachpair (const FrameworkID& frameworkId, pid_t pgid,
-                     module->pgids) {
-          if (pgid == pid) {
-            // Kill the process group to clean up the tasks.
-            LOG(INFO) << "Sending SIGKILL to gpid " << pgid;
-            killpg(pgid, SIGKILL);
-            module->pgids[frameworkId] = -1;
-            LOG(INFO) << "Telling slave of lost framework " << frameworkId;
-            // TODO(benh): This is broken if/when libprocess is parallel!
-            module->slave->executorExited(frameworkId, status);
-            module->pgids.erase(frameworkId);
-            break;
+        foreachpair (const FrameworkID& frameworkId, _, module->pgids) {
+          foreachpair (const ExecutorID& executorId, pid_t pgid, module->pgids[frameworkId]) {
+            if (pgid == pid) {
+              // Kill the process group to clean up the tasks.
+              LOG(INFO) << "Sending SIGKILL to gpid " << pgid;
+              killpg(pgid, SIGKILL);
+              module->pgids[frameworkId][executorId] = -1;
+              LOG(INFO) << "Telling slave of lost executor " << executorId
+                        << " of framework " << frameworkId;
+              // TODO(benh): This is broken if/when libprocess is parallel!
+              module->slave->executorExited(frameworkId, executorId, status);
+              module->pgids[frameworkId].erase(executorId);
+              break;
+            }
           }
         }
       }

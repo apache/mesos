@@ -805,8 +805,7 @@ void Master::operator () ()
     }
 
     case M2M_TIMER_TICK: {
-      unordered_map<SlaveID, Slave *> slavesCopy = slaves;
-      foreachpair (_, Slave *slave, slavesCopy) {
+      foreachpaircopy (_, Slave *slave, slaves) {
 	if (slave->lastHeartbeat + HEARTBEAT_TIMEOUT <= elapsed()) {
 	  LOG(INFO) << slave
                     << " missing heartbeats ... considering disconnected";
@@ -848,8 +847,7 @@ void Master::operator () ()
 	  framework->active = false;
 
           // Remove the framework's slot offers.
-          unordered_set<SlotOffer *> slotOffersCopy = framework->slotOffers;
-          foreach (SlotOffer* offer, slotOffersCopy) {
+          foreachcopy (SlotOffer* offer, framework->slotOffers) {
             removeSlotOffer(offer, ORR_FRAMEWORK_FAILOVER, offer->resources);
           }
 
@@ -1182,8 +1180,7 @@ void Master::failoverFramework(Framework *framework, const PID &newPid)
 
   // Remove the framework's slot offers (if they weren't removed before)..
   // TODO(benh): Consider just reoffering these to the new framework.
-  unordered_set<SlotOffer *> slotOffersCopy = framework->slotOffers;
-  foreach (SlotOffer* offer, slotOffersCopy) {
+  foreachcopy (SlotOffer* offer, framework->slotOffers) {
     removeSlotOffer(offer, ORR_FRAMEWORK_FAILOVER, offer->resources);
   }
 
@@ -1231,16 +1228,14 @@ void Master::removeFramework(Framework *framework)
   }
 
   // Remove pointers to the framework's tasks in slaves
-  unordered_map<TaskID, Task *> tasksCopy = framework->tasks;
-  foreachpair (_, Task *task, tasksCopy) {
+  foreachpaircopy (_, Task *task, framework->tasks) {
     Slave *slave = lookupSlave(task->slave_id());
     CHECK(slave != NULL);
     removeTask(task, TRR_FRAMEWORK_LOST);
   }
   
   // Remove the framework's slot offers (if they weren't removed before).
-  unordered_set<SlotOffer *> slotOffersCopy = framework->slotOffers;
-  foreach (SlotOffer* offer, slotOffersCopy) {
+  foreachcopy (SlotOffer* offer, framework->slotOffers) {
     removeSlotOffer(offer, ORR_FRAMEWORK_LOST, offer->resources);
   }
 
@@ -1264,8 +1259,7 @@ void Master::removeSlave(Slave *slave)
   // TODO: Notify allocator that a slave removal is beginning?
   
   // Remove pointers to slave's tasks in frameworks, and send status updates
-  unordered_map<pair<FrameworkID, TaskID>, Task *> tasksCopy = slave->tasks;
-  foreachpair (_, Task *task, tasksCopy) {
+  foreachpaircopy (_, Task *task, slave->tasks) {
     Framework *framework = lookupFramework(task->framework_id());
     // A framework might not actually exist because the master failed
     // over and the framework hasn't reconnected. This can be a tricky
@@ -1288,8 +1282,7 @@ void Master::removeSlave(Slave *slave)
   }
 
   // Remove slot offers from the slave; this will also rescind them
-  unordered_set<SlotOffer *> slotOffersCopy = slave->slotOffers;
-  foreach (SlotOffer *offer, slotOffersCopy) {
+  foreachcopy (SlotOffer *offer, slave->slotOffers) {
     // Only report resources on slaves other than this one to the allocator
     vector<SlaveResources> otherSlaveResources;
     foreach (const SlaveResources& r, offer->resources) {

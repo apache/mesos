@@ -3,16 +3,18 @@ import "mesos.proto";
 package mesos.internal;
 
 // TODO(benh): It would be great if this could just be a
-// TaskDescription wherever it gets used! One performance reason why
-// we don't do that now is because storing whatever data is coupled
-// with a TaskDescription could be large and unnecessary.
+// TaskDescription wherever it gets used! We would need to add both
+// the framework_id field and the state field into TaskDescription
+// though. Also, one performance reason why we don't do that now is
+// because storing whatever data is coupled with a TaskDescription
+// could be large and unnecessary.
 message Task {
-  required string name = 1;
-  required TaskID task_id = 2;
-  required FrameworkID framework_id = 3;
-  required SlaveID slave_id = 4;
-  repeated Resource resources = 5;
-  required TaskState state = 6;
+  required FrameworkID framework_id = 1;
+  required TaskState state = 2;
+  required string name = 3;
+  required TaskID task_id = 4;
+  required SlaveID slave_id = 5;
+  repeated Resource resources = 6;
 }
 
 
@@ -147,6 +149,7 @@ message UpdateFrameworkMessage {
 
 message RegisterExecutorMessage {
   required FrameworkID framework_id = 1;
+  required ExecutorID executor_id = 2;
 }
 
 
@@ -158,7 +161,8 @@ message ExecutorRegisteredMessage {
 message ExitedExecutorMessage {
   required SlaveID slave_id = 1;
   required FrameworkID framework_id = 2;
-  required int32 status = 3;
+  required ExecutorID executor_id = 3;
+  required int32 status = 4;
 }
 
 

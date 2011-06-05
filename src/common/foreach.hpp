@@ -29,6 +29,17 @@ namespace foreach {
 
 const boost::tuples::detail::swallow_assign _ = boost::tuples::ignore;
 
+template <typename T> T copy(const T& t) { return t; }
+
 }
+
+
+#define foreachcopy(VAR, COL)                   \
+  foreach (VAR, foreach::copy(COL))
+
+#define foreachpaircopy(VARFIRST, VARSECOND, COL)       \
+  foreachpair (VARFIRST, VARSECOND, foreach::copy(COL))
+
+
 
 #endif /* FOREACH_HPP */

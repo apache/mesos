@@ -51,11 +51,11 @@ public:
 
   virtual void initialize(Slave* slave);
 
-  virtual void startExecutor(Framework* framework);
+  virtual void launchExecutor(Framework* framework, Executor* executor);
 
-  virtual void killExecutor(Framework* framework);
+  virtual void killExecutor(Framework* framework, Executor* executor);
 
-  virtual void resourcesChanged(Framework* framework);
+  virtual void resourcesChanged(Framework* framework, Executor* executor);
 
 protected:
   // Run a shell command formatted with varargs and return its exit code.

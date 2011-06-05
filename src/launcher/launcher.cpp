@@ -31,7 +31,8 @@ using std::string;
 using std::vector;
 
 
-ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
+ExecutorLauncher::ExecutorLauncher(const FrameworkID& _frameworkId,
+                                   const ExecutorID& _executorId,
                                    const string& _executorUri,
                                    const string& _user,
                                    const string& _workDirectory,
@@ -42,7 +43,8 @@ ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
                                    bool _redirectIO,
                                    bool _shouldSwitchUser,
                                    const map<string, string>& _params)
-  : frameworkId(_frameworkId), executorUri(_executorUri), user(_user),
+  : frameworkId(_frameworkId), executorId(_executorId),
+    executorUri(_executorUri), user(_user),
     workDirectory(_workDirectory), slavePid(_slavePid),
     frameworksHome(_frameworksHome), mesosHome(_mesosHome),
     hadoopHome(_hadoopHome), redirectIO(_redirectIO), 
@@ -228,6 +230,7 @@ void ExecutorLauncher::setupEnvironment()
   // Set Mesos environment variables to pass slave ID, framework ID, etc.
   setenv("MESOS_SLAVE_PID", slavePid.c_str(), true);
   setenv("MESOS_FRAMEWORK_ID", frameworkId.value().c_str(), true);
+  setenv("MESOS_EXECUTOR_ID", executorId.value().c_str(), true);
   
   // Set LIBPROCESS_PORT so that we bind to a random free port.
   setenv("LIBPROCESS_PORT", "0", true);

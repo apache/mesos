@@ -23,6 +23,11 @@ message TaskID {
 }
 
 
+message ExecutorID {
+  required string value = 1;
+}
+
+
 message Param {
   required string key = 1;
   required string value = 2;
@@ -99,6 +104,7 @@ message TaskDescription {
   required SlaveID slave_id = 3;
   repeated Resource resources = 4;
   optional bytes data = 5;
+  optional ExecutorInfo executor = 6;
 }
 
 
@@ -121,9 +127,10 @@ message TaskStatus {
 
 
 message ExecutorInfo {
-  required string uri = 1;
-  optional Params params = 2;
-  optional bytes data = 3;
+  required ExecutorID executor_id = 1;
+  required string uri = 2;
+  optional Params params = 3;
+  optional bytes data = 4;
 }
 
 
@@ -144,7 +151,8 @@ message SlaveInfo {
 
 message FrameworkMessage {
   required SlaveID slave_id = 1;
-  optional bytes data = 2;
+  required ExecutorID executor_id = 2;
+  optional bytes data = 3;
 }
 
 

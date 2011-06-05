@@ -15,11 +15,20 @@
 
 namespace mesos { namespace internal { namespace slave {
 
-using boost::unordered_map;
-using mesos::internal::launcher::ExecutorLauncher;
-
 class ProcessBasedIsolationModule : public IsolationModule {
 public:
+  ProcessBasedIsolationModule();
+
+  virtual ~ProcessBasedIsolationModule();
+
+  virtual void initialize(Slave *slave);
+
+  virtual void launchExecutor(Framework* framework, Executor* executor);
+
+  virtual void killExecutor(Framework* framework, Executor* executor);
+
+  virtual void resourcesChanged(Framework* framework, Executor* executor);
+
   // Reaps child processes and tells the slave if they exit
   class Reaper : public Process {
     ProcessBasedIsolationModule* module;
@@ -34,25 +43,6 @@ public:
   // Extra shutdown message for reaper
   enum { SHUTDOWN_REAPER = PROCESS_MSGID };
 
-private:
-  bool initialized;
-  Slave* slave;
-  unordered_map<FrameworkID, pid_t> pgids;
-  Reaper* reaper;
-
-public:
-  ProcessBasedIsolationModule();
-
-  virtual ~ProcessBasedIsolationModule();
-
-  virtual void initialize(Slave *slave);
-
-  virtual void startExecutor(Framework *framework);
-
-  virtual void killExecutor(Framework* framework);
-
-  virtual void resourcesChanged(Framework* framework);
-
 protected:
   // Main method executed after a fork() to create a Launcher for launching
   // an executor's process. The Launcher will create the child's working
@@ -61,7 +51,13 @@ protected:
   // Subclasses of ProcessBasedIsolationModule that wish to override the
   // default launching behavior should override createLauncher() and return
   // their own Launcher object (including possibly a subclass of Launcher).
-  virtual ExecutorLauncher* createExecutorLauncher(Framework* framework);
+  virtual launcher::ExecutorLauncher* createExecutorLauncher(Framework* framework, Executor* executor);
+
+private:
+  bool initialized;
+  Slave* slave;
+  boost::unordered_map<FrameworkID, boost::unordered_map<ExecutorID, pid_t> > pgids;
+  Reaper* reaper;
 };
 
 }}}

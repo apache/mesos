@@ -45,44 +45,16 @@
 
 namespace mesos { namespace internal { namespace slave {
 
-using namespace mesos;
-using namespace mesos::internal;
-
-using std::list;
-using std::pair;
-using std::make_pair;
-using std::ostringstream;
-using std::string;
-using std::vector;
-
-using boost::lexical_cast;
-using boost::unordered_map;
-using boost::unordered_set;
-
 using foreach::_;
 
 
-// Information about a framework
-struct Framework
+// Information describing an executor (goes away if executor crashes).
+struct Executor
 {
-  FrameworkInfo info;
-  FrameworkID frameworkId;
-  PID pid;
+  Executor(const FrameworkID& _frameworkId, const ExecutorInfo& _info)
+    : frameworkId(_frameworkId), info(_info), pid(PID()) {}
 
-  list<TaskDescription> queuedTasks; // Holds tasks until executor starts
-  unordered_map<TaskID, Task *> tasks;
-
-  Resources resources;
-
-  // Information about the status of the executor for this framework, set by
-  // the isolation module. For example, this might include a PID, a VM ID, etc.
-  string executorStatus;
-  
-  Framework(const FrameworkInfo& _info, const FrameworkID& _frameworkId,
-            const PID& _pid)
-    : info(_info), frameworkId(_frameworkId), pid(_pid) {}
-
-  ~Framework()
+  ~Executor()
   {
     // Delete the tasks.
     foreachpair (_, Task *task, tasks) {
@@ -90,39 +62,28 @@ struct Framework
     }
   }
 
-  Task * lookupTask(const TaskID& taskId)
-  {
-    unordered_map<TaskID, Task *>::iterator it = tasks.find(taskId);
-    if (it != tasks.end())
-      return it->second;
-    else
-      return NULL;
-  }
-
-  Task * addTask(const TaskDescription& task)
+  Task* addTask(const TaskDescription& task)
   {
     // The master should enforce unique task IDs, but just in case
     // maybe we shouldn't make this a fatal error.
     CHECK(tasks.count(task.task_id()) == 0);
 
     Task *t = new Task();
+    t->mutable_framework_id()->MergeFrom(frameworkId);
+    t->set_state(TASK_STARTING);
     t->set_name(task.name());
     t->mutable_task_id()->MergeFrom(task.task_id());
-    t->mutable_framework_id()->MergeFrom(frameworkId);
     t->mutable_slave_id()->MergeFrom(task.slave_id());
     t->mutable_resources()->MergeFrom(task.resources());
-    t->set_state(TASK_STARTING);
 
     tasks[task.task_id()] = t;
     resources += task.resources();
-
-    return t;
   }
 
   void removeTask(const TaskID& taskId)
   {
     // Remove task from the queue if it's queued
-    for (list<TaskDescription>::iterator it = queuedTasks.begin();
+    for (std::list<TaskDescription>::iterator it = queuedTasks.begin();
 	 it != queuedTasks.end(); ++it) {
       if ((*it).task_id() == taskId) {
 	queuedTasks.erase(it);
@@ -140,17 +101,75 @@ struct Framework
       delete task;
     }
   }
+
+  const FrameworkID frameworkId;
+  const ExecutorInfo info;
+
+  PID pid;
+
+  std::list<TaskDescription> queuedTasks;
+  boost::unordered_map<TaskID, Task*> tasks;
+
+  Resources resources;
+
+  // Information about the status of the executor for this framework, set by
+  // the isolation module. For example, this might include a PID, a VM ID, etc.
+  std::string executorStatus;
 };
 
 
-// A connection to an executor (goes away if executor crashes)
-struct Executor
+// Information about a framework.
+struct Framework
 {
-  FrameworkID frameworkId;
+  Framework( const FrameworkID& _frameworkId, const FrameworkInfo& _info,
+            const PID& _pid)
+    : frameworkId(_frameworkId), info(_info), pid(_pid) {}
+
+  ~Framework() {}
+
+  Executor* createExecutor(const ExecutorInfo& info)
+  {
+    Executor* executor = new Executor(frameworkId, info);
+    CHECK(executors.count(info.executor_id()) == 0);
+    executors[info.executor_id()] = executor;
+    return executor;
+  }
+
+  void destroyExecutor(const ExecutorID& executorId)
+  {
+    if (executors.count(executorId) > 0) {
+      Executor* executor = executors[executorId];
+      executors.erase(executorId);
+      delete executor;
+    }
+  }
+
+  Executor* getExecutor(const ExecutorID& executorId)
+  {
+    if (executors.count(executorId) > 0) {
+      return executors[executorId];
+    }
+
+    return NULL;
+  }
+
+  Executor* getExecutor(const TaskID& taskId)
+  {
+    foreachpair (_, Executor* executor, executors) {
+      if (executor->tasks.count(taskId) > 0) {
+        return executor;
+      }
+    }
+
+    return NULL;
+  }
+
+  const FrameworkID frameworkId;
+  const FrameworkInfo info;
+
   PID pid;
-  
-  Executor(const FrameworkID& _frameworkId, const PID& _pid)
-    : frameworkId(_frameworkId), pid(_pid) {}
+
+  boost::unordered_map<ExecutorID, Executor*> executors;
 };
 
 
@@ -206,12 +225,12 @@ public:
   state::SlaveState *getState();
 
   // Callback used by isolation module to tell us when an executor exits.
-  void executorExited(const FrameworkID& frameworkId, int status);
+  void executorExited(const FrameworkID& frameworkId, const ExecutorID& executorId, int status);
 
   // Kill a framework (possibly killing its executor).
-  void killFramework(Framework *framework, bool killExecutor = true);
+  void killFramework(Framework *framework, bool killExecutors = true);
 
-  string getUniqueWorkDirectory(const FrameworkID& frameworkId);
+  std::string getUniqueWorkDirectory(const FrameworkID& frameworkId);
 
   const Configuration& getConfiguration();
 
@@ -223,9 +242,7 @@ public:
 protected:
   virtual void operator () ();
 
-  Framework * getFramework(const FrameworkID& frameworkId);
-
-  Executor * getExecutor(const FrameworkID& frameworkId);
+  Framework* getFramework(const FrameworkID& frameworkId);
 
   // Send any tasks queued up for the given framework to its executor
   // (needed if we received tasks while the executor was starting up).
@@ -238,14 +255,13 @@ private:
   Resources resources;
 
   // Invariant: framework will exist if executor exists.
-  unordered_map<FrameworkID, Framework*> frameworks;
-  unordered_map<FrameworkID, Executor*> executors;
+  boost::unordered_map<FrameworkID, Framework*> frameworks;
+
+  // Sequence numbers of reliable messages sent per framework.
+  boost::unordered_map<FrameworkID, boost::unordered_set<int> > seqs;
 
   IsolationModule *isolationModule;
   Heart* heart;
-
-  // Sequence numbers of reliable messages sent on behalf of framework.
-  unordered_map<FrameworkID, unordered_set<int> > seqs;
 };
 
 }}}

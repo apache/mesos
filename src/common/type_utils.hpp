@@ -47,6 +47,13 @@ inline std::ostream& operator << (std::ostream& stream,
 }
 
 
+inline std::ostream& operator << (std::ostream& stream,
+                                  const ExecutorID& executorId)
+{
+  stream << executorId.value();
+  return stream;
+}
+
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() == right.value();
@@ -71,6 +78,12 @@ inline bool operator == (const TaskID& left, const TaskID& right)
 }
 
 
+inline bool operator == (const ExecutorID& left, const ExecutorID& right)
+{
+  return left.value() == right.value();
+}
+
+
 inline bool operator == (const FrameworkID& left, const std::string& right)
 {
   return left.value() == right;
@@ -90,6 +103,12 @@ inline bool operator == (const SlaveID& left, const std::string& right)
 
 
 inline bool operator == (const TaskID& left, const std::string& right)
+{
+  return left.value() == right;
+}
+
+
+inline bool operator == (const ExecutorID& left, const std::string& right)
 {
   return left.value() == right;
 }
@@ -123,6 +142,14 @@ inline size_t hash_value(const TaskID& taskId)
 {
   size_t seed = 0;
   boost::hash_combine(seed, taskId.value());
+  return seed;
+}
+
+
+inline size_t hash_value(const ExecutorID& executorId)
+{
+  size_t seed = 0;
+  boost::hash_combine(seed, executorId.value());
   return seed;
 }
 
