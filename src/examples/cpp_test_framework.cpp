@@ -14,6 +14,9 @@ using namespace std;
 using namespace mesos;
 using boost::lexical_cast;
 
+const int32_t CPUS_PER_TASK = 1;
+const int32_t MEM_PER_TASK = 32;
+
 class MyScheduler : public Scheduler
 {
   string executor;
@@ -48,16 +51,18 @@ public:
       // This is kind of ugly because operator[] isn't a const function
       int32_t cpus = lexical_cast<int32_t>(offer.params.find("cpus")->second);
       int32_t mem = lexical_cast<int64_t>(offer.params.find("mem")->second);
-      if ((tasksLaunched < totalTasks) && (cpus >= 1 && mem >= 32)) {
+      while (tasksLaunched < totalTasks && cpus >= CPUS_PER_TASK &&
+             mem >= MEM_PER_TASK) {
         TaskID tid = tasksLaunched++;
-
         cout << endl << "Starting task " << tid << endl;
         string name = "Task " + lexical_cast<string>(tid);
         map<string, string> taskParams;
-        taskParams["cpus"] = "1";
-        taskParams["mem"] = "32";
+        taskParams["cpus"] = lexical_cast<string>(CPUS_PER_TASK);
+        taskParams["mem"] = lexical_cast<string>(MEM_PER_TASK);
         TaskDescription desc(tid, offer.slaveId, name, taskParams, "");
         tasks.push_back(desc);
+        cpus -= CPUS_PER_TASK;
+        mem -= MEM_PER_TASK;
       }
     }
     map<string, string> params;
