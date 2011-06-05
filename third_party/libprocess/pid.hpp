@@ -81,7 +81,21 @@ template <typename T = ProcessBase>
 struct PID : UPID
 {
   PID() : UPID() {}
+
   PID(const T& t) : UPID(static_cast<const ProcessBase&>(t)) {}
+
+  template <typename Base>
+  operator PID<Base> ()
+  {
+    // Only allow upcasts!
+    T* t = NULL;
+    Base* base = t;
+    PID<Base> pid;
+    pid.id = id;
+    pid.ip = ip;
+    pid.port = port;
+    return pid;
+  }
 };
 
 

@@ -28,7 +28,7 @@ TEST(libprocess, spawn)
 
   PID<SpawnMockProcess> pid = process::spawn(&process);
 
-  ASSERT_NE(pid, UPID());
+  ASSERT_FALSE(!pid);
 
   process::wait(pid);
 }
@@ -53,11 +53,11 @@ TEST(libprocess, dispatch)
 
   PID<DispatchMockProcess> pid = process::spawn(&process);
 
-  ASSERT_NE(pid, UPID());
+  ASSERT_FALSE(!pid);
 
   process::dispatch(pid, &DispatchMockProcess::func);
-  process::post(pid, process::TERMINATE);
 
+  process::post(pid, process::TERMINATE);
   process::wait(pid);
 }
 
@@ -82,12 +82,59 @@ TEST(libprocess, install)
 
   PID<InstallMockProcess> pid = process::spawn(&process);
 
-  ASSERT_NE(pid, UPID());
+  ASSERT_FALSE(!pid);
 
   process::post(pid, "func");
-  process::post(pid, process::TERMINATE);
 
+  process::post(pid, process::TERMINATE);
   process::wait(pid);
+}
+
+
+class BaseMockProcess : public Process<BaseMockProcess>
+{
+public:
+  virtual void func() = 0;
+  MOCK_METHOD0(foo, void());
+};
+
+
+class DerivedMockProcess : public BaseMockProcess
+{
+public:
+  DerivedMockProcess() {}
+  MOCK_METHOD0(func, void());
+  virtual void operator () () { serve(); }
+};
+
+
+TEST(libprocess, inheritance)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  DerivedMockProcess process;
+
+  EXPECT_CALL(process, func())
+    .Times(AtMost(1));
+
+  EXPECT_CALL(process, foo())
+    .Times(AtMost(1));
+
+  PID<DerivedMockProcess> pid1 = process::spawn(&process);
+
+  ASSERT_FALSE(!pid1);
+
+  process::dispatch(pid1, &DerivedMockProcess::func);
+
+  PID<BaseMockProcess> pid2(process);
+  PID<BaseMockProcess> pid3 = pid1;
+
+  ASSERT_EQ(pid2, pid3);
+
+  process::dispatch(pid3, &BaseMockProcess::foo);
+
+  process::post(pid1, process::TERMINATE);
+  process::wait(pid1);
 }
 
 

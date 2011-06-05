@@ -219,13 +219,13 @@ void initialize(bool initialize_google_logging = true);
  * @param process process to be spawned
  */
 template <typename T>
-PID<T> spawn(Process<T>* process)
+PID<T> spawn(T* t)
 {
-  if (!ProcessBase::spawn(process)) {
+  if (!ProcessBase::spawn(t)) {
     return PID<T>();
   }
 
-  return process->self();
+  return PID<T>(*t);
 }
 
 
