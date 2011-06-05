@@ -74,6 +74,21 @@ case "${target_os}" in
 # Export OS name to Makefiles
 AC_SUBST(OS_NAME)
 
+JAVA_HEADERS=""
+AC_ARG_WITH([java-headers],
+  AC_HELP_STRING([--with-java-headers=DIR],
+                 [find Java headers in DIR (if different from JAVA_HOME/include)]),
+	         [case "$with_java_headers" in
+		    yes) 
+                      AC_MSG_ERROR([
+*** --with-java-headers requires an argument]) ;;
+		    *)
+                      JAVA_HEADERS="$withval"
+                      ;;
+	          esac],
+	         [])
+AC_SUBST(JAVA_HEADERS)
+
 JAVA_HOME=""
 HAS_JAVA="0"
 AC_ARG_WITH([java-home],
@@ -86,6 +101,9 @@ AC_ARG_WITH([java-home],
 		    *)
                       JAVA_HOME="$withval"
                       HAS_JAVA="1"
+                      if test -z "$JAVA_HEADERS"; then
+                        JAVA_HEADERS="$JAVA_HOME/include/$OS_NAME"
+                      fi
                       ;;
 	          esac],
 	         [])

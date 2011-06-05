@@ -578,6 +578,7 @@ PYTHON_LDFLAGS
 PYTHON_HEADERS
 HAS_JAVA
 JAVA_HOME
+JAVA_HEADERS
 OS_NAME
 target_os
 target_vendor
@@ -633,6 +634,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+with_java_headers
 with_java_home
 with_python_headers
 with_webui
@@ -1266,6 +1268,8 @@ if test -n "$ac_init_help"; then
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-java-headers=DIR find Java headers in DIR (if different from
+                          JAVA_HOME/include)
   --with-java-home=DIR    find Java Development Kit in DIR
   --with-python-headers=DIR
                           find Python headers in DIR
@@ -1997,6 +2001,22 @@ case "${target_os}" in
 # Export OS name to Makefiles
 
 
+JAVA_HEADERS=""
+
+# Check whether --with-java-headers was given.
+if test "${with_java_headers+set}" = set; then :
+  withval=$with_java_headers; case "$with_java_headers" in
+		    yes)
+                      as_fn_error "
+*** --with-java-headers requires an argument" "$LINENO" 5 ;;
+		    *)
+                      JAVA_HEADERS="$withval"
+                      ;;
+	          esac
+fi
+
+
+
 JAVA_HOME=""
 HAS_JAVA="0"
 
@@ -2009,6 +2029,9 @@ if test "${with_java_home+set}" = set; then :
 		    *)
                       JAVA_HOME="$withval"
                       HAS_JAVA="1"
+                      if test -z "$JAVA_HEADERS"; then
+                        JAVA_HEADERS="$JAVA_HOME/include/$OS_NAME"
+                      fi
                       ;;
 	          esac
 fi

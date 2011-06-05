@@ -19,6 +19,7 @@ LIBS = @LIBS@
 OS_NAME = @OS_NAME@
 
 JAVA_HOME = @JAVA_HOME@
+JAVA_HEADERS = @JAVA_HEADERS@
 
 PYTHON_HEADERS = @PYTHON_HEADERS@
 PYTHON_LDFLAGS = @PYTHON_LDFLAGS@
@@ -323,7 +324,7 @@ ifdef JAVA_HOME
 	rm -f swig/java/mesos/*
 	mkdir -p swig/java/mesos
 	$(SWIG) -c++ -java -I@top_srcdir@/include -o swig/java/mesos_wrap.cpp -outdir swig/java/mesos -package mesos @srcdir@/swig/mesos.i
-	$(CXX) $(CXXFLAGS) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -shared -o $@ swig/java/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -I$(JAVA_HOME)/include -I$(JAVA_HEADERS) -shared -o $@ swig/java/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
 endif
 
 $(MESOS_PYTHON_LIB): @srcdir@/swig/mesos.i $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) | $(LIBDIR)/python
