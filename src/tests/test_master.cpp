@@ -783,3 +783,94 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
 
   ProcessClock::resume();
 }
+
+class FailoverTaskRunningScheduler : public TaskRunningScheduler
+{
+public:
+  TaskRunningScheduler *failover;
+  const PID master;
+  MesosSchedulerDriver *driver;
+
+  FailoverTaskRunningScheduler(TaskRunningScheduler *_failover,
+			       const PID &_master)
+    : failover(_failover), master(_master), driver(NULL) {}
+
+  virtual ~FailoverTaskRunningScheduler() {
+    if (driver != NULL) {
+      driver->join();
+      delete driver;
+      driver = NULL;
+    }
+  }
+
+  virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
+    EXPECT_EQ(TASK_RUNNING, status.state);
+    statusUpdateCalled = true;
+    driver = new MesosSchedulerDriver(failover, master, fid);
+    driver->start();
+  }
+};
+
+
+class SchedulerFailoverFrameworkMessageScheduler : public TaskRunningScheduler
+{
+public:
+  bool frameworkMessageCalled;
+
+  SchedulerFailoverFrameworkMessageScheduler()
+    : frameworkMessageCalled(false) {}
+
+  virtual void frameworkMessage(SchedulerDriver* d,
+				const FrameworkMessage& message) {
+    frameworkMessageCalled = true;
+    d->stop();
+  }
+};
+
+class SchedulerFailoverFrameworkMessageExecutor : public Executor
+{
+public:
+  ExecutorDriver *driver;
+
+  virtual void init(ExecutorDriver* d, const ExecutorArgs& args) {
+    driver = d;
+  }
+};
+
+
+TEST(MasterTest, SchedulerFailoverFrameworkMessage)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Master m;
+  PID master = Process::spawn(&m);
+
+  SchedulerFailoverFrameworkMessageExecutor exec;
+  LocalIsolationModule isolationModule(&exec);
+
+  Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
+  PID slave = Process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  SchedulerFailoverFrameworkMessageScheduler failoverSched;
+  FailoverTaskRunningScheduler failingSched(&failoverSched, master);
+
+  MesosSchedulerDriver driver(&failingSched, master);
+
+  driver.run();
+
+  EXPECT_EQ("Framework failover", failingSched.errorMessage);
+
+  exec.driver->sendFrameworkMessage(FrameworkMessage());
+
+  failingSched.driver->join();
+
+  EXPECT_TRUE(failoverSched.frameworkMessageCalled);
+
+  MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
+  Process::wait(slave);
+
+  MesosProcess::post(master, pack<M2M_SHUTDOWN>());
+  Process::wait(master);
+}
