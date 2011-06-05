@@ -111,14 +111,14 @@ public:
 
 
 Master::Master(const bool ft, const string zk)
-  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId("0"), nextSlaveId("0"), 
-    nextSlotOfferId("0"), allocatorType("simple")
+  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
+    nextSlotOfferId(0), allocatorType("simple"), masterId(0)
 {}
 
 
 Master::Master(const string& _allocatorType, const bool ft, const string zk)
-  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId("0"), nextSlaveId("0"), 
-    nextSlotOfferId("m0"), allocatorType(_allocatorType)
+  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
+    nextSlotOfferId(0), allocatorType(_allocatorType), masterId(0)
 {}
                    
 
@@ -244,6 +244,8 @@ void Master::operator () ()
     ostringstream lpid;
     lpid<<self();
     leaderDetector = new LeaderDetector(zkserver, true, lpid.str());
+    masterId = atoi(leaderDetector->getSequence().c_str());
+    LOG(INFO)<<"Master ID:"<<masterId;
   }
 
   allocator = createAllocator();
@@ -257,11 +259,11 @@ void Master::operator () ()
     switch (receive()) {
 
     case F2M_REGISTER_FRAMEWORK: {
-      FrameworkID fid = nextFrameworkId;
 
       stringstream ss;
-      ss << (atoi(nextFrameworkId.c_str())+1);
-      nextFrameworkId = ss.str();
+      ss << masterId<<"-"<<nextFrameworkId++;
+      FrameworkID fid = ss.str();
+
 
       Framework *framework = new Framework(from(), fid);
       unpack<F2M_REGISTER_FRAMEWORK>(framework->name,
@@ -353,10 +355,8 @@ void Master::operator () ()
 
     case S2M_REGISTER_SLAVE: {
       stringstream ss;
-      int nsi = atoi(nextSlaveId.c_str());
-      ss<<nsi++;
-      nextSlaveId = ss.str();
-      Slave *slave = new Slave(from(), nextSlaveId);
+      ss<<masterId<<"-"<<nextSlaveId++;
+      Slave *slave = new Slave(from(), ss.str());
       unpack<S2M_REGISTER_SLAVE>(slave->hostname, slave->publicDns,
           slave->resources);
       LOG(INFO) << "Registering " << slave << " at " << slave->pid;
@@ -505,12 +505,9 @@ void Master::operator () ()
 OfferID Master::makeOffer(Framework *framework,
                           const vector<SlaveResources>& resources)
 {
-  OfferID oid = nextSlotOfferId;
-
   ostringstream ss;
-  ss<<(atoi(nextSlotOfferId.c_str()) + 1);
-  nextSlotOfferId = ss.str();
-
+  ss<<masterId<<"-"<<nextSlotOfferId++;
+  OfferID oid = ss.str();
 
   SlotOffer *offer = new SlotOffer(oid, framework->id, resources);
   slotOffers[offer->id] = offer;

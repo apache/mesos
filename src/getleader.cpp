@@ -3,15 +3,14 @@
 #include <climits>
 #include <cstdlib>
 #include <zookeeper.h>
+#include <glog/logging.h>
 #include "getleader.hpp"
-
-#define debug(x) cout<<x
 
 using namespace std;
 
 // I don't really use this
 void LeaderDetector::initWatchWrap(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx) {
-  debug("Got called with type:"<<type);
+
 }
 
 // TODO ALI: Make this thread safe, will be called by ZooKeeper thread
@@ -23,47 +22,52 @@ void LeaderDetector::leaderWatchWrap(zhandle_t *zh, int type, int state, const c
 LeaderDetector::LeaderDetector(string server, bool contendLeader, string ld, LeaderListener *ll) : 
   leaderListener(ll),
   zh(NULL),mydata(ld),
-  zooserver(server),currentLeaderId("")
+  zooserver(server),currentLeaderId(""), mySequence("")
 {
 
   zh = zookeeper_init(zooserver.c_str(), initWatchWrap, 1000, 0, NULL, 0);
-  debug("zhandle:"<<zh<<endl);
+  LOG(INFO) << "Initialized ZooKeeper";
+  LOG_IF(ERROR, zh==NULL)<<"zookeeper_init returned error:";
 
+
+  char buf[100];
 
   int ret = zoo_create(zh, "/nxmaster",  NULL, -1, &ZOO_OPEN_ACL_UNSAFE, 0, buf, 100);
-  debug("creation returned:"<<ret<<" ok is:"<<ZOK<<endl);
 
   if (contendLeader) {
     ret = zoo_create(zh, "/nxmaster/",  mydata.c_str(), mydata.length(), &ZOO_OPEN_ACL_UNSAFE, ZOO_SEQUENCE | ZOO_EPHEMERAL, buf, 100);
-    debug("creation of ephemeral:"<<buf<<" returned:"<<ret<<" ok is:"<<ZOK<<endl);
+    LOG_IF(ERROR, ret!=ZOK)<<"zoo_create() ephemeral/sequence returned error:"<<ret;
+    if (ret==ZOK) {
+      setSequence(string(buf));
+      LOG(INFO)<<"Created ephemeral/sequence:"<<mySequence;
+    }
   }
 
   detectLeader();
 }
 
 void LeaderDetector::leaderWatch(zhandle_t *zh, int type, int state, const char *path) {
-  debug("Leader watch called with type:"<<type);
   if (type == ZOO_CREATED_EVENT) {
-    debug("Event type: ZOO_CREATED_EVENT"<<endl<<flush);
+    LOG(INFO)<<"Leader Watch Event type: ZOO_CREATED_EVENT";
   } else if (type == ZOO_DELETED_EVENT) {
-    debug("Event type: ZOO_DELETED_EVENT"<<endl<<flush);
+    LOG(INFO)<<"Leader Watch Event type: ZOO_DELETED_EVENT";
   } else if (type == ZOO_CHANGED_EVENT) {
-    debug("Event type: ZOO_CHANGED_EVENT"<<endl<<flush);
+    LOG(INFO)<<"Leader Watch Event type: ZOO_CHANGED_EVENT";
   } else if (type == ZOO_CHILD_EVENT) {
-    debug("Event type: ZOO_CHILD_EVENT"<<endl<<flush);
+    LOG(INFO)<<"Leader Watch Event type: ZOO_CHILD_EVENT";
   } else if (type == ZOO_SESSION_EVENT) {
-    debug("Event type: ZOO_SESSION_EVENT"<<endl<<flush);
+    LOG(INFO)<<"Leader Watch Event type: ZOO_SESSION_EVENT";
   } else if (type == ZOO_NOTWATCHING_EVENT) {
-    debug("Event type: ZOO_NOTWATCHING_EVENT"<<endl<<flush);
+    LOG(INFO)<<"Leader Watch Event type: ZOO_NOTWATCHING_EVENT";
   }
   detectLeader();
 }
 
 bool LeaderDetector::detectLeader() {
-  debug("calling:"<<zh<<" getchildren"<<endl<<flush);
-  int zret = zoo_wget_children(zh, "/nxmaster", leaderWatchWrap, (void*)this, &sv);
-  debug("zret of wget_children:"<<zret<<" "<<ZOK<<endl<<flush);
-
+  int ret = zoo_wget_children(zh, "/nxmaster", leaderWatchWrap, (void*)this, &sv);
+  LOG_IF(ERROR, ret!=ZOK)<<"zoo_wget_children (get leaders) returned error:"<<ret;
+  LOG_IF(INFO, ret==ZOK)<<"zoo_wget_children returned "<<sv.count<<" registered leaders";
+  
   string leader;
   long min = LONG_MAX;
   for (int x=0; x<sv.count; x++) {
@@ -91,13 +95,14 @@ string LeaderDetector::fetchLeaderData(string id) {
     currentLeaderData = "";
     return currentLeaderData;
   }
-  debug("calling:"<<zh<<" get"<<endl<<flush);
   string path="/nxmaster/";
   path+=id;
   char buf[100];
   int buflen = sizeof(buf);
-  int zret = zoo_get(zh, path.c_str(), 0, buf, &buflen, NULL);
-  debug("zret of get:"<<zret<<" "<<ZOK<<" f:"<<buf[0]<<endl<<flush);
+  int ret = zoo_get(zh, path.c_str(), 0, buf, &buflen, NULL);
+  LOG_IF(ERROR, ret!=ZOK)<<"zoo_get returned error:"<<ret;
+  LOG_IF(INFO, ret==ZOK)<<"zoo_get leader data fetch returned "<<buf[0];
+
   string tmp(buf,buflen);
   currentLeaderData=tmp;
   return currentLeaderData;
@@ -115,14 +120,16 @@ string LeaderDetector::getCurrentLeaderData() {
   return currentLeaderData;
 }
 
-void LeaderDetector::newLeader(string leader, string leaderdata) {
-  cout<<"## NEW LEADER ## "<<leader<<" data:"<<leaderdata<<endl<<flush;
+void LeaderDetector::newLeader(string leader, string leaderData) {
+  LOG(INFO)<<"## NEW LEADER ## ephemeral id:"<<leader<<" data:"<<leaderData;
   if (leaderListener!=NULL)
-    leaderListener->newLeaderElected(leader,leaderdata);
+    leaderListener->newLeaderElected(leader,leaderData);
 }
 
 LeaderDetector::~LeaderDetector() {
-  zookeeper_close(zh);
+  int ret = zookeeper_close(zh);
+  LOG_IF(ERROR, ret!=ZOK)<<"zookeeper_close returned error:"<<ret;
+  LOG_IF(INFO, ret==ZOK)<<"zookeeper_close OK";
 }
 
 /*

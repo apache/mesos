@@ -283,12 +283,15 @@ protected:
   unordered_map<PID, FrameworkID> pidToFid;
   unordered_map<PID, SlaveID> pidToSid;
 
-  FrameworkID nextFrameworkId; // Used to give each framework a unique ID.
-  SlaveID nextSlaveId;         // Used to give each slave a unique ID.
-  OfferID nextSlotOfferId; // Used to give each slot offer a unique ID.
+  long nextFrameworkId; // Used to give each framework a unique ID.
+  long nextSlaveId;         // Used to give each slave a unique ID.
+  long nextSlotOfferId; // Used to give each slot offer a unique ID.
+
 
   string allocatorType;
   Allocator *allocator;
+
+  long masterId; // Used to differentiate different master in FT mode, will be ephemeral id
 
 public:
   Master(const bool =false, const string ="");
