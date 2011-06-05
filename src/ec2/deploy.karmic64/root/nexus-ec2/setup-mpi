@@ -1,0 +1,16 @@
+#! /usr/bin/env sh
+
+./setup-mpi-conf $PBS_JOBID
+echo "done with setup mpi"
+#setup up mpd daemon on this node
+mpd --daemon
+#GET PORT NUMBERS HERE
+PORTNUM=`mpdtrace -l | cut -d"_" -f 2 | cut -d" " -f1`
+HOSTNAME=`mpdtrace -l | cut -d"_" -f 2 | cut -d"(" -f2 | cut -d")" -f1`
+
+echo "running setup-mpi-conf on all slaves"
+for i in `cat $PBS_NODEFILE`; do ssh $i cd ~/nexus-ec2 ;./setup-mpi-conf $PBS_JOBID ; done
+
+echo "running mpd daemon on all slave"
+# set up mpi daemon on all slave nodes given to us by torque in $PBS_NODEFILE
+for i in `cat $PBS_NODEFILE`; do ssh $i mpd --daemon -h $HOSTNAME -p $PORTNUM ; done
