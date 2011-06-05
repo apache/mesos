@@ -236,7 +236,7 @@ elif [ "$COMMAND" = "jar" ] ; then
     # Mesos JobTracker launcher. This feature is currently PRE-ALPHA and is
     # subject to change in future releases.
     echo "Locating Mesos JobTracker for $USER..."
-    MESOS_JOBTRACKER=`$HADOOP_HOME/bin/mesos-jobtracker-launcher $USER`
+    MESOS_JOBTRACKER=`$HADOOP_HOME/bin/mesos-jobtracker-launcher $USER | tail -1`
     echo "JobTracker found: $MESOS_JOBTRACKER"
     if [ "$?" -ne "0" ] ; then
       echo "Locating or launching JobTracker on Mesos failed" >&2
