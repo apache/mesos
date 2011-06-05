@@ -1,4 +1,0 @@
-#!/bin/sh
-COMMAND="`dirname $0`/hadoop org.apache.hadoop.mapred.MesosExecutor"
-echo Running $COMMAND
-exec $COMMAND

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <tag>" >&2
+  exit 1
+fi
+TAG="$1"
+CLASS="org.apache.hadoop.mapred.MesosJobTrackerLauncher"
+HADOOP_HOME="`dirname $0`/.."
+exec $HADOOP_HOME/bin/hadoop $CLASS $TAG
