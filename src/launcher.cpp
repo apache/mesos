@@ -129,6 +129,8 @@ string ExecutorLauncher::fetchExecutor()
     if (ret != 0)
       fatal("HDFS copyToLocal failed: return code %d", ret);
     executor = localFile;
+    if (chmod(executor, S_IXUSR | S_IXGRP | S_IXOTH) != 0)
+      fatalerror("chmod failed");
   }
 
   // If the executor was a .tgz, untar it in the work directory. The .tgz
