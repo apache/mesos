@@ -390,7 +390,7 @@ private:
     setCall->zooKeeperProcess->send(setCall->from, COMPLETED);
   }
 
-  void prepare(int *fd, int *ops, timeval *tv)
+  bool prepare(int *fd, int *ops, timeval *tv)
   {
     int interest = 0;
 
@@ -400,7 +400,7 @@ private:
     if (ret == ZINVALIDSTATE ||
 	ret == ZCONNECTIONLOSS ||
 	ret == ZOPERATIONTIMEOUT)
-      return;
+      return false;
 
     if (ret != ZOK)
       fatal("zookeeper_interest failed! (%s)", zerror(ret));
@@ -414,6 +414,8 @@ private:
     } else if (interest & ZOOKEEPER_WRITE) {
       *ops |= WRONLY;
     }
+
+    return true;
   }
 
   void process(int fd, int ops)
@@ -456,12 +458,14 @@ protected:
       int ops;
       timeval tv;
 
-      prepare(&fd, &ops, &tv);
-
-      // TODO(benh): If tv is 0, invoke await and ignore queued messages?
+      if (!prepare(&fd, &ops, &tv)) {
+	// Prepare failed, force immediate process.
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+      }
 
       if (await(fd, ops, tv, false)) {
-	// No enqueued messages and either data available on fd or timer expired.
+	// Either timer expired (might be 0) or data became available on fd.
 	process(fd, ops);
       } else {
 	// TODO(benh): Don't handle incoming "calls" until we are connected!

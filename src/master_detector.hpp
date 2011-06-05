@@ -69,10 +69,10 @@ private:
   void setMySeq(const string &s)
   {
     string seq = s;
-    // Converts "/nxmaster/000000131" to "000000131".
+    // Converts "/path/to/znode/000000131" to "000000131".
     int pos;
     if ((pos = seq.find_last_of('/')) != string::npos) {  
-      mySeq = seq.erase(0, pos+1);
+      mySeq = seq.erase(0, pos + 1);
     } else
       mySeq = "";
   }
@@ -91,6 +91,7 @@ private:
   string znode;
   PID pid;
   bool contend;
+  bool reconnect;
 
   ZooKeeper *zk;
 

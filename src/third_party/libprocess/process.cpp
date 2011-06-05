@@ -3140,12 +3140,19 @@ bool Process::await(int fd, int op, const timeval& tv)
 bool Process::await(int fd, int op, const timeval& tv, bool ignore)
 {
   double secs = tv.tv_sec + (tv.tv_usec * 1e-6);
+
+  if (secs <= 0)
+    return true;
+
   return ProcessManager::instance()->await(this, fd, op, secs, ignore);
 }
 
 
 bool Process::ready(int fd, int op)
 {
+  if (fd < 0)
+    return false;
+
   fd_set rdset;
   fd_set wrset;
 

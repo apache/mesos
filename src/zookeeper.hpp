@@ -95,15 +95,6 @@ public:
  */
 class ZooKeeper
 {
-private:
-  /* ZooKeeper instances are not copyable. */
-  ZooKeeper(const ZooKeeper &that);
-  ZooKeeper & operator = (const ZooKeeper &that);
-
-protected:
-  /* Underlying implementation (pimpl idiom). */
-  ZooKeeperImpl *impl;
-
 public:
   /**
    * \brief instantiate new ZooKeeper client.
@@ -276,6 +267,15 @@ public:
    * \return string corresponding to the last error
    */
   const char * error(int ret) const;
+
+protected:
+  /* Underlying implementation (pimpl idiom). */
+  ZooKeeperImpl *impl;
+
+private:
+  /* ZooKeeper instances are not copyable. */
+  ZooKeeper(const ZooKeeper &that);
+  ZooKeeper & operator = (const ZooKeeper &that);
 };
 
 
