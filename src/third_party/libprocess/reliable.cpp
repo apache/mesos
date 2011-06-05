@@ -41,6 +41,14 @@ public:
   ReliableSender(struct rmsg *_rmsg)
     : rmsg(_rmsg) {}
 
+  ~ReliableSender()
+  {
+    if (rmsg != NULL) {
+      free(rmsg);
+      rmsg = NULL;
+    }
+  }
+
 protected:
   void operator () ()
   {
@@ -128,7 +136,8 @@ PID ReliableProcess::origin() const
 void ReliableProcess::ack()
 {
   if (current != NULL)
-    send(current->msg.from, RELIABLE_ACK);
+    send(current->msg.from, RELIABLE_ACK, (char *) current,
+	 sizeof(struct rmsg) + current->msg.len);
 }
 
 
@@ -176,10 +185,12 @@ MSGID ReliableProcess::receive(double secs)
   if (current != NULL) {
     // TODO(benh): Since we ignore out-of-order messages right now, we
     // can be sure that the current message is the next in the
-    // sequence (unless it's the first message).
-    assert((recvSeqs.find(current->msg.from) == recvSeqs.end()) ||
-	   (recvSeqs[current->msg.from] + 1 == current->seq));
-    recvSeqs[current->msg.from] = current->seq;
+    // sequence (unless it's the first message or a duplicate).
+    if (!duplicate()) {
+      assert((recvSeqs.find(current->msg.from) == recvSeqs.end()) ||
+	     (recvSeqs[current->msg.from] + 1 == current->seq));
+      recvSeqs[current->msg.from] = current->seq;
+    }
     free(current);
     current = NULL;
   }
@@ -187,6 +198,24 @@ MSGID ReliableProcess::receive(double secs)
   do {
     MSGID id = Process::receive(secs);
     switch (id) {
+      // TODO(benh): Better validation of messages!
+      case RELIABLE_ACK: {
+	size_t length;
+	const char *data = body(&length);
+	assert(length > 0);
+	struct rmsg *rmsg = (struct rmsg *) data;
+
+	// TODO(benh): Is this really the way we want to do acks?
+	foreachpair (const PID &pid, ReliableSender *sender, senders) {
+	  assert(pid == sender->getPID());
+	  // TODO(benh): Don't look into sender's class like this ... HACK!
+	  if (rmsg->seq == sender->rmsg->seq &&
+	      rmsg->msg.to == sender->rmsg->msg.to) {
+	    send(pid, RELIABLE_ACK);
+	  }
+	}
+	continue;
+      }
       case RELIABLE_MSG: {
 	size_t length;
 	const char *data = body(&length);
@@ -206,7 +235,9 @@ MSGID ReliableProcess::receive(double secs)
 
 	inject(current->msg.from, current->msg.id,
 	       data + sizeof(struct rmsg), current->msg.len);
-	return Process::receive();
+
+	// Avoid recursively invoking ourselves via receive(), use receive(0)!
+	return Process::receive(0);
       }
       case PROCESS_EXIT: {
 	if (senders.find(from()) != senders.end()) {

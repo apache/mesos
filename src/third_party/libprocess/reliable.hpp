@@ -73,6 +73,9 @@ protected:
    */
   virtual void rsend(const PID &to, MSGID id, const char *data, size_t length);
 
+  /* Blocks for message indefinitely. */
+  virtual MSGID receive();
+
   /* Blocks for message at most specified seconds. */
   virtual MSGID receive(double secs);
 
@@ -96,5 +99,10 @@ inline void ReliableProcess::rsend(const PID &to, MSGID id)
   rsend(to, id, NULL, 0);
 }
 
+
+inline MSGID ReliableProcess::receive()
+{
+  return receive(0);
+}
 
 #endif /* __RELIABLE_HPP__ */

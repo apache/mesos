@@ -580,7 +580,7 @@ protected:
 
   MSGID receive()
   {
-    return receive(0);
+    return P::receive();
   }
 
   MSGID receive(double secs)
