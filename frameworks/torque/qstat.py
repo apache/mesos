@@ -1,3 +1,4 @@
+import re
 import xml.dom.minidom
 
 from subprocess import *
@@ -9,20 +10,25 @@ class Job:
     self.resourceList = {}
     for res in xmlJobElt.getElementsByTagName("Resource_List")[0].childNodes:
       self.resourceList[res.nodeName] = res.childNodes[0].data
+    self.jobState = xmlJobElt.getElementsByTagName("job_state")[0].childNodes[0].data
 
 def getActiveJobs():
   print "in getJobs, grabbing xml output from qstat"
-  jobs = Popen("qstat -x", shell=True, stdout=PIPE).stdout
-  #print "output of qstat: "
-  #for line in qstat:
-  #  print line
-  dom_doc = xml.dom.minidom.parse(jobs)
-  print "grabbing the Job elements from the xml dom doc"
-  xmljobs = dom_doc.getElementsByTagName("Job")
+  xmljobs = Popen("qstat -x", shell=True, stdout=PIPE).stdout
+  print "output of qstat: "
+  for line in xmljobs:
+    print line
   jobs = []
-  print "creating a new job object for each job dom elt"
-  for j in xmljobs:
-    jobs.append(Job(j))
+  if re.match(".*Job.*", xmljobs.readline()):
+    dom_doc = xml.dom.minidom.parse(xmljobs)
+    print "grabbing the Job elements from the xml dom doc"
+    xmljobs = dom_doc.getElementsByTagName("Job")
+    print "creating a new job object for each job dom elt"
+    for j in xmljobs:
+      #make sure job's state is not complete
+      newJob = Job(j)
+      if newJob.jobState != "C":
+        jobs.append(newJob)
   return jobs
 
 #TODO: DELETE THIS? Might note be used eventually
@@ -32,5 +38,5 @@ def getQueueLength():
   jobcount = 0
   for line in qstat:
      if re.match('^batch.*', line):
-       jobcount = int(line.split()[5]) + int(line.split()[6]) + int(line.spli
+       jobcount = int(line.split()[5]) + int(line.split()[6]) + int(line.split()[7]) + int(line.split()[8])
   return jobcount

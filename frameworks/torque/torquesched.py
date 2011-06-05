@@ -14,7 +14,6 @@ import qstat
 from optparse import OptionParser
 from subprocess import *
 from socket import gethostname
-#from qstat import *
 
 PBS_SERVER_FILE = "/var/spool/torque/server_name"
 
@@ -49,7 +48,7 @@ class MyScheduler(nexus.Scheduler):
       # if we haven't registered this node, accept slot & register w pbs_server
       #TODO: check to see if slot is big enough 
       if self.numToRegister <= 0:
-        print "Rejecting slot, job queue is empty (only keep one slave around)"
+        print "Rejecting slot, no need for more slaves"
         continue
       if offer.host in self.servers.values():
         print "Rejecting slot, already registered node " + offer.host
@@ -57,7 +56,7 @@ class MyScheduler(nexus.Scheduler):
       if len(self.servers) >= SAFE_ALLOCATION["cpus"]:
         print "Rejecting slot, already at safe allocation (i.e. %d CPUS)" % SAFE_ALLOCATION["cpus"]
         continue
-      print "Accepting slot, setting up params for it..."
+      print "Need %d more nodes, so accepting slot, setting up params for it..." % self.numToRegister
       params = {"cpus": "1", "mem": "1073741824"}
       td = nexus.TaskDescription(
           self.id, offer.slaveId, "task %d" % self.id, params, "")
@@ -98,19 +97,14 @@ class MyScheduler(nexus.Scheduler):
     print("removing node from pbs_server: qmgr -c delete node " + node_name)
     print Popen('qmgr -c "delete node ' + node_name + '"', shell=True, stdout=PIPE).stdout
   
-  #leave one node so that the queue can accept new jobs
-  def unregAllNodes(self):
-    for key, val in self.servers.items():
-      if (self.servers) > 1:
-        print "unregistering node " + str(val)
-        self.unregComputeNode(val)
-        self.servers.pop(key)
-  
   #unreg up to N random compute nodes, leave at least one
   def unregNNodes(self, num_nodes):
-    print "unregistering %d nodes" % num_nodes
+    print "unregNNodes called with arg %d" % num_nodes
+    if num_nodes > len(self.servers)-1:
+      print "only unregistering %d nodes, leaving one alive" % (len(self.servers)-1)
     for key, val in self.servers.items():
-      if (self.servers) > 1 and num_nodes > 0:
+      if len(self.servers) > 1 and num_nodes > 0:
+        print str(len(self.servers)), str(num_nodes > 0)
         print "unregistering node " + str(val)
         self.unregComputeNode(val)
         self.servers.pop(key)
@@ -125,35 +119,22 @@ def monitor(sched):
     time.sleep(1)
     print "monitor thread acquiring lock"
     sched.lock.acquire()
-    if sched.queueLength() == 0:
-      #print "no incomplete jobs in queue, attempting to release all slots"
-      if len(sched.servers) == 0:
-        #print "no servers registered, so no need to call unregAllNodes()"
-        print "monitor thread releasing lock"
-        print "\n"
-        sched.lock.release()
-        continue
-      print "unregistering all nodes because no jobs running"
-      sched.unregAllNodes()
+    print "computing num nodes needed to satisfy eligable jobs in queue"
+    needed = 0
+    jobs = qstat.getActiveJobs()
+    print "retreived jobs in queue, count: %d" % len(jobs)
+    for j in jobs:
+      #WARNING: this check should only be used if torque is using fifo queue
+      #if needed + j.needsnodes <= SAFE_ALLOCATION:
+      needed += j.resourceList["neednodes"]
+    print "number of nodes needed by jobs in queue: %d" % needed
+    numToRelease = len(sched.servers) - needed
+    if numToRelease > 0:
+      sched.unregNNodes(numToRelease)
+      sched.numToRegister = 0
     else:
-      #adjust num servers registered to match num needed 
-      #by frist N jobs in #the queue. 
-      print "computing num nodes needed to satisfy first N jobs in queue"
-      needed = 0
-      jobs = qstat.getActiveJobs()
-      print "retreived jobs in queue, count: %d" % len(jobs)
-      for j in jobs:
-        #WARNING: this check should only be used if torque is using fifo queue
-        #if needed + j.needsnodes <= SAFE_ALLOCATION:
-        needed += j.resourceList["neednodes"]
-      print "number of nodes needed by jobs in queue: %d" % needed
-      numToRelease = len(self.servers) - needed
-      if numToRelease > 0:
-        sched.unregNNodes(numToRelease)
-        sched.numToRegister = 0
-      else:
-        print "monitor updating sched.numToRelease from %d to %d" % (sched.numToRegister, numToRelease * -1)
-        sched.numToRegister = numToRelease * -1
+      print "monitor updating sched.numToRelease from %d to %d" % (sched.numToRegister, numToRelease * -1)
+      sched.numToRegister = numToRelease * -1
     sched.lock.release()
     print "monitor thread releasing lock"
     print "\n"
