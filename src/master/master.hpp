@@ -242,8 +242,8 @@ private:
   // created by this master.
   std::string masterId;
 
-  // Statistics!
-  struct Statistics {
+  // Statistics (initialized in Master::initialize).
+  struct {
     uint64_t launched_tasks;
     uint64_t finished_tasks;
     uint64_t killed_tasks;

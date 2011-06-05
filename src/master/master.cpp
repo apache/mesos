@@ -195,20 +195,16 @@ private:
 
 
 Master::Master()
-  : MesosProcess<Master>("master"),
-    active(false), nextFrameworkId(0), nextSlaveId(0), nextOfferId(0)
+  : MesosProcess<Master>("master")
 {
-  allocatorType = "simple";
   initialize();
 }
 
 
-Master::Master(const Configuration& _conf)
+Master::Master(const Configuration& conf)
   : MesosProcess<Master>("master"),
-    active(false), conf(_conf), nextFrameworkId(0), nextSlaveId(0),
-    nextOfferId(0)
+    conf(conf)
 {
-  allocatorType = conf.get("allocator", "simple");
   initialize();
 }
                    
@@ -439,6 +435,25 @@ void Master::operator () ()
 
 void Master::initialize()
 {
+  active = false;
+
+  nextFrameworkId = 0;
+  nextSlaveId = 0;
+  nextOfferId = 0;
+
+  allocatorType = conf.get("allocator", "simple");
+
+  // Start all the statistics at 0.
+  statistics.launched_tasks = 0;
+  statistics.finished_tasks = 0;
+  statistics.killed_tasks = 0;
+  statistics.failed_tasks = 0;
+  statistics.lost_tasks = 0;
+  statistics.valid_status_updates = 0;
+  statistics.invalid_status_updates = 0;
+  statistics.valid_framework_messages = 0;
+  statistics.invalid_framework_messages = 0;
+
   // Install handler functions for certain messages.
   install(NEW_MASTER_DETECTED, &Master::newMasterDetected,
           &NewMasterDetectedMessage::pid);
