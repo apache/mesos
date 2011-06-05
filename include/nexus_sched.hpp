@@ -54,19 +54,19 @@ public:
   virtual ~SchedulerDriver() {}
 
   // Lifecycle methods
-  virtual void start() {}
-  virtual void join() {}
-  virtual void stop() {}
-  virtual void run() {} // Start and then join scheduler
+  virtual int start() { return -1; }
+  virtual int join() { return -1; }
+  virtual int stop() { return -1; }
+  virtual int run() { return -1; } // Start and then join scheduler
 
   // Communication methods
-  virtual void sendFrameworkMessage(const FrameworkMessage& message) {}
-  virtual void killTask(TaskID tid) {}
-  virtual void replyToOffer(OfferID oid,
-                            const std::vector<TaskDescription>& task,
-                            const string_map& params) {}
-  virtual void reviveOffers() {}
-  virtual void sendHints(const string_map& hints) {}
+  virtual int sendFrameworkMessage(const FrameworkMessage& message) { return -1; }
+  virtual int killTask(TaskID tid) { return -1; }
+  virtual int replyToOffer(OfferID oid,
+			   const std::vector<TaskDescription>& task,
+			   const string_map& params) { return -1; }
+  virtual int reviveOffers() { return -1; }
+  virtual int sendHints(const string_map& hints) { return -1; }
 };
 
 
@@ -81,19 +81,19 @@ public:
   virtual ~NexusSchedulerDriver();
 
   // Lifecycle methods
-  virtual void start();
-  virtual void join();
-  virtual void stop();
-  virtual void run(); // Start and then join scheduler
+  virtual int start();
+  virtual int join();
+  virtual int stop();
+  virtual int run(); // Start and then join scheduler
 
   // Communication methods
-  virtual void sendFrameworkMessage(const FrameworkMessage& message);
-  virtual void killTask(TaskID tid);
-  virtual void replyToOffer(OfferID offerId,
-                            const std::vector<TaskDescription>& task,
-                            const string_map& params);
-  virtual void reviveOffers();
-  virtual void sendHints(const string_map& hints);
+  virtual int sendFrameworkMessage(const FrameworkMessage& message);
+  virtual int killTask(TaskID tid);
+  virtual int replyToOffer(OfferID offerId,
+			   const std::vector<TaskDescription>& task,
+			   const string_map& params);
+  virtual int reviveOffers();
+  virtual int sendHints(const string_map& hints);
 
   // Scheduler getter; required by some of the SWIG proxies
   virtual Scheduler* getScheduler() { return sched; }
