@@ -144,7 +144,7 @@ PID MasterDetector::lookupMasterPID(const string &seq) const
   int ret;
   string result;
 
-  ret = zk->get(znode + seq, false, &result, NULL);
+  ret = zk->get(znode + "/" + seq, false, &result, NULL);
 
   if (ret != ZOK)
     LOG(ERROR) << "failed to fetch new master pid: " << zk->error(ret);
