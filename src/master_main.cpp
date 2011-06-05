@@ -15,6 +15,7 @@ void usage(const char* programName)
   cerr << "Usage: " << programName
        << " [--url URL]"
        << " [--port PORT]"
+       << " [--webui-port PORT]"
        << " [--allocator ALLOCATOR]"
        << " [--quiet]" << endl
        << endl
@@ -36,6 +37,7 @@ int main (int argc, char **argv)
     {"url", required_argument, 0, 'u'},
     {"allocator", required_argument, 0, 'a'},
     {"port", required_argument, 0, 'p'},
+    {"webui-port", required_argument, 0, 'w'},
     {"quiet", no_argument, 0, 'q'},
   };
 
@@ -45,7 +47,8 @@ int main (int argc, char **argv)
 
   int opt;
   int index;
-  while ((opt = getopt_long(argc, argv, "u:a:p:q", options, &index)) != -1) {
+  string webuiport = "";
+  while ((opt = getopt_long(argc, argv, "u:a:p:w:q", options, &index)) != -1) {
     switch (opt) {
       case 'u':
         url = optarg;
@@ -55,6 +58,9 @@ int main (int argc, char **argv)
         break;
       case 'p':
         setenv("LIBPROCESS_PORT", optarg, 1);
+        break;
+      case 'w':
+        webuiport = optarg;
         break;
       case 'q':
         quiet = true;
@@ -87,7 +93,7 @@ int main (int argc, char **argv)
 #ifdef NEXUS_WEBUI
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("could not change into %s for running webui", dirname(argv[0]));
-  startMasterWebUI(pid);
+  startMasterWebUI(pid, webuiport);
 #endif
   
   Process::wait(pid);

@@ -1,3 +1,4 @@
+import sys
 import bottle
 import commands
 import datetime
@@ -37,4 +38,8 @@ def log_tail(level, lines):
 
 
 bottle.TEMPLATE_PATH.append('./webui/master/%s.tpl')
-bottle.run(host = '0.0.0.0', port = 8080)
+if sys.argv[1]:
+  init_port = sys.argv[1] 
+else:
+  init_port = 8080
+bottle.run(host = '0.0.0.0', port = init_port)
