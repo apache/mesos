@@ -69,7 +69,7 @@ class MyScheduler(nexus.Scheduler):
     self.lock.acquire()
     tasks = []
     for offer in slave_offers:
-      if self.task_count < self.num_tasks and int(offer.params['mem']) >= 1073741824 and int(offer.params['cpus']) > 0:
+      if int(self.task_count) < int(self.num_tasks) and int(offer.params['mem']) >= 1073741824 and int(offer.params['cpus']) > 0:
         print "accept slot here"
         params = {"cpus": "1", "mem": "1073741824"}
         task_args = self.jar_url + "\t" + self.jar_class + "\t" + self.jar_args
@@ -77,6 +77,8 @@ class MyScheduler(nexus.Scheduler):
         td = nexus.TaskDescription(
             self.task_count, offer.slaveId, "task %d" % self.task_count, params, task_args)
         tasks.append(td)
+        print "incrementing self.task_count from " + str(self.task_count)
+        print "self.num_tasks is " + str(self.num_tasks)
         self.task_count += 1
       else:
         print "Rejecting slot because we've launched enough tasks"
@@ -151,20 +153,23 @@ def monitor(sched):
       continue
 
 if __name__ == "__main__":
-  parser = OptionParser(usage = "Usage: daemon_framework <mesos-master> <num tasks> <URL of jar> <class name> <arguments>")
+  #parser = OptionParser(usage = "Usage: daemon_framework <mesos-master> <num tasks> <URL of jar> <class name> <arguments>")
 
-  (options,args) = parser.parse_args()
-  if len(args) < 5:
-    print >> sys.stderr, "five parameters required. " + str(len(args))
-    print >> sys.stderr, "Use --help to show usage."
-    exit(2)
+  #(options,args) = parser.parse_args()
+  #if len(args) < 5:
+  #  print >> sys.stderr, "five parameters required. " + str(len(args))
+  #  print >> sys.stderr, "Use --help to show usage."
+  #  exit(2)
+  args = sys.argv[1:len(sys.argv)]
+  
+  print "sched = MyScheduler(" + args[1] + ", "+  args[2]+ ", "+ args[3]+ ", "+ " ".join(args[4:len(args)])+")"
 
-  sched = MyScheduler(args[1], args[2], args[3], args[4])
+  sched = MyScheduler(args[1], args[2], args[3], " ".join(args[4:len(args)]))
 
   #threading.Thread(target = monitor, args=[sched]).start()
 
   print "Connecting to nexus master %s" % args[0]
 
-  nexus.NexusSchedulerDriver(sched, args[0]).run()
+  nexus.NexusSchedulerDriver(sched, sys.argv[1]).run()
 
   print "Finished!"

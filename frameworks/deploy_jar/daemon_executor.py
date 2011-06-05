@@ -19,7 +19,7 @@ class MyExecutor(nexus.Executor):
     print "task id is " + str(task.taskId) + ", task.args is " + task.arg
     self.args = task.arg.split("\t")
     print "running: " + "java -cp " + self.args[0] + " " + self.args[1] + " " + self.args[2]
-    print Popen("java -cp " + self.args[0] + " " + self.args[1] + " " + self.args[2], shell=True, stdout=PIPE).stdout.readline()
+    print Popen("/usr/lib/jvm/java-6-sun/bin/java -cp " + self.args[0] + " " + self.args[1] + " " + self.args[2], shell=True, stdout=PIPE).stdout.readline()
     update = nexus.TaskStatus(task.taskId, nexus.TASK_FINISHED, "")
     driver.sendStatusUpdate(update)
     
