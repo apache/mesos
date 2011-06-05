@@ -6,7 +6,7 @@ import nexus.*;
 public class DaemonScheduler extends Scheduler {
 
   final static String executorScript =
-    "/Users/benh/nexus-github-master/frameworks/daemon/daemon_executor";
+    "/Users/florian/code/nexus-src/frameworks/daemon/daemon_executor";
 
   static Map<String, Configuration> configs =
     new HashMap<String, Configuration>();

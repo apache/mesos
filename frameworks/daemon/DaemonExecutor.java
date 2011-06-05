@@ -8,7 +8,7 @@ public class DaemonExecutor extends Executor {
   }
 
   @Override
-  public void startTask(final TaskDescription task) {
+  public void launchTask(ExecutorDriver driver, final TaskDescription task) {
     System.out.println("Running task " + task.getName());
     try {
       Thread.sleep(100000);
@@ -16,12 +16,12 @@ public class DaemonExecutor extends Executor {
     TaskStatus status = new TaskStatus(task.getTaskId(),
 				       TaskState.TASK_FAILED,
 				       new byte[0]);
-    sendStatusUpdate(status);
+    driver.sendStatusUpdate(status);
   }
 
   
 
   public static void main(String[] args) throws Exception {
-    new DaemonExecutor().run();
+    new NexusExecutorDriver(new DaemonExecutor()).run();
   }
 }
