@@ -18,7 +18,7 @@ wait
 
 echo "Stopping master on $MASTER"
 for master in $MASTER; do
-  echo "Stopping slave(s) on $master"
+  echo "Stopping master(s) on $master"
   ssh $SSH_OPTS $master pkill nexus-master &
   sleep 0.1
 done
