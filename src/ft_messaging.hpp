@@ -1,8 +1,6 @@
 #ifndef _FT_MESSAGING_HPP_
 #define _FT_MESSAGING_HPP_
 
-#define FT_MAX_RESENDS 30 // 5 minutes
-
 #include <boost/lexical_cast.hpp>
 #include <boost/unordered_set.hpp>
 #include <boost/unordered_map.hpp>
@@ -10,11 +8,12 @@
 #include <ctime>
 #include <process.hpp>
 
-#include "leader_detector.hpp"
 #include "messages.hpp"
 #include "tuple.hpp"
 #include "foreach.hpp"
 
+#define FT_TIMEOUT 10
+#define FT_MAX_RESENDS 30 // 5 minutes
 
 namespace nexus { namespace internal {
 

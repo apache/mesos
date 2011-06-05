@@ -53,7 +53,7 @@ LDFLAGS += -L$(LIBEV)/.libs
 # Add glog and gtest and zookeeper to include and lib paths
 CXXFLAGS += -I$(GLOG)/src
 CXXFLAGS += -I$(GTEST)/include
-CXXFLAGS += -I$(ZOOKEEPER)/include -I$(ZOOKEEPER)/generated -DTHREADED
+CXXFLAGS += -I$(ZOOKEEPER)/include -I$(ZOOKEEPER)/generated
 LDFLAGS += -L$(GLOG)/.libs
 LDFLAGS += -L$(GTEST)/lib/.libs
 LDFLAGS += -L$(ZOOKEEPER)/.libs
@@ -71,7 +71,7 @@ CFLAGS += -DBUILD_USER="\"$$USER\""
 CXXFLAGS += -DBUILD_USER="\"$$USER\""
 
 # Add libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lzookeeper_mt
+LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lzookeeper_st
 
 NEXUS_EXES = nexus-master nexus-slave nexus-local nexus-launcher alltests \
 	     test-framework test-executor cpp-test-framework cpp-test-executor \
@@ -92,7 +92,7 @@ NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(NEXUS_LIB)
 MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
 SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
 	    process_based_isolation_module.o
-COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o leader_detector.o url_processor.o ft_messaging.o
+COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o master_detector.o url_processor.o ft_messaging.o zookeeper.o
 EXEC_LIB_OBJ = nexus_exec.o
 SCHED_LIB_OBJ = nexus_sched.o nexus_local.o params.o
 TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o
@@ -133,7 +133,7 @@ $(NEXUS_LIBS): $(COMMON_OBJ) third_party/libprocess/libprocess.a
 $(NEXUS_EXES): $(COMMON_OBJ) third_party/libprocess/libprocess.a
 
 $(SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
-	$(AR) rcs $@ $^ third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a $(ZOOKEEPER)/.libs/libzookeeper_mt.a
+	$(AR) rcs $@ $^ third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a $(ZOOKEEPER)/.libs/libzookeeper_st.a
 
 $(EXEC_LIB): $(EXEC_LIB_OBJ) $(COMMON_OBJ)
 	$(AR) rcs $@ $^

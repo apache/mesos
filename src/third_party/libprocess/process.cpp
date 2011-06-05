@@ -1085,7 +1085,7 @@ public:
 	/* Free any pending messages. */
 	while (!process->msgs.empty()) {
 	  struct msg *msg = process->msgs.front();
-	  process->msgs.pop();
+	  process->msgs.pop_front();
 	  free(msg);
 	}
 
@@ -2863,7 +2863,7 @@ void Process::enqueue(struct msg *msg)
   {
     if (state != EXITED) {
       //cout << "enqueing pending message: " << msg << endl;
-      msgs.push(msg);
+      msgs.push_back(msg);
 
       if (state == RECEIVING) {
 	state = READY;
@@ -2895,7 +2895,7 @@ struct msg * Process::dequeue()
     assert (state == RUNNING);
     if (!msgs.empty()) {
       msg = msgs.front();
-      msgs.pop();
+      msgs.pop_front();
       //cout << "dequeueing pending message: " << msg << endl;
     }
   }
@@ -2905,16 +2905,48 @@ struct msg * Process::dequeue()
 }
 
 
-PID Process::self()
+PID Process::self() const
 {
   return pid;
 }
 
 
-PID Process::from()
+PID Process::from() const
 {
   PID pid = { 0, 0, 0 };
   return current != NULL ? current->from : pid;
+}
+
+
+void Process::inject(const PID &from, MSGID id, const char *data, size_t length)
+{
+  if (replaying)
+    return;
+
+  /* Disallow sending messages using an internal id. */
+  if (id < PROCESS_MSGID)
+    return;
+
+  /* Allocate/Initialize outgoing message. */
+  struct msg *msg = (struct msg *) malloc(sizeof(struct msg) + length);
+
+  msg->from.pipe = from.pipe;
+  msg->from.ip = from.ip;
+  msg->from.port = from.port;
+  msg->to.pipe = pid.pipe;
+  msg->to.ip = pid.ip;
+  msg->to.port = pid.port;
+  msg->id = id;
+  msg->len = length;
+
+  if (length > 0)
+    memcpy((char *) msg + sizeof(struct msg), data, length);
+
+  lock();
+  {
+    msgs.push_front(msg);
+  }
+  unlock();
 }
 
 
@@ -3045,7 +3077,7 @@ MSGID Process::call(const PID &to, MSGID id,
 }
 
 
-const char * Process::body(size_t *length)
+const char * Process::body(size_t *length) const
 {
   if (current != NULL && current->len > 0) {
     if (length != NULL)

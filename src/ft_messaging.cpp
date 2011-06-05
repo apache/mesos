@@ -6,7 +6,6 @@
 #include <zookeeper.h>
 #include <glog/logging.h>
 #include "messages.hpp"
-#include "leader_detector.hpp"
 #include "ft_messaging.hpp"
 
 namespace nexus { namespace internal {

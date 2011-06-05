@@ -34,7 +34,7 @@
 #include "params.hpp"
 #include "resources.hpp"
 #include "slave_state.hpp"
-#include "leader_detector.hpp"
+#include "master_detector.hpp"
 #include "task_info.hpp"
 #include "ft_messaging.hpp"
 
@@ -167,7 +167,7 @@ public:
   
   bool isFT;
   string zkServers;
-  LeaderDetector *leaderDetector;
+  MasterDetector *masterDetector;
   PID master;
   SlaveID id;
   Resources resources;
@@ -178,31 +178,6 @@ public:
   IsolationModule *isolationModule;
   FTMessaging *ftMsg;
 
-  
-  class SlaveLeaderListener;
-  friend class SlaveLeaderListener;
-
-  class SlaveLeaderListener : public LeaderListener {
-  public:
-    // Need to be thread safe. Currently does not use any shared variables. 
-    SlaveLeaderListener(Slave *s, PID pp) : parent(s), parentPID(pp) {}
-    
-    virtual void newLeaderElected(const string &zkId, const string &pidStr) {
-      if (zkId != "") {
-	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:" << zkId;
-	
-	LOG(INFO) << "Sending message to parent " << parentPID << " about new leader";
-	parent->send(parentPID, parent->pack<LE_NEWLEADER>(pidStr));
-
-      }
-    }
-
-  private:
-    Slave *parent;
-    PID parentPID;
-  } slaveLeaderListener;
-
-  
 public:
   Slave(const string &_master, Resources resources, bool _local);
 

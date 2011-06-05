@@ -60,8 +60,10 @@ enum MessageType {
   /* From slave heart to master. */
   SH2M_HEARTBEAT,
 
-  /* From leader election listener to slave */
-  LE_NEWLEADER,
+  /* From master detector to processes */
+  NEW_MASTER_DETECTED,
+  NO_MASTER_DETECTED,
+  GOT_MASTER_SEQ,
   
   /* From master to slave. */
   M2S_REGISTER_REPLY,
@@ -271,8 +273,15 @@ TUPLE(S2M_LOST_EXECUTOR,
 TUPLE(SH2M_HEARTBEAT,
       (SlaveID));
     
-TUPLE(LE_NEWLEADER,
-      (std::string /*PID of new leader*/));
+TUPLE(NEW_MASTER_DETECTED,
+      (std::string, /* master seq */
+       PID /* master PID */));
+
+TUPLE(NO_MASTER_DETECTED,
+      ());
+
+TUPLE(GOT_MASTER_SEQ,
+      (std::string /* seq */));
   
 TUPLE(M2S_REGISTER_REPLY,
       (SlaveID));
