@@ -93,9 +93,5 @@ public class TestExceptionFramework {
 
   public static void main(String[] args) throws Exception {
     new MesosSchedulerDriver(new MyScheduler(), args[0]).run();
-    // TODO: Java should just exit here, and it does so on Linux, but
-    // it doesn't on OS X. We should figure out why. It may have to do
-    // with the libprocess threads being around and not being marked
-    // as daemon threads by the JVM.
   }
 }
