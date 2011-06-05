@@ -376,7 +376,7 @@ void Master::operator () ()
       PID senderPid;
       istringstream ss(senderStr);
       ss >> senderPid;
-      if (!ftMsg->acceptMessageAckTo(ftId, senderPid, senderStr)) {
+      if (!ftMsg->acceptMessageAckTo(senderPid, ftId, senderStr)) {
         LOG(WARNING) << "FT: Locally ignoring duplicate message with id:" << ftId;
         break;
       } 
