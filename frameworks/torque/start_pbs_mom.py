@@ -7,10 +7,7 @@ import atexit
 
 from subprocess import *
 
-PBS_MOM_EXE = "/usr/local/sbin/pbs_mom"
-MOMCTL_EXE = "/usr/local/sbin/momctl"
-TORQUE_CFG = "/var/spool/torque"
-PBS_MOM_CONF_FILE = TORQUE_CFG + "/mom_priv/config"
+PBS_MOM_CONF_FILE = "/var/spool/torque/mom_priv/config"
 
 def cleanup():
   try:
@@ -32,23 +29,10 @@ class MyExecutor(nexus.Executor):
   def startTask(self, task):
     print "Running task %d" % task.taskId
     
-    #TODO: check to see if pbs_mom is installed, if not install it
-    #   simply requires getting and running the installer that gets
-    #   built when you make torque, like torque-package-mom-linux-ia64.sh
-    #   or maybe apt-get install pbs-mom
-
-    #if Popen("which pbs_mom", shell=True).wait() != 0:
-    #print "pbs_mom command not found, tring to apt-get install torque-mom"
-    #try:
-    #  print Popen("apt-get -y install torque-mom",shell=True).wait()
-    #except:
-    #  print "error installing pbs_mom, please install it on compute nodes"
-    #  None
-
     print "checking pbs_mom conf file " + PBS_MOM_CONF_FILE + " is it a file? "\
            + str(os.path.isfile(PBS_MOM_CONF_FILE))
-    #TODO: check to see if file exists, if it does, check to see that it is correct
-    #      else create it (right now we overwrite it no matter what)
+    #TODO: if config file exists, check to see that it is correct
+    #      (right now we overwrite it no matter what)
     if not os.path.isfile(PBS_MOM_CONF_FILE):
       print PBS_MOM_CONF_FILE + " file not found, about to create it"
     else:

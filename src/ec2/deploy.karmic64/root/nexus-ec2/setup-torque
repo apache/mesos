@@ -31,6 +31,13 @@ function installmaster {
 	cp contrib/init.d/debian.pbs_server /etc/init.d/pbs_server
 
 	popd
+	#WARNING: allow root to qsub for debug purposes only, may be dangerous
+	qmgr -c 's s acl_roots+=root@*' #allow root to submit jobs (i.e. qsub)
+	qmgr -c 's s allow_node_submit=true' #allow other hostnames to submit
+#	touch ~/.rhosts
+#	echo `hostname` |cat >> ~/.rhosts
+#	echo `hostname -f` |cat >> ~/.rhosts
+#	echo localhost |cat >> ~/.rhosts
 }
 
 function installslaves {
