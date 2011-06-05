@@ -132,7 +132,7 @@ bool FTMessaging::acceptMessage(const string &ftId, const string &from) {
 bool FTMessaging::acceptMessageAckTo(const PID &to, const string &ftId, const string &from) {
   DLOG(INFO) << "FT: Received msg with id: " << ftId << " sending FT_RELAY_ACK to " << to;
   
-  bool res = acceptMessage(from, ftId);
+  bool res = acceptMessage(ftId, from);
   
   if (!res) {
     LOG(WARNING) << "FT: asked caller to ignore duplicate message " << ftId;
