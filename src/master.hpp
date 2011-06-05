@@ -69,7 +69,7 @@ const int64_t MAX_MEM = 1024LL * 1024LL * 1024LL * 1024LL * 1024LL;
 const double HEARTBEAT_INTERVAL = 2;
 
 // Acceptable time since we saw the last heartbeat (four heartbeats).
-const double HEARTBEAT_TIMEOUT = HEARTBEAT_INTERVAL * 4;
+const double HEARTBEAT_TIMEOUT = 15;
 
 // Some forward declarations
 class Slave;
