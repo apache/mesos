@@ -260,7 +260,7 @@ Promise<state::MasterState*> Master::getState()
 
     state::Slave* slave =
       new state::Slave(s->slaveId.value(), s->info.hostname(),
-                       s->info.public_hostname() + , cpus.value(),
+                       s->info.public_hostname(), cpus.value(),
                        mem.value(), s->connectTime);
 
     state->slaves.push_back(slave);
