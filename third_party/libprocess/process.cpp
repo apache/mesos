@@ -1086,22 +1086,23 @@ void initialize(bool initialize_google_logging)
 #ifdef __sun__
   /* Need to ignore this since we can't do MSG_NOSIGNAL on Solaris. */
   signal(SIGPIPE, SIG_IGN);
-#endif /* __sun__ */
+#endif // __sun__
 
-  /* Create a new ProcessManager and SocketManager. */
+  // Create a new ProcessManager and SocketManager.
   process_manager = new ProcessManager();
   socket_manager = new SocketManager();
 
-  /* Setup processing thread. */
-  if (pthread_create (&proc_thread, NULL, schedule, NULL) != 0)
-    fatalerror("failed to initialize (pthread_create)");
+  // Setup processing thread.
+  if (pthread_create (&proc_thread, NULL, schedule, NULL) != 0) {
+    PLOG(FATAL) << "Failed to initialize, pthread_create";
+  }
 
   ip = 0;
   port = 0;
 
   char *value;
 
-  /* Check environment for ip. */
+  // Check environment for ip.
   value = getenv("LIBPROCESS_IP");
   if (value != NULL) {
     int result = inet_pton(AF_INET, value, &ip);
@@ -1112,7 +1113,7 @@ void initialize(bool initialize_google_logging)
     }
   }
 
-  /* Check environment for port. */
+  // Check environment for port.
   value = getenv("LIBPROCESS_PORT");
   if (value != NULL) {
     int result = atoi(value);
@@ -1122,66 +1123,73 @@ void initialize(bool initialize_google_logging)
     port = result;
   }
 
-  // Lookup hostname if missing ip (avoids getting 127.0.0.1). Note
-  // that we need only one ip address, so that other processes can
-  // send and receive and don't get confused as to whom they are
-  // sending to.
-  if (ip == 0) {
-    char hostname[512];
-
-    if (gethostname(hostname, sizeof(hostname)) < 0)
-      fatalerror("failed to initialize (gethostname)");
-
-    /* Lookup IP address of local hostname. */
-    struct hostent *he;
-
-    if ((he = gethostbyname2(hostname, AF_INET)) == NULL)
-      fatalerror("failed to initialize (gethostbyname2)");
-
-    ip = *((uint32_t *) he->h_addr_list[0]);
+  // Create a "server" socket for communicating with other nodes.
+  if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0) {
+    PLOG(FATAL) << "Failed to initialize, socket";
   }
 
-  /* Create a "server" socket for communicating with other nodes. */
-  if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
-    fatalerror("failed to initialize (socket)");
+  // Make socket non-blocking.
+  if (set_nbio(s) < 0) {
+    PLOG(FATAL) << "Failed to initialize, set_nbio";
+  }
 
-  /* Make socket non-blocking. */
-  if (set_nbio(s) < 0)
-    fatalerror("failed to initialize (set_nbio)");
-
-  /* Allow socket reuse. */
+  // Allow address reuse.
   int on = 1;
-  if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
-    fatalerror("failed to initialize (setsockopt(SO_REUSEADDR) failed)");
+  if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+    PLOG(FATAL) << "Failed to initialize, setsockopt(SO_REUSEADDR)";
+  }
 
-  /* Set up socket. */
+  // Set up socket.
   struct sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = PF_INET;
-  addr.sin_addr.s_addr = ip;
+  addr.sin_addr.s_addr = INADDR_ANY;
   addr.sin_port = htons(port);
 
-  if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0)
-    fatalerror("failed to initialize (bind)");
+  if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+    PLOG(FATAL) << "Failed to initialize, bind";
+  }
 
-  /* Lookup and store assigned ip and assigned port. */
+  // Lookup and store assigned ip and assigned port.
   socklen_t addrlen = sizeof(addr);
-  if (getsockname(s, (struct sockaddr *) &addr, &addrlen) < 0)
-    fatalerror("failed to initialize (getsockname)");
+  if (getsockname(s, (struct sockaddr *) &addr, &addrlen) < 0) {
+    PLOG(FATAL) << "Failed to initialize, getsockname";
+  }
 
   ip = addr.sin_addr.s_addr;
   port = ntohs(addr.sin_port);
 
-  if (listen(s, 500000) < 0) {
-    fatalerror("failed to initialize (listen)");
+  // Lookup hostname if missing ip or if ip is 127.0.0.1 in case we
+  // actually have a valid external ip address. Note that we need only
+  // one ip address, so that other processes can send and receive and
+  // don't get confused as to whom they are sending to.
+  if (ip == 0 || ip == 2130706433) {
+    char hostname[512];
+
+    if (gethostname(hostname, sizeof(hostname)) < 0) {
+      PLOG(FATAL) << "Ffailed to initialize, gethostname";
+    }
+
+    // Lookup IP address of local hostname.
+    struct hostent* he;
+
+    if ((he = gethostbyname2(hostname, AF_INET)) == NULL) {
+      PLOG(FATAL) << "Failed to initialize, gethostbyname2";
+    }
+
+    ip = *((uint32_t *) he->h_addr_list[0]);
   }
 
-  /* Setup event loop. */
+  if (listen(s, 500000) < 0) {
+    PLOG(FATAL) << "Failed to initialize, listen";
+  }
+
+  // Setup event loop.
 #ifdef __sun__
   loop = ev_default_loop(EVBACKEND_POLL | EVBACKEND_SELECT);
 #else
   loop = ev_default_loop(EVFLAG_AUTO);
-#endif /* __sun__ */
+#endif // __sun__
 
   ev_async_init(&async_watcher, handle_async);
   ev_async_start(loop, &async_watcher);
@@ -1208,16 +1216,21 @@ void initialize(bool initialize_google_logging)
 //   sigprocmask (SIG_UNBLOCK, &sa.sa_mask, 0);
 
   if (pthread_create(&io_thread, NULL, serve, loop) != 0) {
-    fatalerror("failed to initialize node (pthread_create)");
+    PLOG(FATAL) << "Failed to initialize, pthread_create";
   }
 
+  // Need to set initialzing here so that we can actually invoke
+  // 'spawn' below for the garbage collector.
   initializing = false;
 
   // Create global garbage collector.
   gc = spawn(new GarbageCollector());
 
   char temp[INET_ADDRSTRLEN];
-  CHECK(inet_ntop(AF_INET, (in_addr *) &ip, temp, INET_ADDRSTRLEN) != NULL);
+  if (inet_ntop(AF_INET, (in_addr *) &ip, temp, INET_ADDRSTRLEN) == NULL) {
+    PLOG(FATAL) << "Failed to initialize, inet_ntop";
+  }
+
   VLOG(1) << "libprocess is initialized on " << temp << ":" << port;
 }
 
