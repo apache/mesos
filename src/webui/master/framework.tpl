@@ -56,7 +56,7 @@
       <td>{{task.state}}</td>
       %if task.slave_id in slaves:
         %s = slaves[task.slave_id]
-        <td><a href="http://{{s.public_dns}}:8081/">{{s.public_dns}}</a></td>
+        <td><a href="http://{{s.web_ui_url}}/">{{s.host}}</a></td>
       %else:
         <td>Slave {{task.slave_id}} (disconnected)</td>
       %end
