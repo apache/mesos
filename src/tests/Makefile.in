@@ -139,6 +139,7 @@ clean:
 	rm -f $(patsubst %.o, %.d, $(TESTS_OBJ))
 	rm -f $(TESTS_OBJ)
 	rm -f $(ALLTESTS_EXE)
+	rm -f $(EXTERNAL_SCRIPTS)
 	rm -f TAGS
 
 .PHONY: default all test clean

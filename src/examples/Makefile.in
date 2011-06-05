@@ -189,6 +189,7 @@ clean:
 	rm -f $(patsubst %, %.d, $(EXAMPLES_EXES))
 	rm -rf $(patsubst %, %.dSYM, $(EXAMPLES_EXES))
 	rm -f $(EXAMPLES_EXES)
+	rm -f $(JAVA) $(PYTHON)
 	rm -f TAGS
 
 .PHONY: default all clean

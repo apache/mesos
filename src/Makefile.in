@@ -367,13 +367,15 @@ clean:
 	rm -f webui/master/swig/master_wrap.o
 	rm -f webui/master/swig/master_wrap.d
 	rm -f webui/master/swig/master.py
-	rm -f webui/master/swig/master.pyc
+	rm -f $(BINDIR)/webui/master/swig/master.py
+	rm -f $(BINDIR)/webui/master/swig/master.pyc
 	rm -f webui/slave/swig/slave_wrap.h
 	rm -f webui/slave/swig/slave_wrap.cpp
 	rm -f webui/slave/swig/slave_wrap.o
 	rm -f webui/slave/swig/slave_wrap.d
 	rm -f webui/slave/swig/slave.py
-	rm -f webui/slave/swig/slave.pyc
+	rm -f $(BINDIR)/webui/master/swig/master.py
+	rm -f $(BINDIR)/webui/master/swig/master.pc
 	rm -f TAGS
 
 .PHONY: default java python test all clean
