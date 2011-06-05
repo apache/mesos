@@ -117,6 +117,20 @@ AC_ARG_WITH([webui],
 AC_SUBST(WITH_WEBUI)
 AC_SUBST(WEBUI_FLAGS)
 
+WITH_ZOOKEEPER="0"
+AC_ARG_WITH([zookeeper],
+  AC_HELP_STRING([--with-zookeeper],
+                 [enable ZooKeeper support]),
+	         [case "$with_zookeeper" in
+		    yes) WITH_ZOOKEEPER="1" ;;
+                    no) WITH_ZOOKEEPER="0" ;;
+		    *) AC_MSG_ERROR([
+*** --with-zookeeper does not take arguments]) ;;
+	          esac],
+	         [])
+AC_SUBST(WITH_ZOOKEEPER)
+
+
 # Checks for programs.
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])

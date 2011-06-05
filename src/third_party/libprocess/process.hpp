@@ -203,6 +203,9 @@ protected:
   /* Wait until operation is ready for file descriptor (or message received). */
   bool await(int fd, int op, const timeval& tv);
 
+  /* Wait until operation is ready for file descriptor (or message received). */
+  bool await(int fd, int op, const timeval& tv, bool ignore);
+
   /* Returns true if operation on file descriptor is ready. */
   bool ready(int fd, int op);
 
@@ -253,7 +256,7 @@ inline MSGID Process::call(const PID &to, MSGID id)
 inline MSGID Process::call(const PID &to, MSGID id,
 			   const char *data, size_t length)
 {
-  return call(to, id, NULL, 0, 0);
+  return call(to, id, data, length, 0);
 }
 
 

@@ -19,6 +19,8 @@ RUBY_HEADERS = @RUBY_HEADERS@
 WITH_WEBUI = @WITH_WEBUI@
 WEBUI_FLAGS = @WEBUI_FLAGS@
 
+WITH_ZOOKEEPER = @WITH_ZOOKEEPER@
+
 LIBEV = third_party/libprocess/third_party/libev-3.8
 
 GLOG = third_party/glog-0.3.0
@@ -45,9 +47,6 @@ CFLAGS += -Ithird_party/libprocess
 CXXFLAGS += -Ithird_party/libprocess
 LDFLAGS += -Lthird_party/libprocess
 
-# Add libev to LDFLAGS.
-LDFLAGS += -L$(LIBEV)/.libs
-
 # Add glog and gtest to include and lib paths
 CXXFLAGS += -I$(GLOG)/src
 CXXFLAGS += -I$(GTEST)/include
@@ -66,8 +65,16 @@ CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
 CFLAGS += -DBUILD_USER="\"$$USER\""
 CXXFLAGS += -DBUILD_USER="\"$$USER\""
 
-# Add zookeeper_st, libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lzookeeper_st -lglog -lgtest -lprocess -lev -lpthread -ldl
+# Add libev to LDFLAGS.
+LDFLAGS += -L$(LIBEV)/.libs
+
+# Add libev, libprocess, pthread, and dl to LIBS.
+LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl
+
+# Add zookeeper_st to LIBS if necessary.
+ifeq ($(WITH_ZOOKEEPER),1)
+  LIBS += -lzookeeper_st
+endif
 
 NEXUS_EXES = nexus-master nexus-slave nexus-local nexus-launcher alltests \
 	     test-framework test-executor cpp-test-framework cpp-test-executor \
@@ -99,6 +106,11 @@ endif
 
 ifeq ($(OS_NAME),linux)
   SLAVE_OBJ += lxc_isolation_module.o
+endif
+
+# Add zookeeper.cpp if necessary.
+ifeq ($(WITH_ZOOKEEPER),1)
+  COMMON_OBJ += zookeeper.o
 endif
 
 ALL_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ) \

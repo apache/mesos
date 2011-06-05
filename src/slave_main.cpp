@@ -2,10 +2,14 @@
 
 #include "slave.hpp"
 #include "slave_webui.hpp"
-#include "zookeeper_slave.hpp"
 
 using namespace std;
+
 using namespace nexus::internal::slave;
+
+
+/* List of ZooKeeper host:port pairs. */
+string zookeeper = "";
 
 
 void usage(const char *programName)
@@ -38,7 +42,6 @@ int main(int argc, char **argv)
 
   Resources resources(1, 1 * Gigabyte);
   string isolation = "process";
-  string zookeeper = "";
   bool quiet = false;
 
   int opt;
@@ -55,7 +58,13 @@ int main(int argc, char **argv)
 	isolation = optarg;
         break;
       case 'z':
+#ifndef USING_ZOOKEEPER
+	cerr << "--zookeeper not supported in this build" << endl;
+	usage(argv[0]);
+	exit(1);
+#else
 	zookeeper = optarg;
+#endif
         break;
       case 'q':
         quiet = true;
@@ -87,10 +96,7 @@ int main(int argc, char **argv)
   // Resolve the master PID.
   PID master;
 
-  if (!zookeeper.empty()) {
-    Process::wait(Process::spawn(new ZooKeeperProcessForSlave(zookeeper)));
-    master = make_pid(ZooKeeperProcessForSlave::master.c_str());
-  } else {
+  if (zookeeper.empty()) {
     istringstream iss(argv[optind]);
     if (!(iss >> master)) {
       cerr << "Failed to resolve master PID " << argv[optind] << endl;
@@ -100,10 +106,13 @@ int main(int argc, char **argv)
 
   LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
   LOG(INFO) << "Starting Nexus slave";
+
   Slave* slave = new Slave(master, resources, false, isolation);
   PID pid = Process::spawn(slave);
 
 #ifdef NEXUS_WEBUI
+  if (chdir(dirname(argv[0])) != 0)
+    fatalerror("could not change into %s for running webui", dirname(argv[0]));
   startSlaveWebUI(pid);
 #endif
 

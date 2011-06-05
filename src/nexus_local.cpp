@@ -15,6 +15,11 @@ using nexus::internal::slave::Slave;
 using namespace nexus::internal;
 
 
+/* TODO(benh): Remove this dependency! */
+/* List of ZooKeeper host:port pairs. */
+std::string zookeeper = "";
+
+
 namespace {
 
 static Master* currentMaster = NULL;

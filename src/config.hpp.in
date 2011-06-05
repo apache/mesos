@@ -7,4 +7,8 @@
   #define NEXUS_WEBUI
 #endif
 
+#if @WITH_ZOOKEEPER@
+  #define USING_ZOOKEEPER
+#endif
+
 #endif /* __CONFIG_HPP__ */

@@ -1600,7 +1600,7 @@ public:
     return !interrupted;
   }
 #else
-  bool await(Process *process, int fd, int op, ev_tstamp interval)
+  bool await(Process *process, int fd, int op, ev_tstamp interval, bool ignore)
   {
     assert(process != NULL);
 
@@ -1609,21 +1609,28 @@ public:
     if (fd < 0)
       return false;
 
-    /* Allocate/Initialize the watcher. */
-    ev_io *io_watcher = (ev_io *) malloc (sizeof (ev_io));
-
-    if ((op & Process::RDWR) == Process::RDWR)
-      ev_io_init(io_watcher, handle_await, fd, EV_READ | EV_WRITE);
-    else if ((op & Process::RDONLY) == Process::RDONLY)
-      ev_io_init(io_watcher, handle_await, fd, EV_READ);
-    else if ((op & Process::WRONLY) == Process::WRONLY)
-      ev_io_init(io_watcher, handle_await, fd, EV_WRITE);
-
-    /* Create tuple describing state (on heap in case we get interrupted). */
-    io_watcher->data = new tuple<Process *, int>(process, process->generation);
-
     process->lock();
     {
+      /* Consider a non-empty message queue as an immediate interrupt. */
+      if (!ignore && !process->msgs.empty()) {
+	process->unlock();
+	return false;
+      }
+
+      /* Allocate/Initialize the watcher. */
+      ev_io *io_watcher = (ev_io *) malloc(sizeof(ev_io));
+
+      if ((op & Process::RDWR) == Process::RDWR)
+	ev_io_init(io_watcher, handle_await, fd, EV_READ | EV_WRITE);
+      else if ((op & Process::RDONLY) == Process::RDONLY)
+	ev_io_init(io_watcher, handle_await, fd, EV_READ);
+      else if ((op & Process::WRONLY) == Process::WRONLY)
+	ev_io_init(io_watcher, handle_await, fd, EV_WRITE);
+
+      /* Tuple describing state (on heap in case we get interrupted). */
+      io_watcher->data =
+	new tuple<Process *, int>(process, process->generation);
+
       timeout_t timeout;
 
       if (interval > 0) {
@@ -1651,8 +1658,7 @@ public:
 	     process->state == Process::INTERRUPTED);
 
       /* Attempt to cancel the timer if necessary. */
-      if (interval > 0)
-	if (process->state != Process::TIMEDOUT)
+      if (interval > 0 && process->state != Process::TIMEDOUT)
 	  cancel_timeout(timeout);
 
       if (process->state == Process::INTERRUPTED)
@@ -2959,8 +2965,10 @@ MSGID Process::receive(time_t secs)
 {
   //cout << "Process::receive(" << secs << ")" << endl;
   /* Free current message. */
-  if (current)
+  if (current) {
     free(current);
+    current = NULL;
+  }
 
   /* Check if there is a message queued. */
   if ((current = dequeue()) != NULL)
@@ -3037,7 +3045,7 @@ MSGID Process::call(const PID &to, MSGID id,
 
 const char * Process::body(size_t *length)
 {
-  if (current && current->len > 0) {
+  if (current != NULL && current->len > 0) {
     if (length != NULL)
       *length = current->len;
     return (char *) current + sizeof(struct msg);
@@ -3076,8 +3084,14 @@ PID Process::link(const PID &to)
 
 bool Process::await(int fd, int op, const timeval& tv)
 {
+  return await(fd, op, tv, true);
+}
+
+
+bool Process::await(int fd, int op, const timeval& tv, bool ignore)
+{
   ev_tstamp interval = tv.tv_sec + (tv.tv_usec * 1e-6);
-  return ProcessManager::instance()->await(this, fd, op, interval);
+  return ProcessManager::instance()->await(this, fd, op, interval, ignore);
 }
 
 
