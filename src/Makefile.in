@@ -301,9 +301,9 @@ python: $(MESOS_PYTHON_LIB)
 
 $(MESOS_JAVA_JAR): $(MESOS_JAVA_LIB) | $(LIBDIR)/java
 ifdef JAVA_HOME
-	$(JAVA_HOME)/bin/javac -sourcepath swig/java -d swig/java swig/java/mesos/*.java
 	patch -N swig/java/mesos/mesosJNI.java < @srcdir@/swig/java/mesosJNI.java.patch1 || echo -n
 	patch swig/java/mesos/mesosJNI.java < @srcdir@/swig/java/mesosJNI.java.patch2 || echo -n
+	$(JAVA_HOME)/bin/javac -sourcepath swig/java -d swig/java swig/java/mesos/*.java
 	$(JAVA_HOME)/bin/jar cf $@ -C swig/java mesos
 endif
 
