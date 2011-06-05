@@ -26,8 +26,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-#include <boost/tuple/tuple.hpp>
-
 #include <algorithm>
 #include <deque>
 #include <fstream>
@@ -41,14 +39,17 @@
 #include <stdexcept>
 #include <vector>
 
-#include "process.hpp"
+#include <process/gc.hpp>
+#include <process/process.hpp>
+
+#include <boost/tuple/tuple.hpp>
+
 #include "config.hpp"
 #include "decoder.hpp"
 #include "encoder.hpp"
 #include "fatal.hpp"
 #include "foreach.hpp"
 #include "gate.hpp"
-#include "gc.hpp"
 #include "synchronized.hpp"
 #include "tokenize.hpp"
 

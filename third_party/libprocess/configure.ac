@@ -3,7 +3,7 @@
 
 AC_PREREQ(2.61)
 AC_INIT
-AC_CONFIG_SRCDIR([process.cpp])
+AC_CONFIG_SRCDIR([src/process.cpp])
 
 # Checks for programs.
 AC_PROG_CXX([g++])

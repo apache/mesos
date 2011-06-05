@@ -7,8 +7,9 @@
 #include <string>
 #include <vector>
 
+#include <process/http.hpp>
+
 #include "foreach.hpp"
-#include "http.hpp"
 
 
 namespace process {

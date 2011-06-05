@@ -1,7 +1,7 @@
 #include <gmock/gmock.h>
 
-#include <process.hpp>
-#include <run.hpp>
+#include <process/process.hpp>
+#include <process/run.hpp>
 
 using process::Future;
 using process::PID;

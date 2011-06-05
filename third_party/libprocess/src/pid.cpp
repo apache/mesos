@@ -12,9 +12,10 @@
 
 #include <boost/unordered_map.hpp>
 
+#include <process/pid.hpp>
+#include <process/process.hpp>
+
 #include "config.hpp"
-#include "pid.hpp"
-#include "process.hpp"
 
 #ifdef __APPLE__
 #define gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)  \

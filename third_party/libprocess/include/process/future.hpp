@@ -1,7 +1,7 @@
 #ifndef __FUTURE_HPP__
 #define __FUTURE_HPP__
 
-#include "latch.hpp"
+#include <process/latch.hpp>
 
 
 namespace process {

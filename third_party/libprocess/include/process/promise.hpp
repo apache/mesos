@@ -1,7 +1,7 @@
 #ifndef __PROMISE_HPP__
 #define __PROMISE_HPP__
 
-#include "future.hpp"
+#include <process/future.hpp>
 
 
 namespace process {

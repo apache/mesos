@@ -13,10 +13,10 @@
 
 #include <tr1/functional>
 
-#include "future.hpp"
-#include "http.hpp"
-#include "pid.hpp"
-#include "promise.hpp"
+#include <process/future.hpp>
+#include <process/http.hpp>
+#include <process/pid.hpp>
+#include <process/promise.hpp>
 
 
 namespace process {

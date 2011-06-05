@@ -1,8 +1,6 @@
 #ifndef __LATCH_HPP__
 #define __LATCH_HPP__
 
-#include <process.hpp>
-
 
 namespace process {
 

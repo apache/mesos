@@ -1,6 +1,5 @@
-#include <process.hpp>
-
-#include "latch.hpp"
+#include <process/latch.hpp>
+#include <process/process.hpp>
 
 
 namespace process {
