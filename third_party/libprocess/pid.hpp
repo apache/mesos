@@ -22,42 +22,43 @@ std::size_t hash_value(const PID &);
 
 struct PID
 {
-  PID() : pipe(0), ip(0), port(0) {}
+  PID() : ip(0), port(0) {}
 
+  PID(const char *id_, uint32_t ip_, uint16_t port_)
+    : id(id_), ip(ip_), port(port_) {}
+
+  PID(const std::string& id_, uint32_t ip_, uint16_t port_)
+    : id(id_), ip(ip_), port(port_) {}
 
   PID(const char *s) 
   {
-    std::istringstream iss(s);
-    iss >> *this;
+    std::istringstream in(s);
+    in >> *this;
   }
-
 
   PID(const std::string &s)
   {
-    std::istringstream iss(s);
-    iss >> *this;
+    std::istringstream in(s);
+    in >> *this;
   }
-
 
   operator std::string() const
   {
-    std::ostringstream oss;
-    oss << *this;
-    return oss.str();
+    std::ostringstream out;
+    out << *this;
+    return out.str();
   }
-
 
   bool operator ! () const
   {
-    return !pipe && !ip && !port;
+    return id == "" && ip == 0 && port == 0;
   }
-
 
   bool operator < (const PID &that) const
   {
     if (this != &that) {
       if (ip == that.ip && port == that.port)
-        return pipe < that.pipe;
+        return id < that.id;
       else if (ip == that.ip && port != that.port)
         return port < that.port;
       else
@@ -67,11 +68,10 @@ struct PID
     return false;
   }
 
-
   bool operator == (const PID &that) const
   {
     if (this != &that) {
-      return (pipe == that.pipe &&
+      return (id == that.id &&
               ip == that.ip &&
               port == that.port);
     }
@@ -79,14 +79,13 @@ struct PID
     return true;
   }
 
-
   bool operator != (const PID &that) const
   {
     return !(this->operator == (that));
   }
 
 
-  uint32_t pipe;
+  std::string id;
   uint32_t ip;
   uint16_t port;
 };

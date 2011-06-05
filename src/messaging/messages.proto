@@ -56,8 +56,8 @@ message UnregisterFrameworkMessage {
 
 message ResourceOfferMessage {
   required OfferID offer_id = 1;
-  repeated SlaveOffer offer = 2;
-  repeated string pid = 3;
+  repeated SlaveOffer offers = 2;
+  repeated string pids = 3;
 }
 
 

@@ -244,8 +244,8 @@ void LxcIsolationModule::Reaper::operator () ()
 {
   link(module->slave->self());
   while (true) {
-    switch (receive(1)) {
-    case PROCESS_TIMEOUT: {
+    receive(1);
+    if (name() == TIMEOUT) {
       // Check whether any child process has exited
       pid_t pid;
       int status;
@@ -264,10 +264,7 @@ void LxcIsolationModule::Reaper::operator () ()
           }
         }
       }
-      break;
-    }
-    case SHUTDOWN_REAPER:
-    case PROCESS_EXIT:
+    } else if (name() == TERMINATE || name() == EXIT) {
       return;
     }
   }

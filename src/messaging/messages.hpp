@@ -1,34 +1,40 @@
-#ifndef MESSAGES_HPP
-#define MESSAGES_HPP
+#ifndef __MESSAGES_HPP__
+#define __MESSAGES_HPP__
 
 #include <float.h>
 
+#include <glog/logging.h>
+
 #include <string>
+
+#include <tr1/functional>
 
 #include <mesos.hpp>
 #include <process.hpp>
+
+#include <boost/unordered_map.hpp>
 
 #include "messaging/messages.pb.h"
 
 
 namespace mesos { namespace internal {
 
+enum MSGID {
+  // Artifacts from libprocess.
+  PROCESS_TIMEOUT,
+  PROCESS_EXIT,
 
-// TODO(benh): Eliminate versioning once message ids become strings.
-const std::string MESOS_MESSAGING_VERSION = "2";
-
-
-enum MessageType {
-  /* From framework to master. */
-  F2M_REGISTER_FRAMEWORK = PROCESS_MSGID,
+  // From framework to master.
+  F2M_REGISTER_FRAMEWORK,
   F2M_REREGISTER_FRAMEWORK,
   F2M_UNREGISTER_FRAMEWORK,
   F2M_RESOURCE_OFFER_REPLY,
   F2M_REVIVE_OFFERS,
   F2M_KILL_TASK,
   F2M_FRAMEWORK_MESSAGE,
+  F2M_STATUS_UPDATE_ACK,
   
-  /* From master to framework. */
+  // From master to framework.
   M2F_REGISTER_REPLY,
   M2F_RESOURCE_OFFER,
   M2F_RESCIND_OFFER,
@@ -37,7 +43,7 @@ enum MessageType {
   M2F_FRAMEWORK_MESSAGE,
   M2F_ERROR,
   
-  /* From slave to master. */
+  // From slave to master.
   S2M_REGISTER_SLAVE,
   S2M_REREGISTER_SLAVE,
   S2M_UNREGISTER_SLAVE,
@@ -45,15 +51,10 @@ enum MessageType {
   S2M_FRAMEWORK_MESSAGE,
   S2M_EXITED_EXECUTOR,
 
-  /* From slave heart to master. */
+  // From slave heart to master.
   SH2M_HEARTBEAT,
-
-  /* From master detector to processes */
-  GOT_MASTER_TOKEN,
-  NEW_MASTER_DETECTED,
-  NO_MASTER_DETECTED,
   
-  /* From master to slave. */
+  // From master to slave.
   M2S_REGISTER_REPLY,
   M2S_REREGISTER_REPLY,
   M2S_RUN_TASK,
@@ -61,14 +62,15 @@ enum MessageType {
   M2S_KILL_FRAMEWORK,
   M2S_FRAMEWORK_MESSAGE,
   M2S_UPDATE_FRAMEWORK,
+  M2S_STATUS_UPDATE_ACK,
   M2S_SHUTDOWN, // Used in unit tests to shut down cluster
 
-  /* From executor to slave. */
+  // From executor to slave.
   E2S_REGISTER_EXECUTOR,
   E2S_STATUS_UPDATE,
   E2S_FRAMEWORK_MESSAGE,
 
-  /* From slave to executor. */
+  // From slave to executor.
   S2E_REGISTER_REPLY,
   S2E_RUN_TASK,
   S2E_KILL_TASK,
@@ -76,62 +78,56 @@ enum MessageType {
   S2E_KILL_EXECUTOR,
 
 #ifdef __sun__
-  /* From projd to slave. */
+  // From projd to slave.
   PD2S_REGISTER_PROJD,
   PD2S_PROJECT_READY,
 
-  /* From slave to projd. */
+  // From slave to projd.
   S2PD_UPDATE_RESOURCES,
   S2PD_KILL_ALL,
-#endif /* __sun__ */
+#endif // __sun__
 
-  /* Internal to framework. */
-  F2F_RESOURCE_OFFER_REPLY,
-  F2F_FRAMEWORK_MESSAGE,
-
-  /* Internal to master. */
+  // Internal to master.
   M2M_GET_STATE,         // Used by web UI
   M2M_GET_STATE_REPLY,
   M2M_TIMER_TICK,        // Timer for expiring filters etc
   M2M_FRAMEWORK_EXPIRED, // Timer for expiring frameworks
   M2M_SHUTDOWN,          // Used in tests to shut down master
 
-  /* Internal to slave. */
+  // Internal to slave.
   S2S_GET_STATE,         // Used by web UI
   S2S_GET_STATE_REPLY,
   S2S_SHUTDOWN,          // Used in tests to shut down slave
 
-  /* Generic. */
-  TERMINATE,
+  // From master detector to processes.
+  GOT_MASTER_TOKEN,
+  NEW_MASTER_DETECTED,
+  NO_MASTER_DETECTED,
+  MASTER_DETECTION_FAILURE,
 
-  // TODO(benh): Put these all in their right place.
-  MASTER_DETECTION_FAILURE, 
-  F2M_STATUS_UPDATE_ACK,
-  M2S_STATUS_UPDATE_ACK,
+  // HTTP messages.
+  vars,
 
-  MESOS_MSGID,
+  MESOS_MSGID
 };
 
 
-/**
- * To couple a MSGID with a protocol buffer we use a templated class
- * that extends the necessary protocol buffer type (this also allows
- * the code to be better isolated from protocol buffer naming). While
- * protocol buffers are allegedly not meant to be inherited, we
- * decided this was an acceptable option since we don't add any new
- * functionality (or do any thing with the existing functionality).
- *
- * To add another message that uses a protocol buffer you need to
- * provide a specialization of the Message class (i.e., using the
- * MESSAGE macro defined below).
- */
+// To couple a MSGID with a protocol buffer we use a templated class
+// that extends the necessary protocol buffer type (this also allows
+// the code to be better isolated from protocol buffer naming). While
+// protocol buffers are allegedly not meant to be inherited, we
+// decided this was an acceptable option since we don't add any new
+// functionality (or do any thing with the existing functionality).
+//
+// To add another message that uses a protocol buffer you need to
+// provide a specialization of the Message class (i.e., using the
+// MESSAGE macro defined below).
 template <MSGID ID>
-class Message;
-
+class MSG;
 
 #define MESSAGE(ID, T)                          \
   template <>                                   \
-  class Message<ID> : public T {}
+  class MSG<ID> : public T {}
 
 
 class AnyMessage
@@ -141,9 +137,9 @@ public:
     : data(data_) {}
 
   template <MSGID ID>
-  operator Message<ID> () const
+  operator MSG<ID> () const
   {
-    Message<ID> msg;
+    MSG<ID> msg;
     msg.ParseFromString(data);
     return msg;
   }
@@ -156,20 +152,27 @@ private:
 class MesosProcess : public Process
 {
 public:
+  MesosProcess(const std::string& id = "") : Process(id) {}
+
+  virtual ~MesosProcess() {}
+
   static void post(const PID &to, MSGID id)
   {
-    const std::string &data = MESOS_MESSAGING_VERSION + "|";
-    Process::post(to, id, data.data(), data.size());
+    CHECK(names.count(id) > 0) << "Missing name for MSGID " << id;
+    Process::post(to, names[id]);
   }
 
   template <MSGID ID>
-  static void post(const PID &to, const Message<ID> &msg)
+  static void post(const PID &to, const MSG<ID> &msg)
   {
+    CHECK(names.count(ID) > 0) << "Missing name for MSGID " << ID;
     std::string data;
     msg.SerializeToString(&data);
-    data = MESOS_MESSAGING_VERSION + "|" + data;
-    Process::post(to, ID, data.data(), data.size());
+    Process::post(to, names[ID], data.data(), data.size());
   }
+
+  static boost::unordered_map<std::string, MSGID> ids;
+  static boost::unordered_map<MSGID, std::string> names;
 
 protected:
   AnyMessage message() const
@@ -177,55 +180,298 @@ protected:
     return AnyMessage(body());
   }
 
+  MSGID msgid() const
+  {
+    CHECK(ids.count(name()) > 0) << "Missing MSGID for '" << name() << "'";
+    return ids[name()];
+  }
+
   std::string body() const
   {
     size_t size;
-    const char *s = Process::body(&size);
-    const std::string data(s, size);
-    size_t index = data.find('|');
-    CHECK(index != std::string::npos);
-    return data.substr(index + 1);
+    const char *data = Process::body(&size);
+    return std::string(data, size);
   }
 
-  virtual void send(const PID &to, MSGID id)
+  void send(const PID &to, MSGID id)
   {
-    const std::string &data = MESOS_MESSAGING_VERSION + "|";
-    Process::send(to, id, data.data(), data.size());
+    CHECK(names.count(id) > 0) << "Missing name for MSGID " << id;
+    Process::send(to, names[id]);
   }
 
   template <MSGID ID>
-  void send(const PID &to, const Message<ID> &msg)
+  void send(const PID &to, const MSG<ID> &msg)
   {
+    CHECK(names.count(ID) > 0) << "Missing name for MSGID " << ID;
     std::string data;
     msg.SerializeToString(&data);
-    data = MESOS_MESSAGING_VERSION + "|" + data;
-    Process::send(to, ID, data.data(), data.size());
+    Process::send(to, names[ID], data.data(), data.size());
   }
 
-  virtual MSGID receive(double secs = 0)
+  MSGID receive(double secs = 0)
   {
-    bool indefinite = secs == 0;
-    double now = elapsed();
-    MSGID id = Process::receive(secs);
-    if (PROCESS_MSGID < id && id < MESOS_MSGID) {
-      size_t size;
-      const char *s = Process::body(&size);
-      const std::string data(s, size);
-      size_t index = data.find('|');
-      if (index == std::string::npos ||
-          MESOS_MESSAGING_VERSION != data.substr(0, index)) {
-        LOG(ERROR) << "Dropping message from " << from()
-                   << " with incorrect messaging version!";
-        if (!indefinite) {
-          double remaining = secs - (elapsed() - now);
-          return receive(remaining <= 0 ? DBL_EPSILON : remaining);
+    while (true) {
+      Process::receive(secs);
+      if (ids.count(name()) > 0) {
+        // Check if this has been bound and invoke the handler.
+        if (handlers.count(name()) > 0) {
+          size_t length;
+          const char* data = Process::body(&length);
+          handlers[name()](data, length);
         } else {
-          return receive(0);
+          return ids[name()];
         }
+      } else {
+        LOG(WARNING) << "Dropping unknown message '" << name() << "'"
+                     << " from: " << from() << " to: " << self();
       }
     }
-    return id;
   }
+
+  MSGID serve(double secs = 0)
+  {
+    while (true) {
+      Process::serve(secs);
+      if (ids.count(name()) > 0) {
+        // Check if this has been bound and invoke the handler.
+        if (handlers.count(name()) > 0) {
+          size_t length;
+          const char* data = Process::body(&length);
+          handlers[name()](data, length);
+        } else {
+          return ids[name()];
+        }
+      } else {
+        LOG(WARNING) << "Dropping unknown message '" << name() << "'"
+                     << " from: " << from() << " to: " << self();
+      }
+    }
+  }
+
+  template <typename T>
+  void handle(MSGID id, void (T::*method)())
+  {
+    T* t = static_cast<T*>(this);
+    CHECK(names.count(id) > 0);
+    handlers[names[id]] =
+      std::tr1::bind(&MesosProcess::handler0<T>, t,
+                     method, std::tr1::placeholders::_1,
+                     std::tr1::placeholders::_2);
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1>
+  void handle(MSGID id, void (T::*method)(P1),
+              P1 (PB::*param1)() const)
+  {
+    T* t = static_cast<T*>(this);
+    CHECK(names.count(id) > 0);
+    handlers[names[id]] =
+      std::tr1::bind(&MesosProcess::handler1<T, PB, P1>, t,
+                     method, param1,
+                     std::tr1::placeholders::_1,
+                     std::tr1::placeholders::_2);
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1,
+            typename P2>
+  void handle(MSGID id, void (T::*method)(P1, P2),
+              P1 (PB::*p1)() const,
+              P2 (PB::*p2)() const)
+  {
+    T* t = static_cast<T*>(this);
+    CHECK(names.count(id) > 0);
+    handlers[names[id]] =
+      std::tr1::bind(&MesosProcess::handler2<T, PB, P1, P2>, t,
+                     method, p1, p2,
+                     std::tr1::placeholders::_1,
+                     std::tr1::placeholders::_2);
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1,
+            typename P2,
+            typename P3>
+  void handle(MSGID id,
+              void (T::*method)(P1, P2, P3),
+              P1 (PB::*p1)() const,
+              P2 (PB::*p2)() const,
+              P3 (PB::*p3)() const)
+  {
+    T* t = static_cast<T*>(this);
+    CHECK(names.count(id) > 0);
+    handlers[names[id]] =
+      std::tr1::bind(&MesosProcess::handler3<T, PB, P1, P2, P3>, t,
+                     method, p1, p2, p3,
+                     std::tr1::placeholders::_1,
+                     std::tr1::placeholders::_2);
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1,
+            typename P2,
+            typename P3,
+            typename P4>
+  void handle(MSGID id,
+              void (T::*method)(P1, P2, P3, P4),
+              P1 (PB::*p1)() const,
+              P2 (PB::*p2)() const,
+              P3 (PB::*p3)() const,
+              P4 (PB::*p4)() const)
+  {
+    T* t = static_cast<T*>(this);
+    CHECK(names.count(id) > 0);
+    handlers[names[id]] =
+      std::tr1::bind(&MesosProcess::handler4<T, PB, P1, P2, P3, P4>, t,
+                     method, p1, p2, p3, p4,
+                     std::tr1::placeholders::_1,
+                     std::tr1::placeholders::_2);
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1,
+            typename P2,
+            typename P3,
+            typename P4,
+            typename P5>
+  void handle(MSGID id,
+              void (T::*method)(P1, P2, P3, P4, P5),
+              P1 (PB::*p1)() const,
+              P2 (PB::*p2)() const,
+              P3 (PB::*p3)() const,
+              P4 (PB::*p4)() const,
+              P5 (PB::*p5)() const)
+  {
+    T* t = static_cast<T*>(this);
+    CHECK(names.count(id) > 0);
+    handlers[names[id]] =
+      std::tr1::bind(&MesosProcess::handler5<T, PB, P1, P2, P3, P4, P5>, t,
+                     method, p1, p2, p3, p4, p5,
+                     std::tr1::placeholders::_1,
+                     std::tr1::placeholders::_2);
+  }
+
+private:
+  template <typename T>
+  static void handler0(T* t, void (T::*method)(),
+                       const char* data, size_t length)
+  {
+    (t->*method)();
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1>
+  static void handler1(T* t, void (T::*method)(P1),
+                       P1 (PB::*p1)() const,
+                       const char* data, size_t length)
+  {
+    PB pb;
+    pb.ParseFromArray(data, length);
+    if (pb.IsInitialized()) {
+      (t->*method)((&pb->*p1)());
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1,
+            typename P2>
+  static void handler2(T* t, void (T::*method)(P1, P2),
+                       P1 (PB::*p1)() const,
+                       P2 (PB::*p2)() const,
+                       const char* data, size_t length)
+  {
+    PB pb;
+    pb.ParseFromArray(data, length);
+    if (pb.IsInitialized()) {
+      (t->*method)((&pb->*p1)(), (&pb->*p2)());
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1,
+            typename P2,
+            typename P3>
+  static void handler3(T* t, void (T::*method)(P1, P2, P3),
+                       P1 (PB::*p1)() const,
+                       P2 (PB::*p2)() const,
+                       P3 (PB::*p3)() const,
+                       const char* data, size_t length)
+  {
+    PB pb;
+    pb.ParseFromArray(data, length);
+    if (pb.IsInitialized()) {
+      (t->*method)((&pb->*p1)(), (&pb->*p2)(), (&pb->*p3)());
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1,
+            typename P2,
+            typename P3,
+            typename P4>
+  static void handler4(T* t, void (T::*method)(P1, P2, P3, P4),
+                       P1 (PB::*p1)() const,
+                       P2 (PB::*p2)() const,
+                       P3 (PB::*p3)() const,
+                       P4 (PB::*p4)() const,
+                       const char* data, size_t length)
+  {
+    PB pb;
+    pb.ParseFromArray(data, length);
+    if (pb.IsInitialized()) {
+      (t->*method)((&pb->*p1)(), (&pb->*p2)(), (&pb->*p3)(), (&pb->*p4)());
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  template <typename T,
+            typename PB,
+            typename P1,
+            typename P2,
+            typename P3,
+            typename P4,
+            typename P5>
+  static void handler5(T* t, void (T::*method)(P1, P2, P3, P4, P5),
+                       P1 (PB::*p1)() const,
+                       P2 (PB::*p2)() const,
+                       P3 (PB::*p3)() const,
+                       P4 (PB::*p4)() const,
+                       P5 (PB::*p5)() const,
+                       const char* data, size_t length)
+  {
+    PB pb;
+    pb.ParseFromArray(data, length);
+    if (pb.IsInitialized()) {
+      (t->*method)((&pb->*p1)(), (&pb->*p2)(), (&pb->*p3)(), (&pb->*p4)(),
+                   (&pb->*p5)());
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  boost::unordered_map<std::string, std::tr1::function<void (const char*, size_t)> > handlers;
 };
 
 
@@ -277,7 +523,7 @@ MESSAGE(S2E_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
 MESSAGE(PD2S_REGISTER_PROJD, RegisterProjdMessage);
 MESSAGE(PD2S_PROJD_READY, ProjdReadyMessage);
 MESSAGE(S2PD_UPDATE_RESOURCES, ProjdUpdateResourcesMessage);
-#endif /* __sun__ */
+#endif // __sun__
 
 MESSAGE(M2M_GET_STATE_REPLY, StateMessage);
 MESSAGE(M2M_FRAMEWORK_EXPIRED, FrameworkExpiredMessage);
@@ -287,7 +533,7 @@ MESSAGE(S2S_GET_STATE_REPLY, StateMessage);
 MESSAGE(NEW_MASTER_DETECTED, NewMasterDetectedMessage);
 MESSAGE(GOT_MASTER_TOKEN, GotMasterTokenMessage);
 
-}} /* namespace mesos { namespace internal { */
+}} // namespace mesos { namespace internal {
 
 
-#endif /* MESSAGES_HPP */
+#endif // __MESSAGES_HPP__

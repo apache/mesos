@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <reliable.hpp>
+#include <process.hpp>
 
 #include "isolation_module.hpp"
 #include "state.hpp"
@@ -195,7 +195,7 @@ protected:
     do {
       switch (receive(interval)) {
         case PROCESS_TIMEOUT: {
-          Message<SH2M_HEARTBEAT> msg;
+          MSG<SH2M_HEARTBEAT> msg;
           msg.mutable_slave_id()->MergeFrom(slaveId);
           send(master, msg);
           break;

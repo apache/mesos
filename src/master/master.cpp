@@ -81,7 +81,7 @@ protected:
       receive();
       CHECK(msgid() == M2M_GET_STATE_REPLY);
 
-      const Message<M2M_GET_STATE_REPLY>& msg = message();
+      const MSG<M2M_GET_STATE_REPLY>& msg = message();
 
       state::MasterState *state =
         *(state::MasterState **) msg.pointer().data();
@@ -120,14 +120,16 @@ private:
 
 
 Master::Master()
-  : nextFrameworkId(0), nextSlaveId(0), nextOfferId(0)
+  : MesosProcess("master"),
+    nextFrameworkId(0), nextSlaveId(0), nextOfferId(0)
 {
   allocatorType = "simple";
 }
 
 
 Master::Master(const Configuration& _conf)
-  : conf(_conf), nextFrameworkId(0), nextSlaveId(0), nextOfferId(0)
+  : MesosProcess("master"),
+    conf(_conf), nextFrameworkId(0), nextSlaveId(0), nextOfferId(0)
 {
   allocatorType = conf.get("allocator", "simple");
 }
@@ -316,7 +318,7 @@ void Master::operator () ()
               << "we haven't received an identifier yet!";  
   }
 
-  const Message<GOT_MASTER_TOKEN>& msg = message();
+  const MSG<GOT_MASTER_TOKEN>& msg = message();
 
   // The master ID is comprised of the current date and some ephemeral
   // token (e.g., determined by ZooKeeper).
@@ -337,7 +339,7 @@ void Master::operator () ()
     switch (receive()) {
 
     case NEW_MASTER_DETECTED: {
-      const Message<NEW_MASTER_DETECTED>& msg = message();
+      const MSG<NEW_MASTER_DETECTED>& msg = message();
 
       // Check and see if we are (1) still waiting to be the active
       // master, (2) newly active master, (3) no longer active master,
@@ -372,7 +374,7 @@ void Master::operator () ()
     }
 
     case F2M_REGISTER_FRAMEWORK: {
-      const Message<F2M_REGISTER_FRAMEWORK>& msg = message();
+      const MSG<F2M_REGISTER_FRAMEWORK>& msg = message();
 
       Framework *framework =
         new Framework(msg.framework(), newFrameworkId(), from(), elapsed());
@@ -381,7 +383,7 @@ void Master::operator () ()
 
       if (framework->info.executor().uri() == "") {
         LOG(INFO) << framework << " registering without an executor URI";
-        Message<M2F_ERROR> out;
+        MSG<M2F_ERROR> out;
         out.set_code(1);
         out.set_message("No executor URI given");
         send(from(), out);
@@ -393,7 +395,7 @@ void Master::operator () ()
       if (framework->info.user() == "root" && rootSubmissions == false) {
         LOG(INFO) << framework << " registering as root, but "
                   << "root submissions are disabled on this cluster";
-        Message<M2F_ERROR> out;
+        MSG<M2F_ERROR> out;
         out.set_code(1);
         out.set_message("User 'root' is not allowed to run frameworks");
         send(from(), out);
@@ -406,11 +408,11 @@ void Master::operator () ()
     }
 
     case F2M_REREGISTER_FRAMEWORK: {
-      const Message<F2M_REREGISTER_FRAMEWORK> &msg = message();
+      const MSG<F2M_REREGISTER_FRAMEWORK> &msg = message();
 
       if (msg.framework_id() == "") {
         LOG(ERROR) << "Framework re-registering without an id!";
-        Message<M2F_ERROR> out;
+        MSG<M2F_ERROR> out;
         out.set_code(1);
         out.set_message("Missing framework id");
         send(from(), out);
@@ -420,7 +422,7 @@ void Master::operator () ()
       if (msg.framework().executor().uri() == "") {
         LOG(INFO) << "Framework " << msg.framework_id() << " re-registering "
                   << "without an executor URI";
-        Message<M2F_ERROR> out;
+        MSG<M2F_ERROR> out;
         out.set_code(1);
         out.set_message("No executor URI given");
         send(from(), out);
@@ -449,7 +451,7 @@ void Master::operator () ()
           LOG(INFO) << "Framework " << msg.framework_id()
                     << " re-registering with an already used id "
                     << " and not failing over!";
-          Message<M2F_ERROR> out;
+          MSG<M2F_ERROR> out;
           out.set_code(1);
           out.set_message("Framework id in use");
           send(from(), out);
@@ -483,7 +485,7 @@ void Master::operator () ()
       // it currently isn't running any tasks. This could be a
       // potential scalability issue ...
       foreachpair (_, Slave *slave, slaves) {
-        Message<M2S_UPDATE_FRAMEWORK> out;
+        MSG<M2S_UPDATE_FRAMEWORK> out;
         out.mutable_framework_id()->MergeFrom(msg.framework_id());
         out.set_pid(from());
         send(slave->pid, out);
@@ -492,7 +494,7 @@ void Master::operator () ()
     }
 
     case F2M_UNREGISTER_FRAMEWORK: {
-      const Message<F2M_UNREGISTER_FRAMEWORK>& msg = message();
+      const MSG<F2M_UNREGISTER_FRAMEWORK>& msg = message();
 
       LOG(INFO) << "Asked to unregister framework " << msg.framework_id();
 
@@ -508,7 +510,7 @@ void Master::operator () ()
     }
 
     case F2M_RESOURCE_OFFER_REPLY: {
-      const Message<F2M_RESOURCE_OFFER_REPLY>& msg = message();
+      const MSG<F2M_RESOURCE_OFFER_REPLY>& msg = message();
 
       Framework *framework = lookupFramework(msg.framework_id());
       if (framework != NULL) {
@@ -528,7 +530,7 @@ void Master::operator () ()
           // immediately report any tasks in it as lost (it would
           // probably be better to have better error messages here).
           foreach (const TaskDescription &task, tasks) {
-            Message<M2F_STATUS_UPDATE> out;
+            MSG<M2F_STATUS_UPDATE> out;
             out.mutable_framework_id()->MergeFrom(msg.framework_id());
             TaskStatus *status = out.mutable_status();
             status->mutable_task_id()->MergeFrom(task.task_id());
@@ -542,7 +544,7 @@ void Master::operator () ()
     }
 
     case F2M_REVIVE_OFFERS: {
-      const Message<F2M_REVIVE_OFFERS>& msg = message();
+      const MSG<F2M_REVIVE_OFFERS>& msg = message();
 
       Framework *framework = lookupFramework(msg.framework_id());
       if (framework != NULL) {
@@ -554,7 +556,7 @@ void Master::operator () ()
     }
 
     case F2M_KILL_TASK: {
-      const Message<F2M_KILL_TASK>& msg = message();
+      const MSG<F2M_KILL_TASK>& msg = message();
 
       LOG(INFO) << "Asked to kill task " << msg.task_id()
 		<< " of framework " << msg.framework_id();
@@ -568,7 +570,7 @@ void Master::operator () ()
 	  LOG(ERROR) << "Cannot kill task " << msg.task_id()
 		     << " of framework " << msg.framework_id()
 		     << " because it cannot be found";
-          Message<M2F_STATUS_UPDATE> out;
+          MSG<M2F_STATUS_UPDATE> out;
           out.mutable_framework_id()->MergeFrom(task->framework_id());
           TaskStatus *status = out.mutable_status();
           status->mutable_task_id()->MergeFrom(task->task_id());
@@ -581,13 +583,13 @@ void Master::operator () ()
     }
 
     case F2M_FRAMEWORK_MESSAGE: {
-      const Message<F2M_FRAMEWORK_MESSAGE>& msg = message();
+      const MSG<F2M_FRAMEWORK_MESSAGE>& msg = message();
 
       Framework *framework = lookupFramework(msg.framework_id());
       if (framework != NULL) {
         Slave *slave = lookupSlave(msg.message().slave_id());
         if (slave != NULL) {
-          Message<M2S_FRAMEWORK_MESSAGE> out;
+          MSG<M2S_FRAMEWORK_MESSAGE> out;
           out.mutable_framework_id()->MergeFrom(msg.framework_id());
           out.mutable_message()->MergeFrom(msg.message());
           send(slave->pid, out);
@@ -597,13 +599,13 @@ void Master::operator () ()
     }
 
     case F2M_STATUS_UPDATE_ACK: {
-      const Message<F2M_STATUS_UPDATE_ACK>& msg = message();
+      const MSG<F2M_STATUS_UPDATE_ACK>& msg = message();
 
       Framework *framework = lookupFramework(msg.framework_id());
       if (framework != NULL) {
         Slave *slave = lookupSlave(msg.slave_id());
         if (slave != NULL) {
-          Message<M2S_STATUS_UPDATE_ACK> out;
+          MSG<M2S_STATUS_UPDATE_ACK> out;
           out.mutable_framework_id()->MergeFrom(msg.framework_id());
           out.mutable_slave_id()->MergeFrom(msg.slave_id());
           out.mutable_task_id()->MergeFrom(msg.task_id());
@@ -614,7 +616,7 @@ void Master::operator () ()
     }
 
     case S2M_REGISTER_SLAVE: {
-      const Message<S2M_REGISTER_SLAVE>& msg = message();
+      const MSG<S2M_REGISTER_SLAVE>& msg = message();
 
       Slave* slave = new Slave(msg.slave(), newSlaveId(), from(), elapsed());
 
@@ -627,7 +629,7 @@ void Master::operator () ()
 
       allocator->slaveAdded(slave);
 
-      Message<M2S_REGISTER_REPLY> out;
+      MSG<M2S_REGISTER_REPLY> out;
       out.mutable_slave_id()->MergeFrom(slave->slaveId);
       out.set_heartbeat_interval(HEARTBEAT_INTERVAL);
       send(slave->pid, out);
@@ -635,7 +637,7 @@ void Master::operator () ()
     }
 
     case S2M_REREGISTER_SLAVE: {
-      const Message<S2M_REREGISTER_SLAVE>& msg = message();
+      const MSG<S2M_REREGISTER_SLAVE>& msg = message();
 
       LOG(INFO) << "Re-registering " << msg.slave_id() << " at " << from();
 
@@ -662,7 +664,7 @@ void Master::operator () ()
       pidToSlaveId[slave->pid] = slave->slaveId;
       link(slave->pid);
 
-      Message<M2S_REREGISTER_REPLY> out;
+      MSG<M2S_REREGISTER_REPLY> out;
       out.mutable_slave_id()->MergeFrom(slave->slaveId);
       out.set_heartbeat_interval(HEARTBEAT_INTERVAL);
       send(slave->pid, out);
@@ -675,7 +677,7 @@ void Master::operator () ()
         Framework *framework = lookupFramework(task->framework_id());
         if (framework != NULL) {
           framework->addTask(task);
-          Message<M2S_UPDATE_FRAMEWORK> out;
+          MSG<M2S_UPDATE_FRAMEWORK> out;
           out.mutable_framework_id()->MergeFrom(framework->frameworkId);
           out.set_pid(framework->pid);
           send(slave->pid, out);
@@ -689,7 +691,7 @@ void Master::operator () ()
     }
 
     case S2M_UNREGISTER_SLAVE: {
-      const Message<S2M_UNREGISTER_SLAVE>& msg = message();
+      const MSG<S2M_UNREGISTER_SLAVE>& msg = message();
 
       LOG(INFO) << "Asked to unregister slave " << msg.slave_id();
 
@@ -702,7 +704,7 @@ void Master::operator () ()
     }
 
     case S2M_STATUS_UPDATE: {
-      const Message<S2M_STATUS_UPDATE>& msg = message();
+      const MSG<S2M_STATUS_UPDATE>& msg = message();
 
       const TaskStatus& status = msg.status();
 
@@ -716,7 +718,7 @@ void Master::operator () ()
         Framework* framework = lookupFramework(msg.framework_id());
         if (framework != NULL) {
 	  // Pass on the (transformed) status update to the framework.
-          Message<M2F_STATUS_UPDATE> out;
+          MSG<M2F_STATUS_UPDATE> out;
           out.mutable_framework_id()->MergeFrom(msg.framework_id());
           out.mutable_status()->MergeFrom(status);
           send(framework->pid, out);
@@ -748,13 +750,13 @@ void Master::operator () ()
     }
 
     case S2M_FRAMEWORK_MESSAGE: {
-      const Message<S2M_FRAMEWORK_MESSAGE>& msg = message();
+      const MSG<S2M_FRAMEWORK_MESSAGE>& msg = message();
 
       Slave *slave = lookupSlave(msg.message().slave_id());
       if (slave != NULL) {
         Framework *framework = lookupFramework(msg.framework_id());
         if (framework != NULL) {
-          Message<M2S_FRAMEWORK_MESSAGE> out;
+          MSG<M2S_FRAMEWORK_MESSAGE> out;
           out.mutable_framework_id()->MergeFrom(msg.framework_id());
           out.mutable_message()->MergeFrom(msg.message());
           send(framework->pid, out);
@@ -764,7 +766,7 @@ void Master::operator () ()
     }
 
     case S2M_EXITED_EXECUTOR: {
-      const Message<S2M_EXITED_EXECUTOR>&msg = message();
+      const MSG<S2M_EXITED_EXECUTOR>&msg = message();
 
       Slave *slave = lookupSlave(msg.slave_id());
       if (slave != NULL) {
@@ -780,7 +782,7 @@ void Master::operator () ()
           foreachpaircopy (_, Task* task, framework->tasks) {
             if (task->slave_id() == slave->slaveId &&
                 task->executor_id() == msg.executor_id()) {
-              Message<M2F_STATUS_UPDATE> out;
+              MSG<M2F_STATUS_UPDATE> out;
               out.mutable_framework_id()->MergeFrom(task->framework_id());
               TaskStatus *status = out.mutable_status();
               status->mutable_task_id()->MergeFrom(task->task_id());
@@ -803,7 +805,7 @@ void Master::operator () ()
     }
 
     case SH2M_HEARTBEAT: {
-      const Message<SH2M_HEARTBEAT>& msg = message();
+      const MSG<SH2M_HEARTBEAT>& msg = message();
 
       Slave *slave = lookupSlave(msg.slave_id());
       if (slave != NULL) {
@@ -834,7 +836,7 @@ void Master::operator () ()
     }
 
     case M2M_FRAMEWORK_EXPIRED: {
-      const Message<M2M_FRAMEWORK_EXPIRED>&msg = message();
+      const MSG<M2M_FRAMEWORK_EXPIRED>&msg = message();
 
       Framework* framework = lookupFramework(msg.framework_id());
       if (framework != NULL) {
@@ -889,7 +891,7 @@ void Master::operator () ()
 
     case M2M_GET_STATE: {
       state::MasterState *state = getState();
-      Message<M2M_GET_STATE_REPLY> out;
+      MSG<M2M_GET_STATE_REPLY> out;
       out.set_pointer((char *) &state, sizeof(state));
       send(from(), out);
       break;
@@ -900,6 +902,13 @@ void Master::operator () ()
       foreachpair (_, Slave *slave, slaves)
         send(slave->pid, M2S_SHUTDOWN);
       return;
+    }
+
+    case vars: {
+      LOG(INFO) << "HTTP request for 'vars'";
+      const string& data = conf.str();
+      Process::send(from(), "response", data.data(), data.size());
+      break;
     }
 
     default:
@@ -929,16 +938,16 @@ OfferID Master::makeOffer(Framework *framework,
 
   LOG(INFO) << "Sending " << offer << " to " << framework;
 
-  Message<M2F_RESOURCE_OFFER> out;
+  MSG<M2F_RESOURCE_OFFER> out;
   out.mutable_offer_id()->MergeFrom(offerId);
 
   foreach (const SlaveResources& r, resources) {
-    SlaveOffer* offer = out.add_offer();
+    SlaveOffer* offer = out.add_offers();
     offer->mutable_slave_id()->MergeFrom(r.slave->slaveId);
     offer->set_hostname(r.slave->info.hostname());
     offer->mutable_resources()->MergeFrom(r.resources);
 
-    out.add_pid(r.slave->pid);
+    out.add_pids(r.slave->pid);
   }
 
   send(framework->pid, out);
@@ -1091,7 +1100,7 @@ void Master::launchTask(Framework* framework, const TaskDescription& task)
 
   LOG(INFO) << "Launching " << t << " on " << slave;
 
-  Message<M2S_RUN_TASK> out;
+  MSG<M2S_RUN_TASK> out;
   out.mutable_framework()->MergeFrom(framework->info);
   out.mutable_framework_id()->MergeFrom(framework->frameworkId);
   out.set_pid(framework->pid);
@@ -1115,7 +1124,7 @@ void Master::killTask(Task *task)
   Slave *slave = lookupSlave(task->slave_id());
   CHECK(slave != NULL);
 
-  Message<M2S_KILL_TASK> out;
+  MSG<M2S_KILL_TASK> out;
   out.mutable_framework_id()->MergeFrom(framework->frameworkId);
   out.mutable_task_id()->MergeFrom(task->task_id());
   send(slave->pid, out);
@@ -1130,7 +1139,7 @@ void Master::terminateFramework(Framework *framework,
 {
   LOG(INFO) << "Terminating " << framework << " due to error: " << message;
 
-  Message<M2F_ERROR> out;
+  MSG<M2F_ERROR> out;
   out.set_code(code);
   out.set_message(message);
   send(framework->pid, out);
@@ -1159,7 +1168,7 @@ void Master::removeSlotOffer(SlotOffer *offer,
   // Also send framework a rescind message unless the reason we are
   // removing the offer is that the framework replied to it
   if (reason != ORR_FRAMEWORK_REPLIED) {
-    Message<M2F_RESCIND_OFFER> out;
+    MSG<M2F_RESCIND_OFFER> out;
     out.mutable_offer_id()->MergeFrom(offer->offerId);
     send(framework->pid, out);
   }
@@ -1181,7 +1190,7 @@ void Master::addFramework(Framework *framework)
   pidToFrameworkId[framework->pid] = framework->frameworkId;
   link(framework->pid);
 
-  Message<M2F_REGISTER_REPLY> out;
+  MSG<M2F_REGISTER_REPLY> out;
   out.mutable_framework_id()->MergeFrom(framework->frameworkId);
   send(framework->pid, out);
 
@@ -1201,7 +1210,7 @@ void Master::failoverFramework(Framework *framework, const PID &newPid)
     removeSlotOffer(offer, ORR_FRAMEWORK_FAILOVER, offer->resources);
   }
 
-  Message<M2F_ERROR> out;
+  MSG<M2F_ERROR> out;
   out.set_code(1);
   out.set_message("Framework failover");
   send(oldPid, out);
@@ -1224,7 +1233,7 @@ void Master::failoverFramework(Framework *framework, const PID &newPid)
   // Make sure we can get offers again.
   framework->active = true;
 
-  Message<M2F_REGISTER_REPLY> reply;
+  MSG<M2F_REGISTER_REPLY> reply;
   reply.mutable_framework_id()->MergeFrom(framework->frameworkId);
   send(newPid, reply);
 }
@@ -1239,7 +1248,7 @@ void Master::removeFramework(Framework *framework)
   
   // Tell slaves to kill the framework
   foreachpair (_, Slave *slave, slaves) {
-    Message<M2S_KILL_FRAMEWORK> out;
+    MSG<M2S_KILL_FRAMEWORK> out;
     out.mutable_framework_id()->MergeFrom(framework->frameworkId);
     send(slave->pid, out);
   }
@@ -1287,7 +1296,7 @@ void Master::removeSlave(Slave *slave)
     // framework until it fails over. See the TODO above in
     // S2M_REREGISTER_SLAVE.
     if (framework != NULL) {
-      Message<M2F_STATUS_UPDATE> out;
+      MSG<M2F_STATUS_UPDATE> out;
       out.mutable_framework_id()->MergeFrom(task->framework_id());
       TaskStatus *status = out.mutable_status();
       status->mutable_task_id()->MergeFrom(task->task_id());
@@ -1317,7 +1326,7 @@ void Master::removeSlave(Slave *slave)
   // Send lost-slave message to all frameworks (this helps them re-run
   // previously finished tasks whose output was on the lost slave)
   foreachpair (_, Framework *framework, frameworks) {
-    Message<M2F_LOST_SLAVE> out;
+    MSG<M2F_LOST_SLAVE> out;
     out.mutable_slave_id()->MergeFrom(slave->slaveId);
     send(framework->pid, out);
   }

@@ -25,14 +25,14 @@ ostream & operator << (ostream &stream, const PID &pid)
   if (inet_ntop(AF_INET, (in_addr *) &pid.ip, ip, INET_ADDRSTRLEN) == NULL)
     memset(ip, 0, INET_ADDRSTRLEN);
 
-  stream << pid.pipe << "@" << ip << ":" << pid.port;
+  stream << pid.id << "@" << ip << ":" << pid.port;
   return stream;
 }
 
 
 istream & operator >> (istream &stream, PID &pid)
 {
-  pid.pipe = 0;
+  pid.id = "";
   pid.ip = 0;
   pid.port = 0;
 
@@ -42,28 +42,52 @@ istream & operator >> (istream &stream, PID &pid)
     return stream;
   }
 
-  if (str.size() > 500) {
+  if (str.size() > 512) {
     stream.setstate(std::ios_base::badbit);
     return stream;
   }
 
-  char host[512];
-  int id;
+  string id;
+  string host;
   unsigned short port;
-  if (sscanf(str.c_str(), "%d@%[^:]:%hu", &id, host, &port) != 3) {
+
+  size_t index = str.find('@');
+
+  if (index != string::npos) {
+    id = str.substr(0, index);
+  } else {
     stream.setstate(std::ios_base::badbit);
     return stream;
   }
 
-  hostent *he = gethostbyname2(host, AF_INET);
+  str = str.substr(index + 1, str.size() - index);
+
+  index = str.find(':');
+
+  if (index != string::npos) {
+    host = str.substr(0, index);
+  } else {
+    stream.setstate(std::ios_base::badbit);
+    return stream;
+  }
+
+  hostent *he = gethostbyname2(host.c_str(), AF_INET);
   if (!he) {
     stream.setstate(std::ios_base::badbit);
     return stream;
   }
 
-  pid.pipe = id;
+  str = str.substr(index + 1, str.size() - index);
+
+  if (sscanf(str.c_str(), "%hu", &port) != 1) {
+    stream.setstate(std::ios_base::badbit);
+    return stream;
+  }
+
+  pid.id = id;
   pid.ip = *((uint32_t *) he->h_addr);
   pid.port = port;
+
   return stream;
 }
 
@@ -71,7 +95,7 @@ istream & operator >> (istream &stream, PID &pid)
 size_t hash_value(const PID& pid)
 {
   size_t seed = 0;
-  boost::hash_combine(seed, pid.pipe);
+  boost::hash_combine(seed, pid.id);
   boost::hash_combine(seed, pid.ip);
   boost::hash_combine(seed, pid.port);
   return seed;

@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include <reliable.hpp>
+#include <process.hpp>
 
 #include <glog/logging.h>
 
@@ -97,7 +97,7 @@ protected:
     do {
       switch (receive(FRAMEWORK_FAILOVER_TIMEOUT)) {
         case PROCESS_TIMEOUT: {
-          Message<M2M_FRAMEWORK_EXPIRED> msg;
+          MSG<M2M_FRAMEWORK_EXPIRED> msg;
           msg.mutable_framework_id()->set_value(frameworkId.value());
           send(master, msg);
           return;

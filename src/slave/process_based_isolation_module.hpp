@@ -34,14 +34,11 @@ public:
     ProcessBasedIsolationModule* module;
 
   protected:
-    void operator () ();
+    virtual void operator () ();
 
   public:
     Reaper(ProcessBasedIsolationModule* module);
   };
-
-  // Extra shutdown message for reaper
-  enum { SHUTDOWN_REAPER = PROCESS_MSGID };
 
 protected:
   // Main method executed after a fork() to create a Launcher for launching

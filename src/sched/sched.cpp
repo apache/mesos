@@ -13,11 +13,12 @@
 #include <string>
 #include <sstream>
 
+#include <tr1/functional>
+
 #include <mesos.hpp>
 #include <mesos_sched.hpp>
-#include <reliable.hpp>
+#include <process.hpp>
 
-#include <boost/bind.hpp>
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
@@ -37,14 +38,17 @@
 using namespace mesos;
 using namespace mesos::internal;
 
+using boost::cref;
+using boost::unordered_map;
+using boost::unordered_set;
+
+using google::protobuf::RepeatedPtrField;
+
 using std::map;
 using std::string;
 using std::vector;
 
-using boost::bind;
-using boost::cref;
-using boost::unordered_map;
-using boost::unordered_set;
+using std::tr1::bind;
 
 
 namespace mesos { namespace internal {
@@ -78,7 +82,7 @@ protected:
           VLOG(1) << "No status updates received for task ID: "
                   << taskId << " after "
                   << STATUS_UPDATE_TIMEOUT << ", assuming task was lost";
-          Message<M2F_STATUS_UPDATE> out;
+          MSG<M2F_STATUS_UPDATE> out;
           out.mutable_framework_id()->MergeFrom(frameworkId);
           TaskStatus* status = out.mutable_status();
           status->mutable_task_id()->MergeFrom(taskId);
@@ -117,9 +121,42 @@ public:
 		   const FrameworkID& _frameworkId,
                    const FrameworkInfo& _framework)
     : driver(_driver), sched(_sched), frameworkId(_frameworkId),
-      framework(_framework), generation(0), master(PID()), terminate(false) {}
+      framework(_framework), generation(0), master(PID()), terminate(false)
+  {
+    handle(NEW_MASTER_DETECTED, &SchedulerProcess::newMasterDetected,
+           &NewMasterDetectedMessage::pid);
 
-  ~SchedulerProcess()
+    handle(NO_MASTER_DETECTED, &SchedulerProcess::noMasterDetected);
+
+    handle(MASTER_DETECTION_FAILURE, &SchedulerProcess::masterDetectionFailure);
+
+    handle(M2F_REGISTER_REPLY, &SchedulerProcess::registerReply,
+           &FrameworkRegisteredMessage::framework_id);
+
+    handle(M2F_RESOURCE_OFFER, &SchedulerProcess::resourceOffer
+           &ResourceOfferMessage::offer_id,
+           &ResourceOfferMessage::offers,
+           &ResourceOfferMessage::pids);
+
+    handle(M2F_RESCIND_OFFER, &SchedulerProcess::rescindOffer,
+           &RescindResourceOfferMessage::offer_id);
+
+    handle(M2F_STATUS_UPDATE, &SchedulerProcess::statusUpdate,
+           &StatusUpdateMessage::framework_id,
+           &StatusUpdateMessage::status);
+
+    handle(M2F_LOST_SLAVE, &SchedulerProcess::lostSlave,
+           &LostSlaveMessage::slave_id);
+
+    handle(M2F_FRAMEWORK_MESSAGE, &SchedulerProcess::frameworkMessage,
+           &FrameworkMessageMessage::message);
+
+    handle(M2F_ERROR, &SchedulerProcess::error,
+           &FrameworkErrorMessage::code,
+           &FrameworkErrorMessage::message);
+  }
+
+  virtual ~SchedulerProcess()
   {
     // Cleanup any remaining timers.
     foreachpair (const TaskID& taskId, StatusUpdateTimer* timer, timers) {
@@ -154,165 +191,148 @@ protected:
       // above for why sending a message will still require us to use
       // the terminate flag).
       switch (serve(2)) {
-
-      case NEW_MASTER_DETECTED: {
-        const Message<NEW_MASTER_DETECTED>& msg = message();
-
-        VLOG(1) << "New master at " << msg.pid();
-
-        master = msg.pid();
-        link(master);
-
-        if (frameworkId == "") {
-          // Touched for the very first time.
-          Message<F2M_REGISTER_FRAMEWORK> out;
-          out.mutable_framework()->MergeFrom(framework);
-          send(master, out);
-        } else {
-          // Not the first time, or failing over.
-          Message<F2M_REREGISTER_FRAMEWORK> out;
-          out.mutable_framework()->MergeFrom(framework);
-          out.mutable_framework_id()->MergeFrom(frameworkId);
-          out.set_generation(generation++);
-          send(master, out);
+        case PROCESS_EXIT: {
+          // TODO(benh): Don't wait for a new master forever.
+          if (from() == master)
+            VLOG(1) << "Connection to master lost .. waiting for new master";
+          break;
         }
 
-	active = true;
-
-	break;
-      }
-
-      case NO_MASTER_DETECTED: {
-	// In this case, we don't actually invoke Scheduler::error
-	// since we might get reconnected to a master imminently.
-	active = false;
-	VLOG(1) << "No master detected, waiting for another master";
-	break;
-      }
-
-      case MASTER_DETECTION_FAILURE: {
-	active = false;
-	// TODO(benh): Better error codes/messages!
-        int32_t code = 1;
-        const string& message = "Failed to detect master(s)";
-        invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
-	break;
-      }
-
-      case M2F_REGISTER_REPLY: {
-        const Message<M2F_REGISTER_REPLY>& msg = message();
-        frameworkId = msg.framework_id();
-        invoke(bind(&Scheduler::registered, sched, driver, cref(frameworkId)));
-        break;
-      }
-
-      case M2F_RESOURCE_OFFER: {
-        const Message<M2F_RESOURCE_OFFER>& msg = message();
-
-        // Construct a vector for the offers. Also save the pid
-        // associated with each slave (one per SlaveOffer) so later we
-        // can send framework messages directly.
-        vector<SlaveOffer> offers;
-
-        for (int i = 0; i < msg.offer_size(); i++) {
-          const SlaveOffer& offer = msg.offer(i);
-          PID pid(msg.pid(i));
-          CHECK(pid != PID());
-          savedOffers[msg.offer_id()][offer.slave_id()] = pid;
-          offers.push_back(offer);
+        case PROCESS_TIMEOUT: {
+          break;
         }
 
-        invoke(bind(&Scheduler::resourceOffer, sched, driver,
-                    cref(msg.offer_id()), cref(offers)));
-        break;
-      }
-
-      case M2F_RESCIND_OFFER: {
-        const Message<M2F_RESCIND_OFFER>& msg = message();
-        savedOffers.erase(msg.offer_id());
-        invoke(bind(&Scheduler::offerRescinded, sched, driver,
-                    cref(msg.offer_id())));
-        break;
-      }
-
-      case M2F_STATUS_UPDATE: {
-        const Message<M2F_STATUS_UPDATE>& msg = message();
-
-        const TaskStatus &status = msg.status();
-
-        // TODO(benh): Note that this maybe a duplicate status update!
-        // Once we get support to try and have a more consistent view
-        // of what's running in the cluster, we'll just let this one
-        // slide. The alternative is possibly dealing with a scheduler
-        // failover and not correctly giving the scheduler it's status
-        // update, which seems worse than giving a status update
-        // multiple times (of course, if a scheduler re-uses a TaskID,
-        // that could be bad.
-
-        // Stop any status update timers we might have had running.
-        if (timers.count(status.task_id()) > 0) {
-          StatusUpdateTimer* timer = timers[status.task_id()];
-          timers.erase(status.task_id());
-          send(timer->self(), MESOS_MSGID);
-          wait(timer->self());
-          delete timer;
+        default: {
+          VLOG(1) << "Received unknown message " << msgid()
+                  << " from " << from();
+          break;
         }
-
-        invoke(bind(&Scheduler::statusUpdate, sched, driver, cref(status)));
-
-        // Acknowledge the message (we do this last, after we invoked
-        // the scheduler, if we did at all, in case it causes a crash,
-        // since this way the message might get resent/routed after
-        // the scheduler comes back online).
-        Message<F2M_STATUS_UPDATE_ACK> out;
-        out.mutable_framework_id()->MergeFrom(frameworkId);
-        out.mutable_slave_id()->MergeFrom(status.slave_id());
-        out.mutable_task_id()->MergeFrom(status.task_id());
-        send(master, out);
-        break;
-      }
-
-      case M2F_FRAMEWORK_MESSAGE: {
-        const Message<M2F_FRAMEWORK_MESSAGE>& msg = message();
-        invoke(bind(&Scheduler::frameworkMessage, sched, driver,
-                    cref(msg.message())));
-        break;
-      }
-
-      case M2F_LOST_SLAVE: {
-        const Message<M2F_LOST_SLAVE>& msg = message();
-	savedSlavePids.erase(msg.slave_id());
-        invoke(bind(&Scheduler::slaveLost, sched, driver,
-                    cref(msg.slave_id())));
-        break;
-      }
-
-      case M2F_ERROR: {
-        const Message<M2F_ERROR>& msg = message();
-        int32_t code = msg.code();
-        const string& message = msg.message();
-        invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
-        break;
-      }
-
-      case PROCESS_EXIT: {
-	// TODO(benh): Don't wait for a new master forever.
-        if (from() == master)
-          VLOG(1) << "Connection to master lost .. waiting for new master";
-        break;
-      }
-
-      case PROCESS_TIMEOUT: {
-        break;
-      }
-
-      default: {
-        VLOG(1) << "Received unknown message " << msgid()
-                << " from " << from();
-        break;
-      }
       }
     }
+  }
+
+  void newMasterDetected(const string& pid)
+  {
+    VLOG(1) << "New master at " << pid;
+
+    master = pid;
+    link(master);
+
+    if (frameworkId == "") {
+      // Touched for the very first time.
+      MSG<F2M_REGISTER_FRAMEWORK> out;
+      out.mutable_framework()->MergeFrom(framework);
+      send(master, out);
+    } else {
+      // Not the first time, or failing over.
+      MSG<F2M_REREGISTER_FRAMEWORK> out;
+      out.mutable_framework()->MergeFrom(framework);
+      out.mutable_framework_id()->MergeFrom(frameworkId);
+      out.set_generation(generation++);
+      send(master, out);
+    }
+
+    active = true;
+  }
+
+  void noMasterDetected()
+  {
+    // In this case, we don't actually invoke Scheduler::error
+    // since we might get reconnected to a master imminently.
+    active = false;
+    VLOG(1) << "No master detected, waiting for another master";
+  }
+
+  void masterDetectionFailure()
+  {
+    active = false;
+    // TODO(benh): Better error codes/messages!
+    int32_t code = 1;
+    const string& message = "Failed to detect master(s)";
+    invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
+  }
+
+  void registerReply(const FrameworkID& frameworkId)
+  {
+    this->frameworkId = frameworkId;
+    invoke(bind(&Scheduler::registered, sched, driver, cref(frameworkId)));
+  }
+
+  void resourceOffer(const OfferID& offerId,
+                     const RepeatedPtrField<SlaveOffer>& offers,
+                     const RepeatedPtrField<string>& pids)
+  {
+    // Construct a vector for the offers. Also save the pid
+    // associated with each slave (one per SlaveOffer) so later we
+    // can send framework messages directly.
+    vector<SlaveOffer> temp;
+
+    for (int i = 0; i < offers.size(); i++) {
+      PID pid(pids.Get(i));
+      CHECK(pid != PID());
+      savedOffers[offerId][offers.Get(i).slave_id()] = pid;
+      temp.push_back(offers.Get(i));
+    }
+
+    invoke(bind(&Scheduler::resourceOffer, sched, driver, cref(offerId),
+                cref(temp)));
+  }
+
+  void rescindOffer(const OfferID& offerId)
+  {
+    savedOffers.erase(offerId);
+    invoke(bind(&Scheduler::offerRescinded, sched, driver, cref(offerId)));
+  }
+
+  void statusUpdate(const FrameworkID& frameworkId, const TaskStatus& status)
+  {
+    CHECK(this->frameworkId == frameworkId);
+
+    // TODO(benh): Note that this maybe a duplicate status update!
+    // Once we get support to try and have a more consistent view
+    // of what's running in the cluster, we'll just let this one
+    // slide. The alternative is possibly dealing with a scheduler
+    // failover and not correctly giving the scheduler it's status
+    // update, which seems worse than giving a status update
+    // multiple times (of course, if a scheduler re-uses a TaskID,
+    // that could be bad.
+
+    // Stop any status update timers we might have had running.
+    if (timers.count(status.task_id()) > 0) {
+      StatusUpdateTimer* timer = timers[status.task_id()];
+      timers.erase(status.task_id());
+      send(timer->self(), MESOS_MSGID);
+      wait(timer->self());
+      delete timer;
+    }
+
+    invoke(bind(&Scheduler::statusUpdate, sched, driver, cref(status)));
+
+    // Acknowledge the message (we do this last, after we invoked
+    // the scheduler, if we did at all, in case it causes a crash,
+    // since this way the message might get resent/routed after
+    // the scheduler comes back online).
+    MSG<F2M_STATUS_UPDATE_ACK> out;
+    out.mutable_framework_id()->MergeFrom(frameworkId);
+    out.mutable_slave_id()->MergeFrom(status.slave_id());
+    out.mutable_task_id()->MergeFrom(status.task_id());
+    send(master, out);
+  }
+
+  void lostSlave(const SlaveID& slaveId)
+  {
+    savedSlavePids.erase(slaveId);
+    invoke(bind(&Scheduler::slaveLost, sched, driver, cref(slaveId)));
+  }
+
+  void frameworkMessage(const FrameworkMessage& message)
+  {
+    invoke(bind(&Scheduler::frameworkMessage, sched, driver, cref(message)));
+  }
+
+  void error(int32_t code, const string& message)
+  {
+    invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
   }
 
   void stop()
@@ -320,7 +340,7 @@ protected:
     if (!active)
       return;
 
-    Message<F2M_UNREGISTER_FRAMEWORK> out;
+    MSG<F2M_UNREGISTER_FRAMEWORK> out;
     out.mutable_framework_id()->MergeFrom(frameworkId);
     send(master, out);
   }
@@ -330,7 +350,7 @@ protected:
     if (!active)
       return;
 
-    Message<F2M_KILL_TASK> out;
+    MSG<F2M_KILL_TASK> out;
     out.mutable_framework_id()->MergeFrom(frameworkId);
     out.mutable_task_id()->MergeFrom(taskId);
     send(master, out);
@@ -343,7 +363,7 @@ protected:
     if (!active)
       return;
 
-    Message<F2M_RESOURCE_OFFER_REPLY> out;
+    MSG<F2M_RESOURCE_OFFER_REPLY> out;
     out.mutable_framework_id()->MergeFrom(frameworkId);
     out.mutable_offer_id()->MergeFrom(offerId);
 
@@ -377,7 +397,7 @@ protected:
     if (!active)
       return;
 
-    Message<F2M_REVIVE_OFFERS> out;
+    MSG<F2M_REVIVE_OFFERS> out;
     out.mutable_framework_id()->MergeFrom(frameworkId);
     send(master, out);
   }
@@ -401,7 +421,7 @@ protected:
       CHECK(slave != PID());
 
       // TODO(benh): This is kind of wierd, M2S?
-      Message<M2S_FRAMEWORK_MESSAGE> out;
+      MSG<M2S_FRAMEWORK_MESSAGE> out;
       out.mutable_framework_id()->MergeFrom(frameworkId);
       out.mutable_message()->MergeFrom(message);
       send(slave, out);
@@ -409,7 +429,7 @@ protected:
       VLOG(1) << "Cannot send directly to slave " << message.slave_id()
 	      << "; sending through master";
 
-      Message<F2M_FRAMEWORK_MESSAGE> out;
+      MSG<F2M_FRAMEWORK_MESSAGE> out;
       out.mutable_framework_id()->MergeFrom(frameworkId);
       out.mutable_message()->MergeFrom(message);
       send(master, out);
@@ -431,8 +451,6 @@ private:
 
   unordered_map<OfferID, unordered_map<SlaveID, PID> > savedOffers;
   unordered_map<SlaveID, PID> savedSlavePids;
-
-  unordered_set<TaskID> tasks;
 
   // Timers to ensure we get a status update for each task we launch.
   unordered_map<TaskID, StatusUpdateTimer *> timers;

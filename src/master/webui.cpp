@@ -87,7 +87,7 @@ public:
     receive();
     CHECK(msgid() == M2M_GET_STATE_REPLY);
 
-    const Message<M2M_GET_STATE_REPLY>& msg = message();
+    const MSG<M2M_GET_STATE_REPLY>& msg = message();
 
     masterState =
       *(state::MasterState **) msg.pointer().data();

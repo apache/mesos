@@ -96,7 +96,7 @@ public:
     receive();
     CHECK(msgid() == S2S_GET_STATE_REPLY);
 
-    const Message<S2S_GET_STATE_REPLY>& msg = message();
+    const MSG<S2S_GET_STATE_REPLY>& msg = message();
 
     slaveState =
       *(state::SlaveState **) msg.pointer().data();

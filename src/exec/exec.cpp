@@ -1,6 +1,7 @@
 #include <signal.h>
 
-#include <cerrno>
+#include <glog/logging.h>
+
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -25,8 +26,6 @@ using boost::bind;
 using boost::cref;
 using boost::unordered_map;
 
-using std::cerr;
-using std::endl;
 using std::string;
 
 
@@ -47,10 +46,12 @@ public:
 protected:
   virtual void operator () ()
   {
+    VLOG(1) << "Executor started at: " << self();
+
     link(slave);
 
     // Register with slave.
-    Message<E2S_REGISTER_EXECUTOR> out;
+    MSG<E2S_REGISTER_EXECUTOR> out;
     out.mutable_framework_id()->MergeFrom(frameworkId);
     out.mutable_executor_id()->MergeFrom(executorId);
     send(slave, out);
@@ -69,18 +70,24 @@ protected:
 
       switch(receive(2)) {
         case S2E_REGISTER_REPLY: {
-          const Message<S2E_REGISTER_REPLY>& msg = message();
+          const MSG<S2E_REGISTER_REPLY>& msg = message();
+
           slaveId = msg.args().slave_id();
+
+          VLOG(1) << "Executor registered on slave " << slaveId;
+
           invoke(bind(&Executor::init, executor, driver, cref(msg.args())));
           break;
         }
 
         case S2E_RUN_TASK: {
-          const Message<S2E_RUN_TASK>& msg = message();
+          const MSG<S2E_RUN_TASK>& msg = message();
 
           const TaskDescription& task = msg.task();
 
-          Message<E2S_STATUS_UPDATE> out;
+          VLOG(1) << "Executor asked to run a task " << task.task_id();
+
+          MSG<E2S_STATUS_UPDATE> out;
           out.mutable_framework_id()->MergeFrom(frameworkId);
           TaskStatus* status = out.mutable_status();
           status->mutable_task_id()->MergeFrom(task.task_id());
@@ -93,14 +100,20 @@ protected:
         }
 
         case S2E_KILL_TASK: {
-          const Message<S2E_KILL_TASK>& msg = message();
+          const MSG<S2E_KILL_TASK>& msg = message();
+
+          VLOG(1) << "Executor asked to kill task " << msg.task_id();
+
           invoke(bind(&Executor::killTask, executor, driver,
                       cref(msg.task_id())));
           break;
         }
 
         case S2E_FRAMEWORK_MESSAGE: {
-          const Message<S2E_FRAMEWORK_MESSAGE>& msg = message();
+          const MSG<S2E_FRAMEWORK_MESSAGE>& msg = message();
+
+          VLOG(1) << "Executor passed message";
+
           const FrameworkMessage& message = msg.message();
           invoke(bind(&Executor::frameworkMessage, executor, driver,
                       cref(message)));
@@ -108,6 +121,7 @@ protected:
         }
 
         case S2E_KILL_EXECUTOR: {
+          VLOG(1) << "Executor asked to shutdown";
           invoke(bind(&Executor::shutdown, executor, driver));
           if (!local)
             exit(0);
@@ -116,6 +130,8 @@ protected:
         }
 
         case PROCESS_EXIT: {
+          VLOG(1) << "Slave exited, trying to shutdown";
+
           // TODO: Pass an argument to shutdown to tell it this is abnormal?
           invoke(bind(&Executor::shutdown, executor, driver));
 
@@ -135,9 +151,9 @@ protected:
         }
 
         default: {
+          VLOG(1) << "Received unknown message ID " << msgid()
+                  << " from " << from();
           // TODO: Is this serious enough to exit?
-          cerr << "Received unknown message ID " << msgid()
-               << " from " << from() << endl;
           break;
         }
       }
@@ -307,7 +323,7 @@ int MesosExecutorDriver::sendStatusUpdate(const TaskStatus& status)
   }
 
   // TODO(benh): Do a dispatch to Executor first?
-  Message<E2S_STATUS_UPDATE> out;
+  MSG<E2S_STATUS_UPDATE> out;
   out.mutable_framework_id()->MergeFrom(process->frameworkId);
   out.mutable_status()->MergeFrom(status);
   process->send(process->slave, out);
@@ -335,7 +351,7 @@ int MesosExecutorDriver::sendFrameworkMessage(const FrameworkMessage& message)
   }
 
   // TODO(benh): Do a dispatch to Executor first?
-  Message<E2S_FRAMEWORK_MESSAGE> out;
+  MSG<E2S_FRAMEWORK_MESSAGE> out;
   out.mutable_framework_id()->MergeFrom(process->frameworkId);
   out.mutable_message()->MergeFrom(message);
   process->send(process->slave, out);

@@ -15,13 +15,16 @@ CXXFLAGS += -I@abs_srcdir@/third_party/libev-3.8
 # Add Boost to CXXFLAGS.
 CXXFLAGS += -I@abs_srcdir@/third_party/boost-1.37.0
 
+# Add http parser to CXXFLAGS.
+CXXFLAGS += -I@abs_srcdir@/third_party/ry-http-parser-1c3624a
+
 # Add -fPIC to CXXFLAGS.
-CXXFLAGS += -fPIC
+CXXFLAGS += -fPIC -D_XOPEN_SOURCE
 
 # Add dependency tracking to CXXFLAGS.
 CXXFLAGS += -MMD -MP
 
-LIB_OBJ = process.o pid.o reliable.o fatal.o
+LIB_OBJ = process.o pid.o fatal.o tokenize.o
 LIB = libprocess.a
 
 OBJS = $(LIB_OBJ)
@@ -36,10 +39,12 @@ $(LIB_OBJ): %.o: @abs_srcdir@/%.cpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 $(LIB): $(LIB_OBJ)
-	$(AR) rcs $@ $^
+	$(AR) rcs $@ $^ third_party/ry-http-parser-1c3624a/http_parser_g.o
 
 third_party:
 	$(MAKE) -C @abs_builddir@/third_party/libev-3.8
+	cp -r @abs_srcdir@/third_party/ry-http-parser-1c3624a @abs_builddir@/third_party/
+	$(MAKE) -C @abs_builddir@/third_party/ry-http-parser-1c3624a http_parser_g.o
 
 all: third_party $(LIBS)
 

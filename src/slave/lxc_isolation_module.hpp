@@ -23,14 +23,11 @@ public:
     LxcIsolationModule* module;
 
   protected:
-    void operator () ();
+    virtual void operator () ();
 
   public:
     Reaper(LxcIsolationModule* module);
   };
-
-  // Extra shutdown message for reaper
-  enum { SHUTDOWN_REAPER = PROCESS_MSGID };
 
   // Per-framework information object maintained in info hashmap
   struct FrameworkInfo {

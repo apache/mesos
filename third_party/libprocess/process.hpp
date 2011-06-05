@@ -1,5 +1,5 @@
-#ifndef PROCESS_HPP
-#define PROCESS_HPP
+#ifndef __PROCESS_HPP__
+#define __PROCESS_HPP__
 
 #include <assert.h>
 #include <stdint.h>
@@ -15,26 +15,21 @@
 #include "pid.hpp"
 
 
-typedef uint16_t MSGID;
-
-
-const MSGID PROCESS_ERROR = 1;
-const MSGID PROCESS_TIMEOUT = 2;
-const MSGID PROCESS_EXIT = 3;
-const MSGID PROCESS_TERMINATE = 4;
-const MSGID PROCESS_DISPATCH = 5;
-const MSGID PROCESS_MSGID = PROCESS_DISPATCH + 1;
+const std::string ERROR = "error";
+const std::string TIMEOUT = "timeout";
+const std::string EXIT = "exit";
+const std::string TERMINATE = "terminate";
+const std::string DISPATCH = "dispatch"; // TODO(benh): Make this internal.
 
 
 class Process;
 
 
-struct msg
-{
+struct Message {
+  std::string name;
   PID from;
   PID to;
-  MSGID id;
-  uint32_t len;
+  std::string body;
 };
 
 
@@ -48,7 +43,7 @@ public:
 
 class Filter {
 public:
-  virtual bool filter(msg *) = 0;
+  virtual bool filter(Message *) = 0;
 };
 
 
@@ -131,7 +126,8 @@ struct Result<void>;
 
 class Process {
 public:
-  Process();
+  Process(const std::string& id = "");
+
   virtual ~Process();
 
   /* Returns pid of process; valid even before calling spawn. */
@@ -142,40 +138,40 @@ protected:
   virtual void operator() ();
 
   /* Returns the sender's PID of the last dequeued (current) message. */
-  PID from() const { return current != NULL ? current->from : PID(); }
+  PID from() const;
 
-  /* Returns the id of the last dequeued (current) message. */
-  MSGID msgid() const { return current != NULL ? current->id : PROCESS_ERROR; }
+  /* Returns the name of the last dequeued (current) message. */
+  std::string name() const;
 
   /* Returns pointer and length of body of last dequeued (current) message. */
-  virtual const char * body(size_t *length) const;
+  const char * body(size_t *length) const;
 
   /* Put a message at front of queue (will not reschedule process). */
-  virtual void inject(const PID &from, MSGID id, const char *data = NULL, size_t length = 0);
+  void inject(const PID &from, const std::string &name, const char *data = NULL, size_t length = 0);
 
   /* Sends a message with data to PID. */
-  virtual void send(const PID &to, MSGID id, const char *data = NULL, size_t length = 0);
+  void send(const PID &to, const std::string &name, const char *data = NULL, size_t length = 0);
 
   /* Blocks for message at most specified seconds (0 implies forever). */
-  virtual MSGID receive(double secs = 0);
+  std::string receive(double secs = 0);
 
   /*  Processes dispatch messages. */
-  virtual MSGID serve(double secs = 0, bool forever = true);
+  std::string serve(double secs = 0, bool forever = true);
 
   /* Blocks at least specified seconds (may block longer). */
-  virtual void pause(double secs);
+  void pause(double secs);
 
   /* Links with the specified PID. */
-  virtual PID link(const PID &pid);
+  PID link(const PID &pid);
 
   /* IO events for awaiting. */
   enum { RDONLY = 01, WRONLY = 02, RDWR = 03 };
 
   /* Wait until operation is ready for file descriptor (or message received if not ignored). */
-  virtual bool await(int fd, int op, double secs = 0, bool ignore = true);
+  bool await(int fd, int op, double secs = 0, bool ignore = true);
 
   /* Returns true if operation on file descriptor is ready. */
-  virtual bool ready(int fd, int op);
+  bool ready(int fd, int op);
 
   /* Returns sub-second elapsed time (according to this process). */
   double elapsed();
@@ -214,11 +210,11 @@ public:
    * Sends a message with data without a return address.
    *
    * @param to receiver
-   * @param id message id
+   * @param name message name
    * @param data data to send (gets copied)
    * @param length length of data
    */
-  static void post(const PID &to, MSGID id, const char *data = NULL, size_t length = 0);
+  static void post(const PID &to, const std::string &name, const char *data = NULL, size_t length = 0);
 
   /**
    * Dispatches a void method on a process.
@@ -506,10 +502,10 @@ private:
   int refs;
 
   /* Queue of received messages. */
-  std::deque<msg *> msgs;
+  std::deque<Message *> messages;
 
   /* Current message. */
-  msg *current;
+  Message *current;
 
   /* Current "blocking" generation. */
   int generation;
@@ -526,10 +522,10 @@ private:
   void unlock() { pthread_mutex_unlock(&m); }
 
   /* Enqueues the specified message. */
-  void enqueue(msg *msg);
+  void enqueue(Message *message);
 
   /* Dequeues a message or returns NULL. */
-  msg * dequeue();
+  Message * dequeue();
 
   /* Dispatches the delegator to the specified process. */
   static void dispatcher(Process *, std::tr1::function<void (void)> *delegator);
@@ -844,7 +840,7 @@ Future<T> & Future<T>::operator = (const Future<T> &that)
       if (*t != NULL)
         delete *t;
       assert(trigger != NULL);
-      Process::post(trigger->self(), PROCESS_MSGID);
+      Process::post(trigger->self(), "");
       Process::wait(trigger->self());
       delete trigger;
     }
@@ -869,7 +865,7 @@ Future<T>::~Future()
     if (*t != NULL)
       delete *t;
     assert(trigger != NULL);
-    Process::post(trigger->self(), PROCESS_MSGID);
+    Process::post(trigger->self(), "");
     Process::wait(trigger->self());
     delete trigger;
   }
@@ -881,7 +877,7 @@ void Future<T>::set(const T &t_)
 {
   assert(t != NULL && *t == NULL);
   *t = new T(t_);
-  Process::post(trigger->self(), PROCESS_MSGID);
+  Process::post(trigger->self(), "");
 }
 
 
@@ -1065,4 +1061,4 @@ T Result<T>::get() const
 }
 
 
-#endif /* PROCESS_HPP */
+#endif // __PROCESS_HPP__
