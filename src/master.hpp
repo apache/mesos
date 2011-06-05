@@ -289,7 +289,7 @@ protected:
 public:
   Master();
 
-  Master(const Params& conf_);
+  Master(const Params& conf);
   
   ~Master();
 
@@ -326,6 +326,8 @@ public:
   // TODO(benh): Can this be cleaner?
   // Make self() public so that isolation modules and tests can access it
   using Tuple<ReliableProcess>::self;
+
+  const Params& getConf();
 
 protected:
   void operator () ();

@@ -12,118 +12,98 @@ using namespace std;
 using namespace nexus::internal::slave;
 
 
-void usage(const char *programName)
+void usage(const char *programName, const Configuration& conf)
 {
   cerr << "Usage: " << programName
        << " --url MASTER_URL"
        << " [--cpus NUM]"
        << " [--mem NUM]"
        << " [--isolation TYPE]"
-       << " [--webui-port PORT]"
-       << " [--quiet]" << endl
-       << endl
+       << " [...]"
+       << endl << endl
        << "MASTER_URL may be one of:" << endl
        << "  nexus://id@host:port" << endl
        << "  zoo://host1:port1,host2:port2,..." << endl
        << "  zoofile://file where file contains a host:port pair per line"
-       << endl;
+       << endl
+       << conf.getUsage();
 }
 
 
 int main(int argc, char **argv)
 {
+  Configuration conf;
+  conf.addOption<string>("url", 'u', "Master URL");
+  conf.addOption<int>("port", 'p', "Port to listen on (default: random)");
+  conf.addOption<bool>("quiet", 'q', "Disable logging to stderr", false);
+  conf.addOption<string>("log_dir", "Where to place logs", "/tmp");
+  conf.addOption<string>("isolation", 'i', "Isolation module name", "process");
+  conf.addOption<int32_t>("cpus", 'c', "CPU cores to use for tasks", 1);
+  conf.addOption<int64_t>("mem", 'm', "Memory to use for tasks, in bytes\n",
+                          1 * Gigabyte);
+#ifdef NEXUS_WEBUI
+  conf.addOption<int>("webui_port", 'w', "Web UI port", 8081);
+#endif
+  Slave::registerOptions(&conf);
+
   if (argc == 2 && string("--help") == argv[1]) {
-    usage(argv[0]);
+    usage(argv[0], conf);
     exit(1);
   }
 
-  option options[] = {
-    {"url", required_argument, 0, 'u'},
-    {"cpus", required_argument, 0, 'c'},
-    {"mem", required_argument, 0, 'm'},
-    {"isolation", required_argument, 0, 'i'},
-    {"webui-port", required_argument, 0, 'w'}, 
-    {"quiet", no_argument, 0, 'q'},
-  };
-
-  string url = "";
-  Resources resources(1, 1 * Gigabyte);
-  string isolation = "process";
-  char* webuiPortStr = "8081"; // C string because it is sent to python C API
-  bool quiet = false;
-
-  int opt;
-  int index;
-  while ((opt = getopt_long(argc, argv, "u:c:m:i:w:q", options, &index)) != -1) {
-    switch (opt) {
-      case 'u':
-        url = optarg;
-        break;
-      case 'c': 
-        resources.cpus = atoi(optarg);
-        break;
-      case 'm':
-        resources.mem = atoll(optarg);
-        break;
-      case 'i':
-        isolation = optarg;
-        break;
-      case 'w':
-        webuiPortStr = optarg;
-        break;
-      case 'q':
-        quiet = true;
-        break;
-      case '?':
-        // Error parsing options; getopt prints an error message, so just exit
-        exit(1);
-        break;
-      default:
-        break;
-    }
-  }
-
-  if (url == "") {
-    cerr << "Master URL argument (--url) required." << endl;
+  Params params;
+  try {
+    conf.load(argc, argv, true);
+    params = conf.getParams();
+  } catch (BadOptionValueException& e) {
+    cerr << "Invalid value for '" << e.what() << "' option" << endl;
+    exit(1);
+  } catch (ConfigurationException& e) {
+    cerr << "Configuration error: " << e.what() << endl;
     exit(1);
   }
 
-  if (!quiet)
-    google::SetStderrLogging(google::INFO);
+  if (params.contains("port"))
+    setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
 
-  FLAGS_log_dir = "/tmp";
+  FLAGS_log_dir = params["log_dir"];
   FLAGS_logbufsecs = 1;
   google::InitGoogleLogging(argv[0]);
 
+  bool quiet = params.get<bool>("quiet", false);
+  if (!quiet)
+    google::SetStderrLogging(google::INFO);
+
+  if (!params.contains("url")) {
+    cerr << "Master URL argument (--url) required." << endl;
+    exit(1);
+  }
+  string url = params["url"];
+
+  string isolation = params["isolation"];
   LOG(INFO) << "Creating \"" << isolation << "\" isolation module";
   IsolationModule *isolationModule = IsolationModule::create(isolation);
 
-  if (isolationModule == NULL)
-    fatal("unrecognized isolation type: %s", isolation.c_str());
+  if (isolationModule == NULL) {
+    cerr << "Unrecognized isolation type: " << isolation << endl;
+    exit(1);
+  }
 
   LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
   LOG(INFO) << "Starting Nexus slave";
 
-  Slave* slave = new Slave(resources, false, isolationModule);
+  if (chdir(dirname(argv[0])) != 0)
+    fatalerror("Could not chdir into %s", dirname(argv[0]));
+
+  Resources resources(params.get<int32_t>("cpus", 1),
+                      params.get<int64_t>("mem", 1 * Gigabyte));
+  Slave* slave = new Slave(params, resources, false, isolationModule);
   PID pid = Process::spawn(slave);
 
   MasterDetector *detector = MasterDetector::create(url, pid, false, quiet);
 
 #ifdef NEXUS_WEBUI
-  if (chdir(dirname(argv[0])) != 0)
-    fatalerror("could not change into %s for running webui", dirname(argv[0]));
-
-  // TODO(*): Since we normally don't use exceptions in Mesos, replace
-  // use of an exception here with use of a utility to handle checking
-  // that the input string is actually a number that fits
-  // in the type being used (in this case, short).
-  try {
-    lexical_cast<short>(webuiPortStr);
-  } catch(bad_lexical_cast &) {
-    fatal("Passed invalid string for webui port number.\n");
-  }
-
-  startSlaveWebUI(pid, webuiPortStr);
+  startSlaveWebUI(pid, (char*) params["webui_port"].c_str());
 #endif
 
   Process::wait(pid);

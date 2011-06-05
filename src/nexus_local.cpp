@@ -64,7 +64,7 @@ PID launch(int numSlaves, int32_t cpus, int64_t mem,
     // TODO(benh): Create a local isolation module?
     ProcessBasedIsolationModule *isolationModule =
       new ProcessBasedIsolationModule();
-    Slave* slave = new Slave(Resources(cpus, mem), true, isolationModule);
+    Slave* slave = new Slave(conf, Resources(cpus, mem), true, isolationModule);
     slaves[isolationModule] = slave;
     pids.push_back(Process::spawn(slave));
   }

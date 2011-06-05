@@ -28,6 +28,7 @@
 
 #include <reliable.hpp>
 
+#include "configuration.hpp"
 #include "fatal.hpp"
 #include "foreach.hpp"
 #include "isolation_module.hpp"
@@ -158,6 +159,8 @@ struct Executor
 class Slave : public Tuple<ReliableProcess>
 {
 public:
+  Params conf;
+
   typedef unordered_map<FrameworkID, Framework*> FrameworkMap;
   typedef unordered_map<FrameworkID, Executor*> ExecutorMap;
   
@@ -173,9 +176,16 @@ public:
   unordered_map<FrameworkID, unordered_set<int> > seqs;
 
 public:
-  Slave(Resources resources, bool local, IsolationModule *isolationModule);
+  Slave(Resources resources, bool local, IsolationModule* isolationModule);
+
+  Slave(const Params& conf,
+        Resources resources,
+        bool local,
+        IsolationModule *isolationModule);
 
   virtual ~Slave();
+
+  static void registerOptions(Configuration* conf);
 
   state::SlaveState *getState();
 
@@ -190,6 +200,8 @@ public:
   // TODO(benh): Can this be cleaner?
   // Make self() public so that isolation modules and tests can access it
   using Tuple<ReliableProcess>::self;
+
+  const Params& getConf();
 
 protected:
   void operator () ();

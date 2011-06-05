@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 {
   Configuration conf;
   conf.addOption<string>("url", 'u', "URL used for leader election");
-  conf.addOption<int>("port", 'p', "Port to listen on");
+  conf.addOption<int>("port", 'p', "Port to listen on", 50010);
   conf.addOption<bool>("quiet", 'q', "Disable logging to stderr", false);
   conf.addOption<string>("log_dir", "Where to place logs", "/tmp");
 #ifdef NEXUS_WEBUI
@@ -44,7 +44,6 @@ int main(int argc, char **argv)
   }
 
   Params params;
-
   try {
     conf.load(argc, argv, true);
     params = conf.getParams();

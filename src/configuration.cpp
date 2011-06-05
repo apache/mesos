@@ -191,7 +191,13 @@ string Configuration::getUsage() const
     string line;
 
     if (opt.defaultValue != "") {  // add default value
-      helpStr += " (default: " + opt.defaultValue + ")";
+      // Place a space between help string and (default: VAL) if the
+      // help string does not end with a newline itself
+      size_t lastNewLine = helpStr.find_last_of("\n\r");
+      if (helpStr.size() > 0 && lastNewLine != helpStr.size() - 1) {
+        helpStr += " ";
+      }
+      helpStr += "(default: " + opt.defaultValue + ")";
     }
 
     line += "--" + key + "=VAL";

@@ -67,6 +67,17 @@ Slave::Slave(Resources _resources, bool _local,
     isolationModule(_isolationModule) {}
 
 
+Slave::Slave(const Params& _conf, Resources _resources, bool _local,
+             IsolationModule *_isolationModule)
+  : id(""), conf(_conf), resources(_resources), local(_local),
+    isolationModule(_isolationModule) {}
+
+
+void Slave::registerOptions(Configuration* conf)
+{
+}
+
+
 Slave::~Slave()
 {
   // TODO(benh): Shut down and free executors?
@@ -480,4 +491,10 @@ string Slave::getWorkDirectory(FrameworkID fid) {
   ostringstream workDir;
   workDir << "work/slave-" << id << "/framework-" << fid;
   return workDir.str();
+}
+
+
+const Params& Slave::getConf()
+{
+  return conf;
 }

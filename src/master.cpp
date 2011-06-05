@@ -1036,3 +1036,9 @@ FrameworkID Master::newFrameworkId()
   oss << timestr << "-" << masterId << "-" << setw(4) << setfill('0') << fwId;
   return oss.str();
 }
+
+
+const Params& Master::getConf()
+{
+  return conf;
+}
