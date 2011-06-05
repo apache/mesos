@@ -73,7 +73,8 @@ protected:
 };
 
 
-ReliableProcess::ReliableProcess() : current(NULL) {}
+ReliableProcess::ReliableProcess()
+  : current(NULL), nextSeq(0) {}
 
 
 ReliableProcess::~ReliableProcess()
@@ -151,12 +152,14 @@ bool ReliableProcess::forward(const PID &to)
 }
 
 
-void ReliableProcess::rsend(const PID &to, MSGID id, const char *data, size_t length)
+int ReliableProcess::rsend(const PID &to, MSGID id, const char *data, size_t length)
 {
   // Allocate/Initialize outgoing message.
   struct rmsg *rmsg = (struct rmsg *) malloc(sizeof(struct rmsg) + length);
 
-  rmsg->seq = sentSeqs[to]++;
+  int seq = nextSeq++;
+
+  rmsg->seq = seq;
 
   rmsg->msg.from.pipe = self().pipe;
   rmsg->msg.from.ip = self().ip;
@@ -173,6 +176,8 @@ void ReliableProcess::rsend(const PID &to, MSGID id, const char *data, size_t le
   ReliableSender *sender = new ReliableSender(rmsg);
   PID pid = link(spawn(sender));
   senders[pid] = sender;
+
+  return seq;
 }
 
 
@@ -260,5 +265,20 @@ void ReliableProcess::redirect(const PID &existing, const PID &updated)
     // TODO(benh): Don't look into sender's class like this ... HACK!
     if (existing == sender->rmsg->msg.to)
       send(pid, RELIABLE_REDIRECT, (char *) &updated, sizeof(PID));
+  }
+}
+
+
+void ReliableProcess::cancel(int seq)
+{
+  foreachpair (const PID &pid, ReliableSender *sender, senders) {
+    assert(pid == sender->getPID());
+    // Shut it down by sending it an ack. It will get cleaned up via
+    // the PROCESS_EXIT above.
+    // TODO(benh): Don't look into sender's class like this ... HACK!
+    if (seq == sender->rmsg->seq) {
+      send(pid, RELIABLE_ACK);
+      break;
+    }
   }
 }

@@ -169,6 +169,9 @@ public:
   ExecutorMap executors;  // Invariant: framework will exist if executor exists
   IsolationModule *isolationModule;
 
+  // Sequence numbers of reliable messages sent on behalf of framework.
+  unordered_map<FrameworkID, unordered_set<int> > seqs;
+
 public:
   Slave(Resources resources, bool local, IsolationModule *isolationModule);
 

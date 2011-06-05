@@ -63,8 +63,9 @@ protected:
    * Sends a _reliable_ message to PID.
    * @param to destination
    * @param id message id
+   * @return sequence number of message
    */
-  virtual void rsend(const PID &to, MSGID id);
+  virtual int rsend(const PID &to, MSGID id);
 
   /**
    * Sends a _reliable_ message with data to PID.
@@ -72,8 +73,9 @@ protected:
    * @param id message id
    * @param data payload
    * @param length payload length
+   * @return sequence number of message
    */
-  virtual void rsend(const PID &to, MSGID id, const char *data, size_t length);
+  virtual int rsend(const PID &to, MSGID id, const char *data, size_t length);
 
   /* Blocks for message indefinitely. */
   virtual MSGID receive();
@@ -87,18 +89,25 @@ protected:
    * @param updated the new PID
    */
   virtual void redirect(const PID &existing, const PID &updated);
+
+  /**
+   * Cancel trying to reliably send the message with the specified
+   * sequence number.
+   * @param seq sequence number of message to cancel
+   */
+  virtual void cancel(int seq);
   
 private:
   struct rmsg *current;
-  std::map<PID, int> sentSeqs;
+  int nextSeq;
   std::map<PID, int> recvSeqs;
   std::map<PID, ReliableSender *> senders;
 };
 
 
-inline void ReliableProcess::rsend(const PID &to, MSGID id)
+inline int ReliableProcess::rsend(const PID &to, MSGID id)
 {
-  rsend(to, id, NULL, 0);
+  return rsend(to, id, NULL, 0);
 }
 
 

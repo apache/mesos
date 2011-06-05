@@ -306,7 +306,10 @@ void Slave::operator () ()
 	const string &msg =
 	  tupleToString(pack<S2M_FT_STATUS_UPDATE>(id, fid, tid, taskState,
 						   data));
-	rsend(master, S2M_FT_STATUS_UPDATE, msg.data(), msg.size());
+
+        // Reliably send message and save sequence number for canceling later.
+	int seq = rsend(master, S2M_FT_STATUS_UPDATE, msg.data(), msg.size());
+        seqs[fid].insert(seq);
         break;
       }
 
@@ -434,7 +437,16 @@ void Slave::removeExecutor(FrameworkID frameworkId, bool killProcess)
 void Slave::killFramework(Framework *fw)
 {
   LOG(INFO) << "Cleaning up framework " << fw->id;
+
+  // Cancel sending any reliable messages for this framework.
+  foreach (int seq, seqs[fw->id])
+    cancel(seq);
+
+  seqs.erase(fw->id);
+
+  // Remove its allocated resources.
   fw->resources = Resources();
+
   // If an executor is running, tell it to exit and kill it
   if (Executor *ex = getExecutor(fw->id)) {
     send(ex->pid, pack<S2E_KILL_EXECUTOR>());
