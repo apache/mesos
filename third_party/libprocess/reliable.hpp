@@ -154,4 +154,5 @@ inline MSGID ReliableProcess::receive()
   return receive(0);
 }
 
+
 #endif /* __RELIABLE_HPP__ */

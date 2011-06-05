@@ -164,8 +164,9 @@ protected:
   void operator () ()
   {
     WatcherProcess *process = this;
-    if (call(manager, REGISTER,
-	     reinterpret_cast<char *>(&process), sizeof(process)) != OK)
+    send(manager, REGISTER,
+         reinterpret_cast<char *>(&process), sizeof(process));
+    if (receive() != OK)
       fatal("failed to setup underlying watcher mechanism");
     while (true) {
       switch (receive()) {
@@ -177,8 +178,9 @@ protected:
 	break;
       }
       case TERMINATE:
-	if (call(manager, UNREGISTER,
-		 reinterpret_cast<char *>(&process), sizeof(process)) != OK)
+	send(manager, UNREGISTER,
+             reinterpret_cast<char *>(&process), sizeof(process));
+        if (receive() != OK)
 	  fatal("failed to cleanup underlying watcher mechanism");
 	return;
       }
@@ -277,8 +279,9 @@ Watcher::~Watcher()
   protected:
     void operator () ()
     {
-      if (call(manager, LOOKUP_PROCESS,
-	       reinterpret_cast<char *>(&watcher), sizeof(watcher)) != OK)
+      send(manager, LOOKUP_PROCESS,
+           reinterpret_cast<char *>(&watcher), sizeof(watcher));
+      if (receive() != OK)
 	fatal("failed to deallocate resources associated with Watcher");
       WatcherProcess *process =
 	*reinterpret_cast<WatcherProcess **>(const_cast<char *>(body(NULL)));
@@ -445,8 +448,9 @@ protected:
     // Lookup and cache the WatcherProcess PID associated with our
     // Watcher _before_ we yield control via calling zookeeper_process
     // so that Watcher callbacks can occur.
-    if (call(manager, LOOKUP_PID,
-	     reinterpret_cast<char *>(&watcher), sizeof(watcher)) != OK)
+    send(manager, LOOKUP_PID,
+         reinterpret_cast<char *>(&watcher), sizeof(watcher));
+    if (receive() != OK)
       fatal("failed to setup underlying ZooKeeper mechanisms");
 
     // TODO(benh): Link with WatcherProcess?
@@ -468,7 +472,9 @@ protected:
 	tv.tv_usec = 0;
       }
 
-      if (await(fd, ops, tv, false)) {
+      double secs = tv.tv_sec + (tv.tv_usec * 1e-6);
+
+      if (await(fd, ops, secs, false)) {
 	// Either timer expired (might be 0) or data became available on fd.
 	process(fd, ops);
       } else {
@@ -639,10 +645,11 @@ int ZooKeeper::create(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->self(),
-	       CREATE,
-	       reinterpret_cast<char *>(&createCall),
-	       sizeof(CreateCall *)) != COMPLETED)
+      send(zooKeeperProcess->self(),
+           CREATE,
+           reinterpret_cast<char *>(&createCall),
+           sizeof(CreateCall *));
+      if (receive() != COMPLETED)
 	createCall->ret = ZSYSTEMERROR;
     }
 
@@ -677,10 +684,11 @@ int ZooKeeper::remove(const string &path, int version)
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->self(),
-	       REMOVE,
-	       reinterpret_cast<char *>(&removeCall),
-	       sizeof(RemoveCall *)) != COMPLETED)
+      send(zooKeeperProcess->self(),
+           REMOVE,
+           reinterpret_cast<char *>(&removeCall),
+           sizeof(RemoveCall *));
+      if (receive() != COMPLETED)
 	removeCall->ret = ZSYSTEMERROR;
     }
 
@@ -717,10 +725,11 @@ int ZooKeeper::exists(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->self(),
-	       EXISTS,
-	       reinterpret_cast<char *>(&existsCall),
-	       sizeof(ExistsCall *)) != COMPLETED)
+      send(zooKeeperProcess->self(),
+           EXISTS,
+           reinterpret_cast<char *>(&existsCall),
+           sizeof(ExistsCall *));
+      if (receive() != COMPLETED)
 	existsCall->ret = ZSYSTEMERROR;
     }
 
@@ -759,10 +768,11 @@ int ZooKeeper::get(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->self(),
-	       GET,
-	       reinterpret_cast<char *>(&getCall),
-	       sizeof(GetCall *)) != COMPLETED)
+      send(zooKeeperProcess->self(),
+           GET,
+           reinterpret_cast<char *>(&getCall),
+           sizeof(GetCall *));
+      if (receive() != COMPLETED)
 	getCall->ret = ZSYSTEMERROR;
     }
 
@@ -799,10 +809,11 @@ int ZooKeeper::getChildren(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->self(),
-	       GET_CHILDREN,
-	       reinterpret_cast<char *>(&getChildrenCall),
-	       sizeof(GetChildrenCall *)) != COMPLETED)
+      send(zooKeeperProcess->self(),
+           GET_CHILDREN,
+           reinterpret_cast<char *>(&getChildrenCall),
+           sizeof(GetChildrenCall *));
+      if (receive() != COMPLETED)
 	getChildrenCall->ret = ZSYSTEMERROR;
     }
 
@@ -839,10 +850,11 @@ int ZooKeeper::set(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->self(),
-	       SET,
-	       reinterpret_cast<char *>(&setCall),
-	       sizeof(SetCall *)) != COMPLETED)
+      send(zooKeeperProcess->self(),
+           SET,
+           reinterpret_cast<char *>(&setCall),
+           sizeof(SetCall *));
+      if (receive() != COMPLETED)
 	setCall->ret = ZSYSTEMERROR;
     }
 

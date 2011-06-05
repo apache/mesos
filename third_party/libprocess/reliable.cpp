@@ -8,6 +8,7 @@ using std::make_pair;
 using std::map;
 using std::pair;
 
+
 #define malloc(bytes)                                               \
   ({ void *tmp;                                                     \
      if ((tmp = malloc(bytes)) == NULL)                             \

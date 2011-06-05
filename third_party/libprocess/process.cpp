@@ -60,6 +60,8 @@ using std::queue;
 using std::set;
 using std::stack;
 
+using std::tr1::function;
+
 
 #define Byte (1)
 #define Kilobyte (1024*Byte)
@@ -249,6 +251,8 @@ public:
   void run(Process *process);
   void cleanup(Process *process);
 
+  static void invoke(const function<void (void)> &thunk);
+
 private:
   timeout create_timeout(Process *process, double secs);
   void start_timeout(const timeout &timeout);
@@ -271,15 +275,15 @@ private:
 
 
 /* Tick, tock ... manually controlled clock! */
-class InternalProcessClock
+class InternalClock
 {
 public:
-  InternalProcessClock()
+  InternalClock()
   {
     initial = current = elapsed = ev_time();
   }
 
-  ~InternalProcessClock() {}
+  ~InternalClock() {}
 
   ev_tstamp getCurrent(Process *process)
   {
@@ -334,7 +338,7 @@ private:
 
 
 /* Using manual clock if non-null. */
-static InternalProcessClock *clk = NULL;
+static InternalClock *clk = NULL;
 
 /* Global 'pipe' id uniquely assigned to each process. */
 static uint32_t global_pipe = 0;
@@ -405,8 +409,8 @@ static Process *proc_process = NULL;
 static bool legacy = false;
 
 /* Thunk to safely call into legacy. */
-// static __thread std::tr1::function<void (void)> *legacy_thunk;
-static const std::tr1::function<void (void)> *legacy_thunk;
+// static __thread function<void (void)> *legacy_thunk;
+static const function<void (void)> *legacy_thunk;
 
 /* Scheduler gate. */
 static Gate *gate = new Gate();
@@ -441,7 +445,7 @@ static map<uint32_t, deque<uint32_t> > *replay_pipes =
  * recursive incase a filterer wants to do anything fancy (which is
  * possible and likely given that filters will get used for testing).
 */
-static MessageFilter *filterer = NULL;
+static Filter *filterer = NULL;
 static synchronizable(filterer) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
 
 
@@ -497,7 +501,7 @@ void handle_async(struct ev_loop *loop, ev_async *w, int revents)
           ev_feed_event(loop, &timeouts_watcher, EV_TIMEOUT);
         } else {
 	  // Only repeat the timer if not using a manual clock (a call
-	  // to ProcessClock::advance() will force a timer event later).
+	  // to Clock::advance() will force a timer event later).
 	  if (clk != NULL && timeouts_watcher.repeat > 0)
 	    timeouts_watcher.repeat = 0;
 	  ev_timer_again(loop, &timeouts_watcher);
@@ -2051,14 +2055,6 @@ bool ProcessManager::await(Process *process, int fd, int op, double secs, bool i
       return false;
     }
 
-    assert(secs > 0);
-
-    /* Create timeout. */
-    const timeout &timeout = create_timeout(process, secs);
-
-    /* Start the timeout. */
-    start_timeout(timeout);
-
     // Treat an await with a bad fd as an interruptible pause!
     if (fd >= 0) {
       /* Allocate/Initialize the watcher. */
@@ -2086,6 +2082,15 @@ bool ProcessManager::await(Process *process, int fd, int op, double secs, bool i
       ev_async_send(loop, &async_watcher);
     }
 
+    assert(secs >= 0);
+
+    timeout timeout;
+
+    if (secs != 0) {
+      timeout = create_timeout(process, secs);
+      start_timeout(timeout);
+    }
+
     /* Context switch. */
     process->state = Process::AWAITING;
     swapcontext(&process->uctx, &proc_uctx_running);
@@ -2094,8 +2099,9 @@ bool ProcessManager::await(Process *process, int fd, int op, double secs, bool i
            process->state == Process::INTERRUPTED);
 
     /* Attempt to cancel the timer if necessary. */
-    if (process->state != Process::TIMEDOUT)
-      cancel_timeout(timeout);
+    if (secs != 0)
+      if (process->state != Process::TIMEDOUT)
+        cancel_timeout(timeout);
 
     if (process->state == Process::INTERRUPTED)
       interrupted = true;
@@ -2323,6 +2329,16 @@ void ProcessManager::cleanup(Process *process)
 }
 
 
+void ProcessManager::invoke(const function<void (void)> &thunk)
+{
+  legacy_thunk = &thunk;
+  legacy = true;
+  assert(proc_process != NULL);
+  swapcontext(&proc_process->uctx, &proc_uctx_running);
+  legacy = false;
+}
+
+
 timeout ProcessManager::create_timeout(Process *process, double secs)
 {
   assert(process != NULL);
@@ -2380,7 +2396,7 @@ void ProcessManager::cancel_timeout(const timeout &timeout)
 }
 
 
-void ProcessClock::pause()
+void Clock::pause()
 {
   initialize();
 
@@ -2391,7 +2407,7 @@ void ProcessClock::pause()
     // sends and spawning new processes, not currently done for
     // PROCESS_EXIT messages).
     if (clk == NULL) {
-      clk = new InternalProcessClock();
+      clk = new InternalClock();
 
       // The existing libev timer might actually timeout, but now that
       // clk != NULL, no "time" will actually have passed, so no
@@ -2401,7 +2417,7 @@ void ProcessClock::pause()
 }
 
 
-void ProcessClock::resume()
+void Clock::resume()
 {
   initialize();
 
@@ -2417,7 +2433,7 @@ void ProcessClock::resume()
 }
 
 
-void ProcessClock::advance(double secs)
+void Clock::advance(double secs)
 {
   synchronized(timeouts) {
     if (clk != NULL) {
@@ -2696,11 +2712,30 @@ MSGID Process::receive(double secs)
 }
 
 
-MSGID Process::call(const PID &to, MSGID id,
-		    const char *data, size_t length, double secs)
+MSGID Process::serve(bool forever)
 {
-  send(to, id, data, length);
-  return receive(secs);
+  do {
+    switch (receive()) {
+      case PROCESS_DISPATCH: {
+        void *pointer = (char *) current + sizeof(struct msg);
+        std::tr1::function<void (void)> *delegator =
+          *reinterpret_cast<std::tr1::function<void (void)> **>(pointer);
+        (*delegator)();
+        delete delegator;
+        break;
+      }
+
+      default: {
+        return msgid();
+      }
+    }
+  } while (forever);
+};
+
+
+void Process::operator () ()
+{
+  serve();
 }
 
 
@@ -2742,17 +2777,9 @@ PID Process::link(const PID &to)
 }
 
 
-bool Process::await(int fd, int op, const timeval& tv)
+bool Process::await(int fd, int op, double secs, bool ignore)
 {
-  return await(fd, op, tv, true);
-}
-
-
-bool Process::await(int fd, int op, const timeval& tv, bool ignore)
-{
-  double secs = tv.tv_sec + (tv.tv_usec * 1e-6);
-
-  if (secs <= 0)
+  if (secs < 0)
     return true;
 
   /* TODO(benh): Handle invoking await from "outside" thread. */
@@ -2809,6 +2836,76 @@ double Process::elapsed()
 }
 
 
+PID Process::spawn(Process *process)
+{
+  initialize();
+
+  if (process != NULL) {
+    // If using a manual clock, try and set current time of process
+    // using happens before relationship between spawner and spawnee!
+    synchronized(timeouts) {
+      if (clk != NULL) {
+        if (pthread_self() == proc_thread) {
+          assert(proc_process != NULL);
+          clk->setCurrent(process, clk->getCurrent(proc_process));
+        } else {
+          clk->setCurrent(process, clk->getCurrent());
+        }
+      }
+    }
+
+    process_manager->spawn(process);
+
+    return process->self();
+  } else {
+    return PID();
+  }
+}
+
+
+bool Process::wait(const PID &pid)
+{
+  initialize();
+
+  if (!pid)
+    return false;
+
+  // N.B. This could result in a deadlock! We could check if such was
+  // the case by doing:
+  //
+  //   if (proc_process && proc_process->pid == pid) {
+  //     handle deadlock here;
+  //   }
+  //
+  // But for now, deadlocks seem like better bugs to try and fix than
+  // segmentation faults that might occur because a client thinks it
+  // has waited on a process and it is now finished (and can be
+  // cleaned up).
+
+  if (pthread_self() != proc_thread)
+    return process_manager->external_wait(pid);
+  else
+    return process_manager->wait(proc_process, pid);
+}
+
+
+void Process::invoke(const function<void (void)> &thunk)
+{
+  initialize();
+  ProcessManager::invoke(thunk);
+}
+
+
+void Process::filter(Filter *filter)
+{
+  initialize();
+
+  synchronized(filterer) {
+    filterer = filter;
+  }
+}
+
+
 void Process::post(const PID &to, MSGID id, const char *data, size_t length)
 {
   initialize();
@@ -2847,74 +2944,24 @@ void Process::post(const PID &to, MSGID id, const char *data, size_t length)
 }
 
 
-PID Process::spawn(Process *process)
+void Process::dispatcher(Process *process, function<void (void)> *delegator)
 {
-  initialize();
+  if (replaying)
+    return;
 
-  if (process != NULL) {
-    // If using a manual clock, try and set current time of process
-    // using happens before relationship between spawner and spawnee!
-    synchronized(timeouts) {
-      if (clk != NULL) {
-        if (pthread_self() == proc_thread) {
-          assert(proc_process != NULL);
-          clk->setCurrent(process, clk->getCurrent(proc_process));
-        } else {
-          clk->setCurrent(process, clk->getCurrent());
-        }
-      }
-    }
+  /* Allocate/Initialize outgoing message. */
+  struct msg *msg = (struct msg *) malloc(sizeof(struct msg) + sizeof(delegator));
 
-    process_manager->spawn(process);
-    return process->pid;
-  } else {
-    return PID();
-  }
-}
+  msg->from.pipe = 0;
+  msg->from.ip = 0;
+  msg->from.port = 0;
+  msg->to.pipe = process->pid.pipe;
+  msg->to.ip = process->pid.ip;
+  msg->to.port = process->pid.port;
+  msg->id = PROCESS_DISPATCH;
+  msg->len = sizeof(delegator);
 
+  memcpy((char *) msg + sizeof(struct msg), &delegator, sizeof(delegator));
 
-bool Process::wait(const PID &pid)
-{
-  initialize();
-
-  if (!pid)
-    return false;
-
-  // N.B. This could result in a deadlock! We could check if such was
-  // the case by doing:
-  //
-  //   if (proc_process && proc_process->pid == pid) {
-  //     handle deadlock here;
-  //   }
-  //
-  // But for now, deadlocks seem like better bugs to try and fix than
-  // segmentation faults that might occur because a client thinks it
-  // has waited on a process and it is now finished (and can be
-  // cleaned up).
-
-  if (pthread_self() != proc_thread)
-    return process_manager->external_wait(pid);
-  else
-    return process_manager->wait(proc_process, pid);
-}
-
-
-void Process::invoke(const std::tr1::function<void (void)> &thunk)
-{
-  initialize();
-  legacy_thunk = &thunk;
-  legacy = true;
-  assert(proc_process != NULL);
-  swapcontext(&proc_process->uctx, &proc_uctx_running);
-  legacy = false;
-}
-
-
-void Process::filter(MessageFilter *filter)
-{
-  initialize();
-
-  synchronized(filterer) {
-    filterer = filter;
-  }
+  process_manager->deliver(msg);
 }
