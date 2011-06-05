@@ -62,29 +62,22 @@ protected:
 
   /**
    * Forward current message (provided it is _reliable_).
-   * @param via hop (or possibly destination)
+   * @param to hop (or possibly destination)
    * @return false if the current message is not _reliable_, true
    * otherwise.
    */
-  virtual bool forward(const PID &via);
+  virtual bool forward(const PID &to);
 
   /**
-   * Sends a _reliable_ message to PID.
-   * @param to destination
-   * @param id message id
-   * @return sequence number of message
+   * Transform current message with specified id and data and forward
+   * it (provided it is _reliable_). This effectively allows an
+   * intermediate receiver that shouldn't be responsible for the
+   * acknowledgement to change the body of the message as it needs.
+   * @param to hop (or possibly destination)
+   * @return false if the current message is not _reliable_, true
+   * otherwise.
    */
-  virtual int rsend(const PID &to, MSGID id);
-
-  /**
-   * Sends a _reliable_ message via another PID (meant to be
-   * forwarded).
-   * @param via hop
-   * @param to destination
-   * @param id message id
-   * @return sequence number of message
-   */
-  virtual int rsend(const PID &via, const PID &to, MSGID id);
+  virtual bool forward(const PID &to, MSGID id, const char *data, size_t length);
 
   /**
    * Sends a _reliable_ message with data to PID.
@@ -94,7 +87,7 @@ protected:
    * @param length payload length
    * @return sequence number of message
    */
-  virtual int rsend(const PID &to, MSGID id, const char *data, size_t length);
+  virtual int rsend(const PID &to, MSGID id, const char *data = NULL, size_t length = 0);
 
   /**
    * Sends a _reliable_ message with data via another process (meant
@@ -106,14 +99,10 @@ protected:
    * @param length payload length
    * @return sequence number of message
    */
-  virtual int rsend(const PID &via, const PID &to, MSGID id, const char *data, size_t length);
+  virtual int rsend(const PID &via, const PID &to, MSGID id, const char *data = NULL, size_t length = 0);
 
-
-  /* Blocks for message indefinitely. */
-  virtual MSGID receive();
-
-  /* Blocks for message at most specified seconds. */
-  virtual MSGID receive(double secs);
+  /* Blocks for message at most specified seconds (0 implies forever). */
+  virtual MSGID receive(double secs = 0);
 
   /**
    * Redirect unacknolwedged messages to be sent to a different PID.
@@ -135,24 +124,6 @@ private:
   std::map<std::pair<PID, PID>, int> recvSeqs;
   std::map<PID, ReliableSender *> senders;
 };
-
-
-inline int ReliableProcess::rsend(const PID &to, MSGID id)
-{
-  return rsend(to, id, NULL, 0);
-}
-
-
-inline int ReliableProcess::rsend(const PID &via, const PID &to, MSGID id)
-{
-  return rsend(via, to, id, NULL, 0);
-}
-
-
-inline MSGID ReliableProcess::receive()
-{
-  return receive(0);
-}
 
 
 #endif /* __RELIABLE_HPP__ */

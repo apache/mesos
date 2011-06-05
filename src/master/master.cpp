@@ -541,25 +541,20 @@ void Master::operator () ()
       break;
     }
 
-    case S2M_FT_STATUS_UPDATE: {
+    case S2M_STATUS_UPDATE: {
       SlaveID sid;
       FrameworkID fid;
       TaskID tid;
       TaskState state;
       string data;
-      tie(sid, fid, tid, state, data) = unpack<S2M_FT_STATUS_UPDATE>(body());
+      tie(sid, fid, tid, state, data) = unpack<S2M_STATUS_UPDATE>(body());
 
-      VLOG(1) << "FT: prepare relay seq:"<< seq() << " from: "<< from();
       if (Slave *slave = lookupSlave(sid)) {
         if (Framework *framework = lookupFramework(fid)) {
-	  // Pass on the status update to the framework.
-	  // TODO(benh): Do we not want to forward the
-	  // S2M_FT_STATUS_UPDATE message? This seems a little tricky
-	  // because we really wanted to send the M2F_FT_STATUS_UPDATE
-	  // message.
-          forward(framework->pid);
+	  // Pass on the (transformed) status update to the framework.
+          forward(framework->pid, pack<M2F_STATUS_UPDATE>(tid, state, data));
           if (duplicate()) {
-            LOG(WARNING) << "FT: Locally ignoring duplicate message with id:" << seq();
+            LOG(WARNING) << "Locally ignoring duplicate message with id:" << seq();
             break;
           }
           // Update the task state locally.
@@ -575,48 +570,14 @@ void Master::operator () ()
             }
           }
         } else {
-          LOG(ERROR) << "S2M_FT_STATUS_UPDATE error: couldn't lookup "
+          LOG(ERROR) << "S2M_STATUS_UPDATE error: couldn't lookup "
                      << "framework id " << fid;
-        }
-      } else {
-        LOG(ERROR) << "S2M_FT_STATUS_UPDATE error: couldn't lookup slave id "
-                   << sid;
-      }
-      break;
-    }
-
-    case S2M_STATUS_UPDATE: {
-      SlaveID sid;
-      FrameworkID fid;
-      TaskID tid;
-      TaskState state;
-      string data;
-      tie(sid, fid, tid, state, data) = unpack<S2M_STATUS_UPDATE>(body());
-      if (Slave *slave = lookupSlave(sid)) {
-        if (Framework *framework = lookupFramework(fid)) {
-          // Pass on the status update to the framework
-          send(framework->pid, pack<M2F_STATUS_UPDATE>(tid, state, data));
-          // Update the task state locally
-          Task *task = slave->lookupTask(fid, tid);
-          if (task != NULL) {
-            LOG(INFO) << "Status update: " << task << " is in state " << state;
-            task->state = state;
-            // Remove the task if it finished or failed
-            if (state == TASK_FINISHED || state == TASK_FAILED ||
-                state == TASK_KILLED || state == TASK_LOST) {
-              LOG(INFO) << "Removing " << task << " because it's done";
-              removeTask(task, TRR_TASK_ENDED);
-            }
-          }
-        } else {
-          LOG(ERROR) << "S2M_STATUS_UPDATE error: couldn't lookup framework id "
-                     << fid;
         }
       } else {
         LOG(ERROR) << "S2M_STATUS_UPDATE error: couldn't lookup slave id "
                    << sid;
       }
-     break;
+      break;
     }
 
     case S2M_FRAMEWORK_MESSAGE: {

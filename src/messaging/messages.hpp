@@ -47,7 +47,6 @@ enum MessageType {
   M2F_SLOT_OFFER,
   M2F_RESCIND_OFFER,
   M2F_STATUS_UPDATE,
-  M2F_FT_STATUS_UPDATE,
   M2F_LOST_SLAVE,
   M2F_FRAMEWORK_MESSAGE,
   M2F_ERROR,
@@ -57,7 +56,6 @@ enum MessageType {
   S2M_REREGISTER_SLAVE,
   S2M_UNREGISTER_SLAVE,
   S2M_STATUS_UPDATE,
-  S2M_FT_STATUS_UPDATE,
   S2M_FRAMEWORK_MESSAGE,
   S2M_LOST_EXECUTOR,
 
@@ -168,6 +166,13 @@ protected:
   }
 
   template <MSGID ID>
+  bool forward(const PID &to, const tuple<ID> &t)
+  {
+    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
+    ReliableProcess::forward(to, ID, data.data(), data.size());
+  }
+
+  template <MSGID ID>
   int rsend(const PID &to, const tuple<ID> &t)
   {
     const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
@@ -265,11 +270,6 @@ TUPLE(M2F_STATUS_UPDATE,
        TaskState,
        std::string));
 
-TUPLE(M2F_FT_STATUS_UPDATE,
-      (TaskID,
-       TaskState,
-       std::string));
-
 TUPLE(M2F_LOST_SLAVE,
       (SlaveID));
 
@@ -297,13 +297,6 @@ TUPLE(S2M_UNREGISTER_SLAVE,
       (SlaveID));
 
 TUPLE(S2M_STATUS_UPDATE,
-      (SlaveID,
-       FrameworkID,
-       TaskID,
-       TaskState,
-       std::string));
-
-TUPLE(S2M_FT_STATUS_UPDATE,
       (SlaveID,
        FrameworkID,
        TaskID,

@@ -225,20 +225,12 @@ protected:
         break;
       }
 
-	// TODO(benh): Fix forwarding issues.
-//       case M2F_FT_STATUS_UPDATE: {
-//         TaskID tid;
-//         TaskState state;
-//         string data;
-//         unpack<M2F_FT_STATUS_UPDATE>(tid, state, data);
-      case S2M_FT_STATUS_UPDATE: {
-	SlaveID sid;
-	FrameworkID fid;
-	TaskID tid;
-	TaskState state;
-	string data;
+      case M2F_STATUS_UPDATE: {
+        TaskID tid;
+        TaskState state;
+        string data;
 
-	tie(sid, fid, tid, state, data) = unpack<S2M_FT_STATUS_UPDATE>(body());
+        tie(tid, state, data) = unpack<M2F_STATUS_UPDATE>(body());
 
         if (duplicate()) {
           VLOG(1) << "Received a duplicate status update for tid " << tid
@@ -247,26 +239,6 @@ protected:
         }
 
         ack();
-
-        // Stop any status update timers we might have had running.
-        if (timers.count(tid) > 0) {
-          StatusUpdateTimer* timer = timers[tid];
-          timers.erase(tid);
-          send(timer->self(), MESOS_MSGID);
-          wait(timer->self());
-          delete timer;
-        }
-
-        TaskStatus status(tid, state, data);
-        invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
-        break;
-      }
-
-      case M2F_STATUS_UPDATE: {
-        TaskID tid;
-        TaskState state;
-        string data;
-        tie(tid, state, data) = unpack<M2F_STATUS_UPDATE>(body());
 
         // Stop any status update timers we might have had running.
         if (timers.count(tid) > 0) {

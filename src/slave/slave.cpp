@@ -369,8 +369,8 @@ void Slave::operator () ()
 	  // Reliably send message and save sequence number for
 	  // canceling later.
 	  int seq = rsend(master, framework->pid,
-			  pack<S2M_FT_STATUS_UPDATE>(id, fid, tid,
-						     taskState, data));
+			  pack<S2M_STATUS_UPDATE>(id, fid, tid,
+                                                  taskState, data));
 	  seqs[fid].insert(seq);
 	} else {
 	  LOG(WARNING) << "Got status update for UNKNOWN task "

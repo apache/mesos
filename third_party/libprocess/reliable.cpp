@@ -154,11 +154,42 @@ void ReliableProcess::ack()
 }
 
 
-bool ReliableProcess::forward(const PID &via)
+bool ReliableProcess::forward(const PID &to)
 {
   if (current != NULL) {
-    send(via, RELIABLE_MSG, (char *) current,
+    send(to, RELIABLE_MSG, (char *) current,
 	 sizeof(struct rmsg) + current->msg.len);
+    return true;
+  }
+
+  return false;
+}
+
+
+bool ReliableProcess::forward(const PID &to, MSGID id, const char *data, size_t length)
+{
+  if (current != NULL) {
+    struct rmsg *rmsg = (struct rmsg *) malloc(sizeof(struct rmsg) + length);
+
+    rmsg->seq = current->seq;
+
+    rmsg->msg.from.pipe = current->msg.from.pipe;
+    rmsg->msg.from.ip = current->msg.from.ip;
+    rmsg->msg.from.port = current->msg.from.port;
+    rmsg->msg.to.pipe = to.pipe;
+    rmsg->msg.to.ip = to.ip;
+    rmsg->msg.to.port = to.port;
+    rmsg->msg.id = id;
+    rmsg->msg.len = length;
+
+    if (length > 0)
+      memcpy((char *) rmsg + sizeof(struct rmsg), data, length);
+
+    send(to, RELIABLE_MSG, (char *) rmsg,
+	 sizeof(struct rmsg) + rmsg->msg.len);
+
+    free(rmsg);
+
     return true;
   }
 
