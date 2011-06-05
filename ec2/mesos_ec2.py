@@ -110,6 +110,7 @@ def launch_cluster(conn, opts, cluster_name):
     master_group.authorize(src_group=zoo_group)
     master_group.authorize('tcp', 22, 22, '0.0.0.0/0')
     master_group.authorize('tcp', 8080, 8081, '0.0.0.0/0')
+    master_group.authorize('tcp', 5050, 5050, '0.0.0.0/0')
     master_group.authorize('tcp', 50030, 50030, '0.0.0.0/0')
     master_group.authorize('tcp', 50070, 50070, '0.0.0.0/0')
   if slave_group.rules == []: # Group was just now created
@@ -118,6 +119,7 @@ def launch_cluster(conn, opts, cluster_name):
     slave_group.authorize(src_group=zoo_group)
     slave_group.authorize('tcp', 22, 22, '0.0.0.0/0')
     slave_group.authorize('tcp', 8080, 8081, '0.0.0.0/0')
+    slave_group.authorize('tcp', 5050, 5050, '0.0.0.0/0')
     slave_group.authorize('tcp', 50060, 50060, '0.0.0.0/0')
     slave_group.authorize('tcp', 50075, 50075, '0.0.0.0/0')
   if zoo_group.rules == []: # Group was just now created
@@ -126,6 +128,7 @@ def launch_cluster(conn, opts, cluster_name):
     zoo_group.authorize(src_group=zoo_group)
     zoo_group.authorize('tcp', 22, 22, '0.0.0.0/0')
     zoo_group.authorize('tcp', 2181, 2181, '0.0.0.0/0')
+    zoo_group.authorize('tcp', 5050, 5050, '0.0.0.0/0')
     zoo_group.authorize('tcp', 2888, 2888, '0.0.0.0/0')
     zoo_group.authorize('tcp', 3888, 3888, '0.0.0.0/0')
   print "Checking for running cluster..."

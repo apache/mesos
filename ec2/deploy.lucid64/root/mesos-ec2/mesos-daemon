@@ -18,12 +18,19 @@ PROGRAM=$1
 shift
 
 EXTRA_OPTS=""
-if [ "$PROGRAM" == "mesos-slave" ]; then
-  # Compute CPU and memory resources on this machine (TODO: Linux-specific)
-  CPUS=`grep processor /proc/cpuinfo | wc -l`
-  MEM_KB=`cat /proc/meminfo | grep MemTotal | awk '{print $2}'`
-  MEM=$[(MEM_KB - 1024 * 1024) / 1024]
-  EXTRA_OPTS="--cpus=$CPUS --mem=$MEM --isolation=process"
+if [ "$PROGRAM" == "nexus-slave" ]; then
+  # Compute CPU resources (if not specified).
+  if [[ "$*" != *--cpus* ]]; then
+    CPUS=`grep processor /proc/cpuinfo | wc -l`
+    EXTRA_OPTS="$EXTRA_OPTS --cpus $CPUS"
+  fi
+
+  # Compute memory resources (if not specified).
+  if [[ "$*" != *--mem* ]]; then
+    MEM_KB=`cat /proc/meminfo | grep MemTotal | awk '{print $2}'`
+    MEM=$[(MEM_KB - 1024 * 1024) / 1024]
+    EXTRA_OPTS="$EXTRA_OPTS --mem $MEM"
+  fi
 fi
 
 cd $MESOS_HOME/bin
