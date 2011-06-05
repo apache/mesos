@@ -648,7 +648,7 @@ CC
 CFLAGS'
 ac_subdirs_all='src/third_party/libprocess
 src/third_party/gtest-1.5.0
-src/third_party/glog-0.3.0
+src/third_party/glog-0.3.1
 src/third_party/zookeeper-3.3.1/src/c'
 
 # Initialize some variables set by options.
@@ -1836,7 +1836,7 @@ subdirs="$subdirs src/third_party/libprocess"
 
 subdirs="$subdirs src/third_party/gtest-1.5.0"
 
-subdirs="$subdirs src/third_party/glog-0.3.0"
+subdirs="$subdirs src/third_party/glog-0.3.1"
 
 subdirs="$subdirs src/third_party/zookeeper-3.3.1/src/c"
 

@@ -4,17 +4,29 @@
 AC_PREREQ(2.61)
 AC_INIT
 
-CFLAGS="${CFLAGS} -O2 -fno-strict-aliasing -fPIC"
-CXXFLAGS="${CXXFLAGS} -O2 -fno-strict-aliasing -fPIC"
+# Use explicit python version 2.6.
+PYTHON=python2.6
+
+# Update CFLAGS and CXXFLAGS with environment args. 
+CFLAGS="-O2 -fno-strict-aliasing -fPIC ${CFLAGS}"
+CXXFLAGS="-O2 -fno-strict-aliasing -fPIC ${CXXFLAGS}"
+
 export CFLAGS
 export CXXFLAGS
-PYTHON=python
+
+# Update CFLAGS and CXXFLAGS in configure args.
+# TODO(benh): Don't send args just for us (e.g., --with-webui).
+ac_configure_args=`echo $ac_configure_args | \
+                   sed -e "s/CFLAGS=/CFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
+ac_configure_args=`echo $ac_configure_args | \
+                   sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
 ac_configure_args="$ac_configure_args --enable-shared=no"
 
 AC_CONFIG_FILES([Makefile src/Makefile src/config.hpp])
 AC_CONFIG_SUBDIRS([src/third_party/libprocess])
 AC_CONFIG_SUBDIRS([src/third_party/gtest-1.5.0])
-AC_CONFIG_SUBDIRS([src/third_party/glog-0.3.0])
+AC_CONFIG_SUBDIRS([src/third_party/glog-0.3.1])
+AC_CONFIG_SUBDIRS([src/third_party/zookeeper-3.3.1/src/c])
 
 AC_CANONICAL_SYSTEM
 
@@ -126,6 +138,19 @@ AC_ARG_WITH([swig],
 	          esac],
 	         [])
 AC_SUBST(SWIG)
+
+LOCAL_ZOOKEEPER="no"
+AC_ARG_WITH([local-zookeeper],
+  AC_HELP_STRING([--with-local-zookeeper],
+                 [Use local ZooKeeper for building]),
+	         [case "$with_local_zookeeper" in
+		    yes) LOCAL_ZOOKEEPER="yes" ;;
+                    no) LOCAL_ZOOKEEPER="no" ;;
+		    *) AC_MSG_ERROR([
+*** --with-local-zookeeper does not take arguments]) ;;
+	          esac],
+	         [])
+AC_SUBST(LOCAL_ZOOKEEPER)
 
 # Checks for programs.
 AC_PROG_CXX([g++])
