@@ -1,4 +1,5 @@
 #!/bin/sh
 FWDIR=`dirname $0`
 cd $FWDIR
-exec java -cp .:mesos.jar -Djava.library.path=. TestExceptionFramework $@
+MESOS_HOME=`cd ../../..; pwd`
+exec java -cp .:$MESOS_HOME/lib/java/mesos.jar -Djava.library.path=$MESOS_HOME/lib/java TestExceptionFramework $@

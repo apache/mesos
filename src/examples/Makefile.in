@@ -102,9 +102,23 @@ EXAMPLES_EXES = $(SCHED_EXES) $(EXEC_EXES)
 MESOS_SCHED_LIB = $(LIBDIR)/libmesos_sched.a
 MESOS_EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
+JAVA_CLASSES = $(BINDIR)/examples/java/TestFramework.class          \
+               $(BINDIR)/examples/java/TestExecutor.class           \
+               $(BINDIR)/examples/java/TestExceptionFramework.class
+
+JAVA_SCRIPTS = $(BINDIR)/examples/java/test_framework               \
+	       $(BINDIR)/examples/java/test_executor                \
+	       $(BINDIR)/examples/java/test_exception_framework
+
+JAVA = $(JAVA_CLASSES) $(JAVA_SCRIPTS)
+
+MESOS_JAVA_JAR = $(LIBDIR)/java/mesos.jar
+
 # Create rules for building the directories that aren't created
 # automagically by configure.
-DIRECTORIES = $(BINDIR)/examples
+DIRECTORIES = $(BINDIR)/examples                \
+	      $(BINDIR)/examples/java           \
+	      $(BINDIR)/examples/python
 
 
 default: all
@@ -137,7 +151,21 @@ $(BINDIR)/examples/memhog-executor: @srcdir@/memhog_executor.cpp $(MESOS_EXEC_LI
 $(BINDIR)/examples/scheduled-memhog: @srcdir@/scheduled_memhog.cpp $(MESOS_SCHED_LIB)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
 
-all: $(EXAMPLES_EXES)
+$(JAVA): | $(BINDIR)/examples/java
+
+$(JAVA_CLASSES): $(MESOS_JAVA_JAR)
+
+$(JAVA_CLASSES): $(BINDIR)/examples/java/%.class: @srcdir@/java/%.java
+ifdef JAVA_HOME
+	$(JAVA_HOME)/bin/javac -cp $(MESOS_JAVA_JAR):@srcdir@/java -sourcepath @srcdir@/java -d $(BINDIR)/examples/java $<
+endif
+
+$(JAVA_SCRIPTS): $(BINDIR)/examples/java/%: @srcdir@/java/%
+ifdef JAVA_HOME
+	cp -r $< $@
+endif
+
+all: $(EXAMPLES_EXES) $(JAVA)
 
 clean:
 	rm -f $(patsubst %, %.d, $(EXAMPLES_EXES))
