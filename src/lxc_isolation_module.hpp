@@ -17,7 +17,7 @@ using boost::unordered_map;
 class LxcIsolationModule : public IsolationModule {
 public:
   // Reaps framework containers and tells the slave if they exit
-  class Reaper : public Tuple<Process> {
+  class Reaper : public Process {
     LxcIsolationModule* module;
 
   protected:
@@ -28,7 +28,7 @@ public:
   };
 
   // Extra shutdown message for reaper
-  enum { SHUTDOWN_REAPER = MESOS_MESSAGES };
+  enum { SHUTDOWN_REAPER = PROCESS_MSGID };
 
   // Per-framework information object maintained in info hashmap
   struct FrameworkInfo {

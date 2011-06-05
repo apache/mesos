@@ -51,7 +51,7 @@ void startMasterWebUI(const PID &master, char* webuiPort)
 
 namespace state {
 
-class StateGetter : public Tuple<Process>
+class StateGetter : public MesosProcess
 {
 public:
   MasterState *masterState;
@@ -64,7 +64,7 @@ public:
     send(::master, pack<M2M_GET_STATE>());
     receive();
     CHECK(msgid() == M2M_GET_STATE_REPLY);
-    unpack<M2M_GET_STATE_REPLY>(*((intptr_t *) &masterState));
+    masterState = unpack<M2M_GET_STATE_REPLY, 0>(body());
   }
 };
 

@@ -162,7 +162,7 @@ public:
       switch (receive()) {
       case S2PD_UPDATE_RESOURCES: {
         Resources res;
-	unpack<S2PD_UPDATE_RESOURCES>(res);
+	tie(res) = unpack<S2PD_UPDATE_RESOURCES>(body());
 	this->cpuShares = (res.cpus > 0 ? res.cpus*10 : 1);
 	this->mem = (res.mem > 0 ? res.mem : 512 * Megabyte);
 	break;

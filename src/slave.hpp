@@ -156,7 +156,7 @@ struct Executor
 };
 
 
-class Slave : public Tuple<ReliableProcess>
+class Slave : public MesosProcess
 {
 public:
   Params conf;

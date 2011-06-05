@@ -32,7 +32,7 @@ using namespace mesos::internal::master;
 namespace {
 
 // A process that periodically pings the master to check filter expiries, etc
-class AllocatorTimer : public Tuple<Process>
+class AllocatorTimer : public MesosProcess
 {
 private:
   const PID master;
@@ -58,7 +58,7 @@ public:
 
 
 // A process that periodically prints frameworks' shares to a file
-class SharesPrinter : public Tuple<Process>
+class SharesPrinter : public MesosProcess
 {
 protected:
   PID master;
@@ -77,8 +77,7 @@ protected:
       send(master, pack<M2M_GET_STATE>());
       receive();
       CHECK(msgid() == M2M_GET_STATE_REPLY);
-      state::MasterState *state;
-      unpack<M2M_GET_STATE_REPLY>(*((intptr_t *) &state));
+      state::MasterState *state = unpack<M2M_GET_STATE_REPLY, 0>(body());
 
       uint32_t total_cpus = 0;
       uint32_t total_mem = 0;
@@ -259,7 +258,7 @@ void Master::operator () ()
     LOG(INFO) << "Oops! We're dropping a message since "
               << "we haven't received an identifier yet!";  
   string id;
-  unpack<GOT_MASTER_ID>(id);
+  tie(id) = unpack<GOT_MASTER_ID>(body());
   masterId = lexical_cast<long>(id);
   LOG(INFO) << "Master ID:" << masterId;
 
@@ -291,8 +290,10 @@ void Master::operator () ()
     case F2M_REGISTER_FRAMEWORK: {
       FrameworkID fid = newFrameworkId();
       Framework *framework = new Framework(from(), fid, elapsed());
-      unpack<F2M_REGISTER_FRAMEWORK>(framework->name, framework->user,
-				     framework->executorInfo);
+
+      tie(framework->name, framework->user, framework->executorInfo) =
+        unpack<F2M_REGISTER_FRAMEWORK>(body());
+
       LOG(INFO) << "Registering " << framework << " at " << framework->pid;
 
       if (framework->executorInfo.uri == "") {
@@ -309,9 +310,10 @@ void Master::operator () ()
     case F2M_REREGISTER_FRAMEWORK: {
       Framework *framework = new Framework(from(), "", elapsed());
       int32_t generation;
-      unpack<F2M_REREGISTER_FRAMEWORK>(framework->id, framework->name,
-                                       framework->user, framework->executorInfo,
-                                       generation);
+
+      tie(framework->id, framework->name, framework->user,
+          framework->executorInfo, generation) =
+        unpack<F2M_REREGISTER_FRAMEWORK>(body());
 
       if (framework->executorInfo.uri == "") {
         LOG(INFO) << framework << " re-registering without an executor URI";
@@ -364,7 +366,7 @@ void Master::operator () ()
 
     case F2M_UNREGISTER_FRAMEWORK: {
       FrameworkID fid;
-      unpack<F2M_UNREGISTER_FRAMEWORK>(fid);
+      tie(fid) = unpack<F2M_UNREGISTER_FRAMEWORK>(body());
       LOG(INFO) << "Asked to unregister framework " << fid;
       Framework *framework = lookupFramework(fid);
       if (framework != NULL && framework->pid == from())
@@ -380,7 +382,7 @@ void Master::operator () ()
       OfferID oid;
       vector<TaskDescription> tasks;
       Params params;
-      unpack<F2M_SLOT_OFFER_REPLY>(fid, oid, tasks, params);
+      tie(fid, oid, tasks, params) = unpack<F2M_SLOT_OFFER_REPLY>(body());
       Framework *framework = lookupFramework(fid);
       if (framework != NULL) {
         SlotOffer *offer = lookupSlotOffer(oid);
@@ -400,7 +402,7 @@ void Master::operator () ()
 
     case F2M_REVIVE_OFFERS: {
       FrameworkID fid;
-      unpack<F2M_REVIVE_OFFERS>(fid);
+      tie(fid) = unpack<F2M_REVIVE_OFFERS>(body());
       Framework *framework = lookupFramework(fid);
       if (framework != NULL) {
         LOG(INFO) << "Reviving offers for " << framework;
@@ -413,7 +415,7 @@ void Master::operator () ()
     case F2M_KILL_TASK: {
       FrameworkID fid;
       TaskID tid;
-      unpack<F2M_KILL_TASK>(fid, tid);
+      tie(fid, tid) = unpack<F2M_KILL_TASK>(body());
       Framework *framework = lookupFramework(fid);
       if (framework != NULL) {
         Task *task = framework->lookupTask(tid);
@@ -432,8 +434,8 @@ void Master::operator () ()
       string slaveId = lexical_cast<string>(masterId) + "-"
         + lexical_cast<string>(nextSlaveId++);
       Slave *slave = new Slave(from(), slaveId, elapsed());
-      unpack<S2M_REGISTER_SLAVE>(slave->hostname, slave->publicDns,
-                                 slave->resources);
+      tie(slave->hostname, slave->publicDns, slave->resources) =
+        unpack<S2M_REGISTER_SLAVE>(body());
       LOG(INFO) << "Registering " << slave << " at " << slave->pid;
       slaves[slave->id] = slave;
       pidToSid[slave->pid] = slave->id;
@@ -447,8 +449,8 @@ void Master::operator () ()
     case S2M_REREGISTER_SLAVE: {
       Slave *slave = new Slave(from(), "", elapsed());
       vector<Task> tasks;
-      unpack<S2M_REREGISTER_SLAVE>(slave->id, slave->hostname, slave->publicDns,
-                                   slave->resources, tasks);
+      tie(slave->id, slave->hostname, slave->publicDns,
+          slave->resources, tasks) = unpack<S2M_REREGISTER_SLAVE>(body());
 
       if (slave->id == "") {
         slave->id = lexical_cast<string>(masterId) + "-"
@@ -488,7 +490,7 @@ void Master::operator () ()
 
     case S2M_UNREGISTER_SLAVE: {
       SlaveID sid;
-      unpack<S2M_UNREGISTER_SLAVE>(sid);
+      tie(sid) = unpack<S2M_UNREGISTER_SLAVE>(body());
       LOG(INFO) << "Asked to unregister slave " << sid;
       Slave *slave = lookupSlave(sid);
       if (slave != NULL)
@@ -502,8 +504,8 @@ void Master::operator () ()
       TaskID tid;
       TaskState state;
       string data;
+      tie(sid, fid, tid, state, data) = unpack<S2M_FT_STATUS_UPDATE>(body());
 
-      unpack<S2M_FT_STATUS_UPDATE>(sid, fid, tid, state, data);
       VLOG(1) << "FT: prepare relay seq:"<< seq() << " from: "<< from();
       if (Slave *slave = lookupSlave(sid)) {
         if (Framework *framework = lookupFramework(fid)) {
@@ -546,7 +548,7 @@ void Master::operator () ()
       TaskID tid;
       TaskState state;
       string data;
-      unpack<S2M_STATUS_UPDATE>(sid, fid, tid, state, data);
+      tie(sid, fid, tid, state, data) = unpack<S2M_STATUS_UPDATE>(body());
       if (Slave *slave = lookupSlave(sid)) {
         if (Framework *framework = lookupFramework(fid)) {
           // Pass on the status update to the framework
@@ -578,7 +580,7 @@ void Master::operator () ()
       SlaveID sid;
       FrameworkID fid;
       FrameworkMessage message;
-      unpack<S2M_FRAMEWORK_MESSAGE>(sid, fid, message);
+      tie(sid, fid, message) = unpack<S2M_FRAMEWORK_MESSAGE>(body());
       Slave *slave = lookupSlave(sid);
       if (slave != NULL) {
         Framework *framework = lookupFramework(fid);
@@ -592,7 +594,7 @@ void Master::operator () ()
       SlaveID sid;
       FrameworkID fid;
       int32_t status;
-      unpack<S2M_LOST_EXECUTOR>(sid, fid, status);
+      tie(sid, fid, status) = unpack<S2M_LOST_EXECUTOR>(body());
       Slave *slave = lookupSlave(sid);
       if (slave != NULL) {
         Framework *framework = lookupFramework(fid);
@@ -629,7 +631,7 @@ void Master::operator () ()
 
     case SH2M_HEARTBEAT: {
       SlaveID sid;
-      unpack<SH2M_HEARTBEAT>(sid);
+      tie(sid) = unpack<SH2M_HEARTBEAT>(body());
       Slave *slave = lookupSlave(sid);
       if (slave != NULL) {
         slave->lastHeartbeat = elapsed();
@@ -665,7 +667,7 @@ void Master::operator () ()
 
     case M2M_FRAMEWORK_EXPIRED: {
       FrameworkID fid;
-      unpack<M2M_FRAMEWORK_EXPIRED>(fid);
+      tie(fid) = unpack<M2M_FRAMEWORK_EXPIRED>(body());
       if (Framework *framework = lookupFramework(fid)) {
 	LOG(INFO) << "Framework failover timer expired, removing framework "
 		  << framework;
@@ -706,7 +708,7 @@ void Master::operator () ()
     }
 
     case M2M_GET_STATE: {
-      send(from(), pack<M2M_GET_STATE_REPLY>((intptr_t) getState()));
+      send(from(), pack<M2M_GET_STATE_REPLY>(getState()));
       break;
     }
     

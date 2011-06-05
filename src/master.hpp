@@ -80,7 +80,7 @@ struct Slave;
 class Allocator;
 
 
-class FrameworkFailoverTimer : public Tuple<Process>
+class FrameworkFailoverTimer : public MesosProcess
 {
 private:
   const PID master;
@@ -93,7 +93,7 @@ protected:
     do {
       switch (receive(FRAMEWORK_FAILOVER_TIMEOUT)) {
       case PROCESS_TIMEOUT:
-	send(master, pack<M2M_FRAMEWORK_EXPIRED>(fid));
+        send(master, pack<M2M_FRAMEWORK_EXPIRED>(fid));
 	return;
       case PROCESS_EXIT:
 	return;
@@ -162,7 +162,7 @@ struct Framework
   ~Framework()
   {
     if (failoverTimer != NULL) {
-      Process::post(failoverTimer->self(), M2M_SHUTDOWN);
+      MesosProcess::post(failoverTimer->self(), pack<M2M_SHUTDOWN>());
       Process::wait(failoverTimer->self());
       delete failoverTimer;
       failoverTimer = NULL;
@@ -302,7 +302,7 @@ enum TaskRemovalReason
 };
 
 
-class Master : public Tuple<ReliableProcess>
+class Master : public MesosProcess
 {
 protected:
   Params conf;

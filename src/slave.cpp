@@ -35,7 +35,7 @@ using namespace mesos::internal::slave;
 namespace {
 
 // Periodically sends heartbeats to the master
-class Heart : public Tuple<Process>
+class Heart : public MesosProcess
 {
 private:
   PID master;
@@ -47,6 +47,7 @@ protected:
   void operator () ()
   {
     link(slave);
+    link(master);
     do {
       switch (receive(interval)) {
       case PROCESS_TIMEOUT:
@@ -161,7 +162,7 @@ void Slave::operator () ()
       case NEW_MASTER_DETECTED: {
 	string masterSeq;
 	PID masterPid;
-	unpack<NEW_MASTER_DETECTED>(masterSeq, masterPid);
+	tie(masterSeq, masterPid) = unpack<NEW_MASTER_DETECTED>(body());
 
 	LOG(INFO) << "New master at " << masterPid << " with ID:" << masterSeq;
 
@@ -198,19 +199,20 @@ void Slave::operator () ()
 
       case M2S_REGISTER_REPLY: {
 	double interval = 0;
-        unpack<M2S_REGISTER_REPLY>(this->id, interval);
+        tie(this->id, interval) = unpack<M2S_REGISTER_REPLY>(body());
         LOG(INFO) << "Registered with master; given slave ID " << this->id;
         link(spawn(new Heart(master, self(), this->id, interval)));
         break;
       }
       
       case M2S_REREGISTER_REPLY: {
-        FrameworkID tmpfid;
+        SlaveID sid;
 	double interval = 0;
-        unpack<M2S_REGISTER_REPLY>(tmpfid, interval);
-        LOG(INFO) << "RE-registered with master; given slave ID " << tmpfid << " had "<< this->id;
+        tie(sid, interval) = unpack<M2S_REREGISTER_REPLY>(body());
+        LOG(INFO) << "RE-registered with master; given slave ID " << sid << " had "<< this->id;
         if (this->id == "")
-          this->id = tmpfid;
+          this->id = sid;
+        CHECK(this->id == sid);
         link(spawn(new Heart(master, self(), this->id, interval)));
         break;
       }
@@ -222,8 +224,8 @@ void Slave::operator () ()
         ExecutorInfo execInfo;
         Params params;
         PID pid;
-        unpack<M2S_RUN_TASK>(fid, tid, fwName, user, execInfo,
-                             taskName, taskArg, params, pid);
+        tie(fid, tid, fwName, user, execInfo, taskName, taskArg, params, pid) =
+          unpack<M2S_RUN_TASK>(body());
         LOG(INFO) << "Got assigned task " << fid << ":" << tid;
         Resources res;
         res.cpus = params.getInt32("cpus", -1);
@@ -253,7 +255,7 @@ void Slave::operator () ()
       case M2S_KILL_TASK: {
         FrameworkID fid;
         TaskID tid;
-        unpack<M2S_KILL_TASK>(fid, tid);
+        tie(fid, tid) = unpack<M2S_KILL_TASK>(body());
         LOG(INFO) << "Killing task " << fid << ":" << tid;
         if (Executor *ex = getExecutor(fid)) {
           send(ex->pid, pack<S2E_KILL_TASK>(tid));
@@ -269,7 +271,7 @@ void Slave::operator () ()
 
       case M2S_KILL_FRAMEWORK: {
         FrameworkID fid;
-        unpack<M2S_KILL_FRAMEWORK>(fid);
+        tie(fid) = unpack<M2S_KILL_FRAMEWORK>(body());
         LOG(INFO) << "Asked to kill framework " << fid;
         Framework *fw = getFramework(fid);
         if (fw != NULL)
@@ -280,7 +282,7 @@ void Slave::operator () ()
       case M2S_FRAMEWORK_MESSAGE: {
         FrameworkID fid;
         FrameworkMessage message;
-        unpack<M2S_FRAMEWORK_MESSAGE>(fid, message);
+        tie(fid, message) = unpack<M2S_FRAMEWORK_MESSAGE>(body());
         if (Executor *ex = getExecutor(fid)) {
           send(ex->pid, pack<S2E_FRAMEWORK_MESSAGE>(message));
         }
@@ -293,7 +295,7 @@ void Slave::operator () ()
       case M2S_UPDATE_FRAMEWORK_PID: {
         FrameworkID fid;
         PID pid;
-        unpack<M2S_UPDATE_FRAMEWORK_PID>(fid, pid);
+        tie(fid, pid) = unpack<M2S_UPDATE_FRAMEWORK_PID>(body());
         Framework *framework = getFramework(fid);
         if (framework != NULL) {
           LOG(INFO) << "Updating framework " << fid << " pid to " << pid;
@@ -304,7 +306,7 @@ void Slave::operator () ()
 
       case E2S_REGISTER_EXECUTOR: {
         FrameworkID fid;
-        unpack<E2S_REGISTER_EXECUTOR>(fid);
+        tie(fid) = unpack<E2S_REGISTER_EXECUTOR>(body());
         LOG(INFO) << "Got executor registration for framework " << fid;
         if (Framework *fw = getFramework(fid)) {
           if (getExecutor(fid) != 0) {
@@ -335,7 +337,7 @@ void Slave::operator () ()
         TaskID tid;
         TaskState taskState;
         string data;
-        unpack<E2S_STATUS_UPDATE>(fid, tid, taskState, data);
+        tie(fid, tid, taskState, data) = unpack<E2S_STATUS_UPDATE>(body());
         LOG(INFO) << "Got status update for task " << fid << ":" << tid;
         if (taskState == TASK_FINISHED || taskState == TASK_FAILED ||
             taskState == TASK_KILLED || taskState == TASK_LOST) {
@@ -346,13 +348,9 @@ void Slave::operator () ()
           }
         }
 
-        // Pass on the update to the master.
-	const string &msg =
-	  tupleToString(pack<S2M_FT_STATUS_UPDATE>(id, fid, tid, taskState,
-						   data));
-
         // Reliably send message and save sequence number for canceling later.
-	int seq = rsend(master, S2M_FT_STATUS_UPDATE, msg.data(), msg.size());
+        int seq = rsend(master, pack<S2M_FT_STATUS_UPDATE>(id, fid, tid,
+                                                           taskState, data));
         seqs[fid].insert(seq);
         break;
       }
@@ -360,7 +358,7 @@ void Slave::operator () ()
       case E2S_FRAMEWORK_MESSAGE: {
         FrameworkID fid;
         FrameworkMessage message;
-        unpack<E2S_FRAMEWORK_MESSAGE>(fid, message);
+        tie(fid, message) = unpack<E2S_FRAMEWORK_MESSAGE>(body());
         Framework *framework = getFramework(fid);
         if (framework != NULL) {
           // Set slave ID in case framework omitted it
@@ -371,7 +369,7 @@ void Slave::operator () ()
       }
 
       case S2S_GET_STATE: {
- 	send(from(), pack<S2S_GET_STATE_REPLY>((intptr_t) getState()));
+ 	send(from(), pack<S2S_GET_STATE_REPLY>(getState()));
 	break;
       }
 

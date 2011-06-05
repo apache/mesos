@@ -3,10 +3,35 @@
 using std::map;
 using std::string;
 
-using namespace process::serialization;
+using process::tuples::serializer;
+using process::tuples::deserializer;
 
 
 namespace mesos { namespace internal {
+
+
+void operator & (serializer& s, const master::state::MasterState *state)
+{
+  s & (intptr_t &) state;
+}
+
+
+void operator & (deserializer& d, master::state::MasterState *&state)
+{
+  d & (intptr_t &) state;
+}
+
+
+void operator & (serializer& s, const slave::state::SlaveState *state)
+{
+  s & (intptr_t &) state;
+}
+
+
+void operator & (deserializer& d, slave::state::SlaveState *&state)
+{
+  d & (intptr_t &) state;
+}
 
 
 void operator & (serializer& s, const TaskState& state)

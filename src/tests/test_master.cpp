@@ -46,7 +46,7 @@ public:
   }
 
   virtual void registered(SchedulerDriver*, FrameworkID fid) {
-    LOG(INFO) << "NoopScheduler registered";
+    LOG(INFO) << "NoopScheduler registered with id " << fid;
     registeredCalled = true;
   }
 
@@ -314,7 +314,7 @@ public:
                              OfferID id,
                              const vector<SlaveOffer>& offers) {
     LOG(INFO) << "SlaveLostScheduler got a slot offer";
-    Process::post(slave, S2S_SHUTDOWN);
+    MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
   }
   
   virtual void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
@@ -346,7 +346,7 @@ TEST(MasterTest, SlaveLost)
 
   Process::wait(slave);
 
-  Process::post(master, M2M_SHUTDOWN);
+  MesosProcess::post(master, pack<M2M_SHUTDOWN>());
   Process::wait(master);
 }
 
@@ -454,7 +454,7 @@ public:
     TaskDescription desc(0, offer.slaveId, "", offer.params, "");
     tasks.push_back(desc);
     d->replyToOffer(id, tasks, map<string, string>());
-    Process::post(slave, S2S_SHUTDOWN);
+    MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
   }
 
   virtual void offerRescinded(SchedulerDriver* d, OfferID)
@@ -499,7 +499,7 @@ TEST(MasterTest, OfferRescinded)
 
   Process::wait(slave);
 
-  Process::post(master, M2M_SHUTDOWN);
+  MesosProcess::post(master, pack<M2M_SHUTDOWN>());
   Process::wait(master);
 
   Process::filter(NULL);
@@ -679,10 +679,10 @@ TEST(MasterTest, TaskRunning)
   EXPECT_TRUE(sched.statusUpdateCalled);
   EXPECT_EQ("", sched.errorMessage);
 
-  Process::post(slave, S2S_SHUTDOWN);
+  MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
   Process::wait(slave);
 
-  Process::post(master, M2M_SHUTDOWN);
+  MesosProcess::post(master, pack<M2M_SHUTDOWN>());
   Process::wait(master);
 }
 
@@ -772,10 +772,10 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
 
   Process::filter(NULL);
 
-  Process::post(slave, S2S_SHUTDOWN);
+  MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
   Process::wait(slave);
 
-  Process::post(master, M2M_SHUTDOWN);
+  MesosProcess::post(master, pack<M2M_SHUTDOWN>());
   Process::wait(master);
 
   ProcessClock::resume();

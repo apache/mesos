@@ -52,7 +52,7 @@ void startSlaveWebUI(const PID &slave, char* webuiPort)
 
 namespace state {
 
-class StateGetter : public Tuple<Process>
+class StateGetter : public MesosProcess
 {
 public:
   SlaveState *slaveState;
@@ -65,7 +65,7 @@ public:
     send(::slave, pack<S2S_GET_STATE>());
     receive();
     CHECK(msgid() == S2S_GET_STATE_REPLY);
-    unpack<S2S_GET_STATE_REPLY>(*((intptr_t *) &slaveState));
+    slaveState = unpack<S2S_GET_STATE_REPLY, 0>(body());
   }
 };
 

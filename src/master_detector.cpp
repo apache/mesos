@@ -182,18 +182,10 @@ BasicMasterDetector::BasicMasterDetector(const PID &_master)
   : master(_master)
 {
   // Send a master id.
-  {
-    const string &s =
-      Tuple<Process>::tupleToString(Tuple<Process>::pack<GOT_MASTER_ID>("0"));
-    Process::post(master, GOT_MASTER_ID, s.data(), s.size());
-  }
+  MesosProcess::post(master, pack<GOT_MASTER_ID>("0"));
 
   // Elect the master.
-  {
-    const string &s =
-      Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
-    Process::post(master, NEW_MASTER_DETECTED, s.data(), s.size());
-  }
+  MesosProcess::post(master, pack<NEW_MASTER_DETECTED>("0", master));
 }
 
 
@@ -204,24 +196,14 @@ BasicMasterDetector::BasicMasterDetector(const PID &_master,
 {
   if (elect) {
     // Send a master id.
-    {
-      const string &s =
-	Tuple<Process>::tupleToString(Tuple<Process>::pack<GOT_MASTER_ID>("0"));
-      Process::post(master, GOT_MASTER_ID, s.data(), s.size());
-    }
+    MesosProcess::post(master, pack<GOT_MASTER_ID>("0"));
 
     // Elect the master.
-    {
-      const string &s =
-	Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
-      Process::post(master, NEW_MASTER_DETECTED, s.data(), s.size());
-    }
+    MesosProcess::post(master, pack<NEW_MASTER_DETECTED>("0", master));
   }
 
   // Tell the pid about the master.
-  const string &s =
-    Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
-  Process::post(pid, NEW_MASTER_DETECTED, s.data(), s.size());
+  MesosProcess::post(pid, pack<NEW_MASTER_DETECTED>("0", master));
 }
 
 
@@ -232,26 +214,15 @@ BasicMasterDetector::BasicMasterDetector(const PID &_master,
 {
   if (elect) {
     // Send a master id.
-    {
-      const string &s =
-	Tuple<Process>::tupleToString(Tuple<Process>::pack<GOT_MASTER_ID>("0"));
-      Process::post(master, GOT_MASTER_ID, s.data(), s.size());
-    }
+    MesosProcess::post(master, pack<GOT_MASTER_ID>("0"));
 
     // Elect the master.
-    {
-      const string &s =
-	Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
-      Process::post(master, NEW_MASTER_DETECTED, s.data(), s.size());
-    }
+    MesosProcess::post(master, pack<NEW_MASTER_DETECTED>("0", master));
   }
 
   // Tell each pid about the master.
-  foreach (const PID &pid, pids) {
-    const string &s =
-      Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
-    Process::post(pid, NEW_MASTER_DETECTED, s.data(), s.size());
-  }
+  foreach (const PID &pid, pids)
+    MesosProcess::post(pid, pack<NEW_MASTER_DETECTED>("0", master));
 }
 
 
@@ -348,9 +319,7 @@ void ZooKeeperMasterDetector::process(ZooKeeper *zk, int type, int state,
 	setId(result);
 	LOG(INFO) << "Created ephemeral/sequence:" << getId();
 
-	const string &s =
-	  Tuple<Process>::tupleToString(Tuple<Process>::pack<GOT_MASTER_ID>(getId()));
-	Process::post(pid, GOT_MASTER_ID, s.data(), s.size());
+        MesosProcess::post(pid, pack<GOT_MASTER_ID>(getId()));
       }
 
       // Now determine who the master is (it may be us).
@@ -440,24 +409,18 @@ void ZooKeeperMasterDetector::detectMaster()
 
   // No master present (lost or possibly hasn't come up yet).
   if (masterSeq.empty()) {
-    const string &s =
-      Tuple<Process>::tupleToString(Tuple<Process>::pack<NO_MASTER_DETECTED>());
-    Process::post(pid, NO_MASTER_DETECTED, s.data(), s.size());
+    MesosProcess::post(pid, pack<NO_MASTER_DETECTED>());
   } else if (masterSeq != currentMasterSeq) {
     currentMasterSeq = masterSeq;
     currentMasterPID = lookupMasterPID(masterSeq); 
 
     // While trying to get the master PID, master might have crashed,
     // so PID might be empty.
-    if (currentMasterPID == PID()) {
-      const string &s =
-	Tuple<Process>::tupleToString(Tuple<Process>::pack<NO_MASTER_DETECTED>());
-      Process::post(pid, NO_MASTER_DETECTED, s.data(), s.size());
-    } else {
-      const string &s =
-	Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>(currentMasterSeq, currentMasterPID));
-      Process::post(pid, NEW_MASTER_DETECTED, s.data(), s.size());
-    }
+    if (currentMasterPID == PID())
+      MesosProcess::post(pid, pack<NO_MASTER_DETECTED>());
+    else
+      MesosProcess::post(pid, pack<NEW_MASTER_DETECTED>(currentMasterSeq,
+                                                        currentMasterPID));
   }
 }
 

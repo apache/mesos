@@ -30,7 +30,7 @@ using namespace mesos::internal;
 
 namespace mesos { namespace internal {
 
-class ExecutorProcess : public Tuple<Process>
+class ExecutorProcess : public MesosProcess
 {
 public:
   friend class mesos::MesosExecutorDriver;
@@ -76,7 +76,7 @@ protected:
           string host;
           string fwName;
           string args;
-          unpack<S2E_REGISTER_REPLY>(sid, host, fwName, args);
+          tie(sid, host, fwName, args) = unpack<S2E_REGISTER_REPLY>(body());
           ExecutorArgs execArg(sid, host, fid, fwName, args);
           invoke(bind(&Executor::init, executor, driver, ref(execArg)));
           break;
@@ -87,7 +87,7 @@ protected:
           string name;
           string args;
           Params params;
-          unpack<S2E_RUN_TASK>(tid, name, args, params);
+          tie(tid, name, args, params) = unpack<S2E_RUN_TASK>(body());
           TaskDescription task(tid, sid, name, params.getMap(), args);
           send(slave, pack<E2S_STATUS_UPDATE>(fid, tid, TASK_RUNNING, ""));
           invoke(bind(&Executor::launchTask, executor, driver, ref(task)));
@@ -96,14 +96,14 @@ protected:
 
         case S2E_KILL_TASK: {
           TaskID tid;
-          unpack<S2E_KILL_TASK>(tid);
+          tie(tid) = unpack<S2E_KILL_TASK>(body());
           invoke(bind(&Executor::killTask, executor, driver, tid));
           break;
         }
 
         case S2E_FRAMEWORK_MESSAGE: {
           FrameworkMessage msg;
-          unpack<S2E_FRAMEWORK_MESSAGE>(msg);
+          tie(msg) = unpack<S2E_FRAMEWORK_MESSAGE>(body());
           invoke(bind(&Executor::frameworkMessage, executor, driver, ref(msg)));
           break;
         }
@@ -292,10 +292,10 @@ int MesosExecutorDriver::sendStatusUpdate(const TaskStatus &status)
   }
 
   process->send(process->slave,
-                process->pack<E2S_STATUS_UPDATE>(process->fid,
-                                                 status.taskId,
-                                                 status.state,
-                                                 status.data));
+                pack<E2S_STATUS_UPDATE>(process->fid,
+                                        status.taskId,
+                                        status.state,
+                                        status.data));
 
   return 0;
 }
@@ -311,8 +311,7 @@ int MesosExecutorDriver::sendFrameworkMessage(const FrameworkMessage &message)
   }
 
   process->send(process->slave,
-                process->pack<E2S_FRAMEWORK_MESSAGE>(process->fid,
-                                                     message));
+                pack<E2S_FRAMEWORK_MESSAGE>(process->fid, message));
 
   return 0;
 }

@@ -19,7 +19,7 @@ using mesos::internal::launcher::ExecutorLauncher;
 class ProcessBasedIsolationModule : public IsolationModule {
 public:
   // Reaps child processes and tells the slave if they exit
-  class Reaper : public Tuple<Process> {
+  class Reaper : public Process {
     ProcessBasedIsolationModule* module;
 
   protected:
@@ -30,7 +30,7 @@ public:
   };
 
   // Extra shutdown message for reaper
-  enum { SHUTDOWN_REAPER = MESOS_MESSAGES };
+  enum { SHUTDOWN_REAPER = PROCESS_MSGID };
 
 private:
   bool initialized;

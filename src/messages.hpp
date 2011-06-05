@@ -1,6 +1,7 @@
 #ifndef MESSAGES_HPP
 #define MESSAGES_HPP
 
+#include <float.h>
 #include <stdint.h>
 
 #include <map>
@@ -8,18 +9,23 @@
 #include <vector>
 
 #include <reliable.hpp>
-#include <tuple.hpp>
+
+#include <tuples/tuples.hpp>
 
 #include <mesos.hpp>
 #include <mesos_types.hpp>
 
 #include "foreach.hpp"
+#include "master_state.hpp"
 #include "params.hpp"
 #include "resources.hpp"
+#include "slave_state.hpp"
 #include "task.hpp"
 
 
 namespace mesos { namespace internal {
+
+const std::string MESOS_MESSAGING_VERSION = "0";
 
 enum MessageType {
   /* From framework to master. */
@@ -108,17 +114,84 @@ enum MessageType {
   S2S_CHILD_EXIT,        // Sent by reaper process
   S2S_SHUTDOWN,          // Used in tests to shut down slave
 
-  MESOS_MESSAGES,
+  MESOS_MSGID,
 };
 
 
 /*
- * To use the tuple message send/receive/pack/unpack routines, we need
- * to include the implementation and type definitions of the tuple
- * routines for our namespace (strategy is typically called
- * "supermacros", used to build new types).
+ * Include tuples details for our namespace (this strategy is
+ * typically called "supermacros" and is often used to build types or
+ * messages).
  */
-#include <tuple-impl.hpp>
+#include <tuples/details.hpp>
+
+
+class MesosProcess : public ReliableProcess
+{
+public:
+  template <MSGID ID>
+  static void post(const PID &to, const tuple<ID> &t)
+  {
+    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
+    ReliableProcess::post(to, ID, data.data(), data.size());
+  }
+
+protected:
+  std::string body() const
+  {
+    size_t size;
+    const char *s = ReliableProcess::body(&size);
+    const std::string data(s, size);
+    size_t index = data.find('|');
+    CHECK(index != std::string::npos);
+    return data.substr(index + 1);
+  }
+
+  template <MSGID ID>
+  void send(const PID &to, const tuple<ID> &t)
+  {
+    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
+    ReliableProcess::send(to, ID, data.data(), data.size());
+  }
+
+  template <MSGID ID>
+  int rsend(const PID &to, const tuple<ID> &t)
+  {
+    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
+    return ReliableProcess::rsend(to, ID, data.data(), data.size());
+  }
+
+  virtual MSGID receive() { return receive(0); }
+
+  virtual MSGID receive(double secs)
+  {
+    bool indefinite = secs == 0;
+    double now = elapsed();
+    MSGID id = ReliableProcess::receive(secs);
+    if (RELIABLE_MSGID < id && id < MESOS_MSGID) {
+      size_t size;
+      const char *s = ReliableProcess::body(&size);
+      const std::string data(s, size);
+      size_t index = data.find('|');
+      CHECK(index != std::string::npos);
+      if (MESOS_MESSAGING_VERSION != data.substr(0, index)) {
+        LOG(ERROR) << "Dropping message from " << from()
+                   << " with incorrect messaging version!";
+        if (!indefinite) {
+          double remaining = secs - (elapsed() - now);
+          return receive(remaining <= 0 ? DBL_EPSILON : remaining);
+        } else {
+          return receive(0);
+        }
+      }
+    }
+    return id;
+  }
+};
+
+
+using boost::tuples::tie;
+
 
 
 TUPLE(F2M_REGISTER_FRAMEWORK,
@@ -336,7 +409,7 @@ TUPLE(M2M_GET_STATE,
       ());
 
 TUPLE(M2M_GET_STATE_REPLY,
-      (intptr_t /* master::state::MasterState * */));
+      (master::state::MasterState *));
 
 TUPLE(M2M_TIMER_TICK,
       ());
@@ -354,7 +427,7 @@ TUPLE(S2S_GET_STATE,
       ());
 
 TUPLE(S2S_GET_STATE_REPLY,
-      (intptr_t /* slave::state::SlaveState * */));
+      (slave::state::SlaveState *));
 
 TUPLE(S2S_CHILD_EXIT,
       (int32_t /*OS PID*/,
@@ -364,37 +437,46 @@ TUPLE(S2S_SHUTDOWN,
       ());
 
 
+/* Serialization functions for sharing objects of local Mesos types. */
+
+void operator & (process::tuples::serializer&, const master::state::MasterState *);
+void operator & (process::tuples::deserializer&, master::state::MasterState *&);
+
+void operator & (process::tuples::serializer&, const slave::state::SlaveState *);
+void operator & (process::tuples::deserializer&, slave::state::SlaveState *&);
+
+
 /* Serialization functions for various Mesos data types. */
 
-void operator & (process::serialization::serializer&, const TaskState&);
-void operator & (process::serialization::deserializer&, TaskState&);
+void operator & (process::tuples::serializer&, const TaskState&);
+void operator & (process::tuples::deserializer&, TaskState&);
 
-void operator & (process::serialization::serializer&, const SlaveOffer&);
-void operator & (process::serialization::deserializer&, SlaveOffer&);
+void operator & (process::tuples::serializer&, const SlaveOffer&);
+void operator & (process::tuples::deserializer&, SlaveOffer&);
 
-void operator & (process::serialization::serializer&, const TaskDescription&);
-void operator & (process::serialization::deserializer&, TaskDescription&);
+void operator & (process::tuples::serializer&, const TaskDescription&);
+void operator & (process::tuples::deserializer&, TaskDescription&);
 
-void operator & (process::serialization::serializer&, const FrameworkMessage&);
-void operator & (process::serialization::deserializer&, FrameworkMessage&);
+void operator & (process::tuples::serializer&, const FrameworkMessage&);
+void operator & (process::tuples::deserializer&, FrameworkMessage&);
 
-void operator & (process::serialization::serializer&, const ExecutorInfo&);
-void operator & (process::serialization::deserializer&, ExecutorInfo&);
+void operator & (process::tuples::serializer&, const ExecutorInfo&);
+void operator & (process::tuples::deserializer&, ExecutorInfo&);
 
-void operator & (process::serialization::serializer&, const Params&);
-void operator & (process::serialization::deserializer&, Params&);
+void operator & (process::tuples::serializer&, const Params&);
+void operator & (process::tuples::deserializer&, Params&);
 
-void operator & (process::serialization::serializer&, const Resources&);
-void operator & (process::serialization::deserializer&, Resources&);
+void operator & (process::tuples::serializer&, const Resources&);
+void operator & (process::tuples::deserializer&, Resources&);
 
-void operator & (process::serialization::serializer&, const Task&);
-void operator & (process::serialization::deserializer&, Task&);
+void operator & (process::tuples::serializer&, const Task&);
+void operator & (process::tuples::deserializer&, Task&);
 
 
-/* Serialization functions for STL vectors (TODO(benh): move to libprocess). */
+/* Serialization functions for STL vectors. */
 
 template<typename T>
-void operator & (process::serialization::serializer& s, const std::vector<T>& v)
+void operator & (process::tuples::serializer& s, const std::vector<T>& v)
 {
   int32_t size = (int32_t) v.size();
   s & size;
@@ -405,22 +487,21 @@ void operator & (process::serialization::serializer& s, const std::vector<T>& v)
 
 
 template<typename T>
-void operator & (process::serialization::deserializer& s, std::vector<T>& v)
+void operator & (process::tuples::deserializer& d, std::vector<T>& v)
 {
   int32_t size;
-  s & size;
+  d & size;
   v.resize(size);
   for (size_t i = 0; i < size; i++) {
-    s & v[i];
+    d & v[i];
   }
 }
 
 
-/* Serialization functions for STL maps (TODO(benh): move to libprocess). */
+/* Serialization functions for STL maps. */
 
 template<typename K, typename V>
-void operator & (process::serialization::serializer& s,
-		 const std::map<K, V>& m)
+void operator & (process::tuples::serializer& s, const std::map<K, V>& m)
 {
   int32_t size = (int32_t) m.size();
   s & size;
@@ -432,16 +513,16 @@ void operator & (process::serialization::serializer& s,
 
 
 template<typename K, typename V>
-void operator & (process::serialization::deserializer& s, std::map<K, V>& m)
+void operator & (process::tuples::deserializer& d, std::map<K, V>& m)
 {
   m.clear();
   int32_t size;
-  s & size;
+  d & size;
   K k;
   V v;
   for (size_t i = 0; i < size; i++) {
-    s & k;
-    s & v;
+    d & k;
+    d & v;
     m[k] = v;
   }
 }

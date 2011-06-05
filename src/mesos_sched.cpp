@@ -50,7 +50,7 @@ using mesos::internal::slave::Slave;
 namespace mesos { namespace internal {
 
 
-class RbReply : public Tuple<Process>
+class RbReply : public MesosProcess
 {    
 public:
   RbReply(const PID &_p, const TaskID &_tid) : 
@@ -95,7 +95,7 @@ private:
  * functions to invoke 'send'. Therefore, care must be done to insure
  * any synchronization necessary is performed.
  */
-class SchedulerProcess : public Tuple<ReliableProcess>
+class SchedulerProcess : public MesosProcess
 {
 public:
   friend class mesos::MesosSchedulerDriver;
@@ -169,7 +169,7 @@ protected:
       case NEW_MASTER_DETECTED: {
 	string masterSeq;
 	PID masterPid;
-	unpack<NEW_MASTER_DETECTED>(masterSeq, masterPid);
+	tie(masterSeq, masterPid) = unpack<NEW_MASTER_DETECTED>(body());
 
 	LOG(INFO) << "New master at " << masterPid << " with ID:" << masterSeq;
 
@@ -197,7 +197,7 @@ protected:
       }
 
       case M2F_REGISTER_REPLY: {
-        unpack<M2F_REGISTER_REPLY>(fid);
+        tie(fid) = unpack<M2F_REGISTER_REPLY>(body());
         invoke(bind(&Scheduler::registered, sched, driver, fid));
         break;
       }
@@ -205,7 +205,7 @@ protected:
       case M2F_SLOT_OFFER: {
         OfferID oid;
         vector<SlaveOffer> offs;
-        unpack<M2F_SLOT_OFFER>(oid, offs);
+        tie(oid, offs) = unpack<M2F_SLOT_OFFER>(body());
         
 	// Save all the slave PIDs found in the offer so later we can
 	// send framework messages directly.
@@ -221,7 +221,7 @@ protected:
         OfferID oid;
         vector<TaskDescription> tasks;
         Params params;
-        unpack<F2F_SLOT_OFFER_REPLY>(oid, tasks, params);
+        tie(oid, tasks, params) = unpack<F2F_SLOT_OFFER_REPLY>(body());
 
 	// Keep only the slave PIDs where we run tasks so we can send
 	// framework messages directly.
@@ -245,14 +245,14 @@ protected:
 
       case F2F_FRAMEWORK_MESSAGE: {
         FrameworkMessage msg;
-        unpack<F2F_FRAMEWORK_MESSAGE>(msg);
+        tie(msg) = unpack<F2F_FRAMEWORK_MESSAGE>(body());
         send(savedSlavePids[msg.slaveId], pack<M2S_FRAMEWORK_MESSAGE>(fid, msg));
         break;
       }
 
       case M2F_RESCIND_OFFER: {
         OfferID oid;
-        unpack<M2F_RESCIND_OFFER>(oid);
+        tie(oid) = unpack<M2F_RESCIND_OFFER>(body());
         savedOffers.erase(oid);
         invoke(bind(&Scheduler::offerRescinded, sched, driver, oid));
         break;
@@ -271,7 +271,7 @@ protected:
 	TaskState state;
 	string data;
 
-	unpack<S2M_FT_STATUS_UPDATE>(sid, fid, tid, state, data);
+	tie(sid, fid, tid, state, data) = unpack<S2M_FT_STATUS_UPDATE>(body());
 
         if (duplicate())
           break;
@@ -296,7 +296,7 @@ protected:
         TaskID tid;
         TaskState state;
         string data;
-        unpack<M2F_STATUS_UPDATE>(tid, state, data);
+        tie(tid, state, data) = unpack<M2F_STATUS_UPDATE>(body());
 
 	unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
 	if (it != rbReplies.end()) {
@@ -314,14 +314,14 @@ protected:
 
       case M2F_FRAMEWORK_MESSAGE: {
         FrameworkMessage msg;
-        unpack<M2F_FRAMEWORK_MESSAGE>(msg);
+        tie(msg) = unpack<M2F_FRAMEWORK_MESSAGE>(body());
         invoke(bind(&Scheduler::frameworkMessage, sched, driver, ref(msg)));
         break;
       }
 
       case M2F_LOST_SLAVE: {
         SlaveID sid;
-        unpack<M2F_LOST_SLAVE>(sid);
+        tie(sid) = unpack<M2F_LOST_SLAVE>(body());
 	savedSlavePids.erase(sid);
         invoke(bind(&Scheduler::slaveLost, sched, driver, sid));
         break;
@@ -330,7 +330,7 @@ protected:
       case M2F_ERROR: {
         int32_t code;
         string message;
-        unpack<M2F_ERROR>(code, message);
+        tie(code, message) = unpack<M2F_ERROR>(body());
         invoke(bind(&Scheduler::error, sched, driver, code, ref(message)));
         break;
       }
@@ -560,7 +560,7 @@ int MesosSchedulerDriver::stop()
 
   // TODO(benh): Do a Process::post instead?
   process->send(process->master,
-                process->pack<F2M_UNREGISTER_FRAMEWORK>(process->fid));
+                pack<F2M_UNREGISTER_FRAMEWORK>(process->fid));
 
   process->terminate = true;
 
@@ -601,7 +601,7 @@ int MesosSchedulerDriver::killTask(TaskID tid)
   // TODO(benh): Do a Process::post instead?
 
   process->send(process->master,
-                process->pack<F2M_KILL_TASK>(process->fid, tid));
+                pack<F2M_KILL_TASK>(process->fid, tid));
 
   return 0;
 }
@@ -620,7 +620,8 @@ int MesosSchedulerDriver::replyToOffer(OfferID offerId,
 
   // TODO(benh): Do a Process::post instead?
   
-  process->send(process->self(), process->pack<F2F_SLOT_OFFER_REPLY>(offerId, tasks, Params(params)));
+  process->send(process->self(),
+                pack<F2F_SLOT_OFFER_REPLY>(offerId, tasks, Params(params)));
 
   return 0;
 }
@@ -638,7 +639,7 @@ int MesosSchedulerDriver::reviveOffers()
   // TODO(benh): Do a Process::post instead?
 
   process->send(process->master,
-                process->pack<F2M_REVIVE_OFFERS>(process->fid));
+                pack<F2M_REVIVE_OFFERS>(process->fid));
 
   return 0;
 }
@@ -655,7 +656,7 @@ int MesosSchedulerDriver::sendFrameworkMessage(const FrameworkMessage &message)
 
   // TODO(benh): Do a Process::post instead?
 
-  process->send(process->self(), process->pack<F2F_FRAMEWORK_MESSAGE>(message));
+  process->send(process->self(), pack<F2F_FRAMEWORK_MESSAGE>(message));
 
   return 0;
 }

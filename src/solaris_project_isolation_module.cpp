@@ -144,7 +144,7 @@ void SolarisProjectIsolationModule::Communicator::operator() ()
     switch (receive(1)) {
       case PD2S_PROJECT_READY: {
         string project;
-        unpack<PD2S_PROJECT_READY>(project);
+        tie(project) = unpack<PD2S_PROJECT_READY>(body());
         if (shouldRun)
           module->projects.push(project);
         break;

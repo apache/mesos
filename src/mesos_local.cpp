@@ -1,7 +1,5 @@
 #include <pthread.h>
 
-#include <tuple.hpp>
-
 #include <map>
 #include <vector>
 
@@ -99,7 +97,7 @@ PID launch(const Params& conf, bool initLogging)
 
 void shutdown()
 {
-  Process::post(master->self(), M2M_SHUTDOWN);
+  MesosProcess::post(master->self(), pack<M2M_SHUTDOWN>());
   Process::wait(master->self());
   delete master;
   master = NULL;
@@ -111,7 +109,7 @@ void shutdown()
   // we have stopped the slave.
 
   foreachpair (IsolationModule *isolationModule, Slave *slave, slaves) {
-    Process::post(slave->self(), S2S_SHUTDOWN);
+    MesosProcess::post(slave->self(), pack<S2S_SHUTDOWN>());
     Process::wait(slave->self());
     delete isolationModule;
     delete slave;
