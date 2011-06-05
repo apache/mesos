@@ -29,10 +29,10 @@ protected:
     while(true) {
       switch(receive()) {
         case CLEANUP: {
-// 	  SchedulerProcess *process;
+//       SchedulerProcess *process;
 //           unpack<CLEANUP>(process);
 //           wait(process);
-// 	  delete process;
+//       delete process;
           break;
         }
       }

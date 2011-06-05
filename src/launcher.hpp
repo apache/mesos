@@ -37,8 +37,8 @@ protected:
 
 public:
   ExecutorLauncher(FrameworkID _frameworkId, const string& _executorUri,
-		   const string& _user, const string& _workDirectory,
-		   const string& _slavePid, bool _redirectIO,
+                   const string& _user, const string& _workDirectory,
+                   const string& _slavePid, bool _redirectIO,
                    const string_map& _params);
 
   virtual ~ExecutorLauncher();

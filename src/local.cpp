@@ -14,7 +14,7 @@ int main (int argc, char **argv)
 {
   if (argc == 2 && string("--help") == argv[1]) {
     cerr << "Usage: " << argv[0]
-	 << " [--port PORT] [--slaves NUM] [--cpus NUM] [--mem NUM] [--quiet]"
+         << " [--port PORT] [--slaves NUM] [--cpus NUM] [--mem NUM] [--quiet]"
          << endl;
     exit(1);
   }
@@ -37,16 +37,16 @@ int main (int argc, char **argv)
   while ((opt = getopt_long(argc, argv, "s:c:m:p:q", options, &index)) != -1) {
     switch (opt) {
       case 's':
-	slaves = atoi(optarg);
+        slaves = atoi(optarg);
         break;
       case 'c':
-	cpus = atoi(optarg);
+        cpus = atoi(optarg);
         break;
       case 'm':
-	mem = atoll(optarg);
+        mem = atoll(optarg);
         break;
       case 'p':
-	setenv("LIBPROCESS_PORT", optarg, true);
+        setenv("LIBPROCESS_PORT", optarg, true);
         break;
       case 'q':
         quiet = true;
