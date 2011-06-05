@@ -186,6 +186,8 @@ void Slave::operator () ()
   ZooKeeper *zk;
   if (!zookeeper.empty())
     zk = new ZooKeeper(zookeeper, 10000, new SlaveWatcher(this));
+  else
+    send(self(), pack<S2S_GOT_MASTER>());
 #else
   send(self(), pack<S2S_GOT_MASTER>());
 #endif
