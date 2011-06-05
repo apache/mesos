@@ -77,7 +77,7 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
-  if (str.size() > 512) {
+  if (str.size() == 0) {
     stream.setstate(std::ios_base::badbit);
     return stream;
   }
@@ -106,8 +106,13 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
-  hostent *he = gethostbyname2(host.c_str(), AF_INET);
-  if (!he) {
+  hostent* he = gethostbyname2(host.c_str(), AF_INET);
+  if (he == NULL) {
+    stream.setstate(std::ios_base::badbit);
+    return stream;
+  }
+
+  if (he->h_addr_list[0] == NULL) {
     stream.setstate(std::ios_base::badbit);
     return stream;
   }
@@ -120,7 +125,7 @@ istream& operator >> (istream& stream, UPID& pid)
   }
 
   pid.id = id;
-  pid.ip = *((uint32_t *) he->h_addr);
+  pid.ip = *((uint32_t*) he->h_addr_list[0]);
   pid.port = port;
 
   return stream;
