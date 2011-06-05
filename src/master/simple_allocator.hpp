@@ -25,7 +25,7 @@ class SimpleAllocator : public Allocator
   
   // Remember which frameworks refused each slave "recently"; this is cleared
   // when the slave's free resources go up or when everyone has refused it
-  unordered_map<SlaveID, unordered_set<FrameworkID> > refusers;
+  unordered_map<Slave*, unordered_set<Framework*> > refusers;
   
 public:
   SimpleAllocator(Master* _master): master(_master) {}

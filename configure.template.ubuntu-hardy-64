@@ -4,6 +4,6 @@ export PYTHON=python2.5
 
 $(dirname $0)/configure \
   --with-python-headers=/usr/include/python2.5 \
-  --with-java-home=/usr/lib/jvm/java-6-openjdk \
+  --with-java-home=/usr/lib/jvm/java-6-sun \
   --with-webui \
   --with-included-zookeeper $@
