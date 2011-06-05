@@ -209,10 +209,10 @@ void Slave::operator () ()
       }
       
       case M2S_RUN_TASK: {
-        string fwName, user, taskName, taskArg;
+        string fwName, user, taskName, taskArg, fwPidStr;
         ExecutorInfo execInfo;
         unpack<M2S_RUN_TASK>(fid, tid, fwName, user, execInfo,
-            taskName, taskArg, params);
+                             taskName, taskArg, params, fwPidStr);
         LOG(INFO) << "Got assigned task " << fid << ":" << tid;
         Resources res;
         res.cpus = params.getInt32("cpus", -1);
@@ -220,7 +220,10 @@ void Slave::operator () ()
         Framework *framework = getFramework(fid);
         if (framework == NULL) {
           // Framework not yet created on this node - create it
-          framework = new Framework(fid, fwName, user, execInfo);
+          PID fwPid;
+          istringstream ss(fwPidStr);
+          ss >> fwPid;
+          framework = new Framework(fid, fwName, user, execInfo, fwPid);
           frameworks[fid] = framework;
           isolationModule->frameworkAdded(framework);
           isolationModule->startExecutor(framework);
@@ -344,11 +347,14 @@ void Slave::operator () ()
         unpack<E2S_FRAMEWORK_MESSAGE>(fid, message);
         // Set slave ID in case framework omitted it
         message.slaveId = this->id;
+        /*
         if (isFT) {
           string ftId = ftMsg->getNextId();
           ftMsg->reliableSend(ftId, pack<S2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), id, fid, message));
         } else
           send(master, pack<S2M_FRAMEWORK_MESSAGE>(id, fid, message));
+        */
+        send(getFramework(fid)->fwPid, pack<M2F_FRAMEWORK_MESSAGE>(message));
         break;
       }
 

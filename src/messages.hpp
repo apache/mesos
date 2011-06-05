@@ -28,6 +28,9 @@ enum MessageType {
   F2M_KILL_TASK,
   F2M_FRAMEWORK_MESSAGE,
   F2M_FT_FRAMEWORK_MESSAGE,
+
+  F2F_SLOT_OFFER_REPLY,
+  F2F_FRAMEWORK_MESSAGE,
   
   /* From master to framework. */
   M2F_REGISTER_REPLY,
@@ -162,6 +165,17 @@ TUPLE(F2M_FT_FRAMEWORK_MESSAGE,
        FrameworkID,
        FrameworkMessage));
 
+
+TUPLE(F2F_SLOT_OFFER_REPLY,
+      (OfferID,
+       std::vector<TaskDescription>,
+       Params));
+
+TUPLE(F2F_FRAMEWORK_MESSAGE,
+      (FrameworkMessage));
+
+
+
 TUPLE(M2F_REGISTER_REPLY,
       (FrameworkID));
 
@@ -273,7 +287,8 @@ TUPLE(M2S_RUN_TASK,
        ExecutorInfo,
        std::string /*taskName*/,
        std::string /*taskArgs*/,
-       Params));
+       Params,
+       std::string /*framework PID*/));
 
 TUPLE(M2S_KILL_TASK,
       (FrameworkID,

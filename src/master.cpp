@@ -747,7 +747,7 @@ OfferID Master::makeOffer(Framework *framework,
     Params params;
     params.set("cpus", r.resources.cpus);
     params.set("mem", r.resources.mem);
-    SlaveOffer offer(r.slave->id, r.slave->hostname, params.getMap());
+    SlaveOffer offer(r.slave->id, r.slave->hostname, params.getMap(), r.slave->pid);
     offers.push_back(offer);
   }
   send(framework->pid, pack<M2F_SLOT_OFFER>(oid, offers));
@@ -852,7 +852,7 @@ void Master::launchTask(Framework *f, const TaskDescription& t)
   allocator->taskAdded(task);
   send(slave->pid, pack<M2S_RUN_TASK>(
         f->id, t.taskId, f->name, f->user, f->executorInfo,
-        t.name, t.arg, t.params));
+        t.name, t.arg, t.params, (string)f->pid));
 }
 
 

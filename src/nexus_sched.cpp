@@ -78,6 +78,10 @@ private:
   LeaderDetector *leaderDetector;
   FTMessaging *ftMsg;
 
+  typedef unordered_map< SlaveID, PID > SidToPidMap;
+  unordered_map< OfferID, SidToPidMap > savedOffers;
+  SidToPidMap sidToPidMap;
+
   volatile bool terminate;
 
   class SchedLeaderListener;
@@ -212,13 +216,64 @@ protected:
         OfferID oid;
         vector<SlaveOffer> offs;
         unpack<M2F_SLOT_OFFER>(oid, offs);
+        
+        savedOffers[ oid ] = SidToPidMap();
+        SidToPidMap &tmpMap = savedOffers[ oid ];
+        foreach(const SlaveOffer &offer, offs) {
+          tmpMap[ offer.slaveId ] = offer.slavePid;
+        }
+
         invoke(bind(&Scheduler::resourceOffer, sched, driver, oid, ref(offs)));
+        break;
+      }
+
+      case F2F_SLOT_OFFER_REPLY: {
+        OfferID oid;
+        vector<TaskDescription> tasks;
+        Params params;
+        vector<SlaveOffer> offs;
+        unpack<F2F_SLOT_OFFER_REPLY>(oid, tasks, params);
+
+        foreach(const TaskDescription &task, tasks) {
+          sidToPidMap[ task.slaveId ] = savedOffers[ oid ][ task.slaveId ];
+
+        }
+        savedOffers.erase( oid );
+
+        if (isFT) {
+          TimeoutListener *tListener = 
+            new TimeoutListener(this, tasks);
+
+          string ftId = ftMsg->getNextId();
+          DLOG(INFO) << "Sending reliably reply to slot offer for msg " << ftId;
+          ftMsg->reliableSend( ftId,
+                               pack<F2M_FT_SLOT_OFFER_REPLY>(ftId, self(), fid, oid, tasks, params),
+                               tListener);
+        } else
+          send(master, pack<F2M_SLOT_OFFER_REPLY>(fid, oid, tasks, params));
+
+        break;
+      }
+
+      case F2F_FRAMEWORK_MESSAGE: {
+        FrameworkMessage msg;
+        unpack<F2F_FRAMEWORK_MESSAGE>(msg);
+
+        /*
+        if (isFT) {
+          string ftId = ftMsg->getNextId();
+          ftMsg->reliableSend( ftId, pack<F2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), fid, msg));
+        } else
+          send(master, pack<F2M_FRAMEWORK_MESSAGE>(fid, msg));
+        */
+        send( sidToPidMap[ msg.slaveId ], pack<M2S_FRAMEWORK_MESSAGE>(fid, msg));
         break;
       }
 
       case M2F_RESCIND_OFFER: {
         OfferID oid;
         unpack<M2F_RESCIND_OFFER>(oid);
+        savedOffers.erase(oid);
         invoke(bind(&Scheduler::offerRescinded, sched, driver, oid));
         break;
       }
@@ -240,7 +295,6 @@ protected:
 
 
       case M2F_STATUS_UPDATE: {
-        DLOG(INFO) << "Got M2F_STATUS_UPDATE";
         TaskID tid;
         TaskState state;
         string data;
@@ -274,6 +328,7 @@ protected:
       case M2F_LOST_SLAVE: {
         SlaveID sid;
         unpack<M2F_LOST_SLAVE>(sid);
+        sidToPidMap.erase(sid);
         invoke(bind(&Scheduler::slaveLost, sched, driver, sid));
         break;
       }
@@ -536,27 +591,8 @@ void NexusSchedulerDriver::replyToOffer(OfferID offerId,
   }
 
   // TODO(benh): Do a Process::post instead?
-
-  if (process->isFT) {
-    SchedulerProcess::TimeoutListener *tListener = 
-      new SchedulerProcess::TimeoutListener(process, tasks);
-
-    string ftId = process->ftMsg->getNextId();
-    DLOG(INFO) << "Sending reliably reply to slot offer for msg " << ftId;
-    process->ftMsg->reliableSend( ftId,
-                                  process->pack<F2M_FT_SLOT_OFFER_REPLY>(ftId,
-                                                                         process->self(),
-                                                                         process->fid,
-                                                                         offerId,
-                                                                         tasks,
-                                                                         Params(params)),
-                                  tListener);
-  } else
-  process->send(process->master,
-                process->pack<F2M_SLOT_OFFER_REPLY>(process->fid,
-                                                    offerId,
-                                                    tasks,
-                                                    Params(params)));
+  
+  process->send( process->self(), process->pack<F2F_SLOT_OFFER_REPLY>(offerId, tasks, Params(params)));
 }
 
 
@@ -585,12 +621,7 @@ void NexusSchedulerDriver::sendFrameworkMessage(const FrameworkMessage &message)
     return;
   }
 
-  if (process->isFT) {
-    string ftId = process->ftMsg->getNextId();
-    process->ftMsg->reliableSend( ftId, process->pack<F2M_FT_FRAMEWORK_MESSAGE>(ftId, process->self(), process->fid, message));
-  } else
-    process->send(process->master,
-                  process->pack<F2M_FRAMEWORK_MESSAGE>(process->fid, message));
+  process->send( process->self(), process->pack<F2F_FRAMEWORK_MESSAGE>(message) );
 }
 
 

@@ -3,7 +3,7 @@
 
 #include <map>
 #include <string>
-
+#include <process.hpp>
 #include <nexus_types.hpp>
 
 namespace nexus {
@@ -59,12 +59,14 @@ struct SlaveOffer
 
   SlaveOffer(SlaveID _slaveId,
              const std::string& _host,
-             const string_map& _params)
-    : slaveId(_slaveId), host(_host), params(_params) {}
+             const string_map& _params,
+             const PID& _slavePid)
+    : slaveId(_slaveId), host(_host), params(_params), slavePid(_slavePid) {}
 
   SlaveID slaveId;
   std::string host;
   string_map params;
+  PID slavePid;
 };
 
 

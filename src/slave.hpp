@@ -83,14 +83,15 @@ struct Framework
   list<TaskDescription *> queuedTasks; // Holds tasks until executor starts
   unordered_map<TaskID, TaskInfo *> tasks;
   Resources resources;
+  PID fwPid;
 
   // Information about the status of the executor for this framework, set by
   // the isolation module. For example, this might include a PID, a VM ID, etc.
   string executorStatus;
   
   Framework(FrameworkID _id, const string& _name, const string& _user,
-      const ExecutorInfo& _executorInfo)
-    : id(_id), name(_name), user(_user), executorInfo(_executorInfo) {}
+            const ExecutorInfo& _executorInfo, const PID& _fwPid)
+    : id(_id), name(_name), user(_user), executorInfo(_executorInfo), fwPid(_fwPid) {}
 
   ~Framework()
   {
