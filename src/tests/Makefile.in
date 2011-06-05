@@ -88,7 +88,7 @@ TESTS_OBJ = main.o test_master.o test_resources.o external_test.o	\
 	    test_configurator.o test_string_utils.o			\
 	    test_lxc_isolation.o
 
-ALLTESTS_EXE = $(BINDIR)/alltests
+ALLTESTS_EXE = $(BINDIR)/tests/alltests
 
 EXTERNAL_SCRIPTS =							\
   $(BINDIR)/tests/external/LxcIsolation/HoldMoreMemThanRequested.sh	\
@@ -106,7 +106,8 @@ EXTERNAL_SCRIPTS =							\
 
 # Create rules for building the directories that aren't created
 # automagically by configure.
-DIRECTORIES = $(BINDIR)/tests/external/LxcIsolation		\
+DIRECTORIES = $(BINDIR)/tests                                   \
+	      $(BINDIR)/tests/external/LxcIsolation		\
               $(BINDIR)/tests/external/SampleFrameworks
 
 
@@ -126,12 +127,11 @@ $(EXTERNAL_SCRIPTS): | $(BINDIR)/tests/external/SampleFrameworks
 $(EXTERNAL_SCRIPTS): $(BINDIR)/tests/%: @srcdir@/%
 	cp $< $@
 
-$(ALLTESTS_EXE): $(TESTS_OBJ)
+$(ALLTESTS_EXE): $(TESTS_OBJ) | $(BINDIR)/tests
 	$(CXX) $(CXXFLAGS) -o $@ $(TESTS_OBJ) $(SCHED_LIB) $(EXEC_LIB) $(LDFLAGS) $(LIBS)
 
 test: all
-	cd $(BINDIR)
-	./alltests
+	$(ALLTESTS_EXE)
 
 all: $(ALLTESTS_EXE) $(EXTERNAL_SCRIPTS) 
 

@@ -20,15 +20,15 @@ using namespace mesos::internal::test;
 namespace {
 
 // Get absolute path to Mesos home directory based on where the alltests
-// binary is located (which should be in MESOS_HOME/bin)
+// binary is located (which should be in MESOS_HOME/bin/tests)
 string getMesosHome(int argc, char** argv) {
   // Copy argv[0] because dirname can modify it
   int lengthOfArg0 = strlen(argv[0]);
   char* copyOfArg0 = new char[lengthOfArg0 + 1];
   strncpy(copyOfArg0, argv[0], lengthOfArg0 + 1);
-  // Get its directory, and then the parent of that directory
+  // Get its directory, and then the parent of the parent of that directory
   string myDir = string(dirname(copyOfArg0));
-  string parentDir = myDir + "/..";
+  string parentDir = myDir + "/../..";
   // Get the real name of this parent directory
   char path[PATH_MAX];
   if (realpath(parentDir.c_str(), path) == 0) {
@@ -44,7 +44,6 @@ int main(int argc, char** argv)
 {
   // Get absolute path to Mesos home directory based on location of alltests
   mesos::internal::test::mesosHome = getMesosHome(argc, argv);
-  std::cout << "MESOS_HOME: " << mesosHome << std::endl;
 
   // Clear any MESOS_ environment variables so they don't affect our tests
   Configurator::clearMesosEnvironmentVars();
