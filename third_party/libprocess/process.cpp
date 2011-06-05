@@ -2955,6 +2955,7 @@ const std::string& ProcessBase::body() const
 void ProcessBase::pause(double secs)
 {
   if (pthread_self() == proc_thread) {
+    process_manager->pause(this, secs);
   } else {
     sleep(secs);
   }
@@ -3164,6 +3165,8 @@ namespace internal {
 
 void dispatcher(const UPID& pid, function<void(ProcessBase*)>* delegator)
 {
+  initialize();
+
   if (proc_process != NULL) {
     process_manager->deliver(pid, delegator, proc_process);
   } else {
