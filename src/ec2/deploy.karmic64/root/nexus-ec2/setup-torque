@@ -88,6 +88,6 @@ function installmpi {
 }
 
 #installtorque
-setuptorque
+#setuptorque
 #installslaves
 installmpi
