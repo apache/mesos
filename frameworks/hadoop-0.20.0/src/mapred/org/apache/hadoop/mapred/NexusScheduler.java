@@ -313,7 +313,7 @@ class NexusScheduler extends nexus.Scheduler {
       //LOG.info("In handleRPC, message length = " + data.length);
       int rpcId = in.readInt();
       String method = in.readUTF();
-      //LOG.info("Responding to " + method + " RPC!");
+      //LOG.info("Responding to " + method + " from executor on " + slaveId);
       int numArgs = in.readInt();
       Object[] args = new Object[numArgs];
       for (int i = 0; i < numArgs; i++) {

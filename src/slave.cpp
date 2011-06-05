@@ -344,6 +344,8 @@ void Slave::operator () ()
 
       case E2S_FRAMEWORK_MESSAGE: {
         unpack<E2S_FRAMEWORK_MESSAGE>(fid, message);
+        // Set slave ID in case framework omitted it
+        message.slaveId = this->id;
         send(master, pack<S2M_FRAMEWORK_MESSAGE>(id, fid, message));
         break;
       }

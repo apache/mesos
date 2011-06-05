@@ -32,6 +32,8 @@ public class NexusExecutor extends Executor
 
   private JobConf conf;
   private TaskTracker taskTracker;
+
+  private int slaveId;
   
   private AtomicInteger nextRpcId = new AtomicInteger();
   
@@ -69,6 +71,7 @@ public class NexusExecutor extends Executor
   @Override
   public void init(ExecutorArgs args) {
     try {
+      slaveId = args.getSlaveId();
       conf = new JobConf();
       conf.set("mapred.job.tracker", new String(args.getData()));
       taskTracker = new TaskTracker(conf, this);
@@ -160,6 +163,8 @@ public class NexusExecutor extends Executor
       DataInputStream in = new DataInputStream(
           new ByteArrayInputStream(message.getData()));
       int rpcId = in.readInt();
+      //LOG.info("Executor on " + slaveId + " got RPC response for ID " + 
+      //         rpcId + " with length " + message.getData().length);
       writable.readFields(in);
       RpcResponse response = rpcResponses.get(rpcId);
       synchronized(response) {
@@ -189,10 +194,10 @@ public class NexusExecutor extends Executor
   }
 
   private Object invokeRPC(String method, Object... args) throws IOException {
-    //LOG.info("Making RPC: " + method);
-    
     // Get a unique RPC ID for this call
     int rpcId = nextRpcId.getAndIncrement();
+    //LOG.info("Executor on " + slaveId + " making RPC: " + method + 
+    //         " with ID " + rpcId);
     
     // Create an RpcResponse for this call
     RpcResponse response = new RpcResponse(rpcId);
