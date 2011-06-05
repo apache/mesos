@@ -3,12 +3,19 @@
 # Make sure we are in the mesos-ec2 directory
 cd /root/mesos-ec2
 
+# Set hostname based on EC2 private DNS name, so that it is set correctly
+# even if the instance is restarted with a different private DNS name
+PRIVATE_DNS=`wget -q -O - http://instance-data.ec2.internal/latest/meta-data/local-hostname`
+hostname $PRIVATE_DNS
+echo $PRIVATE_DNS > /etc/hostname
+HOSTNAME=$PRIVATE_DNS  # Fix the bash built-in hostname variable too
+
+echo "Setting up Mesos master on `hostname`..."
+
+# Read command-line arguments
 OS_NAME=$1
 DOWNLOAD_METHOD=$2
 BRANCH=$3
-
-# By exporting this git won't ask to accept a key.
-export GIT_SSH=/root/mesos-ec2/ssh-no-keychecking
 
 MASTERS_FILE="masters"
 MASTERS=`cat $MASTERS_FILE`
@@ -45,10 +52,6 @@ if [[ `tty` == "not a tty" ]] ; then
     exit 1
 fi
 
-echo "Setting up Mesos master on `hostname`..."
-
-cd /root/mesos-ec2
-
 echo "Setting executable permissions on scripts..."
 for s in $SCRIPTS; do chmod u+x $s; done
 
@@ -62,7 +65,7 @@ done
 ssh -q $SSH_OPTS localhost echo -n &
 
 if [[ $NUM_ZOOS != 0 ]] ; then
-  echo "SSH'ing to Zoo server(s) to approve keys..."
+  echo "SSH'ing to ZooKeeper server(s) to approve keys..."
   zid=1
   for zoo in $ZOO; do
     echo $zoo
@@ -92,7 +95,7 @@ if [[ $NUM_MASTERS -gt 1 ]] ; then
 fi
 
 if [[ $NUM_ZOOS != 0 ]] ; then
-  echo "RSYNC'ing /root/mesos-ec2 to other Zoo servers..."
+  echo "RSYNC'ing /root/mesos-ec2 to other ZooKeeper servers..."
   for zoo in $ZOOS; do
       echo $zoo
       rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $zoo:/root & sleep 0.3
@@ -137,6 +140,8 @@ wait
 DOWNLOADED=0
 
 if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
+  # change git's ssh command so it does not ask to accept a keys
+  export GIT_SSH=/root/mesos-ec2/ssh-no-keychecking
   REPOSITORY=git://github.com/mesos/mesos.git
   echo "Checking out Mesos from $REPOSITORY"
   pushd /root > /dev/null 2>&1
@@ -186,15 +191,20 @@ echo "Redeploying /root/mesos..."
 ./redeploy-mesos
 
 echo "Setting up NFS..."
-if [ ! -e /mnt/nfs ] ; then
+if [ ! -e /nfs ] ; then
   mkdir -p /mnt/nfs
   rm -fr /nfs
   ln -s /mnt/nfs /nfs
-  if ! grep -e '/nfs' /etc/exports; then
-    echo "/nfs    10.0.0.0/8(ro,async,no_subtree_check)" >> /etc/exports
-  fi
-  exportfs -a
 fi
+if ! grep -e '^/nfs ' /etc/exports; then
+  echo "/nfs    10.0.0.0/8(ro,async,no_subtree_check)" >> /etc/exports
+fi
+# Unexport and re-export everything in /etc/exports because, if we are
+# restarting a stopped EC2 instance, we might have had an entry for /nfs in
+# /etc/exports before we created /mnt/nfs.
+exportfs -ua
+exportfs -a
+
 echo "Mounting NFS on slaves..."
 for slave in $SLAVES; do
   echo $slave

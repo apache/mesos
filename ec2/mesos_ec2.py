@@ -53,7 +53,8 @@ def parse_args():
            "Greater values cause Mesos to run in FT mode with ZooKeeper.")
   parser.add_option("--ebs-vol-size", metavar="SIZE", type="int", default=0,
       help="Attach a new EBS volume of size SIZE (in GB) to each node as " +
-           "/vol. The volumes will be deleted when the instances terminate.")
+           "/vol. The volumes will be deleted when the instances terminate. " +
+           "Only possible on EBS-backed AMIs.")
   (opts, args) = parser.parse_args()
   opts.ft = int(opts.ft)
   if len(args) != 2:
@@ -366,8 +367,8 @@ def main():
   elif action == "stop":
     response = raw_input("Are you sure you want to stop the cluster " +
         cluster_name + "?\nDATA ON EPHEMERAL DISKS WILL BE LOST, " +
-        "BUT THE CLUSTER WILL KEEP USING SPACE ON EBS IF IT IS " +
-        "EBS-BACKED!\n" +
+        "BUT THE CLUSTER WILL KEEP USING SPACE ON\n" + 
+        "AMAZON EBS IF IT IS EBS-BACKED!\n" +
         "Stop cluster " + cluster_name + " (y/N): ")
     if response == "y":
       (master_res, slave_res, zoo_res) = get_existing_cluster(conn, opts, cluster_name)
