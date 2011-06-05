@@ -1,0 +1,8 @@
+#!/bin/sh
+
+$(dirname $0)/configure \
+  --with-python-headers=/usr/include/python2.6 \
+  --with-java-home=/usr/lib/jvm/java-1.6.0 \
+  --with-webui \
+  --with-included-sqlite \
+  --with-included-zookeeper $@
