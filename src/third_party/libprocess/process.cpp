@@ -1079,9 +1079,9 @@ public:
     Gate *gate = NULL;
 
     /* Remove process. */
-    process->lock();
+    acquire(processes);
     {
-      acquire(processes);
+      process->lock();
       {
 	/* Free any pending messages. */
 	while (!process->msgs.empty()) {
@@ -1125,9 +1125,9 @@ public:
 	  gates.erase(it);
 	}
       }
-      release(processes);
+      process->unlock();
     }
-    process->unlock();
+    release(processes);
 
     /*
      * N.B. After opening the gate we can no longer dereference
