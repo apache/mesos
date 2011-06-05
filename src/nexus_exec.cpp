@@ -112,7 +112,8 @@ protected:
           invoke(bind(&Executor::shutdown, executor, driver));
           if (!local)
             exit(0);
-          break;
+          else
+            return;
         }
 
         case PROCESS_EXIT: {
@@ -126,6 +127,12 @@ protected:
 	  // TODO(benh): Maybe do a SIGTERM and then later do a SIGKILL?
           if (!local)
             killpg(0, SIGKILL);
+          else
+            return;
+        }
+
+        case PROCESS_TIMEOUT: {
+          break;
         }
 
         default: {
