@@ -317,7 +317,7 @@ void ZooKeeperMasterDetector::process(ZooKeeper *zk, int type, int state,
       }
 
       // Wierdness in ZooKeeper timing, let's check that everything is created.
-      ret = zk->get(znode, false, &result, NULL);
+      ret = zk->get(znode + "/", false, &result, NULL);
 
       if (ret != ZOK)
 	fatal("ZooKeeper not responding correctly (%s). "
