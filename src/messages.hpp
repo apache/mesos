@@ -52,6 +52,7 @@ enum MessageType {
   
   /* From master to slave. */
   M2S_REGISTER_REPLY,
+  M2S_REREGISTER_REPLY,
   M2S_RUN_TASK,
   M2S_KILL_TASK,
   M2S_KILL_FRAMEWORK,
@@ -200,6 +201,9 @@ TUPLE(LE_NEWLEADER,
       (std::string /*PID of new leader*/));
   
 TUPLE(M2S_REGISTER_REPLY,
+      (SlaveID));
+
+TUPLE(M2S_REREGISTER_REPLY,
       (SlaveID));
 
 TUPLE(M2S_RUN_TASK,

@@ -444,11 +444,11 @@ void Master::operator () ()
       }
   
      //alibandali
-      LOG(INFO) << "Registering " << slave << " at " << slave->pid;
+      LOG(INFO) << "Re-registering " << slave << " at " << slave->pid;
       slaves[slave->id] = slave;
       pidToSid[slave->pid] = slave->id;
       link(slave->pid);
-      send(slave->pid, pack<M2S_REGISTER_REPLY>(slave->id));
+      send(slave->pid, pack<M2S_REREGISTER_REPLY>(slave->id));
       allocator->slaveAdded(slave);
       break;
     }

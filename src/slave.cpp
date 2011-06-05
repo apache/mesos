@@ -191,6 +191,14 @@ void Slave::operator () ()
         break;
       }
       
+      case M2S_REREGISTER_REPLY: {
+        FrameworkID tmpfid;
+        unpack<M2S_REGISTER_REPLY>(tmpfid);
+        LOG(INFO) << "RE-registered with master; given slave ID " << tmpfid << " had "<< this->id;
+        link(spawn(new Heart(master, this->getPID(), this->id)));
+        break;
+      }
+      
       case M2S_RUN_TASK: {
         string fwName, user, taskName, taskArg;
         ExecutorInfo execInfo;
