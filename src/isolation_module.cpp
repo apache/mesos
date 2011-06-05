@@ -20,7 +20,7 @@ IsolationModule * IsolationModule::create(const string &type)
     return new SolarisProjectIsolationModule();
 #elif __linux__
   else if (type == "lxc")
-    return new LxcIsolationModule>();
+    return new LxcIsolationModule();
 #endif
 
   return NULL;
