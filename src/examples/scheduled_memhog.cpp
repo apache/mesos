@@ -1,5 +1,3 @@
-#include <mesos_sched.hpp>
-
 #include <libgen.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,10 +11,10 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/unordered_map.hpp>
 
-#include "foreach.hpp"
+#include <mesos/scheduler.hpp>
 
-using namespace std;
 using namespace mesos;
+using namespace std;
 
 using boost::lexical_cast;
 
@@ -100,7 +98,9 @@ public:
     time_t now = time(0);
     double curTime = difftime(now, startTime);
     vector<TaskDescription> toLaunch;
-    foreach (const SlaveOffer &offer, offers) {
+    vector<SlaveOffer>::const_iterator iterator = offers.begin();
+    for (; iterator != offers.end(); ++iterator) {
+      const SlaveOffer& offer = *iterator;
       // Lookup resources we care about.
       // TODO(benh): It would be nice to ultimately have some helper
       // functions for looking up resources.

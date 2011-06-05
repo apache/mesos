@@ -7,7 +7,7 @@
 #include <climits>
 #include <cstdlib>
 
-#include <process.hpp>
+#include <process/process.hpp>
 
 
 namespace mesos { namespace internal {

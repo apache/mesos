@@ -4,9 +4,9 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include <configurator/configurator.hpp>
+#include "configurator/configurator.hpp"
 
-#include <tests/utils.hpp>
+#include "tests/utils.hpp"
 
 using boost::lexical_cast;
 

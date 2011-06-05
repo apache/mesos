@@ -3,9 +3,9 @@
 #include <iostream>
 #include <map>
 
-#include <process.hpp>
-
 #include <boost/tuple/tuple.hpp>
+
+#include <process/process.hpp>
 
 #include "zookeeper.hpp"
 

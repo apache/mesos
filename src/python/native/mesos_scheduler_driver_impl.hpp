@@ -1,7 +1,8 @@
 #ifndef MESOS_SCHEDULER_DRIVER_IMPL_HPP
 #define MESOS_SCHEDULER_DRIVER_IMPL_HPP
 
-#include "mesos_sched.hpp"
+#include <mesos/scheduler.hpp>
+
 
 namespace mesos { namespace python {
 

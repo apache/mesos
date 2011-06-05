@@ -1,7 +1,7 @@
 #ifndef __TYPE_UTILS_HPP__
 #define __TYPE_UTILS_HPP__
 
-#include <mesos.hpp>
+#include <mesos/mesos.hpp>
 
 #include <boost/functional/hash.hpp>
 

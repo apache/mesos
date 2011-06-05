@@ -17,12 +17,12 @@
 
 #include <tr1/functional>
 
-#include <mesos.hpp>
-#include <mesos_sched.hpp>
-#include <process.hpp>
+#include <mesos/scheduler.hpp>
 
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
+
+#include <process/process.hpp>
 
 #include "configurator/configuration.hpp"
 

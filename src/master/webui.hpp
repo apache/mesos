@@ -1,7 +1,7 @@
 #ifndef __MASTER_WEBUI_HPP__
 #define __MASTER_WEBUI_HPP__
 
-#include <process.hpp>
+#include <process/process.hpp>
 
 #include "master.hpp"
 

@@ -1,11 +1,11 @@
-#ifndef MESOS_SCHED_HPP
-#define MESOS_SCHED_HPP
+#ifndef __MESOS_SCHEDULER_HPP__
+#define __MESOS_SCHEDULER_HPP__
 
 #include <string>
 #include <map>
 #include <vector>
 
-#include <mesos.hpp>
+#include <mesos/mesos.hpp>
 
 
 namespace mesos {
@@ -221,6 +221,6 @@ private:
 };
 
 
-} /* namespace mesos { */
+} // namespace mesos {
 
-#endif /* MESOS_SCHED_HPP */
+#endif // __MESOS_SCHEDULER_HPP__

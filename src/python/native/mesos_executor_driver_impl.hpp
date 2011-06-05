@@ -1,7 +1,8 @@
 #ifndef MESOS_EXECUTOR_DRIVER_IMPL_HPP
 #define MESOS_EXECUTOR_DRIVER_IMPL_HPP
 
-#include "mesos_exec.hpp"
+#include <mesos/executor.hpp>
+
 
 namespace mesos { namespace python {
 

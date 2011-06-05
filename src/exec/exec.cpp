@@ -6,11 +6,12 @@
 #include <string>
 #include <sstream>
 
-#include <mesos_exec.hpp>
-#include <process.hpp>
-
 #include <boost/bind.hpp>
 #include <boost/unordered_map.hpp>
+
+#include <mesos/executor.hpp>
+
+#include <process/process.hpp>
 
 #include "common/fatal.hpp"
 #include "common/lock.hpp"

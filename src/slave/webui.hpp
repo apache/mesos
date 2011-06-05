@@ -1,7 +1,7 @@
 #ifndef __SLAVE_WEBUI_HPP__
 #define __SLAVE_WEBUI_HPP__
 
-#include <process.hpp>
+#include <process/process.hpp>
 
 #include "slave.hpp"
 

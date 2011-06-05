@@ -2,9 +2,9 @@
 
 #include <string>
 
+#include <mesos/mesos.hpp>
+
 #include "convert.hpp"
-#include "mesos_exec.hpp"
-#include "mesos_sched.hpp"
 
 using namespace mesos;
 

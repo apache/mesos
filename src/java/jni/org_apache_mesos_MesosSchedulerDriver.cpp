@@ -2,11 +2,13 @@
 #include <map>
 #include <vector>
 
+#include <mesos/scheduler.hpp>
+
 #include "construct.hpp"
 #include "convert.hpp"
-#include "foreach.hpp"
 #include "org_apache_mesos_MesosSchedulerDriver.h"
-#include "mesos_sched.hpp"
+
+#include "common/foreach.hpp"
 
 using namespace mesos;
 

@@ -10,12 +10,17 @@
  * _mesos.MesosSchedulerDriverImpl and _mesos.MesosExecutorDriverImpl.
  */
 
+#ifdef __APPLE__
+// Since Python.h defines _XOPEN_SOURCE on Mac OS X, we undefine it
+// here so that we don't get warning messages during the build.
+#undef _XOPEN_SOURCE
+#endif // __APPLE__
 #include <Python.h>
 
 #include <iostream>
 
-#include "mesos_sched.hpp"
-#include "mesos_exec.hpp"
+#include <mesos/executor.hpp>
+#include <mesos/scheduler.hpp>
 
 #include "module.hpp"
 #include "proxy_scheduler.hpp"
@@ -23,11 +28,12 @@
 #include "proxy_executor.hpp"
 #include "mesos_executor_driver_impl.hpp"
 
+using namespace mesos;
+using namespace mesos::python;
+
 using std::string;
 using std::vector;
 using std::map;
-using namespace mesos;
-using namespace mesos::python;
 
 
 /**

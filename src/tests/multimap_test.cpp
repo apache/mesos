@@ -2,13 +2,13 @@
 
 #include <string>
 
-#include <common/foreach.hpp>
-#include <common/multimap.hpp>
-
-using std::string;
+#include "common/foreach.hpp"
+#include "common/multimap.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
+
+using std::string;
 
 
 TEST(Multimap, Insert)

@@ -1,13 +1,13 @@
 #include <time.h>
 
-#include <mesos_exec.hpp>
-
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
 
-using namespace std;
+#include <mesos/executor.hpp>
+
 using namespace mesos;
+using namespace std;
 
 
 class MemHogExecutor;

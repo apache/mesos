@@ -1,9 +1,10 @@
 #include <string>
 
+#include <mesos/executor.hpp>
+
 #include "construct.hpp"
 #include "convert.hpp"
 #include "org_apache_mesos_MesosExecutorDriver.h"
-#include "mesos_exec.hpp"
 
 using namespace mesos;
 

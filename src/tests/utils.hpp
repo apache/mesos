@@ -1,16 +1,16 @@
 #ifndef __TESTING_UTILS_HPP__
 #define __TESTING_UTILS_HPP__
 
-#include <string>
-
-#include <mesos_exec.hpp>
-#include <mesos_sched.hpp>
-
-#include <process.hpp>
-
 #include <gmock/gmock.h>
 
-#include <messaging/messages.hpp>
+#include <string>
+
+#include <mesos/executor.hpp>
+#include <mesos/scheduler.hpp>
+
+#include <process/process.hpp>
+
+#include "messaging/messages.hpp"
 
 
 namespace mesos { namespace internal { namespace test {

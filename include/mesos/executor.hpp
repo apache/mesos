@@ -1,9 +1,9 @@
-#ifndef MESOS_EXEC_HPP
-#define MESOS_EXEC_HPP
+#ifndef __MESOS_EXECUTOR_HPP__
+#define __MESOS_EXECUTOR_HPP__
 
 #include <string>
 
-#include <mesos.hpp>
+#include <mesos/mesos.hpp>
 
 
 namespace mesos {
@@ -104,6 +104,6 @@ private:
   pthread_cond_t cond;
 };
 
-} /* namespace mesos { */
+} // namespace mesos {
 
-#endif /* MESOS_EXEC_HPP */
+#endif // __MESOS_EXECUTOR_HPP__

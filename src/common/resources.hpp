@@ -4,7 +4,7 @@
 #include <iterator>
 #include <string>
 
-#include <mesos.hpp>
+#include <mesos/mesos.hpp>
 
 
 // Resources come in three types: scalar, ranges, and sets. These are

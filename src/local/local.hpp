@@ -1,7 +1,7 @@
 #ifndef __MESOS_LOCAL_HPP__
 #define __MESOS_LOCAL_HPP__
 
-#include <process.hpp>
+#include <process/process.hpp>
 
 #include "configurator/configurator.hpp"
 

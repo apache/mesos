@@ -1,4 +1,4 @@
-#include <mesos.hpp>
+#include <mesos/mesos.hpp>
 
 #include <boost/lexical_cast.hpp>
 

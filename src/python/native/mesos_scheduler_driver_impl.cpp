@@ -1,16 +1,23 @@
+#ifdef __APPLE__
+// Since Python.h defines _XOPEN_SOURCE on Mac OS X, we undefine it
+// here so that we don't get warning messages during the build.
+#undef _XOPEN_SOURCE
+#endif // __APPLE__
 #include <Python.h>
 
 #include "mesos_scheduler_driver_impl.hpp"
 #include "module.hpp"
 #include "proxy_scheduler.hpp"
 
+using namespace mesos;
+using namespace mesos::python;
+
 using std::cerr;
 using std::endl;
 using std::string;
 using std::vector;
 using std::map;
-using namespace mesos;
-using namespace mesos::python;
+
 
 namespace mesos { namespace python {
 

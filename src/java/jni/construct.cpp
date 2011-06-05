@@ -5,10 +5,9 @@
 #include <string>
 #include <map>
 
+#include <mesos/mesos.hpp>
+
 #include "construct.hpp"
-#include "foreach.hpp"
-#include "mesos_exec.hpp"
-#include "mesos_sched.hpp"
 
 using namespace mesos;
 

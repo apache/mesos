@@ -1,21 +1,21 @@
 #include <gmock/gmock.h>
 
-#include <mesos_exec.hpp>
-#include <mesos_sched.hpp>
-
 #include <boost/lexical_cast.hpp>
 
-#include <common/date_utils.hpp>
+#include <mesos/executor.hpp>
+#include <mesos/scheduler.hpp>
 
-#include <local/local.hpp>
+#include "common/date_utils.hpp"
 
-#include <master/master.hpp>
+#include "local/local.hpp"
 
-#include <slave/isolation_module.hpp>
-#include <slave/process_based_isolation_module.hpp>
-#include <slave/slave.hpp>
+#include "master/master.hpp"
 
-#include <tests/utils.hpp>
+#include "slave/isolation_module.hpp"
+#include "slave/process_based_isolation_module.hpp"
+#include "slave/slave.hpp"
+
+#include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;

@@ -4,11 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <tests/utils.hpp>
-
-using std::string;
+#include "tests/utils.hpp"
 
 using namespace mesos::internal;
+
+using std::string;
 
 
 string test::mesosHome;

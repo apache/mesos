@@ -43,8 +43,8 @@ CFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
 CXXFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
 
 # Add libprocess to CFLAGS, CXXFLAGS, and LDFLAGS.
-CFLAGS += -I@top_srcdir@/$(LIBPROCESS)
-CXXFLAGS += -I@top_srcdir@/$(LIBPROCESS)
+CFLAGS += -I@top_srcdir@/$(LIBPROCESS)/include
+CXXFLAGS += -I@top_srcdir@/$(LIBPROCESS)/include
 LDFLAGS += -L@top_builddir@/$(LIBPROCESS)
 
 # Add libev to LDFLAGS.

@@ -1,529 +1,394 @@
-#ifndef MESSAGES_HPP
-#define MESSAGES_HPP
+#ifndef __MESSAGES_HPP__
+#define __MESSAGES_HPP__
 
 #include <float.h>
-#include <stdint.h>
 
-#include <map>
+#include <glog/logging.h>
+
 #include <string>
 #include <vector>
 
-#include <reliable.hpp>
+#include <tr1/functional>
 
-#include <tuples/tuples.hpp>
+#include <boost/unordered_map.hpp>
 
-#include <mesos.hpp>
-#include <mesos_types.hpp>
+#include <mesos/mesos.hpp>
 
-#include "common/foreach.hpp"
-#include "common/logging.hpp"
-#include "common/params.hpp"
-#include "common/resources.hpp"
-#include "common/task.hpp"
+#include <process/process.hpp>
 
-#include "master/state.hpp"
+#include "common/utils.hpp"
 
-#include "slave/state.hpp"
+#include "messaging/messages.pb.h"
 
 
 namespace mesos { namespace internal {
 
-const std::string MESOS_MESSAGING_VERSION = "0";
+// To couple a message name with a protocol buffer we use a templated
+// class that extends the necessary protocol buffer type (this also
+// allows the code to be better isolated from protocol buffer
+// naming). While protocol buffers are allegedly not meant to be
+// inherited, we decided this was an acceptable option since we don't
+// add any new functionality (or do any thing with the existing
+// functionality).
+//
+// To add another message that uses a protocol buffer you need to
+// provide a specialization of the Message class (i.e., using the
+// MESSAGE macro defined below).
+template <const char* name>
+class MSG;
 
-enum MessageType {
-  /* From framework to master. */
-  F2M_REGISTER_FRAMEWORK = RELIABLE_MSGID,
-  F2M_REREGISTER_FRAMEWORK,
-  F2M_UNREGISTER_FRAMEWORK,
-  F2M_SLOT_OFFER_REPLY,
-  F2M_REVIVE_OFFERS,
-  F2M_KILL_TASK,
-  F2M_FRAMEWORK_MESSAGE,
+#define MESSAGE1(name)                          \
+    extern char name[]
 
-  F2F_TASK_RUNNING_STATUS,
-  
-  /* From master to framework. */
-  M2F_REGISTER_REPLY,
-  M2F_SLOT_OFFER,
-  M2F_RESCIND_OFFER,
-  M2F_STATUS_UPDATE,
-  M2F_LOST_SLAVE,
-  M2F_FRAMEWORK_MESSAGE,
-  M2F_ERROR,
-  
-  /* From slave to master. */
-  S2M_REGISTER_SLAVE,
-  S2M_REREGISTER_SLAVE,
-  S2M_UNREGISTER_SLAVE,
-  S2M_STATUS_UPDATE,
-  S2M_FRAMEWORK_MESSAGE,
-  S2M_LOST_EXECUTOR,
+#define MESSAGE2(name, T)                           \
+    extern char name[];                             \
+    template <>                                     \
+    class MSG<name> : public T {}
+                                                                                
+#define MESSAGE(...)                                            \
+    CONCAT(MESSAGE, VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
-  /* From slave heart to master. */
-  SH2M_HEARTBEAT,
 
-  /* From master detector to processes */
-  GOT_MASTER_ID,
-  NEW_MASTER_DETECTED,
-  NO_MASTER_DETECTED,
-  
-  /* From master to slave. */
-  M2S_REGISTER_REPLY,
-  M2S_REREGISTER_REPLY,
-  M2S_RUN_TASK,
-  M2S_KILL_TASK,
-  M2S_KILL_FRAMEWORK,
-  M2S_FRAMEWORK_MESSAGE,
-  M2S_UPDATE_FRAMEWORK_PID,
-  M2S_SHUTDOWN, // Used in unit tests to shut down cluster
+// From framework to master.
+MESSAGE(F2M_REGISTER_FRAMEWORK, RegisterFrameworkMessage);
+MESSAGE(F2M_REREGISTER_FRAMEWORK, ReregisterFrameworkMessage);
+MESSAGE(F2M_UNREGISTER_FRAMEWORK, UnregisterFrameworkMessage);
+MESSAGE(F2M_RESOURCE_OFFER_REPLY, ResourceOfferReplyMessage);
+MESSAGE(F2M_REVIVE_OFFERS, ReviveOffersMessage);
+MESSAGE(F2M_KILL_TASK, KillTaskMessage);
+MESSAGE(F2M_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(F2M_STATUS_UPDATE_ACK, StatusUpdateAckMessage);
 
-  /* From executor to slave. */
-  E2S_REGISTER_EXECUTOR,
-  E2S_STATUS_UPDATE,
-  E2S_FRAMEWORK_MESSAGE,
+// From master to framework.
+MESSAGE(M2F_REGISTER_REPLY, FrameworkRegisteredMessage);
+MESSAGE(M2F_RESOURCE_OFFER, ResourceOfferMessage);
+MESSAGE(M2F_RESCIND_OFFER, RescindResourceOfferMessage);
+MESSAGE(M2F_STATUS_UPDATE, StatusUpdateMessage);
+MESSAGE(M2F_LOST_SLAVE, LostSlaveMessage);
+MESSAGE(M2F_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(M2F_ERROR, FrameworkErrorMessage);
 
-  /* From slave to executor. */
-  S2E_REGISTER_REPLY,
-  S2E_RUN_TASK,
-  S2E_KILL_TASK,
-  S2E_FRAMEWORK_MESSAGE,
-  S2E_KILL_EXECUTOR,
+// From slave to master.
+MESSAGE(S2M_REGISTER_SLAVE, RegisterSlaveMessage);
+MESSAGE(S2M_REREGISTER_SLAVE, ReregisterSlaveMessage);
+MESSAGE(S2M_UNREGISTER_SLAVE, UnregisterSlaveMessage);
+MESSAGE(S2M_STATUS_UPDATE, StatusUpdateMessage);
+MESSAGE(S2M_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(S2M_EXITED_EXECUTOR, ExitedExecutorMessage);
+
+// From master to slave.
+MESSAGE(M2S_REGISTER_REPLY, SlaveRegisteredMessage);
+MESSAGE(M2S_REREGISTER_REPLY, SlaveRegisteredMessage);
+MESSAGE(M2S_RUN_TASK, RunTaskMessage);
+MESSAGE(M2S_KILL_TASK, KillTaskMessage);
+MESSAGE(M2S_KILL_FRAMEWORK, KillFrameworkMessage);
+MESSAGE(M2S_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(M2S_UPDATE_FRAMEWORK, UpdateFrameworkMessage);
+MESSAGE(M2S_STATUS_UPDATE_ACK, StatusUpdateAckMessage);
+
+// From executor to slave.
+MESSAGE(E2S_REGISTER_EXECUTOR, RegisterExecutorMessage);
+MESSAGE(E2S_STATUS_UPDATE, StatusUpdateMessage);
+MESSAGE(E2S_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+
+// From slave to executor.
+MESSAGE(S2E_REGISTER_REPLY, ExecutorRegisteredMessage);
+MESSAGE(S2E_RUN_TASK, RunTaskMessage);
+MESSAGE(S2E_KILL_TASK, KillTaskMessage);
+MESSAGE(S2E_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(S2E_KILL_EXECUTOR);
 
 #ifdef __sun__
-  /* From projd to slave. */
-  PD2S_REGISTER_PROJD,
-  PD2S_PROJECT_READY,
+// From projd to slave.
+MESSAGE(PD2S_REGISTER_PROJD, RegisterProjdMessage);
+MESSAGE(PD2S_PROJD_READY, ProjdReadyMessage);
 
-  /* From slave to projd. */
-  S2PD_UPDATE_RESOURCES,
-  S2PD_KILL_ALL,
-#endif /* __sun__ */
+// From slave to projd.
+MESSAGE(S2PD_UPDATE_RESOURCES, ProjdUpdateResourcesMessage);
+MESSAGE(S2PD_KILL_ALL);
+#endif // __sun__
 
-  /* Internal to master */
-  M2M_GET_STATE,         // Used by web UI
-  M2M_GET_STATE_REPLY,
-  M2M_TIMER_TICK,        // Timer for expiring filters etc
-  M2M_FRAMEWORK_EXPIRED, // Timer for expiring frameworks
-  M2M_SHUTDOWN,          // Used in tests to shut down master
+// From master detector to processes.
+MESSAGE(GOT_MASTER_TOKEN, GotMasterTokenMessage);
+MESSAGE(NEW_MASTER_DETECTED, NewMasterDetectedMessage);
+MESSAGE(NO_MASTER_DETECTED);
 
-  /* Internal to slave */
-  S2S_GET_STATE,         // Used by web UI
-  S2S_GET_STATE_REPLY,
-  S2S_SHUTDOWN,          // Used in tests to shut down slave
-
-  MESOS_MSGID,
-};
+// Generic messages.
+MESSAGE(PING);
+MESSAGE(PONG);
 
 
-/*
- * Include tuples details for our namespace (this strategy is
- * typically called "supermacros" and is often used to build types or
- * messages).
- */
-#include <tuples/details.hpp>
-
-
-class MesosProcess : public ReliableProcess
+// Type conversions helpful for changing between protocol buffer types
+// and standard C++ types (for parameters).
+template <typename T>
+const T& convert(const T& t)
 {
-public:
-  static void post(const PID &to, MSGID id)
-  {
-    const std::string &data = MESOS_MESSAGING_VERSION + "|";
-    ReliableProcess::post(to, id, data.data(), data.size());
+  return t;
+}
+
+
+template <typename T>
+std::vector<T> convert(const google::protobuf::RepeatedPtrField<T>& items)
+{
+  std::vector<T> result;
+  for (int i = 0; i < items.size(); i++) {
+    result.push_back(items.Get(i));
   }
 
-  template <MSGID ID>
-  static void post(const PID &to, const tuple<ID> &t)
+  return result;
+}
+
+
+template <typename T>
+class MesosProcess : public process::Process<T>
+{
+public:
+  MesosProcess(const std::string& id = "")
+    : process::Process<T>(id) {}
+
+  virtual ~MesosProcess() {}
+
+  template <const char *name>
+  static void post(const process::UPID& to, const MSG<name>& msg)
   {
-    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
-    ReliableProcess::post(to, ID, data.data(), data.size());
+    std::string data;
+    msg.SerializeToString(&data);
+    process::post(to, name, data.data(), data.size());
   }
 
 protected:
-  std::string body() const
+  void send(const process::UPID& to, const std::string& name)
   {
-    size_t size;
-    const char *s = ReliableProcess::body(&size);
-    const std::string data(s, size);
-    size_t index = data.find('|');
-    CHECK(index != std::string::npos);
-    return data.substr(index + 1);
+    process::Process<T>::send(to, name);
   }
 
-  static void send(const PID &to, MSGID id)
+  template <const char* name>
+  void send(const process::UPID& to, const MSG<name>& msg)
   {
-    const std::string &data = MESOS_MESSAGING_VERSION + "|";
-    ReliableProcess::post(to, id, data.data(), data.size());
+    std::string data;
+    msg.SerializeToString(&data);
+    process::Process<T>::send(to, name, data.data(), data.size());
   }
 
-  template <MSGID ID>
-  void send(const PID &to, const tuple<ID> &t)
+  const std::string& serve(double secs = 0, bool once = false)
   {
-    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
-    ReliableProcess::send(to, ID, data.data(), data.size());
-  }
-
-  template <MSGID ID>
-  bool forward(const PID &to, const tuple<ID> &t)
-  {
-    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
-    ReliableProcess::forward(to, ID, data.data(), data.size());
-  }
-
-  template <MSGID ID>
-  int rsend(const PID &to, const tuple<ID> &t)
-  {
-    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
-    return ReliableProcess::rsend(to, ID, data.data(), data.size());
-  }
-
-  template <MSGID ID>
-  int rsend(const PID &via, const PID &to, const tuple<ID> &t)
-  {
-    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
-    return ReliableProcess::rsend(via, to, ID, data.data(), data.size());
-  }
-
-  virtual MSGID receive(double secs = 0)
-  {
-    bool indefinite = secs == 0;
-    double now = elapsed();
-    MSGID id = ReliableProcess::receive(secs);
-    if (RELIABLE_MSGID < id && id < MESOS_MSGID) {
-      size_t size;
-      const char *s = ReliableProcess::body(&size);
-      const std::string data(s, size);
-      size_t index = data.find('|');
-      if (index == std::string::npos ||
-          MESOS_MESSAGING_VERSION != data.substr(0, index)) {
-        LOG(ERROR) << "Dropping message from " << from()
-                   << " with incorrect messaging version!";
-        if (!indefinite) {
-          double remaining = secs - (elapsed() - now);
-          return receive(remaining <= 0 ? DBL_EPSILON : remaining);
-        } else {
-          return receive(0);
-        }
+    do {
+      process::Process<T>::serve(secs, once);
+      if (handlers.count(process::Process<T>::name()) > 0) {
+        handlers[process::Process<T>::name()](process::Process<T>::body());
+      } else {
+        return process::Process<T>::name();
       }
-    }
-    return id;
+    } while (!once);
   }
+
+  void install(const std::string& name, void (T::*method)())
+  {
+    T* t = static_cast<T*>(this);
+    handlers[name] =
+      std::tr1::bind(&MesosProcess<T>::handler0, t,
+                     method,
+                     std::tr1::placeholders::_1);
+  }
+
+  template <typename PB,
+            typename P1, typename P1C>
+  void install(const std::string& name, void (T::*method)(P1C),
+               P1 (PB::*param1)() const)
+  {
+    T* t = static_cast<T*>(this);
+    handlers[name] =
+      std::tr1::bind(&handler1<PB, P1, P1C>, t,
+                     method, param1,
+                     std::tr1::placeholders::_1);
+  }
+
+  template <typename PB,
+            typename P1, typename P1C,
+            typename P2, typename P2C>
+  void install(const std::string& name, void (T::*method)(P1C, P2C),
+               P1 (PB::*p1)() const,
+               P2 (PB::*p2)() const)
+  {
+    T* t = static_cast<T*>(this);
+    handlers[name] =
+      std::tr1::bind(&handler2<PB, P1, P1C, P2, P2C>, t,
+                     method, p1, p2,
+                     std::tr1::placeholders::_1);
+  }
+
+  template <typename PB,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C>
+  void install(const std::string& name,
+               void (T::*method)(P1C, P2C, P3C),
+               P1 (PB::*p1)() const,
+               P2 (PB::*p2)() const,
+               P3 (PB::*p3)() const)
+  {
+    T* t = static_cast<T*>(this);
+    handlers[name] =
+      std::tr1::bind(&handler3<PB, P1, P1C, P2, P2C, P3, P3C>, t,
+                     method, p1, p2, p3,
+                     std::tr1::placeholders::_1);
+  }
+
+  template <typename PB,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C>
+  void install(const std::string& name,
+               void (T::*method)(P1C, P2C, P3C, P4C),
+               P1 (PB::*p1)() const,
+               P2 (PB::*p2)() const,
+               P3 (PB::*p3)() const,
+               P4 (PB::*p4)() const)
+  {
+    T* t = static_cast<T*>(this);
+    handlers[name] =
+      std::tr1::bind(&handler4<PB, P1, P1C, P2, P2C, P3, P3C, P4, P4C>, t,
+                     method, p1, p2, p3, p4,
+                     std::tr1::placeholders::_1);
+  }
+
+  template <typename PB,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C,
+            typename P5, typename P5C>
+  void install(const std::string& name,
+               void (T::*method)(P1C, P2C, P3C, P4C, P5C),
+               P1 (PB::*p1)() const,
+               P2 (PB::*p2)() const,
+               P3 (PB::*p3)() const,
+               P4 (PB::*p4)() const,
+               P5 (PB::*p5)() const)
+  {
+    T* t = static_cast<T*>(this);
+    handlers[name] =
+      std::tr1::bind(&handler5<PB, P1, P1C, P2, P2C, P3, P3C, P4, P4C, P5, P5C>, t,
+                     method, p1, p2, p3, p4, p5,
+                     std::tr1::placeholders::_1);
+  }
+
+private:
+  static void handler0(T* t, void (T::*method)(),
+                       const std::string& data)
+  {
+    (t->*method)();
+  }
+
+  template <typename PB,
+            typename P1, typename P1C>
+  static void handler1(T* t, void (T::*method)(P1C),
+                       P1 (PB::*p1)() const,
+                       const std::string& data)
+  {
+    PB pb;
+    pb.ParseFromString(data);
+    if (pb.IsInitialized()) {
+      (t->*method)(convert((&pb->*p1)()));
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  template <typename PB,
+            typename P1, typename P1C,
+            typename P2, typename P2C>
+  static void handler2(T* t, void (T::*method)(P1C, P2C),
+                       P1 (PB::*p1)() const,
+                       P2 (PB::*p2)() const,
+                       const std::string& data)
+  {
+    PB pb;
+    pb.ParseFromString(data);
+    if (pb.IsInitialized()) {
+      (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()));
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  template <typename PB,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C>
+  static void handler3(T* t, void (T::*method)(P1C, P2C, P3C),
+                       P1 (PB::*p1)() const,
+                       P2 (PB::*p2)() const,
+                       P3 (PB::*p3)() const,
+                       const std::string& data)
+  {
+    PB pb;
+    pb.ParseFromString(data);
+    if (pb.IsInitialized()) {
+      (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()),
+                   convert((&pb->*p3)()));
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  template <typename PB,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C>
+  static void handler4(T* t, void (T::*method)(P1C, P2C, P3C, P4C),
+                       P1 (PB::*p1)() const,
+                       P2 (PB::*p2)() const,
+                       P3 (PB::*p3)() const,
+                       P4 (PB::*p4)() const,
+                       const std::string& data)
+  {
+    PB pb;
+    pb.ParseFromString(data);
+    if (pb.IsInitialized()) {
+      (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()),
+                   convert((&pb->*p3)()), convert((&pb->*p4)()));
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  template <typename PB,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C,
+            typename P5, typename P5C>
+  static void handler5(T* t, void (T::*method)(P1C, P2C, P3C, P4C, P5C),
+                       P1 (PB::*p1)() const,
+                       P2 (PB::*p2)() const,
+                       P3 (PB::*p3)() const,
+                       P4 (PB::*p4)() const,
+                       P5 (PB::*p5)() const,
+                       const std::string& data)
+  {
+    PB pb;
+    pb.ParseFromString(data);
+    if (pb.IsInitialized()) {
+      (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()),
+                   convert((&pb->*p3)()), convert((&pb->*p4)()),
+                   convert((&pb->*p5)()));
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << pb.InitializationErrorString();
+    }
+  }
+
+  boost::unordered_map<std::string, std::tr1::function<void (const std::string&)> > handlers;
 };
 
+}} // namespace mesos { namespace internal {
 
-using boost::tuples::tie;
 
-
-
-TUPLE(F2M_REGISTER_FRAMEWORK,
-      (std::string /*name*/,
-       std::string /*user*/,
-       ExecutorInfo));
-
-TUPLE(F2M_REREGISTER_FRAMEWORK,
-      (FrameworkID,
-       std::string /*name*/,
-       std::string /*user*/,
-       ExecutorInfo,
-       int32_t /*generation*/));
-
-TUPLE(F2M_UNREGISTER_FRAMEWORK,
-      (FrameworkID));
-
-TUPLE(F2M_SLOT_OFFER_REPLY,
-      (FrameworkID,
-       OfferID,
-       std::vector<TaskDescription>,
-       Params));
-
-TUPLE(F2M_REVIVE_OFFERS,
-      (FrameworkID));
-
-TUPLE(F2M_KILL_TASK,
-      (FrameworkID,
-       TaskID));
-
-TUPLE(F2M_FRAMEWORK_MESSAGE,
-      (FrameworkID,
-       FrameworkMessage));
-
-TUPLE(F2F_TASK_RUNNING_STATUS,
-      ());
-
-TUPLE(M2F_REGISTER_REPLY,
-      (FrameworkID));
-
-TUPLE(M2F_SLOT_OFFER,
-      (OfferID,
-       std::vector<SlaveOffer>,
-       std::map<SlaveID, PID>));
-
-TUPLE(M2F_RESCIND_OFFER,
-      (OfferID));
-
-TUPLE(M2F_STATUS_UPDATE,
-      (TaskID,
-       TaskState,
-       std::string));
-
-TUPLE(M2F_LOST_SLAVE,
-      (SlaveID));
-
-TUPLE(M2F_FRAMEWORK_MESSAGE,
-      (FrameworkMessage));
-
-TUPLE(M2F_ERROR,
-      (int32_t /*code*/,
-       std::string /*msg*/));
-
-
-TUPLE(S2M_REGISTER_SLAVE,
-      (std::string /*name*/,
-       std::string /*publicDns*/,
-       Resources));
-
-TUPLE(S2M_REREGISTER_SLAVE,
-      (SlaveID,
-       std::string /*name*/,
-       std::string /*publicDns*/,
-       Resources,
-       std::vector<Task>));
-
-TUPLE(S2M_UNREGISTER_SLAVE,
-      (SlaveID));
-
-TUPLE(S2M_STATUS_UPDATE,
-      (SlaveID,
-       FrameworkID,
-       TaskID,
-       TaskState,
-       std::string));
-
-TUPLE(S2M_FRAMEWORK_MESSAGE,
-      (SlaveID,
-       FrameworkID,
-       FrameworkMessage));
-
-TUPLE(S2M_LOST_EXECUTOR,
-      (SlaveID,
-       FrameworkID,
-       int32_t /*exitStatus*/));
-
-TUPLE(SH2M_HEARTBEAT,
-      (SlaveID));
-    
-TUPLE(NEW_MASTER_DETECTED,
-      (std::string, /* master seq */
-       PID /* master PID */));
-
-TUPLE(NO_MASTER_DETECTED,
-      ());
-
-TUPLE(GOT_MASTER_ID,
-      (std::string /* id */));
-  
-TUPLE(M2S_REGISTER_REPLY,
-      (SlaveID,
-       double /*heartbeat interval*/));
-
-TUPLE(M2S_REREGISTER_REPLY,
-      (SlaveID,
-       double /*heartbeat interval*/));
-
-TUPLE(M2S_RUN_TASK,
-      (FrameworkID,
-       TaskID,
-       std::string /*frameworkName*/,
-       std::string /*user*/,
-       ExecutorInfo,
-       std::string /*taskName*/,
-       std::string /*taskArgs*/,
-       Params,
-       PID /*framework PID*/));
-
-TUPLE(M2S_KILL_TASK,
-      (FrameworkID,
-       TaskID));
-
-TUPLE(M2S_KILL_FRAMEWORK,
-      (FrameworkID));
-
-TUPLE(M2S_FRAMEWORK_MESSAGE,
-      (FrameworkID,
-       FrameworkMessage));
-
-TUPLE(M2S_UPDATE_FRAMEWORK_PID,
-      (FrameworkID,
-       PID));
-
-TUPLE(M2S_SHUTDOWN,
-      ());
-
-TUPLE(E2S_REGISTER_EXECUTOR,
-      (FrameworkID));
-
-TUPLE(E2S_STATUS_UPDATE,
-      (FrameworkID,
-       TaskID,
-       TaskState,
-       std::string));
-
-TUPLE(E2S_FRAMEWORK_MESSAGE,
-      (FrameworkID,
-       FrameworkMessage));
-
-TUPLE(S2E_REGISTER_REPLY,
-      (SlaveID,
-       std::string /*hostname*/,
-       std::string /*frameworkName*/,
-       std::string /*initArg*/));
-
-TUPLE(S2E_RUN_TASK,
-      (TaskID,
-       std::string /*name*/,
-       std::string /*arg*/,
-       Params));
-
-TUPLE(S2E_KILL_TASK,
-      (TaskID));
-
-TUPLE(S2E_FRAMEWORK_MESSAGE,
-      (FrameworkMessage));
-
-TUPLE(S2E_KILL_EXECUTOR,
-      ());
-
-#ifdef __sun__
-TUPLE(PD2S_REGISTER_PROJD,
-      (std::string /*project*/));
-
-TUPLE(PD2S_PROJECT_READY,
-      (std::string /*project*/));
-
-TUPLE(S2PD_UPDATE_RESOURCES,
-      (Resources));
-
-TUPLE(S2PD_KILL_ALL,
-      ());
-#endif /* __sun__ */
-
-TUPLE(M2M_GET_STATE,
-      ());
-
-TUPLE(M2M_GET_STATE_REPLY,
-      (master::state::MasterState *));
-
-TUPLE(M2M_TIMER_TICK,
-      ());
-
-TUPLE(M2M_FRAMEWORK_EXPIRED,
-      (FrameworkID));
-
-TUPLE(M2M_SHUTDOWN,
-      ());
-
-TUPLE(S2S_GET_STATE,
-      ());
-
-TUPLE(S2S_GET_STATE_REPLY,
-      (slave::state::SlaveState *));
-
-TUPLE(S2S_SHUTDOWN,
-      ());
-
-
-/* Serialization functions for sharing objects of local Mesos types. */
-
-void operator & (process::tuples::serializer&, const master::state::MasterState *);
-void operator & (process::tuples::deserializer&, master::state::MasterState *&);
-
-void operator & (process::tuples::serializer&, const slave::state::SlaveState *);
-void operator & (process::tuples::deserializer&, slave::state::SlaveState *&);
-
-
-/* Serialization functions for various Mesos data types. */
-
-void operator & (process::tuples::serializer&, const TaskState&);
-void operator & (process::tuples::deserializer&, TaskState&);
-
-void operator & (process::tuples::serializer&, const SlaveOffer&);
-void operator & (process::tuples::deserializer&, SlaveOffer&);
-
-void operator & (process::tuples::serializer&, const TaskDescription&);
-void operator & (process::tuples::deserializer&, TaskDescription&);
-
-void operator & (process::tuples::serializer&, const FrameworkMessage&);
-void operator & (process::tuples::deserializer&, FrameworkMessage&);
-
-void operator & (process::tuples::serializer&, const ExecutorInfo&);
-void operator & (process::tuples::deserializer&, ExecutorInfo&);
-
-void operator & (process::tuples::serializer&, const Params&);
-void operator & (process::tuples::deserializer&, Params&);
-
-void operator & (process::tuples::serializer&, const Resources&);
-void operator & (process::tuples::deserializer&, Resources&);
-
-void operator & (process::tuples::serializer&, const Task&);
-void operator & (process::tuples::deserializer&, Task&);
-
-
-/* Serialization functions for STL vectors. */
-
-template<typename T>
-void operator & (process::tuples::serializer& s, const std::vector<T>& v)
-{
-  int32_t size = (int32_t) v.size();
-  s & size;
-  for (size_t i = 0; i < size; i++) {
-    s & v[i];
-  }
-}
-
-
-template<typename T>
-void operator & (process::tuples::deserializer& d, std::vector<T>& v)
-{
-  int32_t size;
-  d & size;
-  v.resize(size);
-  for (size_t i = 0; i < size; i++) {
-    d & v[i];
-  }
-}
-
-
-/* Serialization functions for STL maps. */
-
-template<typename K, typename V>
-void operator & (process::tuples::serializer& s, const std::map<K, V>& m)
-{
-  int32_t size = (int32_t) m.size();
-  s & size;
-  foreachpair (const K& k, const V& v, m) {
-    s & k;
-    s & v;
-  }
-}
-
-
-template<typename K, typename V>
-void operator & (process::tuples::deserializer& d, std::map<K, V>& m)
-{
-  m.clear();
-  int32_t size;
-  d & size;
-  K k;
-  V v;
-  for (size_t i = 0; i < size; i++) {
-    d & k;
-    d & v;
-    m[k] = v;
-  }
-}
-
-
-}} /* namespace mesos { namespace internal { */
-
-
-#endif /* MESSAGES_HPP */
+#endif // __MESSAGES_HPP__

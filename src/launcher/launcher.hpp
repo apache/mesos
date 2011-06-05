@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <mesos.hpp>
+#include <mesos/mesos.hpp>
 
 #include "common/fatal.hpp"
 

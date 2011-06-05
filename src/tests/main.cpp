@@ -7,13 +7,13 @@
 
 #include <string>
 
-#include <process.hpp>
+#include <process/process.hpp>
 
-#include <common/fatal.hpp>
+#include "common/fatal.hpp"
 
-#include <configurator/configurator.hpp>
+#include "configurator/configurator.hpp"
 
-#include <tests/utils.hpp>
+#include "tests/utils.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::test;

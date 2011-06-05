@@ -3,13 +3,13 @@
 #include <string>
 #include <vector>
 
-#include <common/string_utils.hpp>
-
-using std::string;
-using std::vector;
+#include "common/string_utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
+
+using std::string;
+using std::vector;
 
 
 TEST(StringUtilsTest, SplitEmptyString)

@@ -9,17 +9,7 @@
 #include <stdio.h>
 #include <strings.h>
 
-#include <iostream>
-#include <list>
-#include <sstream>
-#include <set>
-#include <vector>
-
 #include <arpa/inet.h>
-
-#include <boost/lexical_cast.hpp>
-#include <boost/unordered_set.hpp>
-#include <boost/unordered_map.hpp>
 
 #include <glog/logging.h>
 
@@ -27,7 +17,17 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <process.hpp>
+#include <iostream>
+#include <list>
+#include <sstream>
+#include <set>
+#include <vector>
+
+#include <boost/lexical_cast.hpp>
+#include <boost/unordered_set.hpp>
+#include <boost/unordered_map.hpp>
+
+#include <process/process.hpp>
 
 #include "isolation_module.hpp"
 #include "state.hpp"
