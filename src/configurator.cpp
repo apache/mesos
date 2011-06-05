@@ -236,7 +236,7 @@ string Configurator::getUsage() const
 
   // construct string for the first column and get size of column
   foreachpair (const string& key, const Option& opt, options) {
-    string val = "--" + key;
+    string val = "  --" + key;
     if (!opt.validator->isBool())
       val += "=VAL";
 
