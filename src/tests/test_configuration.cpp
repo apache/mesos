@@ -31,7 +31,7 @@ TEST(ConfigurationTest, Environment)
 
 TEST(ConfigurationTest, CommandLine)
 {
-  const int ARGC = 6;
+  const int ARGC = 9;
   char* argv[ARGC];
   argv[0] = (char*) "./filename";
   argv[1] = (char*) "--test1=text1";
@@ -39,6 +39,9 @@ TEST(ConfigurationTest, CommandLine)
   argv[3] = (char*) "-test3";
   argv[4] = (char*) "text2";
   argv[5] = (char*) "-test4";
+  argv[6] = (char*) "-negative";
+  argv[7] = (char*) "-25";
+  argv[8] = (char*) "--cAsE=4";
 
   Configuration conf(ARGC, argv, false);
 
@@ -46,6 +49,8 @@ TEST(ConfigurationTest, CommandLine)
   EXPECT_EQ("1",     conf.getParams()["test2"]);
   EXPECT_EQ("text2", conf.getParams()["test3"]);
   EXPECT_EQ("1",     conf.getParams()["test4"]);
+  EXPECT_EQ("-25",   conf.getParams()["negative"]);
+  EXPECT_EQ("4",   conf.getParams()["case"]);
 }
 
 

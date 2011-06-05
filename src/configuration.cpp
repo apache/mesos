@@ -103,13 +103,14 @@ void Configuration::loadCommandLine(int argc,
     if (args[i].find("--", 0) == 0) {
       // handle --blah=25 and --blah
       size_t eq = args[i].find_first_of("=");
-      if (eq == string::npos) {        
+      if (eq == string::npos) { // handle no value case
         key = args[i].substr(2);
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = "1";
         set = true;
-      } else {
-        key = args[i].substr(2, eq-2);
+      } else { // handle value case
+        key = args[i].substr(2, eq-2); 
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = args[i].substr(eq+1);
         set = true;
       } 
