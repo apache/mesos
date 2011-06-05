@@ -18,8 +18,8 @@ public:
   Future(Promise<T>* promise);
   Future(const T& _t);
   Future(const Future<T>& that);
-  Future<T>& operator = (const Future<T>& that);
   virtual ~Future();
+  Future<T>& operator = (const Future<T>& that);
   bool ready() const;
   bool await(double secs = 0) const;
   T get() const;
@@ -84,6 +84,21 @@ Future<T>::Future(const Future<T>& that)
 
 
 template <typename T>
+Future<T>::~Future()
+{
+  assert(refs != NULL);
+  if (__sync_sub_and_fetch(refs, 1) == 0) {
+    delete refs;
+    assert(t != NULL);
+    if (*t != NULL)
+      delete *t;
+    assert(latch != NULL);
+    delete latch;
+  }
+}
+
+
+template <typename T>
 Future<T>& Future<T>::operator = (const Future<T>& that)
 {
   if (this != &that) {
@@ -104,21 +119,6 @@ Future<T>& Future<T>::operator = (const Future<T>& that)
     refs = that.refs;
     t = that.t;
     latch = that.latch;
-  }
-}
-
-
-template <typename T>
-Future<T>::~Future()
-{
-  assert(refs != NULL);
-  if (__sync_sub_and_fetch(refs, 1) == 0) {
-    delete refs;
-    assert(t != NULL);
-    if (*t != NULL)
-      delete *t;
-    assert(latch != NULL);
-    delete latch;
   }
 }
 
