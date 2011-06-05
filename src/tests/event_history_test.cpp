@@ -4,6 +4,8 @@
 
 #include "common/params.hpp"
 
+#include "config/config.hpp"
+
 #include "event_history/event_logger.hpp"
 
 #include "master/master.hpp"
@@ -38,7 +40,9 @@ TEST_WITH_WORKDIR(EventHistoryTest, EventLoggingTurnedOffWithLogDir)
   Params params;
   const char* logDir = "./";
   params.set<string>("log_dir", logDir);
+#ifdef WITH_INCLUDED_SQLITE
   params.set<bool>("event_history_sqlite", false);
+#endif /* ifdef WITH_INCLUDED_SQLITE */
   params.set<bool>("event_history_file", false);
   EventLogger evLogger(params);
   FrameworkID fid = "MasterID-FrameworkID";
@@ -49,8 +53,10 @@ TEST_WITH_WORKDIR(EventHistoryTest, EventLoggingTurnedOffWithLogDir)
   EXPECT_NE(0, stat((string(logDir) + "/event_history_log.txt").c_str(), &sb));
   EXPECT_FALSE(S_ISREG(sb.st_mode));
 
+#ifdef WITH_INCLUDED_SQLITE
   EXPECT_NE(0, stat((string(logDir) + "/event_history_db.sqlite3").c_str(), &sb));
   EXPECT_FALSE(S_ISREG(sb.st_mode));
+#endif /* ifdef WITH_INCLUDED_SQLITE */
 }
 
 
@@ -67,7 +73,9 @@ TEST_WITH_WORKDIR(EventHistoryTest, UsesLogDirLocation)
   Params params;
   const char* logDir = "./";
   params.set<string>("log_dir", "./");
+#ifdef WITH_INCLUDED_SQLITE
   params.set<bool>("event_history_sqlite", true);
+#endif /* ifdef WITH_INCLUDED_SQLITE */
   params.set<bool>("event_history_file", true);
   EventLogger evLogger(params);
   FrameworkID fid = "MasterID-FrameworkID";
@@ -78,8 +86,10 @@ TEST_WITH_WORKDIR(EventHistoryTest, UsesLogDirLocation)
   EXPECT_EQ(0, stat((string(logDir) + "/event_history_log.txt").c_str(), &sb));
   EXPECT_TRUE(S_ISREG(sb.st_mode));
 
+#ifdef WITH_INCLUDED_SQLITE
   EXPECT_EQ(0, stat((string(logDir) + "/event_history_db.sqlite3").c_str(), &sb));
   EXPECT_TRUE(S_ISREG(sb.st_mode));
+#endif /* ifdef WITH_INCLUDED_SQLITE */
 }
 
 
@@ -89,7 +99,9 @@ TEST_WITH_WORKDIR(EventHistoryTest, NoEventLoggingIfLogDirNotSet)
 
   Params params;
   EXPECT_FALSE(params.contains("log_dir"));
+#ifdef WITH_INCLUDED_SQLITE
   params.set<bool>("event_history_sqlite", true);
+#endif /* ifdef WITH_INCLUDED_SQLITE */
   params.set<bool>("event_history_file", true);
   EventLogger evLogger(params);
   FrameworkID fid = "MasterID-FrameworkID";
@@ -100,7 +112,9 @@ TEST_WITH_WORKDIR(EventHistoryTest, NoEventLoggingIfLogDirNotSet)
   EXPECT_NE(0, stat("logs/event_history_log.txt", &sb));
   EXPECT_FALSE(S_ISREG(sb.st_mode));
 
+#ifdef WITH_INCLUDED_SQLITE
   EXPECT_EQ(stat("logs/event_history_db.sqlite3", &sb), -1);
   EXPECT_FALSE(S_ISREG(sb.st_mode));
+#endif /* ifdef WITH_INCLUDED_SQLITE */
 }
 
