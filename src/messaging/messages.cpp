@@ -51,7 +51,6 @@ void operator & (serializer& s, const SlaveOffer& offer)
   s & offer.slaveId;
   s & offer.host;
   s & offer.params;
-  s & offer.slavePid;
 }
 
 
@@ -60,7 +59,6 @@ void operator & (deserializer& s, SlaveOffer& offer)
   s & offer.slaveId;
   s & offer.host;
   s & offer.params;
-  s & offer.slavePid;
 }
 
 

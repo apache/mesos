@@ -132,6 +132,16 @@ BASIC_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)  \
 
 ALL_OBJ = $(BASIC_OBJ) $(WEBUI_OBJ) $(SWIG_WEBUI_OBJ)
 
+MASTER_EXE_OBJ = $(MASTER_OBJ) $(MASTER_WEBUI_OBJ)	\
+                 $(MASTER_SWIG_WEBUI_OBJ) $(COMMON_OBJ)
+
+SLAVE_EXE_OBJ = $(SLAVE_OBJ) $(SLAVE_WEBUI_OBJ)	\
+                $(SLAVE_SWIG_WEBUI_OBJ) $(COMMON_OBJ)
+
+LAUNCHER_EXE_OBJ = launcher/launcher.o $(COMMON_OBJ)
+
+LOCAL_EXE_OBJ = local/local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
+
 MESOS_EXES = mesos-master mesos-slave mesos-local mesos-launcher mesos-getconf
 
 ifeq ($(OS_NAME),solaris)
@@ -232,23 +242,23 @@ endif
 
 $(MESOS_EXES): $(COMMON_OBJ)
 
-mesos-master: @srcdir@/master/main.cpp $(MASTER_OBJ) $(MASTER_WEBUI_OBJ) $(MASTER_SWIG_WEBUI_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(WEBUI_LDFLAGS) $(LIBS)
+mesos-master: @srcdir@/master/main.cpp $(MASTER_EXE_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(MASTER_EXE_OBJ) $(LDFLAGS) $(WEBUI_LDFLAGS) $(LIBS)
 
-mesos-slave: @srcdir@/slave/main.cpp $(SLAVE_OBJ) $(SLAVE_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(WEBUI_LDFLAGS) $(LIBS)
+mesos-slave: @srcdir@/slave/main.cpp $(SLAVE_EXE_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(SLAVE_EXE_OBJ) $(LDFLAGS) $(WEBUI_LDFLAGS) $(LIBS)
 
-mesos-launcher: @srcdir@/launcher/main.cpp launcher/launcher.o
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+mesos-launcher: @srcdir@/launcher/main.cpp $(LAUNCHER_EXE_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $< launcher/launcher.o $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
-mesos-projd: @srcdir@/slave/projd.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
-
-mesos-local: @srcdir@/local/main.cpp local/local.o $(MASTER_OBJ) $(SLAVE_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+mesos-local: @srcdir@/local/main.cpp $(LOCAL_EXE_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(LOCAL_EXE_OBJ) $(LDFLAGS) $(LIBS)
 
 mesos-getconf: @srcdir@/configurator/get_conf.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
+
+mesos-projd: @srcdir@/slave/projd.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $< $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
 java: $(MESOS_JAVA_LIB) swig/java/mesos.jar
 

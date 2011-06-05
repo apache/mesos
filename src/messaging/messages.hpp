@@ -245,7 +245,8 @@ TUPLE(M2F_REGISTER_REPLY,
 
 TUPLE(M2F_SLOT_OFFER,
       (OfferID,
-       std::vector<SlaveOffer>));
+       std::vector<SlaveOffer>,
+       std::map<SlaveID, PID>));
 
 TUPLE(M2F_RESCIND_OFFER,
       (OfferID));

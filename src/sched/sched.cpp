@@ -212,13 +212,13 @@ protected:
       case M2F_SLOT_OFFER: {
         OfferID oid;
         vector<SlaveOffer> offs;
-        tie(oid, offs) = unpack<M2F_SLOT_OFFER>(body());
+        map<SlaveID, PID> pids;
+        tie(oid, offs, pids) = unpack<M2F_SLOT_OFFER>(body());
         
-	// Save all the slave PIDs found in the offer so later we can
-	// send framework messages directly.
-        foreach(const SlaveOffer &offer, offs) {
-	  savedOffers[oid][offer.slaveId] = offer.slavePid;
-        }
+	// Save all the slave PIDs that are part of this ofer so later
+	// we can send framework messages directly.
+        foreachpair (const SlaveID &slaveId, const PID &pid, pids)
+	  savedOffers[oid][slaveId] = pid;
 
         invoke(bind(&Scheduler::resourceOffer, sched, driver, oid, ref(offs)));
         break;
@@ -253,7 +253,10 @@ protected:
       case F2F_FRAMEWORK_MESSAGE: {
         FrameworkMessage msg;
         tie(msg) = unpack<F2F_FRAMEWORK_MESSAGE>(body());
-        send(savedSlavePids[msg.slaveId], pack<M2S_FRAMEWORK_MESSAGE>(fid, msg));
+        if (savedSlavePids.count(msg.slaveId) > 0)
+          send(savedSlavePids[msg.slaveId], pack<M2S_FRAMEWORK_MESSAGE>(fid, msg));
+        else
+          send(master, pack<F2M_FRAMEWORK_MESSAGE>(fid, msg));
         break;
       }
 

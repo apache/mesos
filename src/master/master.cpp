@@ -430,6 +430,19 @@ void Master::operator () ()
       break;
     }
 
+    case F2M_FRAMEWORK_MESSAGE: {
+      FrameworkID fid;
+      FrameworkMessage message;
+      tie(fid, message) = unpack<F2M_FRAMEWORK_MESSAGE>(body());
+      Framework *framework = lookupFramework(fid);
+      if (framework != NULL) {
+        Slave *slave = lookupSlave(message.slaveId);
+        if (slave != NULL)
+          send(slave->pid, pack<M2S_FRAMEWORK_MESSAGE>(fid, message));
+      }
+      break;
+    }
+
     case S2M_REGISTER_SLAVE: {
       string slaveId = lexical_cast<string>(masterId) + "-"
         + lexical_cast<string>(nextSlaveId++);
@@ -575,7 +588,7 @@ void Master::operator () ()
       }
      break;
     }
-      
+
     case S2M_FRAMEWORK_MESSAGE: {
       SlaveID sid;
       FrameworkID fid;
@@ -742,14 +755,16 @@ OfferID Master::makeOffer(Framework *framework,
   }
   LOG(INFO) << "Sending " << offer << " to " << framework;
   vector<SlaveOffer> offers;
+  map<SlaveID, PID> pids;
   foreach (const SlaveResources& r, resources) {
     Params params;
     params.set("cpus", r.resources.cpus);
     params.set("mem", r.resources.mem);
-    SlaveOffer offer(r.slave->id, r.slave->hostname, params.getMap(), r.slave->pid);
+    SlaveOffer offer(r.slave->id, r.slave->hostname, params.getMap());
     offers.push_back(offer);
+    pids[r.slave->id, r.slave->pid];
   }
-  send(framework->pid, pack<M2F_SLOT_OFFER>(oid, offers));
+  send(framework->pid, pack<M2F_SLOT_OFFER>(oid, offers, pids));
   return oid;
 }
 

@@ -85,18 +85,18 @@ TESTS_OBJ = main.o test_master.o test_resources.o external_test.o	\
 	    test_configurator.o test_string_utils.o			\
 	    test_lxc_isolation.o
 
-EXTERNAL_SCRIPTS = LxcIsolation/HoldMoreMemThanRequested.sh	\
-                   LxcIsolation/ScaleUpAndDown.sh		\
-                   LxcIsolation/TwoSeparateTasks.sh		\
-                   LxcIsolation/run_scheduled_memhog_test.sh	\
-                   SampleFrameworks/CFramework.sh		\
-                   SampleFrameworks/CFrameworkCmdlineParsing.sh	\
-                   SampleFrameworks/CFrameworkInvalidCmdline.sh	\
-                   SampleFrameworks/CFrameworkInvalidEnv.sh	\
-                   SampleFrameworks/CppFramework.sh		\
-                   SampleFrameworks/JavaExceptionFramework.sh	\
-                   SampleFrameworks/JavaFramework.sh		\
-                   SampleFrameworks/PythonFramework.sh
+EXTERNAL_SCRIPTS = external/LxcIsolation/HoldMoreMemThanRequested.sh		\
+                   external/LxcIsolation/ScaleUpAndDown.sh			\
+                   external/LxcIsolation/TwoSeparateTasks.sh			\
+                   external/LxcIsolation/run_scheduled_memhog_test.sh		\
+                   external/SampleFrameworks/CFramework.sh			\
+                   external/SampleFrameworks/CFrameworkCmdlineParsing.sh	\
+                   external/SampleFrameworks/CFrameworkInvalidCmdline.sh	\
+                   external/SampleFrameworks/CFrameworkInvalidEnv.sh		\
+                   external/SampleFrameworks/CppFramework.sh			\
+                   external/SampleFrameworks/JavaExceptionFramework.sh		\
+                   external/SampleFrameworks/JavaFramework.sh			\
+                   external/SampleFrameworks/PythonFramework.sh
 
 # Create the external directories in case they aren't there.
 $(shell mkdir -p external/LxcIsolation)
@@ -111,8 +111,8 @@ default: all
 $(TESTS_OBJ): %.o: @srcdir@/%.cpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
-$(EXTERNAL_SCRIPTS): %: @srcdir@/external/%
-	cp @srcdir@/external/$@ external/$@
+$(EXTERNAL_SCRIPTS): %: @srcdir@/%
+	cp @srcdir@/$@ $@
 
 alltests: $(TESTS_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $(TESTS_OBJ) $(SCHED_LIB) $(EXEC_LIB) $(LDFLAGS) $(LIBS)
