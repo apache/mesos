@@ -40,7 +40,6 @@ void usage(const char* programName, const Configurator& configurator)
 int main(int argc, char **argv)
 {
   Configurator configurator;
-  Logging::registerOptions(&configurator);
   local::registerOptions(&configurator);
   configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
   configurator.addOption<string>("ip", "IP address to listen on");

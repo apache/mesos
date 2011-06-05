@@ -151,9 +151,6 @@ public:
   void frameworkExpired(const FrameworkID& frameworkId);
   void exited();
 
-  process::Promise<process::HttpResponse> vars(const process::HttpRequest& request);
-  process::Promise<process::HttpResponse> stats(const process::HttpRequest& request);
-
   Framework* lookupFramework(const FrameworkID& frameworkId);
   Slave* lookupSlave(const SlaveID& slaveId);
   SlotOffer* lookupSlotOffer(const OfferID& offerId);
@@ -214,6 +211,14 @@ protected:
   const Configuration& getConfiguration();
 
 private:
+  // TODO(benh): Better naming and name scope for these http handlers.
+  process::Promise<process::HttpResponse> http_info_json(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> http_frameworks_json(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> http_slaves_json(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> http_tasks_json(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> http_stats_json(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> http_vars(const process::HttpRequest& request);
+
   const Configuration conf;
 
   SlavesManager* slavesManager;

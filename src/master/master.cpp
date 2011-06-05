@@ -525,8 +525,12 @@ void Master::initialize()
   install(process::EXITED, &Master::exited);
 
   // Install HTTP request handlers.
-  Process<Master>::install("vars", &Master::vars);
-  Process<Master>::install("stats", &Master::stats);
+  Process<Master>::install("info.json", &Master::http_info_json);
+  Process<Master>::install("frameworks.json", &Master::http_frameworks_json);
+  Process<Master>::install("slaves.json", &Master::http_slaves_json);
+  Process<Master>::install("tasks.json", &Master::http_tasks_json);
+  Process<Master>::install("stats.json", &Master::http_stats_json);
+  Process<Master>::install("vars", &Master::http_vars);
 }
 
 
@@ -1202,34 +1206,146 @@ void Master::exited()
 }
 
 
-Promise<HttpResponse> Master::vars(const HttpRequest& request)
+Promise<HttpResponse> Master::http_info_json(const HttpRequest& request)
 {
-  LOG(INFO) << "Request for 'vars'";
+  LOG(INFO) << "HTTP request for '/master/info.json'";
 
   ostringstream out;
 
   out <<
-    "build_date " << build::DATE << "\n" <<
-    "build_user " << build::USER << "\n" <<
-    "build_flags " << build::FLAGS << "\n" <<
-    "frameworks_count " << frameworks.size() << "\n";
-
-  // Also add the configuration values.
-  foreachpair (const string& key, const string& value, conf.getMap()) {
-    out << key << " " << value << "\n";
-  }
+    "{" <<
+    "\"built_date\":\"" << build::DATE << "\"," <<
+    "\"build_user\":\"" << build::USER << "\"," <<
+    "\"pid\":\"" << self() << "\"" <<
+    "}";
 
   HttpOKResponse response;
-  response.headers["Content-Type"] = "text/plain";
+  response.headers["Content-Type"] = "text/x-json;charset=UTF-8";
   response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
   response.body = out.str().data();
   return response;
 }
 
 
-Promise<HttpResponse> Master::stats(const HttpRequest& request)
+Promise<HttpResponse> Master::http_frameworks_json(const HttpRequest& request)
 {
-  LOG(INFO) << "Request for 'stats'";
+  LOG(INFO) << "HTTP request for '/master/frameworks.json'";
+
+  ostringstream out;
+
+  out << "[";
+
+  foreachpair (_, Framework* framework, frameworks) {
+    out <<
+      "{" <<
+      "\"id\":\"" << framework->frameworkId << "\"," <<
+      "\"name\":\"" << framework->info.name() << "\"," <<
+      "\"user\":\"" << framework->info.user() << "\""
+      "},";
+  }
+
+  // Backup the put pointer to overwrite the last comma (hack).
+  if (frameworks.size() > 0) {
+    long pos = out.tellp();
+    out.seekp(pos - 1);
+  }
+
+  out << "]";
+
+  HttpOKResponse response;
+  response.headers["Content-Type"] = "text/x-json;charset=UTF-8";
+  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
+  response.body = out.str().data();
+  return response;
+}
+
+
+Promise<HttpResponse> Master::http_slaves_json(const HttpRequest& request)
+{
+  LOG(INFO) << "HTTP request for '/master/slaves.json'";
+
+  ostringstream out;
+
+  out << "[";
+
+  foreachpair (_, Slave* slave, slaves) {
+    // TODO(benh): Send all of the resources (as JSON).
+    Resources resources(slave->info.resources());
+    Resource::Scalar cpus = resources.getScalar("cpus", Resource::Scalar());
+    Resource::Scalar mem = resources.getScalar("mem", Resource::Scalar());
+    out <<
+      "{" <<
+      "\"id\":\"" << slave->slaveId << "\"," <<
+      "\"hostname\":\"" << slave->info.hostname() << "\"," <<
+      "\"cpus\":" << cpus.value() << "," <<
+      "\"mem\":" << mem.value() <<
+      "},";
+  }
+
+  // Backup the put pointer to overwrite the last comma (hack).
+  if (slaves.size() > 0) {
+    long pos = out.tellp();
+    out.seekp(pos - 1);
+  }
+
+  out << "]";
+
+  HttpOKResponse response;
+  response.headers["Content-Type"] = "text/x-json;charset=UTF-8";
+  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
+  response.body = out.str().data();
+  return response;
+}
+
+
+Promise<HttpResponse> Master::http_tasks_json(const HttpRequest& request)
+{
+  LOG(INFO) << "HTTP request for '/master/tasks.json'";
+
+  ostringstream out;
+
+  out << "[";
+
+  foreachpair (_, Framework* framework, frameworks) {
+    foreachpair (_, Task* task, framework->tasks) {
+      // TODO(benh): Send all of the resources (as JSON).
+      Resources resources(task->resources());
+      Resource::Scalar cpus = resources.getScalar("cpus", Resource::Scalar());
+      Resource::Scalar mem = resources.getScalar("mem", Resource::Scalar());
+      const string& state =
+        TaskState_descriptor()->FindValueByNumber(task->state())->name();
+      out <<
+        "{" <<
+        "\"task_id\":\"" << task->task_id() << "\"," <<
+        "\"framework_id\":\"" << task->framework_id() << "\"," <<
+        "\"slave_id\":\"" << task->slave_id() << "\"," <<
+        "\"name\":\"" << task->name() << "\"," <<
+        "\"state\":\"" << state << "\"," <<
+        "\"cpus\":" << cpus.value() << "," <<
+        "\"mem\":" << mem.value() <<
+        "},";
+    }
+  }
+
+  // Backup the put pointer to overwrite the last comma (hack).
+  if (frameworks.size() > 0) {
+    long pos = out.tellp();
+    out.seekp(pos - 1);
+  }
+
+  out << "]";
+
+  HttpOKResponse response;
+  response.headers["Content-Type"] = "text/x-json;charset=UTF-8";
+  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
+  response.body = out.str().data();
+  return response;
+}
+
+
+Promise<HttpResponse> Master::http_stats_json(const HttpRequest& request)
+{
+  LOG(INFO) << "Http request for '/master/stats.json'";
 
   ostringstream out;
 
@@ -1252,6 +1368,31 @@ Promise<HttpResponse> Master::stats(const HttpRequest& request)
 
   HttpOKResponse response;
   response.headers["Content-Type"] = "text/x-json;charset=UTF-8";
+  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
+  response.body = out.str().data();
+  return response;
+}
+
+
+Promise<HttpResponse> Master::http_vars(const HttpRequest& request)
+{
+  LOG(INFO) << "HTTP request for '/master/vars'";
+
+  ostringstream out;
+
+  out <<
+    "build_date " << build::DATE << "\n" <<
+    "build_user " << build::USER << "\n" <<
+    "build_flags " << build::FLAGS << "\n" <<
+    "frameworks_count " << frameworks.size() << "\n";
+
+  // Also add the configuration values.
+  foreachpair (const string& key, const string& value, conf.getMap()) {
+    out << key << " " << value << "\n";
+  }
+
+  HttpOKResponse response;
+  response.headers["Content-Type"] = "text/plain";
   response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
   response.body = out.str().data();
   return response;
