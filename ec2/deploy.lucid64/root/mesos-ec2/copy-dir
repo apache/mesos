@@ -10,7 +10,6 @@ DIR=`echo "$DIR"|sed 's@/$@@'`
 DEST=`dirname "$DIR"`
 
 SLAVES=/root/mesos-ec2/slaves
-MASTER=/root/mesos-ec2/master
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
