@@ -7,7 +7,7 @@ class MyExecutor(nexus.Executor):
   def __init__(self):
     nexus.Executor.__init__(self)
 
-  def startTask(self, driver, task):
+  def launchTask(self, driver, task):
     print "Running task %d" % task.taskId
     time.sleep(1)
     print "Sending the update..."
