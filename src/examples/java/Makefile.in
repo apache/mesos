@@ -1,0 +1,44 @@
+# Makefile.
+
+SHELL = '/bin/sh'
+
+BINDIR = @top_builddir@/bin
+LIBDIR = @top_builddir@/lib
+
+OUTDIR = $(BINDIR)/examples/java
+
+JAVA_HOME = @JAVA_HOME@
+
+JAVA_CLASSES = $(OUTDIR)/TestFramework.class          \
+               $(OUTDIR)/TestExecutor.class           \
+               $(OUTDIR)/TestExceptionFramework.class
+
+JAVA_SCRIPTS = $(OUTDIR)/test_framework               \
+	       $(OUTDIR)/test_executor                \
+	       $(OUTDIR)/test_exception_framework
+
+JAVA = $(JAVA_CLASSES) $(JAVA_SCRIPTS)
+
+MESOS_JAVA_JAR = $(LIBDIR)/java/mesos.jar
+
+default: all
+
+$(OUTDIR):
+	mkdir -p $@
+
+$(JAVA): | $(OUTDIR)
+
+$(JAVA_CLASSES): $(MESOS_JAVA_JAR)
+
+$(JAVA_CLASSES): $(OUTDIR)/%.class: @srcdir@/%.java
+	$(JAVA_HOME)/bin/javac -cp $(MESOS_JAVA_JAR):@srcdir@ -sourcepath @srcdir@ -d $(OUTDIR) $<
+
+$(JAVA_SCRIPTS): $(OUTDIR)/%: @srcdir@/%
+	cp -r $< $@
+
+all: $(JAVA)
+
+clean:
+	rm -f $(JAVA)
+
+.phony: default all clean

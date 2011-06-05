@@ -102,33 +102,9 @@ EXAMPLES_EXES = $(SCHED_EXES) $(EXEC_EXES)
 MESOS_SCHED_LIB = $(LIBDIR)/libmesos_sched.a
 MESOS_EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
-JAVA_CLASSES = $(BINDIR)/examples/java/TestFramework.class          \
-               $(BINDIR)/examples/java/TestExecutor.class           \
-               $(BINDIR)/examples/java/TestExceptionFramework.class
-
-JAVA_SCRIPTS = $(BINDIR)/examples/java/test_framework               \
-	       $(BINDIR)/examples/java/test_executor                \
-	       $(BINDIR)/examples/java/test_exception_framework
-
-JAVA = $(JAVA_CLASSES) $(JAVA_SCRIPTS)
-
-MESOS_JAVA_JAR = $(LIBDIR)/java/mesos.jar
-
-PYTHON_SCRIPTS = $(BINDIR)/examples/python/test_framework.py        \
-                 $(BINDIR)/examples/python/test_framework           \
-                 $(BINDIR)/examples/python/test_executor.py         \
-                 $(BINDIR)/examples/python/test_executor            \
-
-PYTHON = $(PYTHON_SCRIPTS)
-
-MESOS_PYTHON_LIB = $(LIBDIR)/python/_mesos.so
-
 # Create rules for building the directories that aren't created
 # automagically by configure.
-DIRECTORIES = $(BINDIR)/examples                \
-	      $(BINDIR)/examples/java           \
-	      $(BINDIR)/examples/python
-
+DIRECTORIES = $(BINDIR)/examples
 
 default: all
 
@@ -160,36 +136,28 @@ $(BINDIR)/examples/memhog-executor: @srcdir@/memhog_executor.cpp $(MESOS_EXEC_LI
 $(BINDIR)/examples/scheduled-memhog: @srcdir@/scheduled_memhog.cpp $(MESOS_SCHED_LIB)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
 
-$(JAVA): | $(BINDIR)/examples/java
-
-$(JAVA_CLASSES): $(MESOS_JAVA_JAR)
-
-$(JAVA_CLASSES): $(BINDIR)/examples/java/%.class: @srcdir@/java/%.java
+java:
 ifdef JAVA_HOME
-	$(JAVA_HOME)/bin/javac -cp $(MESOS_JAVA_JAR):@srcdir@/java -sourcepath @srcdir@/java -d $(BINDIR)/examples/java $<
+	$(MAKE) -C java
 endif
 
-$(JAVA_SCRIPTS): $(BINDIR)/examples/java/%: @srcdir@/java/%
-ifdef JAVA_HOME
-	cp -r $< $@
-endif
-
-$(PYTHON): | $(BINDIR)/examples/python
-
-$(PYTHON_SCRIPTS): $(MESOS_PYTHON_LIB)
-
-$(PYTHON_SCRIPTS): $(BINDIR)/examples/python/%: @srcdir@/python/%
+python:
 ifdef PYTHON_HEADERS
-	cp -r $< $@
+	$(MAKE) -C python
 endif
 
-all: $(EXAMPLES_EXES) $(JAVA) $(PYTHON)
+all: $(EXAMPLES_EXES) java python
 
 clean:
 	rm -f $(patsubst %, %.d, $(EXAMPLES_EXES))
 	rm -rf $(patsubst %, %.dSYM, $(EXAMPLES_EXES))
 	rm -f $(EXAMPLES_EXES)
-	rm -f $(JAVA) $(PYTHON)
 	rm -f TAGS
+ifdef JAVA_HOME
+	$(MAKE) -C java clean
+endif
+ifdef PYTHON_HEADERS
+	$(MAKE) -C python clean
+endif
 
-.PHONY: default all clean
+.PHONY: default all clean java python

@@ -1,0 +1,36 @@
+# Makefile.
+
+SHELL = '/bin/sh'
+
+BINDIR = @top_builddir@/bin
+LIBDIR = @top_builddir@/lib
+
+OUTDIR = $(BINDIR)/examples/python
+
+PYTHON_SCRIPTS = $(OUTDIR)/test_framework.py        \
+                 $(OUTDIR)/test_framework           \
+                 $(OUTDIR)/test_executor.py         \
+                 $(OUTDIR)/test_executor            \
+
+PYTHON = $(PYTHON_SCRIPTS)
+
+MESOS_PYTHON_LIB = $(LIBDIR)/python/_mesos.so
+
+default: all
+
+$(OUTDIR):
+	mkdir -p $@
+
+$(PYTHON): | $(OUTDIR)
+
+$(PYTHON_SCRIPTS): $(MESOS_PYTHON_LIB)
+
+$(PYTHON_SCRIPTS): $(OUTDIR)/%: @srcdir@/%
+	cp -r $< $@
+
+all: $(PYTHON)
+
+clean:
+	rm -f $(PYTHON)
+
+.phony: default all clean
