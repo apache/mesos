@@ -15,7 +15,7 @@ using namespace nexus::internal::master;
 
 void usage(const char* progName, const Configuration& conf)
 {
-  cerr << "Usage: " << progName << " [--port PORT] [--url URL] [...]" << endl
+  cerr << "Usage: " << progName << " [--port=PORT] [--url=URL] [...]" << endl
        << endl
        << "URL (used for leader election with ZooKeeper) may be one of:" << endl
        << "  zoo://host1:port1,host2:port2,..." << endl
