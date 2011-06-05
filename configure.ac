@@ -6,17 +6,23 @@ AC_INIT
 
 CFLAGS="${CFLAGS} -O2 -fno-strict-aliasing -fPIC"
 CXXFLAGS="${CXXFLAGS} -O2 -fno-strict-aliasing -fPIC"
+
+# Replace (remove and then add) CFLAGS and CXXFLAGS from configure args. 
+ac_configure_args=`echo $ac_configure_args | sed -e "s/'CFLAGS=.*'//"`
+ac_configure_args=`echo $ac_configure_args | sed -e "s/'CXXFLAGS=.*'//"`
+ac_configure_args="$ac_configure_args 'CFLAGS=$CFLAGS' 'CXXFLAGS=$CXXFLAGS'"
+
+ac_configure_args="$ac_configure_args --enable-shared=no"
+
 export CFLAGS
 export CXXFLAGS
-PYTHON=python
 
-ac_configure_args="--enable-shared=no --with-pic"
+PYTHON=python2.6
 
 AC_CONFIG_FILES([Makefile src/Makefile src/config.hpp])
 AC_CONFIG_SUBDIRS([src/third_party/libprocess])
 AC_CONFIG_SUBDIRS([src/third_party/gtest-1.4.0-patched])
 AC_CONFIG_SUBDIRS([src/third_party/glog-0.3.0])
-AC_CONFIG_SUBDIRS([src/third_party/zookeeper-3.3.0/src/c])
 
 AC_CANONICAL_SYSTEM
 
@@ -116,6 +122,20 @@ AC_ARG_WITH([webui],
 	         [])
 AC_SUBST(WITH_WEBUI)
 AC_SUBST(WEBUI_FLAGS)
+
+WITH_ZOOKEEPER="0"
+AC_ARG_WITH([zookeeper],
+  AC_HELP_STRING([--with-zookeeper],
+                 [enable ZooKeeper support]),
+	         [case "$with_zookeeper" in
+		    yes) WITH_ZOOKEEPER="1" ;;
+                    no) WITH_ZOOKEEPER="0" ;;
+		    *) AC_MSG_ERROR([
+*** --with-zookeeper does not take arguments]) ;;
+	          esac],
+	         [])
+AC_SUBST(WITH_ZOOKEEPER)
+
 
 # Checks for programs.
 AC_PROG_CXX([g++])
