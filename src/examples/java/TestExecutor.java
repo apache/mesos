@@ -36,7 +36,7 @@ public class TestExecutor implements Executor {
   public void killTask(ExecutorDriver driver, TaskID taskId) {}
 
   @Override
-  public void frameworkMessage(ExecutorDriver driver, FrameworkMessage message) {}
+  public void frameworkMessage(ExecutorDriver driver, byte[] data) {}
 
   @Override
   public void shutdown(ExecutorDriver driver) {}

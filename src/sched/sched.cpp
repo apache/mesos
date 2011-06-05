@@ -97,7 +97,10 @@ public:
             &LostSlaveMessage::slave_id);
 
     install(M2F_FRAMEWORK_MESSAGE, &SchedulerProcess::frameworkMessage,
-            &FrameworkMessageMessage::message);
+	    &FrameworkMessageMessage::slave_id,
+	    &FrameworkMessageMessage::framework_id,
+	    &FrameworkMessageMessage::executor_id,
+	    &FrameworkMessageMessage::data);
 
     install(M2F_ERROR, &SchedulerProcess::error,
             &FrameworkErrorMessage::code,
@@ -242,11 +245,14 @@ protected:
     process::invoke(bind(&Scheduler::slaveLost, sched, driver, cref(slaveId)));
   }
 
-  void frameworkMessage(const FrameworkMessage& message)
+  void frameworkMessage(const SlaveID& slaveId,
+			const FrameworkID& frameworkId,
+			const ExecutorID& executorId,
+			const string& data)
   {
-    VLOG(1) << "Received message";
+    VLOG(1) << "Received framework message";
     process::invoke(bind(&Scheduler::frameworkMessage, sched, driver,
-                         cref(message)));
+                         cref(slaveId), cref(executorId), cref(data)));
   }
 
   void error(int32_t code, const string& message)
@@ -326,13 +332,15 @@ protected:
     send(master, out);
   }
 
-  void sendFrameworkMessage(const FrameworkMessage& message)
+  void sendFrameworkMessage(const SlaveID& slaveId,
+			    const ExecutorID& executorId,
+			    const string& data)
   {
     if (!active)
       return;
 
     VLOG(1) << "Asked to send framework message to slave "
-	    << message.slave_id();
+	    << slaveId;
 
     // TODO(benh): After a scheduler has re-registered it won't have
     // any saved slave PIDs, maybe it makes sense to try and save each
@@ -340,22 +348,26 @@ protected:
     // just wait for them to recollect as new offers come in and get
     // accepted.
 
-    if (savedSlavePids.count(message.slave_id()) > 0) {
-      UPID slave = savedSlavePids[message.slave_id()];
+    if (savedSlavePids.count(slaveId) > 0) {
+      UPID slave = savedSlavePids[slaveId];
       CHECK(slave != UPID());
 
       // TODO(benh): This is kind of wierd, M2S?
       MSG<M2S_FRAMEWORK_MESSAGE> out;
+      out.mutable_slave_id()->MergeFrom(slaveId);
       out.mutable_framework_id()->MergeFrom(frameworkId);
-      out.mutable_message()->MergeFrom(message);
+      out.mutable_executor_id()->MergeFrom(executorId);
+      out.set_data(data);
       send(slave, out);
     } else {
-      VLOG(1) << "Cannot send directly to slave " << message.slave_id()
+      VLOG(1) << "Cannot send directly to slave " << slaveId
 	      << "; sending through master";
 
       MSG<F2M_FRAMEWORK_MESSAGE> out;
+      out.mutable_slave_id()->MergeFrom(slaveId);
       out.mutable_framework_id()->MergeFrom(frameworkId);
-      out.mutable_message()->MergeFrom(message);
+      out.mutable_executor_id()->MergeFrom(executorId);
+      out.set_data(data);
       send(master, out);
     }
   }
@@ -682,7 +694,9 @@ int MesosSchedulerDriver::reviveOffers()
 }
 
 
-int MesosSchedulerDriver::sendFrameworkMessage(const FrameworkMessage& message)
+int MesosSchedulerDriver::sendFrameworkMessage(const SlaveID& slaveId,
+					       const ExecutorID& executorId,
+					       const string& data)
 {
   Lock lock(&mutex);
 
@@ -690,19 +704,8 @@ int MesosSchedulerDriver::sendFrameworkMessage(const FrameworkMessage& message)
     return -1;
   }
 
-  // Make sure necessary fields have been completed.
-  if (!message.has_slave_id()) {
-    VLOG(1) << "Missing SlaveID (slave_id), cannot send message";
-    return -1;
-  }
-
-  if (!message.has_executor_id()) {
-    VLOG(1) << "Missing ExecutorID (executor_id), cannot send message";
-    return -1;
-  }
-
   process::dispatch(process->self(), &SchedulerProcess::sendFrameworkMessage,
-                    message);
+                    slaveId, executorId, data);
 
   return 0;
 }

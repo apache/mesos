@@ -185,7 +185,9 @@ public:
   }
 
   virtual void frameworkMessage(SchedulerDriver* driver,
-                                const FrameworkMessage& message) {}
+				const SlaveID& slaveId,
+				const ExecutorID& executorId,
+                                const string& data) {}
 
   virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid) {}
 

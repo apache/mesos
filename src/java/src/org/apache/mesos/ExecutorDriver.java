@@ -20,5 +20,5 @@ public interface ExecutorDriver {
 
   // Communication methods.
   public int sendStatusUpdate(TaskStatus status);
-  public int sendFrameworkMessage(FrameworkMessage message);
+  public int sendFrameworkMessage(byte[] data);
 }

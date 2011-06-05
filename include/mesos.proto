@@ -84,7 +84,7 @@ message Resource {
 
 message ExecutorArgs {
   required FrameworkID framework_id = 1;
-  required string name = 2;
+  required ExecutorID executor_id = 2;
   required SlaveID slave_id = 3;
   required string hostname = 4;
   optional bytes data = 5;
@@ -147,13 +147,6 @@ message SlaveInfo {
   required string public_hostname = 2;
   repeated Resource resources = 3;
 //   repeated Attribute attribute = ;
-}
-
-
-message FrameworkMessage {
-  required SlaveID slave_id = 1;
-  required ExecutorID executor_id = 2;
-  optional bytes data = 3;
 }
 
 

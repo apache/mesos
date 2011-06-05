@@ -27,8 +27,10 @@ message ResourceOffer {
 
 
 message FrameworkMessageMessage { // :(
-  required FrameworkID framework_id = 1;
-  required FrameworkMessage message = 2;
+  required SlaveID slave_id = 1;
+  required FrameworkID framework_id = 2;
+  required ExecutorID executor_id = 3;
+  required bytes data = 4;
 }
 
 

@@ -388,7 +388,8 @@ $(CONFDIR)/deploy-env.sh: | $(SRCDIR)/conf/deploy-env.sh.template $(CONFDIR)
 test: all
 	$(MAKE) -C tests test
 
-all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
+#all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
+all: $(MESOS_LIBS) $(MESOS_EXES) java $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
 	$(MAKE) -C examples
 	$(MAKE) -C tests
 

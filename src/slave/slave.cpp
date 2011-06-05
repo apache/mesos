@@ -220,8 +220,10 @@ void Slave::initialize()
           &KillFrameworkMessage::framework_id);
 
   install(M2S_FRAMEWORK_MESSAGE, &Slave::schedulerMessage,
+          &FrameworkMessageMessage::slave_id,
           &FrameworkMessageMessage::framework_id,
-          &FrameworkMessageMessage::message);
+          &FrameworkMessageMessage::executor_id,
+          &FrameworkMessageMessage::data);
 
   install(M2S_UPDATE_FRAMEWORK, &Slave::updateFramework,
           &UpdateFrameworkMessage::framework_id,
@@ -241,8 +243,10 @@ void Slave::initialize()
           &StatusUpdateMessage::status);
 
   install(E2S_FRAMEWORK_MESSAGE, &Slave::executorMessage,
+          &FrameworkMessageMessage::slave_id,
           &FrameworkMessageMessage::framework_id,
-          &FrameworkMessageMessage::message);
+          &FrameworkMessageMessage::executor_id,
+          &FrameworkMessageMessage::data);
 
   install(PING, &Slave::ping);
 
@@ -424,27 +428,31 @@ void Slave::killFramework(const FrameworkID& frameworkId)
 }
 
 
-void Slave::schedulerMessage(const FrameworkID& frameworkId,
-                             const FrameworkMessage& message)
+void Slave::schedulerMessage(const SlaveID& slaveId,
+			     const FrameworkID& frameworkId,
+			     const ExecutorID& executorId,
+                             const string& data)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
-    Executor* executor = framework->getExecutor(message.executor_id());
+    Executor* executor = framework->getExecutor(executorId);
     if (executor == NULL) {
       LOG(WARNING) << "Dropping message for executor '"
-                   << message.executor_id() << "' of framework " << frameworkId
+                   << executorId << "' of framework " << frameworkId
                    << " because executor does not exist";
     } else if (!executor->pid) {
       // TODO(*): If executor is not started, queue framework message?
       // (It's probably okay to just drop it since frameworks can have
       // the executor send a message to the master to say when it's ready.)
       LOG(WARNING) << "Dropping message for executor '"
-                   << message.executor_id() << "' of framework " << frameworkId
+                   << executorId << "' of framework " << frameworkId
                    << " because executor is not running";
     } else {
       MSG<S2E_FRAMEWORK_MESSAGE> out;
+      out.mutable_slave_id()->MergeFrom(slaveId);
       out.mutable_framework_id()->MergeFrom(frameworkId);
-      out.mutable_message()->MergeFrom(message);
+      out.mutable_executor_id()->MergeFrom(executorId);
+      out.set_data(data);
       send(executor->pid, out);
     }
   } else {
@@ -516,7 +524,7 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
       MSG<S2E_REGISTER_REPLY> out;
       ExecutorArgs* args = out.mutable_args();
       args->mutable_framework_id()->MergeFrom(framework->frameworkId);
-      args->set_name(framework->info.name());
+      args->mutable_executor_id()->MergeFrom(executor->info.executor_id());
       args->mutable_slave_id()->MergeFrom(slaveId);
       args->set_hostname(slave.hostname());
       args->set_data(framework->info.executor().data());
@@ -575,20 +583,22 @@ void Slave::statusUpdate(const FrameworkID& frameworkId,
 }
 
 
-void Slave::executorMessage(const FrameworkID& frameworkId,
-                            const FrameworkMessage& message)
+void Slave::executorMessage(const SlaveID& slaveId,
+			    const FrameworkID& frameworkId,
+			    const ExecutorID& executorId,
+                            const string& data)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
-    LOG(INFO) << "Sending message for framework "
-              << framework->frameworkId
+    LOG(INFO) << "Sending message for framework " << frameworkId
               << " to " << framework->pid;
 
     // TODO(benh): This is weird, sending an M2F message.
     MSG<M2F_FRAMEWORK_MESSAGE> out;
+    out.mutable_slave_id()->MergeFrom(slaveId);
     out.mutable_framework_id()->MergeFrom(frameworkId);
-    out.mutable_message()->MergeFrom(message);
-    out.mutable_message()->mutable_slave_id()->MergeFrom(slaveId);
+    out.mutable_executor_id()->MergeFrom(executorId);
+    out.set_data(data);
     send(framework->pid, out);
   }
 }

@@ -53,7 +53,10 @@ public:
             &KillTaskMessage::task_id);
 
     install(S2E_FRAMEWORK_MESSAGE, &ExecutorProcess::frameworkMessage,
-            &FrameworkMessageMessage::message);
+	    &FrameworkMessageMessage::slave_id,
+	    &FrameworkMessageMessage::framework_id,
+	    &FrameworkMessageMessage::executor_id,
+	    &FrameworkMessageMessage::data);
 
     install(S2E_KILL_EXECUTOR, &ExecutorProcess::killExecutor);
 
@@ -112,11 +115,14 @@ protected:
     process::invoke(bind(&Executor::killTask, executor, driver, cref(taskId)));
   }
 
-  void frameworkMessage(const FrameworkMessage& message)
+  void frameworkMessage(const SlaveID& slaveId,
+			const FrameworkID& frameworkId,
+			const ExecutorID& executorId,
+			const string& data)
   {
-    VLOG(1) << "Executor received message";
+    VLOG(1) << "Executor received framework message";
     process::invoke(bind(&Executor::frameworkMessage, executor, driver,
-                         cref(message)));
+                         cref(data)));
   }
 
   void killExecutor()
@@ -340,7 +346,7 @@ int MesosExecutorDriver::sendStatusUpdate(const TaskStatus& status)
 }
 
 
-int MesosExecutorDriver::sendFrameworkMessage(const FrameworkMessage& message)
+int MesosExecutorDriver::sendFrameworkMessage(const string& data)
 {
   Lock lock(&mutex);
 
@@ -351,19 +357,12 @@ int MesosExecutorDriver::sendFrameworkMessage(const FrameworkMessage& message)
 
   CHECK(process != NULL);
 
-  // Validate that they set the correct slave ID and executor ID.
-  if (!(process->slaveId == message.slave_id())) {
-    return -1;
-  }
-
-  if (!(process->executorId == message.executor_id())) {
-    return -1;
-  }
-
   // TODO(benh): Do a dispatch to Executor first?
   MSG<E2S_FRAMEWORK_MESSAGE> out;
+  out.mutable_slave_id()->MergeFrom(process->slaveId);
   out.mutable_framework_id()->MergeFrom(process->frameworkId);
-  out.mutable_message()->MergeFrom(message);
+  out.mutable_executor_id()->MergeFrom(process->executorId);
+  out.set_data(data);
   process->send(process->slave, out);
 
   return 0;

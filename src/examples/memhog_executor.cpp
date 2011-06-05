@@ -61,7 +61,7 @@ public:
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId) {}
 
   virtual void frameworkMessage(ExecutorDriver* driver,
-                                const FrameworkMessage& message) {}
+                                const string& data) {}
 
   virtual void shutdown(ExecutorDriver* driver) {}
 

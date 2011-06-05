@@ -104,7 +104,7 @@ public class TestFramework {
     }
 
     @Override
-    public void frameworkMessage(SchedulerDriver driver, FrameworkMessage message) {}
+    public void frameworkMessage(SchedulerDriver driver, SlaveID slaveId, ExecutorID executorId, byte[] data) {}
 
     @Override
     public void slaveLost(SchedulerDriver driver, SlaveID slaveId) {}

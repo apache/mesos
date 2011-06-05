@@ -42,6 +42,29 @@ jobject convert(JNIEnv* env, const FrameworkID& frameworkId)
 
 
 template <>
+jobject convert(JNIEnv* env, const ExecutorID& executorId)
+{
+  string data;
+  executorId.SerializeToString(&data);
+
+  // byte[] data = ..;
+  jbyteArray jdata = env->NewByteArray(data.size());
+  env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
+
+  // ExecutorID executorId = ExecutorID.parseFrom(data);
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$ExecutorID");
+
+  jmethodID parseFrom =
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$ExecutorID;");
+
+  jobject jexecutorId = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
+
+  return jexecutorId;
+}
+
+
+template <>
 jobject convert(JNIEnv* env, const TaskID& taskId)
 {
   string data;
@@ -194,29 +217,6 @@ jobject convert(JNIEnv* env, const SlaveOffer& offer)
   jobject joffer = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
   return joffer;
-}
-
-
-template <>
-jobject convert(JNIEnv* env, const FrameworkMessage& message)
-{
-  string data;
-  message.SerializeToString(&data);
-
-  // byte[] data = ..;
-  jbyteArray jdata = env->NewByteArray(data.size());
-  env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
-
-  // FrameworkMessage message = FrameworkMessage.parseFrom(data);
-  jclass clazz = env->FindClass("org/apache/mesos/Protos$FrameworkMessage");
-
-  jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom",
-                           "([B)Lorg/apache/mesos/Protos$FrameworkMessage;");
-
-  jobject jmessage = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
-
-  return jmessage;
 }
 
 

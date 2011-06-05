@@ -48,7 +48,9 @@ public:
                             const TaskStatus& status) = 0;
 
   virtual void frameworkMessage(SchedulerDriver* driver,
-                                const FrameworkMessage& message) = 0;
+				const SlaveID& slaveId,
+				const ExecutorID& executorId,
+                                const std::string& data) = 0;
 
   virtual void slaveLost(SchedulerDriver* driver,
                          const SlaveID& slaveId) = 0;
@@ -80,7 +82,9 @@ public:
 
   // Communication methods.
 
-  virtual int sendFrameworkMessage(const FrameworkMessage& message) = 0;
+  virtual int sendFrameworkMessage(const SlaveID& slaveId,
+				   const ExecutorID& executorId,
+				   const std::string& data) = 0;
 
   virtual int killTask(const TaskID& taskId) = 0;
 
@@ -165,7 +169,9 @@ public:
   virtual int run(); // Start and then join driver.
 
   // Communication methods.
-  virtual int sendFrameworkMessage(const FrameworkMessage& message);
+  virtual int sendFrameworkMessage(const SlaveID& slaveId,
+				   const ExecutorID& executorId,
+				   const std::string& data);
 
   virtual int killTask(const TaskID& taskId);
 

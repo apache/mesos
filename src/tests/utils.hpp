@@ -54,11 +54,16 @@ void enterTestDirectory(const char* testCase, const char* testName);
     executor.set_uri("noexecutor");                                     \
     executor; })
 
+
 #define CREATE_EXECUTOR_INFO(executorId, uri)                           \
   ({ ExecutorInfo executor;                                             \
     executor.mutable_executor_id()->MergeFrom(executorId);              \
     executor.set_uri(uri);                                              \
     executor; })
+
+
+#define DEFAULT_EXECUTOR_ID						\
+      DEFAULT_EXECUTOR_INFO.executor_id()
 
 
 /**
@@ -74,8 +79,10 @@ public:
                                    const std::vector<SlaveOffer>&));
   MOCK_METHOD2(offerRescinded, void(SchedulerDriver*, const OfferID&));
   MOCK_METHOD2(statusUpdate, void(SchedulerDriver*, const TaskStatus&));
-  MOCK_METHOD2(frameworkMessage, void(SchedulerDriver*,
-                                      const FrameworkMessage&));
+  MOCK_METHOD4(frameworkMessage, void(SchedulerDriver*,
+				      const SlaveID&,
+				      const ExecutorID&,
+                                      const std::string&));
   MOCK_METHOD2(slaveLost, void(SchedulerDriver*, const SlaveID&));
   MOCK_METHOD3(error, void(SchedulerDriver*, int, const std::string&));
 };
@@ -90,7 +97,7 @@ public:
   MOCK_METHOD2(init, void(ExecutorDriver*, const ExecutorArgs&));
   MOCK_METHOD2(launchTask, void(ExecutorDriver*, const TaskDescription&));
   MOCK_METHOD2(killTask, void(ExecutorDriver*, const TaskID&));
-  MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const FrameworkMessage&));
+  MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const std::string&));
   MOCK_METHOD1(shutdown, void(ExecutorDriver*));
   MOCK_METHOD3(error, void(ExecutorDriver*, int, const std::string&));
 };

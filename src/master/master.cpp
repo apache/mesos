@@ -470,8 +470,10 @@ void Master::initialize()
           &KillTaskMessage::task_id);
 
   install(F2M_FRAMEWORK_MESSAGE, &Master::schedulerMessage,
+          &FrameworkMessageMessage::slave_id,
           &FrameworkMessageMessage::framework_id,
-          &FrameworkMessageMessage::message);
+          &FrameworkMessageMessage::executor_id,
+          &FrameworkMessageMessage::data);
 
   install(F2M_STATUS_UPDATE_ACK, &Master::statusUpdateAck,
           &StatusUpdateAckMessage::framework_id,
@@ -494,8 +496,10 @@ void Master::initialize()
           &StatusUpdateMessage::status);
 
   install(S2M_FRAMEWORK_MESSAGE, &Master::executorMessage,
+          &FrameworkMessageMessage::slave_id,
           &FrameworkMessageMessage::framework_id,
-          &FrameworkMessageMessage::message);
+          &FrameworkMessageMessage::executor_id,
+          &FrameworkMessageMessage::data);
 
   install(S2M_EXITED_EXECUTOR, &Master::exitedExecutor,
           &ExitedExecutorMessage::slave_id,
@@ -748,27 +752,31 @@ void Master::killTask(const FrameworkID& frameworkId,
 }
 
 
-void Master::schedulerMessage(const FrameworkID& frameworkId,
-                              const FrameworkMessage& message)
+void Master::schedulerMessage(const SlaveID& slaveId,
+			      const FrameworkID& frameworkId,
+			      const ExecutorID& executorId,
+                              const string& data)
 {
   Framework* framework = lookupFramework(frameworkId);
   if (framework != NULL) {
-    Slave* slave = lookupSlave(message.slave_id());
+    Slave* slave = lookupSlave(slaveId);
     if (slave != NULL) {
       LOG(INFO) << "Sending framework message for framework "
-                << frameworkId << " to slave " << slave->slaveId;
+                << frameworkId << " to slave " << slaveId;
       MSG<M2S_FRAMEWORK_MESSAGE> out;
+      out.mutable_slave_id()->MergeFrom(slaveId);
       out.mutable_framework_id()->MergeFrom(frameworkId);
-      out.mutable_message()->MergeFrom(message);
+      out.mutable_executor_id()->MergeFrom(executorId);
+      out.set_data(data);
       send(slave->pid, out);
     } else {
       LOG(WARNING) << "Cannot send framework message for framework "
-                   << frameworkId << " to slave " << message.slave_id()
+                   << frameworkId << " to slave " << slaveId
                    << " because slave does not exist";
     }
   } else {
     LOG(WARNING) << "Cannot send framework message for framework "
-                 << frameworkId << " to slave " << message.slave_id()
+                 << frameworkId << " to slave " << slaveId
                  << " because framework does not exist";
   }
 }
@@ -964,7 +972,7 @@ void Master::statusUpdate(const FrameworkID& frameworkId,
       }
     } else {
       LOG(WARNING) << "Status update error: couldn't lookup "
-                   << "framework " <<frameworkId;
+                   << "framework " << frameworkId;
     }
   } else {
     LOG(WARNING) << "Status update error: couldn't lookup slave "
@@ -973,27 +981,31 @@ void Master::statusUpdate(const FrameworkID& frameworkId,
 }
 
 
-void Master::executorMessage(const FrameworkID& frameworkId,
-                             const FrameworkMessage& message)
+void Master::executorMessage(const SlaveID& slaveId,
+			     const FrameworkID& frameworkId,
+			     const ExecutorID& executorId,
+                             const string& data)
 {
-  Slave* slave = lookupSlave(message.slave_id());
+  Slave* slave = lookupSlave(slaveId);
   if (slave != NULL) {
     Framework* framework = lookupFramework(frameworkId);
     if (framework != NULL) {
-      LOG(INFO) << "Sending framework message from slave " << slave->slaveId
+      LOG(INFO) << "Sending framework message from slave " << slaveId
                 << " to framework " << frameworkId;
       MSG<M2S_FRAMEWORK_MESSAGE> out;
+      out.mutable_slave_id()->MergeFrom(slaveId);
       out.mutable_framework_id()->MergeFrom(frameworkId);
-      out.mutable_message()->MergeFrom(message);
+      out.mutable_executor_id()->MergeFrom(executorId);
+      out.set_data(data);
       send(framework->pid, out);
     } else {
       LOG(WARNING) << "Cannot send framework message from slave "
-                   << slave->slaveId << " to framework " << frameworkId
+                   << slaveId << " to framework " << frameworkId
                    << " because framework does not exist";
     }
   } else {
     LOG(WARNING) << "Cannot send framework message from slave "
-                 << message.slave_id() << " to framework " << frameworkId
+                 << slaveId << " to framework " << frameworkId
                  << " because slave does not exist";
   }
 }

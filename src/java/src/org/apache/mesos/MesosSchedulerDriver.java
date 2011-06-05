@@ -37,7 +37,7 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     return ret != 0 ? ret : join();
   }
 
-  public native int sendFrameworkMessage(FrameworkMessage message);
+  public native int sendFrameworkMessage(SlaveID slaveId, ExecutorID executorId, byte[] data);
   public native int killTask(TaskID taskId);
   public native int replyToOffer(OfferID offerId, Collection<TaskDescription> tasks, Map<String, String> params);
 

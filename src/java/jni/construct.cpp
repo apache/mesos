@@ -133,6 +133,27 @@ FrameworkID construct(JNIEnv* env, jobject jobj)
 
 
 template <>
+ExecutorID construct(JNIEnv* env, jobject jobj)
+{
+  jclass clazz = env->GetObjectClass(jobj);
+
+  // byte[] data = obj.toByteArray();
+  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
+
+  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
+
+  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jsize length = env->GetArrayLength(jdata);
+
+  const ExecutorID& executorId = parse<ExecutorID>(data, length);
+
+  env->ReleaseByteArrayElements(jdata, data, 0);
+
+  return executorId;
+}
+
+
+template <>
 TaskID construct(JNIEnv* env, jobject jobj)
 {
   jclass clazz = env->GetObjectClass(jobj);
@@ -248,27 +269,6 @@ TaskStatus construct(JNIEnv* env, jobject jobj)
   env->ReleaseByteArrayElements(jdata, data, 0);
 
   return status;
-}
-
-
-template <>
-FrameworkMessage construct(JNIEnv* env, jobject jobj)
-{
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
-  jsize length = env->GetArrayLength(jdata);
-
-  const FrameworkMessage& message = parse<FrameworkMessage>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return message;
 }
 
 

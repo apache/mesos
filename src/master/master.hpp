@@ -123,8 +123,10 @@ public:
   void reviveOffers(const FrameworkID& frameworkId);
   void killTask(const FrameworkID& frameworkId,
                 const TaskID& taskId);
-  void schedulerMessage(const FrameworkID& frameworkId,
-                        const FrameworkMessage& message);
+  void schedulerMessage(const SlaveID& slaveId,
+			const FrameworkID& frameworkId,
+			const ExecutorID& executorId,
+			const std::string& data);
   void statusUpdateAck(const FrameworkID& frameworkId,
                        const TaskID& taskId,
                        const SlaveID& slaveId);
@@ -135,8 +137,10 @@ public:
   void unregisterSlave(const SlaveID& slaveId);
   void statusUpdate(const FrameworkID& frameworkId,
                     const TaskStatus& status);
-  void executorMessage(const FrameworkID& frameworkId,
-                       const FrameworkMessage& message);
+  void executorMessage(const SlaveID& slaveId,
+		       const FrameworkID& frameworkId,
+		       const ExecutorID& executorId,
+		       const std::string& data);
   void exitedExecutor(const SlaveID& slaveId,
                       const FrameworkID& frameworkId,
                       const ExecutorID& executorId,

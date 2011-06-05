@@ -14,7 +14,7 @@ public interface SchedulerDriver {
   public int run();
 
   // Communication methods.
-  public int sendFrameworkMessage(FrameworkMessage message);
+  public int sendFrameworkMessage(SlaveID slaveId, ExecutorID executorId, byte[] data);
   public int killTask(TaskID taskId);
   public int replyToOffer(OfferID offerId, Collection<TaskDescription> tasks, Map<String, String> params);
   public int replyToOffer(OfferID offerId, Collection<TaskDescription> tasks);

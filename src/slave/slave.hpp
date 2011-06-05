@@ -215,8 +215,10 @@ public:
   void killTask(const FrameworkID& frameworkId,
                 const TaskID& taskId);
   void killFramework(const FrameworkID& frameworkId);
-  void schedulerMessage(const FrameworkID& frameworkId,
-                        const FrameworkMessage& message);
+  void schedulerMessage(const SlaveID& slaveId,
+			const FrameworkID& frameworkId,
+			const ExecutorID& executorId,
+			const std::string& data);
   void updateFramework(const FrameworkID& frameworkId,
                        const std::string& pid);
   void statusUpdateAck(const FrameworkID& frameworkId,
@@ -226,8 +228,10 @@ public:
                         const ExecutorID& executorId);
   void statusUpdate(const FrameworkID& frameworkId,
                     const TaskStatus& status);
-  void executorMessage(const FrameworkID& frameworkId,
-                       const FrameworkMessage& message);
+  void executorMessage(const SlaveID& slaveId,
+		       const FrameworkID& frameworkId,
+		       const ExecutorID& executorId,
+		       const std::string& data);
   void ping();
   void timeout();
   void exited();

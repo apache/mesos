@@ -29,7 +29,7 @@ public:
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId) = 0;
 
   virtual void frameworkMessage(ExecutorDriver* driver,
-                                const FrameworkMessage& message) = 0;
+				const std::string& data) = 0;
 
   virtual void shutdown(ExecutorDriver* driver) = 0;
 
@@ -61,7 +61,7 @@ public:
   // Communication methods from executor to Mesos.
   virtual int sendStatusUpdate(const TaskStatus& status) = 0;
 
-  virtual int sendFrameworkMessage(const FrameworkMessage& message) = 0;
+  virtual int sendFrameworkMessage(const std::string& data) = 0;
 };
 
 
@@ -84,7 +84,7 @@ public:
   virtual int run(); // Start and then join driver
 
   virtual int sendStatusUpdate(const TaskStatus& status);
-  virtual int sendFrameworkMessage(const FrameworkMessage& message);
+  virtual int sendFrameworkMessage(const std::string& data);
 
 private:
   friend class internal::ExecutorProcess;

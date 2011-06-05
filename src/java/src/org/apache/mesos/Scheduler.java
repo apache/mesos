@@ -15,7 +15,7 @@ public interface Scheduler {
   public void resourceOffer(SchedulerDriver driver, OfferID offerId, List<SlaveOffer> offers);
   public void offerRescinded(SchedulerDriver driver, OfferID offerId);
   public void statusUpdate(SchedulerDriver driver, TaskStatus status);
-  public void frameworkMessage(SchedulerDriver driver, FrameworkMessage message);
+  public void frameworkMessage(SchedulerDriver driver, SlaveID slaveId, ExecutorID executorId, byte[] data);
   public void slaveLost(SchedulerDriver driver, SlaveID slaveId);
   public void error(SchedulerDriver driver, int code, String message);
 }

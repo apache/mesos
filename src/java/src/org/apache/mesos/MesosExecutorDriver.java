@@ -31,7 +31,7 @@ public class MesosExecutorDriver implements ExecutorDriver {
   }
 
   public native int sendStatusUpdate(TaskStatus status);
-  public native int sendFrameworkMessage(FrameworkMessage message);
+  public native int sendFrameworkMessage(byte[] data);
 
   protected native void initialize();
   protected native void finalize();

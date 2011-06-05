@@ -36,7 +36,9 @@ public:
   virtual void offerRescinded(SchedulerDriver* driver, const OfferID& offerId);
   virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status);
   virtual void frameworkMessage(SchedulerDriver* driver,
-                                const FrameworkMessage& message);
+				const SlaveID& slaveId,
+				const ExecutorID& executorId,
+                                const string& data);
   virtual void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId);
   virtual void error(SchedulerDriver* driver, int code, const string& message);
 
@@ -60,8 +62,10 @@ string JNIScheduler::getFrameworkName(SchedulerDriver* driver)
   clazz = env->GetObjectClass(jsched);
 
   // String name = sched.getFrameworkName(driver);
-  jmethodID getFrameworkName = env->GetMethodID(clazz, "getFrameworkName",
-    "(Lorg/apache/mesos/SchedulerDriver;)Ljava/lang/String;");
+  jmethodID getFrameworkName =
+    env->GetMethodID(clazz, "getFrameworkName",
+		     "(Lorg/apache/mesos/SchedulerDriver;)"
+		     "Ljava/lang/String;");
 
   env->ExceptionClear();
 
@@ -96,8 +100,10 @@ ExecutorInfo JNIScheduler::getExecutorInfo(SchedulerDriver* driver)
   clazz = env->GetObjectClass(jsched);
 
   // ExecutorInfo executor = sched.getExecutorInfo(driver);
-  jmethodID getExecutorInfo = env->GetMethodID(clazz, "getExecutorInfo",
-    "(Lorg/apache/mesos/SchedulerDriver;)Lorg/apache/mesos/Protos$ExecutorInfo;");
+  jmethodID getExecutorInfo =
+    env->GetMethodID(clazz, "getExecutorInfo",
+		     "(Lorg/apache/mesos/SchedulerDriver;)"
+		     "Lorg/apache/mesos/Protos$ExecutorInfo;");
 
   env->ExceptionClear();
 
@@ -131,8 +137,10 @@ void JNIScheduler::registered(SchedulerDriver* driver,
   clazz = env->GetObjectClass(jsched);
 
   // sched.registered(driver, frameworkId);
-  jmethodID registered = env->GetMethodID(clazz, "registered",
-    "(Lorg/apache/mesos/SchedulerDriver;Lorg/apache/mesos/Protos$FrameworkID;)V");
+  jmethodID registered =
+    env->GetMethodID(clazz, "registered",
+		     "(Lorg/apache/mesos/SchedulerDriver;"
+		     "Lorg/apache/mesos/Protos$FrameworkID;)V");
 
   jobject jframeworkId = convert<FrameworkID>(env, frameworkId);
 
@@ -166,8 +174,11 @@ void JNIScheduler::resourceOffer(SchedulerDriver* driver,
   clazz = env->GetObjectClass(jsched);
 
   // sched.resourceOffer(driver, offerId, offers);
-  jmethodID resourceOffer = env->GetMethodID(clazz, "resourceOffer",
-    "(Lorg/apache/mesos/SchedulerDriver;Lorg/apache/mesos/Protos$OfferID;Ljava/util/List;)V");
+  jmethodID resourceOffer =
+    env->GetMethodID(clazz, "resourceOffer",
+		     "(Lorg/apache/mesos/SchedulerDriver;"
+		     "Lorg/apache/mesos/Protos$OfferID;"
+		     "Ljava/util/List;)V");
 
   jobject jofferId = convert<OfferID>(env, offerId);
 
@@ -214,8 +225,10 @@ void JNIScheduler::offerRescinded(SchedulerDriver* driver,
   clazz = env->GetObjectClass(jsched);
 
   // sched.offerRescinded(driver, offerId);
-  jmethodID offerRescinded = env->GetMethodID(clazz, "offerRescinded",
-    "(Lorg/apache/mesos/SchedulerDriver;Lorg/apache/mesos/Protos$OfferID;)V");
+  jmethodID offerRescinded =
+    env->GetMethodID(clazz, "offerRescinded",
+		     "(Lorg/apache/mesos/SchedulerDriver;"
+		     "Lorg/apache/mesos/Protos$OfferID;)V");
 
   jobject jofferId = convert<OfferID>(env, offerId);
 
@@ -248,8 +261,10 @@ void JNIScheduler::statusUpdate(SchedulerDriver* driver,
   clazz = env->GetObjectClass(jsched);
 
   // sched.statusUpdate(driver, status);
-  jmethodID statusUpdate = env->GetMethodID(clazz, "statusUpdate",
-    "(Lorg/apache/mesos/SchedulerDriver;Lorg/apache/mesos/Protos$TaskStatus;)V");
+  jmethodID statusUpdate =
+    env->GetMethodID(clazz, "statusUpdate",
+		     "(Lorg/apache/mesos/SchedulerDriver;"
+		     "Lorg/apache/mesos/Protos$TaskStatus;)V");
 
   jobject jstatus = convert<TaskStatus>(env, status);
 
@@ -270,7 +285,9 @@ void JNIScheduler::statusUpdate(SchedulerDriver* driver,
 
 
 void JNIScheduler::frameworkMessage(SchedulerDriver* driver,
-                                    const FrameworkMessage& message)
+				    const SlaveID& slaveId,
+				    const ExecutorID& executorId,
+                                    const string& data)
 {
   jvm->AttachCurrentThread((void**) &env, NULL);
 
@@ -281,15 +298,24 @@ void JNIScheduler::frameworkMessage(SchedulerDriver* driver,
 
   clazz = env->GetObjectClass(jsched);
 
-  // sched.frameworkMessage(driver, message);
-  jmethodID frameworkMessage = env->GetMethodID(clazz, "frameworkMessage",
-    "(Lorg/apache/mesos/SchedulerDriver;Lorg/apache/mesos/Protos$FrameworkMessage;)V");
+  // sched.frameworkMessage(driver, slaveId, executorId, data);
+  jmethodID frameworkMessage =
+    env->GetMethodID(clazz, "frameworkMessage",
+		     "(Lorg/apache/mesos/SchedulerDriver;"
+		     "Lorg/apache/mesos/Protos$SlaveID;"
+		     "Lorg/apache/mesos/Protos$ExecutorID;[B)V");
 
-  jobject jmessage = convert<FrameworkMessage>(env, message);
+  // byte[] data = ..;
+  jbyteArray jdata = env->NewByteArray(data.size());
+  env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
+
+  jobject jslaveId = convert<SlaveID>(env, slaveId);
+  jobject jexecutorId = convert<ExecutorID>(env, executorId);
 
   env->ExceptionClear();
 
-  env->CallVoidMethod(jsched, frameworkMessage, jdriver, jmessage);
+  env->CallVoidMethod(jsched, frameworkMessage,
+		      jdriver, jslaveId, jexecutorId, jdata);
 
   if (!env->ExceptionOccurred()) {
     jvm->DetachCurrentThread();
@@ -315,8 +341,10 @@ void JNIScheduler::slaveLost(SchedulerDriver* driver, const SlaveID& slaveId)
   clazz = env->GetObjectClass(jsched);
 
   // sched.slaveLost(driver, slaveId);
-  jmethodID slaveLost = env->GetMethodID(clazz, "slaveLost",
-    "(Lorg/apache/mesos/SchedulerDriver;Lorg/apache/mesos/Protos$SlaveID;)V");
+  jmethodID slaveLost =
+    env->GetMethodID(clazz, "slaveLost",
+		     "(Lorg/apache/mesos/SchedulerDriver;"
+		     "Lorg/apache/mesos/Protos$SlaveID;)V");
 
   jobject jslaveId = convert<SlaveID>(env, slaveId);
 
@@ -349,8 +377,11 @@ void JNIScheduler::error(SchedulerDriver* driver, int code,
   clazz = env->GetObjectClass(jsched);
 
   // sched.error(driver, code, message);
-  jmethodID error = env->GetMethodID(clazz, "error",
-    "(Lorg/apache/mesos/SchedulerDriver;ILjava/lang/String;)V");
+  jmethodID error =
+    env->GetMethodID(clazz, "error",
+		     "(Lorg/apache/mesos/SchedulerDriver;"
+		     "I"
+		     "Ljava/lang/String;)V");
 
   jint jcode = code;
   jobject jmessage = convert<string>(env, message);
@@ -500,13 +531,20 @@ JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosSchedulerDriver_join
 /*
  * Class:     org_apache_mesos_MesosSchedulerDriver
  * Method:    sendFrameworkMessage
- * Signature: (Lorg/apache/mesos/Protos$FrameworkMessage;)I
+ * Signature: (Lorg/apache/mesos/Protos/SlaveID;Lorg/apache/mesos/Protos/ExecutorID;[B)I
  */
 JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosSchedulerDriver_sendFrameworkMessage
-  (JNIEnv* env, jobject thiz, jobject jmessage)
+  (JNIEnv* env, jobject thiz, jobject jslaveId, jobject jexecutorId, jbyteArray jdata)
 {
-  // Construct a C++ FrameworkMessage from the Java FrameworkMessage.
-  const FrameworkMessage& message = construct<FrameworkMessage>(env, jmessage);
+  // Construct a C++ SlaveID from the Java SlaveID.
+  const SlaveID& slaveId = construct<SlaveID>(env, jslaveId);
+
+  // Construct a C++ ExecutorID from the Java ExecutorID.
+  const ExecutorID& executorId = construct<ExecutorID>(env, jexecutorId);
+
+  // Construct a C++ string from the Java byte array.
+  string data((char*) env->GetByteArrayElements(jdata, NULL),
+	      (size_t) env->GetArrayLength(jdata));
 
   // Now invoke the underlying driver.
   jclass clazz = env->GetObjectClass(thiz);
@@ -515,7 +553,7 @@ JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosSchedulerDriver_sendFrameworkM
   MesosSchedulerDriver* driver = (MesosSchedulerDriver*)
     env->GetLongField(thiz, __driver);
 
-  return driver->sendFrameworkMessage(message);
+  return driver->sendFrameworkMessage(slaveId, executorId, data);
 }
 
 

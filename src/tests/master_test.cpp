@@ -542,11 +542,8 @@ TEST(MasterTest, TaskRunning)
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  ExecutorID executorId;
-  executorId.set_value("default");
-
   map<ExecutorID, Executor*> execs;
-  execs[executorId] = &exec;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
 
   TestingIsolationModule isolationModule(execs);
 
@@ -568,7 +565,7 @@ TEST(MasterTest, TaskRunning)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched, getExecutorInfo(&driver))
-    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
+    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
@@ -638,11 +635,8 @@ TEST(MasterTest, KillTask)
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  ExecutorID executorId;
-  executorId.set_value("default");
-
   map<ExecutorID, Executor*> execs;
-  execs[executorId] = &exec;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
 
   TestingIsolationModule isolationModule(execs);
 
@@ -664,7 +658,7 @@ TEST(MasterTest, KillTask)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched, getExecutorInfo(&driver))
-    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
+    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
@@ -744,11 +738,8 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  ExecutorID executorId;
-  executorId.set_value("default");
-
   map<ExecutorID, Executor*> execs;
-  execs[executorId] = &exec;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
 
   TestingIsolationModule isolationModule(execs);
 
@@ -773,7 +764,7 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched1, getExecutorInfo(&driver1))
-    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
+    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
 
   EXPECT_CALL(sched1, registered(&driver1, _))
     .WillOnce(SaveArg<1>(&frameworkId));
@@ -873,7 +864,7 @@ TEST(MasterTest, FrameworkMessage)
 
   ExecutorDriver* execDriver;
   ExecutorArgs args;
-  FrameworkMessage execMessage;
+  string execData;
 
   trigger execFrameworkMessageCall;
 
@@ -884,17 +875,14 @@ TEST(MasterTest, FrameworkMessage)
     .Times(1);
 
   EXPECT_CALL(exec, frameworkMessage(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&execMessage),
+    .WillOnce(DoAll(SaveArg<1>(&execData),
                     Trigger(&execFrameworkMessageCall)));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  ExecutorID executorId;
-  executorId.set_value("default");
-
   map<ExecutorID, Executor*> execs;
-  execs[executorId] = &exec;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
 
   TestingIsolationModule isolationModule(execs);
 
@@ -912,7 +900,7 @@ TEST(MasterTest, FrameworkMessage)
   OfferID offerId;
   vector<SlaveOffer> offers;
   TaskStatus status;
-  FrameworkMessage schedMessage;
+  string schedData;
 
   trigger resourceOfferCall, statusUpdateCall, schedFrameworkMessageCall;
 
@@ -920,7 +908,7 @@ TEST(MasterTest, FrameworkMessage)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched, getExecutorInfo(&schedDriver))
-    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
+    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
 
   EXPECT_CALL(sched, registered(&schedDriver, _))
     .Times(1);
@@ -933,8 +921,8 @@ TEST(MasterTest, FrameworkMessage)
   EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
     .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
 
-  EXPECT_CALL(sched, frameworkMessage(&schedDriver, _))
-    .WillOnce(DoAll(SaveArg<1>(&schedMessage),
+  EXPECT_CALL(sched, frameworkMessage(&schedDriver, _, _, _))
+    .WillOnce(DoAll(SaveArg<3>(&schedData),
                     Trigger(&schedFrameworkMessageCall)));
 
   schedDriver.start();
@@ -958,27 +946,23 @@ TEST(MasterTest, FrameworkMessage)
 
   EXPECT_EQ(TASK_RUNNING, status.state());
 
-  FrameworkMessage hello;
-  hello.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-  hello.mutable_executor_id()->set_value("default"); // TODO(benh): No constant!
-  hello.set_data("hello");
+  string hello = "hello";
 
-  schedDriver.sendFrameworkMessage(hello);
+  schedDriver.sendFrameworkMessage(offers[0].slave_id(),
+				   DEFAULT_EXECUTOR_ID,
+				   hello);
 
   WAIT_UNTIL(execFrameworkMessageCall);
 
-  EXPECT_EQ("hello", execMessage.data());
+  EXPECT_EQ(hello, execData);
 
-  FrameworkMessage reply;
-  reply.mutable_slave_id()->MergeFrom(args.slave_id());
-  reply.mutable_executor_id()->set_value("default"); // TODO(benh): No constant!
-  reply.set_data("reply");
+  string reply = "reply";
 
   execDriver->sendFrameworkMessage(reply);
 
   WAIT_UNTIL(schedFrameworkMessageCall);
 
-  EXPECT_EQ("reply", schedMessage.data());
+  EXPECT_EQ(reply, schedData);
 
   schedDriver.stop();
   schedDriver.join();
@@ -1013,11 +997,8 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  ExecutorID executorId;
-  executorId.set_value("default");
-
   map<ExecutorID, Executor*> execs;
-  execs[executorId] = &exec;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
 
   TestingIsolationModule isolationModule(execs);
 
@@ -1040,7 +1021,7 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched1, getExecutorInfo(&driver1))
-    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
+    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
 
   EXPECT_CALL(sched1, registered(&driver1, _))
     .WillOnce(SaveArg<1>(&frameworkId));
@@ -1091,18 +1072,14 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   EXPECT_CALL(sched2, registered(&driver2, frameworkId))
     .WillOnce(Trigger(&sched2RegisteredCall));
 
-  EXPECT_CALL(sched2, frameworkMessage(&driver2, _))
+  EXPECT_CALL(sched2, frameworkMessage(&driver2, _, _, _))
     .WillOnce(Trigger(&sched2FrameworkMessageCall));
 
   driver2.start();
 
   WAIT_UNTIL(sched2RegisteredCall);
 
-  FrameworkMessage message;
-  message.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-  message.mutable_executor_id()->set_value("default"); // TODO(benh): No constant!
-
-  execDriver->sendFrameworkMessage(message);
+  execDriver->sendFrameworkMessage("");
 
   WAIT_UNTIL(sched2FrameworkMessageCall);
 
