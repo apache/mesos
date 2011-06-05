@@ -41,16 +41,20 @@ TEST(ConfigurationTest, DefaultOptions)
 
   Configuration conf;
 
+  int ret = 0;
   EXPECT_NO_THROW( {
-      conf.addOption<int>("test1", "Testing option", 500);
-      conf.addOption<short>("test2", "Another tester", 0);
-      conf.addOption<long>("test3", "Tests the default\noption.", 2010);
-      conf.addOption<string>("test4", "Option without default\noption.");
-      conf.addOption<string>("test5", "Option with a default string.", "arb");
+      ret += conf.addOption<int>("test1", "Testing option", "500");
+      ret += conf.addOption<short>("test2", "Another tester", "0");
+      ret += conf.addOption<long>("test3", "Tests the default", "2010");
+      ret += conf.addOption<string>("test4", "Option without default");
+      ret += conf.addOption<string>("test5", "Option with a default", "arb");
       conf.load(ARGC, argv, false);
     } );
-  
-  conf.addOption<int>("excp", "Exception tester.", 50);
+
+  int addOptionError = ret;
+  EXPECT_EQ(addOptionError, 0);
+
+  conf.addOption<int>("excp", "Exception tester.", "50");
   EXPECT_THROW(conf.validate(), BadOptionValueException);
   conf.getParams()["excp"] = "27";
   EXPECT_NO_THROW(conf.validate());
@@ -66,26 +70,27 @@ TEST(ConfigurationTest, DefaultOptions)
 
 TEST(ConfigurationTest, CommandLine)
 {
-  const int ARGC = 10;
+  const int ARGC = 8;
   char* argv[ARGC];
   argv[0] = (char*) "./filename";
   argv[1] = (char*) "--test1=text1";
   argv[2] = (char*) "--test2";
-  argv[3] = (char*) "-test3";
-  argv[4] = (char*) "text2";
-  argv[5] = (char*) "-test4";
-  argv[6] = (char*) "-negative";
-  argv[7] = (char*) "-25";
-  argv[8] = (char*) "--cAsE=4";
-  argv[9] = (char*) "--space=Long String";
+  argv[3] = (char*) "text2";
+  argv[4] = (char*) "-N";
+  argv[5] = (char*) "-25";
+  argv[6] = (char*) "--cAsE=4";
+  argv[7] = (char*) "--space=Long String";
 
   Configuration conf;
+  int addOptionError = 0;
+  addOptionError += conf.addOption<int>("negative", "some val", "-30", 'N');
+  addOptionError += conf.addOption<string>("test1", "textual value", "text2");
+
+  EXPECT_EQ(addOptionError, 0);
   EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
 
   EXPECT_EQ("text1",       conf.getParams()["test1"]);
   EXPECT_EQ("1",           conf.getParams()["test2"]);
-  EXPECT_EQ("text2",       conf.getParams()["test3"]);
-  EXPECT_EQ("1",           conf.getParams()["test4"]);
   EXPECT_EQ("-25",         conf.getParams()["negative"]);
   EXPECT_EQ("4",           conf.getParams()["case"]);
   EXPECT_EQ("Long String", conf.getParams()["space"]);

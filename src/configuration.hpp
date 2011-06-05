@@ -9,7 +9,7 @@
 #include <glog/logging.h>
 #include "params.hpp"
 #include "foreach.hpp"
-
+#include "option.hpp"
 
 namespace nexus { namespace internal {
     
@@ -22,45 +22,6 @@ using std::map;
 using boost::lexical_cast;
 using boost::bad_lexical_cast;
 
-/**
- * Interface of a validator
- **/
-class ValidatorBase {
-public:
-  virtual bool isValid(const string& val) const = 0;
-  virtual ValidatorBase* clone() const = 0;
-};
-
-/**
- * Validator that checks if a string can be cast to its templated type.
- **/
-template <class T>
-class Validator : public ValidatorBase {
-public:
-  Validator() {}
-
-  /**
-   * Checks if the provided string can be cast to a T.
-   * @param val value associated with some option
-   * @return true if val can be cast to a T, otherwise false.
-   **/
-  virtual bool isValid(const string& val) const
-  {
-    try {
-      lexical_cast<T>(val);
-    }
-    catch(const bad_lexical_cast& ex) {
-      return false;
-    }
-    return true;
-  }
-
-  virtual ValidatorBase* clone() const
-  {
-    return new Validator<T>();
-  }
-
-};
 
 /**
  * Exception type thrown by Configuration.
@@ -72,65 +33,6 @@ struct ConfigurationException : std::exception
   const char* what() const throw () { return message; }
 };
 
-/**
- * Exception type thrown if the the value of an Option 
- * doesn't match the default value type.
- */
-struct BadOptionValueException : std::exception
-{
-  const char* message;
-  BadOptionValueException(const char* msg): message(msg) {}
-  const char* what() const throw () { return message; }
-};
-
-/**
- * Registered option with help string and default value
- **/
-struct Option {
-  Option(string _helpString) : 
-    helpString(_helpString), hasDefault(false), validator(NULL) {} 
-
-  Option(string _helpString,
-         const ValidatorBase& _validator,
-         string _defaultValue)
-    : helpString(_helpString), hasDefault(true), defaultValue(_defaultValue) 
-  {
-    validator = _validator.clone();
-  }
-
-  Option(string _helpString, const ValidatorBase& _validator)
-    : helpString(_helpString), hasDefault(false)
-  {
-    validator = _validator.clone();
-  }
-
-  Option() : hasDefault(false), validator(NULL) {}
-
-  Option(const Option& opt)
-    : helpString(opt.helpString), hasDefault(opt.hasDefault),
-      defaultValue(opt.defaultValue)
-  {
-    validator = opt.validator == NULL ? NULL : opt.validator->clone();
-  }
-
-  Option &operator=(const Option& opt)
-  {
-    helpString = opt.helpString;
-    defaultValue = opt.defaultValue;
-    validator = opt.validator == NULL ? NULL : opt.validator->clone();
-    return *this;
-  }
-
-  ~Option() 
-  { 
-    if (validator != 0) delete validator; 
-  }
-
-  string helpString;
-  bool hasDefault;
-  string defaultValue;
-  ValidatorBase *validator;
-};
 
 /** 
  * This class populates a Params object, which can be retrieved with
@@ -186,43 +88,47 @@ public:
    *        The default option is put in the internal params, 
    *        unless the option already has a value in params.
    *        Its type must support operator<<(ostream,...)
-   * @return 0 on success, -1 if option already exists
+   * @param shortName character representing short name of option, e.g. 'I'
+   * @return 0 on success, -1 if option already exists,
+   *         -2 if defaultValue cannot be converted to templated type T
    **/
   template <class T>
   int addOption(string optName, const string& helpString, 
-             const T& defaultValue) 
+                const string& defaultValue, char shortName = '\0') 
   {
     std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
     if (options.find(optName) != options.end())
       return -1;
-    ostringstream os;
-    os << defaultValue;
-    options[optName] = Option(helpString, Validator<T>(), os.str());
+    try { 
+      lexical_cast<T>(defaultValue);
+    } catch(const bad_lexical_cast& ex) { return -2; }
+    
+    options[optName] = Option(helpString, Validator<T>(), 
+                              defaultValue, shortName);
 
     if (!params.contains(optName))  // insert default value
-      params[optName] = os.str();
+      params[optName] = defaultValue;
 
     return 0;
   }
 
   
   /**
-   * Adds a registered option together with a help string.
+   * Adds a registered option together with a default value and a help string.
    * @param optName name of the option, e.g. "home"
    * @param helpString description of the option, may contain line breaks
-   * @param defaultValue default value of the option. 
-   *        The default option is put in the internal params, 
-   *        unless the option already has a value in params.
-   *        Its type must support operator<<(ostream,...)
+   * @param shortName character representing short name of option, e.g. 'I'
    * @return 0 on success, -1 if option already exists
    **/
   template <class T>
-  int addOption(string optName, const string& helpString) 
+  int addOption(string optName, const string& helpString, 
+                char shortName = '\0') 
   {
     std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
     if (options.find(optName) != options.end())
       return -1;
-    options[optName] = Option(helpString, Validator<T>());
+    options[optName] = Option(helpString, Validator<T>(), shortName);
+
     return 0;
   }
 
@@ -343,6 +249,12 @@ private:
    *         in the internal params (false by default)
    */
   void loadConfigFileIfGiven(bool overwrite=false);
+
+  /**
+   * Gets the first long name option associated with the provided short name.
+   * @return first long name option matching the short name, "" if none found.
+   */
+  string getLongName(char shortName) const;
 
 };
 

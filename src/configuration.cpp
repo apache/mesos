@@ -128,21 +128,13 @@ void Configuration::loadCommandLine(int argc,
         set = true;
       } 
     } else if (args[i].find_first_of("-", 0) == 0) {
-      // handle -blah 25 and -blah
-      if ((i+1 >= args.size()) ||  // last arg || next arg is new arg
-          (i+1 < args.size() && args[i+1].find_first_of("-", 0) == 0 &&
-           args[i+1].find_first_of("0123456789.", 1) != 1)) {
-        key = args[i].substr(1);
-        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-        val = "1";
-        set = true;
-      } else { // not last arg && next arg is a value
-        key = args[i].substr(1);
-        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+      // handle -blah 25
+      key = getLongName(args[i][1]);
+      if (key != "" && i+1 < args.size()) {
         val = args[i+1];
         set = true;
         i++;  // we've consumed next parameter as a "value"-parameter
-      }
+      }      
     }
     if (set && (overwrite || !params.contains(key))) {
       params[key] = val;
@@ -182,36 +174,43 @@ void Configuration::loadConfigFile(const string& fname, bool overwrite)
 string Configuration::getUsage() const 
 {
   const int PAD = 10;
-  const int PADEXTRA = string("--=VAL").size(); // adjust for "--" and "=VAL"
-  string usage = "";
+  const int LONG_PAD = string("--=VAL").size(); 
+  const int SHORT_PAD = string(" (or -  VAL)").size(); 
+  string usage;
   
-  // get max key length
+  // get max length of the first column of usage output
   int maxLen = 0;
-  foreachpair (const string& key, _, options) {
-    maxLen = key.size() > maxLen ? key.length() : maxLen;
+  foreachpair (const string& key, const Option& opt, options) {
+    int len = key.length() + LONG_PAD;
+    len += opt.hasShort ? SHORT_PAD : 0;
+    maxLen = len > maxLen ? len : maxLen;
   }
-  maxLen += PADEXTRA; 
 
-  foreachpair (const string& key, const Option& val, options) {
-    string helpStr = val.helpString;
+  foreachpair (const string& key, const Option& opt, options) {
+    string helpStr = opt.helpString;
+    string line;
 
-    if (val.hasDefault) {  // add default value
-      helpStr += " (default: " + val.defaultValue + ")";
+    if (opt.defaultValue != "") {  // add default value
+      helpStr += " (default: " + opt.defaultValue + ")";
     }
 
-    usage += "--" + key + "=VAL";
-    string pad(PAD + maxLen - key.size() - PADEXTRA, ' ');
-    usage += pad;
+    line += "--" + key + "=VAL";
+    line += opt.hasShort ? string(" (or -") + opt.shortName + " VAL)" : "";
+    string pad(PAD + maxLen - line.size(), ' ');
+    line += pad;
     size_t pos1 = 0, pos2 = 0;
     pos2 = helpStr.find_first_of("\n\r", pos1);
-    usage += helpStr.substr(pos1, pos2 - pos1) + "\n";
+    line += helpStr.substr(pos1, pos2 - pos1) + "\n";
+    usage += line;
 
     while(pos2 != string::npos) {  // handle multi line help strings
+      line = "";
       pos1 = pos2 + 1;
       string pad2(PAD + maxLen, ' ');
-      usage += pad2;
+      line += pad2;
       pos2 = helpStr.find_first_of("\n\r", pos1);
-      usage += helpStr.substr(pos1, pos2 - pos1) + "\n";
+      line += helpStr.substr(pos1, pos2 - pos1) + "\n";
+      usage += line;
     }
 
   }
@@ -232,4 +231,13 @@ vector<string> Configuration::getOptions() const
 Params& Configuration::getParams()
 {
   return params;
+}
+
+string Configuration::getLongName(char shortName) const
+{
+  foreachpair (const string& key, const Option& opt, options) {
+    if (opt.hasShort && opt.shortName == shortName)
+      return key;
+  }
+  return "";
 }
