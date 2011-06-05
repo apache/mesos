@@ -178,7 +178,7 @@ if [[ $ISFT != 0 ]] ; then
   for zoo in `cat $ZOO`; do
     zid=1
     for zoop in `cat $ZOO`; do
-      ssh $SSH_OPTS $zoo echo "server."${zid}"="${zoop}":2888:3888" \>\> ~/nexus/src/third_party/zookeeper*/conf/zoo.cfg
+      ssh $SSH_OPTS $zoo echo "server."${zid}"="${zoop}":2888:3888" \>\> /root/nexus/src/third_party/zookeeper\*/conf/zoo.cfg
       zid=$(($zid+1))
     done
     sleep 0.1
