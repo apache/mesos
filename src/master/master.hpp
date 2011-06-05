@@ -259,6 +259,9 @@ private:
     uint64_t valid_framework_messages;
     uint64_t invalid_framework_messages;
   } statistics;
+
+  // Start time used to calculate uptime.
+  double startTime;
 };
 
 

@@ -454,6 +454,8 @@ void Master::initialize()
   statistics.valid_framework_messages = 0;
   statistics.invalid_framework_messages = 0;
 
+  startTime = elapsedTime();
+
   // Install handler functions for certain messages.
   install(NEW_MASTER_DETECTED, &Master::newMasterDetected,
           &NewMasterDetectedMessage::pid);
@@ -525,12 +527,12 @@ void Master::initialize()
   install(process::EXITED, &Master::exited);
 
   // Install HTTP request handlers.
-  Process<Master>::install("info.json", &Master::http_info_json);
-  Process<Master>::install("frameworks.json", &Master::http_frameworks_json);
-  Process<Master>::install("slaves.json", &Master::http_slaves_json);
-  Process<Master>::install("tasks.json", &Master::http_tasks_json);
-  Process<Master>::install("stats.json", &Master::http_stats_json);
-  Process<Master>::install("vars", &Master::http_vars);
+  installHttpHandler("info.json", &Master::http_info_json);
+  installHttpHandler("frameworks.json", &Master::http_frameworks_json);
+  installHttpHandler("slaves.json", &Master::http_slaves_json);
+  installHttpHandler("tasks.json", &Master::http_tasks_json);
+  installHttpHandler("stats.json", &Master::http_stats_json);
+  installHttpHandler("vars", &Master::http_vars);
 }
 
 
@@ -568,7 +570,7 @@ void Master::noMasterDetected()
 void Master::registerFramework(const FrameworkInfo& frameworkInfo)
 {
   Framework* framework =
-    new Framework(frameworkInfo, newFrameworkId(), from(), elapsed());
+    new Framework(frameworkInfo, newFrameworkId(), from(), elapsedTime());
 
   LOG(INFO) << "Registering " << framework << " at " << from();
 
@@ -648,7 +650,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
       // failed-over one is connecting. Create a Framework object and add
       // any tasks it has that have been reported by reconnecting slaves.
       Framework* framework =
-        new Framework(frameworkInfo, frameworkId, from(), elapsed());
+        new Framework(frameworkInfo, frameworkId, from(), elapsedTime());
 
       // TODO(benh): Check for root submissions like above!
 
@@ -835,7 +837,7 @@ void Master::statusUpdateAck(const FrameworkID& frameworkId,
 
 void Master::registerSlave(const SlaveInfo& slaveInfo)
 {
-  Slave* slave = new Slave(slaveInfo, newSlaveId(), from(), elapsed());
+  Slave* slave = new Slave(slaveInfo, newSlaveId(), from(), elapsedTime());
 
   LOG(INFO) << "Attempting to register slave " << slave->slaveId
             << " at " << slave->pid;
@@ -907,7 +909,7 @@ void Master::reregisterSlave(const SlaveID& slaveId,
 		 << slaveId << ")";
       send(from(), process::TERMINATE);
     } else {
-      Slave* slave = new Slave(slaveInfo, slaveId, from(), elapsed());
+      Slave* slave = new Slave(slaveInfo, slaveId, from(), elapsedTime());
 
       LOG(INFO) << "Attempting to re-register slave " << slave->slaveId
                 << " at " << slave->pid;
@@ -1143,7 +1145,7 @@ void Master::timerTick()
 {
   // Check which framework filters can be expired.
   foreachpair (_, Framework* framework, frameworks) {
-    framework->removeExpiredFilters(elapsed());
+    framework->removeExpiredFilters(elapsedTime());
   }
 
   // Do allocations!
@@ -1216,6 +1218,7 @@ Promise<HttpResponse> Master::http_info_json(const HttpRequest& request)
     "{" <<
     "\"built_date\":\"" << build::DATE << "\"," <<
     "\"build_user\":\"" << build::USER << "\"," <<
+    "\"start_time\":\"" << startTime << "\"," <<
     "\"pid\":\"" << self() << "\"" <<
     "}";
 
@@ -1351,6 +1354,7 @@ Promise<HttpResponse> Master::http_stats_json(const HttpRequest& request)
 
   out <<
     "{" <<
+    "\"uptime\":" << elapsedTime() - startTime << "," <<
     "\"total_schedulers\":" << frameworks.size() << "," <<
     "\"active_schedulers\":" << getActiveFrameworks().size() << "," <<
     "\"activated_slaves\":" << slaveHostnamePorts.size() << "," <<
@@ -1383,13 +1387,28 @@ Promise<HttpResponse> Master::http_vars(const HttpRequest& request)
   out <<
     "build_date " << build::DATE << "\n" <<
     "build_user " << build::USER << "\n" <<
-    "build_flags " << build::FLAGS << "\n" <<
-    "frameworks_count " << frameworks.size() << "\n";
+    "build_flags " << build::FLAGS << "\n";
 
   // Also add the configuration values.
   foreachpair (const string& key, const string& value, conf.getMap()) {
     out << key << " " << value << "\n";
   }
+
+  out <<
+    "uptime " << elapsedTime() - startTime << "\n" <<
+    "total_schedulers " << frameworks.size() << "\n" <<
+    "active_schedulers " << getActiveFrameworks().size() << "\n" <<
+    "activated_slaves " << slaveHostnamePorts.size() << "\n" <<
+    "connected_slaves " << slaves.size() << "\n" <<
+    "launched_tasks " << statistics.launched_tasks << "\n" <<
+    "finished_tasks " << statistics.finished_tasks << "\n" <<
+    "killed_tasks " << statistics.killed_tasks << "\n" <<
+    "failed_tasks " << statistics.failed_tasks << "\n" <<
+    "lost_tasks " << statistics.lost_tasks << "\n" <<
+    "valid_status_updates " << statistics.valid_status_updates << "\n" <<
+    "invalid_status_updates " << statistics.invalid_status_updates << "\n" <<
+    "valid_framework_messages " << statistics.valid_framework_messages << "\n" <<
+    "invalid_framework_messages " << statistics.invalid_framework_messages << "\n";
 
   HttpOKResponse response;
   response.headers["Content-Type"] = "text/plain";
@@ -1521,7 +1540,7 @@ void Master::processOfferReply(SlotOffer* offer,
     }
   }
 
-  double expiry = (timeout == -1) ? 0 : elapsed() + timeout;  
+  double expiry = (timeout == -1) ? 0 : elapsedTime() + timeout;  
 
   // Now check for unused resources on slaves and add filters for them.
   vector<SlaveResources> resourcesUnused;
