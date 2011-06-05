@@ -29,4 +29,10 @@
 #endif
 #endif /* __APPLE__ */
 
+#ifdef __linux__
+#ifndef MAP_32BIT
+#define MAP_32BIT 0
+#endif
+#endif /* __linux__ */
+
 #endif /* CONFIG_HPP */
