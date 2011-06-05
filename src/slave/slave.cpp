@@ -135,7 +135,7 @@ void Slave::operator () ()
   resources =
     Resources::parse(conf.get<string>("resources", "cpus:1;mem:1024"));
 
-  LOG(INFO) << "Resources:\n" << resources;
+  LOG(INFO) << "Resources: " << resources;
 
   // Get our hostname
   char buf[256];
