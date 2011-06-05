@@ -788,7 +788,7 @@ void Master::operator () ()
 
       Framework* framework = lookupFramework(msg.framework_id());
       if (framework != NULL) {
-	LOG(INFO) << "Framework failover timer expired, removing framework "
+	LOG(INFO) << "Framework failover timer expired, removing "
 		  << framework;
 	removeFramework(framework);
       }
@@ -822,8 +822,8 @@ void Master::operator () ()
 	foreachpair (_, Framework *framework, frameworks) {
 	  if (framework->failoverTimer != NULL &&
 	      framework->failoverTimer->self() == from()) {
-	    LOG(INFO) << "Lost framework failover timer, removing framework "
-		      << framework;
+	    LOG(ERROR) << "Bad framework failover timer, removing "
+		       << framework;
 	    removeFramework(framework);
 	    break;
 	  }
@@ -1177,6 +1177,14 @@ void Master::failoverFramework(Framework *framework, const PID &newPid)
 
   framework->pid = newPid;
   link(newPid);
+
+  // Kill the failover timer.
+  if (framework->failoverTimer != NULL) {
+    send(framework->failoverTimer->self(), M2M_SHUTDOWN);
+    wait(framework->failoverTimer->self());
+    delete framework->failoverTimer;
+    framework->failoverTimer = NULL;
+  }
 
   // Make sure we can get offers again.
   framework->active = true;
