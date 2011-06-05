@@ -38,6 +38,14 @@ doxygen:
 etags:
 	find src -name "*.cpp" -o -name "*.hpp" | grep -v "\~$$" | xargs etags -o src/TAGS
 
+CTAGS = ctags
+ctags:
+	cd src; $(CTAGS) ../include/*.h ../include/*.hpp *.h *.c *.hpp *.cpp
+
+#TODO(*): make the above use conditional to handle old-school UNIX style ctags too
+#cd src; ctags --typedefs-and-c++ -I -members --declarations ../include/*.h ../include/*.c ../include/*.hpp ../include/*.cpp -o tags
+ 
+
 clean:
 	$(MAKE) -C src clean
 
