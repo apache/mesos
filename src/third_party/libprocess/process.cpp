@@ -1749,10 +1749,9 @@ public:
   timeout_t create_timeout(Process *process, double secs)
   {
     assert(process != NULL);
-    ev_tstamp now = ev_now(loop);
+//     ev_tstamp now = ev_now(loop);
+    ev_tstamp now = ev_time();
     ev_tstamp tstamp = now + secs;
-    cout << std::setprecision(30);
-    cout << "create_timeout: now is " << now << " and timeout is " << tstamp << endl;
     return make_tuple(tstamp, process, process->generation);
   }
 
@@ -1892,7 +1891,8 @@ static void handle_async(struct ev_loop *loop, ev_async *w, int revents)
   {
     if (update_timer) {
       if (!timers->empty()) {
-	timer_watcher.repeat = timers->begin()->first - ev_now(loop);
+// 	timer_watcher.repeat = timers->begin()->first - ev_now(loop);
+	timer_watcher.repeat = timers->begin()->first - ev_time();
 	/* If timer has elapsed feed the event immediately. */
 	if (timer_watcher.repeat <= 0) {
 	  timer_watcher.repeat = 0;
@@ -2264,10 +2264,8 @@ void handle_timeout(struct ev_loop *loop, ev_timer *w, int revents)
 
   acquire(timers);
   {
-    ev_tstamp now = ev_now(loop);
-
-    cout << std::setprecision(30);
-    cout << "handle_timeout: now is " << now << endl;
+//     ev_tstamp now = ev_now(loop);
+    ev_tstamp now = ev_time();
 
     map<ev_tstamp, list<timeout_t> >::iterator it = timers->begin();
     map<ev_tstamp, list<timeout_t> >::iterator last = timers->begin();
@@ -2275,9 +2273,6 @@ void handle_timeout(struct ev_loop *loop, ev_timer *w, int revents)
     for (; it != timers->end(); ++it) {
       // Check if timer has expired.
       ev_tstamp tstamp = it->first;
-      cout << std::setprecision(30);
-      cout << "checking if tstamp > now (tstamp - now = " << tstamp - now << ")" << endl;
-      
       if (tstamp > now) {
 	last = it;
 	break;
