@@ -113,8 +113,7 @@ public:
       terminate(false),
       frameworkName(_frameworkName),
       execInfo(_execInfo),
-      masterDetector(NULL),
-      ftMsg(FTMessaging::getInstance())
+      masterDetector(NULL)
 {
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
@@ -130,6 +129,7 @@ public:
       exit(1);
     }
   }
+  ftMsg = FTMessaging::getInstance();
 }
 
 ~SchedulerProcess()
@@ -153,7 +153,7 @@ protected:
       LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
       masterDetector = new MasterDetector(zkServers, ZNODE, self(), false);
     } else {
-      send(self(), pack<NEW_MASTER_DETECTED>(0, master));
+      send(self(), pack<NEW_MASTER_DETECTED>("0", master));
     }
 
     while(true) {

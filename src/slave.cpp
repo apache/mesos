@@ -148,7 +148,7 @@ void Slave::operator () ()
     LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
     masterDetector = new MasterDetector(zkServers, ZNODE, self(), false);
   } else {
-    send(self(), pack<NEW_MASTER_DETECTED>(0, master));
+    send(self(), pack<NEW_MASTER_DETECTED>("0", master));
   }
 
   // Get our hostname
@@ -177,6 +177,8 @@ void Slave::operator () ()
       case NEW_MASTER_DETECTED: {
 	string masterSeq;
 	PID masterPid;
+	unpack<NEW_MASTER_DETECTED>(masterSeq, masterPid);
+
 	LOG(INFO) << "New master at " << masterPid
 		  << " with ephemeral id:" << masterSeq;
 
