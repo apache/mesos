@@ -29,6 +29,26 @@ TEST(ConfigurationTest, Environment)
 }
 
 
+TEST(ConfigurationTest, DefaultOptions)
+{
+  const int ARGC = 3;
+  char* argv[ARGC];
+  argv[0] = (char*) "./filename";
+  argv[1] = (char*) "--test1=text1";
+  argv[2] = (char*) "--test2";
+
+  Configuration conf(ARGC, argv, false);
+  conf.addOption("test1", "Testing option", 500);
+  conf.addOption("test2", "Another tester", 0);
+  conf.addOption("test3", "Tests the default\noption.", 2010);
+  conf.addOption("test4", "Option without default\noption.");
+
+  EXPECT_EQ("text1",  conf.getParams()["test1"]);
+  EXPECT_EQ("1",      conf.getParams()["test2"]);
+  EXPECT_EQ("2010",   conf.getParams()["test3"]);
+  EXPECT_EQ("",       conf.getParams()["test4"]);
+}
+
 TEST(ConfigurationTest, CommandLine)
 {
   const int ARGC = 10;

@@ -5,8 +5,10 @@
 #include <fstream>
 #include <string>
 #include <map>
+#include <boost/any.hpp>
 #include <glog/logging.h>
 #include "params.hpp"
+#include "foreach.hpp"
 
 
 namespace nexus { namespace internal {
@@ -29,6 +31,18 @@ struct ConfigurationException : std::exception
   const char* what() const throw () { return message; }
 };
 
+/**
+ * Registered option with help string and defautl value
+ **/
+struct Option {
+  Option(string _helpString, string _defaultValue="") : 
+    helpString(_helpString), defaultValue(_defaultValue) {} 
+
+  Option() {}
+
+  string helpString;
+  string defaultValue;
+};
 
 /** 
  * This class populates a Params object, which can be retrieved with
@@ -51,6 +65,7 @@ public:
 
 private:
   Params params;
+  map<string, Option> options;
 
 public:
   /** 
@@ -84,6 +99,63 @@ public:
    * @return Params populated params object
    **/
   Params& getParams();
+
+  /**
+   * Returns a usage string with all registered options
+   * @see addOption()
+   * @return usage string
+   **/
+  string getUsage() const;
+  
+  /**
+   * Adds a registered option together with a default value and a help string.
+   * @param optName name of the option, e.g. "home"
+   * @param helpString description of the option, may contain line breaks
+   * @param defaultValue default value of the option. 
+   *        The default option is put in the internal params, 
+   *        unless the option already has a value in params.
+   *        Its type must support operator<<(ostream,...)
+   * @return 0 on success, -1 if option already exists
+   **/
+  template <class T>
+  int addOption(string optName, const string& helpString, 
+             const T& defaultValue) 
+  {
+    std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
+    if (options.find(optName) != options.end())
+      return -1;
+    ostringstream os;
+    os << defaultValue;
+    options[optName] = Option(helpString, os.str());
+
+    if (!params.contains(optName))  // insert default value
+      params[optName] = os.str();
+
+    return 0;
+  }
+
+  /**
+   * Adds a registered option together with a help string
+   * It's recommended to use the other version of this method, 
+   * which takes a default value.
+   * @param optName name of the option, e.g. "home"
+   * @param helpString description of the option, may contain line breaks
+   * @return 0 on success, -1 if option already exists
+   **/
+  int addOption(string optName, const string& helpString);
+
+  /**
+   * Returns the default string value associated with an option.
+   * @param optName name of the option, e.g. "home"
+   * @return default value associated with optName
+   **/
+  string getOptionDefault(string optName) const;
+
+  /**
+   * Returns the name of all options.
+   * @return name of every registered option
+   **/
+  vector<string> getOptions() const;
 
 private:
   /**
@@ -123,6 +195,7 @@ private:
    * Load the config file set through the command line or environment, if any.
    */
   void loadConfigFileIfGiven();
+
 };
 
 } }   // end nexus :: internal namespace

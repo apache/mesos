@@ -138,7 +138,8 @@ void Configuration::loadCommandLine(int argc,
 }
 
 
-void Configuration::loadConfigFile(const string& fname) {
+void Configuration::loadConfigFile(const string& fname) 
+{
   ifstream cfg(fname.c_str(), std::ios::in);
   if (!cfg.is_open()) {
     string message = "Couldn't read Mesos config file: " + fname;
@@ -164,8 +165,74 @@ void Configuration::loadConfigFile(const string& fname) {
   }
 }
 
+string Configuration::getUsage() const 
+{
+  const int PAD = 10;
+  const int PADEXTRA = string("--=VAL").size(); // adjust for "--" and "=VAL"
+  string usage = "Parameters:\n\n";
+  
+  // get max key length
+  int maxLen = 0;
+  foreachpair(const string& key, _, options) {
+    maxLen = key.size() > maxLen ? key.length() : maxLen;
+  }
+  maxLen += PADEXTRA; 
 
-Params& Configuration::getParams() 
+  foreachpair(const string& key, const Option& val, options) {
+    string helpStr = val.helpString;
+
+    if (val.defaultValue != "") {  // add default value
+      helpStr += " (default VAL=" + val.defaultValue + ")";
+    }
+
+    usage += "--" + key + "=VAL";
+    string pad(PAD + maxLen - key.size() - PADEXTRA, ' ');
+    usage += pad;
+    size_t pos1 = 0, pos2 = 0;
+    pos2 = helpStr.find_first_of("\n\r", pos1);
+    usage += helpStr.substr(pos1, pos2 - pos1) + "\n";
+
+    while(pos2 != string::npos) {  // handle multi line help strings
+      pos1 = pos2 + 1;
+      string pad2(PAD + maxLen, ' ');
+      usage += pad2;
+      pos2 = helpStr.find_first_of("\n\r", pos1);
+      usage += helpStr.substr(pos1, pos2 - pos1) + "\n";
+    }
+
+  }
+  return usage;
+}
+  
+
+int Configuration::addOption(string optName, const string& helpString) 
+{
+  std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
+  if (options.find(optName) != options.end())
+    return -1;
+  options[optName] = Option(helpString);
+  return 0;
+}
+
+string Configuration::getOptionDefault(string optName) const
+{
+  std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
+  if (options.find(optName) == options.end()) 
+    return "";
+  return options.find(optName)->second.defaultValue;
+}
+
+vector<string> Configuration::getOptions() const 
+{
+  vector<string> ret;
+  foreachpair(const string& key, _, options) {
+    ret.push_back(key);
+  }
+  return ret;
+}
+
+
+Params& Configuration::getParams()
 {
   return params;
 }
