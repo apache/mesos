@@ -225,8 +225,8 @@ WEBUI_DIRECTORIES = $(BINDIR)/webui/common $(BINDIR)/webui/master	\
                     $(BINDIR)/webui/slave/swig
 
 DIRECTORIES = $(BINDIR) $(LIBDIR) $(LIBDIR)/java $(LIBDIR)/python	\
-              $(OBJ_DIRECTORIES) $(WEBUI_DIRECTORIES) $(CONFDIR)        \
-	      $(DEPLOYDIR)
+              $(CONFDIR) $(DEPLOYDIR) $(OBJ_DIRECTORIES)		\
+              $(WEBUI_DIRECTORIES)
 
 
 default: all
@@ -323,20 +323,16 @@ ifdef PYTHON_HEADERS
 	cp -r swig/python/mesos.py $(LIBDIR)/python/mesos.py
 endif
 
-$(WEBUI_FILES): | $(WEBUI_DIRECTORIES)
-
-$(WEBUI_FILES): $(BINDIR)/%: @srcdir@/%
+$(WEBUI_FILES): $(BINDIR)/%: @srcdir@/% | $(WEBUI_DIRECTORIES)
 ifeq ($(WITH_WEBUI),1)
 	cp -r $< $@
 endif
 
-$(DEPLOY_FILES): | $(DEPLOYDIR)
-
-$(DEPLOY_FILES): $(DEPLOYDIR)/%: @srcdir@/deploy/%
+$(DEPLOY_FILES): $(DEPLOYDIR)/%: @srcdir@/deploy/% | $(DEPLOYDIR)
 	cp -r $< $@
 
 $(CONFDIR)/mesos.conf: @srcdir@/conf/mesos.conf.template | $(CONFDIR)
-	cp -r $^ $@
+	cp -r $< $@
 
 test: all
 	$(MAKE) -C tests test
