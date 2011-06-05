@@ -158,5 +158,8 @@ $HADOOP_HOME/bin/start-dfs.sh
 echo "Starting MapOutputServer(s)..."
 ./start-mos
 
+echo "Setting up torque"
+./setup-torque
+
 echo "Starting Nexus cluster..."
 ./start-nexus
