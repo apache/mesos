@@ -34,7 +34,6 @@ int main(int argc, char **argv)
 {
   Configurator conf;
   conf.addOption<string>("url", 'u', "Master URL");
-  conf.addOption<int>("port", 'p', "Port to bind to (default: random)");
   conf.addOption<string>("isolation", 'i', "Isolation module name", "process");
 #ifdef NEXUS_WEBUI
   conf.addOption<int>("webui_port", 'w', "Web UI port", 8081);
@@ -56,9 +55,6 @@ int main(int argc, char **argv)
   }
 
   Logging::init(argv[0], params);
-
-  if (params.contains("port"))
-    setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
 
   if (!params.contains("url")) {
     cerr << "Master URL argument (--url) required." << endl;
