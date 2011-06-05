@@ -13,7 +13,9 @@ using boost::lexical_cast;
 
 using namespace nexus;
 using namespace nexus::internal;
-using namespace nexus::internal::master;
+
+using nexus::internal::master::Master;
+using nexus::internal::slave::Slave;
 
 
 class NoopScheduler : public Scheduler
@@ -283,4 +285,60 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
   EXPECT_EQ(1, sched2.offersGotten);
 
   kill_nexus();
+}
+
+
+class SlaveLostScheduler : public Scheduler
+{
+public:
+  bool slaveLostCalled;
+  
+  SlaveLostScheduler() : slaveLostCalled(false) {}
+
+  virtual ~SlaveLostScheduler() {}
+
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
+    return ExecutorInfo("noexecutor", "");
+  }
+
+  virtual void resourceOffer(SchedulerDriver* d,
+                             OfferID id,
+                             const vector<SlaveOffer>& offers) {
+    LOG(INFO) << "SlaveLostScheduler got a slot offer";
+    vector<TaskDescription> tasks;
+    d->replyToOffer(id, tasks, string_map());
+  }
+  
+  void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
+    slaveLostCalled = true;
+    d->stop();
+  }
+};
+
+
+TEST(MasterTest, SlaveLost)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Master m;
+  PID master = Process::spawn(&m);
+
+  Slave s(master, Resources(2, 1 * Gigabyte), true);
+  PID slave = Process::spawn(&s);
+
+  SlaveLostScheduler sched;
+  NexusSchedulerDriver driver(&sched, master);
+  driver.start();
+
+  Process::post(slave, S2S_SHUTDOWN);
+  Process::wait(slave);
+
+  driver.join();
+
+  // TODO(benh): Test lost slave due to missing heartbeats.
+
+  EXPECT_TRUE(sched.slaveLostCalled);
+
+  Process::post(master, M2M_SHUTDOWN);
+  Process::wait(master);
 }
