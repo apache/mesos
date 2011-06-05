@@ -1,2 +1,2 @@
 #!/bin/sh
-./configure --with-python-headers=/usr/include/python2.5 --with-ruby-headers=/usr/lib/ruby/1.8/x86_64-linux --with-java-home=/usr/lib/jvm/java-6-sun --with-boost-headers=/work/mesos/boost/include --with-webui --with-included-zookeeper $@
+./configure --with-python-headers=/usr/include/python2.5 --with-java-home=/usr/lib/jvm/java-6-sun --with-boost-headers=/work/mesos/boost/include --with-webui --with-included-zookeeper $@

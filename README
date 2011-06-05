@@ -11,7 +11,7 @@ h2. Configure Mesos settings (future)
 h2. Building Mesos
 
 # in linux or solaris (OS X not currently supported), in the @MESOS_HOME@ directory, if you are using a 64bit ubuntu VM, type @./configure.OURS.ubuntu64@
-## our premade config commands require you to have python-dev, ruby-dev, sun-java6-jdk, and swig (to get these in ubuntu, type apt-get X, where X is those three things in turn)
+## our premade config commands require you to have python-dev, sun-java6-jdk, and swig (to get these in ubuntu, type apt-get X, where X is those three things in turn)
 # type @make@
 
 h2. Running the master

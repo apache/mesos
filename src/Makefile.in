@@ -15,7 +15,6 @@ OS_NAME = @OS_NAME@
 
 JAVA_HOME = @JAVA_HOME@
 PYTHON_HEADERS = @PYTHON_HEADERS@
-RUBY_HEADERS = @RUBY_HEADERS@
 
 WITH_WEBUI = @WITH_WEBUI@
 WEBUI_FLAGS = @WEBUI_FLAGS@
@@ -145,8 +144,6 @@ endif
 
 PYTHON_LIB = swig/python/_mesos.so
 
-RUBY_LIB = swig/ruby/mesos.so
-
 
 default: all
 
@@ -243,8 +240,6 @@ java: $(JAVA_LIB) swig/java/mesos.jar swig/java/TestFramework.class swig/java/Te
 
 python: $(PYTHON_LIB)
 
-ruby: $(RUBY_LIB)
-
 swig/java/mesos.jar: $(JAVA_LIB)
 ifdef JAVA_HOME
 	$(JAVA_HOME)/bin/javac -sourcepath swig/java -d swig/java swig/java/mesos/*.java
@@ -287,12 +282,6 @@ ifdef PYTHON_HEADERS
 	$(CXX) $(CXXFLAGS) -shared -o $@ swig/python/mesos_wrap.cpp -I$(PYTHON_HEADERS) -L. $(LDFLAGS) -lmesos++ $(LIBS)
 endif
 
-$(RUBY_LIB): swig/mesos.i $(MESOS_LIB)
-ifdef RUBY_HEADERS
-	$(SWIG) -c++ -ruby -I../include -o swig/ruby/mesos_wrap.cpp -outdir swig/ruby -autorename swig/mesos.i
-	$(CXX) $(CXXFLAGS) -shared -o $@ swig/ruby/mesos_wrap.cpp -I$(RUBY_HEADERS) -L. $(LDFLAGS) -lmesos++ $(LIBS)
-endif
-
 test: all
 	./alltests
 
@@ -304,7 +293,7 @@ ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER)
 endif
 
-all: third_party $(MESOS_LIBS) $(MESOS_EXES) alltests java python ruby
+all: third_party $(MESOS_LIBS) $(MESOS_EXES) alltests java python
 
 clean:
 	$(MAKE) -C third_party/libprocess clean
@@ -317,8 +306,8 @@ endif
 	rm -f $(ALL_OBJ)
 	rm -f $(MESOS_LIBS)
 	rm -f $(MESOS_EXES)
-	rm -f $(JAVA_LIB) $(PYTHON_LIB) $(RUBY_LIB)
-	rm -rf $(JAVA_LIB).dSYM $(PYTHON_LIB).dSYM $(RUBY_LIB).dSYM
+	rm -f $(JAVA_LIB) $(PYTHON_LIB)
+	rm -rf $(JAVA_LIB).dSYM $(PYTHON_LIB).dSYM
 	rm -f swig/*/mesos_wrap.cpp
 	rm -f swig/*/mesos_wrap.h
 	rm -f swig/*/*.o
@@ -346,4 +335,4 @@ endif
 	rm -f webui/slave/swig/slave.pyc
 	rm -f TAGS
 
-.PHONY: default third_party all clean java python ruby test
+.PHONY: default third_party all clean java python test

@@ -105,24 +105,6 @@ AC_ARG_WITH([python-headers],
 AC_SUBST(PYTHON_HEADERS)
 AC_SUBST(HAS_PYTHON)
 
-RUBY_HEADERS=""
-HAS_RUBY="0"
-AC_ARG_WITH([ruby-headers],
-  AC_HELP_STRING([--with-ruby-headers=DIR],
-                 [find Ruby headers in DIR]),
-	         [case "$with_ruby_headers" in
-		    yes)
-                      AC_MSG_ERROR([
-*** --with-ruby-headers requires an argument]) ;;
-		    *)
-                      RUBY_HEADERS="$withval"
-                      HAS_RUBY="1"
-                      ;;
-	          esac],
-	         [])
-AC_SUBST(RUBY_HEADERS)
-AC_SUBST(HAS_RUBY)
-
 WITH_WEBUI="0"
 WEBUI_FLAGS=""
 AC_ARG_WITH([webui],
