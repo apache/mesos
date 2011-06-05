@@ -9,11 +9,12 @@
 #LDFLAGS="-L/home/travis/src/swig-1.3.40/Lib -L/home/travis/Python-2.6.4/lib"
 #CPPFLAGS="-I/home/travis/src/swig-1.3.40/Source/Include -I/home/travis/Python-2.6.4/include/python2.6"
 
-LDFLAGS="-L/home/travis/src/swig-1.3.40/Lib -L/usr/lib/python2.6 -lpython2.6 -L/home/travis/src/zookeeper-3.2.2/src/c/.libs"
-CPPFLAGS="-I/home/travis/src/swig-1.3.40/Source/Include -I/usr/include/python2.6 -I/home/travis/src/zookeeper-3.2.2/src/c/include -I/home/travis/src/zookeeper-3.2.2/src/c/generated"
+LDFLAGS="-L/home/travis/src/swig-1.3.40/Lib -L/usr/lib/python2.6 -lpython2.6"
+CPPFLAGS="-I/home/travis/src/swig-1.3.40/Source/Include -I/usr/include/python2.6 -I/usr/local/include/c-client-src"
 
 LDFLAGS="$LDFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CPPFLAGS" ./configure \
   --with-python-headers=/usr/include/python2.6 \
   --with-ruby-headers=/opt/local/lib/ruby/1.8/x86_64-linux \
   --with-java-home=/usr/java/default \
-  --with-webui $@
+  --with-webui \
+  --with-zookeeper $@
