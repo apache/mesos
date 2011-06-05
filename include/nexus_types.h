@@ -6,7 +6,7 @@
 typedef int32_t framework_id;
 typedef int32_t task_id;
 typedef const char *slave_id;
-typedef int64_t offer_id;
+typedef const char *offer_id;
 typedef int32_t nexus_handle;
 
 enum task_state {

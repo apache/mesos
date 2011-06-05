@@ -36,7 +36,7 @@ public class TestFramework {
 
     @Override
     public void resourceOffer(SchedulerDriver d,
-                              long oid,
+                              String oid,
                               SlaveOfferVector offers) {
       System.out.println("Got offer offer " + oid);
       TaskDescriptionVector tasks = new TaskDescriptionVector();

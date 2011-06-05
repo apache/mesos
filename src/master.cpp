@@ -112,13 +112,13 @@ public:
 
 Master::Master(const bool ft, const string zk)
   : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId("0"), 
-    nextSlotOfferId(0), allocatorType("simple")
+    nextSlotOfferId("0"), allocatorType("simple")
 {}
 
 
 Master::Master(const string& _allocatorType, const bool ft, const string zk)
   : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId("0"), 
-    nextSlotOfferId(0), allocatorType(_allocatorType)
+    nextSlotOfferId("0"), allocatorType(_allocatorType)
 {}
                    
 
@@ -500,7 +500,13 @@ void Master::operator () ()
 OfferID Master::makeOffer(Framework *framework,
                           const vector<SlaveResources>& resources)
 {
-  OfferID oid = nextSlotOfferId++;
+  OfferID oid = nextSlotOfferId;
+
+  ostringstream ss;
+  ss<<(atoi(nextSlotOfferId.c_str()) + 1);
+  nextSlotOfferId = ss.str();
+
+
   SlotOffer *offer = new SlotOffer(oid, framework->id, resources);
   slotOffers[offer->id] = offer;
   framework->addOffer(offer);

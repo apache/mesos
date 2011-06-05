@@ -510,13 +510,13 @@ public:
       c_offers[i] = offer;
     }
 
-    sched->slot_offer(sched, offerId, c_offers, offers.size());
+    sched->slot_offer(sched, offerId.c_str(), c_offers, offers.size());
     delete[] c_offers;
   }
 
   virtual void offerRescinded(SchedulerDriver*, OfferID offerId)
   {
-    sched->slot_offer_rescinded(sched, offerId);
+    sched->slot_offer_rescinded(sched, offerId.c_str());
   }
 
   virtual void statusUpdate(SchedulerDriver*, TaskStatus &status)
