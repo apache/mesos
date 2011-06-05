@@ -31,11 +31,14 @@ FileEventWriter::~FileEventWriter() {
 int FileEventWriter::logTaskCreated(TaskID tid, FrameworkID fwid, SlaveID sid,
                                     string webuiUrl, Resources resVec)
 {
-  logfile << DateUtils::currentDate() << ",CreateTask, "
-          << "taskid: " << tid << ", "
-          << "fwid: " << fwid << ", "
-          << "sid: " << sid << ","
-          << "cpus: " << resVec.cpus << ", mem: " << resVec.mem << endl;
+  logfile << "{"
+            << "datetime:" << DateUtils::currentDate() << ","
+            << "event_type:CreateTask,"
+            << "taskid:" << tid << ","
+            << "fwid:" << fwid << ","
+            << "sid:" << sid << ","
+            << "resources:{cpus:" << resVec.cpus << ",mem:" << resVec.mem << "}"
+          << "}" << endl;
 
   return 0;
 }
@@ -44,19 +47,25 @@ int FileEventWriter::logTaskCreated(TaskID tid, FrameworkID fwid, SlaveID sid,
 int FileEventWriter::logTaskStateUpdated(TaskID tid, FrameworkID fwid,
                                          TaskState state)
 {
-  logfile << DateUtils::currentDate() << ", TaskStateUpdate, "
-          << "taskid: " << tid << ", "
-          << "fwid: " << fwid << ", "
-          << "state: " << state << endl;
+  logfile << "{" 
+            << "datetime:" << DateUtils::currentDate() << "," 
+            << "event_type:TaskStateUpdate,"
+            << "taskid:" << tid << ","
+            << "fwid:" << fwid << ","
+            << "state:" << state
+          << "}" << endl;
 
   return 0;
 }
 
 
 int FileEventWriter::logFrameworkRegistered(FrameworkID fwid, string user) {
-  logfile << DateUtils::currentDate() << ", CreateFramework, "
-          << "fwid: " << fwid << ", "
-          << "userid: " << user << endl;
+  logfile << "{"
+            << "datetime:" << DateUtils::currentDate() << ","
+            << "event_type:CreateFramework,"
+            << "fwid:" << fwid << ","
+            << "userid:" << user
+          << "}" << endl;
 
   return 0;
 }

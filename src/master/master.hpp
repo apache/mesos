@@ -33,7 +33,7 @@
 
 #include "detector/detector.hpp"
 
-#include "event_history/event_history.hpp"
+#include "event_history/event_logger.hpp"
 
 #include "messaging/messages.hpp"
 

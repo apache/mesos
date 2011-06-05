@@ -59,7 +59,6 @@ int main(int argc, char **argv)
 
   LOG(INFO) << "Creating event logger." << endl;
   EventLogger evLogger(params);
-  LOG(INFO) << "Done creating event logger." << endl;
 
   if (params.contains("port"))
     setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);

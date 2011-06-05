@@ -18,9 +18,9 @@ public:
   static std::string currentDate();
 
   /**
-   * Get the current time in microseconds.
+   * Get the current time in microseconds since the UNIX epoch.
    */
-  static long currentDateTimeInMicro();
+  static long currentDateInMicro();
 
   /**
    * Unit test utility method that makes this class return a fixed string

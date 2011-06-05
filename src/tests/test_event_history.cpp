@@ -4,7 +4,7 @@
 
 #include "common/params.hpp"
 
-#include "event_history/event_history.hpp"
+#include "event_history/event_logger.hpp"
 
 #include "master/master.hpp"
 
@@ -26,20 +26,18 @@ using mesos::internal::Params;
  */
 
 /*
- * preconditions: /tmp is writable by user running this test
+ * precondition:  cwd does not contain event_history_log.txt or
+ *                event_history_db.sqlite3 files.
+ * postcondition: event_history_log.txt and event_history_db.sqlite3
+ *                still do not exist (i.e. were not created).
  */
 TEST_WITH_WORKDIR(EventHistoryTest, EventLoggingTurnedOffWithLogDir)
 {
   EXPECT_TRUE(GTEST_IS_THREADSAFE);
 
   Params params;
-  const char* testLogDir = "/tmp/mesos-EventLoggingTurnedOff-test-dir";
-  system((string("rm -rf ") + testLogDir).c_str()); // remove tmp dir, if exists
-  struct stat sb;
-  stat((string(testLogDir) + "/event_history_log.txt").c_str(), &sb);
-  EXPECT_FALSE(S_ISREG(sb.st_mode));
-  EXPECT_EQ(0, mkdir(testLogDir, 0777)); // create temporary test dir
-  params.set<string>("log_dir", testLogDir);
+  const char* logDir = "./";
+  params.set<string>("log_dir", logDir);
   params.set<bool>("event_history_sqlite", false);
   params.set<bool>("event_history_file", false);
   EventLogger evLogger(params);
@@ -47,26 +45,28 @@ TEST_WITH_WORKDIR(EventHistoryTest, EventLoggingTurnedOffWithLogDir)
   evLogger.logFrameworkRegistered(fid, "UserID");
 
   // make sure eventlog file and sqlite db were NOT created
-  EXPECT_NE(0, stat((string(testLogDir) + "/event_history_log.txt").c_str(), &sb));
+  struct stat sb;
+  EXPECT_NE(0, stat((string(logDir) + "/event_history_log.txt").c_str(), &sb));
   EXPECT_FALSE(S_ISREG(sb.st_mode));
 
-  EXPECT_NE(0, stat((string(testLogDir) + "/event_history_db.sqlite3").c_str(), &sb));
+  EXPECT_NE(0, stat((string(logDir) + "/event_history_db.sqlite3").c_str(), &sb));
   EXPECT_FALSE(S_ISREG(sb.st_mode));
 }
 
 
+/*
+ * precondition:  cwd does not contain event_history_log.txt or
+ *                event_history_db.sqlite3 files.
+ * postcondition: event_history_log.txt and event_history_db.sqlite3
+ *                exist (i.e. were created).
+ */
 TEST_WITH_WORKDIR(EventHistoryTest, UsesLogDirLocation)
 {
   EXPECT_TRUE(GTEST_IS_THREADSAFE);
 
   Params params;
-  const char* testLogDir = "/tmp/mesos-EventLoggingTurnedOff-test-dir";
-  system((string("rm -rf ") + testLogDir).c_str()); // remove tmp dir, if exists
-  struct stat sb;
-  stat((string(testLogDir) + "/event_history_log.txt").c_str(), &sb);
-  EXPECT_FALSE(S_ISREG(sb.st_mode));
-  EXPECT_EQ(0, mkdir(testLogDir, 0777)); // create temporary test dir
-  params.set<string>("log_dir", testLogDir);
+  const char* logDir = "./";
+  params.set<string>("log_dir", "./");
   params.set<bool>("event_history_sqlite", true);
   params.set<bool>("event_history_file", true);
   EventLogger evLogger(params);
@@ -74,10 +74,11 @@ TEST_WITH_WORKDIR(EventHistoryTest, UsesLogDirLocation)
   evLogger.logFrameworkRegistered(fid, "UserID");
 
   // make sure eventlog file and sqlite WERE created in the correct spot
-  EXPECT_EQ(0, stat((string(testLogDir) + "/event_history_log.txt").c_str(), &sb));
+  struct stat sb;
+  EXPECT_EQ(0, stat((string(logDir) + "/event_history_log.txt").c_str(), &sb));
   EXPECT_TRUE(S_ISREG(sb.st_mode));
 
-  EXPECT_EQ(0, stat((string(testLogDir) + "/event_history_db.sqlite3").c_str(), &sb));
+  EXPECT_EQ(0, stat((string(logDir) + "/event_history_db.sqlite3").c_str(), &sb));
   EXPECT_TRUE(S_ISREG(sb.st_mode));
 }
 

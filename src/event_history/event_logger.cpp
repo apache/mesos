@@ -1,24 +1,35 @@
 #include <cstdlib>
 #include <stdarg.h>
 #include <sys/stat.h>
+#include <sstream>
 
 #include <glog/logging.h>
 
-#include "event_history.hpp"
+#include "event_logger.hpp"
 #include "file_event_writer.hpp"
 #include "sqlite_event_writer.hpp"
 
 using namespace mesos::internal::eventhistory;
 
+// We use class data members so that the default values that get 
+// printed with --help option match up with those that are used as
+// default values when accessing the configuration settings.
+bool EventLogger::default_ev_hist_file_conf_val = true;
+bool EventLogger::default_ev_hist_sqlite_conf_val = false;
 
-void EventLogger::registerOptions(Configurator* conf) {
-  //TODO(andyk): We don't set the default value here, since this would
-  //             override the defaults set at the param.get() calls later.
-  //             We would like to set the default here and override it later.
-  conf->addOption<bool>("event_history_file",
-        "Enable file event history logging(default: true)");
-  conf->addOption<bool>("event_history_sqlite",
-        "Enable SQLite event history logging (default: false)");
+void EventLogger::registerOptions(Configurator* conf, bool file_writer_default,
+                                  bool sqlite_writer_default)
+{
+  default_ev_hist_file_conf_val = file_writer_default;
+  default_ev_hist_sqlite_conf_val = sqlite_writer_default;
+
+  ostringstream evFileMessage, evSqliteMessage;
+  evFileMessage << "Enable event history file writer (default: "
+                << boolalpha << default_ev_hist_file_conf_val << ")";
+  evSqliteMessage << "Enable event history sqlite writer (default: "
+                  << boolalpha << default_ev_hist_sqlite_conf_val << ")";
+  conf->addOption<bool>("event_history_file", evFileMessage.str());
+  conf->addOption<bool>("event_history_sqlite", evSqliteMessage.str());
 }
 
 
@@ -38,13 +49,14 @@ EventLogger::EventLogger(const Params& conf) {
                    << "file based event history will not be captured";
       }
     }
-    //Create and add file based writers (i.e. writers which depend on log_dir
-    //being set) to writers list.
-    if (conf.get<bool>("event_history_file", true)) {
+    // Create and add file based writers (i.e. writers which depend on log_dir
+    // being set) to writers list.
+    if (conf.get<bool>("event_history_file", default_ev_hist_file_conf_val)) {
       LOG(INFO) << "creating FileEventWriter" << endl;
       writers.push_front(new FileEventWriter(conf));
     }
-    if (conf.get<bool>("event_history_sqlite", false)) {
+    if (conf.get<bool>("event_history_sqlite",
+                       default_ev_hist_sqlite_conf_val)) {
       LOG(INFO) << "creating SqliteEventWriter" << endl;
       writers.push_front(new SqlLiteEventWriter(conf));
     }
@@ -52,13 +64,13 @@ EventLogger::EventLogger(const Params& conf) {
     LOG(INFO) << "No log directory was specified, so not creating "
               << "FileEventWriter or SqliteEventWriter. No event "
               << "logging will happen!";
-    //Create and add non file based writers to writers list here.
+    // Create and add non file based writers to writers list here.
   }
 }
 
 
 EventLogger::~EventLogger() {
-  //Delete all eventWriters in list.
+  // Delete all eventWriters in list.
   list<EventWriter*>::iterator it;
   for (it = writers.begin(); it != writers.end(); it++) {
     delete *it;

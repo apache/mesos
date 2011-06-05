@@ -10,7 +10,7 @@
 
 #include "configurator/configurator.hpp"
 
-#include "event_history/event_history.hpp"
+#include "event_history/event_logger.hpp"
  
 #include "master/master.hpp"
 

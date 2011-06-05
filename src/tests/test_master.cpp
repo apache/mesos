@@ -5,7 +5,9 @@
 #include <mesos_exec.hpp>
 #include <mesos_sched.hpp>
 
-#include "event_history/event_history.hpp"
+#include "common/date_utils.hpp"
+
+#include "event_history/event_logger.hpp"
 
 #include "local/local.hpp"
 
@@ -134,123 +136,137 @@ public:
 TEST(MasterTest, DuplicateTaskIdsInResponse)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "1";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
-  tasks.push_back(TaskDescription(2, "0-0", "", params, ""));
-  tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
+  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
+  tasks.push_back(TaskDescription(2, "200102030405-0-0", "", params, ""));
+  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Duplicate task ID: 1", sched.errorMessage);
   local::shutdown();
+  DateUtils::clearMockDate();
 }
 
 
 TEST(MasterTest, TooMuchMemoryInTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "1";
   params["mem"] = lexical_cast<string>(4 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
+  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
   local::shutdown();
+  DateUtils::clearMockDate();
 }
 
 
 TEST(MasterTest, TooMuchCpuInTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "4";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
+  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
   local::shutdown();
+  DateUtils::clearMockDate();
 }
 
 
 TEST(MasterTest, TooLittleCpuInTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "0";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
+  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Invalid task size: <0 CPUs, 1024 MEM>", sched.errorMessage);
   local::shutdown();
+  DateUtils::clearMockDate();
 }
 
 
 TEST(MasterTest, TooLittleMemoryInTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "1";
   params["mem"] = "1";
-  tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
+  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Invalid task size: <1 CPUs, 1 MEM>", sched.errorMessage);
   local::shutdown();
+  DateUtils::clearMockDate();
 }
 
 
 TEST(MasterTest, TooMuchMemoryAcrossTasks)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "1";
   params["mem"] = lexical_cast<string>(2 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
-  tasks.push_back(TaskDescription(2, "0-0", "", params, ""));
+  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
+  tasks.push_back(TaskDescription(2, "200102030405-0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
   local::shutdown();
+  DateUtils::clearMockDate();
 }
 
 
 TEST(MasterTest, TooMuchCpuAcrossTasks)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "2";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
-  tasks.push_back(TaskDescription(2, "0-0", "", params, ""));
+  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
+  tasks.push_back(TaskDescription(2, "200102030405-0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
   local::shutdown();
+  DateUtils::clearMockDate();
 }
 
 
@@ -278,13 +294,14 @@ TEST(MasterTest, ResourcesReofferedAfterReject)
 TEST(MasterTest, ResourcesReofferedAfterBadResponse)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
 
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "0";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
+  tasks.push_back(TaskDescription(1, "200102030405-0-0", "", params, ""));
   FixedResponseScheduler sched1(tasks);
   MesosSchedulerDriver driver1(&sched1, master);
   driver1.run();
@@ -297,6 +314,7 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
   EXPECT_EQ(1, sched2.offersGotten);
 
   local::shutdown();
+  DateUtils::clearMockDate();
 }
 
 

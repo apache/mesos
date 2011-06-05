@@ -16,7 +16,7 @@
 
 namespace mesos { namespace internal { namespace eventhistory {
 
-using namespace std; //for list
+using namespace std; // For list.
 using mesos::FrameworkID;
 using mesos::TaskID;
 using mesos::SlaveID;
@@ -24,21 +24,23 @@ using mesos::FrameworkID;
 using mesos::TaskState;
 using mesos::internal::Resources;
 
-
 class EventLogger {
 private:
   list<EventWriter*> writers; 
 public:
+  static bool default_ev_hist_file_conf_val;
+  static bool default_ev_hist_sqlite_conf_val;
+
   EventLogger();
   EventLogger(const Params&);
   ~EventLogger();
-  static void registerOptions(Configurator*);
+  static void registerOptions(Configurator*, bool file_writer_default = true,
+                                             bool sqlite_writer_default = false);
   int logResourceOffer(FrameworkID, Resources);
   int logTaskCreated(TaskID, FrameworkID, SlaveID, string sHostname, Resources);
   int logTaskStateUpdated(TaskID, FrameworkID, TaskState); 
   int logFrameworkRegistered(FrameworkID, string);
   int logFrameworkUnregistered(FrameworkID);
-  EventLogger operator() (string, string);
 };
 
 }}} /* namespace */

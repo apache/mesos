@@ -32,8 +32,8 @@ string DateUtils::currentDate()
 }
 
 
-// Get the current time in microseconds.
-long DateUtils::currentDateTimeInMicro() {
+// Get the current time in microseconds since the UNIX epoch.
+long DateUtils::currentDateInMicro() {
   struct timeval curr_time;
   struct timezone tzp;
   gettimeofday(&curr_time, &tzp);

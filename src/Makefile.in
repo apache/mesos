@@ -127,7 +127,7 @@ SLAVE_SWIG_WEBUI_OBJ = webui/slave/swig/slave_wrap.o
 WEBUI_OBJ = $(MASTER_WEBUI_OBJ) $(SLAVE_WEBUI_OBJ)
 SWIG_WEBUI_OBJ = $(MASTER_SWIG_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 
-EVENT_HISTORY_OBJ = event_history/event_history.o \
+EVENT_HISTORY_OBJ = event_history/event_logger.o \
 										event_history/file_event_writer.o \
 										event_history/sqlite_event_writer.o
 
