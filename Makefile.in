@@ -17,6 +17,7 @@ install:
 	fi
 	install -m 755 src/nexus-master $(NEXUS_HOME)
 	install -m 755 src/nexus-slave $(NEXUS_HOME)
+	install -m 755 src/swig/java/libnexus.so $(NEXUS_HOME)
 	rsync -avz src/webui $(NEXUS_HOME)
 	if test ! -d $(NEXUS_HOME)/third_party; \
 		then mkdir $(NEXUS_HOME)/third_party; \
