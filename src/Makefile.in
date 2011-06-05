@@ -370,7 +370,7 @@ ifneq (@top_srcdir@, @top_builddir@)
 endif
 	cp $< $@
 	$(PROTOC) --python_out=@top_builddir@/$(PROTOBUF)/python -I@top_srcdir@/$(PROTOBUF)/src @top_srcdir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto
-	$(PROTOC) --python_out=$(LIBDIR)/python -I@top_srcdir@/include @top_srcdir@/include/mesos/mesos.proto
+	$(PROTOC) --python_out=$(LIBDIR)/python -I@top_srcdir@/include/mesos @top_srcdir@/include/mesos/mesos.proto
 endif
 
 $(WEBUI_FILES): $(BINDIR)/%: $(SRCDIR)/% | $(WEBUI_DIRECTORIES)
