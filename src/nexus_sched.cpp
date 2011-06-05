@@ -69,8 +69,7 @@ protected:
       case PROCESS_TIMEOUT: {
         terminate = true;
         DLOG(INFO) << "FT: faking M2F_STATUS_UPDATE due to ReplyToOffer timeout for tid:" << tid;
-        send(parent, 
-             pack<M2F_STATUS_UPDATE>(tid, TASK_LOST, ""));
+        send(parent, pack<M2F_STATUS_UPDATE>(tid, TASK_LOST, ""));
         break;
       }
 
@@ -237,7 +236,8 @@ protected:
 	foreach(const TaskDescription &task, tasks) {
 	  RbReply *rr = new RbReply(self(), task.taskId);
 	  rbReplies[task.taskId] = rr;
-	  link(spawn(rr));
+	  // TODO(benh): Link?
+	  spawn(rr);
 	}
         
         send(master, pack<F2M_SLOT_OFFER_REPLY>(fid, oid, tasks, params));
@@ -259,23 +259,34 @@ protected:
         break;
       }
 
-      case M2F_FT_STATUS_UPDATE: {
-        TaskID tid;
-        TaskState state;
-        string data;
-        unpack<M2F_FT_STATUS_UPDATE>(tid, state, data);
+	// TODO(benh): Fix forwarding issues.
+//       case M2F_FT_STATUS_UPDATE: {
+//         TaskID tid;
+//         TaskState state;
+//         string data;
+//         unpack<M2F_FT_STATUS_UPDATE>(tid, state, data);
+      case S2M_FT_STATUS_UPDATE: {
+	SlaveID sid;
+	FrameworkID fid;
+	TaskID tid;
+	TaskState state;
+	string data;
+
+	unpack<S2M_FT_STATUS_UPDATE>(sid, fid, tid, state, data);
+
         if (duplicate())
           break;
         ack();
         DLOG(INFO) << "FT: Received message with id: " << seq();
 
-        if (state == TASK_RUNNING) {
-          unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
-          if (it != rbReplies.end()) {
-            send(it->second->getPID(), pack<F2F_TASK_RUNNING_STATUS>());
-            rbReplies.erase(tid);
-          }
-        }
+	unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
+	if (it != rbReplies.end()) {
+	  RbReply *rr = it->second;
+	  send(rr->getPID(), pack<F2F_TASK_RUNNING_STATUS>());
+	  wait(rr->getPID());
+	  rbReplies.erase(tid);
+	  delete rr;
+	}
 
         TaskStatus status(tid, state, data);
         invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
@@ -287,13 +298,17 @@ protected:
         TaskState state;
         string data;
         unpack<M2F_STATUS_UPDATE>(tid, state, data);
+
+	unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
+	if (it != rbReplies.end()) {
+	  RbReply *rr = it->second;
+	  send(rr->getPID(), pack<F2F_TASK_RUNNING_STATUS>());
+	  wait(rr->getPID());
+	  rbReplies.erase(tid);
+	  delete rr;
+	}
+
         TaskStatus status(tid, state, data);
-
-        unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
-        if (it != rbReplies.end() && it->second->getPID() == from()) { // clean rbReplies
-          rbReplies.erase(tid);
-        }
-
         invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
         break;
       }

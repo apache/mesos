@@ -633,8 +633,8 @@ void Master::operator () ()
         FrameworkID fid = pidToFid[from()];
         if (Framework *framework = lookupFramework(fid)) {
           LOG(INFO) << framework << " disconnected";
-	  // TODO(benh): Only wait a specified timeout for another
-	  // scheduler for this framework to reconnect.
+	  // TODO(benh): Wait for a framework failover.
+	  removeFramework(framework);
         }
       } else if (pidToSid.find(from()) != pidToSid.end()) {
         SlaveID sid = pidToSid[from()];
