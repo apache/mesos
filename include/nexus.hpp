@@ -105,8 +105,8 @@ struct ExecutorInfo
     : uri(_uri), initArg(_initArg), params(_params) {}
 
   std::string uri;
-  string_map params;
   data_string initArg;
+  string_map params;
 };
 
 
