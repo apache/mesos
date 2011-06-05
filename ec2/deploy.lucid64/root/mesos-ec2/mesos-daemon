@@ -18,7 +18,7 @@ PROGRAM=$1
 shift
 
 EXTRA_OPTS=""
-if [ "$PROGRAM" == "nexus-slave" ]; then
+if [ "$PROGRAM" == "mesos-slave" ]; then
   # Compute CPU resources (if not specified).
   if [[ "$*" != *--cpus* ]]; then
     CPUS=`grep processor /proc/cpuinfo | wc -l`
