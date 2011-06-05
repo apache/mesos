@@ -34,7 +34,7 @@ namespace {
 
 const int32_t CPU_SHARES_PER_CPU = 1024;
 const int32_t MIN_CPU_SHARES = 10;
-const int32_t MIN_RSS = 128 * Megabyte;
+const int64_t MIN_RSS = 128 * Megabyte;
 
 }
 
@@ -50,14 +50,14 @@ LxcIsolationModule::~LxcIsolationModule()
   // could thus lead to a seg fault!
   if (initialized) {
     CHECK(reaper != NULL);
-    Process::post(reaper->self(), SHUTDOWN_REAPER);
-    Process::wait(reaper->self());
+    process::post(reaper->self(), process::TERMINATE);
+    process::wait(reaper->self());
     delete reaper;
   }
 }
 
 
-void LxcIsolationModule::initialize(Slave *slave)
+void LxcIsolationModule::initialize(Slave* slave)
 {
   this->slave = slave;
   
@@ -74,20 +74,21 @@ void LxcIsolationModule::initialize(Slave *slave)
   }
 
   reaper = new Reaper(this);
-  Process::spawn(reaper);
+  process::spawn(reaper);
   initialized = true;
 }
 
 
-void LxcIsolationModule::startExecutor(Framework *framework)
+void LxcIsolationModule::launchExecutor(Framework* framework, Executor* executor)
 {
-  if (!initialized)
+  if (!initialized) {
     LOG(FATAL) << "Cannot launch executors before initialization!";
+  }
 
-  infos[framework->frameworkId] = new FrameworkInfo();
+  infos[framework->frameworkId][executor->info.executor_id()] = new FrameworkInfo();
 
   LOG(INFO) << "Starting executor for framework " << framework->frameworkId << ": "
-            << framework->info.executor().uri();
+            << executor->info.uri();
 
   // Get location of Mesos install in order to find mesos-launcher.
   string mesosHome = slave->getConfiguration().get("home", ".");
@@ -99,8 +100,8 @@ void LxcIsolationModule::startExecutor(Framework *framework)
       << ".framework-" << framework->frameworkId;
   string containerName = oss.str();
 
-  infos[framework->frameworkId]->container = containerName;
-  framework->executorStatus = "Container: " + containerName;
+  infos[framework->frameworkId][executor->info.executor_id()]->container = containerName;
+  executor->executorStatus = "Container: " + containerName;
 
   // Run lxc-execute mesos-launcher using a fork-exec (since lxc-execute
   // does not return until the container is finished). Note that lxc-execute
@@ -111,7 +112,7 @@ void LxcIsolationModule::startExecutor(Framework *framework)
 
   if (pid) {
     // In parent process
-    infos[framework->frameworkId]->lxcExecutePid = pid;
+    infos[framework->frameworkId][executor->info.executor_id()]->lxcExecutePid = pid;
     LOG(INFO) << "Started child for lxc-execute, pid = " << pid;
     int status;
   } else {
@@ -130,9 +131,11 @@ void LxcIsolationModule::startExecutor(Framework *framework)
     ExecutorLauncher* launcher;
     launcher =
       new ExecutorLauncher(framework->frameworkId,
-			   framework->info.executor().uri(),
+			   executor->info.executor_id(),
+			   executor->info.uri(),
 			   framework->info.user(),
-			   slave->getUniqueWorkDirectory(framework->frameworkId),
+			   slave->getUniqueWorkDirectory(framework->frameworkId,
+							 executor->info.executor_id()),
 			   slave->self(),
 			   conf.get("frameworks_home", ""),
 			   conf.get("home", ""),
@@ -152,41 +155,42 @@ void LxcIsolationModule::startExecutor(Framework *framework)
 }
 
 
-void LxcIsolationModule::killExecutor(Framework* framework)
+void LxcIsolationModule::killExecutor(Framework* framework, Executor* executor)
 {
-  string container = infos[framework->frameworkId]->container;
+  string container = infos[framework->frameworkId][executor->info.executor_id()]->container;
   if (container != "") {
     LOG(INFO) << "Stopping container " << container;
     int ret = shell("lxc-stop -n %s", container.c_str());
     if (ret != 0)
       LOG(ERROR) << "lxc-stop returned " << ret;
-    infos[framework->frameworkId]->container = "";
-    framework->executorStatus = "No executor running";
-    delete infos[framework->frameworkId];
-    infos.erase(framework->frameworkId);
+    infos[framework->frameworkId][executor->info.executor_id()]->container = "";
+    executor->executorStatus = "No executor running";
+    delete infos[framework->frameworkId][executor->info.executor_id()];
+    infos[framework->frameworkId].erase(executor->info.executor_id());
   }
 }
 
 
-void LxcIsolationModule::resourcesChanged(Framework* framework)
+void LxcIsolationModule::resourcesChanged(Framework* framework, Executor* executor)
 {
-  if (infos[framework->frameworkId]->container != "") {
+  if (infos[framework->frameworkId][executor->info.executor_id()]->container != "") {
     // For now, just try setting the CPUs and memory right away, and kill the
     // framework if this fails.
     // A smarter thing to do might be to only update them periodically in a
     // separate thread, and to give frameworks some time to scale down their
     // memory usage.
 
-    int32_t cpuShares = max(CPU_SHARES_PER_CPU * framework->resources.cpus(),
-                            MIN_CPU_SHARES);
-    if (!setResourceLimit(framework, "cpu.shares", cpuShares)) {
+    double cpu = executor->resources.getScalar("cpu", Resource::Scalar()).value();
+    int32_t cpuShares = max(CPU_SHARES_PER_CPU * (int32_t) cpu, MIN_CPU_SHARES);
+    if (!setResourceLimit(framework, executor, "cpu.shares", cpuShares)) {
       // Tell slave to kill framework, which will invoke killExecutor.
       slave->killFramework(framework);
       return;
     }
 
-    int64_t rssLimit = max(framework->resources.mem(), MIN_RSS) * 1024LL * 1024LL;
-    if (!setResourceLimit(framework, "memory.limit_in_bytes", rssLimit)) {
+    double mem = executor->resources.getScalar("mem", Resource::Scalar()).value();
+    int64_t rssLimit = max((int64_t) mem, MIN_RSS) * 1024LL * 1024LL;
+    if (!setResourceLimit(framework, executor, "memory.limit_in_bytes", rssLimit)) {
       // Tell slave to kill framework, which will invoke killExecutor.
       slave->killFramework(framework);
       return;
@@ -196,13 +200,14 @@ void LxcIsolationModule::resourcesChanged(Framework* framework)
 
 
 bool LxcIsolationModule::setResourceLimit(Framework* framework,
+					  Executor* executor,
                                           const string& property,
                                           int64_t value)
 {
   LOG(INFO) << "Setting " << property << " for framework " << framework->frameworkId
             << " to " << value;
   int ret = shell("lxc-cgroup -n %s %s %lld",
-                  infos[framework->frameworkId]->container.c_str(),
+                  infos[framework->frameworkId][executor->info.executor_id()]->container.c_str(),
                   property.c_str(),
                   value);
   if (ret != 0) {
@@ -245,26 +250,27 @@ void LxcIsolationModule::Reaper::operator () ()
   link(module->slave->self());
   while (true) {
     receive(1);
-    if (name() == TIMEOUT) {
+    if (name() == process::TIMEOUT) {
       // Check whether any child process has exited
       pid_t pid;
       int status;
       if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
-        foreachpair (const FrameworkID& frameworkId,
-                     FrameworkInfo* info, module->infos) {
-          if (info->lxcExecutePid == pid) {
-            info->lxcExecutePid = -1;
-            info->container = "";
-            LOG(INFO) << "Telling slave of lost framework " << frameworkId;
-            // TODO(benh): This is broken if/when libprocess is parallel!
-            module->slave->executorExited(frameworkId, status);
-            delete module->infos[frameworkId];
-            module->infos.erase(frameworkId);
-            break;
-          }
-        }
+        foreachpair (const FrameworkID& frameworkId, _, module->infos) {
+          foreachpair (const ExecutorID& executorId, FrameworkInfo* info, module->infos[frameworkId]) {
+	    if (info->lxcExecutePid == pid) {
+	      info->lxcExecutePid = -1;
+	      info->container = "";
+	      LOG(INFO) << "Telling slave of lost framework " << frameworkId;
+	      // TODO(benh): This is broken if/when libprocess is parallel!
+	      module->slave->executorExited(frameworkId, executorId, status);
+	      delete module->infos[frameworkId][executorId];
+	      module->infos[frameworkId].erase(executorId);
+	      break;
+	    }
+	  }
+	}
       }
-    } else if (name() == TERMINATE || name() == EXIT) {
+    } else if (name() == process::TERMINATE || name() == process::EXITED) {
       return;
     }
   }

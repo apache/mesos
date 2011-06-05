@@ -92,8 +92,8 @@ public:
     if (processes.count(watcher) > 0) {
       WatcherProcess* process = processes[watcher];
       processes.erase(watcher);
-      send(process->self(), process::TERMINATE);
-      wait(process->self());
+      process::post(process->self(), process::TERMINATE);
+      process::wait(process->self());
       delete process;
     }
   }

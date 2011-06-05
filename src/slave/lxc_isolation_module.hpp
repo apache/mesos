@@ -18,30 +18,6 @@ using boost::unordered_map;
 
 class LxcIsolationModule : public IsolationModule {
 public:
-  // Reaps framework containers and tells the slave if they exit
-  class Reaper : public process::Process<Reaper> {
-    LxcIsolationModule* module;
-
-  protected:
-    virtual void operator () ();
-
-  public:
-    Reaper(LxcIsolationModule* module);
-  };
-
-  // Per-framework information object maintained in info hashmap
-  struct FrameworkInfo {
-    string container;    // Name of Linux container used for this framework
-    pid_t lxcExecutePid; // PID of lxc-execute command running the executor
-  };
-
-private:
-  bool initialized;
-  Slave* slave;
-  unordered_map<FrameworkID, FrameworkInfo*> infos;
-  Reaper* reaper;
-
-public:
   LxcIsolationModule();
 
   virtual ~LxcIsolationModule();
@@ -60,7 +36,31 @@ protected:
 
   // Attempt to set a resource limit of a framework's container for a given
   // cgroup property (e.g. cpu.shares). Returns true on success.
-  bool setResourceLimit(Framework* fw, const string& property, int64_t value);
+  bool setResourceLimit(Framework* framework, Executor* executor,
+			const string& property, int64_t value);
+
+private:
+  // Reaps framework containers and tells the slave if they exit
+  class Reaper : public process::Process<Reaper> {
+    LxcIsolationModule* module;
+
+  protected:
+    virtual void operator () ();
+
+  public:
+    Reaper(LxcIsolationModule* module);
+  };
+
+  // Per-framework information object maintained in info hashmap
+  struct FrameworkInfo {
+    string container;    // Name of Linux container used for this framework
+    pid_t lxcExecutePid; // PID of lxc-execute command running the executor
+  };
+
+  bool initialized;
+  Slave* slave;
+  boost::unordered_map<FrameworkID, boost::unordered_map<ExecutorID, FrameworkInfo*> > infos;
+  Reaper* reaper;
 };
 
 }}}

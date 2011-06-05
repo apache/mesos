@@ -1934,8 +1934,8 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
 
   // Kill the failover timer.
   if (framework->failoverTimer != NULL) {
-    send(framework->failoverTimer->self(), process::TERMINATE);
-    wait(framework->failoverTimer->self());
+    process::post(framework->failoverTimer->self(), process::TERMINATE);
+    process::wait(framework->failoverTimer->self());
     delete framework->failoverTimer;
     framework->failoverTimer = NULL;
   }

@@ -29,17 +29,6 @@ public:
 
   virtual void resourcesChanged(Framework* framework, Executor* executor);
 
-  // Reaps child processes and tells the slave if they exit
-  class Reaper : public process::Process<Reaper> {
-    ProcessBasedIsolationModule* module;
-
-  protected:
-    virtual void operator () ();
-
-  public:
-    Reaper(ProcessBasedIsolationModule* module);
-  };
-
 protected:
   // Main method executed after a fork() to create a Launcher for launching
   // an executor's process. The Launcher will create the child's working
@@ -51,6 +40,17 @@ protected:
   virtual launcher::ExecutorLauncher* createExecutorLauncher(Framework* framework, Executor* executor);
 
 private:
+  // Reaps child processes and tells the slave if they exit
+  class Reaper : public process::Process<Reaper> {
+    ProcessBasedIsolationModule* module;
+
+  protected:
+    virtual void operator () ();
+
+  public:
+    Reaper(ProcessBasedIsolationModule* module);
+  };
+
   bool initialized;
   Slave* slave;
   boost::unordered_map<FrameworkID, boost::unordered_map<ExecutorID, pid_t> > pgids;
