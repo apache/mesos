@@ -94,27 +94,28 @@ private:
    *        unless the option already has a value in params.
    **/
   template <class T>
-  void addOption(string optName,
+  void addOption(const string& optName,
                  const string& helpString,
                  bool hasShortName,
                  char shortName,
                  bool hasDefault,
                  const string& defaultValue)
   {
-    std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
-    if (options.find(optName) != options.end()) {
-      string message = "Duplicate option registration: " + optName;
+    string name;
+    std::transform(optName.begin(), optName.end(), name.begin(), ::tolower);
+    if (options.find(name) != options.end()) {
+      string message = "Duplicate option registration: " + name;
       throw ConfigurationException(message.c_str());
     }
-    options[optName] = Option(helpString,
-                              Validator<T>(), 
-                              hasShortName,
-                              shortName,
-                              hasDefault,
-                              defaultValue);
-    if (hasDefault && !params.contains(optName)) {
+    options[name] = Option(helpString,
+                           Validator<T>(), 
+                           hasShortName,
+                           shortName,
+                           hasDefault,
+                           defaultValue);
+    if (hasDefault && !params.contains(name)) {
       // insert default value into params
-      params[optName] = defaultValue;
+      params[name] = defaultValue;
     }
   }
 
@@ -125,7 +126,7 @@ public:
    * @param helpString description of the option, may contain line breaks
    **/
   template <class T>
-  void addOption(string optName, const string& helpString) 
+  void addOption(const string& optName, const string& helpString) 
   {
     addOption<T>(optName, helpString, false, '\0', false, "");
   }
@@ -137,7 +138,9 @@ public:
    * @param helpString description of the option, may contain line breaks
    **/
   template <class T>
-  void addOption(string optName, char shortName, const string& helpString) 
+  void addOption(const string& optName,
+                 char shortName,
+                 const string& helpString) 
   {
     addOption<T>(optName, helpString, true, shortName, false, "");
   }
@@ -146,15 +149,17 @@ public:
    * Adds a registered option with a default value and a help string.
    * @param optName name of the option, e.g. "home"
    * @param helpString description of the option, may contain line breaks
-   * @param defaultVal default value of option.
+   * @param defaultValue default value of option.
    *        The default option is put in the internal params, 
    *        unless the option already has a value in params.
    *        Its type must support operator<<(ostream,...)
    **/
   template <class T>
-  void addOption(string optName, const string& helpString, const T& defaultVal) 
+  void addOption(const string& optName,
+                 const string& helpString,
+                 const T& defaultValue) 
   {
-    string defaultStr = lexical_cast<string>(defaultVal);
+    string defaultStr = lexical_cast<string>(defaultValue);
     addOption<T>(optName, helpString, false, '\0', true, defaultStr);
   }
 
@@ -162,18 +167,18 @@ public:
    * Adds a registered option with a default value, short name and help string.
    * @param optName name of the option, e.g. "home"
    * @param helpString description of the option, may contain line breaks
-   * @param defaultVal default value of option.
+   * @param defaultValue default value of option.
    *        The default option is put in the internal params, 
    *        unless the option already has a value in params.
    *        Its type must support operator<<(ostream,...)
    **/
   template <class T>
-  void addOption(string optName,
+  void addOption(const string& optName,
                  char shortName,
                  const string& helpString,
-                 const T& defaultVal) 
+                 const T& defaultValue) 
   {
-    string defaultStr = lexical_cast<string>(defaultVal);
+    string defaultStr = lexical_cast<string>(defaultValue);
     addOption<T>(optName, helpString, true, shortName, true, defaultStr);
   }
 
