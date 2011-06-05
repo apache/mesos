@@ -186,13 +186,13 @@ public:
     // TODO(alig): make thread safe
     SlaveLeaderListener(Slave *s, PID pp) : parent(s), parentPID(pp) {}
     
-    virtual void newLeaderElected(string zkId, string pidStr) {
-      if (zkId!="") {
-	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:"<<zkId;
+    virtual void newLeaderElected(const string &zkId, const string &pidStr) {
+      if (zkId != "") {
+	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:" << zkId;
 	
 	parent->zkserver = pidStr;
 
-	LOG(INFO) << "Sending message to parent "<<parentPID<<" about new leader";
+	LOG(INFO) << "Sending message to parent " << parentPID << " about new leader";
 	parent->send(parentPID, parent->pack<LE_NEWLEADER>(pidStr));
 
       }

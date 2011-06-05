@@ -6,49 +6,14 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/unordered_set.hpp>
 #include <boost/unordered_map.hpp>
-#include <process.hpp>
-#include <iostream>
-#include <unistd.h>
-#include <climits>
-#include <cstdlib>
-#include <zookeeper.h>
 #include <glog/logging.h>
 #include <ctime>
-#include <cstdlib>
-#include "leader_detector.hpp"
-
-
-#include <dirent.h>
-#include <libgen.h>
-#include <netdb.h>
-#include <pwd.h>
-#include <signal.h>
-#include <stdio.h>
-#include <strings.h>
-
-#include <iostream>
-#include <list>
-#include <sstream>
-#include <vector>
-
-#include <arpa/inet.h>
-
-#include <boost/lexical_cast.hpp>
-#include <boost/unordered_set.hpp>
-#include <boost/unordered_map.hpp>
-
-#include <glog/logging.h>
-
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-
 #include <process.hpp>
 
+#include "leader_detector.hpp"
 #include "messages.hpp"
 #include "tuple.hpp"
 #include "foreach.hpp"
-#include <ctime>
 
 
 namespace nexus { namespace internal {
@@ -81,10 +46,10 @@ public:
  */
 struct FTStoredMsg {
 
-  FTStoredMsg(const string &_ftId, const string &_data, const MSGID &_id, FTCallback *_cb=NULL) : 
+  FTStoredMsg(const string &_ftId, const string &_data, const MSGID &_id, FTCallback *_cb = NULL) : 
     ftId(_ftId), data(_data), id(_id), count(1), ts(time(0)), callback(_cb) {}
 
-  FTStoredMsg(bool _cb=false) : ftId(""), data(""), id(), count(1), ts(time(0)), callback(NULL) {}
+  FTStoredMsg(bool _cb = false) : ftId(""), data(""), id(), count(1), ts(time(0)), callback(NULL) {}
 
   string ftId;
   string data;
@@ -110,13 +75,13 @@ public:
    * @return A singleton instance of this class.
    * @param master libprocess PID to current master
    */
-  static FTMessaging *getInstance(PID master);
+  static FTMessaging *getInstance(const PID &master);
 
   /**
    * @return A singleton instance of this class.
    * @param masterStr string representing libprocess PID to current master (no nexus:// prefix)
    */
-  static FTMessaging *getInstance(string masterStr);
+  static FTMessaging *getInstance(const string &masterStr);
 
   /**
    * Reliably sends a message with a given fault tolerant id 
@@ -126,7 +91,7 @@ public:
    * @param msgTuple libprocess tuple<ID> 
    * @param FTCallback if not null, then FTCallback will be called by sendOutstanding()
    */
-  template<MSGID ID> void reliableSend(const string &ftId, const tuple<ID> &msgTuple, FTCallback *callback=NULL)
+  template<MSGID ID> void reliableSend(const string &ftId, const tuple<ID> &msgTuple, FTCallback *callback = NULL)
   {
     DLOG(INFO) << "FT: sending " << ftId;
     string msgStr = Tuple<EmptyClass>::tupleToString(msgTuple);
@@ -156,7 +121,7 @@ public:
    * @param from libprocess PID string representing the original sender of the message
    * @return true if message has not been received before and it is the next message expected to be received, false otherwise.
    */
-  bool acceptMessage(string ftId, string from);
+  bool acceptMessage(const string &ftId, const string &from);
 
   /**
    * Same as acceptMessage, but also sends an ACK back to the original sender if it returns true.
@@ -164,7 +129,7 @@ public:
    * @param from libprocess PID string representing the original sender of the message
    * @return true if message has not been received before and it is the next message expected to be received, false otherwise.
    */
-  bool acceptMessageAck(string ftId, string from);
+  bool acceptMessageAck(const string &ftId, const string &from);
 
   /**
    * Same as acceptMessageAck, but explicitly specifies the pid of the node that should receive the ack.
@@ -173,7 +138,7 @@ public:
    * @param from libprocess PID string representing the original sender of the message
    * @return true if message has not been received before and it is the next message expected to be received, false otherwise.
    */
-  bool acceptMessageAckTo(PID to, string ftId, string from);
+  bool acceptMessageAckTo(const PID &to, const string &ftId, const string &from);
 
   /**
    * @return a new unique FT ID for a message to be sent
@@ -210,9 +175,11 @@ private:
   void deleteMessage(const string &ftId);
 
   FTMessaging();
-  FTMessaging(PID _master);
+
+  FTMessaging(const PID &_master);
 
   FTMessaging(FTMessaging const &copy) {}
+
   FTMessaging &operator= (FTMessaging const &copy) {}
 };
 

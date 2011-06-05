@@ -111,14 +111,14 @@ public:
 }
 
 
-Master::Master(const string zk)
+Master::Master(const string &zk)
   : leaderDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
     nextSlotOfferId(0), allocatorType("simple"), masterId(0)
 {
-  if (zk!="") {
+  if (zk != "") {
     pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(zk);
     if (urlPair.first == UrlProcessor::ZOO) {
-      isFT=true;
+      isFT = true;
       zkservers = urlPair.second;
     } else {
       LOG(ERROR) << "Failed to parse URL for ZooKeeper servers. URL must start with zoo:// or zoofile://";
@@ -129,14 +129,14 @@ Master::Master(const string zk)
 }
 
 
-Master::Master(const string& _allocatorType, const string zk)
+Master::Master(const string& _allocatorType, const string &zk)
   : leaderDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
     nextSlotOfferId(0), allocatorType(_allocatorType), masterId(0)
 {
-  if (zk!="") {
+  if (zk != "") {
     pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(zk);
     if (urlPair.first == UrlProcessor::ZOO) {
-      isFT=true;
+      isFT = true;
       zkservers = urlPair.second;
     } else {
       LOG(ERROR) << "Failed to parse URL for ZooKeeper servers. URL must start with zoo:// or zoofile://";
@@ -149,7 +149,7 @@ Master::Master(const string& _allocatorType, const string zk)
 
 Master::~Master()
 {
-  if (isFT && leaderDetector!=NULL)
+  if (isFT && leaderDetector != NULL)
     delete leaderDetector;
   LOG(INFO) << "Shutting down master";
   delete allocator;
@@ -284,13 +284,18 @@ void Master::operator () ()
   LOG(INFO) << "Master started at nexus://" << self();
 
   if (isFT) {
-    LOG(INFO) << "Connecting to ZooKeeper at "<<zkservers;
+    LOG(INFO) << "Connecting to ZooKeeper at " << zkservers;
     ostringstream lpid;
-    lpid<<self();
+    lpid << self();
     leaderDetector = new LeaderDetector(zkservers, true, lpid.str());
     
-    masterId = lexical_cast<long>(leaderDetector->getMySeq());
-    LOG(INFO)<<"Master ID:"<<masterId;
+    string myLeaderSeq = leaderDetector->getMySeq();
+    if (myLeaderSeq == "") {
+      LOG(FATAL) << "Cannot proceed since new FT master sequence number could not be fetched from ZK.";
+      exit(1);
+    }
+    masterId = lexical_cast<long>(myLeaderSeq);
+    LOG(INFO) << "Master ID:" << masterId;
   }
 
   allocator = createAllocator();
@@ -649,9 +654,9 @@ void Master::operator () ()
 	framework->removeExpiredFilters();
       allocator->timerTick();
 
-      // int cnts=0;
+      // int cnts = 0;
       // foreachpair(_, Framework *framework, frameworks) {
-      // 	DLOG(INFO)<<(cnts++)<<" resourceInUse:"<<framework->resources;
+      // 	DLOG(INFO) << (cnts++) << " resourceInUse:" << framework->resources;
       // }
       break;
     }

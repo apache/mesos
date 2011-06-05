@@ -20,7 +20,7 @@ public:
    * @param zkId ZooKeeper sequence number of the new leader
    * @param pidStr libprocess PID of the new leader
    */ 
-  virtual void newLeaderElected(string zkId, string pidStr) = 0;
+  virtual void newLeaderElected(const string &zkId, const string &pidStr) = 0;
 };
 
 /**
@@ -36,17 +36,18 @@ public:
    * @param pid string containing libprocess id of this node (needed if it becomes a leader)
    * @param ll callback object which will be invoked each time a new leader is elected
    */
-  LeaderDetector(string server, bool contendLeader=0, string pid="", LeaderListener * ll=NULL);
+  LeaderDetector(const string &server, const bool contendLeader = 0, 
+                 const string &pid = "", LeaderListener * ll = NULL);
 
   /** 
    * @return ZooKeeper unique sequence number of the current leader.
    */
-  string getCurrentLeaderSeq();
+  string getCurrentLeaderSeq() const;
 
   /** 
    * @return libprocess PID of the current leader. 
    */
-  string getCurrentLeaderPID();
+  string getCurrentLeaderPID() const;
 
   /**
    * Registers a listener that gets callbacks when a new leader is elected.
@@ -73,16 +74,20 @@ private:
 
   void setMySeq(string seq) {  // converts "/nxmaster/000000131" to "000000131"
     int pos;
-    if ((pos=seq.find_last_of('/'))!=string::npos ) {  
+    if ( (pos = seq.find_last_of('/')) != string::npos ) {  
       mySeq = seq.erase(0,pos+1);
     } else
       mySeq = "";
   }
 
+
   void leaderWatch(zhandle_t *zh, int type, int state, const char *path);
+
   bool detectLeader();
-  string fetchLeaderPID(string id);
-  void newLeader(string leader,string leaderPID);
+
+  string fetchLeaderPID(const string &id);
+
+  void newLeader(const string &leader, const string &leaderPID);
 
   LeaderListener *leaderListener;
   zhandle_t *zh;

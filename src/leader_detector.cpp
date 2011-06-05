@@ -15,11 +15,12 @@ void LeaderDetector::initWatchWrap(zhandle_t *zh, int type, int state, const cha
 
 // TODO ALI: Make this thread safe, will be called by ZooKeeper thread
 void LeaderDetector::leaderWatchWrap(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx) {
-  ((LeaderDetector *)watcherCtx)->leaderWatch(zh, type, state, path);
+  ((LeaderDetector *) watcherCtx)->leaderWatch(zh, type, state, path);
 }
 
 
-LeaderDetector::LeaderDetector(string server, bool contendLeader, string pid, LeaderListener *ll) : 
+LeaderDetector::LeaderDetector(const string &server, const bool contendLeader, const string &pid, 
+                               LeaderListener *ll) : 
   leaderListener(ll),
   zh(NULL),myPID(pid),
   zooserver(server),currentLeaderSeq(""), mySeq("")
@@ -27,7 +28,7 @@ LeaderDetector::LeaderDetector(string server, bool contendLeader, string pid, Le
 
   zh = zookeeper_init(zooserver.c_str(), initWatchWrap, 1000, 0, NULL, 0);
   LOG(INFO) << "Initialized ZooKeeper";
-  LOG_IF(ERROR, zh==NULL)<<"zookeeper_init returned error:";
+  LOG_IF(ERROR, zh == NULL) << "zookeeper_init returned error:";
 
 
   char buf[100];
@@ -36,10 +37,11 @@ LeaderDetector::LeaderDetector(string server, bool contendLeader, string pid, Le
 
   if (contendLeader) {
     ret = zoo_create(zh, "/nxmaster/",  myPID.c_str(), myPID.length(), &ZOO_OPEN_ACL_UNSAFE, ZOO_SEQUENCE | ZOO_EPHEMERAL, buf, 100);
-    LOG_IF(ERROR, ret!=ZOK)<<"zoo_create() ephemeral/sequence returned error:"<<ret;
-    if (ret==ZOK) {
+    LOG_IF(ERROR, ret != ZOK) << "zoo_create() ephemeral/sequence returned error:" << ret;
+
+    if (ret == ZOK) {
       setMySeq(string(buf));
-      LOG(INFO)<<"Created ephemeral/sequence:"<<mySeq;
+      LOG(INFO) << "Created ephemeral/sequence:" << mySeq;
     }
   }
 
@@ -48,17 +50,17 @@ LeaderDetector::LeaderDetector(string server, bool contendLeader, string pid, Le
 
 void LeaderDetector::leaderWatch(zhandle_t *zh, int type, int state, const char *path) {
   if (type == ZOO_CREATED_EVENT) {
-    LOG(INFO)<<"Leader Watch Event type: ZOO_CREATED_EVENT";
+    DLOG(INFO) << "Leader Watch Event type: ZOO_CREATED_EVENT";
   } else if (type == ZOO_DELETED_EVENT) {
-    LOG(INFO)<<"Leader Watch Event type: ZOO_DELETED_EVENT";
+    DLOG(INFO) << "Leader Watch Event type: ZOO_DELETED_EVENT";
   } else if (type == ZOO_CHANGED_EVENT) {
-    LOG(INFO)<<"Leader Watch Event type: ZOO_CHANGED_EVENT";
+    DLOG(INFO) << "Leader Watch Event type: ZOO_CHANGED_EVENT";
   } else if (type == ZOO_CHILD_EVENT) {
-    LOG(INFO)<<"Leader Watch Event type: ZOO_CHILD_EVENT";
+    DLOG(INFO) << "Leader Watch Event type: ZOO_CHILD_EVENT";
   } else if (type == ZOO_SESSION_EVENT) {
-    LOG(INFO)<<"Leader Watch Event type: ZOO_SESSION_EVENT";
+    DLOG(INFO) << "Leader Watch Event type: ZOO_SESSION_EVENT";
   } else if (type == ZOO_NOTWATCHING_EVENT) {
-    LOG(INFO)<<"Leader Watch Event type: ZOO_NOTWATCHING_EVENT";
+    DLOG(INFO) << "Leader Watch Event type: ZOO_NOTWATCHING_EVENT";
   }
   detectLeader();
 }
@@ -66,21 +68,21 @@ void LeaderDetector::leaderWatch(zhandle_t *zh, int type, int state, const char 
 bool LeaderDetector::detectLeader() {
   String_vector sv;
   int ret = zoo_wget_children(zh, "/nxmaster", leaderWatchWrap, (void*)this, &sv);
-  LOG_IF(ERROR, ret!=ZOK)<<"zoo_wget_children (get leaders) returned error:"<<ret;
-  LOG_IF(INFO, ret==ZOK)<<"zoo_wget_children returned "<<sv.count<<" registered leaders";
+  LOG_IF(ERROR, ret != ZOK) << "zoo_wget_children (get leaders) returned error:" << ret;
+  LOG_IF(INFO, ret == ZOK) << "zoo_wget_children returned " << sv.count << " registered leaders";
   
   string leader;
   long min = LONG_MAX;
-  for (int x=0; x<sv.count; x++) {
+  for (int x = 0; x<sv.count; x++) {
     int i = atol(sv.data[x]);
-    if (i<min) {
-      min=i;
+    if (i < min) {
+      min = i;
       leader = sv.data[x];
     }
   }
 
-  if (leader!=currentLeaderSeq) {
-    currentLeaderSeq=leader;
+  if (leader != currentLeaderSeq) {
+    currentLeaderSeq = leader;
 
     string data = fetchLeaderPID(leader); 
     
@@ -91,54 +93,41 @@ bool LeaderDetector::detectLeader() {
   return 0;
 }
 
-string LeaderDetector::fetchLeaderPID(string id) {
-  if (id=="") {
+string LeaderDetector::fetchLeaderPID(const string &id) {
+  if (id == "") {
     currentLeaderPID = "";
     return currentLeaderPID;
   }
-  string path="/nxmaster/";
-  path+=id;
+
+  string path = "/nxmaster/";
+  path += id;
   char buf[100];
   int buflen = sizeof(buf);
   int ret = zoo_get(zh, path.c_str(), 0, buf, &buflen, NULL);
-  LOG_IF(ERROR, ret!=ZOK)<<"zoo_get returned error:"<<ret;
-  LOG_IF(INFO, ret==ZOK)<<"zoo_get leader data fetch returned "<<buf[0];
+  LOG_IF(ERROR, ret != ZOK) << "zoo_get returned error:" << ret;
+  LOG_IF(INFO, ret == ZOK) << "zoo_get leader data fetch returned " << buf[0];
 
   string tmp(buf,buflen);
-  currentLeaderPID=tmp;
+  currentLeaderPID = tmp;
   return currentLeaderPID;
 }
 
-string LeaderDetector::getCurrentLeaderSeq() {
+string LeaderDetector::getCurrentLeaderSeq() const {
   return currentLeaderSeq;
 }
 
-string LeaderDetector::getCurrentLeaderPID() {
+string LeaderDetector::getCurrentLeaderPID() const {
   return currentLeaderPID;
 }
 
-void LeaderDetector::newLeader(string leader, string leaderPID) {
-  LOG(INFO)<<"New leader ephemeral_id:"<<leader<<" data:"<<leaderPID;
-  if (leaderListener!=NULL)
+void LeaderDetector::newLeader(const string &leader, const string &leaderPID) {
+  LOG(INFO) << "New leader ephemeral_id:" << leader << " data:" << leaderPID;
+  if (leaderListener != NULL)
     leaderListener->newLeaderElected(leader,leaderPID);
 }
 
 LeaderDetector::~LeaderDetector() {
   int ret = zookeeper_close(zh);
-  LOG_IF(ERROR, ret!=ZOK)<<"zookeeper_close returned error:"<<ret;
-  LOG_IF(INFO, ret==ZOK)<<"zookeeper_close OK";
+  LOG_IF(ERROR, ret != ZOK) << "zookeeper_close returned error:" << ret;
+  LOG_IF(INFO, ret == ZOK) << "zookeeper_close OK";
 }
-
-/*
-int main(int argc, char **argv) {
-  string name="testing";
-  if (argc==2)
-    name=argv[1];
-  LeaderDetector ld(1, name);
-  string s = ld.getCurrentLeaderSeq();
-  debug("Leader is "<<s<<endl<<flush);
-  
-  sleep(50);
-  return 0;
-}
-*/

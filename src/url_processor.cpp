@@ -10,21 +10,21 @@ using namespace std;
 namespace nexus { namespace internal {
     
 string UrlProcessor::parseZooFile(const string &zooFilename) {
-  string zoos="";
+  string zoos = "";
   
-  LOG(INFO)<<"Opening ZooFile: "<<zooFilename;
+  LOG(INFO) << "Opening ZooFile: " << zooFilename;
   ifstream zoofile(zooFilename.c_str());
   if (!zoofile) 
-    LOG(ERROR)<<"ZooFile "<<zooFilename<<" could not be opened";
+    LOG(ERROR) << "ZooFile " << zooFilename << " could not be opened";
   
   while(!zoofile.eof()) {
     string line;
     getline(zoofile, line);
-    if (line=="")
+    if (line == "")
       continue;
-    if (zoos!="")
-      zoos+=',';
-    zoos+=line;
+    if (zoos != "")
+      zoos += ',';
+    zoos += line;
   }
     remove_if(zoos.begin(),zoos.end(), (int (*)(int)) isspace);
   zoofile.close();
@@ -37,21 +37,25 @@ pair<UrlProcessor::URLType, string> UrlProcessor::process(const string &url) {
   
   transform(urlCap.begin(), urlCap.end(), urlCap.begin(), (int (*)(int))toupper);
   
-  if (urlCap.find("ZOO://")==0) {
+  if (urlCap.find("ZOO://") == 0) {
     
     return pair<UrlProcessor::URLType, string>(UrlProcessor::ZOO, url.substr(6,1024));
     
-  } else if (urlCap.find("ZOOFILE://")==0) {
+  } else if (urlCap.find("ZOOFILE://") == 0) {
     
     string zoos = parseZooFile( url.substr(10,1024) );
     
     return pair<UrlProcessor::URLType, string>(UrlProcessor::ZOO, zoos);
     
-  } else if (urlCap.find("NEXUS://")==0) {
+  } else if (urlCap.find("NEXUS://") == 0) {
+
     return pair<UrlProcessor::URLType, string>(UrlProcessor::NEXUS, url.substr(8,1024));
+
   } else {
-    LOG(ERROR)<<"Could not parse master/zoo URL";
+
+    LOG(ERROR) << "Could not parse master/zoo URL";
     return pair<UrlProcessor::URLType, string>(UrlProcessor::UNKNOWN, "");
+
   }
 }
 

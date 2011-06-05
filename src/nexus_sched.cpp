@@ -88,13 +88,13 @@ private:
     // TODO(alig): make thread safe
     SchedLeaderListener(SchedulerProcess *s, PID pp) : parent(s), parentPID(pp) {}
     
-    virtual void newLeaderElected(string zkId, string pidStr) {
-      if (zkId!="") {
-	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:"<<zkId;
+    virtual void newLeaderElected(const string &zkId, const string &pidStr) {
+      if (zkId != "") {
+	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:" << zkId;
 	
 	parent->zkservers = pidStr;
 
-	LOG(INFO) << "Sending message to parent "<<parentPID<<" about new leader";
+	LOG(INFO) << "Sending message to parent " << parentPID << " about new leader";
 	parent->send(parentPID, parent->pack<LE_NEWLEADER>(pidStr));
 
       }
@@ -111,10 +111,10 @@ private:
 
   class TimeoutListener : public FTCallback {
   public:
-    TimeoutListener(SchedulerProcess *s, vector<TaskDescription> t) : parent(s), tasks(t) {}
+    TimeoutListener(SchedulerProcess *s, const vector<TaskDescription> t) : parent(s), tasks(t) {}
  
    virtual void timeout() {
-      foreach (TaskDescription &t, tasks) {
+      foreach (const TaskDescription &t, tasks) {
         DLOG(INFO) << "FT: faking M2F_STATUS_UPDATE due to timeout to server during ReplyToOffer";
         parent->send( parent->self(), 
                       pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
@@ -143,11 +143,11 @@ public:
 {
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
-    isFT=true;
+    isFT = true;
     zkservers = urlPair.second;
     //  } else if (urlPair.first == UrlProcessor::NEXUS) {
   } else {
-    isFT=false; 
+    isFT = false; 
     istringstream ss(urlPair.second); // the case nexus://
     istringstream ss2(_master);       // in case nexus:// is missing
     if (!((ss >> master) || (ss2 >> master))) { 

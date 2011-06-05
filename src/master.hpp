@@ -116,7 +116,7 @@ struct Framework
   // or 0 for slaves that we want to keep filtered forever
   unordered_map<Slave *, time_t> slaveFilter;
 
-  Framework(const PID &_pid, FrameworkID _id="")
+  Framework(const PID &_pid, FrameworkID _id = "")
     : pid(_pid), id(_id), active(true)
   {
     time(&connectTime);
@@ -205,7 +205,7 @@ struct Slave
   unordered_map<pair<FrameworkID, TaskID>, TaskInfo *> tasks;
   unordered_set<SlotOffer *> slotOffers; // Active offers of slots on this slave
   
-  Slave(const PID &_pid, SlaveID _id="") : pid(_pid), id(_id), active(true) {
+  Slave(const PID &_pid, SlaveID _id = "") : pid(_pid), id(_id), active(true) {
     time(&connectTime);
   }
 
@@ -283,9 +283,9 @@ protected:
   FTMessaging *ftMsg;
 
 public:
-  Master(const string zk="");
+  Master(const string &zk = "");
 
-  Master(const string& _allocatorType, const string zk="");
+  Master(const string& _allocatorType, const string &zk = "");
   
   ~Master();
 

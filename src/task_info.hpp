@@ -20,10 +20,11 @@ struct TaskInfo
   
   TaskInfo() {}
   
-  TaskInfo(TaskID _id, Resources _res, SlaveID _sid="") : id(_id), resources(_res), slaveId(_sid) {}
+  TaskInfo(const TaskID &_id, const Resources &_res, const SlaveID &_sid = "") : 
+    id(_id), resources(_res), slaveId(_sid) {}
 
-  TaskInfo(TaskID _id, FrameworkID _fid, Resources _res, TaskState _s, string _n, 
-	   string _m, SlaveID _sid="") 
+  TaskInfo(const TaskID &_id, const FrameworkID &_fid, const Resources &_res, 
+           const TaskState &_s, const string &_n, const string &_m, const SlaveID &_sid = "") 
     : id(_id), frameworkId(_fid), resources(_res), state(_s), name(_n), 
       message(_m), slaveId(_sid)
   { }

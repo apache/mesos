@@ -16,19 +16,19 @@ using namespace nexus::internal;
 using namespace std;
     
 FTMessaging *FTMessaging::getInstance() {
-  if (instance==NULL)
+  if (instance == NULL)
     instance = new FTMessaging();
   return instance;
 }
     
-FTMessaging *FTMessaging::getInstance(PID _master) {
-  if (instance==NULL)
+FTMessaging *FTMessaging::getInstance(const PID &_master) {
+  if (instance == NULL)
     instance = new FTMessaging(_master);
   return instance;
 }
     
-FTMessaging *FTMessaging::getInstance(string _master) {
-  if (instance==NULL) {
+FTMessaging *FTMessaging::getInstance(const string &_master) {
+  if (instance == NULL) {
     PID mPid;
     istringstream ss(_master);
     if (!(ss >> mPid)) {
@@ -40,10 +40,10 @@ FTMessaging *FTMessaging::getInstance(string _master) {
   return instance;
 }
     
-FTMessaging::FTMessaging(PID _master) : 
+FTMessaging::FTMessaging(const PID &_master) : 
   master(_master), msgId(0)
 { 
-  srand(time(0));
+  srand( time(0) );
   char s[50];
   sprintf(s, "%09i", (int)rand());
   uniqPrefix = s;
@@ -70,7 +70,7 @@ void FTMessaging::gotAck(const string &ftId) {
 }
 
 void FTMessaging::deleteMessage(const string &ftId) {
-  struct FTStoredMsg & msg = outMsgs[ftId];
+  struct FTStoredMsg &msg = outMsgs[ftId];
   if (msg.callback != NULL)
     delete msg.callback;     // ugly and sad. shared_ptr would have been better
   outMsgs.erase(ftId);
@@ -99,9 +99,9 @@ void FTMessaging::sendOutstanding() {
 
 }
 
-// Careful: not idempotent function.
-bool FTMessaging::acceptMessage(string ftId, string from) {
-  if (inMsgs.find(from)==inMsgs.end()) {
+// NB: not an idempotent method.
+bool FTMessaging::acceptMessage(const string &ftId, const string &from) {
+  if (inMsgs.find(from) == inMsgs.end()) {
     DLOG(INFO) << "FT: new msgs seq: " << ftId;
     inMsgs[from] = ftId;
     return true;
@@ -109,12 +109,12 @@ bool FTMessaging::acceptMessage(string ftId, string from) {
     string oldSeq = inMsgs[from]; 
     string oldRnd = oldSeq;
     int pos;
-    if ((pos=oldSeq.find_last_of(':'))!=string::npos ) {  
-      oldSeq.erase(0,pos+1);
-      oldRnd.erase(pos,255);
+    if ( (pos = oldSeq.find_last_of(':')) != string::npos ) {  
+      oldSeq.erase(0, pos + 1);
+      oldRnd.erase(pos, 255);
       long seqNr = lexical_cast<long>(oldSeq);
-      string nextFtId = oldRnd+":"+lexical_cast<string>(seqNr+1);
-      if (nextFtId==ftId) {
+      string nextFtId = oldRnd + ":" + lexical_cast<string>(seqNr+1);
+      if (nextFtId == ftId) {
         DLOG(INFO) << "FT: match - got ftId:" << ftId << " expecting " << nextFtId;
         inMsgs[from] = nextFtId;
         return true;
@@ -129,7 +129,7 @@ bool FTMessaging::acceptMessage(string ftId, string from) {
   }
 }
 
-bool FTMessaging::acceptMessageAckTo(PID to, string ftId, string from) {
+bool FTMessaging::acceptMessageAckTo(const PID &to, const string &ftId, const string &from) {
   DLOG(INFO) << "FT: Received msg with id: " << ftId << " sending FT_RELAY_ACK to " << to;
   
   bool res = acceptMessage(from, ftId);
@@ -145,7 +145,7 @@ bool FTMessaging::acceptMessageAckTo(PID to, string ftId, string from) {
   return res;
 }
 
-bool FTMessaging::acceptMessageAck(string ftId, string from) {
+bool FTMessaging::acceptMessageAck(const string &ftId, const string &from) {
   return acceptMessageAckTo(master, ftId, from);
 }
 

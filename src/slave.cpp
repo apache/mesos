@@ -71,11 +71,11 @@ Slave::Slave(const string &_master, Resources _resources, bool _local)
   ftMsg = FTMessaging::getInstance();
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
-    isFT=true;
+    isFT = true;
     zkserver = urlPair.second;
     //  } else if (urlPair.first == UrlProcessor::NEXUS) {
   } else {
-    isFT=false;
+    isFT = false;
     istringstream iss(urlPair.second);
     istringstream iss2(_master);
     if (!((iss >> master) || (iss2 >> master) )) {
@@ -87,7 +87,7 @@ Slave::Slave(const string &_master, Resources _resources, bool _local)
 
 
 Slave::Slave(const string &_master, Resources _resources, bool _local,
-	     const string& _isolationType)
+	     const string &_isolationType)
   : leaderDetector(NULL), 
     resources(_resources), local(_local), id("-1"),
     isolationType(_isolationType), isolationModule(NULL), slaveLeaderListener(this, getPID())
@@ -95,10 +95,10 @@ Slave::Slave(const string &_master, Resources _resources, bool _local,
   ftMsg = FTMessaging::getInstance();
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
-    isFT=true;
+    isFT = true;
     zkserver = urlPair.second;
   } else if (urlPair.first == UrlProcessor::NEXUS) {
-    isFT=false;
+    isFT = false;
     istringstream iss(urlPair.second);
     if (!(iss >> master)) {
       cerr << "Failed to resolve master PID " << urlPair.second << endl;
