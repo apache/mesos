@@ -4,6 +4,8 @@ import os
 import pickle
 import sys
 
+CPUS = 1
+MEM = 50*1024*1024
 
 class NestedScheduler(nexus.Scheduler):
   def __init__(self, todo, duration, executor):
@@ -18,7 +20,8 @@ class NestedScheduler(nexus.Scheduler):
     return "Nested Framework: %d todo at %d secs" % (self.todo, self.duration)
 
   def getExecutorInfo(self, driver):
-    return nexus.ExecutorInfo("nested_exec", os.getcwd(), "")
+    execPath = os.path.join(os.getcwd(), "nested_exec")
+    return nexus.ExecutorInfo(execPath, "")
 
   def registered(self, driver, fid):
     print "Nested Scheduler Registered!"
@@ -28,8 +31,9 @@ class NestedScheduler(nexus.Scheduler):
     for offer in offers:
       if self.todo != self.tid:
         self.tid += 1
+        pars = {"cpus": "%d" % CPUS, "mem": "%d" % MEM}
         task = nexus.TaskDescription(self.tid, offer.slaveId,
-                                     "task %d" % self.tid, offer.params,
+                                     "task %d" % self.tid, pars,
                                      pickle.dumps(self.duration))
         tasks.append(task)
         #msg = nexus.FrameworkMessage(-1, , "")
@@ -55,9 +59,10 @@ class ScalingExecutor(nexus.Executor):
     self.tid = task.taskId
     master, (todo, duration) = pickle.loads(task.arg)
     scheduler = NestedScheduler(todo, duration, self)
+    print "Running here:" + master
     self.nested_driver = nexus.NexusSchedulerDriver(scheduler, master)
     self.nested_driver.start()
-
+    
   def killTask(self, driver, tid):
     if (tid != self.tid):
       print "Expecting different task id ... killing anyway!"

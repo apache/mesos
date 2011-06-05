@@ -15,12 +15,13 @@ class NestedExecutor(nexus.Executor):
   def launchTask(self, driver, task):
     self.tid = task.taskId
     duration = pickle.loads(task.arg)
-    print "(%d:%d) Sleeping for %s seconds." % (self.fid, self.tid, duration)
+    print "(%s:%d) Sleeping for %s seconds." % (self.fid, self.tid, duration)
     # TODO(benh): Don't sleep, this blocks the event loop!
     time.sleep(duration)
     status = nexus.TaskStatus(self.tid, nexus.TASK_FINISHED, "")
     driver.sendStatusUpdate(status)
-
+    time.sleep(1)
+    
   def killTask(self, driver, tid):
     if (self.tid != tid):
       print "Expecting different task id ... killing anyway!"

@@ -6,58 +6,38 @@ import time
 import os
 import pickle
 
-# Scheduler configurations as pairs of (todo, duration) to run.
-# config = [ (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-#            (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-#            (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-#            (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-#            (5, 10), (5, 10), (5, 10), (5, 10), (5, 10),
-#            (5, 10), (5, 10), (5, 10), (5, 10), (5, 10),
-#            (5, 10), (5, 10), (5, 10), (5, 10), (5, 10),
-#            (5, 10), (5, 10), (5, 10), (5, 10), (5, 10),
-#            (10, 1), (10, 1), (10, 1), (10, 1), (10, 1),
-#            (10, 1), (10, 1), (10, 1), (10, 1), (10, 1),
-#            (10, 1), (10, 1), (10, 1), (10, 1), (10, 1),
-#            (10, 1), (10, 1), (10, 1), (10, 1), (10, 1),
-#            (100, 1), (100, 1), (100, 1), (100, 1), (100, 1),
-#            (100, 1), (100, 1), (100, 1), (100, 1), (100, 1),
-#            (100, 1), (100, 1), (100, 1), (100, 1), (100, 1),
-#            (100, 1), (100, 1), (100, 1), (100, 1), (100, 1) ]
+CPUS = 1
+MEM = 50*1024*1024
 
-config = [ (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           # (1, 10), (1, 10), (1, 10), (1, 10), (1, 10),
-           (1, 10), (1, 10), (1, 10), (1, 10), (1, 10) ]
+config1 = [ (1,20) ]
 
+config2 = [ (1,20), (1,240) ]
+
+config = [ (50, 120),
+           (50, 120),
+           (50, 120),
+           (50, 120),
+           (50, 120),
+           (50, 120),
+           (50, 120),
+           (50, 120),
+           (50, 120),
+           (50, 120) ]
 
 class ScalingScheduler(nexus.Scheduler):
   def __init__(self, master):
     nexus.Scheduler.__init__(self)
     self.tid = 0
     self.master = master
+    print self.master
     self.running = {}
 
   def getFrameworkName(self, driver):
     return "Scaling Framework"
 
   def getExecutorInfo(self, driver):
-    return nexus.ExecutorInfo("scaling_exec", os.getcwd(), "")
+    execPath = os.path.join(os.getcwd(), "scaling_exec")
+    return nexus.ExecutorInfo(execPath, "")
 
   def registered(self, driver, fid):
     print "Scaling Scheduler Registered!"
@@ -75,12 +55,13 @@ class ScalingScheduler(nexus.Scheduler):
       if len(config) != self.tid:
         (todo, duration) = config[self.tid]
         arg = pickle.dumps((self.master, (todo, duration)))
+        pars = {"cpus": "%d" % CPUS, "mem": "%d" % MEM}
         task = nexus.TaskDescription(self.tid, offer.slaveId,
-                                     "task %d" % self.tid, offer.params, arg)
+                                     "task %d" % self.tid, pars, arg)
         tasks.append(task)
         self.running[self.tid] = (todo, duration)
         self.tid += 1
-        print "Launching (%d, %d) on slave %d" % (todo, duration, offer.slaveId)
+        print "Launching (%d, %d) on slave %s" % (todo, duration, offer.slaveId)
     driver.replyToOffer(oid, tasks, {})
 
   def statusUpdate(self, driver, status):
