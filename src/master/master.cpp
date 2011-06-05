@@ -355,6 +355,15 @@ void Master::operator () ()
       LOG(INFO) << "Re-registering " << framework << " at " << framework->pid;
 
       if (frameworks.count(framework->id) > 0) {
+        // Using the "generation" of the scheduler allows us to keep a
+        // scheduler that got partitioned but didn't die (in ZooKeeper
+        // speak this means didn't lose their session) and then
+        // eventually tried to connect to this master even though
+        // another instance of their scheduler has reconnected. This
+        // might not be an issue in the future when the
+        // master/allocator launches the scheduler can get restarted
+        // (if necessary) by the master and the master will always
+        // know which scheduler is the correct one.
         if (generation == 0) {
           LOG(INFO) << framework << " failed over";
           replaceFramework(frameworks[framework->id], framework);
