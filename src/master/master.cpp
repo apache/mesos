@@ -1238,6 +1238,7 @@ Promise<HttpResponse> Master::stats(const HttpRequest& request)
     "\"total_schedulers\":" << frameworks.size() << "," <<
     "\"active_schedulers\":" << getActiveFrameworks().size() << "," <<
     "\"activated_slaves\":" << slaveHostnamePorts.size() << "," <<
+    "\"connected_slaves\":" << slaves.size() << "," <<
     "\"launched_tasks\":" << statistics.launched_tasks << "," <<
     "\"finished_tasks\":" << statistics.finished_tasks << "," <<
     "\"killed_tasks\":" << statistics.killed_tasks << "," <<
