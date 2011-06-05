@@ -369,15 +369,12 @@ ifdef PYTHON_HEADERS
 	$(CXX) $(CXXFLAGS) -shared -o $@ $(MESOS_PYTHON_LIB_OBJ) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
 endif
 
-$(MESOS_PYTHON_FILE): $(SRCDIR)/python/src/mesos.py
+$(MESOS_PYTHON_FILE): $(SRCDIR)/python/src/mesos.py @top_srcdir@/include/mesos.proto | $(LIBDIR)/python
 ifdef PYTHON_HEADERS
+	cp -r @top_srcdir@/$(PROTOBUF)/python @top_builddir@/$(PROTOBUF)/python
 	cp $< $@
-endif
-
-$(MESOS_PYTHON_PROTOBUFS): @top_srcdir@/include/mesos.proto | $(LIBDIR)/python
-ifdef PYTHON_HEADERS
-	$(PROTOC) --python_out=@top_builddir@/$(PROTOBUF)/python -I@top_builddir@/$(PROTOBUF)/src @top_builddir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto
-	$(PROTOC) -I@top_srcdir@/include --python_out=$(LIBDIR)/python @top_srcdir@/include/mesos.proto
+	$(PROTOC) --python_out=@top_builddir@/$(PROTOBUF)/python -I@top_srcdir@/$(PROTOBUF)/src @top_srcdir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto
+	$(PROTOC) --python_out=$(LIBDIR)/python -I@top_srcdir@/include @top_srcdir@/include/mesos.proto
 endif
 
 $(WEBUI_FILES): $(BINDIR)/%: $(SRCDIR)/% | $(WEBUI_DIRECTORIES)
