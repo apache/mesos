@@ -16,7 +16,7 @@ if [[ $ISFT == 0 ]]; then
 else
   master_arg="zoo://"
   add=""
-  for zoo in `cat $ZOO`; do
+  for zoo in $ZOO; do
     master_arg+=$add
     master_arg+=$zoo":2181"
     add=","
