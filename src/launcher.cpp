@@ -129,7 +129,8 @@ string ExecutorLauncher::fetchExecutor()
     if (ret != 0)
       fatal("HDFS copyToLocal failed: return code %d", ret);
     executor = localFile;
-    if (chmod(executor.c_str(), S_IXUSR | S_IXGRP | S_IXOTH) != 0)
+    if (chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+	      S_IROTH | S_IXOTH) != 0)
       fatalerror("chmod failed");
   }
 
