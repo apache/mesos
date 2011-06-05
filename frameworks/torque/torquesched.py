@@ -20,7 +20,12 @@ from socket import gethostname
 
 PBS_SERVER_FILE = "/var/spool/torque/server_name"
 EVENT_LOG_FILE = "log_fw_utilization.txt"
+LOG_FILE = "scheduler_log.txt"
 
+SCHEDULER_ITERATION = 2 #number of seconds torque waits before looping through
+                        #the queue to try to match resources to jobs. default is
+                        #10min (ie 600) but we want it to be low so jobs will run
+                        #as soon as the framework has acquired enough resources
 SAFE_ALLOCATION = {"cpus":5,"mem":134217728} #just set statically for now, 128MB
 MIN_SLOT_SIZE = {"cpus":"1","mem":1073741824} #1GB
 
@@ -81,11 +86,6 @@ class MyScheduler(nexus.Scheduler):
       self.servers[self.id] = offer.host
       self.regComputeNode(offer.host)
       self.numToRegister -= 1
-      #HUGE HACK HERE. THIS IS BAD!
-      if self.numToRegister == 0:# and len(torquelib.getActiveJobs()) == 1:
-        #submit job that will fail because it is asking for too many resources
-        time.sleep(8)
-        Popen("echo date | qsub -l nodes=1", shell=True)
       self.id += 1
       driverlog.info("writing logfile")
       eventlog.info(len(self.servers))
@@ -139,8 +139,8 @@ class MyScheduler(nexus.Scheduler):
         monitorlog.info("We still have to kill %d of the %d compute nodes which master is tracking" % (toKill, len(self.servers)))
         monitorlog.info("unregistering node " + str(hostname))
         self.unregComputeNode(hostname)
-        eventlog.info(len(sched.servers))
         self.servers.pop(tid)
+        eventlog.info(len(sched.servers))
         toKill = toKill - 1
         monitorlog.info("killing corresponding task with tid %d" % tid)
         self.driver.killTask(tid)
@@ -211,6 +211,7 @@ if __name__ == "__main__":
   #these lines might not be necessary since we hacked the torque fifo scheduler
   Popen("qmgr -c \"set queue batch resources_max.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
   Popen("qmgr -c \"set server resources_max.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
+  Popen("qmgr -c \"set server scheduler_iteration=%s\"" % SCHEDULER_ITERATION, shell=True)
 
   outp = Popen("qmgr -c \"l queue batch\"", shell=True, stdout=PIPE).stdout
   for l in outp:
@@ -219,7 +220,7 @@ if __name__ == "__main__":
   monitorlog.info("RE-killing pbs_server for resources_available setting to take effect")
   #Popen("/etc/init.d/pbs_server start", shell=True)
   Popen("qterm", shell=True)
-  #time.sleep(1)
+  time.sleep(1)
 
   monitorlog.info("RE-starting pbs_server for resources_available setting to take effect")
   Popen("pbs_server", shell=True)
