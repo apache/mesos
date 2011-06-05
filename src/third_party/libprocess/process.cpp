@@ -1085,7 +1085,7 @@ public:
 	/* Free any pending messages. */
 	while (!process->msgs.empty()) {
 	  struct msg *msg = process->msgs.front();
-	  process->msgs.pop_front();
+	  process->msgs.pop();
 	  free(msg);
 	}
 
@@ -1600,7 +1600,7 @@ public:
     return !interrupted;
   }
 #else
-  bool await(Process *process, int fd, int op, ev_tstamp interval, bool ignore)
+  bool await(Process *process, int fd, int op, double secs, bool ignore)
   {
     assert(process != NULL);
 
@@ -1633,9 +1633,9 @@ public:
 
       timeout_t timeout;
 
-      if (interval > 0) {
+      if (secs > 0) {
 	/* Create timeout. */
-	timeout = create_timeout(process, interval);
+	timeout = create_timeout(process, secs);
 	/* Start the timeout. */
 	start_timeout(timeout);
       }
@@ -1658,7 +1658,7 @@ public:
 	     process->state == Process::INTERRUPTED);
 
       /* Attempt to cancel the timer if necessary. */
-      if (interval > 0 && process->state != Process::TIMEDOUT)
+      if (secs > 0 && process->state != Process::TIMEDOUT)
 	  cancel_timeout(timeout);
 
       if (process->state == Process::INTERRUPTED)
@@ -1744,10 +1744,10 @@ public:
   }
 
 
-  timeout_t create_timeout(Process *process, ev_tstamp interval)
+  timeout_t create_timeout(Process *process, double secs)
   {
     assert(process != NULL);
-    ev_tstamp tstamp = ev_now(loop) + interval;
+    ev_tstamp tstamp = ev_time() + secs;
     return make_tuple(tstamp, process, process->generation);
   }
 
@@ -2863,7 +2863,7 @@ void Process::enqueue(struct msg *msg)
   {
     if (state != EXITED) {
       //cout << "enqueing pending message: " << msg << endl;
-      msgs.push_back(msg);
+      msgs.push(msg);
 
       if (state == RECEIVING) {
 	state = READY;
@@ -2895,7 +2895,7 @@ struct msg * Process::dequeue()
     assert (state == RUNNING);
     if (!msgs.empty()) {
       msg = msgs.front();
-      msgs.pop_front();
+      msgs.pop();
       //cout << "dequeueing pending message: " << msg << endl;
     }
   }
@@ -2905,48 +2905,16 @@ struct msg * Process::dequeue()
 }
 
 
-PID Process::self() const
+PID Process::self()
 {
   return pid;
 }
 
 
-PID Process::from() const
+PID Process::from()
 {
   PID pid = { 0, 0, 0 };
   return current != NULL ? current->from : pid;
-}
-
-
-void Process::inject(const PID &from, MSGID id, const char *data, size_t length)
-{
-  if (replaying)
-    return;
-
-  /* Disallow sending messages using an internal id. */
-  if (id < PROCESS_MSGID)
-    return;
-
-  /* Allocate/Initialize outgoing message. */
-  struct msg *msg = (struct msg *) malloc(sizeof(struct msg) + length);
-
-  msg->from.pipe = from.pipe;
-  msg->from.ip = from.ip;
-  msg->from.port = from.port;
-  msg->to.pipe = pid.pipe;
-  msg->to.ip = pid.ip;
-  msg->to.port = pid.port;
-  msg->id = id;
-  msg->len = length;
-
-  if (length > 0)
-    memcpy((char *) msg + sizeof(struct msg), data, length);
-
-  lock();
-  {
-    msgs.push_front(msg);
-  }
-  unlock();
 }
 
 
@@ -2999,7 +2967,7 @@ MSGID Process::receive(double secs)
 {
   //cout << "Process::receive(" << secs << ")" << endl;
   /* Free current message. */
-  if (current) {
+  if (current != NULL) {
     free(current);
     current = NULL;
   }
@@ -3077,7 +3045,7 @@ MSGID Process::call(const PID &to, MSGID id,
 }
 
 
-const char * Process::body(size_t *length) const
+const char * Process::body(size_t *length)
 {
   if (current != NULL && current->len > 0) {
     if (length != NULL)
@@ -3124,8 +3092,8 @@ bool Process::await(int fd, int op, const timeval& tv)
 
 bool Process::await(int fd, int op, const timeval& tv, bool ignore)
 {
-  ev_tstamp interval = tv.tv_sec + (tv.tv_usec * 1e-6);
-  return ProcessManager::instance()->await(this, fd, op, interval, ignore);
+  double secs = tv.tv_sec + (tv.tv_usec * 1e-6);
+  return ProcessManager::instance()->await(this, fd, op, secs, ignore);
 }
 
 

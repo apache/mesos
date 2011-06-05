@@ -111,7 +111,7 @@ private:
 	 EXITED } state;
 
   /* Queue of messages received. */
-  std::deque<struct msg *> msgs;
+  std::queue<struct msg *> msgs;
 
   /* Current message. */
   struct msg *current;
@@ -158,67 +158,66 @@ protected:
   virtual void operator() () = 0;
 
   /* Returns the PID describing this process. */
-  PID self() const;
+  PID self();
 
   /* Returns the sender's PID of the last dequeued (current) message. */
-  PID from() const;
+  PID from();
 
-  /* Returns the id of the current message. */
-  MSGID msgid() const;
-
-  /* Returns pointer and length of body of last dequeued (current) message. */
-  const char * body(size_t *length) const;
-
-  /* Put a message at front of queue (will not reschedule process). */
-  virtual void inject(const PID &from, MSGID id, const char *data, size_t length);
+  MSGID msgid();
 
   /* Sends a message to PID. */
-  virtual void send(const PID &to , MSGID);
+  void send(const PID &, MSGID);
 
   /* Sends a message with data to PID. */
-  virtual void send(const PID &to, MSGID id, const char *data, size_t length);
+  void send(const PID &, MSGID, const char *data, size_t length);
 
   /* Blocks for message indefinitely. */
-  virtual MSGID receive();
+  MSGID receive();
 
   /* Blocks for message at most specified seconds. */
-  virtual MSGID receive(time_t secs);
+  MSGID receive(double);
 
   /* Sends a message to PID and then blocks for a message indefinitely. */
-  virtual MSGID call(const PID &to , MSGID id);
+  MSGID call(const PID &, MSGID);
 
   /* Sends a message with data to PID and then blocks for a message. */
-  virtual MSGID call(const PID &to, MSGID id, const char *data, size_t length);
+  MSGID call(const PID &, MSGID, const char *data, size_t length);
 
   /* Sends, and then blocks for a message at most specified seconds. */
-  virtual MSGID call(const PID &to, MSGID id, const char *data, size_t length, time_t secs);
+  MSGID call(const PID &, MSGID, const char *data, size_t length, double);
+
+  /* Returns pointer and length of body of last dequeued (current) message. */
+  const char * body(size_t *length);
 
   /* Blocks at least specified seconds (may block longer). */
-  virtual void pause(time_t secs);
+  void pause(double);
 
   /* Links with the specified PID. */
-  virtual PID link(const PID &pid);
+  PID link(const PID &);
 
   /* IO operations for awaiting. */
   enum { RDONLY = 01, WRONLY = 02, RDWR = 03 };
 
   /* Wait until operation is ready for file descriptor (or message received). */
-  virtual bool await(int fd, int op);
+  bool await(int fd, int op, const timeval& tv);
+
+  /* Wait until operation is ready for file descriptor (or message received if not ignored). */
+  bool await(int fd, int op, const timeval& tv, bool ignore);
 
   /* Returns true if operation on file descriptor is ready. */
-  virtual bool ready(int fd, int op);
+  bool ready(int fd, int op);
 
 public:
   virtual ~Process();
 
   /* Returns pid of process; valid even before calling spawn. */
-  PID getPID() const;
+  PID getPID();
 
   /* Sends a message to PID without a return address. */
-  static void post(const PID &to, MSGID id);
+  static void post(const PID &, MSGID);
 
   /* Sends a message with data to PID without a return address. */
-  static void post(const PID &to, MSGID id, const char *data, size_t length);
+  static void post(const PID &, MSGID, const char *data, size_t length);
 
   /* Spawn a new process. */
   static PID spawn(Process *process);
@@ -234,7 +233,7 @@ public:
 };
 
 
-inline MSGID Process::msgid() const
+inline MSGID Process::msgid()
 {
   return current != NULL ? current->id : PROCESS_ERROR;
 }
@@ -255,7 +254,7 @@ inline MSGID Process::call(const PID &to, MSGID id)
 inline MSGID Process::call(const PID &to, MSGID id,
 			   const char *data, size_t length)
 {
-  return call(to, id, NULL, 0, 0);
+  return call(to, id, data, length, 0);
 }
 
 
@@ -265,7 +264,7 @@ inline MSGID Process::receive()
 }
 
 
-inline PID Process::getPID() const
+inline PID Process::getPID()
 {
   return self();
 }
