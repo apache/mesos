@@ -65,12 +65,15 @@ void ProcessBasedIsolationModule::startExecutor(Framework* framework)
     PLOG(FATAL) << "Failed to fork to launch new executor";
 
   if (pid) {
-    // In parent process
+    // In parent process, record the pid for killpg later.
     LOG(INFO) << "Started executor, OS pid = " << pid;
     osPid[framework->id] = pid;
     framework->executorStatus = "PID: " + lexical_cast<string>(pid);
   } else {
-    // In child process
+    // In child process, do setsid to make cleanup easier.
+    if ((pid = setsid()) == -1)
+      perror("setsid error");
+
     createExecutorLauncher(framework)->run();
   }
 }
@@ -79,11 +82,18 @@ void ProcessBasedIsolationModule::startExecutor(Framework* framework)
 void ProcessBasedIsolationModule::killExecutor(Framework* fw)
 {
   if (osPid[fw->id] != -1) {
-    LOG(INFO) << "Sending SIGTERM to pid " << osPid[fw->id];
-    kill(osPid[fw->id], SIGKILL);
+    // TODO(benh): Consider sending a SIGTERM, then after so much time
+    // if it still hasn't exited do a SIGKILL (can use a libprocess
+    // process for this).
+    LOG(INFO) << "Sending SIGKILL to gpid " << osPid[fw->id];
+    killpg(osPid[fw->id], SIGKILL);
     osPid[fw->id] = -1;
     fw->executorStatus = "No executor running";
-    // TODO: Kill all of the process's descendants?
+    // TODO(benh): Kill all of the process's descendants? Perhaps
+    // create a new libprocess process that continually tries to kill
+    // all the processes that are a descendant of the executor, trying
+    // to kill the executor last ... maybe this is just too much of a
+    // burden?
   }
 }
 
