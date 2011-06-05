@@ -21,10 +21,10 @@
 
 namespace process {
 
-const std::string ERROR = "error";
-const std::string TIMEOUT = "timeout";
-const std::string EXIT = "exit";
-const std::string TERMINATE = "terminate";
+const std::string ERROR = "__process_error__";
+const std::string TIMEOUT = "__process_timeout__";
+const std::string EXITED = "__process_exited__";
+const std::string TERMINATE = "__process_terminate__";
 
 
 struct Message {
@@ -138,8 +138,8 @@ private:
 	 WAITING,
 	 INTERRUPTED,
 	 TIMEDOUT,
-         EXITING,
-	 EXITED } state;
+         FINISHING,
+	 FINISHED } state;
 
   /* Lock/mutex protecting internals. */
   pthread_mutex_t m;
