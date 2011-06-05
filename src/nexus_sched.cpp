@@ -320,7 +320,8 @@ void NexusSchedulerDriver::stop()
   Lock lock(&mutex);
 
   if (!running) {
-    error(1, "cannot call stop - scheduler is not running");
+    // Don't issue an error (could lead to an infinite loop).
+    // TODO(benh): It would be much cleaner to return success or failure!
     return;
   }
 
