@@ -2988,7 +2988,10 @@ static void initialize()
 
   /* Check environment for ip. */
   value = getenv("LIBPROCESS_IP");
-  ip = value != NULL ? atoi(value) : 0;
+  if (value != NULL)
+    inet_pton(AF_INET, value, &ip);
+  else
+    ip = 0;
 
   /* Check environment for port. */
   value = getenv("LIBPROCESS_PORT");
