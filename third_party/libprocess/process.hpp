@@ -204,6 +204,16 @@ protected:
 
 
 /**
+ * Initialize the library.
+ *
+ * @param initGoogleLogging whether or not to initialize the Google
+ *        Logging library (glog). If the application is also using
+ *        glog, this should be set to false.
+ */
+void initialize(bool initialize_google_logging = true);
+
+
+/**
  * Spawn a new process.
  *
  * @param process process to be spawned

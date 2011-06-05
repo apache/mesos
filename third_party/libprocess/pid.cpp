@@ -14,13 +14,13 @@
 #include "process.hpp"
 
 
-using namespace process;
-
 using std::istream;
 using std::ostream;
 using std::size_t;
 using std::string;
 
+
+namespace process {
 
 UPID::UPID(const char* s)
 {
@@ -135,3 +135,5 @@ size_t hash_value(const UPID& pid)
   boost::hash_combine(seed, pid.port);
   return seed;
 }
+
+} // namespace process {

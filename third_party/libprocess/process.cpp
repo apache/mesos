@@ -1001,7 +1001,7 @@ void * schedule(void *arg)
 // }
 
 
-void initialize()
+void initialize(bool initialize_google_logging)
 {
   static volatile bool initialized = false;
   static volatile bool initializing = true;
@@ -1019,8 +1019,10 @@ void initialize()
     }
   }
 
-  google::InitGoogleLogging("libprocess");
-  google::LogToStderr();
+  if (initialize_google_logging) {
+    google::InitGoogleLogging("libprocess");
+    google::LogToStderr();
+  }
 
 //   /* Install signal handler. */
 //   struct sigaction sa;
@@ -2127,22 +2129,25 @@ void ProcessManager::timedout(const UPID &pid, int generation)
         // of the process).
         assert(process->state == ProcessBase::RUNNING ||
                process->state == ProcessBase::RECEIVING ||
+               process->state == ProcessBase::SERVING ||
                process->state == ProcessBase::POLLING ||
                process->state == ProcessBase::INTERRUPTED ||
                process->state == ProcessBase::PAUSED);
 
         if (process->state != ProcessBase::RUNNING ||
             process->state != ProcessBase::INTERRUPTED ||
-            process->state != ProcessBase::EXITING)
+            process->state != ProcessBase::EXITING) {
           process_manager->enqueue(process);
+        }
 
         // We always have a timeout override the state (unless we are
         // exiting). This includes overriding INTERRUPTED. This means
         // that a process that was polling when selected from the
         // runq will fall out because of a timeout even though it also
         // received a message.
-        if (process->state != ProcessBase::EXITING)
+        if (process->state != ProcessBase::EXITING) {
           process->state = ProcessBase::TIMEDOUT;
+        }
       }
     }
     process->unlock();
