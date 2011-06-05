@@ -2855,8 +2855,8 @@ string ProcessBase::serve(double secs, bool once)
       size_t index = request->first->path.find('/', 1);
       index = index != string::npos ? index + 1 : request->first->path.size();
       const string& name = request->first->path.substr(index);
-      if (http_handlers.count(name) > 0) {
-        http_handlers[name](*request->first).associate(*request->second);
+      if (httpHandlers.count(name) > 0) {
+        httpHandlers[name](*request->first).associate(*request->second);
       } else {
         VLOG(1) << "Returning '404 Not Found' for HTTP request for '"
                 << request->first->path << "'";
@@ -2871,8 +2871,8 @@ string ProcessBase::serve(double secs, bool once)
       delete delegator;
       continue;
     } else if ((current = dequeue<Message>()) != NULL) {
-      if (message_handlers.count(name()) > 0) {
-        message_handlers[name()]();
+      if (messageHandlers.count(name()) > 0) {
+        messageHandlers[name()]();
 	continue;
       } else {
         return name();
@@ -3013,7 +3013,7 @@ bool ProcessBase::ready(int fd, int op)
 }
 
 
-double ProcessBase::elapsed()
+double ProcessBase::elapsedTime()
 {
   double now = 0;
 

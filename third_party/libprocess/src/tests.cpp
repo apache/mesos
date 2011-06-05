@@ -116,24 +116,28 @@ TEST(libprocess, call)
 }
 
 
-class InstallMockProcess : public Process<InstallMockProcess>
+class HandlersMockProcess : public Process<HandlersMockProcess>
 {
 public:
-  InstallMockProcess() { install("func", &InstallMockProcess::func); }
+  HandlersMockProcess()
+  {
+    installMessageHandler("func", &HandlersMockProcess::func);
+  }
+
   MOCK_METHOD0(func, void());
 };
 
 
-TEST(libprocess, install)
+TEST(libprocess, handlers)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  InstallMockProcess process;
+  HandlersMockProcess process;
 
   EXPECT_CALL(process, func())
     .Times(1);
 
-  PID<InstallMockProcess> pid = process::spawn(&process);
+  PID<HandlersMockProcess> pid = process::spawn(&process);
 
   ASSERT_FALSE(!pid);
 

@@ -103,23 +103,30 @@ protected:
   bool ready(int fd, int op);
 
   /* Returns sub-second elapsed time (according to this process). */
-  double elapsed();
+  double elapsedTime();
 
   /* Install a handler for a message. */
-  template <typename T>
-  void install(const std::string& name, void (T::*method)())
+  void installMessageHandler(const std::string& name, const std::tr1::function<void()>& handler)
   {
-    message_handlers[name] =
-      std::tr1::bind(method, static_cast<T*>(this));
+    messageHandlers[name] = handler;
+  }
+
+  template <typename T>
+  void installMessageHandler(const std::string& name, void (T::*method)())
+  {
+    installMessageHandler(name, std::tr1::bind(method, static_cast<T*>(this)));
   }
 
   /* Install a handler for an HTTP request. */
-  template <typename T>
-  void install(const std::string& name,
-               Promise<HttpResponse> (T::*method)(const HttpRequest&))
+  void installHttpHandler(const std::string& name, const std::tr1::function<Promise<HttpResponse>(const HttpRequest&)>& handler)
   {
-    http_handlers[name] =
-      std::tr1::bind(method, static_cast<T*>(this), std::tr1::placeholders::_1);
+    httpHandlers[name] = handler;
+  }
+
+  template <typename T>
+  void installHttpHandler(const std::string& name, Promise<HttpResponse> (T::*method)(const HttpRequest&))
+  {
+    installHttpHandler(name, std::tr1::bind(method, static_cast<T*>(this), std::tr1::placeholders::_1));
   }
 
 private:
@@ -166,10 +173,10 @@ private:
   std::deque<std::tr1::function<void(ProcessBase*)>*> delegators;
 
   /* Handlers for messages. */
-  std::map<std::string, std::tr1::function<void(void)> > message_handlers;
+  std::map<std::string, std::tr1::function<void(void)> > messageHandlers;
 
   /* Handlers for HTTP requests. */
-  std::map<std::string, std::tr1::function<Promise<HttpResponse>(const HttpRequest&)> > http_handlers;
+  std::map<std::string, std::tr1::function<Promise<HttpResponse>(const HttpRequest&)> > httpHandlers;
 
   /* Current message. */
   Message* current;
