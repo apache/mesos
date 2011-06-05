@@ -10,7 +10,7 @@
 
 namespace nexus { namespace internal { namespace master {
 
-void startMasterWebUI(PID master, string webuiport);
+void startMasterWebUI(const PID &master, const long &webuiport);
 
 }}} /* namespace */
 

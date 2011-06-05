@@ -47,7 +47,7 @@ int main (int argc, char **argv)
 
   int opt;
   int index;
-  string webuiport = "";
+  string webuiPortStr = "8080";
   while ((opt = getopt_long(argc, argv, "u:a:p:w:q", options, &index)) != -1) {
     switch (opt) {
       case 'u':
@@ -60,7 +60,7 @@ int main (int argc, char **argv)
         setenv("LIBPROCESS_PORT", optarg, 1);
         break;
       case 'w':
-        webuiport = optarg;
+        webuiPortStr = optarg;
         break;
       case 'q':
         quiet = true;
@@ -93,7 +93,13 @@ int main (int argc, char **argv)
 #ifdef NEXUS_WEBUI
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("could not change into %s for running webui", dirname(argv[0]));
-  startMasterWebUI(pid, webuiport);
+  long webuiPort;
+  std::istringstream webuiPortStream(webuiPortStr);
+
+  if (webuiPortStream>>webuiPort)
+    startMasterWebUI(pid, webuiPort);
+  else
+    fatalerror("Passed invalid string for webui port number.");
 #endif
   
   Process::wait(pid);
