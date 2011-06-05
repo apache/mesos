@@ -196,6 +196,7 @@ void LxcIsolationModule::Reaper::operator () ()
 	  }
 	}
       }
+      break;
     }
     case SHUTDOWN_REAPER:
     case PROCESS_EXIT:
