@@ -11,9 +11,12 @@
 
 #include "common/fatal.hpp"
 
+#define USE_THREADED_ZOOKEEPER
+
 using boost::cref;
 using boost::tuple;
 
+using process::Future;
 using process::PID;
 using process::Process;
 using process::Promise;
@@ -57,29 +60,22 @@ WatcherProcessManager* manager;
 class WatcherProcess : public Process<WatcherProcess>
 {
 public:
-  WatcherProcess(Watcher* _watcher) : watcher(_watcher) {}
+  WatcherProcess(Watcher* watcher) : watcher(watcher) {}
 
   void event(ZooKeeper* zk, int type, int state, const string& path)
   {
     watcher->process(zk, type, state, path);
   }
 
-protected:
-  virtual void operator () ()
-  {
-    do serve();
-    while (name() != process::TERMINATE);
-  }
-
 private:
-  Watcher *watcher;
+  Watcher* watcher;
 };
 
 
 class WatcherProcessManager : public Process<WatcherProcessManager>
 {
 public:
-  Promise<WatcherProcess*> create(Watcher* watcher)
+  WatcherProcess* create(Watcher* watcher)
   {
     WatcherProcess* process = new WatcherProcess(watcher);
     spawn(process);
@@ -98,7 +94,7 @@ public:
     }
   }
 
-  Promise<PID<WatcherProcess> > lookup(Watcher* watcher)
+  PID<WatcherProcess> lookup(Watcher* watcher)
   {
     if (processes.count(watcher) > 0) {
       return processes[watcher]->self();
@@ -144,27 +140,37 @@ Watcher::~Watcher()
 }
 
 
-class ZooKeeperImpl : public Process<ZooKeeperImpl> {};
-
-
-class ZooKeeperProcess : public ZooKeeperImpl
+#ifndef USE_THREADED_ZOOKEEPER
+class ZooKeeperImpl : public Process<ZooKeeperImpl>
+#else
+class ZooKeeperImpl
+#endif // USE_THREADED_ZOOKEEPER
 {
 public:
-  ZooKeeperProcess(ZooKeeper* _zk, const string& _hosts, int _timeout,
-                   Watcher* _watcher)
-    : zk(_zk), hosts(_hosts), timeout(_timeout), watcher(_watcher)
+  ZooKeeperImpl(ZooKeeper* zk, const string& hosts, int timeout,
+		Watcher* watcher)
+    : zk(zk), hosts(hosts), timeout(timeout), watcher(watcher)
   {
     if (watcher == NULL) {
       fatalerror("cannot instantiate ZooKeeper with NULL watcher");
     }
 
-    zh = zookeeper_init(hosts.c_str(), watch, timeout, NULL, this, 0);
+    // Lookup PID of the WatcherProcess associated with the Watcher.
+    pid = call(manager->self(), &WatcherProcessManager::lookup, watcher);
+
+    // N.B. The Watcher and thus WatcherProcess may already be gone,
+    // in which case, each dispatch to the WatcherProcess that we do
+    // will just get dropped on the floor.
+
+    // TODO(benh): Link with WatcherProcess PID?
+
+    zh = zookeeper_init(hosts.c_str(), event, timeout, NULL, this, 0);
     if (zh == NULL) {
       fatalerror("failed to create ZooKeeper (zookeeper_init)");
     }
   }
 
-  ~ZooKeeperProcess()
+  ~ZooKeeperImpl()
   {
     int ret = zookeeper_close(zh);
     if (ret != ZOK) {
@@ -278,20 +284,10 @@ public:
     return promise;
   }
 
+#ifndef USE_THREADED_ZOOKEEPER
 protected:
   virtual void operator () ()
   {
-    // Lookup and cache the PID of the WatcherProcess associated with
-    // our Watcher before we yield control via calling
-    // zookeeper_process so that Watcher callbacks can occur.
-    pid = call(manager->self(), &WatcherProcessManager::lookup, watcher);
-
-    // N.B. The Watcher and thus WatcherProcess may already be gone,
-    // in which case, each dispatch to the WatcherProcess that we do
-    // will just get dropped on the floor.
-
-    // TODO(benh): Link with WatcherProcess PID?
-
     while (true) {
       int fd;
       int ops;
@@ -323,114 +319,6 @@ protected:
         }
       }
     }
-  }
-
-private:
-  static void watch(zhandle_t* zh, int type, int state,
-		    const char* path, void* ctx)
-  {
-    ZooKeeperProcess* zooKeeperProcess = static_cast<ZooKeeperProcess*>(ctx);
-    process::dispatch(zooKeeperProcess->pid, &WatcherProcess::event,
-                      zooKeeperProcess->zk, type, state, string(path));
-  }
-
-  static void voidCompletion(int ret, const void *data)
-  {
-    const tuple<Promise<int> >* args =
-      reinterpret_cast<const tuple<Promise<int> >*>(data);
-
-    Promise<int> promise = (*args).get<0>();
-
-    promise.set(ret);
-
-    delete args;
-  }
-
-
-  static void stringCompletion(int ret, const char* value, const void* data)
-  {
-    const tuple<Promise<int>, string*> *args =
-      reinterpret_cast<const tuple<Promise<int>, string*>*>(data);
-
-    Promise<int> promise = (*args).get<0>();
-    string* result = (*args).get<1>();
-
-    if (ret == 0) {
-      if (result != NULL) {
-        result->assign(value);
-      }
-    }
-
-    promise.set(ret);
-
-    delete args;
-  }
-
-
-  static void statCompletion(int ret, const Stat* stat, const void* data)
-  {
-    const tuple<Promise<int>, Stat*>* args =
-      reinterpret_cast<const tuple<Promise<int>, Stat*>*>(data);
-
-    Promise<int> promise = (*args).get<0>();
-    Stat *stat_result = (*args).get<1>();
-
-    if (ret == 0) {
-      if (stat_result != NULL) {
-        *stat_result = *stat;
-      }
-    }
-
-    promise.set(ret);
-
-    delete args;
-  }
-
-  static void dataCompletion(int ret, const char* value, int value_len,
-                             const Stat* stat, const void* data)
-  {
-    const tuple<Promise<int>, string*, Stat*>* args =
-      reinterpret_cast<const tuple<Promise<int>, string*, Stat*>*>(data);
-
-    Promise<int> promise = (*args).get<0>();
-    string* result = (*args).get<1>();
-    Stat* stat_result = (*args).get<2>();
-
-    if (ret == 0) {
-      if (result != NULL) {
-        result->assign(value, value_len);
-      }
-
-      if (stat_result != NULL) {
-        *stat_result = *stat;
-      }
-    }
-
-    promise.set(ret);
-
-    delete args;
-  }
-
-  static void stringsCompletion(int ret, const String_vector* values,
-                                const void* data)
-  {
-    const tuple<Promise<int>, vector<string>*>* args =
-      reinterpret_cast<const tuple<Promise<int>, vector<string>*>*>(data);
-
-    Promise<int> promise = (*args).get<0>();
-    vector<string>* results = (*args).get<1>();
-
-    if (ret == 0) {
-      if (results != NULL) {
-        for (int i = 0; i < values->count; i++) {
-          results->push_back(values->data[i]);
-        }
-      }
-    }
-
-    promise.set(ret);
-
-    delete args;
   }
 
   bool prepare(int* fd, int* ops, timeval* tv)
@@ -484,13 +372,123 @@ private:
       fatal("zookeeper_process failed! (%s)", zerror(ret));
     }
   }
+#endif // USE_THREADED_ZOOKEEPER
+
+private:
+  static void event(zhandle_t* zh, int type, int state,
+		    const char* path, void* ctx)
+  {
+    ZooKeeperImpl* impl = static_cast<ZooKeeperImpl*>(ctx);
+    process::dispatch(impl->pid, &WatcherProcess::event,
+		      impl->zk, type, state, string(path));
+  }
+
+  static void voidCompletion(int ret, const void *data)
+  {
+    const tuple<Promise<int> >* args =
+      reinterpret_cast<const tuple<Promise<int> >*>(data);
+
+    Promise<int> promise = (*args).get<0>();
+
+    promise.set(ret);
+
+    delete args;
+  }
+
+  static void stringCompletion(int ret, const char* value, const void* data)
+  {
+    const tuple<Promise<int>, string*> *args =
+      reinterpret_cast<const tuple<Promise<int>, string*>*>(data);
+
+    Promise<int> promise = (*args).get<0>();
+    string* result = (*args).get<1>();
+
+    if (ret == 0) {
+      if (result != NULL) {
+	result->assign(value);
+      }
+    }
+
+    promise.set(ret);
+
+    delete args;
+  }
+
+  static void statCompletion(int ret, const Stat* stat, const void* data)
+  {
+    const tuple<Promise<int>, Stat*>* args =
+      reinterpret_cast<const tuple<Promise<int>, Stat*>*>(data);
+
+    Promise<int> promise = (*args).get<0>();
+    Stat *stat_result = (*args).get<1>();
+
+    if (ret == 0) {
+      if (stat_result != NULL) {
+	*stat_result = *stat;
+      }
+    }
+
+    promise.set(ret);
+
+    delete args;
+  }
+
+
+  static void dataCompletion(int ret, const char* value, int value_len,
+			     const Stat* stat, const void* data)
+  {
+    const tuple<Promise<int>, string*, Stat*>* args =
+      reinterpret_cast<const tuple<Promise<int>, string*, Stat*>*>(data);
+
+    Promise<int> promise = (*args).get<0>();
+    string* result = (*args).get<1>();
+    Stat* stat_result = (*args).get<2>();
+
+    if (ret == 0) {
+      if (result != NULL) {
+	result->assign(value, value_len);
+      }
+
+      if (stat_result != NULL) {
+	*stat_result = *stat;
+      }
+    }
+
+    promise.set(ret);
+
+    delete args;
+  }
+
+
+  static void stringsCompletion(int ret, const String_vector* values,
+				const void* data)
+  {
+    const tuple<Promise<int>, vector<string>*>* args =
+      reinterpret_cast<const tuple<Promise<int>, vector<string>*>*>(data);
+
+    Promise<int> promise = (*args).get<0>();
+    vector<string>* results = (*args).get<1>();
+
+    if (ret == 0) {
+      if (results != NULL) {
+	for (int i = 0; i < values->count; i++) {
+	  results->push_back(values->data[i]);
+	}
+      }
+    }
+
+    promise.set(ret);
+
+    delete args;
+  }
 
 private:
   friend class ZooKeeper;
 
+  const string hosts; // ZooKeeper host:port pairs.
+  const int timeout; // ZooKeeper session timeout.
+
   ZooKeeper* zk; // ZooKeeper instance.
-  string hosts; // ZooKeeper host:port pairs.
-  int timeout; // ZooKeeper session timeout.
   zhandle_t* zh; // ZooKeeper connection handle.
   
   Watcher* watcher; // Associated Watcher instance. 
@@ -498,82 +496,96 @@ private:
 };
 
 
-
 ZooKeeper::ZooKeeper(const string& hosts, int timeout, Watcher* watcher)
 {
-  impl = new ZooKeeperProcess(this, hosts, timeout, watcher);
+  impl = new ZooKeeperImpl(this, hosts, timeout, watcher);
+#ifndef USE_THREADED_ZOOKEEPER
   process::spawn(impl);
+#endif // USE_THREADED_ZOOKEEPER
 }
 
 
 ZooKeeper::~ZooKeeper()
 {
+#ifndef USE_THREADED_ZOOKEEPER
   process::post(impl->self(), process::TERMINATE);
   process::wait(impl->self());
+#endif // USE_THREADED_ZOOKEEPER
   delete impl;
 }
 
 
 int ZooKeeper::getState()
 {
-  ZooKeeperProcess* zooKeeperProcess = static_cast<ZooKeeperProcess*>(impl);
-  return zoo_state(zooKeeperProcess->zh);
+  return zoo_state(impl->zh);
 }
 
 
 int ZooKeeper::create(const string& path, const string& data,
                       const ACL_vector& acl, int flags, string* result)
 {
-  ZooKeeperProcess* process = static_cast<ZooKeeperProcess*>(impl);
-  PID<ZooKeeperProcess> pid(*process);
-  return process::call(pid, &ZooKeeperProcess::create,
+#ifndef USE_THREADED_ZOOKEEPER
+  return process::call(impl->self(), &ZooKeeperImpl::create,
                        cref(path), cref(data), cref(acl), flags, result);
+#else
+  return Future<int>(&impl->create(path, data, acl, flags, result)).get();
+#endif // USE_THREADED_ZOOKEEPER
 }
 
 
 int ZooKeeper::remove(const string& path, int version)
 {
-  ZooKeeperProcess* process = static_cast<ZooKeeperProcess*>(impl);
-  PID<ZooKeeperProcess> pid(*process);
-  return process::call(pid, &ZooKeeperProcess::remove,
+#ifndef USE_THREADED_ZOOKEEPER
+  return process::call(impl->self(), &ZooKeeperImpl::remove,
                        cref(path), version);
+#else
+  return Future<int>(&impl->remove(path, version)).get();
+#endif // USE_THREADED_ZOOKEEPER
 }
 
 
 int ZooKeeper::exists(const string& path, bool watch, Stat* stat)
 {
-  ZooKeeperProcess* process = static_cast<ZooKeeperProcess*>(impl);
-  PID<ZooKeeperProcess> pid(*process);
-  return process::call(pid, &ZooKeeperProcess::exists,
+#ifndef USE_THREADED_ZOOKEEPER
+  return process::call(impl->self(), &ZooKeeperImpl::exists,
                        cref(path), watch, stat);
+#else
+  return Future<int>(&impl->exists(path, watch, stat)).get();
+#endif // USE_THREADED_ZOOKEEPER
 }
 
 
 int ZooKeeper::get(const string& path, bool watch, string* result, Stat* stat)
 {
-  ZooKeeperProcess* process = static_cast<ZooKeeperProcess*>(impl);
-  PID<ZooKeeperProcess> pid(*process);
-  return process::call(pid, &ZooKeeperProcess::get,
+#ifndef USE_THREADED_ZOOKEEPER
+  return process::call(impl->self(), &ZooKeeperImpl::get,
                        cref(path), watch, result, stat);
+#else
+  return Future<int>(&impl->get(path, watch, result, stat)).get();
+#endif // USE_THREADED_ZOOKEEPER
 }
 
 
 int ZooKeeper::getChildren(const string& path, bool watch,
                            vector<string>* results)
 {
-  ZooKeeperProcess* process = static_cast<ZooKeeperProcess*>(impl);
-  PID<ZooKeeperProcess> pid(*process);
-  return process::call(pid, &ZooKeeperProcess::getChildren,
+#ifndef USE_THREADED_ZOOKEEPER
+  return process::call(impl->self(), &ZooKeeperImpl::getChildren,
                        cref(path), watch, results);
+#else
+  return Future<int>(&impl->getChildren(path, watch, results)).get();
+#endif // USE_THREADED_ZOOKEEPER
 }
 
 
 int ZooKeeper::set(const string& path, const string& data, int version)
 {
-  ZooKeeperProcess* process = static_cast<ZooKeeperProcess*>(impl);
-  PID<ZooKeeperProcess> pid(*process);
-  return process::call(pid, &ZooKeeperProcess::set,
+#ifndef USE_THREADED_ZOOKEEPER
+  return process::call(impl->self(), &ZooKeeperImpl::set,
                        cref(path), cref(data), version);
+#else
+  return Future<int>(&impl->set(path, data, version)).get();
+#endif // USE_THREADED_ZOOKEEPER
 }
 
 
@@ -581,22 +593,3 @@ const char* ZooKeeper::error(int ret) const
 {
   return zerror(ret);
 }
-
-
-// class TestWatcher : public Watcher
-// {
-// public:
-//   void process(ZooKeeper *zk, int type, int state, const string &path)
-//   {
-//     cout << "TestWatcher::process" << endl;
-//   }
-// };
-
-
-// int main(int argc, char** argv)
-// {
-//   TestWatcher watcher;
-//   ZooKeeper zk(argv[1], 10000, &watcher);
-//   sleep(10);
-//   return 0;
-// }

@@ -74,7 +74,7 @@ LIBS += -lprotobuf -lglog -lgmock -lgtest -lprocess -lev -lpthread -ldl
 
 # Add ZooKeeper if necessary.
 ifeq ($(WITH_ZOOKEEPER),1)
-  LIBS += -lzookeeper_st
+  LIBS += -lzookeeper_mt
 endif
 
 SCHED_LIB = $(LIBDIR)/libmesos_sched.a

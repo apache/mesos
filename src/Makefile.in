@@ -92,7 +92,7 @@ LIBS += -lprotobuf -lglog -lprocess -lev -lpthread -ldl
 
 # Add ZooKeeper if necessary.
 ifeq ($(WITH_ZOOKEEPER),1)
-  LIBS += -lzookeeper_st
+  LIBS += -lzookeeper_mt
 endif
 
 MASTER_OBJ = master/master.o master/slaves_manager.o			\
