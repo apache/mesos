@@ -90,6 +90,7 @@ ExecutorLauncher* SolarisProjectIsolationModule::createExecutorLauncher(
                              slave->getConf().get("home", ""),
                              slave->getConf().get("hadoop_home", ""),
                              !slave->local,
+                             slave->getConf().get("switch_user", ""),
                              frameworkProject[fw->id]);
 }
 

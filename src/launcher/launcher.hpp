@@ -38,6 +38,7 @@ protected:
   string mesosHome;
   string hadoopHome;
   bool redirectIO;   // Whether to redirect stdout and stderr to files
+  bool shouldSwitchUser; // Whether to setuid to framework's user
   map<string, string> params; // Key-value params in framework's ExecutorInfo
 
 public:
@@ -45,7 +46,7 @@ public:
                    const string& _user, const string& _workDirectory,
                    const string& _slavePid, const string& _mesosHome,
                    const string& _hadoopHome, bool _redirectIO,
-                   const map<string, string>& _params);
+                   bool _shouldSwitchUser, const map<string, string>& _params);
 
   virtual ~ExecutorLauncher();
 

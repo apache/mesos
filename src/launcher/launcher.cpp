@@ -40,10 +40,12 @@ ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
                                    const string& _mesosHome,
                                    const string& _hadoopHome,
                                    bool _redirectIO,
+                                   bool _shouldSwitchUser,
                                    const map<string, string>& _params)
   : frameworkId(_frameworkId), executorUri(_executorUri), user(_user),
     workDirectory(_workDirectory), slavePid(_slavePid), mesosHome(_mesosHome),
-    hadoopHome(_hadoopHome), redirectIO(_redirectIO), params(_params)
+    hadoopHome(_hadoopHome), redirectIO(_redirectIO), 
+    shouldSwitchUser(_shouldSwitchUser), params(_params)
 {}
 
 
@@ -72,7 +74,8 @@ void ExecutorLauncher::run()
 
   setupEnvironment();
 
-  switchUser();
+  if (shouldSwitchUser)
+    switchUser();
   
   // Execute the executor
   execl(executor.c_str(), executor.c_str(), (char *) NULL);
@@ -248,4 +251,5 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
   setenv("MESOS_HOME", mesosHome.c_str(), 1);
   setenv("MESOS_HADOOP_HOME", hadoopHome.c_str(), 1);
   setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0", 1);
+  setenv("MESOS_SWITCH_USER", shouldSwitchUser ? "1" : "0", 1);
 }

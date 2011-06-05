@@ -101,6 +101,11 @@ void Slave::registerOptions(Configurator* conf)
                           "framework executors from HDFS)\n"
                           "(default: look for HADOOP_HOME environment\n"
                           "variable or find hadoop on PATH)");
+  conf->addOption<bool>("switch_user", 
+                        "Whether to run tasks as the user who\n"
+                        "submitted them rather than the user running\n"
+                        "the slave (requires setuid permission)\n",
+                        true);
 }
 
 

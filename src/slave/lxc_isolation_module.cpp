@@ -125,6 +125,7 @@ void LxcIsolationModule::startExecutor(Framework *fw)
                                     slave->getConf().get("home", ""),
                                     slave->getConf().get("hadoop_home", ""),
                                     !slave->local,
+                                    slave->getConf().get("switch_user", true),
                                     fw->executorInfo.params);
     launcher->setupEnvironmentForLauncherMain();
     

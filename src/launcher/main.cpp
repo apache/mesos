@@ -32,6 +32,7 @@ int main(int argc, char **argv)
                    getenvOrFail("MESOS_HOME"),
                    getenvOrFail("MESOS_HADOOP_HOME"),
                    lexical_cast<bool>(getenvOrFail("MESOS_REDIRECT_IO")),
+                   lexical_cast<bool>(getenvOrFail("MESOS_SWITCH_USER")),
                    params).run();
   return 0;
 }
