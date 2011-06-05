@@ -543,6 +543,17 @@ jenv->ExceptionDescribe();
   %template(SlaveOfferVector) std::vector<mesos::SlaveOffer>;
   %template(TaskDescriptionVector) std::vector<mesos::TaskDescription>;
   %template(StringMap) std::map<std::string, std::string>;
+
+  %feature("director:except") {
+    if( $error != NULL ) {
+      PyObject *ptype, *pvalue, *ptraceback;
+      PyErr_Fetch( &ptype, &pvalue, &ptraceback );
+      PyErr_Restore( ptype, pvalue, ptraceback );
+      PyErr_Print();
+      Py_Exit(1);
+    }
+  }
+
 #endif /* SWIGPYTHON */
 
 /* Make it possible to inherit from Scheduler/Executor in target language */
