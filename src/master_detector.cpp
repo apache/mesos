@@ -272,6 +272,10 @@ ZooKeeperMasterDetector::ZooKeeperMasterDetector(const string &_servers,
   // TODO(benh): Put this in the C++ API.
   zoo_set_debug_level(quiet ? ZOO_LOG_LEVEL_ERROR : ZOO_LOG_LEVEL_DEBUG);
 
+  // TODO(benh): Don't deal with znode like this!
+  if (znode == "/")
+    znode = "";
+
   // Start up the ZooKeeper connection!
   zk = new ZooKeeper(servers, 10000, this);
 }
@@ -298,7 +302,7 @@ void ZooKeeperMasterDetector::process(ZooKeeper *zk, int type, int state,
     // Check if this is a reconnect.
     if (!reconnect) {
       // Assume the znode that was created does not end with a "/".
-      CHECK(znode.at(znode.length() - 1) != '/' || znode.length() == 1);
+      CHECK(znode.at(znode.length() - 1) != '/');
 
       // Create directory path znodes as necessary.
       size_t index = znode.find(delimiter, 0);
