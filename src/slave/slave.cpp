@@ -258,7 +258,7 @@ void Slave::initialize()
 
 void Slave::newMasterDetected(const string& pid)
 {
-  LOG(INFO) << "New master at " << pid;
+  LOG(INFO) << "New master detected at " << pid;
 
   master = pid;
   link(master);
@@ -276,9 +276,9 @@ void Slave::newMasterDetected(const string& pid)
 
     foreachpair (_, Framework* framework, frameworks) {
       foreachpair (_, Executor* executor, framework->executors) {
-        foreachpair (_, Task* task, executor->tasks) {
-          out.add_tasks()->MergeFrom(*task);
-        }
+	foreachpair (_, Task* task, executor->tasks) {
+	  out.add_tasks()->MergeFrom(*task);
+	}
       }
     }
 

@@ -883,11 +883,24 @@ void Master::reregisterSlave(const SlaveID& slaveId,
     LOG(ERROR) << "Slave re-registered without an id!";
     send(from(), process::TERMINATE);
   } else {
-    if (lookupSlave(slaveId) != NULL) {
-      // TODO(benh): Once we support handling session expiration, we
-      // will want to handle having a slave re-register with us when
-      // we already have them recorded.
-      LOG(ERROR) << "Slave re-registered with in use id!";
+    Slave* slave = lookupSlave(slaveId);
+    if (slave != NULL) {
+      // TODO(benh): It's still unclear whether or not
+      // MasterDetector::detectMaster will cause spurious
+      // Slave::newMasterDetected to get invoked even though the
+      // ephemeral znode hasn't changed. If that does happen, the
+      // re-register that the slave is trying to do is just
+      // bogus. Letting it re-register might not be all that bad now,
+      // but maybe in the future it's bad because during that
+      // "disconnected" time it might not have received certain
+      // messages from us (like launching a task), and so until we
+      // have some form of task reconciliation between all the
+      // different components, the safe thing to do is have the slave
+      // restart (kind of defeats the purpose of session expiration
+      // support in ZooKeeper if the spurious calls happen each time).
+      LOG(ERROR) << "Slave at " << from()
+		 << " attempted to re-register with an already in use id ("
+		 << slaveId << ")";
       send(from(), process::TERMINATE);
     } else {
       Slave* slave = new Slave(slaveInfo, slaveId, from(), elapsed());
@@ -1109,6 +1122,7 @@ void Master::deactivatedSlaveHostnamePort(const string& hostname, uint16_t port)
         LOG(WARNING) << "Removing slave " << slave->slaveId << " at "
 		     << hostname << ":" << port
                      << " because it has been deactivated";
+	send(slave->pid, process::TERMINATE);
         removeSlave(slave);
         break;
       }
@@ -1649,6 +1663,7 @@ void Master::readdSlave(Slave* slave, const vector<Task>& tasks)
 void Master::removeSlave(Slave* slave)
 { 
   slave->active = false;
+
   // TODO: Notify allocator that a slave removal is beginning?
   
   // Remove pointers to slave's tasks in frameworks, and send status updates
