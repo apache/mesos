@@ -21,13 +21,11 @@ class LeaderDetector {
 public:
   LeaderDetector(string server, bool contendLeader=0, string ld="", LeaderListener * ll=NULL);
 
-  void leaderWatch(zhandle_t *zh, int type, int state, const char *path);
-
   pair<string,string> getCurrentLeader();
 
-  string getCurrentLeaderId();
+  string getCurrentLeaderSeq();
 
-  string getCurrentLeaderData();
+  string getCurrentLeaderPID();
 
   void setListener(LeaderListener *l) {
     leaderListener = l;
@@ -37,16 +35,8 @@ public:
     return leaderListener;
   }
 
-  void setSequence(string seq) {  // converts "/nxmaster/000000131" to "000000131"
-    int pos;
-    if ((pos=seq.find_last_of('/'))!=string::npos ) {  
-      mySequence = seq.erase(0,pos+1);
-    } else
-      mySequence = "";
-  }
-
-  string getSequence() const {
-    return mySequence;
+  string getMySeq() const {
+    return mySeq;
   }
 
   ~LeaderDetector();
@@ -56,17 +46,26 @@ public:
   static void leaderWatchWrap(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx);
 
 private: 
+  void setMySeq(string seq) {  // converts "/nxmaster/000000131" to "000000131"
+    int pos;
+    if ((pos=seq.find_last_of('/'))!=string::npos ) {  
+      mySeq = seq.erase(0,pos+1);
+    } else
+      mySeq = "";
+  }
+
+  void leaderWatch(zhandle_t *zh, int type, int state, const char *path);
   bool detectLeader();
-  string fetchLeaderData(string id);
-  void newLeader(string leader,string leaderData);
+  string fetchLeaderPID(string id);
+  void newLeader(string leader,string leaderPID);
 
   LeaderListener *leaderListener;
   zhandle_t *zh;
   string mydata;
   string zooserver;
-  string currentLeaderId;
-  string currentLeaderData;
-  string mySequence;
+  string currentLeaderSeq;
+  string currentLeaderPID;
+  string mySeq;
 
   String_vector sv;
 

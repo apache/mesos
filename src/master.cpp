@@ -286,7 +286,7 @@ void Master::operator () ()
     lpid<<self();
     leaderDetector = new LeaderDetector(zkservers, true, lpid.str());
     
-    masterId = lexical_cast<long>(leaderDetector->getSequence());
+    masterId = lexical_cast<long>(leaderDetector->getMySeq());
     LOG(INFO)<<"Master ID:"<<masterId;
   }
 

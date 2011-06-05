@@ -142,12 +142,13 @@ protected:
       leaderDetector = new LeaderDetector(zkservers, false, "", NULL);
       leaderDetector->setListener(&schedLeaderListener); // use this instead of constructor to avoid race condition
 
-      pair<string,string> zkleader = leaderDetector->getCurrentLeader();
-      LOG(INFO) << "Detected leader at " << zkleader.second <<" with ephemeral id:"<<zkleader.first;
+      string leaderPidStr = leaderDetector->getCurrentLeaderPID();
+      string leaderSeq = leaderDetector->getCurrentLeaderSeq();
+      LOG(INFO) << "Detected leader at " << leaderPidStr << " with ephemeral id:" << leaderSeq;
       
-      istringstream iss(zkleader.second);
+      istringstream iss(leaderPidStr);
       if (!(iss >> master)) {
-	cerr << "Failed to resolve master PID " << zkleader.second << endl;
+        cerr << "Failed to resolve master PID " << leaderPidStr << endl;
       }    
     }
 

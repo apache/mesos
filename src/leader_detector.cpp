@@ -22,7 +22,7 @@ void LeaderDetector::leaderWatchWrap(zhandle_t *zh, int type, int state, const c
 LeaderDetector::LeaderDetector(string server, bool contendLeader, string ld, LeaderListener *ll) : 
   leaderListener(ll),
   zh(NULL),mydata(ld),
-  zooserver(server),currentLeaderId(""), mySequence("")
+  zooserver(server),currentLeaderSeq(""), mySeq("")
 {
 
   zh = zookeeper_init(zooserver.c_str(), initWatchWrap, 1000, 0, NULL, 0);
@@ -38,8 +38,8 @@ LeaderDetector::LeaderDetector(string server, bool contendLeader, string ld, Lea
     ret = zoo_create(zh, "/nxmaster/",  mydata.c_str(), mydata.length(), &ZOO_OPEN_ACL_UNSAFE, ZOO_SEQUENCE | ZOO_EPHEMERAL, buf, 100);
     LOG_IF(ERROR, ret!=ZOK)<<"zoo_create() ephemeral/sequence returned error:"<<ret;
     if (ret==ZOK) {
-      setSequence(string(buf));
-      LOG(INFO)<<"Created ephemeral/sequence:"<<mySequence;
+      setMySeq(string(buf));
+      LOG(INFO)<<"Created ephemeral/sequence:"<<mySeq;
     }
   }
 
@@ -78,10 +78,10 @@ bool LeaderDetector::detectLeader() {
     }
   }
 
-  if (leader!=currentLeaderId) {
-    currentLeaderId=leader;
+  if (leader!=currentLeaderSeq) {
+    currentLeaderSeq=leader;
 
-    string data = fetchLeaderData(leader); 
+    string data = fetchLeaderPID(leader); 
     
     newLeader(leader, data); // both params could be ""
       
@@ -90,10 +90,10 @@ bool LeaderDetector::detectLeader() {
   return 0;
 }
 
-string LeaderDetector::fetchLeaderData(string id) {
+string LeaderDetector::fetchLeaderPID(string id) {
   if (id=="") {
-    currentLeaderData = "";
-    return currentLeaderData;
+    currentLeaderPID = "";
+    return currentLeaderPID;
   }
   string path="/nxmaster/";
   path+=id;
@@ -104,26 +104,22 @@ string LeaderDetector::fetchLeaderData(string id) {
   LOG_IF(INFO, ret==ZOK)<<"zoo_get leader data fetch returned "<<buf[0];
 
   string tmp(buf,buflen);
-  currentLeaderData=tmp;
-  return currentLeaderData;
+  currentLeaderPID=tmp;
+  return currentLeaderPID;
 }
 
-pair<string,string> LeaderDetector::getCurrentLeader() {
-  return pair<string,string>(getCurrentLeaderId(),getCurrentLeaderData());
+string LeaderDetector::getCurrentLeaderSeq() {
+  return currentLeaderSeq;
 }
 
-string LeaderDetector::getCurrentLeaderId() {
-  return currentLeaderId;
+string LeaderDetector::getCurrentLeaderPID() {
+  return currentLeaderPID;
 }
 
-string LeaderDetector::getCurrentLeaderData() {
-  return currentLeaderData;
-}
-
-void LeaderDetector::newLeader(string leader, string leaderData) {
-  LOG(INFO)<<"New leader ephemeral_id:"<<leader<<" data:"<<leaderData;
+void LeaderDetector::newLeader(string leader, string leaderPID) {
+  LOG(INFO)<<"New leader ephemeral_id:"<<leader<<" data:"<<leaderPID;
   if (leaderListener!=NULL)
-    leaderListener->newLeaderElected(leader,leaderData);
+    leaderListener->newLeaderElected(leader,leaderPID);
 }
 
 LeaderDetector::~LeaderDetector() {
@@ -138,7 +134,7 @@ int main(int argc, char **argv) {
   if (argc==2)
     name=argv[1];
   LeaderDetector ld(1, name);
-  string s = ld.getCurrentLeaderId();
+  string s = ld.getCurrentLeaderSeq();
   debug("Leader is "<<s<<endl<<flush);
   
   sleep(50);
