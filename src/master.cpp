@@ -337,8 +337,11 @@ void Master::operator () ()
       unpack<F2M_UNREGISTER_FRAMEWORK>(fid);
       LOG(INFO) << "Asked to unregister framework " << fid;
       Framework *framework = lookupFramework(fid);
-      if (framework != NULL)
+      if (framework != NULL && framework->pid == from())
         removeFramework(framework);
+      else
+        LOG(WARNING) << "Non-authoratative PID attempting framework "
+                     << "unregistration ... ignoring";
       break;
     }
 
