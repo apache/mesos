@@ -91,8 +91,8 @@ private:
    virtual void timeout() {
       foreach (const TaskDescription &t, tasks) {
         DLOG(INFO) << "FT: faking M2F_STATUS_UPDATE due to timeout to server during ReplyToOffer";
-        parent->send( parent->self(), 
-                      pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
+        parent->send(parent->self(), 
+                     pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
       }
     }
 
@@ -269,7 +269,7 @@ protected:
         unpack<F2F_FRAMEWORK_MESSAGE>(msg);
 //         if (isFT) {
 //           string ftId = ftMsg->getNextId();
-//           ftMsg->reliableSend( ftId, pack<F2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), fid, msg));
+//           ftMsg->reliableSend(ftId, pack<F2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), fid, msg));
 //         } else
 //           send(master, pack<F2M_FRAMEWORK_MESSAGE>(fid, msg));
         send(savedSlavePids[msg.slaveId], pack<M2S_FRAMEWORK_MESSAGE>(fid, msg));
@@ -467,44 +467,53 @@ NexusSchedulerDriver::~NexusSchedulerDriver()
 }
 
 
-int NexusSchedulerDriver::start()
+void NexusSchedulerDriver::start()
 {
   Lock lock(&mutex);
 
   if (running) {
-    //error(1, "cannot call start - scheduler is already running");
-    return - 1;
+    error(1, "cannot call start - scheduler is already running");
+    return;
   }
+
+  PID pid;
+  
+  string initServer = master;
 
   if (master == string("localquiet")) {
     // TODO(benh): Look up resources in environment variables.
-    master = run_nexus(1, 1, 1073741824, true, true);
+    pid = run_nexus(1, 1, 1073741824, true, true);
+    ostringstream ss;
+    ss << pid;
+    initServer = ss.str();
   } else if (master == string("local")) {
     // TODO(benh): Look up resources in environment variables.
-    master = run_nexus(1, 1, 1073741824, true, false);
+    pid = run_nexus(1, 1, 1073741824, true, false);
+    ostringstream ss;
+    ss << pid;
+    initServer = ss.str();
   } 
 
   const string& frameworkName = sched->getFrameworkName(this);
   const ExecutorInfo& executorInfo = sched->getExecutorInfo(this);
 
-  process = new SchedulerProcess(master, this, sched, frameworkName, executorInfo);
+  process = new SchedulerProcess(initServer, this, sched, frameworkName, executorInfo);
   
   Process::spawn(process);
 
   running = true;
-
-  return 0;
 }
 
 
 
-int NexusSchedulerDriver::stop()
+void NexusSchedulerDriver::stop()
 {
   Lock lock(&mutex);
 
   if (!running) {
     // Don't issue an error (could lead to an infinite loop).
-    return -1;
+    // TODO(benh): It would be much cleaner to return success or failure!
+    return;
   }
 
   // TODO(benh): Do a Process::post instead?
@@ -516,111 +525,97 @@ int NexusSchedulerDriver::stop()
   running = false;
 
   pthread_cond_signal(&cond);
-
-  return 0;
 }
 
 
-int NexusSchedulerDriver::join()
+void NexusSchedulerDriver::join()
 {
   Lock lock(&mutex);
   while (running)
     pthread_cond_wait(&cond, &mutex);
-
-  return 0;
 }
 
 
-int NexusSchedulerDriver::run()
+void NexusSchedulerDriver::run()
 {
-  int ret = start();
-  return ret != 0 ? ret : join();
+  start();
+  join();
 }
 
 
-int NexusSchedulerDriver::killTask(TaskID tid)
+void NexusSchedulerDriver::killTask(TaskID tid)
 {
   Lock lock(&mutex);
 
   if (!running) {
-    //error(1, "cannot call killTask - scheduler is not running");
-    return -1;
+    error(1, "cannot call killTask - scheduler is not running");
+    return;
   }
 
   // TODO(benh): Do a Process::post instead?
 
   process->send(process->master,
                 process->pack<F2M_KILL_TASK>(process->fid, tid));
-
-  return 0;
 }
 
 
-int NexusSchedulerDriver::replyToOffer(OfferID offerId,
-				       const vector<TaskDescription> &tasks,
-				       const string_map &params)
+void NexusSchedulerDriver::replyToOffer(OfferID offerId,
+                                        const vector<TaskDescription> &tasks,
+                                        const string_map &params)
 {
   Lock lock(&mutex);
 
   if (!running) {
-    //error(1, "cannot call replyToOffer - scheduler is not running");
-    return -1;
+    error(1, "cannot call replyToOffer - scheduler is not running");
+    return;
   }
 
   // TODO(benh): Do a Process::post instead?
-  process->send( process->self(), process->pack<F2F_SLOT_OFFER_REPLY>(offerId, tasks, Params(params)));
-
-  return 0;
+  
+  process->send(process->self(), process->pack<F2F_SLOT_OFFER_REPLY>(offerId, tasks, Params(params)));
 }
 
 
-int NexusSchedulerDriver::reviveOffers()
+void NexusSchedulerDriver::reviveOffers()
 {
   Lock lock(&mutex);
 
   if (!running) {
-    //error(1, "cannot call reviveOffers - scheduler is not running");
-    return -1;
+    error(1, "cannot call reviveOffers - scheduler is not running");
+    return;
   }
 
   // TODO(benh): Do a Process::post instead?
 
   process->send(process->master,
                 process->pack<F2M_REVIVE_OFFERS>(process->fid));
-
-  return 0;
 }
 
 
-int NexusSchedulerDriver::sendFrameworkMessage(const FrameworkMessage &message)
+void NexusSchedulerDriver::sendFrameworkMessage(const FrameworkMessage &message)
 {
   Lock lock(&mutex);
 
   if (!running) {
-    //error(1, "cannot call sendFrameworkMessage - scheduler is not running");
-    return -1;
+    error(1, "cannot call sendFrameworkMessage - scheduler is not running");
+    return;
   }
 
-  // TODO(benh): Do a Process::post instead?
-
-  process->send( process->self(), process->pack<F2F_FRAMEWORK_MESSAGE>(message) );
-
-  return 0;
+  process->send(process->self(), process->pack<F2F_FRAMEWORK_MESSAGE>(message));
 }
 
 
-int NexusSchedulerDriver::sendHints(const string_map& hints)
+void NexusSchedulerDriver::sendHints(const string_map& hints)
 {
   Lock lock(&mutex);
 
   if (!running) {
-    //error(1, "cannot call sendHints - scheduler is not running");
-    return -1;
+    error(1, "cannot call sendHints - scheduler is not running");
+    return;
   }
 
   // TODO(*): Send the hints; for now, we do nothing
-  //error(1, "sendHints is not yet implemented");
-  return -1;
+  error(1, "sendHints is not yet implemented");
 }
 
 

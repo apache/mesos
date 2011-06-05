@@ -72,7 +72,7 @@ public:
    * @param quiet true makes ZK quiet, whereas false makes ZK output DEBUG messages
    */ 
   static void setQuiet(bool quiet) {
-    zoo_set_debug_level( quiet ? ZOO_LOG_LEVEL_ERROR : ZOO_LOG_LEVEL_DEBUG );
+    zoo_set_debug_level(quiet ? ZOO_LOG_LEVEL_ERROR : ZOO_LOG_LEVEL_DEBUG);
   }
 
 private: 
@@ -82,7 +82,7 @@ private:
 
   void setMySeq(string seq) {  // converts "/nxmaster/000000131" to "000000131"
     int pos;
-    if ( (pos = seq.find_last_of('/')) != string::npos ) {  
+    if ((pos = seq.find_last_of('/')) != string::npos) {  
       mySeq = seq.erase(0,pos+1);
     } else
       mySeq = "";

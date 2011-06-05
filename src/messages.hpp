@@ -233,7 +233,7 @@ TUPLE(S2M_REREGISTER_SLAVE,
        std::string /*name*/,
        std::string /*publicDns*/,
        Resources,
-       std::vector<Task> ));
+       std::vector<Task>));
 
 TUPLE(S2M_UNREGISTER_SLAVE,
       (SlaveID));

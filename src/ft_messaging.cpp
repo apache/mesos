@@ -42,7 +42,7 @@ FTMessaging *FTMessaging::getInstance(const string &_master) {
 FTMessaging::FTMessaging(const PID &_master) : 
   master(_master), msgId(0)
 { 
-  srand( time(0) );
+  srand(time(0));
   char s[50];
   sprintf(s, "%09i", (int)rand());
   uniqPrefix = s;
@@ -81,7 +81,7 @@ void FTMessaging::sendOutstanding() {
     return;
   } 
 
-  foreachpair( const string &ftId, struct FTStoredMsg &msg, outMsgs) {
+  foreachpair(const string &ftId, struct FTStoredMsg &msg, outMsgs) {
     if (msg.callback != NULL) {
       DLOG(INFO) << "FT: calling timeout listener";
       msg.callback->timeout();
@@ -108,7 +108,7 @@ bool FTMessaging::acceptMessage(const string &ftId, const string &from) {
     string oldSeq = inMsgs[from]; 
     string oldRnd = oldSeq;
     int pos;
-    if ( (pos = oldSeq.find_last_of(':')) != string::npos ) {  
+    if ((pos = oldSeq.find_last_of(':')) != string::npos) {  
       oldSeq.erase(0, pos + 1);
       oldRnd.erase(pos, 255);
       long seqNr = lexical_cast<long>(oldSeq);
@@ -138,7 +138,7 @@ bool FTMessaging::acceptMessageAckTo(const PID &to, const string &ftId, const st
     return res;
   }  
   
-  string msgStr = Tuple<EmptyClass>::tupleToString( Tuple<EmptyClass>::pack<FT_RELAY_ACK>(ftId, from) );
+  string msgStr = Tuple<EmptyClass>::tupleToString(Tuple<EmptyClass>::pack<FT_RELAY_ACK>(ftId, from));
   Process::post(to, FT_RELAY_ACK, msgStr.data(), msgStr.size()); 
   
   return res;

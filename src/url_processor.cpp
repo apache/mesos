@@ -43,7 +43,7 @@ pair<UrlProcessor::URLType, string> UrlProcessor::process(const string &url) {
     
   } else if (urlCap.find("ZOOFILE://") == 0) {
     
-    string zoos = parseZooFile( url.substr(10,1024) );
+    string zoos = parseZooFile(url.substr(10,1024));
     
     return pair<UrlProcessor::URLType, string>(UrlProcessor::ZOO, zoos);
     
