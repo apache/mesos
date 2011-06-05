@@ -59,7 +59,7 @@ install:
 	install -m 755 $(BINDIR)/mesos-launcher $(MESOS_HOME)/bin
 	install -m 755 $(BINDIR)/mesos-getconf $(MESOS_HOME)/bin
 	rsync -avz $(BINDIR)/webui $(MESOS_HOME)/bin
-	rsync -avz $(DEPLOYDIR) $(MESOS_HOME)
+	rsync -avz $(DEPLOYDIR)/ $(MESOS_HOME)
 	install -m 755 $(LIBDIR)/libmesos_exec.a $(MESOS_HOME)/lib
 	install -m 755 $(LIBDIR)/libmesos_sched.a $(MESOS_HOME)/lib
 ifeq ($(OS_NAME),darwin)
