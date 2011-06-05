@@ -1005,8 +1005,8 @@ Allocator* Master::createAllocator()
 
 // Create a new framework ID. We format the ID as YYYYMMDDhhmm-master-fw,
 // where the first part is the submission date and submission time, master
-// is the unique ID of the master (provided by ZooKeeper), and fw is the ID
-// of the framework within the master (an increasing integer).
+// is ID of the master (emphemeral ID from ZooKeeper if ZK is used), and
+// fw is the ID of the framework within the master (an increasing integer).
 FrameworkID Master::newFrameworkId()
 {
   time_t rawtime;
