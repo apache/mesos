@@ -32,6 +32,8 @@ class NestedScheduler(nexus.Scheduler):
                                      "task %d" % self.tid, offer.params,
                                      pickle.dumps(self.duration))
         tasks.append(task)
+        #msg = nexus.FrameworkMessage(-1, , "")
+        #executor.sendFrameworkMessage("")
     driver.replyToOffer(oid, tasks, {})
 
   def statusUpdate(self, driver, status):
@@ -47,29 +49,29 @@ class ScalingExecutor(nexus.Executor):
   def __init__(self):
     nexus.Executor.__init__(self)
     self.tid = -1
-    self.driver = -1
+    self.nested_driver = -1
 
-  def startTask(self, task):
+  def launchTask(self, driver, task):
     self.tid = task.taskId
     master, (todo, duration) = pickle.loads(task.arg)
     scheduler = NestedScheduler(todo, duration, self)
-    self.driver = nexus.NexusSchedulerDriver(scheduler, master)
-    self.driver.start()
+    self.nested_driver = nexus.NexusSchedulerDriver(scheduler, master)
+    self.nested_driver.start()
 
-  def killTask(self, tid):
+  def killTask(self, driver, tid):
     if (tid != self.tid):
       print "Expecting different task id ... killing anyway!"
-    if self.driver != -1:
-      self.driver.stop()
-      self.driver.join()
-    self.sendStatusUpdate(nexus.TaskStatus(tid, nexus.TASK_FINISHED, ""))
+    if self.nested_driver != -1:
+      self.nested_driver.stop()
+      self.nested_driver.join()
+    driver.sendStatusUpdate(nexus.TaskStatus(tid, nexus.TASK_FINISHED, ""))
 
-  def shutdown(self):
+  def shutdown(self, driver):
     self.killTask(self.tid)
 
-  def error(self, code, message):
+  def error(self, driver, code, message):
     print "Error: %s" % message
 
 
 if __name__ == "__main__":
-  ScalingExecutor().run()
+  nexus.NexusExecutorDriver(ScalingExecutor()).run()
