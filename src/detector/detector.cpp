@@ -418,7 +418,7 @@ void ZooKeeperMasterDetector::updated(const string& path)
 
 
 void ZooKeeperMasterDetector::process(ZooKeeper* zk, int type, int state,
-				      const string &path)
+				      const string& path)
 {
   if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_SESSION_EVENT)) {
     // Check if this is a reconnect.
