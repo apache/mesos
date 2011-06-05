@@ -267,13 +267,12 @@ void Master::updateFrameworkTasks() {
   }
 }
 
-//alibandali++
 void Master::updateFrameworkTasks(TaskInfo *task) {
   Framework *fwrk = lookupFramework(task->frameworkId);
   if (fwrk != NULL) {
     if (fwrk->tasks.find(task->id) == fwrk->tasks.end()) {
       fwrk->tasks[task->id] = task;
-      // this->resources += resources; // alig: not sure if this should be done or not
+      fwrk->resources += task->resources;
     }
   }
 }
