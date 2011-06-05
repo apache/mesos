@@ -1,4 +1,3 @@
-# Makefile.
 
 SHELL = '/bin/sh'
 
@@ -254,7 +253,8 @@ $(DIRECTORIES): %:
 
 mesos.pb.cc: @top_srcdir@/include/mesos.proto
 	mkdir -p java/generated
-	$(PROTOC) -I@top_srcdir@/include --cpp_out=. --java_out=java/generated @top_srcdir@/include/mesos.proto
+	mkdir -p python/generated
+	$(PROTOC) -I@top_srcdir@/include --cpp_out=. --java_out=java/generated --python_out=python/generated @top_srcdir@/include/mesos.proto
 
 $(INCLUDEDIR)/mesos.hpp: mesos.pb.cc | $(INCLUDEDIR)
 	cp mesos.pb.h $(INCLUDEDIR)/mesos.hpp
@@ -350,12 +350,18 @@ endif
 
 python: $(MESOS_PYTHON_LIB)
 
-$(MESOS_PYTHON_LIB): $(SRCDIR)/swig/mesos.i $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) | $(LIBDIR)/python
+$(MESOS_PYTHON_LIB): $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) python/native/mesos.cpp | $(LIBDIR)/python
 ifdef PYTHON_HEADERS
-	mkdir -p swig/python
-	$(SWIG) -c++ -python -threads -I@top_srcdir@/include -o swig/python/mesos_wrap.cpp -outdir swig/python $(SRCDIR)/swig/mesos.i
-	$(CXX) $(CXXFLAGS) -I$(PYTHON_HEADERS) -shared -o $@ swig/python/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
-	cp -r swig/python/mesos.py $(LIBDIR)/python/mesos.py
+	# Compile protocol buffers' descriptor.proto into its source directory
+	# to create $(PROTOBUF)/python/google/protobuf/descriptor_pb2.py.
+	# This is ugly but it seems to be the only way to have Python see this
+	# as part of the google.protobuf module if you want to run Python apps
+	# using the protobuf shipped with Mesos.
+	$(PROTOC) --python_out=@top_builddir@/$(PROTOBUF)/python -I@top_builddir@/$(PROTOBUF)/src @top_builddir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto
+	# Build native Python module
+	$(CXX) $(CXXFLAGS) -I$(PYTHON_HEADERS) -shared -o $@ python/native/mesos.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
+	# Copy mesos.py to lib
+	cp python/src/mesos.py $(LIBDIR)/python/mesos.py
 endif
 
 $(WEBUI_FILES): $(BINDIR)/%: $(SRCDIR)/% | $(WEBUI_DIRECTORIES)
@@ -375,8 +381,7 @@ $(CONFDIR)/deploy-env.sh: | $(SRCDIR)/conf/deploy-env.sh.template $(CONFDIR)
 test: all
 	$(MAKE) -C tests test
 
-#all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
-all: $(MESOS_LIBS) $(MESOS_EXES) java $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
+all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
 	$(MAKE) -C examples
 	$(MAKE) -C tests
 
