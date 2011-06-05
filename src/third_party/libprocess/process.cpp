@@ -2513,7 +2513,6 @@ void handle_timeout(struct ev_loop *loop, ev_timer *w, int revents)
     for (; it != timers->end(); ++it) {
       // Check if timer has expired.
       ev_tstamp tstamp = it->first;
-      cout.precision(20);
       if (tstamp > current_tstamp) {
 	last = it;
 	break;
@@ -3139,9 +3138,9 @@ Process::Process()
   initialize();
 
 #ifdef USE_LITHE
-  l_lock = UNLOCKED;
+  l = UNLOCKED;
 #else
-  pthread_mutex_init(&m_mutex, NULL);
+  pthread_mutex_init(&m, NULL);
 #endif /* USE_LITHE */
 
   current = NULL;
@@ -3203,23 +3202,20 @@ Process::~Process()
 void Process::enqueue(struct msg *msg)
 {
   assert(msg != NULL);
+
+  synchronized(filter) {
+    if (filtering) {
+      assert(filterer != NULL);
+      if (filterer->filter(msg)) {
+        free(msg);
+        return;
+      }
+    }
+  }
+
   lock();
   {
     assert (state != EXITED);
-
-    acquire(filter);
-    {
-      if (filtering) {
-        assert(filterer != NULL);
-        if (filterer->filter(msg)) {
-          free(msg);
-          release(filter);
-          unlock();
-          return;
-        }
-      }
-    }
-    release(filter);
 
     msgs.push_back(msg);
 
@@ -3298,22 +3294,18 @@ void Process::inject(const PID &from, MSGID id, const char *data, size_t length)
   if (length > 0)
     memcpy((char *) msg + sizeof(struct msg), data, length);
 
-  lock();
-  {
-    acquire(filter);
-    {
-      if (filtering) {
-        assert(filterer != NULL);
-        if (filterer->filter(msg)) {
-          free(msg);
-          release(filter);
-          unlock();
-          return;
-        }
+  synchronized(filter) {
+    if (filtering) {
+      assert(filterer != NULL);
+      if (filterer->filter(msg)) {
+        free(msg);
+        return;
       }
     }
-    release(filter);
+  }
 
+  lock();
+  {
     msgs.push_front(msg);
   }
   unlock();
