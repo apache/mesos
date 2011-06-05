@@ -31,7 +31,7 @@ void mesos::internal::test::runExternalTest(const char* testCase,
   // Create and go into the test's work directory
   enterTestDirectory(testCase, testName);
   // Figure out the absolute path to the test script
-  string script = mesosHome + "/tests/external/" + testCase
+  string script = mesosHome + "/src/tests/external/" + testCase
                              + "/" + testName + ".sh";
   // Fork a process to change directory and run the test
   pid_t pid;

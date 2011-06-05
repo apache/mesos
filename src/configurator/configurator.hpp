@@ -47,7 +47,8 @@ struct ConfigurationException : std::exception
  * (ii) Command line variables. Supports "--key=val" "-key val" "-opt" "--opt"
  * (iii) Config file. It ignores comments "#". It finds the file mesos.conf
  * in the directory specified by the "conf" option. Otherwise, it looks for
- * mesos.conf in the directory MESOS_HOME/conf.
+ * mesos.conf in the directory MESOS_HOME/conf (only if the running binary
+ * is a Mesos binary, so that MESOS_HOME can be inferred from its location).
  **/
 class Configurator 
 {
@@ -206,7 +207,7 @@ public:
    * <i>Environment:</i><br>
    * Parses the environment variables and populates a Params.
    * It picks all environment variables that start with MESOS_.
-   * The environment var MESOS_HOME=/dir would lead to key=HOME val=/dir<br>
+   * The environment var MESOS_FOO=/dir would lead to key=foo val=/dir<br>
    * <i>Command line:</i><br>
    * It extracts four type of command line parameters:
    * "--key=val", "-key val", "--key", "-key". The two last cases will
@@ -221,7 +222,7 @@ public:
    *                               containing argv[0] (the program being run)
    * @return the loaded Params object
    **/
-  Params& load(int argc, char** argv, bool inferMesosHomeFromArg0=false);
+  Params& load(int argc, char** argv, bool inferMesosHomeFromArg0 = false);
 
 
   /**
@@ -230,7 +231,7 @@ public:
    * <i>Environment:</i><br>
    * Parses the environment variables and populates a Params.
    * It picks all environment variables that start with MESOS_.
-   * The environment var MESOS_HOME=/dir would lead to key=home val=/dir <br>
+   * The environment var MESOS_FOO=/dir would lead to key=foo val=/dir <br>
    * <i>Config file:</i><br>
    * The config file should contain key=value pairs, one per line.
    * Comments, which should start with #, are ignored.
@@ -246,7 +247,7 @@ public:
    * <i>Environment:</i><br>
    * Parses the environment variables and populates a Params.
    * It picks all environment variables that start with MESOS_.
-   * The environment var MESOS_HOME=/dir would lead to key=HOME val=/dir <br>
+   * The environment var MESOS_FOO=/dir would lead to key=foo val=/dir <br>
    * <i>Map:</i><br>
    * Containing a string to string map. <br>
    * <i>Config file:</i><br>
@@ -267,11 +268,11 @@ private:
   /**
    * Parses the environment variables and populates a Params.
    * It picks all environment variables that start with MESOS_.
-   * The environment variable MESOS_HOME=/dir would lead to key=HOME val=/dir
+   * The environment variable MESOS_FOO=/dir would lead to key=foo val=/dir
    * @param overwrite whether to overwrite keys that already have values 
    *         in the internal params (true by default)
    **/
-  void loadEnv(bool overwrite=true);
+  void loadEnv(bool overwrite = true);
 
   /**
    * Populates its internal Params with key/value params from command line.
@@ -289,7 +290,7 @@ private:
   void loadCommandLine(int argc,
                        char** argv,
                        bool inferMesosHomeFromArg0, 
-                       bool overwrite=true);
+                       bool overwrite = true);
 
   /**
    * Populates its internal Params with key/value params from a config file.
@@ -304,14 +305,14 @@ private:
    * @param overwrite whether to overwrite keys that already have values 
    *         in the internal params (false by default)
    **/
-  void loadConfigFile(const string& fname, bool overwrite=false);
+  void loadConfigFile(const string& fname, bool overwrite = false);
 
   /**
    * Load the config file set through the command line or environment, if any.
    * @param overwrite whether to overwrite keys that already have values 
    *         in the internal params (false by default)
    */
-  void loadConfigFileIfGiven(bool overwrite=false);
+  void loadConfigFileIfGiven(bool overwrite = false);
 
   /**
    * Gets the first long name option associated with the provided short name.
@@ -320,7 +321,17 @@ private:
    */
   string getLongName(char shortName) const;
 
-  void isParamConsistent(const string& key, bool gotBool) 
+  /**
+   * Check whether a command-line flag is valid, based on whether it was
+   * passed in boolean form (--flag or --no-flag) versus key-value form
+   * (--flag=value). We test whether this option was actually registered
+   * as a bool (or non-bool), and throw an error if it is passed in
+   * the wrong format.
+   *
+   * @param key the option name parsed from the flag (without --no)
+   * @param gotBool whether the option was passed as a bool
+   */
+  void checkCommandLineParamFormat(const string& key, bool gotBool) 
     throw(ConfigurationException)
   {
     if (options.find(key) != options.end() && 

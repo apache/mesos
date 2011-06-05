@@ -1,6 +1,7 @@
 #include <libgen.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include <algorithm>
 #include <iostream>
@@ -88,13 +89,19 @@ Params& Configurator::load(const map<string, string>& _params)
 
 
 void Configurator::loadConfigFileIfGiven(bool overwrite) {
-  string confDir = "";
-  if (params.contains("conf"))
-    confDir = params["conf"];
-  else if (params.contains("home")) // find conf dir relative to MESOS_HOME
-    confDir = params["home"] + "/" + DEFAULT_CONFIG_DIR;
-  if (confDir != "")
+  if (params.contains("conf")) {
+    // If conf param is given, always look for a config file in that directory
+    string confDir = params["conf"];
     loadConfigFile(confDir + "/" + CONFIG_FILE_NAME, overwrite);
+  } else if (params.contains("home")) {
+    // Grab config file in MESOS_HOME/conf, if it exists
+    string confDir = params["home"] + "/" + DEFAULT_CONFIG_DIR;
+    string confFile = confDir + "/" + CONFIG_FILE_NAME;
+    struct stat st;
+    if (stat(confFile.c_str(), &st) == 0) {
+      loadConfigFile(confFile, overwrite);
+    }
+  }
 }
 
 
@@ -112,7 +119,9 @@ void Configurator::loadEnv(bool overwrite)
       key = line.substr(strlen(ENV_VAR_PREFIX), eq - strlen(ENV_VAR_PREFIX));
       std::transform(key.begin(), key.end(), key.begin(), ::tolower);
       val = line.substr(eq + 1);
-      if (overwrite || !params.contains(key)) {
+      // Disallow setting home through the environment, because it should
+      // always be resolved from the running Mesos binary (if any)
+      if ((overwrite || !params.contains(key)) && key != "home") {
         params[key] = val;
       }
     }
@@ -131,12 +140,15 @@ void Configurator::loadCommandLine(int argc,
     // Copy argv[0] because dirname can modify it
     int lengthOfArg0 = strlen(argv[0]);
     char* copyOfArg0 = new char[lengthOfArg0 + 1];
-    strcpy(copyOfArg0, argv[0]);
-    // Get the directory name from it
+    strncpy(copyOfArg0, argv[0], lengthOfArg0 + 1);
+    // Get its directory, and then the parent of that directory
+    string myDir = string(dirname(copyOfArg0));
+    string parentDir = myDir + "/..";
+    // Get the real name of this parent directory
     char path[PATH_MAX];
-    if (realpath(dirname(copyOfArg0), path) == 0) {
+    if (realpath(parentDir.c_str(), path) == 0) {
       throw ConfigurationException(
-        "Could not get directory containing argv[0] -- realpath failed");
+        "Could not resolve MESOS_HOME from argv[0] -- realpath failed");
     }
     params["home"] = path;
     delete[] copyOfArg0;
@@ -153,62 +165,57 @@ void Configurator::loadCommandLine(int argc,
     bool set = false;
     if (args[i].find("--", 0) == 0) { 
       // handle "--" case
-
       size_t eq = args[i].find_first_of("=");
       if (eq == string::npos && 
           args[i].find("--no-", 0) == 0) { // handle --no-blah
         key = args[i].substr(5); 
         val = "0";
         set = true;
-        isParamConsistent(key, true);
+        checkCommandLineParamFormat(key, true);
       } else if (eq == string::npos) {     // handle --blah
         key = args[i].substr(2);
         val = "1";
         set = true;
-        isParamConsistent(key, true);
+        checkCommandLineParamFormat(key, true);
       } else {                             // handle --blah=25
         key = args[i].substr(2, eq-2); 
         val = args[i].substr(eq+1);
         set = true;
-        isParamConsistent(key, false);
+        checkCommandLineParamFormat(key, false);
       }
-
     } else if (args[i].find_first_of("-", 0) == 0 && 
                args[i].size() > 1) { 
       // handle "-" case
-
       char shortName = '\0';
-
-      if (args[i].find("-no-",0) == 0 && args[i].size() == 5)
+      if (args[i].find("-no-",0) == 0 && args[i].size() == 5) {
         shortName = args[i][4];
-      else if (args[i].size() == 2)
+      } else if (args[i].size() == 2) {
         shortName = args[i][1];
-
+      }
       if (shortName == '\0' || getLongName(shortName) == "") {
         string message = "Short option '" + args[i] + "' unrecognized ";
         throw ConfigurationException(message.c_str());
       }
-
       key = getLongName(shortName);
-      
       if (args[i].find("-no-",0) == 0) { // handle -no-b
         val = "0";
         set = true;
-        isParamConsistent(key, true);
+        checkCommandLineParamFormat(key, true);
       } else if (options[key].validator->isBool() ||
                  i+1 == args.size() ) {  // handle -b
         val = "1";
         set = true;
-        isParamConsistent(key, true);
+        checkCommandLineParamFormat(key, true);
       } else {                           // handle -b 25
         val = args[i+1];
         set = true;
         i++;  // we've consumed next parameter as a "value"-parameter
       }
-      
     }
-    if (set && (overwrite || !params.contains(key))) {
-      std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    // Disallow setting "home" since it should only be inferred from
+    // the location of the running Mesos binary (if any)
+    if (set && (overwrite || !params.contains(key)) && key != "home") {
       params[key] = val;
     }
   }
@@ -248,7 +255,9 @@ void Configurator::loadConfigFile(const string& fname, bool overwrite)
     }
     string key = StringUtils::trim(tokens[0]);
     string value = StringUtils::trim(tokens[1]);
-    if (overwrite || !params.contains(key)) {
+    // Disallow setting "home" since it should only be inferred from
+    // the location of the running Mesos binary (if any)
+    if ((overwrite || !params.contains(key)) && key != "home") {
       params[key] = value;
     }
   }

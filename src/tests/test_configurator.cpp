@@ -36,14 +36,13 @@ TEST(ConfiguratorTest, DefaultOptions)
 {
   const int ARGC = 4;
   char* argv[ARGC];
-  argv[0] = (char*) "./filename";
+  argv[0] = (char*) "bin/filename";
   argv[1] = (char*) "--test1=501";
   argv[2] = (char*) "--test2";
   argv[3] = (char*) "--excp=txt";
 
   Configurator conf;
 
-  
   EXPECT_NO_THROW(conf.addOption<int>("test1", "Testing option", 500));
   EXPECT_NO_THROW(conf.addOption<bool>("test2", "Another tester", 0));
   EXPECT_NO_THROW(conf.addOption<long>("test3", "Tests the default", 2010));
@@ -74,7 +73,7 @@ TEST(ConfiguratorTest, CommandLine)
 {
   const int ARGC = 12;
   char* argv[ARGC];
-  argv[0] =  (char*) "./filename";
+  argv[0] =  (char*) "bin/filename";
   argv[1] =  (char*) "--test1=text1";
   argv[2] =  (char*) "--test2";
   argv[3] =  (char*) "text2";
@@ -113,6 +112,8 @@ TEST(ConfiguratorTest, CommandLine)
 // from the default config directory (MESOS_HOME/conf)
 TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithMesosHome)
 {
+  if (mkdir("bin", 0755) != 0)
+    FAIL() << "Failed to create directory bin";
   if (mkdir("conf", 0755) != 0)
     FAIL() << "Failed to create directory conf";
   ofstream file("conf/mesos.conf");
@@ -123,7 +124,8 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithMesosHome)
 
   setenv("MESOS_HOME", ".", 1);
   Configurator conf;
-  EXPECT_NO_THROW( conf.load() );
+  char* argv[1] = { (char*) "bin/foo" };
+  EXPECT_NO_THROW( conf.load(1, argv, true) );
   unsetenv("MESOS_HOME");
 
   EXPECT_EQ("coffee", conf.getParams()["test1"]);
@@ -155,6 +157,8 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithConfDir)
 // of conf directory relative in MESOS_HOME/conf.
 TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithHomeAndDir)
 {
+  if (mkdir("bin", 0755) != 0)
+    FAIL() << "Failed to create directory bin";
   if (mkdir("conf2", 0755) != 0)
     FAIL() << "Failed to create directory conf2";
   ofstream file("conf2/mesos.conf");
@@ -162,12 +166,12 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithHomeAndDir)
   file << "# just a comment\n";
   file << "test4=milk\n";
   file.close();
-  setenv("MESOS_HOME", ".", 1);
+
   setenv("MESOS_CONF", "conf2", 1);
   Configurator conf;
-  EXPECT_NO_THROW( conf.load() );
+  char* argv[1] = { (char*) "bin/foo" };
+  EXPECT_NO_THROW( conf.load(1, argv, true) );
   unsetenv("MESOS_CONF");
-  unsetenv("MESOS_HOME");
 
   EXPECT_EQ("shake", conf.getParams()["test3"]);
   EXPECT_EQ("milk",  conf.getParams()["test4"]);
@@ -178,6 +182,8 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithHomeAndDir)
 // we load values from the config file first and then the command line
 TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
 {
+  if (mkdir("bin", 0755) != 0)
+    FAIL() << "Failed to create directory bin";
   if (mkdir("conf2", 0755) != 0)
     FAIL() << "Failed to create directory conf2";
   ofstream file("conf2/mesos.conf");
@@ -188,7 +194,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
 
   const int ARGC = 4;
   char* argv[ARGC];
-  argv[0] = (char*) "./filename";
+  argv[0] = (char*) "bin/filename";
   argv[1] = (char*) "--conf=conf2";
   argv[2] = (char*) "--b=overridden";
   argv[3] = (char*) "--d=fromCmdLine";
@@ -210,6 +216,8 @@ TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
 TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
 {
   // Create a file which contains parameters a, b, c and d
+  if (mkdir("bin", 0755) != 0)
+    FAIL() << "Failed to create directory bin";
   if (mkdir("conf", 0755) != 0)
     FAIL() << "Failed to create directory conf";
   ofstream file("conf/mesos.conf");
@@ -220,22 +228,20 @@ TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
   file.close();
 
   // Set environment to contain parameters a and b
-  setenv("MESOS_HOME", ".", 1);
   setenv("MESOS_A", "fromEnv", 1);
   setenv("MESOS_B", "fromEnv", 1);
 
   // Pass parameters a and c from the command line
   const int ARGC = 3;
   char* argv[ARGC];
-  argv[0] = (char*) "./filename";
+  argv[0] = (char*) "bin/filename";
   argv[1] = (char*) "--a=fromCmdLine";
   argv[2] = (char*) "--c=fromCmdLine";
 
   Configurator conf;
-  EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
+  EXPECT_NO_THROW( conf.load(ARGC, argv, true) );
 
   // Clear the environment vars set above
-  unsetenv("MESOS_HOME");
   unsetenv("MESOS_A");
   unsetenv("MESOS_B");
 
@@ -265,10 +271,10 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileSpacesIgnored)
   file << "\ttest6 =  juice# #\n";
   file.close();
 
-  setenv("MESOS_HOME", ".", 1);
   Configurator conf;
+  setenv("MESOS_CONF", "conf", 1);
   EXPECT_NO_THROW(conf.load());
-  unsetenv("MESOS_HOME");
+  unsetenv("MESOS_CONF");
 
   EXPECT_EQ("coffee",         conf.getParams()["test1"]);
   EXPECT_EQ("tea",            conf.getParams()["test2"]);
@@ -290,8 +296,8 @@ TEST_WITH_WORKDIR(ConfiguratorTest, MalformedConfigFile)
   file << "test2=tea\n";
   file.close();
 
-  setenv("MESOS_HOME", ".", 1);
+  setenv("MESOS_CONF", "conf", 1);
   Configurator conf;
   EXPECT_THROW(conf.load(), ConfigurationException);
-  unsetenv("MESOS_HOME");
+  unsetenv("MESOS_CONF");
 }
