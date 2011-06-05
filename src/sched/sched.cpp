@@ -150,7 +150,7 @@ protected:
 
     const string user(passwd->pw_name);
 
-    while(true) {
+    while (true) {
       // Rather than send a message to this process when it is time to
       // terminate, we set a flag that gets re-read. Sending a message
       // requires some sort of matching or priority reads that
@@ -171,7 +171,7 @@ protected:
       // send a message rather than have a timeout (see the comment
       // above for why sending a message will still require us to use
       // the terminate flag).
-      switch(receive(2)) {
+      switch (receive(2)) {
 
       case NEW_MASTER_DETECTED: {
 	string masterSeq;
