@@ -1,10 +1,15 @@
+#include <sstream>
+
+#include "foreach.hpp"
 #include "tokenize.hpp"
 
+using std::map;
 using std::string;
+using std::ostringstream;
 using std::vector;
 
 
-namespace mesos { namespace internal {
+namespace tokenize {
 
 vector<string> tokenize(const string& s, const string& delims)
 {
@@ -30,4 +35,24 @@ vector<string> tokenize(const string& s, const string& delims)
   }
 }
 
-}} /* namespace mesos { namespace internal { */
+
+map<string, vector<string> > pairs(const string& s, const string& delim1, const string& delim2)
+{
+  map<string, vector<string> > result;
+
+  const vector<string>& tokens = tokenize(s, delim1);
+  foreach (const string& token, tokens) {
+    const vector<string>& pairs = tokenize(token, delim2);
+    if (pairs.size() != 2) {
+      ostringstream out;
+      out << "failed to split '" << token << "' with '" << delim2 << "'";
+      throw TokenizeException(out.str());
+    }
+
+    result[pairs[0]].push_back(pairs[1]);
+  }
+
+  return result;
+}
+
+} // namespace tokenize {

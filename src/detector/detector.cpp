@@ -10,15 +10,14 @@
 
 #include "common/fatal.hpp"
 #include "common/foreach.hpp"
+#ifdef WITH_ZOOKEEPER
+#include "common/zookeeper.hpp"
+#endif
 
 #include "messaging/messages.hpp"
 
 #include "detector.hpp"
 #include "url_processor.hpp"
-
-#ifdef WITH_ZOOKEEPER
-#include "zookeeper.hpp"
-#endif
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -71,8 +70,8 @@ public:
    * for slaves and frameworks)
    * @param quiet verbosity logging level for undelying ZooKeeper library
    */
-  ZooKeeperMasterDetector(const std::string& servers,
-			  const std::string& znode,
+  ZooKeeperMasterDetector(const string& servers,
+			  const string& znode,
 			  const UPID& pid,
 			  bool contend = false,
 			  bool quiet = false);
@@ -82,19 +81,18 @@ public:
   /** 
    * ZooKeeper watcher callback.
    */
-  virtual void process(ZooKeeper *zk, int type, int state,
-		       const std::string &path);
+  virtual void process(ZooKeeper *zk, int type, int state, const string &path);
 
 private:
   /**
    * @param s sequence id
    */
-  void setId(const std::string &s);
+  void setId(const string &s);
 
   /**
    * @return current sequence id if contending to be a master
    */
-  std::string getId();
+  string getId();
 
   /**
    * Attempts to detect a master.
@@ -105,10 +103,10 @@ private:
    * @param seq sequence id of a master
    * @return PID corresponding to a master
    */
-  UPID lookupMasterPID(const std::string &seq) const;
+  UPID lookupMasterPID(const string &seq) const;
 
-  std::string servers;
-  std::string znode;
+  string servers;
+  string znode;
   UPID pid;
   bool contend;
   bool reconnect;
@@ -116,9 +114,9 @@ private:
   ZooKeeper *zk;
 
   // Our sequence string if contending to be a master.
-  std::string mySeq;
+  string mySeq;
 
-  std::string currentMasterSeq;
+  string currentMasterSeq;
   UPID currentMasterPID;
 
   // Reconnect timer.
@@ -130,7 +128,7 @@ private:
 MasterDetector::~MasterDetector() {}
 
 
-MasterDetector* MasterDetector::create(const std::string &url,
+MasterDetector* MasterDetector::create(const string &url,
                                        const UPID &pid,
                                        bool contend,
                                        bool quiet)
@@ -154,15 +152,21 @@ MasterDetector* MasterDetector::create(const std::string &url,
       // TODO(benh): Consider actually using the chroot feature of
       // ZooKeeper, rather than just using it's syntax.
       size_t index = urlPair.second.find("/");
-      if (index == string::npos)
+      if (index == string::npos) {
 	fatal("expecting chroot path for ZooKeeper");
-      const string &znode = urlPair.second.substr(index);
-      if (znode == "/")
-	fatal("expecting chroot path for ZooKeeper ('/' is not supported)");
+      }
+
       const string &servers = urlPair.second.substr(0, index);
+
+      const string &znode = urlPair.second.substr(index);
+      if (znode == "/") {
+	fatal("expecting chroot path for ZooKeeper ('/' is not supported)");
+      }
+
       detector = new ZooKeeperMasterDetector(servers, znode, pid, contend, quiet);
 #else
-      fatal("ZooKeeper not supported in this build");
+      fatal("Cannot detect masters with 'zoo://', "
+            "ZooKeeper is not supported in this build");
 #endif // #ifdef WITH_ZOOKEEPER
       break;
     }
@@ -435,8 +439,8 @@ void ZooKeeperMasterDetector::process(ZooKeeper* zk, int type, int state,
 
     reconnect = true;
   } else {
-    LOG(INFO) << "Unimplemented watch event: (state is "
-	      << state << " and type is " << type << ")";
+    LOG(WARNING) << "Unimplemented watch event: (state is "
+                 << state << " and type is " << type << ")";
   }
 }
 

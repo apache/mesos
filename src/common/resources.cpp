@@ -569,7 +569,7 @@ Resource Resources::parse(const string& name, const string& value)
   if (index == 0) {
     // This is a ranges.
     Resource::Ranges ranges;
-    const vector<string>& tokens = tokenize(temp, "[]-,\n");
+    const vector<string>& tokens = tokenize::tokenize(temp, "[]-,\n");
     if (tokens.size() % 2 != 0) {
       LOG(FATAL) << "Error parsing value for " << name
                  << ", expecting one or more \"ranges\"";
@@ -596,7 +596,7 @@ Resource Resources::parse(const string& name, const string& value)
     if (index == 0) {
       // This is a set.
       Resource::Set set;
-      const vector<string>& tokens = tokenize(temp, "{},\n");
+      const vector<string>& tokens = tokenize::tokenize(temp, "{},\n");
       for (int i = 0; i < tokens.size(); i++) {
         set.add_item(tokens[i]);
       }
@@ -633,10 +633,10 @@ Resources Resources::parse(const string& s)
   // Tokenize and parse the value of "resources".
   Resources resources;
 
-  vector<string> tokens = tokenize(s, ";\n");
+  vector<string> tokens = tokenize::tokenize(s, ";\n");
 
   for (int i = 0; i < tokens.size(); i++) {
-    const vector<string>& pairs = tokenize(tokens[i], ":");
+    const vector<string>& pairs = tokenize::tokenize(tokens[i], ":");
     if (pairs.size() != 2) {
       LOG(FATAL) << "bad value for resources, missing ':' within " << pairs[0];
     }

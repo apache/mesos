@@ -178,39 +178,6 @@ struct Framework
 };
 
 
-// Periodically sends heartbeats to the master
-class Heart : public MesosProcess<Heart>
-{
-public:
-  Heart(const process::UPID &_master, const process::UPID &_slave,
-        const SlaveID& _slaveId, double _interval)
-    : master(_master), slave(_slave), slaveId(_slaveId), interval(_interval) {}
-
-protected:
-  virtual void operator () ()
-  {
-    link(slave);
-    link(master);
-    do {
-      serve(interval);
-      if (name() == process::TIMEOUT) {
-        MSG<SH2M_HEARTBEAT> msg;
-        msg.mutable_slave_id()->MergeFrom(slaveId);
-        send(master, msg);
-      } else {
-        return;
-      }
-    } while (true);
-  }
-
-private:
-  const process::UPID master;
-  const process::UPID slave;
-  const SlaveID slaveId;
-  const double interval;
-};
-
-
 class Slave : public MesosProcess<Slave>
 {
 public:
@@ -239,8 +206,8 @@ public:
   void newMasterDetected(const std::string& pid);
   void noMasterDetected();
   void masterDetectionFailure();
-  void registerReply(const SlaveID& slaveId, double heartbeat_interval);
-  void reregisterReply(const SlaveID& slaveId, double heartbeat_interval);
+  void registerReply(const SlaveID& slaveId);
+  void reregisterReply(const SlaveID& slaveId);
   void runTask(const FrameworkInfo& frameworkInfo,
                const FrameworkID& frameworkId,
                const std::string& pid,
@@ -261,6 +228,7 @@ public:
                     const TaskStatus& status);
   void executorMessage(const FrameworkID& frameworkId,
                        const FrameworkMessage& message);
+  void ping();
   void timeout();
   void exited();
 
@@ -292,7 +260,6 @@ private:
   boost::unordered_map<FrameworkID, Framework*> frameworks;
 
   IsolationModule *isolationModule;
-  Heart* heart;
 };
 
 }}}

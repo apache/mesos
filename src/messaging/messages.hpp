@@ -75,9 +75,6 @@ MESSAGE(S2M_STATUS_UPDATE, StatusUpdateMessage);
 MESSAGE(S2M_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
 MESSAGE(S2M_EXITED_EXECUTOR, ExitedExecutorMessage);
 
-// From slave heart to master.
-MESSAGE(SH2M_HEARTBEAT, HeartbeatMessage);
-
 // From master to slave.
 MESSAGE(M2S_REGISTER_REPLY, SlaveRegisteredMessage);
 MESSAGE(M2S_REREGISTER_REPLY, SlaveRegisteredMessage);
@@ -115,6 +112,10 @@ MESSAGE(GOT_MASTER_TOKEN, GotMasterTokenMessage);
 MESSAGE(NEW_MASTER_DETECTED, NewMasterDetectedMessage);
 MESSAGE(NO_MASTER_DETECTED);
 MESSAGE(MASTER_DETECTION_FAILURE);
+
+// Generic messages.
+MESSAGE(PING);
+MESSAGE(PONG);
 
 
 // Type conversions helpful for changing between protocol buffer types

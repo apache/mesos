@@ -416,6 +416,9 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
 					   const FrameworkID& frameworkId)
 {
   Configurator configurator;
+  // TODO(benh): Only register local options if this is running with
+  // 'local' or 'localquiet'! Perhaps create a registerOptions for the
+  // scheduler?
   local::registerOptions(&configurator);
   Configuration* conf;
   try {
@@ -436,6 +439,9 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
 					   const FrameworkID& frameworkId)
 {
   Configurator configurator;
+  // TODO(benh): Only register local options if this is running with
+  // 'local' or 'localquiet'! Perhaps create a registerOptions for the
+  // scheduler?
   local::registerOptions(&configurator);
   Configuration* conf;
   try {
@@ -456,6 +462,9 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
 					   const FrameworkID& frameworkId)
 {
   Configurator configurator;
+  // TODO(benh): Only register local options if this is running with
+  // 'local' or 'localquiet'! Perhaps create a registerOptions for the
+  // scheduler?
   local::registerOptions(&configurator);
   Configuration* conf;
   try {

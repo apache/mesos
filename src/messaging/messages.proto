@@ -131,7 +131,6 @@ message ReregisterSlaveMessage {
 
 message SlaveRegisteredMessage {
   required SlaveID slave_id = 1;
-  required double heartbeat_interval = 2;
 }
 
 

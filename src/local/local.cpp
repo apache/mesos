@@ -55,10 +55,12 @@ static MasterDetector* detector = NULL;
 
 void registerOptions(Configurator* configurator)
 {
-  configurator->addOption<int>("slaves", 's', "Number of slaves", 1);
   Logging::registerOptions(configurator);
   Master::registerOptions(configurator);
   Slave::registerOptions(configurator);
+  configurator->addOption<int>("num_slaves",
+                               "Number of slaves to create for local cluster",
+                               1);
 }
 
 
@@ -69,7 +71,8 @@ PID<Master> launch(int numSlaves,
                    bool quiet)
 {
   Configuration conf;
-  conf.set("slaves", numSlaves);
+  conf.set("slaves", "*");
+  conf.set("num_slaves", numSlaves);
   conf.set("quiet", quiet);
 
   stringstream out;
@@ -83,16 +86,18 @@ PID<Master> launch(int numSlaves,
 PID<Master> launch(const Configuration& conf,
                    bool initLogging)
 {
-  int numSlaves = conf.get<int>("slaves", 1);
+  int numSlaves = conf.get<int>("num_slaves", 1);
   bool quiet = conf.get<bool>("quiet", false);
 
-  if (master != NULL)
+  if (master != NULL) {
     fatal("can only launch one local cluster at a time (for now)");
+  }
 
   if (initLogging) {
     pthread_once(&glog_initialized, initialize_glog);
-    if (!quiet)
+    if (!quiet) {
       google::SetStderrLogging(google::INFO);
+    }
   }
 
   master = new Master(conf);

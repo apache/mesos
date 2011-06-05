@@ -38,7 +38,7 @@ using std::vector;
 Slave::Slave(const Resources& _resources, bool _local,
              IsolationModule *_isolationModule)
   : resources(_resources), local(_local),
-    isolationModule(_isolationModule), heart(NULL) 
+    isolationModule(_isolationModule)
 {
   initialize();
 }
@@ -47,7 +47,7 @@ Slave::Slave(const Resources& _resources, bool _local,
 Slave::Slave(const Configuration& _conf, bool _local,
              IsolationModule* _isolationModule)
   : conf(_conf), local(_local),
-    isolationModule(_isolationModule), heart(NULL)
+    isolationModule(_isolationModule)
 {
   resources =
     Resources::parse(conf.get<string>("resources", "cpus:1;mem:1024"));
@@ -203,12 +203,10 @@ void Slave::initialize()
   install(MASTER_DETECTION_FAILURE, &Slave::masterDetectionFailure);
 
   install(M2S_REGISTER_REPLY, &Slave::registerReply,
-          &SlaveRegisteredMessage::slave_id,
-          &SlaveRegisteredMessage::heartbeat_interval);
+          &SlaveRegisteredMessage::slave_id);
 
   install(M2S_REREGISTER_REPLY, &Slave::reregisterReply,
-          &SlaveRegisteredMessage::slave_id,
-          &SlaveRegisteredMessage::heartbeat_interval);
+          &SlaveRegisteredMessage::slave_id);
 
   install(M2S_RUN_TASK, &Slave::runTask,
           &RunTaskMessage::framework,
@@ -247,6 +245,8 @@ void Slave::initialize()
   install(E2S_FRAMEWORK_MESSAGE, &Slave::executorMessage,
           &FrameworkMessageMessage::framework_id,
           &FrameworkMessageMessage::message);
+
+  install(PING, &Slave::ping);
 
   install(process::TIMEOUT, &Slave::timeout);
 
@@ -297,31 +297,20 @@ void Slave::masterDetectionFailure()
 }
 
 
-void Slave::registerReply(const SlaveID& slaveId, double heartbeat_interval)
+void Slave::registerReply(const SlaveID& slaveId)
 {
   LOG(INFO) << "Registered with master; given slave ID " << slaveId;
   this->slaveId = slaveId;
-  heart = new Heart(master, self(), slaveId, heartbeat_interval);
-  link(spawn(heart));
 }
 
 
-void Slave::reregisterReply(const SlaveID& slaveId, double heartbeat_interval)
+void Slave::reregisterReply(const SlaveID& slaveId)
 {
   LOG(INFO) << "Re-registered with master";
 
   if (!(this->slaveId == slaveId)) {
     LOG(FATAL) << "Slave re-registered but got wrong ID";
   }
-
-  if (heart != NULL) {
-    send(heart->self(), process::TERMINATE);
-    wait(heart->self());
-    delete heart;
-  }
-
-  heart = new Heart(master, self(), slaveId, heartbeat_interval);
-  link(spawn(heart));
 }
 
 
@@ -610,6 +599,12 @@ void Slave::executorMessage(const FrameworkID& frameworkId,
     out.mutable_message()->mutable_slave_id()->MergeFrom(slaveId);
     send(framework->pid, out);
   }
+}
+
+
+void Slave::ping()
+{
+  send(from(), PONG);
 }
 
 

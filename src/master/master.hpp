@@ -26,6 +26,7 @@
 #include "common/fatal.hpp"
 #include "common/foreach.hpp"
 #include "common/resources.hpp"
+#include "common/tokenize.hpp"
 #include "common/type_utils.hpp"
 
 #include "configurator/configurator.hpp"
@@ -92,6 +93,8 @@ struct SlotOffer;
 struct Framework;
 struct Slave;
 class Allocator;
+class Master;
+class SlavesHttpServer;
 
 
 // Resources offered on a particular slave.
@@ -105,6 +108,60 @@ struct SlaveResources
 };
 
 
+// A resource offer.
+struct SlotOffer
+{
+  OfferID offerId;
+  FrameworkID frameworkId;
+  std::vector<SlaveResources> resources;
+
+  SlotOffer(const OfferID& _offerId,
+            const FrameworkID& _frameworkId,
+            const std::vector<SlaveResources>& _resources)
+    : offerId(_offerId), frameworkId(_frameworkId), resources(_resources) {}
+};
+
+
+class SlavesManagerStorage : public process::Process<SlavesManagerStorage>
+{
+public:
+  virtual process::Promise<bool> add(const std::string& hostname, uint16_t port) { return true; }
+  virtual process::Promise<bool> remove(const std::string& hostname, uint16_t port) { return true; }
+  virtual process::Promise<bool> activate(const std::string& hostname, uint16_t port) { return true; }
+  virtual process::Promise<bool> deactivate(const std::string& hostname, uint16_t port) { return true; }
+};
+
+
+class SlavesManager : public process::Process<SlavesManager>
+{
+public:
+  SlavesManager(const Configuration& conf, const process::PID<Master>& _master);
+
+  virtual ~SlavesManager();
+
+  static void registerOptions(Configurator* configurator);
+
+  bool add(const std::string& hostname, uint16_t port);
+  bool remove(const std::string& hostname, uint16_t port);
+  bool activate(const std::string& hostname, uint16_t port);
+  bool deactivate(const std::string& hostname, uint16_t port);
+
+  void updateActive(const std::map<std::string, std::set<uint16_t> >& updated);
+  void updateInactive(const std::map<std::string, std::set<uint16_t> >& updated);
+
+private:
+  process::Promise<process::HttpResponse> add(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> remove(const process::HttpRequest& request);
+
+  const process::PID<Master> master;
+
+  std::map<std::string, std::set<uint16_t> > active;
+  std::map<std::string, std::set<uint16_t> > inactive;
+
+  SlavesManagerStorage* storage;
+};
+
+
 class Master : public MesosProcess<Master>
 {
 public:
@@ -113,7 +170,7 @@ public:
   
   virtual ~Master();
 
-  static void registerOptions(Configurator* conf);
+  static void registerOptions(Configurator* configurator);
 
   process::Promise<state::MasterState*> getState();
   
@@ -159,7 +216,8 @@ public:
                       const FrameworkID& frameworkId,
                       const ExecutorID& executorId,
                       int32_t result);
-  void slaveHeartbeat(const SlaveID& slaveId);
+  void activatedSlaveHostnamePort(const std::string& hostname, uint16_t port);
+  void deactivatedSlaveHostnamePort(const std::string& hostname, uint16_t port);
   void timerTick();
   void frameworkExpired(const FrameworkID& frameworkId);
   void exited();
@@ -209,6 +267,10 @@ protected:
   // reschedule slot offers for slots that were assigned to this framework
   void removeFramework(Framework* framework);
 
+  // Add a slave.
+  Slave* addSlave(const SlaveInfo& slaveInfo, const SlaveID& slaveId,
+                  const process::UPID& pid);
+
   // Lose all of a slave's tasks and delete the slave object
   void removeSlave(Slave* slave);
 
@@ -221,7 +283,11 @@ protected:
   const Configuration& getConfiguration();
 
 private:
-  Configuration conf;
+  const Configuration conf;
+
+  SlavesManager* slavesManager;
+
+  boost::unordered_map<std::string, boost::unordered_set<uint16_t> > slaveHostnamePorts;
 
   boost::unordered_map<FrameworkID, Framework*> frameworks;
   boost::unordered_map<SlaveID, Slave*> slaves;
@@ -244,6 +310,138 @@ private:
   // ZooKeeper). Used in framework and slave IDs
   // created by this master.
   std::string masterId;
+};
+
+
+const double SLAVE_PONG_TIMEOUT = 15.0;
+const int MAX_SLAVE_TIMEOUTS = 5;
+
+
+class SlaveObserver : public process::Process<SlaveObserver>
+{
+public:
+  SlaveObserver(const process::UPID& _slave,
+                const SlaveInfo& _slaveInfo,
+                const SlaveID& _slaveId,
+                const process::PID<SlavesManager>& _slavesManager)
+    : slave(_slave), slaveInfo(_slaveInfo), slaveId(_slaveId),
+      slavesManager(_slavesManager), timeouts(0), pinged(false) {}
+
+  virtual ~SlaveObserver() {}
+
+protected:
+  virtual void operator () ()
+  {
+    // Send a ping some interval after we heard the last pong. Or if
+    // we don't hear a pong, increment the number of timeouts from the
+    // slave and try and send another ping. If we eventually timeout too
+    // many missed pongs in a row, consider the slave dead.
+    do {
+      std::cout.precision(15);
+      std::cout << self() << " elapsed: " << elapsed() << std::endl;
+      receive(SLAVE_PONG_TIMEOUT);
+      if (name() == PONG) {
+        timeouts = 0;
+        pinged = false;
+      } else if (name() == process::TIMEOUT) {
+        if (pinged) {
+          timeouts++;
+          pinged = false;
+          std::cout << self() << " missing slave PONG, timeouts = " << timeouts << std::endl;
+        }
+
+        send(slave, PING);
+        pinged = true;
+      } else if (name() == process::TERMINATE) {
+        return;
+      } 
+    } while (timeouts < MAX_SLAVE_TIMEOUTS);
+
+    // Tell the slave manager to deactivate the slave, this will take
+    // care of updating the master too.
+    while (!process::call(slavesManager, &SlavesManager::deactivate,
+                          slaveInfo.hostname(), slave.port)) {
+      LOG(WARNING) << "Slave \"failed\" but can't be deactivated, retrying";
+    }
+  }
+
+private:
+  const process::UPID slave;
+  const SlaveInfo slaveInfo;
+  const SlaveID slaveId;
+  const process::PID<SlavesManager> slavesManager;
+  int timeouts;
+  bool pinged;
+};
+
+
+// A connected slave.
+struct Slave
+{
+  SlaveInfo info;
+  SlaveID slaveId;
+  process::UPID pid;
+
+  bool active; // Turns false when slave is being removed
+  double connectTime;
+  double lastHeartbeat;
+  
+  Resources resourcesOffered; // Resources currently in offers
+  Resources resourcesInUse;   // Resources currently used by tasks
+
+  boost::unordered_map<std::pair<FrameworkID, TaskID>, Task*> tasks;
+  boost::unordered_set<SlotOffer*> slotOffers; // Active offers on this slave.
+
+  SlaveObserver* observer;
+  
+  Slave(const SlaveInfo& _info, const SlaveID& _slaveId,
+        const process::UPID& _pid, double time)
+    : info(_info), slaveId(_slaveId), pid(_pid), active(true),
+      connectTime(time), lastHeartbeat(time) {}
+
+  ~Slave() {}
+
+  Task* lookupTask(const FrameworkID& frameworkId, const TaskID& taskId)
+  {
+    foreachpair (_, Task* task, tasks) {
+      if (task->framework_id() == frameworkId && task->task_id() == taskId) {
+        return task;
+      }
+    }
+
+    return NULL;
+  }
+
+  void addTask(Task* task)
+  {
+    std::pair<FrameworkID, TaskID> key =
+      std::make_pair(task->framework_id(), task->task_id());
+    CHECK(tasks.count(key) == 0);
+    tasks[key] = task;
+    foreach (const Resource& resource, task->resources()) {
+      resourcesInUse += resource;
+    }
+  }
+  
+  void removeTask(Task* task)
+  {
+    std::pair<FrameworkID, TaskID> key =
+      std::make_pair(task->framework_id(), task->task_id());
+    CHECK(tasks.count(key) > 0);
+    tasks.erase(key);
+    foreach (const Resource& resource, task->resources()) {
+      resourcesInUse -= resource;
+    }
+  }
+  
+  Resources resourcesFree()
+  {
+    Resources resources;
+    foreach (const Resource& resource, info.resources()) {
+      resources += resource;
+    }
+    return resources - (resourcesOffered + resourcesInUse);
+  }
 };
 
 
@@ -272,20 +470,6 @@ protected:
 private:
   const process::PID<Master> master;
   const FrameworkID frameworkId;
-};
-
-
-// A resource offer.
-struct SlotOffer
-{
-  OfferID offerId;
-  FrameworkID frameworkId;
-  std::vector<SlaveResources> resources;
-
-  SlotOffer(const OfferID& _offerId,
-            const FrameworkID& _frameworkId,
-            const std::vector<SlaveResources>& _resources)
-    : offerId(_offerId), frameworkId(_frameworkId), resources(_resources) {}
 };
 
 
@@ -384,74 +568,6 @@ struct Framework
         slaveFilter.erase(slave);
       }
     }
-  }
-};
-
-
-// A connected slave.
-struct Slave
-{
-  SlaveInfo info;
-  SlaveID slaveId;
-  process::UPID pid;
-
-  bool active; // Turns false when slave is being removed
-  double connectTime;
-  double lastHeartbeat;
-  
-  Resources resourcesOffered; // Resources currently in offers
-  Resources resourcesInUse;   // Resources currently used by tasks
-
-  boost::unordered_map<std::pair<FrameworkID, TaskID>, Task*> tasks;
-  boost::unordered_set<SlotOffer*> slotOffers; // Active offers on this slave.
-  
-  Slave(const SlaveInfo& _info, const SlaveID& _slaveId,
-        const process::UPID& _pid, double time)
-    : info(_info), slaveId(_slaveId), pid(_pid), active(true),
-      connectTime(time), lastHeartbeat(time) {}
-
-  ~Slave() {}
-
-  Task* lookupTask(const FrameworkID& frameworkId, const TaskID& taskId)
-  {
-    foreachpair (_, Task* task, tasks) {
-      if (task->framework_id() == frameworkId && task->task_id() == taskId) {
-        return task;
-      }
-    }
-
-    return NULL;
-  }
-
-  void addTask(Task* task)
-  {
-    std::pair<FrameworkID, TaskID> key =
-      std::make_pair(task->framework_id(), task->task_id());
-    CHECK(tasks.count(key) == 0);
-    tasks[key] = task;
-    foreach (const Resource& resource, task->resources()) {
-      resourcesInUse += resource;
-    }
-  }
-  
-  void removeTask(Task* task)
-  {
-    std::pair<FrameworkID, TaskID> key =
-      std::make_pair(task->framework_id(), task->task_id());
-    CHECK(tasks.count(key) > 0);
-    tasks.erase(key);
-    foreach (const Resource& resource, task->resources()) {
-      resourcesInUse -= resource;
-    }
-  }
-  
-  Resources resourcesFree()
-  {
-    Resources resources;
-    foreach (const Resource& resource, info.resources()) {
-      resources += resource;
-    }
-    return resources - (resourcesOffered + resourcesInUse);
   }
 };
 

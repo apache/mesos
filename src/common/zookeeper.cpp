@@ -331,7 +331,7 @@ private:
   {
     ZooKeeperProcess* zooKeeperProcess = static_cast<ZooKeeperProcess*>(ctx);
     process::dispatch(zooKeeperProcess->pid, &WatcherProcess::event,
-                      zooKeeperProcess->zk, type, state, path);
+                      zooKeeperProcess->zk, type, state, string(path));
   }
 
   static void voidCompletion(int ret, const void *data)
@@ -355,8 +355,10 @@ private:
     Promise<int> promise = (*args).get<0>();
     string* result = (*args).get<1>();
 
-    if (result != NULL && value != NULL) {
-      result->assign(value);
+    if (ret == 0) {
+      if (result != NULL) {
+        result->assign(value);
+      }
     }
 
     promise.set(ret);
@@ -373,8 +375,10 @@ private:
     Promise<int> promise = (*args).get<0>();
     Stat *stat_result = (*args).get<1>();
 
-    if (stat_result != NULL && stat != NULL) {
-      *stat_result = *stat;
+    if (ret == 0) {
+      if (stat_result != NULL) {
+        *stat_result = *stat;
+      }
     }
 
     promise.set(ret);
@@ -392,12 +396,14 @@ private:
     string* result = (*args).get<1>();
     Stat* stat_result = (*args).get<2>();
 
-    if (result != NULL && value != NULL && value_len > 0) {
-      result->assign(value, value_len);
-    }
+    if (ret == 0) {
+      if (result != NULL) {
+        result->assign(value, value_len);
+      }
 
-    if (stat_result != NULL && stat != NULL) {
-      *stat_result = *stat;
+      if (stat_result != NULL) {
+        *stat_result = *stat;
+      }
     }
 
     promise.set(ret);
@@ -414,9 +420,11 @@ private:
     Promise<int> promise = (*args).get<0>();
     vector<string>* results = (*args).get<1>();
 
-    if (results != NULL && values != NULL) {
-      for (int i = 0; i < values->count; i++) {
-	results->push_back(values->data[i]);
+    if (ret == 0) {
+      if (results != NULL) {
+        for (int i = 0; i < values->count; i++) {
+          results->push_back(values->data[i]);
+        }
       }
     }
 
