@@ -127,14 +127,12 @@ private:
   };
 
 public:
-  SchedulerProcess(const PID &_master,
+  SchedulerProcess(const string &_master,
                    NexusSchedulerDriver* _driver,
                    Scheduler* _sched,
                    const string& _frameworkName,
-                   const ExecutorInfo& _execInfo,
-		   const string& _zkservers="")
-    : master(_master),
-      driver(_driver),
+                   const ExecutorInfo& _execInfo)
+    : driver(_driver),
       sched(_sched),
       fid("-1"),
       terminate(false),
@@ -143,16 +141,21 @@ public:
       leaderDetector(NULL),
       schedLeaderListener(this, getPID())
 {
-  if (_zkservers!="") {
-    pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_zkservers);
-    if (urlPair.first == UrlProcessor::ZOO) {
-      isFT=true;
-      zkservers = urlPair.second;
-    } else {
-      cerr << "Failed to parse URL for ZooKeeper servers: " << _zkservers <<endl;
+  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
+  if (urlPair.first == UrlProcessor::ZOO) {
+    isFT=true;
+    zkservers = urlPair.second;
+    //  } else if (urlPair.first == UrlProcessor::NEXUS) {
+  } else {
+    isFT=false; 
+    istringstream ss(urlPair.second); // the case nexus://
+    istringstream ss2(_master);       // in case nexus:// is missing
+    if (!((ss >> master) || (ss2 >> master))) { 
+      cerr << "Failed to parse URL for master: " << _master <<endl;
       exit(1);
     }
-  }
+  } 
+
   ftMsg = FTMessaging::getInstance();
 }
 
@@ -436,24 +439,28 @@ void NexusSchedulerDriver::start()
   }
 
   PID pid;
-  bool passString = false;
+  
+  string initServer = master;
 
   if (master == string("localquiet")) {
     // TODO(benh): Look up resources in environment variables.
     pid = run_nexus(1, 1, 1073741824, true, true);
+    ostringstream ss;
+    ss << pid;
+    initServer = ss.str();
   } else if (master == string("local")) {
     // TODO(benh): Look up resources in environment variables.
     pid = run_nexus(1, 1, 1073741824, true, false);
-  } else if (master.find("://")!=string::npos) 
-    passString = true;
+    ostringstream ss;
+    ss << pid;
+    initServer = ss.str();
+  } 
 
   const string& frameworkName = sched->getFrameworkName(this);
   const ExecutorInfo& executorInfo = sched->getExecutorInfo(this);
 
-  if (passString) 
-    process = new SchedulerProcess(pid, this, sched, frameworkName, executorInfo, master);
-  else
-    process = new SchedulerProcess(pid, this, sched, frameworkName, executorInfo);
+  process = new SchedulerProcess(initServer, this, sched, frameworkName, executorInfo);
+  
   Process::spawn(process);
 
   running = true;
