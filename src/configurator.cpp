@@ -23,15 +23,17 @@ const char* Configurator::ENV_VAR_PREFIX = "MESOS_";
 // On Mac OS X, the environ symbol isn't visible to shared libraries,
 // so we must use the _NSGetEnviron() function (see man environ on OS X).
 // On other platforms, it's fine to access environ from shared libraries.
-namespace {
 #ifdef __APPLE__
-  #include "crt_externs.h"
-  char** getEnviron() { return *_NSGetEnviron(); }
-#else
-  extern char** environ;
-  char** getEnviron() { return environ; }
-#endif /* __APPLE__ */
+#include "crt_externs.h"
+namespace {
+char** getEnviron() { return *_NSGetEnviron(); }
 }
+#else
+extern char** environ;
+namespace {
+char** getEnviron() { return environ; }
+}
+#endif /* __APPLE__ */
 
 
 void Configurator::validate()
