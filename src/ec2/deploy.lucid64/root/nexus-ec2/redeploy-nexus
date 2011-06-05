@@ -1,0 +1,12 @@
+#!/bin/bash
+
+SLAVES=/root/nexus-ec2/slaves
+MASTER=/root/nexus-ec2/master
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+
+echo "RSYNC'ing /root/nexus to slaves..."
+for slave in `cat $SLAVES`; do
+    echo $slave
+    rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'nexus/frameworks/hadoop-0.20.0/logs/*' /root/nexus $slave:/root
+done

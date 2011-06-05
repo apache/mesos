@@ -1,0 +1,15 @@
+#!/bin/bash
+
+cd /root/nexus-ec2
+
+MASTER="`cat master`"
+SLAVES="`cat slaves`"
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+
+for slave in $SLAVES; do
+  echo "Stopping MapOutputServer on $slave"
+  ssh $SSH_OPTS $slave "kill -9 \`jps | grep MapOutputServer | awk '{ print \$1 }'\`" &
+  sleep 0.1
+done
+wait

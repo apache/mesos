@@ -32,10 +32,10 @@ def parse_args():
       help="Master instance type (leave empty for same as instance-type)")
   parser.add_option("-z", "--zone", default="us-east-1b",
       help="Availability zone to launch instances in")
-  parser.add_option("-a", "--ami", default="ami-dd16f9b4", # nexus-karmic-0.4
+  parser.add_option("-a", "--ami", default="ami-65aa430c", # nexus-lucid-0.2
       help="Amazon Machine Image ID to use")
-  parser.add_option("-o", "--os", default="karmic64",
-      help="OS on the Amazon Machine Image (karmic64 or solaris)")
+  parser.add_option("-o", "--os", default="lucid64",
+      help="OS on the Amazon Machine Image (lucid6 | karmic64 | solaris)")
   parser.add_option("-d", "--download", metavar="SOURCE", default="none",
       help="Where to download latest code from: set to 'git' to check out " +
            "from git, 'web' for latest snapshot .tgz, or 'none' to use " +
