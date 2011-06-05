@@ -1,4 +1,4 @@
-listen webfarm {{master}}:80
+listen webfarm {{active_master}}:80
        timeout server 7500
        timeout client 7500
        timeout connect 7500
