@@ -1,9 +1,12 @@
 #include <ctime>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <time.h>
+#include <common/fatal.hpp>
 
 #include "date_utils.hpp"
+
 
 using std::string;
 
@@ -35,9 +38,12 @@ string DateUtils::humanReadableDate()
 // Get the current time in microseconds since the UNIX epoch.
 long DateUtils::currentDateInMicro() {
   if (useMockDate) {
-    struct tm* timeinfo;
-    strptime(mockDate.c_str(), "%Y%m%d%H%M", timeinfo);
-    time_t rawtime = mktime(timeinfo);
+    struct tm timeinfo;
+    memset(&timeinfo, 0, sizeof(timeinfo));
+    if (strptime(mockDate.c_str(), "%Y%m%d%H%M", &timeinfo) == NULL) {
+      fatal("Failed to parse MockDate in date_utils.cpp. strptime returned NULL");
+    }
+    time_t rawtime = mktime(&timeinfo);
     long microSinceEpoch = rawtime * 1000000;
     return microSinceEpoch;
   } else {
