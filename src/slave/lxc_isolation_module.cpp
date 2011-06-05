@@ -79,27 +79,28 @@ void LxcIsolationModule::initialize(Slave *slave)
 }
 
 
-void LxcIsolationModule::startExecutor(Framework *fw)
+void LxcIsolationModule::startExecutor(Framework *framework)
 {
   if (!initialized)
     LOG(FATAL) << "Cannot launch executors before initialization!";
 
-  infos[fw->id] = new FrameworkInfo();
+  infos[framework->frameworkId] = new FrameworkInfo();
 
-  LOG(INFO) << "Starting executor for framework " << fw->id << ": "
-            << fw->executorInfo.uri;
+  LOG(INFO) << "Starting executor for framework " << framework->frameworkId << ": "
+            << framework->info.executor().uri();
 
   // Get location of Mesos install in order to find mesos-launcher.
-  string mesosHome = slave->getConf().get("home", ".");
+  string mesosHome = slave->getConfiguration().get("home", ".");
   string mesosLauncher = mesosHome + "/mesos-launcher";
 
   // Create a name for the container
   ostringstream oss;
-  oss << "mesos.slave-" << slave->id << ".framework-" << fw->id;
+  oss << "mesos.slave-" << slave->slaveId
+      << ".framework-" << framework->frameworkId;
   string containerName = oss.str();
 
-  infos[fw->id]->container = containerName;
-  fw->executorStatus = "Container: " + containerName;
+  infos[framework->frameworkId]->container = containerName;
+  framework->executorStatus = "Container: " + containerName;
 
   // Run lxc-execute mesos-launcher using a fork-exec (since lxc-execute
   // does not return until the container is finished). Note that lxc-execute
@@ -110,25 +111,35 @@ void LxcIsolationModule::startExecutor(Framework *fw)
 
   if (pid) {
     // In parent process
-    infos[fw->id]->lxcExecutePid = pid;
+    infos[framework->frameworkId]->lxcExecutePid = pid;
     LOG(INFO) << "Started child for lxc-execute, pid = " << pid;
     int status;
   } else {
     // Create an ExecutorLauncher to set up the environment for executing
     // an extrernal launcher_main.cpp process (inside of lxc-execute).
+
+    const Configuration& conf = slave->getConfiguration();
+
+    map<string, string> params;
+
+    for (int i = 0; i < framework->info.executor().params().param_size(); i++) {
+      params[framework->info.executor().params().param(i).key()] = 
+	framework->info.executor().params().param(i).value();
+    }
+
     ExecutorLauncher* launcher;
-    launcher = new ExecutorLauncher(fw->id,
-                                    fw->executorInfo.uri,
-                                    fw->user,
-                                    slave->getUniqueWorkDirectory(fw->id),
-                                    slave->self(),
-                                    slave->getConf().get("frameworks_home",
-                                                           ""),
-                                    slave->getConf().get("home", ""),
-                                    slave->getConf().get("hadoop_home", ""),
-                                    !slave->local,
-                                    slave->getConf().get("switch_user", true),
-                                    fw->executorInfo.params);
+    launcher =
+      new ExecutorLauncher(framework->frameworkId,
+			   framework->info.executor().uri(),
+			   framework->info.user(),
+			   slave->getUniqueWorkDirectory(framework->frameworkId),
+			   slave->self(),
+			   conf.get("frameworks_home", ""),
+			   conf.get("home", ""),
+			   conf.get("hadoop_home", ""),
+			   !slave->local,
+			   conf.get("switch_user", true),
+			   params);
     launcher->setupEnvironmentForLauncherMain();
     
     // Run lxc-execute.
@@ -141,61 +152,61 @@ void LxcIsolationModule::startExecutor(Framework *fw)
 }
 
 
-void LxcIsolationModule::killExecutor(Framework* fw)
+void LxcIsolationModule::killExecutor(Framework* framework)
 {
-  string container = infos[fw->id]->container;
+  string container = infos[framework->frameworkId]->container;
   if (container != "") {
     LOG(INFO) << "Stopping container " << container;
     int ret = shell("lxc-stop -n %s", container.c_str());
     if (ret != 0)
       LOG(ERROR) << "lxc-stop returned " << ret;
-    infos[fw->id]->container = "";
-    fw->executorStatus = "No executor running";
-    delete infos[fw->id];
-    infos.erase(fw->id);
+    infos[framework->frameworkId]->container = "";
+    framework->executorStatus = "No executor running";
+    delete infos[framework->frameworkId];
+    infos.erase(framework->frameworkId);
   }
 }
 
 
-void LxcIsolationModule::resourcesChanged(Framework* fw)
+void LxcIsolationModule::resourcesChanged(Framework* framework)
 {
-  if (infos[fw->id]->container != "") {
+  if (infos[framework->frameworkId]->container != "") {
     // For now, just try setting the CPUs and memory right away, and kill the
     // framework if this fails.
     // A smarter thing to do might be to only update them periodically in a
     // separate thread, and to give frameworks some time to scale down their
     // memory usage.
 
-    int32_t cpuShares = max(CPU_SHARES_PER_CPU * fw->resources.cpus,
+    int32_t cpuShares = max(CPU_SHARES_PER_CPU * framework->resources.cpus(),
                             MIN_CPU_SHARES);
-    if (!setResourceLimit(fw, "cpu.shares", cpuShares)) {
+    if (!setResourceLimit(framework, "cpu.shares", cpuShares)) {
       // Tell slave to kill framework, which will invoke killExecutor.
-      slave->killFramework(fw);
+      slave->killFramework(framework);
       return;
     }
 
-    int64_t rssLimit = max(fw->resources.mem, MIN_RSS) * 1024LL * 1024LL;
-    if (!setResourceLimit(fw, "memory.limit_in_bytes", rssLimit)) {
+    int64_t rssLimit = max(framework->resources.mem(), MIN_RSS) * 1024LL * 1024LL;
+    if (!setResourceLimit(framework, "memory.limit_in_bytes", rssLimit)) {
       // Tell slave to kill framework, which will invoke killExecutor.
-      slave->killFramework(fw);
+      slave->killFramework(framework);
       return;
     }
   }
 }
 
 
-bool LxcIsolationModule::setResourceLimit(Framework* fw,
+bool LxcIsolationModule::setResourceLimit(Framework* framework,
                                           const string& property,
                                           int64_t value)
 {
-  LOG(INFO) << "Setting " << property << " for framework " << fw->id
+  LOG(INFO) << "Setting " << property << " for framework " << framework->frameworkId
             << " to " << value;
   int ret = shell("lxc-cgroup -n %s %s %lld",
-                  infos[fw->id]->container.c_str(),
+                  infos[framework->frameworkId]->container.c_str(),
                   property.c_str(),
                   value);
   if (ret != 0) {
-    LOG(ERROR) << "Failed to set " << property << " for framework " << fw->id
+    LOG(ERROR) << "Failed to set " << property << " for framework " << framework->frameworkId
                << ": lxc-cgroup returned " << ret;
     return false;
   } else {

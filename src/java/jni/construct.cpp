@@ -101,7 +101,7 @@ map<string, string> construct(JNIEnv *env, jobject jobj)
 
 //   const Params& params = parse<Params>(data, length);
 
-//   env->ReleaseByteArrayElements(jdata, data, NULL);
+//   env->ReleaseByteArrayElements(jdata, data, 0);
 
 //   return params;
 // }
@@ -122,7 +122,7 @@ FrameworkID construct(JNIEnv* env, jobject jobj)
 
   const FrameworkID& frameworkId = parse<FrameworkID>(data, length);
 
-  env->ReleaseByteArrayElements(jdata, data, NULL);
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
   return frameworkId;
 }
@@ -143,7 +143,7 @@ TaskID construct(JNIEnv* env, jobject jobj)
 
   const TaskID& taskId = parse<TaskID>(data, length);
 
-  env->ReleaseByteArrayElements(jdata, data, NULL);
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
   return taskId;
 }
@@ -164,7 +164,7 @@ SlaveID construct(JNIEnv* env, jobject jobj)
 
   const SlaveID& slaveId = parse<SlaveID>(data, length);
 
-  env->ReleaseByteArrayElements(jdata, data, NULL);
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
   return slaveId;
 }
@@ -185,7 +185,7 @@ OfferID construct(JNIEnv* env, jobject jobj)
 
   const OfferID& offerId = parse<OfferID>(data, length);
 
-  env->ReleaseByteArrayElements(jdata, data, NULL);
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
   return offerId;
 }
@@ -220,7 +220,7 @@ TaskDescription construct(JNIEnv* env, jobject jobj)
 
   const TaskDescription& task = parse<TaskDescription>(data, length);
 
-  env->ReleaseByteArrayElements(jdata, data, NULL);
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
   return task;
 }
@@ -241,7 +241,7 @@ TaskStatus construct(JNIEnv* env, jobject jobj)
 
   const TaskStatus& status = parse<TaskStatus>(data, length);
 
-  env->ReleaseByteArrayElements(jdata, data, NULL);
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
   return status;
 }
@@ -262,7 +262,7 @@ FrameworkMessage construct(JNIEnv* env, jobject jobj)
 
   const FrameworkMessage& message = parse<FrameworkMessage>(data, length);
 
-  env->ReleaseByteArrayElements(jdata, data, NULL);
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
   return message;
 }
@@ -283,7 +283,7 @@ ExecutorInfo construct(JNIEnv* env, jobject jobj)
 
   const ExecutorInfo& executor = parse<ExecutorInfo>(data, length);
 
-  env->ReleaseByteArrayElements(jdata, data, NULL);
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
   return executor;
 }

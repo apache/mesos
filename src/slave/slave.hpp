@@ -212,8 +212,10 @@ public:
 
   const Configuration& getConfiguration();
 
-  // TODO(...): Don't make this instance variable public! Hack for now.
+  // TODO(...): Don't make these instance variables public! Hack for
+  // now because they are needed in the isolation modules.
   bool local;
+  SlaveID slaveId;
 
 protected:
   virtual void operator () ();
@@ -230,7 +232,6 @@ private:
   Configuration conf;
 
   PID master;
-  SlaveID slaveId;
   Resources resources;
 
   // Invariant: framework will exist if executor exists.

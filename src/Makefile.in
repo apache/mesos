@@ -264,7 +264,7 @@ messaging/messages.pb.cc: $(SRCDIR)/messaging/messages.proto
 	$(PROTOC) -I$(SRCDIR)/messaging -I@top_srcdir@/include --cpp_out=messaging $(SRCDIR)/messaging/messages.proto
 
 $(PROTOBUF_OBJ): %.pb.o: %.pb.cc $(INCLUDEDIR)/mesos.hpp
-	$(CXX) -c -I@top_srcdir@/$(PROTOBUF)/src -I. -c -o $@ $<
+	$(CXX) -c $(CXXFLAGS) -I@top_srcdir@/$(PROTOBUF)/src -I. -o $@ $<
 
 $(BASIC_OBJ): %.o: $(SRCDIR)/%.cpp $(PROTOBUF_OBJ) | $(OBJ_DIRECTORIES)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<

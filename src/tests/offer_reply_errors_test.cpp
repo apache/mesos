@@ -53,7 +53,11 @@ public:
   }
 
   virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return DEFAULT_EXECUTOR_INFO;
+    // TODO(benh): The following line crashes some Linux compilers. :(
+    // return DEFAULT_EXECUTOR_INFO;
+    ExecutorInfo executor;
+    executor.set_uri("noexecutor");
+    return executor;
   }
 
   virtual void registered(SchedulerDriver*, const FrameworkID&) {}
