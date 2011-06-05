@@ -77,7 +77,7 @@ public:
     : master(_master),
       driver(_driver),
       sched(_sched),
-      fid(-1),
+      fid("-1"),
       terminate(false),
       frameworkName(_frameworkName),
       execInfo(_execInfo) {}
@@ -485,7 +485,7 @@ public:
 
   virtual void registered(SchedulerDriver*, FrameworkID frameworkId)
   {
-    sched->registered(sched, frameworkId);
+    sched->registered(sched, frameworkId.c_str());
   }
 
   virtual void resourceOffer(SchedulerDriver*,
@@ -521,7 +521,7 @@ public:
 
   virtual void statusUpdate(SchedulerDriver*, TaskStatus &status)
   {
-    nexus_task_status c_status = { status.taskId,
+    nexus_task_status c_status = { status.taskId.c_str(),
                                    status.state,
                                    status.data.data(),
                                    status.data.size() };
@@ -531,7 +531,7 @@ public:
   virtual void frameworkMessage(SchedulerDriver*, FrameworkMessage &message)
   {
     nexus_framework_message c_message = { message.slaveId.c_str(),
-                                          message.taskId,
+                                          message.taskId.c_str(),
                                           message.data.data(),
                                           message.data.size() };
     sched->framework_message(sched, &c_message);

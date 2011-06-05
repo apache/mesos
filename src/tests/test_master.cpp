@@ -117,9 +117,9 @@ TEST(MasterTest, DuplicateTaskIdsInResponse)
   map<string, string> params;
   params["cpus"] = "1";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, 0, "", params, ""));
-  tasks.push_back(TaskDescription(2, 0, "", params, ""));
-  tasks.push_back(TaskDescription(1, 0, "", params, ""));
+  tasks.push_back(TaskDescription("1", "0", "", params, ""));
+  tasks.push_back(TaskDescription("2", "0", "", params, ""));
+  tasks.push_back(TaskDescription("1", "0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
@@ -136,7 +136,7 @@ TEST(MasterTest, TooMuchMemoryInTask)
   map<string, string> params;
   params["cpus"] = "1";
   params["mem"] = lexical_cast<string>(4 * Gigabyte);
-  tasks.push_back(TaskDescription(1, 0, "", params, ""));
+  tasks.push_back(TaskDescription("1", "0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
@@ -153,7 +153,7 @@ TEST(MasterTest, TooMuchCpuInTask)
   map<string, string> params;
   params["cpus"] = "4";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, 0, "", params, ""));
+  tasks.push_back(TaskDescription("1", "0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
@@ -170,7 +170,7 @@ TEST(MasterTest, TooLittleCpuInTask)
   map<string, string> params;
   params["cpus"] = "0";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, 0, "", params, ""));
+  tasks.push_back(TaskDescription("1", "0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
@@ -187,7 +187,7 @@ TEST(MasterTest, TooLittleMemoryInTask)
   map<string, string> params;
   params["cpus"] = "1";
   params["mem"] = "1";
-  tasks.push_back(TaskDescription(1, 0, "", params, ""));
+  tasks.push_back(TaskDescription("1", "0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
@@ -204,8 +204,8 @@ TEST(MasterTest, TooMuchMemoryAcrossTasks)
   map<string, string> params;
   params["cpus"] = "1";
   params["mem"] = lexical_cast<string>(2 * Gigabyte);
-  tasks.push_back(TaskDescription(1, 0, "", params, ""));
-  tasks.push_back(TaskDescription(2, 0, "", params, ""));
+  tasks.push_back(TaskDescription("1", "0", "", params, ""));
+  tasks.push_back(TaskDescription("2", "0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
@@ -222,8 +222,8 @@ TEST(MasterTest, TooMuchCpuAcrossTasks)
   map<string, string> params;
   params["cpus"] = "2";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, 0, "", params, ""));
-  tasks.push_back(TaskDescription(2, 0, "", params, ""));
+  tasks.push_back(TaskDescription("1", "0", "", params, ""));
+  tasks.push_back(TaskDescription("2", "0", "", params, ""));
   FixedResponseScheduler sched(tasks);
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
@@ -262,7 +262,7 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
   map<string, string> params;
   params["cpus"] = "0";
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
-  tasks.push_back(TaskDescription(1, 0, "", params, ""));
+  tasks.push_back(TaskDescription("1", "0", "", params, ""));
   FixedResponseScheduler sched1(tasks);
   NexusSchedulerDriver driver1(&sched1, master);
   driver1.run();

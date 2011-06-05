@@ -111,14 +111,14 @@ public:
 
 
 Master::Master(const bool ft, const string zk)
-  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId("0"), 
+  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId("0"), nextSlaveId("0"), 
     nextSlotOfferId("0"), allocatorType("simple")
 {}
 
 
 Master::Master(const string& _allocatorType, const bool ft, const string zk)
-  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId("0"), 
-    nextSlotOfferId("0"), allocatorType(_allocatorType)
+  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId("0"), nextSlaveId("0"), 
+    nextSlotOfferId("m0"), allocatorType(_allocatorType)
 {}
                    
 
@@ -257,7 +257,12 @@ void Master::operator () ()
     switch (receive()) {
 
     case F2M_REGISTER_FRAMEWORK: {
-      FrameworkID fid = nextFrameworkId++;
+      FrameworkID fid = nextFrameworkId;
+
+      stringstream ss;
+      ss << (atoi(nextFrameworkId.c_str())+1);
+      nextFrameworkId = ss.str();
+
       Framework *framework = new Framework(from(), fid);
       unpack<F2M_REGISTER_FRAMEWORK>(framework->name,
                                      framework->user,
