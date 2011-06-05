@@ -337,8 +337,8 @@ protected:
     // slave and try and send another ping. If we eventually timeout too
     // many missed pongs in a row, consider the slave dead.
     do {
-      std::cout.precision(15);
-      std::cout << self() << " elapsed: " << elapsed() << std::endl;
+//       std::cout.precision(15);
+//       std::cout << self() << " elapsed: " << elapsed() << std::endl;
       receive(SLAVE_PONG_TIMEOUT);
       if (name() == PONG) {
         timeouts = 0;
@@ -347,7 +347,7 @@ protected:
         if (pinged) {
           timeouts++;
           pinged = false;
-          std::cout << self() << " missing slave PONG, timeouts = " << timeouts << std::endl;
+//           std::cout << self() << " missing slave PONG, timeouts = " << timeouts << std::endl;
         }
 
         send(slave, PING);
