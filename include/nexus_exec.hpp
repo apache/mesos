@@ -5,10 +5,17 @@
 
 #include <nexus.hpp>
 
+
 namespace nexus {
+
+class ExecutorDriver;
 
 namespace internal { class ExecutorProcess; }
 
+
+/**
+ * Arguments passed to executors on initialization.
+ */
 struct ExecutorArgs
 {
   ExecutorArgs() {}
@@ -25,29 +32,69 @@ struct ExecutorArgs
 };
 
 
+/**
+ * Callback interface to be implemented by frameworks' executors.
+ */
 class Executor
 {
 public:
-  Executor();
-  virtual ~Executor();
+  virtual ~Executor() {}
 
-  // Overridable callbacks
-  virtual void init(const ExecutorArgs& args) {}
-  virtual void startTask(const TaskDescription& task) {}
-  virtual void killTask(TaskID taskId) {}
-  virtual void frameworkMessage(const FrameworkMessage& message) {}
-  virtual void shutdown();
-  virtual void error(int code, const std::string& message);
+  virtual void init(ExecutorDriver* d, const ExecutorArgs& args) {}
+  virtual void startTask(ExecutorDriver* d, const TaskDescription& task) {}
+  virtual void killTask(ExecutorDriver* d, TaskID taskId) {}
+  virtual void frameworkMessage(ExecutorDriver* d,
+                                const FrameworkMessage& message) {}
+  virtual void shutdown(ExecutorDriver* d) {}
+  virtual void error(ExecutorDriver* d, int code, const std::string& message);
+};
 
-  // Non-overridable lifecycle methods
-  void run();
 
-  // Non-overridable communication methods
-  void sendStatusUpdate(const TaskStatus &status);
-  void sendFrameworkMessage(const FrameworkMessage &message);
+/**
+ * Abstract interface for driving an executor connected to Nexus.
+ * This interface is used both to start the executor running (and
+ * communicating with the slave) and to send information from the executor
+ * to Nexus (such as status updates). Concrete implementations of
+ * ExecutorDriver will take a Executor as a parameter in order to make
+ * callbacks into it on various events.
+ */
+class ExecutorDriver
+{
+public:
+  virtual ~ExecutorDriver() {}
+
+  // Connect to a slave and run the scheduler until it is shut down
+  virtual void run() {}
+
+  // Communication methods from executor to Nexus
+  virtual void sendStatusUpdate(const TaskStatus& status) {}
+  virtual void sendFrameworkMessage(const FrameworkMessage& message) {}
+};
+
+
+/**
+ * Concrete implementation of ExecutorDriver that communicates with a
+ * Nexus slave. The slave's location is read from environment variables
+ * set by it when it execs the user's executor script; users only need
+ * to create the NexusExecutorDriver and call run() on it.
+ */
+class NexusExecutorDriver : public ExecutorDriver
+{
+public:
+  NexusExecutorDriver(Executor* executor);
+  virtual ~NexusExecutorDriver();
+
+  virtual void run();
+  virtual void sendStatusUpdate(const TaskStatus& status);
+  virtual void sendFrameworkMessage(const FrameworkMessage& message);
 
 private:
   friend class internal::ExecutorProcess;
+
+  Executor* executor;
+
+  // LibProcess process for communicating with slave
+  internal::ExecutorProcess* process;
   
   // Mutex to enforce all non-callbacks are execute serially
   pthread_mutex_t mutex;
