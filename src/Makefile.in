@@ -197,6 +197,9 @@ mesos-local: local.cpp mesos_local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
 
 ALLTESTS_OBJ = $(TEST_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(COMMON_OBJ)
 
+get_conf: get_conf.cpp $(COMMON_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
+
 alltests: $(ALLTESTS_OBJ) $(MESOS_EXES) java python
 	$(CXX) $(CXXFLAGS) -o $@ $(ALLTESTS_OBJ) $(LDFLAGS) $(LIBS)
 
