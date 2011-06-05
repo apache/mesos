@@ -14,7 +14,9 @@ LIBS = @LIBS@
 OS_NAME = @OS_NAME@
 
 JAVA_HOME = @JAVA_HOME@
+
 PYTHON_HEADERS = @PYTHON_HEADERS@
+PYTHON_LDFLAGS = @PYTHON_LDFLAGS@
 
 WITH_WEBUI = @WITH_WEBUI@
 
@@ -128,10 +130,7 @@ BASIC_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)  \
 
 ALL_OBJ = $(BASIC_OBJ) $(WEBUI_OBJ) $(SWIG_WEBUI_OBJ)
 
-MESOS_EXES = mesos-master mesos-slave mesos-local mesos-launcher \
-             test-framework test-executor cpp-test-framework \
-             cpp-test-executor memhog memhog-executor scheduled-memhog \
-             mesos-getconf
+MESOS_EXES = mesos-master mesos-slave mesos-local mesos-launcher mesos-getconf
 
 ifeq ($(OS_NAME),solaris)
   MESOS_EXES += mesos-projd
@@ -224,27 +223,6 @@ mesos-local: @srcdir@/local.cpp mesos_local.o $(MASTER_OBJ) $(SLAVE_OBJ)
 mesos-getconf: @srcdir@/get_conf.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
-test-framework: @srcdir@/test_framework.cpp $(MESOS_SCHED_LIB)
-	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
-
-test-executor: @srcdir@/test_exec.cpp $(MESOS_EXEC_LIB)
-	g++ $(CXXFLAGS) -o $@ $< $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
-
-cpp-test-framework: @srcdir@/cpp_test_framework.cpp $(MESOS_SCHED_LIB)
-	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
-
-cpp-test-executor: @srcdir@/cpp_test_executor.cpp $(MESOS_EXEC_LIB)
-	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
-
-memhog: @srcdir@/memhog.cpp $(MESOS_SCHED_LIB)
-	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
-
-memhog-executor: @srcdir@/memhog_executor.cpp $(MESOS_EXEC_LIB)
-	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
-
-scheduled-memhog: @srcdir@/scheduled_memhog.cpp $(MESOS_SCHED_LIB)
-	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
-
 java: $(MESOS_JAVA_LIB) swig/java/mesos.jar
 
 python: $(MESOS_PYTHON_LIB)
@@ -269,13 +247,18 @@ $(MESOS_PYTHON_LIB): @srcdir@/swig/mesos.i $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB)
 ifdef PYTHON_HEADERS
 	mkdir -p swig/python
 	$(SWIG) -c++ -python -threads -I@top_srcdir@/include -o swig/python/mesos_wrap.cpp -outdir swig/python @srcdir@/swig/mesos.i
-	$(CXX) $(CXXFLAGS) -I$(PYTHON_HEADERS) -shared -o $@ swig/python/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(WEBUI_LDFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -I$(PYTHON_HEADERS) -shared -o $@ swig/python/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
 endif
 
+test:
+	$(MAKE) -C tests test
+
 all: $(MESOS_LIBS) $(MESOS_EXES) java python
+	$(MAKE) -C examples
 	$(MAKE) -C tests
 
 clean:
+	$(MAKE) -C examples clean
 	$(MAKE) -C tests clean
 	rm -f $(patsubst %.o, %.d, $(ALL_OBJ))
 	rm -f $(patsubst %, %.d, $(MESOS_EXES))
@@ -307,4 +290,4 @@ clean:
 	rm -f webui/slave/swig/slave.pyc
 	rm -f TAGS
 
-.PHONY: default all clean java python test
+.PHONY: default java python test all clean

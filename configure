@@ -630,6 +630,7 @@ OS_NAME
 JAVA_HOME
 HAS_JAVA
 PYTHON_HEADERS
+PYTHON_LDFLAGS
 HAS_PYTHON
 WITH_WEBUI
 WEBUI_CFLAGS
@@ -1699,7 +1700,7 @@ ac_configure_args=`echo $ac_configure_args | \
                    sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing /"`
 ac_configure_args="$ac_configure_args --enable-shared=no --with-pic"
 
-ac_config_files="$ac_config_files Makefile src/Makefile src/tests/Makefile src/config.hpp"
+ac_config_files="$ac_config_files Makefile src/Makefile src/examples/Makefile src/tests/Makefile src/config.hpp"
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do
@@ -1931,6 +1932,7 @@ fi
 
 
 PYTHON_HEADERS=""
+PYTHON_LDFLAGS=""
 HAS_PYTHON="0"
 
 # Check whether --with-python-headers was given.
@@ -1944,10 +1946,13 @@ echo "$as_me: error:
    { (exit 1); exit 1; }; } ;;
 		    *)
                       PYTHON_HEADERS="$withval"
+                      echo running $PYTHON to find compiler flags for creating the Mesos Python library...
+                      PYTHON_LDFLAGS=`$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION")'`
                       HAS_PYTHON="1"
                       ;;
 	          esac
 fi
+
 
 
 
@@ -3697,6 +3702,7 @@ do
   case $ac_config_target in
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
+    "src/examples/Makefile") CONFIG_FILES="$CONFIG_FILES src/examples/Makefile" ;;
     "src/tests/Makefile") CONFIG_FILES="$CONFIG_FILES src/tests/Makefile" ;;
     "src/config.hpp") CONFIG_FILES="$CONFIG_FILES src/config.hpp" ;;
 
@@ -3813,6 +3819,7 @@ OS_NAME!$OS_NAME$ac_delim
 JAVA_HOME!$JAVA_HOME$ac_delim
 HAS_JAVA!$HAS_JAVA$ac_delim
 PYTHON_HEADERS!$PYTHON_HEADERS$ac_delim
+PYTHON_LDFLAGS!$PYTHON_LDFLAGS$ac_delim
 HAS_PYTHON!$HAS_PYTHON$ac_delim
 WITH_WEBUI!$WITH_WEBUI$ac_delim
 WEBUI_CFLAGS!$WEBUI_CFLAGS$ac_delim
@@ -3835,7 +3842,7 @@ LIBOBJS!$LIBOBJS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 74; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 75; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

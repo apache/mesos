@@ -22,7 +22,7 @@ ac_configure_args=`echo $ac_configure_args | \
                    sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing /"`
 ac_configure_args="$ac_configure_args --enable-shared=no --with-pic"
 
-AC_CONFIG_FILES([Makefile src/Makefile src/tests/Makefile src/config.hpp])
+AC_CONFIG_FILES([Makefile src/Makefile src/examples/Makefile src/tests/Makefile src/config.hpp])
 AC_CONFIG_SUBDIRS([third_party/libprocess])
 AC_CONFIG_SUBDIRS([third_party/gtest-1.5.0])
 AC_CONFIG_SUBDIRS([third_party/glog-0.3.1])
@@ -87,6 +87,7 @@ AC_SUBST(JAVA_HOME)
 AC_SUBST(HAS_JAVA)
 
 PYTHON_HEADERS=""
+PYTHON_LDFLAGS=""
 HAS_PYTHON="0"
 AC_ARG_WITH([python-headers],
   AC_HELP_STRING([--with-python-headers=DIR],
@@ -97,11 +98,14 @@ AC_ARG_WITH([python-headers],
 *** --with-python-headers requires an argument]) ;;
 		    *)
                       PYTHON_HEADERS="$withval"
+                      echo running $PYTHON to find compiler flags for creating the Mesos Python library...
+                      PYTHON_LDFLAGS=`$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION")'`
                       HAS_PYTHON="1"
                       ;;
 	          esac],
 	         [])
 AC_SUBST(PYTHON_HEADERS)
+AC_SUBST(PYTHON_LDFLAGS)
 AC_SUBST(HAS_PYTHON)
 
 WITH_WEBUI="0"

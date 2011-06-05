@@ -1,0 +1,127 @@
+# Makefile.
+
+SHELL = '/bin/sh'
+
+CC = @CC@
+CXX = @CXX@
+SWIG = @SWIG@
+
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+
+OS_NAME = @OS_NAME@
+
+JAVA_HOME = @JAVA_HOME@
+PYTHON_HEADERS = @PYTHON_HEADERS@
+
+WITH_ZOOKEEPER = @WITH_ZOOKEEPER@
+
+WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
+
+LIBPROCESS = third_party/libprocess
+
+LIBEV = $(LIBPROCESS)/third_party/libev-3.8
+
+GLOG = third_party/glog-0.3.1
+
+ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
+
+# Ensure that we get better debugging info.
+CFLAGS += -g
+CXXFLAGS += -g
+
+# Add source dir to CFLAGS and CXXFLAGS.
+CFLAGS += -I@srcdir@
+CXXFLAGS += -I@srcdir@
+
+# Add include to CFLAGS and CXXFLAGS.
+CFLAGS += -I@top_srcdir@/include
+CXXFLAGS += -I@top_srcdir@/include
+
+# Add boost to CFLAGS and CXXFLAGS.
+CFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
+CXXFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
+
+# Add libprocess to CFLAGS, CXXFLAGS, and LDFLAGS.
+CFLAGS += -I@top_srcdir@/$(LIBPROCESS)
+CXXFLAGS += -I@top_srcdir@/$(LIBPROCESS)
+LDFLAGS += -L@top_builddir@/$(LIBPROCESS)
+
+# Add libev to LDFLAGS.
+LDFLAGS += -L@top_builddir@/$(LIBEV)/.libs
+
+# Add glog to include and lib paths.
+CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src
+LDFLAGS += -L@top_builddir@/$(GLOG)/.libs
+
+# Add included ZooKeeper to include and lib paths if necessary.
+ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
+  CXXFLAGS += -I@top_srcdir@/$(ZOOKEEPER)/include -I@top_srcdir@/$(ZOOKEEPER)/generated
+  LDFLAGS += -L@top_builddir@/$(ZOOKEEPER)/.libs
+endif
+
+# Add dependency tracking to CFLAGS, CXXFLAGS.
+CFLAGS += -MMD -MP
+CXXFLAGS += -MMD -MP
+
+# Add build date to CFLAGS, CXXFLAGS
+CFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
+CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
+
+# Add build user to CFLAGS, CXXFLAGS
+CFLAGS += -DBUILD_USER="\"$$USER\""
+CXXFLAGS += -DBUILD_USER="\"$$USER\""
+
+# Add libev to LDFLAGS.
+LDFLAGS += -L$(LIBEV)/.libs
+
+# Add glog, libev, libprocess, pthread, and dl to LIBS.
+LIBS += -lglog -lprocess -lev -lpthread -ldl
+
+# Add ZooKeeper if necessary.
+ifeq ($(WITH_ZOOKEEPER),1)
+  LIBS += -lzookeeper_st
+endif
+
+EXAMPLES_EXES = test-framework test-executor cpp-test-framework \
+                cpp-test-executor memhog memhog-executor scheduled-memhog
+
+MESOS_SCHED_LIB = ../libmesos_sched.a
+MESOS_EXEC_LIB = ../libmesos_exec.a
+
+default: all
+
+-include $(patsubst %, %.d, $(EXAMPLES_EXES))
+
+test-framework: @srcdir@/test_framework.cpp $(MESOS_SCHED_LIB)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
+
+test-executor: @srcdir@/test_exec.cpp $(MESOS_EXEC_LIB)
+	g++ $(CXXFLAGS) -o $@ $< $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
+
+cpp-test-framework: @srcdir@/cpp_test_framework.cpp $(MESOS_SCHED_LIB)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
+
+cpp-test-executor: @srcdir@/cpp_test_executor.cpp $(MESOS_EXEC_LIB)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
+
+memhog: @srcdir@/memhog.cpp $(MESOS_SCHED_LIB)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
+
+memhog-executor: @srcdir@/memhog_executor.cpp $(MESOS_EXEC_LIB)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
+
+scheduled-memhog: @srcdir@/scheduled_memhog.cpp $(MESOS_SCHED_LIB)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
+
+all: $(EXAMPLES_EXES)
+
+clean:
+	rm -f $(patsubst %, %.d, $(EXAMPLES_EXES))
+	rm -rf $(patsubst %, %.dSYM, $(EXAMPLES_EXES))
+	rm -f $(EXAMPLES_EXES)
+	rm -f TAGS
+
+.PHONY: default all clean
