@@ -110,14 +110,9 @@ bool ReliableProcess::duplicate() const
   // greater than the last one we saw. Note that we don't add the
   // sequence identifier for the current message until the next
   // 'receive' invocation (see below).
-  if (current != NULL) {
-    map<PID, int>::const_iterator it = recvSeqs.find(current->msg.from);
-    if (it != recvSeqs.end()) {
-      int last = it->second;
-      if (current->seq <= last)
-	return true;
-    }
-  }
+  if (current != NULL)
+    if (recvSeqs.count(current->msg.from) > 0)
+      return current->seq <= recvSeqs.find(current->msg.from)->second;
 
   return false;
 }
@@ -190,7 +185,7 @@ MSGID ReliableProcess::receive(double secs)
     // can be sure that the current message is the next in the
     // sequence (unless it's the first message or a duplicate).
     if (!duplicate()) {
-      assert((recvSeqs.find(current->msg.from) == recvSeqs.end()) ||
+      assert((recvSeqs.count(current->msg.from) == 0) ||
 	     (recvSeqs[current->msg.from] + 1 == current->seq));
       recvSeqs[current->msg.from] = current->seq;
     }
@@ -227,9 +222,12 @@ MSGID ReliableProcess::receive(double secs)
 	memcpy((char *) current, data, length);
 
 	// TODO(benh): Don't ignore out-of-order messages!
-	if (recvSeqs.find(current->msg.from) != recvSeqs.end())
-	  if (recvSeqs[current->msg.from] + 1 < current->seq)
-	    continue;
+	if (recvSeqs.count(current->msg.from) > 0 &&
+            recvSeqs[current->msg.from] + 1 < current->seq) {
+          free(current);
+          current = NULL;
+          continue;
+        }
 
 	// Note that we don't record the sequence number here so that
 	// our logic in 'duplicate' (see above) is correct. We might
