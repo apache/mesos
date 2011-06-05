@@ -34,12 +34,13 @@ TEST(ConfiguratorTest, Environment)
 
 TEST(ConfiguratorTest, DefaultOptions)
 {
-  const int ARGC = 4;
+  const int ARGC = 5;
   char* argv[ARGC];
   argv[0] = (char*) "bin/filename";
   argv[1] = (char*) "--test1=501";
   argv[2] = (char*) "--test2";
   argv[3] = (char*) "--excp=txt";
+  argv[4] = (char*) "--test8=foo";
 
   Configurator conf;
 
@@ -48,9 +49,11 @@ TEST(ConfiguratorTest, DefaultOptions)
   EXPECT_NO_THROW(conf.addOption<long>("test3", "Tests the default", 2010));
   EXPECT_NO_THROW(conf.addOption<string>("test4", "Option without default"));
   EXPECT_NO_THROW(conf.addOption<string>("test5", "Option with a default", 
-                                         "arb"));
+                                         "default"));
   EXPECT_NO_THROW(conf.addOption<bool>("test6", "Toggler...", false));
   EXPECT_NO_THROW(conf.addOption<bool>("test7", "Toggler...", true));
+  EXPECT_NO_THROW(conf.addOption<string>("test8", "Overridden default", 
+                                         "default"));
   EXPECT_NO_THROW(conf.load(ARGC, argv, false));
 
   EXPECT_NO_THROW(conf.addOption<int>("excp", "Exception tester.", 50));
@@ -58,14 +61,15 @@ TEST(ConfiguratorTest, DefaultOptions)
   conf.getParams()["excp"] = "27";
   EXPECT_NO_THROW(conf.validate());
 
-  EXPECT_EQ("501",    conf.getParams()["test1"]);
-  EXPECT_EQ("1",      conf.getParams()["test2"]);
-  EXPECT_EQ("2010",   conf.getParams()["test3"]);
-  EXPECT_EQ("",       conf.getParams()["test4"]);
-  EXPECT_EQ("arb",    conf.getParams()["test5"]);
-  EXPECT_EQ("27",     conf.getParams()["excp"]);
-  EXPECT_EQ("0",      conf.getParams()["test6"]);
-  EXPECT_EQ("1",      conf.getParams()["test7"]);
+  EXPECT_EQ("501",     conf.getParams()["test1"]);
+  EXPECT_EQ("1",       conf.getParams()["test2"]);
+  EXPECT_EQ("2010",    conf.getParams()["test3"]);
+  EXPECT_EQ("",        conf.getParams()["test4"]);
+  EXPECT_EQ("default", conf.getParams()["test5"]);
+  EXPECT_EQ("27",      conf.getParams()["excp"]);
+  EXPECT_EQ("0",       conf.getParams()["test6"]);
+  EXPECT_EQ("1",       conf.getParams()["test7"]);
+  EXPECT_EQ("foo",     conf.getParams()["test8"]);
 }
 
 

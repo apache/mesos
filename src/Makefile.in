@@ -4,6 +4,7 @@ SHELL = '/bin/sh'
 
 BINDIR = @top_builddir@/bin
 LIBDIR = @top_builddir@/lib
+CONFDIR = @top_builddir@/conf
 
 CC = @CC@
 CXX = @CXX@
@@ -198,6 +199,9 @@ WEBUI_FILES = $(BINDIR)/webui/bottle-0.5.6		\
               $(BINDIR)/webui/slave/webui.py		\
               $(BINDIR)/webui/static/stylesheet.css
 
+# We copy template config files into the conf directory.
+CONF_FILES = $(CONFDIR)/mesos.conf
+
 # Create rules for building the directories that aren't created
 # automagically by configure.
 OBJ_DIRECTORIES = common configurator detector exec launcher local	\
@@ -209,7 +213,7 @@ WEBUI_DIRECTORIES = $(BINDIR)/webui/common $(BINDIR)/webui/master	\
                     $(BINDIR)/webui/slave/swig
 
 DIRECTORIES = $(BINDIR) $(LIBDIR) $(LIBDIR)/java $(LIBDIR)/python	\
-              $(OBJ_DIRECTORIES) $(WEBUI_DIRECTORIES)
+              $(OBJ_DIRECTORIES) $(WEBUI_DIRECTORIES) $(CONFDIR)
 
 
 default: all
@@ -312,10 +316,13 @@ ifeq ($(WITH_WEBUI),1)
 	cp -r $< $@
 endif
 
+$(CONFDIR)/mesos.conf: @srcdir@/conf/mesos.conf.template | $(CONFDIR)
+	cp -r $^ $@
+
 test: all
 	$(MAKE) -C tests test
 
-all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES)
+all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES) $(CONF_FILES)
 	$(MAKE) -C examples
 	$(MAKE) -C tests
 

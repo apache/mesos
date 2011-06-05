@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "config.hpp"
+#include "config/config.hpp"
 #include "external_test.hpp"
 
 // Run each of the sample frameworks in local mode

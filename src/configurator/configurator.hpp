@@ -118,10 +118,6 @@ private:
                            shortName,
                            hasDefault,
                            defaultValue);
-    if (hasDefault && !params.contains(name)) {
-      // insert default value into params
-      params[name] = defaultValue;
-    }
   }
 
 public:
@@ -313,6 +309,11 @@ private:
    *         in the internal params (false by default)
    */
   void loadConfigFileIfGiven(bool overwrite = false);
+
+  /**
+   * Load default values of options whose values have not already been set.
+   */
+  void loadDefaults();
 
   /**
    * Gets the first long name option associated with the provided short name.

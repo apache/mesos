@@ -64,6 +64,7 @@ Params& Configurator::load(int argc, char** argv, bool inferMesosHomeFromArg0)
   loadEnv();
   loadCommandLine(argc, argv, inferMesosHomeFromArg0);
   loadConfigFileIfGiven();
+  loadDefaults();
   validate();
   return params;
 }
@@ -73,6 +74,7 @@ Params& Configurator::load()
 {
   loadEnv();
   loadConfigFileIfGiven();
+  loadDefaults();
   validate();
   return params;
 }
@@ -83,6 +85,7 @@ Params& Configurator::load(const map<string, string>& _params)
   loadEnv();
   params.loadMap(_params);
   loadConfigFileIfGiven();
+  loadDefaults();
   validate();
   return params;
 }
@@ -224,6 +227,7 @@ void Configurator::loadCommandLine(int argc,
 
 void Configurator::loadConfigFile(const string& fname, bool overwrite) 
 {
+  LOG(INFO) << "Loading config file: " << fname;
   ifstream cfg(fname.c_str(), std::ios::in);
   if (!cfg.is_open()) {
     string message = "Couldn't read Mesos config file: " + fname;
@@ -331,6 +335,15 @@ string Configurator::getUsage() const
   return usage;
 }
   
+
+void Configurator::loadDefaults() {
+  foreachpair (const string& key, const Option& option, options) {
+    if (option.hasDefault && !params.contains(key)) {
+      params[key] = option.defaultValue;
+    }
+  }
+}
+
 
 vector<string> Configurator::getOptions() const 
 {
