@@ -9,12 +9,12 @@ DIR=`readlink -f "$1"`
 DIR=`echo "$DIR"|sed 's@/$@@'`
 DEST=`dirname "$DIR"`
 
-SLAVES=/root/mesos-ec2/slaves
+SLAVES=`cat slaves`
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
 echo "RSYNC'ing $DIR to slaves..."
-for slave in `cat $SLAVES`; do
+for slave in $SLAVES; do
     echo $slave
     rsync -e "ssh $SSH_OPTS" -az "$DIR" "$slave:$DEST"
 done

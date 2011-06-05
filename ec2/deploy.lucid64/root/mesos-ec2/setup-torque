@@ -2,16 +2,16 @@
 
 cd /root/mesos-ec2
 
-SLAVES_FILE="/root/mesos-ec2/slaves"
-MASTER="`cat master`"
-SLAVES="`cat $SLAVES_FILE`"
+MASTERS=`cat master`
+SLAVES_FILE="slaves"
+SLAVES=`cat $SLAVES_FILE`
 
 SCHEDULER_ITERATION=5
 
 #These seem to be broken, i.e. missing directories after install
-#ssh $MASTER "apt-get install -y torque-server"
-#ssh $MASTER "apt-get install -y torque-scheduler"
-#ssh $MASTER "apt-get install -y torque-client"
+#ssh $MASTERS "apt-get install -y torque-server"
+#ssh $MASTERS "apt-get install -y torque-scheduler"
+#ssh $MASTERS "apt-get install -y torque-client"
 
 #install torque: download/unzip torque
 function installtorque {

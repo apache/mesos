@@ -6,14 +6,16 @@ BRANCH=$3
 # By exporting this git won't ask to accept a key.
 export GIT_SSH=/root/mesos-ec2/ssh-no-keychecking
 
-MASTERS=/root/mesos-ec2/masters
-SLAVES=/root/mesos-ec2/slaves
-ZOO=/root/mesos-ec2/zoo
+MASTERS_FILE="masters"
+MASTERS=`cat $MASTERS_FILE`
+NUM_MASTERS=`cat $MASTERS_FILE | wc -l`
+SLAVES=`cat slaves`
+ZOOS=`cat zoo`
 
-if [[ `cat $ZOO` = *zoo* ]]; then
-  ISFT=0
+if [[ $ZOOS = *zoo* ]]; then
+  NUM_ZOOS=0
 else
-  ISFT=`cat $ZOO | wc -l`
+  NUM_ZOOS=`cat zoo | wc -l`
 fi
 
 # Scripts that get used for/while running Mesos.
@@ -53,7 +55,7 @@ echo "Setting executable permissions on scripts..."
 for s in $SCRIPTS; do chmod u+x $s; done
 
 echo "SSH'ing to master machine(s) to approve key(s)..."
-for master in `cat $MASTERS`; do
+for master in $MASTERS; do
   echo $master
   ssh $SSH_OPTS $master echo -n &
   sleep 0.3
@@ -61,10 +63,10 @@ done
 
 ssh -q $SSH_OPTS localhost echo -n
 
-if [[ $ISFT != 0 ]] ; then
+if [[ $NUM_ZOOS != 0 ]] ; then
   echo "SSH'ing to Zoo server(s) to approve keys..."
   zid=1
-  for zoo in `cat $ZOO`; do
+  for zoo in $ZOO; do
     echo $zoo
     ssh $SSH_OPTS $zoo echo -n \; mkdir -p /tmp/zookeeper \; echo $zid \> /tmp/zookeeper/myid
     zid=$(($zid+1))
@@ -73,7 +75,7 @@ if [[ $ISFT != 0 ]] ; then
 fi
 
 echo "SSH'ing to slaves to approve keys..."
-for slave in `cat $SLAVES`; do
+for slave in $SLAVES; do
   echo $slave
   ssh $SSH_OPTS $slave echo -n &
   sleep 0.3
@@ -81,31 +83,31 @@ done
 echo "Waiting for commands to finish..."
 wait
 
-if [[ `cat $MASTERS | wc -l` > 1 ]] ; then
+if [[ $NUM_MASTERS -gt 1 ]] ; then
   echo "RSYNC'ing /root/mesos-ec2 to other master servers..."
-  for master in `cat $MASTERS | sed '1d'`; do
+  for master in `cat $MASTERS_FILE | sed '1d'`; do
       echo $master
       rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $master:/root
   done
 fi
 
-if [[ $ISFT != 0 ]] ; then
+if [[ $NUM_ZOOS != 0 ]] ; then
   echo "RSYNC'ing /root/mesos-ec2 to other Zoo servers..."
-  for zoo in `cat $ZOO`; do
+  for zoo in $ZOOS; do
       echo $zoo
       rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $zoo:/root
   done
 fi
 
 echo "RSYNC'ing /root/mesos-ec2 to slaves..."
-for slave in `cat $SLAVES`; do
+for slave in $SLAVES; do
   echo $slave
   rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $slave:/root
   scp ~/.ssh/id_rsa $slave:.ssh
 done
 
 echo "Setting up slaves..."
-for slave in `cat $SLAVES`; do
+for slave in $SLAVES; do
   echo $slave
   ssh -t $SSH_OPTS root@$slave "mesos-ec2/setup-slave"
 done
@@ -113,16 +115,16 @@ done
 echo "Setting up master as slave (i.e. for local)..."
 ./setup-slave
 
-if [[ `cat $MASTERS | wc -l` > 1 ]] ; then
-  echo "RSYNC'ing Hadoop config files for HDFS to masters..."
-  for master in `cat $MASTERS`; do
+if [[ $NUM_MASTERS -gt 1 ]] ; then
+  echo "RSYNC'ing Hadoop config files for HDFS to other masters..."
+  for master in `cat $MASTERS_FILE | sed '1d'`; do
     echo $master
     rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $master:$HADOOP_HOME
   done
 fi
 
 echo "RSYNC'ing Hadoop config files for HDFS to slaves..."
-for slave in `cat $SLAVES`; do
+for slave in $SLAVES; do
   echo $slave
   rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $slave:$HADOOP_HOME
 done
@@ -188,7 +190,7 @@ if [ ! -e /mnt/nfs ] ; then
   exportfs -a
 fi
 echo "Mounting NFS on slaves..."
-for slave in `cat $SLAVES`; do
+for slave in $SLAVES; do
   echo $slave
   ssh -t $SSH_OPTS root@$slave "mkdir -p /nfs; mount $HOSTNAME:/nfs /nfs"
 done
