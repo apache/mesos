@@ -57,10 +57,10 @@ namespace nexus { namespace internal {
  * any synchronization necessary is performed.
  */
 
-class ReliableReply : public Tuple<Process>
+class RbReply : public Tuple<Process>
 {    
 public:
-  ReliableReply(const PID &_p, const TaskID &_tid) : 
+  RbReply(const PID &_p, const TaskID &_tid) : 
     parent(_p), tid(_tid), terminate(false) {}
   
 protected:
@@ -69,7 +69,7 @@ protected:
     link(parent);
     while(!terminate) {
 
-      switch(receive(FT_TIMEOUT)) {
+      switch(receive(FT_TIMEOUT*3)) {
       case F2F_TASK_RUNNING_STATUS: {
         terminate = true;
         break;
@@ -116,7 +116,7 @@ private:
 
   volatile bool terminate;
 
-  unordered_map<TaskID, ReliableReply *> reliableReplies;
+  unordered_map<TaskID, RbReply *> rbReplies;
 
 public:
   SchedulerProcess(const string &_master,
@@ -265,8 +265,8 @@ protected:
 
         if (isFT) {
           foreach(const TaskDescription &task, tasks) {
-            ReliableReply *rr = new ReliableReply(self(), task.taskId);
-            reliableReplies[task.taskId] = rr;
+            RbReply *rr = new RbReply(self(), task.taskId);
+            rbReplies[task.taskId] = rr;
             link(spawn(rr));
           }
         }
@@ -308,8 +308,11 @@ protected:
         DLOG(INFO) << "FT: Received message with id: " << ftId;
 
         if (state == TASK_RUNNING) {
-          send(reliableReplies[tid]->getPID(), pack<F2F_TASK_RUNNING_STATUS>());
-          reliableReplies.erase(tid);
+          unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
+          if (it != rbReplies.end()) {
+            send(it->second->getPID(), pack<F2F_TASK_RUNNING_STATUS>());
+            rbReplies.erase(tid);
+          }
         }
 
         TaskStatus status(tid, state, data);
@@ -323,6 +326,12 @@ protected:
         string data;
         unpack<M2F_STATUS_UPDATE>(tid, state, data);
         TaskStatus status(tid, state, data);
+
+        unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
+        if (it != rbReplies.end() && it->second->getPID() == from()) { // clean rbReplies
+          rbReplies.erase(tid);
+        }
+
         invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
         break;
       }
