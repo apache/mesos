@@ -203,6 +203,10 @@ MESOS_JAVA_JAR = $(LIBDIR)/java/mesos.jar
 
 MESOS_PYTHON_LIB = $(LIBDIR)/python/_mesos.so
 
+MESOS_PYTHON_LIB_OBJ = python/native/module.o \
+	               python/native/proxy_scheduler.o \
+		       python/native/mesos_scheduler_driver_impl.o
+
 # We copy all the webui files into the bin directory.
 WEBUI_FILES = $(BINDIR)/webui/bottle-0.8.3		\
               $(BINDIR)/webui/common/webui_lib.py	\
@@ -350,7 +354,12 @@ endif
 
 python: $(MESOS_PYTHON_LIB)
 
-$(MESOS_PYTHON_LIB): $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) python/native/mesos.cpp | $(LIBDIR)/python
+$(MESOS_PYTHON_LIB_OBJ): %.o: $(SRCDIR)/%.cpp
+ifdef PYTHON_HEADERS
+	$(CXX) -c $(CXXFLAGS) -Ipython/native -I$(PYTHON_HEADERS) -o $@ $<
+endif
+
+$(MESOS_PYTHON_LIB): $(MESOS_PYTHON_LIB_OBJ) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) | $(LIBDIR)/python
 ifdef PYTHON_HEADERS
 	# Compile protocol buffers' descriptor.proto into its source directory
 	# to create $(PROTOBUF)/python/google/protobuf/descriptor_pb2.py.
@@ -358,8 +367,8 @@ ifdef PYTHON_HEADERS
 	# as part of the google.protobuf module if you want to run Python apps
 	# using the protobuf shipped with Mesos.
 	$(PROTOC) --python_out=@top_builddir@/$(PROTOBUF)/python -I@top_builddir@/$(PROTOBUF)/src @top_builddir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto
-	# Build native Python module
-	$(CXX) $(CXXFLAGS) -I$(PYTHON_HEADERS) -shared -o $@ python/native/mesos.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
+	# Build native Python module with Mesos SchedulerDriver, ExecutorDriver
+	$(CXX) $(CXXFLAGS) -shared -o $@ $(MESOS_PYTHON_LIB_OBJ) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
 	# Copy mesos.py to lib
 	cp python/src/mesos.py $(LIBDIR)/python/mesos.py
 endif
