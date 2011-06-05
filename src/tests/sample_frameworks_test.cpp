@@ -6,7 +6,6 @@
 
 
 // Run each of the sample frameworks in local mode
-TEST_EXTERNAL(SampleFrameworks, CFramework)
 TEST_EXTERNAL(SampleFrameworks, CppFramework)
 #if MESOS_HAS_JAVA
   TEST_EXTERNAL(SampleFrameworks, JavaFramework)
@@ -16,7 +15,8 @@ TEST_EXTERNAL(SampleFrameworks, CppFramework)
   TEST_EXTERNAL(SampleFrameworks, PythonFramework)
 #endif
 
-// Some tests for command-line and environment configuration
-TEST_EXTERNAL(SampleFrameworks, CFrameworkCmdlineParsing)
-TEST_EXTERNAL(SampleFrameworks, CFrameworkInvalidCmdline)
-TEST_EXTERNAL(SampleFrameworks, CFrameworkInvalidEnv)
+// TODO(*): Add the tests below as C++ tests.
+// // Some tests for command-line and environment configuration
+// TEST_EXTERNAL(SampleFrameworks, CFrameworkCmdlineParsing)
+// TEST_EXTERNAL(SampleFrameworks, CFrameworkInvalidCmdline)
+// TEST_EXTERNAL(SampleFrameworks, CFrameworkInvalidEnv)
