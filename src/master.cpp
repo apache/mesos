@@ -73,10 +73,12 @@ protected:
 
     while (true) {
       pause(1);
+
       send(master, pack<M2M_GET_STATE>());
       receive();
+      CHECK(msgid() == M2M_GET_STATE_REPLY);
       state::MasterState *state;
-      unpack<M2M_GET_STATE_REPLY>(*((int64_t *) &state));
+      unpack<M2M_GET_STATE_REPLY>(*((intptr_t *) &state));
 
       uint32_t total_cpus = 0;
       uint64_t total_mem = 0;
@@ -702,7 +704,7 @@ void Master::operator () ()
     }
 
     case M2M_GET_STATE: {
-      send(from(), pack<M2M_GET_STATE_REPLY>((int64_t) getState()));
+      send(from(), pack<M2M_GET_STATE_REPLY>((intptr_t) getState()));
       break;
     }
     

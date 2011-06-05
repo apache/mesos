@@ -371,8 +371,8 @@ void Slave::operator () ()
       }
 
       case S2S_GET_STATE: {
-        send(from(), pack<S2S_GET_STATE_REPLY>((int64_t) getState()));
-        break;
+ 	send(from(), pack<S2S_GET_STATE_REPLY>((intptr_t) getState()));
+	break;
       }
 
       case PROCESS_EXIT: {

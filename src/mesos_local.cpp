@@ -1,4 +1,3 @@
-#include <getopt.h>
 #include <pthread.h>
 
 #include <tuple.hpp>

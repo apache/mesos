@@ -11,9 +11,9 @@
 #include <mesos.hpp>
 #include <mesos_types.hpp>
 
+#include "foreach.hpp"
 #include "params.hpp"
 #include "resources.hpp"
-#include "foreach.hpp"
 #include "task.hpp"
 
 
@@ -334,7 +334,7 @@ TUPLE(M2M_GET_STATE,
       ());
 
 TUPLE(M2M_GET_STATE_REPLY,
-      (int64_t /* TODO(benh): BUG ON 32 BIT! ... pointer to MasterState*/));
+      (intptr_t /* master::state::MasterState * */));
 
 TUPLE(M2M_TIMER_TICK,
       ());
@@ -352,7 +352,7 @@ TUPLE(S2S_GET_STATE,
       ());
 
 TUPLE(S2S_GET_STATE_REPLY,
-      (int64_t /* TODO(benh): BUG ON 32 BIT! ... pointer to SlaveState*/));
+      (intptr_t /* slave::state::SlaveState * */));
 
 TUPLE(S2S_CHILD_EXIT,
       (int32_t /*OS PID*/,

@@ -7,7 +7,8 @@
 
 #include "config.hpp"
 #include "foreach.hpp"
-#include "messages.hpp"
+#include "mesos_types.hpp"
+
 
 namespace mesos { namespace internal { namespace slave { namespace state {
 

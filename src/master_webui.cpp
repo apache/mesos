@@ -63,8 +63,8 @@ public:
   {
     send(::master, pack<M2M_GET_STATE>());
     receive();
-    int64_t *i = (int64_t *) &masterState;
-    unpack<M2M_GET_STATE_REPLY>(*i);
+    CHECK(msgid() == M2M_GET_STATE_REPLY);
+    unpack<M2M_GET_STATE_REPLY>(*((intptr_t *) &masterState));
   }
 };
 

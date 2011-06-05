@@ -64,8 +64,8 @@ public:
   {
     send(::slave, pack<S2S_GET_STATE>());
     receive();
-    int64_t *i = (int64_t *) &slaveState;
-    unpack<S2S_GET_STATE_REPLY>(*i);
+    CHECK(msgid() == S2S_GET_STATE_REPLY);
+    unpack<S2S_GET_STATE_REPLY>(*((intptr_t *) &slaveState));
   }
 };
 
