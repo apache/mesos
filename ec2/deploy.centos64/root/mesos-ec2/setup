@@ -236,7 +236,7 @@ if [[ $NUM_ZOOS != 0 ]]; then
     ssh $SSH_OPTS $zoo "/root/mesos/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null" & sleep 0.1
   done
   wait
-  sleep 2
+  sleep 5
 fi
 
 echo "Stopping any existing Mesos cluster..."
