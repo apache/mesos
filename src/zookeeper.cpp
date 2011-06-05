@@ -458,11 +458,7 @@ protected:
       int ops;
       timeval tv;
 
-      if (!prepare(&fd, &ops, &tv)) {
-	// Prepare failed, force immediate process.
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-      }
+      prepare(&fd, &ops, &tv);
 
       if (await(fd, ops, tv, false)) {
 	// Either timer expired (might be 0) or data became available on fd.

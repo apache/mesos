@@ -1607,9 +1607,6 @@ public:
 
     bool interrupted = false;
 
-    if (fd < 0)
-      return false;
-
     process->lock();
     {
       /* Consider a non-empty message queue as an immediate interrupt. */
@@ -1618,39 +1615,40 @@ public:
 	return false;
       }
 
-      /* Allocate/Initialize the watcher. */
-      ev_io *io_watcher = (ev_io *) malloc(sizeof(ev_io));
+      assert(secs > 0);
 
-      if ((op & Process::RDWR) == Process::RDWR)
-	ev_io_init(io_watcher, handle_await, fd, EV_READ | EV_WRITE);
-      else if ((op & Process::RDONLY) == Process::RDONLY)
-	ev_io_init(io_watcher, handle_await, fd, EV_READ);
-      else if ((op & Process::WRONLY) == Process::WRONLY)
-	ev_io_init(io_watcher, handle_await, fd, EV_WRITE);
+      /* Create timeout. */
+      const timeout_t &timeout = create_timeout(process, secs);
 
-      /* Tuple describing state (on heap in case we get interrupted). */
-      io_watcher->data =
-	new tuple<Process *, int>(process, process->generation);
+      /* Start the timeout. */
+      start_timeout(timeout);
 
-      timeout_t timeout;
+      // Treat an await with a bad fd as an interruptible pause!
+      if (fd >= 0) {
+	/* Allocate/Initialize the watcher. */
+	ev_io *io_watcher = (ev_io *) malloc(sizeof(ev_io));
 
-      if (secs > 0) {
-	/* Create timeout. */
-	timeout = create_timeout(process, secs);
+	if ((op & Process::RDWR) == Process::RDWR)
+	  ev_io_init(io_watcher, handle_await, fd, EV_READ | EV_WRITE);
+	else if ((op & Process::RDONLY) == Process::RDONLY)
+	  ev_io_init(io_watcher, handle_await, fd, EV_READ);
+	else if ((op & Process::WRONLY) == Process::WRONLY)
+	  ev_io_init(io_watcher, handle_await, fd, EV_WRITE);
 
-	/* Start the timeout. */
-	start_timeout(timeout);
-      }
+	/* Tuple describing state (on heap in case we get interrupted). */
+	io_watcher->data =
+	  new tuple<Process *, int>(process, process->generation);
 
-      /* Enqueue the watcher. */
-      acquire(io_watchersq);
-      {
-	io_watchersq->push(io_watcher);
-      }
-      release(io_watchersq);
+	/* Enqueue the watcher. */
+	acquire(io_watchersq);
+	{
+	  io_watchersq->push(io_watcher);
+	}
+	release(io_watchersq);
     
-      /* Interrupt the loop. */
-      ev_async_send(loop, &async_watcher);
+	/* Interrupt the loop. */
+	ev_async_send(loop, &async_watcher);
+      }
 
       /* Context switch. */
       process->state = Process::AWAITING;
@@ -1660,7 +1658,7 @@ public:
 	     process->state == Process::INTERRUPTED);
 
       /* Attempt to cancel the timer if necessary. */
-      if (secs > 0 && process->state != Process::TIMEDOUT)
+      if (process->state != Process::TIMEDOUT)
 	cancel_timeout(timeout);
 
       if (process->state == Process::INTERRUPTED)
