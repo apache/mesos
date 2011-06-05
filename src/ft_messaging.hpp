@@ -63,25 +63,36 @@ using boost::unordered_set;
 class EmptyClass {
 };
 
+
+/**
+ * Interface used to signal that a message has timed out. 
+ */
+class FTCallback {
+public:
+  /**
+   * Called from sendOutstanding() if a message has a callback object and it has timed out.
+   */
+  virtual void timeout() = 0;
+};
+
 /**
  * Used in FTMessaging to store unacked messages, their count, ftId, libprocess id.
  * @see FTMessaging
  */
 struct FTStoredMsg {
 
-  FTStoredMsg(const string &_ftId, const string &_data, const MSGID &_id) : 
-    ftId(_ftId), data(_data), id(_id), count(1), ts(time(0)) {}
+  FTStoredMsg(const string &_ftId, const string &_data, const MSGID &_id, FTCallback *_cb=NULL) : 
+    ftId(_ftId), data(_data), id(_id), count(1), ts(time(0)), callback(_cb) {}
 
-  FTStoredMsg() : ftId(""), data(""), id(), count(1), ts(time(0)) {}
+  FTStoredMsg(bool _cb=false) : ftId(""), data(""), id(), count(1), ts(time(0)), callback(NULL) {}
 
   string ftId;
   string data;
   MSGID id;
   long count;
   time_t ts;   // not currently used
+  FTCallback *callback;
 };
-
-
 
 /**
  * Singleton class that provides functionality for reliably sending messages, 
@@ -113,13 +124,14 @@ public:
    * @see getNextId().
    * @param ftId string representing the unique FT id of the message
    * @param msgTuple libprocess tuple<ID> 
+   * @param FTCallback if not null, then FTCallback will be called by sendOutstanding()
    */
-  template<MSGID ID> void reliableSend(const string &ftId, const tuple<ID> &msgTuple)
+  template<MSGID ID> void reliableSend(const string &ftId, const tuple<ID> &msgTuple, FTCallback *callback=NULL)
   {
     DLOG(INFO) << "FT: sending " << ftId;
     string msgStr = Tuple<EmptyClass>::tupleToString(msgTuple);
-    FTStoredMsg sm(ftId, msgStr, ID);
-    outMsgs[ftId] = sm;
+
+    outMsgs[ftId] = FTStoredMsg(ftId, msgStr, ID, callback);
     if (!master) {
       DLOG(INFO) << "FT: Not RE-resending due to NULL master PID";
       return;

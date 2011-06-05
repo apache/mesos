@@ -77,6 +77,10 @@ public:
 
   virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
     cout << endl << "Task " << status.taskId << " is in state " << status.state << endl;
+    if (status.state == TASK_LOST) 
+       {
+	  cout << endl << "Task " << status.taskId << " lost. Not doing anything about it." << endl;
+       }
     if (status.state == TASK_FINISHED)
       tasksFinished++;
     if (tasksFinished == totalTasks)

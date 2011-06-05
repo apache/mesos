@@ -1,3 +1,6 @@
+
+#define FT_TIMEOUT 10
+
 #include <dlfcn.h>
 #include <errno.h>
 #include <pwd.h>
@@ -56,6 +59,8 @@ namespace nexus { namespace internal {
  * any synchronization necessary is performed.
  */
 
+    
+
 class SchedulerProcess : public Tuple<Process>
 {
 public:
@@ -100,6 +105,26 @@ private:
     PID parentPID;
   } schedLeaderListener;
 
+  
+  class TimeoutListener;
+  friend class TimeoutListener;
+
+  class TimeoutListener : public FTCallback {
+  public:
+    TimeoutListener(SchedulerProcess *s, vector<TaskDescription> t) : parent(s), tasks(t) {}
+ 
+   virtual void timeout() {
+      foreach (TaskDescription &t, tasks) {
+        DLOG(INFO) << "FT: faking M2F_STATUS_UPDATE due to timeout to server during ReplyToOffer";
+        parent->send( parent->self(), 
+                      pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
+      }
+    }
+
+  private:
+    SchedulerProcess *parent;
+    vector<TaskDescription> tasks;
+  };
 
 public:
   SchedulerProcess(const PID &_master,
@@ -175,7 +200,7 @@ protected:
       if (terminate)
         return;
 
-      switch(receive()) {
+      switch(receive(FT_TIMEOUT)) {
       case M2F_REGISTER_REPLY: {
         unpack<M2F_REGISTER_REPLY>(fid);
         invoke(bind(&Scheduler::registered, sched, driver, fid));
@@ -214,6 +239,7 @@ protected:
 
 
       case M2F_STATUS_UPDATE: {
+        DLOG(INFO) << "Got M2F_STATUS_UPDATE";
         TaskID tid;
         TaskState state;
         string data;
@@ -281,6 +307,10 @@ protected:
 	link(master);
         ftMsg->setMasterPid(master);
 	send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user, execInfo));
+	break;
+      }
+      case PROCESS_TIMEOUT: {
+        ftMsg->sendOutstanding();
 	break;
       }
       default: {
@@ -480,6 +510,20 @@ void NexusSchedulerDriver::replyToOffer(OfferID offerId,
 
   // TODO(benh): Do a Process::post instead?
 
+  if (process->isFT) {
+    SchedulerProcess::TimeoutListener *tListener = 
+      new SchedulerProcess::TimeoutListener(process, tasks);
+
+    string ftId = process->ftMsg->getNextId();
+    process->ftMsg->reliableSend( ftId,
+                                  process->pack<F2M_FT_SLOT_OFFER_REPLY>(ftId,
+                                                                         process->self(),
+                                                                         process->fid,
+                                                                         offerId,
+                                                                         tasks,
+                                                                         Params(params)),
+                                  tListener);
+  } else
   process->send(process->master,
                 process->pack<F2M_SLOT_OFFER_REPLY>(process->fid,
                                                     offerId,

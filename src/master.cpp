@@ -353,6 +353,35 @@ void Master::operator () ()
       break;
     }
 
+    case F2M_FT_SLOT_OFFER_REPLY: {
+      FrameworkID fid;
+      OfferID oid;
+      vector<TaskDescription> tasks;
+      Params params;
+      string ftId, senderStr;
+      unpack<F2M_FT_SLOT_OFFER_REPLY>(ftId, senderStr, fid, oid, tasks, params);
+      if (!ftMsg->acceptMessageAck(senderStr, ftId)) {
+        LOG(WARNING) << "FT: Locally ignoring duplicate message with id:" << ftId;
+        break;
+      } 
+      Framework *framework = lookupFramework(fid);
+      if (framework != NULL) {
+	SlotOffer *offer = lookupSlotOffer(oid);
+	if (offer != NULL) {
+	  processOfferReply(offer, tasks, params);
+	} else {
+	  // The slot offer is gone, meaning that we rescinded it or that
+	  // the slave was lost; immediately report any tasks in it as lost
+	  foreach (TaskDescription &t, tasks) {
+	    send(framework->pid,
+		 pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
+	  }
+	}
+      } else
+        DLOG(INFO) << "F2M_FT_SLOT_OFFER_REPLY error: couldn't lookup framework id" << fid;
+      break;
+    }
+
     case F2M_SLOT_OFFER_REPLY: {
       FrameworkID fid;
       OfferID oid;
