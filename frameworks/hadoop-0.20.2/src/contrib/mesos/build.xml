@@ -28,7 +28,7 @@ to call at top-level: ant deploy-contrib compile-core-test
   <condition property="mesos.home" value="${env.MESOS_HOME}" else="${basedir}/../../../../..">
     <isset property="env.MESOS_HOME" />
   </condition>
-  <property name="mesos.jar" value="${mesos.home}/src/swig/java/mesos.jar" />
+  <property name="mesos.jar" value="${mesos.home}/lib/java/mesos.jar" />
   <echo>Mesos jar: ${mesos.jar}</echo>
 
   <!-- add it to our Classpath -->

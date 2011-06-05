@@ -1467,10 +1467,10 @@ Index: src/contrib/mesos/build.xml
 +
 +  <!-- locate Mesos home -->
 +  <property environment="env" />
-+  <condition property="mesos.home" value="${env.MESOS_HOME}" else="${basedir}/../../../../../src">
++  <condition property="mesos.home" value="${env.MESOS_HOME}" else="${basedir}/../../../../..">
 +    <isset property="env.MESOS_HOME" />
 +  </condition>
-+  <property name="mesos.jar" value="${mesos.home}/swig/java/mesos.jar" />
++  <property name="mesos.jar" value="${mesos.home}/lib/java/mesos.jar" />
 +  <echo>Mesos jar: ${mesos.jar}</echo>
 +
 +  <!-- add it to our Classpath -->
@@ -1850,11 +1850,11 @@ Index: bin/hadoop
 +# add Mesos to classpath
 +if [ "x$MESOS_HOME" == "x" ] ; then
 +  if [ -d "$HADOOP_HOME/../../src/swig/java" ] ; then
-+    MESOS_HOME=`cd "$HADOOP_HOME/../../src"; pwd`
++    MESOS_HOME=`cd "$HADOOP_HOME/../../"; pwd`
 +  fi
 +fi
 +if [ "x$MESOS_HOME" != "x" ] ; then
-+  CLASSPATH="$CLASSPATH:$MESOS_HOME/swig/java"
++  CLASSPATH="$CLASSPATH:$MESOS_HOME/lib/java/mesos.jar"
 +fi
 +CLASSPATH="$CLASSPATH:$HADOOP_HOME/build/contrib/mesos/classes"
 +
