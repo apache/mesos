@@ -104,7 +104,8 @@ int SqlLiteEventWriter::logFrameworkRegistered(FrameworkID fwid, string user) {
      << "\"" << user << "\"" << ","
      << DateUtils::currentDateTimeInMicro() << ")" << endl;
   DLOG(INFO) << "executing " << ss.str() << endl;
-  sqlite3_exec(db, ss.str().c_str(), callback, 0, &zErrMsg); 
+  char *errMsg = 0;
+  sqlite3_exec(db, ss.str().c_str(), callback, 0, &errMsg); 
   return 0;
 }
 
