@@ -19,12 +19,12 @@ RUBY_HEADERS = @RUBY_HEADERS@
 WITH_WEBUI = @WITH_WEBUI@
 WEBUI_FLAGS = @WEBUI_FLAGS@
 
-WITH_ZOOKEEPER = @WITH_ZOOKEEPER@
-
 LIBEV = third_party/libprocess/third_party/libev-3.8
 
 GLOG = third_party/glog-0.3.0
 GTEST = third_party/gtest-1.4.0-patched
+
+ZOOKEEPER = third_party/zookeeper-3.3.0/src/c
 
 # Ensure that we get better debugging info.
 CFLAGS += -g
@@ -47,11 +47,16 @@ CFLAGS += -Ithird_party/libprocess
 CXXFLAGS += -Ithird_party/libprocess
 LDFLAGS += -Lthird_party/libprocess
 
-# Add glog and gtest to include and lib paths
+# Add libev to LDFLAGS.
+LDFLAGS += -L$(LIBEV)/.libs
+
+# Add glog and gtest and zookeeper to include and lib paths
 CXXFLAGS += -I$(GLOG)/src
 CXXFLAGS += -I$(GTEST)/include
+CXXFLAGS += -I$(ZOOKEEPER)/include -I$(ZOOKEEPER)/generated -DTHREADED
 LDFLAGS += -L$(GLOG)/.libs
 LDFLAGS += -L$(GTEST)/lib/.libs
+LDFLAGS += -L$(ZOOKEEPER)/.libs
 
 # Add dependency tracking to CFLAGS, CXXFLAGS.
 CFLAGS += -MMD -MP
@@ -65,16 +70,8 @@ CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
 CFLAGS += -DBUILD_USER="\"$$USER\""
 CXXFLAGS += -DBUILD_USER="\"$$USER\""
 
-# Add libev to LDFLAGS.
-LDFLAGS += -L$(LIBEV)/.libs
-
 # Add libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl
-
-# Add zookeeper_st to LIBS if necessary.
-ifeq ($(WITH_ZOOKEEPER),1)
-  LIBS += -lzookeeper_st
-endif
+LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lzookeeper_mt
 
 NEXUS_EXES = nexus-master nexus-slave nexus-local nexus-launcher alltests \
 	     test-framework test-executor cpp-test-framework cpp-test-executor \
@@ -95,7 +92,7 @@ NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(NEXUS_LIB)
 MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
 SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
 	    process_based_isolation_module.o
-COMMON_OBJ = fatal.o hash_pid.o messages.o
+COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o leader_detector.o url_processor.o ft_messaging.o
 EXEC_LIB_OBJ = nexus_exec.o
 SCHED_LIB_OBJ = nexus_sched.o nexus_local.o params.o
 TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o
@@ -106,11 +103,6 @@ endif
 
 ifeq ($(OS_NAME),linux)
   SLAVE_OBJ += lxc_isolation_module.o
-endif
-
-# Add zookeeper.cpp if necessary.
-ifeq ($(WITH_ZOOKEEPER),1)
-  COMMON_OBJ += zookeeper.o
 endif
 
 ALL_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ) \
@@ -141,7 +133,7 @@ $(NEXUS_LIBS): $(COMMON_OBJ) third_party/libprocess/libprocess.a
 $(NEXUS_EXES): $(COMMON_OBJ) third_party/libprocess/libprocess.a
 
 $(SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
-	$(AR) rcs $@ $^ third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a
+	$(AR) rcs $@ $^ third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a $(ZOOKEEPER)/.libs/libzookeeper_mt.a
 
 $(EXEC_LIB): $(EXEC_LIB_OBJ) $(COMMON_OBJ)
 	$(AR) rcs $@ $^
@@ -260,6 +252,7 @@ third_party:
 	$(MAKE) -C third_party/libprocess
 	$(MAKE) -C $(GLOG)
 	$(MAKE) -C $(GTEST)
+	$(MAKE) -C $(ZOOKEEPER)
 
 all: third_party $(NEXUS_LIBS) $(NEXUS_EXES) java python ruby
 
@@ -267,6 +260,7 @@ clean:
 	$(MAKE) -C third_party/libprocess clean
 	$(MAKE) -C $(GLOG) clean
 	$(MAKE) -C $(GTEST) clean
+	$(MAKE) -C $(ZOOKEEPER) clean
 	rm -f $(patsubst %.o, %.d, $(ALL_OBJ))
 	rm -f $(ALL_OBJ)
 	rm -f $(NEXUS_LIBS)
@@ -287,5 +281,6 @@ clean:
 	rm -f webui/master/swig/master_wrap.o
 	rm -f webui/master/swig/master.py
 	rm -f webui/master/swig/master.pyc
+	rm -f TAGS
 
 .PHONY: default third_party all clean java python ruby test

@@ -8,13 +8,15 @@ CFLAGS="${CFLAGS} -O2 -fno-strict-aliasing -fPIC"
 CXXFLAGS="${CXXFLAGS} -O2 -fno-strict-aliasing -fPIC"
 export CFLAGS
 export CXXFLAGS
-PYTHON=python2.6
-ac_configure_args="$ac_configure_args --enable-shared=no"
+PYTHON=python
+
+ac_configure_args="--enable-shared=no --with-pic"
 
 AC_CONFIG_FILES([Makefile src/Makefile src/config.hpp])
 AC_CONFIG_SUBDIRS([src/third_party/libprocess])
 AC_CONFIG_SUBDIRS([src/third_party/gtest-1.4.0-patched])
 AC_CONFIG_SUBDIRS([src/third_party/glog-0.3.0])
+AC_CONFIG_SUBDIRS([src/third_party/zookeeper-3.3.0/src/c])
 
 AC_CANONICAL_SYSTEM
 
