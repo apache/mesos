@@ -535,7 +535,6 @@ void Master::operator () ()
     }
 
     case M2M_TIMER_TICK: {
-      LOG(INFO) << "Allocator timer tick";
       foreachpair (_, Framework *framework, frameworks)
         framework->removeExpiredFilters();
       allocator->timerTick();

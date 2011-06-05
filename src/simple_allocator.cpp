@@ -162,8 +162,6 @@ void SimpleAllocator::makeNewOffers(Slave* slave)
 
 void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
 {
-  LOG(INFO) << "Running makeNewOffers...";
-  
   // Get an ordering of frameworks to send offers to
   vector<Framework*> ordering = getAllocationOrdering();
   if (ordering.size() == 0)
