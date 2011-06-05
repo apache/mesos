@@ -64,11 +64,11 @@ public:
   virtual ~ExecutorDriver() {}
 
   // Connect to a slave and run the scheduler until it is shut down
-  virtual void run() {}
+  virtual int run() { return -1; }
 
   // Communication methods from executor to Nexus
-  virtual void sendStatusUpdate(const TaskStatus& status) {}
-  virtual void sendFrameworkMessage(const FrameworkMessage& message) {}
+  virtual int sendStatusUpdate(const TaskStatus& status) { return -1; }
+  virtual int sendFrameworkMessage(const FrameworkMessage& message) { return -1; }
 };
 
 
@@ -84,9 +84,9 @@ public:
   NexusExecutorDriver(Executor* executor);
   virtual ~NexusExecutorDriver();
 
-  virtual void run();
-  virtual void sendStatusUpdate(const TaskStatus& status);
-  virtual void sendFrameworkMessage(const FrameworkMessage& message);
+  virtual int run();
+  virtual int sendStatusUpdate(const TaskStatus& status);
+  virtual int sendFrameworkMessage(const FrameworkMessage& message);
 
   // Executor getter; required by some of the SWIG proxies
   virtual Executor* getExecutor() { return executor; }

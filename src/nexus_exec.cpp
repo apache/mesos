@@ -147,7 +147,7 @@ NexusExecutorDriver::~NexusExecutorDriver()
 }
 
 
-void NexusExecutorDriver::run()
+int NexusExecutorDriver::run()
 {
   // Set stream buffering mode to flush on newlines so that we capture logs
   // from user processes even when output is redirected to a file.
@@ -188,17 +188,21 @@ void NexusExecutorDriver::run()
   Process::wait(Process::spawn(process));
 
   process = NULL;
+
+  return 0;
 }
 
 
-void NexusExecutorDriver::sendStatusUpdate(const TaskStatus &status)
+int NexusExecutorDriver::sendStatusUpdate(const TaskStatus &status)
 {
   Lock lock(&mutex);
 
   /* TODO(benh): Increment ref count on process. */
   
-  if (!process)
-    executor->error(this, EINVAL, "Executor has exited");
+  if (!process) {
+    //executor->error(this, EINVAL, "Executor has exited");
+    return -1;
+  }
 
   process->send(process->slave,
                 process->pack<E2S_STATUS_UPDATE>(process->fid,
@@ -207,23 +211,29 @@ void NexusExecutorDriver::sendStatusUpdate(const TaskStatus &status)
                                                  status.data));
 
   /* TODO(benh): Decrement ref count on process. */
+
+  return 0;
 }
 
 
-void NexusExecutorDriver::sendFrameworkMessage(const FrameworkMessage &message)
+int NexusExecutorDriver::sendFrameworkMessage(const FrameworkMessage &message)
 {
   Lock lock(&mutex);
 
   /* TODO(benh): Increment ref count on process. */
   
-  if (!process)
-    executor->error(this, EINVAL, "Executor has exited");
+  if (!process) {
+    //executor->error(this, EINVAL, "Executor has exited");
+    return -1;
+  }
 
   process->send(process->slave,
                 process->pack<E2S_FRAMEWORK_MESSAGE>(process->fid,
                                                      message));
 
   /* TODO(benh): Decrement ref count on process. */
+
+  return 0;
 }
 
 
