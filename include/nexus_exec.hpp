@@ -41,7 +41,7 @@ public:
   virtual ~Executor() {}
 
   virtual void init(ExecutorDriver* d, const ExecutorArgs& args) {}
-  virtual void startTask(ExecutorDriver* d, const TaskDescription& task) {}
+  virtual void launchTask(ExecutorDriver* d, const TaskDescription& task) {}
   virtual void killTask(ExecutorDriver* d, TaskID taskId) {}
   virtual void frameworkMessage(ExecutorDriver* d,
                                 const FrameworkMessage& message) {}

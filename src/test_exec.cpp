@@ -22,7 +22,7 @@ void init(struct nexus_exec* exec,
 }
 
 
-void run(struct nexus_exec* exec, struct nexus_task_desc* task)
+void launch_task(struct nexus_exec* exec, struct nexus_task_desc* task)
 {
   struct nexus_task_status done = { task->tid, TASK_FINISHED, 0, 0 };
   cout << "run()" << endl;
@@ -32,13 +32,14 @@ void run(struct nexus_exec* exec, struct nexus_task_desc* task)
 }
 
 
-void kill(struct nexus_exec* exec, task_id tid)
+void kill_task(struct nexus_exec* exec, task_id tid)
 {
   cout << "asked to kill task, but that isn't implemented" << endl;
 }
 
 
-void message(struct nexus_exec* exec, struct nexus_framework_message* msg)
+void framework_message(struct nexus_exec* exec,
+                       struct nexus_framework_message* msg)
 {
   cout << "received framework message" << endl;
 }
@@ -58,7 +59,17 @@ void error(struct nexus_exec* exec, int code, const char* msg)
 }
 
 
+struct nexus_exec exec = { 
+  init,
+  launch_task,
+  kill_task,
+  framework_message,
+  shutdown,
+  error,
+  NULL
+};
+
+
 int main() {
-  struct nexus_exec exec = { init, run, kill, message, shutdown, error, NULL };
   return nexus_exec_run(&exec);
 }

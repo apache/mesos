@@ -15,9 +15,10 @@ struct nexus_exec {
                 const char*,  // framework_name
                 const void*,  // init_arg
                 int);         // init_arg_len
-  void (*run) (struct nexus_exec*, struct nexus_task_desc*);
-  void (*kill) (struct nexus_exec*, task_id tid);
-  void (*message) (struct nexus_exec*, struct nexus_framework_message*);
+  void (*launch_task) (struct nexus_exec*, struct nexus_task_desc*);
+  void (*kill_task) (struct nexus_exec*, task_id tid);
+  void (*framework_message) (struct nexus_exec*,
+                             struct nexus_framework_message*);
   void (*shutdown) (struct nexus_exec*);
   void (*error) (struct nexus_exec*, int, const char*);
 

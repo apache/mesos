@@ -71,7 +71,7 @@ protected:
           unpack<S2E_RUN_TASK>(tid, name, args, params);
           TaskDescription task(tid, sid, name, params.getMap(), args);
           send(slave, pack<E2S_STATUS_UPDATE>(fid, tid, TASK_RUNNING, ""));
-          invoke(bind(&Executor::startTask, executor, driver, ref(task)));
+          invoke(bind(&Executor::launchTask, executor, driver, ref(task)));
           break;
         }
 
@@ -257,7 +257,7 @@ public:
                args.data.size());
   }
 
-  virtual void startTask(ExecutorDriver*, const TaskDescription& task)
+  virtual void launchTask(ExecutorDriver*, const TaskDescription& task)
   {
     // Convert params to key=value list
     Params paramsObj(task.params);
@@ -268,12 +268,12 @@ public:
                            paramsStr.c_str(),
                            task.arg.data(),
                            task.arg.size() };
-    exec->run(exec, &td);
+    exec->launch_task(exec, &td);
   }
 
   virtual void killTask(ExecutorDriver*, TaskID taskId)
   {
-    exec->kill(exec, taskId);
+    exec->kill_task(exec, taskId);
   }
   
   virtual void frameworkMessage(ExecutorDriver*,
@@ -283,7 +283,7 @@ public:
                                     message.taskId,
                                     message.data.data(),
                                     message.data.size() };
-    exec->message(exec, &msg);
+    exec->framework_message(exec, &msg);
   }
   
   virtual void shutdown(ExecutorDriver*)

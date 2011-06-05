@@ -7,7 +7,7 @@ public class TestExecutor extends Executor {
   }
 
   @Override
-  public void startTask(final ExecutorDriver d, final TaskDescription task) {
+  public void launchTask(final ExecutorDriver d, final TaskDescription task) {
     new Thread() { public void run() {
       try {
         System.out.println("Running task " + task.getTaskId());

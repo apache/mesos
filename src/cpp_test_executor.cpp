@@ -16,7 +16,7 @@ public:
     cout << "Init" << endl;
   }
 
-  virtual void startTask(ExecutorDriver* d, const TaskDescription& task) {
+  virtual void launchTask(ExecutorDriver* d, const TaskDescription& task) {
     cout << "Starting task " << task.taskId << endl;
     sleep(1);
     cout << "Finishing task " << task.taskId << endl;

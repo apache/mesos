@@ -140,7 +140,7 @@ public class NexusExecutor extends Executor
   }
 
   @Override
-  public void startTask(ExecutorDriver d, TaskDescription taskDesc) {
+  public void launchTask(ExecutorDriver d, TaskDescription taskDesc) {
     String taskType = new String(taskDesc.getArg());
     LOG.info("start_task " + taskDesc.getTaskId() + ": " + taskType);
     if (taskType.equals("map")) {

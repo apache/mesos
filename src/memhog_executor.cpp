@@ -51,7 +51,7 @@ public:
          << ", threadsPerTask = " << threadsPerTask << endl;
   }
 
-  virtual void startTask(ExecutorDriver*, const TaskDescription& task) {
+  virtual void launchTask(ExecutorDriver*, const TaskDescription& task) {
     cout << "Executor starting task " << task.taskId << endl;
     for (int i = 0; i < threadsPerTask; i++) {
       ThreadArg *arg = new ThreadArg(this, task.taskId, i == 0);

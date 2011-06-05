@@ -25,7 +25,7 @@ class MyExecutor(nexus.Executor):
     self.ip = ip
     self.port = port
 
-  def startTask(self, driver, task):
+  def launchTask(self, driver, task):
     print "Running task %d" % task.taskId
     Popen("mpd -n -h "+self.ip+" -p "+self.port, shell=True)
 

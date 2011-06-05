@@ -20,7 +20,7 @@ class MyExecutor(nexus.Executor):
     nexus.Executor.__init__(self)
     self.tid = -1
 
-  def startTask(self, driver, task):
+  def launchTask(self, driver, task):
     self.tid = task.taskId
     Popen("/usr/apache2/2.2/bin/apachectl start", shell=True)
 
