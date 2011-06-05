@@ -9,7 +9,13 @@ public class TestFramework {
   static class MyScheduler extends Scheduler {
     int launchedTasks = 0;
     int finishedTasks = 0;
-    final int totalTasks = 5;
+    int totalTasks = 5;
+
+    public MyScheduler() {}
+
+    public MyScheduler(int numTasks) {
+      totalTasks = numTasks;
+    }
 
     @Override
     public String getFrameworkName(SchedulerDriver d) {
@@ -79,6 +85,12 @@ public class TestFramework {
   }
 
   public static void main(String[] args) throws Exception {
-    new MesosSchedulerDriver(new MyScheduler(), args[0]).run();
+    if (args.length < 1 || args.length > 2) {
+      System.out.println("Invalid use: please specify a master");
+    } else if (args.length == 1) {
+      new MesosSchedulerDriver(new MyScheduler(),args[0]).run();
+    } else {
+      new MesosSchedulerDriver(new MyScheduler(Integer.parseInt(args[1])), args[0]).run();
+    }
   }
 }
