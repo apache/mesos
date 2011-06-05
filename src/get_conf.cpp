@@ -4,12 +4,14 @@
 using std::cout;
 using namespace mesos::internal;
 
-int main(int argc, char **argv) {
+
+int main(int argc, char **argv)
+{
   if (argc == 1) {
     cout << "Usage:  mesos-getconf OPTION [arg1 arg2 ... ]\n\n";
     cout << "OPTION\t\tis the name option whose value is to be extracted\n";
     cout << "arg1 ...\tOptional arguments passed to mesos, e.g. --quiet\n\n";
-    cout << "This utility gives shell scripts access Mesos parameters.\n\n";
+    cout << "This utility gives shell scripts access to Mesos parameters.\n\n";
     return 1;
   }
   Configurator conf;
