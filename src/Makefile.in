@@ -220,7 +220,8 @@ ruby: $(RUBY_LIB)
 swig/java/nexus.jar: $(JAVA_LIB)
 ifdef JAVA_HOME
 	javac -sourcepath swig/java -d swig/java swig/java/nexus/*.java
-	patch swig/java/nexus/nexusJNI.java < swig/java/nexusJNI.java.patch
+	patch swig/java/nexus/nexusJNI.java < swig/java/nexusJNI.java.patch1
+	patch swig/java/nexus/nexusJNI.java < swig/java/nexusJNI.java.patch2
 	jar cf $@ -C swig/java nexus
 endif
 
