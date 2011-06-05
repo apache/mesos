@@ -801,13 +801,6 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
 
   LocalIsolationModule isolationModule(&exec);
 
-// <<<<<<<<<<<<<<
-//   PID master;
-//   vector<PID> slaves;
-
-//   tie(master, slaves) = 
-//     local::launch(1, 2, 1 * Gigabyte, false, false, isolationModule);
-// >>>>>>>>>>>>>>
   Master m;
   PID master = Process::spawn(&m);
 
@@ -815,7 +808,6 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   PID slave = Process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
-// >>>>>>>>>>>>>>
 
   // Launch the first (i.e., failing) scheduler and wait until the
   // first status update message is sent to it (drop the message).
@@ -903,15 +895,12 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   failingDriver.join();
   failoverDriver.join();
 
-// <<<<<<<<<<<<<<
-//   local::shutdown();
-// >>>>>>>>>>>>>>
   MesosProcess::post(slave, pack<S2S_SHUTDOWN>());
   Process::wait(slave);
 
   MesosProcess::post(master, pack<M2M_SHUTDOWN>());
   Process::wait(master);
-// >>>>>>>>>>>>>>
+
   Process::filter(NULL);
 
   ProcessClock::resume();
