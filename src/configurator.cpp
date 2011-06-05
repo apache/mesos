@@ -81,8 +81,8 @@ void Configurator::loadConfigFileIfGiven(bool overwrite) {
   string confDir = "";
   if (params.contains("conf"))
     confDir = params["conf"];
-//   else if (params.contains("home")) // find conf dir relative to MESOS_HOME
-//     confDir = params["home"] + "/" + DEFAULT_CONFIG_DIR;
+  else if (params.contains("home")) // find conf dir relative to MESOS_HOME
+    confDir = params["home"] + "/" + DEFAULT_CONFIG_DIR;
   if (confDir != "")
     loadConfigFile(confDir + "/" + CONFIG_FILE_NAME, overwrite);
 }
