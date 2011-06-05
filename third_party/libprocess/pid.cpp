@@ -11,6 +11,7 @@
 
 #include "config.hpp"
 #include "pid.hpp"
+#include "process.hpp"
 
 using std::istream;
 using std::ostream;
@@ -18,7 +19,7 @@ using std::size_t;
 using std::string;
 
 
-ostream & operator << (ostream &stream, const PID &pid)
+ostream& operator << (ostream& stream, const UPID& pid)
 {
   // Call inet_ntop since inet_ntoa is not thread-safe!
   char ip[INET_ADDRSTRLEN];
@@ -30,7 +31,7 @@ ostream & operator << (ostream &stream, const PID &pid)
 }
 
 
-istream & operator >> (istream &stream, PID &pid)
+istream& operator >> (istream& stream, UPID& pid)
 {
   pid.id = "";
   pid.ip = 0;
@@ -92,11 +93,19 @@ istream & operator >> (istream &stream, PID &pid)
 }
 
 
-size_t hash_value(const PID& pid)
+size_t hash_value(const UPID& pid)
 {
   size_t seed = 0;
   boost::hash_combine(seed, pid.id);
   boost::hash_combine(seed, pid.ip);
   boost::hash_combine(seed, pid.port);
   return seed;
+}
+
+
+UPID::UPID(const Process& process)
+{
+  id = process.self().id;
+  ip = process.self().ip;
+  port = process.self().port;
 }

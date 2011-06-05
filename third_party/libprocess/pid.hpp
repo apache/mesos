@@ -1,5 +1,5 @@
-#ifndef PID_HPP
-#define PID_HPP
+#ifndef __PID_HPP__
+#define __PID_HPP__
 
 #include <stdint.h>
 
@@ -8,39 +8,42 @@
 #include <string>
 
 
-struct PID;
+class Process;
+struct UPID;
 
 
-/* Outputing PIDs and generating PIDs using streamds. */
-std::ostream & operator << (std::ostream &, const PID &);
-std::istream & operator >> (std::istream &, PID &);
+// Outputing UPIDs and generating UPIDs using streams.
+std::ostream& operator << (std::ostream&, const UPID&);
+std::istream& operator >> (std::istream&, UPID&);
 
 
-/* PID hash value (for example, to use in Boost's unordered maps). */
-std::size_t hash_value(const PID &);
+// UPID hash value (for example, to use in Boost's unordered maps).
+std::size_t hash_value(const UPID&);
 
 
-struct PID
+struct UPID
 {
-  PID() : ip(0), port(0) {}
+  UPID() : ip(0), port(0) {}
 
-  PID(const char *id_, uint32_t ip_, uint16_t port_)
+  UPID(const char* id_, uint32_t ip_, uint16_t port_)
     : id(id_), ip(ip_), port(port_) {}
 
-  PID(const std::string& id_, uint32_t ip_, uint16_t port_)
+  UPID(const std::string& id_, uint32_t ip_, uint16_t port_)
     : id(id_), ip(ip_), port(port_) {}
 
-  PID(const char *s) 
+  UPID(const char* s) 
   {
     std::istringstream in(s);
     in >> *this;
   }
 
-  PID(const std::string &s)
+  UPID(const std::string& s)
   {
     std::istringstream in(s);
     in >> *this;
   }
+
+  UPID(const Process& process);
 
   operator std::string() const
   {
@@ -54,7 +57,7 @@ struct PID
     return id == "" && ip == 0 && port == 0;
   }
 
-  bool operator < (const PID &that) const
+  bool operator < (const UPID& that) const
   {
     if (this != &that) {
       if (ip == that.ip && port == that.port)
@@ -68,7 +71,7 @@ struct PID
     return false;
   }
 
-  bool operator == (const PID &that) const
+  bool operator == (const UPID& that) const
   {
     if (this != &that) {
       return (id == that.id &&
@@ -79,11 +82,10 @@ struct PID
     return true;
   }
 
-  bool operator != (const PID &that) const
+  bool operator != (const UPID& that) const
   {
     return !(this->operator == (that));
   }
-
 
   std::string id;
   uint32_t ip;
@@ -91,4 +93,12 @@ struct PID
 };
 
 
-#endif /* PID_HPP */
+template <typename T = Process>
+struct PID : UPID
+{
+  PID() : UPID() {}
+  PID(const T& t) : UPID(static_cast<const Process&>(t)) {}
+};
+
+
+#endif // __PID_HPP__

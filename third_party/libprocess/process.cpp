@@ -117,7 +117,7 @@ ostream& operator << (ostream& stream, const Node& node)
 struct timeout
 {
   ev_tstamp tstamp;
-  PID pid;
+  UPID pid;
   int generation;
 };
 
@@ -191,7 +191,7 @@ public:
   LinkManager();
   ~LinkManager();
 
-  void link(Process* process, const PID& to);
+  void link(Process* process, const UPID& to);
 
   void send(Message* message);
   void send(DataEncoder* encoder, int s);
@@ -204,8 +204,8 @@ public:
   void exited(Process* process);
 
 private:
-  /* Map from PID (local/remote) to process. */
-  map<PID, set<Process*> > links;
+  /* Map from UPID (local/remote) to process. */
+  map<UPID, set<Process*> > links;
 
   /* Map from socket to node (ip, port). */
   map<int, Node> sockets;
@@ -230,23 +230,23 @@ public:
   ProcessManager();
   ~ProcessManager();
 
-  ProcessReference use(const PID &pid);
+  ProcessReference use(const UPID &pid);
 
   void deliver(Message *message, Process *sender = NULL);
 
-  PID spawn(Process *process);
-  void link(Process *process, const PID &to);
+  UPID spawn(Process *process);
+  void link(Process *process, const UPID &to);
   void receive(Process *process, double secs);
   void pause(Process *process, double secs);
-  bool wait(Process *process, const PID &pid);
-  bool external_wait(const PID &pid);
+  bool wait(Process *process, const UPID &pid);
+  bool external_wait(const UPID &pid);
   bool await(Process *process, int fd, int op, double secs, bool ignore);
 
   void enqueue(Process *process);
   Process * dequeue();
 
-  void timedout(const PID &pid, int generation);
-  void awaited(const PID &pid, int generation);
+  void timedout(const UPID &pid, int generation);
+  void awaited(const UPID &pid, int generation);
 
   void run(Process *process);
   void cleanup(Process *process);
@@ -301,7 +301,7 @@ protected:
   }
 
 private:
-  map<PID, Proxy*> proxies;
+  map<UPID, Proxy*> proxies;
 };
 
 
@@ -486,7 +486,7 @@ int set_nbio(int fd)
 }
 
 
-Message* encode(const PID &from, const PID &to, const string &name, const string &data = "")
+Message* encode(const UPID &from, const UPID &to, const string &name, const string &data = "")
 {
   Message* message = new Message();
   message->from = from;
@@ -617,7 +617,7 @@ void handle_timeout(struct ev_loop *loop, ev_timer *watcher, int revents)
 
 void handle_await(struct ev_loop *loop, ev_io *watcher, int revents)
 {
-  tuple<PID, int> *t = (tuple<PID, int> *) watcher->data;
+  tuple<UPID, int> *t = (tuple<UPID, int> *) watcher->data;
   process_manager->awaited(t->get<0>(), t->get<1>());
   ev_io_stop(loop, watcher);
   delete watcher;
@@ -1150,7 +1150,7 @@ Proxy::Proxy(int _c) : c(_c)
     Process::spawn(proxy_manager);
   }
 
-  dispatch(proxy_manager, &ProxyManager::manage, this);
+  dispatch(PID<ProxyManager>(*proxy_manager), &ProxyManager::manage, this);
 }
 
 
@@ -1188,7 +1188,7 @@ LinkManager::LinkManager()
 LinkManager::~LinkManager() {}
 
 
-void LinkManager::link(Process *process, const PID &to)
+void LinkManager::link(Process *process, const UPID &to)
 {
   // TODO(benh): The semantics we want to support for link are such
   // that if there is nobody to link to (local or remote) then a
@@ -1448,9 +1448,9 @@ void LinkManager::exited(const Node &node)
   // ourselves that the accesses to each Process object will always be
   // valid.
   synchronized (this) {
-    list<PID> removed;
+    list<UPID> removed;
     // Look up all linked processes.
-    foreachpair (const PID &pid, set<Process *> &processes, links) {
+    foreachpair (const UPID &pid, set<Process *> &processes, links) {
       if (pid.ip == node.ip && pid.port == node.port) {
         // N.B. If we call exited(pid) we might invalidate iteration.
         foreach (Process *process, processes) {
@@ -1461,7 +1461,7 @@ void LinkManager::exited(const Node &node)
       }
     }
 
-    foreach (const PID &pid, removed) {
+    foreach (const UPID &pid, removed) {
       links.erase(pid);
     }
   }
@@ -1475,10 +1475,10 @@ void LinkManager::exited(Process *process)
     foreachpair (_, set<Process *> &processes, links)
       processes.erase(process);
 
-    const PID &pid = process->self();
+    const UPID &pid = process->self();
 
     /* Look up all linked processes. */
-    map<PID, set<Process *> >::iterator it = links.find(pid);
+    map<UPID, set<Process *> >::iterator it = links.find(pid);
 
     if (it != links.end()) {
       set<Process *> &processes = it->second;
@@ -1504,7 +1504,7 @@ ProcessManager::ProcessManager()
 ProcessManager::~ProcessManager() {}
 
 
-ProcessReference ProcessManager::use(const PID &pid)
+ProcessReference ProcessManager::use(const UPID &pid)
 {
   if (pid.ip == ip && pid.port == port) {
     synchronized (processes) {
@@ -1547,7 +1547,7 @@ void ProcessManager::deliver(Message *message, Process *sender)
 }
 
 
-PID ProcessManager::spawn(Process *process)
+UPID ProcessManager::spawn(Process *process)
 {
   assert(process != NULL);
 
@@ -1555,7 +1555,7 @@ PID ProcessManager::spawn(Process *process)
 
   synchronized (processes) {
     if (processes.count(process->pid.id) > 0) {
-      return PID();
+      return UPID();
     } else {
       processes[process->pid.id] = process;
     }
@@ -1619,7 +1619,7 @@ PID ProcessManager::spawn(Process *process)
 
 
 
-void ProcessManager::link(Process *process, const PID &to)
+void ProcessManager::link(Process *process, const UPID &to)
 {
   // Check if the pid is local.
   if (!(to.ip == ip && to.port == port)) {
@@ -1712,7 +1712,7 @@ void ProcessManager::pause(Process *process, double secs)
 }
 
 
-bool ProcessManager::wait(Process *process, const PID &pid)
+bool ProcessManager::wait(Process *process, const UPID &pid)
 {
   bool waited = false;
 
@@ -1748,7 +1748,7 @@ bool ProcessManager::wait(Process *process, const PID &pid)
 }
 
 
-bool ProcessManager::external_wait(const PID &pid)
+bool ProcessManager::external_wait(const UPID &pid)
 {
   // We use a gate for external waiters. A gate is single use. That
   // is, a new gate is created when the first external thread shows
@@ -1818,7 +1818,7 @@ bool ProcessManager::await(Process *process, int fd, int op, double secs, bool i
       // the watcher will always fire, even if we get interrupted and
       // return early, so this tuple will get cleaned up when the
       // watcher runs).
-      watcher->data = new tuple<PID, int>(process->pid, process->generation);
+      watcher->data = new tuple<UPID, int>(process->pid, process->generation);
 
       /* Enqueue the watcher. */
       synchronized (watchers) {
@@ -1892,7 +1892,7 @@ Process * ProcessManager::dequeue()
 }
 
 
-void ProcessManager::timedout(const PID &pid, int generation)
+void ProcessManager::timedout(const UPID &pid, int generation)
 {
   if (ProcessReference process = use(pid)) {
     process->lock();
@@ -1931,7 +1931,7 @@ void ProcessManager::timedout(const PID &pid, int generation)
 }
 
 
-void ProcessManager::awaited(const PID &pid, int generation)
+void ProcessManager::awaited(const UPID &pid, int generation)
 {
   if (ProcessReference process = use(pid)) {
     process->lock();
@@ -2300,7 +2300,7 @@ Message * Process::dequeue()
 }
 
 
-void Process::inject(const PID &from, const string &name, const char *data, size_t length)
+void Process::inject(const UPID& from, const string& name, const char* data, size_t length)
 {
   if (!from)
     return;
@@ -2328,7 +2328,7 @@ void Process::inject(const PID &from, const string &name, const char *data, size
 }
 
 
-void Process::send(const PID &to, const string &name, const char *data, size_t length)
+void Process::send(const UPID& to, const string& name, const char* data, size_t length)
 {
   if (!to) {
     return;
@@ -2387,7 +2387,7 @@ string Process::receive(double secs)
 
  timeout:
   assert(current == NULL);
-  current = encode(PID(), pid, TIMEOUT);
+  current = encode(UPID(), pid, TIMEOUT);
   return name();
 }
 
@@ -2395,12 +2395,12 @@ string Process::receive(double secs)
 string Process::serve(double secs, bool forever)
 {
   do {
-    const string &name = receive(secs);
-    if (name == DISPATCH) {
-      void *pointer = (char *) current->body.data();
-      std::tr1::function<void (void)> *delegator =
-        *reinterpret_cast<std::tr1::function<void (void)> **>(pointer);
-      (*delegator)();
+    const string& name = receive(secs);
+    if (name == "__DISPATCH__") {
+      void* pointer = (char *) current->body.data();
+      std::tr1::function<void(Process*)>* delegator =
+        *reinterpret_cast<std::tr1::function<void(Process*)>**>(pointer);
+      (*delegator)(this);
       delete delegator;
     } else {
       return name;
@@ -2415,17 +2415,17 @@ void Process::operator () ()
 }
 
 
-PID Process::from() const
+UPID Process::from() const
 {
   if (current != NULL) {
     return current->from;
   } else {
-    return PID();
+    return UPID();
   }
 }
 
 
-string Process::name() const
+const string& Process::name() const
 {
   if (current != NULL) {
     return current->name;
@@ -2435,7 +2435,7 @@ string Process::name() const
 }
 
 
-const char * Process::body(size_t *length) const
+const char* Process::body(size_t* length) const
 {
   if (current != NULL && current->body.size() > 0) {
     if (length != NULL) {
@@ -2460,7 +2460,7 @@ void Process::pause(double secs)
 }
 
 
-PID Process::link(const PID &to)
+UPID Process::link(const UPID& to)
 {
   if (!to) {
     return to;
@@ -2533,7 +2533,7 @@ double Process::elapsed()
 }
 
 
-PID Process::spawn(Process *process)
+UPID Process::spawn(Process *process)
 {
   initialize();
 
@@ -2553,12 +2553,12 @@ PID Process::spawn(Process *process)
 
     return process_manager->spawn(process);
   } else {
-    return PID();
+    return UPID();
   }
 }
 
 
-bool Process::wait(const PID &pid)
+bool Process::wait(const UPID& pid)
 {
   initialize();
 
@@ -2603,7 +2603,7 @@ void Process::filter(Filter *filter)
 }
 
 
-void Process::post(const PID &to, const string &name, const char *data, size_t length)
+void Process::post(const UPID& to, const string& name, const char* data, size_t length)
 {
   initialize();
 
@@ -2612,18 +2612,14 @@ void Process::post(const PID &to, const string &name, const char *data, size_t l
   }
 
   // Encode and transport outgoing message.
-  transport(encode(PID(), to, name, string(data, length)));
+  transport(encode(UPID(), to, name, string(data, length)));
 }
 
 
-void Process::dispatcher(Process *process, function<void (void)> *delegator)
+void Process::dispatcher(const UPID& pid, function<void(Process*)>* delegator)
 {
-  if (process == NULL) {
-    return;
-  }
-
   // Encode and deliver outgoing message.
-  Message *message = encode(PID(), process->pid, DISPATCH,
+  Message* message = encode(UPID(), pid, "__DISPATCH__",
                             string((char *) &delegator, sizeof(delegator)));
 
   if (proc_process != NULL) {

@@ -99,7 +99,7 @@ private:
     // Okay, the message is complete, do the necessary parsing (it
     // would be cooler to do this inline instead).
     std::string name;
-    PID to, from;
+    UPID to, from;
 
     const std::vector<std::string>& pairs = tokenize(decoder->path, "/");
     if (pairs.size() != 2) {
@@ -107,7 +107,7 @@ private:
       return -1;
     }
 
-    to = PID(pairs[0], Process().self().ip, Process().self().port);
+    to = UPID(pairs[0], Process().self().ip, Process().self().port);
     name = pairs[1];
 
     if (name == "") {

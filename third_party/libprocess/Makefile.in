@@ -24,7 +24,7 @@ CXXFLAGS += -fPIC -D_XOPEN_SOURCE
 # Add dependency tracking to CXXFLAGS.
 CXXFLAGS += -MMD -MP
 
-LIB_OBJ = process.o pid.o fatal.o tokenize.o
+LIB_OBJ = process.o pid.o fatal.o tokenize.o latch.o
 LIB = libprocess.a
 
 OBJS = $(LIB_OBJ)
