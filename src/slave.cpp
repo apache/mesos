@@ -48,12 +48,24 @@ private:
 public:
   void process(ZooKeeper *zk, int type, int state, const string &path)
   {
-    if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_SESSION_EVENT)) {
-      // Lookup master.
+    if ((state == ZOO_CONNECTED_STATE) &&
+	((type == ZOO_SESSION_EVENT) || (type == ZOO_CREATED_EVENT))) {
+      // Lookup master PID.
       string znode = "/home/nexus/master";
-      string result;
-      int ret = zk->get(znode, false, &result, NULL);
+      int ret;
 
+      // Check if znode exists, if not, just return and wait.
+      ret = zk->exists(znode, true, NULL);
+
+      if (ret == ZNONODE)
+	return;
+
+      if (ret != ZOK)
+	fatal("failed to get %s! (%s)", znode.c_str(), zerror(ret));
+
+      string result;
+      ret = zk->get(znode, false, &result, NULL);
+    
       if (ret != ZOK)
 	fatal("failed to get %s! (%s)", znode.c_str(), zerror(ret));
 
