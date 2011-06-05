@@ -87,6 +87,7 @@ ExecutorLauncher* SolarisProjectIsolationModule::createExecutorLauncher(
                              fw->user,
                              slave->getWorkDirectory(fw->id),
                              slave->self(),
+                             slave->getConf().get("home", ""),
                              slave->getConf().get("hadoop_home", ""),
                              !slave->local,
                              frameworkProject[fw->id]);

@@ -35,6 +35,7 @@ protected:
   string user;
   string workDirectory; // Directory in which the framework should run
   string slavePid;
+  string mesosHome;
   string hadoopHome;
   bool redirectIO;   // Whether to redirect stdout and stderr to files
   map<string, string> params; // Key-value params in framework's ExecutorInfo
@@ -42,8 +43,9 @@ protected:
 public:
   ExecutorLauncher(FrameworkID _frameworkId, const string& _executorUri,
                    const string& _user, const string& _workDirectory,
-                   const string& _slavePid, const string& _hadoopHome,
-                   bool _redirectIO, const map<string, string>& _params);
+                   const string& _slavePid, const string& _mesosHome,
+                   const string& _hadoopHome, bool _redirectIO,
+                   const map<string, string>& _params);
 
   virtual ~ExecutorLauncher();
 

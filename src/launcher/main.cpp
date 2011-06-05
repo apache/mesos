@@ -29,6 +29,7 @@ int main(int argc, char **argv)
                    getenvOrFail("MESOS_USER"),
                    getenvOrFail("MESOS_WORK_DIRECTORY"),
                    getenvOrFail("MESOS_SLAVE_PID"),
+                   getenvOrFail("MESOS_HOME"),
                    getenvOrFail("MESOS_HADOOP_HOME"),
                    lexical_cast<bool>(getenvOrFail("MESOS_REDIRECT_IO")),
                    params).run();

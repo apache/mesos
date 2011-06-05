@@ -122,6 +122,7 @@ void LxcIsolationModule::startExecutor(Framework *fw)
                                     fw->user,
                                     slave->getUniqueWorkDirectory(fw->id),
                                     slave->self(),
+                                    slave->getConf().get("home", ""),
                                     slave->getConf().get("hadoop_home", ""),
                                     !slave->local,
                                     fw->executorInfo.params);

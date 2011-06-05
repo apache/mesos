@@ -1,11 +1,15 @@
 #!/bin/bash
 
-PYTHON=python
-
-if [ "`uname`" == "SunOS" ]; then
-  PYTHON=python2.6
+if [ "x$PYTHON" == "x" ]; then
+  PYTHON=python
+  if [ "`uname`" == "SunOS" ]; then
+    PYTHON=python2.6
+  fi
 fi
 
-export PYTHONPATH=`dirname $0`/../../src/swig/python:$PYTHONPATH
+if [ "x$MESOS_HOME" == "x" ]; then
+  MESOS_HOME="$(dirname $0)/../.."
+fi
 
-$PYTHON `dirname $0`/start_pbs_mom.py $@
+export PYTHONPATH=$MESOS_HOME/lib/python
+exec $PYTHON "$(dirname $0)/start_pbs_mob.py" $@

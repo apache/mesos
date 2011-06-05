@@ -37,11 +37,12 @@ ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
                                    const string& _user,
                                    const string& _workDirectory,
                                    const string& _slavePid,
+                                   const string& _mesosHome,
                                    const string& _hadoopHome,
                                    bool _redirectIO,
                                    const map<string, string>& _params)
   : frameworkId(_frameworkId), executorUri(_executorUri), user(_user),
-    workDirectory(_workDirectory), slavePid(_slavePid),
+    workDirectory(_workDirectory), slavePid(_slavePid), mesosHome(_mesosHome),
     hadoopHome(_hadoopHome), redirectIO(_redirectIO), params(_params)
 {}
 
@@ -199,6 +200,11 @@ void ExecutorLauncher::setupEnvironment()
   
   // Set LIBPROCESS_PORT so that we bind to a random free port.
   setenv("LIBPROCESS_PORT", "0", true);
+
+  // Set MESOS_HOME so that Java and Python executors can find libraries
+  if (mesosHome != "") {
+    setenv("MESOS_HOME", mesosHome.c_str(), 1);
+  }
 }
 
 
@@ -239,6 +245,7 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
   setenv("MESOS_USER", user.c_str(), 1);
   setenv("MESOS_WORK_DIRECTORY", workDirectory.c_str(), 1);
   setenv("MESOS_SLAVE_PID", slavePid.c_str(), 1);
+  setenv("MESOS_HOME", mesosHome.c_str(), 1);
   setenv("MESOS_HADOOP_HOME", hadoopHome.c_str(), 1);
   setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0", 1);
 }

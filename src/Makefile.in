@@ -307,6 +307,7 @@ ifdef PYTHON_HEADERS
 	mkdir -p swig/python
 	$(SWIG) -c++ -python -threads -I@top_srcdir@/include -o swig/python/mesos_wrap.cpp -outdir swig/python @srcdir@/swig/mesos.i
 	$(CXX) $(CXXFLAGS) -I$(PYTHON_HEADERS) -shared -o $@ swig/python/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
+	cp swig/python/mesos.py $(LIBDIR)/python/mesos.py
 endif
 
 $(WEBUI_FILES): | $(WEBUI_DIRECTORIES)
