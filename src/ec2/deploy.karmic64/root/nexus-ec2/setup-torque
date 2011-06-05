@@ -87,7 +87,7 @@ function installmpi {
 	for i in `cat $SLAVES_FILE`; do scp ./prologue.setup-mpi-master $i:/var/spool/torque/mom_priv/prologue; done
 }
 
-#installtorque
-#setuptorque
-#installslaves
+installtorque
+setuptorque
+installslaves
 installmpi
