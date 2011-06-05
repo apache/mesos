@@ -1278,10 +1278,10 @@ void initialize()
   if (set_nbio(s) < 0)
     fatalerror("failed to initialize (set_nbio)");
 
-  /* Allow socket reuse */
+  /* Allow socket reuse. */
   int on = 1;
   if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
-    perror("setsockopt(SO_REUSEADDR) failed");
+    fatalerror("failed to initialize (setsockopt(SO_REUSEADDR) failed)");
 
   /* Set up socket. */
   struct sockaddr_in addr;
