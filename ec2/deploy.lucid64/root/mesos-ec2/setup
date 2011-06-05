@@ -12,10 +12,6 @@ HOSTNAME=$PRIVATE_DNS  # Fix the bash built-in hostname variable too
 
 echo "Setting up Mesos master on `hostname`..."
 
-# Remove ~/.ssh/known_hosts because it gets polluted as you start/stop many
-# clusters (new machines tend to come up under old hostnames)
-rm -f /root/.ssh/known_hosts
-
 # Read command-line arguments
 OS_NAME=$1
 DOWNLOAD_METHOD=$2
@@ -50,7 +46,7 @@ HADOOP_HOME=/root/hadoop-0.20.2
 JAVA_HOME=/usr/lib/jvm/java-6-openjdk
 #JAVA_HOME=/usr/lib/jvm/java-6-sun #works for karmic, this is lucid
 
-SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
 
 if [[ `tty` == "not a tty" ]] ; then
     echo "Expecting a tty or pty! (use the ssh -t option)."
@@ -60,22 +56,25 @@ fi
 echo "Setting executable permissions on scripts..."
 for s in $SCRIPTS; do chmod u+x $s; done
 
+echo "Running setup-slave on master to mount filesystems, etc..."
+./setup-slave
+
 echo "SSH'ing to master machine(s) to approve key(s)..."
 for master in $MASTERS; do
   echo $master
   ssh $SSH_OPTS $master echo -n &
   sleep 0.3
 done
-
-ssh -q $SSH_OPTS localhost echo -n &
-ssh -q $SSH_OPTS `hostname` echo -n &
+ssh $SSH_OPTS localhost echo -n &
+ssh $SSH_OPTS `hostname` echo -n &
+wait
 
 if [[ $NUM_ZOOS != 0 ]] ; then
   echo "SSH'ing to ZooKeeper server(s) to approve keys..."
   zid=1
   for zoo in $ZOO; do
     echo $zoo
-    ssh $SSH_OPTS $zoo echo -n \; mkdir -p /tmp/zookeeper \; echo $zid \> /tmp/zookeeper/myid
+    ssh $SSH_OPTS $zoo echo -n \; mkdir -p /tmp/zookeeper \; echo $zid \> /tmp/zookeeper/myid &
     zid=$(($zid+1))
     sleep 0.3
   done
@@ -113,18 +112,25 @@ echo "RSYNC'ing /root/mesos-ec2 to slaves..."
 for slave in $SLAVES; do
   echo $slave
   rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $slave:/root &
-  scp ~/.ssh/id_rsa $slave:.ssh &
+  scp $SSH_OPTS ~/.ssh/id_rsa $slave:.ssh &
+  sleep 0.3
 done
 wait
 
-echo "Running slave setup script on all nodes..."
-for node in $SLAVES $MASTERS $ZOO; do
+echo "Running slave setup script on slave and zookeeper nodes..."
+for node in $SLAVES $ZOO; do
   echo $node
   ssh -t $SSH_OPTS root@$node "mesos-ec2/setup-slave" & sleep 0.3
 done
 wait
 
 if [[ $NUM_MASTERS -gt 1 ]] ; then
+  echo "Running slave setup script on other masters..."
+  for master in `cat $MASTERS_FILE | sed '1d'`; do
+    echo $master
+    rsync -e "ssh $SSH_OPTS" mesos-ec2/setup-slave & sleep 0.3
+  done
+  wait
   echo "RSYNC'ing HDFS config files to other masters..."
   for master in `cat $MASTERS_FILE | sed '1d'`; do
     echo $master
