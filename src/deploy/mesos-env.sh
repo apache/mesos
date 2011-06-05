@@ -31,6 +31,10 @@ if [ "x$MESOS_URL" == "x" ]; then
   MESOS_URL="mesos://1@$FIRST_MASTER:5050"
 fi
 
+# Read the deploy_with_sudo config setting to determine whether to run
+# slave daemons as sudo.
+DEPLOY_WITH_SUDO=`$MESOS_HOME/bin/mesos-getconf deploy_with_sudo`
+
 # Options for SSH
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 

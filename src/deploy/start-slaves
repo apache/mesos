@@ -5,11 +5,17 @@ DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
 
 cd $DEPLOY_DIR
 
+# Set SUDO_COMMAND to sudo if we should launch the slaves with sudo.
+SUDO_COMMAND=""
+if [ "$DEPLOY_WITH_SUDO" == "1" ]; then
+  SUDO_COMMAND="sudo"
+fi
+
 # Launch slaves
 for slave in $SLAVES; do
   echo "Starting slave on $slave"
-  echo ssh $SSH_OPTS $slave "$DEPLOY_DIR/mesos-daemon mesos-slave -u $MESOS_URL </dev/null >/dev/null" 
-  ssh $SSH_OPTS $slave "$DEPLOY_DIR/mesos-daemon mesos-slave -u $MESOS_URL </dev/null >/dev/null" &
+  echo ssh $SSH_OPTS $slave "$SUDO_COMMAND $DEPLOY_DIR/mesos-daemon mesos-slave -u $MESOS_URL </dev/null >/dev/null" 
+  ssh $SSH_OPTS $slave "$SUDO_COMMAND $DEPLOY_DIR/mesos-daemon mesos-slave -u $MESOS_URL </dev/null >/dev/null" &
   sleep 0.1
 done
 wait
