@@ -12,7 +12,7 @@ export JAVA_HOME=/usr/lib/jvm/java-6-openjdk
 # export HADOOP_CLASSPATH=
 
 # The maximum amount of heap to use, in MB. Default is 1000.
-# export HADOOP_HEAPSIZE=2000
+export HADOOP_HEAPSIZE=1500
 
 # Extra Java runtime options.  Empty by default.
 # export HADOOP_OPTS=-server
@@ -30,7 +30,7 @@ export HADOOP_JOBTRACKER_OPTS="-Dcom.sun.management.jmxremote $HADOOP_JOBTRACKER
 
 # Extra ssh options.  Empty by default.
 # export HADOOP_SSH_OPTS="-o ConnectTimeout=1 -o SendEnv=HADOOP_CONF_DIR"
-export HADOOP_SSH_OPTS="-o ConnectTimeout=2"
+export HADOOP_SSH_OPTS="-o ConnectTimeout=5"
 
 # Where log files are stored.  $HADOOP_HOME/logs by default.
 # export HADOOP_LOG_DIR=${HADOOP_HOME}/logs
