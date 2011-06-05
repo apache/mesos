@@ -396,11 +396,17 @@ JNIEXPORT void JNICALL Java_mesos_MesosSchedulerDriver_initialize
 
   // Get out the url passed into the constructor.
   jfieldID url = env->GetFieldID(clazz, "url", "Ljava/lang/String;");
-  jobject jstr = env->GetObjectField(thiz, url);
+  jobject jurl = env->GetObjectField(thiz, url);
+
+  // Get out the framework id possibly passed into the constructor.
+  jfieldID frameworkId = env->GetFieldID(clazz, "frameworkId", "Lmesos/Protos$FrameworkID;");
+  jobject jframeworkId = env->GetObjectField(thiz, frameworkId);
   
   // Create the C++ driver and initialize the __driver variable.
   MesosSchedulerDriver* driver =
-    new MesosSchedulerDriver(sched, construct<string>(env, jstr));
+    new MesosSchedulerDriver(sched,
+			     construct<string>(env, jurl),
+			     construct<FrameworkID>(env, jframeworkId));
 
   jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
   env->SetLongField(thiz, __driver, (jlong) driver);

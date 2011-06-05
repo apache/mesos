@@ -36,7 +36,7 @@ public class MesosExecutorDriver implements ExecutorDriver {
   protected native void initialize();
   protected native void finalize();
 
-  private Executor exec;
+  private final Executor exec;
   
   private long __exec;
   private long __driver;

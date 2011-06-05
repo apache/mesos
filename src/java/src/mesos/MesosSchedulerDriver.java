@@ -50,9 +50,9 @@ public class MesosSchedulerDriver implements SchedulerDriver {
   protected native void initialize();
   protected native void finalize();
 
-  private Scheduler sched;
-  private String url;
-  private FrameworkID frameworkId;
+  private final Scheduler sched;
+  private final String url;
+  private final FrameworkID frameworkId;
 
   private long __sched;
   private long __driver;

@@ -19,6 +19,10 @@ using std::string;
 template <typename T>
 T parse(const void* data, int size)
 {
+  // This should always get called with data that can be parsed (i.e.,
+  // ParseFromZeroCopyStream should never return false) because we
+  // have static type checking in Java and C++. A dynamic language
+  // will not have this luxury.
   google::protobuf::io::ArrayInputStream stream(data, size);
   T t;
   t.ParseFromZeroCopyStream(&stream);
