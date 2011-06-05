@@ -156,6 +156,7 @@ protected:
     }
 
     link(master);
+    ftMsg->setMasterPid(master);
     send(master, pack<F2M_REGISTER_FRAMEWORK>(frameworkName, user, execInfo));
 
     while(true) {
@@ -197,19 +198,14 @@ protected:
       }
 
       case M2F_FT_STATUS_UPDATE: {
-        string ftId;
-        string origPid;
         TaskID tid;
         TaskState state;
         string data;
+        string ftId, origPid;
         unpack<M2F_FT_STATUS_UPDATE>(ftId, origPid, tid, state, data);
-        if (!ftMsg->acceptMessage(origPid, ftId)) {
-          LOG(WARNING) << "Dropping duplicate message with id:" << ftId;
+        if (!ftMsg->acceptMessageAck(origPid, ftId))
           break;
-        }
-        DLOG(INFO) << "Received fault tolerant message with id: " << ftId;
-        DLOG(INFO) << "Sending FT_RELAY_ACK for : " << ftId;
-        send(from(), pack<FT_RELAY_ACK>(ftId, origPid));
+        DLOG(INFO) << "FT: Received message with id: " << ftId;
 
         TaskStatus status(tid, state, data);
         invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
@@ -224,6 +220,20 @@ protected:
         unpack<M2F_STATUS_UPDATE>(tid, state, data);
         TaskStatus status(tid, state, data);
         invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
+        break;
+      }
+
+      case M2F_FT_FRAMEWORK_MESSAGE: {
+        FrameworkMessage msg;
+        string ftId, origPid;
+        unpack<M2F_FT_FRAMEWORK_MESSAGE>(ftId, origPid, msg);
+
+        if (!ftMsg->acceptMessageAck(origPid, ftId))
+          break;
+
+        DLOG(INFO) << "FT: Received message with id: " << ftId;
+
+        invoke(bind(&Scheduler::frameworkMessage, sched, driver, ref(msg)));
         break;
       }
 
@@ -269,6 +279,7 @@ protected:
 	
 	LOG(INFO) << "Connecting to Nexus master at " << master;
 	link(master);
+        ftMsg->setMasterPid(master);
 	send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user, execInfo));
 	break;
       }
@@ -502,8 +513,12 @@ void NexusSchedulerDriver::sendFrameworkMessage(const FrameworkMessage &message)
     return;
   }
 
-  process->send(process->master,
-                process->pack<F2M_FRAMEWORK_MESSAGE>(process->fid, message));
+  if (process->isFT) {
+    string ftId = process->ftMsg->getNextId();
+    process->ftMsg->reliableSend( ftId, process->pack<F2M_FT_FRAMEWORK_MESSAGE>(ftId, process->self(), process->fid, message));
+  } else
+    process->send(process->master,
+                  process->pack<F2M_FRAMEWORK_MESSAGE>(process->fid, message));
 }
 
 

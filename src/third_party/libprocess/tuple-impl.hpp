@@ -51,7 +51,7 @@ at(const tuple<ID> &r)
 template <typename P>
 class Tuple : public P
 {
-protected:
+public:
   template <MSGID ID>
   static tuple<ID> pack()
   {
@@ -162,6 +162,8 @@ protected:
   {
     return tuple<ID>(::boost::make_tuple(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9));
   }
+
+protected:
 
   template <MSGID ID>
   void unpack(typename field<0, ID>::type &t0)

@@ -75,7 +75,7 @@ void FTMessaging::sendOutstanding() {
     return;
   } 
 
-  foreachpair( const string &ftId, struct StoredMsg &msg, outMsgs) {
+  foreachpair( const string &ftId, struct FTStoredMsg &msg, outMsgs) {
     if (msg.count < FT_MAX_RESENDS) {
       DLOG(INFO) << "FT: RE-sending " << msg.ftId << " attempt:" << msg.count;
       Process::post(master, msg.id, msg.data.data(), msg.data.size());
@@ -115,6 +115,20 @@ bool FTMessaging::acceptMessage(string from, string ftId) {
       return false;
     }
   }
+}
+
+bool FTMessaging::acceptMessageAck(string from, string ftId) {
+  bool res = acceptMessage(from, ftId);
+
+  if (!res)
+    LOG(WARNING) << "FT: asked called to ignore duplicate message " << ftId;
+  
+  DLOG(INFO) << "FT: Received message with id: " << ftId << " sending FT_RELAY_ACK";
+  
+  string msgStr = Tuple<EmptyClass>::tupleToString( Tuple<EmptyClass>::pack<FT_RELAY_ACK>(ftId, from) );
+  Process::post(master, FT_RELAY_ACK, msgStr.data(), msgStr.size()); 
+
+  return res;
 }
 
 void FTMessaging::setMasterPid(const PID &mPid) {

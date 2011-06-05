@@ -62,12 +62,16 @@ using boost::unordered_set;
 class EmptyClass {
 };
 
-struct StoredMsg {
+/**
+ * Used in FTMessaging to store unacked messages, their count, ftId, libprocess id.
+ * @see FTMessaging
+ */
+struct FTStoredMsg {
 
-  StoredMsg(const string &_ftId, const string &_data, const MSGID &_id) : 
+  FTStoredMsg(const string &_ftId, const string &_data, const MSGID &_id) : 
     ftId(_ftId), data(_data), id(_id), count(0) {}
 
-  StoredMsg() : ftId(""), data(""), id(), count(0) {}
+  FTStoredMsg() : ftId(""), data(""), id(), count(0) {}
 
   string ftId;
   string data;
@@ -76,6 +80,10 @@ struct StoredMsg {
 };
 
 
+/**
+ * Singleton class that provides functionality for reliably sending messages, 
+ * resending them on timeout, acking received messages, and dropping duplicates.
+ */
 class FTMessaging {
 public:
   /**
@@ -107,7 +115,7 @@ public:
   {
     DLOG(INFO) << "FT: sending " << ftId;
     string msgStr = Tuple<EmptyClass>::tupleToString(msgTuple);
-    StoredMsg sm(ftId, msgStr, ID);
+    FTStoredMsg sm(ftId, msgStr, ID);
     outMsgs[ftId] = sm;
     if (!master) {
       DLOG(INFO) << "FT: Not RE-resending due to NULL master PID";
@@ -136,12 +144,22 @@ public:
   bool acceptMessage(string from, string ftId);
 
   /**
+   * Same as acceptMessage, but also sends an ACK back to the original sender if it returns true.
+   * @param from libprocess PID string representing the original sender of the message
+   * @param ftId the FT ID of the message
+   * @return true if message has not been received before and it is the next message expected to be received, false otherwise.
+   */
+  bool acceptMessageAck(string from, string ftId);
+
+  /**
    * @return a new unique FT ID for a message to be sent
    */ 
   string getNextId();
 
   /**
    * Sets the PID to the master (to be called when a new master comes up).
+   * Important invariant: needs to be called every time the master changes in slave/master/sched.
+   * @param mPid PID to the current master
    */
   void setMasterPid(const PID &mPid);
 
@@ -149,7 +167,7 @@ private:
 
   PID master;
 
-  unordered_map<string, StoredMsg> outMsgs;
+  unordered_map<string, FTStoredMsg> outMsgs;
 
   unordered_map<string, string> inMsgs;
 

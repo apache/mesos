@@ -254,6 +254,24 @@ void Slave::operator () ()
         break;
       }
 
+      case M2S_FT_FRAMEWORK_MESSAGE: {
+        string ftId, origPid;
+        unpack<M2S_FT_FRAMEWORK_MESSAGE>(ftId, origPid, fid, message);
+
+        if (!ftMsg->acceptMessageAck(origPid, ftId))
+          break;
+
+        DLOG(INFO) << "FT: Received message with id: " << ftId;
+
+        if (Executor *ex = getExecutor(fid)) {
+          send(ex->pid, pack<S2E_FRAMEWORK_MESSAGE>(message));
+        }
+        // TODO(matei): If executor is not started, queue framework message?
+        // (It's probably okay to just drop it since frameworks can have
+        // the executor send a message to the master to say when it's ready.)
+        break;
+      }
+
       case M2S_FRAMEWORK_MESSAGE: {
         unpack<M2S_FRAMEWORK_MESSAGE>(fid, message);
         if (Executor *ex = getExecutor(fid)) {
@@ -313,9 +331,11 @@ void Slave::operator () ()
           }
         }
         // Pass on the update to the master
-        string ftId = ftMsg->getNextId();
-        ftMsg->reliableSend(ftId, pack<S2M_FT_STATUS_UPDATE>(ftId, self(), id, fid, tid, taskState, data));
-          //        send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, taskState, data));
+        if (isFT) {
+          string ftId = ftMsg->getNextId();
+          ftMsg->reliableSend(ftId, pack<S2M_FT_STATUS_UPDATE>(ftId, self(), id, fid, tid, taskState, data));
+        } else
+          send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, taskState, data));
         break;
       }
 
@@ -323,7 +343,11 @@ void Slave::operator () ()
         unpack<E2S_FRAMEWORK_MESSAGE>(fid, message);
         // Set slave ID in case framework omitted it
         message.slaveId = this->id;
-        send(master, pack<S2M_FRAMEWORK_MESSAGE>(id, fid, message));
+        if (isFT) {
+          string ftId = ftMsg->getNextId();
+          ftMsg->reliableSend(ftId, pack<S2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), id, fid, message));
+        } else
+          send(master, pack<S2M_FRAMEWORK_MESSAGE>(id, fid, message));
         break;
       }
 

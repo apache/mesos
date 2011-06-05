@@ -26,6 +26,7 @@ enum MessageType {
   F2M_REVIVE_OFFERS,
   F2M_KILL_TASK,
   F2M_FRAMEWORK_MESSAGE,
+  F2M_FT_FRAMEWORK_MESSAGE,
   
   /* From master to framework. */
   M2F_REGISTER_REPLY,
@@ -35,6 +36,7 @@ enum MessageType {
   M2F_FT_STATUS_UPDATE,
   M2F_LOST_SLAVE,
   M2F_FRAMEWORK_MESSAGE,
+  M2F_FT_FRAMEWORK_MESSAGE,
   M2F_ERROR,
   
   /* Used for FT. */
@@ -48,6 +50,7 @@ enum MessageType {
   S2M_STATUS_UPDATE,
   S2M_FT_STATUS_UPDATE,
   S2M_FRAMEWORK_MESSAGE,
+  S2M_FT_FRAMEWORK_MESSAGE,
   S2M_LOST_EXECUTOR,
 
   /* From slave heart to master. */
@@ -63,6 +66,7 @@ enum MessageType {
   M2S_KILL_TASK,
   M2S_KILL_FRAMEWORK,
   M2S_FRAMEWORK_MESSAGE,
+  M2S_FT_FRAMEWORK_MESSAGE,
   M2S_SHUTDOWN, // Used in unit tests to shut down cluster
 
   /* From executor to slave. */
@@ -143,6 +147,12 @@ TUPLE(F2M_FRAMEWORK_MESSAGE,
       (FrameworkID,
        FrameworkMessage));
 
+TUPLE(F2M_FT_FRAMEWORK_MESSAGE,
+      (std::string, /* FT ID */
+       std::string, /* original sender */
+       FrameworkID,
+       FrameworkMessage));
+
 TUPLE(M2F_REGISTER_REPLY,
       (FrameworkID));
 
@@ -170,6 +180,11 @@ TUPLE(M2F_LOST_SLAVE,
 
 TUPLE(M2F_FRAMEWORK_MESSAGE,
       (FrameworkMessage));
+
+TUPLE(M2F_FT_FRAMEWORK_MESSAGE,
+      (std::string, /* FT ID */
+       std::string, /* original sender */
+       FrameworkMessage));
 
 TUPLE(M2F_ERROR,
       (int32_t /*code*/,
@@ -224,6 +239,13 @@ TUPLE(S2M_FRAMEWORK_MESSAGE,
        FrameworkID,
        FrameworkMessage));
 
+TUPLE(S2M_FT_FRAMEWORK_MESSAGE,
+      (std::string, /* ftId */
+       std::string, /* sender PID */
+       SlaveID,
+       FrameworkID,
+       FrameworkMessage));
+
 TUPLE(S2M_LOST_EXECUTOR,
       (SlaveID,
        FrameworkID,
@@ -262,6 +284,12 @@ TUPLE(M2S_FRAMEWORK_MESSAGE,
       (FrameworkID,
        FrameworkMessage));
         
+TUPLE(M2S_FT_FRAMEWORK_MESSAGE,
+      (std::string, /* FT ID */
+       std::string, /* original sender */
+       FrameworkID,
+       FrameworkMessage));
+
 TUPLE(M2S_SHUTDOWN,
       ());
 

@@ -403,18 +403,21 @@ void Master::operator () ()
       break;
     }
 
-    case F2M_FRAMEWORK_MESSAGE: {
+    case F2M_FT_FRAMEWORK_MESSAGE: {
       FrameworkID fid;
       FrameworkMessage message;
-      unpack<F2M_FRAMEWORK_MESSAGE>(fid, message);
+      string ftId, senderStr;
+      unpack<F2M_FT_FRAMEWORK_MESSAGE>(ftId, senderStr, fid, message);
       Framework *framework = lookupFramework(fid);
       if (framework != NULL) {
 	Slave *slave = lookupSlave(message.slaveId);
 	if (slave != NULL) {
 	  LOG(INFO) << "Sending framework message to " << slave;
-	  send(slave->pid, pack<M2S_FRAMEWORK_MESSAGE>(fid, message));
-	}
-      }
+	  send(slave->pid, pack<M2S_FT_FRAMEWORK_MESSAGE>(ftId, senderStr, fid, message));
+        } else
+          DLOG(INFO) << "S2M_FT_FRAMEWORK_MESSAGE error: couldn't lookup framework id" << fid;
+      } else
+        DLOG(INFO) << "S2M_FT_FRAMEWORK_MESSAGE error: couldn't lookup slave id" << message.slaveId;
       break;
     }
 
@@ -467,13 +470,12 @@ void Master::operator () ()
     }
 
     case S2M_FT_STATUS_UPDATE: {
-      string ftId;
       SlaveID sid;
       FrameworkID fid;
       TaskID tid;
       TaskState state;
       string data;
-      string senderStr;
+      string ftId, senderStr;
 
       unpack<S2M_FT_STATUS_UPDATE>(ftId, senderStr, sid, fid, tid, state, data);
       DLOG(INFO) << "FT: prepare relay ftId:"<< ftId << " from: "<< senderStr;
@@ -485,19 +487,19 @@ void Master::operator () ()
           send(framework->pid, pack<M2F_FT_STATUS_UPDATE>(ftId, senderStr, tid, state, data));
 
           if (!ftMsg->acceptMessage(senderStr, ftId)) {
-            LOG(WARNING) << "Locally ignoring duplicate message with id:" << ftId;
-          } else {
-            // Update the task state locally
-            TaskInfo *task = slave->lookupTask(fid, tid);
-            if (task != NULL) {
-              LOG(INFO) << "Status update: " << task << " is in state " << state;
-              task->state = state;
-              // Remove the task if it finished or failed
-              if (state == TASK_FINISHED || state == TASK_FAILED ||
-                  state == TASK_KILLED || state == TASK_LOST) {
-                LOG(INFO) << "Removing " << task << " because it's done";
-                removeTask(task, TRR_TASK_ENDED);
-              }
+            LOG(WARNING) << "FT: Locally ignoring duplicate message with id:" << ftId;
+            break;
+          } 
+          // Update the task state locally
+          TaskInfo *task = slave->lookupTask(fid, tid);
+          if (task != NULL) {
+            LOG(INFO) << "Status update: " << task << " is in state " << state;
+            task->state = state;
+            // Remove the task if it finished or failed
+            if (state == TASK_FINISHED || state == TASK_FAILED ||
+                state == TASK_KILLED || state == TASK_LOST) {
+              LOG(INFO) << "Removing " << task << " because it's done";
+              removeTask(task, TRR_TASK_ENDED);
             }
           }
 	} else
@@ -532,11 +534,33 @@ void Master::operator () ()
 	    }
 	  }
 	} else
-          DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup slave id" << sid;
-      }
+          DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup framework id" << fid;
+      } else
+        DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup slave id" << sid;
       break;
     }
       
+    case S2M_FT_FRAMEWORK_MESSAGE: {
+      SlaveID sid;
+      FrameworkID fid;
+      FrameworkMessage message; 
+      string ftId, senderStr;
+      unpack<S2M_FT_FRAMEWORK_MESSAGE>(ftId, senderStr, sid, fid, message);
+      Slave *slave = lookupSlave(sid);
+      if (slave != NULL) {
+	Framework *framework = lookupFramework(fid);
+	if (framework != NULL) {
+
+	  send(framework->pid, pack<M2F_FT_FRAMEWORK_MESSAGE>(ftId, senderStr, message));
+
+        } else
+          DLOG(INFO) << "S2M_FT_FRAMEWORK_MESSAGE error: couldn't lookup framework id" << fid;
+      } else
+        DLOG(INFO) << "S2M_FT_FRAMEWORK_MESSAGE error: couldn't lookup slave id" << sid;
+
+      break;
+    }
+
     case S2M_FRAMEWORK_MESSAGE: {
       SlaveID sid;
       FrameworkID fid;
