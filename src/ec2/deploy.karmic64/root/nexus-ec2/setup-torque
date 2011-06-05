@@ -19,7 +19,7 @@ function installmaster {
 	wget http://nexus.berkeley.edu/torque-2.4.7.tar.gz
 	tar xzf torque-2.4.7.tar.gz
 	cd torque-2.4.7
-	./configure --prefix=/usr/local
+	./configure --prefix=/usr/local --with-debug --disable-gcc-warnings
 	make -j8
 	make install
 	echo "running ldconfig on master"
