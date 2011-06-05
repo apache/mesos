@@ -669,7 +669,7 @@ void Master::operator () ()
       } else {
 	foreachpair (_, Framework *framework, frameworks) {
 	  if (framework->failoverTimer != NULL &&
-	      framework->failoverTimer->getPID() == from()) {
+	      framework->failoverTimer->self() == from()) {
 	    LOG(INFO) << "Lost framework failover timer, removing framework "
 		      << framework;
 	    removeFramework(framework);
@@ -780,7 +780,7 @@ void Master::processOfferReply(SlotOffer *offer,
         idsInResponse.find(t.taskId) != idsInResponse.end()) {
       terminateFramework(framework, 0,
           "Duplicate task ID: " + lexical_cast<string>(t.taskId));
-      return;    
+      return;
     }
     idsInResponse.insert(t.taskId);
   }
