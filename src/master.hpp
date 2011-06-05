@@ -301,6 +301,13 @@ public:
 
   SlotOffer * lookupSlotOffer(OfferID soid);
 
+  // Used in FT mode. Ensures that task is also registered in frameworks->tasks
+  void updateFrameworkTasks(TaskInfo *task);
+  
+  // Used in FT mode. Traverses all slaves' tasks t and calls updateFrameworkTasks(t)
+  void updateFrameworkTasks();
+
+
   // Return connected frameworks that are not in the process of being removed
   vector<Framework *> getActiveFrameworks();
   

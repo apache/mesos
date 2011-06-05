@@ -256,6 +256,25 @@ SlotOffer * Master::lookupSlotOffer(OfferID oid)
     return NULL;
 }
 
+void Master::updateFrameworkTasks() {
+  foreachpair (SlaveID sid, Slave *slave, slaves) {
+    foreachpair (_, TaskInfo *task, slave->tasks) {
+      updateFrameworkTasks(task);
+    }
+  }
+}
+
+//alibandali++
+void Master::updateFrameworkTasks(TaskInfo *task) {
+  Framework *fwrk = lookupFramework(task->frameworkId);
+  if (fwrk != NULL) {
+    if (fwrk->tasks.find(task->id) == fwrk->tasks.end()) {
+      fwrk->tasks[task->id] = task;
+      // this->resources += resources; // alig: not sure if this should be done or not
+    }
+  }
+}
+
 
 void Master::operator () ()
 {
@@ -310,6 +329,9 @@ void Master::operator () ()
       LOG(INFO) << "Registering " << framework << " at " << framework->pid;
       frameworks[framework->id] = framework;
       pidToFid[framework->pid] = framework->id;
+
+      updateFrameworkTasks();
+
       link(framework->pid);
       send(framework->pid, pack<M2F_REGISTER_REPLY>(framework->id));
       allocator->frameworkAdded(framework);
@@ -416,7 +438,9 @@ void Master::operator () ()
       				   slave->resources, taskVec);
 
       foreach(TaskInfo &ti, taskVec) {
-	slave->addTask(new TaskInfo(ti));
+        TaskInfo *tip = new TaskInfo(ti);
+	slave->addTask(tip);
+        updateFrameworkTasks(tip);
       }
   
      //alibandali
