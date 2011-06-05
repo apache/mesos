@@ -131,8 +131,10 @@ MasterDetector * MasterDetector::create(const std::string &url,
       // ZooKeeper, rather than just using it's syntax.
       size_t index = urlPair.second.find("/");
       if (index == string::npos)
-	fatal("expecting chroot path for ZooKeeper string");
+	fatal("expecting chroot path for ZooKeeper");
       const string &znode = urlPair.second.substr(index);
+      if (znode == "/")
+	fatal("expecting chroot path for ZooKeeper ('/' is not supported)");
       const string &servers = urlPair.second.substr(0, index);
       detector = new ZooKeeperMasterDetector(servers, znode, pid, contend, quiet);
       break;
@@ -272,10 +274,6 @@ ZooKeeperMasterDetector::ZooKeeperMasterDetector(const string &_servers,
   // TODO(benh): Put this in the C++ API.
   zoo_set_debug_level(quiet ? ZOO_LOG_LEVEL_ERROR : ZOO_LOG_LEVEL_DEBUG);
 
-  // TODO(benh): Don't deal with znode like this!
-  if (znode == "/")
-    znode = "";
-
   // Start up the ZooKeeper connection!
   zk = new ZooKeeper(servers, 10000, this);
 }
@@ -321,7 +319,7 @@ void ZooKeeperMasterDetector::process(ZooKeeper *zk, int type, int state,
       }
 
       // Wierdness in ZooKeeper timing, let's check that everything is created.
-      ret = zk->get(znode + "/", false, &result, NULL);
+      ret = zk->get(znode, false, &result, NULL);
 
       if (ret != ZOK)
 	fatal("ZooKeeper not responding correctly (%s). "
