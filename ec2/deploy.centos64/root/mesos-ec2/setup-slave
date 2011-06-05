@@ -12,6 +12,9 @@ HOSTNAME=$PRIVATE_DNS  # Fix the bash built-in hostname variable too
 
 echo "Setting up Mesos slave on `hostname`..."
 
+# Read command-line arguments
+SWAP_MB=$1
+
 # Mount options to use for ext3 and xfs disks (the ephemeral disks
 # are ext3, but we use xfs for EBS volumes to format them faster)
 EXT3_MOUNT_OPTS="defaults,noatime,nodiratime"
@@ -75,3 +78,6 @@ fi
 # Remove ~/.ssh/known_hosts because it gets polluted as you start/stop many
 # clusters (new machines tend to come up under old hostnames)
 rm -f /root/.ssh/known_hosts
+
+# Create swap space on /mnt
+/root/mesos-ec2/create-swap $SWAP_MB

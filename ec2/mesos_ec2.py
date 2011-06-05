@@ -26,7 +26,7 @@ def parse_args():
   parser.add_option("-s", "--slaves", type="int", default=1,
       help="Number of slaves to launch (default: 1)")
   parser.add_option("-w", "--wait", type="int", default=60,
-      help="Number of seconds to wait for cluster to come up (default: 60)")
+      help="Number of seconds to wait for cluster nodes to start (default: 60)")
   parser.add_option("-k", "--key-pair",
       help="Key pair to use on instances")
   parser.add_option("-i", "--identity-file", 
@@ -54,12 +54,14 @@ def parse_args():
       help="Resume installation on a previously launched cluster " +
            "(for debugging)")
   parser.add_option("-f", "--ft", metavar="NUM_MASTERS", default="1", 
-      help="Number of masters to run. Default is 1. " + 
-           "Greater values cause Mesos to run in FT mode with ZooKeeper.")
+      help="Number of masters to run. Default is 1. Greater values " + 
+           "make Mesos run in fault-tolerant mode with ZooKeeper.")
   parser.add_option("--ebs-vol-size", metavar="SIZE", type="int", default=0,
       help="Attach a new EBS volume of size SIZE (in GB) to each node as " +
            "/vol. The volumes will be deleted when the instances terminate. " +
            "Only possible on EBS-backed AMIs.")
+  parser.add_option("--swap", metavar="SWAP", type="int", default=1024,
+      help="Swap space to set up per node, in MB (default: 1024)")
   (opts, args) = parser.parse_args()
   opts.ft = int(opts.ft)
   if len(args) != 2:
@@ -264,7 +266,8 @@ def setup_cluster(conn, master_nodes, slave_nodes, zoo_nodes, opts, deploy_ssh_k
     scp(master, opts, opts.identity_file, '/root/.ssh/id_rsa')
   print "Running setup on master..."
   ssh(master, opts, "chmod u+x mesos-ec2/setup")
-  ssh(master, opts, "mesos-ec2/setup %s %s %s" % (opts.os, opts.download, opts.branch))
+  ssh(master, opts, "mesos-ec2/setup %s %s %s %s" %
+      (opts.os, opts.download, opts.branch, opts.swap))
   print "Done!"
 
 
