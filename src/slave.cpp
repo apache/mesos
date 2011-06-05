@@ -191,12 +191,6 @@ void Slave::operator () ()
         break;
       }
       
-      case M2S_REREGISTER_REPLY: {
-        LOG(INFO) << "Registered with master; given slave ID " << this->id;
-        link(spawn(new Heart(master, this->getPID(), this->id)));
-        break;
-      }
-
       case M2S_RUN_TASK: {
         string fwName, user, taskName, taskArg;
         ExecutorInfo execInfo;
