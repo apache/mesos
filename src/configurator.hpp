@@ -254,6 +254,11 @@ public:
    **/
   Params& load(const map<string, string>& _params);
 
+  /**
+   * Clears all Mesos environment variables (useful for tests).
+   */
+  static void clearMesosEnvironmentVars();
+
 private:
   /**
    * Parses the environment variables and populates a Params.
@@ -309,7 +314,6 @@ private:
    * @return first long name option matching the short name, "" if none found.
    */
   string getLongName(char shortName) const;
-
 };
 
 } }   // end nexus :: internal namespace

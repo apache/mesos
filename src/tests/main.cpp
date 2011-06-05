@@ -7,9 +7,11 @@
 #include <iostream>
 #include <string>
 
+#include "configurator.hpp"
 #include "fatal.hpp"
 #include "testing_utils.hpp"
 
+using namespace nexus::internal;
 using namespace nexus::internal::test;
 
 
@@ -20,6 +22,10 @@ int main(int argc, char **argv) {
     fatalerror("Failed to find location of alltests using realpath");
   mesosHome = buf;
 
+  // Clear any MESOS_ environment variables so they don't affect our tests
+  Configurator::clearMesosEnvironmentVars();
+
+  // Initialize Google Logging and Google Test
   google::InitGoogleLogging("alltests");
   testing::InitGoogleTest(&argc, argv);
   testing::FLAGS_gtest_death_test_style = "threadsafe";

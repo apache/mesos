@@ -280,3 +280,26 @@ string Configurator::getLongName(char shortName) const
   }
   return "";
 }
+
+
+void Configurator::clearMesosEnvironmentVars()
+{
+  char** environ = getEnviron();
+  int i = 0;
+  vector<string> toRemove;
+  while (environ[i] != NULL) {
+    string line = environ[i];
+    if (line.find(ENV_VAR_PREFIX) == 0) {
+      string key;
+      size_t eq = line.find_first_of("=");
+      if (eq == string::npos) 
+        continue; // ignore malformed lines (they shouldn't occur in environ!)
+      key = line.substr(strlen(ENV_VAR_PREFIX), eq - strlen(ENV_VAR_PREFIX));
+      toRemove.push_back(key);
+    }
+    i++;
+  }
+  foreach (string& str, toRemove) {
+    unsetenv(str.c_str());
+  }
+}
