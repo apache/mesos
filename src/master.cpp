@@ -318,6 +318,9 @@ void Master::operator () ()
     switch (receive()) {
 
     case NEW_MASTER_DETECTED: {
+      // TODO(benh): We might have been the master, but then got
+      // partitioned, and now we are finding out once we reconnect
+      // that we are no longer the master, so we should just die.
       LOG(INFO) << "new master detected ... maybe it's us!";
       break;
     }
