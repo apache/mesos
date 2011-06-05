@@ -1,5 +1,6 @@
 .*
 !.gitignore
+*~
 config.cache
 tags
 autom4te.cache
