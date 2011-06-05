@@ -28,10 +28,15 @@ public:
   // Extra shutdown message for reaper
   enum { SHUTDOWN_REAPER = NEXUS_MESSAGES };
 
+  // Per-framework information object maintained in info hashmap
+  struct FrameworkInfo {
+    string container;    // Name of Linux container used for this framework
+    pid_t lxcExecutePid; // PID of lxc-execute command running the executor
+  };
+
 protected:
   Slave* slave;
-  unordered_map<FrameworkID, string> container;
-  unordered_map<FrameworkID, pid_t> lxcExecutePid;
+  unordered_map<FrameworkID, FrameworkInfo*> infos;
   Reaper* reaper;
 
 public:

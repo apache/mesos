@@ -47,7 +47,7 @@ LxcIsolationModule::LxcIsolationModule(Slave* slave)
     LOG(FATAL) << "Could not run lxc-version; make sure Linux Container "
                 << "tools are installed";
   }
-  // Check that we are root (technically it might be possible to create
+  // Check that we are root (it might also be possible to create Linux
   // containers without being root, but we can support that later)
   if (getuid() != 0) {
     LOG(FATAL) << "LXC isolation module requires slave to run as root";
@@ -66,18 +66,21 @@ LxcIsolationModule::~LxcIsolationModule()
 }
 
 
-void LxcIsolationModule::frameworkAdded(Framework* framework)
+void LxcIsolationModule::frameworkAdded(Framework* fw)
 {
-  lxcExecutePid[framework->id] = -1;
-  container[framework->id] = "";
-  framework->executorStatus = "No executor running";
+  infos[fw->id] = new FrameworkInfo();
+  infos[fw->id]->lxcExecutePid = -1;
+  infos[fw->id]->container = "";
+  fw->executorStatus = "No executor running";
 }
 
 
-void LxcIsolationModule::frameworkRemoved(Framework *framework)
+void LxcIsolationModule::frameworkRemoved(Framework* fw)
 {
-  lxcExecutePid.erase(framework->id);
-  container.erase(framework->id);
+  if (infos.find(fw->id) != infos.end()) {
+    delete infos[fw->id];
+    infos.erase(fw->id);
+  }
 }
 
 
@@ -85,7 +88,7 @@ void LxcIsolationModule::startExecutor(Framework *fw)
 {
   LOG(INFO) << "Starting executor for framework " << fw->id << ": "
             << fw->executorInfo.uri;
-  CHECK(lxcExecutePid[fw->id] == -1 && container[fw->id] == "");
+  CHECK(infos[fw->id]->lxcExecutePid == -1 && infos[fw->id]->container == "");
 
   // Get location of Nexus install in order to find nexus-launcher.
   const char *nexusHome = getenv("NEXUS_HOME");
@@ -98,7 +101,7 @@ void LxcIsolationModule::startExecutor(Framework *fw)
   oss << "nexus.slave-" << slave->id << ".framework-" << fw->id;
   string containerName = oss.str();
 
-  container[fw->id] = containerName;
+  infos[fw->id]->container = containerName;
   fw->executorStatus = "Container: " + containerName;
 
   // Run lxc-execute nexus-launcher using a fork-exec (since lxc-execute
@@ -110,7 +113,7 @@ void LxcIsolationModule::startExecutor(Framework *fw)
 
   if (pid) {
     // In parent process
-    lxcExecutePid[fw->id] = pid;
+    infos[fw->id]->lxcExecutePid = pid;
     LOG(INFO) << "Started lxc-execute, pid = " << pid;
     int status;
   } else {
@@ -143,12 +146,13 @@ void LxcIsolationModule::startExecutor(Framework *fw)
 
 void LxcIsolationModule::killExecutor(Framework* fw)
 {
-  if (container[fw->id] != "") {
-    LOG(INFO) << "Stopping container " << container[fw->id];
-    int ret = shell("lxc-stop -n %s", container[fw->id].c_str());
+  string container = infos[fw->id]->container;
+  if (container != "") {
+    LOG(INFO) << "Stopping container " << container;
+    int ret = shell("lxc-stop -n %s", container.c_str());
     if (ret != 0)
       LOG(ERROR) << "lxc-stop returned " << ret;
-    container[fw->id] = "";
+    infos[fw->id]->container = "";
     fw->executorStatus = "No executor running";
   }
 }
@@ -156,7 +160,7 @@ void LxcIsolationModule::killExecutor(Framework* fw)
 
 void LxcIsolationModule::resourcesChanged(Framework* fw)
 {
-  if (container[fw->id] != "") {
+  if (infos[fw->id]->container != "") {
     // For now, just try setting the CPUs and memory right away, and kill the
     // framework if this fails.
     // A smarter thing to do might be to only update them periodically in a
@@ -186,7 +190,7 @@ bool LxcIsolationModule::setResourceLimit(Framework* fw,
   LOG(INFO) << "Setting " << property << " for framework " << fw->id
             << " to " << value;
   int ret = shell("lxc-cgroup -n %s %s %lld",
-                  container[fw->id].c_str(),
+                  infos[fw->id]->container.c_str(),
                   property.c_str(),
                   value);
   if (ret != 0) {
@@ -234,10 +238,10 @@ void LxcIsolationModule::Reaper::operator () ()
       pid_t pid;
       int status;
       if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
-        foreachpair (FrameworkID fid, pid_t& fwPid, module->lxcExecutePid) {
-          if (fwPid == pid) {
-            module->container[fid] = "";
-            module->lxcExecutePid[fid] = -1;
+        foreachpair (FrameworkID fid, FrameworkInfo* info, module->infos) {
+          if (info->lxcExecutePid == pid) {
+            info->container = "";
+            info->lxcExecutePid = -1;
             LOG(INFO) << "Telling slave of lost framework " << fid;
             // TODO(benh): This is broken if/when libprocess is parallel!
             module->slave->executorExited(fid, status);
