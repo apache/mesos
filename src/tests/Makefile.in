@@ -22,8 +22,7 @@ LIBPROCESS = third_party/libprocess
 LIBEV = $(LIBPROCESS)/third_party/libev-3.8
 
 GLOG = third_party/glog-0.3.1
-GTEST = third_party/gtest-1.5.0
-SQLITE = third_party/sqlite-3.6.23.1
+GMOCK = third_party/gmock-1.5.0
 
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
@@ -31,7 +30,7 @@ ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 CFLAGS += -g
 CXXFLAGS += -g
 
-# Add source dir and build dir to CFLAGS and CXXFLAGS.
+# Add 'src' source dir and build dir to CFLAGS and CXXFLAGS.
 CFLAGS += -I@srcdir@/.. -I..
 CXXFLAGS += -I@srcdir@/.. -I..
 
@@ -51,9 +50,9 @@ LDFLAGS += -L@top_builddir@/$(LIBPROCESS)
 # Add libev to LDFLAGS.
 LDFLAGS += -L@top_builddir@/$(LIBEV)/.libs
 
-# Add glog and gtest to include paths.
-CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src -I@top_srcdir@/$(GTEST)/include -I@top_srcdir@/$(SQLITE)
-LDFLAGS += -L@top_builddir@/$(GLOG)/.libs -L@top_builddir@/$(GTEST)/lib/.libs -L@top_builddir@/$(SQLITE)/.libs
+# Add glog, and gmock/gtest to include paths and library paths.
+CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src -I@top_srcdir@/$(GMOCK)/include -I@top_srcdir@/$(GMOCK)/gtest/include
+LDFLAGS += -L@top_builddir@/$(GLOG)/.libs -L@top_builddir@/$(GMOCK)/lib/.libs -L@top_builddir@/$(GMOCK)/gtest/lib/.libs
 
 # Add included ZooKeeper to include and lib paths if necessary.
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
@@ -73,8 +72,8 @@ CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
 CFLAGS += -DBUILD_USER="\"$$USER\""
 CXXFLAGS += -DBUILD_USER="\"$$USER\""
 
-# Add glog, gtest, libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lsqlite3
+# Add glog, gmock, gtest, libev, libprocess, pthread, and dl to LIBS.
+LIBS += -lglog -lgmock -lgtest -lprocess -lev -lpthread -ldl
 
 # Add ZooKeeper if necessary.
 ifeq ($(WITH_ZOOKEEPER),1)
@@ -84,12 +83,12 @@ endif
 SCHED_LIB = $(LIBDIR)/libmesos_sched.a
 EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
-TESTS_OBJ = main.o test_master.o test_resources.o external_test.o	\
-	    test_sample_frameworks.o testing_utils.o			\
-	    test_configurator.o test_string_utils.o			\
-	    test_lxc_isolation.o test_event_history.o
+TESTS_OBJ = main.o utils.o master_test.o errors_test.o			\
+	    resources_test.o external_test.o sample_frameworks_test.o	\
+	    configurator_test.o string_utils_test.o			\
+	    lxc_isolation_test.o
 
-ALLTESTS_EXE = $(BINDIR)/tests/alltests
+ALLTESTS_EXE = $(BINDIR)/tests/all-tests
 
 EXTERNAL_SCRIPTS =							\
   $(BINDIR)/tests/external/LxcIsolation/HoldMoreMemThanRequested.sh	\
@@ -115,7 +114,7 @@ DIRECTORIES = $(BINDIR)/tests                                   \
 default: all
 
 -include $(patsubst %.o, %.d, $(TESTS_OBJ))
--include $(patsubst %, %.d, alltests)
+-include $(patsubst %, %.d, $(ALLTESTS_EXE))
 
 $(DIRECTORIES): %:
 	mkdir -p $@

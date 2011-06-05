@@ -1,10 +1,9 @@
 #include <gtest/gtest.h>
 
-#include <sstream>
 #include <string>
 #include <vector>
 
-#include "common/string_utils.hpp"
+#include <common/string_utils.hpp>
 
 using std::string;
 using std::vector;

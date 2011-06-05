@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "config/config.hpp"
-#include "external_test.hpp"
+#include <config/config.hpp>
+
+#include <tests/external_test.hpp>
+
 
 // Run each of the sample frameworks in local mode
 TEST_EXTERNAL(SampleFrameworks, CFramework)

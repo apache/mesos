@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "testing_utils.hpp"
+#include <tests/utils.hpp>
 
 using std::string;
 

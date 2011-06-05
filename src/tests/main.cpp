@@ -1,17 +1,17 @@
 #include <glog/logging.h>
+
 #include <gtest/gtest.h>
 
 #include <libgen.h>
 #include <stdlib.h>
 
-#include <iostream>
 #include <string>
 
-#include "testing_utils.hpp"
+#include <common/fatal.hpp>
 
-#include "common/fatal.hpp"
+#include <configurator/configurator.hpp>
 
-#include "configurator/configurator.hpp"
+#include <tests/utils.hpp>
 
 using namespace mesos::internal;
 using namespace mesos::internal::test;

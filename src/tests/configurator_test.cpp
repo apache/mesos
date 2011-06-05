@@ -1,20 +1,17 @@
 #include <gtest/gtest.h>
 
-#include <iostream>
 #include <fstream>
 
 #include <boost/lexical_cast.hpp>
 
-#include "testing_utils.hpp"
+#include <configurator/configurator.hpp>
 
-#include "configurator/configurator.hpp"
+#include <tests/utils.hpp>
+
+using boost::lexical_cast;
 
 using std::ofstream;
 using std::string;
-using std::vector;
-using std::cout;
-
-using boost::lexical_cast;
 
 using namespace mesos;
 using namespace mesos::internal;

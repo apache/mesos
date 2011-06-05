@@ -5,15 +5,15 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include "local/local.hpp"
+#include <local/local.hpp>
 
-#include "master/master.hpp"
+#include <master/master.hpp>
 
-#include "slave/isolation_module.hpp"
-#include "slave/process_based_isolation_module.hpp"
-#include "slave/slave.hpp"
+#include <slave/isolation_module.hpp>
+#include <slave/process_based_isolation_module.hpp>
+#include <slave/slave.hpp>
 
-#include "testing_gmock.hpp"
+#include <tests/utils.hpp>
 
 using namespace mesos;
 using namespace mesos::internal;

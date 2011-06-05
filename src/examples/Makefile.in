@@ -37,10 +37,6 @@ ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 CFLAGS += -g
 CXXFLAGS += -g
 
-# Add source dir to CFLAGS and CXXFLAGS.
-CFLAGS += -I@srcdir@
-CXXFLAGS += -I@srcdir@
-
 # Add include to CFLAGS and CXXFLAGS.
 CFLAGS += -I@top_srcdir@/include
 CXXFLAGS += -I@top_srcdir@/include

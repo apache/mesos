@@ -6,13 +6,14 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include "external_test.hpp"
-#include "testing_utils.hpp"
+#include <common/fatal.hpp>
 
-#include "common/fatal.hpp"
+#include <tests/external_test.hpp>
+#include <tests/utils.hpp>
+
+using namespace mesos::internal::test;
 
 using std::string;
-using namespace mesos::internal::test;
 
 
 /**

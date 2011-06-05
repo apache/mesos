@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "external_test.hpp"
+#include <tests/external_test.hpp>
+
 
 // Run a number of tests for the LXC isolation module.
 // These tests are disabled by default since they require alltests to be run

@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "master/master.hpp"
+#include <master/master.hpp>
 
 using namespace mesos;
 using namespace mesos::internal;
