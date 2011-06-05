@@ -133,7 +133,7 @@ public:
     handle(M2F_REGISTER_REPLY, &SchedulerProcess::registerReply,
            &FrameworkRegisteredMessage::framework_id);
 
-    handle(M2F_RESOURCE_OFFER, &SchedulerProcess::resourceOffer
+    handle(M2F_RESOURCE_OFFER, &SchedulerProcess::resourceOffer,
            &ResourceOfferMessage::offer_id,
            &ResourceOfferMessage::offers,
            &ResourceOfferMessage::pids);
