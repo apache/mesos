@@ -16,7 +16,7 @@ def index():
   return template("index", start_time = start_time)
 
 
-@route('/framework/:id#[0-9]*#')
+@route('/framework/:id#[0-9-]*#')
 def framework(id):
   bottle.TEMPLATES.clear() # For rapid development
   return template("framework", framework_id = int(id))
@@ -39,17 +39,20 @@ def log_tail(level, lines):
   return commands.getoutput('tail -%s %s/mesos-slave.%s' % (lines, log_dir, level))
 
 
-@route('/framework-logs/:fid#[0-9]*#/:log_type#[a-z]*#')
+@route('/framework-logs/:fid#[0-9-]*#/:log_type#[a-z]*#')
 def framework_log_full(fid, log_type):
   sid = get_slave().id
   if sid != -1:
-    send_file(log_type, root = '%s/slave-%s/fw-%s' % (work_dir, sid, fid),
+    dir = '%s/slave-%s/fw-%s' % (work_dir, sid, fid)
+    i = max(os.listdir(dir))
+    exec_dir = '%s/slave-%s/fw-%s/%s' % (work_dir, sid, fid, i)
+    send_file(log_type, root = exec_dir,
               guessmime = False, mimetype = 'text/plain')
   else:
     abort(403, 'Slave not yet registered with master')
 
 
-@route('/framework-logs/:fid#[0-9]*#/:log_type#[a-z]*#/:lines#[0-9]*#')
+@route('/framework-logs/:fid#[0-9-]*#/:log_type#[a-z]*#/:lines#[0-9]*#')
 def framework_log_tail(fid, log_type, lines):
   bottle.response.content_type = 'text/plain'
   sid = get_slave().id
@@ -57,7 +60,6 @@ def framework_log_tail(fid, log_type, lines):
     dir = '%s/slave-%s/fw-%s' % (work_dir, sid, fid)
     i = max(os.listdir(dir))
     filename = '%s/slave-%s/fw-%s/%s/%s' % (work_dir, sid, fid, i, log_type)
-    print filename
     return commands.getoutput('tail -%s %s' % (lines, filename))
   else:
     abort(403, 'Slave not yet registered with master')
