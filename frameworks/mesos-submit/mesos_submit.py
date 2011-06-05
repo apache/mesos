@@ -42,7 +42,8 @@ class SubmitScheduler(mesos.Scheduler):
     return self.framework_name
 
   def getExecutorInfo(self, driver):
-    executorPath = os.path.join(os.getcwd(), "executor")
+    frameworkDir = os.path.abspath(os.path.dirname(sys.argv[0]))
+    executorPath = os.path.join(frameworkDir, "executor")
     return mesos.ExecutorInfo(executorPath, "")
 
   def registered(self, driver, fid):
