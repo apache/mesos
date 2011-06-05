@@ -44,11 +44,11 @@ class NexusScheduler extends nexus.Scheduler {
   private ExecutorService rpcThreadPool;
   
   // Counts of active map slots and reduce slots on each slave
-  private Map<Integer, Integer> mapSlots = new HashMap<Integer, Integer>();
-  private Map<Integer, Integer> reduceSlots = new HashMap<Integer, Integer>();
+  private Map<String, Integer> mapSlots = new HashMap<String, Integer>();
+  private Map<String, Integer> reduceSlots = new HashMap<String, Integer>();
   
   // Maps from Nexus each task ID to the slave it's on and its task type
-  private Map<Integer, Integer> taskIdToSlave = new HashMap<Integer, Integer>();
+  private Map<Integer, String> taskIdToSlave = new HashMap<Integer, String>();
   private Map<Integer, Boolean> taskIdIsMap = new HashMap<Integer, Boolean>();
   
   // Time to wait for slot offer on node with local data for maps
@@ -97,7 +97,7 @@ class NexusScheduler extends nexus.Scheduler {
 
   @Override
   public void resourceOffer(
-      SchedulerDriver driver, long offerId, SlaveOfferVector offers) {
+      SchedulerDriver driver, String offerId, SlaveOfferVector offers) {
     LOG.info("Got slot offer " + offerId);
     TaskDescriptionVector tasks = new TaskDescriptionVector();
     for (int i = 0; i < offers.size(); i++) {
@@ -135,7 +135,7 @@ class NexusScheduler extends nexus.Scheduler {
         return null;
       }
 
-      int slaveId = slot.getSlaveId();
+      String slaveId = slot.getSlaveId();
       Integer curMapSlots = mapSlots.get(slaveId);
       if (curMapSlots == null)
         curMapSlots = 0;
@@ -209,7 +209,7 @@ class NexusScheduler extends nexus.Scheduler {
     if (state == TaskState.TASK_FINISHED || state == TaskState.TASK_FAILED ||
         state == TaskState.TASK_KILLED || state == TaskState.TASK_LOST) {
       int taskId = status.getTaskId();
-      int slaveId = taskIdToSlave.get(taskId);
+      String slaveId = taskIdToSlave.get(taskId);
       boolean isMap = taskIdIsMap.get(taskId);
       if (isMap) {
         mapSlots.put(slaveId, mapSlots.get(slaveId) - 1);
@@ -245,7 +245,7 @@ class NexusScheduler extends nexus.Scheduler {
     //LOG.info("Received framework message, len = " + message.getData().length);
     // Copy slaveId and data because the message will go away
     // TODO: make the C++ API not automatically delete the message
-    final int slaveId = message.getSlaveId();
+    final String slaveId = message.getSlaveId();
     final byte[] data = message.getData();
     rpcThreadPool.execute(new Runnable() {
       public void run() {
@@ -306,7 +306,7 @@ class NexusScheduler extends nexus.Scheduler {
     return false;
   }
 
-  private void handleRPC(int slaveId, byte[] data) {
+  private void handleRPC(String slaveId, byte[] data) {
     try {
       DataInputStream in = new DataInputStream(
           new ByteArrayInputStream(data));
@@ -381,7 +381,7 @@ class NexusScheduler extends nexus.Scheduler {
     }
   }
 
-  private void sendRPCResponse(int slaveId, int rpcId,
+  private void sendRPCResponse(String slaveId, int rpcId,
       Object response) throws IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     DataOutputStream out = new DataOutputStream(bos);

@@ -73,16 +73,15 @@ Slave::Slave(const string &_master, Resources _resources, bool _local)
   if (urlPair.first == UrlProcessor::ZOO) {
     isFT=true;
     zkserver = urlPair.second;
-  } else if (urlPair.first == UrlProcessor::NEXUS) {
+    //  } else if (urlPair.first == UrlProcessor::NEXUS) {
+  } else {
     isFT=false;
     istringstream iss(urlPair.second);
-    if (!(iss >> master)) {
+    istringstream iss2(_master);
+    if (!((iss >> master) || (iss2 >> master) )) {
       cerr << "Failed to resolve master PID " << urlPair.second << endl;
       exit(1);
     }
-  } else {
-    cerr << "Failed to parse URL for Nexus master or ZooKeeper servers ";
-    exit(1);
   }
 }
 

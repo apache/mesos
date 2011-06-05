@@ -149,7 +149,7 @@ public:
       isFT=true;
       zkservers = urlPair.second;
     } else {
-      cerr << "Failed to parse URL for ZooKeeper servers";
+      cerr << "Failed to parse URL for ZooKeeper servers: " << _zkservers <<endl;
       exit(1);
     }
   }
@@ -444,7 +444,7 @@ void NexusSchedulerDriver::start()
   } else if (master == string("local")) {
     // TODO(benh): Look up resources in environment variables.
     pid = run_nexus(1, 1, 1073741824, true, false);
-  } else
+  } else if (master.find("://")!=string::npos) 
     passString = true;
 
   const string& frameworkName = sched->getFrameworkName(this);

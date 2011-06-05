@@ -36,7 +36,7 @@ public class NexusExecutor extends Executor
   private TaskTracker taskTracker;
 
   private ExecutorDriver driver;
-  private int slaveId;
+  private String slaveId;
   
   private AtomicInteger nextRpcId = new AtomicInteger();
   
@@ -230,7 +230,7 @@ public class NexusExecutor extends Executor
     }
     byte[] bytes = bos.toByteArray();
     //LOG.info("RPC message length: " + bytes.length);
-    FrameworkMessage msg = new FrameworkMessage(0, 0, bytes);
+    FrameworkMessage msg = new FrameworkMessage(this.slaveId, 0, bytes);
     driver.sendFrameworkMessage(msg);
     
     // Wait for a reply
