@@ -95,6 +95,20 @@ AC_ARG_WITH([ruby-headers],
 	         [])
 AC_SUBST(RUBY_HEADERS)
 
+ZOOKEEPER="third_party/zookeeper-3.3.1/src/c"
+ZOOCOMPILE="yes"
+AC_ARG_WITH([zookeeper],
+  AC_HELP_STRING([--with-zookeeper=DIR],
+                 [Zookeeper C files directory is DIR, default third_party/zookeeper-3.3.1/src/c]),
+	         [case "$with_zookeeper" in
+		    yes) AC_MSG_ERROR([
+*** --with-zookeeper requires an argument]) ;;
+		    *) ZOOKEEPER="$withval" ZOOCOMPILE="no" ;;
+	          esac],
+	         [])
+AC_SUBST(ZOOKEEPER)
+AC_SUBST(ZOOCOMPILE)
+
 WITH_WEBUI="0"
 WEBUI_FLAGS=""
 AC_ARG_WITH([webui],
