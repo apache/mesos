@@ -173,8 +173,8 @@ protected:
       const char *s = ReliableProcess::body(&size);
       const std::string data(s, size);
       size_t index = data.find('|');
-      CHECK(index != std::string::npos);
-      if (MESOS_MESSAGING_VERSION != data.substr(0, index)) {
+      if (index == std::string::npos ||
+          MESOS_MESSAGING_VERSION != data.substr(0, index)) {
         LOG(ERROR) << "Dropping message from " << from()
                    << " with incorrect messaging version!";
         if (!indefinite) {
