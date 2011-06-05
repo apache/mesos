@@ -321,7 +321,7 @@ private:
   {
     if (options.find(key) != options.end() && 
         options[key].validator->isBool() != gotBool) {
-      string message = "Option " + key + " should ";
+      string message = "Option '" + key + "' should ";
       if (gotBool)
         message += "not ";
       message += "be a boolean.";

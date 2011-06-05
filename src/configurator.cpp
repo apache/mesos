@@ -169,7 +169,7 @@ void Configurator::loadCommandLine(int argc,
         shortName = args[i][1];
 
       if (shortName == '\0' || getLongName(shortName) == "") {
-        string message = "Short option " + args[i] + " unrecognized ";
+        string message = "Short option '" + args[i] + "' unrecognized ";
         throw ConfigurationException(message.c_str());
       }
 
