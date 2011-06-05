@@ -41,6 +41,7 @@ class SecondaryScheduler(mesos.Scheduler):
     mesos.Scheduler.__init__(self)
     self.framework_name = framework_name
     self.command = command
+    self.command_started = False
 
   def getFrameworkName(self, driver):
     return self.framework_name
@@ -55,8 +56,15 @@ class SecondaryScheduler(mesos.Scheduler):
     driver.replyToOffer(oid, [], {"timeout": "-1"})
 
   def registered(self, driver, fid):
-    print "Registered with Mesos; starting command"
-    Thread(target=run_command, args=[self.command, driver]).start()
+    # Registered is called both the first time whe connect to a master
+    # and subsequent times if we reconnect or the master fails over.
+    # We only want to launch the command the first time.
+    if not self.command_started:
+      print "Registered with Mesos; starting command"
+      Thread(target=run_command, args=[self.command, driver]).start()
+      self.command_started = True
+    else:
+      print "Re-registered with Mesos (likely due to master failover)"
 
   def error(self, driver, code, message):
     print "Error from Mesos: %s (code %s)" % (message, code)
