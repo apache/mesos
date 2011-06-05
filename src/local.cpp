@@ -34,6 +34,7 @@ int main (int argc, char **argv)
 {
   Configurator conf;
   conf.addOption<int>("port", 'p', "Port to listen on", 5050);
+  conf.addOption<string>("ip", "IP address to listen on");
   local::registerOptions(&conf);
 
   if (argc == 2 && string("--help") == argv[1]) {
@@ -53,6 +54,9 @@ int main (int argc, char **argv)
 
   if (params.contains("port"))
     setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
+
+  if (params.contains("ip"))
+    setenv("LIBPROCESS_IP", params["ip"].c_str(), 1);
 
   const PID &master = local::launch(params, false);
 

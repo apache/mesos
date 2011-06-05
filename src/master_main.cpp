@@ -32,6 +32,7 @@ int main(int argc, char **argv)
   Configurator conf;
   conf.addOption<string>("url", 'u', "URL used for leader election");
   conf.addOption<int>("port", 'p', "Port to listen on", 5050);
+  conf.addOption<string>("ip", "IP address to listen on");
 #ifdef MESOS_WEBUI
   conf.addOption<int>("webui_port", 'w', "Web UI port", 8080);
 #endif
@@ -55,6 +56,9 @@ int main(int argc, char **argv)
 
   if (params.contains("port"))
     setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
+
+  if (params.contains("ip"))
+    setenv("LIBPROCESS_IP", params["ip"].c_str(), 1);
 
   string url = params.get("url", "");
 
