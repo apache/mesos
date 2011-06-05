@@ -21,11 +21,11 @@ class MemHogExecutor;
 struct ThreadArg
 {
   MemHogExecutor *executor;
-  TaskID tid;
-  bool primary;
+  TaskID taskId;
+  int threadId;
 
-  ThreadArg(MemHogExecutor *e, TaskID t, bool p)
-    : executor(e), tid(t), primary(p) {}
+  ThreadArg(MemHogExecutor *exec, TaskID task, int thread)
+    : executor(exec), taskId(task), threadId(thread) {}
 };
 
 
@@ -54,7 +54,7 @@ public:
   virtual void launchTask(ExecutorDriver*, const TaskDescription& task) {
     cout << "Executor starting task " << task.taskId << endl;
     for (int i = 0; i < threadsPerTask; i++) {
-      ThreadArg *arg = new ThreadArg(this, task.taskId, i == 0);
+      ThreadArg *arg = new ThreadArg(this, task.taskId, i);
       pthread_t thread;
       pthread_create(&thread, 0, runTask, arg);
       pthread_detach(thread);
@@ -63,6 +63,18 @@ public:
 };
 
 
+// A simple linear congruential generator, used to access memory in a random
+// pattern without relying on a possibly synchronized stdlib rand().
+// Constants from http://en.wikipedia.org/wiki/Linear_congruential_generator.
+uint32_t nextRand(uint32_t x) {
+  const int64_t A = 1664525;
+  const int64_t B = 1013904223;
+  int64_t longX = x;
+  return (uint32_t) ((A * longX + B) & 0xFFFFFFFF);
+}
+
+
+// Function executed by each worker thread.
 void *runTask(void *arg)
 {
   ThreadArg *threadArg = (ThreadArg *) arg;
@@ -73,22 +85,23 @@ void *runTask(void *arg)
   char *data = new char[memToHog];
   int32_t count = 0;
   time_t start = time(0);
+  uint32_t pos = threadArg->threadId;
   while (true) {
-    for (int64_t i = 0; i < memToHog; i++) {
-      data[i] = i;
-      count++;
-      if (count == 10000) {
-        count = 0;
-        time_t now = time(0);
-        if (difftime(now, start) > taskLen) {
-          delete[] data;
-          if (threadArg->primary) {
-            usleep(100000); // sleep 0.1 seconds
-            TaskStatus status(threadArg->tid, TASK_FINISHED, "");
-            executor->driver->sendStatusUpdate(status);
-          }
-          return 0;
+    pos = nextRand(pos);
+    data[pos % memToHog] = pos;
+    count++;
+    if (count == 5000) {
+      // Check whether enough time has elapsed to end the task
+      count = 0;
+      time_t now = time(0);
+      if (difftime(now, start) > taskLen) {
+        delete[] data;
+        if (threadArg->threadId == 0) {
+          usleep(100000); // sleep 0.1 seconds for other threads to finish
+          TaskStatus status(threadArg->taskId, TASK_FINISHED, "");
+          executor->driver->sendStatusUpdate(status);
         }
+        return 0;
       }
     }
   }
