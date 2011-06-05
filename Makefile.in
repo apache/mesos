@@ -59,7 +59,7 @@ install:
 	install -m 755 $(BINDIR)/mesos-launcher $(MESOS_HOME)/bin
 	install -m 755 $(BINDIR)/mesos-getconf $(MESOS_HOME)/bin
 	rsync -avz $(BINDIR)/webui $(MESOS_HOME)/bin
-	rsync -avz $(DEPLOYDIR) $(MESOS_HOME)/deploy
+	rsync -avz $(DEPLOYDIR) $(MESOS_HOME)
 	install -m 755 $(LIBDIR)/libmesos_exec.a $(MESOS_HOME)/lib
 	install -m 755 $(LIBDIR)/libmesos_sched.a $(MESOS_HOME)/lib
 ifeq ($(OS_NAME),darwin)
@@ -69,7 +69,9 @@ else
 	install -m 755 $(LIBDIR)/libmesos.so $(MESOS_HOME)/lib
 	install -m 755 $(LIBDIR)/java/libmesos.so $(MESOS_HOME)/lib/java
 endif
-	install -m 755 $(LIBDIR)/python/libmesos.so $(MESOS_HOME)/lib/python
+	install -m 755 $(LIBDIR)/java/mesos.jar $(MESOS_HOME)/lib/java
+	install -m 755 $(LIBDIR)/python/_mesos.so $(MESOS_HOME)/lib/python
+	install -m 755 $(LIBDIR)/python/mesos.py $(MESOS_HOME)/lib/python
 
 uninstall:
 	$(error unimplemented)
