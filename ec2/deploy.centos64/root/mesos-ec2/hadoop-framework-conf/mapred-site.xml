@@ -67,12 +67,12 @@
 
   <property>
     <name>mapred.tasktracker.map.tasks.maximum</name>
-    <value>6</value>
+    <value>8</value>
   </property>
 
   <property>
     <name>mapred.tasktracker.reduce.tasks.maximum</name>
-    <value>6</value>
+    <value>8</value>
   </property>
 
   <property>
