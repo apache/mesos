@@ -21,7 +21,8 @@ XFS_MOUNT_OPTS="defaults,noatime,nodiratime,allocsize=8m"
 # (for example /mnt, /mnt2, and so on)
 function create_hadoop_dirs {
   location=$1
-  mkdir -p $location/hdfs/dfs $location/hadoop/tmp $location/hadoop/mrlocal
+  mkdir -p $location/hdfs/dfs $location/hadoop/tmp
+  mkdir -p $location/hadoop/mrlocal $location/hadoop/mrlocal2
 }
 
 # Set up Hadoop and Mesos directories in /mnt
@@ -39,6 +40,8 @@ function setup_extra_volume {
     mkdir -p $mount_point
     mount -o $EXT3_MOUNT_OPTS $device $mount_point
     echo "$device $mount_point auto $EXT3_MOUNT_OPTS 0 0" >> /etc/fstab
+  fi
+  if [[ -e $mount_point ]]; then
     create_hadoop_dirs $mount_point
   fi
 }
