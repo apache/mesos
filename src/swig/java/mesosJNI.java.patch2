@@ -1,6 +1,6 @@
 --- mesos/mesosJNI.java 2010-05-12 19:52:01.000000000 +0000
-+++ mesosJNI.java.patched 2010-05-12 19:49:26.000000000 +0000
-@@ -175,49 +175,79 @@
++++ mesos/mesosJNI.java.patched 2010-05-12 19:49:26.000000000 +0000
+@@ -157,49 +157,79 @@
    public final static native long SWIGMesosExecutorDriverUpcast(long jarg1);
  
    public static String SwigDirector_Scheduler_getFrameworkName(Scheduler self, long arg0) {
@@ -21,10 +21,10 @@
 +      self.registered((d == 0) ? null : new SchedulerDriver(d, false), fid);
 +    } catch (Throwable t) { t.printStackTrace(); System.exit(-1); }
    }
-   public static void SwigDirector_Scheduler_resourceOffer(Scheduler self, long d, String oid, long offers) {
--    self.resourceOffer((d == 0) ? null : new SchedulerDriver(d, false), oid, new SlaveOfferVector(offers, false));
+   public static void SwigDirector_Scheduler_resourceOffer(Scheduler self, long d, String oid, java.util.List<SlaveOffer> offers) {
+-    self.resourceOffer((d == 0) ? null : new SchedulerDriver(d, false), oid, offers);
 +    try {
-+      self.resourceOffer((d == 0) ? null : new SchedulerDriver(d, false), oid, new SlaveOfferVector(offers, false));
++      self.resourceOffer((d == 0) ? null : new SchedulerDriver(d, false), oid, offers);
 +    } catch (Throwable t) { t.printStackTrace(); System.exit(-1); }
    }
    public static void SwigDirector_Scheduler_offerRescinded(Scheduler self, long d, String oid) {
