@@ -8,7 +8,7 @@
 
 #include "master/master.hpp"
 
-#include "testing_utils.hpp"
+#include "tests/utils.hpp"
 
 using namespace mesos::internal::eventhistory;
 using namespace mesos::internal::test;
