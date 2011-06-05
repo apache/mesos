@@ -203,4 +203,4 @@ $HADOOP_HOME/bin/start-dfs.sh
 #./setup-torque
 
 echo "Starting Mesos cluster..."
-./start-mesos --root_submissions=1
+./start-mesos
