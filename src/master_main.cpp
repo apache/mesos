@@ -7,34 +7,35 @@
 
 using std::cerr;
 using std::endl;
+using boost::lexical_cast;
+using boost::bad_lexical_cast;
 
 using namespace nexus::internal::master;
 
 
-void usage(const char* programName, const Configuration& conf)
+void usage(const char* progName, const Configuration& conf)
 {
-  cerr << "Usage: " << programName
-       << " [--port PORT]"
-       << " [--url URL]"
-       << " [--allocator ALLOCATOR]"
-       << " [--quiet]" << endl
+  cerr << "Usage: " << progName << " [--port PORT] [--url URL] [...]" << endl
        << endl
        << "URL (used for contending to be a master) may be one of:" << endl
        << "  zoo://host1:port1,host2:port2,..." << endl
-       << "  zoofile://file where file contains a host:port pair per line"
-       << endl << endl
-       << "Option details:" << endl
-       << conf.getUsage() << endl;
+       << "  zoofile://file where file has one host:port pair per line" << endl
+       << endl
+       << "Supported options:" << endl
+       << conf.getUsage();
 }
 
 
 int main(int argc, char **argv)
 {
   Configuration conf;
-  conf.addOption<string>("url", 'u', "URL used for contending to a master.");
+  conf.addOption<string>("url", 'u', "URL used for contending to a master");
   conf.addOption<int>("port", 'p', "Port to listen on");
-  conf.addOption<bool>("quiet", 'q', "Do not log to stderr", false);
+  conf.addOption<bool>("quiet", 'q', "Disable logging to stderr", false);
   conf.addOption<string>("log_dir", "Where to place logs", "/tmp");
+#ifdef NEXUS_WEBUI
+  conf.addOption<int>("webui_port", 'w', "Web UI port", 8080);
+#endif
   Master::registerOptions(&conf);
 
   if (argc == 2 && string("--help") == argv[1]) {
@@ -46,7 +47,6 @@ int main(int argc, char **argv)
 
   try {
     conf.load(argc, argv, true);
-    conf.validate();
     params = conf.getParams();
   } catch (BadOptionValueException& e) {
     cerr << "Invalid value for '" << e.what() << "' option" << endl;
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
   MasterDetector *detector = MasterDetector::create(url, pid, true, quiet);
 
 #ifdef NEXUS_WEBUI
-  startMasterWebUI(pid);
+  startMasterWebUI(pid, (char*) params["webui_port"].c_str());
 #endif
   
   Process::wait(pid);
