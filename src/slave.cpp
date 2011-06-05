@@ -67,7 +67,6 @@ Slave::Slave(const string &_master, Resources _resources, bool _local)
   : masterDetector(NULL), resources(_resources), local(_local), id(""),
     isolationType("process"), isolationModule(NULL)
 {
-  ftMsg = FTMessaging::getInstance();
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
     isFT = true;
@@ -94,7 +93,6 @@ Slave::Slave(const string &_master, Resources _resources, bool _local,
   : masterDetector(NULL), resources(_resources), local(_local), id(""),
     isolationType(_isolationType), isolationModule(NULL)
 {
-  ftMsg = FTMessaging::getInstance();
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
     isFT = true;
@@ -182,7 +180,7 @@ void Slave::operator () ()
   string data;
 
   while (true) {
-    switch (receive(FT_TIMEOUT)) {
+    switch (receive()) {
       case NEW_MASTER_DETECTED: {
 	string masterSeq;
 	PID masterPid;
@@ -191,9 +189,8 @@ void Slave::operator () ()
 	LOG(INFO) << "New master at " << masterPid
 		  << " with ephemeral id:" << masterSeq;
 
-	// TODO(alig|benh): Use new API -> redirect(master, masterPid);
+        redirect(master, masterPid);
 	master = masterPid;
-	ftMsg->setMasterPid(master);
 	link(master);
 
 	if (id.empty()) {
@@ -295,24 +292,6 @@ void Slave::operator () ()
         break;
       }
 
-      case M2S_FT_FRAMEWORK_MESSAGE: {
-        string ftId, origPid;
-        unpack<M2S_FT_FRAMEWORK_MESSAGE>(ftId, origPid, fid, message);
-
-        if (!ftMsg->acceptMessageAck(ftId, origPid))
-          break;
-
-        DLOG(INFO) << "FT: Received message with id: " << ftId;
-
-        if (Executor *ex = getExecutor(fid)) {
-          send(ex->pid, pack<S2E_FRAMEWORK_MESSAGE>(message));
-        }
-        // TODO(*): If executor is not started, queue framework message?
-        // (It's probably okay to just drop it since frameworks can have
-        // the executor send a message to the master to say when it's ready.)
-        break;
-      }
-
       case M2S_FRAMEWORK_MESSAGE: {
         unpack<M2S_FRAMEWORK_MESSAGE>(fid, message);
         if (Executor *ex = getExecutor(fid)) {
@@ -373,8 +352,8 @@ void Slave::operator () ()
         }
         // Pass on the update to the master
         if (isFT) {
-          string ftId = ftMsg->getNextId();
-          ftMsg->reliableSend(ftId, pack<S2M_FT_STATUS_UPDATE>(ftId, self(), id, fid, tid, taskState, data));
+          string msg = tupleToString(pack<S2M_FT_STATUS_UPDATE>(id, fid, tid, taskState, data));
+          rsend(master, S2M_FT_STATUS_UPDATE, msg.c_str(), sizeof(msg.c_str()));
         } else
           send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, taskState, data));
         break;
@@ -384,11 +363,6 @@ void Slave::operator () ()
         unpack<E2S_FRAMEWORK_MESSAGE>(fid, message);
         // Set slave ID in case framework omitted it
         message.slaveId = this->id;
-//         if (isFT) {
-//           string ftId = ftMsg->getNextId();
-//           ftMsg->reliableSend(ftId, pack<S2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), id, fid, message));
-//         } else
-//           send(master, pack<S2M_FRAMEWORK_MESSAGE>(id, fid, message));
         send(getFramework(fid)->fwPid, pack<M2F_FRAMEWORK_MESSAGE>(message));
         break;
       }
@@ -449,18 +423,7 @@ void Slave::operator () ()
         return;
       }
 
-      case FT_RELAY_ACK: {
-        string ftId, senderStr;
-        unpack<FT_RELAY_ACK>(ftId, senderStr);
-
-        DLOG(INFO) << "FT: got final ack for " << ftId;
-
-        ftMsg->gotAck(ftId);
-        break;
-      }
-      
       case PROCESS_TIMEOUT: {
-        ftMsg->sendOutstanding();
 	break;
       }
       default: {

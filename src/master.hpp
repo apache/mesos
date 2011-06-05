@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include <process.hpp>
+#include <reliable.hpp>
 
 #include <glog/logging.h>
 
@@ -30,7 +30,6 @@
 #include "master_detector.hpp"
 #include "task.hpp"
 #include "url_processor.hpp"
-#include "ft_messaging.hpp"
 
 namespace nexus { namespace internal { namespace master {
 
@@ -261,7 +260,7 @@ enum TaskRemovalReason
 };
 
 
-class Master : public Tuple<Process>
+class Master : public Tuple<ReliableProcess>
 {
 protected:
   bool isFT;
@@ -283,7 +282,6 @@ protected:
   Allocator *allocator;
 
   long masterId; // Used to differentiate different master in FT mode, will be ephemeral id
-  FTMessaging *ftMsg;
 
 public:
   Master(const string &zk = "");
@@ -322,7 +320,7 @@ public:
 
   // TODO(benh): Can this be cleaner?
   // Make self() public so that isolation modules and tests can access it
-  using Tuple<Process>::self;
+  using Tuple<ReliableProcess>::self;
 
 protected:
   void operator () ();

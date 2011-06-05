@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <process.hpp>
+#include <reliable.hpp>
 
 #include "fatal.hpp"
 #include "foreach.hpp"
@@ -36,7 +36,6 @@
 #include "slave_state.hpp"
 #include "master_detector.hpp"
 #include "task.hpp"
-#include "ft_messaging.hpp"
 
 namespace nexus { namespace internal { namespace slave {
 
@@ -159,7 +158,7 @@ struct Executor
 };
 
 
-class Slave : public Tuple<Process>
+class Slave : public Tuple<ReliableProcess>
 {
 public:
   typedef unordered_map<FrameworkID, Framework*> FrameworkMap;
@@ -176,7 +175,6 @@ public:
   ExecutorMap executors;  // Invariant: framework will exist if executor exists
   string isolationType;
   IsolationModule *isolationModule;
-  FTMessaging *ftMsg;
 
 public:
   Slave(const string &_master, Resources resources, bool _local);
@@ -195,7 +193,7 @@ public:
 
   // TODO(benh): Can this be cleaner?
   // Make self() public so that isolation modules and tests can access it
-  using Tuple<Process>::self;
+  using Tuple<ReliableProcess>::self;
 
 protected:
   void operator () ();
