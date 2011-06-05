@@ -1071,6 +1071,8 @@ void Master::deactivatedSlaveHostnamePort(const string& hostname, uint16_t port)
       }
     }
 
+    LOG(INFO) << "Master now considering a slave at "
+	      << hostname << ":" << port << " as inactive";
     slaveHostnamePorts.erase(hostname, port);
   }
 }
