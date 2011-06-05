@@ -150,7 +150,7 @@ void ProcessBasedIsolationModule::Reaper::operator () ()
   while (true) {
     switch (receive(1)) {
     case PROCESS_TIMEOUT: {
-      // Check whether any child process has exited
+      // Check whether any child process has exited.
       pid_t pid;
       int status;
       if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {

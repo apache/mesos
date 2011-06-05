@@ -54,6 +54,7 @@ inline std::ostream& operator << (std::ostream& stream,
   return stream;
 }
 
+
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() == right.value();
@@ -111,6 +112,37 @@ inline bool operator == (const TaskID& left, const std::string& right)
 inline bool operator == (const ExecutorID& left, const std::string& right)
 {
   return left.value() == right;
+}
+
+
+
+inline bool operator < (const FrameworkID& left, const FrameworkID& right)
+{
+  return left.value() < right.value();
+}
+
+
+inline bool operator < (const OfferID& left, const OfferID& right)
+{
+  return left.value() < right.value();
+}
+
+
+inline bool operator < (const SlaveID& left, const SlaveID& right)
+{
+  return left.value() < right.value();
+}
+
+
+inline bool operator < (const TaskID& left, const TaskID& right)
+{
+  return left.value() < right.value();
+}
+
+
+inline bool operator < (const ExecutorID& left, const ExecutorID& right)
+{
+  return left.value() < right.value();
 }
 
 

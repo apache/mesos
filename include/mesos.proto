@@ -86,15 +86,15 @@ message ExecutorArgs {
   required string name = 2;
   required SlaveID slave_id = 3;
   required string hostname = 4;
-  optional bytes data = 6;
+  optional bytes data = 5;
 };
 
 
 message StatusUpdate {
   required TaskID task_id = 1;
-  required SlaveID slave_id = 3;
-  required TaskState state = 4;
-  optional bytes data = 5;
+  required SlaveID slave_id = 2;
+  required TaskState state = 3;
+  optional bytes data = 4;
 }
 
 
@@ -103,8 +103,8 @@ message TaskDescription {
   required TaskID task_id = 2;
   required SlaveID slave_id = 3;
   repeated Resource resources = 4;
-  optional bytes data = 5;
-  optional ExecutorInfo executor = 6;
+  optional ExecutorInfo executor = 5;
+  optional bytes data = 6;
 }
 
 

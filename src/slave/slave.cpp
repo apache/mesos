@@ -41,14 +41,18 @@ Slave::Slave(const Resources& _resources, bool _local,
 Slave::Slave(const Configuration& _conf, bool _local,
              IsolationModule* _isolationModule)
   : conf(_conf), local(_local),
-    isolationModule(_isolationModule), heart(NULL) {}
+    isolationModule(_isolationModule), heart(NULL)
+{
+  resources =
+    Resources::parse(conf.get<string>("resources", "cpus:1;mem:1024"));
+}
 
 
 void Slave::registerOptions(Configurator* configurator)
 {
   // TODO(benh): Is there a way to specify units for the resources?
   configurator->addOption<string>("resources",
-                                  "Total consumable resources on machine\n");
+                                  "Total consumable resources per slave\n");
 //   configurator->addOption<string>("attributes",
 //                                   "Attributes of machine\n");
   configurator->addOption<string>("work_dir",
@@ -134,11 +138,7 @@ state::SlaveState *Slave::getState()
 void Slave::operator () ()
 {
   LOG(INFO) << "Slave started at " << self();
-
-  resources =
-    Resources::parse(conf.get<string>("resources", "cpus:1;mem:1024"));
-
-  LOG(INFO) << "Resources: " << resources;
+  LOG(INFO) << "Slave resources: " << resources;
 
   // Get our hostname
   char buf[256];

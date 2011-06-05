@@ -43,13 +43,20 @@ void enterTestDirectory(const char* testCase, const char* testName);
 
 
 /**
- * Macro to get a "default" dummy ExecutorInfo object for testing.
+ * Macros to get a "default" dummy ExecutorInfo object for testing or
+ * create one out of an ExecutorID and string.
  */
 #define DEFAULT_EXECUTOR_INFO                                           \
-      ({ ExecutorInfo executor;                                         \
-        executor.mutable_executor_id()->set_value("default");           \
-        executor.set_uri("noexecutor");                                 \
-        executor; })
+  ({ ExecutorInfo executor;                                             \
+    executor.mutable_executor_id()->set_value("default");               \
+    executor.set_uri("noexecutor");                                     \
+    executor; })
+
+#define CREATE_EXECUTOR_INFO(executorId, uri)                           \
+  ({ ExecutorInfo executor;                                             \
+    executor.mutable_executor_id()->MergeFrom(executorId);              \
+    executor.set_uri(uri);                                              \
+    executor; })
 
 
 /**

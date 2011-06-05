@@ -523,8 +523,10 @@ void Master::operator () ()
         if (offer != NULL) {
           processOfferReply(offer, tasks, msg.params());
         } else {
-          // The slot offer is gone, meaning that we rescinded it or that
-          // the slave was lost; immediately report any tasks in it as lost
+          // The slot offer is gone, meaning that we rescinded it, it
+          // has already been replied to, or that the slave was lost;
+          // immediately report any tasks in it as lost (it would
+          // probably be better to have better error messages here).
           foreach (const TaskDescription &task, tasks) {
             Message<M2F_STATUS_UPDATE> out;
             out.mutable_framework_id()->MergeFrom(msg.framework_id());
@@ -758,29 +760,28 @@ void Master::operator () ()
       if (slave != NULL) {
         Framework *framework = lookupFramework(msg.framework_id());
         if (framework != NULL) {
-          LOG(INFO) << "Executor on " << slave
+          LOG(INFO) << "Executor " << msg.executor_id()
+                    << " of framework " << framework->frameworkId
+                    << " on slave " << slave->slaveId
                     << " (" << slave->info.hostname() << ") "
                     << "exited with status " << msg.status();
 
-          // Collect all the lost tasks for this framework.
-          set<Task*> tasks;
-          foreachpair (_, Task* task, framework->tasks)
-            if (task->slave_id() == slave->slaveId)
-              tasks.insert(task);
+          // Tell the framework which tasks have been lost.
+          foreachpaircopy (_, Task* task, framework->tasks) {
+            if (task->slave_id() == slave->slaveId &&
+                task->executor_id() == msg.executor_id()) {
+              Message<M2F_STATUS_UPDATE> out;
+              out.mutable_framework_id()->MergeFrom(task->framework_id());
+              TaskStatus *status = out.mutable_status();
+              status->mutable_task_id()->MergeFrom(task->task_id());
+              status->mutable_slave_id()->MergeFrom(task->slave_id());
+              status->set_state(TASK_LOST);
+              send(framework->pid, out);
 
-          // Tell the framework they have been lost and remove them.
-          foreach (Task* task, tasks) {
-            Message<M2F_STATUS_UPDATE> out;
-            out.mutable_framework_id()->MergeFrom(task->framework_id());
-            TaskStatus *status = out.mutable_status();
-            status->mutable_task_id()->MergeFrom(task->task_id());
-            status->mutable_slave_id()->MergeFrom(task->slave_id());
-            status->set_state(TASK_LOST);
-            send(framework->pid, out);
+              LOG(INFO) << "Removing " << task << " because of lost executor";
 
-            LOG(INFO) << "Removing " << task << " because of lost executor";
-
-            removeTask(task, TRR_EXECUTOR_LOST);
+              removeTask(task, TRR_EXECUTOR_LOST);
+            }
           }
 
           // TODO(benh): Send the framework it's executor's exit
@@ -1059,13 +1060,19 @@ void Master::launchTask(Framework* framework, const TaskDescription& task)
   Slave *slave = lookupSlave(task.slave_id());
   CHECK(slave != NULL);
 
+  // Determine the executor ID for this task.
+  const ExecutorID& executorId = task.has_executor()
+    ? task.executor().executor_id()
+    : framework->info.executor().executor_id();
+
   Task *t = new Task();
+  t->mutable_framework_id()->MergeFrom(framework->frameworkId);
+  t->mutable_executor_id()->MergeFrom(executorId);
+  t->set_state(TASK_STARTING);
   t->set_name(task.name());
   t->mutable_task_id()->MergeFrom(task.task_id());
-  t->mutable_framework_id()->MergeFrom(framework->frameworkId);
   t->mutable_slave_id()->MergeFrom(task.slave_id());
   t->mutable_resources()->MergeFrom(task.resources());
-  t->set_state(TASK_STARTING);
 
   framework->addTask(t);
   slave->addTask(t);

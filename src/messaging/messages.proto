@@ -3,18 +3,20 @@ import "mesos.proto";
 package mesos.internal;
 
 // TODO(benh): It would be great if this could just be a
-// TaskDescription wherever it gets used! We would need to add both
-// the framework_id field and the state field into TaskDescription
-// though. Also, one performance reason why we don't do that now is
+// TaskDescription wherever it gets used! However, doing so would
+// require adding the framework_id field, the executor_id field, and
+// the state field into TaskDescription though (or send them another
+// way). Also, one performance reason why we don't do that now is
 // because storing whatever data is coupled with a TaskDescription
 // could be large and unnecessary.
 message Task {
   required FrameworkID framework_id = 1;
-  required TaskState state = 2;
-  required string name = 3;
-  required TaskID task_id = 4;
-  required SlaveID slave_id = 5;
-  repeated Resource resources = 6;
+  required ExecutorID executor_id = 2;
+  required TaskState state = 3;
+  required string name = 4;
+  required TaskID task_id = 5;
+  required SlaveID slave_id = 6;
+  repeated Resource resources = 7;
 }
 
 

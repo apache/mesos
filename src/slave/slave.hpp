@@ -70,6 +70,7 @@ struct Executor
 
     Task *t = new Task();
     t->mutable_framework_id()->MergeFrom(frameworkId);
+    t->mutable_executor_id()->MergeFrom(info.executor_id());
     t->set_state(TASK_STARTING);
     t->set_name(task.name());
     t->mutable_task_id()->MergeFrom(task.task_id());

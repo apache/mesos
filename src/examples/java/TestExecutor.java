@@ -13,7 +13,12 @@ public class TestExecutor implements Executor {
     new Thread() { public void run() {
       try {
         System.out.println("Running task " + task.getTaskId());
-        Thread.sleep(1000);
+
+        if (task.hasData()) {
+          Thread.sleep(Integer.parseInt(task.getData().toStringUtf8()));
+        } else {
+          Thread.sleep(1000);
+        }
 
         TaskStatus status = TaskStatus.newBuilder()
           .setTaskId(task.getTaskId())

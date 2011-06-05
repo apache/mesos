@@ -44,44 +44,59 @@ using testing::Sequence;
 using testing::StrEq;
 
 
-class LocalIsolationModule : public slave::IsolationModule
+class TestingIsolationModule : public slave::IsolationModule
 {
 public:
-  Executor* executor;
-  MesosExecutorDriver* driver;
-  string pid;
+  TestingIsolationModule(const map<ExecutorID, Executor*>& _executors)
+    : executors(_executors) {}
 
-  LocalIsolationModule(Executor* _executor)
-    : executor(_executor), driver(NULL) {}
+  virtual ~TestingIsolationModule() {}
 
-  virtual ~LocalIsolationModule() {}
-
-  virtual void initialize(slave::Slave* slave) {
-    pid = slave->self();
+  virtual void initialize(Slave* _slave)
+  {
+    slave = _slave;
   }
 
-  virtual void launchExecutor(slave::Framework* f, slave::Executor* e) {
-    // TODO(benh): Cleanup the way we launch local drivers!
-    setenv("MESOS_LOCAL", "1", 1);
-    setenv("MESOS_SLAVE_PID", pid.c_str(), 1);
-    setenv("MESOS_FRAMEWORK_ID", f->frameworkId.value().c_str(), 1);
-    setenv("MESOS_EXECUTOR_ID", e->info.executor_id().value().c_str(), 1);
+  virtual void launchExecutor(slave::Framework* f, slave::Executor* e)
+  {
+    if (executors.count(e->info.executor_id()) > 0) {
+      Executor* executor = executors[e->info.executor_id()];
+      MesosExecutorDriver* driver = new MesosExecutorDriver(executor);
+      drivers[e->info.executor_id()] = driver;
 
-    driver = new MesosExecutorDriver(executor);
-    driver->start();
+      setenv("MESOS_LOCAL", "1", 1);
+      setenv("MESOS_SLAVE_PID", string(slave->self()).c_str(), 1);
+      setenv("MESOS_FRAMEWORK_ID", f->frameworkId.value().c_str(), 1);
+      setenv("MESOS_EXECUTOR_ID", e->info.executor_id().value().c_str(), 1);
+
+      driver->start();
+
+      unsetenv("MESOS_LOCAL");
+      unsetenv("MESOS_SLAVE_PID");
+      unsetenv("MESOS_FRAMEWORK_ID");
+      unsetenv("MESOS_EXECUTOR_ID");
+    } else {
+      FAIL() << "Cannot launch executor";
+    }
   }
 
-  virtual void killExecutor(slave::Framework* f, slave::Executor* e) {
-    driver->stop();
-    driver->join();
-    delete driver;
-
-    // TODO(benh): Cleanup the way we launch local drivers!
-    unsetenv("MESOS_LOCAL");
-    unsetenv("MESOS_SLAVE_PID");
-    unsetenv("MESOS_FRAMEWORK_ID");
-    unsetenv("MESOS_EXECUTOR_ID");
+  virtual void killExecutor(slave::Framework* f, slave::Executor* e)
+  {
+    if (drivers.count(e->info.executor_id()) > 0) {
+      MesosExecutorDriver* driver = drivers[e->info.executor_id()];
+      driver->stop();
+      driver->join();
+      delete driver;
+      drivers.erase(e->info.executor_id());
+    } else {
+      FAIL() << "Cannot kill executor";
+    }
   }
+
+private:
+  map<ExecutorID, Executor*> executors;
+  map<ExecutorID, MesosExecutorDriver*> drivers;
+  Slave* slave;
 };
 
 
@@ -301,20 +316,7 @@ TEST(MasterTest, SlaveLost)
   Master m;
   PID master = Process::spawn(&m);
 
-  Resources resources;
-
-  Resource cpus;
-  cpus.set_name("cpus");
-  cpus.set_type(Resource::SCALAR);
-  cpus.mutable_scalar()->set_value(2);
-
-  Resource mem;
-  mem.set_name("mem");
-  mem.set_type(Resource::SCALAR);
-  mem.mutable_scalar()->set_value(1 * Gigabyte);
-
-  resources += cpus;
-  resources += mem;
+  Resources resources = Resources::parse("cpus:2;mem:1024");
 
   ProcessBasedIsolationModule isolationModule;
   
@@ -514,20 +516,7 @@ TEST(MasterTest, TaskRunning)
   Master m;
   PID master = Process::spawn(&m);
 
-  Resources resources;
-
-  Resource cpus;
-  cpus.set_name("cpus");
-  cpus.set_type(Resource::SCALAR);
-  cpus.mutable_scalar()->set_value(2);
-
-  Resource mem;
-  mem.set_name("mem");
-  mem.set_type(Resource::SCALAR);
-  mem.mutable_scalar()->set_value(1 * Gigabyte);
-
-  resources += cpus;
-  resources += mem;
+  Resources resources = Resources::parse("cpus:2;mem:1024");
 
   MockExecutor exec;
 
@@ -540,7 +529,13 @@ TEST(MasterTest, TaskRunning)
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  LocalIsolationModule isolationModule(&exec);
+  ExecutorID executorId;
+  executorId.set_value("default");
+
+  map<ExecutorID, Executor*> execs;
+  execs[executorId] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
   PID slave = Process::spawn(&s);
@@ -560,7 +555,7 @@ TEST(MasterTest, TaskRunning)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched, getExecutorInfo(&driver))
-    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
@@ -611,20 +606,7 @@ TEST(MasterTest, KillTask)
   Master m;
   PID master = Process::spawn(&m);
 
-  Resources resources;
-
-  Resource cpus;
-  cpus.set_name("cpus");
-  cpus.set_type(Resource::SCALAR);
-  cpus.mutable_scalar()->set_value(2);
-
-  Resource mem;
-  mem.set_name("mem");
-  mem.set_type(Resource::SCALAR);
-  mem.mutable_scalar()->set_value(1 * Gigabyte);
-
-  resources += cpus;
-  resources += mem;
+  Resources resources = Resources::parse("cpus:2;mem:1024");
 
   MockExecutor exec;
 
@@ -642,7 +624,13 @@ TEST(MasterTest, KillTask)
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  LocalIsolationModule isolationModule(&exec);
+  ExecutorID executorId;
+  executorId.set_value("default");
+
+  map<ExecutorID, Executor*> execs;
+  execs[executorId] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
   PID slave = Process::spawn(&s);
@@ -662,7 +650,7 @@ TEST(MasterTest, KillTask)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched, getExecutorInfo(&driver))
-    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
@@ -728,20 +716,7 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   Master m;
   PID master = Process::spawn(&m);
 
-  Resources resources;
-
-  Resource cpus;
-  cpus.set_name("cpus");
-  cpus.set_type(Resource::SCALAR);
-  cpus.mutable_scalar()->set_value(2);
-
-  Resource mem;
-  mem.set_name("mem");
-  mem.set_type(Resource::SCALAR);
-  mem.mutable_scalar()->set_value(1 * Gigabyte);
-
-  resources += cpus;
-  resources += mem;
+  Resources resources = Resources::parse("cpus:2;mem:1024");
 
   MockExecutor exec;
 
@@ -754,7 +729,13 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  LocalIsolationModule isolationModule(&exec);
+  ExecutorID executorId;
+  executorId.set_value("default");
+
+  map<ExecutorID, Executor*> execs;
+  execs[executorId] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
   PID slave = Process::spawn(&s);
@@ -777,7 +758,7 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched1, getExecutorInfo(&driver1))
-    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
 
   EXPECT_CALL(sched1, registered(&driver1, _))
     .WillOnce(SaveArg<1>(&frameworkId));
@@ -870,20 +851,7 @@ TEST(MasterTest, FrameworkMessage)
   Master m;
   PID master = Process::spawn(&m);
 
-  Resources resources;
-
-  Resource cpus;
-  cpus.set_name("cpus");
-  cpus.set_type(Resource::SCALAR);
-  cpus.mutable_scalar()->set_value(2);
-
-  Resource mem;
-  mem.set_name("mem");
-  mem.set_type(Resource::SCALAR);
-  mem.mutable_scalar()->set_value(1 * Gigabyte);
-
-  resources += cpus;
-  resources += mem;
+  Resources resources = Resources::parse("cpus:2;mem:1024");
 
   MockExecutor exec;
 
@@ -906,7 +874,13 @@ TEST(MasterTest, FrameworkMessage)
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  LocalIsolationModule isolationModule(&exec);
+  ExecutorID executorId;
+  executorId.set_value("default");
+
+  map<ExecutorID, Executor*> execs;
+  execs[executorId] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
   PID slave = Process::spawn(&s);
@@ -930,7 +904,7 @@ TEST(MasterTest, FrameworkMessage)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched, getExecutorInfo(&schedDriver))
-    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
 
   EXPECT_CALL(sched, registered(&schedDriver, _))
     .Times(1);
@@ -968,7 +942,7 @@ TEST(MasterTest, FrameworkMessage)
   EXPECT_EQ(TASK_RUNNING, status.state());
 
   FrameworkMessage hello;
-  *hello.mutable_slave_id() = offers[0].slave_id();
+  hello.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   hello.mutable_executor_id()->set_value("default"); // TODO(benh): No constant!
   hello.set_data("hello");
 
@@ -979,7 +953,7 @@ TEST(MasterTest, FrameworkMessage)
   EXPECT_EQ("hello", execMessage.data());
 
   FrameworkMessage reply;
-  *reply.mutable_slave_id() = args.slave_id();
+  reply.mutable_slave_id()->MergeFrom(args.slave_id());
   reply.mutable_executor_id()->set_value("default"); // TODO(benh): No constant!
   reply.set_data("reply");
 
@@ -1007,20 +981,7 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   Master m;
   PID master = Process::spawn(&m);
 
-  Resources resources;
-
-  Resource cpus;
-  cpus.set_name("cpus");
-  cpus.set_type(Resource::SCALAR);
-  cpus.mutable_scalar()->set_value(2);
-
-  Resource mem;
-  mem.set_name("mem");
-  mem.set_type(Resource::SCALAR);
-  mem.mutable_scalar()->set_value(1 * Gigabyte);
-
-  resources += cpus;
-  resources += mem;
+  Resources resources = Resources::parse("cpus:2;mem:1024");
 
   MockExecutor exec;
 
@@ -1035,7 +996,13 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
 
-  LocalIsolationModule isolationModule(&exec);
+  ExecutorID executorId;
+  executorId.set_value("default");
+
+  map<ExecutorID, Executor*> execs;
+  execs[executorId] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
   PID slave = Process::spawn(&s);
@@ -1056,7 +1023,7 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
     .WillOnce(Return(""));
 
   EXPECT_CALL(sched1, getExecutorInfo(&driver1))
-    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+    .WillOnce(Return(CREATE_EXECUTOR_INFO(executorId, "noexecutor")));
 
   EXPECT_CALL(sched1, registered(&driver1, _))
     .WillOnce(SaveArg<1>(&frameworkId));
@@ -1126,6 +1093,141 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
 
   driver1.join();
   driver2.join();
+
+  MesosProcess::post(slave, S2S_SHUTDOWN);
+  Process::wait(slave);
+
+  MesosProcess::post(master, M2M_SHUTDOWN);
+  Process::wait(master);
+}
+
+
+TEST(MasterTest, MultipleExecutors)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Master m;
+  PID master = Process::spawn(&m);
+
+  Resources resources = Resources::parse("cpus:2;mem:1024");
+
+  MockExecutor exec1;
+  TaskDescription exec1Task;
+  trigger exec1LaunchTaskCall;
+
+  EXPECT_CALL(exec1, init(_, _))
+    .Times(1);
+
+  EXPECT_CALL(exec1, launchTask(_, _))
+    .WillOnce(DoAll(SaveArg<1>(&exec1Task),
+                    Trigger(&exec1LaunchTaskCall)));
+
+  EXPECT_CALL(exec1, shutdown(_))
+    .Times(1);
+
+  MockExecutor exec2;
+  TaskDescription exec2Task;
+  trigger exec2LaunchTaskCall;
+
+  EXPECT_CALL(exec2, init(_, _))
+    .Times(1);
+
+  EXPECT_CALL(exec2, launchTask(_, _))
+    .WillOnce(DoAll(SaveArg<1>(&exec2Task),
+                    Trigger(&exec2LaunchTaskCall)));
+
+  EXPECT_CALL(exec2, shutdown(_))
+    .Times(1);
+
+  ExecutorID executorId1;
+  executorId1.set_value("executor-1");
+
+  ExecutorID executorId2;
+  executorId2.set_value("executor-2");
+
+  map<ExecutorID, Executor*> execs;
+  execs[executorId1] = &exec1;
+  execs[executorId2] = &exec2;
+
+  TestingIsolationModule isolationModule(execs);
+
+  Slave s(resources, true, &isolationModule);
+  PID slave = Process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, master);
+
+  OfferID offerId;
+  vector<SlaveOffer> offers;
+  TaskStatus status1, status2;
+
+  trigger resourceOfferCall, statusUpdateCall1, statusUpdateCall2;
+
+  EXPECT_CALL(sched, getFrameworkName(&driver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched, getExecutorInfo(&driver))
+    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+
+  EXPECT_CALL(sched, registered(&driver, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffer(&driver, _, _))
+    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
+                    Trigger(&resourceOfferCall)));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&status1), Trigger(&statusUpdateCall1)))
+    .WillOnce(DoAll(SaveArg<1>(&status2), Trigger(&statusUpdateCall2)));
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOfferCall);
+
+  ASSERT_NE(0, offers.size());
+
+  TaskDescription task1;
+  task1.set_name("");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
+  task1.mutable_executor()->mutable_executor_id()->MergeFrom(executorId1);
+  task1.mutable_executor()->set_uri("noexecutor");
+
+  TaskDescription task2;
+  task2.set_name("");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task2.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
+  task2.mutable_executor()->mutable_executor_id()->MergeFrom(executorId2);
+  task2.mutable_executor()->set_uri("noexecutor");
+
+  vector<TaskDescription> tasks;
+  tasks.push_back(task1);
+  tasks.push_back(task2);
+
+  driver.replyToOffer(offerId, tasks);
+
+  WAIT_UNTIL(statusUpdateCall1);
+
+  EXPECT_EQ(TASK_RUNNING, status1.state());
+
+  WAIT_UNTIL(statusUpdateCall2);
+
+  EXPECT_EQ(TASK_RUNNING, status2.state());
+
+  WAIT_UNTIL(exec1LaunchTaskCall);
+
+  EXPECT_EQ(task1.task_id(), exec1Task.task_id());
+
+  WAIT_UNTIL(exec2LaunchTaskCall);
+
+  EXPECT_EQ(task2.task_id(), exec2Task.task_id());
+
+  driver.stop();
+  driver.join();
 
   MesosProcess::post(slave, S2S_SHUTDOWN);
   Process::wait(slave);
