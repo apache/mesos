@@ -20,10 +20,14 @@ PID slave;
 namespace nexus { namespace internal { namespace slave {
 
 
-void *runSlaveWebUI(void *)
+void *runSlaveWebUI(void* webuiPort)
 {
   LOG(INFO) << "Web UI thread started";
   Py_Initialize();
+  char* nargv[2]; 
+  nargv[0] = const_cast<char*>("webui/master/webui.py");
+  nargv[1] = reinterpret_cast<char*>(webuiPort);
+  PySys_SetArgv(2,nargv);
   PyRun_SimpleString("import sys\n"
       "sys.path.append('webui/slave/swig')\n"
       "sys.path.append('webui/common')\n"
@@ -37,12 +41,12 @@ void *runSlaveWebUI(void *)
 }
 
 
-void startSlaveWebUI(PID slave)
+void startSlaveWebUI(const PID &slave, char* webuiPort)
 {
   LOG(INFO) << "Starting slave web UI";
   ::slave = slave;
   pthread_t thread;
-  pthread_create(&thread, 0, runSlaveWebUI, 0);
+  pthread_create(&thread, 0, runSlaveWebUI, webuiPort);
 }
 
 

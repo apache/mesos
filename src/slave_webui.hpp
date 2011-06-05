@@ -10,7 +10,7 @@
 
 namespace nexus { namespace internal { namespace slave {
 
-void startSlaveWebUI(PID slave);
+void startSlaveWebUI(const PID &slave, char* webuiPort);
 
 }}} /* namespace */
 
