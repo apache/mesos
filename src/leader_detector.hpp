@@ -67,6 +67,14 @@ public:
 
   ~LeaderDetector();
 
+  /**
+   * Adjusts ZooKeepers level of debugging output.
+   * @param quiet true makes ZK quiet, whereas false makes ZK output DEBUG messages
+   */ 
+  static void setQuiet(bool quiet) {
+    zoo_set_debug_level( quiet ? ZOO_LOG_LEVEL_ERROR : ZOO_LOG_LEVEL_DEBUG );
+  }
+
 private: 
   static void initWatchWrap(zhandle_t * zh, int type, int state, const char *path, void *watcherCtx);
 

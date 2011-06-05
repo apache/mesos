@@ -71,6 +71,8 @@ int main(int argc, char **argv)
 
   if (!quiet)
     google::SetStderrLogging(google::INFO);
+  else if (isFT)
+    LeaderDetector::setQuiet(true);
 
   FLAGS_logbufsecs = 1;
   google::InitGoogleLogging(argv[0]);
