@@ -1442,7 +1442,7 @@ Index: src/contrib/mesos/build.xml
 ===================================================================
 --- src/contrib/mesos/build.xml	(revision 0)
 +++ src/contrib/mesos/build.xml	(revision 0)
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,39 @@
 +<?xml version="1.0"?>
 +
 +<!--
@@ -1468,9 +1468,46 @@ Index: src/contrib/mesos/build.xml
 +-->
 +<project name="mesos" default="jar">
 +
++  <!-- locate Mesos home -->
++  <property environment="env" />
++  <condition property="mesos.home" value="${env.MESOS_HOME}" else="${basedir}/../../../../../src">
++    <isset property="env.MESOS_HOME" />
++  </condition>
++  <property name="mesos.jar" value="${mesos.home}/swig/java/mesos.jar" />
++  <echo>Mesos jar: ${mesos.jar}</echo>
++
++  <!-- add it to our Classpath -->
++  <property name="contrib.extra-classpath" value="${mesos.jar}" />
++
 +  <import file="../build-contrib.xml"/>
 +
 +</project>
+Index: src/contrib/build-contrib.xml
+===================================================================
+--- src/contrib/build-contrib.xml	(revision 979124)
++++ src/contrib/build-contrib.xml	(working copy)
+@@ -77,6 +77,13 @@
+   <property name="ivy.artifact.retrieve.pattern"
+     			value="${ant.project.name}/[conf]/[artifact]-[revision].[ext]"/>
+ 
++  <!-- provides a means for contribs to add extra classpath entries -->
++  <condition property="contrib.extra-classpath" value="">
++    <not>
++      <isset property="contrib.extra-classpath" />
++    </not>
++  </condition>
++
+   <!-- the normal classpath -->
+   <path id="contrib-classpath">
+     <pathelement location="${build.classes}"/>
+@@ -86,6 +93,7 @@
+       <include name="**/*.jar" />
+     </fileset>
+     <path refid="${ant.project.name}.common-classpath"/>
++    <pathelement path="${contrib.extra-classpath}"/>
+     <pathelement path="${clover.jar}"/>
+   </path>
+ 
 Index: src/contrib/build.xml
 ===================================================================
 --- src/contrib/build.xml	(revision 979124)
@@ -1809,3 +1846,37 @@ Index: bin/hadoop
    CLASS=org.apache.hadoop.util.RunJar
  elif [ "$COMMAND" = "distcp" ] ; then
    CLASS=org.apache.hadoop.tools.DistCp
+@@ -245,6 +277,17 @@
+   CLASS=$COMMAND
+ fi
+ 
++# add Mesos to classpath
++if [ "x$MESOS_HOME" == "x" ] ; then
++  if [ -d "$HADOOP_HOME/../../src/swig/java" ] ; then
++    MESOS_HOME=`cd "$HADOOP_HOME/../../src"; pwd`
++  fi
++fi
++if [ "x$MESOS_HOME" != "x" ] ; then
++  CLASSPATH="$CLASSPATH:$MESOS_HOME/swig/java"
++fi
++CLASSPATH="$CLASSPATH:$HADOOP_HOME/build/contrib/mesos/classes"
++
+ # cygwin path translation
+ if $cygwin; then
+   CLASSPATH=`cygpath -p -w "$CLASSPATH"`
+@@ -270,6 +313,15 @@
+   fi
+ fi
+ 
++# add Mesos to Java library path
++if [ "x$MESOS_HOME" != "x" ] ; then
++  if [ "x$JAVA_LIBRARY_PATH" == "x" ] ; then
++    JAVA_LIBRARY_PATH="$MESOS_HOME/swig/java"
++  else
++    JAVA_LIBRARY_PATH="$JAVA_LIBRARY_PATH:$MESOS_HOME/swig/java"
++  fi
++fi
++
+ # cygwin path translation
+ if $cygwin; then
+   JAVA_LIBRARY_PATH=`cygpath -p "$JAVA_LIBRARY_PATH"`

@@ -77,6 +77,13 @@
   <property name="ivy.artifact.retrieve.pattern"
     			value="${ant.project.name}/[conf]/[artifact]-[revision].[ext]"/>
 
+  <!-- provides a means for contribs to add extra classpath entries -->
+  <condition property="contrib.extra-classpath" value="">
+    <not>
+      <isset property="contrib.extra-classpath" />
+    </not>
+  </condition>
+
   <!-- the normal classpath -->
   <path id="contrib-classpath">
     <pathelement location="${build.classes}"/>
@@ -86,6 +93,7 @@
       <include name="**/*.jar" />
     </fileset>
     <path refid="${ant.project.name}.common-classpath"/>
+    <pathelement path="${contrib.extra-classpath}"/>
     <pathelement path="${clover.jar}"/>
   </path>
 

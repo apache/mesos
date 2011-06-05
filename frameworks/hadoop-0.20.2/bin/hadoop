@@ -277,6 +277,17 @@ else
   CLASS=$COMMAND
 fi
 
+# add Mesos to classpath
+if [ "x$MESOS_HOME" == "x" ] ; then
+  if [ -d "$HADOOP_HOME/../../src/swig/java" ] ; then
+    MESOS_HOME=`cd "$HADOOP_HOME/../../src"; pwd`
+  fi
+fi
+if [ "x$MESOS_HOME" != "x" ] ; then
+  CLASSPATH="$CLASSPATH:$MESOS_HOME/swig/java"
+fi
+CLASSPATH="$CLASSPATH:$HADOOP_HOME/build/contrib/mesos/classes"
+
 # cygwin path translation
 if $cygwin; then
   CLASSPATH=`cygpath -p -w "$CLASSPATH"`
@@ -299,6 +310,15 @@ if [ -d "${HADOOP_HOME}/build/native" -o -d "${HADOOP_HOME}/lib/native" ]; then
     else
       JAVA_LIBRARY_PATH=${HADOOP_HOME}/lib/native/${JAVA_PLATFORM}
     fi
+  fi
+fi
+
+# add Mesos to Java library path
+if [ "x$MESOS_HOME" != "x" ] ; then
+  if [ "x$JAVA_LIBRARY_PATH" == "x" ] ; then
+    JAVA_LIBRARY_PATH="$MESOS_HOME/swig/java"
+  else
+    JAVA_LIBRARY_PATH="$JAVA_LIBRARY_PATH:$MESOS_HOME/swig/java"
   fi
 fi
 
