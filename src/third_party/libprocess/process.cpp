@@ -12,7 +12,6 @@
 #include <string.h>
 #include <ucontext.h>
 #include <unistd.h>
-#include <limits.h>
 
 #include <arpa/inet.h>
 
