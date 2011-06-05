@@ -8,7 +8,6 @@ import os
 import subprocess
 import sys
 import time
-import traceback
 from optparse import OptionParser
 from sys import stderr
 from tempfile import NamedTemporaryFile
