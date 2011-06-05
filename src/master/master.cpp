@@ -423,7 +423,6 @@ void Master::initialize()
 }
 
 
-
 void Master::newMasterDetected(const string& pid)
 {
   // Check and see if we are (1) still waiting to be the active
@@ -1909,7 +1908,7 @@ void Master::failoverFramework(Framework* framework, const PID& newPid)
   out.set_message("Framework failover");
   send(oldPid, out);
 
-  // TODO(benh): unlink(old->pid);
+  // TODO(benh): unlink(oldPid);
   pidToFrameworkId.erase(oldPid);
   pidToFrameworkId[newPid] = framework->frameworkId;
 
