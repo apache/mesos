@@ -87,7 +87,7 @@ EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 TESTS_OBJ = main.o test_master.o test_resources.o external_test.o	\
 	    test_sample_frameworks.o testing_utils.o			\
 	    test_configurator.o test_string_utils.o			\
-	    test_lxc_isolation.o
+	    test_lxc_isolation.o test_event_history.o
 
 ALLTESTS_EXE = $(BINDIR)/tests/alltests
 

@@ -324,9 +324,8 @@ void Master::operator () ()
 
       }
 
-      cout << "About to register framework with event history" << endl;
       evLogger->logFrameworkRegistered(fid, framework->user);
-      cout << "Registered framework with event history" << endl;
+      LOG(INFO) << "Logged framework registered to event history" << endl;
       addFramework(framework);
       break;
     }
