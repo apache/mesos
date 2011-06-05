@@ -1,6 +1,3 @@
-
-#define FT_TIMEOUT 10
-
 #include <dlfcn.h>
 #include <errno.h>
 #include <pwd.h>
@@ -29,9 +26,7 @@
 #include "messages.hpp"
 #include "nexus_local.hpp"
 #include "nexus_sched.hpp"
-#include "url_processor.hpp"
-#include "leader_detector.hpp"
-#include "ft_messaging.hpp"
+
 
 using std::cerr;
 using std::cout;
@@ -59,8 +54,6 @@ namespace nexus { namespace internal {
  * any synchronization necessary is performed.
  */
 
-    
-
 class SchedulerProcess : public Tuple<Process>
 {
 public:
@@ -73,93 +66,22 @@ private:
   FrameworkID fid;
   string frameworkName;
   ExecutorInfo execInfo;
-  bool isFT;
-  string zkServers;
-  LeaderDetector *leaderDetector;
-  FTMessaging *ftMsg;
-
-  typedef unordered_map< SlaveID, PID > SidToPidMap;
-  unordered_map< OfferID, SidToPidMap > savedOffers;
-  SidToPidMap sidToPidMap;
 
   volatile bool terminate;
 
-  class SchedLeaderListener;
-  friend class SchedLeaderListener;
-
-  class SchedLeaderListener : public LeaderListener {
-  public:
-    // Need to be thread safe. Currently does not use any shared variables. 
-    SchedLeaderListener(SchedulerProcess *s, PID pp) : parent(s), parentPID(pp) {}
-    
-    virtual void newLeaderElected(const string &zkId, const string &pidStr) {
-      if (zkId != "") {
-	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:" << zkId;
-	
-	LOG(INFO) << "Sending message to parent " << parentPID << " about new leader";
-	parent->send(parentPID, parent->pack<LE_NEWLEADER>(pidStr));
-
-      }
-    }
-
-  private:
-    SchedulerProcess *parent;
-    PID parentPID;
-  } schedLeaderListener;
-
-  
-  class TimeoutListener;
-  friend class TimeoutListener;
-
-  class TimeoutListener : public FTCallback {
-  public:
-    TimeoutListener(SchedulerProcess *s, const vector<TaskDescription> t) : parent(s), tasks(t) {}
- 
-   virtual void timeout() {
-      foreach (const TaskDescription &t, tasks) {
-        DLOG(INFO) << "FT: faking M2F_STATUS_UPDATE due to timeout to server during ReplyToOffer";
-        parent->send( parent->self(), 
-                      pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
-      }
-    }
-
-  private:
-    SchedulerProcess *parent;
-    vector<TaskDescription> tasks;
-  };
-
 public:
-  SchedulerProcess(const string &_master,
+  SchedulerProcess(const PID &_master,
                    NexusSchedulerDriver* _driver,
                    Scheduler* _sched,
                    const string& _frameworkName,
                    const ExecutorInfo& _execInfo)
-    : driver(_driver),
+    : master(_master),
+      driver(_driver),
       sched(_sched),
-      fid(""),
+      fid(-1),
       terminate(false),
       frameworkName(_frameworkName),
-      execInfo(_execInfo),
-      leaderDetector(NULL),
-      schedLeaderListener(this, getPID())
-{
-  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
-  if (urlPair.first == UrlProcessor::ZOO) {
-    isFT = true;
-    zkServers = urlPair.second;
-    //  } else if (urlPair.first == UrlProcessor::NEXUS) {
-  } else {
-    isFT = false; 
-    istringstream ss(urlPair.second); // the case nexus://
-    istringstream ss2(_master);       // in case nexus:// is missing
-    if (!((ss >> master) || (ss2 >> master))) { 
-      cerr << "Failed to parse URL for master: " << _master <<endl;
-      exit(1);
-    }
-  } 
-
-  ftMsg = FTMessaging::getInstance();
-}
+      execInfo(_execInfo) {}
 
 protected:
   void operator () ()
@@ -170,23 +92,7 @@ protected:
       fatal("failed to get username information");
     string user(passwd->pw_name);
 
-    if (isFT) {
-      LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
-      leaderDetector = new LeaderDetector(zkServers, false, "", NULL);
-      leaderDetector->setListener(&schedLeaderListener); // use this instead of constructor to avoid race condition
-
-      string leaderPidStr = leaderDetector->getCurrentLeaderPID();
-      string leaderSeq = leaderDetector->getCurrentLeaderSeq();
-      LOG(INFO) << "Detected leader at " << leaderPidStr << " with ephemeral id:" << leaderSeq;
-      
-      istringstream iss(leaderPidStr);
-      if (!(iss >> master)) {
-        cerr << "Failed to resolve master PID " << leaderPidStr << endl;
-      }    
-    }
-
     link(master);
-    ftMsg->setMasterPid(master);
     send(master, pack<F2M_REGISTER_FRAMEWORK>(frameworkName, user, execInfo));
 
     while(true) {
@@ -205,7 +111,11 @@ protected:
       if (terminate)
         return;
 
-      switch(receive(FT_TIMEOUT)) {
+      // TODO(benh): We need to break the receive loop every so often
+      // to check if 'terminate' has been set .. but rather than use a
+      // timeout in receive, maybe we should send a message.
+
+      switch(receive(1)) {
       case M2F_REGISTER_REPLY: {
         unpack<M2F_REGISTER_REPLY>(fid);
         invoke(bind(&Scheduler::registered, sched, driver, fid));
@@ -216,83 +126,16 @@ protected:
         OfferID oid;
         vector<SlaveOffer> offs;
         unpack<M2F_SLOT_OFFER>(oid, offs);
-        
-        savedOffers[ oid ] = SidToPidMap();
-        SidToPidMap &tmpMap = savedOffers[ oid ];
-        foreach(const SlaveOffer &offer, offs) {
-          tmpMap[ offer.slaveId ] = offer.slavePid;
-        }
-
         invoke(bind(&Scheduler::resourceOffer, sched, driver, oid, ref(offs)));
-        break;
-      }
-
-      case F2F_SLOT_OFFER_REPLY: {
-        OfferID oid;
-        vector<TaskDescription> tasks;
-        Params params;
-        vector<SlaveOffer> offs;
-        unpack<F2F_SLOT_OFFER_REPLY>(oid, tasks, params);
-
-        foreach(const TaskDescription &task, tasks) {
-          sidToPidMap[ task.slaveId ] = savedOffers[ oid ][ task.slaveId ];
-
-        }
-        savedOffers.erase( oid );
-
-        if (isFT) {
-          TimeoutListener *tListener = 
-            new TimeoutListener(this, tasks);
-
-          string ftId = ftMsg->getNextId();
-          DLOG(INFO) << "Sending reliably reply to slot offer for msg " << ftId;
-          ftMsg->reliableSend( ftId,
-                               pack<F2M_FT_SLOT_OFFER_REPLY>(ftId, self(), fid, oid, tasks, params),
-                               tListener);
-        } else
-          send(master, pack<F2M_SLOT_OFFER_REPLY>(fid, oid, tasks, params));
-
-        break;
-      }
-
-      case F2F_FRAMEWORK_MESSAGE: {
-        FrameworkMessage msg;
-        unpack<F2F_FRAMEWORK_MESSAGE>(msg);
-
-        /*
-        if (isFT) {
-          string ftId = ftMsg->getNextId();
-          ftMsg->reliableSend( ftId, pack<F2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), fid, msg));
-        } else
-          send(master, pack<F2M_FRAMEWORK_MESSAGE>(fid, msg));
-        */
-        send( sidToPidMap[ msg.slaveId ], pack<M2S_FRAMEWORK_MESSAGE>(fid, msg));
         break;
       }
 
       case M2F_RESCIND_OFFER: {
         OfferID oid;
         unpack<M2F_RESCIND_OFFER>(oid);
-        savedOffers.erase(oid);
         invoke(bind(&Scheduler::offerRescinded, sched, driver, oid));
         break;
       }
-
-      case M2F_FT_STATUS_UPDATE: {
-        TaskID tid;
-        TaskState state;
-        string data;
-        string ftId, origPid;
-        unpack<M2F_FT_STATUS_UPDATE>(ftId, origPid, tid, state, data);
-        if (!ftMsg->acceptMessageAck(ftId, origPid))
-          break;
-        DLOG(INFO) << "FT: Received message with id: " << ftId;
-
-        TaskStatus status(tid, state, data);
-        invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
-        break;
-      }
-
 
       case M2F_STATUS_UPDATE: {
         TaskID tid;
@@ -301,20 +144,6 @@ protected:
         unpack<M2F_STATUS_UPDATE>(tid, state, data);
         TaskStatus status(tid, state, data);
         invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
-        break;
-      }
-
-      case M2F_FT_FRAMEWORK_MESSAGE: {
-        FrameworkMessage msg;
-        string ftId, origPid;
-        unpack<M2F_FT_FRAMEWORK_MESSAGE>(ftId, origPid, msg);
-
-        if (!ftMsg->acceptMessageAck(ftId, origPid))
-          break;
-
-        DLOG(INFO) << "FT: Received message with id: " << ftId;
-
-        invoke(bind(&Scheduler::frameworkMessage, sched, driver, ref(msg)));
         break;
       }
 
@@ -328,7 +157,6 @@ protected:
       case M2F_LOST_SLAVE: {
         SlaveID sid;
         unpack<M2F_LOST_SLAVE>(sid);
-        sidToPidMap.erase(sid);
         invoke(bind(&Scheduler::slaveLost, sched, driver, sid));
         break;
       }
@@ -341,54 +169,14 @@ protected:
         break;
       }
 
-
       case PROCESS_EXIT: {
-        const char* message = "Connection to master failed";
-	 if (isFT) 
-	   LOG(WARNING) << "Connection to master failed. Waiting for a new master to be elected.";
-	 else 
-	   {
-	      LOG(ERROR) << "Connection to master failed. Exiting. Consider running Nexus in FT mode!";
-	      invoke(bind(&Scheduler::error, sched, driver, -1, message));
-	   }
-        break;
-      }
-
-      case LE_NEWLEADER: {
-        LOG(INFO) << "Slave got notified of new leader " << from();
-	string newLeader;
-        unpack<LE_NEWLEADER>(newLeader);
-	istringstream iss(newLeader);
-	if (!(iss >> master)) {
-	  cerr << "Failed to resolve master PID " << newLeader << endl;
-	  break;
-	}    
-	
-	LOG(INFO) << "Connecting to Nexus master at " << master;
-	link(master);
-        ftMsg->setMasterPid(master);
-
-        if (fid != "")  // actual re-register to a new master leader
-          send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user, execInfo));
-        else            // not really a re-register, scheduler started before master
-          send(master, pack<F2M_REGISTER_FRAMEWORK>(frameworkName, user, execInfo));
-
-	break;
-      }
-
-      case FT_RELAY_ACK: {
-        string ftId, senderStr;
-        unpack<FT_RELAY_ACK>(ftId, senderStr);
-
-        DLOG(INFO) << "FT: got final ack for " << ftId;
-
-        ftMsg->gotAck(ftId);
+        const char* message = "connection to master failed";
+        invoke(bind(&Scheduler::error, sched, driver, -1, message));
         break;
       }
 
       case PROCESS_TIMEOUT: {
-        ftMsg->sendOutstanding();
-	break;
+        break;
       }
 
       default: {
@@ -497,28 +285,25 @@ void NexusSchedulerDriver::start()
   }
 
   PID pid;
-  
-  string initServer = master;
 
   if (master == string("localquiet")) {
     // TODO(benh): Look up resources in environment variables.
     pid = run_nexus(1, 1, 1073741824, true, true);
-    ostringstream ss;
-    ss << pid;
-    initServer = ss.str();
   } else if (master == string("local")) {
     // TODO(benh): Look up resources in environment variables.
     pid = run_nexus(1, 1, 1073741824, true, false);
-    ostringstream ss;
-    ss << pid;
-    initServer = ss.str();
-  } 
+  } else {
+    std::istringstream iss(master);
+    if (!(iss >> pid)) {
+      error(errno, "register failed - bad master PID");
+      return;
+    }
+  }
 
   const string& frameworkName = sched->getFrameworkName(this);
   const ExecutorInfo& executorInfo = sched->getExecutorInfo(this);
 
-  process = new SchedulerProcess(initServer, this, sched, frameworkName, executorInfo);
-  
+  process = new SchedulerProcess(pid, this, sched, frameworkName, executorInfo);
   Process::spawn(process);
 
   running = true;
@@ -591,8 +376,12 @@ void NexusSchedulerDriver::replyToOffer(OfferID offerId,
   }
 
   // TODO(benh): Do a Process::post instead?
-  
-  process->send( process->self(), process->pack<F2F_SLOT_OFFER_REPLY>(offerId, tasks, Params(params)));
+
+  process->send(process->master,
+                process->pack<F2M_SLOT_OFFER_REPLY>(process->fid,
+                                                    offerId,
+                                                    tasks,
+                                                    Params(params)));
 }
 
 
@@ -621,7 +410,8 @@ void NexusSchedulerDriver::sendFrameworkMessage(const FrameworkMessage &message)
     return;
   }
 
-  process->send( process->self(), process->pack<F2F_FRAMEWORK_MESSAGE>(message) );
+  process->send(process->master,
+                process->pack<F2M_FRAMEWORK_MESSAGE>(process->fid, message));
 }
 
 
@@ -692,7 +482,7 @@ public:
 
   virtual void registered(SchedulerDriver*, FrameworkID frameworkId)
   {
-    sched->registered(sched, frameworkId.c_str());
+    sched->registered(sched, frameworkId);
   }
 
   virtual void resourceOffer(SchedulerDriver*,
@@ -711,19 +501,19 @@ public:
     // Create C offer structs
     nexus_slot* c_offers = new nexus_slot[offers.size()];
     for (size_t i = 0; i < offers.size(); i++) {
-      nexus_slot offer = { offers[i].slaveId.c_str(),
+      nexus_slot offer = { offers[i].slaveId,
                            offers[i].host.c_str(),
                            paramStrs[i].c_str() };
       c_offers[i] = offer;
     }
 
-    sched->slot_offer(sched, offerId.c_str(), c_offers, offers.size());
+    sched->slot_offer(sched, offerId, c_offers, offers.size());
     delete[] c_offers;
   }
 
   virtual void offerRescinded(SchedulerDriver*, OfferID offerId)
   {
-    sched->slot_offer_rescinded(sched, offerId.c_str());
+    sched->slot_offer_rescinded(sched, offerId);
   }
 
   virtual void statusUpdate(SchedulerDriver*, TaskStatus &status)
@@ -737,7 +527,7 @@ public:
 
   virtual void frameworkMessage(SchedulerDriver*, FrameworkMessage &message)
   {
-    nexus_framework_message c_message = { message.slaveId.c_str(),
+    nexus_framework_message c_message = { message.slaveId,
                                           message.taskId,
                                           message.data.data(),
                                           message.data.size() };
@@ -746,7 +536,7 @@ public:
 
   virtual void slaveLost(SchedulerDriver*, SlaveID sid)
   {
-    sched->slave_lost(sched, sid.c_str());
+    sched->slave_lost(sched, sid);
   }
 
   virtual void error(SchedulerDriver*, int code, const std::string &message)
@@ -893,7 +683,7 @@ int nexus_sched_send_message(struct nexus_sched* sched,
     return -1;
   }
 
-  FrameworkMessage message(string(msg->sid), msg->tid,
+  FrameworkMessage message(msg->sid, msg->tid,
                            string((char*) msg->data, msg->data_len));
 
   CScheduler* cs = lookupCScheduler(sched);
@@ -957,7 +747,7 @@ int nexus_sched_reply_to_offer(struct nexus_sched* sched,
     string taskArg((char*) tasks[i].arg, tasks[i].arg_len);
 
     wrapped_tasks[i] = TaskDescription(tasks[i].tid,
-                                       string(tasks[i].sid),
+                                       tasks[i].sid,
                                        string(tasks[i].name),
                                        params,
                                        taskArg);
