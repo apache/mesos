@@ -244,7 +244,8 @@ void Master::operator () ()
     ostringstream lpid;
     lpid<<self();
     leaderDetector = new LeaderDetector(zkserver, true, lpid.str());
-    masterId = atoi(leaderDetector->getSequence().c_str());
+    
+    masterId = lexical_cast<long>(leaderDetector->getSequence());
     LOG(INFO)<<"Master ID:"<<masterId;
   }
 
@@ -260,10 +261,7 @@ void Master::operator () ()
 
     case F2M_REGISTER_FRAMEWORK: {
 
-      stringstream ss;
-      ss << masterId<<"-"<<nextFrameworkId++;
-      FrameworkID fid = ss.str();
-
+      FrameworkID fid = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextFrameworkId++);
 
       Framework *framework = new Framework(from(), fid);
       unpack<F2M_REGISTER_FRAMEWORK>(framework->name,
@@ -354,9 +352,9 @@ void Master::operator () ()
     }
 
     case S2M_REGISTER_SLAVE: {
-      stringstream ss;
-      ss<<masterId<<"-"<<nextSlaveId++;
-      Slave *slave = new Slave(from(), ss.str());
+      string slaveId = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextSlaveId++);
+
+      Slave *slave = new Slave(from(), slaveId);
       unpack<S2M_REGISTER_SLAVE>(slave->hostname, slave->publicDns,
           slave->resources);
       LOG(INFO) << "Registering " << slave << " at " << slave->pid;
@@ -505,9 +503,7 @@ void Master::operator () ()
 OfferID Master::makeOffer(Framework *framework,
                           const vector<SlaveResources>& resources)
 {
-  ostringstream ss;
-  ss<<masterId<<"-"<<nextSlotOfferId++;
-  OfferID oid = ss.str();
+  OfferID oid = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextSlotOfferId++);
 
   SlotOffer *offer = new SlotOffer(oid, framework->id, resources);
   slotOffers[offer->id] = offer;
