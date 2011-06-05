@@ -1180,10 +1180,10 @@ void Master::exited()
         removeSlotOffer(offer, ORR_FRAMEWORK_FAILOVER, offer->resources);
       }
 
-      framework->failoverTimer =
-        new FrameworkFailoverTimer(self(), frameworkId);
-      link(spawn(framework->failoverTimer));
-//       removeFramework(framework);
+//       framework->failoverTimer =
+//         new FrameworkFailoverTimer(self(), frameworkId);
+//       link(spawn(framework->failoverTimer));
+      removeFramework(framework);
     }
   } else if (pidToSlaveId.count(from()) > 0) {
     const SlaveID& slaveId = pidToSlaveId[from()];
