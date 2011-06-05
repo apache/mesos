@@ -1,5 +1,9 @@
 #include <nexus_sched.hpp>
 
+#include <libgen.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
@@ -8,6 +12,8 @@
 
 #include <boost/lexical_cast.hpp>
 #include <boost/unordered_map.hpp>
+
+#include <glog/logging.h>
 
 #include "foreach.hpp"
 
@@ -22,9 +28,13 @@ struct Task {
   double duration;
   bool launched;
   bool finished;
+  int64_t memToRequest;
+  int64_t memToHog;
 
-  Task(double launchTime_, double duration_)
+  Task(double launchTime_, double duration_,
+       int64_t memToRequest_, int64_t memToHog_)
     : launchTime(launchTime_), duration(duration_),
+      memToRequest(memToRequest_), memToHog(memToHog_),
       launched(0), finished(0) {}
 };
 
@@ -39,32 +49,40 @@ struct TaskComparator
 
 class MyScheduler : public Scheduler
 {
+public:
   string executor;
   double taskLen;
   int threadsPerTask;
-  int64_t memToRequest;
-  int64_t memToHog;
   string scheduleFile;
   vector<Task> tasks;
   time_t startTime;
   int tasksLaunched;
   int tasksFinished;
+  int successfulTasks;
 
-public:
   MyScheduler(const string& executor_, const string& scheduleFile_,
-      int threadsPerTask_, int64_t memToRequest_, int64_t memToHog_)
+              int threadsPerTask_)
     : executor(executor_), scheduleFile(scheduleFile_),
       threadsPerTask(threadsPerTask_),
-      memToRequest(memToRequest_), memToHog(memToHog_),
-      tasksLaunched(0), tasksFinished(0)
+      tasksLaunched(0), tasksFinished(0), successfulTasks(0)
   {
     ifstream in(scheduleFile.c_str());
     double launchTime;
     double duration;
-    while (in >> launchTime >> duration) {
-      tasks.push_back(Task(launchTime, duration));
+    int64_t memToRequest;
+    int64_t memToHog;
+    while (in >> launchTime >> duration >> memToRequest >> memToHog) {
+      memToRequest *= (1024 * 1024);
+      memToHog *= (1024 * 1024);
+      tasks.push_back(Task(launchTime, duration, memToRequest, memToHog));
     }
     in.close();
+    LOG(INFO) << "Loaded " << tasks.size() << " tasks";
+    if (tasks.size() == 0) {
+      cerr << "Schedule file contained no tasks!" << endl;
+      exit(1);
+    }
+    // Sort tasks by start time
     TaskComparator comp;
     sort(tasks.begin(), tasks.end(), comp);
   }
@@ -80,7 +98,7 @@ public:
   }
 
   virtual void registered(SchedulerDriver*, FrameworkID fid) {
-    cout << "Registered!" << endl;
+    LOG(INFO) << "Registered!";
     startTime = time(0);
   }
 
@@ -94,15 +112,19 @@ public:
       // This is kind of ugly because operator[] isn't a const function
       int32_t cpus = lexical_cast<int32_t>(offer.params.find("cpus")->second);
       int64_t mem = lexical_cast<int64_t>(offer.params.find("mem")->second);
-      if ((tasksLaunched < tasks.size()) && (cpus >= 1 && mem >= memToRequest) &&
-          curTime >= tasks[tasksLaunched].launchTime) {
+      if (tasksLaunched < tasks.size() &&
+          cpus >= 1 &&
+          curTime >= tasks[tasksLaunched].launchTime &&
+          mem >= tasks[tasksLaunched].memToRequest)
+      {
         TaskID tid = tasksLaunched++;
-        cout << "Launcing task " << tid << " on " << offer.host << endl;
+        LOG(INFO) << "Launcing task " << tid << " on " << offer.host;
         map<string, string> params;
         params["cpus"] = "1";
-        params["mem"] = lexical_cast<string>(memToRequest);
+        params["mem"] = lexical_cast<string>(tasks[tid].memToRequest);
         ostringstream arg;
-        arg << memToHog << " " << tasks[tid].duration << " " << threadsPerTask;
+        arg << tasks[tid].memToHog << " " << tasks[tid].duration
+            << " " << threadsPerTask;
         TaskDescription desc(tid, offer.slaveId, "task", params, arg.str());
         toLaunch.push_back(desc);
       }
@@ -112,11 +134,14 @@ public:
   }
 
   virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
-    cout << "Task " << status.taskId << " is in state " << status.state << endl;
+    LOG(INFO) << "Task " << status.taskId << " is in state " << status.state;
     if (status.state == TASK_FINISHED || status.state == TASK_FAILED ||
         status.state == TASK_KILLED || status.state == TASK_LOST) {
       tasks[status.taskId].finished = true;
       tasksFinished++;
+      if (status.state == TASK_FINISHED) {
+        successfulTasks++;
+      }
       if (tasksFinished == tasks.size()) {
         d->stop();
       }
@@ -126,21 +151,15 @@ public:
 
 
 int main(int argc, char ** argv) {
-  if (argc != 6) {
-    cerr << "Usage: " << argv[0]
-         << " <master> <schedule_file> <threads_per_task>"
-         << " <MB_to_request> <MB_per_task>" << endl;
+  if (argc != 3) {
+    cerr << "Usage: " << argv[0] << " <master> <schedule_file>";
     return -1;
   }
-  char cwd[512];
-  getcwd(cwd, sizeof(cwd));
-  string executor = string(cwd) + "/memhog-executor";
-  MyScheduler sched(executor,
-                    argv[2],
-                    lexical_cast<int>(argv[3]),
-                    lexical_cast<int64_t>(argv[4]) * 1024 * 1024,
-                    lexical_cast<int64_t>(argv[5]) * 1024 * 1024);
+  char buf[4096];
+  realpath(dirname(argv[0]), buf);
+  string executor = string(buf) + "/memhog-executor";
+  MyScheduler sched(executor, argv[2], 1);
   NexusSchedulerDriver driver(&sched, argv[1]);
   driver.run();
-  return 0;
+  return (sched.successfulTasks == sched.tasks.size()) ? 0 : 1;
 }

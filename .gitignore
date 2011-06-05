@@ -78,6 +78,7 @@ src/memhog
 src/memhog-executor
 src/test-framework
 src/test-executor
+src/scheduled-memhog
 src/swig/java/nexus
 src/swig/python/nexus.py
 src/test_output

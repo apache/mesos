@@ -83,7 +83,7 @@ void* runTask(void* threadArg)
     pos = nextRand(pos);
     data[pos % arg->memToHog] = pos;
     count++;
-    if (count == 5000) {
+    if (count == 2000) {
       // Check whether enough time has elapsed to end the task
       count = 0;
       time_t now = time(0);

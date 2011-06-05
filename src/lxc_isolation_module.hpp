@@ -6,6 +6,8 @@
 #include <boost/unordered_map.hpp>
 
 #include "isolation_module.hpp"
+#include "messages.hpp"
+#include "slave.hpp"
 
 namespace nexus { namespace internal { namespace slave {
 
