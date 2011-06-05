@@ -19,6 +19,7 @@ Makefile
 *.blg
 *.log
 *.class
+*.conf
 *.pyc
 *.dSYM
 *.dylib
