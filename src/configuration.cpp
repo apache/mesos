@@ -31,7 +31,7 @@ void Configuration::validate()
 }
 
 
-void Configuration::loadEnvCmdConf(int argc, char** argv, bool inferMesosHomeFromArg0)
+void Configuration::load(int argc, char** argv, bool inferMesosHomeFromArg0)
 {
   loadEnv();
   loadCommandLine(argc, argv, inferMesosHomeFromArg0);
@@ -40,7 +40,7 @@ void Configuration::loadEnvCmdConf(int argc, char** argv, bool inferMesosHomeFro
 }
 
 
-void Configuration::loadEnvConf()
+void Configuration::load()
 {
   loadEnv();
   loadConfigFileIfGiven();
@@ -48,7 +48,7 @@ void Configuration::loadEnvConf()
 }
 
 
-void Configuration::loadEnvMapConf(const map<string, string>& _params) 
+void Configuration::load(const map<string, string>& _params) 
 {
   loadEnv();
   params.loadMap(_params);

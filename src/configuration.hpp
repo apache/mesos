@@ -256,7 +256,7 @@ public:
    * @param inferMesosHomeFromArg0 whether to set mesos home to directory
    *                               containing argv[0] (the program being run)
    **/
-  void loadEnvCmdConf(int argc, char** argv, bool inferMesosHomeFromArg0=false);
+  void load(int argc, char** argv, bool inferMesosHomeFromArg0=false);
 
 
   /**
@@ -270,7 +270,7 @@ public:
    * The config file should contain key=value pairs, one per line.
    * Comments, which should start with #, are ignored.
    **/
-  void loadEnvConf();
+  void load();
 
 
   /** 
@@ -288,7 +288,7 @@ public:
    *
    * @param _params map containing key value pairs to be loaded
    **/
-  void loadEnvMapConf(const map<string, string>& _params);
+  void load(const map<string, string>& _params);
 
 private:
   /**
