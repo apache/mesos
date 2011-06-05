@@ -15,6 +15,7 @@ class Future
 {
 public:
   Future();
+  Future(Promise<T>* promise);
   Future(const T& _t);
   Future(const Future<T>& that);
   Future<T>& operator = (const Future<T>& that);
@@ -43,6 +44,19 @@ Future<T>::Future()
   t = new T*;
   *t = NULL;
   latch = new Latch();
+}
+
+
+template <typename T>
+Future<T>::Future(Promise<T>* promise)
+{
+  refs = new int;
+  *refs = 1;
+  t = new T*;
+  *t = NULL;
+  latch = new Latch();
+  assert(promise != NULL);
+  promise->associate(*this);
 }
 
 
