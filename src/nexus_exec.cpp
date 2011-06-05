@@ -105,7 +105,7 @@ protected:
 	  // ourself) hoping to clean up any processes this executor
 	  // launched itself.
 	  // TODO(benh): Maybe do a SIGTERM and then later do a SIGKILL?
-	  killpg(getpid(), SIGKILL);
+	  killpg(0, SIGKILL);
         }
 
         default: {
