@@ -84,7 +84,7 @@ int main(int argc, char **argv)
   MasterDetector *detector = MasterDetector::create(url, pid, false, quiet);
 
 #ifdef MESOS_WEBUI
-  startSlaveWebUI(pid, (char*) params["webui_port"].c_str());
+  startSlaveWebUI(pid, params);
 #endif
 
   Process::wait(pid);

@@ -1,6 +1,7 @@
 #include <pthread.h>
 
 #include <sstream>
+#include <string>
 
 #include "state.hpp"
 #include "webui.hpp"
@@ -9,25 +10,33 @@
 
 #include <Python.h>
 
+using std::string;
+
+
 extern "C" void init_slave();  // Initializer for the Python slave module
 
 namespace {
 
 PID slave;
+string webuiPort;
+string logDir;
+string workDir;
 
 }
 
 namespace mesos { namespace internal { namespace slave {
 
 
-void *runSlaveWebUI(void* webuiPort)
+void *runSlaveWebUI(void *)
 {
   LOG(INFO) << "Web UI thread started";
   Py_Initialize();
-  char* nargv[2]; 
-  nargv[0] = const_cast<char*>("webui/master/webui.py");
-  nargv[1] = reinterpret_cast<char*>(webuiPort);
-  PySys_SetArgv(2,nargv);
+  char* argv[4];
+  argv[0] = const_cast<char*>("webui/master/webui.py");
+  argv[1] = const_cast<char*>(webuiPort.c_str());
+  argv[2] = const_cast<char*>(logDir.c_str());
+  argv[3] = const_cast<char*>(workDir.c_str());
+  PySys_SetArgv(4, argv);
   PyRun_SimpleString("import sys\n"
       "sys.path.append('webui/slave/swig')\n"
       "sys.path.append('webui/common')\n"
@@ -41,12 +50,30 @@ void *runSlaveWebUI(void* webuiPort)
 }
 
 
-void startSlaveWebUI(const PID &slave, char* webuiPort)
+void startSlaveWebUI(const PID &slave, const Params &params)
 {
-  LOG(INFO) << "Starting slave web UI";
+  // TODO(*): See the note in master/webui.cpp about having to
+  // determine default values. These should be set by now and can just
+  // be used! For example, what happens when the slave code changes
+  // their default location for the work directory, it might not get
+  // changed here!
+  webuiPort = params.get("webui_port", "8081");
+  logDir = params.get("log_dir", FLAGS_log_dir);
+  if (params.contains("work_dir")) {
+    workDir = params.get("work_dir", "");
+  } else if (params.contains("home")) {
+    workDir = params.get("home", "") + "/work";
+  } else {
+    workDir = "work";
+  }
+
+  CHECK(workDir != "");
+
+  LOG(INFO) << "Starting slave web UI on port " << webuiPort;
+
   ::slave = slave;
   pthread_t thread;
-  pthread_create(&thread, 0, runSlaveWebUI, webuiPort);
+  pthread_create(&thread, 0, runSlaveWebUI, NULL);
 }
 
 

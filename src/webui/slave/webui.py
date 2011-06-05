@@ -1,3 +1,4 @@
+import os
 import sys
 import bottle
 import commands
@@ -28,21 +29,21 @@ def static(filename):
 
 @route('/log/:level#[A-Z]*#')
 def log_full(level):
-  send_file('mesos-slave.' + level, root = '/tmp',
+  send_file('mesos-slave.' + level, root = log_dir,
             guessmime = False, mimetype = 'text/plain')
 
 
 @route('/log/:level#[A-Z]*#/:lines#[0-9]*#')
 def log_tail(level, lines):
   bottle.response.content_type = 'text/plain'
-  return commands.getoutput('tail -%s /tmp/mesos-slave.%s' % (lines, level))
+  return commands.getoutput('tail -%s %s/mesos-slave.%s' % (lines, log_dir, level))
 
 
 @route('/framework-logs/:fid#[0-9]*#/:log_type#[a-z]*#')
 def framework_log_full(fid, log_type):
   sid = get_slave().id
   if sid != -1:
-    send_file(log_type, root = './work/slave-%d/framework-%s' % (sid, fid),
+    send_file(log_type, root = '%s/slave-%s/fw-%s' % (work_dir, sid, fid),
               guessmime = False, mimetype = 'text/plain')
   else:
     abort(403, 'Slave not yet registered with master')
@@ -53,7 +54,9 @@ def framework_log_tail(fid, log_type, lines):
   bottle.response.content_type = 'text/plain'
   sid = get_slave().id
   if sid != -1:
-    filename = './work/slave-%d/framework-%s/%s' % (sid, fid, log_type)
+    dir = '%s/slave-%s/fw-%s' % (work_dir, sid, fid)
+    i = max(os.listdir(dir))
+    filename = '%s/slave-%s/fw-%s/%s/%s' % (work_dir, sid, fid, i, log_type)
     print filename
     return commands.getoutput('tail -%s %s' % (lines, filename))
   else:
@@ -61,8 +64,13 @@ def framework_log_tail(fid, log_type, lines):
 
 
 bottle.TEMPLATE_PATH.append('./webui/slave/%s.tpl')
-if sys.argv[1]:
-  init_port = sys.argv[1]
-else:
-  init_port = 8080
+
+# TODO(*): Add an assert to confirm that all the arguments we are
+# expecting have been passed to us, which will give us a better error
+# message when they aren't!
+
+init_port = sys.argv[1]
+log_dir = sys.argv[2]
+work_dir = sys.argv[3]
+
 bottle.run(host = '0.0.0.0', port = init_port)

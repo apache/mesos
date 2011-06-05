@@ -528,18 +528,7 @@ string Slave::getUniqueWorkDirectory(FrameworkID fid)
   // Find a unique directory based on the path given by the slave
   // (this is because we might launch multiple executors from the same
   // framework on this slave).
-  time_t rawtime;
-  struct tm* timeinfo;
-
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-
-  char timestr[32];
-  if (strftime(timestr, sizeof(timestr), "%Y%m%d%H%M", timeinfo) == 0)
-    LOG(FATAL) << "Could not get a unique working directory; "
-               << "failed to format a string with the given time";
-
-  os << "/" << timestr << "-";
+  os << "/";
 
   string dir;
   dir = os.str();

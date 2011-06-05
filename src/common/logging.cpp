@@ -33,6 +33,8 @@ void Logging::init(const char* programName, const Params& conf)
 
   if (!isQuiet(conf))
     google::SetStderrLogging(google::INFO);
+
+  LOG(INFO) << "Logging to " << FLAGS_log_dir;
 }
 
 

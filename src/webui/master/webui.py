@@ -27,19 +27,23 @@ def static(filename):
 
 @route('/log/:level#[A-Z]*#')
 def log_full(level):
-  send_file('mesos-master.' + level, root = '/tmp',
+  send_file('mesos-master.' + level, root = log_dir,
             guessmime = False, mimetype = 'text/plain')
 
 
 @route('/log/:level#[A-Z]*#/:lines#[0-9]*#')
 def log_tail(level, lines):
   bottle.response.content_type = 'text/plain'
-  return commands.getoutput('tail -%s /tmp/mesos-master.%s' % (lines, level))
+  return commands.getoutput('tail -%s %s/mesos-master.%s' % (lines, log_dir, level))
 
 
 bottle.TEMPLATE_PATH.append('./webui/master/%s.tpl')
-if sys.argv[1]:
-  init_port = sys.argv[1] 
-else:
-  init_port = 8080
+
+# TODO(*): Add an assert to confirm that all the arguments we are
+# expecting have been passed to us, which will give us a better error
+# message when they aren't!
+
+init_port = sys.argv[1]
+log_dir = sys.argv[2]
+
 bottle.run(host = '0.0.0.0', port = init_port)

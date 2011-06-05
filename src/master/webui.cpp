@@ -1,6 +1,7 @@
 #include <pthread.h>
 
 #include <sstream>
+#include <string>
 
 #include "webui.hpp"
 #include "state.hpp"
@@ -9,25 +10,31 @@
 
 #include <Python.h>
 
+using std::string;
+
+
 extern "C" void init_master();  // Initializer for the Python master module
 
 namespace {
 
 PID master;
+string webuiPort;
+string logDir;
 
 }
 
 namespace mesos { namespace internal { namespace master {
 
 
-void *runMasterWebUI(void* webuiPort)
+void *runMasterWebUI(void *)
 {
   LOG(INFO) << "Web UI thread started";
   Py_Initialize();
-  char* nargv[2]; 
-  nargv[0] = const_cast<char*>("webui/master/webui.py");
-  nargv[1] = reinterpret_cast<char*>(webuiPort);
-  PySys_SetArgv(2,nargv);
+  char* argv[3];
+  argv[0] = const_cast<char*>("webui/master/webui.py");
+  argv[1] = const_cast<char*>(webuiPort.c_str());
+  argv[2] = const_cast<char*>(logDir.c_str());
+  PySys_SetArgv(3, argv);
   PyRun_SimpleString("import sys\n"
       "sys.path.append('webui/master/swig')\n"
       "sys.path.append('webui/common')\n"
@@ -41,12 +48,23 @@ void *runMasterWebUI(void* webuiPort)
 }
 
 
-void startMasterWebUI(const PID &master, char* webuiPort)
+void startMasterWebUI(const PID &master, const Params &params)
 {
-  LOG(INFO) << "Starting master web UI";
+  // TODO(*): It would be nice if we didn't have to be specifying
+  // default values for configuration options in the code like
+  // this. For example, we specify /tmp for log_dir because that is
+  // what glog does, but it would be nice if at this point in the game
+  // all of the configuration options have been set (from defaults or
+  // from the command line, environment, or configuration file) and we
+  // can just query what their values are.
+  webuiPort = params.get("webui_port", "8080");
+  logDir = params.get("log_dir", FLAGS_log_dir);
+
+  LOG(INFO) << "Starting master web UI on port " << webuiPort;
+
   ::master = master;
   pthread_t thread;
-  pthread_create(&thread, 0, runMasterWebUI, webuiPort);
+  pthread_create(&thread, 0, runMasterWebUI, NULL);
 }
 
 

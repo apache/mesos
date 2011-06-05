@@ -5,13 +5,15 @@
 
 #include "slave.hpp"
 
+#include "common/params.hpp"
+
 #include "config/config.hpp"
 
 #ifdef MESOS_WEBUI
 
 namespace mesos { namespace internal { namespace slave {
 
-void startSlaveWebUI(const PID &slave, char* webuiPort);
+void startSlaveWebUI(const PID &slave, const Params &params);
 
 }}} /* namespace */
 
