@@ -24,9 +24,9 @@ function installmaster {
         ./torque.setup `whoami` #or should this just be root
 
 	echo "copying init.d control scripts to master"
-	cp contrib/init.d/debian.pbs_mom /nfs/torque/init.d/pbs_mom
-	cp contrib/init.d/debian.pbs_sched /nfs/torque/init.d/pbs_sched
-	cp contrib/init.d/debian.pbs_server /nfs/torque/init.d/pbs_server
+	cp contrib/init.d/debian.pbs_mom /etc/init.d/pbs_mom
+	cp contrib/init.d/debian.pbs_sched /etc/init.d/pbs_sched
+	cp contrib/init.d/debian.pbs_server /etc/init.d/pbs_server
 
 	echo "running ldconfig on master"
 	ldconfig
