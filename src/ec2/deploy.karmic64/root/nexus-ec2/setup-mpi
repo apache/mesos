@@ -2,8 +2,15 @@
 
 apt-get -y install dsh
 
+#install on master
+apt-get -y install mpich2
+
+#install on slaves
 dsh -f /root/nexus-ec2/slaves apt-get -y install mpich2
 
+touch /etc/mpd.conf
+echo 'MPD_SECRETWORD=default' > /etc/mpd.conf
+chmod 600 /etc/mpd.conf
 
 dsh -f /root/nexus-ec2/slaves rm /etc/mpd.conf
 dsh -f /root/nexus-ec2/slaves touch /etc/mpd.conf
