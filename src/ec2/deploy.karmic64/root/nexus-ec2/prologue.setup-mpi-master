@@ -16,7 +16,7 @@ PORTNUM=`mpdtrace -l | cut -d"_" -f 2 | cut -d" " -f1`
 HOSTNAME=`mpdtrace -l | cut -d"_" -f 2 | cut -d"(" -f2 | cut -d")" -f1`
 
 echo "running mpd daemon on all slave"
-for i in `cat $PBS_NODEFILE`; do ssh -o StrictHostKeyChecking=no $i cd /root/nexus-ec2; ./setup-mdi-conf $1; done
+for i in `cat $PBS_NODEFILE`; do ssh -o StrictHostKeyChecking=no $i cd /root/nexus-ec2; /root/nexus-ec2/setup-mpd-conf $1; done
 #echo "running this command on slaves: ssh $i mpd --daemon -h $HOSTNAME -p $PORTNUM ; done"
 # set up mpi daemon on all slave nodes given to us by torque in $PBS_NODEFILE
 for i in `cat $PBS_NODEFILE`; do ssh -o StrictHostKeyChecking=no $i mpd --daemon -h $HOSTNAME -p $PORTNUM ; done

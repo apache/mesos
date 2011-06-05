@@ -102,6 +102,7 @@ echo "RSYNC'ing /root/nexus-ec2 to slaves..."
 for slave in `cat $SLAVES`; do
   echo $slave
   rsync -e "ssh $SSH_OPTS" -az /root/nexus-ec2 $slave:/root
+  scp ~/.ssh/id_rsa $slave:.ssh
 done
 
 echo "Setting up slaves..."
