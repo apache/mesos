@@ -100,8 +100,8 @@ PID launch(const Params& conf, bool initLogging)
 
 void shutdown()
 {
-  Process::post(master->getPID(), M2M_SHUTDOWN);
-  Process::wait(master->getPID());
+  Process::post(master->self(), M2M_SHUTDOWN);
+  Process::wait(master->self());
   delete master;
   master = NULL;
 
@@ -112,8 +112,8 @@ void shutdown()
   // we have stopped the slave.
 
   foreachpair (IsolationModule *isolationModule, Slave *slave, slaves) {
-    Process::post(slave->getPID(), S2S_SHUTDOWN);
-    Process::wait(slave);
+    Process::post(slave->self(), S2S_SHUTDOWN);
+    Process::wait(slave->self());
     delete isolationModule;
     delete slave;
   }

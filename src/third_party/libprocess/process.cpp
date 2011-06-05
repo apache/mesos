@@ -1639,7 +1639,7 @@ void LinkManager::exited(Process *process)
     foreachpair (_, set<Process *> &processes, links)
       processes.erase(process);
 
-    const PID &pid = process->getPID();
+    const PID &pid = process->self();
 
     /* Look up all linked processes. */
     map<PID, set<Process *> >::iterator it = links.find(pid);
@@ -2530,21 +2530,12 @@ struct msg * Process::dequeue()
 }
 
 
-PID Process::self() const
-{
-  return pid;
-}
-
-
-PID Process::from() const
-{
-  return current != NULL ? current->from : PID();
-}
-
-
 void Process::inject(const PID &from, MSGID id, const char *data, size_t length)
 {
   if (replaying)
+    return;
+
+  if (!from)
     return;
 
   /* Disallow sending messages using an internal id. */
@@ -2586,6 +2577,9 @@ void Process::inject(const PID &from, MSGID id, const char *data, size_t length)
 void Process::send(const PID &to, MSGID id, const char *data, size_t length)
 {
   if (replaying)
+    return;
+
+  if (!to)
     return;
   
   /* Disallow sending messages using an internal id. */
@@ -2718,7 +2712,11 @@ void Process::pause(double secs)
 
 PID Process::link(const PID &to)
 {
+  if (!to)
+    return to;
+
   process_manager->link(this, to);
+
   return to;
 }
 
@@ -2797,6 +2795,9 @@ void Process::post(const PID &to, MSGID id, const char *data, size_t length)
   if (replaying)
     return;
 
+  if (!to)
+    return;
+
   /* Disallow sending messages using an internal id. */
   if (id < PROCESS_MSGID)
     return;
@@ -2855,6 +2856,9 @@ bool Process::wait(const PID &pid)
 {
   initialize();
 
+  if (!pid)
+    return false;
+
   // N.B. This could result in a deadlock! We could check if such was
   // the case by doing:
   //
@@ -2871,15 +2875,6 @@ bool Process::wait(const PID &pid)
     return process_manager->external_wait(pid);
   else
     return process_manager->wait(proc_process, pid);
-}
-
-
-bool Process::wait(Process *process)
-{
-  if (process == NULL)
-    return false;
-
-  return wait(process->getPID());
 }
 
 

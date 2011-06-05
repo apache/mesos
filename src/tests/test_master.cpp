@@ -630,7 +630,7 @@ public:
   virtual ~LocalIsolationModule() {}
 
   virtual void initialize(Slave *slave) {
-    pid = slave->getPID();
+    pid = slave->self();
   }
 
   virtual void startExecutor(Framework *framework) {

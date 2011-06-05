@@ -49,8 +49,8 @@ LxcIsolationModule::~LxcIsolationModule()
   // could thus lead to a seg fault!
   if (initialized) {
     CHECK(reaper != NULL);
-    Process::post(reaper->getPID(), SHUTDOWN_REAPER);
-    Process::wait(reaper);
+    Process::post(reaper->self(), SHUTDOWN_REAPER);
+    Process::wait(reaper->self());
     delete reaper;
   }
 }
@@ -240,7 +240,7 @@ LxcIsolationModule::Reaper::Reaper(LxcIsolationModule* m)
   
 void LxcIsolationModule::Reaper::operator () ()
 {
-  link(module->slave->getPID());
+  link(module->slave->self());
   while (true) {
     switch (receive(1)) {
     case PROCESS_TIMEOUT: {

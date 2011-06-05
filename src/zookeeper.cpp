@@ -233,8 +233,8 @@ protected:
 	    *reinterpret_cast<Watcher **>(const_cast<char *>(body(NULL)));
 	  if (watchers.find(watcher) != watchers.end()) {
 	    WatcherProcess *process = watchers[watcher];
-	    PID pid = process->getPID();
-	    send(from(), OK, reinterpret_cast<char *>(&pid), sizeof(pid));
+	    const PID &pid = process->self();
+	    send(from(), OK, reinterpret_cast<const char *>(&pid), sizeof(pid));
 	  } else {
 	    send(from(), ERROR);
 	  }
@@ -281,8 +281,8 @@ Watcher::~Watcher()
 	fatal("failed to deallocate resources associated with Watcher");
       WatcherProcess *process =
 	*reinterpret_cast<WatcherProcess **>(const_cast<char *>(body(NULL)));
-      send(process->getPID(), TERMINATE);
-      wait(process->getPID());
+      send(process->self(), TERMINATE);
+      wait(process->self());
       delete process;
     }
 
@@ -603,8 +603,8 @@ ZooKeeper::ZooKeeper(const string &hosts, int timeout, Watcher *watcher)
 
 ZooKeeper::~ZooKeeper()
 {
-  Process::post(impl->getPID(), TERMINATE);
-  Process::wait(impl->getPID());
+  Process::post(impl->self(), TERMINATE);
+  Process::wait(impl->self());
   delete impl;
 }
 
@@ -638,7 +638,7 @@ int ZooKeeper::create(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->getPID(),
+      if (call(zooKeeperProcess->self(),
 	       CREATE,
 	       reinterpret_cast<char *>(&createCall),
 	       sizeof(CreateCall *)) != COMPLETED)
@@ -676,7 +676,7 @@ int ZooKeeper::remove(const string &path, int version)
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->getPID(),
+      if (call(zooKeeperProcess->self(),
 	       REMOVE,
 	       reinterpret_cast<char *>(&removeCall),
 	       sizeof(RemoveCall *)) != COMPLETED)
@@ -716,7 +716,7 @@ int ZooKeeper::exists(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->getPID(),
+      if (call(zooKeeperProcess->self(),
 	       EXISTS,
 	       reinterpret_cast<char *>(&existsCall),
 	       sizeof(ExistsCall *)) != COMPLETED)
@@ -758,7 +758,7 @@ int ZooKeeper::get(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->getPID(),
+      if (call(zooKeeperProcess->self(),
 	       GET,
 	       reinterpret_cast<char *>(&getCall),
 	       sizeof(GetCall *)) != COMPLETED)
@@ -798,7 +798,7 @@ int ZooKeeper::getChildren(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->getPID(),
+      if (call(zooKeeperProcess->self(),
 	       GET_CHILDREN,
 	       reinterpret_cast<char *>(&getChildrenCall),
 	       sizeof(GetChildrenCall *)) != COMPLETED)
@@ -838,7 +838,7 @@ int ZooKeeper::set(const string &path,
   protected:
     void operator () ()
     {
-      if (call(zooKeeperProcess->getPID(),
+      if (call(zooKeeperProcess->self(),
 	       SET,
 	       reinterpret_cast<char *>(&setCall),
 	       sizeof(SetCall *)) != COMPLETED)

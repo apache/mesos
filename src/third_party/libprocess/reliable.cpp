@@ -85,7 +85,7 @@ ReliableProcess::~ReliableProcess()
   }
 
   foreachpair (const PID &pid, ReliableSender *sender, senders) {
-    assert(pid == sender->getPID());
+    assert(pid == sender->self());
     // Shut it down by sending it an ack.
     send(pid, RELIABLE_ACK);
     wait(pid);
@@ -205,7 +205,7 @@ MSGID ReliableProcess::receive(double secs)
 
 	// TODO(benh): Is this really the way we want to do acks?
 	foreachpair (const PID &pid, ReliableSender *sender, senders) {
-	  assert(pid == sender->getPID());
+	  assert(pid == sender->self());
 	  // TODO(benh): Don't look into sender's class like this ... HACK!
 	  if (rmsg->seq == sender->rmsg->seq &&
 	      rmsg->msg.to == sender->rmsg->msg.to) {
@@ -259,7 +259,7 @@ void ReliableProcess::redirect(const PID &existing, const PID &updated)
 {
   // Send a redirect to all running senders and update internal mapping.
   foreachpair (const PID &pid, ReliableSender *sender, senders) {
-    assert(pid == sender->getPID());
+    assert(pid == sender->self());
     // TODO(benh): Don't look into sender's class like this ... HACK!
     if (existing == sender->rmsg->msg.to)
       send(pid, RELIABLE_REDIRECT, (char *) &updated, sizeof(PID));
@@ -270,7 +270,7 @@ void ReliableProcess::redirect(const PID &existing, const PID &updated)
 void ReliableProcess::cancel(int seq)
 {
   foreachpair (const PID &pid, ReliableSender *sender, senders) {
-    assert(pid == sender->getPID());
+    assert(pid == sender->self());
     // Shut it down by sending it an ack. It will get cleaned up via
     // the PROCESS_EXIT above.
     // TODO(benh): Don't look into sender's class like this ... HACK!
