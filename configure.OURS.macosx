@@ -1,0 +1,2 @@
+#!/bin/sh
+./configure --with-python-headers=/usr/include/python2.6 --with-java-home=/System/Library/Frameworks/JavaVM.framework/Versions/1.6/Home --with-webui $@
