@@ -460,6 +460,14 @@ protected:
 
       prepare(&fd, &ops, &tv);
 
+      // TODO(benh): Wierd timing issue with ZooKeeper timeouts. For
+      // now, lets just fall through to a process right away (even
+      // though tv might represent a value greater than zero).
+      if (fd == -1) {
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+      }
+
       if (await(fd, ops, tv, false)) {
 	// Either timer expired (might be 0) or data became available on fd.
 	process(fd, ops);
