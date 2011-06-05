@@ -457,7 +457,7 @@ def main():
       for inst in zoo_res.instances:
         if inst.state not in ["shutting-down", "terminated"]:
           inst.start()
-    wait_for_cluster(conn, master_res, slave_res, zoo_res)
+    wait_for_cluster(conn, opts.wait, master_res, slave_res, zoo_res)
     setup_cluster(conn, master_res, slave_res, zoo_res, opts, False)
 
   elif action == "shutdown":
