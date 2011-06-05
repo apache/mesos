@@ -5,7 +5,7 @@ MASTERS=`cat masters`
 NUM_MASTERS=`cat masters | wc -l`
 SLAVES=`cat slaves`
 
-SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
 
 if [[ $NUM_MASTERS -gt 1 ]]; then
   echo "RSYNC'ing /root/mesos to masters..."
