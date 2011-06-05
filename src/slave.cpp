@@ -133,14 +133,14 @@ void Slave::operator () ()
   char buf[256];
   gethostname(buf, sizeof(buf));
   hostent *he = gethostbyname2(buf, AF_INET);
-  const char *hostname = he->h_name;
+  string hostname = he->h_name;
 
   // Get our public DNS name. Normally this is our hostname, but on EC2
   // we look for the MESOS_PUBLIC_DNS environment variable. This allows
   // the master to display our public name in its web UI.
-  const char *publicDns = getenv("MESOS_PUBLIC_DNS");
-  if (!publicDns) {
-    publicDns = hostname;
+  string publicDns = hostname;
+  if (getenv("MESOS_PUBLIC_DNS") != NULL) {
+    publicDns = getenv("MESOS_PUBLIC_DNS");
   }
 
   // Initialize isolation module.
