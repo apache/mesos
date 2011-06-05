@@ -80,15 +80,15 @@ struct Framework
   list<TaskDescription *> queuedTasks; // Holds tasks until executor starts
   unordered_map<TaskID, Task *> tasks;
   Resources resources;
-  PID fwPid;
+  PID pid;
 
   // Information about the status of the executor for this framework, set by
   // the isolation module. For example, this might include a PID, a VM ID, etc.
   string executorStatus;
   
   Framework(FrameworkID _id, const string& _name, const string& _user,
-            const ExecutorInfo& _executorInfo, const PID& _fwPid)
-    : id(_id), name(_name), user(_user), executorInfo(_executorInfo), fwPid(_fwPid) {}
+            const ExecutorInfo& _executorInfo, const PID& _pid)
+    : id(_id), name(_name), user(_user), executorInfo(_executorInfo), pid(_pid) {}
 
   ~Framework()
   {
@@ -186,17 +186,10 @@ public:
 
   state::SlaveState *getState();
 
-  // Callback used by isolation module to tell us when an executor exits
+  // Callback used by isolation module to tell us when an executor exits.
   void executorExited(FrameworkID frameworkId, int status);
 
   string getWorkDirectory(FrameworkID fid);
-
-  // Remove a framework's Executor, possibly killing its process
-  void removeExecutor(FrameworkID frameworkId, bool killProcess);
-
-  // TODO(benh): Can this be cleaner?
-  // Make self() public so that isolation modules and tests can access it
-  using Tuple<ReliableProcess>::self;
 
   const Params& getConf();
 
@@ -208,11 +201,11 @@ protected:
   Executor * getExecutor(FrameworkID frameworkId);
 
   // Send any tasks queued up for the given framework to its executor
-  // (needed if we received tasks while the executor was starting up)
+  // (needed if we received tasks while the executor was starting up).
   void sendQueuedTasks(Framework *framework);
 
-  // Kill a framework (including its executor)
-  void killFramework(Framework *fw);
+  // Kill a framework (possibly killing its executor).
+  void killFramework(Framework *framework, bool killExecutor = true);
 };
 
 }}}

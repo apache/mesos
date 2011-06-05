@@ -247,24 +247,6 @@ SlotOffer * Master::lookupSlotOffer(OfferID oid)
     return NULL;
 }
 
-void Master::updateFrameworkTasks() {
-  foreachpair (SlaveID sid, Slave *slave, slaves) {
-    foreachpair (_, Task *task, slave->tasks) {
-      updateFrameworkTasks(task);
-    }
-  }
-}
-
-void Master::updateFrameworkTasks(Task *task) {
-  Framework *fwrk = lookupFramework(task->frameworkId);
-  if (fwrk != NULL) {
-    if (fwrk->tasks.find(task->id) == fwrk->tasks.end()) {
-      fwrk->tasks[task->id] = task;
-      fwrk->resources += task->resources;
-    }
-  }
-}
-
 
 void Master::operator () ()
 {
@@ -310,6 +292,14 @@ void Master::operator () ()
       unpack<F2M_REGISTER_FRAMEWORK>(framework->name, framework->user,
 				     framework->executorInfo);
       LOG(INFO) << "Registering " << framework << " at " << framework->pid;
+
+      if (framework->executorInfo.uri == "") {
+        LOG(INFO) << framework << " registered without an executor URI";
+        send(framework->pid, pack<M2F_ERROR>(1, "No executor URI given"));
+        delete framework;
+        break;
+      }
+
       addFramework(framework);
       break;
     }
@@ -321,6 +311,13 @@ void Master::operator () ()
                                        framework->user, framework->executorInfo,
                                        failover);
 
+      if (framework->executorInfo.uri == "") {
+        LOG(INFO) << framework << " re-registered without an executor URI";
+        send(framework->pid, pack<M2F_ERROR>(1, "No executor URI given"));
+        delete framework;
+        break;
+      }
+
       if (framework->id == "") {
         LOG(ERROR) << "Framework reconnect/failover without an id!";
         send(framework->pid, pack<M2F_ERROR>(1, "Missing framework id"));
@@ -328,9 +325,9 @@ void Master::operator () ()
         break;
       }
 
-      LOG(INFO) << "Reregistering " << framework << " at " << framework->pid;
+      LOG(INFO) << "Re-registering " << framework << " at " << framework->pid;
 
-      if (frameworks.find(framework->id) != frameworks.end()) {
+      if (frameworks.count(framework->id) > 0) {
         if (failover) {
           replaceFramework(frameworks[framework->id], framework);
         } else {
@@ -341,7 +338,22 @@ void Master::operator () ()
         }
       } else {
         addFramework(framework);
-        updateFrameworkTasks();
+      }
+
+      CHECK(frameworks.find(framework->id) != frameworks.end());
+
+      // Reunite running tasks with this framework. This may be
+      // necessary because a framework scheduler has failed over, or
+      // the master has failed over and the framework schedulers are
+      // reregistering.
+      foreachpair (SlaveID slaveId, Slave *slave, slaves) {
+        foreachpair (_, Task *task, slave->tasks) {
+          if (framework->id == task->frameworkId) {
+            framework->addTask(task);
+            send(slave->pid, pack<M2S_UPDATE_FRAMEWORK_PID>(framework->id,
+                                                            framework->pid));
+          }
+        }
       }
       break;
     }
@@ -441,10 +453,17 @@ void Master::operator () ()
                    << "generating a new id for it.";
       }
 
-      foreach(const Task &t, tasks) {
+      foreach (const Task &t, tasks) {
         Task *task = new Task(t);
         slave->addTask(task);
-        updateFrameworkTasks(task);
+
+        // Tell this slave the current framework pid for this task.
+        Framework *framework = lookupFramework(task->frameworkId);
+        if (framework != NULL) {
+          framework->addTask(task);
+          send(slave->pid, pack<M2S_UPDATE_FRAMEWORK_PID>(framework->id,
+                                                          framework->pid));
+        }
       }
 
       // TODO(benh|alig): We should put a timeout on how long we keep
@@ -812,19 +831,30 @@ void Master::processOfferReply(SlotOffer *offer,
 }
 
 
-void Master::launchTask(Framework *f, const TaskDescription& t)
+void Master::launchTask(Framework *framework, const TaskDescription& t)
 {
   Params params(t.params);
   Resources res(params.getInt32("cpus", -1),
                 params.getInt64("mem", -1));
+
+  // The invariant right now is that launchTask is called only for
+  // TaskDescriptions where the slave is still valid (see the code
+  // above in processOfferReply).
   Slave *slave = lookupSlave(t.slaveId);
-  Task *task = f->addTask(t.taskId, t.name, slave->id, res);
-  LOG(INFO) << "Launching " << task << " on " << slave;
+  CHECK(slave != NULL);
+
+  Task *task = new Task(t.taskId, framework->id, res, TASK_STARTING,
+                        t.name, "", slave->id);
+
+  framework->addTask(task);
   slave->addTask(task);
+
   allocator->taskAdded(task);
+
+  LOG(INFO) << "Launching " << task << " on " << slave;
   send(slave->pid, pack<M2S_RUN_TASK>(
-        f->id, t.taskId, f->name, f->user, f->executorInfo,
-        t.name, t.arg, t.params, (string)f->pid));
+        framework->id, t.taskId, framework->name, framework->user,
+        framework->executorInfo, t.name, t.arg, t.params, framework->pid));
 }
 
 
@@ -891,17 +921,17 @@ void Master::removeSlotOffer(SlotOffer *offer,
 }
 
 
-
 void Master::addFramework(Framework *framework)
 {
   CHECK(frameworks.find(framework->id) == frameworks.end());
+
   frameworks[framework->id] = framework;
   pidToFid[framework->pid] = framework->id;
   link(framework->pid);
+
   send(framework->pid, pack<M2F_REGISTER_REPLY>(framework->id));
+
   allocator->frameworkAdded(framework);
-  if (framework->executorInfo.uri == "")
-    terminateFramework(framework, 1, "No executor URI given");
 }
 
 
@@ -932,7 +962,6 @@ void Master::replaceFramework(Framework *old, Framework *current)
   delete old;
 
   addFramework(current);
-  updateFrameworkTasks();
 }
 
 

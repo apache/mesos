@@ -78,33 +78,15 @@ void LxcIsolationModule::initialize(Slave *slave)
 }
 
 
-
-void LxcIsolationModule::frameworkAdded(Framework* fw)
-{
-  infos[fw->id] = new FrameworkInfo();
-  infos[fw->id]->lxcExecutePid = -1;
-  infos[fw->id]->container = "";
-  fw->executorStatus = "No executor running";
-}
-
-
-void LxcIsolationModule::frameworkRemoved(Framework* fw)
-{
-  if (infos.find(fw->id) != infos.end()) {
-    delete infos[fw->id];
-    infos.erase(fw->id);
-  }
-}
-
-
 void LxcIsolationModule::startExecutor(Framework *fw)
 {
   if (!initialized)
     LOG(FATAL) << "Cannot launch executors before initialization!";
 
+  infos[fw->id] = new FrameworkInfo();
+
   LOG(INFO) << "Starting executor for framework " << fw->id << ": "
             << fw->executorInfo.uri;
-  CHECK(infos[fw->id]->lxcExecutePid == -1 && infos[fw->id]->container == "");
 
   // Get location of Mesos install in order to find mesos-launcher.
   string mesosHome = slave->getConf().get("home", ".");
@@ -164,6 +146,8 @@ void LxcIsolationModule::killExecutor(Framework* fw)
       LOG(ERROR) << "lxc-stop returned " << ret;
     infos[fw->id]->container = "";
     fw->executorStatus = "No executor running";
+    delete infos[fw->id];
+    infos.erase(fw->id);
   }
 }
 
@@ -250,11 +234,13 @@ void LxcIsolationModule::Reaper::operator () ()
       if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
         foreachpair (FrameworkID fid, FrameworkInfo* info, module->infos) {
           if (info->lxcExecutePid == pid) {
-            info->container = "";
             info->lxcExecutePid = -1;
+            info->container = "";
             LOG(INFO) << "Telling slave of lost framework " << fid;
             // TODO(benh): This is broken if/when libprocess is parallel!
             module->slave->executorExited(fid, status);
+            delete module->infos[fw->id];
+            module->infos.erase(fid);
             break;
           }
         }

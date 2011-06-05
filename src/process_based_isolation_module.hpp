@@ -32,7 +32,7 @@ public:
   // Extra shutdown message for reaper
   enum { SHUTDOWN_REAPER = MESOS_MESSAGES };
 
-protected:
+private:
   bool initialized;
   Slave* slave;
   unordered_map<FrameworkID, pid_t> pgids;
@@ -44,10 +44,6 @@ public:
   virtual ~ProcessBasedIsolationModule();
 
   virtual void initialize(Slave *slave);
-
-  virtual void frameworkAdded(Framework* framework);
-
-  virtual void frameworkRemoved(Framework* framework);
 
   virtual void startExecutor(Framework *framework);
 

@@ -208,25 +208,21 @@ void Slave::operator () ()
       case M2S_RUN_TASK: {
 	FrameworkID fid;
         TaskID tid;
-        string fwName, user, taskName, taskArg, fwPidStr;
+        string fwName, user, taskName, taskArg;
         ExecutorInfo execInfo;
         Params params;
+        PID pid;
         unpack<M2S_RUN_TASK>(fid, tid, fwName, user, execInfo,
-                             taskName, taskArg, params, fwPidStr);
+                             taskName, taskArg, params, pid);
         LOG(INFO) << "Got assigned task " << fid << ":" << tid;
         Resources res;
         res.cpus = params.getInt32("cpus", -1);
         res.mem = params.getInt64("mem", -1);
         Framework *framework = getFramework(fid);
         if (framework == NULL) {
-          // Framework not yet created on this node - create it
-          PID fwPid(fwPidStr);
-          if (!fwPid) {
-            LOG(ERROR) << "Couldn't create PID out of framework PID string";
-          }
-          framework = new Framework(fid, fwName, user, execInfo, fwPid);
+          // Framework not yet created on this node - create it.
+          framework = new Framework(fid, fwName, user, execInfo, pid);
           frameworks[fid] = framework;
-          isolationModule->frameworkAdded(framework);
           isolationModule->startExecutor(framework);
         }
         Task *task = framework->addTask(tid, taskName, res);
@@ -261,6 +257,16 @@ void Slave::operator () ()
         break;
       }
 
+      case M2S_KILL_FRAMEWORK: {
+        FrameworkID fid;
+        unpack<M2S_KILL_FRAMEWORK>(fid);
+        LOG(INFO) << "Asked to kill framework " << fid;
+        Framework *fw = getFramework(fid);
+        if (fw != NULL)
+          killFramework(fw);
+        break;
+      }
+
       case M2S_FRAMEWORK_MESSAGE: {
         FrameworkID fid;
         FrameworkMessage message;
@@ -274,13 +280,15 @@ void Slave::operator () ()
         break;
       }
 
-      case M2S_KILL_FRAMEWORK: {
+      case M2S_UPDATE_FRAMEWORK_PID: {
         FrameworkID fid;
-        unpack<M2S_KILL_FRAMEWORK>(fid);
-        LOG(INFO) << "Asked to kill framework " << fid;
-        Framework *fw = getFramework(fid);
-        if (fw != NULL)
-          killFramework(fw);
+        PID pid;
+        unpack<M2S_UPDATE_FRAMEWORK_PID>(fid, pid);
+        Framework *framework = getFramework(fid);
+        if (framework != NULL) {
+          LOG(INFO) << "Updating framework " << fid << " pid to " << pid;
+          framework->pid = pid;
+        }
         break;
       }
 
@@ -343,9 +351,12 @@ void Slave::operator () ()
         FrameworkID fid;
         FrameworkMessage message;
         unpack<E2S_FRAMEWORK_MESSAGE>(fid, message);
-        // Set slave ID in case framework omitted it
-        message.slaveId = this->id;
-        send(getFramework(fid)->fwPid, pack<M2F_FRAMEWORK_MESSAGE>(message));
+        Framework *framework = getFramework(fid);
+        if (framework != NULL) {
+          // Set slave ID in case framework omitted it
+          message.slaveId = this->id;
+          send(framework->pid, pack<M2F_FRAMEWORK_MESSAGE>(message));
+        }
         break;
       }
 
@@ -362,7 +373,9 @@ void Slave::operator () ()
 		       << "Waiting for a new master to be elected.";
 	  // TODO(benh): After so long waiting for a master, commit suicide.
 	} else {
-	  // Check if an executor has exited.
+	  // Check if an executor has exited (this is technically
+	  // redundant because the isolation module should be doing
+	  // this for us).
 	  foreachpair (_, Executor *ex, executors) {
 	    if (from() == ex->pid) {
 	      LOG(INFO) << "Executor for framework " << ex->frameworkId
@@ -440,51 +453,39 @@ void Slave::sendQueuedTasks(Framework *framework)
 }
 
 
-// Remove a framework's Executor. If killProcess is true, also
-// ask the isolation module to kill it.
-void Slave::removeExecutor(FrameworkID frameworkId, bool killProcess)
+// Kill a framework (including its executor if killExecutor is true).
+void Slave::killFramework(Framework *framework, bool killExecutor)
 {
-  if (Framework *framework = getFramework(frameworkId)) {
-    LOG(INFO) << "Cleaning up executor for framework " << frameworkId;
-    Executor *ex = getExecutor(frameworkId);
-    if (ex != NULL) {
-      delete ex;
-      executors.erase(frameworkId);
-    }
-    if (killProcess) {
-      LOG(INFO) << "Killing executor for framework " << frameworkId;
-      isolationModule->killExecutor(framework);
-    }
-  }
-}
-
-
-// Kill a framework (including its executor)
-void Slave::killFramework(Framework *fw)
-{
-  LOG(INFO) << "Cleaning up framework " << fw->id;
+  LOG(INFO) << "Cleaning up framework " << framework->id;
 
   // Cancel sending any reliable messages for this framework.
-  foreach (int seq, seqs[fw->id])
+  foreach (int seq, seqs[framework->id])
     cancel(seq);
 
-  seqs.erase(fw->id);
+  seqs.erase(framework->id);
 
   // Remove its allocated resources.
-  fw->resources = Resources();
+  framework->resources = Resources();
 
-  // If an executor is running, tell it to exit and kill it
-  if (Executor *ex = getExecutor(fw->id)) {
-    send(ex->pid, pack<S2E_KILL_EXECUTOR>());
-    // TODO(benh): There really isn't much time between when an
-    // executor gets a S2E_KILL_EXECUTOR message and the isolation
-    // module goes and kills it. We should really think about making
-    // the semantics of this better.
-    removeExecutor(fw->id, true);
+  // If an executor is running, tell it to exit and kill it.
+  if (Executor *ex = getExecutor(framework->id)) {
+    if (killExecutor) {
+      LOG(INFO) << "Killing executor for framework " << framework->id;
+      // TODO(benh): There really isn't ANY time between when an
+      // executor gets a S2E_KILL_EXECUTOR message and the isolation
+      // module goes and kills it. We should really think about making
+      // the semantics of this better.
+      send(ex->pid, pack<S2E_KILL_EXECUTOR>());
+      isolationModule->killExecutor(framework);
+    }
+
+    LOG(INFO) << "Cleaning up executor for framework " << framework->id;
+    delete ex;
+    executors.erase(framework->id);
   }
-  frameworks.erase(fw->id);
-  isolationModule->frameworkRemoved(fw);
-  delete fw;
+
+  frameworks.erase(framework->id);
+  delete framework;
 }
 
 
@@ -497,7 +498,7 @@ void Slave::executorExited(FrameworkID fid, int status)
     LOG(INFO) << "Executor for framework " << fid << " exited "
               << "with status " << status;
     send(master, pack<S2M_LOST_EXECUTOR>(id, fid, status));
-    removeExecutor(fid, false);
+    killFramework(f, false);
   }
 };
 

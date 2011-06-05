@@ -67,6 +67,7 @@ enum MessageType {
   M2S_KILL_TASK,
   M2S_KILL_FRAMEWORK,
   M2S_FRAMEWORK_MESSAGE,
+  M2S_UPDATE_FRAMEWORK_PID,
   M2S_SHUTDOWN, // Used in unit tests to shut down cluster
 
   /* From executor to slave. */
@@ -261,7 +262,7 @@ TUPLE(M2S_RUN_TASK,
        std::string /*taskName*/,
        std::string /*taskArgs*/,
        Params,
-       std::string /*framework PID*/));
+       PID /*framework PID*/));
 
 TUPLE(M2S_KILL_TASK,
       (FrameworkID,
@@ -273,7 +274,11 @@ TUPLE(M2S_KILL_FRAMEWORK,
 TUPLE(M2S_FRAMEWORK_MESSAGE,
       (FrameworkID,
        FrameworkMessage));
-        
+
+TUPLE(M2S_UPDATE_FRAMEWORK_PID,
+      (FrameworkID,
+       PID));
+
 TUPLE(M2S_SHUTDOWN,
       ());
 

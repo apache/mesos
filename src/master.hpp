@@ -76,7 +76,7 @@ const double HEARTBEAT_TIMEOUT = HEARTBEAT_INTERVAL * 4;
 const time_t FRAMEWORK_FAILOVER_TIMEOUT = 60;
 
 // Some forward declarations
-class Slave;
+struct Slave;
 class Allocator;
 
 
@@ -178,18 +178,11 @@ struct Framework
       return NULL;
   }
   
-  Task * addTask(TaskID tid, const std::string& name,
-                 SlaveID location, Resources resources)
+  void addTask(Task *task)
   {
-    CHECK(tasks.find(tid) == tasks.end());
-    Task *task = new Task(tid, resources);
-    task->frameworkId = id;
-    task->state = TASK_STARTING;
-    task->name = name;
-    task->slaveId = location;
-    tasks[tid] = task;
-    this->resources += resources;
-    return task;
+    CHECK(tasks.count(task->id) == 0);
+    tasks[task->id] = task;
+    this->resources += task->resources;
   }
   
   void removeTask(TaskID tid)
@@ -355,22 +348,11 @@ public:
 
   SlotOffer * lookupSlotOffer(OfferID soid);
 
-  // Used in FT mode. Ensures that task is also registered in frameworks->tasks
-  void updateFrameworkTasks(Task *task);
-  
-  // Used in FT mode. Traverses all slaves' tasks t and calls updateFrameworkTasks(t)
-  void updateFrameworkTasks();
-
-
   // Return connected frameworks that are not in the process of being removed
   vector<Framework *> getActiveFrameworks();
   
   // Return connected slaves that are not in the process of being removed
   vector<Slave *> getActiveSlaves();
-
-  // TODO(benh): Can this be cleaner?
-  // Make self() public so that isolation modules and tests can access it
-  using Tuple<ReliableProcess>::self;
 
   const Params& getConf();
 

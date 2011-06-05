@@ -36,7 +36,7 @@ public:
     pid_t lxcExecutePid; // PID of lxc-execute command running the executor
   };
 
-protected:
+private:
   bool initialized;
   Slave* slave;
   unordered_map<FrameworkID, FrameworkInfo*> infos;
@@ -48,10 +48,6 @@ public:
   virtual ~LxcIsolationModule();
 
   virtual void initialize(Slave* slave);
-
-  virtual void frameworkAdded(Framework* framework);
-
-  virtual void frameworkRemoved(Framework* framework);
 
   virtual void startExecutor(Framework* framework);
 
