@@ -28,6 +28,8 @@ config.status
 src/work
 mesos_wrap.cpp
 mesos_wrap.h
+bin/master
+bin/slaves
 src/config.hpp
 !src/config.hpp.in
 src/swig/java/mesos.jar
