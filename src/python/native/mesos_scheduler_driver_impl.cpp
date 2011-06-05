@@ -398,18 +398,26 @@ PyObject* MesosSchedulerDriverImpl_sendFrameworkMessage(
     return NULL;
   }
 
-  PyObject* msgObj = NULL;
-  FrameworkMessage msg;
-  if (!PyArg_ParseTuple(args, "O", &msgObj)) {
+
+  PyObject* sidObj = NULL;
+  PyObject* eidObj = NULL;
+  PyObject* dataObj = NULL;
+  SlaveID sid;
+  ExecutorID eid;
+  const char* data;
+  if (!PyArg_ParseTuple(args, "OOs", &sidObj, &eidObj, &data)) {
     return NULL;
   }
-  if (!readPythonProtobuf(msgObj, &msg)) {
-    PyErr_Format(PyExc_Exception,
-                 "Could not deserialize Python FrameworkMessage");
+  if (!readPythonProtobuf(sidObj, &sid)) {
+    PyErr_Format(PyExc_Exception, "Could not deserialize Python SlaveID");
+    return NULL;
+  }
+  if (!readPythonProtobuf(eidObj, &eid)) {
+    PyErr_Format(PyExc_Exception, "Could not deserialize Python ExecutorID");
     return NULL;
   }
 
-  int res = self->driver->sendFrameworkMessage(msg);
+  int res = self->driver->sendFrameworkMessage(sid, eid, data);
   return PyInt_FromLong(res); // Sets an exception if creating the int fails
 }
 

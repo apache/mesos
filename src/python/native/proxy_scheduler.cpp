@@ -222,23 +222,32 @@ cleanup:
 
 
 void ProxyScheduler::frameworkMessage(SchedulerDriver* driver,
-                                      const FrameworkMessage& message)
+                                      const SlaveID& slaveId,
+                                      const ExecutorID& executorId,
+                                      const string& data)
 {
   InterpreterLock lock;
-  
-  PyObject* msg = NULL;
+
+  PyObject* sid = NULL;
+  PyObject* eid = NULL;
   PyObject* res = NULL;
   
-  msg = createPythonProtobuf(message, "FrameworkMessage");
-  if (msg == NULL) {
+  sid = createPythonProtobuf(slaveId, "SlaveID");
+  if (sid == NULL) {
+    goto cleanup; // createPythonProtobuf will have set an exception
+  }
+  eid = createPythonProtobuf(executorId, "ExecutorID");
+  if (sid == NULL) {
     goto cleanup; // createPythonProtobuf will have set an exception
   }
 
   res = PyObject_CallMethod(impl->pythonScheduler,
                             (char*) "frameworkMessage",
-                            (char*) "OO",
+                            (char*) "OOOs",
                             impl,
-                            msg);
+                            sid,
+                            eid,
+                            data.c_str());
   if (res == NULL) {
     cerr << "Failed to call scheduler's frameworkMessage" << endl;
     goto cleanup;
@@ -249,7 +258,8 @@ cleanup:
     PyErr_Print();
     driver->stop();
   }
-  Py_XDECREF(msg);
+  Py_XDECREF(sid);
+  Py_XDECREF(eid);
   Py_XDECREF(res);
 }
 

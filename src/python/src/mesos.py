@@ -26,7 +26,7 @@ class SchedulerDriver:
   def stop(self): pass
   def join(self): pass
   def run(self): pass
-  def sendFrameworkMessage(self, message): pass
+  def sendFrameworkMessage(self, slaveId, executorId, data): pass
   def killTask(self, taskId): pass
   def replyToOffer(self, offerId, tasks, params = None): pass
   def reviveOffers(self): pass
@@ -55,7 +55,7 @@ class ExecutorDriver:
   def join(self): pass
   def run(self): pass
   def sendStatusUpdate(self, status): pass
-  def sendFrameworkMessage(self, message): pass
+  def sendFrameworkMessage(self, data): pass
 
 
 # Alias the MesosSchedulerDriverImpl from _mesos. Ideally we would make this

@@ -272,18 +272,12 @@ PyObject* MesosExecutorDriverImpl_sendFrameworkMessage(
     return NULL;
   }
 
-  PyObject* msgObj = NULL;
-  FrameworkMessage msg;
-  if (!PyArg_ParseTuple(args, "O", &msgObj)) {
-    return NULL;
-  }
-  if (!readPythonProtobuf(msgObj, &msg)) {
-    PyErr_Format(PyExc_Exception,
-                 "Could not deserialize Python FrameworkMessage");
+  const char* data;
+  if (!PyArg_ParseTuple(args, "s", &data)) {
     return NULL;
   }
 
-  int res = self->driver->sendFrameworkMessage(msg);
+  int res = self->driver->sendFrameworkMessage(data);
   return PyInt_FromLong(res); // Sets an exception if creating the int fails
 }
 

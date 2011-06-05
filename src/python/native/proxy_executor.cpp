@@ -113,23 +113,17 @@ cleanup:
 
 
 void ProxyExecutor::frameworkMessage(ExecutorDriver* driver,
-                                     const FrameworkMessage& message)
+                                     const string& data)
 {
   InterpreterLock lock;
   
-  PyObject* messageObj = NULL;
   PyObject* res = NULL;
   
-  messageObj = createPythonProtobuf(message, "FrameworkMessage");
-  if (messageObj == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
-  }
-
   res = PyObject_CallMethod(impl->pythonExecutor,
                             (char*) "frameworkMessage",
-                            (char*) "OO",
+                            (char*) "Os",
                             impl,
-                            messageObj);
+                            data.c_str());
   if (res == NULL) {
     cerr << "Failed to call executor's frameworkMessage" << endl;
     goto cleanup;
@@ -140,7 +134,6 @@ cleanup:
     PyErr_Print();
     driver->stop();
   }
-  Py_XDECREF(messageObj);
   Py_XDECREF(res);
 }
 
