@@ -7,7 +7,7 @@
 
   <property>
     <name>hadoop.tmp.dir</name>
-    <value>/mnt/hadoop-hdfs</value>
+    <value>/mnt/hdfs</value>
   </property>
 
   <property>

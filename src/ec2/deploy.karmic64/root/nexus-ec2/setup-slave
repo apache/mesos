@@ -8,6 +8,7 @@ mount /dev/sdc /mnt2
 mount /dev/sdd /mnt3
 mount /dev/sde /mnt4
 for i in /mnt /mnt2 /mnt3 /mnt4; do
-  mkdir -p $i/hadoop/dfs $i/hadoop/tmp $i/hadoop/mrlocal
+  mkdir -p $i/hdfs/dfs $i/hadoop/tmp $i/hadoop/mrlocal
 done
+mkdir -p /mnt/hdfs-logs
 mkdir -p /mnt/hadoop-logs

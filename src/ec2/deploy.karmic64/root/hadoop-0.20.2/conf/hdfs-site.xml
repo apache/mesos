@@ -4,13 +4,28 @@
 <configuration>
 
   <property>
+    <name>dfs.replication</name>
+    <value>3</value>
+  </property>
+
+  <property>
+    <name>dfs.block.size</name>
+    <value>134217728</value>
+  </property>
+
+  <property>
+    <name>dfs.data.dir</name>
+    <value>/mnt/hdfs/dfs/data,/mnt2/hdfs/dfs/data,/mnt3/hdfs/dfs/data,/mnt4/hdfs/dfs/data</value>
+  </property>
+
+  <property>
     <name>dfs.namenode.handler.count</name>
-    <value>20</value>
+    <value>25</value>
   </property>
 
   <property>
     <name>dfs.datanode.handler.count</name>
-    <value>7</value>
+    <value>8</value>
   </property>
 
 </configuration>

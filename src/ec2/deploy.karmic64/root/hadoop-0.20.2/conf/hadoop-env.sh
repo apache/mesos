@@ -34,7 +34,7 @@ export HADOOP_SSH_OPTS="-o ConnectTimeout=2"
 
 # Where log files are stored.  $HADOOP_HOME/logs by default.
 # export HADOOP_LOG_DIR=${HADOOP_HOME}/logs
-export HADOOP_LOG_DIR=/mnt/hadoop-logs
+export HADOOP_LOG_DIR=/mnt/hdfs-logs
 
 # File naming remote slave hosts.  $HADOOP_HOME/conf/slaves by default.
 # export HADOOP_SLAVES=${HADOOP_HOME}/conf/slaves
@@ -56,4 +56,4 @@ export HADOOP_LOG_DIR=/mnt/hadoop-logs
 # The scheduling priority for daemon processes.  See 'man nice'.
 # export HADOOP_NICENESS=10
 
-ulimit -n 10000
+ulimit -n 16000
