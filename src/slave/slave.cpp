@@ -364,9 +364,13 @@ void Slave::operator () ()
         FrameworkID fid;
         FrameworkMessage message;
         tie(fid, message) = unpack<E2S_FRAMEWORK_MESSAGE>(body());
+
         Framework *framework = getFramework(fid);
         if (framework != NULL) {
-          // Set slave ID in case framework omitted it
+	  LOG(INFO) << "Sending message for framework " << fid
+		    << " to " << framework->pid;
+
+          // Set slave ID in case framework omitted it.
           message.slaveId = this->id;
           send(framework->pid, pack<M2F_FRAMEWORK_MESSAGE>(message));
         }
