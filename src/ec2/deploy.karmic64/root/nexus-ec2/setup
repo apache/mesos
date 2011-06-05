@@ -9,16 +9,17 @@ MASTER=/root/nexus-ec2/master
 SLAVES=/root/nexus-ec2/slaves
 
 # Scripts that get used for/while running Nexus.
-SCRIPTS="setup-slave              \
-         start-nexus              \
-         stop-nexus               \
-         nexus-daemon             \
-         redeploy-nexus           \
-         start-mos                \
-         stop-mos                 \
-         setup-apache             \
-         stop-tasktracker-child   \
-         copy-dir"
+SCRIPTS="copy-dir
+         nexus-daemon
+         redeploy-nexus
+         setup-apache
+         setup-slave              
+         ssh-no-keychecking
+         start-mos
+         start-nexus
+         stop-mos
+         stop-nexus
+         stop-tasktracker-child"
 
 HADOOP_HOME=/root/hadoop-0.20.2
 
@@ -75,19 +76,12 @@ done
 DOWNLOADED=0
 
 if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
-  REPOSITORY=scm.millennium.berkeley.edu/project/cs/radlab/src
-  REPLY=''
-  while [[ "$REPLY" == '' ]] ; do
-    read -p "Please specify a user name for the git repository: "
-  done
+  REPOSITORY=git@github.com:nexusproject/nexus.git
+  echo "Checking out Nexus from $REPOSITORY"
   pushd /root > /dev/null 2>&1
   rm -rf nexus nexus.tgz
-  git clone ssh://$REPLY@$REPOSITORY/nexus nexus
-  popd > /dev/null 2>&1
-  pushd /root/nexus > /dev/null 2>&1
-  git config submodule.src/third_party/libprocess.url \
-    ssh://$REPLY@$REPOSITORY/libprocess
-  git submodule update --init
+  # Set git SSH command to a script that uses -o StrictHostKeyChecking=no
+  GIT_SSH=/root/nexus-ec2/ssh-no-keychecking git clone $REPOSITORY nexus
   popd > /dev/null 2>&1
   DOWNLOADED=1
 elif [[ "$DOWNLOAD_METHOD" == "web" ]] ; then
@@ -109,10 +103,12 @@ if [[ "$DOWNLOADED" == "1" ]] ; then
   make clean
   make
   popd > /dev/null 2>&1
-  echo "Building Spark..."
-  pushd /root/nexus/frameworks/spark > /dev/null 2>&1
-  make all native
-  popd > /dev/null 2>&1
+  if [ -d /root/nexus/frameworks/spark ] ; then
+    echo "Building Spark..."
+    pushd /root/nexus/frameworks/spark > /dev/null 2>&1
+    make all native
+    popd > /dev/null 2>&1
+  fi
   echo "Building Hadoop framework..."
   pushd /root/nexus/frameworks/hadoop-0.20.0 > /dev/null 2>&1
   ant
