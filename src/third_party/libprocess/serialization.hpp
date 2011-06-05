@@ -17,6 +17,7 @@ struct serializer
   void operator & (const bool &);
   void operator & (const int32_t &);
   void operator & (const int64_t &);
+  void operator & (const double &);
   void operator & (const size_t &);
   void operator & (const std::string &);
   void operator & (const PID &);
@@ -31,6 +32,7 @@ struct deserializer
   void operator & (bool &);
   void operator & (int32_t &);
   void operator & (int64_t &);
+  void operator & (double &);
   void operator & (size_t &);
   void operator & (std::string &);
   void operator & (PID &);

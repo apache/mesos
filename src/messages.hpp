@@ -244,10 +244,12 @@ TUPLE(GOT_MASTER_ID,
       (std::string /* id */));
   
 TUPLE(M2S_REGISTER_REPLY,
-      (SlaveID));
+      (SlaveID,
+       double /*heartbeat interval*/));
 
 TUPLE(M2S_REREGISTER_REPLY,
-      (SlaveID));
+      (SlaveID,
+       double /*heartbeat interval*/));
 
 TUPLE(M2S_RUN_TASK,
       (FrameworkID,

@@ -51,7 +51,7 @@ using namespace nexus::internal;
 const int MAX_OFFERS_PER_FRAMEWORK = 50;
 
 // Default number of seconds until a refused slot is resent to a framework.
-const time_t DEFAULT_REFUSAL_TIMEOUT = 5;
+const double DEFAULT_REFUSAL_TIMEOUT = 5;
 
 // Minimum number of cpus / task.
 const int32_t MIN_CPUS = 1;
@@ -65,8 +65,11 @@ const int32_t MAX_CPUS = 1000 * 1000;
 // Maximum amount of memory / machine.
 const int64_t MAX_MEM = 1024LL * 1024LL * 1024LL * 1024LL * 1024LL;
 
-// Acceptable time since we saw the last heartbeat.
-const time_t HEARTBEAT_TIMEOUT = 4;
+// Interval that slaves should send heartbeats.
+const double HEARTBEAT_INTERVAL = 2;
+
+// Acceptable time since we saw the last heartbeat (four heartbeats).
+const double HEARTBEAT_TIMEOUT = HEARTBEAT_INTERVAL * 4;
 
 // Some forward declarations
 class Slave;
@@ -105,7 +108,7 @@ struct Framework
   string name;
   string user;
   ExecutorInfo executorInfo;
-  time_t connectTime;
+  double connectTime;
 
   unordered_map<TaskID, Task *> tasks;
   unordered_set<SlotOffer *> slotOffers; // Active offers given to this framework
@@ -114,13 +117,10 @@ struct Framework
   
   // Contains a time of unfiltering for each slave we've filtered,
   // or 0 for slaves that we want to keep filtered forever
-  unordered_map<Slave *, time_t> slaveFilter;
+  unordered_map<Slave *, double> slaveFilter;
 
-  Framework(const PID &_pid, FrameworkID _id = "")
-    : pid(_pid), id(_id), active(true)
-  {
-    time(&connectTime);
-  }
+  Framework(const PID &_pid, FrameworkID _id, double time)
+    : pid(_pid), id(_id), active(true), connectTime(time) {}
   
   Task * lookupTask(TaskID tid)
   {
@@ -175,11 +175,10 @@ struct Framework
     return slaveFilter.find(slave) != slaveFilter.end();
   }
   
-  void removeExpiredFilters()
-  {  
-    time_t now = time(0);
+  void removeExpiredFilters(double now)
+  {
     vector<Slave *> toRemove;
-    foreachpair (Slave *slave, time_t removalTime, slaveFilter)
+    foreachpair (Slave *slave, double removalTime, slaveFilter)
       if (removalTime != 0 && removalTime <= now)
         toRemove.push_back(slave);
     foreach (Slave *slave, toRemove)
@@ -196,8 +195,8 @@ struct Slave
   bool active; // Turns false when slave is being removed
   string hostname;
   string publicDns;
-  time_t connectTime;
-  time_t lastHeartbeat;
+  double connectTime;
+  double lastHeartbeat;
   
   Resources resources;        // Total resources on slave
   Resources resourcesOffered; // Resources currently in offers
@@ -206,8 +205,10 @@ struct Slave
   unordered_map<pair<FrameworkID, TaskID>, Task *> tasks;
   unordered_set<SlotOffer *> slotOffers; // Active offers of slots on this slave
   
-  Slave(const PID &_pid, SlaveID _id = "") : pid(_pid), id(_id), active(true) {
-    connectTime = lastHeartbeat = time(NULL);
+  Slave(const PID &_pid, SlaveID _id, double time)
+    : pid(_pid), id(_id), active(true)
+  {
+    connectTime = lastHeartbeat = time;
   }
 
   Task * lookupTask(FrameworkID fid, TaskID tid)

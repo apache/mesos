@@ -343,8 +343,6 @@ TEST(MasterTest, SlaveLost)
 }
 
 
-/* TODO(benh): Test lost slave due to missing heartbeats. */
-
 
 class FailoverScheduler : public Scheduler
 {
@@ -420,4 +418,59 @@ TEST(MasterTest, SchedulerFailover)
   EXPECT_TRUE(failoverSched.registeredCalled);
 
   local::shutdown();
+}
+
+
+/***************************************************************
+ *                                                             *
+ * ALL TESTS BELOW HERE MANUALLY CONTROL THE LIBPROCESS CLOCK! *
+ *                                                             *
+ ***************************************************************/
+
+class HeartbeatMessageFilter : public MessageFilter
+{
+public:
+  bool filter(struct msg *msg) {
+    return msg->id == SH2M_HEARTBEAT;
+  }
+};
+
+
+TEST(MasterTest, SlavePartitioned)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  ProcessClock *clock = Process::clock();
+
+  Master m;
+  PID master = Process::spawn(&m);
+
+  Slave s(Resources(2, 1 * Gigabyte), true);
+  PID slave = Process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  SlaveLostScheduler sched(slave);
+  NexusSchedulerDriver driver(&sched, master);
+
+  driver.start();
+
+  HeartbeatMessageFilter filter;
+  Process::filter(&filter);
+
+  clock->advance(master::HEARTBEAT_TIMEOUT);
+
+  driver.join();
+
+  EXPECT_TRUE(sched.slaveLostCalled);
+
+  // Explicitely shut down the slave to avoid slave output from
+  // commiting suicide when the master gets killed.
+  Process::post(slave, S2S_SHUTDOWN);
+  Process::wait(slave);
+
+  Process::post(master, M2M_SHUTDOWN);
+  Process::wait(master);
+
+  Process::filter(NULL);
 }

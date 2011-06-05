@@ -39,13 +39,14 @@ private:
   PID master;
   PID slave;
   SlaveID sid;
+  double interval;
 
 protected:
   void operator () ()
   {
     link(slave);
     do {
-      switch (receive(2)) {
+      switch (receive(interval)) {
       case PROCESS_TIMEOUT:
 	send(master, pack<SH2M_HEARTBEAT>(sid));
 	break;
@@ -56,8 +57,8 @@ protected:
   }
 
 public:
-  Heart(const PID &_master, const PID &_slave, SlaveID _sid)
-    : master(_master), slave(_slave), sid(_sid) {}
+  Heart(const PID &_master, const PID &_slave, SlaveID _sid, double _interval)
+    : master(_master), slave(_slave), sid(_sid), interval(_interval) {}
 };
 
 } /* namespace */
@@ -170,9 +171,10 @@ void Slave::operator () ()
       }
 
       case M2S_REGISTER_REPLY: {
-        unpack<M2S_REGISTER_REPLY>(this->id);
+	double interval = 0;
+        unpack<M2S_REGISTER_REPLY>(this->id, interval);
         LOG(INFO) << "Registered with master; given slave ID " << this->id;
-        link(spawn(new Heart(master, this->getPID(), this->id)));
+        link(spawn(new Heart(master, this->getPID(), this->id, interval)));
         isolationModule = createIsolationModule();
         if (!isolationModule)
           LOG(FATAL) << "Unrecognized isolation type: " << isolationType;
@@ -181,11 +183,12 @@ void Slave::operator () ()
       
       case M2S_REREGISTER_REPLY: {
         FrameworkID tmpfid;
-        unpack<M2S_REGISTER_REPLY>(tmpfid);
+	double interval = 0;
+        unpack<M2S_REGISTER_REPLY>(tmpfid, interval);
         LOG(INFO) << "RE-registered with master; given slave ID " << tmpfid << " had "<< this->id;
         if (this->id == "")
           this->id = tmpfid;
-        link(spawn(new Heart(master, getPID(), this->id)));
+        link(spawn(new Heart(master, getPID(), this->id, interval)));
         break;
       }
       

@@ -80,6 +80,7 @@ using std::find;
 using std::list;
 using std::make_pair;
 using std::map;
+using std::max;
 using std::pair;
 using std::queue;
 using std::set;
@@ -146,16 +147,16 @@ using std::stack;
 
 
 /* Local server socket. */
-static int s;
+static int s = -1;
 
 /* Local IP address. */
-static uint32_t ip;
+static uint32_t ip = 0;
 
 /* Local port. */
-static uint16_t port;
+static uint16_t port = 0;
 
 /* Event loop. */
-static struct ev_loop *loop;
+static struct ev_loop *loop = NULL;
 
 /* Queue of new I/O watchers. */
 static queue<ev_io *> *io_watchersq = new queue<ev_io *>();
@@ -180,10 +181,11 @@ static int timers_lock = UNLOCKED;
 static pthread_mutex_t timers_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif /* USE_LITHE */
 
-/* Map (sorted) of process timers. */
-typedef tuple<ev_tstamp, Process *, int> timeout_t;
-static map<ev_tstamp, list<timeout_t> > *timers =
-  new map<ev_tstamp, list<timeout_t> >();
+/* Map of process timers (we exploit that the map is SORTED!). */
+typedef tuple<double, Process *, int> timeout_t;
+typedef list<timeout_t> timeouts_t;
+static map<ev_tstamp, timeouts_t> *timers =
+  new map<ev_tstamp, timeouts_t>();
 
 /* Flag to indicate whether or to update the timer on async interrupt. */
 static bool update_timer = false;
@@ -224,9 +226,6 @@ static int idle = 0;
 /* Scheduler gate. */
 static Gate *gate = new Gate();
 
-/* Status of infrastructure initialization (done lazily). */
-static bool initialized = false;
-
 /* Stack of stacks. */
 static stack<void *> *stacks = new stack<void *>();
 
@@ -247,6 +246,31 @@ static map<uint32_t, queue<struct msg *> > *replay_msgs =
 /* Replay pipes (parent id -> stack of remaining child ids). */
 static map<uint32_t, deque<uint32_t> > *replay_pipes =
   new map<uint32_t, deque<uint32_t> >();
+
+/* Filter? */
+static bool filtering = false;
+
+/* Filter. */
+static MessageFilter *filterer = NULL;
+
+/* Filtering mutex. */
+static pthread_mutex_t filter_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* Tick, tock ... */
+class InternalProcessClock : public ProcessClock
+{
+public:
+  map<Process *, double> elapsed;
+  double current;
+
+  InternalProcessClock();
+  ~InternalProcessClock();
+
+  virtual void advance(double secs);
+};
+
+static InternalProcessClock *clk = NULL;
+
 
 struct write_ctx {
   int len;
@@ -830,6 +854,25 @@ private:
   }
 
 public:
+  Process * lookup(const PID &pid)
+  {
+    if (!(pid.ip == ip && pid.port == port))
+      return NULL;
+
+    Process *process = NULL;
+
+    acquire(processes);
+    {
+      map<uint32_t, Process *>::iterator it = processes.find(pid.pipe);
+      if (it != processes.end()) {
+	process = it->second;
+      }
+    }
+    release(processes);
+
+    return process;
+  }
+
   void record(struct msg *msg)
   {
     assert(recording && !replaying);
@@ -1065,6 +1108,15 @@ public:
 #ifdef USE_LITHE
     /* TODO(benh): Assert that we are on the transition stack. */
 #endif /* USE_LITHE */
+
+    /* Remove from internal clock (if necessary). */
+    acquire(timers);
+    {
+      if (clk != NULL) {
+	clk->elapsed.erase(process);
+      }
+    }
+    release(timers);
 
     /* Inform link manager. */
     LinkManager::instance()->exited(process);
@@ -1361,7 +1413,7 @@ public:
     process->lock();
     {
       if (secs > 0) {
-	/* Setup the timeout. */
+	/* Create/Start the timeout. */
 	start_timeout(create_timeout(process, secs));
 
 	/* Context switch. */
@@ -1757,9 +1809,20 @@ public:
   timeout_t create_timeout(Process *process, double secs)
   {
     assert(process != NULL);
-//     ev_tstamp now = ev_now(loop);
-    ev_tstamp now = ev_time();
-    ev_tstamp tstamp = now + secs;
+
+    ev_tstamp tstamp;
+
+    acquire(timers);
+    {
+      if (clk != NULL) {
+	tstamp = clk->elapsed[process] + secs;
+      } else {
+	// TODO(benh): Unclear if want ev_now(...) or ev_time().
+	tstamp = ev_time() + secs;
+      }
+    }
+    release(timers);
+
     return make_tuple(tstamp, process, process->generation);
   }
 
@@ -1772,16 +1835,15 @@ public:
     acquire(timers);
     {
       if (timers->size() == 0 || tstamp < timers->begin()->first) {
-        // Need to interrupt the loop to update/set timer repeat.
-        (*timers)[tstamp].push_back(timeout);
-        update_timer = true;
-        ev_async_send(loop, &async_watcher);
+	// Need to interrupt the loop to update/set timer repeat.
+	(*timers)[tstamp].push_back(timeout);
+	update_timer = true;
+	ev_async_send(loop, &async_watcher);
       } else {
-        // Timer repeat is adequate, just add the timeout.
-        assert(timers->size() >= 1);
-        (*timers)[tstamp].push_back(timeout);
+	// Timer repeat is adequate, just add the timeout.
+	assert(timers->size() >= 1);
+	(*timers)[tstamp].push_back(timeout);
       }
-
     }
     release(timers);
   }
@@ -1793,26 +1855,22 @@ public:
 
     acquire(timers);
     {
-      /* Check if the timer has fired. */
-      ev_tstamp tstamp = timeout.get<0>();
-      if (timers->find(tstamp) != timers->end()) {
-	list<timeout_t> &timeouts = (*timers)[tstamp];
+      /* Check if the timer has fired (this is highly unoptimized). */
+      foreachpair (const ev_tstamp &tstamp, timeouts_t &timeouts, *timers) {
 	list<timeout_t>::iterator it = timeouts.begin();
 	while (it != timeouts.end()) {
 	  if (it->get<0>() == timeout.get<0>() &&
 	      it->get<1>() == timeout.get<1>() &&
 	      it->get<2>() == timeout.get<2>()) {
 	    timeouts.erase(it++);
+	    cancelled = true;
+	    break;
 	  } else {
 	    ++it;
 	  }
 	}
-
-	/* If no more timeouts for this time stamp then cleanup. */
-	if ((*timers)[tstamp].empty())
-	  timers->erase(tstamp);
-
-	cancelled = true;
+	if (cancelled)
+	  break;
       }
     }
     release(timers);
@@ -1899,16 +1957,32 @@ static void handle_async(struct ev_loop *loop, ev_async *w, int revents)
   {
     if (update_timer) {
       if (!timers->empty()) {
-// 	timer_watcher.repeat = timers->begin()->first - ev_now(loop);
-	timer_watcher.repeat = timers->begin()->first - ev_time();
-	/* If timer has elapsed feed the event immediately. */
-	if (timer_watcher.repeat <= 0) {
-	  timer_watcher.repeat = 0;
-	  ev_feed_event(loop, &timer_watcher, EV_TIMEOUT);
+	// Determine the current time.
+	ev_tstamp current_tstamp;
+	if (clk != NULL) {
+	  current_tstamp = clk->current;
 	} else {
+	  // TODO(benh): Unclear if want ev_now(...) or ev_time().
+	  current_tstamp = ev_time();
+	}
+
+	timer_watcher.repeat = timers->begin()->first - current_tstamp;
+
+	// Check when the timer event should fire.
+        if (timer_watcher.repeat <= 0) {
+	  // Feed the event now!
+	  timer_watcher.repeat = 0;
+	  ev_timer_again(loop, &timer_watcher);
+          ev_feed_event(loop, &timer_watcher, EV_TIMEOUT);
+        } else {
+	  // Only repeat the timer if not using a manual clock (a call
+	  // to ProcessClock::advance() will force a timer event later).
+	  if (clk != NULL && timer_watcher.repeat > 0)
+	    timer_watcher.repeat = 0;
 	  ev_timer_again(loop, &timer_watcher);
 	}
       }
+
       update_timer = false;
     }
   }
@@ -2272,8 +2346,14 @@ void handle_timeout(struct ev_loop *loop, ev_timer *w, int revents)
 
   acquire(timers);
   {
-//     ev_tstamp now = ev_now(loop);
-    ev_tstamp now = ev_time();
+    ev_tstamp current_tstamp;
+
+    if (clk != NULL) {
+      current_tstamp = clk->current;
+    } else {
+      // TODO(benh): Unclear if want ev_now(...) or ev_time().
+      current_tstamp = ev_time();
+    }
 
     map<ev_tstamp, list<timeout_t> >::iterator it = timers->begin();
     map<ev_tstamp, list<timeout_t> >::iterator last = timers->begin();
@@ -2281,15 +2361,23 @@ void handle_timeout(struct ev_loop *loop, ev_timer *w, int revents)
     for (; it != timers->end(); ++it) {
       // Check if timer has expired.
       ev_tstamp tstamp = it->first;
-      if (tstamp > now) {
+      if (tstamp > current_tstamp) {
 	last = it;
 	break;
       }
 
-      // Save all expired timeouts.
+      // Save expired timeouts and determine time elapsed/simulated.
       const list<timeout_t> &timeouts = it->second;
-      foreach (const timeout_t &timeout, timeouts)
+      foreach (const timeout_t &timeout, timeouts) {
+	if (clk != NULL) {
+	  // N.B. There should not be more than one timeout per process!
+	  Process *process = timeout.get<1>();
+	  double elapsed = timeout.get<0>();
+	  clk->elapsed[process] += elapsed;
+	}
+	// TODO(benh): Ensure deterministic order for testing?
 	timedout.push_back(timeout);
+      }
     }
 
     if (it == timers->end())
@@ -2297,12 +2385,14 @@ void handle_timeout(struct ev_loop *loop, ev_timer *w, int revents)
     else if (last != timers->begin())
       timers->erase(timers->begin(), last);
 
-    if (!timers->empty()) {
-      timer_watcher.repeat = timers->begin()->first - now;
+    assert(timers->empty() || (timers->begin()->first > current_tstamp));
+
+    if (!timers->empty() && clk == NULL) {
+      timer_watcher.repeat = timers->begin()->first - current_tstamp;
       assert(timer_watcher.repeat > 0);
       ev_timer_again(loop, &timer_watcher);
     } else {
-      timer_watcher.repeat = 0.;
+      timer_watcher.repeat = 0;
       ev_timer_again(loop, &timer_watcher);
     }
 
@@ -2641,6 +2731,22 @@ void trampoline(int process0, int process1)
 
 static void initialize()
 {
+  static volatile bool initialized = false;
+  static volatile bool initializing = true;
+
+  // Try and do the initialization or wait for it to complete.
+  if (initialized && !initializing) {
+    return;
+  } else if (initialized && initializing) {
+    while (initializing);
+    return;
+  } else {
+    if (!__sync_bool_compare_and_swap(&initialized, false, true)) {
+      while (initializing);
+      return;
+    }
+  }
+
 //   /* Install signal handler. */
 //   struct sigaction sa;
 
@@ -2758,6 +2864,7 @@ static void initialize()
 
   /* Set up socket. */
   struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
   addr.sin_family = PF_INET;
   addr.sin_addr.s_addr = ip;
   addr.sin_port = htons(port);
@@ -2809,21 +2916,14 @@ static void initialize()
 
   if (pthread_create(&io_thread, NULL, node, loop) != 0)
     fatalerror("failed to initialize node (pthread_create)");
+
+  initializing = false;
 }
 
 
 Process::Process()
 {
-  static volatile bool initializing = true;
-  /* Confirm everything is initialized. */
-  if (!initialized) {
-    if (__sync_bool_compare_and_swap(&initialized, false, true)) {
-      initialize();
-      initializing = false;
-    }
-  }
-
-  while (initializing);
+  initialize();
 
 #ifdef USE_LITHE
   l = UNLOCKED;
@@ -2880,6 +2980,20 @@ void Process::enqueue(struct msg *msg)
   lock();
   {
     assert (state != EXITED);
+
+    acquire(filter);
+    {
+      if (filtering) {
+        assert(filterer != NULL);
+        if (filterer->filter(msg)) {
+          free(msg);
+          release(filter);
+          unlock();
+          return;
+        }
+      }
+    }
+    release(filter);
 
     //cout << "enqueing pending message: " << msg << endl;
     msgs.push_back(msg);
@@ -3070,6 +3184,31 @@ MSGID Process::receive(double secs)
   if (recording)
     ProcessManager::instance()->record(current);
 
+  // Make sure elapsed timing is correct (i.e., preserve
+  // happens-before relationship).
+  acquire(timers);
+  {
+    if (clk != NULL) {
+      // Only do this if there is time that could be elapsed. Note
+      // that across different nodes (e.g., machines) we don't have
+      // elapsed timing info, so anyone trying to control the clock on
+      // two different nodes might get an unpleasent surprise if they
+      // are expecting some timing based happens-before relationship.
+      if (clk->elapsed[this] < clk->current &&
+	  current->from.ip == ip &&
+	  current->from.port == port) {
+	// Lookup the process (might die before we start looking).
+	Process *process = ProcessManager::instance()->lookup(current->from);
+
+	// Set new elapsed time (if the process isn't dead).
+	if (process != NULL) {
+	  clk->elapsed[this] = max(clk->elapsed[this], clk->elapsed[process]);
+	}
+      }
+    }
+  }
+  release(timers);
+
   return current->id;
 
  timeout:
@@ -3082,6 +3221,9 @@ MSGID Process::receive(double secs)
   current->to.port = pid.port;
   current->id = PROCESS_TIMEOUT;
   current->len = 0;
+
+  if (recording)
+    ProcessManager::instance()->record(current);
 
   return current->id;
 }
@@ -3274,4 +3416,97 @@ void Process::invoke(const std::tr1::function<void (void)> &thunk)
   assert(proc_process != NULL);
   swapcontext(&proc_process->uctx, &proc_uctx_running);
   legacy = false;
+}
+
+
+double Process::elapsed()
+{
+  double now = 0;
+
+  acquire(timers);
+  {
+    if (clk != NULL) {
+      now = clk->elapsed[this];
+    } else {
+      // TODO(benh): Unclear if want ev_now(...) or ev_time().
+      now = ev_time();
+    }
+  }
+  release(timers);
+
+  return now;
+}
+
+
+ProcessClock * Process::clock()
+{
+  initialize();
+
+  // Update current timers to use a manually controlled clock.
+  acquire(timers);
+  {
+    // For now, only one global clock (rather than clock per process).
+    if (clk != NULL) {
+      release(timers);
+      return clk;
+    }
+
+    clk = new InternalProcessClock();
+
+    // The map is sorted, so updating it in place is a little
+    // tricky. For now we'll be lazy create a new map with the
+    // timeouts relative to the clock time and swap them below.
+    map<ev_tstamp, timeouts_t> *relative_timers =
+      new map<ev_tstamp, timeouts_t>();
+
+    foreachpair (const ev_tstamp &tstamp, const timeouts_t &timeouts, *timers) {
+      foreach (const timeout_t &timeout, timeouts) {
+	// TODO(benh): Do we want to consider only adding the remaining time?
+	ev_tstamp relative_tstamp = clk->current + timeout.get<0>();
+	(*relative_timers)[relative_tstamp].push_back(timeout);
+      }
+    }
+
+    // Update to use the warped timers.
+    delete timers;
+    timers = relative_timers;
+
+    // TODO(benh): Update the libev timer (can this ever be bad?).
+    update_timer = true;
+    ev_async_send(loop, &async_watcher);
+  }
+  release(timers);
+
+  return clk;
+}
+
+
+void Process::filter(MessageFilter *filter)
+{
+  acquire(filter);
+  {
+    filterer = filter;
+    filtering = filter != NULL;
+  }
+  release(filter);
+}
+
+
+InternalProcessClock::InternalProcessClock() : current(0) {}
+
+
+InternalProcessClock::~InternalProcessClock() {}
+
+
+void InternalProcessClock::advance(double secs)
+{
+  acquire(timers);
+  {
+    current += secs;
+
+    // TODO(benh): Update the libev timer (can this ever be bad?).
+    update_timer = true;
+    ev_async_send(loop, &async_watcher);
+  }
+  release(timers);
 }

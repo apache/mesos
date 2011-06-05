@@ -38,7 +38,6 @@ protected:
   {
     link(master);
     do {
-      // TODO: Make timer interval configurable, and hopefully less than 1 sec
       switch (receive(1)) {
       case PROCESS_TIMEOUT:
 	send(master, pack<M2M_TIMER_TICK>());
@@ -293,9 +292,8 @@ void Master::operator () ()
     case F2M_REGISTER_FRAMEWORK: {
       FrameworkID fid = lexical_cast<string>(masterId) + "-"
 	+ lexical_cast<string>(nextFrameworkId++);
-      Framework *framework = new Framework(from(), fid);
-      unpack<F2M_REGISTER_FRAMEWORK>(framework->name,
-				     framework->user,
+      Framework *framework = new Framework(from(), fid, elapsed());
+      unpack<F2M_REGISTER_FRAMEWORK>(framework->name, framework->user,
 				     framework->executorInfo);
       LOG(INFO) << "Registering " << framework << " at " << framework->pid;
       addFramework(framework);
@@ -303,12 +301,10 @@ void Master::operator () ()
     }
 
     case F2M_REREGISTER_FRAMEWORK: {
-      Framework *framework = new Framework(from());
+      Framework *framework = new Framework(from(), "", elapsed());
       bool failover;
-      unpack<F2M_REREGISTER_FRAMEWORK>(framework->id,
-                                       framework->name,
-                                       framework->user,
-                                       framework->executorInfo,
+      unpack<F2M_REREGISTER_FRAMEWORK>(framework->id, framework->name,
+                                       framework->user, framework->executorInfo,
                                        failover);
 
       if (framework->id == "") {
@@ -397,30 +393,32 @@ void Master::operator () ()
     }
 
     case S2M_REGISTER_SLAVE: {
-      string slaveId = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextSlaveId++);
-
-      Slave *slave = new Slave(from(), slaveId);
+      string slaveId = lexical_cast<string>(masterId) + "-"
+        + lexical_cast<string>(nextSlaveId++);
+      Slave *slave = new Slave(from(), slaveId, elapsed());
       unpack<S2M_REGISTER_SLAVE>(slave->hostname, slave->publicDns,
                                  slave->resources);
       LOG(INFO) << "Registering " << slave << " at " << slave->pid;
       slaves[slave->id] = slave;
       pidToSid[slave->pid] = slave->id;
       link(slave->pid);
-      send(slave->pid, pack<M2S_REGISTER_REPLY>(slave->id));
+      send(slave->pid,
+	   pack<M2S_REGISTER_REPLY>(slave->id, HEARTBEAT_INTERVAL));
       allocator->slaveAdded(slave);
       break;
     }
 
     case S2M_REREGISTER_SLAVE: {
-      Slave *slave = new Slave(from());
+      Slave *slave = new Slave(from(), "", elapsed());
       vector<Task> taskVec;
-
       unpack<S2M_REREGISTER_SLAVE>(slave->id, slave->hostname, slave->publicDns,
-      				   slave->resources, taskVec);
+                                   slave->resources, taskVec);
 
       if (slave->id == "") {
-        slave->id = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextSlaveId++);
-        DLOG(WARNING) << "Slave re-registered without a SlaveID, generating a new id for it.";
+        slave->id = lexical_cast<string>(masterId) + "-"
+          + lexical_cast<string>(nextSlaveId++);
+        DLOG(WARNING) << "Slave re-registered without a SlaveID, "
+                      << "generating a new id for it.";
       }
 
       foreach(Task &ti, taskVec) {
@@ -437,14 +435,9 @@ void Master::operator () ()
       slaves[slave->id] = slave;
       pidToSid[slave->pid] = slave->id;
       link(slave->pid);
-      send(slave->pid, pack<M2S_REREGISTER_REPLY>(slave->id));
+      send(slave->pid,
+           pack<M2S_REREGISTER_REPLY>(slave->id, HEARTBEAT_INTERVAL));
       allocator->slaveAdded(slave);
-
-      timeval tv;
-      gettimeofday(&tv, NULL);
-       
-      DLOG(INFO) << tv.tv_sec << "." << tv.tv_usec << " STAT: Slave count: " << slaves.size() << " Framework count: " << frameworks.size();
-       
       break;
     }
 
@@ -583,7 +576,7 @@ void Master::operator () ()
       unpack<SH2M_HEARTBEAT>(sid);
       Slave *slave = lookupSlave(sid);
       if (slave != NULL) {
-        slave->lastHeartbeat = time(NULL);
+        slave->lastHeartbeat = elapsed();
       } else {
         LOG(WARNING) << "Received heartbeat for UNKNOWN slave " << sid
                      << " from " << from();
@@ -594,15 +587,15 @@ void Master::operator () ()
     case M2M_TIMER_TICK: {
       unordered_map<SlaveID, Slave *> slavesCopy = slaves;
       foreachpair (_, Slave *slave, slavesCopy) {
-        if (slave->lastHeartbeat + HEARTBEAT_TIMEOUT <= time(NULL)) {
-          LOG(INFO) << slave << " missing heartbeats ... considering disconnected";
-          removeSlave(slave);
-        }
+	if (slave->lastHeartbeat + HEARTBEAT_TIMEOUT <= elapsed()) {
+	  LOG(INFO) << slave << " missing heartbeats ... considering disconnected";
+	  removeSlave(slave);
+	}
       }
 
       // Check which framework filters can be expired.
       foreachpair (_, Framework *framework, frameworks)
-        framework->removeExpiredFilters();
+        framework->removeExpiredFilters(elapsed());
 
       // Do allocations!
       allocator->timerTick();
@@ -746,7 +739,7 @@ void Master::processOfferReply(SlotOffer *offer,
   // If there are resources left on some slaves, add filters for them
   vector<SlaveResources> resourcesLeft;
   int timeout = params.getInt32("timeout", DEFAULT_REFUSAL_TIMEOUT);
-  time_t expiry = (timeout == -1) ? 0 : time(0) + timeout;
+  double expiry = (timeout == -1) ? 0 : elapsed() + timeout;
   foreachpair (Slave *s, Resources offRes, offerResources) {
     Resources respRes = responseResources[s];
     Resources left = offRes - respRes;

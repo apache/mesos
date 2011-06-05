@@ -31,6 +31,13 @@ void serializer::operator & (const int64_t &i)
 }
 
 
+void serializer::operator & (const double &d)
+{
+  // TODO(*): Deal with endian issues?
+  stream.write((char *) &d, sizeof(d));
+}
+
+
 void serializer::operator & (const size_t &i)
 {
   if (sizeof(size_t) == sizeof(int32_t))
@@ -71,6 +78,7 @@ void deserializer::operator & (int32_t &i)
   i = ntohl(netInt);
 }
 
+
 void deserializer::operator & (int64_t &i)
 {
   uint32_t hiInt, loInt;
@@ -80,6 +88,14 @@ void deserializer::operator & (int64_t &i)
   int64_t lo64 = ntohl(loInt);
   i = (hi64 << 32) | lo64;
 }
+
+
+void deserializer::operator & (double &d)
+{
+  // TODO(*): Deal with endian issues?
+  stream.read((char *) &d, sizeof(d));
+}
+
 
 void deserializer::operator & (size_t &i)
 {
@@ -91,6 +107,7 @@ void deserializer::operator & (size_t &i)
     abort();
 }  
 
+
 void deserializer::operator & (std::string &str)
 {
   size_t size;
@@ -98,6 +115,7 @@ void deserializer::operator & (std::string &str)
   str.resize(size);
   stream.read((char *) str.data(), size);
 }
+
 
 void deserializer::operator & (PID &pid)
 {
