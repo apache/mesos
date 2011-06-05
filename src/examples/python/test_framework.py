@@ -19,7 +19,8 @@ class MyScheduler(mesos.Scheduler):
     return "Python test framework"
 
   def getExecutorInfo(self, driver):
-    execPath = os.path.join(os.getcwd(), "test_executor")
+    frameworkDir = os.path.abspath(os.path.dirname(sys.argv[0]))
+    execPath = os.path.join(frameworkDir, "test_executor")
     return mesos.ExecutorInfo(execPath, "")
 
   def registered(self, driver, fid):

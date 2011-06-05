@@ -29,8 +29,15 @@ public class TestFramework {
     @Override
     public ExecutorInfo getExecutorInfo(SchedulerDriver d) {
       try {
+        // Get the location where the Java test framework is installed, so
+        // that we can give a path to our executor. Our wrapper script
+        // (test_framework) sets this in environment variable FRAMEWORK_DIR.
+        String frameworkDir = System.getenv("FRAMEWORK_DIR");
+        if (frameworkDir == null) {
+          throw new Exception("FRAMEWORK_DIR environment variable is not set");
+        }
         return new ExecutorInfo(
-            new File("./test_executor").getCanonicalPath(),
+            new File(frameworkDir, "test_executor").getCanonicalPath(),
             new byte[0]);
       } catch (Exception e) {
         e.printStackTrace();
@@ -93,11 +100,12 @@ public class TestFramework {
 
   public static void main(String[] args) throws Exception {
     if (args.length < 1 || args.length > 2) {
-      System.out.println("Invalid use: please specify a master");
+      System.err.println("Usage: test_framework <master> [<numTasks>]");
     } else if (args.length == 1) {
-      new MesosSchedulerDriver(new MyScheduler(),args[0]).run();
+      new MesosSchedulerDriver(new MyScheduler(), args[0]).run();
     } else {
-      new MesosSchedulerDriver(new MyScheduler(Integer.parseInt(args[1])), args[0]).run();
+      new MesosSchedulerDriver(new MyScheduler(Integer.parseInt(args[1])),
+                               args[0]).run();
     }
   }
 }

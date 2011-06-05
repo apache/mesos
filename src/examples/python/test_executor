@@ -1,6 +1,5 @@
 #!/bin/sh
 FWDIR=`dirname $0`
-cd $FWDIR
-MESOS_HOME=`cd ../../..; pwd`
+MESOS_HOME=`cd $FWDIR/../../..; pwd`
 export PYTHONPATH="$MESOS_HOME/lib/python:$PYTHONPATH"
-exec python2.6 ./test_executor.py $@
+exec python2.6 $FWDIR/test_executor.py $@

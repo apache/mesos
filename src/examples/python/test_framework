@@ -1,6 +1,5 @@
-#!/bin/sh
-FWDIR=`dirname $0`
-cd $FWDIR
-MESOS_HOME=`cd ../../..; pwd`
+#!/bin/bash
+FRAMEWORK_DIR="`cd $(dirname $0); pwd`"
+MESOS_HOME="$FRAMEWORK_DIR/../../.."
 export PYTHONPATH="$MESOS_HOME/lib/python:$PYTHONPATH"
-exec python2.6 ./test_framework.py $@
+exec python2.6 $FRAMEWORK_DIR/test_framework.py $@
