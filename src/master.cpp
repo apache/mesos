@@ -148,18 +148,25 @@ Master::Master(const string& _allocatorType, const string &zk)
 
 Master::~Master()
 {
-  if (isFT && masterDetector != NULL)
-    delete masterDetector;
   LOG(INFO) << "Shutting down master";
+
+  if (masterDetector != NULL) {
+    delete masterDetector;
+    masterDetector = NULL;
+  }
+
   delete allocator;
+
   foreachpair (_, Framework *framework, frameworks) {
     foreachpair(_, TaskInfo *task, framework->tasks)
       delete task;
     delete framework;
   }
+
   foreachpair (_, Slave *slave, slaves) {
     delete slave;
   }
+
   foreachpair (_, SlotOffer *offer, slotOffers) {
     delete offer;
   }
@@ -281,9 +288,27 @@ void Master::operator () ()
 {
   LOG(INFO) << "Master started at nexus://" << self();
 
-  LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
-  masterDetector = new MasterDetector(zkServers, ZNODE, self(), true);
-  
+  if (isFT) {
+    LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
+    masterDetector = new MasterDetector(zkServers, ZNODE, self(), true);
+  } else {
+    send(self(), pack<GOT_MASTER_SEQ>("0"));
+  }
+
+  // Don't do anything until we get a sequence identifier.
+  bool waitingForSeq = true;
+  do {
+    switch (receive()) {
+      case GOT_MASTER_SEQ: {
+	string mySeq;
+	unpack<GOT_MASTER_SEQ>(mySeq);
+	masterId = lexical_cast<long>(mySeq);
+	LOG(INFO) << "Master ID:" << masterId;
+	break;
+      }
+    }
+  } while (waitingForSeq);
+
   allocator = createAllocator();
   if (!allocator)
     LOG(FATAL) << "Unrecognized allocator type: " << allocatorType;
@@ -293,15 +318,6 @@ void Master::operator () ()
 
   while (true) {
     switch (receive()) {
-
-    case GOT_MASTER_SEQ: {
-      // TODO(benh|alig): NEED TO GET SEQ BEFORE ANYONE ELSE CONNECTS!
-      string mySeq;
-      unpack<GOT_MASTER_SEQ>(mySeq);
-      masterId = lexical_cast<long>(mySeq);
-      LOG(INFO) << "Master ID:" << masterId;
-      break;
-    }
 
     case F2M_REGISTER_FRAMEWORK: {
       FrameworkID fid = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextFrameworkId++);

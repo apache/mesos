@@ -15,6 +15,7 @@
 #include "foreach.hpp"
 #include "task_info.hpp"
 
+
 namespace nexus { namespace internal {
 
 enum MessageType {

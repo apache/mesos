@@ -107,7 +107,10 @@ Slave::Slave(const string &_master, Resources _resources, bool _local,
 
 Slave::~Slave()
 {
-  delete masterDetector;
+  if (masterDetector != NULL) {
+    delete masterDetector;
+    masterDetector = NULL;
+  }
 }
 
 
@@ -141,8 +144,12 @@ void Slave::operator () ()
 {
   LOG(INFO) << "Slave started at " << self();
 
-  LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
-  masterDetector = new MasterDetector(zkServers, ZNODE, self(), false);
+  if (isFT) {
+    LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
+    masterDetector = new MasterDetector(zkServers, ZNODE, self(), false);
+  } else {
+    send(self(), pack<NEW_MASTER_DETECTED>(0, master));
+  }
 
   // Get our hostname
   char buf[256];
@@ -365,13 +372,11 @@ void Slave::operator () ()
         unpack<E2S_FRAMEWORK_MESSAGE>(fid, message);
         // Set slave ID in case framework omitted it
         message.slaveId = this->id;
-        /*
-        if (isFT) {
-          string ftId = ftMsg->getNextId();
-          ftMsg->reliableSend(ftId, pack<S2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), id, fid, message));
-        } else
-          send(master, pack<S2M_FRAMEWORK_MESSAGE>(id, fid, message));
-        */
+//         if (isFT) {
+//           string ftId = ftMsg->getNextId();
+//           ftMsg->reliableSend(ftId, pack<S2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), id, fid, message));
+//         } else
+//           send(master, pack<S2M_FRAMEWORK_MESSAGE>(id, fid, message));
         send(getFramework(fid)->fwPid, pack<M2F_FRAMEWORK_MESSAGE>(message));
         break;
       }
@@ -386,16 +391,15 @@ void Slave::operator () ()
 
         if (from() == master) {
 	  // TODO: Fault tolerance!
-	   if (isFT)
-	     LOG(WARNING) << "FT: Master disconnected! Waiting for a new master to be elected."; 
-	   else 
-	     {
-		LOG(ERROR) << "Master disconnected! Exiting. Consider running Nexus in FT mode!";
-		if (isolationModule != NULL)
-		  delete isolationModule;
-		// TODO: Shut down executors?
-		return;
-	     }
+	  if (isFT) {
+	    LOG(WARNING) << "FT: Master disconnected! Waiting for a new master to be elected."; 
+	  } else {
+	    LOG(ERROR) << "Master disconnected! Exiting. Consider running Nexus in FT mode!";
+	    if (isolationModule != NULL)
+	      delete isolationModule;
+	    // TODO: Shut down executors?
+	    return;
+	  }
 	}
 
         foreachpair (_, Executor *ex, executors) {
