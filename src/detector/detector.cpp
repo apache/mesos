@@ -323,6 +323,8 @@ void ZooKeeperMasterDetector::process(ZooKeeper* zk, int type, int state,
   if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_SESSION_EVENT)) {
     // Check if this is a reconnect.
     if (!reconnect) {
+      LOG(INFO) << "Connected to ZooKeeper";
+
       // Assume the znode that was created does not end with a "/".
       CHECK(znode.at(znode.length() - 1) != '/');
 
@@ -334,22 +336,26 @@ void ZooKeeperMasterDetector::process(ZooKeeper* zk, int type, int state,
 	index = znode.find(delimiter, index + 1);
 	string prefix = znode.substr(0, index);
 
+	LOG(INFO) << "Trying to create znode '" << prefix << "' in ZooKeeper";
+
 	// Create the node (even if it already exists).
 	ret = zk->create(prefix, "", ZOO_OPEN_ACL_UNSAFE,
                          // ZOO_CREATOR_ALL_ACL, // needs authentication
 			 0, &result);
 
-	if (ret != ZOK && ret != ZNODEEXISTS)
+	if (ret != ZOK && ret != ZNODEEXISTS) {
 	  fatal("failed to create ZooKeeper znode! (%s)", zk->error(ret));
+	}
       }
 
       // Wierdness in ZooKeeper timing, let's check that everything is created.
       ret = zk->get(znode, false, &result, NULL);
 
-      if (ret != ZOK)
+      if (ret != ZOK) {
 	fatal("ZooKeeper not responding correctly (%s). "
 	      "Make sure ZooKeeper is running on: %s",
 	      zk->error(ret), servers.c_str());
+      }
 
       if (contend) {
 	// We contend with the pid given in constructor.
@@ -357,10 +363,11 @@ void ZooKeeperMasterDetector::process(ZooKeeper* zk, int type, int state,
                          // ZOO_CREATOR_ALL_ACL, // needs authentication
 			 ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
 
-	if (ret != ZOK)
+	if (ret != ZOK) {
 	  fatal("ZooKeeper not responding correctly (%s). "
 		"Make sure ZooKeeper is running on: %s",
 		zk->error(ret), servers.c_str());
+	}
 
 	setId(result);
 	LOG(INFO) << "Created ephemeral/sequence:" << getId();

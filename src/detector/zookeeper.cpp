@@ -57,9 +57,9 @@ WatcherProcessManager* manager;
 class WatcherProcess : public Process<WatcherProcess>
 {
 public:
-  WatcherProcess(Watcher *_watcher) : watcher(_watcher) {}
+  WatcherProcess(Watcher* _watcher) : watcher(_watcher) {}
 
-  void event(ZooKeeper *zk, int type, int state, const char *path)
+  void event(ZooKeeper* zk, int type, int state, const string& path)
   {
     watcher->process(zk, type, state, path);
   }
@@ -315,11 +315,11 @@ protected:
         // Okay, a message must have been received. Handle only one
         // message at a time so as not to delay any necessary internal
         // processing.
-        serve(0, false);
+        serve(0, true);
         if (name() == process::TERMINATE) {
           return;
-        } else {
-          fatal("unexpected interruption during await");
+        } else if (name() != process::NOTHING) {
+          fatal("unexpected interruption of 'poll'");
         }
       }
     }
