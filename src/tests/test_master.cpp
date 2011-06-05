@@ -32,6 +32,10 @@ public:
 
   virtual ~NoopScheduler() {}
 
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
+    return ExecutorInfo("noexecutor", "");
+  }
+
   virtual void registered(SchedulerDriver*, FrameworkID fid) {
     LOG(INFO) << "NoopScheduler registered";
     registeredCalled = true;
@@ -92,6 +96,10 @@ public:
     : response(_response) {}
 
   virtual ~FixedResponseScheduler() {}
+
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
+    return ExecutorInfo("noexecutor", "");
+  }
 
   virtual void resourceOffer(SchedulerDriver* d,
                              OfferID id,
