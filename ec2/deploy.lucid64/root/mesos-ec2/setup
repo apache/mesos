@@ -126,7 +126,7 @@ done
 DOWNLOADED=0
 
 if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
-  REPOSITORY=git@github.com:mesos/mesos.git
+  REPOSITORY=git://github.com/mesos/mesos.git
   echo "Checking out Mesos from $REPOSITORY"
   pushd /root > /dev/null 2>&1
   rm -rf mesos mesos.tgz
