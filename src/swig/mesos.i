@@ -29,49 +29,49 @@
 #ifdef SWIGJAVA
   /* Typemaps for vector<char> to map it to a byte array */
   /* Based on a post at http://www.nabble.com/Swing-to-Java:-using-native-types-for-vector%3CT%3E-td22504981.html */
-  %naturalvar mesos::data_string; 
+  %naturalvar mesos::bytes; 
 
-  %typemap(jni) mesos::data_string "jbyteArray" 
-  %typemap(jtype) mesos::data_string "byte[]" 
-  %typemap(jstype) mesos::data_string "byte[]" 
+  %typemap(jni) mesos::bytes "jbyteArray" 
+  %typemap(jtype) mesos::bytes "byte[]" 
+  %typemap(jstype) mesos::bytes "byte[]" 
 
-  %typemap(out) mesos::data_string 
+  %typemap(out) mesos::bytes 
   %{ 
      $result = jenv->NewByteArray($1.size()); 
      jenv->SetByteArrayRegion($result, 0, $1.size(), (jbyte *) &$1[0]); 
   %} 
 
-  %typemap(javaout) mesos::data_string 
+  %typemap(javaout) mesos::bytes 
   { 
     return $jnicall; 
   } 
 
-  %typemap(jni) const mesos::data_string & "jbyteArray" 
-  %typemap(jtype) const mesos::data_string & "byte[]" 
-  %typemap(jstype) const mesos::data_string & "byte[]" 
+  %typemap(jni) const mesos::bytes & "jbyteArray" 
+  %typemap(jtype) const mesos::bytes & "byte[]" 
+  %typemap(jstype) const mesos::bytes & "byte[]" 
 
-  %typemap(in) const mesos::data_string & 
+  %typemap(in) const mesos::bytes & 
   %{ if(!$input) { 
        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException,
-         "null mesos::data_string"); 
+         "null mesos::bytes"); 
        return $null; 
       } 
       const jsize $1_size = jenv->GetArrayLength($input); 
       jbyte *$1_ptr = jenv->GetByteArrayElements($input, NULL); 
-      mesos::data_string $1_str((char *) $1_ptr, $1_size); 
+      mesos::bytes $1_str((char *) $1_ptr, $1_size); 
       jenv->ReleaseByteArrayElements($input, $1_ptr, JNI_ABORT); 
       $1 = &$1_str; 
   %} 
 
-  %typemap(javain) const mesos::data_string & "$javainput" 
+  %typemap(javain) const mesos::bytes & "$javainput" 
 
-  %typemap(out) const mesos::data_string & 
+  %typemap(out) const mesos::bytes & 
   %{ 
      $result = jenv->NewByteArray($1->size()); 
      jenv->SetByteArrayRegion($result, 0, $1->size(), (jbyte *) &(*$1)[0]); 
   %} 
 
-  %typemap(javaout) const mesos::data_string & 
+  %typemap(javaout) const mesos::bytes & 
   { 
     return $jnicall; 
   } 

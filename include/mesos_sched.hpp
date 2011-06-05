@@ -68,9 +68,9 @@ public:
   virtual int killTask(TaskID tid) { return -1; }
   virtual int replyToOffer(OfferID oid,
 			   const std::vector<TaskDescription>& task,
-			   const string_map& params) { return -1; }
+			   const std::map<std::string, std::string>& params) { return -1; }
   virtual int reviveOffers() { return -1; }
-  virtual int sendHints(const string_map& hints) { return -1; }
+  virtual int sendHints(const std::map<std::string, std::string>& hints) { return -1; }
 };
 
 
@@ -107,7 +107,7 @@ public:
    *            for the same framework
    */
   MesosSchedulerDriver(Scheduler* sched,
-		       const string_map& params,
+		       const std::map<std::string, std::string>& params,
 		       FrameworkID fid = "");
 
 #ifndef SWIG
@@ -145,9 +145,9 @@ public:
   virtual int killTask(TaskID tid);
   virtual int replyToOffer(OfferID offerId,
 			   const std::vector<TaskDescription>& task,
-			   const string_map& params);
+			   const std::map<std::string, std::string>& params);
   virtual int reviveOffers();
-  virtual int sendHints(const string_map& hints);
+  virtual int sendHints(const std::map<std::string, std::string>& hints);
 
   // Scheduler getter; required by some of the SWIG proxies
   virtual Scheduler* getScheduler() { return sched; }

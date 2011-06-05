@@ -60,7 +60,7 @@ public:
         tasks.push_back(desc);
       }
     }
-    string_map params;
+    map<string, string> params;
     params["timeout"] = "-1";
     d->replyToOffer(id, tasks, params);
   }

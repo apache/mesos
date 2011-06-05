@@ -23,7 +23,7 @@ const char * getenvOrFail(const char *variable)
 
 int main(int argc, char **argv)
 {
-  string_map params;   // Empty map
+  map<string, string> params;   // Empty map
   ExecutorLauncher(getenvOrFail("MESOS_FRAMEWORK_ID"),
                    getenvOrFail("MESOS_EXECUTOR_URI"),
                    getenvOrFail("MESOS_USER"),

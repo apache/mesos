@@ -434,7 +434,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
 
 
 MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
-					   const string_map &params,
+					   const map<std::string, std::string> &params,
 					   FrameworkID fid)
 {
   Configurator configurator;
@@ -619,7 +619,7 @@ int MesosSchedulerDriver::killTask(TaskID tid)
 
 int MesosSchedulerDriver::replyToOffer(OfferID offerId,
 				       const vector<TaskDescription> &tasks,
-				       const string_map &params)
+				       const map<std::string, std::string> &params)
 {
   Lock lock(&mutex);
 
@@ -672,7 +672,7 @@ int MesosSchedulerDriver::sendFrameworkMessage(const FrameworkMessage &message)
 }
 
 
-int MesosSchedulerDriver::sendHints(const string_map& hints)
+int MesosSchedulerDriver::sendHints(const map<std::string, std::string>& hints)
 {
   Lock lock(&mutex);
 

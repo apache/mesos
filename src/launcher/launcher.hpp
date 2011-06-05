@@ -1,6 +1,7 @@
 #ifndef __LAUNCHER_HPP__
 #define __LAUNCHER_HPP__
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -11,6 +12,7 @@
 
 namespace mesos { namespace internal { namespace launcher {
 
+using std::map;
 using std::string;
 using std::vector;
 
@@ -35,13 +37,13 @@ protected:
   string slavePid;
   string hadoopHome;
   bool redirectIO;   // Whether to redirect stdout and stderr to files
-  string_map params; // Key-value params in framework's ExecutorInfo
+  map<string, string> params; // Key-value params in framework's ExecutorInfo
 
 public:
   ExecutorLauncher(FrameworkID _frameworkId, const string& _executorUri,
                    const string& _user, const string& _workDirectory,
                    const string& _slavePid, const string& _hadoopHome,
-                   bool _redirectIO, const string_map& _params);
+                   bool _redirectIO, const map<string, string>& _params);
 
   virtual ~ExecutorLauncher();
 

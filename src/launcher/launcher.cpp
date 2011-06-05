@@ -39,7 +39,7 @@ ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
                                    const string& _slavePid,
                                    const string& _hadoopHome,
                                    bool _redirectIO,
-                                   const string_map& _params)
+                                   const map<string, string>& _params)
   : frameworkId(_frameworkId), executorUri(_executorUri), user(_user),
     workDirectory(_workDirectory), slavePid(_slavePid),
     hadoopHome(_hadoopHome), redirectIO(_redirectIO), params(_params)

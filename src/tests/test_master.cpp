@@ -66,7 +66,7 @@ public:
       EXPECT_EQ(lexical_cast<string>(1 * Gigabyte), mem);
     }
     vector<TaskDescription> tasks;
-    d->replyToOffer(id, tasks, string_map());
+    d->replyToOffer(id, tasks, map<string, string>());
     d->stop();
   }
 }; 
@@ -117,7 +117,7 @@ public:
                              OfferID id,
                              const vector<SlaveOffer>& offers) {
     LOG(INFO) << "FixedResponseScheduler got a slot offer";
-    d->replyToOffer(id, response, string_map());
+    d->replyToOffer(id, response, map<string, string>());
   }
   
   virtual void error(SchedulerDriver* d,
