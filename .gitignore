@@ -70,11 +70,13 @@ src/third_party/zookeeper-3.3.1/src/c/stamp-h1
 src/alltests
 src/cpp-test-executor
 src/cpp-test-framework
+src/logs
 src/mesos-local
 src/mesos-master
 src/mesos-slave
 src/mesos-projd
 src/mesos-launcher
+src/mesos-getconf
 src/memhog
 src/memhog-executor
 src/test-framework
