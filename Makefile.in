@@ -18,8 +18,8 @@ dist:
 
 all: src
 
-docs:
-     doxygen
+doxygen:
+	doxygen
 
 etags:
 	find src -name "*.cpp" -o -name "*.hpp" | grep -v "\~$$" | xargs etags -o src/TAGS
