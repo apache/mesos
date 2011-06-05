@@ -5,6 +5,6 @@
 
 
 template <typename T>
-T construct(JNIEnv *env, jobject jobj);
+T construct(JNIEnv* env, jobject jobj);
 
-#endif /* __CONSTRUCT_HPP__ */
+#endif // __CONSTRUCT_HPP__

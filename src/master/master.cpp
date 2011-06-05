@@ -1666,7 +1666,8 @@ OfferID Master::makeOffer(Framework* framework,
     r.slave->resourcesOffered += r.resources;
   }
 
-  LOG(INFO) << "Sending " << offer << " to " << framework;
+  LOG(INFO) << "Sending offer " << offer->offerId
+            << " to framework " << framework->frameworkId;
 
   MSG<M2F_RESOURCE_OFFER> out;
   out.mutable_offer_id()->MergeFrom(offerId);

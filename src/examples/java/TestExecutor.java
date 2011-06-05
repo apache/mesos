@@ -1,7 +1,7 @@
 import java.io.File;
 
-import mesos.*;
-import mesos.Protos.*;
+import org.apache.mesos.*;
+import org.apache.mesos.Protos.*;
 
 
 public class TestExecutor implements Executor {

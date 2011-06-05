@@ -2,8 +2,8 @@ import java.io.File;
 
 import java.util.List;
 
-import mesos.*;
-import mesos.Protos.*;
+import org.apache.mesos.*;
+import org.apache.mesos.Protos.*;
 
 
 public class TestExceptionFramework {

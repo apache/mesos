@@ -6,8 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import mesos.*;
-import mesos.Protos.*;
+import org.apache.mesos.*;
+import org.apache.mesos.Protos.*;
 
 
 public class TestFramework {

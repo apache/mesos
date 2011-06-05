@@ -7,4 +7,4 @@
 template <typename T>
 jobject convert(JNIEnv* env, const T& t);
 
-#endif /* __CONVERT_HPP__ */
+#endif // __CONVERT_HPP__

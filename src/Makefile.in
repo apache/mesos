@@ -180,9 +180,9 @@ endif
 
 MESOS_LIBS = $(MESOS_LIB) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB)
 
-MESOS_JAVA_LIB_OBJ = java/jni/convert.o java/jni/construct.o	\
-	             java/jni/mesos_MesosSchedulerDriver.o	\
-	             java/jni/mesos_MesosExecutorDriver.o
+MESOS_JAVA_LIB_OBJ = java/jni/convert.o java/jni/construct.o		\
+	             java/jni/org_apache_mesos_MesosSchedulerDriver.o	\
+	             java/jni/org_apache_mesos_MesosExecutorDriver.o
 
 # Java and Python shared libraries which contain the everything in
 # MESOS_LIB as well as the SWIG wrappers (note, Java requires the use
@@ -331,18 +331,18 @@ $(MESOS_PROJD_EXE): $(SRCDIR)/slave/projd.cpp $(COMMON_OBJ) $(PROTOBUF_OBJ)
 
 java: $(MESOS_JAVA_LIB) $(MESOS_JAVA_JAR)
 
-$(MESOS_JAVA_JAR): $(SRCDIR)/java/src/mesos/*.java @top_srcdir@/include/mesos.proto | $(LIBDIR)/java
+$(MESOS_JAVA_JAR): $(SRCDIR)/java/src/org/apache/mesos/*.java @top_srcdir@/include/mesos.proto | $(LIBDIR)/java
 ifdef JAVA_HOME
 	mkdir -p @top_builddir@/$(PROTOBUF)/java/src/main/java
 	$(PROTOC) --java_out=@top_builddir@/$(PROTOBUF)/java/src/main/java -I@top_srcdir@/$(PROTOBUF)/src @top_srcdir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto
 	$(JAVA_HOME)/bin/javac -d @top_builddir@/$(PROTOBUF)/java/src/main/java @top_srcdir@/$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java @top_builddir@/$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java
-	rm -f java/classes/mesos/*
-	mkdir -p java/classes/mesos
-	$(JAVA_HOME)/bin/javac -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java -sourcepath java/generated -d java/classes java/generated/mesos/*.java
-	$(JAVA_HOME)/bin/javac -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes -sourcepath $(SRCDIR)/java/src -d java/classes $(SRCDIR)/java/src/mesos/*.java
-	$(JAVA_HOME)/bin/jar cf $@ -C java/classes mesos
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes mesos.MesosSchedulerDriver
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes mesos.MesosExecutorDriver
+	rm -f java/classes/org/apache/mesos/*
+	mkdir -p java/classes/org/apache/mesos
+	$(JAVA_HOME)/bin/javac -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java -sourcepath java/generated -d java/classes java/generated/org/apache/mesos/*.java
+	$(JAVA_HOME)/bin/javac -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes -sourcepath $(SRCDIR)/java/src -d java/classes $(SRCDIR)/java/src/org/apache/mesos/*.java
+	$(JAVA_HOME)/bin/jar cf $@ -C java/classes org
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes org.apache.mesos.MesosSchedulerDriver
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes org.apache.mesos.MesosExecutorDriver
 endif
 
 $(MESOS_JAVA_LIB_OBJ): %.o: $(SRCDIR)/%.cpp $(MESOS_JAVA_JAR)

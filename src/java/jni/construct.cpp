@@ -199,7 +199,7 @@ template <>
 TaskState construct(JNIEnv* env, jobject jobj)
 {
   // int value = obj.getNumber(value);
-  jclass clazz = env->FindClass("mesos/Protos$TaskState");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$TaskState");
 
   jmethodID getNumber = env->GetStaticMethodID(clazz, "getNumber", "()I");
 

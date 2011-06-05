@@ -1,6 +1,6 @@
-package mesos;
+package org.apache.mesos;
 
-import mesos.Protos.*;
+import org.apache.mesos.Protos.*;
 
 import java.util.Collection;
 import java.util.Collections;

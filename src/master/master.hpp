@@ -456,6 +456,28 @@ struct Slave
 };
 
 
+// Pretty-printing of SlotOffers, Tasks, Frameworks, Slaves, etc.
+
+inline std::ostream& operator << (std::ostream& stream, const SlotOffer *o)
+{
+  stream << "offer " << o->offerId;
+  return stream;
+}
+
+
+inline std::ostream& operator << (std::ostream& stream, const Slave *s)
+{
+  stream << "slave " << s->slaveId;
+  return stream;
+}
+
+
+inline std::ostream& operator << (std::ostream& stream, const Framework *f)
+{
+  stream << "framework " << f->frameworkId;
+  return stream;
+}
+
 }}} // namespace mesos { namespace internal { namespace master {
 
 #endif // __MASTER_HPP__

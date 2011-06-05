@@ -12,7 +12,7 @@ using std::string;
 
 
 template <>
-jobject convert(JNIEnv *env, const string &s)
+jobject convert(JNIEnv* env, const string& s)
 {
   return env->NewStringUTF(s.c_str());
 }
@@ -29,10 +29,11 @@ jobject convert(JNIEnv* env, const FrameworkID& frameworkId)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // FrameworkID frameworkId = FrameworkID.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$FrameworkID");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$FrameworkID");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$FrameworkID;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$FrameworkID;");
 
   jobject jframeworkId = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -51,10 +52,11 @@ jobject convert(JNIEnv* env, const TaskID& taskId)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // TaskID taskId = TaskID.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$TaskID");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$TaskID");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$TaskID;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$TaskID;");
 
   jobject jtaskId = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -73,10 +75,11 @@ jobject convert(JNIEnv* env, const SlaveID& slaveId)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // SlaveID slaveId = SlaveID.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$SlaveID");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$SlaveID");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$SlaveID;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$SlaveID;");
 
   jobject jslaveId = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -95,10 +98,11 @@ jobject convert(JNIEnv* env, const OfferID& offerId)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // OfferID offerId = OfferID.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$OfferID");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$OfferID");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$OfferID;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$OfferID;");
 
   jobject jofferId = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -112,10 +116,11 @@ jobject convert(JNIEnv* env, const TaskState& state)
   jint jvalue = state;
 
   // TaskState state = TaskState.valueOf(value);
-  jclass clazz = env->FindClass("mesos/Protos$TaskState");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$TaskState");
 
   jmethodID valueOf =
-    env->GetStaticMethodID(clazz, "valueOf", "(I)Lmesos/Protos$TaskState;");
+    env->GetStaticMethodID(clazz, "valueOf",
+                           "(I)Lorg/apache/mesos/Protos$TaskState;");
 
   jobject jstate = env->CallStaticObjectMethod(clazz, valueOf, jvalue);
 
@@ -134,10 +139,11 @@ jobject convert(JNIEnv* env, const TaskDescription& task)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // TaskDescription task = TaskDescription.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$TaskDescription");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$TaskDescription");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$TaskDescription;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$TaskDescription;");
 
   jobject jtask = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -156,10 +162,11 @@ jobject convert(JNIEnv* env, const TaskStatus& status)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // TaskStatus status = TaskStatus.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$TaskStatus");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$TaskStatus");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$TaskStatus;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$TaskStatus;");
 
   jobject jstatus = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -178,10 +185,11 @@ jobject convert(JNIEnv* env, const SlaveOffer& offer)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // SlaveOffer offer = SlaveOffer.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$SlaveOffer");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$SlaveOffer");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$SlaveOffer;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$SlaveOffer;");
 
   jobject joffer = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -200,10 +208,11 @@ jobject convert(JNIEnv* env, const FrameworkMessage& message)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // FrameworkMessage message = FrameworkMessage.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$FrameworkMessage");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$FrameworkMessage");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$FrameworkMessage;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$FrameworkMessage;");
 
   jobject jmessage = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -222,10 +231,11 @@ jobject convert(JNIEnv* env, const ExecutorInfo& executor)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // ExecutorInfo executor = ExecutorInfo.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$ExecutorInfo");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$ExecutorInfo");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$ExecutorInfo;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$ExecutorInfo;");
 
   jobject jexecutor = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -244,10 +254,11 @@ jobject convert(JNIEnv* env, const ExecutorArgs& args)
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
   // ExecutorArgs args = ExecutorArgs.parseFrom(data);
-  jclass clazz = env->FindClass("mesos/Protos$ExecutorArgs");
+  jclass clazz = env->FindClass("org/apache/mesos/Protos$ExecutorArgs");
 
   jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom", "([B)Lmesos/Protos$ExecutorArgs;");
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$ExecutorArgs;");
 
   jobject jargs = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 

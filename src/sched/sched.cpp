@@ -8,6 +8,8 @@
 
 #include <arpa/inet.h>
 
+#include <google/protobuf/descriptor.h>
+
 #include <iostream>
 #include <map>
 #include <string>
@@ -177,14 +179,15 @@ protected:
 
   void noMasterDetected()
   {
+    VLOG(1) << "No master detected, waiting for another master";
     // In this case, we don't actually invoke Scheduler::error
     // since we might get reconnected to a master imminently.
     active = false;
-    VLOG(1) << "No master detected, waiting for another master";
   }
 
   void masterDetectionFailure()
   {
+    VLOG(1) << "Master detection failed";
     active = false;
     // TODO(benh): Better error codes/messages!
     int32_t code = 1;
@@ -195,6 +198,7 @@ protected:
 
   void registerReply(const FrameworkID& frameworkId)
   {
+    VLOG(1) << "Framework registered with " << frameworkId;
     this->frameworkId = frameworkId;
     process::invoke(bind(&Scheduler::registered, sched, driver,
                          cref(frameworkId)));
@@ -204,6 +208,8 @@ protected:
                      const vector<SlaveOffer>& offers,
                      const vector<string>& pids)
   {
+    VLOG(1) << "Received offer " << offerId;
+
     // Save the pid associated with each slave (one per SlaveOffer) so
     // later we can send framework messages directly.
     CHECK(offers.size() == pids.size());
@@ -220,6 +226,7 @@ protected:
 
   void rescindOffer(const OfferID& offerId)
   {
+    VLOG(1) << "Rescinded offer " << offerId;
     savedOffers.erase(offerId);
     process::invoke(bind(&Scheduler::offerRescinded, sched, driver, 
                          cref(offerId)));
@@ -227,6 +234,11 @@ protected:
 
   void statusUpdate(const FrameworkID& frameworkId, const TaskStatus& status)
   {
+    VLOG(1) << "Status update: task " << status.task_id()
+            << " of framework " << frameworkId
+            << " is now in state "
+            << TaskState_descriptor()->FindValueByNumber(status.state())->name();
+
     CHECK(this->frameworkId == frameworkId);
 
     // TODO(benh): Note that this maybe a duplicate status update!
@@ -254,19 +266,23 @@ protected:
 
   void lostSlave(const SlaveID& slaveId)
   {
+    VLOG(1) << "Lost slave " << slaveId;
     savedSlavePids.erase(slaveId);
     process::invoke(bind(&Scheduler::slaveLost, sched, driver, cref(slaveId)));
   }
 
   void frameworkMessage(const FrameworkMessage& message)
   {
+    VLOG(1) << "Received message";
     process::invoke(bind(&Scheduler::frameworkMessage, sched, driver,
                          cref(message)));
   }
 
   void error(int32_t code, const string& message)
   {
-    process::invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
+    VLOG(1) << "Got error '" << message << "' (code: " << code << ")";
+    process::invoke(bind(&Scheduler::error, sched, driver, code,
+                         cref(message)));
   }
 
   void stop()
