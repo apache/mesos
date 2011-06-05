@@ -27,7 +27,7 @@ def parse_args():
   parser.add_option("-i", "--identity-file", 
       help="SSH private key file to use for logging into instances")
   parser.add_option("-t", "--instance-type", default="m1.large",
-      help="Type of instance to launch (default: m1.large)")
+      help="Type of instance to launch (default: m1.large). WARNING: must be 64 bit, thus small instances won't work")
   parser.add_option("-m", "--master-instance-type", default="",
       help="Master instance type (leave empty for same as instance-type)")
   parser.add_option("-z", "--zone", default="us-east-1b",

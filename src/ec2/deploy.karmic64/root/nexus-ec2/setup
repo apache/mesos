@@ -84,7 +84,8 @@ if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
   # Set git SSH command to a script that uses -o StrictHostKeyChecking=no
   GIT_SSH=/root/nexus-ec2/ssh-no-keychecking git clone $REPOSITORY nexus
   pushd nexus 2>&1
-  GIT_SSH=/root/nexus-ec2/ssh-no-keychecking git checkout $BRANCH
+  GIT_SSH2=/root/nexus-ec2/ssh-no-keychecking git branch torque --track origin/torque
+  GIT_SSH3=/root/nexus-ec2/ssh-no-keychecking git checkout $BRANCH
   popd > /dev/null 2>&1
   popd > /dev/null 2>&1
   DOWNLOADED=1
