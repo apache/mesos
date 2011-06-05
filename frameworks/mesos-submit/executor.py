@@ -39,14 +39,11 @@ class SecondaryScheduler(mesos.Scheduler):
   def __init__(self, command):
     mesos.Scheduler.__init__(self)
     self.command = command
-    print "here"
 
   def getFrameworkName(self, driver):
-    print "here 2"
     return "mesos-submit " + self.command
 
   def getExecutorInfo(self, driver):
-    print "here 3"
     executorPath = os.path.join(os.getcwd(), "executor")
     return mesos.ExecutorInfo(executorPath, "")
 
