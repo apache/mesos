@@ -1,4 +1,5 @@
 #!/bin/bash
+cd /root/mesos-ec2
 
 MASTERS=`cat masters`
 NUM_MASTERS=`cat masters | wc -l`
