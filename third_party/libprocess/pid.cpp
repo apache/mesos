@@ -1,8 +1,11 @@
+#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <arpa/inet.h>
+
+#include <glog/logging.h>
 
 #include <iostream>
 #include <string>
@@ -77,6 +80,8 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
+  VLOG(1) << "Attempting to parse '" << str << "' into a PID";
+
   if (str.size() == 0) {
     stream.setstate(std::ios_base::badbit);
     return stream;
@@ -84,7 +89,8 @@ istream& operator >> (istream& stream, UPID& pid)
 
   string id;
   string host;
-  unsigned short port;
+  uint32_t ip;
+  uint16_t port;
 
   size_t index = str.find('@');
 
@@ -95,7 +101,7 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
-  str = str.substr(index + 1, str.size() - index);
+  str = str.substr(index + 1);
 
   index = str.find(':');
 
@@ -106,18 +112,44 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
-  hostent* he = gethostbyname2(host.c_str(), AF_INET);
-  if (he == NULL) {
+  hostent he, *hep;
+  char* temp;
+  size_t length;
+  int result;
+  int herrno;
+
+  // Allocate temporary buffer for gethostbyname2_r.
+  length = 1024;
+  temp = new char[length];
+
+  while ((result = gethostbyname2_r(host.c_str(), AF_INET, &he,
+				    temp, length, &hep, &herrno)) == ERANGE) {
+    // Enlarge the buffer.
+    delete temp;
+    length *= 2;
+    temp = new char[length];
+  }
+
+  if (result != 0 || hep == NULL) {
+    VLOG(1) << "Failed to parse host '" << host
+	    << "' because " << hstrerror(herrno);
     stream.setstate(std::ios_base::badbit);
+    delete temp;
     return stream;
   }
 
-  if (he->h_addr_list[0] == NULL) {
+  if (hep->h_addr_list[0] == NULL) {
+    VLOG(1) << "Got no addresses for '" << host << "'";
     stream.setstate(std::ios_base::badbit);
+    delete temp;
     return stream;
   }
 
-  str = str.substr(index + 1, str.size() - index);
+  ip = *((uint32_t*) hep->h_addr_list[0]);
+
+  delete temp;
+
+  str = str.substr(index + 1);
 
   if (sscanf(str.c_str(), "%hu", &port) != 1) {
     stream.setstate(std::ios_base::badbit);
@@ -125,7 +157,7 @@ istream& operator >> (istream& stream, UPID& pid)
   }
 
   pid.id = id;
-  pid.ip = *((uint32_t*) he->h_addr_list[0]);
+  pid.ip = ip;
   pid.port = port;
 
   return stream;
