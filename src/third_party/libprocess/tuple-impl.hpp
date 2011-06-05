@@ -868,7 +868,7 @@ protected:
 
 public:
   template <MSGID ID>
-  static void post(const PID &, const tuple<ID> &r)
+  static void post(const PID &to, const tuple<ID> &r)
   {
     std::ostringstream os;
 
@@ -929,4 +929,64 @@ public:
     Process::post(to, ID, data.data(), data.size());    
   }
 
+  template <MSGID ID>
+  static string tupleToString(const tuple<ID> &r)
+  {
+    std::ostringstream os;
+
+    process::serialization::serializer s(os);
+
+    if (size<ID>::value >= 1) {
+      const typename field<0, ID>::type &temp = at<0>(r);
+      s & temp;
+    }
+
+    if (size<ID>::value >= 2) {
+      const typename field<1, ID>::type &temp = at<1>(r);
+      s & temp;
+    }
+ 
+    if (size<ID>::value >= 3) {
+      const typename field<2, ID>::type &temp = at<2>(r);
+      s & temp;
+    }
+
+    if (size<ID>::value >= 4) {
+      const typename field<3, ID>::type &temp = at<3>(r);
+      s & temp;
+    }
+
+    if (size<ID>::value >= 5) {
+      const typename field<4, ID>::type &temp = at<4>(r);
+      s & temp;
+    }
+
+    if (size<ID>::value >= 6) {
+      const typename field<5, ID>::type &temp = at<5>(r);
+      s & temp;
+    }
+
+    if (size<ID>::value >= 7) {
+      const typename field<6, ID>::type &temp = at<6>(r);
+      s & temp;
+    }
+
+    if (size<ID>::value >= 8) {
+      const typename field<7, ID>::type &temp = at<7>(r);
+      s & temp;
+    }
+
+    if (size<ID>::value >= 9) {
+      const typename field<8, ID>::type &temp = at<8>(r);
+      s & temp;
+    }
+
+    if (size<ID>::value >= 10) {
+      const typename field<9, ID>::type &temp = at<9>(r);
+      s & temp;
+    }
+
+    return os.str();
+
+  }
 };

@@ -2,6 +2,7 @@
 #include "master.hpp"
 #include "master_webui.hpp"
 #include "allocator_factory.hpp"
+#include "ft_messaging.hpp"
 
 #include <glog/logging.h>
 
@@ -124,6 +125,7 @@ Master::Master(const string zk)
       exit(1);
     }
   }
+  ftMsg = FTMessaging::getInstance();
 }
 
 
@@ -141,6 +143,7 @@ Master::Master(const string& _allocatorType, const string zk)
       exit(1);
     }
   }
+  ftMsg = FTMessaging::getInstance();
 }
                    
 
@@ -281,7 +284,7 @@ void Master::operator () ()
   LOG(INFO) << "Master started at nexus://" << self();
 
   if (isFT) {
-    LOG(INFO) << "Conencting to ZooKeeper at "<<zkservers;
+    LOG(INFO) << "Connecting to ZooKeeper at "<<zkservers;
     ostringstream lpid;
     lpid<<self();
     leaderDetector = new LeaderDetector(zkservers, true, lpid.str());
@@ -463,6 +466,48 @@ void Master::operator () ()
       break;
     }
 
+    case S2M_FT_STATUS_UPDATE: {
+      string ftId;
+      SlaveID sid;
+      FrameworkID fid;
+      TaskID tid;
+      TaskState state;
+      string data;
+      string senderStr;
+
+      unpack<S2M_FT_STATUS_UPDATE>(ftId, senderStr, sid, fid, tid, state, data);
+      DLOG(INFO) << "FT: prepare relay ftId:"<< ftId << " from: "<< senderStr;
+      if (Slave *slave = lookupSlave(sid)) {
+	if (Framework *framework = lookupFramework(fid)) {
+	  // Pass on the status update to the framework
+
+          DLOG(INFO) << "FT: relaying ftId:"<< ftId << " from: "<< senderStr;
+          send(framework->pid, pack<M2F_FT_STATUS_UPDATE>(ftId, senderStr, tid, state, data));
+
+          if (!ftMsg->acceptMessage(senderStr, ftId)) {
+            LOG(WARNING) << "Locally ignoring duplicate message with id:" << ftId;
+          } else {
+            // Update the task state locally
+            TaskInfo *task = slave->lookupTask(fid, tid);
+            if (task != NULL) {
+              LOG(INFO) << "Status update: " << task << " is in state " << state;
+              task->state = state;
+              // Remove the task if it finished or failed
+              if (state == TASK_FINISHED || state == TASK_FAILED ||
+                  state == TASK_KILLED || state == TASK_LOST) {
+                LOG(INFO) << "Removing " << task << " because it's done";
+                removeTask(task, TRR_TASK_ENDED);
+              }
+            }
+          }
+	} else
+          DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup framework id" << fid;
+      } else 
+        DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup slave id" << sid;
+      
+      break;
+    }
+
     case S2M_STATUS_UPDATE: {
       SlaveID sid;
       FrameworkID fid;
@@ -488,8 +533,8 @@ void Master::operator () ()
 	  }
 	} else
           DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup slave id" << sid;
-	break;
       }
+      break;
     }
       
     case S2M_FRAMEWORK_MESSAGE: {
@@ -548,10 +593,29 @@ void Master::operator () ()
 	framework->removeExpiredFilters();
       allocator->timerTick();
 
-      int cnts=0;
-      foreachpair(_, Framework *framework, frameworks) {
-      	LOG(INFO)<<(cnts++)<<" resourceInUse:"<<framework->resources;
+      // int cnts=0;
+      // foreachpair(_, Framework *framework, frameworks) {
+      // 	DLOG(INFO)<<(cnts++)<<" resourceInUse:"<<framework->resources;
+      // }
+      break;
+    }
+
+    case FT_RELAY_ACK: {
+      string ftId;
+      string origPidStr;
+      unpack<FT_RELAY_ACK>(ftId, origPidStr);
+      
+      DLOG(INFO) << "FT_RELAY_ACK for " << ftId << " FT_ACK sent to " << origPidStr;
+            
+      PID origPid;
+      istringstream iss(origPidStr);
+      if (!(iss >> origPid)) {
+        cerr << "FT: Failed to resolve PID for originator: " << origPidStr << endl;
+        break;
       }
+
+      send(origPid, pack<FT_ACK>(ftId));
+
       break;
     }
 

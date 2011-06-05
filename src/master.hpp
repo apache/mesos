@@ -30,6 +30,7 @@
 #include "leader_detector.hpp"
 #include "task_info.hpp"
 #include "url_processor.hpp"
+#include "ft_messaging.hpp"
 
 namespace nexus { namespace internal { namespace master {
 
@@ -278,11 +279,12 @@ protected:
   Allocator *allocator;
 
   long masterId; // Used to differentiate different master in FT mode, will be ephemeral id
+  FTMessaging *ftMsg;
 
 public:
-  Master(const string ="");
+  Master(const string zk="");
 
-  Master(const string& _allocatorType, const string ="");
+  Master(const string& _allocatorType, const string zk="");
   
   ~Master();
 

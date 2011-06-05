@@ -7,6 +7,8 @@
 #include "isolation_module_factory.hpp"
 #include "url_processor.hpp"
 
+#define FT_TIMEOUT 10
+
 using std::list;
 using std::make_pair;
 using std::ostringstream;
@@ -66,6 +68,7 @@ Slave::Slave(const string &_master, Resources _resources, bool _local)
     resources(_resources), local(_local), id("-1"),
     isolationType("process"), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {
+  ftMsg = FTMessaging::getInstance();
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
     isFT=true;
@@ -90,6 +93,7 @@ Slave::Slave(const string &_master, Resources _resources, bool _local,
     resources(_resources), local(_local), id("-1"),
     isolationType(_isolationType), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {
+  ftMsg = FTMessaging::getInstance();
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
     isFT=true;
@@ -171,6 +175,9 @@ void Slave::operator () ()
 
   LOG(INFO) << "Connecting to Nexus master at " << master;
   link(master);
+
+  ftMsg->setMasterPid(master);
+
   send(master, pack<S2M_REGISTER_SLAVE>(hostname, publicDns, resources));
   
   FrameworkID fid;
@@ -181,7 +188,7 @@ void Slave::operator () ()
   string data;
 
   while (true) {
-    switch (receive()) {
+    switch (receive(FT_TIMEOUT)) {
       case M2S_REGISTER_REPLY: {
         unpack<M2S_REGISTER_REPLY>(this->id);
         LOG(INFO) << "Registered with master; given slave ID " << this->id;
@@ -306,7 +313,9 @@ void Slave::operator () ()
           }
         }
         // Pass on the update to the master
-        send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, taskState, data));
+        string ftId = ftMsg->getNextId();
+        ftMsg->reliableSend(ftId, pack<S2M_FT_STATUS_UPDATE>(ftId, self(), id, fid, tid, taskState, data));
+          //        send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, taskState, data));
         break;
       }
 
@@ -381,6 +390,8 @@ void Slave::operator () ()
 	LOG(INFO) << "Connecting to Nexus master at " << master;
 	link(master);
 
+        ftMsg->setMasterPid(master);
+
 	// reconstruct resourcesInUse for the master
 	// alig: do I need to include queuedTasks in this number? Don't think so.
 	Resources resourcesInUse; 
@@ -400,7 +411,21 @@ void Slave::operator () ()
 	
 	break;
       }
+    
+      case FT_ACK: {
+        string ftId;
+        unpack<FT_ACK>(ftId);
 
+        DLOG(INFO) << "FT: got final ack for " << ftId;
+
+        ftMsg->gotAck(ftId);
+        break;
+      }
+      
+      case PROCESS_TIMEOUT: {
+        ftMsg->sendOutstanding();
+	break;
+      }
       default: {
         LOG(ERROR) << "Received unknown message ID " << msgid()
                    << " from " << from();

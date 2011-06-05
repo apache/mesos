@@ -28,6 +28,7 @@
 #include "nexus_sched.hpp"
 #include "url_processor.hpp"
 #include "leader_detector.hpp"
+#include "ft_messaging.hpp"
 
 using std::cerr;
 using std::cout;
@@ -70,6 +71,7 @@ private:
   bool isFT;
   string zkservers;
   LeaderDetector *leaderDetector;
+  FTMessaging *ftMsg;
 
   volatile bool terminate;
 
@@ -126,6 +128,7 @@ public:
       exit(1);
     }
   }
+  ftMsg = FTMessaging::getInstance();
 }
 
 protected:
@@ -192,6 +195,27 @@ protected:
         invoke(bind(&Scheduler::offerRescinded, sched, driver, oid));
         break;
       }
+
+      case M2F_FT_STATUS_UPDATE: {
+        string ftId;
+        string origPid;
+        TaskID tid;
+        TaskState state;
+        string data;
+        unpack<M2F_FT_STATUS_UPDATE>(ftId, origPid, tid, state, data);
+        if (!ftMsg->acceptMessage(origPid, ftId)) {
+          LOG(WARNING) << "Dropping duplicate message with id:" << ftId;
+          break;
+        }
+        DLOG(INFO) << "Received fault tolerant message with id: " << ftId;
+        DLOG(INFO) << "Sending FT_RELAY_ACK for : " << ftId;
+        send(from(), pack<FT_RELAY_ACK>(ftId, origPid));
+
+        TaskStatus status(tid, state, data);
+        invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
+        break;
+      }
+
 
       case M2F_STATUS_UPDATE: {
         TaskID tid;

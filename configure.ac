@@ -10,14 +10,12 @@ export CFLAGS
 export CXXFLAGS
 PYTHON=python
 
-ac_configure_args_back = ac_configure_args
-ac_configure_args="$ac_configure_args_back --enable-shared=no"
+ac_configure_args="--enable-shared=no --with-pic"
 
 AC_CONFIG_FILES([Makefile src/Makefile src/config.hpp])
 AC_CONFIG_SUBDIRS([src/third_party/libprocess])
 AC_CONFIG_SUBDIRS([src/third_party/gtest-1.4.0-patched])
 AC_CONFIG_SUBDIRS([src/third_party/glog-0.3.0])
-ac_configure_args="$ac_configure_args_back --enable-shared=yes"
 AC_CONFIG_SUBDIRS([src/third_party/zookeeper-3.2.2/src/c])
 
 AC_CANONICAL_SYSTEM

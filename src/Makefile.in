@@ -92,7 +92,7 @@ NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(NEXUS_LIB)
 MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
 SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
 	    process_based_isolation_module.o
-COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o leader_detector.o url_processor.o
+COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o leader_detector.o url_processor.o ft_messaging.o
 EXEC_LIB_OBJ = nexus_exec.o
 SCHED_LIB_OBJ = nexus_sched.o nexus_local.o params.o
 TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o
@@ -281,5 +281,6 @@ clean:
 	rm -f webui/master/swig/master_wrap.o
 	rm -f webui/master/swig/master.py
 	rm -f webui/master/swig/master.pyc
+	rm -f TAGS
 
 .PHONY: default third_party all clean java python ruby test

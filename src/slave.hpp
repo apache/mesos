@@ -36,6 +36,7 @@
 #include "slave_state.hpp"
 #include "leader_detector.hpp"
 #include "task_info.hpp"
+#include "ft_messaging.hpp"
 
 namespace nexus { namespace internal { namespace slave {
 
@@ -174,6 +175,7 @@ public:
   ExecutorMap executors;  // Invariant: framework will exist if executor exists
   string isolationType;
   IsolationModule *isolationModule;
+  FTMessaging *ftMsg;
 
   
   class SlaveLeaderListener;
