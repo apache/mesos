@@ -128,8 +128,8 @@ WEBUI_OBJ = $(MASTER_WEBUI_OBJ) $(SLAVE_WEBUI_OBJ)
 SWIG_WEBUI_OBJ = $(MASTER_SWIG_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 
 EVENT_HISTORY_OBJ = event_history/event_logger.o \
-										event_history/file_event_writer.o \
-										event_history/sqlite_event_writer.o
+	            event_history/file_event_writer.o \
+	            event_history/sqlite_event_writer.o
 
 COMMON_OBJ = common/fatal.o messaging/messages.o common/lock.o		\
 	     detector/detector.o common/params.o			\
