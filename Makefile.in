@@ -2,6 +2,13 @@
 
 SHELL = '/bin/sh'
 
+BINDIR = @top_builddir@/bin
+LIBDIR = @top_builddir@/lib
+CONFDIR = @top_builddir@/conf
+DEPLOYDIR = @top_builddir@/deploy
+
+OS_NAME = @OS_NAME@
+
 MESOS_HOME = @prefix@/mesos
 
 WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
@@ -31,17 +38,38 @@ install:
 	if test ! -d $(MESOS_HOME)/bin; \
 		then mkdir -p $(MESOS_HOME)/bin; \
 	fi
-	if test ! -d $(MESOS_HOME)/bin; \
-		then mkdir -p $(MESOS_HOME)/bin; \
+	if test ! -d $(MESOS_HOME)/lib; \
+		then mkdir -p $(MESOS_HOME)/lib; \
+	fi
+	if test ! -d $(MESOS_HOME)/lib/java; \
+		then mkdir -p $(MESOS_HOME)/lib/java; \
+	fi
+	if test ! -d $(MESOS_HOME)/lib/python; \
+		then mkdir -p $(MESOS_HOME)/lib/python; \
+	fi
+	if test ! -d $(MESOS_HOME)/conf; \
+		then mkdir -p $(MESOS_HOME)/conf; \
+	fi
+	if test ! -d $(MESOS_HOME)/deploy; \
+		then mkdir -p $(MESOS_HOME)/deploy; \
 	fi
 	install -m 755 $(BINDIR)/mesos-master $(MESOS_HOME)/bin
 	install -m 755 $(BINDIR)/mesos-slave $(MESOS_HOME)/bin
+	install -m 755 $(BINDIR)/mesos-local $(MESOS_HOME)/bin
+	install -m 755 $(BINDIR)/mesos-launcher $(MESOS_HOME)/bin
+	install -m 755 $(BINDIR)/mesos-getconf $(MESOS_HOME)/bin
+	rsync -avz $(BINDIR)/webui $(MESOS_HOME)/bin
+	rsync -avz $(DEPLOYDIR) $(MESOS_HOME)/deploy
+	install -m 755 $(LIBDIR)/libmesos_exec.a $(MESOS_HOME)/lib
+	install -m 755 $(LIBDIR)/libmesos_sched.a $(MESOS_HOME)/lib
+ifeq ($(OS_NAME),darwin)
+	install -m 755 $(LIBDIR)/libmesos.dylib $(MESOS_HOME)/lib
+	install -m 755 $(LIBDIR)/java/libmesos.dylib $(MESOS_HOME)/lib/java
+else
+	install -m 755 $(LIBDIR)/libmesos.so $(MESOS_HOME)/lib
 	install -m 755 $(LIBDIR)/java/libmesos.so $(MESOS_HOME)/lib/java
-	rsync -avz src/webui $(MESOS_HOME)
-	if test ! -d $(MESOS_HOME)/third_party; \
-		then mkdir $(MESOS_HOME)/third_party; \
-	fi
-	rsync -avz @srcdir@/third_party/bottle-0.5.6 $(MESOS_HOME)/third_party
+endif
+	install -m 755 $(LIBDIR)/python/libmesos.so $(MESOS_HOME)/lib/python
 
 uninstall:
 	$(error unimplemented)
