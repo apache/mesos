@@ -34,11 +34,6 @@
 
 #include "slave/slave.hpp"
 
-#define REPLY_TIMEOUT 20
-
-using std::cerr;
-using std::cout;
-using std::endl;
 using std::map;
 using std::string;
 using std::vector;
@@ -57,51 +52,56 @@ using mesos::internal::slave::Slave;
 namespace mesos { namespace internal {
 
 
-class RbReply : public MesosProcess
-{    
+// Unfortunately, when we reply to an offer right now the message
+// might not make it to the master, or even all the way to the
+// slave. So, we preemptively assume the task has been lost if we
+// don't here from it after some timeout (see below). TODO(benh):
+// Eventually, what we would like to do is actually query this state
+// in the master, or possibly even re-launch the task.
+
+#define STATUS_UPDATE_TIMEOUT 20
+
+class StatusUpdateTimer : public MesosProcess
+{
 public:
-  RbReply(const PID &_p, const TaskID &_tid) : 
-    parent(_p), tid(_tid), terminate(false) {}
+  StatusUpdateTimer(const PID &_sched, const TaskID &_tid)
+    : sched(_sched), tid(_tid), terminate(false) {}
   
 protected:
-  void operator () ()
+  virtual void operator () ()
   {
-    link(parent);
-    while(!terminate) {
-
-      switch(receive(REPLY_TIMEOUT)) {
-      case F2F_TASK_RUNNING_STATUS: {
-        terminate = true;
-        break;
-      }
-
-      case PROCESS_TIMEOUT: {
-        terminate = true;
-        VLOG(1) << "No status updates received for tid:" << tid
-		<< ". Assuming task was lost.";
-        send(parent, pack<M2F_STATUS_UPDATE>(tid, TASK_LOST, ""));
-        break;
-      }
-
+    link(sched);
+    while (!terminate) {
+      switch (receive(STATUS_UPDATE_TIMEOUT)) {
+        case PROCESS_TIMEOUT: {
+          terminate = true;
+          VLOG(1) << "No status updates received for task id:" << tid
+                  << " after " << STATUS_UPDATE_TIMEOUT
+                  << ", assuming task was lost";
+          send(sched, pack<M2F_STATUS_UPDATE>(tid, TASK_LOST, ""));
+          break;
+        }
+        default: {
+          terminate = true;
+          break;
+        }
       }
     }
   }
 
 private:
-  bool terminate;
-  const PID parent;
+  const PID sched;
   const TaskID tid;
+  bool terminate;
 };
 
 
-/**
- * TODO(benh): Update this comment.
- * Scheduler process, responsible for interacting with the master
- * and responding to Mesos API calls from schedulers. In order to
- * allow a message to be sent back to the master we allow friend
- * functions to invoke 'send'. Therefore, care must be done to insure
- * any synchronization necessary is performed.
- */
+// The scheduler process (below) is responsible for interacting with
+// the master and responding to Mesos API calls from scheduler
+// drivers. In order to allow a message to be sent back to the master
+// we allow friend functions to invoke 'send', 'post', etc. Therefore,
+// we must make sure that any necessary synchronization is performed.
+
 class SchedulerProcess : public MesosProcess
 {
 public:
@@ -119,7 +119,15 @@ public:
       master(PID()),
       terminate(false) {}
 
-  ~SchedulerProcess() {}
+  ~SchedulerProcess()
+  {
+    // Cleanup any remaining timers.
+    foreachpair (TaskID tid, StatusUpdateTimer* timer, timers) {
+      send(timer->self(), MESOS_MSGID);
+      wait(timer->self());
+      delete timer;
+    }
+  }
 
 protected:
   void operator () ()
@@ -237,16 +245,17 @@ protected:
 		     << ", status = " << state;
           break;
         }
+
         ack();
 
-	unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
-	if (it != rbReplies.end()) {
-	  RbReply *rr = it->second;
-	  send(rr->self(), pack<F2F_TASK_RUNNING_STATUS>());
-	  wait(rr->self());
-	  rbReplies.erase(tid);
-	  delete rr;
-	}
+        // Stop any status update timers we might have had running.
+        if (timers.count(tid) > 0) {
+          StatusUpdateTimer* timer = timers[tid];
+          timers.erase(tid);
+          send(timer->self(), MESOS_MSGID);
+          wait(timer->self());
+          delete timer;
+        }
 
         TaskStatus status(tid, state, data);
         invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
@@ -259,14 +268,14 @@ protected:
         string data;
         tie(tid, state, data) = unpack<M2F_STATUS_UPDATE>(body());
 
-	unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
-	if (it != rbReplies.end()) {
-	  RbReply *rr = it->second;
-	  send(rr->self(), pack<F2F_TASK_RUNNING_STATUS>());
-	  wait(rr->self());
-	  rbReplies.erase(tid);
-	  delete rr;
-	}
+        // Stop any status update timers we might have had running.
+        if (timers.count(tid) > 0) {
+          StatusUpdateTimer* timer = timers[tid];
+          timers.erase(tid);
+          send(timer->self(), MESOS_MSGID);
+          wait(timer->self());
+          delete timer;
+        }
 
         TaskStatus status(tid, state, data);
         invoke(bind(&Scheduler::statusUpdate, sched, driver, ref(status)));
@@ -340,13 +349,13 @@ protected:
     // Remove the offer since we saved all the PIDs we might use.
     savedOffers.erase(offerId);
 
-    foreach(const TaskDescription& task, tasks) {
-      RbReply *rr = new RbReply(self(), task.taskId);
-      rbReplies[task.taskId] = rr;
-      // TODO(benh): Link?
-      spawn(rr);
+    // Create timers to ensure we get status updates for these tasks.
+    foreach (const TaskDescription& task, tasks) {
+      StatusUpdateTimer *timer = new StatusUpdateTimer(self(), task.taskId);
+      timers[task.taskId] = timer;
+      spawn(timer);
     }
-        
+
     send(master,
          pack<F2M_SLOT_OFFER_REPLY>(fid, offerId, tasks, Params(params)));
   }
@@ -386,7 +395,8 @@ private:
   unordered_map<OfferID, unordered_map<SlaveID, PID> > savedOffers;
   unordered_map<SlaveID, PID> savedSlavePids;
 
-  unordered_map<TaskID, RbReply *> rbReplies;
+  // Timers to ensure we get a status update for each task we launch.
+  unordered_map<TaskID, StatusUpdateTimer *> timers;
 };
 
 }} /* namespace mesos { namespace internal { */

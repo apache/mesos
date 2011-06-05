@@ -130,6 +130,12 @@ enum MessageType {
 class MesosProcess : public ReliableProcess
 {
 public:
+  static void post(const PID &to, MSGID id)
+  {
+    const std::string &data = MESOS_MESSAGING_VERSION + "|";
+    ReliableProcess::post(to, id, data.data(), data.size());
+  }
+
   template <MSGID ID>
   static void post(const PID &to, const tuple<ID> &t)
   {
@@ -146,6 +152,12 @@ protected:
     size_t index = data.find('|');
     CHECK(index != std::string::npos);
     return data.substr(index + 1);
+  }
+
+  static void send(const PID &to, MSGID id)
+  {
+    const std::string &data = MESOS_MESSAGING_VERSION + "|";
+    ReliableProcess::post(to, id, data.data(), data.size());
   }
 
   template <MSGID ID>
