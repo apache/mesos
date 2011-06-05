@@ -39,6 +39,11 @@ LxcIsolationModule::LxcIsolationModule(Slave* slave)
     PLOG(FATAL) << "Could not run lxc-version; make sure Linux Container "
                 << "tools are installed";
   }
+  // Check that we are root (technically it might be possible to create
+  // containers without being root, but we can support that later)
+  if (getuid() != 0) {
+    PLOG(FATAL) << "LXC isolation module requires slave to run as root";
+  }
 }
 
 
