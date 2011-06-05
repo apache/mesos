@@ -22,6 +22,7 @@
 
 #include "fatal.hpp"
 #include "hash_pid.hpp"
+#include "lock.hpp"
 #include "messages.hpp"
 #include "nexus_local.hpp"
 #include "nexus_sched.hpp"
@@ -184,18 +185,6 @@ protected:
 };
 
 }} /* namespace nexus { namespace internal { */
-
-namespace {
-
-// RAII class for locking mutexes
-struct Lock
-{
-  pthread_mutex_t* m;
-  Lock(pthread_mutex_t* _m): m(_m) { pthread_mutex_lock(m); }
-  ~Lock() { pthread_mutex_unlock(m); }
-};
-
-} /* namespace { */
 
 
 /*
@@ -461,7 +450,7 @@ public:
   string frameworkName;
   ExecutorInfo execInfo;
   nexus_sched* sched;
-  SchedulerDriver* scheduler;
+  SchedulerDriver* driver; // Set externally after object is created
 
   CScheduler(string fwName,
                       string execUri,
@@ -470,7 +459,7 @@ public:
     : frameworkName(fwName),
       execInfo(execUri, execArg),
       sched(_sched),
-      scheduler(NULL) {}
+      driver(NULL) {}
 
   virtual ~CScheduler() {}
 
@@ -560,46 +549,46 @@ public:
  * locking mechanism that abstracts away if we are using pthreads or
  * libprocess.
  */
-unordered_map<nexus_sched* , CScheduler*> schedulers;
+unordered_map<nexus_sched* , CScheduler*> c_schedulers;
 
 
-CScheduler* lookup(nexus_sched* sched)
+CScheduler* lookupCScheduler(nexus_sched* sched)
 {
   assert(sched != NULL);
 
-  // TODO(benh): Protect 'schedulers' (see above).
+  // TODO(benh): Protect 'c_schedulers' (see above).
   unordered_map<nexus_sched*, CScheduler*>::iterator it =
-    schedulers.find(sched);
+    c_schedulers.find(sched);
 
-  CScheduler* csi = it == schedulers.end() ? NULL : it->second;
+  CScheduler* cs = it == c_schedulers.end() ? NULL : it->second;
 
-  if (csi == NULL) {
+  if (cs == NULL) {
     string fw_name = sched->framework_name;
     string exec_name = sched->executor_name;
     string init_arg((char*) sched->init_arg, sched->init_arg_len);
-    csi = new CScheduler(fw_name, exec_name, init_arg, sched);
-    schedulers[sched] = csi;
+    cs = new CScheduler(fw_name, exec_name, init_arg, sched);
+    c_schedulers[sched] = cs;
   }
 
-  assert(csi != NULL);
+  assert(cs != NULL);
 
-  return csi;
+  return cs;
 }
 
 
-void remove(nexus_sched* sched)
+void removeCScheduler(nexus_sched* sched)
 {
-  // TODO(benh): Protect 'schedulers' (see above).
+  // TODO(benh): Protect 'c_schedulers' (see above).
   unordered_map<nexus_sched*, CScheduler*>::iterator it =
-    schedulers.find(sched);
+    c_schedulers.find(sched);
 
-  CScheduler* csi = it == schedulers.end() ? NULL : it->second;
+  CScheduler* cs = it == c_schedulers.end() ? NULL : it->second;
 
-  if (csi != NULL) {
-    schedulers.erase(sched);
-    if (csi->scheduler != NULL)
-      delete csi->scheduler;
-    delete csi;
+  if (cs != NULL) {
+    c_schedulers.erase(sched);
+    if (cs->driver != NULL)
+      delete cs->driver;
+    delete cs;
   }
 }
 
@@ -632,7 +621,7 @@ int nexus_sched_destroy(struct nexus_sched* sched)
     return -1;
   }
 
-  remove(sched);
+  removeCScheduler(sched);
 
   return 0;
 }
@@ -645,15 +634,15 @@ int nexus_sched_reg(struct nexus_sched* sched, const char* master)
     return -1;
   }
 
-  CScheduler* csi = lookup(sched);
+  CScheduler* cs = lookupCScheduler(sched);
 
-  if (csi->scheduler != NULL) {
+  if (cs->driver != NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  csi->scheduler = new NexusSchedulerDriver(csi, master);
-  csi->scheduler->start();
+  cs->driver = new NexusSchedulerDriver(cs, master);
+  cs->driver->start();
 
   return 0;
 }
@@ -666,14 +655,14 @@ int nexus_sched_unreg(struct nexus_sched* sched)
     return -1;
   }
 
-  CScheduler* csi = lookup(sched);
+  CScheduler* cs = lookupCScheduler(sched);
 
-  if (csi->scheduler == NULL) {
+  if (cs->driver == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  csi->scheduler->stop();
+  cs->driver->stop();
 
   return 0;
 }
@@ -690,14 +679,14 @@ int nexus_sched_send_message(struct nexus_sched* sched,
   FrameworkMessage message(string(msg->sid), msg->tid,
                            string((char*) msg->data, msg->data_len));
 
-  CScheduler* csi = lookup(sched);
+  CScheduler* cs = lookupCScheduler(sched);
 
-  if (csi->scheduler == NULL) {
+  if (cs->driver == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  csi->scheduler->sendFrameworkMessage(message);
+  cs->driver->sendFrameworkMessage(message);
 
   return 0;
 }
@@ -710,14 +699,14 @@ int nexus_sched_kill_task(struct nexus_sched* sched, task_id tid)
     return -1;
   }
 
-  CScheduler* csi = lookup(sched);
+  CScheduler* cs = lookupCScheduler(sched);
 
-  if (csi->scheduler == NULL) {
+  if (cs->driver == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  csi->scheduler->killTask(tid);
+  cs->driver->killTask(tid);
 
   return 0;
 }
@@ -757,15 +746,15 @@ int nexus_sched_reply_to_offer(struct nexus_sched* sched,
                                        taskArg);
   }
 
-  CScheduler* csi = lookup(sched);
+  CScheduler* cs = lookupCScheduler(sched);
 
-  if (csi->scheduler == NULL) {
+  if (cs->driver == NULL) {
     errno = EINVAL;
     return -1;
   }
 
   Params paramsObj(params);
-  csi->scheduler->replyToOffer(oid, wrapped_tasks, paramsObj.getMap());
+  cs->driver->replyToOffer(oid, wrapped_tasks, paramsObj.getMap());
 
   return 0;
 }
@@ -778,14 +767,14 @@ int nexus_sched_revive_offers(struct nexus_sched* sched)
     return -1;
   }
 
-  CScheduler* csi = lookup(sched);
+  CScheduler* cs = lookupCScheduler(sched);
 
-  if (csi->scheduler == NULL) {
+  if (cs->driver == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  csi->scheduler->reviveOffers();
+  cs->driver->reviveOffers();
 
   return 0;
 }
@@ -798,14 +787,14 @@ int nexus_sched_join(struct nexus_sched* sched)
     return -1;
   }
 
-  CScheduler* csi = lookup(sched);
+  CScheduler* cs = lookupCScheduler(sched);
 
-  if (csi->scheduler == NULL) {
+  if (cs->driver == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  csi->scheduler->join();
+  cs->driver->join();
 
   return 0;
 }

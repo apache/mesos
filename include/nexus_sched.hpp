@@ -9,7 +9,6 @@
 
 namespace nexus {
 
-
 class SchedulerDriver;
 
 namespace internal { class SchedulerProcess; }
@@ -48,7 +47,6 @@ public:
  * framework to Nexus (such as replies to offers). Concrete implementations
  * of SchedulerDriver will take a Scheduler as a parameter in order to make
  * callbacks into it on various events.
- * TODO: Improve this comment
  */
 class SchedulerDriver
 {
@@ -73,7 +71,8 @@ public:
 
 
 /**
- * Concrete implementation of SchedulerDriver that communicates with a Nexus master.
+ * Concrete implementation of SchedulerDriver that communicates with
+ * a Nexus master.
  */
 class NexusSchedulerDriver : public SchedulerDriver
 {
