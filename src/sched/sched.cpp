@@ -384,18 +384,28 @@ protected:
     VLOG(1) << "Asked to send framework message to slave "
 	    << message.slave_id();
 
-    // TODO(benh): This is kind of wierd, M2S?
-    Message<M2S_FRAMEWORK_MESSAGE> out;
-    *out.mutable_framework_id() = frameworkId;
-    *out.mutable_message() = message;
+    // TODO(benh): After a scheduler has re-registered it won't have
+    // any saved slave PIDs, maybe it makes sense to try and save each
+    // PID that this scheduler tries to send a message to? Or we can
+    // just wait for them to recollect as new offers come in and get
+    // accepted.
 
     if (savedSlavePids.count(message.slave_id()) > 0) {
       PID slave = savedSlavePids[message.slave_id()];
       CHECK(slave != PID());
+
+      // TODO(benh): This is kind of wierd, M2S?
+      Message<M2S_FRAMEWORK_MESSAGE> out;
+      *out.mutable_framework_id() = frameworkId;
+      *out.mutable_message() = message;
       send(slave, out);
     } else {
       VLOG(1) << "Cannot send directly to slave " << message.slave_id()
 	      << "; sending through master";
+
+      Message<F2M_FRAMEWORK_MESSAGE> out;
+      *out.mutable_framework_id() = frameworkId;
+      *out.mutable_message() = message;
       send(master, out);
     }
   }
