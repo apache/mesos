@@ -649,6 +649,8 @@ SlavesManager::SlavesManager(const Configuration& conf,
   install("remove", &SlavesManager::remove);
   install("activate", &SlavesManager::activate);
   install("deactivate", &SlavesManager::deactivate);
+  install("activated", &SlavesManager::activated);
+  install("deactivated", &SlavesManager::deactivated);
 }
 
 
@@ -969,4 +971,40 @@ Promise<HttpResponse> SlavesManager::deactivate(const HttpRequest& request)
   } else {
     return HttpInternalServerErrorResponse();
   }
+}
+
+
+Promise<HttpResponse> SlavesManager::activated(const HttpRequest& request)
+{
+  LOG(INFO) << "Slaves manager received HTTP request for activated slaves";
+
+  ostringstream out;
+
+  foreachpair (const string& hostname, uint16_t port, active) {
+    out << hostname << ":" << port << "\n";
+  }
+
+  HttpOKResponse response;
+  response.headers["Content-Type"] = "text/plain";
+  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
+  response.body = out.str().data();
+  return response;
+}
+
+
+Promise<HttpResponse> SlavesManager::deactivated(const HttpRequest& request)
+{
+  LOG(INFO) << "Slaves manager received HTTP request for deactivated slaves";
+
+  ostringstream out;
+
+  foreachpair (const string& hostname, uint16_t port, inactive) {
+    out << hostname << ":" << port << "\n";
+  }
+
+  HttpOKResponse response;
+  response.headers["Content-Type"] = "text/plain";
+  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
+  response.body = out.str().data();
+  return response;
 }

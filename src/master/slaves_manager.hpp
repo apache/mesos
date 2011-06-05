@@ -45,6 +45,8 @@ private:
   process::Promise<process::HttpResponse> remove(const process::HttpRequest& request);
   process::Promise<process::HttpResponse> activate(const process::HttpRequest& request);
   process::Promise<process::HttpResponse> deactivate(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> activated(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> deactivated(const process::HttpRequest& request);
 
   const process::PID<Master> master;
 
