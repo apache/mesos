@@ -1,5 +1,7 @@
 #include <getopt.h>
 
+#include <fstream>
+#include <algorithm>
 #include "slave.hpp"
 #include "slave_webui.hpp"
 #include "isolation_module_factory.hpp"
@@ -63,7 +65,7 @@ Slave::Slave(const string &_master, Resources _resources, bool _local)
     resources(_resources), local(_local), id("-1"),
     isolationType("process"), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {
-  pair<Slave::URLType, string> urlPair = parseUrl(_master);
+  pair<Slave::URLType, string> urlPair = processUrl(_master);
   if (urlPair.first == Slave::ZOOURL) {
     isFT=true;
     zkserver = urlPair.second;
@@ -87,7 +89,7 @@ Slave::Slave(const string &_master, Resources _resources, bool _local,
     resources(_resources), local(_local), id("-1"),
     isolationType(_isolationType), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {
-  pair<Slave::URLType, string> urlPair = parseUrl(_master);
+  pair<Slave::URLType, string> urlPair = processUrl(_master);
   if (urlPair.first == Slave::ZOOURL) {
     isFT=true;
     zkserver = urlPair.second;
@@ -95,29 +97,54 @@ Slave::Slave(const string &_master, Resources _resources, bool _local,
     isFT=false;
     istringstream iss(urlPair.second);
     if (!(iss >> master)) {
-      cerr << "Failed to resolve master PID " << urlPair.second << endl;
+      LOG(ERROR) << "Failed to resolve master PID " << urlPair.second;
       exit(1);
     }
   } else {
-    cerr << "Failed to parse URL for Nexus master or ZooKeeper servers ";
+    LOG(ERROR) << "Failed to parse URL for Nexus master or ZooKeeper servers ";
     exit(1);
   }
 }
 
 //  enum URLType {ZOOURL, NEXUSURL};
-pair<Slave::URLType, string> Slave::parseUrl(const string &url) {
+pair<Slave::URLType, string> Slave::processUrl(const string &_url) {
   
-  // alig: I'd love to replace this with boost string.hpp, which isn't currently third_party
-  if (url.size()>6 && tolower(url[0])=='z' && tolower(url[1])=='o' && 
-      tolower(url[2])=='o' && url[3]==':' && url[4]=='/' && url[5]=='/') {
+  string url = _url;
+
+  transform(url.begin(), url.end(), url.begin(), (int (*)(int))toupper);
+
+  if (url.find("ZOO://")==0) {
 
     return pair<Slave::URLType, string>(Slave::ZOOURL, url.substr(6,1024));
 
-  } else if (url.size()>8 && tolower(url[0])=='n' && tolower(url[1])=='e' && 
-	     tolower(url[2])=='x' && tolower(url[3])=='u' && tolower(url[4])=='s' && 
-	     url[5]==':' && url[6]=='/' && url[7]=='/') {
+  } else if (url.find("ZOOFILE://")==0) {
+    string zfname = _url.substr(10,1024);
+    string zoos="";
+    
+    LOG(INFO)<<"Opening ZooFile: "<<zfname;
+    ifstream zoofile(zfname.c_str());
+    if (!zoofile) 
+      LOG(ERROR)<<"ZooFile "<<zfname<<" could not be opened";
+
+    while(!zoofile.eof()) {
+      string line;
+      getline(zoofile, line);
+      if (line=="")
+        continue;
+      if (zoos!="")
+        zoos+=',';
+      zoos+=line;
+    }
+
+    remove_if(zoos.begin(),zoos.end(), (int (*)(int)) isspace);
+    zoofile.close();
+
+    return pair<Slave::URLType, string>(Slave::ZOOURL, zoos);
+
+  } else if (url.find("NEXUS://")==0) {
     return pair<Slave::URLType, string>(Slave::NEXUSURL, url.substr(8,1024));
   } else
+    LOG(ERROR)<<"Could not parse master/zoo URL";
     return pair<Slave::URLType, string>(Slave::NONEURL, "");
 }
 

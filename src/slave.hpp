@@ -243,7 +243,7 @@ protected:
   virtual IsolationModule * createIsolationModule();
 
   enum URLType {ZOOURL, NEXUSURL, NONEURL};
-  pair<URLType, string> parseUrl(const string &url);
+  pair<URLType, string> processUrl(const string &_url);
 };
 
 }}}
