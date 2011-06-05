@@ -17,11 +17,11 @@ void usage(const char* programName)
        << " [--port PORT]"
        << " [--allocator ALLOCATOR]"
        << " [--zookeeper ZOO_SERVERS]"
-       << " [--quiet]"
+       << " [--quiet]" << endl
        << endl
-       << "ZOO_SERVERS is a url of the form:"
-       << "  zoo://host1:port1,host2:port2,..., or"
-       << "  zoofile://file where file contains a host:port pair per line"
+       << "ZOO_SERVERS is a url of the form: "
+       << "zoo://host1:port1,host2:port2,... or "
+       << "zoofile://file where file contains a host:port pair per line"
        << endl;
 }
 

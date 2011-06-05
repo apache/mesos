@@ -16,5 +16,4 @@ LDFLAGS="$LDFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CPPFLAGS" ./configure \
   --with-python-headers=/usr/include/python2.6 \
   --with-ruby-headers=/opt/local/lib/ruby/1.8/x86_64-linux \
   --with-java-home=/usr/java/default \
-  --with-webui \
-  --with-zookeeper $@
+  --with-webui $@

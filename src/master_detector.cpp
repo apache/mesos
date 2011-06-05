@@ -45,13 +45,21 @@ void MasterDetector::process(ZooKeeper *zk, int type, int state,
   static const string delimiter = "/";
 
   if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_SESSION_EVENT)) {
+    // Assume the znode that was created does not end with a "/".
+    CHECK(znode.at(znode.length() - 1) != '/');
+
     // Create directory path znodes as necessary.
     size_t index = znode.find(delimiter, 0);
+
     while (index < string::npos) {
-      index = znode.find(delimiter, index+1);
+      // Get out the prefix to create.
+      index = znode.find(delimiter, index + 1);
       string prefix = znode.substr(0, index);
+
+      // Create the node (even if it already exists).
       ret = zk->create(prefix, "", ZOO_CREATOR_ALL_ACL,
 		       0, &result);
+
       if (ret != ZOK && ret != ZNODEEXISTS)
 	fatal("failed to create ZooKeeper znode! (%s)", zk->error(ret));
     }
@@ -66,7 +74,7 @@ void MasterDetector::process(ZooKeeper *zk, int type, int state,
 
     if (contend) {
       // We use the contend with the pid given in constructor.
-      ret = zk->create(znode, pid, ZOO_CREATOR_ALL_ACL,
+      ret = zk->create(znode + "/", pid, ZOO_CREATOR_ALL_ACL,
 		       ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
 
       if (ret != ZOK)
@@ -82,8 +90,11 @@ void MasterDetector::process(ZooKeeper *zk, int type, int state,
       Process::post(pid, GOT_MASTER_SEQ, s.data(), s.size());
     }
 
+    // Now determine who the master is (it may be us).
     detectMaster();
   } else if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_CHILD_EVENT)) {
+    // A new master might have showed up and created a sequence
+    // identifier or a master may have died, determine who the master is now!
     detectMaster();
   } else {
     LOG(INFO) << "Unimplemented watch event: (state is "
@@ -102,7 +113,7 @@ void MasterDetector::detectMaster()
     LOG(ERROR) << "failed to get masters: " << zk->error(ret);
   else
     LOG(INFO) << "found " << results.size() << " registered masters";
-  
+
   string masterSeq;
   long min = LONG_MAX;
   foreach (const string &result, results) {
@@ -144,7 +155,7 @@ PID MasterDetector::lookupMasterPID(const string &seq) const
   int ret;
   string result;
 
-  ret = zk->get(znode + seq, false, &result, NULL);
+  ret = zk->get(znode + "/" + seq, false, &result, NULL);
 
   if (ret != ZOK)
     LOG(ERROR) << "failed to fetch new master pid: " << zk->error(ret);

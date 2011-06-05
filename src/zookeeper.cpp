@@ -361,7 +361,7 @@ private:
     GetCall *getCall =
       static_cast<GetCall *>(const_cast<void *>((data)));
     getCall->ret = ret;
-    if (getCall->result != NULL && value != NULL)
+    if (getCall->result != NULL && value != NULL && value_len > 0)
       getCall->result->assign(value, value_len);
     if (getCall->stat != NULL && stat != NULL)
       *(getCall->stat) = *(stat);
@@ -792,9 +792,9 @@ int ZooKeeper::getChildren(const string &path,
     void operator () ()
     {
       if (call(zooKeeperProcess->getPID(),
-	       GET,
+	       GET_CHILDREN,
 	       reinterpret_cast<char *>(&getChildrenCall),
-	       sizeof(GetCall *)) != COMPLETED)
+	       sizeof(GetChildrenCall *)) != COMPLETED)
 	getChildrenCall->ret = ZSYSTEMERROR;
     }
 

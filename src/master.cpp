@@ -295,6 +295,8 @@ void Master::operator () ()
     send(self(), pack<GOT_MASTER_SEQ>("0"));
   }
 
+  std::cout << "before here" << std::endl;
+
   // Don't do anything until we get a sequence identifier.
   bool waitingForSeq = true;
   do {
@@ -317,8 +319,20 @@ void Master::operator () ()
   link(spawn(new AllocatorTimer(self())));
   //link(spawn(new SharesPrinter(self())));
 
+  std::cout << "here" << std::endl;
+
   while (true) {
     switch (receive()) {
+
+    case NEW_MASTER_DETECTED: {
+      LOG(INFO) << "new master detected ... maybe it's us!";
+      break;
+    }
+
+    case NO_MASTER_DETECTED: {
+      LOG(INFO) << "no master detected ... maybe we're next!";
+      break;
+    }
 
     case F2M_REGISTER_FRAMEWORK: {
       FrameworkID fid = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextFrameworkId++);

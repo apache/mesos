@@ -53,6 +53,7 @@
 #include <deque>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <list>
 #include <map>
 #include <queue>
@@ -1660,7 +1661,7 @@ public:
 
       /* Attempt to cancel the timer if necessary. */
       if (secs > 0 && process->state != Process::TIMEDOUT)
-	  cancel_timeout(timeout);
+	cancel_timeout(timeout);
 
       if (process->state == Process::INTERRUPTED)
 	interrupted = true;
@@ -1760,13 +1761,17 @@ public:
     /* Add the timer. */
     acquire(timers);
     {
-      (*timers)[tstamp].push_back(timeout);
-
-      /* Interrupt the loop if there isn't an adequate timer running. */
-      if (timers->size() == 1 || tstamp < timers->begin()->first) {
-	update_timer = true;
-	ev_async_send(loop, &async_watcher);
+      if (timers->size() == 0 || tstamp < timers->begin()->first) {
+        // Need to interrupt the loop to update/set timer repeat.
+        (*timers)[tstamp].push_back(timeout);
+        update_timer = true;
+        ev_async_send(loop, &async_watcher);
+      } else {
+        // Timer repeat is adequate, just add the timeout.
+        assert(timers->size() >= 1);
+        (*timers)[tstamp].push_back(timeout);
       }
+
     }
     release(timers);
   }
