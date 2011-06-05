@@ -12,6 +12,7 @@
 #include <iostream>
 #include <list>
 #include <sstream>
+#include <set>
 #include <vector>
 
 #include <arpa/inet.h>
@@ -46,6 +47,9 @@
 namespace mesos { namespace internal { namespace slave {
 
 using foreach::_;
+
+
+const double STATUS_UPDATE_RETRY_TIMEOUT = 10;
 
 
 // Information describing an executor (goes away if executor crashes).
@@ -171,6 +175,7 @@ struct Framework
   PID pid;
 
   boost::unordered_map<ExecutorID, Executor*> executors;
+  boost::unordered_map<double, boost::unordered_map<TaskID, TaskStatus> > statuses;
 };
 
 
@@ -257,9 +262,6 @@ private:
 
   // Invariant: framework will exist if executor exists.
   boost::unordered_map<FrameworkID, Framework*> frameworks;
-
-  // Sequence numbers of reliable messages sent per framework.
-  boost::unordered_map<FrameworkID, boost::unordered_set<int> > seqs;
 
   IsolationModule *isolationModule;
   Heart* heart;

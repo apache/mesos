@@ -25,6 +25,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::ProcessBasedIsolationModule;
+using mesos::internal::slave::STATUS_UPDATE_RETRY_TIMEOUT;
 
 using std::string;
 using std::map;
@@ -822,7 +823,7 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
 
   WAIT_UNTIL(registeredCall);
 
-  Clock::advance(RELIABLE_TIMEOUT);
+  Clock::advance(STATUS_UPDATE_RETRY_TIMEOUT);
 
   WAIT_UNTIL(statusUpdateCall);
 

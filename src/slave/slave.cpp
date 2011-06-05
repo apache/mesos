@@ -163,13 +163,12 @@ void Slave::operator () ()
   isolationModule->initialize(this);
 
   while (true) {
-    switch (receive()) {
+    switch (receive(1)) {
       case NEW_MASTER_DETECTED: {
         const Message<NEW_MASTER_DETECTED>& msg = message();
 
 	LOG(INFO) << "New master at " << msg.pid();
 
-        redirect(master, msg.pid());
 	master = msg.pid();
 	link(master);
 
@@ -315,9 +314,10 @@ void Slave::operator () ()
             status->mutable_task_id()->MergeFrom(msg.task_id());
             status->mutable_slave_id()->MergeFrom(slaveId);
             status->set_state(TASK_LOST);
+            send(master, out);
 
-            int seq = rsend(master, framework->pid, out);
-            seqs[msg.framework_id()].insert(seq);
+            double deadline = elapsed() + STATUS_UPDATE_RETRY_TIMEOUT;
+            framework->statuses[deadline][status->task_id()] = *status;
           } else {
             // Otherwise, send a message to the executor and wait for
             // it to send us a status update.
@@ -337,9 +337,10 @@ void Slave::operator () ()
           status->mutable_task_id()->MergeFrom(msg.task_id());
           status->mutable_slave_id()->MergeFrom(slaveId);
           status->set_state(TASK_LOST);
+          send(master, out);
 
-          int seq = rsend(master, out);
-          seqs[msg.framework_id()].insert(seq);
+          double deadline = elapsed() + STATUS_UPDATE_RETRY_TIMEOUT;
+          framework->statuses[deadline][status->task_id()] = *status;
         }
         break;
       }
@@ -398,6 +399,24 @@ void Slave::operator () ()
           LOG(INFO) << "Updating framework " << msg.framework_id()
                     << " pid to " << msg.pid();
           framework->pid = msg.pid();
+        }
+        break;
+      }
+
+      case M2S_STATUS_UPDATE_ACK: {
+        const Message<M2S_STATUS_UPDATE_ACK>& msg = message();
+
+        Framework* framework = getFramework(msg.framework_id());
+        if (framework != NULL) {
+          foreachpair (double deadline, _, framework->statuses) {
+            if (framework->statuses[deadline].count(msg.task_id()) > 0) {
+              LOG(INFO) << "Got acknowledgement of status update"
+                        << " for task " << msg.task_id()
+                        << " of framework " << framework->frameworkId;
+              framework->statuses[deadline].erase(msg.task_id());
+              break;
+            }
+          }
         }
         break;
       }
@@ -476,13 +495,14 @@ void Slave::operator () ()
               isolationModule->resourcesChanged(framework, executor);
             }
 
-            // Reliably send message and save sequence number for
-            // canceling later.
+            // Send message and record the status for possible resending.
             Message<S2M_STATUS_UPDATE> out;
             out.mutable_framework_id()->MergeFrom(msg.framework_id());
             out.mutable_status()->MergeFrom(status);
-            int seq = rsend(master, framework->pid, out);
-            seqs[msg.framework_id()].insert(seq);
+            send(master, out);
+
+            double deadline = elapsed() + STATUS_UPDATE_RETRY_TIMEOUT;
+            framework->statuses[deadline][status.task_id()] = status;
           } else {
             LOG(WARNING) << "Status update error: couldn't lookup "
                          << "executor for framework " << msg.framework_id();
@@ -523,17 +543,6 @@ void Slave::operator () ()
         break;
       }
 
-      case PROCESS_EXIT: {
-        LOG(INFO) << "Process exited: " << from();
-
-        if (from() == master) {
-	  LOG(WARNING) << "Master disconnected! "
-		       << "Waiting for a new master to be elected.";
-	  // TODO(benh): After so long waiting for a master, commit suicide.
-	}
-        break;
-      }
-
       case M2S_SHUTDOWN: {
         LOG(INFO) << "Asked to shut down by master: " << from();
         foreachpaircopy (_, Framework *framework, frameworks) {
@@ -548,6 +557,37 @@ void Slave::operator () ()
           killFramework(framework);
         }
         return;
+      }
+
+      case PROCESS_EXIT: {
+        LOG(INFO) << "Process exited: " << from();
+
+        if (from() == master) {
+	  LOG(WARNING) << "Master disconnected! "
+		       << "Waiting for a new master to be elected.";
+	  // TODO(benh): After so long waiting for a master, commit suicide.
+	}
+        break;
+      }
+
+      case PROCESS_TIMEOUT: {
+        // Check and see if we should re-send any status updates.
+        foreachpair (_, Framework* framework, frameworks) {
+          foreachpair (double deadline, _, framework->statuses) {
+            if (deadline <= elapsed()) {
+              foreachpair (_, const TaskStatus& status, framework->statuses[deadline]) {
+                LOG(WARNING) << "Resending status update"
+                             << " for task " << status.task_id()
+                             << " of framework " << framework->frameworkId;
+                Message<S2M_STATUS_UPDATE> out;
+                out.mutable_framework_id()->MergeFrom(framework->frameworkId);
+                out.mutable_status()->MergeFrom(status);
+                send(master, out);
+              }
+            }
+          }
+        }
+        break;
       }
 
       default: {
@@ -599,13 +639,6 @@ void Slave::sendQueuedTasks(Framework* framework, Executor* executor)
 void Slave::killFramework(Framework *framework, bool killExecutors)
 {
   LOG(INFO) << "Cleaning up framework " << framework->frameworkId;
-
-  // Cancel sending any reliable messages for this framework.
-  foreach (int seq, seqs[framework->frameworkId]) {
-    cancel(seq);
-  }
-
-  seqs.erase(framework->frameworkId);
 
   // Shutdown all executors of this framework.
   foreachpaircopy (const ExecutorID& executorId, Executor* executor, framework->executors) {

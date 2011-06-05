@@ -596,6 +596,23 @@ void Master::operator () ()
       break;
     }
 
+    case F2M_STATUS_UPDATE_ACK: {
+      const Message<F2M_STATUS_UPDATE_ACK>& msg = message();
+
+      Framework *framework = lookupFramework(msg.framework_id());
+      if (framework != NULL) {
+        Slave *slave = lookupSlave(msg.slave_id());
+        if (slave != NULL) {
+          Message<M2S_STATUS_UPDATE_ACK> out;
+          out.mutable_framework_id()->MergeFrom(msg.framework_id());
+          out.mutable_slave_id()->MergeFrom(msg.slave_id());
+          out.mutable_task_id()->MergeFrom(msg.task_id());
+          send(slave->pid, out);
+        }
+      }
+      break;
+    }
+
     case S2M_REGISTER_SLAVE: {
       const Message<S2M_REGISTER_SLAVE>& msg = message();
 
@@ -667,7 +684,7 @@ void Master::operator () ()
 
       // TODO(benh|alig): We should put a timeout on how long we keep
       // tasks running that never have frameworks reregister that
-      // claim them.
+      // claim them.a
       break;
     }
 
@@ -702,20 +719,13 @@ void Master::operator () ()
           Message<M2F_STATUS_UPDATE> out;
           out.mutable_framework_id()->MergeFrom(msg.framework_id());
           out.mutable_status()->MergeFrom(status);
-          forward(framework->pid, out);
+          send(framework->pid, out);
 
-          // No need to reprocess this message if already seen.
-          if (duplicate()) {
-            LOG(WARNING) << "Ignoring duplicate message with sequence: "
-                         << seq();
-            break;
-          }
-
-          // Update the task state locally.
+          // Lookup the task and see if we need to update anything locally.
           Task *task = slave->lookupTask(msg.framework_id(), status.task_id());
           if (task != NULL) {
             task->set_state(status.state());
-            // Remove the task if it finished or failed.
+            // Remove the task if necessary.
             if (status.state() == TASK_FINISHED ||
                 status.state() == TASK_FAILED ||
                 status.state() == TASK_KILLED ||
@@ -723,16 +733,16 @@ void Master::operator () ()
               removeTask(task, TRR_TASK_ENDED);
             }
           } else {
-	    LOG(ERROR) << "Status update error: couldn't lookup "
-		       << "task " << status.task_id();
+	    LOG(WARNING) << "Status update error: couldn't lookup "
+                         << "task " << status.task_id();
 	  }
         } else {
-          LOG(ERROR) << "Status update error: couldn't lookup "
-                     << "framework " << msg.framework_id();
+          LOG(WARNING) << "Status update error: couldn't lookup "
+                       << "framework " << msg.framework_id();
         }
       } else {
-        LOG(ERROR) << "Status update error: couldn't lookup slave "
-                   << status.slave_id();
+        LOG(WARNING) << "Status update error: couldn't lookup slave "
+                     << status.slave_id();
       }
       break;
     }

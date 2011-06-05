@@ -19,6 +19,7 @@
 
 #include <boost/bind.hpp>
 #include <boost/unordered_map.hpp>
+#include <boost/unordered_set.hpp>
 
 #include "configurator/configuration.hpp"
 
@@ -43,6 +44,7 @@ using std::vector;
 using boost::bind;
 using boost::cref;
 using boost::unordered_map;
+using boost::unordered_set;
 
 
 namespace mesos { namespace internal {
@@ -158,7 +160,6 @@ protected:
 
         VLOG(1) << "New master at " << msg.pid();
 
-        redirect(master, msg.pid());
         master = msg.pid();
         link(master);
 
@@ -239,12 +240,14 @@ protected:
 
         const TaskStatus &status = msg.status();
 
-        // Drop this if it's a duplicate.
-        if (duplicate()) {
-          VLOG(1) << "Received a duplicate status update for task "
-                  << status.task_id() << ", status = " << status.state();
-          break;
-        }
+        // TODO(benh): Note that this maybe a duplicate status update!
+        // Once we get support to try and have a more consistent view
+        // of what's running in the cluster, we'll just let this one
+        // slide. The alternative is possibly dealing with a scheduler
+        // failover and not correctly giving the scheduler it's status
+        // update, which seems worse than giving a status update
+        // multiple times (of course, if a scheduler re-uses a TaskID,
+        // that could be bad.
 
         // Stop any status update timers we might have had running.
         if (timers.count(status.task_id()) > 0) {
@@ -257,11 +260,15 @@ protected:
 
         invoke(bind(&Scheduler::statusUpdate, sched, driver, cref(status)));
 
-        // Acknowledge the message (we do this after we invoke the
-        // scheduler in case it causes a crash, since this way the
-        // message might get resent/routed after the scheduler comes
-        // back online).
-        ack();
+        // Acknowledge the message (we do this last, after we invoked
+        // the scheduler, if we did at all, in case it causes a crash,
+        // since this way the message might get resent/routed after
+        // the scheduler comes back online).
+        Message<F2M_STATUS_UPDATE_ACK> out;
+        out.mutable_framework_id()->MergeFrom(frameworkId);
+        out.mutable_slave_id()->MergeFrom(status.slave_id());
+        out.mutable_task_id()->MergeFrom(status.task_id());
+        send(master, out);
         break;
       }
 
@@ -424,6 +431,8 @@ private:
 
   unordered_map<OfferID, unordered_map<SlaveID, PID> > savedOffers;
   unordered_map<SlaveID, PID> savedSlavePids;
+
+  unordered_set<TaskID> tasks;
 
   // Timers to ensure we get a status update for each task we launch.
   unordered_map<TaskID, StatusUpdateTimer *> timers;

@@ -6,7 +6,7 @@
 #include <string>
 
 #include <mesos.hpp>
-#include <reliable.hpp>
+#include <process.hpp>
 
 #include "messaging/messages.pb.h"
 
@@ -15,12 +15,12 @@ namespace mesos { namespace internal {
 
 
 // TODO(benh): Eliminate versioning once message ids become strings.
-const std::string MESOS_MESSAGING_VERSION = "1";
+const std::string MESOS_MESSAGING_VERSION = "2";
 
 
 enum MessageType {
   /* From framework to master. */
-  F2M_REGISTER_FRAMEWORK = RELIABLE_MSGID,
+  F2M_REGISTER_FRAMEWORK = PROCESS_MSGID,
   F2M_REREGISTER_FRAMEWORK,
   F2M_UNREGISTER_FRAMEWORK,
   F2M_RESOURCE_OFFER_REPLY,
@@ -104,7 +104,10 @@ enum MessageType {
   /* Generic. */
   TERMINATE,
 
-  MASTER_DETECTION_FAILURE, // TODO(benh): Put this in it's proper place.
+  // TODO(benh): Put these all in their right place.
+  MASTER_DETECTION_FAILURE, 
+  F2M_STATUS_UPDATE_ACK,
+  M2S_STATUS_UPDATE_ACK,
 
   MESOS_MSGID,
 };
@@ -150,13 +153,13 @@ private:
 };
 
 
-class MesosProcess : public ReliableProcess
+class MesosProcess : public Process
 {
 public:
   static void post(const PID &to, MSGID id)
   {
     const std::string &data = MESOS_MESSAGING_VERSION + "|";
-    ReliableProcess::post(to, id, data.data(), data.size());
+    Process::post(to, id, data.data(), data.size());
   }
 
   template <MSGID ID>
@@ -165,7 +168,7 @@ public:
     std::string data;
     msg.SerializeToString(&data);
     data = MESOS_MESSAGING_VERSION + "|" + data;
-    ReliableProcess::post(to, ID, data.data(), data.size());
+    Process::post(to, ID, data.data(), data.size());
   }
 
 protected:
@@ -177,7 +180,7 @@ protected:
   std::string body() const
   {
     size_t size;
-    const char *s = ReliableProcess::body(&size);
+    const char *s = Process::body(&size);
     const std::string data(s, size);
     size_t index = data.find('|');
     CHECK(index != std::string::npos);
@@ -187,7 +190,7 @@ protected:
   virtual void send(const PID &to, MSGID id)
   {
     const std::string &data = MESOS_MESSAGING_VERSION + "|";
-    ReliableProcess::send(to, id, data.data(), data.size());
+    Process::send(to, id, data.data(), data.size());
   }
 
   template <MSGID ID>
@@ -196,44 +199,17 @@ protected:
     std::string data;
     msg.SerializeToString(&data);
     data = MESOS_MESSAGING_VERSION + "|" + data;
-    ReliableProcess::send(to, ID, data.data(), data.size());
-  }
-
-  template <MSGID ID>
-  bool forward(const PID &to, const Message<ID> &msg)
-  {
-    std::string data;
-    msg.SerializeToString(&data);
-    data = MESOS_MESSAGING_VERSION + "|" + data;
-    ReliableProcess::forward(to, ID, data.data(), data.size());
-  }
-
-  template <MSGID ID>
-  int rsend(const PID &to, const Message<ID> &msg)
-  {
-    std::string data;
-    msg.SerializeToString(&data);
-    data = MESOS_MESSAGING_VERSION + "|" + data;
-    return ReliableProcess::rsend(to, ID, data.data(), data.size());
-  }
-
-  template <MSGID ID>
-  int rsend(const PID &via, const PID &to, const Message<ID> &msg)
-  {
-    std::string data;
-    msg.SerializeToString(&data);
-    data = MESOS_MESSAGING_VERSION + "|" + data;
-    return ReliableProcess::rsend(via, to, ID, data.data(), data.size());
+    Process::send(to, ID, data.data(), data.size());
   }
 
   virtual MSGID receive(double secs = 0)
   {
     bool indefinite = secs == 0;
     double now = elapsed();
-    MSGID id = ReliableProcess::receive(secs);
-    if (RELIABLE_MSGID < id && id < MESOS_MSGID) {
+    MSGID id = Process::receive(secs);
+    if (PROCESS_MSGID < id && id < MESOS_MSGID) {
       size_t size;
-      const char *s = ReliableProcess::body(&size);
+      const char *s = Process::body(&size);
       const std::string data(s, size);
       size_t index = data.find('|');
       if (index == std::string::npos ||
@@ -260,6 +236,7 @@ MESSAGE(F2M_RESOURCE_OFFER_REPLY, ResourceOfferReplyMessage);
 MESSAGE(F2M_REVIVE_OFFERS, ReviveOffersMessage);
 MESSAGE(F2M_KILL_TASK, KillTaskMessage);
 MESSAGE(F2M_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(F2M_STATUS_UPDATE_ACK, StatusUpdateAckMessage);
 
 MESSAGE(M2F_REGISTER_REPLY, FrameworkRegisteredMessage);
 MESSAGE(M2F_RESOURCE_OFFER, ResourceOfferMessage);
@@ -285,6 +262,7 @@ MESSAGE(M2S_KILL_TASK, KillTaskMessage);
 MESSAGE(M2S_KILL_FRAMEWORK, KillFrameworkMessage);
 MESSAGE(M2S_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
 MESSAGE(M2S_UPDATE_FRAMEWORK, UpdateFrameworkMessage);
+MESSAGE(M2S_STATUS_UPDATE_ACK, StatusUpdateAckMessage);
 
 MESSAGE(E2S_REGISTER_EXECUTOR, RegisterExecutorMessage);
 MESSAGE(E2S_STATUS_UPDATE, StatusUpdateMessage);

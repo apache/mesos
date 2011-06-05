@@ -99,6 +99,13 @@ message StatusUpdateMessage {
 }
 
 
+message StatusUpdateAckMessage {
+  required FrameworkID framework_id = 1;
+  required SlaveID slave_id = 2;
+  required TaskID task_id = 3;
+}
+
+
 message LostSlaveMessage {
   required SlaveID slave_id = 1;
 }
