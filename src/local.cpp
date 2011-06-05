@@ -34,10 +34,7 @@ int main (int argc, char **argv)
 {
   Configurator conf;
   conf.addOption<int>("port", 'p', "Port to listen on", 50010);
-  conf.addOption<int>("slaves", 's', "Number of slaves", 1);
-  Logging::registerOptions(&conf);
-  Master::registerOptions(&conf);
-  Slave::registerOptions(&conf);
+  local::registerOptions(&conf);
 
   if (argc == 2 && string("--help") == argv[1]) {
     usage(argv[0], conf);

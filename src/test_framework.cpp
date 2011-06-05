@@ -70,6 +70,7 @@ void slave_lost(nexus_sched *sched, slave_id sid)
 void error(nexus_sched *sched, int code, const char *message)
 {
   cout << "Error from Nexus: " << message << endl;
+  exit(code);
 }
 
 
@@ -97,21 +98,36 @@ int main(int argc, char **argv)
   string executor = string(buf) + "/test-executor";
   sched.executor_name = executor.c_str();
 
-  if (nexus_sched_init(&sched) < 0) {
-    perror("nexus_sched_init");
-    return -1;
+  if (argc == 2 && string("--help") == argv[0]) {
+    cerr << "Usage: " << argv[0] << " MASTER_URL" << endl
+         << "  OR   " << argv[0] << " --url=URL [OPTIONS]" << endl;
+    exit(1);
   }
 
-  if (nexus_sched_reg(&sched, argv[1]) < 0) {
-    perror("nexus_sched_reg");
-    return -1;
+  if (nexus_sched_init(&sched) < 0) {
+    perror("nexus_sched_init");
+    exit(1);
+  }
+
+  if (argc == 1 && strlen(argv[1]) > 0 && argv[1][0] != '-') {
+    // Initialize with master URL alone
+    if (nexus_sched_reg(&sched, argv[1]) < 0) {
+      perror("nexus_sched_reg");
+      exit(1);
+    }
+  } else {
+    // Initialize by parsing command line
+    if (nexus_sched_reg_with_cmdline(&sched, argc, argv) < 0) {
+      perror("nexus_sched_reg");
+      exit(1);
+    }
   }
 
   nexus_sched_join(&sched);
 
   if (nexus_sched_destroy(&sched) < 0) {
     perror("nexus_sched_destroy");
-    return -1;
+    exit(1);
   }
 
   return 0;

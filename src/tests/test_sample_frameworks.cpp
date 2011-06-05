@@ -12,3 +12,8 @@ TEST_EXTERNAL(SampleFrameworks, CppFramework)
 #ifdef MESOS_HAS_PYTHON
   TEST_EXTERNAL(SampleFrameworks, PythonFramework)
 #endif
+
+// Some tests for command-line and environment configuration
+TEST_EXTERNAL(SampleFrameworks, CFrameworkCmdlineParsing)
+TEST_EXTERNAL(SampleFrameworks, CFrameworkInvalidCmdline)
+TEST_EXTERNAL(SampleFrameworks, CFrameworkInvalidEnv)

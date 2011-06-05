@@ -23,10 +23,11 @@
 #include "fatal.hpp"
 #include "hash_pid.hpp"
 #include "lock.hpp"
+#include "logging.hpp"
+#include "master_detector.hpp"
 #include "messages.hpp"
 #include "nexus_local.hpp"
 #include "nexus_sched.hpp"
-#include "master_detector.hpp"
 
 #define REPLY_TIMEOUT 20
 
@@ -43,6 +44,8 @@ using boost::unordered_map;
 
 using namespace nexus;
 using namespace nexus::internal;
+using nexus::internal::master::Master;
+using nexus::internal::slave::Slave;
 
 
 namespace nexus { namespace internal {
@@ -410,6 +413,7 @@ NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* sched,
 					   FrameworkID fid)
 {
   Configurator configurator;
+  local::registerOptions(&configurator);
   Params* conf;
   try {
     conf = new Params(configurator.load());
@@ -428,6 +432,7 @@ NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* sched,
 					   FrameworkID fid)
 {
   Configurator configurator;
+  local::registerOptions(&configurator);
   try {
     conf = new Params(configurator.load(params));
   } catch (ConfigurationException& e) {
@@ -445,6 +450,7 @@ NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* sched,
 					   FrameworkID fid)
 {
   Configurator configurator;
+  local::registerOptions(&configurator);
   try {
     conf = new Params(configurator.load(argc, argv, false));
   } catch (ConfigurationException& e) {

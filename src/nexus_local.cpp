@@ -8,6 +8,7 @@
 
 #include "configurator.hpp"
 #include "foreach.hpp"
+#include "logging.hpp"
 #include "nexus_local.hpp"
 #include "process_based_isolation_module.hpp"
 
@@ -39,6 +40,15 @@ namespace nexus { namespace internal { namespace local {
 static Master *master = NULL;
 static map<IsolationModule*, Slave*> slaves;
 static MasterDetector *detector = NULL;
+
+
+void registerOptions(Configurator* conf)
+{
+  conf->addOption<int>("slaves", 's', "Number of slaves", 1);
+  Logging::registerOptions(conf);
+  Master::registerOptions(conf);
+  Slave::registerOptions(conf);
+}
 
 
 PID launch(int numSlaves, int32_t cpus, int64_t mem,
