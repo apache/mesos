@@ -17,5 +17,5 @@ TEST(DateUtilsTest, humanReadable)
 TEST(DateUtilsTest, currentDateInMicro)
 {
   DateUtils::setMockDate("200102030405");
-  ASSERT_EQ(981201900000000, DateUtils::currentDateInMicro());
+  ASSERT_EQ(981173100000000LL, DateUtils::currentDateInMicro());
 }

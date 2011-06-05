@@ -43,7 +43,7 @@ long DateUtils::currentDateInMicro() {
     if (strptime(mockDate.c_str(), "%Y%m%d%H%M", &timeinfo) == NULL) {
       fatal("Failed to parse MockDate in date_utils.cpp. strptime returned NULL");
     }
-    time_t rawtime = mktime(&timeinfo);
+    time_t rawtime = timegm(&timeinfo);
     long microSinceEpoch = rawtime * 1000000;
     return microSinceEpoch;
   } else {
