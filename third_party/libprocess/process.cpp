@@ -1601,8 +1601,9 @@ void SocketManager::exited(ProcessBase *process)
 {
   synchronized (this) {
     /* Remove any links this process might have had. */
-    foreachpair (_, set<ProcessBase *> &processes, links)
+    foreachpair (_, set<ProcessBase *> &processes, links) {
       processes.erase(process);
+    }
 
     /* Look up all linked processes. */
     map<UPID, set<ProcessBase *> >::iterator it = links.find(process->pid);
@@ -2176,6 +2177,12 @@ bool ProcessManager::poll(ProcessBase *process, int fd, int op, double secs, boo
 void ProcessManager::enqueue(ProcessBase *process)
 {
   assert(process != NULL);
+
+  // TODO(benh): Check and see if this process has it's own thread. If
+  // it does, push it on that threads runq, and wake up that thread if
+  // it's not running. Otherwise, check and see which thread this
+  // process was last running on, and put it on that threads runq.
+
   synchronized (runq) {
     assert(find(runq.begin(), runq.end(), process) == runq.end());
     runq.push_back(process);
@@ -2188,6 +2195,10 @@ void ProcessManager::enqueue(ProcessBase *process)
 
 ProcessBase * ProcessManager::dequeue()
 {
+  // TODO(benh): Remove a process from this thread's runq. If there
+  // are no processes to run, and this is not a dedicated thread, then
+  // steal one from another threads runq.
+
   ProcessBase *process = NULL;
 
   synchronized (runq) {

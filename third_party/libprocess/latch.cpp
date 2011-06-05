@@ -5,6 +5,11 @@
 
 namespace process {
 
+// TODO(benh): Provided an "optimized" implementation of a latch that
+// is libprocess aware. That is, allow integrate "waiting" on a latch
+// within libprocess such that it doesn't cost a memory allocation, a
+// spawn, a message send, a wait, and two user-space context-switchs.
+
 class LatchProcess : public Process<LatchProcess>
 {
 protected:
@@ -33,8 +38,8 @@ void Latch::trigger()
 {
   assert(latch != NULL);
   if (!triggered) {
-    triggered = true;
     post(latch->self(), TERMINATE);
+    triggered = true;
   }
 }
 
