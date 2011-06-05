@@ -96,6 +96,8 @@ class MyScheduler(nexus.Scheduler):
     #remove node from server
     print("removing node from pbs_server: qmgr -c delete node " + node_name)
     print Popen('qmgr -c "delete node ' + node_name + '"', shell=True, stdout=PIPE).stdout
+    #TODO: make this kill the correct task
+    #driver.killtask()
   
   #unreg up to N random compute nodes, leave at least one
   def unregNNodes(self, num_nodes):
@@ -153,21 +155,50 @@ if __name__ == "__main__":
 
   print "running killall pbs_server"
   Popen("killall pbs_server", shell=True)
+  time.sleep(2)
 
   print "writing $(TORQUECFG)/server_name file with fqdn of pbs_server: " + fqdn
   FILE = open(PBS_SERVER_FILE,'w')
   FILE.write(fqdn)
   FILE.close()
 
-  time.sleep(2)
   print "starting pbs_server"
   #Popen("/etc/init.d/pbs_server start", shell=True)
   Popen("pbs_server", shell=True)
+  time.sleep(2)
+  print "\n"
+
+  print "running command: qmgr -c \"set queue batch resources_available.nodes=%s\"" % SAFE_ALLOCATION["cpus"]
+  Popen("qmgr -c \"set queue batch resources_available.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
+  Popen("qmgr -c \"set server resources_available.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
+
+  #these lines might not be necessary since we hacked the torque fifo scheduler
+  Popen("qmgr -c \"set queue batch resources_max.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
+  Popen("qmgr -c \"set server resources_max.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
+
+  outp = Popen("qmgr -c \"l queue batch\"", shell=True, stdout=PIPE).stdout
+  for l in outp:
+    print l
+
+  print "RE-killing pbs_server for resources_available setting to take effect"
+  #Popen("/etc/init.d/pbs_server start", shell=True)
+  Popen("qterm", shell=True)
+  time.sleep(2)
+  print("\n")
+
+  print "RE-starting pbs_server for resources_available setting to take effect"
+  Popen("pbs_server", shell=True)
+  "qmgr list queue settings: "
+  output = Popen("qmgr -c 'l q batch'", shell=True, stdout=PIPE).stdout
+  for line in output:
+    print line
+  print("\n")
 
   print "running killall pbs_sched"
   Popen("killall pbs_sched", shell=True)
-  
   time.sleep(2)
+  print("\n")
+
   print "starting pbs_scheduler"
   #Popen("/etc/init.d/pbs_sched start", shell=True)
   Popen("pbs_sched", shell=True)
