@@ -12,6 +12,18 @@ DEFAULT_CPUS = 1
 DEFAULT_MEM = 512
 
 
+# The scheduler for mesos-submit, running on the machine that the user
+# executed mesos-submit on, launches a single task in the cluster with
+# the required amounts of CPUs and memory, and then waits for it to become
+# the framework's scheduler using the scheduler failover mechanism.
+# It then exits mesos-submit successfully, while the task goes on to run
+# the user's command.
+#
+# Note that we pass our framework ID, master URL and command to the executor
+# using the task's argument field.
+#
+# We currently don't recover if our task fails for some reason, but we
+# do print its state transitions so the user can notice this.
 class SubmitScheduler(mesos.Scheduler):
   def __init__(self, cpus, mem, master, command):
     mesos.Scheduler.__init__(self)
@@ -36,6 +48,7 @@ class SubmitScheduler(mesos.Scheduler):
 
   def resourceOffer(self, driver, oid, offers):
     if self.task_launched:
+      # Since we already launched our task, we reject the offer
       driver.replyToOffer(oid, [], {"timeout": "-1"})
     else:
       for offer in offers:
@@ -55,6 +68,8 @@ class SubmitScheduler(mesos.Scheduler):
 
   def error(self, driver, code, message):
     if message == "Framework failover":
+      # Scheduler failover is currently reported by this error message;
+      # this is kind of a brittle way to detect it, but it's all we can do now.
       print "Secondary scheduler registered successfully; exiting mesos-submit"
     else:
       print "Error from Mesos: %s (error code: %d)" % (message, code)
