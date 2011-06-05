@@ -319,27 +319,6 @@ void Master::operator () ()
       break;
     }
 
-    case F2M_REREGISTER_FRAMEWORK: {
-
-      Framework *framework = new Framework(from());
-      unpack<F2M_REREGISTER_FRAMEWORK>(framework->id,
-                                       framework->name,
-                                       framework->user,
-                                       framework->executorInfo);
-      LOG(INFO) << "Registering " << framework << " at " << framework->pid;
-      frameworks[framework->id] = framework;
-      pidToFid[framework->pid] = framework->id;
-
-      updateFrameworkTasks();
-
-      link(framework->pid);
-      send(framework->pid, pack<M2F_REGISTER_REPLY>(framework->id));
-      allocator->frameworkAdded(framework);
-      if (framework->executorInfo.uri == "")
-        terminateFramework(framework, 1, "No executor URI given");
-      break;
-    }
-
     case F2M_UNREGISTER_FRAMEWORK: {
       FrameworkID fid;
       unpack<F2M_UNREGISTER_FRAMEWORK>(fid);
@@ -448,7 +427,7 @@ void Master::operator () ()
       slaves[slave->id] = slave;
       pidToSid[slave->pid] = slave->id;
       link(slave->pid);
-      send(slave->pid, pack<M2S_REGISTER_REPLY>(slave->id));
+      send(slave->pid, pack<M2S_REREGISTER_REPLY>());
       allocator->slaveAdded(slave);
       break;
     }
