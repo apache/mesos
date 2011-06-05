@@ -113,8 +113,9 @@ string ExecutorLauncher::fetchExecutor()
 
     const char *hadoop = getenv("HADOOP");
     if (!hadoop) {
-      fatal("Cannot download executor from HDFS because the "
-            "HADOOP environment variable is not set");
+      hadoop = "hadoop";
+//       fatal("Cannot download executor from HDFS because the "
+//             "HADOOP environment variable is not set");
     }
     
     string localFile = string("./") + basename((char *) executor.c_str());
