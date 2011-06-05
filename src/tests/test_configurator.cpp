@@ -41,18 +41,18 @@ TEST(ConfiguratorTest, DefaultOptions)
 
   Configurator conf;
 
-  EXPECT_NO_THROW( {
-      conf.addOption<int>("test1", "Testing option", 500);
-      conf.addOption<short>("test2", "Another tester", 0);
-      conf.addOption<long>("test3", "Tests the default", 2010);
-      conf.addOption<string>("test4", "Option without default");
-      conf.addOption<string>("test5", "Option with a default", "arb");
-      conf.addOption<bool>("test6", "Toggler...", false);
-      conf.addOption<bool>("test7", "Toggler...", true);
-      conf.load(ARGC, argv, false);
-    } );
+  
+  EXPECT_NO_THROW(conf.addOption<int>("test1", "Testing option", 500));
+  EXPECT_NO_THROW(conf.addOption<bool>("test2", "Another tester", 0));
+  EXPECT_NO_THROW(conf.addOption<long>("test3", "Tests the default", 2010));
+  EXPECT_NO_THROW(conf.addOption<string>("test4", "Option without default"));
+  EXPECT_NO_THROW(conf.addOption<string>("test5", "Option with a default", 
+                                         "arb"));
+  EXPECT_NO_THROW(conf.addOption<bool>("test6", "Toggler...", false));
+  EXPECT_NO_THROW(conf.addOption<bool>("test7", "Toggler...", true));
+  EXPECT_NO_THROW(conf.load(ARGC, argv, false));
 
-  conf.addOption<int>("excp", "Exception tester.", 50);
+  EXPECT_NO_THROW(conf.addOption<int>("excp", "Exception tester.", 50));
   EXPECT_THROW(conf.validate(), ConfigurationException);
   conf.getParams()["excp"] = "27";
   EXPECT_NO_THROW(conf.validate());
@@ -86,14 +86,12 @@ TEST(ConfiguratorTest, CommandLine)
   argv[11] = (char*) "-no-b";
 
   Configurator conf;
-  EXPECT_NO_THROW( {
-      conf.addOption<int>("negative", 'N', "some val", -30);
-      conf.addOption<string>("test1", "textual value", "text2");
-      conf.addOption<bool>("bool1", "toggler", false);
-      conf.addOption<bool>("bool2", 'z', "toggler", true);
-      conf.addOption<bool>("bool3", 'a', "toggler", false);
-      conf.addOption<bool>("bool4", 'b', "toggler", true);
-    } );
+  EXPECT_NO_THROW(conf.addOption<int>("negative", 'N', "some val", -30));
+  EXPECT_NO_THROW(conf.addOption<string>("test1", "textual value", "text2"));
+  EXPECT_NO_THROW(conf.addOption<bool>("bool1", "toggler", false));
+  EXPECT_NO_THROW(conf.addOption<bool>("bool2", 'z', "toggler", true));
+  EXPECT_NO_THROW(conf.addOption<bool>("bool3", 'a', "toggler", false));
+  EXPECT_NO_THROW(conf.addOption<bool>("bool4", 'b', "toggler", true));
 
   EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
 

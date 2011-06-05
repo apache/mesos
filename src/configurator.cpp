@@ -144,38 +144,52 @@ void Configurator::loadCommandLine(int argc,
         key = args[i].substr(5); 
         val = "0";
         set = true;
+        isParamConsistent(key, true);
       } else if (eq == string::npos) {     // handle --blah
         key = args[i].substr(2);
         val = "1";
         set = true;
+        isParamConsistent(key, true);
       } else {                             // handle --blah=25
         key = args[i].substr(2, eq-2); 
         val = args[i].substr(eq+1);
         set = true;
+        isParamConsistent(key, false);
       }
 
     } else if (args[i].find_first_of("-", 0) == 0 && 
                args[i].size() > 1) { 
       // handle "-" case
 
-      if (args[i].find("-no-",0) == 0 && args[i].size() > 4) { // handle -no-b
-        key = getLongName(args[i][4]);
-        val = "0";
-      } else if (args[i].size() > 1) {  // shared code for -b and -b 25
-        key = getLongName(args[i][1]);
-        val = "1";
-      }
-      if (key == "")
-        continue;  // couldn't extract long name from short name
+      char shortName = '\0';
 
-      if (options[key].validator->isBool())
+      if (args[i].find("-no-",0) == 0 && args[i].size() == 5)
+        shortName = args[i][4];
+      else if (args[i].size() == 2)
+        shortName = args[i][1];
+
+      if (shortName == '\0' || getLongName(shortName) == "") {
+        string message = "Short option " + args[i] + " unrecognized ";
+        throw ConfigurationException(message.c_str());
+      }
+
+      key = getLongName(shortName);
+      
+      if (args[i].find("-no-",0) == 0) { // handle -no-b
+        val = "0";
         set = true;
-      else if (i+1 < args.size()) {  // handle -b 25
+        isParamConsistent(key, true);
+      } else if (options[key].validator->isBool() ||
+                 i+1 == args.size() ) {  // handle -b
+        val = "1";
+        set = true;
+        isParamConsistent(key, true);
+      } else {                           // handle -b 25
         val = args[i+1];
         set = true;
         i++;  // we've consumed next parameter as a "value"-parameter
       }
-
+      
     }
     if (set && (overwrite || !params.contains(key))) {
       std::transform(key.begin(), key.end(), key.begin(), ::tolower);
