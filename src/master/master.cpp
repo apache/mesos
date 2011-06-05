@@ -155,7 +155,7 @@ void Master::registerOptions(Configurator* conf)
   conf->addOption<string>("allocator", 'a', "Allocation module name", "simple");
   conf->addOption<bool>("root_submissions",
                         "Can root submit frameworks?",
-                        false);
+                        true);
 }
 
 
