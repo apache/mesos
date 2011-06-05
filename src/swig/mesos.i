@@ -293,7 +293,9 @@ jenv->ExceptionDescribe();
      jmethodID taskDescCtor = jenv->GetMethodID(taskDescCls, "<init>", "(JZ)V");
      for (int i = 0; i < $1.size(); i++) {
        // TODO: Copy the SlaveOffer object here so Java owns it?
-       jobject obj = jenv->NewObject(taskDescCls, taskDescCtor, &($1.at(i)), JNI_FALSE);
+       jlong ptr;
+       *(const mesos::SlaveOffer **)&ptr = &($1.at(i));
+       jobject obj = jenv->NewObject(taskDescCls, taskDescCtor, ptr, JNI_FALSE);
        jenv->CallVoidMethod(list, add, obj);
        jenv->DeleteLocalRef(obj); // Recommended in case list is big and fills local ref table
      }
@@ -310,7 +312,9 @@ jenv->ExceptionDescribe();
      jmethodID taskDescCtor = jenv->GetMethodID(taskDescCls, "<init>", "(JZ)V");
      for (int i = 0; i < $1.size(); i++) {
        // TODO: Copy the SlaveOffer object here so Java owns it?
-       jobject obj = jenv->NewObject(taskDescCls, taskDescCtor, &($1.at(i)), JNI_FALSE);
+       jlong ptr;
+       *(const mesos::SlaveOffer **)&ptr = &($1.at(i));
+       jobject obj = jenv->NewObject(taskDescCls, taskDescCtor, ptr, JNI_FALSE);
        jenv->CallVoidMethod(list, add, obj);
        jenv->DeleteLocalRef(obj); // Recommended in case list is big and fills local ref table
      }
@@ -370,7 +374,9 @@ jenv->ExceptionDescribe();
      jmethodID taskDescCtor = jenv->GetMethodID(taskDescCls, "<init>", "(JZ)V");
      for (int i = 0; i < $1.size(); i++) {
        // TODO: Copy the TaskDescription object here so Java owns it?
-       jobject obj = jenv->NewObject(taskDescCls, taskDescCtor, &($1.at(i)), JNI_FALSE);
+       jlong ptr;
+       *(const mesos::TaskDescription **)&ptr = &($1.at(i));
+       jobject obj = jenv->NewObject(taskDescCls, taskDescCtor, ptr, JNI_FALSE);
        jenv->CallVoidMethod(list, add, obj);
        jenv->DeleteLocalRef(obj); // Recommended in case list is big and fills local ref table
      }
@@ -387,7 +393,9 @@ jenv->ExceptionDescribe();
      jmethodID taskDescCtor = jenv->GetMethodID(taskDescCls, "<init>", "(JZ)V");
      for (int i = 0; i < $1.size(); i++) {
        // TODO: Copy the TaskDescription object here so Java owns it?
-       jobject obj = jenv->NewObject(taskDescCls, taskDescCtor, &($1.at(i)), JNI_FALSE);
+       jlong ptr;
+       *(const mesos::TaskDescription **)&ptr = &($1.at(i));
+       jobject obj = jenv->NewObject(taskDescCls, taskDescCtor, ptr, JNI_FALSE);
        jenv->CallVoidMethod(list, add, obj);
        jenv->DeleteLocalRef(obj); // Recommended in case list is big and fills local ref table
      }
