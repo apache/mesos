@@ -247,14 +247,22 @@ protected:
 };
 
 
-static void __attribute__((constructor)) init()
-{
-  manager = Process::spawn(new WatcherProcessManager());
-}
-
-
 Watcher::Watcher()
 {
+  // Confirm we have allocated the WatcherProcessManager.
+  static volatile bool initialized = false;
+  static volatile bool initializing = true;
+
+  // Confirm everything is initialized.
+  if (!initialized) {
+    if (__sync_bool_compare_and_swap(&initialized, false, true)) {
+	manager = Process::spawn(new WatcherProcessManager());
+	initializing = false;
+      }
+    }
+
+  while (initializing);
+
   Process::spawn(new WatcherProcess(this));
 }
 
