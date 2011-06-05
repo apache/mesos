@@ -20,6 +20,7 @@ namespace nexus { namespace internal {
 enum MessageType {
   /* From framework to master. */
   F2M_REGISTER_FRAMEWORK = PROCESS_MSGID,
+  F2M_REREGISTER_FRAMEWORK,
   F2M_UNREGISTER_FRAMEWORK,
   F2M_SLOT_OFFER_REPLY,
   F2M_REVIVE_OFFERS,
@@ -109,6 +110,12 @@ TUPLE(F2M_REGISTER_FRAMEWORK,
        std::string /*user*/,
        ExecutorInfo));
 
+TUPLE(F2M_REREGISTER_FRAMEWORK,
+      (std::string /*fid*/,
+       std::string /*name*/,
+       std::string /*user*/,
+       ExecutorInfo));
+
 TUPLE(F2M_UNREGISTER_FRAMEWORK,
       (FrameworkID));
 
@@ -160,7 +167,8 @@ TUPLE(S2M_REGISTER_SLAVE,
        Resources));
 
 TUPLE(S2M_REREGISTER_SLAVE,
-      (std::string /*name*/,
+      (std::string /*slave id*/,
+       std::string /*name*/,
        std::string /*publicDns*/,
        Resources,
        std::vector<TaskInfo> ));

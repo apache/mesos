@@ -300,6 +300,24 @@ void Master::operator () ()
       break;
     }
 
+    case F2M_REREGISTER_FRAMEWORK: {
+
+      Framework *framework = new Framework(from());
+      unpack<F2M_REREGISTER_FRAMEWORK>(framework->id,
+                                       framework->name,
+                                       framework->user,
+                                       framework->executorInfo);
+      LOG(INFO) << "Registering " << framework << " at " << framework->pid;
+      frameworks[framework->id] = framework;
+      pidToFid[framework->pid] = framework->id;
+      link(framework->pid);
+      send(framework->pid, pack<M2F_REGISTER_REPLY>(framework->id));
+      allocator->frameworkAdded(framework);
+      if (framework->executorInfo.uri == "")
+        terminateFramework(framework, 1, "No executor URI given");
+      break;
+    }
+
     case F2M_UNREGISTER_FRAMEWORK: {
       FrameworkID fid;
       unpack<F2M_UNREGISTER_FRAMEWORK>(fid);
@@ -391,11 +409,10 @@ void Master::operator () ()
     }
 
     case S2M_REREGISTER_SLAVE: {
-      string slaveId = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextSlaveId++);
-
-      Slave *slave = new Slave(from(), slaveId);
+      Slave *slave = new Slave(from());
       vector<TaskInfo> taskVec;
-      unpack<S2M_REREGISTER_SLAVE>(slave->hostname, slave->publicDns,
+
+      unpack<S2M_REREGISTER_SLAVE>(slave->id, slave->hostname, slave->publicDns,
       				   slave->resources, taskVec);
 
       foreach(TaskInfo &ti, taskVec) {

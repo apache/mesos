@@ -387,7 +387,7 @@ void Slave::operator () ()
 	}
 	//alibandali
 
-	send(master, pack<S2M_REREGISTER_SLAVE>(hostname, publicDns, resources, taskVec));
+	send(master, pack<S2M_REREGISTER_SLAVE>(id, hostname, publicDns, resources, taskVec));
 	
 	break;
       }

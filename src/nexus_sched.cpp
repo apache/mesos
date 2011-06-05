@@ -244,7 +244,7 @@ protected:
 	
 	LOG(INFO) << "Connecting to Nexus master at " << master;
 	link(master);
-	send(master, pack<F2M_REGISTER_FRAMEWORK>(frameworkName, user, execInfo));
+	send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user, execInfo));
 	break;
       }
       default: {
