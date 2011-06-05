@@ -72,10 +72,10 @@ void SimpleAllocator::offerReturned(SlotOffer* offer,
     Framework* framework = master->lookupFramework(offer->frameworkId);
     CHECK(framework != 0);
     foreach (const SlaveResources& r, resLeft) {
-      LOG(INFO) << "Framework reply leaves " << r.resources 
-                << " free on " << r.slave;
+      VLOG(1) << "Framework reply leaves " << r.resources 
+              << " free on " << r.slave;
       if (r.resources.cpus > 0 || r.resources.mem > 0) {
-        LOG(INFO) << "Inserting " << framework << " as refuser for " << r.slave;
+        VLOG(1) << "Inserting " << framework << " as refuser for " << r.slave;
         refusers[r.slave].insert(framework);
       }
     }
