@@ -93,7 +93,8 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
 
 
 /**
- * Initialize a MesosSchedulerDriverImpl with constructor arguments.
+ * Create, but don't initialize, a new MesosSchedulerDriverImpl
+ * (called by Python before init method).
  */
 PyObject* MesosSchedulerDriverImpl_new(PyTypeObject *type,
                                        PyObject *args,
@@ -111,7 +112,7 @@ PyObject* MesosSchedulerDriverImpl_new(PyTypeObject *type,
 
 
 /**
- * Initialize a MesosSchedulerDriverImpl (this is its constructor).
+ * Initialize a MesosSchedulerDriverImpl with constructor arguments.
  */
 int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl *self,
                                   PyObject *args,

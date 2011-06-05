@@ -85,7 +85,8 @@ PyMethodDef MesosExecutorDriverImpl_methods[] = {
 
 
 /**
- * Initialize a MesosExecutorDriverImpl with constructor arguments.
+ * Create, but don't initialize, a new MesosExecutorDriverImpl
+ * (called by Python before init method).
  */
 PyObject* MesosExecutorDriverImpl_new(PyTypeObject *type,
                                        PyObject *args,
@@ -103,7 +104,7 @@ PyObject* MesosExecutorDriverImpl_new(PyTypeObject *type,
 
 
 /**
- * Initialize a MesosExecutorDriverImpl (this is its constructor).
+ * Initialize a MesosExecutorDriverImpl with constructor arguments.
  */
 int MesosExecutorDriverImpl_init(MesosExecutorDriverImpl *self,
                                   PyObject *args,

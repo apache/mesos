@@ -205,10 +205,10 @@ MESOS_JAVA_JAR = $(LIBDIR)/java/mesos.jar
 MESOS_PYTHON_LIB = $(LIBDIR)/python/_mesos.so
 
 MESOS_PYTHON_LIB_OBJ = python/native/module.o \
-	               python/native/proxy_scheduler.o \
-		       python/native/mesos_scheduler_driver_impl.o \
-	               python/native/proxy_executor.o \
-		       python/native/mesos_executor_driver_impl.o
+                       python/native/proxy_scheduler.o \
+                       python/native/mesos_scheduler_driver_impl.o \
+                       python/native/proxy_executor.o \
+                       python/native/mesos_executor_driver_impl.o
 
 MESOS_PYTHON_FILE = $(LIBDIR)/python/mesos.py
 
