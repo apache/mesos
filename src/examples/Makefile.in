@@ -29,6 +29,8 @@ LIBEV = $(LIBPROCESS)/third_party/libev-3.8
 
 GLOG = third_party/glog-0.3.1
 
+SQLITE = third_party/sqlite-3.6.23.1
+
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
 # Ensure that we get better debugging info.
@@ -56,8 +58,8 @@ LDFLAGS += -L@top_builddir@/$(LIBPROCESS)
 LDFLAGS += -L@top_builddir@/$(LIBEV)/.libs
 
 # Add glog to include and lib paths.
-CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src
-LDFLAGS += -L@top_builddir@/$(GLOG)/.libs
+CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src -I@top_srcdir@/$(SQLITE)
+LDFLAGS += -L@top_builddir@/$(GLOG)/.libs -L@top_builddir@/$(SQLITE)/.libs
 
 # Add included ZooKeeper to include and lib paths if necessary.
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
@@ -81,7 +83,7 @@ CXXFLAGS += -DBUILD_USER="\"$$USER\""
 LDFLAGS += -L$(LIBEV)/.libs
 
 # Add glog, libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lglog -lprocess -lev -lpthread -ldl
+LIBS += -lglog -lprocess -lev -lpthread -ldl -lsqlite3
 
 # Add ZooKeeper if necessary.
 ifeq ($(WITH_ZOOKEEPER),1)

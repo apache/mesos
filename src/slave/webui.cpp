@@ -18,25 +18,27 @@ extern "C" void init_slave();  // Initializer for the Python slave module
 namespace {
 
 PID slave;
-string webuiPort;
-string logDir;
-string workDir;
 
 }
 
 namespace mesos { namespace internal { namespace slave {
 
+struct webuiArgs {
+  string webuiPort;
+  string logDir;
+  string workDir;
+} myWebuiArgs;
 
 void *runSlaveWebUI(void *)
 {
   LOG(INFO) << "Web UI thread started";
   Py_Initialize();
   char* argv[4];
-  argv[0] = const_cast<char*>("webui/master/webui.py");
-  argv[1] = const_cast<char*>(webuiPort.c_str());
-  argv[2] = const_cast<char*>(logDir.c_str());
-  argv[3] = const_cast<char*>(workDir.c_str());
-  PySys_SetArgv(4, argv);
+  argv[0] = const_cast<char*>("webui/slave/webui.py");
+  argv[1] = const_cast<char*>(myWebuiArgs.webuiPort.c_str());
+  argv[2] = const_cast<char*>(myWebuiArgs.logDir.c_str());
+  argv[3] = const_cast<char*>(myWebuiArgs.workDir.c_str());
+  PySys_SetArgv(4,argv);
   PyRun_SimpleString("import sys\n"
       "sys.path.append('webui/slave/swig')\n"
       "sys.path.append('webui/common')\n"
@@ -57,19 +59,19 @@ void startSlaveWebUI(const PID &slave, const Params &params)
   // be used! For example, what happens when the slave code changes
   // their default location for the work directory, it might not get
   // changed here!
-  webuiPort = params.get("webui_port", "8081");
-  logDir = params.get("log_dir", FLAGS_log_dir);
+  myWebuiArgs.webuiPort = params.get("webui_port", "8081");
+  myWebuiArgs.logDir = params.get("log_dir", FLAGS_log_dir);
   if (params.contains("work_dir")) {
-    workDir = params.get("work_dir", "");
+    myWebuiArgs.workDir = params.get("work_dir", "");
   } else if (params.contains("home")) {
-    workDir = params.get("home", "") + "/work";
+    myWebuiArgs.workDir = params.get("home", "") + "/work";
   } else {
-    workDir = "work";
+    myWebuiArgs.workDir = "work";
   }
 
-  CHECK(workDir != "");
+  CHECK(myWebuiArgs.workDir != "");
 
-  LOG(INFO) << "Starting slave web UI on port " << webuiPort;
+  LOG(INFO) << "Starting slave web UI on port " << myWebuiArgs.webuiPort;
 
   ::slave = slave;
   pthread_t thread;

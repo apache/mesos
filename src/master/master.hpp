@@ -33,13 +33,12 @@
 
 #include "detector/detector.hpp"
 
+#include "event_history/event_history.hpp"
+
 #include "messaging/messages.hpp"
 
 
 namespace mesos { namespace internal { namespace master {
-
-using namespace mesos;
-using namespace mesos::internal;
 
 using std::make_pair;
 using std::map;
@@ -51,7 +50,9 @@ using std::vector;
 using boost::unordered_map;
 using boost::unordered_set;
 
-using foreach::_;
+using namespace mesos;
+using namespace mesos::internal;
+using mesos::internal::eventhistory::EventLogger;
 
 
 // Maximum number of slot offers to have outstanding for each framework.
@@ -76,7 +77,7 @@ const int32_t MAX_MEM = 1024 * 1024 * Megabyte;
 const double HEARTBEAT_INTERVAL = 2;
 
 // Acceptable time since we saw the last heartbeat (four heartbeats).
-const double HEARTBEAT_TIMEOUT = HEARTBEAT_INTERVAL * 4;
+const double HEARTBEAT_TIMEOUT = 15;
 
 // Time to wait for a framework to failover (TODO(benh): Make configurable)).
 const time_t FRAMEWORK_FAILOVER_TIMEOUT = 60;
@@ -240,7 +241,7 @@ struct Slave
   SlaveID id;
   bool active; // Turns false when slave is being removed
   string hostname;
-  string publicDns;
+  string webUIUrl;
   double connectTime;
   double lastHeartbeat;
   
@@ -312,6 +313,7 @@ class Master : public MesosProcess
 {
 protected:
   Params conf;
+  EventLogger* evLogger;
 
   unordered_map<FrameworkID, Framework *> frameworks;
   unordered_map<SlaveID, Slave *> slaves;
@@ -327,14 +329,13 @@ protected:
   string allocatorType;
   Allocator *allocator;
 
-  string masterId; // Contains the date the master was launched and its fault
-                   // tolerance ID (e.g. ephemeral ID returned from ZooKeeper).
-                   // Used in framework and slave IDs created by this master.
+  int64_t masterId; // Used to differentiate masters in fault tolerant mode;
+                    // will be this master's ZooKeeper ephemeral id
 
 public:
-  Master();
+  Master(EventLogger* evLogger);
 
-  Master(const Params& conf);
+  Master(const Params& conf, EventLogger* evLogger);
   
   ~Master();
 
@@ -403,8 +404,6 @@ protected:
   virtual Allocator* createAllocator();
 
   FrameworkID newFrameworkId();
-
-  string currentDate();
 };
 
 

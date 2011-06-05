@@ -39,6 +39,8 @@ LIBEV = $(LIBPROCESS)/third_party/libev-3.8
 
 GLOG = third_party/glog-0.3.1
 
+SQLITE = third_party/glog-0.3.1
+
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
 # Ensure that we get better debugging info.
@@ -69,6 +71,10 @@ LDFLAGS += -L@top_builddir@/$(LIBEV)/.libs
 CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src
 LDFLAGS += -L@top_builddir@/$(GLOG)/.libs
 
+# Add sqlite to include and lib paths.
+CXXFLAGS += -I@top_srcdir@/$(SQLITE)/src -I@top_builddir@/$(SQLITE)/src
+LDFLAGS += -L@top_builddir@/$(SQLITE)/.libs
+
 # Add included ZooKeeper to include and lib paths if necessary.
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
   CXXFLAGS += -I@top_srcdir@/$(ZOOKEEPER)/include -I@top_srcdir@/$(ZOOKEEPER)/generated
@@ -91,7 +97,7 @@ CXXFLAGS += -DBUILD_USER="\"$$USER\""
 LDFLAGS += -L$(LIBEV)/.libs
 
 # Add glog, libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lglog -lprocess -lev -lpthread -ldl
+LIBS += -lglog -lprocess -lev -lpthread -ldl -lsqlite3
 
 # Add ZooKeeper if necessary.
 ifeq ($(WITH_ZOOKEEPER),1)
@@ -123,7 +129,7 @@ SWIG_WEBUI_OBJ = $(MASTER_SWIG_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 COMMON_OBJ = common/fatal.o messaging/messages.o common/lock.o		\
 	     detector/detector.o common/params.o			\
 	     detector/url_processor.o configurator/configurator.o	\
-	     common/string_utils.o common/logging.o common/date_utils.o
+	     common/string_utils.o common/logging.o event_history/event_history.o
 
 ifeq ($(WITH_ZOOKEEPER),1)
   COMMON_OBJ += detector/zookeeper.o
@@ -216,8 +222,8 @@ DEPLOY_FILES = $(DEPLOYDIR)/deploy-to-slaves             \
 
 # Create rules for building the directories that aren't created
 # automagically by configure.
-OBJ_DIRECTORIES = common configurator detector exec launcher local	\
-                  master messaging sched slave
+OBJ_DIRECTORIES = common configurator detector event_history exec launcher \
+                  local	master messaging sched slave
 
 WEBUI_DIRECTORIES = $(BINDIR)/webui/common $(BINDIR)/webui/master	\
                     $(BINDIR)/webui/slave $(BINDIR)/webui/static	\

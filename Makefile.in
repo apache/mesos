@@ -18,7 +18,8 @@ LIBPROCESS = third_party/libprocess
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
 GLOG = third_party/glog-0.3.1
-GMOCK = third_party/gmock-1.5.0
+GTEST = third_party/gtest-1.5.0
+SQLITE = third_party/sqlite-3.6.23.1
 
 
 default: all
@@ -29,7 +30,8 @@ src: third_party
 third_party:
 	$(MAKE) -C $(LIBPROCESS)
 	$(MAKE) -C $(GLOG)
-	$(MAKE) -C $(GMOCK)
+	$(MAKE) -C $(GTEST)
+	$(MAKE) -C $(SQLITE)
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER)
 endif
@@ -83,7 +85,8 @@ distclean:
 	$(MAKE) -C src clean
 	$(MAKE) -C $(LIBPROCESS) distclean
 	$(MAKE) -C $(GLOG) distclean
-	$(MAKE) -C $(GMOCK) distclean
+	$(MAKE) -C $(GTEST) distclean
+	$(MAKE) -C $(SQLITE) distclean
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) distclean
 endif
@@ -116,7 +119,8 @@ clean:
 	$(MAKE) -C src clean
 	$(MAKE) -C $(LIBPROCESS) clean
 	$(MAKE) -C $(GLOG) clean
-	$(MAKE) -C $(GMOCK) clean
+	$(MAKE) -C $(GTEST) clean
+	$(MAKE) -C $(SQLITE) clean
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) clean
 endif
