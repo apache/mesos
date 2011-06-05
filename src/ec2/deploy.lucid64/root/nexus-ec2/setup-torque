@@ -18,7 +18,8 @@ function installtorque {
 	pushd ~
 	echo "downloading and installing torque on master"
 	#wget http://www.clusterresources.com/downloads/torque/torque-2.4.7.tar.gz
-	wget http://nexus.berkeley.edu/torque-2.4.7.tar.gz
+	rm -rf torque-2.4.7.tar.gz
+	wget http://mesos.berkeley.edu/torque-2.4.7.tar.gz
 	tar xzf torque-2.4.7.tar.gz
 	pushd torque-2.4.7
 	./configure --prefix=/usr
@@ -89,7 +90,21 @@ function installmpi {
 	for i in `cat $SLAVES_FILE`; do scp ./epilogue.kill-mpi-ring $i:/var/spool/torque/mom_priv/epilogue; done
 }
 
+function installmaui {
+	pushd ~
+	#http://www.clusterresources.com/download/maui/maui-3.3.tar.gz
+	rm -rf nexus-maui-3.3.tar
+	wget http://mesos.berkeley.edu/nexus-maui-3.3.tar
+	tar -xf nexus-maui-3.3.tar
+	pushd maui-3.3
+	./configure
+	make
+	make install
+	/usr/local/maui/sbin/maui
+}
+
 installtorque
 setuptorque
 installslaves
 installmpi
+installmaui
