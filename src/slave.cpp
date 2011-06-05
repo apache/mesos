@@ -95,6 +95,11 @@ void Slave::registerOptions(Configurator* conf)
   conf->addOption<string>("work_dir",
                           "Where to place framework work directories\n"
                           "(default: MESOS_HOME/work)");
+  conf->addOption<string>("hadoop_home",
+                          "Where to find Hadoop installed (for fetching\n"
+                          "framework executors from HDFS)\n"
+                          "(default: look for HADOOP_HOME environment\n"
+                          "variable or find hadoop on PATH)");
 }
 
 

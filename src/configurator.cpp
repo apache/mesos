@@ -36,6 +36,15 @@ char** getEnviron() { return environ; }
 #endif /* __APPLE__ */
 
 
+Configurator::Configurator()
+{
+  addOption<string>("conf",
+                    "Specifies a config directory from which to\n"
+                    "read Mesos config files. The Mesos binaries\n"
+                    "use <install location>src/conf by default");
+}
+
+
 void Configurator::validate()
 {
   foreachpair (const string& key, const Option& opt, options) {

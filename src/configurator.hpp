@@ -42,9 +42,9 @@ struct ConfigurationException : std::exception
  * It currently supports 3 input types:
  * (i) Environment variables. It adds all variables starting with MESOS_.
  * (ii) Command line variables. Supports "--key=val" "-key val" "-opt" "--opt"
- * (iii) Config file. It ignores comments "#". It finds the file using
- * MESOS_CONF or via command line --conf=file. Otherwise, it looks for
- * "mesos.conf" in MESOS_HOME/conf.
+ * (iii) Config file. It ignores comments "#". It finds the file mesos.conf
+ * in the directory specified by the "conf" option. Otherwise, it looks for
+ * mesos.conf in the directory MESOS_HOME/conf.
  **/
 class Configurator 
 {
@@ -60,9 +60,10 @@ private:
 public:
 
   /** 
-   * Initializes an empty Params
+   * Initializes a Configurator with no options set and only the "conf"
+   * option registered.
    **/
-  Configurator() {}
+  Configurator();
 
 
   /**
