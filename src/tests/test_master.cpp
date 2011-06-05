@@ -291,9 +291,11 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
 class SlaveLostScheduler : public Scheduler
 {
 public:
+  PID slave;
   bool slaveLostCalled;
   
-  SlaveLostScheduler() : slaveLostCalled(false) {}
+  SlaveLostScheduler(const PID &_slave)
+    : slave(_slave), slaveLostCalled(false) {}
 
   virtual ~SlaveLostScheduler() {}
 
@@ -305,8 +307,7 @@ public:
                              OfferID id,
                              const vector<SlaveOffer>& offers) {
     LOG(INFO) << "SlaveLostScheduler got a slot offer";
-    vector<TaskDescription> tasks;
-    d->replyToOffer(id, tasks, string_map());
+    Process::post(slave, S2S_SHUTDOWN);
   }
   
   void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
@@ -326,19 +327,18 @@ TEST(MasterTest, SlaveLost)
   Slave s(master, Resources(2, 1 * Gigabyte), true);
   PID slave = Process::spawn(&s);
 
-  SlaveLostScheduler sched;
+  SlaveLostScheduler sched(slave);
+
   NexusSchedulerDriver driver(&sched, master);
-  driver.start();
-
-  Process::post(slave, S2S_SHUTDOWN);
-  Process::wait(slave);
-
-  driver.join();
-
-  // TODO(benh): Test lost slave due to missing heartbeats.
+  driver.run();
 
   EXPECT_TRUE(sched.slaveLostCalled);
+
+  Process::wait(slave);
 
   Process::post(master, M2M_SHUTDOWN);
   Process::wait(master);
 }
+
+
+/* TODO(benh): Test lost slave due to missing heartbeats. */
