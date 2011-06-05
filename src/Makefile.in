@@ -134,7 +134,7 @@ SWIG_WEBUI_OBJ = $(MASTER_SWIG_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 COMMON_OBJ = common/fatal.o common/lock.o detector/detector.o		\
 	     detector/url_processor.o configurator/configurator.o	\
 	     common/string_utils.o common/logging.o			\
-	     common/date_utils.o common/tokenize.o common/resources.o
+	     common/date_utils.o
 
 ifeq ($(WITH_ZOOKEEPER),1)
   COMMON_OBJ += detector/zookeeper.o
@@ -203,14 +203,6 @@ endif
 MESOS_JAVA_JAR = $(LIBDIR)/java/mesos.jar
 
 MESOS_PYTHON_LIB = $(LIBDIR)/python/_mesos.so
-
-MESOS_PYTHON_LIB_OBJ = python/native/module.o \
-                       python/native/proxy_scheduler.o \
-                       python/native/mesos_scheduler_driver_impl.o \
-                       python/native/proxy_executor.o \
-                       python/native/mesos_executor_driver_impl.o
-
-MESOS_PYTHON_FILE = $(LIBDIR)/python/mesos.py
 
 # We copy all the webui files into the bin directory.
 WEBUI_FILES = $(BINDIR)/webui/bottle-0.8.3		\
@@ -334,7 +326,7 @@ $(MESOS_PROJD_EXE): $(SRCDIR)/slave/projd.cpp $(COMMON_OBJ) $(PROTOBUF_OBJ)
 
 java: $(MESOS_JAVA_LIB) $(MESOS_JAVA_JAR)
 
-$(MESOS_JAVA_JAR): $(SRCDIR)/java/src/mesos/*.java @top_srcdir@/include/mesos.proto | $(LIBDIR)/java
+$(MESOS_JAVA_JAR): $(SRCDIR)/java/src/mesos/*.java | $(LIBDIR)/java
 ifdef JAVA_HOME
 	mkdir -p @top_builddir@/$(PROTOBUF)/java/src/main/java
 	$(PROTOC) --java_out=@top_builddir@/$(PROTOBUF)/java/src/main/java -I@top_srcdir@/$(PROTOBUF)/src @top_srcdir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto
@@ -349,32 +341,21 @@ ifdef JAVA_HOME
 endif
 
 $(MESOS_JAVA_LIB_OBJ): %.o: $(SRCDIR)/%.cpp $(MESOS_JAVA_JAR)
-	$(CXX) -c $(CXXFLAGS) -Ijava/jni -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -I $(JAVA_HEADERS) -o $@ $<
+	$(CXX) -c $(CXXFLAGS) -Ijava/jni -I$(JAVA_HEADERS) -I$(JAVA_HEADERS)/$(OS_NAME) -o $@ $<
 
 $(MESOS_JAVA_LIB): $(MESOS_JAVA_LIB_OBJ) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) | $(LIBDIR)/java
 ifdef JAVA_HOME
 	$(CXX) $(CXXFLAGS) -shared -o $@ $(MESOS_JAVA_LIB_OBJ) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
 endif
 
-python: $(MESOS_PYTHON_LIB) $(MESOS_PYTHON_FILE) $(MESOS_PYTHON_PROTOBUFS)
+python: $(MESOS_PYTHON_LIB)
 
-$(MESOS_PYTHON_LIB_OBJ): %.o: $(SRCDIR)/%.cpp
+$(MESOS_PYTHON_LIB): $(SRCDIR)/swig/mesos.i $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) | $(LIBDIR)/python
 ifdef PYTHON_HEADERS
-	mkdir -p python/native
-	$(CXX) -c $(CXXFLAGS) -Ipython/native -I$(PYTHON_HEADERS) -o $@ $<
-endif
-
-$(MESOS_PYTHON_LIB): $(MESOS_PYTHON_LIB_OBJ) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) | $(LIBDIR)/python
-ifdef PYTHON_HEADERS
-	$(CXX) $(CXXFLAGS) -shared -o $@ $(MESOS_PYTHON_LIB_OBJ) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
-endif
-
-$(MESOS_PYTHON_FILE): $(SRCDIR)/python/src/mesos.py @top_srcdir@/include/mesos.proto | $(LIBDIR)/python
-ifdef PYTHON_HEADERS
-	cp -r @top_srcdir@/$(PROTOBUF)/python @top_builddir@/$(PROTOBUF)/python
-	cp $< $@
-	$(PROTOC) --python_out=@top_builddir@/$(PROTOBUF)/python -I@top_srcdir@/$(PROTOBUF)/src @top_srcdir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto
-	$(PROTOC) --python_out=$(LIBDIR)/python -I@top_srcdir@/include @top_srcdir@/include/mesos.proto
+	mkdir -p swig/python
+	$(SWIG) -c++ -python -threads -I@top_srcdir@/include -o swig/python/mesos_wrap.cpp -outdir swig/python $(SRCDIR)/swig/mesos.i
+	$(CXX) $(CXXFLAGS) -I$(PYTHON_HEADERS) -shared -o $@ swig/python/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
+	cp -r swig/python/mesos.py $(LIBDIR)/python/mesos.py
 endif
 
 $(WEBUI_FILES): $(BINDIR)/%: $(SRCDIR)/% | $(WEBUI_DIRECTORIES)
@@ -394,7 +375,8 @@ $(CONFDIR)/deploy-env.sh: | $(SRCDIR)/conf/deploy-env.sh.template $(CONFDIR)
 test: all
 	$(MAKE) -C tests test
 
-all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
+#all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
+all: $(MESOS_LIBS) $(MESOS_EXES) java $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
 	$(MAKE) -C examples
 	$(MAKE) -C tests
 
