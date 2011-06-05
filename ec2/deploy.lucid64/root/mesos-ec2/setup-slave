@@ -67,3 +67,7 @@ if [[ -e /dev/sdv && ! -e /vol ]]; then
     rmdir /vol
   fi
 fi
+
+# Remove ~/.ssh/known_hosts because it gets polluted as you start/stop many
+# clusters (new machines tend to come up under old hostnames)
+rm /root/.ssh/known_hosts
