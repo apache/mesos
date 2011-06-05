@@ -40,6 +40,8 @@ def parse_args():
       help="Where to download latest code from: set to 'git' to check out " +
            "from git, 'web' for latest snapshot .tgz, or 'none' to use " +
            "the build of Nexus on the AMI (default)")
+  parser.add_option("-b", "--branch", default="master",
+      help="if using git, which branch to check out. default is 'master'")
   parser.add_option("-D", metavar="[ADDRESS:]PORT", dest="proxy_port", 
       help="Use SSH dynamic port forwarding to create a SOCKS proxy at " +
             "the given local address (for use with login)")
@@ -235,7 +237,7 @@ def main():
     scp(master, opts, opts.identity_file, '/root/.ssh/id_rsa')
     print "Running setup on master..."
     ssh(master, opts, "chmod u+x nexus-ec2/setup")
-    ssh(master, opts, "nexus-ec2/setup %s %s" % (opts.os, opts.download))
+    ssh(master, opts, "nexus-ec2/setup %s %s %s" % (opts.os, opts.download, opts.branch))
     print "Done!"
   elif action == "shutdown":
     response = raw_input("Are you sure you want to shut down the cluster " +

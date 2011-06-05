@@ -1,6 +1,7 @@
 #!/bin/bash
 OS_NAME=$1
 DOWNLOAD_METHOD=$2
+BRANCH=$3
 
 # Set PATH to include Scala
 export PATH=$PATH:/root/scala-2.7.7.final/bin
@@ -82,6 +83,7 @@ if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
   rm -rf nexus nexus.tgz
   # Set git SSH command to a script that uses -o StrictHostKeyChecking=no
   GIT_SSH=/root/nexus-ec2/ssh-no-keychecking git clone $REPOSITORY nexus
+  GIT_SSH=/root/nexus-ec2/ssh-no-keychecking git checkout $BRANCH
   popd > /dev/null 2>&1
   DOWNLOADED=1
 elif [[ "$DOWNLOAD_METHOD" == "web" ]] ; then
