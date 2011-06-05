@@ -7,7 +7,7 @@
 
   <property>
     <name>mapred.job.tracker</name>
-    <value>{{master}}:9001</value>
+    <value>{{active_master}}:9001</value>
   </property>
 
   <property>
@@ -17,7 +17,7 @@
 
   <property>
     <name>mapred.mesos.master</name>
-    <value>1@{{master}}:1111</value>
+    <value>1@{{active_master}}:5050</value>
   </property>
 
   <property>

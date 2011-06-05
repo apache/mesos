@@ -6,8 +6,11 @@ BRANCH=$3
 # By exporting this git won't ask to accept a key.
 export GIT_SSH=/root/mesos-ec2/ssh-no-keychecking
 
-MASTER=/root/mesos-ec2/master
+MASTERS=/root/mesos-ec2/masters
 SLAVES=/root/mesos-ec2/slaves
+ZOO=/root/mesos-ec2/zoo
+
+ISFT=`cat $ZOO | wc -l`
 
 # Scripts that get used for/while running Mesos.
 SCRIPTS="copy-dir
@@ -45,9 +48,25 @@ cd /root/mesos-ec2
 echo "Setting executable permissions on scripts..."
 for s in $SCRIPTS; do chmod u+x $s; done
 
-echo "SSH'ing to local machine to approve key..."
-ssh -q $SSH_OPTS `cat $MASTER` echo -n
+echo "SSH'ing to master machine(s) to approve key(s)..."
+for master in `cat $MASTERS`; do
+  echo $master
+  ssh $SSH_OPTS $master echo -n &
+  sleep 0.3
+done
+
 ssh -q $SSH_OPTS localhost echo -n
+
+if [[ $ISFT != 0 ]] ; then
+  echo "SSH'ing to Zoo server(s) to approve keys..."
+  zid=1
+  for zoo in `cat $ZOO`; do
+    echo $zoo
+    ssh $SSH_OPTS $zoo echo -n \; mkdir -p /tmp/zookeeper \; echo $zid \> /tmp/zookeeper/myid
+    zid=$(($zid+1))
+    sleep 0.3
+  done
+fi
 
 echo "SSH'ing to slaves to approve keys..."
 for slave in `cat $SLAVES`; do
@@ -57,6 +76,22 @@ for slave in `cat $SLAVES`; do
 done
 echo "Waiting for commands to finish..."
 wait
+
+if [[ `cat $MASTERS | wc -l` > 1 ]] ; then
+  echo "RSYNC'ing /root/mesos-ec2 to other master servers..."
+  for master in `cat $MASTERS | sed '1d'`; do
+      echo $master
+      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $master:/root
+  done
+fi
+
+if [[ $ISFT != 0 ]] ; then
+  echo "RSYNC'ing /root/mesos-ec2 to other Zoo servers..."
+  for zoo in `cat $ZOO`; do
+      echo $zoo
+      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $zoo:/root
+  done
+fi
 
 echo "RSYNC'ing /root/mesos-ec2 to slaves..."
 for slave in `cat $SLAVES`; do

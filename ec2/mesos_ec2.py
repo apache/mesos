@@ -192,7 +192,7 @@ def get_existing_cluster(conn, opts, cluster_name):
     print "Found master regid: " + master_res.id
     print "Found slave regid: " + slave_res.id
     if zoo_res != None:
-      print "Found slave regid: " + zoo_res.id
+      print "Found zoo regid: " + zoo_res.id
     return (master_res, slave_res, zoo_res)
   else:
     if master_res == None and slave_res != None:
@@ -208,10 +208,11 @@ def deploy_files(conn, root_dir, instance, opts, master_res, slave_res, zoo_res)
   # TODO: Speed up deployment by creating a temp directory with the
   # template-transformed files and then rsyncing it
 
-  master = master_res.instances[0].public_dns_name
+  active_master = master_res.instances[0].public_dns_name
 
   template_vars = {
-    "master" : '\n'.join([i.public_dns_name for i in master_res.instances]),
+    "master_list" : '\n'.join([i.public_dns_name for i in master_res.instances]),
+    "active_master" : active_master,
     "slave_list" : '\n'.join([i.public_dns_name for i in slave_res.instances])
   }
 
@@ -222,11 +223,11 @@ def deploy_files(conn, root_dir, instance, opts, master_res, slave_res, zoo_res)
   for path, dirs, files in os.walk(root_dir):
     dest_dir = os.path.join('/', path[len(root_dir):])
     if len(files) > 0: # Only mkdir for low-level directories since we use -p
-      ssh(master, opts, 'mkdir -p "%s"' % dest_dir)
+      ssh(active_master, opts, 'mkdir -p "%s"' % dest_dir)
     for filename in files:
       if filename[0] not in '#.~' and filename[-1] != '~':
         dest_file = os.path.join(dest_dir, filename)
-        print dest_file
+        print "Setting up '%s' file." % dest_file
         with open(os.path.join(path, filename)) as file:
           text = file.read()
           for key in template_vars:
@@ -234,7 +235,7 @@ def deploy_files(conn, root_dir, instance, opts, master_res, slave_res, zoo_res)
           temp_file = NamedTemporaryFile()
           temp_file.write(text)
           temp_file.flush()
-          scp(master, opts, temp_file.name, dest_file)
+          scp(active_master, opts, temp_file.name, dest_file)
           temp_file.close()
 
 

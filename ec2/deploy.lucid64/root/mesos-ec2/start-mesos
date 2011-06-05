@@ -1,8 +1,8 @@
 #!/bin/bash
 cd /root/mesos-ec2
 
-MASTER="`cat master`"
-MASTER1="`cat master | head -1`"
+MASTERS="`cat masters`"
+ACTIVE_MASTER="`cat masters | head -1`"
 SLAVES="`cat slaves`"
 ZOO1="`cat zoo | head -1`"
 ZOO="`cat zoo`"
@@ -12,7 +12,7 @@ ISFT="`cat zoo | wc -l`"
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
 if [[ $ISFT == 0 ]]; then
-  master_arg="1@${MASTER1}:1111"
+  master_arg="1@${ACTIVE_MASTER}:5050"
 else
   master_arg="zoo://"
   add=""
@@ -34,14 +34,14 @@ if [[ $ISFT != 0 ]]; then
   sleep 2
 
   masterid=1
-  for master in $MASTER; do
-    echo "Starting master $masterid on $MASTER"
-    ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master -p 1111 -f $master_arg </dev/null >/dev/null"
+  for master in $MASTERS; do
+    echo "Starting master $masterid on $master"
+    ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 -u $master_arg </dev/null >/dev/null"
     masterid=$(($masterid+1))
   done
 else
-  echo "Starting master on $MASTER1"
-  ssh $SSH_OPTS $MASTER1 "/root/mesos-ec2/mesos-daemon mesos-master -p 1111 </dev/null >/dev/null"
+  echo "Starting master on $ACTIVE_MASTER"
+  ssh $SSH_OPTS $ACTIVE_MASTER "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 </dev/null >/dev/null"
 fi
 
 COUNT=''
@@ -73,7 +73,7 @@ fi
 
 for slave in $SLAVES; do
   echo "Starting $COUNT slave(s) on $slave"
-  ssh $SSH_OPTS $slave "for ((i = 0; i < $COUNT; i++)); do /root/mesos-ec2/mesos-daemon mesos-slave ${master_arg} $CPUS $MEM; done </dev/null >/dev/null" &
+  ssh $SSH_OPTS $slave "for ((i = 0; i < $COUNT; i++)); do /root/mesos-ec2/mesos-daemon mesos-slave -u ${master_arg} $CPUS $MEM; done </dev/null >/dev/null" &
   sleep 0.1
 done
 wait
@@ -86,33 +86,6 @@ if [[ $ISFT != 0 ]]; then
 fi
 
 echo "Everything's started! You can view the master Web UI at"
-for master in $MASTER; do
+for master in $MASTERS; do
   echo "      http://$master:8080"
 done
-
-
-#cd /root/mesos-ec2
-#
-#MASTERS="`cat masters`"
-#SLAVES="`cat slaves`"
-#
-#SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
-#
-#for master in $MASTERS; do
-#  echo "Starting master on $master"
-#  ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master </dev/null >/dev/null"
-#  sleep 0.1
-#done
-#wait
-#
-#for slave in $SLAVES; do
-#  echo "Starting slave on $slave"
-#  ssh $SSH_OPTS $slave "/root/mesos-ec2/mesos-daemon mesos-slave -u 1@$MASTER:5050 </dev/null >/dev/null" &
-#  sleep 0.1
-#done
-#wait
-#
-#echo "Everything's started! You can view the master Web UI(s) at"
-#for master in $MASTERS; do
-#  echo "      http://$master:8080"
-#done
