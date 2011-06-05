@@ -364,16 +364,16 @@ void Master::operator () ()
           break;
         }
       } else {
-        // The framework's scheduler isn't failing over, so we must be a
-        // newly elected master that the framework is reconnecting to.
-        // Create a Framework object and add any running tasks for it that
-        // have already been reported to us by reconnecting slaves.
+        // We don't have a framework with this ID, so we must be a newly
+        // elected Mesos master to which either an existing scheduler or a
+        // failed-over one is connecting. Create a Framework object and add
+        // any tasks it has that have been reported by reconnecting slaves.
         Framework *framework = new Framework(from(), fid, elapsed());
         framework->name = name;
         framework->user = user;
         framework->executorInfo = executorInfo;
         addFramework(framework);
-        // Add any running tasks for this framework reported by slaves.
+        // Add any running tasks reported by slaves for this framework.
         foreachpair (SlaveID slaveId, Slave *slave, slaves) {
           foreachpair (_, Task *task, slave->tasks) {
             if (framework->id == task->frameworkId) {
@@ -384,6 +384,14 @@ void Master::operator () ()
       }
 
       CHECK(frameworks.find(fid) != frameworks.end());
+
+      // Broadcast the new framework pid to all the slaves. We have to
+      // broadcast because an executor might be running on a slave but
+      // it currently isn't running any tasks. This could be a
+      // potential scalability issue ...
+      foreachpair (_, Slave *slave, slaves) {
+        send(slave->pid, pack<M2S_UPDATE_FRAMEWORK_PID>(fid, from()));
+      }
 
       break;
     }
@@ -1000,14 +1008,6 @@ void Master::replaceScheduler(Framework *framework, const PID &newPid)
   link(newPid);
 
   send(newPid, pack<M2F_REGISTER_REPLY>(framework->id));
-
-  // Broadcast the new framework pid to all the slaves. We have to
-  // broadcast because an executor might be running on a slave but
-  // it currently isn't running any tasks. This could be a
-  // potential scalability issue ...
-  foreachpair (_, Slave *slave, slaves)
-    send(slave->pid, pack<M2S_UPDATE_FRAMEWORK_PID>(framework->id,
-                                                    newPid));
 }
 
 
