@@ -58,7 +58,6 @@ FTMessaging::FTMessaging() :
   sprintf(s, "%09i", (int)rand());
   uniqPrefix = s;
   DLOG(INFO) << "FT: Created unique FT TAG: " << s;
-  master = {0,0,0};
 }
 
 string FTMessaging::getNextId() {
