@@ -48,12 +48,11 @@ private:
 public:
   void process(ZooKeeper *zk, int type, int state, const string &path)
   {
+    string znode = "/home/nexus/master";
+    int ret;
+
     if ((state == ZOO_CONNECTED_STATE) &&
 	((type == ZOO_SESSION_EVENT) || (type == ZOO_CREATED_EVENT))) {
-      // Lookup master PID.
-      string znode = "/home/nexus/master";
-      int ret;
-
       // Check if znode exists, if not, just return and wait.
       ret = zk->exists(znode, true, NULL);
 
@@ -79,6 +78,10 @@ public:
       slave->master = master;
 
       Process::post(slave->getPID(), S2S_GOT_MASTER);
+    } else if ((state == ZOO_CONNECTED_STATE) &&
+	       (type == ZOO_DELETED_EVENT) &&
+	       (path.compare(znode) == 0)) {
+      // Master gone, we should get a PROCESS_EXIT and commit suicide.
     } else {
       fatal("unhandled ZooKeeper event!");
     }
