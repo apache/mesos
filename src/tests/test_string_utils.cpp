@@ -1,9 +1,13 @@
-#include <sstream>
-#include <string>
-
 #include <gtest/gtest.h>
 
-#include "string_utils.hpp"
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "common/string_utils.hpp"
+
+using std::string;
+using std::vector;
 
 using namespace mesos;
 using namespace mesos::internal;

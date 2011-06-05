@@ -2,13 +2,16 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include "master.hpp"
-#include "slave.hpp"
-#include "mesos_exec.hpp"
-#include "mesos_sched.hpp"
-#include "mesos_local.hpp"
-#include "isolation_module.hpp"
-#include "process_based_isolation_module.hpp"
+#include <mesos_exec.hpp>
+#include <mesos_sched.hpp>
+
+#include "local/local.hpp"
+
+#include "master/master.hpp"
+
+#include "slave/isolation_module.hpp"
+#include "slave/process_based_isolation_module.hpp"
+#include "slave/slave.hpp"
 
 using std::string;
 using std::vector;

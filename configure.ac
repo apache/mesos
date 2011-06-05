@@ -22,7 +22,7 @@ ac_configure_args=`echo $ac_configure_args | \
                    sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing /"`
 ac_configure_args="$ac_configure_args --enable-shared=no --with-pic"
 
-AC_CONFIG_FILES([Makefile src/Makefile src/examples/Makefile src/tests/Makefile src/config.hpp])
+AC_CONFIG_FILES([Makefile src/Makefile src/examples/Makefile src/tests/Makefile src/config/config.hpp])
 AC_CONFIG_SUBDIRS([third_party/libprocess])
 AC_CONFIG_SUBDIRS([third_party/gtest-1.5.0])
 AC_CONFIG_SUBDIRS([third_party/glog-0.3.1])

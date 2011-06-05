@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
+
 #include <iostream>
 #include <fstream>
 
 #include <boost/lexical_cast.hpp>
 
-#include "configurator.hpp"
 #include "testing_utils.hpp"
+
+#include "configurator/configurator.hpp"
 
 using std::ofstream;
 using std::string;

@@ -27,9 +27,9 @@ ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 CFLAGS += -g
 CXXFLAGS += -g
 
-# Add source dir to CFLAGS and CXXFLAGS.
-CFLAGS += -I@srcdir@/..
-CXXFLAGS += -I@srcdir@/..
+# Add source dir and build dir to CFLAGS and CXXFLAGS.
+CFLAGS += -I@srcdir@/.. -I..
+CXXFLAGS += -I@srcdir@/.. -I..
 
 # Add include to CFLAGS and CXXFLAGS.
 CFLAGS += -I@top_srcdir@/include
@@ -80,10 +80,28 @@ endif
 SCHED_LIB = ../libmesos_sched.a
 EXEC_LIB = ../libmesos_exec.a
 
-TESTS_OBJ = main.o test_master.o test_resources.o	\
-	    external_test.o test_sample_frameworks.o	\
-	    testing_utils.o test_configurator.o		\
-	    test_string_utils.o test_lxc_isolation.o
+TESTS_OBJ = main.o test_master.o test_resources.o external_test.o	\
+	    test_sample_frameworks.o testing_utils.o			\
+	    test_configurator.o test_string_utils.o			\
+	    test_lxc_isolation.o
+
+EXTERNAL_SCRIPTS = LxcIsolation/HoldMoreMemThanRequested.sh	\
+                   LxcIsolation/ScaleUpAndDown.sh		\
+                   LxcIsolation/TwoSeparateTasks.sh		\
+                   LxcIsolation/run_scheduled_memhog_test.sh	\
+                   SampleFrameworks/CFramework.sh		\
+                   SampleFrameworks/CFrameworkCmdlineParsing.sh	\
+                   SampleFrameworks/CFrameworkInvalidCmdline.sh	\
+                   SampleFrameworks/CFrameworkInvalidEnv.sh	\
+                   SampleFrameworks/CppFramework.sh		\
+                   SampleFrameworks/JavaExceptionFramework.sh	\
+                   SampleFrameworks/JavaFramework.sh		\
+                   SampleFrameworks/PythonFramework.sh
+
+# Create the external directories in case they aren't there.
+$(shell mkdir -p external/LxcIsolation)
+$(shell mkdir -p external/SampleFrameworks)
+
 
 default: all
 
@@ -93,13 +111,16 @@ default: all
 $(TESTS_OBJ): %.o: @srcdir@/%.cpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
+$(EXTERNAL_SCRIPTS): %: @srcdir@/external/%
+	cp @srcdir@/external/$@ external/$@
+
 alltests: $(TESTS_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $(TESTS_OBJ) $(SCHED_LIB) $(EXEC_LIB) $(LDFLAGS) $(LIBS)
 
-test: alltests
+test: all
 	./alltests
 
-all: alltests
+all: alltests $(EXTERNAL_SCRIPTS) 
 
 clean:
 	rm -f $(patsubst %.o, %.d, $(TESTS_OBJ))

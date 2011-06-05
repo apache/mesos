@@ -1,7 +1,7 @@
 %module(directors="1") slave
 
 %{
-#include <slave_state.hpp>
+#include <slave/state.hpp>
 
 namespace mesos { namespace internal { namespace slave { namespace state {
 extern SlaveState *get_slave();
@@ -22,7 +22,8 @@ extern SlaveState *get_slave();
 
 %include <mesos_types.h>
 %include <mesos_types.hpp>
-%include <slave_state.hpp>
+
+%include <slave/state.hpp>
 
 namespace mesos { namespace internal { namespace slave { namespace state {
 %newobject get_slave;

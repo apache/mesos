@@ -3,7 +3,7 @@
 #define SWIG_NO_EXPORT_ITERATOR_METHODS
 
 %{
-#include <master_state.hpp>
+#include <master/state.hpp>
 
 namespace mesos { namespace internal { namespace master { namespace state {
 extern MasterState *get_master();
@@ -27,7 +27,8 @@ extern MasterState *get_master();
 
 %include <mesos_types.h>
 %include <mesos_types.hpp>
-%include <master_state.hpp>
+
+%include <master/state.hpp>
 
 namespace mesos { namespace internal { namespace master { namespace state {
 %newobject get_master;

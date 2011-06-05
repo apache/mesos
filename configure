@@ -1700,7 +1700,7 @@ ac_configure_args=`echo $ac_configure_args | \
                    sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing /"`
 ac_configure_args="$ac_configure_args --enable-shared=no --with-pic"
 
-ac_config_files="$ac_config_files Makefile src/Makefile src/examples/Makefile src/tests/Makefile src/config.hpp"
+ac_config_files="$ac_config_files Makefile src/Makefile src/examples/Makefile src/tests/Makefile src/config/config.hpp"
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do
@@ -3704,7 +3704,7 @@ do
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "src/examples/Makefile") CONFIG_FILES="$CONFIG_FILES src/examples/Makefile" ;;
     "src/tests/Makefile") CONFIG_FILES="$CONFIG_FILES src/tests/Makefile" ;;
-    "src/config.hpp") CONFIG_FILES="$CONFIG_FILES src/config.hpp" ;;
+    "src/config/config.hpp") CONFIG_FILES="$CONFIG_FILES src/config/config.hpp" ;;
 
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
 echo "$as_me: error: invalid argument: $ac_config_target" >&2;}

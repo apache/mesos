@@ -1,14 +1,15 @@
-#include <gtest/gtest.h>
-
 #include <stdlib.h>
+
+#include <gtest/gtest.h>
 
 #include <string>
 
 #include <boost/lexical_cast.hpp>
 
 #include "external_test.hpp"
-#include "fatal.hpp"
 #include "testing_utils.hpp"
+
+#include "common/fatal.hpp"
 
 using std::string;
 using namespace mesos::internal::test;

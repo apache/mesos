@@ -40,9 +40,9 @@ ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 CFLAGS += -g
 CXXFLAGS += -g
 
-# Add source dir to CFLAGS and CXXFLAGS.
-CFLAGS += -I@srcdir@
-CXXFLAGS += -I@srcdir@
+# Add source dir and build dir to CFLAGS and CXXFLAGS.
+CFLAGS += -I@srcdir@ -I.
+CXXFLAGS += -I@srcdir@ -I.
 
 # Add include to CFLAGS and CXXFLAGS.
 CFLAGS += -I@top_srcdir@/include
@@ -93,37 +93,39 @@ ifeq ($(WITH_ZOOKEEPER),1)
   LIBS += -lzookeeper_st
 endif
 
-MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
+MASTER_OBJ = master/master.o master/allocator_factory.o master/simple_allocator.o
 
-SLAVE_OBJ = slave.o launcher.o isolation_module.o	\
-	    process_based_isolation_module.o
+SLAVE_OBJ = slave/slave.o launcher/launcher.o slave/isolation_module.o	\
+	    slave/process_based_isolation_module.o
 
 ifeq ($(OS_NAME),solaris)
-  SLAVE_OBJ += solaris_project_isolation_module.o
+  SLAVE_OBJ += slave/solaris_project_isolation_module.o
 endif
 
 ifeq ($(OS_NAME),linux)
-  SLAVE_OBJ += lxc_isolation_module.o
+  SLAVE_OBJ += slave/lxc_isolation_module.o
 endif
 
-MASTER_WEBUI_OBJ = master_webui.o
+MASTER_WEBUI_OBJ = master/webui.o
 MASTER_SWIG_WEBUI_OBJ = webui/master/swig/master_wrap.o
 
-SLAVE_WEBUI_OBJ = slave_webui.o
+SLAVE_WEBUI_OBJ = slave/webui.o
 SLAVE_SWIG_WEBUI_OBJ = webui/slave/swig/slave_wrap.o
 
 WEBUI_OBJ = $(MASTER_WEBUI_OBJ) $(SLAVE_WEBUI_OBJ)
 SWIG_WEBUI_OBJ = $(MASTER_SWIG_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 
-COMMON_OBJ = fatal.o messages.o lock.o master_detector.o params.o	\
-	     url_processor.o configurator.o string_utils.o logging.o
+COMMON_OBJ = common/fatal.o messaging/messages.o common/lock.o		\
+	     detector/detector.o common/params.o			\
+	     detector/url_processor.o configurator/configurator.o	\
+	     common/string_utils.o common/logging.o
 
 ifeq ($(WITH_ZOOKEEPER),1)
-  COMMON_OBJ += zookeeper.o
+  COMMON_OBJ += detector/zookeeper.o
 endif
 
-EXEC_LIB_OBJ = mesos_exec.o
-SCHED_LIB_OBJ = mesos_sched.o mesos_local.o
+EXEC_LIB_OBJ = exec/exec.o
+SCHED_LIB_OBJ = sched/sched.o local/local.o
 
 BASIC_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)  \
 	    $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ)
@@ -161,6 +163,31 @@ endif
 
 MESOS_PYTHON_LIB = swig/python/_mesos.so
 
+# In the event we are building in a directory other than source we
+# need to copy over the webui stuff so that the binaries can be run.
+WEBUI_FILES = webui/bottle-0.5.6 webui/common/webui_lib.py	\
+              webui/master/framework.tpl webui/master/index.tpl	\
+              webui/master/webui.py webui/slave/framework.tpl	\
+              webui/slave/index.tpl webui/slave/webui.py	\
+              webui/static/stylesheet.css
+
+# Create all the directories that we use but don't get created by
+# default because we don't have a Makefile.in in them.
+$(shell mkdir -p common)
+$(shell mkdir -p configurator)
+$(shell mkdir -p detector)
+$(shell mkdir -p exec)
+$(shell mkdir -p launcher)
+$(shell mkdir -p local)
+$(shell mkdir -p master)
+$(shell mkdir -p messaging)
+$(shell mkdir -p sched)
+$(shell mkdir -p slave)
+$(shell mkdir -p webui/common)
+$(shell mkdir -p webui/master)
+$(shell mkdir -p webui/slave)
+$(shell mkdir -p webui/static)
+
 
 default: all
 
@@ -187,7 +214,7 @@ $(WEBUI_OBJ): %.o: @srcdir@/%.cpp
 $(SWIG_WEBUI_OBJ): %.o: %.cpp
 	$(CXX) -c $(CXXFLAGS) $(WEBUI_CXXFLAGS) -o $@ $<
 
-webui/master/swig/master_wrap.cpp: @srcdir@/webui/master/swig/master.i @srcdir@/master_state.hpp @srcdir@/master_webui.hpp @srcdir@/master.hpp @srcdir@/config.hpp
+webui/master/swig/master_wrap.cpp: @srcdir@/webui/master/swig/master.i @srcdir@/master/state.hpp @srcdir@/master/webui.hpp @srcdir@/master/master.hpp config/config.hpp
 ifeq ($(WITH_WEBUI),1)
 	mkdir -p webui/master/swig
 	$(SWIG) -c++ -python -outdir webui/master/swig -I@top_srcdir@/include -I@srcdir@ -o $@ $<
@@ -195,7 +222,7 @@ else
 	echo "" > $@
 endif
 
-webui/slave/swig/slave_wrap.cpp: @srcdir@/webui/slave/swig/slave.i @srcdir@/slave_state.hpp @srcdir@/slave_webui.hpp @srcdir@/slave.hpp @srcdir@/config.hpp
+webui/slave/swig/slave_wrap.cpp: @srcdir@/webui/slave/swig/slave.i @srcdir@/slave/state.hpp @srcdir@/slave/webui.hpp @srcdir@/slave/slave.hpp config/config.hpp
 ifeq ($(WITH_WEBUI),1)
 	mkdir -p webui/slave/swig
 	$(SWIG) -c++ -python -outdir webui/slave/swig -I@top_srcdir@/include -I@srcdir@ -o $@ $<
@@ -205,22 +232,22 @@ endif
 
 $(MESOS_EXES): $(COMMON_OBJ)
 
-mesos-master: @srcdir@/master_main.cpp $(MASTER_OBJ) $(MASTER_WEBUI_OBJ) $(MASTER_SWIG_WEBUI_OBJ)
+mesos-master: @srcdir@/master/main.cpp $(MASTER_OBJ) $(MASTER_WEBUI_OBJ) $(MASTER_SWIG_WEBUI_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(WEBUI_LDFLAGS) $(LIBS)
 
-mesos-slave: @srcdir@/slave_main.cpp $(SLAVE_OBJ) $(SLAVE_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
+mesos-slave: @srcdir@/slave/main.cpp $(SLAVE_OBJ) $(SLAVE_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(WEBUI_LDFLAGS) $(LIBS)
 
-mesos-launcher: @srcdir@/launcher_main.cpp launcher.o
+mesos-launcher: @srcdir@/launcher/main.cpp launcher/launcher.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
-mesos-projd: @srcdir@/projd.cpp
+mesos-projd: @srcdir@/slave/projd.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
-mesos-local: @srcdir@/local.cpp mesos_local.o $(MASTER_OBJ) $(SLAVE_OBJ)
+mesos-local: @srcdir@/local/main.cpp local/local.o $(MASTER_OBJ) $(SLAVE_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
-mesos-getconf: @srcdir@/get_conf.cpp
+mesos-getconf: @srcdir@/configurator/get_conf.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 java: $(MESOS_JAVA_LIB) swig/java/mesos.jar
@@ -250,10 +277,15 @@ ifdef PYTHON_HEADERS
 	$(CXX) $(CXXFLAGS) -I$(PYTHON_HEADERS) -shared -o $@ swig/python/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
 endif
 
-test:
+$(WEBUI_FILES): %: @srcdir@/%
+ifeq ($(WITH_WEBUI),1)
+	cp -r @srcdir@/$@ $@
+endif
+
+test: all
 	$(MAKE) -C tests test
 
-all: $(MESOS_LIBS) $(MESOS_EXES) java python
+all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES)
 	$(MAKE) -C examples
 	$(MAKE) -C tests
 
