@@ -80,7 +80,7 @@ public:
 /**
  * Definition of a mock Filter so that messages can act as triggers.
  */
-class MockFilter : public MessageFilter
+class MockFilter : public Filter
 {
  public:
   MOCK_METHOD1(filter, bool(struct msg *));
