@@ -88,7 +88,7 @@ NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(CPP_LIB)
 MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
 SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
 	    process_based_isolation_module.o
-COMMON_OBJ = fatal.o hash_pid.o messages.o getleader.o
+COMMON_OBJ = fatal.o hash_pid.o messages.o getleader.o nexus_types.o
 EXEC_LIB_OBJ = nexus_exec.o
 SCHED_LIB_OBJ = nexus_sched.o nexus_local.o params.o
 TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o

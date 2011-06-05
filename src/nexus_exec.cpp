@@ -264,7 +264,7 @@ public:
   virtual void init(const ExecutorArgs& args)
   {
     exec->init(exec,
-               args.slaveId,
+               slaveID_CPP2C(args.slaveId),
                args.frameworkId,
                args.frameworkName.c_str(),
                args.data.data(),
@@ -277,7 +277,7 @@ public:
     Params paramsObj(task.params);
     string paramsStr = paramsObj.str();
     nexus_task_desc td = { task.taskId,
-                           task.slaveId,
+                           slaveID_CPP2C(task.slaveId),
                            task.name.c_str(),
                            paramsStr.c_str(),
                            task.arg.data(),
@@ -292,7 +292,7 @@ public:
   
   virtual void frameworkMessage(const FrameworkMessage& message)
   {
-    nexus_framework_message msg = { message.slaveId,
+    nexus_framework_message msg = { slaveID_CPP2C(message.slaveId),
                                     message.taskId,
                                     message.data.data(),
                                     message.data.size() };
@@ -348,7 +348,7 @@ int nexus_exec_send_message(struct nexus_exec* exec,
   }
 
   string data((char*) msg->data, msg->data_len);
-  FrameworkMessage message(msg->sid, msg->tid, data);
+  FrameworkMessage message(slaveID_C2CPP(msg->sid), msg->tid, data);
 
   _executor->sendFrameworkMessage(message);
 

@@ -34,6 +34,7 @@
 #include "params.hpp"
 #include "resources.hpp"
 #include "slave_state.hpp"
+#include "getleader.hpp"
 
 namespace nexus { namespace internal { namespace slave {
 
@@ -176,6 +177,9 @@ public:
   typedef unordered_map<FrameworkID, Framework*> FrameworkMap;
   typedef unordered_map<FrameworkID, Executor*> ExecutorMap;
   
+  const bool isFT;
+  string zkserver;
+  LeaderDetector *leaderDetector;
   PID master;
   SlaveID id;
   Resources resources;
@@ -184,12 +188,39 @@ public:
   ExecutorMap executors;  // Invariant: framework will exist if executor exists
   string isolationType;
   IsolationModule *isolationModule;
+
+  
+  class SlaveLeaderListener;
+  friend class SlaveLeaderListener;
+
+  class SlaveLeaderListener : public LeaderListener {
+  public:
+    // TODO(alig): make thread safe
+    SlaveLeaderListener(Slave *s, PID pp) : parent(s), parentPID(pp) {}
+    
+    virtual void newLeaderElected(string zkId, string pidStr) {
+      if (zkId!="") {
+	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:"<<zkId;
+	
+	parent->zkserver = pidStr;
+
+	LOG(INFO) << "Sending message to parent "<<parentPID<<" about new leader";
+	parent->send(parentPID, parent->pack<LE2S_NEWLEADER>(pidStr));
+
+      }
+    }
+
+  private:
+    Slave *parent;
+    PID parentPID;
+  } slaveLeaderListener;
+
   
 public:
-  Slave(const PID &_master, Resources resources, bool _local);
+  Slave(const PID &_master, Resources resources, bool _local, bool =false, string ="");
 
   Slave(const PID &_master, Resources resources, bool _local,
-        const string& isolationType);
+        const string& isolationType, bool =false, string ="");
 
   virtual ~Slave();
 

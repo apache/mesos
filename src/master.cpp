@@ -110,20 +110,22 @@ public:
 }
 
 
-Master::Master()
-  : nextFrameworkId(0), nextSlaveId(0), nextSlotOfferId(0),
-    allocatorType("simple")
+Master::Master(const bool ft, const string zk)
+  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId("0"), 
+    nextSlotOfferId(0), allocatorType("simple")
 {}
 
 
-Master::Master(const string& _allocatorType)
-  : nextFrameworkId(0), nextSlaveId(0), nextSlotOfferId(0),
-    allocatorType(_allocatorType)
+Master::Master(const string& _allocatorType, const bool ft, const string zk)
+  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId("0"), 
+    nextSlotOfferId(0), allocatorType(_allocatorType)
 {}
                    
 
 Master::~Master()
 {
+  if (isFT && leaderDetector!=NULL)
+    delete leaderDetector;
   LOG(INFO) << "Shutting down master";
   delete allocator;
   foreachpair (_, Framework *framework, frameworks) {
@@ -237,6 +239,13 @@ void Master::operator () ()
 {
   LOG(INFO) << "Master started at " << self();
 
+  if (isFT) {
+    LOG(INFO) << "Conencting to ZooKeeper at "<<zkserver;
+    ostringstream lpid;
+    lpid<<self();
+    leaderDetector = new LeaderDetector(zkserver, true, lpid.str());
+  }
+
   allocator = createAllocator();
   if (!allocator)
     LOG(FATAL) << "Unrecognized allocator type: " << allocatorType;
@@ -338,7 +347,11 @@ void Master::operator () ()
     }
 
     case S2M_REGISTER_SLAVE: {
-      Slave *slave = new Slave(from(), nextSlaveId++);
+      stringstream ss;
+      int nsi = atoi(nextSlaveId.c_str());
+      ss<<nsi++;
+      nextSlaveId = ss.str();
+      Slave *slave = new Slave(from(), nextSlaveId);
       unpack<S2M_REGISTER_SLAVE>(slave->hostname, slave->publicDns,
           slave->resources);
       LOG(INFO) << "Registering " << slave << " at " << slave->pid;

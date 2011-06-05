@@ -58,16 +58,19 @@ public:
 } /* namespace */
 
 
-Slave::Slave(const PID &_master, Resources _resources, bool _local)
-  : master(_master), resources(_resources), local(_local), id(-1),
-    isolationType("process"), isolationModule(NULL)
+Slave::Slave(const PID &_master, Resources _resources, bool _local, 
+	     bool ft, string zk)
+  : isFT(ft), zkserver(zk), leaderDetector(NULL), master(_master), 
+    resources(_resources), local(_local), id("-1"),
+    isolationType("process"), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {}
 
 
 Slave::Slave(const PID &_master, Resources _resources, bool _local,
-    const string& _isolationType)
-  : master(_master), resources(_resources), local(_local), id(-1),
-    isolationType(_isolationType), isolationModule(NULL)
+	     const string& _isolationType, bool ft, string zk)
+  : isFT(ft), zkserver(zk), leaderDetector(NULL), master(_master), 
+    resources(_resources), local(_local), id("-1"),
+    isolationType(_isolationType), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {}
 
 
@@ -103,6 +106,20 @@ state::SlaveState *Slave::getState()
 void Slave::operator () ()
 {
   LOG(INFO) << "Slave started at " << self();
+
+  if (isFT) {
+    LOG(INFO) << "Connecting to ZooKeeper at " << zkserver;
+    leaderDetector = new LeaderDetector(zkserver, false, "", NULL);
+    leaderDetector->setListener(&slaveLeaderListener); // use this instead of constructor to avoid race condition
+
+    pair<string,string> zkleader = leaderDetector->getCurrentLeader();
+    LOG(INFO) << "Detected leader at " << zkleader.second <<" with ephemeral id:"<<zkleader.first;
+
+    istringstream iss(zkleader.second);
+    if (!(iss >> master)) {
+      cerr << "Failed to resolve master PID " << zkleader.second << endl;
+    }    
+  }
 
   // Get our hostname
   char buf[256];
@@ -269,10 +286,10 @@ void Slave::operator () ()
 	  // TODO: Fault tolerance!
           LOG(ERROR) << "Master disconnected! Committing suicide ...";
 	  // TODO(matei): Add support for factory style destroy of objects!
-	  if (isolationModule != NULL)
-	    delete isolationModule;
-	  // TODO: Shut down executors?
-	  return;
+	  // if (isolationModule != NULL)
+	  //   delete isolationModule;
+	  // // TODO: Shut down executors?
+	  // return;
 	}
 
         foreachpair (_, Executor *ex, executors) {
@@ -297,6 +314,7 @@ void Slave::operator () ()
         return;
       }
 
+
       case S2S_SHUTDOWN: {
         LOG(INFO) << "Asked to shut down by " << from();
 	// TODO(matei): Add support for factory style destroy of objects!
@@ -304,6 +322,23 @@ void Slave::operator () ()
 	  delete isolationModule;
         // TODO: Shut down executors?
         return;
+      }
+
+      case LE2S_NEWLEADER: {
+        LOG(INFO) << "Slave got notified of new leader " << from();
+	string newLeader;
+        unpack<LE2S_NEWLEADER>(newLeader);
+	istringstream iss(newLeader);
+	if (!(iss >> master)) {
+	  cerr << "Failed to resolve master PID " << newLeader << endl;
+	  break;
+	}    
+	
+	LOG(INFO) << "Connecting to Nexus master at " << master;
+	link(master);
+	send(master, pack<S2M_REGISTER_SLAVE>(hostname, publicDns, resources));
+	
+	break;
       }
 
       default: {

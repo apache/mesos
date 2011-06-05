@@ -27,6 +27,7 @@
 #include "messages.hpp"
 #include "params.hpp"
 #include "resources.hpp"
+#include "getleader.hpp"
 
 namespace nexus { namespace internal { namespace master {
 
@@ -272,6 +273,9 @@ enum TaskRemovalReason
 class Master : public Tuple<Process>
 {
 protected:
+  const bool isFT;
+  string zkserver;
+  LeaderDetector *leaderDetector;
   unordered_map<FrameworkID, Framework *> frameworks;
   unordered_map<SlaveID, Slave *> slaves;
   unordered_map<OfferID, SlotOffer *> slotOffers;
@@ -287,9 +291,9 @@ protected:
   Allocator *allocator;
 
 public:
-  Master();
+  Master(const bool =false, const string ="");
 
-  Master(const string& _allocatorType);
+  Master(const string& _allocatorType, const bool =false, const string ="");
   
   ~Master();
 

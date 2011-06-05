@@ -504,7 +504,7 @@ public:
     // Create C offer structs
     nexus_slot* c_offers = new nexus_slot[offers.size()];
     for (size_t i = 0; i < offers.size(); i++) {
-      nexus_slot offer = { offers[i].slaveId,
+      nexus_slot offer = { slaveID_CPP2C(offers[i].slaveId),
                            offers[i].host.c_str(),
                            paramStrs[i].c_str() };
       c_offers[i] = offer;
@@ -530,7 +530,7 @@ public:
 
   virtual void frameworkMessage(SchedulerDriver*, FrameworkMessage &message)
   {
-    nexus_framework_message c_message = { message.slaveId,
+    nexus_framework_message c_message = { slaveID_CPP2C(message.slaveId),
                                           message.taskId,
                                           message.data.data(),
                                           message.data.size() };
@@ -539,7 +539,7 @@ public:
 
   virtual void slaveLost(SchedulerDriver*, SlaveID sid)
   {
-    sched->slave_lost(sched, sid);
+    sched->slave_lost(sched, slaveID_CPP2C(sid));
   }
 
   virtual void error(SchedulerDriver*, int code, const std::string &message)
@@ -686,7 +686,7 @@ int nexus_sched_send_message(struct nexus_sched* sched,
     return -1;
   }
 
-  FrameworkMessage message(msg->sid, msg->tid,
+  FrameworkMessage message(slaveID_C2CPP(msg->sid), msg->tid,
                            string((char*) msg->data, msg->data_len));
 
   CScheduler* csi = lookup(sched);
@@ -750,7 +750,7 @@ int nexus_sched_reply_to_offer(struct nexus_sched* sched,
     string taskArg((char*) tasks[i].arg, tasks[i].arg_len);
 
     wrapped_tasks[i] = TaskDescription(tasks[i].tid,
-                                       tasks[i].sid,
+                                       slaveID_C2CPP(tasks[i].sid),
                                        string(tasks[i].name),
                                        params,
                                        taskArg);
