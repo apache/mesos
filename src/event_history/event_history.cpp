@@ -40,11 +40,11 @@ EventLogger::EventLogger(const Params& conf) {
     }
     //Create and add file based writers (i.e. writers which depend on log_dir
     //being set) to writers list.
-    if (conf.get<bool>("event-history-file", true)) {
+    if (conf.get<bool>("event_history_file", true)) {
       LOG(INFO) << "creating FileEventWriter" << endl;
       writers.push_front(new FileEventWriter(conf));
     }
-    if (conf.get<bool>("event-history-sqlite", false)) {
+    if (conf.get<bool>("event_history_sqlite", false)) {
       LOG(INFO) << "creating SqliteEventWriter" << endl;
       writers.push_front(new SqlLiteEventWriter(conf));
     }
