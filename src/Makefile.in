@@ -266,7 +266,7 @@ messaging/messages.pb.cc: $(SRCDIR)/messaging/messages.proto
 	$(PROTOC) -I$(SRCDIR)/messaging -I@top_srcdir@/include --cpp_out=messaging $(SRCDIR)/messaging/messages.proto
 
 common/build.o: $(SRCDIR)/common/build.cpp force | common
-	$(CXX) -c $(CXXFLAGS) -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USER\"" -DBUILD_FLAGS="\"$$CFLAGS $$CXXFLAGS\"" -o $@ $<
+	$(CXX) -c $(CXXFLAGS) -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USER\"" -DBUILD_FLAGS="\"$(CFLAGS) $(CXXFLAGS)\"" -o $@ $<
 
 $(PROTOBUF_OBJ): %.pb.o: %.pb.cc $(INCLUDEDIR)/mesos.hpp
 	$(CXX) -c $(CXXFLAGS) -I@top_srcdir@/$(PROTOBUF)/src -I. -o $@ $<

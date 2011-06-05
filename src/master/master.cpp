@@ -906,8 +906,21 @@ void Master::operator () ()
 
     case vars: {
       LOG(INFO) << "HTTP request for 'vars'";
-      const string& data = conf.str();
-      Process::send(from(), "response", data.data(), data.size());
+
+      ostringstream out;
+
+      out <<
+        "build_date " << build::DATE << "\n" <<
+        "build_user " <<  build::USER << "\n" <<
+        "build_flags " <<  build::FLAGS << "\n" <<
+        "frameworks_count " << frameworks.size() << "\n";
+
+      // Also add the configuration values.
+      foreachpair (const string& key, const string& value, conf.getMap()) {
+        out << key << " " << value << "\n";
+      }
+
+      Process::send(from(), "response", out.str().data(), out.str().size());
       break;
     }
 
