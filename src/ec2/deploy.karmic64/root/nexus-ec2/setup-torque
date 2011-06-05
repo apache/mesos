@@ -24,7 +24,7 @@ function installmaster {
 	make install
 	echo "running ldconfig on master"
 	ldconfig
-        ./torque.setup root localhost # Note: sets some defaults for batch queue
+        ./torque.setup root #localhost # Note: sets some defaults for batch queue
 
 	echo "copying init.d control scripts to master"
 	cp contrib/init.d/debian.pbs_mom /etc/init.d/pbs_mom

@@ -9,7 +9,7 @@ import Queue
 import threading
 import re
 import socket
-import qstat
+import torquelib
 
 from optparse import OptionParser
 from subprocess import *
@@ -40,6 +40,7 @@ class MyScheduler(nexus.Scheduler):
     print "Nexus torque+pbs scheduler registered as framework #%s" % fid
 
   def resourceOffer(self, driver, oid, slave_offers):
+    self.driver = driver
     print "Got slot offer %d" % oid
     self.lock.acquire()
     print "resourceOffer() acquired lock"
@@ -73,7 +74,7 @@ class MyScheduler(nexus.Scheduler):
     print "\n"
 
   def statusUpdate(self, driver, status):
-    print "got status update, data is: " + status.data
+    print "got status update from TID %s, state is: %s, data is: %s" %(status.taskId,status.state,status.data)
 
   def regComputeNode(self, new_node):
     print "registering new compute node, "+new_node+", with pbs_server"
@@ -96,21 +97,28 @@ class MyScheduler(nexus.Scheduler):
     #remove node from server
     print("removing node from pbs_server: qmgr -c delete node " + node_name)
     print Popen('qmgr -c "delete node ' + node_name + '"', shell=True, stdout=PIPE).stdout
-    #TODO: make this kill the correct task
-    #driver.killtask()
   
   #unreg up to N random compute nodes, leave at least one
   def unregNNodes(self, num_nodes):
     print "unregNNodes called with arg %d" % num_nodes
     if num_nodes > len(self.servers)-1:
-      print "only unregistering %d nodes, leaving one alive" % (len(self.servers)-1)
-    for key, val in self.servers.items():
-      if len(self.servers) > 1 and num_nodes > 0:
-        print str(len(self.servers)), str(num_nodes > 0)
-        print "unregistering node " + str(val)
-        self.unregComputeNode(val)
-        self.servers.pop(key)
+      print "... however, only unregistering %d nodes, leaving one alive" % (len(self.servers)-1)
+    print "getting and filtering list of nodes using torquelib"
+    noJobs = lambda x: x.status.has_key("jobs") == False or (x.status.has_key("jobs") == True and x.status["jobs"] == "")
+    inactiveNodes = map(lambda x: x.name,filter(noJobs, torquelib.getNodes()))
+    print "victim pool of inactive nodes:"
+    for inode in inactiveNodes:
+      print inode
+    for tid, hostname in self.servers.items():
+      if len(self.servers) > 1 and num_nodes > 0 and hostname in inactiveNodes:
+        print "we still have to kill %d of the %d compute nodes which master is tracking" % (num_nodes, len(self.servers))
+        print "unregistering node " + str(hostname)
+        self.unregComputeNode(hostname)
+        self.servers.pop(tid)
         num_nodes = num_nodes - 1
+        print "killing corresponding task with tid %d" % tid
+        self.driver.killTask(tid)
+    #handle the case where we didn't kill enough nodes 
 
   def getFrameworkName(self, driver):
     return "Nexus Torque Framework"
@@ -123,19 +131,21 @@ def monitor(sched):
     sched.lock.acquire()
     print "computing num nodes needed to satisfy eligable jobs in queue"
     needed = 0
-    jobs = qstat.getActiveJobs()
+    jobs = torquelib.getActiveJobs()
     print "retreived jobs in queue, count: %d" % len(jobs)
     for j in jobs:
       #WARNING: this check should only be used if torque is using fifo queue
       #if needed + j.needsnodes <= SAFE_ALLOCATION:
-      needed += j.resourceList["neednodes"]
+      print "job resource list is: " + str(j.resourceList)
+      needed += int(j.resourceList["nodect"])
     print "number of nodes needed by jobs in queue: %d" % needed
     numToRelease = len(sched.servers) - needed
+    print "number of nodes to release is %d - %d" % (len(sched.servers),needed)
     if numToRelease > 0:
       sched.unregNNodes(numToRelease)
       sched.numToRegister = 0
     else:
-      print "monitor updating sched.numToRelease from %d to %d" % (sched.numToRegister, numToRelease * -1)
+      print "monitor updating sched.numToRegister from %d to %d" % (sched.numToRegister, numToRelease * -1)
       sched.numToRegister = numToRelease * -1
     sched.lock.release()
     print "monitor thread releasing lock"
@@ -155,7 +165,7 @@ if __name__ == "__main__":
 
   print "running killall pbs_server"
   Popen("killall pbs_server", shell=True)
-  time.sleep(2)
+  time.sleep(1)
 
   print "writing $(TORQUECFG)/server_name file with fqdn of pbs_server: " + fqdn
   FILE = open(PBS_SERVER_FILE,'w')
@@ -183,7 +193,7 @@ if __name__ == "__main__":
   print "RE-killing pbs_server for resources_available setting to take effect"
   #Popen("/etc/init.d/pbs_server start", shell=True)
   Popen("qterm", shell=True)
-  time.sleep(2)
+  #time.sleep(1)
   print("\n")
 
   print "RE-starting pbs_server for resources_available setting to take effect"
@@ -196,7 +206,7 @@ if __name__ == "__main__":
 
   print "running killall pbs_sched"
   Popen("killall pbs_sched", shell=True)
-  time.sleep(2)
+  #time.sleep(2)
   print("\n")
 
   print "starting pbs_scheduler"
