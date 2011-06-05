@@ -919,9 +919,6 @@ void Master::killTask(Task *task)
   CHECK(framework != NULL);
   CHECK(slave != NULL);
   send(slave->pid, pack<M2S_KILL_TASK>(framework->id, task->id));
-  send(framework->pid,
-       pack<M2F_STATUS_UPDATE>(task->id, TASK_KILLED, task->message));
-  removeTask(task, TRR_TASK_ENDED);
 }
 
 

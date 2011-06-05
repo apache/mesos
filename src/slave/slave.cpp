@@ -269,8 +269,6 @@ void Slave::operator () ()
           fw->removeTask(tid);
           isolationModule->resourcesChanged(fw);
         }
-        // Report to master that the task is killed
-        send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, TASK_KILLED, ""));
         break;
       }
 
