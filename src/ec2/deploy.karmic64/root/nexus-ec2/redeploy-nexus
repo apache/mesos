@@ -4,6 +4,8 @@ SLAVES=/root/nexus-ec2/slaves
 MASTER=/root/nexus-ec2/master
 ZOO=/root/nexus-ec2/zoo
 
+ISFT=`cat $ZOO | wc -l`
+
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
 SERVERS=`cat $SLAVES`
@@ -19,3 +21,15 @@ for server in $SERVERS; do
     rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'nexus/frameworks/hadoop-0.20.0/logs/*' /root/nexus $server:/root &
 done
 wait
+
+if [[ $ISFT != 0 ]] ; then
+  echo "Configuring zoo.cfg..."
+  for zoo in `cat $ZOO`; do
+    zid=1
+    for zoop in `cat $ZOO`; do
+      ssh $SSH_OPTS $zoo echo "server."${zid}"="${zoop}":2888:3888" \>\> ~/nexus/src/third_party/zookeeper*/conf/zoo.cfg
+      zid=$(($zid+1))
+    done
+    sleep 0.1
+  done
+fi

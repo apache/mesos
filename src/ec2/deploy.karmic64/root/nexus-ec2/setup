@@ -173,19 +173,6 @@ echo "-Dspark.dfs=hdfs://$HOSTNAME:9000 -Djava.io.tmpdir=/nfs" \
 echo "Redeploying /root/nexus..."
 ./redeploy-nexus
 
-if [[ $ISFT != 0 ]] ; then
-  echo "Configuring zoo.cfg..."
-  for zoo in `cat $ZOO`; do
-    zid=1
-    for zoop in `cat $ZOO`; do
-      ssh $SSH_OPTS $zoo echo "server."${zid}"="${zoop}":2888:3888" \>\> /root/nexus/src/third_party/zookeeper\*/conf/zoo.cfg
-      zid=$(($zid+1))
-    done
-    sleep 0.1
-  done
-fi
-
-
 echo "Setting up NFS..."
 if [ ! -e /mnt/nfs ] ; then
   mkdir -p /mnt/nfs
