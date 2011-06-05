@@ -592,9 +592,15 @@ int MesosSchedulerDriver::stop()
   if (process != NULL) {
     Process::dispatch(process, &SchedulerProcess::stop);
     process->terminate = true;
+    process = NULL;
   }
 
   running = false;
+
+  // TODO: It might make more sense to clean up our local cluster here than in
+  // the destructor. However, what would be even better is to allow multiple
+  // local clusters to exist (i.e. not use global vars in local.cpp) so that
+  // ours can just be an instance variable in MesosSchedulerDriver.
 
   pthread_cond_signal(&cond);
 

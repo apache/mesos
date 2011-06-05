@@ -10,8 +10,6 @@
 
 #include "configurator/configurator.hpp"
 
-#include "event_history/event_logger.hpp"
- 
 #include "master/master.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
@@ -19,7 +17,6 @@
 
 using namespace mesos::internal;
 
-using mesos::internal::eventhistory::EventLogger;
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::IsolationModule;
@@ -43,7 +40,6 @@ void initialize_glog() {
 
 namespace mesos { namespace internal { namespace local {
 
-static EventLogger* evLogger = NULL;
 static Master *master = NULL;
 static map<IsolationModule*, Slave*> slaves;
 static MasterDetector *detector = NULL;
@@ -52,7 +48,6 @@ static MasterDetector *detector = NULL;
 void registerOptions(Configurator* conf)
 {
   conf->addOption<int>("slaves", 's', "Number of slaves", 1);
-  EventLogger::registerOptions(conf);
   Logging::registerOptions(conf);
   Master::registerOptions(conf);
   Slave::registerOptions(conf);
@@ -88,9 +83,7 @@ PID launch(const Configuration& conf, bool initLogging)
       google::SetStderrLogging(google::INFO);
   }
 
-  evLogger = new EventLogger(conf);
-
-  master = new Master(conf, evLogger);
+  master = new Master(conf);
 
   PID pid = Process::spawn(master);
 
@@ -113,29 +106,30 @@ PID launch(const Configuration& conf, bool initLogging)
 
 void shutdown()
 {
-  MesosProcess::post(master->self(), M2M_SHUTDOWN);
-  Process::wait(master->self());
-  delete master;
-  delete evLogger;
-  master = NULL;
+  if (master != NULL) {
+    MesosProcess::post(master->self(), M2M_SHUTDOWN);
+    Process::wait(master->self());
+    delete master;
+    master = NULL;
 
-  // TODO(benh): Ugh! Because the isolation module calls back into the
-  // slave (not the best design) we can't delete the slave until we
-  // have deleted the isolation module. But since the slave calls into
-  // the isolation module, we can't delete the isolation module until
-  // we have stopped the slave.
+    // TODO(benh): Ugh! Because the isolation module calls back into the
+    // slave (not the best design) we can't delete the slave until we
+    // have deleted the isolation module. But since the slave calls into
+    // the isolation module, we can't delete the isolation module until
+    // we have stopped the slave.
 
-  foreachpair (IsolationModule *isolationModule, Slave *slave, slaves) {
-    MesosProcess::post(slave->self(), S2S_SHUTDOWN);
-    Process::wait(slave->self());
-    delete isolationModule;
-    delete slave;
+    foreachpair (IsolationModule *isolationModule, Slave *slave, slaves) {
+      MesosProcess::post(slave->self(), S2S_SHUTDOWN);
+      Process::wait(slave->self());
+      delete isolationModule;
+      delete slave;
+    }
+
+    slaves.clear();
+
+    delete detector;
+    detector = NULL;
   }
-
-  slaves.clear();
-
-  delete detector;
-  detector = NULL;
 }
 
 }}} /* namespace mesos { namespace internal { namespace local { */
