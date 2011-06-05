@@ -24,6 +24,9 @@ using namespace mesos::internal::test;
 void mesos::internal::test::runExternalTest(const char* testCase,
                                             const char* testName)
 {
+  // Remove DISABLED_ prefix from test name if this is a disabled test
+  if (strncmp(testName, "DISABLED_", strlen("DISABLED_")) == 0)
+    testName += strlen("DISABLED_");
   // Create and go into the test's work directory
   enterTestDirectory(testCase, testName);
   // Figure out the absolute path to the test script
