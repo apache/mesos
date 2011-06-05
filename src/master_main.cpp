@@ -6,6 +6,8 @@
 
 using std::cerr;
 using std::endl;
+using boost::lexical_cast;
+using boost::bad_lexical_cast;
 
 using namespace nexus::internal::master;
 
@@ -43,11 +45,11 @@ int main (int argc, char **argv)
 
   string url = "";
   string allocator = "simple";
+  char* webuiPortStr = "8080"; // C string because it is sent to python C API
   bool quiet = false;
 
   int opt;
   int index;
-  string webuiPortStr = "8080";
   while ((opt = getopt_long(argc, argv, "u:a:p:w:q", options, &index)) != -1) {
     switch (opt) {
       case 'u':
@@ -92,14 +94,15 @@ int main (int argc, char **argv)
 
 #ifdef NEXUS_WEBUI
   if (chdir(dirname(argv[0])) != 0)
-    fatalerror("could not change into %s for running webui", dirname(argv[0]));
-  long webuiPort;
-  std::istringstream webuiPortStream(webuiPortStr);
+    fatalerror("Could not change into %s for running webui.\n", dirname(argv[0]));
 
-  if (webuiPortStream>>webuiPort)
-    startMasterWebUI(pid, webuiPort);
-  else
-    fatalerror("Passed invalid string for webui port number.");
+  try {
+    lexical_cast<short>(webuiPortStr);
+  } catch(bad_lexical_cast &) {
+    fatalerror("Passed invalid string for webui port number.\n");
+  }
+
+  startMasterWebUI(pid, webuiPortStr);
 #endif
   
   Process::wait(pid);
