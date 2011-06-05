@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2002-2004 The Apache Software Foundation
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<!DOCTYPE article PUBLIC "-//OASIS//DTD Simplified DocBook XML V1.0//EN"
+"http://www.oasis-open.org/docbook/xml/simple/1.0/sdocbook.dtd">
+<article id="ar_ReleaseNotes">
+  <title>ZooKeeper 3.3.1 Release Notes</title>
+
+  <articleinfo>
+    <legalnotice>
+      <para>Licensed under the Apache License, Version 2.0 (the "License");
+      you may not use this file except in compliance with the License. You may
+      obtain a copy of the License at <ulink
+      url="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</ulink>.</para>
+
+      <para>Unless required by applicable law or agreed to in writing,
+      software distributed under the License is distributed on an "AS IS"
+      BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied. See the License for the specific language governing permissions
+      and limitations under the License.</para>
+    </legalnotice>
+  </articleinfo>
+
+<para>
+These release notes include new developer and user facing
+incompatibilities, features, and major improvements.
+</para>
+
+<para>See <ulink
+url="http://hadoop.apache.org/zookeeper/docs/r3.0.1/releasenotes.html#migration">3.0
+release notes and migration instructions</ulink> if you are upgrading
+from version 2 of ZooKeeper (SourceForge) to version 3 or
+later.</para>
+
+<section id="changes">
+<title>Changes Since ZooKeeper 3.3.0</title>
+
+<table>
+<title>Changes Since ZooKeeper 3.3.0</title>
+<tgroup cols='2'>
+<colspec colname='c1'/><colspec colname='c2'/>
+<thead>
+<row>
+  <entry>Issue</entry>
+  <entry>Notes</entry>
+</row>
+</thead>
+<tbody>
+
+<row>
+  <entry>Bug</entry>
+  <entry></entry>
+</row>
+
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-720">ZOOKEEPER-720</ulink></entry><entry>         Use zookeeper-{version}-sources.jar instead of zookeeper-{version}-src.jar to publish sources in the Maven repository
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-722">ZOOKEEPER-722</ulink></entry><entry>         zkServer.sh uses sh's builtin echo on BSD, behaves incorrectly.
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-734">ZOOKEEPER-734</ulink></entry><entry>         QuorumPeerTestBase.java and ZooKeeperServerMainTest.java do not handle windows path correctly
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-735">ZOOKEEPER-735</ulink></entry><entry>         cppunit test testipv6 assumes that the machine is ipv6 enabled.
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-737">ZOOKEEPER-737</ulink></entry><entry>         some 4 letter words may fail with netcat (nc)
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-738">ZOOKEEPER-738</ulink></entry><entry>         zookeeper.jute.h fails to compile with -pedantic 
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-741">ZOOKEEPER-741</ulink></entry><entry>         root level create on REST proxy fails
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-742">ZOOKEEPER-742</ulink></entry><entry>         Deallocatng None on writes
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-746">ZOOKEEPER-746</ulink></entry><entry>         learner outputs session id to log in dec (should be hex)
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-749">ZOOKEEPER-749</ulink></entry><entry>         OSGi metadata not included in binary only jar
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-750">ZOOKEEPER-750</ulink></entry><entry>         move maven artifacts into &quot;dist-maven&quot; subdir of the release (package target)
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-758">ZOOKEEPER-758</ulink></entry><entry>         zkpython segfaults on invalid acl with missing key
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-763">ZOOKEEPER-763</ulink></entry><entry>         Deadlock on close w/ zkpython / c client
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-764">ZOOKEEPER-764</ulink></entry><entry>         Observer elected leader due to inconsistent voting view
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-766">ZOOKEEPER-766</ulink></entry><entry>         forrest recipes docs don't mention the lock/queue recipe implementations available in the release
+</entry></row>
+    
+<row>
+  <entry>Improvement</entry>
+  <entry></entry>
+</row>
+
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-631">ZOOKEEPER-631</ulink></entry><entry>         zkpython's C code could do with a style clean-up
+</entry></row>
+
+<row>
+  <entry>Task</entry>
+  <entry></entry>
+</row>
+
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-754">ZOOKEEPER-754</ulink></entry><entry>         numerous misspellings &quot;succesfully&quot;
+</entry></row>
+
+
+
+</tbody></tgroup></table>
+
+</section>
+</article>

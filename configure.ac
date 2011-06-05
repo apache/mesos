@@ -4,27 +4,19 @@
 AC_PREREQ(2.61)
 AC_INIT
 
-# Use explicit python version 2.6.
-PYTHON=python2.6
-
-# Update CFLAGS and CXXFLAGS with environment args. 
-CFLAGS="-O2 -fno-strict-aliasing -fPIC ${CFLAGS}"
-CXXFLAGS="-O2 -fno-strict-aliasing -fPIC ${CXXFLAGS}"
-
+CFLAGS="${CFLAGS} -O2 -fno-strict-aliasing -fPIC"
+CXXFLAGS="${CXXFLAGS} -O2 -fno-strict-aliasing -fPIC"
 export CFLAGS
 export CXXFLAGS
+PYTHON=python
 
-# Update CFLAGS and CXXFLAGS in configure args.
-ac_configure_args=`echo $ac_configure_args | \
-                   sed -e "s/CFLAGS=/CFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
-ac_configure_args=`echo $ac_configure_args | \
-                   sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
-ac_configure_args="$ac_configure_args --enable-shared=no"
+ac_configure_args="--enable-shared=no --with-pic"
 
 AC_CONFIG_FILES([Makefile src/Makefile src/config.hpp])
 AC_CONFIG_SUBDIRS([src/third_party/libprocess])
 AC_CONFIG_SUBDIRS([src/third_party/gtest-1.4.0-patched])
 AC_CONFIG_SUBDIRS([src/third_party/glog-0.3.0])
+AC_CONFIG_SUBDIRS([src/third_party/zookeeper-3.3.1/src/c])
 
 AC_CANONICAL_SYSTEM
 
@@ -124,20 +116,6 @@ AC_ARG_WITH([webui],
 	         [])
 AC_SUBST(WITH_WEBUI)
 AC_SUBST(WEBUI_FLAGS)
-
-WITH_ZOOKEEPER="0"
-AC_ARG_WITH([zookeeper],
-  AC_HELP_STRING([--with-zookeeper],
-                 [enable ZooKeeper support]),
-	         [case "$with_zookeeper" in
-		    yes) WITH_ZOOKEEPER="1" ;;
-                    no) WITH_ZOOKEEPER="0" ;;
-		    *) AC_MSG_ERROR([
-*** --with-zookeeper does not take arguments]) ;;
-	          esac],
-	         [])
-AC_SUBST(WITH_ZOOKEEPER)
-
 
 # Checks for programs.
 AC_PROG_CXX([g++])
