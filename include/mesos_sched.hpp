@@ -85,8 +85,8 @@ public:
   virtual int killTask(const TaskID& taskId) = 0;
 
   virtual int replyToOffer(const OfferID& offerId,
-			   const std::vector<TaskDescription>& tasks,
-			   const std::map<std::string, std::string>& params) = 0;
+                           const std::vector<TaskDescription>& tasks,
+                           const std::map<std::string, std::string>& params) = 0;
 
   virtual int replyToOffer(const OfferID& offerId,
                            const std::vector<TaskDescription>& tasks)
@@ -132,7 +132,7 @@ public:
    */
   MesosSchedulerDriver(Scheduler* sched,
                        const std::map<std::string, std::string>& params,
-		       const FrameworkID& frameworkId = FrameworkID());
+                       const FrameworkID& frameworkId = FrameworkID());
 
 #ifndef SWIG
   /**
@@ -151,9 +151,9 @@ public:
    *        redundant schedulers for the same framework
    */
   MesosSchedulerDriver(Scheduler* sched,
-		       int argc,
+                       int argc,
                        char** argv,
-		       const FrameworkID& frameworkId = FrameworkID());
+                       const FrameworkID& frameworkId = FrameworkID());
 #endif
 
   virtual ~MesosSchedulerDriver();
@@ -170,8 +170,8 @@ public:
   virtual int killTask(const TaskID& taskId);
 
   virtual int replyToOffer(const OfferID& offerId,
-			   const std::vector<TaskDescription>& tasks,
-			   const std::map<std::string, std::string>& params);
+                           const std::vector<TaskDescription>& tasks,
+                           const std::map<std::string, std::string>& params);
 
   virtual int replyToOffer(const OfferID& offerId,
                            const std::vector<TaskDescription>& tasks)
