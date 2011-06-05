@@ -7,18 +7,18 @@ AC_INIT
 # Use explicit python version 2.6.
 PYTHON=python2.6
 
-# Update CFLAGS and CXXFLAGS from configure args. 
+# Update CFLAGS and CXXFLAGS with environment args. 
 CFLAGS="-O2 -fno-strict-aliasing -fPIC ${CFLAGS}"
 CXXFLAGS="-O2 -fno-strict-aliasing -fPIC ${CXXFLAGS}"
 
 export CFLAGS
 export CXXFLAGS
 
-# Replace (remove and then add) CFLAGS and CXXFLAGS from configure args. 
+# Update CFLAGS and CXXFLAGS in configure args.
 ac_configure_args=`echo $ac_configure_args | \
                    sed -e "s/CFLAGS=/CFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
 ac_configure_args=`echo $ac_configure_args | \
-                   sed -e "s/'CXXFLAGS=.*'/CXXFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
+                   sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
 ac_configure_args="$ac_configure_args --enable-shared=no"
 
 AC_CONFIG_FILES([Makefile src/Makefile src/config.hpp])
