@@ -83,8 +83,10 @@ function installmpi {
 
         #setup prologue script
         cp ./prologue.setup-mpi-master /var/spool/torque/mom_priv/prologue
+        cp ./epilogue.kill-mpi-ring /var/spool/torque/mom_priv/epilogue
         
 	for i in `cat $SLAVES_FILE`; do scp ./prologue.setup-mpi-master $i:/var/spool/torque/mom_priv/prologue; done
+	for i in `cat $SLAVES_FILE`; do scp ./epilogue.kill-mpi-ring $i:/var/spool/torque/mom_priv/epilogue; done
 }
 
 installtorque

@@ -28,7 +28,12 @@ echo hostname is $HOSTNAME
 #for i in `cat $PBS_NODEFILE`; do echo deleting; ssh -o StrictHostKeyChecking=no $i rm /etc/mpd.conf;ssh $i "echo MPD_SECRETWORD=$SW > /etc/mpd.conf"; echo new is; ssh $i cat /etc/mpd.conf; ssh $i "chmod 600 /etc/mpd.conf"; done                                                                     # for i in `cat $PBS_NODEFILE`; do ssh -o StrictHostKeyChecking=no $i echo "MPD_SECRETWORD=$SW"|cat>/etc/mpd.conf; done
 
 # set up mpi daemon on all slave nodes given to us by torque in $PBS_NODEFILE
-for i in `cat $PBS_NODEFILE`; do ssh -o StrictHostKeyChecking=no $i mpd --daemon -h $HOSTNAME -p $PORTNUM ; done
+for i in `cat $PBS_NODEFILE`; do 
+  ssh -o StrictHostKeyChecking=no $i mpd --daemon -h $HOSTNAME -p $PORTNUM &
+  sleep 0.3
+done
+wait
+sleep 2
 
 echo "exiting with zero"
 exit 0
