@@ -160,7 +160,7 @@ void Configurator::loadConfigFile(const string& fname, bool overwrite)
     // Strip any comment at end of line
     size_t hash = line.find_first_of("#"); // strip comments
     if (hash != string::npos) {
-      line = originalLine.substr(0, hash);
+      line = line.substr(0, hash);
     }
     // Check for empty line
     line = StringUtils::trim(line);

@@ -2,6 +2,7 @@
 #include <libgen.h>
 
 #include "configurator.hpp"
+#include "logging.hpp"
 #include "master.hpp"
 #include "master_webui.hpp"
 
@@ -31,11 +32,10 @@ int main(int argc, char **argv)
   Configurator conf;
   conf.addOption<string>("url", 'u', "URL used for leader election");
   conf.addOption<int>("port", 'p', "Port to listen on", 50010);
-  conf.addOption<bool>("quiet", 'q', "Disable logging to stderr", false);
-  conf.addOption<string>("log_dir", "Where to place logs", "/tmp");
 #ifdef NEXUS_WEBUI
   conf.addOption<int>("webui_port", 'w', "Web UI port", 8080);
 #endif
+  Logging::registerOptions(&conf);
   Master::registerOptions(&conf);
 
   if (argc == 2 && string("--help") == argv[1]) {
@@ -55,16 +55,10 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  Logging::init(argv[0], params);
+
   if (params.contains("port"))
     setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
-
-  FLAGS_log_dir = params["log_dir"];
-  FLAGS_logbufsecs = 1;
-  google::InitGoogleLogging(argv[0]);
-
-  bool quiet = params.get<bool>("quiet", false);
-  if (!quiet)
-    google::SetStderrLogging(google::INFO);
 
   string url = params.get("url", "");
 
@@ -77,6 +71,7 @@ int main(int argc, char **argv)
   Master *master = new Master(params);
   PID pid = Process::spawn(master);
 
+  bool quiet = Logging::isQuiet(params);
   MasterDetector *detector = MasterDetector::create(url, pid, true, quiet);
 
 #ifdef NEXUS_WEBUI

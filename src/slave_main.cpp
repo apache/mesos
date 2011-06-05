@@ -2,6 +2,7 @@
 
 #include "configurator.hpp"
 #include "isolation_module_factory.hpp"
+#include "logging.hpp"
 #include "slave.hpp"
 #include "slave_webui.hpp"
 
@@ -32,8 +33,6 @@ int main(int argc, char **argv)
   Configurator conf;
   conf.addOption<string>("url", 'u', "Master URL");
   conf.addOption<int>("port", 'p', "Port to listen on (default: random)");
-  conf.addOption<bool>("quiet", 'q', "Disable logging to stderr", false);
-  conf.addOption<string>("log_dir", "Where to place logs", "/tmp");
   conf.addOption<string>("isolation", 'i', "Isolation module name", "process");
   conf.addOption<int32_t>("cpus", 'c', "CPU cores to use for tasks", 1);
   conf.addOption<int64_t>("mem", 'm', "Memory to use for tasks, in bytes\n",
@@ -41,6 +40,7 @@ int main(int argc, char **argv)
 #ifdef NEXUS_WEBUI
   conf.addOption<int>("webui_port", 'w', "Web UI port", 8081);
 #endif
+  Logging::registerOptions(&conf);
   Slave::registerOptions(&conf);
 
   if (argc == 2 && string("--help") == argv[1]) {
@@ -60,16 +60,10 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  Logging::init(argv[0], params);
+
   if (params.contains("port"))
     setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
-
-  FLAGS_log_dir = params["log_dir"];
-  FLAGS_logbufsecs = 1;
-  google::InitGoogleLogging(argv[0]);
-
-  bool quiet = params.get<bool>("quiet", false);
-  if (!quiet)
-    google::SetStderrLogging(google::INFO);
 
   if (!params.contains("url")) {
     cerr << "Master URL argument (--url) required." << endl;
@@ -97,6 +91,7 @@ int main(int argc, char **argv)
   Slave* slave = new Slave(params, resources, false, isolationModule);
   PID pid = Process::spawn(slave);
 
+  bool quiet = Logging::isQuiet(params);
   MasterDetector *detector = MasterDetector::create(url, pid, false, quiet);
 
 #ifdef NEXUS_WEBUI

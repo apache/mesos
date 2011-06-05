@@ -241,6 +241,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileSpacesIgnored)
   file << "test1=coffee # beans are tasty\n";
   file << "# just a comment\n";
   file << "  \t # comment with spaces in front\n";
+  file << "\n";
   file << "test2 =tea\n";
   file << "test3=  water\n";
   file << "   test4 =  milk\n";
