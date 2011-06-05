@@ -80,61 +80,105 @@ public:
   string getUsage() const;
 
   
+private:
   /**
-   * Adds a registered option together with a default value and a help string.
+   * Private method for adding an option with, potentially, a default
+   * value and a short name.
    * @param optName name of the option, e.g. "home"
    * @param helpString description of the option, may contain line breaks
-   * @param defaultValue default value of the option. 
+   * @param hasShortName whether the option has a short name
+   * @param shortName character representing short name of option, e.g. 'h'
+   * @param hasDefault whether the option has a default value
+   * @param defaultValue default value of the option, as a string. 
+   *        The default option is put in the internal params, 
+   *        unless the option already has a value in params.
+   **/
+  template <class T>
+  void addOption(string optName,
+                 const string& helpString,
+                 bool hasShortName,
+                 char shortName,
+                 bool hasDefault,
+                 const string& defaultValue)
+  {
+    std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
+    if (options.find(optName) != options.end()) {
+      string message = "Duplicate option registration: " + optName;
+      throw ConfigurationException(message.c_str());
+    }
+    options[optName] = Option(helpString,
+                              Validator<T>(), 
+                              hasShortName,
+                              shortName,
+                              hasDefault,
+                              defaultValue);
+    if (hasDefault && !params.contains(optName)) {
+      // insert default value into params
+      params[optName] = defaultValue;
+    }
+  }
+
+public:
+  /**
+   * Adds a registered option together with a help string.
+   * @param optName name of the option, e.g. "home"
+   * @param helpString description of the option, may contain line breaks
+   **/
+  template <class T>
+  void addOption(string optName, const string& helpString) 
+  {
+    addOption<T>(optName, helpString, false, '\0', false, "");
+  }
+
+  /**
+   * Adds a registered option with a short name and help string.
+   * @param optName name of the option, e.g. "home"
+   * @param shortName character representing short name of option, e.g. 'h'
+   * @param helpString description of the option, may contain line breaks
+   **/
+  template <class T>
+  void addOption(string optName, char shortName, const string& helpString) 
+  {
+    addOption<T>(optName, helpString, true, shortName, false, "");
+  }
+
+  /**
+   * Adds a registered option with a default value and a help string.
+   * @param optName name of the option, e.g. "home"
+   * @param helpString description of the option, may contain line breaks
+   * @param defaultVal default value of option.
    *        The default option is put in the internal params, 
    *        unless the option already has a value in params.
    *        Its type must support operator<<(ostream,...)
-   * @param shortName character representing short name of option, e.g. 'I'
-   * @return 0 on success, -1 if option already exists,
-   *         -2 if defaultValue cannot be converted to templated type T
    **/
   template <class T>
-  int addOption(string optName, const string& helpString, 
-                const string& defaultValue, char shortName = '\0') 
+  void addOption(string optName, const string& helpString, const T& defaultVal) 
   {
-    std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
-    if (options.find(optName) != options.end())
-      return -1;
-    try { 
-      lexical_cast<T>(defaultValue);
-    } catch(const bad_lexical_cast& ex) { return -2; }
-    
-    options[optName] = Option(helpString, Validator<T>(), 
-                              defaultValue, shortName);
-
-    if (!params.contains(optName))  // insert default value
-      params[optName] = defaultValue;
-
-    return 0;
+    string defaultStr = lexical_cast<string>(defaultVal);
+    addOption<T>(optName, helpString, false, '\0', true, defaultStr);
   }
 
-  
   /**
-   * Adds a registered option together with a default value and a help string.
+   * Adds a registered option with a default value, short name and help string.
    * @param optName name of the option, e.g. "home"
    * @param helpString description of the option, may contain line breaks
-   * @param shortName character representing short name of option, e.g. 'I'
-   * @return 0 on success, -1 if option already exists
+   * @param defaultVal default value of option.
+   *        The default option is put in the internal params, 
+   *        unless the option already has a value in params.
+   *        Its type must support operator<<(ostream,...)
    **/
   template <class T>
-  int addOption(string optName, const string& helpString, 
-                char shortName = '\0') 
+  void addOption(string optName,
+                 char shortName,
+                 const string& helpString,
+                 const T& defaultVal) 
   {
-    std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
-    if (options.find(optName) != options.end())
-      return -1;
-    options[optName] = Option(helpString, Validator<T>(), shortName);
-
-    return 0;
+    string defaultStr = lexical_cast<string>(defaultVal);
+    addOption<T>(optName, helpString, true, shortName, true, defaultStr);
   }
 
-
   /**
-   * Returns the name of all options.
+   * Returns the names of all registered options.
    * @return name of every registered option
    **/
   vector<string> getOptions() const;

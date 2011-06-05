@@ -41,20 +41,16 @@ TEST(ConfigurationTest, DefaultOptions)
 
   Configuration conf;
 
-  int ret = 0;
   EXPECT_NO_THROW( {
-      ret += conf.addOption<int>("test1", "Testing option", "500");
-      ret += conf.addOption<short>("test2", "Another tester", "0");
-      ret += conf.addOption<long>("test3", "Tests the default", "2010");
-      ret += conf.addOption<string>("test4", "Option without default");
-      ret += conf.addOption<string>("test5", "Option with a default", "arb");
+      conf.addOption<int>("test1", "Testing option", 500);
+      conf.addOption<short>("test2", "Another tester", 0);
+      conf.addOption<long>("test3", "Tests the default", 2010);
+      conf.addOption<string>("test4", "Option without default");
+      conf.addOption<string>("test5", "Option with a default", "arb");
       conf.load(ARGC, argv, false);
     } );
 
-  int addOptionError = ret;
-  EXPECT_EQ(addOptionError, 0);
-
-  conf.addOption<int>("excp", "Exception tester.", "50");
+  conf.addOption<int>("excp", "Exception tester.", 50);
   EXPECT_THROW(conf.validate(), BadOptionValueException);
   conf.getParams()["excp"] = "27";
   EXPECT_NO_THROW(conf.validate());
@@ -82,11 +78,11 @@ TEST(ConfigurationTest, CommandLine)
   argv[7] = (char*) "--space=Long String";
 
   Configuration conf;
-  int addOptionError = 0;
-  addOptionError += conf.addOption<int>("negative", "some val", "-30", 'N');
-  addOptionError += conf.addOption<string>("test1", "textual value", "text2");
+  EXPECT_NO_THROW( {
+      conf.addOption<int>("negative", 'N', "some val", -30);
+      conf.addOption<string>("test1", "textual value", "text2");
+    } );
 
-  EXPECT_EQ(addOptionError, 0);
   EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
 
   EXPECT_EQ("text1",       conf.getParams()["test1"]);

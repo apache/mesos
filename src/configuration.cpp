@@ -182,7 +182,7 @@ string Configuration::getUsage() const
   int maxLen = 0;
   foreachpair (const string& key, const Option& opt, options) {
     int len = key.length() + LONG_PAD;
-    len += opt.hasShort ? SHORT_PAD : 0;
+    len += opt.hasShortName ? SHORT_PAD : 0;
     maxLen = len > maxLen ? len : maxLen;
   }
 
@@ -195,7 +195,7 @@ string Configuration::getUsage() const
     }
 
     line += "--" + key + "=VAL";
-    line += opt.hasShort ? string(" (or -") + opt.shortName + " VAL)" : "";
+    line += opt.hasShortName ? string(" (or -") + opt.shortName + " VAL)" : "";
     string pad(PAD + maxLen - line.size(), ' ');
     line += pad;
     size_t pos1 = 0, pos2 = 0;
@@ -236,7 +236,7 @@ Params& Configuration::getParams()
 string Configuration::getLongName(char shortName) const
 {
   foreachpair (const string& key, const Option& opt, options) {
-    if (opt.hasShort && opt.shortName == shortName)
+    if (opt.hasShortName && opt.shortName == shortName)
       return key;
   }
   return "";

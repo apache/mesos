@@ -31,9 +31,9 @@ void usage(const char* programName, const Configuration& conf)
 int main(int argc, char **argv)
 {
   Configuration conf;
-  conf.addOption<string>("url", "URL used for contending to a master.");
-  conf.addOption<int>("port", "Port to listen on", 'p');
-  conf.addOption<bool>("quiet", "Do not log to stderr", "0", 'q');
+  conf.addOption<string>("url", 'u', "URL used for contending to a master.");
+  conf.addOption<int>("port", 'p', "Port to listen on");
+  conf.addOption<bool>("quiet", 'q', "Do not log to stderr", false);
   conf.addOption<string>("log_dir", "Where to place logs", "/tmp");
   Master::registerOptions(&conf);
 

@@ -151,7 +151,7 @@ Master::~Master()
 
 void Master::registerOptions(Configuration* conf)
 {
-  conf->addOption<string>("allocator", "Allocation module to use", "simple");
+  conf->addOption<string>("allocator", 'a', "Allocation module name", "simple");
 }
 
 

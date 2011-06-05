@@ -76,49 +76,40 @@ struct BadOptionValueException : std::exception
 /**
  * Registered option with help string and default value
  **/
-struct Option {
-
+class Option {
+public:
   Option() : hasDefault(false), validator(NULL) {}
 
   Option(const string& _helpString,
          const ValidatorBase& _validator,
-         const string& _defaultValue = "",
-         char _shortName = '\0')
+         bool _hasShortName,
+         char _shortName,
+         bool _hasDefault,
+         const string& _defaultValue)
     : helpString(_helpString), 
+      hasDefault(_hasDefault),
       defaultValue(_defaultValue),
+      hasShortName(_hasShortName),
       shortName(_shortName)
   {
-    hasDefault = _defaultValue == "" ? false : true;
-    hasShort = _shortName == '\0' ? false : true;
-    validator = _validator.clone();
-  }
-  
-  Option(const string& _helpString,
-         const ValidatorBase& _validator,
-         char _shortName)
-    : helpString(_helpString), 
-      hasDefault(false),
-      shortName(_shortName)
-  {
-    hasShort = _shortName == '\0' ? false : true;
     validator = _validator.clone();
   }
   
   Option(const Option& opt)
     : helpString(opt.helpString), 
       hasDefault(opt.hasDefault),
-      hasShort(opt.hasShort),
+      hasShortName(opt.hasShortName),
       shortName(opt.shortName),
       defaultValue(opt.defaultValue)
   {
-    validator = opt.validator == NULL ? NULL : opt.validator->clone();
+    validator = (opt.validator == NULL) ? NULL : opt.validator->clone();
   }
 
   Option &operator=(const Option& opt)
   {
     helpString = opt.helpString;
     hasDefault = opt.hasDefault;
-    hasShort = opt.hasShort;
+    hasShortName = opt.hasShortName;
     shortName = opt.shortName;
     defaultValue = opt.defaultValue;
     validator = opt.validator == NULL ? NULL : opt.validator->clone();
@@ -133,7 +124,7 @@ struct Option {
   string helpString;
   bool hasDefault;
   string defaultValue;
-  bool hasShort;
+  bool hasShortName;
   char shortName;
   ValidatorBase *validator;
 };
