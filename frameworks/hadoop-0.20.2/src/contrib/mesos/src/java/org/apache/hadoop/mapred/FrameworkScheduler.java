@@ -24,10 +24,7 @@ import mesos.FrameworkMessage;
 import mesos.Scheduler;
 import mesos.SchedulerDriver;
 import mesos.SlaveOffer;
-import mesos.SlaveOfferVector;
-import mesos.StringMap;
 import mesos.TaskDescription;
-import mesos.TaskDescriptionVector;
 import mesos.TaskState;
 
 public class FrameworkScheduler extends Scheduler {
@@ -157,11 +154,11 @@ public class FrameworkScheduler extends Scheduler {
   
   @Override
   public void resourceOffer(SchedulerDriver d, String oid,
-      SlaveOfferVector offers) {
+      List<SlaveOffer> offers) {
     try {
       synchronized(jobTracker) {
         LOG.info("Got resource offer " + oid);
-        TaskDescriptionVector tasks = new TaskDescriptionVector();
+        List<TaskDescription> tasks = new ArrayList<TaskDescription>();
         
         int numOffers = (int) offers.size();
         int[] cpus = new int[numOffers];
@@ -202,8 +199,8 @@ public class FrameworkScheduler extends Scheduler {
           }
         }
         
-        StringMap params = new StringMap();
-        params.set("timeout", "1");
+        Map<String, String> params = new HashMap<String, String>();
+        params.put("timeout", "1");
         d.replyToOffer(oid, tasks, params);
       }
     } catch(Exception e) {
@@ -267,9 +264,9 @@ public class FrameworkScheduler extends Scheduler {
     
     // Create a task description to pass back to Mesos
     String name = "task " + mesosId + " (" + taskType + ")";
-    StringMap params = new StringMap();
-    params.set("cpus", "" + cpusPerTask);
-    params.set("mem", "" + memPerTask);
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("cpus", "" + cpusPerTask);
+    params.put("mem", "" + memPerTask);
     return new TaskDescription(mesosId, slaveId, name, params, new byte[0]);
   }
 

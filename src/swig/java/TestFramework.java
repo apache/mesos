@@ -1,4 +1,8 @@
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import mesos.*;
 
 public class TestFramework {
@@ -36,23 +40,26 @@ public class TestFramework {
     }
 
     @Override
-    public void registered(SchedulerDriver d, int fid) {
+    public void registered(SchedulerDriver d, String fid) {
       System.out.println("Registered! FID = " + fid);
     }
 
     @Override
     public void resourceOffer(SchedulerDriver d,
-                              long oid,
-                              SlaveOfferVector offers) {
-      System.out.println("Got offer offer " + oid);
-      TaskDescriptionVector tasks = new TaskDescriptionVector();
-      for (int i = 0; i < offers.size(); i++) {
+                              String oid,
+                              List<SlaveOffer> offers) {
+      System.out.println("Got offer " + oid);
+      List<TaskDescription> tasks = new ArrayList<TaskDescription>();
+      for (SlaveOffer offer: offers) {
+        System.out.println("Params for slave " + offer.getSlaveId() + ":");
+        for (Map.Entry<String, String> entry: offer.getParams().entrySet()) {
+          System.out.println(entry.getKey() + " = " + entry.getValue());
+        }
         if (launchedTasks < totalTasks) {
-          SlaveOffer offer = offers.get(i);
           int taskId = launchedTasks++;
-          StringMap taskParams = new StringMap();
-          taskParams.set("cpus", "1");
-          taskParams.set("mem", "128");
+          Map<String, String> taskParams = new HashMap<String, String>();
+          taskParams.put("cpus", "1");
+          taskParams.put("mem", "128");
           System.out.println("Launching task " + taskId);
           tasks.add(new TaskDescription(taskId,
                                         offer.getSlaveId(),
@@ -61,8 +68,8 @@ public class TestFramework {
                                         new byte[0]));
         }
       }
-      StringMap params = new StringMap();
-      params.set("timeout", "1");
+      Map<String, String> params = new HashMap<String, String>();
+      params.put("timeout", "1");
       d.replyToOffer(oid, tasks, params);
     }
 
