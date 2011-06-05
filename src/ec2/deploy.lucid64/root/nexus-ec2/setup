@@ -117,9 +117,9 @@ if [[ "$DOWNLOADED" == "1" ]] ; then
   make clean
   make
   popd > /dev/null 2>&1
-  if [ -d /root/nexus/frameworks/spark ] ; then
+  if [ -d /root/spark ] ; then
     echo "Building Spark..."
-    pushd /root/nexus/frameworks/spark > /dev/null 2>&1
+    pushd /root/spark > /dev/null 2>&1
     make all native
     popd > /dev/null 2>&1
   fi
@@ -137,9 +137,9 @@ echo "Setting up haproxy+apache framework config files..."
 cp haproxy+apache/* /root/nexus/frameworks/haproxy+apache
 
 echo "Setting up Spark config files..."
-mkdir -p /root/nexus/frameworks/spark/conf
-echo "-Dspark.dfs=hdfs://$HOSTNAME:9000 -Djava.io.tmpdir=/nfs" \
-     > /root/nexus/frameworks/spark/conf/java-opts
+mkdir -p /root/spark/conf
+echo "-Dspark.dfs=hdfs://$HOSTNAME:9000 -Dspark.repl.classdir=/nfs" \
+     > /root/spark/conf/java-opts
 
 echo "Redeploying /root/nexus..."
 ./redeploy-nexus
