@@ -417,8 +417,8 @@ void Master::operator () ()
       if (slave->id == "") {
         slave->id = lexical_cast<string>(masterId) + "-"
           + lexical_cast<string>(nextSlaveId++);
-        DLOG(WARNING) << "Slave re-registered without a SlaveID, "
-                      << "generating a new id for it.";
+        LOG(ERROR) << "Slave re-registered without a SlaveID, "
+                   << "generating a new id for it.";
       }
 
       foreach(Task &ti, taskVec) {
@@ -480,11 +480,14 @@ void Master::operator () ()
               removeTask(task, TRR_TASK_ENDED);
             }
           }
-        } else
-          DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup framework id" << fid;
-      } else 
-        DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup slave id" << sid;
-      
+        } else {
+          LOG(ERROR) << "S2M_FT_STATUS_UPDATE error: couldn't lookup "
+                     << "framework id " << fid;
+        }
+      } else {
+        LOG(ERROR) << "S2M_FT_STATUS_UPDATE error: couldn't lookup slave id "
+                   << sid;
+      }
       break;
     }
 
@@ -511,10 +514,14 @@ void Master::operator () ()
               removeTask(task, TRR_TASK_ENDED);
             }
           }
-        } else
-          DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup framework id" << fid;
-      } else
-        DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup slave id" << sid;
+        } else {
+          LOG(ERROR) << "S2M_STATUS_UPDATE error: couldn't lookup framework id "
+                     << fid;
+        }
+      } else {
+        LOG(ERROR) << "S2M_STATUS_UPDATE error: couldn't lookup slave id "
+                   << sid;
+      }
      break;
     }
       
