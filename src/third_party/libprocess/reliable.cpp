@@ -91,14 +91,15 @@ int ReliableProcess::seq() const
 bool ReliableProcess::duplicate() const
 {
   // TODO(benh): Since we ignore out-of-order messages right now, a
-  // duplicate message is just one that we've already seen
-  // before. Note that we don't add the sequence identifier for the
-  // current message until the next 'receive' invocation (see below)..
+  // duplicate message is just one whose sequence identifier is
+  // greater than the last one we saw. Note that we don't add the
+  // sequence identifier for the current message until the next
+  // 'receive' invocation (see below).
   if (current != NULL) {
     map<PID, int>::const_iterator it = recvSeqs.find(current->msg.from);
     if (it != recvSeqs.end()) {
       int last = it->second;
-      if (last <= current->seq)
+      if (current->seq <= last)
 	return true;
     }
   }
