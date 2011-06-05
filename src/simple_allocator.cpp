@@ -13,50 +13,52 @@ using namespace nexus::internal;
 using namespace nexus::internal::master;
 
 
-void SimpleAllocator::frameworkAdded(Framework *framework)
+void SimpleAllocator::frameworkAdded(Framework* framework)
 {
   LOG(INFO) << "Added " << framework;
   makeNewOffers();
 }
 
 
-void SimpleAllocator::frameworkRemoved(Framework *framework)
+void SimpleAllocator::frameworkRemoved(Framework* framework)
 {
   LOG(INFO) << "Removed " << framework;
-  foreachpair (Slave *s, unordered_set<Framework *>& refs, refusers)
+  foreachpair (Slave* s, unordered_set<Framework*>& refs, refusers)
     refs.erase(framework);
+  // TODO: Re-offer just the slaves that the framework had tasks on?
+  //       Alternatively, comment this out and wait for a timer tick
   makeNewOffers();
 }
 
 
-void SimpleAllocator::slaveAdded(Slave *slave)
+void SimpleAllocator::slaveAdded(Slave* slave)
 {
   LOG(INFO) << "Added " << slave;
-  refusers[slave] = unordered_set<Framework *>();
-  makeNewOffers();
+  refusers[slave] = unordered_set<Framework*>();
+  totalResources += slave->resources;
+  makeNewOffers(slave);
 }
 
 
-void SimpleAllocator::slaveRemoved(Slave *slave)
+void SimpleAllocator::slaveRemoved(Slave* slave)
 {
   LOG(INFO) << "Removed " << slave;
+  totalResources -= slave->resources;
   refusers.erase(slave);
 }
 
 
-void SimpleAllocator::taskRemoved(TaskInfo *task, TaskRemovalReason reason)
+void SimpleAllocator::taskRemoved(Task* task, TaskRemovalReason reason)
 {
   LOG(INFO) << "Removed " << task;
   // Remove all refusers from this slave since it has more resources free
-  Slave *slave = master->lookupSlave(task->slaveId);
+  Slave* slave = master->lookupSlave(task->slaveId);
   CHECK(slave != 0);
   refusers[slave].clear();
   // Re-offer the resources, unless this task was removed due to a lost
   // slave or a lost framework (in which case we'll get another callback)
-  if (reason == TRR_TASK_ENDED) {
-    // TODO: Use a more efficient makeOffers() that re-offers just one slave?
-    makeNewOffers();
-  }
+  if (reason == TRR_TASK_ENDED)
+    makeNewOffers(slave);
 }
 
 
@@ -67,7 +69,7 @@ void SimpleAllocator::offerReturned(SlotOffer* offer,
   LOG(INFO) << "Offer returned: " << offer << ", reason = " << reason;
   // If this offer returned due to the framework replying, add it to refusers
   if (reason == ORR_FRAMEWORK_REPLIED) {
-    Framework *framework = master->lookupFramework(offer->frameworkId);
+    Framework* framework = master->lookupFramework(offer->frameworkId);
     CHECK(framework != 0);
     foreach (const SlaveResources& r, resLeft) {
       LOG(INFO) << "Framework reply leaves " << r.resources 
@@ -80,13 +82,16 @@ void SimpleAllocator::offerReturned(SlotOffer* offer,
   }
   // Make new offers, unless the offer returned due to a lost framework or slave
   // (in those cases, frameworkRemoved and slaveRemoved will be called later)
-  // TODO: Use a more efficient makeOffers() that looks only at resLeft?
-  if (reason != ORR_SLAVE_LOST && reason != ORR_FRAMEWORK_LOST)
-    makeNewOffers();
+  if (reason != ORR_SLAVE_LOST && reason != ORR_FRAMEWORK_LOST) {
+    vector<Slave*> slaves;
+    foreach (const SlaveResources& r, resLeft)
+      slaves.push_back(r.slave);
+    makeNewOffers(slaves);
+  }
 }
 
 
-void SimpleAllocator::offersRevived(Framework *framework)
+void SimpleAllocator::offersRevived(Framework* framework)
 {
   LOG(INFO) << "Filters removed for " << framework;
   makeNewOffers();
@@ -95,6 +100,7 @@ void SimpleAllocator::offersRevived(Framework *framework)
 
 void SimpleAllocator::timerTick()
 {
+  // TODO: Is this necessary?
   makeNewOffers();
 }
 
@@ -113,7 +119,7 @@ struct DominantShareComparator
       total.mem = 1;
   }
   
-  bool operator() (Framework *f1, Framework *f2)
+  bool operator() (Framework* f1, Framework* f2)
   {
     double share1 = max(f1->resources.cpus / (double) total.cpus,
                         f1->resources.mem  / (double) total.mem);
@@ -129,15 +135,10 @@ struct DominantShareComparator
 }
 
 
-vector<Framework *> SimpleAllocator::getAllocationOrdering()
+vector<Framework*> SimpleAllocator::getAllocationOrdering()
 {
-  vector<Framework *> frameworks = master->getActiveFrameworks();
-  vector<Slave *> slaves = master->getActiveSlaves();
-  Resources total;
-  foreach (Slave *slave, slaves) {
-    total += slave->resources;
-  }
-  DominantShareComparator comp(total);
+  vector<Framework*> frameworks = master->getActiveFrameworks();
+  DominantShareComparator comp(totalResources);
   sort(frameworks.begin(), frameworks.end(), comp);
   return frameworks;
 }
@@ -145,44 +146,61 @@ vector<Framework *> SimpleAllocator::getAllocationOrdering()
 
 void SimpleAllocator::makeNewOffers()
 {
+  // TODO: Create a method in master so that we don't return the whole list of slaves
+  vector<Slave*> slaves = master->getActiveSlaves();
+  makeNewOffers(slaves);
+}
+
+
+void SimpleAllocator::makeNewOffers(Slave* slave)
+{
+  vector<Slave*> slaves;
+  slaves.push_back(slave);
+  makeNewOffers(slaves);
+}
+
+
+void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
+{
   LOG(INFO) << "Running makeNewOffers...";
   
   // Get an ordering of frameworks to send offers to
-  vector<Framework *> ordering = getAllocationOrdering();
+  vector<Framework*> ordering = getAllocationOrdering();
   if (ordering.size() == 0)
     return;
   
   // Find all the free resources that can be allocated
-  unordered_map<Slave *, Resources> freeResources;
-  vector<Slave *> slaves = master->getActiveSlaves();
-  foreach (Slave *slave, slaves) {
-    Resources res = slave->resourcesFree();
-    if (res.cpus >= MIN_CPUS && res.mem >= MIN_MEM) {
-      LOG(INFO) << "Found free resources: " << res << " on " << slave;
-      freeResources[slave] = res;
+  unordered_map<Slave* , Resources> freeResources;
+  foreach (Slave* slave, slaves) {
+    if (slave->active) {
+      Resources res = slave->resourcesFree();
+      if (res.cpus >= MIN_CPUS && res.mem >= MIN_MEM) {
+        VLOG(1) << "Found free resources: " << res << " on " << slave;
+        freeResources[slave] = res;
+      }
     }
   }
   if (freeResources.size() == 0)
     return;
   
   // Clear refusers on any slave that has been refused by everyone
-  foreachpair (Slave *slave, _, freeResources) {
-    unordered_set<Framework *>& refs = refusers[slave];
+  foreachpair (Slave* slave, _, freeResources) {
+    unordered_set<Framework*>& refs = refusers[slave];
     if (refs.size() == ordering.size()) {
-      LOG(INFO) << "Clearing refusers for " << slave
-                << " because everyone refused it";
+      VLOG(1) << "Clearing refusers for " << slave
+              << " because everyone refused it";
       refs.clear();
     }
   }
   
-  foreach (Framework *framework, ordering) {
+  foreach (Framework* framework, ordering) {
     // See which resources this framework can take (given filters & refusals)
     vector<SlaveResources> offerable;
-    foreachpair (Slave *slave, Resources resources, freeResources) {
+    foreachpair (Slave* slave, Resources resources, freeResources) {
       if (refusers[slave].find(framework) == refusers[slave].end() &&
           !framework->filters(slave, resources)) {
-        LOG(INFO) << "Offering " << resources << " on " << slave
-                  << " to framework " << framework->id;
+        VLOG(1) << "Offering " << resources << " on " << slave
+                << " to framework " << framework->id;
         offerable.push_back(SlaveResources(slave, resources));
       }
     }
