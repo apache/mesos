@@ -511,6 +511,7 @@ void Master::initialize()
 
   // Install HTTP request handlers.
   Process<Master>::install("vars", &Master::vars);
+  Process<Master>::install("stats", &Master::stats);
 }
 
 
@@ -959,24 +960,42 @@ void Master::statusUpdate(const FrameworkID& frameworkId,
       Task* task = slave->lookupTask(frameworkId, status.task_id());
       if (task != NULL) {
         task->set_state(status.state());
-        // Remove the task if necessary.
-        if (status.state() == TASK_FINISHED ||
-            status.state() == TASK_FAILED ||
-            status.state() == TASK_KILLED ||
-            status.state() == TASK_LOST) {
-          removeTask(task, TRR_TASK_ENDED);
-        }
+
+        // Remove the task if necessary, and update statistics.
+	switch (status.state()) {
+	  case TASK_FINISHED:
+	    statistics.finished_tasks++;
+	    removeTask(task, TRR_TASK_ENDED);
+	    break;
+	  case TASK_FAILED:
+	    statistics.failed_tasks++;
+	    removeTask(task, TRR_TASK_ENDED);
+	    break;
+	  case TASK_KILLED:
+	    statistics.killed_tasks++;
+	    removeTask(task, TRR_TASK_ENDED);
+	    break;
+	  case TASK_LOST:
+	    statistics.lost_tasks++;
+	    removeTask(task, TRR_TASK_ENDED);
+	    break;
+	}
+
+	statistics.valid_status_updates++;
       } else {
         LOG(WARNING) << "Status update error: couldn't lookup "
                      << "task " << status.task_id();
+	statistics.invalid_status_updates++;
       }
     } else {
       LOG(WARNING) << "Status update error: couldn't lookup "
                    << "framework " << frameworkId;
+      statistics.invalid_status_updates++;
     }
   } else {
     LOG(WARNING) << "Status update error: couldn't lookup slave "
                  << status.slave_id();
+    statistics.invalid_status_updates++;
   }
 }
 
@@ -998,15 +1017,19 @@ void Master::executorMessage(const SlaveID& slaveId,
       out.mutable_executor_id()->MergeFrom(executorId);
       out.set_data(data);
       send(framework->pid, out);
+
+      statistics.valid_framework_messages++;
     } else {
       LOG(WARNING) << "Cannot send framework message from slave "
                    << slaveId << " to framework " << frameworkId
                    << " because framework does not exist";
+      statistics.invalid_framework_messages++;
     }
   } else {
     LOG(WARNING) << "Cannot send framework message from slave "
                  << slaveId << " to framework " << frameworkId
                  << " because slave does not exist";
+    statistics.invalid_framework_messages++;
   }
 }
 
@@ -1157,8 +1180,8 @@ Promise<HttpResponse> Master::vars(const HttpRequest& request)
 
   out <<
     "build_date " << build::DATE << "\n" <<
-    "build_user " <<  build::USER << "\n" <<
-    "build_flags " <<  build::FLAGS << "\n" <<
+    "build_user " << build::USER << "\n" <<
+    "build_flags " << build::FLAGS << "\n" <<
     "frameworks_count " << frameworks.size() << "\n";
 
   // Also add the configuration values.
@@ -1168,6 +1191,36 @@ Promise<HttpResponse> Master::vars(const HttpRequest& request)
 
   HttpOKResponse response;
   response.headers["Content-Type"] = "text/plain";
+  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
+  response.body = out.str().data();
+  return response;
+}
+
+
+Promise<HttpResponse> Master::stats(const HttpRequest& request)
+{
+  LOG(INFO) << "Request for 'stats'";
+
+  ostringstream out;
+
+  out <<
+    "{" <<
+    "\"total_schedulers\":" << frameworks.size() << "," <<
+    "\"active_schedulers\":" << getActiveFrameworks().size() << "," <<
+    "\"activated_slaves\":" << slaveHostnamePorts.size() << "," <<
+    "\"launched_tasks\":" << statistics.launched_tasks << "," <<
+    "\"finished_tasks\":" << statistics.finished_tasks << "," <<
+    "\"killed_tasks\":" << statistics.killed_tasks << "," <<
+    "\"failed_tasks\":" << statistics.failed_tasks << "," <<
+    "\"lost_tasks\":" << statistics.lost_tasks << "," <<
+    "\"valid_status_updates\":" << statistics.valid_status_updates << "," <<
+    "\"invalid_status_updates\":" << statistics.invalid_status_updates << "," <<
+    "\"valid_framework_messages\":" << statistics.valid_framework_messages << "," <<
+    "\"invalid_framework_messages\":" << statistics.invalid_framework_messages <<
+    "}";
+
+  HttpOKResponse response;
+  response.headers["Content-Type"] = "text/x-json;charset=UTF-8";
   response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
   response.body = out.str().data();
   return response;
@@ -1361,6 +1414,8 @@ void Master::launchTask(Framework* framework, const TaskDescription& task)
   out.set_pid(framework->pid);
   out.mutable_task()->MergeFrom(task);
   send(slave->pid, out);
+
+  statistics.launched_tasks++;
 }
 
 

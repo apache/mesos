@@ -152,6 +152,7 @@ public:
   void exited();
 
   process::Promise<process::HttpResponse> vars(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> stats(const process::HttpRequest& request);
 
   Framework* lookupFramework(const FrameworkID& frameworkId);
   Slave* lookupSlave(const SlaveID& slaveId);
@@ -240,6 +241,19 @@ private:
   // ZooKeeper). Used in framework and slave IDs
   // created by this master.
   std::string masterId;
+
+  // Statistics!
+  struct Statistics {
+    uint64_t launched_tasks;
+    uint64_t finished_tasks;
+    uint64_t killed_tasks;
+    uint64_t failed_tasks;
+    uint64_t lost_tasks;
+    uint64_t valid_status_updates;
+    uint64_t invalid_status_updates;
+    uint64_t valid_framework_messages;
+    uint64_t invalid_framework_messages;
+  } statistics;
 };
 
 
