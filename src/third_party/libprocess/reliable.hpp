@@ -5,6 +5,8 @@
 
 #include <map>
 
+#define RELIABLE_TIMEOUT 10
+
 
 enum {
   RELIABLE_MSG = PROCESS_MSGID,

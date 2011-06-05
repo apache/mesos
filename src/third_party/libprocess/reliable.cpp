@@ -18,8 +18,6 @@ using std::map;
        fatalerror("realloc"); tmp;                                  \
    })
 
-#define TIMEOUT 10
-
 
 /*
  * TODO(benh): Don't send structs around, this is horribly
@@ -56,7 +54,7 @@ protected:
       send(rmsg->msg.to, RELIABLE_MSG, (char *) rmsg,
 	   sizeof(struct rmsg) + rmsg->msg.len);
 
-      switch (receive(TIMEOUT)) {
+      switch (receive(RELIABLE_TIMEOUT)) {
 	case RELIABLE_ACK: {
 	  // All done!
 	  return;
