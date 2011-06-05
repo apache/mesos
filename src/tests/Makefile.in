@@ -129,8 +129,8 @@ $(EXTERNAL_SCRIPTS): | $(BINDIR)/tests/external/SampleFrameworks
 $(EXTERNAL_SCRIPTS): $(BINDIR)/tests/%: @srcdir@/%
 	cp $< $@
 
-$(ALLTESTS_EXE): $(TESTS_OBJ) | $(BINDIR)/tests
-	$(CXX) $(CXXFLAGS) -o $@ $(TESTS_OBJ) $(SCHED_LIB) $(EXEC_LIB) $(LDFLAGS) $(LIBS)
+$(ALLTESTS_EXE): $(TESTS_OBJ) $(SCHED_LIB) $(EXEC_LIB) | $(BINDIR)/tests
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 test: all
 	$(ALLTESTS_EXE)
