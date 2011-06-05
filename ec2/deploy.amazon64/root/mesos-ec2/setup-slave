@@ -49,9 +49,9 @@ function setup_extra_volume {
     create_hadoop_dirs $mount_point
   fi
 }
-setup_extra_volume /dev/sdc /mnt2
-setup_extra_volume /dev/sdd /mnt3
-setup_extra_volume /dev/sde /mnt4
+setup_extra_volume /dev/xvdc /mnt2
+setup_extra_volume /dev/xvdd /mnt3
+setup_extra_volume /dev/xvde /mnt4
 
 # Mount cgroup file system
 if [[ ! -e /cgroup ]]; then
