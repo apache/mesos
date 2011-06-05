@@ -104,6 +104,8 @@ enum MessageType {
   /* Generic. */
   TERMINATE,
 
+  MASTER_DETECTION_FAILURE, // TODO(benh): Put this in it's proper place.
+
   MESOS_MSGID,
 };
 

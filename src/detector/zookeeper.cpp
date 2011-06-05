@@ -9,9 +9,6 @@
 
 #include "common/fatal.hpp"
 
-using std::cerr;
-using std::cout;
-using std::endl;
 using std::map;
 using std::string;
 using std::vector;
@@ -464,15 +461,13 @@ protected:
 
       prepare(&fd, &ops, &tv);
 
-      // TODO(benh): Wierd timing issue with ZooKeeper timeouts. For
-      // now, lets just fall through to a process right away (even
-      // though tv might represent a value greater than zero).
-      if (fd == -1) {
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-      }
-
       double secs = tv.tv_sec + (tv.tv_usec * 1e-6);
+
+      // Cause await to return immediately if the file descriptor is
+      // not valid (for example because the connection timed out) and
+      // secs is 0 because that will block indefinitely.
+      if (fd == -1 && secs == 0)
+	secs = -1;
 
       if (await(fd, ops, secs, false)) {
 	// Either timer expired (might be 0) or data became available on fd.
@@ -884,7 +879,7 @@ const char * ZooKeeper::error(int ret) const
 // public:
 //   void process(ZooKeeper *zk, int type, int state, const string &path)
 //   {
-//     cout << "TestWatcher::process" << endl;
+//     std::cout << "TestWatcher::process" << std::endl;
 //   }
 // };
 

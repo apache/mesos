@@ -182,6 +182,11 @@ void Slave::operator () ()
 	break;
       }
 
+      case MASTER_DETECTION_FAILURE: {
+	LOG(FATAL) << "Cannot reliably detect master ... committing suicide!";
+	break;
+      }
+
       case M2S_REGISTER_REPLY: {
         const Message<M2S_REGISTER_REPLY>& msg = message();
         slaveId = msg.slave_id();

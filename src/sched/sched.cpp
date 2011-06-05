@@ -175,14 +175,26 @@ protected:
           out.set_generation(generation++);
           send(master, out);
         }
+
+	active = true;
+
 	break;
       }
 
       case NO_MASTER_DETECTED: {
-	// TODO(benh): We need to convey to the driver that we are
-	// currently not connected (not running?) so that calls such
-	// as sendFrameworkMessage will return with an error (rather
-	// than just getting dropped all together).
+	// In this case, we don't actually invoke Scheduler::error
+	// since we might get reconnected to a master imminently.
+	active = false;
+	VLOG(1) << "No master detected, waiting for another master";
+	break;
+      }
+
+      case MASTER_DETECTION_FAILURE: {
+	active = false;
+	// TODO(benh): Better error codes/messages!
+        int32_t code = 1;
+        const string& message = "Failed to detect master(s)";
+        invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
 	break;
       }
 
@@ -245,8 +257,10 @@ protected:
 
         invoke(bind(&Scheduler::statusUpdate, sched, driver, cref(status)));
 
-        // Acknowledge the message (we do this here in case we crash
-        // before the scheduler has seen this).
+        // Acknowledge the message (we do this after we invoke the
+        // scheduler in case it causes a crash, since this way the
+        // message might get resent/routed after the scheduler comes
+        // back online).
         ack();
         break;
       }
@@ -296,6 +310,9 @@ protected:
 
   void stop()
   {
+    if (!active)
+      return;
+
     Message<F2M_UNREGISTER_FRAMEWORK> out;
     *out.mutable_framework_id() = frameworkId;
     send(master, out);
@@ -303,6 +320,9 @@ protected:
 
   void killTask(const TaskID& taskId)
   {
+    if (!active)
+      return;
+
     Message<F2M_KILL_TASK> out;
     *out.mutable_framework_id() = frameworkId;
     *out.mutable_task_id() = taskId;
@@ -313,6 +333,9 @@ protected:
                     const vector<TaskDescription>& tasks,
                     const map<string, string>& params)
   {
+    if (!active)
+      return;
+
     Message<F2M_RESOURCE_OFFER_REPLY> out;
     *out.mutable_framework_id() = frameworkId;
     *out.mutable_offer_id() = offerId;
@@ -345,6 +368,9 @@ protected:
 
   void reviveOffers()
   {
+    if (!active)
+      return;
+
     Message<F2M_REVIVE_OFFERS> out;
     *out.mutable_framework_id() = frameworkId;
     send(master, out);
@@ -352,26 +378,25 @@ protected:
 
   void sendFrameworkMessage(const FrameworkMessage& message)
   {
-    if (!message.has_slave_id()) {
-      VLOG(1) << "Missing SlaveID (message.slave_id), cannot send message";
+    if (!active)
+      return;
+
+    VLOG(1) << "Asked to send framework message to slave "
+	    << message.slave_id();
+
+    // TODO(benh): This is kind of wierd, M2S?
+    Message<M2S_FRAMEWORK_MESSAGE> out;
+    *out.mutable_framework_id() = frameworkId;
+    *out.mutable_message() = message;
+
+    if (savedSlavePids.count(message.slave_id()) > 0) {
+      PID slave = savedSlavePids[message.slave_id()];
+      CHECK(slave != PID());
+      send(slave, out);
     } else {
-      VLOG(1) << "Asked to send framework message to slave "
-              << message.slave_id();
-
-      // TODO(benh): This is kind of wierd, M2S?
-      Message<M2S_FRAMEWORK_MESSAGE> out;
-      *out.mutable_framework_id() = frameworkId;
-      *out.mutable_message() = message;
-
-      if (savedSlavePids.count(message.slave_id()) > 0) {
-        PID slave = savedSlavePids[message.slave_id()];
-        CHECK(slave != PID());
-        send(slave, out);
-      } else {
-        VLOG(1) << "Cannot send directly to slave " << message.slave_id()
-                << "; sending through master";
-        send(master, out);
-      }
+      VLOG(1) << "Cannot send directly to slave " << message.slave_id()
+	      << "; sending through master";
+      send(master, out);
     }
   }
 
@@ -385,6 +410,7 @@ private:
   int32_t generation;
   PID master;
 
+  volatile bool active;
   volatile bool terminate;
 
   unordered_map<OfferID, unordered_map<SlaveID, PID> > savedOffers;
@@ -407,6 +433,13 @@ private:
  *     SchedulerProcess are serialized. We do the latter currently by
  *     using locks for certain methods ... but this may change in the
  *     future.
+ *
+ * (2) There are two possible status variables, one called 'active' in
+       SchedulerProcess and one called 'running' in
+       MesosSchedulerDriver. The former is used to represent whether
+       or not we are connected to an active master while the latter is
+       used to represent whether or not a client has called
+       MesosSchedulerDriver::start/run or MesosSchedulerDriver::stop.
  */
 
 
@@ -420,7 +453,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
   try {
     conf = new Configuration(configurator.load());
   } catch (ConfigurationException& e) {
-    // TODO(benh|matei): Are error callbacks not fatal?
+    // TODO(benh|matei): Are error callbacks not fatal!?
     string message = string("Configuration error: ") + e.what();
     sched->error(this, 2, message);
     conf = new Configuration();
@@ -533,8 +566,7 @@ int MesosSchedulerDriver::start()
   Lock lock(&mutex);
 
   if (running) {
-    //error(1, "cannot call start - scheduler is already running");
-    return - 1;
+    return -1;
   }
 
   // Set running here so we can recognize an exception from calls into
@@ -569,7 +601,7 @@ int MesosSchedulerDriver::start()
     PID master = local::launch(*conf, true);
     detector = new BasicMasterDetector(master, pid);
   } else {
-    detector = MasterDetector::create(url, pid, false, true);
+    detector = MasterDetector::create(url, pid, false, false);
   }
 
   return 0;
@@ -588,7 +620,7 @@ int MesosSchedulerDriver::stop()
   // Stop the process if it is running (it might not be because we set
   // running to be true, then called getFrameworkName or
   // getExecutorInfo which threw exceptions, or explicitely called
-  // stop, hence we are here).
+  // stop. See above in start).
   if (process != NULL) {
     Process::dispatch(process, &SchedulerProcess::stop);
     process->terminate = true;
@@ -611,6 +643,7 @@ int MesosSchedulerDriver::stop()
 int MesosSchedulerDriver::join()
 {
   Lock lock(&mutex);
+
   while (running)
     pthread_cond_wait(&cond, &mutex);
 
@@ -629,8 +662,7 @@ int MesosSchedulerDriver::killTask(const TaskID& taskId)
 {
   Lock lock(&mutex);
 
-  if (!running) {
-    //error(1, "cannot call killTask - scheduler is not running");
+  if (!running || (process != NULL && !process->active)) {
     return -1;
   }
 
@@ -646,8 +678,7 @@ int MesosSchedulerDriver::replyToOffer(const OfferID& offerId,
 {
   Lock lock(&mutex);
 
-  if (!running) {
-    //error(1, "cannot call replyToOffer - scheduler is not running");
+  if (!running || (process != NULL && !process->active)) {
     return -1;
   }
 
@@ -662,8 +693,7 @@ int MesosSchedulerDriver::reviveOffers()
 {
   Lock lock(&mutex);
 
-  if (!running) {
-    //error(1, "cannot call reviveOffers - scheduler is not running");
+  if (!running || (process != NULL && !process->active)) {
     return -1;
   }
 
@@ -677,8 +707,13 @@ int MesosSchedulerDriver::sendFrameworkMessage(const FrameworkMessage& message)
 {
   Lock lock(&mutex);
 
-  if (!running) {
-    //error(1, "cannot call sendFrameworkMessage - scheduler is not running");
+  if (!running || (process != NULL && !process->active)) {
+    return -1;
+  }
+
+  // Make sure necessary fields have been completed.
+  if (!message.has_slave_id()) {
+    VLOG(1) << "Missing SlaveID (slave_id), cannot send message";
     return -1;
   }
 

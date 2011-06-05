@@ -269,6 +269,8 @@ void Master::operator () ()
 {
   LOG(INFO) << "Master started at mesos://" << self();
 
+  active = false;
+
   // Don't do anything until we get a master token.
   while (receive() != GOT_MASTER_TOKEN) {
     LOG(INFO) << "Oops! We're dropping a message since "
@@ -296,15 +298,37 @@ void Master::operator () ()
     switch (receive()) {
 
     case NEW_MASTER_DETECTED: {
-      // TODO(benh): We might have been the master, but then got
-      // partitioned, and now we are finding out once we reconnect
-      // that we are no longer the master, so we should just die.
-      LOG(INFO) << "New master detected ... maybe it's us!";
+      const Message<NEW_MASTER_DETECTED>& msg = message();
+
+      // Check and see if we are (1) still waiting to be the active
+      // master, (2) newly active master, (3) no longer active master,
+      // or (4) still active master.
+      PID pid(msg.pid());
+
+      if (pid != self() && !active) {
+	LOG(INFO) << "Waiting to be master!";
+      } else if (pid == self() && !active) {
+	LOG(INFO) << "Acting as master!";
+	active = true;
+      } else if (pid != self() && active) {
+	LOG(FATAL) << "No longer active master ... committing suicide!";
+      } else if (pid == self() && active) {
+	LOG(INFO) << "Still acting as master!";
+      }
       break;
     }
 
     case NO_MASTER_DETECTED: {
-      LOG(INFO) << "No master detected ... maybe we're next!";
+      if (active) {
+	LOG(FATAL) << "No longer active master ... committing suicide!";
+      } else {
+	LOG(FATAL) << "No master detected (?) ... committing suicide!";
+      }
+      break;
+    }
+
+    case MASTER_DETECTION_FAILURE: {
+      LOG(FATAL) << "Cannot reliably detect master ... committing suicide!";
       break;
     }
 
@@ -779,9 +803,13 @@ void Master::operator () ()
         Framework* framework = lookupFramework(frameworkId);
         if (framework != NULL) {
           LOG(INFO) << framework << " disconnected";
-//   	  framework->failoverTimer = new FrameworkFailoverTimer(self(), frameworkId);
-//   	  link(spawn(framework->failoverTimer));
-	  removeFramework(framework);
+
+	  // Stop sending offers here for now.
+	  framework->active = false;
+
+   	  framework->failoverTimer = new FrameworkFailoverTimer(self(), frameworkId);
+   	  link(spawn(framework->failoverTimer));
+// 	  removeFramework(framework);
         }
       } else if (pidToSlaveId.count(from()) > 0) {
         const SlaveID& slaveId = pidToSlaveId[from()];
@@ -1149,6 +1177,9 @@ void Master::failoverFramework(Framework *framework, const PID &newPid)
 
   framework->pid = newPid;
   link(newPid);
+
+  // Make sure we can get offers again.
+  framework->active = true;
 
   Message<M2F_REGISTER_REPLY> reply;
   *reply.mutable_framework_id() = framework->frameworkId;

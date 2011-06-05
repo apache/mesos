@@ -76,7 +76,7 @@ const double HEARTBEAT_INTERVAL = 2;
 const double HEARTBEAT_TIMEOUT = 15;
 
 // Time to wait for a framework to failover (TODO(benh): Make configurable)).
-const time_t FRAMEWORK_FAILOVER_TIMEOUT = 60;
+const time_t FRAMEWORK_FAILOVER_TIMEOUT = 60 * 60 * 24;
 
 // Some forward declarations
 struct Slave;
@@ -405,6 +405,8 @@ private:
 
   string allocatorType;
   Allocator *allocator;
+
+  bool active;
 
   string masterId; // Contains the date the master was launched and
                    // some ephemeral token (e.g. returned from
