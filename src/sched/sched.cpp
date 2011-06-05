@@ -190,8 +190,13 @@ protected:
 
     for (int i = 0; i < offers.size(); i++) {
       UPID pid(pids[i]);
-      CHECK(pid != UPID());
-      savedOffers[offerId][offers[i].slave_id()] = pid;
+      if (pid != UPID()) {
+	VLOG(2) << "Saving PID '" << pids[i] << "'";
+	savedOffers[offerId][offers[i].slave_id()] = pid;
+      } else {
+	// Parsing of a PID may fail due to DNS! 
+	VLOG(2) << "Failed to parse PID '" << pids[i] << "'";
+      }
     }
 
     process::invoke(bind(&Scheduler::resourceOffer, sched, driver,
