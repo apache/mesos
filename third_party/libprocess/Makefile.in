@@ -4,19 +4,33 @@ SHELL = '/bin/sh'
 
 CXX = @CXX@
 
-CXXFLAGS = -g @CXXFLAGS@
+CXXFLAGS = @CXXFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+
+BOOST = third_party/boost-1.37.0
+GLOG = third_party/glog-0.3.1
+LIBEV = third_party/libev-3.8
+RY_HTTP_PARSER = third_party/ry-http-parser-1c3624a
+
+# Get better debugging info.
+CXXFLAGS += -g
 
 # Add . to CXXFLAGS.
-CXXFLAGS += -I@abs_srcdir@
+CXXFLAGS += -I@srcdir@
 
 # Add libev to CXXFLAGS.
-CXXFLAGS += -I@abs_srcdir@/third_party/libev-3.8
+CXXFLAGS += -I@srcdir@/$(LIBEV)
 
 # Add Boost to CXXFLAGS.
-CXXFLAGS += -I@abs_srcdir@/third_party/boost-1.37.0
+CXXFLAGS += -I@srcdir@/$(BOOST)
 
 # Add http parser to CXXFLAGS.
-CXXFLAGS += -I@abs_srcdir@/third_party/ry-http-parser-1c3624a
+CXXFLAGS += -I@srcdir@/$(RY_HTTP_PARSER)
+
+# Add glog to include and lib paths.
+CXXFLAGS += -I@srcdir@/$(GLOG)/src -I@builddir@/$(GLOG)/src
+LDFLAGS += -L@builddir@/$(GLOG)/.libs
 
 # Add -fPIC to CXXFLAGS.
 CXXFLAGS += -fPIC -D_XOPEN_SOURCE
@@ -24,37 +38,43 @@ CXXFLAGS += -fPIC -D_XOPEN_SOURCE
 # Add dependency tracking to CXXFLAGS.
 CXXFLAGS += -MMD -MP
 
-LIB_OBJ = process.o pid.o fatal.o tokenize.o latch.o
-LIB = libprocess.a
+LDFLAGS += -L. -L$(LIBEV)/.libs
+LIBS += -lprocess -lglog -lev -lpthread
 
-OBJS = $(LIB_OBJ)
-LIBS = $(LIB)
+LIBPROCESS_OBJS = process.o pid.o fatal.o tokenize.o latch.o
+LIBPROCESS_LIB = libprocess.a
 
 
 default: all
 
--include $(patsubst %.o, %.d, $(OBJS))
+-include $(patsubst %.o, %.d, $(LIBPROCESS_OBJS))
 
-$(LIB_OBJ): %.o: @abs_srcdir@/%.cpp 
-	$(CXX) -c $(CXXFLAGS) -o $@ $<
+$(LIBPROCESS_OBJS): %.o: @srcdir@/%.cpp 
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(LIB): $(LIB_OBJ)
-	$(AR) rcs $@ $^ third_party/ry-http-parser-1c3624a/http_parser_g.o
+$(LIBPROCESS_LIB): $(LIBPROCESS_OBJS)
+	$(AR) rcs $@ $^ $(RY_HTTP_PARSER)/http_parser_g.o
 
 third_party:
-	$(MAKE) -C @abs_builddir@/third_party/libev-3.8
-	cp -r @abs_srcdir@/third_party/ry-http-parser-1c3624a @abs_builddir@/third_party/
-	$(MAKE) -C @abs_builddir@/third_party/ry-http-parser-1c3624a http_parser_g.o
+	$(MAKE) -C $(GLOG)
+	$(MAKE) -C @builddir@/$(LIBEV)
+	cp -r @srcdir@/$(RY_HTTP_PARSER) @builddir@/third_party
+	$(MAKE) -C @builddir@/$(RY_HTTP_PARSER) http_parser_g.o
 
-all: third_party $(LIBS)
+all: third_party $(LIBPROCESS_LIB)
+
+test: all
+	$(CXX) $(CXXFLAGS) -o test @srcdir@/test.cpp $(LDFLAGS) $(LIBS)
 
 clean:
-	$(MAKE) -C @abs_builddir@/third_party/libev-3.8 clean
-	$(MAKE) -C @abs_builddir@/third_party/ry-http-parser-1c3624a clean
-	rm -f $(patsubst %.o, %.d, $(OBJS)) $(OBJS) $(LIBS)
+	$(MAKE) -C $(GLOG) clean
+	$(MAKE) -C @builddir@/$(LIBEV)
+	$(MAKE) -C @builddir@/$(RY_HTTP_PARSER) clean
+	rm -f $(patsubst %.o, %.d, $(LIBPROCESS_OBJS)) $(LIBPROCESS_OBJS) $(LIBPROCESS_LIB)
 
 distclean: clean
-	$(MAKE) -C @abs_builddir@/third_party/libev-3.8 distclean
+	$(MAKE) -C $(GLOG) distclean
+	$(MAKE) -C @builddir@/$(LIBEV) distclean
 	rm -f config.status config.cache config.log
 	rm -f Makefile
 

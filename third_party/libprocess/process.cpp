@@ -15,6 +15,8 @@
 
 #include <arpa/inet.h>
 
+#include <glog/logging.h>
+
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
@@ -672,6 +674,8 @@ void recv_data(struct ev_loop *loop, ev_io *watcher, int revents)
       break;
     } else if (length <= 0) {
       // Socket error ... we consider closed.
+      const char* error = strerror(errno);
+      VLOG(1) << "Socket error while receiving: " << error;
       link_manager->closed(c);
       delete decoder;
       ev_io_stop(loop, watcher);
@@ -688,6 +692,7 @@ void recv_data(struct ev_loop *loop, ev_io *watcher, int revents)
           process_manager->deliver(c, request);
         }
       } else if (requests.empty() && decoder->failed()) {
+        VLOG(1) << "Decoder error while receiving";
         link_manager->closed(c);
         delete decoder;
         ev_io_stop(loop, watcher);
@@ -722,6 +727,8 @@ void send_data(struct ev_loop *loop, ev_io *watcher, int revents)
       break;
     } else if (length <= 0) {
       // Socket closed or error ... we consider closed.
+      const char* error = strerror(errno);
+      VLOG(1) << "Socket error while sending: " << error;
       link_manager->closed(c);
       delete encoder;
       ev_io_stop(loop, watcher);
@@ -763,6 +770,7 @@ void sending_connect(struct ev_loop *loop, ev_io *watcher, int revents)
 
   if (getsockopt(c, SOL_SOCKET, SO_ERROR, &opt, &optlen) < 0 || opt != 0) {
     // Connect failure.
+    VLOG(1) << "Socket error while connecting";
     link_manager->closed(c);
     MessageEncoder* encoder = (MessageEncoder*) watcher->data;
     delete encoder;
@@ -787,6 +795,7 @@ void receiving_connect(struct ev_loop *loop, ev_io *watcher, int revents)
 
   if (getsockopt(c, SOL_SOCKET, SO_ERROR, &opt, &optlen) < 0 || opt != 0) {
     // Connect failure.
+    VLOG(1) << "Socket error while connecting";
     link_manager->closed(c);
     DataDecoder* decoder = (DataDecoder*) watcher->data;
     delete decoder;
@@ -1010,6 +1019,9 @@ void initialize()
     }
   }
 
+  google::InitGoogleLogging("libprocess");
+  google::LogToStderr();
+
 //   /* Install signal handler. */
 //   struct sigaction sa;
 
@@ -1121,8 +1133,9 @@ void initialize()
   ip = addr.sin_addr.s_addr;
   port = ntohs(addr.sin_port);
 
-  if (listen(s, 500000) < 0)
+  if (listen(s, 500000) < 0) {
     fatalerror("failed to initialize (listen)");
+  }
 
   /* Setup event loop. */
 #ifdef __sun__
@@ -1155,10 +1168,15 @@ void initialize()
 //   sigaddset (&sa.sa_mask, w->signum);
 //   sigprocmask (SIG_UNBLOCK, &sa.sa_mask, 0);
 
-  if (pthread_create(&io_thread, NULL, serve, loop) != 0)
+  if (pthread_create(&io_thread, NULL, serve, loop) != 0) {
     fatalerror("failed to initialize node (pthread_create)");
+  }
 
   initializing = false;
+
+  char temp[INET_ADDRSTRLEN];
+  CHECK(inet_ntop(AF_INET, (in_addr *) &ip, temp, INET_ADDRSTRLEN) != NULL);
+  VLOG(1) << "libprocess is initialized on " << temp << ":" << port;
 }
 
 
@@ -1580,6 +1598,8 @@ bool ProcessManager::deliver(int c, HttpRequest *request, ProcessBase *sender)
   const vector<string>& pairs = tokenize(request->path, "/");
   if (pairs.size() != 2) {
     // This has no receiver, send a response and cleanup.
+    VLOG(1) << "Returning '404 Not Found' for HTTP request '"
+            << request->path << "'";
     link_manager->send(new HttpResponseEncoder(HttpNotFoundResponse()), c);
     delete request;
     return false;
@@ -1642,6 +1662,8 @@ bool ProcessManager::deliver(int c, HttpRequest *request, ProcessBase *sender)
     receiver->enqueue(new pair<HttpRequest*, Future<HttpResponse>*>(request, future));
   } else {
     // This has no receiver, send a response and cleanup.
+    VLOG(1) << "Returning '404 Not Found' for HTTP request '"
+            << request->path << "'";
     link_manager->send(new HttpResponseEncoder(HttpNotFoundResponse()), c);
     delete request;
     return false;
@@ -2699,19 +2721,15 @@ string ProcessBase::serve(double secs, bool once)
     if ((request = dequeue<pair<HttpRequest*, Future<HttpResponse>*> >()) != NULL) {
       const string& id = "/" + pid.id + "/";
       size_t index = request->first->path.find(id);
-      if (index != string::npos) {
-        const string& name =
-          request->first->path.substr(index + id.size(), request->first->path.size());
-        if (http_handlers.count(name) > 0) {
-          http_handlers[name](*request->first).associate(*request->second);
-        } else {
-          // TODO(benh): Log dropping this!
-          Promise<HttpResponse>(HttpNotFoundResponse()).associate(*request->second);
-        }
+      CHECK(index != string::npos);
+      const string& name =
+        request->first->path.substr(index + id.size(), request->first->path.size());
+      if (http_handlers.count(name) > 0) {
+        http_handlers[name](*request->first).associate(*request->second);
       } else {
-        // TODO(benh): This should never happen (because receiver gets
-        // parsed in ProcessManager::deliver). Reorganize the code and
-        // put an assert in or at least log dropping this!
+        Promise<HttpResponse>(HttpNotFoundResponse()).associate(*request->second);
+        VLOG(1) << "Returning '404 Not Found' for HTTP request '"
+                << request->first->path << "'";
       }
       delete request->first;
       delete request->second;
