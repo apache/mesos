@@ -80,9 +80,12 @@ void SimpleAllocator::offerReturned(SlotOffer* offer,
       }
     }
   }
-  // Make new offers, unless the offer returned due to a lost framework or slave
-  // (in those cases, frameworkRemoved and slaveRemoved will be called later)
-  if (reason != ORR_SLAVE_LOST && reason != ORR_FRAMEWORK_LOST) {
+  // Make new offers unless the offer returned due to a lost framework or slave
+  // (in those cases, frameworkRemoved and slaveRemoved will be called later),
+  // or returned due to a framework failover (in which case the framework's
+  // new PID won't be set yet so we just wait for the next timer tick).
+  if (reason != ORR_SLAVE_LOST && reason != ORR_FRAMEWORK_LOST &&
+      reason != ORR_FRAMEWORK_FAILOVER) {
     vector<Slave*> slaves;
     foreach (const SlaveResources& r, resLeft)
       slaves.push_back(r.slave);
