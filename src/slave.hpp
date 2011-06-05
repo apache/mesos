@@ -163,7 +163,7 @@ public:
   typedef unordered_map<FrameworkID, Framework*> FrameworkMap;
   typedef unordered_map<FrameworkID, Executor*> ExecutorMap;
   
-  const bool isFT;
+  bool isFT;
   string zkserver;
   LeaderDetector *leaderDetector;
   PID master;
@@ -203,10 +203,10 @@ public:
 
   
 public:
-  Slave(const PID &_master, Resources resources, bool _local, bool =false, string ="");
+  Slave(const string &_master, Resources resources, bool _local);
 
-  Slave(const PID &_master, Resources resources, bool _local,
-        const string& isolationType, bool =false, string ="");
+  Slave(const string &_master, Resources resources, bool _local,
+        const string& isolationType);
 
   virtual ~Slave();
 
@@ -241,6 +241,9 @@ protected:
   // Create the slave's isolation module; this method is virtual so that
   // it is easy to override in tests
   virtual IsolationModule * createIsolationModule();
+
+  enum URLType {ZOOURL, NEXUSURL, NONEURL};
+  pair<URLType, string> parseUrl(const string &url);
 };
 
 }}}
