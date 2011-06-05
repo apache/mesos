@@ -1,0 +1,1801 @@
+body {
+       margin: 0;
+       background-color: #FFFFFF;
+       color: #000000;
+       font-family: Verdana, Arial, Helvetica, sans-serif;
+       }
+
+
+.topnavbackground {
+        background-image: url(/Includes/EECS-images/submenu-background.jpg);
+	}
+
+/*
+New masthead definitions adapted from Milan's "not found" page. MLC 04/06
+*/
+
+#header { 
+   color: #FFFFFF;
+   background-color: #002061;
+   width: 100%;
+}
+
+#title a {
+   color: #fff;
+   background-color: #002061;
+   text-decoration:none;
+}
+
+#title a:hover {
+   color: #FC6;
+   background-color: #002061;
+   text-decoration: none;
+}
+
+#title h2 {
+   color: #fff;
+   background-color: #002061;
+   margin: 0;
+   padding:0;
+   text-align: left;
+}
+
+#coetitle a {
+   color: #fff;
+   background-color: #002061;
+   text-decoration:none;
+}
+
+#coetitle a:hover {
+   color: #FC6;
+   background-color: #002061;
+   text-decoration: none;
+}
+
+#coetitle h2 {
+   color: #fff;
+   background-color: #002061;
+   margin: 0;
+   padding:0;
+   text-align: left;
+}
+
+#ucbtitle a { 
+   color: #FC6;
+   background-color: #002061;
+   text-decoration:none;
+}
+
+#ucbtitle a:hover {
+   color: #FFF;
+   background-color: #002061;
+   text-decoration: none;
+}
+
+#ucbtitle h2 {
+   margin: 0;
+   padding:0;
+   text-align: left;
+}
+
+#logintitle a {
+   color: #000;
+   background: #E5E5E5;
+   text-decoration:none;
+}
+
+#logintitle a:hover {
+   color: #FF0000;
+   background: #FFFFFF;
+   text-decoration: none;
+}
+
+#logintitle h4 {
+   margin: 0;
+   padding: 0;
+   text-align: center;
+}
+
+#eecs {
+   color: #FFFFFF;
+   background-color: #002061;
+   font: bold small-caps 12px verdana, sans-serif;
+   margin: 0;
+   padding: 0;
+   letter-spacing: .3em;
+}
+
+#coe {
+   color: #FFFFFF;
+   background-color: #002061;
+   font: bold 10px verdana, sans-serif;
+   margin: 0 0 10px 0;
+   padding: 0;
+}
+
+#berk {
+   font: bold 16px times, garamond, sans-serif;
+}
+
+#berk a:hover {
+   color: #FFFFFF;
+   background-color: #002061;
+}
+
+tr.sidecolor {
+   background-color: #FFFFFF;
+}
+
+p.login {
+   color: #000000;
+   font: bold 12px Geneva, Arial, Helvetica, sans-serif;
+   text-align: center;
+   padding: 0;
+   margin: 0;
+}
+
+.leftsidebar-image {
+	background-image: url(/Includes/EECS-images/template-leftnav.gradient.jpg);
+	background-repeat: no-repeat;
+	height: 360px;
+        }
+
+.rightsidebar-image {
+	background-image: url(/Includes/EECS-images/template-rightnav.gradient.jpg);
+	background-repeat: no-repeat;
+	height: 600px;
+	width: 200px;
+        }
+
+td.divline {
+        margin: 0;
+	padding: 10px 0 0 0;
+}
+
+#sideline hr {
+    color: #EFCE77;
+    background-color: #EFCE77;
+    height: 3px;
+}
+
+/*
+    color: #FFCF4F;
+    */
+
+#maststripe div {
+	background: #FEE5A0;
+	background-color: #FEE5A0;
+	}
+
+
+a {
+        }
+
+a:link {
+	text-decoration: none;
+        }
+
+a:visited {
+	text-decoration: none;
+	color: #000099;
+        }
+
+a:hover {
+	text-decoration: none;
+        color: #FF0000;
+        }
+
+a:active {
+	text-decoration: none;
+	color: #FF0000;
+        }
+
+.search {
+	font-size: 14px;
+	font-style: normal;
+	line-height: normal;
+	font-weight: bold;
+	font-variant: normal;
+	text-transform: none;
+	margin: 5px 0 0 5px;
+}
+
+.searchtypes {
+	font-size: 10px;
+	font-style: normal;
+	line-height: normal;
+	font-weight: normal;
+	font-variant: normal;
+	text-transform: none;
+}
+
+ul.nobullet {
+    list-style-type: none;
+    }
+
+ul.square {
+    list-style-type: square;
+    }
+
+ul.circle {
+    list-style-type: circle;
+    }
+
+ul.disc {
+    list-style-type: disc;
+    }
+
+ol.uproman {
+    list-style-type: upper-roman;
+    }
+
+ol.lowalpha {
+    list-style-type: lower-alpha;
+    }
+
+ol.upalpha {
+    list-style-type: upper-alpha;
+    }
+
+#leftcoltext h4 {
+   margin: 0;
+   padding: .75em .5em .5em .5em;
+   font-size: 14px;
+   font-family: Geneva, Arial, Helvetica, sans-serif;
+   }
+
+
+#rightcoltext h4 {
+   margin: 0;
+   padding: 1em .5em .5em .5em;
+   font-size: 14px;
+   font-family: Geneva, Arial, Helvetica, sans-serif;
+   }
+
+#rightcoltext p {
+   margin: 0;
+   padding: .5em .5em .5em 1.5em;
+   font-size: 14px;
+   font-family: Geneva, Arial, Helvetica, sans-serif;
+   }
+
+.sidenavhead {
+   font-family: Verdana, Arial, Helvetica, sans-serif;
+   font-size: 12px;
+   font-style: normal;
+   font-weight: bold;
+   font-variant: normal;
+   text-transform: none;
+   margin: 0;
+   padding: 1em .5em 0 .7em;
+   }
+
+.sidenavtext {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+        line-height: 16px;
+        text-transform: none;
+	margin: 0;
+        padding: .25em .25em 1em .7em;
+        }
+
+/*
+#sidelinks h4 {
+   margin: 0;
+   padding: .6em .5em 0 .7em;
+   font-size: 12px;
+   font-style: normal;
+   font-family: Verdana, Arial, Helvetica, sans-serif;
+   }
+
+#sidelinks p {
+   margin: .1em 0 .5em .5em;
+   font-size: 12px;
+   font-family: Verdana, Arial, Helvetica, sans-serif;
+   }
+
+#sidelinks ul {
+	margin: 0 0 .75em -.4em ;
+	margin: 0 0 .75em .2em ; 
+	padding: 0 ;
+	}
+#sidelinks ul li {
+	margin: 0 0 0 1.1em ;
+	margin: 0 0 0 1.7em ; 
+	padding: 0 ;
+	font-size: 14px;
+	list-style: none ;
+    }
+
+*/
+
+/*	list-style: square outside url('/Includes/EECS-images/arrow.gif'); */
+
+/*  Dark blue masthead background) */
+td.mastbackground {
+    color: #000000;
+    background: rgb(0,32,97);
+}
+
+td.maststripe {
+	color: #FDDD88;
+	background-color: #FDDD88;
+	}
+
+
+.sectionhead {
+        font-size: 19px;
+        font-style: normal;
+        line-height: normal;
+        font-weight: bold;
+        font-variant: normal;
+        text-transform: none;
+        color: #000000;
+        text-align: left;
+        white-space: normal;
+        margin: 0;
+        text-indent: 0px;
+        vertical-align: top;
+        }
+
+.sectionh2 {
+        font-size: 19px;
+        font-style: normal;
+        line-height: normal;
+        font-weight: bold;
+        font-variant: normal;
+        text-transform: none;
+        color: #000000;
+	background: #F1F1F1;
+        text-align: left;
+        white-space: normal;
+        margin: 0;
+        text-indent: 0px;
+        vertical-align: top;
+        }
+
+
+.subhead {
+        font-size: 18px;
+        font-style: normal;
+        line-height: normal;
+        font-weight: bold;
+        font-variant: normal;
+        text-transform: none;
+        color: #000000;
+        text-align: left;
+        white-space: normal;
+	padding: .25em 0 .25em .1em;
+        margin: 0;
+        text-indent: 0px;
+        vertical-align: top;
+	background: #F1F1F1;
+	background-color: #F1F1F1;
+        }
+
+/* For 'Return to Main Page' buttons on bottom of group pages */
+td.return {
+    color: #000000;
+    background: #DFE2E9;
+    background-color: #DFE2E9;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+    padding: .25em .5em .25em .5em ;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+/* For 'Back To Top' buttons */ 
+td.backtotop {
+    color: #000000;
+    background: #FFF2C6;
+    background-color: #FFF2C6;
+    font-size: 14px;
+    font-weight: normal;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+/* For Credit page titles */ 
+td.credit-title {
+    color: #000000;
+    background: #FFFFFF;
+    font-weight: bold;
+    text-align: right;
+    padding: 2px 6px 0 0;
+}
+
+/* For Credit page people */ 
+td.credit-people {
+    color: #000000;
+    background: #FFFFFF;
+    font-weight: normal;
+    text-align: left;
+    padding: 2px 0 0 0;
+}
+
+/* Old headers on Administration page */
+td.Adminofficers-title {
+    font-size: 18px;
+    margin: 1em .25em 1em 0em;
+    border-bottom: 2px solid #ccc;
+    font-weight: bold;
+}
+
+td.Adminaddress-title {
+    font-size: 18px;
+    margin: 1em .25em 1em 0em;
+    border-bottom: 2px solid #ccc;
+    font-weight: bold;
+}
+
+
+p.ContactChair {
+    color: #000000;
+    font-weight: bold;
+    font-size: 12px;
+    text-align: left;
+}
+
+p.DeptAddress {
+    background: #FFFAEC;
+    background-color: #FFFAEC;
+    margin: 0;
+    padding: 1em;
+}
+
+/* EE and CS Physical Addresses Table on Administration page */
+table.eecsaddresses {
+    width: 100%;
+    }
+
+
+/* Address for EE Division on Administration & GradAffairs pages */
+
+td.eeaddress-text {
+    background-image: url(/Includes/EECS-images/gradient.blue-wide.jpg);
+    background-repeat: no-repeat;
+    color: #000000;
+    font-weight: normal;
+    padding: 4px 4px 4px 10px;
+    border: 1px solid #BAC0CB;
+    border-collapse: collapse;
+}
+
+/* Address for CS Division on Administration page */
+
+td.csaddress-text {
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    color: #000000;
+    font-weight: normal;
+    padding: 4px 4px 4px 10px;
+    border: 1px solid #BAC0CB;
+    border-collapse: collapse;
+}
+
+/* CS Division Home Page photo */ 
+td.cshome-photo {
+    border: 0;
+    margin: 0;
+    border-collapse: collapse;
+}
+
+
+/* CS Division Home Page address box */ 
+td.cshome-address {
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+}
+
+p.cshome-street {
+    font-weight: bold;
+    padding: 0 .25em 0 0;
+    margin: 0;
+}
+
+p.cshome-phone {
+    font-weight: normal;
+    padding: 0 .25em 0 0;
+    margin: 0;
+}
+
+/* CS Home Page top links */
+td.cshome-links {
+    background-image: url(/Includes/EECS-images/gradient.blue-wide.jpg);
+    background-repeat: no-repeat;
+    font-weight: bold;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* CS Home Page address box hours */ 
+td.cshome-hours {
+    font-size: 14px;
+    font-weight: normal;
+    padding: 10px 5px 2.5px 5px;
+    text-align: left;
+}
+
+ul.cshomelink, ul.cshomelink li {
+    list-style: square outside url('/Includes/EECS-images/arrow.gif')
+    }
+
+ul.spaced li {
+    margin: .5em 0 0 0;
+    padding-bottom: .25em;
+}
+
+ol.spaced li {
+    margin: .5em 0 0 0;
+    padding-bottom: .25em;
+}
+
+
+ol.spaces li {
+    list-style: decimal;
+    margin: .5em 0 0 0;
+    padding-bottom: .25em;
+}
+
+/*  CS Home Page Content */
+td.cshome-contentleft {
+    color: #000000;
+    background: rgb(255,255,255);
+    font-weight: normal;
+    padding: 0 0 1em 0;
+}
+
+/*  CS Home Page Content */
+td.cshome-contentright {
+    color: #000000;
+    background: rgb(255,255,255);
+    font-weight: normal;
+    padding: 0 0 1em 0;
+}
+
+/* EE Division Home Page photo */ 
+td.eehome-photo {
+    border: 0;
+    border-collapse: collapse;
+}
+
+/* EE Division Home Page address box */ 
+td.eehome-address {
+    background-image: url(/Includes/EECS-images/gradient.blue-wide.jpg);
+    background-repeat: no-repeat;
+}
+
+p.eehome-street {
+    font-weight: bold;
+    padding: 0 .25em 0 0;
+}
+
+p.eehome-phone {
+    font-weight: normal;
+    padding: 0 .25em 0 0;
+}
+
+/* EE Home Page top links */
+td.eehome-links {
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    font-weight: bold;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* EE Home Page address box hours */ 
+td.eehome-hours {
+    font-weight: normal;
+    font-size: 14px;
+    padding: 10px 5px 2.5px 5px;
+    text-align: left;
+}
+
+ul.eehomelink, ul.eehomelink li {
+    list-style: square outside url('/Includes/EECS-images/arrow.gif')
+    }
+
+/*  EE Home Page Content */
+td.eehome-contentleft {
+    color: #000000;
+    background: rgb(255,255,255);
+    font-weight: normal;
+    padding: 0 0 1em 0;
+}
+
+/*  EE Home Page Content */
+td.eehome-contentright {
+    color: #000000;
+    background: rgb(255,255,255);
+    font-weight: normal;
+    padding: 0 0 1em 0;
+}
+
+/* For H2 titles in tables */
+td.submenu-title {
+    font-size: 18px;
+    margin: 1em .25em 1em 0em;
+    border-bottom: 2px solid #ccc;
+    font-weight: bold;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+/* For H2 titles without underlines in tables  */
+td.submenu-nolinetitle {
+    font-size: 18px;
+    margin: 1em .25em 1em 0em;
+    padding: 0;
+    font-weight: bold;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+/* For Index boxes at the tops of department pages */
+
+table.boxindex, td.boxindex {
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    color: #000000;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    padding: 1em;
+    font-weight: bold;
+}
+
+
+/* For Index buttons at the tops of department pages */
+td.subindex {
+    color: #000000;
+    background: rgb(241,241,241);
+    background-color: rgb(241,241,241);
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+}
+/* deep yellow 
+    background: rgb(254,229,160);
+    background-color: rgb(254,229,160);
+    */
+
+/* For a large number of  Index buttons at the tops of department pages */
+td.subindex-small {
+    color: #000000;
+    background: rgb(241,241,241);
+    background-color: rgb(241,241,241);
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* For left-aligned Index buttons in department pages */
+td.subindex-left {
+    color: #000000;
+    background: rgb(254,229,160);
+    background-color: rgb(254,229,160);
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: left;
+}
+
+/* For buttons on Diversity web page */
+td.divcalendar {
+    color: #000000;
+    background: rgb(254,229,160);
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+    padding: .25em .5em .25em .5em ;
+}
+td.campusdiv {
+    color: #000000;
+    background: #DFE2E9;
+    background-color: #DFE2E9;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: left;
+    padding: .25em .5em .25em .5em ;
+}
+
+td.divhighlights {
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    margin: 0;
+    padding: 1em 1.5em 1em 1em;
+}
+
+
+/* For main top Degree Program index buttons */
+td.degree-index {
+    color: #000000;
+    background: #FFF2C6;
+    background-color: #FFF2C6;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+}
+
+
+/* For secondary submenu buttons */
+td.submenu1 {
+    color: #000000;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    background: #DFE2E9;
+    background-color: #DFE2E9;
+    font-weight: normal;
+    text-align: center;
+}
+
+/* For primary Degree Program submenu buttons */
+td.degree-submenu1 {
+    color: #000000;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    background: #DFE2E9;
+    background-color: #DFE2E9;
+    font-weight: normal;
+    text-align: center;
+}
+
+/* For secondary Degree Program submenu buttons */ 
+td.degree-submenu2 {
+    color: #000000;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    background-color: #F6F7F9;
+    background: #F6F7F9;
+    font-weight: normal;
+    text-align: center;
+    padding: 5px;
+}
+
+
+/* Emergency/Crisis tables */
+td.hotlines-bold {
+    color: #000000;
+    background: rgb(254,229,160);
+    background-color: rgb(254,229,160);
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+    padding: .25em .5em .25em .5em ;
+}
+
+td.hotlines {
+    color: #000000;
+    background: rgb(254,229,160);
+    background-color: rgb(254,229,160);
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: normal;
+    padding: .25em .5em .25em .5em ;
+}
+
+
+td.hotlines-nonemerg {
+    color: #000000;
+    background: #FFF2C6;
+    background-color: #FFF2C6;
+    font-weight: normal;
+    padding: .25em .5em .25em .5em ;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+td.emergwebsites {
+    color: #000000;
+    padding: .25em .5em .25em .5em ;
+    background: rgb(230,230,230);
+    background-color: rgb(230,230,230);
+    font-weight: normal;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+td.emergwebsites-bold {
+    color: #000000;
+    padding: .25em .5em .25em .5em ;
+    background: rgb(230,230,230);
+    background-color: rgb(230,230,230);
+    font-weight: bold;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+
+/* For large Faculty Awards indexes at top of page */
+td.facaward-index {
+    color: #000000;
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    margin: 0;
+    padding: 10px 20px 5px 0;
+    }
+
+
+ul.facaward-list li {
+    list-style: disc;
+    margin: 0;
+    padding: 0;
+    font-weight: bold;
+}
+
+
+
+/* For Index buttons at the tops of secondary awards pages */
+td.facaward-subindex {
+    color: #000000;
+    background: #FFF2C6;
+    background-color: #FFF2C6;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+    text-align: center;
+}
+
+
+/*  Faculty Award Titles */
+td.facaward-title {
+    color: #000000;
+    background: rgb(255,255,255);
+    font-weight: bold;
+}
+
+/*  Faculty Award Recipients */
+td.facaward-text {
+    color: #000000;
+    background: rgb(255,255,255);
+    font-weight: normal;
+}
+
+/*  Faculty Award 'Other Awards' buttons */
+td.facaward-other {
+    background: #FFF2C6;
+    background-color: #FFF2C6;
+    color: #000000;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+}
+
+
+/* For 'Return to Main Fac Awards page' button on bottom of sub-pages */
+td.facaward-return {
+    color: #000000;
+    background: rgb(254,229,160);
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    font-weight: bold;
+    text-align: center;
+    padding: .3em;
+}
+
+/* For 'More' buttons on Menu pages (e.g. People) */ 
+
+td.menumore {
+    color: #000000;
+    background: #FFF2C6;
+    background-color: #FFF2C6;
+    font-weight: normal;
+    padding: 3px 1px 3px 1px;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+td.menumore-ee {
+    color: #000000;
+    background: #D2D6DF;
+    background-color: #D2D6DF;
+    font-weight: normal;
+    padding: 3px 1px 3px 1px;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+td.menumore-cs {
+    color: #000000;
+    background: #FFF2C6;
+    background-color: #FFF2C6;
+    font-weight: normal;
+    padding: 3px 1px 3px 1px;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+td.researchareas-title {
+    font-size: 16px;
+    margin: 1em .25em 1em 0em;
+    padding: 0 0 0 2em;
+    font-weight: bold;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+div.researchareas ul,
+div.researchareas ul li {
+        list-style-type: disc;
+	margin: 0 0 .25em 1.75em;
+	padding: 0;
+	font-size: 14px;
+}
+
+p.otherresearch {
+	font-size: 14px;
+	font-weight: normal;
+        margin: 0;
+	padding: 0 0 0 2em;
+}
+
+/* For tables inside Resguide web page content */
+
+table.resguide, td.resguide {
+    padding-left: 1em;
+    }
+
+/* For large index boxes at the tops of Resguide pages) */
+table.resguideindex, td.resguideindex {
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    color: #000000;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    padding: 1em;
+    font-weight: bold;
+}
+
+/* For space index boxe at the tops of Resguide staff page) */
+table.resguidestaff, td.resguidestaff {
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    color: #000000;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    padding: 1em;
+    line-height: 1.5em;
+    font-weight: bold;
+}
+
+ul.resguidestaff {
+    margin-top: .2em;
+}
+
+ul.resguidestaff li {
+    margin: -.25em;
+}
+
+td.mapcontents {
+    background-color: #FFFAEC;
+    background: #FFFAEC;
+    color: #000000;
+    font-weight: normal;
+}
+
+/* For staff blurb on Parking Permits web page */ 
+td.parkingblurb {
+    background: rgb(230,230,230);
+    font-weight: normal;
+}
+
+td.reserve-cory {
+    color: #000000;
+    background: #D2D6DF;
+    background-color: #D2D6DF;
+    font-weight: bold;
+    padding: 5px;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+td.reserve-soda {
+    color: #000000;
+    background: #FFF2C6;
+    background-color: #FFF2C6;
+    font-weight: bold;
+    padding: 5px;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+}
+
+
+/* Box of links on Prospective Undergraduates page */
+td.prospugradbox {
+	background-color: #FFF9E3;
+	color: #000000;
+	border-style: solid;
+	border-width: 1px;        /* sets border width on all sides */
+        border-collapse: collapse;
+	border-color: rgb(204,204,204);
+	padding: 0;
+	margin: 0;
+}
+
+/*
+prospugrad-list definitions are in eecsPage.css
+*/
+
+/* Index lists on main Info for Students page */
+td.studentinfo-ugradtitle {
+    font-size: 18px;
+    margin: 1em .25em 1em 0em;
+    border-bottom: 2px solid #ccc;
+    font-weight: bold;
+    }
+
+td.studentinfo-ugraditems {
+    background-image: url(/Includes/EECS-images/gradient.blue-wide.jpg);
+    background-repeat: no-repeat;
+    padding: .5em;
+    }
+
+td.studentinfo-gradtitle {
+    font-size: 18px;
+    margin: 1em .25em 1em 0em;
+    border-bottom: 2px solid #ccc;
+    font-weight: bold;
+    }
+
+td.studentinfo-graditems {
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    padding: .5em;
+    }
+
+p.csa {
+    color: #000;
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0 0 0 -.25em;
+    padding: 0;
+    text-align: center;
+}
+
+address.gradsig {
+           text-align: right;
+           margin: 30px 30px 10px 0;
+           }
+
+
+/* Graduate Manual */ 
+
+table.gradmanual {
+        margin-left: auto;
+        margin-right: auto;
+        border-width: 2px;
+        border-spacing: 2px;
+        padding: 2px;
+        border-style: solid;
+        border-color: #FFF;
+        border-collapse: collapse;
+	width: 100%;
+}
+
+table.gradmanual td {
+        border-width: 0 1em 0 1em;
+        border-spacing: 1em;
+        padding: .5em;
+        border-style: solid;
+        border-color: #FFF;
+        border-collapse: collapse;
+}
+
+
+td.manual-gradadm {
+    font-size: 18px;
+    margin: 1em 0em 1em 0em;
+    font-weight: bold;
+    text-align: center;
+    background-image: url(/Includes/EECS-images/gradient.blue-wide.jpg);
+    background-repeat: no-repeat;
+    padding: .5em;
+    border-width: 5em;
+    border-color: #fff;
+    }
+
+td.manual-gradcont {
+    font-size: 18px;
+    margin: 1em 0em 1em 0em;
+    font-weight: bold;
+    text-align: center;
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    padding: .5em;
+    border-width: 5em;
+    border-collapse: collapse;
+    border-color: #fff;
+    }
+
+/* Index lists for Academic Recruiting cover page */
+
+table.recruit {
+    color: #000000;
+    padding: 1em;
+}
+
+
+td.acadpers-facsearch {
+    font-size: 16px;
+    font-weight: bold;
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    margin: 1em;
+    padding: .5em 1em .5em 1em;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    }
+
+
+td.acadpers-affiliated {
+    font-size: 16px;
+    font-weight: bold;
+    background-image: url(/Includes/EECS-images/gradient.blue-wide.jpg);
+    background-repeat: no-repeat;
+    text-align: center;
+    margin: 1em;
+    padding: .5em 1em .5em 1em;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    }
+
+
+td.acadpers-affilsearch {
+    font-size: 16px;
+    font-weight: bold;
+    background: rgb(230,230,230);
+    background-color: rgb(230,230,230);
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    margin: 1em;
+    padding: .5em 1em .5em 1em;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    }
+
+
+/* Grad Affairs opening line */
+td.gradaffairs-opening {
+    font-weight: normal;
+    font-size: 14px;
+    padding: 10px 5px 2.5px 4px;
+    text-align: left;
+}
+
+
+/*  Normal table cells (to override masthead formatting in document content) */
+td.white {
+    color: #000000;
+    background: rgb(255,255,255);
+    font-weight: normal;
+}
+
+/*  Bold text in white table cells */
+td.white2 {
+    color: #000000;
+    background: rgb(255,255,255);
+    font-weight: bold;
+}
+
+/*  Small bold text in white table cells (ACM Awards) */
+td.smletter {
+    background: rgb(255,255,255);
+    font-size: 12px;
+    font-weight: bold;
+}
+
+
+th.white {
+    background: rgb(255,255,255);
+    font-weight: bold;
+}
+
+/* left aligned bold titles in white (group aliases) */
+th.lftwhite {
+    background: rgb(255,255,255);
+    font-weight: bold;
+    text-align: left;
+}
+
+/* For gray buttons with left-aligned, small lettering (people & admissions) */ 
+td.palegray {
+    background: rgb(230,230,230);
+    font-weight: normal;
+}
+
+/* For gray buttons with left-aligned, bold lettering (Faculty Awards "other" buttons) */
+
+td.palegray2 {
+    background: rgb(230,230,230);
+    font-weight: bold;
+}
+
+/* For gray buttons with left-aligned, normal lettering (Faculty Awards) */ 
+td.palegray3 {
+    background: rgb(230,230,230);
+    font-weight: normal;
+}
+
+/* small bold letters on gray background */
+
+td.gray {
+    background: rgb(204,204,204);
+    font-size: 12px;
+    font-weight: bold;
+}
+
+th.gray {
+    background: rgb(204,204,204);
+    font-weight: bold;
+}
+
+td.deepgray {
+    background: rgb(188,186,199);
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* For large, centered, bold (H2), buttons in pgray (Prospective) */
+td.grayh2 {
+    background: rgb(204,204,204);
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* For large, left-align, H2 headers in gray */
+td.graylh2 {
+    background: rgb(230,230,230);
+    font-size: 18px;
+    font-weight: bold;
+    text-align: left;
+}
+
+/* For large, left-align, H2 headers in yellow */
+td.yellowlh2 {
+    background: #FDDD88;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: left;
+}
+
+td.deepyellow {
+    background: rgb(255,204,102);
+}
+
+th.deepyellow {
+    background: rgb(255,204,102);
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* For creamy yellow background */
+td.paleyellow {
+    background: rgb(255,248,229);
+    font-weight: normal;
+}
+
+/* For creamy yellow background and bold letter (e.g. Contact) */
+td.paleyellow2 {
+    background: rgb(255,248,229);
+    font-weight: bold;
+}
+
+/* For centered gray button indexes (e.g. admissions, main menu pages) */
+td.graybutton {
+    background: rgb(204,204,204);
+    font-weight: bold;
+    text-align: center;
+}
+
+/* For left-aligned, bold gray buttons (e.g. Student Award nomination link) */
+td.graybutton2 {
+    background: rgb(204,204,204);
+    font-weight: bold;
+    text-align: left;
+}
+
+/* For centered bold, pale gray button indexes (e.g. awards and admissions pages) */
+td.palegraybutton {
+    background: rgb(230,230,230);
+    font-weight: bold;
+    text-align: center;
+}
+
+
+/* For centered, pale gray buttons (e.g. admissions-b.s.) */
+td.palegraybutton2 {
+    background: rgb(230,230,230);
+    font-weight: normal;
+    text-align: center;
+}
+
+/* For centered, small-font, white buttons (e.g. group aliases) */
+td.ctrgraybutton {
+    background: rgb(230,230,230);
+    font-size: 12px;
+    font-weight: normal;
+    text-align: center;
+}
+
+/* For gray button indexes with long names (e.g. room reservations page, grad FAQ) */
+td.smgraybutton {
+    background: rgb(204,204,204);
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* For pale gray button indexes with long names (e.g. parking and policies) */
+td.smpalegraybutton {
+    background: rgb(230,230,230);
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* For pale gray page indexes (e.g. Resguide pages) */
+td.grayindex {
+    color: #000000;
+    background: rgb(230,230,230);
+    font-weight: bold;
+}
+
+/* For pale gray page indexes with normal weight font (e.g. Directions, FAQ) */
+td.grayindex2 {
+    color: #000000;
+    background: rgb(230,230,230);
+    font-weight: normal;
+}
+
+
+/*
+Webteam CSS definitions
+*/
+
+
+td.EEbackground {
+   color: #6699FF;
+   background: rgb(0,32,97);
+}
+
+p.sidebarEE {
+   text-align: center;
+   margin: 0;
+   padding: 0;
+}
+
+p.sidebarEE a {
+   color: #6699FF;
+   font-weight: bold;
+   background: #002061;
+   text-decoration:none;
+}
+
+p.sidebarEE a:hover {
+   color: #FFFFFF;
+   font-weight: bold;
+   background-color: #002061;
+   text-decoration: none;
+}
+
+p.sidebarEE a:visited {
+	text-decoration: none;
+	color: #6699FF;
+        background-color: #002061;
+        }
+
+/* Orange text, dark blue background */
+td.CSbackground {
+   color: #F9BB0B;
+   background: rgb(0,32,97);
+}
+
+p.sidebarCS {
+   text-align: center;
+   margin: 0;
+   padding: 0;
+}
+
+p.sidebarCS a {
+   color: #F9BB0B;
+   font-weight: bold;
+   background-color: #002061;
+   text-decoration:none;
+   margin: 0px;
+   padding: 0px;
+}
+
+
+p.sidebarCS a:hover {
+   color: #FFFFFF;
+   font-weight: bold;
+   background-color: #002061;
+   text-decoration: none;
+   margin: 0px;
+   padding: 0px;
+}
+
+p.sidebarCS a:visited {
+	text-decoration: none;
+        color: #F9BB0B;
+        background-color: #002061;
+        }
+
+/*
+background colors for menutitles and submenus break background image
+*/
+
+.topnavhead {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: bold;
+        font-variant: normal;
+        line-height: normal;
+        text-transform: none;
+        color: #000000;
+        letter-spacing: normal;
+	white-space: nowrap;
+        }
+ 
+.topnavtext {
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 12px;
+        font-style: normal;
+        line-height: 16px;
+        font-weight: normal;
+        font-variant: normal;
+        text-transform: none;
+        color: #000000;
+        vertical-align: top;
+        }
+
+.sidesearch {
+   margin: .5em 0 0  0;
+   }
+
+.topsearch {
+   margin: 0 0 0  0;
+   }
+
+.submit	{
+   font-size: 10px;
+   }
+
+#footer hr {
+    color: #FDDD88;
+    background-color: #FDDD88;
+    height: 3px;
+}
+
+#footer td, #footer td a {
+    font-size: 12px;
+    }
+
+#footer .noBorder {
+    border: 0;
+}
+
+.leftsidebar-gradmanual {
+	background-image: url(/Includes/EECS-images/template-leftnav.gradmanual.jpg);
+	background-repeat: no-repeat;
+	height: 500px;
+	width: 300px;
+        }
+
+
+	/* background-color: #FFF9E3;
+	height: 360px;
+	width: 200px; */
+
+.gradmanualtitle {
+   font-family: Verdana, Arial, Helvetica, sans-serif;
+   /* font-family: times, garamond, sans-serif; */
+   font-size: 17px;
+   font-style: normal;
+   font-weight: bold;
+   font-variant: small-caps;
+   text-transform: none;
+   margin: 0;
+   padding: 1.5em .5em 0 1em;
+   }
+
+.gradmanualhead {
+   font-family: Verdana, Arial, Helvetica, sans-serif;
+   font-size: 14px;
+   font-style: normal;
+   font-weight: bold;
+   font-variant: normal;
+   text-transform: none;
+   margin: 0;
+   padding: 1.5em .5em 0 1em;
+   }
+
+.gradmanualtext {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+        line-height: 16px;
+        text-transform: none;
+	margin: 0;
+        padding: .25em .25em 1em 1.25em;
+        }
+
+
+.leftsidebar-ugradmanual {
+	background-image: url(/Includes/EECS-images/template-leftnav.ugradmanual.jpg);
+	background-repeat: no-repeat;
+	height: 500px;
+	width: 260px;
+	/*
+	width: 300px;
+	*/
+        }
+
+.ugradmanualspace {
+   padding: 0 .5em 0 1em;
+   }
+
+.ugradmanualtitle {
+   font-family: Verdana, Arial, Helvetica, sans-serif;
+   /* font-family: times, garamond, sans-serif; */
+   font-size: 17px;
+   font-style: normal;
+   font-weight: bold;
+   font-variant: small-caps;
+   text-transform: none;
+   text-align: center;
+   margin: 0;
+   padding: .5em .5em .5em 1em;
+   }
+
+.ugradmanualsubhead {
+   font-family: Verdana, Arial, Helvetica, sans-serif;
+   font-size: 17px;
+   font-style: normal;
+   font-weight: bold;
+   font-variant: small-caps;
+   color: #ecedf2;
+   background: #002061;
+   text-align: center;
+   text-transform: none;
+   margin: 0;
+   padding: .5em .5em .75em 1em;
+   }
+
+.ugradmanprospsubhead {
+   font-family: Verdana, Arial, Helvetica, sans-serif;
+   font-size: 17px;
+   font-style: normal;
+   font-weight: bold;
+   font-variant: small-caps;
+   color: #915917;
+   text-align: center;
+   text-transform: none;
+   margin: 0;
+   padding: .5em .5em .75em 1em;
+   }
+
+.ugradmancontsubhead {
+   font-family: Verdana, Arial, Helvetica, sans-serif;
+   font-size: 17px;
+   font-style: normal;
+   font-weight: bold;
+   font-variant: small-caps;
+   color: #BF7307;
+   text-align: center;
+   text-transform: none;
+   margin: 0;
+   padding: .5em .5em .75em 1em;
+   }
+
+.ugradmanprospindex {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: bold;
+        font-variant: normal;
+        line-height: 16px;
+        text-transform: none;
+	margin: 0;
+        padding: 0 .25em 1em 1.25em;
+        }
+
+.ugradmancontindex {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: bold;
+        font-variant: normal;
+        line-height: 16px;
+        text-transform: none;
+	margin: 0;
+        padding: .5em .25em 0 1.25em;
+        }
+
+ul.ugradmanlist1 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: bold;
+        font-variant: normal;
+        line-height: 14px;
+    padding: .5em .25em 0 1.25em;
+    margin: 0;
+    }
+
+
+ul.ugradmanlist1 li {
+    list-style-type: none;
+    padding: 0 0 .25em 0;
+    margin: 0;
+    }
+
+ul.ugradmanlist2 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        font-style: normal;
+        font-weight: bold;
+        font-variant: normal;
+    padding: .25em .25em 0 2.5em;
+    margin: 0;
+    }
+
+
+ul.ugradmanlist2 li {
+    list-style-type: disc;
+    padding: 0 0 .5em 0;
+    margin: 0;
+    }
+
+ul.ugradmanlist2nobullet {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        font-style: normal;
+        font-weight: bold;
+        font-variant: normal;
+    padding: .25em .25em 0 1.5em;
+    margin: 0;
+    }
+
+
+ul.ugradmanlist2nobullet li {
+    list-style-type: none;
+    padding: 0 0 .5em 0;
+    margin: 0;
+    }
+
+ol.ugradmanlist2 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        font-style: normal;
+        font-weight: bold;
+        font-variant: normal;
+    padding: .25em .25em 0 2.5em;
+    margin: 0;
+    }
+
+
+ol.ugradmanlist2 li {
+    list-style-type: decimal;
+    padding: 0 0 .5em 0;
+    margin: 0;
+    }
+
+ul.ugradmanlist3 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+    padding: 0 .25em 0 1em;
+    margin: 0;
+    }
+
+
+ul.ugradmanlist3 li {
+    list-style-type: none;
+    padding: 0 0 .25em 0;
+    margin: 0;
+    }
+
+ul.ugradmanlist3square {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+    padding: 0 .25em 0 1.75em;
+    margin: 0;
+    }
+
+
+ul.ugradmanlist3square li {
+    list-style-type: square;
+    padding: 0 0 .25em 0;
+    margin: 0;
+    }
+
+
+
+ol.ugradmanlist3 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+    padding: 0 .25em 0 1em;
+    margin: 0;
+    }
+
+
+ol.ugradmanlist3 li {
+    list-style-type: decimal;
+    padding: 0 0 .25em 0;
+    margin: 0;
+    }
+
+ul.ugradmanlist4 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+    padding: 0 .25em 0 1.75em;
+    }
+
+ul.ugradmanlist4 li {
+    list-style-type: square;
+    padding: 0;
+    margin: 0;
+    }
+
+
+/* For Chair's event planning calendar */
+table#chaircal {
+    color: #000000;
+    background-image: url(/Includes/EECS-images/gradient.yellow-wide.jpg);
+    background-repeat: no-repeat;
+    border: 1px solid rgb(204,204,204);
+    border-collapse: collapse;
+    margin-left: 10px;
+    padding: 1em;
+    }
+
+td.chaircal { border: solid 1px rgb(204,204,204); padding: 5px }
+
+td.chaircal-holiday { border: solid 1px rgb(204,204,204);
+                      padding: 5px;
+		      color: #999999;
+		      }
+		      /*
+		      color: #006600;
+		      */
+
+
+/*
+multiple declarations per selector break down as follows:
+top right bottom left; (clockwise)
+*/

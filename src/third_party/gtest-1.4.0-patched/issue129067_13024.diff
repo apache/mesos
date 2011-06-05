@@ -1,0 +1,668 @@
+Index: test/gtest-port_test.cc
+===================================================================
+--- test/gtest-port_test.cc	(revision 339)
++++ test/gtest-port_test.cc	(working copy)
+@@ -38,6 +38,10 @@
+ #include <time.h>
+ #endif  // GTEST_OS_MAC
+ 
++#if GTEST_HAS_PTHREAD
++#include <unistd.h>
++#endif  // GTEST_HAS_PTHREAD
++
+ #include <gtest/gtest.h>
+ #include <gtest/gtest-spi.h>
+ 
+@@ -699,5 +703,266 @@
+   ASSERT_STREQ("abc", GetCapturedStderr().c_str());
+ }
+ 
++TEST(ThreadLocalTest, DefaultConstructor) {
++  ThreadLocal<int> t1;
++  EXPECT_EQ(0, t1.get());
++
++  ThreadLocal<void*> t2;
++  EXPECT_TRUE(t2.get() == NULL);
++}
++
++TEST(ThreadLocalTest, Init) {
++  ThreadLocal<int> t1(123);
++  EXPECT_EQ(123, t1.get());
++
++  int i = 0;
++  ThreadLocal<int*> t2(&i);
++  EXPECT_EQ(&i, t2.get());
++}
++
++class NoCopyConstructor {
++ public:
++  NoCopyConstructor() {}
++ private:
++  GTEST_DISALLOW_COPY_AND_ASSIGN_(NoCopyConstructor);
++};
++
++TEST(ThreadLocalTest, CopyConstructorIsNotNeededForDefaultVersion) {
++  ThreadLocal<NoCopyConstructor> bar;
++  bar.get();
++}
++
++class NoDefaultContructor {
++ public:
++  explicit NoDefaultContructor(const char*) {}
++  NoDefaultContructor(const NoDefaultContructor&) {}
++};
++
++TEST(ThreadLocalTest, NoDefaultContructorIsNeededForParamVersion) {
++  ThreadLocal<NoDefaultContructor> bar(NoDefaultContructor("foo"));
++  bar.pointer();
++}
++
++TEST(ThreadLocalTest, GetAndPointerShouldReturnTheSame) {
++    ThreadLocal<String> threadLocal;
++    ASSERT_EQ(threadLocal.pointer(), &(threadLocal.get()));
++    const ThreadLocal<String>& constThreadLocal = threadLocal;
++    ASSERT_EQ(threadLocal.pointer(), constThreadLocal.pointer());
++}
++
++#if GTEST_IS_THREADSAFE
++TEST(MutexTestDeathTest, AssertHeldShouldAssertWhenNotLocked) {
++    EXPECT_DEATH_IF_SUPPORTED({
++        Mutex m;
++        { MutexLock lock(&m); }
++        m.AssertHeld();
++      }
++      , "Current thread is not holding mutex..+");
++}
++
++#if GTEST_HAS_PTHREAD
++void Sleep(double time) {
++  usleep(time*1000.0*1000.0);
++}
++#else  // GTEST_HAS_PTHREAD
++#warning "Implement Sleep for your platform"
++#endif  // GTEST_HAS_PTHREAD
++
++void SleepABit(Random* random) {
++  double microsecond = 1.0/(1000.0*1000.0);
++  Sleep(random->Generate(40)*microsecond);
++}
++
++class AtomicCounterWithMutex {
++ public:
++  explicit AtomicCounterWithMutex(Mutex* mutex) :
++    counter_(0), mutex_(mutex), random_(42) {}
++  void increment() {
++    MutexLock lock(mutex_);
++    int temp_ = counter_;
++    SleepABit(&random_);
++    counter_ = temp_+1;
++  }
++  int counter() { return counter_; }
++ private:
++  volatile int counter_;
++  Mutex*       mutex_;
++  Random       random_;
++};
++
++const int NumberOfIncrementsInCounterThread = 20;
++
++void CountWithMutexThread(AtomicCounterWithMutex* counter) {
++  for (int i = 0; i < NumberOfIncrementsInCounterThread; ++i) {
++      counter->increment();
++  }
++}
++
++TEST(MutexTest, OnlyOneThreadCanBeInTheMutexAtATime) {
++  Mutex mutex;
++  AtomicCounterWithMutex lockedCounter(&mutex);
++
++  const int NumCounterThreads = 7;
++  typedef ThreadWithParam<AtomicCounterWithMutex*> ThreadType;
++  scoped_ptr<ThreadType> counters[NumCounterThreads];
++  for (int i = 0; i < NumCounterThreads; ++i) {
++    counters[i].reset(new ThreadType(&CountWithMutexThread, &lockedCounter));
++  }
++  for (int i = 0; i < NumCounterThreads; ++i) {
++      counters[i]->Start();
++  }
++  for (int i = 0; i < NumCounterThreads; ++i) {
++      counters[i]->Join();
++  }
++  ASSERT_EQ(NumberOfIncrementsInCounterThread*NumCounterThreads,
++    lockedCounter.counter());
++}
++
++TEST(MutexTest, StaticConstructionHappensLaterThanUse) {
++  char storageBeforeStaticInit[sizeof(Mutex)] = {0};
++  Mutex* mutexBeforeCtr = reinterpret_cast<Mutex*>(storageBeforeStaticInit);
++  {
++    MutexLock lock(mutexBeforeCtr);
++    mutexBeforeCtr->AssertHeld();
++
++    Mutex* mutex = new(storageBeforeStaticInit) Mutex(
++      Mutex::NO_CONSTRUCTOR_NEEDED_FOR_STATIC_MUTEX);
++    mutex->AssertHeld();
++  }
++  mutexBeforeCtr->~Mutex();
++}
++
++TEST(MutexTest, StaticMutexShouldWorkAfterDestruction) {
++  char storage[sizeof(Mutex)] = {0};
++  Mutex* mutex = new(storage) Mutex(
++      Mutex::NO_CONSTRUCTOR_NEEDED_FOR_STATIC_MUTEX);
++  mutex->~Mutex();
++
++  MutexLock lock(mutex);
++  mutex->AssertHeld();
++}
++
++void AddTwo(int* param) {
++  *param += 2;
++}
++
++TEST(ThreadWithParamTest, ShouldRunAction) {
++  int i = 40;
++  ThreadWithParam<int*> thread(AddTwo, &i);
++  thread.Start();
++  thread.Join();
++  ASSERT_EQ(42, i);
++}
++
++const int NumberOfIncrementsInCountWithMutexThread = 1;
++
++void CountWithMutex(AtomicCounterWithMutex* counter) {
++  for (int i = 0; i < NumberOfIncrementsInCountWithMutexThread; ++i) {
++    counter->increment();
++  }
++}
++
++void emulateRaceOnStaticMutexLazyInit(int randomizer) {
++  char storageBeforeStaticInit[sizeof(Mutex)] = {0};
++  Mutex* mutexBeforeCtr = reinterpret_cast<Mutex*> (storageBeforeStaticInit);
++  AtomicCounterWithMutex counter(mutexBeforeCtr);
++  const int MaxNumCountersThread = 17;
++  const int NumCounterThreads = 2+randomizer % (MaxNumCountersThread-2);
++
++  typedef ThreadWithParam<AtomicCounterWithMutex*> ThreadType;
++  scoped_ptr<ThreadType> counters[MaxNumCountersThread];
++  for (int i = 0; i < NumCounterThreads; ++i) {
++    counters[i].reset(new ThreadType(&CountWithMutex, &counter));
++  }
++  for (int i = 0; i < NumCounterThreads; ++i) {
++    counters[i]->Start();
++  }
++  Mutex* mutex = new(storageBeforeStaticInit) Mutex(
++    Mutex::NO_CONSTRUCTOR_NEEDED_FOR_STATIC_MUTEX);
++  for (int i = 0; i < NumCounterThreads; ++i) {
++    counters[i]->Join();
++  }
++  ASSERT_EQ(NumberOfIncrementsInCountWithMutexThread*NumCounterThreads,
++    counter.counter());
++  mutex->~Mutex();
++}
++
++TEST(MutexTest, LazyInitOnStaticMutexShouldBeRaceFree) {
++  for (int round = 0; round < 500; ++round) {
++    emulateRaceOnStaticMutexLazyInit(round);
++  }
++}
++
++template <typename T>
++void RunFromThread(void (func)(T), T param) {
++  ThreadWithParam<T> thread(func, param);
++  thread.Start();
++  thread.Join();
++}
++
++struct CheckThreadLocalDefaultParam {
++  ThreadLocal<String>* threadLocal_;
++  const char* default_;
++};
++
++void CheckThreadLocalDefault(CheckThreadLocalDefaultParam* param) {
++  EXPECT_STREQ(param->default_, param->threadLocal_->get().c_str());
++}
++
++TEST(ThreadLocalTest, ParameterizedConstructorSetsDefault) {
++  using std::pair;
++
++  ThreadLocal<String> threadLocal("foo");
++  ASSERT_STREQ("foo", threadLocal.get().c_str());
++
++  threadLocal.set("bar");
++  ASSERT_STREQ("bar", threadLocal.get().c_str());
++
++  CheckThreadLocalDefaultParam params = {&threadLocal, "foo"};
++  RunFromThread(CheckThreadLocalDefault, &params);
++}
++
++class CountedDestructor {
++ public:
++  ~CountedDestructor() {
++    counter()++;
++  }
++  static int& counter() {
++    static int result = 0;
++    return result;
++  }
++};
++
++template <typename T>
++void CallThreadLocalGet(ThreadLocal<T>* threadLocal) {
++    threadLocal->get();
++}
++
++TEST(ThreadLocalTest, ShouldDestroyManagedObjectsNoLaterThanTLManager) {
++  CountedDestructor::counter() = 0;
++  {
++    ThreadLocal<CountedDestructor> threadLocal;
++    typedef ThreadWithParam<ThreadLocal<CountedDestructor>*> ThreadType;
++    ThreadType thread(&CallThreadLocalGet<CountedDestructor>, &threadLocal);
++    thread.Start();
++    thread.Join();
++  }
++  // There should be 2 desctuctor calls as ThreadLocal also contains a member
++  // T - used as a prototype for copy ctr version.
++  ASSERT_EQ(2, CountedDestructor::counter());
++}
++
++void CheckThreadLocalIsEmpty(ThreadLocal<String>* threadLocal) {
++  EXPECT_STREQ(String().c_str(), threadLocal->get().c_str());
++}
++
++TEST(ThreadLocalTest, ThreadLocalsInDifferentThreadShouldNotAffectEachOther) {
++  ThreadLocal<String> threadLocal;
++  threadLocal.set("Foo");
++  ASSERT_STREQ("Foo", threadLocal.get().c_str());
++  RunFromThread(CheckThreadLocalIsEmpty, &threadLocal);
++}
++#endif  // GTEST_IS_THREADSAFE
++
+ }  // namespace internal
+ }  // namespace testing
+Index: test/gtest_stress_test.cc
+===================================================================
+--- test/gtest_stress_test.cc	(revision 339)
++++ test/gtest_stress_test.cc	(working copy)
+@@ -51,6 +51,7 @@
+ using internal::String;
+ using internal::TestPropertyKeyIs;
+ using internal::Vector;
++using internal::ThreadWithParam;
+ 
+ // In order to run tests in this file, for platforms where Google Test is
+ // thread safe, implement ThreadWithParam with the following interface:
+Index: test/gtest_unittest.cc
+===================================================================
+--- test/gtest_unittest.cc	(revision 339)
++++ test/gtest_unittest.cc	(working copy)
+@@ -172,7 +172,6 @@
+ using testing::internal::String;
+ using testing::internal::TestEventListenersAccessor;
+ using testing::internal::TestResultAccessor;
+-using testing::internal::ThreadLocal;
+ using testing::internal::UInt32;
+ using testing::internal::Vector;
+ using testing::internal::WideStringToUtf8;
+@@ -6552,23 +6551,6 @@
+   StaticAssertTypeEq<int*, IntAlias*>();
+ }
+ 
+-TEST(ThreadLocalTest, DefaultConstructor) {
+-  ThreadLocal<int> t1;
+-  EXPECT_EQ(0, t1.get());
+-
+-  ThreadLocal<void*> t2;
+-  EXPECT_TRUE(t2.get() == NULL);
+-}
+-
+-TEST(ThreadLocalTest, Init) {
+-  ThreadLocal<int> t1(123);
+-  EXPECT_EQ(123, t1.get());
+-
+-  int i = 0;
+-  ThreadLocal<int*> t2(&i);
+-  EXPECT_EQ(&i, t2.get());
+-}
+-
+ TEST(GetCurrentOsStackTraceExceptTopTest, ReturnsTheStackTrace) {
+   testing::UnitTest* const unit_test = testing::UnitTest::GetInstance();
+ 
+Index: include/gtest/internal/gtest-port.h
+===================================================================
+--- include/gtest/internal/gtest-port.h	(revision 339)
++++ include/gtest/internal/gtest-port.h	(working copy)
+@@ -741,6 +741,108 @@
+ 
+ // Defines synchronization primitives.
+ 
++#if GTEST_HAS_PTHREAD
++class MutexImpl;
++
++class Mutex {
++ public:
++  Mutex();
++
++  enum NoConstructorNeededSelector { NO_CONSTRUCTOR_NEEDED_FOR_STATIC_MUTEX };
++  explicit Mutex(NoConstructorNeededSelector dummy);
++  ~Mutex();
++
++  void AssertHeld();
++
++ private:
++  friend class GTestMutexLock;
++
++  void Lock();
++  void Unlock();
++
++  MutexImpl& impl();
++
++  enum {
++    StaticMutex = 0,
++    NormalMutex = 1
++  } type_;
++  MutexImpl*    impl_;
++
++  GTEST_DISALLOW_COPY_AND_ASSIGN_(Mutex);
++};
++
++// We cannot call it MutexLock directly as the ctor declaration would
++// conflict with a macro named MutexLock, which is defined on some
++// platforms.  Hence the typedef trick below.
++class GTestMutexLock {
++ public:
++  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) { mutex_->Lock(); }
++  ~GTestMutexLock() { mutex_->Unlock(); }
++ private:
++  GTEST_DISALLOW_COPY_AND_ASSIGN_(GTestMutexLock);
++  Mutex* mutex_;
++};
++
++typedef GTestMutexLock MutexLock;
++
++class ThreadLocalPointerImpl;
++class ThreadLocalPointer {
++ private:
++  template <typename T>
++  friend class ThreadLocal;
++
++  ThreadLocalPointer(void (*deleteFunction)(void*));
++  ~ThreadLocalPointer();
++
++  void* get();
++  void set(void* value);
++
++  GTEST_DISALLOW_COPY_AND_ASSIGN_(ThreadLocalPointer);
++
++  ThreadLocalPointerImpl* impl_;
++};
++
++// The default ThreadLocal constructor requires T to have a default constructor.
++// The single param constructor requires a copy contructor from T.
++// A per-thread object managed by a ThreadLocal instance for a thread will exist
++// at least for the runtime of the thread, unless the ThreadLocal managing is
++// not alive. The managed object will exist no longer then the ThreadLocal
++// object managing it.
++template <typename T>
++class ThreadLocal {
++ public:
++  ThreadLocal() : impl_(&ThreadLocal<T>::deletePointer), default_(),
++    copyOrConstuct_(constructNewInstance) {}
++  explicit ThreadLocal(const T& value) : impl_(&ThreadLocal<T>::deletePointer),
++    default_(value), copyOrConstuct_(copyConstructNewInstance) {}
++
++  T* pointer() { return getOrCreatePointer(); }
++  const T* pointer() const { return getOrCreatePointer(); }
++  const T& get() const { return *pointer(); }
++  void set(const T& value) { *pointer() = value; }
++ private:
++  T* createData() const { return copyOrConstuct_(default_); }
++  T* getOrCreatePointer() const {
++    void* data = impl_.get();
++    if (!data) {
++      data = static_cast<void*> (createData());
++      impl_.set(data);
++    }
++    return reinterpret_cast<T*> (data);
++  }
++  static void deletePointer(void* value) {
++    delete reinterpret_cast<T*> (value);
++  }
++  static T* constructNewInstance(const T&) { return new T(); }
++  static T* copyConstructNewInstance(const T& t) { return new T(t); }
++
++  mutable ThreadLocalPointer impl_;
++  const T default_;
++  T* (*copyOrConstuct_)(const T& default_);
++};
++
++#define GTEST_IS_THREADSAFE 1
++#else  // GTEST_HAS_PTHREAD
+ // A dummy implementation of synchronization primitives (mutex, lock,
+ // and thread-local variable).  Necessary for compiling Google Test where
+ // mutex is not supported - using Google Test in multiple threads is not
+@@ -777,14 +879,15 @@
+   T value_;
+ };
+ 
++// The above synchronization primitives have dummy implementations.
++// Therefore Google Test is not thread-safe.
++#define GTEST_IS_THREADSAFE 0
++#endif  // GTEST_HAS_PTHREAD
++
+ // Returns the number of threads running in the process, or 0 to indicate that
+ // we cannot detect it.
+ size_t GetThreadCount();
+ 
+-// The above synchronization primitives have dummy implementations.
+-// Therefore Google Test is not thread-safe.
+-#define GTEST_IS_THREADSAFE 0
+-
+ #if defined(__SYMBIAN32__) || defined(__IBMCPP__)
+ 
+ // Passing non-POD classes through ellipsis (...) crashes the ARM
+Index: src/gtest-internal-inl.h
+===================================================================
+--- src/gtest-internal-inl.h	(revision 339)
++++ src/gtest-internal-inl.h	(working copy)
+@@ -54,6 +54,10 @@
+ 
+ #include <string>
+ 
++#if GTEST_HAS_PTHREAD
++#include <pthread.h>
++#endif
++
+ #include <gtest/internal/gtest-port.h>
+ 
+ #if GTEST_OS_WINDOWS
+@@ -1241,6 +1245,53 @@
+   }
+ };
+ 
++#if GTEST_IS_THREADSAFE
++#if GTEST_HAS_PTHREAD
++template <typename T>
++class ThreadWithParam {
++ public:
++  typedef void (*UserFunc)(T);
++  ThreadWithParam(UserFunc func, T param) : func_(func), param_(param),
++    thread_(), runMutex_(), startLock_(new MutexLock(&runMutex_)) {
++    int err = pthread_create(&thread_, 0, ThreadMain, this);
++    GTEST_CHECK_(err == 0) << "pthread_create failed with error:"
++      << strerror(err) << "(" << err << ")";
++    running_ = true;
++  }
++  void Start() {
++    startLock_.reset(0);
++  }
++  void Join() {
++    if (running_) {
++      Start();
++      int err = pthread_join(thread_, 0);
++      GTEST_CHECK_(err == 0) << "pthread_join failed with error:"
++        << strerror(err) << "(" << err << ")";
++      running_ = false;
++    }
++  }
++  ~ThreadWithParam() { Join(); }
++ private:
++  void ThreadMain() {
++    MutexLock lock(&runMutex_);
++    func_(param_);
++  }
++  static void* ThreadMain(void* param) {
++    reinterpret_cast<ThreadWithParam<T>*> (param)->ThreadMain();
++    return 0;
++  }
++
++  UserFunc func_;
++  T param_;
++
++  pthread_t thread_;
++  Mutex runMutex_;
++  scoped_ptr<MutexLock> startLock_;
++  bool running_;
++};
++#endif
++#endif
++
+ }  // namespace internal
+ }  // namespace testing
+ 
+Index: src/gtest-port.cc
+===================================================================
+--- src/gtest-port.cc	(revision 339)
++++ src/gtest-port.cc	(working copy)
+@@ -50,6 +50,10 @@
+ #include <mach/vm_map.h>
+ #endif  // GTEST_OS_MAC
+ 
++#if GTEST_HAS_PTHREAD
++#include <pthread.h>
++#endif
++
+ #include <gtest/gtest-spi.h>
+ #include <gtest/gtest-message.h>
+ #include <gtest/internal/gtest-string.h>
+@@ -73,6 +77,120 @@
+ const int kStdErrFileno = STDERR_FILENO;
+ #endif  // _MSC_VER
+ 
++#if GTEST_HAS_PTHREAD
++class MutexImpl {
++ public:
++  MutexImpl() : owner_(0) {
++    int err = pthread_mutex_init(&mutex_, 0);
++    GTEST_CHECK_(err == 0) << "pthread_mutex_unlock failed with:" << err;
++  }
++  ~MutexImpl() {
++    int err = pthread_mutex_destroy(&mutex_);
++    GTEST_CHECK_(err == 0) << "pthread_mutex_destroy failed with:" << err;
++  }
++  void AssertHeld() const {
++    GTEST_CHECK_(owner_ == pthread_self())
++      << "Current thread is not holding mutex." << this;
++  }
++  void Lock() {
++    int err = pthread_mutex_lock(&mutex_);
++    GTEST_CHECK_(err == 0) << "pthread_mutex_lock failed with:" << err;
++    owner_ = pthread_self();
++  }
++  void Unlock() {
++    owner_ = 0;
++    int err = pthread_mutex_unlock(&mutex_);
++    GTEST_CHECK_(err == 0) << "pthread_mutex_unlock failed with:" << err;
++  }
++ private:
++  pthread_mutex_t mutex_;
++  pthread_t       owner_;
++};
++
++class GlobalMutexImpl {
++ public:
++  class Guard {
++   public:
++    Guard() { Get().Lock(); }
++    ~Guard() { Get().Unlock(); }
++  };
++ private:
++  static MutexImpl& Get() {
++    int err = pthread_once(&once_control_, &InitGlobalMutex);
++    GTEST_CHECK_(err == 0) << "pthread_once failed with:" << err;
++    return *global_mutex_;
++  }
++  static void InitGlobalMutex() {
++    global_mutex_ = new MutexImpl();
++  }
++  static pthread_once_t once_control_;
++  static MutexImpl* global_mutex_;
++};
++
++pthread_once_t GlobalMutexImpl::once_control_ = PTHREAD_ONCE_INIT;
++MutexImpl* GlobalMutexImpl::global_mutex_;
++
++Mutex::Mutex() : type_(NormalMutex), impl_(new MutexImpl()) {}
++
++Mutex::Mutex(NoConstructorNeededSelector /*dummy*/) { impl(); }
++
++// we leak static mutexes, because they might be used after their
++// destructor.
++Mutex::~Mutex() {
++  if (type_ != StaticMutex)
++    delete impl_;
++}
++
++void Mutex::AssertHeld() { impl().AssertHeld(); }
++
++void Mutex::Lock() { impl().Lock(); }
++
++void Mutex::Unlock() { impl().Unlock(); }
++
++MutexImpl& Mutex::impl() {
++  if (type_ == StaticMutex) {
++    GlobalMutexImpl::Guard globalLock;
++    if (!impl_) {
++      impl_ = new MutexImpl();
++    }
++  }
++  return *impl_;
++}
++
++class ThreadLocalPointerImpl {
++ public:
++  ThreadLocalPointerImpl(void (*deleteFunction)(void*)) {
++    int err = pthread_key_create(&key_, deleteFunction);
++    GTEST_CHECK_(err == 0) << "pthread_key_create failed with:" << err;
++  }
++  ~ThreadLocalPointerImpl() {
++    int err = pthread_key_delete(key_);
++    GTEST_CHECK_(err == 0) << "pthread_key_delete failed with:" << err;
++  }
++  void* get() {
++    return pthread_getspecific(key_);
++  }
++  void set(void* value) {
++    int err = pthread_setspecific(key_, value);
++    GTEST_CHECK_(err == 0) << "pthread_setspecific failed with:" << err;
++  }
++ private:
++  GTEST_DISALLOW_COPY_AND_ASSIGN_(ThreadLocalPointerImpl);
++
++  pthread_key_t key_;
++};
++
++ThreadLocalPointer::ThreadLocalPointer(void (*deleteFunction)(void*))
++  : impl_(new ThreadLocalPointerImpl(deleteFunction)) {}
++
++ThreadLocalPointer::~ThreadLocalPointer() {
++  delete impl_;
++}
++
++void* ThreadLocalPointer::get() { return impl_->get(); }
++void ThreadLocalPointer::set(void* value) { impl_->set(value); }
++#endif  // GTEST_HAS_PTHREAD
++
+ #if GTEST_OS_MAC
+ 
+ // Returns the number of threads running in the process, or 0 to indicate that

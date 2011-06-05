@@ -1,0 +1,68 @@
+# Makefile.
+
+SHELL = '/bin/sh'
+
+CXX = @CXX@
+
+CXXFLAGS = -g @CXXFLAGS@
+
+# Add . to CXXFLAGS.
+CXXFLAGS += -I@abs_srcdir@
+
+# Add libev to CXXFLAGS.
+CXXFLAGS += -I@abs_srcdir@/third_party/libev-3.8
+
+# Add Boost to CXXFLAGS.
+CXXFLAGS += -I@abs_srcdir@/third_party/boost-1.37.0
+
+# Add -fPIC to CXXFLAGS.
+CXXFLAGS += -fPIC
+
+# Add dependency tracking to CXXFLAGS.
+CXXFLAGS += -MMD -MP
+
+LIB_OBJ = process.o tuple.o record-process.o serialization.o fatal.o
+LIB = libprocess.a
+
+LITHE_LIB_OBJ = process_lithe.o tuple_lithe.o record-process_lithe.o serialization_lithe.o fatal_lithe.o
+LITHE_LIB = libprocess_lithe.a
+
+ifdef HAVE_LITHE
+OBJS = $(LIB_OBJ) $(LITHE_LIB_OBJ)
+LIBS = $(LIB) $(LITHE_LIB)
+else
+OBJS = $(LIB_OBJ)
+LIBS = $(LIB)
+endif
+
+default: all
+
+-include $(patsubst %.o, %.d, $(OBJS))
+
+$(LIB_OBJ): %.o: @abs_srcdir@/%.cpp 
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
+$(LIB): $(LIB_OBJ)
+	$(AR) rcs $@ $^
+
+$(LITHE_LIB_OBJ): %_lithe.o: @abs_srcdir@/%.cpp
+	$(CXX) -c -DUSE_LITHE $(CXXFLAGS) -o $@ $<
+
+$(LITHE_LIB): $(LITHE_LIB_OBJ)
+	$(AR) rcs $@ $^
+
+third_party:
+	$(MAKE) -C @abs_builddir@/third_party/libev-3.8
+
+all: third_party $(LIBS)
+
+clean:
+	$(MAKE) -C @abs_builddir@/third_party/libev-3.8 clean
+	rm -f $(patsubst %.o, %.d, $(OBJS)) $(OBJS) $(LIBS)
+
+distclean: clean
+	$(MAKE) -C @abs_builddir@/third_party/libev-3.8 dist clean
+	rm -f config.status config.cache config.log
+	rm -f Makefile
+
+.PHONY: default third_party all clean

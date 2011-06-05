@@ -1,0 +1,22 @@
+#include <pythread.h>
+
+try {
+
+
+  std::cerr << "********* Python Error Occured *********" << std::endl;
+  PyErr_Print();
+  std::cerr << "****************************************" << std::endl;
+
+} catch (const Swig::DirectorException& e) {
+  throw std::runtime_error(e.getMessage());
+}
+
+resultobj = SWIG_FromCharPtrAndSize((const char *)result, temp2);
+
+PyThreadState *tstate = PyThreadState_Get();
+assert(PyThread_get_key_value(1) == tstate);
+PyThread_delete_key_value(1);
+
+assert(PyThread_get_key_value(1) == NULL);
+PyThread_set_key_value(1, tstate);
+

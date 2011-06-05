@@ -1,0 +1,20 @@
+#!/bin/bash
+cd /root/nexus-ec2
+
+MASTER="`cat master`"
+SLAVES="`cat slaves`"
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+
+echo "Starting master on $MASTER"
+ssh $SSH_OPTS $MASTER "/root/nexus-ec2/nexus-daemon nexus-master -p 1111 </dev/null >/dev/null"
+
+for slave in $SLAVES; do
+  echo "Starting slave on $slave"
+  ssh $SSH_OPTS $slave "/root/nexus-ec2/nexus-daemon nexus-slave 1@$MASTER:1111 </dev/null >/dev/null" &
+  sleep 0.1
+done
+wait
+
+echo "Everything's started! You can view the master Web UI at"
+echo "      http://$MASTER:8080"

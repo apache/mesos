@@ -1,0 +1,5 @@
+This download of gtest-1.4.0 is patched to support multithreading using a
+patch by Miklos Fazekas from http://codereview.appspot.com/129067/show.
+
+The patch should be included in later gtest versions according to
+http://groups.google.com/group/googletestframework/browse_thread/thread/195d973ee1cdaada/bd16a619fd1c4580?lnk=gst&q=thread#bd16a619fd1c4580

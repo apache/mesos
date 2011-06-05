@@ -1,0 +1,1112 @@
+#content {
+    font-size: 14px;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+
+/*
+    font-family: Verdana, Arial, Helvetica, sans-serif;
+    */
+
+#content dl, dt {
+    padding-left: .5em;
+}
+
+#content p {
+    margin: .5em 1em 1em 1.5em;
+}
+
+#content p.big {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0 .25em 1em 5px;
+	padding: 0 0 0 5px;
+}
+
+#content p.modified {
+    text-align: center;
+    font-size: 6pt;
+    }
+
+/* For lists in index tables no left margin indent and no spaces in
+between line items.  Disc bullets (main Awards index, Directions index) */
+
+#content ul.indexlist li {
+    list-style: disc;
+    margin: 0;
+    font-weight: bold;
+
+}
+
+
+#content p.prospugrad-list {
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0 0 0 10px;
+    margin: .5em 0 .5em 0;
+    line-height: 1.5;
+}
+
+
+/* For lists in index tables no left margin indent and square bullets
+(Contact, Directions & Ugrad Research web pages) */
+
+#content ul.indexlist2 li {
+    list-style: square;
+    margin: .5em 0 0 0;
+}
+
+/* For indented lists in index tables with square bullets (Admissions page) */
+
+#content ul.indexlist3 li {
+    list-style: square;
+    margin: .5em 0 0 1.75em;
+}
+
+/* For indented lists in index tables with disc bullets and no space
+between line items (Staff by Function, Academic Personnel) */
+
+#content ul.indexlist4 li {
+    list-style: disc;
+    margin: 0 0 0 1.75em;
+}
+
+/* For lists in index tables no left margin indent, square bullets
+and extra space between line items (FAQ) */
+
+#content ul.indexlist5 li {
+    list-style: square;
+    margin: .5em 0 0 0;
+    padding-bottom: .25em;
+}
+
+/* For prominent lists in main body of document with a slight left margin
+indent and space between line items.  Disc bullets (FAQ sub-items,
+Ugrad Research sub-items) */
+
+#content ul.indexlist6 li {
+    list-style: disc;
+    margin: .5em 0 0 0;
+    padding-bottom: .25em;
+}
+
+/* basic index lists */
+#content ul.index li 
+{
+	list-style: disc;
+	margin: 0;
+	padding: 0 0 .25em 0; 
+}
+
+/* For numbered indexes with a space between each item (Faculty Advising)  */
+#content ol.indexlist1 li {
+    margin: .5em 0 0 0;
+    padding-bottom: .25em;
+}
+
+#content h1
+{
+    font-size: 22px;
+    padding: .25em;
+    border-bottom: 4px solid #FDDD88;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#content h1 a 
+{
+    font-size: 22px;
+    margin-left: 5px;
+    padding: .25em .25em .25em 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+/* by default <h2> has a horizontal rule under the text. */
+#content h2
+{
+    font-size: 18px;
+    margin: 2em .25em 1em 5px;
+    border-bottom: 2px solid #ccc;
+    font-weight: bold;
+    padding: 5px 0 0 5px;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#content h2 a
+{
+    font-size: 18px;
+    margin: 2em .25em 1em 0;
+    font-weight: bold;
+    padding: 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+/* alternate <h2> */
+#content h2.alt { 
+    margin: 1em .25em 1em 5px;
+	padding: 0 0 0 5px;
+}
+
+/*  <h2> headings at the top of pages */
+#content h2.top
+{
+    margin: 0 .25em 1em 5px;
+    padding: 0 0 0 5px;
+}
+
+#content h3 { 
+    font-size: 16px;
+    margin: 1.5em .25em 0 5px;
+    font-weight: bold;
+    padding-left: .5em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+/* alternate <h3> */
+#content h3.alt { 
+    font-size: 14px;
+    margin: 0 .25em .25em 0;
+}
+
+#content h4 {
+    font-size: 14px;
+    margin: .6em .25em .25em 5px;
+    padding: 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#content h4 a {
+    font-size: 14px;
+    margin: 0;
+    padding: 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#content h5{
+    font-size: 12px;
+    margin: .6em .25em .25em 5px;
+    padding-left: 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#content h5 a {
+    font-size: 12px;
+    margin: 0;
+    padding: 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#content table th {
+    font-size: 15px;
+}
+
+#content .hidden {
+     position:absolute; 
+     left:0px;
+     top:-500px;
+     width:1px;
+     height:1px;
+     overflow:hidden;
+} 
+
+#content .form {
+    line-height: 2em;
+    font-size: 14px
+}
+
+#content .form .label {
+    text-align: right;
+}
+
+#content .submitForm {
+   /* border-bottom: solid 1px #ccc;
+    */
+    padding: .5em .5em .5em 0;
+    margin-top: .5em;
+    margin-left: 1em;
+}
+
+#content p.important {
+    border-top: dotted 2px red;
+    border-bottom: dotted 2px red;
+    font-size: 15px;
+    margin: 3em 2em 3em 2em;
+    padding: 1em;
+}
+
+#content pre {
+    font-size: 12px;
+}
+
+
+#content #loginStatus {
+    text-align:right;
+    font-size: 10px;
+    margin-top: -12px;
+    padding: .5em;
+    border-right: solid 5px #ccc;
+}
+
+/*
+For Faculty Departmental Home Pages
+
+*/
+
+#facultypage .hidden {
+     position:absolute; 
+     left:0px;
+     top:-500px;
+     width:1px;
+     height:1px;
+     overflow:hidden;
+     font-family: Geneva, Arial, Helvetica, sans-serif;
+} 
+
+#facultypage h1
+{
+    font-size: 36px;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    margin: 0;
+    padding: .25em 0 .5em 0;
+}
+
+#facultypage h2
+{
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    font-size: 24px;
+    font-weight: bold;
+    font-style: italic;
+    margin: 0;
+    padding: 0 0 .75em 0;
+}
+
+#facultypage h3
+{
+    font-size: 16px;
+    margin: 0;
+    padding: .25em 0 0 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#facultypage h4
+{
+    font-size: 14px;
+    margin: 0;
+    padding: .25em 0 0 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#facultypage p
+{
+    font-size: 14px;
+    margin: 0;
+    padding: .25em 1em .5em 1em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#facultypage ul, 
+#facultypage table td,
+#facultypage table th
+{
+	list-style: none;
+    font-size: 14px;
+    margin: 0;
+    padding: .25em .5em .5em 1.5em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#facultypage ul li 
+{
+	list-style: disc;
+	margin: 0;
+	padding: 0 0 .25em 0em; 
+}
+
+#facultypage ul.tight li 
+{
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+
+
+/* The layout div allows Miyoko to put H2 tags in tables
+   so that there is no extra space between them and the H1 */
+
+#layout h1 {
+    font-size: 22px;
+    margin: .25em .25em .25em -0.75em;
+    padding-bottom: 0em;
+    border-bottom: 4px solid #FDDD88;
+}
+
+#layout h2
+{
+    font-size: 18px;
+    margin: 1em .25em 1em 0em;
+    border-bottom: 2px solid #ccc;
+    font-weight: bold;
+}
+
+#layout h2 a
+{
+    font-size: 18px;
+    margin: 1em .25em 1em 0em;
+    font-weight: bold;
+}
+
+#layout h3,
+#layout h3 a {
+    font-size: 16px;
+    margin: .5em .25em .5em 0;
+    font-weight: bold;
+}
+
+#directory td {
+    border: none;
+    white-space: nowrap;
+    font-size:12px;
+}
+
+#directory th {
+    border: none;
+    border-bottom: solid 1px #000;
+}
+
+#directory tr.odd td{
+    background-color: #eee;
+}
+
+#directory tr.anchor td {
+    background-color: #FC6;
+}
+
+/* content header: usually contains menu or section definitions lists */
+#pageMenu
+{
+    margin-left: 5px;
+    padding: 0;
+}
+
+/* page header or description */
+#pageMenu p
+{
+    margin: .5em 0 .5em 0;
+    padding-left: 5px;
+}
+
+#pageMenu p a {
+    margin: 0;
+    padding: 0;
+}
+
+#pageMenu blockquote {
+    margin: .5em 0 .5em .5em;
+    padding: 0 0 0 1em;
+}
+
+#pageMenu blockquote a {
+    margin: .5em 0 .5em 0;
+    padding: 0;
+}
+
+/* 
+page menu lists and tables are indented a bit.
+*/
+
+#pageMenu ul, 
+#pageMenu table td,
+#pageMenu table th
+{
+    margin-left: 2.5em;
+    padding-left: 5px;
+}
+
+/* 
+page menu item descriptions
+indentation is equal to the link, similar to a definition list.
+I don't think we need this definition anymore. it's better to
+simpilify html and remove unecessary <ul><li>s; using <h3>'s instead.
+I would use <h2> but it's more of a divisional heading since it has
+the bottom border as opposed to <h3> here is used for links.
+*/
+
+#pageMenu ul, 
+#pageMenu ul li {
+   font-size: 14px;
+}
+
+#pageMenu h3 { 
+    font-size: 16px;
+    font-weight: bold;
+    margin: 1em 0 -.5em 0;
+    padding: 5px;
+}
+
+#pageMenu h4 {
+    margin: 1em 0 -.5em 0;
+}
+
+
+/* For Committee Assignment web page that contains tables which need to be aligned with the text */
+#pageCommittees
+{
+    padding: 0;
+    margin: 0;
+}
+
+/* page header or description */
+#pageCommittees p
+{
+    margin: .5em 0 .5em 0;
+    padding-left: 10px;
+}
+
+#pageCommittees p a {
+    margin: 0;
+    padding: 0;
+}
+
+#pageCommittees blockquote {
+    margin: .5em 0 .5em .5em;
+    padding: 0 0 0 1em;
+}
+
+#pageCommittees blockquote a {
+    margin: .5em 0 .5em 0;
+    padding: 0;
+}
+
+/* 
+page menu lists and tables are indented a bit.
+*/
+
+#pageCommittees ul, 
+#pageCommittees table td,
+#pageCommittees table th
+{
+    margin-left: 3em;
+    padding-left: 8px;
+}
+
+/* sub menu links */
+#pageCommittees ul ul {
+    margin: .5em 0 .5em 1.5em;
+}
+
+/* For committee headers */
+#pageCommittees h1
+{
+    font-size: 22px;
+    padding: .25em;
+    border: 4px solid #FDDD88;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    margin-top: 3em;
+}
+
+/* left aligned for Committee sub-headers */
+#pageCommittes h2
+{
+    font-size: 18px;
+    border-bottom: 2px solid #ccc;
+    font-weight: bold;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    margin: 1.4em .25em 1em 0;
+    padding: 0;
+}
+
+#pageCommittees h2 a
+{
+    font-size: 18px;
+    font-weight: bold;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    margin: 1.4em .25em 1em 0;
+    padding: 0;
+}
+
+
+#pageCommittees h3 {
+    font-size: 16px;
+    margin: 1.6em .25em 0 5px;
+    font-weight: bold;
+    padding-left: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    }
+
+/* For Resguide web page that contains tables which need to be aligned with the text */
+#pageResguide
+{
+    padding: 0;
+    margin: 0;
+}
+
+/* page header or description */
+#pageResguide p
+{
+    margin: .5em 0 1em 0;
+    padding-left: 10px;
+}
+
+#pageResguide p a {
+    margin: 0;
+    padding: 0;
+}
+
+#pageResguide blockquote {
+    margin: .5em 0 .5em .5em;
+    padding: 0 0 0 1em;
+}
+
+#pageResguide blockquote a {
+    margin: .5em 0 .5em 0;
+    padding: 0;
+}
+
+/* 
+Resguide lists and tables are indented a bit.
+*/
+
+#pageResguide ul, 
+#pageResguide table td,
+#pageResguide table th
+{
+    margin-left: 2.5em;
+    padding-left: 8px;
+}
+
+/* sub menu links */
+#pageResguide ul ul {
+    margin: .5em 0 .5em 1.5em;
+}
+
+/* left aligned for Resguide sub-headers */
+#pageResguide h2
+{
+    font-size: 18px;
+    border-bottom: 2px solid #ccc;
+    font-weight: bold;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    margin: 2em .25em 1em 0;
+    padding-top: 1em;
+}
+
+#pageResguide h2 a
+{
+    font-size: 18px;
+    font-weight: bold;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    margin: 2em .25em 1em 0;
+    padding: 0;
+}
+
+#pageResguide h3 {
+    font-size: 16px;
+    margin: 1.6em .25em 0 5px;
+    font-weight: bold;
+    padding-left: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    }
+
+#pageResguide h3 a {
+    font-size: 16px;
+    margin: 1.6em .25em 0 0;
+    font-weight: bold;
+    padding: 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#pageResguide h4 {
+    font-size: 14px;
+    margin: .6em .25em .25em 8px;
+    padding-left: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#pageResguide h4 a {
+    font-size: 14px;
+    margin: .6em .25em .25em 0;
+    padding: 0;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#pageResguide ul.spaced li {
+    list-style: disc;
+    margin: 0;
+    padding-bottom: .5em;
+}
+
+
+/* headers without underlines     */
+
+#noline
+{
+    font-size: 14px;
+    margin: 0;
+    padding: 0;
+}
+
+#noline h1 {
+    font-size: 22px;
+    margin: .25em .25em 1em -0.75em;
+    border-bottom: none;
+    padding: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#noline h2 {
+    font-size: 18px;
+    margin: 1.4em .25em 1em 5px;
+    font-weight: bold;
+    border-bottom: none;
+    padding-left: .25em;
+    padding-bottom: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#noline h2 a {
+    font-size: 18px;
+    margin: 11.4em .25em 1em 0;
+    font-weight: bold;
+    border-bottom: none;
+    padding-left: 0;
+    padding-bottom: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    }
+
+
+/* for second set of headers without underlines     */
+
+#noline2
+{
+    font-size: 14px;
+    margin: 0;
+    padding: 0;
+}
+
+#noline2 h1 {
+    font-size: 22px;
+    margin: .25em .25em 1em -0.75em;
+    border-bottom: none;
+    padding: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#noline2 h2 {
+    font-size: 18px;
+    margin: 1.4em .25em 1em 5px;
+    font-weight: bold;
+    border-bottom: none;
+    padding-left: .25em;
+    padding-bottom: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#noline2 h2 a {
+    font-size: 18px;
+    margin: 11.4em .25em 1em 0;
+    font-weight: bold;
+    border-bottom: none;
+    padding-left: 0;
+    padding-bottom: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    }
+
+
+#spaced
+{
+    font-size: 14px;
+    margin: 0;
+    padding: 0;
+}
+
+/* pageMenu style pages that contain paragraphs with normal spaces
+between them for pages with LOTS of text */
+
+#spaced p {
+    margin: .5em 0em 1em 0em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    font-weight: normal;
+    font-size: 14px;
+}
+
+#spaced ul,
+#spaced ol,
+#spaced table td,
+#spaced table th
+{
+    margin: .5em .5em .75em .5em;
+    padding: 0;
+}
+
+#spaced ul ul {
+    margin: .5em .25em .5em .5em;
+}
+
+#spaced ol ol {
+    margin: .5em .25em .5em .5em;
+}
+
+
+/* Highlighed unlined H2 text and links */
+
+#highlight {
+background-color: #FFF2C6;
+}
+
+/*
+Miyoko cream
+#FFF9E3
+*/
+
+#highlight h2 {
+    font-size: 18px;
+    margin: 1.4em .25em 1em 5px;
+    font-weight: bold;
+    border-bottom: none;
+    padding-left: .25em;
+    padding-bottom: .25em;
+    padding-top: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#highlight h2 a {
+    font-size: 18px;
+    margin: 11.4em .25em 1em 0;
+    font-weight: bold;
+    border-bottom: none;
+    padding-left: 0;
+    padding-bottom: .25em;
+    padding-top: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    }
+
+/* For EECS staff home page template */
+
+#staff {
+   font-family: Arial, Helvetica, sans-serif;
+   margin: 0;
+   padding: 0;
+   font-size: 14px;
+   color: #0000CC;
+}
+
+#staff a:active {
+   font-size: 10pt;
+   font-style: normal;
+   text-decoration: none;
+   color: #0099CC;
+   }
+
+#staff a:hover {
+   text-decoration: none;
+   background-color: #F1DEC9;
+   }
+
+#staff a:link {
+   font-size: 10pt;
+   font-style: normal;
+   text-decoration: none;
+   color: #0000FF;
+   }
+
+#staff a:visited {
+   font-size: 10pt;
+   text-decoration: none;
+   color: #AE34BC;
+   }
+
+#staff p {
+   font-size: 10pt;
+   }
+
+#staff p.address {
+   font-size: 10pt;
+   text-align: center;
+   }
+
+#staff p.mailing {
+   font-size: 10pt;
+   }
+
+#staff p.mailing:first-line {
+   font-size: 10pt;
+   font-weight: bold;
+   }
+
+#staff p.links {
+   font-size: 10pt;
+   }
+
+#staff p.links:first-line {
+   font-size: 10pt;
+   font-weight: bold;
+   }
+
+#staff p.attribution {
+   font-size: 8pt;
+   text-align: center;
+   }
+
+#staff p.title {
+   font-weight: bold;
+   }
+
+#staff p.title-center {
+   font-weight: bold;
+   text-align: center;
+   }
+
+#staff table 
+{
+    background-color: FFFFFF;
+}
+
+#staff h1 {
+    font-size: 24pt;
+    padding-bottom: .25em;
+    margin: .25em .25em 1em -0.75em;
+    border-bottom: 0;
+}
+
+#staff h2 {
+    font-size: 18pt;
+    padding-bottom: .25em;
+    margin: .25em .25em 1em 0em;
+    border-bottom: 0;
+    text-align: center;
+}
+
+#staff h2.center {
+    font-size: 18pt;
+    padding-bottom: .25em;
+    margin: .25em .25em 1em -0.75em;
+    border-bottom: 0;
+    text-align: center;
+}
+
+#staff h3 {
+    font-size: 16pt;
+    padding-bottom: .25em;
+    margin: .25em .25em 1em -0.75em;
+    border-bottom: 0;
+}
+
+#staff h4 {
+    font-size: 14pt;
+    margin: .25em .25em 1em -0.75em;
+    border-bottom: 0;
+    padding-bottom: .25em;
+}
+
+#staff h5 {
+    font-size: 12pt;
+    margin: .25em .25em 1em -0.75em;
+    border-bottom: 0;
+    padding-bottom: .25em;
+}
+
+#staff h6 {
+    font-size: 10pt;
+    margin: .25em .25em 1em -0.75em;
+    border-bottom: 0;
+    padding-bottom: .25em;
+}
+
+
+/* For internal pages with top header but no side columns */
+
+
+#mini {
+   margin: 20px;
+   padding: 0 20px;
+   font-size: 14px;
+}
+
+#mini table 
+{
+    margin-left: 20px;
+}
+
+#mini h1 {
+    font-size: 22px;
+    margin: .25em .25em 1em -0.75em;
+    padding-bottom: .25em;
+    border-bottom: 4px solid #FDDD88;
+}
+
+#mini p.main {
+   margin: 20px 20px 20px -10px;
+   padding: 0;
+}
+
+#mini h2.noline {
+    font-size: 18px;
+    margin: 1.4em .25em 1em 5px;
+    font-weight: bold;
+    border-bottom: none;
+    padding-left: .25em;
+    padding-bottom: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+
+#mini h2.noline a {
+    font-size: 18px;
+    margin: 11.4em .25em 1em 0;
+    font-weight: bold;
+    border-bottom: none;
+    padding-left: 0;
+    padding-bottom: .25em;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    }
+
+
+#mainpage p { 
+        font-family: Geneva, Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        font-style: normal;
+        line-height: normal;
+        font-weight: normal;
+        color: #000000;
+        text-align: left;
+        margin-top: 0px;
+        margin-right: 0px;
+        margin-bottom: 0px;
+        margin-left: 15px;
+        padding: 0px;
+}
+
+/* For Division Lunches in Faculty Minutes */
+table.facminutes {
+    width: 95%;
+    }
+
+
+/* For Division Lunches in Faculty Minutes */
+
+th.facminutes-head {
+    width: 50%;
+}
+
+
+td.facminutes-ee {
+    /*
+    background-image: url(/Includes/EECS-images/gradient.blue-wide.jpg);
+    */
+    background-color: #F1F1F1;
+    background-repeat: no-repeat;
+    color: #000000;
+    font-weight: normal;
+    padding: 4px 4px 4px 10px;
+    border: 1px solid #BAC0CB;
+    border-collapse: collapse;
+}
+
+td.facminutes-cs {
+    /*
+    background-image: url(/Includes/EECS-images/gradient.blue-wide.jpg);
+    */
+    background-color: #F1F1F1;
+    background-repeat: no-repeat;
+    color: #000000;
+    font-weight: normal;
+    padding: 4px 4px 4px 10px;
+    border: 1px solid #BAC0CB;
+    border-collapse: collapse;
+}
+
+#calhighlights {
+        background-color: #FFF9E3;
+}
+
+#calhighlights h3 {
+	color: #990000;
+}
+
+#calnormal {
+        background-color: #F4F7FC;
+}
+
+
+/* dividers and backgrounds for sample memos and letters in Ugrad and Grad Manuals */
+
+hr.memo {
+	color: #FDDD88;
+	background-color: #FDDD88;
+	height: 1px;
+	border: none;
+	/*
+	background-color: #FFF2C6;
+	*/
+}
+
+.blockhighlight-gold {
+        background-color: #FFF9E3;
+        border: 1px solid #FEE9C3;
+        padding: .25em .5em .25em .5em;
+}
+
+
+.blockhighlight-yellow {
+        background-color: #FFF9E3;
+	border: 1px solid #FFF9E3;
+	padding: .25em 0 .25em 0; 
+	/*
+        border: 1px solid #FDDD88;
+	*/
+}
+
+.blockhighlight-blue {
+        background-color: #F4F7FC;
+	border: 1px solid #F4F7FC;
+	padding: .25em 0 .25em 0; 
+}
+
+/* To allow special html entities so show up in IE.
+Use <font class="unicode"> */
+
+.unicode {font-family: Arial Unicode MS, Arial, Sans-Serif}
+
+a img.noborder { border: none; }
+
+
+
+/* dividers and backgrounds for Chair Memoranda */
+
+#memoranda h1
+{
+    font-size: 22px;
+    padding-top: 40px;
+    border-bottom: 4px solid #FDDD88;
+    font-family: Geneva, Arial, Helvetica, sans-serif;
+    width: 90%;
+}
+
+#memoranda img {
+        border-collapse: collapse;
+        text-decoration: none;
+        float: right;
+        }
+
+#memoranda table {
+    width: 90%;
+    border-collapse: collapse;
+    }
+
+
+#memoranda th 
+	{
+	font-weight: bold;
+	vertical-align: baseline;
+	text-align: left;
+	}
+
+#memoranda td 
+	{
+	vertical-align: baseline;
+	background-color: #F1F1F1;
+	border: 1px solid #BAC0CB;
+	padding: 3px;
+	}
+

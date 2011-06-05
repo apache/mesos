@@ -1,0 +1,124 @@
+#!/bin/bash
+
+export PATH=/usr/gnu/bin:/usr/bin:/usr/X11/bin:/usr/sbin:/sbin
+
+# Set PATH to include Scala and MPI, since .profile won't be read by SSH.
+export PATH=$PATH:/usr/local/bin:/usr/local/scala-2.7.5.final/bin
+
+MASTER=/root/nexus-ec2/master
+SLAVES=/root/nexus-ec2/slaves
+
+# Scripts that get used for/while running Nexus.
+SCRIPTS="setup-slave              \
+         start-nexus              \
+         stop-nexus               \
+         nexus-daemon             \
+         redeploy-nexus           \
+         start-mos                \
+         stop-mos                 \
+         setup-apache             \
+         stop-tasktracker-child"
+
+HADOOP_HOME=/root/hadoop-0.20.0
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+
+REPOSITORY=scm.millennium.berkeley.edu/project/cs/radlab/src
+
+if [[ `tty` == "not a tty" ]] ; then
+    echo "Expecting a tty or pty! (use the ssh -t option)."
+    exit 1
+fi
+
+echo "Setting up Nexus master on `hostname`..."
+
+cd /root/nexus-ec2
+
+echo "Setting executable permissions on scripts..."
+for s in $SCRIPTS; do chmod u+x $s; done
+
+echo "SSH'ing to local machine to approve key..."
+ssh -q $SSH_OPTS `cat $MASTER` echo -n
+ssh -q $SSH_OPTS localhost echo -n
+
+echo "SSH'ing to slaves to approve keys..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  ssh $SSH_OPTS $slave echo -n &
+  sleep 0.3
+done
+echo "Waiting for commands to finish..."
+wait
+
+echo "RSYNC'ing /root/nexus-ec2 to slaves..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  rsync -e "ssh $SSH_OPTS" -az /root/nexus-ec2 $slave:/root
+done
+
+echo "Setting up slaves..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  ssh -t $SSH_OPTS root@$slave "nexus-ec2/setup-slave"
+done
+
+echo "Setting up master as slave (i.e. for local)..."
+./setup-slave
+
+echo "RSYNC'ing Hadoop config files to slaves..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $slave:$HADOOP_HOME
+done
+
+REPLY=''
+while [[ "$REPLY" != 'Y' && "$REPLY" != 'y' &&
+	 "$REPLY" != 'N' && "$REPLY" != 'n' ]] ; do
+    read -p "Do you want to use the latest version of the code? (Y/N) "
+done
+
+if [[ "$REPLY" == 'Y' || "$REPLY" == 'y' ]] ; then
+    REPLY=''
+    while [[ "$REPLY" == '' ]] ; do
+	read -p "Please specify a user name for the repository: "
+    done
+    pushd /root/nexus > /dev/null 2>&1
+    git checkout master
+    git pull ssh://$REPLY@$REPOSITORY/nexus master
+    rm -rf /root/nexus/src/third_party/libprocess
+    git config submodule.src/third_party/libprocess.url \
+	ssh://$REPLY@$REPOSITORY/libprocess
+    git submodule update --init
+    ./configure.OURS.solaris
+    make clean
+    make
+    popd > /dev/null 2>&1
+    pushd /root/nexus/frameworks/spark > /dev/null 2>&1
+    make
+    popd > /dev/null 2>&1
+    pushd /root/nexus/frameworks/hadoop-0.20.0 > /dev/null 2>&1
+    ant
+    ant examples
+    popd > /dev/null 2>&1
+fi
+
+echo "Setting up Hadoop framework config files..."
+cp hadoop-framework-conf/* /root/nexus/frameworks/hadoop-0.20.0/conf
+
+echo "Setting up haproxy+apache framework config files..."
+cp haproxy+apache/* /root/nexus/frameworks/haproxy+apache
+
+echo "Redeploying /root/nexus..."
+./redeploy-nexus
+
+echo "Formatting HDFS namenode..."
+$HADOOP_HOME/bin/hadoop namenode -format
+
+echo "Starting HDFS..."
+$HADOOP_HOME/bin/start-dfs.sh
+
+echo "Starting MapOutputServer(s)..."
+./start-mos
+
+echo "Starting Nexus cluster..."
+./start-nexus

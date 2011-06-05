@@ -1,0 +1,52 @@
+body {
+  font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+  color: black;
+  background-color: white;
+  margin-left: 12px;
+}
+
+h1 {
+  font-family: Corbel, Impact, Verdana, Geneva, Arial, Helvetica, sans-serif;
+  font-size: 230%;
+  font-weight: bold;
+}
+
+h2 {
+  font-family: Corbel, Impact, Verdana, Geneva, Arial, Helvetica, sans-serif;
+  font-size: 170%;
+  font-weight: bold;
+}
+
+a {
+  color: #009000;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+a.visited {
+  color: #090;
+  text-decoration: none;
+}
+
+table
+{
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th
+{
+  font-weight: bold;
+  color: black;
+  padding: 2px 10px 10px 10px;
+  border-bottom: 2px solid black;
+}
+
+td
+{
+  border-bottom: 1px solid #666;
+  padding: 6px 10px;
+}

@@ -1,0 +1,263 @@
+# Makefile.
+
+SHELL = '/bin/sh'
+
+CC = @CC@
+CXX = @CXX@
+
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+
+OS_NAME = @OS_NAME@
+
+JAVA_HOME = @JAVA_HOME@
+PYTHON_HEADERS = @PYTHON_HEADERS@
+RUBY_HEADERS = @RUBY_HEADERS@
+
+WITH_WEBUI = @WITH_WEBUI@
+WEBUI_FLAGS = @WEBUI_FLAGS@
+
+LIBEV = third_party/libprocess/third_party/libev-3.8
+
+GLOG = third_party/glog-0.3.0
+GTEST = third_party/gtest-1.4.0-patched
+
+# Ensure that we get better debugging info.
+CFLAGS += -g
+CXXFLAGS += -g
+
+# Add current dir to CFLAGS and CXXFLAGS.
+CFLAGS += -I.
+CXXFLAGS += -I.
+
+# Add include to CFLAGS and CXXFLAGS.
+CFLAGS += -I../include
+CXXFLAGS += -I../include
+
+# Add boost to CFLAGS and CXXFLAGS.
+CFLAGS += -Ithird_party/boost-1.37.0
+CXXFLAGS += -Ithird_party/boost-1.37.0
+
+# Add libprocess to CPPFLAGS, CFLAGS, CXXFLAGS, and LDFLAGS.
+CFLAGS += -Ithird_party/libprocess
+CXXFLAGS += -Ithird_party/libprocess
+LDFLAGS += -Lthird_party/libprocess
+
+# Add libev to LDFLAGS.
+LDFLAGS += -L$(LIBEV)/.libs
+
+# Add glog and gtest to include and lib paths
+CXXFLAGS += -I$(GLOG)/src
+CXXFLAGS += -I$(GTEST)/include
+LDFLAGS += -L$(GLOG)/.libs
+LDFLAGS += -L$(GTEST)/lib/.libs
+
+# Add dependency tracking to CFLAGS, CXXFLAGS.
+CFLAGS += -MMD -MP
+CXXFLAGS += -MMD -MP
+
+# Add build date and user to CFLAGS, CXXFLAGS
+CFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USER\""
+CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USER\""
+
+# Add libev, libprocess, pthread, and dl to LIBS.
+LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl
+
+NEXUS_EXES = nexus-master nexus-slave nexus-local nexus-launcher alltests \
+	     test-framework test-executor cpp-test-framework cpp-test-executor \
+	     memhog memhog-executor
+
+ifeq ($(OS_NAME),solaris)
+  NEXUS_EXES += nexus-projd
+endif
+
+SCHED_LIB = libnexus_sched.a
+EXEC_LIB = libnexus_exec.a
+
+# For now the C++ library has both the scheduler and executor binaries.
+CPP_LIB = libnexus++.a
+
+NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(CPP_LIB)
+
+MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
+SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
+	    process_based_isolation_module.o
+COMMON_OBJ = fatal.o hash_pid.o messages.o
+EXEC_LIB_OBJ = nexus_exec.o
+SCHED_LIB_OBJ = nexus_sched.o nexus_local.o params.o
+TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o
+
+ifeq ($(OS_NAME),solaris)
+  SLAVE_OBJ += solaris_project_isolation_module.o
+endif
+
+ifeq ($(OS_NAME),linux)
+  SLAVE_OBJ += lxc_isolation_module.o
+endif
+
+ALL_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ) \
+	  $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(TEST_OBJ)
+
+default: all
+
+-include $(patsubst %.o, %.d, $(ALL_OBJ))
+-include $(patsubst %, %.d, $(NEXUS_EXES))
+
+$(ALL_OBJ): %.o: %.cpp
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
+$(NEXUS_LIBS): $(COMMON_OBJ) third_party/libprocess/libprocess.a
+
+$(NEXUS_EXES): $(COMMON_OBJ) third_party/libprocess/libprocess.a
+
+$(SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
+	$(AR) rcs $@ $^ third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a
+
+$(EXEC_LIB): $(EXEC_LIB_OBJ) $(COMMON_OBJ)
+	$(AR) rcs $@ $^
+
+$(CPP_LIB): $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
+	$(AR) rcs $@ $^
+
+webui/master/swig/master_wrap.cpp: webui/master/swig/master.i master_state.hpp master_webui.hpp master.hpp config.hpp
+ifeq ($(WITH_WEBUI),1)
+	swig -c++ -python -outdir webui/master/swig -o $@ -I../include $<
+else
+	echo "" > $@
+endif
+
+webui/master/swig/master_wrap.o: webui/master/swig/master_wrap.cpp config.hpp
+	$(CXX) -c $(CXXFLAGS) $(WEBUI_FLAGS) -I. -o $@ $<
+
+master_webui.o: master_webui.cpp config.hpp messages.hpp
+	$(CXX) -c $(CXXFLAGS) $(WEBUI_FLAGS) -o $@ $<
+
+nexus-master: master_main.cpp $(MASTER_OBJ) $(COMMON_OBJ) master_webui.o webui/master/swig/master_wrap.o
+	$(CXX) $(CXXFLAGS) $(WEBUI_FLAGS) -o $@ $< $(MASTER_OBJ) master_webui.o webui/master/swig/master_wrap.o $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
+
+webui/slave/swig/slave_wrap.cpp: webui/slave/swig/slave.i slave_state.hpp slave_webui.hpp slave.hpp config.hpp
+ifeq ($(WITH_WEBUI),1)
+	swig -c++ -python -outdir webui/slave/swig -o $@ -I../include $<
+else
+	echo "" > $@
+endif
+
+webui/slave/swig/slave_wrap.o: webui/slave/swig/slave_wrap.cpp config.hpp
+	$(CXX) -c $(CXXFLAGS) $(WEBUI_FLAGS) -I. -o $@ $<
+
+slave_webui.o: slave_webui.cpp config.hpp messages.hpp
+	$(CXX) -c $(CXXFLAGS) $(WEBUI_FLAGS) -o $@ $<
+
+nexus-slave: slave_main.cpp $(SLAVE_OBJ) $(COMMON_OBJ) slave_webui.o webui/slave/swig/slave_wrap.o
+	$(CXX) $(CXXFLAGS) $(WEBUI_FLAGS) -o $@ $< $(SLAVE_OBJ) slave_webui.o webui/slave/swig/slave_wrap.o $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
+
+nexus-launcher: launcher_main.cpp launcher.o fatal.o
+	$(CXX) $(CXXFLAGS) -o $@ $< launcher.o fatal.o $(LDFLAGS) $(LIBS)
+
+nexus-projd: projd.cpp $(COMMON_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
+
+nexus-local: local.cpp nexus_local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $< nexus_local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
+
+alltests: $(TEST_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(COMMON_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+
+test-framework: test_framework.cpp $(SCHED_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lnexus_sched $(LIBS)
+
+test-executor: test_exec.cpp $(EXEC_LIB) third_party/libprocess/libprocess.a
+	g++ $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lnexus_exec $(LIBS)
+
+cpp-test-framework: cpp_test_framework.cpp $(CPP_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
+
+cpp-test-executor: cpp_test_executor.cpp $(CPP_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
+
+memhog: memhog.cpp $(CPP_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
+
+memhog-executor: memhog_executor.cpp $(CPP_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
+
+java: swig/java/libnexus.so swig/java/nexus.jar swig/java/TestFramework.class swig/java/TestExecutor.class
+
+python: swig/python/_nexus.so
+
+ruby: swig/ruby/nexus.so
+
+swig/java/nexus.jar: swig/java/libnexus.so
+ifdef JAVA_HOME
+	javac -sourcepath swig/java -d swig/java swig/java/nexus/*.java
+	jar cf $@ -C swig/java nexus
+endif
+
+swig/java/libnexus.so: swig/nexus.i $(CPP_LIB)
+ifdef JAVA_HOME
+	rm -f swig/java/nexus/*
+	mkdir -p swig/java/nexus
+	swig -c++ -java -I../include -o swig/java/nexus_wrap.cpp -outdir swig/java/nexus -package nexus swig/nexus.i
+	$(CXX) $(CXXFLAGS) -shared -o $@ swig/java/nexus_wrap.cpp -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -L. $(LDFLAGS) -lnexus++ $(LIBS)
+endif
+
+swig/java/TestFramework.class: swig/java/libnexus.so swig/java/nexus.jar swig/java/TestFramework.java
+ifdef JAVA_HOME
+	javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestFramework.java
+endif
+
+swig/java/TestExecutor.class: swig/java/libnexus.so swig/java/nexus.jar swig/java/TestExecutor.java
+ifdef JAVA_HOME
+	javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExecutor.java
+endif
+
+swig/python/_nexus.so: swig/nexus.i $(CPP_LIB)
+ifdef PYTHON_HEADERS
+	swig -c++ -python -threads -I../include -o swig/python/nexus_wrap.cpp -outdir swig/python swig/nexus.i
+	$(CXX) $(CXXFLAGS) -shared -o $@ swig/python/nexus_wrap.cpp -I$(PYTHON_HEADERS) -L. $(LDFLAGS) -lnexus++ $(LIBS)
+endif
+
+swig/ruby/nexus.so: swig/nexus.i $(CPP_LIB)
+ifdef RUBY_HEADERS
+	swig -c++ -ruby -I../include -o swig/ruby/nexus_wrap.cpp -outdir swig/ruby -autorename swig/nexus.i
+	$(CXX) $(CXXFLAGS) -shared -o $@ swig/ruby/nexus_wrap.cpp -I$(RUBY_HEADERS) -L. $(LDFLAGS) -lnexus++ $(LIBS)
+endif
+
+test: all
+	./alltests
+
+third_party:
+	$(MAKE) -C third_party/libprocess
+	$(MAKE) -C $(GLOG)
+	$(MAKE) -C $(GTEST)
+
+all: third_party $(NEXUS_LIBS) $(NEXUS_EXES) java python ruby
+
+clean:
+	$(MAKE) -C third_party/libprocess clean
+	$(MAKE) -C $(GLOG) clean
+	$(MAKE) -C $(GTEST) clean
+	rm -f $(patsubst %.o, %.d, $(ALL_OBJ))
+	rm -f $(ALL_OBJ)
+	rm -f *.o *.d *.so
+	rm -f $(NEXUS_LIBS)
+	rm -f $(NEXUS_EXES)
+	rm -f swig/*/nexus_wrap.cpp
+	rm -f swig/*/nexus_wrap.h
+	rm -f swig/*/*.o
+	rm -f swig/*/*.d
+	rm -f swig/*/*.so
+	rm -f swig/java/nexus.jar
+	rm -f swig/java/nexus/*
+	rm -f swig/java/*.class
+	rm -f swig/python/nexus.py
+	rm -f swig/python/nexus.pyc
+	rm -f webui/master/swig/master_wrap.h
+	rm -f webui/master/swig/master_wrap.cpp
+	rm -f webui/master/swig/master_wrap.o
+	rm -f webui/master/swig/master.py
+	rm -f webui/master/swig/master.pyc
+
+.PHONY: default third_party all clean java python ruby test

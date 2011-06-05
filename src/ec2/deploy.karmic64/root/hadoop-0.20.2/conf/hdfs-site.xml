@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+
+  <property>
+    <name>dfs.namenode.handler.count</name>
+    <value>20</value>
+  </property>
+
+  <property>
+    <name>dfs.datanode.handler.count</name>
+    <value>7</value>
+  </property>
+
+</configuration>

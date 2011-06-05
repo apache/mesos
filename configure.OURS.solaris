@@ -1,0 +1,2 @@
+#!/bin/sh
+./configure --with-webui --with-boost-headers=/root/boost_1_37_0/ --with-ruby-headers=/usr/ruby/1.8/lib/ruby/1.8/i386-solaris2.11 --with-python-headers=/usr/include/python2.6 --with-java-home=/usr/java $@

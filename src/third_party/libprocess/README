@@ -1,0 +1,26 @@
+README for libprocess
+
+Most importantly, if you run into an issue, please send me an email:
+benh@berkeley.edu.
+
+Instructions:
+
+(1) Configure (in a seperate build directory if you prefer).
+
+path/to/configure
+
+(2) Build.
+
+make
+
+(3) Optional: Build some examples.
+
+cd examples && make
+
+(4) Optional: Build the Python library (assuming you have the Python
+headers installed in /usr/include/python2.5, otherwise you can update
+swig/Makefile).
+
+cd swig && make python
+
+

@@ -1,0 +1,24 @@
+# Makefile.
+
+SHELL = '/bin/sh'
+
+default: all
+
+src:
+	$(MAKE) -C src
+
+install: src
+	$(error unimplemented)
+
+uninstall:
+	$(error unimplemented)
+
+dist:
+	$(error unimplemented)
+
+all: src
+
+clean:
+	$(MAKE) -C src clean
+
+.PHONY: default src install uninstall dist all clean

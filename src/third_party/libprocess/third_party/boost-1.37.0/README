@@ -1,0 +1,8 @@
+To determine what Boost header files were both implicitly+explicitly
+necessary I added all explict Boost header files to 'boost.cpp' (in
+this directory) and then executed (assuming Boost is on the path):
+
+g++ -E boost.cpp | grep "/boost/" | awk '{print $3}' | sort | uniq
+
+This might include an extra line containing only "?", which can be
+ignored. The rest of the lines are the ones you need from Boost!
