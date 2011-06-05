@@ -23,7 +23,7 @@ NUM_MASTERS=`cat $MASTERS_FILE | wc -l`
 SLAVES=`cat slaves`
 ZOOS=`cat zoo`
 
-if [[ $ZOOS = *zoo* ]]; then
+if [[ $ZOOS = *NONE* ]]; then
   NUM_ZOOS=0
 else
   NUM_ZOOS=`cat zoo | wc -l`
@@ -117,6 +117,15 @@ for slave in $SLAVES; do
   ssh -t $SSH_OPTS root@$slave "mesos-ec2/setup-slave" &
 done
 wait
+
+if [[ $NUM_ZOOS != 0 ]] ; then
+  echo "Running slave setup on ZooKeeper nodes..."
+  for slave in $SLAVES; do
+    echo $slave
+    ssh -t $SSH_OPTS root@$slave "mesos-ec2/setup-slave" &
+  done
+  wait
+fi
 
 echo "Running slave setup on master (i.e. for local)..."
 ./setup-slave

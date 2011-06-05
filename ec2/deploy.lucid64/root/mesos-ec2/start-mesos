@@ -7,7 +7,7 @@ SLAVES=`cat slaves`
 ZOOS=`cat zoo`
 
 
-if [[ $ZOOS = *zoo* ]]; then
+if [[ $ZOOS = *NONE* ]]; then
   NUM_ZOOS=0
 else
   NUM_ZOOS=`cat zoo | wc -l`
