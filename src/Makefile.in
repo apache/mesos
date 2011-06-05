@@ -190,7 +190,7 @@ MESOS_JAVA_JAR = $(LIBDIR)/java/mesos.jar
 MESOS_PYTHON_LIB = $(LIBDIR)/python/_mesos.so
 
 # We copy all the webui files into the bin directory.
-WEBUI_FILES = $(BINDIR)/webui/bottle-0.5.6		\
+WEBUI_FILES = $(BINDIR)/webui/bottle-0.8.3		\
               $(BINDIR)/webui/common/webui_lib.py	\
               $(BINDIR)/webui/master/framework.tpl	\
               $(BINDIR)/webui/master/index.tpl		\

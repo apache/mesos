@@ -65,7 +65,7 @@ def framework_log_tail(fid, log_type, lines):
     abort(403, 'Slave not yet registered with master')
 
 
-bottle.TEMPLATE_PATH.append('./webui/slave/%s.tpl')
+bottle.TEMPLATE_PATH.append('./webui/slave/')
 
 # TODO(*): Add an assert to confirm that all the arguments we are
 # expecting have been passed to us, which will give us a better error

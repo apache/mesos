@@ -37,7 +37,7 @@ def log_tail(level, lines):
   return commands.getoutput('tail -%s %s/mesos-master.%s' % (lines, log_dir, level))
 
 
-bottle.TEMPLATE_PATH.append('./webui/master/%s.tpl')
+bottle.TEMPLATE_PATH.append('./webui/master/')
 
 # TODO(*): Add an assert to confirm that all the arguments we are
 # expecting have been passed to us, which will give us a better error

@@ -1,7 +1,6 @@
 %from datetime import datetime
 %from master import get_master
 %from webui_lib import *
-%
 %master = get_master()
 <html>
 <head>

@@ -38,7 +38,7 @@ void *runMasterWebUI(void *)
   PyRun_SimpleString("import sys\n"
       "sys.path.append('webui/master/swig')\n"
       "sys.path.append('webui/common')\n"
-      "sys.path.append('webui/bottle-0.5.6')\n");
+      "sys.path.append('webui/bottle-0.8.3')\n");
   init_master();
   LOG(INFO) << "Loading webui/master/webui.py";
   FILE *webui = fopen("webui/master/webui.py", "r");

@@ -1,6 +1,5 @@
 %from slave import get_slave
 %from webui_lib import *
-%
 %slave = get_slave()
 <html>
 <head>

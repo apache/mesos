@@ -40,7 +40,7 @@ void *runSlaveWebUI(void *)
   PyRun_SimpleString("import sys\n"
       "sys.path.append('webui/slave/swig')\n"
       "sys.path.append('webui/common')\n"
-      "sys.path.append('webui/bottle-0.5.6')\n");
+      "sys.path.append('webui/bottle-0.8.3')\n");
   init_slave();
   LOG(INFO) << "Loading webui/slave/webui.py";
   FILE *webui = fopen("webui/slave/webui.py", "r");
