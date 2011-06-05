@@ -5,7 +5,7 @@
 #include "slave.hpp"
 #include "slave_webui.hpp"
 #include "isolation_module_factory.hpp"
-#include "process_url.hpp"
+#include "url_processor.hpp"
 
 using std::list;
 using std::make_pair;
