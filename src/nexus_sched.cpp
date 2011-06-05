@@ -218,7 +218,7 @@ string Scheduler::getFrameworkName(SchedulerDriver*)
  */
 ExecutorInfo Scheduler::getExecutorInfo(SchedulerDriver*)
 {
-  return ExecutorInfo("null", "");
+  return ExecutorInfo("", "");
 }
 
 
@@ -463,12 +463,12 @@ public:
 
   virtual ~CScheduler() {}
 
-  virtual string getFrameworkName()
+  virtual string getFrameworkName(SchedulerDriver*)
   {
     return frameworkName;
   }
 
-  virtual ExecutorInfo getExecutorInfo()
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*)
   {
     return execInfo;
   }

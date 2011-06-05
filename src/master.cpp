@@ -273,6 +273,8 @@ void Master::operator () ()
       link(framework->pid);
       send(framework->pid, pack<M2F_REGISTER_REPLY>(fid));
       allocator->frameworkAdded(framework);
+      if (framework->executorInfo.uri == "")
+        terminateFramework(framework, 1, "No executor URI given");
       break;
     }
 
