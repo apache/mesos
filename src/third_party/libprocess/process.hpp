@@ -222,10 +222,10 @@ public:
   /* Spawn a new process. */
   static PID spawn(Process *process);
 
-  /* Wait for PID to exit (returns true if actually waited). */
+  /* Wait for PID to exit (returns true if actually waited on a process). */
   static bool wait(PID pid);
 
-  /* Wait for PID to exit (returns true if actually waited). */
+  /* Wait for PID to exit (returns true if actually waited on a process). */
   static bool wait(Process *process);
 
   /* Invoke the thunk in a legacy safe way. */
