@@ -103,12 +103,12 @@ void Configuration::loadCommandLine(int argc,
     if (args[i].find("--", 0) == 0) {
       // handle --blah=25 and --blah
       size_t eq = args[i].find_first_of("=");
-      if (eq == string::npos) { // handle no value case
+      if (eq == string::npos) { // handle the no value case
         key = args[i].substr(2);
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = "1";
         set = true;
-      } else { // handle value case
+      } else { // handle the value case
         key = args[i].substr(2, eq-2); 
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = args[i].substr(eq+1);
@@ -116,18 +116,19 @@ void Configuration::loadCommandLine(int argc,
       } 
     } else if (args[i].find_first_of("-", 0) == 0) {
       // handle -blah 25 and -blah
-      if ((i+1 >= args.size()) ||
-          (i+1 < args.size() && args[i+1].find_first_of("-", 0) == 0)) {
+      if ((i+1 >= args.size()) ||  // last arg || next arg is new arg
+          (i+1 < args.size() && args[i+1].find_first_of("-", 0) == 0 &&
+           args[i+1].find_first_of("0123456789.", 1) != 1)) {
         key = args[i].substr(1);
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = "1";
         set = true;
-      } else if (i+1 < args.size() && args[i+1].find_first_of("-", 0) != 0) {
+      } else { // not last arg && next arg is a value
         key = args[i].substr(1);
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = args[i+1];
         set = true;
-        i++;  // we've consumed next parameter as "value"-parameter
+        i++;  // we've consumed next parameter as a "value"-parameter
       }
     }
     if (set) {

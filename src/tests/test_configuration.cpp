@@ -31,7 +31,7 @@ TEST(ConfigurationTest, Environment)
 
 TEST(ConfigurationTest, CommandLine)
 {
-  const int ARGC = 9;
+  const int ARGC = 10;
   char* argv[ARGC];
   argv[0] = (char*) "./filename";
   argv[1] = (char*) "--test1=text1";
@@ -42,15 +42,17 @@ TEST(ConfigurationTest, CommandLine)
   argv[6] = (char*) "-negative";
   argv[7] = (char*) "-25";
   argv[8] = (char*) "--cAsE=4";
+  argv[9] = (char*) "--space=Long String";
 
   Configuration conf(ARGC, argv, false);
 
-  EXPECT_EQ("text1", conf.getParams()["test1"]);
-  EXPECT_EQ("1",     conf.getParams()["test2"]);
-  EXPECT_EQ("text2", conf.getParams()["test3"]);
-  EXPECT_EQ("1",     conf.getParams()["test4"]);
-  EXPECT_EQ("-25",   conf.getParams()["negative"]);
-  EXPECT_EQ("4",   conf.getParams()["case"]);
+  EXPECT_EQ("text1",       conf.getParams()["test1"]);
+  EXPECT_EQ("1",           conf.getParams()["test2"]);
+  EXPECT_EQ("text2",       conf.getParams()["test3"]);
+  EXPECT_EQ("1",           conf.getParams()["test4"]);
+  EXPECT_EQ("-25",         conf.getParams()["negative"]);
+  EXPECT_EQ("4",           conf.getParams()["case"]);
+  EXPECT_EQ("Long String", conf.getParams()["space"]);
 }
 
 
