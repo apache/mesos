@@ -1,3 +1,7 @@
+#ifdef __APPLE__
+#define _XOPEN_SOURCE
+#endif /* __APPLE__ */
+
 #include "messages.hpp"
 
 using std::map;

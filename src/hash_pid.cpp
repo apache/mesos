@@ -1,3 +1,7 @@
+#ifdef __APPLE__
+#define _XOPEN_SOURCE
+#endif /* __APPLE__ */
+
 #include <boost/unordered_map.hpp>
 
 #include "hash_pid.hpp"

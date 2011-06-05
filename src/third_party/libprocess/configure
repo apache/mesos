@@ -2870,11 +2870,7 @@ if test "${with_ht+set}" = set; then
 echo "$as_me: error:
 *** --with-ht requires an argument" >&2;}
    { (exit 1); exit 1; }; } ;;
-		 ''|no) { { echo "$as_me:$LINENO: error:
-*** The ht library is REQUIRED and cannot be ommited using --without-ht." >&5
-echo "$as_me: error:
-*** The ht library is REQUIRED and cannot be ommited using --without-ht." >&2;}
-   { (exit 1); exit 1; }; } ;;
+		 ''|no) ;;
 		 *) CFLAGS="$CFLAGS -I$withval/include"
 		    CPPFLAGS="$CPPFLAGS -I$withval/include"
 		    CXXFLAGS="$CXXFLAGS -I$withval/include"
@@ -2926,7 +2922,8 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_HT 1
 _ACEOF
- { echo "$as_me:$LINENO: result: yes" >&5
+
+                 { echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6; }
 else
   echo "$as_me: failed program was:" >&5
@@ -3003,7 +3000,8 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_LITHE 1
 _ACEOF
- { echo "$as_me:$LINENO: result: yes" >&5
+
+                 { echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6; }
 else
   echo "$as_me: failed program was:" >&5
@@ -3015,8 +3013,6 @@ fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
-
-
 
 #AC_ARG_WITH([boost-headers],
 #  AC_HELP_STRING([--with-boost-headers=DIR],
@@ -3509,7 +3505,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 else
   ac_cv_header_stdc=no
 fi
-rm -f conftest*
+rm -f -r conftest*
 
 fi
 
@@ -3530,7 +3526,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 else
   ac_cv_header_stdc=no
 fi
-rm -f conftest*
+rm -f -r conftest*
 
 fi
 
@@ -4345,7 +4341,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 else
   ac_cv_prog_gcc_traditional=no
 fi
-rm -f conftest*
+rm -f -r conftest*
 
 
   if test $ac_cv_prog_gcc_traditional = no; then
@@ -4362,7 +4358,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
   $EGREP "$ac_pattern" >/dev/null 2>&1; then
   ac_cv_prog_gcc_traditional=yes
 fi
-rm -f conftest*
+rm -f -r conftest*
 
   fi
 fi
@@ -5481,7 +5477,7 @@ cat >>confdefs.h <<_ACEOF
 #define SELECT_TYPE_ARG5 ($3)
 _ACEOF
 
-rm -f conftest*
+rm -f -r conftest*
 
 
 
@@ -5618,6 +5614,9 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 subdirs="$subdirs third_party/libev-3.8"
 
+
+# Temporary fix so we don't build dylib's on Mac OS X.
+ac_configure_args="$ac_configure_args --enable-shared=no"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure

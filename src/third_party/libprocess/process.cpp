@@ -17,6 +17,10 @@
    would probably be faster, and have less contention for the mutex
    (that might mean we can eliminate contention for the mutex!). */
 
+#ifdef __APPLE__
+#define _XOPEN_SOURCE
+#endif /* __APPLE__ */
+
 #include <assert.h>
 #include <errno.h>
 #include <ev.h>
@@ -86,22 +90,33 @@ using std::stack;
 
 
 #ifdef __sun__
-
 #define gethostbyname2(name, _) gethostbyname(name)
-
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
 #endif
-
 #ifndef SOL_TCP
 #define SOL_TCP IPPROTO_TCP
 #endif
-
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
 #endif
-
 #endif /* __sun__ */
+
+#ifdef __APPLE__
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+#ifndef SOL_TCP
+#define SOL_TCP IPPROTO_TCP
+#endif
+#ifndef MAP_32BIT
+#define MAP_32BIT 0
+#endif
+#endif /* __APPLE__ */
+
 
 
 #define Byte (1)

@@ -1,3 +1,7 @@
+#ifdef __APPLE__
+#define _XOPEN_SOURCE
+#endif /* __APPLE__ */
+
 #include "allocator.hpp"
 #include "master.hpp"
 #include "master_webui.hpp"

@@ -42,6 +42,13 @@ case "${target_os}" in
     echo ===========================================================
     OS_NAME=linux
     ;;
+  darwin*)
+    echo ===========================================================
+    echo Setting up build environment for ${target_cpu} ${target_os}
+    echo ===========================================================
+   OS_NAME=macosx
+   LDFLAGS="${LDFLAGS} `$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION")'`"
+   ;;
   *)
     AC_MSG_ERROR($UNSUPPORTED_OS)
   esac

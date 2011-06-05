@@ -121,4 +121,7 @@ AC_CHECK_FUNCS([gethostbyname gethostname getpagesize memset select socket])
 AC_CONFIG_FILES([Makefile examples/Makefile swig/Makefile])
 AC_CONFIG_SUBDIRS([third_party/libev-3.8])
 
+# Temporary fix so we don't build dylib's on Mac OS X.
+ac_configure_args="$ac_configure_args --enable-shared=no"
+
 AC_OUTPUT

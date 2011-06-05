@@ -1,3 +1,7 @@
+#ifdef __APPLE__
+#define _XOPEN_SOURCE
+#endif /* __APPLE__ */
+
 #include "process_based_isolation_module.hpp"
 
 #include "foreach.hpp"
