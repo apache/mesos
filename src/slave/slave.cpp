@@ -94,42 +94,51 @@ state::SlaveState *Slave::getState()
     new state::SlaveState(BUILD_DATE, BUILD_USER, slaveId.value(),
                           cpus.value(), mem.value(), self(), master);
 
-//   foreachpair (_, Framework *f, frameworks) {
+  foreachpair (_, Framework *f, frameworks) {
+    foreachpair (_, Executor* e, f->executors) {
+      Resources resources(e->resources);
+      Resource::Scalar cpus;
+      Resource::Scalar mem;
+      cpus.set_value(-1);
+      mem.set_value(-1);
+      cpus = resources.getScalar("cpus", cpus);
+      mem = resources.getScalar("mem", mem);
 
-//     foreachpair (_, Executor* e, f->executors) {
+      // TOOD(benh): For now, we will add a state::Framework object
+      // for each executor that the framework has. Therefore, we tweak
+      // the framework ID to also include the associated executor ID
+      // to differentiate them. This is so we don't have to make very
+      // many changes to the webui right now. Note that this ID
+      // construction must be identical to what we do for directory
+      // suffix returned from Slave::getUniqueWorkDirectory.
 
-//       Resources resources(e->resources);
-//       Resource::Scalar cpus;
-//       Resource::Scalar mem;
-//       cpus.set_value(-1);
-//       mem.set_value(-1);
-//       cpus = resources.getScalar("cpus", cpus);
-//       mem = resources.getScalar("mem", mem);
+      string id = f->frameworkId.value() + "-" + e->info.executor_id().value();
 
-//     state::Framework *framework =
-//       new state::Framework(f->frameworkId.value(), f->info.name(),
-//                            f->info.executor().uri(), f->executorStatus,
-//                            cpus.value(), mem.value());
+      state::Framework *framework =
+        new state::Framework(id, f->info.name(),
+                             e->info.uri(), e->executorStatus,
+                             cpus.value(), mem.value());
 
-//     state->frameworks.push_back(framework);
+      state->frameworks.push_back(framework);
 
-//     foreachpair(_, Task *t, f->tasks) {
-//       Resources resources(t->resources());
-//       Resource::Scalar cpus;
-//       Resource::Scalar mem;
-//       cpus.set_value(-1);
-//       mem.set_value(-1);
-//       cpus = resources.getScalar("cpus", cpus);
-//       mem = resources.getScalar("mem", mem);
+      foreachpair (_, Task *t, e->tasks) {
+        Resources resources(t->resources());
+        Resource::Scalar cpus;
+        Resource::Scalar mem;
+        cpus.set_value(-1);
+        mem.set_value(-1);
+        cpus = resources.getScalar("cpus", cpus);
+        mem = resources.getScalar("mem", mem);
 
-//       state::Task *task =
-//         new state::Task(t->task_id().value(), t->name(),
-//                         TaskState_descriptor()->FindValueByNumber(t->state())->name(),
-//                         cpus.value(), mem.value());
+        state::Task *task =
+          new state::Task(t->task_id().value(), t->name(),
+                          TaskState_descriptor()->FindValueByNumber(t->state())->name(),
+                          cpus.value(), mem.value());
 
-//       framework->tasks.push_back(task);
-//     }
-//   }
+        framework->tasks.push_back(task);
+      }
+    }
+  }
 
   return state;
 }
@@ -704,7 +713,8 @@ void Slave::executorExited(const FrameworkID& frameworkId, const ExecutorID& exe
 };
 
 
-string Slave::getUniqueWorkDirectory(const FrameworkID& frameworkId)
+string Slave::getUniqueWorkDirectory(const FrameworkID& frameworkId,
+                                     const ExecutorID& executorId)
 {
   string workDir;
   if (conf.contains("work_dir")) {
@@ -716,7 +726,8 @@ string Slave::getUniqueWorkDirectory(const FrameworkID& frameworkId)
   }
 
   ostringstream os(std::ios_base::app | std::ios_base::out);
-  os << workDir << "/slave-" << slaveId << "/fw-" << frameworkId;
+  os << workDir << "/slave-" << slaveId
+     << "/fw-" << frameworkId << "-" << executorId;
 
   // Find a unique directory based on the path given by the slave
   // (this is because we might launch multiple executors from the same

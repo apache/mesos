@@ -16,7 +16,7 @@ def index():
   return template("index", start_time = start_time)
 
 
-@route('/framework/:id#[0-9-]*#')
+@route('/framework/:id#.*#')
 def framework(id):
   bottle.TEMPLATES.clear() # For rapid development
   return template("framework", framework_id = id)
@@ -39,7 +39,7 @@ def log_tail(level, lines):
   return commands.getoutput('tail -%s %s/mesos-slave.%s' % (lines, log_dir, level))
 
 
-@route('/framework-logs/:fid#[0-9-]*#/:log_type#[a-z]*#')
+@route('/framework-logs/:fid#.*#/:log_type#[a-z]*#')
 def framework_log_full(fid, log_type):
   sid = get_slave().id
   if sid != -1:
@@ -52,7 +52,7 @@ def framework_log_full(fid, log_type):
     abort(403, 'Slave not yet registered with master')
 
 
-@route('/framework-logs/:fid#[0-9-]*#/:log_type#[a-z]*#/:lines#[0-9]*#')
+@route('/framework-logs/:fid#.*#/:log_type#[a-z]*#/:lines#[0-9]*#')
 def framework_log_tail(fid, log_type, lines):
   bottle.response.content_type = 'text/plain'
   sid = get_slave().id

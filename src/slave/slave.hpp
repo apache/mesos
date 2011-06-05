@@ -228,7 +228,7 @@ public:
 
   static void registerOptions(Configurator* conf);
 
-  state::SlaveState *getState();
+  state::SlaveState* getState();
 
   // Callback used by isolation module to tell us when an executor exits.
   void executorExited(const FrameworkID& frameworkId, const ExecutorID& executorId, int status);
@@ -236,7 +236,7 @@ public:
   // Kill a framework (possibly killing its executor).
   void killFramework(Framework *framework, bool killExecutors = true);
 
-  std::string getUniqueWorkDirectory(const FrameworkID& frameworkId);
+  std::string getUniqueWorkDirectory(const FrameworkID& frameworkId, const ExecutorID& executorId);
 
   const Configuration& getConfiguration();
 
