@@ -214,9 +214,9 @@ if __name__ == "__main__":
   #FILE.write(fqdn)
   #FILE.close()
 
-  #monitorlog.info("starting pbs_server")
+  monitorlog.info("starting pbs_server")
   #Popen("/etc/init.d/pbs_server start", shell=True)
-  #Popen("pbs_server", shell=True)
+  Popen("pbs_server", shell=True)
   #time.sleep(2)
 
  # monitorlog.info("running command: qmgr -c \"set queue batch resources_available.nodes=%s\"" % SAFE_ALLOCATION["cpus"])
