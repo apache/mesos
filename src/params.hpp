@@ -27,7 +27,7 @@ using boost::lexical_cast;
 struct ParseException : std::exception
 {
   const char* message;
-  ParseException(const char *msg): message(msg) {}
+  ParseException(const char* msg): message(msg) {}
   const char* what() const throw () { return message; }
 };
 
@@ -47,17 +47,24 @@ public:
 
   Params(const string& str)
   {
-    parseString(str);
+    loadString(str);
   }
 
-  void parseMap(const map<string, string>& params_)
+  /**
+   * Load key-value pairs from a map into this Params object.
+   */
+  void loadMap(const map<string, string>& params_)
   {
-    foreachpair(const string &k, const string &v, params_) {
+    foreachpair(const string& k, const string& v, params_) {
       params[k] = v;
     }
   }
 
-  void parseString(const string &str)
+  /**
+   * Load key-value pairs from a string into this Params object.
+   * The string should contain pairs of the form key=value, one per line.
+   */
+  void loadString(const string& str)
   {
     vector<string> lines;
     split(str, "\n\r", lines);
@@ -134,6 +141,11 @@ public:
   const map<string, string>& getMap() const
   {
     return params;
+  }
+
+  bool contains(const string& key) const
+  {
+    return params.find(key) != params.end();
   }
 
 private:

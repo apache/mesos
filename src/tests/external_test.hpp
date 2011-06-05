@@ -12,10 +12,10 @@
  */
 #define TEST_EXTERNAL(testCase, testName) \
   TEST(testCase, testName) { \
-    nexus::test::runExternalTest(#testCase, #testName); \
+    nexus::internal::test::runExternalTest(#testCase, #testName); \
   }
 
-namespace nexus { namespace test {
+namespace nexus { namespace internal { namespace test {
 
 /**
  * Function called by TEST_EXTERNAL to execute external tests. See
@@ -23,6 +23,6 @@ namespace nexus { namespace test {
  */
 void runExternalTest(const char* testCase, const char* testName);
 
-}} /* namespace nexus::test */
+}}} /* namespace nexus::internal::test */
 
 #endif /* __EXTERNAL_TEST_HPP__ */

@@ -1,83 +1,74 @@
+#include <libgen.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <iostream>
 
+#include <boost/foreach.hpp>
+
 #include "configuration.hpp"
-
 #include "params.hpp"
-#include "boost/foreach.hpp"
 
-using std::cout;
-using std::endl;
+extern char** environ;   // libc's environment variable list; for some reason,
+                         // this is not in headers on all platforms
 
 using namespace nexus::internal;
 
-extern char** environ;
+
+const char* Configuration::DEFAULT_CONFIG_DIR = "conf";
+const char* Configuration::CONFIG_FILE_NAME = "mesos.conf";
+const char* Configuration::ENV_VAR_PREFIX = "MESOS_";
 
 
 Configuration::Configuration() 
 {
-  parseEnv();
-  string cnf;
-  const map<string,string> &map = params.getMap();
-  if (map.find("CONF") != map.end())
-    cnf = params["CONF"];
-  else 
-    cnf = getMesosHome() + "/" + DEFAULT_CONF_NAME;
-  parseConfig(cnf);
+  loadEnv();
+  loadConfigFileIfGiven();
 }
 
-Configuration::Configuration(int argc, char **argv) 
+
+Configuration::Configuration(int argc,
+                             char** argv,
+                             bool inferMesosHomeFromArg0) 
 {
-  parseEnv();
-  parseCmdline(argc, argv);
-  string cnf;
-  const map<string,string> &map = params.getMap();
-  if (map.find("CONF") != map.end())
-    cnf = params["CONF"];
-  else 
-    cnf = getMesosHome() + "/" + DEFAULT_CONF_NAME;
-  parseConfig(cnf);
+  loadEnv();
+  loadCommandLine(argc, argv, inferMesosHomeFromArg0);
+  loadConfigFileIfGiven();
 }
 
-Configuration::Configuration(const map<string,string> &_params) 
+
+Configuration::Configuration(const map<string, string>& _params) 
 {
-  parseEnv();
-  params.parseMap(_params);
-  string cnf;
-  const map<string,string> &map = params.getMap();
-  if (map.find("CONF") != map.end())
-    cnf = params["CONF"];
-  else 
-    cnf = getMesosHome() + "/" + DEFAULT_CONF_NAME;
-  parseConfig(cnf);
+  loadEnv();
+  params.loadMap(_params);
+  loadConfigFileIfGiven();
 }
 
-string Configuration::getMesosHome() 
-{
-  string mesosHome;
-  if (params.getMap().find("HOME") == params.getMap().end()) {
-    mesosHome = DEFAULT_HOME;
-    LOG(WARNING) << "MESOS_HOME environment variable not set. Using default " 
-                 << mesosHome;
-  } else {
-    mesosHome = params["HOME"];
-  }
-  return mesosHome;
+
+void Configuration::loadConfigFileIfGiven() {
+  string confDir = "";
+  if (params.contains("conf"))
+    confDir = params["conf"];
+  else if (params.contains("home")) // find conf dir relative to MESOS_HOME
+    confDir = params["home"] + "/" + DEFAULT_CONFIG_DIR;
+  if (confDir != "")
+    loadConfigFile(confDir + "/" + CONFIG_FILE_NAME);
 }
 
-void Configuration::parseEnv()
+
+void Configuration::loadEnv()
 {
   int i = 0;
-  while(environ[i] != NULL) {
+  while (environ[i] != NULL) {
     string line = environ[i];
-    if (line.find(DEFAULT_PREFIX) == 0) {
+    if (line.find(ENV_VAR_PREFIX) == 0) {
       string key, val;
-      string::size_type eq = line.find_first_of("=");
-      if (eq == string::npos)  
-        continue; // ignore problematic strings
-      key = line.substr(sizeof(DEFAULT_PREFIX)-1, eq - (sizeof(DEFAULT_PREFIX)-1));
+      size_t eq = line.find_first_of("=");
+      if (eq == string::npos) 
+        continue; // ignore malformed lines (they shouldn't occur in environ!)
+      key = line.substr(strlen(ENV_VAR_PREFIX), eq - strlen(ENV_VAR_PREFIX));
+      std::transform(key.begin(), key.end(), key.begin(), ::tolower);
       val = line.substr(eq + 1);
       params[key] = val;
     }
@@ -85,42 +76,51 @@ void Configuration::parseEnv()
   }
 }
 
-void Configuration::parseMap(const map<string, string> &map)
-{
-  params.parseMap(map);
-}
 
-void Configuration::parseCmdline(int argc, char **argv)
+void Configuration::loadCommandLine(int argc,
+                                    char** argv,
+                                    bool inferMesosHomeFromArg0)
 {
+  // Set home based on argument 0 if asked to do so
+  if (inferMesosHomeFromArg0) {
+    char buf[4096];
+    realpath(dirname(argv[0]), buf);
+    params["home"] = buf;
+  }
+
+  // Convert args 1 and above to STL strings
   vector<string> args;
-  map<string,string> store;
+  for (int i=1; i < argc; i++) {
+    args.push_back(string(argv[i]));
+  }
 
-  for (int i=1; i < argc; i++)
-    args.push_back(argv[i]);
-
-  argc = args.size(); // argc -= 1
-    
-  for (int i=0; i < argc; i++) {
+  for (int i = 0; i < args.size(); i++) {
     string key, val;
     bool set = false;
-    if (args[i].find("--", 0) == 0) {  // handles --blah=25 and --blah
-      string::size_type eq = args[i].find_first_of("=");
+    if (args[i].find("--", 0) == 0) {
+      // handle --blah=25 and --blah
+      size_t eq = args[i].find_first_of("=");
       if (eq == string::npos) {        
         key = args[i].substr(2);
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = "1";
         set = true;
-      } else {                         
+      } else {
         key = args[i].substr(2, eq-2);
         val = args[i].substr(eq+1);
         set = true;
       } 
-    } else if (args[i].find_first_of("-", 0) == 0) { // handles -blah 25 and -blah
-      if ((i+1 >= argc) || (i+1 < argc && args[i+1].find_first_of("-",0) == 0)) {
+    } else if (args[i].find_first_of("-", 0) == 0) {
+      // handle -blah 25 and -blah
+      if ((i+1 >= args.size()) ||
+          (i+1 < args.size() && args[i+1].find_first_of("-", 0) == 0)) {
         key = args[i].substr(1);
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = "1";
         set = true;
-      } else if (i+1 < argc && args[i+1].find_first_of("-",0) != 0) {
+      } else if (i+1 < args.size() && args[i+1].find_first_of("-", 0) != 0) {
         key = args[i].substr(1);
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = args[i+1];
         set = true;
         i++;  // we've consumed next parameter as "value"-parameter
@@ -132,29 +132,28 @@ void Configuration::parseCmdline(int argc, char **argv)
   }
 }
 
-int Configuration::parseConfig(const string &fname) {
+
+void Configuration::loadConfigFile(const string& fname) {
   ifstream cfg(fname.c_str(), std::ios::in);
   if (!cfg.is_open()) {
-    LOG(ERROR) << "Couldn't read Mesos configuration file from: " 
-               << fname;
-    return -1;
+    string message = "Couldn't read Mesos config file: " + fname;
+    throw new ConfigurationException(message.c_str());
   }
 
   string buf, line;
 
   while (!cfg.eof()) {
     getline(cfg, line);
-    string::size_type beg = line.find_first_of("#"); // strip comments
+    size_t beg = line.find_first_of("#"); // strip comments
     beg = line.find_last_not_of("#\t \n\r", beg) + 1; // strip trailing ws
     buf += line.substr(0, beg) + "\n";
   }
   cfg.close();
-  params.parseString(buf);
-  return 0;
+  params.loadString(buf);
 }
 
-Params &Configuration::getParams() 
+
+Params& Configuration::getParams() 
 {
   return params;
 }
-

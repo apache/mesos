@@ -15,75 +15,82 @@ using std::endl;
 using std::ifstream;
 using std::map;
 
-#define DEFAULT_HOME "./"
-#define DEFAULT_CONF_NAME "mesos.conf"
-#define DEFAULT_PREFIX "MESOS_"
-
 namespace nexus { namespace internal {
     
+
+/**
+ * Exception type thrown by Configuration.
+ */
+struct ConfigurationException : std::exception
+{
+  const char* message;
+  ConfigurationException(const char* msg): message(msg) {}
+  const char* what() const throw () { return message; }
+};
+
+
 /** 
- * Class that populates a Params object, which can be retrieved with getParams().
+ * This class populates a Params object, which can be retrieved with
+ * getParams(), by reading variables from the command line, a config file
+ * or the environment.
+ *
  * It currently supports 3 input types:
  * (i) Environment variables. It adds all variables starting with MESOS_.
- * (ii) Command line variables. It supports "--key=val" "-key val" "-opt" "--opt"
+ * (ii) Command line variables. Supports "--key=val" "-key val" "-opt" "--opt"
  * (iii) Config file. It ignores comments "#". It finds the file using
- * MESOS_CONF or via command line --CONF=file. Otherwise, it looks for
- * "mesos.conf" in MESOS_HOME or --HOME=dir. 
- 
+ * MESOS_CONF or via command line --conf=file. Otherwise, it looks for
+ * "mesos.conf" in MESOS_HOME/conf.
  **/
-    
 class Configuration 
 {
 public:
+  static const char* DEFAULT_CONFIG_DIR;
+  static const char* CONFIG_FILE_NAME;
+  static const char* ENV_VAR_PREFIX;
+
+private:
+  Params params;
+
+public:
   /** 
-   * Constructor that populates Params from environment and config file only.
+   * Constructor that populates Params from environment and any config file
+   * located through the environment (through MESOS_HOME or MESOS_CONF).
    **/
   Configuration();
 
   /** 
    * Constructor that populates Params from environment, command line,
-   * and config file only.
+   * and any config file specified through these.
    *
    * @param argc number of paramters in argv
    * @param argv array of c-strings from the command line
+   * @param inferMesosHomeFromArg0 whether to set mesos home to directory
+   *                               containing argv[0] (the program being run)
    **/
-  Configuration(int argc, char **argv);
+  Configuration(int argc, char** argv, bool inferMesosHomeFromArg0);
   
   /** 
    * Constructor that populates Params from environment, a map,
-   * and config file only.
+   * and any config file specified through these.
    *
    * @param argc number of paramters in argv
    * @param argv array of c-strings from the command line
    **/
-  Configuration(const map<string,string> &_params);
+  Configuration(const map<string, string>& _params);
 
   /**
-   * Returns a Params that is populated through parse* methods.
+   * Returns the Params object parsed by this Configuration.
    * @return Params populated params object
    **/
-  Params &getParams();
+  Params& getParams();
 
 private:
-  /**
-   * Returns the current Mesos home directory
-   *
-   * @return Home directory is extracted from Params. If it doesn't exist
-   * it return the current directory as a default. 
-   **/
-  string getMesosHome();
-
   /**
    * Parses the environment variables and populates a Params.
    * It picks all environment variables that start with MESOS_.
    * The environment variable MESOS_HOME=/dir would lead to key=HOME val=/dir
    **/
-  void parseEnv();
-
-  /**
-   * Populates its internal Params with key value params from a map.
-   **/
-  void parseMap(const map<string, string> &map);
+  void loadEnv();
 
   /**
    * Populates its internal Params with key/value params from command line.
@@ -93,19 +100,24 @@ private:
    *
    * @param argc is the number of parameters in argv
    * @param argv is an array of c-strings containing params
+   * @param inferMesosHomeFromArg0 whether to set mesos home to directory
+   *                               containing argv[0] (the program being run)
    **/
-  void parseCmdline(int argc, char **argv);
+  void loadCommandLine(int argc, char** argv, bool inferMesosHomeFromArg0);
 
   /**
    * Populates its internal Params with key/value params from a config file.
-   * It ignores comments starting with "#"
+   * The config file should contain key=value pairs, one per line.
+   * Comments, which should start with #, are ignored.
    *
    * @param fname is the name of the config file to open
    **/
-  int parseConfig(const string &fname);
+  void loadConfigFile(const string& fname);
 
-  string mesosHome;
-  Params params;
+  /**
+   * Load the config file set through the command line or environment, if any.
+   */
+  void loadConfigFileIfGiven();
 };
 
 } }   // end nexus :: internal namespace

@@ -93,7 +93,7 @@ LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lzookeeper_st
 
 NEXUS_EXES = nexus-master nexus-slave nexus-local nexus-launcher \
 	     test-framework test-executor cpp-test-framework cpp-test-executor \
-	     memhog memhog-executor scheduled-memhog
+	     memhog memhog-executor
 
 ifeq ($(OS_NAME),solaris)
   NEXUS_EXES += nexus-projd
@@ -108,13 +108,15 @@ NEXUS_LIB = libnexus++.a
 NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(NEXUS_LIB)
 
 MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
-SLAVE_OBJ = slave.o launcher.o isolation_module.o \
+SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
 	    process_based_isolation_module.o
-COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o master_detector.o url_processor.o zookeeper.o
+COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o master_detector.o \
+	     url_processor.o zookeeper.o configuration.o
 EXEC_LIB_OBJ = nexus_exec.o
 SCHED_LIB_OBJ = nexus_sched.o nexus_local.o params.o
 TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o \
-	   tests/external_test.o tests/test_sample_frameworks.o
+	   tests/external_test.o tests/test_sample_frameworks.o \
+	   tests/testing_utils.o tests/test_configuration.o
 
 ifeq ($(OS_NAME),solaris)
   SLAVE_OBJ += solaris_project_isolation_module.o
@@ -224,10 +226,7 @@ memhog: memhog.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
 memhog-executor: memhog_executor.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
 
-scheduled-memhog: scheduled_memhog.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
-	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
-
-java: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestFramework.class swig/java/TestExecutor.class
+java: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestFramework.class swig/java/TestExecutor.class swig/java/TestExceptionFramework.class swig/java/TestExceptionExecutor.class
 
 python: $(PYTHON_LIB)
 
@@ -236,8 +235,8 @@ ruby: $(RUBY_LIB)
 swig/java/nexus.jar: $(JAVA_LIB)
 ifdef JAVA_HOME
 	$(JAVA_HOME)/bin/javac -sourcepath swig/java -d swig/java swig/java/nexus/*.java
-#	patch -N swig/java/nexus/nexusJNI.java < swig/java/nexusJNI.java.patch1 || echo -n
-#	patch swig/java/nexus/nexusJNI.java < swig/java/nexusJNI.java.patch2 || echo -n
+	patch -N swig/java/nexus/nexusJNI.java < swig/java/nexusJNI.java.patch1 || echo -n
+	patch swig/java/nexus/nexusJNI.java < swig/java/nexusJNI.java.patch2 || echo -n
 	$(JAVA_HOME)/bin/jar cf $@ -C swig/java nexus
 endif
 
@@ -257,6 +256,16 @@ endif
 swig/java/TestExecutor.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExecutor.java
 ifdef JAVA_HOME
 	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExecutor.java
+endif
+
+swig/java/TestExceptionFramework.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExceptionFramework.java
+ifdef JAVA_HOME
+	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExceptionFramework.java
+endif
+
+swig/java/TestExceptionExecutor.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExceptionExecutor.java
+ifdef JAVA_HOME
+	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExceptionExecutor.java
 endif
 
 $(PYTHON_LIB): swig/nexus.i $(NEXUS_LIB)
