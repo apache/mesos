@@ -788,6 +788,8 @@ OfferID Master::makeOffer(Framework *framework,
 void Master::processOfferReply(SlotOffer *offer,
     const vector<TaskDescription>& tasks, const Params& params)
 {
+  LOG(INFO) << "Received reply for " << offer;
+
   Framework *framework = lookupFramework(offer->frameworkId);
   CHECK(framework != NULL);
 
