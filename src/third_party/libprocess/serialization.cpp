@@ -9,6 +9,12 @@ namespace process { namespace serialization {
 
 /* TODO(*): Check stream errors! Report errors! Ahhhh! */
 
+void serializer::operator & (const bool &b)
+{
+  stream.put(b ? 1 : 0);
+}
+
+
 void serializer::operator & (const int32_t &i)
 {
   uint32_t netInt = htonl((uint32_t) i);
@@ -49,6 +55,12 @@ void serializer::operator & (const PID &pid)
   this->operator & ((int32_t) pid.pipe);
   this->operator & ((int32_t) pid.ip);
   this->operator & ((int32_t) pid.port);
+}
+
+
+void deserializer::operator & (bool &b)
+{
+  b = stream.get();
 }
 
 

@@ -9,6 +9,8 @@ using std::cerr;
 using std::endl;
 using std::string;
 
+using namespace nexus::internal;
+
 
 int main (int argc, char **argv)
 {
@@ -60,7 +62,7 @@ int main (int argc, char **argv)
     }
   }
 
-  const PID &master = run_nexus(slaves, cpus, mem, true, quiet);
+  const PID &master = local::launch(slaves, cpus, mem, true, quiet);
 
   Process::wait(master);
 

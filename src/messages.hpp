@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include <reliable.hpp>
 #include <tuple.hpp>
 
 #include <nexus.hpp>
@@ -20,8 +21,9 @@ namespace nexus { namespace internal {
 
 enum MessageType {
   /* From framework to master. */
-  F2M_REGISTER_FRAMEWORK = PROCESS_MSGID,
+  F2M_REGISTER_FRAMEWORK = RELIABLE_MSGID,
   F2M_REREGISTER_FRAMEWORK,
+  F2M_FAILOVER_FRAMEWORK,
   F2M_UNREGISTER_FRAMEWORK,
   F2M_SLOT_OFFER_REPLY,
   F2M_REVIVE_OFFERS,
@@ -55,9 +57,9 @@ enum MessageType {
   SH2M_HEARTBEAT,
 
   /* From master detector to processes */
+  GOT_MASTER_ID,
   NEW_MASTER_DETECTED,
   NO_MASTER_DETECTED,
-  GOT_MASTER_SEQ,
   
   /* From master to slave. */
   M2S_REGISTER_REPLY,
@@ -125,7 +127,8 @@ TUPLE(F2M_REREGISTER_FRAMEWORK,
       (std::string /*fid*/,
        std::string /*name*/,
        std::string /*user*/,
-       ExecutorInfo));
+       ExecutorInfo,
+       bool /*failover*/));
 
 TUPLE(F2M_UNREGISTER_FRAMEWORK,
       (FrameworkID));
@@ -238,8 +241,8 @@ TUPLE(NEW_MASTER_DETECTED,
 TUPLE(NO_MASTER_DETECTED,
       ());
 
-TUPLE(GOT_MASTER_SEQ,
-      (std::string /* seq */));
+TUPLE(GOT_MASTER_ID,
+      (std::string /* id */));
   
 TUPLE(M2S_REGISTER_REPLY,
       (SlaveID));

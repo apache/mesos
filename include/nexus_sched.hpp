@@ -11,7 +11,7 @@ namespace nexus {
 
 class SchedulerDriver;
 
-namespace internal { class SchedulerProcess; }
+namespace internal { class SchedulerProcess; class MasterDetector; }
 
 
 /**
@@ -77,7 +77,10 @@ public:
 class NexusSchedulerDriver : public SchedulerDriver
 {
 public:
-  NexusSchedulerDriver(Scheduler* sched, const std::string& master);
+  NexusSchedulerDriver(Scheduler* sched,
+		       const std::string& url,
+		       FrameworkID fid = "");
+
   virtual ~NexusSchedulerDriver();
 
   // Lifecycle methods
@@ -102,11 +105,15 @@ private:
   // Internal utility method to report an error to the scheduler
   void error(int code, const std::string& message);
 
-  std::string master;
   Scheduler* sched;
+  std::string url;
+  FrameworkID fid;
 
   // LibProcess process for communicating with master
   internal::SchedulerProcess* process;
+
+  // Coordination between masters
+  internal::MasterDetector* detector;
 
   // Are we currently registered with the master
   bool running;

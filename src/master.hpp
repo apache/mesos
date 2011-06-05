@@ -29,7 +29,7 @@
 #include "resources.hpp"
 #include "master_detector.hpp"
 #include "task.hpp"
-#include "url_processor.hpp"
+
 
 namespace nexus { namespace internal { namespace master {
 
@@ -263,9 +263,6 @@ enum TaskRemovalReason
 class Master : public Tuple<ReliableProcess>
 {
 protected:
-  bool isFT;
-  string zkServers;
-  MasterDetector *masterDetector;
   unordered_map<FrameworkID, Framework *> frameworks;
   unordered_map<SlaveID, Slave *> slaves;
   unordered_map<OfferID, SlotOffer *> slotOffers;
@@ -277,16 +274,13 @@ protected:
   long nextSlaveId;         // Used to give each slave a unique ID.
   long nextSlotOfferId; // Used to give each slot offer a unique ID.
 
-
   string allocatorType;
   Allocator *allocator;
 
   long masterId; // Used to differentiate different master in FT mode, will be ephemeral id
 
 public:
-  Master(const string &zk = "");
-
-  Master(const string& _allocatorType, const string &zk = "");
+  Master(const string& _allocatorType = "simple");
   
   ~Master();
 

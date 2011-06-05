@@ -7,9 +7,7 @@
  *
  * To provide for varying underlying implementations the pimpl idiom
  * (also known as the compiler-firewall, bridge pattern, etc) was used
- * for the ZooKeeper class. While the Watcher class may need some to
- * support varying underlying implementation details, we choose for
- * now to keep it a cleaner interface.
+ * for the ZooKeeper class.
  *
  * Author: Benjamin Hindman <benh@berkeley.edu>
 */

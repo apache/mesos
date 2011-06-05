@@ -22,7 +22,7 @@ class ReliableProcess : public Process
 {
 public:
   ReliableProcess();
-  ~ReliableProcess();
+  virtual ~ReliableProcess();
 
 protected:
   /**
@@ -74,7 +74,7 @@ protected:
   virtual void rsend(const PID &to, MSGID id, const char *data, size_t length);
 
   /* Blocks for message at most specified seconds. */
-  virtual MSGID receive(time_t);
+  virtual MSGID receive(double secs);
 
   /**
    * Redirect unacknolwedged messages to be sent to a different PID.

@@ -11,34 +11,277 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include "config.hpp"
 #include "fatal.hpp"
+#include "foreach.hpp"
 #include "master_detector.hpp"
 #include "messages.hpp"
+#include "url_processor.hpp"
+#include "zookeeper.hpp"
 
 using namespace nexus;
 using namespace nexus::internal;
 
+using namespace std;
+
 using boost::lexical_cast;
 
 
-MasterDetector::MasterDetector(const string &_servers, const string &_znode,
-			       const PID &_pid, bool _contend)
+class ZooKeeperMasterDetector : public MasterDetector, public Watcher
+{
+public:
+  /**
+   * Uses ZooKeeper for both detecting masters and contending to be a
+   * master.
+   *
+   * @param server comma separated list of server host:port pairs
+   *
+   * @param znode top-level "ZooKeeper node" (directory) to use
+   * @param pid libprocess pid to send messages/updates to (and to
+   * use for contending to be a master)
+   * @param contend true if should contend to be master (not needed
+   * for slaves and frameworks)
+   * @param quiet verbosity logging level for undelying ZooKeeper library
+   */
+  ZooKeeperMasterDetector(const std::string &servers,
+			  const std::string &znode,
+			  const PID &pid,
+			  bool contend = false,
+			  bool quiet = false);
+
+  virtual ~ZooKeeperMasterDetector();
+
+  /** 
+   * ZooKeeper watcher callback.
+   */
+  virtual void process(ZooKeeper *zk, int type, int state,
+		       const std::string &path);
+
+  /**
+   * @return unique id of the current master
+   */
+  virtual std::string getCurrentMasterId();
+
+  /**
+   * @return libprocess PID of the current master
+   */
+  virtual PID getCurrentMasterPID();
+
+private:
+  /**
+  * TODO(alig): Comment this object.
+  */
+  void setId(const std::string &s);
+
+  /**
+  * TODO(alig): Comment this object.
+  */
+  std::string getId();
+
+  /**
+  * TODO(alig): Comment this object.
+  */
+  void detectMaster();
+
+  /**
+  * TODO(alig): Comment this object.
+  */
+  PID lookupMasterPID(const std::string &seq) const;
+
+  std::string servers;
+  std::string znode;
+  PID pid;
+  bool contend;
+  bool reconnect;
+
+  ZooKeeper *zk;
+
+  // Our sequence string if contending to be a master.
+  std::string mySeq;
+
+  std::string currentMasterSeq;
+  PID currentMasterPID;
+};
+
+
+
+MasterDetector::~MasterDetector() {}
+
+
+MasterDetector * MasterDetector::create(const std::string &url,
+					const PID &pid,
+					bool contend,
+					bool quiet)
+{
+  if (url == "")
+    if (contend)
+      return new BasicMasterDetector(pid);
+    else
+      fatal("cannot use specified url to detect master");
+
+  MasterDetector *detector = NULL;
+
+  // Parse the url.
+  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(url);
+
+  switch (urlPair.first) {
+    // ZooKeeper URL.
+    case UrlProcessor::ZOO: {
+      const string &servers = urlPair.second;
+      detector = new ZooKeeperMasterDetector(servers, ZNODE, pid, contend, quiet);
+      break;
+    }
+
+    // Nexus URL or libprocess pid.
+    case UrlProcessor::NEXUS:
+    case UrlProcessor::UNKNOWN: {
+      if (contend) {
+	// TODO(benh): Wierdnesses like this makes it seem like there
+	// should be a separate elector and detector. In particular,
+	// it doesn't make sense to pass a libprocess pid and attempt
+	// to contend (at least not right now).
+	fatal("cannot contend to be a master with specified url");
+      } else {
+	PID master = make_pid(urlPair.second.c_str());
+	if (!master)
+	  fatal("cannot use specified url to detect master");
+	detector = new BasicMasterDetector(master, pid);
+      }
+      break;
+    }
+  }
+
+  return detector;
+}
+
+
+void MasterDetector::destroy(MasterDetector *detector)
+{
+  if (detector != NULL)
+    delete detector;
+}
+
+
+BasicMasterDetector::BasicMasterDetector(const PID &_master)
+  : master(_master)
+{
+  // Send a master id.
+  {
+    const string &s =
+      Tuple<Process>::tupleToString(Tuple<Process>::pack<GOT_MASTER_ID>("0"));
+    Process::post(master, GOT_MASTER_ID, s.data(), s.size());
+  }
+
+  // Elect the master.
+  {
+    const string &s =
+      Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
+    Process::post(master, NEW_MASTER_DETECTED, s.data(), s.size());
+  }
+}
+
+
+BasicMasterDetector::BasicMasterDetector(const PID &_master,
+					 const PID &pid,
+					 bool elect)
+  : master(_master)
+{
+  if (elect) {
+    // Send a master id.
+    {
+      const string &s =
+	Tuple<Process>::tupleToString(Tuple<Process>::pack<GOT_MASTER_ID>("0"));
+      Process::post(master, GOT_MASTER_ID, s.data(), s.size());
+    }
+
+    // Elect the master.
+    {
+      const string &s =
+	Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
+      Process::post(master, NEW_MASTER_DETECTED, s.data(), s.size());
+    }
+  }
+
+  // Tell the pid about the master.
+  const string &s =
+    Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
+  Process::post(pid, NEW_MASTER_DETECTED, s.data(), s.size());
+}
+
+
+BasicMasterDetector::BasicMasterDetector(const PID &_master,
+					 const vector<PID> &pids,
+					 bool elect)
+  : master(_master)
+{
+  if (elect) {
+    // Send a master id.
+    {
+      const string &s =
+	Tuple<Process>::tupleToString(Tuple<Process>::pack<GOT_MASTER_ID>("0"));
+      Process::post(master, GOT_MASTER_ID, s.data(), s.size());
+    }
+
+    // Elect the master.
+    {
+      const string &s =
+	Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
+      Process::post(master, NEW_MASTER_DETECTED, s.data(), s.size());
+    }
+  }
+
+  // Tell each pid about the master.
+  foreach (const PID &pid, pids) {
+    const string &s =
+      Tuple<Process>::tupleToString(Tuple<Process>::pack<NEW_MASTER_DETECTED>("0", master));
+    Process::post(pid, NEW_MASTER_DETECTED, s.data(), s.size());
+  }
+}
+
+
+BasicMasterDetector::~BasicMasterDetector() {}
+
+
+string BasicMasterDetector::getCurrentMasterId()
+{
+  return "0";
+}
+
+
+PID BasicMasterDetector::getCurrentMasterPID()
+{
+  return master;
+}
+
+
+ZooKeeperMasterDetector::ZooKeeperMasterDetector(const string &_servers,
+						 const string &_znode,
+						 const PID &_pid,
+						 bool _contend,
+						 bool quiet)
   : servers(_servers), znode(_znode), pid(_pid),
     contend(_contend), reconnect(false)
 {
+  // Set verbosity level for underlying ZooKeeper library logging.
+  // TODO(benh): Put this in the C++ API.
+  zoo_set_debug_level(quiet ? ZOO_LOG_LEVEL_ERROR : ZOO_LOG_LEVEL_DEBUG);
+
+  // Start up the ZooKeeper connection!
   zk = new ZooKeeper(servers, 10000, this);
 }
 
 
-MasterDetector::~MasterDetector()
+ZooKeeperMasterDetector::~ZooKeeperMasterDetector()
 {
-  if (zk != NULL)
+  if (zk != NULL) {
     delete zk;
+    zk = NULL;
+  }
 }
 
 
-void MasterDetector::process(ZooKeeper *zk, int type, int state,
-			     const string &path)
+void ZooKeeperMasterDetector::process(ZooKeeper *zk, int type, int state,
+				      const string &path)
 {
   int ret;
   string result;
@@ -85,12 +328,12 @@ void MasterDetector::process(ZooKeeper *zk, int type, int state,
 		"Make sure ZooKeeper is running on: %s",
 		zk->error(ret), servers.c_str());
 
-	setMySeq(result);
-	LOG(INFO) << "Created ephemeral/sequence:" << getMySeq();
+	setId(result);
+	LOG(INFO) << "Created ephemeral/sequence:" << getId();
 
 	const string &s =
-	  Tuple<Process>::tupleToString(Tuple<Process>::pack<GOT_MASTER_SEQ>(getMySeq()));
-	Process::post(pid, GOT_MASTER_SEQ, s.data(), s.size());
+	  Tuple<Process>::tupleToString(Tuple<Process>::pack<GOT_MASTER_ID>(getId()));
+	Process::post(pid, GOT_MASTER_ID, s.data(), s.size());
       }
 
       // Now determine who the master is (it may be us).
@@ -139,7 +382,25 @@ void MasterDetector::process(ZooKeeper *zk, int type, int state,
 }
 
 
-void MasterDetector::detectMaster()
+void ZooKeeperMasterDetector::setId(const string &s)
+{
+  string seq = s;
+  // Converts "/path/to/znode/000000131" to "000000131".
+  int pos;
+  if ((pos = seq.find_last_of('/')) != string::npos) {  
+    mySeq = seq.erase(0, pos + 1);
+  } else
+    mySeq = "";
+}
+
+
+string ZooKeeperMasterDetector::getId() 
+{
+  return mySeq;
+}
+
+
+void ZooKeeperMasterDetector::detectMaster()
 {
   vector<string> results;
 
@@ -184,7 +445,7 @@ void MasterDetector::detectMaster()
 }
 
 
-PID MasterDetector::lookupMasterPID(const string &seq) const
+PID ZooKeeperMasterDetector::lookupMasterPID(const string &seq) const
 {
   CHECK(!seq.empty());
 
@@ -203,11 +464,13 @@ PID MasterDetector::lookupMasterPID(const string &seq) const
 }
 
 
-string MasterDetector::getCurrentMasterSeq() const {
+string ZooKeeperMasterDetector::getCurrentMasterId()
+{
   return currentMasterSeq;
 }
 
 
-PID MasterDetector::getCurrentMasterPID() const {
+PID ZooKeeperMasterDetector::getCurrentMasterPID()
+{
   return currentMasterPID;
 }

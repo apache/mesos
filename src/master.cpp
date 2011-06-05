@@ -109,48 +109,14 @@ public:
 }
 
 
-Master::Master(const string &zk)
-  : isFT(false), masterDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
-    nextSlotOfferId(0), allocatorType("simple"), masterId(0)
-{
-  if (zk != "") {
-    pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(zk);
-    if (urlPair.first == UrlProcessor::ZOO) {
-      isFT = true;
-      zkServers = urlPair.second;
-    } else {
-      LOG(ERROR) << "Failed to parse URL for ZooKeeper servers. URL must start with zoo:// or zoofile://";
-      exit(1);
-    }
-  }
-}
-
-
-Master::Master(const string& _allocatorType, const string &zk)
-  : isFT(false), masterDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
-    nextSlotOfferId(0), allocatorType(_allocatorType), masterId(0)
-{
-  if (zk != "") {
-    pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(zk);
-    if (urlPair.first == UrlProcessor::ZOO) {
-      isFT = true;
-      zkServers = urlPair.second;
-    } else {
-      LOG(ERROR) << "Failed to parse URL for ZooKeeper servers. URL must start with zoo:// or zoofile://";
-      exit(1);
-    }
-  }
-}
+Master::Master(const string& _allocatorType)
+  : nextFrameworkId(0), nextSlaveId(0), nextSlotOfferId(0),
+    allocatorType(_allocatorType), masterId(0) {}
                    
 
 Master::~Master()
 {
   LOG(INFO) << "Shutting down master";
-
-  if (masterDetector != NULL) {
-    delete masterDetector;
-    masterDetector = NULL;
-  }
 
   delete allocator;
 
@@ -175,7 +141,7 @@ state::MasterState * Master::getState()
   std::ostringstream oss;
   oss << self();
   state::MasterState *state =
-    new state::MasterState(BUILD_DATE, BUILD_USER, oss.str(), isFT);
+    new state::MasterState(BUILD_DATE, BUILD_USER, oss.str());
 
   foreachpair (_, Slave *s, slaves) {
     state::Slave *slave = new state::Slave(s->id, s->hostname, s->publicDns,
@@ -285,28 +251,22 @@ void Master::operator () ()
 {
   LOG(INFO) << "Master started at nexus://" << self();
 
-  if (isFT) {
-    LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
-    masterDetector = new MasterDetector(zkServers, ZNODE, self(), true);
-  } else {
-    send(self(), pack<GOT_MASTER_SEQ>("0"));
+  // Don't do anything until we get an identifier.
+  while (true) {
+    if (receive() == GOT_MASTER_ID) {
+      string id;
+      unpack<GOT_MASTER_ID>(id);
+      masterId = lexical_cast<long>(id);
+      LOG(INFO) << "Master ID:" << masterId;
+      break;
+    } else {
+      LOG(INFO) << "Oops! We're dropping a message since "
+		<< "we haven't received an identifier yet!";
+    }
   }
 
-  // Don't do anything until we get a sequence identifier.
-  bool waitingForSeq = true;
-  do {
-    switch (receive()) {
-      case GOT_MASTER_SEQ: {
-	string mySeq;
-	unpack<GOT_MASTER_SEQ>(mySeq);
-	masterId = lexical_cast<long>(mySeq);
-	LOG(INFO) << "Master ID:" << masterId;
-	waitingForSeq = false;
-	break;
-      }
-    }
-  } while (waitingForSeq);
-
+  // Create the allocator (we do this after the constructor because it
+  // leaks 'this').
   allocator = createAllocator();
   if (!allocator)
     LOG(FATAL) << "Unrecognized allocator type: " << allocatorType;
@@ -321,18 +281,18 @@ void Master::operator () ()
       // TODO(benh): We might have been the master, but then got
       // partitioned, and now we are finding out once we reconnect
       // that we are no longer the master, so we should just die.
-      LOG(INFO) << "new master detected ... maybe it's us!";
+      LOG(INFO) << "New master detected ... maybe it's us!";
       break;
     }
 
     case NO_MASTER_DETECTED: {
-      LOG(INFO) << "no master detected ... maybe we're next!";
+      LOG(INFO) << "No master detected ... maybe we're next!";
       break;
     }
 
     case F2M_REGISTER_FRAMEWORK: {
-      FrameworkID fid = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextFrameworkId++);
-
+      FrameworkID fid = lexical_cast<string>(masterId) + "-"
+	+ lexical_cast<string>(nextFrameworkId++);
       Framework *framework = new Framework(from(), fid);
       unpack<F2M_REGISTER_FRAMEWORK>(framework->name,
 				     framework->user,
@@ -349,19 +309,32 @@ void Master::operator () ()
     }
 
     case F2M_REREGISTER_FRAMEWORK: {
-
       Framework *framework = new Framework(from());
+      bool failover;
       unpack<F2M_REREGISTER_FRAMEWORK>(framework->id,
                                        framework->name,
                                        framework->user,
-                                       framework->executorInfo);
+                                       framework->executorInfo,
+				       failover);
 
       if (framework->id == "") {
-        DLOG(INFO) << "Framework reconnecting without a FrameworkID, generating new id";
-        framework->id = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextFrameworkId++);
+	LOG(ERROR) << "Framework reconnect/failover without an id!";
+	send(framework->pid, pack<M2F_ERROR>(1, "Missing framework id"));
+	break;
       }
 
-      LOG(INFO) << "Registering " << framework << " at " << framework->pid;
+      LOG(INFO) << "Reregistering " << framework << " at " << framework->pid;
+
+      if (frameworks[framework->id] != NULL) {
+	if (failover) {
+	  terminateFramework(frameworks[framework->id], 1, "Failover");
+	} else {
+	  LOG(INFO) << "Framework reregistering with an already used id!";
+	  send(framework->pid, pack<M2F_ERROR>(1, "Framework id in use"));
+	  break;
+	}
+      }
+
       frameworks[framework->id] = framework;
       pidToFid[framework->pid] = framework->id;
 
@@ -372,12 +345,6 @@ void Master::operator () ()
       allocator->frameworkAdded(framework);
       if (framework->executorInfo.uri == "")
         terminateFramework(framework, 1, "No executor URI given");
-
-       timeval tv;
-       gettimeofday(&tv, NULL);
-       
-       DLOG(INFO) << tv.tv_sec << "." << tv.tv_usec << " STAT: Slave count: " << slaves.size() << " Framework count: " << frameworks.size();
-
       break;
     }
 
@@ -473,8 +440,11 @@ void Master::operator () ()
 	slave->addTask(tip);
         updateFrameworkTasks(tip);
       }
+
+      // TODO(benh|alig): We should put a timeout on how long we keep
+      // tasks running that never have frameworks reregister that
+      // claim them.
   
-     //alibandali
       LOG(INFO) << "Re-registering " << slave << " at " << slave->pid;
       slaves[slave->id] = slave;
       pidToSid[slave->pid] = slave->id;
@@ -511,15 +481,13 @@ void Master::operator () ()
       DLOG(INFO) << "FT: prepare relay seq:"<< seq() << " from: "<< from();
       if (Slave *slave = lookupSlave(sid)) {
 	if (Framework *framework = lookupFramework(fid)) {
-	  // Pass on the status update to the framework
-
+	  // Pass on the status update to the framework.
           forward(framework->pid);
-
           if (duplicate()) {
             LOG(WARNING) << "FT: Locally ignoring duplicate message with id:" << seq();
             break;
-          } 
-          // Update the task state locally
+          }
+          // Update the task state locally.
           Task *task = slave->lookupTask(fid, tid);
           if (task != NULL) {
             LOG(INFO) << "Status update: " << task << " is in state " << state;

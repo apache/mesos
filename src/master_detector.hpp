@@ -7,100 +7,100 @@
 #include <climits>
 #include <cstdlib>
 
-#include "zookeeper.hpp"
 
-using namespace std;
-
+namespace nexus { namespace internal {
 
 /**
- * Implements functionality for a) detecting masters b) contending to be a master.
+ * Implements functionality for:
+ *   a) detecting masters
+ *   b) contending to be a master
  */
-class MasterDetector : public Watcher {
+class MasterDetector
+{
 public:
-  /** 
-   * Connects to ZooKeeper and possibly contends for master.
-   * 
-   * @param server comma separated list of zookeeper server host:port
-   *   pairs
-   * @param znode ZooKeeper node (directory)
-   * @param pid libprocess pid that we should send messages to (and to
-   *   contend)
-   * @param contend true if should contend to be master (not needed
-   *   for slaves and frameworks)
-   */
-  MasterDetector(const string &server, const string &znode,
-		 const PID &_pid, bool contend = false);
-
-  ~MasterDetector();
-
-  /** 
-   * ZooKeeper watcher.
-   */
-  virtual void process(ZooKeeper *zk, int type, int state, const string &path);
-
-  /** 
-   * @return ZooKeeper unique sequence number of the current master.
-   */
-  string getCurrentMasterSeq() const;
-
-  /** 
-   * @return libprocess PID of the current master. 
-   */
-  PID getCurrentMasterPID() const;
+  virtual ~MasterDetector() = 0;
 
   /**
-   * @return Unique ZooKeeper sequence number (only if contending for master, otherwise "").
+   * Creates a master detector that, given the specified url, knows
+   * how to connect to the master, or contend to be a master. The
+   * master detector sends messages to the specified pid when a new
+   * master is elected, a master is lost, etc.
+   *
+   * @param url string possibly containing zoo://, zoofile://, nexus://
+   * @param pid libprocess pid to both receive our messages and be
+   * used if we should contend
+   * @param contend true if should contend to be master
+   * @return instance of MasterDetector
    */
-  string getMySeq() const
-  {
-    return mySeq;
-  }
+  static MasterDetector * create(const std::string &url,
+				 const PID &pid,
+				 bool contend = false,
+				 bool quiet = true);
 
   /**
-   * Adjusts ZooKeepers level of debugging output.
-   * @param quiet true makes ZK quiet, whereas false makes ZK output DEBUG messages
-   */ 
-  static void setQuiet(bool quiet)
-  {
-    zoo_set_debug_level(quiet ? ZOO_LOG_LEVEL_ERROR : ZOO_LOG_LEVEL_DEBUG);
-  }
+   * Cleans up and deallocates the detector.
+   */
+  static void destroy(MasterDetector *detector);
 
-private: 
-  void setMySeq(const string &s)
-  {
-    string seq = s;
-    // Converts "/path/to/znode/000000131" to "000000131".
-    int pos;
-    if ((pos = seq.find_last_of('/')) != string::npos) {  
-      mySeq = seq.erase(0, pos + 1);
-    } else
-      mySeq = "";
-  }
+  /**
+   * @return unique id of the current master
+   */
+  virtual std::string getCurrentMasterId() = 0;
 
-  /*
-  * TODO(alig): Comment this object.
-  */
-  void detectMaster();
-
-  /*
-  * TODO(alig): Comment this object.
-  */
-  PID lookupMasterPID(const string &seq) const;
-
-  string servers;
-  string znode;
-  PID pid;
-  bool contend;
-  bool reconnect;
-
-  ZooKeeper *zk;
-
-  // Our sequence number if contending.
-  string mySeq;
-
-  string currentMasterSeq;
-  PID currentMasterPID;
+  /**
+   * @return libprocess PID of the current master
+   */
+  virtual PID getCurrentMasterPID() = 0;
 };
+
+
+class BasicMasterDetector : public MasterDetector
+{
+public:
+  /**
+   * Create a new master detector where the specified pid contends to
+   * be the master and gets elected by default.
+   *
+   * @param master libprocess pid to send messages/updates and be the
+   * master
+   */
+  BasicMasterDetector(const PID &master);
+
+  /**
+   * Create a new master detector where the 'master' pid is 
+   * the master (no contending).
+   *
+   * @param master libprocess pid to send messages/updates and be the
+   * master
+   * @param pid/pids libprocess pids to send messages/updates to regarding
+   * the master
+   * @param elect if true then contend and elect the specified master
+   */
+  BasicMasterDetector(const PID &master,
+		      const PID &pid,
+		      bool elect = false);
+
+  BasicMasterDetector(const PID &master,
+		      const std::vector<PID> &pids,
+		      bool elect = false);
+
+  virtual ~BasicMasterDetector();
+
+  /**
+   * @return unique id of the current master
+   */
+  virtual std::string getCurrentMasterId();
+
+  /**
+   * @return libprocess PID of the current master
+   */
+  virtual PID getCurrentMasterPID();
+
+private:
+  PID master;
+};
+
+}} /* namespace nexus { namespace internal { */
 
 #endif /* __MASTER_DETECTOR_HPP__ */
 

@@ -53,8 +53,7 @@ pair<UrlProcessor::URLType, string> UrlProcessor::process(const string &url) {
 
   } else {
 
-    LOG(WARNING) << "Could not parse master/zoo URL";
-    return pair<UrlProcessor::URLType, string>(UrlProcessor::UNKNOWN, "");
+    return pair<UrlProcessor::URLType, string>(UrlProcessor::UNKNOWN, url);
 
   }
 }

@@ -14,6 +14,7 @@ struct serializer
 
   serializer(std::ostringstream& s) : stream(s) {}
 
+  void operator & (const bool &);
   void operator & (const int32_t &);
   void operator & (const int64_t &);
   void operator & (const size_t &);
@@ -27,6 +28,7 @@ struct deserializer
 
   deserializer(std::istringstream &s) : stream(s) {}
 
+  void operator & (bool &);
   void operator & (int32_t &);
   void operator & (int64_t &);
   void operator & (size_t &);

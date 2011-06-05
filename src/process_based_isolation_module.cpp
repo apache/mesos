@@ -118,7 +118,7 @@ ProcessBasedIsolationModule::Reaper::Reaper(ProcessBasedIsolationModule* m)
   : module(m)
 {}
 
-  
+
 void ProcessBasedIsolationModule::Reaper::operator () ()
 {
   link(module->slave->getPID());

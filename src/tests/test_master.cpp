@@ -65,26 +65,26 @@ public:
 TEST(MasterTest, NoopFrameworkWithOneSlave)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(1, 2, 1 * Gigabyte, false, false);
+  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
   NoopScheduler sched(1);
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_TRUE(sched.registeredCalled);
   EXPECT_EQ(1, sched.offersGotten);
-  kill_nexus();
+  local::shutdown();
 }
 
 
 TEST(MasterTest, NoopFrameworkWithMultipleSlaves)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(10, 2, 1 * Gigabyte, false, false);
+  PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
   NoopScheduler sched(10);
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_TRUE(sched.registeredCalled);
   EXPECT_EQ(1, sched.offersGotten);
-  kill_nexus();
+  local::shutdown();
 }
 
 
@@ -122,7 +122,7 @@ public:
 TEST(MasterTest, DuplicateTaskIdsInResponse)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(1, 3, 3 * Gigabyte, false, false);
+  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "1";
@@ -134,14 +134,14 @@ TEST(MasterTest, DuplicateTaskIdsInResponse)
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Duplicate task ID: 1", sched.errorMessage);
-  kill_nexus();
+  local::shutdown();
 }
 
 
 TEST(MasterTest, TooMuchMemoryInTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(1, 3, 3 * Gigabyte, false, false);
+  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "1";
@@ -151,14 +151,14 @@ TEST(MasterTest, TooMuchMemoryInTask)
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
-  kill_nexus();
+  local::shutdown();
 }
 
 
 TEST(MasterTest, TooMuchCpuInTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(1, 3, 3 * Gigabyte, false, false);
+  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "4";
@@ -168,14 +168,14 @@ TEST(MasterTest, TooMuchCpuInTask)
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
-  kill_nexus();
+  local::shutdown();
 }
 
 
 TEST(MasterTest, TooLittleCpuInTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(1, 3, 3 * Gigabyte, false, false);
+  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "0";
@@ -185,14 +185,14 @@ TEST(MasterTest, TooLittleCpuInTask)
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Invalid task size: <0 CPUs, 1073741824 MEM>", sched.errorMessage);
-  kill_nexus();
+  local::shutdown();
 }
 
 
 TEST(MasterTest, TooLittleMemoryInTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(1, 3, 3 * Gigabyte, false, false);
+  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "1";
@@ -202,14 +202,14 @@ TEST(MasterTest, TooLittleMemoryInTask)
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Invalid task size: <1 CPUs, 1 MEM>", sched.errorMessage);
-  kill_nexus();
+  local::shutdown();
 }
 
 
 TEST(MasterTest, TooMuchMemoryAcrossTasks)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(1, 3, 3 * Gigabyte, false, false);
+  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "1";
@@ -220,14 +220,14 @@ TEST(MasterTest, TooMuchMemoryAcrossTasks)
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
-  kill_nexus();
+  local::shutdown();
 }
 
 
 TEST(MasterTest, TooMuchCpuAcrossTasks)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(1, 3, 3 * Gigabyte, false, false);
+  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
   vector<TaskDescription> tasks;
   map<string, string> params;
   params["cpus"] = "2";
@@ -238,14 +238,14 @@ TEST(MasterTest, TooMuchCpuAcrossTasks)
   NexusSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
-  kill_nexus();
+  local::shutdown();
 }
 
 
 TEST(MasterTest, ResourcesReofferedAfterReject)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(10, 2, 1 * Gigabyte, false, false);
+  PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
 
   NoopScheduler sched1(10);
   NexusSchedulerDriver driver1(&sched1, master);
@@ -259,14 +259,14 @@ TEST(MasterTest, ResourcesReofferedAfterReject)
   EXPECT_TRUE(sched2.registeredCalled);
   EXPECT_EQ(1, sched2.offersGotten);
 
-  kill_nexus();
+  local::shutdown();
 }
 
 
 TEST(MasterTest, ResourcesReofferedAfterBadResponse)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-  PID master = run_nexus(1, 2, 1 * Gigabyte, false, false);
+  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
 
   vector<TaskDescription> tasks;
   map<string, string> params;
@@ -284,7 +284,7 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
   EXPECT_TRUE(sched2.registeredCalled);
   EXPECT_EQ(1, sched2.offersGotten);
 
-  kill_nexus();
+  local::shutdown();
 }
 
 
@@ -324,8 +324,10 @@ TEST(MasterTest, SlaveLost)
   Master m;
   PID master = Process::spawn(&m);
 
-  Slave s(master, Resources(2, 1 * Gigabyte), true);
+  Slave s(Resources(2, 1 * Gigabyte), true);
   PID slave = Process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
 
   SlaveLostScheduler sched(slave);
 
@@ -342,3 +344,80 @@ TEST(MasterTest, SlaveLost)
 
 
 /* TODO(benh): Test lost slave due to missing heartbeats. */
+
+
+class FailoverScheduler : public Scheduler
+{
+public:
+  bool registeredCalled;
+  
+  FailoverScheduler() : registeredCalled(false) {}
+
+  virtual ~FailoverScheduler() {}
+
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
+    return ExecutorInfo("noexecutor", "");
+  }
+
+  virtual void registered(SchedulerDriver *d, FrameworkID fid) {
+    LOG(INFO) << "FailoverScheduler registered";
+    registeredCalled = true;
+    d->stop();
+  }
+};
+
+
+class FailingScheduler : public Scheduler
+{
+public:
+  FailoverScheduler *failoverSched;
+  PID master;
+  NexusSchedulerDriver *driver;
+  string errorMessage;
+
+  FailingScheduler(FailoverScheduler *_failoverSched, const PID &_master)
+    : failoverSched(_failoverSched), master(_master) {}
+
+  virtual ~FailingScheduler() {
+    delete driver;
+  }
+
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
+    return ExecutorInfo("noexecutor", "");
+  }
+
+  virtual void registered(SchedulerDriver*, FrameworkID fid) {
+    LOG(INFO) << "FailingScheduler registered";
+    driver = new NexusSchedulerDriver(failoverSched, master, fid);
+    driver->start();
+  }
+
+  virtual void error(SchedulerDriver* d,
+                     int code,
+                     const std::string& message) {
+    errorMessage = message;
+    d->stop();
+  }
+};
+
+
+TEST(MasterTest, SchedulerFailover)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
+
+  FailoverScheduler failoverSched;
+  FailingScheduler failingSched(&failoverSched, master);
+
+  NexusSchedulerDriver driver(&failingSched, master);
+  driver.run();
+
+  EXPECT_EQ("Failover", failingSched.errorMessage);
+
+  failingSched.driver->join();
+
+  EXPECT_TRUE(failoverSched.registeredCalled);
+
+  local::shutdown();
+}

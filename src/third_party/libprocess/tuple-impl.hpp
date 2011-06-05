@@ -171,7 +171,7 @@ protected:
     const char *data;
     size_t length;
 
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -186,7 +186,7 @@ protected:
     const char *data;
     size_t length;
     
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -204,7 +204,7 @@ protected:
     const char *data;
     size_t length;
 
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -223,7 +223,7 @@ protected:
     const char *data;
     size_t length;
 
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -244,7 +244,7 @@ protected:
     const char *data;
     size_t length;
 
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -267,7 +267,7 @@ protected:
     const char *data;
     size_t length;
 
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -292,7 +292,7 @@ protected:
     const char *data;
     size_t length;
 
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -319,7 +319,7 @@ protected:
     const char *data;
     size_t length;
 
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -348,7 +348,7 @@ protected:
     const char *data;
     size_t length;
 
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -379,7 +379,7 @@ protected:
     const char *data;
     size_t length;
 
-    data = Process::body(&length);
+    data = P::body(&length);
     std::string s(data, length);
     std::istringstream is(s);
     process::serialization::deserializer d(is);
@@ -455,7 +455,7 @@ protected:
 
     std::string data = os.str();
 
-    Process::send(to, ID, data.data(), data.size());
+    P::send(to, ID, data.data(), data.size());
   }
 
   template <MSGID ID>
@@ -585,7 +585,7 @@ protected:
 
   MSGID receive(double secs)
   {
-    return Process::receive(secs);
+    return P::receive(secs);
   }
 
   template <MSGID ID>

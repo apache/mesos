@@ -26,7 +26,6 @@
 #include "messages.hpp"
 #include "nexus_local.hpp"
 #include "nexus_sched.hpp"
-#include "url_processor.hpp"
 #include "master_detector.hpp"
 
 #define REPLY_TIMEOUT 20
@@ -48,14 +47,6 @@ using namespace nexus::internal;
 
 namespace nexus { namespace internal {
 
-/**
- * TODO(benh): Update this comment.
- * Scheduler process, responsible for interacting with the master
- * and responding to Nexus API calls from schedulers. In order to
- * allow a message to be sent back to the master we allow friend
- * functions to invoke 'send'. Therefore, care must be done to insure
- * any synchronization necessary is performed.
- */
 
 class RbReply : public Tuple<Process>
 {    
@@ -94,127 +85,107 @@ private:
   const TaskID tid;
 };
 
+
+/**
+ * TODO(benh): Update this comment.
+ * Scheduler process, responsible for interacting with the master
+ * and responding to Nexus API calls from schedulers. In order to
+ * allow a message to be sent back to the master we allow friend
+ * functions to invoke 'send'. Therefore, care must be done to insure
+ * any synchronization necessary is performed.
+ */
 class SchedulerProcess : public Tuple<ReliableProcess>
 {
 public:
   friend class nexus::NexusSchedulerDriver;
 
 private:
-  PID master;
   NexusSchedulerDriver* driver;
   Scheduler* sched;
   FrameworkID fid;
   string frameworkName;
   ExecutorInfo execInfo;
-  bool isFT;
-  string zkServers;
-  MasterDetector *masterDetector;
+
+  PID master;
+
+  volatile bool terminate;
 
   unordered_map<OfferID, unordered_map<SlaveID, PID> > savedOffers;
   unordered_map<SlaveID, PID> savedSlavePids;
 
-  volatile bool terminate;
-
   unordered_map<TaskID, RbReply *> rbReplies;
 
 public:
-  SchedulerProcess(const string &_master,
-                   NexusSchedulerDriver* _driver,
+  SchedulerProcess(NexusSchedulerDriver* _driver,
                    Scheduler* _sched,
+		   FrameworkID _fid,
                    const string& _frameworkName,
                    const ExecutorInfo& _execInfo)
     : driver(_driver),
       sched(_sched),
-      fid(""),
-      terminate(false),
+      fid(_fid),
       frameworkName(_frameworkName),
       execInfo(_execInfo),
-      masterDetector(NULL)
-{
-  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
-  if (urlPair.first == UrlProcessor::ZOO) {
-    isFT = true;
-    zkServers = urlPair.second;
-    //  } else if (urlPair.first == UrlProcessor::NEXUS) {
-  } else {
-    isFT = false; 
-    if (urlPair.first == UrlProcessor::NEXUS)
-      master = make_pid(urlPair.second.c_str());
-    else
-      master = make_pid(_master.c_str());
-    
-    if (!master)
-    {
-      cerr << "Scheduler failed to resolve master PID " << urlPair.second << endl;
-      exit(1);
-    }
-  }
-}
+      master(PID()),
+      terminate(false) {}
 
-~SchedulerProcess()
-{
-  if (masterDetector != NULL) {
-    delete masterDetector;
-    masterDetector = NULL;
-  }
-}
+  ~SchedulerProcess() {}
 
 protected:
   void operator () ()
   {
-    // Get username of current user
+    // Get username of current user.
     struct passwd* passwd;
     if ((passwd = getpwuid(getuid())) == NULL)
       fatal("failed to get username information");
-    string user(passwd->pw_name);
 
-    if (isFT) {
-      LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
-      masterDetector = new MasterDetector(zkServers, ZNODE, self(), false);
-    } else {
-      send(self(), pack<NEW_MASTER_DETECTED>("0", master));
-    }
+    const string user(passwd->pw_name);
 
     while(true) {
       // Rather than send a message to this process when it is time to
-      // complete, we set a flag that gets re-read. Sending a message
+      // terminate, we set a flag that gets re-read. Sending a message
       // requires some sort of matching or priority reads that
       // libprocess currently doesn't support. Note that this field is
-      // only read by this process (after setting it in the
-      // destructor), so we don't need to protect it in any way. In
-      // fact, using a lock to protect it (or for providing atomicity
-      // for cleanup, for example), might lead to deadlock with the
-      // client code because we already use a lock in SchedulerDriver. That
-      // being said, for now we make terminate 'volatile' to guarantee
-      // that each read is getting a fresh copy.
+      // only read by this process, so we don't need to protect it in
+      // any way. In fact, using a lock to protect it (or for
+      // providing atomicity for cleanup, for example), might lead to
+      // deadlock with the client code because we already use a lock
+      // in SchedulerDriver. That being said, for now we make
+      // terminate 'volatile' to guarantee that each read is getting a
+      // fresh copy.
       // TODO(benh): Do a coherent read so as to avoid using 'volatile'.
       if (terminate)
         return;
 
+      // TODO(benh): We need to break the receive every so often to
+      // check if 'terminate' has been set. It would be better to just
+      // send a message rather than have a timeout (see the comment
+      // above for why sending a message will still require us to use
+      // the terminate flag).
       switch(receive(2)) {
-      // TODO(benh): We need to break the receive loop every so often
-      // to check if 'terminate' has been set .. but rather than use a
-      // timeout in receive, it would be nice to send a message, but
-      // see above.
 
       case NEW_MASTER_DETECTED: {
 	string masterSeq;
 	PID masterPid;
 	unpack<NEW_MASTER_DETECTED>(masterSeq, masterPid);
 
-	LOG(INFO) << "New master at " << masterPid
-		  << " with ephemeral id:" << masterSeq;
+	LOG(INFO) << "New master at " << masterPid << " with ID:" << masterSeq;
+
+	// Connect as a failover if this is the first master we are
+        // being told about a master AND we already have an id.
+        bool failover = !master && fid != "";
 
         redirect(master, masterPid);
 	master = masterPid;
 	link(master);
 
-	if (fid.empty()) {
+	if (fid == "") {
 	  // Touched for the very first time.
-	  send(master, pack<F2M_REGISTER_FRAMEWORK>(frameworkName, user, execInfo));	  
+	  send(master, pack<F2M_REGISTER_FRAMEWORK>(frameworkName, user, execInfo));
 	} else {
-	  // Not the first time.
-	  send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user, execInfo));
+	  // Not the first time, or failing over.
+	  send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user,
+						      execInfo, failover));
 	}
 	break;
       }
@@ -260,17 +231,13 @@ protected:
 	// Remove the offer since we saved all the PIDs we might use.
         savedOffers.erase(oid);
 
-        if (isFT) {
-          foreach(const TaskDescription &task, tasks) {
-            RbReply *rr = new RbReply(self(), task.taskId);
-            rbReplies[task.taskId] = rr;
-            link(spawn(rr));
-          }
-        }
+	foreach(const TaskDescription &task, tasks) {
+	  RbReply *rr = new RbReply(self(), task.taskId);
+	  rbReplies[task.taskId] = rr;
+	  link(spawn(rr));
+	}
         
         send(master, pack<F2M_SLOT_OFFER_REPLY>(fid, oid, tasks, params));
-
-	
         break;
       }
 
@@ -352,12 +319,8 @@ protected:
       }
 
       case PROCESS_EXIT: {
-	if (isFT) {
-	  LOG(WARNING) << "Connection to master lost .. waiting for new master.";
-	} else {
-	  const char* message = "Connection to master failed";
-	  invoke(bind(&Scheduler::error, sched, driver, -1, message));
-	}
+	// TODO(benh): Don't wait for a new master forever.
+	LOG(WARNING) << "Connection to master lost .. waiting for new master.";
         break;
       }
 
@@ -416,17 +379,19 @@ ExecutorInfo Scheduler::getExecutorInfo(SchedulerDriver*)
 
 
 // Default implementation of Scheduler::error that logs to stderr
-void Scheduler::error(SchedulerDriver* s, int code, const string &message)
+void Scheduler::error(SchedulerDriver* driver, int code, const string &message)
 {
   cerr << "Nexus error: " << message
        << " (error code: " << code << ")" << endl;
-  s->stop();
+  driver->stop();
 }
 
 
 NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* _sched,
-                               const string &_master)
-  : sched(_sched), master(_master), running(false), process(NULL)
+					   const string &_url,
+					   FrameworkID _fid)
+  : sched(_sched), url(_url), fid(_fid), running(false),
+    process(NULL), detector(NULL)
 {
   // Create mutex and condition variable
   pthread_mutexattr_t attr;
@@ -458,56 +423,58 @@ NexusSchedulerDriver::~NexusSchedulerDriver()
   // to the user somehow.
   Process::wait(process);
   delete process;
+
+  MasterDetector::destroy(detector);
+
+  // Check and see if we need to shutdown a local cluster.
+  if (url == "local" || url == "localquiet")
+    local::shutdown();
 }
 
 
-void NexusSchedulerDriver::start()
+int NexusSchedulerDriver::start()
 {
   Lock lock(&mutex);
 
   if (running) {
-    error(1, "cannot call start - scheduler is already running");
-    return;
+    //error(1, "cannot call start - scheduler is already running");
+    return - 1;
   }
-
-  PID pid;
-  
-  string initServer = master;
-
-  if (master == string("localquiet")) {
-    // TODO(benh): Look up resources in environment variables.
-    pid = run_nexus(1, 1, 1073741824, true, true);
-    ostringstream ss;
-    ss << pid;
-    initServer = ss.str();
-  } else if (master == string("local")) {
-    // TODO(benh): Look up resources in environment variables.
-    pid = run_nexus(1, 1, 1073741824, true, false);
-    ostringstream ss;
-    ss << pid;
-    initServer = ss.str();
-  } 
 
   const string& frameworkName = sched->getFrameworkName(this);
   const ExecutorInfo& executorInfo = sched->getExecutorInfo(this);
 
-  process = new SchedulerProcess(initServer, this, sched, frameworkName, executorInfo);
-  
-  Process::spawn(process);
+  process = new SchedulerProcess(this, sched, fid, frameworkName, executorInfo);
+  PID pid = Process::spawn(process);
+
+  // Check and see if we need to launch a local cluster.
+  if (url == "local") {
+    // TODO(benh): Get number of slaves and resources per slave from
+    // command line (or environment or configuration?).
+    PID master = local::launch(1, 1, 1073741824, true, false);
+    detector = new BasicMasterDetector(master, pid);
+  } else if (url == "localquiet") {
+    // TODO(benh): Get number of slaves and resources per slave from
+    // command line (or environment?).
+    PID master = local::launch(1, 1, 1073741824, true, true);
+    detector = new BasicMasterDetector(master, pid);
+  } else {
+    detector = MasterDetector::create(url, pid, false, true);
+  }
 
   running = true;
+
+  return 0;
 }
 
 
-
-void NexusSchedulerDriver::stop()
+int NexusSchedulerDriver::stop()
 {
   Lock lock(&mutex);
 
   if (!running) {
     // Don't issue an error (could lead to an infinite loop).
-    // TODO(benh): It would be much cleaner to return success or failure!
-    return;
+    return -1;
   }
 
   // TODO(benh): Do a Process::post instead?
@@ -519,97 +486,112 @@ void NexusSchedulerDriver::stop()
   running = false;
 
   pthread_cond_signal(&cond);
+
+  return 0;
 }
 
 
-void NexusSchedulerDriver::join()
+int NexusSchedulerDriver::join()
 {
   Lock lock(&mutex);
   while (running)
     pthread_cond_wait(&cond, &mutex);
+
+  return 0;
 }
 
 
-void NexusSchedulerDriver::run()
+int NexusSchedulerDriver::run()
 {
-  start();
-  join();
+  int ret = start();
+  return ret != 0 ? ret : join();
 }
 
 
-void NexusSchedulerDriver::killTask(TaskID tid)
+int NexusSchedulerDriver::killTask(TaskID tid)
 {
   Lock lock(&mutex);
 
   if (!running) {
-    error(1, "cannot call killTask - scheduler is not running");
-    return;
+    //error(1, "cannot call killTask - scheduler is not running");
+    return -1;
   }
 
   // TODO(benh): Do a Process::post instead?
 
   process->send(process->master,
                 process->pack<F2M_KILL_TASK>(process->fid, tid));
+
+  return 0;
 }
 
 
-void NexusSchedulerDriver::replyToOffer(OfferID offerId,
-                                        const vector<TaskDescription> &tasks,
-                                        const string_map &params)
+int NexusSchedulerDriver::replyToOffer(OfferID offerId,
+				       const vector<TaskDescription> &tasks,
+				       const string_map &params)
 {
   Lock lock(&mutex);
 
   if (!running) {
-    error(1, "cannot call replyToOffer - scheduler is not running");
-    return;
+    //error(1, "cannot call replyToOffer - scheduler is not running");
+    return -1;
   }
 
   // TODO(benh): Do a Process::post instead?
   
   process->send(process->self(), process->pack<F2F_SLOT_OFFER_REPLY>(offerId, tasks, Params(params)));
+
+  return 0;
 }
 
 
-void NexusSchedulerDriver::reviveOffers()
+int NexusSchedulerDriver::reviveOffers()
 {
   Lock lock(&mutex);
 
   if (!running) {
-    error(1, "cannot call reviveOffers - scheduler is not running");
-    return;
+    //error(1, "cannot call reviveOffers - scheduler is not running");
+    return -1;
   }
 
   // TODO(benh): Do a Process::post instead?
 
   process->send(process->master,
                 process->pack<F2M_REVIVE_OFFERS>(process->fid));
+
+  return 0;
 }
 
 
-void NexusSchedulerDriver::sendFrameworkMessage(const FrameworkMessage &message)
+int NexusSchedulerDriver::sendFrameworkMessage(const FrameworkMessage &message)
 {
   Lock lock(&mutex);
 
   if (!running) {
-    error(1, "cannot call sendFrameworkMessage - scheduler is not running");
-    return;
+    //error(1, "cannot call sendFrameworkMessage - scheduler is not running");
+    return -1;
   }
 
+  // TODO(benh): Do a Process::post instead?
+
   process->send(process->self(), process->pack<F2F_FRAMEWORK_MESSAGE>(message));
+
+  return 0;
 }
 
 
-void NexusSchedulerDriver::sendHints(const string_map& hints)
+int NexusSchedulerDriver::sendHints(const string_map& hints)
 {
   Lock lock(&mutex);
 
   if (!running) {
-    error(1, "cannot call sendHints - scheduler is not running");
-    return;
+    //error(1, "cannot call sendHints - scheduler is not running");
+    return -1;
   }
 
   // TODO(*): Send the hints; for now, we do nothing
-  error(1, "sendHints is not yet implemented");
+  //error(1, "sendHints is not yet implemented");
+  return -1;
 }
 
 

@@ -6,8 +6,13 @@
 #include "master.hpp"
 #include "slave.hpp"
 
-PID run_nexus(int slaves, int32_t cpus, int64_t mem,
-              bool ownLogging, bool quiet);
-void kill_nexus();
+namespace nexus { namespace internal { namespace local {
+
+PID launch(int numSlaves, int32_t cpus, int64_t mem,
+	   bool initLogging, bool quiet);
+
+void shutdown();
+
+}}}
 
 #endif /* LOCAL_HPP */

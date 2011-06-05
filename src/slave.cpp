@@ -2,16 +2,20 @@
 
 #include <fstream>
 #include <algorithm>
+
+#include "isolation_module_factory.hpp"
 #include "slave.hpp"
 #include "slave_webui.hpp"
-#include "isolation_module_factory.hpp"
-#include "url_processor.hpp"
 
-#define FT_TIMEOUT 10
+// There's no gethostbyname2 on Solaris, so fake it by calling gethostbyname
+#ifdef __sun__
+#define gethostbyname2(name, _) gethostbyname(name)
+#endif
 
 using std::list;
 using std::make_pair;
 using std::ostringstream;
+using std::istringstream;
 using std::pair;
 using std::queue;
 using std::string;
@@ -25,10 +29,6 @@ using namespace nexus;
 using namespace nexus::internal;
 using namespace nexus::internal::slave;
 
-// There's no gethostbyname2 on Solaris, so fake it by calling gethostbyname
-#ifdef __sun__
-#define gethostbyname2(name, _) gethostbyname(name)
-#endif
 
 namespace {
 
@@ -63,61 +63,18 @@ public:
 } /* namespace */
 
 
-Slave::Slave(const string &_master, Resources _resources, bool _local)
-  : masterDetector(NULL), resources(_resources), local(_local), id(""),
-    isolationType("process"), isolationModule(NULL)
-{
-  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
-  if (urlPair.first == UrlProcessor::ZOO) {
-    isFT = true;
-    zkServers = urlPair.second;
-  } else 
-  {
-    isFT = false;
-    if (urlPair.first == UrlProcessor::NEXUS)
-      master = make_pid(urlPair.second.c_str());
-    else
-      master = make_pid(_master.c_str());
-    
-    if (!master)
-    {
-      cerr << "Slave failed to resolve master PID " << urlPair.second << endl;
-      exit(1);
-    }
-  }
-}
+Slave::Slave(Resources _resources, bool _local, const string &_isolationType)
+  : id(""), resources(_resources), local(_local),
+    isolationType(_isolationType), isolationModule(NULL) {}
 
-
-Slave::Slave(const string &_master, Resources _resources, bool _local,
-	     const string &_isolationType)
-  : masterDetector(NULL), resources(_resources), local(_local), id(""),
-    isolationType(_isolationType), isolationModule(NULL)
-{
-  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
-  if (urlPair.first == UrlProcessor::ZOO) {
-    isFT = true;
-    zkServers = urlPair.second;
-  } else {
-    isFT = false;
-    if (urlPair.first == UrlProcessor::NEXUS)
-      master = make_pid(urlPair.second.c_str());
-    else
-      master = make_pid(_master.c_str());
-    
-    if (!master)
-    {
-      cerr << "Slave failed to resolve master PID " << urlPair.second << endl;
-      exit(1);
-    }
-  }
-}
 
 Slave::~Slave()
 {
-  if (masterDetector != NULL) {
-    delete masterDetector;
-    masterDetector = NULL;
-  }
+  // TODO(matei): Add support for factory style destroy of objects!
+  if (isolationModule != NULL)
+    delete isolationModule;
+
+  // TODO(benh): Shut down and free executors?
 }
 
 
@@ -151,13 +108,6 @@ void Slave::operator () ()
 {
   LOG(INFO) << "Slave started at " << self();
 
-  if (isFT) {
-    LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
-    masterDetector = new MasterDetector(zkServers, ZNODE, self(), false);
-  } else {
-    send(self(), pack<NEW_MASTER_DETECTED>("0", master));
-  }
-
   // Get our hostname
   char buf[256];
   gethostname(buf, sizeof(buf));
@@ -171,7 +121,7 @@ void Slave::operator () ()
   if (!publicDns) {
     publicDns = hostname;
   }
-  
+
   FrameworkID fid;
   TaskID tid;
   TaskState taskState;
@@ -186,8 +136,7 @@ void Slave::operator () ()
 	PID masterPid;
 	unpack<NEW_MASTER_DETECTED>(masterSeq, masterPid);
 
-	LOG(INFO) << "New master at " << masterPid
-		  << " with ephemeral id:" << masterSeq;
+	LOG(INFO) << "New master at " << masterPid << " with ID:" << masterSeq;
 
         redirect(master, masterPid);
 	master = masterPid;
@@ -329,7 +278,6 @@ void Slave::operator () ()
           isolationModule->resourcesChanged(fw);
           // Tell executor that it's registered and give it its queued tasks
           send(from(), pack<S2E_REGISTER_REPLY>(this->id,
-                                                hostname,
                                                 fw->name,
                                                 fw->executorInfo.initArg));
           sendQueuedTasks(fw);
@@ -351,12 +299,12 @@ void Slave::operator () ()
             isolationModule->resourcesChanged(fw);
           }
         }
-        // Pass on the update to the master
-        if (isFT) {
-          string msg = tupleToString(pack<S2M_FT_STATUS_UPDATE>(id, fid, tid, taskState, data));
-          rsend(master, S2M_FT_STATUS_UPDATE, msg.c_str(), sizeof(msg.c_str()));
-        } else
-          send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, taskState, data));
+
+        // Pass on the update to the master.
+	const string &msg =
+	  tupleToString(pack<S2M_FT_STATUS_UPDATE>(id, fid, tid, taskState,
+						   data));
+	rsend(master, S2M_FT_STATUS_UPDATE, msg.data(), msg.size());
         break;
       }
 
@@ -377,56 +325,42 @@ void Slave::operator () ()
         LOG(INFO) << "Process exited: " << from();
 
         if (from() == master) {
-	  // TODO: Fault tolerance!
-	  if (isFT) {
-	    LOG(WARNING) << "FT: Master disconnected! Waiting for a new master to be elected."; 
-	  } else {
-	    LOG(ERROR) << "Master disconnected! Exiting. Consider running Nexus in FT mode!";
-	    if (isolationModule != NULL)
-	      delete isolationModule;
-	    // TODO: Shut down executors?
-	    return;
+	  LOG(WARNING) << "Master disconnected! "
+		       << "Waiting for a new master to be elected.";
+	  // TODO(benh): After so long waiting for a master, commit suicide.
+	} else {
+	  // Check if an executor has exited.
+	  foreachpair (_, Executor *ex, executors) {
+	    if (from() == ex->pid) {
+	      LOG(INFO) << "Executor for framework " << ex->frameworkId
+			<< " disconnected";
+	      Framework *framework = getFramework(fid);
+	      if (framework != NULL) {
+		send(master, pack<S2M_LOST_EXECUTOR>(id, ex->frameworkId, -1));
+		killFramework(framework);
+	      }
+	      break;
+	    }
 	  }
 	}
-
-        foreachpair (_, Executor *ex, executors) {
-          if (from() == ex->pid) {
-            LOG(INFO) << "Executor for framework " << ex->frameworkId
-                      << " disconnected";
-	    Framework *framework = getFramework(fid);
-	    if (framework != NULL) {
-	      send(master, pack<S2M_LOST_EXECUTOR>(id, ex->frameworkId, -1));
-	      killFramework(framework);
-	    }
-            break;
-          }
-        }
 
         break;
       }
 
       case M2S_SHUTDOWN: {
         LOG(INFO) << "Asked to shut down by master: " << from();
-	// TODO(matei): Add support for factory style destroy of objects!
-	if (isolationModule != NULL)
-	  delete isolationModule;
-        // TODO: Shut down executors?
         return;
       }
 
-
       case S2S_SHUTDOWN: {
         LOG(INFO) << "Asked to shut down by " << from();
-	// TODO(matei): Add support for factory style destroy of objects!
-	if (isolationModule != NULL)
-	  delete isolationModule;
-        // TODO: Shut down executors?
         return;
       }
 
       case PROCESS_TIMEOUT: {
 	break;
       }
+
       default: {
         LOG(ERROR) << "Received unknown message ID " << msgid()
                    << " from " << from();
@@ -512,6 +446,8 @@ void Slave::killFramework(Framework *fw)
 
 
 // Called by isolation module when an executor process exits
+// TODO(benh): Make this callback be a message so that we can avoid
+// race conditions.
 void Slave::executorExited(FrameworkID fid, int status)
 {
   if (Framework *f = getFramework(fid)) {

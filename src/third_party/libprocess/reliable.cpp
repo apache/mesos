@@ -161,7 +161,7 @@ void ReliableProcess::rsend(const PID &to, MSGID id, const char *data, size_t le
 }
 
 
-MSGID ReliableProcess::receive(time_t secs)
+MSGID ReliableProcess::receive(double secs)
 {
   // Record sequence number for current (now old) _reliable_ message
   // and also free the message.

@@ -15,15 +15,7 @@ using nexus::internal::slave::Slave;
 using namespace nexus::internal;
 
 
-/* TODO(benh): Remove this dependency! */
-/* List of ZooKeeper host:port pairs. */
-std::string zookeeper = "";
-
-
 namespace {
-
-static Master* currentMaster = NULL;
-static vector<Slave*>* currentSlaves = NULL;
 
 static pthread_once_t glog_initialized = PTHREAD_ONCE_INIT;
 
@@ -35,47 +27,62 @@ void initialize_glog() {
 } /* namespace { */
 
 
-PID run_nexus(int slaves, int32_t cpus, int64_t mem,
-              bool ownLogging, bool quiet)
+namespace nexus { namespace internal { namespace local {
+
+static Master *master = NULL;
+static vector<Slave*> *slaves = NULL;
+static MasterDetector *detector = NULL;
+
+
+PID launch(int numSlaves, int32_t cpus, int64_t mem,
+	   bool initLogging, bool quiet)
 {
-  if (currentMaster != NULL)
-    fatal("Call to run_nexus while it is already running");
-  
-  if (ownLogging) {
+  if (master != NULL)
+    fatal("can only launch one local cluster at a time (for now)");
+
+  if (initLogging) {
     pthread_once(&glog_initialized, initialize_glog);
     if (!quiet)
       google::SetStderrLogging(google::INFO);
   }
 
-  currentMaster = new Master();
+  master = new Master();
+  slaves = new vector<Slave*>();
 
-  Process::spawn(currentMaster);
+  PID pid = Process::spawn(master);
 
-  currentSlaves = new vector<Slave*>();
+  vector<PID> pids;
 
-  for (int i = 0; i < slaves; i++) {
-    Slave* s = new Slave(currentMaster->getPID(), Resources(cpus, mem), true);
-    currentSlaves->push_back(s);
-    Process::spawn(s);
+  for (int i = 0; i < numSlaves; i++) {
+    Slave* slave = new Slave(Resources(cpus, mem), true);
+    slaves->push_back(slave);
+    pids.push_back(Process::spawn(slave));
   }
 
-  return currentMaster->getPID();
+  detector = new BasicMasterDetector(pid, pids, true);
+
+  return pid;
 }
 
 
-void kill_nexus()
+void shutdown()
 {
-  Process::post(currentMaster->getPID(), M2M_SHUTDOWN);
+  Process::post(master->getPID(), M2M_SHUTDOWN);
 
-  Process::wait(currentMaster->getPID());
-  delete currentMaster;
-  currentMaster = NULL;
+  Process::wait(master->getPID());
+  delete master;
+  master = NULL;
 
-  for (int i = 0; i < currentSlaves->size(); i++) {
-    Process::wait(currentSlaves->at(i));
-    delete currentSlaves->at(i);
+  for (int i = 0; i < slaves->size(); i++) {
+    Process::wait(slaves->at(i));
+    delete slaves->at(i);
   }
 
-  delete currentSlaves;
-  currentSlaves = NULL;
+  delete slaves;
+  slaves = NULL;
+
+  delete detector;
+  detector = NULL;
 }
+
+}}} /* namespace nexus { namespace internal { namespace local { */

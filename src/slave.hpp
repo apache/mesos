@@ -165,8 +165,6 @@ public:
   typedef unordered_map<FrameworkID, Executor*> ExecutorMap;
   
   bool isFT;
-  string zkServers;
-  MasterDetector *masterDetector;
   PID master;
   SlaveID id;
   Resources resources;
@@ -177,10 +175,8 @@ public:
   IsolationModule *isolationModule;
 
 public:
-  Slave(const string &_master, Resources resources, bool _local);
-
-  Slave(const string &_master, Resources resources, bool _local,
-        const string& isolationType);
+  Slave(Resources resources, bool local,
+	const string& isolationType = "process");
 
   virtual ~Slave();
 
