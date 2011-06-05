@@ -1,6 +1,6 @@
 set :source_machine, "{{active_master}}"
 set :install_dir,  "/opt/hypertable"
-set :hypertable_version, "0.9.4.2"
+set :hypertable_version, "0.9.4.3"
 set :default_dfs, "hadoop"
 set :default_config, "/root/mesos-ec2/hypertable/hypertable.cfg"
 set :default_additional_args, ""
