@@ -15,6 +15,7 @@ wait
 
 for master in $MASTERS; do
   echo "Stopping master on $master"
-  ssh $SSH_OPTS $master pkill mesos-master
+  ssh $SSH_OPTS $master pkill mesos-master &
   sleep 0.1
 done
+wait

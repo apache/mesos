@@ -59,7 +59,7 @@ for master in $MASTERS; do
   sleep 0.3
 done
 
-ssh -q $SSH_OPTS localhost echo -n
+ssh -q $SSH_OPTS localhost echo -n &
 
 if [[ $NUM_ZOOS != 0 ]] ; then
   echo "SSH'ing to Zoo server(s) to approve keys..."
@@ -78,54 +78,61 @@ for slave in $SLAVES; do
   ssh $SSH_OPTS $slave echo -n &
   sleep 0.3
 done
-echo "Waiting for commands to finish..."
+
+echo "Waiting for ssh commands to finish..."
 wait
 
 if [[ $NUM_MASTERS -gt 1 ]] ; then
   echo "RSYNC'ing /root/mesos-ec2 to other master servers..."
   for master in `cat $MASTERS_FILE | sed '1d'`; do
       echo $master
-      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $master:/root
+      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $master:/root & sleep 0.3
   done
+  wait
 fi
 
 if [[ $NUM_ZOOS != 0 ]] ; then
   echo "RSYNC'ing /root/mesos-ec2 to other Zoo servers..."
   for zoo in $ZOOS; do
       echo $zoo
-      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $zoo:/root
+      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $zoo:/root & sleep 0.3
   done
+  wait
 fi
 
 echo "RSYNC'ing /root/mesos-ec2 to slaves..."
 for slave in $SLAVES; do
   echo $slave
-  rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $slave:/root
-  scp ~/.ssh/id_rsa $slave:.ssh
+  rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $slave:/root &
+  scp ~/.ssh/id_rsa $slave:.ssh &
 done
+wait
 
 echo "Setting up slaves..."
 for slave in $SLAVES; do
   echo $slave
-  ssh -t $SSH_OPTS root@$slave "mesos-ec2/setup-slave"
+  ssh -t $SSH_OPTS root@$slave "mesos-ec2/setup-slave" &
 done
+wait
 
-echo "Setting up master as slave (i.e. for local)..."
+echo "Running slave setup on master (i.e. for local)..."
 ./setup-slave
 
 if [[ $NUM_MASTERS -gt 1 ]] ; then
   echo "RSYNC'ing Hadoop config files for HDFS to other masters..."
   for master in `cat $MASTERS_FILE | sed '1d'`; do
     echo $master
-    rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $master:$HADOOP_HOME
+    rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $master:$HADOOP_HOME & sleep 0.3
   done
+  wait
 fi
 
 echo "RSYNC'ing Hadoop config files for HDFS to slaves..."
 for slave in $SLAVES; do
   echo $slave
-  rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $slave:$HADOOP_HOME
+  rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $slave:$HADOOP_HOME & sleep 0.3
 done
+wait
 
 DOWNLOADED=0
 
@@ -142,7 +149,6 @@ if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
   popd > /dev/null 2>&1
   DOWNLOADED=1
 fi
-
 
 # Build Mesos if we downloaded it
 if [[ "$DOWNLOADED" == "1" ]] ; then
@@ -184,14 +190,17 @@ if [ ! -e /mnt/nfs ] ; then
   mkdir -p /mnt/nfs
   rm -fr /nfs
   ln -s /mnt/nfs /nfs
-  echo "/nfs    10.0.0.0/8(ro,async,no_subtree_check)" >> /etc/exports
+  if ! grep -e '/nfs' /etc/exports; then
+    echo "/nfs    10.0.0.0/8(ro,async,no_subtree_check)" >> /etc/exports
+  fi
   exportfs -a
 fi
 echo "Mounting NFS on slaves..."
 for slave in $SLAVES; do
   echo $slave
-  ssh -t $SSH_OPTS root@$slave "mkdir -p /nfs; mount $HOSTNAME:/nfs /nfs"
+  ssh -t $SSH_OPTS root@$slave "mkdir -p /nfs; mount $HOSTNAME:/nfs /nfs" & sleep 0.3
 done
+wait
 
 echo "Formatting HDFS namenode..."
 $HADOOP_HOME/bin/hadoop namenode -format
@@ -199,8 +208,16 @@ $HADOOP_HOME/bin/hadoop namenode -format
 echo "Starting HDFS..."
 $HADOOP_HOME/bin/start-dfs.sh
 
-#echo "Setting up torque"
-#./setup-torque
+sleep 1
+
+if [[ $NUM_ZOOS != 0 ]]; then
+  echo "Starting ZooKeeper quorum..."
+  for zoo in $ZOOS; do
+    ssh $SSH_OPTS $zoo "/root/mesos/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null" & sleep 0.1
+  done
+  wait
+  sleep 2
+fi
 
 echo "Starting Mesos cluster..."
 ./start-mesos

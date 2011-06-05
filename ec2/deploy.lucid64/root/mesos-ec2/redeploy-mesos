@@ -11,12 +11,14 @@ if [[ $NUM_MASTERS -gt 1 ]]; then
   echo "RSYNC'ing /root/mesos to masters..."
   for master in $MASTERS; do
     echo $master
-    rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'mesos/frameworks/hadoop-0.20.0/logs/*' --exclude 'mesos/work' --exclude 'mesos/logs' --exclude 'mesos/test_output' /root/mesos $master:/root
+    rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'mesos/frameworks/hadoop-0.20.0/logs/*' --exclude 'mesos/work' --exclude 'mesos/logs' --exclude 'mesos/test_output' /root/mesos $master:/root & sleep 0.3
   done
+  wait
 fi
 
 echo "RSYNC'ing /root/mesos to slaves..."
 for slave in $SLAVES; do
   echo $slave
-  rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'mesos/frameworks/hadoop-0.20.0/logs/*' --exclude 'mesos/work' --exclude 'mesos/logs' --exclude 'mesos/test_output' /root/mesos $slave:/root
+  rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'mesos/frameworks/hadoop-0.20.0/logs/*' --exclude 'mesos/work' --exclude 'mesos/logs' --exclude 'mesos/test_output' /root/mesos $slave:/root & sleep 0.3
 done
+wait

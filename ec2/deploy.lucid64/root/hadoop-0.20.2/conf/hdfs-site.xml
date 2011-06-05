@@ -15,7 +15,7 @@
 
   <property>
     <name>dfs.data.dir</name>
-    <value>/mnt/hdfs/dfs/data,/mnt2/hdfs/dfs/data,/mnt3/hdfs/dfs/data,/mnt4/hdfs/dfs/data</value>
+    <value>{{hdfs_data_dirs}}</value>
   </property>
 
   <property>

@@ -30,19 +30,13 @@ fi
 echo "Running with master parameter: "$master_arg
 
 if [[ $NUM_ZOOS != 0 ]]; then
-  echo "Starting ZooKeeper on $ZOOS"
-  for zoo in $ZOOS; do
-    ssh $SSH_OPTS $zoo "/root/mesos/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null"
-  done
-
-  sleep 2
-
   masterid=1
   for master in $MASTERS; do
     echo "Starting master $masterid on $master"
-    ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 -u $master_arg $@ </dev/null >/dev/null"
+    ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 -u $master_arg $@ </dev/null >/dev/null" & sleep 0.1
     masterid=$(($masterid+1))
   done
+  wait
 else
   echo "Starting master on $ACTIVE_MASTER"
   ssh $SSH_OPTS $ACTIVE_MASTER "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 $@ </dev/null >/dev/null"

@@ -16,5 +16,6 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 echo "RSYNC'ing $DIR to slaves..."
 for slave in $SLAVES; do
     echo $slave
-    rsync -e "ssh $SSH_OPTS" -az "$DIR" "$slave:$DEST"
+    rsync -e "ssh $SSH_OPTS" -az "$DIR" "$slave:$DEST" & sleep 0.3
 done
+wait

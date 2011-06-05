@@ -11,6 +11,11 @@
   </property>
 
   <property>
+    <name>mapred.local.dir</name>
+    <value>{{mapred_local_dirs}}</value>
+  </property>
+
+  <property>
     <name>mapred.jobtracker.taskScheduler</name>
     <value>org.apache.hadoop.mapred.MesosScheduler</value>
   </property>
