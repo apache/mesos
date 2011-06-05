@@ -19,7 +19,7 @@ def index():
 @route('/framework/:id#[0-9-]*#')
 def framework(id):
   bottle.TEMPLATES.clear() # For rapid development
-  return template("framework", framework_id = int(id))
+  return template("framework", framework_id = id)
 
 
 @route('/static/:filename#.*#')

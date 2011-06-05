@@ -17,7 +17,7 @@
 %    framework = slave.frameworks[i]
 %  end
 %end
-%
+
 %if framework != None:
   <p>
   Name: {{framework.name}}<br />
