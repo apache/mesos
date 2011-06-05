@@ -15,8 +15,9 @@ shift
 EXTRA_OPTS=""
 if [ "$PROGRAM" == "mesos-slave" ]; then
   # Compute CPU and memory resources on this machine (TODO: Solaris-specific)
-  CPUS=`grep processor /proc/cpuinfo | wc -l`
-  MEM_KB=`cat /proc/meminfo | grep MemTotal | awk '{print $2}'`
+  #CPUS=`grep processor /proc/cpuinfo | wc -l`
+  CPUS=5
+  MEM_KB=`cat /proc/meminfo | grep MemTotal | awk '{print $2/2}'`
   MEM=$[(MEM_KB - 1024 * 1024) * 1024]
   EXTRA_OPTS="--cpus=$CPUS --mem=$MEM"
 fi
@@ -25,7 +26,6 @@ fi
 if [ ! -d $MESOS_LOGS ]; then
   mkdir -p $MESOS_LOGS
 fi
-
 
 cd $MESOS_HOME
 echo "now in dir `pwd`"

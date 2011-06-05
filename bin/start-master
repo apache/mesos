@@ -1,0 +1,12 @@
+#!/bin/bash
+bin=`dirname "$0"`
+bin=`cd "$bin"; pwd`
+
+. $bin/mesos_env.sh
+
+cd $bin
+
+#Launch master
+echo "Starting master on $MASTER"
+echo ssh $SSH_OPTS $MASTER "$bin/mesos-daemon mesos-master </dev/null >/dev/null"
+ssh $SSH_OPTS $MASTER "$bin/mesos-daemon mesos-master </dev/null >/dev/null"

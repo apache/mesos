@@ -1,0 +1,16 @@
+#!/bin/bash
+bin=`dirname "$0"`
+bin=`cd "$bin"; pwd`
+. $bin/mesos_env.sh
+
+cd $bin
+
+#PORT=`../src/get_conf port $@`;
+#Launch slaves
+for slave in $SLAVES; do
+  echo "Starting slave on $slave"
+  echo ssh $SSH_OPTS $slave "$bin/mesos-daemon mesos-slave -u 1@$MASTER:5050 </dev/null >/dev/null" 
+  ssh $SSH_OPTS $slave "$bin/mesos-daemon mesos-slave -u 1@$MASTER:5050 </dev/null >/dev/null" &
+  sleep 0.1
+done
+wait
