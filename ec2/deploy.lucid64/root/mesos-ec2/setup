@@ -109,12 +109,6 @@ done
 echo "Setting up master as slave (i.e. for local)..."
 ./setup-slave
 
-echo "RSYNC'ing Hadoop config files to slaves..."
-for slave in `cat $SLAVES`; do
-  echo $slave
-  rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $slave:$HADOOP_HOME
-done
-
 DOWNLOADED=0
 
 if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
@@ -154,7 +148,13 @@ if [[ "$DOWNLOADED" == "1" ]] ; then
 fi
 
 echo "Setting up Hadoop framework config files..."
-cp hadoop-framework-conf/* /root/mesos/frameworks/hadoop-0.20.2/conf
+cp hadoop-framework-conf/* $HADOOP_HOME/conf
+
+echo "RSYNC'ing Hadoop config files to slaves..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $slave:$HADOOP_HOME
+done
 
 echo "Setting up haproxy+apache framework config files..."
 cp haproxy+apache/* /root/mesos/frameworks/haproxy+apache

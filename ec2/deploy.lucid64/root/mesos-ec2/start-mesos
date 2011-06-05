@@ -28,7 +28,7 @@ echo "Running with master parameter: "$master_arg
 if [[ $ISFT != 0 ]]; then
   echo "Starting ZooKeeper on $ZOO"
   for zoo in $ZOO; do
-    ssh $SSH_OPTS $zoo "/root/mesos/src/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null"
+    ssh $SSH_OPTS $zoo "/root/mesos/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null"
   done
 
   sleep 2

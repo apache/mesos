@@ -213,12 +213,14 @@ def deploy_files(conn, root_dir, instance, opts, master_res, slave_res, zoo_res)
   template_vars = {
     "master_list" : '\n'.join([i.public_dns_name for i in master_res.instances]),
     "active_master" : active_master,
+    "master_url" : active_master + ":5050",
     "slave_list" : '\n'.join([i.public_dns_name for i in slave_res.instances])
   }
 
   if opts.ft > 1:
     zoo = zoo_res.instances[0].public_dns_name
     template_vars[ "zoo" ] = '\n'.join([i.public_dns_name for i in zoo_res.instances])
+    template_vars[ "master_url" ] = ','.join([(i.public_dns_name + ":2181/mesos") for i in zoo_res.instances])
 
   for path, dirs, files in os.walk(root_dir):
     dest_dir = os.path.join('/', path[len(root_dir):])
