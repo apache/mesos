@@ -1,3 +1,6 @@
+#include <ctime>
+#include <sys/types.h>
+#include <sys/time.h>
 #include <time.h>
 
 #include "date_utils.hpp"
@@ -26,6 +29,24 @@ string DateUtils::currentDate()
     strftime(date, sizeof(date), "%Y%m%d%H%M", timeinfo);
     return date;
   }
+}
+
+
+// Get the current time in microseconds.
+long DateUtils::currentDateTimeInMicro(){
+  struct timeval curr_time;
+  struct timezone tzp;
+  gettimeofday(&curr_time, &tzp);
+  return (long)(curr_time.tv_sec * 1000000 + curr_time.tv_usec);
+}
+
+
+// Get a human readable timestamp in microseconds.
+  string DateUtils::humanReadableDateTimeInMicro(){
+  time_t currTime;
+  currTime=time(NULL);
+  string timestamp = asctime(localtime(&currTime));
+  return timestamp.erase(24); /* chop off the newline */
 }
 
 

@@ -126,10 +126,14 @@ SLAVE_SWIG_WEBUI_OBJ = webui/slave/swig/slave_wrap.o
 WEBUI_OBJ = $(MASTER_WEBUI_OBJ) $(SLAVE_WEBUI_OBJ)
 SWIG_WEBUI_OBJ = $(MASTER_SWIG_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 
+EVENT_HISTORY_OBJ = event_history/event_history.o \
+										event_history/file_event_writer.o \
+										event_history/sqlite_event_writer.o
+
 COMMON_OBJ = common/fatal.o messaging/messages.o common/lock.o		\
 	     detector/detector.o common/params.o			\
 	     detector/url_processor.o configurator/configurator.o	\
-	     common/string_utils.o common/logging.o event_history/event_history.o
+	     common/string_utils.o common/logging.o common/date_utils.o
 
 ifeq ($(WITH_ZOOKEEPER),1)
   COMMON_OBJ += detector/zookeeper.o
@@ -138,20 +142,21 @@ endif
 EXEC_LIB_OBJ = exec/exec.o
 SCHED_LIB_OBJ = sched/sched.o local/local.o
 
-BASIC_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)  \
+BASIC_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(EVENT_HISTORY_OBJ) $(COMMON_OBJ)  \
 	    $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ)
 
 ALL_OBJ = $(BASIC_OBJ) $(WEBUI_OBJ) $(SWIG_WEBUI_OBJ)
 
 MASTER_EXE_OBJ = $(MASTER_OBJ) $(MASTER_WEBUI_OBJ)	\
-                 $(MASTER_SWIG_WEBUI_OBJ) $(COMMON_OBJ)
+                 $(MASTER_SWIG_WEBUI_OBJ) $(EVENT_HISTORY_OBJ) $(COMMON_OBJ)
 
 SLAVE_EXE_OBJ = $(SLAVE_OBJ) $(SLAVE_WEBUI_OBJ)	\
                 $(SLAVE_SWIG_WEBUI_OBJ) $(COMMON_OBJ)
 
 LAUNCHER_EXE_OBJ = launcher/launcher.o $(COMMON_OBJ)
 
-LOCAL_EXE_OBJ = local/local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
+LOCAL_EXE_OBJ = local/local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(EVENT_HISTORY_OBJ) \
+								$(COMMON_OBJ)
 
 MESOS_MASTER_EXE = $(BINDIR)/mesos-master
 MESOS_SLAVE_EXE = $(BINDIR)/mesos-slave
@@ -246,7 +251,7 @@ $(DIRECTORIES): %:
 $(BASIC_OBJ): %.o: @srcdir@/%.cpp | $(OBJ_DIRECTORIES)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
-$(MESOS_LIBS): $(COMMON_OBJ) | $(LIBDIR)
+$(MESOS_LIBS): $(EVENT_HISTORY_OBJ) $(COMMON_OBJ) | $(LIBDIR)
 
 $(MESOS_SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ)
 	$(AR) rcs $@ $^
