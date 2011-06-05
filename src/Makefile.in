@@ -82,7 +82,7 @@ LDFLAGS += -L$(LIBEV)/.libs
 LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lzookeeper_st
 
 MESOS_EXES = mesos-master mesos-slave mesos-local mesos-launcher \
-	     test-framework test-executor cpp-test-framework \
+             test-framework test-executor cpp-test-framework \
              cpp-test-executor memhog memhog-executor scheduled-memhog \
              mesos-getconf
 
