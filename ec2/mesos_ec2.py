@@ -5,13 +5,13 @@ from __future__ import with_statement
 import boto
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import time
 from optparse import OptionParser
 from sys import stderr
-from tempfile import NamedTemporaryFile
 from boto.ec2.blockdevicemapping import BlockDeviceMapping, EBSBlockDeviceType
 
 
@@ -295,9 +295,6 @@ def get_num_disks(instance_type):
 # the first master instance in the cluster, and we expect the setup
 # script to be run on that instance to copy them to other nodes.
 def deploy_files(conn, root_dir, opts, master_res, slave_res, zoo_res):
-  # TODO: Speed up deployment by creating a temp directory with the
-  # template-transformed files and then rsyncing it
-
   active_master = master_res.instances[0].public_dns_name
 
   num_disks = get_num_disks(opts.instance_type)
@@ -308,38 +305,50 @@ def deploy_files(conn, root_dir, opts, master_res, slave_res, zoo_res):
       hdfs_data_dirs += ",/mnt%d/hdfs/dfs/data" % i
       mapred_local_dirs += ",/mnt%d/hadoop/mrlocal" % i
 
+  if zoo_res != None:
+    zoo_list = '\n'.join([i.public_dns_name for i in zoo_res.instances])
+    cluster_url = "zoo://" + ",".join(
+        ["%s:2181/mesos" % i.public_dns_name for i in zoo_res.instances])
+  else:
+    zoo_list = "NONE"
+    cluster_url = "1@%s:5050" % active_master
+
   template_vars = {
     "master_list": '\n'.join([i.public_dns_name for i in master_res.instances]),
     "active_master": active_master,
     "slave_list": '\n'.join([i.public_dns_name for i in slave_res.instances]),
+    "zoo_list": zoo_list,
+    "cluster_url": cluster_url,
     "hdfs_data_dirs": hdfs_data_dirs,
     "mapred_local_dirs": mapred_local_dirs
   }
 
-  if opts.ft > 1:
-    zoo = zoo_res.instances[0].public_dns_name
-    template_vars["zoo_list"] = '\n'.join(
-        [i.public_dns_name for i in zoo_res.instances])
-  else:
-    template_vars["zoo_list"] = "NONE";
-
+  # Create a temp directory in which we will place all the files to be
+  # deployed after we substitue template parameters in them
+  tmp_dir = tempfile.mkdtemp()
   for path, dirs, files in os.walk(root_dir):
     dest_dir = os.path.join('/', path[len(root_dir):])
-    if len(files) > 0: # Only mkdir for low-level directories since we use -p
-      ssh(active_master, opts, 'mkdir -p "%s"' % dest_dir)
+    local_dir = tmp_dir + dest_dir
+    if not os.path.exists(local_dir):
+      os.makedirs(local_dir)
     for filename in files:
       if filename[0] not in '#.~' and filename[-1] != '~':
         dest_file = os.path.join(dest_dir, filename)
-        print "Setting up %s" % dest_file
-        with open(os.path.join(path, filename)) as file:
-          text = file.read()
-          for key in template_vars:
-            text = text.replace("{{" + key + "}}", template_vars[key])
-          temp_file = NamedTemporaryFile()
-          temp_file.write(text)
-          temp_file.flush()
-          scp(active_master, opts, temp_file.name, dest_file)
-          temp_file.close()
+        local_file = tmp_dir + dest_file
+        with open(os.path.join(path, filename)) as src:
+          with open(local_file, "w") as dest:
+            text = src.read()
+            for key in template_vars:
+              text = text.replace("{{" + key + "}}", template_vars[key])
+            dest.write(text)
+            dest.close()
+  # rsync the whole directory over to the master machine
+  command = (("rsync -rv -e 'ssh -o StrictHostKeyChecking=no -i %s' " + 
+      "'%s/' 'root@%s:/'") % (opts.identity_file, tmp_dir, active_master))
+  print command
+  subprocess.check_call(command, shell=True)
+  # Remove the temp directory
+  shutil.rmtree(tmp_dir)
 
 
 # Copy a file to a given host through scp, throwing an exception if scp fails
@@ -367,7 +376,7 @@ def main():
     else:
       (master_res, slave_res, zoo_res) = launch_cluster(
           conn, opts, cluster_name)
-    wait_for_cluster(conn, master_res, slave_res, zoo_res)
+      wait_for_cluster(conn, master_res, slave_res, zoo_res)
     setup_cluster(conn, master_res, slave_res, zoo_res, opts, True)
   elif action == "destroy":
     response = raw_input("Are you sure you want to destroy the cluster " +
@@ -382,7 +391,7 @@ def main():
       print "Terminating slaves..."
       for inst in slave_res.instances:
         inst.terminate()
-      if opts.ft > 1:
+      if zoo_res != None:
         print "Terminating zoo..."
         for inst in zoo_res.instances:
           inst.terminate()
@@ -406,7 +415,7 @@ def main():
     response = raw_input("Are you sure you want to stop the cluster " +
         cluster_name + "?\nDATA ON EPHEMERAL DISKS WILL BE LOST, " +
         "BUT THE CLUSTER WILL KEEP USING SPACE ON\n" + 
-        "AMAZON EBS IF IT IS EBS-BACKED!\n" +
+        "AMAZON EBS IF IT IS EBS-BACKED!!\n" +
         "Stop cluster " + cluster_name + " (y/N): ")
     if response == "y":
       (master_res, slave_res, zoo_res) = get_existing_cluster(
@@ -417,7 +426,7 @@ def main():
       print "Stopping slaves..."
       for inst in slave_res.instances:
         inst.stop()
-      if opts.ft > 1:
+      if zoo_res != None:
         print "Stopping zoo..."
         for inst in zoo_res.instances:
           inst.stop()
@@ -425,13 +434,13 @@ def main():
   elif action == "start":
     (master_res, slave_res, zoo_res) = get_existing_cluster(
         conn, opts, cluster_name)
-    print "Starting master..."
-    for inst in master_res.instances:
-      inst.start()
     print "Starting slaves..."
     for inst in slave_res.instances:
       inst.start()
-    if opts.ft > 1:
+    print "Starting master..."
+    for inst in master_res.instances:
+      inst.start()
+    if zoo_res != None:
       print "Starting zoo..."
       for inst in zoo_res.instances:
         inst.start()

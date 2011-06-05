@@ -25,6 +25,7 @@ ZOOS=`cat zoo`
 
 if [[ $ZOOS = *NONE* ]]; then
   NUM_ZOOS=0
+  ZOOS=""
 else
   NUM_ZOOS=`cat zoo | wc -l`
 fi
@@ -95,7 +96,7 @@ if [[ $NUM_MASTERS -gt 1 ]] ; then
 fi
 
 if [[ $NUM_ZOOS != 0 ]] ; then
-  echo "RSYNC'ing /root/mesos-ec2 to other ZooKeeper servers..."
+  echo "RSYNC'ing /root/mesos-ec2 to ZooKeeper servers..."
   for zoo in $ZOOS; do
       echo $zoo
       rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $zoo:/root & sleep 0.3
@@ -111,27 +112,15 @@ for slave in $SLAVES; do
 done
 wait
 
-echo "Setting up slaves..."
-for slave in $SLAVES; do
-  echo $slave
-  ssh -t $SSH_OPTS root@$slave "mesos-ec2/setup-slave" &
+echo "Running slave setup script on all nodes..."
+for node in $SLAVES $MASTERS $ZOO; do
+  echo $node
+  ssh -t $SSH_OPTS root@$node "mesos-ec2/setup-slave" & wait 0.3
 done
 wait
 
-if [[ $NUM_ZOOS != 0 ]] ; then
-  echo "Running slave setup on ZooKeeper nodes..."
-  for slave in $SLAVES; do
-    echo $slave
-    ssh -t $SSH_OPTS root@$slave "mesos-ec2/setup-slave" &
-  done
-  wait
-fi
-
-echo "Running slave setup on master (i.e. for local)..."
-./setup-slave
-
 if [[ $NUM_MASTERS -gt 1 ]] ; then
-  echo "RSYNC'ing Hadoop config files for HDFS to other masters..."
+  echo "RSYNC'ing HDFS config files to other masters..."
   for master in `cat $MASTERS_FILE | sed '1d'`; do
     echo $master
     rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $master:$HADOOP_HOME & sleep 0.3
@@ -139,7 +128,7 @@ if [[ $NUM_MASTERS -gt 1 ]] ; then
   wait
 fi
 
-echo "RSYNC'ing Hadoop config files for HDFS to slaves..."
+echo "RSYNC'ing HDFS config files to slaves..."
 for slave in $SLAVES; do
   echo $slave
   rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $slave:$HADOOP_HOME & sleep 0.3
@@ -192,6 +181,9 @@ echo "Setting up haproxy+apache framework config files..."
 cp haproxy+apache/* /root/mesos/frameworks/haproxy+apache
 
 echo "Setting up Spark config files..."
+# TODO: This currently overwrites whatever the user wrote there; on
+# the other hand, we also don't want to leave an old file created by
+# us because it would have the wrong hostname for HDFS etc
 mkdir -p /root/spark/conf
 echo "-Dspark.dfs=hdfs://$HOSTNAME:9000 -Dspark.repl.classdir=/nfs" \
      > /root/spark/conf/java-opts

@@ -15,25 +15,15 @@ fi
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
-if [[ $NUM_ZOOS == 0 ]]; then
-  master_arg="1@${ACTIVE_MASTER}:5050"
-else
-  master_arg="zoo://"
-  add=""
-  for zoo in $ZOOS; do
-    master_arg+=$add
-    master_arg+=$zoo":2181/mesos"
-    add=","
-  done
-fi
+cluster_url=`cat cluster-url`
 
-echo "Running with master parameter: "$master_arg
+echo "Running with cluster URL: "$cluster_url
 
 if [[ $NUM_ZOOS != 0 ]]; then
   masterid=1
   for master in $MASTERS; do
     echo "Starting master $masterid on $master"
-    ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 -u $master_arg $@ </dev/null >/dev/null" & sleep 0.1
+    ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 -u $cluster_url $@ </dev/null >/dev/null" & sleep 0.1
     masterid=$(($masterid+1))
   done
   wait
@@ -73,7 +63,7 @@ MEM=''
 
 for slave in $SLAVES; do
   echo "Starting $COUNT slave(s) on $slave"
-  ssh $SSH_OPTS $slave "for ((i = 0; i < $COUNT; i++)); do /root/mesos-ec2/mesos-daemon mesos-slave -u ${master_arg} $CPUS $MEM; done </dev/null >/dev/null" &
+  ssh $SSH_OPTS $slave "for ((i = 0; i < $COUNT; i++)); do /root/mesos-ec2/mesos-daemon mesos-slave -u ${cluster_url} $CPUS $MEM; done </dev/null >/dev/null" &
   sleep 0.1
 done
 wait

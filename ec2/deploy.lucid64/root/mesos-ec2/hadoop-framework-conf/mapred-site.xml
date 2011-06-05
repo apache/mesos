@@ -22,7 +22,7 @@
 
   <property>
     <name>mapred.mesos.master</name>
-    <value>1@{{active_master}}:5050</value>
+    <value>{{cluster_url}}</value>
   </property>
 
   <property>
