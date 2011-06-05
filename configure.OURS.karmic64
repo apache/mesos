@@ -1,2 +1,2 @@
 #!/bin/sh
-./configure --with-python-headers=/usr/include/python2.6 --with-ruby-headers=/usr/lib/ruby/1.8/x86_64-linux --with-java-home=/usr/lib/jvm/java-6-sun --with-webui $@
+./configure --with-python-headers=/usr/include/python2.6 --with-ruby-headers=/usr/lib/ruby/1.8/x86_64-linux --with-java-home=/usr/lib/jvm/java-6-sun --with-webui --with-local-zookeeper $@
