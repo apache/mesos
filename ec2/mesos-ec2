@@ -1,3 +1,3 @@
 #!/bin/sh
 cd "`dirname $0`"
-PYTHONPATH="$PYTHONPATH:../third_party/boto-1.9b" python ./mesos_ec2.py $@
+PYTHONPATH="$PYTHONPATH:../third_party/boto-2.0b2" python ./mesos_ec2.py $@
