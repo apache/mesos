@@ -164,8 +164,10 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
 {
   // Get an ordering of frameworks to send offers to
   vector<Framework*> ordering = getAllocationOrdering();
-  if (ordering.size() == 0)
+  if (ordering.size() == 0) {
+    VLOG(1) << "makeNewOffers returning because no frameworks are connected";
     return;
+  }
   
   // Find all the free resources that can be allocated
   unordered_map<Slave* , Resources> freeResources;
@@ -178,8 +180,10 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
       }
     }
   }
-  if (freeResources.size() == 0)
+  if (freeResources.size() == 0) {
+    VLOG(1) << "makeNewOffers returning because there are no free resources";
     return;
+  }
   
   // Clear refusers on any slave that has been refused by everyone
   foreachpair (Slave* slave, _, freeResources) {
