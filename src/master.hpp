@@ -272,14 +272,15 @@ protected:
   unordered_map<PID, FrameworkID> pidToFid;
   unordered_map<PID, SlaveID> pidToSid;
 
-  long nextFrameworkId; // Used to give each framework a unique ID.
-  long nextSlaveId;         // Used to give each slave a unique ID.
-  long nextSlotOfferId; // Used to give each slot offer a unique ID.
+  int64_t nextFrameworkId; // Used to give each framework a unique ID.
+  int64_t nextSlaveId;     // Used to give each slave a unique ID.
+  int64_t nextSlotOfferId; // Used to give each slot offer a unique ID.
 
   string allocatorType;
   Allocator *allocator;
 
-  long masterId; // Used to differentiate different master in FT mode, will be ephemeral id
+  int64_t masterId; // Used to differentiate masters in fault tolerant mode;
+                    // will be this master's ZooKeeper ephemeral id
 
 public:
   Master(const string& _allocatorType = "simple");

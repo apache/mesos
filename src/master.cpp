@@ -1,3 +1,5 @@
+#include <iomanip>
+
 #include <glog/logging.h>
 
 #include "allocator.hpp"
@@ -6,13 +8,15 @@
 #include "master_webui.hpp"
 
 using std::endl;
+using std::make_pair;
+using std::map;
 using std::max;
 using std::min;
-using std::pair;
-using std::make_pair;
 using std::ostringstream;
-using std::map;
+using std::pair;
 using std::set;
+using std::setfill;
+using std::setw;
 using std::string;
 using std::vector;
 
@@ -255,7 +259,7 @@ void Master::operator () ()
     if (receive() == GOT_MASTER_ID) {
       string id;
       unpack<GOT_MASTER_ID>(id);
-      masterId = lexical_cast<long>(id);
+      masterId = lexical_cast<int64_t>(id);
       LOG(INFO) << "Master ID:" << masterId;
       break;
     } else {
@@ -1012,7 +1016,7 @@ FrameworkID Master::newFrameworkId()
   char timestr[32];
   strftime(timestr, sizeof(timestr), "%Y%m%d%H%M", timeinfo);
   int fwId = nextFrameworkId++;
-  char buf[128];
-  snprintf(buf, sizeof(buf), "%s-%d-%04d", timestr, masterId, fwId);
-  return string(buf);
+  ostringstream oss;
+  oss << timestr << "-" << masterId << "-" << setw(4) << setfill('0') << fwId;
+  return oss.str();
 }
