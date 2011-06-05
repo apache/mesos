@@ -115,7 +115,7 @@ wait
 echo "Running slave setup script on all nodes..."
 for node in $SLAVES $MASTERS $ZOO; do
   echo $node
-  ssh -t $SSH_OPTS root@$node "mesos-ec2/setup-slave" & wait 0.3
+  ssh -t $SSH_OPTS root@$node "mesos-ec2/setup-slave" & sleep 0.3
 done
 wait
 
