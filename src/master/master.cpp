@@ -775,7 +775,7 @@ OfferID Master::makeOffer(Framework *framework,
     params.set("mem", r.resources.mem);
     SlaveOffer offer(r.slave->id, r.slave->hostname, params.getMap());
     offers.push_back(offer);
-    pids[r.slave->id, r.slave->pid];
+    pids[r.slave->id] = r.slave->pid;
   }
   send(framework->pid, pack<M2F_SLOT_OFFER>(oid, offers, pids));
   return oid;

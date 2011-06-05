@@ -253,10 +253,14 @@ protected:
       case F2F_FRAMEWORK_MESSAGE: {
         FrameworkMessage msg;
         tie(msg) = unpack<F2F_FRAMEWORK_MESSAGE>(body());
-        if (savedSlavePids.count(msg.slaveId) > 0)
+        VLOG(1) << "Asked to send framework message to slave " << msg.slaveId;
+        if (savedSlavePids.count(msg.slaveId) > 0) {
+          VLOG(1) << "Saved slave PID is " << savedSlavePids[msg.slaveId];
           send(savedSlavePids[msg.slaveId], pack<M2S_FRAMEWORK_MESSAGE>(fid, msg));
-        else
+        } else {
+          VLOG(1) << "No PID is saved for that slave; sending through master";
           send(master, pack<F2M_FRAMEWORK_MESSAGE>(fid, msg));
+        }
         break;
       }
 
