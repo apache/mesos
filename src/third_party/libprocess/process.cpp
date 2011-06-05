@@ -1749,7 +1749,10 @@ public:
   timeout_t create_timeout(Process *process, double secs)
   {
     assert(process != NULL);
-    ev_tstamp tstamp = ev_now(loop) + secs;
+    ev_tstamp now = ev_now(loop);
+    ev_tstamp tstamp = now + secs;
+    cout << std::setprecision(30);
+    cout << "create_timeout: now is " << now << " and timeout is " << tstamp << endl;
     return make_tuple(tstamp, process, process->generation);
   }
 
@@ -2263,12 +2266,18 @@ void handle_timeout(struct ev_loop *loop, ev_timer *w, int revents)
   {
     ev_tstamp now = ev_now(loop);
 
+    cout << std::setprecision(30);
+    cout << "handle_timeout: now is " << now << endl;
+
     map<ev_tstamp, list<timeout_t> >::iterator it = timers->begin();
     map<ev_tstamp, list<timeout_t> >::iterator last = timers->begin();
 
     for (; it != timers->end(); ++it) {
       // Check if timer has expired.
       ev_tstamp tstamp = it->first;
+      cout << std::setprecision(30);
+      cout << "checking if tstamp > now (tstamp - now = " << tstamp - now << ")" << endl;
+      
       if (tstamp > now) {
 	last = it;
 	break;
