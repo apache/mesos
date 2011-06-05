@@ -13,7 +13,7 @@ ac_configure_args="$ac_configure_args --enable-shared=no"
 
 AC_CONFIG_FILES([Makefile src/Makefile src/config.hpp])
 AC_CONFIG_SUBDIRS([src/third_party/libprocess])
-AC_CONFIG_SUBDIRS([src/third_party/gtest-1.4.0-patched])
+AC_CONFIG_SUBDIRS([src/third_party/gtest-1.5.0])
 AC_CONFIG_SUBDIRS([src/third_party/glog-0.3.0])
 
 AC_CANONICAL_SYSTEM

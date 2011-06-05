@@ -25,7 +25,7 @@ LOCAL_ZOOKEEPER = @LOCAL_ZOOKEEPER@
 LIBEV = third_party/libprocess/third_party/libev-3.8
 
 GLOG = third_party/glog-0.3.0
-GTEST = third_party/gtest-1.4.0-patched
+GTEST = third_party/gtest-1.5.0
 
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 

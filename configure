@@ -566,6 +566,7 @@ CPPFLAGS
 LDFLAGS
 CXXFLAGS
 CXX
+LOCAL_ZOOKEEPER
 SWIG
 WEBUI_FLAGS
 WITH_WEBUI
@@ -632,6 +633,7 @@ with_python_headers
 with_ruby_headers
 with_webui
 with_swig
+with_local_zookeeper
 '
       ac_precious_vars='build_alias
 host_alias
@@ -645,8 +647,9 @@ CCC
 CC
 CFLAGS'
 ac_subdirs_all='src/third_party/libprocess
-src/third_party/gtest-1.4.0-patched
-src/third_party/glog-0.3.0'
+src/third_party/gtest-1.5.0
+src/third_party/glog-0.3.0
+src/third_party/zookeeper-3.3.1/src/c'
 
 # Initialize some variables set by options.
 ac_init_help=
@@ -1264,6 +1267,7 @@ Optional Packages:
   --with-ruby-headers=DIR find Ruby headers in DIR
   --with-webui            enable web UI (requires Python)
   --with-swig=PATH        use the SWIG binary at PATH
+  --with-local-zookeeper  Use local ZooKeeper for building
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -1783,11 +1787,22 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-CFLAGS="${CFLAGS} -O2 -fno-strict-aliasing -fPIC"
-CXXFLAGS="${CXXFLAGS} -O2 -fno-strict-aliasing -fPIC"
+# Use explicit python version 2.6.
+PYTHON=python2.6
+
+# Update CFLAGS and CXXFLAGS with environment args.
+CFLAGS="-O2 -fno-strict-aliasing -fPIC ${CFLAGS}"
+CXXFLAGS="-O2 -fno-strict-aliasing -fPIC ${CXXFLAGS}"
+
 export CFLAGS
 export CXXFLAGS
-PYTHON=python
+
+# Update CFLAGS and CXXFLAGS in configure args.
+# TODO(benh): Don't send args just for us (e.g., --with-webui).
+ac_configure_args=`echo $ac_configure_args | \
+                   sed -e "s/CFLAGS=/CFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
+ac_configure_args=`echo $ac_configure_args | \
+                   sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
 ac_configure_args="$ac_configure_args --enable-shared=no"
 
 ac_config_files="$ac_config_files Makefile src/Makefile src/config.hpp"
@@ -1819,9 +1834,11 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 subdirs="$subdirs src/third_party/libprocess"
 
-subdirs="$subdirs src/third_party/gtest-1.4.0-patched"
+subdirs="$subdirs src/third_party/gtest-1.5.0"
 
 subdirs="$subdirs src/third_party/glog-0.3.0"
+
+subdirs="$subdirs src/third_party/zookeeper-3.3.1/src/c"
 
 
 # Make sure we can run config.sub.
@@ -2045,6 +2062,20 @@ if test "${with_swig+set}" = set; then :
 		    yes) as_fn_error "
 *** --with-swig requires an argument" "$LINENO" 5 ;;
 		    *) SWIG="$withval" ;;
+	          esac
+fi
+
+
+
+LOCAL_ZOOKEEPER="no"
+
+# Check whether --with-local-zookeeper was given.
+if test "${with_local_zookeeper+set}" = set; then :
+  withval=$with_local_zookeeper; case "$with_local_zookeeper" in
+		    yes) LOCAL_ZOOKEEPER="yes" ;;
+                    no) LOCAL_ZOOKEEPER="no" ;;
+		    *) as_fn_error "
+*** --with-local-zookeeper does not take arguments" "$LINENO" 5 ;;
 	          esac
 fi
 
