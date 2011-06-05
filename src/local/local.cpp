@@ -57,7 +57,7 @@ void registerOptions(Configurator* conf)
 PID launch(int numSlaves,
            int32_t cpus,
            int64_t mem,
-	   bool initLogging,
+           bool initLogging,
            bool quiet,
            bool dateInMasterId)
 {
