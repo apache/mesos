@@ -32,11 +32,11 @@ using namespace nexus::internal::launcher;
 
 
 ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
-				   const string& _executorUri,
-				   const string& _user,
-				   const string& _workDirectory,
-				   const string& _slavePid,
-				   bool _redirectIO,
+                                   const string& _executorUri,
+                                   const string& _user,
+                                   const string& _workDirectory,
+                                   const string& _slavePid,
+                                   bool _redirectIO,
                                    const string_map& _params)
   : frameworkId(_frameworkId), executorUri(_executorUri), user(_user),
     workDirectory(_workDirectory), slavePid(_slavePid),
@@ -132,7 +132,7 @@ string ExecutorLauncher::fetchExecutor()
       fatal("HDFS copyToLocal failed: return code %d", ret);
     executor = localFile;
     if (chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
-	      S_IROTH | S_IXOTH) != 0)
+              S_IROTH | S_IXOTH) != 0)
       fatalerror("chmod failed");
   }
 
@@ -214,7 +214,7 @@ void ExecutorLauncher::switchUser()
 
 
 void ExecutorLauncher::split(const string& str, const string& delims,
-			     vector<string>* tokens)
+                             vector<string>* tokens)
 {
   // Start and end of current token; initialize these to the first token in
   // the string, skipping any leading delimiters
