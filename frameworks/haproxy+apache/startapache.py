@@ -7,10 +7,13 @@ import atexit
 
 from subprocess import *
 
+APACHECTL = "/usr/apache2/2.2/bin/apachectl" #EC2
+#APACHECTL = "sudo /etc/init.d/apache2" #R Cluster
+
 def cleanup():
   try:
     # TODO(*): This will kill ALL apaches...oops.
-    os.waitpid(Popen("/usr/apache2/2.2/bin/apachectl stop", shell=True).pid, 0)
+    os.waitpid(Popen(APACHECTL + " stop", shell=True).pid, 0)
   except Exception, e:
     print e
     None
@@ -22,7 +25,7 @@ class MyExecutor(mesos.Executor):
 
   def launchTask(self, driver, task):
     self.tid = task.taskId
-    Popen("/usr/apache2/2.2/bin/apachectl start", shell=True)
+    Popen(APACHECTL + " start", shell=True)
 
   def killTask(self, driver, tid):
     if (tid != self.tid):
