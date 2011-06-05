@@ -23,6 +23,7 @@ class MyScheduler(mesos.Scheduler):
     frameworkDir = os.path.abspath(os.path.dirname(sys.argv[0]))
     execPath = os.path.join(frameworkDir, "test_executor")
     execInfo = mesos_pb2.ExecutorInfo()
+    execInfo.executor_id.value = "default"
     execInfo.uri = execPath
     return execInfo
 
@@ -36,17 +37,24 @@ class MyScheduler(mesos.Scheduler):
       if self.tasksLaunched < TOTAL_TASKS:
         tid = self.tasksLaunched
         self.tasksLaunched += 1
+
         print "Accepting offer on %s to start task %d" % (offer.hostname, tid)
+
         task = mesos_pb2.TaskDescription()
         task.task_id.value = str(tid)
         task.slave_id.value = offer.slave_id.value
         task.name = "task %d" % tid
-        cpu_param = task.params.param.add()
-        cpu_param.key = "cpus"
-        cpu_param.value = str(TASK_CPUS)
-        mem_param = task.params.param.add()
-        mem_param.key = "mem"
-        mem_param.value = str(TASK_MEM)
+
+        cpus = task.resources.add()
+        cpus.name = "cpus"
+        cpus.type = mesos_pb2.Resource.SCALAR
+        cpus.scalar.value = TASK_CPUS
+
+        mem = task.resources.add()
+        mem.name = "mem"
+        mem.type = mesos_pb2.Resource.SCALAR
+        mem.scalar.value = TASK_MEM
+
         tasks.append(task)
     driver.replyToOffer(oid, tasks, {})
 
