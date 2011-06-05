@@ -48,7 +48,11 @@ def parse_args():
   parser.add_option("--resume", action="store_true", default=False,
       help="Resume installation on a previously launched cluster " +
            "(for debugging)")
+  parser.add_option("-f", "--ft", default="1", 
+      help="Number of masters to run. Default is 1. " + 
+           "Greater values cause Nexus to run in FT mode with ZooKeeper")
   (opts, args) = parser.parse_args()
+  opts.ft = int(opts.ft)
   if len(args) != 2:
     parser.print_help()
     sys.exit(1)
@@ -96,12 +100,15 @@ def wait_for_instances(conn, reservation):
 
 
 def launch_cluster(conn, opts, cluster_name):
+  zoo_res = None
   print "Setting up security groups..."
   master_group = get_or_make_group(conn, cluster_name + "-master")
   slave_group = get_or_make_group(conn, cluster_name + "-slaves")
+  zoo_group = get_or_make_group(conn, cluster_name + "-zoo")
   if master_group.rules == []: # Group was just now created
     master_group.authorize(src_group=master_group)
     master_group.authorize(src_group=slave_group)
+    master_group.authorize(src_group=zoo_group)
     master_group.authorize('tcp', 22, 22, '0.0.0.0/0')
     master_group.authorize('tcp', 8080, 8081, '0.0.0.0/0')
     master_group.authorize('tcp', 50030, 50030, '0.0.0.0/0')
@@ -109,15 +116,22 @@ def launch_cluster(conn, opts, cluster_name):
   if slave_group.rules == []: # Group was just now created
     slave_group.authorize(src_group=master_group)
     slave_group.authorize(src_group=slave_group)
+    slave_group.authorize(src_group=zoo_group)
     slave_group.authorize('tcp', 22, 22, '0.0.0.0/0')
     slave_group.authorize('tcp', 8080, 8081, '0.0.0.0/0')
     slave_group.authorize('tcp', 50060, 50060, '0.0.0.0/0')
     slave_group.authorize('tcp', 50075, 50075, '0.0.0.0/0')
+  if zoo_group.rules == []: # Group was just now created
+    zoo_group.authorize(src_group=master_group)
+    zoo_group.authorize(src_group=slave_group)
+    zoo_group.authorize(src_group=zoo_group)
+    zoo_group.authorize('tcp', 22, 22, '0.0.0.0/0')
+    zoo_group.authorize('tcp', 2181, 2181, '0.0.0.0/0')
   print "Checking for running cluster..."
   reservations = conn.get_all_instances()
   for res in reservations:
     group_names = [g.id for g in res.groups]
-    if master_group.name in group_names or slave_group.name in group_names:
+    if master_group.name in group_names or slave_group.name in group_names or zoo_group.name in group_names:
       active = [i for i in res.instances if i.state in ['pending', 'running']]
       if len(active) > 0:
         print >> stderr, ("ERROR: There are already instances running in " +
@@ -142,9 +156,17 @@ def launch_cluster(conn, opts, cluster_name):
   master_res = image.run(key_name = opts.key_pair,
                          security_groups = [master_group],
                          instance_type = master_type,
-                         placement = opts.zone)
+                         placement = opts.zone,
+                         min_count = opts.ft,
+                         max_count = opts.ft)
   print "Launched master, regid = " + master_res.id
-  return (master_res, slave_res)
+  if opts.ft > 1:
+    zoo_res = image.run(key_name = opts.key_pair,
+                        security_groups = [zoo_group],
+                        instance_type = opts.instance_type,
+                        placement = opts.zone)
+    print "Launched zoo, regid = " + zoo_res.id
+  return (master_res, slave_res, zoo_res)
 
 
 def get_existing_cluster(conn, opts, cluster_name):
@@ -152,6 +174,7 @@ def get_existing_cluster(conn, opts, cluster_name):
   reservations = conn.get_all_instances()
   master_res = None
   slave_res = None
+  zoo_res = None
   for res in reservations:
     active = [i for i in res.instances if i.state in ['pending', 'running']]
     if len(active) > 0:
@@ -160,10 +183,14 @@ def get_existing_cluster(conn, opts, cluster_name):
         master_res = res
       elif group_names == [cluster_name + "-slaves"]:
         slave_res = res
+      elif group_names == [cluster_name + "-zoo"]:
+        zoo_res = res
   if master_res != None and slave_res != None:
     print "Found master regid: " + master_res.id
     print "Found slave regid: " + slave_res.id
-    return (master_res, slave_res)
+    if zoo_res != None:
+      print "Found slave regid: " + zoo_res.id
+    return (master_res, slave_res, zoo_res)
   else:
     if master_res == None and slave_res != None:
       print "ERROR: Could not find master in group " + cluster_name + "-master"
@@ -174,14 +201,21 @@ def get_existing_cluster(conn, opts, cluster_name):
     sys.exit(1)
 
 
-def deploy_files(conn, root_dir, instance, opts, master_res, slave_res):
+def deploy_files(conn, root_dir, instance, opts, master_res, slave_res, zoo_res):
   # TODO: Speed up deployment by creating a temp directory with the
   # template-transformed files and then rsyncing it
+
   master = master_res.instances[0].public_dns_name
+
   template_vars = {
-    "master" : master,
+    "master" : '\n'.join([i.public_dns_name for i in master_res.instances]),
     "slave_list" : '\n'.join([i.public_dns_name for i in slave_res.instances])
   }
+
+  if opts.ft > 1:
+    zoo = zoo_res.instances[0].public_dns_name
+    template_vars[ "zoo" ] = '\n'.join([i.public_dns_name for i in zoo_res.instances])
+
   for path, dirs, files in os.walk(root_dir):
     dest_dir = os.path.join('/', path[len(root_dir):])
     if len(files) > 0: # Only mkdir for low-level directories since we use -p
@@ -219,18 +253,20 @@ def main():
   conn = boto.connect_ec2()
   if action == "launch":
     if opts.resume:
-      (master_res, slave_res) = get_existing_cluster(conn, opts, cluster_name)
+      (master_res, slave_res, zoo_res) = get_existing_cluster(conn, opts, cluster_name)
     else:
-      (master_res, slave_res) = launch_cluster(conn, opts, cluster_name)
+      (master_res, slave_res, zoo_res) = launch_cluster(conn, opts, cluster_name)
       print "Waiting for instances to start up..."
       time.sleep(5)
       wait_for_instances(conn, master_res)
       wait_for_instances(conn, slave_res)
+      if opts.ft > 1:
+        wait_for_instances(conn, zoo_res)
       print "Waiting 20 more seconds..."
       time.sleep(20)
     print "Deploying files to master..."
     deploy_files(conn, "deploy." + opts.os, master_res.instances[0],
-        opts, master_res, slave_res)
+        opts, master_res, slave_res, zoo_res)
     print "Copying SSH key %s to master..." % opts.identity_file
     master = master_res.instances[0].public_dns_name
     ssh(master, opts, 'mkdir -p /root/.ssh')
@@ -243,13 +279,16 @@ def main():
     response = raw_input("Are you sure you want to shut down the cluster " +
         cluster_name + "? (y/N) ")
     if response == "y":
-      (master_res, slave_res) = get_existing_cluster(conn, opts, cluster_name)
+      (master_res, slave_res, zoo_res) = get_existing_cluster(conn, opts, cluster_name)
       print "Shutting down master..."
       master_res.stop_all()
       print "Shutting down slaves..."
       slave_res.stop_all()
+      if opts.ft > 1:
+        print "Shutting down zoo..."
+        zoo_res.stop_all()
   elif action == "login":
-    (master_res, slave_res) = get_existing_cluster(conn, opts, cluster_name)
+    (master_res, slave_res, zoo_res) = get_existing_cluster(conn, opts, cluster_name)
     master = master_res.instances[0].public_dns_name
     print "Logging into master " + master + "..."
     proxy_opt = ""

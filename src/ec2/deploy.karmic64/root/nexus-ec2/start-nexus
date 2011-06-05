@@ -2,12 +2,38 @@
 cd /root/nexus-ec2
 
 MASTER="`cat master`"
+MASTER1="`cat master | head -1`"
 SLAVES="`cat slaves`"
+ZOO1="`cat zoo | head -1`"
+ZOO="`cat zoo`"
+
+ISFT="`cat zoo | wc -l`"
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
-echo "Starting master on $MASTER"
-ssh $SSH_OPTS $MASTER "/root/nexus-ec2/nexus-daemon nexus-master -p 1111 </dev/null >/dev/null"
+if [[ $ISFT == 0 ]]; then
+  master_arg="1@${MASTER}:1111"
+else
+  master_arg="zoo://${ZOO1}:2181"
+fi
+
+
+if [[ $ISFT != 0 ]]; then
+  echo "Starting ZooKeeper on $ZOO1"
+  ssh $SSH_OPTS $ZOO1 "/root/nexus/src/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null"
+
+  sleep 2
+
+  masterid=1
+  for master in $MASTER; do
+    echo "Starting master $masterid on $MASTER"
+    ssh $SSH_OPTS $master "/root/nexus-ec2/nexus-daemon nexus-master -p 1111 -f $master_arg </dev/null >/dev/null"
+    masterid=$(($masterid+1))
+  done
+else
+  echo "Starting master on $MASTER1"
+  ssh $SSH_OPTS $MASTER1 "/root/nexus-ec2/nexus-daemon nexus-master -p 1111 </dev/null >/dev/null"
+fi
 
 COUNT=''
 CPUS=''
@@ -38,10 +64,19 @@ fi
 
 for slave in $SLAVES; do
   echo "Starting $COUNT slave(s) on $slave"
-  ssh $SSH_OPTS $slave "for ((i = 0; i < $COUNT; i++)); do /root/nexus-ec2/nexus-daemon nexus-slave 1@$MASTER:1111 $CPUS $MEM; done </dev/null >/dev/null" &
+  ssh $SSH_OPTS $slave "for ((i = 0; i < $COUNT; i++)); do /root/nexus-ec2/nexus-daemon nexus-slave ${master_arg} $CPUS $MEM; done </dev/null >/dev/null" &
   sleep 0.1
 done
 wait
 
+if [[ $ISFT != 0 ]]; then
+  echo "ZooKeeper is running at"
+  for zoo in $ZOO; do
+    echo "      $zoo:2181"
+  done
+fi
+
 echo "Everything's started! You can view the master Web UI at"
-echo "      http://$MASTER:8080"
+for master in $MASTER; do
+  echo "      http://$master:8080"
+done

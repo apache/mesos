@@ -11,6 +11,9 @@ export PATH=$PATH:/root/scala-2.7.7.final/bin
 
 MASTER=/root/nexus-ec2/master
 SLAVES=/root/nexus-ec2/slaves
+ZOO=/root/nexus-ec2/zoo
+
+ISFT=`cat $ZOO | wc -l`
 
 # Scripts that get used for/while running Nexus.
 SCRIPTS="copy-dir
@@ -45,8 +48,23 @@ echo "Setting executable permissions on scripts..."
 for s in $SCRIPTS; do chmod u+x $s; done
 
 echo "SSH'ing to local machine to approve key..."
-ssh -q $SSH_OPTS `cat $MASTER` echo -n
+for master in `cat $MASTER`; do
+  echo $master
+  ssh $SSH_OPTS $master echo -n &
+  sleep 0.3
+done
+
 ssh -q $SSH_OPTS localhost echo -n
+
+if [[ $ISFT != 0 ]] ; then
+  echo "SSH'ing to Zoo server(s) to approve keys..."
+  for zoo in `cat $ZOO`; do
+    echo $zoo
+    ssh $SSH_OPTS $zoo echo -n &
+    ssh $SSH_OPTS $zoo mkdir -p /tmp/zookeeper &
+    sleep 0.3
+  done
+fi
 
 echo "SSH'ing to slaves to approve keys..."
 for slave in `cat $SLAVES`; do
@@ -56,6 +74,22 @@ for slave in `cat $SLAVES`; do
 done
 echo "Waiting for commands to finish..."
 wait
+
+if [[ `cat $MASTER | wc -l` > 1 ]] ; then
+  echo "RSYNC'ing /root/nexus-ec2 to other master servers..."
+  for master in `cat $MASTER | sed '1d'`; do
+      echo $master
+      rsync -e "ssh $SSH_OPTS" -az /root/nexus-ec2 $master:/root
+  done
+fi
+
+if [[ $ISFT != 0 ]] ; then
+  echo "RSYNC'ing /root/nexus-ec2 to other Zoo servers..."
+  for zoo in `cat $ZOO`; do
+      echo $zoo
+      rsync -e "ssh $SSH_OPTS" -az /root/nexus-ec2 $zoo:/root
+  done
+fi
 
 echo "RSYNC'ing /root/nexus-ec2 to slaves..."
 for slave in `cat $SLAVES`; do
