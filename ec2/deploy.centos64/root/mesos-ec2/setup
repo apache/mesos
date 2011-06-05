@@ -82,9 +82,12 @@ if [[ $NUM_ZOOS != 0 ]] ; then
   done
 fi
 
-TODO="$SLAVES"
+# Try to SSH to each slave to approve their key. Since some slaves may be
+# slow in starting, we retry failed slaves up to 3 times.
+TODO="$SLAVES"  # List of slaves to try (initially all of them)
+TRIES="0"       # Number of times we've tried so far
 echo "SSH'ing to slaves to approve keys..."
-while [ "e$TODO" != "e" ] ; do
+while [ "e$TODO" != "e" ] && [ $TRIES -lt 4 ] ; do
   NEW_TODO=
   for slave in $TODO; do
     echo $slave
@@ -93,8 +96,9 @@ while [ "e$TODO" != "e" ] ; do
         NEW_TODO="$NEW_TODO $slave"
     fi
   done
-  if [ "e$NEW_TODO" != "e" ] ; then
-      sleep 10
+  TRIES=$[$TRIES + 1]
+  if [ "e$NEW_TODO" != "e" ] && [ $TRIES -lt 4 ] ; then
+      sleep 15
       TODO="$NEW_TODO"
       echo "Re-attempting SSH to slaves to approve keys..."
   else

@@ -32,7 +32,7 @@ else
   ssh $SSH_OPTS $ACTIVE_MASTER "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 $@ </dev/null >/dev/null"
 fi
 
-sleep 2
+sleep 5
 
 for slave in $SLAVES; do
   echo "Starting slave on $slave"

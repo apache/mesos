@@ -37,12 +37,17 @@
 
   <property>
     <name>tasktracker.http.threads</name>
-    <value>50</value>
+    <value>40</value>
   </property>
 
   <property>
     <name>mapred.child.java.opts</name>
-    <value>-Xmx1512m</value>
+    <value>-Xmx500m</value>
+  </property>
+
+  <property>
+    <name>mapred.mesos.task.mem</name>
+    <value>500</value>
   </property>
 
   <property>
@@ -57,7 +62,7 @@
 
   <property>
     <name>io.sort.mb</name>
-    <value>100</value>
+    <value>150</value>
   </property>
 
   <property>
@@ -73,14 +78,6 @@
   <property>
     <name>mapred.tasktracker.reduce.tasks.maximum</name>
     <value>8</value>
-  </property>
-
-  <property>
-    <name>io.sort.mb</name>
-    <value>200</value>
-    <description>The total amount of buffer memory to use while sorting
-    files, in megabytes.  By default, gives each merge stream 1MB, which
-    should minimize seeks.</description>
   </property>
 
 </configuration>
