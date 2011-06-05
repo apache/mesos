@@ -5,9 +5,6 @@ bin=`cd "$bin"; pwd`
 
 . $bin/mesos_env.sh
 
-# Set MESOS_PUBLIC_DNS so slaves can be linked in master web UI
-#export MESOS_PUBLIC_DNS=`wget -q -O - http://instance-data.ec2.internal/latest/meta-data/public-hostname`
-
 #ulimit -n 8192
 #export LD_PRELOAD_32=/usr/lib/extendedFILE.so.1
 
@@ -21,7 +18,7 @@ if [ "$PROGRAM" == "mesos-slave" ]; then
   CPUS=`grep processor /proc/cpuinfo | wc -l`
   MEM_KB=`cat /proc/meminfo | grep MemTotal | awk '{print $2}'`
   MEM=$[(MEM_KB - 1024 * 1024) * 1024]
-  EXTRA_OPTS="--cpus $CPUS --mem $MEM"
+  EXTRA_OPTS="--cpus=$CPUS --mem=$MEM"
 fi
 
 
@@ -29,6 +26,8 @@ if [ ! -d $MESOS_LOGS ]; then
   mkdir -p $MESOS_LOGS
 fi
 
-echo cd $MESOS_HOME
+FULL_IP=`hostname --all-ip-addresses`
+IP=`echo $FULL_IP|sed 's/\([^ ]*\) .*/\1/'`
+
 cd $MESOS_HOME
-nohup ./$PROGRAM $EXTRA_OPTS $@ </dev/null >$MESOS_LOGS/$PROGRAM.out 2>&1 &
+LIBPROCESS_IP=$IP nohup ./$PROGRAM $EXTRA_OPTS $@ </dev/null >$MESOS_LOGS/$PROGRAM.out 2>&1 &

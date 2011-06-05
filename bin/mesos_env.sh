@@ -10,6 +10,8 @@ export PATH=$PATH:/root/scala-2.7.7.final/bin
 MASTER=`cat $bin/master`
 SLAVES=`cat $bin/slaves`
 
+MASTER_PORT=1111
+
 #The dir where Mesos deployment scripts live
 MESOS_ROOT=`cd $bin/..;pwd`
 echo "MESOS_ROOT is $MESOS_ROOT"
