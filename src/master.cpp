@@ -874,7 +874,7 @@ void Master::rescindOffer(SlotOffer *offer)
 
 void Master::killTask(TaskInfo *task)
 {
-  LOG(FATAL) << "Killing " << task;
+  LOG(INFO) << "Killing " << task;
   Framework *framework = lookupFramework(task->frameworkId);
   Slave *slave = lookupSlave(task->slaveId);
   CHECK(framework != NULL);
