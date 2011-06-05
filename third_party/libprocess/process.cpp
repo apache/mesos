@@ -2959,6 +2959,9 @@ void Process::dispatcher(Process *process, function<void (void)> *delegator)
   if (replaying)
     return;
 
+  if (process == NULL)
+    return;
+
   /* Allocate/Initialize outgoing message. */
   struct msg *msg = (struct msg *) malloc(sizeof(struct msg) + sizeof(delegator));
 
