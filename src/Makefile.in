@@ -123,7 +123,7 @@ SWIG_WEBUI_OBJ = $(MASTER_SWIG_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 COMMON_OBJ = common/fatal.o messaging/messages.o common/lock.o		\
 	     detector/detector.o common/params.o			\
 	     detector/url_processor.o configurator/configurator.o	\
-	     common/string_utils.o common/logging.o
+	     common/string_utils.o common/logging.o common/date_utils.o
 
 ifeq ($(WITH_ZOOKEEPER),1)
   COMMON_OBJ += detector/zookeeper.o

@@ -327,12 +327,9 @@ protected:
   string allocatorType;
   Allocator *allocator;
 
-  string faultToleranceId; // Differentiates masters in fault tolerant mode;
-                           // will be this master's ZooKeeper ephemeral id.
- 
-  string masterId; // Contains the date the master was launched and its
-                   // faultToleranceId. Used in framework and slave IDs
-                   // created by this master.
+  string masterId; // Contains the date the master was launched and its fault
+                   // tolerance ID (e.g. ephemeral ID returned from ZooKeeper).
+                   // Used in framework and slave IDs created by this master.
 
 public:
   Master();

@@ -58,15 +58,13 @@ PID launch(int numSlaves,
            int32_t cpus,
            int64_t mem,
            bool initLogging,
-           bool quiet,
-           bool dateInMasterId)
+           bool quiet)
 {
   Params conf;
   conf.set("slaves", numSlaves);
   conf.set("cpus", cpus);
   conf.set("mem", mem);
   conf.set("quiet", quiet);
-  conf.set("date_in_master_id", dateInMasterId);
   return launch(conf, initLogging);
 }
 

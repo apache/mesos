@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include "common/date_utils.hpp"
+
 #include "allocator.hpp"
 #include "allocator_factory.hpp"
 #include "master.hpp"
@@ -255,20 +257,14 @@ void Master::operator () ()
 {
   LOG(INFO) << "Master started at mesos://" << self();
 
-  // Don't do anything until we get a fault tolerance ID.
+  // Don't do anything until we get a master ID.
   while (receive() != GOT_MASTER_ID) {
     LOG(INFO) << "Oops! We're dropping a message since "
               << "we haven't received an identifier yet!";  
   }
+  string faultToleranceId;
   tie(faultToleranceId) = unpack<GOT_MASTER_ID>(body());
-
-  // Create a master ID based on the fault tolerance ID we got.
-  // We can optionally exclude the start date to simplify unit tests.
-  if (conf.get<bool>("date_in_master_id", true)) {
-    masterId = currentDate() + "-" + faultToleranceId;
-  } else {
-    masterId = faultToleranceId;
-  }
+  masterId = DateUtils::currentDate() + "-" + faultToleranceId;
   LOG(INFO) << "Master ID: " << masterId;
 
   // Create the allocator (we do this after the constructor because it
@@ -1130,19 +1126,6 @@ FrameworkID Master::newFrameworkId()
   ostringstream oss;
   oss << masterId << "-" << setw(4) << setfill('0') << fwId;
   return oss.str();
-}
-
-
-// Get the current date in the format used for master IDs (YYYYMMDDhhmm).
-string Master::currentDate()
-{
-  time_t rawtime;
-  struct tm* timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-  char timestr[32];
-  strftime(timestr, sizeof(timestr), "%Y%m%d%H%M", timeinfo);
-  return timestr;
 }
 
 
