@@ -2,7 +2,7 @@
 
 # This script runs scheduled-memhog with the schedule file in ./schedule on a
 # cluster using Linux Containers isolation, and checks if it returns
-# $DESIRED_MEMHOG_EXIT_CODE (set through the # environment).
+# $DESIRED_MEMHOG_EXIT_CODE (set through the environment).
 # It is invoked by the actual tests (TwoSeparateTasks.sh, etc) after creating
 # the schedule file and setting DESIRED_MEMHOG_EXIT_CODE.
 
