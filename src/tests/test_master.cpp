@@ -413,7 +413,7 @@ TEST(MasterTest, SchedulerFailover)
   NexusSchedulerDriver driver(&failingSched, master);
   driver.run();
 
-  EXPECT_EQ("Failover", failingSched.errorMessage);
+  EXPECT_EQ("Framework failover", failingSched.errorMessage);
 
   failingSched.driver->join();
 

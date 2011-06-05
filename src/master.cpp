@@ -298,13 +298,7 @@ void Master::operator () ()
 				     framework->user,
 				     framework->executorInfo);
       LOG(INFO) << "Registering " << framework << " at " << framework->pid;
-      frameworks[fid] = framework;
-      pidToFid[framework->pid] = fid;
-      link(framework->pid);
-      send(framework->pid, pack<M2F_REGISTER_REPLY>(fid));
-      allocator->frameworkAdded(framework);
-      if (framework->executorInfo.uri == "")
-        terminateFramework(framework, 1, "No executor URI given");
+      addFramework(framework);
       break;
     }
 
@@ -320,31 +314,25 @@ void Master::operator () ()
       if (framework->id == "") {
 	LOG(ERROR) << "Framework reconnect/failover without an id!";
 	send(framework->pid, pack<M2F_ERROR>(1, "Missing framework id"));
+	delete framework;
 	break;
       }
 
       LOG(INFO) << "Reregistering " << framework << " at " << framework->pid;
 
-      if (frameworks[framework->id] != NULL) {
+      if (frameworks.find(framework->id) != frameworks.end()) {
 	if (failover) {
-	  terminateFramework(frameworks[framework->id], 1, "Failover");
+	  replaceFramework(frameworks[framework->id], framework);
 	} else {
 	  LOG(INFO) << "Framework reregistering with an already used id!";
 	  send(framework->pid, pack<M2F_ERROR>(1, "Framework id in use"));
+	  delete framework;
 	  break;
 	}
+      } else {
+	addFramework(framework);
+	updateFrameworkTasks();
       }
-
-      frameworks[framework->id] = framework;
-      pidToFid[framework->pid] = framework->id;
-
-      updateFrameworkTasks();
-
-      link(framework->pid);
-      send(framework->pid, pack<M2F_REGISTER_REPLY>(framework->id));
-      allocator->frameworkAdded(framework);
-      if (framework->executorInfo.uri == "")
-        terminateFramework(framework, 1, "No executor URI given");
       break;
     }
 
@@ -856,6 +844,51 @@ void Master::removeSlotOffer(SlotOffer *offer,
 }
 
 
+
+void Master::addFramework(Framework *framework)
+{
+  CHECK(frameworks.find(framework->id) == frameworks.end());
+  frameworks[framework->id] = framework;
+  pidToFid[framework->pid] = framework->id;
+  link(framework->pid);
+  send(framework->pid, pack<M2F_REGISTER_REPLY>(framework->id));
+  allocator->frameworkAdded(framework);
+  if (framework->executorInfo.uri == "")
+    terminateFramework(framework, 1, "No executor URI given");
+}
+
+
+void Master::replaceFramework(Framework *old, Framework *current)
+{
+  CHECK(old->id == current->id);
+
+  old->active = false;
+  // TODO: Notify allocator that a framework removal is beginning?
+  
+  // Remove the framework's slot offers
+  unordered_set<SlotOffer *> slotOffersCopy = old->slotOffers;
+  foreach (SlotOffer* offer, slotOffersCopy) {
+    removeSlotOffer(offer, ORR_FRAMEWORK_FAILOVER, offer->resources);
+  }
+
+  send(old->pid, pack<M2F_ERROR>(1, "Framework failover"));
+
+  // TODO(benh): Similar code between removeFramework and
+  // replaceFramework needs to be shared!
+
+  // TODO(benh): unlink(old->pid);
+  pidToFid.erase(old->pid);
+
+  // Delete it
+  frameworks.erase(old->id);
+  allocator->frameworkRemoved(old);
+  delete old;
+
+  addFramework(current);
+  updateFrameworkTasks();
+}
+
+
 // Kill all of a framework's tasks, delete the framework object, and
 // reschedule slot offers for slots that were assigned to this framework
 void Master::removeFramework(Framework *framework)
@@ -880,6 +913,9 @@ void Master::removeFramework(Framework *framework)
   foreach (SlotOffer* offer, slotOffersCopy) {
     removeSlotOffer(offer, ORR_FRAMEWORK_LOST, offer->resources);
   }
+
+  // TODO(benh): Similar code between removeFramework and
+  // replaceFramework needs to be shared!
 
   // TODO(benh): unlink(framework->pid);
   pidToFid.erase(framework->pid);

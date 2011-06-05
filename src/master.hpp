@@ -246,6 +246,7 @@ enum OfferReturnReason
   ORR_FRAMEWORK_REPLIED,
   ORR_OFFER_RESCINDED,
   ORR_FRAMEWORK_LOST,
+  ORR_FRAMEWORK_FAILOVER,
   ORR_SLAVE_LOST
 };
 
@@ -341,6 +342,10 @@ protected:
                        const vector<SlaveResources>& resourcesLeft);
 
   void removeTask(Task *task, TaskRemovalReason reason);
+
+  void addFramework(Framework *framework);
+
+  void replaceFramework(Framework *old, Framework *current);
 
   // Kill all of a framework's tasks, delete the framework object, and
   // reschedule slot offers for slots that were assigned to this framework
