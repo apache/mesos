@@ -78,8 +78,6 @@ public:
 
     install(NO_MASTER_DETECTED, &SchedulerProcess::noMasterDetected);
 
-    install(MASTER_DETECTION_FAILURE, &SchedulerProcess::masterDetectionFailure);
-
     install(M2F_REGISTER_REPLY, &SchedulerProcess::registerReply,
             &FrameworkRegisteredMessage::framework_id);
 
@@ -167,17 +165,6 @@ protected:
     // In this case, we don't actually invoke Scheduler::error
     // since we might get reconnected to a master imminently.
     active = false;
-  }
-
-  void masterDetectionFailure()
-  {
-    VLOG(1) << "Master detection failed";
-    active = false;
-    // TODO(benh): Better error codes/messages!
-    int32_t code = 1;
-    const string& message = "Failed to detect master(s)";
-    process::invoke(bind(&Scheduler::error, sched, driver, code,
-                         cref(message)));
   }
 
   void registerReply(const FrameworkID& frameworkId)

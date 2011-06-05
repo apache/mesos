@@ -445,8 +445,6 @@ void Master::initialize()
 
   install(NO_MASTER_DETECTED, &Master::noMasterDetected);
 
-  install(MASTER_DETECTION_FAILURE, &Master::masterDetectionFailure);
-
   install(F2M_REGISTER_FRAMEWORK, &Master::registerFramework,
           &RegisterFrameworkMessage::framework);
 
@@ -540,12 +538,6 @@ void Master::noMasterDetected()
   } else {
     LOG(FATAL) << "No master detected (?) ... committing suicide!";
   }
-}
-
-
-void Master::masterDetectionFailure()
-{
-  LOG(FATAL) << "Cannot reliably detect master ... committing suicide!";
 }
 
 

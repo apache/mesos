@@ -43,16 +43,18 @@ WatcherProcessManager* manager;
 // Watcher, so the ZooKeeperImpl won't end up calling into an object
 // that has been deleted. In the worst case, the ZooKeeperImpl will
 // dispatch to a dead WatcherProcess, which will just get dropped on
-// the floor. We wanted to keep the Watcher interface clean and
-// simple, so rather than add a member in Watcher that points to a
-// WatcherProcess instance (or points to a WatcherImpl), we choose to
-// create a WatcherProcessManager that stores the Watcher and
-// WatcherProcess associations. The WatcherProcessManager is akin to
-// having a shared dictionary or hashtable and using locks to access
-// it rather then sending and receiving messages. Their is probably a
-// performance hit here, but it would be interesting to see how bad
-// the perforamnce is across a range of low and high-contention
-// states.
+// the floor. In addition, the callbacks in the Watcher can manipulate
+// the ZooKeeper object freely, calling delete on it if necessary
+// (e.g., after a session expiration). We wanted to keep the Watcher
+// interface clean and simple, so rather than add a member in Watcher
+// that points to a WatcherProcess instance (or points to a
+// WatcherImpl), we choose to create a WatcherProcessManager that
+// stores the Watcher and WatcherProcess associations. The
+// WatcherProcessManager is akin to having a shared dictionary or
+// hashtable and using locks to access it rather then sending and
+// receiving messages. Their is probably a performance hit here, but
+// it would be interesting to see how bad the perforamnce is across a
+// range of low and high-contention states.
 class WatcherProcess : public Process<WatcherProcess>
 {
 public:
@@ -143,9 +145,9 @@ class ZooKeeperImpl
 #endif // USE_THREADED_ZOOKEEPER
 {
 public:
-  ZooKeeperImpl(ZooKeeper* zk, const string& hosts, int timeout,
+  ZooKeeperImpl(ZooKeeper* zk, const string& servers, int timeout,
 		Watcher* watcher)
-    : zk(zk), hosts(hosts), timeout(timeout), watcher(watcher)
+    : zk(zk), servers(servers), timeout(timeout), watcher(watcher)
   {
     if (watcher == NULL) {
       fatalerror("cannot instantiate ZooKeeper with NULL watcher");
@@ -160,7 +162,7 @@ public:
 
     // TODO(benh): Link with WatcherProcess PID?
 
-    zh = zookeeper_init(hosts.c_str(), event, timeout, NULL, this, 0);
+    zh = zookeeper_init(servers.c_str(), event, timeout, NULL, this, 0);
     if (zh == NULL) {
       fatalerror("failed to create ZooKeeper (zookeeper_init)");
     }
@@ -481,7 +483,7 @@ private:
 private:
   friend class ZooKeeper;
 
-  const string hosts; // ZooKeeper host:port pairs.
+  const string servers; // ZooKeeper host:port pairs.
   const int timeout; // ZooKeeper session timeout.
 
   ZooKeeper* zk; // ZooKeeper instance.
@@ -492,9 +494,9 @@ private:
 };
 
 
-ZooKeeper::ZooKeeper(const string& hosts, int timeout, Watcher* watcher)
+ZooKeeper::ZooKeeper(const string& servers, int timeout, Watcher* watcher)
 {
-  impl = new ZooKeeperImpl(this, hosts, timeout, watcher);
+  impl = new ZooKeeperImpl(this, servers, timeout, watcher);
 #ifndef USE_THREADED_ZOOKEEPER
   process::spawn(impl);
 #endif // USE_THREADED_ZOOKEEPER
@@ -524,7 +526,8 @@ int ZooKeeper::create(const string& path, const string& data,
   return process::call(impl->self(), &ZooKeeperImpl::create,
                        cref(path), cref(data), cref(acl), flags, result);
 #else
-  return Future<int>(&impl->create(path, data, acl, flags, result)).get();
+  Promise<int> promise = impl->create(path, data, acl, flags, result);
+  return Future<int>(&promise).get();
 #endif // USE_THREADED_ZOOKEEPER
 }
 
@@ -535,7 +538,8 @@ int ZooKeeper::remove(const string& path, int version)
   return process::call(impl->self(), &ZooKeeperImpl::remove,
                        cref(path), version);
 #else
-  return Future<int>(&impl->remove(path, version)).get();
+  Promise<int> promise = impl->remove(path, version);
+  return Future<int>(&promise).get();
 #endif // USE_THREADED_ZOOKEEPER
 }
 
@@ -546,7 +550,8 @@ int ZooKeeper::exists(const string& path, bool watch, Stat* stat)
   return process::call(impl->self(), &ZooKeeperImpl::exists,
                        cref(path), watch, stat);
 #else
-  return Future<int>(&impl->exists(path, watch, stat)).get();
+  Promise<int> promise = impl->exists(path, watch, stat);
+  return Future<int>(&promise).get();
 #endif // USE_THREADED_ZOOKEEPER
 }
 
@@ -557,7 +562,8 @@ int ZooKeeper::get(const string& path, bool watch, string* result, Stat* stat)
   return process::call(impl->self(), &ZooKeeperImpl::get,
                        cref(path), watch, result, stat);
 #else
-  return Future<int>(&impl->get(path, watch, result, stat)).get();
+  Promise<int> promise = impl->get(path, watch, result, stat);
+  return Future<int>(&promise).get();
 #endif // USE_THREADED_ZOOKEEPER
 }
 
@@ -569,7 +575,8 @@ int ZooKeeper::getChildren(const string& path, bool watch,
   return process::call(impl->self(), &ZooKeeperImpl::getChildren,
                        cref(path), watch, results);
 #else
-  return Future<int>(&impl->getChildren(path, watch, results)).get();
+  Promise<int> promise = impl->getChildren(path, watch, results);
+  return Future<int>(&promise).get();
 #endif // USE_THREADED_ZOOKEEPER
 }
 
@@ -580,7 +587,8 @@ int ZooKeeper::set(const string& path, const string& data, int version)
   return process::call(impl->self(), &ZooKeeperImpl::set,
                        cref(path), cref(data), version);
 #else
-  return Future<int>(&impl->set(path, data, version)).get();
+  Promise<int> promise = impl->set(path, data, version);
+  return Future<int>(&promise).get();
 #endif // USE_THREADED_ZOOKEEPER
 }
 

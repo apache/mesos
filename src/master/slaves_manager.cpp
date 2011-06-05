@@ -95,6 +95,12 @@ public:
         // Reconnected.
         process::dispatch(pid, &ZooKeeperSlavesManagerStorage::reconnected);
       }
+    } else if ((state == ZOO_CONNECTING_STATE) && (type == ZOO_SESSION_EVENT)) {
+      // The client library automatically reconnects, taking into
+      // account failed servers in the connection string,
+      // appropriately handling the "herd effect", etc.
+      reconnect = true;
+      process::dispatch(pid, &ZooKeeperSlavesManagerStorage::reconnecting);
     } else if ((state == ZOO_EXPIRED_SESSION_STATE) && (type == ZOO_SESSION_EVENT)) {
       // Session expiration. Let the manager take care of it.
       process::dispatch(pid, &ZooKeeperSlavesManagerStorage::expired);
@@ -104,12 +110,6 @@ public:
     } else if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_CHANGED_EVENT)) {
       // Let the manager deal with file changes.
       process::dispatch(pid, &ZooKeeperSlavesManagerStorage::updated, path);
-    } else if ((state == ZOO_CONNECTING_STATE) && (type == ZOO_SESSION_EVENT)) {
-      // The client library automatically reconnects, taking into
-      // account failed servers in the connection string,
-      // appropriately handling the "herd effect", etc.
-      reconnect = true;
-      process::dispatch(pid, &ZooKeeperSlavesManagerStorage::reconnecting);
     } else {
       LOG(WARNING) << "Unimplemented watch event: (state is "
                    << state << " and type is " << type << ")";
@@ -150,7 +150,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::add(const string& hostname, uint16_
   ret = zk->get(znode, true, &result, &stat);
 
   if (ret != ZOK) {
-    LOG(WARNING) << "Failed to get '" << znode
+    LOG(WARNING) << "Slaves manager storage failed to get '" << znode
                  << "' in ZooKeeper! (" << zk->error(ret) << ")";
     return false;
   }
@@ -168,7 +168,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::add(const string& hostname, uint16_
     size_t index = result.find(active);
 
     if (index == string::npos) {
-      LOG(WARNING) << "Bad data in '" << znode
+      LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                    << "', could not find 'active='";
       return false;
     }
@@ -184,7 +184,8 @@ Promise<bool> ZooKeeperSlavesManagerStorage::add(const string& hostname, uint16_
   ret = zk->set(znode, result, stat.version);
 
   if (ret != ZOK) {
-    LOG(WARNING) << "Could not add slave " << hostname << ":" << port
+    LOG(WARNING) << "Slaves manager storage could not add slave "
+		 << hostname << ":" << port
                  << " to '" << znode << "' in ZooKeeper! ("
                  << zk->error(ret) << ")";
     return false;
@@ -204,7 +205,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::remove(const string& hostname, uint
   ret = zk->get(znode, true, &result, &stat);
 
   if (ret != ZOK) {
-    LOG(WARNING) << "Failed to get '" << znode
+    LOG(WARNING) << "Slaves manager storage failed to get '" << znode
                  << "' in ZooKeeper! (" << zk->error(ret) << ")";
     return false;
   }
@@ -215,7 +216,8 @@ Promise<bool> ZooKeeperSlavesManagerStorage::remove(const string& hostname, uint
   size_t index = result.find(out.str());
 
   if (index == string::npos) {
-    LOG(WARNING) << "Could not remove slave " << hostname << ":" << port
+    LOG(WARNING) << "Slaves manager storage could not remove slave "
+		 << hostname << ":" << port
                  << " because not currently active or inactive";
     return false;
   } else if (index == 0) {
@@ -237,7 +239,8 @@ Promise<bool> ZooKeeperSlavesManagerStorage::remove(const string& hostname, uint
   ret = zk->set(znode, result, stat.version);
 
   if (ret != ZOK) {
-    LOG(WARNING) << "Could not remove slave " << hostname << ":" << port
+    LOG(WARNING) << "Slaves manager storage could not remove slave "
+		 << hostname << ":" << port
                  << " from '" << znode << "' in ZooKeeper! ("
                  << zk->error(ret) << ")";
     return false;
@@ -257,7 +260,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::activate(const string& hostname, ui
   ret = zk->get(znode, true, &result, &stat);
 
   if (ret != ZOK) {
-    LOG(WARNING) << "Failed to get '" << znode
+    LOG(WARNING) << "Slaves manager storage failed to get '" << znode
                  << "' in ZooKeeper! (" << zk->error(ret) << ")";
     return false;
   }
@@ -270,7 +273,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::activate(const string& hostname, ui
   size_t index = result.find(inactive);
 
   if (index == string::npos) {
-    LOG(WARNING) << "Bad data in '" << znode
+    LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                  << "', could not find 'inactive='";
     return false;
   }
@@ -278,11 +281,12 @@ Promise<bool> ZooKeeperSlavesManagerStorage::activate(const string& hostname, ui
   index = result.find(out.str(), index);
 
   if (index == string::npos) {
-    LOG(WARNING) << "Could not activate slave " << hostname << ":" << port
+    LOG(WARNING) << "Slaves manager storage could not activate slave "
+		 << hostname << ":" << port
                  << " because not currently inactive";
     return false;
   } else if (index == 0) {
-    LOG(WARNING) << "Bad data in '" << znode;
+    LOG(WARNING) << "Slaves manager storage found bad data in '" << znode;
     return false;
   }
 
@@ -301,7 +305,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::activate(const string& hostname, ui
   index = result.find(active);
 
   if (index == string::npos) {
-    LOG(WARNING) << "Bad data in '" << znode
+    LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                  << "', could not find 'active='";
     return false;
   }
@@ -316,7 +320,8 @@ Promise<bool> ZooKeeperSlavesManagerStorage::activate(const string& hostname, ui
   ret = zk->set(znode, result, stat.version);
 
   if (ret != ZOK) {
-    LOG(WARNING) << "Could not activate slave " << hostname << ":" << port
+    LOG(WARNING) << "Slaves manager storage could not activate slave "
+		 << hostname << ":" << port
                  << " in '" << znode << "' in ZooKeeper! ("
                  << zk->error(ret) << ")";
     return false;
@@ -336,7 +341,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::deactivate(const string& hostname, 
   ret = zk->get(znode, true, &result, &stat);
 
   if (ret != ZOK) {
-    LOG(WARNING) << "Failed to get '" << znode
+    LOG(WARNING) << "Slaves manager storage failed to get '" << znode
                  << "' in ZooKeeper! (" << zk->error(ret) << ")";
     return false;
   }
@@ -349,7 +354,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::deactivate(const string& hostname, 
   size_t index = result.find(active);
 
   if (index == string::npos) {
-    LOG(WARNING) << "Bad data in '" << znode
+    LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                  << "', could not find 'active='";
     return false;
   }
@@ -357,11 +362,12 @@ Promise<bool> ZooKeeperSlavesManagerStorage::deactivate(const string& hostname, 
   index = result.find(out.str(), index);
 
   if (index == string::npos) {
-    LOG(WARNING) << "Could not deactivate slave " << hostname << ":" << port
+    LOG(WARNING) << "Slaves manager storage could not deactivate slave "
+		 << hostname << ":" << port
                  << " because not currently active";
     return false;
   } else if (index == 0) {
-    LOG(WARNING) << "Bad data in '" << znode;
+    LOG(WARNING) << "Slaves manager storage found bad data in '" << znode;
     return false;
   }
 
@@ -380,7 +386,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::deactivate(const string& hostname, 
   index = result.find(inactive);
 
   if (index == string::npos) {
-    LOG(WARNING) << "Bad data in '" << znode
+    LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                  << "', could not find 'inactive='";
     return false;
   }
@@ -395,7 +401,8 @@ Promise<bool> ZooKeeperSlavesManagerStorage::deactivate(const string& hostname, 
   ret = zk->set(znode, result, stat.version);
 
   if (ret != ZOK) {
-    LOG(WARNING) << "Could not activate slave " << hostname << ":" << port
+    LOG(WARNING) << "Slaves manager storage could not activate slave "
+		 << hostname << ":" << port
                  << " in '" << znode << "' in ZooKeeper! ("
                  << zk->error(ret) << ")";
     return false;
@@ -429,7 +436,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::connected()
       // Okay, consider this a failure (maybe we lost our connection
       // to ZooKeeper), increment the failure count, log the issue,
       // and perhaps try again when ZooKeeper issues get sorted out.
-      LOG(WARNING) << "Failed to create '" << znode
+      LOG(WARNING) << "Slaves manager storage failed to create '" << znode
                    << "' in ZooKeeper! (" << zk->error(ret) << ")";
       return false;
     }
@@ -443,14 +450,15 @@ Promise<bool> ZooKeeperSlavesManagerStorage::connected()
 
 Promise<bool> ZooKeeperSlavesManagerStorage::reconnecting()
 {
-  LOG(INFO) << "ZooKeeperSlavesManagerStorage is attempting to reconnect";
+  LOG(INFO) << "Slaves manager storage lost connection to ZooKeeper, "
+	    << "attempting to reconnect ...";
   return true;
 }
 
 
 Promise<bool> ZooKeeperSlavesManagerStorage::reconnected()
 {
-  LOG(INFO) << "ZooKeeperSlavesManagerStorage has reconnected";
+  LOG(INFO) << "Slaves manager storage has reconnected ...";
 
   // Reconcile what's in the znodes versus what we have in memory
   // (this also puts watches on these znodes).
@@ -460,7 +468,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::reconnected()
 
 Promise<bool> ZooKeeperSlavesManagerStorage::expired()
 {
-  LOG(WARNING) << "ZooKeeperSlavesManagerStorage session expired!";
+  LOG(WARNING) << "Slaves manager storage session expired!";
 
   CHECK(zk != NULL);
   delete zk;
@@ -480,13 +488,13 @@ Promise<bool> ZooKeeperSlavesManagerStorage::updated(const string& path)
   string result;
 
   if (path == znode) {
-    LOG(INFO) << "Slave information in ZooKeeper has been updated " 
+    LOG(INFO) << "Slaves manager storage found updates in ZooKeeper "
               << "... propogating changes";
 
     ret = zk->get(znode, true, &result, NULL);
 
     if (ret != ZOK) {
-      LOG(WARNING) << "Failed to get '" << znode
+      LOG(WARNING) << "Slaves manager storage failed to get '" << znode
                    << "' in ZooKeeper! (" << zk->error(ret) << ")";
       return false;
     }
@@ -502,7 +510,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::updated(const string& path)
       foreach (const string& token, tokens) {
         const vector<string>& pairs = tokenize::split(token, ":");
         if (pairs.size() != 2) {
-          LOG(WARNING) << "Bad data in '" << znode
+          LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                        << "', could not parse " << token;
           return false;
         }
@@ -510,7 +518,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::updated(const string& path)
         try {
           active.insert(pairs[0], lexical_cast<uint16_t>(pairs[1]));
         } catch (const bad_lexical_cast&) {
-          LOG(WARNING) << "Bad data in '" << znode
+          LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                        << "', could not parse " << token;
           return false;
         }
@@ -528,7 +536,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::updated(const string& path)
       foreach (const string& token, tokens) {
         const vector<string>& pairs = tokenize::split(token, ":");
         if (pairs.size() != 2) {
-          LOG(WARNING) << "Bad data in '" << znode
+          LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                        << "', could not parse " << token;
           return false;
         }
@@ -536,7 +544,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::updated(const string& path)
         try {
           inactive.insert(pairs[0], lexical_cast<uint16_t>(pairs[1]));
         } catch (const bad_lexical_cast&) {
-          LOG(WARNING) << "Bad data in '" << znode
+          LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                        << "', could not parse " << token;
           return false;
         }
@@ -545,7 +553,7 @@ Promise<bool> ZooKeeperSlavesManagerStorage::updated(const string& path)
       process::dispatch(slavesManager, &SlavesManager::updateInactive, inactive);
     }
   } else {
-    LOG(WARNING) << "Not expecting changes to path '"
+    LOG(WARNING) << "Slaves manager stoage not expecting changes to path '"
                  << path << "' in ZooKeeper";
     return false;
   }
@@ -558,14 +566,14 @@ string ZooKeeperSlavesManagerStorage::parse(const string& key, const string& s)
 {
   size_t begin = s.find(key);
   if (begin == string::npos) {
-    LOG(WARNING) << "Bad data in '" << znode
+    LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                  << "', could not find '" << key << "'";
     return "";
   }
 
   size_t end = s.find("\n", begin);
   if (end == string::npos) {
-    LOG(WARNING) << "Bad data in '" << znode
+    LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                  << "', missing LF after '" << key << "'";
     return "";
   }
@@ -801,18 +809,13 @@ Promise<HttpResponse> SlavesManager::add(const HttpRequest& request)
   map<string, vector<string> > pairs =
     tokenize::pairs(request.query, ',', '=');
 
-  if (pairs.size() != 2) {
-    LOG(WARNING) << "Malformed query string when trying to add a slave";
-    return HttpNotFoundResponse();
-  }
-
   // Make sure there is at least a 'hostname=' and 'port='.
   if (pairs.count("hostname") == 0) {
-    LOG(WARNING) << "Missing 'hostname' in query string"
+    LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
                  << " when trying to add a slave";
     return HttpNotFoundResponse();
   } else if (pairs.count("port") == 0) {
-    LOG(WARNING) << "Missing 'port' in query string"
+    LOG(WARNING) << "Slaves manager expecting 'port' in query string"
                  << " when trying to add a slave";
     return HttpNotFoundResponse();
   }
@@ -823,12 +826,14 @@ Promise<HttpResponse> SlavesManager::add(const HttpRequest& request)
   try {
     port = lexical_cast<uint16_t>(pairs["port"].front());
   } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Failed to parse 'port = " << pairs["port"].front()
+    LOG(WARNING) << "Slaves manager failed to parse 'port = "
+		 << pairs["port"].front()
                  << "'  when trying to add a slave";
     return HttpNotFoundResponse();
   }
 
-  LOG(INFO) << "Asked to add slave at " << hostname << ":" << port;
+  LOG(INFO) << "Slaves manager received HTTP request to add slave at "
+	    << hostname << ":" << port;
 
   if (add(hostname, port)) {
     return HttpOKResponse();
@@ -847,18 +852,13 @@ Promise<HttpResponse> SlavesManager::remove(const HttpRequest& request)
   map<string, vector<string> > pairs =
     tokenize::pairs(request.query, ',', '=');
 
-  if (pairs.size() != 2) {
-    LOG(WARNING) << "Malformed query string when trying to remove a slave";
-    return HttpNotFoundResponse();
-  }
-
   // Make sure there is at least a 'hostname=' and 'port='.
   if (pairs.count("hostname") == 0) {
-    LOG(WARNING) << "Missing 'hostname' in query string"
+    LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
                  << " when trying to remove a slave";
     return HttpNotFoundResponse();
   } else if (pairs.count("port") == 0) {
-    LOG(WARNING) << "Missing 'port' in query string"
+    LOG(WARNING) << "Slaves manager expecting 'port' in query string"
                  << " when trying to remove a slave";
     return HttpNotFoundResponse();
   }
@@ -869,12 +869,14 @@ Promise<HttpResponse> SlavesManager::remove(const HttpRequest& request)
   try {
     port = lexical_cast<uint16_t>(pairs["port"].front());
   } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Failed to parse 'port = " << pairs["port"].front()
+    LOG(WARNING) << "Slaves manager failed to parse 'port = "
+		 << pairs["port"].front()
                  << "'  when trying to remove a slave";
     return HttpNotFoundResponse();
   }
 
-  LOG(INFO) << "Asked to remove slave at " << hostname << ":" << port;
+  LOG(INFO) << "Slaves manager received HTTP request to remove slave at "
+	    << hostname << ":" << port;
 
   if (remove(hostname, port)) {
     return HttpOKResponse();
@@ -893,18 +895,13 @@ Promise<HttpResponse> SlavesManager::activate(const HttpRequest& request)
   map<string, vector<string> > pairs =
     tokenize::pairs(request.query, ',', '=');
 
-  if (pairs.size() != 2) {
-    LOG(WARNING) << "Malformed query string when trying to activate a slave";
-    return HttpNotFoundResponse();
-  }
-
   // Make sure there is at least a 'hostname=' and 'port='.
   if (pairs.count("hostname") == 0) {
-    LOG(WARNING) << "Missing 'hostname' in query string"
+    LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
                  << " when trying to activate a slave";
     return HttpNotFoundResponse();
   } else if (pairs.count("port") == 0) {
-    LOG(WARNING) << "Missing 'port' in query string"
+    LOG(WARNING) << "Slaves manager expecting 'port' in query string"
                  << " when trying to activate a slave";
     return HttpNotFoundResponse();
   }
@@ -915,12 +912,13 @@ Promise<HttpResponse> SlavesManager::activate(const HttpRequest& request)
   try {
     port = lexical_cast<uint16_t>(pairs["port"].front());
   } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Failed to parse 'port = " << pairs["port"].front()
+    LOG(WARNING) << "Slaves manager failed to parse 'port = "
+		 << pairs["port"].front()
                  << "'  when trying to activate a slave";
     return HttpNotFoundResponse();
   }
 
-  LOG(INFO) << "HTTP request to activate slave at "
+  LOG(INFO) << "Slaves manager received HTTP request to activate slave at "
 	    << hostname << ":" << port;
 
   if (activate(hostname, port)) {
@@ -940,18 +938,13 @@ Promise<HttpResponse> SlavesManager::deactivate(const HttpRequest& request)
   map<string, vector<string> > pairs =
     tokenize::pairs(request.query, ',', '=');
 
-  if (pairs.size() != 2) {
-    LOG(WARNING) << "Malformed query string when trying to deactivate a slave";
-    return HttpNotFoundResponse();
-  }
-
   // Make sure there is at least a 'hostname=' and 'port='.
   if (pairs.count("hostname") == 0) {
-    LOG(WARNING) << "Missing 'hostname' in query string"
+    LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
                  << " when trying to deactivate a slave";
     return HttpNotFoundResponse();
   } else if (pairs.count("port") == 0) {
-    LOG(WARNING) << "Missing 'port' in query string"
+    LOG(WARNING) << "Slaves manager expecting 'port' in query string"
                  << " when trying to deactivate a slave";
     return HttpNotFoundResponse();
   }
@@ -962,12 +955,13 @@ Promise<HttpResponse> SlavesManager::deactivate(const HttpRequest& request)
   try {
     port = lexical_cast<uint16_t>(pairs["port"].front());
   } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Failed to parse 'port = " << pairs["port"].front()
+    LOG(WARNING) << "Slaves manager failed to parse 'port = "
+		 << pairs["port"].front()
                  << "'  when trying to deactivate a slave";
     return HttpNotFoundResponse();
   }
 
-  LOG(INFO) << "HTTP request to deactivate slave at "
+  LOG(INFO) << "Slaves manager received HTTP request to deactivate slave at "
 	    << hostname << ":" << port;
 
   if (deactivate(hostname, port)) {

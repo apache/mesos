@@ -30,14 +30,15 @@ public:
    *
    * @param url string possibly containing zoo://, zoofile://, mesos://
    * @param pid libprocess pid to both receive our messages and be
-   * used if we should contend
+   *   used if we should contend
    * @param contend true if should contend to be master
+   * @param quite true if should limit log output
    * @return instance of MasterDetector
    */
-  static MasterDetector * create(const std::string& url,
-				 const process::UPID& pid,
-				 bool contend = false,
-				 bool quiet = true);
+  static MasterDetector* create(const std::string& url,
+				const process::UPID& pid,
+				bool contend = false,
+				bool quiet = true);
 
   /**
    * Cleans up and deallocates the detector.

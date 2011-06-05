@@ -200,8 +200,6 @@ void Slave::initialize()
 
   install(NO_MASTER_DETECTED, &Slave::noMasterDetected);
 
-  install(MASTER_DETECTION_FAILURE, &Slave::masterDetectionFailure);
-
   install(M2S_REGISTER_REPLY, &Slave::registerReply,
           &SlaveRegisteredMessage::slave_id);
 
@@ -288,12 +286,6 @@ void Slave::newMasterDetected(const string& pid)
 void Slave::noMasterDetected()
 {
   LOG(INFO) << "Lost master(s) ... waiting";
-}
-
-
-void Slave::masterDetectionFailure()
-{
-  LOG(FATAL) << "Cannot reliably detect master ... committing suicide!";
 }
 
 
