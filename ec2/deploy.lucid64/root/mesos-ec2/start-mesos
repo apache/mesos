@@ -65,13 +65,13 @@ MEM=''
 #    read -p "Please specify the number of cpus per slave: " CPUS
 #  done
 #
-#  CPUS="--cpus $CPUS"
+#  CPUS="--cpus=$CPUS"
 #
 #  while [[ "$MEM" == '' ]] ; do
 #    read -p "Please specify the amount of memory per slave: " MEM
 #  done
 #
-#  MEM="--mem $MEM"
+#  MEM="--mem=$MEM"
 #else
 #  COUNT='1'
 #  echo
