@@ -12,6 +12,10 @@ HOSTNAME=$PRIVATE_DNS  # Fix the bash built-in hostname variable too
 
 echo "Setting up Mesos master on `hostname`..."
 
+# Remove ~/.ssh/known_hosts because it gets polluted as you start/stop many
+# clusters (new machines tend to come up under old hostnames)
+rm /root/.ssh/known_hosts
+
 # Read command-line arguments
 OS_NAME=$1
 DOWNLOAD_METHOD=$2
