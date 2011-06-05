@@ -32,6 +32,13 @@
 // addition, doing operations on two resources of the same type but
 // different names is a no-op.
 
+// Parsing resources can be done via the Resources::parse
+// routines. The syntax currently requires that resources are
+// separated by semicolons, which means on the command line the option
+// needs to be quoted (whitespace is ignored). A scalar is just a
+// number, a range is described like "[2-10, 34-56]", and a set like
+// "{a, b, c, d}".
+
 
 namespace mesos { namespace internal {
 
