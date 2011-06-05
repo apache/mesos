@@ -59,5 +59,5 @@ def framework_log_tail(fid, log_type, lines):
     abort(403, 'Slave not yet registered with master')
 
 
-bottle.TEMPLATE_PATH.append('./webui/slave/')
+bottle.TEMPLATE_PATH.append('./webui/slave/%s.tpl')
 bottle.run(host = '0.0.0.0', port = 8081)

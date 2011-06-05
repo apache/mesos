@@ -36,5 +36,5 @@ def log_tail(level, lines):
   return commands.getoutput('tail -%s /tmp/nexus-master.%s' % (lines, level))
 
 
-bottle.TEMPLATE_PATH.append('./webui/master/')
+bottle.TEMPLATE_PATH.append('./webui/master/%s.tpl')
 bottle.run(host = '0.0.0.0', port = 8080)
