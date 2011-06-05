@@ -40,18 +40,20 @@ public class TestFramework {
                               SlaveOfferVector offers) {
       System.out.println("Got offer offer " + oid);
       TaskDescriptionVector tasks = new TaskDescriptionVector();
-      if (launchedTasks < totalTasks) {
-        SlaveOffer offer = offers.get(0);
-        int taskId = launchedTasks++;
-        StringMap taskParams = new StringMap();
-        taskParams.set("cpus", "1");
-        taskParams.set("mem", "134217728");
-        System.out.println("Launching task " + taskId);
-        tasks.add(new TaskDescription(taskId,
-                                      offer.getSlaveId(),
-                                      "task " + taskId,
-                                      taskParams,
-                                      new byte[0]));
+      for (int i = 0; i < offers.size(); i++) {
+        if (launchedTasks < totalTasks) {
+          SlaveOffer offer = offers.get(i);
+          int taskId = launchedTasks++;
+          StringMap taskParams = new StringMap();
+          taskParams.set("cpus", "1");
+          taskParams.set("mem", "134217728");
+          System.out.println("Launching task " + taskId);
+          tasks.add(new TaskDescription(taskId,
+                                        offer.getSlaveId(),
+                                        "task " + taskId,
+                                        taskParams,
+                                        new byte[0]));
+        }
       }
       StringMap params = new StringMap();
       params.set("timeout", "1");

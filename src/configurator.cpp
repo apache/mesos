@@ -10,15 +10,28 @@
 #include "params.hpp"
 #include "string_utils.hpp"
 
-extern char** environ;   // libc's environment variable list; for some reason,
-                         // this is not in headers on all platforms
-
 using namespace nexus::internal;
 
 
 const char* Configurator::DEFAULT_CONFIG_DIR = "conf";
 const char* Configurator::CONFIG_FILE_NAME = "mesos.conf";
 const char* Configurator::ENV_VAR_PREFIX = "MESOS_";
+
+
+// Define a function for accessing the list of environment variables
+// in a platform-independent way.
+// On Mac OS X, the environ symbol isn't visible to shared libraries,
+// so we must use the _NSGetEnviron() function (see man environ on OS X).
+// On other platforms, it's fine to access environ from shared libraries.
+namespace {
+#ifdef __APPLE__
+  #include "crt_externs.h"
+  char** getEnviron() { return *_NSGetEnviron(); }
+#else
+  extern char** environ;
+  char** getEnviron() { return environ; }
+#endif /* __APPLE__ */
+}
 
 
 void Configurator::validate()
@@ -75,6 +88,7 @@ void Configurator::loadConfigFileIfGiven(bool overwrite) {
 
 void Configurator::loadEnv(bool overwrite)
 {
+  char** environ = getEnviron();
   int i = 0;
   while (environ[i] != NULL) {
     string line = environ[i];
@@ -96,9 +110,9 @@ void Configurator::loadEnv(bool overwrite)
 
 
 void Configurator::loadCommandLine(int argc,
-                                    char** argv,
-                                    bool inferMesosHomeFromArg0,
-                                    bool overwrite)
+                                   char** argv,
+                                   bool inferMesosHomeFromArg0,
+                                   bool overwrite)
 {
   // Set home based on argument 0 if asked to do so
   if (inferMesosHomeFromArg0) {

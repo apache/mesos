@@ -83,7 +83,6 @@ void ExecutorLauncher::run()
 void ExecutorLauncher::createWorkingDirectory()
 {
   // Split the path into tokens by "/" and make each directory
-  cout << "WORK DIR: " << workDirectory << endl;
   vector<string> tokens;
   StringUtils::split(workDirectory, "/", &tokens);
   string dir = "";

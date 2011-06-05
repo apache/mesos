@@ -405,12 +405,50 @@ void Scheduler::error(SchedulerDriver* driver, int code, const string &message)
 }
 
 
-NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* _sched,
-					   const string &_url,
-					   FrameworkID _fid)
-  : sched(_sched), url(_url), fid(_fid), running(false),
-    process(NULL), detector(NULL)
+NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* sched,
+					   const string &url,
+					   FrameworkID fid)
 {
+  Configurator configurator;
+  Params* conf = new Params(configurator.load());
+  conf->set("url", url); // Override URL param with the one from the user
+  init(sched, conf, fid);
+}
+
+
+NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* sched,
+					   const string_map &params,
+					   FrameworkID fid)
+{
+  Configurator configurator;
+  Params* conf = new Params(configurator.load(params));
+  init(sched, conf, fid);
+}
+
+
+NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* sched,
+					   int argc,
+                                           char** argv,
+					   FrameworkID fid)
+{
+  Configurator configurator;
+  Params* conf = new Params(configurator.load(argc, argv, false));
+  init(sched, conf, fid);
+}
+
+
+void NexusSchedulerDriver::init(Scheduler* _sched,
+                                Params* _conf,
+                                FrameworkID _fid)
+{
+  sched = _sched;
+  conf = _conf;
+  fid = _fid;
+  url = conf->get<string>("url", "local");
+  process = NULL;
+  detector = NULL;
+  running = false;
+
   // Create mutex and condition variable
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);
@@ -439,10 +477,17 @@ NexusSchedulerDriver::~NexusSchedulerDriver()
   // that we could add a method to libprocess that told us whether or
   // not this was about to be deadlock, and possibly report this back
   // to the user somehow.
-  Process::wait(process);
-  delete process;
+  if (process != NULL) {
+    Process::wait(process);
+    delete process;
+  }
 
-  MasterDetector::destroy(detector);
+  if (detector != NULL) {
+    MasterDetector::destroy(detector);
+  }
+
+  // Delete conf since we always create it ourselves with new
+  delete conf;
 
   // Check and see if we need to shutdown a local cluster.
   if (url == "local" || url == "localquiet")
@@ -467,14 +512,11 @@ int NexusSchedulerDriver::start()
 
   // Check and see if we need to launch a local cluster.
   if (url == "local") {
-    // TODO(benh): Get number of slaves and resources per slave from
-    // command line (or environment or configuration?).
-    PID master = local::launch(1, 1, 1073741824, true, false);
+    PID master = local::launch(*conf, true);
     detector = new BasicMasterDetector(master, pid);
   } else if (url == "localquiet") {
-    // TODO(benh): Get number of slaves and resources per slave from
-    // command line (or environment?).
-    PID master = local::launch(1, 1, 1073741824, true, true);
+    conf->set("quiet", 1);
+    PID master = local::launch(*conf, true);
     detector = new BasicMasterDetector(master, pid);
   } else {
     detector = MasterDetector::create(url, pid, false, true);
@@ -832,7 +874,14 @@ int nexus_sched_reg(struct nexus_sched* sched, const char* master)
     return -1;
   }
 
-  cs->driver = new NexusSchedulerDriver(cs, master);
+  try {
+    cs->driver = new NexusSchedulerDriver(cs, master);
+  } catch (ConfigurationException& e) {
+    string message = string("Configuration error: ") + e.what();
+    sched->error(sched, 2, message.c_str());
+    return -2;
+  }
+
   cs->driver->start();
 
   return 0;

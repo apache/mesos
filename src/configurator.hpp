@@ -277,7 +277,9 @@ private:
    * @param overwrite whether to overwrite keys that already have values 
    *         in the internal params (true by default)
    **/
-  void loadCommandLine(int argc, char** argv, bool inferMesosHomeFromArg0, 
+  void loadCommandLine(int argc,
+                       char** argv,
+                       bool inferMesosHomeFromArg0, 
                        bool overwrite=true);
 
   /**

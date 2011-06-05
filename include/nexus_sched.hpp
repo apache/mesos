@@ -11,7 +11,11 @@ namespace nexus {
 
 class SchedulerDriver;
 
-namespace internal { class SchedulerProcess; class MasterDetector; }
+namespace internal {
+class SchedulerProcess;
+class MasterDetector;
+class Params;
+}
 
 
 /**
@@ -77,9 +81,56 @@ public:
 class NexusSchedulerDriver : public SchedulerDriver
 {
 public:
+  /**
+   * Create a scheduler driver with a given Mesos master URL.
+   * Additional Mesos config options are read from the environment, as well
+   * as any config files found through it.
+   *
+   * @param sched scheduler to make callbacks into
+   * @param url Mesos master URL
+   * @param fid optional framework ID for registering redundant schedulers
+   *            for the same framework
+   */
   NexusSchedulerDriver(Scheduler* sched,
 		       const std::string& url,
 		       FrameworkID fid = "");
+
+  /**
+   * Create a scheduler driver with a configuration, which the master URL
+   * and possibly other options are read from.
+   * Additional Mesos config options are read from the environment, as well
+   * as any config files given through conf or found in the environment.
+   *
+   * @param sched scheduler to make callbacks into
+   * @param params Map containing configuration options
+   * @param fid optional framework ID for registering redundant schedulers
+   *            for the same framework
+   */
+  NexusSchedulerDriver(Scheduler* sched,
+		       const string_map& params,
+		       FrameworkID fid = "");
+
+#ifndef SWIG
+  /**
+   * Create a scheduler driver with a config read from command-line arguments.
+   * Additional Mesos config options are read from the environment, as well
+   * as any config files given through conf or found in the environment.
+   *
+   * This constructor is not available through SWIG since it's difficult
+   * for it to properly map arrays to an argc/argv pair.
+   *
+   * @param sched scheduler to make callbacks into
+   * @param argc argument count
+   * @param argv argument values (argument 0 is expected to be program name
+   *             and will not be looked at for options)
+   * @param fid optional framework ID for registering redundant schedulers
+   *            for the same framework
+   */
+  NexusSchedulerDriver(Scheduler* sched,
+		       int argc,
+                       char** argv,
+		       FrameworkID fid = "");
+#endif
 
   virtual ~NexusSchedulerDriver();
 
@@ -102,6 +153,9 @@ public:
   virtual Scheduler* getScheduler() { return sched; }
 
 private:
+  // Initialization method used by constructors
+  void init(Scheduler* sched, internal::Params* conf, FrameworkID fid);
+
   // Internal utility method to report an error to the scheduler
   void error(int code, const std::string& message);
 
@@ -114,6 +168,10 @@ private:
 
   // Coordination between masters
   internal::MasterDetector* detector;
+
+  // Configuration options. We're using a pointer here because we don't
+  // want to #include params.hpp into the public API.
+  internal::Params* conf;
 
   // Are we currently registered with the master
   bool running;
