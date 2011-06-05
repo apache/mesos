@@ -41,7 +41,7 @@ int main(int argc, char **argv)
   Configurator configurator;
   Logging::registerOptions(&configurator);
   Slave::registerOptions(&configurator);
-  configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
+  configurator.addOption<int>("port", 'p', "Port to listen on", 0);
   configurator.addOption<string>("ip", "IP address to listen on");
   configurator.addOption<string>("url", 'u', "Master URL");
   configurator.addOption<string>("isolation", 'i', "Isolation module name", "process");
