@@ -17,10 +17,10 @@ export CXXFLAGS
 # Update CFLAGS and CXXFLAGS in configure args.
 # TODO(benh): Don't send args just for us (e.g., --with-webui).
 ac_configure_args=`echo $ac_configure_args | \
-                   sed -e "s/CFLAGS=/CFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
+                   sed -e "s/CFLAGS=/CFLAGS=-O2 -fno-strict-aliasing /"`
 ac_configure_args=`echo $ac_configure_args | \
-                   sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing -fPIC /"`
-ac_configure_args="$ac_configure_args --enable-shared=no"
+                   sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing /"`
+ac_configure_args="$ac_configure_args --enable-shared=no --with-pic"
 
 AC_CONFIG_FILES([Makefile src/Makefile src/config.hpp])
 AC_CONFIG_SUBDIRS([src/third_party/libprocess])
