@@ -68,22 +68,11 @@ private:
   map<string, Option> options;
 
 public:
-  /** 
-   * Constructor that populates Params from environment and any config file
-   * located through the environment (through MESOS_HOME or MESOS_CONF).
-   **/
-  Configuration();
 
   /** 
-   * Constructor that populates Params from environment, command line,
-   * and any config file specified through these.
-   *
-   * @param argc number of paramters in argv
-   * @param argv array of c-strings from the command line
-   * @param inferMesosHomeFromArg0 whether to set mesos home to directory
-   *                               containing argv[0] (the program being run)
+   * Constructor that initializes an empty Params
    **/
-  Configuration(int argc, char** argv, bool inferMesosHomeFromArg0);
+  Configuration() {}
 
   /** 
    * Constructor that populates Params from environment, a map,
@@ -157,13 +146,14 @@ public:
    **/
   vector<string> getOptions() const;
 
-private:
   /**
    * Parses the environment variables and populates a Params.
    * It picks all environment variables that start with MESOS_.
    * The environment variable MESOS_HOME=/dir would lead to key=HOME val=/dir
+   * @param overwrite whether to overwrite keys that already have values 
+   *         in the internal params (true by default)
    **/
-  void loadEnv();
+  void loadEnv(bool overwrite=true);
 
   /**
    * Populates its internal Params with key/value params from command line.
@@ -175,8 +165,11 @@ private:
    * @param argv is an array of c-strings containing params
    * @param inferMesosHomeFromArg0 whether to set mesos home to directory
    *                               containing argv[0] (the program being run)
+   * @param overwrite whether to overwrite keys that already have values 
+   *         in the internal params (true by default)
    **/
-  void loadCommandLine(int argc, char** argv, bool inferMesosHomeFromArg0);
+  void loadCommandLine(int argc, char** argv, bool inferMesosHomeFromArg0, 
+                       bool overwrite=true);
 
   /**
    * Populates its internal Params with key/value params from a config file.
@@ -188,13 +181,17 @@ private:
    * Comments, which should start with #, are ignored.
    *
    * @param fname is the name of the config file to open
+   * @param overwrite whether to overwrite keys that already have values 
+   *         in the internal params (false by default)
    **/
-  void loadConfigFile(const string& fname);
+  void loadConfigFile(const string& fname, bool overwrite=false);
 
   /**
    * Load the config file set through the command line or environment, if any.
+   * @param overwrite whether to overwrite keys that already have values 
+   *         in the internal params (false by default)
    */
-  void loadConfigFileIfGiven();
+  void loadConfigFileIfGiven(bool overwrite=false);
 
 };
 

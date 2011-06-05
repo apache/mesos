@@ -21,23 +21,6 @@ const char* Configuration::CONFIG_FILE_NAME = "mesos.conf";
 const char* Configuration::ENV_VAR_PREFIX = "MESOS_";
 
 
-Configuration::Configuration() 
-{
-  loadEnv();
-  loadConfigFileIfGiven();
-}
-
-
-Configuration::Configuration(int argc,
-                             char** argv,
-                             bool inferMesosHomeFromArg0) 
-{
-  loadEnv();
-  loadCommandLine(argc, argv, inferMesosHomeFromArg0);
-  loadConfigFileIfGiven();
-}
-
-
 Configuration::Configuration(const map<string, string>& _params) 
 {
   loadEnv();
@@ -46,18 +29,18 @@ Configuration::Configuration(const map<string, string>& _params)
 }
 
 
-void Configuration::loadConfigFileIfGiven() {
+void Configuration::loadConfigFileIfGiven(bool overwrite) {
   string confDir = "";
   if (params.contains("conf"))
     confDir = params["conf"];
   else if (params.contains("home")) // find conf dir relative to MESOS_HOME
     confDir = params["home"] + "/" + DEFAULT_CONFIG_DIR;
   if (confDir != "")
-    loadConfigFile(confDir + "/" + CONFIG_FILE_NAME);
+    loadConfigFile(confDir + "/" + CONFIG_FILE_NAME, overwrite);
 }
 
 
-void Configuration::loadEnv()
+void Configuration::loadEnv(bool overwrite)
 {
   int i = 0;
   while (environ[i] != NULL) {
@@ -70,7 +53,9 @@ void Configuration::loadEnv()
       key = line.substr(strlen(ENV_VAR_PREFIX), eq - strlen(ENV_VAR_PREFIX));
       std::transform(key.begin(), key.end(), key.begin(), ::tolower);
       val = line.substr(eq + 1);
-      params[key] = val;
+      if (overwrite || !params.contains(key)) {
+        params[key] = val;
+      }
     }
     i++;
   }
@@ -79,7 +64,8 @@ void Configuration::loadEnv()
 
 void Configuration::loadCommandLine(int argc,
                                     char** argv,
-                                    bool inferMesosHomeFromArg0)
+                                    bool inferMesosHomeFromArg0,
+                                    bool overwrite)
 {
   // Set home based on argument 0 if asked to do so
   if (inferMesosHomeFromArg0) {
@@ -131,14 +117,14 @@ void Configuration::loadCommandLine(int argc,
         i++;  // we've consumed next parameter as a "value"-parameter
       }
     }
-    if (set) {
+    if (set && (overwrite || !params.contains(key))) {
       params[key] = val;
     }
   }
 }
 
 
-void Configuration::loadConfigFile(const string& fname) 
+void Configuration::loadConfigFile(const string& fname, bool overwrite) 
 {
   ifstream cfg(fname.c_str(), std::ios::in);
   if (!cfg.is_open()) {
@@ -159,11 +145,12 @@ void Configuration::loadConfigFile(const string& fname)
   fileParams.loadString(buf); // Parse key=value pairs using Params's code
 
   foreachpair (const string& key, const string& value, fileParams.getMap()) {
-    if (!params.contains(key)) {
+    if (overwrite || !params.contains(key)) {
       params[key] = value;
     }
   }
 }
+
 
 string Configuration::getUsage() const 
 {
@@ -214,6 +201,7 @@ int Configuration::addOption(string optName, const string& helpString)
   return 0;
 }
 
+
 string Configuration::getOptionDefault(string optName) const
 {
   std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
@@ -221,6 +209,7 @@ string Configuration::getOptionDefault(string optName) const
     return "";
   return options.find(optName)->second.defaultValue;
 }
+
 
 vector<string> Configuration::getOptions() const 
 {

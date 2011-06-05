@@ -23,6 +23,8 @@ TEST(ConfigurationTest, Environment)
 {
   setenv("MESOS_TEST", "working", true);
   Configuration conf;
+  conf.loadEnv();
+  conf.loadConfigFileIfGiven();
   unsetenv("MESOS_TEST");
 
   EXPECT_EQ("working", conf.getParams()["test"]);
@@ -37,17 +39,23 @@ TEST(ConfigurationTest, DefaultOptions)
   argv[1] = (char*) "--test1=text1";
   argv[2] = (char*) "--test2";
 
-  Configuration conf(ARGC, argv, false);
+  Configuration conf;
+
   conf.addOption("test1", "Testing option", 500);
   conf.addOption("test2", "Another tester", 0);
   conf.addOption("test3", "Tests the default\noption.", 2010);
   conf.addOption("test4", "Option without default\noption.");
+
+  conf.loadEnv();
+  conf.loadCommandLine(ARGC, argv, false);
+  conf.loadConfigFileIfGiven();
 
   EXPECT_EQ("text1",  conf.getParams()["test1"]);
   EXPECT_EQ("1",      conf.getParams()["test2"]);
   EXPECT_EQ("2010",   conf.getParams()["test3"]);
   EXPECT_EQ("",       conf.getParams()["test4"]);
 }
+
 
 TEST(ConfigurationTest, CommandLine)
 {
@@ -64,7 +72,10 @@ TEST(ConfigurationTest, CommandLine)
   argv[8] = (char*) "--cAsE=4";
   argv[9] = (char*) "--space=Long String";
 
-  Configuration conf(ARGC, argv, false);
+  Configuration conf;
+  conf.loadEnv();
+  conf.loadCommandLine(ARGC, argv, false);
+  conf.loadConfigFileIfGiven();
 
   EXPECT_EQ("text1",       conf.getParams()["test1"]);
   EXPECT_EQ("1",           conf.getParams()["test2"]);
@@ -90,6 +101,8 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithMesosHome)
 
   setenv("MESOS_HOME", ".", 1);
   Configuration conf;
+  conf.loadEnv();
+  conf.loadConfigFileIfGiven();
   unsetenv("MESOS_HOME");
 
   EXPECT_EQ("coffee", conf.getParams()["test1"]);
@@ -109,6 +122,8 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithConfDir)
   file.close();
   setenv("MESOS_CONF", "conf2", 1);
   Configuration conf;
+  conf.loadEnv();
+  conf.loadConfigFileIfGiven();
   unsetenv("MESOS_CONF");
 
   EXPECT_EQ("shake", conf.getParams()["test3"]);
@@ -130,6 +145,8 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithHomeAndDir)
   setenv("MESOS_HOME", ".", 1);
   setenv("MESOS_CONF", "conf2", 1);
   Configuration conf;
+  conf.loadEnv();
+  conf.loadConfigFileIfGiven();
   unsetenv("MESOS_CONF");
   unsetenv("MESOS_HOME");
 
@@ -157,7 +174,10 @@ TEST_WITH_WORKDIR(ConfigurationTest, CommandLineConfFlag)
   argv[2] = (char*) "--b=overridden";
   argv[3] = (char*) "--d=fromCmdLine";
 
-  Configuration conf(ARGC, argv, false);
+  Configuration conf;
+  conf.loadEnv();
+  conf.loadCommandLine(ARGC, argv, false);
+  conf.loadConfigFileIfGiven();
 
   EXPECT_EQ("1",           conf.getParams()["a"]);
   EXPECT_EQ("overridden",  conf.getParams()["b"]);
@@ -194,7 +214,10 @@ TEST_WITH_WORKDIR(ConfigurationTest, LoadingPriorities)
   argv[1] = (char*) "--a=fromCmdLine";
   argv[2] = (char*) "--c=fromCmdLine";
 
-  Configuration conf(ARGC, argv, false);
+  Configuration conf;
+  conf.loadEnv();
+  conf.loadCommandLine(ARGC, argv, false);
+  conf.loadConfigFileIfGiven();
 
   // Clear the environment vars set above
   unsetenv("MESOS_HOME");
