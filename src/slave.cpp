@@ -353,8 +353,11 @@ void Slave::operator () ()
           if (from() == ex->pid) {
             LOG(INFO) << "Executor for framework " << ex->frameworkId
                       << " disconnected";
-            send(master, pack<S2M_LOST_EXECUTOR>(id, ex->frameworkId, -1));
-            removeExecutor(ex->frameworkId, true);
+	    Framework *framework = getFramework(fid);
+	    if (framework != NULL) {
+	      send(master, pack<S2M_LOST_EXECUTOR>(id, ex->frameworkId, -1));
+	      killFramework(framework);
+	    }
             break;
           }
         }

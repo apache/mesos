@@ -254,6 +254,7 @@ enum TaskRemovalReason
 {
   TRR_TASK_ENDED,
   TRR_FRAMEWORK_LOST,
+  TRR_EXECUTOR_LOST,
   TRR_SLAVE_LOST
 };
 
