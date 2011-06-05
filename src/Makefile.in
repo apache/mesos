@@ -42,7 +42,7 @@ LIBEV = $(LIBPROCESS)/third_party/libev-3.8
 
 GLOG = third_party/glog-0.3.1
 
-SQLITE = third_party/glog-0.3.1
+SQLITE = third_party/sqlite-3.6.23.1
 
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
