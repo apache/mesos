@@ -1,5 +1,7 @@
 #include <nexus_sched.hpp>
 
+#include <libgen.h>
+
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
@@ -79,9 +81,11 @@ int main(int argc, char ** argv) {
     cerr << "Usage: " << argv[0] << " <masterPid>" << endl;
     return -1;
   }
-  char cwd[512];
-  getcwd(cwd, sizeof(cwd));
-  string executor = string(cwd) + "/cpp-test-executor";
+  // Find this executable's directory to locate executor
+  char buf[4096];
+  realpath(dirname(argv[0]), buf);
+  string executor = string(buf) + "/test-executor";
+  // Run a Mesos scheduler
   MyScheduler sched(executor);
   NexusSchedulerDriver driver(&sched, argv[1]);
   driver.run();

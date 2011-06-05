@@ -75,13 +75,23 @@ CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
 CFLAGS += -DBUILD_USER="\"$$USER\""
 CXXFLAGS += -DBUILD_USER="\"$$USER\""
 
+# Expose whether we have Java and Python support through defines
+ifdef JAVA_HOME
+  CFLAGS += -DMESOS_HAS_JAVA
+  CXXFLAGS += -DMESOS_HAS_JAVA
+endif
+ifdef PYTHON_HEADERS
+  CFLAGS += -DMESOS_HAS_PYTHON
+  CXXFLAGS += -DMESOS_HAS_PYTHON
+endif
+
 # Add libev to LDFLAGS.
 LDFLAGS += -L$(LIBEV)/.libs
 
 # Add libev, libprocess, pthread, and dl to LIBS.
 LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lzookeeper_st
 
-NEXUS_EXES = nexus-master nexus-slave nexus-local nexus-launcher alltests \
+NEXUS_EXES = nexus-master nexus-slave nexus-local nexus-launcher \
 	     test-framework test-executor cpp-test-framework cpp-test-executor \
 	     memhog memhog-executor
 
@@ -103,7 +113,8 @@ SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
 COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o master_detector.o url_processor.o zookeeper.o
 EXEC_LIB_OBJ = nexus_exec.o
 SCHED_LIB_OBJ = nexus_sched.o nexus_local.o params.o
-TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o
+TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o \
+	   tests/external_test.o tests/test_sample_frameworks.o
 
 ifeq ($(OS_NAME),solaris)
   SLAVE_OBJ += solaris_project_isolation_module.o
@@ -190,8 +201,10 @@ nexus-projd: projd.cpp $(COMMON_OBJ)
 nexus-local: local.cpp nexus_local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< nexus_local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
-alltests: $(TEST_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(COMMON_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+ALLTESTS_OBJ = $(TEST_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(COMMON_OBJ)
+
+alltests: $(ALLTESTS_OBJ) $(NEXUS_EXES) java python
+	$(CXX) $(CXXFLAGS) -o $@ $(ALLTESTS_OBJ) $(LDFLAGS) $(LIBS)
 
 test-framework: test_framework.cpp $(SCHED_LIB) third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lnexus_sched $(LIBS)
@@ -276,7 +289,7 @@ ifeq ($(LOCAL_ZOOKEEPER),yes)
 	$(MAKE) -C $(ZOOKEEPER)
 endif
 
-all: third_party $(NEXUS_LIBS) $(NEXUS_EXES) java python ruby
+all: third_party $(NEXUS_LIBS) $(NEXUS_EXES) alltests java python ruby
 
 clean:
 	$(MAKE) -C third_party/libprocess clean

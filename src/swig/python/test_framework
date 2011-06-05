@@ -1,0 +1,4 @@
+#!/bin/sh
+FWDIR=`dirname $0`
+cd $FWDIR
+exec python ./test_framework.py $@

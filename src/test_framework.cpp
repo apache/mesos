@@ -1,8 +1,15 @@
 #include <iostream>
+#include <libgen.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <nexus_sched.h>
 
 using namespace std;
+
+const int TOTAL_TASKS = 5;
+int tasksStarted = 0;
+int tasksFinished = 0;
+
 
 void registered(nexus_sched *sched, framework_id fid)
 {
@@ -14,9 +21,8 @@ void slot_offer(nexus_sched *sched, offer_id oid,
                 nexus_slot *slots, int num_slots)
 {
   // TODO: Make this loop over offers rather than looking only at first offer!
-  static int tasksStarted = 0;
   cout << "Got slot offer " << oid << endl;
-  if (tasksStarted > 4) {
+  if (tasksStarted >= TOTAL_TASKS) {
     cout << "Refusing it" << endl;
     nexus_sched_reply_to_offer(sched, oid, 0, 0, "timeout=-1");
   } else {
@@ -40,6 +46,11 @@ void slot_offer_rescinded(nexus_sched *sched, offer_id oid)
 void status_update(nexus_sched *sched, nexus_task_status *status)
 {
   cout << "Task " << status->tid << " entered state " << status->state << endl;
+  if (status->state == TASK_FINISHED) {
+    tasksFinished++;
+    if (tasksFinished == TOTAL_TASKS)
+      exit(0);
+  }
 }
 
 
@@ -80,10 +91,10 @@ nexus_sched sched = {
 
 int main(int argc, char **argv)
 {
-  // Get current directory to set executor
-  char cwd[512];
-  getcwd(cwd, sizeof(cwd));
-  string executor = string(cwd) + "/test-executor";
+  // Find this executable's directory to locate executor
+  char buf[4096];
+  realpath(dirname(argv[0]), buf);
+  string executor = string(buf) + "/test-executor";
   sched.executor_name = executor.c_str();
 
   if (nexus_sched_init(&sched) < 0) {

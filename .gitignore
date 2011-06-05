@@ -76,3 +76,4 @@ src/test-framework
 src/test-executor
 src/swig/java/nexus
 src/swig/python/nexus.py
+src/test_output
