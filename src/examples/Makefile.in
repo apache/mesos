@@ -2,6 +2,9 @@
 
 SHELL = '/bin/sh'
 
+BINDIR = @top_builddir@/bin
+LIBDIR = @top_builddir@/lib
+
 CC = @CC@
 CXX = @CXX@
 SWIG = @SWIG@
@@ -85,35 +88,53 @@ ifeq ($(WITH_ZOOKEEPER),1)
   LIBS += -lzookeeper_st
 endif
 
-EXAMPLES_EXES = test-framework test-executor cpp-test-framework \
-                cpp-test-executor memhog memhog-executor scheduled-memhog
+SCHED_EXES = $(BINDIR)/examples/test-framework		\
+             $(BINDIR)/examples/cpp-test-framework	\
+             $(BINDIR)/examples/memhog			\
+             $(BINDIR)/examples/scheduled-memhog
 
-MESOS_SCHED_LIB = ../libmesos_sched.a
-MESOS_EXEC_LIB = ../libmesos_exec.a
+EXEC_EXES = $(BINDIR)/examples/test-executor		\
+            $(BINDIR)/examples/cpp-test-executor	\
+            $(BINDIR)/examples/memhog-executor
+
+EXAMPLES_EXES = $(SCHED_EXES) $(EXEC_EXES)
+
+MESOS_SCHED_LIB = $(LIBDIR)/libmesos_sched.a
+MESOS_EXEC_LIB = $(LIBDIR)/libmesos_exec.a
+
+# Create rules for building the directories that aren't created
+# automagically by configure.
+DIRECTORIES = $(BINDIR)/examples
+
 
 default: all
 
 -include $(patsubst %, %.d, $(EXAMPLES_EXES))
 
-test-framework: @srcdir@/test_framework.cpp $(MESOS_SCHED_LIB)
+$(DIRECTORIES): %:
+	mkdir -p $@
+
+$(EXAMPLES_EXES): | $(BINDIR)/examples
+
+$(BINDIR)/examples/test-framework: @srcdir@/test_framework.cpp $(MESOS_SCHED_LIB)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
 
-test-executor: @srcdir@/test_exec.cpp $(MESOS_EXEC_LIB)
+$(BINDIR)/examples/test-executor: @srcdir@/test_exec.cpp $(MESOS_EXEC_LIB)
 	g++ $(CXXFLAGS) -o $@ $< $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
 
-cpp-test-framework: @srcdir@/cpp_test_framework.cpp $(MESOS_SCHED_LIB)
+$(BINDIR)/examples/cpp-test-framework: @srcdir@/cpp_test_framework.cpp $(MESOS_SCHED_LIB)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
 
-cpp-test-executor: @srcdir@/cpp_test_executor.cpp $(MESOS_EXEC_LIB)
+$(BINDIR)/examples/cpp-test-executor: @srcdir@/cpp_test_executor.cpp $(MESOS_EXEC_LIB)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
 
-memhog: @srcdir@/memhog.cpp $(MESOS_SCHED_LIB)
+$(BINDIR)/examples/memhog: @srcdir@/memhog.cpp $(MESOS_SCHED_LIB)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
 
-memhog-executor: @srcdir@/memhog_executor.cpp $(MESOS_EXEC_LIB)
+$(BINDIR)/examples/memhog-executor: @srcdir@/memhog_executor.cpp $(MESOS_EXEC_LIB)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
 
-scheduled-memhog: @srcdir@/scheduled_memhog.cpp $(MESOS_SCHED_LIB)
+$(BINDIR)/examples/scheduled-memhog: @srcdir@/scheduled_memhog.cpp $(MESOS_SCHED_LIB)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(MESOS_SCHED_LIB) $(LDFLAGS) $(LIBS)
 
 all: $(EXAMPLES_EXES)

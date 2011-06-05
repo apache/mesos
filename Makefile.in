@@ -28,15 +28,15 @@ ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 endif
 
 install:
-	if test ! -d $(MESOS_HOME); \
-		then mkdir $(MESOS_HOME); \
+	if test ! -d $(MESOS_HOME)/bin; \
+		then mkdir -p $(MESOS_HOME)/bin; \
 	fi
-	if test ! -d $(MESOS_HOME); \
-		then mkdir $(MESOS_HOME); \
+	if test ! -d $(MESOS_HOME)/bin; \
+		then mkdir -p $(MESOS_HOME)/bin; \
 	fi
-	install -m 755 src/mesos-master $(MESOS_HOME)
-	install -m 755 src/mesos-slave $(MESOS_HOME)
-	install -m 755 src/swig/java/libmesos.so $(MESOS_HOME)
+	install -m 755 $(BINDIR)/mesos-master $(MESOS_HOME)/bin
+	install -m 755 $(BINDIR)/mesos-slave $(MESOS_HOME)/bin
+	install -m 755 $(LIBDIR)/java/libmesos.so $(MESOS_HOME)/lib/java
 	rsync -avz src/webui $(MESOS_HOME)
 	if test ! -d $(MESOS_HOME)/third_party; \
 		then mkdir $(MESOS_HOME)/third_party; \
@@ -49,7 +49,14 @@ uninstall:
 dist:
 	$(error unimplemented)
 
-all: src
+distclean:
+	$(MAKE) -C src clean
+	$(MAKE) -C $(LIBPROCESS) distclean
+	$(MAKE) -C $(GLOG) distclean
+	$(MAKE) -C $(GTEST) distclean
+ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
+	$(MAKE) -C $(ZOOKEEPER) distclean
+endif
 
 doxygen:
 	doxygen
@@ -64,6 +71,11 @@ ctags:
 #TODO(*): make the above use conditionals to handle old-school UNIX style ctags too.
 #cd src; ctags --typedefs-and-c++ -I -members --declarations ../include/*.h ../include/*.c ../include/*.hpp ../include/*.cpp -o tags
 
+test: all
+	$(MAKE) -C src test
+
+all: src
+
 clean:
 	$(MAKE) -C src clean
 	$(MAKE) -C $(LIBPROCESS) clean
@@ -73,4 +85,4 @@ ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) clean
 endif
 
-.PHONY: default src third_party install uninstall dist all clean
+.PHONY: default src third_party install uninstall dist test all clean

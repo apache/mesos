@@ -2,6 +2,9 @@
 
 SHELL = '/bin/sh'
 
+BINDIR = @top_builddir@/bin
+LIBDIR = @top_builddir@/lib
+
 CC = @CC@
 CXX = @CXX@
 SWIG = @SWIG@
@@ -142,21 +145,30 @@ LAUNCHER_EXE_OBJ = launcher/launcher.o $(COMMON_OBJ)
 
 LOCAL_EXE_OBJ = local/local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
 
-MESOS_EXES = mesos-master mesos-slave mesos-local mesos-launcher mesos-getconf
+MESOS_MASTER_EXE = $(BINDIR)/mesos-master
+MESOS_SLAVE_EXE = $(BINDIR)/mesos-slave
+MESOS_LOCAL_EXE = $(BINDIR)/mesos-local
+MESOS_LAUNCHER_EXE = $(BINDIR)/mesos-launcher
+MESOS_GETCONF_EXE = $(BINDIR)/mesos-getconf
+MESOS_PROJD_EXE = $(BINDIR)/mesos-projd
+
+MESOS_EXES = $(MESOS_MASTER_EXE) $(MESOS_SLAVE_EXE) $(MESOS_LOCAL_EXE)	\
+             $(MESOS_LAUNCHER_EXE) $(MESOS_GETCONF_EXE)
 
 ifeq ($(OS_NAME),solaris)
-  MESOS_EXES += mesos-projd
+  MESOS_EXES += $(MESOS_PROJD_EXE)
 endif
 
-MESOS_SCHED_LIB = libmesos_sched.a
-MESOS_EXEC_LIB = libmesos_exec.a
+MESOS_SCHED_LIB = $(LIBDIR)/libmesos_sched.a
+MESOS_EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
 # C/C++ shared library which contains both the scheduler and executor
 # libraries, in addition to libglog, libprocess, and libev.
+MESOS_LIB_OBJ = 
 ifeq ($(OS_NAME),darwin)
-  MESOS_LIB = libmesos.dylib
+  MESOS_LIB = $(LIBDIR)/libmesos.dylib
 else
-  MESOS_LIB = libmesos.so
+  MESOS_LIB = $(LIBDIR)/libmesos.so
 endif
 
 MESOS_LIBS = $(MESOS_LIB) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB)
@@ -166,37 +178,38 @@ MESOS_LIBS = $(MESOS_LIB) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB)
 # of the .dylib suffix on Mac OS X, but at the time Python required
 # the .so suffix even on Mac OS X).
 ifeq ($(OS_NAME),darwin)
-  MESOS_JAVA_LIB = swig/java/libmesos.dylib
+  MESOS_JAVA_LIB = $(LIBDIR)/java/libmesos.dylib
 else
-  MESOS_JAVA_LIB = swig/java/libmesos.so
+  MESOS_JAVA_LIB = $(LIBDIR)/java/libmesos.so
 endif
 
-MESOS_PYTHON_LIB = swig/python/_mesos.so
+MESOS_JAVA_JAR = $(LIBDIR)/java/mesos.jar
 
-# In the event we are building in a directory other than source we
-# need to copy over the webui stuff so that the binaries can be run.
-WEBUI_FILES = webui/bottle-0.5.6 webui/common/webui_lib.py	\
-              webui/master/framework.tpl webui/master/index.tpl	\
-              webui/master/webui.py webui/slave/framework.tpl	\
-              webui/slave/index.tpl webui/slave/webui.py	\
-              webui/static/stylesheet.css
+MESOS_PYTHON_LIB = $(LIBDIR)/python/_mesos.so
 
-# Create all the directories that we use but don't get created by
-# default because we don't have a Makefile.in in them.
-$(shell mkdir -p common)
-$(shell mkdir -p configurator)
-$(shell mkdir -p detector)
-$(shell mkdir -p exec)
-$(shell mkdir -p launcher)
-$(shell mkdir -p local)
-$(shell mkdir -p master)
-$(shell mkdir -p messaging)
-$(shell mkdir -p sched)
-$(shell mkdir -p slave)
-$(shell mkdir -p webui/common)
-$(shell mkdir -p webui/master)
-$(shell mkdir -p webui/slave)
-$(shell mkdir -p webui/static)
+# We copy all the webui files into the bin directory.
+WEBUI_FILES = $(BINDIR)/webui/bottle-0.5.6		\
+              $(BINDIR)/webui/common/webui_lib.py	\
+              $(BINDIR)/webui/master/framework.tpl	\
+              $(BINDIR)/webui/master/index.tpl		\
+              $(BINDIR)/webui/master/webui.py		\
+              $(BINDIR)/webui/slave/framework.tpl	\
+              $(BINDIR)/webui/slave/index.tpl		\
+              $(BINDIR)/webui/slave/webui.py		\
+              $(BINDIR)/webui/static/stylesheet.css
+
+# Create rules for building the directories that aren't created
+# automagically by configure.
+OBJ_DIRECTORIES = common configurator detector exec launcher local	\
+                  master messaging sched slave
+
+WEBUI_DIRECTORIES = $(BINDIR)/webui/common $(BINDIR)/webui/master	\
+                    $(BINDIR)/webui/slave $(BINDIR)/webui/static	\
+                    $(BINDIR)/webui/master/swig				\
+                    $(BINDIR)/webui/slave/swig
+
+DIRECTORIES = $(BINDIR) $(LIBDIR) $(LIBDIR)/java $(LIBDIR)/python	\
+              $(OBJ_DIRECTORIES) $(WEBUI_DIRECTORIES)
 
 
 default: all
@@ -204,10 +217,13 @@ default: all
 -include $(patsubst %.o, %.d, $(ALL_OBJ))
 -include $(patsubst %, %.d, $(MESOS_EXES))
 
-$(BASIC_OBJ): %.o: @srcdir@/%.cpp
+$(DIRECTORIES): %:
+	mkdir -p $@
+
+$(BASIC_OBJ): %.o: @srcdir@/%.cpp | $(OBJ_DIRECTORIES)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
-$(MESOS_LIBS): $(COMMON_OBJ)
+$(MESOS_LIBS): $(COMMON_OBJ) | $(LIBDIR)
 
 $(MESOS_SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ)
 	$(AR) rcs $@ $^
@@ -224,47 +240,49 @@ $(WEBUI_OBJ): %.o: @srcdir@/%.cpp
 $(SWIG_WEBUI_OBJ): %.o: %.cpp
 	$(CXX) -c $(CXXFLAGS) $(WEBUI_CXXFLAGS) -o $@ $<
 
-webui/master/swig/master_wrap.cpp: @srcdir@/webui/master/swig/master.i @srcdir@/master/state.hpp @srcdir@/master/webui.hpp @srcdir@/master/master.hpp config/config.hpp
+webui/master/swig/master_wrap.cpp: @srcdir@/webui/master/swig/master.i @srcdir@/master/state.hpp @srcdir@/master/webui.hpp @srcdir@/master/master.hpp config/config.hpp $(BINDIR)/webui/master/swig
 ifeq ($(WITH_WEBUI),1)
 	mkdir -p webui/master/swig
 	$(SWIG) -c++ -python -outdir webui/master/swig -I@top_srcdir@/include -I@srcdir@ -o $@ $<
+	cp -r webui/master/swig/master.py $(BINDIR)/webui/master/swig
 else
 	echo "" > $@
 endif
 
-webui/slave/swig/slave_wrap.cpp: @srcdir@/webui/slave/swig/slave.i @srcdir@/slave/state.hpp @srcdir@/slave/webui.hpp @srcdir@/slave/slave.hpp config/config.hpp
+webui/slave/swig/slave_wrap.cpp: @srcdir@/webui/slave/swig/slave.i @srcdir@/slave/state.hpp @srcdir@/slave/webui.hpp @srcdir@/slave/slave.hpp config/config.hpp $(BINDIR)/webui/slave/swig
 ifeq ($(WITH_WEBUI),1)
 	mkdir -p webui/slave/swig
 	$(SWIG) -c++ -python -outdir webui/slave/swig -I@top_srcdir@/include -I@srcdir@ -o $@ $<
+	cp -r webui/slave/swig/slave.py $(BINDIR)/webui/slave/swig
 else
 	echo "" > $@
 endif
 
-$(MESOS_EXES): $(COMMON_OBJ)
+$(MESOS_EXES): | $(BINDIR)
 
-mesos-master: @srcdir@/master/main.cpp $(MASTER_EXE_OBJ)
+$(MESOS_MASTER_EXE): @srcdir@/master/main.cpp $(MASTER_EXE_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(MASTER_EXE_OBJ) $(LDFLAGS) $(WEBUI_LDFLAGS) $(LIBS)
 
-mesos-slave: @srcdir@/slave/main.cpp $(SLAVE_EXE_OBJ)
+$(MESOS_SLAVE_EXE): @srcdir@/slave/main.cpp $(SLAVE_EXE_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(SLAVE_EXE_OBJ) $(LDFLAGS) $(WEBUI_LDFLAGS) $(LIBS)
 
-mesos-launcher: @srcdir@/launcher/main.cpp $(LAUNCHER_EXE_OBJ)
+$(MESOS_LAUNCHER_EXE): @srcdir@/launcher/main.cpp $(LAUNCHER_EXE_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< launcher/launcher.o $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
-mesos-local: @srcdir@/local/main.cpp $(LOCAL_EXE_OBJ)
+$(MESOS_LOCAL_EXE): @srcdir@/local/main.cpp $(LOCAL_EXE_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LOCAL_EXE_OBJ) $(LDFLAGS) $(LIBS)
 
-mesos-getconf: @srcdir@/configurator/get_conf.cpp
+$(MESOS_GETCONF_EXE): @srcdir@/configurator/get_conf.cpp $(COMMON_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
-mesos-projd: @srcdir@/slave/projd.cpp
+$(MESOS_PROJD_EXE): @srcdir@/slave/projd.cpp $(COMMON_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
-java: $(MESOS_JAVA_LIB) swig/java/mesos.jar
+java: $(MESOS_JAVA_LIB) $(MESOS_JAVA_JAR)
 
 python: $(MESOS_PYTHON_LIB)
 
-swig/java/mesos.jar: $(MESOS_JAVA_LIB)
+$(MESOS_JAVA_JAR): $(MESOS_JAVA_LIB) | $(LIBDIR)/java
 ifdef JAVA_HOME
 	$(JAVA_HOME)/bin/javac -sourcepath swig/java -d swig/java swig/java/mesos/*.java
 	patch -N swig/java/mesos/mesosJNI.java < @srcdir@/swig/java/mesosJNI.java.patch1 || echo -n
@@ -272,7 +290,7 @@ ifdef JAVA_HOME
 	$(JAVA_HOME)/bin/jar cf $@ -C swig/java mesos
 endif
 
-$(MESOS_JAVA_LIB): @srcdir@/swig/mesos.i $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB)
+$(MESOS_JAVA_LIB): @srcdir@/swig/mesos.i $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) | $(LIBDIR)/java
 ifdef JAVA_HOME
 	rm -f swig/java/mesos/*
 	mkdir -p swig/java/mesos
@@ -280,16 +298,18 @@ ifdef JAVA_HOME
 	$(CXX) $(CXXFLAGS) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -shared -o $@ swig/java/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(LIBS)
 endif
 
-$(MESOS_PYTHON_LIB): @srcdir@/swig/mesos.i $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB)
+$(MESOS_PYTHON_LIB): @srcdir@/swig/mesos.i $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) | $(LIBDIR)/python
 ifdef PYTHON_HEADERS
 	mkdir -p swig/python
 	$(SWIG) -c++ -python -threads -I@top_srcdir@/include -o swig/python/mesos_wrap.cpp -outdir swig/python @srcdir@/swig/mesos.i
 	$(CXX) $(CXXFLAGS) -I$(PYTHON_HEADERS) -shared -o $@ swig/python/mesos_wrap.cpp $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) $(LDFLAGS) $(PYTHON_LDFLAGS) $(LIBS)
 endif
 
-$(WEBUI_FILES): %: @srcdir@/%
+$(WEBUI_FILES): | $(WEBUI_DIRECTORIES)
+
+$(WEBUI_FILES): $(BINDIR)/%: @srcdir@/%
 ifeq ($(WITH_WEBUI),1)
-	cp -r @srcdir@/$@ $@
+	cp -r $< $@
 endif
 
 test: all
@@ -307,15 +327,17 @@ clean:
 	rm -rf $(patsubst %, %.dSYM, $(MESOS_EXES))
 	rm -f $(ALL_OBJ)
 	rm -f $(MESOS_EXES) $(MESOS_LIBS)
-	rm -f $(MESOS_JAVA_LIB) $(MESOS_PYTHON_LIB)
+	rm -f $(MESOS_JAVA_JAR)
+	rm -rf $(patsubst %, %.d, $(MESOS_JAVA_LIB))
+	rm -rf $(patsubst %, %.d, $(MESOS_PYTHON_LIB))
 	rm -rf $(MESOS_JAVA_LIB).dSYM $(MESOS_PYTHON_LIB).dSYM
+	rm -f $(MESOS_JAVA_LIB) $(MESOS_PYTHON_LIB)
+	rm -rf $(WEBUI_FILES)
 	rm -f swig/*/mesos_wrap.cpp
 	rm -f swig/*/mesos_wrap.h
 	rm -f swig/*/*.o
 	rm -f swig/*/*.d
-	rm -f swig/java/mesos.jar
 	rm -f swig/java/mesos/*
-	rm -f swig/java/*.class
 	rm -f swig/python/mesos.py
 	rm -f swig/python/mesos.pyc
 	rm -f webui/master/swig/master_wrap.h

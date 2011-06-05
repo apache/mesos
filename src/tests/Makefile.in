@@ -2,6 +2,9 @@
 
 SHELL = '/bin/sh'
 
+BINDIR = @top_builddir@/bin
+LIBDIR = @top_builddir@/lib
+
 CC = @CC@
 CXX = @CXX@
 
@@ -77,30 +80,34 @@ ifeq ($(WITH_ZOOKEEPER),1)
   LIBS += -lzookeeper_st
 endif
 
-SCHED_LIB = ../libmesos_sched.a
-EXEC_LIB = ../libmesos_exec.a
+SCHED_LIB = $(LIBDIR)/libmesos_sched.a
+EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
 TESTS_OBJ = main.o test_master.o test_resources.o external_test.o	\
 	    test_sample_frameworks.o testing_utils.o			\
 	    test_configurator.o test_string_utils.o			\
 	    test_lxc_isolation.o
 
-EXTERNAL_SCRIPTS = external/LxcIsolation/HoldMoreMemThanRequested.sh		\
-                   external/LxcIsolation/ScaleUpAndDown.sh			\
-                   external/LxcIsolation/TwoSeparateTasks.sh			\
-                   external/LxcIsolation/run_scheduled_memhog_test.sh		\
-                   external/SampleFrameworks/CFramework.sh			\
-                   external/SampleFrameworks/CFrameworkCmdlineParsing.sh	\
-                   external/SampleFrameworks/CFrameworkInvalidCmdline.sh	\
-                   external/SampleFrameworks/CFrameworkInvalidEnv.sh		\
-                   external/SampleFrameworks/CppFramework.sh			\
-                   external/SampleFrameworks/JavaExceptionFramework.sh		\
-                   external/SampleFrameworks/JavaFramework.sh			\
-                   external/SampleFrameworks/PythonFramework.sh
+ALLTESTS_EXE = $(BINDIR)/alltests
 
-# Create the external directories in case they aren't there.
-$(shell mkdir -p external/LxcIsolation)
-$(shell mkdir -p external/SampleFrameworks)
+EXTERNAL_SCRIPTS =							\
+  $(BINDIR)/tests/external/LxcIsolation/HoldMoreMemThanRequested.sh	\
+  $(BINDIR)/tests/external/LxcIsolation/ScaleUpAndDown.sh		\
+  $(BINDIR)/tests/external/LxcIsolation/TwoSeparateTasks.sh		\
+  $(BINDIR)/tests/external/LxcIsolation/run_scheduled_memhog_test.sh	\
+  $(BINDIR)/tests/external/SampleFrameworks/CFramework.sh		\
+  $(BINDIR)/tests/external/SampleFrameworks/CFrameworkCmdlineParsing.sh	\
+  $(BINDIR)/tests/external/SampleFrameworks/CFrameworkInvalidCmdline.sh	\
+  $(BINDIR)/tests/external/SampleFrameworks/CFrameworkInvalidEnv.sh	\
+  $(BINDIR)/tests/external/SampleFrameworks/CppFramework.sh		\
+  $(BINDIR)/tests/external/SampleFrameworks/JavaExceptionFramework.sh	\
+  $(BINDIR)/tests/external/SampleFrameworks/JavaFramework.sh		\
+  $(BINDIR)/tests/external/SampleFrameworks/PythonFramework.sh
+
+# Create rules for building the directories that aren't created
+# automagically by configure.
+DIRECTORIES = $(BINDIR)/tests/external/LxcIsolation		\
+              $(BINDIR)/tests/external/SampleFrameworks
 
 
 default: all
@@ -108,24 +115,30 @@ default: all
 -include $(patsubst %.o, %.d, $(TESTS_OBJ))
 -include $(patsubst %, %.d, alltests)
 
+$(DIRECTORIES): %:
+	mkdir -p $@
+
 $(TESTS_OBJ): %.o: @srcdir@/%.cpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
-$(EXTERNAL_SCRIPTS): %: @srcdir@/%
-	cp @srcdir@/$@ $@
+$(EXTERNAL_SCRIPTS): | $(BINDIR)/tests/external/LxcIsolation
+$(EXTERNAL_SCRIPTS): | $(BINDIR)/tests/external/SampleFrameworks
+$(EXTERNAL_SCRIPTS): $(BINDIR)/tests/%: @srcdir@/%
+	cp $< $@
 
-alltests: $(TESTS_OBJ)
+$(ALLTESTS_EXE): $(TESTS_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $(TESTS_OBJ) $(SCHED_LIB) $(EXEC_LIB) $(LDFLAGS) $(LIBS)
 
 test: all
+	cd $(BINDIR)
 	./alltests
 
-all: alltests $(EXTERNAL_SCRIPTS) 
+all: $(ALLTESTS_EXE) $(EXTERNAL_SCRIPTS) 
 
 clean:
 	rm -f $(patsubst %.o, %.d, $(TESTS_OBJ))
 	rm -f $(TESTS_OBJ)
-	rm -f alltests
+	rm -f $(ALLTESTS_EXE)
 	rm -f TAGS
 
-.PHONY: default all clean test
+.PHONY: default all test clean
