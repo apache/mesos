@@ -378,3 +378,29 @@ void Configurator::clearMesosEnvironmentVars()
     unsetenv(str.c_str());
   }
 }
+
+
+void Configurator::checkCommandLineParamFormat(const string& key, bool gotBool) 
+  throw(ConfigurationException)
+{
+  if (options.find(key) != options.end() && 
+      options[key].validator->isBool() != gotBool) {
+    string message = "Option '" + key + "' should ";
+    if (gotBool)
+      message += "not ";
+    message += "be a boolean.";
+
+    throw ConfigurationException(message.c_str());
+  }
+}
+
+
+void Configurator::dumpToGoogleLog()
+{
+  LOG(INFO) << "Dumping configuration options:";
+  const map<string, string>& paramsMap = params.getMap();
+  foreachpair (const string& key, const string& val, paramsMap) {
+    LOG(INFO) << "  " << key << " = " << val;
+  }
+  LOG(INFO) << "End configuration dump";
+}

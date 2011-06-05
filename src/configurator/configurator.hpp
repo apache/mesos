@@ -332,18 +332,12 @@ private:
    * @param gotBool whether the option was passed as a bool
    */
   void checkCommandLineParamFormat(const string& key, bool gotBool) 
-    throw(ConfigurationException)
-  {
-    if (options.find(key) != options.end() && 
-        options[key].validator->isBool() != gotBool) {
-      string message = "Option '" + key + "' should ";
-      if (gotBool)
-        message += "not ";
-      message += "be a boolean.";
+    throw(ConfigurationException);
 
-      throw ConfigurationException(message.c_str());
-    }
-  }
+  /**
+   * Dump the values of all config options to Google Log
+   */
+  void dumpToGoogleLog();
 };
 
 } }   // end mesos :: internal namespace
