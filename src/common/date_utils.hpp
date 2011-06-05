@@ -22,11 +22,6 @@ public:
    */
   static long currentDateTimeInMicro();
 
-   /**
-    * Get a human readable timestamp in microseconds.
-    */
-  static std::string humanReadableDateTimeInMicro();
-
   /**
    * Unit test utility method that makes this class return a fixed string
    * as the date instead of looking up the current time.

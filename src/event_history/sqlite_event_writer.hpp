@@ -12,7 +12,6 @@ namespace mesos { namespace internal { namespace eventhistory {
 class SqlLiteEventWriter : public EventWriter {
 private:
   sqlite3 *db; 
-  char *zErrMsg;
   time_t currTime;
 public:
   string getName();

@@ -33,20 +33,11 @@ string DateUtils::currentDate()
 
 
 // Get the current time in microseconds.
-long DateUtils::currentDateTimeInMicro(){
+long DateUtils::currentDateTimeInMicro() {
   struct timeval curr_time;
   struct timezone tzp;
   gettimeofday(&curr_time, &tzp);
   return (long)(curr_time.tv_sec * 1000000 + curr_time.tv_usec);
-}
-
-
-// Get a human readable timestamp in microseconds.
-  string DateUtils::humanReadableDateTimeInMicro(){
-  time_t currTime;
-  currTime=time(NULL);
-  string timestamp = asctime(localtime(&currTime));
-  return timestamp.erase(24); /* chop off the newline */
 }
 
 

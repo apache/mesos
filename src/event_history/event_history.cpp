@@ -15,9 +15,9 @@ void EventLogger::registerOptions(Configurator* conf) {
   //TODO(andyk): We don't set the default value here, since this would
   //             override the defaults set at the param.get() calls later.
   //             We would like to set the default here and override it later.
-  conf->addOption<bool>("event-history-file",
+  conf->addOption<bool>("event_history_file",
         "Enable file event history logging(default: true)");
-  conf->addOption<bool>("event-history-sqlite",
+  conf->addOption<bool>("event_history_sqlite",
         "Enable SQLite event history logging (default: false)");
 }
 

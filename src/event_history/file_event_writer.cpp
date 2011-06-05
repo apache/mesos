@@ -11,9 +11,9 @@ using namespace mesos::internal::eventhistory;
 
 /* Pre-condition: params["log_dir"] exists and is writable */
 FileEventWriter::FileEventWriter(const Params& params) {
-  string logDir = params.get("log_dir","");
+  string logDir = params.get("log_dir", "");
   CHECK_NE(logDir, "") << "FileEventWriter was created when no log_dir was set";
-  logfile.open ((logDir + "/event_history_log.txt").c_str(),ios::app|ios::out);
+  logfile.open((logDir + "/event_history_log.txt").c_str(), ios::app|ios::out);
 }
 
 
@@ -31,7 +31,7 @@ FileEventWriter::~FileEventWriter() {
 int FileEventWriter::logTaskCreated(TaskID tid, FrameworkID fwid, SlaveID sid,
                                     string webuiUrl, Resources resVec)
 {
-  logfile << DateUtils::humanReadableDateTimeInMicro() << ",CreateTask, "
+  logfile << DateUtils::currentDate() << ",CreateTask, "
           << "taskid: " << tid << ", "
           << "fwid: " << fwid << ", "
           << "sid: " << sid << ","
@@ -44,7 +44,7 @@ int FileEventWriter::logTaskCreated(TaskID tid, FrameworkID fwid, SlaveID sid,
 int FileEventWriter::logTaskStateUpdated(TaskID tid, FrameworkID fwid,
                                          TaskState state)
 {
-  logfile << DateUtils::humanReadableDateTimeInMicro() << ", TaskStateUpdate, "
+  logfile << DateUtils::currentDate() << ", TaskStateUpdate, "
           << "taskid: " << tid << ", "
           << "fwid: " << fwid << ", "
           << "state: " << state << endl;
@@ -54,7 +54,7 @@ int FileEventWriter::logTaskStateUpdated(TaskID tid, FrameworkID fwid,
 
 
 int FileEventWriter::logFrameworkRegistered(FrameworkID fwid, string user) {
-  logfile << DateUtils::humanReadableDateTimeInMicro() << ", CreateFramework, "
+  logfile << DateUtils::currentDate() << ", CreateFramework, "
           << "fwid: " << fwid << ", "
           << "userid: " << user << endl;
 

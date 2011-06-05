@@ -1,10 +1,7 @@
 #ifndef __EVENT_HISTORY_HPP__
 #define __EVENT_HISTORY_HPP__
 
-//#include <fstream>
-//#include <iostream>
 #include <list>
-//#include <map>
 #include <string>
 
 #include <glog/logging.h>
