@@ -37,7 +37,7 @@ ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
                                    const string& _user,
                                    const string& _workDirectory,
                                    const string& _slavePid,
-                                   const string& _mesosFrameworks,
+                                   const string& _frameworksHome,
                                    const string& _mesosHome,
                                    const string& _hadoopHome,
                                    bool _redirectIO,
@@ -45,7 +45,7 @@ ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
                                    const map<string, string>& _params)
   : frameworkId(_frameworkId), executorUri(_executorUri), user(_user),
     workDirectory(_workDirectory), slavePid(_slavePid),
-    mesosFrameworks(_mesosFrameworks), mesosHome(_mesosHome),
+    frameworksHome(_frameworksHome), mesosHome(_mesosHome),
     hadoopHome(_hadoopHome), redirectIO(_redirectIO), 
     shouldSwitchUser(_shouldSwitchUser), params(_params)
 {}
@@ -108,7 +108,8 @@ void ExecutorLauncher::createWorkingDirectory()
       fatal("Failed to get username information for %s.", user.c_str());
 
     if (chown(dir.c_str(), passwd->pw_uid, passwd->pw_gid) < 0)
-      fatalerror("Failed to chown framework's working directory.");
+      fatalerror("Failed to chown framework's working directory %s to %s.",
+                 dir.c_str(), passwd->pw_uid);
   }
 }
 
@@ -158,9 +159,9 @@ string ExecutorLauncher::fetchExecutor()
   } else if (executor.find_first_of("/") != 0) {
     // We got a non-Hadoop and non-absolute path.
     // Try prepending MESOS_HOME to it.
-    if (mesosFrameworks != "") {
-      executor = mesosFrameworks + "/" + executor;
-      cout << "Prepended mesosFrameworks to executor path, making it: " 
+    if (frameworksHome != "") {
+      executor = frameworksHome + "/" + executor;
+      cout << "Prepended frameworksHome to executor path, making it: "
            << executor << endl;
     } else {
       if (mesosHome != "") {
@@ -168,10 +169,10 @@ string ExecutorLauncher::fetchExecutor()
         cout << "Prepended MESOS_HOME/frameworks/ to relative " 
              << "executor path, making it: " << executor << endl;
       } else {
-        cout << "Neither MESOS_HOME nor FRAMEWORKS_HOME is set, so using "
-             << "relative executor path as is which will result in it "
-             << "relative to the directory Mesos created for the "
-             << "executor to run in." << endl;
+        fatal("A relative path was passed for the executor, but " \
+              "neither MESOS_HOME nor FRAMEWORKS_HOME is set. " \
+              "Please either specify one of these config options " \
+              "or avoid using a relative path.");
       }
     }
   }
