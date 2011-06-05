@@ -1,0 +1,54 @@
+#!/bin/bash
+cd /root/mesos-ec2
+
+MASTERS=`cat masters`
+ACTIVE_MASTER=`cat masters | head -1`
+SLAVES=`cat slaves`
+ZOOS=`cat zoo`
+
+
+if [[ $ZOOS = *NONE* ]]; then
+  NUM_ZOOS=0
+else
+  NUM_ZOOS=`cat zoo | wc -l`
+fi
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
+
+cluster_url=`cat cluster-url`
+
+echo "Running with cluster URL: "$cluster_url
+
+if [[ $NUM_ZOOS != 0 ]]; then
+  masterid=1
+  for master in $MASTERS; do
+    echo "Starting master $masterid on $master"
+    ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 -u $cluster_url $@ </dev/null >/dev/null" & sleep 0.3
+    masterid=$(($masterid+1))
+  done
+  wait
+else
+  echo "Starting master on $ACTIVE_MASTER"
+  ssh $SSH_OPTS $ACTIVE_MASTER "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 $@ </dev/null >/dev/null"
+fi
+
+sleep 5
+
+for slave in $SLAVES; do
+  echo "Starting slave on $slave"
+  ssh $SSH_OPTS $slave "/root/mesos-ec2/mesos-daemon mesos-slave -u ${cluster_url} </dev/null >/dev/null" &
+  sleep 0.3
+done
+wait
+
+if [[ $NUM_ZOOS != 0 ]]; then
+  echo "ZooKeeper is running at"
+  for zoo in $ZOOS; do
+    echo "      $zoo:2181"
+  done
+fi
+
+echo "Everything's started! You can view the master Web UI at"
+for master in $MASTERS; do
+  echo "      http://$master:8080"
+done

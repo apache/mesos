@@ -1,0 +1,24 @@
+#!/bin/bash
+cd /root/mesos-ec2
+
+MASTERS=`cat masters`
+NUM_MASTERS=`cat masters | wc -l`
+SLAVES=`cat slaves`
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
+
+if [[ $NUM_MASTERS -gt 1 ]]; then
+  echo "RSYNC'ing /root/mesos to masters..."
+  for master in $MASTERS; do
+    echo $master
+    rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'mesos/frameworks/hadoop-0.20.0/logs/*' --exclude 'mesos/work' --exclude 'mesos/logs' --exclude 'mesos/test_output' /root/mesos $master:/root & sleep 0.3
+  done
+  wait
+fi
+
+echo "RSYNC'ing /root/mesos to slaves..."
+for slave in $SLAVES; do
+  echo $slave
+  rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'mesos/frameworks/hadoop-0.20.0/logs/*' --exclude 'mesos/work' --exclude 'mesos/logs' --exclude 'mesos/test_output' /root/mesos $slave:/root & sleep 0.3
+done
+wait

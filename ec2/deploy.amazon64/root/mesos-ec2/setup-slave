@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Make sure we are in the mesos-ec2 directory
+cd /root/mesos-ec2
+
+# Set hostname based on EC2 private DNS name, so that it is set correctly
+# even if the instance is restarted with a different private DNS name
+PRIVATE_DNS=`wget -q -O - http://instance-data.ec2.internal/latest/meta-data/local-hostname`
+hostname $PRIVATE_DNS
+echo $PRIVATE_DNS > /etc/hostname
+HOSTNAME=$PRIVATE_DNS  # Fix the bash built-in hostname variable too
+
+echo "Setting up Mesos slave on `hostname`..."
+
+# Read command-line arguments
+SWAP_MB=$1
+
+# Mount options to use for ext3 and xfs disks (the ephemeral disks
+# are ext3, but we use xfs for EBS volumes to format them faster)
+EXT3_MOUNT_OPTS="defaults,noatime,nodiratime"
+XFS_MOUNT_OPTS="defaults,noatime,nodiratime,allocsize=8m"
+
+# Create Hadoop and HDFS directories in a given parent directory
+# (for example /mnt, /mnt2, and so on)
+function create_hadoop_dirs {
+  location=$1
+  mkdir -p $location/ephemeral-hdfs/data $location/hadoop/tmp
+  mkdir -p $location/hadoop/mrlocal $location/hadoop/mrlocal2
+}
+
+# Set up Hadoop and Mesos directories in /mnt
+create_hadoop_dirs /mnt
+mkdir -p /mnt/ephemeral-hdfs/logs
+mkdir -p /mnt/persistent-hdfs/logs
+mkdir -p /mnt/hadoop-logs
+mkdir -p /mnt/mesos-logs
+mkdir -p /mnt/mesos-work
+
+# Mount any ephemeral volumes we might have beyond /mnt
+function setup_extra_volume {
+  device=$1
+  mount_point=$2
+  if [[ -e $device && ! -e $mount_point ]]; then
+    mkdir -p $mount_point
+    mount -o $EXT3_MOUNT_OPTS $device $mount_point
+    echo "$device $mount_point auto $EXT3_MOUNT_OPTS 0 0" >> /etc/fstab
+  fi
+  if [[ -e $mount_point ]]; then
+    create_hadoop_dirs $mount_point
+  fi
+}
+setup_extra_volume /dev/sdc /mnt2
+setup_extra_volume /dev/sdd /mnt3
+setup_extra_volume /dev/sde /mnt4
+
+# Mount cgroup file system
+if [[ ! -e /cgroup ]]; then
+  mkdir -p /cgroup
+  mount -t cgroup none /cgroup
+  echo "none /cgroup cgroup defaults 0 0" >> /etc/fstab
+fi
+
+# Format and mount EBS volume (/dev/sdv) as /vol if the device exists
+# and we have not already created /vol
+if [[ -e /dev/sdv && ! -e /vol ]]; then
+  mkdir /vol
+  if mkfs.xfs -q /dev/sdv; then
+    mount -o $XFS_MOUNT_OPTS /dev/sdv /vol
+    echo "/dev/sdv /vol xfs $XFS_MOUNT_OPTS 0 0" >> /etc/fstab
+  else
+    # mkfs.xfs is not installed on this machine or has failed;
+    # delete /vol so that the user doesn't think we successfully
+    # mounted the EBS volume
+    rmdir /vol
+  fi
+fi
+
+# Remove ~/.ssh/known_hosts because it gets polluted as you start/stop many
+# clusters (new machines tend to come up under old hostnames)
+rm -f /root/.ssh/known_hosts
+
+# Create swap space on /mnt
+/root/mesos-ec2/create-swap $SWAP_MB

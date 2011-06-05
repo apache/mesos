@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+
+  <property>
+    <name>mapred.job.tracker</name>
+    <value>{{active_master}}:9001</value>
+  </property>
+
+  <property>
+    <name>mapred.local.dir</name>
+    <value>{{mapred_local_dirs}}</value>
+  </property>
+
+  <property>
+    <name>mapred.jobtracker.taskScheduler</name>
+    <value>org.apache.hadoop.mapred.MesosScheduler</value>
+  </property>
+
+  <property>
+    <name>mapred.mesos.master</name>
+    <value>{{cluster_url}}</value>
+  </property>
+
+  <property>
+    <name>io.file.buffer.size</name>
+    <value>65536</value>
+  </property>
+
+  <property>
+    <name>mapred.job.tracker.handler.count</name>
+    <value>20</value>
+  </property>
+
+  <property>
+    <name>tasktracker.http.threads</name>
+    <value>40</value>
+  </property>
+
+  <property>
+    <name>mapred.child.java.opts</name>
+    <value>-Xmx500m</value>
+  </property>
+
+  <property>
+    <name>mapred.mesos.task.mem</name>
+    <value>500</value>
+  </property>
+
+  <property>
+    <name>mapred.job.reuse.jvm.num.tasks</name>
+    <value>-1</value>
+  </property>
+
+  <property>
+    <name>io.sort.factor</name>
+    <value>15</value>
+  </property>
+
+  <property>
+    <name>io.sort.mb</name>
+    <value>150</value>
+  </property>
+
+  <property>
+    <name>mapred.mesos.localitywait</name>
+    <value>5000</value>
+  </property>
+
+  <property>
+    <name>mapred.tasktracker.map.tasks.maximum</name>
+    <value>8</value>
+  </property>
+
+  <property>
+    <name>mapred.tasktracker.reduce.tasks.maximum</name>
+    <value>8</value>
+  </property>
+
+</configuration>

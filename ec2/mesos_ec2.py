@@ -38,10 +38,10 @@ def parse_args():
       help="Master instance type (leave empty for same as instance-type)")
   parser.add_option("-z", "--zone", default="us-east-1b",
       help="Availability zone to launch instances in")
-  parser.add_option("-a", "--ami", default="ami-f8806a91",
+  parser.add_option("-a", "--ami", default="ami-fa4eb393",
       help="Amazon Machine Image ID to use")
-  parser.add_option("-o", "--os", default="lucid64",
-      help="OS on the Amazon Machine Image (lucid64 for now)")
+  parser.add_option("-o", "--os", default="amazon64",
+      help="OS on the Amazon Machine Image (default: amazon64)")
   parser.add_option("-d", "--download", metavar="SOURCE", default="none",
       help="Where to download latest code from: set to 'git' to check out " +
            "from git, or 'none' to use the Mesos on the AMI (default)")

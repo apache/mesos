@@ -1,0 +1,8 @@
+listen webfarm {{active_master}}:80
+       timeout server 7500
+       timeout client 7500
+       timeout connect 7500
+       mode http
+       balance roundrobin
+       option httpchk HEAD /index.html HTTP/1.0
+       stats uri /stats

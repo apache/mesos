@@ -11,7 +11,7 @@ if [ -e /mnt/swap ]; then
 fi
 
 SWAP_MB=$1
-if [[ "$SWAP_MB" != "0" ]] ; then
+if [[ "$SWAP_MB" != "0" ]]; then
   dd if=/dev/zero of=/mnt/swap bs=1M count=$SWAP_MB
   mkswap /mnt/swap
   swapon /mnt/swap

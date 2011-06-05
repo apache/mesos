@@ -1,0 +1,21 @@
+#!/bin/bash
+cd /root/mesos-ec2
+
+MASTERS=`cat masters`
+SLAVES=`cat slaves`
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
+
+for slave in $SLAVES; do
+  echo "Stopping slave on $slave"
+  ssh $SSH_OPTS $slave pkill mesos-slave &
+  sleep 0.1
+done
+wait
+
+for master in $MASTERS; do
+  echo "Stopping master on $master"
+  ssh $SSH_OPTS $master pkill mesos-master &
+  sleep 0.1
+done
+wait

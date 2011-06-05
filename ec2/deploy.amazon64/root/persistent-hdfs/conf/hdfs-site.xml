@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+
+  <property>
+    <name>dfs.replication</name>
+    <value>2</value>
+  </property>
+
+  <property>
+    <name>dfs.block.size</name>
+    <value>134217728</value>
+  </property>
+
+  <property>
+    <name>dfs.secondary.http.address</name>
+    <value>0.0.0.0:60090</value>
+    <description>
+      The secondary namenode http server address and port.
+      If the port is 0 then the server will start on a free port.
+    </description>
+  </property>
+  
+  <property>
+    <name>dfs.datanode.address</name>
+    <value>0.0.0.0:60010</value>
+    <description>
+      The address where the datanode server will listen to.
+      If the port is 0 then the server will start on a free port.
+    </description>
+  </property>
+  
+  <property>
+    <name>dfs.datanode.http.address</name>
+    <value>0.0.0.0:60075</value>
+    <description>
+      The datanode http server address and port.
+      If the port is 0 then the server will start on a free port.
+    </description>
+  </property>
+  
+  <property>
+    <name>dfs.datanode.ipc.address</name>
+    <value>0.0.0.0:60020</value>
+    <description>
+      The datanode ipc server address and port.
+      If the port is 0 then the server will start on a free port.
+    </description>
+  </property>
+  
+  <property>
+    <name>dfs.http.address</name>
+    <value>0.0.0.0:60070</value>
+    <description>
+      The address and the base port where the dfs namenode web ui will listen on.
+      If the port is 0 then the server will start on a free port.
+    </description>
+  </property>
+
+  <property>
+    <name>dfs.namenode.handler.count</name>
+    <value>25</value>
+  </property>
+
+  <property>
+    <name>dfs.datanode.handler.count</name>
+    <value>8</value>
+  </property>
+
+</configuration>
