@@ -75,16 +75,6 @@ CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
 CFLAGS += -DBUILD_USER="\"$$USER\""
 CXXFLAGS += -DBUILD_USER="\"$$USER\""
 
-# Expose whether we have Java and Python support through defines
-ifdef JAVA_HOME
-  CFLAGS += -DMESOS_HAS_JAVA
-  CXXFLAGS += -DMESOS_HAS_JAVA
-endif
-ifdef PYTHON_HEADERS
-  CFLAGS += -DMESOS_HAS_PYTHON
-  CXXFLAGS += -DMESOS_HAS_PYTHON
-endif
-
 # Add libev to LDFLAGS.
 LDFLAGS += -L$(LIBEV)/.libs
 

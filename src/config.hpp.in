@@ -3,10 +3,11 @@
 
 /* This header gets completed by configure. */
 
-#include <string>
-
 #if @WITH_WEBUI@
   #define NEXUS_WEBUI
 #endif
+
+#define MESOS_HAS_JAVA @HAS_JAVA@
+#define MESOS_HAS_PYTHON @HAS_PYTHON@
 
 #endif /* __CONFIG_HPP__ */

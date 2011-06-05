@@ -70,40 +70,58 @@ case "${target_os}" in
 AC_SUBST(OS_NAME)
 
 JAVA_HOME=""
+HAS_JAVA="0"
 AC_ARG_WITH([java-home],
   AC_HELP_STRING([--with-java-home=DIR],
                  [find Java Development Kit in DIR]),
 	         [case "$with_java_home" in
-		    yes) AC_MSG_ERROR([
+		    yes) 
+                      AC_MSG_ERROR([
 *** --with-java-home requires an argument]) ;;
-		    *) JAVA_HOME="$withval" ;;
+		    *)
+                      JAVA_HOME="$withval"
+                      HAS_JAVA="1"
+                      ;;
 	          esac],
 	         [])
 AC_SUBST(JAVA_HOME)
+AC_SUBST(HAS_JAVA)
 
 PYTHON_HEADERS=""
+HAS_PYTHON="0"
 AC_ARG_WITH([python-headers],
   AC_HELP_STRING([--with-python-headers=DIR],
                  [find Python headers in DIR]),
 	         [case "$with_python_headers" in
-		    yes) AC_MSG_ERROR([
+		    yes)
+                      AC_MSG_ERROR([
 *** --with-python-headers requires an argument]) ;;
-		    *) PYTHON_HEADERS="$withval" ;;
+		    *)
+                      PYTHON_HEADERS="$withval"
+                      HAS_PYTHON="1"
+                      ;;
 	          esac],
 	         [])
 AC_SUBST(PYTHON_HEADERS)
+AC_SUBST(HAS_PYTHON)
 
 RUBY_HEADERS=""
+HAS_RUBY="0"
 AC_ARG_WITH([ruby-headers],
   AC_HELP_STRING([--with-ruby-headers=DIR],
                  [find Ruby headers in DIR]),
 	         [case "$with_ruby_headers" in
-		    yes) AC_MSG_ERROR([
+		    yes)
+                      AC_MSG_ERROR([
 *** --with-ruby-headers requires an argument]) ;;
-		    *) RUBY_HEADERS="$withval" ;;
+		    *)
+                      RUBY_HEADERS="$withval"
+                      HAS_RUBY="1"
+                      ;;
 	          esac],
 	         [])
 AC_SUBST(RUBY_HEADERS)
+AC_SUBST(HAS_RUBY)
 
 WITH_WEBUI="0"
 WEBUI_FLAGS=""
