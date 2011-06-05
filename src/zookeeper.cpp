@@ -41,6 +41,7 @@ enum {
   REMOVE, // Perform an asynchronous remove (delete).
   EXISTS, // Perform an asysnchronous exists.
   GET, // Perform an asynchronous get.
+  SET, // Perform an asynchronous set.
 };
 
 
@@ -99,6 +100,18 @@ struct GetCall
   bool watch;
   string *result;
   Stat *stat;
+  PID from;
+  ZooKeeperProcess *zooKeeperProcess;
+};
+
+
+/* Set "message" for performing ZooKeeper::set. */
+struct SetCall
+{
+  int ret;
+  const string *path;
+  const string *data;
+  int version;
   PID from;
   ZooKeeperProcess *zooKeeperProcess;
 };
@@ -333,11 +346,25 @@ private:
     getCall->zooKeeperProcess->send(getCall->from, COMPLETED);
   }
 
+  static void setCompletion(int ret, const Stat *stat, const void *data)
+  {
+    SetCall *setCall =
+      static_cast<SetCall *>(const_cast<void *>((data)));
+    setCall->ret = ret;
+    setCall->zooKeeperProcess->send(setCall->from, COMPLETED);
+  }
+
   void prepare(int *fd, int *ops, timeval *tv)
   {
     int interest = 0;
 
     int ret = zookeeper_interest(zh, fd, &interest, tv);
+
+    // If in some disconnected state, try again later.
+    if (ret == ZINVALIDSTATE ||
+	ret == ZCONNECTIONLOSS ||
+	ret == ZOPERATIONTIMEOUT)
+      return;
 
     if (ret != ZOK)
       fatal("zookeeper_interest failed! (%s)", zerror(ret));
@@ -364,6 +391,11 @@ private:
     }
 
     int ret = zookeeper_process(zh, events);
+
+    // If in some disconnected state, try again later.
+    if (ret == ZINVALIDSTATE ||
+	ret == ZCONNECTIONLOSS)
+      return;
 
     if (ret != ZOK && ret != ZNOTHING)
       fatal("zookeeper_process failed! (%s)", zerror(ret));
@@ -392,7 +424,10 @@ protected:
 
       // TODO(benh): If tv is 0, invoke await and ignore queued messages?
 
-      if (!await(fd, ops, tv, false)) {
+      if (await(fd, ops, tv, false)) {
+	// No enqueued messages and either data available on fd or timer expired.
+	process(fd, ops);
+      } else {
 	// TODO(benh): Don't handle incoming "calls" until we are connected!
 	switch (receive()) {
 	  case CREATE: {
@@ -452,6 +487,22 @@ protected:
 	    }
 	    break;
 	  }
+	  case SET: {
+	    SetCall *setCall =
+	      *reinterpret_cast<SetCall **>(const_cast<char *>(body(NULL)));
+	    setCall->from = from();
+	    setCall->zooKeeperProcess = this;
+	    int ret = zoo_aset(zh, setCall->path->c_str(),
+			       setCall->data->data(),
+			       setCall->data->size(),
+			       setCall->version,
+			       setCompletion, setCall);
+	    if (ret != ZOK) {
+	      setCall->ret = ret;
+	      send(setCall->from, COMPLETED);
+	    }
+	    break;
+	  }
 	  case TERMINATE: {
 	    return;
 	  }
@@ -459,8 +510,6 @@ protected:
 	    fatal("unexpected interruption during await");
 	  }
 	}
-      } else {
-	process(fd, ops);
       }
     }
   }
@@ -670,6 +719,46 @@ int ZooKeeper::get(const string &path,
   Process::wait(Process::spawn(&getCallProcess));
 
   return getCall.ret;
+}
+
+
+int ZooKeeper::set(const string &path,
+		   const string &data,
+		   int version)
+{
+  SetCall setCall;
+  setCall.path = &path;
+  setCall.data = &data;
+  setCall.version = version;
+
+  class SetCallProcess : public Process
+  {
+  private:
+    ZooKeeperProcess *zooKeeperProcess;
+    SetCall *setCall;
+
+  protected:
+    void operator () ()
+    {
+      if (call(zooKeeperProcess->getPID(),
+	       SET,
+	       reinterpret_cast<char *>(&setCall),
+	       sizeof(SetCall *)) != COMPLETED)
+	setCall->ret = ZSYSTEMERROR;
+    }
+
+  public:
+    SetCallProcess(ZooKeeperProcess *_zooKeeperProcess,
+		   SetCall *_setCall)
+      : zooKeeperProcess(_zooKeeperProcess),
+	setCall(_setCall)
+    {}
+  } setCallProcess(static_cast<ZooKeeperProcess *>(impl),
+		   &setCall);
+
+  Process::wait(Process::spawn(&setCallProcess));
+
+  return setCall.ret;
 }
 
 

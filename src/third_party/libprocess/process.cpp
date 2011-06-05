@@ -1234,7 +1234,7 @@ public:
   }
 
 
-  void receive(Process *process, time_t secs)
+  void receive(Process *process, double secs)
   {
     assert(process != NULL);
     if (secs > 0) {
@@ -1270,7 +1270,7 @@ public:
     }
   }
 #else
-  void receive(Process *process, time_t secs)
+  void receive(Process *process, double secs)
   {
     //cout << "ProcessManager::receive" << endl;
     assert(process != NULL);
@@ -1338,7 +1338,7 @@ public:
   }
 
 
-  void pause(Process *process, time_t secs)
+  void pause(Process *process, double secs)
   {
     assert(process != NULL);
 
@@ -1351,7 +1351,7 @@ public:
     }
   }
 #else
-  void pause(Process *process, time_t secs)
+  void pause(Process *process, double secs)
   {
     assert(process != NULL);
 
@@ -1883,8 +1883,10 @@ static void handle_async(struct ev_loop *loop, ev_async *w, int revents)
   {
     if (update_timer) {
       if (!timers->empty()) {
-	timer_watcher.repeat = timers->begin()->first - ev_now(loop) > 0 ? : 0;
-	if (timer_watcher.repeat == 0) {
+	timer_watcher.repeat = timers->begin()->first - ev_now(loop);
+	/* If timer has elapsed feed the event immediately. */
+	if (timer_watcher.repeat <= 0) {
+	  timer_watcher.repeat = 0;
 	  ev_feed_event(loop, &timer_watcher, EV_TIMEOUT);
 	} else {
 	  ev_timer_again(loop, &timer_watcher);
@@ -2961,7 +2963,7 @@ void Process::send(const PID &to, MSGID id, const char *data, size_t length)
 }
 
 
-MSGID Process::receive(time_t secs)
+MSGID Process::receive(double secs)
 {
   //cout << "Process::receive(" << secs << ")" << endl;
   /* Free current message. */
@@ -3036,7 +3038,7 @@ MSGID Process::receive(time_t secs)
 
 
 MSGID Process::call(const PID &to, MSGID id,
-		    const char *data, size_t length, time_t secs)
+		    const char *data, size_t length, double secs)
 {
   send(to, id, data, length);
   return receive(secs);
@@ -3057,7 +3059,7 @@ const char * Process::body(size_t *length)
 }
 
 
-void Process::pause(time_t secs)
+void Process::pause(double secs)
 {
 #ifdef USE_LITHE
   /* TODO(benh): Handle non-libprocess task/ctx (i.e., proc_thread below). */

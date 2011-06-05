@@ -1,17 +1,19 @@
+#include "config.hpp" // Need to define first to get USING_ZOOKEEPER
+
 #include <getopt.h>
 
-#include <fstream>
-#include <algorithm>
+#ifdef USING_ZOOKEEPER
+#include <zookeeper.hpp>
+#endif
+
+#include "isolation_module_factory.hpp"
 #include "slave.hpp"
 #include "slave_webui.hpp"
-#include "isolation_module_factory.hpp"
-#include "url_processor.hpp"
-
-#define FT_TIMEOUT 10
 
 using std::list;
 using std::make_pair;
 using std::ostringstream;
+using std::istringstream;
 using std::pair;
 using std::queue;
 using std::string;
@@ -25,12 +27,66 @@ using namespace nexus;
 using namespace nexus::internal;
 using namespace nexus::internal::slave;
 
+
 // There's no gethostbyname2 on Solaris, so fake it by calling gethostbyname
 #ifdef __sun__
 #define gethostbyname2(name, _) gethostbyname(name)
 #endif
 
+
+/* List of ZooKeeper host:port pairs (from slave_main.cpp/local.cpp). */
+extern string zookeeper;
+
 namespace {
+
+#ifdef USING_ZOOKEEPER
+class SlaveWatcher : public Watcher
+{
+private:
+  Slave *slave;
+
+public:
+  void process(ZooKeeper *zk, int type, int state, const string &path)
+  {
+    if ((state == ZOO_CONNECTED_STATE) &&
+	((type == ZOO_SESSION_EVENT) || (type == ZOO_CREATED_EVENT))) {
+      // Lookup master PID.
+      string znode = "/home/nexus/master";
+      int ret;
+
+      // Check if znode exists, if not, just return and wait.
+      ret = zk->exists(znode, true, NULL);
+
+      if (ret == ZNONODE)
+	return;
+
+      if (ret != ZOK)
+	fatal("failed to get %s! (%s)", znode.c_str(), zerror(ret));
+
+      string result;
+      ret = zk->get(znode, false, &result, NULL);
+    
+      if (ret != ZOK)
+	fatal("failed to get %s! (%s)", znode.c_str(), zerror(ret));
+
+      PID master;
+
+      istringstream iss(result);
+      if (!(iss >> master))
+	fatal("bad data at %s!", znode.c_str());
+
+      // TODO(benh): HACK! Don't just set field in slave instance!
+      slave->master = master;
+
+      Process::post(slave->getPID(), S2S_GOT_MASTER);
+    } else {
+      fatal("unhandled ZooKeeper event!");
+    }
+  }
+
+  SlaveWatcher(Slave *_slave) : slave(_slave) {}
+};
+#endif
 
 // Periodically sends heartbeats to the master
 class Heart : public Tuple<Process>
@@ -63,49 +119,18 @@ public:
 } /* namespace */
 
 
-Slave::Slave(const string &_master, Resources _resources, bool _local)
-  : leaderDetector(NULL), 
-    resources(_resources), local(_local), id(""),
-    isolationType("process"), isolationModule(NULL), slaveLeaderListener(this, getPID())
-{
-  ftMsg = FTMessaging::getInstance();
-  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
-  if (urlPair.first == UrlProcessor::ZOO) {
-    isFT = true;
-    zkServers = urlPair.second;
-  } else {
-    isFT = false;
-    istringstream iss(urlPair.second);
-    istringstream iss2(_master);
-    if (!((iss >> master) || (iss2 >> master) )) {
-      cerr << "Failed to resolve master PID " << urlPair.second << endl;
-      exit(1);
-    }
-  }
-}
+Slave::Slave(const PID &_master, Resources _resources, bool _local)
+  : master(_master), resources(_resources), local(_local), id(-1),
+    isolationType("process"), isolationModule(NULL)
+{}
 
 
-Slave::Slave(const string &_master, Resources _resources, bool _local,
-	     const string &_isolationType)
-  : leaderDetector(NULL), 
-    resources(_resources), local(_local), id(""),
-    isolationType(_isolationType), isolationModule(NULL), slaveLeaderListener(this, getPID())
-{
-  ftMsg = FTMessaging::getInstance();
-  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
-  if (urlPair.first == UrlProcessor::ZOO) {
-    isFT = true;
-    zkServers = urlPair.second;
-  } else {
-    isFT = false;
-    istringstream iss(urlPair.second);
-    istringstream iss2(_master);
-    if (!((iss >> master) || (iss2 >> master) )) {
-      cerr << "Failed to resolve master PID " << urlPair.second << endl;
-      exit(1);
-    }
-  }
-}
+Slave::Slave(const PID &_master, Resources _resources, bool _local,
+    const string& _isolationType)
+  : master(_master), resources(_resources), local(_local), id(-1),
+    isolationType(_isolationType), isolationModule(NULL)
+{}
+
 
 Slave::~Slave() {}
 
@@ -125,7 +150,7 @@ state::SlaveState *Slave::getState()
         f->executorInfo.uri, f->executorStatus, f->resources.cpus,
         f->resources.mem);
     state->frameworks.push_back(framework);
-    foreachpair(_, TaskInfo *t, f->tasks) {
+    foreachpair(_, Task *t, f->tasks) {
       state::Task *task = new state::Task(t->id, t->name, t->state,
           t->resources.cpus, t->resources.mem);
       framework->tasks.push_back(task);
@@ -139,21 +164,6 @@ state::SlaveState *Slave::getState()
 void Slave::operator () ()
 {
   LOG(INFO) << "Slave started at " << self();
-
-  if (isFT) {
-    LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
-    leaderDetector = new LeaderDetector(zkServers, false, "", NULL);
-    leaderDetector->setListener(&slaveLeaderListener); // use this instead of constructor to avoid race condition
-
-    string leaderPidStr = leaderDetector->getCurrentLeaderPID();
-    string leaderSeq = leaderDetector->getCurrentLeaderSeq();
-    LOG(INFO) << "Detected leader at " << leaderPidStr << " with ephemeral id:" << leaderSeq;
-
-    istringstream iss(leaderPidStr);
-    if (!(iss >> master)) {
-      cerr << "Failed to resolve master PID " << leaderPidStr << endl;
-    }    
-  }
 
   // Get our hostname
   char buf[256];
@@ -169,12 +179,13 @@ void Slave::operator () ()
     publicDns = hostname;
   }
 
-  LOG(INFO) << "Connecting to Nexus master at " << master;
-  link(master);
-
-  ftMsg->setMasterPid(master);
-
-  send(master, pack<S2M_REGISTER_SLAVE>(hostname, publicDns, resources));
+#ifdef USING_ZOOKEEPER
+  ZooKeeper *zk;
+  if (!zookeeper.empty())
+    zk = new ZooKeeper(zookeeper, 10000, new SlaveWatcher(this));
+#else
+  send(self(), pack<S2S_GOT_MASTER>());
+#endif
   
   FrameworkID fid;
   TaskID tid;
@@ -184,7 +195,14 @@ void Slave::operator () ()
   string data;
 
   while (true) {
-    switch (receive(FT_TIMEOUT)) {
+    switch (receive()) {
+      case S2S_GOT_MASTER: {
+	LOG(INFO) << "Connecting to Nexus master at " << master;
+	link(master);
+	send(master, pack<S2M_REGISTER_SLAVE>(hostname, publicDns, resources));
+	break;
+      }
+
       case M2S_REGISTER_REPLY: {
         unpack<M2S_REGISTER_REPLY>(this->id);
         LOG(INFO) << "Registered with master; given slave ID " << this->id;
@@ -195,22 +213,11 @@ void Slave::operator () ()
         break;
       }
       
-      case M2S_REREGISTER_REPLY: {
-        FrameworkID tmpfid;
-        unpack<M2S_REGISTER_REPLY>(tmpfid);
-        LOG(INFO) << "RE-registered with master; given slave ID " << tmpfid << " had "<< this->id;
-        if (this->id == "")
-          this->id = tmpfid;
-        link(spawn(new Heart(master, getPID(), this->id)));
-        break;
-      }
-      
       case M2S_RUN_TASK: {
-	FrameworkID fid;
-        string fwName, user, taskName, taskArg, fwPidStr;
+        string fwName, user, taskName, taskArg;
         ExecutorInfo execInfo;
         unpack<M2S_RUN_TASK>(fid, tid, fwName, user, execInfo,
-                             taskName, taskArg, params, fwPidStr);
+            taskName, taskArg, params);
         LOG(INFO) << "Got assigned task " << fid << ":" << tid;
         Resources res;
         res.cpus = params.getInt32("cpus", -1);
@@ -218,15 +225,12 @@ void Slave::operator () ()
         Framework *framework = getFramework(fid);
         if (framework == NULL) {
           // Framework not yet created on this node - create it
-          PID fwPid;
-          istringstream ss(fwPidStr);
-          ss >> fwPid;
-          framework = new Framework(fid, fwName, user, execInfo, fwPid);
+          framework = new Framework(fid, fwName, user, execInfo);
           frameworks[fid] = framework;
           isolationModule->frameworkAdded(framework);
           isolationModule->startExecutor(framework);
         }
-        TaskInfo *task = framework->addTask(tid, taskName, res);
+        Task *task = framework->addTask(tid, taskName, res);
         Executor *executor = getExecutor(fid);
         if (executor) {
           send(executor->pid,
@@ -253,24 +257,6 @@ void Slave::operator () ()
         }
         // Report to master that the task is killed
         send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, TASK_KILLED, ""));
-        break;
-      }
-
-      case M2S_FT_FRAMEWORK_MESSAGE: {
-        string ftId, origPid;
-        unpack<M2S_FT_FRAMEWORK_MESSAGE>(ftId, origPid, fid, message);
-
-        if (!ftMsg->acceptMessageAck(ftId, origPid))
-          break;
-
-        DLOG(INFO) << "FT: Received message with id: " << ftId;
-
-        if (Executor *ex = getExecutor(fid)) {
-          send(ex->pid, pack<S2E_FRAMEWORK_MESSAGE>(message));
-        }
-        // TODO(matei): If executor is not started, queue framework message?
-        // (It's probably okay to just drop it since frameworks can have
-        // the executor send a message to the master to say when it's ready.)
         break;
       }
 
@@ -333,11 +319,7 @@ void Slave::operator () ()
           }
         }
         // Pass on the update to the master
-        if (isFT) {
-          string ftId = ftMsg->getNextId();
-          ftMsg->reliableSend(ftId, pack<S2M_FT_STATUS_UPDATE>(ftId, self(), id, fid, tid, taskState, data));
-        } else
-          send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, taskState, data));
+        send(master, pack<S2M_STATUS_UPDATE>(id, fid, tid, taskState, data));
         break;
       }
 
@@ -345,14 +327,7 @@ void Slave::operator () ()
         unpack<E2S_FRAMEWORK_MESSAGE>(fid, message);
         // Set slave ID in case framework omitted it
         message.slaveId = this->id;
-        /*
-        if (isFT) {
-          string ftId = ftMsg->getNextId();
-          ftMsg->reliableSend(ftId, pack<S2M_FT_FRAMEWORK_MESSAGE>(ftId, self(), id, fid, message));
-        } else
-          send(master, pack<S2M_FRAMEWORK_MESSAGE>(id, fid, message));
-        */
-        send(getFramework(fid)->fwPid, pack<M2F_FRAMEWORK_MESSAGE>(message));
+        send(master, pack<S2M_FRAMEWORK_MESSAGE>(id, fid, message));
         break;
       }
 
@@ -366,16 +341,12 @@ void Slave::operator () ()
 
         if (from() == master) {
 	  // TODO: Fault tolerance!
-	   if (isFT)
-	     LOG(WARNING) << "FT: Master disconnected! Waiting for a new master to be elected."; 
-	   else 
-	     {
-		LOG(ERROR) << "Master disconnected! Exiting. Consider running Nexus in FT mode!";
-		if (isolationModule != NULL)
-		  delete isolationModule;
-		// TODO: Shut down executors?
-		return;
-	     }
+          LOG(ERROR) << "Master disconnected! Committing suicide ...";
+	  // TODO(matei): Add support for factory style destroy of objects!
+	  if (isolationModule != NULL)
+	    delete isolationModule;
+	  // TODO: Shut down executors?
+	  return;
 	}
 
         foreachpair (_, Executor *ex, executors) {
@@ -400,7 +371,6 @@ void Slave::operator () ()
         return;
       }
 
-
       case S2S_SHUTDOWN: {
         LOG(INFO) << "Asked to shut down by " << from();
 	// TODO(matei): Add support for factory style destroy of objects!
@@ -410,57 +380,6 @@ void Slave::operator () ()
         return;
       }
 
-      case LE_NEWLEADER: {
-        LOG(INFO) << "Slave got notified of new leader " << from();
-	string newLeader;
-        unpack<LE_NEWLEADER>(newLeader);
-	istringstream iss(newLeader);
-	if (!(iss >> master)) {
-	  cerr << "Failed to resolve master PID " << newLeader << endl;
-	  break;
-	}    
-	
-	LOG(INFO) << "Connecting to Nexus master at " << master;
-	link(master);
-
-        ftMsg->setMasterPid(master);
-
-	// reconstruct resourcesInUse for the master
-	// alig: do I need to include queuedTasks in this number? Don't think so.
-	Resources resourcesInUse; 
-	vector<TaskInfo> taskVec;
-
-	foreachpair(_, Framework *framework, frameworks) {
-	  foreachpair(_, TaskInfo *task, framework->tasks) {
-	    resourcesInUse += task->resources;
-	    TaskInfo ti = *task;
-	    ti.slaveId = id;
-	    taskVec.push_back(ti);
-	  }
-	}
-
-        if (id != "") // actual re-register
-          send(master, pack<S2M_REREGISTER_SLAVE>(id, hostname, publicDns, resources, taskVec));
-        else          // slave started before master
-          send(master, pack<S2M_REGISTER_SLAVE>(hostname, publicDns, resources));
-	
-	break;
-      }
-    
-      case FT_RELAY_ACK: {
-        string ftId, senderStr;
-        unpack<FT_RELAY_ACK>(ftId, senderStr);
-
-        DLOG(INFO) << "FT: got final ack for " << ftId;
-
-        ftMsg->gotAck(ftId);
-        break;
-      }
-      
-      case PROCESS_TIMEOUT: {
-        ftMsg->sendOutstanding();
-	break;
-      }
       default: {
         LOG(ERROR) << "Received unknown message ID " << msgid()
                    << " from " << from();

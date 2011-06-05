@@ -230,6 +230,26 @@ public:
 	  Stat *stat);
 
   /**
+   * \brief sets the data associated with a node.
+   * 
+   * \param path the name of the node. Expressed as a file name with slashes 
+   * separating ancestors of the node.
+   * \param data the data to be written to the node.
+   * \param version the expected version of the node. The function will fail if 
+   * the actual version of the node does not match the expected version. If -1 is 
+   * used the version check will not take place. 
+   * \return the return code for the function call.
+   * ZOK operation completed succesfully
+   * ZNONODE the node does not exist.
+   * ZNOAUTH the client does not have permission.
+   * ZBADVERSION expected version does not match actual version.
+   * ZBADARGUMENTS - invalid input parameters
+   * ZINVALIDSTATE - zhandle state is either ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
+   * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
+   */
+  int set(const std::string &path, const std::string &data, int version);
+
+  /**
    * \brief return a string describing the last error.
    * 
    * \return string corresponding to the last error
