@@ -19,6 +19,7 @@ Makefile
 *.log
 *.class
 *.pyc
+*.dSYM
 config.log
 config.status
 src/work
