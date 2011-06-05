@@ -6,10 +6,13 @@
 #include <fstream>
 #include <string>
 #include <map>
+
 #include <glog/logging.h>
+
 #include "params.hpp"
 #include "foreach.hpp"
 #include "option.hpp"
+
 
 namespace mesos { namespace internal {
     

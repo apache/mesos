@@ -22,7 +22,7 @@ ac_configure_args=`echo $ac_configure_args | \
                    sed -e "s/CXXFLAGS=/CXXFLAGS=-O2 -fno-strict-aliasing /"`
 ac_configure_args="$ac_configure_args --enable-shared=no --with-pic"
 
-AC_CONFIG_FILES([Makefile src/Makefile src/config.hpp])
+AC_CONFIG_FILES([Makefile src/Makefile src/tests/Makefile src/config.hpp])
 AC_CONFIG_SUBDIRS([third_party/libprocess])
 AC_CONFIG_SUBDIRS([third_party/gtest-1.5.0])
 AC_CONFIG_SUBDIRS([third_party/glog-0.3.1])
@@ -46,7 +46,6 @@ case "${target_os}" in
     OS_NAME=darwin
     CFLAGS="${CFLAGS} -D_XOPEN_SOURCE"
     CXXFLAGS="${CXXFLAGS} -D_XOPEN_SOURCE"
-    LDFLAGS="${LDFLAGS} `$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION")'`"
     ;;
   solaris*)
     echo ===========================================================
@@ -106,14 +105,18 @@ AC_SUBST(PYTHON_HEADERS)
 AC_SUBST(HAS_PYTHON)
 
 WITH_WEBUI="0"
-WEBUI_FLAGS=""
+WEBUI_CFLAGS=""
+WEBUI_CXXFLAGS=""
+WEBUI_LDFLAGS=""
 AC_ARG_WITH([webui],
   AC_HELP_STRING([--with-webui],
                  [enable web UI (requires Python)]),
 	         [case "$with_webui" in
 		    yes) WITH_WEBUI="1"
                          echo running $PYTHON to find compiler flags for embedding it...
-                         WEBUI_FLAGS=`$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION") + " -I" + sysconfig.get_config_var("INCLUDEPY")'`
+                         WEBUI_CFLAGS=`$PYTHON -c 'from distutils import sysconfig; print "-I" + sysconfig.get_config_var("INCLUDEPY")'`
+                         WEBUI_CXXFLAGS=$WEBUI_CFLAGS
+                         WEBUI_LDFLAGS=`$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION")'`
                          if [[ "$?" -ne "0" ]]; then
                            AC_MSG_ERROR([
 *** Failed to determine compiler flags for embedding Python, needed by web UI.
@@ -125,7 +128,9 @@ AC_ARG_WITH([webui],
 	          esac],
 	         [])
 AC_SUBST(WITH_WEBUI)
-AC_SUBST(WEBUI_FLAGS)
+AC_SUBST(WEBUI_CFLAGS)
+AC_SUBST(WEBUI_CXXFLAGS)
+AC_SUBST(WEBUI_LDFLAGS)
 
 SWIG="swig"
 AC_ARG_WITH([swig],

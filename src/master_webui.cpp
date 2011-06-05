@@ -1,3 +1,5 @@
+#include <pthread.h>
+
 #include <sstream>
 
 #include "master_webui.hpp"
@@ -5,7 +7,6 @@
 
 #ifdef MESOS_WEBUI
 
-#include <pthread.h>
 #include <Python.h>
 
 extern "C" void init_master();  // Initializer for the Python master module

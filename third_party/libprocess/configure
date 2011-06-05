@@ -5387,7 +5387,7 @@ fi
 done
 
 
-ac_config_files="$ac_config_files Makefile examples/Makefile swig/Makefile"
+ac_config_files="$ac_config_files Makefile"
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do
@@ -5994,8 +5994,6 @@ for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
-    "examples/Makefile") CONFIG_FILES="$CONFIG_FILES examples/Makefile" ;;
-    "swig/Makefile") CONFIG_FILES="$CONFIG_FILES swig/Makefile" ;;
 
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
 echo "$as_me: error: invalid argument: $ac_config_target" >&2;}

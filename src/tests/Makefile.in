@@ -1,0 +1,110 @@
+# Makefile.
+
+SHELL = '/bin/sh'
+
+CC = @CC@
+CXX = @CXX@
+
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+
+WITH_ZOOKEEPER = @WITH_ZOOKEEPER@
+
+WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
+
+LIBPROCESS = third_party/libprocess
+
+LIBEV = $(LIBPROCESS)/third_party/libev-3.8
+
+GLOG = third_party/glog-0.3.1
+GTEST = third_party/gtest-1.5.0
+
+ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
+
+# Ensure that we get better debugging info.
+CFLAGS += -g
+CXXFLAGS += -g
+
+# Add source dir to CFLAGS and CXXFLAGS.
+CFLAGS += -I@srcdir@/..
+CXXFLAGS += -I@srcdir@/..
+
+# Add include to CFLAGS and CXXFLAGS.
+CFLAGS += -I@top_srcdir@/include
+CXXFLAGS += -I@top_srcdir@/include
+
+# Add boost to CFLAGS and CXXFLAGS.
+CFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
+CXXFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
+
+# Add libprocess to CFLAGS, CXXFLAGS, and LDFLAGS.
+CFLAGS += -I@top_srcdir@/$(LIBPROCESS)
+CXXFLAGS += -I@top_srcdir@/$(LIBPROCESS)
+LDFLAGS += -L@top_builddir@/$(LIBPROCESS)
+
+# Add libev to LDFLAGS.
+LDFLAGS += -L@top_builddir@/$(LIBEV)/.libs
+
+# Add glog and gtest to include paths.
+CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src -I@top_srcdir@/$(GTEST)/include
+LDFLAGS += -L@top_builddir@/$(GLOG)/.libs -L@top_builddir@/$(GTEST)/lib/.libs
+
+# Add included ZooKeeper to include and lib paths if necessary.
+ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
+  CXXFLAGS += -I@top_srcdir@/$(ZOOKEEPER)/include -I@top_srcdir@/$(ZOOKEEPER)/generated
+  LDFLAGS += -L@top_builddir@/$(ZOOKEEPER)/.libs
+endif
+
+# Add dependency tracking to CFLAGS, CXXFLAGS.
+CFLAGS += -MMD -MP
+CXXFLAGS += -MMD -MP
+
+# Add build date to CFLAGS, CXXFLAGS
+CFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
+CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
+
+# Add build user to CFLAGS, CXXFLAGS
+CFLAGS += -DBUILD_USER="\"$$USER\""
+CXXFLAGS += -DBUILD_USER="\"$$USER\""
+
+# Add glog, gtest, libev, libprocess, pthread, and dl to LIBS.
+LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl
+
+# Add ZooKeeper if necessary.
+ifeq ($(WITH_ZOOKEEPER),1)
+  LIBS += -lzookeeper_st
+endif
+
+SCHED_LIB = ../libmesos_sched.a
+EXEC_LIB = ../libmesos_exec.a
+
+TESTS_OBJ = main.o test_master.o test_resources.o	\
+	    external_test.o test_sample_frameworks.o	\
+	    testing_utils.o test_configurator.o		\
+	    test_string_utils.o test_lxc_isolation.o
+
+default: all
+
+-include $(patsubst %.o, %.d, $(TESTS_OBJ))
+-include $(patsubst %, %.d, alltests)
+
+$(TESTS_OBJ): %.o: @srcdir@/%.cpp
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
+alltests: $(TESTS_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $(TESTS_OBJ) $(SCHED_LIB) $(EXEC_LIB) $(LDFLAGS) $(LIBS)
+
+test: alltests
+	./alltests
+
+all: alltests
+
+clean:
+	rm -f $(patsubst %.o, %.d, $(TESTS_OBJ))
+	rm -f $(TESTS_OBJ)
+	rm -f alltests
+	rm -f TAGS
+
+.PHONY: default all clean test

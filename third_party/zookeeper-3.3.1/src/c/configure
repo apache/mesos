@@ -5166,54 +5166,68 @@ if test "$CALLER" = "ANT" ; then
 CPPUNIT_CFLAGS="$CPPUNIT_CFLAGS -DZKSERVER_CMD=\"\\\"${base_dir}/src/c/tests/zkServer.sh\\\"\""
 else
 CPPUNIT_CFLAGS="$CPPUNIT_CFLAGS -DZKSERVER_CMD=\"\\\"./tests/zkServer.sh\\\"\""
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for generated/zookeeper.jute.c" >&5
-$as_echo_n "checking for generated/zookeeper.jute.c... " >&6; }
-if test "${ac_cv_file_generated_zookeeper_jute_c+set}" = set; then :
-  $as_echo_n "(cached) " >&6
+as_ac_File=`echo "ac_cv_file_$srcdir/generated/zookeeper.jute.c" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for $srcdir/generated/zookeeper.jute.c" >&5
+echo $ECHO_N "checking for $srcdir/generated/zookeeper.jute.c... $ECHO_C" >&6; }
+if { as_var=$as_ac_File; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   test "$cross_compiling" = yes &&
-  as_fn_error "cannot check for file existence when cross compiling" "$LINENO" 5
-if test -r "generated/zookeeper.jute.c"; then
-  ac_cv_file_generated_zookeeper_jute_c=yes
+  { { echo "$as_me:$LINENO: error: cannot check for file existence when cross compiling" >&5
+echo "$as_me: error: cannot check for file existence when cross compiling" >&2;}
+   { (exit 1); exit 1; }; }
+if test -r "$srcdir/generated/zookeeper.jute.c"; then
+  eval "$as_ac_File=yes"
 else
-  ac_cv_file_generated_zookeeper_jute_c=no
+  eval "$as_ac_File=no"
 fi
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_file_generated_zookeeper_jute_c" >&5
-$as_echo "$ac_cv_file_generated_zookeeper_jute_c" >&6; }
-if test "x$ac_cv_file_generated_zookeeper_jute_c" = x""yes; then :
+ac_res=`eval echo '${'$as_ac_File'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_File'}'` = yes; then
 
 cat >>confdefs.h <<_ACEOF
-#define HAVE_GENERATED_ZOOKEEPER_JUTE_C 1
+#define `echo "HAVE_$srcdir/generated/zookeeper.jute.c" | $as_tr_cpp` 1
 _ACEOF
 
+
 else
-  as_fn_error "jute files are missing! Please run \"ant compile_jute\" while in the zookeeper top level directory." "$LINENO" 5
+  { { echo "$as_me:$LINENO: error: jute files are missing! Please run \"ant compile_jute\" while in the zookeeper top level directory." >&5
+echo "$as_me: error: jute files are missing! Please run \"ant compile_jute\" while in the zookeeper top level directory." >&2;}
+   { (exit 1); exit 1; }; }
 
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for generated/zookeeper.jute.h" >&5
-$as_echo_n "checking for generated/zookeeper.jute.h... " >&6; }
-if test "${ac_cv_file_generated_zookeeper_jute_h+set}" = set; then :
-  $as_echo_n "(cached) " >&6
+as_ac_File=`echo "ac_cv_file_$srcdir/generated/zookeeper.jute.h" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for $srcdir/generated/zookeeper.jute.h" >&5
+echo $ECHO_N "checking for $srcdir/generated/zookeeper.jute.h... $ECHO_C" >&6; }
+if { as_var=$as_ac_File; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   test "$cross_compiling" = yes &&
-  as_fn_error "cannot check for file existence when cross compiling" "$LINENO" 5
-if test -r "generated/zookeeper.jute.h"; then
-  ac_cv_file_generated_zookeeper_jute_h=yes
+  { { echo "$as_me:$LINENO: error: cannot check for file existence when cross compiling" >&5
+echo "$as_me: error: cannot check for file existence when cross compiling" >&2;}
+   { (exit 1); exit 1; }; }
+if test -r "$srcdir/generated/zookeeper.jute.h"; then
+  eval "$as_ac_File=yes"
 else
-  ac_cv_file_generated_zookeeper_jute_h=no
+  eval "$as_ac_File=no"
 fi
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_file_generated_zookeeper_jute_h" >&5
-$as_echo "$ac_cv_file_generated_zookeeper_jute_h" >&6; }
-if test "x$ac_cv_file_generated_zookeeper_jute_h" = x""yes; then :
+ac_res=`eval echo '${'$as_ac_File'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_File'}'` = yes; then
 
 cat >>confdefs.h <<_ACEOF
-#define HAVE_GENERATED_ZOOKEEPER_JUTE_H 1
+#define `echo "HAVE_$srcdir/generated/zookeeper.jute.h" | $as_tr_cpp` 1
 _ACEOF
 
+
 else
-  as_fn_error "jute files are missing! Please run \"ant compile_jute\" while in the zookeeper top level directory." "$LINENO" 5
+  { { echo "$as_me:$LINENO: error: jute files are missing! Please run \"ant compile_jute\" while in the zookeeper top level directory." >&5
+echo "$as_me: error: jute files are missing! Please run \"ant compile_jute\" while in the zookeeper top level directory." >&2;}
+   { (exit 1); exit 1; }; }
 
 fi
 

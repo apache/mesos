@@ -6,6 +6,8 @@ MESOS_HOME = @prefix@/mesos
 
 WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
 
+LIBPROCESS = third_party/libprocess
+
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
 GLOG = third_party/glog-0.3.1
@@ -18,7 +20,7 @@ src: third_party
 	$(MAKE) -C src
 
 third_party:
-	$(MAKE) -C third_party/libprocess
+	$(MAKE) -C $(LIBPROCESS)
 	$(MAKE) -C $(GLOG)
 	$(MAKE) -C $(GTEST)
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
@@ -39,7 +41,7 @@ install:
 	if test ! -d $(MESOS_HOME)/third_party; \
 		then mkdir $(MESOS_HOME)/third_party; \
 	fi
-	rsync -avz third_party/bottle-0.5.6 $(MESOS_HOME)/third_party
+	rsync -avz @srcdir@/third_party/bottle-0.5.6 $(MESOS_HOME)/third_party
 
 uninstall:
 	$(error unimplemented)
@@ -64,7 +66,7 @@ ctags:
 
 clean:
 	$(MAKE) -C src clean
-	$(MAKE) -C third_party/libprocess clean
+	$(MAKE) -C $(LIBPROCESS) clean
 	$(MAKE) -C $(GLOG) clean
 	$(MAKE) -C $(GTEST) clean
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)

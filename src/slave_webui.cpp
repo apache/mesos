@@ -1,3 +1,5 @@
+#include <pthread.h>
+
 #include <sstream>
 
 #include "slave_webui.hpp"
@@ -5,8 +7,6 @@
 
 #ifdef MESOS_WEBUI
 
-#include <process.hpp>
-#include <pthread.h>
 #include <Python.h>
 
 extern "C" void init_slave();  // Initializer for the Python slave module
