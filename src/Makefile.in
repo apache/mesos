@@ -76,7 +76,7 @@ LDFLAGS += -L@top_builddir@/$(GLOG)/.libs
 
 # Add sqlite to include and lib paths if necessary.
 ifeq ($(WITH_INCLUDED_SQLITE),1)
-  CXXFLAGS += -I@top_srcdir@/$(SQLITE)/src -I@top_builddir@/$(SQLITE)/src
+  CXXFLAGS += -I@top_srcdir@/$(SQLITE) -I@top_builddir@/$(SQLITE)
   LDFLAGS += -L@top_builddir@/$(SQLITE)/.libs
 endif
 
