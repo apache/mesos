@@ -7,6 +7,7 @@ import time
 import httplib
 import Queue
 import threading
+import re
 
 from optparse import OptionParser
 from subprocess import *
@@ -39,12 +40,13 @@ class MyScheduler(nexus.Scheduler):
     tasks = []
     for offer in slave_offers:
       # if we haven't registered this node, accept slot & register w pbs_server#      #TODO: check to see if slot is big enough 
-      if not offer.host in self.servers.values():
+      if offer.host in self.servers.values():
         print "Rejecting slot, already registered node " + offer.host
         continue
       if len(self.servers) >= SAFE_ALLOCATION:
         print "Rejecting slot, already at safe allocation"
         continue
+
       print "Accepting slot, setting up params for it..."
       params = {"cpus": "%d" % 1, "mem": "%d" % 1073741824}
       td = nexus.TaskDescription(
@@ -68,21 +70,29 @@ def regComputeNode(new_node):
   print "registering new compute node, "+new_node+", with pbs_server"
 
   print "checking to see if node is registered with server already"
-  nodes = Popen("pbsnodes", shell=True, stdout=PIPE).stdout.readline()
-  print "output of pbsnodes command is: " + nodes
-
-  if nodes.find(new_node) != -1:
-    print "Warn: tried to register a node that is already registered, skipping"
-    return
+  nodes = Popen("pbsnodes", shell=True, stdout=PIPE).stdout
+  print "output of pbsnodes command is: "
+  for line in nodes: 
+    print line
+    if line.find(new_node) != -1:
+      print "Warn: tried to register a node that is already registered, skipping"
+      return
 
   #add node to server
   print "registering node w/ pbs_server using: qmgr -c create node " + new_node
-  Popen("qmgr -c \"create node " + new_node + "\"", shell=True, stdout=PIPE)
+  qmgr_add = Popen("qmgr -c \"create node " + new_node + "\"", shell=True, stdout=PIPE).stdout
+  print "output of qmgr:"
+  for line in qmgr_add: print line
 
 def unregComputeNode(node_name):
   #remove node from server
   print("removing node from pbs_server using: qmgr -c delete node " + node)
   print Popen(QMGR_EXE + ' "-c delete node ' + node + '"').stdout
+
+def unregAllNodes():
+  for node in self.servers:
+    print "unregistering node " + node
+    unregComputeNode(node)
 
 def getFrameworkName(self, driver):
   return "Nexus torque Framework"
@@ -92,9 +102,18 @@ def monitor(sched):
     time.sleep(1)
     try:
       print "checking to see if queue is empty"
-      print Popen("qstat",shell=True,stdout=PIPE).stdout.readline()
+      qstat = Popen("qstat -Q",shell=True,stdout=PIPE).stdout
+      for line in qstat:
+         #print "line is " + line
+         if re.match('^batch.*', line):
+           #print "found header line, next line has data"
+           jobcount = int(line.split()[5]) + int(line.split()[6]) + int(line.split()[7]) + int(line.split()[8])
+           if jobcount == 0:
+             print "no incomplete jobs remaining in queue, releasing all slots"
+             unregAllNodes()
     except Exception, e:
       print "error running/parsing qstat"
+      print e
       continue
 
 if __name__ == "__main__":

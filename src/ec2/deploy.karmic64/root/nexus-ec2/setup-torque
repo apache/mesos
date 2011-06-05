@@ -21,7 +21,7 @@ function installmaster {
 	./configure --prefix=/usr/local
 	make -j8
 	make install
-        ./torque.setup `whoami` #or should this just be root
+        ./torque.setup root #or should this just be root
 
 	echo "copying init.d control scripts to master"
 	cp contrib/init.d/debian.pbs_mom /etc/init.d/pbs_mom
