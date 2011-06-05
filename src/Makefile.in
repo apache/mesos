@@ -211,7 +211,7 @@ memhog: memhog.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
 memhog-executor: memhog_executor.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
 
-java: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestFramework.class swig/java/TestExecutor.class
+java: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestFramework.class swig/java/TestExecutor.class swig/java/TestExceptionFramework.class swig/java/TestExceptionExecutor.class
 
 python: $(PYTHON_LIB)
 
@@ -241,6 +241,16 @@ endif
 swig/java/TestExecutor.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExecutor.java
 ifdef JAVA_HOME
 	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExecutor.java
+endif
+
+swig/java/TestExceptionFramework.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExceptionFramework.java
+ifdef JAVA_HOME
+	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExceptionFramework.java
+endif
+
+swig/java/TestExceptionExecutor.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExceptionExecutor.java
+ifdef JAVA_HOME
+	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExceptionExecutor.java
 endif
 
 $(PYTHON_LIB): swig/nexus.i $(NEXUS_LIB)
