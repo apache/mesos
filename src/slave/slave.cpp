@@ -107,11 +107,8 @@ void Slave::registerOptions(Configurator* conf)
                         "the slave (requires setuid permission)",
                         true);
    conf->addOption<string>("frameworks_home",
-                           "Directory prepended to relative executor paths\n"
-                           "(default: MESOS_HOME/frameworks if MESOS_HOME\n"
-                           "is set, else if frameworks_home is not set\n"
-                           "and MESOS_HOME is not set, then relative\n"
-                           "executor paths are not allowed)");
+                           "Directory prepended to relative executor\n"
+                           "paths (default: MESOS_HOME/frameworks)");
 }
 
 
