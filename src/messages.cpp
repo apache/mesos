@@ -79,6 +79,7 @@ void operator & (serializer& s, const ExecutorInfo& info)
 {
   s & info.uri;
   s & info.initArg;
+  s & info.params;
 }
 
 
@@ -86,6 +87,7 @@ void operator & (deserializer& s, ExecutorInfo& info)
 {
   s & info.uri;
   s & info.initArg;
+  s & info.params;
 }
 
 
