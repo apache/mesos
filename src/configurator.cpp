@@ -8,6 +8,7 @@
 #include "configurator.hpp"
 #include "foreach.hpp"
 #include "params.hpp"
+#include "string_utils.hpp"
 
 extern char** environ;   // libc's environment variable list; for some reason,
                          // this is not in headers on all platforms
@@ -151,23 +152,36 @@ void Configurator::loadConfigFile(const string& fname, bool overwrite)
     throw ConfigurationException(message.c_str());
   }
 
-  Params fileParams;
-  string buf, line;
+  string line, originalLine;
 
   while (!cfg.eof()) {
     getline(cfg, line);
-    size_t beg = line.find_first_of("#"); // strip comments
-    beg = line.find_last_not_of("#\t \n\r", beg) + 1; // strip trailing ws
-    buf += line.substr(0, beg) + "\n";
-  }
-  cfg.close();
-  fileParams.loadString(buf); // Parse key=value pairs using Params's code
-
-  foreachpair (const string& key, const string& value, fileParams.getMap()) {
+    originalLine = line;
+    // Strip any comment at end of line
+    size_t hash = line.find_first_of("#"); // strip comments
+    if (hash != string::npos) {
+      line = originalLine.substr(0, hash);
+    }
+    // Check for empty line
+    line = StringUtils::trim(line);
+    if (line == "") {
+      continue;
+    }
+    // Split line by = and trim to get key and value
+    vector<string> tokens;
+    StringUtils::split(line, "=", &tokens);
+    if (tokens.size() != 2) {
+      string message = "Malformed line in config file: '" + 
+                       StringUtils::trim(originalLine) + "'";
+      throw ConfigurationException(message.c_str());
+    }
+    string key = StringUtils::trim(tokens[0]);
+    string value = StringUtils::trim(tokens[1]);
     if (overwrite || !params.contains(key)) {
       params[key] = value;
     }
   }
+  cfg.close();
 }
 
 

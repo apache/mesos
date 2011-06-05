@@ -230,3 +230,51 @@ TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
   EXPECT_EQ("fromCmdLine", conf.getParams()["c"]);
   EXPECT_EQ("fromFile",    conf.getParams()["d"]);
 }
+
+
+// Check that spaces before and after the = signs in config files are ignored
+TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileSpacesIgnored)
+{
+  if (mkdir("conf", 0755) != 0)
+    FAIL() << "Failed to create directory conf";
+  ofstream file("conf/mesos.conf");
+  file << "test1=coffee # beans are tasty\n";
+  file << "# just a comment\n";
+  file << "  \t # comment with spaces in front\n";
+  file << "test2 =tea\n";
+  file << "test3=  water\n";
+  file << "   test4 =  milk\n";
+  file << "  test5 =  hot  chocolate\t\n";
+  file << "\ttest6 =  juice# #\n";
+  file.close();
+
+  setenv("MESOS_HOME", ".", 1);
+  Configurator conf;
+  EXPECT_NO_THROW(conf.load());
+  unsetenv("MESOS_HOME");
+
+  EXPECT_EQ("coffee",         conf.getParams()["test1"]);
+  EXPECT_EQ("tea",            conf.getParams()["test2"]);
+  EXPECT_EQ("water",          conf.getParams()["test3"]);
+  EXPECT_EQ("milk",           conf.getParams()["test4"]);
+  EXPECT_EQ("hot  chocolate", conf.getParams()["test5"]);
+  EXPECT_EQ("juice",          conf.getParams()["test6"]);
+}
+
+
+// Check that exceptions are thrown on invalid config file
+TEST_WITH_WORKDIR(ConfiguratorTest, MalformedConfigFile)
+{
+  if (mkdir("conf", 0755) != 0)
+    FAIL() << "Failed to create directory conf";
+  ofstream file("conf/mesos.conf");
+  file << "test1=coffee\n";
+  file << "JUNK\n";
+  file << "test2=tea\n";
+  file.close();
+
+  setenv("MESOS_HOME", ".", 1);
+  Configurator conf;
+  EXPECT_THROW(conf.load(), ConfigurationException);
+  unsetenv("MESOS_HOME");
+}
