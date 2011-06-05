@@ -109,8 +109,8 @@ struct Framework
 struct MasterState
 {
   MasterState(const std::string& build_date_, const std::string& build_user_,
-      const std::string& pid_)
-    : build_date(build_date_), build_user(build_user_), pid(pid_) {}
+	      const std::string& pid_, bool _isFT = false)
+    : build_date(build_date_), build_user(build_user_), pid(pid_), isFT(_isFT) {}
 
   MasterState() {}
 
@@ -128,6 +128,7 @@ struct MasterState
 
   std::vector<Slave *> slaves;
   std::vector<Framework *> frameworks;
+  bool isFT;
 };
 
 }}}} /* namespace */

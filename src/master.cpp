@@ -172,7 +172,7 @@ state::MasterState * Master::getState()
   std::ostringstream oss;
   oss << self();
   state::MasterState *state =
-    new state::MasterState(BUILD_DATE, BUILD_USER, oss.str());
+    new state::MasterState(BUILD_DATE, BUILD_USER, oss.str(), isFT);
 
   foreachpair (_, Slave *s, slaves) {
     state::Slave *slave = new state::Slave(s->id, s->hostname, s->publicDns,
@@ -351,7 +351,10 @@ void Master::operator () ()
       if (framework->executorInfo.uri == "")
         terminateFramework(framework, 1, "No executor URI given");
 
-      DLOG(INFO) << "STAT: Slave count: " << slaves.size() << " Framework count: " << frameworks.size();
+       timeval tv;
+       gettimeofday(&tv, NULL);
+       
+       DLOG(INFO) << tv.tv_sec << "." << tv.tv_usec << " STAT: Slave count: " << slaves.size() << " Framework count: " << frameworks.size();
 
       break;
     }
@@ -507,8 +510,11 @@ void Master::operator () ()
       send(slave->pid, pack<M2S_REREGISTER_REPLY>(slave->id));
       allocator->slaveAdded(slave);
 
-      DLOG(INFO) << "STAT: Slave count: " << slaves.size() << " Framework count: " << frameworks.size();
-
+      timeval tv;
+      gettimeofday(&tv, NULL);
+       
+      DLOG(INFO) << tv.tv_sec << "." << tv.tv_usec << " STAT: Slave count: " << slaves.size() << " Framework count: " << frameworks.size();
+       
       break;
     }
 
