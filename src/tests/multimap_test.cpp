@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <stdint.h>
+
 #include <string>
 
 #include "common/foreach.hpp"

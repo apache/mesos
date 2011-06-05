@@ -1,6 +1,8 @@
 #ifndef __HTTP_HPP__
 #define __HTTP_HPP__
 
+#include <string>
+
 namespace process {
 
 struct HttpRequest
