@@ -65,16 +65,16 @@ void ProcessBasedIsolationModule::startExecutor(Framework* framework)
     PLOG(FATAL) << "Failed to fork to launch new executor";
 
   if (pid) {
-    // In parent process, record the pgid for killpg later.
+    // In parent process, record the gpid for killpg later (the pid is
+    // the gpid because the child does a setsid below).
     LOG(INFO) << "Started executor, OS pid = " << pid;
     pgids[framework->id] = pid;
     framework->executorStatus = "PID: " + lexical_cast<string>(pid);
   } else {
-    // In child process, make cleanup easier.
-    if (setpgid(0, 0) < 0)
-      PLOG(FATAL) << "Failed to put executor in own process group";
-//     if ((pid = setsid()) == -1)
-//       PLOG(FATAL) << "Failed to put executor in own session";
+    // In child process, do setsid to make cleanup easier.
+    // if (setpgid(getpid(), 0) == -1)
+    if ((pid = setsid()) == -1)
+      fatalerror("setsid error");
 
     createExecutorLauncher(framework)->run();
   }
