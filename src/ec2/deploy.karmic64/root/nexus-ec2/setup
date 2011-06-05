@@ -15,6 +15,7 @@ SCRIPTS="copy-dir
          redeploy-nexus
          setup-apache
          setup-slave              
+         setup-torque
          ssh-no-keychecking
          start-mos
          start-nexus
