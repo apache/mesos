@@ -20,14 +20,15 @@ WITH_WEBUI = @WITH_WEBUI@
 WEBUI_FLAGS = @WEBUI_FLAGS@
 
 WITH_ZOOKEEPER = @WITH_ZOOKEEPER@
+
 WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
 
-LIBEV = third_party/libprocess/third_party/libev-3.8
+LIBEV = ../third_party/libprocess/third_party/libev-3.8
 
-GLOG = third_party/glog-0.3.1
-GTEST = third_party/gtest-1.5.0
+GLOG = ../third_party/glog-0.3.1
+GTEST = ../third_party/gtest-1.5.0
 
-ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
+ZOOKEEPER = ../third_party/zookeeper-3.3.1/src/c
 
 # Ensure that we get better debugging info.
 CFLAGS += -g
@@ -42,13 +43,13 @@ CFLAGS += -I../include
 CXXFLAGS += -I../include
 
 # Add boost to CFLAGS and CXXFLAGS.
-CFLAGS += -Ithird_party/boost-1.37.0
-CXXFLAGS += -Ithird_party/boost-1.37.0
+CFLAGS += -I../third_party/boost-1.37.0
+CXXFLAGS += -I../third_party/boost-1.37.0
 
 # Add libprocess to CPPFLAGS, CFLAGS, CXXFLAGS, and LDFLAGS.
-CFLAGS += -Ithird_party/libprocess
-CXXFLAGS += -Ithird_party/libprocess
-LDFLAGS += -Lthird_party/libprocess
+CFLAGS += -I../third_party/libprocess
+CXXFLAGS += -I../third_party/libprocess
+LDFLAGS += -L../third_party/libprocess
 
 # Add libev to LDFLAGS.
 LDFLAGS += -L$(LIBEV)/.libs
@@ -153,12 +154,12 @@ default: all
 $(ALL_OBJ): %.o: %.cpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
-$(MESOS_LIBS): $(COMMON_OBJ) third_party/libprocess/libprocess.a
+$(MESOS_LIBS): $(COMMON_OBJ) ../third_party/libprocess/libprocess.a
 
-$(MESOS_EXES): $(COMMON_OBJ) third_party/libprocess/libprocess.a
+$(MESOS_EXES): $(COMMON_OBJ) ../third_party/libprocess/libprocess.a
 
 $(SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
-	$(AR) rcs $@ $^ third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a
+	$(AR) rcs $@ $^ ../third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a
 
 $(EXEC_LIB): $(EXEC_LIB_OBJ) $(COMMON_OBJ)
 	$(AR) rcs $@ $^
@@ -215,25 +216,25 @@ mesos-getconf: get_conf.cpp $(COMMON_OBJ)
 alltests: $(ALLTESTS_OBJ) $(MESOS_EXES) java python
 	$(CXX) $(CXXFLAGS) -o $@ $(ALLTESTS_OBJ) $(LDFLAGS) $(LIBS)
 
-test-framework: test_framework.cpp $(SCHED_LIB) third_party/libprocess/libprocess.a
+test-framework: test_framework.cpp $(SCHED_LIB) ../third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lmesos_sched $(LIBS)
 
-test-executor: test_exec.cpp $(EXEC_LIB) third_party/libprocess/libprocess.a
+test-executor: test_exec.cpp $(EXEC_LIB) ../third_party/libprocess/libprocess.a
 	g++ $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lmesos_exec $(LIBS)
 
-cpp-test-framework: cpp_test_framework.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+cpp-test-framework: cpp_test_framework.cpp $(MESOS_LIB) ../third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
 
-cpp-test-executor: cpp_test_executor.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+cpp-test-executor: cpp_test_executor.cpp $(MESOS_LIB) ../third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
 
-memhog: memhog.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+memhog: memhog.cpp $(MESOS_LIB) ../third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
 
-memhog-executor: memhog_executor.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+memhog-executor: memhog_executor.cpp $(MESOS_LIB) ../third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
 
-scheduled-memhog: scheduled_memhog.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+scheduled-memhog: scheduled_memhog.cpp $(MESOS_LIB) ../third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
 
 java: $(JAVA_LIB) swig/java/mesos.jar swig/java/TestFramework.class swig/java/TestExecutor.class swig/java/TestExceptionFramework.class swig/java/TestExceptionExecutor.class
@@ -285,23 +286,9 @@ endif
 test: all
 	./alltests
 
-third_party:
-	$(MAKE) -C third_party/libprocess
-	$(MAKE) -C $(GLOG)
-	$(MAKE) -C $(GTEST)
-ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
-	$(MAKE) -C $(ZOOKEEPER)
-endif
-
-all: third_party $(MESOS_LIBS) $(MESOS_EXES) alltests java python
+all: $(MESOS_LIBS) $(MESOS_EXES) alltests java python
 
 clean:
-	$(MAKE) -C third_party/libprocess clean
-	$(MAKE) -C $(GLOG) clean
-	$(MAKE) -C $(GTEST) clean
-ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
-	$(MAKE) -C $(ZOOKEEPER) clean
-endif
 	rm -f $(patsubst %.o, %.d, $(ALL_OBJ))
 	rm -f $(ALL_OBJ)
 	rm -f $(MESOS_LIBS)
@@ -335,4 +322,4 @@ endif
 	rm -f webui/slave/swig/slave.pyc
 	rm -f TAGS
 
-.PHONY: default third_party all clean java python test
+.PHONY: default all clean java python test

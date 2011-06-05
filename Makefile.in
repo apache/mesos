@@ -1,12 +1,29 @@
 # Makefile.
 
-MESOS_HOME = @prefix@/mesos
 SHELL = '/bin/sh'
+
+MESOS_HOME = @prefix@/mesos
+
+WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
+
+ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
+
+GLOG = third_party/glog-0.3.1
+GTEST = third_party/gtest-1.5.0
+
 
 default: all
 
-src:
+src: third_party
 	$(MAKE) -C src
+
+third_party:
+	$(MAKE) -C third_party/libprocess
+	$(MAKE) -C $(GLOG)
+	$(MAKE) -C $(GTEST)
+ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
+	$(MAKE) -C $(ZOOKEEPER)
+endif
 
 install:
 	if test ! -d $(MESOS_HOME); \
@@ -22,7 +39,7 @@ install:
 	if test ! -d $(MESOS_HOME)/third_party; \
 		then mkdir $(MESOS_HOME)/third_party; \
 	fi
-	rsync -avz src/third_party/bottle-0.5.6 $(MESOS_HOME)/third_party
+	rsync -avz third_party/bottle-0.5.6 $(MESOS_HOME)/third_party
 
 uninstall:
 	$(error unimplemented)
@@ -42,11 +59,16 @@ CTAGS = ctags
 ctags:
 	cd src; $(CTAGS) ../include/*.h ../include/*.hpp *.h *.c *.hpp *.cpp
 
-#TODO(*): make the above use conditional to handle old-school UNIX style ctags too
+#TODO(*): make the above use conditionals to handle old-school UNIX style ctags too.
 #cd src; ctags --typedefs-and-c++ -I -members --declarations ../include/*.h ../include/*.c ../include/*.hpp ../include/*.cpp -o tags
- 
 
 clean:
 	$(MAKE) -C src clean
+	$(MAKE) -C third_party/libprocess clean
+	$(MAKE) -C $(GLOG) clean
+	$(MAKE) -C $(GTEST) clean
+ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
+	$(MAKE) -C $(ZOOKEEPER) clean
+endif
 
-.PHONY: default src install uninstall dist all clean
+.PHONY: default src third_party install uninstall dist all clean
