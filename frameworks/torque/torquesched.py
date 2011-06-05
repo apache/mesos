@@ -23,10 +23,11 @@ EVENT_LOG_FILE = "log_fw_utilization.txt"
 LOG_FILE = "scheduler_log.txt"
 
 SCHEDULER_ITERATION = 2 #number of seconds torque waits before looping through
-                        #the queue to try to match resources to jobs. default is
-                        #10min (ie 600) but we want it to be low so jobs will run
-                        #as soon as the framework has acquired enough resources
-SAFE_ALLOCATION = {"cpus":5,"mem":134217728} #just set statically for now, 128MB
+                        #the queue to try to match resources to jobs. default
+                        #is 10min (ie 600) but we want it to be low so jobs 
+                        #will run as soon as the framework has acquired enough
+                        #resources
+SAFE_ALLOCATION = {"cpus":10,"mem":134217728} #just set statically for now, 128MB
 MIN_SLOT_SIZE = {"cpus":"1","mem":1073741824} #1GB
 
 eventlog = logging.getLogger("event_logger")
@@ -129,7 +130,7 @@ class MyScheduler(nexus.Scheduler):
     toKill = (len(self.servers)-1)
     
     monitorlog.debug("getting and filtering list of nodes using torquelib")
-    noJobs = lambda x: x.status.has_key("jobs") == False or (x.status.has_key("jobs") == True and x.status["jobs"] == "")
+    noJobs = lambda x: x.state != "job-exclusive"
     inactiveNodes = map(lambda x: x.name,filter(noJobs, torquelib.getNodes()))
     monitorlog.debug("victim pool of inactive nodes:")
     for inode in inactiveNodes:
@@ -190,48 +191,49 @@ if __name__ == "__main__":
   fqdn = socket.getfqdn()
   ip = socket.gethostbyname(gethostname())
 
-  monitorlog.info("running killall pbs_server")
-  Popen("killall pbs_server", shell=True)
-  time.sleep(1)
+  #monitorlog.info("running killall pbs_server")
+  #Popen("killall pbs_server", shell=True)
+  #time.sleep(1)
 
-  monitorlog.info("writing $(TORQUECFG)/server_name file with fqdn of pbs_server: " + fqdn)
-  FILE = open(PBS_SERVER_FILE,'w')
-  FILE.write(fqdn)
-  FILE.close()
+  #monitorlog.info("writing $(TORQUECFG)/server_name file with fqdn of pbs_server: " + fqdn)
+  #Popen("touch %s" % PBS_SERVER_FILE, shell=True)
+  #FILE = open(PBS_SERVER_FILE,'w')
+  #FILE.write(fqdn)
+  #FILE.close()
 
-  monitorlog.info("starting pbs_server")
+  #monitorlog.info("starting pbs_server")
   #Popen("/etc/init.d/pbs_server start", shell=True)
-  Popen("pbs_server", shell=True)
-  time.sleep(2)
-
-  monitorlog.info("running command: qmgr -c \"set queue batch resources_available.nodes=%s\"" % SAFE_ALLOCATION["cpus"])
-  Popen("qmgr -c \"set queue batch resources_available.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
-  Popen("qmgr -c \"set server resources_available.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
-
-  #these lines might not be necessary since we hacked the torque fifo scheduler
-  Popen("qmgr -c \"set queue batch resources_max.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
-  Popen("qmgr -c \"set server resources_max.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
-  Popen("qmgr -c \"set server scheduler_iteration=%s\"" % SCHEDULER_ITERATION, shell=True)
-
-  outp = Popen("qmgr -c \"l queue batch\"", shell=True, stdout=PIPE).stdout
-  for l in outp:
-    monitorlog.info(l)
-
-  monitorlog.info("RE-killing pbs_server for resources_available setting to take effect")
-  #Popen("/etc/init.d/pbs_server start", shell=True)
-  Popen("qterm", shell=True)
-  time.sleep(1)
-
-  monitorlog.info("RE-starting pbs_server for resources_available setting to take effect")
-  Popen("pbs_server", shell=True)
-  monitorlog.debug("qmgr list queue settings: ")
-  output = Popen("qmgr -c 'l q batch'", shell=True, stdout=PIPE).stdout
-  for line in output:
-    monitorlog.debug(line)
-
-  monitorlog.info("running killall pbs_sched")
-  Popen("killall pbs_sched", shell=True)
+  #Popen("pbs_server", shell=True)
   #time.sleep(2)
+
+ # monitorlog.info("running command: qmgr -c \"set queue batch resources_available.nodes=%s\"" % SAFE_ALLOCATION["cpus"])
+ # Popen("qmgr -c \"set queue batch resources_available.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
+ # Popen("qmgr -c \"set server resources_available.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
+
+ # #these lines might not be necessary since we hacked the torque fifo scheduler
+ # Popen("qmgr -c \"set queue batch resources_max.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
+ # Popen("qmgr -c \"set server resources_max.nodect=%s\"" % SAFE_ALLOCATION["cpus"], shell=True)
+ # Popen("qmgr -c \"set server scheduler_iteration=%s\"" % SCHEDULER_ITERATION, shell=True)
+
+ # outp = Popen("qmgr -c \"l queue batch\"", shell=True, stdout=PIPE).stdout
+ # for l in outp:
+ #   monitorlog.info(l)
+
+ # monitorlog.info("RE-killing pbs_server for resources_available setting to take effect")
+ # #Popen("/etc/init.d/pbs_server start", shell=True)
+ # Popen("qterm", shell=True)
+ # time.sleep(1)
+
+ # monitorlog.info("RE-starting pbs_server for resources_available setting to take effect")
+ #Popen("pbs_server", shell=True)
+ # monitorlog.debug("qmgr list queue settings: ")
+ # output = Popen("qmgr -c 'l q batch'", shell=True, stdout=PIPE).stdout
+ # for line in output:
+ #   monitorlog.debug(line)
+
+ # monitorlog.info("running killall pbs_sched")
+ # Popen("killall pbs_sched", shell=True)
+ # #time.sleep(2)
 
   monitorlog.info("starting pbs_scheduler")
   #Popen("/etc/init.d/pbs_sched start", shell=True)
