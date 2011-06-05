@@ -1,0 +1,5 @@
+#!/bin/bash
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
+
+ssh $SSH_OPTS {{active_master}} echo -n

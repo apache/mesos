@@ -1,0 +1,262 @@
+#!/bin/bash
+
+# Make sure we are in the mesos-ec2 directory
+cd /root/mesos-ec2
+
+# Set hostname based on EC2 private DNS name, so that it is set correctly
+# even if the instance is restarted with a different private DNS name
+PRIVATE_DNS=`wget -q -O - http://instance-data.ec2.internal/latest/meta-data/local-hostname`
+hostname $PRIVATE_DNS
+echo $PRIVATE_DNS > /etc/hostname
+export HOSTNAME=$PRIVATE_DNS  # Fix the bash built-in hostname variable too
+
+echo "Setting up Mesos master on `hostname`..."
+
+# Read command-line arguments
+OS_NAME=$1
+DOWNLOAD_METHOD=$2
+BRANCH=$3
+
+MASTERS_FILE="masters"
+MASTERS=`cat $MASTERS_FILE`
+NUM_MASTERS=`cat $MASTERS_FILE | wc -l`
+SLAVES=`cat slaves`
+ZOOS=`cat zoo`
+
+if [[ $ZOOS = *NONE* ]]; then
+  NUM_ZOOS=0
+  ZOOS=""
+else
+  NUM_ZOOS=`cat zoo | wc -l`
+fi
+
+# Scripts that get used for/while running Mesos.
+SCRIPTS="approve-master-key
+         copy-dir
+         mesos-daemon
+         redeploy-mesos
+         setup-slave              
+         ssh-no-keychecking
+         start-hypertable
+         start-mesos
+         stop-hypertable
+         stop-mesos"
+
+EPHEMERAL_HDFS=/root/ephemeral-hdfs
+PERSISTENT_HDFS=/root/persistent-hdfs
+
+#TODO(*): update config scripts to have conditionals for handling different
+#         platforms
+JAVA_HOME=/usr/java/default
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
+
+if [[ `tty` == "not a tty" ]] ; then
+    echo "Expecting a tty or pty! (use the ssh -t option)."
+    exit 1
+fi
+
+echo "Setting executable permissions on scripts..."
+for s in $SCRIPTS; do chmod u+x $s; done
+
+echo "Running setup-slave on master to mount filesystems, etc..."
+./setup-slave
+
+echo "SSH'ing to master machine(s) to approve key(s)..."
+for master in $MASTERS; do
+  echo $master
+  ssh $SSH_OPTS $master echo -n &
+  sleep 0.3
+done
+ssh $SSH_OPTS localhost echo -n &
+ssh $SSH_OPTS `hostname` echo -n &
+wait
+
+if [[ $NUM_ZOOS != 0 ]] ; then
+  echo "SSH'ing to ZooKeeper server(s) to approve keys..."
+  zid=1
+  for zoo in $ZOO; do
+    echo $zoo
+    ssh $SSH_OPTS $zoo echo -n \; mkdir -p /tmp/zookeeper \; echo $zid \> /tmp/zookeeper/myid &
+    zid=$(($zid+1))
+    sleep 0.3
+  done
+fi
+
+echo "SSH'ing to slaves to approve keys..."
+for slave in $SLAVES; do
+  echo $slave
+  ssh $SSH_OPTS $slave echo -n &
+  sleep 0.3
+done
+
+echo "Waiting for ssh commands to finish..."
+wait
+
+if [[ $NUM_MASTERS -gt 1 ]] ; then
+  echo "RSYNC'ing /root/mesos-ec2 to other master servers..."
+  for master in `cat $MASTERS_FILE | sed '1d'`; do
+      echo $master
+      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $master:/root & sleep 0.3
+  done
+  wait
+fi
+
+if [[ $NUM_ZOOS != 0 ]] ; then
+  echo "RSYNC'ing /root/mesos-ec2 to ZooKeeper servers..."
+  for zoo in $ZOOS; do
+      echo $zoo
+      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $zoo:/root & sleep 0.3
+  done
+  wait
+fi
+
+echo "RSYNC'ing /root/mesos-ec2 to slaves..."
+for slave in $SLAVES; do
+  echo $slave
+  rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $slave:/root &
+  scp $SSH_OPTS ~/.ssh/id_rsa $slave:.ssh &
+  sleep 0.3
+done
+wait
+
+echo "Running slave setup script on slave and zookeeper nodes..."
+for node in $SLAVES $ZOO; do
+  echo $node
+  ssh -t $SSH_OPTS root@$node "mesos-ec2/setup-slave" & sleep 0.3
+done
+wait
+
+if [[ $NUM_MASTERS -gt 1 ]] ; then
+  echo "Running slave setup script on other masters..."
+  for master in `cat $MASTERS_FILE | sed '1d'`; do
+    echo $master
+    rsync -e "ssh $SSH_OPTS" mesos-ec2/setup-slave & sleep 0.3
+  done
+  wait
+  echo "RSYNC'ing HDFS config files to other masters..."
+  for master in `cat $MASTERS_FILE | sed '1d'`; do
+    echo $master
+    rsync -e "ssh $SSH_OPTS" -az $EPHEMERAL_HDFS/conf $master:$EPHEMERAL_HDFS &
+    rsync -e "ssh $SSH_OPTS" -az $PERSISTENT_HDFS/conf $master:$PERSISTENT_HDFS &
+    sleep 0.3
+  done
+  wait
+fi
+
+echo "RSYNC'ing HDFS config files to slaves..."
+for slave in $SLAVES; do
+  echo $slave
+  rsync -e "ssh $SSH_OPTS" -az $EPHEMERAL_HDFS/conf $slave:$EPHEMERAL_HDFS &
+  rsync -e "ssh $SSH_OPTS" -az $PERSISTENT_HDFS/conf $slave:$PERSISTENT_HDFS &
+  sleep 0.3
+done
+wait
+
+DOWNLOADED=0
+
+if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
+  # change git's ssh command so it does not ask to accept a keys
+  export GIT_SSH=/root/mesos-ec2/ssh-no-keychecking
+  REPOSITORY=git://github.com/mesos/mesos.git
+  echo "Checking out Mesos from $REPOSITORY"
+  pushd /root > /dev/null 2>&1
+  rm -rf mesos mesos.tgz
+  # Set git SSH command to a script that uses -o StrictHostKeyChecking=no
+  git clone $REPOSITORY mesos
+  pushd mesos 2>&1
+  git checkout -b $BRANCH --track origin/$BRANCH
+  popd > /dev/null 2>&1
+  popd > /dev/null 2>&1
+  DOWNLOADED=1
+fi
+
+# Build Mesos if we downloaded it
+if [[ "$DOWNLOADED" == "1" ]] ; then
+  echo "Building Mesos..."
+  pushd /root/mesos > /dev/null 2>&1
+  ./configure.template.ubuntu-lucid-64
+  make clean
+  make
+  popd > /dev/null 2>&1
+  if [ -d /root/spark ] ; then
+    echo "Building Spark..."
+    pushd /root/spark > /dev/null 2>&1
+    MESOS_HOME=/root/mesos make all native
+    popd > /dev/null 2>&1
+  fi
+  echo "Building Hadoop framework..."
+  pushd /root/mesos/frameworks/hadoop-0.20.2 > /dev/null 2>&1
+  ant
+  ant examples
+  popd > /dev/null 2>&1
+fi
+
+echo "Setting up Hadoop framework config files..."
+cp hadoop-framework-conf/* /root/mesos/frameworks/hadoop-0.20.2/conf
+
+echo "Setting up haproxy+apache framework config files..."
+cp haproxy+apache/* /root/mesos/frameworks/haproxy+apache
+
+echo "Setting up Spark config files..."
+# TODO: This currently overwrites whatever the user wrote there; on
+# the other hand, we also don't want to leave an old file created by
+# us because it would have the wrong hostname for HDFS etc
+mkdir -p /root/spark/conf
+echo "-Dspark.dfs=hdfs://$HOSTNAME:9000" \
+     > /root/spark/conf/java-opts
+
+echo "Redeploying /root/mesos..."
+./redeploy-mesos
+
+echo "Setting up NFS..."
+if [ ! -e /nfs ] ; then
+  mkdir -p /mnt/nfs
+  rm -fr /nfs
+  ln -s /mnt/nfs /nfs
+fi
+if ! grep -e '^/nfs ' /etc/exports; then
+  echo "/nfs    10.0.0.0/8(ro,async,no_subtree_check)" >> /etc/exports
+fi
+/sbin/service portmap start
+/sbin/service nfs start
+# Unexport and re-export everything in /etc/exports because, if we are
+# restarting a stopped EC2 instance, we might have had an entry for /nfs in
+# /etc/exports before we created /mnt/nfs.
+exportfs -ua
+exportfs -a
+
+echo "Mounting NFS on slaves..."
+for slave in $SLAVES; do
+  echo $slave
+  ssh -t $SSH_OPTS root@$slave "mkdir -p /nfs; service portmap start; service nfs start; mount $HOSTNAME:/nfs /nfs" & sleep 0.3
+done
+wait
+
+echo "Formatting ephemeral HDFS namenode..."
+$EPHEMERAL_HDFS/bin/hadoop namenode -format
+
+echo "Starting ephemeral HDFS..."
+$EPHEMERAL_HDFS/bin/start-dfs.sh
+
+if [[ ! -e /vol/persistent-hdfs/dfs/name ]] ; then
+  echo "Formatting persistent HDFS namenode..."
+  $PERSISTENT_HDFS/bin/hadoop namenode -format
+fi
+
+echo "Starting persistent HDFS..."
+$PERSISTENT_HDFS/bin/start-dfs.sh
+
+sleep 1
+
+if [[ $NUM_ZOOS != 0 ]]; then
+  echo "Starting ZooKeeper quorum..."
+  for zoo in $ZOOS; do
+    ssh $SSH_OPTS $zoo "/root/mesos/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null" & sleep 0.1
+  done
+  wait
+  sleep 2
+fi
+
+echo "Starting Mesos cluster..."
+./start-mesos

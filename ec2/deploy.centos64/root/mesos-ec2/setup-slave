@@ -21,13 +21,14 @@ XFS_MOUNT_OPTS="defaults,noatime,nodiratime,allocsize=8m"
 # (for example /mnt, /mnt2, and so on)
 function create_hadoop_dirs {
   location=$1
-  mkdir -p $location/hdfs/dfs $location/hadoop/tmp
+  mkdir -p $location/ephemeral-hdfs/data $location/hadoop/tmp
   mkdir -p $location/hadoop/mrlocal $location/hadoop/mrlocal2
 }
 
 # Set up Hadoop and Mesos directories in /mnt
 create_hadoop_dirs /mnt
-mkdir -p /mnt/hdfs-logs
+mkdir -p /mnt/ephemeral-hdfs/logs
+mkdir -p /mnt/persistent-hdfs/logs
 mkdir -p /mnt/hadoop-logs
 mkdir -p /mnt/mesos-logs
 mkdir -p /mnt/mesos-work
@@ -75,4 +76,5 @@ fi
 # clusters (new machines tend to come up under old hostnames)
 rm -f /root/.ssh/known_hosts
 
+# SSH to the master to approve its key (needed for Capistrano to work)
 ./approve-master-key
