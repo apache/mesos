@@ -12,7 +12,7 @@
 
 #ifdef WITH_INCLUDED_SQLITE
 #include "sqlite_event_writer.hpp"
-#endif
+#endif /* ifdef WITH_INCLUDED_SQLITE */
 
 using namespace mesos::internal::eventhistory;
 
@@ -20,21 +20,25 @@ using namespace mesos::internal::eventhistory;
 // printed with --help option match up with those that are used as
 // default values when accessing the configuration settings.
 bool EventLogger::default_ev_hist_file_conf_val = true;
+#ifdef WITH_INCLUDED_SQLITE
 bool EventLogger::default_ev_hist_sqlite_conf_val = false;
+#endif /* ifdef WITH_INCLUDED_SQLITE */
 
 void EventLogger::registerOptions(Configurator* conf, bool file_writer_default,
                                   bool sqlite_writer_default)
 {
   default_ev_hist_file_conf_val = file_writer_default;
-  default_ev_hist_sqlite_conf_val = sqlite_writer_default;
-
   ostringstream evFileMessage, evSqliteMessage;
   evFileMessage << "Enable event history file writer (default: "
                 << boolalpha << default_ev_hist_file_conf_val << ")";
+  conf->addOption<bool>("event_history_file", evFileMessage.str());
+
+#ifdef WITH_INCLUDED_SQLITE
+  default_ev_hist_sqlite_conf_val = sqlite_writer_default;
   evSqliteMessage << "Enable event history sqlite writer (default: "
                   << boolalpha << default_ev_hist_sqlite_conf_val << ")";
-  conf->addOption<bool>("event_history_file", evFileMessage.str());
   conf->addOption<bool>("event_history_sqlite", evSqliteMessage.str());
+#endif /* ifdef WITH_INCLUDED_SQLITE */
 }
 
 
@@ -66,18 +70,10 @@ EventLogger::EventLogger(const Params& conf) {
       LOG(INFO) << "creating SqliteEventWriter" << endl;
       writers.push_front(new SqlLiteEventWriter(conf));
     }
-#else
-    if (conf.get<bool>("event_history_sqlite",
-                       default_ev_hist_sqlite_conf_val)) {
-      LOG(WARNING) << "Your configuration (either command line or config file) "
-        << "has set the event_history_sqlite flag, but you did not run "
-        << "./configure with the --use-included-sqlite flag, so "
-        << " the SqliteEventWriter cannot be initialized." << endl;
-    }
 #endif /* ifdef WITH_INCLUDED_SQLITE */
   } else {
     LOG(INFO) << "No log directory was specified, so not creating "
-              << "FileEventWriter or SqliteEventWriter. No event "
+              << "any event writers (e.g. FileEventWriter). No event "
               << "logging will happen!";
     // Create and add non file based writers to writers list here.
   }
