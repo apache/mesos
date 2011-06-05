@@ -86,6 +86,7 @@ if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
   pushd nexus 2>&1
   GIT_SSH=/root/nexus-ec2/ssh-no-keychecking git checkout $BRANCH
   popd > /dev/null 2>&1
+  popd > /dev/null 2>&1
   DOWNLOADED=1
 elif [[ "$DOWNLOAD_METHOD" == "web" ]] ; then
   echo "Downloading latest Nexus snapshot from nexus.berkeley.edu"
