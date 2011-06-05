@@ -335,7 +335,8 @@ string Configurator::getUsage() const
 }
   
 
-void Configurator::loadDefaults() {
+void Configurator::loadDefaults()
+{
   foreachpair (const string& key, const Option& option, options) {
     if (option.hasDefault && !params.contains(key)) {
       params[key] = option.defaultValue;
