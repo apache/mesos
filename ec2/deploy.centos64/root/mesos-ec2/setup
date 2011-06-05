@@ -83,15 +83,25 @@ if [[ $NUM_ZOOS != 0 ]] ; then
   done
 fi
 
+TODO="$SLAVES"
 echo "SSH'ing to slaves to approve keys..."
-for slave in $SLAVES; do
-  echo $slave
-  ssh $SSH_OPTS $slave echo -n &
-  sleep 0.3
+while [ "e$TODO" != "e" ] ; do
+  NEW_TODO=
+  for slave in $TODO; do
+    echo $slave
+    ssh $SSH_OPTS $slave echo -n
+    if [ $? != 0 ] ; then
+        NEW_TODO="$NEW_TODO $slave"
+    fi
+  done
+  if [ "e$NEW_TODO" != "e" ] ; then
+      sleep 10
+      TODO="$NEW_TODO"
+      echo "Re-attempting SSH to slaves to approve keys..."
+  else
+      break;
+  fi
 done
-
-echo "Waiting for ssh commands to finish..."
-wait
 
 if [[ $NUM_MASTERS -gt 1 ]] ; then
   echo "RSYNC'ing /root/mesos-ec2 to other master servers..."
