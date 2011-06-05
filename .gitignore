@@ -87,5 +87,3 @@ src/scheduled-memhog
 src/swig/java/mesos
 src/swig/python/mesos.py
 src/test_output
-third_party/sqlite-3.6.23.1/sqlite3
-third_party/sqlite-3.6.23.1/sqlite3.pc

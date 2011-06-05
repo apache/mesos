@@ -1,40 +1,38 @@
-#ifndef __MASTER_STATE_HPP__
-#define __MASTER_STATE_HPP__
+#ifndef MASTER_STATE_HPP
+#define MASTER_STATE_HPP
 
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include <mesos_types.hpp>
 
 #include "common/foreach.hpp"
 
 #include "config/config.hpp"
 
 
-// TODO(...): Make all the variable naming in here consistant with the
-// rest of the code base. This will require cleaning up some Python code.
-
-
 namespace mesos { namespace internal { namespace master { namespace state {
 
 struct SlaveResources
 {  
-  std::string slave_id;
+  SlaveID slave_id;
   int32_t cpus;
   int64_t mem;
   
-  SlaveResources(std::string _slaveId, int32_t _cpus, int64_t _mem)
-    : slave_id(_slaveId), cpus(_cpus), mem(_mem) {}
+  SlaveResources(SlaveID _sid, int32_t _cpus, int64_t _mem)
+    : slave_id(_sid), cpus(_cpus), mem(_mem) {}
 };
 
 
 struct SlotOffer
 {  
-  std::string id;
-  std::string framework_id;
+  OfferID id;
+  FrameworkID framework_id;
   std::vector<SlaveResources *> resources;
   
-  SlotOffer(std::string _id, std::string _frameworkId)
-    : id(_id), framework_id(_frameworkId) {}
+  SlotOffer(OfferID _id, FrameworkID _fid)
+    : id(_id), framework_id(_fid) {}
     
   ~SlotOffer()
   {
@@ -46,15 +44,14 @@ struct SlotOffer
 
 struct Slave
 {
-  Slave(std::string id_, const std::string& host_,
-        const std::string& public_dns_,
+  Slave(SlaveID id_, const std::string& host_, const std::string& public_dns_,
 	int32_t cpus_, int64_t mem_, time_t connect_)
     : id(id_), host(host_), public_dns(public_dns_),
       cpus(cpus_), mem(mem_), connect_time(connect_) {}
 
   Slave() {}
 
-  std::string id;
+  SlaveID id;
   std::string host;
   std::string public_dns;
   int32_t cpus;
@@ -65,18 +62,18 @@ struct Slave
 
 struct Task
 {
-  Task(std::string id_, const std::string& name_, std::string framework_id_,
-       std::string slaveId_, std::string state_, int32_t _cpus, int64_t _mem)
-    : id(id_), name(name_), framework_id(framework_id_), slave_id(slaveId_),
-      state(state_), cpus(_cpus), mem(_mem) {}
+  Task(TaskID id_, const std::string& name_, FrameworkID fid_, SlaveID sid_,
+       TaskState state_, int32_t _cpus, int64_t _mem)
+    : id(id_), name(name_), framework_id(fid_), slave_id(sid_), state(state_), 
+      cpus(_cpus), mem(_mem) {}
 
   Task() {}
 
-  std::string id;
+  TaskID id;
   std::string name;
-  std::string framework_id;
-  std::string slave_id;
-  std::string state;
+  FrameworkID framework_id;
+  SlaveID slave_id;
+  TaskState state;
   int32_t cpus;
   int64_t mem;
 };
@@ -84,9 +81,9 @@ struct Task
 
 struct Framework
 {
-  Framework(std::string id_, const std::string& user_,
-            const std::string& name_, const std::string& executor_,
-            int32_t cpus_, int64_t mem_, time_t connect_)
+  Framework(FrameworkID id_, const std::string& user_,
+      const std::string& name_, const std::string& executor_,
+      int32_t cpus_, int64_t mem_, time_t connect_)
     : id(id_), user(user_), name(name_), executor(executor_),
       cpus(cpus_), mem(mem_), connect_time(connect_) {}
 
@@ -100,7 +97,7 @@ struct Framework
       delete offer;
   }
 
-  std::string id;
+  FrameworkID id;
   std::string user;
   std::string name;
   std::string executor;
@@ -116,8 +113,8 @@ struct Framework
 struct MasterState
 {
   MasterState(const std::string& build_date_, const std::string& build_user_,
-	      const std::string& pid_)
-    : build_date(build_date_), build_user(build_user_), pid(pid_) {}
+	      const std::string& pid_, bool _isFT = false)
+    : build_date(build_date_), build_user(build_user_), pid(pid_), isFT(_isFT) {}
 
   MasterState() {}
 
@@ -135,8 +132,9 @@ struct MasterState
 
   std::vector<Slave *> slaves;
   std::vector<Framework *> frameworks;
+  bool isFT;
 };
 
-}}}} // namespace mesos { namespace internal { namespace master { namespace state {
+}}}} /* namespace */
 
-#endif // __MASTER_STATE_HPP__
+#endif /* MASTER_STATE_HPP */

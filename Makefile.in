@@ -11,13 +11,9 @@ OS_NAME = @OS_NAME@
 
 MESOS_HOME = @prefix@/mesos
 
-WITH_INCLUDED_SQLITE = @WITH_INCLUDED_SQLITE@
-
 WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
 
 LIBPROCESS = third_party/libprocess
-
-SQLITE = third_party/sqlite-3.6.23.1
 
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
@@ -34,9 +30,6 @@ third_party:
 	$(MAKE) -C $(LIBPROCESS)
 	$(MAKE) -C $(GLOG)
 	$(MAKE) -C $(GMOCK)
-ifeq ($(WITH_INCLUDED_SQLITE),1)
-	$(MAKE) -C $(SQLITE)
-endif
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER)
 endif
@@ -91,9 +84,6 @@ distclean:
 	$(MAKE) -C $(LIBPROCESS) distclean
 	$(MAKE) -C $(GLOG) distclean
 	$(MAKE) -C $(GMOCK) distclean
-ifeq ($(WITH_INCLUDED_SQLITE),1)
-	$(MAKE) -C $(SQLITE) distclean
-endif
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) distclean
 endif
@@ -127,9 +117,6 @@ clean:
 	$(MAKE) -C $(LIBPROCESS) clean
 	$(MAKE) -C $(GLOG) clean
 	$(MAKE) -C $(GMOCK) clean
-ifeq ($(WITH_INCLUDED_SQLITE),1)
-	$(MAKE) -C $(SQLITE) clean
-endif
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) clean
 endif

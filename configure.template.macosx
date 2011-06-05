@@ -13,5 +13,4 @@ $(dirname $0)/configure                             \
   --with-java-home=$JAVA_HOME                       \
   --with-java-headers=$JAVA_HEADERS                 \
   --with-webui                                      \
-  --with-included-sqlite                            \
   --with-included-zookeeper $@

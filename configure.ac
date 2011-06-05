@@ -34,7 +34,6 @@ AC_CONFIG_SUBDIRS([third_party/libprocess])
 AC_CONFIG_SUBDIRS([third_party/protobuf-2.3.0])
 AC_CONFIG_SUBDIRS([third_party/glog-0.3.1])
 AC_CONFIG_SUBDIRS([third_party/gmock-1.5.0])
-AC_CONFIG_SUBDIRS([third_party/sqlite-3.6.23.1])
 AC_CONFIG_SUBDIRS([third_party/zookeeper-3.3.1/src/c])
 
 AC_CANONICAL_SYSTEM
@@ -173,20 +172,6 @@ AC_ARG_WITH([swig],
 	          esac],
 	         [])
 AC_SUBST(SWIG)
-
-WITH_INCLUDED_SQLITE="0"
-AC_ARG_WITH([included-sqlite],
-  AC_HELP_STRING([--with-included-sqlite],
-                 [build with included sqlite]),
-	         [case "$with_included_sqlite" in
-		    yes) WITH_SQLITE="1"
-                         WITH_INCLUDED_SQLITE="1" ;;
-                    no) WITH_INCLUDED_SQLITE="0" ;;
-		    *) AC_MSG_ERROR([
-*** --with-included-sqlite does not take arguments]) ;;
-	          esac],
-	         [])
-AC_SUBST(WITH_INCLUDED_SQLITE)
 
 WITH_ZOOKEEPER="0"
 AC_ARG_WITH([zookeeper],

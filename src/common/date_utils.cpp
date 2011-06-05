@@ -1,12 +1,6 @@
-#include <ctime>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #include <time.h>
-#include <common/fatal.hpp>
 
 #include "date_utils.hpp"
-
 
 using std::string;
 
@@ -19,7 +13,7 @@ string DateUtils::mockDate = "";
 
 
 // Get the current date in the format used for Mesos IDs (YYYYMMDDhhmm).
-string DateUtils::humanReadableDate()
+string DateUtils::currentDate()
 {
   if (useMockDate) {
     return mockDate;
@@ -31,26 +25,6 @@ string DateUtils::humanReadableDate()
     char date[32];
     strftime(date, sizeof(date), "%Y%m%d%H%M", timeinfo);
     return date;
-  }
-}
-
-
-// Get the current time in microseconds since the UNIX epoch.
-long DateUtils::currentDateInMicro() {
-  if (useMockDate) {
-    struct tm timeinfo;
-    memset(&timeinfo, 0, sizeof(timeinfo));
-    if (strptime(mockDate.c_str(), "%Y%m%d%H%M", &timeinfo) == NULL) {
-      fatal("Failed to parse MockDate in date_utils.cpp. strptime returned NULL");
-    }
-    time_t rawtime = timegm(&timeinfo);
-    long microSinceEpoch = rawtime * 1000000;
-    return microSinceEpoch;
-  } else {
-    struct timeval curr_time;
-    struct timezone tzp;
-    gettimeofday(&curr_time, &tzp);
-    return (long)(curr_time.tv_sec * 1000000 + curr_time.tv_usec);
   }
 }
 

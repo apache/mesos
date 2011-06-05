@@ -6,29 +6,28 @@
 #include "state.hpp"
 #include "webui.hpp"
 
-#include "configurator/configuration.hpp"
-
 #ifdef MESOS_WEBUI
 
 #include <Python.h>
-
-using process::PID;
 
 using std::string;
 
 
 extern "C" void init_slave();  // Initializer for the Python slave module
 
+namespace {
+
+PID slave;
+string webuiPort;
+string logDir;
+string workDir;
+
+}
 
 namespace mesos { namespace internal { namespace slave {
 
-static PID<Slave> slave;
-static string webuiPort;
-static string logDir;
-static string workDir;
 
-
-void* runSlaveWebUI(void*)
+void *runSlaveWebUI(void *)
 {
   LOG(INFO) << "Web UI thread started";
   Py_Initialize();
@@ -51,19 +50,19 @@ void* runSlaveWebUI(void*)
 }
 
 
-void startSlaveWebUI(const PID<Slave>& _slave, const Configuration& conf)
+void startSlaveWebUI(const PID &slave, const Params &params)
 {
   // TODO(*): See the note in master/webui.cpp about having to
   // determine default values. These should be set by now and can just
   // be used! For example, what happens when the slave code changes
   // their default location for the work directory, it might not get
   // changed here!
-  webuiPort = conf.get("webui_port", "8081");
-  logDir = conf.get("log_dir", FLAGS_log_dir);
-  if (conf.contains("work_dir")) {
-    workDir = conf.get("work_dir", "");
-  } else if (conf.contains("home")) {
-    workDir = conf.get("home", "") + "/work";
+  webuiPort = params.get("webui_port", "8081");
+  logDir = params.get("log_dir", FLAGS_log_dir);
+  if (params.contains("work_dir")) {
+    workDir = params.get("work_dir", "");
+  } else if (params.contains("home")) {
+    workDir = params.get("home", "") + "/work";
   } else {
     workDir = "work";
   }
@@ -72,7 +71,7 @@ void startSlaveWebUI(const PID<Slave>& _slave, const Configuration& conf)
 
   LOG(INFO) << "Starting slave web UI on port " << webuiPort;
 
-  slave = _slave;
+  ::slave = slave;
   pthread_t thread;
   pthread_create(&thread, 0, runSlaveWebUI, NULL);
 }
@@ -80,15 +79,36 @@ void startSlaveWebUI(const PID<Slave>& _slave, const Configuration& conf)
 
 namespace state {
 
-// From slave_state.hpp.
-SlaveState* get_slave()
+class StateGetter : public MesosProcess
 {
-  return process::call(slave, &Slave::getState);
+public:
+  SlaveState *slaveState;
+
+  StateGetter() {}
+  ~StateGetter() {}
+
+  void operator () ()
+  {
+    send(::slave, pack<S2S_GET_STATE>());
+    receive();
+    CHECK(msgid() == S2S_GET_STATE_REPLY);
+    slaveState = unpack<S2S_GET_STATE_REPLY, 0>(body());
+  }
+};
+
+
+// From slave_state.hpp
+SlaveState *get_slave()
+{
+  StateGetter getter;
+  PID pid = Process::spawn(&getter);
+  Process::wait(pid);
+  return getter.slaveState;
 }
 
-} // namespace state {
+} /* namespace state { */
 
-}}} // namespace mesos { namespace internal { namespace slave {
+}}} /* namespace mesos { namespace internal { namespace slave { */
 
 
-#endif // MESOS_WEBUI
+#endif /* MESOS_WEBUI */
