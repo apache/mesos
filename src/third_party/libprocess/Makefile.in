@@ -21,10 +21,10 @@ CXXFLAGS += -fPIC
 # Add dependency tracking to CXXFLAGS.
 CXXFLAGS += -MMD -MP
 
-LIB_OBJ = process.o tuple.o record-process.o serialization.o fatal.o
+LIB_OBJ = process.o reliable.o tuple.o record-process.o serialization.o fatal.o
 LIB = libprocess.a
 
-LITHE_LIB_OBJ = process_lithe.o tuple_lithe.o record-process_lithe.o serialization_lithe.o fatal_lithe.o
+LITHE_LIB_OBJ = process_lithe.o reliable_lithe.o tuple_lithe.o record-process_lithe.o serialization_lithe.o fatal_lithe.o
 LITHE_LIB = libprocess_lithe.a
 
 ifdef HAVE_LITHE
