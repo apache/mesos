@@ -68,6 +68,7 @@ for master in $MASTERS; do
 done
 
 ssh -q $SSH_OPTS localhost echo -n &
+ssh -q $SSH_OPTS `hostname` echo -n &
 
 if [[ $NUM_ZOOS != 0 ]] ; then
   echo "SSH'ing to ZooKeeper server(s) to approve keys..."
