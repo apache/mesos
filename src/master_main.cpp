@@ -17,7 +17,7 @@ void usage(const char* progName, const Configuration& conf)
 {
   cerr << "Usage: " << progName << " [--port PORT] [--url URL] [...]" << endl
        << endl
-       << "URL (used for contending to be a master) may be one of:" << endl
+       << "URL (used for leader election with ZooKeeper) may be one of:" << endl
        << "  zoo://host1:port1,host2:port2,..." << endl
        << "  zoofile://file where file has one host:port pair per line" << endl
        << endl
@@ -29,7 +29,7 @@ void usage(const char* progName, const Configuration& conf)
 int main(int argc, char **argv)
 {
   Configuration conf;
-  conf.addOption<string>("url", 'u', "URL used for contending to a master");
+  conf.addOption<string>("url", 'u', "URL used for leader election");
   conf.addOption<int>("port", 'p', "Port to listen on");
   conf.addOption<bool>("quiet", 'q', "Disable logging to stderr", false);
   conf.addOption<string>("log_dir", "Where to place logs", "/tmp");
