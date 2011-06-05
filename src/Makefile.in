@@ -213,7 +213,7 @@ WEBUI_FILES = $(BINDIR)/webui/bottle-0.8.3		\
               $(BINDIR)/webui/static/stylesheet.css
 
 # We copy template config files into the conf directory.
-CONF_FILES = $(CONFDIR)/mesos.conf
+CONF_FILES = $(CONFDIR)/mesos.conf $(CONFDIR)/deploy-env.sh
 
 # We copy all the deploy scripts into the bin directory.
 DEPLOY_FILES = $(DEPLOYDIR)/deploy-to-slaves             \
@@ -345,6 +345,9 @@ $(DEPLOY_FILES): $(DEPLOYDIR)/%: @srcdir@/deploy/% | $(DEPLOYDIR)
 
 $(CONFDIR)/mesos.conf: | @srcdir@/conf/mesos.conf.template $(CONFDIR)
 	cp -r @srcdir@/conf/mesos.conf.template $@
+
+$(CONFDIR)/deploy-env.sh: | ./conf/deploy-env.sh.template $(CONFDIR)
+	cp -r ./conf/deploy-env.sh.template $@
 
 test: all
 	$(MAKE) -C tests test
