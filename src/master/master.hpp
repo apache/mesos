@@ -1,14 +1,6 @@
 #ifndef __MASTER_HPP__
 #define __MASTER_HPP__
 
-#include <time.h>
-#include <arpa/inet.h>
-
-#include <algorithm>
-#include <fstream>
-#include <set>
-#include <sstream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -16,17 +8,14 @@
 
 #include <glog/logging.h>
 
-#include <boost/lexical_cast.hpp>
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
 #include "state.hpp"
 
-#include "common/build.hpp"
-#include "common/fatal.hpp"
 #include "common/foreach.hpp"
+#include "common/multimap.hpp"
 #include "common/resources.hpp"
-#include "common/tokenize.hpp"
 #include "common/type_utils.hpp"
 
 #include "configurator/configurator.hpp"
@@ -57,11 +46,11 @@ const int32_t MAX_CPUS = 1000 * 1000;
 // Maximum amount of memory / machine.
 const int32_t MAX_MEM = 1024 * 1024 * Megabyte;
 
-// Interval that slaves should send heartbeats.
-const double HEARTBEAT_INTERVAL = 2;
+// Acceptable timeout for slave PONG.
+const double SLAVE_PONG_TIMEOUT = 15.0;
 
-// Acceptable time since we saw the last heartbeat (four heartbeats).
-const double HEARTBEAT_TIMEOUT = 15;
+// Maximum number of timeouts until slave is considered failed.
+const int MAX_SLAVE_TIMEOUTS = 5;
 
 // Time to wait for a framework to failover (TODO(benh): Make configurable)).
 const time_t FRAMEWORK_FAILOVER_TIMEOUT = 60 * 60 * 24;
@@ -89,77 +78,13 @@ enum TaskRemovalReason
 
 
 // Some forward declarations.
-struct SlotOffer;
+class Allocator;
+class SlavesManager;
 struct Framework;
 struct Slave;
-class Allocator;
-class Master;
-class SlavesHttpServer;
-
-
-// Resources offered on a particular slave.
-struct SlaveResources
-{
-  SlaveResources() {}
-  SlaveResources(Slave* s, Resources r): slave(s), resources(r) {}
-
-  Slave* slave;
-  Resources resources;
-};
-
-
-// A resource offer.
-struct SlotOffer
-{
-  OfferID offerId;
-  FrameworkID frameworkId;
-  std::vector<SlaveResources> resources;
-
-  SlotOffer(const OfferID& _offerId,
-            const FrameworkID& _frameworkId,
-            const std::vector<SlaveResources>& _resources)
-    : offerId(_offerId), frameworkId(_frameworkId), resources(_resources) {}
-};
-
-
-class SlavesManagerStorage : public process::Process<SlavesManagerStorage>
-{
-public:
-  virtual process::Promise<bool> add(const std::string& hostname, uint16_t port) { return true; }
-  virtual process::Promise<bool> remove(const std::string& hostname, uint16_t port) { return true; }
-  virtual process::Promise<bool> activate(const std::string& hostname, uint16_t port) { return true; }
-  virtual process::Promise<bool> deactivate(const std::string& hostname, uint16_t port) { return true; }
-};
-
-
-class SlavesManager : public process::Process<SlavesManager>
-{
-public:
-  SlavesManager(const Configuration& conf, const process::PID<Master>& _master);
-
-  virtual ~SlavesManager();
-
-  static void registerOptions(Configurator* configurator);
-
-  bool add(const std::string& hostname, uint16_t port);
-  bool remove(const std::string& hostname, uint16_t port);
-  bool activate(const std::string& hostname, uint16_t port);
-  bool deactivate(const std::string& hostname, uint16_t port);
-
-  void updateActive(const std::map<std::string, std::set<uint16_t> >& updated);
-  void updateInactive(const std::map<std::string, std::set<uint16_t> >& updated);
-
-private:
-  process::Promise<process::HttpResponse> add(const process::HttpRequest& request);
-  process::Promise<process::HttpResponse> remove(const process::HttpRequest& request);
-
-  const process::PID<Master> master;
-
-  std::map<std::string, std::set<uint16_t> > active;
-  std::map<std::string, std::set<uint16_t> > inactive;
-
-  SlavesManagerStorage* storage;
-};
+struct SlaveResources;
+class SlaveObserver;
+struct SlotOffer;
 
 
 class Master : public MesosProcess<Master>
@@ -268,8 +193,9 @@ protected:
   void removeFramework(Framework* framework);
 
   // Add a slave.
-  Slave* addSlave(const SlaveInfo& slaveInfo, const SlaveID& slaveId,
-                  const process::UPID& pid);
+  void addSlave(Slave* slave);
+
+  void readdSlave(Slave* slave, const std::vector<Task>& tasks);
 
   // Lose all of a slave's tasks and delete the slave object
   void removeSlave(Slave* slave);
@@ -287,7 +213,7 @@ private:
 
   SlavesManager* slavesManager;
 
-  boost::unordered_map<std::string, boost::unordered_set<uint16_t> > slaveHostnamePorts;
+  multimap<std::string, uint16_t> slaveHostnamePorts;
 
   boost::unordered_map<FrameworkID, Framework*> frameworks;
   boost::unordered_map<SlaveID, Slave*> slaves;
@@ -313,65 +239,17 @@ private:
 };
 
 
-const double SLAVE_PONG_TIMEOUT = 15.0;
-const int MAX_SLAVE_TIMEOUTS = 5;
-
-
-class SlaveObserver : public process::Process<SlaveObserver>
+// A resource offer.
+struct SlotOffer
 {
-public:
-  SlaveObserver(const process::UPID& _slave,
-                const SlaveInfo& _slaveInfo,
-                const SlaveID& _slaveId,
-                const process::PID<SlavesManager>& _slavesManager)
-    : slave(_slave), slaveInfo(_slaveInfo), slaveId(_slaveId),
-      slavesManager(_slavesManager), timeouts(0), pinged(false) {}
+  OfferID offerId;
+  FrameworkID frameworkId;
+  std::vector<SlaveResources> resources;
 
-  virtual ~SlaveObserver() {}
-
-protected:
-  virtual void operator () ()
-  {
-    // Send a ping some interval after we heard the last pong. Or if
-    // we don't hear a pong, increment the number of timeouts from the
-    // slave and try and send another ping. If we eventually timeout too
-    // many missed pongs in a row, consider the slave dead.
-    do {
-//       std::cout.precision(15);
-//       std::cout << self() << " elapsed: " << elapsed() << std::endl;
-      receive(SLAVE_PONG_TIMEOUT);
-      if (name() == PONG) {
-        timeouts = 0;
-        pinged = false;
-      } else if (name() == process::TIMEOUT) {
-        if (pinged) {
-          timeouts++;
-          pinged = false;
-//           std::cout << self() << " missing slave PONG, timeouts = " << timeouts << std::endl;
-        }
-
-        send(slave, PING);
-        pinged = true;
-      } else if (name() == process::TERMINATE) {
-        return;
-      } 
-    } while (timeouts < MAX_SLAVE_TIMEOUTS);
-
-    // Tell the slave manager to deactivate the slave, this will take
-    // care of updating the master too.
-    while (!process::call(slavesManager, &SlavesManager::deactivate,
-                          slaveInfo.hostname(), slave.port)) {
-      LOG(WARNING) << "Slave \"failed\" but can't be deactivated, retrying";
-    }
-  }
-
-private:
-  const process::UPID slave;
-  const SlaveInfo slaveInfo;
-  const SlaveID slaveId;
-  const process::PID<SlavesManager> slavesManager;
-  int timeouts;
-  bool pinged;
+  SlotOffer(const OfferID& _offerId,
+            const FrameworkID& _frameworkId,
+            const std::vector<SlaveResources>& _resources)
+    : offerId(_offerId), frameworkId(_frameworkId), resources(_resources) {}
 };
 
 
@@ -442,6 +320,17 @@ struct Slave
     }
     return resources - (resourcesOffered + resourcesInUse);
   }
+};
+
+
+// Resources offered on a particular slave.
+struct SlaveResources
+{
+  SlaveResources() {}
+  SlaveResources(Slave* s, Resources r): slave(s), resources(r) {}
+
+  Slave* slave;
+  Resources resources;
 };
 
 

@@ -87,9 +87,6 @@ endif
 CFLAGS += -MMD -MP
 CXXFLAGS += -MMD -MP
 
-# Add libev to LDFLAGS.
-LDFLAGS += -L$(LIBEV)/.libs
-
 # Add protobuf, glog, libev, libprocess, pthread, and dl to LIBS.
 LIBS += -lprotobuf -lglog -lprocess -lev -lpthread -ldl
 
@@ -98,8 +95,8 @@ ifeq ($(WITH_ZOOKEEPER),1)
   LIBS += -lzookeeper_st
 endif
 
-MASTER_OBJ = master/master.o master/allocator_factory.o	\
-	     master/simple_allocator.o
+MASTER_OBJ = master/master.o master/slaves_manager.o			\
+	     master/allocator_factory.o master/simple_allocator.o
 
 SLAVE_OBJ = slave/slave.o launcher/launcher.o slave/isolation_module.o	\
 	    slave/process_based_isolation_module.o

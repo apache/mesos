@@ -70,9 +70,6 @@ endif
 CFLAGS += -MMD -MP
 CXXFLAGS += -MMD -MP
 
-# Add libev to LDFLAGS.
-LDFLAGS += -L$(LIBEV)/.libs
-
 # Add protobuf, glog, libev, libprocess, pthread, and dl to LIBS.
 LIBS += -lprotobuf -lglog -lprocess -lev -lpthread -ldl
 

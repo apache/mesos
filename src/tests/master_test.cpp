@@ -128,7 +128,8 @@ TEST(MasterTest, ResourceOfferWithMultipleSlaves)
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffer(&driver, _, _))
-    .WillOnce(DoAll(SaveArg<2>(&offers), Trigger(&resourceOfferCall)));
+    .WillOnce(DoAll(SaveArg<2>(&offers), Trigger(&resourceOfferCall)))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
@@ -155,7 +156,7 @@ TEST(MasterTest, ResourcesReofferedAfterReject)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  PID<Master> master = local::launch(10, 2, 1 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false, false);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(&sched1, master);
@@ -174,7 +175,8 @@ TEST(MasterTest, ResourcesReofferedAfterReject)
     .Times(1);
 
   EXPECT_CALL(sched1, resourceOffer(&driver1, _, _))
-    .WillOnce(DoAll(SaveArg<1>(&offerId), Trigger(&sched1ResourceOfferCall)));
+    .WillOnce(DoAll(SaveArg<1>(&offerId), Trigger(&sched1ResourceOfferCall)))
+    .WillRepeatedly(Return());
 
   driver1.start();
 
@@ -200,7 +202,8 @@ TEST(MasterTest, ResourcesReofferedAfterReject)
     .Times(1);
 
   EXPECT_CALL(sched2, resourceOffer(&driver2, _, _))
-    .WillOnce(Trigger(&sched2ResourceOfferCall));
+    .WillOnce(Trigger(&sched2ResourceOfferCall))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched2, offerRescinded(&driver2, _))
     .Times(AtMost(1));
@@ -241,7 +244,8 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
 
   EXPECT_CALL(sched1, resourceOffer(&driver1, _, ElementsAre(_)))
     .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&sched1ResourceOfferCall)));
+                    Trigger(&sched1ResourceOfferCall)))
+    .WillRepeatedly(Return());
 
   driver1.start();
 
@@ -298,7 +302,8 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
     .Times(1);
 
   EXPECT_CALL(sched2, resourceOffer(&driver2, _, _))
-    .WillOnce(Trigger(&sched2ResourceOfferCall));
+    .WillOnce(Trigger(&sched2ResourceOfferCall))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched2, offerRescinded(&driver2, _))
     .Times(AtMost(1));
@@ -349,7 +354,8 @@ TEST(MasterTest, SlaveLost)
 
   EXPECT_CALL(sched, resourceOffer(&driver, _, _))
     .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)));
+                    Trigger(&resourceOfferCall)))
+    .WillRepeatedly(Return());
 
   driver.start();
 
@@ -407,7 +413,7 @@ TEST(MasterTest, SchedulerFailover)
     .WillOnce(DoAll(SaveArg<1>(&frameworkId), Trigger(&sched1RegisteredCall)));
 
   EXPECT_CALL(sched1, resourceOffer(&driver1, _, _))
-    .Times(AtMost(1));
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched1, offerRescinded(&driver1, _))
     .Times(AtMost(1));
@@ -438,7 +444,7 @@ TEST(MasterTest, SchedulerFailover)
     .WillOnce(Trigger(&sched2RegisteredCall));
 
   EXPECT_CALL(sched2, resourceOffer(&driver2, _, _))
-    .Times(AtMost(1));
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched2, offerRescinded(&driver2, _))
     .Times(AtMost(1));
@@ -457,7 +463,7 @@ TEST(MasterTest, SchedulerFailover)
 }
 
 
-TEST(MasterTest, DISABLED_SlavePartitioned)
+TEST(MasterTest, SlavePartitioned)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -486,7 +492,7 @@ TEST(MasterTest, DISABLED_SlavePartitioned)
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffer(&driver, _, _))
-    .Times(AtMost(1));
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
@@ -569,7 +575,8 @@ TEST(MasterTest, TaskRunning)
 
   EXPECT_CALL(sched, resourceOffer(&driver, _, _))
     .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)));
+                    Trigger(&resourceOfferCall)))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
@@ -664,7 +671,8 @@ TEST(MasterTest, KillTask)
 
   EXPECT_CALL(sched, resourceOffer(&driver, _, _))
     .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)));
+                    Trigger(&resourceOfferCall)))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
@@ -772,7 +780,8 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
 
   EXPECT_CALL(sched1, resourceOffer(&driver1, _, _))
     .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)));
+                    Trigger(&resourceOfferCall)))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
     .Times(0);
@@ -918,7 +927,8 @@ TEST(MasterTest, FrameworkMessage)
 
   EXPECT_CALL(sched, resourceOffer(&schedDriver, _, _))
     .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)));
+                    Trigger(&resourceOfferCall)))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
     .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
@@ -1040,7 +1050,8 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
 
   EXPECT_CALL(sched1, resourceOffer(&driver1, _, ElementsAre(_)))
     .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&sched1ResourceOfferCall)));
+                    Trigger(&sched1ResourceOfferCall)))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched1, error(&driver1, _, "Framework failover"))
     .Times(1);
@@ -1183,7 +1194,8 @@ TEST(MasterTest, MultipleExecutors)
 
   EXPECT_CALL(sched, resourceOffer(&driver, _, _))
     .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)));
+                    Trigger(&resourceOfferCall)))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(DoAll(SaveArg<1>(&status1), Trigger(&statusUpdateCall1)))

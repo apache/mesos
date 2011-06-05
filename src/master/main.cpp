@@ -1,6 +1,7 @@
 #include <libgen.h>
 
 #include "common/build.hpp"
+#include "common/fatal.hpp"
 #include "common/logging.hpp"
 
 #include "configurator/configurator.hpp"
@@ -12,9 +13,6 @@
 
 using namespace mesos::internal;
 using namespace mesos::internal::master;
-
-using boost::lexical_cast;
-using boost::bad_lexical_cast;
 
 using std::cerr;
 using std::endl;

@@ -11,7 +11,7 @@ using std::vector;
 
 namespace tokenize {
 
-vector<string> tokenize(const string& s, const string& delims)
+vector<string> split(const string& s, const string& delims)
 {
   size_t offset = 0;
   vector<string> tokens;
@@ -36,13 +36,13 @@ vector<string> tokenize(const string& s, const string& delims)
 }
 
 
-map<string, vector<string> > pairs(const string& s, const string& delim1, const string& delim2)
+map<string, vector<string> > pairs(const string& s, char delim1, char delim2)
 {
   map<string, vector<string> > result;
 
-  const vector<string>& tokens = tokenize(s, delim1);
+  const vector<string>& tokens = split(s, string(1, delim1));
   foreach (const string& token, tokens) {
-    const vector<string>& pairs = tokenize(token, delim2);
+    const vector<string>& pairs = split(token, string(1, delim2));
     if (pairs.size() != 2) {
       ostringstream out;
       out << "failed to split '" << token << "' with '" << delim2 << "'";

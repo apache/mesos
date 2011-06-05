@@ -1,4 +1,8 @@
 #include <iomanip>
+#include <fstream>
+#include <sstream>
+
+#include <run.hpp>
 
 #include <glog/logging.h>
 
@@ -6,14 +10,13 @@
 
 #include "config/config.hpp"
 
+#include "common/build.hpp"
 #include "common/date_utils.hpp"
-#ifdef WITH_ZOOKEEPER
-#include "common/zookeeper.hpp"
-#endif
 
 #include "allocator.hpp"
 #include "allocator_factory.hpp"
 #include "master.hpp"
+#include "slaves_manager.hpp"
 #include "webui.hpp"
 
 using namespace mesos;
@@ -25,8 +28,6 @@ using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
-using process::HttpInternalServerErrorResponse;
-using process::HttpNotFoundResponse;
 using process::HttpOKResponse;
 using process::HttpResponse;
 using process::HttpRequest;
@@ -130,703 +131,67 @@ private:
 } // namespace {
 
 
-#ifdef WITH_ZOOKEEPER
+namespace mesos { namespace internal { namespace master {
 
-// Forward declaration of watcher.
-class ZooKeeperSlavesManagerStorageWatcher;
-
-
-class ZooKeeperSlavesManagerStorage : public SlavesManagerStorage
+class SlaveObserver : public Process<SlaveObserver>
 {
 public:
-  ZooKeeperSlavesManagerStorage(const string& _servers,
-                               const string& _znode,
-                               const PID<SlavesManager>& _slavesManager);
+  SlaveObserver(const UPID& _slave,
+                const SlaveInfo& _slaveInfo,
+                const SlaveID& _slaveId,
+                const PID<SlavesManager>& _slavesManager)
+    : slave(_slave), slaveInfo(_slaveInfo), slaveId(_slaveId),
+      slavesManager(_slavesManager), timeouts(0), pinged(false) {}
 
-  virtual ~ZooKeeperSlavesManagerStorage();
+  virtual ~SlaveObserver() {}
 
-  virtual Promise<bool> add(const string& hostname, uint16_t port);
-  virtual Promise<bool> remove(const string& hostname, uint16_t port);
-  virtual Promise<bool> activate(const string& hostname, uint16_t port);
-  virtual Promise<bool> deactivate(const string& hostname, uint16_t port);
-
-  Promise<bool> connected();
-  Promise<bool> reconnecting();
-  Promise<bool> reconnected();
-  Promise<bool> expired();
-  Promise<bool> updated(const string& path);
-
-private:
-  const string servers;
-  const string znode;
-  const PID<SlavesManager> slavesManager;
-  ZooKeeper* zk;
-  ZooKeeperSlavesManagerStorageWatcher* watcher;
-};
-
-
-class ZooKeeperSlavesManagerStorageWatcher : public Watcher
-{
-public:
-  ZooKeeperSlavesManagerStorageWatcher(const PID<ZooKeeperSlavesManagerStorage>& _pid)
-    : pid(_pid), reconnect(false) {}
-
-  virtual ~ZooKeeperSlavesManagerStorageWatcher() {}
-
-  virtual void process(ZooKeeper* zk, int type, int state, const string& path)
+protected:
+  virtual void operator () ()
   {
-    if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_SESSION_EVENT)) {
-      // Check if this is a reconnect.
-      if (!reconnect) {
-        // Initial connect.
-        process::dispatch(pid, &ZooKeeperSlavesManagerStorage::connected);
-      } else {
-        // Reconnected.
-        process::dispatch(pid, &ZooKeeperSlavesManagerStorage::reconnected);
-      }
-    } else if ((state == ZOO_EXPIRED_SESSION_STATE) && (type == ZOO_SESSION_EVENT)) {
-      // Session expiration. Let the manager take care of it.
-      process::dispatch(pid, &ZooKeeperSlavesManagerStorage::expired);
+    // Send a ping some interval after we heard the last pong. Or if
+    // we don't hear a pong, increment the number of timeouts from the
+    // slave and try and send another ping. If we eventually timeout too
+    // many missed pongs in a row, consider the slave dead.
+    send(slave, PING);
+    pinged = true;
 
-      // If this watcher is reused, the next connect won't be a reconnect.
-      reconnect = false;
-    } else if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_CHANGED_EVENT)) {
-      // Let the manager deal with file changes.
-      process::dispatch(pid, &ZooKeeperSlavesManagerStorage::updated, path);
-    } else if ((state == ZOO_CONNECTING_STATE) && (type == ZOO_SESSION_EVENT)) {
-      // The client library automatically reconnects, taking into
-      // account failed servers in the connection string,
-      // appropriately handling the "herd effect", etc.
-      reconnect = true;
-      process::dispatch(pid, &ZooKeeperSlavesManagerStorage::reconnecting);
-    } else {
-      LOG(WARNING) << "Unimplemented watch event: (state is "
-                   << state << " and type is " << type << ")";
+    do {
+      receive(SLAVE_PONG_TIMEOUT);
+      if (name() == PONG) {
+        timeouts = 0;
+        pinged = false;
+      } else if (name() == process::TIMEOUT) {
+        if (pinged) {
+          timeouts++;
+          pinged = false;
+        }
+
+        send(slave, PING);
+        pinged = true;
+      } else if (name() == process::TERMINATE) {
+        return;
+      } 
+    } while (timeouts < MAX_SLAVE_TIMEOUTS);
+
+    // Tell the slave manager to deactivate the slave, this will take
+    // care of updating the master too.
+    while (!process::call(slavesManager, &SlavesManager::deactivate,
+                          slaveInfo.hostname(), slave.port)) {
+      LOG(WARNING) << "Slave \"failed\" but can't be deactivated, retrying";
+      pause(5);
     }
   }
 
 private:
-  const PID<ZooKeeperSlavesManagerStorage> pid;
-  bool reconnect;
+  const UPID slave;
+  const SlaveInfo slaveInfo;
+  const SlaveID slaveId;
+  const PID<SlavesManager> slavesManager;
+  int timeouts;
+  bool pinged;
 };
 
-
-ZooKeeperSlavesManagerStorage::ZooKeeperSlavesManagerStorage(const string& _servers,
-                                                             const string& _znode,
-                                                             const PID<SlavesManager>& _slavesManager)
-  : servers(_servers), znode(_znode), slavesManager(_slavesManager)
-{
-  PID<ZooKeeperSlavesManagerStorage> pid(*this);
-  watcher = new ZooKeeperSlavesManagerStorageWatcher(pid);
-  zk = new ZooKeeper(servers, 10000, watcher);
-}
-
-
-ZooKeeperSlavesManagerStorage::~ZooKeeperSlavesManagerStorage()
-{
-  delete zk;
-  delete watcher;
-}
-
-
-Promise<bool> ZooKeeperSlavesManagerStorage::add(const string& hostname, uint16_t port)
-{
-  int ret;
-  string result;
-  Stat stat;
-
-  ret = zk->get(znode + "/active", true, &result, &stat);
-
-  if (ret != ZOK) {
-    LOG(WARNING) << "Failed to get '" << znode + "/active"
-                 << "' in ZooKeeper! (" << zk->error(ret) << ")";
-    return false;
-  }
-
-  ostringstream out;
-
-  if (result.size() == 0) {
-    out << hostname << ":" << port;
-  } else {
-    out << "," << hostname << ":" << port;
-  }
-
-  result += out.str();
-
-  // Set the data in the znode.
-  ret = zk->set(znode + "/active", result, stat.version);
-
-  if (ret != ZOK) {
-    LOG(WARNING) << "Could not add slave " << hostname << ":" << port
-                 << " to '" << znode + "/active' in ZooKeeper! ("
-                 << zk->error(ret) << ")";
-    return false;
-  }
-
-  return true;
-}
-
-
-Promise<bool> ZooKeeperSlavesManagerStorage::remove(const string& hostname, uint16_t port)
-{
-  string files[] = { "/active", "/inactive" };
-
-  foreach (const string& file, files) {
-    int ret;
-    string result;
-    Stat stat;
-
-    ret = zk->get(znode + file, true, &result, &stat);
-
-    if (ret != ZOK) {
-      LOG(WARNING) << "Failed to get '" << znode + file
-                   << "' in ZooKeeper! (" << zk->error(ret) << ")";
-      return false;
-    }
-
-    ostringstream out;
-    out << hostname << ":" << port;
-
-    size_t index = result.find(out.str());
-
-    if (index != string::npos) {
-      if (index == 0) {
-        result.erase(index, out.str().size() + 1);
-      } else {
-        result.erase(index - 1, out.str().size() + 1);
-      }
-
-      // Set the data in the znode.
-      ret = zk->set(znode + file, result, stat.version);
-
-      if (ret != ZOK) {
-        LOG(WARNING) << "Could not remove slave " << hostname << ":" << port
-                     << " to '" << znode + file << "' in ZooKeeper! ("
-                     << zk->error(ret) << ")";
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
-
-Promise<bool> ZooKeeperSlavesManagerStorage::activate(const string& hostname, uint16_t port)
-{
-  fatal("unimplemented");
-  return false;
-}
-
-
-Promise<bool> ZooKeeperSlavesManagerStorage::deactivate(const string& hostname, uint16_t port)
-{
-  fatal("unimplemented");
-  return false;
-}
-
-
-Promise<bool> ZooKeeperSlavesManagerStorage::connected()
-{
-  int ret;
-
-  static const string delimiter = "/";
-
-  // Assume the znode that was created does not end with a "/".
-  CHECK(znode.at(znode.length() - 1) != '/');
-
-  // Create directory path znodes as necessary.
-  size_t index = znode.find(delimiter, 0);
-
-  while (index < string::npos) {
-    // Get out the prefix to create.
-    index = znode.find(delimiter, index + 1);
-    string prefix = znode.substr(0, index);
-
-    // Create the node (even if it already exists).
-    ret = zk->create(prefix, "", ZOO_OPEN_ACL_UNSAFE, 0, NULL);
-
-    if (ret != ZOK && ret != ZNODEEXISTS) {
-      // Okay, consider this a failure (maybe we lost our connection
-      // to ZooKeeper), increment the failure count, log the issue,
-      // and perhaps try again when ZooKeeper issues get sorted out.
-      LOG(WARNING) << "Failed to create '" << znode
-                   << "' in ZooKeeper! (" << zk->error(ret) << ")";
-      return false;
-    }
-  }
-
-  // Now make sure the 'active' znode is created.
-  ret = zk->create(znode + "/active", "", ZOO_OPEN_ACL_UNSAFE, 0, NULL);
-
-  if (ret != ZOK && ret != ZNODEEXISTS) {
-    LOG(WARNING) << "Failed to create '" << znode + "/active"
-                 << "' in ZooKeeper! (" << zk->error(ret) << ")";
-    return false;
-  }
-
-  // Now make sure the 'inactive' znode is created.
-  ret = zk->create(znode + "/inactive", "", ZOO_OPEN_ACL_UNSAFE, 0, NULL);
-
-  if (ret != ZOK && ret != ZNODEEXISTS) {
-    LOG(WARNING) << "Failed to create '" << znode + "/inactive"
-                 << "' in ZooKeeper! (" << zk->error(ret) << ")";
-    return false;
-  }
-
-  // Reconcile what's in the znodes versus what we have in memory
-  // (this also puts watches on these znodes).
-  updated(znode + "/active");
-  updated(znode + "/inactive");
-
-  return true;
-}
-
-
-Promise<bool> ZooKeeperSlavesManagerStorage::reconnecting()
-{
-  LOG(INFO) << "ZooKeeperSlavesManagerStorage is attempting to reconnect";
-  return true;
-}
-
-
-Promise<bool> ZooKeeperSlavesManagerStorage::reconnected()
-{
-  LOG(INFO) << "ZooKeeperSlavesManagerStorage has reconnected";
-
-  // Reconcile what's in the znodes versus what we have in memory
-  // (this also puts watches on these znodes).
-  updated(znode + "/active");
-  updated(znode + "/inactive");
-
-  return true;
-}
-
-
-Promise<bool> ZooKeeperSlavesManagerStorage::expired()
-{
-  LOG(WARNING) << "ZooKeeperSlavesManagerStorage session expired!";
-
-  CHECK(zk != NULL);
-  delete zk;
-
-  zk = new ZooKeeper(servers, 10000, watcher);
-
-  // TODO(benh): Put mechanisms in place such that reconnects may
-  // fail (or just take too long).
-
-  return true;
-}
-
-
-Promise<bool> ZooKeeperSlavesManagerStorage::updated(const string& path)
-{
-  LOG(INFO) << "Slave information at '" << path
-            << "' in ZooKeeper has been updated ... propogating changes";
-
-  int ret;
-  string result;
-
-  if (path == znode + "/active") {
-    ret = zk->get(znode + "/active", true, &result, NULL);
-
-    if (ret != ZOK) {
-      LOG(WARNING) << "Failed to get '" << znode + "/active"
-                   << "' in ZooKeeper! (" << zk->error(ret) << ")";
-      return false;
-    }
-
-    // Parse what's in ZooKeeper into hostname port pairs.
-    map<string, set<uint16_t> > active;
-
-    const vector<string>& tokens = tokenize::tokenize(result, ",");
-    foreach (const string& token, tokens) {
-      const vector<string>& pairs = tokenize::tokenize(token, ":");
-      if (pairs.size() != 2) {
-        LOG(WARNING) << "Bad data in '" << znode + "/active"
-                     << "', could not parse " << token;
-        return false;
-      }
-
-      try {
-        active[pairs[0]].insert(lexical_cast<uint16_t>(pairs[1]));
-      } catch (const bad_lexical_cast&) {
-        LOG(WARNING) << "Bad data in '" << znode + "/active"
-                     << "', could not parse " << token;
-        return false;
-      }
-    }
-
-    process::dispatch(slavesManager, &SlavesManager::updateActive, active);
-  } else if (path == znode + "/inactive") {
-    ret = zk->get(znode + "/inactive", true, &result, NULL);
-
-    if (ret != ZOK) {
-      LOG(WARNING) << "Failed to get '" << znode + "/inactive"
-                   << "' in ZooKeeper! (" << zk->error(ret) << ")";
-      return false;
-    }
-
-    // Parse what's in ZooKeeper into hostname port pairs.
-    map<string, set<uint16_t> > inactive;
-
-    const vector<string>& tokens = tokenize::tokenize(result, ",");
-    foreach (const string& token, tokens) {
-      const vector<string>& pairs = tokenize::tokenize(token, ":");
-      if (pairs.size() != 2) {
-        LOG(WARNING) << "Bad data in '" << znode + "/inactive"
-                     << "', could not parse " << token;
-        return false;
-      }
-
-      try {
-        inactive[pairs[0]].insert(lexical_cast<uint16_t>(pairs[1]));
-      } catch (const bad_lexical_cast&) {
-        LOG(WARNING) << "Bad data in '" << znode + "/inactive"
-                     << "', could not parse " << token;
-        return false;
-      }
-    }
-
-    process::dispatch(slavesManager, &SlavesManager::updateInactive, inactive);
-  } else {
-    LOG(WARNING) << "Not expecting changes to path '"
-                 << path << "' in ZooKeeper";
-    return false;
-  }
-
-  return true;
-}
-
-#endif // WITH_ZOOKEEPER
-
-
-SlavesManager::SlavesManager(const Configuration& conf,
-                             const PID<Master>& _master)
-  : process::Process<SlavesManager>("slaves"),
-    master(_master)
-{
-  // Create the slave manager storage based on configuration.
-  const string& slaves = conf.get<string>("slaves", "*");
-
-  // Check if 'slaves' starts with "zoo://".
-  string zoo = "zoo://";
-  size_t index = slaves.find(zoo);
-  if (index == 0) {
-#ifdef WITH_ZOOKEEPER
-    // TODO(benh): Consider actually using the chroot feature of
-    // ZooKeeper, rather than just using it's syntax.
-    string temp = slaves.substr(zoo.size());
-    index = temp.find("/");
-    if (index == string::npos) {
-      fatal("Expecting chroot path for ZooKeeper");
-    }
-
-    const string& servers = temp.substr(0, index);
-
-    const string& znode = temp.substr(index);
-    if (znode == "/") {
-      fatal("Expecting chroot path for ZooKeeper ('/' is not supported)");
-    }
-
-    storage = new ZooKeeperSlavesManagerStorage(servers, znode, self());
-    process::spawn(storage);
-#else
-    fatal("Cannot get active/inactive slave information using 'zoo://',"
-          " ZooKeeper is not supported in this build");
-#endif // WITH_ZOOKEEPER
-  } else {
-    // Parse 'slaves' as initial hostname:port pairs.
-    if (slaves != "*") {
-      const vector<string>& tokens = tokenize::tokenize(slaves, ",");
-      foreach (const string& token, tokens) {
-        const vector<string>& pairs = tokenize::tokenize(token, ":");
-        if (pairs.size() != 2) {
-          fatal("Failed to parse \"%s\" in option 'slaves'", token.c_str());
-        }
-
-        try {
-          active[pairs[0]].insert(lexical_cast<uint16_t>(pairs[1]));
-        } catch (const bad_lexical_cast&) {
-          fatal("Failed to parse \"%s\" in option 'slaves'", token.c_str());
-        }
-      }
-    }
-
-    storage = new SlavesManagerStorage();
-    process::spawn(storage);
-  }
-
-  // Set up our HTTP endpoints.
-  install("add", &SlavesManager::add);
-  install("remove", &SlavesManager::remove);
-}
-
-
-SlavesManager::~SlavesManager()
-{
-  // TODO(benh): Terminate and deallocate 'storage'.
-}
-
-
-void SlavesManager::registerOptions(Configurator* configurator)
-{
-  configurator->addOption<string>("slaves",
-                                  "Initial slaves that should be "
-                                  "considered part of this cluster "
-                                  "(or if using ZooKeeper a URL)", "*");
-}
-
-
-bool SlavesManager::add(const string& hostname, uint16_t port)
-{
-  // Make sure this slave is not currently deactivated or activated.
-  if (inactive.count(hostname) > 0 && inactive[hostname].count(port) > 0) {
-    LOG(WARNING) << "Attempted to add deactivated slave at "
-                 << hostname << ":" << port;
-    return false;
-  } else if (active.count(hostname) == 0 || active[hostname].count(port) == 0) {
-    // Get the storage system to persist the addition.
-    bool result = process::call(storage->self(), &SlavesManagerStorage::add,
-                                hostname, port);
-    if (result) {
-      LOG(INFO) << "Adding slave at " << hostname << ":" << port;
-      // Tell the master that this slave is now active (so it can
-      // allow the slave to register).
-      process::dispatch(master, &Master::activatedSlaveHostnamePort,
-                        hostname, port);
-      active[hostname].insert(port);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-bool SlavesManager::remove(const string& hostname, uint16_t port)
-{
-  // Make sure the slave is currently activated or deactivated.
-  if ((active.count(hostname) > 0 && active[hostname].count(port) > 0) ||
-      (inactive.count(hostname) > 0 && inactive[hostname].count(port) > 0)) {
-    // Get the storage system to persist the removal.
-    bool result = process::call(storage->self(), &SlavesManagerStorage::remove,
-                                hostname, port);
-    if (result) {
-      LOG(INFO) << "Removing slave at " << hostname << ":" << port;
-      if (active.count(hostname) > 0 && active[hostname].count(port) > 0) {
-        process::dispatch(master, &Master::deactivatedSlaveHostnamePort,
-                          hostname, port);
-        active[hostname].erase(port);
-        if (active[hostname].size() == 0) active.erase(hostname);
-      }
-
-      if (inactive.count(hostname) > 0 && inactive[hostname].count(port) > 0) {
-        inactive[hostname].erase(port);
-        if (inactive[hostname].size() == 0) inactive.erase(hostname);
-      }
-
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-bool SlavesManager::activate(const string& hostname, uint16_t port)
-{
-  // Make sure the slave is currently deactivated.
-  if (inactive.count(hostname) > 0 && inactive[hostname].count(port) > 0) {
-    // Get the storage system to persist the activation.
-    bool result = process::call(storage->self(), &SlavesManagerStorage::activate,
-                                hostname, port);
-    if (result) {
-      LOG(INFO) << "Activating slave at " << hostname << ":" << port;
-      process::dispatch(master, &Master::deactivatedSlaveHostnamePort,
-                        hostname, port);
-      active[hostname].insert(port);
-      inactive[hostname].erase(port);
-      if (inactive[hostname].size() == 0) inactive.erase(hostname);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-bool SlavesManager::deactivate(const string& hostname, uint16_t port)
-{
-  // Make sure the slave is currently activated.
-  if (active.count(hostname) > 0 && active[hostname].count(port) > 0) {
-    // Get the storage system to persist the deactivation.
-    bool result = process::call(storage->self(), &SlavesManagerStorage::deactivate,
-                                hostname, port);
-    if (result) {
-      LOG(INFO) << "Deactivating slave at " << hostname << ":" << port;
-      process::dispatch(master, &Master::deactivatedSlaveHostnamePort,
-                        hostname, port);
-      active[hostname].erase(port);
-      if (active[hostname].size() == 0) active.erase(hostname);
-      inactive[hostname].insert(port);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-void SlavesManager::updateActive(const map<string, set<uint16_t> >& _updated)
-{
-  // TODO(benh): Remove this unnecessary copy. The code below uses the
-  // [] operator to make it easier to read, but [] can't be used on
-  // something that is const, hence the copy. Ugh.
-  map<string, set<uint16_t> > updated = _updated;
-
-  // Loop through the current active slave hostname:port pairs and
-  // remove all that are not found in updated.
-  foreachpair (const string& hostname, _, active) {
-    if (updated.count(hostname) == 0) {
-      foreach (uint16_t port, active[hostname]) {
-        LOG(INFO) << "Removing slave at " << hostname << ":" << port;
-        process::dispatch(master, &Master::deactivatedSlaveHostnamePort,
-                          hostname, port);
-      }
-      active.erase(hostname);
-    } else {
-      foreach (uint16_t port, active[hostname]) {
-        if (updated[hostname].count(port) == 0) {
-          LOG(INFO) << "Removing slave at " << hostname << ":" << port;
-          process::dispatch(master, &Master::deactivatedSlaveHostnamePort,
-                            hostname, port);
-          active[hostname].erase(port);
-          if (active[hostname].size() == 0) active.erase(hostname);
-        }
-      }
-    }
-  }
-
-  // Now loop through the updated slave hostname:port pairs and add
-  // all that are not found in active.
-  foreachpair (const string& hostname, _, updated) {
-    if (active.count(hostname) == 0) {
-      foreach (uint16_t port, updated[hostname]) {
-        LOG(INFO) << "Adding slave at " << hostname << ":" << port;
-        process::dispatch(master, &Master::activatedSlaveHostnamePort,
-                          hostname, port);
-        active[hostname].insert(port);
-      }
-    } else {
-      foreach (uint16_t port, active[hostname]) {
-        if (active[hostname].count(port) == 0) {
-          LOG(INFO) << "Adding slave at " << hostname << ":" << port;
-          process::dispatch(master, &Master::activatedSlaveHostnamePort,
-                            hostname, port);
-          active[hostname].insert(port);
-        }
-      }
-    }
-  }
-}
-
-
-void SlavesManager::updateInactive(const map<string, set<uint16_t> >& updated)
-{
-  inactive = updated;
-}
-
-
-Promise<HttpResponse> SlavesManager::add(const HttpRequest& request)
-{
-  // Parse the query to get out the slave hostname and port.
-  string hostname = "";
-  uint16_t port = 0;
-
-  map<string, vector<string> > pairs = tokenize::pairs(request.query, ",", "=");
-
-  if (pairs.size() != 2) {
-    LOG(WARNING) << "Malformed query string when trying to add a slave";
-    return HttpNotFoundResponse();
-  }
-
-  // Make sure there is at least a 'hostname=' and 'port='.
-  if (pairs.count("hostname") == 0) {
-    LOG(WARNING) << "Missing 'hostname' in query string"
-                 << " when trying to add a slave";
-    return HttpNotFoundResponse();
-  } else if (pairs.count("port") == 0) {
-    LOG(WARNING) << "Missing 'port' in query string"
-                 << " when trying to add a slave";
-    return HttpNotFoundResponse();
-  }
-
-  hostname = pairs["hostname"].front();
-
-  // Check that 'port' is valid.
-  try {
-    port = lexical_cast<uint16_t>(pairs["port"].front());
-  } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Failed to parse 'port = " << pairs["port"].front()
-                 << "'  when trying to add a slave";
-    return HttpNotFoundResponse();
-  }
-
-  LOG(INFO) << "Asked to add slave at " << hostname << ":" << port;
-
-  if (add(hostname, port)) {
-    return HttpOKResponse();
-  } else {
-    return HttpInternalServerErrorResponse();
-  }
-}
-
-
-Promise<HttpResponse> SlavesManager::remove(const HttpRequest& request)
-{
-  // Parse the query to get out the slave hostname and port.
-  string hostname = "";
-  uint16_t port = 0;
-
-  // TODO(benh): Don't use tokenize::pairs to get better errors?
-  map<string, vector<string> > pairs = tokenize::pairs(request.query, ",", "=");
-
-  if (pairs.size() != 2) {
-    LOG(WARNING) << "Malformed query string when trying to remove a slave";
-    return HttpNotFoundResponse();
-  }
-
-  // Make sure there is at least a 'hostname=' and 'port='.
-  if (pairs.count("hostname") == 0) {
-    LOG(WARNING) << "Missing 'hostname' in query string"
-                 << " when trying to remove a slave";
-    return HttpNotFoundResponse();
-  } else if (pairs.count("port") == 0) {
-    LOG(WARNING) << "Missing 'port' in query string"
-                 << " when trying to remove a slave";
-    return HttpNotFoundResponse();
-  }
-
-  hostname = pairs["hostname"].front();
-
-  // Check that 'port' is valid.
-  try {
-    port = lexical_cast<uint16_t>(pairs["port"].front());
-  } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Failed to parse 'port = " << pairs["port"].front()
-                 << "'  when trying to remove a slave";
-    return HttpNotFoundResponse();
-  }
-
-  LOG(INFO) << "Asked to remove slave at " << hostname << ":" << port;
-
-  if (remove(hostname, port)) {
-    return HttpOKResponse();
-  } else {
-    return HttpInternalServerErrorResponse();
-  }
-}
+}}} // namespace mesos { namespace master { namespace internal {
 
 
 Master::Master()
@@ -864,14 +229,18 @@ Master::~Master()
 
   CHECK(slotOffers.size() == 0);
 
-  // TODO(benh): Terminate and delete slave manager!
+  process::post(slavesManager->self(), process::TERMINATE);
+  process::wait(slavesManager->self());
+
+  delete slavesManager;
 }
 
 
 void Master::registerOptions(Configurator* configurator)
 {
   SlavesManager::registerOptions(configurator);
-  configurator->addOption<string>("allocator", 'a', "Allocation module name",
+  configurator->addOption<string>("allocator", 'a',
+                                  "Allocation module name",
                                   "simple");
   configurator->addOption<bool>("root_submissions",
                                 "Can root submit frameworks?",
@@ -1185,7 +554,7 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
   Framework* framework =
     new Framework(frameworkInfo, newFrameworkId(), from(), elapsed());
 
-  LOG(INFO) << "Registering framework " << framework << " at " << from();
+  LOG(INFO) << "Registering " << framework << " at " << from();
 
   if (framework->info.executor().uri() == "") {
     LOG(INFO) << framework << " registering without an executor URI";
@@ -1446,7 +815,47 @@ void Master::statusUpdateAck(const FrameworkID& frameworkId,
 
 void Master::registerSlave(const SlaveInfo& slaveInfo)
 {
-  addSlave(slaveInfo, newSlaveId(), from());
+  Slave* slave = new Slave(slaveInfo, newSlaveId(), from(), elapsed());
+
+  LOG(INFO) << "Attempting to register slave " << slave->slaveId
+            << " at " << slave->pid;
+
+  struct SlaveRegistrar
+  {
+    static bool run(Slave* slave, const PID<Master>& master)
+    {
+      // TODO(benh): Do a reverse lookup to ensure IP maps to
+      // hostname, or check credentials of this slave.
+      process::dispatch(master, &Master::addSlave, slave);
+    }
+
+    static bool run(Slave* slave,
+                    const PID<Master>& master,
+                    const PID<SlavesManager>& slavesManager)
+    {
+      if (!process::call(slavesManager, &SlavesManager::add,
+                         slave->info.hostname(), slave->pid.port)) {
+        LOG(WARNING) << "Could not register slave because failed"
+                     << " to add it to the slaves maanger";
+        delete slave;
+        return false;
+      }
+
+      return run(slave, master);
+    }
+  };
+
+  // Check whether this slave can be accepted, or if all slaves are accepted.
+  if (slaveHostnamePorts.count(slaveInfo.hostname(), from().port) > 0) {
+    process::run(&SlaveRegistrar::run, slave, self());
+  } else if (conf.get<string>("slaves", "*") == "*") {
+    process::run(&SlaveRegistrar::run, slave, self(), slavesManager->self());
+  } else {
+    LOG(WARNING) << "Cannot register slave at "
+                 << slaveInfo.hostname() << ":" << from().port
+                 << " because not in allocated set of slaves!";
+    send(from(), process::TERMINATE);
+  }
 }
 
 
@@ -1454,49 +863,61 @@ void Master::reregisterSlave(const SlaveID& slaveId,
                              const SlaveInfo& slaveInfo,
                              const vector<Task>& tasks)
 {
-  LOG(INFO) << "Re-registering " << slaveId << " at " << from();
-
   if (slaveId == "") {
-    LOG(ERROR) << "Slave re-registered without a SlaveID!";
+    LOG(ERROR) << "Slave re-registered without an id!";
     send(from(), process::TERMINATE);
   } else {
     if (lookupSlave(slaveId) != NULL) {
       // TODO(benh): Once we support handling session expiration, we
       // will want to handle having a slave re-register with us when
       // we already have them recorded.
-      LOG(ERROR) << "Slave re-registered with in use SlaveID!";
+      LOG(ERROR) << "Slave re-registered with in use id!";
       send(from(), process::TERMINATE);
     } else {
-      Slave* slave = addSlave(slaveInfo, slaveId, from());
-      if (slave != NULL) {
-        for (int i = 0; i < tasks.size(); i++) {
-          Task* task = new Task(tasks[i]);
+      Slave* slave = new Slave(slaveInfo, slaveId, from(), elapsed());
 
-          // Add the task to the slave.
-          slave->addTask(task);
+      LOG(INFO) << "Attempting to re-register slave " << slave->slaveId
+                << " at " << slave->pid;
 
-          // Try and add the task to the framework too, but since the
-          // framework might not yet be connected we won't be able to
-          // add them. However, when the framework connects later we
-          // will add them then. We also tell this slave the current
-          // framework pid for this task. Again, we do the same thing
-          // if a framework currently isn't registered.
-          Framework* framework = lookupFramework(task->framework_id());
-          if (framework != NULL) {
-            framework->addTask(task);
-            MSG<M2S_UPDATE_FRAMEWORK> out;
-            out.mutable_framework_id()->MergeFrom(framework->frameworkId);
-            out.set_pid(framework->pid);
-            send(slave->pid, out);
-          } else {
-            // TODO(benh): We should really put a timeout on how long we
-            // keep tasks running on a slave that never have frameworks
-            // reregister and claim them.
-            LOG(WARNING) << "Possibly orphaned task " << task->task_id()
-                         << " of framework " << task->framework_id()
-                         << " running on slave " << slaveId;
-          }
+      struct SlaveReregistrar
+      {
+        static bool run(Slave* slave,
+                        const vector<Task>& tasks,
+                        const PID<Master>& master)
+        {
+          // TODO(benh): Do a reverse lookup to ensure IP maps to
+          // hostname, or check credentials of this slave.
+          process::dispatch(master, &Master::readdSlave, slave, tasks);
         }
+
+        static bool run(Slave* slave,
+                        const vector<Task>& tasks,
+                        const PID<Master>& master,
+                        const PID<SlavesManager>& slavesManager)
+        {
+          if (!process::call(slavesManager, &SlavesManager::add,
+                             slave->info.hostname(), slave->pid.port)) {
+            LOG(WARNING) << "Could not register slave because failed"
+                         << " to add it to the slaves maanger";
+            delete slave;
+            return false;
+          }
+
+          return run(slave, tasks, master);
+        }
+      };
+
+      // Check whether this slave can be accepted, or if all slaves are accepted.
+      if (slaveHostnamePorts.count(slaveInfo.hostname(), from().port) > 0) {
+        process::run(&SlaveReregistrar::run, slave, tasks, self());
+      } else if (conf.get<string>("slaves", "*") == "*") {
+        process::run(&SlaveReregistrar::run,
+                     slave, tasks, self(), slavesManager->self());
+      } else {
+        LOG(WARNING) << "Cannot re-register slave at "
+                     << slaveInfo.hostname() << ":" << from().port
+                     << " because not in allocated set of slaves!";
+        send(from(), process::TERMINATE);
       }
     }
   }
@@ -1558,6 +979,7 @@ void Master::statusUpdate(const FrameworkID& frameworkId,
                  << status.slave_id();
   }
 }
+
 
 void Master::executorMessage(const FrameworkID& frameworkId,
                              const FrameworkMessage& message)
@@ -1632,14 +1054,13 @@ void Master::activatedSlaveHostnamePort(const string& hostname, uint16_t port)
 {
   LOG(INFO) << "Master now considering a slave at "
             << hostname << ":" << port << " as active";
-  slaveHostnamePorts[hostname].insert(port);
+  slaveHostnamePorts.insert(hostname, port);
 }
 
 
 void Master::deactivatedSlaveHostnamePort(const string& hostname, uint16_t port)
 {
-  if (slaveHostnamePorts.count(hostname) > 0 &&
-      slaveHostnamePorts[hostname].count(port) > 0) {
+  if (slaveHostnamePorts.count(hostname, port) > 0) {
     // Look for a connected slave and remove it.
     foreachpair (_, Slave* slave, slaves) {
       if (slave->info.hostname() == hostname && slave->pid.port == port) {
@@ -1650,8 +1071,7 @@ void Master::deactivatedSlaveHostnamePort(const string& hostname, uint16_t port)
       }
     }
 
-    slaveHostnamePorts[hostname].erase(port);
-    if (slaveHostnamePorts[hostname].size() == 0) slaveHostnamePorts.erase(hostname);
+    slaveHostnamePorts.erase(hostname, port);
   }
 }
 
@@ -2085,50 +1505,66 @@ void Master::removeFramework(Framework* framework)
 }
 
 
-Slave* Master::addSlave(const SlaveInfo& slaveInfo,
-                        const SlaveID& slaveId,
-                        const UPID& pid)
+void Master::addSlave(Slave* slave)
 {
-  // TODO(benh): Start a reverse lookup to ensure IP maps to hostname.
+  CHECK(slave != NULL);
 
-  Slave* slave = NULL;
+  slaves[slave->slaveId] = slave;
+  pidToSlaveId[slave->pid] = slave->slaveId;
+  link(slave->pid);
 
-  // Check whether all slaves, or at least this slave is allocated.
-  bool allocated = (conf.get<string>("slaves", "*") == "*") ||
-    (slaveHostnamePorts.count(slaveInfo.hostname()) > 0 &&
-     slaveHostnamePorts[slaveInfo.hostname()].count(pid.port) > 0);
+  allocator->slaveAdded(slave);
 
-  if (allocated) {
-    Slave* slave = new Slave(slaveInfo, slaveId, pid, elapsed());
+  MSG<M2S_REGISTER_REPLY> out;
+  out.mutable_slave_id()->MergeFrom(slave->slaveId);
+  send(slave->pid, out);
 
-    LOG(INFO) << "Registering slave " << slave->slaveId
-              << " at " << slave->pid;
+  // TODO(benh):
+  //     // Ask the slaves manager to monitor this slave for us.
+  //     process::dispatch(slavesManager->self(), &SlavesManager::monitor,
+  //                       slave->pid, slave->info, slave->slaveId);
 
-    slaves[slave->slaveId] = slave;
-    pidToSlaveId[slave->pid] = slave->slaveId;
-    link(slave->pid);
+  // Set up an observer for the slave.
+  slave->observer = new SlaveObserver(slave->pid, slave->info,
+                                      slave->slaveId, slavesManager->self());
+  process::spawn(slave->observer);
+}
 
-    allocator->slaveAdded(slave);
 
-    MSG<M2S_REGISTER_REPLY> out;
-    out.mutable_slave_id()->MergeFrom(slave->slaveId);
-    send(slave->pid, out);
+void Master::readdSlave(Slave* slave, const vector<Task>& tasks)
+{
+  CHECK(slave != NULL);
 
-    // TODO(benh):
-    //     // Ask the slaves manager to monitor this slave for us.
-    //     process::dispatch(slavesManager->self(), &SlavesManager::monitor,
-    //                       slave->pid, slave->info, slave->slaveId);
+  addSlave(slave);
 
-    // Set up an observer for the slave.
-    slave->observer = new SlaveObserver(slave->pid, slave->info,
-                                        slave->slaveId, slavesManager->self());
-    process::spawn(slave->observer);
-  } else {
-    LOG(WARNING) << "Cannot add slave at " << slaveInfo.hostname()
-                 << " because not in allocated set of slaves!";
+  for (int i = 0; i < tasks.size(); i++) {
+    Task* task = new Task(tasks[i]);
+
+    // Add the task to the slave.
+    slave->addTask(task);
+
+    // Try and add the task to the framework too, but since the
+    // framework might not yet be connected we won't be able to
+    // add them. However, when the framework connects later we
+    // will add them then. We also tell this slave the current
+    // framework pid for this task. Again, we do the same thing
+    // if a framework currently isn't registered.
+    Framework* framework = lookupFramework(task->framework_id());
+    if (framework != NULL) {
+      framework->addTask(task);
+      MSG<M2S_UPDATE_FRAMEWORK> out;
+      out.mutable_framework_id()->MergeFrom(framework->frameworkId);
+      out.set_pid(framework->pid);
+      send(slave->pid, out);
+    } else {
+      // TODO(benh): We should really put a timeout on how long we
+      // keep tasks running on a slave that never have frameworks
+      // reregister and claim them.
+      LOG(WARNING) << "Possibly orphaned task " << task->task_id()
+                   << " of framework " << task->framework_id()
+                   << " running on slave " << slave->slaveId;
+    }
   }
-
-  return slave;
 }
 
 

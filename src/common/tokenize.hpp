@@ -19,13 +19,12 @@ public:
 /**
  * Utility function to tokenize a string based on some delimiters.
  */
-std::vector<std::string> tokenize(const std::string& s,
-                                  const std::string& delims);
+std::vector<std::string> split(const std::string& s,
+                               const std::string& delims);
 
 
 std::map<std::string, std::vector<std::string> > pairs(const std::string& s,
-                                                       const std::string& delim1,
-                                                       const std::string& delim2);
+                                                       char delim1, char delim2);
 
 } // namespace tokenize {
 

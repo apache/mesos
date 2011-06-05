@@ -3,7 +3,7 @@
 
 #include <mesos.hpp>
 
-#include <boost/unordered_map.hpp>
+#include <boost/functional/hash.hpp>
 
 #include "messaging/messages.pb.h"
 
