@@ -19,6 +19,7 @@
 #include <zookeeper.h>
 
 #include <string>
+#include <vector>
 
 
 /* Forward declarations of classes we are using. */
@@ -228,6 +229,26 @@ public:
 	  bool watch,
 	  std::string *result,
 	  Stat *stat);
+
+  /**
+   * \brief lists the children of a node synchronously.
+   * 
+   * \param path the name of the node. Expressed as a file name with
+   *   slashes separating ancestors of the node.
+   * \param watch if true, a watch will be set at the server to notify
+   *   the client if the node changes.
+   * \param results return value of children paths.
+   * \return the return code of the function.
+   * ZOK operation completed successfully
+   * ZNONODE the node does not exist.
+   * ZNOAUTH the client does not have permission.
+   * ZBADARGUMENTS - invalid input parameters
+   * ZINVALIDSTATE - state is ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
+   * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
+   */
+  int getChildren(const std::string &path,
+		  bool watch,
+		  std::vector<std::string> *results);
 
   /**
    * \brief sets the data associated with a node.

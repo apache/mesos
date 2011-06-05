@@ -14,6 +14,7 @@ using std::cout;
 using std::endl;
 using std::map;
 using std::string;
+using std::vector;
 
 
 /* Forward (and first) declaration of ZooKeeperProcess. */
@@ -41,6 +42,7 @@ enum {
   REMOVE, // Perform an asynchronous remove (delete).
   EXISTS, // Perform an asysnchronous exists.
   GET, // Perform an asynchronous get.
+  GET_CHILDREN, // Perform an asynchronous get_children.
   SET, // Perform an asynchronous set.
 };
 
@@ -100,6 +102,18 @@ struct GetCall
   bool watch;
   string *result;
   Stat *stat;
+  PID from;
+  ZooKeeperProcess *zooKeeperProcess;
+};
+
+
+/* GetChildren "message" for performing ZooKeeper::getChildren. */
+struct GetChildrenCall
+{
+  int ret;
+  const string *path;
+  bool watch;
+  vector<string> *results;
   PID from;
   ZooKeeperProcess *zooKeeperProcess;
 };
@@ -346,6 +360,20 @@ private:
     getCall->zooKeeperProcess->send(getCall->from, COMPLETED);
   }
 
+  void getChildrenCompletion(int ret, const String_vector *results,
+			     const void *data)
+  {
+    GetChildrenCall *getChildrenCall =
+      static_cast<GetChildrenCall *>(const_cast<void *>((data)));
+    getChildrenCall->ret = ret;
+    if (getChildrenCall->results != NULL && results != NULL) {
+      for (int i = 0; i < results->count; i++) {
+	getChildrenCall->results->push_back(results->data[i]);
+      }
+    }
+    getChildrenCall->zooKeeperProcess->send(getChildrenCall->from, COMPLETED);
+  }
+
   static void setCompletion(int ret, const Stat *stat, const void *data)
   {
     SetCall *setCall =
@@ -484,6 +512,21 @@ protected:
 	    if (ret != ZOK) {
 	      getCall->ret = ret;
 	      send(getCall->from, COMPLETED);
+	    }
+	    break;
+	  }
+	  case GET_CHILDREN: {
+	    GetChildrenCall *getChildrenCall =
+	      *reinterpret_cast<GetChildrenCall **>(const_cast<char *>(body(NULL)));
+	    getChildrenCall->from = from();
+	    getChildrenCall->zooKeeperProcess = this;
+	    int ret = zoo_aget_children(zh, getChildrenCall->path->c_str(),
+					getChildrenCall->watch,
+					getChildrenCompletion,
+					getChildrenCall);
+	    if (ret != ZOK) {
+	      getChildrenCall->ret = ret;
+	      send(getChildrenCall->from, COMPLETED);
 	    }
 	    break;
 	  }
@@ -719,6 +762,46 @@ int ZooKeeper::get(const string &path,
   Process::wait(Process::spawn(&getCallProcess));
 
   return getCall.ret;
+}
+
+
+int ZooKeeper::getChildren(const string &path,
+			   bool watch,
+			   vector<string> *results)
+{
+  GetChildrenCall getChildrenCall;
+  getChildrenCall.path = &path;
+  getChildrenCall.watch = watch;
+  getChildrenCall.results = results;
+
+  class GetChildrenCallProcess : public Process
+  {
+  private:
+    ZooKeeperProcess *zooKeeperProcess;
+    GetChildrenCall *getChildrenCall;
+
+  protected:
+    void operator () ()
+    {
+      if (call(zooKeeperProcess->getPID(),
+	       GET,
+	       reinterpret_cast<char *>(&getChildrenCall),
+	       sizeof(GetCall *)) != COMPLETED)
+	getChildrenCall->ret = ZSYSTEMERROR;
+    }
+
+  public:
+    GetChildrenCallProcess(ZooKeeperProcess *_zooKeeperProcess,
+			   GetChildrenCall *_getChidlrenCall)
+      : zooKeeperProcess(_zooKeeperProcess),
+	getChildrenCall(_getChidlrenCall)
+    {}
+  } getChildrenCallProcess(static_cast<ZooKeeperProcess *>(impl),
+		   &getChildrenCall);
+
+  Process::wait(Process::spawn(&getChildrenCallProcess));
+
+  return getChildrenCall.ret;
 }
 
 
