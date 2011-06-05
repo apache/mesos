@@ -30,7 +30,7 @@ fi
 echo "Running with master parameter: "$master_arg
 
 if [[ $NUM_ZOOS != 0 ]]; then
-  echo "Starting ZooKeeper on $ZOO"
+  echo "Starting ZooKeeper on $ZOOS"
   for zoo in $ZOOS; do
     ssh $SSH_OPTS $zoo "/root/mesos/third_party/zookeeper-*/bin/zkServer.sh start </dev/null >/dev/null"
   done
