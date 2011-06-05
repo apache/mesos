@@ -75,7 +75,9 @@ third_party:
 	$(MAKE) -C $(GLOG)
 	$(MAKE) -C $(GMOCK)
 	$(MAKE) -C $(LIBEV)
+ifneq (@top_srcdir@, @top_builddir@)
 	cp -r @srcdir@/$(RY_HTTP_PARSER) third_party
+endif
 	$(MAKE) -C $(RY_HTTP_PARSER) http_parser_g.o
 
 $(LIBPROCESS_TEST_OBJ): %.o: @srcdir@/%.cpp
