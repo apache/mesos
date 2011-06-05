@@ -987,6 +987,5 @@ public:
     }
 
     return os.str();
-
   }
 };
