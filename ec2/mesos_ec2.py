@@ -409,7 +409,7 @@ def main():
         (opts.identity_file, proxy_opt, master), shell=True)
 
   elif action == "get-master":
-    (master_res, slave_res,zoo_res) = get_existing_cluster(conn, opts, cluster_name)
+    (master_res, slave_res, zoo_res) = get_existing_cluster(conn, opts, cluster_name)
     print master_res.instances[0].public_dns_name
 
   elif action == "stop":
