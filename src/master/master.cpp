@@ -253,14 +253,14 @@ Promise<state::MasterState*> Master::getState()
     Resources resources(s->info.resources());
     Resource::Scalar cpus;
     Resource::Scalar mem;
-    cpus.set_value(-1);
-    mem.set_value(-1);
+    cpus.set_value(0);
+    mem.set_value(0);
     cpus = resources.getScalar("cpus", cpus);
     mem = resources.getScalar("mem", mem);
 
     state::Slave* slave =
       new state::Slave(s->slaveId.value(), s->info.hostname(),
-                       s->info.public_hostname(), cpus.value(),
+                       s->info.public_hostname() + , cpus.value(),
                        mem.value(), s->connectTime);
 
     state->slaves.push_back(slave);
@@ -270,8 +270,8 @@ Promise<state::MasterState*> Master::getState()
     Resources resources(f->resources);
     Resource::Scalar cpus;
     Resource::Scalar mem;
-    cpus.set_value(-1);
-    mem.set_value(-1);
+    cpus.set_value(0);
+    mem.set_value(0);
     cpus = resources.getScalar("cpus", cpus);
     mem = resources.getScalar("mem", mem);
 
@@ -286,8 +286,8 @@ Promise<state::MasterState*> Master::getState()
       Resources resources(t->resources());
       Resource::Scalar cpus;
       Resource::Scalar mem;
-      cpus.set_value(-1);
-      mem.set_value(-1);
+      cpus.set_value(0);
+      mem.set_value(0);
       cpus = resources.getScalar("cpus", cpus);
       mem = resources.getScalar("mem", mem);
 
@@ -308,8 +308,8 @@ Promise<state::MasterState*> Master::getState()
         Resources resources(r.resources);
         Resource::Scalar cpus;
         Resource::Scalar mem;
-        cpus.set_value(-1);
-        mem.set_value(-1);
+        cpus.set_value(0);
+        mem.set_value(0);
         cpus = resources.getScalar("cpus", cpus);
         mem = resources.getScalar("mem", mem);
 
