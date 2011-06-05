@@ -43,7 +43,7 @@ Configurator::Configurator()
   addOption<string>("conf",
                     "Specifies a config directory from which to\n"
                     "read Mesos config files. The Mesos binaries\n"
-                    "use <install location>src/conf by default");
+                    "use <install location>/conf by default");
 }
 
 
