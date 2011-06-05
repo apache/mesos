@@ -1,16 +1,22 @@
 #! /usr/bin/env bash
 
-./setup-mpi-conf $PBS_JOBID
-echo "done with setup mpi"
+echo "In Mother Superior prologue, PBS_NODEFILE is: "
+
+cat $PBS_NODEFILE
+
+touch /etc/mpd.conf
+chmod 600 /etc/mpd.conf
+echo "MPD_SECRETWORD=$1" | cat >> /etc/mpd.conf
+echo "finished setting up /etc/mpd.conf with value MPD_SECRETWORK=$1"
+
 #setup up mpd daemon on this node
 mpd --daemon
 #GET PORT NUMBERS HERE
 PORTNUM=`mpdtrace -l | cut -d"_" -f 2 | cut -d" " -f1`
 HOSTNAME=`mpdtrace -l | cut -d"_" -f 2 | cut -d"(" -f2 | cut -d")" -f1`
 
-echo "running setup-mpi-conf on all slaves"
-for i in `cat $PBS_NODEFILE`; do ssh $i cd ~/nexus-ec2 ;./setup-mpi-conf $PBS_JOBID ; done
-
 echo "running mpd daemon on all slave"
+for i in `cat $PBS_NODEFILE`; do ssh -o StrictHostKeyChecking=no $i cd /root/nexus-ec2; ./setup-mdi-conf $1; done
+#echo "running this command on slaves: ssh $i mpd --daemon -h $HOSTNAME -p $PORTNUM ; done"
 # set up mpi daemon on all slave nodes given to us by torque in $PBS_NODEFILE
-for i in `cat $PBS_NODEFILE`; do ssh $i mpd --daemon -h $HOSTNAME -p $PORTNUM ; done
+for i in `cat $PBS_NODEFILE`; do ssh -o StrictHostKeyChecking=no $i mpd --daemon -h $HOSTNAME -p $PORTNUM ; done
