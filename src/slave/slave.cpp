@@ -79,11 +79,11 @@ Slave::Slave(Resources _resources, bool _local,
     isolationModule(_isolationModule) {}
 
 
-Slave::Slave(const Params& _params, bool _local, IsolationModule *_module)
-  : id(""), params(_params), local(_local), isolationModule(_module)
+Slave::Slave(const Params& _conf, bool _local, IsolationModule *_module)
+  : id(""), conf(_conf), local(_local), isolationModule(_module)
 {
-  resources = Resources(params.get<int32_t>("cpus", DEFAULT_CPUS),
-                        params.get<int32_t>("mem", DEFAULT_MEM));
+  resources = Resources(conf.get<int32_t>("cpus", DEFAULT_CPUS),
+                        conf.get<int32_t>("mem", DEFAULT_MEM));
 }
 
 
@@ -546,10 +546,10 @@ void Slave::executorExited(FrameworkID fid, int status)
 string Slave::getUniqueWorkDirectory(FrameworkID fid)
 {
   string workDir;
-  if (params.contains("work_dir")) {
-    workDir = params["work_dir"];
-  } else if (params.contains("home")) {
-    workDir = params["home"] + "/work";
+  if (conf.contains("work_dir")) {
+    workDir = conf["work_dir"];
+  } else if (conf.contains("home")) {
+    workDir = conf["home"] + "/work";
   } else {
     workDir = "work";
   }
@@ -576,7 +576,7 @@ string Slave::getUniqueWorkDirectory(FrameworkID fid)
 }
 
 
-const Params& Slave::getParams()
+const Params& Slave::getConf()
 {
-  return params;
+  return conf;
 }

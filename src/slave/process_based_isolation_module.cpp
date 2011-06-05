@@ -114,11 +114,11 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
                               fw->user,
                               slave->getUniqueWorkDirectory(fw->id),
                               slave->self(),
-                              slave->getParams().get("frameworks_home", ""),
-                              slave->getParams().get("home", ""),
-                              slave->getParams().get("hadoop_home", ""),
+                              slave->getConf().get("frameworks_home", ""),
+                              slave->getConf().get("home", ""),
+                              slave->getConf().get("hadoop_home", ""),
                               !slave->local,
-                              slave->getParams().get("switch_user", true),
+                              slave->getConf().get("switch_user", true),
                               fw->executorInfo.params);
 }
 

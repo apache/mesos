@@ -166,7 +166,7 @@ struct Executor
 class Slave : public MesosProcess
 {
 public:
-  Params params;
+  Params conf;
 
   typedef unordered_map<FrameworkID, Framework*> FrameworkMap;
   typedef unordered_map<FrameworkID, Executor*> ExecutorMap;
@@ -185,7 +185,7 @@ public:
 public:
   Slave(Resources resources, bool local, IsolationModule* isolationModule);
 
-  Slave(const Params& params, bool local, IsolationModule *isolationModule);
+  Slave(const Params& conf, bool local, IsolationModule *isolationModule);
 
   virtual ~Slave();
 
@@ -201,7 +201,7 @@ public:
 
   string getUniqueWorkDirectory(FrameworkID fid);
 
-  const Params& getParams();
+  const Params& getConf();
 
 protected:
   void operator () ();

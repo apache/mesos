@@ -90,7 +90,7 @@ void LxcIsolationModule::startExecutor(Framework *fw)
             << fw->executorInfo.uri;
 
   // Get location of Mesos install in order to find mesos-launcher.
-  string mesosHome = slave->getParams().get("home", ".");
+  string mesosHome = slave->getConf().get("home", ".");
   string mesosLauncher = mesosHome + "/mesos-launcher";
 
   // Create a name for the container
@@ -122,12 +122,12 @@ void LxcIsolationModule::startExecutor(Framework *fw)
                                     fw->user,
                                     slave->getUniqueWorkDirectory(fw->id),
                                     slave->self(),
-                                    slave->getParams().get("frameworks_home",
+                                    slave->getConf().get("frameworks_home",
                                                            ""),
-                                    slave->getParams().get("home", ""),
-                                    slave->getParams().get("hadoop_home", ""),
+                                    slave->getConf().get("home", ""),
+                                    slave->getConf().get("hadoop_home", ""),
                                     !slave->local,
-                                    slave->getParams().get("switch_user", true),
+                                    slave->getConf().get("switch_user", true),
                                     fw->executorInfo.params);
     launcher->setupEnvironmentForLauncherMain();
     

@@ -125,7 +125,8 @@ string ExecutorLauncher::fetchExecutor()
       executor.find_first_of('\0') != string::npos) {
     fatal("Illegal characters in executor path");
   }
-// Grab the executor from HDFS if its path begins with hdfs:// // TODO: Enforce some size limits on files we get from HDFS
+  // Grab the executor from HDFS if its path begins with hdfs://
+  // TODO: Enforce some size limits on files we get from HDFS
   if (executor.find("hdfs://") == 0) {
     // Locate Hadoop's bin/hadoop script. If a Hadoop home was given to us by
     // the slave (from the Mesos config file), use that. Otherwise check for

@@ -30,7 +30,7 @@ public class TestFramework {
     public ExecutorInfo getExecutorInfo(SchedulerDriver d) {
       try {
         return new ExecutorInfo(
-            "java/test_executor",
+            new File("./test_executor").getCanonicalPath(),
             new byte[0]);
       } catch (Exception e) {
         e.printStackTrace();
