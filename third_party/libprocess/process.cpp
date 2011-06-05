@@ -49,6 +49,7 @@
 #include "fatal.hpp"
 #include "foreach.hpp"
 #include "gate.hpp"
+#include "gc.hpp"
 #include "synchronized.hpp"
 #include "tokenize.hpp"
 
@@ -260,44 +261,6 @@ private:
 };
 
 
-class GarbageCollector : public Process<GarbageCollector>
-{
-public:
-  GarbageCollector() {}
-  ~GarbageCollector() {}
-
-  template <typename T>
-  void manage(const T* t)
-  {
-    const ProcessBase* process = t;
-    if (process != NULL) {
-      processes[process->self()] = process;
-      link(process->self());
-    }
-  }
-
-protected:
-  virtual void operator () ()
-  {
-    while (true) {
-      serve();
-      if (name() == EXITED && processes.count(from()) > 0) {
-        const ProcessBase* process = processes[from()];
-        processes.erase(from());
-        delete process;
-      }
-    }
-  }
-
-private:
-  map<UPID, const ProcessBase*> processes;
-};
-
-
-/* Global garbage collector (move to own file). */
-static PID<GarbageCollector> gc;
-
-
 class HttpProxy;
 
 
@@ -387,7 +350,7 @@ public:
   bool deliver(int c, HttpRequest* request, ProcessBase *sender = NULL);
   bool deliver(const UPID& to, function<void(ProcessBase*)>* delegator, ProcessBase *sender = NULL);
 
-  UPID spawn(ProcessBase *process);
+  UPID spawn(ProcessBase *process, bool manage);
   void link(ProcessBase *process, const UPID &to);
   bool receive(ProcessBase *process, double secs);
   bool serve(ProcessBase *process, double secs);
@@ -520,6 +483,9 @@ static void *recyclable = NULL;
 */
 static Filter *filterer = NULL;
 static synchronizable(filterer) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
+
+/* Global garbage collector. */
+PID<GarbageCollector> gc;
 
 
 int set_nbio(int fd)
@@ -1275,9 +1241,6 @@ void HttpResponseWaiter::await(const Future<HttpResponse>& future, bool persist)
 
 HttpProxy::HttpProxy(int _c) : c(_c)
 {
-  // Get garbage collected!
-  dispatch(gc, &GarbageCollector::manage<HttpProxy>, this);
-
   // Create our waiter.
   waiter = new HttpResponseWaiter(self());
   spawn(waiter);
@@ -1422,7 +1385,7 @@ PID<HttpProxy> SocketManager::proxy(int s)
       CHECK(proxies.count(s) == 0);
 
       HttpProxy* proxy = new HttpProxy(s);
-      spawn(proxy);
+      spawn(proxy, true);
       proxies[s] = proxy;
       return proxy->self();
     }
@@ -1817,7 +1780,7 @@ bool ProcessManager::deliver(const UPID& to, function<void(ProcessBase*)>* deleg
 }
 
 
-UPID ProcessManager::spawn(ProcessBase *process)
+UPID ProcessManager::spawn(ProcessBase *process, bool manage)
 {
   assert(process != NULL);
 
@@ -1883,6 +1846,11 @@ UPID ProcessManager::spawn(ProcessBase *process)
 
   /* Add process to the run queue. */
   enqueue(process);
+
+  /* Use the garbage collector if requested. */
+  if (manage) {
+    dispatch(gc, &GarbageCollector::manage<ProcessBase>, process);
+  }
 
   return process->self();
 }
@@ -3036,7 +3004,7 @@ double ProcessBase::elapsed()
 }
 
 
-UPID ProcessBase::spawn(ProcessBase* process)
+UPID ProcessBase::spawn(ProcessBase* process, bool manage)
 {
   initialize();
 
@@ -3054,7 +3022,7 @@ UPID ProcessBase::spawn(ProcessBase* process)
       }
     }
 
-    return process_manager->spawn(process);
+    return process_manager->spawn(process, manage);
   } else {
     return UPID();
   }
@@ -3120,6 +3088,10 @@ bool wait(const UPID& pid, double secs)
 
   if (!pid) {
     return false;
+  }
+
+  if (secs == 0) {
+    return wait(pid);
   }
 
   bool waited = false;

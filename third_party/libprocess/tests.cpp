@@ -1,6 +1,7 @@
 #include <gmock/gmock.h>
 
 #include <process.hpp>
+#include <run.hpp>
 
 using process::Future;
 using process::PID;
@@ -187,6 +188,29 @@ TEST(libprocess, inheritance)
 
   process::post(pid1, process::TERMINATE);
   process::wait(pid1);
+}
+
+
+TEST(libprocess, thunk)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  struct Thunk
+  {
+    static int run(int i)
+    {
+      return i;
+    }
+
+    static int run(int i, int j)
+    {
+      return run(i + j);
+    }
+  };
+
+  int result = process::run(&Thunk::run, 21, 21);
+
+  EXPECT_EQ(42, result);
 }
 
 

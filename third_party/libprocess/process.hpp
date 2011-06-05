@@ -60,7 +60,7 @@ public:
 
   UPID self() const { return pid; }
 
-  static UPID spawn(ProcessBase* process);
+  static UPID spawn(ProcessBase* process, bool manage = false);
 
 protected:
   /* Function run when process spawned. */
@@ -218,11 +218,12 @@ void initialize(bool initialize_google_logging = true);
  * Spawn a new process.
  *
  * @param process process to be spawned
+ * @param manage boolean whether process should get garbage collected
  */
 template <typename T>
-PID<T> spawn(T* t)
+PID<T> spawn(T* t, bool manage = false)
 {
-  if (!ProcessBase::spawn(t)) {
+  if (!ProcessBase::spawn(t, manage)) {
     return PID<T>();
   }
 
