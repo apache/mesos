@@ -306,7 +306,7 @@ void Master::operator () ()
         break;
       }
 
-      bool rootSubmissions = conf.get<bool>("root_submissions", false);
+      bool rootSubmissions = conf.get<bool>("root_submissions", true);
       if (framework->user == "root" && rootSubmissions == false) {
         LOG(INFO) << framework << " registering as root, but "
                   << "root submissions are disabled on this cluster";
