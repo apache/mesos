@@ -114,6 +114,15 @@ JAVA = $(JAVA_CLASSES) $(JAVA_SCRIPTS)
 
 MESOS_JAVA_JAR = $(LIBDIR)/java/mesos.jar
 
+PYTHON_SCRIPTS = $(BINDIR)/examples/python/test_framework.py        \
+                 $(BINDIR)/examples/python/test_framework           \
+                 $(BINDIR)/examples/python/test_executor.py         \
+                 $(BINDIR)/examples/python/test_executor            \
+
+PYTHON = $(PYTHON_SCRIPTS)
+
+MESOS_PYTHON_LIB = $(LIBDIR)/python/_mesos.so
+
 # Create rules for building the directories that aren't created
 # automagically by configure.
 DIRECTORIES = $(BINDIR)/examples                \
@@ -165,7 +174,16 @@ ifdef JAVA_HOME
 	cp -r $< $@
 endif
 
-all: $(EXAMPLES_EXES) $(JAVA)
+$(PYTHON): | $(BINDIR)/examples/python
+
+$(PYTHON_SCRIPTS): $(MESOS_PYTHON_LIB)
+
+$(PYTHON_SCRIPTS): $(BINDIR)/examples/python/%: @srcdir@/python/%
+ifdef PYTHON_HEADERS
+	cp -r $< $@
+endif
+
+all: $(EXAMPLES_EXES) $(JAVA) $(PYTHON)
 
 clean:
 	rm -f $(patsubst %, %.d, $(EXAMPLES_EXES))
