@@ -10,7 +10,11 @@ MASTERS=/root/mesos-ec2/masters
 SLAVES=/root/mesos-ec2/slaves
 ZOO=/root/mesos-ec2/zoo
 
-ISFT=`cat $ZOO | wc -l`
+if [[ `cat $ZOO` == "*zoo*" ]]; then
+  ISFT=0
+else
+  ISFT=`cat $ZOO | wc -l`
+fi
 
 # Scripts that get used for/while running Mesos.
 SCRIPTS="copy-dir
