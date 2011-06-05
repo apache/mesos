@@ -21,6 +21,7 @@
 
 namespace process {
 
+const std::string NOTHING = "__process_nothing__";
 const std::string ERROR = "__process_error__";
 const std::string TIMEOUT = "__process_timeout__";
 const std::string EXITED = "__process_exited__";

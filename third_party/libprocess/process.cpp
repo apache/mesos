@@ -2739,12 +2739,15 @@ string ProcessBase::serve(double secs, bool once)
       delete request->first;
       delete request->second;
       delete request;
+      continue;
     } else if ((delegator = dequeue<function<void(ProcessBase*)> >()) != NULL) {
       (*delegator)(this);
       delete delegator;
+      continue;
     } else if ((current = dequeue<Message>()) != NULL) {
       if (message_handlers.count(name()) > 0) {
         message_handlers[name()]();
+	continue;
       } else {
         return name();
       }
@@ -2776,6 +2779,8 @@ string ProcessBase::serve(double secs, bool once)
     }
   } while (!once);
 
+  return NOTHING;
+
  timeout:
   assert(current == NULL);
   current = encode(UPID(), pid, TIMEOUT);
@@ -2795,12 +2800,10 @@ UPID ProcessBase::from() const
 
 const string& ProcessBase::name() const
 {
-  static const string EMPTY;
-
   if (current != NULL) {
     return current->name;
   } else {
-    return EMPTY;
+    return NOTHING;
   }
 }
 
