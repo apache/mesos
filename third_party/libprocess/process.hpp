@@ -156,7 +156,7 @@ protected:
   /* Sends a message with data to PID. */
   virtual void send(const PID &to, MSGID id, const char *data = NULL, size_t length = 0);
 
-  /* Blocks for message at most specified seconds. */
+  /* Blocks for message at most specified seconds (0 implies forever). */
   virtual MSGID receive(double secs = 0);
 
   /*  Processes dispatch messages. */
