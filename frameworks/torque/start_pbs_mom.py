@@ -8,6 +8,7 @@ import atexit
 from subprocess import *
 
 PBS_MOM_CONF_FILE = "/var/spool/torque/mom_priv/config"
+PBS_SERVER_FILE = "/var/spool/torque/server_name"
 
 def cleanup():
   try:
@@ -24,8 +25,8 @@ class MyExecutor(nexus.Executor):
 
   def init(self, driver, arg):
     print "in torque executor init"
-    print "initializing self.pbs_server_ip to " + str(arg.data)
-    self.pbs_server_ip = arg.data
+    print "initializing self.pbs_server_fqdn to " + str(arg.data)
+    self.pbs_server_fqdn = arg.data
 
   def launchTask(self, driver, task):
     print "Running task %d" % task.taskId
@@ -40,21 +41,30 @@ class MyExecutor(nexus.Executor):
       print "about to overwrite file " + PBS_MOM_CONF_FILE + " to update "#\
 #            + "pbs_server on this node"
 
-    print "adding line to conf file: $pbsserver " #+ self.pbs_server_ip + "\n"
-    FILE = open(PBS_MOM_CONF_FILE,'w')
-    FILE.write("$pbsserver " + self.pbs_server_ip + "\n")
-    FILE.write("$logevent 255 #bitmap of which events to log\n")
+    #overwrite $(TORQUECFG)/server_name file with fqdn of pbs_server
+    FILE = open(PBS_SERVER_FILE,'w')
+    FILE.write(self.pbs_server_fqdn)
+    FILE.close()
 
-    FILE.close()
+    #print "adding line to conf file: $pbsserver " + self.pbs_server_ip + "\n"
+    #FILE = open(PBS_MOM_CONF_FILE,'w')
+    #FILE.write("$pbsserver " + self.pbs_server_ip + "\n")
+    #FILE.write("$logevent 255 #bitmap of which events to log\n")
+
+    #FILE.close()
    
-    print "overwrote pbs_mom config file, its contents now are:"
-    FILE = open(PBS_MOM_CONF_FILE,'r')
-    for line in FILE: print line + "\n"
-    FILE.close()
+    #print "overwrote pbs_mom config file, its contents now are:"
+    #FILE = open(PBS_MOM_CONF_FILE,'r')
+    #for line in FILE: print line + "\n"
+    #FILE.close()
 
     #try killing pbs_mom in case we changed the config
-    if Popen("momctl -s",shell=True).wait() != 0:
-      print "tried to kill pbs_mom, but it was not running"
+    rval = Popen("momctl -s",shell=True).wait()
+    print "rval of momctl -s command was " + str(rval)
+    if rval != 0:
+      print "tried to kill pbs_mom, but momctl -s command failed, prob because no mom was running"
+    else:
+      time.sleep(1) #not sure if necessary, but wait a sec to be sure the mom lock file is deleted 
 
     #run pbs_mom
     print "running pbs_mom on compute node"

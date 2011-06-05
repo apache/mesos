@@ -1,3 +1,10 @@
+NOTE: this document is grossly out of date and probably not useful at all!
+
+Debugging notes:
+-----------------
+- Be *very* careful about naming in config files, I *think* that FQDNs will work if you use them for both pbs_mom and pbs_server but a node keeps showing up with status "down" when I add it without using the .eecs.berkeley.edu (this is on my own laptop as both slave and server)
+
+
 Nexus TORQUE framework readme
 --------------------------------------------
 This framework is a wrapper around the Torque cluster resource manager for the cluster which integrates with a cluster scheduler such as pbs_sched, maui, or moab.
