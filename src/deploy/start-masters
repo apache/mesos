@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+DEPLOY_DIR=`dirname "$0"`
+DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
+
+. $DEPLOY_DIR/mesos-env.sh
+
+cd $DEPLOY_DIR
+
+# Only pass the URL param to the master if we are using ZooKeeper,
+# because otherwise master_detector doesn't know what to do with it.
+URL_PARAM=""
+if [[ "$MESOS_URL" == zoo://* || "$MESOS_URL" == "zoofile://*" ]]; then
+  URL_PARAM="-u '$MESOS_URL'"
+fi
+
+# Launch masters
+for master in $MASTERS; do
+  echo "Starting master on $master"
+  echo ssh $SSH_OPTS $master "$DEPLOY_DIR/mesos-daemon mesos-master $URL_PARAM </dev/null >/dev/null" 
+  ssh $SSH_OPTS $master "$DEPLOY_DIR/mesos-daemon mesos-master $URL_PARAM </dev/null >/dev/null" &
+  sleep 0.1
+done
+wait

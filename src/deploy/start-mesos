@@ -4,7 +4,7 @@ DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
 
 . $DEPLOY_DIR/mesos-env.sh
 
-$DEPLOY_DIR/start-master
+$DEPLOY_DIR/start-masters
 
 $DEPLOY_DIR/start-slaves
 

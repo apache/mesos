@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+DEPLOY_DIR=`dirname "$0"`
+DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
+
+. $DEPLOY_DIR/mesos-env.sh
+
+cd $DEPLOY_DIR
+
+for master in $MASTERS; do
+  echo "Stopping master on $master"
+  ssh $SSH_OPTS $master "killall mesos-master" &
+  sleep 0.1
+done
+wait

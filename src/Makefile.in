@@ -207,10 +207,10 @@ CONF_FILES = $(CONFDIR)/mesos.conf
 DEPLOY_FILES = $(DEPLOYDIR)/deploy-to-slaves             \
 	       $(DEPLOYDIR)/mesos-daemon                 \
 	       $(DEPLOYDIR)/mesos-env.sh                 \
-	       $(DEPLOYDIR)/start-master                 \
+	       $(DEPLOYDIR)/start-masters                \
 	       $(DEPLOYDIR)/start-mesos                  \
 	       $(DEPLOYDIR)/start-slaves                 \
-	       $(DEPLOYDIR)/stop-master                  \
+	       $(DEPLOYDIR)/stop-masters                 \
 	       $(DEPLOYDIR)/stop-mesos                   \
 	       $(DEPLOYDIR)/stop-slaves                  \
 
