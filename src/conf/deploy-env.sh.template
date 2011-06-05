@@ -16,7 +16,6 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 # This works with older versions of hostname, but not on Mac OS X.
 #LIBPROCESS_IP="hostname -i" 
 
-# This works with newer versions of hostname.
-#FULL_IP="hostname --all-ip-addresses" 
-
+# This works with a newer version of hostname on Ubuntu.
+#FULL_IP="hostname --all-ip-addresses"
 #export LIBPROCESS_IP=`echo $FULL_IP | sed 's/\([^ ]*\) .*/\1/'`
