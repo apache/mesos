@@ -920,7 +920,8 @@ Promise<HttpResponse> SlavesManager::activate(const HttpRequest& request)
     return HttpNotFoundResponse();
   }
 
-  LOG(INFO) << "Asked to activate slave at " << hostname << ":" << port;
+  LOG(INFO) << "HTTP request to activate slave at "
+	    << hostname << ":" << port;
 
   if (activate(hostname, port)) {
     return HttpOKResponse();
@@ -966,7 +967,8 @@ Promise<HttpResponse> SlavesManager::deactivate(const HttpRequest& request)
     return HttpNotFoundResponse();
   }
 
-  LOG(INFO) << "Asked to deactivate slave at " << hostname << ":" << port;
+  LOG(INFO) << "HTTP request to deactivate slave at "
+	    << hostname << ":" << port;
 
   if (deactivate(hostname, port)) {
     return HttpOKResponse();
