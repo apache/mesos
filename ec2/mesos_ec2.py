@@ -47,7 +47,7 @@ def parse_args():
   parser.add_option("--resume", action="store_true", default=False,
       help="Resume installation on a previously launched cluster " +
            "(for debugging)")
-  parser.add_option("-f", "--ft", default="1", 
+  parser.add_option("-f", "--ft", metavar="NUM_MASTERS", default="1", 
       help="Number of masters to run. Default is 1. " + 
            "Greater values cause Mesos to run in FT mode with ZooKeeper.")
   (opts, args) = parser.parse_args()
