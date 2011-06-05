@@ -1,6 +1,8 @@
 #ifndef MESSAGES_HPP
 #define MESSAGES_HPP
 
+#include <stdint.h>
+
 #include <map>
 #include <string>
 #include <vector>

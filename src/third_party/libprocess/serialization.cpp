@@ -26,6 +26,19 @@ void serializer::operator & (const int64_t &i)
 }
 
 
+#ifdef __APPLE__
+void serializer::operator & (const intptr_t &i)
+{
+  if (sizeof(intptr_t) == sizeof(int32_t))
+    this->operator & ((int32_t &) i);
+  else if (sizeof(intptr_t) == sizeof(int64_t))
+    this->operator & ((int64_t &) i);
+  else
+    abort();
+}
+#endif
+
+
 void serializer::operator & (const double &d)
 {
   // TODO(*): Deal with endian issues?
@@ -77,6 +90,19 @@ void deserializer::operator & (int64_t &i)
   int64_t lo64 = ntohl(loInt);
   i = (hi64 << 32) | lo64;
 }
+
+
+#ifdef __APPLE__
+void deserializer::operator & (intptr_t &i)
+{
+  if (sizeof(intptr_t) == sizeof(int32_t))
+    this->operator & ((int32_t &) i);
+  else if (sizeof(intptr_t) == sizeof(int64_t))
+    this->operator & ((int64_t &) i);
+  else
+    abort();
+}
+#endif
 
 
 void deserializer::operator & (double &d)

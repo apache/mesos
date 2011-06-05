@@ -16,6 +16,9 @@ struct serializer
 
   void operator & (const int32_t &);
   void operator & (const int64_t &);
+#ifdef __APPLE__
+  void operator & (const intptr_t &);
+#endif
   void operator & (const double &);
   void operator & (const size_t &);
   void operator & (const std::string &);
@@ -30,6 +33,9 @@ struct deserializer
 
   void operator & (int32_t &);
   void operator & (int64_t &);
+#ifdef __APPLE__
+  void operator & (intptr_t &);
+#endif
   void operator & (double &);
   void operator & (size_t &);
   void operator & (std::string &);
