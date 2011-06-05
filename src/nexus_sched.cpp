@@ -26,7 +26,7 @@
 #include "messages.hpp"
 #include "nexus_local.hpp"
 #include "nexus_sched.hpp"
-#include "url_prcessor.hpp"
+#include "url_processor.hpp"
 #include "leader_detector.hpp"
 
 using std::cerr;
