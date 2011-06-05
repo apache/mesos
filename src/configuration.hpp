@@ -5,7 +5,6 @@
 #include <fstream>
 #include <string>
 #include <map>
-#include <boost/any.hpp>
 #include <glog/logging.h>
 #include "params.hpp"
 #include "foreach.hpp"
@@ -88,26 +87,30 @@ struct BadOptionValueException : std::exception
  **/
 struct Option {
   Option(string _helpString) : 
-    helpString(_helpString), defaultValue(""), validator(NULL) {} 
+    helpString(_helpString), hasDefault(false), validator(NULL) {} 
 
-
-  Option(string _helpString, string _defaultValue, 
-         const ValidatorBase& _validator) : 
-    helpString(_helpString), defaultValue(_defaultValue) 
+  Option(string _helpString,
+         const ValidatorBase& _validator,
+         string _defaultValue)
+    : helpString(_helpString), hasDefault(true), defaultValue(_defaultValue) 
   {
     validator = _validator.clone();
-  } 
+  }
 
+  Option(string _helpString, const ValidatorBase& _validator)
+    : helpString(_helpString), hasDefault(false)
+  {
+    validator = _validator.clone();
+  }
 
-  Option() : validator(NULL) {}
+  Option() : hasDefault(false), validator(NULL) {}
 
-
-  Option(const Option& opt) : 
-    helpString(opt.helpString), defaultValue(opt.defaultValue)
+  Option(const Option& opt)
+    : helpString(opt.helpString), hasDefault(opt.hasDefault),
+      defaultValue(opt.defaultValue)
   {
     validator = opt.validator == NULL ? NULL : opt.validator->clone();
   }
-
 
   Option &operator=(const Option& opt)
   {
@@ -117,14 +120,13 @@ struct Option {
     return *this;
   }
 
-
   ~Option() 
   { 
     if (validator != 0) delete validator; 
   }
 
-
   string helpString;
+  bool hasDefault;
   string defaultValue;
   ValidatorBase *validator;
 };
@@ -194,7 +196,7 @@ public:
       return -1;
     ostringstream os;
     os << defaultValue;
-    options[optName] = Option(helpString, os.str(), Validator<T>());
+    options[optName] = Option(helpString, Validator<T>(), os.str());
 
     if (!params.contains(optName))  // insert default value
       params[optName] = os.str();
@@ -202,23 +204,26 @@ public:
     return 0;
   }
 
-
+  
   /**
-   * Adds a registered option together with a help string
-   * It's recommended to use the other version of this method, 
-   * which takes a default value.
+   * Adds a registered option together with a help string.
    * @param optName name of the option, e.g. "home"
    * @param helpString description of the option, may contain line breaks
+   * @param defaultValue default value of the option. 
+   *        The default option is put in the internal params, 
+   *        unless the option already has a value in params.
+   *        Its type must support operator<<(ostream,...)
    * @return 0 on success, -1 if option already exists
    **/
-  int addOption(string optName, const string& helpString);
-
-  /**
-   * Returns the default string value associated with an option.
-   * @param optName name of the option, e.g. "home"
-   * @return default value associated with optName
-   **/
-  string getOptionDefault(string optName) const;
+  template <class T>
+  int addOption(string optName, const string& helpString) 
+  {
+    std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
+    if (options.find(optName) != options.end())
+      return -1;
+    options[optName] = Option(helpString, Validator<T>());
+    return 0;
+  }
 
 
   /**

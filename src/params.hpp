@@ -119,6 +119,16 @@ public:
   }
 
   template <typename T>
+  T get(const string& key, const T& defaultValue) const
+  {
+    map<string, string>::const_iterator it = params.find(key);
+    if (it != params.end())
+      return lexical_cast<T>(it->second);
+    else
+      return defaultValue;
+  }
+
+  template <typename T>
   void set(const string& key, T value)
   {
     params[key] = lexical_cast<string>(value);

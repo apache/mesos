@@ -5,9 +5,8 @@
 #include <algorithm>
 #include <iostream>
 
-#include <boost/foreach.hpp>
-
 #include "configuration.hpp"
+#include "foreach.hpp"
 #include "params.hpp"
 
 extern char** environ;   // libc's environment variable list; for some reason,
@@ -23,7 +22,7 @@ const char* Configuration::ENV_VAR_PREFIX = "MESOS_";
 
 void Configuration::validate()
 {
-  foreachpair(const string& key, const Option& opt, options) {
+  foreachpair (const string& key, const Option& opt, options) {
     if (params.contains(key) && opt.validator && !opt.validator->isValid(params[key])) {
       throw BadOptionValueException(params[key].c_str());
     }
@@ -184,20 +183,20 @@ string Configuration::getUsage() const
 {
   const int PAD = 10;
   const int PADEXTRA = string("--=VAL").size(); // adjust for "--" and "=VAL"
-  string usage = "Parameters:\n\n";
+  string usage = "";
   
   // get max key length
   int maxLen = 0;
-  foreachpair(const string& key, _, options) {
+  foreachpair (const string& key, _, options) {
     maxLen = key.size() > maxLen ? key.length() : maxLen;
   }
   maxLen += PADEXTRA; 
 
-  foreachpair(const string& key, const Option& val, options) {
+  foreachpair (const string& key, const Option& val, options) {
     string helpStr = val.helpString;
 
-    if (val.defaultValue != "") {  // add default value
-      helpStr += " (default VAL=" + val.defaultValue + ")";
+    if (val.hasDefault) {  // add default value
+      helpStr += " (default: " + val.defaultValue + ")";
     }
 
     usage += "--" + key + "=VAL";
@@ -220,29 +219,10 @@ string Configuration::getUsage() const
 }
   
 
-int Configuration::addOption(string optName, const string& helpString) 
-{
-  std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
-  if (options.find(optName) != options.end())
-    return -1;
-  options[optName] = Option(helpString);
-  return 0;
-}
-
-
-string Configuration::getOptionDefault(string optName) const
-{
-  std::transform(optName.begin(), optName.end(), optName.begin(), ::tolower);
-  if (options.find(optName) == options.end()) 
-    return "";
-  return options.find(optName)->second.defaultValue;
-}
-
-
 vector<string> Configuration::getOptions() const 
 {
   vector<string> ret;
-  foreachpair(const string& key, _, options) {
+  foreachpair (const string& key, _, options) {
     ret.push_back(key);
   }
   return ret;

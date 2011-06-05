@@ -21,6 +21,8 @@
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
+#include "configuration.hpp"
+#include "fatal.hpp"
 #include "foreach.hpp"
 #include "hash_pid.hpp"
 #include "master_state.hpp"
@@ -69,7 +71,7 @@ const int64_t MAX_MEM = 1024LL * 1024LL * 1024LL * 1024LL * 1024LL;
 const double HEARTBEAT_INTERVAL = 2;
 
 // Acceptable time since we saw the last heartbeat (four heartbeats).
-const double HEARTBEAT_TIMEOUT = 15;
+const double HEARTBEAT_TIMEOUT = HEARTBEAT_INTERVAL * 4;
 
 // Some forward declarations
 class Slave;
@@ -265,6 +267,8 @@ enum TaskRemovalReason
 class Master : public Tuple<ReliableProcess>
 {
 protected:
+  Params conf;
+
   unordered_map<FrameworkID, Framework *> frameworks;
   unordered_map<SlaveID, Slave *> slaves;
   unordered_map<OfferID, SlotOffer *> slotOffers;
@@ -283,9 +287,13 @@ protected:
                     // will be this master's ZooKeeper ephemeral id
 
 public:
-  Master(const string& _allocatorType = "simple");
+  Master();
+
+  Master(const Params& conf_);
   
   ~Master();
+
+  static void registerOptions(Configuration* conf);
 
   state::MasterState *getState();
   

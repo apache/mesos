@@ -6,6 +6,7 @@
 #include <map>
 #include <vector>
 
+#include "configuration.hpp"
 #include "foreach.hpp"
 #include "nexus_local.hpp"
 #include "process_based_isolation_module.hpp"
@@ -52,7 +53,8 @@ PID launch(int numSlaves, int32_t cpus, int64_t mem,
       google::SetStderrLogging(google::INFO);
   }
 
-  master = new Master();
+  Params conf;
+  master = new Master(conf);
 
   PID pid = Process::spawn(master);
 

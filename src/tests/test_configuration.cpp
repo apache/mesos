@@ -45,7 +45,7 @@ TEST(ConfigurationTest, DefaultOptions)
       conf.addOption<int>("test1", "Testing option", 500);
       conf.addOption<short>("test2", "Another tester", 0);
       conf.addOption<long>("test3", "Tests the default\noption.", 2010);
-      conf.addOption("test4", "Option without default\noption.");
+      conf.addOption<string>("test4", "Option without default\noption.");
       conf.addOption<string>("test5", "Option with a default string.", "arb");
       conf.load(ARGC, argv, false);
     } );

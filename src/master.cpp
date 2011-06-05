@@ -112,9 +112,19 @@ public:
 }
 
 
-Master::Master(const string& _allocatorType)
-  : nextFrameworkId(0), nextSlaveId(0), nextSlotOfferId(0),
-    allocatorType(_allocatorType), masterId(0) {}
+Master::Master()
+  : nextFrameworkId(0), nextSlaveId(0), nextSlotOfferId(0), masterId(0)
+{
+  allocatorType = "simple";
+}
+
+
+Master::Master(const Params& conf_)
+  : conf(conf_), nextFrameworkId(0), nextSlaveId(0), nextSlotOfferId(0),
+    masterId(0)
+{
+  allocatorType = conf.get("allocator", "simple");
+}
                    
 
 Master::~Master()
@@ -136,6 +146,12 @@ Master::~Master()
   foreachpair (_, SlotOffer *offer, slotOffers) {
     delete offer;
   }
+}
+
+
+void Master::registerOptions(Configuration* conf)
+{
+  conf->addOption<string>("allocator", "Allocation module to use", "simple");
 }
 
 
