@@ -1,5 +1,6 @@
 #include <getopt.h>
 
+#include "configurator.hpp"
 #include "isolation_module_factory.hpp"
 #include "slave.hpp"
 #include "slave_webui.hpp"
@@ -12,7 +13,7 @@ using namespace std;
 using namespace nexus::internal::slave;
 
 
-void usage(const char *programName, const Configuration& conf)
+void usage(const char *programName, const Configurator& conf)
 {
   cerr << "Usage: " << programName
        << " --url=MASTER_URL [--cpus=NUM] [--mem=NUM] [...]" << endl
@@ -28,7 +29,7 @@ void usage(const char *programName, const Configuration& conf)
 
 int main(int argc, char **argv)
 {
-  Configuration conf;
+  Configurator conf;
   conf.addOption<string>("url", 'u', "Master URL");
   conf.addOption<int>("port", 'p', "Port to listen on (default: random)");
   conf.addOption<bool>("quiet", 'q', "Disable logging to stderr", false);

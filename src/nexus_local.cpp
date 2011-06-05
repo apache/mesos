@@ -6,7 +6,7 @@
 #include <map>
 #include <vector>
 
-#include "configuration.hpp"
+#include "configurator.hpp"
 #include "foreach.hpp"
 #include "nexus_local.hpp"
 #include "process_based_isolation_module.hpp"

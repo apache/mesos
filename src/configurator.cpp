@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include "configuration.hpp"
+#include "configurator.hpp"
 #include "foreach.hpp"
 #include "params.hpp"
 
@@ -15,12 +15,12 @@ extern char** environ;   // libc's environment variable list; for some reason,
 using namespace nexus::internal;
 
 
-const char* Configuration::DEFAULT_CONFIG_DIR = "conf";
-const char* Configuration::CONFIG_FILE_NAME = "mesos.conf";
-const char* Configuration::ENV_VAR_PREFIX = "MESOS_";
+const char* Configurator::DEFAULT_CONFIG_DIR = "conf";
+const char* Configurator::CONFIG_FILE_NAME = "mesos.conf";
+const char* Configurator::ENV_VAR_PREFIX = "MESOS_";
 
 
-void Configuration::validate()
+void Configurator::validate()
 {
   foreachpair (const string& key, const Option& opt, options) {
     if (params.contains(key) && opt.validator && !opt.validator->isValid(params[key])) {
@@ -30,7 +30,7 @@ void Configuration::validate()
 }
 
 
-void Configuration::load(int argc, char** argv, bool inferMesosHomeFromArg0)
+void Configurator::load(int argc, char** argv, bool inferMesosHomeFromArg0)
 {
   loadEnv();
   loadCommandLine(argc, argv, inferMesosHomeFromArg0);
@@ -39,7 +39,7 @@ void Configuration::load(int argc, char** argv, bool inferMesosHomeFromArg0)
 }
 
 
-void Configuration::load()
+void Configurator::load()
 {
   loadEnv();
   loadConfigFileIfGiven();
@@ -47,7 +47,7 @@ void Configuration::load()
 }
 
 
-void Configuration::load(const map<string, string>& _params) 
+void Configurator::load(const map<string, string>& _params) 
 {
   loadEnv();
   params.loadMap(_params);
@@ -56,7 +56,7 @@ void Configuration::load(const map<string, string>& _params)
 }
 
 
-void Configuration::loadConfigFileIfGiven(bool overwrite) {
+void Configurator::loadConfigFileIfGiven(bool overwrite) {
   string confDir = "";
   if (params.contains("conf"))
     confDir = params["conf"];
@@ -67,7 +67,7 @@ void Configuration::loadConfigFileIfGiven(bool overwrite) {
 }
 
 
-void Configuration::loadEnv(bool overwrite)
+void Configurator::loadEnv(bool overwrite)
 {
   int i = 0;
   while (environ[i] != NULL) {
@@ -89,7 +89,7 @@ void Configuration::loadEnv(bool overwrite)
 }
 
 
-void Configuration::loadCommandLine(int argc,
+void Configurator::loadCommandLine(int argc,
                                     char** argv,
                                     bool inferMesosHomeFromArg0,
                                     bool overwrite)
@@ -143,7 +143,7 @@ void Configuration::loadCommandLine(int argc,
 }
 
 
-void Configuration::loadConfigFile(const string& fname, bool overwrite) 
+void Configurator::loadConfigFile(const string& fname, bool overwrite) 
 {
   ifstream cfg(fname.c_str(), std::ios::in);
   if (!cfg.is_open()) {
@@ -171,7 +171,7 @@ void Configuration::loadConfigFile(const string& fname, bool overwrite)
 }
 
 
-string Configuration::getUsage() const 
+string Configurator::getUsage() const 
 {
   const int PAD = 10;
   const int LONG_PAD = string("--=VAL").size(); 
@@ -224,7 +224,7 @@ string Configuration::getUsage() const
 }
   
 
-vector<string> Configuration::getOptions() const 
+vector<string> Configurator::getOptions() const 
 {
   vector<string> ret;
   foreachpair (const string& key, _, options) {
@@ -234,12 +234,12 @@ vector<string> Configuration::getOptions() const
 }
 
 
-Params& Configuration::getParams()
+Params& Configurator::getParams()
 {
   return params;
 }
 
-string Configuration::getLongName(char shortName) const
+string Configurator::getLongName(char shortName) const
 {
   foreachpair (const string& key, const Option& opt, options) {
     if (opt.hasShortName && opt.shortName == shortName)

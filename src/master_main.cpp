@@ -1,7 +1,7 @@
 #include <getopt.h>
 #include <libgen.h>
 
-#include "configuration.hpp"
+#include "configurator.hpp"
 #include "master.hpp"
 #include "master_webui.hpp"
 
@@ -13,7 +13,7 @@ using boost::bad_lexical_cast;
 using namespace nexus::internal::master;
 
 
-void usage(const char* progName, const Configuration& conf)
+void usage(const char* progName, const Configurator& conf)
 {
   cerr << "Usage: " << progName << " [--port=PORT] [--url=URL] [...]" << endl
        << endl
@@ -28,7 +28,7 @@ void usage(const char* progName, const Configuration& conf)
 
 int main(int argc, char **argv)
 {
-  Configuration conf;
+  Configurator conf;
   conf.addOption<string>("url", 'u', "URL used for leader election");
   conf.addOption<int>("port", 'p', "Port to listen on", 50010);
   conf.addOption<bool>("quiet", 'q', "Disable logging to stderr", false);

@@ -73,7 +73,7 @@ Slave::Slave(const Params& _conf, Resources _resources, bool _local,
     isolationModule(_isolationModule) {}
 
 
-void Slave::registerOptions(Configuration* conf)
+void Slave::registerOptions(Configurator* conf)
 {
 }
 

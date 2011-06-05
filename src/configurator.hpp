@@ -1,5 +1,5 @@
-#ifndef __CONFIGURATION_HPP__
-#define __CONFIGURATION_HPP__
+#ifndef __CONFIGURATOR_HPP__
+#define __CONFIGURATOR_HPP__
 
 #include <algorithm>
 #include <iostream>
@@ -24,7 +24,7 @@ using boost::bad_lexical_cast;
 
 
 /**
- * Exception type thrown by Configuration.
+ * Exception type thrown by Configurator.
  */
 struct ConfigurationException : std::exception
 {
@@ -46,7 +46,7 @@ struct ConfigurationException : std::exception
  * MESOS_CONF or via command line --conf=file. Otherwise, it looks for
  * "mesos.conf" in MESOS_HOME/conf.
  **/
-class Configuration 
+class Configurator 
 {
 public:
   static const char* DEFAULT_CONFIG_DIR;
@@ -62,11 +62,11 @@ public:
   /** 
    * Initializes an empty Params
    **/
-  Configuration() {}
+  Configurator() {}
 
 
   /**
-   * Returns the Params object parsed by this Configuration.
+   * Returns the Params object parsed by this Configurator.
    * @return Params populated params object
    **/
   Params& getParams();

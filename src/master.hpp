@@ -21,7 +21,7 @@
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
-#include "configuration.hpp"
+#include "configurator.hpp"
 #include "fatal.hpp"
 #include "foreach.hpp"
 #include "hash_pid.hpp"
@@ -293,7 +293,7 @@ public:
   
   ~Master();
 
-  static void registerOptions(Configuration* conf);
+  static void registerOptions(Configurator* conf);
 
   state::MasterState *getState();
   

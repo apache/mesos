@@ -4,7 +4,7 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include "configuration.hpp"
+#include "configurator.hpp"
 #include "testing_utils.hpp"
 
 using std::ofstream;
@@ -19,10 +19,10 @@ using namespace nexus::internal;
 using namespace nexus::internal::test;
 
 
-TEST(ConfigurationTest, Environment)
+TEST(ConfiguratorTest, Environment)
 {
   setenv("MESOS_TEST", "working", true);
-  Configuration conf;
+  Configurator conf;
   conf.load();
   unsetenv("MESOS_TEST");
 
@@ -30,7 +30,7 @@ TEST(ConfigurationTest, Environment)
 }
 
 
-TEST(ConfigurationTest, DefaultOptions)
+TEST(ConfiguratorTest, DefaultOptions)
 {
   const int ARGC = 4;
   char* argv[ARGC];
@@ -39,7 +39,7 @@ TEST(ConfigurationTest, DefaultOptions)
   argv[2] = (char*) "--test2";
   argv[3] = (char*) "--excp=txt";
 
-  Configuration conf;
+  Configurator conf;
 
   EXPECT_NO_THROW( {
       conf.addOption<int>("test1", "Testing option", 500);
@@ -64,7 +64,7 @@ TEST(ConfigurationTest, DefaultOptions)
 }
 
 
-TEST(ConfigurationTest, CommandLine)
+TEST(ConfiguratorTest, CommandLine)
 {
   const int ARGC = 8;
   char* argv[ARGC];
@@ -77,7 +77,7 @@ TEST(ConfigurationTest, CommandLine)
   argv[6] = (char*) "--cAsE=4";
   argv[7] = (char*) "--space=Long String";
 
-  Configuration conf;
+  Configurator conf;
   EXPECT_NO_THROW( {
       conf.addOption<int>("negative", 'N', "some val", -30);
       conf.addOption<string>("test1", "textual value", "text2");
@@ -95,7 +95,7 @@ TEST(ConfigurationTest, CommandLine)
 
 // Check whether specifying MESOS_HOME allows a config file to be loaded
 // from the default config directory (MESOS_HOME/conf)
-TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithMesosHome)
+TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithMesosHome)
 {
   if (mkdir("conf", 0755) != 0)
     FAIL() << "Failed to create directory conf";
@@ -106,7 +106,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithMesosHome)
   file.close();
 
   setenv("MESOS_HOME", ".", 1);
-  Configuration conf;
+  Configurator conf;
   EXPECT_NO_THROW( conf.load() );
   unsetenv("MESOS_HOME");
 
@@ -116,7 +116,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithMesosHome)
   
 
 // Check whether specifying just MESOS_CONF allows a config file to be loaded
-TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithConfDir)
+TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithConfDir)
 {
   if (mkdir("conf2", 0755) != 0)
     FAIL() << "Failed to create directory conf2";
@@ -126,7 +126,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithConfDir)
   file << "test4=milk\n";
   file.close();
   setenv("MESOS_CONF", "conf2", 1);
-  Configuration conf;
+  Configurator conf;
   EXPECT_NO_THROW( conf.load() );
   unsetenv("MESOS_CONF");
 
@@ -137,7 +137,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithConfDir)
 
 // Check that setting MESOS_CONF variable overrides the default location
 // of conf directory relative in MESOS_HOME/conf.
-TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithHomeAndDir)
+TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithHomeAndDir)
 {
   if (mkdir("conf2", 0755) != 0)
     FAIL() << "Failed to create directory conf2";
@@ -148,7 +148,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithHomeAndDir)
   file.close();
   setenv("MESOS_HOME", ".", 1);
   setenv("MESOS_CONF", "conf2", 1);
-  Configuration conf;
+  Configurator conf;
   EXPECT_NO_THROW( conf.load() );
   unsetenv("MESOS_CONF");
   unsetenv("MESOS_HOME");
@@ -160,7 +160,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithHomeAndDir)
 
 // Check that when we specify a conf directory on the command line,
 // we load values from the config file first and then the command line
-TEST_WITH_WORKDIR(ConfigurationTest, CommandLineConfFlag)
+TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
 {
   if (mkdir("conf2", 0755) != 0)
     FAIL() << "Failed to create directory conf2";
@@ -177,7 +177,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, CommandLineConfFlag)
   argv[2] = (char*) "--b=overridden";
   argv[3] = (char*) "--d=fromCmdLine";
 
-  Configuration conf;
+  Configurator conf;
   EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
 
   EXPECT_EQ("1",           conf.getParams()["a"]);
@@ -191,7 +191,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, CommandLineConfFlag)
 // environment variable, a config file element , and a config flag
 // are all present. Command line flags should have the highest priority,
 // second should be environment variables, and last should be the file.
-TEST_WITH_WORKDIR(ConfigurationTest, LoadingPriorities)
+TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
 {
   // Create a file which contains parameters a, b, c and d
   if (mkdir("conf", 0755) != 0)
@@ -215,7 +215,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, LoadingPriorities)
   argv[1] = (char*) "--a=fromCmdLine";
   argv[2] = (char*) "--c=fromCmdLine";
 
-  Configuration conf;
+  Configurator conf;
   EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
 
   // Clear the environment vars set above

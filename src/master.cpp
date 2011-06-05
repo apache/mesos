@@ -149,7 +149,7 @@ Master::~Master()
 }
 
 
-void Master::registerOptions(Configuration* conf)
+void Master::registerOptions(Configurator* conf)
 {
   conf->addOption<string>("allocator", 'a', "Allocation module name", "simple");
 }

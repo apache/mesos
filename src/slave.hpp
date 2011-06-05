@@ -28,7 +28,7 @@
 
 #include <reliable.hpp>
 
-#include "configuration.hpp"
+#include "configurator.hpp"
 #include "fatal.hpp"
 #include "foreach.hpp"
 #include "isolation_module.hpp"
@@ -185,7 +185,7 @@ public:
 
   virtual ~Slave();
 
-  static void registerOptions(Configuration* conf);
+  static void registerOptions(Configurator* conf);
 
   state::SlaveState *getState();
 
