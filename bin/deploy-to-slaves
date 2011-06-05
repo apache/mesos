@@ -1,0 +1,17 @@
+#! /usr/bin/env bash
+
+bin=`dirname "$0"`
+bin=`cd "$bin"; pwd`
+
+. $bin/mesos_env.sh
+
+echo "RSYNC'ing $mesos_ROOT to slaves..."
+for slave in $SLAVES; do
+  echo $slave
+  echo ssh $SSH_OPTS $slave "mkdir -p $mesos_ROOT"
+  ssh $SSH_OPTS $slave "mkdir -p $mesos_ROOT"
+  echo rsync -avz $mesos_ROOT/ $slave:$mesos_ROOT 
+  rsync -avz $mesos_ROOT/ $slave:$mesos_ROOT &
+  sleep 0.1
+  #scp ~/.ssh/id_rsa $slave:.ssh
+done
