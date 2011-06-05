@@ -20,14 +20,14 @@ from socket import gethostname
 
 PBS_SERVER_FILE = "/var/spool/torque/server_name"
 EVENT_LOG_FILE = "log_fw_utilization.txt"
-LOG_FILE = "scheduler_log.txt"
+LOG_FILE = "log.txt"
 
 SCHEDULER_ITERATION = 2 #number of seconds torque waits before looping through
                         #the queue to try to match resources to jobs. default
                         #is 10min (ie 600) but we want it to be low so jobs 
                         #will run as soon as the framework has acquired enough
                         #resources
-SAFE_ALLOCATION = {"cpus":10,"mem":134217728} #just set statically for now, 128MB
+SAFE_ALLOCATION = {"cpus":48,"mem":134217728} #just set statically for now, 128MB
 MIN_SLOT_SIZE = {"cpus":"1","mem":1073741824} #1GB
 
 eventlog = logging.getLogger("event_logger")
@@ -36,11 +36,18 @@ fh = logging.FileHandler(EVENT_LOG_FILE,'w') #create handler
 fh.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
 eventlog.addHandler(fh)
 
+ch = logging.StreamHandler()
+fh = logging.FileHandler(LOG_FILE,"w")
+
 driverlog = logging.getLogger("driver_logger")
-driverlog.setLevel(logging.INFO)
+driverlog.setLevel(logging.DEBUG)
+driverlog.addHandler(fh)
+driverlog.addHandler(ch)
 
 monitorlog = logging.getLogger("monitor_logger")
-monitorlog.setLevel(logging.INFO)
+monitorlog.setLevel(logging.DEBUG)
+monitorlog.addHandler(fh)
+monitorlog.addHandler(ch)
 
 class MyScheduler(nexus.Scheduler):
   def __init__(self, ip):
@@ -127,7 +134,7 @@ class MyScheduler(nexus.Scheduler):
     monitorlog.debug("unregNNodes called with arg %d" % numNodes)
     if numNodes > len(self.servers)-1:
       monitorlog.debug("... however, only unregistering %d nodes, leaving one alive" % (len(self.servers)-1))
-    toKill = (len(self.servers)-1)
+    toKill = min(numNodes,len(self.servers)-1))
     
     monitorlog.debug("getting and filtering list of nodes using torquelib")
     noJobs = lambda x: x.state != "job-exclusive"

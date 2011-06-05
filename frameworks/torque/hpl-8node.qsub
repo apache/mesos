@@ -1,0 +1,6 @@
+#! /usr/bin/env sh 
+#PBS -l nodes=8
+#PBS -N 8_node_hpl_job
+
+cd /nfs/hpl/8node/ 
+nmpiexec -n 8 /nfs/hpl/8node/xhpl
