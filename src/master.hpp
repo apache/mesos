@@ -21,6 +21,7 @@
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
+#include "fatal.hpp"
 #include "foreach.hpp"
 #include "hash_pid.hpp"
 #include "master_state.hpp"

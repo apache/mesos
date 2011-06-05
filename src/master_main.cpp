@@ -2,7 +2,8 @@
 
 #include "master.hpp"
 #include "master_webui.hpp"
-#include "url_processor.hpp"
+#include "zookeeper_master.hpp"
+
 
 using std::cerr;
 using std::endl;
@@ -12,9 +13,10 @@ using namespace nexus::internal::master;
 void usage(const char* programName)
 {
   cerr << "Usage: " << programName
-       << " [--port PORT] [--allocator ALLOCATOR] [--fault-tolerant ZOO_SERVERS] [--quiet]"
-       << endl
-       << "ZOO_SERVERS is a url of the form zoo://<zoosrv1>,<zoosrv2>..., or zoofile://listfile"
+       << " [--port PORT]"
+       << " [--allocator ALLOCATOR]"
+       << " [--zookeeper host:port]"
+       << " [--quiet]"
        << endl;
 }
 
@@ -29,18 +31,17 @@ int main (int argc, char **argv)
   option options[] = {
     {"allocator", required_argument, 0, 'a'},
     {"port", required_argument, 0, 'p'},
-    {"fault-tolerant", required_argument, 0, 'f'},
+    {"zookeeper", required_argument, 0, 'z'},
     {"quiet", no_argument, 0, 'q'},
   };
 
-  bool isFT = false;
-  string zooarg = "";
   bool quiet = false;
   string allocator = "simple";
+  string zookeeper;
 
   int opt;
   int index;
-  while ((opt = getopt_long(argc, argv, "a:p:f:q", options, &index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "a:p:z:q", options, &index)) != -1) {
     switch (opt) {
       case 'a':
         allocator = optarg;
@@ -48,10 +49,9 @@ int main (int argc, char **argv)
       case 'p':
         setenv("LIBPROCESS_PORT", optarg, 1);
         break;
-      case 'f':
-        isFT = true;
-	zooarg = optarg;
-        break;
+      case 'z':
+        zookeeper = optarg;
+	break;
       case 'q':
         quiet = true;
         break;
@@ -67,21 +67,21 @@ int main (int argc, char **argv)
   if (!quiet)
     google::SetStderrLogging(google::INFO);
   
-  FLAGS_log_dir = "/tmp";
   FLAGS_logbufsecs = 1;
   google::InitGoogleLogging(argv[0]);
 
   LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
   LOG(INFO) << "Starting Nexus master";
-  if (isFT)
-    LOG(INFO) << "Nexus in fault-tolerant mode";
-  PID master = Process::spawn(new Master(allocator, zooarg));
+  Master* master = new Master(allocator);
+  PID pid = Process::spawn(master);
 
-#undef NEXUS_WEBUI
+  if (!zookeeper.empty())
+    Process::spawn(new ZooKeeperProcessForMaster(pid, zookeeper));
+
 #ifdef NEXUS_WEBUI
-  startMasterWebUI(master);
+  startMasterWebUI(pid);
 #endif
   
-  Process::wait(master);
+  Process::wait(pid);
   return 0;
 }
