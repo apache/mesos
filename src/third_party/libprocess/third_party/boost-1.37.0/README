@@ -1,5 +1,5 @@
 To determine what Boost header files were both implicitly+explicitly
-necessary I added all explict Boost header files to 'boost.cpp' (in
+necessary, we added all explict Boost header files to 'boost.cpp' (in
 this directory) and then executed (assuming Boost is on the path):
 
 g++ -E boost.cpp | grep "/boost/" | awk '{print $3}' | sort | uniq
