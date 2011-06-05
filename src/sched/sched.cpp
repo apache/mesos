@@ -77,10 +77,10 @@ protected:
                   << taskId << " after "
                   << STATUS_UPDATE_TIMEOUT << ", assuming task was lost";
           Message<M2F_STATUS_UPDATE> out;
-          *out.mutable_framework_id() = frameworkId;
+          out.mutable_framework_id()->MergeFrom(frameworkId);
           TaskStatus* status = out.mutable_status();
-          *status->mutable_task_id() = taskId;
-          *status->mutable_slave_id() = slaveId;
+          status->mutable_task_id()->MergeFrom(taskId);
+          status->mutable_slave_id()->MergeFrom(slaveId);
           status->set_state(TASK_LOST);
           send(sched, out);
           break;
@@ -165,13 +165,13 @@ protected:
         if (frameworkId == "") {
           // Touched for the very first time.
           Message<F2M_REGISTER_FRAMEWORK> out;
-          *out.mutable_framework() = framework;
+          out.mutable_framework()->MergeFrom(framework);
           send(master, out);
         } else {
           // Not the first time, or failing over.
           Message<F2M_REREGISTER_FRAMEWORK> out;
-          *out.mutable_framework() = framework;
-          *out.mutable_framework_id() = frameworkId;
+          out.mutable_framework()->MergeFrom(framework);
+          out.mutable_framework_id()->MergeFrom(frameworkId);
           out.set_generation(generation++);
           send(master, out);
         }
@@ -314,7 +314,7 @@ protected:
       return;
 
     Message<F2M_UNREGISTER_FRAMEWORK> out;
-    *out.mutable_framework_id() = frameworkId;
+    out.mutable_framework_id()->MergeFrom(frameworkId);
     send(master, out);
   }
 
@@ -324,8 +324,8 @@ protected:
       return;
 
     Message<F2M_KILL_TASK> out;
-    *out.mutable_framework_id() = frameworkId;
-    *out.mutable_task_id() = taskId;
+    out.mutable_framework_id()->MergeFrom(frameworkId);
+    out.mutable_task_id()->MergeFrom(taskId);
     send(master, out);
   }
 
@@ -337,8 +337,8 @@ protected:
       return;
 
     Message<F2M_RESOURCE_OFFER_REPLY> out;
-    *out.mutable_framework_id() = frameworkId;
-    *out.mutable_offer_id() = offerId;
+    out.mutable_framework_id()->MergeFrom(frameworkId);
+    out.mutable_offer_id()->MergeFrom(offerId);
 
     foreachpair (const string& key, const string& value, params) {
       Param* param = out.mutable_params()->add_param();
@@ -356,8 +356,7 @@ protected:
       timers[task.task_id()] = timer;
       spawn(timer);
 
-      // Copy the task over.
-      *(out.add_task()) = task;
+      out.add_task()->MergeFrom(task);
     }
 
     // Remove the offer since we saved all the PIDs we might use.
@@ -372,7 +371,7 @@ protected:
       return;
 
     Message<F2M_REVIVE_OFFERS> out;
-    *out.mutable_framework_id() = frameworkId;
+    out.mutable_framework_id()->MergeFrom(frameworkId);
     send(master, out);
   }
 
@@ -396,16 +395,16 @@ protected:
 
       // TODO(benh): This is kind of wierd, M2S?
       Message<M2S_FRAMEWORK_MESSAGE> out;
-      *out.mutable_framework_id() = frameworkId;
-      *out.mutable_message() = message;
+      out.mutable_framework_id()->MergeFrom(frameworkId);
+      out.mutable_message()->MergeFrom(message);
       send(slave, out);
     } else {
       VLOG(1) << "Cannot send directly to slave " << message.slave_id()
 	      << "; sending through master";
 
       Message<F2M_FRAMEWORK_MESSAGE> out;
-      *out.mutable_framework_id() = frameworkId;
-      *out.mutable_message() = message;
+      out.mutable_framework_id()->MergeFrom(frameworkId);
+      out.mutable_message()->MergeFrom(message);
       send(master, out);
     }
   }
@@ -592,7 +591,7 @@ int MesosSchedulerDriver::start()
   FrameworkInfo framework;
   framework.set_user(passwd->pw_name);
   framework.set_name(sched->getFrameworkName(this));
-  *framework.mutable_executor() = sched->getExecutorInfo(this);
+  framework.mutable_executor()->MergeFrom(sched->getExecutorInfo(this));
 
   // Something invoked stop while we were in the scheduler, bail.
   if (!running)

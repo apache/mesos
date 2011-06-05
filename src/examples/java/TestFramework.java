@@ -61,13 +61,21 @@ public class TestFramework {
             .setName("task " + taskId.getValue())
             .setTaskId(taskId)
             .setSlaveId(offer.getSlaveId())
-            .setParams(Params.newBuilder()
-                       .addParam(Param.newBuilder()
-                                 .setKey("cpus")
-                                 .setValue("1").build())
-                       .addParam(Param.newBuilder()
-                                 .setKey("mem")
-                                 .setValue("128").build()).build()).build();
+            .addResources(Resource.newBuilder()
+                          .setName("cpus")
+                          .setType(Resource.Type.SCALAR)
+                          .setScalar(Resource.Scalar.newBuilder()
+                                     .setValue(1)
+                                     .build())
+                          .build())
+            .addResources(Resource.newBuilder()
+                          .setName("mem")
+                          .setType(Resource.Type.SCALAR)
+                          .setScalar(Resource.Scalar.newBuilder()
+                                     .setValue(128)
+                                     .build())
+                          .build())
+            .build();
 
           tasks.add(task);
         }

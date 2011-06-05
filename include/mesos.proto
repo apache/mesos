@@ -43,42 +43,37 @@ message Params {
 // }
 
 
-message Resources {
-  required int32 cpus = 1;
-  required int32 mem = 2;
-}
-
 // TODO(benh): Add better support for resources.
-// message Resource {
-//   enum Type {
-//     SCALAR = 0;
-//     RANGES = 1;
-//     SET = 2;
-//   }
+message Resource {
+  enum Type {
+    SCALAR = 0;
+    RANGES = 1;
+    SET = 2;
+  }
 
-//   message Scalar {
-//     required double value = 1;
-//   }
+  message Scalar {
+    required double value = 1;
+  }
 
-//   message Range {
-//     required int64 begin = 1;
-//     required int64 end = 2;
-//   }
+  message Range {
+    required uint64 begin = 1;
+    required uint64 end = 2;
+  }
 
-//   message Ranges {
-//     repeated Range range = 1;
-//   }
+  message Ranges {
+    repeated Range range = 1;
+  }
 
-//   message Set {
-//     repeated string item = 1; 
-//   }
+  message Set {
+    repeated string item = 1; 
+  }
 
-//   required string name = 1;
-//   required Type type = 2;
-//   optional Scalar scalar = 3;
-//   optional Ranges ranges = 4;
-//   optional Set set = 5;
-// }
+  required string name = 1;
+  required Type type = 2;
+  optional Scalar scalar = 3;
+  optional Ranges ranges = 4;
+  optional Set set = 5;
+}
 
 
 message ExecutorArgs {
@@ -102,7 +97,7 @@ message TaskDescription {
   required string name = 1;
   required TaskID task_id = 2;
   required SlaveID slave_id = 3;
-  required Params params = 4; // TODO(benh): This will be replaced by Resources.
+  repeated Resource resources = 4;
   optional bytes data = 5;
 }
 
@@ -142,7 +137,7 @@ message FrameworkInfo {
 message SlaveInfo {
   required string hostname = 1;
   required string public_hostname = 2;
-  required Resources resources = 3;
+  repeated Resource resources = 3;
 //   repeated Attribute attribute = ;
 }
 
@@ -156,11 +151,5 @@ message FrameworkMessage {
 message SlaveOffer {
   required SlaveID slave_id = 1;
   required string hostname = 2;
-  required Params params = 3;
+  repeated Resource resources = 3;
 }
-
-
-// message ResourceOffer {
-//   required SlaveInfo slave = 1;
-//   repeated Resource resource = 2;
-// }

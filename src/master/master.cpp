@@ -171,37 +171,76 @@ state::MasterState * Master::getState()
     new state::MasterState(BUILD_DATE, BUILD_USER, self());
 
   foreachpair (_, Slave *s, slaves) {
+    Resources resources(s->info.resources());
+    Resource::Scalar cpus;
+    Resource::Scalar mem;
+    cpus.set_value(-1);
+    mem.set_value(-1);
+    cpus = resources.getScalar("cpus", cpus);
+    mem = resources.getScalar("mem", mem);
+
     state::Slave *slave =
       new state::Slave(s->slaveId.value(), s->info.hostname(),
-                       s->info.public_hostname(), s->info.resources().cpus(),
-                       s->info.resources().mem(), s->connectTime);
+                       s->info.public_hostname(), cpus.value(),
+                       mem.value(), s->connectTime);
+
     state->slaves.push_back(slave);
   }
 
   foreachpair (_, Framework *f, frameworks) {
+    Resources resources(f->resources);
+    Resource::Scalar cpus;
+    Resource::Scalar mem;
+    cpus.set_value(-1);
+    mem.set_value(-1);
+    cpus = resources.getScalar("cpus", cpus);
+    mem = resources.getScalar("mem", mem);
+
     state::Framework *framework =
       new state::Framework(f->frameworkId.value(), f->info.user(),
                            f->info.name(), f->info.executor().uri(),
-                           f->resources.cpus(), f->resources.mem(),
-                           f->connectTime);
+                           cpus.value(), mem.value(), f->connectTime);
+
     state->frameworks.push_back(framework);
+
     foreachpair (_, Task *t, f->tasks) {
+      Resources resources(t->resources());
+      Resource::Scalar cpus;
+      Resource::Scalar mem;
+      cpus.set_value(-1);
+      mem.set_value(-1);
+      cpus = resources.getScalar("cpus", cpus);
+      mem = resources.getScalar("mem", mem);
+
       state::Task *task =
         new state::Task(t->task_id().value(), t->name(),
                         t->framework_id().value(), t->slave_id().value(),
                         TaskState_descriptor()->FindValueByNumber(t->state())->name(),
-                        t->resources().cpus(), t->resources().mem());
+                        cpus.value(), mem.value());
+
       framework->tasks.push_back(task);
     }
+
     foreach (SlotOffer *o, f->slotOffers) {
       state::SlotOffer *offer =
         new state::SlotOffer(o->offerId.value(), o->frameworkId.value());
-      foreach (SlaveResources &r, o->resources) {
-        state::SlaveResources *resources =
+
+      foreach (const SlaveResources &r, o->resources) {
+        Resources resources(r.resources);
+        Resource::Scalar cpus;
+        Resource::Scalar mem;
+        cpus.set_value(-1);
+        mem.set_value(-1);
+        cpus = resources.getScalar("cpus", cpus);
+        mem = resources.getScalar("mem", mem);
+
+        state::SlaveResources *sr =
           new state::SlaveResources(r.slave->slaveId.value(),
-                                    r.resources.cpus(), r.resources.mem());
-        offer->resources.push_back(resources);
+                                    cpus.value(), mem.value());
+
+        offer->resources.push_back(sr);
       }
+
       framework->offers.push_back(offer);
     }
   }
@@ -445,7 +484,7 @@ void Master::operator () ()
       // potential scalability issue ...
       foreachpair (_, Slave *slave, slaves) {
         Message<M2S_UPDATE_FRAMEWORK> out;
-        *out.mutable_framework_id() = msg.framework_id();
+        out.mutable_framework_id()->MergeFrom(msg.framework_id());
         out.set_pid(from());
         send(slave->pid, out);
       }
@@ -488,10 +527,10 @@ void Master::operator () ()
           // the slave was lost; immediately report any tasks in it as lost
           foreach (const TaskDescription &task, tasks) {
             Message<M2F_STATUS_UPDATE> out;
-            *out.mutable_framework_id() = msg.framework_id();
+            out.mutable_framework_id()->MergeFrom(msg.framework_id());
             TaskStatus *status = out.mutable_status();
-            *status->mutable_task_id() = task.task_id();
-            *status->mutable_slave_id() = task.slave_id();
+            status->mutable_task_id()->MergeFrom(task.task_id());
+            status->mutable_slave_id()->MergeFrom(task.slave_id());
             status->set_state(TASK_LOST);
             send(framework->pid, out);
           }
@@ -528,10 +567,10 @@ void Master::operator () ()
 		     << " of framework " << msg.framework_id()
 		     << " because it cannot be found";
           Message<M2F_STATUS_UPDATE> out;
-          *out.mutable_framework_id() = task->framework_id();
+          out.mutable_framework_id()->MergeFrom(task->framework_id());
           TaskStatus *status = out.mutable_status();
-          *status->mutable_task_id() = task->task_id();
-          *status->mutable_slave_id() = task->slave_id();
+          status->mutable_task_id()->MergeFrom(task->task_id());
+          status->mutable_slave_id()->MergeFrom(task->slave_id());
           status->set_state(TASK_LOST);
           send(framework->pid, out);
         }
@@ -547,8 +586,8 @@ void Master::operator () ()
         Slave *slave = lookupSlave(msg.message().slave_id());
         if (slave != NULL) {
           Message<M2S_FRAMEWORK_MESSAGE> out;
-          *out.mutable_framework_id() = msg.framework_id();
-          *out.mutable_message() = msg.message();
+          out.mutable_framework_id()->MergeFrom(msg.framework_id());
+          out.mutable_message()->MergeFrom(msg.message());
           send(slave->pid, out);
         }
       }
@@ -560,7 +599,8 @@ void Master::operator () ()
 
       Slave* slave = new Slave(msg.slave(), newSlaveId(), from(), elapsed());
 
-      LOG(INFO) << "Registering " << slave->slaveId << " at " << slave->pid;
+      LOG(INFO) << "Registering slave " << slave->slaveId
+                << " at " << slave->pid;
 
       slaves[slave->slaveId] = slave;
       pidToSlaveId[slave->pid] = slave->slaveId;
@@ -569,7 +609,7 @@ void Master::operator () ()
       allocator->slaveAdded(slave);
 
       Message<M2S_REGISTER_REPLY> out;
-      *out.mutable_slave_id() = slave->slaveId;
+      out.mutable_slave_id()->MergeFrom(slave->slaveId);
       out.set_heartbeat_interval(HEARTBEAT_INTERVAL);
       send(slave->pid, out);
       break;
@@ -604,7 +644,7 @@ void Master::operator () ()
       link(slave->pid);
 
       Message<M2S_REREGISTER_REPLY> out;
-      *out.mutable_slave_id() = slave->slaveId;
+      out.mutable_slave_id()->MergeFrom(slave->slaveId);
       out.set_heartbeat_interval(HEARTBEAT_INTERVAL);
       send(slave->pid, out);
 
@@ -617,7 +657,7 @@ void Master::operator () ()
         if (framework != NULL) {
           framework->addTask(task);
           Message<M2S_UPDATE_FRAMEWORK> out;
-          *out.mutable_framework_id() = framework->frameworkId;
+          out.mutable_framework_id()->MergeFrom(framework->frameworkId);
           out.set_pid(framework->pid);
           send(slave->pid, out);
         }
@@ -658,8 +698,8 @@ void Master::operator () ()
         if (framework != NULL) {
 	  // Pass on the (transformed) status update to the framework.
           Message<M2F_STATUS_UPDATE> out;
-          *out.mutable_framework_id() = msg.framework_id();
-          *out.mutable_status() = status;
+          out.mutable_framework_id()->MergeFrom(msg.framework_id());
+          out.mutable_status()->MergeFrom(status);
           forward(framework->pid, out);
 
           // No need to reprocess this message if already seen.
@@ -703,8 +743,8 @@ void Master::operator () ()
         Framework *framework = lookupFramework(msg.framework_id());
         if (framework != NULL) {
           Message<M2S_FRAMEWORK_MESSAGE> out;
-          *out.mutable_framework_id() = msg.framework_id();
-          *out.mutable_message() = msg.message();
+          out.mutable_framework_id()->MergeFrom(msg.framework_id());
+          out.mutable_message()->MergeFrom(msg.message());
           send(framework->pid, out);
         }
       }
@@ -731,10 +771,10 @@ void Master::operator () ()
           // Tell the framework they have been lost and remove them.
           foreach (Task* task, tasks) {
             Message<M2F_STATUS_UPDATE> out;
-            *out.mutable_framework_id() = task->framework_id();
+            out.mutable_framework_id()->MergeFrom(task->framework_id());
             TaskStatus *status = out.mutable_status();
-            *status->mutable_task_id() = task->task_id();
-            *status->mutable_slave_id() = task->slave_id();
+            status->mutable_task_id()->MergeFrom(task->task_id());
+            status->mutable_slave_id()->MergeFrom(task->slave_id());
             status->set_state(TASK_LOST);
             send(framework->pid, out);
 
@@ -807,6 +847,12 @@ void Master::operator () ()
 	  // Stop sending offers here for now.
 	  framework->active = false;
 
+          // Remove the framework's slot offers.
+          unordered_set<SlotOffer *> slotOffersCopy = framework->slotOffers;
+          foreach (SlotOffer* offer, slotOffersCopy) {
+            removeSlotOffer(offer, ORR_FRAMEWORK_FAILOVER, offer->resources);
+          }
+
    	  framework->failoverTimer = new FrameworkFailoverTimer(self(), frameworkId);
    	  link(spawn(framework->failoverTimer));
 // 	  removeFramework(framework);
@@ -875,25 +921,15 @@ OfferID Master::makeOffer(Framework *framework,
   LOG(INFO) << "Sending " << offer << " to " << framework;
 
   Message<M2F_RESOURCE_OFFER> out;
-  *out.mutable_offer_id() = offerId;
+  out.mutable_offer_id()->MergeFrom(offerId);
 
   foreach (const SlaveResources& r, resources) {
     SlaveOffer* offer = out.add_offer();
-    *offer->mutable_slave_id() = r.slave->slaveId;
+    offer->mutable_slave_id()->MergeFrom(r.slave->slaveId);
     offer->set_hostname(r.slave->info.hostname());
+    offer->mutable_resources()->MergeFrom(r.resources);
 
-    Params* params = offer->mutable_params();
-
-    Param* param = params->add_param();
-    param->set_key("cpus");
-    param->set_value(lexical_cast<string>(r.resources.cpus()));
-
-    param = params->add_param();
-    param->set_key("mem");
-    param->set_value(lexical_cast<string>(r.resources.mem()));
-
-    string* pid = out.add_pid();
-    *pid = r.slave->pid;
+    out.add_pid(r.slave->pid);
   }
 
   send(framework->pid, out);
@@ -904,47 +940,25 @@ OfferID Master::makeOffer(Framework *framework,
 
 // Process a resource offer reply (for a non-cancelled offer) by launching
 // the desired tasks (if the offer contains a valid set of tasks) and
-// reporting any unused resources to the allocator
-void Master::processOfferReply(SlotOffer *offer,
+// reporting any unused resources to the allocator.
+void Master::processOfferReply(SlotOffer* offer,
                                const vector<TaskDescription>& tasks,
                                const Params& params)
 {
   LOG(INFO) << "Received reply for " << offer;
 
-  Framework *framework = lookupFramework(offer->frameworkId);
+  Framework* framework = lookupFramework(offer->frameworkId);
   CHECK(framework != NULL);
 
   // Count resources in the offer.
-  unordered_map<Slave *, Resources> resourcesOffered;
-  foreach (const SlaveResources &r, offer->resources) {
+  unordered_map<Slave*, Resources> resourcesOffered;
+  foreach (const SlaveResources& r, offer->resources) {
     resourcesOffered[r.slave] = r.resources;
   }
 
   // Count used resources and check that its tasks are valid.
-  unordered_map<Slave *, Resources> resourcesUsed;
-  foreach (const TaskDescription &task, tasks) {
-    // Check whether this task size is valid.
-    Resources used;
-    used.set_cpus(-1);
-    used.set_mem(-1);
-
-    for (int i = 0; i < task.params().param_size(); i++) {
-      if (task.params().param(i).key() == "cpus") {
-        int32_t cpus = lexical_cast<int32_t>(task.params().param(i).value());
-        used.set_cpus(cpus);
-      } else if (task.params().param(i).key() == "mem") {
-        int32_t mem = lexical_cast<int32_t>(task.params().param(i).value());
-        used.set_mem(mem);
-      }
-    }
-
-    if (used.cpus() < MIN_CPUS || used.mem() < MIN_MEM || 
-        used.cpus() > MAX_CPUS || used.mem() > MAX_MEM) {
-      terminateFramework(framework, 0, "Invalid task size: " +
-                         lexical_cast<string>(used));
-      return;
-    }
-
+  unordered_map<Slave*, Resources> resourcesUsed;
+  foreach (const TaskDescription& task, tasks) {
     // Check whether the task is on a valid slave.
     Slave* slave = lookupSlave(task.slave_id());
     if (slave == NULL || resourcesOffered.count(slave) == 0) {
@@ -952,13 +966,30 @@ void Master::processOfferReply(SlotOffer *offer,
       return;
     }
 
-    resourcesUsed[slave] += used;
+    // Check whether or not the resources for the task are valid.
+    // TODO(benh): In the future maybe we can also augment the
+    // protobuf to deal with fragmentation purposes by providing some
+    // sort of minimum amount of resources required per task.
+
+    if (task.resources().size() == 0) {
+      terminateFramework(framework, 0, "Invalid resources for task");
+      return;
+    }
+
+    foreach (const Resource& resource, task.resources()) {
+      if (!Resources::isAllocatable(resource)) {
+        // TODO(benh): Also send back the invalid resources as a string?
+        terminateFramework(framework, 0, "Invalid resources for task");
+        return;
+      }
+    }
+
+    resourcesUsed[slave] += task.resources();
   }
 
   // Check that the total accepted on each slave isn't more than offered.
-  foreachpair (Slave* slave, Resources& used, resourcesUsed) {
-    if (used.cpus() > resourcesOffered[slave].cpus() ||
-        used.mem() > resourcesOffered[slave].mem()) {
+  foreachpair (Slave* slave, const Resources& used, resourcesUsed) {
+    if (!(used <= resourcesOffered[slave])) {
       terminateFramework(framework, 0, "Too many resources accepted");
       return;
     }
@@ -966,7 +997,7 @@ void Master::processOfferReply(SlotOffer *offer,
 
   // Check that there are no duplicate task IDs.
   unordered_set<TaskID> idsInResponse;
-  foreach (const TaskDescription &task, tasks) {
+  foreach (const TaskDescription& task, tasks) {
     if (framework->tasks.count(task.task_id()) > 0 ||
         idsInResponse.count(task.task_id()) > 0) {
       terminateFramework(framework, 0, "Duplicate task ID: " +
@@ -977,11 +1008,12 @@ void Master::processOfferReply(SlotOffer *offer,
   }
 
   // Launch the tasks in the response.
-  foreach (const TaskDescription &task, tasks) {
+  foreach (const TaskDescription& task, tasks) {
     launchTask(framework, task);
   }
 
-  // Get out the timeout for left over resources (if exists).
+  // Get out the timeout for left over resources (if exists), and use
+  // that to calculate the expiry timeout.
   int timeout = DEFAULT_REFUSAL_TIMEOUT;
 
   for (int i = 0; i < params.param_size(); i++) {
@@ -993,46 +1025,36 @@ void Master::processOfferReply(SlotOffer *offer,
 
   double expiry = (timeout == -1) ? 0 : elapsed() + timeout;  
 
-  // If there are unused resources on some slaves, add filters for them.
+  // Now check for unused resources on slaves and add filters for them.
   vector<SlaveResources> resourcesUnused;
 
   foreachpair (Slave* slave, const Resources& offered, resourcesOffered) {
     Resources used = resourcesUsed[slave];
     Resources unused = offered - used;
 
-    if (unused.cpus() > 0 || unused.mem() > 0) {
-      resourcesUnused.push_back(SlaveResources(slave, unused));
+    CHECK(used == used.allocatable());
+
+    Resources allocatable = unused.allocatable();
+
+    if (allocatable.size() > 0) {
+      resourcesUnused.push_back(SlaveResources(slave, allocatable));
     }
 
     // Only add a filter on a slave if none of the resources are used.
-    if (timeout != 0 && used.cpus() == 0 && used.mem() == 0) {
+    if (timeout != 0 && used.size() == 0) {
       LOG(INFO) << "Adding filter on " << slave << " to " << framework
-                << " for  " << timeout << " seconds";
+                << " for " << timeout << " seconds";
       framework->slaveFilter[slave] = expiry;
     }
   }
   
-  // Return the resources left to the allocator
+  // Return the resources left to the allocator.
   removeSlotOffer(offer, ORR_FRAMEWORK_REPLIED, resourcesUnused);
 }
 
 
 void Master::launchTask(Framework* framework, const TaskDescription& task)
 {
-  Resources resources;
-  resources.set_cpus(-1);
-  resources.set_mem(-1);
-
-  for (int i = 0; i < task.params().param_size(); i++) {
-    if (task.params().param(i).key() == "cpus") {
-      int32_t cpus = lexical_cast<int32_t>(task.params().param(i).value());
-      resources.set_cpus(cpus);
-    } else if (task.params().param(i).key() == "mem") {
-      int32_t mem = lexical_cast<int32_t>(task.params().param(i).value());
-      resources.set_mem(mem);
-    }
-  }
-
   // The invariant right now is that launchTask is called only for
   // TaskDescriptions where the slave is still valid (see the code
   // above in processOfferReply).
@@ -1041,10 +1063,10 @@ void Master::launchTask(Framework* framework, const TaskDescription& task)
 
   Task *t = new Task();
   t->set_name(task.name());
-  *t->mutable_task_id() = task.task_id();
-  *t->mutable_framework_id() = framework->frameworkId;
-  *t->mutable_slave_id() = task.slave_id();
-  *t->mutable_resources() = resources;
+  t->mutable_task_id()->MergeFrom(task.task_id());
+  t->mutable_framework_id()->MergeFrom(framework->frameworkId);
+  t->mutable_slave_id()->MergeFrom(task.slave_id());
+  t->mutable_resources()->MergeFrom(task.resources());
   t->set_state(TASK_STARTING);
 
   framework->addTask(t);
@@ -1055,11 +1077,10 @@ void Master::launchTask(Framework* framework, const TaskDescription& task)
   LOG(INFO) << "Launching " << t << " on " << slave;
 
   Message<M2S_RUN_TASK> out;
-  *out.mutable_framework() = framework->info;
-  *out.mutable_framework_id() = framework->frameworkId;
+  out.mutable_framework()->MergeFrom(framework->info);
+  out.mutable_framework_id()->MergeFrom(framework->frameworkId);
   out.set_pid(framework->pid);
-  *out.mutable_task() = task;
-  *out.mutable_resources() = resources;
+  out.mutable_task()->MergeFrom(task);
   send(slave->pid, out);
 }
 
@@ -1080,8 +1101,8 @@ void Master::killTask(Task *task)
   CHECK(slave != NULL);
 
   Message<M2S_KILL_TASK> out;
-  *out.mutable_framework_id() = framework->frameworkId;
-  *out.mutable_task_id() = task->task_id();
+  out.mutable_framework_id()->MergeFrom(framework->frameworkId);
+  out.mutable_task_id()->MergeFrom(task->task_id());
   send(slave->pid, out);
 }
 
@@ -1124,7 +1145,7 @@ void Master::removeSlotOffer(SlotOffer *offer,
   // removing the offer is that the framework replied to it
   if (reason != ORR_FRAMEWORK_REPLIED) {
     Message<M2F_RESCIND_OFFER> out;
-    *out.mutable_offer_id() = offer->offerId;
+    out.mutable_offer_id()->MergeFrom(offer->offerId);
     send(framework->pid, out);
   }
   
@@ -1146,7 +1167,7 @@ void Master::addFramework(Framework *framework)
   link(framework->pid);
 
   Message<M2F_REGISTER_REPLY> out;
-  *out.mutable_framework_id() = framework->frameworkId;
+  out.mutable_framework_id()->MergeFrom(framework->frameworkId);
   send(framework->pid, out);
 
   allocator->frameworkAdded(framework);
@@ -1159,7 +1180,7 @@ void Master::failoverFramework(Framework *framework, const PID &newPid)
 {
   const PID& oldPid = framework->pid;
 
-  // Remove the framework's slot offers.
+  // Remove the framework's slot offers (if they weren't removed before)..
   // TODO(benh): Consider just reoffering these to the new framework.
   unordered_set<SlotOffer *> slotOffersCopy = framework->slotOffers;
   foreach (SlotOffer* offer, slotOffersCopy) {
@@ -1190,7 +1211,7 @@ void Master::failoverFramework(Framework *framework, const PID &newPid)
   framework->active = true;
 
   Message<M2F_REGISTER_REPLY> reply;
-  *reply.mutable_framework_id() = framework->frameworkId;
+  reply.mutable_framework_id()->MergeFrom(framework->frameworkId);
   send(newPid, reply);
 }
 
@@ -1205,7 +1226,7 @@ void Master::removeFramework(Framework *framework)
   // Tell slaves to kill the framework
   foreachpair (_, Slave *slave, slaves) {
     Message<M2S_KILL_FRAMEWORK> out;
-    *out.mutable_framework_id() = framework->frameworkId;
+    out.mutable_framework_id()->MergeFrom(framework->frameworkId);
     send(slave->pid, out);
   }
 
@@ -1217,7 +1238,7 @@ void Master::removeFramework(Framework *framework)
     removeTask(task, TRR_FRAMEWORK_LOST);
   }
   
-  // Remove the framework's slot offers
+  // Remove the framework's slot offers (if they weren't removed before).
   unordered_set<SlotOffer *> slotOffersCopy = framework->slotOffers;
   foreach (SlotOffer* offer, slotOffersCopy) {
     removeSlotOffer(offer, ORR_FRAMEWORK_LOST, offer->resources);
@@ -1256,10 +1277,10 @@ void Master::removeSlave(Slave *slave)
     // S2M_REREGISTER_SLAVE.
     if (framework != NULL) {
       Message<M2F_STATUS_UPDATE> out;
-      *out.mutable_framework_id() = task->framework_id();
+      out.mutable_framework_id()->MergeFrom(task->framework_id());
       TaskStatus *status = out.mutable_status();
-      *status->mutable_task_id() = task->task_id();
-      *status->mutable_slave_id() = task->slave_id();
+      status->mutable_task_id()->MergeFrom(task->task_id());
+      status->mutable_slave_id()->MergeFrom(task->slave_id());
       status->set_state(TASK_LOST);
       send(framework->pid, out);
     }
@@ -1287,7 +1308,7 @@ void Master::removeSlave(Slave *slave)
   // previously finished tasks whose output was on the lost slave)
   foreachpair (_, Framework *framework, frameworks) {
     Message<M2F_LOST_SLAVE> out;
-    *out.mutable_slave_id() = slave->slaveId;
+    out.mutable_slave_id()->MergeFrom(slave->slaveId);
     send(framework->pid, out);
   }
 

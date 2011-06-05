@@ -1,6 +1,7 @@
 #include <pthread.h>
 
 #include <map>
+#include <sstream>
 #include <vector>
 
 #include "local.hpp"
@@ -23,6 +24,7 @@ using mesos::internal::slave::IsolationModule;
 using mesos::internal::slave::ProcessBasedIsolationModule;
 
 using std::map;
+using std::stringstream;
 using std::vector;
 
 
@@ -45,12 +47,12 @@ static map<IsolationModule*, Slave*> slaves;
 static MasterDetector *detector = NULL;
 
 
-void registerOptions(Configurator* conf)
+void registerOptions(Configurator* configurator)
 {
-  conf->addOption<int>("slaves", 's', "Number of slaves", 1);
-  Logging::registerOptions(conf);
-  Master::registerOptions(conf);
-  Slave::registerOptions(conf);
+  configurator->addOption<int>("slaves", 's', "Number of slaves", 1);
+  Logging::registerOptions(configurator);
+  Master::registerOptions(configurator);
+  Slave::registerOptions(configurator);
 }
 
 
@@ -62,9 +64,12 @@ PID launch(int numSlaves,
 {
   Configuration conf;
   conf.set("slaves", numSlaves);
-  conf.set("cpus", cpus);
-  conf.set("mem", mem);
   conf.set("quiet", quiet);
+
+  stringstream out;
+  out << "cpus:" << cpus << ";" << "mem:" << mem;
+  conf.set("resources", out.str());
+
   return launch(conf, initLogging);
 }
 

@@ -134,7 +134,7 @@ SWIG_WEBUI_OBJ = $(MASTER_SWIG_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 COMMON_OBJ = common/fatal.o common/lock.o detector/detector.o		\
 	     detector/url_processor.o configurator/configurator.o	\
 	     common/string_utils.o common/logging.o			\
-	     common/date_utils.o
+	     common/date_utils.o common/tokenize.o common/resources.o
 
 ifeq ($(WITH_ZOOKEEPER),1)
   COMMON_OBJ += detector/zookeeper.o
@@ -334,7 +334,7 @@ $(MESOS_PROJD_EXE): $(SRCDIR)/slave/projd.cpp $(COMMON_OBJ) $(PROTOBUF_OBJ)
 
 java: $(MESOS_JAVA_LIB) $(MESOS_JAVA_JAR)
 
-$(MESOS_JAVA_JAR): $(SRCDIR)/java/src/mesos/*.java | $(LIBDIR)/java
+$(MESOS_JAVA_JAR): $(SRCDIR)/java/src/mesos/*.java @top_srcdir@/include/mesos.proto | $(LIBDIR)/java
 ifdef JAVA_HOME
 	mkdir -p @top_builddir@/$(PROTOBUF)/java/src/main/java
 	$(PROTOC) --java_out=@top_builddir@/$(PROTOBUF)/java/src/main/java -I@top_srcdir@/$(PROTOBUF)/src @top_srcdir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto

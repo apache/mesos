@@ -149,7 +149,8 @@ ACTION_P(Trigger, trigger) { trigger->value = true; }
         break;                                                          \
       usleep(10);                                                       \
       if (sleeps++ >= 200000) {                                         \
-        ADD_FAILURE() << "Waited too long for trigger!";                \
+        FAIL() << "Waited too long for trigger!";                       \
+        abort; /* TODO(benh): Don't abort here ... */                   \
         break;                                                          \
       }                                                                 \
     } while (true);                                                     \

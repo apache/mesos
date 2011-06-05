@@ -120,13 +120,9 @@ TEST(MasterTest, ResourceOfferWithMultipleSlaves)
   EXPECT_NE(0, offers.size());
   EXPECT_GE(10, offers.size());
 
-  for (int i = 0; i < offers[0].params().param_size(); i++) {
-    if (offers[0].params().param(i).key() == "cpus") {
-      EXPECT_EQ("2", offers[0].params().param(i).value());
-    } else if (offers[0].params().param(i).key() == "mem") {
-      EXPECT_EQ("1024", offers[0].params().param(i).value());
-    }
-  }
+  Resources resources(offers[0].resources());
+  EXPECT_EQ(2, resources.getScalar("cpus", Resource::Scalar()).value());
+  EXPECT_EQ(1024, resources.getScalar("mem", Resource::Scalar()).value());
 
   driver.stop();
   driver.join();
@@ -236,17 +232,17 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
   TaskDescription task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  *task.mutable_slave_id() = offers[0].slave_id();
+  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
 
-  Params* params = task.mutable_params();
+  Resource* cpus = task.add_resources();
+  cpus->set_name("cpus");
+  cpus->set_type(Resource::SCALAR);
+  cpus->mutable_scalar()->set_value(0);
 
-  Param* cpus = params->add_param();
-  cpus->set_key("cpus");
-  cpus->set_value("0");
-
-  Param* mem = params->add_param();
-  mem->set_key("mem");
-  mem->set_value(lexical_cast<string>(1 * Gigabyte));
+  Resource* mem = task.add_resources();
+  mem->set_name("mem");
+  mem->set_type(Resource::SCALAR);
+  mem->mutable_scalar()->set_value(1 * Gigabyte);
 
   vector<TaskDescription> tasks;
   tasks.push_back(task);
@@ -254,7 +250,7 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
   trigger sched1ErrorCall;
 
   EXPECT_CALL(sched1,
-              error(&driver1, _, "Invalid task size: <0 CPUs, 1024 MEM>"))
+              error(&driver1, _, "Invalid resources for task"))
     .WillOnce(Trigger(&sched1ErrorCall));
 
   EXPECT_CALL(sched1, offerRescinded(&driver1, offerId))
@@ -306,10 +302,22 @@ TEST(MasterTest, SlaveLost)
   PID master = Process::spawn(&m);
 
   Resources resources;
-  resources.set_cpus(2);
-  resources.set_mem(1 * Gigabyte);
+
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
 
   ProcessBasedIsolationModule isolationModule;
+  
   Slave s(resources, true, &isolationModule);
   PID slave = Process::spawn(&s);
 
@@ -506,6 +514,21 @@ TEST(MasterTest, TaskRunning)
   Master m;
   PID master = Process::spawn(&m);
 
+  Resources resources;
+
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
+
   MockExecutor exec;
 
   EXPECT_CALL(exec, init(_, _))
@@ -516,10 +539,6 @@ TEST(MasterTest, TaskRunning)
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
-
-  Resources resources;
-  resources.set_cpus(2);
-  resources.set_mem(1 * Gigabyte);
 
   LocalIsolationModule isolationModule(&exec);
 
@@ -562,8 +581,8 @@ TEST(MasterTest, TaskRunning)
   TaskDescription task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  *task.mutable_slave_id() = offers[0].slave_id();
-  *task.mutable_params() = offers[0].params();
+  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers[0].resources());
 
   vector<TaskDescription> tasks;
   tasks.push_back(task);
@@ -592,6 +611,21 @@ TEST(MasterTest, KillTask)
   Master m;
   PID master = Process::spawn(&m);
 
+  Resources resources;
+
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
+
   MockExecutor exec;
 
   trigger killTaskCall;
@@ -607,10 +641,6 @@ TEST(MasterTest, KillTask)
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
-
-  Resources resources;
-  resources.set_cpus(2);
-  resources.set_mem(1 * Gigabyte);
 
   LocalIsolationModule isolationModule(&exec);
 
@@ -655,9 +685,9 @@ TEST(MasterTest, KillTask)
 
   TaskDescription task;
   task.set_name("");
-  *task.mutable_task_id() = taskId;
-  *task.mutable_slave_id() = offers[0].slave_id();
-  *task.mutable_params() = offers[0].params();
+  task.mutable_task_id()->MergeFrom(taskId);
+  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers[0].resources());
 
   vector<TaskDescription> tasks;
   tasks.push_back(task);
@@ -695,6 +725,24 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   EXPECT_MSG(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
+  Master m;
+  PID master = Process::spawn(&m);
+
+  Resources resources;
+
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
+
   MockExecutor exec;
 
   EXPECT_CALL(exec, init(_, _))
@@ -705,13 +753,6 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
-
-  Master m;
-  PID master = Process::spawn(&m);
-
-  Resources resources;
-  resources.set_cpus(2);
-  resources.set_mem(1 * Gigabyte);
 
   LocalIsolationModule isolationModule(&exec);
 
@@ -764,8 +805,8 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   TaskDescription task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  *task.mutable_slave_id() = offers[0].slave_id();
-  *task.mutable_params() = offers[0].params();
+  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers[0].resources());
 
   vector<TaskDescription> tasks;
   tasks.push_back(task);
@@ -826,6 +867,24 @@ TEST(MasterTest, FrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
+  Master m;
+  PID master = Process::spawn(&m);
+
+  Resources resources;
+
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
+
   MockExecutor exec;
 
   ExecutorDriver* execDriver;
@@ -846,13 +905,6 @@ TEST(MasterTest, FrameworkMessage)
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
-
-  Master m;
-  PID master = Process::spawn(&m);
-
-  Resources resources;
-  resources.set_cpus(2);
-  resources.set_mem(1 * Gigabyte);
 
   LocalIsolationModule isolationModule(&exec);
 
@@ -903,8 +955,8 @@ TEST(MasterTest, FrameworkMessage)
   TaskDescription task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  *task.mutable_slave_id() = offers[0].slave_id();
-  *task.mutable_params() = offers[0].params();
+  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers[0].resources());
 
   vector<TaskDescription> tasks;
   tasks.push_back(task);
@@ -950,6 +1002,24 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
+  Master m;
+  PID master = Process::spawn(&m);
+
+  Resources resources;
+
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
+
   MockExecutor exec;
 
   ExecutorDriver* execDriver;
@@ -962,13 +1032,6 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(1);
-
-  Master m;
-  PID master = Process::spawn(&m);
-
-  Resources resources;
-  resources.set_cpus(2);
-  resources.set_mem(1 * Gigabyte);
 
   LocalIsolationModule isolationModule(&exec);
 
@@ -1015,8 +1078,8 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   TaskDescription task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  *task.mutable_slave_id() = offers[0].slave_id();
-  *task.mutable_params() = offers[0].params();
+  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers[0].resources());
 
   vector<TaskDescription> tasks;
   tasks.push_back(task);
@@ -1049,7 +1112,7 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   WAIT_UNTIL(sched2RegisteredCall);
 
   FrameworkMessage message;
-  *message.mutable_slave_id() = offers[0].slave_id();
+  message.mutable_slave_id()->MergeFrom(offers[0].slave_id());
 
   execDriver->sendFrameworkMessage(message);
 

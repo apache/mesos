@@ -13,7 +13,7 @@ const int32_t Megabyte = 1;
 const int32_t Gigabyte = 1024 * Megabyte;
 
 
-namespace mesos { 
+namespace mesos {
 
 inline std::ostream& operator << (std::ostream& stream,
                                   const FrameworkID& frameworkId)
@@ -127,50 +127,7 @@ inline size_t hash_value(const TaskID& taskId)
 }
 
 
-
-inline Resources operator + (const Resources& left, const Resources& right)
-{
-  Resources result;
-  result.set_cpus(left.cpus() + right.cpus());
-  result.set_mem(left.mem() + right.mem());
-  return result;
-}
-
-  
-inline Resources operator - (const Resources& left, const Resources& right)
-{
-  Resources result;
-  result.set_cpus(left.cpus() - right.cpus());
-  result.set_mem(left.mem() - right.mem());
-  return result;
-}
-
-  
-inline Resources& operator += (Resources& left, const Resources& right)
-{
-  left.set_cpus(left.cpus() + right.cpus());
-  left.set_mem(left.mem() + right.mem());
-  return left;
-}
-
-inline Resources& operator -= (Resources& left, const Resources& right)
-{
-  left.set_cpus(left.cpus() - right.cpus());
-  left.set_mem(left.mem() - right.mem());
-  return left;
-}
-
-
-inline std::ostream& operator << (std::ostream& stream,
-                                  const Resources& resources)
-{
-  stream << "<" << resources.cpus() << " CPUs, " << resources.mem() << " MEM>";
-  return stream;
-}
-
-
 namespace internal {
-
 
 inline std::ostream& operator << (std::ostream& stream,
                                   const Task *task)
@@ -179,7 +136,6 @@ inline std::ostream& operator << (std::ostream& stream,
   return stream;
 }
 
-
-}} /* namespace mesos::internal */
+}} // namespace mesos { namespace internal {
 
 #endif // __TYPE_UTILS_HPP__

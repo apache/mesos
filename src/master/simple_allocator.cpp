@@ -32,7 +32,8 @@ void SimpleAllocator::frameworkRemoved(Framework* framework)
 
 void SimpleAllocator::slaveAdded(Slave* slave)
 {
-  LOG(INFO) << "Added " << slave;
+  LOG(INFO) << "Added " << slave << " with \n"
+            << Resources(slave->info.resources());
   refusers[slave] = unordered_set<Framework*>();
   totalResources += slave->info.resources();
   makeNewOffers(slave);
@@ -66,19 +67,21 @@ void SimpleAllocator::offerReturned(SlotOffer* offer,
                                     const vector<SlaveResources>& resLeft)
 {
   LOG(INFO) << "Offer returned: " << offer << ", reason = " << reason;
-  // If this offer returned due to the framework replying, add it to refusers
+
+  // If this offer returned due to the framework replying, add it to refusers.
   if (reason == ORR_FRAMEWORK_REPLIED) {
     Framework* framework = master->lookupFramework(offer->frameworkId);
     CHECK(framework != 0);
     foreach (const SlaveResources& r, resLeft) {
-      VLOG(1) << "Framework reply leaves " << r.resources 
+      VLOG(1) << "Framework reply leaves " << r.resources.allocatable()
               << " free on " << r.slave;
-      if (r.resources.cpus() > 0 || r.resources.mem() > 0) {
+      if (r.resources.allocatable().size() > 0) {
         VLOG(1) << "Inserting " << framework << " as refuser for " << r.slave;
         refusers[r.slave].insert(framework);
       }
     }
   }
+
   // Make new offers unless the offer returned due to a lost framework or slave
   // (in those cases, frameworkRemoved and slaveRemoved will be called later),
   // or returned due to a framework failover (in which case the framework's
@@ -111,28 +114,42 @@ namespace {
   
 struct DominantShareComparator
 {
-  Resources total;
+  DominantShareComparator(const Resources& _resources)
+    : resources(_resources) {}
   
-  DominantShareComparator(Resources _total) : total(_total)
+  bool operator () (Framework* f1, Framework* f2)
   {
-    if (total.cpus() == 0) // Prevent division by zero if there are no slaves
-      total.set_cpus(1);
-    if (total.mem() == 0)
-      total.set_mem(1);
-  }
-  
-  bool operator() (Framework* f1, Framework* f2)
-  {
-    double share1 = max(f1->resources.cpus() / (double) total.cpus(),
-                        f1->resources.mem()  / (double) total.mem());
-    double share2 = max(f2->resources.cpus() / (double) total.cpus(),
-                        f2->resources.mem()  / (double) total.mem());
+    double share1 = 0;
+    double share2 = 0;
+
+    // TODO(benh): This implementaion of "dominant resource fairness"
+    // currently does not take into account resources that are not
+    // scalars.
+
+    foreach (const Resource& resource, resources) {
+      if (resource.type() == Resource::SCALAR) {
+        double total = resource.scalar().value();
+
+        if (total > 0) {
+          const Resource::Scalar& scalar1 =
+            f1->resources.getScalar(resource.name(), Resource::Scalar());
+          share1 = max(share1, scalar1.value() / total);
+
+          const Resource::Scalar& scalar2 =
+            f2->resources.getScalar(resource.name(), Resource::Scalar());
+          share2 = max(share2, scalar2.value() / total);
+        }
+      }
+    }
+
     if (share1 == share2)
       // Make the sort deterministic for unit testing.
       return f1->frameworkId.value() < f2->frameworkId.value();
     else
       return share1 < share2;
   }
+
+  Resources resources;
 };
 
 }
@@ -172,17 +189,42 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
     return;
   }
   
-  // Find all the free resources that can be allocated
+  // Find all the free resources that can be allocated.
   unordered_map<Slave* , Resources> freeResources;
   foreach (Slave* slave, slaves) {
     if (slave->active) {
-      Resources res = slave->resourcesFree();
-      if (res.cpus() >= MIN_CPUS && res.mem() >= MIN_MEM) {
-        VLOG(1) << "Found free resources: " << res << " on " << slave;
-        freeResources[slave] = res;
+      Resources resources = slave->resourcesFree();
+      Resources allocatable = resources.allocatable();
+
+      // TODO(benh): For now, only make offers when there is some cpu
+      // and memory left. This is an artifact of the original code
+      // that only offered when there was at least 1 cpu "unit"
+      // available, and without doing this a framework might get
+      // offered resources with only memory available (which it
+      // obviously won't take) and then get added as a refuser for
+      // that slave and therefore have to wait upwards of
+      // DEFAULT_REFUSAL_TIMEOUT until resources come from that slave
+      // again. In the long run, frameworks will poll the master for
+      // resources, rather than the master pushing resources out to
+      // frameworks.
+
+      Resource::Scalar cpus;
+      cpus.set_value(0);
+
+      cpus = allocatable.getScalar("cpus", cpus);
+
+      Resource::Scalar mem;
+      mem.set_value(0);
+
+      mem = allocatable.getScalar("mem", mem);
+
+      if (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) {
+        VLOG(1) << "Found free resources: " << allocatable << " on " << slave;
+        freeResources[slave] = allocatable;
       }
     }
   }
+
   if (freeResources.size() == 0) {
     VLOG(1) << "makeNewOffers returning because there are no free resources";
     return;
@@ -197,11 +239,11 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
       refs.clear();
     }
   }
-  
+
   foreach (Framework* framework, ordering) {
     // See which resources this framework can take (given filters & refusals)
     vector<SlaveResources> offerable;
-    foreachpair (Slave* slave, Resources resources, freeResources) {
+    foreachpair (Slave* slave, const Resources& resources, freeResources) {
       if (refusers[slave].find(framework) == refusers[slave].end() &&
           !framework->filters(slave, resources)) {
         VLOG(1) << "Offering " << resources << " on " << slave
@@ -209,10 +251,12 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
         offerable.push_back(SlaveResources(slave, resources));
       }
     }
+
     if (offerable.size() > 0) {
       foreach (SlaveResources& r, offerable) {
         freeResources.erase(r.slave);
       }
+
       master->makeOffer(framework, offerable);
     }
   }

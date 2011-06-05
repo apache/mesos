@@ -50,7 +50,7 @@ protected:
 
     // Register with slave.
     Message<E2S_REGISTER_EXECUTOR> out;
-    *out.mutable_framework_id() = frameworkId;
+    out.mutable_framework_id()->MergeFrom(frameworkId);
     send(slave, out);
 
     while(true) {
@@ -79,10 +79,10 @@ protected:
           const TaskDescription& task = msg.task();
 
           Message<E2S_STATUS_UPDATE> out;
-          *out.mutable_framework_id() = frameworkId;
+          out.mutable_framework_id()->MergeFrom(frameworkId);
           TaskStatus* status = out.mutable_status();
-          *status->mutable_task_id() = task.task_id();
-          *status->mutable_slave_id() = slaveId;
+          status->mutable_task_id()->MergeFrom(task.task_id());
+          status->mutable_slave_id()->MergeFrom(slaveId);
           status->set_state(TASK_RUNNING);
           send(slave, out);
 
@@ -293,9 +293,10 @@ int MesosExecutorDriver::sendStatusUpdate(const TaskStatus& status)
     return -1;
   }
 
+  // TODO(benh): Do a dispatch to Executor first?
   Message<E2S_STATUS_UPDATE> out;
-  *out.mutable_framework_id() = process->frameworkId;
-  *out.mutable_status() = status;
+  out.mutable_framework_id()->MergeFrom(process->frameworkId);
+  out.mutable_status()->MergeFrom(status);
   process->send(process->slave, out);
 
   return 0;
@@ -316,9 +317,10 @@ int MesosExecutorDriver::sendFrameworkMessage(const FrameworkMessage& message)
     return -1;
   }
 
+  // TODO(benh): Do a dispatch to Executor first?
   Message<E2S_FRAMEWORK_MESSAGE> out;
-  *out.mutable_framework_id() = process->frameworkId;
-  *out.mutable_message() = message;
+  out.mutable_framework_id()->MergeFrom(process->frameworkId);
+  out.mutable_message()->MergeFrom(message);
   process->send(process->slave, out);
 
   return 0;

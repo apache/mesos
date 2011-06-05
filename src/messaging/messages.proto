@@ -2,14 +2,23 @@ import "mesos.proto";
 
 package mesos.internal;
 
-
+// TODO(benh): It would be great if this could just be a
+// TaskDescription wherever it gets used! One performance reason why
+// we don't do that now is because storing whatever data is coupled
+// with a TaskDescription could be large and unnecessary.
 message Task {
   required string name = 1;
   required TaskID task_id = 2;
   required FrameworkID framework_id = 3;
   required SlaveID slave_id = 4;
-  required Resources resources = 5;
+  repeated Resource resources = 5;
   required TaskState state = 6;
+}
+
+
+message ResourceOffer {
+  required SlaveInfo slave = 1;
+  repeated Resource resources = 2;
 }
 
 
@@ -71,7 +80,6 @@ message RunTaskMessage {
   required FrameworkID framework_id = 2;
   required string pid = 3;
   required TaskDescription task = 4;
-  required Resources resources = 5;
 }
 
 

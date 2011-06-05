@@ -96,15 +96,20 @@ TEST(MasterTest, DuplicateTaskIdsInResponse)
   DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
-  Params params;
+  Resources resources;
 
-  Param* cpus = params.add_param();
-  cpus->set_key("cpus");
-  cpus->set_value("1");
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(1);
 
-  Param* mem = params.add_param();
-  mem->set_key("mem");
-  mem->set_value(lexical_cast<string>(1 * Gigabyte));
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
 
   vector<TaskDescription> tasks;
 
@@ -112,7 +117,7 @@ TEST(MasterTest, DuplicateTaskIdsInResponse)
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->set_value("200102030405-0-0");
-  *task.mutable_params() = params;
+  task.mutable_resources()->MergeFrom(resources);
 
   tasks.push_back(task);
   tasks.push_back(task);
@@ -140,15 +145,20 @@ TEST(MasterTest, TooMuchMemoryInTask)
   DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
-  Params params;
+  Resources resources;
 
-  Param* cpus = params.add_param();
-  cpus->set_key("cpus");
-  cpus->set_value("1");
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(1);
 
-  Param* mem = params.add_param();
-  mem->set_key("mem");
-  mem->set_value(lexical_cast<string>(4 * Gigabyte));
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(4 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
 
   vector<TaskDescription> tasks;
 
@@ -156,7 +166,7 @@ TEST(MasterTest, TooMuchMemoryInTask)
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->set_value("200102030405-0-0");
-  *task.mutable_params() = params;
+  task.mutable_resources()->MergeFrom(resources);
 
   tasks.push_back(task);
 
@@ -179,15 +189,20 @@ TEST(MasterTest, TooMuchCpuInTask)
   DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
-  Params params;
+  Resources resources;
 
-  Param* cpus = params.add_param();
-  cpus->set_key("cpus");
-  cpus->set_value("4");
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(4);
 
-  Param* mem = params.add_param();
-  mem->set_key("mem");
-  mem->set_value(lexical_cast<string>(1 * Gigabyte));
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
 
   vector<TaskDescription> tasks;
 
@@ -195,7 +210,7 @@ TEST(MasterTest, TooMuchCpuInTask)
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->set_value("200102030405-0-0");
-  *task.mutable_params() = params;
+  task.mutable_resources()->MergeFrom(resources);
 
   tasks.push_back(task);
 
@@ -211,22 +226,27 @@ TEST(MasterTest, TooMuchCpuInTask)
 }
 
 
-TEST(MasterTest, TooLittleCpuInTask)
+TEST(MasterTest, ZeroCpuInTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
-  Params params;
+  Resources resources;
 
-  Param* cpus = params.add_param();
-  cpus->set_key("cpus");
-  cpus->set_value("0");
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(0);
 
-  Param* mem = params.add_param();
-  mem->set_key("mem");
-  mem->set_value(lexical_cast<string>(1 * Gigabyte));
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
 
   vector<TaskDescription> tasks;
 
@@ -234,7 +254,7 @@ TEST(MasterTest, TooLittleCpuInTask)
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->set_value("200102030405-0-0");
-  *task.mutable_params() = params;
+  task.mutable_resources()->MergeFrom(resources);
 
   tasks.push_back(task);
 
@@ -243,46 +263,7 @@ TEST(MasterTest, TooLittleCpuInTask)
 
   driver.run();
 
-  EXPECT_EQ("Invalid task size: <0 CPUs, 1024 MEM>", sched.errorMessage);
-
-  local::shutdown();
-  DateUtils::clearMockDate();
-}
-
-
-TEST(MasterTest, TooLittleMemoryInTask)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
-
-  Params params;
-
-  Param* cpus = params.add_param();
-  cpus->set_key("cpus");
-  cpus->set_value("1");
-
-  Param* mem = params.add_param();
-  mem->set_key("mem");
-  mem->set_value("1");
-
-  vector<TaskDescription> tasks;
-
-  TaskDescription task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->set_value("200102030405-0-0");
-  *task.mutable_params() = params;
-
-  tasks.push_back(task);
-
-  FixedResponseScheduler sched(tasks);
-  MesosSchedulerDriver driver(&sched, master);
-
-  driver.run();
-
-  EXPECT_EQ("Invalid task size: <1 CPUs, 1 MEM>", sched.errorMessage);
+  EXPECT_EQ("Invalid resources for task", sched.errorMessage);
 
   local::shutdown();
   DateUtils::clearMockDate();
@@ -296,15 +277,20 @@ TEST(MasterTest, TooMuchMemoryAcrossTasks)
   DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
-  Params params;
+  Resources resources;
 
-  Param* cpus = params.add_param();
-  cpus->set_key("cpus");
-  cpus->set_value("1");
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(1);
 
-  Param* mem = params.add_param();
-  mem->set_key("mem");
-  mem->set_value(lexical_cast<string>(2 * Gigabyte));
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(2 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
 
   vector<TaskDescription> tasks;
 
@@ -312,7 +298,7 @@ TEST(MasterTest, TooMuchMemoryAcrossTasks)
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->set_value("200102030405-0-0");
-  *task.mutable_params() = params;
+  task.mutable_resources()->MergeFrom(resources);
 
   tasks.push_back(task);
 
@@ -339,15 +325,20 @@ TEST(MasterTest, TooMuchCpuAcrossTasks)
   DateUtils::setMockDate("200102030405");
   PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
-  Params params;
+  Resources resources;
 
-  Param* cpus = params.add_param();
-  cpus->set_key("cpus");
-  cpus->set_value("2");
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Resource::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
 
-  Param* mem = params.add_param();
-  mem->set_key("mem");
-  mem->set_value(lexical_cast<string>(1 * Gigabyte));
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Resource::SCALAR);
+  mem.mutable_scalar()->set_value(1 * Gigabyte);
+
+  resources += cpus;
+  resources += mem;
 
   vector<TaskDescription> tasks;
 
@@ -355,7 +346,7 @@ TEST(MasterTest, TooMuchCpuAcrossTasks)
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->set_value("200102030405-0-0");
-  *task.mutable_params() = params;
+  task.mutable_resources()->MergeFrom(resources);
 
   tasks.push_back(task);
 

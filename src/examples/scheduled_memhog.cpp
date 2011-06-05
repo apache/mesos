@@ -103,14 +103,17 @@ public:
       // Lookup resources we care about.
       // TODO(benh): It would be nice to ultimately have some helper
       // functions for looking up resources.
-      int32_t cpus = 0;
-      int32_t mem = 0;
+      double cpus = 0;
+      double mem = 0;
 
-      for (int i = 0; i < offer.params().param_size(); i++) {
-        if (offer.params().param(i).key() == "cpus") {
-          cpus = lexical_cast<int32_t>(offer.params().param(i).value());
-        } else if (offer.params().param(i).key() == "mem") {
-          mem = lexical_cast<int32_t>(offer.params().param(i).value());
+      for (int i = 0; i < offer.resources_size(); i++) {
+        const Resource& resource = offer.resources(i);
+        if (resource.name() == "cpus" &&
+            resource.type() == Resource::SCALAR) {
+          cpus = resource.scalar().value();
+        } else if (resource.name() == "mem" &&
+                   resource.type() == Resource::SCALAR) {
+          mem = resource.scalar().value();
         }
       }
 
@@ -128,18 +131,19 @@ public:
         TaskDescription task;
         task.set_name("Task " + lexical_cast<string>(taskId));
         task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
-        *task.mutable_slave_id() = offer.slave_id();
+        task.mutable_slave_id()->MergeFrom(offer.slave_id());
 
-        Params* params = task.mutable_params();
+        Resource* resource;
 
-        Param* param;
-        param = params->add_param();
-        param->set_key("cpus");
-        param->set_value("1");
+        resource = task.add_resources();
+        resource->set_name("cpus");
+        resource->set_type(Resource::SCALAR);
+        resource->mutable_scalar()->set_value(1);
 
-        param = params->add_param();
-        param->set_key("mem");
-        param->set_value(lexical_cast<string>(tasks[taskId].memToRequest));
+        resource = task.add_resources();
+        resource->set_name("mem");
+        resource->set_type(Resource::SCALAR);
+        resource->mutable_scalar()->set_value(tasks[taskId].memToRequest);
 
         ostringstream data;
         data << tasks[taskId].memToHog << " " << tasks[taskId].duration

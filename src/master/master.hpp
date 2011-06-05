@@ -24,6 +24,7 @@
 
 #include "common/fatal.hpp"
 #include "common/foreach.hpp"
+#include "common/resources.hpp"
 #include "common/type_utils.hpp"
 
 #include "configurator/configurator.hpp"
@@ -139,6 +140,7 @@ struct SlotOffer
     : offerId(_offerId), frameworkId(_frameworkId), resources(_resources) {}
 };
 
+
 // An connected framework.
 struct Framework
 {
@@ -149,8 +151,8 @@ struct Framework
   bool active; // Turns false when framework is being removed
   double connectTime;
 
-  unordered_map<TaskID, Task *> tasks;
-  unordered_set<SlotOffer *> slotOffers; // Active offers for framework.
+  unordered_map<TaskID, Task*> tasks;
+  unordered_set<SlotOffer*> slotOffers; // Active offers for framework.
 
   Resources resources; // Total resources owned by framework (tasks + offers)
   
@@ -189,14 +191,18 @@ struct Framework
   {
     CHECK(tasks.count(task->task_id()) == 0);
     tasks[task->task_id()] = task;
-    this->resources += task->resources();
+    for (int i = 0; i < task->resources_size(); i++) {
+      resources += task->resources(i);
+    }
   }
   
   void removeTask(const TaskID& taskId)
   {
     CHECK(tasks.count(taskId) > 0);
     Task* task = tasks[taskId];
-    this->resources -= task->resources();
+    for (int i = 0; i < task->resources_size(); i++) {
+      resources -= task->resources(i);
+    }
     tasks.erase(taskId);
   }
   
@@ -204,16 +210,18 @@ struct Framework
   {
     CHECK(slotOffers.count(offer) == 0);
     slotOffers.insert(offer);
-    foreach (SlaveResources &r, offer->resources)
-      this->resources += r.resources;
+    foreach (const SlaveResources& sr, offer->resources) {
+      resources += sr.resources;
+    }
   }
 
   void removeOffer(SlotOffer *offer)
   {
     CHECK(slotOffers.find(offer) != slotOffers.end());
     slotOffers.erase(offer);
-    foreach (SlaveResources &r, offer->resources)
-      this->resources -= r.resources;
+    foreach (const SlaveResources& sr, offer->resources) {
+      resources -= sr.resources;
+    }
   }
   
   bool filters(Slave *slave, Resources resources)
@@ -271,19 +279,27 @@ struct Slave
   {
     CHECK(tasks.count(make_pair(task->framework_id(), task->task_id())) == 0);
     tasks[make_pair(task->framework_id(), task->task_id())] = task;
-    resourcesInUse += task->resources();
+    foreach (const Resource& resource, task->resources()) {
+      resourcesInUse += resource;
+    }
   }
   
   void removeTask(Task *task)
   {
     CHECK(tasks.count(make_pair(task->framework_id(), task->task_id())) > 0);
     tasks.erase(make_pair(task->framework_id(), task->task_id()));
-    resourcesInUse -= task->resources();
+    foreach (const Resource& resource, task->resources()) {
+      resourcesInUse -= resource;
+    }
   }
   
   Resources resourcesFree()
   {
-    return info.resources() - (resourcesOffered + resourcesInUse);
+    Resources resources;
+    foreach (const Resource& resource, info.resources()) {
+      resources += resource;
+    }
+    return resources - (resourcesOffered + resourcesInUse);
   }
 };
 

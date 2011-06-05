@@ -33,6 +33,7 @@
 
 #include "common/fatal.hpp"
 #include "common/foreach.hpp"
+#include "common/resources.hpp"
 #include "common/type_utils.hpp"
 
 #include "configurator/configurator.hpp"
@@ -98,7 +99,7 @@ struct Framework
       return NULL;
   }
 
-  Task * addTask(const TaskDescription& task, const Resources& r)
+  Task * addTask(const TaskDescription& task)
   {
     // The master should enforce unique task IDs, but just in case
     // maybe we shouldn't make this a fatal error.
@@ -106,14 +107,14 @@ struct Framework
 
     Task *t = new Task();
     t->set_name(task.name());
-    *t->mutable_task_id() = task.task_id();
-    *t->mutable_framework_id() = frameworkId;
-    *t->mutable_slave_id() = task.slave_id();
-    *t->mutable_resources() = r;
+    t->mutable_task_id()->MergeFrom(task.task_id());
+    t->mutable_framework_id()->MergeFrom(frameworkId);
+    t->mutable_slave_id()->MergeFrom(task.slave_id());
+    t->mutable_resources()->MergeFrom(task.resources());
     t->set_state(TASK_STARTING);
 
     tasks[task.task_id()] = t;
-    resources += r;
+    resources += task.resources();
 
     return t;
   }
@@ -129,12 +130,14 @@ struct Framework
       }
     }
 
-    // Remove it from tasks as well
-    unordered_map<TaskID, Task *>::iterator it = tasks.find(taskId);
-    if (it != tasks.end()) {
-      resources -= it->second->resources();
-      delete it->second;
-      tasks.erase(it);
+    // Remove it from tasks as well.
+    if (tasks.count(taskId) > 0) {
+      Task* task = tasks[taskId];
+      foreach (const Resource& resource, task->resources()) {
+        resources -= resource;
+      }
+      tasks.erase(taskId);
+      delete task;
     }
   }
 };
@@ -168,7 +171,7 @@ protected:
       switch (receive(interval)) {
         case PROCESS_TIMEOUT: {
           Message<SH2M_HEARTBEAT> msg;
-          *msg.mutable_slave_id() = slaveId;
+          msg.mutable_slave_id()->MergeFrom(slaveId);
           send(master, msg);
           break;
         }

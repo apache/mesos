@@ -20,7 +20,6 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
 
-using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
@@ -33,17 +32,6 @@ using std::string;
 using std::vector;
 
 
-namespace {
-
-
-// Default values for CPU cores and memory to include in configuration
-const int32_t DEFAULT_CPUS = 1;
-const int32_t DEFAULT_MEM = 1 * Gigabyte;
-
-
-} /* namespace */
-
-
 Slave::Slave(const Resources& _resources, bool _local,
              IsolationModule *_isolationModule)
   : resources(_resources), local(_local),
@@ -51,22 +39,18 @@ Slave::Slave(const Resources& _resources, bool _local,
 
 
 Slave::Slave(const Configuration& _conf, bool _local,
-             IsolationModule *_module)
-  : conf(_conf), local(_local), isolationModule(_module), heart(NULL)
-{
-  resources.set_cpus(conf.get<int32_t>("cpus", DEFAULT_CPUS));
-  resources.set_mem(conf.get<int32_t>("mem", DEFAULT_MEM));
-}
+             IsolationModule* _isolationModule)
+  : conf(_conf), local(_local),
+    isolationModule(_isolationModule), heart(NULL) {}
 
 
 void Slave::registerOptions(Configurator* configurator)
 {
-  configurator->addOption<int32_t>("cpus", 'c',
-                                   "CPU cores for use by tasks",
-                                   DEFAULT_CPUS);
-  configurator->addOption<int64_t>("mem", 'm',
-                                   "Memory for use by tasks, in MB\n",
-                                   DEFAULT_MEM);
+  // TODO(benh): Is there a way to specify units for the resources?
+  configurator->addOption<string>("resources",
+                                  "Total consumable resources on machine\n");
+//   configurator->addOption<string>("attributes",
+//                                   "Attributes of machine\n");
   configurator->addOption<string>("work_dir",
                                   "Where to place framework work directories\n"
                                   "(default: MESOS_HOME/work)");
@@ -94,22 +78,48 @@ Slave::~Slave()
 
 state::SlaveState *Slave::getState()
 {
+  Resources resources(resources);
+  Resource::Scalar cpus;
+  Resource::Scalar mem;
+  cpus.set_value(-1);
+  mem.set_value(-1);
+  cpus = resources.getScalar("cpus", cpus);
+  mem = resources.getScalar("mem", mem);
+
   state::SlaveState *state =
     new state::SlaveState(BUILD_DATE, BUILD_USER, slaveId.value(),
-                          resources.cpus(), resources.mem(),
-                          self(), master);
+                          cpus.value(), mem.value(), self(), master);
 
   foreachpair(_, Framework *f, frameworks) {
+    Resources resources(f->resources);
+    Resource::Scalar cpus;
+    Resource::Scalar mem;
+    cpus.set_value(-1);
+    mem.set_value(-1);
+    cpus = resources.getScalar("cpus", cpus);
+    mem = resources.getScalar("mem", mem);
+
     state::Framework *framework =
       new state::Framework(f->frameworkId.value(), f->info.name(),
                            f->info.executor().uri(), f->executorStatus,
-                           f->resources.cpus(), f->resources.mem());
+                           cpus.value(), mem.value());
+
     state->frameworks.push_back(framework);
+
     foreachpair(_, Task *t, f->tasks) {
+      Resources resources(t->resources());
+      Resource::Scalar cpus;
+      Resource::Scalar mem;
+      cpus.set_value(-1);
+      mem.set_value(-1);
+      cpus = resources.getScalar("cpus", cpus);
+      mem = resources.getScalar("mem", mem);
+
       state::Task *task =
         new state::Task(t->task_id().value(), t->name(),
                         TaskState_descriptor()->FindValueByNumber(t->state())->name(),
-                        t->resources().cpus(), t->resources().mem());
+                        cpus.value(), mem.value());
+
       framework->tasks.push_back(task);
     }
   }
@@ -121,6 +131,11 @@ state::SlaveState *Slave::getState()
 void Slave::operator () ()
 {
   LOG(INFO) << "Slave started at " << self();
+
+  resources =
+    Resources::parse(conf.get<string>("resources", "cpus:1;mem:1024"));
+
+  LOG(INFO) << "Resources:\n" << resources;
 
   // Get our hostname
   char buf[256];
@@ -139,7 +154,7 @@ void Slave::operator () ()
   SlaveInfo slave;
   slave.set_hostname(hostname);
   slave.set_public_hostname(public_hostname);
-  *slave.mutable_resources() = resources;
+  slave.mutable_resources()->MergeFrom(resources);
 
   // Initialize isolation module.
   isolationModule->initialize(this);
@@ -158,17 +173,17 @@ void Slave::operator () ()
 	if (slaveId == "") {
 	  // Slave started before master.
           Message<S2M_REGISTER_SLAVE> out;
-          *out.mutable_slave() = slave;
+          out.mutable_slave()->MergeFrom(slave);
 	  send(master, out);
 	} else {
 	  // Re-registering, so send tasks running.
           Message<S2M_REREGISTER_SLAVE> out;
-          *out.mutable_slave_id() = slaveId;
-          *out.mutable_slave() = slave;
+          out.mutable_slave_id()->MergeFrom(slaveId);
+          out.mutable_slave()->MergeFrom(slave);
 
 	  foreachpair(_, Framework *framework, frameworks) {
 	    foreachpair(_, Task *task, framework->tasks) {
-              *out.add_task() = *task;
+              out.add_task()->MergeFrom(*task);
 	    }
 	  }
 
@@ -237,18 +252,17 @@ void Slave::operator () ()
         }
 
         // Create a local task.
-        Task *t = framework->addTask(task, msg.resources());
+        Task *t = framework->addTask(task);
 
         // Either send the task to an executor or queue the task until
         // the executor has started.
         Executor *executor = getExecutor(msg.framework_id());
         if (executor != NULL) {
           Message<S2E_RUN_TASK> out;
-          *out.mutable_framework() = framework->info;
-          *out.mutable_framework_id() = framework->frameworkId;
+          out.mutable_framework()->MergeFrom(framework->info);
+          out.mutable_framework_id()->MergeFrom(framework->frameworkId);
           out.set_pid(framework->pid);
-          *out.mutable_task() = task;
-          *out.mutable_resources() = resources;
+          out.mutable_task()->MergeFrom(task);
           send(executor->pid, out);
           isolationModule->resourcesChanged(framework);
         } else {
@@ -271,8 +285,8 @@ void Slave::operator () ()
 	  Executor* executor = getExecutor(msg.framework_id());
 	  if (executor != NULL) {
 	    Message<S2E_KILL_TASK> out;
-	    *out.mutable_framework_id() = msg.framework_id();
-	    *out.mutable_task_id() = msg.task_id();
+	    out.mutable_framework_id()->MergeFrom(msg.framework_id());
+	    out.mutable_task_id()->MergeFrom(msg.task_id());
 	    send(executor->pid, out);
 	  } else {
 	    // Update the resources locally, if an executor comes up
@@ -281,10 +295,10 @@ void Slave::operator () ()
 	    isolationModule->resourcesChanged(framework);
 
 	    Message<S2M_STATUS_UPDATE> out;
-	    *out.mutable_framework_id() = msg.framework_id();
+	    out.mutable_framework_id()->MergeFrom(msg.framework_id());
 	    TaskStatus *status = out.mutable_status();
-	    *status->mutable_task_id() = msg.task_id();
-	    *status->mutable_slave_id() = slaveId;
+	    status->mutable_task_id()->MergeFrom(msg.task_id());
+	    status->mutable_slave_id()->MergeFrom(slaveId);
 	    status->set_state(TASK_LOST);
 
 	    int seq = rsend(master, framework->pid, out);
@@ -295,12 +309,12 @@ void Slave::operator () ()
 		     << " of framework " << msg.framework_id()
 		     << " because no such framework is running";
 
-	  Message<S2M_STATUS_UPDATE> out;
-	  *out.mutable_framework_id() = msg.framework_id();
-	  TaskStatus *status = out.mutable_status();
-	  *status->mutable_task_id() = msg.task_id();
-	  *status->mutable_slave_id() = slaveId;
-	  status->set_state(TASK_LOST);
+          Message<S2M_STATUS_UPDATE> out;
+	  out.mutable_framework_id()->MergeFrom(msg.framework_id());
+          TaskStatus *status = out.mutable_status();
+          status->mutable_task_id()->MergeFrom(msg.task_id());
+          status->mutable_slave_id()->MergeFrom(slaveId);
+          status->set_state(TASK_LOST);
 
 	  int seq = rsend(master, out);
 	  seqs[msg.framework_id()].insert(seq);
@@ -327,8 +341,8 @@ void Slave::operator () ()
         Executor* executor = getExecutor(msg.framework_id());
         if (executor != NULL) {
           Message<S2E_FRAMEWORK_MESSAGE> out;
-          *out.mutable_framework_id() = msg.framework_id();
-          *out.mutable_message() = message;
+          out.mutable_framework_id()->MergeFrom(msg.framework_id());
+          out.mutable_message()->MergeFrom(message);
           send(executor->pid, out);
         } else {
           VLOG(1) << "Dropping framework message for framework "
@@ -378,9 +392,9 @@ void Slave::operator () ()
           // Tell executor that it's registered and give it its queued tasks
           Message<S2E_REGISTER_REPLY> out;
           ExecutorArgs* args = out.mutable_args();
-          *args->mutable_framework_id() = framework->frameworkId;
+          args->mutable_framework_id()->MergeFrom(framework->frameworkId);
           args->set_name(framework->info.name());
-          *args->mutable_slave_id() = slaveId;
+          args->mutable_slave_id()->MergeFrom(slaveId);
           args->set_hostname(hostname);
           args->set_data(framework->info.executor().data());
           send(executor->pid, out);
@@ -415,8 +429,8 @@ void Slave::operator () ()
 	  // Reliably send message and save sequence number for
 	  // canceling later.
           Message<S2M_STATUS_UPDATE> out;
-          *out.mutable_framework_id() = msg.framework_id();
-          *out.mutable_status() = status;
+          out.mutable_framework_id()->MergeFrom(msg.framework_id());
+          out.mutable_status()->MergeFrom(status);
 	  int seq = rsend(master, framework->pid, out);
 	  seqs[msg.framework_id()].insert(seq);
 	} else {
@@ -439,9 +453,9 @@ void Slave::operator () ()
 
           // TODO(benh): This is weird, sending an M2F message.
           Message<M2F_FRAMEWORK_MESSAGE> out;
-          *out.mutable_framework_id() = msg.framework_id();
-          *out.mutable_message() = message;
-          *out.mutable_message()->mutable_slave_id() = slaveId;
+          out.mutable_framework_id()->MergeFrom(msg.framework_id());
+          out.mutable_message()->MergeFrom(message);
+          out.mutable_message()->mutable_slave_id()->MergeFrom(slaveId);
           send(framework->pid, out);
         }
         break;
@@ -521,11 +535,10 @@ void Slave::sendQueuedTasks(Framework* framework, Executor* executor)
 
   foreach(const TaskDescription& task, framework->queuedTasks) {
     Message<S2E_RUN_TASK> out;
-    *out.mutable_framework() = framework->info;
-    *out.mutable_framework_id() = framework->frameworkId;
+    out.mutable_framework()->MergeFrom(framework->info);
+    out.mutable_framework_id()->MergeFrom(framework->frameworkId);
     out.set_pid(framework->pid);
-    *out.mutable_task() = task;
-    *out.mutable_resources() = resources;
+    out.mutable_task()->MergeFrom(task);
     send(executor->pid, out);
   }
 
@@ -586,8 +599,8 @@ void Slave::executorExited(const FrameworkID& frameworkId, int status)
               << "with status " << status;
 
     Message<S2M_EXITED_EXECUTOR> out;
-    *out.mutable_slave_id() = slaveId;
-    *out.mutable_framework_id() = frameworkId;
+    out.mutable_slave_id()->MergeFrom(slaveId);
+    out.mutable_framework_id()->MergeFrom(frameworkId);
     out.set_status(status);
     send(master, out);
 
