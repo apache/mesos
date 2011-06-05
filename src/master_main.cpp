@@ -65,7 +65,6 @@ int main(int argc, char **argv)
   LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
   LOG(INFO) << "Starting Mesos master";
 
-  LOG(INFO) << "argv[0] is " << argv[0];
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("Could not chdir into %s", dirname(argv[0]));
 
