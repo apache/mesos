@@ -1,6 +1,7 @@
 set :source_machine, "{{active_master}}"
 set :install_dir,  "/opt/hypertable"
-set :hypertable_version, "0.9.4.3"
+set :hypertable_version, "0.9.5.0.pre3"
+set :default_pkg, "/tmp/hypertable-0.9.5.0.pre3-linux-x86_64.deb"
 set :default_dfs, "hadoop"
 set :default_config, "/root/mesos-ec2/hypertable/hypertable.cfg"
 set :default_additional_args, ""
@@ -15,25 +16,25 @@ role :hyperspace, "{{active_master}}"
 open("/root/mesos-ec2/slaves").each do |slave|
   role :slave, slave
 end
+role :localhost, "{{active_master}}"
 role :thriftbroker
 role :spare
-role :localhost, "{{active_master}}"
 role :test_client
 role :test_dispatcher
 
 ######################### END OF USER CONFIGURATION ############################
 
-def install_machines
-  (roles[:master].servers | \
-   roles[:hyperspace].servers | \
-   roles[:slave].servers | \
-   roles[:thriftbroker].servers | \
-   roles[:spare].servers | \
-   roles[:test_client].servers | \
-   roles[:test_dispatcher].servers) - roles[:source].servers
+def supported_pkgs
+  {"rpm"=>1, "deb"=>1}
 end
 
-role(:install) { install_machines }
+def pkg_regex
+  '.*\.(deb|rpm)$'
+end
+
+set(:pkg) do
+  "#{default_pkg}"
+end unless exists?(:pkg)
 
 set(:dfs) do
   "#{default_dfs}"
@@ -64,14 +65,37 @@ set :config_option, \
     "--config=#{install_dir}/#{hypertable_version}/conf/#{config_file}"
 
  desc <<-DESC
+
+ desc <<-DESC
     Copies config file to installation on localhost.
     This task runs on localhost and copies the config file specified \
     by the variable 'config' (default=#{config}) \
     to the installation directory specified by the variable 'install_dir' \
-    (default=#{install_dir})
+    (default-#{install_dir})
  DESC
-task :copy_config, :roles => :localhost do
-  run("rsync -e \"ssh -o StrictHostKeyChecking=no\" #{config} #{install_dir}/#{hypertable_version}/conf/")
+task :copy_config_local, :roles => :localhost do
+  run("rsync -e \"ssh -o StrictHostKeyChecking=no\" #{config} #{install_dir}/#{hypertable_version}/conf")
+end
+ 
+ desc <<-DESC
+    Copies config file to installation on all servers in cluster.
+    This task copies the dir\
+    #{source_machine}:#{install_dir}/{#hypertable_version}/conf
+    to all machines in the cluster    
+ DESC
+task :push_config_all do
+   run <<-CMD
+     rsync -av -e "ssh -o StrictHostKeyChecking=no" --exclude=log --exclude=run --exclude=demo --exclude=fs --exclude=hyperspace #{source_machine}:#{install_dir}/#{hypertable_version}/conf/ #{install_dir}/#{hypertable_version}/conf 
+  CMD
+end
+
+ desc <<-DESC
+    Copies config file to installation dir on localhost.\ 
+    Then copies entire conf fir to all servers in cluster.
+ DESC
+task :push_config do
+  copy_config_local
+  push_config_all 
 end
 
  desc <<-DESC
@@ -80,10 +104,10 @@ end
     installation machine specified by the variable 'source_machine' \
     (default=#{source_machine})
  DESC
-task :rsync, :roles => :install do
+task :rsync do
   run <<-CMD
-     rsync -av -e "ssh -o StrictHostKeyChecking=no" --exclude=log --exclude=run --exclude=demo --exclude=fs --exclude=hyperspace/ #{source_machine}:#{install_dir}/#{hypertable_version} #{install_dir} &&
-     rsync -av -e "ssh -o StrictHostKeyChecking=no" --exclude=log --exclude=run --exclude=demo --exclude=fs --exclude=hyperspace/ #{source_machine}:#{install_dir}/#{hypertable_version}/conf/ #{install_dir}/#{hypertable_version}/conf
+     rsync -av -e "ssh -o StrictHostKeyChecking=no" --exclude=log --exclude=run --exclude=demo --exclude=fs --exclude=conf --exclude=hyperspace #{source_machine}:#{install_dir}/#{hypertable_version} #{install_dir} &&
+     rsync -av -e "ssh -o StrictHostKeyChecking=no" --exclude=log --exclude=run --exclude=demo --exclude=fs --exclude=hyperspace #{source_machine}:#{install_dir}/#{hypertable_version}/conf/ #{install_dir}/#{hypertable_version}/conf 
   CMD
 end
 
@@ -92,7 +116,7 @@ end
     to point to the directory of the current version
     (default=#{hypertable_version})
  DESC
-task :set_current, :roles => [:install, :source] do
+task :set_current, :roles => [:master, :hyperspace, :slave, :thriftbroker, :spare] do
   run <<-CMD
    cd #{install_dir} &&
    rm -f current &&
@@ -101,85 +125,90 @@ task :set_current, :roles => [:install, :source] do
 end
 
  desc <<-DESC
-    Distributes installation.  This task copiles the config file and \
-    then rsyncs the installation to each machine in the cluster
+   Distributes installation.  This task rsyncs everything under\
+   #{source_machine}:#{install_dir}/#{hypertable_version} to #{install_dir}\
+   on all machines in the cluster
  DESC
 task :dist do
   transaction do
-    copy_config
     rsync
   end
 end
 
  desc <<-DESC
-    Distributes and fhsizes the installation, then copies
-    config and rsyncs
+   Alias for install_package command 
  DESC
-task :fhsize do
-  transaction do
-    rsync
-    fhsize_install
-    copy_config
-    rsync
-  end
+task :install_pkg do
+  install_package
 end
 
+ desc <<-DESC
+    rsyncs binary packages and installs on each machine in the cluster
+ DESC
+task :install_package, :roles => [:master, :hyperspace, :slave, :thriftbroker, :spare] do
+  pkg_basename = File.basename(pkg)
+  pkg_basename =~ /#{pkg_regex}/
+  pkg_type = $1
+  
+  if (!supported_pkgs.has_key?(pkg_type))
+    raise "Package file #{pkg} is of unsupported type. Expected one of #{supported_pkgs.keys.inspect}"
+  end
+  if (/-#{hypertable_version}-/ =~ pkg_basename).nil?
+    raise "Package #{pkg} doesn't match version #{hypertable_version}"
+  end
+    run("rsync -e \"ssh -o StrictHostKeyChecking=no\" #{source_machine}:#{pkg} #{install_dir}/")
+   
+  if (pkg_type == "deb")
+    run("dpkg -i #{install_dir}/#{pkg_basename} && rm #{install_dir}/#{pkg_basename}") 
+  else 
+    run("rpm -ivh --replacepkgs --nomd5 #{install_dir}/#{pkg_basename} && rm #{install_dir}/#{pkg_basename}")
+  end
+end
 
  desc <<-DESC
     fhsize's the installations
  DESC
-task :fhsize_install, :roles => [:install, :source] do
-  run <<-CMD
-     #{install_dir}/#{hypertable_version}/bin/fhsize.sh
-  CMD
-end
-
-desc "Verify that upgrade is OK."
-task :qualify_upgrade, :roles => :source do
-  run <<-CMD
-     #{install_dir}/#{hypertable_version}/bin/upgrade-ok.sh #{install_dir}/current #{hypertable_version}
-  CMD
+task :fhsize do
+  transaction do 
+    run <<-CMD
+      #{install_dir}/#{hypertable_version}/bin/fhsize.sh
+    CMD
+  end
 end
 
  desc <<-DESC
-    Upgrades installation.  Stops servers, copies config, rsyncs
-    the installation, then copies hyperspace and the rangeserver
+    Upgrades installation.  Checks upgrade, fhsizes if needed 
+    then copies hyperspace and the rangeserver
     state in the run/ directory to new installation
  DESC
-task :upgrade do
+task :upgrade do 
   transaction do
     qualify_upgrade
-    stop
-    copy_config
-    rsync
-    upgrade_hyperspace
-    upgrade_rangeservers
+    upgrade_all
     set_current
   end
 end
 
  desc <<-DESC
-    Upgrades (copies) the Hyperspace database from the current
-    installation to the new installation specified by the
-    hypertable_version (#{hypertable_version})
+   Verify that upgrade is OK.
  DESC
-task :upgrade_hyperspace, :roles => :hyperspace do
+task :qualify_upgrade, :roles => :source do
   run <<-CMD
-    cp -dpR #{install_dir}/current/hyperspace \
-       #{install_dir}/#{hypertable_version}
+    #{install_dir}/#{hypertable_version}/bin/upgrade-ok.sh \
+        #{install_dir}/current #{hypertable_version}
   CMD
 end
 
  desc <<-DESC
-    Upgrades (copies) the RangeServers by copying the contents
-    of the run directory from the current installation to
+    Upgrades (copies or uses previous symlink) for "hyperspace", "conf", "run", "log" 
+    and "fs" dirs from the current installation to
     installation specified by the hypertable_version
     (#{hypertable_version})
- DESC
-task :upgrade_rangeservers, :roles => :slave do
+DESC
+task :upgrade_all, :roles => [:master, :hyperspace, :slave, :thriftbroker, :spare] do
   run <<-CMD
-    cp -dpR #{install_dir}/current/run \
-       #{install_dir}/#{hypertable_version}
+    #{install_dir}/#{hypertable_version}/bin/upgrade.sh \
+        #{install_dir}/current #{hypertable_version}
   CMD
 end
 
@@ -253,23 +282,31 @@ end
 desc "Stops all servers."
 task :stop do
   transaction do
-    stop_slaves
     stop_master
+    stop_slaves
     stop_hyperspace
+    stop_dfsbrokers
   end
+end
+
+desc "Stops DFS brokers."
+task :stop_dfsbrokers, :roles => [:master, :slave] do
+  run <<-CMD
+  #{install_dir}/current/bin/stop-servers.sh #{additional_args}
+  CMD
 end
 
 desc "Stops slave processes."
 task :stop_slaves, :roles => :slave do
   run <<-CMD
-  #{install_dir}/current/bin/stop-servers.sh --no-hyperspace --no-master #{additional_args}
+  #{install_dir}/current/bin/stop-servers.sh --no-hyperspace --no-master --no-dfsbroker #{additional_args}
   CMD
 end
 
 desc "Stops master processes."
 task :stop_master, :roles => :master do
   run <<-CMD
-  #{install_dir}/current/bin/stop-servers.sh --no-hyperspace --no-rangeserver #{additional_args} &&
+  #{install_dir}/current/bin/stop-servers.sh --no-hyperspace --no-rangeserver --no-dfsbroker #{additional_args} &&
   #{install_dir}/current/bin/stop-monitoring.sh
   CMD
 end

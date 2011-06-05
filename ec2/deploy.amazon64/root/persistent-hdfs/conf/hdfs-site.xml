@@ -68,4 +68,9 @@
     <value>8</value>
   </property>
 
+  <property>
+    <name>dfs.permissions</name>
+    <value>false</value>
+  </property>
+
 </configuration>

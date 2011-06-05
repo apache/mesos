@@ -56,4 +56,11 @@ export HADOOP_PID_DIR=/var/hadoop/persistent-hdfs/pids
 # The scheduling priority for daemon processes.  See 'man nice'.
 # export HADOOP_NICENESS=10
 
+# Set hadoop user for CDH (which doesn't allow running as root)
+export HADOOP_NAMENODE_USER=hadoop
+export HADOOP_DATANODE_USER=hadoop
+export HADOOP_SECONDARYNAMENODE_USER=hadoop
+export HADOOP_JOBTRACKER_USER=hadoop
+export HADOOP_TASKTRACKER_USER=hadoop
+
 ulimit -n 16000

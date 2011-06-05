@@ -24,7 +24,7 @@ XFS_MOUNT_OPTS="defaults,noatime,nodiratime,allocsize=8m"
 # (for example /mnt, /mnt2, and so on)
 function create_hadoop_dirs {
   location=$1
-  mkdir -p $location/ephemeral-hdfs/data $location/hadoop/tmp
+  mkdir -p $location/ephemeral-hdfs $location/hadoop/tmp
   mkdir -p $location/hadoop/mrlocal $location/hadoop/mrlocal2
 }
 
@@ -67,13 +67,21 @@ if [[ -e /dev/sdv && ! -e /vol ]]; then
   if mkfs.xfs -q /dev/sdv; then
     mount -o $XFS_MOUNT_OPTS /dev/sdv /vol
     echo "/dev/sdv /vol xfs $XFS_MOUNT_OPTS 0 0" >> /etc/fstab
+    chmod -R a+w /vol
   else
     # mkfs.xfs is not installed on this machine or has failed;
     # delete /vol so that the user doesn't think we successfully
     # mounted the EBS volume
     rmdir /vol
   fi
+elif [[ ! -e /vol ]]; then
+  # Not using EBS, but let's mkdir /vol so that we can chmod it
+  mkdir /vol
+  chmod -R a+w /vol
 fi
+
+# Make data dirs writable by non-root users, such as CDH's hadoop user
+chmod -R a+w /mnt*
 
 # Remove ~/.ssh/known_hosts because it gets polluted as you start/stop many
 # clusters (new machines tend to come up under old hostnames)

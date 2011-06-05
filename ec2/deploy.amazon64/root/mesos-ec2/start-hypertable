@@ -22,4 +22,4 @@ if [ ! -h hyperspace ]; then
 fi
 
 cd /root/mesos-ec2/hypertable
-cap dist && cap start
+cap dist && cap push_config && cap start
