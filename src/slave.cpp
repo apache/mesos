@@ -329,6 +329,7 @@ void Slave::operator () ()
           isolationModule->resourcesChanged(fw);
           // Tell executor that it's registered and give it its queued tasks
           send(from(), pack<S2E_REGISTER_REPLY>(this->id,
+                                                hostname,
                                                 fw->name,
                                                 fw->executorInfo.initArg));
           sendQueuedTasks(fw);

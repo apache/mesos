@@ -11,6 +11,7 @@ extern "C" {
 struct nexus_exec {
   void (*init) (struct nexus_exec*,
                 slave_id,
+                const char*,  // hostname
                 framework_id,
                 const char*,  // framework_name
                 const void*,  // init_arg

@@ -62,10 +62,11 @@ protected:
       // a timely manner (if at all).
       switch(receive()) {
         case S2E_REGISTER_REPLY: {
-          string name;
+          string host;
+          string fwName;
           string args;
-          unpack<S2E_REGISTER_REPLY>(sid, name, args);
-          ExecutorArgs execArg(sid, fid, name, args);
+          unpack<S2E_REGISTER_REPLY>(sid, host, fwName, args);
+          ExecutorArgs execArg(sid, host, fid, fwName, args);
           invoke(bind(&Executor::init, executor, driver, ref(execArg)));
           break;
         }
@@ -273,6 +274,7 @@ public:
   {
     exec->init(exec,
                args.slaveId.c_str(),
+               args.host.c_str(),
                args.frameworkId.c_str(),
                args.frameworkName.c_str(),
                args.data.data(),

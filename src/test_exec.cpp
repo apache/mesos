@@ -12,13 +12,14 @@ using std::endl;
 
 void init(struct nexus_exec* exec,
           slave_id sid,
+          const char* host,
           framework_id fid,
           const char* name,
           const void* init_arg,
           int init_arg_len)
 {
-  cout << "init with slave ID " << sid << " framework ID " << fid
-       << " and name " << name << endl;
+  cout << "init executor on " << host << " (slave ID " << sid << ") "
+       << "for framework " << name << " (framework ID " << fid << ")" << endl;
 }
 
 

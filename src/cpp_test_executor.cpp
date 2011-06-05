@@ -13,7 +13,7 @@ public:
   virtual ~MyExecutor() {}
 
   virtual void init(ExecutorDriver*, const ExecutorArgs& args) {
-    cout << "Init" << endl;
+    cout << "Initalized executor on " << args.host << endl;
   }
 
   virtual void launchTask(ExecutorDriver* d, const TaskDescription& task) {

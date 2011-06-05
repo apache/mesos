@@ -20,12 +20,14 @@ struct ExecutorArgs
 {
   ExecutorArgs() {}
 
-  ExecutorArgs(SlaveID _slaveId, FrameworkID _frameworkId,
-      const std::string& _frameworkName, const data_string& _data)
-    : slaveId(_slaveId), frameworkId(_frameworkId),
+  ExecutorArgs(SlaveID _slaveId, const std::string& _host,
+      FrameworkID _frameworkId, const std::string& _frameworkName,
+      const data_string& _data)
+    : slaveId(_slaveId), host(_host), frameworkId(_frameworkId),
       frameworkName(_frameworkName), data(_data) {};
 
   SlaveID slaveId;
+  std::string host;
   FrameworkID frameworkId;
   std::string frameworkName;
   data_string data;
