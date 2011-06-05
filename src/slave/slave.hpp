@@ -132,7 +132,7 @@ struct Executor
 // Information about a framework.
 struct Framework
 {
-  Framework( const FrameworkID& _frameworkId, const FrameworkInfo& _info,
+  Framework(const FrameworkID& _frameworkId, const FrameworkInfo& _info,
             const process::UPID& _pid)
     : frameworkId(_frameworkId), info(_info), pid(_pid) {}
 
@@ -200,13 +200,21 @@ public:
 
   process::Promise<state::SlaveState*> getState();
 
-  // Callback used by isolation module to tell us when an executor exits.
-  void executorExited(const FrameworkID& frameworkId, const ExecutorID& executorId, int result);
+  // Callback used by isolation module to tell us when an executor
+  // exits.
+  void executorExited(const FrameworkID& frameworkId,
+                      const ExecutorID& executorId,
+                      int result);
 
   // Kill a framework (possibly killing its executor).
   void killFramework(Framework *framework, bool killExecutors = true);
 
-  std::string getUniqueWorkDirectory(const FrameworkID& frameworkId, const ExecutorID& executorId);
+  // Helper function for generating a unique work directory for this
+  // framework/executor pair (non-trivial since a framework/executor
+  // pair may be launched more than once on the same slave).
+  std::string getUniqueWorkDirectory(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId);
 
   const Configuration& getConfiguration();
 
@@ -260,7 +268,14 @@ protected:
   void sendQueuedTasks(Framework* framework, Executor* executor);
 
 private:
-  Configuration conf;
+  // TODO(benh): Better naming and name scope for these http handlers.
+  process::Promise<process::HttpResponse> http_info_json(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> http_frameworks_json(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> http_tasks_json(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> http_stats_json(const process::HttpRequest& request);
+  process::Promise<process::HttpResponse> http_vars(const process::HttpRequest& request);
+
+  const Configuration conf;
 
   SlaveInfo slave;
 
@@ -271,6 +286,21 @@ private:
   boost::unordered_map<FrameworkID, Framework*> frameworks;
 
   IsolationModule *isolationModule;
+
+  // Statistics (initialized in Slave::initialize).
+  struct {
+    uint64_t launched_tasks;
+    uint64_t finished_tasks;
+    uint64_t killed_tasks;
+    uint64_t failed_tasks;
+    uint64_t lost_tasks;
+    uint64_t valid_status_updates;
+    uint64_t invalid_status_updates;
+    uint64_t valid_framework_messages;
+    uint64_t invalid_framework_messages;
+  } statistics;
+
+  double startTime;
 };
 
 }}}
