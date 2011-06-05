@@ -1017,9 +1017,17 @@ void Master::removeSlave(Slave *slave)
   unordered_map<pair<FrameworkID, TaskID>, Task *> tasksCopy = slave->tasks;
   foreachpair (_, Task *task, tasksCopy) {
     Framework *framework = lookupFramework(task->frameworkId);
-    CHECK(framework != NULL);
-    send(framework->pid, pack<M2F_STATUS_UPDATE>(task->id, TASK_LOST,
-                                                 task->message));
+    // A framework might not actually exist because the master failed
+    // over and the framework hasn't reconnected. This can be a tricky
+    // situation for frameworks that want to have high-availability,
+    // because if they eventually do connect they won't ever get a
+    // status update about this task.  Perhaps in the future what we
+    // want to do is create a local Framework object to represent that
+    // framework until it fails over. See the TODO above in
+    // S2M_REREGISTER_SLAVE.
+    if (framework != NULL)
+      send(framework->pid, pack<M2F_STATUS_UPDATE>(task->id, TASK_LOST,
+						   task->message));
     removeTask(task, TRR_SLAVE_LOST);
   }
 
