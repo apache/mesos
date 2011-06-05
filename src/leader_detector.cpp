@@ -3,10 +3,14 @@
 #include <climits>
 #include <cstdlib>
 #include <zookeeper.h>
+#include <boost/lexical_cast.hpp>
 #include <glog/logging.h>
+#include <stdexcept>
 #include "leader_detector.hpp"
 
 using namespace std;
+
+using boost::lexical_cast;
 
 // I don't really use this
 void LeaderDetector::initWatchWrap(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx) {
@@ -27,19 +31,33 @@ LeaderDetector::LeaderDetector(const string &server, const bool contendLeader, c
 {
 
   zh = zookeeper_init(zooserver.c_str(), initWatchWrap, 1000, 0, NULL, 0);
-  LOG(INFO) << "Initialized ZooKeeper";
-  LOG_IF(ERROR, zh == NULL) << "zookeeper_init returned error:";
 
+  if (zh == NULL)
+    throw runtime_error("ZooKeeper not responding correctly. Make sure ZooKeeper is running on: "
+                        + zooserver);
 
-  char buf[100];
+  char buf[256];
+  int buflen;
+  int zret;
 
-  int ret = zoo_create(zh, "/nxmaster",  NULL, -1, &ZOO_OPEN_ACL_UNSAFE, 0, buf, 100);
+  buflen = sizeof(buf);
+  zret = zoo_create(zh, "/nxmaster",  NULL, -1, &ZOO_OPEN_ACL_UNSAFE, 0, buf, buflen); // might already exist
+
+  zret = zoo_get(zh, "/nxmaster", 0, buf, &buflen, NULL); // just to test zookeeper
+
+  if (zret != ZOK)
+    throw runtime_error("ZooKeeper not responding correctly (ret:" + lexical_cast<string>(zret) + 
+                        "). Make sure ZooKeeper is running on: " + zooserver);
 
   if (contendLeader) {
-    ret = zoo_create(zh, "/nxmaster/",  myPID.c_str(), myPID.length(), &ZOO_OPEN_ACL_UNSAFE, ZOO_SEQUENCE | ZOO_EPHEMERAL, buf, 100);
-    LOG_IF(ERROR, ret != ZOK) << "zoo_create() ephemeral/sequence returned error:" << ret;
+    buflen = sizeof(buf);
+    zret = zoo_create(zh, "/nxmaster/",  myPID.c_str(), myPID.length(), 
+                     &ZOO_OPEN_ACL_UNSAFE, ZOO_SEQUENCE | ZOO_EPHEMERAL, buf, buflen);
+    if (zret != ZOK)
+      throw runtime_error("ZooKeeper not responding correctly (ret:" + lexical_cast<string>(zret) + 
+                          "). Make sure ZooKeeper is running on: " + zooserver);
 
-    if (ret == ZOK) {
+    if (zret == ZOK) {
       setMySeq(string(buf));
       LOG(INFO) << "Created ephemeral/sequence:" << mySeq;
     }
@@ -67,9 +85,9 @@ void LeaderDetector::leaderWatch(zhandle_t *zh, int type, int state, const char 
 
 bool LeaderDetector::detectLeader() {
   String_vector sv;
-  int ret = zoo_wget_children(zh, "/nxmaster", leaderWatchWrap, (void*)this, &sv);
-  LOG_IF(ERROR, ret != ZOK) << "zoo_wget_children (get leaders) returned error:" << ret;
-  LOG_IF(INFO, ret == ZOK) << "zoo_wget_children returned " << sv.count << " registered leaders";
+  int zret = zoo_wget_children(zh, "/nxmaster", leaderWatchWrap, (void*)this, &sv);
+  LOG_IF(ERROR, zret != ZOK) << "zoo_wget_children (get leaders) returned error:" << zret;
+  LOG_IF(INFO, zret == ZOK) << "zoo_wget_children returned " << sv.count << " registered leaders";
   
   string leader;
   long min = LONG_MAX;
@@ -101,11 +119,12 @@ string LeaderDetector::fetchLeaderPID(const string &id) {
 
   string path = "/nxmaster/";
   path += id;
-  char buf[100];
-  int buflen = sizeof(buf);
-  int ret = zoo_get(zh, path.c_str(), 0, buf, &buflen, NULL);
-  LOG_IF(ERROR, ret != ZOK) << "zoo_get returned error:" << ret;
-  LOG_IF(INFO, ret == ZOK) << "zoo_get leader data fetch returned " << buf[0];
+  char buf[256];
+  int buflen;
+  buflen = sizeof(buf);
+  int zret = zoo_get(zh, path.c_str(), 0, buf, &buflen, NULL);
+  LOG_IF(ERROR, zret != ZOK) << "zoo_get returned error:" << zret;
+  LOG_IF(INFO, zret == ZOK) << "zoo_get leader data fetch returned " << buf[0];
 
   string tmp(buf,buflen);
   currentLeaderPID = tmp;
@@ -127,7 +146,7 @@ void LeaderDetector::newLeader(const string &leader, const string &leaderPID) {
 }
 
 LeaderDetector::~LeaderDetector() {
-  int ret = zookeeper_close(zh);
-  LOG_IF(ERROR, ret != ZOK) << "zookeeper_close returned error:" << ret;
-  LOG_IF(INFO, ret == ZOK) << "zookeeper_close OK";
+  int zret = zookeeper_close(zh);
+  LOG_IF(ERROR, zret != ZOK) << "zookeeper_close returned error:" << zret;
+  LOG_IF(INFO, zret == ZOK) << "zookeeper_close OK";
 }
