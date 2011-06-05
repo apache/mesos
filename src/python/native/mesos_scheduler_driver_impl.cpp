@@ -5,7 +5,6 @@
 #include "proxy_scheduler.hpp"
 
 using std::cerr;
-using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
@@ -100,7 +99,6 @@ PyObject* MesosSchedulerDriverImpl_new(PyTypeObject *type,
                                        PyObject *args,
                                        PyObject *kwds)
 {
-  cout << "In MesosSchedulerDriverImpl_new" << endl;
   MesosSchedulerDriverImpl *self;
   self = (MesosSchedulerDriverImpl *) type->tp_alloc(type, 0);
   if (self != NULL) {
@@ -119,7 +117,6 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl *self,
                                   PyObject *args,
                                   PyObject *kwds)
 {
-  cout << "In MesosSchedulerDriverImpl_init" << endl;
   PyObject *pythonScheduler = NULL;
   const char* url;
   PyObject *frameworkId = NULL;
@@ -171,7 +168,6 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl *self,
  */
 void MesosSchedulerDriverImpl_dealloc(MesosSchedulerDriverImpl* self)
 {
-  cout << "In MesosSchedulerDriverImpl_dealloc" << endl;
   if (self->driver != NULL) {
     self->driver->stop();
     delete self->driver;

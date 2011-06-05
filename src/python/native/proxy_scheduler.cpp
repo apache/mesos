@@ -4,7 +4,6 @@
 #include "module.hpp"
 #include "mesos_scheduler_driver_impl.hpp"
 
-using std::cout;
 using std::cerr;
 using std::endl;
 using std::string;
@@ -15,7 +14,6 @@ using namespace mesos;
 namespace mesos { namespace python {
 
 string ProxyScheduler::getFrameworkName(SchedulerDriver* driver) {
-  cout << "ProxyScheduler::getFrameworkName being called" << endl;
   InterpreterLock lock;
   PyObject* res = PyObject_CallMethod(impl->pythonScheduler,
                                       (char*) "getFrameworkName",
@@ -47,7 +45,6 @@ string ProxyScheduler::getFrameworkName(SchedulerDriver* driver) {
 
 
 ExecutorInfo ProxyScheduler::getExecutorInfo(SchedulerDriver* driver) {
-  cout << "ProxyScheduler::getExecutorInfo being called" << endl;
   InterpreterLock lock;
   ExecutorInfo info;
   PyObject* res = PyObject_CallMethod(impl->pythonScheduler,
@@ -79,7 +76,6 @@ cleanup:
 void ProxyScheduler::registered(SchedulerDriver* driver,
                                 const FrameworkID& frameworkId)
 {
-  cout << "ProxyScheduler::registered being called" << endl;
   InterpreterLock lock;
   
   PyObject* fid = NULL;
@@ -114,7 +110,6 @@ void ProxyScheduler::resourceOffer(SchedulerDriver* driver,
                                    const OfferID& offerId,
                                    const vector<SlaveOffer>& offers)
 {
-  cout << "ProxyScheduler::resourceOffer being called" << endl;
   InterpreterLock lock;
 
   PyObject* oid = NULL;
@@ -163,7 +158,6 @@ cleanup:
 void ProxyScheduler::offerRescinded(SchedulerDriver* driver,
                                     const OfferID& offerId)
 {
-  cout << "ProxyScheduler::offerRescinded being called" << endl;
   InterpreterLock lock;
   
   PyObject* oid = NULL;
@@ -197,7 +191,6 @@ cleanup:
 void ProxyScheduler::statusUpdate(SchedulerDriver* driver,
                                   const TaskStatus& status)
 {
-  cout << "ProxyScheduler::statusUpdate being called" << endl;
   InterpreterLock lock;
   
   PyObject* stat = NULL;
@@ -231,7 +224,6 @@ cleanup:
 void ProxyScheduler::frameworkMessage(SchedulerDriver* driver,
                                       const FrameworkMessage& message)
 {
-  cout << "ProxyScheduler::frameworkMessage being called" << endl;
   InterpreterLock lock;
   
   PyObject* msg = NULL;
@@ -265,7 +257,6 @@ cleanup:
 void ProxyScheduler::slaveLost(SchedulerDriver* driver,
                                const SlaveID& slaveId)
 {
-  cout << "ProxyScheduler::slaveLost being called" << endl;
   InterpreterLock lock;
   
   PyObject* sid = NULL;
@@ -300,7 +291,6 @@ void ProxyScheduler::error(SchedulerDriver* driver,
                            int code,
                            const string& message)
 {
-  cout << "ProxyScheduler::error being called" << endl;
   InterpreterLock lock;
   PyObject* res = PyObject_CallMethod(impl->pythonScheduler,
                                       (char*) "error",

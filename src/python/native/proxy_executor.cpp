@@ -4,7 +4,6 @@
 #include "module.hpp"
 #include "mesos_executor_driver_impl.hpp"
 
-using std::cout;
 using std::cerr;
 using std::endl;
 using std::string;
@@ -17,7 +16,6 @@ namespace mesos { namespace python {
 void ProxyExecutor::init(ExecutorDriver* driver,
                          const ExecutorArgs& args)
 {
-  cout << "ProxyExecutor::init being called" << endl;
   InterpreterLock lock;
   
   PyObject* argsObj = NULL;
@@ -51,7 +49,6 @@ cleanup:
 void ProxyExecutor::launchTask(ExecutorDriver* driver,
                                const TaskDescription& task)
 {
-  cout << "ProxyExecutor::launchTask being called" << endl;
   InterpreterLock lock;
   
   PyObject* taskObj = NULL;
@@ -85,7 +82,6 @@ cleanup:
 void ProxyExecutor::killTask(ExecutorDriver* driver,
                              const TaskID& taskId)
 {
-  cout << "ProxyExecutor::killTask being called" << endl;
   InterpreterLock lock;
   
   PyObject* taskIdObj = NULL;
@@ -119,7 +115,6 @@ cleanup:
 void ProxyExecutor::frameworkMessage(ExecutorDriver* driver,
                                      const FrameworkMessage& message)
 {
-  cout << "ProxyExecutor::frameworkMessage being called" << endl;
   InterpreterLock lock;
   
   PyObject* messageObj = NULL;
@@ -152,7 +147,6 @@ cleanup:
 
 void ProxyExecutor::shutdown(ExecutorDriver* driver)
 {
-  cout << "ProxyExecutor::shutdown being called" << endl;
   InterpreterLock lock;
   PyObject* res = PyObject_CallMethod(impl->pythonExecutor,
                             (char*) "shutdown",
@@ -175,7 +169,6 @@ void ProxyExecutor::error(ExecutorDriver* driver,
                           int code,
                           const string& message)
 {
-  cout << "ProxyExecutor::error being called" << endl;
   InterpreterLock lock;
   PyObject* res = PyObject_CallMethod(impl->pythonExecutor,
                                       (char*) "error",

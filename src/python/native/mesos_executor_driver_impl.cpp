@@ -5,7 +5,6 @@
 #include "proxy_executor.hpp"
 
 using std::cerr;
-using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
@@ -92,7 +91,6 @@ PyObject* MesosExecutorDriverImpl_new(PyTypeObject *type,
                                        PyObject *args,
                                        PyObject *kwds)
 {
-  cout << "In MesosExecutorDriverImpl_new" << endl;
   MesosExecutorDriverImpl *self;
   self = (MesosExecutorDriverImpl *) type->tp_alloc(type, 0);
   if (self != NULL) {
@@ -111,7 +109,6 @@ int MesosExecutorDriverImpl_init(MesosExecutorDriverImpl *self,
                                   PyObject *args,
                                   PyObject *kwds)
 {
-  cout << "In MesosExecutorDriverImpl_init" << endl;
   PyObject *pythonExecutor = NULL;
 
   if (!PyArg_ParseTuple(args, "O", &pythonExecutor)) {
@@ -148,7 +145,6 @@ int MesosExecutorDriverImpl_init(MesosExecutorDriverImpl *self,
  */
 void MesosExecutorDriverImpl_dealloc(MesosExecutorDriverImpl* self)
 {
-  cout << "In MesosExecutorDriverImpl_dealloc" << endl;
   if (self->driver != NULL) {
     self->driver->stop();
     delete self->driver;

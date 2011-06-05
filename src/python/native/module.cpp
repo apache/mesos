@@ -23,9 +23,6 @@
 #include "proxy_executor.hpp"
 #include "mesos_executor_driver_impl.hpp"
 
-using std::cout;
-using std::cerr;
-using std::endl;
 using std::string;
 using std::vector;
 using std::map;
