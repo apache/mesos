@@ -24,9 +24,125 @@
   %insert("runtime") %{
   #define SWIG_JAVA_ATTACH_CURRENT_THREAD_AS_DAEMON
   %}
-#endif
 
-#ifdef SWIGJAVA
+  /**
+   * Add a utility method for finding a class even from new Java threads.
+   * Unfortunately, JNI's FindClass uses the system ClassLoader when it
+   * is called from a C++ thread, but in Scala (and probably other Java
+   * environments too), this classloader is not enough to locate mesos.jar.
+   * Instead, we try to capture Thread.currentThread()'s context ClassLoader
+   * when the Mesos library is initialized, in case it has more paths that
+   * we can search.
+   *
+   * This code is based on Apache 2 licensed Android code obtained from
+   * http://android.git.kernel.org/?p=platform/frameworks/base.git;a=blob;f=core/jni/AndroidRuntime.cpp;h=f61e2476c71191aa6eabc93bcb26b3c15ccf6136;hb=HEAD
+   */
+  %insert("runtime") %{
+     #include <string>
+     #include <assert.h>
+
+     jobject mesosClassLoader = NULL;
+
+
+     JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
+     {
+       // Grab the context ClassLoader of the current thread, if any
+
+       JNIEnv* env;
+       if (jvm->GetEnv((void **)&env, JNI_VERSION_1_2)) {
+         return JNI_ERR; /* JNI version not supported */
+       }
+
+       jclass javaLangThread, javaLangClassLoader;
+       jmethodID currentThread, getContextClassLoader, loadClass;
+       jobject thread, classLoader;
+
+       /* find this thread's context class loader; none of this is expected to fail */
+       javaLangThread = env->FindClass("java/lang/Thread");
+       assert(javaLangThread != NULL);
+       javaLangClassLoader = env->FindClass("java/lang/ClassLoader");
+       assert(javaLangClassLoader != NULL);
+       currentThread = env->GetStaticMethodID(javaLangThread,
+           "currentThread", "()Ljava/lang/Thread;");
+       getContextClassLoader = env->GetMethodID(javaLangThread,
+           "getContextClassLoader", "()Ljava/lang/ClassLoader;");
+       assert(currentThread != NULL);
+       assert(getContextClassLoader != NULL);
+       thread = env->CallStaticObjectMethod(javaLangThread, currentThread);
+       assert(thread != NULL);
+       classLoader = env->CallObjectMethod(thread, getContextClassLoader);
+       if (classLoader != NULL) {
+         mesosClassLoader = env->NewWeakGlobalRef(classLoader);
+       }
+ 
+       return JNI_VERSION_1_2;
+     }
+
+
+     JNIEXPORT void JNICALL JNI_OnUnLoad(JavaVM* jvm, void* reserved)
+     {
+       JNIEnv *env;
+       if (jvm->GetEnv((void **)&env, JNI_VERSION_1_2)) {
+           return;
+       }
+       if (mesosClassLoader != NULL) {
+         env->DeleteWeakGlobalRef(mesosClassLoader);
+         mesosClassLoader = NULL;
+       }
+     }
+
+
+     jclass FindClassWithMesosClassLoader(JNIEnv* env, const char* className)
+     {
+         if (env->ExceptionCheck()) {
+             fprintf(stderr, "ERROR: exception pending on entry to "
+                             "FindClassWithMesosClassLoader()\n");
+             return NULL;
+         }
+
+         if (mesosClassLoader == NULL) {
+           return env->FindClass(className);
+         }
+     
+         /*
+          * JNI FindClass uses class names with slashes, but ClassLoader.loadClass
+          * uses the dotted "binary name" format. Convert formats.
+          */
+         std::string convName = className;
+         for (int i = 0; i < convName.size(); i++) {
+           if (convName[i] == '/')
+             convName[i] = '.';
+         }
+
+         jclass javaLangClassLoader = env->FindClass("java/lang/ClassLoader");
+         assert(javaLangClassLoader != NULL);
+         jmethodID loadClass = env->GetMethodID(javaLangClassLoader,
+             "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
+         assert(loadClass != NULL);
+         jclass cls = NULL;
+
+         /* create an object for the class name string; alloc could fail */
+         jstring strClassName = env->NewStringUTF(convName.c_str());
+         if (env->ExceptionCheck()) {
+             fprintf(stderr, "ERROR: unable to convert '%s' to string\n", convName.c_str());
+             goto bail;
+         }
+
+         /* try to find the named class */
+         cls = (jclass) env->CallObjectMethod(mesosClassLoader, loadClass,
+                                              strClassName);
+         if (env->ExceptionCheck()) {
+             fprintf(stderr, "ERROR: unable to load class '%s' from %p\n",
+                 className, mesosClassLoader);
+             cls = NULL;
+             goto bail;
+         }
+
+     bail:
+         return cls;
+     }
+  %}
+
   /* Typemaps for vector<char> to map it to a byte array */
   /* Based on a post at http://www.nabble.com/Swing-to-Java:-using-native-types-for-vector%3CT%3E-td22504981.html */
   %naturalvar mesos::bytes; 
@@ -151,7 +267,7 @@
      jclass iterCls = jenv->GetObjectClass(iterObj);
      jmethodID hasNext = jenv->GetMethodID(iterCls, "hasNext", "()Z");
      jmethodID next = jenv->GetMethodID(iterCls, "next", "()Ljava/lang/Object;");
-     jclass taskDescCls = jenv->FindClass("mesos/SlaveOffer");
+     jclass taskDescCls = FindClassWithMesosClassLoader(jenv, "mesos/SlaveOffer");
      jmethodID getCPtr = jenv->GetStaticMethodID(taskDescCls, "getCPtr", "(Lmesos/SlaveOffer;)J");
      while (jenv->CallBooleanMethod(iterObj, hasNext)) {
        jobject obj = jenv->CallObjectMethod(iterObj, next);
@@ -166,11 +282,14 @@
 
   %typemap(directorin,descriptor="Ljava/util/List;") const std::vector<mesos::SlaveOffer> &
   %{ {
-     jclass listCls = jenv->FindClass("java/util/ArrayList");
+     jclass listCls = FindClassWithMesosClassLoader(jenv, "java/util/ArrayList");
      jmethodID listCtor = jenv->GetMethodID(listCls, "<init>", "()V");
      jmethodID add = jenv->GetMethodID(listCls, "add", "(Ljava/lang/Object;)Z");
      jobject list = jenv->NewObject(listCls, listCtor);
-     jclass taskDescCls = jenv->FindClass("mesos/SlaveOffer");
+     jclass taskDescCls = FindClassWithMesosClassLoader(jenv, "mesos/SlaveOffer");
+if (jenv->ExceptionOccurred()) {
+jenv->ExceptionDescribe();
+}
      jmethodID taskDescCtor = jenv->GetMethodID(taskDescCls, "<init>", "(JZ)V");
      for (int i = 0; i < $1.size(); i++) {
        // TODO: Copy the SlaveOffer object here so Java owns it?
@@ -183,11 +302,11 @@
 
   %typemap(out) const std::vector<mesos::SlaveOffer> &
   %{ {
-     jclass listCls = jenv->FindClass("java/util/ArrayList");
+     jclass listCls = FindClassWithMesosClassLoader(jenv, "java/util/ArrayList");
      jmethodID listCtor = jenv->GetMethodID(listCls, "<init>", "()V");
      jmethodID add = jenv->GetMethodID(listCls, "add", "(Ljava/lang/Object;)Z");
      jobject list = jenv->NewObject(listCls, listCtor);
-     jclass taskDescCls = jenv->FindClass("mesos/SlaveOffer");
+     jclass taskDescCls = FindClassWithMesosClassLoader(jenv, "mesos/SlaveOffer");
      jmethodID taskDescCtor = jenv->GetMethodID(taskDescCls, "<init>", "(JZ)V");
      for (int i = 0; i < $1.size(); i++) {
        // TODO: Copy the SlaveOffer object here so Java owns it?
@@ -228,7 +347,7 @@
      jclass iterCls = jenv->GetObjectClass(iterObj);
      jmethodID hasNext = jenv->GetMethodID(iterCls, "hasNext", "()Z");
      jmethodID next = jenv->GetMethodID(iterCls, "next", "()Ljava/lang/Object;");
-     jclass taskDescCls = jenv->FindClass("mesos/TaskDescription");
+     jclass taskDescCls = FindClassWithMesosClassLoader(jenv, "mesos/TaskDescription");
      jmethodID getCPtr = jenv->GetStaticMethodID(taskDescCls, "getCPtr", "(Lmesos/TaskDescription;)J");
      while (jenv->CallBooleanMethod(iterObj, hasNext)) {
        jobject obj = jenv->CallObjectMethod(iterObj, next);
@@ -243,11 +362,11 @@
 
   %typemap(directorin,descriptor="Ljava/util/List;") const std::vector<mesos::TaskDescription> &
   %{ {
-     jclass listCls = jenv->FindClass("java/util/ArrayList");
+     jclass listCls = FindClassWithMesosClassLoader(jenv, "java/util/ArrayList");
      jmethodID listCtor = jenv->GetMethodID(listCls, "<init>", "()V");
      jmethodID add = jenv->GetMethodID(listCls, "add", "(Ljava/lang/Object;)V");
      jobject list = jenv->NewObject(listCls, listCtor);
-     jclass taskDescCls = jenv->FindClass("mesos/TaskDescription");
+     jclass taskDescCls = FindClassWithMesosClassLoader(jenv, "mesos/TaskDescription");
      jmethodID taskDescCtor = jenv->GetMethodID(taskDescCls, "<init>", "(JZ)V");
      for (int i = 0; i < $1.size(); i++) {
        // TODO: Copy the TaskDescription object here so Java owns it?
@@ -260,11 +379,11 @@
 
   %typemap(out) const std::vector<mesos::TaskDescription> &
   %{ {
-     jclass listCls = jenv->FindClass("java/util/ArrayList");
+     jclass listCls = FindClassWithMesosClassLoader(jenv, "java/util/ArrayList");
      jmethodID listCtor = jenv->GetMethodID(listCls, "<init>", "()V");
      jmethodID add = jenv->GetMethodID(listCls, "add", "(Ljava/lang/Object;)V");
      jobject list = jenv->NewObject(listCls, listCtor);
-     jclass taskDescCls = jenv->FindClass("mesos/TaskDescription");
+     jclass taskDescCls = FindClassWithMesosClassLoader(jenv, "mesos/TaskDescription");
      jmethodID taskDescCtor = jenv->GetMethodID(taskDescCls, "<init>", "(JZ)V");
      for (int i = 0; i < $1.size(); i++) {
        // TODO: Copy the TaskDescription object here so Java owns it?
@@ -308,7 +427,7 @@
      jclass iterCls = jenv->GetObjectClass(iterObj);
      jmethodID hasNext = jenv->GetMethodID(iterCls, "hasNext", "()Z");
      jmethodID next = jenv->GetMethodID(iterCls, "next", "()Ljava/lang/Object;");
-     jclass entryCls = jenv->FindClass("java/util/Map$Entry");
+     jclass entryCls = FindClassWithMesosClassLoader(jenv, "java/util/Map$Entry");
      jmethodID getKey = jenv->GetMethodID(entryCls, "getKey", "()Ljava/lang/Object;");
      jmethodID getValue = jenv->GetMethodID(entryCls, "getValue", "()Ljava/lang/Object;");
      while (jenv->CallBooleanMethod(iterObj, hasNext)) {
@@ -343,7 +462,7 @@
 
   %typemap(directorin,descriptor="Ljava/util/Map;") const std::map<std::string, std::string> &
   %{ {
-     jclass mapCls = jenv->FindClass("java/util/HashMap");
+     jclass mapCls = FindClassWithMesosClassLoader(jenv, "java/util/HashMap");
      jmethodID mapCtor = jenv->GetMethodID(mapCls, "<init>", "()V");
      jmethodID put = jenv->GetMethodID(mapCls, "put",
         "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
@@ -369,7 +488,7 @@
 
   %typemap(out) const std::map<std::string, std::string> &
   %{ {
-     jclass mapCls = jenv->FindClass("java/util/HashMap");
+     jclass mapCls = FindClassWithMesosClassLoader(jenv, "java/util/HashMap");
      jmethodID mapCtor = jenv->GetMethodID(mapCls, "<init>", "()V");
      jmethodID put = jenv->GetMethodID(mapCls, "put",
         "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
