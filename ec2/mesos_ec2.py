@@ -62,6 +62,9 @@ def parse_args():
            "Only possible on EBS-backed AMIs.")
   parser.add_option("--swap", metavar="SWAP", type="int", default=1024,
       help="Swap space to set up per node, in MB (default: 1024)")
+  parser.add_option("--spot-price", metavar="PRICE", type="float",
+      help="If specified, launch slaves as spot instances with the given " +
+            "maximum price (in dollars)")
   (opts, args) = parser.parse_args()
   opts.ft = int(opts.ft)
   if len(args) != 2:
@@ -179,15 +182,54 @@ def launch_cluster(conn, opts, cluster_name):
     block_map["/dev/sdv"] = device
 
   # Launch slaves
-  slave_res = image.run(key_name = opts.key_pair,
-                        security_groups = [slave_group],
-                        instance_type = opts.instance_type,
-                        placement = opts.zone,
-                        min_count = opts.slaves,
-                        max_count = opts.slaves,
-                        block_device_map = block_map)
-  slave_nodes = slave_res.instances
-  print "Launched slaves, regid = " + slave_res.id
+  if opts.spot_price != None:
+    # Launch spot instances with the requested price
+    print ("Requesting %d slaves as spot instances with price $%.3f" %
+           (opts.slaves, opts.spot_price))
+    slave_reqs = conn.request_spot_instances(
+        price = opts.spot_price,
+        image_id = opts.ami,
+        launch_group = "launch-group-%s" % cluster_name,
+        placement = opts.zone,
+        count = opts.slaves,
+        key_name = opts.key_pair,
+        security_groups = [slave_group],
+        instance_type = opts.instance_type,
+        block_device_map = block_map)
+    my_req_ids = [req.id for req in slave_reqs]
+    print "Waiting for spot instances to be granted..."
+    while True:
+      time.sleep(10)
+      reqs = conn.get_all_spot_instance_requests()
+      id_to_req = {}
+      for r in reqs:
+        id_to_req[r.id] = r
+      active = 0
+      instance_ids = []
+      for i in my_req_ids:
+        if id_to_req[i].state == "active":
+          active += 1
+          instance_ids.append(id_to_req[i].instance_id)
+      if active == opts.slaves:
+        print "All %d slaves granted" % opts.slaves
+        reservations = conn.get_all_instances(instance_ids)
+        slave_nodes = []
+        for r in reservations:
+          slave_nodes += r.instances
+        break
+      else:
+        print "%d of %d slaves granted, waiting longer" % (active, opts.slaves)
+  else:
+    # Launch non-spot instances
+    slave_res = image.run(key_name = opts.key_pair,
+                          security_groups = [slave_group],
+                          instance_type = opts.instance_type,
+                          placement = opts.zone,
+                          min_count = opts.slaves,
+                          max_count = opts.slaves,
+                          block_device_map = block_map)
+    slave_nodes = slave_res.instances
+    print "Launched slaves, regid = " + slave_res.id
 
   # Launch masters
   master_type = opts.master_instance_type
@@ -222,8 +264,8 @@ def launch_cluster(conn, opts, cluster_name):
 
 
 # Get the EC2 instances in an existing cluster if available.
-# Returns a tuple of EC2 reservation objects for the master, slave
-# and zookeeper instances (in that order).
+# Returns a tuple of lists of EC2 instance objects for the masters,
+# slaves and zookeeper nodes (in that order).
 def get_existing_cluster(conn, opts, cluster_name):
   print "Searching for existing cluster " + cluster_name + "..."
   reservations = conn.get_all_instances()
