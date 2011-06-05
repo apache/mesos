@@ -36,7 +36,7 @@ class MyScheduler(mesos.Scheduler):
     self.tasksLaunched = 0
     self.tasksFinished = 0
 
-  def getFrameorkName(self, driver):
+  def getFrameworkName(self, driver):
     return "Mesos MPI Framework"
 
   def getExecutorInfo(self, driver):
@@ -48,7 +48,7 @@ class MyScheduler(mesos.Scheduler):
     print "Mesos MPI scheduler and mpd running at "+self.ip+":"+self.port
 
   def resourceOffer(self, driver, oid, offers):
-    print "Got offer %d" % oid
+    print "Got offer %s" % oid
     tasks = []
     if self.tasksLaunched == TOTAL_TASKS:
       print "Rejecting permanently because we have already started"
@@ -117,7 +117,7 @@ if __name__ == "__main__":
                     help="number of cpus per slot (default 1)",
                     dest="cpus", type="int", default=CPUS)
   parser.add_option("-m","--mem",
-                    help="number of bytes of memory per slot (default 1GB)",
+                    help="number of MB of memory per slot (default 1GB)",
                     dest="mem", type="int", default=MEM)
 
   (options,args)=parser.parse_args()
