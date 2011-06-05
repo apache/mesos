@@ -37,13 +37,15 @@ ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
                                    const string& _user,
                                    const string& _workDirectory,
                                    const string& _slavePid,
+                                   const string& _mesosFrameworks,
                                    const string& _mesosHome,
                                    const string& _hadoopHome,
                                    bool _redirectIO,
                                    bool _shouldSwitchUser,
                                    const map<string, string>& _params)
   : frameworkId(_frameworkId), executorUri(_executorUri), user(_user),
-    workDirectory(_workDirectory), slavePid(_slavePid), mesosHome(_mesosHome),
+    workDirectory(_workDirectory), slavePid(_slavePid),
+    mesosFrameworks(_mesosFrameworks), mesosHome(_mesosHome),
     hadoopHome(_hadoopHome), redirectIO(_redirectIO), 
     shouldSwitchUser(_shouldSwitchUser), params(_params)
 {}
@@ -93,13 +95,21 @@ void ExecutorLauncher::createWorkingDirectory()
   string dir = "";
   if (workDirectory.find_first_of("/") == 0) // We got an absolute path, so
     dir = "/";                               // keep the leading slash
+
   foreach (const string& token, tokens) {
     dir += token;
     if (mkdir(dir.c_str(), 0755) < 0 && errno != EEXIST)
-      fatalerror("Failed to mkdir %s", dir.c_str());
+      fatalerror("Failed to mkdir %s.", dir.c_str());
     dir += "/";
   }
-  // TODO: chown the final directory to the framework's user
+  if (shouldSwitchUser) {
+    struct passwd *passwd;
+    if ((passwd = getpwnam(user.c_str())) == NULL)
+      fatal("Failed to get username information for %s.", user.c_str());
+
+    if (chown(dir.c_str(), passwd->pw_uid, passwd->pw_gid) < 0)
+      fatalerror("Failed to chown framework's working directory.");
+  }
 }
 
 
@@ -115,9 +125,7 @@ string ExecutorLauncher::fetchExecutor()
       executor.find_first_of('\0') != string::npos) {
     fatal("Illegal characters in executor path");
   }
-
-  // Grab the executor from HDFS if its path begins with hdfs://
-  // TODO: Enforce some size limits on files we get from HDFS
+// Grab the executor from HDFS if its path begins with hdfs:// // TODO: Enforce some size limits on files we get from HDFS
   if (executor.find("hdfs://") == 0) {
     // Locate Hadoop's bin/hadoop script. If a Hadoop home was given to us by
     // the slave (from the Mesos config file), use that. Otherwise check for
@@ -146,6 +154,25 @@ string ExecutorLauncher::fetchExecutor()
     if (chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
               S_IROTH | S_IXOTH) != 0)
       fatalerror("chmod failed");
+  } else if (executor.find_first_of("/") != 0) {
+    // We got a non-Hadoop and non-absolute path.
+    // Try prepending MESOS_HOME to it.
+    if (mesosFrameworks != "") {
+      executor = mesosFrameworks + "/" + executor;
+      cout << "Prepended mesosFrameworks to executor path, making it: " 
+           << executor << endl;
+    } else {
+      if (mesosHome != "") {
+        executor = mesosHome + "/frameworks/" + executor;
+        cout << "Prepended MESOS_HOME/frameworks/ to relative " 
+             << "executor path, making it: " << executor << endl;
+      } else {
+        cout << "Neither MESOS_HOME nor FRAMEWORKS_HOME is set, so using "
+             << "relative executor path as is which will result in it "
+             << "relative to the directory Mesos created for the "
+             << "executor to run in." << endl;
+      }
+    }
   }
 
   // If the executor was a .tgz, untar it in the work directory. The .tgz

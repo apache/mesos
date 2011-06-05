@@ -87,10 +87,11 @@ ExecutorLauncher* SolarisProjectIsolationModule::createExecutorLauncher(
                              fw->user,
                              slave->getWorkDirectory(fw->id),
                              slave->self(),
-                             slave->getConf().get("home", ""),
-                             slave->getConf().get("hadoop_home", ""),
+                             slave->getParams().get("frameworks_home", ""),
+                             slave->getParams().get("home", ""),
+                             slave->getParams().get("hadoop_home", ""),
                              !slave->local,
-                             slave->getConf().get("switch_user", true),
+                             slave->getParams().get("switch_user", true),
                              frameworkProject[fw->id]);
 }
 
@@ -101,7 +102,7 @@ void SolarisProjectIsolationModule::Communicator::launchProjd(
   LOG(INFO) << "Starting projd for project " << project;
 
   // Get location of Mesos install in order to find projd.
-  string mesosHome = slave->getConf().get("home", ".");
+  string mesosHome = slave->getParams().get("home", ".");
 
   pid_t pid;
   if ((pid = fork()) == -1)
