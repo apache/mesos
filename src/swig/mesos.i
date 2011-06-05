@@ -41,7 +41,7 @@
      #include <string>
      #include <assert.h>
 
-     jobject mesosClassLoader = NULL;
+     jweak mesosClassLoader = NULL;
 
 
      JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
