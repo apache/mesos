@@ -2044,7 +2044,8 @@ WITH_INCLUDED_ZOOKEEPER="no"
 # Check whether --with-included-zookeeper was given.
 if test "${with_included_zookeeper+set}" = set; then
   withval=$with_included_zookeeper; case "$with_included_zookeeper" in
-		    yes) WITH_INCLUDED_ZOOKEEPER="yes" ;;
+		    yes) WITH_ZOOKEEPER="yes"
+                         WITH_INCLUDED_ZOOKEEPER="yes" ;;
                     no) WITH_INCLUDED_ZOOKEEPER="no" ;;
 		    *) { { echo "$as_me:$LINENO: error:
 *** --with-included-zookeeper does not take arguments" >&5

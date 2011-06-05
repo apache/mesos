@@ -8,5 +8,4 @@ fi
   --with-python-headers=/usr/include/python2.6      \
   --with-java-home=$JAVA_HOME                       \
   --with-webui                                      \
-  --with-zookeeper                                  \
   --with-included-zookeeper $@

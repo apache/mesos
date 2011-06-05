@@ -175,7 +175,8 @@ AC_ARG_WITH([included-zookeeper],
   AC_HELP_STRING([--with-included-zookeeper],
                  [build with included ZooKeeper]),
 	         [case "$with_included_zookeeper" in
-		    yes) WITH_INCLUDED_ZOOKEEPER="yes" ;;
+		    yes) WITH_ZOOKEEPER="yes"
+                         WITH_INCLUDED_ZOOKEEPER="yes" ;;
                     no) WITH_INCLUDED_ZOOKEEPER="no" ;;
 		    *) AC_MSG_ERROR([
 *** --with-included-zookeeper does not take arguments]) ;;
