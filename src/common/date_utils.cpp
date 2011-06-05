@@ -16,7 +16,7 @@ string DateUtils::mockDate = "";
 
 
 // Get the current date in the format used for Mesos IDs (YYYYMMDDhhmm).
-string DateUtils::currentDate()
+string DateUtils::humanReadableDate()
 {
   if (useMockDate) {
     return mockDate;
@@ -34,10 +34,18 @@ string DateUtils::currentDate()
 
 // Get the current time in microseconds since the UNIX epoch.
 long DateUtils::currentDateInMicro() {
-  struct timeval curr_time;
-  struct timezone tzp;
-  gettimeofday(&curr_time, &tzp);
-  return (long)(curr_time.tv_sec * 1000000 + curr_time.tv_usec);
+  if (useMockDate) {
+    struct tm* timeinfo;
+    strptime(mockDate.c_str(), "%Y%m%d%H%M", timeinfo);
+    time_t rawtime = mktime(timeinfo);
+    long microSinceEpoch = rawtime * 1000000;
+    return microSinceEpoch;
+  } else {
+    struct timeval curr_time;
+    struct timezone tzp;
+    gettimeofday(&curr_time, &tzp);
+    return (long)(curr_time.tv_sec * 1000000 + curr_time.tv_usec);
+  }
 }
 
 

@@ -32,7 +32,7 @@ int FileEventWriter::logTaskCreated(TaskID tid, FrameworkID fwid, SlaveID sid,
                                     string webuiUrl, Resources resVec)
 {
   logfile << "{"
-            << "datetime:" << DateUtils::currentDate() << ","
+            << "datetime:" << DateUtils::humanReadableDate() << ","
             << "event_type:CreateTask,"
             << "taskid:" << tid << ","
             << "fwid:" << fwid << ","
@@ -48,7 +48,7 @@ int FileEventWriter::logTaskStateUpdated(TaskID tid, FrameworkID fwid,
                                          TaskState state)
 {
   logfile << "{" 
-            << "datetime:" << DateUtils::currentDate() << "," 
+            << "datetime:" << DateUtils::humanReadableDate() << "," 
             << "event_type:TaskStateUpdate,"
             << "taskid:" << tid << ","
             << "fwid:" << fwid << ","
@@ -61,7 +61,7 @@ int FileEventWriter::logTaskStateUpdated(TaskID tid, FrameworkID fwid,
 
 int FileEventWriter::logFrameworkRegistered(FrameworkID fwid, string user) {
   logfile << "{"
-            << "datetime:" << DateUtils::currentDate() << ","
+            << "datetime:" << DateUtils::humanReadableDate() << ","
             << "event_type:CreateFramework,"
             << "fwid:" << fwid << ","
             << "userid:" << user

@@ -264,7 +264,7 @@ void Master::operator () ()
   }
   string faultToleranceId;
   tie(faultToleranceId) = unpack<GOT_MASTER_ID>(body());
-  masterId = DateUtils::currentDate() + "-" + faultToleranceId;
+  masterId = DateUtils::humanReadableDate() + "-" + faultToleranceId;
   LOG(INFO) << "Master ID: " << masterId;
 
   // Create the allocator (we do this after the constructor because it

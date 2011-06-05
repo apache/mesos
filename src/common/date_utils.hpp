@@ -15,7 +15,7 @@ public:
   /**
    * Get the current date in the format used for Mesos IDs (YYYYMMDDhhmm).
    */
-  static std::string currentDate();
+  static std::string humanReadableDate();
 
   /**
    * Get the current time in microseconds since the UNIX epoch.
