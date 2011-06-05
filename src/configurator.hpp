@@ -191,8 +191,7 @@ public:
 
   /**
    * Validates the values of all keys that it has a default option for.
-   * @throws BadOptionValueException with the key of the parameter 
-   * that has the wrong type.
+   * @throws ConfigurationError if a key has the wrong type.
    **/ 
   void validate();
 

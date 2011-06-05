@@ -31,6 +31,7 @@ public:
   virtual ValidatorBase* clone() const = 0;
 };
 
+
 /**
  * Validator that checks if a string can be cast to its templated type.
  **/
@@ -62,16 +63,6 @@ public:
 
 };
 
-/**
- * Exception type thrown if the the value of an Option 
- * doesn't match the default value type.
- */
-struct BadOptionValueException : std::exception
-{
-  const char* message;
-  BadOptionValueException(const char* msg): message(msg) {}
-  const char* what() const throw () { return message; }
-};
 
 /**
  * Registered option with help string and default value

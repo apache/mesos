@@ -51,7 +51,7 @@ TEST(ConfiguratorTest, DefaultOptions)
     } );
 
   conf.addOption<int>("excp", "Exception tester.", 50);
-  EXPECT_THROW(conf.validate(), BadOptionValueException);
+  EXPECT_THROW(conf.validate(), ConfigurationException);
   conf.getParams()["excp"] = "27";
   EXPECT_NO_THROW(conf.validate());
 

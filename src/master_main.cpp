@@ -47,9 +47,6 @@ int main(int argc, char **argv)
   try {
     conf.load(argc, argv, true);
     params = conf.getParams();
-  } catch (BadOptionValueException& e) {
-    cerr << "Invalid value for '" << e.what() << "' option" << endl;
-    exit(1);
   } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
     exit(1);

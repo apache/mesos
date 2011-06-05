@@ -24,8 +24,10 @@ const char* Configurator::ENV_VAR_PREFIX = "MESOS_";
 void Configurator::validate()
 {
   foreachpair (const string& key, const Option& opt, options) {
-    if (params.contains(key) && opt.validator && !opt.validator->isValid(params[key])) {
-      throw BadOptionValueException(params[key].c_str());
+    if (params.contains(key) && opt.validator &&
+        !opt.validator->isValid(params[key])) {
+      string msg = "Invalid value for '" + key + "' option: " + params[key];
+      throw ConfigurationException(msg.c_str());
     }
   }
 }
