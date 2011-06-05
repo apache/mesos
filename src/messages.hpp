@@ -36,6 +36,7 @@ enum MessageType {
   
   /* From slave to master. */
   S2M_REGISTER_SLAVE,
+  S2M_REREGISTER_SLAVE,
   S2M_UNREGISTER_SLAVE,
   S2M_STATUS_UPDATE,
   S2M_FRAMEWORK_MESSAGE,
@@ -156,6 +157,12 @@ TUPLE(S2M_REGISTER_SLAVE,
       (std::string /*name*/,
        std::string /*publicDns*/,
        Resources));
+
+TUPLE(S2M_REREGISTER_SLAVE,
+      (std::string /*name*/,
+       std::string /*publicDns*/,
+       Resources,
+       Resources   /*ResourcesInUse*/ ));
 
 TUPLE(S2M_UNREGISTER_SLAVE,
       (SlaveID));

@@ -366,6 +366,21 @@ void Master::operator () ()
       break;
     }
 
+    case S2M_REREGISTER_SLAVE: {
+      string slaveId = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextSlaveId++);
+
+      Slave *slave = new Slave(from(), slaveId);
+      unpack<S2M_REREGISTER_SLAVE>(slave->hostname, slave->publicDns,
+				   slave->resources, slave->resourcesInUse);
+      LOG(INFO) << "Registering " << slave << " at " << slave->pid;
+      slaves[slave->id] = slave;
+      pidToSid[slave->pid] = slave->id;
+      link(slave->pid);
+      send(slave->pid, pack<M2S_REGISTER_REPLY>(slave->id));
+      allocator->slaveAdded(slave);
+      break;
+    }
+
     case S2M_UNREGISTER_SLAVE: {
       SlaveID sid;
       unpack<S2M_UNREGISTER_SLAVE>(sid);
@@ -459,6 +474,11 @@ void Master::operator () ()
       foreachpair (_, Framework *framework, frameworks)
         framework->removeExpiredFilters();
       allocator->timerTick();
+
+      int cnt=0;
+      foreachpair(_, Slave *slave, slaves) {
+	LOG(INFO)<<(cnt++)<<" "<<slave->resourcesInUse;
+      }
       break;
     }
 

@@ -336,7 +336,19 @@ void Slave::operator () ()
 	
 	LOG(INFO) << "Connecting to Nexus master at " << master;
 	link(master);
-	send(master, pack<S2M_REGISTER_SLAVE>(hostname, publicDns, resources));
+
+	// reconstruct resourcesInUse for the master
+	// alig: do I need to include queuedTasks in this number? Don't think so.
+	Resources resourcesInUse; 
+
+	foreachpair(_, Framework *framework, frameworks) {
+	  foreachpair(_, Task *task, framework->tasks) {
+	    resourcesInUse += task->resources;
+	  }
+	}
+	//alibandali
+
+	send(master, pack<S2M_REREGISTER_SLAVE>(hostname, publicDns, resources, resourcesInUse));
 	
 	break;
       }
