@@ -189,6 +189,7 @@ task :start do
     start_hyperspace
     start_master
     start_slaves
+    start_master_thriftbroker
   end
 end
 
@@ -207,6 +208,14 @@ task :start_master, :roles => :master do
       #{config_option} &&
    #{install_dir}/current/bin/start-master.sh #{config_option} &&
    #{install_dir}/current/bin/start-monitoring.sh
+  CMD
+end
+
+desc "Starts ThriftBroker on master."
+task :start_master_thriftbroker, :roles => :master do
+  run <<-CMD
+   #{install_dir}/current/bin/start-thriftbroker.sh \
+      #{config_option}
   CMD
 end
 
