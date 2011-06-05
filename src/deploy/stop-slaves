@@ -6,16 +6,16 @@ DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
 
 cd $DEPLOY_DIR
 
-# Set SUDO_COMMAND to sudo if we launched the slave daemons with sudo,
+# Set OPTIONAL_SUDO_CMD to sudo if we launched the slave daemons with sudo,
 # so that we can kill them as sudo.
-SUDO_COMMAND=""
+OPTIONAL_SUDO_CMD=""
 if [ "$DEPLOY_WITH_SUDO" == "1" ]; then
-  SUDO_COMMAND="sudo"
+  OPTIONAL_SUDO_CMD="sudo"
 fi
 
 for slave in $SLAVES; do
   echo "Stopping slave on $slave"
-  ssh $SSH_OPTS $slave "$SUDO_COMMAND killall mesos-slave" &
+  ssh $SSH_OPTS $slave "$OPTIONAL_SUDO_CMD killall mesos-slave" &
   sleep 0.1
 done
 wait
