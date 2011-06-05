@@ -1,0 +1,1811 @@
+Index: src/contrib/mesos/ivy.xml
+===================================================================
+--- src/contrib/mesos/ivy.xml	(revision 0)
++++ src/contrib/mesos/ivy.xml	(revision 0)
+@@ -0,0 +1,38 @@
++<?xml version="1.0" ?>
++<ivy-module version="1.0">
++  <info organisation="org.apache.hadoop" module="${ant.project.name}">
++    <license name="Apache 2.0"/>
++    <ivyauthor name="Apache Hadoop Team" url="http://hadoop.apache.org"/>
++    <description>
++        Apache Hadoop contrib
++    </description>
++  </info>
++  <configurations defaultconfmapping="default">
++    <!--these match the Maven configurations-->
++    <conf name="default" extends="master,runtime"/>
++    <conf name="master" description="contains the artifact but no dependencies"/>
++    <conf name="runtime" description="runtime but not the artifact" />
++
++    <conf name="common" visibility="private" 
++      description="artifacts needed to compile/test the application"/>
++  </configurations>
++
++  <publications>
++    <!--get the artifact from our module name-->
++    <artifact conf="master"/>
++  </publications>
++  <dependencies>
++    <dependency org="commons-logging"
++      name="commons-logging"
++      rev="${commons-logging.version}"
++      conf="common->default"/>
++    <dependency org="log4j"
++      name="log4j"
++      rev="${log4j.version}"
++      conf="common->master"/>
++   <dependency org="junit"
++      name="junit"
++      rev="${junit.version}"
++      conf="common->default"/>
++  </dependencies>
++</ivy-module>
+Index: src/contrib/mesos/ivy/libraries.properties
+===================================================================
+--- src/contrib/mesos/ivy/libraries.properties	(revision 0)
++++ src/contrib/mesos/ivy/libraries.properties	(revision 0)
+@@ -0,0 +1,5 @@
++#This properties file lists the versions of the various artifacts used by streaming.
++#It drives ivy and the generation of a maven POM
++
++#Please list the dependencies name with version if they are different from the ones 
++#listed in the global libraries.properties file (in alphabetical order)
+Index: src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java
+===================================================================
+--- src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java	(revision 0)
++++ src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java	(revision 0)
+@@ -0,0 +1,127 @@
++package org.apache.hadoop.mapred;
++
++import java.io.BufferedReader;
++import java.io.FileNotFoundException;
++import java.io.IOException;
++import java.io.InputStreamReader;
++import java.util.Random;
++
++import org.apache.hadoop.fs.FSDataInputStream;
++import org.apache.hadoop.fs.FSDataOutputStream;
++import org.apache.hadoop.fs.FileStatus;
++import org.apache.hadoop.fs.FileSystem;
++import org.apache.hadoop.fs.Path;
++import org.apache.hadoop.util.Shell;
++
++/**
++ * Locates a running JobTracker with a given tag, or launches a new one
++ * using the mesos.launcher.* Configuration properties.
++ */
++public class MesosJobTrackerLauncher {
++  public static void main(String[] args) throws IOException {
++    if (args.length != 1) {
++      System.err.println("Usage: MesosJobTrackerLauncher <tag>");
++      System.exit(1);
++    }
++    String tag = args[0];
++    
++    JobConf conf = new JobConf();
++    FileSystem fs = FileSystem.get(conf);
++
++    // Read configuration options
++    String launcherDir = conf.get("mesos.launcher.dir", "/user/mesos/launcher");
++    long leaseTimeout = conf.getLong("mesos.launcher.lease.timeout", 30000);
++    String[] jtHosts = conf.getStrings("mesos.launcher.jobtracker.hosts");
++    if (jtHosts == null) {
++      fatalError("mesos.launcher.jobtracker.hosts is not set");
++    }
++    
++    // Check that HADOOP_HOME is set
++    String hadoopHome = System.getenv("HADOOP_HOME");
++    if (hadoopHome == null) {
++      fatalError("HADOOP_HOME environment variable must be set");
++    }
++    
++    // Create the lock directory if it does not exist
++    Path launcherDirPath = new Path(launcherDir);
++    try {
++      FileStatus status = fs.getFileStatus(launcherDirPath);
++      if (!status.isDir()) {
++        fatalError(launcherDir + " exists, but is not a directory");
++      }
++    } catch (FileNotFoundException e) {
++      if (!fs.mkdirs(launcherDirPath)) {
++        fatalError("failed to create " + launcherDir);
++      }
++    }
++    
++    // Try to connect to, or launch, a JobTracker for our given tag
++    Path lockPath = new Path(launcherDirPath, tag + ".lock");
++    Path jtPath = new Path(launcherDirPath, tag + ".jobtracker");
++    while (true) {
++      try {
++        FileStatus stat = fs.getFileStatus(lockPath);
++        // If getFileStatus succeeds, the lock file exists; check if it's valid
++        if (stat.getAccessTime() + leaseTimeout < System.currentTimeMillis()) {
++          // Lease expired; delete the file so that we can attempt to create it
++          // on the next iteration of the while loop, but sleep a bit before
++          // continuing in case other launchers are trying to delete the file.
++          fs.delete(lockPath, false);
++          try {
++            Thread.sleep(2000);
++          } catch (InterruptedException e) {}
++        } else {
++          // Lease is valid; test and return the JobTracker in the jtPath file
++          try {
++            FSDataInputStream in = fs.open(jtPath);
++            BufferedReader br = new BufferedReader(new InputStreamReader(in));
++            String jtAddress = br.readLine().trim();
++            in.close();
++            // Try to connect to the JT listed in jtAddress
++            JobConf clientConf = new JobConf(conf);
++            clientConf.set("mapred.job.tracker", jtAddress);
++            JobClient client = new JobClient();
++            client.init(clientConf);
++            client.close();
++            // Everything worked! Print the JobTracker URL and exit
++            System.out.println(jtAddress);
++            System.exit(0);
++          } catch (Exception e) {
++            // Failed to read the jobTracker file or to connect to the 
++            // JobTracker listed there. This could mean that the JT is still
++            // starting up, or that it failed. Retry in two seconds.
++            try {
++              Thread.sleep(2000);
++            } catch (InterruptedException e2) {}
++          }
++        }
++      } catch (FileNotFoundException fnf) {
++        // Lock file does not exist; try creating it ourselves
++        try {
++          FSDataOutputStream out = fs.create(lockPath, false);
++          out.close();
++          fs.setTimes(lockPath, -1, System.currentTimeMillis());
++          // If we got here, we created the lock file successfully; go ahead
++          // and launch the JobTracker
++          Random r = new Random();
++          String host = jtHosts[r.nextInt(jtHosts.length)];
++          Shell.execCommand(
++              "ssh", host, hadoopHome + "/bin/mesos-jobtracker-runner", tag);
++          // Sleep a bit to give the JT a chance to start before we test it
++          try {
++            Thread.sleep(5000);
++          } catch (InterruptedException e) {}
++        } catch (IOException e) {}
++      }
++    }
++  }
++
++  /**
++   * Print a fatal error message and exit the program.
++   * @param message Error to print
++   */
++  private static void fatalError(String message) {
++    System.err.println("Fatal error: " + message);
++    System.exit(1);
++  }
++}
+Index: src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java
+===================================================================
+--- src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java	(revision 0)
++++ src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java	(revision 0)
+@@ -0,0 +1,89 @@
++package org.apache.hadoop.mapred;
++
++import java.io.IOException;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.List;
++
++import mesos.MesosSchedulerDriver;
++import mesos.SchedulerDriver;
++
++import org.apache.commons.logging.Log;
++import org.apache.commons.logging.LogFactory;
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.mapred.TaskTrackerStatus;
++
++public class MesosScheduler extends TaskScheduler {
++  static {
++    System.loadLibrary("mesos");
++  }
++  
++  public static final Log LOG =
++    LogFactory.getLog(MesosScheduler.class);
++  
++  private boolean running = false;
++  private FrameworkScheduler frameworkScheduler;
++  private SchedulerDriver driver;
++  JobTracker jobTracker;
++
++  private EagerTaskInitializationListener eagerInitListener;
++
++  public MesosScheduler() { 
++  }
++  
++  @Override
++  public void start() throws IOException {
++    try {
++      LOG.info("Starting MesosScheduler");
++      jobTracker = (JobTracker) super.taskTrackerManager;
++      
++      Configuration conf = getConf();
++      String master = conf.get("mapred.mesos.master", "local");
++      
++      this.eagerInitListener = new EagerTaskInitializationListener(conf);
++      eagerInitListener.setTaskTrackerManager(taskTrackerManager);
++      eagerInitListener.start();
++      taskTrackerManager.addJobInProgressListener(eagerInitListener);
++      
++      frameworkScheduler = new FrameworkScheduler(this); 
++      driver = new MesosSchedulerDriver(frameworkScheduler, master);
++      
++      driver.start();
++    } catch (Exception e) {
++      // If the MesosScheduler can't be loaded, the JT won't be useful at all,
++      // so crash it now so that the user notices.
++      LOG.fatal("Failed to start MesosScheduler", e);
++      // TODO: Use System.exit(1) instead of RuntimeException?
++      throw new RuntimeException("Failed to start MesosScheduler", e);
++    }
++  }
++
++  @Override
++  public void terminate() throws IOException {
++    try {
++      if (running) {
++        LOG.info("Stopping MesosScheduler");
++        driver.stop();
++        frameworkScheduler.cleanUp();
++      }
++      if (eagerInitListener != null) {
++        taskTrackerManager.removeJobInProgressListener(eagerInitListener);
++      }
++    } catch (Exception e) {
++      e.printStackTrace();
++    }
++  }
++  
++  @Override
++  public List<Task> assignTasks(TaskTrackerStatus taskTracker) throws IOException {
++    return frameworkScheduler.assignTasks(taskTracker);
++  }
++
++  @Override
++  public Collection<JobInProgress> getJobs(String queueName) {
++    // TODO Actually return some jobs
++    ArrayList<JobInProgress> list = new ArrayList<JobInProgress>();
++    return list;
++  }
++
++}
+Index: src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java
+===================================================================
+--- src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java	(revision 0)
++++ src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java	(revision 0)
+@@ -0,0 +1,132 @@
++package org.apache.hadoop.mapred;
++
++import java.io.IOException;
++import java.io.OutputStreamWriter;
++import java.io.Writer;
++import java.net.InetAddress;
++import java.net.UnknownHostException;
++import java.text.DateFormat;
++import java.text.SimpleDateFormat;
++import java.util.Date;
++
++import org.apache.hadoop.fs.FSDataInputStream;
++import org.apache.hadoop.fs.FSDataOutputStream;
++import org.apache.hadoop.fs.FileSystem;
++import org.apache.hadoop.fs.Path;
++
++/**
++ * Executes a JobTracker with a given tag for the Mesos JobTracker launcher
++ * system, maintaining the correct lease through HDFS files and potentially
++ * shutting down the JT after a period of inactivity. 
++ * 
++ * TODO: Still need to implement timeout functionality.
++ */
++public class MesosJobTrackerRunner {
++  // Date format to use in JobTracker identifiers
++  static DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMddHHmm");
++  
++  private static class LeaseRenewalThread extends Thread {
++    private final FileSystem fs;
++    private final Path lockPath;
++    private final long leaseTimeout;
++    private final JobTracker jt;
++
++    public LeaseRenewalThread(
++        FileSystem fs, Path lockPath, long leaseTimeout, JobTracker jt) {
++      super("LeaseRenewalThread");
++      this.fs = fs;
++      this.lockPath = lockPath;
++      this.leaseTimeout = leaseTimeout;
++      this.jt = jt;
++      setDaemon(true);
++    }
++    
++    @Override
++    public void run() {
++      while (true) {
++        try {
++          fs.setTimes(lockPath, -1, System.currentTimeMillis());
++        } catch (IOException e) {
++          // If we failed to set the path, something is seriously wrong
++          // (for example, the lease file was deleted); stop the JT and exit
++          System.err.println("Fatal error: failed to setTimes on " + lockPath);
++          e.printStackTrace();
++          try {
++            jt.stopTracker();
++          } catch (IOException e2) {}
++          System.exit(0);
++        }
++        try {
++          Thread.sleep(leaseTimeout / 4);
++        } catch (InterruptedException e) {}
++      }
++    }
++  }
++  
++  public static void main(String[] args) throws IOException {
++    if (args.length != 1) {
++      System.err.println("Usage: MesosJobTrackerRunner <tag>");
++      System.exit(1);
++    }
++    String tag = args[0];
++    
++    JobConf conf = new JobConf();
++    FileSystem fs = FileSystem.get(conf);
++
++    // Read configuration options
++    String launcherDir = conf.get("mesos.launcher.dir", "/user/mesos/launcher");
++    long leaseTimeout = conf.getLong("mesos.launcher.lease.timeout", 30000);
++    
++    Path lockPath = new Path(launcherDir, tag + ".lock");
++    Path jtPath = new Path(launcherDir, tag + ".jobtracker");
++    Path webuiPath = new Path(launcherDir, tag + ".webui");
++    
++    // Delete the .lock, .jobtracker and .webui files on exit
++    fs.deleteOnExit(lockPath);
++    
++    // Start the JobTracker
++    try {
++      // Create a new JobTracker ID - make sure to include the username
++      // Note: The task status server on the TT seems to break if we add an
++      // underscore into the JobTracker ID, so we use a dash instead
++      String jtId = DATE_FORMAT.format(new Date()) + "-" + tag;
++      // Configure the JT to bind to random ports for RPC and web UI
++      JobConf jtConf = new JobConf(conf);
++      String host = InetAddress.getLocalHost().getHostName();
++      jtConf.set("mapred.job.tracker", host + ":0");
++      jtConf.set("mapred.job.tracker.http.address", "0.0.0.0:0");
++      jtConf.set("mapred.jobtracker.taskScheduler",
++          "org.apache.hadoop.mapred.MesosScheduler");
++      // Start it
++      JobTracker jt = JobTracker.startTracker(jtConf, jtId);
++      // After startTracker, the JT has updated its internal variables to
++      // include its real RPC and HTTP addresses; write them to our files
++      writeTextFile(fs, jtPath, host + ":" + jt.getTrackerPort());
++      fs.deleteOnExit(jtPath);
++      writeTextFile(fs, webuiPath, host + ":" + jt.getInfoPort());
++      fs.deleteOnExit(webuiPath);
++      // Launch a daemon thread to touch the lock file and maintain our lease
++      new LeaseRenewalThread(fs, lockPath, leaseTimeout, jt).start();
++      // Run the JT
++      jt.offerService();
++    } catch (UnknownHostException e) {
++      fatalError("failed to get hostname of local machine");
++    } catch (InterruptedException e) {}
++  }
++  
++  private static void writeTextFile(FileSystem fs, Path path, String string)
++  throws IOException {
++    Writer writer = new OutputStreamWriter(fs.create(path, true));
++    writer.write(string);
++    writer.close();
++  }
++
++  /**
++   * Print a fatal error message and exit the program.
++   * @param message Error to print
++   */
++  private static void fatalError(String message) {
++    System.err.println("Fatal error: " + message);
++    System.exit(1);
++  }
++}
+Index: src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java
+===================================================================
+--- src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java	(revision 0)
++++ src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java	(revision 0)
+@@ -0,0 +1,28 @@
++package org.apache.hadoop.mapred;
++
++import java.io.File;
++
++import org.apache.commons.logging.Log;
++import org.apache.commons.logging.LogFactory;
++import org.apache.hadoop.mapred.TaskTracker.TaskInProgress;
++
++public class MesosTaskTrackerInstrumentation extends TaskTrackerInstrumentation {
++  public static final Log LOG =
++    LogFactory.getLog(MesosTaskTrackerInstrumentation.class);
++  
++  private FrameworkExecutor executor;
++  
++  public MesosTaskTrackerInstrumentation(TaskTracker t) {
++    super(t);
++    executor = FrameworkExecutor.getInstance();
++    if (executor == null) {
++      throw new IllegalArgumentException("MesosTaskTrackerInstrumentation " +
++          "is being used without an active FrameworkExecutor");
++    }
++  }
++  
++  @Override
++  public void statusUpdate(Task task, TaskStatus taskStatus) {
++    executor.statusUpdate(task, taskStatus);
++  }
++}
+Index: src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java
+===================================================================
+--- src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java	(revision 0)
++++ src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java	(revision 0)
+@@ -0,0 +1,147 @@
++package org.apache.hadoop.mapred;
++
++import java.io.IOException;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Map;
++import java.util.Set;
++import java.util.Map.Entry;
++
++import org.apache.commons.logging.Log;
++import org.apache.commons.logging.LogFactory;
++import org.apache.hadoop.mapred.TaskStatus.State;
++import org.apache.hadoop.mapred.TaskTracker.TaskInProgress;
++import org.hsqldb.lib.Iterator;
++
++import mesos.Executor;
++import mesos.ExecutorArgs;
++import mesos.ExecutorDriver;
++import mesos.FrameworkMessage;
++import mesos.MesosExecutorDriver;
++import mesos.TaskDescription;
++import mesos.TaskState;
++
++public class FrameworkExecutor extends Executor {
++  static {
++    System.loadLibrary("mesos");
++  }
++  
++  private static FrameworkExecutor instance;
++  
++  public static final Log LOG =
++    LogFactory.getLog(FrameworkExecutor.class);
++  
++  private ExecutorDriver driver;
++  private String slaveId;
++  private JobConf conf;
++  private TaskTracker taskTracker;
++
++  private Set<Integer> activeMesosTasks = new HashSet<Integer>();
++
++  @Override
++  public void init(ExecutorDriver d, ExecutorArgs args) {
++    try {
++      this.driver = d;
++      slaveId = args.getSlaveId();
++      
++      // TODO: initialize all of JobConf from ExecutorArgs (using JT's conf)?
++      conf = new JobConf();
++      String jobTracker = new String(args.getData());
++      LOG.info("Setting JobTracker: " + jobTracker);
++      conf.set("mapred.job.tracker", jobTracker);
++      
++      // Attach our TaskTrackerInstrumentation to figure out when tasks end
++      Class<?>[] instClasses = TaskTracker.getInstrumentationClasses(conf);
++      String newInstClassList = "";
++      for (Class<?> cls: instClasses) {
++        newInstClassList += cls.getName() + ",";
++      }
++      newInstClassList += MesosTaskTrackerInstrumentation.class.getName();
++      conf.set("mapred.tasktracker.instrumentation", newInstClassList);
++      
++      // Get hostname from Mesos to make sure we match what it reports to the JT
++      conf.set("slave.host.name", args.getHost());
++      
++      taskTracker = new TaskTracker(conf);
++      new Thread("TaskTracker run thread") {
++        @Override
++        public void run() {
++          taskTracker.run();
++        }
++      }.start();
++    } catch (Exception e) {
++      LOG.fatal("Failed to initialize FrameworkExecutor", e);
++      System.exit(1);
++    }
++  }
++  
++  @Override
++  public void launchTask(ExecutorDriver d, TaskDescription task) {
++    LOG.info("Asked to launch Mesos task " + task.getTaskId());
++    activeMesosTasks.add(task.getTaskId());
++  }
++  
++  @Override
++  public void killTask(ExecutorDriver d, int taskId) {
++    LOG.info("Asked to kill Mesos task " + taskId);
++    // TODO: Tell the JobTracker about this using an E2S_KILL_REQUEST message!
++  }
++  
++  @Override
++  public void frameworkMessage(ExecutorDriver d, FrameworkMessage msg) {
++    try {
++      int mesosId = msg.getTaskId();
++      HadoopFrameworkMessage hfm = new HadoopFrameworkMessage(msg.getData());
++      switch (hfm.type) {
++        case S2E_SEND_STATUS_UPDATE: {
++          TaskState s = TaskState.valueOf(hfm.arg1);
++          LOG.info("Sending status update: " + mesosId + " is " + s);
++          d.sendStatusUpdate(new mesos.TaskStatus(mesosId, s, new byte[0]));
++          break;
++        }
++        case S2E_SHUTDOWN_EXECUTOR: {
++          taskTracker.close();
++          System.exit(0);
++        }
++      }
++    } catch (IOException e) {
++      LOG.fatal("Failed to deserialize HadoopFrameworkMessage", e);
++      System.exit(1);
++    }
++  }
++  
++  public void statusUpdate(Task task, TaskStatus status) {
++    LOG.info("Status update: " + task.getTaskID() + " is " + 
++        status.getRunState());
++    if (!task.extraData.equals("")) {
++      // Parse Mesos ID from extraData
++      int mesosId = Integer.parseInt(task.extraData);
++      if (activeMesosTasks.contains(mesosId)) {
++        // Check whether the task has finished (either successfully or not),
++        // and report to Mesos if it has
++        State state = status.getRunState();
++        TaskState mesosState = null;
++        if (state == State.SUCCEEDED || state == State.COMMIT_PENDING)
++          mesosState = TaskState.TASK_FINISHED;
++        else if (state == State.FAILED || state == State.FAILED_UNCLEAN)
++          mesosState = TaskState.TASK_FAILED;
++        else if (state == State.KILLED || state == State.KILLED_UNCLEAN)
++          mesosState = TaskState.TASK_KILLED;
++        if (mesosState != null) {
++          driver.sendStatusUpdate(
++              new mesos.TaskStatus(mesosId, mesosState, new byte[0]));
++          activeMesosTasks.remove(mesosId);
++        }
++      }
++    }
++  }
++
++  public static void main(String[] args) {
++    instance = new FrameworkExecutor();
++    new MesosExecutorDriver(instance).run();
++  }
++  
++  static FrameworkExecutor getInstance() {
++    return instance;
++  }
++}
+Index: src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java
+===================================================================
+--- src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java	(revision 0)
++++ src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java	(revision 0)
+@@ -0,0 +1,776 @@
++package org.apache.hadoop.mapred;
++
++import java.io.File;
++import java.io.IOException;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.LinkedList;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++import java.util.concurrent.atomic.AtomicInteger;
++
++import org.apache.commons.logging.Log;
++import org.apache.commons.logging.LogFactory;
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.mapred.TaskStatus.State;
++import org.apache.hadoop.mapred.TaskTrackerStatus;
++import org.apache.hadoop.net.Node;
++
++import mesos.ExecutorInfo;
++import mesos.FrameworkMessage;
++import mesos.Scheduler;
++import mesos.SchedulerDriver;
++import mesos.SlaveOffer;
++import mesos.SlaveOfferVector;
++import mesos.StringMap;
++import mesos.TaskDescription;
++import mesos.TaskDescriptionVector;
++import mesos.TaskState;
++
++public class FrameworkScheduler extends Scheduler {
++  public static final Log LOG =
++    LogFactory.getLog(FrameworkScheduler.class);
++  public static final long KILL_UNLAUNCHED_TASKS_SLEEP_TIME = 2000;
++
++  private static class MesosTask {
++    final boolean isMap;
++    final int mesosId;
++    final String host;
++    final long creationTime;
++    
++    TaskAttemptID hadoopId;
++    
++    MesosTask(boolean isMap, int mesosId, String host) {
++      this.isMap = isMap;
++      this.mesosId = mesosId;
++      this.host = host;
++      this.creationTime = System.currentTimeMillis();
++    }
++
++    boolean isAssigned() {
++      return hadoopId != null;
++    }
++    
++    void assign(Task task) {
++      hadoopId = task.getTaskID();
++    }
++  }
++  
++  private static class TaskTrackerInfo {
++    String mesosSlaveId;
++    List<MesosTask> maps = new LinkedList<MesosTask>();
++    List<MesosTask> reduces = new LinkedList<MesosTask>();
++    
++    public TaskTrackerInfo(String mesosSlaveId) {
++      this.mesosSlaveId = mesosSlaveId;
++    }
++    
++    void add(MesosTask nt) {
++      if (nt.isMap)
++        maps.add(nt);
++      else
++        reduces.add(nt);
++    }
++
++    public void remove(MesosTask nt) {
++      if (nt.isMap)
++        maps.remove(nt);
++      else
++        reduces.remove(nt);
++    }
++  }
++  
++  private class KillTimedOutTasksThread extends Thread {
++    @Override
++    public void run() {
++      while (running) {
++        killTimedOutTasks();
++        try { Thread.sleep(KILL_UNLAUNCHED_TASKS_SLEEP_TIME); }
++        catch (Exception e) {}
++      }
++    }
++  }
++  
++  private MesosScheduler mesosSched;
++  private SchedulerDriver driver;
++  private String frameworkId;
++  private Configuration conf;
++  private JobTracker jobTracker;
++  private boolean running;
++  private AtomicInteger nextMesosTaskId = new AtomicInteger(0);
++  
++  private int cpusPerTask;
++  private long memPerTask;
++  private long localityWait;
++  
++  private Map<String, TaskTrackerInfo> ttInfos =
++    new HashMap<String, TaskTrackerInfo>();
++  
++  private Map<TaskAttemptID, MesosTask> hadoopIdToMesosTask =
++    new HashMap<TaskAttemptID, MesosTask>();
++  private Map<Integer, MesosTask> mesosIdToMesosTask =
++    new HashMap<Integer, MesosTask>();
++  
++  // Counts of various kinds of Mesos tasks
++  // TODO: Figure out a better way to keep track of these
++  int unassignedMaps = 0;
++  int unassignedReduces = 0;
++  int assignedMaps = 0;
++  int assignedReduces = 0;
++  
++  // Variables used for delay scheduling
++  boolean lastMapWasLocal = true;
++  long timeWaitedForLocalMap = 0;
++  long lastCanLaunchMapTime = -1;
++  
++  // Node slot couts
++  // TODO: These should be configurable per node rather than fixed like this
++  int maxMapsPerNode;
++  int maxReducesPerNode;
++  
++  public FrameworkScheduler(MesosScheduler mesosSched) {
++    this.mesosSched = mesosSched;
++    this.conf = mesosSched.getConf();
++    this.jobTracker = mesosSched.jobTracker;
++    cpusPerTask = conf.getInt("mapred.mesos.task.cpus", 1);
++    memPerTask = conf.getLong("mapred.mesos.task.mem", 1024L * 1024L * 1024L);
++    localityWait = conf.getLong("mapred.mesos.localitywait", 5000);
++    maxMapsPerNode = conf.getInt("mapred.tasktracker.map.tasks.maximum", 2);
++    maxReducesPerNode = conf.getInt("mapred.tasktracker.reduce.tasks.maximum", 2);
++  }
++
++  @Override
++  public void registered(SchedulerDriver d, String fid) {
++    this.driver = d;
++    this.frameworkId = fid;
++    LOG.info("Registered with Mesos, with framework ID " + fid);
++    running = true;
++    new KillTimedOutTasksThread().start();
++  }
++  
++  public void cleanUp() {
++    running = false;
++  }
++  
++  @Override
++  public void resourceOffer(SchedulerDriver d, String oid,
++      SlaveOfferVector offers) {
++    try {
++      synchronized(jobTracker) {
++        LOG.info("Got resource offer " + oid);
++        TaskDescriptionVector tasks = new TaskDescriptionVector();
++        
++        int numOffers = (int) offers.size();
++        int[] cpus = new int[numOffers];
++        long[] mem = new long[numOffers];
++
++        // Count up the amount of free CPUs and memory on each node 
++        for (int i = 0; i < numOffers; i++) {
++          SlaveOffer offer = offers.get(i);
++          cpus[i] = Integer.parseInt(offer.getParams().get("cpus"));
++          mem[i] = Long.parseLong(offer.getParams().get("mem"));
++        }
++        
++        // Assign tasks to the nodes in a round-robin manner, and stop when we
++        // are unable to assign a task to any node.
++        // We do this by keeping a linked list of indices of nodes for which
++        // we are still considering assigning tasks. Whenever we can't find a
++        // new task for a node, we remove it from the list. When the list is
++        // empty, no further assignments can be made. This algorithm was chosen
++        // because it minimizing the amount of scanning we need to do if we
++        // get a large set of offered nodes.
++        List<Integer> indices = new LinkedList<Integer>();
++        for (int i = 0; i < numOffers; i++) {
++          indices.add(i);
++        }
++        while (indices.size() > 0) {
++          for (Iterator<Integer> it = indices.iterator(); it.hasNext();) {
++            int i = it.next();
++            SlaveOffer offer = offers.get(i);
++            TaskDescription task = findTask(
++                offer.getSlaveId(), offer.getHost(), cpus[i], mem[i]);
++            if (task != null) {
++              cpus[i] -= Integer.parseInt(task.getParams().get("cpus"));
++              mem[i] -= Integer.parseInt(task.getParams().get("mem"));
++              tasks.add(task);
++            } else {
++              it.remove();
++            }
++          }
++        }
++        
++        StringMap params = new StringMap();
++        params.set("timeout", "1");
++        d.replyToOffer(oid, tasks, params);
++      }
++    } catch(Exception e) {
++      LOG.error("Error in resourceOffer", e);
++    }
++  }
++  
++  private TaskTrackerInfo getTaskTrackerInfo(String host, String slaveId) {
++    if (ttInfos.containsKey(host)) {
++      return ttInfos.get(host);
++    } else {
++      TaskTrackerInfo info = new TaskTrackerInfo(slaveId);
++      ttInfos.put(host, info);
++      return info;
++    }
++  }
++  
++  // Find a single task for a given node. Assumes JobTracker is locked.
++  private TaskDescription findTask(
++      String slaveId, String host, int cpus, long mem) {
++    if (cpus < cpusPerTask || mem < memPerTask) {
++      return null; // Too few resources are left on the node
++    }
++    
++    TaskTrackerInfo ttInfo = getTaskTrackerInfo(host, slaveId);
++
++    // Pick whether to launch a map or a reduce based on available tasks
++    String taskType = null;
++    boolean haveMaps = canLaunchMap(host);
++    boolean haveReduces = canLaunchReduce(host);
++    LOG.info("Looking at " + host + ": haveMaps=" + haveMaps + 
++        ", haveReduces=" + haveReduces);
++    if (!haveMaps && !haveReduces) {
++      return null;
++    } else if (haveMaps && !haveReduces) {
++      taskType = "map";
++    } else if (haveReduces && !haveMaps) {
++      taskType = "reduce";
++    } else {
++      float mapToReduceRatio = 1;
++      if (ttInfo.reduces.size() < ttInfo.maps.size() / mapToReduceRatio)
++        taskType = "reduce";
++      else
++        taskType = "map";
++    }
++    LOG.info("Task type chosen: " + taskType);
++    
++    // Get a Mesos task ID for the new task
++    int mesosId = newMesosTaskId();
++    
++    // Remember that it is launched
++    boolean isMap = taskType.equals("map");
++    if (isMap) {
++      unassignedMaps++;
++    } else {
++      unassignedReduces++;
++    }
++    MesosTask nt = new MesosTask(isMap, mesosId, host);
++    mesosIdToMesosTask.put(mesosId, nt);
++    ttInfo.add(nt);
++    
++    // Create a task description to pass back to Mesos
++    String name = "task " + mesosId + " (" + taskType + ")";
++    StringMap params = new StringMap();
++    params.set("cpus", "" + cpusPerTask);
++    params.set("mem", "" + memPerTask);
++    return new TaskDescription(mesosId, slaveId, name, params, new byte[0]);
++  }
++
++  private int newMesosTaskId() {
++    return nextMesosTaskId.getAndIncrement();
++  }
++
++  @Override
++  public String getFrameworkName(SchedulerDriver driver) {
++    return "Hadoop: " + jobTracker.getTrackerIdentifier() +
++           " (RPC port: " + jobTracker.port + "," +
++           " web UI port: " + jobTracker.infoPort + ")";
++  }
++
++  @Override
++  public ExecutorInfo getExecutorInfo(SchedulerDriver driver) {
++    try {
++      String execPath = new File("bin/mesos-executor").getCanonicalPath();
++      byte[] initArg = conf.get("mapred.job.tracker").getBytes("US-ASCII");
++      return new ExecutorInfo(execPath, initArg);
++    } catch (IOException e) {
++      throw new RuntimeException(e);
++    }
++  }
++  
++  // TODO: Make this return a count instead of a boolean?
++  // TODO: Cache result for some time so we don't iterate through all jobs
++  // and tasks every time we get a resource offer?
++  private boolean canLaunchMap(String host) {
++    // Check whether the TT is saturated on maps
++    TaskTrackerInfo ttInfo = ttInfos.get(host);
++    if (ttInfo == null) {
++      LOG.error("No TaskTrackerInfo for " + host + "! This shouldn't happen.");
++      return false;
++    }
++    if (ttInfo.maps.size() >= maxMapsPerNode) {
++      return false;
++    }
++    
++    // Compute the total demand for maps to make sure we don't exceed it
++    Collection<JobInProgress> jobs = jobTracker.jobs.values();
++    int neededMaps = 0;
++    for (JobInProgress job : jobs) {
++      if (job.getStatus().getRunState() == JobStatus.RUNNING) {
++        neededMaps += job.pendingMaps();
++      }
++    }
++    // TODO (!!!): Count speculatable tasks and add them to neededMaps
++    
++    if (unassignedMaps < neededMaps) {
++      // Figure out what locality level to allow using delay scheduling
++      long now = System.currentTimeMillis();
++      if (lastCanLaunchMapTime == -1)
++        lastCanLaunchMapTime = now;
++      int maxLevel; // Cache level to search for maps in
++      if (lastMapWasLocal) {
++        timeWaitedForLocalMap += now - lastCanLaunchMapTime;
++        if (timeWaitedForLocalMap >= localityWait) {
++          maxLevel = Integer.MAX_VALUE;
++        } else {
++          maxLevel = 1;
++        }
++      } else {
++        maxLevel = Integer.MAX_VALUE;
++      }
++      lastCanLaunchMapTime = now;
++      // Look for a map with the required level
++      for (JobInProgress job: jobs) {
++        int state = job.getStatus().getRunState();
++        if (state == JobStatus.RUNNING && hasMapToLaunch(job, host, maxLevel)) {
++          return true;
++        }
++      }
++    }
++    
++    // If we didn't launch any tasks, but there are pending jobs in the queue,
++    // ensure that at least one TaskTracker is running to execute setup tasks
++    int numTrackers = jobTracker.getClusterStatus().getTaskTrackers();
++    if (jobs.size() > 0 && numTrackers == 0 && totalMesosTasks() == 0) {
++      LOG.info("Going to launch map task for setup / cleanup");
++      return true;
++    }
++    
++    return false;
++  }
++  
++  private int totalMesosTasks() {
++    return unassignedMaps + unassignedReduces + assignedMaps + assignedReduces;
++  }
++
++  // TODO: Make this return a count instead of a boolean?
++  // TODO: Cache result for some time so we don't iterate through all jobs
++  // and tasks every time we get a resource offer?
++  private boolean canLaunchReduce(String host) {
++    // Check whether the TT is saturated on reduces
++    TaskTrackerInfo ttInfo = ttInfos.get(host);
++    if (ttInfo == null) {
++      LOG.error("No TaskTrackerInfo for " + host + "! This shouldn't happen.");
++      return false;
++    }
++    if (ttInfo.reduces.size() >= maxReducesPerNode) {
++      return false;
++    }
++    
++    // Compute total demand for reduces, to make sure we don't exceed it
++    Collection<JobInProgress> jobs = jobTracker.jobs.values();
++    int neededReduces = 0;
++    for (JobInProgress job : jobs) {
++      if (job.getStatus().getRunState() == JobStatus.RUNNING) {
++        neededReduces += job.pendingReduces();
++      }
++    }
++    // TODO (!!!): Count speculatable tasks and add them to neededReduces
++    
++    if (neededReduces > unassignedReduces) {
++      // Find a reduce to launch
++      for (JobInProgress job: jobs) {
++        int state = job.getStatus().getRunState();
++        if (state == JobStatus.RUNNING && hasReduceToLaunch(job)) {
++          return true;
++        }
++      }
++    }
++    
++    return false;
++  }
++  
++  @Override
++  public void statusUpdate(SchedulerDriver d, mesos.TaskStatus status) {
++    TaskState state = status.getState();
++    if (state == TaskState.TASK_FINISHED || state == TaskState.TASK_FAILED ||
++        state == TaskState.TASK_KILLED || state == TaskState.TASK_LOST) {
++      synchronized (jobTracker) {
++        int mesosId = status.getTaskId();
++        MesosTask nt = mesosIdToMesosTask.get(mesosId);
++        if (nt != null) {
++          removeTask(nt);
++        }
++      }
++    }
++  }
++
++  /**
++   * Called by JobTracker to ask us to launch tasks on a heartbeat.
++   * 
++   * This is currently kind of silly; would be better to grab tasks when
++   * we respond to the Mesos assignment, but then we'd need to be willing to
++   * launch TaskTrackers everywhere
++   */
++  public List<Task> assignTasks(TaskTrackerStatus tts) {
++    synchronized (jobTracker) {      
++      try {
++        Collection<JobInProgress> jobs = jobTracker.jobs.values();
++
++        String host = tts.getHost();
++        LOG.info("In FrameworkScheduler.assignTasks for " + host);
++        
++        TaskTrackerInfo ttInfo = ttInfos.get(host);
++        if (ttInfo == null) {
++          LOG.error("No TaskTrackerInfo for " + host + "! This shouldn't happen.");
++          return null;
++        }
++        
++        int clusterSize = jobTracker.getClusterStatus().getTaskTrackers();
++        int numHosts = jobTracker.getNumberOfUniqueHosts();
++        
++        // Assigned tasks
++        List<Task> assignedTasks = new ArrayList<Task>();
++        
++        // Identify unassigned maps and reduces on this TT
++        List<MesosTask> assignableMaps = new ArrayList<MesosTask>();
++        List<MesosTask> assignableReduces = new ArrayList<MesosTask>();
++        for (MesosTask nt: ttInfo.maps)
++          if (!nt.isAssigned())
++            assignableMaps.add(nt);
++        for (MesosTask nt: ttInfo.reduces)
++          if (!nt.isAssigned())
++            assignableReduces.add(nt);
++        
++        // Get some iterators for the unassigned tasks
++        Iterator<MesosTask> mapIter = assignableMaps.iterator();
++        Iterator<MesosTask> reduceIter = assignableReduces.iterator();
++        
++        // Go through jobs in FIFO order and look for tasks to launch
++        for (JobInProgress job: jobs) {
++          if (job.getStatus().getRunState() == JobStatus.RUNNING) {
++            // If the node has unassigned maps, try to launch map tasks
++            while (mapIter.hasNext()) {
++              Task task = job.obtainNewMapTask(tts, clusterSize, numHosts);
++              if (task != null) {
++                MesosTask nt = mapIter.next();
++                nt.assign(task);
++                unassignedMaps--;
++                assignedMaps++;
++                hadoopIdToMesosTask.put(task.getTaskID(), nt);
++                assignedTasks.add(task);
++                task.extraData = "" + nt.mesosId;
++              } else {
++                break;
++              }
++            }
++            // If the node has unassigned reduces, try to launch reduce tasks
++            while (reduceIter.hasNext()) {
++              Task task = job.obtainNewReduceTask(tts, clusterSize, numHosts);
++              if (task != null) {
++                MesosTask nt = reduceIter.next();
++                nt.assign(task);
++                unassignedReduces--;
++                assignedReduces++;
++                hadoopIdToMesosTask.put(task.getTaskID(), nt);
++                assignedTasks.add(task);
++                task.extraData = "" + nt.mesosId;
++              } else {
++                break;
++              }
++            }
++          }
++        }
++        
++        return assignedTasks;
++      } catch (IOException e) {
++        LOG.error("IOException in assignTasks", e);
++        return null;
++      }
++    }
++  }
++
++  private void removeTask(MesosTask nt) {
++    synchronized (jobTracker) {
++      mesosIdToMesosTask.remove(nt.mesosId);
++      if (nt.hadoopId != null) {
++        hadoopIdToMesosTask.remove(nt.hadoopId);
++      }
++      TaskTrackerInfo ttInfo = ttInfos.get(nt.host);
++      if (ttInfo != null) {
++        ttInfo.remove(nt);
++      }
++      if (nt.isMap) {
++        if (nt.isAssigned())
++          assignedMaps--;
++        else
++          unassignedMaps--;
++      } else {
++        if (nt.isAssigned())
++          assignedReduces--;
++        else
++          unassignedReduces--;
++      }
++    }
++  }
++
++  private void askExecutorToUpdateStatus(MesosTask nt, TaskState state) {
++    TaskTrackerInfo ttInfo = ttInfos.get(nt.host);
++    if (ttInfo != null) {
++      HadoopFrameworkMessage message = new HadoopFrameworkMessage(
++          HadoopFrameworkMessage.Type.S2E_SEND_STATUS_UPDATE, state.toString());
++      try {
++        LOG.info("Asking slave " + ttInfo.mesosSlaveId + " to update status");
++        driver.sendFrameworkMessage(new FrameworkMessage(
++            ttInfo.mesosSlaveId, nt.mesosId, message.serialize()));
++      } catch (IOException e) {
++        // This exception would only get thrown if we couldn't serialize the
++        // HadoopFrameworkMessage, which is a serious problem; crash the JT
++        LOG.fatal("Failed to serialize HadoopFrameworkMessage", e);
++        throw new RuntimeException(
++            "Failed to serialize HadoopFrameworkMessage", e);
++      }
++    }
++  }
++
++  // Kill any unlaunched tasks that have timed out
++  public void killTimedOutTasks() {
++    synchronized (jobTracker) {
++      long curTime = System.currentTimeMillis();
++      long timeout = 2 * jobTracker.getNextHeartbeatInterval();
++      for (TaskTrackerInfo tt: ttInfos.values()) {
++        killTimedOutTasks(tt.maps, curTime - timeout);
++        killTimedOutTasks(tt.reduces, curTime - timeout);
++      }
++    }
++  }
++    
++  private void killTimedOutTasks(List<MesosTask> tasks, long minCreationTime) {
++    List<MesosTask> toRemove = new ArrayList<MesosTask>();
++    for (MesosTask nt: tasks) {
++      if (!nt.isAssigned() && nt.creationTime < minCreationTime) {
++        toRemove.add(nt);
++      }
++    }
++    for (MesosTask nt: toRemove) {
++      askExecutorToUpdateStatus(nt, TaskState.TASK_KILLED);
++      removeTask(nt);
++    }
++  }
++  
++  @Override
++  public void frameworkMessage(SchedulerDriver d, FrameworkMessage message) {
++    // TODO: Respond to E2S_KILL_REQUEST message by killing a task
++  }
++  
++  // Methods to check whether a job has runnable tasks
++  
++  /**
++   * Check whether the job can launch a map task on a given node, with a given
++   * level of locality (maximum cache level). Also includes job setup and
++   * cleanup tasks, as well as map cleanup tasks.
++   * 
++   * This is currently fairly long because it replicates a lot of the logic
++   * in findNewMapTask. Unfortunately, it's not easy to just use findNewMapTask
++   * directly, because that requires a TaskTracker. One way to avoid requiring
++   * this method would be to just launch TaskTrackers on every node, without
++   * first checking for locality.
++   */
++  boolean hasMapToLaunch(JobInProgress job, String host, int maxCacheLevel) {
++    synchronized (job) {
++      // For scheduling a map task, we have two caches and a list (optional)
++      //  I)   one for non-running task
++      //  II)  one for running task (this is for handling speculation)
++      //  III) a list of TIPs that have empty locations (e.g., dummy splits),
++      //       the list is empty if all TIPs have associated locations
++  
++      // First a look up is done on the non-running cache and on a miss, a look 
++      // up is done on the running cache. The order for lookup within the cache:
++      //   1. from local node to root [bottom up]
++      //   2. breadth wise for all the parent nodes at max level
++  
++      //if (canLaunchJobCleanupTask()) return true;
++      //if (canLaunchSetupTask()) return true;
++      if (!job.mapCleanupTasks.isEmpty()) return true;
++      
++      // Return false right away if the task cache isn't ready, either because
++      // we are still initializing or because we are cleaning up
++      if (job.nonRunningMapCache == null) return false;
++      
++      // We fall to linear scan of the list (III above) if we have misses in the 
++      // above caches
++  
++      Node node = jobTracker.getNode(host);
++
++      int maxLevel = job.getMaxCacheLevel();
++      
++      //
++      // I) Non-running TIP :
++      // 
++  
++      // 1. check from local node to the root [bottom up cache lookup]
++      //    i.e if the cache is available and the host has been resolved
++      //    (node!=null)
++      if (node != null) {
++        Node key = node;
++        int level = 0;
++        // maxCacheLevel might be greater than this.maxLevel if findNewMapTask is
++        // called to schedule any task (local, rack-local, off-switch or speculative)
++        // tasks or it might be NON_LOCAL_CACHE_LEVEL (i.e. -1) if findNewMapTask is
++        //  (i.e. -1) if findNewMapTask is to only schedule off-switch/speculative
++        // tasks
++        int maxLevelToSchedule = Math.min(maxCacheLevel, maxLevel);
++        for (level = 0;level < maxLevelToSchedule; ++level) {
++          List <TaskInProgress> cacheForLevel = job.nonRunningMapCache.get(key);
++          if (hasUnlaunchedTask(cacheForLevel)) {
++            return true;
++          }
++          key = key.getParent();
++        }
++        
++        // Check if we need to only schedule a local task (node-local/rack-local)
++        if (level == maxCacheLevel) {
++          return false;
++        }
++      }
++  
++      //2. Search breadth-wise across parents at max level for non-running 
++      //   TIP if
++      //     - cache exists and there is a cache miss 
++      //     - node information for the tracker is missing (tracker's topology
++      //       info not obtained yet)
++  
++      // collection of node at max level in the cache structure
++      Collection<Node> nodesAtMaxLevel = jobTracker.getNodesAtMaxLevel();
++  
++      // get the node parent at max level
++      Node nodeParentAtMaxLevel = 
++        (node == null) ? null : JobTracker.getParentNode(node, maxLevel - 1);
++      
++      for (Node parent : nodesAtMaxLevel) {
++  
++        // skip the parent that has already been scanned
++        if (parent == nodeParentAtMaxLevel) {
++          continue;
++        }
++  
++        List<TaskInProgress> cache = job.nonRunningMapCache.get(parent);
++        if (hasUnlaunchedTask(cache)) {
++          return true;
++        }
++      }
++  
++      // 3. Search non-local tips for a new task
++      if (hasUnlaunchedTask(job.nonLocalMaps))
++        return true;
++      
++      //
++      // II) Running TIP :
++      // 
++   
++      if (job.getMapSpeculativeExecution()) {
++        long time = System.currentTimeMillis();
++        float avgProg = job.status.mapProgress();
++  
++        // 1. Check bottom up for speculative tasks from the running cache
++        if (node != null) {
++          Node key = node;
++          for (int level = 0; level < maxLevel; ++level) {
++            Set<TaskInProgress> cacheForLevel = job.runningMapCache.get(key);
++            if (cacheForLevel != null) {
++              for (TaskInProgress tip: cacheForLevel) {
++                if (tip.isRunning() && tip.hasSpeculativeTask(time, avgProg)) {
++                  return true;
++                }
++              }
++            }
++            key = key.getParent();
++          }
++        }
++  
++        // 2. Check breadth-wise for speculative tasks
++        
++        for (Node parent : nodesAtMaxLevel) {
++          // ignore the parent which is already scanned
++          if (parent == nodeParentAtMaxLevel) {
++            continue;
++          }
++  
++          Set<TaskInProgress> cache = job.runningMapCache.get(parent);
++          if (cache != null) {
++            for (TaskInProgress tip: cache) {
++              if (tip.isRunning() && tip.hasSpeculativeTask(time, avgProg)) {
++                return true;
++              }
++            }
++          }
++        }
++  
++        // 3. Check non-local tips for speculation
++        for (TaskInProgress tip: job.nonLocalRunningMaps) {
++          if (tip.isRunning() && tip.hasSpeculativeTask(time, avgProg)) {
++            return true;
++          }
++        }
++      }
++      
++      return false;
++    }
++  }
++  
++  /**
++   * Check whether a task list (from the non-running map cache) contains any
++   * unlaunched tasks.
++   */
++  boolean hasUnlaunchedTask(Collection<TaskInProgress> cache) {
++    if (cache != null)
++      for (TaskInProgress tip: cache)
++        if (tip.isRunnable() && !tip.isRunning())
++          return true;
++    return false;
++  }
++  
++  /**
++   * Check whether a job can launch a reduce task. Also includes reduce
++   * cleanup tasks.
++   * 
++   * As with hasMapToLaunch, this duplicates the logic inside
++   * findNewReduceTask. Please see the comment there for an explanation.
++   */
++  boolean hasReduceToLaunch(JobInProgress job) {
++    synchronized (job) {
++      // Return false if not enough maps have finished to launch reduces
++      if (!job.scheduleReduces()) return false;
++      
++      // Check for a reduce cleanup task
++      if (!job.reduceCleanupTasks.isEmpty()) return true;
++      
++      // Return false right away if the task cache isn't ready, either because
++      // we are still initializing or because we are cleaning up
++      if (job.nonRunningReduces == null) return false;
++      
++      // Check for an unlaunched reduce
++      if (job.nonRunningReduces.size() > 0) return true;
++      
++      // Check for a reduce to be speculated
++      if (job.getReduceSpeculativeExecution()) {
++        long time = System.currentTimeMillis();
++        float avgProg = job.status.reduceProgress();
++        for (TaskInProgress tip: job.runningReduces) {
++          if (tip.isRunning() && tip.hasSpeculativeTask(time, avgProg)) {
++            return true;
++          }
++        }
++      }
++      
++      return false;
++    }
++  }
++}
+Index: src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java
+===================================================================
+--- src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java	(revision 0)
++++ src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java	(revision 0)
+@@ -0,0 +1,53 @@
++package org.apache.hadoop.mapred;
++
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.DataInputStream;
++import java.io.DataOutputStream;
++import java.io.IOException;
++
++public class HadoopFrameworkMessage {
++  enum Type {
++    S2E_SEND_STATUS_UPDATE, // Used by scheduler to ask executor to send a Mesos
++                            // status update for a given task
++    S2E_SHUTDOWN_EXECUTOR,  // Used by the scheduler to ask executor to shutdown
++                            // (so that we can clean up TaskTrackers when idle)
++    E2S_KILL_REQUEST,       // Used by executor to report a killTask from Mesos
++  }
++  
++  Type type;
++  String arg1;
++  String arg2;
++  
++
++  public HadoopFrameworkMessage(Type type, String arg1, String arg2) {
++    this.type = type;
++    this.arg1 = arg1;
++    this.arg2 = arg2;
++  }
++  
++  public HadoopFrameworkMessage(Type type, String arg1) {
++    this(type, arg1, "");
++  }
++
++  public HadoopFrameworkMessage(byte[] bytes) throws IOException {
++    DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
++    String typeStr = in.readUTF();
++    try {
++      type = Type.valueOf(typeStr);
++    } catch(IllegalArgumentException e) {
++      throw new IOException("Unknown message type: " + typeStr);
++    }
++    arg1 = in.readUTF();
++    arg2 = in.readUTF();
++  }
++  
++  public byte[] serialize() throws IOException {
++    ByteArrayOutputStream bos = new ByteArrayOutputStream();
++    DataOutputStream dos = new DataOutputStream(bos);
++    dos.writeUTF(type.toString());
++    dos.writeUTF(arg1);
++    dos.writeUTF(arg2);
++    return bos.toByteArray();
++  }
++}
+Index: src/contrib/mesos/build.xml
+===================================================================
+--- src/contrib/mesos/build.xml	(revision 0)
++++ src/contrib/mesos/build.xml	(revision 0)
+@@ -0,0 +1,28 @@
++<?xml version="1.0"?>
++
++<!--
++   Licensed to the Apache Software Foundation (ASF) under one or more
++   contributor license agreements.  See the NOTICE file distributed with
++   this work for additional information regarding copyright ownership.
++   The ASF licenses this file to You under the Apache License, Version 2.0
++   (the "License"); you may not use this file except in compliance with
++   the License.  You may obtain a copy of the License at
++
++       http://www.apache.org/licenses/LICENSE-2.0
++
++   Unless required by applicable law or agreed to in writing, software
++   distributed under the License is distributed on an "AS IS" BASIS,
++   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++   See the License for the specific language governing permissions and
++   limitations under the License.
++-->
++
++<!-- 
++Before you can run these subtargets directly, you need 
++to call at top-level: ant deploy-contrib compile-core-test
++-->
++<project name="mesos" default="jar">
++
++  <import file="../build-contrib.xml"/>
++
++</project>
+Index: src/contrib/build.xml
+===================================================================
+--- src/contrib/build.xml	(revision 979124)
++++ src/contrib/build.xml	(working copy)
+@@ -50,6 +50,7 @@
+       <fileset dir="." includes="streaming/build.xml"/>
+       <fileset dir="." includes="fairscheduler/build.xml"/>
+       <fileset dir="." includes="capacity-scheduler/build.xml"/>
++      <fileset dir="." includes="mesos/build.xml"/>
+     </subant>
+   </target>
+   
+Index: src/mapred/org/apache/hadoop/mapred/JobInProgress.java
+===================================================================
+--- src/mapred/org/apache/hadoop/mapred/JobInProgress.java	(revision 979124)
++++ src/mapred/org/apache/hadoop/mapred/JobInProgress.java	(working copy)
+@@ -2655,4 +2655,16 @@
+       return Values.REDUCE.name();
+     }
+   }
++  
++  int getMaxCacheLevel() {
++    return maxLevel;
++  }
++  
++  boolean getMapSpeculativeExecution() {
++    return hasSpeculativeMaps;
++  }
++  
++  boolean getReduceSpeculativeExecution() {
++    return hasSpeculativeReduces;
++  }
+ }
+Index: src/mapred/org/apache/hadoop/mapred/Task.java
+===================================================================
+--- src/mapred/org/apache/hadoop/mapred/Task.java	(revision 979124)
++++ src/mapred/org/apache/hadoop/mapred/Task.java	(working copy)
+@@ -139,6 +139,7 @@
+   protected final Counters.Counter spilledRecordsCounter;
+   private String pidFile = "";
+   protected TaskUmbilicalProtocol umbilical;
++  protected String extraData = "";
+ 
+   ////////////////////////////////////////////
+   // Constructors
+@@ -334,6 +335,7 @@
+     out.writeBoolean(writeSkipRecs);
+     out.writeBoolean(taskCleanup);  
+     Text.writeString(out, pidFile);
++    Text.writeString(out, extraData);
+   }
+   
+   public void readFields(DataInput in) throws IOException {
+@@ -354,6 +356,7 @@
+       setPhase(TaskStatus.Phase.CLEANUP);
+     }
+     pidFile = Text.readString(in);
++    extraData = Text.readString(in);
+   }
+ 
+   @Override
+Index: src/mapred/org/apache/hadoop/mapred/TaskRunner.java
+===================================================================
+--- src/mapred/org/apache/hadoop/mapred/TaskRunner.java	(revision 979124)
++++ src/mapred/org/apache/hadoop/mapred/TaskRunner.java	(working copy)
+@@ -389,7 +389,11 @@
+       File stdout = TaskLog.getTaskLogFile(taskid, TaskLog.LogName.STDOUT);
+       File stderr = TaskLog.getTaskLogFile(taskid, TaskLog.LogName.STDERR);
+       stdout.getParentFile().mkdirs();
+-      tracker.getTaskTrackerInstrumentation().reportTaskLaunch(taskid, stdout, stderr);
++      List<TaskTrackerInstrumentation> ttInstrumentations = 
++        tracker.getTaskTrackerInstrumentations();
++      for (TaskTrackerInstrumentation inst: ttInstrumentations) {
++        inst.reportTaskLaunch(taskid, stdout, stderr);
++      }
+ 
+       Map<String, String> env = new HashMap<String, String>();
+       StringBuffer ldLibraryPath = new StringBuffer();
+@@ -409,11 +413,15 @@
+           lock.wait();
+         }
+       }
+-      tracker.getTaskTrackerInstrumentation().reportTaskEnd(t.getTaskID());
++      for (TaskTrackerInstrumentation inst: ttInstrumentations) {
++        inst.reportTaskEnd(t.getTaskID());
++      }
+       if (exitCodeSet) {
+         if (!killed && exitCode != 0) {
+           if (exitCode == 65) {
+-            tracker.getTaskTrackerInstrumentation().taskFailedPing(t.getTaskID());
++            for (TaskTrackerInstrumentation inst: ttInstrumentations) {
++              inst.taskFailedPing(t.getTaskID());
++            }
+           }
+           throw new IOException("Task process exit with nonzero status of " +
+               exitCode + ".");
+Index: src/mapred/org/apache/hadoop/mapred/TaskTracker.java
+===================================================================
+--- src/mapred/org/apache/hadoop/mapred/TaskTracker.java	(revision 979124)
++++ src/mapred/org/apache/hadoop/mapred/TaskTracker.java	(working copy)
+@@ -294,10 +294,11 @@
+   
+   
+     
+-  private TaskTrackerInstrumentation myInstrumentation = null;
+-
+-  public TaskTrackerInstrumentation getTaskTrackerInstrumentation() {
+-    return myInstrumentation;
++  private List<TaskTrackerInstrumentation> instrumentations =
++    new ArrayList<TaskTrackerInstrumentation>();
++  
++  public List<TaskTrackerInstrumentation> getTaskTrackerInstrumentations() {
++    return instrumentations;
+   }
+   
+   /**
+@@ -454,16 +455,21 @@
+     //tweak the probe sample size (make it a function of numCopiers)
+     probe_sample_size = this.fConf.getInt("mapred.tasktracker.events.batchsize", 500);
+     
+-    Class<? extends TaskTrackerInstrumentation> metricsInst = getInstrumentationClass(fConf);
++    Class<?>[] instrumentationClasses = getInstrumentationClasses(fConf);
+     try {
+-      java.lang.reflect.Constructor<? extends TaskTrackerInstrumentation> c =
+-        metricsInst.getConstructor(new Class[] {TaskTracker.class} );
+-      this.myInstrumentation = c.newInstance(this);
++      for (Class<?> cls: instrumentationClasses) {
++        java.lang.reflect.Constructor<?> c =
++          cls.getConstructor(new Class[] {TaskTracker.class} );
++        TaskTrackerInstrumentation inst =
++          (TaskTrackerInstrumentation) c.newInstance(this);
++        instrumentations.add(inst);
++      }
+     } catch(Exception e) {
+       //Reflection can throw lots of exceptions -- handle them all by 
+       //falling back on the default.
+       LOG.error("failed to initialize taskTracker metrics", e);
+-      this.myInstrumentation = new TaskTrackerMetricsInst(this);
++      instrumentations.clear();
++      instrumentations.add(new TaskTrackerMetricsInst(this));
+     }
+     
+     // bind address
+@@ -535,10 +541,9 @@
+     reduceLauncher.start();
+   }
+ 
+-  public static Class<? extends TaskTrackerInstrumentation> getInstrumentationClass(
+-    Configuration conf) {
+-    return conf.getClass("mapred.tasktracker.instrumentation",
+-        TaskTrackerMetricsInst.class, TaskTrackerInstrumentation.class);
++  public static Class<?>[] getInstrumentationClasses(Configuration conf) {
++    return conf.getClasses("mapred.tasktracker.instrumentation",
++        TaskTrackerMetricsInst.class);
+   }
+ 
+   public static void setInstrumentationClass(
+@@ -1235,7 +1240,9 @@
+             reduceTotal--;
+           }
+           try {
+-            myInstrumentation.completeTask(taskStatus.getTaskID());
++            for (TaskTrackerInstrumentation inst: instrumentations) {
++              inst.completeTask(taskStatus.getTaskID());
++            }
+           } catch (MetricsException me) {
+             LOG.warn("Caught: " + StringUtils.stringifyException(me));
+           }
+@@ -1322,7 +1329,9 @@
+           LOG.info(tip.getTask().getTaskID() + ": " + msg);
+           ReflectionUtils.logThreadInfo(LOG, "lost task", 30);
+           tip.reportDiagnosticInfo(msg);
+-          myInstrumentation.timedoutTask(tip.getTask().getTaskID());
++          for (TaskTrackerInstrumentation inst: instrumentations) {
++            inst.timedoutTask(tip.getTask().getTaskID());
++          }
+           purgeTask(tip, true);
+         }
+       }
+@@ -2035,7 +2044,9 @@
+       runner.signalDone();
+       LOG.info("Task " + task.getTaskID() + " is done.");
+       LOG.info("reported output size for " + task.getTaskID() +  "  was " + taskStatus.getOutputSize());
+-
++      for (TaskTrackerInstrumentation inst: instrumentations) {
++        inst.statusUpdate(task, taskStatus);
++      }
+     }
+     
+     public boolean wasKilled() {
+@@ -2345,6 +2356,9 @@
+       }
+       removeFromMemoryManager(task.getTaskID());
+       releaseSlot();
++      for (TaskTrackerInstrumentation inst: instrumentations) {
++        inst.statusUpdate(task, taskStatus);
++      }
+     }
+     
+     private synchronized void releaseSlot() {
+@@ -2371,6 +2385,9 @@
+                              failure);
+         runningTasks.put(task.getTaskID(), this);
+         mapTotal++;
++        for (TaskTrackerInstrumentation inst: instrumentations) {
++          inst.statusUpdate(task, taskStatus);
++        }
+       } else {
+         LOG.warn("Output already reported lost:"+task.getTaskID());
+       }
+@@ -2513,6 +2530,9 @@
+     TaskInProgress tip = tasks.get(taskid);
+     if (tip != null) {
+       tip.reportProgress(taskStatus);
++      for (TaskTrackerInstrumentation inst: instrumentations) {
++        inst.statusUpdate(tip.getTask(), taskStatus);
++      }
+       return true;
+     } else {
+       LOG.warn("Progress from unknown child task: "+taskid);
+Index: src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java
+===================================================================
+--- src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java	(revision 979124)
++++ src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java	(working copy)
+@@ -62,4 +62,10 @@
+    */
+   public void reportTaskEnd(TaskAttemptID t) {}
+    
++  /**
++   * Called when a task changes status. 
++   * @param task the task whose status changed
++   * @param taskStatus the new status of the task
++   */
++  public void statusUpdate(Task task, TaskStatus taskStatus) {}
+ }
+Index: bin/mesos-jobtracker-runner
+===================================================================
+--- bin/mesos-jobtracker-runner	(revision 0)
++++ bin/mesos-jobtracker-runner	(revision 0)
+@@ -0,0 +1,14 @@
++#!/usr/bin/env bash
++if [[ $# -lt 1 ]]; then
++  echo "Usage: $0 <tag>" >&2
++  exit 1
++fi
++TAG="$1"
++#DATE="`date '+%Y%m%d%H%M'`"
++#PID="$$"
++#LOGFILE="/tmp/jobtracker-runner.$TAG.$DATE.$PID.log" # TODO: Use HADOOP_LOG_DIR?
++#echo "Logging to $LOGFILE"
++CLASS="org.apache.hadoop.mapred.MesosJobTrackerRunner"
++HADOOP_HOME="`dirname $0`/.."
++cd $HADOOP_HOME # Needed for MesosScheduler to find bin/mesos-executor
++$HADOOP_HOME/bin/hadoop-daemon.sh start $CLASS $TAG
+
+Property changes on: bin/mesos-jobtracker-runner
+___________________________________________________________________
+Added: svn:executable
+   + *
+
+Index: bin/mesos-executor
+===================================================================
+--- bin/mesos-executor	(revision 0)
++++ bin/mesos-executor	(revision 0)
+@@ -0,0 +1,4 @@
++#!/bin/sh
++COMMAND="`dirname $0`/hadoop org.apache.hadoop.mapred.FrameworkExecutor"
++echo Running $COMMAND
++exec $COMMAND
+
+Property changes on: bin/mesos-executor
+___________________________________________________________________
+Added: svn:executable
+   + *
+
+Index: bin/mesos-jobtracker-launcher
+===================================================================
+--- bin/mesos-jobtracker-launcher	(revision 0)
++++ bin/mesos-jobtracker-launcher	(revision 0)
+@@ -0,0 +1,9 @@
++#!/usr/bin/env bash
++if [[ $# -lt 1 ]]; then
++  echo "Usage: $0 <tag>" >&2
++  exit 1
++fi
++TAG="$1"
++CLASS="org.apache.hadoop.mapred.MesosJobTrackerLauncher"
++HADOOP_HOME="`dirname $0`/.."
++exec $HADOOP_HOME/bin/hadoop $CLASS $TAG
+
+Property changes on: bin/mesos-jobtracker-launcher
+___________________________________________________________________
+Added: svn:executable
+   + *
+
+Index: bin/hadoop
+===================================================================
+--- bin/hadoop	(revision 979124)
++++ bin/hadoop	(working copy)
+@@ -226,6 +226,38 @@
+   CLASS=org.apache.hadoop.util.VersionInfo
+   HADOOP_OPTS="$HADOOP_OPTS $HADOOP_CLIENT_OPTS"
+ elif [ "$COMMAND" = "jar" ] ; then
++  if [ "$HADOOP_USE_MESOS_LAUNCHER" = "1" ]; then
++    # Use the Mesos JobTracker launcher to manage one JobTracker per user.
++    # We check for a running JT for the current user, or launch one, using
++    # the mesos-jobtracker-launcher script. This script outputs the address
++    # of the JT, which we then configure the jar command to work with by
++    # creating a small mapred-site.xml file that points to it.
++    # Please see Mesos documentation for a more detailed explanation of the
++    # Mesos JobTracker launcher. This feature is currently PRE-ALPHA and is
++    # subject to change in future releases.
++    echo "Locating Mesos JobTracker for $USER..."
++    MESOS_JOBTRACKER=`$HADOOP_HOME/bin/mesos-jobtracker-launcher $USER`
++    echo "JobTracker found: $MESOS_JOBTRACKER"
++    if [ "$?" -ne "0" ] ; then
++      echo "Locating or launching JobTracker on Mesos failed" >&2
++      exit 1
++    fi
++    NEW_CONF_DIR=`mktemp -d -t mesos-jobtracker-launcher.XXXXXXXX`
++    if [ "$?" -ne "0" ] ; then
++      echo "mktemp failed" >&2
++      exit 1
++    fi
++    echo "<?xml version=\"1.0\"?>
++    <configuration>
++    <xi:include href=\"file://$HADOOP_CONF_DIR/mapred-site.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />
++    <property>
++      <name>mapred.job.tracker</name>
++      <value>$MESOS_JOBTRACKER</value>
++    </property>
++    </configuration>
++    " > $NEW_CONF_DIR/mapred-site.xml
++    CLASSPATH="$NEW_CONF_DIR:$CLASSPATH"
++  fi
+   CLASS=org.apache.hadoop.util.RunJar
+ elif [ "$COMMAND" = "distcp" ] ; then
+   CLASS=org.apache.hadoop.tools.DistCp
