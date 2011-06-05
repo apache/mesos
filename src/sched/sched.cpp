@@ -456,27 +456,25 @@ private:
   unordered_map<TaskID, StatusUpdateTimer *> timers;
 };
 
-}} /* namespace mesos { namespace internal { */
+}} // namespace mesos { namespace internal {
 
 
-/*
- * Implementation of C++ API.
- *
- * Notes:
- *
- * (1) Callbacks should be serialized as well as calls into the
- *     class. We do the former because the message reads from
- *     SchedulerProcess are serialized. We do the latter currently by
- *     using locks for certain methods ... but this may change in the
- *     future.
- *
- * (2) There are two possible status variables, one called 'active' in
-       SchedulerProcess and one called 'running' in
-       MesosSchedulerDriver. The former is used to represent whether
-       or not we are connected to an active master while the latter is
-       used to represent whether or not a client has called
-       MesosSchedulerDriver::start/run or MesosSchedulerDriver::stop.
- */
+// Implementation of C++ API.
+//
+// Notes:
+//
+// (1) Callbacks should be serialized as well as calls into the
+//     class. We do the former because the message reads from
+//     SchedulerProcess are serialized. We do the latter currently by
+//     using locks for certain methods ... but this may change in the
+//     future.
+//
+// (2) There are two possible status variables, one called 'active' in
+//     SchedulerProcess and one called 'running' in
+//     MesosSchedulerDriver. The former is used to represent whether
+//     or not we are connected to an active master while the latter is
+//     used to represent whether or not a client has called
+//     MesosSchedulerDriver::start/run or MesosSchedulerDriver::stop.
 
 
 MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,

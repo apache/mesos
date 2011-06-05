@@ -255,7 +255,8 @@ protected:
     CHECK(names.count(id) > 0);
     handlers[names[id]] =
       std::tr1::bind(&MesosProcess::handler0<T>, t,
-                     method, std::tr1::placeholders::_1,
+                     method,
+                     std::tr1::placeholders::_1,
                      std::tr1::placeholders::_2);
   }
 
