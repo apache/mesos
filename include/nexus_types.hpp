@@ -9,7 +9,7 @@
 namespace nexus {
 
 typedef std::string FrameworkID; // Unique within master
-typedef std::string TaskID;      // Unique within framework
+typedef task_id TaskID;          // Unique within framework
 typedef std::string SlaveID;     // Unique within master
 typedef std::string OfferID;     // Unique within master
 typedef task_state TaskState;

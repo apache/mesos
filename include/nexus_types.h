@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 typedef const char *framework_id;
-typedef const char *task_id;
+typedef int32_t task_id;
 typedef const char *slave_id;
 typedef const char *offer_id;
 typedef int32_t nexus_handle;

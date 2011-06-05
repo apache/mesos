@@ -20,9 +20,7 @@ void slot_offer(nexus_sched *sched, offer_id oid,
     cout << "Refusing it" << endl;
     nexus_sched_reply_to_offer(sched, oid, 0, 0, "timeout=-1");
   } else {
-    char tidStr[20];
-    sprintf(tidStr, "%d", tasksStarted++);
-    task_id tid = tidStr;
+    task_id tid = tasksStarted++;
     cout << "Accepting it to start task " << tid << endl;
     nexus_task_desc desc = { tid, slots[0].sid, "task",
       "cpus=1\nmem=33554432", 0, 0 };

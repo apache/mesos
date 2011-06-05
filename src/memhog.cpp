@@ -60,9 +60,7 @@ public:
       int32_t cpus = lexical_cast<int32_t>(offer.params.find("cpus")->second);
       int64_t mem = lexical_cast<int64_t>(offer.params.find("mem")->second);
       if ((tasksLaunched < totalTasks) && (cpus >= 1 && mem >= memToRequest)) {
-	stringstream ss;
-	ss<<tasksLaunched++;
-        TaskID tid = ss.str();
+        TaskID tid = tasksLaunched++;
 
         cout << endl << "accepting it to start task " << tid << endl;
         map<string, string> taskParams;

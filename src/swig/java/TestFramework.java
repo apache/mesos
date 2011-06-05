@@ -47,7 +47,7 @@ public class TestFramework {
         taskParams.set("cpus", "1");
         taskParams.set("mem", "134217728");
         System.out.println("Launching task " + taskId);
-        tasks.add(new TaskDescription(Integer.toString(launchedTasks),
+        tasks.add(new TaskDescription(launchedTasks,
                                       offer.getSlaveId(),
                                       "task " + taskId,
                                       taskParams,

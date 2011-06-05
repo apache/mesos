@@ -276,7 +276,7 @@ public:
     // Convert params to key=value list
     Params paramsObj(task.params);
     string paramsStr = paramsObj.str();
-    nexus_task_desc td = { task.taskId.c_str(),
+    nexus_task_desc td = { task.taskId,
                            task.slaveId.c_str(),
                            task.name.c_str(),
                            paramsStr.c_str(),
@@ -287,13 +287,13 @@ public:
 
   virtual void killTask(TaskID taskId)
   {
-    exec->kill(exec, taskId.c_str());
+    exec->kill(exec, taskId);
   }
   
   virtual void frameworkMessage(const FrameworkMessage& message)
   {
     nexus_framework_message msg = { message.slaveId.c_str(),
-                                    message.taskId.c_str(),
+                                    message.taskId,
                                     message.data.data(),
                                     message.data.size() };
     exec->message(exec, &msg);
