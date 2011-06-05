@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Set up MESOS_HOME in order to find projd
+export MESOS_HOME=/root/mesos
+
+# Set MESOS_PUBLIC_DNS so slaves can be linked in master web UI
+export MESOS_PUBLIC_DNS=`wget -q -O - http://instance-data.ec2.internal/latest/meta-data/public-hostname`
+
+# Set PATH to include Scala and MPI, since .profile won't be read by SSH
+export PATH=$PATH:/usr/local/bin:/usr/local/scala-2.7.5.final/bin
+
+# Set HADOOP variable to allow slaves to get executors from HDFS
+export HADOOP=/root/hadoop-0.20.0/bin/hadoop
+
+ulimit -n 8192
+export LD_PRELOAD_32=/usr/lib/extendedFILE.so.1
+
+export GOOGLE_LOG_DIR=/mnt
+
+PROGRAM=$1
+shift
+
+EXTRA_OPTS=""
+if [ "$PROGRAM" == "mesos-slave" ]; then
+  # Compute CPU resources (if not specified).
+  if [[ "$*" != *--cpus* ]]; then
+    CPUS=`psrinfo | wc -l`
+    EXTRA_OPTS="$EXTRA_OPTS --cpus $CPUS"
+  fi
+
+  # Compute memory resources (if not specified).
+  if [[ "$*" != *--mem* ]]; then
+    MEM_KB=`/usr/sbin/prtconf | grep Memory | awk '{ print $3 }'`
+    MEM=$(((MEM_KB - 1000) * 1024 * 1024))
+    EXTRA_OPTS="$EXTRA_OPTS --mem $MEM"
+  fi
+fi
+
+cd $MESOS_HOME/src
+nohup ./$PROGRAM $EXTRA_OPTS $@ </dev/null >/mnt/$PROGRAM.out 2>&1 &

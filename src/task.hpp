@@ -3,9 +3,9 @@
 
 #include <string>
 #include <glog/logging.h>
-#include <nexus_types.hpp>
+#include <mesos_types.hpp>
 
-namespace nexus { namespace internal { 
+namespace mesos { namespace internal { 
 
 // An active task. The master only keeps track of tasks that are active.
 struct Task

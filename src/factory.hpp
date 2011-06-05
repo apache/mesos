@@ -32,7 +32,7 @@
 
 
 #define DECLARE_FACTORY(T, P) \
-  class T##Factory : public ::nexus::internal::factory::Factory<T, P> { \
+  class T##Factory : public ::mesos::internal::factory::Factory<T, P> { \
     T##Factory(); \
     static T##Factory *instance; \
     static void initialize(); \
@@ -59,7 +59,7 @@
 
 // Helper classes for the factory macros
 
-namespace nexus { namespace internal { namespace factory {
+namespace mesos { namespace internal { namespace factory {
 
 template<typename T, typename P> class Creator {
 public:

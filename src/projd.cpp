@@ -9,10 +9,10 @@
 #include "messages.hpp"
 
 
-namespace nexus { namespace internal { namespace projd {
+namespace mesos { namespace internal { namespace projd {
 
-using namespace nexus;
-using namespace nexus::internal;
+using namespace mesos;
+using namespace mesos::internal;
 
 using std::cout;
 using std::cerr;
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
   if (!parent)
     fatal("cannot parse PARENT_PID");
 
-  nexus::internal::projd::ProjectDaemon projd(parent);
+  mesos::internal::projd::ProjectDaemon projd(parent);
 
   Process::wait(Process::spawn(&projd));
 

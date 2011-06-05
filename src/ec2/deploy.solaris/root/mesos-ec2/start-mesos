@@ -1,0 +1,47 @@
+#!/bin/bash
+cd /root/mesos-ec2
+
+MASTER="`cat master`"
+SLAVES="`cat slaves`"
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+
+echo "Starting master on $MASTER"
+ssh $SSH_OPTS $MASTER "/root/mesos-ec2/mesos-daemon mesos-master -p 1111 </dev/null >/dev/null"
+
+COUNT=''
+CPUS=''
+MEM=''
+
+read -t 5 -p "If you would like to launch more than one slave per machine, please hit enter/return within the next 5 seconds."
+
+if [[ "$?" == "0" ]]; then
+  while [[ "$COUNT" == '' ]] ; do
+    read -p "Please specify the number of slaves per machine: " COUNT
+  done
+
+  while [[ "$CPUS" == '' ]] ; do
+    read -p "Please specify the number of cpus per slave: " CPUS
+  done
+
+  CPUS="--cpus $CPUS"
+
+  while [[ "$MEM" == '' ]] ; do
+    read -p "Please specify the amount of memory per slave: " MEM
+  done
+
+  MEM="--mem $MEM"
+else
+  COUNT='1'
+  echo
+fi
+
+for slave in $SLAVES; do
+  echo "Starting $COUNT slave(s) on $slave"
+  ssh $SSH_OPTS $slave "for ((i = 0; i < $COUNT; i++)); do /root/mesos-ec2/mesos-daemon mesos-slave 1@$MASTER:1111 $CPUS $MEM; done </dev/null >/dev/null" &
+  sleep 0.1
+done
+wait
+
+echo "Everything's started! You can view the master Web UI at"
+echo "      http://$MASTER:8080"

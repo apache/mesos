@@ -3,7 +3,7 @@
 
 #include <pthread.h>
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
 
 /**
  * RAII class for locking pthread_mutexes.
@@ -17,6 +17,6 @@ public:
   ~Lock();
 };
 
-}} /* namespace nexus { namespace internal { */
+}} /* namespace mesos { namespace internal { */
 
 #endif /* LOCK_HPP */

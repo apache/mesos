@@ -22,9 +22,9 @@ using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
-using namespace nexus;
-using namespace nexus::internal;
-using namespace nexus::internal::slave;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
 
 
 SolarisProjectIsolationModule::SolarisProjectIsolationModule()
@@ -92,10 +92,10 @@ void SolarisProjectIsolationModule::Communicator::launchProjd(const string& proj
 {
   LOG(INFO) << "Starting projd for project " << project;
 
-  // Get location of Nexus install in order to find projd.
-  const char* nexus_home = getenv("NEXUS_HOME");
-  if (!nexus_home)
-    nexus_home = "..";
+  // Get location of Mesos install in order to find projd.
+  const char* mesos_home = getenv("MESOS_HOME");
+  if (!mesos_home)
+    mesos_home = "..";
 
   pid_t pid;
   if ((pid = fork()) == -1)
@@ -115,10 +115,10 @@ void SolarisProjectIsolationModule::Communicator::launchProjd(const string& proj
     if (setproject(project.c_str(), "root", TASK_FINAL) != 0)
       fatal("setproject failed");
 
-    string projd = string(nexus_home) + "/src/nexus-projd";
+    string projd = string(mesos_home) + "/src/mesos-projd";
 
     // Execute projd.
-    execl(projd.c_str(), "nexus-projd", (char *) NULL);
+    execl(projd.c_str(), "mesos-projd", (char *) NULL);
     // If we get here, the execl call failed.
     fatalerror("Could not execute %s", projd.c_str());
     // TODO: Exit the slave if this happens
@@ -173,7 +173,7 @@ void SolarisProjectIsolationModule::Communicator::launchProjds()
 
   while (getprojent(&proj, proj_buf, PROJECT_BUFSZ) != NULL) {
     string project(proj.pj_name);
-    if (project.find("nexus.project.") != string::npos) {
+    if (project.find("mesos.project.") != string::npos) {
       launchProjd(project);
       module->projects.push(project);
     }
@@ -182,7 +182,7 @@ void SolarisProjectIsolationModule::Communicator::launchProjds()
   endprojent();
 
   if (module->projects.size() == 0)
-    LOG(FATAL) << "Could not find any Nexus projects to use";
+    LOG(FATAL) << "Could not find any Mesos projects to use";
 
   do {
     switch (receive()) {

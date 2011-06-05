@@ -1,0 +1,15 @@
+#!/bin/bash
+
+cd /root/mesos-ec2
+
+MASTER="`cat master`"
+SLAVES="`cat slaves`"
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+
+for slave in $SLAVES; do
+  echo "Stopping TaskTracker Child on $slave"
+  ssh $SSH_OPTS $slave "kill -9 \`/usr/java/bin/jps | grep Child | awk '{ print \$1 }'\`"
+done
+
+

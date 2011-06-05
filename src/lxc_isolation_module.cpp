@@ -1,5 +1,8 @@
 #include "lxc_isolation_module.hpp"
 
+#include <stdlib.h>
+#include <unistd.h>
+
 #include <algorithm>
 
 #include "foreach.hpp"
@@ -20,9 +23,17 @@ using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
-using namespace nexus;
-using namespace nexus::internal;
-using namespace nexus::internal::slave;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
+
+namespace {
+
+const int32_t CPU_SHARES_PER_CPU = 1024;
+const int32_t MIN_CPU_SHARES = 10;
+const int64_t MIN_RSS = 128 * Megabyte;
+
+}
 
 
 LxcIsolationModule::LxcIsolationModule()
@@ -46,6 +57,19 @@ LxcIsolationModule::~LxcIsolationModule()
 void LxcIsolationModule::initialize(Slave *slave)
 {
   this->slave = slave;
+  
+  // Run a basic check to see whether Linux Container tools are available
+  if (system("lxc-version > /dev/null") != 0) {
+    LOG(FATAL) << "Could not run lxc-version; make sure Linux Container "
+                << "tools are installed";
+  }
+
+  // Check that we are root (it might also be possible to create Linux
+  // containers without being root, but we can support that later)
+  if (getuid() != 0) {
+    LOG(FATAL) << "LXC isolation module requires slave to run as root";
+  }
+
   reaper = new Reaper(this);
   Process::spawn(reaper);
   initialized = true;
@@ -53,18 +77,21 @@ void LxcIsolationModule::initialize(Slave *slave)
 
 
 
-void LxcIsolationModule::frameworkAdded(Framework* framework)
+void LxcIsolationModule::frameworkAdded(Framework* fw)
 {
-  lxcExecutePid[framework->id] = -1;
-  container[framework->id] = "";
-  framework->executorStatus = "No executor running";
+  infos[fw->id] = new FrameworkInfo();
+  infos[fw->id]->lxcExecutePid = -1;
+  infos[fw->id]->container = "";
+  fw->executorStatus = "No executor running";
 }
 
 
-void LxcIsolationModule::frameworkRemoved(Framework *framework)
+void LxcIsolationModule::frameworkRemoved(Framework* fw)
 {
-  lxcExecutePid.erase(framework->id);
-  container.erase(framework->id);
+  if (infos.find(fw->id) != infos.end()) {
+    delete infos[fw->id];
+    infos.erase(fw->id);
+  }
 }
 
 
@@ -75,23 +102,23 @@ void LxcIsolationModule::startExecutor(Framework *fw)
 
   LOG(INFO) << "Starting executor for framework " << fw->id << ": "
             << fw->executorInfo.uri;
-  CHECK(lxcExecutePid[fw->id] == -1 && container[fw->id] == "");
+  CHECK(infos[fw->id]->lxcExecutePid == -1 && infos[fw->id]->container == "");
 
-  // Get location of Nexus install in order to find nexus-launcher.
-  const char *nexusHome = getenv("NEXUS_HOME");
-  if (!nexusHome)
-    nexusHome = "..";
-  string nexusLauncher = string(nexusHome) + "/src/nexus-launcher";
+  // Get location of Mesos install in order to find mesos-launcher.
+  const char *mesosHome = getenv("MESOS_HOME");
+  if (!mesosHome)
+    mesosHome = "..";
+  string mesosLauncher = string(mesosHome) + "/src/mesos-launcher";
 
   // Create a name for the container
   ostringstream oss;
-  oss << "nexus.slave-" << slave->id << ".framework-" << fw->id;
+  oss << "mesos.slave-" << slave->id << ".framework-" << fw->id;
   string containerName = oss.str();
 
-  container[fw->id] = containerName;
+  infos[fw->id]->container = containerName;
   fw->executorStatus = "Container: " + containerName;
 
-  // Run lxc-execute nexus-launcher using a fork-exec (since lxc-execute
+  // Run lxc-execute mesos-launcher using a fork-exec (since lxc-execute
   // does not return until the container is finished). Note that lxc-execute
   // automatically creates the container and will delete it when finished.
   pid_t pid;
@@ -100,7 +127,7 @@ void LxcIsolationModule::startExecutor(Framework *fw)
 
   if (pid) {
     // In parent process
-    lxcExecutePid[fw->id] = pid;
+    infos[fw->id]->lxcExecutePid = pid;
     LOG(INFO) << "Started lxc-execute, pid = " << pid;
     int status;
   } else {
@@ -113,17 +140,17 @@ void LxcIsolationModule::startExecutor(Framework *fw)
       }
     }
 
-    // Set up Nexus environment variables for launcher.
-    setenv("NEXUS_FRAMEWORK_ID", lexical_cast<string>(fw->id).c_str(), 1);
-    setenv("NEXUS_EXECUTOR_URI", fw->executorInfo.uri.c_str(), 1);
-    setenv("NEXUS_USER", fw->user.c_str(), 1);
-    setenv("NEXUS_SLAVE_PID", lexical_cast<string>(slave->self()).c_str(), 1);
-    setenv("NEXUS_REDIRECT_IO", slave->local ? "1" : "0", 1);
-    setenv("NEXUS_WORK_DIRECTORY", slave->getWorkDirectory(fw->id).c_str(), 1);
+    // Set up Mesos environment variables for launcher.
+    setenv("MESOS_FRAMEWORK_ID", lexical_cast<string>(fw->id).c_str(), 1);
+    setenv("MESOS_EXECUTOR_URI", fw->executorInfo.uri.c_str(), 1);
+    setenv("MESOS_USER", fw->user.c_str(), 1);
+    setenv("MESOS_SLAVE_PID", lexical_cast<string>(slave->self()).c_str(), 1);
+    setenv("MESOS_REDIRECT_IO", slave->local ? "0" : "1", 1);
+    setenv("MESOS_WORK_DIRECTORY", slave->getWorkDirectory(fw->id).c_str(), 1);
 
     // Run lxc-execute.
     execlp("lxc-execute", "lxc-execute", "-n", containerName.c_str(),
-           nexusLauncher.c_str(), (char *) NULL);
+           mesosLauncher.c_str(), (char *) NULL);
     // If we get here, the execl call failed.
     fatalerror("Could not exec lxc-execute");
     // TODO: Exit the slave if this happens
@@ -133,12 +160,13 @@ void LxcIsolationModule::startExecutor(Framework *fw)
 
 void LxcIsolationModule::killExecutor(Framework* fw)
 {
-  if (container[fw->id] != "") {
-    LOG(INFO) << "Stopping container " << container[fw->id];
-    int ret = shell("lxc-stop -n %s", container[fw->id].c_str());
+  string container = infos[fw->id]->container;
+  if (container != "") {
+    LOG(INFO) << "Stopping container " << container;
+    int ret = shell("lxc-stop -n %s", container.c_str());
     if (ret != 0)
       LOG(ERROR) << "lxc-stop returned " << ret;
-    container[fw->id] = "";
+    infos[fw->id]->container = "";
     fw->executorStatus = "No executor running";
   }
 }
@@ -146,28 +174,45 @@ void LxcIsolationModule::killExecutor(Framework* fw)
 
 void LxcIsolationModule::resourcesChanged(Framework* fw)
 {
-  if (container[fw->id] != "") {
-    // For now, just try setting the CPUs and mem right away.
-    // A slightly smarter thing might be to only update them periodically.
-    int ret;
-    
-    int32_t cpuShares = max(1024 * fw->resources.cpus, 10);
-    LOG(INFO) << "Setting CPU shares for " << fw->id << " to " << cpuShares;
-    ret = shell("lxc-cgroup -n %s cpu.shares %d",
-                container[fw->id].c_str(), cpuShares);
-    if (ret != 0)
-      LOG(ERROR) << "lxc-cgroup returned " << ret;
+  if (infos[fw->id]->container != "") {
+    // For now, just try setting the CPUs and memory right away, and kill the
+    // framework if this fails.
+    // A smarter thing to do might be to only update them periodically in a
+    // separate thread, and to give frameworks some time to scale down their
+    // memory usage.
 
-    int64_t rssLimit = max(fw->resources.mem, 128 * Megabyte);
-    LOG(INFO) << "Setting RSS limit for " << fw->id << " to " << rssLimit;
-    ret = shell("lxc-cgroup -n %s memory.limit_in_bytes %lld",
-                container[fw->id].c_str(), rssLimit);
-    if (ret != 0)
-      LOG(ERROR) << "lxc-cgroup returned " << ret;
-    
-    // TODO: Decreasing the RSS limit will fail if the current RSS is too
-    // large and memory can't be swapped out. In that case, we should
-    // either freeze the container before changing RSS, or just kill it.
+    int32_t cpuShares = max(CPU_SHARES_PER_CPU * fw->resources.cpus,
+                            MIN_CPU_SHARES);
+    if (!setResourceLimit(fw, "cpu.shares", cpuShares)) {
+      slave->removeExecutor(fw->id, true);
+      return;
+    }
+
+    int64_t rssLimit = max(fw->resources.mem, MIN_RSS);
+    if (!setResourceLimit(fw, "memory.limit_in_bytes", rssLimit)) {
+      slave->removeExecutor(fw->id, true);
+      return;
+    }
+  }
+}
+
+
+bool LxcIsolationModule::setResourceLimit(Framework* fw,
+                                          const string& property,
+                                          int64_t value)
+{
+  LOG(INFO) << "Setting " << property << " for framework " << fw->id
+            << " to " << value;
+  int ret = shell("lxc-cgroup -n %s %s %lld",
+                  infos[fw->id]->container.c_str(),
+                  property.c_str(),
+                  value);
+  if (ret != 0) {
+    LOG(ERROR) << "Failed to set " << property << " for framework " << fw->id
+               << ": lxc-cgroup returned " << ret;
+    return false;
+  } else {
+    return true;
   }
 }
 
@@ -207,10 +252,10 @@ void LxcIsolationModule::Reaper::operator () ()
       pid_t pid;
       int status;
       if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
-        foreachpair (FrameworkID fid, pid_t& fwPid, module->lxcExecutePid) {
-          if (fwPid == pid) {
-            module->container[fid] = "";
-            module->lxcExecutePid[fid] = -1;
+        foreachpair (FrameworkID fid, FrameworkInfo* info, module->infos) {
+          if (info->lxcExecutePid == pid) {
+            info->container = "";
+            info->lxcExecutePid = -1;
             LOG(INFO) << "Telling slave of lost framework " << fid;
             // TODO(benh): This is broken if/when libprocess is parallel!
             module->slave->executorExited(fid, status);

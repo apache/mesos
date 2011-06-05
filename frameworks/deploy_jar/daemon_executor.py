@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-import nexus
+import mesos
 import sys
 import time
 import os
 
 from subprocess import *
 
-class MyExecutor(nexus.Executor):
+class MyExecutor(mesos.Executor):
   def __init__(self):
-    nexus.Executor.__init__(self)
+    mesos.Executor.__init__(self)
 
   def init(self, driver, arg):
     print "in daemon executor"
@@ -20,7 +20,7 @@ class MyExecutor(nexus.Executor):
     self.args = task.arg.split("\t")
     print "running: " + "java -cp " + self.args[0] + " " + self.args[1] + " " + self.args[2]
     print Popen("/usr/lib/jvm/java-6-sun/bin/java -cp " + self.args[0] + " " + self.args[1] + " " + self.args[2], shell=True, stdout=PIPE).stdout.readline()
-    update = nexus.TaskStatus(task.taskId, nexus.TASK_FINISHED, "")
+    update = mesos.TaskStatus(task.taskId, mesos.TASK_FINISHED, "")
     driver.sendStatusUpdate(update)
     
 
@@ -30,4 +30,4 @@ class MyExecutor(nexus.Executor):
 if __name__ == "__main__":
   print "starting daemon framework executor"
   executor = MyExecutor()
-  nexus.NexusExecutorDriver(executor).run()
+  mesos.MesosExecutorDriver(executor).run()

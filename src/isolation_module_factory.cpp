@@ -6,7 +6,7 @@
 #include "lxc_isolation_module.hpp"
 #endif
 
-using namespace nexus::internal::slave;
+using namespace mesos::internal::slave;
 
 
 DEFINE_FACTORY(IsolationModule, Slave *)

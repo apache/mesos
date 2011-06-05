@@ -1,15 +1,15 @@
 #!/usr/bin/env ruby
 
-require 'nexus'
+require 'mesos'
 
 # TODO: Ruby schedulers seems to be slightly broken under the new API - find out why
-class MyScheduler < Nexus::Scheduler
+class MyScheduler < Mesos::Scheduler
   def get_framework_name(driver)
     "Ruby test framework"
   end
 
   def get_executor_info(driver)
-    Nexus::ExecutorInfo.new(Dir.pwd + "/../../test-executor", "")
+    Mesos::ExecutorInfo.new(Dir.pwd + "/../../test-executor", "")
   end
 
   def registered(driver, fid)
@@ -24,5 +24,5 @@ class MyScheduler < Nexus::Scheduler
 end
 
 sched = MyScheduler.new
-driver = Nexus::NexusSchedulerDriver.new(sched, ARGV[0])
+driver = Mesos::MesosSchedulerDriver.new(sched, ARGV[0])
 driver.run()

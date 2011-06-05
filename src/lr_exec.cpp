@@ -5,7 +5,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
-#include <nexus_exec.h>
+#include <mesos_exec.h>
 #include <boost/unordered_map.hpp>
 #include "lr.hpp"
 
@@ -78,12 +78,12 @@ void * runTask(void *arg) {
   }
   
   // Return the result in a task status
-  nexus_task_status status;
+  mesos_task_status status;
   status.tid = task->tid;
   status.state = TASK_FINISHED;
   status.data = (void*) result;
   status.data_len = D * sizeof(double);
-  nexus_send_status_update(&status);
+  mesos_send_status_update(&status);
   
   // Clean up the task (since we own it) and exit the worker thread
   delete task;
@@ -93,7 +93,7 @@ void * runTask(void *arg) {
 
 extern "C" {
 
-bool lr_exec_initialize(nexus_exec_args *args)
+bool lr_exec_initialize(mesos_exec_args *args)
 {
   cout << "lr_exec_initialize" << endl;
   pthread_mutex_init(&mutex, 0);
@@ -101,7 +101,7 @@ bool lr_exec_initialize(nexus_exec_args *args)
 }
 
 
-bool lr_exec_start_task(struct nexus_task_desc *task_desc)
+bool lr_exec_start_task(struct mesos_task_desc *task_desc)
 {
   cout << "lr_exec_start_task" << endl;
   
@@ -126,7 +126,7 @@ bool lr_exec_kill_task(task_id tid)
 }
 
 
-bool lr_exec_framework_message(struct nexus_framework_message *message)
+bool lr_exec_framework_message(struct mesos_framework_message *message)
 {
   return true;
 }

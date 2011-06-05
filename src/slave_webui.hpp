@@ -6,14 +6,14 @@
 #include "config.hpp"
 #include "slave.hpp"
 
-#ifdef NEXUS_WEBUI
+#ifdef MESOS_WEBUI
 
-namespace nexus { namespace internal { namespace slave {
+namespace mesos { namespace internal { namespace slave {
 
 void startSlaveWebUI(const PID &slave, char* webuiPort);
 
 }}} /* namespace */
 
-#endif /* NEXUS_WEBUI */
+#endif /* MESOS_WEBUI */
 
 #endif /* SLAVE_WEBUI_HPP */

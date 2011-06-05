@@ -7,7 +7,7 @@
 
 using namespace std;
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
     
 string UrlProcessor::parseZooFile(const string &zooFilename) {
   string zoos = "";
@@ -47,9 +47,9 @@ pair<UrlProcessor::URLType, string> UrlProcessor::process(const string &url) {
     
     return pair<UrlProcessor::URLType, string>(UrlProcessor::ZOO, zoos);
     
-  } else if (urlCap.find("NEXUS://") == 0) {
+  } else if (urlCap.find("MESOS://") == 0) {
 
-    return pair<UrlProcessor::URLType, string>(UrlProcessor::NEXUS, url.substr(8,1024));
+    return pair<UrlProcessor::URLType, string>(UrlProcessor::MESOS, url.substr(8,1024));
 
   } else {
 

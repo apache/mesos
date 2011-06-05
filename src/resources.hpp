@@ -1,7 +1,7 @@
 #ifndef __RESOURCES_HPP__
 #define __RESOURCES_HPP__
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
 
 // Some memory unit constants.
 const int64_t Kilobyte = 1024;

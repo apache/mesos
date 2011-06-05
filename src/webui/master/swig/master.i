@@ -5,7 +5,7 @@
 %{
 #include <master_state.hpp>
 
-namespace nexus { namespace internal { namespace master { namespace state {
+namespace mesos { namespace internal { namespace master { namespace state {
 extern MasterState *get_master();
 }}}}
 
@@ -16,20 +16,20 @@ extern MasterState *get_master();
 %include <std_string.i>
 %include <std_vector.i>
 
-%template(SlaveVec) std::vector<nexus::internal::master::state::Slave*>;
-%template(FrameworkVec) std::vector<nexus::internal::master::state::Framework*>;
-%template(TaskVec) std::vector<nexus::internal::master::state::Task*>;
-%template(OfferVec) std::vector<nexus::internal::master::state::SlotOffer*>;
-%template(SlaveResourcesVec) std::vector<nexus::internal::master::state::SlaveResources*>;
+%template(SlaveVec) std::vector<mesos::internal::master::state::Slave*>;
+%template(FrameworkVec) std::vector<mesos::internal::master::state::Framework*>;
+%template(TaskVec) std::vector<mesos::internal::master::state::Task*>;
+%template(OfferVec) std::vector<mesos::internal::master::state::SlotOffer*>;
+%template(SlaveResourcesVec) std::vector<mesos::internal::master::state::SlaveResources*>;
 
 /* Rename task_state enum so that the generated class is called TaskState */
 %rename(TaskState) task_state;
 
-%include <nexus_types.h>
-%include <nexus_types.hpp>
+%include <mesos_types.h>
+%include <mesos_types.hpp>
 %include <master_state.hpp>
 
-namespace nexus { namespace internal { namespace master { namespace state {
+namespace mesos { namespace internal { namespace master { namespace state {
 %newobject get_master;
 extern MasterState *get_master();
 }}}}

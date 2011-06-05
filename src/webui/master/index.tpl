@@ -6,12 +6,12 @@
 %master = get_master()
 <html>
 <head>
-<title>Nexus Master on {{HOSTNAME}}</title>
+<title>Mesos Master on {{HOSTNAME}}</title>
 <link rel="stylesheet" type="text/css" href="/static/stylesheet.css" />
 </head>
 <body>
 
-<h1>Nexus Master on {{HOSTNAME}}</h1>
+<h1>Mesos Master on {{HOSTNAME}}</h1>
 
 <p>
 Built: {{master.build_date}} by {{master.build_user}}<br />

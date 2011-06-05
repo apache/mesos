@@ -3,7 +3,7 @@
 
 #include "configurator.hpp"
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
 
 using std::string;
 
@@ -18,6 +18,6 @@ public:
   static bool isQuiet(const Params& conf);
 };
 
-}} /* namespace nexus::internal */
+}} /* namespace mesos::internal */
 
 #endif

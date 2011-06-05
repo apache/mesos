@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import nexus
+import mesos
 import random
 import sys
 import time
@@ -24,9 +24,9 @@ config = [ (50, 120),
            (50, 120),
            (50, 120) ]
 
-class ScalingScheduler(nexus.Scheduler):
+class ScalingScheduler(mesos.Scheduler):
   def __init__(self, master):
-    nexus.Scheduler.__init__(self)
+    mesos.Scheduler.__init__(self)
     self.tid = 0
     self.master = master
     print self.master
@@ -37,7 +37,7 @@ class ScalingScheduler(nexus.Scheduler):
 
   def getExecutorInfo(self, driver):
     execPath = os.path.join(os.getcwd(), "scaling_exec")
-    return nexus.ExecutorInfo(execPath, "")
+    return mesos.ExecutorInfo(execPath, "")
 
   def registered(self, driver, fid):
     print "Scaling Scheduler Registered!"
@@ -56,7 +56,7 @@ class ScalingScheduler(nexus.Scheduler):
         (todo, duration) = config[self.tid]
         arg = pickle.dumps((self.master, (todo, duration)))
         pars = {"cpus": "%d" % CPUS, "mem": "%d" % MEM}
-        task = nexus.TaskDescription(self.tid, offer.slaveId,
+        task = mesos.TaskDescription(self.tid, offer.slaveId,
                                      "task %d" % self.tid, pars, arg)
         tasks.append(task)
         self.running[self.tid] = (todo, duration)
@@ -66,7 +66,7 @@ class ScalingScheduler(nexus.Scheduler):
 
   def statusUpdate(self, driver, status):
     # For now, we are expecting our tasks to be lost ...
-    if status.state == nexus.TASK_LOST:
+    if status.state == mesos.TASK_LOST:
       todo, duration = self.running[status.taskId]
       print "Finished %d todo at %d secs" % (todo, duration)
       del self.running[status.taskId]
@@ -79,4 +79,4 @@ if __name__ == "__main__":
       print "Cannot do scaling experiments with 'local' or 'localquiet'!"
       sys.exit(1)
 
-  nexus.NexusSchedulerDriver(ScalingScheduler(sys.argv[1]), sys.argv[1]).run()
+  mesos.MesosSchedulerDriver(ScalingScheduler(sys.argv[1]), sys.argv[1]).run()

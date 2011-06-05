@@ -22,9 +22,9 @@ using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
-using namespace nexus;
-using namespace nexus::internal;
-using namespace nexus::internal::slave;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
 
 
 namespace {
@@ -136,9 +136,9 @@ void Slave::operator () ()
   const char *hostname = he->h_name;
 
   // Get our public DNS name. Normally this is our hostname, but on EC2
-  // we look for the NEXUS_PUBLIC_DNS environment variable. This allows
+  // we look for the MESOS_PUBLIC_DNS environment variable. This allows
   // the master to display our public name in its web UI.
-  const char *publicDns = getenv("NEXUS_PUBLIC_DNS");
+  const char *publicDns = getenv("MESOS_PUBLIC_DNS");
   if (!publicDns) {
     publicDns = hostname;
   }

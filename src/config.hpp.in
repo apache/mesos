@@ -4,7 +4,7 @@
 /* This header gets completed by configure. */
 
 #if @WITH_WEBUI@
-  #define NEXUS_WEBUI
+  #define MESOS_WEBUI
 #endif
 
 #define MESOS_HAS_JAVA @HAS_JAVA@

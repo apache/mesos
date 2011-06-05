@@ -1,13 +1,13 @@
 #include <time.h>
 
-#include <nexus_exec.hpp>
+#include <mesos_exec.hpp>
 
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
 
 using namespace std;
-using namespace nexus;
+using namespace mesos;
 
 
 class MemHogExecutor;
@@ -103,7 +103,7 @@ void* runTask(void* threadArg)
 
 int main(int argc, char** argv) {
   MemHogExecutor exec;
-  NexusExecutorDriver driver(&exec);
+  MesosExecutorDriver driver(&exec);
   driver.run();
   return 0;
 }

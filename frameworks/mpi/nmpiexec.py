@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import nexus
+import mesos
 import os
 import sys
 import time
@@ -28,24 +28,24 @@ def mpiexec(driver):
   call(["mpdexit",MPD_PID])
   driver.stop()
 
-class MyScheduler(nexus.Scheduler):
+class MyScheduler(mesos.Scheduler):
   def __init__(self, ip, port):
-    nexus.Scheduler.__init__(self)
+    mesos.Scheduler.__init__(self)
     self.ip = ip
     self.port = port
     self.tasksLaunched = 0
     self.tasksFinished = 0
 
   def getFrameorkName(self, driver):
-    return "Nexus MPI Framework"
+    return "Mesos MPI Framework"
 
   def getExecutorInfo(self, driver):
     execPath = os.path.join(os.getcwd(), "startmpd.sh")
     initArg = ip + ":" + port
-    return nexus.ExecutorInfo(execPath, initArg)
+    return mesos.ExecutorInfo(execPath, initArg)
 
   def registered(self, driver, fid):
-    print "Nexus MPI scheduler and mpd running at "+self.ip+":"+self.port
+    print "Mesos MPI scheduler and mpd running at "+self.ip+":"+self.port
 
   def resourceOffer(self, driver, oid, offers):
     print "Got offer %d" % oid
@@ -64,7 +64,7 @@ class MyScheduler(nexus.Scheduler):
         tid = self.tasksLaunched
         print "Accepting slot to start mpd %d" % tid
         params = {"cpus": "%d" % CPUS, "mem": "%d" % MEM}
-        td = nexus.TaskDescription(
+        td = mesos.TaskDescription(
             tid, offer.slaveId, "task %d" % tid, params, "")
         tasks.append(td)
         self.tasksLaunched += 1
@@ -80,10 +80,10 @@ class MyScheduler(nexus.Scheduler):
 
   def statusUpdate(self, driver, update):
     print "Task %d in state %d" % (update.taskId, update.state)
-    if (update.state == nexus.TASK_FINISHED or
-        update.state == nexus.TASK_FAILED or
-        update.state == nexus.TASK_KILLED or
-        update.state == nexus.TASK_LOST):
+    if (update.state == mesos.TASK_FINISHED or
+        update.state == mesos.TASK_FAILED or
+        update.state == mesos.TASK_KILLED or
+        update.state == mesos.TASK_LOST):
       print "A task finished unexpectedly, calling mpdexit "+MPD_PID
       call(["mpdexit",MPD_PID])
       driver.stop()
@@ -109,7 +109,7 @@ def parseIpPort(s):
   return (ip,port)
 
 if __name__ == "__main__":
-  parser = OptionParser(usage="Usage: %prog [options] nexus_master mpi_program")
+  parser = OptionParser(usage="Usage: %prog [options] mesos_master mpi_program")
   parser.add_option("-n","--num",
                     help="number of slots/mpd:s to allocate (default 1)", 
                     dest="num", type="int", default=1)
@@ -131,7 +131,7 @@ if __name__ == "__main__":
   MEM = options.mem
   MPI_TASK = " ".join(args[1:])
 
-  print "Connecting to nexus master %s" % args[0]
+  print "Connecting to mesos master %s" % args[0]
  
   try:
     call(["mpd","--daemon"])
@@ -147,4 +147,4 @@ if __name__ == "__main__":
   MPD_PID = traceline.split(" ")[0]
 
   sched = MyScheduler(ip, port)
-  nexus.NexusSchedulerDriver(sched, args[0]).run()
+  mesos.MesosSchedulerDriver(sched, args[0]).run()

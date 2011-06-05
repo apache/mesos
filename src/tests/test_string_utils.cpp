@@ -5,8 +5,8 @@
 
 #include "string_utils.hpp"
 
-using namespace nexus;
-using namespace nexus::internal;
+using namespace mesos;
+using namespace mesos::internal;
 
 
 TEST(StringUtilsTest, SplitEmptyString)

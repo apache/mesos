@@ -1,6 +1,6 @@
 # Makefile.
 
-NEXUS_HOME = @prefix@/nexus
+MESOS_HOME = @prefix@/mesos
 SHELL = '/bin/sh'
 
 default: all
@@ -9,20 +9,20 @@ src:
 	$(MAKE) -C src
 
 install:
-	if test ! -d $(NEXUS_HOME); \
-		then mkdir $(NEXUS_HOME); \
+	if test ! -d $(MESOS_HOME); \
+		then mkdir $(MESOS_HOME); \
 	fi
-	if test ! -d $(NEXUS_HOME); \
-		then mkdir $(NEXUS_HOME); \
+	if test ! -d $(MESOS_HOME); \
+		then mkdir $(MESOS_HOME); \
 	fi
-	install -m 755 src/nexus-master $(NEXUS_HOME)
-	install -m 755 src/nexus-slave $(NEXUS_HOME)
-	install -m 755 src/swig/java/libnexus.so $(NEXUS_HOME)
-	rsync -avz src/webui $(NEXUS_HOME)
-	if test ! -d $(NEXUS_HOME)/third_party; \
-		then mkdir $(NEXUS_HOME)/third_party; \
+	install -m 755 src/mesos-master $(MESOS_HOME)
+	install -m 755 src/mesos-slave $(MESOS_HOME)
+	install -m 755 src/swig/java/libmesos.so $(MESOS_HOME)
+	rsync -avz src/webui $(MESOS_HOME)
+	if test ! -d $(MESOS_HOME)/third_party; \
+		then mkdir $(MESOS_HOME)/third_party; \
 	fi
-	rsync -avz src/third_party/bottle-0.5.6 $(NEXUS_HOME)/third_party
+	rsync -avz src/third_party/bottle-0.5.6 $(MESOS_HOME)/third_party
 
 uninstall:
 	$(error unimplemented)

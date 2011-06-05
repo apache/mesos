@@ -4,7 +4,7 @@
 #include "allocator.hpp"
 #include "factory.hpp"
 
-namespace nexus { namespace internal { namespace master {
+namespace mesos { namespace internal { namespace master {
 
 DECLARE_FACTORY(Allocator, Master *);
 

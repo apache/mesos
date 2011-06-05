@@ -183,7 +183,7 @@ public class MapOutputServer implements MRConstants {
                            StringUtils.stringifyException(ie));
         if (isInputException) {
 	  System.out.println("******************************************");
-	  System.out.print("NEXUS PORT DOES NOT HANDLE THIS ERROR!");
+	  System.out.print("MESOS PORT DOES NOT HANDLE THIS ERROR!");
 	  System.out.println("******************************************");
           //tracker.mapOutputLost(TaskAttemptID.forName(mapId), errorMsg);
         }

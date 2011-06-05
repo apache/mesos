@@ -1479,8 +1479,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
 
   private QueueManager queueManager;
   
-  private boolean useNexus;
-  private NexusScheduler nexusScheduler;
+  private boolean useMesos;
+  private MesosScheduler mesosScheduler;
 
   /**
    * Start the JobTracker process, listen on the indicated port
@@ -1508,11 +1508,11 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     this.conf = conf;
     JobConf jobConf = new JobConf(conf);
 
-    // If using Nexus
-    useNexus = conf.getBoolean("mapred.use.nexus", false);
-    LOG.info("useNexus = " + useNexus);
+    // If using Mesos
+    useMesos = conf.getBoolean("mapred.use.mesos", false);
+    LOG.info("useMesos = " + useMesos);
 
-    if (useNexus) {
+    if (useMesos) {
       this.conf.set("mapred.job.tracker", "localhost:0");
       this.conf.set("mapred.job.tracker.http.address", "0.0.0.0:0");
     }
@@ -1704,19 +1704,19 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     //initializes the job status store
     completedJobStatusStore = new CompletedJobStatusStore(conf,fs);
     
-    if (useNexus) {
-      connectToNexus();
+    if (useMesos) {
+      connectToMesos();
     }
   }
 
-  private void connectToNexus() throws IOException {
-    System.loadLibrary("nexus");
-    final String master = conf.get("mapred.nexus.master", "local");
-    nexusScheduler = new NexusScheduler(this);
-    new Thread("Nexus scheduler") {
+  private void connectToMesos() throws IOException {
+    System.loadLibrary("mesos");
+    final String master = conf.get("mapred.mesos.master", "local");
+    mesosScheduler = new MesosScheduler(this);
+    new Thread("Mesos scheduler") {
       @Override
       public void run() {
-        nexusScheduler.run(master);
+        mesosScheduler.run(master);
       }
     }.start();
   }

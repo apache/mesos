@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import nexus
+import mesos
 import sys
 import time
 import os
@@ -16,9 +16,9 @@ def cleanup():
     print e
     None
 
-class MyExecutor(nexus.Executor):
+class MyExecutor(mesos.Executor):
   def __init__(self):
-    nexus.Executor.__init__(self)
+    mesos.Executor.__init__(self)
 
   def init(self, driver, arg):
     [ip,port] = arg.data.split(":")
@@ -44,4 +44,4 @@ if __name__ == "__main__":
   print "Starting executor"
   atexit.register(cleanup)
   executor = MyExecutor()
-  nexus.NexusExecutorDriver(executor).run()
+  mesos.MesosExecutorDriver(executor).run()

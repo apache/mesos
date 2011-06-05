@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Set up MESOS_HOME in order to find projd
+export MESOS_HOME=/root/mesos
+
+# Set MESOS_PUBLIC_DNS so slaves can be linked in master web UI
+export MESOS_PUBLIC_DNS=`wget -q -O - http://instance-data.ec2.internal/latest/meta-data/public-hostname`
+
+# Set PATH to include Scala
+export PATH=$PATH:/root/scala-2.8.0.RC3/bin
+
+# Set HADOOP variable to allow slaves to get executors from HDFS
+export HADOOP=/root/hadoop-0.20.2/bin/hadoop
+
+ulimit -n 8192
+export LD_PRELOAD_32=/usr/lib/extendedFILE.so.1
+
+export GOOGLE_LOG_DIR=/mnt
+
+PROGRAM=$1
+shift
+
+EXTRA_OPTS=""
+if [ "$PROGRAM" == "mesos-slave" ]; then
+  # Compute CPU and memory resources on this machine (TODO: Solaris-specific)
+  CPUS=`grep processor /proc/cpuinfo | wc -l`
+  MEM_KB=`cat /proc/meminfo | grep MemTotal | awk '{print $2}'`
+  MEM=$[(MEM_KB - 1024 * 1024) * 1024]
+  EXTRA_OPTS="--cpus $CPUS --mem $MEM --isolation process"
+fi
+
+cd $MESOS_HOME/src
+nohup ./$PROGRAM $EXTRA_OPTS $@ </dev/null >/mnt/$PROGRAM.out 2>&1 &

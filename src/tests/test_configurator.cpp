@@ -14,9 +14,9 @@ using std::cout;
 
 using boost::lexical_cast;
 
-using namespace nexus;
-using namespace nexus::internal;
-using namespace nexus::internal::test;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::test;
 
 
 TEST(ConfiguratorTest, Environment)

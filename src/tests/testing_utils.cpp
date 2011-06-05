@@ -8,7 +8,7 @@
 
 using std::string;
 
-using namespace nexus::internal;
+using namespace mesos::internal;
 
 
 string test::mesosHome;

@@ -6,14 +6,14 @@
 #include "config.hpp"
 #include "master.hpp"
 
-#ifdef NEXUS_WEBUI
+#ifdef MESOS_WEBUI
 
-namespace nexus { namespace internal { namespace master {
+namespace mesos { namespace internal { namespace master {
 
 void startMasterWebUI(const PID &master, char* webuiPort);
 
 }}} /* namespace */
 
-#endif /* NEXUS_WEBUI */
+#endif /* MESOS_WEBUI */
 
 #endif /* MASTER_WEBUI_HPP */

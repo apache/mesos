@@ -9,7 +9,7 @@
 #include "foreach.hpp"
 #include "messages.hpp"
 
-namespace nexus { namespace internal { namespace master { namespace state {
+namespace mesos { namespace internal { namespace master { namespace state {
 
 struct SlaveResources
 {  

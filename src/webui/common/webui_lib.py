@@ -5,7 +5,7 @@ import types
 
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-HOSTNAME = os.getenv("NEXUS_PUBLIC_DNS")
+HOSTNAME = os.getenv("MESOS_PUBLIC_DNS")
 if HOSTNAME == None:
   HOSTNAME = socket.gethostname()
 

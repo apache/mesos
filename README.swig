@@ -1,4 +1,4 @@
-To build the Java, Python and Ruby libraries for Nexus, you need to pass the following arguments to configure, respectively:
+To build the Java, Python and Ruby libraries for Mesos, you need to pass the following arguments to configure, respectively:
   --with-java-home=<path to Java Development Kit install directory>
   --with-python-headers=<path to Python headers>
   --with-ruby-headers=<path to Ruby headers>
@@ -15,12 +15,12 @@ Development Kit package is sun-java6-jdk.
 
 Finally, to run executors written in one of these languages, you will need
 to properly set up the include paths for each one. The easiest way right
-now is to create a shell script as your executor that you place in src/nexus,
+now is to create a shell script as your executor that you place in src/mesos,
 and have this script set language-specific paths and run your code.
 For example, for a Python executor exec.py, your script might look like:
 
 #!/bin/sh
-PYTHONPATH=<nexus_home>/src/swig/python
+PYTHONPATH=<mesos_home>/src/swig/python
 exec python <absolute_path>/exec.py
 
 In Java, you would need to set the CLASSPATH and the Java library path (with LD_LIBRARY_PATH or -Djava.library.path). In Ruby, use the -I option.

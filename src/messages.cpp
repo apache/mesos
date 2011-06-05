@@ -6,7 +6,7 @@ using std::string;
 using namespace process::serialization;
 
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
 
 
 void operator & (serializer& s, const TaskState& state)
@@ -153,4 +153,4 @@ void operator & (deserializer& s, Task& taskInfo)
   s & taskInfo.slaveId;
 }
 
-}} /* namespace nexus { namespace internal { */
+}} /* namespace mesos { namespace internal { */

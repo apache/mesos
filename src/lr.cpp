@@ -4,7 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <pthread.h>
-#include <nexus_sched.h>
+#include <mesos_sched.h>
 #include <boost/unordered_map.hpp>
 #include "lr.hpp"
 
@@ -12,8 +12,8 @@ using namespace std;
 using namespace boost;
 
 
-string nexusHost;
-unsigned short nexusPort;
+string mesosHost;
+unsigned short mesosPort;
 int numIters;
 int numTasks;
 double w[D];
@@ -23,7 +23,7 @@ volatile bool tasksDone = false;
 int numTasksStarted;
 int numTasksFinished;
 
-nexus_handle nexusHandle;
+mesos_handle mesosHandle;
 pthread_t schedulerThread;
 pthread_mutex_t mutex;
 pthread_cond_t tasksDoneCond;
@@ -61,8 +61,8 @@ int main(int argc, char **argv)
     return 1;
   }
   
-  nexusHost = argv[1];
-  nexusPort = atoi(argv[2]);
+  mesosHost = argv[1];
+  mesosPort = atoi(argv[2]);
   numIters = atoi(argv[3]);
   numTasks = atoi(argv[4]);
   
@@ -109,23 +109,23 @@ int main(int argc, char **argv)
     cout << endl << endl;
   }
   
-  nexus_close_scheduler(nexusHandle);
+  mesos_close_scheduler(mesosHandle);
   exit(0);
 }
 
 
-// Nexus callbacks
-void registerStarted(nexus_scheduler *sched);
-void registered(nexus_scheduler *sched, framework_id fid);
-void slot_offer(nexus_scheduler *sched, slot_offer_id oid, nexus_slot *slot);
-void slot_offer_rescinded(nexus_scheduler *sched, slot_offer_id oid);
-void status_update(nexus_scheduler *sched, nexus_task_status *status);
-void framework_message(nexus_scheduler *sched, nexus_framework_message *msg);
-void slave_lost(nexus_scheduler *sched, slave_id sid);
-void error(nexus_scheduler *sched, int code, const char *message);
+// Mesos callbacks
+void registerStarted(mesos_scheduler *sched);
+void registered(mesos_scheduler *sched, framework_id fid);
+void slot_offer(mesos_scheduler *sched, slot_offer_id oid, mesos_slot *slot);
+void slot_offer_rescinded(mesos_scheduler *sched, slot_offer_id oid);
+void status_update(mesos_scheduler *sched, mesos_task_status *status);
+void framework_message(mesos_scheduler *sched, mesos_framework_message *msg);
+void slave_lost(mesos_scheduler *sched, slave_id sid);
+void error(mesos_scheduler *sched, int code, const char *message);
 
-// Nexus scheduler
-nexus_scheduler scheduler = {
+// Mesos scheduler
+mesos_scheduler scheduler = {
   "LR framework",
   "lr_exec",
   registerStarted,
@@ -149,38 +149,38 @@ task_id nextTaskId = 0;
 
 void * runScheduler(void *)
 {
-  nexus_run_scheduler(nexusHost.c_str(), nexusPort, &scheduler, &nexusHandle);
+  mesos_run_scheduler(mesosHost.c_str(), mesosPort, &scheduler, &mesosHandle);
 }
 
-void registerStarted(nexus_scheduler *sched)
+void registerStarted(mesos_scheduler *sched)
 {
   cout << "Started registering" << endl;
 }
 
-void registered(nexus_scheduler *sched, framework_id fid)
+void registered(mesos_scheduler *sched, framework_id fid)
 {
-  cout << "Registered with Nexus, framework ID = " << fid << endl;
+  cout << "Registered with Mesos, framework ID = " << fid << endl;
 }
 
-void slot_offer(nexus_scheduler *sched, slot_offer_id oid, nexus_slot *slot)
+void slot_offer(mesos_scheduler *sched, slot_offer_id oid, mesos_slot *slot)
 {
   cout << "Got slot offer for slave " << slot->sid << endl;
   if (tasksAvailable && numTasksStarted < numTasks) {
-    nexus_task_desc task;
+    mesos_task_desc task;
     task.tid = nextTaskId++;
     indexOfTask[task.tid] = numTasksStarted++;
     task.name = 0;
     task.arg = (void*) w;
     task.arg_len = sizeof(w);
-    nexus_accept_slot_offer(nexusHandle, oid, &task);
+    mesos_accept_slot_offer(mesosHandle, oid, &task);
     cout << "Scheduled task " << indexOfTask[task.tid] 
          << " as TID " << task.tid << endl;
   } else {
-    nexus_refuse_slot_offer(nexusHandle, oid);
+    mesos_refuse_slot_offer(mesosHandle, oid);
   }
 }
 
-void status_update(nexus_scheduler *sched, nexus_task_status *status)
+void status_update(mesos_scheduler *sched, mesos_task_status *status)
 {
   if (status->state == TASK_FINISHED) {
     cout << "Task ID " << status->tid << " finished" << endl;
@@ -202,14 +202,14 @@ void status_update(nexus_scheduler *sched, nexus_task_status *status)
   }
 }
 
-void error(nexus_scheduler *sched, int code, const char *message)
+void error(mesos_scheduler *sched, int code, const char *message)
 {
-  cout << "Error from Nexus: " << message << endl;
+  cout << "Error from Mesos: " << message << endl;
   exit(code);
 }
 
-void slot_offer_rescinded(nexus_scheduler *sched, slot_offer_id oid) {}
+void slot_offer_rescinded(mesos_scheduler *sched, slot_offer_id oid) {}
 
-void framework_message(nexus_scheduler *sched, nexus_framework_message *msg) {}
+void framework_message(mesos_scheduler *sched, mesos_framework_message *msg) {}
 
-void slave_lost(nexus_scheduler *sched, slave_id sid) {}
+void slave_lost(mesos_scheduler *sched, slave_id sid) {}

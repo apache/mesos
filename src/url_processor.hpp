@@ -8,12 +8,12 @@
 using std::string;
 using std::pair;
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
     
 class UrlProcessor {
       
 public:
-  enum URLType {ZOO, NEXUS, UNKNOWN};
+  enum URLType {ZOO, MESOS, UNKNOWN};
   
   static string parseZooFile(const string &zooFilename);
   

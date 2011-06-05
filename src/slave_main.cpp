@@ -11,7 +11,7 @@ using boost::bad_lexical_cast;
 
 using namespace std;
 
-using namespace nexus::internal::slave;
+using namespace mesos::internal::slave;
 
 
 void usage(const char *programName, const Configurator& conf)
@@ -20,7 +20,7 @@ void usage(const char *programName, const Configurator& conf)
        << " --url=MASTER_URL [--cpus=NUM] [--mem=BYTES] [...]" << endl
        << endl
        << "MASTER_URL may be one of:" << endl
-       << "  nexus://id@host:port" << endl
+       << "  mesos://id@host:port" << endl
        << "  zoo://host1:port1,host2:port2,..." << endl
        << "  zoofile://file where file contains a host:port pair per line"
        << endl
@@ -35,7 +35,7 @@ int main(int argc, char **argv)
   Configurator conf;
   conf.addOption<string>("url", 'u', "Master URL");
   conf.addOption<string>("isolation", 'i', "Isolation module name", "process");
-#ifdef NEXUS_WEBUI
+#ifdef MESOS_WEBUI
   conf.addOption<int>("webui_port", 'w', "Web UI port", 8081);
 #endif
   Logging::registerOptions(&conf);
@@ -72,7 +72,7 @@ int main(int argc, char **argv)
   }
 
   LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
-  LOG(INFO) << "Starting Nexus slave";
+  LOG(INFO) << "Starting Mesos slave";
 
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("Could not chdir into %s", dirname(argv[0]));
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
   bool quiet = Logging::isQuiet(params);
   MasterDetector *detector = MasterDetector::create(url, pid, false, quiet);
 
-#ifdef NEXUS_WEBUI
+#ifdef MESOS_WEBUI
   startSlaveWebUI(pid, (char*) params["webui_port"].c_str());
 #endif
 

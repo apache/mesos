@@ -5,15 +5,15 @@
 
 #include "configurator.hpp"
 #include "logging.hpp"
-#include "nexus_local.hpp"
+#include "mesos_local.hpp"
 
 using std::cerr;
 using std::endl;
 using std::string;
 
-using namespace nexus::internal;
-using nexus::internal::master::Master;
-using nexus::internal::slave::Slave;
+using namespace mesos::internal;
+using mesos::internal::master::Master;
+using mesos::internal::slave::Slave;
 
 
 void usage(const char* programName, const Configurator& conf)

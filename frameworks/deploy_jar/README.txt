@@ -1,4 +1,4 @@
-haproxy load balancer + Apache web server Nexus framework Readme
+haproxy load balancer + Apache web server Mesos framework Readme
 ----------------------------------------------------------------
 
 First you will need to be able to run apache on the slave nodes in your cluster.

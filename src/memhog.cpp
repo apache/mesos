@@ -1,4 +1,4 @@
-#include <nexus_sched.hpp>
+#include <mesos_sched.hpp>
 
 #include <cstdlib>
 #include <iostream>
@@ -9,7 +9,7 @@
 #include "foreach.hpp"
 
 using namespace std;
-using namespace nexus;
+using namespace mesos;
 
 using boost::lexical_cast;
 
@@ -100,7 +100,7 @@ int main(int argc, char ** argv) {
                     lexical_cast<int>(argv[4]),
                     lexical_cast<int64_t>(argv[5]) * 1024 * 1024,
                     lexical_cast<int64_t>(argv[6]) * 1024 * 1024);
-  NexusSchedulerDriver driver(&sched, argv[1]);
+  MesosSchedulerDriver driver(&sched, argv[1]);
   driver.run();
   return 0;
 }

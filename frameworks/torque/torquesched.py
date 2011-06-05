@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import nexus
+import mesos
 import os
 import sys
 import time
@@ -55,9 +55,9 @@ monitorlog.setLevel(logging.DEBUG)
 monitorlog.addHandler(fh)
 #monitorlog.addHandler(ch)
 
-class MyScheduler(nexus.Scheduler):
+class MyScheduler(mesos.Scheduler):
   def __init__(self, ip):
-    nexus.Scheduler.__init__(self)
+    mesos.Scheduler.__init__(self)
     self.lock = threading.RLock()
     self.id = 0
     self.ip = ip 
@@ -69,10 +69,10 @@ class MyScheduler(nexus.Scheduler):
     execPath = os.path.join(os.getcwd(), "start_pbs_mom.sh")
     initArg = self.ip # tell executor which node the pbs_server is running on
     driverlog.info("in getExecutorInfo, setting execPath = " + execPath + " and initArg = " + initArg)
-    return nexus.ExecutorInfo(execPath, initArg)
+    return mesos.ExecutorInfo(execPath, initArg)
 
   def registered(self, driver, fid):
-    driverlog.info("Nexus torque framwork registered with frameworkID %s" % fid)
+    driverlog.info("Mesos torque framwork registered with frameworkID %s" % fid)
 
   def resourceOffer(self, driver, oid, slave_offers):
     self.driver = driver
@@ -94,7 +94,7 @@ class MyScheduler(nexus.Scheduler):
         continue
       driverlog.info("Need %d more nodes, so accepting slot, setting up params for it..." % self.numToRegister)
       params = {"cpus": "1", "mem": "1073741824"}
-      td = nexus.TaskDescription(
+      td = mesos.TaskDescription(
           self.id, offer.slaveId, "task %d" % self.id, params, "")
       tasks.append(td)
       self.servers[self.id] = offer.host
@@ -162,7 +162,7 @@ class MyScheduler(nexus.Scheduler):
       monitorlog.warn("Done killing. We were supposed to kill %d nodes, but only found and killed %d free nodes" % (numNodes, numNodes-toKill))
 
   def getFrameworkName(self, driver):
-    return "Nexus Torque Framework"
+    return "Mesos Torque Framework"
 
 
 def monitor(sched):
@@ -193,7 +193,7 @@ def monitor(sched):
     monitorlog.debug("\n")
 
 if __name__ == "__main__":
-  parser = OptionParser(usage = "Usage: %prog nexus_master")
+  parser = OptionParser(usage = "Usage: %prog mesos_master")
 
   (options,args) = parser.parse_args()
   if len(args) < 1:
@@ -256,11 +256,11 @@ if __name__ == "__main__":
   #ip = Popen("ifconfig en1 | awk '/inet / { print $2 }'", shell=True, stdout=PIPE).stdout.readline().rstrip() # os x
   monitorlog.info("Remembering IP address of scheduler (" + ip + "), and fqdn: " + fqdn)
 
-  monitorlog.info("Connecting to nexus master %s" % args[0])
+  monitorlog.info("Connecting to mesos master %s" % args[0])
 
   sched = MyScheduler(fqdn)
   threading.Thread(target = monitor, args=[sched]).start()
 
-  nexus.NexusSchedulerDriver(sched, args[0]).run()
+  mesos.MesosSchedulerDriver(sched, args[0]).run()
 
   monitorlog.info("Finished!")

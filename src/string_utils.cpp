@@ -3,7 +3,7 @@
 using std::string;
 using std::vector;
 
-using namespace nexus::internal;
+using namespace mesos::internal;
 
 
 void StringUtils::split(const string& str,

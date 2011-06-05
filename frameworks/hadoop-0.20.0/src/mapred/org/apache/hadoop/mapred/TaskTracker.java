@@ -479,7 +479,7 @@ public class TaskTracker
     //check local disk
     checkLocalDirs(this.fConf.getLocalDirs());
 
-    // NEXUS: To run multiple Hadoops and integrate with the
+    // MESOS: To run multiple Hadoops and integrate with the
     // MapOutputServer, we don't delete local files because we don't
     // know who else might have local files there and we don't know
     // they might be finished or not.
@@ -556,8 +556,8 @@ public class TaskTracker
     DistributedCache.purgeCache(this.fConf);
     cleanupStorage();
     
-    if (useNexus) {
-      this.jobClient = nexusExecutor;
+    if (useMesos) {
+      this.jobClient = mesosExecutor;
     } else {
       this.jobClient = (InterTrackerProtocol) 
         RPC.waitForProxy(InterTrackerProtocol.class,
@@ -601,7 +601,7 @@ public class TaskTracker
    * startup, to remove any leftovers from previous run.
    */
   public void cleanupStorage() throws IOException {
-    // NEXUS: To run multiple Hadoops and integrate with the
+    // MESOS: To run multiple Hadoops and integrate with the
     // MapOutputServer, we don't delete local files because we don't
     // know who else might have local files there and we don't know
     // they might be finished or not.
@@ -868,7 +868,7 @@ public class TaskTracker
           RunJar.unJar(new File(localJarFile.toString()),
                        new File(localJarFile.getParent().toString()));
         }
-	// NEXUS: To run multiple Hadoops and integrate with the
+	// MESOS: To run multiple Hadoops and integrate with the
 	// MapOutputServer, we don't delete local files because we don't
 	// know who else might have local files there and we don't know
 	// they might be finished or not.
@@ -900,7 +900,7 @@ public class TaskTracker
         LOG.warn("Exception shutting down TaskTracker", e);
       }
     }
-    if (useNexus) {
+    if (useMesos) {
       // TODO: send a framework message saying we're bailing out?
       System.exit(1);
     }
@@ -938,7 +938,7 @@ public class TaskTracker
     jvmManager.stop();
     
     // shutdown RPC connections
-    if (!useNexus) {
+    if (!useMesos) {
       RPC.stopProxy(jobClient);
     }
 
@@ -960,11 +960,11 @@ public class TaskTracker
   /**
    * Start with the local machine name, and the default JobTracker
    */
-  public TaskTracker(JobConf conf, NexusExecutor nexusExecutor)
+  public TaskTracker(JobConf conf, MesosExecutor mesosExecutor)
       throws IOException {
-    if (nexusExecutor != null) {
-      this.useNexus = true;
-      this.nexusExecutor = nexusExecutor;
+    if (mesosExecutor != null) {
+      this.useMesos = true;
+      this.mesosExecutor = mesosExecutor;
       conf.set("mapred.task.tracker.http.address", "0.0.0.0:0");
     }
     originalConf = conf;
@@ -1002,9 +1002,9 @@ public class TaskTracker
     server.addInternalServlet("taskLog", "/tasklog", TaskLogServlet.class);
     server.start();
     this.httpPort = server.getPort();
-    if (useNexus) {
+    if (useMesos) {
       // Set reported slots to 0 -- we'll create some in response
-      // to slot offers from Nexus
+      // to slot offers from Mesos
       mapSlots = 0;
       reduceSlots = 0;
     }
@@ -1656,8 +1656,8 @@ public class TaskTracker
   private TaskLauncher mapLauncher;
   private TaskLauncher reduceLauncher;
 
-  private boolean useNexus;
-  private NexusExecutor nexusExecutor;
+  private boolean useMesos;
+  private MesosExecutor mesosExecutor;
       
   public JvmManager getJvmManagerInstance() {
     return jvmManager;
@@ -2092,11 +2092,11 @@ public class TaskTracker
       this.taskStatus.statusUpdate(taskStatus);
       this.lastProgressReport = System.currentTimeMillis();
 
-      if (useNexus && this.taskStatus.getRunState() == TaskStatus.State.COMMIT_PENDING) {
-        // Report the task as done to Nexus so that it can report our slot
+      if (useMesos && this.taskStatus.getRunState() == TaskStatus.State.COMMIT_PENDING) {
+        // Report the task as done to Mesos so that it can report our slot
         // as finished and get a new slot assigned before the next heartbeat
-        nexus.TaskStatus s = nexusExecutor.createTaskDoneUpdate(taskStatus);
-        if (s != null) nexusExecutor.getDriver().sendStatusUpdate(s);
+        mesos.TaskStatus s = mesosExecutor.createTaskDoneUpdate(taskStatus);
+        if (s != null) mesosExecutor.getDriver().sendStatusUpdate(s);
       }
     }
 
@@ -2153,11 +2153,11 @@ public class TaskTracker
       runner.signalDone();
       LOG.info("Task " + task.getTaskID() + " is done.");
       LOG.info("reported output size for " + task.getTaskID() +  "  was " + taskStatus.getOutputSize());
-      if (useNexus) {
-        // Report the task as done to Nexus so that it can report our slot
+      if (useMesos) {
+        // Report the task as done to Mesos so that it can report our slot
         // as finished and get a new slot assigned before the next heartbeat
-        nexus.TaskStatus s = nexusExecutor.createTaskDoneUpdate(taskStatus);
-        if (s != null) nexusExecutor.getDriver().sendStatusUpdate(s);
+        mesos.TaskStatus s = mesosExecutor.createTaskDoneUpdate(taskStatus);
+        if (s != null) mesosExecutor.getDriver().sendStatusUpdate(s);
       }
     }
     

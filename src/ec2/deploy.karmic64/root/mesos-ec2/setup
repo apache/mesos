@@ -1,0 +1,209 @@
+#!/bin/bash
+OS_NAME=$1
+DOWNLOAD_METHOD=$2
+BRANCH=$3
+
+# By exporting this git won't ask to accept a key.
+export GIT_SSH=/root/mesos-ec2/ssh-no-keychecking
+
+# Set PATH to include Scala
+export PATH=$PATH:/root/scala-2.7.7.final/bin
+
+MASTER=/root/mesos-ec2/master
+SLAVES=/root/mesos-ec2/slaves
+ZOO=/root/mesos-ec2/zoo
+
+ISFT=`cat $ZOO | wc -l`
+
+# Scripts that get used for/while running Mesos.
+SCRIPTS="copy-dir
+         mesos-daemon
+         redeploy-mesos
+         setup-apache
+         setup-slave              
+         setup-torque
+         setup-torque-server
+         start-torque-slaves
+         stop-torque-slaves
+         prologue.setup-mpi-master
+         setup-mpi
+         ssh-no-keychecking
+         start-mos
+         start-mesos
+         stop-mos
+         stop-mesos
+         stop-tasktracker-child"
+
+HADOOP_HOME=/root/hadoop-0.20.2
+
+JAVA_HOME=/usr/lib/jvm/java-6-sun
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+
+if [[ `tty` == "not a tty" ]] ; then
+    echo "Expecting a tty or pty! (use the ssh -t option)."
+    exit 1
+fi
+
+echo "Setting up Mesos master on `hostname`..."
+
+cd /root/mesos-ec2
+
+echo "Setting executable permissions on scripts..."
+for s in $SCRIPTS; do chmod u+x $s; done
+
+echo "SSH'ing to local machine to approve key..."
+for master in `cat $MASTER`; do
+  echo $master
+  ssh $SSH_OPTS $master echo -n &
+  sleep 0.3
+done
+
+ssh -q $SSH_OPTS localhost echo -n
+
+if [[ $ISFT != 0 ]] ; then
+  echo "SSH'ing to Zoo server(s) to approve keys..."
+  zid=1
+  for zoo in `cat $ZOO`; do
+    echo $zoo
+    ssh $SSH_OPTS $zoo echo -n \; mkdir -p /tmp/zookeeper \; echo $zid \> /tmp/zookeeper/myid
+    zid=$(($zid+1))
+    sleep 0.3
+  done
+fi
+
+echo "SSH'ing to slaves to approve keys..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  ssh $SSH_OPTS $slave echo -n &
+  sleep 0.3
+done
+echo "Waiting for commands to finish..."
+wait
+
+if [[ `cat $MASTER | wc -l` > 1 ]] ; then
+  echo "RSYNC'ing /root/mesos-ec2 to other master servers..."
+  for master in `cat $MASTER | sed '1d'`; do
+      echo $master
+      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $master:/root
+  done
+fi
+
+if [[ $ISFT != 0 ]] ; then
+  echo "RSYNC'ing /root/mesos-ec2 to other Zoo servers..."
+  for zoo in `cat $ZOO`; do
+      echo $zoo
+      rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $zoo:/root
+  done
+fi
+
+echo "RSYNC'ing /root/mesos-ec2 to slaves..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  rsync -e "ssh $SSH_OPTS" -az /root/mesos-ec2 $slave:/root
+  scp ~/.ssh/id_rsa $slave:.ssh
+done
+
+echo "Setting up slaves..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  ssh -t $SSH_OPTS root@$slave "mesos-ec2/setup-slave"
+done
+
+echo "Setting up master as slave (i.e. for local)..."
+./setup-slave
+
+echo "RSYNC'ing Hadoop config files to slaves..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $slave:$HADOOP_HOME
+done
+
+DOWNLOADED=0
+
+if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
+  REPOSITORY=git@github.com:mesosproject/mesos.git
+  echo "Checking out Mesos from $REPOSITORY"
+  pushd /root > /dev/null 2>&1
+  rm -rf mesos mesos.tgz
+  # Set git SSH command to a script that uses -o StrictHostKeyChecking=no
+  git clone $REPOSITORY mesos
+  pushd mesos 2>&1
+  git checkout -b $BRANCH --track origin/$BRANCH
+  popd > /dev/null 2>&1
+  popd > /dev/null 2>&1
+  DOWNLOADED=1
+elif [[ "$DOWNLOAD_METHOD" == "web" ]] ; then
+  echo "Downloading latest Mesos snapshot from mesos.berkeley.edu"
+  pushd /root > /dev/null 2>&1
+  rm -rf mesos mesos.tgz
+  wget http://mesos:mesos@mesos.berkeley.edu/releases/mesos.tgz
+  tar xzf mesos.tgz
+  popd > /dev/null 2>&1
+  DOWNLOADED=1
+fi
+
+
+# Build Mesos if we downloaded it
+if [[ "$DOWNLOADED" == "1" ]] ; then
+  echo "Building Mesos..."
+  pushd /root/mesos > /dev/null 2>&1
+  ./configure.OURS.$OS_NAME
+  make clean
+  make
+  popd > /dev/null 2>&1
+  if [ -d /root/mesos/frameworks/spark ] ; then
+    echo "Building Spark..."
+    pushd /root/mesos/frameworks/spark > /dev/null 2>&1
+    make all native
+    popd > /dev/null 2>&1
+  fi
+  echo "Building Hadoop framework..."
+  pushd /root/mesos/frameworks/hadoop-0.20.0 > /dev/null 2>&1
+  ant
+  ant examples
+  popd > /dev/null 2>&1
+fi
+
+echo "Setting up Hadoop framework config files..."
+cp hadoop-framework-conf/* /root/mesos/frameworks/hadoop-0.20.0/conf
+
+echo "Setting up haproxy+apache framework config files..."
+cp haproxy+apache/* /root/mesos/frameworks/haproxy+apache
+
+echo "Setting up Spark config files..."
+mkdir -p /root/mesos/frameworks/spark/conf
+echo "-Dspark.dfs=hdfs://$HOSTNAME:9000 -Djava.io.tmpdir=/nfs" \
+     > /root/mesos/frameworks/spark/conf/java-opts
+
+echo "Redeploying /root/mesos..."
+./redeploy-mesos
+
+echo "Setting up NFS..."
+if [ ! -e /mnt/nfs ] ; then
+  mkdir -p /mnt/nfs
+  rm -fr /nfs
+  ln -s /mnt/nfs /nfs
+  echo "/nfs    10.0.0.0/8(ro,async,no_subtree_check)" >> /etc/exports
+  exportfs -a
+fi
+echo "Mounting NFS on slaves..."
+for slave in `cat $SLAVES`; do
+  echo $slave
+  ssh -t $SSH_OPTS root@$slave "mkdir -p /nfs; mount $HOSTNAME:/nfs /nfs"
+done
+
+echo "Formatting HDFS namenode..."
+$HADOOP_HOME/bin/hadoop namenode -format
+
+echo "Starting HDFS..."
+$HADOOP_HOME/bin/start-dfs.sh
+
+echo "Starting MapOutputServer(s)..."
+./start-mos
+
+echo "Setting up torque"
+./setup-torque
+
+echo "Starting Mesos cluster..."
+./start-mesos

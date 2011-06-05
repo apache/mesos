@@ -8,7 +8,7 @@
 
 using std::string;
 
-using namespace nexus::internal::slave;
+using namespace mesos::internal::slave;
 
 
 IsolationModule * IsolationModule::create(const string &type)

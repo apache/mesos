@@ -11,8 +11,8 @@
 #include "fatal.hpp"
 #include "testing_utils.hpp"
 
-using namespace nexus::internal;
-using namespace nexus::internal::test;
+using namespace mesos::internal;
+using namespace mesos::internal::test;
 
 
 int main(int argc, char **argv) {

@@ -1,9 +1,9 @@
 import java.io.File;
-import nexus.*;
+import mesos.*;
 
 public class TestFramework {
   static {
-    System.loadLibrary("nexus");
+    System.loadLibrary("mesos");
   }
 
   static class MyScheduler extends Scheduler {
@@ -79,6 +79,6 @@ public class TestFramework {
   }
 
   public static void main(String[] args) throws Exception {
-    new NexusSchedulerDriver(new MyScheduler(), args[0]).run();
+    new MesosSchedulerDriver(new MyScheduler(), args[0]).run();
   }
 }

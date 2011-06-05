@@ -3,7 +3,7 @@
 #include "slave_webui.hpp"
 #include "slave_state.hpp"
 
-#ifdef NEXUS_WEBUI
+#ifdef MESOS_WEBUI
 
 #include <process.hpp>
 #include <pthread.h>
@@ -17,7 +17,7 @@ PID slave;
 
 }
 
-namespace nexus { namespace internal { namespace slave {
+namespace mesos { namespace internal { namespace slave {
 
 
 void *runSlaveWebUI(void* webuiPort)
@@ -81,7 +81,7 @@ SlaveState *get_slave()
 
 } /* namespace state { */
 
-}}} /* namespace nexus { namespace internal { namespace slave { */
+}}} /* namespace mesos { namespace internal { namespace slave { */
 
 
-#endif /* NEXUS_WEBUI */
+#endif /* MESOS_WEBUI */

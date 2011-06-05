@@ -9,7 +9,7 @@
 #include "messages.hpp"
 #include "slave.hpp"
 
-namespace nexus { namespace internal { namespace slave {
+namespace mesos { namespace internal { namespace slave {
 
 using std::string;
 using boost::unordered_map;
@@ -28,7 +28,7 @@ public:
   };
 
   // Extra shutdown message for reaper
-  enum { SHUTDOWN_REAPER = NEXUS_MESSAGES };
+  enum { SHUTDOWN_REAPER = MESOS_MESSAGES };
 
   // Per-framework information object maintained in info hashmap
   struct FrameworkInfo {

@@ -9,7 +9,7 @@
 #include "allocator.hpp"
 #include "resources.hpp"
 
-namespace nexus { namespace internal { namespace master {
+namespace mesos { namespace internal { namespace master {
 
 using std::vector;
 using boost::unordered_map;

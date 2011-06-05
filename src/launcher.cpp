@@ -27,9 +27,9 @@ using std::vector;
 
 using boost::lexical_cast;
 
-using namespace nexus;
-using namespace nexus::internal;
-using namespace nexus::internal::launcher;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::launcher;
 
 
 ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
@@ -192,9 +192,9 @@ void ExecutorLauncher::setupEnvironment()
     }
   }
 
-  // Set Nexus environment variables to pass slave ID, framework ID, etc.
-  setenv("NEXUS_SLAVE_PID", slavePid.c_str(), true);
-  setenv("NEXUS_FRAMEWORK_ID", frameworkId.c_str(), true);
+  // Set Mesos environment variables to pass slave ID, framework ID, etc.
+  setenv("MESOS_SLAVE_PID", slavePid.c_str(), true);
+  setenv("MESOS_FRAMEWORK_ID", frameworkId.c_str(), true);
   
   // Set LIBPROCESS_PORT so that we bind to a random free port.
   setenv("LIBPROCESS_PORT", "0", true);

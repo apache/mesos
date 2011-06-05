@@ -10,7 +10,7 @@
 #include "params.hpp"
 #include "string_utils.hpp"
 
-using namespace nexus::internal;
+using namespace mesos::internal;
 
 
 const char* Configurator::DEFAULT_CONFIG_DIR = "conf";

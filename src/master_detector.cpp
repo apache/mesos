@@ -19,8 +19,8 @@
 #include "url_processor.hpp"
 #include "zookeeper.hpp"
 
-using namespace nexus;
-using namespace nexus::internal;
+using namespace mesos;
+using namespace mesos::internal;
 
 using namespace std;
 
@@ -138,8 +138,8 @@ MasterDetector * MasterDetector::create(const std::string &url,
       break;
     }
 
-    // Nexus URL or libprocess pid.
-    case UrlProcessor::NEXUS:
+    // Mesos URL or libprocess pid.
+    case UrlProcessor::MESOS:
     case UrlProcessor::UNKNOWN: {
       if (contend) {
 	// TODO(benh): Wierdnesses like this makes it seem like there

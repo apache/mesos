@@ -4,9 +4,9 @@
 
 #include "master.hpp"
 #include "slave.hpp"
-#include "nexus_exec.hpp"
-#include "nexus_sched.hpp"
-#include "nexus_local.hpp"
+#include "mesos_exec.hpp"
+#include "mesos_sched.hpp"
+#include "mesos_local.hpp"
 #include "isolation_module.hpp"
 #include "process_based_isolation_module.hpp"
 
@@ -15,14 +15,14 @@ using std::vector;
 
 using boost::lexical_cast;
 
-using namespace nexus;
-using namespace nexus::internal;
+using namespace mesos;
+using namespace mesos::internal;
 
-using nexus::internal::master::Master;
-using nexus::internal::slave::Slave;
-using nexus::internal::slave::Framework;
-using nexus::internal::slave::IsolationModule;
-using nexus::internal::slave::ProcessBasedIsolationModule;
+using mesos::internal::master::Master;
+using mesos::internal::slave::Slave;
+using mesos::internal::slave::Framework;
+using mesos::internal::slave::IsolationModule;
+using mesos::internal::slave::ProcessBasedIsolationModule;
 
 
 class NoopScheduler : public Scheduler
@@ -74,7 +74,7 @@ TEST(MasterTest, NoopFrameworkWithOneSlave)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
   PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
   NoopScheduler sched(1);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_TRUE(sched.registeredCalled);
   EXPECT_EQ(1, sched.offersGotten);
@@ -87,7 +87,7 @@ TEST(MasterTest, NoopFrameworkWithMultipleSlaves)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
   PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
   NoopScheduler sched(10);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_TRUE(sched.registeredCalled);
   EXPECT_EQ(1, sched.offersGotten);
@@ -138,7 +138,7 @@ TEST(MasterTest, DuplicateTaskIdsInResponse)
   tasks.push_back(TaskDescription(2, "0-0", "", params, ""));
   tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Duplicate task ID: 1", sched.errorMessage);
   local::shutdown();
@@ -155,7 +155,7 @@ TEST(MasterTest, TooMuchMemoryInTask)
   params["mem"] = lexical_cast<string>(4 * Gigabyte);
   tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
   local::shutdown();
@@ -172,7 +172,7 @@ TEST(MasterTest, TooMuchCpuInTask)
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
   tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
   local::shutdown();
@@ -189,7 +189,7 @@ TEST(MasterTest, TooLittleCpuInTask)
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
   tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Invalid task size: <0 CPUs, 1073741824 MEM>", sched.errorMessage);
   local::shutdown();
@@ -206,7 +206,7 @@ TEST(MasterTest, TooLittleMemoryInTask)
   params["mem"] = "1";
   tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Invalid task size: <1 CPUs, 1 MEM>", sched.errorMessage);
   local::shutdown();
@@ -224,7 +224,7 @@ TEST(MasterTest, TooMuchMemoryAcrossTasks)
   tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
   tasks.push_back(TaskDescription(2, "0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
   local::shutdown();
@@ -242,7 +242,7 @@ TEST(MasterTest, TooMuchCpuAcrossTasks)
   tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
   tasks.push_back(TaskDescription(2, "0-0", "", params, ""));
   FixedResponseScheduler sched(tasks);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
   EXPECT_EQ("Too many resources accepted", sched.errorMessage);
   local::shutdown();
@@ -255,13 +255,13 @@ TEST(MasterTest, ResourcesReofferedAfterReject)
   PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
 
   NoopScheduler sched1(10);
-  NexusSchedulerDriver driver1(&sched1, master);
+  MesosSchedulerDriver driver1(&sched1, master);
   driver1.run();
   EXPECT_TRUE(sched1.registeredCalled);
   EXPECT_EQ(1, sched1.offersGotten);
 
   NoopScheduler sched2(10);
-  NexusSchedulerDriver driver2(&sched2, master);
+  MesosSchedulerDriver driver2(&sched2, master);
   driver2.run();
   EXPECT_TRUE(sched2.registeredCalled);
   EXPECT_EQ(1, sched2.offersGotten);
@@ -281,12 +281,12 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
   params["mem"] = lexical_cast<string>(1 * Gigabyte);
   tasks.push_back(TaskDescription(1, "0-0", "", params, ""));
   FixedResponseScheduler sched1(tasks);
-  NexusSchedulerDriver driver1(&sched1, master);
+  MesosSchedulerDriver driver1(&sched1, master);
   driver1.run();
   EXPECT_EQ("Invalid task size: <0 CPUs, 1073741824 MEM>", sched1.errorMessage);
 
   NoopScheduler sched2(1);
-  NexusSchedulerDriver driver2(&sched2, master);
+  MesosSchedulerDriver driver2(&sched2, master);
   driver2.run();
   EXPECT_TRUE(sched2.registeredCalled);
   EXPECT_EQ(1, sched2.offersGotten);
@@ -339,7 +339,7 @@ TEST(MasterTest, SlaveLost)
 
   SlaveLostScheduler sched(slave);
 
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
   driver.run();
 
   EXPECT_TRUE(sched.slaveLostCalled);
@@ -378,7 +378,7 @@ class FailingScheduler : public Scheduler
 public:
   Scheduler *failover;
   PID master;
-  NexusSchedulerDriver *driver;
+  MesosSchedulerDriver *driver;
   string errorMessage;
 
   FailingScheduler(Scheduler *_failover, const PID &_master)
@@ -394,7 +394,7 @@ public:
 
   virtual void registered(SchedulerDriver*, FrameworkID fid) {
     LOG(INFO) << "FailingScheduler registered";
-    driver = new NexusSchedulerDriver(failover, master, fid);
+    driver = new MesosSchedulerDriver(failover, master, fid);
     driver->start();
   }
 
@@ -416,7 +416,7 @@ TEST(MasterTest, SchedulerFailover)
   FailoverScheduler failoverSched;
   FailingScheduler failingSched(&failoverSched, master);
 
-  NexusSchedulerDriver driver(&failingSched, master);
+  MesosSchedulerDriver driver(&failingSched, master);
   driver.run();
 
   EXPECT_EQ("Framework failover", failingSched.errorMessage);
@@ -491,7 +491,7 @@ TEST(MasterTest, OfferRescinded)
   BasicMasterDetector detector(master, slave, true);
 
   OfferRescindedScheduler sched(slave);
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
 
   driver.run();
 
@@ -548,7 +548,7 @@ TEST(MasterTest, SlavePartitioned)
   PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
 
   SlavePartitionedScheduler sched;
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
 
   driver.start();
 
@@ -621,7 +621,7 @@ class LocalIsolationModule : public IsolationModule
 {
 public:
   Executor *executor;
-  NexusExecutorDriver *driver;
+  MesosExecutorDriver *driver;
   string pid;
 
   LocalIsolationModule(Executor *_executor)
@@ -635,11 +635,11 @@ public:
 
   virtual void startExecutor(Framework *framework) {
     // TODO(benh): Cleanup the way we launch local drivers!
-    setenv("NEXUS_LOCAL", "1", 1);
-    setenv("NEXUS_SLAVE_PID", pid.c_str(), 1);
-    setenv("NEXUS_FRAMEWORK_ID", framework->id.c_str(), 1);
+    setenv("MESOS_LOCAL", "1", 1);
+    setenv("MESOS_SLAVE_PID", pid.c_str(), 1);
+    setenv("MESOS_FRAMEWORK_ID", framework->id.c_str(), 1);
 
-    driver = new NexusExecutorDriver(executor);
+    driver = new MesosExecutorDriver(executor);
     driver->start();
   }
 
@@ -649,9 +649,9 @@ public:
     delete driver;
 
     // TODO(benh): Cleanup the way we launch local drivers!
-    unsetenv("NEXUS_LOCAL");
-    unsetenv("NEXUS_SLAVE_PID");
-    unsetenv("NEXUS_FRAMEWORK_ID");
+    unsetenv("MESOS_LOCAL");
+    unsetenv("MESOS_SLAVE_PID");
+    unsetenv("MESOS_FRAMEWORK_ID");
   }
 };
 
@@ -672,7 +672,7 @@ TEST(MasterTest, TaskRunning)
   BasicMasterDetector detector(master, slave, true);
 
   TaskRunningScheduler sched;
-  NexusSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, master);
 
   driver.run();
 
@@ -703,7 +703,7 @@ public:
   TaskRunningScheduler *failover;
   TaskRunningScheduler *failing;
   const PID master;
-  NexusSchedulerDriver *driver;
+  MesosSchedulerDriver *driver;
 
   StatusUpdateFilter(TaskRunningScheduler *_failover,
                      TaskRunningScheduler *_failing,
@@ -725,7 +725,7 @@ public:
     if (driver == NULL &&
         msg->id == S2M_FT_STATUS_UPDATE &&
         !(msg->to == master)) {
-      driver = new NexusSchedulerDriver(failover, master, failing->fid);
+      driver = new MesosSchedulerDriver(failover, master, failing->fid);
       driver->start();
       return true;
     }
@@ -758,7 +758,7 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   StatusUpdateFilter filter(&failoverSched, &failingSched, master);
   Process::filter(&filter);
 
-  NexusSchedulerDriver driver(&failingSched, master);
+  MesosSchedulerDriver driver(&failingSched, master);
 
   driver.run();
 

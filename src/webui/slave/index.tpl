@@ -5,12 +5,12 @@
 %slave = get_slave()
 <html>
 <head>
-<title>Nexus Slave on {{HOSTNAME}}</title>
+<title>Mesos Slave on {{HOSTNAME}}</title>
 <link rel="stylesheet" type="text/css" href="/static/stylesheet.css" />
 </head>
 <body>
 
-<h1>Nexus Slave on {{HOSTNAME}}</h1>
+<h1>Mesos Slave on {{HOSTNAME}}</h1>
 
 <p>
 Built: {{slave.build_date}} by {{slave.build_user}}<br />

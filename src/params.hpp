@@ -13,7 +13,7 @@
 #include "string_utils.hpp"
 
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
 
 using std::map;
 using std::ostringstream;

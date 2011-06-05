@@ -1,6 +1,6 @@
 #include "lock.hpp"
 
-using namespace nexus::internal;
+using namespace mesos::internal;
 
 
 Lock::Lock(pthread_mutex_t* _mutex): mutex(_mutex)

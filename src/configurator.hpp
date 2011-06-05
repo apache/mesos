@@ -11,7 +11,7 @@
 #include "foreach.hpp"
 #include "option.hpp"
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
     
 using std::string;
 using std::cout;
@@ -317,6 +317,6 @@ private:
   string getLongName(char shortName) const;
 };
 
-} }   // end nexus :: internal namespace
+} }   // end mesos :: internal namespace
 
 #endif

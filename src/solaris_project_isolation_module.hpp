@@ -8,14 +8,14 @@
 
 #include "process_based_isolation_module.hpp"
 
-namespace nexus { namespace internal { namespace slave {
+namespace mesos { namespace internal { namespace slave {
 
 using std::string;
 using std::queue;
 
 using boost::unordered_map;
 
-using nexus::internal::launcher::ExecutorLauncher;
+using mesos::internal::launcher::ExecutorLauncher;
 
 class SolarisProjectIsolationModule : public ProcessBasedIsolationModule {
 protected:

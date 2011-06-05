@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import nexus
+import mesos
 import sys
 import time
 import os
@@ -19,9 +19,9 @@ def cleanup():
     print e
     None
 
-class MyExecutor(nexus.Executor):
+class MyExecutor(mesos.Executor):
   def __init__(self):
-    nexus.Executor.__init__(self)
+    mesos.Executor.__init__(self)
 
   def init(self, driver, arg):
     print "in torque executor init"
@@ -72,7 +72,7 @@ class MyExecutor(nexus.Executor):
 
   #def killTask(self, driver, tid):
     #send a message back to the scheduler to tell it this task is dead
-    #msg = nexus.TaskStatus(tid, nexus.TASK_KILLED, "")
+    #msg = mesos.TaskStatus(tid, mesos.TASK_KILLED, "")
     #driver.sendStatusUpdate(msg);
 
   def shutdown(self, driver):
@@ -86,4 +86,4 @@ if __name__ == "__main__":
   print "Starting pbs_mom executor"
   atexit.register(cleanup)
   executor = MyExecutor()
-  nexus.NexusExecutorDriver(executor).run()
+  mesos.MesosExecutorDriver(executor).run()

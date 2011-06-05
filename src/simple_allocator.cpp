@@ -8,9 +8,9 @@
 using std::max;
 using std::sort;
 
-using namespace nexus;
-using namespace nexus::internal;
-using namespace nexus::internal::master;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::master;
 
 
 void SimpleAllocator::frameworkAdded(Framework* framework)

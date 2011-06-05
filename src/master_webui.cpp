@@ -3,7 +3,7 @@
 #include "master_webui.hpp"
 #include "master_state.hpp"
 
-#ifdef NEXUS_WEBUI
+#ifdef MESOS_WEBUI
 
 #include <pthread.h>
 #include <Python.h>
@@ -16,7 +16,7 @@ PID master;
 
 }
 
-namespace nexus { namespace internal { namespace master {
+namespace mesos { namespace internal { namespace master {
 
 
 void *runMasterWebUI(void* webuiPort)
@@ -80,6 +80,6 @@ MasterState *get_master()
 
 } /* namespace state { */
 
-}}} /* namespace nexus { namespace internal { namespace master { */
+}}} /* namespace mesos { namespace internal { namespace master { */
 
-#endif /* NEXUS_WEBUI */
+#endif /* MESOS_WEBUI */

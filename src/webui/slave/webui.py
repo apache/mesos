@@ -28,14 +28,14 @@ def static(filename):
 
 @route('/log/:level#[A-Z]*#')
 def log_full(level):
-  send_file('nexus-slave.' + level, root = '/tmp',
+  send_file('mesos-slave.' + level, root = '/tmp',
             guessmime = False, mimetype = 'text/plain')
 
 
 @route('/log/:level#[A-Z]*#/:lines#[0-9]*#')
 def log_tail(level, lines):
   bottle.response.content_type = 'text/plain'
-  return commands.getoutput('tail -%s /tmp/nexus-slave.%s' % (lines, level))
+  return commands.getoutput('tail -%s /tmp/mesos-slave.%s' % (lines, level))
 
 
 @route('/framework-logs/:fid#[0-9]*#/:log_type#[a-z]*#')

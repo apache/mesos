@@ -4,7 +4,7 @@
 #include "isolation_module.hpp"
 #include "factory.hpp"
 
-namespace nexus { namespace internal { namespace slave {
+namespace mesos { namespace internal { namespace slave {
 
 DECLARE_FACTORY(IsolationModule, Slave *);
 

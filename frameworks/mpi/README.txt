@@ -1,9 +1,9 @@
-Nexus MPICH2 framework readme
+Mesos MPICH2 framework readme
 --------------------------------------------
 
 Table of Contents:
 1) Installing MPICH2
-2) Running the Nexus MPICH2 framework
+2) Running the Mesos MPICH2 framework
 
 =====================
 1) INSTALLING MPICH2:
@@ -27,11 +27,11 @@ apt-get install debian-keyring debian-archive-keyring
 apt-key update
 
 =====================================
-2) RUNNING THE NEXUS MPICH2 FRAMEWORK
+2) RUNNING THE MESOS MPICH2 FRAMEWORK
 =====================================
 
-1. Start a Nexus master and slaves see the NEXUS_HOME/QUICKSTART.txt for help
+1. Start a Mesos master and slaves see the MESOS_HOME/QUICKSTART.txt for help
 with this.
-2. In the NEXUS_HOME/frameworks/mpi directory run the nmpiexec script. Pass the
+2. In the MESOS_HOME/frameworks/mpi directory run the nmpiexec script. Pass the
 -h flag to see help options.
    Example: ./nmpiexec -m 104857600 1@127.0.1.1:59608 hostname

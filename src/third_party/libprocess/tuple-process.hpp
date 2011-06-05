@@ -36,7 +36,7 @@ using std::string;
  * Most importantly, a message can be used anywhere a tuple is
  * expected (see the 'match' macro below).
  *
- * For now, this is declared inside the nexus internal namespace, but
+ * For now, this is declared inside the mesos internal namespace, but
  * in the future it would be nice to factor this out so other
  * libraries could use it for sending messages.
  */

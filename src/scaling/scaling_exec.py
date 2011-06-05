@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import nexus
+import mesos
 import os
 import pickle
 import sys
@@ -7,9 +7,9 @@ import sys
 CPUS = 1
 MEM = 50*1024*1024
 
-class NestedScheduler(nexus.Scheduler):
+class NestedScheduler(mesos.Scheduler):
   def __init__(self, todo, duration, executor):
-    nexus.Scheduler.__init__(self)
+    mesos.Scheduler.__init__(self)
     self.tid = 0
     self.todo = todo
     self.finished = 0
@@ -21,7 +21,7 @@ class NestedScheduler(nexus.Scheduler):
 
   def getExecutorInfo(self, driver):
     execPath = os.path.join(os.getcwd(), "nested_exec")
-    return nexus.ExecutorInfo(execPath, "")
+    return mesos.ExecutorInfo(execPath, "")
 
   def registered(self, driver, fid):
     print "Nested Scheduler Registered!"
@@ -32,16 +32,16 @@ class NestedScheduler(nexus.Scheduler):
       if self.todo != self.tid:
         self.tid += 1
         pars = {"cpus": "%d" % CPUS, "mem": "%d" % MEM}
-        task = nexus.TaskDescription(self.tid, offer.slaveId,
+        task = mesos.TaskDescription(self.tid, offer.slaveId,
                                      "task %d" % self.tid, pars,
                                      pickle.dumps(self.duration))
         tasks.append(task)
-        #msg = nexus.FrameworkMessage(-1, , "")
+        #msg = mesos.FrameworkMessage(-1, , "")
         #executor.sendFrameworkMessage("")
     driver.replyToOffer(oid, tasks, {})
 
   def statusUpdate(self, driver, status):
-    if status.state == nexus.TASK_FINISHED:
+    if status.state == mesos.TASK_FINISHED:
       self.finished += 1
     if self.finished == self.todo:
       print "All nested tasks done, stopping scheduler and enclosing executor!"
@@ -49,9 +49,9 @@ class NestedScheduler(nexus.Scheduler):
       self.executor.stop()
 
 
-class ScalingExecutor(nexus.Executor):
+class ScalingExecutor(mesos.Executor):
   def __init__(self):
-    nexus.Executor.__init__(self)
+    mesos.Executor.__init__(self)
     self.tid = -1
     self.nested_driver = -1
 
@@ -60,7 +60,7 @@ class ScalingExecutor(nexus.Executor):
     master, (todo, duration) = pickle.loads(task.arg)
     scheduler = NestedScheduler(todo, duration, self)
     print "Running here:" + master
-    self.nested_driver = nexus.NexusSchedulerDriver(scheduler, master)
+    self.nested_driver = mesos.MesosSchedulerDriver(scheduler, master)
     self.nested_driver.start()
     
   def killTask(self, driver, tid):
@@ -69,7 +69,7 @@ class ScalingExecutor(nexus.Executor):
     if self.nested_driver != -1:
       self.nested_driver.stop()
       self.nested_driver.join()
-    driver.sendStatusUpdate(nexus.TaskStatus(tid, nexus.TASK_FINISHED, ""))
+    driver.sendStatusUpdate(mesos.TaskStatus(tid, mesos.TASK_FINISHED, ""))
 
   def shutdown(self, driver):
     self.killTask(self.tid)
@@ -79,4 +79,4 @@ class ScalingExecutor(nexus.Executor):
 
 
 if __name__ == "__main__":
-  nexus.NexusExecutorDriver(ScalingExecutor()).run()
+  mesos.MesosExecutorDriver(ScalingExecutor()).run()

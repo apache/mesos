@@ -30,7 +30,7 @@ AC_CONFIG_SUBDIRS([src/third_party/zookeeper-3.3.1/src/c])
 
 AC_CANONICAL_SYSTEM
 
-UNSUPPORTED_OS="Nexus is currently unsupported on your platform."
+UNSUPPORTED_OS="Mesos is currently unsupported on your platform."
 
 case "${target_os}" in
   linux*)

@@ -4,7 +4,7 @@
 #include <string>
 
 
-namespace nexus { namespace internal { namespace slave {
+namespace mesos { namespace internal { namespace slave {
 
 class Framework;
 class Slave;

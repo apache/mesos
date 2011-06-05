@@ -1,4 +1,4 @@
-#include <nexus_sched.hpp>
+#include <mesos_sched.hpp>
 
 #include <libgen.h>
 #include <stdlib.h>
@@ -18,7 +18,7 @@
 #include "foreach.hpp"
 
 using namespace std;
-using namespace nexus;
+using namespace mesos;
 
 using boost::lexical_cast;
 
@@ -159,7 +159,7 @@ int main(int argc, char ** argv) {
   realpath(dirname(argv[0]), buf);
   string executor = string(buf) + "/memhog-executor";
   MyScheduler sched(executor, argv[2], 1);
-  NexusSchedulerDriver driver(&sched, argv[1]);
+  MesosSchedulerDriver driver(&sched, argv[1]);
   driver.run();
   return (sched.successfulTasks == sched.tasks.size()) ? 0 : 1;
 }

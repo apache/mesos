@@ -4,11 +4,11 @@
 #include <string>
 #include <vector>
 
-#include "nexus.hpp"
+#include "mesos.hpp"
 
 #include "fatal.hpp"
 
-namespace nexus { namespace internal { namespace launcher {
+namespace mesos { namespace internal { namespace launcher {
 
 using std::string;
 using std::vector;

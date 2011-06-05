@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import nexus
+import mesos
 import os
 import sys
 import time
@@ -16,11 +16,11 @@ MIN_SERVERS = 1
 START_THRESHOLD = 25
 KILL_THRESHOLD = 5
 #HAPROXY_EXE = "/root/haproxy-1.3.20/haproxy"
-HAPROXY_EXE = "/home/andyk/nexus/frameworks/haproxy+apache/haproxy-1.3.20/haproxy"
+HAPROXY_EXE = "/home/andyk/mesos/frameworks/haproxy+apache/haproxy-1.3.20/haproxy"
 
-class MyScheduler(nexus.Scheduler):
+class MyScheduler(mesos.Scheduler):
   def __init__(self, num_tasks, jar_url, jar_class, jar_args):
-    nexus.Scheduler.__init__(self)
+    mesos.Scheduler.__init__(self)
     self.lock = threading.RLock()
     self.id = 0
     self.haproxy = -1
@@ -59,10 +59,10 @@ class MyScheduler(nexus.Scheduler):
   
   def getExecutorInfo(self, driver):
     execPath = os.path.join(os.getcwd(), "daemon_executor.sh")
-    return nexus.ExecutorInfo(execPath, "")
+    return mesos.ExecutorInfo(execPath, "")
 
   def registered(self, driver, fid):
-    print "Nexus daemon scheduler registered as framework #%s" % fid
+    print "Mesos daemon scheduler registered as framework #%s" % fid
 
   def resourceOffer(self, driver, oid, slave_offers):
     print "Got slot offer %d" % oid
@@ -74,7 +74,7 @@ class MyScheduler(nexus.Scheduler):
         params = {"cpus": "1", "mem": "1073741824"}
         task_args = self.jar_url + "\t" + self.jar_class + "\t" + self.jar_args
         print "task args are: " + task_args
-        td = nexus.TaskDescription(
+        td = mesos.TaskDescription(
             self.task_count, offer.slaveId, "task %d" % self.task_count, params, task_args)
         tasks.append(td)
         print "incrementing self.task_count from " + str(self.task_count)
@@ -89,7 +89,7 @@ class MyScheduler(nexus.Scheduler):
   #def statusUpdate(self, driver, status):
   #  self.lock.acquire()
   #  if status.taskId in self.servers.keys():
-  #    if status.state == nexus.TASK_FINISHED:
+  #    if status.state == mesos.TASK_FINISHED:
   #      del self.servers[status.taskId]
   #      self.reconfigure()
   #      reconfigured = True
@@ -168,8 +168,8 @@ if __name__ == "__main__":
 
   #threading.Thread(target = monitor, args=[sched]).start()
 
-  print "Connecting to nexus master %s" % args[0]
+  print "Connecting to mesos master %s" % args[0]
 
-  nexus.NexusSchedulerDriver(sched, sys.argv[1]).run()
+  mesos.MesosSchedulerDriver(sched, sys.argv[1]).run()
 
   print "Finished!"

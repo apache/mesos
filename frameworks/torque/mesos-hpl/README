@@ -1,0 +1,24 @@
+This installation of HPL was used for the OSDI submission of Mesos (named Mesos at the time). It was compiled for large EC2 instances running Ubuntu (Lucid).
+
+The various "X-node" directories contain just the configuration file HPL.dat which adjusts the size of the problem (e.g. the matrix) in order to provide a mixed workload for experiments. Jobs using these conf files can be launched with the corresponding qsub scripts in the /root/mesos/frameworks/torque/ directory. 
+
+Running setup-hpl in the frameworks/torque/mesos-hpl directory should take care of the following steps, but we list them now in case you want to do it manually:
+
+However, first these should be moved into /nfs/hpl so that mesos slave nodes can access them. Then the xhpl executable must be built and then copied into each of these directories. The xhpl executable can be built using the Make.Linux_PII_CBLAS, which was constructed with to work on this version (lucid) of ubuntu. More detailed instructions for building the xhpl executable are below:
+
+Building for ubuntu (lucid, EC2 ami-id ami-19a14870):
+0) Make sure necessary prerequired sofware (libatlas-base-dev, afortran, mpi.h)
+   is installed by running ~/root/mesos-ec2/setup-hpl
+1) Download and untar http://mesos.berkeley.edu/hpl-mesos.tar.gz into /root/hpl,
+   which is a modified copy of hpl v1.0a
+     NOTE: this package should contain the Makefile we created to build on 
+           lucid, which also exists in the same dir as this README
+   Else, you can download the unmodified hpl source from 
+   http://www.netlib.org/benchmark/hpl/hpl.tgz and copy over 
+   Make.Linux_PII_CBLAS
+2) in hpl directory, to build hpl binary, run:
+     make arch=Linux_PII_CBLAS
+
+Then copy bin/xhpl to the "X-node" directories, and you should be able to launch xhpl jobs of various sizes using qsub commands in root/mesos/frameworks/torque/
+
+

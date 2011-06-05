@@ -3,7 +3,7 @@
 
 #include "master.hpp"
 
-namespace nexus { namespace internal { namespace master {
+namespace mesos { namespace internal { namespace master {
 
 using std::vector;
 

@@ -3,7 +3,7 @@
 #include <glog/logging.h>
 
 using std::string;
-using namespace nexus::internal;
+using namespace mesos::internal;
 
 namespace {
 const string DEFAULT_LOG_DIR = "/tmp";

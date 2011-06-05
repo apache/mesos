@@ -1,9 +1,9 @@
 import java.io.File;
-import nexus.*;
+import mesos.*;
 
 public class TestExceptionExecutor extends Executor {
   static {
-    System.loadLibrary("nexus");
+    System.loadLibrary("mesos");
   }
 
   @Override
@@ -18,7 +18,7 @@ public class TestExceptionExecutor extends Executor {
 
   public static void main(String[] args) throws Exception {
     TestExceptionExecutor exec = new TestExceptionExecutor();
-    ExecutorDriver driver = new NexusExecutorDriver(exec);
+    ExecutorDriver driver = new MesosExecutorDriver(exec);
     driver.run();
   }
 }

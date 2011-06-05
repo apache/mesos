@@ -1,0 +1,13 @@
+#!/bin/bash
+
+cd /root/mesos-ec2
+
+MASTER="`cat master`"
+SLAVES="`cat slaves`"
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+
+for slave in $SLAVES; do
+  echo "Killing ALL processes in ALL Mesos projects on $slave"
+  ssh $SSH_OPTS $slave "for i in 0 1 2 3 4 5 6 7; do for pid in \$(pgrep -J mesos.project.\$i); do kill -9 \$pid; done; done"
+done

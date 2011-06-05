@@ -81,21 +81,21 @@ LDFLAGS += -L$(LIBEV)/.libs
 # Add libev, libprocess, pthread, and dl to LIBS.
 LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lzookeeper_st
 
-NEXUS_EXES = nexus-master nexus-slave nexus-local nexus-launcher \
+MESOS_EXES = mesos-master mesos-slave mesos-local mesos-launcher \
 	     test-framework test-executor cpp-test-framework cpp-test-executor \
-	     memhog memhog-executor
+	     memhog memhog-executor scheduled-memhog
 
 ifeq ($(OS_NAME),solaris)
-  NEXUS_EXES += nexus-projd
+  MESOS_EXES += mesos-projd
 endif
 
-SCHED_LIB = libnexus_sched.a
-EXEC_LIB = libnexus_exec.a
+SCHED_LIB = libmesos_sched.a
+EXEC_LIB = libmesos_exec.a
 
 # C/C++ library has both the scheduler and executor libraries.
-NEXUS_LIB = libnexus++.a
+MESOS_LIB = libmesos++.a
 
-NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(NEXUS_LIB)
+MESOS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(MESOS_LIB)
 
 MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
 SLAVE_OBJ = slave.o launcher.o isolation_module.o \
@@ -103,12 +103,12 @@ SLAVE_OBJ = slave.o launcher.o isolation_module.o \
 COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o master_detector.o \
 	     url_processor.o zookeeper.o configurator.o string_utils.o \
 	     logging.o
-EXEC_LIB_OBJ = nexus_exec.o
-SCHED_LIB_OBJ = nexus_sched.o nexus_local.o params.o
+EXEC_LIB_OBJ = mesos_exec.o
+SCHED_LIB_OBJ = mesos_sched.o mesos_local.o params.o
 TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o \
 	   tests/external_test.o tests/test_sample_frameworks.o \
 	   tests/testing_utils.o tests/test_configurator.o \
-	   tests/test_string_utils.o
+	   tests/test_string_utils.o tests/test_lxc_isolation.o
 
 ifeq ($(OS_NAME),solaris)
   SLAVE_OBJ += solaris_project_isolation_module.o
@@ -123,27 +123,27 @@ ALL_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ) \
 
 # Setup libraries from the SWIG world.
 ifeq ($(OS_NAME),darwin)
-  JAVA_LIB = swig/java/libnexus.dylib
+  JAVA_LIB = swig/java/libmesos.dylib
 else
-  JAVA_LIB = swig/java/libnexus.so
+  JAVA_LIB = swig/java/libmesos.so
 endif
 
-PYTHON_LIB = swig/python/_nexus.so
+PYTHON_LIB = swig/python/_mesos.so
 
-RUBY_LIB = swig/ruby/nexus.so
+RUBY_LIB = swig/ruby/mesos.so
 
 
 default: all
 
 -include $(patsubst %.o, %.d, $(ALL_OBJ))
--include $(patsubst %, %.d, $(NEXUS_EXES))
+-include $(patsubst %, %.d, $(MESOS_EXES))
 
 $(ALL_OBJ): %.o: %.cpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
-$(NEXUS_LIBS): $(COMMON_OBJ) third_party/libprocess/libprocess.a
+$(MESOS_LIBS): $(COMMON_OBJ) third_party/libprocess/libprocess.a
 
-$(NEXUS_EXES): $(COMMON_OBJ) third_party/libprocess/libprocess.a
+$(MESOS_EXES): $(COMMON_OBJ) third_party/libprocess/libprocess.a
 
 $(SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
 	$(AR) rcs $@ $^ third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a
@@ -151,7 +151,7 @@ $(SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
 $(EXEC_LIB): $(EXEC_LIB_OBJ) $(COMMON_OBJ)
 	$(AR) rcs $@ $^
 
-$(NEXUS_LIB): $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
+$(MESOS_LIB): $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
 	$(AR) rcs $@ $^
 
 webui/master/swig/master_wrap.cpp: webui/master/swig/master.i master_state.hpp master_webui.hpp master.hpp config.hpp
@@ -167,7 +167,7 @@ webui/master/swig/master_wrap.o: webui/master/swig/master_wrap.cpp config.hpp
 master_webui.o: master_webui.cpp config.hpp messages.hpp
 	$(CXX) -c $(CXXFLAGS) $(WEBUI_FLAGS) -o $@ $<
 
-nexus-master: master_main.cpp $(MASTER_OBJ) $(COMMON_OBJ) master_webui.o webui/master/swig/master_wrap.o
+mesos-master: master_main.cpp $(MASTER_OBJ) $(COMMON_OBJ) master_webui.o webui/master/swig/master_wrap.o
 	$(CXX) $(CXXFLAGS) $(WEBUI_FLAGS) -o $@ $< $(MASTER_OBJ) master_webui.o webui/master/swig/master_wrap.o $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
 webui/slave/swig/slave_wrap.cpp: webui/slave/swig/slave.i slave_state.hpp slave_webui.hpp slave.hpp config.hpp
@@ -183,93 +183,96 @@ webui/slave/swig/slave_wrap.o: webui/slave/swig/slave_wrap.cpp config.hpp
 slave_webui.o: slave_webui.cpp config.hpp messages.hpp
 	$(CXX) -c $(CXXFLAGS) $(WEBUI_FLAGS) -o $@ $<
 
-nexus-slave: slave_main.cpp $(SLAVE_OBJ) $(COMMON_OBJ) slave_webui.o webui/slave/swig/slave_wrap.o
+mesos-slave: slave_main.cpp $(SLAVE_OBJ) $(COMMON_OBJ) slave_webui.o webui/slave/swig/slave_wrap.o
 	$(CXX) $(CXXFLAGS) $(WEBUI_FLAGS) -o $@ $< $(SLAVE_OBJ) slave_webui.o webui/slave/swig/slave_wrap.o $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
-nexus-launcher: launcher_main.cpp launcher.o $(COMMON_OBJ)
+mesos-launcher: launcher_main.cpp launcher.o $(COMMON_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< launcher.o $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
-nexus-projd: projd.cpp $(COMMON_OBJ)
+mesos-projd: projd.cpp $(COMMON_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
-nexus-local: local.cpp nexus_local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $< nexus_local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
+mesos-local: local.cpp mesos_local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $< mesos_local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ) $(LDFLAGS) $(LIBS)
 
 ALLTESTS_OBJ = $(TEST_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(COMMON_OBJ)
 
-alltests: $(ALLTESTS_OBJ) $(NEXUS_EXES) java python
+alltests: $(ALLTESTS_OBJ) $(MESOS_EXES) java python
 	$(CXX) $(CXXFLAGS) -o $@ $(ALLTESTS_OBJ) $(LDFLAGS) $(LIBS)
 
 test-framework: test_framework.cpp $(SCHED_LIB) third_party/libprocess/libprocess.a
-	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lnexus_sched $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lmesos_sched $(LIBS)
 
 test-executor: test_exec.cpp $(EXEC_LIB) third_party/libprocess/libprocess.a
-	g++ $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lnexus_exec $(LIBS)
+	g++ $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lmesos_exec $(LIBS)
 
-cpp-test-framework: cpp_test_framework.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
-	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
+cpp-test-framework: cpp_test_framework.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
 
-cpp-test-executor: cpp_test_executor.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
-	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
+cpp-test-executor: cpp_test_executor.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
 
-memhog: memhog.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
-	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
+memhog: memhog.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
 
-memhog-executor: memhog_executor.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
-	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
+memhog-executor: memhog_executor.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
 
-java: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestFramework.class swig/java/TestExecutor.class swig/java/TestExceptionFramework.class swig/java/TestExceptionExecutor.class
+scheduled-memhog: scheduled_memhog.cpp $(MESOS_LIB) third_party/libprocess/libprocess.a
+	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lmesos++ $(LIBS) 
+
+java: $(JAVA_LIB) swig/java/mesos.jar swig/java/TestFramework.class swig/java/TestExecutor.class swig/java/TestExceptionFramework.class swig/java/TestExceptionExecutor.class
 
 python: $(PYTHON_LIB)
 
 ruby: $(RUBY_LIB)
 
-swig/java/nexus.jar: $(JAVA_LIB)
+swig/java/mesos.jar: $(JAVA_LIB)
 ifdef JAVA_HOME
-	$(JAVA_HOME)/bin/javac -sourcepath swig/java -d swig/java swig/java/nexus/*.java
-	patch -N swig/java/nexus/nexusJNI.java < swig/java/nexusJNI.java.patch1 || echo -n
-	patch swig/java/nexus/nexusJNI.java < swig/java/nexusJNI.java.patch2 || echo -n
-	$(JAVA_HOME)/bin/jar cf $@ -C swig/java nexus
+	$(JAVA_HOME)/bin/javac -sourcepath swig/java -d swig/java swig/java/mesos/*.java
+	patch -N swig/java/mesos/mesosJNI.java < swig/java/mesosJNI.java.patch1 || echo -n
+	patch swig/java/mesos/mesosJNI.java < swig/java/mesosJNI.java.patch2 || echo -n
+	$(JAVA_HOME)/bin/jar cf $@ -C swig/java mesos
 endif
 
-$(JAVA_LIB): swig/nexus.i $(NEXUS_LIB)
+$(JAVA_LIB): swig/mesos.i $(MESOS_LIB)
 ifdef JAVA_HOME
-	rm -f swig/java/nexus/*
-	mkdir -p swig/java/nexus
-	$(SWIG) -c++ -java -I../include -o swig/java/nexus_wrap.cpp -outdir swig/java/nexus -package nexus swig/nexus.i
-	$(CXX) $(CXXFLAGS) -shared -o $@ swig/java/nexus_wrap.cpp -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -L. $(LDFLAGS) -lnexus++ $(LIBS)
+	rm -f swig/java/mesos/*
+	mkdir -p swig/java/mesos
+	$(SWIG) -c++ -java -I../include -o swig/java/mesos_wrap.cpp -outdir swig/java/mesos -package mesos swig/mesos.i
+	$(CXX) $(CXXFLAGS) -shared -o $@ swig/java/mesos_wrap.cpp -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -L. $(LDFLAGS) -lmesos++ $(LIBS)
 endif
 
-swig/java/TestFramework.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestFramework.java
+swig/java/TestFramework.class: $(JAVA_LIB) swig/java/mesos.jar swig/java/TestFramework.java
 ifdef JAVA_HOME
-	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestFramework.java
+	$(JAVA_HOME)/bin/javac -cp swig/java/mesos.jar -sourcepath swig/java -d swig/java swig/java/TestFramework.java
 endif
 
-swig/java/TestExecutor.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExecutor.java
+swig/java/TestExecutor.class: $(JAVA_LIB) swig/java/mesos.jar swig/java/TestExecutor.java
 ifdef JAVA_HOME
-	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExecutor.java
+	$(JAVA_HOME)/bin/javac -cp swig/java/mesos.jar -sourcepath swig/java -d swig/java swig/java/TestExecutor.java
 endif
 
-swig/java/TestExceptionFramework.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExceptionFramework.java
+swig/java/TestExceptionFramework.class: $(JAVA_LIB) swig/java/mesos.jar swig/java/TestExceptionFramework.java
 ifdef JAVA_HOME
-	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExceptionFramework.java
+	$(JAVA_HOME)/bin/javac -cp swig/java/mesos.jar -sourcepath swig/java -d swig/java swig/java/TestExceptionFramework.java
 endif
 
-swig/java/TestExceptionExecutor.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExceptionExecutor.java
+swig/java/TestExceptionExecutor.class: $(JAVA_LIB) swig/java/mesos.jar swig/java/TestExceptionExecutor.java
 ifdef JAVA_HOME
-	$(JAVA_HOME)/bin/javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExceptionExecutor.java
+	$(JAVA_HOME)/bin/javac -cp swig/java/mesos.jar -sourcepath swig/java -d swig/java swig/java/TestExceptionExecutor.java
 endif
 
-$(PYTHON_LIB): swig/nexus.i $(NEXUS_LIB)
+$(PYTHON_LIB): swig/mesos.i $(MESOS_LIB)
 ifdef PYTHON_HEADERS
-	$(SWIG) -c++ -python -threads -I../include -o swig/python/nexus_wrap.cpp -outdir swig/python swig/nexus.i
-	$(CXX) $(CXXFLAGS) -shared -o $@ swig/python/nexus_wrap.cpp -I$(PYTHON_HEADERS) -L. $(LDFLAGS) -lnexus++ $(LIBS)
+	$(SWIG) -c++ -python -threads -I../include -o swig/python/mesos_wrap.cpp -outdir swig/python swig/mesos.i
+	$(CXX) $(CXXFLAGS) -shared -o $@ swig/python/mesos_wrap.cpp -I$(PYTHON_HEADERS) -L. $(LDFLAGS) -lmesos++ $(LIBS)
 endif
 
-$(RUBY_LIB): swig/nexus.i $(NEXUS_LIB)
+$(RUBY_LIB): swig/mesos.i $(MESOS_LIB)
 ifdef RUBY_HEADERS
-	$(SWIG) -c++ -ruby -I../include -o swig/ruby/nexus_wrap.cpp -outdir swig/ruby -autorename swig/nexus.i
-	$(CXX) $(CXXFLAGS) -shared -o $@ swig/ruby/nexus_wrap.cpp -I$(RUBY_HEADERS) -L. $(LDFLAGS) -lnexus++ $(LIBS)
+	$(SWIG) -c++ -ruby -I../include -o swig/ruby/mesos_wrap.cpp -outdir swig/ruby -autorename swig/mesos.i
+	$(CXX) $(CXXFLAGS) -shared -o $@ swig/ruby/mesos_wrap.cpp -I$(RUBY_HEADERS) -L. $(LDFLAGS) -lmesos++ $(LIBS)
 endif
 
 test: all
@@ -283,7 +286,7 @@ ifeq ($(LOCAL_ZOOKEEPER),yes)
 	$(MAKE) -C $(ZOOKEEPER)
 endif
 
-all: third_party $(NEXUS_LIBS) $(NEXUS_EXES) alltests java python ruby
+all: third_party $(MESOS_LIBS) $(MESOS_EXES) alltests java python ruby
 
 clean:
 	$(MAKE) -C third_party/libprocess clean
@@ -294,19 +297,19 @@ ifeq ($(LOCAL_ZOOKEEPER),yes)
 endif
 	rm -f $(patsubst %.o, %.d, $(ALL_OBJ))
 	rm -f $(ALL_OBJ)
-	rm -f $(NEXUS_LIBS)
-	rm -f $(NEXUS_EXES)
+	rm -f $(MESOS_LIBS)
+	rm -f $(MESOS_EXES)
 	rm -f $(JAVA_LIB) $(PYTHON_LIB) $(RUBY_LIB)
 	rm -rf $(JAVA_LIB).dSYM $(PYTHON_LIB).dSYM $(RUBY_LIB).dSYM
-	rm -f swig/*/nexus_wrap.cpp
-	rm -f swig/*/nexus_wrap.h
+	rm -f swig/*/mesos_wrap.cpp
+	rm -f swig/*/mesos_wrap.h
 	rm -f swig/*/*.o
 	rm -f swig/*/*.d
-	rm -f swig/java/nexus.jar
-	rm -f swig/java/nexus/*
+	rm -f swig/java/mesos.jar
+	rm -f swig/java/mesos/*
 	rm -f swig/java/*.class
-	rm -f swig/python/nexus.py
-	rm -f swig/python/nexus.pyc
+	rm -f swig/python/mesos.py
+	rm -f swig/python/mesos.pyc
 	rm -f master_webui.o
 	rm -f master_webui.d
 	rm -f webui/master/swig/master_wrap.h

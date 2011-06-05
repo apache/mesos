@@ -11,7 +11,7 @@ using std::endl;
 using boost::lexical_cast;
 using boost::bad_lexical_cast;
 
-using namespace nexus::internal::master;
+using namespace mesos::internal::master;
 
 
 void usage(const char* progName, const Configurator& conf)
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
   Configurator conf;
   conf.addOption<string>("url", 'u', "URL used for leader election");
   conf.addOption<int>("port", 'p', "Port to listen on", 50010);
-#ifdef NEXUS_WEBUI
+#ifdef MESOS_WEBUI
   conf.addOption<int>("webui_port", 'w', "Web UI port", 8080);
 #endif
   Logging::registerOptions(&conf);
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
   string url = params.get("url", "");
 
   LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
-  LOG(INFO) << "Starting Nexus master";
+  LOG(INFO) << "Starting Mesos master";
 
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("Could not chdir into %s", dirname(argv[0]));
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
   bool quiet = Logging::isQuiet(params);
   MasterDetector *detector = MasterDetector::create(url, pid, true, quiet);
 
-#ifdef NEXUS_WEBUI
+#ifdef MESOS_WEBUI
   startMasterWebUI(pid, (char*) params["webui_port"].c_str());
 #endif
   

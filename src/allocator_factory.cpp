@@ -1,7 +1,7 @@
 #include "allocator_factory.hpp"
 #include "simple_allocator.hpp"
 
-using namespace nexus::internal::master;
+using namespace mesos::internal::master;
 
 DEFINE_FACTORY(Allocator, Master *)
 {

@@ -5,9 +5,9 @@
 
 #include "master.hpp"
 
-using namespace nexus;
-using namespace nexus::internal;
-using namespace nexus::internal::master;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::master;
 
 
 TEST(ResourcesTest, InitializedWithZero)

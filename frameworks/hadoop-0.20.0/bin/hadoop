@@ -160,8 +160,8 @@ for f in $HADOOP_HOME/build/hadoop-*-tools.jar; do
   TOOL_PATH=${TOOL_PATH}:$f;
 done
 
-# add Nexus to classpath
-CLASSPATH=${CLASSPATH}:${HADOOP_HOME}/../../src/swig/java/nexus.jar
+# add Mesos to classpath
+CLASSPATH=${CLASSPATH}:${HADOOP_HOME}/../../src/swig/java/mesos.jar
 
 # add user-specified CLASSPATH last
 if [ "$HADOOP_CLASSPATH" != "" ]; then
@@ -273,7 +273,7 @@ if [ -d "${HADOOP_HOME}/build/native" -o -d "${HADOOP_HOME}/lib/native" ]; then
   fi
 fi
 
-# add Nexus to JAVA_LIBRARY_PATH
+# add Mesos to JAVA_LIBRARY_PATH
 if [ "x$JAVA_LIBRARY_PATH" != "x" ]; then
   JAVA_LIBRARY_PATH=${JAVA_LIBRARY_PATH}:${HADOOP_HOME}/../../src/swig/java
 else

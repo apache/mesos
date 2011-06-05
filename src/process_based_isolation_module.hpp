@@ -11,10 +11,10 @@
 #include "slave.hpp"
 
 
-namespace nexus { namespace internal { namespace slave {
+namespace mesos { namespace internal { namespace slave {
 
 using boost::unordered_map;
-using nexus::internal::launcher::ExecutorLauncher;
+using mesos::internal::launcher::ExecutorLauncher;
 
 class ProcessBasedIsolationModule : public IsolationModule {
 public:
@@ -30,7 +30,7 @@ public:
   };
 
   // Extra shutdown message for reaper
-  enum { SHUTDOWN_REAPER = NEXUS_MESSAGES };
+  enum { SHUTDOWN_REAPER = MESOS_MESSAGES };
 
 protected:
   bool initialized;

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import nexus
+import mesos
 import os
 import sys
 import time
@@ -16,11 +16,11 @@ MIN_SERVERS = 1
 START_THRESHOLD = 25
 KILL_THRESHOLD = 5
 #HAPROXY_EXE = "/root/haproxy-1.3.20/haproxy"
-HAPROXY_EXE = "/home/andyk/nexus/frameworks/haproxy+apache/haproxy-1.3.20/haproxy"
+HAPROXY_EXE = "/home/andyk/mesos/frameworks/haproxy+apache/haproxy-1.3.20/haproxy"
 
-class Scheduler(nexus.Scheduler):
+class Scheduler(mesos.Scheduler):
   def __init__(self):
-    nexus.Scheduler.__init__(self, "haproxy+apache",
+    mesos.Scheduler.__init__(self, "haproxy+apache",
         os.path.join(os.getcwd(), "startapache.sh"), "")
     self.lock = threading.RLock()
     self.id = 0
@@ -55,7 +55,7 @@ class Scheduler(nexus.Scheduler):
     self.reconfigs += 1
 
   def registered(self, fid):
-    print "Nexus haproxy+apache scheduler registered as framework #%s" % fid
+    print "Mesos haproxy+apache scheduler registered as framework #%s" % fid
 
   def slotOffer(self, oid, slots):
     print "Got slot offer %d" % oid
@@ -64,7 +64,7 @@ class Scheduler(nexus.Scheduler):
     for slot in slots:
       if not slot.host in self.servers.values() and self.overloaded or len(self.servers) < 1:
         params = "cpus=1\nmem=1073741824"
-        td = nexus.TaskDescription(self.id, slot.slaveId, "server %s" % self.id, params, "")
+        td = mesos.TaskDescription(self.id, slot.slaveId, "server %s" % self.id, params, "")
         tasks.append(td)
         self.servers[self.id] = slot.host
         self.id += 1
@@ -78,7 +78,7 @@ class Scheduler(nexus.Scheduler):
     reconfigured = False
     self.lock.acquire()
     if status.taskId in self.servers.keys():
-      if status.state == nexus.TASK_FINISHED:
+      if status.state == mesos.TASK_FINISHED:
         del self.servers[status.taskId]
         self.reconfigure()
         reconfigured = True
@@ -142,7 +142,7 @@ def monitor(sched):
       continue
 
 if __name__ == "__main__":
-  parser = OptionParser(usage = "Usage: %prog nexus_master")
+  parser = OptionParser(usage = "Usage: %prog mesos_master")
 
   (options,args) = parser.parse_args()
   if len(args) < 1:
@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
   threading.Thread(target = monitor, args=[sched]).start()
 
-  print "Connecting to nexus master %s" % args[0]
+  print "Connecting to mesos master %s" % args[0]
 
   sched.run(args[0])
 

@@ -24,9 +24,9 @@ using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
-using namespace nexus;
-using namespace nexus::internal;
-using namespace nexus::internal::master;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::master;
 
 
 namespace {
@@ -268,7 +268,7 @@ void Master::updateFrameworkTasks(Task *task) {
 
 void Master::operator () ()
 {
-  LOG(INFO) << "Master started at nexus://" << self();
+  LOG(INFO) << "Master started at mesos://" << self();
 
   // Don't do anything until we get an identifier.
   while (true) {

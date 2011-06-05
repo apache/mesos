@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+
+  <property>
+    <name>mapred.use.mesos</name>
+    <value>true</value>
+  </property>
+
+  <property>
+    <name>mapred.mesos.master</name>
+    <value>1@{{master}}:1111</value>
+  </property>
+
+  <property>
+    <name>io.file.buffer.size</name>
+    <value>65536</value>
+  </property>
+
+  <property>
+    <name>mapred.job.tracker.handler.count</name>
+    <value>20</value>
+  </property>
+
+  <property>
+    <name>mapred.child.java.opts</name>
+    <value>-Xmx512m</value>
+  </property>
+
+  <property>
+    <name>mapred.job.reuse.jvm.num.tasks</name>
+    <value>-1</value>
+  </property>
+
+  <property>
+    <name>io.sort.factor</name>
+    <value>15</value>
+  </property>
+
+  <property>
+    <name>io.sort.mb</name>
+    <value>100</value>
+  </property>
+
+  <property>
+    <name>mapred.mesos.localitywait</name>
+    <value>5000</value>
+  </property>
+
+  <property>
+    <name>mapred.tasktracker.map.tasks.maximum</name>
+    <value>6</value>
+  </property>
+
+  <property>
+    <name>mapred.tasktracker.reduce.tasks.maximum</name>
+    <value>6</value>
+  </property>
+
+</configuration>

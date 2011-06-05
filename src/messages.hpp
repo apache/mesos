@@ -8,8 +8,8 @@
 #include <reliable.hpp>
 #include <tuple.hpp>
 
-#include <nexus.hpp>
-#include <nexus_types.hpp>
+#include <mesos.hpp>
+#include <mesos_types.hpp>
 
 #include "params.hpp"
 #include "resources.hpp"
@@ -17,7 +17,7 @@
 #include "task.hpp"
 
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
 
 enum MessageType {
   /* From framework to master. */
@@ -104,7 +104,7 @@ enum MessageType {
   S2S_CHILD_EXIT,       // Sent by reaper process
   S2S_SHUTDOWN,         // Used in tests to shut down slave
 
-  NEXUS_MESSAGES,
+  MESOS_MESSAGES,
 };
 
 
@@ -353,7 +353,7 @@ TUPLE(S2S_SHUTDOWN,
       ());
 
 
-/* Serialization functions for various Nexus data types. */
+/* Serialization functions for various Mesos data types. */
 
 void operator & (process::serialization::serializer&, const TaskState&);
 void operator & (process::serialization::deserializer&, TaskState&);
@@ -436,7 +436,7 @@ void operator & (process::serialization::deserializer& s, std::map<K, V>& m)
 }
 
 
-}} /* namespace nexus { namespace internal { */
+}} /* namespace mesos { namespace internal { */
 
 
 #endif /* MESSAGES_HPP */

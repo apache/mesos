@@ -1,0 +1,19 @@
+#! /usr/bin/env sh
+
+apt-get -y install dsh
+
+#install on master
+apt-get -y install mpich2
+
+#install on slaves
+dsh -f /root/mesos-ec2/slaves apt-get -y install mpich2
+
+touch /etc/mpd.conf
+echo 'MPD_SECRETWORD=default' > /etc/mpd.conf
+chmod 600 /etc/mpd.conf
+
+dsh -f /root/mesos-ec2/slaves rm /etc/mpd.conf
+dsh -f /root/mesos-ec2/slaves touch /etc/mpd.conf
+for i in `cat /root/mesos-ec2/slaves`; do ssh $i "echo 'MPD_SECRETWORD=default' > /etc/mpd.conf"; done
+dsh -f /root/mesos-ec2/slaves chmod 600 /etc/mpd.conf
+echo "finished setting up /etc/mpd.conf with value MPD_SECRETWORD=default"

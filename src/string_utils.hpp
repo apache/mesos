@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
 
 using std::string;
 using std::vector;
@@ -31,6 +31,6 @@ public:
   static string trim(const string& str, const string& toRemove = " \t\n\r");
 };
 
-}} /* namespace nexus::internal */
+}} /* namespace mesos::internal */
 
 #endif

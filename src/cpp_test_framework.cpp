@@ -1,4 +1,4 @@
-#include <nexus_sched.hpp>
+#include <mesos_sched.hpp>
 
 #include <libgen.h>
 
@@ -11,7 +11,7 @@
 #include "foreach.hpp"
 
 using namespace std;
-using namespace nexus;
+using namespace mesos;
 using boost::lexical_cast;
 
 class MyScheduler : public Scheduler
@@ -87,7 +87,7 @@ int main(int argc, char ** argv) {
   string executor = string(buf) + "/test-executor";
   // Run a Mesos scheduler
   MyScheduler sched(executor);
-  NexusSchedulerDriver driver(&sched, argv[1]);
+  MesosSchedulerDriver driver(&sched, argv[1]);
   driver.run();
   return 0;
 }

@@ -1,3 +1,0 @@
-#!/bin/sh
-cd "`dirname $0`"
-PYTHONPATH="$PYTHONPATH:../third_party/boto-1.8d" python ./nexus_ec2.py $@

@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-import nexus
+import mesos
 import pickle
 import time
 
 
-class NestedExecutor(nexus.Executor):
+class NestedExecutor(mesos.Executor):
   def __init__(self):
-    nexus.Executor.__init__(self)
+    mesos.Executor.__init__(self)
     self.tid = -1
 
   def init(self, driver, args):
@@ -18,14 +18,14 @@ class NestedExecutor(nexus.Executor):
     print "(%s:%d) Sleeping for %s seconds." % (self.fid, self.tid, duration)
     # TODO(benh): Don't sleep, this blocks the event loop!
     time.sleep(duration)
-    status = nexus.TaskStatus(self.tid, nexus.TASK_FINISHED, "")
+    status = mesos.TaskStatus(self.tid, mesos.TASK_FINISHED, "")
     driver.sendStatusUpdate(status)
     time.sleep(1)
     
   def killTask(self, driver, tid):
     if (self.tid != tid):
       print "Expecting different task id ... killing anyway!"
-    status = nexus.TaskStatus(tid, nexus.TASK_FINISHED, "")
+    status = mesos.TaskStatus(tid, mesos.TASK_FINISHED, "")
     driver.sendStatusUpdate(status)
 
   def error(self, driver, code, message):
@@ -33,4 +33,4 @@ class NestedExecutor(nexus.Executor):
 
 
 if __name__ == "__main__":
-  nexus.NexusExecutorDriver(NestedExecutor()).run()
+  mesos.MesosExecutorDriver(NestedExecutor()).run()

@@ -1,11 +1,11 @@
-#include <nexus_exec.hpp>
+#include <mesos_exec.hpp>
 
 #include <cstdlib>
 #include <iostream>
 
 
 using namespace std;
-using namespace nexus;
+using namespace mesos;
 
 class MyExecutor : public Executor
 {
@@ -28,7 +28,7 @@ public:
 
 int main(int argc, char** argv) {
   MyExecutor exec;
-  NexusExecutorDriver driver(&exec);
+  MesosExecutorDriver driver(&exec);
   driver.run();
   return 0;
 }

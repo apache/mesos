@@ -17,9 +17,9 @@ using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
-using namespace nexus;
-using namespace nexus::internal;
-using namespace nexus::internal::slave;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
 
 
 ProcessBasedIsolationModule::ProcessBasedIsolationModule()

@@ -2,7 +2,7 @@
 
 namespace process { namespace record {
 
-enum { SHUTDOWN = NEXUS_MESSAGES, CLEANUP };
+enum { SHUTDOWN = MESOS_MESSAGES, CLEANUP };
 
 RECORD(SHUTDOWN, ());
 RECORD(CLEANUP, (SchedulerProcess *));

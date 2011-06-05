@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 
-namespace nexus { namespace internal { namespace test {
+namespace mesos { namespace internal { namespace test {
 
 /**
  * The location where Mesos is installed, used by tests to locate various
@@ -36,7 +36,7 @@ void enterTestDirectory(const char* testCase, const char* testName);
   void runTestBody_##testCase##_##testName() /* User code block follows */
 
 
-}}} // namespace nexus::internal::test
+}}} // namespace mesos::internal::test
 
 
 #endif /* __TESTING_UTILS_HPP__ */

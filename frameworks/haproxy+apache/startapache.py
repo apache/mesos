@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import nexus
+import mesos
 import sys
 import time
 import os
@@ -15,9 +15,9 @@ def cleanup():
     print e
     None
 
-class MyExecutor(nexus.Executor):
+class MyExecutor(mesos.Executor):
   def __init__(self):
-    nexus.Executor.__init__(self)
+    mesos.Executor.__init__(self)
     self.tid = -1
 
   def launchTask(self, driver, task):
@@ -28,7 +28,7 @@ class MyExecutor(nexus.Executor):
     if (tid != self.tid):
       print "Expecting different task id ... killing anyway!"
     cleanup()
-    update = nexus.TaskStatus(tid, nexus.TASK_FINISHED, "")
+    update = mesos.TaskStatus(tid, mesos.TASK_FINISHED, "")
     driver.sendStatusUpdate(update)
 
   def shutdown(driver, self):
@@ -41,4 +41,4 @@ if __name__ == "__main__":
   print "Starting haproxy+apache executor"
   atexit.register(cleanup)
   executor = MyExecutor()
-  nexus.NexusExecutorDriver(executor).run()
+  mesos.MesosExecutorDriver(executor).run()

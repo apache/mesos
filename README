@@ -1,29 +1,29 @@
-h1. Nexus Quickstart
+h1. Mesos Quickstart
 
-For now, you can run Nexus in linux. Those who develop on OS X are currently using a linux virtual machine for development.
+For now, you can run Mesos in linux. Those who develop on OS X are currently using a linux virtual machine for development.
 
-h2. Configure Nexus settings (future)
+h2. Configure Mesos settings (future)
 
-# Nexus does not currently use configuration files beyond the customary UNIX  _configure_/_make_ process, but we plan on adding this, where one can specify things such as:
+# Mesos does not currently use configuration files beyond the customary UNIX  _configure_/_make_ process, but we plan on adding this, where one can specify things such as:
 ## log file locations
 ## specify pluggable components (such as allocation module, isolation module, etc.)
 
-h2. Building Nexus
+h2. Building Mesos
 
-# in linux or solaris (OS X not currently supported), in the @NEXUS_HOME@ directory, if you are using a 64bit ubuntu VM, type @./configure.OURS.ubuntu64@
+# in linux or solaris (OS X not currently supported), in the @MESOS_HOME@ directory, if you are using a 64bit ubuntu VM, type @./configure.OURS.ubuntu64@
 ## our premade config commands require you to have python-dev, ruby-dev, sun-java6-jdk, and swig (to get these in ubuntu, type apt-get X, where X is those three things in turn)
 # type @make@
 
 h2. Running the master
 
-#  type @./nexus-master@. See the sample output below.
+#  type @./mesos-master@. See the sample output below.
 # take note of the libprocess PID identifier that is printed to stdout (or the log file if you have redirected log output), it will be something like: 1@127.0.1.1:41210
 # access the webui. E.g. on OS X with a Linux virtual machine, you can visit http://<ip addr of virtual machine>:8080
 
 <pre>
-andyk@ubuntu:~/nexus/src$ ./nexus-master 
+andyk@ubuntu:~/mesos/src$ ./mesos-master 
 I1229 15:50:36.042454 27343 master_main.cpp:51] Build: 2009-12-29 15:35:23 by andyk
-I1229 15:50:36.043526 27343 master_main.cpp:52] Starting Nexus master
+I1229 15:50:36.043526 27343 master_main.cpp:52] Starting Mesos master
 I1229 15:50:36.044958 27344 master.cpp:228] Master started at 1@127.0.1.1:41210
 I1229 15:50:36.045361 27343 master_webui.cpp:42] Starting master web UI
 I1229 15:50:36.046046 27346 master_webui.cpp:25] Web UI thread started
@@ -38,11 +38,11 @@ I1229 15:50:38.059840 27344 master.cpp:527] Allocator timer tick
 ...
 </pre>
 
-!http://scm.millennium.berkeley.edu:3000/attachments/download/7/Nexus-webui-screenshot.png!
+!http://scm.millennium.berkeley.edu:3000/attachments/download/7/Mesos-webui-screenshot.png!
 
 h2. Running the slave
 
-# type @./nexus-slave@ without arguments to see the required and optional arguments
+# type @./mesos-slave@ without arguments to see the required and optional arguments
 # You should be able to see the slave show up on the master's webui
 
 h3. Start a framework

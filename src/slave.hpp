@@ -39,10 +39,10 @@
 #include "master_detector.hpp"
 #include "task.hpp"
 
-namespace nexus { namespace internal { namespace slave {
+namespace mesos { namespace internal { namespace slave {
 
-using namespace nexus;
-using namespace nexus::internal;
+using namespace mesos;
+using namespace mesos::internal;
 
 using std::list;
 using std::pair;

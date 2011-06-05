@@ -195,7 +195,7 @@
       <exclude name="**/excluded/" />
     </fileset>
     <pathelement location="${conf.dir}"/>
-    <pathelement location="${basedir}/../../src/swig/java/nexus.jar"/>
+    <pathelement location="${basedir}/../../src/swig/java/mesos.jar"/>
     <path refid="ivy-common.classpath"/>
   </path>
 

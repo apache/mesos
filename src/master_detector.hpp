@@ -8,7 +8,7 @@
 #include <cstdlib>
 
 
-namespace nexus { namespace internal {
+namespace mesos { namespace internal {
 
 /**
  * Implements functionality for:
@@ -26,7 +26,7 @@ public:
    * master detector sends messages to the specified pid when a new
    * master is elected, a master is lost, etc.
    *
-   * @param url string possibly containing zoo://, zoofile://, nexus://
+   * @param url string possibly containing zoo://, zoofile://, mesos://
    * @param pid libprocess pid to both receive our messages and be
    * used if we should contend
    * @param contend true if should contend to be master
@@ -100,7 +100,7 @@ private:
   PID master;
 };
 
-}} /* namespace nexus { namespace internal { */
+}} /* namespace mesos { namespace internal { */
 
 #endif /* __MASTER_DETECTOR_HPP__ */
 

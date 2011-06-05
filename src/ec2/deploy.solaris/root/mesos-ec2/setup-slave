@@ -1,0 +1,34 @@
+#!/bin/bash
+
+echo "Setting up Mesos slave on `hostname`..."
+
+#echo "Configuring swap space..."
+#if [ ! -e /dev/zvol/dsk/mnt/swap ]; then
+#  zfs create -V 8g mnt/swap 
+#  swap -a /dev/zvol/dsk/mnt/swap
+#fi
+
+echo "Adding users..."
+useradd alig
+useradd andyk
+useradd benh
+useradd matei
+
+echo "Adding Mesos projects..."
+projadd -U alig,andyk,benh,matei mesos.project.0
+projadd -U alig,andyk,benh,matei mesos.project.1
+projadd -U alig,andyk,benh,matei mesos.project.2
+projadd -U alig,andyk,benh,matei mesos.project.3
+projadd -U alig,andyk,benh,matei mesos.project.4
+projadd -U alig,andyk,benh,matei mesos.project.5
+projadd -U alig,andyk,benh,matei mesos.project.6
+projadd -U alig,andyk,benh,matei mesos.project.7
+
+echo "Setting up rcapd intervals..."
+rcapadm -c 90 -i scan=1,sample=1,config=1
+
+echo "Setting CPU shares for root's projects..."
+#TODO: Fix user.root one because it goes away when user.root has no processes
+#TODO: Maybe make the slave execute this call? Or add it to /etc/project?
+#prctl -n project.cpu-shares -r -v 10 -i project user.root
+prctl -n project.cpu-shares -r -v 10 -i project system

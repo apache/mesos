@@ -27,14 +27,14 @@ def static(filename):
 
 @route('/log/:level#[A-Z]*#')
 def log_full(level):
-  send_file('nexus-master.' + level, root = '/tmp',
+  send_file('mesos-master.' + level, root = '/tmp',
             guessmime = False, mimetype = 'text/plain')
 
 
 @route('/log/:level#[A-Z]*#/:lines#[0-9]*#')
 def log_tail(level, lines):
   bottle.response.content_type = 'text/plain'
-  return commands.getoutput('tail -%s /tmp/nexus-master.%s' % (lines, level))
+  return commands.getoutput('tail -%s /tmp/mesos-master.%s' % (lines, level))
 
 
 bottle.TEMPLATE_PATH.append('./webui/master/%s.tpl')

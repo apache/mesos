@@ -1,10 +1,10 @@
-#include <nexus.h>
+#include <mesos.h>
 
 #include "params.hpp"
 
 
-using namespace nexus;
-using namespace nexus::internal;
+using namespace mesos;
+using namespace mesos::internal;
 
 
 int params_get_int(const char *params, const char *key, int defVal)
