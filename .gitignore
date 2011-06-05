@@ -29,8 +29,8 @@ mesos_wrap.cpp
 mesos_wrap.h
 bin/master
 bin/slaves
-src/config.hpp
-!src/config.hpp.in
+src/config/config.hpp
+!src/config/config.hpp.in
 src/swig/java/mesos.jar
 src/webui/master/swig/master.py
 src/webui/master/swig/master_wrap.cpp
