@@ -343,11 +343,11 @@ endif
 $(DEPLOY_FILES): $(DEPLOYDIR)/%: @srcdir@/deploy/% | $(DEPLOYDIR)
 	cp -r $< $@
 
-$(CONFDIR)/mesos.conf: @srcdir@/conf/mesos.conf.template | $(CONFDIR)
-	cp -r $< $@
+$(CONFDIR)/mesos.conf: | @srcdir@/conf/mesos.conf.template $(CONFDIR)
+	cp -r @srcdir@/conf/mesos.conf.template $@
 
-$(CONFDIR)/deploy-env.sh: @srcdir@/conf/deploy-env.sh.template | $(CONFDIR)
-	cp -r $< $@
+$(CONFDIR)/deploy-env.sh: | @srcdir@/conf/deploy-env.sh.template $(CONFDIR)
+	cp -r @srcdir@/conf/deploy-env.sh.template $@
 
 test: all
 	$(MAKE) -C tests test
