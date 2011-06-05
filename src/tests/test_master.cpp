@@ -310,7 +310,7 @@ public:
     Process::post(slave, S2S_SHUTDOWN);
   }
   
-  void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
+  virtual void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
     slaveLostCalled = true;
     d->stop();
   }
@@ -421,6 +421,82 @@ TEST(MasterTest, SchedulerFailover)
 }
 
 
+class OfferRescindedScheduler : public Scheduler
+{
+public:
+  const PID slave;
+  bool offerRescindedCalled;
+  
+  OfferRescindedScheduler(const PID &_slave)
+    : slave(_slave), offerRescindedCalled(false) {}
+
+  virtual ~OfferRescindedScheduler() {}
+
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
+    return ExecutorInfo("noexecutor", "");
+  }
+
+  virtual void resourceOffer(SchedulerDriver* d,
+                             OfferID id,
+                             const vector<SlaveOffer>& offers) {
+    LOG(INFO) << "OfferRescindedScheduler got a slot offer";
+    vector<TaskDescription> tasks;
+    ASSERT_TRUE(offers.size() == 1);
+    const SlaveOffer &offer = offers[0];
+    TaskDescription desc(0, offer.slaveId, "", map<string, string>(), "");
+    tasks.push_back(desc);
+    d->replyToOffer(id, tasks, map<string, string>());
+    Process::post(slave, S2S_SHUTDOWN);
+  }
+
+  virtual void offerRescinded(SchedulerDriver* d, OfferID)
+  {
+    offerRescindedCalled = true;
+    d->stop();
+  }
+};
+
+
+class OfferReplyMessageFilter : public MessageFilter
+{
+public:
+  virtual bool filter(struct msg *msg) {
+    return msg->id == F2M_SLOT_OFFER_REPLY;
+  }
+};
+
+
+TEST(MasterTest, OfferRescinded)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  OfferReplyMessageFilter filter;
+  Process::filter(&filter);
+
+  Master m;
+  PID master = Process::spawn(&m);
+
+  Slave s(Resources(2, 1 * Gigabyte), true);
+  PID slave = Process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  OfferRescindedScheduler sched(slave);
+  NexusSchedulerDriver driver(&sched, master);
+
+  driver.run();
+
+  EXPECT_TRUE(sched.offerRescindedCalled);
+
+  Process::wait(slave);
+
+  Process::post(master, M2M_SHUTDOWN);
+  Process::wait(master);
+
+  Process::filter(NULL);
+}
+
+
 class SlavePartitionedScheduler : public Scheduler
 {
 public:
@@ -435,7 +511,7 @@ public:
     return ExecutorInfo("noexecutor", "");
   }
 
-  void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
+  virtual void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
     slaveLostCalled = true;
     d->stop();
   }
@@ -445,7 +521,7 @@ public:
 class HeartbeatMessageFilter : public MessageFilter
 {
 public:
-  bool filter(struct msg *msg) {
+  virtual bool filter(struct msg *msg) {
     return msg->id == SH2M_HEARTBEAT;
   }
 };
@@ -454,6 +530,9 @@ public:
 TEST(MasterTest, SlavePartitioned)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  HeartbeatMessageFilter filter;
+  Process::filter(&filter);
 
   ProcessClock::pause();
 
@@ -464,9 +543,6 @@ TEST(MasterTest, SlavePartitioned)
 
   driver.start();
 
-  HeartbeatMessageFilter filter;
-  Process::filter(&filter);
-
   ProcessClock::advance(master::HEARTBEAT_TIMEOUT);
 
   driver.join();
@@ -475,7 +551,7 @@ TEST(MasterTest, SlavePartitioned)
 
   local::shutdown();
 
-  Process::filter(NULL);
-
   ProcessClock::resume();
+
+  Process::filter(NULL);
 }
