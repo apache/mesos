@@ -4,6 +4,7 @@ SHELL = '/bin/sh'
 
 CC = @CC@
 CXX = @CXX@
+SWIG = @SWIG@
 
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
@@ -152,7 +153,7 @@ $(NEXUS_LIB): $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMM
 
 webui/master/swig/master_wrap.cpp: webui/master/swig/master.i master_state.hpp master_webui.hpp master.hpp config.hpp
 ifeq ($(WITH_WEBUI),1)
-	swig -c++ -python -outdir webui/master/swig -o $@ -I../include $<
+	$(SWIG) -c++ -python -outdir webui/master/swig -o $@ -I../include $<
 else
 	echo "" > $@
 endif
@@ -168,7 +169,7 @@ nexus-master: master_main.cpp $(MASTER_OBJ) $(COMMON_OBJ) master_webui.o webui/m
 
 webui/slave/swig/slave_wrap.cpp: webui/slave/swig/slave.i slave_state.hpp slave_webui.hpp slave.hpp config.hpp
 ifeq ($(WITH_WEBUI),1)
-	swig -c++ -python -outdir webui/slave/swig -o $@ -I../include $<
+	$(SWIG) -c++ -python -outdir webui/slave/swig -o $@ -I../include $<
 else
 	echo "" > $@
 endif
@@ -230,7 +231,7 @@ $(JAVA_LIB): swig/nexus.i $(NEXUS_LIB)
 ifdef JAVA_HOME
 	rm -f swig/java/nexus/*
 	mkdir -p swig/java/nexus
-	swig -c++ -java -I../include -o swig/java/nexus_wrap.cpp -outdir swig/java/nexus -package nexus swig/nexus.i
+	$(SWIG) -c++ -java -I../include -o swig/java/nexus_wrap.cpp -outdir swig/java/nexus -package nexus swig/nexus.i
 	$(CXX) $(CXXFLAGS) -shared -o $@ swig/java/nexus_wrap.cpp -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -L. $(LDFLAGS) -lnexus++ $(LIBS)
 endif
 
@@ -246,13 +247,13 @@ endif
 
 $(PYTHON_LIB): swig/nexus.i $(NEXUS_LIB)
 ifdef PYTHON_HEADERS
-	swig -c++ -python -threads -I../include -o swig/python/nexus_wrap.cpp -outdir swig/python swig/nexus.i
+	$(SWIG) -c++ -python -threads -I../include -o swig/python/nexus_wrap.cpp -outdir swig/python swig/nexus.i
 	$(CXX) $(CXXFLAGS) -shared -o $@ swig/python/nexus_wrap.cpp -I$(PYTHON_HEADERS) -L. $(LDFLAGS) -lnexus++ $(LIBS)
 endif
 
 $(RUBY_LIB): swig/nexus.i $(NEXUS_LIB)
 ifdef RUBY_HEADERS
-	swig -c++ -ruby -I../include -o swig/ruby/nexus_wrap.cpp -outdir swig/ruby -autorename swig/nexus.i
+	$(SWIG) -c++ -ruby -I../include -o swig/ruby/nexus_wrap.cpp -outdir swig/ruby -autorename swig/nexus.i
 	$(CXX) $(CXXFLAGS) -shared -o $@ swig/ruby/nexus_wrap.cpp -I$(RUBY_HEADERS) -L. $(LDFLAGS) -lnexus++ $(LIBS)
 endif
 
