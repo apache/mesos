@@ -71,7 +71,7 @@ set :config_option, \
     (default=#{install_dir})
  DESC
 task :copy_config, :roles => :localhost do
-  run("rsync #{config} #{install_dir}/#{hypertable_version}/conf/")
+  run("rsync -e \"ssh -o StrictHostKeyChecking=no\" #{config} #{install_dir}/#{hypertable_version}/conf/")
 end
 
  desc <<-DESC
@@ -82,8 +82,8 @@ end
  DESC
 task :rsync, :roles => :install do
   run <<-CMD
-     rsync -av --exclude=log --exclude=run --exclude=demo --exclude=fs --exclude=hyperspace/ #{source_machine}:#{install_dir}/#{hypertable_version} #{install_dir} &&
-     rsync -av --exclude=log --exclude=run --exclude=demo --exclude=fs --exclude=hyperspace/ #{source_machine}:#{install_dir}/#{hypertable_version}/conf/ #{install_dir}/#{hypertable_version}/conf
+     rsync -av -e "ssh -o StrictHostKeyChecking=no" --exclude=log --exclude=run --exclude=demo --exclude=fs --exclude=hyperspace/ #{source_machine}:#{install_dir}/#{hypertable_version} #{install_dir} &&
+     rsync -av -e "ssh -o StrictHostKeyChecking=no" --exclude=log --exclude=run --exclude=demo --exclude=fs --exclude=hyperspace/ #{source_machine}:#{install_dir}/#{hypertable_version}/conf/ #{install_dir}/#{hypertable_version}/conf
   CMD
 end
 

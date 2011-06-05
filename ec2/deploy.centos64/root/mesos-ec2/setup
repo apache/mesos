@@ -31,8 +31,7 @@ else
 fi
 
 # Scripts that get used for/while running Mesos.
-SCRIPTS="approve-master-key
-         copy-dir
+SCRIPTS="copy-dir
          mesos-daemon
          redeploy-mesos
          setup-slave              

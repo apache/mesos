@@ -75,6 +75,3 @@ fi
 # Remove ~/.ssh/known_hosts because it gets polluted as you start/stop many
 # clusters (new machines tend to come up under old hostnames)
 rm -f /root/.ssh/known_hosts
-
-# SSH to the master to approve its key (needed for Capistrano to work)
-./approve-master-key
