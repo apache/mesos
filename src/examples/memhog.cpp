@@ -1,5 +1,7 @@
 #include <mesos_sched.hpp>
 
+#include <libgen.h>
+
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
@@ -91,9 +93,10 @@ int main(int argc, char ** argv) {
          << " <MB_to_request> <MB_per_task>" << endl;
     return -1;
   }
-  char cwd[4096];
-  getcwd(cwd, sizeof(cwd));
-  string executor = string(cwd) + "/memhog-executor";
+  // Find this executable's directory to locate executor
+  char buf[4096];
+  realpath(dirname(argv[0]), buf);
+  string executor = string(buf) + "/memhog-executor";
   MyScheduler sched(executor,
                     lexical_cast<int>(argv[2]),
                     lexical_cast<double>(argv[3]),
