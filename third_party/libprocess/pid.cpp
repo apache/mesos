@@ -80,7 +80,7 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
-  VLOG(1) << "Attempting to parse '" << str << "' into a PID";
+  VLOG(2) << "Attempting to parse '" << str << "' into a PID";
 
   if (str.size() == 0) {
     stream.setstate(std::ios_base::badbit);
@@ -131,7 +131,7 @@ istream& operator >> (istream& stream, UPID& pid)
   }
 
   if (result != 0 || hep == NULL) {
-    VLOG(1) << "Failed to parse host '" << host
+    VLOG(2) << "Failed to parse host '" << host
 	    << "' because " << hstrerror(herrno);
     stream.setstate(std::ios_base::badbit);
     delete temp;
@@ -139,7 +139,7 @@ istream& operator >> (istream& stream, UPID& pid)
   }
 
   if (hep->h_addr_list[0] == NULL) {
-    VLOG(1) << "Got no addresses for '" << host << "'";
+    VLOG(2) << "Got no addresses for '" << host << "'";
     stream.setstate(std::ios_base::badbit);
     delete temp;
     return stream;
