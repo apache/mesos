@@ -23,8 +23,7 @@ TEST(ConfigurationTest, Environment)
 {
   setenv("MESOS_TEST", "working", true);
   Configuration conf;
-  conf.loadEnv();
-  conf.loadConfigFileIfGiven();
+  conf.loadEnvConf();
   unsetenv("MESOS_TEST");
 
   EXPECT_EQ("working", conf.getParams()["test"]);
@@ -33,27 +32,32 @@ TEST(ConfigurationTest, Environment)
 
 TEST(ConfigurationTest, DefaultOptions)
 {
-  const int ARGC = 3;
+  const int ARGC = 4;
   char* argv[ARGC];
   argv[0] = (char*) "./filename";
-  argv[1] = (char*) "--test1=text1";
+  argv[1] = (char*) "--test1=501";
   argv[2] = (char*) "--test2";
+  argv[3] = (char*) "--excp=txt";
 
   Configuration conf;
 
-  conf.addOption("test1", "Testing option", 500);
-  conf.addOption("test2", "Another tester", 0);
-  conf.addOption("test3", "Tests the default\noption.", 2010);
-  conf.addOption("test4", "Option without default\noption.");
+  EXPECT_NO_THROW( {
+      conf.addOption<int>("test1", "Testing option", 500);
+      conf.addOption<short>("test2", "Another tester", 0);
+      conf.addOption<long>("test3", "Tests the default\noption.", 2010);
+      conf.addOption("test4", "Option without default\noption.");
+      conf.addOption<string>("test5", "Option with a default string.", "arb");
+      conf.loadEnvCmdConf(ARGC, argv, false);
+    } );
+  
+  conf.addOption<int>("excp", "Exception tester.", 50);
+  EXPECT_THROW(conf.validate(), BadOptionValueException);
 
-  conf.loadEnv();
-  conf.loadCommandLine(ARGC, argv, false);
-  conf.loadConfigFileIfGiven();
-
-  EXPECT_EQ("text1",  conf.getParams()["test1"]);
+  EXPECT_EQ("501",    conf.getParams()["test1"]);
   EXPECT_EQ("1",      conf.getParams()["test2"]);
   EXPECT_EQ("2010",   conf.getParams()["test3"]);
   EXPECT_EQ("",       conf.getParams()["test4"]);
+  EXPECT_EQ("arb",    conf.getParams()["test5"]);
 }
 
 
@@ -73,9 +77,7 @@ TEST(ConfigurationTest, CommandLine)
   argv[9] = (char*) "--space=Long String";
 
   Configuration conf;
-  conf.loadEnv();
-  conf.loadCommandLine(ARGC, argv, false);
-  conf.loadConfigFileIfGiven();
+  conf.loadEnvCmdConf(ARGC, argv, false);
 
   EXPECT_EQ("text1",       conf.getParams()["test1"]);
   EXPECT_EQ("1",           conf.getParams()["test2"]);
@@ -101,8 +103,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithMesosHome)
 
   setenv("MESOS_HOME", ".", 1);
   Configuration conf;
-  conf.loadEnv();
-  conf.loadConfigFileIfGiven();
+  conf.loadEnvConf();
   unsetenv("MESOS_HOME");
 
   EXPECT_EQ("coffee", conf.getParams()["test1"]);
@@ -122,8 +123,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithConfDir)
   file.close();
   setenv("MESOS_CONF", "conf2", 1);
   Configuration conf;
-  conf.loadEnv();
-  conf.loadConfigFileIfGiven();
+  conf.loadEnvConf();
   unsetenv("MESOS_CONF");
 
   EXPECT_EQ("shake", conf.getParams()["test3"]);
@@ -145,8 +145,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithHomeAndDir)
   setenv("MESOS_HOME", ".", 1);
   setenv("MESOS_CONF", "conf2", 1);
   Configuration conf;
-  conf.loadEnv();
-  conf.loadConfigFileIfGiven();
+  conf.loadEnvConf();
   unsetenv("MESOS_CONF");
   unsetenv("MESOS_HOME");
 
@@ -175,9 +174,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, CommandLineConfFlag)
   argv[3] = (char*) "--d=fromCmdLine";
 
   Configuration conf;
-  conf.loadEnv();
-  conf.loadCommandLine(ARGC, argv, false);
-  conf.loadConfigFileIfGiven();
+  conf.loadEnvCmdConf(ARGC, argv, false);
 
   EXPECT_EQ("1",           conf.getParams()["a"]);
   EXPECT_EQ("overridden",  conf.getParams()["b"]);
@@ -215,9 +212,7 @@ TEST_WITH_WORKDIR(ConfigurationTest, LoadingPriorities)
   argv[2] = (char*) "--c=fromCmdLine";
 
   Configuration conf;
-  conf.loadEnv();
-  conf.loadCommandLine(ARGC, argv, false);
-  conf.loadConfigFileIfGiven();
+  conf.loadEnvCmdConf(ARGC, argv, false);
 
   // Clear the environment vars set above
   unsetenv("MESOS_HOME");

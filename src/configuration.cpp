@@ -21,11 +21,39 @@ const char* Configuration::CONFIG_FILE_NAME = "mesos.conf";
 const char* Configuration::ENV_VAR_PREFIX = "MESOS_";
 
 
-Configuration::Configuration(const map<string, string>& _params) 
+void Configuration::validate()
+{
+  foreachpair(const string& key, const Option& opt, options) {
+    if (params.contains(key) && opt.validator && !opt.validator->isValid(params[key])) {
+      throw BadOptionValueException(params[key].c_str());
+    }
+  }
+}
+
+
+void Configuration::loadEnvCmdConf(int argc, char** argv, bool inferMesosHomeFromArg0)
+{
+  loadEnv();
+  loadCommandLine(argc, argv, inferMesosHomeFromArg0);
+  loadConfigFileIfGiven();
+  validate();
+}
+
+
+void Configuration::loadEnvConf()
+{
+  loadEnv();
+  loadConfigFileIfGiven();
+  validate();
+}
+
+
+void Configuration::loadEnvMapConf(const map<string, string>& _params) 
 {
   loadEnv();
   params.loadMap(_params);
   loadConfigFileIfGiven();
+  validate();
 }
 
 
