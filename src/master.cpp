@@ -119,7 +119,7 @@ Master::Master(const string &zk)
     pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(zk);
     if (urlPair.first == UrlProcessor::ZOO) {
       isFT = true;
-      zkservers = urlPair.second;
+      zkServers = urlPair.second;
     } else {
       LOG(ERROR) << "Failed to parse URL for ZooKeeper servers. URL must start with zoo:// or zoofile://";
       exit(1);
@@ -137,7 +137,7 @@ Master::Master(const string& _allocatorType, const string &zk)
     pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(zk);
     if (urlPair.first == UrlProcessor::ZOO) {
       isFT = true;
-      zkservers = urlPair.second;
+      zkServers = urlPair.second;
     } else {
       LOG(ERROR) << "Failed to parse URL for ZooKeeper servers. URL must start with zoo:// or zoofile://";
       exit(1);
@@ -284,10 +284,10 @@ void Master::operator () ()
   LOG(INFO) << "Master started at nexus://" << self();
 
   if (isFT) {
-    LOG(INFO) << "Connecting to ZooKeeper at " << zkservers;
+    LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
     ostringstream lpid;
     lpid << self();
-    leaderDetector = new LeaderDetector(zkservers, true, lpid.str());
+    leaderDetector = new LeaderDetector(zkServers, true, lpid.str());
     
     string myLeaderSeq = leaderDetector->getMySeq();
     if (myLeaderSeq == "") {
@@ -334,6 +334,12 @@ void Master::operator () ()
                                        framework->name,
                                        framework->user,
                                        framework->executorInfo);
+
+      if (framework->id == "") {
+        DLOG(INFO) << "Framework reconnecting without a FrameworkID, generating new id";
+        framework->id = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextFrameworkId++);
+      }
+
       LOG(INFO) << "Registering " << framework << " at " << framework->pid;
       frameworks[framework->id] = framework;
       pidToFid[framework->pid] = framework->id;
@@ -479,6 +485,11 @@ void Master::operator () ()
 
       unpack<S2M_REREGISTER_SLAVE>(slave->id, slave->hostname, slave->publicDns,
       				   slave->resources, taskVec);
+
+      if (slave->id == "") {
+        slave->id = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextSlaveId++);
+        DLOG(WARNING) << "Slave re-registered without a SlaveID, generating a new id for it.";
+      }
 
       foreach(TaskInfo &ti, taskVec) {
         TaskInfo *tip = new TaskInfo(ti);

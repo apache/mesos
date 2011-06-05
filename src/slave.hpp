@@ -165,7 +165,7 @@ public:
   typedef unordered_map<FrameworkID, Executor*> ExecutorMap;
   
   bool isFT;
-  string zkserver;
+  string zkServers;
   LeaderDetector *leaderDetector;
   PID master;
   SlaveID id;
@@ -183,15 +183,13 @@ public:
 
   class SlaveLeaderListener : public LeaderListener {
   public:
-    // TODO(alig): make thread safe
+    // Need to be thread safe. Currently does not use any shared variables. 
     SlaveLeaderListener(Slave *s, PID pp) : parent(s), parentPID(pp) {}
     
     virtual void newLeaderElected(const string &zkId, const string &pidStr) {
       if (zkId != "") {
 	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:" << zkId;
 	
-	parent->zkserver = pidStr;
-
 	LOG(INFO) << "Sending message to parent " << parentPID << " about new leader";
 	parent->send(parentPID, parent->pack<LE_NEWLEADER>(pidStr));
 

@@ -74,7 +74,7 @@ private:
   string frameworkName;
   ExecutorInfo execInfo;
   bool isFT;
-  string zkservers;
+  string zkServers;
   LeaderDetector *leaderDetector;
   FTMessaging *ftMsg;
 
@@ -85,15 +85,13 @@ private:
 
   class SchedLeaderListener : public LeaderListener {
   public:
-    // TODO(alig): make thread safe
+    // Need to be thread safe. Currently does not use any shared variables. 
     SchedLeaderListener(SchedulerProcess *s, PID pp) : parent(s), parentPID(pp) {}
     
     virtual void newLeaderElected(const string &zkId, const string &pidStr) {
       if (zkId != "") {
 	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:" << zkId;
 	
-	parent->zkservers = pidStr;
-
 	LOG(INFO) << "Sending message to parent " << parentPID << " about new leader";
 	parent->send(parentPID, parent->pack<LE_NEWLEADER>(pidStr));
 
@@ -134,7 +132,7 @@ public:
                    const ExecutorInfo& _execInfo)
     : driver(_driver),
       sched(_sched),
-      fid("-1"),
+      fid(""),
       terminate(false),
       frameworkName(_frameworkName),
       execInfo(_execInfo),
@@ -144,7 +142,7 @@ public:
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
     isFT = true;
-    zkservers = urlPair.second;
+    zkServers = urlPair.second;
     //  } else if (urlPair.first == UrlProcessor::NEXUS) {
   } else {
     isFT = false; 
@@ -169,8 +167,8 @@ protected:
     string user(passwd->pw_name);
 
     if (isFT) {
-      LOG(INFO) << "Connecting to ZooKeeper at " << zkservers;
-      leaderDetector = new LeaderDetector(zkservers, false, "", NULL);
+      LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
+      leaderDetector = new LeaderDetector(zkServers, false, "", NULL);
       leaderDetector->setListener(&schedLeaderListener); // use this instead of constructor to avoid race condition
 
       string leaderPidStr = leaderDetector->getCurrentLeaderPID();
@@ -314,7 +312,12 @@ protected:
 	LOG(INFO) << "Connecting to Nexus master at " << master;
 	link(master);
         ftMsg->setMasterPid(master);
-	send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user, execInfo));
+
+        if (fid != "")  // actual re-register to a new master leader
+          send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user, execInfo));
+        else            // not really a re-register, scheduler started before master
+          send(master, pack<F2M_REGISTER_FRAMEWORK>(frameworkName, user, execInfo));
+
 	break;
       }
 

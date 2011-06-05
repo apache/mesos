@@ -262,7 +262,7 @@ class Master : public Tuple<Process>
 {
 protected:
   bool isFT;
-  string zkservers;
+  string zkServers;
   LeaderDetector *leaderDetector;
   unordered_map<FrameworkID, Framework *> frameworks;
   unordered_map<SlaveID, Slave *> slaves;

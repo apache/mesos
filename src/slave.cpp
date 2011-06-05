@@ -65,14 +65,14 @@ public:
 
 Slave::Slave(const string &_master, Resources _resources, bool _local)
   : leaderDetector(NULL), 
-    resources(_resources), local(_local), id("-1"),
+    resources(_resources), local(_local), id(""),
     isolationType("process"), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {
   ftMsg = FTMessaging::getInstance();
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
     isFT = true;
-    zkserver = urlPair.second;
+    zkServers = urlPair.second;
     //  } else if (urlPair.first == UrlProcessor::NEXUS) {
   } else {
     isFT = false;
@@ -89,14 +89,14 @@ Slave::Slave(const string &_master, Resources _resources, bool _local)
 Slave::Slave(const string &_master, Resources _resources, bool _local,
 	     const string &_isolationType)
   : leaderDetector(NULL), 
-    resources(_resources), local(_local), id("-1"),
+    resources(_resources), local(_local), id(""),
     isolationType(_isolationType), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {
   ftMsg = FTMessaging::getInstance();
   pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
   if (urlPair.first == UrlProcessor::ZOO) {
     isFT = true;
-    zkserver = urlPair.second;
+    zkServers = urlPair.second;
   } else if (urlPair.first == UrlProcessor::NEXUS) {
     isFT = false;
     istringstream iss(urlPair.second);
@@ -144,8 +144,8 @@ void Slave::operator () ()
   LOG(INFO) << "Slave started at " << self();
 
   if (isFT) {
-    LOG(INFO) << "Connecting to ZooKeeper at " << zkserver;
-    leaderDetector = new LeaderDetector(zkserver, false, "", NULL);
+    LOG(INFO) << "Connecting to ZooKeeper at " << zkServers;
+    leaderDetector = new LeaderDetector(zkServers, false, "", NULL);
     leaderDetector->setListener(&slaveLeaderListener); // use this instead of constructor to avoid race condition
 
     string leaderPidStr = leaderDetector->getCurrentLeaderPID();
@@ -202,7 +202,9 @@ void Slave::operator () ()
         FrameworkID tmpfid;
         unpack<M2S_REGISTER_REPLY>(tmpfid);
         LOG(INFO) << "RE-registered with master; given slave ID " << tmpfid << " had "<< this->id;
-        link(spawn(new Heart(master, this->getPID(), this->id)));
+        if (this->id == "")
+          this->id = tmpfid;
+        link(spawn(new Heart(master, getPID(), this->id)));
         break;
       }
       
@@ -432,9 +434,11 @@ void Slave::operator () ()
 	    taskVec.push_back(ti);
 	  }
 	}
-	//alibandali
 
-	send(master, pack<S2M_REREGISTER_SLAVE>(id, hostname, publicDns, resources, taskVec));
+        if (id != "") // actual re-register
+          send(master, pack<S2M_REREGISTER_SLAVE>(id, hostname, publicDns, resources, taskVec));
+        else          // slave started before master
+          send(master, pack<S2M_REGISTER_SLAVE>(hostname, publicDns, resources));
 	
 	break;
       }
