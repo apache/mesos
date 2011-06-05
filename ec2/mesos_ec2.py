@@ -236,9 +236,9 @@ def setup_cluster(conn, master_res, slave_res, zoo_res, opts, deploy_ssh_key):
   print "Deploying files to master..."
   deploy_files(conn, "deploy." + opts.os, master_res.instances[0],
       opts, master_res, slave_res, zoo_res)
+  master = master_res.instances[0].public_dns_name
   if deploy_ssh_key:
     print "Copying SSH key %s to master..." % opts.identity_file
-    master = master_res.instances[0].public_dns_name
     ssh(master, opts, 'mkdir -p /root/.ssh')
     scp(master, opts, opts.identity_file, '/root/.ssh/id_rsa')
   print "Running setup on master..."
