@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <ucontext.h>
 
+#include <sys/time.h>
+
 #ifdef USE_LITHE
 #include <lithe.hh>
 
@@ -195,11 +197,11 @@ protected:
   /* Links with the specified PID. */
   PID link(const PID &);
 
-  /* IO operations for awaiting. */
+  /* IO events for awaiting. */
   enum { RDONLY = 01, WRONLY = 02, RDWR = 03 };
 
   /* Wait until operation is ready for file descriptor (or message received). */
-  bool await(int fd, int op);
+  bool await(int fd, int op, const timeval& tv);
 
   /* Returns true if operation on file descriptor is ready. */
   bool ready(int fd, int op);

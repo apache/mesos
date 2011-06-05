@@ -276,7 +276,7 @@ void trampoline(int process0, int process1);
 
 PID make_pid(const char *str)
 {
-  PID pid;
+  PID pid = { 0 };
   std::istringstream iss(str);
   iss >> pid;
   return pid;
@@ -1600,7 +1600,7 @@ public:
     return !interrupted;
   }
 #else
-  bool await(Process *process, int fd, int op)
+  bool await(Process *process, int fd, int op, ev_tstamp interval)
   {
     assert(process != NULL);
 
@@ -1624,6 +1624,15 @@ public:
 
     process->lock();
     {
+      timeout_t timeout;
+
+      if (interval > 0) {
+	/* Create timeout. */
+	timeout = create_timeout(process, interval);
+	/* Start the timeout. */
+	start_timeout(timeout);
+      }
+
       /* Enqueue the watcher. */
       acquire(io_watchersq);
       {
@@ -1638,7 +1647,13 @@ public:
       process->state = Process::AWAITING;
       swapcontext(&process->uctx, &proc_uctx_running);
       assert(process->state == Process::READY ||
+	     process->state == Process::TIMEDOUT ||
 	     process->state == Process::INTERRUPTED);
+
+      /* Attempt to cancel the timer if necessary. */
+      if (interval > 0)
+	if (process->state != Process::TIMEDOUT)
+	  cancel_timeout(timeout);
 
       if (process->state == Process::INTERRUPTED)
 	interrupted = true;
@@ -1697,10 +1712,13 @@ public:
 	/* N.B. Process may be RUNNING due to "outside" thread 'receive'. */
 	assert(process->state == Process::RUNNING ||
 	       process->state == Process::RECEIVING ||
+	       process->state == Process::AWAITING ||
+	       process->state == Process::INTERRUPTED ||
 	       process->state == Process::PAUSED);
-	process->state = Process::TIMEDOUT;
-	if (process->state != Process::RUNNING)
+	if (process->state != Process::RUNNING ||
+	    process->state != Process::INTERRUPTED)
 	  ProcessManager::instance()->enqueue(process);
+	process->state = Process::TIMEDOUT;
       }
     }
     process->unlock();
@@ -1720,10 +1738,10 @@ public:
   }
 
 
-  timeout_t create_timeout(Process *process, time_t secs)
+  timeout_t create_timeout(Process *process, ev_tstamp interval)
   {
     assert(process != NULL);
-    ev_tstamp tstamp = ev_time() + secs;
+    ev_tstamp tstamp = ev_now(loop) + interval;
     return make_tuple(tstamp, process, process->generation);
   }
 
@@ -3056,9 +3074,10 @@ PID Process::link(const PID &to)
 }
 
 
-bool Process::await(int fd, int op)
+bool Process::await(int fd, int op, const timeval& tv)
 {
-  return ProcessManager::instance()->await(this, fd, op);
+  ev_tstamp interval = tv.tv_sec + (tv.tv_usec * 1e-6);
+  return ProcessManager::instance()->await(this, fd, op, interval);
 }
 
 
