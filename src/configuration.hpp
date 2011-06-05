@@ -8,6 +8,9 @@
 #include <glog/logging.h>
 #include "params.hpp"
 
+
+namespace nexus { namespace internal {
+    
 using std::string;
 using std::cout;
 using std::cerr;
@@ -15,8 +18,6 @@ using std::endl;
 using std::ifstream;
 using std::map;
 
-namespace nexus { namespace internal {
-    
 
 /**
  * Exception type thrown by Configuration.
@@ -68,7 +69,7 @@ public:
    *                               containing argv[0] (the program being run)
    **/
   Configuration(int argc, char** argv, bool inferMesosHomeFromArg0);
-  
+
   /** 
    * Constructor that populates Params from environment, a map,
    * and any config file specified through these.
@@ -107,6 +108,10 @@ private:
 
   /**
    * Populates its internal Params with key/value params from a config file.
+   * Values in the config file DO NOT override values already loaded into
+   * conf (i.e. having been defined in the environment or command line), as
+   * is typically expected for programs that allow configuration both ways.
+   *
    * The config file should contain key=value pairs, one per line.
    * Comments, which should start with #, are ignored.
    *

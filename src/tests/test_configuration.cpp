@@ -22,10 +22,10 @@ using namespace nexus::internal::test;
 TEST(ConfigurationTest, Environment)
 {
   setenv("MESOS_TEST", "working", true);
-  Configuration c1;
+  Configuration conf;
   unsetenv("MESOS_TEST");
 
-  EXPECT_EQ("working", c1.getParams()["test"]);
+  EXPECT_EQ("working", conf.getParams()["test"]);
 }
 
 
@@ -40,15 +40,17 @@ TEST(ConfigurationTest, CommandLine)
   argv[4] = (char*) "text2";
   argv[5] = (char*) "-test4";
 
-  Configuration c1(ARGC, argv, false);
+  Configuration conf(ARGC, argv, false);
 
-  EXPECT_EQ("text1", c1.getParams()["test1"]);
-  EXPECT_EQ("1", c1.getParams()["test2"]);
-  EXPECT_EQ("text2", c1.getParams()["test3"]);
-  EXPECT_EQ("1", c1.getParams()["test4"]);
+  EXPECT_EQ("text1", conf.getParams()["test1"]);
+  EXPECT_EQ("1",     conf.getParams()["test2"]);
+  EXPECT_EQ("text2", conf.getParams()["test3"]);
+  EXPECT_EQ("1",     conf.getParams()["test4"]);
 }
 
 
+// Check whether specifying MESOS_HOME allows a config file to be loaded
+// from the default config directory (MESOS_HOME/conf)
 TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithMesosHome)
 {
   if (mkdir("conf", 0755) != 0)
@@ -60,14 +62,15 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithMesosHome)
   file.close();
 
   setenv("MESOS_HOME", ".", 1);
-  Configuration c1;
+  Configuration conf;
   unsetenv("MESOS_HOME");
 
-  EXPECT_EQ("coffee", c1.getParams()["test1"]);
-  EXPECT_EQ("tea", c1.getParams()["test2"]);
+  EXPECT_EQ("coffee", conf.getParams()["test1"]);
+  EXPECT_EQ("tea",    conf.getParams()["test2"]);
 }
   
 
+// Check whether specifying just MESOS_CONF allows a config file to be loaded
 TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithConfDir)
 {
   if (mkdir("conf2", 0755) != 0)
@@ -82,10 +85,12 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithConfDir)
   unsetenv("MESOS_CONF");
 
   EXPECT_EQ("shake", conf.getParams()["test3"]);
-  EXPECT_EQ("milk", conf.getParams()["test4"]);
+  EXPECT_EQ("milk",  conf.getParams()["test4"]);
 }
 
 
+// Check that setting MESOS_CONF variable overrides the default location
+// of conf directory relative in MESOS_HOME/conf.
 TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithHomeAndDir)
 {
   if (mkdir("conf2", 0755) != 0)
@@ -102,10 +107,12 @@ TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithHomeAndDir)
   unsetenv("MESOS_HOME");
 
   EXPECT_EQ("shake", conf.getParams()["test3"]);
-  EXPECT_EQ("milk", conf.getParams()["test4"]);
+  EXPECT_EQ("milk",  conf.getParams()["test4"]);
 }
 
 
+// Check that when we specify a conf directory on the command line,
+// we load values from the config file first and then the command line
 TEST_WITH_WORKDIR(ConfigurationTest, CommandLineConfFlag)
 {
   if (mkdir("conf2", 0755) != 0)
@@ -123,10 +130,54 @@ TEST_WITH_WORKDIR(ConfigurationTest, CommandLineConfFlag)
   argv[2] = (char*) "--b=overridden";
   argv[3] = (char*) "--d=fromCmdLine";
 
-  Configuration c1(ARGC, argv, false);
+  Configuration conf(ARGC, argv, false);
 
-  EXPECT_EQ("1", c1.getParams()["a"]);
-  EXPECT_EQ("overridden", c1.getParams()["b"]);
-  EXPECT_EQ("3", c1.getParams()["c"]);
-  EXPECT_EQ("fromCmdLine", c1.getParams()["d"]);
+  EXPECT_EQ("1",           conf.getParams()["a"]);
+  EXPECT_EQ("overridden",  conf.getParams()["b"]);
+  EXPECT_EQ("3",           conf.getParams()["c"]);
+  EXPECT_EQ("fromCmdLine", conf.getParams()["d"]);
+}
+
+
+// Check that variables are loaded with the correct priority when an
+// environment variable, a config file element , and a config flag
+// are all present. Command line flags should have the highest priority,
+// second should be environment variables, and last should be the file.
+TEST_WITH_WORKDIR(ConfigurationTest, LoadingPriorities)
+{
+  // Create a file which contains parameters a, b, c and d
+  if (mkdir("conf", 0755) != 0)
+    FAIL() << "Failed to create directory conf";
+  ofstream file("conf/mesos.conf");
+  file << "a=fromFile\n";
+  file << "b=fromFile\n";
+  file << "c=fromFile\n";
+  file << "d=fromFile\n";
+  file.close();
+
+  // Set environment to contain parameters a and b
+  setenv("MESOS_HOME", ".", 1);
+  setenv("MESOS_A", "fromEnv", 1);
+  setenv("MESOS_B", "fromEnv", 1);
+
+  // Pass parameters a and c from the command line
+  const int ARGC = 3;
+  char* argv[ARGC];
+  argv[0] = (char*) "./filename";
+  argv[1] = (char*) "--a=fromCmdLine";
+  argv[2] = (char*) "--c=fromCmdLine";
+
+  Configuration conf(ARGC, argv, false);
+
+  // Clear the environment vars set above
+  unsetenv("MESOS_HOME");
+  unsetenv("MESOS_A");
+  unsetenv("MESOS_B");
+
+  // Check that every variable is obtained from the highest-priority location
+  // (command line > env > file)
+  EXPECT_EQ("fromCmdLine", conf.getParams()["a"]);
+  EXPECT_EQ("fromEnv",     conf.getParams()["b"]);
+  EXPECT_EQ("fromCmdLine", conf.getParams()["c"]);
+  EXPECT_EQ("fromFile",    conf.getParams()["d"]);
 }

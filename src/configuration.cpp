@@ -140,6 +140,7 @@ void Configuration::loadConfigFile(const string& fname) {
     throw new ConfigurationException(message.c_str());
   }
 
+  Params fileParams;
   string buf, line;
 
   while (!cfg.eof()) {
@@ -149,7 +150,13 @@ void Configuration::loadConfigFile(const string& fname) {
     buf += line.substr(0, beg) + "\n";
   }
   cfg.close();
-  params.loadString(buf);
+  fileParams.loadString(buf); // Parse key=value pairs using Params's code
+
+  foreachpair (const string& key, const string& value, fileParams.getMap()) {
+    if (!params.contains(key)) {
+      params[key] = value;
+    }
+  }
 }
 
 
