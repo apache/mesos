@@ -146,8 +146,7 @@ ifdef PYTHON_HEADERS
 	$(MAKE) -C python
 endif
 
-#all: $(EXAMPLES_EXES) java python
-all: $(EXAMPLES_EXES) java
+all: $(EXAMPLES_EXES) java python
 
 clean:
 	rm -f $(patsubst %, %.d, $(EXAMPLES_EXES))

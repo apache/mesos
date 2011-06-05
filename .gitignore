@@ -20,8 +20,6 @@
 .*
 Makefile
 autom4te.cache
-bin/master
-bin/slaves
 config.cache
 config.log
 config.status
@@ -110,6 +108,7 @@ third_party/protobuf-2.3.0/gtest/scripts/gtest-config
 third_party/protobuf-2.3.0/java/src/main/java/com/google/protobuf/DescriptorProtos.java
 third_party/protobuf-2.3.0/protobuf-lite.pc
 third_party/protobuf-2.3.0/protobuf.pc
+third_party/protobuf-2.3.0/python/google
 third_party/protobuf-2.3.0/src/Makefile.in
 third_party/protobuf-2.3.0/src/google/protobuf/compiler/cpp/cpp_test_bad_identifiers.pb.cc
 third_party/protobuf-2.3.0/src/google/protobuf/compiler/cpp/cpp_test_bad_identifiers.pb.h

@@ -1,22 +1,27 @@
 #!/usr/bin/env python
-import mesos
 import sys
+import threading
 import time
 
+import mesos
+import mesos_pb2
+
 class MyExecutor(mesos.Executor):
-  def __init__(self):
-    mesos.Executor.__init__(self)
-
   def launchTask(self, driver, task):
-    print "Running task %d" % task.taskId
-    time.sleep(1)
-    print "Sending the update..."
-    update = mesos.TaskStatus(task.taskId, mesos.TASK_FINISHED, "")
-    driver.sendStatusUpdate(update)
-    print "Sent the update"
-
-  def error(self, driver, code, message):
-    print "Error: %s" % message
+    # Create a thread to run the task. Tasks should always be run in new
+    # threads or processes, rather than inside launchTask itself.
+    def run_task():
+      print "Running task %s" % task.task_id.value
+      time.sleep(1)
+      print "Sending status update..."
+      update = mesos_pb2.TaskStatus()
+      update.task_id.value = task.task_id.value
+      update.slave_id.value = task.slave_id.value
+      update.state = mesos_pb2.TASK_FINISHED
+      driver.sendStatusUpdate(update)
+      print "Sent status update"
+    thread = threading.Thread(target=run_task)
+    thread.start()
 
 if __name__ == "__main__":
   print "Starting executor"

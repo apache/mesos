@@ -48,6 +48,19 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl *self,
  */
 void MesosSchedulerDriverImpl_dealloc(MesosSchedulerDriverImpl* self);
 
+/**
+ * Traverse fields of a MesosSchedulerDriverImpl on a cyclic GC search.
+ * See http://docs.python.org/extending/newtypes.html.
+ */
+int MesosSchedulerDriverImpl_traverse(MesosSchedulerDriverImpl* self,
+                                      visitproc visit,
+                                      void* arg);
+/**
+ * Clear fields of a MesosSchedulerDriverImpl that can participate in
+ * GC cycles. See http://docs.python.org/extending/newtypes.html.
+ */
+int MesosSchedulerDriverImpl_clear(MesosSchedulerDriverImpl* self);
+
 // MesosSchedulerDriverImpl methods
 PyObject* MesosSchedulerDriverImpl_start(MesosSchedulerDriverImpl* self);
 

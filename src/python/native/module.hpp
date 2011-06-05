@@ -7,8 +7,6 @@
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
-#include "mesos_sched.hpp"
-
 namespace mesos { namespace python {
 
 /**
@@ -19,7 +17,7 @@ extern PyObject* mesos_pb2;
 
 
 /**
- * RAAI utility class for acquiring the Python global interpreter lock.
+ * RAII utility class for acquiring the Python global interpreter lock.
  */
 class InterpreterLock {
   PyGILState_STATE state;
