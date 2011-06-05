@@ -309,7 +309,6 @@ void Master::operator () ()
     switch (receive()) {
 
     case F2M_REGISTER_FRAMEWORK: {
-
       FrameworkID fid = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextFrameworkId++);
 
       Framework *framework = new Framework(from(), fid);
@@ -351,6 +350,9 @@ void Master::operator () ()
       allocator->frameworkAdded(framework);
       if (framework->executorInfo.uri == "")
         terminateFramework(framework, 1, "No executor URI given");
+
+      DLOG(INFO) << "STAT: Slave count: " << slaves.size() << " Framework count: " << frameworks.size();
+
       break;
     }
 
@@ -504,6 +506,9 @@ void Master::operator () ()
       link(slave->pid);
       send(slave->pid, pack<M2S_REREGISTER_REPLY>(slave->id));
       allocator->slaveAdded(slave);
+
+      DLOG(INFO) << "STAT: Slave count: " << slaves.size() << " Framework count: " << frameworks.size();
+
       break;
     }
 
