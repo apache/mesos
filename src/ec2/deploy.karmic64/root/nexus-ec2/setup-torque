@@ -21,15 +21,15 @@ function installmaster {
 	./configure --prefix=/usr/local
 	make -j8
 	make install
-        ./torque.setup root #or should this just be root
+	echo "running ldconfig on master"
+	ldconfig
+        ./torque.setup root localhost
 
 	echo "copying init.d control scripts to master"
 	cp contrib/init.d/debian.pbs_mom /etc/init.d/pbs_mom
 	cp contrib/init.d/debian.pbs_sched /etc/init.d/pbs_sched
 	cp contrib/init.d/debian.pbs_server /etc/init.d/pbs_server
 
-	echo "running ldconfig on master"
-	ldconfig
 	popd
 }
 
