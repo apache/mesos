@@ -15,6 +15,9 @@ void Logging::registerOptions(Configurator* conf)
   conf->addOption<bool>("quiet", 'q', "Disable logging to stderr", false);
   conf->addOption<string>("log_dir",
                           "Where to put logs (default: MESOS_HOME/logs)");
+  conf->addOption<int>("log_buf_secs",
+                       "How many seconds to buffer log messages for\n",
+                       0);
 }
 
 
@@ -28,7 +31,7 @@ void Logging::init(const char* programName, const Params& conf)
     }
     FLAGS_log_dir = logDir;
   }
-  FLAGS_logbufsecs = 1;
+  FLAGS_logbufsecs = conf.get<int>("log_buf_secs", 0);
   google::InitGoogleLogging(programName);
 
   if (!isQuiet(conf))
