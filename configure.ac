@@ -157,27 +157,27 @@ AC_ARG_WITH([swig],
 	         [])
 AC_SUBST(SWIG)
 
-WITH_ZOOKEEPER="no"
+WITH_ZOOKEEPER="0"
 AC_ARG_WITH([zookeeper],
   AC_HELP_STRING([--with-zookeeper],
                  [use ZooKeeper support]),
 	         [case "$with_zookeeper" in
-		    yes) WITH_ZOOKEEPER="yes" ;;
-                    no) WITH_ZOOKEEPER="no" ;;
+		    yes) WITH_ZOOKEEPER="1" ;;
+                    no) WITH_ZOOKEEPER="0" ;;
 		    *) AC_MSG_ERROR([
 *** --with-zookeeper does not take arguments]) ;;
 	          esac],
 	         [])
 AC_SUBST(WITH_ZOOKEEPER)
 
-WITH_INCLUDED_ZOOKEEPER="no"
+WITH_INCLUDED_ZOOKEEPER="0"
 AC_ARG_WITH([included-zookeeper],
   AC_HELP_STRING([--with-included-zookeeper],
                  [build with included ZooKeeper]),
 	         [case "$with_included_zookeeper" in
-		    yes) WITH_ZOOKEEPER="yes"
-                         WITH_INCLUDED_ZOOKEEPER="yes" ;;
-                    no) WITH_INCLUDED_ZOOKEEPER="no" ;;
+		    yes) WITH_ZOOKEEPER="1"
+                         WITH_INCLUDED_ZOOKEEPER="1" ;;
+                    no) WITH_INCLUDED_ZOOKEEPER="0" ;;
 		    *) AC_MSG_ERROR([
 *** --with-included-zookeeper does not take arguments]) ;;
 	          esac],

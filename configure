@@ -2022,13 +2022,13 @@ fi
 
 
 
-WITH_ZOOKEEPER="no"
+WITH_ZOOKEEPER="0"
 
 # Check whether --with-zookeeper was given.
 if test "${with_zookeeper+set}" = set; then
   withval=$with_zookeeper; case "$with_zookeeper" in
-		    yes) WITH_ZOOKEEPER="yes" ;;
-                    no) WITH_ZOOKEEPER="no" ;;
+		    yes) WITH_ZOOKEEPER="1" ;;
+                    no) WITH_ZOOKEEPER="0" ;;
 		    *) { { echo "$as_me:$LINENO: error:
 *** --with-zookeeper does not take arguments" >&5
 echo "$as_me: error:
@@ -2039,14 +2039,14 @@ fi
 
 
 
-WITH_INCLUDED_ZOOKEEPER="no"
+WITH_INCLUDED_ZOOKEEPER="0"
 
 # Check whether --with-included-zookeeper was given.
 if test "${with_included_zookeeper+set}" = set; then
   withval=$with_included_zookeeper; case "$with_included_zookeeper" in
-		    yes) WITH_ZOOKEEPER="yes"
-                         WITH_INCLUDED_ZOOKEEPER="yes" ;;
-                    no) WITH_INCLUDED_ZOOKEEPER="no" ;;
+		    yes) WITH_ZOOKEEPER="1"
+                         WITH_INCLUDED_ZOOKEEPER="1" ;;
+                    no) WITH_INCLUDED_ZOOKEEPER="0" ;;
 		    *) { { echo "$as_me:$LINENO: error:
 *** --with-included-zookeeper does not take arguments" >&5
 echo "$as_me: error:

@@ -59,7 +59,7 @@ CXXFLAGS += -I$(GLOG)/src -I$(GTEST)/include
 LDFLAGS += -L$(GLOG)/.libs -L$(GTEST)/lib/.libs
 
 # Add included ZooKeeper to include and lib paths if necessary.
-ifeq ($(WITH_INCLUDED_ZOOKEEPER),yes)
+ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
   CXXFLAGS += -I$(ZOOKEEPER)/include -I$(ZOOKEEPER)/generated
   LDFLAGS += -L$(ZOOKEEPER)/.libs
 endif
@@ -83,7 +83,7 @@ LDFLAGS += -L$(LIBEV)/.libs
 LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl
 
 # Add ZooKeeper if necessary.
-ifeq ($(WITH_ZOOKEEPER),yes)
+ifeq ($(WITH_ZOOKEEPER),1)
   LIBS += -lzookeeper_st
 endif
 
@@ -129,7 +129,7 @@ ifeq ($(OS_NAME),linux)
   SLAVE_OBJ += lxc_isolation_module.o
 endif
 
-ifeq ($(WITH_ZOOKEEPER),yes)
+ifeq ($(WITH_ZOOKEEPER),1)
   COMMON_OBJ += zookeeper.o
 endif
 
@@ -300,7 +300,7 @@ third_party:
 	$(MAKE) -C third_party/libprocess
 	$(MAKE) -C $(GLOG)
 	$(MAKE) -C $(GTEST)
-ifeq ($(WITH_INCLUDED_ZOOKEEPER),yes)
+ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER)
 endif
 
@@ -310,7 +310,7 @@ clean:
 	$(MAKE) -C third_party/libprocess clean
 	$(MAKE) -C $(GLOG) clean
 	$(MAKE) -C $(GTEST) clean
-ifeq ($(WITH_INCLUDED_ZOOKEEPER),yes)
+ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) clean
 endif
 	rm -f $(patsubst %.o, %.d, $(ALL_OBJ))
