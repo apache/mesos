@@ -112,7 +112,7 @@ PID launch(const Configuration& conf, bool initLogging)
 void shutdown()
 {
   if (master != NULL) {
-    MesosProcess::post(master->self(), M2M_SHUTDOWN);
+    Process::post(master->self(), TERMINATE);
     Process::wait(master->self());
     delete master;
     master = NULL;
@@ -124,7 +124,7 @@ void shutdown()
     // we have stopped the slave.
 
     foreachpair (IsolationModule *isolationModule, Slave *slave, slaves) {
-      MesosProcess::post(slave->self(), S2S_SHUTDOWN);
+      Process::post(slave->self(), TERMINATE);
       Process::wait(slave->self());
       delete isolationModule;
       delete slave;

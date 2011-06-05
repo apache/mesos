@@ -361,7 +361,7 @@ TEST(MasterTest, SlaveLost)
   EXPECT_CALL(sched, slaveLost(&driver, offers[0].slave_id()))
     .WillOnce(Trigger(&slaveLostCall));
 
-  MesosProcess::post(slave, S2S_SHUTDOWN);
+  Process::post(slave, TERMINATE);
 
   WAIT_UNTIL(offerRescindedCall);
   WAIT_UNTIL(slaveLostCall);
@@ -371,7 +371,7 @@ TEST(MasterTest, SlaveLost)
 
   Process::wait(slave);
 
-  MesosProcess::post(master, M2M_SHUTDOWN);
+  Process::post(master, TERMINATE);
   Process::wait(master);
 }
 
@@ -592,10 +592,10 @@ TEST(MasterTest, TaskRunning)
   driver.stop();
   driver.join();
 
-  MesosProcess::post(slave, S2S_SHUTDOWN);
+  Process::post(slave, TERMINATE);
   Process::wait(slave);
 
-  MesosProcess::post(master, M2M_SHUTDOWN);
+  Process::post(master, TERMINATE);
   Process::wait(master);
 }
 
@@ -694,10 +694,10 @@ TEST(MasterTest, KillTask)
   driver.stop();
   driver.join();
 
-  MesosProcess::post(slave, S2S_SHUTDOWN);
+  Process::post(slave, TERMINATE);
   Process::wait(slave);
 
-  MesosProcess::post(master, M2M_SHUTDOWN);
+  Process::post(master, TERMINATE);
   Process::wait(master);
 }
 
@@ -833,10 +833,10 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   driver1.join();
   driver2.join();
 
-  MesosProcess::post(slave, S2S_SHUTDOWN);
+  Process::post(slave, TERMINATE);
   Process::wait(slave);
 
-  MesosProcess::post(master, M2M_SHUTDOWN);
+  Process::post(master, TERMINATE);
   Process::wait(master);
 
   Process::filter(NULL);
@@ -967,10 +967,10 @@ TEST(MasterTest, FrameworkMessage)
   schedDriver.stop();
   schedDriver.join();
 
-  MesosProcess::post(slave, S2S_SHUTDOWN);
+  Process::post(slave, TERMINATE);
   Process::wait(slave);
 
-  MesosProcess::post(master, M2M_SHUTDOWN);
+  Process::post(master, TERMINATE);
   Process::wait(master);
 }
 
@@ -1095,10 +1095,10 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   driver1.join();
   driver2.join();
 
-  MesosProcess::post(slave, S2S_SHUTDOWN);
+  Process::post(slave, TERMINATE);
   Process::wait(slave);
 
-  MesosProcess::post(master, M2M_SHUTDOWN);
+  Process::post(master, TERMINATE);
   Process::wait(master);
 }
 
@@ -1230,9 +1230,9 @@ TEST(MasterTest, MultipleExecutors)
   driver.stop();
   driver.join();
 
-  MesosProcess::post(slave, S2S_SHUTDOWN);
+  Process::post(slave, TERMINATE);
   Process::wait(slave);
 
-  MesosProcess::post(master, M2M_SHUTDOWN);
+  Process::post(master, TERMINATE);
   Process::wait(master);
 }

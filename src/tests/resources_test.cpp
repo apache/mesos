@@ -10,6 +10,7 @@ using namespace mesos::internal;
 using namespace mesos::internal::master;
 
 using std::ostringstream;
+using std::string;
 
 
 TEST(ResourcesTest, Parsing)

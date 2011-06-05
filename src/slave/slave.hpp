@@ -229,10 +229,10 @@ public:
 
   static void registerOptions(Configurator* conf);
 
-  state::SlaveState* getState();
+  Result<state::SlaveState*> getState();
 
   // Callback used by isolation module to tell us when an executor exits.
-  void executorExited(const FrameworkID& frameworkId, const ExecutorID& executorId, int status);
+  void executorExited(const FrameworkID& frameworkId, const ExecutorID& executorId, int result);
 
   // Kill a framework (possibly killing its executor).
   void killFramework(Framework *framework, bool killExecutors = true);

@@ -8,7 +8,6 @@
 
 #include "configurator/configuration.hpp"
 
-
 #ifdef MESOS_WEBUI
 
 #include <Python.h>
@@ -18,19 +17,16 @@ using std::string;
 
 extern "C" void init_slave();  // Initializer for the Python slave module
 
-namespace {
-
-PID slave;
-string webuiPort;
-string logDir;
-string workDir;
-
-}
 
 namespace mesos { namespace internal { namespace slave {
 
+static Slave* slave;
+static string webuiPort;
+static string logDir;
+static string workDir;
 
-void *runSlaveWebUI(void *)
+
+void* runSlaveWebUI(void*)
 {
   LOG(INFO) << "Web UI thread started";
   Py_Initialize();
@@ -53,7 +49,7 @@ void *runSlaveWebUI(void *)
 }
 
 
-void startSlaveWebUI(const PID &slave, const Configuration &conf)
+void startSlaveWebUI(Slave* _slave, const Configuration &conf)
 {
   // TODO(*): See the note in master/webui.cpp about having to
   // determine default values. These should be set by now and can just
@@ -74,7 +70,7 @@ void startSlaveWebUI(const PID &slave, const Configuration &conf)
 
   LOG(INFO) << "Starting slave web UI on port " << webuiPort;
 
-  ::slave = slave;
+  slave = _slave;
   pthread_t thread;
   pthread_create(&thread, 0, runSlaveWebUI, NULL);
 }
@@ -82,40 +78,15 @@ void startSlaveWebUI(const PID &slave, const Configuration &conf)
 
 namespace state {
 
-class StateGetter : public MesosProcess
+// From slave_state.hpp.
+SlaveState* get_slave()
 {
-public:
-  SlaveState *slaveState;
-
-  StateGetter() {}
-  ~StateGetter() {}
-
-  virtual void operator () ()
-  {
-    send(::slave, S2S_GET_STATE);
-    receive();
-    CHECK(msgid() == S2S_GET_STATE_REPLY);
-
-    const MSG<S2S_GET_STATE_REPLY>& msg = message();
-
-    slaveState =
-      *(state::SlaveState **) msg.pointer().data();
-  }
-};
-
-
-// From slave_state.hpp
-SlaveState *get_slave()
-{
-  StateGetter getter;
-  PID pid = Process::spawn(&getter);
-  Process::wait(pid);
-  return getter.slaveState;
+  return Process::call(slave, &Slave::getState);
 }
 
-} /* namespace state { */
+} // namespace state {
 
-}}} /* namespace mesos { namespace internal { namespace slave { */
+}}} // namespace mesos { namespace internal { namespace slave {
 
 
-#endif /* MESOS_WEBUI */
+#endif // MESOS_WEBUI

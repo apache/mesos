@@ -64,7 +64,7 @@ message ResourceOfferMessage {
 message ResourceOfferReplyMessage {
   required FrameworkID framework_id = 1;
   required OfferID offer_id = 2;
-  repeated TaskDescription task = 3;
+  repeated TaskDescription tasks = 3;
   optional Params params = 4;
 }
 
@@ -125,7 +125,7 @@ message RegisterSlaveMessage {
 message ReregisterSlaveMessage {
   required SlaveID slave_id = 1;
   required SlaveInfo slave = 2;
-  repeated Task task = 3;
+  repeated Task tasks = 3;
 }
 
 
@@ -171,7 +171,7 @@ message ExitedExecutorMessage {
   required SlaveID slave_id = 1;
   required FrameworkID framework_id = 2;
   required ExecutorID executor_id = 3;
-  required int32 status = 4;
+  required int32 result = 4;
 }
 
 
@@ -203,13 +203,3 @@ message NewMasterDetectedMessage {
 message GotMasterTokenMessage {
   required string token = 1;
 }
-
-
-// TODO(benh): FIX THIS! Ultimately, the master/slave state will get
-// exported outside of the master/slave and therefore will need to be
-// more than just a pointer! For now, this is a hack.
-message StateMessage {
-  required bytes pointer = 1;
-}
-
-

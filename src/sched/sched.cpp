@@ -91,7 +91,7 @@ protected:
           send(sched, out);
           break;
         }
-        default: {
+        case PROCESS_TERMINATE: {
           terminate = true;
           break;
         }
@@ -123,44 +123,44 @@ public:
     : driver(_driver), sched(_sched), frameworkId(_frameworkId),
       framework(_framework), generation(0), master(PID()), terminate(false)
   {
-    handle(NEW_MASTER_DETECTED, &SchedulerProcess::newMasterDetected,
-           &NewMasterDetectedMessage::pid);
+    install(NEW_MASTER_DETECTED, &SchedulerProcess::newMasterDetected,
+            &NewMasterDetectedMessage::pid);
 
-    handle(NO_MASTER_DETECTED, &SchedulerProcess::noMasterDetected);
+    install(NO_MASTER_DETECTED, &SchedulerProcess::noMasterDetected);
 
-    handle(MASTER_DETECTION_FAILURE, &SchedulerProcess::masterDetectionFailure);
+    install(MASTER_DETECTION_FAILURE, &SchedulerProcess::masterDetectionFailure);
 
-    handle(M2F_REGISTER_REPLY, &SchedulerProcess::registerReply,
-           &FrameworkRegisteredMessage::framework_id);
+    install(M2F_REGISTER_REPLY, &SchedulerProcess::registerReply,
+            &FrameworkRegisteredMessage::framework_id);
 
-    handle(M2F_RESOURCE_OFFER, &SchedulerProcess::resourceOffer,
-           &ResourceOfferMessage::offer_id,
-           &ResourceOfferMessage::offers,
-           &ResourceOfferMessage::pids);
+    install(M2F_RESOURCE_OFFER, &SchedulerProcess::resourceOffer,
+            &ResourceOfferMessage::offer_id,
+            &ResourceOfferMessage::offers,
+            &ResourceOfferMessage::pids);
 
-    handle(M2F_RESCIND_OFFER, &SchedulerProcess::rescindOffer,
-           &RescindResourceOfferMessage::offer_id);
+    install(M2F_RESCIND_OFFER, &SchedulerProcess::rescindOffer,
+            &RescindResourceOfferMessage::offer_id);
 
-    handle(M2F_STATUS_UPDATE, &SchedulerProcess::statusUpdate,
-           &StatusUpdateMessage::framework_id,
-           &StatusUpdateMessage::status);
+    install(M2F_STATUS_UPDATE, &SchedulerProcess::statusUpdate,
+            &StatusUpdateMessage::framework_id,
+            &StatusUpdateMessage::status);
 
-    handle(M2F_LOST_SLAVE, &SchedulerProcess::lostSlave,
-           &LostSlaveMessage::slave_id);
+    install(M2F_LOST_SLAVE, &SchedulerProcess::lostSlave,
+            &LostSlaveMessage::slave_id);
 
-    handle(M2F_FRAMEWORK_MESSAGE, &SchedulerProcess::frameworkMessage,
-           &FrameworkMessageMessage::message);
+    install(M2F_FRAMEWORK_MESSAGE, &SchedulerProcess::frameworkMessage,
+            &FrameworkMessageMessage::message);
 
-    handle(M2F_ERROR, &SchedulerProcess::error,
-           &FrameworkErrorMessage::code,
-           &FrameworkErrorMessage::message);
+    install(M2F_ERROR, &SchedulerProcess::error,
+            &FrameworkErrorMessage::code,
+            &FrameworkErrorMessage::message);
   }
 
   virtual ~SchedulerProcess()
   {
     // Cleanup any remaining timers.
     foreachpair (const TaskID& taskId, StatusUpdateTimer* timer, timers) {
-      send(timer->self(), MESOS_MSGID);
+      send(timer->self(), TERMINATE);
       wait(timer->self());
       delete timer;
     }
@@ -259,23 +259,21 @@ protected:
   }
 
   void resourceOffer(const OfferID& offerId,
-                     const RepeatedPtrField<SlaveOffer>& offers,
-                     const RepeatedPtrField<string>& pids)
+                     const vector<SlaveOffer>& offers,
+                     const vector<string>& pids)
   {
-    // Construct a vector for the offers. Also save the pid
-    // associated with each slave (one per SlaveOffer) so later we
-    // can send framework messages directly.
-    vector<SlaveOffer> temp;
+    // Save the pid associated with each slave (one per SlaveOffer) so
+    // later we can send framework messages directly.
+    CHECK(offers.size() == pids.size());
 
     for (int i = 0; i < offers.size(); i++) {
-      PID pid(pids.Get(i));
+      PID pid(pids[i]);
       CHECK(pid != PID());
-      savedOffers[offerId][offers.Get(i).slave_id()] = pid;
-      temp.push_back(offers.Get(i));
+      savedOffers[offerId][offers[i].slave_id()] = pid;
     }
 
     invoke(bind(&Scheduler::resourceOffer, sched, driver, cref(offerId),
-                cref(temp)));
+                cref(offers)));
   }
 
   void rescindOffer(const OfferID& offerId)
@@ -301,7 +299,7 @@ protected:
     if (timers.count(status.task_id()) > 0) {
       StatusUpdateTimer* timer = timers[status.task_id()];
       timers.erase(status.task_id());
-      send(timer->self(), MESOS_MSGID);
+      send(timer->self(), TERMINATE);
       wait(timer->self());
       delete timer;
     }
@@ -383,7 +381,7 @@ protected:
       timers[task.task_id()] = timer;
       spawn(timer);
 
-      out.add_task()->MergeFrom(task);
+      out.add_tasks()->MergeFrom(task);
     }
 
     // Remove the offer since we saved all the PIDs we might use.

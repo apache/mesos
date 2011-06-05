@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 
   string isolation = conf["isolation"];
   LOG(INFO) << "Creating \"" << isolation << "\" isolation module";
-  IsolationModule *isolationModule = IsolationModule::create(isolation);
+  IsolationModule* isolationModule = IsolationModule::create(isolation);
 
   if (isolationModule == NULL) {
     cerr << "Unrecognized isolation type: " << isolation << endl;
@@ -82,22 +82,23 @@ int main(int argc, char **argv)
     fatalerror("Could not chdir into %s", dirname(argv[0]));
 
   Slave* slave = new Slave(conf, false, isolationModule);
-  PID pid = Process::spawn(slave);
+  Process::spawn(slave);
 
-  bool quiet = Logging::isQuiet(conf);
-  MasterDetector *detector = MasterDetector::create(url, pid, false, quiet);
+  MasterDetector* detector =
+    MasterDetector::create(url, slave->self(), false, Logging::isQuiet(conf));
 
 #ifdef MESOS_WEBUI
-  startSlaveWebUI(pid, conf);
+  startSlaveWebUI(slave, conf);
 #endif
 
-  Process::wait(pid);
-
+  Process::wait(slave->self());
   MasterDetector::destroy(detector);
-
   IsolationModule::destroy(isolationModule);
 
+  delete isolationModule;
+  delete detector;
   delete slave;
+
 
   return 0;
 }

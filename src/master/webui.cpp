@@ -3,11 +3,10 @@
 #include <sstream>
 #include <string>
 
-#include "webui.hpp"
 #include "state.hpp"
+#include "webui.hpp"
 
 #include "configurator/configuration.hpp"
-
 
 #ifdef MESOS_WEBUI
 
@@ -16,20 +15,17 @@
 using std::string;
 
 
-extern "C" void init_master();  // Initializer for the Python master module
+extern "C" void init_master();  // Initializer for the Python master module.
 
-namespace {
-
-PID master;
-string webuiPort;
-string logDir;
-
-}
 
 namespace mesos { namespace internal { namespace master {
 
+static Master* master;
+static string webuiPort;
+static string logDir;
 
-void *runMasterWebUI(void *)
+
+void* runMasterWebUI(void*)
 {
   LOG(INFO) << "Web UI thread started";
   Py_Initialize();
@@ -51,7 +47,7 @@ void *runMasterWebUI(void *)
 }
 
 
-void startMasterWebUI(const PID &master, const Configuration &conf)
+void startMasterWebUI(Master* _master, const Configuration &conf)
 {
   // TODO(*): It would be nice if we didn't have to be specifying
   // default values for configuration options in the code like
@@ -65,7 +61,7 @@ void startMasterWebUI(const PID &master, const Configuration &conf)
 
   LOG(INFO) << "Starting master web UI on port " << webuiPort;
 
-  ::master = master;
+  master = _master;
   pthread_t thread;
   pthread_create(&thread, 0, runMasterWebUI, NULL);
 }
@@ -73,39 +69,14 @@ void startMasterWebUI(const PID &master, const Configuration &conf)
 
 namespace state {
 
-class StateGetter : public MesosProcess
-{
-public:
-  MasterState *masterState;
-
-  StateGetter() {}
-  ~StateGetter() {}
-
-  virtual void operator () ()
-  {
-    send(::master, M2M_GET_STATE);
-    receive();
-    CHECK(msgid() == M2M_GET_STATE_REPLY);
-
-    const MSG<M2M_GET_STATE_REPLY>& msg = message();
-
-    masterState =
-      *(state::MasterState **) msg.pointer().data();
-  }
-};
-
-
 // From master_state.hpp
-MasterState *get_master()
+MasterState* get_master()
 {
-  StateGetter getter;
-  PID pid = Process::spawn(&getter);
-  Process::wait(pid);
-  return getter.masterState;
+  return Process::call(master, &Master::getState);
 }
 
-} /* namespace state { */
+} // namespace state {
 
-}}} /* namespace mesos { namespace internal { namespace master { */
+}}} // namespace mesos { namespace internal { namespace master {
 
-#endif /* MESOS_WEBUI */
+#endif // MESOS_WEBUI

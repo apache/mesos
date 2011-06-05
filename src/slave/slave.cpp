@@ -80,7 +80,7 @@ Slave::~Slave()
 }
 
 
-state::SlaveState *Slave::getState()
+Result<state::SlaveState*> Slave::getState()
 {
   Resources resources(resources);
   Resource::Scalar cpus;
@@ -90,11 +90,11 @@ state::SlaveState *Slave::getState()
   cpus = resources.getScalar("cpus", cpus);
   mem = resources.getScalar("mem", mem);
 
-  state::SlaveState *state =
+  state::SlaveState* state =
     new state::SlaveState(build::DATE, build::USER, slaveId.value(),
                           cpus.value(), mem.value(), self(), master);
 
-  foreachpair (_, Framework *f, frameworks) {
+  foreachpair (_, Framework* f, frameworks) {
     foreachpair (_, Executor* e, f->executors) {
       Resources resources(e->resources);
       Resource::Scalar cpus;
@@ -114,14 +114,14 @@ state::SlaveState *Slave::getState()
 
       string id = f->frameworkId.value() + "-" + e->info.executor_id().value();
 
-      state::Framework *framework =
+      state::Framework* framework =
         new state::Framework(id, f->info.name(),
                              e->info.uri(), e->executorStatus,
                              cpus.value(), mem.value());
 
       state->frameworks.push_back(framework);
 
-      foreachpair (_, Task *t, e->tasks) {
+      foreachpair (_, Task* t, e->tasks) {
         Resources resources(t->resources());
         Resource::Scalar cpus;
         Resource::Scalar mem;
@@ -130,7 +130,7 @@ state::SlaveState *Slave::getState()
         cpus = resources.getScalar("cpus", cpus);
         mem = resources.getScalar("mem", mem);
 
-        state::Task *task =
+        state::Task* task =
           new state::Task(t->task_id().value(), t->name(),
                           TaskState_descriptor()->FindValueByNumber(t->state())->name(),
                           cpus.value(), mem.value());
@@ -152,7 +152,7 @@ void Slave::operator () ()
   // Get our hostname
   char buf[256];
   gethostname(buf, sizeof(buf));
-  hostent *he = gethostbyname2(buf, AF_INET);
+  hostent* he = gethostbyname2(buf, AF_INET);
   string hostname = he->h_name;
 
   // Get our public DNS name. Normally this is our hostname, but on EC2
@@ -172,7 +172,17 @@ void Slave::operator () ()
   isolationModule->initialize(this);
 
   while (true) {
-    switch (receive(1)) {
+    receive(1);
+    if (msgid() == PROCESS_TERMINATE) {
+      LOG(INFO) << "Asked to shut down by " << from();
+      foreachpaircopy (_, Framework* framework, frameworks) {
+        killFramework(framework);
+      }
+      return;
+    }
+
+    // Otherwise, don't terminate and see what the message is.
+    switch (msgid()) {
       case NEW_MASTER_DETECTED: {
         const MSG<NEW_MASTER_DETECTED>& msg = message();
 
@@ -195,7 +205,7 @@ void Slave::operator () ()
 	  foreachpair (_, Framework* framework, frameworks) {
 	    foreachpair (_, Executor* executor, framework->executors) {
               foreachpair (_, Task* task, executor->tasks) {
-                out.add_task()->MergeFrom(*task);
+                out.add_tasks()->MergeFrom(*task);
               }
             }
           }
@@ -544,30 +554,6 @@ void Slave::operator () ()
         break;
       }
 
-      case S2S_GET_STATE: {
-        state::SlaveState *state = getState();
-        MSG<S2S_GET_STATE_REPLY> out;
-        out.set_pointer((char *) &state, sizeof(state));
-        send(from(), out);
-        break;
-      }
-
-      case M2S_SHUTDOWN: {
-        LOG(INFO) << "Asked to shut down by master: " << from();
-        foreachpaircopy (_, Framework *framework, frameworks) {
-          killFramework(framework);
-        }
-        return;
-      }
-
-      case S2S_SHUTDOWN: {
-        LOG(INFO) << "Asked to shut down by " << from();
-        foreachpaircopy (_, Framework *framework, frameworks) {
-          killFramework(framework);
-        }
-        return;
-      }
-
       case PROCESS_EXIT: {
         LOG(INFO) << "Process exited: " << from();
 
@@ -676,7 +662,7 @@ void Slave::killFramework(Framework *framework, bool killExecutors)
 // Called by isolation module when an executor process exits
 // TODO(benh): Make this callback be a message so that we can avoid
 // race conditions.
-void Slave::executorExited(const FrameworkID& frameworkId, const ExecutorID& executorId, int status)
+void Slave::executorExited(const FrameworkID& frameworkId, const ExecutorID& executorId, int result)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
@@ -684,13 +670,13 @@ void Slave::executorExited(const FrameworkID& frameworkId, const ExecutorID& exe
     if (executor != NULL) {
       LOG(INFO) << "Exited executor '" << executorId
                 << "' of framework " << frameworkId
-                << " with status " << status;
+                << " with result " << result;
 
       MSG<S2M_EXITED_EXECUTOR> out;
       out.mutable_slave_id()->MergeFrom(slaveId);
       out.mutable_framework_id()->MergeFrom(frameworkId);
       out.mutable_executor_id()->MergeFrom(executorId);
-      out.set_status(status);
+      out.set_result(result);
       send(master, out);
 
       framework->destroyExecutor(executorId);
@@ -703,12 +689,12 @@ void Slave::executorExited(const FrameworkID& frameworkId, const ExecutorID& exe
     } else {
       LOG(WARNING) << "UNKNOWN executor '" << executorId
                    << "' of framework " << frameworkId
-                   << " has exited with status " << status;
+                   << " has exited with result " << result;
     }
   } else {
     LOG(WARNING) << "UNKNOWN executor '" << executorId
                  << "' of UNKNOWN framework " << frameworkId
-                 << " has exited with status " << status;
+                 << " has exited with result " << result;
   }
 };
 

@@ -8,11 +8,14 @@
 #include "master.hpp"
 #include "webui.hpp"
 
-using std::cerr;
-using std::endl;
 using boost::lexical_cast;
 using boost::bad_lexical_cast;
 
+using std::cerr;
+using std::endl;
+using std::string;
+
+using namespace mesos::internal;
 using namespace mesos::internal::master;
 
 
@@ -70,19 +73,21 @@ int main(int argc, char **argv)
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("Could not chdir into %s", dirname(argv[0]));
 
-  Master *master = new Master(conf);
-  PID pid = Process::spawn(master);
+  Master* master = new Master(conf);
+  Process::spawn(master);
 
-  bool quiet = Logging::isQuiet(conf);
-  MasterDetector *detector = MasterDetector::create(url, pid, true, quiet);
+  MasterDetector* detector =
+    MasterDetector::create(url, master->self(), true, Logging::isQuiet(conf));
 
 #ifdef MESOS_WEBUI
-  startMasterWebUI(pid, conf);
+  startMasterWebUI(master, conf);
 #endif
   
-  Process::wait(pid);
-
+  Process::wait(master->self());
   MasterDetector::destroy(detector);
+
+  delete detector;
+  delete master;
 
   return 0;
 }

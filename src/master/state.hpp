@@ -1,5 +1,5 @@
-#ifndef MASTER_STATE_HPP
-#define MASTER_STATE_HPP
+#ifndef __MASTER_STATE_HPP__
+#define __MASTER_STATE_HPP__
 
 #include <iostream>
 #include <string>
@@ -137,6 +137,6 @@ struct MasterState
   std::vector<Framework *> frameworks;
 };
 
-}}}} /* namespace */
+}}}} // namespace mesos { namespace internal { namespace master { namespace state {
 
-#endif /* MASTER_STATE_HPP */
+#endif // __MASTER_STATE_HPP__

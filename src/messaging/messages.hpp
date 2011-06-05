@@ -6,6 +6,7 @@
 #include <glog/logging.h>
 
 #include <string>
+#include <vector>
 
 #include <tr1/functional>
 
@@ -23,6 +24,7 @@ enum MSGID {
   // Artifacts from libprocess.
   PROCESS_TIMEOUT,
   PROCESS_EXIT,
+  PROCESS_TERMINATE,
 
   // From framework to master.
   F2M_REGISTER_FRAMEWORK,
@@ -63,7 +65,6 @@ enum MSGID {
   M2S_FRAMEWORK_MESSAGE,
   M2S_UPDATE_FRAMEWORK,
   M2S_STATUS_UPDATE_ACK,
-  M2S_SHUTDOWN, // Used in unit tests to shut down cluster
 
   // From executor to slave.
   E2S_REGISTER_EXECUTOR,
@@ -87,26 +88,11 @@ enum MSGID {
   S2PD_KILL_ALL,
 #endif // __sun__
 
-  // Internal to master.
-  M2M_GET_STATE,         // Used by web UI
-  M2M_GET_STATE_REPLY,
-  M2M_TIMER_TICK,        // Timer for expiring filters etc
-  M2M_FRAMEWORK_EXPIRED, // Timer for expiring frameworks
-  M2M_SHUTDOWN,          // Used in tests to shut down master
-
-  // Internal to slave.
-  S2S_GET_STATE,         // Used by web UI
-  S2S_GET_STATE_REPLY,
-  S2S_SHUTDOWN,          // Used in tests to shut down slave
-
   // From master detector to processes.
   GOT_MASTER_TOKEN,
   NEW_MASTER_DETECTED,
   NO_MASTER_DETECTED,
   MASTER_DETECTION_FAILURE,
-
-  // HTTP messages.
-  vars,
 
   MESOS_MSGID
 };
@@ -149,12 +135,45 @@ private:
 };
 
 
+// Type conversions helpful for changing between protocol buffer types
+// and standard C++ types (for parameters).
+template <typename T>
+const T& convert(const T& t)
+{
+  return t;
+}
+
+
+template <typename T>
+std::vector<T> convert(const google::protobuf::RepeatedPtrField<T>& items)
+{
+  std::vector<T> result;
+  for (int i = 0; i < items.size(); i++) {
+    result.push_back(items.Get(i));
+  }
+
+  return result;
+}
+
+
+// template <typename T>
+// T convert<T, T>(T t)
+// {
+//   return t;
+// }
+
+
 class MesosProcess : public Process
 {
 public:
   MesosProcess(const std::string& id = "") : Process(id) {}
 
   virtual ~MesosProcess() {}
+
+  static void post(const PID &to, const std::string& name)
+  {
+    Process::post(to, name);
+  }
 
   static void post(const PID &to, MSGID id)
   {
@@ -191,6 +210,11 @@ protected:
     size_t size;
     const char *data = Process::body(&size);
     return std::string(data, size);
+  }
+
+  void send(const PID &to, const std::string& name)
+  {
+    Process::send(to, name);
   }
 
   void send(const PID &to, MSGID id)
@@ -249,7 +273,7 @@ protected:
   }
 
   template <typename T>
-  void handle(MSGID id, void (T::*method)())
+  void install(MSGID id, void (T::*method)())
   {
     T* t = static_cast<T*>(this);
     CHECK(names.count(id) > 0);
@@ -262,14 +286,14 @@ protected:
 
   template <typename T,
             typename PB,
-            typename P1>
-  void handle(MSGID id, void (T::*method)(P1),
-              P1 (PB::*param1)() const)
+            typename P1, typename P1C>
+  void install(MSGID id, void (T::*method)(P1C),
+               P1 (PB::*param1)() const)
   {
     T* t = static_cast<T*>(this);
     CHECK(names.count(id) > 0);
     handlers[names[id]] =
-      std::tr1::bind(&MesosProcess::handler1<T, PB, P1>, t,
+      std::tr1::bind(&MesosProcess::handler1<T, PB, P1, P1C>, t,
                      method, param1,
                      std::tr1::placeholders::_1,
                      std::tr1::placeholders::_2);
@@ -277,16 +301,16 @@ protected:
 
   template <typename T,
             typename PB,
-            typename P1,
-            typename P2>
-  void handle(MSGID id, void (T::*method)(P1, P2),
-              P1 (PB::*p1)() const,
-              P2 (PB::*p2)() const)
+            typename P1, typename P1C,
+            typename P2, typename P2C>
+  void install(MSGID id, void (T::*method)(P1C, P2C),
+               P1 (PB::*p1)() const,
+               P2 (PB::*p2)() const)
   {
     T* t = static_cast<T*>(this);
     CHECK(names.count(id) > 0);
     handlers[names[id]] =
-      std::tr1::bind(&MesosProcess::handler2<T, PB, P1, P2>, t,
+      std::tr1::bind(&MesosProcess::handler2<T, PB, P1, P1C, P2, P2C>, t,
                      method, p1, p2,
                      std::tr1::placeholders::_1,
                      std::tr1::placeholders::_2);
@@ -294,19 +318,19 @@ protected:
 
   template <typename T,
             typename PB,
-            typename P1,
-            typename P2,
-            typename P3>
-  void handle(MSGID id,
-              void (T::*method)(P1, P2, P3),
-              P1 (PB::*p1)() const,
-              P2 (PB::*p2)() const,
-              P3 (PB::*p3)() const)
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C>
+  void install(MSGID id,
+               void (T::*method)(P1C, P2C, P3C),
+               P1 (PB::*p1)() const,
+               P2 (PB::*p2)() const,
+               P3 (PB::*p3)() const)
   {
     T* t = static_cast<T*>(this);
     CHECK(names.count(id) > 0);
     handlers[names[id]] =
-      std::tr1::bind(&MesosProcess::handler3<T, PB, P1, P2, P3>, t,
+      std::tr1::bind(&MesosProcess::handler3<T, PB, P1, P1C, P2, P2C, P3, P3C>, t,
                      method, p1, p2, p3,
                      std::tr1::placeholders::_1,
                      std::tr1::placeholders::_2);
@@ -314,21 +338,21 @@ protected:
 
   template <typename T,
             typename PB,
-            typename P1,
-            typename P2,
-            typename P3,
-            typename P4>
-  void handle(MSGID id,
-              void (T::*method)(P1, P2, P3, P4),
-              P1 (PB::*p1)() const,
-              P2 (PB::*p2)() const,
-              P3 (PB::*p3)() const,
-              P4 (PB::*p4)() const)
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C>
+  void install(MSGID id,
+               void (T::*method)(P1C, P2C, P3C, P4C),
+               P1 (PB::*p1)() const,
+               P2 (PB::*p2)() const,
+               P3 (PB::*p3)() const,
+               P4 (PB::*p4)() const)
   {
     T* t = static_cast<T*>(this);
     CHECK(names.count(id) > 0);
     handlers[names[id]] =
-      std::tr1::bind(&MesosProcess::handler4<T, PB, P1, P2, P3, P4>, t,
+      std::tr1::bind(&MesosProcess::handler4<T, PB, P1, P1C, P2, P2C, P3, P3C, P4, P4C>, t,
                      method, p1, p2, p3, p4,
                      std::tr1::placeholders::_1,
                      std::tr1::placeholders::_2);
@@ -336,23 +360,23 @@ protected:
 
   template <typename T,
             typename PB,
-            typename P1,
-            typename P2,
-            typename P3,
-            typename P4,
-            typename P5>
-  void handle(MSGID id,
-              void (T::*method)(P1, P2, P3, P4, P5),
-              P1 (PB::*p1)() const,
-              P2 (PB::*p2)() const,
-              P3 (PB::*p3)() const,
-              P4 (PB::*p4)() const,
-              P5 (PB::*p5)() const)
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C,
+            typename P5, typename P5C>
+  void install(MSGID id,
+               void (T::*method)(P1C, P2C, P3C, P4C, P5C),
+               P1 (PB::*p1)() const,
+               P2 (PB::*p2)() const,
+               P3 (PB::*p3)() const,
+               P4 (PB::*p4)() const,
+               P5 (PB::*p5)() const)
   {
     T* t = static_cast<T*>(this);
     CHECK(names.count(id) > 0);
     handlers[names[id]] =
-      std::tr1::bind(&MesosProcess::handler5<T, PB, P1, P2, P3, P4, P5>, t,
+      std::tr1::bind(&MesosProcess::handler5<T, PB, P1, P1C, P2, P2C, P3, P3C, P4, P4C, P5, P5C>, t,
                      method, p1, p2, p3, p4, p5,
                      std::tr1::placeholders::_1,
                      std::tr1::placeholders::_2);
@@ -368,15 +392,15 @@ private:
 
   template <typename T,
             typename PB,
-            typename P1>
-  static void handler1(T* t, void (T::*method)(P1),
+            typename P1, typename P1C>
+  static void handler1(T* t, void (T::*method)(P1C),
                        P1 (PB::*p1)() const,
                        const char* data, size_t length)
   {
     PB pb;
     pb.ParseFromArray(data, length);
     if (pb.IsInitialized()) {
-      (t->*method)((&pb->*p1)());
+      (t->*method)(convert((&pb->*p1)()));
     } else {
       LOG(WARNING) << "Initialization errors: "
                    << pb.InitializationErrorString();
@@ -385,9 +409,9 @@ private:
 
   template <typename T,
             typename PB,
-            typename P1,
-            typename P2>
-  static void handler2(T* t, void (T::*method)(P1, P2),
+            typename P1, typename P1C,
+            typename P2, typename P2C>
+  static void handler2(T* t, void (T::*method)(P1C, P2C),
                        P1 (PB::*p1)() const,
                        P2 (PB::*p2)() const,
                        const char* data, size_t length)
@@ -395,7 +419,7 @@ private:
     PB pb;
     pb.ParseFromArray(data, length);
     if (pb.IsInitialized()) {
-      (t->*method)((&pb->*p1)(), (&pb->*p2)());
+      (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()));
     } else {
       LOG(WARNING) << "Initialization errors: "
                    << pb.InitializationErrorString();
@@ -404,10 +428,10 @@ private:
 
   template <typename T,
             typename PB,
-            typename P1,
-            typename P2,
-            typename P3>
-  static void handler3(T* t, void (T::*method)(P1, P2, P3),
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C>
+  static void handler3(T* t, void (T::*method)(P1C, P2C, P3C),
                        P1 (PB::*p1)() const,
                        P2 (PB::*p2)() const,
                        P3 (PB::*p3)() const,
@@ -416,7 +440,8 @@ private:
     PB pb;
     pb.ParseFromArray(data, length);
     if (pb.IsInitialized()) {
-      (t->*method)((&pb->*p1)(), (&pb->*p2)(), (&pb->*p3)());
+      (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()),
+                   convert((&pb->*p3)()));
     } else {
       LOG(WARNING) << "Initialization errors: "
                    << pb.InitializationErrorString();
@@ -425,11 +450,11 @@ private:
 
   template <typename T,
             typename PB,
-            typename P1,
-            typename P2,
-            typename P3,
-            typename P4>
-  static void handler4(T* t, void (T::*method)(P1, P2, P3, P4),
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C>
+  static void handler4(T* t, void (T::*method)(P1C, P2C, P3C, P4C),
                        P1 (PB::*p1)() const,
                        P2 (PB::*p2)() const,
                        P3 (PB::*p3)() const,
@@ -439,7 +464,8 @@ private:
     PB pb;
     pb.ParseFromArray(data, length);
     if (pb.IsInitialized()) {
-      (t->*method)((&pb->*p1)(), (&pb->*p2)(), (&pb->*p3)(), (&pb->*p4)());
+      (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()),
+                   convert((&pb->*p3)()), convert((&pb->*p4)()));
     } else {
       LOG(WARNING) << "Initialization errors: "
                    << pb.InitializationErrorString();
@@ -448,12 +474,12 @@ private:
 
   template <typename T,
             typename PB,
-            typename P1,
-            typename P2,
-            typename P3,
-            typename P4,
-            typename P5>
-  static void handler5(T* t, void (T::*method)(P1, P2, P3, P4, P5),
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C,
+            typename P5, typename P5C>
+  static void handler5(T* t, void (T::*method)(P1C, P2C, P3C, P4C, P5C),
                        P1 (PB::*p1)() const,
                        P2 (PB::*p2)() const,
                        P3 (PB::*p3)() const,
@@ -464,8 +490,9 @@ private:
     PB pb;
     pb.ParseFromArray(data, length);
     if (pb.IsInitialized()) {
-      (t->*method)((&pb->*p1)(), (&pb->*p2)(), (&pb->*p3)(), (&pb->*p4)(),
-                   (&pb->*p5)());
+      (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()),
+                   convert((&pb->*p3)()), convert((&pb->*p4)()),
+                   convert((&pb->*p5)()));
     } else {
       LOG(WARNING) << "Initialization errors: "
                    << pb.InitializationErrorString();
@@ -525,11 +552,6 @@ MESSAGE(PD2S_REGISTER_PROJD, RegisterProjdMessage);
 MESSAGE(PD2S_PROJD_READY, ProjdReadyMessage);
 MESSAGE(S2PD_UPDATE_RESOURCES, ProjdUpdateResourcesMessage);
 #endif // __sun__
-
-MESSAGE(M2M_GET_STATE_REPLY, StateMessage);
-MESSAGE(M2M_FRAMEWORK_EXPIRED, FrameworkExpiredMessage);
-
-MESSAGE(S2S_GET_STATE_REPLY, StateMessage);
 
 MESSAGE(NEW_MASTER_DETECTED, NewMasterDetectedMessage);
 MESSAGE(GOT_MASTER_TOKEN, GotMasterTokenMessage);

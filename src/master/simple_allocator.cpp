@@ -8,8 +8,12 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::master;
 
+using boost::unordered_map;
+using boost::unordered_set;
+
 using std::max;
 using std::sort;
+using std::vector;
 
 
 void SimpleAllocator::frameworkAdded(Framework* framework)
@@ -32,7 +36,7 @@ void SimpleAllocator::frameworkRemoved(Framework* framework)
 
 void SimpleAllocator::slaveAdded(Slave* slave)
 {
-  LOG(INFO) << "Added " << slave << " with \n"
+  LOG(INFO) << "Added " << slave << " with "
             << Resources(slave->info.resources());
   refusers[slave] = unordered_set<Framework*>();
   totalResources += slave->info.resources();
