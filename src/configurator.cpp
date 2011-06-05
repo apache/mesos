@@ -238,7 +238,7 @@ string Configurator::getUsage() const
   foreachpair (const string& key, const Option& opt, options) {
     string val = "--" + key;
     if (!opt.validator->isBool())
-      val += " VAL";
+      val += "=VAL";
 
     if (opt.hasShortName) {
       if (opt.validator->isBool()) 
@@ -265,6 +265,8 @@ string Configurator::getUsage() const
         helpStr += " ";
       }
       string defval = opt.defaultValue;
+      if (opt.validator->isBool())
+        defval = opt.defaultValue == "0" ? "false" : "true";
 
       helpStr += "(default: " + defval + ")";
     }
