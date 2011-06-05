@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 {
   Configurator conf;
   conf.addOption<string>("url", 'u', "URL used for leader election");
-  conf.addOption<int>("port", 'p', "Port to listen on", 50010);
+  conf.addOption<int>("port", 'p', "Port to listen on", 5050);
 #ifdef MESOS_WEBUI
   conf.addOption<int>("webui_port", 'w', "Web UI port", 8080);
 #endif

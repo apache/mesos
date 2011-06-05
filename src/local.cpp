@@ -33,7 +33,7 @@ void usage(const char* programName, const Configurator& conf)
 int main (int argc, char **argv)
 {
   Configurator conf;
-  conf.addOption<int>("port", 'p', "Port to listen on", 50010);
+  conf.addOption<int>("port", 'p', "Port to listen on", 5050);
   local::registerOptions(&conf);
 
   if (argc == 2 && string("--help") == argv[1]) {
