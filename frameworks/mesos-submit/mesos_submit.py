@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import pickle
 import re
 import sys
 import time
@@ -25,20 +26,22 @@ DEFAULT_MEM = 512
 # We currently don't recover if our task fails for some reason, but we
 # do print its state transitions so the user can notice this.
 class SubmitScheduler(mesos.Scheduler):
-  def __init__(self, cpus, mem, master, command):
+  def __init__(self, options, master, command):
     mesos.Scheduler.__init__(self)
-    self.cpus = cpus
-    self.mem = mem
+    if options.name != None:
+      self.framework_name = options.name
+    else:
+      self.framework_name = "mesos-submit " + command
+    self.cpus = options.cpus
+    self.mem = options.mem
     self.master = master
     self.command = command
     self.task_launched = False
 
   def getFrameworkName(self, driver):
-    print "In getFrameworkName"
-    return "mesos-submit " + self.command
+    return self.framework_name
 
   def getExecutorInfo(self, driver):
-    print "In getExecutorInfo"
     executorPath = os.path.join(os.getcwd(), "executor")
     return mesos.ExecutorInfo(executorPath, "")
 
@@ -57,8 +60,9 @@ class SubmitScheduler(mesos.Scheduler):
         if cpus >= self.cpus and mem >= self.mem:
           print "Accepting slot on slave %s (%s)" % (offer.slaveId, offer.host)
           params = {"cpus": "%d" % self.cpus, "mem": "%d" % self.mem}
-          arg = "%s|%s|%s" % (self.fid, self.master, self.command)
-          task = mesos.TaskDescription(0, offer.slaveId, "task", params, arg)
+          arg = [self.fid, self.framework_name, self.master, self.command]
+          task = mesos.TaskDescription(0, offer.slaveId, "task", params,
+                                       pickle.dumps(arg))
           driver.replyToOffer(oid, [task], {"timeout": "1"})
           self.task_launched = True
           return
@@ -70,7 +74,7 @@ class SubmitScheduler(mesos.Scheduler):
     if message == "Framework failover":
       # Scheduler failover is currently reported by this error message;
       # this is kind of a brittle way to detect it, but it's all we can do now.
-      print "Secondary scheduler registered successfully; exiting mesos-submit"
+      print "In-cluster scheduler started; exiting mesos-submit"
     else:
       print "Error from Mesos: %s (error code: %d)" % (message, code)
     driver.stop()
@@ -84,12 +88,14 @@ if __name__ == "__main__":
   parser.add_option("-m","--mem",
                     help="MB of memory to request (default: 512)",
                     dest="mem", type="int", default=DEFAULT_MEM)
-  (options,args)= parser.parse_args()
+  parser.add_option("-n","--name",
+                    help="Framework name", dest="name", type="string")
+  (options,args) = parser.parse_args()
   if len(args) < 2:
     parser.error("At least two parameters are required.")
     exit(2)
   master = args[0]
   command = " ".join(args[1:])
   print "Connecting to mesos master %s" % master
-  sched = SubmitScheduler(options.cpus, options.mem, master, command)
+  sched = SubmitScheduler(options, master, command)
   mesos.MesosSchedulerDriver(sched, master).run()

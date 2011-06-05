@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import pickle
 import subprocess
 import sys
 import threading
@@ -36,12 +37,13 @@ def run_command(command, driver):
 # This scheduler launches no further tasks but allows our one task to continue
 # running in the cluster -- the task essentially becomes its own scheduler.
 class SecondaryScheduler(mesos.Scheduler):
-  def __init__(self, command):
+  def __init__(self, framework_name, command):
     mesos.Scheduler.__init__(self)
+    self.framework_name = framework_name
     self.command = command
 
   def getFrameworkName(self, driver):
-    return "mesos-submit " + self.command
+    return self.framework_name
 
   def getExecutorInfo(self, driver):
     executorPath = os.path.join(os.getcwd(), "executor")
@@ -63,9 +65,9 @@ class SecondaryScheduler(mesos.Scheduler):
 # This function is called in a separate thread to run our secondary scheduler;
 # for some reason, things fail if we launch it from the executor's launchTask
 # callback (this is likely to be SWIG/Python related).
-def run_scheduler(command, master, fid):
+def run_scheduler(fid, framework_name, master, command):
   print "Starting secondary scheduler"
-  sched = SecondaryScheduler(command)
+  sched = SecondaryScheduler(framework_name, command)
   sched_driver = mesos.MesosSchedulerDriver(sched, master, fid)
   sched_driver.run()
 
@@ -85,18 +87,17 @@ class MyExecutor(mesos.Executor):
     if self.sched == None:
       print "Received task; going to register as scheduler"
       # Recover framework ID, master and command from task arg
-      pieces = task.arg.split("|")
-      fid = pieces[0]
-      master = pieces[1]
-      command = "|".join(pieces[2:]) # In case there are | characters in command
-      print "Parsed parameters:"
+      fid, framework_name, master, command = pickle.loads(task.arg)
+      print "Mesos-submit parameters:"
       print "  framework ID = %s" % fid
+      print "  framework name = %s" % framework_name
       print "  master = %s" % master
       print "  command = %s" % command
       # Start our secondary scheduler in a different thread (for some reason,
       # this fails if we do it from the same thread.. probably due to some
       # SWIG Python interaction).
-      Thread(target=run_scheduler, args=[command, master, fid]).start()
+      Thread(target=run_scheduler, 
+             args=[fid, framework_name, master, command]).start()
     else:
       print "Error: received a second task -- this should never happen!"
 
