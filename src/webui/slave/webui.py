@@ -75,4 +75,5 @@ init_port = sys.argv[1]
 log_dir = sys.argv[2]
 work_dir = sys.argv[3]
 
+bottle.debug(True)
 bottle.run(host = '0.0.0.0', port = init_port)

@@ -46,4 +46,5 @@ bottle.TEMPLATE_PATH.append('./webui/master/')
 init_port = sys.argv[1]
 log_dir = sys.argv[2]
 
+bottle.debug(True)
 bottle.run(host = '0.0.0.0', port = init_port)
