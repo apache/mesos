@@ -1,7 +1,7 @@
 #ifndef __LOGGING_HPP__
 #define __LOGGING_HPP__
 
-#include "configurator.hpp";
+#include "configurator.hpp"
 
 namespace nexus { namespace internal {
 
