@@ -129,7 +129,7 @@ Master::~Master()
   LOG(INFO) << "Shutting down master";
   delete allocator;
   foreachpair (_, Framework *framework, frameworks) {
-    foreachpair(_, Task *task, framework->tasks)
+    foreachpair(_, TaskInfo *task, framework->tasks)
       delete task;
     delete framework;
   }
@@ -160,7 +160,7 @@ state::MasterState * Master::getState()
        f->executorInfo.uri, f->resources.cpus, f->resources.mem,
        f->connectTime);
     state->frameworks.push_back(framework);
-    foreachpair (_, Task *t, f->tasks) {
+    foreachpair (_, TaskInfo *t, f->tasks) {
       state::Task *task = new state::Task(t->id, t->name, t->frameworkId,
           t->slaveId, t->state, t->resources.cpus, t->resources.mem);
       framework->tasks.push_back(task);
@@ -265,8 +265,8 @@ void Master::operator () ()
 
       Framework *framework = new Framework(from(), fid);
       unpack<F2M_REGISTER_FRAMEWORK>(framework->name,
-                                     framework->user,
-                                     framework->executorInfo);
+				     framework->user,
+				     framework->executorInfo);
       LOG(INFO) << "Registering " << framework << " at " << framework->pid;
       frameworks[fid] = framework;
       pidToFid[framework->pid] = fid;
@@ -282,7 +282,7 @@ void Master::operator () ()
       LOG(INFO) << "Asked to unregister framework " << fid;
       Framework *framework = lookupFramework(fid);
       if (framework != NULL)
-        removeFramework(framework);
+	removeFramework(framework);
       break;
     }
 
@@ -294,17 +294,17 @@ void Master::operator () ()
       unpack<F2M_SLOT_OFFER_REPLY>(fid, oid, tasks, params);
       Framework *framework = lookupFramework(fid);
       if (framework != NULL) {
-        SlotOffer *offer = lookupSlotOffer(oid);
-        if (offer != NULL) {
-          processOfferReply(offer, tasks, params);
-        } else {
-          // The slot offer is gone, meaning that we rescinded it or that
-          // the slave was lost; immediately report any tasks in it as lost
-          foreach (TaskDescription &t, tasks) {
-            send(framework->pid,
-                 pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
-          }
-        }
+	SlotOffer *offer = lookupSlotOffer(oid);
+	if (offer != NULL) {
+	  processOfferReply(offer, tasks, params);
+	} else {
+	  // The slot offer is gone, meaning that we rescinded it or that
+	  // the slave was lost; immediately report any tasks in it as lost
+	  foreach (TaskDescription &t, tasks) {
+	    send(framework->pid,
+		 pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
+	  }
+	}
       }
       break;
     }
@@ -314,9 +314,9 @@ void Master::operator () ()
       unpack<F2M_REVIVE_OFFERS>(fid);
       Framework *framework = lookupFramework(fid);
       if (framework != NULL) {
-        LOG(INFO) << "Reviving offers for " << framework;
-        framework->slaveFilter.clear();
-        allocator->offersRevived(framework);
+	LOG(INFO) << "Reviving offers for " << framework;
+	framework->slaveFilter.clear();
+	allocator->offersRevived(framework);
       }
       break;
     }
@@ -327,11 +327,11 @@ void Master::operator () ()
       unpack<F2M_KILL_TASK>(fid, tid);
       Framework *framework = lookupFramework(fid);
       if (framework != NULL) {
-        Task *task = framework->lookupTask(tid);
-        if (task != NULL) {
-          LOG(INFO) << "Asked to kill " << task << " by its framework";
-          killTask(task);
-        }
+	TaskInfo *task = framework->lookupTask(tid);
+	if (task != NULL) {
+	  LOG(INFO) << "Asked to kill " << task << " by its framework";
+	  killTask(task);
+	}
       }
       break;
     }
@@ -342,11 +342,11 @@ void Master::operator () ()
       unpack<F2M_FRAMEWORK_MESSAGE>(fid, message);
       Framework *framework = lookupFramework(fid);
       if (framework != NULL) {
-        Slave *slave = lookupSlave(message.slaveId);
-        if (slave != NULL) {
-          LOG(INFO) << "Sending framework message to " << slave;
-          send(slave->pid, pack<M2S_FRAMEWORK_MESSAGE>(fid, message));
-        }
+	Slave *slave = lookupSlave(message.slaveId);
+	if (slave != NULL) {
+	  LOG(INFO) << "Sending framework message to " << slave;
+	  send(slave->pid, pack<M2S_FRAMEWORK_MESSAGE>(fid, message));
+	}
       }
       break;
     }
@@ -356,7 +356,7 @@ void Master::operator () ()
 
       Slave *slave = new Slave(from(), slaveId);
       unpack<S2M_REGISTER_SLAVE>(slave->hostname, slave->publicDns,
-          slave->resources);
+	  slave->resources);
       LOG(INFO) << "Registering " << slave << " at " << slave->pid;
       slaves[slave->id] = slave;
       pidToSid[slave->pid] = slave->id;
@@ -370,8 +370,15 @@ void Master::operator () ()
       string slaveId = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextSlaveId++);
 
       Slave *slave = new Slave(from(), slaveId);
+      vector<TaskInfo> taskVec;
       unpack<S2M_REREGISTER_SLAVE>(slave->hostname, slave->publicDns,
-				   slave->resources, slave->resourcesInUse);
+      				   slave->resources, taskVec);
+
+      foreach(TaskInfo &ti, taskVec) {
+	slave->addTask(new TaskInfo(ti));
+      }
+  
+     //alibandali
       LOG(INFO) << "Registering " << slave << " at " << slave->pid;
       slaves[slave->id] = slave;
       pidToSid[slave->pid] = slave->id;
@@ -387,7 +394,7 @@ void Master::operator () ()
       LOG(INFO) << "Asked to unregister slave " << sid;
       Slave *slave = lookupSlave(sid);
       if (slave != NULL)
-        removeSlave(slave);
+	removeSlave(slave);
       break;
     }
 
@@ -399,23 +406,23 @@ void Master::operator () ()
       string data;
       unpack<S2M_STATUS_UPDATE>(sid, fid, tid, state, data);
       if (Slave *slave = lookupSlave(sid)) {
-        if (Framework *framework = lookupFramework(fid)) {
-          // Pass on the status update to the framework
-          send(framework->pid, pack<M2F_STATUS_UPDATE>(tid, state, data));
-          // Update the task state locally
-          Task *task = slave->lookupTask(fid, tid);
-          if (task != NULL) {
-            LOG(INFO) << "Status update: " << task << " is in state " << state;
-            task->state = state;
-            // Remove the task if it finished or failed
-            if (state == TASK_FINISHED || state == TASK_FAILED ||
-                state == TASK_KILLED || state == TASK_LOST) {
-              LOG(INFO) << "Removing " << task << " because it's done";
-              removeTask(task, TRR_TASK_ENDED);
-            }
-          }
-        }
-        break;
+	if (Framework *framework = lookupFramework(fid)) {
+	  // Pass on the status update to the framework
+	  send(framework->pid, pack<M2F_STATUS_UPDATE>(tid, state, data));
+	  // Update the task state locally
+	  TaskInfo *task = slave->lookupTask(fid, tid);
+	  if (task != NULL) {
+	    LOG(INFO) << "Status update: " << task << " is in state " << state;
+	    task->state = state;
+	    // Remove the task if it finished or failed
+	    if (state == TASK_FINISHED || state == TASK_FAILED ||
+		state == TASK_KILLED || state == TASK_LOST) {
+	      LOG(INFO) << "Removing " << task << " because it's done";
+	      removeTask(task, TRR_TASK_ENDED);
+	    }
+	  }
+	}
+	break;
       }
     }
       
@@ -426,9 +433,9 @@ void Master::operator () ()
       unpack<S2M_FRAMEWORK_MESSAGE>(sid, fid, message);
       Slave *slave = lookupSlave(sid);
       if (slave != NULL) {
-        Framework *framework = lookupFramework(fid);
-        if (framework != NULL)
-          send(framework->pid, pack<M2F_FRAMEWORK_MESSAGE>(message));
+	Framework *framework = lookupFramework(fid);
+	if (framework != NULL)
+	  send(framework->pid, pack<M2F_FRAMEWORK_MESSAGE>(message));
       }
       break;
     }
@@ -440,18 +447,18 @@ void Master::operator () ()
       unpack<S2M_LOST_EXECUTOR>(sid, fid, status);
       Slave *slave = lookupSlave(sid);
       if (slave != NULL) {
-        Framework *framework = lookupFramework(fid);
-        if (framework != NULL) {
-          ostringstream oss;
-          if (status == -1) {
-            oss << "Executor on " << slave << " (" << slave->hostname
-                << ") disconnected";
-          } else {
-            oss << "Executor on " << slave << " (" << slave->hostname
-                << ") exited with status " << status;
-          }
-          terminateFramework(framework, status, oss.str());
-        }
+	Framework *framework = lookupFramework(fid);
+	if (framework != NULL) {
+	  ostringstream oss;
+	  if (status == -1) {
+	    oss << "Executor on " << slave << " (" << slave->hostname
+		<< ") disconnected";
+	  } else {
+	    oss << "Executor on " << slave << " (" << slave->hostname
+		<< ") exited with status " << status;
+	  }
+	  terminateFramework(framework, status, oss.str());
+	}
       }
       break;
     }
@@ -461,24 +468,29 @@ void Master::operator () ()
       unpack<SH2M_HEARTBEAT>(sid);
       Slave *slave = lookupSlave(sid);
       if (slave != NULL)
-        //LOG(INFO) << "Received heartbeat for " << slave << " from " << from();
-        ;
+	//LOG(INFO) << "Received heartbeat for " << slave << " from " << from();
+	;
       else
-        LOG(WARNING) << "Received heartbeat for UNKNOWN slave " << sid
-                     << " from " << from();
+	LOG(WARNING) << "Received heartbeat for UNKNOWN slave " << sid
+		     << " from " << from();
       break;
     }
 
     case M2M_TIMER_TICK: {
       LOG(INFO) << "Allocator timer tick";
       foreachpair (_, Framework *framework, frameworks)
-        framework->removeExpiredFilters();
+	framework->removeExpiredFilters();
       allocator->timerTick();
 
-      int cnt=0;
-      foreachpair(_, Slave *slave, slaves) {
-	LOG(INFO)<<(cnt++)<<" "<<slave->resourcesInUse;
-      }
+      // int cnts=0;
+      // foreachpair(_, Slave *slave, slaves) {
+      // 	LOG(INFO)<<(cnts++)<<" resourceInUse:"<<slave->resourcesInUse;
+      //   pair<FrameworkID, TaskID> par;
+      // 	int cntt=0;
+      // 	foreachpair(par, TaskInfo *t, slave->tasks) {
+      // 	  LOG(INFO)<<(cntt++)<<" fid:"<<par.first<<" tid:"<<par.second;
+      // 	}
+      // }
       break;
     }
 
@@ -637,7 +649,7 @@ void Master::launchTask(Framework *f, const TaskDescription& t)
   Resources res(params.getInt32("cpus", -1),
                 params.getInt64("mem", -1));
   Slave *slave = lookupSlave(t.slaveId);
-  Task *task = f->addTask(t.taskId, t.name, slave->id, res);
+  TaskInfo *task = f->addTask(t.taskId, t.name, slave->id, res);
   LOG(INFO) << "Launching " << task << " on " << slave;
   slave->addTask(task);
   allocator->taskAdded(task);
@@ -653,7 +665,7 @@ void Master::rescindOffer(SlotOffer *offer)
 }
 
 
-void Master::killTask(Task *task)
+void Master::killTask(TaskInfo *task)
 {
   LOG(FATAL) << "Killing " << task;
   Framework *framework = lookupFramework(task->frameworkId);
@@ -722,8 +734,8 @@ void Master::removeFramework(Framework *framework)
     send(slave->pid, pack<M2S_KILL_FRAMEWORK>(framework->id));
 
   // Remove pointers to the framework's tasks in slaves
-  unordered_map<TaskID, Task *> tasksCopy = framework->tasks;
-  foreachpair (_, Task *task, tasksCopy) {
+  unordered_map<TaskID, TaskInfo *> tasksCopy = framework->tasks;
+  foreachpair (_, TaskInfo *task, tasksCopy) {
     Slave *slave = lookupSlave(task->slaveId);
     CHECK(slave != NULL);
     removeTask(task, TRR_FRAMEWORK_LOST);
@@ -752,8 +764,8 @@ void Master::removeSlave(Slave *slave)
   // TODO: Notify allocator that a slave removal is beginning?
   
   // Remove pointers to slave's tasks in frameworks, and send status updates
-  unordered_map<pair<FrameworkID, TaskID>, Task *> tasksCopy = slave->tasks;
-  foreachpair (_, Task *task, tasksCopy) {
+  unordered_map<pair<FrameworkID, TaskID>, TaskInfo *> tasksCopy = slave->tasks;
+  foreachpair (_, TaskInfo *task, tasksCopy) {
     Framework *framework = lookupFramework(task->frameworkId);
     CHECK(framework != NULL);
     send(framework->pid, pack<M2F_STATUS_UPDATE>(task->id, TASK_LOST,
@@ -794,7 +806,7 @@ void Master::removeSlave(Slave *slave)
 
 
 // Remove a slot offer (because it was replied or we lost a framework or slave)
-void Master::removeTask(Task *task, TaskRemovalReason reason)
+void Master::removeTask(TaskInfo *task, TaskRemovalReason reason)
 {
   Framework *framework = lookupFramework(task->frameworkId);
   Slave *slave = lookupSlave(task->slaveId);

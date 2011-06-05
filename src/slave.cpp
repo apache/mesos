@@ -92,7 +92,7 @@ state::SlaveState *Slave::getState()
         f->executorInfo.uri, f->executorStatus, f->resources.cpus,
         f->resources.mem);
     state->frameworks.push_back(framework);
-    foreachpair(_, Task *t, f->tasks) {
+    foreachpair(_, TaskInfo *t, f->tasks) {
       state::Task *task = new state::Task(t->id, t->name, t->state,
           t->resources.cpus, t->resources.mem);
       framework->tasks.push_back(task);
@@ -175,7 +175,7 @@ void Slave::operator () ()
           isolationModule->frameworkAdded(framework);
           isolationModule->startExecutor(framework);
         }
-        Task *task = framework->addTask(tid, taskName, res);
+        TaskInfo *task = framework->addTask(tid, taskName, res);
         Executor *executor = getExecutor(fid);
         if (executor) {
           send(executor->pid,
@@ -340,15 +340,19 @@ void Slave::operator () ()
 	// reconstruct resourcesInUse for the master
 	// alig: do I need to include queuedTasks in this number? Don't think so.
 	Resources resourcesInUse; 
+	vector<TaskInfo> taskVec;
 
 	foreachpair(_, Framework *framework, frameworks) {
-	  foreachpair(_, Task *task, framework->tasks) {
+	  foreachpair(_, TaskInfo *task, framework->tasks) {
 	    resourcesInUse += task->resources;
+	    TaskInfo ti = *task;
+	    ti.slaveId = id;
+	    taskVec.push_back(ti);
 	  }
 	}
 	//alibandali
 
-	send(master, pack<S2M_REREGISTER_SLAVE>(hostname, publicDns, resources, resourcesInUse));
+	send(master, pack<S2M_REREGISTER_SLAVE>(hostname, publicDns, resources, taskVec));
 	
 	break;
       }

@@ -28,6 +28,7 @@
 #include "params.hpp"
 #include "resources.hpp"
 #include "getleader.hpp"
+#include "internalinfo.hpp"
 
 namespace nexus { namespace internal { namespace master {
 
@@ -92,22 +93,6 @@ struct SlotOffer
     : id(i), frameworkId(f), resources(r) {}
 };
 
-
-// An active task. The master only keeps track of tasks that are active.
-struct Task
-{ 
-  TaskID id;
-  FrameworkID frameworkId; // Which framework we belong to
-  SlaveID slaveId;        // Which slave we're on
-  Resources resources;
-  TaskState state;
-  string name;
-  string message;
-  
-  Task(TaskID _id, Resources _res) : id(_id), resources(_res) {}
-};
-
-
 // An connected framework.
 struct Framework
 {  
@@ -119,7 +104,7 @@ struct Framework
   ExecutorInfo executorInfo;
   time_t connectTime;
 
-  unordered_map<TaskID, Task *> tasks;
+  unordered_map<TaskID, TaskInfo *> tasks;
   unordered_set<SlotOffer *> slotOffers; // Active offers given to this framework
 
   Resources resources; // Total resources owned by framework (tasks + offers)
@@ -134,20 +119,20 @@ struct Framework
     time(&connectTime);
   }
   
-  Task * lookupTask(TaskID tid)
+  TaskInfo * lookupTask(TaskID tid)
   {
-    unordered_map<TaskID, Task *>::iterator it = tasks.find(tid);
+    unordered_map<TaskID, TaskInfo *>::iterator it = tasks.find(tid);
     if (it != tasks.end())
       return it->second;
     else
       return NULL;
   }
   
-  Task * addTask(TaskID tid, const std::string& name,
+  TaskInfo * addTask(TaskID tid, const std::string& name,
                  SlaveID location, Resources resources)
   {
     CHECK(tasks.find(tid) == tasks.end());
-    Task *task = new Task(tid, resources);
+    TaskInfo *task = new TaskInfo(tid, resources);
     task->frameworkId = id;
     task->state = TASK_STARTING;
     task->name = name;
@@ -160,7 +145,7 @@ struct Framework
   void removeTask(TaskID tid)
   {
     CHECK(tasks.find(tid) != tasks.end());
-    unordered_map<TaskID, Task *>::iterator it = tasks.find(tid);
+    unordered_map<TaskID, TaskInfo *>::iterator it = tasks.find(tid);
     this->resources -= it->second->resources;
     tasks.erase(it);
   }
@@ -214,30 +199,30 @@ struct Slave
   Resources resourcesOffered; // Resources currently in offers
   Resources resourcesInUse;   // Resources currently used by tasks
 
-  unordered_map<pair<FrameworkID, TaskID>, Task *> tasks;
+  unordered_map<pair<FrameworkID, TaskID>, TaskInfo *> tasks;
   unordered_set<SlotOffer *> slotOffers; // Active offers of slots on this slave
   
   Slave(const PID &_pid, SlaveID _id) : pid(_pid), id(_id), active(true) {
     time(&connectTime);
   }
 
-  Task * lookupTask(FrameworkID fid, TaskID tid)
+  TaskInfo * lookupTask(FrameworkID fid, TaskID tid)
   {
-    foreachpair (_, Task *task, tasks)
+    foreachpair (_, TaskInfo *task, tasks)
       if (task->frameworkId == fid && task->id == tid)
         return task;
 
     return NULL;
   }
 
-  void addTask(Task *task)
+  void addTask(TaskInfo *task)
   {
     CHECK(tasks.find(make_pair(task->frameworkId, task->id)) == tasks.end());
     tasks[make_pair(task->frameworkId, task->id)] = task;
     resourcesInUse += task->resources;
   }
   
-  void removeTask(Task *task)
+  void removeTask(TaskInfo *task)
   {
     CHECK(tasks.find(make_pair(task->frameworkId, task->id)) != tasks.end());
     tasks.erase(make_pair(task->frameworkId, task->id));
@@ -307,7 +292,7 @@ public:
   
   void rescindOffer(SlotOffer *offer);
   
-  void killTask(Task *task);
+  void killTask(TaskInfo *task);
   
   Framework * lookupFramework(FrameworkID fid);
 
@@ -349,7 +334,7 @@ protected:
                        OfferReturnReason reason,
                        const vector<SlaveResources>& resourcesLeft);
 
-  void removeTask(Task *task, TaskRemovalReason reason);
+  void removeTask(TaskInfo *task, TaskRemovalReason reason);
 
   // Kill all of a framework's tasks, delete the framework object, and
   // reschedule slot offers for slots that were assigned to this framework
@@ -385,7 +370,7 @@ inline std::ostream& operator << (std::ostream& stream, const Framework *f)
 }
 
 
-inline std::ostream& operator << (std::ostream& stream, const Task *t)
+inline std::ostream& operator << (std::ostream& stream, const TaskInfo *t)
 {
   stream << "task " << t->frameworkId << ":" << t->id;
   return stream;

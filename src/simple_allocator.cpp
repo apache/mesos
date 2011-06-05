@@ -44,7 +44,7 @@ void SimpleAllocator::slaveRemoved(Slave *slave)
 }
 
 
-void SimpleAllocator::taskRemoved(Task *task, TaskRemovalReason reason)
+void SimpleAllocator::taskRemoved(TaskInfo *task, TaskRemovalReason reason)
 {
   LOG(INFO) << "Removed " << task;
   // Remove all refusers from this slave since it has more resources free

@@ -13,6 +13,7 @@
 #include "params.hpp"
 #include "resources.hpp"
 #include "foreach.hpp"
+#include "internalinfo.hpp"
 
 namespace nexus { namespace internal {
 
@@ -162,7 +163,7 @@ TUPLE(S2M_REREGISTER_SLAVE,
       (std::string /*name*/,
        std::string /*publicDns*/,
        Resources,
-       Resources   /*ResourcesInUse*/ ));
+       std::vector<TaskInfo> ));
 
 TUPLE(S2M_UNREGISTER_SLAVE,
       (SlaveID));
@@ -312,6 +313,9 @@ void operator & (process::serialization::deserializer&, Params&);
 
 void operator & (process::serialization::serializer&, const Resources&);
 void operator & (process::serialization::deserializer&, Resources&);
+
+void operator & (process::serialization::serializer&, const TaskInfo&);
+void operator & (process::serialization::deserializer&, TaskInfo&);
 
 
 /* Serialization functions for STL vectors (TODO(benh): move to libprocess). */

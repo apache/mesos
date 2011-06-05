@@ -35,6 +35,7 @@
 #include "resources.hpp"
 #include "slave_state.hpp"
 #include "getleader.hpp"
+#include "internalinfo.hpp"
 
 namespace nexus { namespace internal { namespace slave {
 
@@ -71,21 +72,6 @@ struct TaskDescription
 };
 
 
-// Information about a running or pending task.
-struct Task
-{ 
-  TaskID id;
-  FrameworkID frameworkId; // Which framework we belong to
-  Resources resources;
-  TaskState state;
-  string name;
-  string message;
-  
-  Task(TaskID _id, Resources _resources)
-    : id(_id), resources(_resources) {}
-};
-
-
 // Information about a framework
 struct Framework
 {
@@ -94,7 +80,7 @@ struct Framework
   string user;
   ExecutorInfo executorInfo;
   list<TaskDescription *> queuedTasks; // Holds tasks until executor starts
-  unordered_map<TaskID, Task *> tasks;
+  unordered_map<TaskID, TaskInfo *> tasks;
   Resources resources;
 
   // Information about the status of the executor for this framework, set by
@@ -109,27 +95,27 @@ struct Framework
   {
     foreach(TaskDescription *desc, queuedTasks)
       delete desc;
-    foreachpair (_, Task *task, tasks)
+    foreachpair (_, TaskInfo *task, tasks)
       delete task;
   }
 
-  Task * lookupTask(TaskID tid)
+  TaskInfo * lookupTask(TaskID tid)
   {
-    unordered_map<TaskID, Task *>::iterator it = tasks.find(tid);
+    unordered_map<TaskID, TaskInfo *>::iterator it = tasks.find(tid);
     if (it != tasks.end())
       return it->second;
     else
       return NULL;
   }
 
-  Task * addTask(TaskID tid, const std::string& name, Resources res)
+  TaskInfo * addTask(TaskID tid, const std::string& name, Resources res)
   {
     if (tasks.find(tid) != tasks.end()) {
       // This should never happen - the master will make sure that it never
       // lets a framework launch two tasks with the same ID.
       LOG(FATAL) << "Task ID " << tid << "already exists in framework " << id;
     }
-    Task *task = new Task(tid, res);
+    TaskInfo *task = new TaskInfo(tid, res);
     task->frameworkId = id;
     task->state = TASK_STARTING;
     task->name = name;
@@ -151,7 +137,7 @@ struct Framework
     }
 
     // Remove it from tasks as well
-    unordered_map<TaskID, Task *>::iterator it = tasks.find(tid);
+    unordered_map<TaskID, TaskInfo *>::iterator it = tasks.find(tid);
     if (it != tasks.end()) {
       resources -= it->second->resources;
       delete it->second;
