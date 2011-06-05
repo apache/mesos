@@ -8,7 +8,7 @@ cd /root/mesos-ec2
 PRIVATE_DNS=`wget -q -O - http://instance-data.ec2.internal/latest/meta-data/local-hostname`
 hostname $PRIVATE_DNS
 echo $PRIVATE_DNS > /etc/hostname
-HOSTNAME=$PRIVATE_DNS  # Fix the bash built-in hostname variable too
+export HOSTNAME=$PRIVATE_DNS  # Fix the bash built-in hostname variable too
 
 echo "Setting up Mesos master on `hostname`..."
 
