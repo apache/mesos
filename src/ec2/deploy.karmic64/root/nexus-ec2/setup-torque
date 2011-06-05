@@ -55,6 +55,15 @@ function setuptorque {
 	popd
 }
 
+function setupmpi {
+        #setup epilog script
+        cp prologue.setup-mpi-master /var/spool/torque/mom_priv/
+        cp prologue.parallel.setup-mpi-conf /var/spool/torque/mom_priv
+        
+	for i in `cat $SLAVES_FILE`; do scp prologue.setup-mpi-master $i:/var/spool/torque/mom_priv/; done
+	for i in `cat $SLAVES_FILE`; do scp prologue.parallel.setup-mpi-conf $i:/var/spool/torque/mom_priv/; done
+}
+
 function installslaves {
 	pushd ~/torque-2.4.7
 	echo "building packages for slave"
@@ -76,6 +85,7 @@ function installslaves {
 	popd
 }
 
-installtorque
-setuptorque
-installslaves
+#installtorque
+#setuptorque
+#installslaves
+setupmpi
