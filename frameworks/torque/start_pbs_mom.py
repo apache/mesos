@@ -70,8 +70,10 @@ class MyExecutor(nexus.Executor):
     print "running pbs_mom on compute node"
     Popen("pbs_mom", shell=True)
 
-  def killTask(self, driver, tid):
-    sys.exit(1)
+  #def killTask(self, driver, tid):
+    #send a message back to the scheduler to tell it this task is dead
+    #msg = nexus.TaskStatus(tid, nexus.TASK_KILLED, "")
+    #driver.sendStatusUpdate(msg);
 
   def shutdown(self, driver):
     print "shutdown"

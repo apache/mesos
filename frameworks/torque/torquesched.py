@@ -81,6 +81,11 @@ class MyScheduler(nexus.Scheduler):
       self.servers[self.id] = offer.host
       self.regComputeNode(offer.host)
       self.numToRegister -= 1
+      #HUGE HACK HERE. THIS IS BAD!
+      if self.numToRegister == 0:# and len(torquelib.getActiveJobs()) == 1:
+        #submit job that will fail because it is asking for too many resources
+        time.sleep(8)
+        Popen("echo date | qsub -l nodes=1", shell=True)
       self.id += 1
       driverlog.info("writing logfile")
       eventlog.info(len(self.servers))
@@ -134,6 +139,7 @@ class MyScheduler(nexus.Scheduler):
         monitorlog.info("We still have to kill %d of the %d compute nodes which master is tracking" % (toKill, len(self.servers)))
         monitorlog.info("unregistering node " + str(hostname))
         self.unregComputeNode(hostname)
+        eventlog.info(len(sched.servers))
         self.servers.pop(tid)
         toKill = toKill - 1
         monitorlog.info("killing corresponding task with tid %d" % tid)

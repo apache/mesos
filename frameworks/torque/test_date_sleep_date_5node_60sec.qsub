@@ -10,8 +10,8 @@
 #print the time and date
 date
 
-#wait 120 seconds
-sleep 5 
+#wait 60 seconds
+sleep 60 
 
 #print the time and date again
 date
