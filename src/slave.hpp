@@ -30,6 +30,7 @@
 
 #include "fatal.hpp"
 #include "foreach.hpp"
+#include "isolation_module.hpp"
 #include "messages.hpp"
 #include "params.hpp"
 #include "resources.hpp"
@@ -52,10 +53,6 @@ using std::vector;
 using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
-
-
-// Forward declarations
-class IsolationModule;
 
 
 // A description of a task that is yet to be launched
@@ -164,19 +161,16 @@ public:
   typedef unordered_map<FrameworkID, Framework*> FrameworkMap;
   typedef unordered_map<FrameworkID, Executor*> ExecutorMap;
   
-  bool isFT;
   PID master;
   SlaveID id;
   Resources resources;
   bool local;
   FrameworkMap frameworks;
   ExecutorMap executors;  // Invariant: framework will exist if executor exists
-  string isolationType;
   IsolationModule *isolationModule;
 
 public:
-  Slave(Resources resources, bool local,
-	const string& isolationType = "process");
+  Slave(Resources resources, bool local, IsolationModule *isolationModule);
 
   virtual ~Slave();
 
@@ -207,11 +201,6 @@ protected:
 
   // Kill a framework (including its executor)
   void killFramework(Framework *fw);
-
-  // Create the slave's isolation module; this method is virtual so that
-  // it is easy to override in tests
-  virtual IsolationModule * createIsolationModule();
-
 };
 
 }}}

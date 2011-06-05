@@ -1,13 +1,24 @@
 #ifndef __ISOLATION_MODULE_HPP__
 #define __ISOLATION_MODULE_HPP__
 
-#include "slave.hpp"
+#include <string>
+
 
 namespace nexus { namespace internal { namespace slave {
 
+class Framework;
+class Slave;
+
+
 class IsolationModule {
 public:
+  static IsolationModule * create(const std::string &type);
+  static void destroy(IsolationModule *module);
+
   virtual ~IsolationModule() {}
+
+  // Called when during slave initialization.
+  virtual void initialize(Slave *slave) {}
 
   // Called when a new framework is launched on the slave.
   virtual void frameworkAdded(Framework *framework) {}
@@ -26,7 +37,7 @@ public:
 
   // Update the resource limits for a given framework. This method will
   // be called only after an executor for the framework is started.
-  virtual void resourcesChanged(Framework *framework) = 0;
+  virtual void resourcesChanged(Framework *framework) {}
 };
 
 }}}

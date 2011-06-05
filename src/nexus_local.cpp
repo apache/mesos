@@ -3,14 +3,20 @@
 
 #include <tuple.hpp>
 
+#include <map>
 #include <vector>
 
+#include "foreach.hpp"
 #include "nexus_local.hpp"
+#include "process_based_isolation_module.hpp"
 
+using std::map;
 using std::vector;
 
 using nexus::internal::master::Master;
 using nexus::internal::slave::Slave;
+using nexus::internal::slave::IsolationModule;
+using nexus::internal::slave::ProcessBasedIsolationModule;
 
 using namespace nexus::internal;
 
@@ -30,7 +36,7 @@ void initialize_glog() {
 namespace nexus { namespace internal { namespace local {
 
 static Master *master = NULL;
-static vector<Slave*> *slaves = NULL;
+static map<IsolationModule*, Slave*> slaves;
 static MasterDetector *detector = NULL;
 
 
@@ -47,15 +53,17 @@ PID launch(int numSlaves, int32_t cpus, int64_t mem,
   }
 
   master = new Master();
-  slaves = new vector<Slave*>();
 
   PID pid = Process::spawn(master);
 
   vector<PID> pids;
 
   for (int i = 0; i < numSlaves; i++) {
-    Slave* slave = new Slave(Resources(cpus, mem), true);
-    slaves->push_back(slave);
+    // TODO(benh): Create a local isolation module?
+    ProcessBasedIsolationModule *isolationModule =
+      new ProcessBasedIsolationModule();
+    Slave* slave = new Slave(Resources(cpus, mem), true, isolationModule);
+    slaves[isolationModule] = slave;
     pids.push_back(Process::spawn(slave));
   }
 
@@ -72,15 +80,20 @@ void shutdown()
   delete master;
   master = NULL;
 
-  for (int i = 0; i < slaves->size(); i++) {
-    Slave *slave = slaves->at(i);
+  // TODO(benh): Ugh! Because the isolation module calls back into the
+  // slave (not the best design) we can't delete the slave until we
+  // have deleted the isolation module. But since the slave calls into
+  // the isolation module, we can't delete the isolation module until
+  // we have stopped the slave.
+
+  foreachpair (IsolationModule *isolationModule, Slave *slave, slaves) {
     Process::post(slave->getPID(), S2S_SHUTDOWN);
     Process::wait(slave);
+    delete isolationModule;
     delete slave;
   }
 
-  delete slaves;
-  slaves = NULL;
+  slaves.clear();
 
   delete detector;
   detector = NULL;

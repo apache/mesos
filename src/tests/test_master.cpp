@@ -3,8 +3,12 @@
 #include <boost/lexical_cast.hpp>
 
 #include "master.hpp"
+#include "slave.hpp"
+#include "nexus_exec.hpp"
 #include "nexus_sched.hpp"
 #include "nexus_local.hpp"
+#include "isolation_module.hpp"
+#include "process_based_isolation_module.hpp"
 
 using std::string;
 using std::vector;
@@ -16,6 +20,9 @@ using namespace nexus::internal;
 
 using nexus::internal::master::Master;
 using nexus::internal::slave::Slave;
+using nexus::internal::slave::Framework;
+using nexus::internal::slave::IsolationModule;
+using nexus::internal::slave::ProcessBasedIsolationModule;
 
 
 class NoopScheduler : public Scheduler
@@ -324,7 +331,8 @@ TEST(MasterTest, SlaveLost)
   Master m;
   PID master = Process::spawn(&m);
 
-  Slave s(Resources(2, 1 * Gigabyte), true);
+  ProcessBasedIsolationModule isolationModule;
+  Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
   PID slave = Process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -443,7 +451,7 @@ public:
     vector<TaskDescription> tasks;
     ASSERT_TRUE(offers.size() == 1);
     const SlaveOffer &offer = offers[0];
-    TaskDescription desc(0, offer.slaveId, "", map<string, string>(), "");
+    TaskDescription desc(0, offer.slaveId, "", offer.params, "");
     tasks.push_back(desc);
     d->replyToOffer(id, tasks, map<string, string>());
     Process::post(slave, S2S_SHUTDOWN);
@@ -476,7 +484,8 @@ TEST(MasterTest, OfferRescinded)
   Master m;
   PID master = Process::spawn(&m);
 
-  Slave s(Resources(2, 1 * Gigabyte), true);
+  ProcessBasedIsolationModule isolationModule;
+  Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
   PID slave = Process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -554,4 +563,109 @@ TEST(MasterTest, SlavePartitioned)
   ProcessClock::resume();
 
   Process::filter(NULL);
+}
+
+
+class TaskRunningScheduler : public Scheduler
+{
+public:
+  bool statusUpdateCalled;
+  
+  TaskRunningScheduler()
+    : statusUpdateCalled(false) {}
+
+  virtual ~TaskRunningScheduler() {}
+
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
+    return ExecutorInfo("noexecutor", "");
+  }
+
+  virtual void resourceOffer(SchedulerDriver* d,
+                             OfferID id,
+                             const vector<SlaveOffer>& offers) {
+    LOG(INFO) << "TaskRunningScheduler got a slot offer";
+    vector<TaskDescription> tasks;
+    ASSERT_TRUE(offers.size() == 1);
+    const SlaveOffer &offer = offers[0];
+    TaskDescription desc(0, offer.slaveId, "", offer.params, "");
+    tasks.push_back(desc);
+    d->replyToOffer(id, tasks, map<string, string>());
+  }
+
+  virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
+    EXPECT_EQ(status.state, TASK_RUNNING);
+    statusUpdateCalled = true;
+    d->stop();
+  }
+};
+
+
+class TaskRunningExecutor : public Executor {};
+
+
+class TaskRunningIsolationModule : public IsolationModule
+{
+public:
+  TaskRunningExecutor *executor;
+  NexusExecutorDriver *driver;
+  string pid;
+
+  TaskRunningIsolationModule() : executor(NULL), driver(NULL) {}
+
+  virtual ~TaskRunningIsolationModule() {}
+
+  virtual void initialize(Slave *slave) {
+    pid = slave->getPID();
+  }
+
+  virtual void startExecutor(Framework *framework) {
+    // TODO(benh): Cleanup the way we launch local drivers!
+    setenv("NEXUS_LOCAL", "1", 1);
+    setenv("NEXUS_SLAVE_PID", pid.c_str(), 1);
+    setenv("NEXUS_FRAMEWORK_ID", "0-0", 1);
+
+    executor = new TaskRunningExecutor();
+    driver = new NexusExecutorDriver(executor);
+    driver->start();
+  }
+
+  virtual void killExecutor(Framework* framework) {
+    driver->stop();
+    driver->join();
+    delete driver;
+    delete executor;
+
+    // TODO(benh): Cleanup the way we launch local drivers!
+    unsetenv("NEXUS_LOCAL");
+    unsetenv("NEXUS_SLAVE_PID");
+    unsetenv("NEXUS_FRAMEWORK_ID");
+  }
+};
+
+
+TEST(MasterTest, TaskRunning)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Master m;
+  PID master = Process::spawn(&m);
+
+  TaskRunningIsolationModule isolationModule;
+  Slave s(Resources(2, 1 * Gigabyte), true, &isolationModule);
+  PID slave = Process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  TaskRunningScheduler sched;
+  NexusSchedulerDriver driver(&sched, master);
+
+  driver.run();
+
+  EXPECT_TRUE(sched.statusUpdateCalled);
+
+  Process::post(slave, S2S_SHUTDOWN);
+  Process::wait(slave);
+
+  Process::post(master, M2M_SHUTDOWN);
+  Process::wait(master);
 }

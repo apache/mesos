@@ -1,9 +1,6 @@
-#include <getopt.h>
-
 #include <fstream>
 #include <algorithm>
 
-#include "isolation_module_factory.hpp"
 #include "slave.hpp"
 #include "slave_webui.hpp"
 
@@ -64,17 +61,14 @@ public:
 } /* namespace */
 
 
-Slave::Slave(Resources _resources, bool _local, const string &_isolationType)
+Slave::Slave(Resources _resources, bool _local,
+             IsolationModule *_isolationModule)
   : id(""), resources(_resources), local(_local),
-    isolationType(_isolationType), isolationModule(NULL) {}
+    isolationModule(_isolationModule) {}
 
 
 Slave::~Slave()
 {
-  // TODO(matei): Add support for factory style destroy of objects!
-  if (isolationModule != NULL)
-    delete isolationModule;
-
   // TODO(benh): Shut down and free executors?
 }
 
@@ -123,15 +117,11 @@ void Slave::operator () ()
     publicDns = hostname;
   }
 
-  FrameworkID fid;
-  TaskID tid;
-  TaskState taskState;
-  Params params;
-  FrameworkMessage message;
-  string data;
+  // Initialize isolation module.
+  isolationModule->initialize(this);
 
   while (true) {
-    switch (receive(2)) {
+    switch (receive()) {
       case NEW_MASTER_DETECTED: {
 	string masterSeq;
 	PID masterPid;
@@ -175,9 +165,6 @@ void Slave::operator () ()
         unpack<M2S_REGISTER_REPLY>(this->id, interval);
         LOG(INFO) << "Registered with master; given slave ID " << this->id;
         link(spawn(new Heart(master, this->getPID(), this->id, interval)));
-        isolationModule = createIsolationModule();
-        if (!isolationModule)
-          LOG(FATAL) << "Unrecognized isolation type: " << isolationType;
         break;
       }
       
@@ -194,8 +181,10 @@ void Slave::operator () ()
       
       case M2S_RUN_TASK: {
 	FrameworkID fid;
+        TaskID tid;
         string fwName, user, taskName, taskArg, fwPidStr;
         ExecutorInfo execInfo;
+        Params params;
         unpack<M2S_RUN_TASK>(fid, tid, fwName, user, execInfo,
                              taskName, taskArg, params, fwPidStr);
         LOG(INFO) << "Got assigned task " << fid << ":" << tid;
@@ -230,6 +219,8 @@ void Slave::operator () ()
       }
 
       case M2S_KILL_TASK: {
+        FrameworkID fid;
+        TaskID tid;
         unpack<M2S_KILL_TASK>(fid, tid);
         LOG(INFO) << "Killing task " << fid << ":" << tid;
         if (Executor *ex = getExecutor(fid)) {
@@ -245,6 +236,8 @@ void Slave::operator () ()
       }
 
       case M2S_FRAMEWORK_MESSAGE: {
+        FrameworkID fid;
+        FrameworkMessage message;
         unpack<M2S_FRAMEWORK_MESSAGE>(fid, message);
         if (Executor *ex = getExecutor(fid)) {
           send(ex->pid, pack<S2E_FRAMEWORK_MESSAGE>(message));
@@ -256,6 +249,7 @@ void Slave::operator () ()
       }
 
       case M2S_KILL_FRAMEWORK: {
+        FrameworkID fid;
         unpack<M2S_KILL_FRAMEWORK>(fid);
         LOG(INFO) << "Asked to kill framework " << fid;
         Framework *fw = getFramework(fid);
@@ -265,6 +259,7 @@ void Slave::operator () ()
       }
 
       case E2S_REGISTER_EXECUTOR: {
+        FrameworkID fid;
         unpack<E2S_REGISTER_EXECUTOR>(fid);
         LOG(INFO) << "Got executor registration for framework " << fid;
         if (Framework *fw = getFramework(fid)) {
@@ -292,6 +287,10 @@ void Slave::operator () ()
       }
 
       case E2S_STATUS_UPDATE: {
+        FrameworkID fid;
+        TaskID tid;
+        TaskState taskState;
+        string data;
         unpack<E2S_STATUS_UPDATE>(fid, tid, taskState, data);
         LOG(INFO) << "Got status update for task " << fid << ":" << tid;
         if (taskState == TASK_FINISHED || taskState == TASK_FAILED ||
@@ -312,6 +311,8 @@ void Slave::operator () ()
       }
 
       case E2S_FRAMEWORK_MESSAGE: {
+        FrameworkID fid;
+        FrameworkMessage message;
         unpack<E2S_FRAMEWORK_MESSAGE>(fid, message);
         // Set slave ID in case framework omitted it
         message.slaveId = this->id;
@@ -337,7 +338,7 @@ void Slave::operator () ()
 	    if (from() == ex->pid) {
 	      LOG(INFO) << "Executor for framework " << ex->frameworkId
 			<< " disconnected";
-	      Framework *framework = getFramework(fid);
+	      Framework *framework = getFramework(ex->frameworkId);
 	      if (framework != NULL) {
 		send(master, pack<S2M_LOST_EXECUTOR>(id, ex->frameworkId, -1));
 		killFramework(framework);
@@ -352,16 +353,20 @@ void Slave::operator () ()
 
       case M2S_SHUTDOWN: {
         LOG(INFO) << "Asked to shut down by master: " << from();
+        unordered_map<FrameworkID, Framework*> frameworksCopy = frameworks;
+        foreachpair (_, Framework *framework, frameworksCopy) {
+          killFramework(framework);
+        }
         return;
       }
 
       case S2S_SHUTDOWN: {
         LOG(INFO) << "Asked to shut down by " << from();
+        unordered_map<FrameworkID, Framework*> frameworksCopy = frameworks;
+        foreachpair (_, Framework *framework, frameworksCopy) {
+          killFramework(framework);
+        }
         return;
-      }
-
-      case PROCESS_TIMEOUT: {
-	break;
       }
 
       default: {
@@ -371,13 +376,6 @@ void Slave::operator () ()
       }
     }
   }
-}
-
-
-IsolationModule * Slave::createIsolationModule()
-{
-  LOG(INFO) << "Creating \"" << isolationType << "\" isolation module";
-  return IsolationModuleFactory::instantiate(isolationType, this);
 }
 
 
@@ -440,6 +438,10 @@ void Slave::killFramework(Framework *fw)
   // If an executor is running, tell it to exit and kill it
   if (Executor *ex = getExecutor(fw->id)) {
     send(ex->pid, pack<S2E_KILL_EXECUTOR>());
+    // TODO(benh): There really isn't much time between when an
+    // executor gets a S2E_KILL_EXECUTOR message and the isolation
+    // module goes and kills it. We should really think about making
+    // the semantics of this better.
     removeExecutor(fw->id, true);
   }
   frameworks.erase(fw->id);

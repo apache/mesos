@@ -53,9 +53,11 @@ protected:
   Communicator* comm;
 
 public:
-  SolarisProjectIsolationModule(Slave* slave);
+  SolarisProjectIsolationModule();
 
   virtual ~SolarisProjectIsolationModule();
+
+  virtual void initialize(Slave* slave);
 
   virtual void startExecutor(Framework* framework);
 

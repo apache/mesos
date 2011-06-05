@@ -1,18 +1,18 @@
 #ifndef __PROCESS_BASED_ISOLATION_MODULE_HPP__
 #define __PROCESS_BASED_ISOLATION_MODULE_HPP__
 
-#include <string>
-
 #include <sys/types.h>
 
 #include <boost/unordered_map.hpp>
 
-#include "launcher.hpp"
 #include "isolation_module.hpp"
+#include "launcher.hpp"
+#include "messages.hpp"
+#include "slave.hpp"
+
 
 namespace nexus { namespace internal { namespace slave {
 
-using std::string;
 using boost::unordered_map;
 using nexus::internal::launcher::ExecutorLauncher;
 
@@ -33,14 +33,17 @@ public:
   enum { SHUTDOWN_REAPER = NEXUS_MESSAGES };
 
 protected:
+  bool initialized;
   Slave* slave;
   unordered_map<FrameworkID, pid_t> pgids;
   Reaper* reaper;
 
 public:
-  ProcessBasedIsolationModule(Slave* slave);
+  ProcessBasedIsolationModule();
 
   virtual ~ProcessBasedIsolationModule();
+
+  virtual void initialize(Slave *slave);
 
   virtual void frameworkAdded(Framework* framework);
 

@@ -65,8 +65,11 @@ class ExecutorDriver
 public:
   virtual ~ExecutorDriver() {}
 
-  // Connect to a slave and run the scheduler until it is shut down
-  virtual int run() { return -1; }
+  // Lifecycle methods
+  virtual int start() { return -1; }
+  virtual int stop() { return -1; }
+  virtual int join() { return -1; }
+  virtual int run() { return -1; } // Start and then join driver
 
   // Communication methods from executor to Nexus
   virtual int sendStatusUpdate(const TaskStatus& status) { return -1; }
@@ -86,7 +89,12 @@ public:
   NexusExecutorDriver(Executor* executor);
   virtual ~NexusExecutorDriver();
 
-  virtual int run();
+  // Lifecycle methods
+  virtual int start();
+  virtual int stop();
+  virtual int join();
+  virtual int run(); // Start and then join driver
+
   virtual int sendStatusUpdate(const TaskStatus& status);
   virtual int sendFrameworkMessage(const FrameworkMessage& message);
 
@@ -100,9 +108,15 @@ private:
 
   // LibProcess process for communicating with slave
   internal::ExecutorProcess* process;
+
+  // Are we currently registered with the slave
+  bool running;
   
   // Mutex to enforce all non-callbacks are execute serially
   pthread_mutex_t mutex;
+
+  // Condition variable for waiting until driver terminates
+  pthread_cond_t cond;
 };
 
 } /* namespace nexus { */

@@ -55,9 +55,9 @@ public:
 
   // Lifecycle methods
   virtual int start() { return -1; }
-  virtual int join() { return -1; }
   virtual int stop() { return -1; }
-  virtual int run() { return -1; } // Start and then join scheduler
+  virtual int join() { return -1; }
+  virtual int run() { return -1; } // Start and then join driver
 
   // Communication methods
   virtual int sendFrameworkMessage(const FrameworkMessage& message) { return -1; }
@@ -85,9 +85,9 @@ public:
 
   // Lifecycle methods
   virtual int start();
-  virtual int join();
   virtual int stop();
-  virtual int run(); // Start and then join scheduler
+  virtual int join();
+  virtual int run(); // Start and then join driver
 
   // Communication methods
   virtual int sendFrameworkMessage(const FrameworkMessage& message);
@@ -121,7 +121,7 @@ private:
   // Mutex to enforce all non-callbacks are execute serially
   pthread_mutex_t mutex;
 
-  // Condition variable for waiting until scheduler terminates
+  // Condition variable for waiting until driver terminates
   pthread_cond_t cond;
 
 };

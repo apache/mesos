@@ -41,13 +41,18 @@ protected:
   Executor* executor;
   FrameworkID fid;
   SlaveID sid;
+  bool local;
+
+  volatile bool terminate;
 
 public:
   ExecutorProcess(const PID& _slave,
                   NexusExecutorDriver* _driver,
                   Executor* _executor,
-                  FrameworkID _fid)
-    : slave(_slave), driver(_driver), executor(_executor), fid(_fid) {}
+                  FrameworkID _fid,
+                  bool _local)
+    : slave(_slave), driver(_driver), executor(_executor),
+      fid(_fid), local(_local), terminate(false) {}
 
 protected:
   void operator() ()
@@ -60,7 +65,13 @@ protected:
       // process any other messages. This is especially tricky if a
       // slave dies since we won't handle the PROCESS_EXIT message in
       // a timely manner (if at all).
-      switch(receive()) {
+
+      // Check for terminate in the same way as SchedulerProcess. See
+      // comments there for an explanation of why this is necessary.
+      if (terminate)
+        return;
+
+      switch(receive(2)) {
         case S2E_REGISTER_REPLY: {
           string host;
           string fwName;
@@ -99,7 +110,9 @@ protected:
 
         case S2E_KILL_EXECUTOR: {
           invoke(bind(&Executor::shutdown, executor, driver));
-          exit(0);
+          if (!local)
+            exit(0);
+          break;
         }
 
         case PROCESS_EXIT: {
@@ -111,7 +124,8 @@ protected:
 	  // ourself) hoping to clean up any processes this executor
 	  // launched itself.
 	  // TODO(benh): Maybe do a SIGTERM and then later do a SIGKILL?
-	  killpg(0, SIGKILL);
+          if (!local)
+            killpg(0, SIGKILL);
         }
 
         default: {
@@ -134,17 +148,16 @@ protected:
 
 
 // Default implementation of error() that logs to stderr and exits
-void Executor::error(ExecutorDriver*, int code, const string &message)
+void Executor::error(ExecutorDriver* driver, int code, const string &message)
 {
   cerr << "Nexus error: " << message
        << " (error code: " << code << ")" << endl;
-  // TODO(*): Don't exit here, let errors be recoverable. (?)
-  exit(1);
+  driver->stop();
 }
 
 
 NexusExecutorDriver::NexusExecutorDriver(Executor* _executor)
-  : executor(_executor)
+  : executor(_executor), running(false)
 {
   // Create mutex and condition variable
   pthread_mutexattr_t attr;
@@ -152,27 +165,48 @@ NexusExecutorDriver::NexusExecutorDriver(Executor* _executor)
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   pthread_mutex_init(&mutex, &attr);
   pthread_mutexattr_destroy(&attr);
+  pthread_cond_init(&cond, 0);
 }
 
 
 NexusExecutorDriver::~NexusExecutorDriver()
 {
   pthread_mutex_destroy(&mutex);
+  pthread_cond_destroy(&cond);
+
+  Process::wait(process);
+  delete process;
 }
 
 
-int NexusExecutorDriver::run()
+int NexusExecutorDriver::start()
 {
+  Lock lock(&mutex);
+
+  if (running) {
+    return -1;
+  }
+
   // Set stream buffering mode to flush on newlines so that we capture logs
   // from user processes even when output is redirected to a file.
   setvbuf(stdout, 0, _IOLBF, 0);
   setvbuf(stderr, 0, _IOLBF, 0);
+
+  bool local;
 
   PID slave;
   FrameworkID fid;
 
   char* value;
   std::istringstream iss;
+
+  /* Check if this is local (for example, for testing). */
+  value = getenv("NEXUS_LOCAL");
+
+  if (value != NULL)
+    local = true;
+  else
+    local = false;
 
   /* Get slave PID from environment. */
   value = getenv("NEXUS_SLAVE_PID");
@@ -196,13 +230,48 @@ int NexusExecutorDriver::run()
   if (!(iss >> fid))
     fatal("cannot parse NEXUS_FRAMEWORK_ID");
 
-  process = new ExecutorProcess(slave, this, executor, fid);
+  process = new ExecutorProcess(slave, this, executor, fid, local);
 
-  Process::wait(Process::spawn(process));
+  Process::spawn(process);
 
-  process = NULL;
+  running = true;
 
   return 0;
+}
+
+
+int NexusExecutorDriver::stop()
+{
+  Lock lock(&mutex);
+
+  if (!running) {
+    return -1;
+  }
+
+  process->terminate = true;
+
+  running = false;
+
+  pthread_cond_signal(&cond);
+
+  return 0;
+}
+
+
+int NexusExecutorDriver::join()
+{
+  Lock lock(&mutex);
+  while (running)
+    pthread_cond_wait(&cond, &mutex);
+
+  return 0;
+}
+
+
+int NexusExecutorDriver::run()
+{
+  int ret = start();
+  return ret != 0 ? ret : join();
 }
 
 
@@ -210,9 +279,7 @@ int NexusExecutorDriver::sendStatusUpdate(const TaskStatus &status)
 {
   Lock lock(&mutex);
 
-  /* TODO(benh): Increment ref count on process. */
-  
-  if (!process) {
+  if (!running) {
     //executor->error(this, EINVAL, "Executor has exited");
     return -1;
   }
@@ -223,8 +290,6 @@ int NexusExecutorDriver::sendStatusUpdate(const TaskStatus &status)
                                                  status.state,
                                                  status.data));
 
-  /* TODO(benh): Decrement ref count on process. */
-
   return 0;
 }
 
@@ -233,9 +298,7 @@ int NexusExecutorDriver::sendFrameworkMessage(const FrameworkMessage &message)
 {
   Lock lock(&mutex);
 
-  /* TODO(benh): Increment ref count on process. */
-  
-  if (!process) {
+  if (!running) {
     //executor->error(this, EINVAL, "Executor has exited");
     return -1;
   }
@@ -243,8 +306,6 @@ int NexusExecutorDriver::sendFrameworkMessage(const FrameworkMessage &message)
   process->send(process->slave,
                 process->pack<E2S_FRAMEWORK_MESSAGE>(process->fid,
                                                      message));
-
-  /* TODO(benh): Decrement ref count on process. */
 
   return 0;
 }

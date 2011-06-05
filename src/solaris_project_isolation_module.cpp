@@ -27,12 +27,12 @@ using namespace nexus::internal;
 using namespace nexus::internal::slave;
 
 
-SolarisProjectIsolationModule::SolarisProjectIsolationModule(Slave* slave)
-  : ProcessBasedIsolationModule(slave)
+SolarisProjectIsolationModule::SolarisProjectIsolationModule()
 {
   // Launch the communicator module, which will start the projd's.
   // TODO: It would be nice to not return from the constructor
   // until the communicator is up and running.
+  // TODO(*): Not great to let this escape from constructor.
   comm = new Communicator(this);
   Process::spawn(comm);
 }
@@ -41,6 +41,12 @@ SolarisProjectIsolationModule::SolarisProjectIsolationModule(Slave* slave)
 SolarisProjectIsolationModule::~SolarisProjectIsolationModule()
 {
   comm->stop();
+}
+
+
+void SolarisProjectIsolationModule::initialize(Slave* slave)
+{
+  ProcessBasedIsolationModule::initialize(slave);
 }
 
 

@@ -108,7 +108,7 @@ NEXUS_LIB = libnexus++.a
 NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(NEXUS_LIB)
 
 MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
-SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
+SLAVE_OBJ = slave.o launcher.o isolation_module.o \
 	    process_based_isolation_module.o
 COMMON_OBJ = fatal.o hash_pid.o messages.o lock.o master_detector.o url_processor.o zookeeper.o
 EXEC_LIB_OBJ = nexus_exec.o

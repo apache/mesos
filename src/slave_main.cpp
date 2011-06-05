@@ -1,5 +1,6 @@
 #include <getopt.h>
 
+#include "isolation_module_factory.hpp"
 #include "slave.hpp"
 #include "slave_webui.hpp"
 
@@ -85,10 +86,16 @@ int main(int argc, char **argv)
   FLAGS_logbufsecs = 1;
   google::InitGoogleLogging(argv[0]);
 
+  LOG(INFO) << "Creating \"" << isolation << "\" isolation module";
+  IsolationModule *isolationModule = IsolationModule::create(isolation);
+
+  if (isolationModule == NULL)
+    fatal("unrecognized isolation type: %s", isolation);
+
   LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
   LOG(INFO) << "Starting Nexus slave";
 
-  Slave* slave = new Slave(resources, false, isolation);
+  Slave* slave = new Slave(resources, false, isolationModule);
   PID pid = Process::spawn(slave);
 
   MasterDetector *detector = MasterDetector::create(url, pid, false, quiet);
@@ -102,6 +109,10 @@ int main(int argc, char **argv)
   Process::wait(pid);
 
   MasterDetector::destroy(detector);
+
+  IsolationModule::destroy(isolationModule);
+
+  delete slave;
 
   return 0;
 }

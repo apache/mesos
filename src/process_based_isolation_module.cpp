@@ -22,22 +22,29 @@ using namespace nexus::internal;
 using namespace nexus::internal::slave;
 
 
-ProcessBasedIsolationModule::ProcessBasedIsolationModule(Slave* slave)
-{
-  this->slave = slave;
-  reaper = new Reaper(this);
-  Process::spawn(reaper);
-}
+ProcessBasedIsolationModule::ProcessBasedIsolationModule()
+  : initialized(false) {}
 
 
 ProcessBasedIsolationModule::~ProcessBasedIsolationModule()
 {
-  // We want to wait until the reaper has completed because it
+  // We need to wait until the reaper has completed because it
   // accesses 'this' in order to make callbacks ... deleting 'this'
   // could thus lead to a seg fault!
-  Process::post(reaper->getPID(), SHUTDOWN_REAPER);
-  Process::wait(reaper);
-  delete reaper;
+  if (initialized) {
+    CHECK(reaper != NULL);
+    Process::post(reaper->getPID(), SHUTDOWN_REAPER);
+    Process::wait(reaper);
+    delete reaper;
+  }
+}
+
+void ProcessBasedIsolationModule::initialize(Slave *slave)
+{
+  this->slave = slave;
+  reaper = new Reaper(this);
+  Process::spawn(reaper);
+  initialized = true;
 }
 
 
@@ -56,6 +63,9 @@ void ProcessBasedIsolationModule::frameworkRemoved(Framework* framework)
 
 void ProcessBasedIsolationModule::startExecutor(Framework* framework)
 {
+  if (!initialized)
+    LOG(FATAL) << "Cannot launch executors before initialization!";
+
   LOG(INFO) << "Starting executor for framework " << framework->id << ": "
             << framework->executorInfo.uri;
   CHECK(pgids[framework->id] == -1);
