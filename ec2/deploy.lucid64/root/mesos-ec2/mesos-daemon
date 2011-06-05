@@ -34,4 +34,4 @@ if [ "$PROGRAM" == "mesos-slave" ]; then
 fi
 
 cd $MESOS_HOME/bin
-nohup ./$PROGRAM --log_dir=/mnt/mesos-logs --work_dir=/mnt/mesos-work $EXTRA_OPTS $@ </dev/null >/mnt/$PROGRAM.out 2>&1 &
+nohup ./$PROGRAM --log_dir=/mnt/mesos-logs --work_dir=/mnt/mesos-work $EXTRA_OPTS $@ </dev/null >/mnt/mesos-logs/$PROGRAM.out 2>&1 &
