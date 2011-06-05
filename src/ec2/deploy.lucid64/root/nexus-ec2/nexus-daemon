@@ -26,7 +26,7 @@ if [ "$PROGRAM" == "nexus-slave" ]; then
   CPUS=`grep processor /proc/cpuinfo | wc -l`
   MEM_KB=`cat /proc/meminfo | grep MemTotal | awk '{print $2}'`
   MEM=$[(MEM_KB - 1024 * 1024) * 1024]
-  EXTRA_OPTS="--cpus $CPUS --mem $MEM -i lxc"
+  EXTRA_OPTS="--cpus $CPUS --mem $MEM"
 fi
 
 cd $NEXUS_HOME/src
