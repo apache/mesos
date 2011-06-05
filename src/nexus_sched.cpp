@@ -191,7 +191,10 @@ protected:
       }
 
       case NO_MASTER_DETECTED: {
-	// TODO(alig): Do we want to do anything here?
+	// TODO(benh): We need to convey to the driver that we are
+	// currently not connected (not running?) so that calls such
+	// as sendFrameworkMessage will return with an error (rather
+	// than just getting dropped all together).
 	break;
       }
 
