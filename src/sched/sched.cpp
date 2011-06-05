@@ -217,8 +217,12 @@ protected:
         
 	// Save all the slave PIDs that are part of this ofer so later
 	// we can send framework messages directly.
-        foreachpair (const SlaveID &slaveId, const PID &pid, pids)
-	  savedOffers[oid][slaveId] = pid;
+        foreachpair (const SlaveID &slaveId, const PID &pid, pids) {
+          if (pid == PID())
+            VLOG(1) << "Received " << pid << " for slave " << slaveId;
+
+          savedOffers[oid][slaveId] = pid;
+        }
 
         invoke(bind(&Scheduler::resourceOffer, sched, driver, oid, ref(offs)));
         break;
@@ -254,7 +258,8 @@ protected:
         FrameworkMessage msg;
         tie(msg) = unpack<F2F_FRAMEWORK_MESSAGE>(body());
         VLOG(1) << "Asked to send framework message to slave " << msg.slaveId;
-        if (savedSlavePids.count(msg.slaveId) > 0) {
+        if (savedSlavePids.count(msg.slaveId) > 0 &&
+            savedSlavePids[msg.slaveId] != PID()) {
           VLOG(1) << "Saved slave PID is " << savedSlavePids[msg.slaveId];
           send(savedSlavePids[msg.slaveId], pack<M2S_FRAMEWORK_MESSAGE>(fid, msg));
         } else {
