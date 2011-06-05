@@ -92,17 +92,18 @@ enum MessageType {
 #endif /* __sun__ */
 
   /* Internal to master */
-  M2M_GET_STATE,        // Used by web UI
+  M2M_GET_STATE,         // Used by web UI
   M2M_GET_STATE_REPLY,
-  M2M_TIMER_TICK,       // Timer for expiring filters etc
-  M2M_SHUTDOWN,         // Used in tests to shut down master
+  M2M_TIMER_TICK,        // Timer for expiring filters etc
+  M2M_FRAMEWORK_EXPIRED, // Timer for expiring frameworks
+  M2M_SHUTDOWN,          // Used in tests to shut down master
 
   /* Internal to slave */
-  S2S_GOT_MASTER,       // Used when looking up master with ZooKeeper
-  S2S_GET_STATE,        // Used by web UI
+  S2S_GOT_MASTER,        // Used when looking up master with ZooKeeper
+  S2S_GET_STATE,         // Used by web UI
   S2S_GET_STATE_REPLY,
-  S2S_CHILD_EXIT,       // Sent by reaper process
-  S2S_SHUTDOWN,         // Used in tests to shut down slave
+  S2S_CHILD_EXIT,        // Sent by reaper process
+  S2S_SHUTDOWN,          // Used in tests to shut down slave
 
   MESOS_MESSAGES,
 };
@@ -332,7 +333,10 @@ TUPLE(M2M_GET_STATE_REPLY,
 
 TUPLE(M2M_TIMER_TICK,
       ());
-       
+
+TUPLE(M2M_FRAMEWORK_EXPIRED,
+      (FrameworkID));
+
 TUPLE(M2M_SHUTDOWN,
       ());
 

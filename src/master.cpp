@@ -35,7 +35,7 @@ namespace {
 class AllocatorTimer : public Tuple<Process>
 {
 private:
-  PID master;
+  const PID master;
 
 protected:
   void operator () ()
@@ -271,18 +271,13 @@ void Master::operator () ()
   LOG(INFO) << "Master started at mesos://" << self();
 
   // Don't do anything until we get an identifier.
-  while (true) {
-    if (receive() == GOT_MASTER_ID) {
-      string id;
-      unpack<GOT_MASTER_ID>(id);
-      masterId = lexical_cast<int64_t>(id);
-      LOG(INFO) << "Master ID:" << masterId;
-      break;
-    } else {
-      LOG(INFO) << "Oops! We're dropping a message since "
-		<< "we haven't received an identifier yet!";
-    }
-  }
+  while (receive() != GOT_MASTER_ID)
+    LOG(INFO) << "Oops! We're dropping a message since "
+              << "we haven't received an identifier yet!";  
+  string id;
+  unpack<GOT_MASTER_ID>(id);
+  masterId = lexical_cast<long>(id);
+  LOG(INFO) << "Master ID:" << masterId;
 
   // Create the allocator (we do this after the constructor because it
   // leaks 'this').
@@ -378,7 +373,7 @@ void Master::operator () ()
         } else {
           // The slot offer is gone, meaning that we rescinded it or that
           // the slave was lost; immediately report any tasks in it as lost
-          foreach (TaskDescription &t, tasks) {
+          foreach (const TaskDescription &t, tasks) {
             send(framework->pid,
                  pack<M2F_STATUS_UPDATE>(t.taskId, TASK_LOST, ""));
           }
@@ -409,6 +404,9 @@ void Master::operator () ()
         if (task != NULL) {
           LOG(INFO) << "Asked to kill " << task << " by its framework";
           killTask(task);
+	} else {
+	  LOG(INFO) << "Asked to kill UNKNOWN task by its framework";
+	  send(framework->pid, pack<M2F_STATUS_UPDATE>(tid, TASK_LOST, ""));
         }
       }
       break;
@@ -432,9 +430,9 @@ void Master::operator () ()
 
     case S2M_REREGISTER_SLAVE: {
       Slave *slave = new Slave(from(), "", elapsed());
-      vector<Task> taskVec;
+      vector<Task> tasks;
       unpack<S2M_REREGISTER_SLAVE>(slave->id, slave->hostname, slave->publicDns,
-                                   slave->resources, taskVec);
+                                   slave->resources, tasks);
 
       if (slave->id == "") {
         slave->id = lexical_cast<string>(masterId) + "-"
@@ -443,10 +441,10 @@ void Master::operator () ()
                    << "generating a new id for it.";
       }
 
-      foreach(Task &ti, taskVec) {
-        Task *tip = new Task(ti);
-        slave->addTask(tip);
-        updateFrameworkTasks(tip);
+      foreach(const Task &t, tasks) {
+        Task *task = new Task(t);
+        slave->addTask(task);
+        updateFrameworkTasks(task);
       }
 
       // TODO(benh|alig): We should put a timeout on how long we keep
@@ -484,7 +482,11 @@ void Master::operator () ()
       VLOG(1) << "FT: prepare relay seq:"<< seq() << " from: "<< from();
       if (Slave *slave = lookupSlave(sid)) {
         if (Framework *framework = lookupFramework(fid)) {
-          // Pass on the status update to the framework.
+	  // Pass on the status update to the framework.
+	  // TODO(benh): Do we not want to forward the
+	  // S2M_FT_STATUS_UPDATE message? This seems a little tricky
+	  // because we really wanted to send the M2F_FT_STATUS_UPDATE
+	  // message.
           forward(framework->pid);
           if (duplicate()) {
             LOG(WARNING) << "FT: Locally ignoring duplicate message with id:" << seq();
@@ -636,6 +638,17 @@ void Master::operator () ()
       break;
     }
 
+    case M2M_FRAMEWORK_EXPIRED: {
+      FrameworkID fid;
+      unpack<M2M_FRAMEWORK_EXPIRED>(fid);
+      if (Framework *framework = lookupFramework(fid)) {
+	LOG(INFO) << "Framework failover timer expired, removing framework "
+		  << framework;
+	removeFramework(framework);
+      }
+      break;
+    }
+
     case PROCESS_EXIT: {
       // TODO(benh): Could we get PROCESS_EXIT from a network partition?
       LOG(INFO) << "Process exited: " << from();
@@ -643,7 +656,8 @@ void Master::operator () ()
         FrameworkID fid = pidToFid[from()];
         if (Framework *framework = lookupFramework(fid)) {
           LOG(INFO) << framework << " disconnected";
-          // TODO(benh): Wait for a framework failover.
+//  	  framework->failoverTimer = new FrameworkFailoverTimer(self(), fid);
+//  	  link(spawn(framework->failoverTimer));
           removeFramework(framework);
         }
       } else if (pidToSid.find(from()) != pidToSid.end()) {
@@ -652,6 +666,16 @@ void Master::operator () ()
           LOG(INFO) << slave << " disconnected";
           removeSlave(slave);
         }
+      } else {
+	foreachpair (_, Framework *framework, frameworks) {
+	  if (framework->failoverTimer != NULL &&
+	      framework->failoverTimer->getPID() == from()) {
+	    LOG(INFO) << "Lost framework failover timer, removing framework "
+		      << framework;
+	    removeFramework(framework);
+	    break;
+	  }
+	}
       }
       break;
     }

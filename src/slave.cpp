@@ -511,8 +511,17 @@ string Slave::getWorkDirectory(FrameworkID fid) {
   } else {
     workDir = "work";
   }
+
+  // TODO(benh): Clean this up, check for errors, etc.
+  time_t rawtime;
+  struct tm* timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+  char timestr[32];
+  strftime(timestr, sizeof(timestr), "%Y-%m-%d-%H:%M", timeinfo);
+
   ostringstream fwDir;
-  fwDir << workDir << "/slave-" << id << "/fw-" << fid;
+  fwDir << workDir << "/slave-" << id << "/fw-" << fid << "/" << timestr;
   return fwDir.str();
 }
 

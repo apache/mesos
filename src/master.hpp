@@ -72,9 +72,41 @@ const double HEARTBEAT_INTERVAL = 2;
 // Acceptable time since we saw the last heartbeat (four heartbeats).
 const double HEARTBEAT_TIMEOUT = HEARTBEAT_INTERVAL * 4;
 
+// Time to wait for a framework to failover (TODO(benh): Make configurable)).
+const time_t FRAMEWORK_FAILOVER_TIMEOUT = 60;
+
 // Some forward declarations
 class Slave;
 class Allocator;
+
+
+class FrameworkFailoverTimer : public Tuple<Process>
+{
+private:
+  const PID master;
+  const FrameworkID fid;
+
+protected:
+  void operator () ()
+  {
+    link(master);
+    do {
+      switch (receive(FRAMEWORK_FAILOVER_TIMEOUT)) {
+      case PROCESS_TIMEOUT:
+	send(master, pack<M2M_FRAMEWORK_EXPIRED>(fid));
+	return;
+      case PROCESS_EXIT:
+	return;
+      case M2M_SHUTDOWN:
+	return;
+      }
+    } while (true);
+  }
+
+public:
+  FrameworkFailoverTimer(const PID &_master, FrameworkID _fid)
+    : master(_master), fid(_fid) {}
+};
 
 
 // Resources offered on a particular slave.
@@ -102,7 +134,7 @@ struct SlotOffer
 
 // An connected framework.
 struct Framework
-{  
+{
   PID pid;
   FrameworkID id;
   bool active; // Turns false when framework is being removed
@@ -120,8 +152,22 @@ struct Framework
   // or 0 for slaves that we want to keep filtered forever
   unordered_map<Slave *, double> slaveFilter;
 
+  // A failover timer if the connection to this framework is lost.
+  FrameworkFailoverTimer *failoverTimer;
+
   Framework(const PID &_pid, FrameworkID _id, double time)
-    : pid(_pid), id(_id), active(true), connectTime(time) {}
+    : pid(_pid), id(_id), active(true), connectTime(time),
+      failoverTimer(NULL) {}
+
+  ~Framework()
+  {
+    if (failoverTimer != NULL) {
+      Process::post(failoverTimer->self(), M2M_SHUTDOWN);
+      Process::wait(failoverTimer->self());
+      delete failoverTimer;
+      failoverTimer = NULL;
+    }
+  }
   
   Task * lookupTask(TaskID tid)
   {
@@ -297,7 +343,7 @@ public:
   state::MasterState *getState();
   
   OfferID makeOffer(Framework *framework,
-                        const vector<SlaveResources>& resources);
+		    const vector<SlaveResources>& resources);
   
   void rescindOffer(SlotOffer *offer);
   
