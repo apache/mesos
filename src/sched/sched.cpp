@@ -56,62 +56,6 @@ using std::tr1::bind;
 
 namespace mesos { namespace internal {
 
-
-// Unfortunately, when we reply to an offer right now the message
-// might not make it to the master, or even all the way to the
-// slave. So, we preemptively assume the task has been lost if we
-// don't here from it after some timeout (see below). TODO(benh):
-// Eventually, what we would like to do is actually query this state
-// in the master, or possibly even re-launch the task.
-
-#define STATUS_UPDATE_TIMEOUT 120
-
-class StatusUpdateTimer : public MesosProcess<StatusUpdateTimer>
-{
-public:
-  StatusUpdateTimer(const PID<SchedulerProcess> &_sched,
-                    const FrameworkID& _frameworkId,
-                    const TaskDescription& task)
-    : sched(_sched), frameworkId(_frameworkId), taskId(task.task_id()),
-      slaveId(task.slave_id()), terminate(false) {}
-  
-protected:
-  virtual void operator () ()
-  {
-    link(sched);
-    while (!terminate) {
-      switch (receive(STATUS_UPDATE_TIMEOUT)) {
-        case PROCESS_TIMEOUT: {
-          terminate = true;
-          VLOG(1) << "No status updates received for task ID: "
-                  << taskId << " after "
-                  << STATUS_UPDATE_TIMEOUT << ", assuming task was lost";
-          MSG<M2F_STATUS_UPDATE> out;
-          out.mutable_framework_id()->MergeFrom(frameworkId);
-          TaskStatus* status = out.mutable_status();
-          status->mutable_task_id()->MergeFrom(taskId);
-          status->mutable_slave_id()->MergeFrom(slaveId);
-          status->set_state(TASK_LOST);
-          send(sched, out);
-          break;
-        }
-        case PROCESS_TERMINATE: {
-          terminate = true;
-          break;
-        }
-      }
-    }
-  }
-
-private:
-  const PID<SchedulerProcess> sched;
-  const FrameworkID frameworkId;
-  const TaskID taskId;
-  const SlaveID slaveId;
-  bool terminate;
-};
-
-
 // The scheduler process (below) is responsible for interacting with
 // the master and responding to Mesos API calls from scheduler
 // drivers. In order to allow a message to be sent back to the master
@@ -160,15 +104,7 @@ public:
             &FrameworkErrorMessage::message);
   }
 
-  virtual ~SchedulerProcess()
-  {
-    // Cleanup any remaining timers.
-    foreachpair (const TaskID& taskId, StatusUpdateTimer* timer, timers) {
-      send(timer->self(), process::TERMINATE);
-      wait(timer->self());
-      delete timer;
-    }
-  }
+  virtual ~SchedulerProcess() {}
 
 protected:
   virtual void operator () ()
@@ -302,15 +238,6 @@ protected:
     // multiple times (of course, if a scheduler re-uses a TaskID,
     // that could be bad.
 
-    // Stop any status update timers we might have had running.
-    if (timers.count(status.task_id()) > 0) {
-      StatusUpdateTimer* timer = timers[status.task_id()];
-      timers.erase(status.task_id());
-      send(timer->self(), process::TERMINATE);
-      wait(timer->self());
-      delete timer;
-    }
-
     process::invoke(bind(&Scheduler::statusUpdate, sched, driver,
                          cref(status)));
 
@@ -385,11 +312,6 @@ protected:
       // framework messages directly.
       savedSlavePids[task.slave_id()] = savedOffers[offerId][task.slave_id()];
 
-      // Create timers to ensure we get status updates for these tasks.
-      StatusUpdateTimer *timer = new StatusUpdateTimer(self(), frameworkId, task);
-      timers[task.task_id()] = timer;
-      spawn(timer);
-
       out.add_tasks()->MergeFrom(task);
     }
 
@@ -458,9 +380,6 @@ private:
 
   unordered_map<OfferID, unordered_map<SlaveID, UPID> > savedOffers;
   unordered_map<SlaveID, UPID> savedSlavePids;
-
-  // Timers to ensure we get a status update for each task we launch.
-  unordered_map<TaskID, StatusUpdateTimer *> timers;
 };
 
 }} // namespace mesos { namespace internal {
