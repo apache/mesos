@@ -3,6 +3,9 @@ OS_NAME=$1
 DOWNLOAD_METHOD=$2
 BRANCH=$3
 
+# By exporting this git won't ask to accept a key.
+export GIT_SSH=/root/nexus-ec2/ssh-no-keychecking
+
 # Set PATH to include Scala
 export PATH=$PATH:/root/scala-2.7.7.final/bin
 
@@ -83,10 +86,9 @@ if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
   pushd /root > /dev/null 2>&1
   rm -rf nexus nexus.tgz
   # Set git SSH command to a script that uses -o StrictHostKeyChecking=no
-  GIT_SSH=/root/nexus-ec2/ssh-no-keychecking git clone $REPOSITORY nexus
+  git clone $REPOSITORY nexus
   pushd nexus 2>&1
-  GIT_SSH2=/root/nexus-ec2/ssh-no-keychecking git branch torque --track origin/torque
-  GIT_SSH3=/root/nexus-ec2/ssh-no-keychecking git checkout $BRANCH
+  git checkout -b $BRANCH --track origin/$BRANCH
   popd > /dev/null 2>&1
   popd > /dev/null 2>&1
   DOWNLOADED=1
