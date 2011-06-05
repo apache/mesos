@@ -109,8 +109,8 @@ void ProcessBasedIsolationModule::resourcesChanged(Framework* fw)
 ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(Framework* fw)
 {
   return new ExecutorLauncher(fw->id, fw->executorInfo.uri, fw->user,
-			      slave->getWorkDirectory(fw->id),
-			      slave->self(), !slave->local);
+                              slave->getWorkDirectory(fw->id), slave->self(),
+                              !slave->local, fw->executorInfo.params);
 }
 
 
@@ -129,18 +129,18 @@ void ProcessBasedIsolationModule::Reaper::operator () ()
       pid_t pid;
       int status;
       if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
-	foreachpair (FrameworkID fid, pid_t& pgid, module->pgids) {
-	  if (pgid == pid) {
-	    // Kill the process group to clean up the tasks.
-	    LOG(INFO) << "Sending SIGKILL to gpid " << pgid;
-	    killpg(pgid, SIGKILL);
-	    module->pgids[fid] = -1;
-	    LOG(INFO) << "Telling slave of lost framework " << fid;
-	    // TODO(benh): This is broken if/when libprocess is parallel!
-	    module->slave->executorExited(fid, status);
-	    break;
-	  }
-	}
+        foreachpair (FrameworkID fid, pid_t& pgid, module->pgids) {
+          if (pgid == pid) {
+            // Kill the process group to clean up the tasks.
+            LOG(INFO) << "Sending SIGKILL to gpid " << pgid;
+            killpg(pgid, SIGKILL);
+            module->pgids[fid] = -1;
+            LOG(INFO) << "Telling slave of lost framework " << fid;
+            // TODO(benh): This is broken if/when libprocess is parallel!
+            module->slave->executorExited(fid, status);
+            break;
+          }
+        }
       }
       break;
     }

@@ -36,9 +36,11 @@ ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
 				   const string& _user,
 				   const string& _workDirectory,
 				   const string& _slavePid,
-				   bool _redirectIO)
+				   bool _redirectIO,
+                                   const string_map& _params)
   : frameworkId(_frameworkId), executorUri(_executorUri), user(_user),
-    workDirectory(_workDirectory), slavePid(_slavePid), redirectIO(_redirectIO)
+    workDirectory(_workDirectory), slavePid(_slavePid),
+    redirectIO(_redirectIO), params(_params)
 {}
 
 
@@ -180,11 +182,18 @@ string ExecutorLauncher::fetchExecutor()
 // Set up environment variables for launching a framework's executor.
 void ExecutorLauncher::setupEnvironment()
 {
+  // Set any environment variables given as env.* params in the ExecutorInfo
+  foreachpair (const string& key, const string& value, params) {
+    if (key.find("env.") == 0) {
+      const string& var = key.substr(strlen("env."));
+      setenv(var.c_str(), value.c_str(), true);
+    }
+  }
+
+  // Set Nexus environment variables to pass slave ID, framework ID, etc.
   setenv("NEXUS_SLAVE_PID", slavePid.c_str(), true);
-
-  const string &nexus_framework_id = lexical_cast<string>(frameworkId);
-  setenv("NEXUS_FRAMEWORK_ID", nexus_framework_id.c_str(), true);
-
+  setenv("NEXUS_FRAMEWORK_ID", frameworkId.c_str(), true);
+  
   // Set LIBPROCESS_PORT so that we bind to a random free port.
   setenv("LIBPROCESS_PORT", "0", true);
 }

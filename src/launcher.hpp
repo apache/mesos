@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "nexus_types.hpp"
+#include "nexus.hpp"
 
 #include "fatal.hpp"
 
@@ -32,12 +32,14 @@ protected:
   string user;
   string workDirectory; // Directory in which the framework should run
   string slavePid;
-  bool redirectIO;
+  bool redirectIO;   // Whether to redirect stdout and stderr to files
+  string_map params; // Key-value params in framework's ExecutorInfo
 
 public:
   ExecutorLauncher(FrameworkID _frameworkId, const string& _executorUri,
 		   const string& _user, const string& _workDirectory,
-		   const string& _slavePid, bool _redirectIO);
+		   const string& _slavePid, bool _redirectIO,
+                   const string_map& _params);
 
   virtual ~ExecutorLauncher();
 

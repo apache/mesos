@@ -92,7 +92,16 @@ void LxcIsolationModule::startExecutor(Framework *fw)
     LOG(INFO) << "Started lxc-execute, pid = " << pid;
     int status;
   } else {
-    // Set up environment variables.
+    // Set any environment variables given as env.* params in the ExecutorInfo
+    const string_map& params = fw->executorInfo.params;
+    foreachpair (const string& key, const string& value, params) {
+      if (key.find("env.") == 0) {
+        const string& var = key.substr(strlen("env."));
+        setenv(var.c_str(), value.c_str(), true);
+      }
+    }
+
+    // Set up Nexus environment variables for launcher.
     setenv("NEXUS_FRAMEWORK_ID", lexical_cast<string>(fw->id).c_str(), 1);
     setenv("NEXUS_EXECUTOR_URI", fw->executorInfo.uri.c_str(), 1);
     setenv("NEXUS_USER", fw->user.c_str(), 1);

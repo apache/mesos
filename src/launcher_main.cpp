@@ -1,5 +1,7 @@
 #include "launcher.hpp"
 
+#include "nexus.hpp"
+
 #include <boost/lexical_cast.hpp>
 
 using std::string;
@@ -20,11 +22,13 @@ const char * getenvOrFail(const char *variable) {
 
 int main(int argc, char **argv)
 {
+  string_map params;   // Empty map
   ExecutorLauncher(lexical_cast<FrameworkID>(getenvOrFail("NEXUS_FRAMEWORK_ID")),
-		   getenvOrFail("NEXUS_EXECUTOR_URI"),
-		   getenvOrFail("NEXUS_USER"),
-		   getenvOrFail("NEXUS_WORK_DIRECTORY"),
-		   getenvOrFail("NEXUS_SLAVE_PID"),
-		   lexical_cast<bool>(getenvOrFail("NEXUS_REDIRECT_IO"))).run();
+                   getenvOrFail("NEXUS_EXECUTOR_URI"),
+                   getenvOrFail("NEXUS_USER"),
+                   getenvOrFail("NEXUS_WORK_DIRECTORY"),
+                   getenvOrFail("NEXUS_SLAVE_PID"),
+                   lexical_cast<bool>(getenvOrFail("NEXUS_REDIRECT_IO")),
+                   params).run();
   return 0;
 }
