@@ -76,6 +76,14 @@ ReliableProcess::~ReliableProcess()
     free(current);
     current = NULL;
   }
+
+  foreachpair (const PID &pid, ReliableSender *sender, senders) {
+    assert(pid == sender->getPID());
+    // Shut it down by sending it an ack.
+    send(pid, RELIABLE_ACK);
+    wait(pid);
+    delete sender;
+  }
 }
 
 
