@@ -331,8 +331,8 @@ endif
 $(DEPLOY_FILES): $(DEPLOYDIR)/%: @srcdir@/deploy/% | $(DEPLOYDIR)
 	cp -r $< $@
 
-$(CONFDIR)/mesos.conf: @srcdir@/conf/mesos.conf.template | $(CONFDIR)
-	cp -r $< $@
+$(CONFDIR)/mesos.conf: | @srcdir@/conf/mesos.conf.template $(CONFDIR)
+	cp -r @srcdir@/conf/mesos.conf.template $@
 
 test: all
 	$(MAKE) -C tests test
@@ -378,7 +378,6 @@ clean:
 	rm -f webui/slave/swig/slave.py
 	rm -f $(BINDIR)/webui/master/swig/master.py
 	rm -f $(BINDIR)/webui/master/swig/master.pc
-	rm -f $(CONF_FILES)
 	rm -f $(DEPLOY_FILES)
 	rm -f TAGS
 
