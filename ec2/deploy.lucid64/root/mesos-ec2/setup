@@ -19,14 +19,10 @@ SCRIPTS="copy-dir
          setup-torque-server
          start-torque-slaves
          stop-torque-slaves
-         prologue.setup-mpi-master
          setup-mpi
          ssh-no-keychecking
-         start-mos
          start-mesos
-         stop-mos
-         stop-mesos
-         stop-tasktracker-child"
+         stop-mesos"
 
 HADOOP_HOME=/root/hadoop-0.20.2
 
@@ -87,7 +83,7 @@ done
 DOWNLOADED=0
 
 if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
-  REPOSITORY=git@github.com:mesosproject/mesos.git
+  REPOSITORY=git@github.com:mesos/mesos.git
   echo "Checking out Mesos from $REPOSITORY"
   pushd /root > /dev/null 2>&1
   rm -rf mesos mesos.tgz
@@ -98,14 +94,6 @@ if [[ "$DOWNLOAD_METHOD" == "git" ]] ; then
   popd > /dev/null 2>&1
   popd > /dev/null 2>&1
   DOWNLOADED=1
-elif [[ "$DOWNLOAD_METHOD" == "web" ]] ; then
-  echo "Downloading latest Mesos snapshot from mesos.berkeley.edu"
-  pushd /root > /dev/null 2>&1
-  rm -rf mesos mesos.tgz
-  wget http://mesos:mesos@mesos.berkeley.edu/releases/mesos.tgz
-  tar xzf mesos.tgz
-  popd > /dev/null 2>&1
-  DOWNLOADED=1
 fi
 
 
@@ -113,7 +101,7 @@ fi
 if [[ "$DOWNLOADED" == "1" ]] ; then
   echo "Building Mesos..."
   pushd /root/mesos > /dev/null 2>&1
-  ./configure.OURS.$OS_NAME
+  ./configure.template.ubuntu-lucid-64
   make clean
   make
   popd > /dev/null 2>&1
@@ -124,14 +112,14 @@ if [[ "$DOWNLOADED" == "1" ]] ; then
     popd > /dev/null 2>&1
   fi
   echo "Building Hadoop framework..."
-  pushd /root/mesos/frameworks/hadoop-0.20.0 > /dev/null 2>&1
+  pushd /root/mesos/frameworks/hadoop-0.20.2 > /dev/null 2>&1
   ant
   ant examples
   popd > /dev/null 2>&1
 fi
 
 echo "Setting up Hadoop framework config files..."
-cp hadoop-framework-conf/* /root/mesos/frameworks/hadoop-0.20.0/conf
+cp hadoop-framework-conf/* /root/mesos/frameworks/hadoop-0.20.2/conf
 
 echo "Setting up haproxy+apache framework config files..."
 cp haproxy+apache/* /root/mesos/frameworks/haproxy+apache
@@ -164,11 +152,8 @@ $HADOOP_HOME/bin/hadoop namenode -format
 echo "Starting HDFS..."
 $HADOOP_HOME/bin/start-dfs.sh
 
-echo "Starting MapOutputServer(s)..."
-./start-mos
-
-echo "Setting up torque"
-./setup-torque
+#echo "Setting up torque"
+#./setup-torque
 
 echo "Starting Mesos cluster..."
 ./start-mesos

@@ -8,5 +8,5 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 echo "RSYNC'ing /root/mesos to slaves..."
 for slave in `cat $SLAVES`; do
     echo $slave
-    rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'mesos/frameworks/hadoop-0.20.0/logs/*' /root/mesos $slave:/root
+    rsync -e "ssh $SSH_OPTS" -az --exclude '*.d' --exclude '*.o' --exclude '*.cpp' --exclude '*.hpp' --exclude '*.pyc' --exclude 'mesos/frameworks/hadoop-0.20.0/logs/*' --exclude 'mesos/work' --exclude 'mesos/logs' --exclude 'mesos/test_output' /root/mesos $slave:/root
 done

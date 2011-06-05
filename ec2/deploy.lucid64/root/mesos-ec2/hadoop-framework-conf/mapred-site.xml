@@ -6,8 +6,13 @@
 <configuration>
 
   <property>
-    <name>mapred.use.mesos</name>
-    <value>true</value>
+    <name>mapred.job.tracker</name>
+    <value>{{master}}:9001</value>
+  </property>
+
+  <property>
+    <name>mapred.jobtracker.taskScheduler</name>
+    <value>org.apache.hadoop.mapred.MesosScheduler</value>
   </property>
 
   <property>

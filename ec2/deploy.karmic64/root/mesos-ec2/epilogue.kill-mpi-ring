@@ -1,6 +1,0 @@
-#! /usr/bin/env sh
-
-#killing the mpdring
-echo "killing mpdring wiuth mpdallexit"
-mpdallexit
-

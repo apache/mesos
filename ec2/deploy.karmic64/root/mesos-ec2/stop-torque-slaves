@@ -1,3 +1,0 @@
-#! /usr/bin/env sh
-
-for i in `cat slaves`; do ssh $i momctl -s; done

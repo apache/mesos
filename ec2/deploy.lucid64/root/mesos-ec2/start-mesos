@@ -7,11 +7,11 @@ SLAVES="`cat slaves`"
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
 echo "Starting master on $MASTER"
-ssh $SSH_OPTS $MASTER "/root/mesos-ec2/mesos-daemon mesos-master -p 1111 </dev/null >/dev/null"
+ssh $SSH_OPTS $MASTER "/root/mesos-ec2/mesos-daemon mesos-master </dev/null >/dev/null"
 
 for slave in $SLAVES; do
   echo "Starting slave on $slave"
-  ssh $SSH_OPTS $slave "/root/mesos-ec2/mesos-daemon mesos-slave 1@$MASTER:1111 </dev/null >/dev/null" &
+  ssh $SSH_OPTS $slave "/root/mesos-ec2/mesos-daemon mesos-slave -u 1@$MASTER:5050 </dev/null >/dev/null" &
   sleep 0.1
 done
 wait

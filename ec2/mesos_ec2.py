@@ -32,16 +32,15 @@ def parse_args():
       help="Master instance type (leave empty for same as instance-type)")
   parser.add_option("-z", "--zone", default="us-east-1b",
       help="Availability zone to launch instances in")
-  parser.add_option("-a", "--ami", default="ami-f2e20a9b", # mesos-lucid-0.4
+  parser.add_option("-a", "--ami", default="ami-f8806a91",
       help="Amazon Machine Image ID to use")
   parser.add_option("-o", "--os", default="lucid64",
-      help="OS on the Amazon Machine Image (lucid6 | karmic64 | solaris)")
+      help="OS on the Amazon Machine Image (lucid64 for now)")
   parser.add_option("-d", "--download", metavar="SOURCE", default="none",
       help="Where to download latest code from: set to 'git' to check out " +
-           "from git, 'web' for latest snapshot .tgz, or 'none' to use " +
-           "the build of Mesos on the AMI (default)")
+           "from git, or 'none' to use the Mesos on the AMI (default)")
   parser.add_option("-b", "--branch", default="master",
-      help="if using git, which branch to check out. default is 'master'")
+      help="If using git, which branch to check out. Default is 'master'")
   parser.add_option("-D", metavar="[ADDRESS:]PORT", dest="proxy_port", 
       help="Use SSH dynamic port forwarding to create a SOCKS proxy at " +
             "the given local address (for use with login)")
@@ -50,7 +49,7 @@ def parse_args():
            "(for debugging)")
   parser.add_option("-f", "--ft", default="1", 
       help="Number of masters to run. Default is 1. " + 
-           "Greater values cause Mesos to run in FT mode with ZooKeeper")
+           "Greater values cause Mesos to run in FT mode with ZooKeeper.")
   (opts, args) = parser.parse_args()
   opts.ft = int(opts.ft)
   if len(args) != 2:

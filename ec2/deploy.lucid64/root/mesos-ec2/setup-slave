@@ -12,6 +12,8 @@ for i in /mnt /mnt2 /mnt3 /mnt4; do
 done
 mkdir -p /mnt/hdfs-logs
 mkdir -p /mnt/hadoop-logs
+mkdir -p /mnt/mesos-logs
+mkdir -p /mnt/mesos-work
 
 # Mount cgroup file system
 mkdir -p /cgroup
