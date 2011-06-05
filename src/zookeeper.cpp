@@ -360,8 +360,8 @@ private:
     getCall->zooKeeperProcess->send(getCall->from, COMPLETED);
   }
 
-  void getChildrenCompletion(int ret, const String_vector *results,
-			     const void *data)
+  static void getChildrenCompletion(int ret, const String_vector *results,
+				    const void *data)
   {
     GetChildrenCall *getChildrenCall =
       static_cast<GetChildrenCall *>(const_cast<void *>((data)));
