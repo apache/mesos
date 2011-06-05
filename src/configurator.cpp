@@ -135,30 +135,50 @@ void Configurator::loadCommandLine(int argc,
   for (int i = 0; i < args.size(); i++) {
     string key, val;
     bool set = false;
-    if (args[i].find("--", 0) == 0) {
-      // handle --blah=25 and --blah
+    if (args[i].find("--", 0) == 0) { 
+      // handle "--" case
+
       size_t eq = args[i].find_first_of("=");
-      if (eq == string::npos) { // handle the no value case
+      if (eq == string::npos && 
+          args[i].find("--no-", 0) == 0) { // handle --no-blah
+        key = args[i].substr(5); 
+        val = "0";
+        set = true;
+      } else if (eq == string::npos) {     // handle --blah
         key = args[i].substr(2);
-        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = "1";
         set = true;
-      } else { // handle the value case
+      } else {                             // handle --blah=25
         key = args[i].substr(2, eq-2); 
-        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         val = args[i].substr(eq+1);
         set = true;
-      } 
-    } else if (args[i].find_first_of("-", 0) == 0) {
-      // handle -blah 25
-      key = getLongName(args[i][1]);
-      if (key != "" && i+1 < args.size()) {
+      }
+
+    } else if (args[i].find_first_of("-", 0) == 0 && 
+               args[i].size() > 1) { 
+      // handle "-" case
+
+      if (args[i].find("-no-",0) == 0 && args[i].size() > 4) { // handle -no-b
+        key = getLongName(args[i][4]);
+        val = "0";
+      } else if (args[i].size() > 1) {  // shared code for -b and -b 25
+        key = getLongName(args[i][1]);
+        val = "1";
+      }
+      if (key == "")
+        continue;  // couldn't extract long name from short name
+
+      if (options[key].validator->isBool())
+        set = true;
+      else if (i+1 < args.size()) {  // handle -b 25
         val = args[i+1];
         set = true;
         i++;  // we've consumed next parameter as a "value"-parameter
-      }      
+      }
+
     }
     if (set && (overwrite || !params.contains(key))) {
+      std::transform(key.begin(), key.end(), key.begin(), ::tolower);
       params[key] = val;
     }
   }
@@ -208,22 +228,34 @@ void Configurator::loadConfigFile(const string& fname, bool overwrite)
 
 string Configurator::getUsage() const 
 {
-  const int PAD = 10;
-  const int LONG_PAD = string("--=VAL").size(); 
-  const int SHORT_PAD = string(" (or -  VAL)").size(); 
+  const int PAD = 5;
   string usage;
   
-  // get max length of the first column of usage output
+  map<string,string> col1; // key -> col 1 string
   int maxLen = 0;
+
+  // construct string for the first column and get size of column
   foreachpair (const string& key, const Option& opt, options) {
-    int len = key.length() + LONG_PAD;
-    len += opt.hasShortName ? SHORT_PAD : 0;
-    maxLen = len > maxLen ? len : maxLen;
+    string val = "--" + key;
+    if (!opt.validator->isBool())
+      val += " VAL";
+
+    if (opt.hasShortName) {
+      if (opt.validator->isBool()) 
+        val += string(" (or -") + opt.shortName + " or -no-" + 
+          opt.shortName + ")";
+      else
+        val += string(" (or -") + opt.shortName + " VAL)";
+    } else if (opt.validator->isBool())
+      val += " (--no-" + key + ")";
+    
+    col1[key] = val;
+    maxLen = val.size() > maxLen ? val.size() : maxLen;
   }
 
   foreachpair (const string& key, const Option& opt, options) {
     string helpStr = opt.helpString;
-    string line;
+    string line = col1[key];
 
     if (opt.defaultValue != "") {  // add default value
       // Place a space between help string and (default: VAL) if the
@@ -232,11 +264,11 @@ string Configurator::getUsage() const
       if (helpStr.size() > 0 && lastNewLine != helpStr.size() - 1) {
         helpStr += " ";
       }
-      helpStr += "(default: " + opt.defaultValue + ")";
+      string defval = opt.defaultValue;
+
+      helpStr += "(default: " + defval + ")";
     }
 
-    line += "--" + key + "=VAL";
-    line += opt.hasShortName ? string(" (or -") + opt.shortName + " VAL)" : "";
     string pad(PAD + maxLen - line.size(), ' ');
     line += pad;
     size_t pos1 = 0, pos2 = 0;

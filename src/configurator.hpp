@@ -311,6 +311,7 @@ private:
 
   /**
    * Gets the first long name option associated with the provided short name.
+   * @param shortName character representing the short name of the option
    * @return first long name option matching the short name, "" if none found.
    */
   string getLongName(char shortName) const;

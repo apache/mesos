@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 #include <map>
+#include <typeinfo>
 #include <glog/logging.h>
 #include "params.hpp"
 #include "foreach.hpp"
@@ -29,6 +30,7 @@ class ValidatorBase {
 public:
   virtual bool isValid(const string& val) const = 0;
   virtual ValidatorBase* clone() const = 0;
+  virtual bool isBool() const = 0;
 };
 
 
@@ -59,6 +61,11 @@ public:
   virtual ValidatorBase* clone() const
   {
     return new Validator<T>();
+  }
+
+  virtual bool isBool() const
+  {
+    return (typeid(bool) == typeid(T));
   }
 
 };
