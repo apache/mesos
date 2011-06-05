@@ -1,21 +1,31 @@
-/* TODO(benh): Compile with a way to figure out which set of messages
-   you used, and that way when someone with a different set of
-   messages sends you a message you can declare that that message is
-   not in your language of understanding. */
+/* TODO(benh): Improve link/connection management. For example, make
+   links be about sockets. Then see whether or not already connected
+   sockets can be used for sending a message back (without opening a
+   new socket first). */
+
+/* TODO(benh): When a link fails, try and reconnect a configurable
+   number of times before you just assume the link is dead. */
+
 /* TODO(benh): Fix link functionality (processes need to send
    process_exit message since a dead process on one node might not
    know that a process on another node linked with it). */
+
 /* TODO(benh): What happens when a remote link exits? Do we close the
    socket correclty?. */
-/* TODO(benh): Revisit receive, pause, and await semantics. */
+
 /* TODO(benh): Handle/Enable forking. */
+
 /* TODO(benh): Use multiple processing threads (do process affinity). */
-/* TODO(benh): Better error handling (i.e., warn if re-spawn process). */
-/* TODO(benh): Better protocol format checking in read_msg. */
+
+/* TODO(benh): Better error handling (i.e., warn if re-spawn process
+   instead of just returning bad pid). */
+
 /* TODO(benh): Use different backends for files and sockets. */
+
 /* TODO(benh): Allow messages to be received out-of-order (i.e., allow
    someone to do a receive with a message id and let other messages
    queue until a message with that message id is received).  */
+
 /* TODO(benh): LinkManager::link and LinkManager::send are pretty big
    functions, we could probably create some queue that the I/O thread
    checks for sending messages and creating links instead ... that

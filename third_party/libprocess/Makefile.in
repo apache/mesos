@@ -50,10 +50,11 @@ all: third_party $(LIBS)
 
 clean:
 	$(MAKE) -C @abs_builddir@/third_party/libev-3.8 clean
+	$(MAKE) -C @abs_builddir@/third_party/ry-http-parser-1c3624a clean
 	rm -f $(patsubst %.o, %.d, $(OBJS)) $(OBJS) $(LIBS)
 
 distclean: clean
-	$(MAKE) -C @abs_builddir@/third_party/libev-3.8 dist clean
+	$(MAKE) -C @abs_builddir@/third_party/libev-3.8 distclean
 	rm -f config.status config.cache config.log
 	rm -f Makefile
 

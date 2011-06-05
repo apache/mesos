@@ -15,7 +15,7 @@ public:
   Promise(const Promise<T> &that);
   virtual ~Promise();
   void set(const T &t_);
-  void associate(Future<T> *future_);
+  void associate(const Future<T> &future_);
 
 private:
   void operator = (const Promise<T> &);
@@ -108,30 +108,38 @@ void Promise<T>::set(const T &t_)
          *state == UNSET_ASSOCIATED);
   assert(t != NULL && *t == NULL);
   if (*state == UNSET_UNASSOCIATED) {
-    *t = new T(t_);
     if (!__sync_bool_compare_and_swap(state, UNSET_UNASSOCIATED, SET_UNASSOCIATED)) {
       assert(*state == UNSET_ASSOCIATED);
       __sync_bool_compare_and_swap(state, UNSET_ASSOCIATED, SET_ASSOCIATED);
       assert(future != NULL && *future != NULL);
+      // Directly set the value in the future.
       (*future)->set(**t);
+    } else {
+      // Save the value for association later.
+      *t = new T(t_);
     }
-  } else {
-    assert(*state == UNSET_ASSOCIATED);
+  } else if (*state == UNSET_ASSOCIATED) {
     assert(future != NULL && *future != NULL);
+    // Directly set the value in the future.
     (*future)->set(t_);
     __sync_bool_compare_and_swap(state, UNSET_ASSOCIATED, SET_ASSOCIATED);
+  } else {
+    assert(*state == SET_ASSOCIATED);
+    assert(*state == SET_UNASSOCIATED);
+    // TODO(benh): Right now we ignore setting a promise a second
+    // time, should we support this instead?
   }
 }
 
 
 template <typename T>
-void Promise<T>::associate(Future<T> *future_)
+void Promise<T>::associate(const Future<T> &future_)
 {
   assert(state != NULL);
   assert(*state == UNSET_UNASSOCIATED ||
          *state == SET_UNASSOCIATED);
   assert(future != NULL);
-  *future = future_;
+  *future = new Future<T>(future_);
   if (*state == UNSET_UNASSOCIATED) {
     if (!__sync_bool_compare_and_swap(state, UNSET_UNASSOCIATED,
                                       UNSET_ASSOCIATED)) {
@@ -139,6 +147,7 @@ void Promise<T>::associate(Future<T> *future_)
       __sync_bool_compare_and_swap(state, SET_UNASSOCIATED, SET_ASSOCIATED);
       assert(*state == SET_ASSOCIATED);
       assert(t != NULL && *t != NULL);
+      // Set the value in the future.
       (*future)->set(**t);
     }
   } else {
@@ -146,6 +155,7 @@ void Promise<T>::associate(Future<T> *future_)
     __sync_bool_compare_and_swap(state, SET_UNASSOCIATED, SET_ASSOCIATED);
     assert(*state == SET_ASSOCIATED);
     assert(t != NULL && *t != NULL);
+    // Set the value in the future.
     (*future)->set(**t);
   }
 }

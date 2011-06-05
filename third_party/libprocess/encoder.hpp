@@ -88,19 +88,25 @@ private:
 class HttpResponseEncoder : public DataEncoder
 {
 public:
-  HttpResponseEncoder(const std::string& response)
+  HttpResponseEncoder(const HttpResponse& response)
     : DataEncoder(encode(response)) {}
 
-  static std::string encode(const std::string& response)
+  static std::string encode(const HttpResponse& response)
   {
     std::ostringstream out;
 
-    out << "HTTP/1.1 200 OK\r\n"
+    out << "HTTP/1.0 " << response.status << "\r\n";
+
+    foreachpair (const std::string& key, const std::string& value, response.headers) {
+      out << key << ": " << value << "\r\n";
 //         << "Content-Type: text/html\r\n"
-        << "Content-Length: " << response.size() << "\r\n"
-        << "Connection: close\r\n"
+//         << "Content-Length: " << response.body.size() << "\r\n"
+    }
+
+    out << "Connection: close\r\n"
         << "\r\n";
-    out.write(response.data(), response.size());
+
+    out.write(response.body.data(), response.body.size());
 
     return out.str();
   }
@@ -120,7 +126,7 @@ public:
     // TODO(benh): We send a content length of 0 so that a browser
     // won't just sit and wait for the socket to get closed (because
     // we can't close it our self right now).
-    out << "HTTP/1.1 504 Gateway Timeout\r\n"
+    out << "HTTP/1.0 504 Gateway Timeout\r\n"
         << "Content-Length: 0\r\n"
         << "Connection: close\r\n"
         << "\r\n";

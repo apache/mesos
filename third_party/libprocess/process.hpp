@@ -45,6 +45,7 @@ public:
 
 class Filter {
 public:
+  // TODO(benh): Support filtering HTTP requests?
   virtual bool filter(Message*) = 0;
 };
 
@@ -83,7 +84,7 @@ protected:
   std::string receive(double secs = 0);
 
   /*  Processes dispatch messages. */
-  std::string serve(double secs = 0, bool forever = true);
+  std::string serve(double secs = 0, bool once = false);
 
   /* Blocks at least specified seconds (may block longer). */
   void pause(double secs);
@@ -103,6 +104,23 @@ protected:
   /* Returns sub-second elapsed time (according to this process). */
   double elapsed();
 
+  /* Install a handler for a message. */
+  template <typename T>
+  void install(const std::string& name, void (T::*method)())
+  {
+    message_handlers[name] =
+      std::tr1::bind(method, static_cast<T*>(this));
+  }
+
+  /* Install a handler for an HTTP request. */
+  template <typename T>
+  void install(const std::string& name,
+               Promise<HttpResponse> (T::*method)(const HttpRequest&))
+  {
+    http_handlers[name] =
+      std::tr1::bind(method, static_cast<T*>(this), std::tr1::placeholders::_1);
+  }
+
 private:
   friend class LinkManager;
   friend class ProcessManager;
@@ -114,6 +132,7 @@ private:
 	 READY,
 	 RUNNING,
 	 RECEIVING,
+	 SERVING,
 	 PAUSED,
 	 POLLING,
 	 WAITING,
@@ -127,28 +146,35 @@ private:
   void lock() { pthread_mutex_lock(&m); }
   void unlock() { pthread_mutex_unlock(&m); }
 
-  /* Enqueues the specified message, request, and delegator. */
+  /* Enqueue the specified message, request, or delegator. */
   void enqueue(Message* message);
-//   void enqueue(HttpRequest* request);
-//   void enqueue(std::tr1::function<void(ProcessBase*)>* delegator);
+  void enqueue(std::pair<HttpRequest*, Future<HttpResponse>*>* request);
+  void enqueue(std::tr1::function<void(ProcessBase*)>* delegator);
 
-  /* Dequeues a message or returns NULL. */
-  Message* dequeue();
-
-  /* Active references. */
-  int refs;
+  /* Dequeue a message, request, or delegator, or returns NULL. */
+  template <typename T>
+  T* dequeue();
 
   /* Queue of received messages. */
   std::deque<Message*> messages;
 
-  /* Queue of HTTP requests. */
-  std::deque<HttpRequest*> requests;
+  /* Queue of HTTP requests (with associated futures for responses). */
+  std::deque<std::pair<HttpRequest*, Future<HttpResponse>*>*> requests;
 
   /* Queue of dispatches. */
   std::deque<std::tr1::function<void(ProcessBase*)>*> delegators;
 
+  /* Handlers for messages. */
+  std::map<std::string, std::tr1::function<void(void)> > message_handlers;
+
+  /* Handlers for HTTP requests. */
+  std::map<std::string, std::tr1::function<Promise<HttpResponse>(const HttpRequest&)> > http_handlers;
+
   /* Current message. */
   Message* current;
+
+  /* Active references. */
+  int refs;
 
   /* Current "blocking" generation. */
   int generation;
@@ -174,22 +200,6 @@ protected:
   {
     while (true) serve();
   }
-
-//   /* Install a handler for a libprocess message. */
-//   void install(const std::string& name, Promise<Message> (T::*method)(const Message&))
-//   {
-//     message_handlers[name] = std::tr1::bind(method, static_cast<T*>(this));
-//   }
-
-//   /* Install a handler for an HTTP request. */
-//   void install(const std::string& name, Promise<HttpResponse> (T::*method)(const HttpRequest&))
-//   {
-//     http_handlers[name] = std::tr1::bind(method, static_cast<T*>(this));
-//   }
-
-// private:
-//   std::map<std::string, std::tr1::function<Promise<HttpResponse>(const HttpRequest&)> > http_handlers;
-//   std::map<std::string, std::tr1::function<Promise<Message>(const Message&)> > message_handlers;
 };
 
 
@@ -264,8 +274,9 @@ void delegate(ProcessBase* process,
   assert(process != NULL);
   assert(thunk != NULL);
   assert(future != NULL);
-  (*thunk)(static_cast<T*>(process)).associate(future);
+  (*thunk)(static_cast<T*>(process)).associate(*future);
   delete thunk;
+  delete future;
 }
 
 

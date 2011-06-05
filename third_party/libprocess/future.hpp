@@ -7,6 +7,10 @@
 namespace process {
 
 template <typename T>
+class Promise;
+
+
+template <typename T>
 class Future
 {
 public:
@@ -14,10 +18,13 @@ public:
   Future(const Future<T>& that);
   Future<T>& operator = (const Future<T>& that);
   virtual ~Future();
-  void set(const T& t_);
   T get() const;
 
 private:
+  friend class Promise<T>;
+
+  void set(const T& t_);
+
   int* refs;
   T** t;
   Latch* latch;
