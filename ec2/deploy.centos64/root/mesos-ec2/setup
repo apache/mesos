@@ -267,5 +267,9 @@ if [[ $NUM_ZOOS != 0 ]]; then
   sleep 2
 fi
 
+echo "Stopping any existing Mesos cluster..."
+./stop-mesos
+sleep 2
+
 echo "Starting Mesos cluster..."
 ./start-mesos
