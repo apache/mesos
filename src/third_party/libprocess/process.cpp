@@ -1689,11 +1689,13 @@ ProcessManager::~ProcessManager() {}
 
 ProcessReference ProcessManager::use(const PID &pid)
 {
-  synchronized(processes) {
-    if (processes.count(pid.pipe) > 0) {
-      // Note that the ProcessReference constructor MUST get called
-      // while holding the lock on processes.
-      return ProcessReference(processes[pid.pipe]);
+  if (pid.ip == ip && pid.port == port) {
+    synchronized(processes) {
+      if (processes.count(pid.pipe) > 0) {
+        // Note that the ProcessReference constructor MUST get called
+        // while holding the lock on processes.
+        return ProcessReference(processes[pid.pipe]);
+      }
     }
   }
 
