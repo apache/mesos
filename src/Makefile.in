@@ -350,8 +350,9 @@ clean:
 	rm -f $(ALL_OBJ)
 	rm -f $(MESOS_EXES) $(MESOS_LIBS)
 	rm -f $(MESOS_JAVA_JAR)
-	rm -rf $(patsubst %, %.d, $(MESOS_JAVA_LIB))
-	rm -rf $(patsubst %, %.d, $(MESOS_PYTHON_LIB))
+	rm -rf $(patsubst %.so, %.d, $(MESOS_JAVA_LIB))
+	rm -rf $(patsubst %.dylib, %.d, $(MESOS_JAVA_LIB))
+	rm -rf $(patsubst %.so, %.d, $(MESOS_PYTHON_LIB))
 	rm -rf $(MESOS_JAVA_LIB).dSYM $(MESOS_PYTHON_LIB).dSYM
 	rm -f $(MESOS_JAVA_LIB) $(MESOS_PYTHON_LIB)
 	rm -rf $(WEBUI_FILES)
@@ -361,7 +362,8 @@ clean:
 	rm -f swig/*/*.d
 	rm -f swig/java/mesos/*
 	rm -f swig/python/mesos.py
-	rm -f swig/python/mesos.pyc
+	rm -f $(LIBDIR)/python/mesos.py
+	rm -f $(LIBDIR)/python/mesos.pyc
 	rm -f webui/master/swig/master_wrap.h
 	rm -f webui/master/swig/master_wrap.cpp
 	rm -f webui/master/swig/master_wrap.o
@@ -376,6 +378,8 @@ clean:
 	rm -f webui/slave/swig/slave.py
 	rm -f $(BINDIR)/webui/master/swig/master.py
 	rm -f $(BINDIR)/webui/master/swig/master.pc
+	rm -f $(CONF_FILES)
+	rm -f $(DEPLOY_FILES)
 	rm -f TAGS
 
 .PHONY: default java python test all clean
