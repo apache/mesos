@@ -1,0 +1,23 @@
+MISSING @SINCE TAG: org.apache.zookeeper.KeeperException.SessionMovedException Class
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Constructor (java.lang.String[])
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Constructor (org.apache.zookeeper.ZooKeeper)
+MISSING @SINCE TAG: org.apache.zookeeper.ZooKeeperMain Method addToHistory(int, java.lang.String)
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Method connectToZK(java.lang.String)
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Method executeLine(java.lang.String)
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Method getCommands()
+MISSING @SINCE TAG: org.apache.zookeeper.ClientCnxn Method getDisableAutoResetWatch()
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Method getPrintWatches()
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Method getPrompt()
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Method printMessage(java.lang.String)
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Method processCmd(org.apache.zookeeper.ZooKeeperMain.MyCommandOptions)
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Method processZKCmd(org.apache.zookeeper.ZooKeeperMain.MyCommandOptions)
+MISSING @SINCE TAG: org.apache.zookeeper.ClientCnxn Method setDisableAutoResetWatch(boolean)
+NO DOC BLOCK: org.apache.zookeeper.ClientCnxn Method start()
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Field cl
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Field commandCount
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Field commandMap
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Field history
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Field host
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Field printWatches
+MISSING @SINCE TAG: org.apache.zookeeper.KeeperException.Code Field SESSIONMOVED
+NO DOC BLOCK: org.apache.zookeeper.ZooKeeperMain Field zk

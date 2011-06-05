@@ -1,0 +1,1039 @@
+<?xml version="1.0"?>
+
+<!--
+   Licensed to the Apache Software Foundation (ASF) under one or more
+   contributor license agreements.  See the NOTICE file distributed with
+   this work for additional information regarding copyright ownership.
+   The ASF licenses this file to You under the Apache License, Version 2.0
+   (the "License"); you may not use this file except in compliance with
+   the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+
+<project name="ZooKeeper" default="jar">
+
+    <property name="Name" value="ZooKeeper" />
+    <property name="name" value="zookeeper" />
+
+    <property environment="env"/>
+    
+    <property name="version" value="3.2.2" />
+    <property name="final.name" value="${name}-${version}"/>
+    <property name="revision.dir" value="${basedir}/.revision" />
+    <property name="revision.properties" value="revision.properties" />
+    <property file="${basedir}/src/java/${revision.properties}" />
+    
+    <!-- Target JDK version to build for. Certain zookeeper features -->
+    <!-- (for example, JMX) are only supported on JDK 1.6            -->
+    <property name="target.jdk" value="${ant.java.version}" />
+
+    <property name="src.dir" value="${basedir}/src" />
+    <property name="java.src.dir" value="${src.dir}/java/main" />
+    <property name="jmx.src.dir" value="${src.dir}/java/jmx" />
+    <property name="lib.dir" value="${src.dir}/java/lib" />
+    <property name="build.dir" value="${basedir}/build" />
+    <property name="distribution" value="${basedir}/distribution" />
+    <property name="src_generated.dir" value="${src.dir}/java/generated" />
+    <property name="c.src.dir" value="${src.dir}/c" />    
+    <property name="csrc_generated.dir" value="${c.src.dir}/generated" />
+    <property name="build.classes" value="${build.dir}/classes" />
+    <property name="jar.name" value="zookeeper-dev.jar" />
+
+    <property name="jute.file" value="${src.dir}/zookeeper.jute" />
+
+    <property name="build.testclasses" value="${build.dir}/testclasses"/>
+    <property name="test.build.dir" value="${build.dir}/test" />
+    <property name="test.src.dir" value="${src.dir}/java/test"/>
+    <property name="systest.src.dir" value="${src.dir}/java/systest"/>
+    <property name="test.log.dir" value="${test.build.dir}/logs" />
+    <property name="test.data.dir" value="${test.build.dir}/data" />
+    <property name="test.data.upgrade.dir" value="${test.data.dir}/upgrade" />
+    <property name="test.data.invalid.dir" value="${test.data.dir}/invalidsnap" />
+    <property name="test.cppunit.dir" value="${test.build.dir}/test-cppunit"/>
+    <property name="test.tmp.dir" value="${test.build.dir}/tmp" />
+    <property name="test.output" value="no" />
+    <property name="test.timeout" value="900000" />
+    <property name="test.junit.output.format" value="plain" />
+    <property name="test.junit.fork.mode" value="perTest" />
+    <property name="test.junit.printsummary" value="yes" />
+    <property name="test.junit.haltonfailure" value="no" />
+    <property name="config.dir" value="${src.dir}/java/test/config" />
+    <property name="test.junit.maxmem" value="512m" />
+    <property name="conf.dir" value="${basedir}/conf"/>
+    <property name="docs.dir" value="${basedir}/docs"/>
+    <property name="docs.src" value="${basedir}/src/docs"/>
+    <property name="javadoc.link.java"
+              value="http://java.sun.com/javase/6/docs/api/" />
+    <property name="javadoc.packages" value="org.apache.*" />
+
+    <property name="build.docs" value="${build.dir}/docs" />
+    <property name="build.javadoc" value="${build.docs}/api" />
+    <property name="build.javadoc.dev" value="${build.docs}/dev-api"/>
+
+    <property name="dist.dir" value="${build.dir}/${final.name}"/>
+
+    <property name="clover.home" location="${env.CLOVER_HOME}"/>
+    <property name="clover.jar" location="${clover.home}/lib/clover.jar" />
+    <property name="clover.db.dir" location="${test.build.dir}/clover/db"/>
+    <property name="clover.report.dir"
+              location="${test.build.dir}/clover/reports"/>
+
+    <property name="contrib.dir" value="${src.dir}/contrib"/>
+    <property name="recipes.dir" value="${src.dir}/recipes"/>
+
+    <available property="clover.present"
+               classname="com.cenqua.clover.CloverInstr"
+               classpath="${clover.home}/lib/clover.jar"/>
+
+    <available file="${c.src.dir}/Makefile" property="Makefile.present"/>
+
+    <!-- check if clover reports should be generated -->
+    <condition property="clover.enabled">
+      <and>
+        <isset property="run.clover"/>
+        <isset property="clover.present"/>
+      </and>
+    </condition>
+
+
+    <property name="test.cobertura.output.format" value="html" />
+    <property name="coveragereport.dir" value="${build.dir}/cobertura" />
+
+    <!-- rats properties -->
+    <property name="rats_url" value="http://arat.googlecode.com/files/rat-lib-all-0.5.1.jar" />
+    <property name="rat.reporting.classname" value="rat.Report"/>
+
+        <!-- test patch properties -->
+    <property name="scratch.dir" value="${user.home}/tmp"/>
+    <property name="svn.cmd" value="svn"/>
+    <property name="grep.cmd" value="grep"/>
+    <property name="patch.cmd" value="patch"/>
+    <property name="make.cmd" value="make"/>
+    <property name="test_patch_sh" value="${test.src.dir}/bin/test-patch.sh"/>
+
+	<!-- jdiff.home property set -->
+    <property name="jdiff.home" value="${lib.dir}"/>
+    <property name="jdiff.version" value="1.0.9"/>
+    <property name="xerces.version" value="1.4.4"/>	
+    <property name="jdiff.jar" value="${jdiff.home}/jdiff-${jdiff.version}.jar"/>
+    <property name="xerces.jar" value="${jdiff.home}/xerces-${xerces.version}.jar"/>
+    <property name="jdiff.build.dir" value="${build.docs}/jdiff"/>
+    <property name="jdiff.xml.dir" value="${lib.dir}/jdiff"/>
+    <property name="jdiff.stable" value="3.1.1"/>
+    <property name="jdiff.stable.javadoc" 
+            value="http://hadoop.apache.org/zookeeper/docs/r${jdiff.stable}/api/"/>
+    <property name="jdiff.download.url" 
+		value="http://mirrors.ibiblio.org/pub/mirrors/maven2/jdiff/jdiff/${jdiff.version}/jdiff-${jdiff.version}.jar"/>
+    <property name="jdiff.jar" value="${jdiff.home}/jdiff.jar"/>
+    <property name="xerces.download.url" 
+		value="http://mirrors.ibiblio.org/pub/mirrors/maven2/xerces/xerces/${xerces.version}/xerces-${xerces.version}.jar"/>
+    <property name="xerces.jar" value="${jdiff.home}/xerces.jar"/>
+
+    <!-- ====================================================== -->
+    <!-- Macro definitions                                      -->
+    <!-- ====================================================== -->
+    <macrodef name="macro_tar" description="Worker Macro for tar">
+      <attribute name="param.destfile"/>
+      <element name="param.listofitems"/>
+      <sequential>
+        <tar compression="gzip" longfile="gnu"
+             destfile="@{param.destfile}">
+          <param.listofitems/>
+        </tar>
+      </sequential>
+    </macrodef>
+
+    <!-- ====================================================== -->
+    <!-- Generate and compile the Java files                    -->
+    <!-- ====================================================== -->
+    <target name="init">    
+        <mkdir dir="${build.classes}" />
+        <tstamp>
+            <format property="build.time" pattern="MM/dd/yyyy HH:mm zz" timezone="GMT"/>
+            <format property="year" pattern="yyyy" timezone="GMT"/>
+        </tstamp>
+        <condition property="extra.src.dir" value="${jmx.src.dir}">
+            <and>
+                <equals arg1="${target.jdk}" arg2="1.6"/>
+                <available file="${jmx.src.dir}" type="dir"/>
+            </and>
+        </condition>
+        <path id="project.classpath">
+            <fileset dir="${build.classes}" />
+            <pathelement path="${lib.dir}/log4j-1.2.15.jar" />
+            <pathelement path="${clover.jar}" />
+            <pathelement path="${lib.dir}/jline-0.9.94.jar" />
+        </path>
+    </target>
+    
+    <target name="jute" depends="init">
+        <javac srcdir="${java.src.dir}" destdir="${build.classes}" target="${target.jdk}" 
+            includes="org/apache/jute/**" debug="on" />
+    </target>
+
+    <target name="compile_jute_uptodate">
+        <uptodate property="juteBuild.notRequired"
+                  srcfile="${jute.file}"
+                  targetfile="${src_generated.dir}/.generated"/>
+    </target>
+
+    <target name="compile_jute" depends="jute,compile_jute_uptodate" unless="juteBuild.notRequired">
+        <mkdir dir="${src_generated.dir}" />
+        <mkdir dir="${csrc_generated.dir}" />
+        <java classname="org.apache.jute.compiler.generated.Rcc" fork="true" dir="${src_generated.dir}">
+            <arg value="-l" />
+            <arg value="java" />
+            <arg value="../../zookeeper.jute" /> 
+            <classpath>
+                <pathelement path="${build.classes}" />
+            </classpath>
+        </java>
+        
+        <java classname="org.apache.jute.compiler.generated.Rcc" fork="true" dir="${csrc_generated.dir}">
+            <arg value="-l" />
+            <arg value="c" />
+            <arg value="../../zookeeper.jute" />
+            <classpath>
+                <pathelement path="${build.classes}" />
+            </classpath>
+        </java>
+
+        <touch file="${src_generated.dir}/.generated"/>
+    </target>
+
+    <target name="ver-gen" depends="init">
+        <javac srcdir="${java.src.dir}" destdir="${build.classes}" target="${target.jdk}" 
+            includes="org/apache/zookeeper/version/util/**" debug="on" />
+    </target>
+    
+    <target name="svn-revision" unless="lastRevision">
+        <mkdir dir="${revision.dir}" />
+        <condition property="shell.name" value="cmd" else="sh">
+      	    <os family="windows"/>
+        </condition>
+        <condition property="revision.cmd.line" 
+        	value="/c ${src.dir}\lastRevision.bat" else="${src.dir}/lastRevision.sh">
+      	    <os family="windows"/>
+        </condition>
+        <exec executable="${shell.name}">
+           <arg line="${revision.cmd.line} ${revision.dir}${file.separator}${revision.properties}"/>
+        </exec>
+        <property file="${revision.dir}/${revision.properties}" />
+    </target>
+    
+    <target name="version-info" depends="ver-gen,svn-revision">
+        <mkdir dir="${src_generated.dir}" />
+        <java classname="org.apache.zookeeper.version.util.VerGen" fork="true" 
+                dir="${src_generated.dir}">
+            <arg value="${version}" />
+            <arg value="${lastRevision}" />
+            <arg value="${build.time}" />
+            <classpath>
+                <pathelement path="${build.classes}" />
+            </classpath>
+        </java>
+    </target>
+    
+    <target name="build-generated" depends="compile_jute,version-info" >
+        <javac srcdir="${src_generated.dir}" destdir="${build.classes}" 
+            target="${target.jdk}" debug="on" />
+    </target>
+    
+    <target name="compile-extra" depends="compile-main" if="extra.src.dir">
+         <javac srcdir="${extra.src.dir}" destdir="${build.classes}" 
+                target="${target.jdk}" debug="on">
+            <classpath refid="project.classpath"/>
+        </javac>
+        <copy todir="${build.classes}">
+            <fileset dir="${extra.src.dir}"/>
+        </copy>
+   </target>
+    
+    <target name="compile-main" depends="build-generated">
+        <javac srcdir="${java.src.dir}" destdir="${build.classes}" 
+               target="${target.jdk}" debug="on">
+            <classpath refid="project.classpath"/>
+            <compilerarg value="-Xlint:all"/>
+            <compilerarg value="-Xlint:-path"/>
+        </javac>
+        <copy todir="${build.classes}">
+            <fileset dir="${java.src.dir}"/>
+            <fileset dir="${src_generated.dir}"/>
+        </copy>
+    </target>
+
+    <target name="compile" depends="clover,compile-main,compile-extra"/>
+
+    <target name="test-classpath">
+      <path id="test.classpath">
+        <fileset dir="${basedir}">
+           <include name="*.jar"/>
+        </fileset>
+        <fileset dir="${lib.dir}">
+          <include name="*.jar"/>
+        </fileset>
+        <pathelement path="${clover.jar}" />
+      </path>
+    </target>
+
+    <target name="compile-test" depends="jar,test-classpath">
+      <mkdir dir="${build.testclasses}"/>
+      <javac srcdir="${test.src.dir}" destdir="${build.testclasses}"
+             target="${target.jdk}" debug="on">
+        <classpath refid="test.classpath"/>
+      </javac>
+      <javac srcdir="${systest.src.dir}" destdir="${build.testclasses}"
+             target="${target.jdk}" debug="on">
+        <classpath refid="test.classpath"/>
+      </javac>
+    </target>
+
+    <!-- ====================================================== -->
+    <!-- Documentation                                          -->
+    <!-- ====================================================== -->
+    <target name="docs" depends="forrest.check" description="Generate forrest-based documentation. To use, specify -Dforrest.home=&lt;base of Apache Forrest installation&gt; on the command line." if="forrest.home">
+      <condition property="forrest.exec" value="forrest.bat" else="forrest">
+      	<os family="windows"/>
+      </condition>
+      <exec dir="${docs.src}" executable="${forrest.home}/bin/forrest"
+            failonerror="true">
+        <env key="JAVA_HOME" value="${java5.home}"/>
+      </exec>
+      <copy todir="${docs.dir}">
+        <fileset dir="${docs.src}/build/site/" />
+      </copy>
+      <style basedir="${conf.dir}" destdir="${docs.dir}"
+             includes="zookeeper-default.xml" style="conf/configuration.xsl"/>
+    </target>
+
+    <target name="forrest.check" unless="forrest.home" depends="java5.check">
+      <fail message="'forrest.home' is not defined. Please pass -Dforrest.home=&lt;base of Apache Forrest installation&gt; to Ant on the command-line." />
+    </target>
+
+    <target name="java5.check" unless="java5.home">
+      <fail message="'java5.home' is not defined.  Forrest requires Java 5.  Please pass -Djava5.home=&lt;base of Java 5 distribution&gt; to Ant on the command-line." />
+    </target>
+	
+    <!-- Javadoc -->
+    <target name="javadoc-dev" depends="jar"
+            description="Generate javadoc for zookeeper developers">
+      <mkdir dir="${build.javadoc.dev}"/>
+      <javadoc
+         overview="${java.src.dir}/overview.html"
+         packagenames="org.apache.zookeeper.*"
+         destdir="${build.javadoc.dev}"
+         author="true"
+         version="true"
+         use="true"
+         windowtitle="${Name} ${version} API"
+         doctitle="${Name} ${version} API"
+         bottom="Copyright &amp;copy; ${year} The Apache Software Foundation"
+         >
+    	<packageset dir="${java.src.dir}">
+          <include name="org/apache/**"/>
+          <exclude name="org/apache/jute/**"/>
+    	</packageset>
+    	<packageset dir="${src_generated.dir}"/>
+        <link href="${javadoc.link.java}"/>
+        <classpath refid="project.classpath"/>
+      </javadoc>
+    </target>	
+
+    <target name="javadoc" depends="jar" description="Generate javadoc">
+      <mkdir dir="${build.javadoc}"/>
+      <javadoc
+         overview="${java.src.dir}/overview.html"
+         packagenames="org.apache.zookeeper.*"
+         destdir="${build.javadoc}"
+         author="true"
+         version="true"
+         use="true"
+         Public="yes"
+         windowtitle="${Name} ${version} API"
+         doctitle="${Name} ${version} API"
+         bottom="Copyright &amp;copy; ${year} The Apache Software Foundation"
+         >
+    	<fileset dir="${java.src.dir}">
+          <include name="org/apache/**/*Main.java"/>
+          <include name="org/apache/zookeeper/AsyncCallback.java"/>
+          <include name="org/apache/zookeeper/CreateMode.java"/>
+          <include name="org/apache/zookeeper/KeeperException.java"/>
+          <include name="org/apache/zookeeper/ServerAdminClient.java"/>
+          <include name="org/apache/zookeeper/Watcher.java"/>
+          <include name="org/apache/zookeeper/ZooDefs.java"/>
+          <include name="org/apache/zookeeper/ZooKeeper.java"/>
+          <include name="org/apache/zookeeper/server/LogFormatter.java"/>
+          <include name="org/apache/zookeeper/server/PurgeTxnLog.java"/>
+          <exclude name="org/apache/zookeeper/server/quorum/QuorumPacket"/>
+    	</fileset>
+    	<packageset dir="${src_generated.dir}">
+          <exclude name="org/apache/zookeeper/proto"/>
+          <exclude name="org/apache/zookeeper/txn"/>
+          <exclude name="org/apache/zookeeper/version"/>
+          <exclude name="org/apache/zookeeper/server/**"/>
+    	</packageset>
+        <link href="${javadoc.link.java}"/>
+        <classpath>
+		<fileset dir="${basedir}">
+			<include name="${jar.name}"/>
+		</fileset> 
+        <path refid="project.classpath"/>
+	</classpath>
+      </javadoc>
+    </target>	
+
+    <!-- ====================================================== -->
+    <!-- Make zookeeper.jar                                     -->
+    <!-- ====================================================== -->
+    <target name="jar" depends="compile">
+        <java classname="org.apache.zookeeper.Version" fork="true"
+              outputproperty="revision" failonerror="true">
+            <arg value="--revision" />
+            <classpath>
+                <pathelement path="${build.classes}" />
+                <pathelement path="${clover.jar}" />
+            </classpath>
+        </java>
+        <exec executable="hostname" outputproperty="host.name"/>
+        <jar jarfile="${jar.name}"> 
+            <fileset file="LICENSE" />
+            <fileset dir="${build.classes}" excludes="**/.generated"/>
+            <manifest>
+                <attribute name="Main-Class" value="org.apache.zookeeper.server.quorum.QuorumPeer" />
+                <attribute name="Built-By" value="${user.name}"/>
+                <attribute name="Built-At" value="${build.time}"/>
+                <attribute name="Built-On" value="${host.name}" />
+                <attribute name="Implementation-Title" value="org.apache.zookeeper"/>
+                <attribute name="Implementation-Version" value="${revision}"/> 
+                <attribute name="Implementation-Vendor" value="The Apache Software Foundation"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="release-jar">
+        <antcall target="jar">
+            <param name="jar.name" value="${build.dir}/${final.name}.jar" />
+        </antcall>
+    </target>
+    
+    <!-- ================================================================== -->
+    <!-- D I S T R I B U T I O N                                            -->
+    <!-- ================================================================== -->
+    <!--                                                                    -->
+    <!-- ================================================================== -->
+    <target name="package"
+            depends="release-jar,api-report,compile-test,create-cppunit-configure"
+            description="Build distribution">
+      <mkdir dir="${dist.dir}"/>
+      <mkdir dir="${dist.dir}/lib"/>
+      <mkdir dir="${dist.dir}/contrib"/>
+      <mkdir dir="${dist.dir}/recipes"/>
+      <mkdir dir="${dist.dir}/bin"/>
+      <mkdir dir="${dist.dir}/docs"/>
+      <mkdir dir="${dist.dir}/docs/jdiff"/>
+      <mkdir dir="${dist.dir}/docs/api"/>
+
+      <copy todir="${dist.dir}/lib" includeEmptyDirs="false">
+        <fileset dir="${lib.dir}"/>
+      </copy>
+
+      <subant target="package">
+        <!--Pass down the version in case its needed again and the target
+            distribution directory so contribs know where to install to.-->
+        <property name="version" value="${version}"/>
+        <property name="dist.dir" value="${dist.dir}"/>
+        <fileset file="${contrib.dir}/build.xml"/>
+        <fileset file="${recipes.dir}/build.xml"/>
+      </subant>  	
+
+      <copy todir="${dist.dir}"> 
+        <fileset file="${build.dir}/${final.name}.jar"/>
+      </copy>
+      
+      <copy todir="${dist.dir}/bin">
+        <fileset dir="bin"/>
+      </copy>
+
+      <copy todir="${dist.dir}/conf">
+        <fileset dir="${conf.dir}" excludes="**/*.template"/>
+      </copy>
+
+      <copy todir="${dist.dir}/docs">
+        <fileset dir="${docs.dir}" />
+        <fileset dir="${build.docs}"/>
+      </copy>
+
+      <copy todir="${dist.dir}">
+        <fileset dir=".">
+          <include name="*.txt" />
+        </fileset>
+      </copy>
+
+      <copy todir="${dist.dir}/src" includeEmptyDirs="true">
+        <fileset dir="src" excludes="**/*.template **/docs/build/**/*"/>
+      </copy>
+  	  
+      <copy todir="${dist.dir}/" file="build.xml"/>
+
+      <chmod perm="ugo+x" type="file" parallel="false">
+        <fileset dir="${dist.dir}/bin"/>
+        <fileset dir="${dist.dir}/src/contrib/">
+          <include name="*/bin/*" />
+        </fileset>
+      </chmod>
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- Make release tarball                                               -->
+    <!-- ================================================================== -->
+    <target name="tar" depends="package" description="Make release tarball">
+      <macro_tar param.destfile="${build.dir}/${final.name}.tar.gz">
+        <param.listofitems>
+          <!-- it's unfortunate that the binaries have to be duplicated
+               however that's the only way ant currently supports afaik -->
+          <tarfileset dir="${build.dir}" mode="664">
+            <exclude name="${final.name}/bin/*" />
+            <exclude name="${final.name}/contrib/*/bin/*" />
+
+            <exclude name="${final.name}/**/compile" />
+            <exclude name="${final.name}/**/config.guess" />
+            <exclude name="${final.name}/**/config.sub" />
+            <exclude name="${final.name}/**/configure" />
+            <exclude name="${final.name}/**/depcomp" />
+            <exclude name="${final.name}/**/install-sh" />
+            <exclude name="${final.name}/**/ltmain.sh" />
+            <exclude name="${final.name}/**/missing" />
+
+            <exclude name="${final.name}/**/*.sh" />
+
+            <include name="${final.name}/**" />
+          </tarfileset>
+          <tarfileset dir="${build.dir}" mode="755">
+            <!-- be sure to add to exclude list above if you add here -->
+            <include name="${final.name}/bin/*" />
+            <include name="${final.name}/contrib/*/bin/*" />
+
+            <!-- autotools related commands -->
+            <include name="${final.name}/**/compile" />
+            <include name="${final.name}/**/config.guess" />
+            <include name="${final.name}/**/config.sub" />
+            <include name="${final.name}/**/configure" />
+            <include name="${final.name}/**/depcomp" />
+            <include name="${final.name}/**/install-sh" />
+            <include name="${final.name}/**/ltmain.sh" />
+            <include name="${final.name}/**/missing" />
+
+            <!-- any shell scripts -->
+            <include name="${final.name}/**/*.sh" />
+          </tarfileset>
+        </param.listofitems>
+      </macro_tar>
+    </target>
+
+    <target name="binary" depends="package"
+            description="Make tarball without source and documentation">
+      <macro_tar param.destfile="${build.dir}/${final.name}-bin.tar.gz">
+        <param.listofitems>
+          <tarfileset dir="${build.dir}" mode="664">
+            <include name="${final.name}/src/c/**" />
+            <exclude name="${final.name}/src/c/generated/**" />
+          </tarfileset>
+          <tarfileset dir="${build.dir}" mode="664">
+            <exclude name="${final.name}/bin/*" />
+            <exclude name="${final.name}/src/**" />
+            <exclude name="${final.name}/docs/**" />
+            <include name="${final.name}/**" />
+          </tarfileset>
+          <tarfileset dir="${build.dir}" mode="755">
+            <include name="${final.name}/bin/*" />
+          </tarfileset>
+        </param.listofitems>
+      </macro_tar>
+    </target>
+
+    <!-- ====================================================== -->
+    <!-- Clean.  Delete the build files, and their directories  -->
+    <!-- ====================================================== -->
+    <target name="clean" depends="clean-contrib,clean-recipes"
+            description="Clean.  Delete the build files, and their directories">
+      <delete dir="${build.dir}"/>
+      <delete dir="${docs.src}/build"/>
+      <delete dir="${src_generated.dir}" />
+      <delete dir="${csrc_generated.dir}" />
+      <delete file="${jdiff.jar}" />
+      <delete file="${xerces.jar}" />
+      <delete file="${lib.dir}/Null.java"/>
+      <delete file="${lib.dir}/rats.jar" />
+      <delete file="${jdiff.xml.dir}/${name}_${version}.xml"/>	
+      <delete file="${jar.name}" />
+      <delete dir="${distribution}"/>
+      <delete dir="${revision.dir}"/>
+      <delete>
+        <fileset dir="${basedir}" includes="*.jar,*.tar.gz"/>
+      </delete>
+    </target>
+
+    <target name="clean-contrib">
+      <subant target="clean">        
+        <fileset file="${contrib.dir}/build.xml"/>
+      </subant>  	
+    </target>
+
+   <target name="clean-recipes">
+     <subant target="clean">
+       <fileset file="${recipes.dir}/build.xml"/>
+     </subant>
+   </target>
+
+    <!-- ====================================================== -->
+    <!-- Run unit tests                                         -->
+    <!-- ====================================================== -->
+    <target name="test-init" depends="jar,compile-test">
+        <delete dir="${test.log.dir}" />
+        <delete dir="${test.tmp.dir}" />
+        <delete dir="${test.data.upgrade.dir}" />
+        <delete dir="${test.data.invalid.dir}" />
+        <delete dir="${test.data.dir}" />
+        <mkdir dir="${test.log.dir}" />
+        <mkdir dir="${test.tmp.dir}" />
+        <mkdir dir="${test.data.dir}" />
+        <mkdir dir="${test.data.upgrade.dir}" />
+        <mkdir dir="${test.data.invalid.dir}" />
+        <copy todir="${test.data.upgrade.dir}">
+            <fileset dir="${basedir}/src/java/test/data/upgrade"/>
+        </copy>
+        <copy todir="${test.data.invalid.dir}">
+            <fileset dir="${basedir}/src/java/test/data/invalidsnap"/>
+        </copy>
+       
+    </target>
+
+    <target name="junit.run">
+        <junit showoutput="${test.output}"
+               printsummary="${test.junit.printsummary}"
+               haltonfailure="${test.junit.haltonfailure}"
+               fork="yes"
+               forkmode="${test.junit.fork.mode}"
+               maxmemory="${test.junit.maxmem}"
+               dir="${basedir}" timeout="${test.timeout}"
+               errorProperty="tests.failed" failureProperty="tests.failed">
+          <sysproperty key="build.test.dir" value="${test.tmp.dir}" />
+          <sysproperty key="test.data.dir" value="${test.data.dir}" />
+          <sysproperty key="log4j.configuration"
+                       value="file:${basedir}/conf/log4j.properties" />
+          <classpath refid="test.classpath"/>
+          <classpath>
+            <pathelement path="${build.testclasses}" />
+          </classpath>
+          <formatter type="${test.junit.output.format}" />
+          <batchtest todir="${test.log.dir}" unless="testcase">
+            <fileset dir="${test.src.dir}"
+                     includes="**/*${test.category}Test.java"/>
+          </batchtest>
+          <batchtest todir="${test.log.dir}" if="testcase">
+            <fileset dir="${test.src.dir}" includes="**/${testcase}.java"/>
+          </batchtest>
+        </junit>
+        <fail if="tests.failed">Tests failed!</fail>
+    </target>
+
+    <target name="check-cppunit-configure" depends="init" >
+      <condition property="need.cppunit.configure">
+        <not> <available file="${c.src.dir}/configure"/> </not>
+      </condition>
+    </target>	
+
+    <target name="check-cppunit-makefile" depends="init" >
+    	<condition property="need.cppunit.makefile">
+       		<not> <available file="${test.cppunit.dir}/Makefile"/> </not>
+    	</condition>
+    </target>
+
+    <!--
+       1. If we have a Makefile it will handle up-to-date check and also
+          regenerate the configure script if missing. (done)
+       2. If we don't have a Makefile use the configure script to 
+          regenerate it. (done)
+       3. If we don't have a Makefile nor a configure script then it's
+          last resort and run autoreconf, then configure (done)
+      -->
+
+    <target name="create-cppunit-configure" depends="check-cppunit-configure"
+            if="need.cppunit.configure">
+      <exec executable="autoreconf" dir="${c.src.dir}" searchpath="yes"
+            failonerror="yes">
+        <arg value="-if"/>
+      </exec>
+    </target>
+
+    <target name="create-cppunit-makefile" depends="check-cppunit-makefile" 
+                                           if="need.cppunit.makefile">
+      <antcall target="create-cppunit-configure">
+        <param name="cppunit" value="true"/>
+      </antcall>
+    	<mkdir dir="${test.cppunit.dir}"/>
+    	<exec executable="${c.src.dir}/configure" dir="${test.cppunit.dir}"
+          	failonerror="yes">
+                <env key="base_dir" value="${basedir}"/>
+                <env key="CALLER" value="ANT"/>
+      		<arg value="--prefix=${test.cppunit.dir}"/>
+    	</exec>
+    </target>
+
+    <target name="call-test-cppunit" description="to execute cppunit tests">
+	<antcall target="create-cppunit-makefile"/>
+	<antcall target="test-cppunit">
+		<param name="cppunit" value="true"/>
+	</antcall>
+    </target>			
+
+
+    <target name="test-cppunit"
+            depends="compile_jute, jar, create-cppunit-makefile"
+            if="cppunit"
+		description="to run cppunit test cases">
+        <property name="lib.cppunit" value="/usr/local/lib"/>
+	<exec dir="${test.cppunit.dir}" executable="make" failonerror="true">
+		<env key="LD_LIBRARY_PATH" value="${lib.cppunit}"/>
+		<env key="PATH" path="${env.PATH};${c.src.dir};"/>
+                <env key="CALLER" value="ANT"/>
+                <env key="CLOVER_HOME" value="{clover.home}"/>
+                <env key="base_dir" value="${basedir}"/>
+		<arg line="clean run-check"/>
+	</exec>
+    </target>
+   
+    <target name="test-unit-category">
+      <property name="test.category" value="Unit"/>
+    </target>
+    <target name="test-unit" depends="test-init,test-unit-category,junit.run"/>
+
+    <target name="test-func-category">
+      <property name="test.category" value="Func"/>
+    </target>
+    <target name="test-func" depends="test-init,test-func-category,junit.run"/>
+
+    <target name="test-perf-category">
+      <property name="test.category" value="Perf"/>
+    </target>
+    <target name="test-perf" depends="test-init,test-perf-category,junit.run"/>
+
+    <target name="test-category">
+      <property name="test.category" value=""/>
+    </target>
+
+    <target name="test" description="to run core and contrib tests">
+	<antcall target="test-core"/>
+	<antcall target="test-contrib"/>
+    </target>
+ 
+    <target name="test-contrib" description="to run contrib tests">
+	<!-- yet to implement -->
+    </target>
+    
+    <target name="test-core-java" depends="test-init, test-category, junit.run"/> 
+
+    <target name="test-core-cppunit" depends="test-init, test-category, call-test-cppunit"/> 
+
+    <target name="test-core" depends="test-core-java, test-core-cppunit"/> 
+
+    <!-- ====================================================== -->
+    <!-- Run optional third-party tool targets                  -->
+    <!-- ====================================================== -->
+
+    <!-- clover code coverage -->
+    <target name="clover" depends="clover.setup, clover.info" 
+            description="Instrument the Unit tests using Clover.  Requires a Clover license and CLOVER_HOME environment variable set appropriately.  To use, specify -Drun.clover=true on the command line."/>
+
+    <target name="clover.setup" if="clover.enabled">
+      <taskdef resource="cloverlib.xml" classpath="${clover.jar}"/>
+      <mkdir dir="${clover.db.dir}"/>
+      <clover-setup initString="${clover.db.dir}/zookeeper_coverage.db">
+        <fileset dir="${java.src.dir}"
+                 includes="org/apache/zookeeper/**/*"
+                 excludes="org/apache/zookeeper/version/**/*"/>
+      </clover-setup>
+    </target>
+
+    <target name="clover.info" if="run.clover" unless="clover.present">
+      <echo>
+        Clover not found. Code coverage reports disabled.
+      </echo>
+    </target>
+
+    <target name="clover.check">
+      <fail unless="clover.present">
+        ##################################################################
+        Clover not found.
+        Please make sure clover.jar is in ANT_HOME/lib, or made available
+        to Ant using other mechanisms like -lib or CLASSPATH.
+        ##################################################################
+      </fail>
+    </target>
+
+    <target name="generate-clover-reports" depends="clover.check, clover">
+      <mkdir dir="${clover.report.dir}"/>
+      <clover-report>
+        <current outfile="${clover.report.dir}" title="${final.name}">
+          <format type="html"/>
+        </current>
+      </clover-report>
+      <clover-report>
+        <current outfile="${clover.report.dir}/clover.xml" title="${final.name}">
+          <format type="xml"/>
+        </current>
+      </clover-report>
+    </target>
+
+    <!-- Run with 'ant -Dfindbugs.home="path to Findbugs directory" findbugs -->
+    <property name="findbugs.home" value="" />
+    <target name="findbugs" depends="check-for-findbugs, jar" if="findbugs.present">
+        <property name="findbugs.out.dir" value="${test.build.dir}/findbugs" />
+        <property name="findbugs.exclude.file" value="${config.dir}/findbugsExcludeFile.xml" />
+        <property name="findbugs.report.htmlfile" value="${findbugs.out.dir}/zookeeper-findbugs-report.html" />
+        <property name="findbugs.report.xmlfile" value="${findbugs.out.dir}/zookeeper-findbugs-report.xml" />
+        <taskdef name="findbugs" classname="edu.umd.cs.findbugs.anttask.FindBugsTask" 
+                classpath="${findbugs.home}/lib/findbugs-ant.jar" />
+        <mkdir dir="${findbugs.out.dir}" />
+        <findbugs home="${findbugs.home}" output="xml:withMessages" excludeFilter="${findbugs.exclude.file}" 
+                outputFile="${findbugs.report.xmlfile}" effort="max" jvmargs="-Xmx512M">
+            <auxClasspath path="${lib.dir}/log4j-1.2.15.jar" />
+            <sourcePath path="${java.src.dir}" />
+            <class location="${basedir}/${jar.name}" />
+        </findbugs>
+        <xslt style="${findbugs.home}/src/xsl/default.xsl" in="${findbugs.report.xmlfile}" 
+                out="${findbugs.report.htmlfile}" />
+    </target>
+
+    <target name="check-for-findbugs">
+        <available property="findbugs.present" file="${findbugs.home}/lib/findbugs.jar" />
+    </target>
+
+    <!-- Code coverage -->
+    <target name="cobertura-instrument" depends="compile-test">
+      <taskdef resource="tasks.properties">
+        <classpath>
+          <pathelement path="${lib.dir}/cobertura/cobertura.jar" />
+          <fileset dir="${lib.dir}/cobertura/lib">
+            <include name="*.jar"/>
+          </fileset>
+          <fileset dir="${lib.dir}">
+            <include name="*.jar"/>
+          </fileset>
+        </classpath>
+      </taskdef>
+
+      <cobertura-instrument todir="${build.dir}/cobertura">
+        <fileset dir="${build.classes}">
+          <include name="org/apache/zookeeper/**/*.class"/>
+        </fileset>
+      </cobertura-instrument>
+    </target>
+
+    <target name="cobertura-test" depends="test-init,cobertura-instrument">
+        <junit showoutput="${test.output}" printsummary="yes" haltonfailure="no" fork="yes" 
+               maxmemory="${test.junit.maxmem}" dir="${basedir}" timeout="${test.timeout}"
+               errorProperty="tests.failed" failureProperty="tests.failed">
+            <sysproperty key="build.test.dir" value="${test.tmp.dir}" />
+            <sysproperty key="test.data.dir" value="${test.data.dir}" />
+            <sysproperty key="log4j.configuration"
+                         value="file:${basedir}/conf/log4j.properties" />
+            <classpath>
+                <pathelement path="${build.dir}/cobertura" />
+                <pathelement path="${lib.dir}/cobertura/cobertura.jar" />
+                <fileset dir="${lib.dir}/cobertura/lib">
+                    <include name="*.jar"/>
+                </fileset>
+                <fileset dir="${lib.dir}">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
+            <classpath>
+                <pathelement path="${build.testclasses}" />
+            </classpath>
+            <classpath refid="test.classpath"/>
+            <classpath>
+                <pathelement path="${build.classes}" />
+            </classpath>
+
+            <formatter type="${test.junit.output.format}" />
+            <batchtest todir="${test.log.dir}" unless="testcase">
+                <fileset dir="${test.src.dir}"
+                         includes="**/*Test.java"/>
+            </batchtest>
+            <batchtest todir="${test.log.dir}" if="testcase">
+                <fileset dir="${test.src.dir}" includes="**/${testcase}.java"/>
+            </batchtest>
+        </junit>
+        <fail if="tests.failed">Tests failed!</fail>
+    </target>
+
+    <target name="cobertura-report" depends="cobertura-test">
+        <cobertura-report format="${test.cobertura.output.format}"
+                          destdir="${coveragereport.dir}" > 
+            <fileset dir="${java.src.dir}">
+                <include name="**/*.java" />
+            </fileset>
+            <fileset dir="${src_generated.dir}">
+                <include name="**/*.java" />
+            </fileset>
+        </cobertura-report>
+    </target>
+
+    <target name="checkstyle" depends="checkstyle.check, set-checkstyle-classpath" if="checkstyle.home" 
+			description="Run optional third-party tool targets">
+    	<taskdef resource="checkstyletask.properties">
+        	<classpath refid="checkstyle-classpath"/>
+        </taskdef>
+        <mkdir dir="${test.build.dir}"/>
+        <checkstyle config="${test.src.dir}/checkstyle.xml" failOnViolation="false">
+        	<fileset dir="${src.dir}/java" includes="**/*.java" excludes="**/generated/**"/>
+        	<formatter type="xml" toFile="${test.build.dir}/checkstyle-errors.xml"/>
+        </checkstyle>
+        <xslt style="${test.src.dir}/checkstyle-noframes-sorted.xsl" in="${test.build.dir}/checkstyle-errors.xml"
+        	out="${test.build.dir}/checkstyle-errors.html"/>
+    </target>
+
+    <target name="checkstyle.check" unless="checkstyle.home">
+    	<fail message="'checkstyle.home' is not defined. Please pass -Dcheckstyle.home=&lt;base of checkstyle installation&gt; 
+		to Ant on the command-line." />
+    </target>
+    
+    <target name="set-checkstyle-classpath">
+    	<path id="checkstyle-classpath">
+        	<fileset dir="${checkstyle.home}">
+			<include name="**/*.jar"/>
+         	</fileset>
+ 	</path>
+    </target>	
+
+    <!-- ================================================================== -->
+    <!-- Perform audit activities for the release                           -->
+    <!-- ================================================================== -->
+    
+    <target name="get-rats" depends="package" description="Downloads the release audit tool">
+    	<get src="${rats_url}" dest="${lib.dir}/rats.jar" usetimestamp="false" />
+    </target>
+   
+    <target name="releaseaudit" depends="get-rats" description="Release Audit activities">
+    	<java classname="${rat.reporting.classname}" fork="true" classpath="${lib.dir}/rats.jar">
+      		<arg value="${build.dir}/${final.name}"/>
+    	</java>
+    </target>
+
+    <target name="findbugs.check" depends="check-for-findbugs" unless="findbugs.present">
+    	<fail message="'findbugs.home' is not defined. Please pass -Dfindbugs.home=&lt;base of Findbugs installation&gt; 
+		to Ant on the command-line." />
+    </target>
+
+    <target name="patch.check" unless="patch.file">
+  	<fail message="'patch.file' is not defined. Please pass -Dpatch.file=&lt;location of patch file&gt; 
+		to Ant on the command-line." />
+    </target>
+
+    <target name="test-patch" depends="patch.check,findbugs.check,forrest.check">
+  	<exec executable="bash" failonerror="true">
+    		<arg value="${test_patch_sh}"/>
+    		<arg value="DEVELOPER"/>
+    		<arg value="${patch.file}"/>
+    		<arg value="${scratch.dir}"/>
+    		<arg value="${svn.cmd}"/>
+    		<arg value="${grep.cmd}"/>
+    		<arg value="${patch.cmd}"/>
+    		<arg value="${findbugs.home}"/>
+    		<arg value="${forrest.home}"/>
+    		<arg value="${basedir}"/>
+    		<arg value="${java5.home}"/>
+        	<arg value="${ant.project.name}"/>
+  	</exec>
+    </target>
+
+    <target name="hudson-test-patch" depends="findbugs.check,forrest.check">
+  	<exec executable="bash" failonerror="true">
+    		<arg value="${test_patch_sh}"/>
+    		<arg value="HUDSON"/>
+    		<arg value="${scratch.dir}"/>
+    		<arg value="${support.dir}"/>
+    		<arg value="${ps.cmd}"/>
+    		<arg value="${wget.cmd}"/>
+    		<arg value="${jiracli.cmd}"/>
+    		<arg value="${svn.cmd}"/>
+    		<arg value="${grep.cmd}"/>
+    		<arg value="${patch.cmd}"/>
+    		<arg value="${findbugs.home}"/>
+    		<arg value="${forrest.home}"/>
+    		<arg value="${eclipse.home}"/>
+    		<arg value="${python.home}"/>
+    		<arg value="${basedir}"/>
+    		<arg value="${trigger.url}"/>
+    		<arg value="${jira.passwd}"/>
+    		<arg value="${java5.home}"/>
+    		<arg value="${curl.cmd}"/>
+    		<arg value="${defect}"/>
+		<arg value="${ant.project.name}"/>
+    	</exec>
+     </target>
+
+     <target name="get-jdiff" description="download jdiff and its dependencies">
+	<get src="${jdiff.download.url}" dest="${jdiff.jar}" usetimestamp="true"/>
+	<get src="${xerces.download.url}" dest="${xerces.jar}" usetimestamp="true"/>
+     </target>	
+
+     <target name="api-xml" depends="get-jdiff, javadoc, write-null">
+    	<javadoc>
+       		<doclet name="jdiff.JDiff"
+               		path="${jdiff.jar}:${xerces.jar}">
+         		<param name="-apidir" value="${jdiff.xml.dir}"/>
+         		<param name="-apiname" value="${name} ${version}"/>
+       		</doclet>
+       		<packageset dir="${java.src.dir}">
+			<include name="org/apache/zookeeper"/>
+			<exclude name="org/apache/jute"/>
+                </packageset>
+       		<classpath>
+       			<fileset dir="${lib.dir}">
+        			<include name="**/*.jar"/>
+      			</fileset>
+			<pathelement path="${build.classes}" />	
+		</classpath>
+       	</javadoc>
+     </target>
+	
+     <target name="write-null">
+	<exec executable="touch">
+		<arg value="${jdiff.home}/Null.java"/>
+        </exec>
+     </target> 
+
+     <target name="api-report" depends="api-xml">
+	<mkdir dir="${jdiff.build.dir}"/>
+        <javadoc sourcepath="${java.src.dir}"
+             destdir="${jdiff.build.dir}"
+	     excludepackagenames="org.apache.jute"	
+             sourceFiles="${jdiff.home}/Null.java">
+       		<doclet name="jdiff.JDiff" path="${jdiff.jar}:${xerces.jar}">
+         		<param name="-oldapi" value="${name} ${jdiff.stable}"/>
+         		<param name="-newapi" value="${name} ${version}"/>
+         		<param name="-oldapidir" value="${jdiff.xml.dir}"/>
+         		<param name="-newapidir" value="${jdiff.xml.dir}"/>
+         		<param name="-javadocold" value="${jdiff.stable.javadoc}"/>
+         		<param name="-javadocnew" value="../../api/"/>
+         		<param name="-stats"/>
+       		</doclet>
+		<classpath>
+       			<fileset dir="${lib.dir}">
+        			<include name="**/*.jar"/>
+      			</fileset>
+			<pathelement path="${build.classes}" />	
+		</classpath>
+       </javadoc>
+  </target>
+
+</project>

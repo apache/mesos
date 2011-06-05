@@ -24,6 +24,8 @@ LIBEV = third_party/libprocess/third_party/libev-3.8
 GLOG = third_party/glog-0.3.0
 GTEST = third_party/gtest-1.4.0-patched
 
+ZOOKEEPER = third_party/zookeeper-3.2.2/src/c
+
 # Ensure that we get better debugging info.
 CFLAGS += -g
 CXXFLAGS += -g
@@ -48,11 +50,13 @@ LDFLAGS += -Lthird_party/libprocess
 # Add libev to LDFLAGS.
 LDFLAGS += -L$(LIBEV)/.libs
 
-# Add glog and gtest to include and lib paths
+# Add glog and gtest and zookeeper to include and lib paths
 CXXFLAGS += -I$(GLOG)/src
 CXXFLAGS += -I$(GTEST)/include
+CXXFLAGS += -I$(ZOOKEEPER)/include -I$(ZOOKEEPER)/generated -DTHREADED
 LDFLAGS += -L$(GLOG)/.libs
 LDFLAGS += -L$(GTEST)/lib/.libs
+LDFLAGS += -L$(ZOOKEEPER)/.libs
 
 # Add dependency tracking to CFLAGS, CXXFLAGS.
 CFLAGS += -MMD -MP
@@ -63,7 +67,7 @@ CFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USE
 CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USER\""
 
 # Add libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl
+LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lzookeeper_mt
 
 NEXUS_EXES = nexus-master nexus-slave nexus-local nexus-launcher alltests \
 	     test-framework test-executor cpp-test-framework cpp-test-executor \
@@ -84,7 +88,7 @@ NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(CPP_LIB)
 MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
 SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
 	    process_based_isolation_module.o
-COMMON_OBJ = fatal.o hash_pid.o messages.o
+COMMON_OBJ = fatal.o hash_pid.o messages.o getleader.o
 EXEC_LIB_OBJ = nexus_exec.o
 SCHED_LIB_OBJ = nexus_sched.o nexus_local.o params.o
 TEST_OBJ = tests/main.o tests/test_master.o tests/test_resources.o
@@ -113,7 +117,7 @@ $(NEXUS_LIBS): $(COMMON_OBJ) third_party/libprocess/libprocess.a
 $(NEXUS_EXES): $(COMMON_OBJ) third_party/libprocess/libprocess.a
 
 $(SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
-	$(AR) rcs $@ $^ third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a
+	$(AR) rcs $@ $^ third_party/libprocess/libprocess.a $(GLOG)/.libs/libglog.a $(LIBEV)/.libs/libev.a $(ZOOKEEPER)/.libs/libzookeeper_mt.a
 
 $(EXEC_LIB): $(EXEC_LIB_OBJ) $(COMMON_OBJ)
 	$(AR) rcs $@ $^
@@ -232,6 +236,7 @@ third_party:
 	$(MAKE) -C third_party/libprocess
 	$(MAKE) -C $(GLOG)
 	$(MAKE) -C $(GTEST)
+	$(MAKE) -C $(ZOOKEEPER)
 
 all: third_party $(NEXUS_LIBS) $(NEXUS_EXES) java python ruby
 
@@ -239,6 +244,7 @@ clean:
 	$(MAKE) -C third_party/libprocess clean
 	$(MAKE) -C $(GLOG) clean
 	$(MAKE) -C $(GTEST) clean
+	$(MAKE) -C $(ZOOKEEPER) clean
 	rm -f $(patsubst %.o, %.d, $(ALL_OBJ))
 	rm -f $(ALL_OBJ)
 	rm -f *.o *.d *.so

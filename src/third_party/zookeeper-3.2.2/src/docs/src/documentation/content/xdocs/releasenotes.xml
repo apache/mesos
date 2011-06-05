@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2002-2004 The Apache Software Foundation
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<!DOCTYPE article PUBLIC "-//OASIS//DTD Simplified DocBook XML V1.0//EN"
+"http://www.oasis-open.org/docbook/xml/simple/1.0/sdocbook.dtd">
+<article id="ar_ReleaseNotes">
+  <title>ZooKeeper 3.2.2 Release Notes</title>
+
+  <articleinfo>
+    <legalnotice>
+      <para>Licensed under the Apache License, Version 2.0 (the "License");
+      you may not use this file except in compliance with the License. You may
+      obtain a copy of the License at <ulink
+      url="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</ulink>.</para>
+
+      <para>Unless required by applicable law or agreed to in writing,
+      software distributed under the License is distributed on an "AS IS"
+      BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied. See the License for the specific language governing permissions
+      and limitations under the License.</para>
+    </legalnotice>
+  </articleinfo>
+
+<para>
+These release notes include new developer and user facing
+incompatibilities, features, and major improvements.
+</para>
+
+<para>
+Note that there is a user visible semantic change to an existing API in the 3.2.0 release: 
+<ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-444">ZOOKEEPER-444</ulink>
+"perms definition for PERMS_ALL differ in C and java", a bug fix which required a change to the JAVA
+definition of ALL to include ADMIN.
+</para>
+
+<para>See <ulink
+url="http://hadoop.apache.org/zookeeper/docs/r3.0.1/releasenotes.html#migration">3.0
+release notes and migration instructions</ulink> if you are upgrading
+from version 2 of ZooKeeper (SourceForge) to version 3 or
+later.</para>
+
+<section id="changes">
+<title>Changes Since ZooKeeper 3.2.1</title>
+
+<table>
+<title>Changes Since ZooKeeper 3.2.1</title>
+<tgroup cols='2'>
+<colspec colname='c1'/><colspec colname='c2'/>
+<thead>
+<row>
+  <entry>Issue</entry>
+  <entry>Notes</entry>
+</row>
+</thead>
+<tbody>
+
+<row>
+  <entry>Bug</entry>
+  <entry></entry>
+</row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-582">ZOOKEEPER-582</ulink></entry><entry>ZooKeeper can revert to old data when a snapshot is created outside of normal processing
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-562">ZOOKEEPER-562</ulink></entry><entry>c client can flood server with pings if tcp send queue filled
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-538">ZOOKEEPER-538</ulink></entry><entry>zookeeper.async causes python to segfault
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-547">ZOOKEEPER-547</ulink></entry><entry>Sanity check in QuorumCnxn Manager and quorum communication port.
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-420">ZOOKEEPER-420</ulink></entry><entry>build/test should not require install in zkpython
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-576">ZOOKEEPER-576</ulink></entry><entry>docs need to be updated for session moved exception and how to handle it
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-554">ZOOKEEPER-554</ulink></entry><entry>zkpython can segfault when statting a deleted node
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-541">ZOOKEEPER-541</ulink></entry><entry>zkpython limited to 256 handles
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-510">ZOOKEEPER-510</ulink></entry><entry>zkpython lumps all exceptions as IOError, needs specialized exceptions for KeeperException types
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-540">ZOOKEEPER-540</ulink></entry><entry>zkpython needs better tracking of handle validity
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-585">ZOOKEEPER-585</ulink></entry><entry>Update README for zkpython in 3.2.2
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-597">ZOOKEEPER-597</ulink></entry><entry>ASyncHammerTest is failing intermittently on hudson trunk.
+</entry></row>
+<row><entry><ulink url="https://issues.apache.org/jira/browse/ZOOKEEPER-611">ZOOKEEPER-611</ulink></entry><entry>hudson build failiure.
+</entry></row>
+
+</tbody></tgroup></table>
+
+</section>
+</article>
