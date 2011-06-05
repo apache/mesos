@@ -178,7 +178,6 @@ LxcIsolationModule::Reaper::Reaper(LxcIsolationModule* m)
   
 void LxcIsolationModule::Reaper::operator () ()
 {
-  pause(1); // HACK(matei)
   link(module->slave->getPID());
   while (true) {
     switch (receive(1)) {
