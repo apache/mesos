@@ -15,6 +15,12 @@ SCRIPTS="copy-dir
          redeploy-nexus
          setup-apache
          setup-slave              
+         setup-torque
+         setup-torque-server
+         start-torque-slaves
+         stop-torque-slaves
+         prologue.setup-mpi-master
+         setup-mpi
          ssh-no-keychecking
          start-mos
          start-nexus
@@ -24,7 +30,10 @@ SCRIPTS="copy-dir
 
 HADOOP_HOME=/root/hadoop-0.20.2
 
+#TODO(*): update config scripts to have conditionals for handling different
+#         platforms
 JAVA_HOME=/usr/lib/jvm/java-6-openjdk
+#JAVA_HOME=/usr/lib/jvm/java-6-sun #works for karmic, this is lucid
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
@@ -57,6 +66,7 @@ echo "RSYNC'ing /root/nexus-ec2 to slaves..."
 for slave in `cat $SLAVES`; do
   echo $slave
   rsync -e "ssh $SSH_OPTS" -az /root/nexus-ec2 $slave:/root
+  scp ~/.ssh/id_rsa $slave:.ssh
 done
 
 echo "Setting up slaves..."
@@ -156,6 +166,9 @@ $HADOOP_HOME/bin/start-dfs.sh
 
 echo "Starting MapOutputServer(s)..."
 ./start-mos
+
+echo "Setting up torque"
+./setup-torque
 
 echo "Starting Nexus cluster..."
 ./start-nexus
