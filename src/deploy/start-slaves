@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+DEPLOY_DIR=`dirname "$0"`
+DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
+. $DEPLOY_DIR/mesos-env.sh
+
+cd $DEPLOY_DIR
+
+#PORT=`../src/get_conf port $@`;
+#Launch slaves
+for slave in $SLAVES; do
+  echo "Starting slave on $slave"
+  echo ssh $SSH_OPTS $slave "$DEPLOY_DIR/mesos-daemon mesos-slave -u 1@$MASTER:5050 </dev/null >/dev/null" 
+  ssh $SSH_OPTS $slave "$DEPLOY_DIR/mesos-daemon mesos-slave -u 1@$MASTER:5050 </dev/null >/dev/null" &
+  sleep 0.1
+done
+wait

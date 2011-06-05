@@ -1,9 +1,9 @@
 #! /usr/bin/env bash
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+DEPLOY_DIR=`dirname "$0"`
+DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
 
-. $bin/mesos_env.sh
+. $DEPLOY_DIR/mesos-env.sh
 
 echo "RSYNC'ing $MESOS_ROOT to slaves..."
 for slave in $SLAVES; do

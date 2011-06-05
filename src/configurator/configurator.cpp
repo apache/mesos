@@ -227,7 +227,6 @@ void Configurator::loadCommandLine(int argc,
 
 void Configurator::loadConfigFile(const string& fname, bool overwrite) 
 {
-  LOG(INFO) << "Loading config file: " << fname;
   ifstream cfg(fname.c_str(), std::ios::in);
   if (!cfg.is_open()) {
     string message = "Couldn't read Mesos config file: " + fname;

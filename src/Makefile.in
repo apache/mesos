@@ -5,6 +5,7 @@ SHELL = '/bin/sh'
 BINDIR = @top_builddir@/bin
 LIBDIR = @top_builddir@/lib
 CONFDIR = @top_builddir@/conf
+DEPLOYDIR = @top_builddir@/deploy
 
 CC = @CC@
 CXX = @CXX@
@@ -202,6 +203,17 @@ WEBUI_FILES = $(BINDIR)/webui/bottle-0.5.6		\
 # We copy template config files into the conf directory.
 CONF_FILES = $(CONFDIR)/mesos.conf
 
+# We copy all the deploy scripts into the bin directory.
+DEPLOY_FILES = $(DEPLOYDIR)/deploy-to-slaves             \
+	       $(DEPLOYDIR)/mesos-daemon                 \
+	       $(DEPLOYDIR)/mesos-env.sh                 \
+	       $(DEPLOYDIR)/start-master                 \
+	       $(DEPLOYDIR)/start-mesos                  \
+	       $(DEPLOYDIR)/start-slaves                 \
+	       $(DEPLOYDIR)/stop-master                  \
+	       $(DEPLOYDIR)/stop-mesos                   \
+	       $(DEPLOYDIR)/stop-slaves                  \
+
 # Create rules for building the directories that aren't created
 # automagically by configure.
 OBJ_DIRECTORIES = common configurator detector exec launcher local	\
@@ -213,7 +225,8 @@ WEBUI_DIRECTORIES = $(BINDIR)/webui/common $(BINDIR)/webui/master	\
                     $(BINDIR)/webui/slave/swig
 
 DIRECTORIES = $(BINDIR) $(LIBDIR) $(LIBDIR)/java $(LIBDIR)/python	\
-              $(OBJ_DIRECTORIES) $(WEBUI_DIRECTORIES) $(CONFDIR)
+              $(OBJ_DIRECTORIES) $(WEBUI_DIRECTORIES) $(CONFDIR)        \
+	      $(DEPLOYDIR)
 
 
 default: all
@@ -317,13 +330,18 @@ ifeq ($(WITH_WEBUI),1)
 	cp -r $< $@
 endif
 
+$(DEPLOY_FILES): | $(DEPLOYDIR)
+
+$(DEPLOY_FILES): $(DEPLOYDIR)/%: @srcdir@/deploy/%
+	cp -r $< $@
+
 $(CONFDIR)/mesos.conf: @srcdir@/conf/mesos.conf.template | $(CONFDIR)
 	cp -r $^ $@
 
 test: all
 	$(MAKE) -C tests test
 
-all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES) $(CONF_FILES)
+all: $(MESOS_LIBS) $(MESOS_EXES) java python $(WEBUI_FILES) $(CONF_FILES) $(DEPLOY_FILES)
 	$(MAKE) -C examples
 	$(MAKE) -C tests
 
