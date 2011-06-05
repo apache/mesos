@@ -111,7 +111,7 @@ public:
 
 
 Master::Master(const string &zk)
-  : masterDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
+  : isFT(false), masterDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
     nextSlotOfferId(0), allocatorType("simple"), masterId(0)
 {
   if (zk != "") {
@@ -129,7 +129,7 @@ Master::Master(const string &zk)
 
 
 Master::Master(const string& _allocatorType, const string &zk)
-  : masterDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
+  : isFT(false), masterDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
     nextSlotOfferId(0), allocatorType(_allocatorType), masterId(0)
 {
   if (zk != "") {
@@ -304,6 +304,7 @@ void Master::operator () ()
 	unpack<GOT_MASTER_SEQ>(mySeq);
 	masterId = lexical_cast<long>(mySeq);
 	LOG(INFO) << "Master ID:" << masterId;
+	waitingForSeq = false;
 	break;
       }
     }
