@@ -27,6 +27,14 @@ using namespace nexus;
 using namespace nexus::internal;
 using namespace nexus::internal::slave;
 
+namespace {
+
+const int32_t CPU_SHARES_PER_CPU = 1024;
+const int32_t MIN_CPU_SHARES = 10;
+const int64_t MIN_RSS = 128 * Megabyte;
+
+}
+
 
 LxcIsolationModule::LxcIsolationModule(Slave* slave)
 {
@@ -120,7 +128,7 @@ void LxcIsolationModule::startExecutor(Framework *fw)
     setenv("NEXUS_EXECUTOR_URI", fw->executorInfo.uri.c_str(), 1);
     setenv("NEXUS_USER", fw->user.c_str(), 1);
     setenv("NEXUS_SLAVE_PID", lexical_cast<string>(slave->self()).c_str(), 1);
-    setenv("NEXUS_REDIRECT_IO", slave->local ? "1" : "0", 1);
+    setenv("NEXUS_REDIRECT_IO", slave->local ? "0" : "1", 1);
     setenv("NEXUS_WORK_DIRECTORY", slave->getWorkDirectory(fw->id).c_str(), 1);
 
     // Run lxc-execute.
@@ -149,27 +157,44 @@ void LxcIsolationModule::killExecutor(Framework* fw)
 void LxcIsolationModule::resourcesChanged(Framework* fw)
 {
   if (container[fw->id] != "") {
-    // For now, just try setting the CPUs and mem right away.
-    // A slightly smarter thing might be to only update them periodically.
-    int ret;
-    
-    int32_t cpuShares = max(1024 * fw->resources.cpus, 10);
-    LOG(INFO) << "Setting CPU shares for " << fw->id << " to " << cpuShares;
-    ret = shell("lxc-cgroup -n %s cpu.shares %d",
-                container[fw->id].c_str(), cpuShares);
-    if (ret != 0)
-      LOG(ERROR) << "lxc-cgroup returned " << ret;
+    // For now, just try setting the CPUs and memory right away, and kill the
+    // framework if this fails.
+    // A smarter thing to do might be to only update them periodically in a
+    // separate thread, and to give frameworks some time to scale down their
+    // memory usage.
 
-    int64_t rssLimit = max(fw->resources.mem, 128 * Megabyte);
-    LOG(INFO) << "Setting RSS limit for " << fw->id << " to " << rssLimit;
-    ret = shell("lxc-cgroup -n %s memory.limit_in_bytes %lld",
-                container[fw->id].c_str(), rssLimit);
-    if (ret != 0)
-      LOG(ERROR) << "lxc-cgroup returned " << ret;
-    
-    // TODO: Decreasing the RSS limit will fail if the current RSS is too
-    // large and memory can't be swapped out. In that case, we should
-    // either freeze the container before changing RSS, or just kill it.
+    int32_t cpuShares = max(CPU_SHARES_PER_CPU * fw->resources.cpus,
+                            MIN_CPU_SHARES);
+    if (!setResourceLimit(fw, "cpu.shares", cpuShares)) {
+      slave->removeExecutor(fw->id, true);
+      return;
+    }
+
+    int64_t rssLimit = max(fw->resources.mem, MIN_RSS);
+    if (!setResourceLimit(fw, "memory.limit_in_bytes", rssLimit)) {
+      slave->removeExecutor(fw->id, true);
+      return;
+    }
+  }
+}
+
+
+bool LxcIsolationModule::setResourceLimit(Framework* fw,
+                                          const string& property,
+                                          int64_t value)
+{
+  LOG(INFO) << "Setting " << property << " for framework " << fw->id
+            << " to " << value;
+  int ret = shell("lxc-cgroup -n %s %s %lld",
+                  container[fw->id].c_str(),
+                  property.c_str(),
+                  value);
+  if (ret != 0) {
+    LOG(ERROR) << "Failed to set " << property << " for framework " << fw->id
+               << ": lxc-cgroup returned " << ret;
+    return false;
+  } else {
+    return true;
   }
 }
 

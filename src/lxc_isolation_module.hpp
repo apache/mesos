@@ -50,7 +50,12 @@ public:
   virtual void resourcesChanged(Framework* framework);
 
 protected:
+  // Run a shell command formatted with varargs and return its exit code.
   int shell(const char* format, ...);
+
+  // Attempt to set a resource limit of a framework's container for a given
+  // cgroup property (e.g. cpu.shares). Returns true on success.
+  bool setResourceLimit(Framework* fw, const string& property, int64_t value);
 };
 
 }}}
