@@ -62,9 +62,13 @@ LDFLAGS += -L$(ZOOKEEPER)/.libs
 CFLAGS += -MMD -MP
 CXXFLAGS += -MMD -MP
 
-# Add build date and user to CFLAGS, CXXFLAGS
-CFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USER\""
-CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USER\""
+# Add build date to CFLAGS, CXXFLAGS
+CFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
+CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
+
+# Add build user to CFLAGS, CXXFLAGS
+CFLAGS += -DBUILD_USER="\"$$USER\""
+CXXFLAGS += -DBUILD_USER="\"$$USER\""
 
 # Add libev, libprocess, pthread, and dl to LIBS.
 LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl -lzookeeper_mt
@@ -80,10 +84,10 @@ endif
 SCHED_LIB = libnexus_sched.a
 EXEC_LIB = libnexus_exec.a
 
-# For now the C++ library has both the scheduler and executor binaries.
-CPP_LIB = libnexus++.a
+# C/C++ library has both the scheduler and executor libraries.
+NEXUS_LIB = libnexus++.a
 
-NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(CPP_LIB)
+NEXUS_LIBS = $(SCHED_LIB) $(EXEC_LIB) $(NEXUS_LIB)
 
 MASTER_OBJ = master.o allocator_factory.o simple_allocator.o
 SLAVE_OBJ = slave.o launcher.o isolation_module_factory.o \
@@ -104,6 +108,18 @@ endif
 ALL_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ) \
 	  $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(TEST_OBJ)
 
+# Setup libraries from the SWIG world.
+ifeq ($(OS_NAME),darwin)
+  JAVA_LIB = swig/java/libnexus.dylib
+else
+  JAVA_LIB = swig/java/libnexus.so
+endif
+
+PYTHON_LIB = swig/python/_nexus.so
+
+RUBY_LIB = swig/ruby/nexus.so
+
+
 default: all
 
 -include $(patsubst %.o, %.d, $(ALL_OBJ))
@@ -122,7 +138,7 @@ $(SCHED_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
 $(EXEC_LIB): $(EXEC_LIB_OBJ) $(COMMON_OBJ)
 	$(AR) rcs $@ $^
 
-$(CPP_LIB): $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
+$(NEXUS_LIB): $(SCHED_LIB_OBJ) $(EXEC_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
 	$(AR) rcs $@ $^
 
 webui/master/swig/master_wrap.cpp: webui/master/swig/master.i master_state.hpp master_webui.hpp master.hpp config.hpp
@@ -175,31 +191,31 @@ test-framework: test_framework.cpp $(SCHED_LIB) third_party/libprocess/libproces
 test-executor: test_exec.cpp $(EXEC_LIB) third_party/libprocess/libprocess.a
 	g++ $(CXXFLAGS) -o $@ $< $(LDFLAGS) -L. -lnexus_exec $(LIBS)
 
-cpp-test-framework: cpp_test_framework.cpp $(CPP_LIB) third_party/libprocess/libprocess.a
+cpp-test-framework: cpp_test_framework.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
 
-cpp-test-executor: cpp_test_executor.cpp $(CPP_LIB) third_party/libprocess/libprocess.a
+cpp-test-executor: cpp_test_executor.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
 
-memhog: memhog.cpp $(CPP_LIB) third_party/libprocess/libprocess.a
+memhog: memhog.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
 
-memhog-executor: memhog_executor.cpp $(CPP_LIB) third_party/libprocess/libprocess.a
+memhog-executor: memhog_executor.cpp $(NEXUS_LIB) third_party/libprocess/libprocess.a
 	$(CXX) $(CXXFLAGS) -o $@ $< -L. $(LDFLAGS) -lnexus++ $(LIBS) 
 
-java: swig/java/libnexus.so swig/java/nexus.jar swig/java/TestFramework.class swig/java/TestExecutor.class
+java: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestFramework.class swig/java/TestExecutor.class
 
-python: swig/python/_nexus.so
+python: $(PYTHON_LIB)
 
-ruby: swig/ruby/nexus.so
+ruby: $(RUBY_LIB)
 
-swig/java/nexus.jar: swig/java/libnexus.so
+swig/java/nexus.jar: $(JAVA_LIB)
 ifdef JAVA_HOME
 	javac -sourcepath swig/java -d swig/java swig/java/nexus/*.java
 	jar cf $@ -C swig/java nexus
 endif
 
-swig/java/libnexus.so: swig/nexus.i $(CPP_LIB)
+$(JAVA_LIB): swig/nexus.i $(NEXUS_LIB)
 ifdef JAVA_HOME
 	rm -f swig/java/nexus/*
 	mkdir -p swig/java/nexus
@@ -207,23 +223,23 @@ ifdef JAVA_HOME
 	$(CXX) $(CXXFLAGS) -shared -o $@ swig/java/nexus_wrap.cpp -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -L. $(LDFLAGS) -lnexus++ $(LIBS)
 endif
 
-swig/java/TestFramework.class: swig/java/libnexus.so swig/java/nexus.jar swig/java/TestFramework.java
+swig/java/TestFramework.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestFramework.java
 ifdef JAVA_HOME
 	javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestFramework.java
 endif
 
-swig/java/TestExecutor.class: swig/java/libnexus.so swig/java/nexus.jar swig/java/TestExecutor.java
+swig/java/TestExecutor.class: $(JAVA_LIB) swig/java/nexus.jar swig/java/TestExecutor.java
 ifdef JAVA_HOME
 	javac -cp swig/java/nexus.jar -sourcepath swig/java -d swig/java swig/java/TestExecutor.java
 endif
 
-swig/python/_nexus.so: swig/nexus.i $(CPP_LIB)
+$(PYTHON_LIB): swig/nexus.i $(NEXUS_LIB)
 ifdef PYTHON_HEADERS
 	swig -c++ -python -threads -I../include -o swig/python/nexus_wrap.cpp -outdir swig/python swig/nexus.i
 	$(CXX) $(CXXFLAGS) -shared -o $@ swig/python/nexus_wrap.cpp -I$(PYTHON_HEADERS) -L. $(LDFLAGS) -lnexus++ $(LIBS)
 endif
 
-swig/ruby/nexus.so: swig/nexus.i $(CPP_LIB)
+$(RUBY_LIB): swig/nexus.i $(NEXUS_LIB)
 ifdef RUBY_HEADERS
 	swig -c++ -ruby -I../include -o swig/ruby/nexus_wrap.cpp -outdir swig/ruby -autorename swig/nexus.i
 	$(CXX) $(CXXFLAGS) -shared -o $@ swig/ruby/nexus_wrap.cpp -I$(RUBY_HEADERS) -L. $(LDFLAGS) -lnexus++ $(LIBS)
@@ -247,14 +263,14 @@ clean:
 	$(MAKE) -C $(ZOOKEEPER) clean
 	rm -f $(patsubst %.o, %.d, $(ALL_OBJ))
 	rm -f $(ALL_OBJ)
-	rm -f *.o *.d *.so
 	rm -f $(NEXUS_LIBS)
 	rm -f $(NEXUS_EXES)
+	rm -f $(JAVA_LIB) $(PYTHON_LIB) $(RUBY_LIB)
+	rm -rf $(JAVA_LIB).dSYM $(PYTHON_LIB).dSYM $(RUBY_LIB).dSYM
 	rm -f swig/*/nexus_wrap.cpp
 	rm -f swig/*/nexus_wrap.h
 	rm -f swig/*/*.o
 	rm -f swig/*/*.d
-	rm -f swig/*/*.so
 	rm -f swig/java/nexus.jar
 	rm -f swig/java/nexus/*
 	rm -f swig/java/*.class
