@@ -177,7 +177,7 @@ AC_SUBST(SWIG)
 WITH_INCLUDED_SQLITE="0"
 AC_ARG_WITH([included-sqlite],
   AC_HELP_STRING([--with-included-sqlite],
-                 [build with included ZooKeeper]),
+                 [build with included sqlite]),
 	         [case "$with_included_sqlite" in
 		    yes) WITH_SQLITE="1"
                          WITH_INCLUDED_SQLITE="1" ;;

@@ -669,6 +669,7 @@ ac_subdirs_all='third_party/libprocess
 third_party/protobuf-2.3.0
 third_party/glog-0.3.1
 third_party/gmock-1.5.0
+third_party/sqlite-3.6.23.1
 third_party/zookeeper-3.3.1/src/c'
 
 # Initialize some variables set by options.
@@ -1249,7 +1250,7 @@ Optional Packages:
                           find Python headers in DIR
   --with-webui            enable web UI (requires Python)
   --with-swig=PATH        use the SWIG binary at PATH
-  --with-included-sqlite  build with included ZooKeeper
+  --with-included-sqlite  build with included sqlite
   --with-zookeeper        use ZooKeeper support
   --with-included-zookeeper
                           build with included ZooKeeper
@@ -1747,6 +1748,8 @@ subdirs="$subdirs third_party/protobuf-2.3.0"
 subdirs="$subdirs third_party/glog-0.3.1"
 
 subdirs="$subdirs third_party/gmock-1.5.0"
+
+subdirs="$subdirs third_party/sqlite-3.6.23.1"
 
 subdirs="$subdirs third_party/zookeeper-3.3.1/src/c"
 
