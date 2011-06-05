@@ -1,5 +1,8 @@
 #include "lxc_isolation_module.hpp"
 
+#include <stdlib.h>
+#include <unistd.h>
+
 #include <algorithm>
 
 #include "foreach.hpp"
@@ -30,6 +33,12 @@ LxcIsolationModule::LxcIsolationModule(Slave* slave)
   this->slave = slave;
   reaper = new Reaper(this);
   Process::spawn(reaper);
+
+  // Run a basic check to see whether Linux Container tools are available
+  if (system("lxc-version > /dev/null") != 0) {
+    PLOG(FATAL) << "Could not run lxc-version; make sure Linux Container "
+                << "tools are installed";
+  }
 }
 
 
