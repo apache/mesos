@@ -10,42 +10,67 @@
 
 using namespace std;
 
+/**
+ * Callback interface for LeaderDetector.
+ */
 class LeaderListener {
 public:
-  // first parameter is the ephemeral id of the leader, second parameter is leader data (could be a libprocess PID)
-  // both parameters will be "" if there is no leader
+  /** Callback method
+   *
+   * @param zkId ZooKeeper sequence number of the new leader
+   * @param pidStr libprocess PID of the new leader
+   */ 
   virtual void newLeaderElected(string zkId, string pidStr) = 0;
 };
 
+/**
+ * Implements functionality for a) detecting leaders b) contending to be a leader.
+ */
 class LeaderDetector {
 public:
-  LeaderDetector(string server, bool contendLeader=0, string ld="", LeaderListener * ll=NULL);
+  /** 
+   * Contact ZooKeeper, possibly contend for leader, and register callback.
+   * 
+   * @param server comma separated list of zookeeper servers
+   * @param contendLeader true if object should try to become a leader (not needed for slaves and frameworks)
+   * @param pid string containing libprocess id of this node (needed if it becomes a leader)
+   * @param ll callback object which will be invoked each time a new leader is elected
+   */
+  LeaderDetector(string server, bool contendLeader=0, string pid="", LeaderListener * ll=NULL);
 
-  pair<string,string> getCurrentLeader();
-
+  /** 
+   * @return ZooKeeper unique sequence number of the current leader.
+   */
   string getCurrentLeaderSeq();
 
+  /** 
+   * @return libprocess PID of the current leader. 
+   */
   string getCurrentLeaderPID();
 
+  /**
+   * Registers a listener that gets callbacks when a new leader is elected.
+   *
+   * @param ll an object implementing LeaderListener
+   */
   void setListener(LeaderListener *l) {
     leaderListener = l;
   }
 
-  LeaderListener *getListener() const {
-    return leaderListener;
-  }
-
+  /**
+   * @return Unique ZooKeeper sequence number (only if contending for leader, otherwise "").
+   */
   string getMySeq() const {
     return mySeq;
   }
 
   ~LeaderDetector();
 
+private: 
   static void initWatchWrap(zhandle_t * zh, int type, int state, const char *path, void *watcherCtx);
 
   static void leaderWatchWrap(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx);
 
-private: 
   void setMySeq(string seq) {  // converts "/nxmaster/000000131" to "000000131"
     int pos;
     if ((pos=seq.find_last_of('/'))!=string::npos ) {  
@@ -61,13 +86,11 @@ private:
 
   LeaderListener *leaderListener;
   zhandle_t *zh;
-  string mydata;
+  string myPID;
   string zooserver;
   string currentLeaderSeq;
   string currentLeaderPID;
   string mySeq;
-
-  String_vector sv;
 
 };
 

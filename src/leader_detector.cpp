@@ -19,9 +19,9 @@ void LeaderDetector::leaderWatchWrap(zhandle_t *zh, int type, int state, const c
 }
 
 
-LeaderDetector::LeaderDetector(string server, bool contendLeader, string ld, LeaderListener *ll) : 
+LeaderDetector::LeaderDetector(string server, bool contendLeader, string pid, LeaderListener *ll) : 
   leaderListener(ll),
-  zh(NULL),mydata(ld),
+  zh(NULL),myPID(pid),
   zooserver(server),currentLeaderSeq(""), mySeq("")
 {
 
@@ -35,7 +35,7 @@ LeaderDetector::LeaderDetector(string server, bool contendLeader, string ld, Lea
   int ret = zoo_create(zh, "/nxmaster",  NULL, -1, &ZOO_OPEN_ACL_UNSAFE, 0, buf, 100);
 
   if (contendLeader) {
-    ret = zoo_create(zh, "/nxmaster/",  mydata.c_str(), mydata.length(), &ZOO_OPEN_ACL_UNSAFE, ZOO_SEQUENCE | ZOO_EPHEMERAL, buf, 100);
+    ret = zoo_create(zh, "/nxmaster/",  myPID.c_str(), myPID.length(), &ZOO_OPEN_ACL_UNSAFE, ZOO_SEQUENCE | ZOO_EPHEMERAL, buf, 100);
     LOG_IF(ERROR, ret!=ZOK)<<"zoo_create() ephemeral/sequence returned error:"<<ret;
     if (ret==ZOK) {
       setMySeq(string(buf));
@@ -64,6 +64,7 @@ void LeaderDetector::leaderWatch(zhandle_t *zh, int type, int state, const char 
 }
 
 bool LeaderDetector::detectLeader() {
+  String_vector sv;
   int ret = zoo_wget_children(zh, "/nxmaster", leaderWatchWrap, (void*)this, &sv);
   LOG_IF(ERROR, ret!=ZOK)<<"zoo_wget_children (get leaders) returned error:"<<ret;
   LOG_IF(INFO, ret==ZOK)<<"zoo_wget_children returned "<<sv.count<<" registered leaders";
