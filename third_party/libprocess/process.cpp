@@ -39,14 +39,15 @@
 #include <stack>
 #include <stdexcept>
 
+#include "process.hpp"
 #include "config.hpp"
 #include "decoder.hpp"
 #include "encoder.hpp"
 #include "fatal.hpp"
 #include "foreach.hpp"
 #include "gate.hpp"
-#include "process.hpp"
 #include "synchronized.hpp"
+
 
 using boost::tuple;
 
@@ -117,7 +118,7 @@ ostream& operator << (ostream& stream, const Node& node)
 struct timeout
 {
   ev_tstamp tstamp;
-  UPID pid;
+  process::UPID pid;
   int generation;
 };
 
@@ -130,14 +131,16 @@ bool operator == (const timeout &left, const timeout &right)
 }
 
 
+namespace process {
+
 class ProcessReference
 {
 public:
-  explicit ProcessReference(Process *_process) : process(_process)
+  explicit ProcessReference(ProcessBase *_process) : process(_process)
   {
     if (process != NULL) {
       __sync_fetch_and_add(&(process->refs), 1);
-      if (process->state == Process::EXITING) {
+      if (process->state == ProcessBase::EXITING) {
         __sync_fetch_and_sub(&(process->refs), 1);
         process = NULL;
       }
@@ -163,12 +166,12 @@ public:
     }
   }
 
-  Process * operator -> ()
+  ProcessBase * operator -> ()
   {
     return process;
   }
 
-  operator Process * ()
+  operator ProcessBase * ()
   {
     return process;
   }
@@ -181,7 +184,7 @@ public:
 private:
   ProcessReference & operator = (const ProcessReference &that);
 
-  Process *process;
+  ProcessBase *process;
 };
 
 
@@ -191,7 +194,7 @@ public:
   LinkManager();
   ~LinkManager();
 
-  void link(Process* process, const UPID& to);
+  void link(ProcessBase* process, const UPID& to);
 
   void send(Message* message);
   void send(DataEncoder* encoder, int s);
@@ -201,11 +204,11 @@ public:
   void closed(int s);
 
   void exited(const Node& node);
-  void exited(Process* process);
+  void exited(ProcessBase* process);
 
 private:
   /* Map from UPID (local/remote) to process. */
-  map<UPID, set<Process*> > links;
+  map<UPID, set<ProcessBase*> > links;
 
   /* Map from socket to node (ip, port). */
   map<int, Node> sockets;
@@ -232,49 +235,52 @@ public:
 
   ProcessReference use(const UPID &pid);
 
-  void deliver(Message *message, Process *sender = NULL);
+  void deliver(Message *message, ProcessBase *sender = NULL);
 
-  UPID spawn(Process *process);
-  void link(Process *process, const UPID &to);
-  void receive(Process *process, double secs);
-  void pause(Process *process, double secs);
-  bool wait(Process *process, const UPID &pid);
+//   template <typename T>
+//   void deliver(const UPID &to, T *t, ProcessBase *sender = NULL);
+
+  UPID spawn(ProcessBase *process);
+  void link(ProcessBase *process, const UPID &to);
+  void receive(ProcessBase *process, double secs);
+  void pause(ProcessBase *process, double secs);
+  bool wait(ProcessBase *process, const UPID &pid);
   bool external_wait(const UPID &pid);
-  bool await(Process *process, int fd, int op, double secs, bool ignore);
+  bool poll(ProcessBase *process, int fd, int op, double secs, bool ignore);
 
-  void enqueue(Process *process);
-  Process * dequeue();
+  void enqueue(ProcessBase *process);
+  ProcessBase * dequeue();
 
   void timedout(const UPID &pid, int generation);
-  void awaited(const UPID &pid, int generation);
+  void polled(const UPID &pid, int generation);
 
-  void run(Process *process);
-  void cleanup(Process *process);
+  void run(ProcessBase *process);
+  void cleanup(ProcessBase *process);
 
   static void invoke(const function<void (void)> &thunk);
 
 private:
-  timeout create_timeout(Process *process, double secs);
+  timeout create_timeout(ProcessBase *process, double secs);
   void start_timeout(const timeout &timeout);
   void cancel_timeout(const timeout &timeout);
 
   /* Map of all local spawned and running processes. */
-  map<string, Process *> processes;
+  map<string, ProcessBase *> processes;
   synchronizable(processes);
 
   /* Waiting processes (protected by synchronizable(processes)). */
-  map<Process *, set<Process *> > waiters;
+  map<ProcessBase *, set<ProcessBase *> > waiters;
 
   /* Map of gates for waiting threads. */
-  map<Process *, Gate *> gates;
+  map<ProcessBase *, Gate *> gates;
 
   /* Queue of runnable processes (implemented as deque). */
-  deque<Process *> runq;
+  deque<ProcessBase *> runq;
   synchronizable(runq);
 };
 
 
-class ProxyManager : public Process
+class ProxyManager : public Process<ProxyManager>
 {
 public:
   ProxyManager() {}
@@ -316,7 +322,7 @@ public:
 
   ~InternalClock() {}
 
-  ev_tstamp getCurrent(Process *process)
+  ev_tstamp getCurrent(ProcessBase *process)
   {
     ev_tstamp tstamp;
 
@@ -329,7 +335,7 @@ public:
     return tstamp;
   }
 
-  void setCurrent(Process *process, ev_tstamp tstamp)
+  void setCurrent(ProcessBase *process, ev_tstamp tstamp)
   {
     currents[process] = tstamp;
   }
@@ -354,14 +360,14 @@ public:
     elapsed = tstamp;
   }
 
-  void discard(Process *process)
+  void discard(ProcessBase *process)
   {
     assert(process != NULL);
     currents.erase(process);
   }
 
 private:
-  map<Process *, ev_tstamp> currents;
+  map<ProcessBase *, ev_tstamp> currents;
   ev_tstamp initial;
   ev_tstamp current;
   ev_tstamp elapsed;
@@ -432,8 +438,8 @@ static ucontext_t proc_uctx_schedule;
 static ucontext_t proc_uctx_running;
 
 /* Current process of processing thread. */
-//static __thread Process *proc_process = NULL;
-static Process *proc_process = NULL;
+//static __thread ProcessBase *proc_process = NULL;
+static ProcessBase *proc_process = NULL;
 
 /* Flag indicating if performing safe call into legacy. */
 // static __thread bool legacy = false;
@@ -497,7 +503,7 @@ Message* encode(const UPID &from, const UPID &to, const string &name, const stri
 }
 
 
-void transport(Message* message, Process* sender = NULL)
+void transport(Message* message, ProcessBase* sender = NULL)
 {
   if (message->to.ip == ip && message->to.port == port) {
     // Local message.
@@ -615,10 +621,10 @@ void handle_timeout(struct ev_loop *loop, ev_timer *watcher, int revents)
 }
 
 
-void handle_await(struct ev_loop *loop, ev_io *watcher, int revents)
+void handle_poll(struct ev_loop *loop, ev_io *watcher, int revents)
 {
   tuple<UPID, int> *t = (tuple<UPID, int> *) watcher->data;
-  process_manager->awaited(t->get<0>(), t->get<1>());
+  process_manager->polled(t->get<0>(), t->get<1>());
   ev_io_stop(loop, watcher);
   delete watcher;
   delete t;
@@ -800,7 +806,7 @@ void accept(struct ev_loop *loop, ev_io *watcher, int revents)
     close(c);
   } else {
     // Allocate and initialize the decoder and watcher.
-    DataDecoder* decoder = new DataDecoder(c);
+    DataDecoder* decoder = new DataDecoder(c, ip, port);
 
     ev_io *watcher = new ev_io();
     watcher->data = decoder;
@@ -823,15 +829,15 @@ void trampoline(int stack0, int stack1, int process0, int process1)
 {
   /* Unpackage the arguments. */
 #ifdef __x86_64__
-  assert (sizeof(unsigned long) == sizeof(Process *));
+  assert (sizeof(unsigned long) == sizeof(ProcessBase *));
   void *stack = (void *)
     (((unsigned long) stack1 << 32) + (unsigned int) stack0);
-  Process *process = (Process *)
+  ProcessBase *process = (ProcessBase *)
     (((unsigned long) process1 << 32) + (unsigned int) process0);
 #else
-  assert (sizeof(unsigned int) == sizeof(Process *));
+  assert (sizeof(unsigned int) == sizeof(ProcessBase *));
   void *stack = (void *) (unsigned int) stack0;
-  Process *process = (Process *) (unsigned int) process0;
+  ProcessBase *process = (ProcessBase *) (unsigned int) process0;
 #endif /* __x86_64__ */
 
   /* Run the process. */
@@ -862,7 +868,7 @@ void * schedule(void *arg)
   }
 
   do {
-    Process *process = process_manager->dequeue();
+    ProcessBase *process = process_manager->dequeue();
 
     if (process == NULL) {
       Gate::state_t old = gate->approach();
@@ -881,7 +887,7 @@ void * schedule(void *arg)
         // been run which could be run up to the current time. The
         // only way another process could become runnable is if (1) it
         // receives a message from another node, (2) a file descriptor
-        // it is awaiting has become ready, or (3) if it has a
+        // it is polling has become ready, or (3) if it has a
         // timeout. We can ignore processes that become runnable due
         // to receiving a message from another node or getting an
         // event on a file descriptor because that should not change
@@ -910,7 +916,7 @@ void * schedule(void *arg)
               // branch because this is a pretty serious state ... the
               // only way to make progress is for another node to send
               // a message or for an event to occur on a file
-              // descriptor that a process is awaiting. We may want to
+              // descriptor that a process is polling. We may want to
               // consider doing (or printing) something here.
             }
           }
@@ -926,10 +932,10 @@ void * schedule(void *arg)
 
     process->lock();
     {
-      assert(process->state == Process::INIT ||
-	     process->state == Process::READY ||
-	     process->state == Process::INTERRUPTED ||
-	     process->state == Process::TIMEDOUT);
+      assert(process->state == ProcessBase::INIT ||
+	     process->state == ProcessBase::READY ||
+	     process->state == ProcessBase::INTERRUPTED ||
+	     process->state == ProcessBase::TIMEDOUT);
 
       /* Continue process. */
       assert(proc_process == NULL);
@@ -1147,10 +1153,10 @@ Proxy::Proxy(int _c) : c(_c)
   // some issues. :(
   if (proxy_manager == NULL) {
     proxy_manager = new ProxyManager();
-    Process::spawn(proxy_manager);
+    spawn(proxy_manager);
   }
 
-  dispatch(PID<ProxyManager>(*proxy_manager), &ProxyManager::manage, this);
+  dispatch(proxy_manager->self(), &ProxyManager::manage, this);
 }
 
 
@@ -1163,8 +1169,7 @@ void Proxy::operator () ()
 
   if (name() != TIMEOUT) {
     size_t length;
-    const char* data = body(&length);
-    link_manager->send(new HttpResponseEncoder(std::string(data, length)), c);
+    link_manager->send(new HttpResponseEncoder(body()), c);
   } else {
     link_manager->send(new HttpGatewayTimeoutEncoder(), c);
   }
@@ -1188,7 +1193,7 @@ LinkManager::LinkManager()
 LinkManager::~LinkManager() {}
 
 
-void LinkManager::link(Process *process, const UPID &to)
+void LinkManager::link(ProcessBase *process, const UPID &to)
 {
   // TODO(benh): The semantics we want to support for link are such
   // that if there is nobody to link to (local or remote) then a
@@ -1224,7 +1229,7 @@ void LinkManager::link(Process *process, const UPID &to)
       addr.sin_addr.s_addr = to.ip;
 
       // Allocate and initialize the decoder and watcher.
-      DataDecoder* decoder = new DataDecoder(s);
+      DataDecoder* decoder = new DataDecoder(s, ip, port);
 
       ev_io *watcher = new ev_io();
       watcher->data = decoder;
@@ -1450,10 +1455,10 @@ void LinkManager::exited(const Node &node)
   synchronized (this) {
     list<UPID> removed;
     // Look up all linked processes.
-    foreachpair (const UPID &pid, set<Process *> &processes, links) {
+    foreachpair (const UPID &pid, set<ProcessBase *> &processes, links) {
       if (pid.ip == node.ip && pid.port == node.port) {
         // N.B. If we call exited(pid) we might invalidate iteration.
-        foreach (Process *process, processes) {
+        foreach (ProcessBase *process, processes) {
           Message* message = encode(pid, process->pid, EXIT);
           process->enqueue(message);
         }
@@ -1468,27 +1473,25 @@ void LinkManager::exited(const Node &node)
 }
 
 
-void LinkManager::exited(Process *process)
+void LinkManager::exited(ProcessBase *process)
 {
   synchronized (this) {
     /* Remove any links this process might have had. */
-    foreachpair (_, set<Process *> &processes, links)
+    foreachpair (_, set<ProcessBase *> &processes, links)
       processes.erase(process);
 
-    const UPID &pid = process->self();
-
     /* Look up all linked processes. */
-    map<UPID, set<Process *> >::iterator it = links.find(pid);
+    map<UPID, set<ProcessBase *> >::iterator it = links.find(process->pid);
 
     if (it != links.end()) {
-      set<Process *> &processes = it->second;
-      foreach (Process *p, processes) {
+      set<ProcessBase *> &processes = it->second;
+      foreach (ProcessBase *p, processes) {
         assert(process != p);
-        Message *message = encode(pid, p->pid, EXIT);
+        Message *message = encode(process->pid, p->pid, EXIT);
         // TODO(benh): Preserve happens-before when using clock.
         p->enqueue(message);
       }
-      links.erase(pid);
+      links.erase(process->pid);
     }
   }
 }
@@ -1520,7 +1523,7 @@ ProcessReference ProcessManager::use(const UPID &pid)
 }
 
 
-void ProcessManager::deliver(Message *message, Process *sender)
+void ProcessManager::deliver(Message *message, ProcessBase *sender)
 {
   assert(message != NULL);
 
@@ -1547,11 +1550,39 @@ void ProcessManager::deliver(Message *message, Process *sender)
 }
 
 
-UPID ProcessManager::spawn(Process *process)
+// template <typename T>
+// void ProcessManager::deliver(const UPID &to, T *t, ProcessBase *sender)
+// {
+//   assert(t != NULL);
+
+//   if (ProcessReference receiver = use(to)) {
+//     // If we have a local sender AND we are using a manual clock
+//     // then update the current time of the receiver to preserve
+//     // the happens-before relationship between the sender and
+//     // receiver. Note that the assumption is that the sender
+//     // remains valid for at least the duration of this routine (so
+//     // that we can look up it's current time).
+//     if (sender != NULL) {
+//       synchronized (timeouts) {
+//         if (clk != NULL) {
+//           clk->setCurrent(receiver, max(clk->getCurrent(receiver),
+//                                         clk->getCurrent(sender)));
+//         }
+//       }
+//     }
+
+//     receiver->enqueue(t);
+//   } else {
+//     delete t;
+//   }
+// }
+
+
+UPID ProcessManager::spawn(ProcessBase *process)
 {
   assert(process != NULL);
 
-  process->state = Process::INIT;
+  process->state = ProcessBase::INIT;
 
   synchronized (processes) {
     if (processes.count(process->pid.id) > 0) {
@@ -1595,13 +1626,13 @@ UPID ProcessManager::spawn(Process *process)
 
   /* Package the arguments. */
 #ifdef __x86_64__
-  assert(sizeof(unsigned long) == sizeof(Process *));
+  assert(sizeof(unsigned long) == sizeof(ProcessBase *));
   int stack0 = (unsigned int) (unsigned long) stack;
   int stack1 = (unsigned long) stack >> 32;
   int process0 = (unsigned int) (unsigned long) process;
   int process1 = (unsigned long) process >> 32;
 #else
-  assert(sizeof(unsigned int) == sizeof(Process *));
+  assert(sizeof(unsigned int) == sizeof(ProcessBase *));
   int stack0 = (unsigned int) stack;
   int stack1 = 0;
   int process0 = (unsigned int) process;
@@ -1619,7 +1650,7 @@ UPID ProcessManager::spawn(Process *process)
 
 
 
-void ProcessManager::link(Process *process, const UPID &to)
+void ProcessManager::link(ProcessBase *process, const UPID &to)
 {
   // Check if the pid is local.
   if (!(to.ip == ip && to.port == port)) {
@@ -1640,12 +1671,12 @@ void ProcessManager::link(Process *process, const UPID &to)
 }
 
 
-void ProcessManager::receive(Process *process, double secs)
+void ProcessManager::receive(ProcessBase *process, double secs)
 {
   assert(process != NULL);
   process->lock();
   {
-    /* Ensure nothing enqueued since check in Process::receive. */
+    /* Ensure nothing enqueued since check in ProcessBase::receive. */
     if (process->messages.empty()) {
       if (secs > 0) {
         /* Create timeout. */
@@ -1655,28 +1686,28 @@ void ProcessManager::receive(Process *process, double secs)
         start_timeout(timeout);
 
         /* Context switch. */
-        process->state = Process::RECEIVING;
+        process->state = ProcessBase::RECEIVING;
         swapcontext(&process->uctx, &proc_uctx_running);
 
-        assert(process->state == Process::READY ||
-               process->state == Process::TIMEDOUT);
+        assert(process->state == ProcessBase::READY ||
+               process->state == ProcessBase::TIMEDOUT);
 
         /* Attempt to cancel the timer if necessary. */
-        if (process->state != Process::TIMEDOUT)
+        if (process->state != ProcessBase::TIMEDOUT)
           cancel_timeout(timeout);
 
         /* N.B. No cancel means possible unnecessary timeouts. */
 
-        process->state = Process::RUNNING;
+        process->state = ProcessBase::RUNNING;
       
         /* Update the generation (handles racing timeouts). */
         process->generation++;
       } else {
         /* Context switch. */
-        process->state = Process::RECEIVING;
+        process->state = ProcessBase::RECEIVING;
         swapcontext(&process->uctx, &proc_uctx_running);
-        assert(process->state == Process::READY);
-        process->state = Process::RUNNING;
+        assert(process->state == ProcessBase::READY);
+        process->state = ProcessBase::RUNNING;
       }
     }
   }
@@ -1684,7 +1715,7 @@ void ProcessManager::receive(Process *process, double secs)
 }
 
 
-void ProcessManager::pause(Process *process, double secs)
+void ProcessManager::pause(ProcessBase *process, double secs)
 {
   assert(process != NULL);
 
@@ -1695,31 +1726,31 @@ void ProcessManager::pause(Process *process, double secs)
       start_timeout(create_timeout(process, secs));
 
       /* Context switch. */
-      process->state = Process::PAUSED;
+      process->state = ProcessBase::PAUSED;
       swapcontext(&process->uctx, &proc_uctx_running);
-      assert(process->state == Process::TIMEDOUT);
-      process->state = Process::RUNNING;
+      assert(process->state == ProcessBase::TIMEDOUT);
+      process->state = ProcessBase::RUNNING;
     } else {
       /* Modified context switch (basically a yield). */
-      process->state = Process::READY;
+      process->state = ProcessBase::READY;
       enqueue(process);
       swapcontext(&process->uctx, &proc_uctx_running);
-      assert(process->state == Process::READY);
-      process->state = Process::RUNNING;
+      assert(process->state == ProcessBase::READY);
+      process->state = ProcessBase::RUNNING;
     }
   }
   process->unlock();
 }
 
 
-bool ProcessManager::wait(Process *process, const UPID &pid)
+bool ProcessManager::wait(ProcessBase *process, const UPID &pid)
 {
   bool waited = false;
 
   /* Now we can add the process to the waiters. */
   synchronized (processes) {
     if (processes.count(pid.id) > 0) {
-      assert(processes[pid.id]->state != Process::EXITED);
+      assert(processes[pid.id]->state != ProcessBase::EXITED);
       waiters[processes[pid.id]].insert(process);
       waited = true;
     }
@@ -1729,16 +1760,16 @@ bool ProcessManager::wait(Process *process, const UPID &pid)
   if (waited) {
     process->lock();
     {
-      if (process->state == Process::RUNNING) {
+      if (process->state == ProcessBase::RUNNING) {
         /* Context switch. */
-        process->state = Process::WAITING;
+        process->state = ProcessBase::WAITING;
         swapcontext(&process->uctx, &proc_uctx_running);
-        assert(process->state == Process::READY);
-        process->state = Process::RUNNING;
+        assert(process->state == ProcessBase::READY);
+        process->state = ProcessBase::RUNNING;
       } else {
         /* Process is cleaned up and we have been removed from waiters. */
-        assert(process->state == Process::INTERRUPTED);
-        process->state = Process::RUNNING;
+        assert(process->state == ProcessBase::INTERRUPTED);
+        process->state = ProcessBase::RUNNING;
       }
     }
     process->unlock();
@@ -1765,8 +1796,8 @@ bool ProcessManager::external_wait(const UPID &pid)
   /* Try and approach the gate if necessary. */
   synchronized (processes) {
     if (processes.count(pid.id) > 0) {
-      Process *process = processes[pid.id];
-      assert(process->state != Process::EXITED);
+      ProcessBase *process = processes[pid.id];
+      assert(process->state != ProcessBase::EXITED);
 
       /* Check and see if a gate already exists. */
       if (gates.find(process) == gates.end())
@@ -1788,7 +1819,7 @@ bool ProcessManager::external_wait(const UPID &pid)
 }
 
 
-bool ProcessManager::await(Process *process, int fd, int op, double secs, bool ignore)
+bool ProcessManager::poll(ProcessBase *process, int fd, int op, double secs, bool ignore)
 {
   assert(process != NULL);
 
@@ -1802,17 +1833,17 @@ bool ProcessManager::await(Process *process, int fd, int op, double secs, bool i
       return false;
     }
 
-    // Treat an await with a bad fd as an interruptible pause!
+    // Treat an poll with a bad fd as an interruptible pause!
     if (fd >= 0) {
       /* Allocate/Initialize the watcher. */
       ev_io *watcher = new ev_io();
 
-      if ((op & Process::RDWR) == Process::RDWR)
-        ev_io_init(watcher, handle_await, fd, EV_READ | EV_WRITE);
-      else if ((op & Process::RDONLY) == Process::RDONLY)
-        ev_io_init(watcher, handle_await, fd, EV_READ);
-      else if ((op & Process::WRONLY) == Process::WRONLY)
-        ev_io_init(watcher, handle_await, fd, EV_WRITE);
+      if ((op & ProcessBase::RDWR) == ProcessBase::RDWR)
+        ev_io_init(watcher, handle_poll, fd, EV_READ | EV_WRITE);
+      else if ((op & ProcessBase::RDONLY) == ProcessBase::RDONLY)
+        ev_io_init(watcher, handle_poll, fd, EV_READ);
+      else if ((op & ProcessBase::WRONLY) == ProcessBase::WRONLY)
+        ev_io_init(watcher, handle_poll, fd, EV_WRITE);
 
       // Tuple describing state (on heap in case we can't "cancel" it,
       // the watcher will always fire, even if we get interrupted and
@@ -1839,23 +1870,23 @@ bool ProcessManager::await(Process *process, int fd, int op, double secs, bool i
     }
 
     /* Context switch. */
-    process->state = Process::AWAITING;
+    process->state = ProcessBase::POLLING;
     swapcontext(&process->uctx, &proc_uctx_running);
-    assert(process->state == Process::READY ||
-           process->state == Process::TIMEDOUT ||
-           process->state == Process::INTERRUPTED);
+    assert(process->state == ProcessBase::READY ||
+           process->state == ProcessBase::TIMEDOUT ||
+           process->state == ProcessBase::INTERRUPTED);
 
     /* Attempt to cancel the timer if necessary. */
     if (secs != 0)
-      if (process->state != Process::TIMEDOUT)
+      if (process->state != ProcessBase::TIMEDOUT)
         cancel_timeout(timeout);
 
-    if (process->state == Process::INTERRUPTED)
+    if (process->state == ProcessBase::INTERRUPTED)
       interrupted = true;
 
-    process->state = Process::RUNNING;
+    process->state = ProcessBase::RUNNING;
       
-    /* Update the generation (handles racing awaited). */
+    /* Update the generation (handles racing polled). */
     process->generation++;
   }
   process->unlock();
@@ -1864,7 +1895,7 @@ bool ProcessManager::await(Process *process, int fd, int op, double secs, bool i
 }
 
 
-void ProcessManager::enqueue(Process *process)
+void ProcessManager::enqueue(ProcessBase *process)
 {
   assert(process != NULL);
   synchronized (runq) {
@@ -1877,9 +1908,9 @@ void ProcessManager::enqueue(Process *process)
 }
 
 
-Process * ProcessManager::dequeue()
+ProcessBase * ProcessManager::dequeue()
 {
-  Process *process = NULL;
+  ProcessBase *process = NULL;
 
   synchronized (runq) {
     if (!runq.empty()) {
@@ -1899,31 +1930,31 @@ void ProcessManager::timedout(const UPID &pid, int generation)
     {
       // We know we timed out if the state != READY after a timeout
       // but the generation is still the same.
-      if (process->state != Process::READY &&
+      if (process->state != ProcessBase::READY &&
           process->generation == generation) {
 
         // The process could be in any of the following states,
-        // including RUNNING if a pause, receive, or await was
+        // including RUNNING if a pause, receive, or poll was
         // initiated by an "outside" thread (e.g., in the constructor
         // of the process).
-        assert(process->state == Process::RUNNING ||
-               process->state == Process::RECEIVING ||
-               process->state == Process::AWAITING ||
-               process->state == Process::INTERRUPTED ||
-               process->state == Process::PAUSED);
+        assert(process->state == ProcessBase::RUNNING ||
+               process->state == ProcessBase::RECEIVING ||
+               process->state == ProcessBase::POLLING ||
+               process->state == ProcessBase::INTERRUPTED ||
+               process->state == ProcessBase::PAUSED);
 
-        if (process->state != Process::RUNNING ||
-            process->state != Process::INTERRUPTED ||
-            process->state != Process::EXITING)
+        if (process->state != ProcessBase::RUNNING ||
+            process->state != ProcessBase::INTERRUPTED ||
+            process->state != ProcessBase::EXITING)
           process_manager->enqueue(process);
 
         // We always have a timeout override the state (unless we are
         // exiting). This includes overriding INTERRUPTED. This means
-        // that a process that was awaiting when selected from the
+        // that a process that was polling when selected from the
         // runq will fall out because of a timeout even though it also
         // received a message.
-        if (process->state != Process::EXITING)
-          process->state = Process::TIMEDOUT;
+        if (process->state != ProcessBase::EXITING)
+          process->state = ProcessBase::TIMEDOUT;
       }
     }
     process->unlock();
@@ -1931,14 +1962,14 @@ void ProcessManager::timedout(const UPID &pid, int generation)
 }
 
 
-void ProcessManager::awaited(const UPID &pid, int generation)
+void ProcessManager::polled(const UPID &pid, int generation)
 {
   if (ProcessReference process = use(pid)) {
     process->lock();
     {
-      if (process->state == Process::AWAITING &&
+      if (process->state == ProcessBase::POLLING &&
           process->generation == generation) {
-        process->state = Process::READY;
+        process->state = ProcessBase::READY;
         enqueue(process);
       }
     }
@@ -1947,13 +1978,13 @@ void ProcessManager::awaited(const UPID &pid, int generation)
 }
 
 
-void ProcessManager::run(Process *process)
+void ProcessManager::run(ProcessBase *process)
 {
   // Each process gets locked before 'schedule' runs it to enforce
-  // atomicity for the blocking routines (receive, await, pause,
+  // atomicity for the blocking routines (receive, poll, pause,
   // etc). So, we only need to unlock the process here.
   {
-    process->state = Process::RUNNING;
+    process->state = ProcessBase::RUNNING;
   }
   process->unlock();
 
@@ -1972,16 +2003,16 @@ void ProcessManager::run(Process *process)
 }
 
 
-void ProcessManager::cleanup(Process *process)
+void ProcessManager::cleanup(ProcessBase *process)
 {
   // Processes that were waiting on exiting process.
-  list<Process *> resumable;
+  list<ProcessBase *> resumable;
 
   // Possible gate non-libprocess threads are waiting at.
   Gate *gate = NULL;
 
   // Stop new process references from being created.
-  process->state = Process::EXITING;
+  process->state = ProcessBase::EXITING;
 
   /* Remove process. */
   synchronized (processes) {
@@ -2014,19 +2045,19 @@ void ProcessManager::cleanup(Process *process)
       processes.erase(process->pid.id);
 
       // Confirm that the process is not in any waiting queue.
-      foreachpair (_, set<Process *> &waiting, waiters) {
+      foreachpair (_, set<ProcessBase *> &waiting, waiters) {
         assert(waiting.find(process) == waiting.end());
       }
 
       // Grab all the waiting processes that are now resumable.
-      foreach (Process *waiter, waiters[process]) {
+      foreach (ProcessBase *waiter, waiters[process]) {
         resumable.push_back(waiter);
       }
 
       waiters.erase(process);
 
       // Lookup gate to wake up waiting non-libprocess threads.
-      map<Process *, Gate *>::iterator it = gates.find(process);
+      map<ProcessBase *, Gate *>::iterator it = gates.find(process);
       if (it != gates.end()) {
         gate = it->second;
         // N.B. The last thread that leaves the gate also free's it.
@@ -2034,7 +2065,7 @@ void ProcessManager::cleanup(Process *process)
       }
         
       assert(process->refs == 0);
-      process->state = Process::EXITED;
+      process->state = ProcessBase::EXITED;
     }
     process->unlock();
   }
@@ -2056,7 +2087,7 @@ void ProcessManager::cleanup(Process *process)
   }
 
   // And resume all processes waiting too.
-  foreach (Process *p, resumable) {
+  foreach (ProcessBase *p, resumable) {
     p->lock();
     {
       // Process 'p' might be RUNNING because it is racing to become
@@ -2066,11 +2097,12 @@ void ProcessManager::cleanup(Process *process)
       // time (using multiple threads) this logic will need to get
       // made thread safe (in particular, a process may be
       // EXITING).
-      assert(p->state == Process::RUNNING || p->state == Process::WAITING);
-      if (p->state == Process::RUNNING) {
-        p->state = Process::INTERRUPTED;
+      assert(p->state == ProcessBase::RUNNING ||
+             p->state == ProcessBase::WAITING);
+      if (p->state == ProcessBase::RUNNING) {
+        p->state = ProcessBase::INTERRUPTED;
       } else {
-        p->state = Process::READY;
+        p->state = ProcessBase::READY;
         enqueue(p);
       }
     }
@@ -2089,7 +2121,7 @@ void ProcessManager::invoke(const function<void (void)> &thunk)
 }
 
 
-timeout ProcessManager::create_timeout(Process *process, double secs)
+timeout ProcessManager::create_timeout(ProcessBase *process, double secs)
 {
   assert(process != NULL);
 
@@ -2196,7 +2228,7 @@ void Clock::advance(double secs)
 }
 
 
-Process::Process(const std::string& _id)
+ProcessBase::ProcessBase(const std::string& _id)
 {
   initialize();
 
@@ -2233,10 +2265,10 @@ Process::Process(const std::string& _id)
 }
 
 
-Process::~Process() {}
+ProcessBase::~ProcessBase() {}
 
 
-void Process::enqueue(Message *message)
+void ProcessBase::enqueue(Message *message)
 {
   assert(message != NULL);
 
@@ -2252,9 +2284,6 @@ void Process::enqueue(Message *message)
     }
   }
 
-  // if the message is an acknowledgement, just record the acknowledgement and move on
-
-
   lock();
   {
     assert(state != EXITED);
@@ -2264,7 +2293,7 @@ void Process::enqueue(Message *message)
     if (state == RECEIVING) {
       state = READY;
       process_manager->enqueue(this);
-    } else if (state == AWAITING) {
+    } else if (state == POLLING) {
       state = INTERRUPTED;
       process_manager->enqueue(this);
     }
@@ -2281,8 +2310,11 @@ void Process::enqueue(Message *message)
   unlock();
 }
 
+// void enqueue(HttpRequest* request);
+// void enqueue(std::tr1::function<void(ProcessBase*)>* delegator);
 
-Message * Process::dequeue()
+
+Message * ProcessBase::dequeue()
 {
   Message *message = NULL;
 
@@ -2300,7 +2332,7 @@ Message * Process::dequeue()
 }
 
 
-void Process::inject(const UPID& from, const string& name, const char* data, size_t length)
+void ProcessBase::inject(const UPID& from, const string& name, const char* data, size_t length)
 {
   if (!from)
     return;
@@ -2328,7 +2360,7 @@ void Process::inject(const UPID& from, const string& name, const char* data, siz
 }
 
 
-void Process::send(const UPID& to, const string& name, const char* data, size_t length)
+void ProcessBase::send(const UPID& to, const string& name, const char* data, size_t length)
 {
   if (!to) {
     return;
@@ -2339,7 +2371,7 @@ void Process::send(const UPID& to, const string& name, const char* data, size_t 
 }
 
 
-string Process::receive(double secs)
+string ProcessBase::receive(double secs)
 {
   // Free current message.
   if (current != NULL) {
@@ -2392,14 +2424,18 @@ string Process::receive(double secs)
 }
 
 
-string Process::serve(double secs, bool forever)
+string ProcessBase::serve(double secs, bool forever)
 {
+  // check for enqueued dispatch messages, invoke if found.
+  // check for enqueued http requests, if no handler respond with 404 and log it (add todo).
+  // check if enqueued message has installed handler, return message otherwise
+
   do {
     const string& name = receive(secs);
     if (name == "__DISPATCH__") {
       void* pointer = (char *) current->body.data();
-      std::tr1::function<void(Process*)>* delegator =
-        *reinterpret_cast<std::tr1::function<void(Process*)>**>(pointer);
+      std::tr1::function<void(ProcessBase*)>* delegator =
+        *reinterpret_cast<std::tr1::function<void(ProcessBase*)>**>(pointer);
       (*delegator)(this);
       delete delegator;
     } else {
@@ -2409,13 +2445,7 @@ string Process::serve(double secs, bool forever)
 }
 
 
-void Process::operator () ()
-{
-  serve();
-}
-
-
-UPID Process::from() const
+UPID ProcessBase::from() const
 {
   if (current != NULL) {
     return current->from;
@@ -2425,7 +2455,7 @@ UPID Process::from() const
 }
 
 
-const string& Process::name() const
+const string& ProcessBase::name() const
 {
   if (current != NULL) {
     return current->name;
@@ -2435,23 +2465,19 @@ const string& Process::name() const
 }
 
 
-const char* Process::body(size_t* length) const
+const std::string& ProcessBase::body() const
 {
+  static const string EMPTY;
+
   if (current != NULL && current->body.size() > 0) {
-    if (length != NULL) {
-      *length = current->body.size();
-    }
-    return (char *) current->body.c_str();
-  } else {
-    if (length != NULL) {
-      *length = 0;
-    }
-    return NULL;
+    return current->body;
   }
+
+  return EMPTY;
 }
 
 
-void Process::pause(double secs)
+void ProcessBase::pause(double secs)
 {
   if (pthread_self() == proc_thread) {
   } else {
@@ -2460,7 +2486,7 @@ void Process::pause(double secs)
 }
 
 
-UPID Process::link(const UPID& to)
+UPID ProcessBase::link(const UPID& to)
 {
   if (!to) {
     return to;
@@ -2472,21 +2498,21 @@ UPID Process::link(const UPID& to)
 }
 
 
-bool Process::await(int fd, int op, double secs, bool ignore)
+bool ProcessBase::poll(int fd, int op, double secs, bool ignore)
 {
   if (secs < 0) {
     return true;
   }
 
-  /* TODO(benh): Handle invoking await from "outside" thread. */
+  /* TODO(benh): Handle invoking poll from "outside" thread. */
   if (pthread_self() != proc_thread)
     fatal("unimplemented");
 
-  return process_manager->await(this, fd, op, secs, ignore);
+  return process_manager->poll(this, fd, op, secs, ignore);
 }
 
 
-bool Process::ready(int fd, int op)
+bool ProcessBase::ready(int fd, int op)
 {
   if (fd < 0) {
     return false;
@@ -2516,7 +2542,7 @@ bool Process::ready(int fd, int op)
 }
 
 
-double Process::elapsed()
+double ProcessBase::elapsed()
 {
   double now = 0;
 
@@ -2533,7 +2559,7 @@ double Process::elapsed()
 }
 
 
-UPID Process::spawn(Process *process)
+UPID ProcessBase::spawn(ProcessBase* process)
 {
   initialize();
 
@@ -2558,7 +2584,7 @@ UPID Process::spawn(Process *process)
 }
 
 
-bool Process::wait(const UPID& pid)
+bool wait(const UPID& pid)
 {
   initialize();
 
@@ -2586,14 +2612,14 @@ bool Process::wait(const UPID& pid)
 }
 
 
-void Process::invoke(const function<void (void)> &thunk)
+void invoke(const function<void (void)> &thunk)
 {
   initialize();
   ProcessManager::invoke(thunk);
 }
 
 
-void Process::filter(Filter *filter)
+void filter(Filter *filter)
 {
   initialize();
 
@@ -2603,7 +2629,7 @@ void Process::filter(Filter *filter)
 }
 
 
-void Process::post(const UPID& to, const string& name, const char* data, size_t length)
+void post(const UPID& to, const string& name, const char* data, size_t length)
 {
   initialize();
 
@@ -2616,10 +2642,10 @@ void Process::post(const UPID& to, const string& name, const char* data, size_t 
 }
 
 
-void Process::dispatcher(const UPID& pid, function<void(Process*)>* delegator)
+void dispatcher(const UPID& pid, function<void(ProcessBase*)>* delegator)
 {
   // Encode and deliver outgoing message.
-  Message* message = encode(UPID(), pid, "__DISPATCH__",
+  Message *message = encode(UPID(), pid, "__DISPATCH__",
                             string((char *) &delegator, sizeof(delegator)));
 
   if (proc_process != NULL) {
@@ -2628,3 +2654,5 @@ void Process::dispatcher(const UPID& pid, function<void(Process*)>* delegator)
     process_manager->deliver(message);
   }
 }
+
+}  // namespace process {

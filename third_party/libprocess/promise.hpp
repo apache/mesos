@@ -4,6 +4,8 @@
 #include "future.hpp"
 
 
+namespace process {
+
 template <typename T>
 class Promise
 {
@@ -147,5 +149,7 @@ void Promise<T>::associate(Future<T> *future_)
     (*future)->set(**t);
   }
 }
+
+}  // namespace process {
 
 #endif // __PROMISE_HPP__

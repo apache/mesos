@@ -12,7 +12,9 @@
 #include "tokenize.hpp"
 
 
-class Proxy : public Process
+namespace process {
+
+class Proxy : public Process<Proxy>
 {
 public:
   Proxy(int _c);
@@ -29,7 +31,8 @@ private:
 class DataDecoder
 {
 public:
-  DataDecoder(int _c) : c(_c), proxy(NULL), failure(false)
+  DataDecoder(int _c, uint32_t _ip, uint16_t _port)
+    : c(_c), ip(_ip), port(_port), proxy(NULL), failure(false)
   {
     settings.on_message_begin = &DataDecoder::on_message_begin;
     settings.on_header_field = &DataDecoder::on_header_field;
@@ -107,7 +110,7 @@ private:
       return -1;
     }
 
-    to = UPID(pairs[0], Process().self().ip, Process().self().port);
+    to = UPID(pairs[0], decoder->ip, decoder->port);
     name = pairs[1];
 
     if (name == "") {
@@ -130,7 +133,7 @@ private:
     } else if (decoder->parser.method == HTTP_GET) {
       if (decoder->proxy == NULL) {
         decoder->proxy = new Proxy(decoder->c);
-        from = Process::spawn(decoder->proxy);
+        from = spawn(decoder->proxy);
       } else {
         // TODO(benh): For now, we just drop this message on the floor
         // (by returning success but not actually creating a
@@ -218,6 +221,8 @@ private:
   }
 
   int c;
+  uint32_t ip;
+  uint16_t port;
 
   Proxy* proxy;
 
@@ -244,5 +249,7 @@ private:
 
   std::deque<Message*> messages;
 };
+
+}  // namespace process {
 
 #endif // __DECODER_HPP__

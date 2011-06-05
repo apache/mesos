@@ -6,6 +6,8 @@
 #include "process.hpp"
 
 
+namespace process {
+
 class DataEncoder
 {
 public:
@@ -127,5 +129,6 @@ public:
   }
 };
 
+}  // namespace process {
 
 #endif // __ENCODER_HPP__

@@ -13,10 +13,44 @@
 #include "pid.hpp"
 #include "process.hpp"
 
+
+using namespace process;
+
 using std::istream;
 using std::ostream;
 using std::size_t;
 using std::string;
+
+
+UPID::UPID(const char* s)
+{
+  std::istringstream in(s);
+  in >> *this;
+}
+
+
+UPID::UPID(const std::string& s)
+{
+  std::istringstream in(s);
+  in >> *this;
+}
+
+
+// TODO(benh): Make this inline-able (cyclic dependency issues).
+UPID::UPID(const ProcessBase& process)
+{
+  id = process.self().id;
+  ip = process.self().ip;
+  port = process.self().port;
+}
+
+
+UPID::operator std::string() const
+{
+  std::ostringstream out;
+  out << *this;
+  return out.str();
+}
 
 
 ostream& operator << (ostream& stream, const UPID& pid)
@@ -100,12 +134,4 @@ size_t hash_value(const UPID& pid)
   boost::hash_combine(seed, pid.ip);
   boost::hash_combine(seed, pid.port);
   return seed;
-}
-
-
-UPID::UPID(const Process& process)
-{
-  id = process.self().id;
-  ip = process.self().ip;
-  port = process.self().port;
 }

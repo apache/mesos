@@ -4,6 +4,8 @@
 #include "latch.hpp"
 
 
+namespace process {
+
 template <typename T>
 class Future
 {
@@ -100,9 +102,11 @@ T Future<T>::get() const
   if (*t != NULL)
     return **t;
   assert(latch != NULL);
-  latch->wait();
+  latch->await();
   assert(t != NULL && *t != NULL);
   return **t;
 }
+
+}  // namespace process {
 
 #endif // __FUTURE_HPP__

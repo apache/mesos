@@ -3,37 +3,48 @@
 #include "latch.hpp"
 
 
+namespace process {
+
+class LatchProcess : public Process<LatchProcess>
+{
+protected:
+  virtual void operator () () { receive(); }
+};
+
+
 Latch::Latch()
 {
   triggered = false;
-  process = new Process();
-  Process::spawn(process);
+  latch = new LatchProcess();
+  spawn(latch);
 }
 
 
 Latch::~Latch()
 {
-  assert(process != NULL);
-  Process::post(process->self(), TERMINATE);
-  Process::wait(process->self());
-  delete process;
+  assert(latch != NULL);
+  post(latch->self(), TERMINATE);
+  wait(latch->self());
+  delete latch;
 }
 
 
 void Latch::trigger()
 {
-  assert(process != NULL);
+  assert(latch != NULL);
   if (!triggered) {
     triggered = true;
-    Process::post(process->self(), TERMINATE);
+    post(latch->self(), TERMINATE);
   }
 }
 
 
-void Latch::wait()
+void Latch::await()
 {
-  assert(process != NULL);
+  assert(latch != NULL);
   if (!triggered) {
-    Process::wait(process->self());
+    wait(latch->self());
   }
 }
+
+} // namespace process {

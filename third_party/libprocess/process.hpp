@@ -8,14 +8,18 @@
 
 #include <sys/time.h>
 
+#include <map>
 #include <queue>
 
 #include <tr1/functional>
 
 #include "future.hpp"
+#include "http.hpp"
 #include "pid.hpp"
 #include "promise.hpp"
 
+
+namespace process {
 
 const std::string ERROR = "error";
 const std::string TIMEOUT = "timeout";
@@ -45,18 +49,20 @@ public:
 };
 
 
-class Process {
+class ProcessBase
+{
 public:
-  Process(const std::string& id = "");
+  ProcessBase(const std::string& id = "");
 
-  virtual ~Process();
+  virtual ~ProcessBase();
 
-  /* Returns pid of process; valid even before calling spawn. */
   UPID self() const { return pid; }
+
+  static UPID spawn(ProcessBase* process);
 
 protected:
   /* Function run when process spawned. */
-  virtual void operator() ();
+  virtual void operator () () = 0;
 
   /* Returns the sender's PID of the last dequeued (current) message. */
   UPID from() const;
@@ -65,7 +71,7 @@ protected:
   const std::string& name() const;
 
   /* Returns pointer and length of body of last dequeued (current) message. */
-  const char* body(size_t* length) const;
+  const std::string& body() const;
 
   /* Put a message at front of queue (will not reschedule process). */
   void inject(const UPID& from, const std::string& name, const char* data = NULL, size_t length = 0);
@@ -85,331 +91,17 @@ protected:
   /* Links with the specified PID. */
   UPID link(const UPID& pid);
 
-  /* IO events for awaiting. */
+  /* IO events for polling. */
   enum { RDONLY = 01, WRONLY = 02, RDWR = 03 };
 
   /* Wait until operation is ready for file descriptor (or message received if not ignored). */
-  bool await(int fd, int op, double secs = 0, bool ignore = true);
+  bool poll(int fd, int op, double secs = 0, bool ignore = true);
 
   /* Returns true if operation on file descriptor is ready. */
   bool ready(int fd, int op);
 
   /* Returns sub-second elapsed time (according to this process). */
   double elapsed();
-
-public:
-  /**
-   * Spawn a new process.
-   *
-   * @param process process to be spawned
-   */
-  static UPID spawn(Process* process);
-
-  /**
-   * Wait for process to exit (returns true if actually waited on a process).
-   *
-   * @param PID id of the process
-   */
-  static bool wait(const UPID& pid);
-
-  /**
-   * Invoke the thunk in a legacy safe way (i.e., outside of libprocess).
-   *
-   * @param thunk function to be invoked
-   */
-  static void invoke(const std::tr1::function<void(void)>& thunk);
-
-  /**
-   * Use the specified filter on messages that get enqueued (note,
-   * however, that for now you cannot filter timeout messages).
-   *
-   * @param filter message filter
-   */
-  static void filter(Filter* filter);
-
-  /**
-   * Sends a message with data without a return address.
-   *
-   * @param to receiver
-   * @param name message name
-   * @param data data to send (gets copied)
-   * @param length length of data
-   */
-  static void post(const UPID& to, const std::string& name, const char* data = NULL, size_t length = 0);
-
-  /**
-   * Dispatches a void method on a process.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on receiver
-   */
-  template <typename T>
-  static void dispatch(const PID<T>& pid, void (T::*method)());
-
-  /**
-   * Dispatches a void method on a process.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 argument to pass to method
-   */
-  template <typename T, typename P1, typename A1>
-  static void dispatch(const PID<T>& pid, void (T::*method)(P1), A1 a1);
-
-  /**
-   * Dispatches a void method on a process.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   */
-  template <typename T, typename P1, typename P2, typename A1, typename A2>
-  static void dispatch(const PID<T>& pid, void (T::*method)(P1, P2), A1 a1, A2 a2);
-
-  /**
-   * Dispatches a void method on a process.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @param a3 second argument to pass to method
-   */
-  template <typename T,
-            typename P1, typename P2, typename P3,
-            typename A1, typename A2, typename A3>
-  static void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3),
-                       A1 a1, A2 a2, A3 a3);
-
-  /**
-   * Dispatches a void method on a process.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @param a3 third argument to pass to method
-   * @param a4 fourth argument to pass to method
-   */
-  template <typename T,
-            typename P1, typename P2, typename P3, typename P4,
-            typename A1, typename A2, typename A3, typename A4>
-  static void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3, P4),
-                       A1 a1, A2 a2, A3 a3, A4 a4);
-
-  /**
-   * Dispatches a void method on a process.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @param a3 third argument to pass to method
-   * @param a4 fourth argument to pass to method
-   * @param a5 fifth argument to pass to method
-   */
-  template <typename T,
-            typename P1, typename P2, typename P3, typename P4, typename P5,
-            typename A1, typename A2, typename A3, typename A4, typename A5>
-  static void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3, P4, P5),
-                       A1 a1, A2 a2, A3 a3, A4 a4, A5 a5);
-
-  /**
-   * Dispatches a method on a process and returns the future that
-   * corresponds to the result of executing the method.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @return future corresponding to the result of executing the method
-   */
-  template <typename R, typename T>
-  static Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)());
-
-  /**
-   * Dispatches a method on a process and returns the future that
-   * corresponds to the result of executing the method.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 argument to pass to method
-   * @return future corresponding to the result of executing the method
-   */
-  template <typename R, typename T, typename P1, typename A1>
-  static Future<R> dispatch(const PID<T>& pid,
-                            Promise<R> (T::*method)(P1),
-                            A1 a1);
-
-  /**
-   * Dispatches a method on a process and returns the future that
-   * corresponds to the result of executing the method.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @return future corresponding to the result of executing the method
-   */
-  template <typename R, typename T,
-            typename P1, typename P2,
-            typename A1, typename A2>
-  static Future<R> dispatch(const PID<T>& pid,
-                            Promise<R> (T::*method)(P1, P2),
-                            A1 a1, A2 a2);
-
-  /**
-   * Dispatches a method on a process and returns the future that
-   * corresponds to the result of executing the method.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @param a3 second argument to pass to method
-   * @return future corresponding to the result of executing the method
-   */
-  template <typename R, typename T,
-            typename P1, typename P2, typename P3,
-            typename A1, typename A2, typename A3>
-  static Future<R> dispatch(const PID<T>& pid,
-                            Promise<R> (T::*method)(P1, P2, P3),
-                            A1 a1, A2 a2, A3 a3);
-
-  /**
-   * Dispatches a method on a process and returns the future that
-   * corresponds to the result of executing the method.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @param a3 third argument to pass to method
-   * @param a4 fourth argument to pass to method
-   * @return future corresponding to the result of executing the method
-   */
-  template <typename R, typename T,
-            typename P1, typename P2, typename P3, typename P4,
-            typename A1, typename A2, typename A3, typename A4>
-  static Future<R> dispatch(const PID<T>& pid,
-                            Promise<R> (T::*method)(P1, P2, P3, P4),
-                            A1 a1, A2 a2, A3 a3, A4 a4);
-
-  /**
-   * Dispatches a method on a process and returns the future that
-   * corresponds to the result of executing the method.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @param a3 third argument to pass to method
-   * @param a4 fourth argument to pass to method
-   * @param a5 fifth argument to pass to method
-   * @return future corresponding to the result of executing the method
-   */
-  template <typename R, typename T,
-            typename P1, typename P2, typename P3, typename P4, typename P5,
-            typename A1, typename A2, typename A3, typename A4, typename A5>
-  static Future<R> dispatch(const PID<T>& pid,
-                            Promise<R> (T::*method)(P1, P2, P3, P4, P5),
-                            A1 a1, A2 a2, A3 a3, A4 a4, A5 a5);
-
-  /**
-   * Dispatches a method on a process and waits (on the underlying
-   * future) for the result.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @return result of executing the method
-   */
-  template <typename R, typename T>
-  static R call(const PID<T>& pid, Promise<R> (T::*method)());
-
-  /**
-   * Dispatches a method on a process and waits (on the underlying
-   * future) for the result.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 argument to pass to method
-   * @return result of executing the method
-   */
-  template <typename R, typename T, typename P1, typename A1>
-  static R call(const PID<T>& pid, Promise<R> (T::*method)(P1), A1 a1);
-
-  /**
-   * Dispatches a method on a process and waits (on the underlying
-   * future) for the result.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @return result of executing the method
-   */
-  template <typename R, typename T,
-            typename P1, typename P2,
-            typename A1, typename A2>
-  static R call(const PID<T>& pid,
-                Promise<R> (T::*method)(P1, P2),
-                A1 a1, A2 a2);
-
-  /**
-   * Dispatches a method on a process and waits (on the underlying
-   * future) for the result.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @param a3 second argument to pass to method
-   * @return result of executing the method
-   */
-  template <typename R, typename T,
-            typename P1, typename P2, typename P3,
-            typename A1, typename A2, typename A3>
-  static R call(const PID<T>& pid,
-                Promise<R> (T::*method)(P1, P2, P3),
-                A1 a1, A2 a2, A3 a3);
-
-  /**
-   * Dispatches a method on a process and waits (on the underlying
-   * future) for the result.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @param a3 third argument to pass to method
-   * @param a4 fourth argument to pass to method
-   * @return result of executing the method
-   */
-  template <typename R, typename T,
-            typename P1, typename P2, typename P3, typename P4,
-            typename A1, typename A2, typename A3, typename A4>
-  static R call(const PID<T>& pid,
-                Promise<R> (T::*method)(P1, P2, P3, P4),
-                A1 a1, A2 a2, A3 a3, A4 a4);
-
-  /**
-   * Dispatches a method on a process and waits (on the underlying
-   * future) for the result.
-   *
-   * @param pid receiver of message
-   * @param method method to invoke on instance
-   * @param a1 first argument to pass to method
-   * @param a2 second argument to pass to method
-   * @param a3 third argument to pass to method
-   * @param a4 fourth argument to pass to method
-   * @param a5 fifth argument to pass to method
-   * @return result of executing the method
-   */
-  template <typename R, typename T,
-            typename P1, typename P2, typename P3, typename P4, typename P5,
-            typename A1, typename A2, typename A3, typename A4, typename A5>
-  static R call(const PID<T>& pid,
-                Promise<R> (T::*method)(P1, P2, P3, P4, P5),
-                A1 a1, A2 a2, A3 a3, A4 a4, A5 a5);
 
 private:
   friend class LinkManager;
@@ -423,18 +115,37 @@ private:
 	 RUNNING,
 	 RECEIVING,
 	 PAUSED,
-	 AWAITING,
+	 POLLING,
 	 WAITING,
 	 INTERRUPTED,
 	 TIMEDOUT,
          EXITING,
 	 EXITED } state;
 
+  /* Lock/mutex protecting internals. */
+  pthread_mutex_t m;
+  void lock() { pthread_mutex_lock(&m); }
+  void unlock() { pthread_mutex_unlock(&m); }
+
+  /* Enqueues the specified message, request, and delegator. */
+  void enqueue(Message* message);
+//   void enqueue(HttpRequest* request);
+//   void enqueue(std::tr1::function<void(ProcessBase*)>* delegator);
+
+  /* Dequeues a message or returns NULL. */
+  Message* dequeue();
+
   /* Active references. */
   int refs;
 
   /* Queue of received messages. */
   std::deque<Message*> messages;
+
+  /* Queue of HTTP requests. */
+  std::deque<HttpRequest*> requests;
+
+  /* Queue of dispatches. */
+  std::deque<std::tr1::function<void(ProcessBase*)>*> delegators;
 
   /* Current message. */
   Message* current;
@@ -447,160 +158,298 @@ private:
 
   /* Continuation/Context of process. */
   ucontext_t uctx;
-
-  /* Lock/mutex protecting internals. */
-  pthread_mutex_t m;
-  void lock() { pthread_mutex_lock(&m); }
-  void unlock() { pthread_mutex_unlock(&m); }
-
-  /* Enqueues the specified message. */
-  void enqueue(Message* message);
-
-  /* Dequeues a message or returns NULL. */
-  Message* dequeue();
-
-  template <typename T>
-  static void vdelegate(Process* process, std::tr1::function<void(T*)>* thunk)
-  {
-    assert(process != NULL);
-    assert(thunk != NULL);
-    (*thunk)(static_cast<T*>(process));
-    delete thunk;
-  }
-
-  template <typename R, typename T>
-  static void delegate(Process* process, std::tr1::function<Promise<R>(T*)>* thunk, Future<R>* future)
-  {
-    assert(process != NULL);
-    assert(thunk != NULL);
-    assert(future != NULL);
-    (*thunk)(static_cast<T*>(process)).associate(future);
-    delete thunk;
-  }
-
-  /* Dispatches the delegator to the specified process. */
-  static void dispatcher(const UPID& pid, std::tr1::function<void(Process*)>* delegator);
 };
 
 
 template <typename T>
-void Process::dispatch(const PID<T>& pid, void (T::*method)())
+class Process : public ProcessBase {
+public:
+  Process(const std::string& id = "") : ProcessBase(id) {}
+
+  /* Returns pid of process; valid even before calling spawn. */
+  PID<T> self() const { return PID<T>(static_cast<const T&>(*this)); }
+
+protected:
+  virtual void operator () ()
+  {
+    while (true) serve();
+  }
+
+//   /* Install a handler for a libprocess message. */
+//   void install(const std::string& name, Promise<Message> (T::*method)(const Message&))
+//   {
+//     message_handlers[name] = std::tr1::bind(method, static_cast<T*>(this));
+//   }
+
+//   /* Install a handler for an HTTP request. */
+//   void install(const std::string& name, Promise<HttpResponse> (T::*method)(const HttpRequest&))
+//   {
+//     http_handlers[name] = std::tr1::bind(method, static_cast<T*>(this));
+//   }
+
+// private:
+//   std::map<std::string, std::tr1::function<Promise<HttpResponse>(const HttpRequest&)> > http_handlers;
+//   std::map<std::string, std::tr1::function<Promise<Message>(const Message&)> > message_handlers;
+};
+
+
+/**
+ * Spawn a new process.
+ *
+ * @param process process to be spawned
+ */
+template <typename T>
+PID<T> spawn(Process<T>* process)
+{
+  if (!ProcessBase::spawn(process)) {
+    return PID<T>();
+  }
+
+  return process->self();
+}
+
+
+/**
+ * Wait for process to exit (returns true if actually waited on a process).
+ *
+ * @param PID id of the process
+ */
+bool wait(const UPID& pid);
+
+
+/**
+ * Invoke the thunk in a legacy safe way (i.e., outside of libprocess).
+ *
+ * @param thunk function to be invoked
+ */
+void invoke(const std::tr1::function<void(void)>& thunk);
+
+
+/**
+ * Use the specified filter on messages that get enqueued (note,
+ * however, that for now you cannot filter timeout messages).
+ *
+ * @param filter message filter
+ */
+void filter(Filter* filter);
+
+
+/**
+ * Sends a message with data without a return address.
+ *
+ * @param to receiver
+ * @param name message name
+ * @param data data to send (gets copied)
+ * @param length length of data
+ */
+void post(const UPID& to, const std::string& name, const char* data = NULL, size_t length = 0);
+
+
+template <typename T>
+void vdelegate(ProcessBase* process,
+               std::tr1::function<void(T*)>* thunk)
+{
+  assert(process != NULL);
+  assert(thunk != NULL);
+  (*thunk)(static_cast<T*>(process));
+  delete thunk;
+}
+
+
+template <typename R, typename T>
+void delegate(ProcessBase* process,
+              std::tr1::function<Promise<R>(T*)>* thunk,
+              Future<R>* future)
+{
+  assert(process != NULL);
+  assert(thunk != NULL);
+  assert(future != NULL);
+  (*thunk)(static_cast<T*>(process)).associate(future);
+  delete thunk;
+}
+
+
+/* Dispatches the delegator to the specified process. */
+void dispatcher(const UPID& pid, std::tr1::function<void(ProcessBase*)>* delegator);
+
+
+/**
+ * Dispatches a void method on a process.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on receiver
+ */
+template <typename T>
+void dispatch(const PID<T>& pid, void (T::*method)())
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1));
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::vdelegate<T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk));
 
   dispatcher(pid, delegator);
 }
 
 
+/**
+ * Dispatches a void method on a process.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 argument to pass to method
+ */
 template <typename T, typename P1, typename A1>
-void Process::dispatch(const PID<T>& pid, void (T::*method)(P1), A1 a1)
+void dispatch(const PID<T>& pid, void (T::*method)(P1), A1 a1)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
                                                      a1));
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::vdelegate<T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk));
 
   dispatcher(pid, delegator);
 }
 
 
+/**
+ * Dispatches a void method on a process.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ */
 template <typename T,
           typename P1, typename P2,
           typename A1, typename A2>
-void Process::dispatch(const PID<T>& pid, void (T::*method)(P1, P2), A1 a1, A2 a2)
+void dispatch(const PID<T>& pid, void (T::*method)(P1, P2), A1 a1, A2 a2)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
                                                      a1, a2));
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::vdelegate<T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk));
 
   dispatcher(pid, delegator);
 }
 
 
+/**
+ * Dispatches a void method on a process.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 second argument to pass to method
+ */
 template <typename T,
           typename P1, typename P2, typename P3,
           typename A1, typename A2, typename A3>
-void Process::dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3),
+void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3),
                        A1 a1, A2 a2, A3 a3)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
                                                      a1, a2, a3));
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::vdelegate<T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk));
 
   dispatcher(pid, delegator);
 }
 
 
+/**
+ * Dispatches a void method on a process.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ */
 template <typename T,
           typename P1, typename P2, typename P3, typename P4,
           typename A1, typename A2, typename A3, typename A4>
-void Process::dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3, P4),
+void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3, P4),
                        A1 a1, A2 a2, A3 a3, A4 a4)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
                                                      a1, a2, a3, a4));
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::vdelegate<T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk));
 
   dispatcher(pid, delegator);
 }
 
 
+/**
+ * Dispatches a void method on a process.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ * @param a5 fifth argument to pass to method
+ */
 template <typename T,
           typename P1, typename P2, typename P3, typename P4, typename P5,
           typename A1, typename A2, typename A3, typename A4, typename A5>
-void Process::dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3, P4, P5),
+void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3, P4, P5),
                        A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
                                                      a1, a2, a3, a4, a5));
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::vdelegate<T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk));
 
   dispatcher(pid, delegator);
 }
 
 
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @return future corresponding to the result of executing the method
+ */
 template <typename R, typename T>
-Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)())
+Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)())
 {
   std::tr1::function<Promise<R> (T*)>* thunk =
     new std::tr1::function<Promise<R> (T*)>(std::tr1::bind(method, std::tr1::placeholders::_1));
 
   Future<R>* future = new Future<R>();
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::delegate<R, T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk, future));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
 
   dispatcher(pid, delegator);
 
@@ -608,8 +457,17 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)())
 }
 
 
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 argument to pass to method
+ * @return future corresponding to the result of executing the method
+ */
 template <typename R, typename T, typename P1, typename A1>
-Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1), A1 a1)
+Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1), A1 a1)
 {
   std::tr1::function<Promise<R> (T*)>* thunk =
     new std::tr1::function<Promise<R> (T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
@@ -617,10 +475,10 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1), A1 a
 
   Future<R>* future = new Future<R>();
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::delegate<R, T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk, future));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
 
   dispatcher(pid, delegator);
 
@@ -628,10 +486,20 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1), A1 a
 }
 
 
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @return future corresponding to the result of executing the method
+ */
 template <typename R, typename T,
           typename P1, typename P2,
           typename A1, typename A2>
-Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2),
+Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2),
                             A1 a1, A2 a2)
 {
   std::tr1::function<Promise<R> (T*)>* thunk =
@@ -640,10 +508,10 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2),
 
   Future<R>* future = new Future<R>();
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::delegate<R, T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk, future));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
 
   dispatcher(pid, delegator);
 
@@ -651,10 +519,21 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2),
 }
 
 
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 second argument to pass to method
+ * @return future corresponding to the result of executing the method
+ */
 template <typename R, typename T,
           typename P1, typename P2, typename P3,
           typename A1, typename A2, typename A3>
-Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3),
+Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3),
                             A1 a1, A2 a2, A3 a3)
 {
   std::tr1::function<Promise<R> (T*)>* thunk =
@@ -663,10 +542,10 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P
 
   Future<R>* future = new Future<R>();
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::delegate<R, T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk, future));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
 
   dispatcher(pid, delegator);
 
@@ -674,10 +553,22 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P
 }
 
 
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ * @return future corresponding to the result of executing the method
+ */
 template <typename R, typename T,
           typename P1, typename P2, typename P3, typename P4,
           typename A1, typename A2, typename A3, typename A4>
-Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4),
+Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4),
                             A1 a1, A2 a2, A3 a3, A4 a4)
 {
   std::tr1::function<Promise<R> (T*)>* thunk =
@@ -686,10 +577,10 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P
 
   Future<R>* future = new Future<R>();
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::delegate<R, T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk, future));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
 
   dispatcher(pid, delegator);
 
@@ -697,10 +588,23 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P
 }
 
 
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ * @param a5 fifth argument to pass to method
+ * @return future corresponding to the result of executing the method
+ */
 template <typename R, typename T,
           typename P1, typename P2, typename P3, typename P4, typename P5,
           typename A1, typename A2, typename A3, typename A4, typename A5>
-Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4, P5),
+Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4, P5),
                             A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
 {
   std::tr1::function<Promise<R> (T*)>* thunk =
@@ -709,10 +613,10 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P
 
   Future<R>* future = new Future<R>();
 
-  std::tr1::function<void(Process*)>* delegator =
-    new std::tr1::function<void(Process*)>(std::tr1::bind(&Process::delegate<R, T>,
-                                                          std::tr1::placeholders::_1,
-                                                          thunk, future));
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
 
   dispatcher(pid, delegator);
 
@@ -720,56 +624,121 @@ Future<R> Process::dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P
 }
 
 
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @return result of executing the method
+ */
 template <typename R, typename T>
-R Process::call(const PID<T>& pid, Promise<R> (T::*method)())
+R call(const PID<T>& pid, Promise<R> (T::*method)())
 {
   return dispatch(pid, method).get();
 }
 
 
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 argument to pass to method
+ * @return result of executing the method
+ */
 template <typename R, typename T, typename P1, typename A1>
-R Process::call(const PID<T>& pid, Promise<R> (T::*method)(P1), A1 a1)
+R call(const PID<T>& pid, Promise<R> (T::*method)(P1), A1 a1)
 {
   return dispatch(pid, method, a1).get();
 }
 
 
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @return result of executing the method
+ */
 template <typename R, typename T,
           typename P1, typename P2,
           typename A1, typename A2>
-R Process::call(const PID<T>& pid, Promise<R> (T::*method)(P1, P2), A1 a1, A2 a2)
+R call(const PID<T>& pid, Promise<R> (T::*method)(P1, P2), A1 a1, A2 a2)
 {
   return dispatch(pid, method, a1, a2).get();
 }
 
 
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 second argument to pass to method
+ * @return result of executing the method
+ */
 template <typename R, typename T,
           typename P1, typename P2, typename P3,
           typename A1, typename A2, typename A3>
-R Process::call(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3),
+R call(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3),
                 A1 a1, A2 a2, A3 a3)
 {
   return dispatch(pid, method, a1, a2, a3).get();
 }
 
 
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ * @return result of executing the method
+ */
 template <typename R, typename T,
           typename P1, typename P2, typename P3, typename P4,
           typename A1, typename A2, typename A3, typename A4>
-R Process::call(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4),
+R call(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4),
                 A1 a1, A2 a2, A3 a3, A4 a4)
 {
   return dispatch(pid, method, a1, a2, a3, a4).get();
 }
 
 
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ * @param a5 fifth argument to pass to method
+ * @return result of executing the method
+ */
 template <typename R, typename T,
           typename P1, typename P2, typename P3, typename P4, typename P5,
           typename A1, typename A2, typename A3, typename A4, typename A5>
-R Process::call(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4, P5),
+R call(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4, P5),
                 A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
 {
   return dispatch(pid, method, a1, a2, a3, a4, a5).get();
 }
+
+} // namespace process {
 
 #endif // __PROCESS_HPP__
