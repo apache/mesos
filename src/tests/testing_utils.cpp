@@ -49,5 +49,6 @@ void test::enterTestDirectory(const char* testCase, const char* testName)
   command = "mkdir -p '" + workDir + "'";
   ASSERT_EQ(0, system(command.c_str())) << "Command failed: " << command;
   // Change dir into it
-  chdir(workDir.c_str());
+  if (chdir(workDir.c_str()) != 0)
+    FAIL() << "Could not chdir into " << workDir;
 }

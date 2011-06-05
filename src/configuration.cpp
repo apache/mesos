@@ -84,7 +84,10 @@ void Configuration::loadCommandLine(int argc,
   // Set home based on argument 0 if asked to do so
   if (inferMesosHomeFromArg0) {
     char buf[4096];
-    realpath(dirname(argv[0]), buf);
+    if (realpath(dirname(argv[0]), buf) == 0) {
+      throw ConfigurationException(
+          "Could not get directory containing argv[0] -- realpath failed");
+    }
     params["home"] = buf;
   }
 
@@ -137,7 +140,7 @@ void Configuration::loadConfigFile(const string& fname) {
   ifstream cfg(fname.c_str(), std::ios::in);
   if (!cfg.is_open()) {
     string message = "Couldn't read Mesos config file: " + fname;
-    throw new ConfigurationException(message.c_str());
+    throw ConfigurationException(message.c_str());
   }
 
   Params fileParams;
