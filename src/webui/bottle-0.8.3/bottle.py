@@ -1261,10 +1261,17 @@ class FlupFCGIServer(ServerAdapter):
 class WSGIRefServer(ServerAdapter):
     def run(self, handler): # pragma: no cover
         from wsgiref.simple_server import make_server, WSGIRequestHandler
+        # A WSGI request handler that does not perform a reverse DNS lookup
+        # for each request in order to run faster than the default version.
+        # Instead, it returns the client's IP address right away.
+        class NoReverseDnsHandler(WSGIRequestHandler):
+            def address_string(self): return self.client_address[0]
         if self.quiet:
-            class QuietHandler(WSGIRequestHandler):
+            class QuietHandler(NoReverseDnsHandler):
                 def log_request(*args, **kw): pass
             self.options['handler_class'] = QuietHandler
+        else:
+            self.options['handler_class'] = NoReverseDnsHandler
         srv = make_server(self.host, self.port, handler, **self.options)
         srv.serve_forever()
 
