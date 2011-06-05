@@ -107,10 +107,8 @@ enum MessageType {
   M2M_SHUTDOWN,          // Used in tests to shut down master
 
   /* Internal to slave */
-  S2S_GOT_MASTER,        // Used when looking up master with ZooKeeper
   S2S_GET_STATE,         // Used by web UI
   S2S_GET_STATE_REPLY,
-  S2S_CHILD_EXIT,        // Sent by reaper process
   S2S_SHUTDOWN,          // Used in tests to shut down slave
 
   MESOS_MSGID,
@@ -186,9 +184,7 @@ protected:
     return ReliableProcess::rsend(via, to, ID, data.data(), data.size());
   }
 
-  virtual MSGID receive() { return receive(0); }
-
-  virtual MSGID receive(double secs)
+  virtual MSGID receive(double secs = 0)
   {
     bool indefinite = secs == 0;
     double now = elapsed();
@@ -426,18 +422,11 @@ TUPLE(M2M_FRAMEWORK_EXPIRED,
 TUPLE(M2M_SHUTDOWN,
       ());
 
-TUPLE(S2S_GOT_MASTER,
-      ());
-
 TUPLE(S2S_GET_STATE,
       ());
 
 TUPLE(S2S_GET_STATE_REPLY,
       (slave::state::SlaveState *));
-
-TUPLE(S2S_CHILD_EXIT,
-      (int32_t /*OS PID*/,
-       int32_t /*exitStatus*/));
 
 TUPLE(S2S_SHUTDOWN,
       ());
