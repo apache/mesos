@@ -341,7 +341,7 @@ ifdef JAVA_HOME
 endif
 
 $(MESOS_JAVA_LIB_OBJ): %.o: $(SRCDIR)/%.cpp $(MESOS_JAVA_JAR)
-	$(CXX) -c $(CXXFLAGS) -Ijava/jni -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -o $@ $<
+	$(CXX) -c $(CXXFLAGS) -Ijava/jni -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) -I $(JAVA_HEADERS) -o $@ $<
 
 $(MESOS_JAVA_LIB): $(MESOS_JAVA_LIB_OBJ) $(MESOS_SCHED_LIB) $(MESOS_EXEC_LIB) | $(LIBDIR)/java
 ifdef JAVA_HOME
