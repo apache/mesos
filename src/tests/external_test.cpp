@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <ctype.h>
 #include <stdlib.h>
 
 #include <string>
@@ -8,9 +9,25 @@
 
 #include "external_test.hpp"
 #include "fatal.hpp"
-#include "test_utils.hpp"
+#include "testing_utils.hpp"
 
 using std::string;
+
+namespace {
+
+// Check that a test name contains only letters, numbers and underscores, to
+// prevent messing with directories outside test_output in runExternalTest.
+bool isValidTestName(const char* name) {
+  for (const char* p = name; *p != 0; p++) {
+    if (!isalnum(*p) && *p != '_') {
+      return false;
+    }
+  }
+  return true;
+}
+
+}
+
 
 /**
  * Run an external test with the given name. The test is expected to be
@@ -21,6 +38,11 @@ using std::string;
  */
 void nexus::test::runExternalTest(const char* testCase, const char* testName)
 {
+  // Check that the test name is valid
+  if (!isValidTestName(testCase) || !isValidTestName(testName)) {
+    FAIL() << "Invalid test name for external test (name should " 
+           << "only contain alphanumeric and underscore characters)";
+  }
   // Figure out the absolute path to the test script
   string script = MESOS_HOME + "/tests/external/" + testCase
                              + "/" + testName + ".sh";
@@ -32,8 +54,9 @@ void nexus::test::runExternalTest(const char* testCase, const char* testName)
   ASSERT_EQ(0, system(command.c_str())) << "Command failed: " << command;
   // Fork a process to change directory and run the test
   pid_t pid;
-  if ((pid = fork()) == -1)
+  if ((pid = fork()) == -1) {
     FAIL() << "Failed to fork to launch external test";
+  }
   if (pid) {
     // In parent process
     int exitCode;
