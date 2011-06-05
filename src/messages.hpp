@@ -200,17 +200,10 @@ TUPLE(M2F_ERROR,
        std::string /*msg*/));
 
 
-
 TUPLE(FT_RELAY_ACK,
       (std::string, /* FT ID */
        std::string /* PID of orig */
        ));
-
-TUPLE(FT_ACK,
-      (std::string /* FT ID */
-       ));
-
-
 
 TUPLE(S2M_REGISTER_SLAVE,
       (std::string /*name*/,

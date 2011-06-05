@@ -360,7 +360,10 @@ void Master::operator () ()
       Params params;
       string ftId, senderStr;
       unpack<F2M_FT_SLOT_OFFER_REPLY>(ftId, senderStr, fid, oid, tasks, params);
-      if (!ftMsg->acceptMessageAck(senderStr, ftId)) {
+      PID senderPid;
+      istringstream ss(senderStr);
+      ss >> senderPid;
+      if (!ftMsg->acceptMessageAckTo(senderPid, ftId, senderStr)) {
         LOG(WARNING) << "FT: Locally ignoring duplicate message with id:" << ftId;
         break;
       } 
@@ -658,7 +661,7 @@ void Master::operator () ()
       string origPidStr;
       unpack<FT_RELAY_ACK>(ftId, origPidStr);
       
-      DLOG(INFO) << "FT_RELAY_ACK for " << ftId << " FT_ACK sent to " << origPidStr;
+      DLOG(INFO) << "FT_RELAY_ACK for " << ftId << " forwarding it to " << origPidStr;
             
       PID origPid;
       istringstream iss(origPidStr);
@@ -667,7 +670,7 @@ void Master::operator () ()
         break;
       }
 
-      send(origPid, pack<FT_ACK>(ftId));
+      send(origPid, pack<FT_RELAY_ACK>(ftId, origPidStr));
 
       break;
     }

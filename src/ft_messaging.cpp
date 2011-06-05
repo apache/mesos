@@ -100,7 +100,7 @@ void FTMessaging::sendOutstanding() {
 }
 
 // Careful: not idempotent function.
-bool FTMessaging::acceptMessage(string from, string ftId) {
+bool FTMessaging::acceptMessage(string ftId, string from) {
   if (inMsgs.find(from)==inMsgs.end()) {
     DLOG(INFO) << "FT: new msgs seq: " << ftId;
     inMsgs[from] = ftId;
@@ -129,20 +129,24 @@ bool FTMessaging::acceptMessage(string from, string ftId) {
   }
 }
 
-bool FTMessaging::acceptMessageAck(string from, string ftId) {
-  DLOG(INFO) << "FT: Received message with id: " << ftId << " sending FT_RELAY_ACK";
-
+bool FTMessaging::acceptMessageAckTo(PID to, string ftId, string from) {
+  DLOG(INFO) << "FT: Received msg with id: " << ftId << " sending FT_RELAY_ACK to " << to;
+  
   bool res = acceptMessage(from, ftId);
-
+  
   if (!res) {
     LOG(WARNING) << "FT: asked caller to ignore duplicate message " << ftId;
     return res;
   }  
-
+  
   string msgStr = Tuple<EmptyClass>::tupleToString( Tuple<EmptyClass>::pack<FT_RELAY_ACK>(ftId, from) );
-  Process::post(master, FT_RELAY_ACK, msgStr.data(), msgStr.size()); 
-
+  Process::post(to, FT_RELAY_ACK, msgStr.data(), msgStr.size()); 
+  
   return res;
+}
+
+bool FTMessaging::acceptMessageAck(string ftId, string from) {
+  return acceptMessageAckTo(master, ftId, from);
 }
 
 void FTMessaging::setMasterPid(const PID &mPid) {

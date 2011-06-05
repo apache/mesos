@@ -258,7 +258,7 @@ void Slave::operator () ()
         string ftId, origPid;
         unpack<M2S_FT_FRAMEWORK_MESSAGE>(ftId, origPid, fid, message);
 
-        if (!ftMsg->acceptMessageAck(origPid, ftId))
+        if (!ftMsg->acceptMessageAck(ftId, origPid))
           break;
 
         DLOG(INFO) << "FT: Received message with id: " << ftId;
@@ -361,12 +361,16 @@ void Slave::operator () ()
 
         if (from() == master) {
 	  // TODO: Fault tolerance!
-          LOG(ERROR) << "Master disconnected! Committing suicide ...";
-	  // TODO(matei): Add support for factory style destroy of objects!
-	  // if (isolationModule != NULL)
-	  //   delete isolationModule;
-	  // // TODO: Shut down executors?
-	  // return;
+	   if (isFT)
+	     LOG(WARNING) << "FT: Master disconnected! Waiting for a new master to be elected."; 
+	   else 
+	     {
+		LOG(ERROR) << "Master disconnected! Exiting. Consider running Nexus in FT mode!";
+		if (isolationModule != NULL)
+		  delete isolationModule;
+		// TODO: Shut down executors?
+		return;
+	     }
 	}
 
         foreachpair (_, Executor *ex, executors) {
@@ -436,9 +440,9 @@ void Slave::operator () ()
 	break;
       }
     
-      case FT_ACK: {
-        string ftId;
-        unpack<FT_ACK>(ftId);
+      case FT_RELAY_ACK: {
+        string ftId, senderStr;
+        unpack<FT_RELAY_ACK>(ftId, senderStr);
 
         DLOG(INFO) << "FT: got final ack for " << ftId;
 

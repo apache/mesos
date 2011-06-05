@@ -228,7 +228,7 @@ protected:
         string data;
         string ftId, origPid;
         unpack<M2F_FT_STATUS_UPDATE>(ftId, origPid, tid, state, data);
-        if (!ftMsg->acceptMessageAck(origPid, ftId))
+        if (!ftMsg->acceptMessageAck(ftId, origPid))
           break;
         DLOG(INFO) << "FT: Received message with id: " << ftId;
 
@@ -254,7 +254,7 @@ protected:
         string ftId, origPid;
         unpack<M2F_FT_FRAMEWORK_MESSAGE>(ftId, origPid, msg);
 
-        if (!ftMsg->acceptMessageAck(origPid, ftId))
+        if (!ftMsg->acceptMessageAck(ftId, origPid))
           break;
 
         DLOG(INFO) << "FT: Received message with id: " << ftId;
@@ -288,8 +288,13 @@ protected:
 
       case PROCESS_EXIT: {
         const char* message = "Connection to master failed";
-	LOG(INFO) << message;
-	//        invoke(bind(&Scheduler::error, sched, driver, -1, message));
+	 if (isFT) 
+	   LOG(WARNING) << "Connection to master failed. Waiting for a new master to be elected.";
+	 else 
+	   {
+	      LOG(ERROR) << "Connection to master failed. Exiting. Consider running Nexus in FT mode!";
+	      invoke(bind(&Scheduler::error, sched, driver, -1, message));
+	   }
         break;
       }
 
@@ -309,10 +314,22 @@ protected:
 	send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user, execInfo));
 	break;
       }
+
+      case FT_RELAY_ACK: {
+        string ftId, senderStr;
+        unpack<FT_RELAY_ACK>(ftId, senderStr);
+
+        DLOG(INFO) << "FT: got final ack for " << ftId;
+
+        ftMsg->gotAck(ftId);
+        break;
+      }
+
       case PROCESS_TIMEOUT: {
         ftMsg->sendOutstanding();
 	break;
       }
+
       default: {
         ostringstream oss;
         oss << "SchedulerProcess received unknown message " << msgid()
@@ -515,6 +532,7 @@ void NexusSchedulerDriver::replyToOffer(OfferID offerId,
       new SchedulerProcess::TimeoutListener(process, tasks);
 
     string ftId = process->ftMsg->getNextId();
+    DLOG(INFO) << "Sending reliably reply to slot offer for msg " << ftId;
     process->ftMsg->reliableSend( ftId,
                                   process->pack<F2M_FT_SLOT_OFFER_REPLY>(ftId,
                                                                          process->self(),

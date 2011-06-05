@@ -152,19 +152,28 @@ public:
 
   /**
    * Checks if a message with FT ID from a node has already been received previously. 
-   * @param from libprocess PID string representing the original sender of the message
    * @param ftId the FT ID of the message
+   * @param from libprocess PID string representing the original sender of the message
    * @return true if message has not been received before and it is the next message expected to be received, false otherwise.
    */
-  bool acceptMessage(string from, string ftId);
+  bool acceptMessage(string ftId, string from);
 
   /**
    * Same as acceptMessage, but also sends an ACK back to the original sender if it returns true.
-   * @param from libprocess PID string representing the original sender of the message
    * @param ftId the FT ID of the message
+   * @param from libprocess PID string representing the original sender of the message
    * @return true if message has not been received before and it is the next message expected to be received, false otherwise.
    */
-  bool acceptMessageAck(string from, string ftId);
+  bool acceptMessageAck(string ftId, string from);
+
+  /**
+   * Same as acceptMessageAck, but explicitly specifies the pid of the node that should receive the ack.
+   * @param to PID string of the node to receive the ack.
+   * @param ftId the FT ID of the message
+   * @param from libprocess PID string representing the original sender of the message
+   * @return true if message has not been received before and it is the next message expected to be received, false otherwise.
+   */
+  bool acceptMessageAckTo(PID to, string ftId, string from);
 
   /**
    * @return a new unique FT ID for a message to be sent
