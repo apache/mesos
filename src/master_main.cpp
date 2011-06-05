@@ -96,10 +96,14 @@ int main (int argc, char **argv)
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("Could not change into %s for running webui.\n", dirname(argv[0]));
 
+  // TODO(*): Since we normally don't use exceptions in Mesos, replace
+  // use of an exception here with use of a utility to handle checking
+  // that the input string is actually a number that fits
+  // in the type being used (in this case, short).
   try {
     lexical_cast<short>(webuiPortStr);
   } catch(bad_lexical_cast &) {
-    fatalerror("Passed invalid string for webui port number.\n");
+    fatal("Passed invalid string for webui port number.\n");
   }
 
   startMasterWebUI(pid, webuiPortStr);
