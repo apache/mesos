@@ -60,6 +60,8 @@ using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
+using foreach::_;
+
 
 // A description of a task that is yet to be launched
 struct TaskDescription

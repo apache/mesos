@@ -22,7 +22,7 @@ LIBPROCESS = third_party/libprocess
 LIBEV = $(LIBPROCESS)/third_party/libev-3.8
 
 GLOG = third_party/glog-0.3.1
-GTEST = third_party/gtest-1.5.0
+GMOCK = third_party/gmock-1.5.0
 
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
@@ -50,9 +50,9 @@ LDFLAGS += -L@top_builddir@/$(LIBPROCESS)
 # Add libev to LDFLAGS.
 LDFLAGS += -L@top_builddir@/$(LIBEV)/.libs
 
-# Add glog and gtest to include paths.
-CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src -I@top_srcdir@/$(GTEST)/include
-LDFLAGS += -L@top_builddir@/$(GLOG)/.libs -L@top_builddir@/$(GTEST)/lib/.libs
+# Add glog, and gmock/gtest to include paths and library paths.
+CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src -I@top_srcdir@/$(GMOCK)/include -I@top_srcdir@/$(GMOCK)/gtest/include
+LDFLAGS += -L@top_builddir@/$(GLOG)/.libs -L@top_builddir@/$(GMOCK)/lib/.libs -L@top_builddir@/$(GMOCK)/gtest/lib/.libs
 
 # Add included ZooKeeper to include and lib paths if necessary.
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
@@ -72,8 +72,8 @@ CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
 CFLAGS += -DBUILD_USER="\"$$USER\""
 CXXFLAGS += -DBUILD_USER="\"$$USER\""
 
-# Add glog, gtest, libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lglog -lgtest -lprocess -lev -lpthread -ldl
+# Add glog, gmock, gtest, libev, libprocess, pthread, and dl to LIBS.
+LIBS += -lglog -lgmock -lgtest -lprocess -lev -lpthread -ldl
 
 # Add ZooKeeper if necessary.
 ifeq ($(WITH_ZOOKEEPER),1)

@@ -24,8 +24,8 @@ ac_configure_args="$ac_configure_args --enable-shared=no --with-pic"
 
 AC_CONFIG_FILES([Makefile src/Makefile src/examples/Makefile src/tests/Makefile src/config/config.hpp])
 AC_CONFIG_SUBDIRS([third_party/libprocess])
-AC_CONFIG_SUBDIRS([third_party/gtest-1.5.0])
 AC_CONFIG_SUBDIRS([third_party/glog-0.3.1])
+AC_CONFIG_SUBDIRS([third_party/gmock-1.5.0])
 AC_CONFIG_SUBDIRS([third_party/zookeeper-3.3.1/src/c])
 
 AC_CANONICAL_SYSTEM

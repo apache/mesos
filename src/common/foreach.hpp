@@ -25,6 +25,10 @@
 
 #include <boost/tuple/tuple.hpp>
 
+namespace foreach {
+
 const boost::tuples::detail::swallow_assign _ = boost::tuples::ignore;
+
+}
 
 #endif /* FOREACH_HPP */

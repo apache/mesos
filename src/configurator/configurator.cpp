@@ -14,6 +14,8 @@
 
 using namespace mesos::internal;
 
+using foreach::_;
+
 
 const char* Configurator::DEFAULT_CONFIG_DIR = "conf";
 const char* Configurator::CONFIG_FILE_NAME = "mesos.conf";

@@ -38,6 +38,9 @@
 
 namespace mesos { namespace internal { namespace master {
 
+using namespace mesos;
+using namespace mesos::internal;
+
 using std::make_pair;
 using std::map;
 using std::pair;
@@ -48,8 +51,7 @@ using std::vector;
 using boost::unordered_map;
 using boost::unordered_set;
 
-using namespace mesos;
-using namespace mesos::internal;
+using foreach::_;
 
 
 // Maximum number of slot offers to have outstanding for each framework.

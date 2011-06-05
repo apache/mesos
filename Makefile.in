@@ -18,7 +18,7 @@ LIBPROCESS = third_party/libprocess
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
 GLOG = third_party/glog-0.3.1
-GTEST = third_party/gtest-1.5.0
+GMOCK = third_party/gmock-1.5.0
 
 
 default: all
@@ -29,7 +29,7 @@ src: third_party
 third_party:
 	$(MAKE) -C $(LIBPROCESS)
 	$(MAKE) -C $(GLOG)
-	$(MAKE) -C $(GTEST)
+	$(MAKE) -C $(GMOCK)
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER)
 endif
@@ -83,7 +83,7 @@ distclean:
 	$(MAKE) -C src clean
 	$(MAKE) -C $(LIBPROCESS) distclean
 	$(MAKE) -C $(GLOG) distclean
-	$(MAKE) -C $(GTEST) distclean
+	$(MAKE) -C $(GMOCK) distclean
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) distclean
 endif
@@ -110,7 +110,7 @@ clean:
 	$(MAKE) -C src clean
 	$(MAKE) -C $(LIBPROCESS) clean
 	$(MAKE) -C $(GLOG) clean
-	$(MAKE) -C $(GTEST) clean
+	$(MAKE) -C $(GMOCK) clean
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) clean
 endif
