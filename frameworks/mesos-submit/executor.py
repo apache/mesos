@@ -73,8 +73,7 @@ def run_scheduler(command, master, fid):
   sched_driver.run()
 
 
-
-# Executor class for mesos-scheduler. Expects to be given a single task
+# Executor class for mesos-submit. Expects to be given a single task
 # to launch with a framework ID, master URL and command as parameters.
 # Once this task is received, the executor registers as a scheduler for the
 # framework by creating a SecondaryScheduler object, allowing the mesos-submit
