@@ -1,0 +1,3 @@
+#! /usr/bin/env sh
+
+for i in `cat slaves`; do qmgr -c "create node $i"; done
