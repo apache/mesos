@@ -16,6 +16,11 @@
 #include "pid.hpp"
 #include "process.hpp"
 
+#ifdef __APPLE__
+#define gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)  \
+  ({ *(result) = gethostbyname2(name, af); 0; })
+#endif // __APPLE__
+
 
 using std::istream;
 using std::ostream;
