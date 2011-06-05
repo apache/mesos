@@ -275,8 +275,8 @@ def wait_for_cluster(conn, master_res, slave_res, zoo_res):
   wait_for_instances(conn, slave_res)
   if zoo_res != None:
     wait_for_instances(conn, zoo_res)
-  print "Waiting 30 more seconds..."
-  time.sleep(30)
+  print "Waiting 40 more seconds..."
+  time.sleep(40)
 
 
 # Get number of local disks available for a given EC2 instance type.
