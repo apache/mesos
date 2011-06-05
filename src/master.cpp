@@ -290,8 +290,7 @@ void Master::operator () ()
     }
 
     case F2M_REGISTER_FRAMEWORK: {
-      FrameworkID fid = lexical_cast<string>(masterId) + "-"
-	+ lexical_cast<string>(nextFrameworkId++);
+      FrameworkID fid = newFrameworkId();
       Framework *framework = new Framework(from(), fid, elapsed());
       unpack<F2M_REGISTER_FRAMEWORK>(framework->name, framework->user,
 				     framework->executorInfo);
@@ -660,7 +659,8 @@ void Master::operator () ()
 OfferID Master::makeOffer(Framework *framework,
                           const vector<SlaveResources>& resources)
 {
-  OfferID oid = lexical_cast<string>(masterId) + "-" + lexical_cast<string>(nextSlotOfferId++);
+  OfferID oid = lexical_cast<string>(masterId) + "-" 
+    + lexical_cast<string>(nextSlotOfferId++);
 
   SlotOffer *offer = new SlotOffer(oid, framework->id, resources);
   slotOffers[offer->id] = offer;
@@ -996,4 +996,23 @@ Allocator* Master::createAllocator()
 {
   LOG(INFO) << "Creating \"" << allocatorType << "\" allocator";
   return AllocatorFactory::instantiate(allocatorType, this);
+}
+
+
+// Create a new framework ID. We format the ID as YYYYMMDDhhmm-master-fw,
+// where the first part is the submission date and submission time, master
+// is the unique ID of the master (provided by ZooKeeper), and fw is the ID
+// of the framework within the master (an increasing integer).
+FrameworkID Master::newFrameworkId()
+{
+  time_t rawtime;
+  struct tm* timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+  char timestr[32];
+  strftime(timestr, sizeof(timestr), "%Y%m%d%H%M", timeinfo);
+  int fwId = nextFrameworkId++;
+  char buf[128];
+  snprintf(buf, sizeof(buf), "%s-%d-%04d", timestr, masterId, fwId);
+  return string(buf);
 }
