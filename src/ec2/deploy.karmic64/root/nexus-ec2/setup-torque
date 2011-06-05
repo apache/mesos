@@ -1,0 +1,40 @@
+#!/bin/bash
+
+cd /root/nexus-ec2
+
+SLAVES_FILE="/root/nexus-ec2/slaves"
+MASTER="`cat master`"
+SLAVES="`cat $SLAVES_FILE`"
+
+#These seem to be broken, i.e. missing directories after install
+#ssh $MASTER "apt-get install -y torque-server"
+#ssh $MASTER "apt-get install -y torque-scheduler"
+#ssh $MASTER "apt-get install -y torque-client"
+
+#install torque: download/unzip torque
+function installmaster {
+	pushd ~
+	wget http://www.clusterresources.com/downloads/torque/torque-2.4.7.tar.gz
+	tar xzf torque-2.4.7.tar.gz
+	cd torque-2.4.7
+	./configure --prefix=/usr/local
+	make -j8
+	make install
+	make packages
+
+	#initialize/configure torque
+	ldconfig
+	popd
+}
+
+function installslaves {
+	pushd ~/torque-2.4.7
+	#install torque-mom on slave nodes
+	apt-get install -y dsh
+	cp torque-package-mom-linux-x86_64.sh /nfs/torque-package-mom-linux-x86_64.sh
+	dsh -f $SLAVES_FILE /nfs/torque-package-mom-linux-x86_64.sh --install
+	popd
+}
+
+#installmaster
+installslaves
