@@ -10,7 +10,7 @@ MASTERS=/root/mesos-ec2/masters
 SLAVES=/root/mesos-ec2/slaves
 ZOO=/root/mesos-ec2/zoo
 
-if [[ `cat $ZOO` == "*zoo*" ]]; then
+if [[ `cat $ZOO` = *zoo* ]]; then
   ISFT=0
 else
   ISFT=`cat $ZOO | wc -l`
