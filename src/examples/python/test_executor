@@ -1,5 +1,8 @@
 #!/bin/sh
+if [ "x$PYTHON" == "x" ]; then
+  PYTHON=python
+fi
 FWDIR=`dirname $0`
 MESOS_HOME=`cd $FWDIR/../../..; pwd`
 export PYTHONPATH="$MESOS_HOME/lib/python:$PYTHONPATH"
-exec python2.6 $FWDIR/test_executor.py $@
+exec $PYTHON $FWDIR/test_executor.py $@

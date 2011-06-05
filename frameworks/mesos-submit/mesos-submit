@@ -2,9 +2,6 @@
 
 if [ "x$PYTHON" == "x" ]; then
   PYTHON=python
-  if [ "`uname`" == "SunOS" ]; then
-    PYTHON=python2.6
-  fi
 fi
 
 if [ "x$MESOS_HOME" == "x" ]; then

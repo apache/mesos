@@ -4,8 +4,9 @@
 AC_PREREQ(2.61)
 AC_INIT
 
-# Use explicit python version 2.6.
-PYTHON=python2.6
+if test -z "$PYTHON"; then
+  PYTHON=python2.6
+fi
 
 # Update CFLAGS and CXXFLAGS with environment args. 
 CFLAGS="-O2 -fno-strict-aliasing -fPIC ${CFLAGS}"
@@ -64,7 +65,6 @@ case "${target_os}" in
     CFLAGS="${CFLAGS} -pthreads -march=i586"
     CXXFLAGS="${CXXFLAGS} -pthreads -march=i586"
     LIBS="-lsocket -lnsl -lproject -lproc"
-    PYTHON="python2.6"
     OS_NAME=solaris
     ;;
   *)
