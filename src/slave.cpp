@@ -1,3 +1,8 @@
+#include <dirent.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+
 #include <fstream>
 #include <algorithm>
 
@@ -503,7 +508,8 @@ void Slave::executorExited(FrameworkID fid, int status)
 };
 
 
-string Slave::getWorkDirectory(FrameworkID fid) {
+string Slave::getUniqueWorkDirectory(FrameworkID fid)
+{
   string workDir;
   if (conf.contains("work_dir")) {
     workDir = conf["work_dir"];
@@ -513,17 +519,36 @@ string Slave::getWorkDirectory(FrameworkID fid) {
     workDir = "work";
   }
 
-  // TODO(benh): Clean this up, check for errors, etc.
+  ostringstream os(std::ios_base::app | std::ios_base::out);
+  os << workDir << "/slave-" << id << "/fw-" << fid;
+
+  // Find a unique directory based on the path given by the slave
+  // (this is because we might launch multiple executors from the same
+  // framework on this slave).
   time_t rawtime;
   struct tm* timeinfo;
+
   time(&rawtime);
   timeinfo = localtime(&rawtime);
-  char timestr[32];
-  strftime(timestr, sizeof(timestr), "%Y-%m-%d-%H:%M", timeinfo);
 
-  ostringstream fwDir;
-  fwDir << workDir << "/slave-" << id << "/fw-" << fid << "/" << timestr;
-  return fwDir.str();
+  char timestr[32];
+  if (strftime(timestr, sizeof(timestr), "%Y%m%d%H%M", timeinfo) == 0)
+    LOG(FATAL) << "Could not get a unique working directory; "
+               << "failed to format a string with the given time";
+
+  os << "/" << timestr << "-";
+
+  string dir;
+  dir = os.str();
+
+  for (int i = 0; i < INT_MAX; i++) {
+    os << i;
+    if (opendir(os.str().c_str()) == NULL && errno == ENOENT)
+      break;
+    os.str(dir);
+  }
+
+  return os.str();
 }
 
 

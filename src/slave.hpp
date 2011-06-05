@@ -189,7 +189,7 @@ public:
   // Callback used by isolation module to tell us when an executor exits.
   void executorExited(FrameworkID frameworkId, int status);
 
-  string getWorkDirectory(FrameworkID fid);
+  string getUniqueWorkDirectory(FrameworkID fid);
 
   const Params& getConf();
 

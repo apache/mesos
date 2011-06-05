@@ -112,7 +112,7 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
   return new ExecutorLauncher(fw->id,
                               fw->executorInfo.uri,
                               fw->user,
-                              slave->getWorkDirectory(fw->id),
+                              slave->getUniqueWorkDirectory(fw->id),
                               slave->self(),
                               slave->getConf().get("hadoop_home", ""),
                               !slave->local,
