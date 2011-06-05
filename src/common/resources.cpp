@@ -18,7 +18,7 @@ using std::string;
 using std::vector;
 
 
-namespace mesos { namespace internal {
+namespace mesos { 
 
 bool operator == (const Resource::Scalar& left, const Resource::Scalar& right)
 {
@@ -549,6 +549,8 @@ ostream& operator << (ostream& stream, const Resource& resource)
   return stream;
 }
 
+
+namespace internal {
 
 Resource Resources::parse(const string& name, const string& value)
 {

@@ -26,15 +26,17 @@ using boost::bind;
 using boost::cref;
 using boost::unordered_map;
 
+using process::UPID;
+
 using std::string;
 
 
 namespace mesos { namespace internal {
 
-class ExecutorProcess : public MesosProcess
+class ExecutorProcess : public MesosProcess<ExecutorProcess>
 {
 public:
-  ExecutorProcess(const PID& _slave, MesosExecutorDriver* _driver,
+  ExecutorProcess(const UPID& _slave, MesosExecutorDriver* _driver,
                   Executor* _executor, const FrameworkID& _frameworkId,
                   const ExecutorID& _executorId, bool _local)
     : slave(_slave), driver(_driver), executor(_executor),
@@ -68,7 +70,7 @@ protected:
       if (terminate)
         return;
 
-      switch(receive(2)) {
+      switch (receive(2)) {
         case S2E_REGISTER_REPLY: {
           const MSG<S2E_REGISTER_REPLY>& msg = message();
 
@@ -76,7 +78,8 @@ protected:
 
           VLOG(1) << "Executor registered on slave " << slaveId;
 
-          invoke(bind(&Executor::init, executor, driver, cref(msg.args())));
+          process::invoke(bind(&Executor::init, executor, driver,
+                               cref(msg.args())));
           break;
         }
 
@@ -95,7 +98,8 @@ protected:
           status->set_state(TASK_RUNNING);
           send(slave, out);
 
-          invoke(bind(&Executor::launchTask, executor, driver, cref(task)));
+          process::invoke(bind(&Executor::launchTask, executor, driver,
+                               cref(task)));
           break;
         }
 
@@ -104,8 +108,8 @@ protected:
 
           VLOG(1) << "Executor asked to kill task " << msg.task_id();
 
-          invoke(bind(&Executor::killTask, executor, driver,
-                      cref(msg.task_id())));
+          process::invoke(bind(&Executor::killTask, executor, driver,
+                               cref(msg.task_id())));
           break;
         }
 
@@ -115,14 +119,14 @@ protected:
           VLOG(1) << "Executor passed message";
 
           const FrameworkMessage& message = msg.message();
-          invoke(bind(&Executor::frameworkMessage, executor, driver,
-                      cref(message)));
+          process::invoke(bind(&Executor::frameworkMessage, executor, driver,
+                               cref(message)));
           break;
         }
 
         case S2E_KILL_EXECUTOR: {
           VLOG(1) << "Executor asked to shutdown";
-          invoke(bind(&Executor::shutdown, executor, driver));
+          process::invoke(bind(&Executor::shutdown, executor, driver));
           if (!local)
             exit(0);
           else
@@ -133,7 +137,7 @@ protected:
           VLOG(1) << "Slave exited, trying to shutdown";
 
           // TODO: Pass an argument to shutdown to tell it this is abnormal?
-          invoke(bind(&Executor::shutdown, executor, driver));
+          process::invoke(bind(&Executor::shutdown, executor, driver));
 
           // This is a pretty bad state ... no slave is left. Rather
           // than exit lets kill our process group (which includes
@@ -163,7 +167,7 @@ protected:
 private:
   friend class mesos::MesosExecutorDriver;
 
-  PID slave;
+  UPID slave;
   MesosExecutorDriver* driver;
   Executor* executor;
   FrameworkID frameworkId;
@@ -192,12 +196,17 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
   pthread_mutex_init(&mutex, &attr);
   pthread_mutexattr_destroy(&attr);
   pthread_cond_init(&cond, 0);
+
+  // TODO(benh): Initialize glog.
+
+  // Initialize libprocess library (but not glog, done above).
+  process::initialize(false);
 }
 
 
 MesosExecutorDriver::~MesosExecutorDriver()
 {
-  Process::wait(process->self());
+  process::wait(process->self());
   delete process;
 
   pthread_mutex_destroy(&mutex);
@@ -220,7 +229,7 @@ int MesosExecutorDriver::start()
 
   bool local;
 
-  PID slave;
+  UPID slave;
   FrameworkID frameworkId;
   ExecutorID executorId;
 
@@ -230,42 +239,47 @@ int MesosExecutorDriver::start()
   /* Check if this is local (for example, for testing). */
   value = getenv("MESOS_LOCAL");
 
-  if (value != NULL)
+  if (value != NULL) {
     local = true;
-  else
+  } else {
     local = false;
+  }
 
   /* Get slave PID from environment. */
   value = getenv("MESOS_SLAVE_PID");
 
-  if (value == NULL)
+  if (value == NULL) {
     fatal("expecting MESOS_SLAVE_PID in environment");
+  }
 
-  slave = PID(value);
+  slave = UPID(value);
 
-  if (!slave)
+  if (!slave) {
     fatal("cannot parse MESOS_SLAVE_PID");
+  }
 
   /* Get framework ID from environment. */
   value = getenv("MESOS_FRAMEWORK_ID");
 
-  if (value == NULL)
+  if (value == NULL) {
     fatal("expecting MESOS_FRAMEWORK_ID in environment");
+  }
 
   frameworkId.set_value(value);
 
   /* Get executor ID from environment. */
   value = getenv("MESOS_EXECUTOR_ID");
 
-  if (value == NULL)
+  if (value == NULL) {
     fatal("expecting MESOS_EXECUTOR_ID in environment");
+  }
 
   executorId.set_value(value);
 
   process =
     new ExecutorProcess(slave, this, executor, frameworkId, executorId, local);
 
-  Process::spawn(process);
+  process::spawn(process);
 
   running = true;
 

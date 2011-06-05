@@ -19,6 +19,14 @@ using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
+using process::HttpOKResponse;
+using process::HttpResponse;
+using process::HttpRequest;
+using process::PID;
+using process::Process;
+using process::Promise;
+using process::UPID;
+
 using std::endl;
 using std::max;
 using std::ostringstream;
@@ -34,35 +42,35 @@ namespace {
 
 // A process that periodically pings the master to check filter
 // expiries, etc.
-class AllocatorTimer : public Process
+class AllocatorTimer : public Process<AllocatorTimer>
 {
 public:
-  AllocatorTimer(Master* _master) : master(_master) {}
+  AllocatorTimer(const PID<Master>& _master) : master(_master) {}
 
 protected:
   virtual void operator () ()
   {
-    link(master->self());
+    link(master);
     while (true) {
       receive(1);
-      if (name() == TIMEOUT) {
+      if (name() == process::TIMEOUT) {
         dispatch(master, &Master::timerTick);
-      } else if (name() == EXIT) {
+      } else if (name() == process::EXIT) {
 	return;
       }
     }
   }
 
 private:
-  Master* master;
+  const PID<Master> master;
 };
 
 
 // A process that periodically prints frameworks' shares to a file
-class SharesPrinter : public Process
+class SharesPrinter : public Process<SharesPrinter>
 {
 public:
-  SharesPrinter(Master* _master) : master(_master) {}
+  SharesPrinter(const PID<Master>& _master) : master(_master) {}
   ~SharesPrinter() {}
 
 protected:
@@ -107,14 +115,14 @@ protected:
   }
 
 private:
-  Master* master;
+  const PID<Master> master;
 };
 
 }
 
 
 Master::Master()
-  : MesosProcess("master"),
+  : MesosProcess<Master>("master"),
     active(false),
     nextFrameworkId(0), nextSlaveId(0), nextOfferId(0)
 {
@@ -124,7 +132,7 @@ Master::Master()
 
 
 Master::Master(const Configuration& _conf)
-  : MesosProcess("master"),
+  : MesosProcess<Master>("master"),
     active(false),
     conf(_conf), nextFrameworkId(0), nextSlaveId(0), nextOfferId(0)
 {
@@ -165,7 +173,7 @@ void Master::registerOptions(Configurator* configurator)
 }
 
 
-Result<state::MasterState*> Master::getState()
+Promise<state::MasterState*> Master::getState()
 {
   state::MasterState* state =
     new state::MasterState(build::DATE, build::USER, self());
@@ -329,15 +337,15 @@ void Master::operator () ()
   if (!allocator)
     LOG(FATAL) << "Unrecognized allocator type: " << allocatorType;
 
-  link(spawn(new AllocatorTimer(this)));
-  //link(spawn(new SharesPrinter(this)));
+  link(spawn(new AllocatorTimer(self())));
+  //link(spawn(new SharesPrinter(self())));
 
   while (true) {
     serve();
     if (msgid() == PROCESS_TERMINATE) {
       LOG(INFO) << "Asked to terminate by " << from();
       foreachpair (_, Slave* slave, slaves) {
-        send(slave->pid, TERMINATE);
+        send(slave->pid, process::TERMINATE);
       }
       break;
     } else {
@@ -420,6 +428,9 @@ void Master::initialize()
           &HeartbeatMessage::slave_id);
 
   install(PROCESS_EXIT, &Master::processExited);
+
+  // Install HTTP request handlers.
+  Process<Master>::install("vars", &Master::vars);
 }
 
 
@@ -429,7 +440,7 @@ void Master::newMasterDetected(const string& pid)
   // master, (2) newly active master, (3) no longer active master,
   // or (4) still active master.
 
-  PID master(pid);
+  UPID master(pid);
 
   if (master != self() && !active) {
     LOG(INFO) << "Waiting to be master!";
@@ -751,14 +762,14 @@ void Master::reregisterSlave(const SlaveID& slaveId,
 
   if (slaveId == "") {
     LOG(ERROR) << "Slave re-registered without a SlaveID!";
-    send(from(), TERMINATE);
+    send(from(), process::TERMINATE);
   } else {
     if (lookupSlave(slaveId) != NULL) {
       // TODO(benh): Once we support handling session expiration, we
       // will want to handle having a slave re-register with us when
       // we already have them recorded.
       LOG(ERROR) << "Slave re-registered with in use SlaveID!";
-      send(from(), TERMINATE);
+      send(from(), process::TERMINATE);
     } else {
       Slave* slave = new Slave(slaveInfo, slaveId, from(), elapsed());
 
@@ -972,27 +983,6 @@ void Master::frameworkExpired(const FrameworkID& frameworkId)
 }
 
 
-void Master::vars()
-{
-  LOG(INFO) << "Request for 'vars'";
-
-  ostringstream out;
-
-  out <<
-    "build_date " << build::DATE << "\n" <<
-    "build_user " <<  build::USER << "\n" <<
-    "build_flags " <<  build::FLAGS << "\n" <<
-    "frameworks_count " << frameworks.size() << "\n";
-
-  // Also add the configuration values.
-  foreachpair (const string& key, const string& value, conf.getMap()) {
-    out << key << " " << value << "\n";
-  }
-
-  Process::send(from(), "response", out.str().data(), out.str().size());
-}
-
-
 void Master::processExited()
 {
   // TODO(benh): Could we get PROCESS_EXIT from a network partition?
@@ -1011,7 +1001,8 @@ void Master::processExited()
         removeSlotOffer(offer, ORR_FRAMEWORK_FAILOVER, offer->resources);
       }
 
-      framework->failoverTimer = new FrameworkFailoverTimer(this, frameworkId);
+      framework->failoverTimer =
+        new FrameworkFailoverTimer(self(), frameworkId);
       link(spawn(framework->failoverTimer));
 //       removeFramework(framework);
     }
@@ -1035,6 +1026,30 @@ void Master::processExited()
   }
 }
 
+
+Promise<HttpResponse> Master::vars(const HttpRequest& request)
+{
+  LOG(INFO) << "Request for 'vars'";
+
+  ostringstream out;
+
+  out <<
+    "build_date " << build::DATE << "\n" <<
+    "build_user " <<  build::USER << "\n" <<
+    "build_flags " <<  build::FLAGS << "\n" <<
+    "frameworks_count " << frameworks.size() << "\n";
+
+  // Also add the configuration values.
+  foreachpair (const string& key, const string& value, conf.getMap()) {
+    out << key << " " << value << "\n";
+  }
+
+  HttpOKResponse response;
+  response.headers["Content-Type"] = "text/plain";
+  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
+  response.body = out.str().data();
+  return response;
+}
 
 
 //   while (true) {
@@ -1893,9 +1908,9 @@ void Master::addFramework(Framework* framework)
 
 // Replace the scheduler for a framework with a new process ID, in the
 // event of a scheduler failover.
-void Master::failoverFramework(Framework* framework, const PID& newPid)
+void Master::failoverFramework(Framework* framework, const UPID& newPid)
 {
-  const PID& oldPid = framework->pid;
+  const UPID& oldPid = framework->pid;
 
   // Remove the framework's slot offers (if they weren't removed before)..
   // TODO(benh): Consider just reoffering these to the new framework.
@@ -1917,7 +1932,7 @@ void Master::failoverFramework(Framework* framework, const PID& newPid)
 
   // Kill the failover timer.
   if (framework->failoverTimer != NULL) {
-    send(framework->failoverTimer->self(), TERMINATE);
+    send(framework->failoverTimer->self(), process::TERMINATE);
     wait(framework->failoverTimer->self());
     delete framework->failoverTimer;
     framework->failoverTimer = NULL;

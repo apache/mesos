@@ -3,22 +3,22 @@
 
 namespace mesos { namespace internal {
 
-boost::unordered_map<std::string, MSGID> MesosProcess::ids;
-boost::unordered_map<MSGID, std::string> MesosProcess::names;
+boost::unordered_map<std::string, MSGID> ids;
+boost::unordered_map<MSGID, std::string> names;
 
 
 static struct Initialization
 {
   Initialization()
   {
-    MesosProcess::ids[EXIT] = PROCESS_EXIT;
-    MesosProcess::names[PROCESS_EXIT] = EXIT;
+    ids[process::EXIT] = PROCESS_EXIT;
+    names[PROCESS_EXIT] = process::EXIT;
 
-    MesosProcess::ids[TIMEOUT] = PROCESS_TIMEOUT;
-    MesosProcess::names[PROCESS_TIMEOUT] = TIMEOUT;
+    ids[process::TIMEOUT] = PROCESS_TIMEOUT;
+    names[PROCESS_TIMEOUT] = process::TIMEOUT;
 
-    MesosProcess::ids[TERMINATE] = PROCESS_TERMINATE;
-    MesosProcess::names[PROCESS_TERMINATE] = TERMINATE;
+    ids[process::TERMINATE] = PROCESS_TERMINATE;
+    names[PROCESS_TERMINATE] = process::TERMINATE;
   }
 } __initialization__;
 
@@ -27,8 +27,8 @@ struct InitializeMessage
 {
   InitializeMessage(const std::string& name, MSGID id)
   {
-    MesosProcess::ids[name] = id;
-    MesosProcess::names[id] = name;
+    ids[name] = id;
+    names[id] = name;
   }
 };
 

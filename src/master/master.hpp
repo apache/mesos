@@ -30,8 +30,6 @@
 
 #include "configurator/configurator.hpp"
 
-#include "detector/detector.hpp"
-
 #include "messaging/messages.hpp"
 
 
@@ -107,7 +105,7 @@ struct SlaveResources
 };
 
 
-class Master : public MesosProcess
+class Master : public MesosProcess<Master>
 {
 public:
   Master();
@@ -117,7 +115,7 @@ public:
 
   static void registerOptions(Configurator* conf);
 
-  Result<state::MasterState*> getState();
+  process::Promise<state::MasterState*> getState();
   
   OfferID makeOffer(Framework* framework,
 		    const std::vector<SlaveResources>& resources);
@@ -164,8 +162,9 @@ public:
   void slaveHeartbeat(const SlaveID& slaveId);
   void timerTick();
   void frameworkExpired(const FrameworkID& frameworkId);
-  void vars();
   void processExited();
+
+  process::Promise<process::HttpResponse> vars(const process::HttpRequest& request);
 
   Framework* lookupFramework(const FrameworkID& frameworkId);
   Slave* lookupSlave(const SlaveID& slaveId);
@@ -204,7 +203,7 @@ protected:
 
   // Replace the scheduler for a framework with a new process ID, in the
   // event of a scheduler failover.
-  void failoverFramework(Framework* framework, const PID& newPid);
+  void failoverFramework(Framework* framework, const process::UPID& newPid);
 
   // Kill all of a framework's tasks, delete the framework object, and
   // reschedule slot offers for slots that were assigned to this framework
@@ -228,8 +227,8 @@ private:
   boost::unordered_map<SlaveID, Slave*> slaves;
   boost::unordered_map<OfferID, SlotOffer*> slotOffers;
 
-  boost::unordered_map<PID, FrameworkID> pidToFrameworkId;
-  boost::unordered_map<PID, SlaveID> pidToSlaveId;
+  boost::unordered_map<process::UPID, FrameworkID> pidToFrameworkId;
+  boost::unordered_map<process::UPID, SlaveID> pidToSlaveId;
 
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
@@ -248,29 +247,30 @@ private:
 };
 
 
-class FrameworkFailoverTimer : public Process
+class FrameworkFailoverTimer : public process::Process<FrameworkFailoverTimer>
 {
 public:
-  FrameworkFailoverTimer(Master* _master, const FrameworkID& _frameworkId)
+  FrameworkFailoverTimer(const process::PID<Master>& _master,
+                         const FrameworkID& _frameworkId)
     : master(_master), frameworkId(_frameworkId) {}
 
 protected:
   virtual void operator () ()
   {
-    link(master->self());
+    link(master);
     while (true) {
       receive(FRAMEWORK_FAILOVER_TIMEOUT);
-      if (name() == TIMEOUT) {
-        dispatch(master, &Master::frameworkExpired, frameworkId);
+      if (name() == process::TIMEOUT) {
+        process::dispatch(master, &Master::frameworkExpired, frameworkId);
         return;
-      } else if (name() == EXIT || name() == TERMINATE) {
+      } else if (name() == process::EXIT || name() == process::TERMINATE) {
         return;
       }
     }
   }
 
 private:
-  Master* master;
+  const process::PID<Master> master;
   const FrameworkID frameworkId;
 };
 
@@ -294,7 +294,7 @@ struct Framework
 {
   FrameworkInfo info;
   FrameworkID frameworkId;
-  PID pid;
+  process::UPID pid;
 
   bool active; // Turns false when framework is being removed
   double connectTime;
@@ -312,17 +312,16 @@ struct Framework
   FrameworkFailoverTimer* failoverTimer;
 
   Framework(const FrameworkInfo& _info, const FrameworkID& _frameworkId,
-            const PID& _pid, double time)
+            const process::UPID& _pid, double time)
     : info(_info), frameworkId(_frameworkId), pid(_pid), active(true),
       connectTime(time), failoverTimer(NULL) {}
 
   ~Framework()
   {
     if (failoverTimer != NULL) {
-      Process::post(failoverTimer->self(), TERMINATE);
-      Process::wait(failoverTimer->self());
+      process::post(failoverTimer->self(), process::TERMINATE);
+      process::wait(failoverTimer->self());
       delete failoverTimer;
-      failoverTimer = NULL;
     }
   }
   
@@ -394,7 +393,7 @@ struct Slave
 {
   SlaveInfo info;
   SlaveID slaveId;
-  PID pid;
+  process::UPID pid;
 
   bool active; // Turns false when slave is being removed
   double connectTime;
@@ -407,7 +406,7 @@ struct Slave
   boost::unordered_set<SlotOffer*> slotOffers; // Active offers on this slave.
   
   Slave(const SlaveInfo& _info, const SlaveID& _slaveId,
-        const PID& _pid, double time)
+        const process::UPID& _pid, double time)
     : info(_info), slaveId(_slaveId), pid(_pid), active(true),
       connectTime(time), lastHeartbeat(time) {}
 
@@ -455,29 +454,6 @@ struct Slave
     return resources - (resourcesOffered + resourcesInUse);
   }
 };
-
-
-// Pretty-printing of SlotOffers, Tasks, Frameworks, Slaves, etc.
-
-inline std::ostream& operator << (std::ostream& stream, const SlotOffer* o)
-{
-  stream << "offer " << o->offerId;
-  return stream;
-}
-
-
-inline std::ostream& operator << (std::ostream& stream, const Slave* s)
-{
-  stream << "slave " << s->slaveId;
-  return stream;
-}
-
-
-inline std::ostream& operator << (std::ostream& stream, const Framework* f)
-{
-  stream << "framework " << f->frameworkId;
-  return stream;
-}
 
 
 }}} // namespace mesos { namespace internal { namespace master {

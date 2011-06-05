@@ -12,6 +12,8 @@
 
 #include <Python.h>
 
+using process::PID;
+
 using std::string;
 
 
@@ -20,7 +22,7 @@ extern "C" void init_master();  // Initializer for the Python master module.
 
 namespace mesos { namespace internal { namespace master {
 
-static Master* master;
+static PID<Master> master;
 static string webuiPort;
 static string logDir;
 
@@ -47,7 +49,7 @@ void* runMasterWebUI(void*)
 }
 
 
-void startMasterWebUI(Master* _master, const Configuration &conf)
+void startMasterWebUI(const PID<Master>& _master, const Configuration& conf)
 {
   // TODO(*): It would be nice if we didn't have to be specifying
   // default values for configuration options in the code like
@@ -72,7 +74,7 @@ namespace state {
 // From master_state.hpp
 MasterState* get_master()
 {
-  return Process::call(master, &Master::getState);
+  return process::call(master, &Master::getState);
 }
 
 } // namespace state {

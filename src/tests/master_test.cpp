@@ -5,6 +5,8 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <detector/detector.hpp>
+
 #include <local/local.hpp>
 
 #include <master/master.hpp>
@@ -26,6 +28,8 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::ProcessBasedIsolationModule;
 using mesos::internal::slave::STATUS_UPDATE_RETRY_TIMEOUT;
+
+using process::PID;
 
 using std::string;
 using std::map;
@@ -105,7 +109,7 @@ TEST(MasterTest, ResourceOfferWithMultipleSlaves)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
+  PID<Master> master = local::launch(10, 2, 1 * Gigabyte, false, false);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, master);
@@ -151,7 +155,7 @@ TEST(MasterTest, ResourcesReofferedAfterReject)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  PID master = local::launch(10, 2, 1 * Gigabyte, false, false);
+  PID<Master> master = local::launch(10, 2, 1 * Gigabyte, false, false);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(&sched1, master);
@@ -216,7 +220,7 @@ TEST(MasterTest, ResourcesReofferedAfterBadResponse)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false, false);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(&sched1, master);
@@ -315,14 +319,14 @@ TEST(MasterTest, SlaveLost)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   Master m;
-  PID master = Process::spawn(&m);
+  PID<Master> master = process::spawn(&m);
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
   ProcessBasedIsolationModule isolationModule;
   
   Slave s(resources, true, &isolationModule);
-  PID slave = Process::spawn(&s);
+  PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
@@ -361,7 +365,7 @@ TEST(MasterTest, SlaveLost)
   EXPECT_CALL(sched, slaveLost(&driver, offers[0].slave_id()))
     .WillOnce(Trigger(&slaveLostCall));
 
-  Process::post(slave, TERMINATE);
+  process::post(slave, process::TERMINATE);
 
   WAIT_UNTIL(offerRescindedCall);
   WAIT_UNTIL(slaveLostCall);
@@ -369,10 +373,10 @@ TEST(MasterTest, SlaveLost)
   driver.stop();
   driver.join();
 
-  Process::wait(slave);
+  process::wait(slave);
 
-  Process::post(master, TERMINATE);
-  Process::wait(master);
+  process::post(master, process::TERMINATE);
+  process::wait(master);
 }
 
 
@@ -380,7 +384,7 @@ TEST(MasterTest, SchedulerFailover)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false, false);
 
   // Launch the first (i.e., failing) scheduler and wait until
   // registered gets called to launch the second (i.e., failover)
@@ -457,15 +461,15 @@ TEST(MasterTest, SlavePartitioned)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  Clock::pause();
+  process::Clock::pause();
 
   MockFilter filter;
-  Process::filter(&filter);
+  process::filter(&filter);
 
   EXPECT_MSG(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false, false);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, master);
@@ -490,12 +494,12 @@ TEST(MasterTest, SlavePartitioned)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(Trigger(&slaveLostCall));
 
-  EXPECT_MSG(filter, Eq(MesosProcess::names[SH2M_HEARTBEAT]), _, _)
+  EXPECT_MSG(filter, Eq(names[SH2M_HEARTBEAT]), _, _)
     .WillRepeatedly(Return(true));
 
   driver.start();
 
-  Clock::advance(master::HEARTBEAT_TIMEOUT);
+  process::Clock::advance(master::HEARTBEAT_TIMEOUT);
 
   WAIT_UNTIL(slaveLostCall);
 
@@ -504,9 +508,9 @@ TEST(MasterTest, SlavePartitioned)
 
   local::shutdown();
 
-  Process::filter(NULL);
+  process::filter(NULL);
 
-  Clock::resume();
+  process::Clock::resume();
 }
 
 
@@ -515,7 +519,7 @@ TEST(MasterTest, TaskRunning)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   Master m;
-  PID master = Process::spawn(&m);
+  PID<Master> master = process::spawn(&m);
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
@@ -539,7 +543,7 @@ TEST(MasterTest, TaskRunning)
   TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
-  PID slave = Process::spawn(&s);
+  PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
@@ -592,11 +596,11 @@ TEST(MasterTest, TaskRunning)
   driver.stop();
   driver.join();
 
-  Process::post(slave, TERMINATE);
-  Process::wait(slave);
+  process::post(slave, process::TERMINATE);
+  process::wait(slave);
 
-  Process::post(master, TERMINATE);
-  Process::wait(master);
+  process::post(master, process::TERMINATE);
+  process::wait(master);
 }
 
 
@@ -605,7 +609,7 @@ TEST(MasterTest, KillTask)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   Master m;
-  PID master = Process::spawn(&m);
+  PID<Master> master = process::spawn(&m);
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
@@ -634,7 +638,7 @@ TEST(MasterTest, KillTask)
   TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
-  PID slave = Process::spawn(&s);
+  PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
@@ -694,11 +698,11 @@ TEST(MasterTest, KillTask)
   driver.stop();
   driver.join();
 
-  Process::post(slave, TERMINATE);
-  Process::wait(slave);
+  process::post(slave, process::TERMINATE);
+  process::wait(slave);
 
-  Process::post(master, TERMINATE);
-  Process::wait(master);
+  process::post(master, process::TERMINATE);
+  process::wait(master);
 }
 
 
@@ -706,16 +710,16 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  Clock::pause();
+  process::Clock::pause();
 
   MockFilter filter;
-  Process::filter(&filter);
+  process::filter(&filter);
 
   EXPECT_MSG(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   Master m;
-  PID master = Process::spawn(&m);
+  PID<Master> master = process::spawn(&m);
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
@@ -739,7 +743,7 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
-  PID slave = Process::spawn(&s);
+  PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
@@ -774,7 +778,7 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(sched1, error(&driver1, _, "Framework failover"))
     .Times(1);
 
-  EXPECT_MSG(filter, Eq(MesosProcess::names[M2F_STATUS_UPDATE]), _, Ne(master))
+  EXPECT_MSG(filter, Eq(names[M2F_STATUS_UPDATE]), _, Ne(master))
     .WillOnce(DoAll(Trigger(&statusUpdateMsg), Return(true)))
     .RetiresOnSaturation();
 
@@ -823,7 +827,7 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
 
   WAIT_UNTIL(registeredCall);
 
-  Clock::advance(STATUS_UPDATE_RETRY_TIMEOUT);
+  process::Clock::advance(STATUS_UPDATE_RETRY_TIMEOUT);
 
   WAIT_UNTIL(statusUpdateCall);
 
@@ -833,15 +837,15 @@ TEST(MasterTest, SchedulerFailoverStatusUpdate)
   driver1.join();
   driver2.join();
 
-  Process::post(slave, TERMINATE);
-  Process::wait(slave);
+  process::post(slave, process::TERMINATE);
+  process::wait(slave);
 
-  Process::post(master, TERMINATE);
-  Process::wait(master);
+  process::post(master, process::TERMINATE);
+  process::wait(master);
 
-  Process::filter(NULL);
+  process::filter(NULL);
 
-  Clock::resume();
+  process::Clock::resume();
 }
 
 
@@ -850,7 +854,7 @@ TEST(MasterTest, FrameworkMessage)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   Master m;
-  PID master = Process::spawn(&m);
+  PID<Master> master = process::spawn(&m);
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
@@ -884,7 +888,7 @@ TEST(MasterTest, FrameworkMessage)
   TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
-  PID slave = Process::spawn(&s);
+  PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
@@ -967,11 +971,11 @@ TEST(MasterTest, FrameworkMessage)
   schedDriver.stop();
   schedDriver.join();
 
-  Process::post(slave, TERMINATE);
-  Process::wait(slave);
+  process::post(slave, process::TERMINATE);
+  process::wait(slave);
 
-  Process::post(master, TERMINATE);
-  Process::wait(master);
+  process::post(master, process::TERMINATE);
+  process::wait(master);
 }
 
 
@@ -980,7 +984,7 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   Master m;
-  PID master = Process::spawn(&m);
+  PID<Master> master = process::spawn(&m);
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
@@ -1006,7 +1010,7 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
-  PID slave = Process::spawn(&s);
+  PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
@@ -1095,11 +1099,11 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
   driver1.join();
   driver2.join();
 
-  Process::post(slave, TERMINATE);
-  Process::wait(slave);
+  process::post(slave, process::TERMINATE);
+  process::wait(slave);
 
-  Process::post(master, TERMINATE);
-  Process::wait(master);
+  process::post(master, process::TERMINATE);
+  process::wait(master);
 }
 
 
@@ -1108,7 +1112,7 @@ TEST(MasterTest, MultipleExecutors)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   Master m;
-  PID master = Process::spawn(&m);
+  PID<Master> master = process::spawn(&m);
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
@@ -1153,7 +1157,7 @@ TEST(MasterTest, MultipleExecutors)
   TestingIsolationModule isolationModule(execs);
 
   Slave s(resources, true, &isolationModule);
-  PID slave = Process::spawn(&s);
+  PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
 
@@ -1230,9 +1234,9 @@ TEST(MasterTest, MultipleExecutors)
   driver.stop();
   driver.join();
 
-  Process::post(slave, TERMINATE);
-  Process::wait(slave);
+  process::post(slave, process::TERMINATE);
+  process::wait(slave);
 
-  Process::post(master, TERMINATE);
-  Process::wait(master);
+  process::post(master, process::TERMINATE);
+  process::wait(master);
 }

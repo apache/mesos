@@ -19,7 +19,7 @@ using boost::unordered_map;
 class LxcIsolationModule : public IsolationModule {
 public:
   // Reaps framework containers and tells the slave if they exit
-  class Reaper : public Process {
+  class Reaper : public process::Process<Reaper> {
     LxcIsolationModule* module;
 
   protected:

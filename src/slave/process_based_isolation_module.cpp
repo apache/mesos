@@ -39,8 +39,8 @@ ProcessBasedIsolationModule::~ProcessBasedIsolationModule()
   // could thus lead to a seg fault!
   if (initialized) {
     CHECK(reaper != NULL);
-    Process::post(reaper->self(), TERMINATE);
-    Process::wait(reaper->self());
+    process::post(reaper->self(), process::TERMINATE);
+    process::wait(reaper->self());
     delete reaper;
   }
 }
@@ -50,7 +50,7 @@ void ProcessBasedIsolationModule::initialize(Slave *slave)
 {
   this->slave = slave;
   reaper = new Reaper(this);
-  Process::spawn(reaper);
+  process::spawn(reaper);
   initialized = true;
 }
 
@@ -150,7 +150,7 @@ void ProcessBasedIsolationModule::Reaper::operator () ()
   link(module->slave->self());
   while (true) {
     receive(1);
-    if (name() == TIMEOUT) {
+    if (name() == process::TIMEOUT) {
       // Check whether any child process has exited.
       pid_t pid;
       int status;
@@ -172,7 +172,7 @@ void ProcessBasedIsolationModule::Reaper::operator () ()
           }
         }
       }
-    } else if (name() == TERMINATE || name() == EXIT) {
+    } else if (name() == process::TERMINATE || name() == process::EXIT) {
       return;
     }
   }

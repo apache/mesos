@@ -99,10 +99,10 @@ public:
 /**
  * Definition of a mock Filter so that messages can act as triggers.
  */
-class MockFilter : public Filter
+class MockFilter : public process::Filter
 {
 public:
-  MOCK_METHOD1(filter, bool(Message *));
+  MOCK_METHOD1(filter, bool(process::Message *));
 };
 
 
@@ -113,8 +113,8 @@ public:
 MATCHER_P3(MsgMatcher, name, from, to, "")
 {
   return (testing::Matcher<std::string>(name).Matches(arg->name) &&
-          testing::Matcher<PID>(from).Matches(arg->from) &&
-          testing::Matcher<PID>(to).Matches(arg->to));
+          testing::Matcher<process::UPID>(from).Matches(arg->from) &&
+          testing::Matcher<process::UPID>(to).Matches(arg->to));
 }
 
 

@@ -15,40 +15,35 @@ const int32_t Gigabyte = 1024 * Megabyte;
 
 namespace mesos {
 
-inline std::ostream& operator << (std::ostream& stream,
-                                  const FrameworkID& frameworkId)
+inline std::ostream& operator << (std::ostream& stream, const FrameworkID& frameworkId)
 {
   stream << frameworkId.value();
   return stream;
 }
 
 
-inline std::ostream& operator << (std::ostream& stream,
-                                  const OfferID& offerId)
+inline std::ostream& operator << (std::ostream& stream, const OfferID& offerId)
 {
   stream << offerId.value();
   return stream;
 }
 
 
-inline std::ostream& operator << (std::ostream& stream,
-                                  const SlaveID& slaveId)
+inline std::ostream& operator << (std::ostream& stream, const SlaveID& slaveId)
 {
   stream << slaveId.value();
   return stream;
 }
 
 
-inline std::ostream& operator << (std::ostream& stream,
-                                  const TaskID& taskId)
+inline std::ostream& operator << (std::ostream& stream, const TaskID& taskId)
 {
   stream << taskId.value();
   return stream;
 }
 
 
-inline std::ostream& operator << (std::ostream& stream,
-                                  const ExecutorID& executorId)
+inline std::ostream& operator << (std::ostream& stream, const ExecutorID& executorId)
 {
   stream << executorId.value();
   return stream;
@@ -115,7 +110,6 @@ inline bool operator == (const ExecutorID& left, const std::string& right)
 }
 
 
-
 inline bool operator < (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() < right.value();
@@ -146,7 +140,7 @@ inline bool operator < (const ExecutorID& left, const ExecutorID& right)
 }
 
 
-inline size_t hash_value(const FrameworkID& frameworkId)
+inline std::size_t hash_value(const FrameworkID& frameworkId)
 {
   size_t seed = 0;
   boost::hash_combine(seed, frameworkId.value());
@@ -154,7 +148,7 @@ inline size_t hash_value(const FrameworkID& frameworkId)
 }
 
 
-inline size_t hash_value(const OfferID& offerId)
+inline std::size_t hash_value(const OfferID& offerId)
 {
   size_t seed = 0;
   boost::hash_combine(seed, offerId.value());
@@ -162,7 +156,7 @@ inline size_t hash_value(const OfferID& offerId)
 }
 
 
-inline size_t hash_value(const SlaveID& slaveId)
+inline std::size_t hash_value(const SlaveID& slaveId)
 {
   size_t seed = 0;
   boost::hash_combine(seed, slaveId.value());
@@ -170,7 +164,7 @@ inline size_t hash_value(const SlaveID& slaveId)
 }
 
 
-inline size_t hash_value(const TaskID& taskId)
+inline std::size_t hash_value(const TaskID& taskId)
 {
   size_t seed = 0;
   boost::hash_combine(seed, taskId.value());
@@ -178,7 +172,7 @@ inline size_t hash_value(const TaskID& taskId)
 }
 
 
-inline size_t hash_value(const ExecutorID& executorId)
+inline std::size_t hash_value(const ExecutorID& executorId)
 {
   size_t seed = 0;
   boost::hash_combine(seed, executorId.value());
@@ -188,8 +182,7 @@ inline size_t hash_value(const ExecutorID& executorId)
 
 namespace internal {
 
-inline std::ostream& operator << (std::ostream& stream,
-                                  const Task *task)
+inline std::ostream& operator << (std::ostream& stream, const Task* task)
 {
   stream << "task " << task->framework_id() << ":" << task->task_id();
   return stream;

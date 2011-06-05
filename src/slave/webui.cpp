@@ -12,6 +12,8 @@
 
 #include <Python.h>
 
+using process::PID;
+
 using std::string;
 
 
@@ -20,7 +22,7 @@ extern "C" void init_slave();  // Initializer for the Python slave module
 
 namespace mesos { namespace internal { namespace slave {
 
-static Slave* slave;
+static PID<Slave> slave;
 static string webuiPort;
 static string logDir;
 static string workDir;
@@ -49,7 +51,7 @@ void* runSlaveWebUI(void*)
 }
 
 
-void startSlaveWebUI(Slave* _slave, const Configuration &conf)
+void startSlaveWebUI(const PID<Slave>& _slave, const Configuration& conf)
 {
   // TODO(*): See the note in master/webui.cpp about having to
   // determine default values. These should be set by now and can just
@@ -81,7 +83,7 @@ namespace state {
 // From slave_state.hpp.
 SlaveState* get_slave()
 {
-  return Process::call(slave, &Slave::getState);
+  return process::call(slave, &Slave::getState);
 }
 
 } // namespace state {

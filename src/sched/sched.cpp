@@ -44,6 +44,9 @@ using boost::unordered_set;
 
 using google::protobuf::RepeatedPtrField;
 
+using process::PID;
+using process::UPID;
+
 using std::map;
 using std::string;
 using std::vector;
@@ -63,10 +66,11 @@ namespace mesos { namespace internal {
 
 #define STATUS_UPDATE_TIMEOUT 120
 
-class StatusUpdateTimer : public MesosProcess
+class StatusUpdateTimer : public MesosProcess<StatusUpdateTimer>
 {
 public:
-  StatusUpdateTimer(const PID &_sched, const FrameworkID& _frameworkId,
+  StatusUpdateTimer(const PID<SchedulerProcess> &_sched,
+                    const FrameworkID& _frameworkId,
                     const TaskDescription& task)
     : sched(_sched), frameworkId(_frameworkId), taskId(task.task_id()),
       slaveId(task.slave_id()), terminate(false) {}
@@ -100,7 +104,7 @@ protected:
   }
 
 private:
-  const PID sched;
+  const PID<SchedulerProcess> sched;
   const FrameworkID frameworkId;
   const TaskID taskId;
   const SlaveID slaveId;
@@ -114,14 +118,14 @@ private:
 // we allow friend functions to invoke 'send', 'post', etc. Therefore,
 // we must make sure that any necessary synchronization is performed.
 
-class SchedulerProcess : public MesosProcess
+class SchedulerProcess : public MesosProcess<SchedulerProcess>
 {
 public:
   SchedulerProcess(MesosSchedulerDriver* _driver, Scheduler* _sched,
 		   const FrameworkID& _frameworkId,
                    const FrameworkInfo& _framework)
     : driver(_driver), sched(_sched), frameworkId(_frameworkId),
-      framework(_framework), generation(0), master(PID()), terminate(false)
+      framework(_framework), generation(0), master(UPID()), terminate(false)
   {
     install(NEW_MASTER_DETECTED, &SchedulerProcess::newMasterDetected,
             &NewMasterDetectedMessage::pid);
@@ -160,7 +164,7 @@ public:
   {
     // Cleanup any remaining timers.
     foreachpair (const TaskID& taskId, StatusUpdateTimer* timer, timers) {
-      send(timer->self(), TERMINATE);
+      send(timer->self(), process::TERMINATE);
       wait(timer->self());
       delete timer;
     }
@@ -249,13 +253,15 @@ protected:
     // TODO(benh): Better error codes/messages!
     int32_t code = 1;
     const string& message = "Failed to detect master(s)";
-    invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
+    process::invoke(bind(&Scheduler::error, sched, driver, code,
+                         cref(message)));
   }
 
   void registerReply(const FrameworkID& frameworkId)
   {
     this->frameworkId = frameworkId;
-    invoke(bind(&Scheduler::registered, sched, driver, cref(frameworkId)));
+    process::invoke(bind(&Scheduler::registered, sched, driver,
+                         cref(frameworkId)));
   }
 
   void resourceOffer(const OfferID& offerId,
@@ -267,19 +273,20 @@ protected:
     CHECK(offers.size() == pids.size());
 
     for (int i = 0; i < offers.size(); i++) {
-      PID pid(pids[i]);
-      CHECK(pid != PID());
+      UPID pid(pids[i]);
+      CHECK(pid != UPID());
       savedOffers[offerId][offers[i].slave_id()] = pid;
     }
 
-    invoke(bind(&Scheduler::resourceOffer, sched, driver, cref(offerId),
-                cref(offers)));
+    process::invoke(bind(&Scheduler::resourceOffer, sched, driver,
+                         cref(offerId), cref(offers)));
   }
 
   void rescindOffer(const OfferID& offerId)
   {
     savedOffers.erase(offerId);
-    invoke(bind(&Scheduler::offerRescinded, sched, driver, cref(offerId)));
+    process::invoke(bind(&Scheduler::offerRescinded, sched, driver, 
+                         cref(offerId)));
   }
 
   void statusUpdate(const FrameworkID& frameworkId, const TaskStatus& status)
@@ -299,14 +306,15 @@ protected:
     if (timers.count(status.task_id()) > 0) {
       StatusUpdateTimer* timer = timers[status.task_id()];
       timers.erase(status.task_id());
-      send(timer->self(), TERMINATE);
+      send(timer->self(), process::TERMINATE);
       wait(timer->self());
       delete timer;
     }
 
-    invoke(bind(&Scheduler::statusUpdate, sched, driver, cref(status)));
+    process::invoke(bind(&Scheduler::statusUpdate, sched, driver,
+                         cref(status)));
 
-    // Acknowledge the message (we do this last, after we invoked
+    // Acknowledge the message (we do this last, after we process::invoked
     // the scheduler, if we did at all, in case it causes a crash,
     // since this way the message might get resent/routed after
     // the scheduler comes back online).
@@ -320,17 +328,18 @@ protected:
   void lostSlave(const SlaveID& slaveId)
   {
     savedSlavePids.erase(slaveId);
-    invoke(bind(&Scheduler::slaveLost, sched, driver, cref(slaveId)));
+    process::invoke(bind(&Scheduler::slaveLost, sched, driver, cref(slaveId)));
   }
 
   void frameworkMessage(const FrameworkMessage& message)
   {
-    invoke(bind(&Scheduler::frameworkMessage, sched, driver, cref(message)));
+    process::invoke(bind(&Scheduler::frameworkMessage, sched, driver,
+                         cref(message)));
   }
 
   void error(int32_t code, const string& message)
   {
-    invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
+    process::invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
   }
 
   void stop()
@@ -415,8 +424,8 @@ protected:
     // accepted.
 
     if (savedSlavePids.count(message.slave_id()) > 0) {
-      PID slave = savedSlavePids[message.slave_id()];
-      CHECK(slave != PID());
+      UPID slave = savedSlavePids[message.slave_id()];
+      CHECK(slave != UPID());
 
       // TODO(benh): This is kind of wierd, M2S?
       MSG<M2S_FRAMEWORK_MESSAGE> out;
@@ -442,13 +451,13 @@ private:
   FrameworkID frameworkId;
   FrameworkInfo framework;
   int32_t generation;
-  PID master;
+  UPID master;
 
   volatile bool active;
   volatile bool terminate;
 
-  unordered_map<OfferID, unordered_map<SlaveID, PID> > savedOffers;
-  unordered_map<SlaveID, PID> savedSlavePids;
+  unordered_map<OfferID, unordered_map<SlaveID, UPID> > savedOffers;
+  unordered_map<SlaveID, UPID> savedSlavePids;
 
   // Timers to ensure we get a status update for each task we launch.
   unordered_map<TaskID, StatusUpdateTimer *> timers;
@@ -554,6 +563,9 @@ void MesosSchedulerDriver::init(Scheduler* _sched,
   pthread_cond_init(&cond, 0);
 
   // TODO(benh): Initialize glog.
+
+  // Initialize libprocess library (but not glog, done above).
+  process::initialize(false);
 }
 
 
@@ -573,7 +585,7 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
   // not this was about to be deadlock, and possibly report this back
   // to the user somehow.
   if (process != NULL) {
-    Process::wait(process->self());
+    process::wait(process->self());
     delete process;
   }
 
@@ -588,8 +600,9 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
   delete conf;
 
   // Check and see if we need to shutdown a local cluster.
-  if (url == "local" || url == "localquiet")
+  if (url == "local" || url == "localquiet") {
     local::shutdown();
+  }
 }
 
 
@@ -622,15 +635,15 @@ int MesosSchedulerDriver::start()
 
   process = new SchedulerProcess(this, sched, frameworkId, framework);
 
-  PID pid = Process::spawn(process);
+  UPID pid = process::spawn(process);
 
   // Check and see if we need to launch a local cluster.
   if (url == "local") {
-    PID master = local::launch(*conf, true);
+    const PID<master::Master>& master = local::launch(*conf, true);
     detector = new BasicMasterDetector(master, pid);
   } else if (url == "localquiet") {
     conf->set("quiet", 1);
-    PID master = local::launch(*conf, true);
+    const PID<master::Master>& master = local::launch(*conf, true);
     detector = new BasicMasterDetector(master, pid);
   } else {
     detector = MasterDetector::create(url, pid, false, false);
@@ -654,7 +667,7 @@ int MesosSchedulerDriver::stop()
   // getExecutorInfo which threw exceptions, or explicitely called
   // stop. See above in start).
   if (process != NULL) {
-    Process::dispatch(process, &SchedulerProcess::stop);
+    process::dispatch(process->self(), &SchedulerProcess::stop);
     process->terminate = true;
     process = NULL;
   }
@@ -698,7 +711,8 @@ int MesosSchedulerDriver::killTask(const TaskID& taskId)
     return -1;
   }
 
-  Process::dispatch(process, &SchedulerProcess::killTask, taskId);
+  process::dispatch(process->self(), &SchedulerProcess::killTask,
+                    taskId);
 
   return 0;
 }
@@ -714,7 +728,7 @@ int MesosSchedulerDriver::replyToOffer(const OfferID& offerId,
     return -1;
   }
 
-  Process::dispatch(process, &SchedulerProcess::replyToOffer,
+  process::dispatch(process->self(), &SchedulerProcess::replyToOffer,
                     offerId, tasks, params);
 
   return 0;
@@ -729,7 +743,7 @@ int MesosSchedulerDriver::reviveOffers()
     return -1;
   }
 
-  Process::dispatch(process, &SchedulerProcess::reviveOffers);
+  process::dispatch(process->self(), &SchedulerProcess::reviveOffers);
 
   return 0;
 }
@@ -754,7 +768,8 @@ int MesosSchedulerDriver::sendFrameworkMessage(const FrameworkMessage& message)
     return -1;
   }
 
-  Process::dispatch(process, &SchedulerProcess::sendFrameworkMessage, message);
+  process::dispatch(process->self(), &SchedulerProcess::sendFrameworkMessage,
+                    message);
 
   return 0;
 }

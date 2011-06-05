@@ -27,6 +27,8 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::Framework;
 
+using process::PID;
+
 using std::string;
 using std::map;
 using std::vector;
@@ -95,7 +97,7 @@ TEST(MasterTest, DuplicateTaskIdsInResponse)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
   Resources resources;
 
@@ -144,7 +146,7 @@ TEST(MasterTest, TooMuchMemoryInTask)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
   Resources resources;
 
@@ -188,7 +190,7 @@ TEST(MasterTest, TooMuchCpuInTask)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
   Resources resources;
 
@@ -232,7 +234,7 @@ TEST(MasterTest, ZeroCpuInTask)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
   Resources resources;
 
@@ -276,7 +278,7 @@ TEST(MasterTest, TooMuchMemoryAcrossTasks)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
   Resources resources;
 
@@ -324,7 +326,7 @@ TEST(MasterTest, TooMuchCpuAcrossTasks)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   DateUtils::setMockDate("200102030405");
-  PID master = local::launch(1, 3, 3 * Gigabyte, false, false);
+  PID<Master> master = local::launch(1, 3, 3 * Gigabyte, false, false);
 
   Resources resources;
 

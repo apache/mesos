@@ -5,19 +5,22 @@
 
 #include "configurator/configurator.hpp"
 
+#include "detector/detector.hpp"
+
 #include "common/logging.hpp"
 
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"
 
+using namespace mesos::internal;
+
+using mesos::internal::master::Master;
+using mesos::internal::slave::Slave;
+
 using std::cerr;
 using std::endl;
 using std::string;
-
-using namespace mesos::internal;
-using mesos::internal::master::Master;
-using mesos::internal::slave::Slave;
 
 
 void usage(const char* programName, const Configurator& configurator)
@@ -37,9 +40,10 @@ void usage(const char* programName, const Configurator& configurator)
 int main(int argc, char **argv)
 {
   Configurator configurator;
+  Logging::registerOptions(&configurator);
+  local::registerOptions(&configurator);
   configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
   configurator.addOption<string>("ip", "IP address to listen on");
-  local::registerOptions(&configurator);
 
   if (argc == 2 && string("--help") == argv[1]) {
     usage(argv[0], configurator);
@@ -56,15 +60,18 @@ int main(int argc, char **argv)
 
   Logging::init(argv[0], conf);
 
-  if (conf.contains("port"))
+  if (conf.contains("port")) {
     setenv("LIBPROCESS_PORT", conf["port"].c_str(), 1);
+  }
 
-  if (conf.contains("ip"))
+  if (conf.contains("ip")) {
     setenv("LIBPROCESS_IP", conf["ip"].c_str(), 1);
+  }
 
-  const PID &master = local::launch(conf, false);
+  // Initialize libprocess library (but not glog, done above).
+  process::initialize(false);
 
-  Process::wait(master);
+  process::wait(local::launch(conf, false));
 
   return 0;
 }

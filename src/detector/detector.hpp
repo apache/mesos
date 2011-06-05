@@ -7,6 +7,8 @@
 #include <climits>
 #include <cstdlib>
 
+#include <process.hpp>
+
 
 namespace mesos { namespace internal {
 
@@ -32,25 +34,15 @@ public:
    * @param contend true if should contend to be master
    * @return instance of MasterDetector
    */
-  static MasterDetector * create(const std::string &url,
-				 const PID &pid,
+  static MasterDetector * create(const std::string& url,
+				 const process::UPID& pid,
 				 bool contend = false,
 				 bool quiet = true);
 
   /**
    * Cleans up and deallocates the detector.
    */
-  static void destroy(MasterDetector *detector);
-
-  /**
-   * @return unique id of the current master
-   */
-  virtual std::string getCurrentMasterId() = 0;
-
-  /**
-   * @return libprocess PID of the current master
-   */
-  virtual PID getCurrentMasterPID() = 0;
+  static void destroy(MasterDetector* detector);
 };
 
 
@@ -64,7 +56,7 @@ public:
    * @param master libprocess pid to send messages/updates and be the
    * master
    */
-  BasicMasterDetector(const PID &master);
+  BasicMasterDetector(const process::UPID& master);
 
   /**
    * Create a new master detector where the 'master' pid is 
@@ -76,31 +68,21 @@ public:
    * the master
    * @param elect if true then contend and elect the specified master
    */
-  BasicMasterDetector(const PID &master,
-		      const PID &pid,
+  BasicMasterDetector(const process::UPID& master,
+		      const process::UPID& pid,
 		      bool elect = false);
 
-  BasicMasterDetector(const PID &master,
-		      const std::vector<PID> &pids,
+  BasicMasterDetector(const process::UPID& master,
+		      const std::vector<process::UPID>& pids,
 		      bool elect = false);
 
   virtual ~BasicMasterDetector();
 
-  /**
-   * @return unique id of the current master
-   */
-  virtual std::string getCurrentMasterId();
-
-  /**
-   * @return libprocess PID of the current master
-   */
-  virtual PID getCurrentMasterPID();
-
 private:
-  PID master;
+  const process::UPID master;
 };
 
-}} /* namespace mesos { namespace internal { */
+}} // namespace mesos { namespace internal {
 
-#endif /* __MASTER_DETECTOR_HPP__ */
+#endif // __MASTER_DETECTOR_HPP__
 

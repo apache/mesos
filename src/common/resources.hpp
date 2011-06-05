@@ -40,7 +40,7 @@
 // "{a, b, c, d}".
 
 
-namespace mesos { namespace internal {
+namespace mesos {
 
 bool operator == (const Resource::Scalar& left, const Resource::Scalar& right);
 bool operator <= (const Resource::Scalar& left, const Resource::Scalar& right);
@@ -72,8 +72,11 @@ Resource operator + (const Resource& left, const Resource& right);
 Resource operator - (const Resource& left, const Resource& right);
 Resource& operator += (Resource& left, const Resource& right);
 Resource& operator -= (Resource& left, const Resource& right);
+
 std::ostream& operator << (std::ostream& stream, const Resource& resource);
 
+
+namespace internal {
 
 class Resources
 {
@@ -419,7 +422,7 @@ private:
 inline
 std::ostream& operator << (std::ostream& stream, const Resources& resources)
 {
-  Resources::const_iterator it = resources.begin();
+  mesos::internal::Resources::const_iterator it = resources.begin();
 
   while (it != resources.end()) {
     stream << *it;
@@ -432,7 +435,6 @@ std::ostream& operator << (std::ostream& stream, const Resources& resources)
 }
 
 }} // namespace mesos { namespace internal {
-
 
 // namespace boost {
 

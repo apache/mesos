@@ -11,6 +11,8 @@
 
 #include "configurator/configurator.hpp"
 
+#include "detector/detector.hpp"
+
 #include "master/master.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
@@ -19,9 +21,13 @@
 using namespace mesos::internal;
 
 using mesos::internal::master::Master;
+
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::IsolationModule;
 using mesos::internal::slave::ProcessBasedIsolationModule;
+
+using process::PID;
+using process::UPID;
 
 using std::map;
 using std::stringstream;
@@ -37,14 +43,14 @@ void initialize_glog() {
   google::InitGoogleLogging("mesos-local");
 }
 
-} /* namespace { */
+} // namespace {
 
 
 namespace mesos { namespace internal { namespace local {
 
-static Master *master = NULL;
+static Master* master = NULL;
 static map<IsolationModule*, Slave*> slaves;
-static MasterDetector *detector = NULL;
+static MasterDetector* detector = NULL;
 
 
 void registerOptions(Configurator* configurator)
@@ -56,11 +62,11 @@ void registerOptions(Configurator* configurator)
 }
 
 
-PID launch(int numSlaves,
-           int32_t cpus,
-           int64_t mem,
-           bool initLogging,
-           bool quiet)
+PID<Master> launch(int numSlaves,
+                   int32_t cpus,
+                   int64_t mem,
+                   bool initLogging,
+                   bool quiet)
 {
   Configuration conf;
   conf.set("slaves", numSlaves);
@@ -74,7 +80,8 @@ PID launch(int numSlaves,
 }
 
 
-PID launch(const Configuration& conf, bool initLogging)
+PID<Master> launch(const Configuration& conf,
+                   bool initLogging)
 {
   int numSlaves = conf.get<int>("slaves", 1);
   bool quiet = conf.get<bool>("quiet", false);
@@ -90,9 +97,9 @@ PID launch(const Configuration& conf, bool initLogging)
 
   master = new Master(conf);
 
-  PID pid = Process::spawn(master);
+  PID<Master> pid = process::spawn(master);
 
-  vector<PID> pids;
+  vector<UPID> pids;
 
   for (int i = 0; i < numSlaves; i++) {
     // TODO(benh): Create a local isolation module?
@@ -100,7 +107,7 @@ PID launch(const Configuration& conf, bool initLogging)
       new ProcessBasedIsolationModule();
     Slave* slave = new Slave(conf, true, isolationModule);
     slaves[isolationModule] = slave;
-    pids.push_back(Process::spawn(slave));
+    pids.push_back(process::spawn(slave));
   }
 
   detector = new BasicMasterDetector(pid, pids, true);
@@ -112,8 +119,8 @@ PID launch(const Configuration& conf, bool initLogging)
 void shutdown()
 {
   if (master != NULL) {
-    Process::post(master->self(), TERMINATE);
-    Process::wait(master->self());
+    process::post(master->self(), process::TERMINATE);
+    process::wait(master->self());
     delete master;
     master = NULL;
 
@@ -123,9 +130,9 @@ void shutdown()
     // the isolation module, we can't delete the isolation module until
     // we have stopped the slave.
 
-    foreachpair (IsolationModule *isolationModule, Slave *slave, slaves) {
-      Process::post(slave->self(), TERMINATE);
-      Process::wait(slave->self());
+    foreachpair (IsolationModule* isolationModule, Slave* slave, slaves) {
+      process::post(slave->self(), process::TERMINATE);
+      process::wait(slave->self());
       delete isolationModule;
       delete slave;
     }
@@ -137,4 +144,4 @@ void shutdown()
   }
 }
 
-}}} /* namespace mesos { namespace internal { namespace local { */
+}}} // namespace mesos { namespace internal { namespace local {

@@ -40,8 +40,6 @@
 
 #include "configurator/configurator.hpp"
 
-#include "detector/detector.hpp"
-
 #include "messaging/messages.hpp"
 
 
@@ -57,7 +55,7 @@ const double STATUS_UPDATE_RETRY_TIMEOUT = 10;
 struct Executor
 {
   Executor(const FrameworkID& _frameworkId, const ExecutorInfo& _info)
-    : frameworkId(_frameworkId), info(_info), pid(PID()) {}
+    : frameworkId(_frameworkId), info(_info), pid(process::UPID()) {}
 
   ~Executor()
   {
@@ -111,7 +109,7 @@ struct Executor
   const FrameworkID frameworkId;
   const ExecutorInfo info;
 
-  PID pid;
+  process::UPID pid;
 
   std::list<TaskDescription> queuedTasks;
   boost::unordered_map<TaskID, Task*> tasks;
@@ -128,7 +126,7 @@ struct Executor
 struct Framework
 {
   Framework( const FrameworkID& _frameworkId, const FrameworkInfo& _info,
-            const PID& _pid)
+            const process::UPID& _pid)
     : frameworkId(_frameworkId), info(_info), pid(_pid) {}
 
   ~Framework() {}
@@ -173,7 +171,7 @@ struct Framework
   const FrameworkID frameworkId;
   const FrameworkInfo info;
 
-  PID pid;
+  process::UPID pid;
 
   boost::unordered_map<ExecutorID, Executor*> executors;
   boost::unordered_map<double, boost::unordered_map<TaskID, TaskStatus> > statuses;
@@ -181,10 +179,10 @@ struct Framework
 
 
 // Periodically sends heartbeats to the master
-class Heart : public MesosProcess
+class Heart : public MesosProcess<Heart>
 {
 public:
-  Heart(const PID &_master, const PID &_slave,
+  Heart(const process::UPID &_master, const process::UPID &_slave,
         const SlaveID& _slaveId, double _interval)
     : master(_master), slave(_slave), slaveId(_slaveId), interval(_interval) {}
 
@@ -209,14 +207,14 @@ protected:
   }
 
 private:
-  const PID master;
-  const PID slave;
+  const process::UPID master;
+  const process::UPID slave;
   const SlaveID slaveId;
   const double interval;
 };
 
 
-class Slave : public MesosProcess
+class Slave : public MesosProcess<Slave>
 {
 public:
   Slave(const Resources& resources, bool local,
@@ -229,7 +227,7 @@ public:
 
   static void registerOptions(Configurator* conf);
 
-  Result<state::SlaveState*> getState();
+  process::Promise<state::SlaveState*> getState();
 
   // Callback used by isolation module to tell us when an executor exits.
   void executorExited(const FrameworkID& frameworkId, const ExecutorID& executorId, int result);
@@ -258,7 +256,7 @@ protected:
 private:
   Configuration conf;
 
-  PID master;
+  process::UPID master;
   Resources resources;
 
   // Invariant: framework will exist if executor exists.

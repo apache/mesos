@@ -23,6 +23,9 @@ using namespace mesos::internal::slave;
 using boost::unordered_map;
 using boost::unordered_set;
 
+using process::Promise;
+using process::UPID;
+
 using std::list;
 using std::make_pair;
 using std::ostringstream;
@@ -80,7 +83,7 @@ Slave::~Slave()
 }
 
 
-Result<state::SlaveState*> Slave::getState()
+Promise<state::SlaveState*> Slave::getState()
 {
   Resources resources(resources);
   Resource::Scalar cpus;
@@ -456,7 +459,7 @@ void Slave::operator () ()
             LOG(WARNING) << "Not expecting executor '" << msg.executor_id()
                          << "' of framework " << msg.framework_id();
             send(from(), S2E_KILL_EXECUTOR);
-          } else if (executor->pid != PID()) {
+          } else if (executor->pid != UPID()) {
             LOG(WARNING) << "Not good, executor '" << msg.executor_id()
                          << "' of framework " << msg.framework_id()
                          << " is already running";
@@ -612,7 +615,7 @@ void Slave::sendQueuedTasks(Framework* framework, Executor* executor)
   LOG(INFO) << "Flushing queued tasks for framework "
             << framework->frameworkId;
 
-  CHECK(executor->pid != PID());
+  CHECK(executor->pid != UPID());
 
   foreach (const TaskDescription& task, executor->queuedTasks) {
     // Add the task to the executor.

@@ -30,7 +30,7 @@ public:
   virtual void resourcesChanged(Framework* framework, Executor* executor);
 
   // Reaps child processes and tells the slave if they exit
-  class Reaper : public Process {
+  class Reaper : public process::Process<Reaper> {
     ProcessBasedIsolationModule* module;
 
   protected:

@@ -12,7 +12,8 @@
 
 namespace mesos { namespace internal { namespace master {
 
-void startMasterWebUI(Master* master, const Configuration& conf);
+void startMasterWebUI(const process::PID<Master>& master,
+                      const Configuration& conf);
 
 }}} // namespace mesos { namespace internal { namespace master {
 

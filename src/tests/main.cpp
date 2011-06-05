@@ -7,6 +7,8 @@
 
 #include <string>
 
+#include <process.hpp>
+
 #include <common/fatal.hpp>
 
 #include <configurator/configurator.hpp>
@@ -58,5 +60,9 @@ int main(int argc, char** argv)
   testing::FLAGS_gtest_death_test_style = "threadsafe";
   if (argc == 2 && strcmp("-v", argv[1]) == 0)
     google::SetStderrLogging(google::INFO);
+
+  // Initialize libprocess library (but not glog, done above).
+  process::initialize(false);
+
   return RUN_ALL_TESTS();
 }

@@ -12,9 +12,10 @@
 
 namespace mesos { namespace internal { namespace slave {
 
-void startSlaveWebUI(Slave* slave, const Configuration& conf);
+void startSlaveWebUI(const process::PID<Slave>& slave,
+                     const Configuration& conf);
 
-}}} // namespace
+}}} // namespace mesos { namespace internal { namespace slave {
 
 #endif // MESOS_WEBUI
 
