@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <boost/lexical_cast.hpp>
+#include <boost/foreach.hpp>
 
 #include "foreach.hpp"
 
@@ -17,6 +18,8 @@ using std::map;
 using std::ostringstream;
 using std::string;
 using std::vector;
+using std::pair;
+using std::make_pair;
 
 using boost::lexical_cast;
 
@@ -43,6 +46,18 @@ public:
   Params(const map<string, string>& params_): params(params_) {}
 
   Params(const string& str)
+  {
+    parseString(str);
+  }
+
+  void parseMap(const map<string, string>& params_)
+  {
+    foreachpair(const string &k, const string &v, params_) {
+      params[k] = v;
+    }
+  }
+
+  void parseString(const string &str)
   {
     vector<string> lines;
     split(str, "\n\r", lines);
