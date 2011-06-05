@@ -153,6 +153,9 @@ Master::~Master()
 void Master::registerOptions(Configurator* conf)
 {
   conf->addOption<string>("allocator", 'a', "Allocation module name", "simple");
+  conf->addOption<bool>("root_submissions",
+                        "Can root submit frameworks?",
+                        false);
 }
 
 
@@ -299,6 +302,16 @@ void Master::operator () ()
       if (framework->executorInfo.uri == "") {
         LOG(INFO) << framework << " registering without an executor URI";
         send(framework->pid, pack<M2F_ERROR>(1, "No executor URI given"));
+        delete framework;
+        break;
+      }
+
+      bool rootSubmissions = conf.get<bool>("root_submissions", false);
+      if (framework->user == "root" && rootSubmissions == false) {
+        LOG(INFO) << framework << " registering as root, but "
+                  << "root submissions are disabled on this cluster";
+        send(framework->pid, pack<M2F_ERROR>(
+              1, "Root is not allowed to submit jobs on this cluster"));
         delete framework;
         break;
       }

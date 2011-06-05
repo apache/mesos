@@ -278,18 +278,18 @@ string Configurator::getUsage() const
 
   // construct string for the first column and get size of column
   foreachpair (const string& key, const Option& opt, options) {
-    string val = "  --" + key;
-    if (!opt.validator->isBool())
-      val += "=VAL";
+    string val;
+    if (opt.validator->isBool())
+      val = "  --[no-]" + key;
+    else
+      val = "  --" + key + "=VAL";
 
     if (opt.hasShortName) {
       if (opt.validator->isBool()) 
-        val += string(" (or -") + opt.shortName + " or -no-" + 
-          opt.shortName + ")";
+        val += string(" (or -[no-]") + opt.shortName + ")";
       else
         val += string(" (or -") + opt.shortName + " VAL)";
-    } else if (opt.validator->isBool())
-      val += " (--no-" + key + ")";
+    }
     
     col1[key] = val;
     maxLen = val.size() > maxLen ? val.size() : maxLen;
