@@ -4,7 +4,7 @@ cd /root/mesos-ec2
 MASTERS=`cat masters`
 SLAVES=`cat slaves`
 
-SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
 
 for slave in $SLAVES; do
   echo "Stopping slave on $slave"
