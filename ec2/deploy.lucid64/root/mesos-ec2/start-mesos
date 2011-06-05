@@ -4,7 +4,6 @@ cd /root/mesos-ec2
 MASTERS="`cat masters`"
 ACTIVE_MASTER="`cat masters | head -1`"
 SLAVES="`cat slaves`"
-ZOO1="`cat zoo | head -1`"
 ZOO="`cat zoo`"
 
 ISFT="`cat zoo | wc -l`"
@@ -36,12 +35,12 @@ if [[ $ISFT != 0 ]]; then
   masterid=1
   for master in $MASTERS; do
     echo "Starting master $masterid on $master"
-    ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 -u $master_arg </dev/null >/dev/null"
+    ssh $SSH_OPTS $master "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 -u $master_arg $@ </dev/null >/dev/null"
     masterid=$(($masterid+1))
   done
 else
   echo "Starting master on $ACTIVE_MASTER"
-  ssh $SSH_OPTS $ACTIVE_MASTER "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 </dev/null >/dev/null"
+  ssh $SSH_OPTS $ACTIVE_MASTER "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 $@ </dev/null >/dev/null"
 fi
 
 COUNT=''
