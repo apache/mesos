@@ -80,7 +80,6 @@ int main (int argc, char **argv)
     LOG(INFO) << "Nexus in fault-tolerant mode";
   PID master = Process::spawn(new Master(allocator, zooarg));
 
-#undef NEXUS_WEBUI
 #ifdef NEXUS_WEBUI
   startMasterWebUI(master);
 #endif
