@@ -76,7 +76,7 @@ void MasterDetector::process(ZooKeeper *zk, int type, int state,
 	      zk->error(ret), servers.c_str());
 
       if (contend) {
-	// We use the contend with the pid given in constructor.
+	// We contend with the pid given in constructor.
 	ret = zk->create(znode + "/", pid, ZOO_CREATOR_ALL_ACL,
 			 ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
 
@@ -96,22 +96,30 @@ void MasterDetector::process(ZooKeeper *zk, int type, int state,
       // Now determine who the master is (it may be us).
       detectMaster();
     } else {
-      // Reconnected. Make sure our ephemeral sequence znode is still there.
-      ret = zk->get(znode + "/" + mySeq, false, &result, NULL);
+      // Reconnected.
+      if (contend) {
+	// Contending for master, confirm our ephemeral sequence znode exists.
+	ret = zk->get(znode + "/" + mySeq, false, &result, NULL);
 
-      // We might no longer be the master! Commit suicide for now
-      // (hoping another master is on standbye), but in the future
-      // it would be nice if we could go back on standbye.
-      if (ret == ZNONODE)
-	fatal("failed to reconnect to ZooKeeper quickly enough "
-	      "(our ephemeral sequence znode is gone), commiting suicide!");
+	// We might no longer be the master! Commit suicide for now
+	// (hoping another master is on standbye), but in the future
+	// it would be nice if we could go back on standbye.
+	if (ret == ZNONODE)
+	  fatal("failed to reconnect to ZooKeeper quickly enough "
+		"(our ephemeral sequence znode is gone), commiting suicide!");
 
-      if (ret != ZOK)
-	fatal("ZooKeeper not responding correctly (%s). "
-	      "Make sure ZooKeeper is running on: %s",
-	      zk->error(ret), servers.c_str());
+	if (ret != ZOK)
+	  fatal("ZooKeeper not responding correctly (%s). "
+		"Make sure ZooKeeper is running on: %s",
+		zk->error(ret), servers.c_str());
 
-      // We are still the master!
+	// We are still the master!
+	LOG(INFO) << "Reconnected to Zookeeper, still acting as master.";
+      } else {
+	// Reconnected, but maybe the master changed?
+	detectMaster();
+      }
+
       reconnect = false;
     }
   } else if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_CHILD_EVENT)) {
