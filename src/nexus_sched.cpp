@@ -1,7 +1,3 @@
-#ifdef __APPLE__
-#define _XOPEN_SOURCE
-#endif /* __APPLE__ */
-
 #include <dlfcn.h>
 #include <errno.h>
 #include <pwd.h>

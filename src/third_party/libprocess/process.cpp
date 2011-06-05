@@ -17,10 +17,6 @@
    would probably be faster, and have less contention for the mutex
    (that might mean we can eliminate contention for the mutex!). */
 
-#ifdef __APPLE__
-#define _XOPEN_SOURCE
-#endif /* __APPLE__ */
-
 #include <assert.h>
 #include <errno.h>
 #include <ev.h>
