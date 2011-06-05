@@ -68,14 +68,15 @@ PID launch(int numSlaves, int32_t cpus, int64_t mem,
 void shutdown()
 {
   Process::post(master->getPID(), M2M_SHUTDOWN);
-
   Process::wait(master->getPID());
   delete master;
   master = NULL;
 
   for (int i = 0; i < slaves->size(); i++) {
-    Process::wait(slaves->at(i));
-    delete slaves->at(i);
+    Slave *slave = slaves->at(i);
+    Process::post(slave->getPID(), S2S_SHUTDOWN);
+    Process::wait(slave);
+    delete slave;
   }
 
   delete slaves;

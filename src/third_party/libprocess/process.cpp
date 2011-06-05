@@ -182,7 +182,7 @@ static pthread_mutex_t timers_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif /* USE_LITHE */
 
 /* Map of process timers (we exploit that the map is SORTED!). */
-typedef tuple<double, Process *, int> timeout_t;
+typedef tuple<ev_tstamp, Process *, int> timeout_t;
 typedef list<timeout_t> timeouts_t;
 static map<ev_tstamp, timeouts_t> *timers =
   new map<ev_tstamp, timeouts_t>();
@@ -256,17 +256,52 @@ static MessageFilter *filterer = NULL;
 /* Filtering mutex. */
 static pthread_mutex_t filter_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-/* Tick, tock ... */
-class InternalProcessClock : public ProcessClock
+/* Tick, tock ... manually controlled clock! */
+class InternalProcessClock
 {
 public:
-  map<Process *, double> elapsed;
-  double current;
+  InternalProcessClock() : current(ev_time()) {}
 
-  InternalProcessClock();
-  ~InternalProcessClock();
+  ~InternalProcessClock() {}
 
-  virtual void advance(double secs);
+  ev_tstamp getElapsed(Process *process, bool init = true)
+  {
+    ev_tstamp tstamp = 0;
+
+    if (elapsed.count(process) != 0) {
+      tstamp = elapsed[process];
+    } else {
+      if (init)
+        tstamp = elapsed[process] = current;
+    }
+
+    return tstamp;
+  }
+
+  void setElapsed(Process *process, ev_tstamp tstamp)
+  {
+    elapsed[process] = tstamp;
+  }
+
+  ev_tstamp getCurrent()
+  {
+    return current;
+  }
+
+  void setCurrent(ev_tstamp tstamp)
+  {
+    current = tstamp;
+  }
+
+  void discard(Process *process)
+  {
+    assert(process != NULL);
+    elapsed.erase(process);
+  }
+
+private:
+  map<Process *, ev_tstamp> elapsed;
+  ev_tstamp current;
 };
 
 static InternalProcessClock *clk = NULL;
@@ -283,6 +318,8 @@ struct read_ctx {
   struct msg *msg;
 };
 
+
+static void initialize();
 
 void handle_await(struct ev_loop *loop, ev_io *w, int revents);
 
@@ -388,6 +425,60 @@ bool operator == (const PID& left, const PID& right)
   return (left.pipe == right.pipe &&
 	  left.ip == right.ip &&
 	  left.port == right.port);
+}
+
+
+void ProcessClock::pause()
+{
+  initialize();
+
+  acquire(timers);
+  {
+    // For now, only one global clock (rather than clock per
+    // process). This Means that we have to take special care to
+    // ensure happens-before timing (currently done for local message
+    // sends and spawning new processes, not currently done for
+    // PROCESS_EXIT messages).
+    if (clk == NULL) {
+      clk = new InternalProcessClock();
+
+      // The existing libev timer might actually timeout, but now that
+      // clk != NULL, no "time" will actually have passed, so no
+      // timeouts will actually occur.
+    }
+  }
+  release(timers);
+}
+
+
+void ProcessClock::resume()
+{
+  initialize();
+
+  acquire(timers);
+  {
+    if (clk != NULL) {
+      delete clk;
+      clk = NULL;
+    }
+
+    update_timer = true;
+    ev_async_send(loop, &async_watcher);
+  }
+  release(timers);
+}
+
+
+void ProcessClock::advance(double secs)
+{
+  acquire(timers);
+  {
+    clk->setCurrent(clk->getCurrent() + secs);
+
+    update_timer = true;
+    ev_async_send(loop, &async_watcher);
+  }
+  release(timers);
 }
 
 
@@ -1109,15 +1200,6 @@ public:
     /* TODO(benh): Assert that we are on the transition stack. */
 #endif /* USE_LITHE */
 
-    /* Remove from internal clock (if necessary). */
-    acquire(timers);
-    {
-      if (clk != NULL) {
-	clk->elapsed.erase(process);
-      }
-    }
-    release(timers);
-
     /* Inform link manager. */
     LinkManager::instance()->exited(process);
 
@@ -1130,6 +1212,14 @@ public:
     /* Remove process. */
     acquire(processes);
     {
+      /* Remove from internal clock (if necessary). */
+      acquire(timers);
+      {
+        if (clk != NULL)
+          clk->discard(process);
+      }
+      release(timers);
+
       process->lock();
       {
 	/* Free any pending messages. */
@@ -1815,7 +1905,7 @@ public:
     acquire(timers);
     {
       if (clk != NULL) {
-	tstamp = clk->elapsed[process] + secs;
+        tstamp = clk->getElapsed(process) + secs;
       } else {
 	// TODO(benh): Unclear if want ev_now(...) or ev_time().
 	tstamp = ev_time() + secs;
@@ -1909,7 +1999,7 @@ public:
     return process;
   }
 
-  void deliver(struct msg *msg)
+  void deliver(struct msg *msg, Process *sender = NULL)
   {
     assert(msg != NULL);
     assert(!replaying);
@@ -1925,11 +2015,34 @@ public:
 
     acquire(processes);
     {
-      map<uint32_t, Process *>::iterator it = processes.find(msg->to.pipe);
-      if (it != processes.end())
-	it->second->enqueue(msg);
-      else
+      Process *receiver = NULL;
+
+      if (processes.count(msg->to.pipe) != 0)
+        receiver = processes[msg->to.pipe];
+
+      if (receiver != NULL) {
+        // If sender is local, preserve happens-before timing.
+        if (sender != NULL) {
+          // Current expectation is when this function gets called by a
+          // sender the underlying local process is actually running!
+          assert(pthread_self() == proc_thread && proc_process == sender);
+
+          acquire(timers);
+          {
+            if (clk != NULL)
+              // Set receiver elapsed time based on sender time,
+              // unless receiver is actually ahead of sender.
+              clk->setElapsed(receiver, max(clk->getElapsed(receiver),
+                                            clk->getElapsed(sender, false)));
+          }
+          release(timers);
+        }
+
+        // Don't forget to actually do the enqueue!
+	receiver->enqueue(msg);
+      } else {
 	free(msg);
+      }
     }
     release(processes);
   }
@@ -1960,7 +2073,7 @@ static void handle_async(struct ev_loop *loop, ev_async *w, int revents)
 	// Determine the current time.
 	ev_tstamp current_tstamp;
 	if (clk != NULL) {
-	  current_tstamp = clk->current;
+	  current_tstamp = clk->getCurrent();
 	} else {
 	  // TODO(benh): Unclear if want ev_now(...) or ev_time().
 	  current_tstamp = ev_time();
@@ -2349,7 +2462,7 @@ void handle_timeout(struct ev_loop *loop, ev_timer *w, int revents)
     ev_tstamp current_tstamp;
 
     if (clk != NULL) {
-      current_tstamp = clk->current;
+      current_tstamp = clk->getCurrent();
     } else {
       // TODO(benh): Unclear if want ev_now(...) or ev_time().
       current_tstamp = ev_time();
@@ -2370,10 +2483,11 @@ void handle_timeout(struct ev_loop *loop, ev_timer *w, int revents)
       const list<timeout_t> &timeouts = it->second;
       foreach (const timeout_t &timeout, timeouts) {
 	if (clk != NULL) {
-	  // N.B. There should not be more than one timeout per process!
+	  ev_tstamp elapsed = timeout.get<0>();
 	  Process *process = timeout.get<1>();
-	  double elapsed = timeout.get<0>();
-	  clk->elapsed[process] += elapsed;
+          // Current elapsed time may be greater than timeout if a
+          // local message is received (and happens-before kicks in).
+          clk->setElapsed(process, max(clk->getElapsed(process), elapsed));
 	}
 	// TODO(benh): Ensure deterministic order for testing?
 	timedout.push_back(timeout);
@@ -2965,6 +3079,21 @@ Process::Process()
 
   pid.ip = ip;
   pid.port = port;
+
+  acquire(timers);
+  {
+    if (clk != NULL) {
+      clk->setElapsed(this, clk->getCurrent());
+
+      // Set new elapsed time of process using happens before
+      // relationship between spawner and spawnee!
+      if (pthread_self() == proc_thread) {
+        assert(proc_process != NULL);
+        clk->setElapsed(this, clk->getElapsed(proc_process));
+      }
+    }
+  }
+  release(timers);
 }
 
 
@@ -3120,7 +3249,7 @@ void Process::send(const PID &to, MSGID id, const char *data, size_t length)
 
   if (to.ip == ip && to.port == port)
     /* Local message. */
-    ProcessManager::instance()->deliver(msg);
+    ProcessManager::instance()->deliver(msg, this);
   else
     /* Remote message. */
     LinkManager::instance()->send(msg);
@@ -3183,31 +3312,6 @@ MSGID Process::receive(double secs)
 
   if (recording)
     ProcessManager::instance()->record(current);
-
-  // Make sure elapsed timing is correct (i.e., preserve
-  // happens-before relationship).
-  acquire(timers);
-  {
-    if (clk != NULL) {
-      // Only do this if there is time that could be elapsed. Note
-      // that across different nodes (e.g., machines) we don't have
-      // elapsed timing info, so anyone trying to control the clock on
-      // two different nodes might get an unpleasent surprise if they
-      // are expecting some timing based happens-before relationship.
-      if (clk->elapsed[this] < clk->current &&
-	  current->from.ip == ip &&
-	  current->from.port == port) {
-	// Lookup the process (might die before we start looking).
-	Process *process = ProcessManager::instance()->lookup(current->from);
-
-	// Set new elapsed time (if the process isn't dead).
-	if (process != NULL) {
-	  clk->elapsed[this] = max(clk->elapsed[this], clk->elapsed[process]);
-	}
-      }
-    }
-  }
-  release(timers);
 
   return current->id;
 
@@ -3322,8 +3426,29 @@ bool Process::ready(int fd, int op)
 }
 
 
+double Process::elapsed()
+{
+  double now = 0;
+
+  acquire(timers);
+  {
+    if (clk != NULL) {
+      now = clk->getElapsed(this);
+    } else {
+      // TODO(benh): Unclear if want ev_now(...) or ev_time().
+      now = ev_time();
+    }
+  }
+  release(timers);
+
+  return now;
+}
+
+
 void Process::post(const PID &to, MSGID id, const char *data, size_t length)
 {
+  initialize();
+
   if (replaying)
     return;
 
@@ -3367,6 +3492,8 @@ void Process::post(const PID &to, MSGID id, const char *data, size_t length)
 
 PID Process::spawn(Process *process)
 {
+  initialize();
+
   if (process != NULL) {
     ProcessManager::instance()->spawn(process);
 #ifdef USE_LITHE
@@ -3382,6 +3509,8 @@ PID Process::spawn(Process *process)
 
 bool Process::wait(PID pid)
 {
+  initialize();
+
   /*
    * N.B. This could result in a deadlock! We could check if such was
    * the case by doing:
@@ -3411,6 +3540,7 @@ bool Process::wait(Process *process)
 
 void Process::invoke(const std::tr1::function<void (void)> &thunk)
 {
+  initialize();
   legacy_thunk = &thunk;
   legacy = true;
   assert(proc_process != NULL);
@@ -3419,94 +3549,14 @@ void Process::invoke(const std::tr1::function<void (void)> &thunk)
 }
 
 
-double Process::elapsed()
-{
-  double now = 0;
-
-  acquire(timers);
-  {
-    if (clk != NULL) {
-      now = clk->elapsed[this];
-    } else {
-      // TODO(benh): Unclear if want ev_now(...) or ev_time().
-      now = ev_time();
-    }
-  }
-  release(timers);
-
-  return now;
-}
-
-
-ProcessClock * Process::clock()
+void Process::filter(MessageFilter *filter)
 {
   initialize();
 
-  // Update current timers to use a manually controlled clock.
-  acquire(timers);
-  {
-    // For now, only one global clock (rather than clock per process).
-    if (clk != NULL) {
-      release(timers);
-      return clk;
-    }
-
-    clk = new InternalProcessClock();
-
-    // The map is sorted, so updating it in place is a little
-    // tricky. For now we'll be lazy create a new map with the
-    // timeouts relative to the clock time and swap them below.
-    map<ev_tstamp, timeouts_t> *relative_timers =
-      new map<ev_tstamp, timeouts_t>();
-
-    foreachpair (const ev_tstamp &tstamp, const timeouts_t &timeouts, *timers) {
-      foreach (const timeout_t &timeout, timeouts) {
-	// TODO(benh): Do we want to consider only adding the remaining time?
-	ev_tstamp relative_tstamp = clk->current + timeout.get<0>();
-	(*relative_timers)[relative_tstamp].push_back(timeout);
-      }
-    }
-
-    // Update to use the warped timers.
-    delete timers;
-    timers = relative_timers;
-
-    // TODO(benh): Update the libev timer (can this ever be bad?).
-    update_timer = true;
-    ev_async_send(loop, &async_watcher);
-  }
-  release(timers);
-
-  return clk;
-}
-
-
-void Process::filter(MessageFilter *filter)
-{
   acquire(filter);
   {
     filterer = filter;
     filtering = filter != NULL;
   }
   release(filter);
-}
-
-
-InternalProcessClock::InternalProcessClock() : current(0) {}
-
-
-InternalProcessClock::~InternalProcessClock() {}
-
-
-void InternalProcessClock::advance(double secs)
-{
-  acquire(timers);
-  {
-    current += secs;
-
-    // TODO(benh): Update the libev timer (can this ever be bad?).
-    update_timer = true;
-    ev_async_send(loop, &async_watcher);
-  }
-  release(timers);
 }

@@ -55,7 +55,9 @@ struct msg
 
 class ProcessClock {
 public:
-  virtual void advance(double secs) = 0;
+  static void pause();
+  static void resume();
+  static void advance(double secs);
 };
 
 class MessageFilter {
@@ -242,9 +244,6 @@ public:
 
   /* Invoke the thunk in a legacy safe way. */
   static void invoke(const std::tr1::function<void (void)> &thunk);
-
-  /* Manually control time using the returned clock. */
-  static ProcessClock * clock();
 
   /* Filter messages to be enqueued (except for timeout messages). */
   static void filter(MessageFilter *);

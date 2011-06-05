@@ -421,11 +421,26 @@ TEST(MasterTest, SchedulerFailover)
 }
 
 
-/***************************************************************
- *                                                             *
- * ALL TESTS BELOW HERE MANUALLY CONTROL THE LIBPROCESS CLOCK! *
- *                                                             *
- ***************************************************************/
+class SlavePartitionedScheduler : public Scheduler
+{
+public:
+  bool slaveLostCalled;
+  
+  SlavePartitionedScheduler()
+    : slaveLostCalled(false) {}
+
+  virtual ~SlavePartitionedScheduler() {}
+
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
+    return ExecutorInfo("noexecutor", "");
+  }
+
+  void slaveLost(SchedulerDriver* d, SlaveID slaveId) {
+    slaveLostCalled = true;
+    d->stop();
+  }
+};
+
 
 class HeartbeatMessageFilter : public MessageFilter
 {
@@ -440,17 +455,11 @@ TEST(MasterTest, SlavePartitioned)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  ProcessClock *clock = Process::clock();
+  ProcessClock::pause();
 
-  Master m;
-  PID master = Process::spawn(&m);
+  PID master = local::launch(1, 2, 1 * Gigabyte, false, false);
 
-  Slave s(Resources(2, 1 * Gigabyte), true);
-  PID slave = Process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
-
-  SlaveLostScheduler sched(slave);
+  SlavePartitionedScheduler sched;
   NexusSchedulerDriver driver(&sched, master);
 
   driver.start();
@@ -458,19 +467,15 @@ TEST(MasterTest, SlavePartitioned)
   HeartbeatMessageFilter filter;
   Process::filter(&filter);
 
-  clock->advance(master::HEARTBEAT_TIMEOUT);
+  ProcessClock::advance(master::HEARTBEAT_TIMEOUT);
 
   driver.join();
 
   EXPECT_TRUE(sched.slaveLostCalled);
 
-  // Explicitely shut down the slave to avoid slave output from
-  // commiting suicide when the master gets killed.
-  Process::post(slave, S2S_SHUTDOWN);
-  Process::wait(slave);
-
-  Process::post(master, M2M_SHUTDOWN);
-  Process::wait(master);
+  local::shutdown();
 
   Process::filter(NULL);
+
+  ProcessClock::resume();
 }
