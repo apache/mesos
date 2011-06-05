@@ -229,7 +229,6 @@ protected:
         TaskID tid;
         TaskState state;
         string data;
-
         tie(tid, state, data) = unpack<M2F_STATUS_UPDATE>(body());
 
         if (duplicate()) {
