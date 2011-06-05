@@ -44,6 +44,22 @@ static MasterDetector *detector = NULL;
 PID launch(int numSlaves, int32_t cpus, int64_t mem,
 	   bool initLogging, bool quiet)
 {
+  Params conf;
+  conf.set("slaves", numSlaves);
+  conf.set("cpus", cpus);
+  conf.set("mem", mem);
+  conf.set("quiet", quiet);
+  return launch(conf, initLogging);
+}
+
+
+PID launch(const Params& conf, bool initLogging)
+{
+  int numSlaves = conf.get<int>("slaves", 1);
+  int32_t cpus = conf.get<int32_t>("cpus", 1);
+  int64_t mem = conf.get<int64_t>("mem", 1 * Gigabyte);
+  bool quiet = conf.get<bool>("quiet", false);
+
   if (master != NULL)
     fatal("can only launch one local cluster at a time (for now)");
 
@@ -53,7 +69,6 @@ PID launch(int numSlaves, int32_t cpus, int64_t mem,
       google::SetStderrLogging(google::INFO);
   }
 
-  Params conf;
   master = new Master(conf);
 
   PID pid = Process::spawn(master);

@@ -202,7 +202,7 @@ public:
    * <i>Environment:</i><br>
    * Parses the environment variables and populates a Params.
    * It picks all environment variables that start with MESOS_.
-   * The environment variable MESOS_HOME=/dir would lead to key=HOME val=/dir<br>
+   * The environment var MESOS_HOME=/dir would lead to key=HOME val=/dir<br>
    * <i>Command line:</i><br>
    * It extracts four type of command line parameters:
    * "--key=val", "-key val", "--key", "-key". The two last cases will
@@ -215,8 +215,9 @@ public:
    * @param argv is an array of c-strings containing params
    * @param inferMesosHomeFromArg0 whether to set mesos home to directory
    *                               containing argv[0] (the program being run)
+   * @return the loaded Params object
    **/
-  void load(int argc, char** argv, bool inferMesosHomeFromArg0=false);
+  Params& load(int argc, char** argv, bool inferMesosHomeFromArg0=false);
 
 
   /**
@@ -225,12 +226,14 @@ public:
    * <i>Environment:</i><br>
    * Parses the environment variables and populates a Params.
    * It picks all environment variables that start with MESOS_.
-   * The environment variable MESOS_HOME=/dir would lead to key=HOME val=/dir <br>
+   * The environment var MESOS_HOME=/dir would lead to key=home val=/dir <br>
    * <i>Config file:</i><br>
    * The config file should contain key=value pairs, one per line.
    * Comments, which should start with #, are ignored.
+   *
+   * @return the loaded Params object
    **/
-  void load();
+  Params& load();
 
 
   /** 
@@ -239,7 +242,7 @@ public:
    * <i>Environment:</i><br>
    * Parses the environment variables and populates a Params.
    * It picks all environment variables that start with MESOS_.
-   * The environment variable MESOS_HOME=/dir would lead to key=HOME val=/dir <br>
+   * The environment var MESOS_HOME=/dir would lead to key=HOME val=/dir <br>
    * <i>Map:</i><br>
    * Containing a string to string map. <br>
    * <i>Config file:</i><br>
@@ -247,8 +250,9 @@ public:
    * Comments, which should start with #, are ignored.
    *
    * @param _params map containing key value pairs to be loaded
+   * @return the loaded Params object
    **/
-  void load(const map<string, string>& _params);
+  Params& load(const map<string, string>& _params);
 
 private:
   /**

@@ -6,10 +6,14 @@
 #include "master.hpp"
 #include "slave.hpp"
 
+#include "params.hpp"
+
 namespace nexus { namespace internal { namespace local {
 
 PID launch(int numSlaves, int32_t cpus, int64_t mem,
 	   bool initLogging, bool quiet);
+
+PID launch(const Params& conf, bool initLogging);
 
 void shutdown();
 

@@ -75,6 +75,9 @@ Slave::Slave(const Params& _conf, Resources _resources, bool _local,
 
 void Slave::registerOptions(Configurator* conf)
 {
+  conf->addOption<string>("work_dir",
+                          "Where to place framework work directories\n"
+                          "(default: MESOS_HOME/work)");
 }
 
 
@@ -488,9 +491,17 @@ void Slave::executorExited(FrameworkID fid, int status)
 
 
 string Slave::getWorkDirectory(FrameworkID fid) {
-  ostringstream workDir;
-  workDir << "work/slave-" << id << "/framework-" << fid;
-  return workDir.str();
+  string workDir;
+  if (conf.contains("work_dir")) {
+    workDir = conf["work_dir"];
+  } else if (conf.contains("home")) {
+    workDir = conf["home"] + "/work";
+  } else {
+    workDir = "work";
+  }
+  ostringstream fwDir;
+  fwDir << workDir << "/slave-" << id << "/fw-" << fid;
+  return fwDir.str();
 }
 
 

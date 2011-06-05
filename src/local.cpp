@@ -45,8 +45,7 @@ int main (int argc, char **argv)
 
   Params params;
   try {
-    conf.load(argc, argv, true);
-    params = conf.getParams();
+    params = conf.load(argc, argv, true);
   } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
     exit(1);
@@ -57,12 +56,7 @@ int main (int argc, char **argv)
   if (params.contains("port"))
     setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
 
-  int slaves = params.get<int>("slaves", 1);
-  int32_t cpus = params.get<int32_t>("cpus", 1);
-  int64_t mem = params.get<int64_t>("mem", 1 * Gigabyte);
-  bool quiet = Logging::isQuiet(params);
-
-  const PID &master = local::launch(slaves, cpus, mem, false, quiet);
+  const PID &master = local::launch(params, false);
 
   Process::wait(master);
 

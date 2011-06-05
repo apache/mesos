@@ -33,29 +33,32 @@ void Configurator::validate()
 }
 
 
-void Configurator::load(int argc, char** argv, bool inferMesosHomeFromArg0)
+Params& Configurator::load(int argc, char** argv, bool inferMesosHomeFromArg0)
 {
   loadEnv();
   loadCommandLine(argc, argv, inferMesosHomeFromArg0);
   loadConfigFileIfGiven();
   validate();
+  return params;
 }
 
 
-void Configurator::load()
+Params& Configurator::load()
 {
   loadEnv();
   loadConfigFileIfGiven();
   validate();
+  return params;
 }
 
 
-void Configurator::load(const map<string, string>& _params) 
+Params& Configurator::load(const map<string, string>& _params) 
 {
   loadEnv();
   params.loadMap(_params);
   loadConfigFileIfGiven();
   validate();
+  return params;
 }
 
 

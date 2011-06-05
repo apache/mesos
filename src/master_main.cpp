@@ -45,8 +45,7 @@ int main(int argc, char **argv)
 
   Params params;
   try {
-    conf.load(argc, argv, true);
-    params = conf.getParams();
+    params = conf.load(argc, argv, true);
   } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
     exit(1);

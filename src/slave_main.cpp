@@ -24,6 +24,8 @@ void usage(const char *programName, const Configurator& conf)
        << "  zoo://host1:port1,host2:port2,..." << endl
        << "  zoofile://file where file contains a host:port pair per line"
        << endl
+       << endl
+       << "Supported options:" << endl
        << conf.getUsage();
 }
 
@@ -32,7 +34,7 @@ int main(int argc, char **argv)
 {
   Configurator conf;
   conf.addOption<string>("url", 'u', "Master URL");
-  conf.addOption<int>("port", 'p', "Port to listen on (default: random)");
+  conf.addOption<int>("port", 'p', "Port to bind to (default: random)");
   conf.addOption<string>("isolation", 'i', "Isolation module name", "process");
   conf.addOption<int32_t>("cpus", 'c', "CPU cores to use for tasks", 1);
   conf.addOption<int64_t>("mem", 'm', "Memory to use for tasks, in bytes\n",
@@ -50,8 +52,7 @@ int main(int argc, char **argv)
 
   Params params;
   try {
-    conf.load(argc, argv, true);
-    params = conf.getParams();
+    params = conf.load(argc, argv, true);
   } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
     exit(1);

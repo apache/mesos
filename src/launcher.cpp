@@ -90,7 +90,7 @@ void ExecutorLauncher::createWorkingDirectory()
       dir += "/";
     dir += token;
     if (mkdir(dir.c_str(), 0755) < 0 && errno != EEXIST)
-      fatalerror("mkdir failed");
+      fatalerror("Failed to mkdir %s", dir.c_str());
   }
   // TODO: chown the final directory to the framework's user
 }
