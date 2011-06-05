@@ -898,6 +898,7 @@ int nexus_sched_reg(struct nexus_sched* sched, const char* master)
   } catch (ConfigurationException& e) {
     string message = string("Configuration error: ") + e.what();
     sched->error(sched, 2, message.c_str());
+    errno = EINVAL;
     return -2;
   }
 
@@ -927,6 +928,7 @@ int nexus_sched_reg_with_params(struct nexus_sched* sched, const char* params)
   } catch (ConfigurationException& e) {
     string message = string("Configuration error: ") + e.what();
     sched->error(sched, 2, message.c_str());
+    errno = EINVAL;
     return -2;
   }
 
@@ -957,6 +959,7 @@ int nexus_sched_reg_with_cmdline(struct nexus_sched* sched,
   } catch (ConfigurationException& e) {
     string message = string("Configuration error: ") + e.what();
     sched->error(sched, 2, message.c_str());
+    errno = EINVAL;
     return -2;
   }
 
