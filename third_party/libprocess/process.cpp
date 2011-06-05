@@ -2623,9 +2623,12 @@ void Process::dispatcher(Process *process, function<void (void)> *delegator)
   }
 
   // Encode and deliver outgoing message.
-  Message *message = encode(PID(), process->pid, DISPATCH, 
+  Message *message = encode(PID(), process->pid, DISPATCH,
                             string((char *) &delegator, sizeof(delegator)));
 
-  // TODO(benh): Maintain happens before using proc_process?
-  process_manager->deliver(message);
+  if (proc_process != NULL) {
+    process_manager->deliver(message, proc_process);
+  } else {
+    process_manager->deliver(message);
+  }
 }
