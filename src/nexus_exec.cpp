@@ -1,3 +1,5 @@
+#include <signal.h>
+
 #include <cerrno>
 #include <iostream>
 #include <string>
@@ -97,7 +99,13 @@ protected:
         case PROCESS_EXIT: {
           // TODO: Pass an argument to shutdown to tell it this is abnormal?
           invoke(bind(&Executor::shutdown, executor, driver));
-          exit(1);
+
+	  // This is a pretty bad state ... no slave is left. Rather
+	  // than exit lets kill our process group (which includes
+	  // ourself) hoping to clean up any processes this executor
+	  // launched itself.
+	  // TODO(benh): Maybe do a SIGTERM and then later do a SIGKILL?
+	  killpg(getpid(), SIGKILL);
         }
 
         default: {

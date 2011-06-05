@@ -34,7 +34,7 @@ public:
 
 protected:
   Slave* slave;
-  unordered_map<FrameworkID, pid_t> osPid;
+  unordered_map<FrameworkID, pid_t> pgids;
   Reaper* reaper;
 
 public:

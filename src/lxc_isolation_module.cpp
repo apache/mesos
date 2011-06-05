@@ -191,6 +191,7 @@ void LxcIsolationModule::Reaper::operator () ()
 	    module->container[fid] = "";
 	    module->lxcExecutePid[fid] = -1;
 	    LOG(INFO) << "Telling slave of lost framework " << fid;
+	    // TODO(benh): This is broken if/when libprocess is parallel!
 	    module->slave->executorExited(fid, status);
 	    break;
 	  }
