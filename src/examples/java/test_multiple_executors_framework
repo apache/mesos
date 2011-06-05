@@ -1,0 +1,5 @@
+#!/bin/sh
+FWDIR=`dirname $0`
+cd $FWDIR
+MESOS_HOME=`cd ../../..; pwd`
+exec java -cp .:$MESOS_HOME/third_party/protobuf-2.3.0/java/src/main/java:$MESOS_HOME/lib/java/mesos.jar -Djava.library.path=$MESOS_HOME/lib/java TestMultipleExecutorsFramework $@
