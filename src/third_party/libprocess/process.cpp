@@ -887,6 +887,7 @@ public:
 	    msg->to.port = p->pid.port;
 	    msg->id = PROCESS_EXIT;
 	    msg->len = 0;
+            // TODO(benh): Preserve happens-before when using clock.
 	    p->enqueue(msg);
 	  }
 	}
@@ -2023,10 +2024,6 @@ public:
       if (receiver != NULL) {
         // If sender is local, preserve happens-before timing.
         if (sender != NULL) {
-          // Current expectation is when this function gets called by a
-          // sender the underlying local process is actually running!
-          assert(pthread_self() == proc_thread && proc_process == sender);
-
           acquire(timers);
           {
             if (clk != NULL)
