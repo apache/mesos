@@ -48,6 +48,7 @@
 #include "messages.hpp"
 #include "tuple.hpp"
 #include "foreach.hpp"
+#include <ctime>
 
 
 namespace nexus { namespace internal {
@@ -69,15 +70,17 @@ class EmptyClass {
 struct FTStoredMsg {
 
   FTStoredMsg(const string &_ftId, const string &_data, const MSGID &_id) : 
-    ftId(_ftId), data(_data), id(_id), count(0) {}
+    ftId(_ftId), data(_data), id(_id), count(1), ts(time(0)) {}
 
-  FTStoredMsg() : ftId(""), data(""), id(), count(0) {}
+  FTStoredMsg() : ftId(""), data(""), id(), count(1), ts(time(0)) {}
 
   string ftId;
   string data;
   MSGID id;
   long count;
+  time_t ts;   // not currently used
 };
+
 
 
 /**
@@ -166,8 +169,14 @@ public:
 private:
 
   PID master;
+  
+  class cmpstrs { public: 
+      bool operator()(const string &s1, const string &s2) const { return s1.compare(s2) == -1 ? true : false; } 
+  };
 
-  unordered_map<string, FTStoredMsg> outMsgs;
+  typedef map<string, FTStoredMsg, cmpstrs> OutMsgsMap;
+
+  OutMsgsMap outMsgs;
 
   unordered_map<string, string> inMsgs;
 

@@ -85,6 +85,7 @@ void FTMessaging::sendOutstanding() {
       outMsgs.erase(ftId);
     }
   }
+
 }
 
 // Careful: not idempotent function.
@@ -118,13 +119,15 @@ bool FTMessaging::acceptMessage(string from, string ftId) {
 }
 
 bool FTMessaging::acceptMessageAck(string from, string ftId) {
+  DLOG(INFO) << "FT: Received message with id: " << ftId << " sending FT_RELAY_ACK";
+
   bool res = acceptMessage(from, ftId);
 
-  if (!res)
-    LOG(WARNING) << "FT: asked called to ignore duplicate message " << ftId;
-  
-  DLOG(INFO) << "FT: Received message with id: " << ftId << " sending FT_RELAY_ACK";
-  
+  if (!res) {
+    LOG(WARNING) << "FT: asked caller to ignore duplicate message " << ftId;
+    return res;
+  }  
+
   string msgStr = Tuple<EmptyClass>::tupleToString( Tuple<EmptyClass>::pack<FT_RELAY_ACK>(ftId, from) );
   Process::post(master, FT_RELAY_ACK, msgStr.data(), msgStr.size()); 
 
