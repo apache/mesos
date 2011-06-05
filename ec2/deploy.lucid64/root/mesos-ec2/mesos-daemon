@@ -9,8 +9,8 @@ export MESOS_PUBLIC_DNS=`wget -q -O - http://instance-data.ec2.internal/latest/m
 # Set PATH to include Scala
 export PATH=$PATH:/root/scala-2.8.0.final/bin
 
-# Set HADOOP variable to allow slaves to get executors from HDFS
-export HADOOP=/root/hadoop-0.20.2/bin/hadoop
+# Set HADOOP_HOME variable to allow slaves to get executors from HDFS
+export HADOOP_HOME=/root/hadoop-0.20.2
 
 ulimit -n 8192
 

@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Make sure we are in the mesos-ec2 directory
+cd /root/mesos-ec2
+
 OS_NAME=$1
 DOWNLOAD_METHOD=$2
 BRANCH=$3
@@ -22,13 +26,7 @@ fi
 SCRIPTS="copy-dir
          mesos-daemon
          redeploy-mesos
-         setup-apache
          setup-slave              
-         setup-torque
-         setup-torque-server
-         start-torque-slaves
-         stop-torque-slaves
-         setup-mpi
          ssh-no-keychecking
          start-mesos
          stop-mesos"
