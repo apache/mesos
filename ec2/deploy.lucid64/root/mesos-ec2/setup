@@ -175,7 +175,7 @@ if [[ "$DOWNLOADED" == "1" ]] ; then
   if [ -d /root/spark ] ; then
     echo "Building Spark..."
     pushd /root/spark > /dev/null 2>&1
-    make all native
+    MESOS_HOME=/root/mesos make all native
     popd > /dev/null 2>&1
   fi
   echo "Building Hadoop framework..."
