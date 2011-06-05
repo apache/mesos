@@ -52,12 +52,15 @@ TEST(ConfigurationTest, DefaultOptions)
   
   conf.addOption<int>("excp", "Exception tester.", 50);
   EXPECT_THROW(conf.validate(), BadOptionValueException);
+  conf.getParams()["excp"] = "27";
+  EXPECT_NO_THROW(conf.validate());
 
   EXPECT_EQ("501",    conf.getParams()["test1"]);
   EXPECT_EQ("1",      conf.getParams()["test2"]);
   EXPECT_EQ("2010",   conf.getParams()["test3"]);
   EXPECT_EQ("",       conf.getParams()["test4"]);
   EXPECT_EQ("arb",    conf.getParams()["test5"]);
+  EXPECT_EQ("27",     conf.getParams()["excp"]);
 }
 
 
