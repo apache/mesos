@@ -299,8 +299,12 @@ bool PID::operator ! () const
 
 std::ostream& operator << (std::ostream& stream, const PID& pid)
 {
-  stream << pid.pipe << "@" << inet_ntoa(*((in_addr *) &pid.ip))
-         << ":" << pid.port;
+  /* Call inet_ntop since inet_ntoa is not thread-safe! */
+  char ip[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, (in_addr *) &pid.ip, ip, INET_ADDRSTRLEN) == NULL)
+    memset(ip, 0, INET_ADDRSTRLEN);
+
+  stream << pid.pipe << "@" << ip << ":" << pid.port;
   return stream;
 }
 
