@@ -27,7 +27,7 @@ class MyScheduler(nexus.Scheduler):
   
   def getExecutorInfo(self, driver):
     execPath = os.path.join(os.getcwd(), "start_pbs_mom.sh")
-    initArg = ip # tell executor which node the pbs_server is running on
+    initArg = self.ip # tell executor which node the pbs_server is running on
     print "in getExecutorInfo, setting execPath = " + execPath + " and initArg = " + initArg
     return nexus.ExecutorInfo(execPath, initArg)
 
@@ -87,7 +87,7 @@ class MyScheduler(nexus.Scheduler):
   def unregAllNodes(self):
     for node in self.servers.values():
       print "unregistering node " + str(node)
-      unregComputeNode(node)
+      self.unregComputeNode(node)
       self.servers.pop(node)
   
   def getFrameworkName(self, driver):
@@ -111,10 +111,13 @@ def monitor(sched):
       print "no incomplete jobs in queue, attempting to release all slots"
       if len(sched.servers) == 0:
         print "no servers registered, so no need to call unregAllNodes()"
+        print "monitor thread releasing lock"
+        sched.lock.release()
         continue
       sched.unregAllNodes()
     print ""
     sched.lock.release()
+    print "monitor thread releasing lock"
 
 if __name__ == "__main__":
   parser = OptionParser(usage = "Usage: %prog nexus_master")
@@ -129,13 +132,16 @@ if __name__ == "__main__":
   Popen("qterm", shell=True).wait()
 
   print "starting pbs_server"
-  Popen("/etc/init.d/pbs_server start", shell=True)
+  #Popen("/etc/init.d/pbs_server start", shell=True)
+  Popen("pbs_server", shell=True)
 
   print "starting pbs_scheduler"
-  Popen("/etc/init.d/pbs_sched start", shell=True)
+  #Popen("/etc/init.d/pbs_sched start", shell=True)
+  Popen("pbs_sched", shell=True)
 
-  ip = Popen("hostname -i", shell=True, stdout=PIPE).stdout.readline().rstrip()
-  print "Remembering IP address of scheduler (" + ip + ")"
+  #ip = Popen("hostname -i", shell=True, stdout=PIPE).stdout.readline().rstrip() #linux
+  ip = Popen("ifconfig en1 | awk '/inet / { print $2 }'", shell=True, stdout=PIPE).stdout.readline().rstrip() # os x
+  print "Remembering IP address of scheduler (" + ip + "), type: " + str(type(ip))
 
   print "Connecting to nexus master %s" % args[0]
 

@@ -22,11 +22,12 @@ class MyExecutor(nexus.Executor):
   def __init__(self):
     nexus.Executor.__init__(self)
 
-  def init(self, arg):
+  def init(self, driver, arg):
     print "in torque executor init"
+    print "initializing self.pbs_server_ip to " + str(arg.data)
     self.pbs_server_ip = arg.data
 
-  def startTask(self, task):
+  def launchTask(self, driver, task):
     print "Running task %d" % task.taskId
     
     print "checking pbs_mom conf file " + PBS_MOM_CONF_FILE + " is it a file? "\
@@ -36,10 +37,10 @@ class MyExecutor(nexus.Executor):
     if not os.path.isfile(PBS_MOM_CONF_FILE):
       print PBS_MOM_CONF_FILE + " file not found, about to create it"
     else:
-      print "about to overwrite file " + PBS_MOM_CONF_FILE + " to update "\
-            "pbs_server on this node"
+      print "about to overwrite file " + PBS_MOM_CONF_FILE + " to update "#\
+#            + "pbs_server on this node"
 
-    print "adding line to conf file: $pbsserver " + self.pbs_server_ip + "\n"
+    print "adding line to conf file: $pbsserver " #+ self.pbs_server_ip + "\n"
     FILE = open(PBS_MOM_CONF_FILE,'w')
     FILE.write("$pbsserver " + self.pbs_server_ip + "\n")
     FILE.write("$logevent 255 #bitmap of which events to log\n")
@@ -59,18 +60,18 @@ class MyExecutor(nexus.Executor):
     print "running pbs_mom on compute node"
     Popen("pbs_mom", shell=True)
 
-  def killTask(self, tid):
+  def killTask(self, driver, tid):
     sys.exit(1)
 
-  def shutdown(self):
+  def shutdown(self, driver):
     print "shutdown"
     cleanup()
 
-  def error(self, code, message):
+  def error(self, driver, code, message):
     print "Error: %s" % message
 
 if __name__ == "__main__":
   print "Starting pbs_mom executor"
   atexit.register(cleanup)
   executor = MyExecutor()
-  executor.run()
+  nexus.NexusExecutorDriver(executor).run()
