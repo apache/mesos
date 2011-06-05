@@ -11,14 +11,15 @@ class Promise
 {
 public:
   Promise();
-  Promise(const T &t_);
-  Promise(const Promise<T> &that);
+  Promise(const T& _t);
+  Promise(const Promise<T>& that);
   virtual ~Promise();
-  void set(const T &t_);
-  void associate(const Future<T> &future_);
+  void set(const T& _t);
+  bool ready() const;
+  void associate(const Future<T>& _future);
 
 private:
-  void operator = (const Promise<T> &);
+  void operator = (const Promise<T>&);
 
   enum State {
     UNSET_UNASSOCIATED,
@@ -27,10 +28,10 @@ private:
     SET_ASSOCIATED,
   };
 
-  int *refs;
-  T **t;
-  Future<T> **future;
-  State *state;
+  int* refs;
+  T** t;
+  Future<T>** future;
+  State* state;
 };
 
 
@@ -47,22 +48,22 @@ Promise<T>::Promise()
 {
   refs = new int;
   *refs = 1;
-  t = new T *;
+  t = new T*;
   *t = NULL;
-  future = new Future<T> *;
+  future = new Future<T>*;
   *future = NULL;
   state = new State;
   *state = UNSET_UNASSOCIATED;
 }
 
 template <typename T>
-Promise<T>::Promise(const T &_t)
+Promise<T>::Promise(const T& _t)
 {
   refs = new int;
   *refs = 1;
-  t = new T *;
+  t = new T*;
   *t = new T(_t);
-  future = new Future<T> *;
+  future = new Future<T>*;
   *future = NULL;
   state = new State;
   *state = SET_UNASSOCIATED;
@@ -70,7 +71,7 @@ Promise<T>::Promise(const T &_t)
 
 
 template <typename T>
-Promise<T>::Promise(const Promise<T> &that)
+Promise<T>::Promise(const Promise<T>& that)
 {
   assert(that.refs != NULL);
   assert(*that.refs > 0);
@@ -101,7 +102,7 @@ Promise<T>::~Promise()
 
 
 template <typename T>
-void Promise<T>::set(const T &t_)
+void Promise<T>::set(const T& _t)
 {
   assert(state != NULL);
   assert(*state == UNSET_UNASSOCIATED ||
@@ -116,12 +117,12 @@ void Promise<T>::set(const T &t_)
       (*future)->set(**t);
     } else {
       // Save the value for association later.
-      *t = new T(t_);
+      *t = new T(_t);
     }
   } else if (*state == UNSET_ASSOCIATED) {
     assert(future != NULL && *future != NULL);
     // Directly set the value in the future.
-    (*future)->set(t_);
+    (*future)->set(_t);
     __sync_bool_compare_and_swap(state, UNSET_ASSOCIATED, SET_ASSOCIATED);
   } else {
     assert(*state == SET_ASSOCIATED);
@@ -133,13 +134,21 @@ void Promise<T>::set(const T &t_)
 
 
 template <typename T>
-void Promise<T>::associate(const Future<T> &future_)
+bool Promise<T>::ready() const
+{
+  assert(state != NULL);
+  return *state == SET_UNASSOCIATED || *state == SET_ASSOCIATED;
+}
+
+
+template <typename T>
+void Promise<T>::associate(const Future<T>& _future)
 {
   assert(state != NULL);
   assert(*state == UNSET_UNASSOCIATED ||
          *state == SET_UNASSOCIATED);
   assert(future != NULL);
-  *future = new Future<T>(future_);
+  *future = new Future<T>(_future);
   if (*state == UNSET_UNASSOCIATED) {
     if (!__sync_bool_compare_and_swap(state, UNSET_UNASSOCIATED,
                                       UNSET_ASSOCIATED)) {

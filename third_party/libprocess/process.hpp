@@ -123,7 +123,7 @@ protected:
   }
 
 private:
-  friend class LinkManager;
+  friend class SocketManager;
   friend class ProcessManager;
   friend class ProcessReference;
   friend void* schedule(void *);
@@ -199,7 +199,7 @@ public:
 protected:
   virtual void operator () ()
   {
-    while (true) serve();
+    do { serve(); if (name() == TERMINATE) break; } while (true);
   }
 };
 
@@ -207,9 +207,9 @@ protected:
 /**
  * Initialize the library.
  *
- * @param initGoogleLogging whether or not to initialize the Google
- *        Logging library (glog). If the application is also using
- *        glog, this should be set to false.
+ * @param initialize_google_logging whether or not to initialize the
+ *        Google Logging library (glog). If the application is also
+ *        using glog, this should be set to false.
  */
 void initialize(bool initialize_google_logging = true);
 
@@ -236,6 +236,16 @@ PID<T> spawn(T* t)
  * @param PID id of the process
  */
 bool wait(const UPID& pid);
+
+
+/**
+ * Wait for process to exit no more than specified seconds (returns
+ * true if actually waited on a process).
+ *
+ * @param PID id of the process
+ * @param secs max time to wait
+ */
+bool wait(const UPID& pid, double secs);
 
 
 /**
@@ -266,6 +276,8 @@ void filter(Filter* filter);
 void post(const UPID& to, const std::string& name, const char* data = NULL, size_t length = 0);
 
 
+namespace internal {
+
 template <typename T>
 void vdelegate(ProcessBase* process,
                std::tr1::function<void(T*)>* thunk)
@@ -278,9 +290,9 @@ void vdelegate(ProcessBase* process,
 
 
 template <typename R, typename T>
-void delegate(ProcessBase* process,
-              std::tr1::function<Promise<R>(T*)>* thunk,
-              Future<R>* future)
+void pdelegate(ProcessBase* process,
+               std::tr1::function<Promise<R>(T*)>* thunk,
+               Future<R>* future)
 {
   assert(process != NULL);
   assert(thunk != NULL);
@@ -291,8 +303,24 @@ void delegate(ProcessBase* process,
 }
 
 
+template <typename R, typename T>
+void delegate(ProcessBase* process,
+              std::tr1::function<R(T*)>* thunk,
+              Future<R>* future)
+{
+  assert(process != NULL);
+  assert(thunk != NULL);
+  assert(future != NULL);
+  Promise<R>((*thunk)(static_cast<T*>(process))).associate(*future);
+  delete thunk;
+  delete future;
+}
+
+
 /* Dispatches the delegator to the specified process. */
 void dispatcher(const UPID& pid, std::tr1::function<void(ProcessBase*)>* delegator);
+
+} // namespace internal {
 
 
 /**
@@ -308,11 +336,11 @@ void dispatch(const PID<T>& pid, void (T::*method)())
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1));
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::vdelegate<T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 }
 
 
@@ -328,14 +356,14 @@ void dispatch(const PID<T>& pid, void (T::*method)(P1), A1 a1)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                     a1));
+                                                    a1));
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::vdelegate<T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 }
 
 
@@ -354,14 +382,14 @@ void dispatch(const PID<T>& pid, void (T::*method)(P1, P2), A1 a1, A2 a2)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                     a1, a2));
+                                                    a1, a2));
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::vdelegate<T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 }
 
 
@@ -378,18 +406,18 @@ template <typename T,
           typename P1, typename P2, typename P3,
           typename A1, typename A2, typename A3>
 void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3),
-                       A1 a1, A2 a2, A3 a3)
+              A1 a1, A2 a2, A3 a3)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                     a1, a2, a3));
+                                                    a1, a2, a3));
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::vdelegate<T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 }
 
 
@@ -407,18 +435,18 @@ template <typename T,
           typename P1, typename P2, typename P3, typename P4,
           typename A1, typename A2, typename A3, typename A4>
 void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3, P4),
-                       A1 a1, A2 a2, A3 a3, A4 a4)
+              A1 a1, A2 a2, A3 a3, A4 a4)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                     a1, a2, a3, a4));
+                                                    a1, a2, a3, a4));
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::vdelegate<T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 }
 
 
@@ -437,18 +465,18 @@ template <typename T,
           typename P1, typename P2, typename P3, typename P4, typename P5,
           typename A1, typename A2, typename A3, typename A4, typename A5>
 void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3, P4, P5),
-                       A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
+              A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
 {
   std::tr1::function<void(T*)>* thunk =
     new std::tr1::function<void(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                     a1, a2, a3, a4, a5));
+                                                    a1, a2, a3, a4, a5));
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&vdelegate<T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::vdelegate<T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 }
 
 
@@ -463,17 +491,17 @@ void dispatch(const PID<T>& pid, void (T::*method)(P1, P2, P3, P4, P5),
 template <typename R, typename T>
 Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)())
 {
-  std::tr1::function<Promise<R> (T*)>* thunk =
-    new std::tr1::function<Promise<R> (T*)>(std::tr1::bind(method, std::tr1::placeholders::_1));
+  std::tr1::function<Promise<R>(T*)>* thunk =
+    new std::tr1::function<Promise<R>(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1));
 
   Future<R>* future = new Future<R>();
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::pdelegate<R, T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk, future));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 
   return *future;
 }
@@ -491,18 +519,18 @@ Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)())
 template <typename R, typename T, typename P1, typename A1>
 Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1), A1 a1)
 {
-  std::tr1::function<Promise<R> (T*)>* thunk =
-    new std::tr1::function<Promise<R> (T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                           a1));
+  std::tr1::function<Promise<R>(T*)>* thunk =
+    new std::tr1::function<Promise<R>(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                          a1));
 
   Future<R>* future = new Future<R>();
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::pdelegate<R, T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk, future));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 
   return *future;
 }
@@ -522,20 +550,20 @@ template <typename R, typename T,
           typename P1, typename P2,
           typename A1, typename A2>
 Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2),
-                            A1 a1, A2 a2)
+                   A1 a1, A2 a2)
 {
-  std::tr1::function<Promise<R> (T*)>* thunk =
-    new std::tr1::function<Promise<R> (T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                           a1, a2));
+  std::tr1::function<Promise<R>(T*)>* thunk =
+    new std::tr1::function<Promise<R>(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                          a1, a2));
 
   Future<R>* future = new Future<R>();
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::pdelegate<R, T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk, future));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 
   return *future;
 }
@@ -556,20 +584,20 @@ template <typename R, typename T,
           typename P1, typename P2, typename P3,
           typename A1, typename A2, typename A3>
 Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3),
-                            A1 a1, A2 a2, A3 a3)
+                   A1 a1, A2 a2, A3 a3)
 {
-  std::tr1::function<Promise<R> (T*)>* thunk =
-    new std::tr1::function<Promise<R> (T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                           a1, a2, a3));
+  std::tr1::function<Promise<R>(T*)>* thunk =
+    new std::tr1::function<Promise<R>(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                          a1, a2, a3));
 
   Future<R>* future = new Future<R>();
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::pdelegate<R, T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk, future));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 
   return *future;
 }
@@ -591,20 +619,20 @@ template <typename R, typename T,
           typename P1, typename P2, typename P3, typename P4,
           typename A1, typename A2, typename A3, typename A4>
 Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4),
-                            A1 a1, A2 a2, A3 a3, A4 a4)
+                   A1 a1, A2 a2, A3 a3, A4 a4)
 {
-  std::tr1::function<Promise<R> (T*)>* thunk =
-    new std::tr1::function<Promise<R> (T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                           a1, a2, a3, a4));
+  std::tr1::function<Promise<R>(T*)>* thunk =
+    new std::tr1::function<Promise<R>(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                          a1, a2, a3, a4));
 
   Future<R>* future = new Future<R>();
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::pdelegate<R, T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk, future));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
 
   return *future;
 }
@@ -627,20 +655,212 @@ template <typename R, typename T,
           typename P1, typename P2, typename P3, typename P4, typename P5,
           typename A1, typename A2, typename A3, typename A4, typename A5>
 Future<R> dispatch(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4, P5),
-                            A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
+                   A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
 {
-  std::tr1::function<Promise<R> (T*)>* thunk =
-    new std::tr1::function<Promise<R> (T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
-                                                           a1, a2, a3, a4, a5));
+  std::tr1::function<Promise<R>(T*)>* thunk =
+    new std::tr1::function<Promise<R>(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                          a1, a2, a3, a4, a5));
 
   Future<R>* future = new Future<R>();
 
   std::tr1::function<void(ProcessBase*)>* delegator =
-    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&delegate<R, T>,
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::pdelegate<R, T>,
                                                               std::tr1::placeholders::_1,
                                                               thunk, future));
 
-  dispatcher(pid, delegator);
+  internal::dispatcher(pid, delegator);
+
+  return *future;
+}
+
+
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on receiver
+ */
+template <typename R, typename T>
+Future<R> dispatch(const PID<T>& pid, R (T::*method)())
+{
+  std::tr1::function<R(T*)>* thunk =
+    new std::tr1::function<R(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1));
+
+  Future<R>* future = new Future<R>();
+
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
+
+  internal::dispatcher(pid, delegator);
+
+  return *future;
+}
+
+
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on receiver
+ * @param a1 first argument to pass to method
+ */
+template <typename R, typename T, typename P1, typename A1>
+Future<R> dispatch(const PID<T>& pid, R (T::*method)(P1), A1 a1)
+{
+  std::tr1::function<R(T*)>* thunk =
+    new std::tr1::function<R(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                 a1));
+
+  Future<R>* future = new Future<R>();
+
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
+
+  internal::dispatcher(pid, delegator);
+
+  return *future;
+}
+
+
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @return future corresponding to the result of executing the method
+ */
+template <typename R, typename T,
+          typename P1, typename P2,
+          typename A1, typename A2>
+Future<R> dispatch(const PID<T>& pid, R (T::*method)(P1, P2),
+                   A1 a1, A2 a2)
+{
+  std::tr1::function<R(T*)>* thunk =
+    new std::tr1::function<R(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                 a1, a2));
+
+  Future<R>* future = new Future<R>();
+
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
+
+  internal::dispatcher(pid, delegator);
+
+  return *future;
+}
+
+
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 second argument to pass to method
+ * @return future corresponding to the result of executing the method
+ */
+template <typename R, typename T,
+          typename P1, typename P2, typename P3,
+          typename A1, typename A2, typename A3>
+Future<R> dispatch(const PID<T>& pid, R (T::*method)(P1, P2, P3),
+                   A1 a1, A2 a2, A3 a3)
+{
+  std::tr1::function<R(T*)>* thunk =
+    new std::tr1::function<R(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                 a1, a2, a3));
+
+  Future<R>* future = new Future<R>();
+
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
+
+  internal::dispatcher(pid, delegator);
+
+  return *future;
+}
+
+
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ * @return future corresponding to the result of executing the method
+ */
+template <typename R, typename T,
+          typename P1, typename P2, typename P3, typename P4,
+          typename A1, typename A2, typename A3, typename A4>
+Future<R> dispatch(const PID<T>& pid, R (T::*method)(P1, P2, P3, P4),
+                   A1 a1, A2 a2, A3 a3, A4 a4)
+{
+  std::tr1::function<R(T*)>* thunk =
+    new std::tr1::function<R(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                 a1, a2, a3, a4));
+
+  Future<R>* future = new Future<R>();
+
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
+
+  internal::dispatcher(pid, delegator);
+
+  return *future;
+}
+
+
+/**
+ * Dispatches a method on a process and returns the future that
+ * corresponds to the result of executing the method.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ * @param a5 fifth argument to pass to method
+ * @return future corresponding to the result of executing the method
+ */
+template <typename R, typename T,
+          typename P1, typename P2, typename P3, typename P4, typename P5,
+          typename A1, typename A2, typename A3, typename A4, typename A5>
+Future<R> dispatch(const PID<T>& pid, R (T::*method)(P1, P2, P3, P4, P5),
+                            A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
+{
+  std::tr1::function<R(T*)>* thunk =
+    new std::tr1::function<R(T*)>(std::tr1::bind(method, std::tr1::placeholders::_1,
+                                                 a1, a2, a3, a4, a5));
+
+  Future<R>* future = new Future<R>();
+
+  std::tr1::function<void(ProcessBase*)>* delegator =
+    new std::tr1::function<void(ProcessBase*)>(std::tr1::bind(&internal::delegate<R, T>,
+                                                              std::tr1::placeholders::_1,
+                                                              thunk, future));
+
+  internal::dispatcher(pid, delegator);
 
   return *future;
 }
@@ -756,6 +976,122 @@ template <typename R, typename T,
           typename P1, typename P2, typename P3, typename P4, typename P5,
           typename A1, typename A2, typename A3, typename A4, typename A5>
 R call(const PID<T>& pid, Promise<R> (T::*method)(P1, P2, P3, P4, P5),
+                A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
+{
+  return dispatch(pid, method, a1, a2, a3, a4, a5).get();
+}
+
+
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @return result of executing the method
+ */
+template <typename R, typename T>
+R call(const PID<T>& pid, R (T::*method)())
+{
+  return dispatch(pid, method).get();
+}
+
+
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 argument to pass to method
+ * @return result of executing the method
+ */
+template <typename R, typename T, typename P1, typename A1>
+R call(const PID<T>& pid, R (T::*method)(P1), A1 a1)
+{
+  return dispatch(pid, method, a1).get();
+}
+
+
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @return result of executing the method
+ */
+template <typename R, typename T,
+          typename P1, typename P2,
+          typename A1, typename A2>
+R call(const PID<T>& pid, R (T::*method)(P1, P2), A1 a1, A2 a2)
+{
+  return dispatch(pid, method, a1, a2).get();
+}
+
+
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 second argument to pass to method
+ * @return result of executing the method
+ */
+template <typename R, typename T,
+          typename P1, typename P2, typename P3,
+          typename A1, typename A2, typename A3>
+R call(const PID<T>& pid, R (T::*method)(P1, P2, P3),
+                A1 a1, A2 a2, A3 a3)
+{
+  return dispatch(pid, method, a1, a2, a3).get();
+}
+
+
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ * @return result of executing the method
+ */
+template <typename R, typename T,
+          typename P1, typename P2, typename P3, typename P4,
+          typename A1, typename A2, typename A3, typename A4>
+R call(const PID<T>& pid, R (T::*method)(P1, P2, P3, P4),
+                A1 a1, A2 a2, A3 a3, A4 a4)
+{
+  return dispatch(pid, method, a1, a2, a3, a4).get();
+}
+
+
+/**
+ * Dispatches a method on a process and waits (on the underlying
+ * future) for the result.
+ *
+ * @param pid receiver of message
+ * @param method method to invoke on instance
+ * @param a1 first argument to pass to method
+ * @param a2 second argument to pass to method
+ * @param a3 third argument to pass to method
+ * @param a4 fourth argument to pass to method
+ * @param a5 fifth argument to pass to method
+ * @return result of executing the method
+ */
+template <typename R, typename T,
+          typename P1, typename P2, typename P3, typename P4, typename P5,
+          typename A1, typename A2, typename A3, typename A4, typename A5>
+R call(const PID<T>& pid, R (T::*method)(P1, P2, P3, P4, P5),
                 A1 a1, A2 a2, A3 a3, A4 a4, A5 a5)
 {
   return dispatch(pid, method, a1, a2, a3, a4, a5).get();

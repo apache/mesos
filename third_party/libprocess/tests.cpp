@@ -2,11 +2,14 @@
 
 #include <process.hpp>
 
+using process::Future;
 using process::PID;
 using process::Process;
+using process::Promise;
 using process::UPID;
 
-using testing::AtMost;
+using testing::_;
+using testing::ReturnArg;
 
 
 class SpawnMockProcess : public Process<SpawnMockProcess>
@@ -24,7 +27,7 @@ TEST(libprocess, spawn)
   SpawnMockProcess process;
 
   EXPECT_CALL(process, __operator_call__())
-    .Times(AtMost(1));
+    .Times(1);
 
   PID<SpawnMockProcess> pid = process::spawn(&process);
 
@@ -37,8 +40,11 @@ TEST(libprocess, spawn)
 class DispatchMockProcess : public Process<DispatchMockProcess>
 {
 public:
-  MOCK_METHOD0(func, void());
-  virtual void operator () () { serve(); }
+  MOCK_METHOD0(func0, void());
+  MOCK_METHOD1(func1, bool(bool));
+  MOCK_METHOD1(func2, Promise<bool>(bool));
+  MOCK_METHOD1(func3, int(int));
+  MOCK_METHOD1(func4, Promise<int>(int));
 };
 
 
@@ -48,14 +54,61 @@ TEST(libprocess, dispatch)
 
   DispatchMockProcess process;
 
-  EXPECT_CALL(process, func())
-    .Times(AtMost(1));
+  EXPECT_CALL(process, func0())
+    .Times(1);
+
+  EXPECT_CALL(process, func1(_))
+    .WillOnce(ReturnArg<0>());
+
+  EXPECT_CALL(process, func2(_))
+    .WillOnce(ReturnArg<0>());
 
   PID<DispatchMockProcess> pid = process::spawn(&process);
 
   ASSERT_FALSE(!pid);
 
-  process::dispatch(pid, &DispatchMockProcess::func);
+  process::dispatch(pid, &DispatchMockProcess::func0);
+
+  Future<bool> future;
+
+  future = process::dispatch(pid, &DispatchMockProcess::func1, true);
+
+  EXPECT_TRUE(future.get());
+  
+  future = process::dispatch(pid, &DispatchMockProcess::func2, true);
+
+  EXPECT_TRUE(future.get());
+
+  process::post(pid, process::TERMINATE);
+  process::wait(pid);
+}
+
+
+TEST(libprocess, call)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  DispatchMockProcess process;
+
+  EXPECT_CALL(process, func3(_))
+    .WillOnce(ReturnArg<0>());
+
+  EXPECT_CALL(process, func4(_))
+    .WillOnce(ReturnArg<0>());
+
+  PID<DispatchMockProcess> pid = process::spawn(&process);
+
+  ASSERT_FALSE(!pid);
+
+  int result;
+
+  result = process::call(pid, &DispatchMockProcess::func3, 42);
+
+  EXPECT_EQ(42, result);
+  
+  result = process::call(pid, &DispatchMockProcess::func4, 43);
+
+  EXPECT_EQ(43, result);
 
   process::post(pid, process::TERMINATE);
   process::wait(pid);
@@ -67,7 +120,6 @@ class InstallMockProcess : public Process<InstallMockProcess>
 public:
   InstallMockProcess() { install("func", &InstallMockProcess::func); }
   MOCK_METHOD0(func, void());
-  virtual void operator () () { serve(); }
 };
 
 
@@ -78,7 +130,7 @@ TEST(libprocess, install)
   InstallMockProcess process;
 
   EXPECT_CALL(process, func())
-    .Times(AtMost(1));
+    .Times(1);
 
   PID<InstallMockProcess> pid = process::spawn(&process);
 
@@ -104,7 +156,6 @@ class DerivedMockProcess : public BaseMockProcess
 public:
   DerivedMockProcess() {}
   MOCK_METHOD0(func, void());
-  virtual void operator () () { serve(); }
 };
 
 
@@ -115,10 +166,10 @@ TEST(libprocess, inheritance)
   DerivedMockProcess process;
 
   EXPECT_CALL(process, func())
-    .Times(AtMost(1));
+    .Times(2);
 
   EXPECT_CALL(process, foo())
-    .Times(AtMost(1));
+    .Times(1);
 
   PID<DerivedMockProcess> pid1 = process::spawn(&process);
 
@@ -131,6 +182,7 @@ TEST(libprocess, inheritance)
 
   ASSERT_EQ(pid2, pid3);
 
+  process::dispatch(pid3, &BaseMockProcess::func);
   process::dispatch(pid3, &BaseMockProcess::foo);
 
   process::post(pid1, process::TERMINATE);

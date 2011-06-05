@@ -15,15 +15,19 @@ class Future
 {
 public:
   Future();
+  Future(const T& _t);
   Future(const Future<T>& that);
   Future<T>& operator = (const Future<T>& that);
   virtual ~Future();
+  bool ready() const;
+  bool await(double secs = 0) const;
   T get() const;
+  operator T () const;
 
 private:
   friend class Promise<T>;
 
-  void set(const T& t_);
+  void set(const T& _t);
 
   int* refs;
   T** t;
@@ -39,6 +43,18 @@ Future<T>::Future()
   t = new T*;
   *t = NULL;
   latch = new Latch();
+}
+
+
+template <typename T>
+Future<T>::Future(const T& _t)
+{
+  refs = new int;
+  *refs = 1;
+  t = new T*;
+  *t = NULL;
+  latch = new Latch();
+  set(_t);
 }
 
 
@@ -94,24 +110,49 @@ Future<T>::~Future()
 
 
 template <typename T>
-void Future<T>::set(const T& t_)
+bool Future<T>::ready() const
 {
-  assert(t != NULL && *t == NULL);
-  *t = new T(t_);
-  latch->trigger();
+  assert(t != NULL);
+  if (*t != NULL)
+    return true;
+  return false;
+}
+
+
+template <typename T>
+bool Future<T>::await(double secs) const
+{
+  if (ready())
+    return true;
+  assert(latch != NULL);
+  return latch->await(secs);
 }
 
 
 template <typename T>
 T Future<T>::get() const
 {
-  assert(t != NULL);
-  if (*t != NULL)
+  if (ready())
     return **t;
-  assert(latch != NULL);
-  latch->await();
+  await();
   assert(t != NULL && *t != NULL);
   return **t;
+}
+
+
+template <typename T>
+Future<T>::operator T () const
+{
+  return get();
+}
+
+
+template <typename T>
+void Future<T>::set(const T& _t)
+{
+  assert(t != NULL && *t == NULL);
+  *t = new T(_t);
+  latch->trigger();
 }
 
 }  // namespace process {

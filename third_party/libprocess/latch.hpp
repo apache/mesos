@@ -16,7 +16,7 @@ public:
   virtual ~Latch();
 
   void trigger();
-  void await();
+  bool await(double secs = 0);
 
 private:
   Latch(const Latch& that);

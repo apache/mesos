@@ -95,16 +95,36 @@ public:
   {
     std::ostringstream out;
 
-    out << "HTTP/1.0 " << response.status << "\r\n";
+    // TODO(benh): Check version?
 
-    foreachpair (const std::string& key, const std::string& value, response.headers) {
+    out << "HTTP/1.1 " << response.status << "\r\n";
+
+    std::map<std::string, std::string> headers = response.headers;
+
+    // HTTP 1.1 requires the "Date" header. In the future once we
+    // start checking the version (above) then we can conditionally
+    // add this header, but for now, we always do.
+    time_t rawtime;
+    time(&rawtime);
+
+    char date[256];
+
+    // TODO(benh): Check return code of strftime!
+    strftime(date, 256, "%a, %d %b %Y %H:%M:%S GMT", gmtime(&rawtime));
+
+    headers["Date"] = date;
+
+    foreachpair (const std::string& key, const std::string& value, headers) {
       out << key << ": " << value << "\r\n";
-//         << "Content-Type: text/html\r\n"
-//         << "Content-Length: " << response.body.size() << "\r\n"
     }
 
-    out << "Connection: close\r\n"
-        << "\r\n";
+    // Make sure at least the "Content-Length" header since is present
+    // in order to signal to a client the end of a response.
+    if (headers.count("Content-Length") == 0) {
+      out << "Content-Length: " << response.body.size() << "\r\n";
+    }
+
+    out << "\r\n";
 
     out.write(response.body.data(), response.body.size());
 
@@ -112,28 +132,6 @@ public:
   }
 };
 
-
-class HttpGatewayTimeoutEncoder : public DataEncoder
-{
-public:
-  HttpGatewayTimeoutEncoder()
-    : DataEncoder(encode()) {}
-
-  static std::string encode()
-  {
-    std::ostringstream out;
-
-    // TODO(benh): We send a content length of 0 so that a browser
-    // won't just sit and wait for the socket to get closed (because
-    // we can't close it our self right now).
-    out << "HTTP/1.0 504 Gateway Timeout\r\n"
-        << "Content-Length: 0\r\n"
-        << "Connection: close\r\n"
-        << "\r\n";
-
-    return out.str();
-  }
-};
 
 }  // namespace process {
 

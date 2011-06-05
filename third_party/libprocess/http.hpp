@@ -22,6 +22,9 @@ struct HttpResponse
   // TODO(benh): Add major/minor version.
   std::string status;
   std::map<std::string, std::string> headers;
+  // TODO(benh): Make body a stream (channel) instead, and allow a
+  // response to be returned without forcing the stream to be
+  // finished.
   std::string body;
 };
 
@@ -35,6 +38,15 @@ struct HttpOKResponse : HttpResponse
 };
 
 
+struct HttpBadRequestResponse : HttpResponse
+{
+  HttpBadRequestResponse()
+  {
+    status = "400 Bad Request";
+  }
+};
+
+
 struct HttpNotFoundResponse : HttpResponse
 {
   HttpNotFoundResponse()
@@ -42,6 +54,25 @@ struct HttpNotFoundResponse : HttpResponse
     status = "404 Not Found";
   }
 };
+
+
+struct HttpInternalServerErrorResponse : HttpResponse
+{
+  HttpInternalServerErrorResponse()
+  {
+    status = "500 Internal Server Error";
+  }
+};
+
+
+struct HttpServiceUnavailableResponse : HttpResponse
+{
+  HttpServiceUnavailableResponse()
+  {
+    status = "503 Service Unavailable";
+  }
+};
+
 
 } // namespace process {
 

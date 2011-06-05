@@ -39,12 +39,14 @@ void Latch::trigger()
 }
 
 
-void Latch::await()
+bool Latch::await(double secs)
 {
   assert(latch != NULL);
   if (!triggered) {
-    wait(latch->self());
+    return wait(latch->self(), secs);
   }
+
+  return true;
 }
 
 } // namespace process {

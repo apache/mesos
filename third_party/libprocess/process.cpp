@@ -94,6 +94,9 @@ using std::tr1::function;
 
 struct Node
 {
+  Node(uint32_t _ip = 0, uint16_t _port = 0)
+    : ip(_ip), port(_port) {}
+
   uint32_t ip;
   uint16_t port;
 };
@@ -194,144 +197,6 @@ private:
 };
 
 
-class LinkManager
-{
-public:
-  LinkManager();
-  ~LinkManager();
-
-  void link(ProcessBase* process, const UPID& to);
-
-  void send(Message* message);
-  void send(DataEncoder* encoder, int s);
-
-  DataEncoder* next(int s);
-
-  void closed(int s);
-
-  void exited(const Node& node);
-  void exited(ProcessBase* process);
-
-private:
-  /* Map from UPID (local/remote) to process. */
-  map<UPID, set<ProcessBase*> > links;
-
-  /* Map from socket to node (ip, port). */
-  map<int, Node> sockets;
-
-  /* Maps from node (ip, port) to socket. */
-  map<Node, int> temps;
-  map<Node, int> persists;
-
-  set<int> disposables;
-
-  /* Map from socket to outgoing messages. */
-  map<int, queue<DataEncoder*> > outgoing;
-
-  /* Protects instance variables. */
-  synchronizable(this);
-};
-
-
-class ProcessManager
-{
-public:
-  ProcessManager();
-  ~ProcessManager();
-
-  ProcessReference use(const UPID &pid);
-
-  bool deliver(Message* message, ProcessBase *sender = NULL);
-  bool deliver(int c, HttpRequest* request, ProcessBase *sender = NULL);
-  bool deliver(const UPID& to, function<void(ProcessBase*)>* delegator, ProcessBase *sender = NULL);
-
-  UPID spawn(ProcessBase *process);
-  void link(ProcessBase *process, const UPID &to);
-  bool receive(ProcessBase *process, double secs);
-  bool serve(ProcessBase *process, double secs);
-  void pause(ProcessBase *process, double secs);
-  bool wait(ProcessBase *process, const UPID &pid);
-  bool external_wait(const UPID &pid);
-  bool poll(ProcessBase *process, int fd, int op, double secs, bool ignore);
-
-  void enqueue(ProcessBase *process);
-  ProcessBase * dequeue();
-
-  void timedout(const UPID &pid, int generation);
-  void polled(const UPID &pid, int generation);
-
-  void run(ProcessBase *process);
-  void cleanup(ProcessBase *process);
-
-  static void invoke(const function<void (void)> &thunk);
-
-private:
-  timeout create_timeout(ProcessBase *process, double secs);
-  void start_timeout(const timeout &timeout);
-  void cancel_timeout(const timeout &timeout);
-
-  /* Map of all local spawned and running processes. */
-  map<string, ProcessBase *> processes;
-  synchronizable(processes);
-
-  /* Waiting processes (protected by synchronizable(processes)). */
-  map<ProcessBase *, set<ProcessBase *> > waiters;
-
-  /* Map of gates for waiting threads. */
-  map<ProcessBase *, Gate *> gates;
-
-  /* Queue of runnable processes (implemented as deque). */
-  deque<ProcessBase *> runq;
-  synchronizable(runq);
-};
-
-
-class HttpProxy : public Process<HttpProxy>
-{
-public:
-  HttpProxy(int _c, const Future<HttpResponse>& _future);
-  ~HttpProxy();
-
-protected:
-  virtual void operator () ();
-
-private:
-  int c;
-  Future<HttpResponse> future;
-};
-
-
-class HttpProxyManager : public Process<HttpProxyManager>
-{
-public:
-  HttpProxyManager() {}
-  ~HttpProxyManager() {}
-
-  void manage(HttpProxy* proxy)
-  {
-    assert(proxy != NULL);
-    proxies[proxy->self()] = proxy;
-    link(proxy->self());
-  }
-
-protected:
-  virtual void operator () ()
-  {
-    while (true) {
-      serve();
-      if (name() == EXITED && proxies.count(from()) > 0) {
-        HttpProxy* proxy = proxies[from()];
-        proxies.erase(from());
-        delete proxy;
-      }
-    }
-  }
-
-private:
-  map<UPID, HttpProxy*> proxies;
-};
-
-
 /* Tick, tock ... manually controlled clock! */
 class InternalClock
 {
@@ -395,6 +260,174 @@ private:
 };
 
 
+class GarbageCollector : public Process<GarbageCollector>
+{
+public:
+  GarbageCollector() {}
+  ~GarbageCollector() {}
+
+  template <typename T>
+  void manage(const T* t)
+  {
+    const ProcessBase* process = t;
+    if (process != NULL) {
+      processes[process->self()] = process;
+      link(process->self());
+    }
+  }
+
+protected:
+  virtual void operator () ()
+  {
+    while (true) {
+      serve();
+      if (name() == EXITED && processes.count(from()) > 0) {
+        const ProcessBase* process = processes[from()];
+        processes.erase(from());
+        delete process;
+      }
+    }
+  }
+
+private:
+  map<UPID, const ProcessBase*> processes;
+};
+
+
+/* Global garbage collector (move to own file). */
+static PID<GarbageCollector> gc;
+
+
+class HttpProxy;
+
+
+class HttpResponseWaiter : public Process<HttpResponseWaiter>
+{
+public:
+  HttpResponseWaiter(const PID<HttpProxy>& _proxy);
+  virtual ~HttpResponseWaiter();
+
+  void await(const Future<HttpResponse>& future, bool persist);
+
+private:
+  const PID<HttpProxy> proxy;
+};
+
+
+class HttpProxy : public Process<HttpProxy>
+{
+public:
+  HttpProxy(int _c);
+  virtual ~HttpProxy();
+
+  void handle(const Future<HttpResponse>& future, bool persist);
+  void ready(const Future<HttpResponse>& future, bool persist);
+  void unavailable(bool persist);
+
+private:
+  int c;
+  HttpResponseWaiter* waiter;
+};
+
+
+class SocketManager
+{
+public:
+  SocketManager();
+  ~SocketManager();
+
+  void link(ProcessBase* process, const UPID& to);
+
+  PID<HttpProxy> proxy(int s);
+
+  void send(DataEncoder* encoder, int s, bool persist);
+  void send(Message* message);
+
+  DataEncoder* next(int s);
+
+  void closed(int s);
+
+  void exited(const Node& node);
+  void exited(ProcessBase* process);
+
+private:
+  /* Map from UPID (local/remote) to process. */
+  map<UPID, set<ProcessBase*> > links;
+
+  /* Map from socket to node (ip, port). */
+  map<int, Node> sockets;
+
+  /* Maps from node (ip, port) to socket. */
+  map<Node, int> temps;
+  map<Node, int> persists;
+
+  /* Set of sockets that should be closed. */
+  set<int> disposables;
+
+  /* Map from socket to outgoing queue. */
+  map<int, queue<DataEncoder*> > outgoing;
+
+  /* HTTP proxies. */
+  map<int, HttpProxy*> proxies;
+
+  /* Protects instance variables. */
+  synchronizable(this);
+};
+
+
+class ProcessManager
+{
+public:
+  ProcessManager();
+  ~ProcessManager();
+
+  ProcessReference use(const UPID &pid);
+
+  bool deliver(Message* message, ProcessBase *sender = NULL);
+  bool deliver(int c, HttpRequest* request, ProcessBase *sender = NULL);
+  bool deliver(const UPID& to, function<void(ProcessBase*)>* delegator, ProcessBase *sender = NULL);
+
+  UPID spawn(ProcessBase *process);
+  void link(ProcessBase *process, const UPID &to);
+  bool receive(ProcessBase *process, double secs);
+  bool serve(ProcessBase *process, double secs);
+  void pause(ProcessBase *process, double secs);
+  bool wait(ProcessBase *process, const UPID &pid);
+  bool external_wait(const UPID &pid);
+  bool poll(ProcessBase *process, int fd, int op, double secs, bool ignore);
+
+  void enqueue(ProcessBase *process);
+  ProcessBase * dequeue();
+
+  void timedout(const UPID &pid, int generation);
+  void polled(const UPID &pid, int generation);
+
+  void run(ProcessBase *process);
+  void cleanup(ProcessBase *process);
+
+  static void invoke(const function<void (void)> &thunk);
+
+private:
+  timeout create_timeout(ProcessBase *process, double secs);
+  void start_timeout(const timeout &timeout);
+  void cancel_timeout(const timeout &timeout);
+
+  /* Map of all local spawned and running processes. */
+  map<string, ProcessBase *> processes;
+  synchronizable(processes);
+
+  /* Waiting processes (protected by synchronizable(processes)). */
+  map<ProcessBase *, set<ProcessBase *> > waiters;
+
+  /* Gates for waiting threads (protected by synchronizable(processes)). */
+  map<ProcessBase *, Gate *> gates;
+
+  /* Queue of runnable processes (implemented as deque). */
+  deque<ProcessBase *> runq;
+  synchronizable(runq);
+};
+
+
 /* Using manual clock if non-null. */
 static InternalClock *clk = NULL;
 
@@ -410,8 +443,8 @@ static uint32_t ip = 0;
 /* Local port. */
 static uint16_t port = 0;
 
-/* Active LinkManager (eventually will probably be thread-local). */
-static LinkManager *link_manager = NULL;
+/* Active SocketManager (eventually will probably be thread-local). */
+static SocketManager *socket_manager = NULL;
 
 /* Active ProcessManager (eventually will probably be thread-local). */
 static ProcessManager *process_manager = NULL;
@@ -489,12 +522,6 @@ static Filter *filterer = NULL;
 static synchronizable(filterer) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
 
 
-/**
- * Instance of HttpProxyManager.
- */
-static HttpProxyManager* proxy_manager = NULL;
-
-
 int set_nbio(int fd)
 {
   int flags;
@@ -531,8 +558,44 @@ void transport(Message* message, ProcessBase* sender = NULL)
     process_manager->deliver(message, sender);
   } else {
     // Remote message.
-    link_manager->send(message);
+    socket_manager->send(message);
   }
+}
+
+
+Message* parse(HttpRequest* request)
+{
+  if (request->method == "POST" && request->headers.count("User-Agent") > 0) {
+    const string& temp = request->headers["User-Agent"];
+    const string& libprocess = "libprocess/";
+    size_t index = temp.find(libprocess);
+    if (index != string::npos) {
+      // Okay, now determine 'from'.
+      const UPID from(temp.substr(index + libprocess.size(), temp.size()));
+
+      // Now determine 'to'.
+      index = request->path.find('/', 1);
+      index = index != string::npos ? index - 1 : string::npos;
+      const UPID to(request->path.substr(1, index), ip, port);
+
+      // And now determine 'name'.
+      index = index != string::npos ? index + 2: request->path.size();
+      const string& name = request->path.substr(index);
+
+      VLOG(2) << "Parsed message name '" << name
+              << "' for " << to << " from " << from;
+
+      Message* message = new Message();
+      message->name = name;
+      message->from = from;
+      message->to = to;
+      message->body = request->body;
+
+      return message;
+    }
+  }
+
+  return NULL;
 }
 
 
@@ -673,10 +736,14 @@ void recv_data(struct ev_loop *loop, ev_io *watcher, int revents)
       // Might block, try again later.
       break;
     } else if (length <= 0) {
-      // Socket error ... we consider closed.
-      const char* error = strerror(errno);
-      VLOG(1) << "Socket error while receiving: " << error;
-      link_manager->closed(c);
+      // Socket error or closed.
+      if (length < 0) {
+        const char* error = strerror(errno);
+        VLOG(2) << "Socket error while receiving: " << error;
+      } else {
+        VLOG(2) << "Socket closed while receiving";
+      }
+      socket_manager->closed(c);
       delete decoder;
       ev_io_stop(loop, watcher);
       delete watcher;
@@ -692,8 +759,8 @@ void recv_data(struct ev_loop *loop, ev_io *watcher, int revents)
           process_manager->deliver(c, request);
         }
       } else if (requests.empty() && decoder->failed()) {
-        VLOG(1) << "Decoder error while receiving";
-        link_manager->closed(c);
+        VLOG(2) << "Decoder error while receiving";
+        socket_manager->closed(c);
         delete decoder;
         ev_io_stop(loop, watcher);
         delete watcher;
@@ -726,10 +793,14 @@ void send_data(struct ev_loop *loop, ev_io *watcher, int revents)
       // Might block, try again later.
       break;
     } else if (length <= 0) {
-      // Socket closed or error ... we consider closed.
-      const char* error = strerror(errno);
-      VLOG(1) << "Socket error while sending: " << error;
-      link_manager->closed(c);
+      // Socket error or closed.
+      if (length < 0) {
+        const char* error = strerror(errno);
+        VLOG(2) << "Socket error while sending: " << error;
+      } else {
+        VLOG(2) << "Socket closed while sending";
+      }
+      socket_manager->closed(c);
       delete encoder;
       ev_io_stop(loop, watcher);
       delete watcher;
@@ -745,7 +816,7 @@ void send_data(struct ev_loop *loop, ev_io *watcher, int revents)
         delete encoder;
 
         // Check for more stuff to send on socket.
-        encoder = link_manager->next(c);
+        encoder = socket_manager->next(c);
         if (encoder != NULL) {
           watcher->data = encoder;
         } else {
@@ -771,7 +842,7 @@ void sending_connect(struct ev_loop *loop, ev_io *watcher, int revents)
   if (getsockopt(c, SOL_SOCKET, SO_ERROR, &opt, &optlen) < 0 || opt != 0) {
     // Connect failure.
     VLOG(1) << "Socket error while connecting";
-    link_manager->closed(c);
+    socket_manager->closed(c);
     MessageEncoder* encoder = (MessageEncoder*) watcher->data;
     delete encoder;
     ev_io_stop(loop, watcher);
@@ -796,7 +867,7 @@ void receiving_connect(struct ev_loop *loop, ev_io *watcher, int revents)
   if (getsockopt(c, SOL_SOCKET, SO_ERROR, &opt, &optlen) < 0 || opt != 0) {
     // Connect failure.
     VLOG(1) << "Socket error while connecting";
-    link_manager->closed(c);
+    socket_manager->closed(c);
     DataDecoder* decoder = (DataDecoder*) watcher->data;
     delete decoder;
     ev_io_stop(loop, watcher);
@@ -1051,9 +1122,9 @@ void initialize(bool initialize_google_logging)
   signal(SIGPIPE, SIG_IGN);
 #endif /* __sun__ */
 
-  /* Create a new ProcessManager and LinkManager. */
+  /* Create a new ProcessManager and SocketManager. */
   process_manager = new ProcessManager();
-  link_manager = new LinkManager();
+  socket_manager = new SocketManager();
 
   /* Setup processing thread. */
   if (pthread_create (&proc_thread, NULL, schedule, NULL) != 0)
@@ -1176,61 +1247,97 @@ void initialize(bool initialize_google_logging)
 
   initializing = false;
 
+  // Create global garbage collector.
+  gc = spawn(new GarbageCollector());
+
   char temp[INET_ADDRSTRLEN];
   CHECK(inet_ntop(AF_INET, (in_addr *) &ip, temp, INET_ADDRSTRLEN) != NULL);
   VLOG(1) << "libprocess is initialized on " << temp << ":" << port;
 }
 
 
-HttpProxy::HttpProxy(int _c, const Future<HttpResponse>& _future)
-  : c(_c), future(_future)
-{
-  // TODO(benh): Do proper initialization of the proxy manager. Right
-  // now we can rely on invocations of the HttpProxy constructor to be
-  // serial, so we don't need to do any fancy
-  // synchronization. However, ultimately, we'd like to stick the
-  // initialization into 'initialize' above, but that seemed to have
-  // some issues. :(
-  if (proxy_manager == NULL) {
-    proxy_manager = new HttpProxyManager();
-    spawn(proxy_manager);
-  }
+HttpResponseWaiter::HttpResponseWaiter(const PID<HttpProxy>& _proxy)
+  : proxy(_proxy) {}
 
-  dispatch(proxy_manager->self(), &HttpProxyManager::manage, this);
+
+HttpResponseWaiter::~HttpResponseWaiter() {}
+
+
+void HttpResponseWaiter::await(const Future<HttpResponse>& future, bool persist)
+{
+  if (future.await(30)) {
+    dispatch(proxy, &HttpProxy::ready, future, persist);  
+  } else {
+    dispatch(proxy, &HttpProxy::unavailable, persist);  
+  }
 }
 
 
-HttpProxy::~HttpProxy() {}
-
-
-void HttpProxy::operator () ()
+HttpProxy::HttpProxy(int _c) : c(_c)
 {
-  // Wait for the response!
+  // Get garbage collected!
+  dispatch(gc, &GarbageCollector::manage<HttpProxy>, this);
+
+  // Create our waiter.
+  waiter = new HttpResponseWaiter(self());
+  spawn(waiter);
+}
+
+
+HttpProxy::~HttpProxy()
+{
+  send(waiter->self(), TERMINATE);
+  wait(waiter->self());
+  delete waiter;
+}
+
+
+void HttpProxy::handle(const Future<HttpResponse>& future, bool persist)
+{
+  dispatch(waiter->self(), &HttpResponseWaiter::await, future, persist);
+}
+
+
+void HttpProxy::ready(const Future<HttpResponse>& future, bool persist)
+{
+  CHECK(future.ready());
+
   const HttpResponse& response = future.get();
 
-  link_manager->send(new HttpResponseEncoder(response), c);
+  // Don't persist the connection if the responder doesn't want it to.
+  if (response.headers.count("Connection") > 0) {
+    const string& connection = response.headers.find("Connection")->second;
+    if (connection == "close") {
+      persist = false;
+    }
+  }
 
-  // How the socket gets closed is a bit esoteric. :( If the browser
-  // closes their socket then we will close it in when
-  // LinkManger::closed gets called. Otherwise, after the future gets
-  // set and we send the response then LinkManager::next will get
-  // called, which will close the socket. Ultimately, the
-  // HttpProxyManager will deal with deallocating the HttpProxy, even
-  // though it was allocated in ProcessManager::deliver. Ugh, gross,
-  // gross, gross. :(
+  // See the semantics of SocketManager::send for details about how
+  // the socket will get closed (it might actually already be closed
+  // before we issue this send).
+  socket_manager->send(new HttpResponseEncoder(response), c, persist);
 }
 
 
-LinkManager::LinkManager()
+void HttpProxy::unavailable(bool persist)
+{
+  HttpResponse response = HttpServiceUnavailableResponse();
+
+  // As above, the socket might all ready be closed when we do a send.
+  socket_manager->send(new HttpResponseEncoder(response), c, persist);
+}
+
+
+SocketManager::SocketManager()
 {
   synchronizer(this) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
 }
 
 
-LinkManager::~LinkManager() {}
+SocketManager::~SocketManager() {}
 
 
-void LinkManager::link(ProcessBase *process, const UPID &to)
+void SocketManager::link(ProcessBase *process, const UPID &to)
 {
   // TODO(benh): The semantics we want to support for link are such
   // that if there is nobody to link to (local or remote) then a
@@ -1242,7 +1349,7 @@ void LinkManager::link(ProcessBase *process, const UPID &to)
 
   assert(process != NULL);
 
-  const Node node = { to.ip, to.port };
+  Node node(to.ip, to.port);
 
   synchronized (this) {
     // Check if node is remote and there isn't a persistant link.
@@ -1250,13 +1357,16 @@ void LinkManager::link(ProcessBase *process, const UPID &to)
       // Okay, no link, lets create a socket.
       int s;
 
-      if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
+      if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0) {
         fatalerror("failed to link (socket)");
+      }
 
-      if (set_nbio(s) < 0)
+      if (set_nbio(s) < 0) {
         fatalerror("failed to link (set_nbio)");
+      }
 
       sockets[s] = node;
+
       persists[node] = s;
 
       sockaddr_in addr;
@@ -1273,8 +1383,9 @@ void LinkManager::link(ProcessBase *process, const UPID &to)
 
       // Try and connect to the node using this socket.
       if (connect(s, (sockaddr *) &addr, sizeof(addr)) < 0) {
-        if (errno != EINPROGRESS)
+        if (errno != EINPROGRESS) {
           fatalerror("failed to link (connect)");
+        }
 
         // Wait for socket to be connected.
         ev_io_init(watcher, receiving_connect, s, EV_WRITE);
@@ -1296,28 +1407,38 @@ void LinkManager::link(ProcessBase *process, const UPID &to)
 }
 
 
-void LinkManager::send(Message* message)
+PID<HttpProxy> SocketManager::proxy(int s)
 {
-  assert(message != NULL);
+  synchronized (this) {
+    if (sockets.count(s) > 0) {
+      CHECK(proxies.count(s) > 0);
+      return proxies[s]->self();
+    } else {
+      // Register the socket with the manager for sending purposes. The
+      // current design doesn't let us create a valid "node" for this
+      // socket, so we use a "default" one for now.
+      sockets[s] = Node();
 
-  DataEncoder* encoder = new MessageEncoder(message);
+      CHECK(proxies.count(s) == 0);
 
-  Node node = { message->to.ip, message->to.port };
+      HttpProxy* proxy = new HttpProxy(s);
+      spawn(proxy);
+      proxies[s] = proxy;
+      return proxy->self();
+    }
+  }
+}
+
+
+void SocketManager::send(DataEncoder* encoder, int s, bool persist)
+{
+  assert(encoder != NULL);
 
   synchronized (this) {
-    // Check if there is already a link.
-    if (persists.count(node) > 0 || temps.count(node) > 0) {
-      int s = persists.count(node) > 0 ? persists[node] : temps[node];
-
-      // Check whether or not this socket has an outgoing queue.
-      if (outgoing.count(s) != 0) {
+    if (sockets.count(s) > 0) {
+      if (outgoing.count(s) > 0) {
         outgoing[s].push(encoder);
       } else {
-        // Must be a persistant socket since temporary socket
-        // shouldn't outlast it's outgoing queue!
-        assert(persists.count(node) != 0);
-        assert(temps.count(node) == 0 || temps[node] != s);
-
         // Initialize the outgoing queue.
         outgoing[s];
 
@@ -1333,19 +1454,50 @@ void LinkManager::send(Message* message)
 
         ev_async_send(loop, &async_watcher);
       }
+
+      // Set the socket to get closed if not persistant.
+      if (!persist) {
+        disposables.insert(s);
+      }
+    } else {
+      VLOG(1) << "Attempting to send on a no longer valid socket!";
+    }
+  }
+}
+
+
+void SocketManager::send(Message* message)
+{
+  assert(message != NULL);
+
+  DataEncoder* encoder = new MessageEncoder(message);
+
+  Node node(message->to.ip, message->to.port);
+
+  synchronized (this) {
+    // Check if there is already a socket.
+    bool persistant = persists.count(node) > 0;
+    bool temporary = temps.count(node) > 0;
+    if (persistant || temporary) {
+      int s = persistant ? persists[node] : temps[node];
+      send(encoder, s, persistant);
     } else {
       // No peristant or temporary socket to the node currently
       // exists, so we create a temporary one.
       int s;
 
-      if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
+      if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0) {
         fatalerror("failed to send (socket)");
+      }
 
-      if (set_nbio(s) < 0)
+      if (set_nbio(s) < 0) {
         fatalerror("failed to send (set_nbio)");
+      }
 
       sockets[s] = node;
+
       temps[node] = s;
+      disposables.insert(s);
 
       // Initialize the outgoing queue.
       outgoing[s];
@@ -1362,8 +1514,9 @@ void LinkManager::send(Message* message)
       watcher->data = encoder;
     
       if (connect(s, (sockaddr *) &addr, sizeof(addr)) < 0) {
-        if (errno != EINPROGRESS)
+        if (errno != EINPROGRESS) {
           fatalerror("failed to send (connect)");
+        }
 
         // Initialize watcher for connecting.
         ev_io_init(watcher, sending_connect, s, EV_WRITE);
@@ -1383,71 +1536,37 @@ void LinkManager::send(Message* message)
 }
 
 
-void LinkManager::send(DataEncoder* encoder, int s)
-{
-  assert(encoder != NULL);
-
-  // TODO(benh): This is a big hack for sending data on a socket from
-  // an encoder where we want one-time (i.e., disposable) use of the
-  // socket. This is particularly useful right now for proxies we set
-  // up for HTTP GET requests, however, the semantics of what this
-  // send means should be less esoteric.
-
-  synchronized (this) {
-    assert(sockets.count(s) == 0);
-    assert(outgoing.count(s) == 0);
-
-    sockets[s] = Node(); // TODO(benh): HACK!
-    outgoing[s];
-    disposables.insert(s);
-
-    // Allocate and initialize the watcher.
-    ev_io *watcher = new ev_io();
-    watcher->data = encoder;
-
-    ev_io_init(watcher, send_data, s, EV_WRITE);
-
-    synchronized (watchers) {
-      watchers->push(watcher);
-    }
-
-    ev_async_send(loop, &async_watcher);
-  }
-}
-
-
-DataEncoder* LinkManager::next(int s)
+DataEncoder* SocketManager::next(int s)
 {
   DataEncoder* encoder = NULL;
 
-  // Sometimes we look for another encoder even though this socket
-  // isn't actually maintained by the LinkManager (e.g., for proxy
-  // sockets). In the future this kind of esoteric semantics will
-  // hopefully get improved. :(
   synchronized (this) {
-    if (sockets.count(s) > 0 && outgoing.count(s) > 0) {
-      if (!outgoing[s].empty()) {
-        // More messages!
-        encoder = outgoing[s].front();
-        outgoing[s].pop();
-      } else {
-        // No more messages ... erase the outgoing queue.
-        outgoing.erase(s);
+    CHECK(sockets.count(s) > 0);
+    CHECK(outgoing.count(s) > 0);
 
-        // Close the socket if it was for one-time use.
-        if (disposables.count(s) > 0) {
-          disposables.erase(s);
-          sockets.erase(s);
-          close(s);
-        }
+    if (!outgoing[s].empty()) {
+      // More messages!
+      encoder = outgoing[s].front();
+      outgoing[s].pop();
+    } else {
+      // No more messages ... erase the outgoing queue.
+      outgoing.erase(s);
 
-        // Close the socket if it was temporary.
-        const Node &node = sockets[s];
+      // Close the socket if it was set for disposal.
+      if (disposables.count(s) > 0) {
+        // Also try and remove from temps.
+        const Node& node = sockets[s];
         if (temps.count(node) > 0 && temps[node] == s) {
           temps.erase(node);
-          sockets.erase(s);
-          close(s);
+        } else if (proxies.count(s) > 0) {
+          HttpProxy* proxy = proxies[s];
+          proxies.erase(s);
+          post(proxy->self(), TERMINATE);
         }
+
+        disposables.erase(s);
+        sockets.erase(s);
+        close(s);
       }
     }
   }
@@ -1456,7 +1575,7 @@ DataEncoder* LinkManager::next(int s)
 }
 
 
-void LinkManager::closed(int s)
+void SocketManager::closed(int s)
 {
   synchronized (this) {
     if (sockets.count(s) > 0) {
@@ -1465,25 +1584,30 @@ void LinkManager::closed(int s)
       // Don't bother invoking exited unless socket was persistant.
       if (persists.count(node) > 0 && persists[node] == s) {
 	persists.erase(node);
-	exited(node);
-      } else {
-        if (temps.count(node) > 0 && temps[node] == s) {
-          temps.erase(node);
-        }
+        exited(node);
+      } else if (temps.count(node) > 0 && temps[node] == s) {
+        temps.erase(node);
+      } else if (proxies.count(s) > 0) {
+        HttpProxy* proxy = proxies[s];
+        proxies.erase(s);
+        post(proxy->self(), TERMINATE);
       }
 
-      sockets.erase(s);
       outgoing.erase(s);
+      disposables.erase(s);
+      sockets.erase(s);
     }
   }
 
-  // This might have just been a receiving socket, so we want to make
-  // sure to call close so that the file descriptor can get reused.
+  // This might have just been a receiving socket (only sending
+  // sockets, with the exception of the receiving side of a persistant
+  // socket, get added to 'sockets'), so we want to make sure to call
+  // close so that the file descriptor can get reused.
   close(s);
 }
 
 
-void LinkManager::exited(const Node &node)
+void SocketManager::exited(const Node &node)
 {
   // TODO(benh): It would be cleaner if this routine could call back
   // into ProcessManager ... then we wouldn't have to convince
@@ -1510,7 +1634,7 @@ void LinkManager::exited(const Node &node)
 }
 
 
-void LinkManager::exited(ProcessBase *process)
+void SocketManager::exited(ProcessBase *process)
 {
   synchronized (this) {
     /* Remove any links this process might have had. */
@@ -1574,11 +1698,15 @@ bool ProcessManager::deliver(Message *message, ProcessBase *sender)
     if (sender != NULL) {
       synchronized (timeouts) {
         if (clk != NULL) {
-          clk->setCurrent(receiver, max(clk->getCurrent(receiver),
-                                        clk->getCurrent(sender)));
+          ev_tstamp tstamp =
+            max(clk->getCurrent(receiver), clk->getCurrent(sender));
+          clk->setCurrent(receiver, tstamp);
         }
       }
     }
+
+    VLOG(2) << "Delivering message name '" << message->name
+            << "' for " << message->to << " from " << message->from;
 
     receiver->enqueue(message);
   } else {
@@ -1595,51 +1723,18 @@ bool ProcessManager::deliver(int c, HttpRequest *request, ProcessBase *sender)
 {
   assert(request != NULL);
 
-  // Get out the receiver (needed regardless of if this is a standard
-  // HTTP request or a libprocess message).
-  const vector<string>& pairs = tokenize(request->path, "/");
-  if (pairs.size() != 2) {
-    // This has no receiver, send a response and cleanup.
-    VLOG(1) << "Returning '404 Not Found' for HTTP request '"
-            << request->path << "'";
-    link_manager->send(new HttpResponseEncoder(HttpNotFoundResponse()), c);
+  // Determine whether or not this is a libprocess message.
+  Message* message = parse(request);
+
+  if (message != NULL) {
     delete request;
-    return false;
+    return deliver(message, sender);
   }
 
-  UPID to(pairs[0], ip, port);
+  // Treat this as an HTTP request and check for a valid receiver.
+  string temp = request->path.substr(1, request->path.find('/', 1) - 1);
 
-  // Determine whether or not this is just a libprocess message.
-  if (request->method == "POST" && request->headers.count("User-Agent") > 0) {
-    const string& value = request->headers["User-Agent"];
-    string libprocess = "libprocess/";
-    size_t index = value.find(libprocess);
-    if (index != string::npos) {
-      // Okay, this is a libprocess message, now we can try and
-      // determine name and from.
-      UPID from(value.substr(index + libprocess.size(), value.size()));
-
-      string name = pairs[1];
-      if (name == "") {
-        delete request;
-        return false;
-      }
-  
-      Message* message = new Message();
-      message->name = name;
-      message->from = from;
-      message->to = to;
-      message->body = request->body;
-
-      delete request;
-
-      return deliver(message, sender);
-    }
-  }
-
-  // Okay, this isn't a libprocess message, so create a proxy and deliver.
-
-  if (ProcessReference receiver = use(to)) {
+  if (ProcessReference receiver = use(UPID(temp, ip, port))) {
     // If we have a local sender AND we are using a manual clock
     // then update the current time of the receiver to preserve
     // the happens-before relationship between the sender and
@@ -1649,24 +1744,39 @@ bool ProcessManager::deliver(int c, HttpRequest *request, ProcessBase *sender)
     if (sender != NULL) {
       synchronized (timeouts) {
         if (clk != NULL) {
-          clk->setCurrent(receiver, max(clk->getCurrent(receiver),
-                                        clk->getCurrent(sender)));
+          ev_tstamp tstamp =
+            max(clk->getCurrent(receiver), clk->getCurrent(sender));
+          clk->setCurrent(receiver, tstamp);
         }
       }
     }
+
+    // Get the HttpProxy pid for this socket.
+    PID<HttpProxy> proxy = socket_manager->proxy(c);
     
     // Create the future to associate with whatever gets returned.
     Future<HttpResponse>* future = new Future<HttpResponse>();
 
-    // Spawn a proxy that waits on the future.
-    spawn(new HttpProxy(c, *future));
+    // Let the HttpProxy know about this request.
+    dispatch(proxy, &HttpProxy::handle, *future, request->keepAlive);
 
+    // Enqueue request and future for receiver.
     receiver->enqueue(new pair<HttpRequest*, Future<HttpResponse>*>(request, future));
   } else {
-    // This has no receiver, send a response and cleanup.
-    VLOG(1) << "Returning '404 Not Found' for HTTP request '"
+    // This has no receiver, send error response.
+    VLOG(1) << "Returning '404 Not Found' for HTTP request for '"
             << request->path << "'";
-    link_manager->send(new HttpResponseEncoder(HttpNotFoundResponse()), c);
+
+    // Get the HttpProxy pid for this socket.
+    PID<HttpProxy> proxy = socket_manager->proxy(c);
+
+    // Create a "future" response.
+    Future<HttpResponse> future = HttpNotFoundResponse();
+
+    // Let the HttpProxy know about this request.
+    dispatch(proxy, &HttpProxy::handle, future, request->keepAlive);
+
+    // Cleanup request.
     delete request;
     return false;
   }
@@ -1690,8 +1800,9 @@ bool ProcessManager::deliver(const UPID& to, function<void(ProcessBase*)>* deleg
     if (sender != NULL) {
       synchronized (timeouts) {
         if (clk != NULL) {
-          clk->setCurrent(receiver, max(clk->getCurrent(receiver),
-                                        clk->getCurrent(sender)));
+          ev_tstamp tstamp =
+            max(clk->getCurrent(receiver), clk->getCurrent(sender));
+          clk->setCurrent(receiver, tstamp);
         }
       }
     }
@@ -1782,13 +1893,13 @@ void ProcessManager::link(ProcessBase *process, const UPID &to)
 {
   // Check if the pid is local.
   if (!(to.ip == ip && to.port == port)) {
-    link_manager->link(process, to);
+    socket_manager->link(process, to);
   } else {
     // Since the pid is local we want to get a reference to it's
     // underlying process so that while we are invoking the link
     // manager we don't miss sending a possible EXITED.
     if (ProcessReference _ = use(to)) {
-      link_manager->link(process, to);
+      socket_manager->link(process, to);
     } else {
       // Since the pid isn't valid it's process must have already died
       // (or hasn't been spawned yet) so send a process exit message.
@@ -1990,8 +2101,10 @@ bool ProcessManager::external_wait(const UPID &pid)
       assert(process->state != ProcessBase::FINISHED);
 
       /* Check and see if a gate already exists. */
-      if (gates.find(process) == gates.end())
+      if (gates.find(process) == gates.end()) {
         gates[process] = new Gate();
+      }
+
       gate = gates[process];
       old = gate->approach();
     }
@@ -2000,8 +2113,11 @@ bool ProcessManager::external_wait(const UPID &pid)
   /* Now arrive at the gate and wait until it opens. */
   if (gate != NULL) {
     gate->arrive(old);
-    if (gate->empty())
+
+    if (gate->empty()) {
       delete gate;
+    }
+
     return true;
   }
 
@@ -2028,12 +2144,13 @@ bool ProcessManager::poll(ProcessBase *process, int fd, int op, double secs, boo
       /* Allocate/Initialize the watcher. */
       ev_io *watcher = new ev_io();
 
-      if ((op & ProcessBase::RDWR) == ProcessBase::RDWR)
+      if ((op & ProcessBase::RDWR) == ProcessBase::RDWR) {
         ev_io_init(watcher, handle_poll, fd, EV_READ | EV_WRITE);
-      else if ((op & ProcessBase::RDONLY) == ProcessBase::RDONLY)
+      } else if ((op & ProcessBase::RDONLY) == ProcessBase::RDONLY) {
         ev_io_init(watcher, handle_poll, fd, EV_READ);
-      else if ((op & ProcessBase::WRONLY) == ProcessBase::WRONLY)
+      } else if ((op & ProcessBase::WRONLY) == ProcessBase::WRONLY) {
         ev_io_init(watcher, handle_poll, fd, EV_WRITE);
+      }
 
       // Tuple describing state (on heap in case we can't "cancel" it,
       // the watcher will always fire, even if we get interrupted and
@@ -2067,12 +2184,15 @@ bool ProcessManager::poll(ProcessBase *process, int fd, int op, double secs, boo
            process->state == ProcessBase::INTERRUPTED);
 
     /* Attempt to cancel the timer if necessary. */
-    if (secs != 0)
-      if (process->state != ProcessBase::TIMEDOUT)
+    if (secs != 0) {
+      if (process->state != ProcessBase::TIMEDOUT) {
         cancel_timeout(timeout);
+      }
+    }
 
-    if (process->state == ProcessBase::INTERRUPTED)
+    if (process->state == ProcessBase::INTERRUPTED) {
       interrupted = true;
+    }
 
     process->state = ProcessBase::RUNNING;
       
@@ -2230,6 +2350,20 @@ void ProcessManager::cleanup(ProcessBase *process)
         delete message;
       }
 
+      // Free any pending requests.
+      while (!process->requests.empty()) {
+        pair<HttpRequest*, Future<HttpResponse>*>* request = process->requests.front();
+        process->requests.pop_front();
+        delete request;
+      }
+
+      // Free any pending delegators.
+      while (!process->delegators.empty()) {
+        function<void(ProcessBase*)>* delegator = process->delegators.front();
+        process->delegators.pop_front();
+        delete delegator;
+      }
+
       // Free current message.
       if (process->current) {
         delete process->current;
@@ -2263,8 +2397,8 @@ void ProcessManager::cleanup(ProcessBase *process)
     process->unlock();
   }
 
-  // Inform link manager.
-  link_manager->exited(process);
+  // Inform socket manager.
+  socket_manager->exited(process);
 
   // Confirm process not in runq.
   synchronized (runq) {
@@ -2724,17 +2858,15 @@ string ProcessBase::serve(double secs, bool once)
     pair<HttpRequest*, Future<HttpResponse>*>* request;
     function<void(ProcessBase*)>* delegator;
     if ((request = dequeue<pair<HttpRequest*, Future<HttpResponse>*> >()) != NULL) {
-      const string& id = "/" + pid.id + "/";
-      size_t index = request->first->path.find(id);
-      CHECK(index != string::npos);
-      const string& name =
-        request->first->path.substr(index + id.size(), request->first->path.size());
+      size_t index = request->first->path.find('/', 1);
+      index = index != string::npos ? index + 1 : request->first->path.size();
+      const string& name = request->first->path.substr(index);
       if (http_handlers.count(name) > 0) {
         http_handlers[name](*request->first).associate(*request->second);
       } else {
-        Promise<HttpResponse>(HttpNotFoundResponse()).associate(*request->second);
-        VLOG(1) << "Returning '404 Not Found' for HTTP request '"
+        VLOG(1) << "Returning '404 Not Found' for HTTP request for '"
                 << request->first->path << "'";
+        Promise<HttpResponse>(HttpNotFoundResponse()).associate(*request->second);
       }
       delete request->first;
       delete request->second;
@@ -2956,6 +3088,48 @@ bool wait(const UPID& pid)
 }
 
 
+class WaitWaiter : public Process<WaitWaiter>
+{
+public:
+  WaitWaiter(const UPID& _pid, double _secs, bool* _waited)
+    : pid(_pid), secs(_secs), waited(_waited) {}
+
+protected:
+  virtual void operator () ()
+  {
+    link(pid);
+    receive(secs);
+    if (name() == EXITED) {
+      *waited = true;
+    } else {
+      *waited = false;
+    }
+  }
+
+private:
+  const UPID pid;
+  const double secs;
+  bool* waited;
+};
+
+
+bool wait(const UPID& pid, double secs)
+{
+  initialize();
+
+  if (!pid) {
+    return false;
+  }
+
+  bool waited = false;
+
+  WaitWaiter waiter(pid, secs, &waited);
+  wait(spawn(&waiter));
+
+  return waited;
+}
+
+
 void invoke(const function<void (void)> &thunk)
 {
   initialize();
@@ -2986,6 +3160,8 @@ void post(const UPID& to, const string& name, const char* data, size_t length)
 }
 
 
+namespace internal {
+
 void dispatcher(const UPID& pid, function<void(ProcessBase*)>* delegator)
 {
   if (proc_process != NULL) {
@@ -2995,4 +3171,4 @@ void dispatcher(const UPID& pid, function<void(ProcessBase*)>* delegator)
   }
 }
 
-}  // namespace process {
+}}  // namespace process { namespace internal {
