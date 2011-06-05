@@ -118,12 +118,19 @@ void Configurator::loadCommandLine(int argc,
 {
   // Set home based on argument 0 if asked to do so
   if (inferMesosHomeFromArg0) {
-    char buf[4096];
-    if (realpath(dirname(argv[0]), buf) == 0) {
+    // Copy argv[0] because dirname can modify it
+    int lengthOfArg0 = strlen(argv[0]);
+    char* copyOfArg0 = new char[lengthOfArg0 + 1];
+    strcpy(copyOfArg0, argv[0]);
+    // Get the directory name from it
+    char* buf = new char[lengthOfArg0 + 1];
+    if (realpath(dirname(copyOfArg0), buf) == 0) {
       throw ConfigurationException(
           "Could not get directory containing argv[0] -- realpath failed");
     }
     params["home"] = buf;
+    delete[] copyOfArg0;
+    delete[] buf;
   }
 
   // Convert args 1 and above to STL strings
