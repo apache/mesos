@@ -136,7 +136,7 @@ protected:
     // Get username of current user.
     struct passwd* passwd;
     if ((passwd = getpwuid(getuid())) == NULL)
-      fatal("failed to get username information");
+      fatal("NexusSchedulerDriver failed to get username information");
 
     const string user(passwd->pw_name);
 
@@ -410,7 +410,14 @@ NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* sched,
 					   FrameworkID fid)
 {
   Configurator configurator;
-  Params* conf = new Params(configurator.load());
+  Params* conf;
+  try {
+    conf = new Params(configurator.load());
+  } catch (ConfigurationException& e) {
+    string message = string("Configuration error: ") + e.what();
+    sched->error(this, 2, message);
+    conf = new Params();
+  }
   conf->set("url", url); // Override URL param with the one from the user
   init(sched, conf, fid);
 }
@@ -421,7 +428,13 @@ NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* sched,
 					   FrameworkID fid)
 {
   Configurator configurator;
-  Params* conf = new Params(configurator.load(params));
+  try {
+    conf = new Params(configurator.load(params));
+  } catch (ConfigurationException& e) {
+    string message = string("Configuration error: ") + e.what();
+    sched->error(this, 2, message);
+    conf = new Params();
+  }
   init(sched, conf, fid);
 }
 
@@ -432,7 +445,13 @@ NexusSchedulerDriver::NexusSchedulerDriver(Scheduler* sched,
 					   FrameworkID fid)
 {
   Configurator configurator;
-  Params* conf = new Params(configurator.load(argc, argv, false));
+  try {
+    conf = new Params(configurator.load(argc, argv, false));
+  } catch (ConfigurationException& e) {
+    string message = string("Configuration error: ") + e.what();
+    sched->error(this, 2, message);
+    conf = new Params();
+  }
   init(sched, conf, fid);
 }
 
@@ -876,6 +895,65 @@ int nexus_sched_reg(struct nexus_sched* sched, const char* master)
 
   try {
     cs->driver = new NexusSchedulerDriver(cs, master);
+  } catch (ConfigurationException& e) {
+    string message = string("Configuration error: ") + e.what();
+    sched->error(sched, 2, message.c_str());
+    return -2;
+  }
+
+  cs->driver->start();
+
+  return 0;
+}
+
+
+int nexus_sched_reg_with_params(struct nexus_sched* sched, const char* params)
+{
+  if (sched == NULL || params == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  CScheduler* cs = lookupCScheduler(sched);
+
+  if (cs->driver != NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  try {
+    Params paramsObj(params);
+    cs->driver = new NexusSchedulerDriver(cs, paramsObj.getMap());
+  } catch (ConfigurationException& e) {
+    string message = string("Configuration error: ") + e.what();
+    sched->error(sched, 2, message.c_str());
+    return -2;
+  }
+
+  cs->driver->start();
+
+  return 0;
+}
+
+
+int nexus_sched_reg_with_cmdline(struct nexus_sched* sched,
+                                 int argc,
+                                 char** argv)
+{
+  if (sched == NULL || argc < 0 || argv == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  CScheduler* cs = lookupCScheduler(sched);
+
+  if (cs->driver != NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  try {
+    cs->driver = new NexusSchedulerDriver(cs, argc, argv);
   } catch (ConfigurationException& e) {
     string message = string("Configuration error: ") + e.what();
     sched->error(sched, 2, message.c_str());

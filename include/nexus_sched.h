@@ -41,7 +41,17 @@ struct nexus_sched {
 int nexus_sched_init(struct nexus_sched*);
 int nexus_sched_destroy(struct nexus_sched*);
 
-int nexus_sched_reg(struct nexus_sched*, const char*);
+// Register a scheduler, connecting to a given URL
+int nexus_sched_reg(struct nexus_sched*, const char* url);
+
+// Register a scheduler, connecting to the master URL specified through the
+// given options string (which should contain key=value pairs, one per line).
+int nexus_sched_reg_with_params(struct nexus_sched*, const char* params);
+
+// Register a scheduler, connecting to the master URL specified through the
+// given command line arguments. Note that argv[0] is expected to be the
+// program name and is therefore ignored by Mesos.
+int nexus_sched_reg_with_cmdline(struct nexus_sched*, int argc, char** argv);
 
 int nexus_sched_unreg(struct nexus_sched*);
 
