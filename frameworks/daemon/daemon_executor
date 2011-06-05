@@ -1,4 +1,9 @@
-#!/bin/sh
-FWDIR=`dirname $0`
+#!/bin/sh -x
+echo "Running daemon_executor"
+FWDIR=$(dirname $0)
 cd $FWDIR
-exec java -cp .:../../src/swig/java/nexus.jar -Djava.library.path=../../src/swig/java DaemonExecutor $@
+hadoop fs -get /user/nexus/bin/DaemonExecutor.class $(pwd)
+hadoop fs -get /user/nexus/bin/nexus.jar $(pwd)
+hadoop fs -get /user/nexus/bin/libnexus.so $(pwd)
+md5sum DaemonExecutor.class
+exec java -cp .:nexus.jar -Djava.library.path=. DaemonExecutor $@

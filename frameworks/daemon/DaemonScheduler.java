@@ -6,7 +6,7 @@ import nexus.*;
 public class DaemonScheduler extends Scheduler {
 
   final static String executorScript =
-    "/Users/florian/code/nexus-src/frameworks/daemon/daemon_executor";
+    "hdfs://hadoop/user/nexus/bin/daemon_executor";
 
   static Map<String, Configuration> configs =
     new HashMap<String, Configuration>();
