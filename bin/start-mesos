@@ -6,15 +6,45 @@ bin=`cd "$bin"; pwd`
 
 cd $bin
 
+DEFAULT_MASTER_WEBUI_PORT=5555  #Globals
+DEFAULT_SLAVE_WEBUI_PORT=5051
+
+if [ ! $MASTER_PORT ]; then
+  MASTER_PORT=$DEFAULT_MASTER_PORT
+fi
+
+###########################
+#Launch master
+
+if [ ! $MASTER_WEBUI_PORT ]; then
+  MASTER_WEBUI_PORT=$DEFAULT_MASTER_WEBUI_PORT
+fi
+
+MASTER_FLAGS=" -p $MASTER_PORT"
+MASTER_FLAGS+=" -w $MASTER_WEBUI_PORT"
+
 echo "Starting master on $MASTER"
-ssh $SSH_OPTS $MASTER "$bin/mesos-daemon mesos-master -p $MASTER_PORT </dev/null >/dev/null"
+echo ssh $SSH_OPTS $MASTER "$bin/mesos-daemon mesos-master $MASTER_FLAGS </dev/null >/dev/null"
+ssh $SSH_OPTS $MASTER "$bin/mesos-daemon mesos-master $MASTER_FLAGS </dev/null >/dev/null"
+
+###########################
+#Launch slaves
+
+SLAVE_FLAGS="-u 1@$MASTER:$MASTER_PORT"
+if [ $SLAVE_WEBUI_PORT ]; then
+  SLAVE_FLAGS+=" -w $SLAVE_WEBUI_PORT"
+else
+  SLAVE_FLAGS+=" -w $DEFAULT_SLAVE_WEBUI_PORT"
+fi
 
 for slave in $SLAVES; do
   echo "Starting slave on $slave"
-  ssh $SSH_OPTS $slave "$bin/mesos-daemon mesos-slave -u 1@$MASTER:$MASTER_PORT </dev/null >/dev/null" &
+  echo ssh $SSH_OPTS $slave "$bin/mesos-daemon mesos-slave $SLAVE_FLAGS </dev/null >/dev/null" &
+  ssh $SSH_OPTS $slave "$bin/mesos-daemon mesos-slave $SLAVE_FLAGS </dev/null >/dev/null" &
   sleep 0.1
 done
 wait
 
 echo "Everything's started! You can view the master Web UI at"
-echo "      http://$MASTER:8080"
+
+echo "      http://$MASTER:$MASTER_WEBUI_PORT"

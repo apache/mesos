@@ -26,8 +26,8 @@ if [ ! -d $MESOS_LOGS ]; then
   mkdir -p $MESOS_LOGS
 fi
 
-FULL_IP=`hostname --all-ip-addresses`
-IP=`echo $FULL_IP|sed 's/\([^ ]*\) .*/\1/'`
 
 cd $MESOS_HOME
-LIBPROCESS_IP=$IP nohup ./$PROGRAM $EXTRA_OPTS $@ </dev/null >$MESOS_LOGS/$PROGRAM.out 2>&1 &
+echo "now in dir `pwd`"
+echo "LIBPROCESS_IP=`$LIBPROCESS_IP_GETTER` nohup ./$PROGRAM $EXTRA_OPTS $@ </dev/null >$MESOS_LOGS/$PROGRAM.out 2>&1"
+LIBPROCESS_IP=`$LIBPROCESS_IP_GETTER` nohup ./$PROGRAM $EXTRA_OPTS $@ </dev/null  >$MESOS_LOGS/$PROGRAM.out 2>&1 &

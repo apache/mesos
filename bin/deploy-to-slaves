@@ -8,9 +8,9 @@ bin=`cd "$bin"; pwd`
 echo "RSYNC'ing $MESOS_ROOT to slaves..."
 for slave in $SLAVES; do
   echo $slave
-  echo ssh $SSH_OPTS $slave "mkdir -p $mesos_ROOT"
-  ssh $SSH_OPTS $slave "mkdir -p $mesos_ROOT"
-  echo rsync -avz $mesos_ROOT/ $slave:$mesos_ROOT 
-  rsync -avz $mesos_ROOT/ $slave:$mesos_ROOT &
+  echo ssh $SSH_OPTS $slave "mkdir -p $MESOS_ROOT"
+  ssh $SSH_OPTS $slave "mkdir -p $MESOS_ROOT"
+  echo rsync -avz $MESOS_ROOT/ $slave:$MESOS_ROOT
+  rsync -avz $MESOS_ROOT/ $slave:$MESOS_ROOT &
   sleep 0.1
 done
