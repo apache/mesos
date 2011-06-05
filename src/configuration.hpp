@@ -101,8 +101,8 @@ private:
                  bool hasDefault,
                  const string& defaultValue)
   {
-    string name;
-    std::transform(optName.begin(), optName.end(), name.begin(), ::tolower);
+    string name = optName;
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
     if (options.find(name) != options.end()) {
       string message = "Duplicate option registration: " + name;
       throw ConfigurationException(message.c_str());

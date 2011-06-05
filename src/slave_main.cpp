@@ -15,12 +15,8 @@ using namespace nexus::internal::slave;
 void usage(const char *programName, const Configuration& conf)
 {
   cerr << "Usage: " << programName
-       << " --url MASTER_URL"
-       << " [--cpus NUM]"
-       << " [--mem NUM]"
-       << " [--isolation TYPE]"
-       << " [...]"
-       << endl << endl
+       << " --url=MASTER_URL [--cpus=NUM] [--mem=NUM] [...]" << endl
+       << endl
        << "MASTER_URL may be one of:" << endl
        << "  nexus://id@host:port" << endl
        << "  zoo://host1:port1,host2:port2,..." << endl
