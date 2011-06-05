@@ -157,18 +157,31 @@ AC_ARG_WITH([swig],
 	         [])
 AC_SUBST(SWIG)
 
-LOCAL_ZOOKEEPER="no"
-AC_ARG_WITH([local-zookeeper],
-  AC_HELP_STRING([--with-local-zookeeper],
-                 [Use local ZooKeeper for building]),
-	         [case "$with_local_zookeeper" in
-		    yes) LOCAL_ZOOKEEPER="yes" ;;
-                    no) LOCAL_ZOOKEEPER="no" ;;
+WITH_ZOOKEEPER="no"
+AC_ARG_WITH([zookeeper],
+  AC_HELP_STRING([--with-zookeeper],
+                 [use ZooKeeper support]),
+	         [case "$with_zookeeper" in
+		    yes) WITH_ZOOKEEPER="yes" ;;
+                    no) WITH_ZOOKEEPER="no" ;;
 		    *) AC_MSG_ERROR([
-*** --with-local-zookeeper does not take arguments]) ;;
+*** --with-zookeeper does not take arguments]) ;;
 	          esac],
 	         [])
-AC_SUBST(LOCAL_ZOOKEEPER)
+AC_SUBST(WITH_ZOOKEEPER)
+
+WITH_INCLUDED_ZOOKEEPER="no"
+AC_ARG_WITH([included-zookeeper],
+  AC_HELP_STRING([--with-included-zookeeper],
+                 [build with included ZooKeeper]),
+	         [case "$with_included_zookeeper" in
+		    yes) WITH_INCLUDED_ZOOKEEPER="yes" ;;
+                    no) WITH_INCLUDED_ZOOKEEPER="no" ;;
+		    *) AC_MSG_ERROR([
+*** --with-included-zookeeper does not take arguments]) ;;
+	          esac],
+	         [])
+AC_SUBST(WITH_INCLUDED_ZOOKEEPER)
 
 # Checks for programs.
 AC_PROG_CXX([g++])

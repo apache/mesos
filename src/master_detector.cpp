@@ -17,7 +17,9 @@
 #include "master_detector.hpp"
 #include "messages.hpp"
 #include "url_processor.hpp"
+#ifdef WITH_ZOOKEEPER
 #include "zookeeper.hpp"
+#endif
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -27,6 +29,7 @@ using namespace std;
 using boost::lexical_cast;
 
 
+#ifdef WITH_ZOOKEEPER
 class ZooKeeperMasterDetector : public MasterDetector, public Watcher
 {
 public:
@@ -69,23 +72,24 @@ public:
 
 private:
   /**
-  * TODO(alig): Comment this object.
-  */
+   * @param s sequence id
+   */
   void setId(const std::string &s);
 
   /**
-  * TODO(alig): Comment this object.
-  */
+   * @return current sequence id if contending to be a master
+   */
   std::string getId();
 
   /**
-  * TODO(alig): Comment this object.
-  */
+   * Attempts to detect a master.
+   */
   void detectMaster();
 
   /**
-  * TODO(alig): Comment this object.
-  */
+   * @param seq sequence id of a master
+   * @return PID corresponding to a master
+   */
   PID lookupMasterPID(const std::string &seq) const;
 
   std::string servers;
@@ -102,7 +106,7 @@ private:
   std::string currentMasterSeq;
   PID currentMasterPID;
 };
-
+#endif /* #ifdef WITH_ZOOKEEPER */
 
 
 MasterDetector::~MasterDetector() {}
@@ -127,6 +131,7 @@ MasterDetector * MasterDetector::create(const std::string &url,
   switch (urlPair.first) {
     // ZooKeeper URL.
     case UrlProcessor::ZOO: {
+#ifdef WITH_ZOOKEEPER
       // TODO(benh): Consider actually using the chroot feature of
       // ZooKeeper, rather than just using it's syntax.
       size_t index = urlPair.second.find("/");
@@ -137,6 +142,9 @@ MasterDetector * MasterDetector::create(const std::string &url,
 	fatal("expecting chroot path for ZooKeeper ('/' is not supported)");
       const string &servers = urlPair.second.substr(0, index);
       detector = new ZooKeeperMasterDetector(servers, znode, pid, contend, quiet);
+#else
+      fatal("ZooKeeper not supported in this build");
+#endif /* #ifdef WITH_ZOOKEEPER */
       break;
     }
 
@@ -262,6 +270,7 @@ PID BasicMasterDetector::getCurrentMasterPID()
 }
 
 
+#ifdef WITH_ZOOKEEPER
 ZooKeeperMasterDetector::ZooKeeperMasterDetector(const string &_servers,
 						 const string &_znode,
 						 const PID &_pid,
@@ -482,3 +491,4 @@ PID ZooKeeperMasterDetector::getCurrentMasterPID()
 {
   return currentMasterPID;
 }
+#endif /* #ifdef WITH_ZOOKEEPER */

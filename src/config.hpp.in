@@ -3,6 +3,10 @@
 
 /* This header gets completed by configure. */
 
+#if @WITH_ZOOKEEPER@
+  #define WITH_ZOOKEEPER
+#endif
+
 #if @WITH_WEBUI@
   #define MESOS_WEBUI
 #endif
