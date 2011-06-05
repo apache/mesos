@@ -491,14 +491,18 @@ void Master::operator () ()
     case F2M_KILL_TASK: {
       const Message<F2M_KILL_TASK>& msg = message();
 
+      LOG(INFO) << "Asked to kill task " << msg.task_id()
+		<< " of framework " << msg.framework_id();
+
       Framework *framework = lookupFramework(msg.framework_id());
       if (framework != NULL) {
         Task *task = framework->lookupTask(msg.task_id());
         if (task != NULL) {
-          LOG(INFO) << "Asked to kill " << task << " by its framework";
           killTask(task);
 	} else {
-	  LOG(INFO) << "Asked to kill UNKNOWN task by its framework";
+	  LOG(ERROR) << "Cannot kill task " << msg.task_id()
+		     << " of framework " << msg.framework_id()
+		     << " because it cannot be found";
           Message<M2F_STATUS_UPDATE> out;
           *out.mutable_framework_id() = task->framework_id();
           TaskStatus *status = out.mutable_status();
@@ -619,6 +623,11 @@ void Master::operator () ()
 
       const TaskStatus& status = msg.status();
 
+      LOG(INFO) << "Status update: task " << status.task_id()
+		<< " of framework " << msg.framework_id()
+		<< " is now in state "
+		<< TaskState_descriptor()->FindValueByNumber(status.state())->name();
+
       Slave* slave = lookupSlave(status.slave_id());
       if (slave != NULL) {
         Framework* framework = lookupFramework(msg.framework_id());
@@ -639,24 +648,24 @@ void Master::operator () ()
           // Update the task state locally.
           Task *task = slave->lookupTask(msg.framework_id(), status.task_id());
           if (task != NULL) {
-            LOG(INFO) << "Status update: " << task
-                      << " is in state " << status.state();
             task->set_state(status.state());
             // Remove the task if it finished or failed.
             if (status.state() == TASK_FINISHED ||
                 status.state() == TASK_FAILED ||
                 status.state() == TASK_KILLED ||
                 status.state() == TASK_LOST) {
-              LOG(INFO) << "Removing " << task << " because it's done";
               removeTask(task, TRR_TASK_ENDED);
             }
-          }
+          } else {
+	    LOG(ERROR) << "Status update error: couldn't lookup "
+		       << "task " << status.task_id();
+	  }
         } else {
-          LOG(ERROR) << "S2M_STATUS_UPDATE error: couldn't lookup "
+          LOG(ERROR) << "Status update error: couldn't lookup "
                      << "framework " << msg.framework_id();
         }
       } else {
-        LOG(ERROR) << "S2M_STATUS_UPDATE error: couldn't lookup slave "
+        LOG(ERROR) << "Status update error: couldn't lookup slave "
                    << status.slave_id();
       }
       break;

@@ -585,6 +585,104 @@ TEST(MasterTest, TaskRunning)
 }
 
 
+TEST(MasterTest, KillTask)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Master m;
+  PID master = Process::spawn(&m);
+
+  MockExecutor exec;
+
+  trigger killTaskCall;
+
+  EXPECT_CALL(exec, init(_, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(Trigger(&killTaskCall));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(1);
+
+  Resources resources;
+  resources.set_cpus(2);
+  resources.set_mem(1 * Gigabyte);
+
+  LocalIsolationModule isolationModule(&exec);
+
+  Slave s(resources, true, &isolationModule);
+  PID slave = Process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, master);
+
+  OfferID offerId;
+  vector<SlaveOffer> offers;
+  TaskStatus status;
+
+  trigger resourceOfferCall, statusUpdateCall;
+
+  EXPECT_CALL(sched, getFrameworkName(&driver))
+    .WillOnce(Return(""));
+
+  EXPECT_CALL(sched, getExecutorInfo(&driver))
+    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+
+  EXPECT_CALL(sched, registered(&driver, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffer(&driver, _, _))
+    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
+                    Trigger(&resourceOfferCall)));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOfferCall);
+
+  EXPECT_NE(0, offers.size());
+
+  TaskID taskId;
+  taskId.set_value("1");
+
+  TaskDescription task;
+  task.set_name("");
+  *task.mutable_task_id() = taskId;
+  *task.mutable_slave_id() = offers[0].slave_id();
+  *task.mutable_params() = offers[0].params();
+
+  vector<TaskDescription> tasks;
+  tasks.push_back(task);
+
+  driver.replyToOffer(offerId, tasks);
+
+  WAIT_UNTIL(statusUpdateCall);
+
+  EXPECT_EQ(TASK_RUNNING, status.state());
+
+  driver.killTask(taskId);
+
+  WAIT_UNTIL(killTaskCall);
+
+  driver.stop();
+  driver.join();
+
+  MesosProcess::post(slave, S2S_SHUTDOWN);
+  Process::wait(slave);
+
+  MesosProcess::post(master, M2M_SHUTDOWN);
+  Process::wait(master);
+}
+
+
 TEST(MasterTest, SchedulerFailoverStatusUpdate)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
@@ -950,7 +1048,10 @@ TEST(MasterTest, SchedulerFailoverFrameworkMessage)
 
   WAIT_UNTIL(sched2RegisteredCall);
 
-  execDriver->sendFrameworkMessage(FrameworkMessage());
+  FrameworkMessage message;
+  *message.mutable_slave_id() = offers[0].slave_id();
+
+  execDriver->sendFrameworkMessage(message);
 
   WAIT_UNTIL(sched2FrameworkMessageCall);
 

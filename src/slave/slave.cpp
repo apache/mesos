@@ -256,24 +256,50 @@ void Slave::operator () ()
       case M2S_KILL_TASK: {
         const Message<M2S_KILL_TASK>& msg = message();
 
-        LOG(INFO) << "Killing task " << msg.task_id()
+        LOG(INFO) << "Asked to kill task " << msg.task_id()
                   << " of framework " << msg.framework_id();
 
-        // Tell the executor to kill the task.
-        Executor* executor = getExecutor(msg.framework_id());
-        if (executor != NULL) {
-          Message<S2E_KILL_TASK> out;
-          *out.mutable_framework_id() = msg.framework_id();
-          *out.mutable_task_id() = msg.task_id();
-          send(executor->pid, out);
-        }
-
-        // Update the resources local.
         Framework* framework = getFramework(msg.framework_id());
         if (framework != NULL) {
-          framework->removeTask(msg.task_id());
-          isolationModule->resourcesChanged(framework);
-        }
+	  // Tell the executor to kill the task if it is up and
+	  // running, if not 
+	  Executor* executor = getExecutor(msg.framework_id());
+	  if (executor != NULL) {
+	    Message<S2E_KILL_TASK> out;
+	    *out.mutable_framework_id() = msg.framework_id();
+	    *out.mutable_task_id() = msg.task_id();
+	    send(executor->pid, out);
+	  } else {
+	    // Update the resources locally, if an executor comes up
+	    // after this then it just won't receive this task.
+	    framework->removeTask(msg.task_id());
+	    isolationModule->resourcesChanged(framework);
+
+	    Message<S2M_STATUS_UPDATE> out;
+	    *out.mutable_framework_id() = msg.framework_id();
+	    TaskStatus *status = out.mutable_status();
+	    *status->mutable_task_id() = msg.task_id();
+	    *status->mutable_slave_id() = slaveId;
+	    status->set_state(TASK_LOST);
+
+	    int seq = rsend(master, framework->pid, out);
+	    seqs[msg.framework_id()].insert(seq);
+	  }
+	} else {
+	  LOG(ERROR) << "Cannot kill task " << msg.task_id()
+		     << " of framework " << msg.framework_id()
+		     << " because no such framework is running";
+
+	  Message<S2M_STATUS_UPDATE> out;
+	  *out.mutable_framework_id() = msg.framework_id();
+	  TaskStatus *status = out.mutable_status();
+	  *status->mutable_task_id() = msg.task_id();
+	  *status->mutable_slave_id() = slaveId;
+	  status->set_state(TASK_LOST);
+
+	  int seq = rsend(master, out);
+	  seqs[msg.framework_id()].insert(seq);
+	}
         break;
       }
 
@@ -366,16 +392,17 @@ void Slave::operator () ()
 
         const TaskStatus& status = msg.status();
 
+	LOG(INFO) << "Status update: task " << status.task_id()
+		  << " of framework " << msg.framework_id()
+		  << " is now in state "
+		  << TaskState_descriptor()->FindValueByNumber(status.state())->name();
+
         Framework *framework = getFramework(msg.framework_id());
         if (framework != NULL) {
-	  LOG(INFO) << "Got status update for task "
-                    << msg.framework_id() << ":" << status.task_id();
 	  if (status.state() == TASK_FINISHED ||
               status.state() == TASK_FAILED ||
 	      status.state() == TASK_KILLED ||
               status.state() == TASK_LOST) {
-	    LOG(INFO) << "Task " << msg.framework_id() << ":" << status.task_id()
-                      << " done";
             framework->removeTask(status.task_id());
             isolationModule->resourcesChanged(framework);
           }
@@ -388,8 +415,8 @@ void Slave::operator () ()
 	  int seq = rsend(master, framework->pid, out);
 	  seqs[msg.framework_id()].insert(seq);
 	} else {
-	  LOG(WARNING) << "Got status update for UNKNOWN task "
-		       << msg.framework_id() << ":" << status.task_id();
+          LOG(ERROR) << "Status update error: couldn't lookup "
+                     << "framework " << msg.framework_id();
 	}
         break;
       }

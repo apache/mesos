@@ -163,15 +163,6 @@ private:
  */
 
 
-// Default implementation of error() that logs to stderr and exits
-void Executor::error(ExecutorDriver* driver, int code, const string &message)
-{
-  cerr << "Mesos error: " << message
-       << " (error code: " << code << ")" << endl;
-  driver->stop();
-}
-
-
 MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
   : executor(_executor), running(false)
 {
@@ -297,6 +288,11 @@ int MesosExecutorDriver::sendStatusUpdate(const TaskStatus& status)
     return -1;
   }
 
+  // Validate that they set the correct slave ID.
+  if (!(process->slaveId == status.slave_id())) {
+    return -1;
+  }
+
   Message<E2S_STATUS_UPDATE> out;
   *out.mutable_framework_id() = process->frameworkId;
   *out.mutable_status() = status;
@@ -315,10 +311,14 @@ int MesosExecutorDriver::sendFrameworkMessage(const FrameworkMessage& message)
     return -1;
   }
 
+  // Validate that they set the correct slave ID.
+  if (!(process->slaveId == message.slave_id())) {
+    return -1;
+  }
+
   Message<E2S_FRAMEWORK_MESSAGE> out;
   *out.mutable_framework_id() = process->frameworkId;
   *out.mutable_message() = message;
-  *out.mutable_message()->mutable_slave_id() = process->slaveId;
   process->send(process->slave, out);
 
   return 0;
