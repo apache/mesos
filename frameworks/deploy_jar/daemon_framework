@@ -6,6 +6,6 @@ if [ "`uname`" == "SunOS" ]; then
   PYTHON=python2.6
 fi
 
-export PYTHONPATH=`dirname $0`/../../src/swig/python:$PYTHONPATH
+export PYTHONPATH=`dirname $0`/../../lib/python:$PYTHONPATH
 
 $PYTHON ./daemon_scheduler.py $@
