@@ -296,7 +296,7 @@ void Master::operator () ()
       LOG(INFO) << "Registering " << framework << " at " << framework->pid;
 
       if (framework->executorInfo.uri == "") {
-        LOG(INFO) << framework << " registered without an executor URI";
+        LOG(INFO) << framework << " registering without an executor URI";
         send(framework->pid, pack<M2F_ERROR>(1, "No executor URI given"));
         delete framework;
         break;
@@ -308,20 +308,20 @@ void Master::operator () ()
 
     case F2M_REREGISTER_FRAMEWORK: {
       Framework *framework = new Framework(from(), "", elapsed());
-      bool failover;
+      int32_t generation;
       unpack<F2M_REREGISTER_FRAMEWORK>(framework->id, framework->name,
                                        framework->user, framework->executorInfo,
-                                       failover);
+                                       generation);
 
       if (framework->executorInfo.uri == "") {
-        LOG(INFO) << framework << " re-registered without an executor URI";
+        LOG(INFO) << framework << " re-registering without an executor URI";
         send(framework->pid, pack<M2F_ERROR>(1, "No executor URI given"));
         delete framework;
         break;
       }
 
       if (framework->id == "") {
-        LOG(ERROR) << "Framework reconnect/failover without an id!";
+        LOG(ERROR) << "Framework re-registering without an id!";
         send(framework->pid, pack<M2F_ERROR>(1, "Missing framework id"));
         delete framework;
         break;
@@ -330,10 +330,12 @@ void Master::operator () ()
       LOG(INFO) << "Re-registering " << framework << " at " << framework->pid;
 
       if (frameworks.count(framework->id) > 0) {
-        if (failover) {
+        if (generation == 0) {
+          LOG(INFO) << framework << " failed over";
           replaceFramework(frameworks[framework->id], framework);
         } else {
-          LOG(INFO) << "Framework reregistering with an already used id!";
+          LOG(INFO) << framework << " re-registering with an already "
+		    << "used id and not failing over!";
           send(framework->pid, pack<M2F_ERROR>(1, "Framework id in use"));
           delete framework;
           break;
@@ -944,9 +946,9 @@ void Master::replaceFramework(Framework *old, Framework *current)
   CHECK(old->id == current->id);
 
   old->active = false;
-  // TODO: Notify allocator that a framework removal is beginning?
   
-  // Remove the framework's slot offers
+  // Remove the framework's slot offers.
+  // TODO(benh): Consider just reoffering these to the new framework.
   unordered_set<SlotOffer *> slotOffersCopy = old->slotOffers;
   foreach (SlotOffer* offer, slotOffersCopy) {
     removeSlotOffer(offer, ORR_FRAMEWORK_FAILOVER, offer->resources);
@@ -954,18 +956,15 @@ void Master::replaceFramework(Framework *old, Framework *current)
 
   send(old->pid, pack<M2F_ERROR>(1, "Framework failover"));
 
-  // TODO(benh): Similar code between removeFramework and
-  // replaceFramework needs to be shared!
-
   // TODO(benh): unlink(old->pid);
   pidToFid.erase(old->pid);
-
-  // Delete it
-  frameworks.erase(old->id);
-  allocator->frameworkRemoved(old);
   delete old;
 
-  addFramework(current);
+  frameworks[current->id] = current;
+  pidToFid[current->pid] = current->id;
+  link(current->pid);
+
+  send(current->pid, pack<M2F_REGISTER_REPLY>(current->id));
 }
 
 

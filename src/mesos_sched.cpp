@@ -106,7 +106,7 @@ private:
   FrameworkID fid;
   string frameworkName;
   ExecutorInfo execInfo;
-
+  int32_t generation;
   PID master;
 
   volatile bool terminate;
@@ -127,6 +127,7 @@ public:
       fid(_fid),
       frameworkName(_frameworkName),
       execInfo(_execInfo),
+      generation(0),
       master(PID()),
       terminate(false) {}
 
@@ -172,10 +173,6 @@ protected:
 
 	LOG(INFO) << "New master at " << masterPid << " with ID:" << masterSeq;
 
-	// Connect as a failover if this is the first master we are
-        // being told about a master AND we already have an id.
-        bool failover = !master && fid != "";
-
         redirect(master, masterPid);
 	master = masterPid;
 	link(master);
@@ -186,7 +183,7 @@ protected:
 	} else {
 	  // Not the first time, or failing over.
 	  send(master, pack<F2M_REREGISTER_FRAMEWORK>(fid, frameworkName, user,
-						      execInfo, failover));
+						      execInfo, generation++));
 	}
 	break;
       }

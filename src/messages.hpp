@@ -125,11 +125,11 @@ TUPLE(F2M_REGISTER_FRAMEWORK,
        ExecutorInfo));
 
 TUPLE(F2M_REREGISTER_FRAMEWORK,
-      (std::string /*fid*/,
+      (FrameworkID,
        std::string /*name*/,
        std::string /*user*/,
        ExecutorInfo,
-       bool /*failover*/));
+       int32_t /*generation*/));
 
 TUPLE(F2M_UNREGISTER_FRAMEWORK,
       (FrameworkID));
@@ -199,7 +199,7 @@ TUPLE(S2M_REGISTER_SLAVE,
        Resources));
 
 TUPLE(S2M_REREGISTER_SLAVE,
-      (std::string /*slave id*/,
+      (SlaveID,
        std::string /*name*/,
        std::string /*publicDns*/,
        Resources,
