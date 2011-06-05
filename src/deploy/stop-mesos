@@ -7,5 +7,5 @@ DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
 cd $DEPLOY_DIR
 
 ./stop-slaves
-
+sleep 1
 ./stop-master

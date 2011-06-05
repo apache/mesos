@@ -22,10 +22,6 @@ if [ "$PROGRAM" == "mesos-slave" ]; then
 fi
 
 
-if [ ! -d $MESOS_LOGS ]; then
-  mkdir -p $MESOS_LOGS
-fi
-
 cd $MESOS_HOME
 echo "now in dir `pwd`"
-nohup ./bin/$PROGRAM $EXTRA_OPTS $@ </dev/null >$MESOS_LOGS/$PROGRAM.out 2>&1 &
+nohup ./bin/$PROGRAM $EXTRA_OPTS $@ </dev/null >/dev/null 2>&1 &
