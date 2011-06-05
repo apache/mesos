@@ -32,18 +32,28 @@ protected:
   string user;
   string workDirectory; // Directory in which the framework should run
   string slavePid;
+  string hadoopHome;
   bool redirectIO;   // Whether to redirect stdout and stderr to files
   string_map params; // Key-value params in framework's ExecutorInfo
 
 public:
   ExecutorLauncher(FrameworkID _frameworkId, const string& _executorUri,
                    const string& _user, const string& _workDirectory,
-                   const string& _slavePid, bool _redirectIO,
-                   const string_map& _params);
+                   const string& _slavePid, const string& _hadoopHome,
+                   bool _redirectIO, const string_map& _params);
 
   virtual ~ExecutorLauncher();
 
+  // Primary method to be called to run the user's executor.
+  // Create the work directory, fetch the executor, set up the environment,
+  // switch user, and exec() the user's executor.
   virtual void run();
+
+  // Set up environment variables for exec'ing a launcher_main.cpp
+  // (mesos-launcher binary) process. This is used by isolation modules that
+  // cannot exec the user's executor directly, such as the LXC isolation
+  // module, which must run lxc-execute and have it run the launcher.
+  virtual void setupEnvironmentForLauncherMain();
 
 protected:
   // Create the executor's working director.
@@ -59,6 +69,10 @@ protected:
 
   // Switch to a framework's user in preparation for exec()'ing its executor.
   virtual void switchUser();
+
+private:
+  // Set any environment variables given as env.* params in the ExecutorInfo
+  void setupEnvVariablesFromParams();
 };
 
 }}}

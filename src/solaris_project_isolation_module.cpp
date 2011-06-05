@@ -79,23 +79,27 @@ void SolarisProjectIsolationModule::resourcesChanged(Framework* fw)
 }
 
 
-ExecutorLauncher* SolarisProjectIsolationModule::createExecutorLauncher(Framework* fw)
+ExecutorLauncher* SolarisProjectIsolationModule::createExecutorLauncher(
+    Framework* fw)
 {
-  return new ProjectLauncher(fw->id, fw->executorPath, fw->user,
-			     slave->getWorkDirectory(fw->id),
-			     slave->self(), !slave->local,
-			     frameworkProject[fw->id]);
+  return new ProjectLauncher(fw->id,
+                             fw->executorPath,
+                             fw->user,
+                             slave->getWorkDirectory(fw->id),
+                             slave->self(),
+                             slave->getConf().get("hadoop_home", ""),
+                             !slave->local,
+                             frameworkProject[fw->id]);
 }
 
 
-void SolarisProjectIsolationModule::Communicator::launchProjd(const string& project)
+void SolarisProjectIsolationModule::Communicator::launchProjd(
+    const string& project)
 {
   LOG(INFO) << "Starting projd for project " << project;
 
   // Get location of Mesos install in order to find projd.
-  const char* mesos_home = getenv("MESOS_HOME");
-  if (!mesos_home)
-    mesos_home = "..";
+  string mesosHome = slave->getConf().get("home", ".");
 
   pid_t pid;
   if ((pid = fork()) == -1)
@@ -115,7 +119,7 @@ void SolarisProjectIsolationModule::Communicator::launchProjd(const string& proj
     if (setproject(project.c_str(), "root", TASK_FINAL) != 0)
       fatal("setproject failed");
 
-    string projd = string(mesos_home) + "/src/mesos-projd";
+    string projd = mesosHome + "/mesos-projd";
 
     // Execute projd.
     execl(projd.c_str(), "mesos-projd", (char *) NULL);
@@ -126,7 +130,8 @@ void SolarisProjectIsolationModule::Communicator::launchProjd(const string& proj
 }
 
 
-SolarisProjectIsolationModule::Communicator::Communicator(SolarisProjectIsolationModule* m)
+SolarisProjectIsolationModule::Communicator::Communicator(
+    SolarisProjectIsolationModule* m)
   : module(m), shouldRun(true)
 {}
 
@@ -213,7 +218,7 @@ SolarisProjectIsolationModule::ProjectLauncher::ProjectLauncher(
     const string& _user, const string& _workDir, const string& _slavePid,
     bool _redirectIO, const string& _project)
   : ExecutorLauncher(_fid, _executorPath, _user, _workDir,
-		     _slavePid, _redirectIO),
+                     _slavePid, _redirectIO),
     project(_project)
 {}
 

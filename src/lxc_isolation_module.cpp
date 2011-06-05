@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "foreach.hpp"
+#include "launcher.hpp"
 
 using std::cerr;
 using std::cout;
@@ -25,6 +26,7 @@ using boost::unordered_set;
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::launcher;
 using namespace mesos::internal::slave;
 
 namespace {
@@ -105,10 +107,8 @@ void LxcIsolationModule::startExecutor(Framework *fw)
   CHECK(infos[fw->id]->lxcExecutePid == -1 && infos[fw->id]->container == "");
 
   // Get location of Mesos install in order to find mesos-launcher.
-  const char *mesosHome = getenv("MESOS_HOME");
-  if (!mesosHome)
-    mesosHome = "..";
-  string mesosLauncher = string(mesosHome) + "/src/mesos-launcher";
+  string mesosHome = slave->getConf().get("home", ".");
+  string mesosLauncher = mesosHome + "/mesos-launcher";
 
   // Create a name for the container
   ostringstream oss;
@@ -128,26 +128,22 @@ void LxcIsolationModule::startExecutor(Framework *fw)
   if (pid) {
     // In parent process
     infos[fw->id]->lxcExecutePid = pid;
-    LOG(INFO) << "Started lxc-execute, pid = " << pid;
+    LOG(INFO) << "Started child for lxc-execute, pid = " << pid;
     int status;
   } else {
-    // Set any environment variables given as env.* params in the ExecutorInfo
-    const string_map& params = fw->executorInfo.params;
-    foreachpair (const string& key, const string& value, params) {
-      if (key.find("env.") == 0) {
-        const string& var = key.substr(strlen("env."));
-        setenv(var.c_str(), value.c_str(), true);
-      }
-    }
-
-    // Set up Mesos environment variables for launcher.
-    setenv("MESOS_FRAMEWORK_ID", lexical_cast<string>(fw->id).c_str(), 1);
-    setenv("MESOS_EXECUTOR_URI", fw->executorInfo.uri.c_str(), 1);
-    setenv("MESOS_USER", fw->user.c_str(), 1);
-    setenv("MESOS_SLAVE_PID", lexical_cast<string>(slave->self()).c_str(), 1);
-    setenv("MESOS_REDIRECT_IO", slave->local ? "0" : "1", 1);
-    setenv("MESOS_WORK_DIRECTORY", slave->getWorkDirectory(fw->id).c_str(), 1);
-
+    // Create an ExecutorLauncher to set up the environment for executing
+    // an extrernal launcher_main.cpp process (inside of lxc-execute).
+    ExecutorLauncher* launcher;
+    launcher = new ExecutorLauncher(fw->id,
+                                    fw->executorInfo.uri,
+                                    fw->user,
+                                    slave->getWorkDirectory(fw->id),
+                                    slave->self(),
+                                    slave->getConf().get("hadoop_home", ""),
+                                    !slave->local,
+                                    fw->executorInfo.params);
+    launcher->setupEnvironmentForLauncherMain();
+    
     // Run lxc-execute.
     execlp("lxc-execute", "lxc-execute", "-n", containerName.c_str(),
            mesosLauncher.c_str(), (char *) NULL);

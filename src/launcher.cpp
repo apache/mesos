@@ -37,11 +37,12 @@ ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
                                    const string& _user,
                                    const string& _workDirectory,
                                    const string& _slavePid,
+                                   const string& _hadoopHome,
                                    bool _redirectIO,
                                    const string_map& _params)
   : frameworkId(_frameworkId), executorUri(_executorUri), user(_user),
     workDirectory(_workDirectory), slavePid(_slavePid),
-    redirectIO(_redirectIO), params(_params)
+    hadoopHome(_hadoopHome), redirectIO(_redirectIO), params(_params)
 {}
 
 
@@ -114,17 +115,22 @@ string ExecutorLauncher::fetchExecutor()
   // Grab the executor from HDFS if its path begins with hdfs://
   // TODO: Enforce some size limits on files we get from HDFS
   if (executor.find("hdfs://") == 0) {
-
-    const char *hadoop = getenv("HADOOP");
-    if (!hadoop) {
-      hadoop = "hadoop";
-//       fatal("Cannot download executor from HDFS because the "
-//             "HADOOP environment variable is not set");
+    // Locate Hadoop's bin/hadoop script. If a Hadoop home was given to us by
+    // the slave (from the Mesos config file), use that. Otherwise check for
+    // a HADOOP_HOME environment variable. Finally, if that doesn't exist,
+    // try looking for hadoop on the PATH.
+    string hadoopScript;
+    if (hadoopHome != "") {
+      hadoopScript = hadoopHome + "/bin/hadoop";
+    } else if (getenv("HADOOP_HOME") != 0) {
+      hadoopScript = string(getenv("HADOOP_HOME")) + "/bin/hadoop";
+    } else {
+      hadoopScript = "hadoop"; // Look for hadoop on the PATH.
     }
     
     string localFile = string("./") + basename((char *) executor.c_str());
     ostringstream command;
-    command << hadoop << " fs -copyToLocal '" << executor
+    command << hadoopScript << " fs -copyToLocal '" << executor
             << "' '" << localFile << "'";
     cout << "Downloading executor from " << executor << endl;
     cout << "HDFS command: " << command.str() << endl;
@@ -185,12 +191,7 @@ string ExecutorLauncher::fetchExecutor()
 void ExecutorLauncher::setupEnvironment()
 {
   // Set any environment variables given as env.* params in the ExecutorInfo
-  foreachpair (const string& key, const string& value, params) {
-    if (key.find("env.") == 0) {
-      const string& var = key.substr(strlen("env."));
-      setenv(var.c_str(), value.c_str(), true);
-    }
-  }
+  setupEnvVariablesFromParams();
 
   // Set Mesos environment variables to pass slave ID, framework ID, etc.
   setenv("MESOS_SLAVE_PID", slavePid.c_str(), true);
@@ -198,6 +199,17 @@ void ExecutorLauncher::setupEnvironment()
   
   // Set LIBPROCESS_PORT so that we bind to a random free port.
   setenv("LIBPROCESS_PORT", "0", true);
+}
+
+
+void ExecutorLauncher::setupEnvVariablesFromParams()
+{
+  foreachpair (const string& key, const string& value, params) {
+    if (key.find("env.") == 0) {
+      const string& var = key.substr(strlen("env."));
+      setenv(var.c_str(), value.c_str(), true);
+    }
+  }
 }
 
 
@@ -212,4 +224,21 @@ void ExecutorLauncher::switchUser()
 
   if (setuid(passwd->pw_uid) < 0)
     fatalerror("failed to setuid");
+}
+
+
+void ExecutorLauncher::setupEnvironmentForLauncherMain()
+{
+  // Set up environment variables passed through env.* params
+  setupEnvironment();
+
+  // Set up Mesos environment variables that launcher_main.cpp will
+  // pass as arguments to an ExecutorLauncher there
+  setenv("MESOS_FRAMEWORK_ID", frameworkId.c_str(), 1);
+  setenv("MESOS_EXECUTOR_URI", executorUri.c_str(), 1);
+  setenv("MESOS_USER", user.c_str(), 1);
+  setenv("MESOS_WORK_DIRECTORY", workDirectory.c_str(), 1);
+  setenv("MESOS_SLAVE_PID", slavePid.c_str(), 1);
+  setenv("MESOS_HADOOP_HOME", hadoopHome.c_str(), 1);
+  setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0", 1);
 }

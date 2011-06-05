@@ -116,11 +116,17 @@ void ProcessBasedIsolationModule::resourcesChanged(Framework* fw)
 }
 
 
-ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(Framework* fw)
+ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
+    Framework* fw)
 {
-  return new ExecutorLauncher(fw->id, fw->executorInfo.uri, fw->user,
-                              slave->getWorkDirectory(fw->id), slave->self(),
-                              !slave->local, fw->executorInfo.params);
+  return new ExecutorLauncher(fw->id,
+                              fw->executorInfo.uri,
+                              fw->user,
+                              slave->getWorkDirectory(fw->id),
+                              slave->self(),
+                              slave->getConf().get("hadoop_home", ""),
+                              !slave->local,
+                              fw->executorInfo.params);
 }
 
 
