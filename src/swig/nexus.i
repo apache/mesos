@@ -76,7 +76,7 @@
     return $jnicall; 
   } 
 
-  /* Typemap for NexusSchedulerDriver to keep a reference to the Scheduler */
+  /* Typemaps for NexusSchedulerDriver to keep a reference to the Scheduler */
   %typemap(javain) nexus::Scheduler* "getCPtrAndAddReference($javainput)"
 
   %typemap(javacode) nexus::NexusSchedulerDriver %{
@@ -99,6 +99,30 @@
       delete();
     }
   %}
+
+  /* Typemaps for NexusExecutorDriver to keep a reference to the Executor */
+  %typemap(javain) nexus::Executor* "getCPtrAndAddReference($javainput)"
+
+  %typemap(javacode) nexus::NexusExecutorDriver %{
+    private static java.util.HashSet<Executor> executors =
+      new java.util.HashSet<Executor>();
+
+    private static long getCPtrAndAddReference(Executor executor) {
+      synchronized (executors) {
+        executors.add(executor);
+      }
+      return Executor.getCPtr(executor);
+    }
+  %}
+
+  %typemap(javafinalize) nexus::NexusExecutorDriver %{
+    protected void finalize() {
+      synchronized (executors) {
+        executors.remove(getExecutor());
+      }
+      delete();
+    }
+  %}
 #endif /* SWIGJAVA */
 
 #ifdef SWIGPYTHON
@@ -107,7 +131,13 @@
   %feature("pythonappend") nexus::NexusSchedulerDriver::NexusSchedulerDriver %{
         self.scheduler = args[0]
   %}
-#endif
+
+  /* Add a reference to executor in the Python wrapper object to prevent it
+     from being garbage-collected while the NexusExecutorDriver exists */
+  %feature("pythonappend") nexus::NexusExecutorDriver::NexusExecutorDriver %{
+        self.executor = args[0]
+  %}
+#endif /* SWIGPYTHON */
 
 #ifdef SWIGRUBY
   /* Hide NexusSchedulerDriver::getScheduler because it would require

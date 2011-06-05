@@ -88,6 +88,9 @@ public:
   virtual void sendStatusUpdate(const TaskStatus& status);
   virtual void sendFrameworkMessage(const FrameworkMessage& message);
 
+  // Executor getter; required by some of the SWIG proxies
+  virtual Executor* getExecutor() { return executor; }
+
 private:
   friend class internal::ExecutorProcess;
 

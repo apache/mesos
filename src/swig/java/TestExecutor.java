@@ -7,18 +7,23 @@ public class TestExecutor extends Executor {
   }
 
   @Override
-  public void startTask(final TaskDescription task) {
+  public void startTask(final ExecutorDriver d, final TaskDescription task) {
     new Thread() { public void run() {
+      try {
         System.out.println("Running task " + task.getTaskId());
-        try { Thread.sleep(1000); } catch(Exception e) {}
-        sendStatusUpdate(new TaskStatus(task.getTaskId(),
-                                        TaskState.TASK_FINISHED,
-                                        new byte[0]));
+        Thread.sleep(1000);
+        d.sendStatusUpdate(new TaskStatus(task.getTaskId(),
+                                          TaskState.TASK_FINISHED,
+                                          new byte[0]));
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
     }}.start();
   }
 
   public static void main(String[] args) throws Exception {
     TestExecutor exec = new TestExecutor();
-    exec.run();
+    ExecutorDriver driver = new NexusExecutorDriver(exec);
+    driver.run();
   }
 }

@@ -38,9 +38,12 @@ public:
   double taskLen;
   int64_t memToHog;
   int threadsPerTask;
+  ExecutorDriver* driver;
+
   virtual ~MemHogExecutor() {}
 
-  virtual void init(const ExecutorArgs &args) {
+  virtual void init(ExecutorDriver* driver, const ExecutorArgs &args) {
+    this->driver = driver;
     istringstream in(args.data);
     in >> memToHog >> taskLen >> threadsPerTask;
     cout << "Initialized: memToHog = " << memToHog
@@ -48,7 +51,7 @@ public:
          << ", threadsPerTask = " << threadsPerTask << endl;
   }
 
-  virtual void startTask(const TaskDescription& task) {
+  virtual void startTask(ExecutorDriver*, const TaskDescription& task) {
     cout << "Executor starting task " << task.taskId << endl;
     for (int i = 0; i < threadsPerTask; i++) {
       ThreadArg *arg = new ThreadArg(this, task.taskId, i == 0);
@@ -66,7 +69,7 @@ void *runTask(void *arg)
   MemHogExecutor *executor = threadArg->executor;
   int64_t memToHog = executor->memToHog;
   double taskLen = executor->taskLen;
-  cout << "Running a task..." << endl;
+  cout << "Running a worker thread..." << endl;
   char *data = new char[memToHog];
   int32_t count = 0;
   time_t start = time(0);
@@ -82,7 +85,7 @@ void *runTask(void *arg)
           if (threadArg->primary) {
             usleep(100000); // sleep 0.1 seconds
             TaskStatus status(threadArg->tid, TASK_FINISHED, "");
-            executor->sendStatusUpdate(status);
+            executor->driver->sendStatusUpdate(status);
           }
           return 0;
         }
@@ -94,6 +97,7 @@ void *runTask(void *arg)
 
 int main(int argc, char ** argv) {
   MemHogExecutor exec;
-  exec.run();
+  NexusExecutorDriver driver(&exec);
+  driver.run();
   return 0;
 }

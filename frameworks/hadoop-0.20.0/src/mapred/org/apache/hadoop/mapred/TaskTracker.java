@@ -2096,7 +2096,7 @@ public class TaskTracker
         // Report the task as done to Nexus so that it can report our slot
         // as finished and get a new slot assigned before the next heartbeat
         nexus.TaskStatus s = nexusExecutor.createTaskDoneUpdate(taskStatus);
-        if (s != null) nexusExecutor.sendStatusUpdate(s);
+        if (s != null) nexusExecutor.getDriver().sendStatusUpdate(s);
       }
     }
 
@@ -2157,7 +2157,7 @@ public class TaskTracker
         // Report the task as done to Nexus so that it can report our slot
         // as finished and get a new slot assigned before the next heartbeat
         nexus.TaskStatus s = nexusExecutor.createTaskDoneUpdate(taskStatus);
-        if (s != null) nexusExecutor.sendStatusUpdate(s);
+        if (s != null) nexusExecutor.getDriver().sendStatusUpdate(s);
       }
     }
     

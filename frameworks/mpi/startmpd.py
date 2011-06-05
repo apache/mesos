@@ -20,28 +20,28 @@ class MyExecutor(nexus.Executor):
   def __init__(self):
     nexus.Executor.__init__(self)
 
-  def init(self, arg):
+  def init(self, driver, arg):
     [ip,port] = arg.data.split(":")
     self.ip = ip
     self.port = port
 
-  def startTask(self, task):
+  def startTask(self, driver, task):
     print "Running task %d" % task.taskId
     Popen("mpd -n -h "+self.ip+" -p "+self.port, shell=True)
 
-  def killTask(self, tid):
+  def killTask(self, driver, tid):
     # TODO(*): Kill only one of the mpd's!
     sys.exit(1)
 
-  def shutdown(self):
+  def shutdown(self, driver):
     print "shutdown"
     cleanup()
 
-  def error(self, code, message):
+  def error(self, driver, code, message):
     print "Error: %s" % message
 
 if __name__ == "__main__":
   print "Starting executor"
   atexit.register(cleanup)
   executor = MyExecutor()
-  executor.run()
+  nexus.NexusExecutorDriver(executor).run()

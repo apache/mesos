@@ -94,11 +94,12 @@ public:
                             const string_map& params);
   virtual void reviveOffers();
   virtual void sendHints(const string_map& hints);
-  
-  // Scheduler getter; mostly used in SWIG proxies
+
+  // Scheduler getter; required by some of the SWIG proxies
   virtual Scheduler* getScheduler() { return sched; }
 
 private:
+  // Internal utility method to report an error to the scheduler
   void error(int code, const std::string& message);
 
   std::string master;

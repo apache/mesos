@@ -12,22 +12,23 @@ class MyExecutor : public Executor
 public:
   virtual ~MyExecutor() {}
 
-  virtual void init(const ExecutorArgs& args) {
+  virtual void init(ExecutorDriver*, const ExecutorArgs& args) {
     cout << "Init" << endl;
   }
 
-  virtual void startTask(const TaskDescription& task) {
+  virtual void startTask(ExecutorDriver* d, const TaskDescription& task) {
     cout << "Starting task " << task.taskId << endl;
     sleep(1);
     cout << "Finishing task " << task.taskId << endl;
     TaskStatus status(task.taskId, TASK_FINISHED, "");
-    sendStatusUpdate(status);
+    d->sendStatusUpdate(status);
   }
 };
 
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
   MyExecutor exec;
-  exec.run();
+  NexusExecutorDriver driver(&exec);
+  driver.run();
   return 0;
 }

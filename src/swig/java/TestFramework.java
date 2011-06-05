@@ -30,13 +30,13 @@ public class TestFramework {
     }
 
     @Override
-    public void registered(SchedulerDriver d, String fid) {
+    public void registered(SchedulerDriver d, int fid) {
       System.out.println("Registered! FID = " + fid);
     }
 
     @Override
     public void resourceOffer(SchedulerDriver d,
-                              String oid,
+                              long oid,
                               SlaveOfferVector offers) {
       System.out.println("Got offer offer " + oid);
       TaskDescriptionVector tasks = new TaskDescriptionVector();
@@ -47,16 +47,27 @@ public class TestFramework {
         taskParams.set("cpus", "1");
         taskParams.set("mem", "134217728");
         System.out.println("Launching task " + taskId);
-        tasks.add(new TaskDescription(launchedTasks,
+        tasks.add(new TaskDescription(taskId,
                                       offer.getSlaveId(),
                                       "task " + taskId,
                                       taskParams,
                                       new byte[0]));
-	launchedTasks++;
       }
       StringMap params = new StringMap();
       params.set("timeout", "1");
       d.replyToOffer(oid, tasks, params);
+    }
+
+    @Override
+    public void statusUpdate(SchedulerDriver d, TaskStatus status) {
+      System.out.println("Status update: task " + status.getTaskId() +
+                         " is in state " + status.getState());
+      if (status.getState() == TaskState.TASK_FINISHED) {
+        finishedTasks++;
+        System.out.println("Finished tasks: " + finishedTasks);
+        if (finishedTasks == totalTasks)
+          d.stop();
+      }
     }
 
     @Override
@@ -66,17 +77,10 @@ public class TestFramework {
   }
 
   public static void main(String[] args) throws Exception {
-    //MyScheduler sched = new MyScheduler();
-    //NexusSchedulerDriver driver = new NexusSchedulerDriver(sched, args[0]);
-    //driver.run();
     new NexusSchedulerDriver(new MyScheduler(), args[0]).run();
-    new Thread() {
-      public void run() {
-        while(true) {
-          System.gc();
-          try {Thread.sleep(1000);} catch(Exception e) {}
-        }
-      }
-    }.start();
+    // TODO: Java should just exit here, and it does so on Linux, but
+    // it doesn't on OS X. We should figure out why. It may have to do
+    // with the libprocess threads being around and not being marked
+    // as daemon threads by the JVM.
   }
 }

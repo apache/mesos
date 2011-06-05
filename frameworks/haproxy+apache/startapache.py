@@ -20,18 +20,18 @@ class MyExecutor(nexus.Executor):
     nexus.Executor.__init__(self)
     self.tid = -1
 
-  def startTask(self, task):
+  def startTask(self, driver, task):
     self.tid = task.taskId
     Popen("/usr/apache2/2.2/bin/apachectl start", shell=True)
 
-  def killTask(self, tid):
+  def killTask(self, driver, tid):
     if (tid != self.tid):
       print "Expecting different task id ... killing anyway!"
     cleanup()
     update = nexus.TaskStatus(tid, nexus.TASK_FINISHED, "")
-    self.sendStatusUpdate(update)
+    driver.sendStatusUpdate(update)
 
-  def shutdown(self):
+  def shutdown(driver, self):
     cleanup()
 
   def error(self, code, message):
@@ -41,4 +41,4 @@ if __name__ == "__main__":
   print "Starting haproxy+apache executor"
   atexit.register(cleanup)
   executor = MyExecutor()
-  executor.run()
+  nexus.NexusExecutorDriver(executor).run()
