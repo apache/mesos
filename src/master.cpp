@@ -481,7 +481,7 @@ void Master::operator () ()
       string data;
 
       unpack<S2M_FT_STATUS_UPDATE>(sid, fid, tid, state, data);
-      DLOG(INFO) << "FT: prepare relay seq:"<< seq() << " from: "<< from();
+      VLOG(1) << "FT: prepare relay seq:"<< seq() << " from: "<< from();
       if (Slave *slave = lookupSlave(sid)) {
         if (Framework *framework = lookupFramework(fid)) {
           // Pass on the status update to the framework.
@@ -631,7 +631,7 @@ void Master::operator () ()
 
       // int cnts = 0;
       // foreachpair(_, Framework *framework, frameworks) {
-      // 	DLOG(INFO) << (cnts++) << " resourceInUse:" << framework->resources;
+      // 	VLOG(1) << (cnts++) << " resourceInUse:" << framework->resources;
       // }
       break;
     }

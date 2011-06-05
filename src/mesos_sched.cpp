@@ -71,14 +71,14 @@ protected:
 
       case PROCESS_TIMEOUT: {
         terminate = true;
-        DLOG(INFO) << "FT: faking M2F_STATUS_UPDATE due to ReplyToOffer timeout for tid:" << tid;
+        VLOG(1) << "FT: faking M2F_STATUS_UPDATE due to ReplyToOffer timeout for tid:" << tid;
         send(parent, pack<M2F_STATUS_UPDATE>(tid, TASK_LOST, ""));
         break;
       }
 
       }
     }
-    DLOG(INFO) << "FT: Exiting reliable reply for tid:" << tid;
+    VLOG(1) << "FT: Exiting reliable reply for tid:" << tid;
   }
 
 private:
@@ -280,7 +280,7 @@ protected:
         if (duplicate())
           break;
         ack();
-        DLOG(INFO) << "FT: Received message with id: " << seq();
+        VLOG(1) << "FT: Received message with id: " << seq();
 
 	unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
 	if (it != rbReplies.end()) {

@@ -68,17 +68,17 @@ LeaderDetector::LeaderDetector(const string &server, const bool contendLeader, c
 
 void LeaderDetector::leaderWatch(zhandle_t *zh, int type, int state, const char *path) {
   if (type == ZOO_CREATED_EVENT) {
-    DLOG(INFO) << "Leader Watch Event type: ZOO_CREATED_EVENT";
+    LOG(INFO) << "Leader Watch Event type: ZOO_CREATED_EVENT";
   } else if (type == ZOO_DELETED_EVENT) {
-    DLOG(INFO) << "Leader Watch Event type: ZOO_DELETED_EVENT";
+    LOG(INFO) << "Leader Watch Event type: ZOO_DELETED_EVENT";
   } else if (type == ZOO_CHANGED_EVENT) {
-    DLOG(INFO) << "Leader Watch Event type: ZOO_CHANGED_EVENT";
+    LOG(INFO) << "Leader Watch Event type: ZOO_CHANGED_EVENT";
   } else if (type == ZOO_CHILD_EVENT) {
-    DLOG(INFO) << "Leader Watch Event type: ZOO_CHILD_EVENT";
+    LOG(INFO) << "Leader Watch Event type: ZOO_CHILD_EVENT";
   } else if (type == ZOO_SESSION_EVENT) {
-    DLOG(INFO) << "Leader Watch Event type: ZOO_SESSION_EVENT";
+    LOG(INFO) << "Leader Watch Event type: ZOO_SESSION_EVENT";
   } else if (type == ZOO_NOTWATCHING_EVENT) {
-    DLOG(INFO) << "Leader Watch Event type: ZOO_NOTWATCHING_EVENT";
+    LOG(INFO) << "Leader Watch Event type: ZOO_NOTWATCHING_EVENT";
   }
   detectLeader();
 }
