@@ -20,6 +20,7 @@ Makefile
 *.class
 *.pyc
 *.dSYM
+*.dylib
 config.log
 config.status
 src/work
