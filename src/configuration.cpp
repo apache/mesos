@@ -1,11 +1,20 @@
+#include <stdlib.h>
+#include <unistd.h>
+
 #include <iostream>
+
 #include "configuration.hpp"
+
 #include "params.hpp"
 #include "boost/foreach.hpp"
 
 using std::cout;
 using std::endl;
+
 using namespace nexus::internal;
+
+extern char** environ;
+
 
 Configuration::Configuration() 
 {
