@@ -25,7 +25,7 @@ TEST(ConfigurationTest, Environment)
   Configuration c1;
   unsetenv("MESOS_TEST");
 
-  EXPECT_TRUE(c1.getParams()["test"] == "working");
+  EXPECT_EQ("working", c1.getParams()["test"]);
 }
 
 
@@ -42,17 +42,15 @@ TEST(ConfigurationTest, CommandLine)
 
   Configuration c1(ARGC, argv, false);
 
-  EXPECT_TRUE(c1.getParams()["test1"] == "text1");
-  EXPECT_TRUE(c1.getParams()["test2"] == "1");
-  EXPECT_TRUE(c1.getParams()["test3"] == "text2");
-  EXPECT_TRUE(c1.getParams()["test4"] == "1");
+  EXPECT_EQ("text1", c1.getParams()["test1"]);
+  EXPECT_EQ("1", c1.getParams()["test2"]);
+  EXPECT_EQ("text2", c1.getParams()["test3"]);
+  EXPECT_EQ("1", c1.getParams()["test4"]);
 }
 
 
-TEST(ConfigurationTest, ConfigFile)
+TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithMesosHome)
 {
-  enterTestDirectory("ConfigurationTest", "ConfigFile");
-
   if (mkdir("conf", 0755) != 0)
     FAIL() << "Failed to create directory conf";
   ofstream file("conf/mesos.conf");
@@ -65,20 +63,70 @@ TEST(ConfigurationTest, ConfigFile)
   Configuration c1;
   unsetenv("MESOS_HOME");
 
-  EXPECT_TRUE(c1.getParams()["test1"] == "coffee");
-  EXPECT_TRUE(c1.getParams()["test2"] == "tea");
+  EXPECT_EQ("coffee", c1.getParams()["test1"]);
+  EXPECT_EQ("tea", c1.getParams()["test2"]);
+}
+  
 
+TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithConfDir)
+{
   if (mkdir("conf2", 0755) != 0)
     FAIL() << "Failed to create directory conf2";
-  ofstream file2("conf2/mesos.conf");
-  file2 << "test3=shake # sugar bomb\n";
-  file2 << "# just a comment\n";
-  file2 << "test4=milk\n";
-  file2.close();
+  ofstream file("conf2/mesos.conf");
+  file << "test3=shake # sugar bomb\n";
+  file << "# just a comment\n";
+  file << "test4=milk\n";
+  file.close();
   setenv("MESOS_CONF", "conf2", 1);
-  Configuration c2;
+  Configuration conf;
   unsetenv("MESOS_CONF");
 
-  EXPECT_TRUE(c2.getParams()["test3"] == "shake");
-  EXPECT_TRUE(c2.getParams()["test4"] == "milk");
+  EXPECT_EQ("shake", conf.getParams()["test3"]);
+  EXPECT_EQ("milk", conf.getParams()["test4"]);
+}
+
+
+TEST_WITH_WORKDIR(ConfigurationTest, ConfigFileWithHomeAndDir)
+{
+  if (mkdir("conf2", 0755) != 0)
+    FAIL() << "Failed to create directory conf2";
+  ofstream file("conf2/mesos.conf");
+  file << "test3=shake # sugar bomb\n";
+  file << "# just a comment\n";
+  file << "test4=milk\n";
+  file.close();
+  setenv("MESOS_HOME", ".", 1);
+  setenv("MESOS_CONF", "conf2", 1);
+  Configuration conf;
+  unsetenv("MESOS_CONF");
+  unsetenv("MESOS_HOME");
+
+  EXPECT_EQ("shake", conf.getParams()["test3"]);
+  EXPECT_EQ("milk", conf.getParams()["test4"]);
+}
+
+
+TEST_WITH_WORKDIR(ConfigurationTest, CommandLineConfFlag)
+{
+  if (mkdir("conf2", 0755) != 0)
+    FAIL() << "Failed to create directory conf2";
+  ofstream file("conf2/mesos.conf");
+  file << "a=1\n";
+  file << "b=2\n";
+  file << "c=3";
+  file.close();
+
+  const int ARGC = 4;
+  char* argv[ARGC];
+  argv[0] = (char*) "./filename";
+  argv[1] = (char*) "--conf=conf2";
+  argv[2] = (char*) "--b=overridden";
+  argv[3] = (char*) "--d=fromCmdLine";
+
+  Configuration c1(ARGC, argv, false);
+
+  EXPECT_EQ("1", c1.getParams()["a"]);
+  EXPECT_EQ("overridden", c1.getParams()["b"]);
+  EXPECT_EQ("3", c1.getParams()["c"]);
+  EXPECT_EQ("fromCmdLine", c1.getParams()["d"]);
 }

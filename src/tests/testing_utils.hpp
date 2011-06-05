@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include <gtest/gtest.h>
+
 namespace nexus { namespace internal { namespace test {
 
 /**
@@ -21,6 +23,20 @@ extern std::string mesosHome;
 void enterTestDirectory(const char* testCase, const char* testName);
 
 
+/**
+ * Macro for running a test in a work directory (using enterTestDirectory).
+ * Used in a similar way to gtest's TEST macro (by adding a body in braces).
+ */
+#define TEST_WITH_WORKDIR(testCase, testName) \
+  void runTestBody_##testCase##_##testName(); \
+  TEST(testCase, testName) { \
+    enterTestDirectory(#testCase, #testName); \
+    runTestBody_##testCase##_##testName(); \
+  } \
+  void runTestBody_##testCase##_##testName() /* User code block follows */
+
+
 }}} // namespace nexus::internal::test
+
 
 #endif /* __TESTING_UTILS_HPP__ */
