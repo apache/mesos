@@ -10,7 +10,7 @@ import threading
 import re
 import socket
 import torquelib
-import datetime
+import time
 import logging
 import logging.handlers
 
@@ -29,6 +29,7 @@ SCHEDULER_ITERATION = 2 #number of seconds torque waits before looping through
                         #resources
 SAFE_ALLOCATION = {"cpus":48,"mem":134217728} #just set statically for now, 128MB
 MIN_SLOT_SIZE = {"cpus":"1","mem":1073741824} #1GB
+MIN_SLOTS_HELD = 0 #keep at least this many slots even if none are needed
 
 eventlog = logging.getLogger("event_logger")
 eventlog.setLevel(logging.DEBUG)
@@ -36,18 +37,23 @@ fh = logging.FileHandler(EVENT_LOG_FILE,'w') #create handler
 fh.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
 eventlog.addHandler(fh)
 
+#Something special about this file makes logging not work normally
+#I think it might be swig? the StreamHandler prints at DEBUG level
+#even though I setLevel to INFO
 ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
 fh = logging.FileHandler(LOG_FILE,"w")
+fh.setLevel(logging.DEBUG)
 
 driverlog = logging.getLogger("driver_logger")
 driverlog.setLevel(logging.DEBUG)
 driverlog.addHandler(fh)
-driverlog.addHandler(ch)
+#driverlog.addHandler(ch)
 
 monitorlog = logging.getLogger("monitor_logger")
 monitorlog.setLevel(logging.DEBUG)
 monitorlog.addHandler(fh)
-monitorlog.addHandler(ch)
+#monitorlog.addHandler(ch)
 
 class MyScheduler(nexus.Scheduler):
   def __init__(self, ip):
@@ -57,7 +63,7 @@ class MyScheduler(nexus.Scheduler):
     self.ip = ip 
     self.servers = {}
     self.overloaded = False
-    self.numToRegister = 1
+    self.numToRegister = MIN_SLOTS_HELD
 
   def getExecutorInfo(self, driver):
     execPath = os.path.join(os.getcwd(), "start_pbs_mom.sh")
@@ -96,7 +102,7 @@ class MyScheduler(nexus.Scheduler):
       self.numToRegister -= 1
       self.id += 1
       driverlog.info("writing logfile")
-      eventlog.info(len(self.servers))
+      eventlog.info("%d %d" % (time.time(),len(self.servers)))
       driverlog.info("done writing logfile")
       driverlog.info("self.id now set to " + str(self.id))
     #print "---"
@@ -132,9 +138,9 @@ class MyScheduler(nexus.Scheduler):
   #unreg up to N random compute nodes, leave at least one
   def unregNNodes(self, numNodes):
     monitorlog.debug("unregNNodes called with arg %d" % numNodes)
-    if numNodes > len(self.servers)-1:
-      monitorlog.debug("... however, only unregistering %d nodes, leaving one alive" % (len(self.servers)-1))
-    toKill = min(numNodes,len(self.servers)-1))
+    if numNodes > len(self.servers)-MIN_SLOTS_HELD:
+      monitorlog.debug("... however, only unregistering %d nodes, leaving one alive" % (len(self.servers)-MIN_SLOTS_HELD))
+    toKill = min(numNodes,len(self.servers)-MIN_SLOTS_HELD)
     
     monitorlog.debug("getting and filtering list of nodes using torquelib")
     noJobs = lambda x: x.state != "job-exclusive"
@@ -143,12 +149,12 @@ class MyScheduler(nexus.Scheduler):
     for inode in inactiveNodes:
       monitorlog.debug(inode)
     for tid, hostname in self.servers.items():
-      if len(self.servers) > 1 and toKill > 0 and hostname in inactiveNodes:
+      if len(self.servers) > MIN_SLOTS_HELD and toKill > 0 and hostname in inactiveNodes:
         monitorlog.info("We still have to kill %d of the %d compute nodes which master is tracking" % (toKill, len(self.servers)))
         monitorlog.info("unregistering node " + str(hostname))
         self.unregComputeNode(hostname)
         self.servers.pop(tid)
-        eventlog.info(len(sched.servers))
+        eventlog.info("%d %d" % (time.time(),len(self.servers)))
         toKill = toKill - 1
         monitorlog.info("killing corresponding task with tid %d" % tid)
         self.driver.killTask(tid)
