@@ -53,112 +53,112 @@ class Tuple : public P
 {
 protected:
   template <MSGID ID>
-  tuple<ID> pack()
+  static tuple<ID> pack()
   {
     return tuple<ID>(::boost::make_tuple());
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0)
+  static tuple<ID> pack(typename field<0, ID>::type t0)
   {
     return tuple<ID>(::boost::make_tuple(t0));
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0,
-		 typename field<1, ID>::type t1)
+  static tuple<ID> pack(typename field<0, ID>::type t0,
+			typename field<1, ID>::type t1)
   {
     return tuple<ID>(::boost::make_tuple(t0, t1));
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0,
-		 typename field<1, ID>::type t1,
-		 typename field<2, ID>::type t2)
+  static tuple<ID> pack(typename field<0, ID>::type t0,
+			typename field<1, ID>::type t1,
+			typename field<2, ID>::type t2)
   {
     return tuple<ID>(::boost::make_tuple(t0, t1, t2));
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0,
-		 typename field<1, ID>::type t1,
-		 typename field<2, ID>::type t2,
-		 typename field<3, ID>::type t3)
+  static tuple<ID> pack(typename field<0, ID>::type t0,
+			typename field<1, ID>::type t1,
+			typename field<2, ID>::type t2,
+			typename field<3, ID>::type t3)
   {
     return tuple<ID>(::boost::make_tuple(t0, t1, t2, t3));
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0,
-		 typename field<1, ID>::type t1,
-		 typename field<2, ID>::type t2,
-		 typename field<3, ID>::type t3,
-		 typename field<4, ID>::type t4)
+  static tuple<ID> pack(typename field<0, ID>::type t0,
+			typename field<1, ID>::type t1,
+			typename field<2, ID>::type t2,
+			typename field<3, ID>::type t3,
+			typename field<4, ID>::type t4)
   {
     return tuple<ID>(::boost::make_tuple(t0, t1, t2, t3, t4));
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0,
-		 typename field<1, ID>::type t1,
-		 typename field<2, ID>::type t2,
-		 typename field<3, ID>::type t3,
-		 typename field<4, ID>::type t4,
-		 typename field<5, ID>::type t5)
+  static tuple<ID> pack(typename field<0, ID>::type t0,
+			typename field<1, ID>::type t1,
+			typename field<2, ID>::type t2,
+			typename field<3, ID>::type t3,
+			typename field<4, ID>::type t4,
+			typename field<5, ID>::type t5)
   {
     return tuple<ID>(::boost::make_tuple(t0, t1, t2, t3, t4, t5));
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0,
-		 typename field<1, ID>::type t1,
-		 typename field<2, ID>::type t2,
-		 typename field<3, ID>::type t3,
-		 typename field<4, ID>::type t4,
-		 typename field<5, ID>::type t5,
-		 typename field<6, ID>::type t6)
+  static tuple<ID> pack(typename field<0, ID>::type t0,
+			typename field<1, ID>::type t1,
+			typename field<2, ID>::type t2,
+			typename field<3, ID>::type t3,
+			typename field<4, ID>::type t4,
+			typename field<5, ID>::type t5,
+			typename field<6, ID>::type t6)
   {
     return tuple<ID>(::boost::make_tuple(t0, t1, t2, t3, t4, t5, t6));
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0,
-		 typename field<1, ID>::type t1,
-		 typename field<2, ID>::type t2,
-		 typename field<3, ID>::type t3,
-		 typename field<4, ID>::type t4,
-		 typename field<5, ID>::type t5,
-		 typename field<6, ID>::type t6,
-		 typename field<7, ID>::type t7)
+  static tuple<ID> pack(typename field<0, ID>::type t0,
+			typename field<1, ID>::type t1,
+			typename field<2, ID>::type t2,
+			typename field<3, ID>::type t3,
+			typename field<4, ID>::type t4,
+			typename field<5, ID>::type t5,
+			typename field<6, ID>::type t6,
+			typename field<7, ID>::type t7)
   {
     return tuple<ID>(::boost::make_tuple(t0, t1, t2, t3, t4, t5, t6, t7));
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0,
-		 typename field<1, ID>::type t1,
-		 typename field<2, ID>::type t2,
-		 typename field<3, ID>::type t3,
-		 typename field<4, ID>::type t4,
-		 typename field<5, ID>::type t5,
-		 typename field<6, ID>::type t6,
-		 typename field<7, ID>::type t7,
-		 typename field<8, ID>::type t8)
+  static tuple<ID> pack(typename field<0, ID>::type t0,
+			typename field<1, ID>::type t1,
+			typename field<2, ID>::type t2,
+			typename field<3, ID>::type t3,
+			typename field<4, ID>::type t4,
+			typename field<5, ID>::type t5,
+			typename field<6, ID>::type t6,
+			typename field<7, ID>::type t7,
+			typename field<8, ID>::type t8)
   {
     return tuple<ID>(::boost::make_tuple(t0, t1, t2, t3, t4, t5, t6, t7, t8));
   }
 
   template <MSGID ID>
-  tuple<ID> pack(typename field<0, ID>::type t0,
-		 typename field<1, ID>::type t1,
-		 typename field<2, ID>::type t2,
-		 typename field<3, ID>::type t3,
-		 typename field<4, ID>::type t4,
-		 typename field<5, ID>::type t5,
-		 typename field<6, ID>::type t6,
-		 typename field<7, ID>::type t7,
-		 typename field<8, ID>::type t8,
-		 typename field<9, ID>::type t9)
+  static tuple<ID> pack(typename field<0, ID>::type t0,
+			typename field<1, ID>::type t1,
+			typename field<2, ID>::type t2,
+			typename field<3, ID>::type t3,
+			typename field<4, ID>::type t4,
+			typename field<5, ID>::type t5,
+			typename field<6, ID>::type t6,
+			typename field<7, ID>::type t7,
+			typename field<8, ID>::type t8,
+			typename field<9, ID>::type t9)
   {
     return tuple<ID>(::boost::make_tuple(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9));
   }
