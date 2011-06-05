@@ -3,6 +3,10 @@
 
 /* This header gets completed by configure. */
 
+#if @WITH_INCLUDED_SQLITE@
+  #define WITH_INCLUDED_SQLITE
+#endif
+
 #if @WITH_ZOOKEEPER@
   #define WITH_ZOOKEEPER
 #endif

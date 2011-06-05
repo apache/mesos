@@ -173,6 +173,20 @@ AC_ARG_WITH([swig],
 	         [])
 AC_SUBST(SWIG)
 
+WITH_INCLUDED_SQLITE="0"
+AC_ARG_WITH([included-sqlite],
+  AC_HELP_STRING([--with-included-sqlite],
+                 [build with included ZooKeeper]),
+	         [case "$with_included_sqlite" in
+		    yes) WITH_SQLITE="1"
+                         WITH_INCLUDED_SQLITE="1" ;;
+                    no) WITH_INCLUDED_SQLITE="0" ;;
+		    *) AC_MSG_ERROR([
+*** --with-included-sqlite does not take arguments]) ;;
+	          esac],
+	         [])
+AC_SUBST(WITH_INCLUDED_SQLITE)
+
 WITH_ZOOKEEPER="0"
 AC_ARG_WITH([zookeeper],
   AC_HELP_STRING([--with-zookeeper],

@@ -2,10 +2,9 @@
 
 SHELL = '/bin/sh'
 
-SRCDIR = @srcdir@
-INCLUDEDIR = @top_builddir@/include
 BINDIR = @top_builddir@/bin
 LIBDIR = @top_builddir@/lib
+SRCDIR = @top_builddir@/src
 
 CC = @CC@
 CXX = @CXX@
@@ -17,14 +16,19 @@ LIBS = @LIBS@
 
 WITH_ZOOKEEPER = @WITH_ZOOKEEPER@
 
+WITH_INCLUDED_SQLITE = @WITH_INCLUDED_SQLITE@
+
 WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
 
 LIBPROCESS = third_party/libprocess
+
 LIBEV = $(LIBPROCESS)/third_party/libev-3.8
-BOOST = third_party/boost-1.37.0
-PROTOBUF = third_party/protobuf-2.3.0
+
 GLOG = third_party/glog-0.3.1
 GMOCK = third_party/gmock-1.5.0
+
+SQLITE = third_party/sqlite-3.6.23.1
+
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
 # Ensure that we get better debugging info.
@@ -35,17 +39,13 @@ CXXFLAGS += -g
 CFLAGS += -I@srcdir@/.. -I..
 CXXFLAGS += -I@srcdir@/.. -I..
 
-# Add include and build include to CFLAGS and CXXFLAGS.
-CFLAGS += -I@top_srcdir@/include -I$(INCLUDEDIR)
-CXXFLAGS += -I@top_srcdir@/include -I$(INCLUDEDIR)
+# Add include to CFLAGS and CXXFLAGS.
+CFLAGS += -I@top_srcdir@/include
+CXXFLAGS += -I@top_srcdir@/include
 
 # Add boost to CFLAGS and CXXFLAGS.
-CFLAGS += -I@top_srcdir@/$(BOOST)
-CXXFLAGS += -I@top_srcdir@/$(BOOST)
-
-# Add protobuf to include and lib paths.
-CXXFLAGS += -I@top_srcdir@/$(PROTOBUF)/src
-LDFLAGS += -L@top_builddir@/$(PROTOBUF)/src/.libs
+CFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
+CXXFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
 
 # Add libprocess to CFLAGS, CXXFLAGS, and LDFLAGS.
 CFLAGS += -I@top_srcdir@/$(LIBPROCESS)
@@ -55,9 +55,15 @@ LDFLAGS += -L@top_builddir@/$(LIBPROCESS)
 # Add libev to LDFLAGS.
 LDFLAGS += -L@top_builddir@/$(LIBEV)/.libs
 
-# Add glog, and gmock/gtest to include paths and library paths.
+# Add glog and gtest to include paths.
 CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src -I@top_srcdir@/$(GMOCK)/include -I@top_srcdir@/$(GMOCK)/gtest/include
 LDFLAGS += -L@top_builddir@/$(GLOG)/.libs -L@top_builddir@/$(GMOCK)/lib/.libs -L@top_builddir@/$(GMOCK)/gtest/lib/.libs
+
+# Add sqlite to include and lib paths if necessary.
+ifeq ($(WITH_INCLUDED_SQLITE),1)
+  CXXFLAGS += -I@top_srcdir@/$(SQLITE)/src -I@top_builddir@/$(SQLITE)/src
+  LDFLAGS += -L@top_builddir@/$(SQLITE)/.libs
+endif
 
 # Add included ZooKeeper to include and lib paths if necessary.
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
@@ -77,8 +83,13 @@ CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
 CFLAGS += -DBUILD_USER="\"$$USER\""
 CXXFLAGS += -DBUILD_USER="\"$$USER\""
 
-# Add protobuf, glog, gmock, gtest, libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lprotobuf -lglog -lgmock -lgtest -lprocess -lev -lpthread -ldl
+# Add glog, gmock, gtest, libev, libprocess, pthread, and dl to LIBS.
+LIBS += -lglog -lgmock -lgtest -lprocess -lev -lpthread -ldl
+
+# Add sqlite if necessary.
+ifeq ($(WITH_INCLUDED_SQLITE),1)
+  LIBS += -lsqlite3
+endif
 
 # Add ZooKeeper if necessary.
 ifeq ($(WITH_ZOOKEEPER),1)
@@ -90,8 +101,8 @@ EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
 TESTS_OBJ = main.o utils.o master_test.o offer_reply_errors_test.o	\
 	    resources_test.o external_test.o sample_frameworks_test.o	\
-	    configurator_test.o string_utils_test.o			\
-	    lxc_isolation_test.o
+	    configurator_test.o string_utils_test.o lxc_isolation_test.o \
+	    event_history_test.o date_utils_test.o
 
 ALLTESTS_EXE = $(BINDIR)/tests/all-tests
 
@@ -124,7 +135,7 @@ default: all
 $(DIRECTORIES): %:
 	mkdir -p $@
 
-$(TESTS_OBJ): %.o: @srcdir@/%.cpp
+$(TESTS_OBJ): %.o: @srcdir@/%.cpp $(SCHED_LIB) $(EXEC_LIB)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 $(EXTERNAL_SCRIPTS): | $(BINDIR)/tests/external/LxcIsolation

@@ -5,9 +5,14 @@
 
 #include <glog/logging.h>
 
+#include "config/config.hpp"
+
 #include "event_logger.hpp"
 #include "file_event_writer.hpp"
+
+#ifdef WITH_INCLUDED_SQLITE
 #include "sqlite_event_writer.hpp"
+#endif
 
 using namespace mesos::internal::eventhistory;
 
@@ -55,11 +60,21 @@ EventLogger::EventLogger(const Params& conf) {
       LOG(INFO) << "creating FileEventWriter" << endl;
       writers.push_front(new FileEventWriter(conf));
     }
+#ifdef WITH_INCLUDED_SQLITE
     if (conf.get<bool>("event_history_sqlite",
                        default_ev_hist_sqlite_conf_val)) {
       LOG(INFO) << "creating SqliteEventWriter" << endl;
       writers.push_front(new SqlLiteEventWriter(conf));
     }
+#else
+    if (conf.get<bool>("event_history_sqlite",
+                       default_ev_hist_sqlite_conf_val)) {
+      LOG(WARNING) << "Your configuration (either command line or config file) "
+        << "has set the event_history_sqlite flag, but you did not run "
+        << "./configure with the --use-included-sqlite flag, so "
+        << " the SqliteEventWriter cannot be initialized." << endl;
+    }
+#endif /* ifdef WITH_INCLUDED_SQLITE */
   } else {
     LOG(INFO) << "No log directory was specified, so not creating "
               << "FileEventWriter or SqliteEventWriter. No event "
