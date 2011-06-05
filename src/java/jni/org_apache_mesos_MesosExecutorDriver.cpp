@@ -392,8 +392,12 @@ JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendFrameworkMe
   (JNIEnv* env, jobject thiz, jbyteArray jdata)
 {
   // Construct a C++ string from the Java byte array.
-  string data((char*) env->GetByteArrayElements(jdata, NULL),
-	      (size_t) env->GetArrayLength(jdata));
+  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jsize length = env->GetArrayLength(jdata);
+
+  string temp((char*) data, (size_t) length);
+
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
   // Now invoke the underlying driver.
   jclass clazz = env->GetObjectClass(thiz);
@@ -402,7 +406,7 @@ JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendFrameworkMe
   MesosExecutorDriver* driver = (MesosExecutorDriver*)
     env->GetLongField(thiz, __driver);
 
-  return driver->sendFrameworkMessage(data);
+  return driver->sendFrameworkMessage(temp);
 }
 
 
