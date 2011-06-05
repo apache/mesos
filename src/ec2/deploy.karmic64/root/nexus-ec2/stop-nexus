@@ -7,7 +7,7 @@ SLAVES="`cat slaves`"
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
 for slave in $SLAVES; do
-  echo "Stopping slave on $slave"
+  echo "Stopping slave(s) on $slave"
   ssh $SSH_OPTS $slave pkill nexus-slave &
   sleep 0.1
 done
