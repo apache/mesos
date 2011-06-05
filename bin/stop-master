@@ -6,6 +6,5 @@ bin=`cd "$bin"; pwd`
 
 cd $bin
 
-./stop-slaves
-
-./stop-master
+echo "Stopping master on $MASTER"
+ssh $SSH_OPTS $MASTER "pkill mesos-master"

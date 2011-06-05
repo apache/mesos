@@ -1,0 +1,14 @@
+#!/bin/bash
+bin=`dirname "$0"`
+bin=`cd "$bin"; pwd`
+
+. $bin/mesos_env.sh
+
+cd $bin
+
+for slave in $SLAVES; do
+  echo "Stopping slave on $slave"
+  ssh $SSH_OPTS $slave "pkill mesos-slave" &
+  sleep 0.1
+done
+wait
