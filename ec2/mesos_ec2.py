@@ -421,28 +421,34 @@ def main():
           conn, opts, cluster_name)
       print "Stopping master..."
       for inst in master_res.instances:
-        inst.stop()
+        if inst.state not in ["shutting-down", "terminated"]:
+          inst.stop()
       print "Stopping slaves..."
       for inst in slave_res.instances:
-        inst.stop()
+        if inst.state not in ["shutting-down", "terminated"]:
+          inst.stop()
       if zoo_res != None:
         print "Stopping zoo..."
         for inst in zoo_res.instances:
-          inst.stop()
+          if inst.state not in ["shutting-down", "terminated"]:
+            inst.stop()
 
   elif action == "start":
     (master_res, slave_res, zoo_res) = get_existing_cluster(
         conn, opts, cluster_name)
     print "Starting slaves..."
     for inst in slave_res.instances:
-      inst.start()
+      if inst.state not in ["shutting-down", "terminated"]:
+        inst.start()
     print "Starting master..."
     for inst in master_res.instances:
-      inst.start()
+      if inst.state not in ["shutting-down", "terminated"]:
+        inst.start()
     if zoo_res != None:
       print "Starting zoo..."
       for inst in zoo_res.instances:
-        inst.start()
+        if inst.state not in ["shutting-down", "terminated"]:
+          inst.start()
     wait_for_cluster(conn, master_res, slave_res, zoo_res)
     setup_cluster(conn, master_res, slave_res, zoo_res, opts, False)
 
