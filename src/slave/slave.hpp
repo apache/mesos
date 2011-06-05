@@ -192,16 +192,13 @@ protected:
     link(slave);
     link(master);
     do {
-      switch (receive(interval)) {
-        case PROCESS_TIMEOUT: {
-          MSG<SH2M_HEARTBEAT> msg;
-          msg.mutable_slave_id()->MergeFrom(slaveId);
-          send(master, msg);
-          break;
-        }
-        case PROCESS_EXIT:
-        default:
-          return;
+      serve(interval);
+      if (name() == process::TIMEOUT) {
+        MSG<SH2M_HEARTBEAT> msg;
+        msg.mutable_slave_id()->MergeFrom(slaveId);
+        send(master, msg);
+      } else {
+        return;
       }
     } while (true);
   }
@@ -239,6 +236,34 @@ public:
 
   const Configuration& getConfiguration();
 
+  void newMasterDetected(const std::string& pid);
+  void noMasterDetected();
+  void masterDetectionFailure();
+  void registerReply(const SlaveID& slaveId, double heartbeat_interval);
+  void reregisterReply(const SlaveID& slaveId, double heartbeat_interval);
+  void runTask(const FrameworkInfo& frameworkInfo,
+               const FrameworkID& frameworkId,
+               const std::string& pid,
+               const TaskDescription& task);
+  void killTask(const FrameworkID& frameworkId,
+                const TaskID& taskId);
+  void killFramework(const FrameworkID& frameworkId);
+  void schedulerMessage(const FrameworkID& frameworkId,
+                        const FrameworkMessage& message);
+  void updateFramework(const FrameworkID& frameworkId,
+                       const std::string& pid);
+  void statusUpdateAck(const FrameworkID& frameworkId,
+                       const SlaveID& slaveId,
+                       const TaskID& taskId);
+  void registerExecutor(const FrameworkID& frameworkId,
+                        const ExecutorID& executorId);
+  void statusUpdate(const FrameworkID& frameworkId,
+                    const TaskStatus& status);
+  void executorMessage(const FrameworkID& frameworkId,
+                       const FrameworkMessage& message);
+  void timeout();
+  void exited();
+
   // TODO(...): Don't make these instance variables public! Hack for
   // now because they are needed in the isolation modules.
   bool local;
@@ -246,6 +271,8 @@ public:
 
 protected:
   virtual void operator () ();
+
+  void initialize();
 
   Framework* getFramework(const FrameworkID& frameworkId);
 
@@ -255,6 +282,8 @@ protected:
 
 private:
   Configuration conf;
+
+  SlaveInfo slave;
 
   process::UPID master;
   Resources resources;

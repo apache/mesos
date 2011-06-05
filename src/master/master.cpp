@@ -55,7 +55,7 @@ protected:
       receive(1);
       if (name() == process::TIMEOUT) {
         dispatch(master, &Master::timerTick);
-      } else if (name() == process::EXIT) {
+      } else if (name() == process::EXITED) {
 	return;
       }
     }
@@ -323,7 +323,8 @@ void Master::operator () ()
               << "we haven't received an identifier yet!";  
   }
 
-  const MSG<GOT_MASTER_TOKEN>& msg = message();
+  MSG<GOT_MASTER_TOKEN> msg;
+  msg.ParseFromString(body());
 
   // The master ID is comprised of the current date and some ephemeral
   // token (e.g., determined by ZooKeeper).
@@ -342,15 +343,15 @@ void Master::operator () ()
 
   while (true) {
     serve();
-    if (msgid() == PROCESS_TERMINATE) {
+    if (name() == process::TERMINATE) {
       LOG(INFO) << "Asked to terminate by " << from();
       foreachpair (_, Slave* slave, slaves) {
         send(slave->pid, process::TERMINATE);
       }
       break;
     } else {
-      LOG(INFO) << "Unhandled message " << name()
-                << " from " << from();
+      LOG(WARNING) << "Dropping unknown message '" << name() << "'"
+                   << " from: " << from();
     }
   }
 }
@@ -427,7 +428,7 @@ void Master::initialize()
   install(SH2M_HEARTBEAT, &Master::slaveHeartbeat,
           &HeartbeatMessage::slave_id);
 
-  install(PROCESS_EXIT, &Master::processExited);
+  install(process::EXITED, &Master::exited);
 
   // Install HTTP request handlers.
   Process<Master>::install("vars", &Master::vars);
@@ -983,7 +984,7 @@ void Master::frameworkExpired(const FrameworkID& frameworkId)
 }
 
 
-void Master::processExited()
+void Master::exited()
 {
   // TODO(benh): Could we get PROCESS_EXIT from a network partition?
   LOG(INFO) << "Process exited: " << from();

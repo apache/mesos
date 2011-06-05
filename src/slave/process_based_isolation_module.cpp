@@ -172,7 +172,7 @@ void ProcessBasedIsolationModule::Reaper::operator () ()
           }
         }
       }
-    } else if (name() == process::TERMINATE || name() == process::EXIT) {
+    } else if (name() == process::TERMINATE || name() == process::EXITED) {
       return;
     }
   }

@@ -15,124 +15,106 @@
 
 #include <boost/unordered_map.hpp>
 
+#include "common/utils.hpp"
+
 #include "messaging/messages.pb.h"
 
 
 namespace mesos { namespace internal {
 
-enum MSGID {
-  // Artifacts from libprocess.
-  PROCESS_TIMEOUT,
-  PROCESS_EXIT,
-  PROCESS_TERMINATE,
-
-  // From framework to master.
-  F2M_REGISTER_FRAMEWORK,
-  F2M_REREGISTER_FRAMEWORK,
-  F2M_UNREGISTER_FRAMEWORK,
-  F2M_RESOURCE_OFFER_REPLY,
-  F2M_REVIVE_OFFERS,
-  F2M_KILL_TASK,
-  F2M_FRAMEWORK_MESSAGE,
-  F2M_STATUS_UPDATE_ACK,
-  
-  // From master to framework.
-  M2F_REGISTER_REPLY,
-  M2F_RESOURCE_OFFER,
-  M2F_RESCIND_OFFER,
-  M2F_STATUS_UPDATE,
-  M2F_LOST_SLAVE,
-  M2F_FRAMEWORK_MESSAGE,
-  M2F_ERROR,
-  
-  // From slave to master.
-  S2M_REGISTER_SLAVE,
-  S2M_REREGISTER_SLAVE,
-  S2M_UNREGISTER_SLAVE,
-  S2M_STATUS_UPDATE,
-  S2M_FRAMEWORK_MESSAGE,
-  S2M_EXITED_EXECUTOR,
-
-  // From slave heart to master.
-  SH2M_HEARTBEAT,
-  
-  // From master to slave.
-  M2S_REGISTER_REPLY,
-  M2S_REREGISTER_REPLY,
-  M2S_RUN_TASK,
-  M2S_KILL_TASK,
-  M2S_KILL_FRAMEWORK,
-  M2S_FRAMEWORK_MESSAGE,
-  M2S_UPDATE_FRAMEWORK,
-  M2S_STATUS_UPDATE_ACK,
-
-  // From executor to slave.
-  E2S_REGISTER_EXECUTOR,
-  E2S_STATUS_UPDATE,
-  E2S_FRAMEWORK_MESSAGE,
-
-  // From slave to executor.
-  S2E_REGISTER_REPLY,
-  S2E_RUN_TASK,
-  S2E_KILL_TASK,
-  S2E_FRAMEWORK_MESSAGE,
-  S2E_KILL_EXECUTOR,
-
-#ifdef __sun__
-  // From projd to slave.
-  PD2S_REGISTER_PROJD,
-  PD2S_PROJECT_READY,
-
-  // From slave to projd.
-  S2PD_UPDATE_RESOURCES,
-  S2PD_KILL_ALL,
-#endif // __sun__
-
-  // From master detector to processes.
-  GOT_MASTER_TOKEN,
-  NEW_MASTER_DETECTED,
-  NO_MASTER_DETECTED,
-  MASTER_DETECTION_FAILURE,
-
-  MESOS_MSGID
-};
-
-
-// To couple a MSGID with a protocol buffer we use a templated class
-// that extends the necessary protocol buffer type (this also allows
-// the code to be better isolated from protocol buffer naming). While
-// protocol buffers are allegedly not meant to be inherited, we
-// decided this was an acceptable option since we don't add any new
-// functionality (or do any thing with the existing functionality).
+// To couple a message name with a protocol buffer we use a templated
+// class that extends the necessary protocol buffer type (this also
+// allows the code to be better isolated from protocol buffer
+// naming). While protocol buffers are allegedly not meant to be
+// inherited, we decided this was an acceptable option since we don't
+// add any new functionality (or do any thing with the existing
+// functionality).
 //
 // To add another message that uses a protocol buffer you need to
 // provide a specialization of the Message class (i.e., using the
 // MESSAGE macro defined below).
-template <MSGID ID>
+template <const char* name>
 class MSG;
 
-#define MESSAGE(ID, T)                          \
-  template <>                                   \
-  class MSG<ID> : public T {}
+#define MESSAGE1(name)                          \
+    extern char name[]
+
+#define MESSAGE2(name, T)                           \
+    extern char name[];                             \
+    template <>                                     \
+    class MSG<name> : public T {}
+                                                                                
+#define MESSAGE(...)                                            \
+    CONCAT(MESSAGE, VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 
-class AnyMessage
-{
-public:
-  AnyMessage(const std::string& data_)
-    : data(data_) {}
+// From framework to master.
+MESSAGE(F2M_REGISTER_FRAMEWORK, RegisterFrameworkMessage);
+MESSAGE(F2M_REREGISTER_FRAMEWORK, ReregisterFrameworkMessage);
+MESSAGE(F2M_UNREGISTER_FRAMEWORK, UnregisterFrameworkMessage);
+MESSAGE(F2M_RESOURCE_OFFER_REPLY, ResourceOfferReplyMessage);
+MESSAGE(F2M_REVIVE_OFFERS, ReviveOffersMessage);
+MESSAGE(F2M_KILL_TASK, KillTaskMessage);
+MESSAGE(F2M_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(F2M_STATUS_UPDATE_ACK, StatusUpdateAckMessage);
 
-  template <MSGID ID>
-  operator MSG<ID> () const
-  {
-    MSG<ID> msg;
-    msg.ParseFromString(data);
-    return msg;
-  }
+// From master to framework.
+MESSAGE(M2F_REGISTER_REPLY, FrameworkRegisteredMessage);
+MESSAGE(M2F_RESOURCE_OFFER, ResourceOfferMessage);
+MESSAGE(M2F_RESCIND_OFFER, RescindResourceOfferMessage);
+MESSAGE(M2F_STATUS_UPDATE, StatusUpdateMessage);
+MESSAGE(M2F_LOST_SLAVE, LostSlaveMessage);
+MESSAGE(M2F_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(M2F_ERROR, FrameworkErrorMessage);
 
-private:
-  std::string data;
-};
+// From slave to master.
+MESSAGE(S2M_REGISTER_SLAVE, RegisterSlaveMessage);
+MESSAGE(S2M_REREGISTER_SLAVE, ReregisterSlaveMessage);
+MESSAGE(S2M_UNREGISTER_SLAVE, UnregisterSlaveMessage);
+MESSAGE(S2M_STATUS_UPDATE, StatusUpdateMessage);
+MESSAGE(S2M_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(S2M_EXITED_EXECUTOR, ExitedExecutorMessage);
+
+// From slave heart to master.
+MESSAGE(SH2M_HEARTBEAT, HeartbeatMessage);
+
+// From master to slave.
+MESSAGE(M2S_REGISTER_REPLY, SlaveRegisteredMessage);
+MESSAGE(M2S_REREGISTER_REPLY, SlaveRegisteredMessage);
+MESSAGE(M2S_RUN_TASK, RunTaskMessage);
+MESSAGE(M2S_KILL_TASK, KillTaskMessage);
+MESSAGE(M2S_KILL_FRAMEWORK, KillFrameworkMessage);
+MESSAGE(M2S_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(M2S_UPDATE_FRAMEWORK, UpdateFrameworkMessage);
+MESSAGE(M2S_STATUS_UPDATE_ACK, StatusUpdateAckMessage);
+
+// From executor to slave.
+MESSAGE(E2S_REGISTER_EXECUTOR, RegisterExecutorMessage);
+MESSAGE(E2S_STATUS_UPDATE, StatusUpdateMessage);
+MESSAGE(E2S_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+
+// From slave to executor.
+MESSAGE(S2E_REGISTER_REPLY, ExecutorRegisteredMessage);
+MESSAGE(S2E_RUN_TASK, RunTaskMessage);
+MESSAGE(S2E_KILL_TASK, KillTaskMessage);
+MESSAGE(S2E_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
+MESSAGE(S2E_KILL_EXECUTOR);
+
+#ifdef __sun__
+// From projd to slave.
+MESSAGE(PD2S_REGISTER_PROJD, RegisterProjdMessage);
+MESSAGE(PD2S_PROJD_READY, ProjdReadyMessage);
+
+// From slave to projd.
+MESSAGE(S2PD_UPDATE_RESOURCES, ProjdUpdateResourcesMessage);
+MESSAGE(S2PD_KILL_ALL);
+#endif // __sun__
+
+// From master detector to processes.
+MESSAGE(GOT_MASTER_TOKEN, GotMasterTokenMessage);
+MESSAGE(NEW_MASTER_DETECTED, NewMasterDetectedMessage);
+MESSAGE(NO_MASTER_DETECTED);
+MESSAGE(MASTER_DETECTION_FAILURE);
 
 
 // Type conversions helpful for changing between protocol buffer types
@@ -156,11 +138,6 @@ std::vector<T> convert(const google::protobuf::RepeatedPtrField<T>& items)
 }
 
 
-// Mapping between message names to message ids.
-extern boost::unordered_map<std::string, MSGID> ids;
-extern boost::unordered_map<MSGID, std::string> names;
-
-
 template <typename T>
 class MesosProcess : public process::Process<T>
 {
@@ -170,99 +147,44 @@ public:
 
   virtual ~MesosProcess() {}
 
-  static void post(const process::UPID& to, const std::string& name)
+  template <const char *name>
+  static void post(const process::UPID& to, const MSG<name>& msg)
   {
-    process::post(to, name);
-  }
-
-  static void post(const process::UPID& to, MSGID id)
-  {
-    CHECK(names.count(id) > 0) << "Missing name for MSGID " << id;
-    process::post(to, names[id]);
-  }
-
-  template <MSGID ID>
-  static void post(const process::UPID& to, const MSG<ID>& msg)
-  {
-    CHECK(names.count(ID) > 0) << "Missing name for MSGID " << ID;
     std::string data;
     msg.SerializeToString(&data);
-    process::post(to, names[ID], data.data(), data.size());
+    process::post(to, name, data.data(), data.size());
   }
 
 protected:
-  AnyMessage message() const
-  {
-    return AnyMessage(process::Process<T>::body());
-  }
-
-  MSGID msgid() const
-  {
-    CHECK(ids.count(process::Process<T>::name()) > 0)
-      << "Missing MSGID for '" << process::Process<T>::name() << "'";
-    return ids[process::Process<T>::name()];
-  }
-
   void send(const process::UPID& to, const std::string& name)
   {
     process::Process<T>::send(to, name);
   }
 
-  void send(const process::UPID& to, MSGID id)
+  template <const char* name>
+  void send(const process::UPID& to, const MSG<name>& msg)
   {
-    CHECK(names.count(id) > 0) << "Missing name for MSGID " << id;
-    process::Process<T>::send(to, names[id]);
-  }
-
-  template <MSGID ID>
-  void send(const process::UPID& to, const MSG<ID>& msg)
-  {
-    CHECK(names.count(ID) > 0) << "Missing name for MSGID " << ID;
     std::string data;
     msg.SerializeToString(&data);
-    process::Process<T>::send(to, names[ID], data.data(), data.size());
+    process::Process<T>::send(to, name, data.data(), data.size());
   }
 
-  MSGID receive(double secs = 0)
+  const std::string& serve(double secs = 0, bool once = false)
   {
-    while (true) {
-      process::Process<T>::receive(secs);
-      if (ids.count(process::Process<T>::name()) > 0) {
-        return ids[process::Process<T>::name()];
+    do {
+      process::Process<T>::serve(secs, once);
+      if (handlers.count(process::Process<T>::name()) > 0) {
+        handlers[process::Process<T>::name()](process::Process<T>::body());
       } else {
-        LOG(WARNING) << "Dropping unknown message '"
-                     << process::Process<T>::name() << "'"
-                     << " from: " << process::Process<T>::from()
-                     << " to: " << process::Process<T>::self();
+        return process::Process<T>::name();
       }
-    }
+    } while (!once);
   }
 
-  MSGID serve(double secs = 0)
-  {
-    while (true) {
-      process::Process<T>::serve(secs);
-      if (ids.count(process::Process<T>::name()) > 0) {
-        // Check if this has been bound and invoke the handler.
-        if (handlers.count(process::Process<T>::name()) > 0) {
-          handlers[process::Process<T>::name()](process::Process<T>::body());
-        } else {
-          return ids[process::Process<T>::name()];
-        }
-      } else {
-        LOG(WARNING) << "Dropping unknown message '"
-                     << process::Process<T>::name() << "'"
-                     << " from: " << process::Process<T>::from()
-                     << " to: " << process::Process<T>::self();
-      }
-    }
-  }
-
-  void install(MSGID id, void (T::*method)())
+  void install(const std::string& name, void (T::*method)())
   {
     T* t = static_cast<T*>(this);
-    CHECK(names.count(id) > 0);
-    handlers[names[id]] =
+    handlers[name] =
       std::tr1::bind(&MesosProcess<T>::handler0, t,
                      method,
                      std::tr1::placeholders::_1);
@@ -270,12 +192,11 @@ protected:
 
   template <typename PB,
             typename P1, typename P1C>
-  void install(MSGID id, void (T::*method)(P1C),
+  void install(const std::string& name, void (T::*method)(P1C),
                P1 (PB::*param1)() const)
   {
     T* t = static_cast<T*>(this);
-    CHECK(names.count(id) > 0);
-    handlers[names[id]] =
+    handlers[name] =
       std::tr1::bind(&handler1<PB, P1, P1C>, t,
                      method, param1,
                      std::tr1::placeholders::_1);
@@ -284,13 +205,12 @@ protected:
   template <typename PB,
             typename P1, typename P1C,
             typename P2, typename P2C>
-  void install(MSGID id, void (T::*method)(P1C, P2C),
+  void install(const std::string& name, void (T::*method)(P1C, P2C),
                P1 (PB::*p1)() const,
                P2 (PB::*p2)() const)
   {
     T* t = static_cast<T*>(this);
-    CHECK(names.count(id) > 0);
-    handlers[names[id]] =
+    handlers[name] =
       std::tr1::bind(&handler2<PB, P1, P1C, P2, P2C>, t,
                      method, p1, p2,
                      std::tr1::placeholders::_1);
@@ -300,15 +220,14 @@ protected:
             typename P1, typename P1C,
             typename P2, typename P2C,
             typename P3, typename P3C>
-  void install(MSGID id,
+  void install(const std::string& name,
                void (T::*method)(P1C, P2C, P3C),
                P1 (PB::*p1)() const,
                P2 (PB::*p2)() const,
                P3 (PB::*p3)() const)
   {
     T* t = static_cast<T*>(this);
-    CHECK(names.count(id) > 0);
-    handlers[names[id]] =
+    handlers[name] =
       std::tr1::bind(&handler3<PB, P1, P1C, P2, P2C, P3, P3C>, t,
                      method, p1, p2, p3,
                      std::tr1::placeholders::_1);
@@ -319,7 +238,7 @@ protected:
             typename P2, typename P2C,
             typename P3, typename P3C,
             typename P4, typename P4C>
-  void install(MSGID id,
+  void install(const std::string& name,
                void (T::*method)(P1C, P2C, P3C, P4C),
                P1 (PB::*p1)() const,
                P2 (PB::*p2)() const,
@@ -327,8 +246,7 @@ protected:
                P4 (PB::*p4)() const)
   {
     T* t = static_cast<T*>(this);
-    CHECK(names.count(id) > 0);
-    handlers[names[id]] =
+    handlers[name] =
       std::tr1::bind(&handler4<PB, P1, P1C, P2, P2C, P3, P3C, P4, P4C>, t,
                      method, p1, p2, p3, p4,
                      std::tr1::placeholders::_1);
@@ -340,7 +258,7 @@ protected:
             typename P3, typename P3C,
             typename P4, typename P4C,
             typename P5, typename P5C>
-  void install(MSGID id,
+  void install(const std::string& name,
                void (T::*method)(P1C, P2C, P3C, P4C, P5C),
                P1 (PB::*p1)() const,
                P2 (PB::*p2)() const,
@@ -349,8 +267,7 @@ protected:
                P5 (PB::*p5)() const)
   {
     T* t = static_cast<T*>(this);
-    CHECK(names.count(id) > 0);
-    handlers[names[id]] =
+    handlers[name] =
       std::tr1::bind(&handler5<PB, P1, P1C, P2, P2C, P3, P3C, P4, P4C, P5, P5C>, t,
                      method, p1, p2, p3, p4, p5,
                      std::tr1::placeholders::_1);
@@ -370,7 +287,7 @@ private:
                        const std::string& data)
   {
     PB pb;
-    pb.ParseFromArray(data.data(), data.size());
+    pb.ParseFromString(data);
     if (pb.IsInitialized()) {
       (t->*method)(convert((&pb->*p1)()));
     } else {
@@ -388,7 +305,7 @@ private:
                        const std::string& data)
   {
     PB pb;
-    pb.ParseFromArray(data.data(), data.size());
+    pb.ParseFromString(data);
     if (pb.IsInitialized()) {
       (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()));
     } else {
@@ -408,7 +325,7 @@ private:
                        const std::string& data)
   {
     PB pb;
-    pb.ParseFromArray(data.data(), data.size());
+    pb.ParseFromString(data);
     if (pb.IsInitialized()) {
       (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()),
                    convert((&pb->*p3)()));
@@ -431,7 +348,7 @@ private:
                        const std::string& data)
   {
     PB pb;
-    pb.ParseFromArray(data.data(), data.size());
+    pb.ParseFromString(data);
     if (pb.IsInitialized()) {
       (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()),
                    convert((&pb->*p3)()), convert((&pb->*p4)()));
@@ -456,7 +373,7 @@ private:
                        const std::string& data)
   {
     PB pb;
-    pb.ParseFromArray(data.data(), data.size());
+    pb.ParseFromString(data);
     if (pb.IsInitialized()) {
       (t->*method)(convert((&pb->*p1)()), convert((&pb->*p2)()),
                    convert((&pb->*p3)()), convert((&pb->*p4)()),
@@ -469,60 +386,6 @@ private:
 
   boost::unordered_map<std::string, std::tr1::function<void (const std::string&)> > handlers;
 };
-
-
-MESSAGE(F2M_REGISTER_FRAMEWORK, RegisterFrameworkMessage);
-MESSAGE(F2M_REREGISTER_FRAMEWORK, ReregisterFrameworkMessage);
-MESSAGE(F2M_UNREGISTER_FRAMEWORK, UnregisterFrameworkMessage);
-MESSAGE(F2M_RESOURCE_OFFER_REPLY, ResourceOfferReplyMessage);
-MESSAGE(F2M_REVIVE_OFFERS, ReviveOffersMessage);
-MESSAGE(F2M_KILL_TASK, KillTaskMessage);
-MESSAGE(F2M_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
-MESSAGE(F2M_STATUS_UPDATE_ACK, StatusUpdateAckMessage);
-
-MESSAGE(M2F_REGISTER_REPLY, FrameworkRegisteredMessage);
-MESSAGE(M2F_RESOURCE_OFFER, ResourceOfferMessage);
-MESSAGE(M2F_RESCIND_OFFER, RescindResourceOfferMessage);
-MESSAGE(M2F_STATUS_UPDATE, StatusUpdateMessage);
-MESSAGE(M2F_LOST_SLAVE, LostSlaveMessage);
-MESSAGE(M2F_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
-MESSAGE(M2F_ERROR, FrameworkErrorMessage);
-
-MESSAGE(S2M_REGISTER_SLAVE, RegisterSlaveMessage);
-MESSAGE(S2M_REREGISTER_SLAVE, ReregisterSlaveMessage);
-MESSAGE(S2M_UNREGISTER_SLAVE, UnregisterSlaveMessage);
-MESSAGE(S2M_STATUS_UPDATE, StatusUpdateMessage);
-MESSAGE(S2M_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
-MESSAGE(S2M_EXITED_EXECUTOR, ExitedExecutorMessage);
-
-MESSAGE(SH2M_HEARTBEAT, HeartbeatMessage);
-  
-MESSAGE(M2S_REGISTER_REPLY, SlaveRegisteredMessage);
-MESSAGE(M2S_REREGISTER_REPLY, SlaveRegisteredMessage);
-MESSAGE(M2S_RUN_TASK, RunTaskMessage);
-MESSAGE(M2S_KILL_TASK, KillTaskMessage);
-MESSAGE(M2S_KILL_FRAMEWORK, KillFrameworkMessage);
-MESSAGE(M2S_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
-MESSAGE(M2S_UPDATE_FRAMEWORK, UpdateFrameworkMessage);
-MESSAGE(M2S_STATUS_UPDATE_ACK, StatusUpdateAckMessage);
-
-MESSAGE(E2S_REGISTER_EXECUTOR, RegisterExecutorMessage);
-MESSAGE(E2S_STATUS_UPDATE, StatusUpdateMessage);
-MESSAGE(E2S_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
-
-MESSAGE(S2E_REGISTER_REPLY, ExecutorRegisteredMessage);
-MESSAGE(S2E_RUN_TASK, RunTaskMessage);
-MESSAGE(S2E_KILL_TASK, KillTaskMessage);
-MESSAGE(S2E_FRAMEWORK_MESSAGE, FrameworkMessageMessage);
-
-#ifdef __sun__
-MESSAGE(PD2S_REGISTER_PROJD, RegisterProjdMessage);
-MESSAGE(PD2S_PROJD_READY, ProjdReadyMessage);
-MESSAGE(S2PD_UPDATE_RESOURCES, ProjdUpdateResourcesMessage);
-#endif // __sun__
-
-MESSAGE(NEW_MASTER_DETECTED, NewMasterDetectedMessage);
-MESSAGE(GOT_MASTER_TOKEN, GotMasterTokenMessage);
 
 }} // namespace mesos { namespace internal {
 

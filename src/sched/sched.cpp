@@ -104,6 +104,8 @@ public:
     install(M2F_ERROR, &SchedulerProcess::error,
             &FrameworkErrorMessage::code,
             &FrameworkErrorMessage::message);
+
+    install(process::EXITED, &SchedulerProcess::exited);
   }
 
   virtual ~SchedulerProcess() {}
@@ -112,44 +114,26 @@ protected:
   virtual void operator () ()
   {
     while (true) {
-      // Rather than send a message to this process when it is time to
-      // terminate, we set a flag that gets re-read. Sending a message
-      // requires some sort of matching or priority reads that
-      // libprocess currently doesn't support. Note that this field is
-      // only read by this process, so we don't need to protect it in
-      // any way. In fact, using a lock to protect it (or for
-      // providing atomicity for cleanup, for example), might lead to
-      // deadlock with the client code because we already use a lock
-      // in SchedulerDriver. That being said, for now we make
-      // terminate 'volatile' to guarantee that each read is getting a
-      // fresh copy.
-      // TODO(benh): Do a coherent read so as to avoid using 'volatile'.
-      if (terminate)
-        return;
+      // Sending a message to terminate this process is insufficient
+      // because that message might get queued behind a bunch of other
+      // message. So, when it is time to terminate, we set a flag that
+      // gets re-read by this process after every message. In order to
+      // get this correct we must return from each invocation of
+      // 'serve', to check and see if terminate has been set. In
+      // addition, we need to send a dummy message right after we set
+      // terminate just in case there aren't any messages in the
+      // queue. Note that the terminate field is only read by this
+      // process, so we don't need to protect it in any way. In fact,
+      // using a lock to protect it (or for providing atomicity for
+      // cleanup, for example), might lead to deadlock with the client
+      // code because we already use a lock in SchedulerDriver. That
+      // being said, for now we make terminate 'volatile' to guarantee
+      // that each read is getting a fresh copy.
+      // TODO(benh): Do a coherent read so as to avoid using
+      // 'volatile'.
+      if (terminate) return;
 
-      // TODO(benh): We need to break the receive every so often to
-      // check if 'terminate' has been set. It would be better to just
-      // send a message rather than have a timeout (see the comment
-      // above for why sending a message will still require us to use
-      // the terminate flag).
-      switch (serve(2)) {
-        case PROCESS_EXIT: {
-          // TODO(benh): Don't wait for a new master forever.
-          if (from() == master)
-            VLOG(1) << "Connection to master lost .. waiting for new master";
-          break;
-        }
-
-        case PROCESS_TIMEOUT: {
-          break;
-        }
-
-        default: {
-          VLOG(1) << "Received unknown message " << msgid()
-                  << " from " << from();
-          break;
-        }
-      }
+      serve(0, true);
     }
   }
 
@@ -283,6 +267,14 @@ protected:
     VLOG(1) << "Got error '" << message << "' (code: " << code << ")";
     process::invoke(bind(&Scheduler::error, sched, driver, code,
                          cref(message)));
+  }
+
+  void exited()
+  {
+    // TODO(benh): Don't wait for a new master forever.
+    if (from() == master) {
+      VLOG(1) << "Connection to master lost .. waiting for new master";
+    }
   }
 
   void stop()
@@ -514,11 +506,12 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
   // ultimately invokes this destructor). This deadlock is actually a
   // bug in the client code: provided that the SchedulerProcess class
   // _only_ makes calls into instances of Scheduler, then such a
-  // deadlock implies that the destructor got called from within a method
-  // of the Scheduler instance that is being destructed! Note
+  // deadlock implies that the destructor got called from within a
+  // method of the Scheduler instance that is being destructed! Note
   // that we could add a method to libprocess that told us whether or
   // not this was about to be deadlock, and possibly report this back
-  // to the user somehow.
+  // to the user somehow. Note that we will also wait forever if
+  // MesosSchedulerDriver::stop was never called.
   if (process != NULL) {
     process::wait(process->self());
     delete process;
@@ -549,14 +542,21 @@ int MesosSchedulerDriver::start()
     return -1;
   }
 
+  // We might have been running before, but have since stopped. Don't
+  // allow this driver to be used again (for now)!
+  if (process != NULL) {
+    return -1;
+  }
+
   // Set running here so we can recognize an exception from calls into
   // Java (via getFrameworkName or getExecutorInfo).
   running = true;
 
   // Get username of current user.
   passwd* passwd;
-  if ((passwd = getpwuid(getuid())) == NULL)
+  if ((passwd = getpwuid(getuid())) == NULL) {
     fatal("failed to get username information");
+  }
 
   // Set up framework info.
   FrameworkInfo framework;
@@ -565,8 +565,9 @@ int MesosSchedulerDriver::start()
   framework.mutable_executor()->MergeFrom(sched->getExecutorInfo(this));
 
   // Something invoked stop while we were in the scheduler, bail.
-  if (!running)
+  if (!running) {
     return -1;
+  }
 
   process = new SchedulerProcess(this, sched, frameworkId, framework);
 
@@ -604,7 +605,7 @@ int MesosSchedulerDriver::stop()
   if (process != NULL) {
     process::dispatch(process->self(), &SchedulerProcess::stop);
     process->terminate = true;
-    process = NULL;
+    process::post(process->self(), process::TERMINATE);
   }
 
   running = false;
@@ -624,8 +625,9 @@ int MesosSchedulerDriver::join()
 {
   Lock lock(&mutex);
 
-  while (running)
+  while (running) {
     pthread_cond_wait(&cond, &mutex);
+  }
 
   return 0;
 }

@@ -41,9 +41,26 @@ public:
                   const ExecutorID& _executorId, bool _local)
     : slave(_slave), driver(_driver), executor(_executor),
       frameworkId(_frameworkId), executorId(_executorId),
-      local(_local), terminate(false) {}
+      local(_local), terminate(false)
+  {
+    install(S2E_REGISTER_REPLY, &ExecutorProcess::registerReply,
+            &ExecutorRegisteredMessage::args);
 
-  ~ExecutorProcess() {}
+    install(S2E_RUN_TASK, &ExecutorProcess::runTask,
+            &RunTaskMessage::task);
+
+    install(S2E_KILL_TASK, &ExecutorProcess::killTask,
+            &KillTaskMessage::task_id);
+
+    install(S2E_FRAMEWORK_MESSAGE, &ExecutorProcess::frameworkMessage,
+            &FrameworkMessageMessage::message);
+
+    install(S2E_KILL_EXECUTOR, &ExecutorProcess::killExecutor);
+
+    install(process::EXITED, &ExecutorProcess::exited);
+  }
+
+  virtual ~ExecutorProcess() {}
 
 protected:
   virtual void operator () ()
@@ -59,108 +76,76 @@ protected:
     send(slave, out);
 
     while(true) {
-      // TODO(benh): Is there a better way to architect this code? In
-      // particular, if the executor blocks in a callback, we can't
-      // process any other messages. This is especially tricky if a
-      // slave dies since we won't handle the PROCESS_EXIT message in
-      // a timely manner (if at all).
-
       // Check for terminate in the same way as SchedulerProcess. See
       // comments there for an explanation of why this is necessary.
-      if (terminate)
-        return;
+      if (terminate) return;
 
-      switch (receive(2)) {
-        case S2E_REGISTER_REPLY: {
-          const MSG<S2E_REGISTER_REPLY>& msg = message();
+      serve(0, true);
+    }
+  }
 
-          slaveId = msg.args().slave_id();
+  void registerReply(const ExecutorArgs& args)
+  {
+    VLOG(1) << "Executor registered on slave " << args.slave_id();
+    slaveId = args.slave_id();
+    process::invoke(bind(&Executor::init, executor, driver, cref(args)));
+  }
 
-          VLOG(1) << "Executor registered on slave " << slaveId;
+  void runTask(const TaskDescription& task)
+  {
+    VLOG(1) << "Executor asked to run a task " << task.task_id();
 
-          process::invoke(bind(&Executor::init, executor, driver,
-                               cref(msg.args())));
-          break;
-        }
+    MSG<E2S_STATUS_UPDATE> out;
+    out.mutable_framework_id()->MergeFrom(frameworkId);
+    TaskStatus* status = out.mutable_status();
+    status->mutable_task_id()->MergeFrom(task.task_id());
+    status->mutable_slave_id()->MergeFrom(slaveId);
+    status->set_state(TASK_RUNNING);
+    send(slave, out);
 
-        case S2E_RUN_TASK: {
-          const MSG<S2E_RUN_TASK>& msg = message();
+    process::invoke(bind(&Executor::launchTask, executor, driver, cref(task)));
+  }
 
-          const TaskDescription& task = msg.task();
+  void killTask(const TaskID& taskId)
+  {
+    VLOG(1) << "Executor asked to kill task " << taskId;
+    process::invoke(bind(&Executor::killTask, executor, driver, cref(taskId)));
+  }
 
-          VLOG(1) << "Executor asked to run a task " << task.task_id();
+  void frameworkMessage(const FrameworkMessage& message)
+  {
+    VLOG(1) << "Executor received message";
+    process::invoke(bind(&Executor::frameworkMessage, executor, driver,
+                         cref(message)));
+  }
 
-          MSG<E2S_STATUS_UPDATE> out;
-          out.mutable_framework_id()->MergeFrom(frameworkId);
-          TaskStatus* status = out.mutable_status();
-          status->mutable_task_id()->MergeFrom(task.task_id());
-          status->mutable_slave_id()->MergeFrom(slaveId);
-          status->set_state(TASK_RUNNING);
-          send(slave, out);
+  void killExecutor()
+  {
+    VLOG(1) << "Executor asked to shutdown";
+    process::invoke(bind(&Executor::shutdown, executor, driver));
+    if (!local) {
+      exit(0);
+    } else {
+      return;
+    }
+  }
 
-          process::invoke(bind(&Executor::launchTask, executor, driver,
-                               cref(task)));
-          break;
-        }
+  void exited()
+  {
+    VLOG(1) << "Slave exited, trying to shutdown";
 
-        case S2E_KILL_TASK: {
-          const MSG<S2E_KILL_TASK>& msg = message();
+    // TODO: Pass an argument to shutdown to tell it this is abnormal?
+    process::invoke(bind(&Executor::shutdown, executor, driver));
 
-          VLOG(1) << "Executor asked to kill task " << msg.task_id();
-
-          process::invoke(bind(&Executor::killTask, executor, driver,
-                               cref(msg.task_id())));
-          break;
-        }
-
-        case S2E_FRAMEWORK_MESSAGE: {
-          const MSG<S2E_FRAMEWORK_MESSAGE>& msg = message();
-
-          VLOG(1) << "Executor passed message";
-
-          const FrameworkMessage& message = msg.message();
-          process::invoke(bind(&Executor::frameworkMessage, executor, driver,
-                               cref(message)));
-          break;
-        }
-
-        case S2E_KILL_EXECUTOR: {
-          VLOG(1) << "Executor asked to shutdown";
-          process::invoke(bind(&Executor::shutdown, executor, driver));
-          if (!local)
-            exit(0);
-          else
-            return;
-        }
-
-        case PROCESS_EXIT: {
-          VLOG(1) << "Slave exited, trying to shutdown";
-
-          // TODO: Pass an argument to shutdown to tell it this is abnormal?
-          process::invoke(bind(&Executor::shutdown, executor, driver));
-
-          // This is a pretty bad state ... no slave is left. Rather
-          // than exit lets kill our process group (which includes
-          // ourself) hoping to clean up any processes this executor
-          // launched itself.
-          // TODO(benh): Maybe do a SIGTERM and then later do a SIGKILL?
-          if (!local)
-            killpg(0, SIGKILL);
-          else
-            return;
-        }
-
-        case PROCESS_TIMEOUT: {
-          break;
-        }
-
-        default: {
-          VLOG(1) << "Received unknown message ID " << msgid()
-                  << " from " << from();
-          // TODO: Is this serious enough to exit?
-          break;
-        }
-      }
+    // This is a pretty bad state ... no slave is left. Rather
+    // than exit lets kill our process group (which includes
+    // ourself) hoping to clean up any processes this executor
+    // launched itself.
+    // TODO(benh): Maybe do a SIGTERM and then later do a SIGKILL?
+    if (!local) {
+      killpg(0, SIGKILL);
+    } else {
+      terminate = true;
     }
   }
 
@@ -206,6 +191,8 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
 
 MesosExecutorDriver::~MesosExecutorDriver()
 {
+  // Just as in SchedulerProcess, we might wait here indefinitely if
+  // MesosExecutorDriver::stop has not been invoked.
   process::wait(process->self());
   delete process;
 
@@ -295,7 +282,10 @@ int MesosExecutorDriver::stop()
     return -1;
   }
 
+  CHECK(process != NULL);
+
   process->terminate = true;
+  process::post(process->self(), process::TERMINATE);
 
   running = false;
 
@@ -308,8 +298,10 @@ int MesosExecutorDriver::stop()
 int MesosExecutorDriver::join()
 {
   Lock lock(&mutex);
-  while (running)
+
+  while (running) {
     pthread_cond_wait(&cond, &mutex);
+  }
 
   return 0;
 }
@@ -330,6 +322,8 @@ int MesosExecutorDriver::sendStatusUpdate(const TaskStatus& status)
     //executor->error(this, EINVAL, "Executor has exited");
     return -1;
   }
+
+  CHECK(process != NULL);
 
   // Validate that they set the correct slave ID.
   if (!(process->slaveId == status.slave_id())) {
@@ -354,6 +348,8 @@ int MesosExecutorDriver::sendFrameworkMessage(const FrameworkMessage& message)
     //executor->error(this, EINVAL, "Executor has exited");
     return -1;
   }
+
+  CHECK(process != NULL);
 
   // Validate that they set the correct slave ID and executor ID.
   if (!(process->slaveId == message.slave_id())) {

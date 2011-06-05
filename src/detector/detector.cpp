@@ -46,7 +46,7 @@ protected:
     if (name() == process::TIMEOUT) {
       LOG(ERROR) << "Have not heard back from ZooKeeper after trying to "
                  << "(automagically) reconnect";
-      MesosProcess<class T>::post(pid, MASTER_DETECTION_FAILURE);
+      process::post(pid, MASTER_DETECTION_FAILURE);
     }
   }
 
@@ -475,7 +475,7 @@ void ZooKeeperMasterDetector::detectMaster()
 
   // No master present (lost or possibly hasn't come up yet).
   if (masterSeq.empty()) {
-    MesosProcess<class T>::post(pid, NO_MASTER_DETECTED);
+    process::post(pid, NO_MASTER_DETECTED);
   } else if (masterSeq != currentMasterSeq) {
     currentMasterSeq = masterSeq;
     currentMasterPID = lookupMasterPID(masterSeq); 
@@ -483,7 +483,7 @@ void ZooKeeperMasterDetector::detectMaster()
     // While trying to get the master PID, master might have crashed,
     // so PID might be empty.
     if (currentMasterPID == UPID()) {
-      MesosProcess<class T>::post(pid, NO_MASTER_DETECTED);
+      process::post(pid, NO_MASTER_DETECTED);
     } else {
       MSG<NEW_MASTER_DETECTED> msg;
       msg.set_pid(currentMasterPID);

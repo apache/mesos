@@ -162,7 +162,7 @@ public:
   void slaveHeartbeat(const SlaveID& slaveId);
   void timerTick();
   void frameworkExpired(const FrameworkID& frameworkId);
-  void processExited();
+  void exited();
 
   process::Promise<process::HttpResponse> vars(const process::HttpRequest& request);
 
@@ -263,7 +263,7 @@ protected:
       if (name() == process::TIMEOUT) {
         process::dispatch(master, &Master::frameworkExpired, frameworkId);
         return;
-      } else if (name() == process::EXIT || name() == process::TERMINATE) {
+      } else if (name() == process::EXITED || name() == process::TERMINATE) {
         return;
       }
     }
