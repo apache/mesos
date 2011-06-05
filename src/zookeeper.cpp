@@ -6,7 +6,6 @@
 #include <process.hpp>
 
 #include "fatal.hpp"
-#include "hash_pid.hpp"
 #include "zookeeper.hpp"
 
 using std::cerr;

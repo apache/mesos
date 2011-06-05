@@ -21,7 +21,6 @@
 #include "mesos_sched.h"
 
 #include "fatal.hpp"
-#include "hash_pid.hpp"
 #include "lock.hpp"
 #include "logging.hpp"
 #include "master_detector.hpp"

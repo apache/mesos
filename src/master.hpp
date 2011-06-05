@@ -24,7 +24,6 @@
 #include "configurator.hpp"
 #include "fatal.hpp"
 #include "foreach.hpp"
-#include "hash_pid.hpp"
 #include "master_state.hpp"
 #include "messages.hpp"
 #include "params.hpp"

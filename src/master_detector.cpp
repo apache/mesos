@@ -150,7 +150,7 @@ MasterDetector * MasterDetector::create(const std::string &url,
 	// to contend (at least not right now).
 	fatal("cannot contend to be a master with specified url");
       } else {
-	PID master = make_pid(urlPair.second.c_str());
+	PID master(urlPair.second);
 	if (!master)
 	  fatal("cannot use specified url to detect master");
 	detector = new BasicMasterDetector(master, pid);
@@ -468,7 +468,7 @@ PID ZooKeeperMasterDetector::lookupMasterPID(const string &seq) const
     LOG(INFO) << "got new master pid: " << result;
 
   // TODO(benh): Automatic cast!
-  return make_pid(result.c_str());
+  return PID(result);
 }
 
 

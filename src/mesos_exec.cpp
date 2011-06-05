@@ -221,7 +221,7 @@ int MesosExecutorDriver::start()
   if (value == NULL)
     fatal("expecting MESOS_SLAVE_PID in environment");
 
-  slave = make_pid(value);
+  slave = PID(value);
 
   if (!slave)
     fatal("cannot parse MESOS_SLAVE_PID");
