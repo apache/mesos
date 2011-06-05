@@ -19,7 +19,6 @@ Makefile
 *.blg
 *.log
 *.class
-*.conf
 *.pyc
 *.dSYM
 *.dylib
@@ -70,6 +69,7 @@ src/third_party/zookeeper-3.3.1/src/c/config.h
 src/third_party/zookeeper-3.3.1/src/c/load_gen
 src/third_party/zookeeper-3.3.1/src/c/stamp-h1
 src/alltests
+src/conf/mesos.conf
 src/cpp-test-executor
 src/cpp-test-framework
 src/logs
