@@ -83,7 +83,7 @@ endif
 SCHED_LIB = $(LIBDIR)/libmesos_sched.a
 EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
-TESTS_OBJ = main.o utils.o master_test.o errors_test.o			\
+TESTS_OBJ = main.o utils.o master_test.o offer_reply_errors_test.o	\
 	    resources_test.o external_test.o sample_frameworks_test.o	\
 	    configurator_test.o string_utils_test.o			\
 	    lxc_isolation_test.o
