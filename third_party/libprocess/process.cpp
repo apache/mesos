@@ -2712,29 +2712,30 @@ MSGID Process::receive(double secs)
 }
 
 
-MSGID Process::serve(double secs)
+MSGID Process::serve(double secs, bool forever)
 {
-  switch (receive(secs)) {
-    case PROCESS_DISPATCH: {
-      void *pointer = (char *) current + sizeof(struct msg);
-      std::tr1::function<void (void)> *delegator =
-        *reinterpret_cast<std::tr1::function<void (void)> **>(pointer);
-      (*delegator)();
-      delete delegator;
-      break;
-    }
+  do {
+    switch (receive(secs)) {
+      case PROCESS_DISPATCH: {
+        void *pointer = (char *) current + sizeof(struct msg);
+        std::tr1::function<void (void)> *delegator =
+          *reinterpret_cast<std::tr1::function<void (void)> **>(pointer);
+        (*delegator)();
+        delete delegator;
+        break;
+      }
 
-    default: {
-      return msgid();
+      default: {
+        return msgid();
+      }
     }
-  }
+  } while (forever);
 }
 
 
 void Process::operator () ()
 {
-  while (true)
-    serve();
+  serve();
 }
 
 

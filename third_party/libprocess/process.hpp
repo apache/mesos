@@ -160,7 +160,7 @@ protected:
   virtual MSGID receive(double secs = 0);
 
   /*  Processes dispatch messages. */
-  virtual MSGID serve(double secs = 0);
+  virtual MSGID serve(double secs = 0, bool forever = true);
 
   /* Blocks at least specified seconds (may block longer). */
   virtual void pause(double secs);
