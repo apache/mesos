@@ -16,6 +16,8 @@
 using namespace mesos::internal;
 using namespace mesos::internal::test;
 
+using std::string;
+
 
 namespace {
 
@@ -42,6 +44,8 @@ string getMesosHome(int argc, char** argv) {
 
 int main(int argc, char** argv)
 {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   // Get absolute path to Mesos home directory based on location of alltests
   mesos::internal::test::mesosHome = getMesosHome(argc, argv);
 

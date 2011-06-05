@@ -1,11 +1,9 @@
-#ifndef MASTER_WEBUI_HPP
-#define MASTER_WEBUI_HPP
+#ifndef __MASTER_WEBUI_HPP__
+#define __MASTER_WEBUI_HPP__
 
 #include <process.hpp>
 
 #include "master.hpp"
-
-#include "common/params.hpp"
 
 #include "config/config.hpp"
 
@@ -14,10 +12,10 @@
 
 namespace mesos { namespace internal { namespace master {
 
-void startMasterWebUI(const PID &master, const Params &params);
+void startMasterWebUI(const PID& master, const Configuration& conf);
 
 }}} /* namespace */
 
 #endif /* MESOS_WEBUI */
 
-#endif /* MASTER_WEBUI_HPP */
+#endif /* __MASTER_WEBUI_HPP__ */

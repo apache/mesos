@@ -2509,7 +2509,12 @@ void Process::enqueue(struct msg *msg)
 
   // TODO(benh): Put filter inside lock statement below so that we can
   // guarantee the order of the messages seen by a filter are the same
-  // as the order of messages seen by the process.
+  // as the order of messages seen by the process. This is hard to do
+  // now because the locks aren't all correctly re-entrant. In
+  // addition, we should really put the filterer in
+  // ProcessManager::deliver because that updates the happens-before
+  // timing relationship and if the message just gets filtered then
+  // some timing could be incorrect.
   synchronized(filterer) {
     if (filterer != NULL) {
       if (filterer->filter(msg)) {
@@ -2593,7 +2598,12 @@ void Process::inject(const PID &from, MSGID id, const char *data, size_t length)
 
   // TODO(benh): Put filter inside lock statement below so that we can
   // guarantee the order of the messages seen by a filter are the same
-  // as the order of messages seen by the process.
+  // as the order of messages seen by the process. This is hard to do
+  // now because the locks aren't all correctly re-entrant. In
+  // addition, we should really put the filterer in
+  // ProcessManager::deliver because that updates the happens-before
+  // timing relationship and if the message just gets filtered then
+  // some timing could be incorrect.
   synchronized(filterer) {
     if (filterer != NULL) {
       if (filterer->filter(msg)) {

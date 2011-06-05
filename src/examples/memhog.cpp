@@ -18,7 +18,119 @@ using boost::lexical_cast;
 
 class MyScheduler : public Scheduler
 {
-  string executor;
+public:
+  MyScheduler(const string& uri_, int totalTasks_, double taskLen_,
+      int threadsPerTask_, int64_t memToRequest_, int64_t memToHog_)
+    : uri(uri_), totalTasks(totalTasks_), taskLen(taskLen_),
+      threadsPerTask(threadsPerTask_),
+      memToRequest(memToRequest_), memToHog(memToHog_),
+      tasksLaunched(0), tasksFinished(0) {}
+
+  virtual ~MyScheduler() {}
+
+  virtual string getFrameworkName(SchedulerDriver*)
+  {
+    return "Memory hog";
+  }
+
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*)
+  {
+    ExecutorInfo executor;
+    executor.set_uri(uri);
+    return executor;
+  }
+
+  virtual void registered(SchedulerDriver*, const FrameworkID&)
+  {
+    cout << "Registered!" << endl;
+  }
+
+  virtual void resourceOffer(SchedulerDriver* driver,
+                             const OfferID& offerId,
+                             const vector<SlaveOffer>& offers)
+  {
+    vector<TaskDescription> tasks;
+    foreach (const SlaveOffer& offer, offers) {
+      // Lookup resources we care about.
+      // TODO(benh): It would be nice to ultimately have some helper
+      // functions for looking up resources.
+      int32_t cpus = 0;
+      int32_t mem = 0;
+
+      for (int i = 0; i < offer.params().param_size(); i++) {
+        if (offer.params().param(i).key() == "cpus") {
+          cpus = lexical_cast<int32_t>(offer.params().param(i).value());
+        } else if (offer.params().param(i).key() == "mem") {
+          mem = lexical_cast<int32_t>(offer.params().param(i).value());
+        }
+      }
+
+      // Launch task.
+      if ((tasksLaunched < totalTasks) && (cpus >= 1 && mem >= memToRequest)) {
+        int taskId = tasksLaunched++;
+
+        cout << "Starting task " << taskId << " on "
+             << offer.hostname() << endl;
+
+        TaskDescription task;
+        task.set_name("Task " + lexical_cast<string>(taskId));
+        task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
+        *task.mutable_slave_id() = offer.slave_id();
+
+        Params* params = task.mutable_params();
+
+        Param* param;
+        param = params->add_param();
+        param->set_key("cpus");
+        param->set_value("1");
+
+        param = params->add_param();
+        param->set_key("mem");
+        param->set_value(lexical_cast<string>(memToRequest));
+
+        ostringstream data;
+        data << memToHog << " " << taskLen << " " << threadsPerTask;
+        task.set_data(data.str());
+
+        tasks.push_back(task);
+      }
+    }
+
+    map<string, string> params;
+    params["timeout"] = "-1";
+    driver->replyToOffer(offerId, tasks, params);
+  }
+
+  virtual void offerRescinded(SchedulerDriver* driver,
+                              const OfferID& offerId) {}
+
+  virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
+  {
+    int taskId = lexical_cast<int>(status.task_id().value());
+
+    cout << "Task " << taskId << " is in state " << status.state() << endl;
+
+    if (status.state() == TASK_LOST)
+      cout << "Task " << taskId
+           << " lost. Not doing anything about it." << endl;
+
+    if (status.state() == TASK_FINISHED)
+      tasksFinished++;
+
+    if (tasksFinished == totalTasks)
+      driver->stop();
+  }
+
+  virtual void frameworkMessage(SchedulerDriver* driver,
+                                const FrameworkMessage& message) {}
+
+  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid) {}
+
+  virtual void error(SchedulerDriver* driver, int code,
+                     const std::string& message) {}
+
+private:
+  string uri;
   double taskLen;
   int threadsPerTask;
   int memToRequest;
@@ -26,67 +138,11 @@ class MyScheduler : public Scheduler
   int tasksLaunched;
   int tasksFinished;
   int totalTasks;
-
-public:
-  MyScheduler(const string& executor_, int totalTasks_, double taskLen_,
-      int threadsPerTask_, int64_t memToRequest_, int64_t memToHog_)
-    : executor(executor_), totalTasks(totalTasks_), taskLen(taskLen_),
-      threadsPerTask(threadsPerTask_),
-      memToRequest(memToRequest_), memToHog(memToHog_),
-      tasksLaunched(0), tasksFinished(0) {}
-
-  virtual ~MyScheduler() {}
-
-  virtual string getFrameworkName(SchedulerDriver*) {
-    return "Memory hog";
-  }
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo(executor, "");
-  }
-
-  virtual void registered(SchedulerDriver*, FrameworkID fid) {
-    cout << "Registered!" << endl;
-  }
-
-  virtual void resourceOffer(SchedulerDriver* d,
-                             OfferID id,
-                             const vector<SlaveOffer>& offers) {
-    vector<TaskDescription> tasks;
-    foreach (const SlaveOffer &offer, offers) {
-      // This is kind of ugly because operator[] isn't a const function
-      int cpus = lexical_cast<int>(offer.params.find("cpus")->second);
-      int mem = lexical_cast<int>(offer.params.find("mem")->second);
-      if ((tasksLaunched < totalTasks) && (cpus >= 1 && mem >= memToRequest)) {
-        TaskID tid = tasksLaunched++;
-        cout << "Launcing task " << tid << " on " << offer.host << endl;
-        map<string, string> params;
-        params["cpus"] = "1";
-        params["mem"] = lexical_cast<string>(memToRequest);
-        ostringstream arg;
-        arg << memToHog << " " << taskLen << " " << threadsPerTask;
-        TaskDescription desc(tid, offer.slaveId, "task", params, arg.str());
-        tasks.push_back(desc);
-      }
-    }
-    map<string, string> params;
-    params["timeout"] = "-1";
-    d->replyToOffer(id, tasks, params);
-  }
-
-  virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
-    cout << "Task " << status.taskId << " is in state " << status.state << endl;
-    if (status.state == TASK_LOST)
-      cout << "Task " << status.taskId << " lost. Not doing anything about it." << endl;
-    if (status.state == TASK_FINISHED)
-      tasksFinished++;
-    if (tasksFinished == totalTasks)
-      d->stop();
-  }
 };
 
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv)
+{
   if (argc != 7) {
     cerr << "Usage: " << argv[0]
          << " <master> <tasks> <task_len> <threads_per_task>"

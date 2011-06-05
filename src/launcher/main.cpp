@@ -23,8 +23,10 @@ const char * getenvOrFail(const char *variable)
 
 int main(int argc, char **argv)
 {
-  map<string, string> params;   // Empty map
-  ExecutorLauncher(getenvOrFail("MESOS_FRAMEWORK_ID"),
+  FrameworkID frameworkId;
+  frameworkId.set_value(getenvOrFail("MESOS_FRAMEWORK_ID"));
+
+  ExecutorLauncher(frameworkId,
                    getenvOrFail("MESOS_EXECUTOR_URI"),
                    getenvOrFail("MESOS_USER"),
                    getenvOrFail("MESOS_WORK_DIRECTORY"),
@@ -34,6 +36,7 @@ int main(int argc, char **argv)
                    getenvOrFail("MESOS_HADOOP_HOME"),
                    lexical_cast<bool>(getenvOrFail("MESOS_REDIRECT_IO")),
                    lexical_cast<bool>(getenvOrFail("MESOS_SWITCH_USER")),
-                   params).run();
+                   map<string, string>()).run();
+
   return 0;
 }

@@ -1,31 +1,45 @@
-import java.io.FileWriter;
-import mesos.*;
+import java.io.File;
 
-public class TestExecutor extends Executor {
-  static {
-    System.loadLibrary("mesos");
-  }
+import mesos.*;
+import mesos.Protos.*;
+
+
+public class TestExecutor implements Executor {
+  @Override
+  public void init(ExecutorDriver driver, ExecutorArgs args) {}
 
   @Override
-  public void launchTask(final ExecutorDriver d, final TaskDescription task) {
+  public void launchTask(final ExecutorDriver driver, final TaskDescription task) {
     new Thread() { public void run() {
       try {
         System.out.println("Running task " + task.getTaskId());
-        FileWriter outputStream = new FileWriter("test_file.txt");
-        outputStream.write("test output text to write", 0, 25);
         Thread.sleep(1000);
-        d.sendStatusUpdate(new TaskStatus(task.getTaskId(),
-                                          TaskState.TASK_FINISHED,
-                                          new byte[0]));
+
+        TaskStatus status = TaskStatus.newBuilder()
+          .setTaskId(task.getTaskId())
+          .setSlaveId(task.getSlaveId())
+          .setState(TaskState.TASK_FINISHED).build();
+
+        driver.sendStatusUpdate(status);
       } catch (Exception e) {
         e.printStackTrace();
       }
     }}.start();
   }
 
+  @Override
+  public void killTask(ExecutorDriver driver, TaskID taskId) {}
+
+  @Override
+  public void frameworkMessage(ExecutorDriver driver, FrameworkMessage message) {}
+
+  @Override
+  public void shutdown(ExecutorDriver driver) {}
+
+  @Override
+  public void error(ExecutorDriver driver, int code, String message) {}
+
   public static void main(String[] args) throws Exception {
-    TestExecutor exec = new TestExecutor();
-    ExecutorDriver driver = new MesosExecutorDriver(exec);
-    driver.run();
+    new MesosExecutorDriver(new TestExecutor()).run();
   }
 }

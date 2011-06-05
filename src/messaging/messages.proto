@@ -1,0 +1,194 @@
+import "mesos.proto";
+
+package mesos.internal;
+
+
+message Task {
+  required string name = 1;
+  required TaskID task_id = 2;
+  required FrameworkID framework_id = 3;
+  required SlaveID slave_id = 4;
+  required Resources resources = 5;
+  required TaskState state = 6;
+}
+
+
+message FrameworkMessageMessage { // :(
+  required FrameworkID framework_id = 1;
+  required FrameworkMessage message = 2;
+}
+
+
+message RegisterFrameworkMessage {
+  required FrameworkInfo framework = 1;
+}
+
+
+message ReregisterFrameworkMessage {
+  required FrameworkID framework_id = 1;
+  required FrameworkInfo framework = 2;
+  required int32 generation = 3;
+}
+
+
+message FrameworkRegisteredMessage {
+  required FrameworkID framework_id = 1;
+}
+
+
+message UnregisterFrameworkMessage {
+  required FrameworkID framework_id = 1;
+}
+
+
+message ResourceOfferMessage {
+  required OfferID offer_id = 1;
+  repeated SlaveOffer offer = 2;
+  repeated string pid = 3;
+}
+
+
+message ResourceOfferReplyMessage {
+  required FrameworkID framework_id = 1;
+  required OfferID offer_id = 2;
+  repeated TaskDescription task = 3;
+  optional Params params = 4;
+}
+
+
+message RescindResourceOfferMessage {
+  required OfferID offer_id = 1;
+}
+
+
+message ReviveOffersMessage {
+  required FrameworkID framework_id = 1;
+}
+
+
+message RunTaskMessage {
+  required FrameworkInfo framework = 1;
+  required FrameworkID framework_id = 2;
+  required string pid = 3;
+  required TaskDescription task = 4;
+  required Resources resources = 5;
+}
+
+
+message KillTaskMessage {
+  required FrameworkID framework_id = 1;
+  required TaskID task_id = 2;
+}
+
+
+message StatusUpdateMessage {
+  required FrameworkID framework_id = 1;
+  required TaskStatus status = 2;
+}
+
+
+message LostSlaveMessage {
+  required SlaveID slave_id = 1;
+}
+
+
+message FrameworkErrorMessage {
+  required int32 code = 1;
+  required string message = 2;
+}
+
+
+message RegisterSlaveMessage {
+  required SlaveInfo slave = 1;
+}
+
+
+message ReregisterSlaveMessage {
+  required SlaveID slave_id = 1;
+  required SlaveInfo slave = 2;
+  repeated Task task = 3;
+}
+
+
+message SlaveRegisteredMessage {
+  required SlaveID slave_id = 1;
+  required double heartbeat_interval = 2;
+}
+
+
+message UnregisterSlaveMessage {
+  required SlaveID slave_id = 1;
+}
+
+
+message HeartbeatMessage {
+  required SlaveID slave_id = 1;
+}
+
+
+message KillFrameworkMessage {
+  required FrameworkID framework_id = 1;
+}
+
+
+message UpdateFrameworkMessage {
+  required FrameworkID framework_id = 1;
+  required string pid = 2;
+}
+
+
+message RegisterExecutorMessage {
+  required FrameworkID framework_id = 1;
+}
+
+
+message ExecutorRegisteredMessage {
+  required ExecutorArgs args = 1;
+}
+
+
+message ExitedExecutorMessage {
+  required SlaveID slave_id = 1;
+  required FrameworkID framework_id = 2;
+  required int32 status = 3;
+}
+
+
+message RegisterProjdMessage {
+  required string project = 1;
+}
+
+
+message ProjdReadyMessage {
+  required string project = 1;
+}
+
+
+message ProjdUpdateResourcesMessage {
+  optional Params params = 1;
+}
+
+
+message FrameworkExpiredMessage {
+  required FrameworkID framework_id = 1;
+}
+
+
+message NewMasterDetectedMessage {
+  required string pid = 2;
+}
+
+
+message GotMasterTokenMessage {
+  required string token = 1;
+}
+
+
+// TODO(benh): FIX THIS! Ultimately, the master/slave state will get
+// exported outside of the master/slave and therefore will need to be
+// more than just a pointer! For now, this is a hack.
+message StateMessage {
+  required bytes pointer = 1;
+}
+
+

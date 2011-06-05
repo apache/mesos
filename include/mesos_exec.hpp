@@ -14,27 +14,6 @@ namespace internal { class ExecutorProcess; }
 
 
 /**
- * Arguments passed to executors on initialization.
- */
-struct ExecutorArgs
-{
-  ExecutorArgs() {}
-
-  ExecutorArgs(SlaveID _slaveId, const std::string& _host,
-               FrameworkID _frameworkId, const std::string& _frameworkName,
-               const bytes& _data)
-    : slaveId(_slaveId), host(_host), frameworkId(_frameworkId),
-      frameworkName(_frameworkName), data(_data) {};
-
-  SlaveID slaveId;
-  std::string host;
-  FrameworkID frameworkId;
-  std::string frameworkName;
-  bytes data;
-};
-
-
-/**
  * Callback interface to be implemented by frameworks' executors.
  */
 class Executor
@@ -42,13 +21,21 @@ class Executor
 public:
   virtual ~Executor() {}
 
-  virtual void init(ExecutorDriver* d, const ExecutorArgs& args) {}
-  virtual void launchTask(ExecutorDriver* d, const TaskDescription& task) {}
-  virtual void killTask(ExecutorDriver* d, TaskID taskId) {}
-  virtual void frameworkMessage(ExecutorDriver* d,
-                                const FrameworkMessage& message) {}
-  virtual void shutdown(ExecutorDriver* d) {}
-  virtual void error(ExecutorDriver* d, int code, const std::string& message);
+  virtual void init(ExecutorDriver* driver, const ExecutorArgs& args) = 0;
+
+  virtual void launchTask(ExecutorDriver* driver,
+                          const TaskDescription& task) = 0;
+
+  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId) = 0;
+
+  virtual void frameworkMessage(ExecutorDriver* driver,
+                                const FrameworkMessage& message) = 0;
+
+  virtual void shutdown(ExecutorDriver* driver) = 0;
+
+  virtual void error(ExecutorDriver* driver,
+                     int code,
+                     const std::string& message) = 0;
 };
 
 
@@ -65,15 +52,16 @@ class ExecutorDriver
 public:
   virtual ~ExecutorDriver() {}
 
-  // Lifecycle methods
-  virtual int start() { return -1; }
-  virtual int stop() { return -1; }
-  virtual int join() { return -1; }
-  virtual int run() { return -1; } // Start and then join driver
+  // Lifecycle methods.
+  virtual int start() = 0;
+  virtual int stop() = 0;
+  virtual int join() = 0;
+  virtual int run() = 0; // Start and then join driver.
 
-  // Communication methods from executor to Mesos
-  virtual int sendStatusUpdate(const TaskStatus& status) { return -1; }
-  virtual int sendFrameworkMessage(const FrameworkMessage& message) { return -1; }
+  // Communication methods from executor to Mesos.
+  virtual int sendStatusUpdate(const TaskStatus& status) = 0;
+
+  virtual int sendFrameworkMessage(const FrameworkMessage& message) = 0;
 };
 
 
@@ -98,15 +86,12 @@ public:
   virtual int sendStatusUpdate(const TaskStatus& status);
   virtual int sendFrameworkMessage(const FrameworkMessage& message);
 
-  // Executor getter; required by some of the SWIG proxies
-  virtual Executor* getExecutor() { return executor; }
-
 private:
   friend class internal::ExecutorProcess;
 
   Executor* executor;
 
-  // LibProcess process for communicating with slave
+  // Libprocess process for communicating with slave
   internal::ExecutorProcess* process;
 
   // Are we currently registered with the slave

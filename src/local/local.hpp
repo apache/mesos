@@ -22,7 +22,7 @@ PID launch(int numSlaves,
            bool quiet);
 
 // Launch a local cluster with a given configuration.
-PID launch(const Params& conf, bool initLogging);
+PID launch(const Configuration& conf, bool initLogging);
 
 void shutdown();
 

@@ -33,9 +33,7 @@
 
 #include "common/fatal.hpp"
 #include "common/foreach.hpp"
-#include "common/params.hpp"
-#include "common/resources.hpp"
-#include "common/task.hpp"
+#include "common/type_utils.hpp"
 
 #include "configurator/configurator.hpp"
 
@@ -63,89 +61,78 @@ using boost::unordered_set;
 using foreach::_;
 
 
-// A description of a task that is yet to be launched
-struct TaskDescription
-{
-  TaskID tid;
-  string name;
-  string args; // Opaque data
-  Params params;
-  
-  TaskDescription(TaskID _tid, string _name, const string& _args,
-      const Params& _params)
-      : tid(_tid), name(_name), args(_args), params(_params) {}
-};
-
-
 // Information about a framework
 struct Framework
 {
-  FrameworkID id;
-  string name;
-  string user;
-  ExecutorInfo executorInfo;
-  list<TaskDescription *> queuedTasks; // Holds tasks until executor starts
-  unordered_map<TaskID, Task *> tasks;
-  Resources resources;
+  FrameworkInfo info;
+  FrameworkID frameworkId;
   PID pid;
+
+  list<TaskDescription> queuedTasks; // Holds tasks until executor starts
+  unordered_map<TaskID, Task *> tasks;
+
+  Resources resources;
 
   // Information about the status of the executor for this framework, set by
   // the isolation module. For example, this might include a PID, a VM ID, etc.
   string executorStatus;
   
-  Framework(FrameworkID _id, const string& _name, const string& _user,
-            const ExecutorInfo& _executorInfo, const PID& _pid)
-    : id(_id), name(_name), user(_user), executorInfo(_executorInfo), pid(_pid) {}
+  Framework(const FrameworkInfo& _info, const FrameworkID& _frameworkId,
+            const PID& _pid)
+    : info(_info), frameworkId(_frameworkId), pid(_pid) {}
 
   ~Framework()
   {
-    foreach(TaskDescription *desc, queuedTasks)
-      delete desc;
-    foreachpair (_, Task *task, tasks)
+    // Delete the tasks.
+    foreachpair (_, Task *task, tasks) {
       delete task;
+    }
   }
 
-  Task * lookupTask(TaskID tid)
+  Task * lookupTask(const TaskID& taskId)
   {
-    unordered_map<TaskID, Task *>::iterator it = tasks.find(tid);
+    unordered_map<TaskID, Task *>::iterator it = tasks.find(taskId);
     if (it != tasks.end())
       return it->second;
     else
       return NULL;
   }
 
-  Task * addTask(TaskID tid, const std::string& name, Resources res)
+  Task * addTask(const TaskDescription& task, const Resources& r)
   {
-    if (tasks.find(tid) != tasks.end()) {
-      // This should never happen - the master will make sure that it never
-      // lets a framework launch two tasks with the same ID.
-      LOG(FATAL) << "Task ID " << tid << "already exists in framework " << id;
-    }
-    Task *task = new Task(tid, res);
-    task->frameworkId = id;
-    task->state = TASK_STARTING;
-    task->name = name;
-    tasks[tid] = task;
-    resources += res;
-    return task;
+    // The master should enforce unique task IDs, but just in case
+    // maybe we shouldn't make this a fatal error.
+    CHECK(tasks.count(task.task_id()) == 0);
+
+    Task *t = new Task();
+    t->set_name(task.name());
+    *t->mutable_task_id() = task.task_id();
+    *t->mutable_framework_id() = frameworkId;
+    *t->mutable_slave_id() = task.slave_id();
+    *t->mutable_resources() = r;
+    t->set_state(TASK_STARTING);
+
+    tasks[task.task_id()] = t;
+    resources += r;
+
+    return t;
   }
 
-  void removeTask(TaskID tid)
+  void removeTask(const TaskID& taskId)
   {
     // Remove task from the queue if it's queued
-    for (list<TaskDescription *>::iterator it = queuedTasks.begin();
+    for (list<TaskDescription>::iterator it = queuedTasks.begin();
 	 it != queuedTasks.end(); ++it) {
-      if ((*it)->tid == tid) {
-	delete *it;
+      if ((*it).task_id() == taskId) {
 	queuedTasks.erase(it);
 	break;
       }
     }
 
     // Remove it from tasks as well
-    unordered_map<TaskID, Task *>::iterator it = tasks.find(tid);
+    unordered_map<TaskID, Task *>::iterator it = tasks.find(taskId);
     if (it != tasks.end()) {
-      resources -= it->second->resources;
+      resources -= it->second->resources();
       delete it->second;
       tasks.erase(it);
     }
@@ -159,33 +146,55 @@ struct Executor
   FrameworkID frameworkId;
   PID pid;
   
-  Executor(FrameworkID _fid, PID _pid) : frameworkId(_fid), pid(_pid) {}
+  Executor(const FrameworkID& _frameworkId, const PID& _pid)
+    : frameworkId(_frameworkId), pid(_pid) {}
+};
+
+
+// Periodically sends heartbeats to the master
+class Heart : public MesosProcess
+{
+public:
+  Heart(const PID &_master, const PID &_slave,
+        const SlaveID& _slaveId, double _interval)
+    : master(_master), slave(_slave), slaveId(_slaveId), interval(_interval) {}
+
+protected:
+  virtual void operator () ()
+  {
+    link(slave);
+    link(master);
+    do {
+      switch (receive(interval)) {
+        case PROCESS_TIMEOUT: {
+          Message<SH2M_HEARTBEAT> msg;
+          *msg.mutable_slave_id() = slaveId;
+          send(master, msg);
+          break;
+        }
+        case PROCESS_EXIT:
+        default:
+          return;
+      }
+    } while (true);
+  }
+
+private:
+  const PID master;
+  const PID slave;
+  const SlaveID slaveId;
+  const double interval;
 };
 
 
 class Slave : public MesosProcess
 {
 public:
-  Params conf;
+  Slave(const Resources& resources, bool local,
+        IsolationModule* isolationModule);
 
-  typedef unordered_map<FrameworkID, Framework*> FrameworkMap;
-  typedef unordered_map<FrameworkID, Executor*> ExecutorMap;
-  
-  PID master;
-  SlaveID id;
-  Resources resources;
-  bool local;
-  FrameworkMap frameworks;
-  ExecutorMap executors;  // Invariant: framework will exist if executor exists
-  IsolationModule *isolationModule;
-
-  // Sequence numbers of reliable messages sent on behalf of framework.
-  unordered_map<FrameworkID, unordered_set<int> > seqs;
-
-public:
-  Slave(Resources resources, bool local, IsolationModule* isolationModule);
-
-  Slave(const Params& conf, bool local, IsolationModule *isolationModule);
+  Slave(const Configuration& conf, bool local,
+        IsolationModule *isolationModule);
 
   virtual ~Slave();
 
@@ -194,25 +203,45 @@ public:
   state::SlaveState *getState();
 
   // Callback used by isolation module to tell us when an executor exits.
-  void executorExited(FrameworkID frameworkId, int status);
+  void executorExited(const FrameworkID& frameworkId, int status);
 
   // Kill a framework (possibly killing its executor).
   void killFramework(Framework *framework, bool killExecutor = true);
 
-  string getUniqueWorkDirectory(FrameworkID fid);
+  string getUniqueWorkDirectory(const FrameworkID& frameworkId);
 
-  const Params& getConf();
+  const Configuration& getConfiguration();
+
+  // TODO(...): Don't make this instance variable public! Hack for now.
+  bool local;
 
 protected:
-  void operator () ();
+  virtual void operator () ();
 
-  Framework * getFramework(FrameworkID frameworkId);
+  Framework * getFramework(const FrameworkID& frameworkId);
 
-  Executor * getExecutor(FrameworkID frameworkId);
+  Executor * getExecutor(const FrameworkID& frameworkId);
 
   // Send any tasks queued up for the given framework to its executor
   // (needed if we received tasks while the executor was starting up).
-  void sendQueuedTasks(Framework *framework);
+  void sendQueuedTasks(Framework* framework, Executor* executor);
+
+private:
+  Configuration conf;
+
+  PID master;
+  SlaveID slaveId;
+  Resources resources;
+
+  // Invariant: framework will exist if executor exists.
+  unordered_map<FrameworkID, Framework*> frameworks;
+  unordered_map<FrameworkID, Executor*> executors;
+
+  IsolationModule *isolationModule;
+  Heart* heart;
+
+  // Sequence numbers of reliable messages sent on behalf of framework.
+  unordered_map<FrameworkID, unordered_set<int> > seqs;
 };
 
 }}}

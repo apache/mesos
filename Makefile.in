@@ -14,12 +14,10 @@ MESOS_HOME = @prefix@/mesos
 WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
 
 LIBPROCESS = third_party/libprocess
-
-ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
-
+PROTOBUF = third_party/protobuf-2.3.0
 GLOG = third_party/glog-0.3.1
-GTEST = third_party/gtest-1.5.0
-SQLITE = third_party/sqlite-3.6.23.1
+GMOCK = third_party/gmock-1.5.0
+ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
 
 default: all
@@ -29,13 +27,14 @@ src: third_party
 
 third_party:
 	$(MAKE) -C $(LIBPROCESS)
+	$(MAKE) -C $(PROTOBUF)
 	$(MAKE) -C $(GLOG)
-	$(MAKE) -C $(GTEST)
-	$(MAKE) -C $(SQLITE)
+	$(MAKE) -C $(GMOCK)
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER)
 endif
 
+# TODO(benh): Install generated C++ header files.
 install:
 	if test ! -d $(MESOS_HOME)/bin; \
 		then mkdir -p $(MESOS_HOME)/bin; \
@@ -82,11 +81,11 @@ dist:
 	$(error unimplemented)
 
 distclean:
-	$(MAKE) -C src clean
+	$(MAKE) -C src clean # TODO(benh): Support an internal distclean.
 	$(MAKE) -C $(LIBPROCESS) distclean
+	$(MAKE) -C $(PROTOBUF) distclean
 	$(MAKE) -C $(GLOG) distclean
-	$(MAKE) -C $(GTEST) distclean
-	$(MAKE) -C $(SQLITE) distclean
+	$(MAKE) -C $(GMOCK) distclean
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) distclean
 endif
@@ -118,9 +117,9 @@ all: src
 clean:
 	$(MAKE) -C src clean
 	$(MAKE) -C $(LIBPROCESS) clean
+	$(MAKE) -C $(PROTOBUF) clean
 	$(MAKE) -C $(GLOG) clean
-	$(MAKE) -C $(GTEST) clean
-	$(MAKE) -C $(SQLITE) clean
+	$(MAKE) -C $(GMOCK) clean
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) clean
 endif

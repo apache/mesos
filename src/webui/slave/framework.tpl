@@ -48,7 +48,7 @@
       <tr>
       <td>{{task.id}}</td>
       <td>{{task.name}}</td>
-      <td>{{TASK_STATES[task.state]}}</td>
+      <td>{{task.state}}</td>
       </tr>
     %end
     </table>

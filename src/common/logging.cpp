@@ -5,9 +5,9 @@
 #include "fatal.hpp"
 #include "logging.hpp"
 
-using std::string;
-
 using namespace mesos::internal;
+
+using std::string;
 
 
 void Logging::registerOptions(Configurator* conf)
@@ -21,7 +21,7 @@ void Logging::registerOptions(Configurator* conf)
 }
 
 
-void Logging::init(const char* programName, const Params& conf)
+void Logging::init(const char* programName, const Configuration& conf)
 {
   // Set glog's parameters through Google Flags variables
   string logDir = getLogDir(conf);
@@ -41,7 +41,7 @@ void Logging::init(const char* programName, const Params& conf)
 }
 
 
-string Logging::getLogDir(const Params& conf)
+string Logging::getLogDir(const Configuration& conf)
 {
   if (conf.contains("log_dir"))
     return conf.get("log_dir", "");
@@ -52,7 +52,7 @@ string Logging::getLogDir(const Params& conf)
 }
 
 
-bool Logging::isQuiet(const Params& conf)
+bool Logging::isQuiet(const Configuration& conf)
 {
   return conf.get<bool>("quiet", false);
 }

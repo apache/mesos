@@ -2,29 +2,17 @@
 #define __CONFIGURATOR_HPP__
 
 #include <algorithm>
-#include <iostream>
-#include <fstream>
-#include <string>
 #include <map>
+#include <string>
 
 #include <glog/logging.h>
 
+#include "configuration.hpp"
 #include "option.hpp"
-
-#include "common/params.hpp"
 
 
 namespace mesos { namespace internal {
     
-using std::string;
-using std::cout;
-using std::cerr;
-using std::endl;
-using std::ifstream;
-using std::map;
-using boost::lexical_cast;
-using boost::bad_lexical_cast;
-
 
 /**
  * Exception type thrown by Configurator.
@@ -38,9 +26,9 @@ struct ConfigurationException : std::exception
 
 
 /** 
- * This class populates a Params object, which can be retrieved with
- * getParams(), by reading variables from the command line, a config file
- * or the environment.
+ * This class populates a Configuration object, which can be retrieved
+ * with getConfiguration(), by reading variables from the command
+ * line, a config file or the environment.
  *
  * It currently supports 3 input types:
  * (i) Environment variables. It adds all variables starting with MESOS_.
@@ -58,8 +46,8 @@ public:
   static const char* ENV_VAR_PREFIX;
 
 private:
-  Params params;
-  map<string, Option> options;
+  Configuration conf;
+  std::map<std::string, Option> options;
 
 public:
 
@@ -71,10 +59,10 @@ public:
 
 
   /**
-   * Returns the Params object parsed by this Configurator.
-   * @return Params populated params object
+   * Returns the Configuration object parsed by this Configurator.
+   * @return Configuration populated configuration object
    **/
-  Params& getParams();
+  Configuration& getConfiguration();
 
 
   /**
@@ -82,7 +70,7 @@ public:
    * @see addOption()
    * @return usage string
    **/
-  string getUsage() const;
+  std::string getUsage() const;
 
   
 private:
@@ -95,21 +83,21 @@ private:
    * @param shortName character representing short name of option, e.g. 'h'
    * @param hasDefault whether the option has a default value
    * @param defaultValue default value of the option, as a string. 
-   *        The default option is put in the internal params, 
-   *        unless the option already has a value in params.
+   *        The default option is put in the internal conf, 
+   *        unless the option already has a value in conf.
    **/
   template <class T>
-  void addOption(const string& optName,
-                 const string& helpString,
+  void addOption(const std::string& optName,
+                 const std::string& helpString,
                  bool hasShortName,
                  char shortName,
                  bool hasDefault,
-                 const string& defaultValue)
+                 const std::string& defaultValue)
   {
-    string name = optName;
+    std::string name = optName;
     std::transform(name.begin(), name.end(), name.begin(), ::tolower);
     if (options.find(name) != options.end()) {
-      string message = "Duplicate option registration: " + name;
+      std::string message = "Duplicate option registration: " + name;
       throw ConfigurationException(message.c_str());
     }
     options[name] = Option(helpString,
@@ -127,7 +115,7 @@ public:
    * @param helpString description of the option, may contain line breaks
    **/
   template <class T>
-  void addOption(const string& optName, const string& helpString) 
+  void addOption(const std::string& optName, const std::string& helpString) 
   {
     addOption<T>(optName, helpString, false, '\0', false, "");
   }
@@ -139,9 +127,9 @@ public:
    * @param helpString description of the option, may contain line breaks
    **/
   template <class T>
-  void addOption(const string& optName,
+  void addOption(const std::string& optName,
                  char shortName,
-                 const string& helpString) 
+                 const std::string& helpString) 
   {
     addOption<T>(optName, helpString, true, shortName, false, "");
   }
@@ -151,16 +139,16 @@ public:
    * @param optName name of the option, e.g. "home"
    * @param helpString description of the option, may contain line breaks
    * @param defaultValue default value of option.
-   *        The default option is put in the internal params, 
-   *        unless the option already has a value in params.
+   *        The default option is put in the internal conf, 
+   *        unless the option already has a value in conf.
    *        Its type must support operator<<(ostream,...)
    **/
   template <class T>
-  void addOption(const string& optName,
-                 const string& helpString,
+  void addOption(const std::string& optName,
+                 const std::string& helpString,
                  const T& defaultValue) 
   {
-    string defaultStr = lexical_cast<string>(defaultValue);
+    std::string defaultStr = boost::lexical_cast<std::string>(defaultValue);
     addOption<T>(optName, helpString, false, '\0', true, defaultStr);
   }
 
@@ -169,17 +157,17 @@ public:
    * @param optName name of the option, e.g. "home"
    * @param helpString description of the option, may contain line breaks
    * @param defaultValue default value of option.
-   *        The default option is put in the internal params, 
-   *        unless the option already has a value in params.
+   *        The default option is put in the internal conf, 
+   *        unless the option already has a value in conf.
    *        Its type must support operator<<(ostream,...)
    **/
   template <class T>
-  void addOption(const string& optName,
+  void addOption(const std::string& optName,
                  char shortName,
-                 const string& helpString,
+                 const std::string& helpString,
                  const T& defaultValue) 
   {
-    string defaultStr = lexical_cast<string>(defaultValue);
+    std::string defaultStr = boost::lexical_cast<std::string>(defaultValue);
     addOption<T>(optName, helpString, true, shortName, true, defaultStr);
   }
 
@@ -187,7 +175,7 @@ public:
    * Returns the names of all registered options.
    * @return name of every registered option
    **/
-  vector<string> getOptions() const;
+  std::vector<std::string> getOptions() const;
 
 
   /**
@@ -198,62 +186,72 @@ public:
 
 
   /**
-   * Populates its internal Params with key/value params from environment, 
-   * command line, and config file.
+   * Populates its internal Configuration with key/value parameters
+   * from environment, command line, and config file.
+   *
    * <i>Environment:</i><br>
-   * Parses the environment variables and populates a Params.
+   * Parses the environment variables and populates a Configuration.
    * It picks all environment variables that start with MESOS_.
    * The environment var MESOS_FOO=/dir would lead to key=foo val=/dir<br>
+   *
    * <i>Command line:</i><br>
    * It extracts four type of command line parameters:
    * "--key=val", "-key val", "--key", "-key". The two last cases will
-   * have default value "1" in the Params. <br>
+   * have default value "1" in the Configuration. <br>
+   *
    * <i>Config file:</i><br>
    * The config file should contain key=value pairs, one per line.
    * Comments, which should start with #, are ignored.
    *
    * @param argc is the number of parameters in argv
-   * @param argv is an array of c-strings containing params
+   * @param argv is an array of c-strings containing parameters
    * @param inferMesosHomeFromArg0 whether to set mesos home to directory
    *                               containing argv[0] (the program being run)
-   * @return the loaded Params object
+   * @return the loaded Configuration object
    **/
-  Params& load(int argc, char** argv, bool inferMesosHomeFromArg0 = false);
+  Configuration& load(int argc,
+                      char** argv,
+                      bool inferMesosHomeFromArg0 = false);
 
 
   /**
-   * Populates its internal Params with key/value params from environment, 
-   * and config file.
+   * Populates its internal Configuration with key/value parameters
+   * from environment, and config file.
+   *
    * <i>Environment:</i><br>
-   * Parses the environment variables and populates a Params.
+   * Parses the environment variables and populates a Configuration.
    * It picks all environment variables that start with MESOS_.
    * The environment var MESOS_FOO=/dir would lead to key=foo val=/dir <br>
+   *
    * <i>Config file:</i><br>
    * The config file should contain key=value pairs, one per line.
    * Comments, which should start with #, are ignored.
    *
-   * @return the loaded Params object
+   * @return the loaded Configuration object
    **/
-  Params& load();
+  Configuration& load();
 
 
   /** 
-   * Populates its internal Params with key/value params from environment, 
-   * a provided map, and config file.
+   * Populates its internal Configuration with key/value parameters
+   * from environment, a provided map, and config file.
+   *
    * <i>Environment:</i><br>
-   * Parses the environment variables and populates a Params.
+   * Parses the environment variables and populates a Configuration.
    * It picks all environment variables that start with MESOS_.
    * The environment var MESOS_FOO=/dir would lead to key=foo val=/dir <br>
+   *
    * <i>Map:</i><br>
    * Containing a string to string map. <br>
+   *
    * <i>Config file:</i><br>
    * The config file should contain key=value pairs, one per line.
    * Comments, which should start with #, are ignored.
    *
-   * @param _params map containing key value pairs to be loaded
-   * @return the loaded Params object
+   * @param params map containing key value pairs to be loaded
+   * @return the loaded Configuration object
    **/
-  Params& load(const map<string, string>& _params);
+  Configuration& load(const std::map<std::string, std::string>& params);
 
   /**
    * Clears all Mesos environment variables (useful for tests).
@@ -262,7 +260,7 @@ public:
 
 private:
   /**
-   * Parses the environment variables and populates a Params.
+   * Parses the environment variables and populates a Configuration.
    * It picks all environment variables that start with MESOS_.
    * The environment variable MESOS_FOO=/dir would lead to key=foo val=/dir
    * @param overwrite whether to overwrite keys that already have values 
@@ -271,13 +269,15 @@ private:
   void loadEnv(bool overwrite = true);
 
   /**
-   * Populates its internal Params with key/value params from command line.
+   * Populates its internal Configuration with key/value parameters
+   * from command line.
+   *
    * It extracts four type of command line parameters:
    * "--key=val", "-key val", "--key", "-key". The two last cases will
    * have default value "1" in the Params. 
    *
    * @param argc is the number of parameters in argv
-   * @param argv is an array of c-strings containing params
+   * @param argv is an array of c-strings containing parameters
    * @param inferMesosHomeFromArg0 whether to set mesos home to directory
    *                               containing argv[0] (the program being run)
    * @param overwrite whether to overwrite keys that already have values 
@@ -289,7 +289,9 @@ private:
                        bool overwrite = true);
 
   /**
-   * Populates its internal Params with key/value params from a config file.
+   * Populates its internal Configuration with key/value parameters
+   * from a config file.
+   *
    * Values in the config file DO NOT override values already loaded into
    * conf (i.e. having been defined in the environment or command line), as
    * is typically expected for programs that allow configuration both ways.
@@ -301,7 +303,7 @@ private:
    * @param overwrite whether to overwrite keys that already have values 
    *         in the internal params (false by default)
    **/
-  void loadConfigFile(const string& fname, bool overwrite = false);
+  void loadConfigFile(const std::string& fname, bool overwrite = false);
 
   /**
    * Load the config file set through the command line or environment, if any.
@@ -320,7 +322,7 @@ private:
    * @param shortName character representing the short name of the option
    * @return first long name option matching the short name, "" if none found.
    */
-  string getLongName(char shortName) const;
+  std::string getLongName(char shortName) const;
 
   /**
    * Check whether a command-line flag is valid, based on whether it was
@@ -332,7 +334,7 @@ private:
    * @param key the option name parsed from the flag (without --no)
    * @param gotBool whether the option was passed as a bool
    */
-  void checkCommandLineParamFormat(const string& key, bool gotBool) 
+  void checkCommandLineParamFormat(const std::string& key, bool gotBool) 
     throw(ConfigurationException);
 
   /**

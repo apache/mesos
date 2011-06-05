@@ -6,16 +6,12 @@
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
-#include "allocator.hpp"
+#include "messaging/messages.pb.h"
 
-#include "common/resources.hpp"
+#include "allocator.hpp"
 
 
 namespace mesos { namespace internal { namespace master {
-
-using std::vector;
-using boost::unordered_map;
-using boost::unordered_set;
 
 class SimpleAllocator : public Allocator
 {
@@ -25,7 +21,7 @@ class SimpleAllocator : public Allocator
   
   // Remember which frameworks refused each slave "recently"; this is cleared
   // when the slave's free resources go up or when everyone has refused it
-  unordered_map<Slave*, unordered_set<Framework*> > refusers;
+  boost::unordered_map<Slave*, boost::unordered_set<Framework*> > refusers;
   
 public:
   SimpleAllocator(Master* _master): master(_master) {}
@@ -44,7 +40,7 @@ public:
 
   virtual void offerReturned(SlotOffer* offer,
                              OfferReturnReason reason,
-                             const vector<SlaveResources>& resourcesLeft);
+                             const std::vector<SlaveResources>& resourcesLeft);
 
   virtual void offersRevived(Framework* framework);
   
@@ -52,7 +48,7 @@ public:
   
 private:
   // Get an ordering to consider frameworks in for launching tasks
-  vector<Framework*> getAllocationOrdering();
+  std::vector<Framework*> getAllocationOrdering();
   
   // Look at the full state of the cluster and send out offers
   void makeNewOffers();
@@ -61,7 +57,7 @@ private:
   void makeNewOffers(Slave* slave);
 
   // Make resource offers for a subset of the slaves
-  void makeNewOffers(const vector<Slave*>& slaves);
+  void makeNewOffers(const std::vector<Slave*>& slaves);
 };
 
 }}} /* namespace */

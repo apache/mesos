@@ -18,18 +18,17 @@
 #include "common/foreach.hpp"
 #include "common/string_utils.hpp"
 
-using std::cerr;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::launcher;
+
+using boost::lexical_cast;
+
 using std::cout;
 using std::endl;
 using std::ostringstream;
 using std::string;
 using std::vector;
-
-using boost::lexical_cast;
-
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::launcher;
 
 
 ExecutorLauncher::ExecutorLauncher(FrameworkID _frameworkId,
@@ -228,7 +227,7 @@ void ExecutorLauncher::setupEnvironment()
 
   // Set Mesos environment variables to pass slave ID, framework ID, etc.
   setenv("MESOS_SLAVE_PID", slavePid.c_str(), true);
-  setenv("MESOS_FRAMEWORK_ID", frameworkId.c_str(), true);
+  setenv("MESOS_FRAMEWORK_ID", frameworkId.value().c_str(), true);
   
   // Set LIBPROCESS_PORT so that we bind to a random free port.
   setenv("LIBPROCESS_PORT", "0", true);
@@ -272,7 +271,7 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
 
   // Set up Mesos environment variables that launcher_main.cpp will
   // pass as arguments to an ExecutorLauncher there
-  setenv("MESOS_FRAMEWORK_ID", frameworkId.c_str(), 1);
+  setenv("MESOS_FRAMEWORK_ID", frameworkId.value().c_str(), 1);
   setenv("MESOS_EXECUTOR_URI", executorUri.c_str(), 1);
   setenv("MESOS_USER", user.c_str(), 1);
   setenv("MESOS_WORK_DIRECTORY", workDirectory.c_str(), 1);

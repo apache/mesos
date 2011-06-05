@@ -239,15 +239,16 @@ void LxcIsolationModule::Reaper::operator () ()
       pid_t pid;
       int status;
       if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
-        foreachpair (FrameworkID fid, FrameworkInfo* info, module->infos) {
+        foreachpair (const FrameworkID& frameworkId,
+                     FrameworkInfo* info, module->infos) {
           if (info->lxcExecutePid == pid) {
             info->lxcExecutePid = -1;
             info->container = "";
-            LOG(INFO) << "Telling slave of lost framework " << fid;
+            LOG(INFO) << "Telling slave of lost framework " << frameworkId;
             // TODO(benh): This is broken if/when libprocess is parallel!
-            module->slave->executorExited(fid, status);
-            delete module->infos[fid];
-            module->infos.erase(fid);
+            module->slave->executorExited(frameworkId, status);
+            delete module->infos[frameworkId];
+            module->infos.erase(frameworkId);
             break;
           }
         }

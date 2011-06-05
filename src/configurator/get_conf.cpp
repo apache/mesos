@@ -3,13 +3,13 @@
 
 #include "configurator.hpp"
 
+using namespace mesos::internal;
+
 using std::cout;
 using std::string;
 
-using namespace mesos::internal;
 
-
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   if (argc == 1) {
     cout << "Usage:  mesos-getconf OPTION [arg1 arg2 ... ]\n\n";
@@ -18,12 +18,17 @@ int main(int argc, char **argv)
     cout << "This utility gives shell scripts access to Mesos parameters.\n\n";
     return 1;
   }
-  Configurator conf;
-  conf.load(argc, argv, true);
+
+  Configurator configurator;
+  configurator.load(argc, argv, true);
+
   string param(argv[1]);
   transform(param.begin(), param.end(), param.begin(), tolower);
-  if (conf.getParams().contains(param)) {
-    cout << conf.getParams()[param] << "\n";
+
+  Configuration conf = configurator.getConfiguration();
+  if (conf.contains(param)) {
+    cout << conf[param] << "\n";
   }
+
   return 0;
 }

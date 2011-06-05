@@ -17,12 +17,6 @@ extern SlaveState *get_slave();
 %template(FrameworkVec) std::vector<mesos::internal::slave::state::Framework*>;
 %template(TaskVec) std::vector<mesos::internal::slave::state::Task*>;
 
-/* Rename task_state enum so that the generated class is called TaskState */
-%rename(TaskState) task_state;
-
-%include <mesos_types.h>
-%include <mesos_types.hpp>
-
 %include <slave/state.hpp>
 
 namespace mesos { namespace internal { namespace slave { namespace state {

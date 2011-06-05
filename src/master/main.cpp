@@ -13,10 +13,9 @@ using boost::lexical_cast;
 using boost::bad_lexical_cast;
 
 using namespace mesos::internal::master;
-using mesos::internal::eventhistory::EventLogger;
 
 
-void usage(const char* progName, const Configurator& conf)
+void usage(const char* progName, const Configurator& configurator)
 {
   cerr << "Usage: " << progName << " [--port=PORT] [--url=URL] [...]" << endl
        << endl
@@ -25,48 +24,44 @@ void usage(const char* progName, const Configurator& conf)
        << "  zoofile://file where file has one host:port pair per line" << endl
        << endl
        << "Supported options:" << endl
-       << conf.getUsage();
+       << configurator.getUsage();
 }
 
 
 int main(int argc, char **argv)
 {
-  Configurator conf;
-  conf.addOption<string>("url", 'u', "URL used for leader election");
-  conf.addOption<int>("port", 'p', "Port to listen on", 5050);
-  conf.addOption<string>("ip", "IP address to listen on");
+  Configurator configurator;
+  configurator.addOption<string>("url", 'u', "URL used for leader election");
+  configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
+  configurator.addOption<string>("ip", "IP address to listen on");
 #ifdef MESOS_WEBUI
-  conf.addOption<int>("webui_port", 'w', "Web UI port", 8080);
+  configurator.addOption<int>("webui_port", 'w', "Web UI port", 8080);
 #endif
-  Logging::registerOptions(&conf);
-  Master::registerOptions(&conf);
-  EventLogger::registerOptions(&conf);
+  Logging::registerOptions(&configurator);
+  Master::registerOptions(&configurator);
 
   if (argc == 2 && string("--help") == argv[1]) {
-    usage(argv[0], conf);
+    usage(argv[0], configurator);
     exit(1);
   }
 
-  Params params;
+  Configuration conf;
   try {
-    params = conf.load(argc, argv, true);
+    conf = configurator.load(argc, argv, true);
   } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
     exit(1);
   }
 
-  Logging::init(argv[0], params);
+  Logging::init(argv[0], conf);
 
-  LOG(INFO) << "Creating event logger." << endl;
-  EventLogger evLogger(params);
+  if (conf.contains("port"))
+    setenv("LIBPROCESS_PORT", conf["port"].c_str(), 1);
 
-  if (params.contains("port"))
-    setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
+  if (conf.contains("ip"))
+    setenv("LIBPROCESS_IP", conf["ip"].c_str(), 1);
 
-  if (params.contains("ip"))
-    setenv("LIBPROCESS_IP", params["ip"].c_str(), 1);
-
-  string url = params.get("url", "");
+  string url = conf.get("url", "");
 
   LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
   LOG(INFO) << "Starting Mesos master";
@@ -74,14 +69,14 @@ int main(int argc, char **argv)
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("Could not chdir into %s", dirname(argv[0]));
 
-  Master *master = new Master(params, &evLogger);
+  Master *master = new Master(conf);
   PID pid = Process::spawn(master);
 
-  bool quiet = Logging::isQuiet(params);
+  bool quiet = Logging::isQuiet(conf);
   MasterDetector *detector = MasterDetector::create(url, pid, true, quiet);
 
 #ifdef MESOS_WEBUI
-  startMasterWebUI(pid, params);
+  startMasterWebUI(pid, conf);
 #endif
   
   Process::wait(pid);

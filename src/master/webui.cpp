@@ -6,6 +6,9 @@
 #include "webui.hpp"
 #include "state.hpp"
 
+#include "configurator/configuration.hpp"
+
+
 #ifdef MESOS_WEBUI
 
 #include <Python.h>
@@ -48,7 +51,7 @@ void *runMasterWebUI(void *)
 }
 
 
-void startMasterWebUI(const PID &master, const Params &params)
+void startMasterWebUI(const PID &master, const Configuration &conf)
 {
   // TODO(*): It would be nice if we didn't have to be specifying
   // default values for configuration options in the code like
@@ -57,8 +60,8 @@ void startMasterWebUI(const PID &master, const Params &params)
   // all of the configuration options have been set (from defaults or
   // from the command line, environment, or configuration file) and we
   // can just query what their values are.
-  webuiPort = params.get("webui_port", "8080");
-  logDir = params.get("log_dir", FLAGS_log_dir);
+  webuiPort = conf.get("webui_port", "8080");
+  logDir = conf.get("log_dir", FLAGS_log_dir);
 
   LOG(INFO) << "Starting master web UI on port " << webuiPort;
 
@@ -78,12 +81,16 @@ public:
   StateGetter() {}
   ~StateGetter() {}
 
-  void operator () ()
+  virtual void operator () ()
   {
-    send(::master, pack<M2M_GET_STATE>());
+    send(::master, M2M_GET_STATE);
     receive();
     CHECK(msgid() == M2M_GET_STATE_REPLY);
-    masterState = unpack<M2M_GET_STATE_REPLY, 0>(body());
+
+    const Message<M2M_GET_STATE_REPLY>& msg = message();
+
+    masterState =
+      *(state::MasterState **) msg.pointer().data();
   }
 };
 

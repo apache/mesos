@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <fstream>
 
+#include <google/protobuf/descriptor.h>
+
 #include "slave.hpp"
 #include "webui.hpp"
 
@@ -14,55 +16,24 @@
 #define gethostbyname2(name, _) gethostbyname(name)
 #endif
 
-using std::list;
-using std::make_pair;
-using std::ostringstream;
-using std::istringstream;
-using std::pair;
-using std::queue;
-using std::string;
-using std::vector;
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
 
 using boost::lexical_cast;
 using boost::unordered_map;
 using boost::unordered_set;
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
+using std::list;
+using std::make_pair;
+using std::ostringstream;
+using std::pair;
+using std::queue;
+using std::string;
+using std::vector;
 
 
 namespace {
-
-// Periodically sends heartbeats to the master
-class Heart : public MesosProcess
-{
-private:
-  PID master;
-  PID slave;
-  SlaveID sid;
-  double interval;
-
-protected:
-  void operator () ()
-  {
-    link(slave);
-    link(master);
-    do {
-      switch (receive(interval)) {
-      case PROCESS_TIMEOUT:
-	send(master, pack<SH2M_HEARTBEAT>(sid));
-	break;
-      case PROCESS_EXIT:
-	return;
-      }
-    } while (true);
-  }
-
-public:
-  Heart(const PID &_master, const PID &_slave, SlaveID _sid, double _interval)
-    : master(_master), slave(_slave), sid(_sid), interval(_interval) {}
-};
 
 
 // Default values for CPU cores and memory to include in configuration
@@ -73,42 +44,45 @@ const int32_t DEFAULT_MEM = 1 * Gigabyte;
 } /* namespace */
 
 
-Slave::Slave(Resources _resources, bool _local,
+Slave::Slave(const Resources& _resources, bool _local,
              IsolationModule *_isolationModule)
-  : id(""), resources(_resources), local(_local),
-    isolationModule(_isolationModule) {}
+  : resources(_resources), local(_local),
+    isolationModule(_isolationModule), heart(NULL) {}
 
 
-Slave::Slave(const Params& _conf, bool _local, IsolationModule *_module)
-  : id(""), conf(_conf), local(_local), isolationModule(_module)
+Slave::Slave(const Configuration& _conf, bool _local,
+             IsolationModule *_module)
+  : conf(_conf), local(_local), isolationModule(_module), heart(NULL)
 {
-  resources = Resources(conf.get<int32_t>("cpus", DEFAULT_CPUS),
-                        conf.get<int32_t>("mem", DEFAULT_MEM));
+  resources.set_cpus(conf.get<int32_t>("cpus", DEFAULT_CPUS));
+  resources.set_mem(conf.get<int32_t>("mem", DEFAULT_MEM));
 }
 
 
-void Slave::registerOptions(Configurator* conf)
+void Slave::registerOptions(Configurator* configurator)
 {
-  conf->addOption<int32_t>("cpus", 'c', "CPU cores for use by tasks",
-                           DEFAULT_CPUS);
-  conf->addOption<int64_t>("mem", 'm', "Memory for use by tasks, in MB\n",
-                           DEFAULT_MEM);
-  conf->addOption<string>("work_dir",
-                          "Where to place framework work directories\n"
-                          "(default: MESOS_HOME/work)");
-  conf->addOption<string>("hadoop_home",
-                          "Where to find Hadoop installed (for fetching\n"
-                          "framework executors from HDFS)\n"
-                          "(default: look for HADOOP_HOME environment\n"
-                          "variable or find hadoop on PATH)");
-  conf->addOption<bool>("switch_user", 
-                        "Whether to run tasks as the user who\n"
-                        "submitted them rather than the user running\n"
-                        "the slave (requires setuid permission)",
-                        true);
-   conf->addOption<string>("frameworks_home",
-                           "Directory prepended to relative executor\n"
-                           "paths (default: MESOS_HOME/frameworks)");
+  configurator->addOption<int32_t>("cpus", 'c',
+                                   "CPU cores for use by tasks",
+                                   DEFAULT_CPUS);
+  configurator->addOption<int64_t>("mem", 'm',
+                                   "Memory for use by tasks, in MB\n",
+                                   DEFAULT_MEM);
+  configurator->addOption<string>("work_dir",
+                                  "Where to place framework work directories\n"
+                                  "(default: MESOS_HOME/work)");
+  configurator->addOption<string>("hadoop_home",
+                                  "Where to find Hadoop installed (for\n"
+                                  "fetching framework executors from HDFS)\n"
+                                  "(default: look for HADOOP_HOME in\n"
+                                  "environment or find hadoop on PATH)");
+  configurator->addOption<bool>("switch_user", 
+                                "Whether to run tasks as the user who\n"
+                                "submitted them rather than the user running\n"
+                                "the slave (requires setuid permission)",
+                                true);
+  configurator->addOption<string>("frameworks_home",
+                                  "Directory prepended to relative executor\n"
+                                  "paths (default: MESOS_HOME/frameworks)");
 }
 
 
@@ -120,22 +94,22 @@ Slave::~Slave()
 
 state::SlaveState *Slave::getState()
 {
-  std::ostringstream my_pid;
-  my_pid << self();
-  std::ostringstream master_pid;
-  master_pid << master;
   state::SlaveState *state =
-    new state::SlaveState(BUILD_DATE, BUILD_USER, id, resources.cpus, 
-        resources.mem, my_pid.str(), master_pid.str());
+    new state::SlaveState(BUILD_DATE, BUILD_USER, slaveId.value(),
+                          resources.cpus(), resources.mem(),
+                          self(), master);
 
   foreachpair(_, Framework *f, frameworks) {
-    state::Framework *framework = new state::Framework(f->id, f->name, 
-        f->executorInfo.uri, f->executorStatus, f->resources.cpus,
-        f->resources.mem);
+    state::Framework *framework =
+      new state::Framework(f->frameworkId.value(), f->info.name(),
+                           f->info.executor().uri(), f->executorStatus,
+                           f->resources.cpus(), f->resources.mem());
     state->frameworks.push_back(framework);
     foreachpair(_, Task *t, f->tasks) {
-      state::Task *task = new state::Task(t->id, t->name, t->state,
-          t->resources.cpus, t->resources.mem);
+      state::Task *task =
+        new state::Task(t->task_id().value(), t->name(),
+                        TaskState_descriptor()->FindValueByNumber(t->state())->name(),
+                        t->resources().cpus(), t->resources().mem());
       framework->tasks.push_back(task);
     }
   }
@@ -149,24 +123,23 @@ void Slave::operator () ()
   LOG(INFO) << "Slave started at " << self();
 
   // Get our hostname
-  char buf[HOST_NAME_MAX];
+  char buf[256];
   gethostname(buf, sizeof(buf));
   hostent *he = gethostbyname2(buf, AF_INET);
   string hostname = he->h_name;
 
-  // Get our public Web UI URL. Normally this is our hostname, but on EC2
+  // Get our public DNS name. Normally this is our hostname, but on EC2
   // we look for the MESOS_PUBLIC_DNS environment variable. This allows
   // the master to display our public name in its web UI.
-  LOG(INFO) << "setting up webUIUrl on port " << conf["webui_port"];
-  string webUIUrl;
+  string public_hostname = hostname;
   if (getenv("MESOS_PUBLIC_DNS") != NULL) {
-    webUIUrl = getenv("MESOS_PUBLIC_DNS");
-  } else {
-    webUIUrl = hostname;
+    public_hostname = getenv("MESOS_PUBLIC_DNS");
   }
-#ifdef MESOS_WEBUI
-  webUIUrl += ":" + conf["webui_port"];
-#endif
+
+  SlaveInfo slave;
+  slave.set_hostname(hostname);
+  slave.set_public_hostname(public_hostname);
+  *slave.mutable_resources() = resources;
 
   // Initialize isolation module.
   isolationModule->initialize(this);
@@ -174,34 +147,32 @@ void Slave::operator () ()
   while (true) {
     switch (receive()) {
       case NEW_MASTER_DETECTED: {
-	string masterSeq;
-	PID masterPid;
-	tie(masterSeq, masterPid) = unpack<NEW_MASTER_DETECTED>(body());
+        const Message<NEW_MASTER_DETECTED>& msg = message();
 
-	LOG(INFO) << "New master at " << masterPid << " with ID:" << masterSeq;
+	LOG(INFO) << "New master at " << msg.pid();
 
-        redirect(master, masterPid);
-	master = masterPid;
+        redirect(master, msg.pid());
+	master = msg.pid();
 	link(master);
 
-	if (id.empty()) {
+	if (slaveId == "") {
 	  // Slave started before master.
-	  send(master, pack<S2M_REGISTER_SLAVE>(hostname, webUIUrl, resources));
+          Message<S2M_REGISTER_SLAVE> out;
+          *out.mutable_slave() = slave;
+	  send(master, out);
 	} else {
-	  // Reconnecting, so reconstruct resourcesInUse for the master.
-	  Resources resourcesInUse; 
-	  vector<Task> taskVec;
+	  // Re-registering, so send tasks running.
+          Message<S2M_REREGISTER_SLAVE> out;
+          *out.mutable_slave_id() = slaveId;
+          *out.mutable_slave() = slave;
 
 	  foreachpair(_, Framework *framework, frameworks) {
 	    foreachpair(_, Task *task, framework->tasks) {
-	      resourcesInUse += task->resources;
-	      Task ti = *task;
-	      ti.slaveId = id;
-	      taskVec.push_back(ti);
+              *out.add_task() = *task;
 	    }
 	  }
 
-	  send(master, pack<S2M_REREGISTER_SLAVE>(id, hostname, webUIUrl, resources, taskVec));
+	  send(master, out);
 	}
 	break;
       }
@@ -212,94 +183,125 @@ void Slave::operator () ()
       }
 
       case M2S_REGISTER_REPLY: {
-	double interval = 0;
-        tie(this->id, interval) = unpack<M2S_REGISTER_REPLY>(body());
-        LOG(INFO) << "Registered with master; given slave ID " << this->id;
-        link(spawn(new Heart(master, self(), this->id, interval)));
+        const Message<M2S_REGISTER_REPLY>& msg = message();
+        slaveId = msg.slave_id();
+
+        LOG(INFO) << "Registered with master; given slave ID " << slaveId;
+
+        heart = new Heart(master, self(), slaveId, msg.heartbeat_interval());
+        link(spawn(heart));
         break;
       }
       
       case M2S_REREGISTER_REPLY: {
-        SlaveID sid;
-	double interval = 0;
-        tie(sid, interval) = unpack<M2S_REREGISTER_REPLY>(body());
-        LOG(INFO) << "RE-registered with master; given slave ID " << sid << " had "<< this->id;
-        if (this->id == "")
-          this->id = sid;
-        CHECK(this->id == sid);
-        link(spawn(new Heart(master, self(), this->id, interval)));
+        const Message<M2S_REREGISTER_REPLY>& msg = message();
+
+        LOG(INFO) << "Re-registered with master";
+
+        if (!(slaveId == msg.slave_id())) {
+          LOG(FATAL) << "Slave re-registered but got wrong ID";
+        }
+
+        if (heart != NULL) {
+          send(heart->self(), MESOS_MSGID);
+          wait(heart->self());
+          delete heart;
+        }
+
+        heart = new Heart(master, self(), slaveId, msg.heartbeat_interval());
+        link(spawn(heart));
         break;
       }
       
       case M2S_RUN_TASK: {
-	FrameworkID fid;
-        TaskID tid;
-        string fwName, user, taskName, taskArg;
-        ExecutorInfo execInfo;
-        Params params;
-        PID pid;
-        tie(fid, tid, fwName, user, execInfo, taskName, taskArg, params, pid) =
-          unpack<M2S_RUN_TASK>(body());
-        LOG(INFO) << "Got assigned task " << fid << ":" << tid;
-        Resources res;
-        res.cpus = params.getInt32("cpus", -1);
-        res.mem = params.getInt64("mem", -1);
-        Framework *framework = getFramework(fid);
+        const Message<M2S_RUN_TASK>& msg = message();
+
+        const TaskDescription& task = msg.task();
+
+        LOG(INFO) << "Got assigned task " << task.task_id()
+                  << " for framework " << msg.framework_id();
+
+        // Start an executor if one isn't already running.
+        Framework *framework = getFramework(msg.framework_id());
         if (framework == NULL) {
-          // Framework not yet created on this node - create it.
-          framework = new Framework(fid, fwName, user, execInfo, pid);
-          frameworks[fid] = framework;
+          framework =
+            new Framework(msg.framework(), msg.framework_id(), msg.pid());
+
+          frameworks[msg.framework_id()] = framework;
           isolationModule->startExecutor(framework);
         }
-        Task *task = framework->addTask(tid, taskName, res);
-        Executor *executor = getExecutor(fid);
-        if (executor) {
-          send(executor->pid,
-               pack<S2E_RUN_TASK>(tid, taskName, taskArg, params));
+
+        // Create a local task.
+        Task *t = framework->addTask(task, msg.resources());
+
+        // Either send the task to an executor or queue the task until
+        // the executor has started.
+        Executor *executor = getExecutor(msg.framework_id());
+        if (executor != NULL) {
+          Message<S2E_RUN_TASK> out;
+          *out.mutable_framework() = framework->info;
+          *out.mutable_framework_id() = framework->frameworkId;
+          out.set_pid(framework->pid);
+          *out.mutable_task() = task;
+          *out.mutable_resources() = resources;
+          send(executor->pid, out);
           isolationModule->resourcesChanged(framework);
         } else {
           // Executor not yet registered; queue task for when it starts up
-          TaskDescription *td = new TaskDescription(
-              tid, taskName, taskArg, params.str());
-          framework->queuedTasks.push_back(td);
+          framework->queuedTasks.push_back(task);
         }
         break;
       }
 
       case M2S_KILL_TASK: {
-        FrameworkID fid;
-        TaskID tid;
-        tie(fid, tid) = unpack<M2S_KILL_TASK>(body());
-        LOG(INFO) << "Killing task " << fid << ":" << tid;
-        if (Executor *ex = getExecutor(fid)) {
-          send(ex->pid, pack<S2E_KILL_TASK>(tid));
+        const Message<M2S_KILL_TASK>& msg = message();
+
+        LOG(INFO) << "Killing task " << msg.task_id()
+                  << " of framework " << msg.framework_id();
+
+        // Tell the executor to kill the task.
+        Executor* executor = getExecutor(msg.framework_id());
+        if (executor != NULL) {
+          Message<S2E_KILL_TASK> out;
+          *out.mutable_framework_id() = msg.framework_id();
+          *out.mutable_task_id() = msg.task_id();
+          send(executor->pid, out);
         }
-        if (Framework *fw = getFramework(fid)) {
-          fw->removeTask(tid);
-          isolationModule->resourcesChanged(fw);
+
+        // Update the resources local.
+        Framework* framework = getFramework(msg.framework_id());
+        if (framework != NULL) {
+          framework->removeTask(msg.task_id());
+          isolationModule->resourcesChanged(framework);
         }
         break;
       }
 
       case M2S_KILL_FRAMEWORK: {
-        FrameworkID fid;
-        tie(fid) = unpack<M2S_KILL_FRAMEWORK>(body());
-        LOG(INFO) << "Asked to kill framework " << fid;
-        Framework *fw = getFramework(fid);
-        if (fw != NULL)
-          killFramework(fw);
+        const Message<M2S_KILL_FRAMEWORK>&msg = message();
+
+        LOG(INFO) << "Asked to kill framework " << msg.framework_id();
+
+        Framework *framework = getFramework(msg.framework_id());
+        if (framework != NULL)
+          killFramework(framework);
         break;
       }
 
       case M2S_FRAMEWORK_MESSAGE: {
-        FrameworkID fid;
-        FrameworkMessage message;
-        tie(fid, message) = unpack<M2S_FRAMEWORK_MESSAGE>(body());
-        if (Executor *ex = getExecutor(fid)) {
-          VLOG(1) << "Relaying framework message for framework " << fid;
-          send(ex->pid, pack<S2E_FRAMEWORK_MESSAGE>(message));
+        const Message<M2S_FRAMEWORK_MESSAGE>&msg = message();
+
+        const FrameworkMessage& message = msg.message();
+
+        Executor* executor = getExecutor(msg.framework_id());
+        if (executor != NULL) {
+          Message<S2E_FRAMEWORK_MESSAGE> out;
+          *out.mutable_framework_id() = msg.framework_id();
+          *out.mutable_message() = message;
+          send(executor->pid, out);
         } else {
-          VLOG(1) << "Dropping framework message for framework " << fid
+          VLOG(1) << "Dropping framework message for framework "
+                  << msg.framework_id()
                   << " because its executor is not running";
         }
         // TODO(*): If executor is not started, queue framework message?
@@ -308,99 +310,117 @@ void Slave::operator () ()
         break;
       }
 
-      case M2S_UPDATE_FRAMEWORK_PID: {
-        FrameworkID fid;
-        PID pid;
-        tie(fid, pid) = unpack<M2S_UPDATE_FRAMEWORK_PID>(body());
-        Framework *framework = getFramework(fid);
+      case M2S_UPDATE_FRAMEWORK: {
+        const Message<M2S_UPDATE_FRAMEWORK>&msg = message();
+
+        Framework *framework = getFramework(msg.framework_id());
         if (framework != NULL) {
-          LOG(INFO) << "Updating framework " << fid << " pid to " << pid;
-          framework->pid = pid;
+          LOG(INFO) << "Updating framework " << msg.framework_id()
+                    << " pid to " << msg.pid();
+          framework->pid = msg.pid();
         }
         break;
       }
 
       case E2S_REGISTER_EXECUTOR: {
-        FrameworkID fid;
-        tie(fid) = unpack<E2S_REGISTER_EXECUTOR>(body());
-        LOG(INFO) << "Got executor registration for framework " << fid;
-        if (Framework *fw = getFramework(fid)) {
-          if (getExecutor(fid) != 0) {
-            LOG(ERROR) << "Executor for framework " << fid
+        const Message<E2S_REGISTER_EXECUTOR>& msg = message();
+
+        LOG(INFO) << "Got executor registration for framework "
+                  << msg.framework_id();
+
+        Framework* framework = getFramework(msg.framework_id());
+        if (framework != NULL) {
+          Executor* executor = getExecutor(msg.framework_id());
+          if (executor != NULL) {
+            LOG(ERROR) << "Executor for framework " << msg.framework_id()
                        << "already exists";
-            send(from(), pack<S2E_KILL_EXECUTOR>());
+            send(from(), S2E_KILL_EXECUTOR);
             break;
           }
-          Executor *executor = new Executor(fid, from());
-          executors[fid] = executor;
-          link(from());
+
+          executor = new Executor(msg.framework_id(), from());
+          executors[msg.framework_id()] = executor;
+
           // Now that the executor is up, set its resource limits
-          isolationModule->resourcesChanged(fw);
+          isolationModule->resourcesChanged(framework);
+
           // Tell executor that it's registered and give it its queued tasks
-          send(from(), pack<S2E_REGISTER_REPLY>(this->id,
-                                                fw->name,
-                                                fw->executorInfo.initArg));
-          sendQueuedTasks(fw);
+          Message<S2E_REGISTER_REPLY> out;
+          ExecutorArgs* args = out.mutable_args();
+          *args->mutable_framework_id() = framework->frameworkId;
+          args->set_name(framework->info.name());
+          *args->mutable_slave_id() = slaveId;
+          args->set_hostname(hostname);
+          args->set_data(framework->info.executor().data());
+          send(executor->pid, out);
+          sendQueuedTasks(framework, executor);
         } else {
           // Framework is gone; tell the executor to exit
-          send(from(), pack<S2E_KILL_EXECUTOR>());
+          send(from(), S2E_KILL_EXECUTOR);
         }
         break;
       }
 
       case E2S_STATUS_UPDATE: {
-        FrameworkID fid;
-        TaskID tid;
-        TaskState taskState;
-        string data;
-        tie(fid, tid, taskState, data) = unpack<E2S_STATUS_UPDATE>(body());
+        const Message<E2S_STATUS_UPDATE>& msg = message();
 
-        Framework *framework = getFramework(fid);
+        const TaskStatus& status = msg.status();
+
+        Framework *framework = getFramework(msg.framework_id());
         if (framework != NULL) {
-	  LOG(INFO) << "Got status update for task " << fid << ":" << tid;
-	  if (taskState == TASK_FINISHED || taskState == TASK_FAILED ||
-	      taskState == TASK_KILLED || taskState == TASK_LOST) {
-	    LOG(INFO) << "Task " << fid << ":" << tid << " done";
-
-            framework->removeTask(tid);
+	  LOG(INFO) << "Got status update for task "
+                    << msg.framework_id() << ":" << status.task_id();
+	  if (status.state() == TASK_FINISHED ||
+              status.state() == TASK_FAILED ||
+	      status.state() == TASK_KILLED ||
+              status.state() == TASK_LOST) {
+	    LOG(INFO) << "Task " << msg.framework_id() << ":" << status.task_id()
+                      << " done";
+            framework->removeTask(status.task_id());
             isolationModule->resourcesChanged(framework);
           }
 
 	  // Reliably send message and save sequence number for
 	  // canceling later.
-	  int seq = rsend(master, framework->pid,
-			  pack<S2M_STATUS_UPDATE>(id, fid, tid,
-                                                  taskState, data));
-	  seqs[fid].insert(seq);
+          Message<S2M_STATUS_UPDATE> out;
+          *out.mutable_framework_id() = msg.framework_id();
+          *out.mutable_status() = status;
+	  int seq = rsend(master, framework->pid, out);
+	  seqs[msg.framework_id()].insert(seq);
 	} else {
 	  LOG(WARNING) << "Got status update for UNKNOWN task "
-		       << fid << ":" << tid;
+		       << msg.framework_id() << ":" << status.task_id();
 	}
         break;
       }
 
       case E2S_FRAMEWORK_MESSAGE: {
-        FrameworkID fid;
-        FrameworkMessage message;
-        tie(fid, message) = unpack<E2S_FRAMEWORK_MESSAGE>(body());
+        const Message<E2S_FRAMEWORK_MESSAGE>& msg = message();
 
-        Framework *framework = getFramework(fid);
+        const FrameworkMessage& message = msg.message();
+
+        Framework *framework = getFramework(msg.framework_id());
         if (framework != NULL) {
-	  LOG(INFO) << "Sending message for framework " << fid
+	  LOG(INFO) << "Sending message for framework "
+                    << framework->frameworkId
 		    << " to " << framework->pid;
 
-          // Set slave ID in case framework omitted it.
-          message.slaveId = this->id;
-          VLOG(1) << "Sending framework message to framework " << fid
-                  << " with PID " << framework->pid;
-          send(framework->pid, pack<M2F_FRAMEWORK_MESSAGE>(message));
+          // TODO(benh): This is weird, sending an M2F message.
+          Message<M2F_FRAMEWORK_MESSAGE> out;
+          *out.mutable_framework_id() = msg.framework_id();
+          *out.mutable_message() = message;
+          *out.mutable_message()->mutable_slave_id() = slaveId;
+          send(framework->pid, out);
         }
         break;
       }
 
       case S2S_GET_STATE: {
- 	send(from(), pack<S2S_GET_STATE_REPLY>(getState()));
-	break;
+        state::SlaveState *state = getState();
+        Message<S2S_GET_STATE_REPLY> out;
+        out.set_pointer((char *) &state, sizeof(state));
+        send(from(), out);
+        break;
       }
 
       case PROCESS_EXIT: {
@@ -410,24 +430,7 @@ void Slave::operator () ()
 	  LOG(WARNING) << "Master disconnected! "
 		       << "Waiting for a new master to be elected.";
 	  // TODO(benh): After so long waiting for a master, commit suicide.
-	} else {
-	  // Check if an executor has exited (this is technically
-	  // redundant because the isolation module should be doing
-	  // this for us).
-	  foreachpair (_, Executor *ex, executors) {
-	    if (from() == ex->pid) {
-	      LOG(INFO) << "Executor for framework " << ex->frameworkId
-			<< " disconnected";
-	      Framework *framework = getFramework(ex->frameworkId);
-	      if (framework != NULL) {
-		send(master, pack<S2M_LOST_EXECUTOR>(id, ex->frameworkId, -1));
-		killFramework(framework);
-	      }
-	      break;
-	    }
-	  }
 	}
-
         break;
       }
 
@@ -450,8 +453,8 @@ void Slave::operator () ()
       }
 
       default: {
-        LOG(ERROR) << "Received unknown message ID " << msgid()
-                   << " from " << from();
+        LOG(ERROR) << "Received unknown message (" << msgid()
+                   << ") from " << from();
         break;
       }
     }
@@ -459,34 +462,41 @@ void Slave::operator () ()
 }
 
 
-Framework * Slave::getFramework(FrameworkID frameworkId)
+Framework * Slave::getFramework(const FrameworkID& frameworkId)
 {
-  FrameworkMap::iterator it = frameworks.find(frameworkId);
-  if (it == frameworks.end()) return NULL;
-  return it->second;
+  if (frameworks.count(frameworkId) > 0)
+    return frameworks[frameworkId];
+  else
+    return NULL;
 }
 
 
-Executor * Slave::getExecutor(FrameworkID frameworkId)
+Executor * Slave::getExecutor(const FrameworkID& frameworkId)
 {
-  ExecutorMap::iterator it = executors.find(frameworkId);
-  if (it == executors.end()) return NULL;
-  return it->second;
+  if (executors.count(frameworkId) > 0)
+    return executors[frameworkId];
+  else
+    return NULL;
 }
 
 
 // Send any tasks queued up for the given framework to its executor
 // (needed if we received tasks while the executor was starting up)
-void Slave::sendQueuedTasks(Framework *framework)
+void Slave::sendQueuedTasks(Framework* framework, Executor* executor)
 {
-  LOG(INFO) << "Flushing queued tasks for framework " << framework->id;
-  Executor *executor = getExecutor(framework->id);
-  if (!executor) return;
-  foreach(TaskDescription *td, framework->queuedTasks) {
-    send(executor->pid,
-        pack<S2E_RUN_TASK>(td->tid, td->name, td->args, td->params));
-    delete td;
+  LOG(INFO) << "Flushing queued tasks for framework "
+            << framework->frameworkId;
+
+  foreach(const TaskDescription& task, framework->queuedTasks) {
+    Message<S2E_RUN_TASK> out;
+    *out.mutable_framework() = framework->info;
+    *out.mutable_framework_id() = framework->frameworkId;
+    out.set_pid(framework->pid);
+    *out.mutable_task() = task;
+    *out.mutable_resources() = resources;
+    send(executor->pid, out);
   }
+
   framework->queuedTasks.clear();
 }
 
@@ -494,35 +504,41 @@ void Slave::sendQueuedTasks(Framework *framework)
 // Kill a framework (including its executor if killExecutor is true).
 void Slave::killFramework(Framework *framework, bool killExecutor)
 {
-  LOG(INFO) << "Cleaning up framework " << framework->id;
+  LOG(INFO) << "Cleaning up framework " << framework->frameworkId;
 
   // Cancel sending any reliable messages for this framework.
-  foreach (int seq, seqs[framework->id])
+  foreach (int seq, seqs[framework->frameworkId]) {
     cancel(seq);
+  }
 
-  seqs.erase(framework->id);
+  seqs.erase(framework->frameworkId);
 
   // Remove its allocated resources.
   framework->resources = Resources();
 
   // If an executor is running, tell it to exit and kill it.
-  if (Executor *ex = getExecutor(framework->id)) {
+
+  Executor *executor = getExecutor(framework->frameworkId);
+  if (executor != NULL) {
     if (killExecutor) {
-      LOG(INFO) << "Killing executor for framework " << framework->id;
+      LOG(INFO) << "Killing executor for framework "
+                << framework->frameworkId;
       // TODO(benh): There really isn't ANY time between when an
       // executor gets a S2E_KILL_EXECUTOR message and the isolation
       // module goes and kills it. We should really think about making
       // the semantics of this better.
-      send(ex->pid, pack<S2E_KILL_EXECUTOR>());
+      send(executor->pid, S2E_KILL_EXECUTOR);
       isolationModule->killExecutor(framework);
     }
 
-    LOG(INFO) << "Cleaning up executor for framework " << framework->id;
-    delete ex;
-    executors.erase(framework->id);
+    LOG(INFO) << "Cleaning up executor for framework "
+              << framework->frameworkId;
+
+    executors.erase(framework->frameworkId);
+    delete executor;
   }
 
-  frameworks.erase(framework->id);
+  frameworks.erase(framework->frameworkId);
   delete framework;
 }
 
@@ -530,18 +546,25 @@ void Slave::killFramework(Framework *framework, bool killExecutor)
 // Called by isolation module when an executor process exits
 // TODO(benh): Make this callback be a message so that we can avoid
 // race conditions.
-void Slave::executorExited(FrameworkID fid, int status)
+void Slave::executorExited(const FrameworkID& frameworkId, int status)
 {
-  if (Framework *f = getFramework(fid)) {
-    LOG(INFO) << "Executor for framework " << fid << " exited "
+  Framework* framework = getFramework(frameworkId);
+  if (framework != NULL) {
+    LOG(INFO) << "Executor for framework " << frameworkId << " exited "
               << "with status " << status;
-    send(master, pack<S2M_LOST_EXECUTOR>(id, fid, status));
-    killFramework(f, false);
+
+    Message<S2M_EXITED_EXECUTOR> out;
+    *out.mutable_slave_id() = slaveId;
+    *out.mutable_framework_id() = frameworkId;
+    out.set_status(status);
+    send(master, out);
+
+    killFramework(framework, false);
   }
 };
 
 
-string Slave::getUniqueWorkDirectory(FrameworkID fid)
+string Slave::getUniqueWorkDirectory(const FrameworkID& frameworkId)
 {
   string workDir;
   if (conf.contains("work_dir")) {
@@ -553,7 +576,7 @@ string Slave::getUniqueWorkDirectory(FrameworkID fid)
   }
 
   ostringstream os(std::ios_base::app | std::ios_base::out);
-  os << workDir << "/slave-" << id << "/fw-" << fid;
+  os << workDir << "/slave-" << slaveId << "/fw-" << frameworkId;
 
   // Find a unique directory based on the path given by the slave
   // (this is because we might launch multiple executors from the same
@@ -574,7 +597,7 @@ string Slave::getUniqueWorkDirectory(FrameworkID fid)
 }
 
 
-const Params& Slave::getConf()
+const Configuration& Slave::getConfiguration()
 {
   return conf;
 }

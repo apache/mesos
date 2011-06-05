@@ -185,11 +185,19 @@ void MasterDetector::destroy(MasterDetector *detector)
 BasicMasterDetector::BasicMasterDetector(const PID &_master)
   : master(_master)
 {
-  // Send a master id.
-  MesosProcess::post(master, pack<GOT_MASTER_ID>("0"));
+  // Send a master token.
+  {
+    Message<GOT_MASTER_TOKEN> msg;
+    msg.set_token("0");
+    MesosProcess::post(master, msg);
+  }
 
   // Elect the master.
-  MesosProcess::post(master, pack<NEW_MASTER_DETECTED>("0", master));
+  {
+    Message<NEW_MASTER_DETECTED> msg;
+    msg.set_pid(master);
+    MesosProcess::post(master, msg);
+  }
 }
 
 
@@ -199,15 +207,25 @@ BasicMasterDetector::BasicMasterDetector(const PID &_master,
   : master(_master)
 {
   if (elect) {
-    // Send a master id.
-    MesosProcess::post(master, pack<GOT_MASTER_ID>("0"));
+    // Send a master token.
+    {
+      Message<GOT_MASTER_TOKEN> msg;
+      msg.set_token("0");
+      MesosProcess::post(master, msg);
+    }
 
     // Elect the master.
-    MesosProcess::post(master, pack<NEW_MASTER_DETECTED>("0", master));
+    {
+      Message<NEW_MASTER_DETECTED> msg;
+      msg.set_pid(master);
+      MesosProcess::post(master, msg);
+    }
   }
 
   // Tell the pid about the master.
-  MesosProcess::post(pid, pack<NEW_MASTER_DETECTED>("0", master));
+  Message<NEW_MASTER_DETECTED> msg;
+  msg.set_pid(master);
+  MesosProcess::post(pid, msg);
 }
 
 
@@ -217,16 +235,27 @@ BasicMasterDetector::BasicMasterDetector(const PID &_master,
   : master(_master)
 {
   if (elect) {
-    // Send a master id.
-    MesosProcess::post(master, pack<GOT_MASTER_ID>("0"));
+    // Send a master token.
+    {
+      Message<GOT_MASTER_TOKEN> msg;
+      msg.set_token("0");
+      MesosProcess::post(master, msg);
+    }
 
     // Elect the master.
-    MesosProcess::post(master, pack<NEW_MASTER_DETECTED>("0", master));
+    {
+      Message<NEW_MASTER_DETECTED> msg;
+      msg.set_pid(master);
+      MesosProcess::post(master, msg);
+    }
   }
 
   // Tell each pid about the master.
-  foreach (const PID &pid, pids)
-    MesosProcess::post(pid, pack<NEW_MASTER_DETECTED>("0", master));
+  foreach (const PID &pid, pids) {
+    Message<NEW_MASTER_DETECTED> msg;
+    msg.set_pid(master);
+    MesosProcess::post(pid, msg);
+  }
 }
 
 
@@ -323,7 +352,9 @@ void ZooKeeperMasterDetector::process(ZooKeeper *zk, int type, int state,
 	setId(result);
 	LOG(INFO) << "Created ephemeral/sequence:" << getId();
 
-        MesosProcess::post(pid, pack<GOT_MASTER_ID>(getId()));
+        Message<GOT_MASTER_TOKEN> msg;
+        msg.set_token(getId());
+        MesosProcess::post(pid, msg);
       }
 
       // Now determine who the master is (it may be us).
@@ -413,18 +444,20 @@ void ZooKeeperMasterDetector::detectMaster()
 
   // No master present (lost or possibly hasn't come up yet).
   if (masterSeq.empty()) {
-    MesosProcess::post(pid, pack<NO_MASTER_DETECTED>());
+    MesosProcess::post(pid, NO_MASTER_DETECTED);
   } else if (masterSeq != currentMasterSeq) {
     currentMasterSeq = masterSeq;
     currentMasterPID = lookupMasterPID(masterSeq); 
 
     // While trying to get the master PID, master might have crashed,
     // so PID might be empty.
-    if (currentMasterPID == PID())
-      MesosProcess::post(pid, pack<NO_MASTER_DETECTED>());
-    else
-      MesosProcess::post(pid, pack<NEW_MASTER_DETECTED>(currentMasterSeq,
-                                                        currentMasterPID));
+    if (currentMasterPID == PID()) {
+      MesosProcess::post(pid, NO_MASTER_DETECTED);
+    } else {
+      Message<NEW_MASTER_DETECTED> msg;
+      msg.set_pid(currentMasterPID);
+      MesosProcess::post(pid, msg);
+    }
   }
 }
 

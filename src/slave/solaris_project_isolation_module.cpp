@@ -7,6 +7,14 @@
 
 #include "common/foreach.hpp"
 
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
+
+using boost::lexical_cast;
+using boost::unordered_map;
+using boost::unordered_set;
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -17,14 +25,6 @@ using std::pair;
 using std::queue;
 using std::string;
 using std::vector;
-
-using boost::lexical_cast;
-using boost::unordered_map;
-using boost::unordered_set;
-
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
 
 
 SolarisProjectIsolationModule::SolarisProjectIsolationModule()
@@ -50,49 +50,49 @@ void SolarisProjectIsolationModule::initialize(Slave* slave)
 }
 
 
-void SolarisProjectIsolationModule::startExecutor(Framework* fw)
+void SolarisProjectIsolationModule::startExecutor(Framework* framework)
 {
   // Figure out which project to use.
   if (projects.empty())
     LOG(FATAL) << "trying to use more projects than were allocated";
   string project = projects.front();
   projects.pop();
-  frameworkProject[fw->id] = project;
-  LOG(INFO) << "Assigned framework " << fw->id << " to project " << project;
+  frameworkProject[framework->frameworkId] = project;
+  LOG(INFO) << "Assigned framework " << framework->frameworkId << " to project " << project;
 
-  ProcessBasedIsolationModule::startExecutor(fw);
+  ProcessBasedIsolationModule::startExecutor(framework);
 }
 
 
-void SolarisProjectIsolationModule::killExecutor(Framework* fw)
+void SolarisProjectIsolationModule::killExecutor(Framework* framework)
 {
   // Inform project daemon to update resources and kill all processes.
-  comm->send(projds[frameworkProject[fw->id]], comm->pack<S2PD_KILL_ALL>());
+  comm->send(projds[frameworkProject[framework->frameworkId]], comm->pack<S2PD_KILL_ALL>());
 }
 
 
-void SolarisProjectIsolationModule::resourcesChanged(Framework* fw)
+void SolarisProjectIsolationModule::resourcesChanged(Framework* framework)
 {
   // Inform project daemon to update resources.
-  comm->send(projds[frameworkProject[fw->id]],
-             comm->pack<S2PD_UPDATE_RESOURCES>(fw->resources));
+  comm->send(projds[frameworkProject[framework->frameworkId]],
+             comm->pack<S2PD_UPDATE_RESOURCES>(framework->resources));
 }
 
 
 ExecutorLauncher* SolarisProjectIsolationModule::createExecutorLauncher(
-    Framework* fw)
+    Framework* framework)
 {
-  return new ProjectLauncher(fw->id,
-                             fw->executorPath,
-                             fw->user,
-                             slave->getWorkDirectory(fw->id),
+  return new ProjectLauncher(framework->frameworkId,
+                             framework->executorPath,
+                             framework->user,
+                             slave->getWorkDirectory(framework->frameworkId),
                              slave->self(),
                              slave->getConf().get("frameworks_home", ""),
                              slave->getConf().get("home", ""),
                              slave->getConf().get("hadoop_home", ""),
                              !slave->local,
                              slave->getConf().get("switch_user", true),
-                             frameworkProject[fw->id]);
+                             frameworkProject[framework->frameworkId]);
 }
 
 
@@ -217,10 +217,10 @@ void SolarisProjectIsolationModule::Communicator::stop()
 
 
 SolarisProjectIsolationModule::ProjectLauncher::ProjectLauncher(
-    FrameworkID _fid, const string& _executorPath,
+    FrameworkID _frameworkId, const string& _executorPath,
     const string& _user, const string& _workDir, const string& _slavePid,
     bool _redirectIO, const string& _project)
-  : ExecutorLauncher(_fid, _executorPath, _user, _workDir,
+  : ExecutorLauncher(_frameworkId, _executorPath, _user, _workDir,
                      _slavePid, _redirectIO),
     project(_project)
 {}

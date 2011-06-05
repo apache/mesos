@@ -14,7 +14,7 @@ using namespace std;
 using namespace mesos::internal::slave;
 
 
-void usage(const char *programName, const Configurator& conf)
+void usage(const char *programName, const Configurator& configurator)
 {
   cerr << "Usage: " << programName
        << " --url=MASTER_URL [--cpus=NUM] [--mem=BYTES] [...]" << endl
@@ -26,43 +26,43 @@ void usage(const char *programName, const Configurator& conf)
        << endl
        << endl
        << "Supported options:" << endl
-       << conf.getUsage();
+       << configurator.getUsage();
 }
 
 
 int main(int argc, char **argv)
 {
-  Configurator conf;
-  conf.addOption<string>("url", 'u', "Master URL");
-  conf.addOption<string>("isolation", 'i', "Isolation module name", "process");
+  Configurator configurator;
+  configurator.addOption<string>("url", 'u', "Master URL");
+  configurator.addOption<string>("isolation", 'i', "Isolation module name", "process");
 #ifdef MESOS_WEBUI
-  conf.addOption<int>("webui_port", 'w', "Web UI port", 8081);
+  configurator.addOption<int>("webui_port", 'w', "Web UI port", 8081);
 #endif
-  Logging::registerOptions(&conf);
-  Slave::registerOptions(&conf);
+  Logging::registerOptions(&configurator);
+  Slave::registerOptions(&configurator);
 
   if (argc == 2 && string("--help") == argv[1]) {
-    usage(argv[0], conf);
+    usage(argv[0], configurator);
     exit(1);
   }
 
-  Params params;
+  Configuration conf;
   try {
-    params = conf.load(argc, argv, true);
+    conf = configurator.load(argc, argv, true);
   } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
     exit(1);
   }
 
-  Logging::init(argv[0], params);
+  Logging::init(argv[0], conf);
 
-  if (!params.contains("url")) {
+  if (!conf.contains("url")) {
     cerr << "Master URL argument (--url) required." << endl;
     exit(1);
   }
-  string url = params["url"];
+  string url = conf["url"];
 
-  string isolation = params["isolation"];
+  string isolation = conf["isolation"];
   LOG(INFO) << "Creating \"" << isolation << "\" isolation module";
   IsolationModule *isolationModule = IsolationModule::create(isolation);
 
@@ -77,14 +77,14 @@ int main(int argc, char **argv)
   if (chdir(dirname(argv[0])) != 0)
     fatalerror("Could not chdir into %s", dirname(argv[0]));
 
-  Slave* slave = new Slave(params, false, isolationModule);
+  Slave* slave = new Slave(conf, false, isolationModule);
   PID pid = Process::spawn(slave);
 
-  bool quiet = Logging::isQuiet(params);
+  bool quiet = Logging::isQuiet(conf);
   MasterDetector *detector = MasterDetector::create(url, pid, false, quiet);
 
 #ifdef MESOS_WEBUI
-  startSlaveWebUI(pid, params);
+  startSlaveWebUI(pid, conf);
 #endif
 
   Process::wait(pid);

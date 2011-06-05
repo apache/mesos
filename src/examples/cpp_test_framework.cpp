@@ -12,76 +12,131 @@
 
 using namespace std;
 using namespace mesos;
+
 using boost::lexical_cast;
+
 
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 32;
 
+
 class MyScheduler : public Scheduler
 {
-  string executor;
-  int tasksLaunched;
-  int tasksFinished;
-  int totalTasks;
-
 public:
-  MyScheduler(const string& exec)
-    : executor(exec), tasksLaunched(0), tasksFinished(0), totalTasks(5) {}
+  MyScheduler(const string& _uri)
+    : uri(_uri), tasksLaunched(0), tasksFinished(0), totalTasks(5) {}
 
   virtual ~MyScheduler() {}
 
-  virtual string getFrameworkName(SchedulerDriver*) {
+  virtual string getFrameworkName(SchedulerDriver*)
+  {
     return "C++ Test Framework";
   }
 
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    return ExecutorInfo(executor, "");
+  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*)
+  {
+    ExecutorInfo executor;
+    executor.set_uri(uri);
+    return executor;
   }
 
-  virtual void registered(SchedulerDriver*, FrameworkID fid) {
+  virtual void registered(SchedulerDriver*, const FrameworkID&)
+  {
     cout << "Registered!" << endl;
   }
 
-  virtual void resourceOffer(SchedulerDriver* d,
-                             OfferID id,
-                             const std::vector<SlaveOffer>& offers) {
+  virtual void resourceOffer(SchedulerDriver* driver,
+                             const OfferID& offerId,
+                             const std::vector<SlaveOffer>& offers)
+  {
     cout << "." << flush;
     vector<TaskDescription> tasks;
-    foreach (const SlaveOffer &offer, offers) {
-      // This is kind of ugly because operator[] isn't a const function
-      int32_t cpus = lexical_cast<int32_t>(offer.params.find("cpus")->second);
-      int32_t mem = lexical_cast<int64_t>(offer.params.find("mem")->second);
-      while (tasksLaunched < totalTasks && cpus >= CPUS_PER_TASK &&
+    foreach (const SlaveOffer& offer, offers) {
+      // Lookup resources we care about.
+      // TODO(benh): It would be nice to ultimately have some helper
+      // functions for looking up resources.
+      int32_t cpus = 0;
+      int32_t mem = 0;
+
+      for (int i = 0; i < offer.params().param_size(); i++) {
+        if (offer.params().param(i).key() == "cpus") {
+          cpus = lexical_cast<int32_t>(offer.params().param(i).value());
+        } else if (offer.params().param(i).key() == "mem") {
+          mem = lexical_cast<int32_t>(offer.params().param(i).value());
+        }
+      }
+
+      // Launch tasks.
+      while (tasksLaunched < totalTasks &&
+             cpus >= CPUS_PER_TASK &&
              mem >= MEM_PER_TASK) {
-        TaskID tid = tasksLaunched++;
-        cout << endl << "Starting task " << tid << endl;
-        string name = "Task " + lexical_cast<string>(tid);
-        map<string, string> taskParams;
-        taskParams["cpus"] = lexical_cast<string>(CPUS_PER_TASK);
-        taskParams["mem"] = lexical_cast<string>(MEM_PER_TASK);
-        TaskDescription desc(tid, offer.slaveId, name, taskParams, "");
-        tasks.push_back(desc);
+        int taskId = tasksLaunched++;
+
+        cout << "Starting task " << taskId << " on "
+             << offer.hostname() << endl;
+
+        TaskDescription task;
+        task.set_name("Task " + lexical_cast<string>(taskId));
+        task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
+        *task.mutable_slave_id() = offer.slave_id();
+
+        Params* params = task.mutable_params();
+
+        Param* param;
+        param = params->add_param();
+        param->set_key("cpus");
+        param->set_value(lexical_cast<string>(CPUS_PER_TASK));
+
+        param = params->add_param();
+        param->set_key("mem");
+        param->set_value(lexical_cast<string>(MEM_PER_TASK));
+
+        tasks.push_back(task);
+
         cpus -= CPUS_PER_TASK;
         mem -= MEM_PER_TASK;
       }
     }
+
     map<string, string> params;
     params["timeout"] = "-1";
-    d->replyToOffer(id, tasks, params);
+    driver->replyToOffer(offerId, tasks, params);
   }
 
-  virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
-    cout << endl;
-    cout << "Task " << status.taskId << " is in state " << status.state << endl;
-    if (status.state == TASK_FINISHED)
+  virtual void offerRescinded(SchedulerDriver* driver,
+                              const OfferID& offerId) {}
+
+  virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
+  {
+    int taskId = lexical_cast<int>(status.task_id().value());
+
+    cout << "Task " << taskId << " is in state " << status.state() << endl;
+
+    if (status.state() == TASK_FINISHED)
       tasksFinished++;
+
     if (tasksFinished == totalTasks)
-      d->stop();
+      driver->stop();
   }
+
+  virtual void frameworkMessage(SchedulerDriver* driver,
+                                const FrameworkMessage& message) {}
+
+  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid) {}
+
+  virtual void error(SchedulerDriver* driver, int code,
+                     const std::string& message) {}
+
+private:
+  string uri;
+  int tasksLaunched;
+  int tasksFinished;
+  int totalTasks;
 };
 
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv)
+{
   if (argc != 2) {
     cerr << "Usage: " << argv[0] << " <masterPid>" << endl;
     return -1;

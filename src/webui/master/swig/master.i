@@ -22,12 +22,6 @@ extern MasterState *get_master();
 %template(OfferVec) std::vector<mesos::internal::master::state::SlotOffer*>;
 %template(SlaveResourcesVec) std::vector<mesos::internal::master::state::SlaveResources*>;
 
-/* Rename task_state enum so that the generated class is called TaskState */
-%rename(TaskState) task_state;
-
-%include <mesos_types.h>
-%include <mesos_types.hpp>
-
 %include <master/state.hpp>
 
 namespace mesos { namespace internal { namespace master { namespace state {

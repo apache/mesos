@@ -20,7 +20,7 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
 
-void usage(const char* programName, const Configurator& conf)
+void usage(const char* programName, const Configurator& configurator)
 {
   cerr << "Usage: " << programName
        << " [--port=PORT] [--slaves=N] [--cpus=CPUS] [--mem=MEM] [...]" << endl
@@ -30,39 +30,39 @@ void usage(const char* programName, const Configurator& conf)
        << endl
        << endl
        << "Supported options:" << endl
-       << conf.getUsage();
+       << configurator.getUsage();
 }
 
 
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
-  Configurator conf;
-  conf.addOption<int>("port", 'p', "Port to listen on", 5050);
-  conf.addOption<string>("ip", "IP address to listen on");
-  local::registerOptions(&conf);
+  Configurator configurator;
+  configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
+  configurator.addOption<string>("ip", "IP address to listen on");
+  local::registerOptions(&configurator);
 
   if (argc == 2 && string("--help") == argv[1]) {
-    usage(argv[0], conf);
+    usage(argv[0], configurator);
     exit(1);
   }
 
-  Params params;
+  Configuration conf;
   try {
-    params = conf.load(argc, argv, true);
+    conf = configurator.load(argc, argv, true);
   } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
     exit(1);
   }
 
-  Logging::init(argv[0], params);
+  Logging::init(argv[0], conf);
 
-  if (params.contains("port"))
-    setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
+  if (conf.contains("port"))
+    setenv("LIBPROCESS_PORT", conf["port"].c_str(), 1);
 
-  if (params.contains("ip"))
-    setenv("LIBPROCESS_IP", params["ip"].c_str(), 1);
+  if (conf.contains("ip"))
+    setenv("LIBPROCESS_IP", conf["ip"].c_str(), 1);
 
-  const PID &master = local::launch(params, false);
+  const PID &master = local::launch(conf, false);
 
   Process::wait(master);
 

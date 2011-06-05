@@ -4,13 +4,12 @@
 
 #include "simple_allocator.hpp"
 
-
-using std::max;
-using std::sort;
-
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::master;
+
+using std::max;
+using std::sort;
 
 
 void SimpleAllocator::frameworkAdded(Framework* framework)
@@ -35,7 +34,7 @@ void SimpleAllocator::slaveAdded(Slave* slave)
 {
   LOG(INFO) << "Added " << slave;
   refusers[slave] = unordered_set<Framework*>();
-  totalResources += slave->resources;
+  totalResources += slave->info.resources();
   makeNewOffers(slave);
 }
 
@@ -43,7 +42,7 @@ void SimpleAllocator::slaveAdded(Slave* slave)
 void SimpleAllocator::slaveRemoved(Slave* slave)
 {
   LOG(INFO) << "Removed " << slave;
-  totalResources -= slave->resources;
+  totalResources -= slave->info.resources();
   refusers.erase(slave);
 }
 
@@ -52,7 +51,7 @@ void SimpleAllocator::taskRemoved(Task* task, TaskRemovalReason reason)
 {
   LOG(INFO) << "Removed " << task;
   // Remove all refusers from this slave since it has more resources free
-  Slave* slave = master->lookupSlave(task->slaveId);
+  Slave* slave = master->lookupSlave(task->slave_id());
   CHECK(slave != 0);
   refusers[slave].clear();
   // Re-offer the resources, unless this task was removed due to a lost
@@ -74,7 +73,7 @@ void SimpleAllocator::offerReturned(SlotOffer* offer,
     foreach (const SlaveResources& r, resLeft) {
       VLOG(1) << "Framework reply leaves " << r.resources 
               << " free on " << r.slave;
-      if (r.resources.cpus > 0 || r.resources.mem > 0) {
+      if (r.resources.cpus() > 0 || r.resources.mem() > 0) {
         VLOG(1) << "Inserting " << framework << " as refuser for " << r.slave;
         refusers[r.slave].insert(framework);
       }
@@ -116,20 +115,21 @@ struct DominantShareComparator
   
   DominantShareComparator(Resources _total) : total(_total)
   {
-    if (total.cpus == 0) // Prevent division by zero if there are no slaves
-      total.cpus = 1;
-    if (total.mem == 0)
-      total.mem = 1;
+    if (total.cpus() == 0) // Prevent division by zero if there are no slaves
+      total.set_cpus(1);
+    if (total.mem() == 0)
+      total.set_mem(1);
   }
   
   bool operator() (Framework* f1, Framework* f2)
   {
-    double share1 = max(f1->resources.cpus / (double) total.cpus,
-                        f1->resources.mem  / (double) total.mem);
-    double share2 = max(f2->resources.cpus / (double) total.cpus,
-                        f2->resources.mem  / (double) total.mem);
+    double share1 = max(f1->resources.cpus() / (double) total.cpus(),
+                        f1->resources.mem()  / (double) total.mem());
+    double share2 = max(f2->resources.cpus() / (double) total.cpus(),
+                        f2->resources.mem()  / (double) total.mem());
     if (share1 == share2)
-      return f1->id < f2->id; // Make the sort deterministic for unit testing
+      // Make the sort deterministic for unit testing.
+      return f1->frameworkId.value() < f2->frameworkId.value();
     else
       return share1 < share2;
   }
@@ -177,7 +177,7 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
   foreach (Slave* slave, slaves) {
     if (slave->active) {
       Resources res = slave->resourcesFree();
-      if (res.cpus >= MIN_CPUS && res.mem >= MIN_MEM) {
+      if (res.cpus() >= MIN_CPUS && res.mem() >= MIN_MEM) {
         VLOG(1) << "Found free resources: " << res << " on " << slave;
         freeResources[slave] = res;
       }
@@ -205,7 +205,7 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
       if (refusers[slave].find(framework) == refusers[slave].end() &&
           !framework->filters(slave, resources)) {
         VLOG(1) << "Offering " << resources << " on " << slave
-                << " to framework " << framework->id;
+                << " to framework " << framework->frameworkId;
         offerable.push_back(SlaveResources(slave, resources));
       }
     }

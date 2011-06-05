@@ -18,7 +18,6 @@ Started: {{format_time(start_time)}}<br />
 PID: {{master.pid}}<br />
 Slaves: {{master.slaves.size()}}<br />
 Frameworks: {{master.frameworks.size()}}<br />
-Fault-tolerant: {{master.isFT}}<br />
 </p>
 
 <p>

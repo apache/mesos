@@ -4,19 +4,23 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 
 #include "configurator.hpp"
+#include "configuration.hpp"
 
 #include "common/foreach.hpp"
-#include "common/params.hpp"
 #include "common/string_utils.hpp"
-
-using std::map;
 
 using namespace mesos::internal;
 
 using foreach::_;
+
+using std::ifstream;
+using std::map;
+using std::string;
+using std::vector;
 
 
 const char* Configurator::DEFAULT_CONFIG_DIR = "conf";
@@ -54,55 +58,55 @@ Configurator::Configurator()
 void Configurator::validate()
 {
   foreachpair (const string& key, const Option& opt, options) {
-    if (params.contains(key) && opt.validator &&
-        !opt.validator->isValid(params[key])) {
-      string msg = "Invalid value for '" + key + "' option: " + params[key];
+    if (conf.contains(key) && opt.validator &&
+        !opt.validator->isValid(conf[key])) {
+      string msg = "Invalid value for '" + key + "' option: " + conf[key];
       throw ConfigurationException(msg.c_str());
     }
   }
 }
 
 
-Params& Configurator::load(int argc, char** argv, bool inferMesosHomeFromArg0)
+Configuration& Configurator::load(int argc, char** argv, bool inferMesosHomeFromArg0)
 {
   loadEnv();
   loadCommandLine(argc, argv, inferMesosHomeFromArg0);
   loadConfigFileIfGiven();
   loadDefaults();
   validate();
-  return params;
+  return conf;
 }
 
 
-Params& Configurator::load()
+Configuration& Configurator::load()
 {
   loadEnv();
   loadConfigFileIfGiven();
   loadDefaults();
   validate();
-  return params;
+  return conf;
 }
 
 
-Params& Configurator::load(const map<string, string>& _params) 
+Configuration& Configurator::load(const map<string, string>& _params) 
 {
   loadEnv();
-  params.loadMap(_params);
+  conf.loadMap(_params);
   loadConfigFileIfGiven();
   loadDefaults();
   validate();
-  return params;
+  return conf;
 }
 
 
 void Configurator::loadConfigFileIfGiven(bool overwrite) {
-  if (params.contains("conf")) {
+  if (conf.contains("conf")) {
     // If conf param is given, always look for a config file in that directory
-    string confDir = params["conf"];
+    string confDir = conf["conf"];
     loadConfigFile(confDir + "/" + CONFIG_FILE_NAME, overwrite);
-  } else if (params.contains("home")) {
+  } else if (conf.contains("home")) {
     // Grab config file in MESOS_HOME/conf, if it exists
-    string confDir = params["home"] + "/" + DEFAULT_CONFIG_DIR;
+    string confDir = conf["home"] + "/" + DEFAULT_CONFIG_DIR;
     string confFile = confDir + "/" + CONFIG_FILE_NAME;
     struct stat st;
     if (stat(confFile.c_str(), &st) == 0) {
@@ -128,8 +132,8 @@ void Configurator::loadEnv(bool overwrite)
       val = line.substr(eq + 1);
       // Disallow setting home through the environment, because it should
       // always be resolved from the running Mesos binary (if any)
-      if ((overwrite || !params.contains(key)) && key != "home") {
-        params[key] = val;
+      if ((overwrite || !conf.contains(key)) && key != "home") {
+        conf[key] = val;
       }
     }
     i++;
@@ -157,7 +161,7 @@ void Configurator::loadCommandLine(int argc,
       throw ConfigurationException(
         "Could not resolve MESOS_HOME from argv[0] -- realpath failed");
     }
-    params["home"] = path;
+    conf["home"] = path;
     delete[] copyOfArg0;
   }
 
@@ -232,9 +236,9 @@ void Configurator::loadCommandLine(int argc,
     }
     // Disallow setting "home" since it should only be inferred from
     // the location of the running Mesos binary (if any)
-    if (set && (overwrite || !params.contains(key)) && key != "home"
+    if (set && (overwrite || !conf.contains(key)) && key != "home"
         && timesSeen[key] == 1) {
-      params[key] = val;
+      conf[key] = val;
     }
   }
 }
@@ -285,9 +289,9 @@ void Configurator::loadConfigFile(const string& fname, bool overwrite)
     }
     // Disallow setting "home" since it should only be inferred from
     // the location of the running Mesos binary (if any)
-    if ((overwrite || !params.contains(key)) && key != "home"
+    if ((overwrite || !conf.contains(key)) && key != "home"
         && timesSeen[key] == 1) {
-      params[key] = value;
+      conf[key] = value;
     }
   }
   cfg.close();
@@ -364,8 +368,8 @@ string Configurator::getUsage() const
 void Configurator::loadDefaults()
 {
   foreachpair (const string& key, const Option& option, options) {
-    if (option.hasDefault && !params.contains(key)) {
-      params[key] = option.defaultValue;
+    if (option.hasDefault && !conf.contains(key)) {
+      conf[key] = option.defaultValue;
     }
   }
 }
@@ -381,9 +385,9 @@ vector<string> Configurator::getOptions() const
 }
 
 
-Params& Configurator::getParams()
+Configuration& Configurator::getConfiguration()
 {
-  return params;
+  return conf;
 }
 
 string Configurator::getLongName(char shortName) const
@@ -437,8 +441,8 @@ void Configurator::checkCommandLineParamFormat(const string& key, bool gotBool)
 void Configurator::dumpToGoogleLog()
 {
   LOG(INFO) << "Dumping configuration options:";
-  const map<string, string>& paramsMap = params.getMap();
-  foreachpair (const string& key, const string& val, paramsMap) {
+  const map<string, string>& params = conf.getMap();
+  foreachpair (const string& key, const string& val, params) {
     LOG(INFO) << "  " << key << " = " << val;
   }
   LOG(INFO) << "End configuration dump";

@@ -16,14 +16,14 @@ class MemHogExecutor;
 struct ThreadArg
 {
   MemHogExecutor* executor;
-  TaskID taskId;
+  TaskDescription task;
   int threadId;
   int64_t memToHog; // in bytes
   double duration;
 
-  ThreadArg(MemHogExecutor* executor_, TaskID taskId_, int threadId_,
+  ThreadArg(MemHogExecutor* executor_, TaskDescription task_, int threadId_,
             int64_t memToHog_, double duration_)
-    : executor(executor_), taskId(taskId_), threadId(threadId_),
+    : executor(executor_), task(task_), threadId(threadId_),
       memToHog(memToHog_), duration(duration_) {}
 };
 
@@ -43,20 +43,30 @@ public:
   }
 
   virtual void launchTask(ExecutorDriver*, const TaskDescription& task) {
-    cout << "Executor starting task " << task.taskId << endl;
+    cout << "Executor starting task " << task.task_id().value() << endl;
     int64_t memToHog;
     double duration;
     int numThreads;
-    istringstream in(task.arg);
+    istringstream in(task.data());
     in >> memToHog >> duration >> numThreads;
     memToHog *= 1024LL * 1024LL; // Convert from MB to bytes
     for (int i = 0; i < numThreads; i++) {
-      ThreadArg* arg = new ThreadArg(this, task.taskId, i, memToHog, duration);
+      ThreadArg* arg = new ThreadArg(this, task, i, memToHog, duration);
       pthread_t thread;
       pthread_create(&thread, 0, runTask, arg);
       pthread_detach(thread);
     }
   }
+
+  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId) {}
+
+  virtual void frameworkMessage(ExecutorDriver* driver,
+                                const FrameworkMessage& message) {}
+
+  virtual void shutdown(ExecutorDriver* driver) {}
+
+  virtual void error(ExecutorDriver* driver, int code,
+                     const std::string& message) {}
 };
 
 
@@ -92,7 +102,10 @@ void* runTask(void* threadArg)
         delete[] data;
         if (arg->threadId == 0) {
           usleep(100000); // sleep 0.1 seconds for other threads to finish
-          TaskStatus status(arg->taskId, TASK_FINISHED, "");
+          TaskStatus status;
+          *status.mutable_task_id() = arg->task.task_id();
+          *status.mutable_slave_id() = arg->task.slave_id();
+          status.set_state(TASK_FINISHED);
           arg->executor->driver->sendStatusUpdate(status);
         }
         return 0;
@@ -102,7 +115,8 @@ void* runTask(void* threadArg)
 }
 
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
   MemHogExecutor exec;
   MesosExecutorDriver driver(&exec);
   driver.run();

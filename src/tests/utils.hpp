@@ -43,6 +43,13 @@ void enterTestDirectory(const char* testCase, const char* testName);
 
 
 /**
+ * Macro to get a "default" dummy ExecutorInfo object for testing.
+ */
+#define DEFAULT_EXECUTOR_INFO \
+  ({ ExecutorInfo executor; executor.set_uri("noexecutor"); executor; })
+
+
+/**
  * Definition of a mock Scheduler to be used in tests with gmock.
  */
 class MockScheduler : public Scheduler
@@ -50,14 +57,14 @@ class MockScheduler : public Scheduler
 public:
   MOCK_METHOD1(getFrameworkName, std::string(SchedulerDriver*));
   MOCK_METHOD1(getExecutorInfo, ExecutorInfo(SchedulerDriver*));
-  MOCK_METHOD2(registered, void(SchedulerDriver*, FrameworkID));
-  MOCK_METHOD3(resourceOffer, void(SchedulerDriver*, OfferID,
+  MOCK_METHOD2(registered, void(SchedulerDriver*, const FrameworkID&));
+  MOCK_METHOD3(resourceOffer, void(SchedulerDriver*, const OfferID&,
                                    const std::vector<SlaveOffer>&));
-  MOCK_METHOD2(offerRescinded, void(SchedulerDriver*, OfferID));
+  MOCK_METHOD2(offerRescinded, void(SchedulerDriver*, const OfferID&));
   MOCK_METHOD2(statusUpdate, void(SchedulerDriver*, const TaskStatus&));
   MOCK_METHOD2(frameworkMessage, void(SchedulerDriver*,
                                       const FrameworkMessage&));
-  MOCK_METHOD2(slaveLost, void(SchedulerDriver*, SlaveID));
+  MOCK_METHOD2(slaveLost, void(SchedulerDriver*, const SlaveID&));
   MOCK_METHOD3(error, void(SchedulerDriver*, int, const std::string&));
 };
 
@@ -70,7 +77,7 @@ class MockExecutor : public Executor
 public:
   MOCK_METHOD2(init, void(ExecutorDriver*, const ExecutorArgs&));
   MOCK_METHOD2(launchTask, void(ExecutorDriver*, const TaskDescription&));
-  MOCK_METHOD2(killTask, void(ExecutorDriver*, TaskID));
+  MOCK_METHOD2(killTask, void(ExecutorDriver*, const TaskID&));
   MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const FrameworkMessage&));
   MOCK_METHOD1(shutdown, void(ExecutorDriver*));
   MOCK_METHOD3(error, void(ExecutorDriver*, int, const std::string&));

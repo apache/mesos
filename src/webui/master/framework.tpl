@@ -53,7 +53,7 @@
       <tr>
       <td>{{task.id}}</td>
       <td>{{task.name}}</td>
-      <td>{{TASK_STATES[task.state]}}</td>
+      <td>{{task.state}}</td>
       %if task.slave_id in slaves:
         %s = slaves[task.slave_id]
         <td><a href="http://{{s.public_dns}}:8081/">{{s.public_dns}}</a></td>

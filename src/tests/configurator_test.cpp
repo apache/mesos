@@ -25,7 +25,7 @@ TEST(ConfiguratorTest, Environment)
   conf.load();
   unsetenv("MESOS_TEST");
 
-  EXPECT_EQ("working", conf.getParams()["test"]);
+  EXPECT_EQ("working", conf.getConfiguration()["test"]);
 }
 
 
@@ -55,18 +55,18 @@ TEST(ConfiguratorTest, DefaultOptions)
 
   EXPECT_NO_THROW(conf.addOption<int>("excp", "Exception tester.", 50));
   EXPECT_THROW(conf.validate(), ConfigurationException);
-  conf.getParams()["excp"] = "27";
+  conf.getConfiguration()["excp"] = "27";
   EXPECT_NO_THROW(conf.validate());
 
-  EXPECT_EQ("501",     conf.getParams()["test1"]);
-  EXPECT_EQ("1",       conf.getParams()["test2"]);
-  EXPECT_EQ("2010",    conf.getParams()["test3"]);
-  EXPECT_EQ("",        conf.getParams()["test4"]);
-  EXPECT_EQ("default", conf.getParams()["test5"]);
-  EXPECT_EQ("27",      conf.getParams()["excp"]);
-  EXPECT_EQ("0",       conf.getParams()["test6"]);
-  EXPECT_EQ("1",       conf.getParams()["test7"]);
-  EXPECT_EQ("foo",     conf.getParams()["test8"]);
+  EXPECT_EQ("501",     conf.getConfiguration()["test1"]);
+  EXPECT_EQ("1",       conf.getConfiguration()["test2"]);
+  EXPECT_EQ("2010",    conf.getConfiguration()["test3"]);
+  EXPECT_EQ("",        conf.getConfiguration()["test4"]);
+  EXPECT_EQ("default", conf.getConfiguration()["test5"]);
+  EXPECT_EQ("27",      conf.getConfiguration()["excp"]);
+  EXPECT_EQ("0",       conf.getConfiguration()["test6"]);
+  EXPECT_EQ("1",       conf.getConfiguration()["test7"]);
+  EXPECT_EQ("foo",     conf.getConfiguration()["test8"]);
 }
 
 
@@ -97,15 +97,15 @@ TEST(ConfiguratorTest, CommandLine)
 
   EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
 
-  EXPECT_EQ("text1",       conf.getParams()["test1"]);
-  EXPECT_EQ("1",           conf.getParams()["test2"]);
-  EXPECT_EQ("-25",         conf.getParams()["negative"]);
-  EXPECT_EQ("4",           conf.getParams()["case"]);
-  EXPECT_EQ("Long String", conf.getParams()["space"]);
-  EXPECT_EQ("1",           conf.getParams()["bool1"]);
-  EXPECT_EQ("0",           conf.getParams()["bool2"]);
-  EXPECT_EQ("1",           conf.getParams()["bool3"]);
-  EXPECT_EQ("0",           conf.getParams()["bool4"]);
+  EXPECT_EQ("text1",       conf.getConfiguration()["test1"]);
+  EXPECT_EQ("1",           conf.getConfiguration()["test2"]);
+  EXPECT_EQ("-25",         conf.getConfiguration()["negative"]);
+  EXPECT_EQ("4",           conf.getConfiguration()["case"]);
+  EXPECT_EQ("Long String", conf.getConfiguration()["space"]);
+  EXPECT_EQ("1",           conf.getConfiguration()["bool1"]);
+  EXPECT_EQ("0",           conf.getConfiguration()["bool2"]);
+  EXPECT_EQ("1",           conf.getConfiguration()["bool3"]);
+  EXPECT_EQ("0",           conf.getConfiguration()["bool4"]);
 }
 
 
@@ -129,8 +129,8 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithMesosHome)
   EXPECT_NO_THROW( conf.load(1, argv, true) );
   unsetenv("MESOS_HOME");
 
-  EXPECT_EQ("coffee", conf.getParams()["test1"]);
-  EXPECT_EQ("tea",    conf.getParams()["test2"]);
+  EXPECT_EQ("coffee", conf.getConfiguration()["test1"]);
+  EXPECT_EQ("tea",    conf.getConfiguration()["test2"]);
 }
   
 
@@ -149,8 +149,8 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithConfDir)
   EXPECT_NO_THROW( conf.load() );
   unsetenv("MESOS_CONF");
 
-  EXPECT_EQ("shake", conf.getParams()["test3"]);
-  EXPECT_EQ("milk",  conf.getParams()["test4"]);
+  EXPECT_EQ("shake", conf.getConfiguration()["test3"]);
+  EXPECT_EQ("milk",  conf.getConfiguration()["test4"]);
 }
 
 
@@ -174,8 +174,8 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithHomeAndDir)
   EXPECT_NO_THROW( conf.load(1, argv, true) );
   unsetenv("MESOS_CONF");
 
-  EXPECT_EQ("shake", conf.getParams()["test3"]);
-  EXPECT_EQ("milk",  conf.getParams()["test4"]);
+  EXPECT_EQ("shake", conf.getConfiguration()["test3"]);
+  EXPECT_EQ("milk",  conf.getConfiguration()["test4"]);
 }
 
 
@@ -203,10 +203,10 @@ TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
   Configurator conf;
   EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
 
-  EXPECT_EQ("1",           conf.getParams()["a"]);
-  EXPECT_EQ("overridden",  conf.getParams()["b"]);
-  EXPECT_EQ("3",           conf.getParams()["c"]);
-  EXPECT_EQ("fromCmdLine", conf.getParams()["d"]);
+  EXPECT_EQ("1",           conf.getConfiguration()["a"]);
+  EXPECT_EQ("overridden",  conf.getConfiguration()["b"]);
+  EXPECT_EQ("3",           conf.getConfiguration()["c"]);
+  EXPECT_EQ("fromCmdLine", conf.getConfiguration()["d"]);
 }
 
 
@@ -248,10 +248,10 @@ TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
 
   // Check that every variable is obtained from the highest-priority location
   // (command line > env > file)
-  EXPECT_EQ("fromCmdLine", conf.getParams()["a"]);
-  EXPECT_EQ("fromEnv",     conf.getParams()["b"]);
-  EXPECT_EQ("fromCmdLine", conf.getParams()["c"]);
-  EXPECT_EQ("fromFile",    conf.getParams()["d"]);
+  EXPECT_EQ("fromCmdLine", conf.getConfiguration()["a"]);
+  EXPECT_EQ("fromEnv",     conf.getConfiguration()["b"]);
+  EXPECT_EQ("fromCmdLine", conf.getConfiguration()["c"]);
+  EXPECT_EQ("fromFile",    conf.getConfiguration()["d"]);
 }
 
 
@@ -277,12 +277,12 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileSpacesIgnored)
   EXPECT_NO_THROW(conf.load());
   unsetenv("MESOS_CONF");
 
-  EXPECT_EQ("coffee",         conf.getParams()["test1"]);
-  EXPECT_EQ("tea",            conf.getParams()["test2"]);
-  EXPECT_EQ("water",          conf.getParams()["test3"]);
-  EXPECT_EQ("milk",           conf.getParams()["test4"]);
-  EXPECT_EQ("hot  chocolate", conf.getParams()["test5"]);
-  EXPECT_EQ("juice",          conf.getParams()["test6"]);
+  EXPECT_EQ("coffee",         conf.getConfiguration()["test1"]);
+  EXPECT_EQ("tea",            conf.getConfiguration()["test2"]);
+  EXPECT_EQ("water",          conf.getConfiguration()["test3"]);
+  EXPECT_EQ("milk",           conf.getConfiguration()["test4"]);
+  EXPECT_EQ("hot  chocolate", conf.getConfiguration()["test5"]);
+  EXPECT_EQ("juice",          conf.getConfiguration()["test6"]);
 }
 
 

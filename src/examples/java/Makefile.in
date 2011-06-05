@@ -31,7 +31,7 @@ $(JAVA): | $(OUTDIR)
 $(JAVA_CLASSES): $(MESOS_JAVA_JAR)
 
 $(JAVA_CLASSES): $(OUTDIR)/%.class: @srcdir@/%.java
-	$(JAVA_HOME)/bin/javac -cp $(MESOS_JAVA_JAR):@srcdir@ -sourcepath @srcdir@ -d $(OUTDIR) $<
+	$(JAVA_HOME)/bin/javac -classpath @top_builddir@/third_party/protobuf-2.3.0/java/src/main/java:$(MESOS_JAVA_JAR):@srcdir@ -sourcepath @srcdir@ -d $(OUTDIR) $<
 
 $(JAVA_SCRIPTS): $(OUTDIR)/%: @srcdir@/%
 	cp -r $< $@
