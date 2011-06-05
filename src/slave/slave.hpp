@@ -106,6 +106,13 @@ struct Executor
     }
   }
 
+  void updateTaskState(const TaskID& taskId, TaskState state)
+  {
+    if (tasks.count(taskId) > 0) {
+      tasks[taskId]->set_state(state);
+    }
+  }
+
   const FrameworkID frameworkId;
   const ExecutorInfo info;
 

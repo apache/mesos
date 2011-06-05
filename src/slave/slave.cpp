@@ -556,6 +556,7 @@ void Slave::statusUpdate(const FrameworkID& frameworkId,
   if (framework != NULL) {
     Executor* executor = framework->getExecutor(status.task_id());
     if (executor != NULL) {
+      executor->updateTaskState(status.task_id(), status.state());
       if (status.state() == TASK_FINISHED ||
           status.state() == TASK_FAILED ||
           status.state() == TASK_KILLED ||
