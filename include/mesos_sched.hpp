@@ -51,7 +51,7 @@ public:
                                 const FrameworkMessage& message) = 0;
 
   virtual void slaveLost(SchedulerDriver* driver,
-                         const SlaveID& sid) = 0;
+                         const SlaveID& slaveId) = 0;
 
   virtual void error(SchedulerDriver* driver,
                      int code,
