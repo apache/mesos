@@ -57,7 +57,7 @@ namespace mesos { namespace internal {
 // Eventually, what we would like to do is actually query this state
 // in the master, or possibly even re-launch the task.
 
-#define STATUS_UPDATE_TIMEOUT 20
+#define STATUS_UPDATE_TIMEOUT 120
 
 class StatusUpdateTimer : public MesosProcess
 {
