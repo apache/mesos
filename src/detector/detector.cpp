@@ -70,25 +70,9 @@ private:
   void updated(const string& path);
 
   /**
-   * @param s sequence id
-   */
-  void setId(const string &s);
-
-  /**
-   * @return current sequence id if contending to be a master
-   */
-  string getId();
-
-  /**
    * Attempts to detect a master.
    */
   void detectMaster();
-
-  /**
-   * @param seq sequence id of a master
-   * @return PID corresponding to a master
-   */
-  UPID lookupMasterPID(const string &seq) const;
 
   const string servers;
   const string znode;
@@ -342,11 +326,19 @@ void ZooKeeperMasterDetector::connected()
 	    zk->error(ret), servers.c_str());
     }
 
-    setId(result);
-    LOG(INFO) << "Created ephemeral/sequence:" << getId();
+    // Save the sequnce id but only grab the basename, e.g.,
+    // "/path/to/znode/000000131" => "000000131".
+    size_t index;
+    if ((index = result.find_last_of('/')) != string::npos) {  
+      mySeq = result.erase(0, index + 1);
+    } else {
+      mySeq = "";
+    }
+
+    LOG(INFO) << "Created ephemeral/sequence:" << mySeq;
 
     MSG<GOT_MASTER_TOKEN> msg;
-    msg.set_token(getId());
+    msg.set_token(mySeq);
     MesosProcess<class T>::post(pid, msg);
   }
 
@@ -452,24 +444,6 @@ void ZooKeeperMasterDetector::process(ZooKeeper* zk, int type, int state,
 }
 
 
-void ZooKeeperMasterDetector::setId(const string& s)
-{
-  string seq = s;
-  // Converts "/path/to/znode/000000131" to "000000131".
-  int pos;
-  if ((pos = seq.find_last_of('/')) != string::npos) {  
-    mySeq = seq.erase(0, pos + 1);
-  } else
-    mySeq = "";
-}
-
-
-string ZooKeeperMasterDetector::getId() 
-{
-  return mySeq;
-}
-
-
 void ZooKeeperMasterDetector::detectMaster()
 {
   vector<string> results;
@@ -498,39 +472,38 @@ void ZooKeeperMasterDetector::detectMaster()
   if (masterSeq.empty()) {
     process::post(pid, NO_MASTER_DETECTED);
   } else if (masterSeq != currentMasterSeq) {
-    currentMasterSeq = masterSeq;
-    currentMasterPID = lookupMasterPID(masterSeq); 
+    // Okay, let's fetch the master pid from ZooKeeper.
+    string result;
+    ret = zk->get(znode + "/" + masterSeq, false, &result, NULL);
 
-    // While trying to get the master PID, master might have crashed,
-    // so PID might be empty.
-    if (currentMasterPID == UPID()) {
+    if (ret != ZOK) {
+      // This is possible because the master might have failed since
+      // the invocation of ZooKeeper::getChildren above.
+      LOG(ERROR) << "Master detector failed to fetch new master pid: "
+		 << zk->error(ret);
       process::post(pid, NO_MASTER_DETECTED);
     } else {
-      MSG<NEW_MASTER_DETECTED> msg;
-      msg.set_pid(currentMasterPID);
-      MesosProcess<class T>::post(pid, msg);
+      // Now let's parse what we fetched from ZooKeeper.
+      LOG(INFO) << "Master detector got new master pid: " << result;
+
+      UPID masterPid = result;
+
+      if (masterPid == UPID()) {
+	// TODO(benh): Maybe we should try again then!?!? Parsing
+	// might have failed because of DNS, and whoever is using the
+	// detector might sit "unconnected" indefinitely!
+	LOG(ERROR) << "Failed to parse new master pid!";
+	process::post(pid, NO_MASTER_DETECTED);
+      } else {
+	currentMasterSeq = masterSeq;
+	currentMasterPID = masterPid;
+
+	MSG<NEW_MASTER_DETECTED> msg;
+	msg.set_pid(currentMasterPID);
+	MesosProcess<class T>::post(pid, msg);
+      }
     }
   }
-}
-
-
-UPID ZooKeeperMasterDetector::lookupMasterPID(const string& seq) const
-{
-  CHECK(!seq.empty());
-
-  int ret;
-  string result;
-
-  ret = zk->get(znode + "/" + seq, false, &result, NULL);
-
-  if (ret != ZOK) {
-    LOG(ERROR) << "Master detector failed to fetch new master pid: "
-	       << zk->error(ret);
-  } else {
-    LOG(INFO) << "Master detector got new master pid: " << result;
-  }
-
-  return result;
 }
 
 #endif // WITH_ZOOKEEPER
