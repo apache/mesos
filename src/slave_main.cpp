@@ -74,12 +74,6 @@ int main(int argc, char **argv)
   string master(argv[optind]);
 
 
-  istringstream iss(argv[optind]);
-  if (!(iss >> master)) {
-    cerr << "Failed to resolve master PID " << argv[optind] << endl;
-    exit(1);
-  }
-
   LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
   LOG(INFO) << "Starting Nexus slave";
   PID slave = Process::spawn(new Slave(master, resources, false, isolation));
