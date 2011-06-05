@@ -90,17 +90,18 @@ void Slave::registerOptions(Configurator* configurator)
 
 Slave::~Slave()
 {
-  // TODO(benh): Shut down and free executors?
+  // TODO(benh): Shut down and free executors? The executor should get
+  // an "exited" event and initiate shutdown itself.
 }
 
 
 Promise<state::SlaveState*> Slave::getState()
 {
-  Resources resources(resources);
+  Resources resources(this->resources);
   Resource::Scalar cpus;
   Resource::Scalar mem;
-  cpus.set_value(-1);
-  mem.set_value(-1);
+  cpus.set_value(0);
+  mem.set_value(0);
   cpus = resources.getScalar("cpus", cpus);
   mem = resources.getScalar("mem", mem);
 
@@ -113,8 +114,8 @@ Promise<state::SlaveState*> Slave::getState()
       Resources resources(e->resources);
       Resource::Scalar cpus;
       Resource::Scalar mem;
-      cpus.set_value(-1);
-      mem.set_value(-1);
+      cpus.set_value(0);
+      mem.set_value(0);
       cpus = resources.getScalar("cpus", cpus);
       mem = resources.getScalar("mem", mem);
 
@@ -139,8 +140,8 @@ Promise<state::SlaveState*> Slave::getState()
         Resources resources(t->resources());
         Resource::Scalar cpus;
         Resource::Scalar mem;
-        cpus.set_value(-1);
-        mem.set_value(-1);
+        cpus.set_value(0);
+        mem.set_value(0);
         cpus = resources.getScalar("cpus", cpus);
         mem = resources.getScalar("mem", mem);
 
