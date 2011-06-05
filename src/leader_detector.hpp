@@ -1,5 +1,5 @@
-#ifndef GETLEADER_HPP_
-#define GETLEADER_HPP_
+#ifndef _LEADER_DETECTOR_HPP_
+#define _LEADER_DETECTOR_HPP_
 
 #include <string>
 #include <iostream>
@@ -72,4 +72,4 @@ private:
 
 };
 
-#endif /* GETLEADER_HPP_ */
+#endif /* _LEADER_DETECTOR_HPP_ */

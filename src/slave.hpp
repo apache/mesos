@@ -34,8 +34,8 @@
 #include "params.hpp"
 #include "resources.hpp"
 #include "slave_state.hpp"
-#include "getleader.hpp"
-#include "internalinfo.hpp"
+#include "leader_detector.hpp"
+#include "task_info.hpp"
 
 namespace nexus { namespace internal { namespace slave {
 
@@ -191,7 +191,7 @@ public:
 	parent->zkserver = pidStr;
 
 	LOG(INFO) << "Sending message to parent "<<parentPID<<" about new leader";
-	parent->send(parentPID, parent->pack<LE2S_NEWLEADER>(pidStr));
+	parent->send(parentPID, parent->pack<LE_NEWLEADER>(pidStr));
 
       }
     }
@@ -242,8 +242,6 @@ protected:
   // it is easy to override in tests
   virtual IsolationModule * createIsolationModule();
 
-  enum URLType {ZOOURL, NEXUSURL, NONEURL};
-  pair<URLType, string> processUrl(const string &_url);
 };
 
 }}}

@@ -110,16 +110,38 @@ public:
 }
 
 
-Master::Master(const bool ft, const string zk)
-  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
+Master::Master(const string zk)
+  : leaderDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
     nextSlotOfferId(0), allocatorType("simple"), masterId(0)
-{}
+{
+  if (zk!="") {
+    pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(zk);
+    if (urlPair.first == UrlProcessor::ZOO) {
+      isFT=true;
+      zkservers = urlPair.second;
+    } else {
+      LOG(ERROR) << "Failed to parse URL for ZooKeeper servers. URL must start with zoo:// or zoofile://";
+      exit(1);
+    }
+  }
+}
 
 
-Master::Master(const string& _allocatorType, const bool ft, const string zk)
-  : isFT(ft), zkserver(zk), leaderDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
+Master::Master(const string& _allocatorType, const string zk)
+  : leaderDetector(NULL), nextFrameworkId(0), nextSlaveId(0), 
     nextSlotOfferId(0), allocatorType(_allocatorType), masterId(0)
-{}
+{
+  if (zk!="") {
+    pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(zk);
+    if (urlPair.first == UrlProcessor::ZOO) {
+      isFT=true;
+      zkservers = urlPair.second;
+    } else {
+      LOG(ERROR) << "Failed to parse URL for ZooKeeper servers. URL must start with zoo:// or zoofile://";
+      exit(1);
+    }
+  }
+}
                    
 
 Master::~Master()
@@ -237,13 +259,13 @@ SlotOffer * Master::lookupSlotOffer(OfferID oid)
 
 void Master::operator () ()
 {
-  LOG(INFO) << "Master started at " << self();
+  LOG(INFO) << "Master started at nexus://" << self();
 
   if (isFT) {
-    LOG(INFO) << "Conencting to ZooKeeper at "<<zkserver;
+    LOG(INFO) << "Conencting to ZooKeeper at "<<zkservers;
     ostringstream lpid;
     lpid<<self();
-    leaderDetector = new LeaderDetector(zkserver, true, lpid.str());
+    leaderDetector = new LeaderDetector(zkservers, true, lpid.str());
     
     masterId = lexical_cast<long>(leaderDetector->getSequence());
     LOG(INFO)<<"Master ID:"<<masterId;
@@ -423,7 +445,8 @@ void Master::operator () ()
 	      removeTask(task, TRR_TASK_ENDED);
 	    }
 	  }
-	}
+	} else
+          DLOG(INFO) << "S2M_STATUS_UPDATE error: couldn't lookup slave id" << sid;
 	break;
       }
     }
@@ -484,15 +507,10 @@ void Master::operator () ()
 	framework->removeExpiredFilters();
       allocator->timerTick();
 
-      // int cnts=0;
-      // foreachpair(_, Slave *slave, slaves) {
-      // 	LOG(INFO)<<(cnts++)<<" resourceInUse:"<<slave->resourcesInUse;
-      //   pair<FrameworkID, TaskID> par;
-      // 	int cntt=0;
-      // 	foreachpair(par, TaskInfo *t, slave->tasks) {
-      // 	  LOG(INFO)<<(cntt++)<<" fid:"<<par.first<<" tid:"<<par.second;
-      // 	}
-      // }
+      int cnts=0;
+      foreachpair(_, Framework *framework, frameworks) {
+      	LOG(INFO)<<(cnts++)<<" resourceInUse:"<<framework->resources;
+      }
       break;
     }
 

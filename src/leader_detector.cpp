@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <zookeeper.h>
 #include <glog/logging.h>
-#include "getleader.hpp"
+#include "leader_detector.hpp"
 
 using namespace std;
 
@@ -121,7 +121,7 @@ string LeaderDetector::getCurrentLeaderData() {
 }
 
 void LeaderDetector::newLeader(string leader, string leaderData) {
-  LOG(INFO)<<"## NEW LEADER ## ephemeral id:"<<leader<<" data:"<<leaderData;
+  LOG(INFO)<<"New leader ephemeral_id:"<<leader<<" data:"<<leaderData;
   if (leaderListener!=NULL)
     leaderListener->newLeaderElected(leader,leaderData);
 }

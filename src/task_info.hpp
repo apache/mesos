@@ -1,5 +1,5 @@
-#ifndef __INTERNALINFO_HPP__
-#define __INTERNALINFO_HPP__
+#ifndef _TASK_INFO_HPP_
+#define _TASK_INFO_HPP_
 
 #include <string>
 #include <glog/logging.h>
@@ -31,5 +31,5 @@ struct TaskInfo
 
 }}
 
-#endif /* __INTERNALINFO_HPP__ */
+#endif /* _TASK_INFO_HPP_ */
 

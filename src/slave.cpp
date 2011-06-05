@@ -5,6 +5,7 @@
 #include "slave.hpp"
 #include "slave_webui.hpp"
 #include "isolation_module_factory.hpp"
+#include "process_url.hpp"
 
 using std::list;
 using std::make_pair;
@@ -65,11 +66,11 @@ Slave::Slave(const string &_master, Resources _resources, bool _local)
     resources(_resources), local(_local), id("-1"),
     isolationType("process"), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {
-  pair<Slave::URLType, string> urlPair = processUrl(_master);
-  if (urlPair.first == Slave::ZOOURL) {
+  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
+  if (urlPair.first == UrlProcessor::ZOO) {
     isFT=true;
     zkserver = urlPair.second;
-  } else if (urlPair.first == Slave::NEXUSURL) {
+  } else if (urlPair.first == UrlProcessor::NEXUS) {
     isFT=false;
     istringstream iss(urlPair.second);
     if (!(iss >> master)) {
@@ -89,63 +90,21 @@ Slave::Slave(const string &_master, Resources _resources, bool _local,
     resources(_resources), local(_local), id("-1"),
     isolationType(_isolationType), isolationModule(NULL), slaveLeaderListener(this, getPID())
 {
-  pair<Slave::URLType, string> urlPair = processUrl(_master);
-  if (urlPair.first == Slave::ZOOURL) {
+  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_master);
+  if (urlPair.first == UrlProcessor::ZOO) {
     isFT=true;
     zkserver = urlPair.second;
-  } else if (urlPair.first == Slave::NEXUSURL) {
+  } else if (urlPair.first == UrlProcessor::NEXUS) {
     isFT=false;
     istringstream iss(urlPair.second);
     if (!(iss >> master)) {
-      LOG(ERROR) << "Failed to resolve master PID " << urlPair.second;
+      cerr << "Failed to resolve master PID " << urlPair.second << endl;
       exit(1);
     }
   } else {
-    LOG(ERROR) << "Failed to parse URL for Nexus master or ZooKeeper servers ";
+    cerr << "Failed to parse URL for Nexus master or ZooKeeper servers ";
     exit(1);
   }
-}
-
-//  enum URLType {ZOOURL, NEXUSURL};
-pair<Slave::URLType, string> Slave::processUrl(const string &_url) {
-  
-  string url = _url;
-
-  transform(url.begin(), url.end(), url.begin(), (int (*)(int))toupper);
-
-  if (url.find("ZOO://")==0) {
-
-    return pair<Slave::URLType, string>(Slave::ZOOURL, url.substr(6,1024));
-
-  } else if (url.find("ZOOFILE://")==0) {
-    string zfname = _url.substr(10,1024);
-    string zoos="";
-    
-    LOG(INFO)<<"Opening ZooFile: "<<zfname;
-    ifstream zoofile(zfname.c_str());
-    if (!zoofile) 
-      LOG(ERROR)<<"ZooFile "<<zfname<<" could not be opened";
-
-    while(!zoofile.eof()) {
-      string line;
-      getline(zoofile, line);
-      if (line=="")
-        continue;
-      if (zoos!="")
-        zoos+=',';
-      zoos+=line;
-    }
-
-    remove_if(zoos.begin(),zoos.end(), (int (*)(int)) isspace);
-    zoofile.close();
-
-    return pair<Slave::URLType, string>(Slave::ZOOURL, zoos);
-
-  } else if (url.find("NEXUS://")==0) {
-    return pair<Slave::URLType, string>(Slave::NEXUSURL, url.substr(8,1024));
-  } else
-    LOG(ERROR)<<"Could not parse master/zoo URL";
-    return pair<Slave::URLType, string>(Slave::NONEURL, "");
 }
 
 Slave::~Slave() {}
@@ -400,10 +359,10 @@ void Slave::operator () ()
         return;
       }
 
-      case LE2S_NEWLEADER: {
+      case LE_NEWLEADER: {
         LOG(INFO) << "Slave got notified of new leader " << from();
 	string newLeader;
-        unpack<LE2S_NEWLEADER>(newLeader);
+        unpack<LE_NEWLEADER>(newLeader);
 	istringstream iss(newLeader);
 	if (!(iss >> master)) {
 	  cerr << "Failed to resolve master PID " << newLeader << endl;

@@ -26,7 +26,8 @@
 #include "messages.hpp"
 #include "nexus_local.hpp"
 #include "nexus_sched.hpp"
-
+#include "url_prcessor.hpp"
+#include "leader_detector.hpp"
 
 using std::cerr;
 using std::cout;
@@ -66,22 +67,66 @@ private:
   FrameworkID fid;
   string frameworkName;
   ExecutorInfo execInfo;
+  bool isFT;
+  string zkservers;
+  LeaderDetector *leaderDetector;
 
   volatile bool terminate;
+
+  class SchedLeaderListener;
+  friend class SchedLeaderListener;
+
+  class SchedLeaderListener : public LeaderListener {
+  public:
+    // TODO(alig): make thread safe
+    SchedLeaderListener(SchedulerProcess *s, PID pp) : parent(s), parentPID(pp) {}
+    
+    virtual void newLeaderElected(string zkId, string pidStr) {
+      if (zkId!="") {
+	LOG(INFO) << "Leader listener detected leader at " << pidStr <<" with ephemeral id:"<<zkId;
+	
+	parent->zkservers = pidStr;
+
+	LOG(INFO) << "Sending message to parent "<<parentPID<<" about new leader";
+	parent->send(parentPID, parent->pack<LE_NEWLEADER>(pidStr));
+
+      }
+    }
+
+  private:
+    SchedulerProcess *parent;
+    PID parentPID;
+  } schedLeaderListener;
+
 
 public:
   SchedulerProcess(const PID &_master,
                    NexusSchedulerDriver* _driver,
                    Scheduler* _sched,
                    const string& _frameworkName,
-                   const ExecutorInfo& _execInfo)
+                   const ExecutorInfo& _execInfo,
+		   const string& _zkservers="")
     : master(_master),
       driver(_driver),
       sched(_sched),
       fid("-1"),
       terminate(false),
       frameworkName(_frameworkName),
-      execInfo(_execInfo) {}
+      execInfo(_execInfo),
+      leaderDetector(NULL),
+      schedLeaderListener(this, getPID())
+{
+  if (_zkservers!="") {
+    pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(_zkservers);
+    if (urlPair.first == UrlProcessor::ZOO) {
+      isFT=true;
+      zkservers = urlPair.second;
+    } else {
+      cerr << "Failed to parse URL for ZooKeeper servers";
+      exit(1);
+    }
+  }
+}
 
 protected:
   void operator () ()
@@ -91,6 +136,20 @@ protected:
     if ((passwd = getpwuid(getuid())) == NULL)
       fatal("failed to get username information");
     string user(passwd->pw_name);
+
+    if (isFT) {
+      LOG(INFO) << "Connecting to ZooKeeper at " << zkservers;
+      leaderDetector = new LeaderDetector(zkservers, false, "", NULL);
+      leaderDetector->setListener(&schedLeaderListener); // use this instead of constructor to avoid race condition
+
+      pair<string,string> zkleader = leaderDetector->getCurrentLeader();
+      LOG(INFO) << "Detected leader at " << zkleader.second <<" with ephemeral id:"<<zkleader.first;
+      
+      istringstream iss(zkleader.second);
+      if (!(iss >> master)) {
+	cerr << "Failed to resolve master PID " << zkleader.second << endl;
+      }    
+    }
 
     link(master);
     send(master, pack<F2M_REGISTER_FRAMEWORK>(frameworkName, user, execInfo));
@@ -167,11 +226,27 @@ protected:
 
 
       case PROCESS_EXIT: {
-        const char* message = "connection to master failed";
-        invoke(bind(&Scheduler::error, sched, driver, -1, message));
+        const char* message = "Connection to master failed";
+	LOG(INFO) << message;
+	//        invoke(bind(&Scheduler::error, sched, driver, -1, message));
         break;
       }
 
+      case LE_NEWLEADER: {
+        LOG(INFO) << "Slave got notified of new leader " << from();
+	string newLeader;
+        unpack<LE_NEWLEADER>(newLeader);
+	istringstream iss(newLeader);
+	if (!(iss >> master)) {
+	  cerr << "Failed to resolve master PID " << newLeader << endl;
+	  break;
+	}    
+	
+	LOG(INFO) << "Connecting to Nexus master at " << master;
+	link(master);
+	send(master, pack<F2M_REGISTER_FRAMEWORK>(frameworkName, user, execInfo));
+	break;
+      }
       default: {
         ostringstream oss;
         oss << "SchedulerProcess received unknown message " << msgid()
@@ -278,6 +353,7 @@ void NexusSchedulerDriver::start()
   }
 
   PID pid;
+  bool passString = false;
 
   if (master == string("localquiet")) {
     // TODO(benh): Look up resources in environment variables.
@@ -285,18 +361,16 @@ void NexusSchedulerDriver::start()
   } else if (master == string("local")) {
     // TODO(benh): Look up resources in environment variables.
     pid = run_nexus(1, 1, 1073741824, true, false);
-  } else {
-    std::istringstream iss(master);
-    if (!(iss >> pid)) {
-      error(errno, "register failed - bad master PID");
-      return;
-    }
-  }
+  } else
+    passString = true;
 
   const string& frameworkName = sched->getFrameworkName(this);
   const ExecutorInfo& executorInfo = sched->getExecutorInfo(this);
 
-  process = new SchedulerProcess(pid, this, sched, frameworkName, executorInfo);
+  if (passString) 
+    process = new SchedulerProcess(pid, this, sched, frameworkName, executorInfo, master);
+  else
+    process = new SchedulerProcess(pid, this, sched, frameworkName, executorInfo);
   Process::spawn(process);
 
   running = true;

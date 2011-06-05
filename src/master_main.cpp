@@ -2,6 +2,7 @@
 
 #include "master.hpp"
 #include "master_webui.hpp"
+#include "url_prcessor.hpp"
 
 using std::cerr;
 using std::endl;
@@ -11,7 +12,9 @@ using namespace nexus::internal::master;
 void usage(const char* programName)
 {
   cerr << "Usage: " << programName
-       << " [--port PORT] [--allocator ALLOCATOR] [--fault-tolerant ZOOKEEPERSERVER] [--quiet]"
+       << " [--port PORT] [--allocator ALLOCATOR] [--fault-tolerant ZOO_SERVERS] [--quiet]"
+       << endl
+       << "ZOO_SERVERS is a url of the form zoo://<zoosrv1>,<zoosrv2>..., or zoofile://listfile"
        << endl;
 }
 
@@ -31,7 +34,7 @@ int main (int argc, char **argv)
   };
 
   bool isFT = false;
-  string zkserver = "";
+  string zooarg = "";
   bool quiet = false;
   string allocator = "simple";
 
@@ -47,7 +50,7 @@ int main (int argc, char **argv)
         break;
       case 'f':
         isFT = true;
-	zkserver = optarg;
+	zooarg = optarg;
         break;
       case 'q':
         quiet = true;
@@ -72,7 +75,7 @@ int main (int argc, char **argv)
   LOG(INFO) << "Starting Nexus master";
   if (isFT)
     LOG(INFO) << "Nexus in fault-tolerant mode";
-  PID master = Process::spawn(new Master(allocator, isFT, zkserver));
+  PID master = Process::spawn(new Master(allocator, zooarg));
 
 #undef NEXUS_WEBUI
 #ifdef NEXUS_WEBUI

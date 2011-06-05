@@ -13,7 +13,7 @@
 #include "params.hpp"
 #include "resources.hpp"
 #include "foreach.hpp"
-#include "internalinfo.hpp"
+#include "task_info.hpp"
 
 namespace nexus { namespace internal {
 
@@ -47,7 +47,7 @@ enum MessageType {
   SH2M_HEARTBEAT,
 
   /* From leader election listener to slave */
-  LE2S_NEWLEADER,
+  LE_NEWLEADER,
   
   /* From master to slave. */
   M2S_REGISTER_REPLY,
@@ -188,7 +188,7 @@ TUPLE(S2M_LOST_EXECUTOR,
 TUPLE(SH2M_HEARTBEAT,
       (SlaveID));
     
-TUPLE(LE2S_NEWLEADER,
+TUPLE(LE_NEWLEADER,
       (std::string /*PID of new leader*/));
   
 TUPLE(M2S_REGISTER_REPLY,

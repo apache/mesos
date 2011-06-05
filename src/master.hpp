@@ -27,8 +27,9 @@
 #include "messages.hpp"
 #include "params.hpp"
 #include "resources.hpp"
-#include "getleader.hpp"
-#include "internalinfo.hpp"
+#include "leader_detector.hpp"
+#include "task_info.hpp"
+#include "url_processor.hpp"
 
 namespace nexus { namespace internal { namespace master {
 
@@ -258,8 +259,8 @@ enum TaskRemovalReason
 class Master : public Tuple<Process>
 {
 protected:
-  const bool isFT;
-  string zkserver;
+  bool isFT;
+  string zkservers;
   LeaderDetector *leaderDetector;
   unordered_map<FrameworkID, Framework *> frameworks;
   unordered_map<SlaveID, Slave *> slaves;
@@ -279,9 +280,9 @@ protected:
   long masterId; // Used to differentiate different master in FT mode, will be ephemeral id
 
 public:
-  Master(const bool =false, const string ="");
+  Master(const string ="");
 
-  Master(const string& _allocatorType, const bool =false, const string ="");
+  Master(const string& _allocatorType, const string ="");
   
   ~Master();
 
