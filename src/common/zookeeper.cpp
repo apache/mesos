@@ -29,34 +29,30 @@ using std::string;
 using std::vector;
 
 
-/* Singleton instance of WatcherProcessManager. */
+// Singleton instance of WatcherProcessManager.
 class WatcherProcessManager;
 
 WatcherProcessManager* manager;
 
 
-/**
- * In order to make callbacks on Watcher, we create a proxy
- * WatcherProcess. The ZooKeeperProcess (defined below) dispatches
- * "events" to the WatcherProcess which then invokes
- * Watcher::process. Care needed to be taken to assure that a
- * WatcherProcess was only valid as long as a Watcher was valid. This
- * was done by ensuring that the WatcherProcess object created gets
- * "terminated" in ~Watcher(). A pointer to the WatcherProcess might
- * still be valid in ZooKeeperProcess (see below), but any messages
- * sent to it will get dropped because it is no longer running. The
- * ZooKeeperProcess is responsible for actually deleting the
- * WatcherProcess. We wanted to keep the Watcher interface clean and
- * simple, so rather than add a member in Watcher that points to a
- * WatcherProcess instance (or points to a WatcherImpl), we choose to
- * create a WatcherProcessManager that stores the Watcher and
- * WatcherProcess associations. The WatcherProcessManager is akin to
- * having a shared dictionary or hashtable and using locks to access
- * it rather then sending and receiving messages. Their is probably a
- * performance hit here, but it would be interesting to see how bad
- * the perforamnce is across a range of low and high-contention
- * states.
- */
+// In order to make callbacks on Watcher, we create a proxy
+// WatcherProcess. The ZooKeeperImpl (defined below) dispatches
+// "events" to the WatcherProcess which then invokes
+// Watcher::process. The major benefit of this approach is that a
+// WatcherProcess lifetime can precisely match the lifetime of a
+// Watcher, so the ZooKeeperImpl won't end up calling into an object
+// that has been deleted. In the worst case, the ZooKeeperImpl will
+// dispatch to a dead WatcherProcess, which will just get dropped on
+// the floor. We wanted to keep the Watcher interface clean and
+// simple, so rather than add a member in Watcher that points to a
+// WatcherProcess instance (or points to a WatcherImpl), we choose to
+// create a WatcherProcessManager that stores the Watcher and
+// WatcherProcess associations. The WatcherProcessManager is akin to
+// having a shared dictionary or hashtable and using locks to access
+// it rather then sending and receiving messages. Their is probably a
+// performance hit here, but it would be interesting to see how bad
+// the perforamnce is across a range of low and high-contention
+// states.
 class WatcherProcess : public Process<WatcherProcess>
 {
 public:
