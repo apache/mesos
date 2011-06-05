@@ -91,7 +91,7 @@ state::SlaveState *Slave::getState()
   mem = resources.getScalar("mem", mem);
 
   state::SlaveState *state =
-    new state::SlaveState(BUILD_DATE, BUILD_USER, slaveId.value(),
+    new state::SlaveState(build::DATE, build::USER, slaveId.value(),
                           cpus.value(), mem.value(), self(), master);
 
   foreachpair (_, Framework *f, frameworks) {

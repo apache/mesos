@@ -1,5 +1,6 @@
 #include <libgen.h>
 
+#include "common/build.hpp"
 #include "common/logging.hpp"
 
 #include "configurator/configurator.hpp"
@@ -63,7 +64,7 @@ int main(int argc, char **argv)
 
   string url = conf.get("url", "");
 
-  LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
+  LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
 
   if (chdir(dirname(argv[0])) != 0)

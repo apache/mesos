@@ -1,3 +1,4 @@
+#include "common/build.hpp"
 #include "common/logging.hpp"
 
 #include "configurator/configurator.hpp"
@@ -74,7 +75,7 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
+  LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos slave";
 
   if (chdir(dirname(argv[0])) != 0)

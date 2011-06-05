@@ -9,13 +9,14 @@ OUTDIR = $(BINDIR)/examples/java
 
 JAVA_HOME = @JAVA_HOME@
 
-JAVA_CLASSES = $(OUTDIR)/TestFramework.class          \
-               $(OUTDIR)/TestExecutor.class           \
-               $(OUTDIR)/TestExceptionFramework.class
+JAVA_CLASSES = $(OUTDIR)/TestFramework.class			\
+               $(OUTDIR)/TestExecutor.class			\
+               $(OUTDIR)/TestExceptionFramework.class		\
+               $(OUTDIR)/TestMultipleExecutorsFramework.class
 
-JAVA_SCRIPTS = $(OUTDIR)/test_framework               \
-	       $(OUTDIR)/test_executor                \
-	       $(OUTDIR)/test_exception_framework
+JAVA_SCRIPTS = $(OUTDIR)/test_framework $(OUTDIR)/test_executor	\
+	       $(OUTDIR)/test_exception_framework		\
+	       $(OUTDIR)/test_multiple_executors_framework
 
 JAVA = $(JAVA_CLASSES) $(JAVA_SCRIPTS)
 

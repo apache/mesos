@@ -87,14 +87,6 @@ endif
 CFLAGS += -MMD -MP
 CXXFLAGS += -MMD -MP
 
-# Add build date to CFLAGS, CXXFLAGS
-CFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
-CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
-
-# Add build user to CFLAGS, CXXFLAGS
-CFLAGS += -DBUILD_USER="\"$$USER\""
-CXXFLAGS += -DBUILD_USER="\"$$USER\""
-
 # Add libev to LDFLAGS.
 LDFLAGS += -L$(LIBEV)/.libs
 
@@ -149,15 +141,16 @@ BASIC_OBJ = $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)  \
 
 ALL_OBJ = $(PROTOBUF_OBJ) $(BASIC_OBJ) $(WEBUI_OBJ) $(SWIG_WEBUI_OBJ)
 
-MASTER_EXE_OBJ = $(MASTER_OBJ) $(MASTER_WEBUI_OBJ)	\
-                 $(MASTER_SWIG_WEBUI_OBJ) $(COMMON_OBJ)
+MASTER_EXE_OBJ = $(MASTER_OBJ) $(MASTER_WEBUI_OBJ)			\
+                 $(MASTER_SWIG_WEBUI_OBJ) $(COMMON_OBJ) common/build.o
 
-SLAVE_EXE_OBJ = $(SLAVE_OBJ) $(SLAVE_WEBUI_OBJ)	\
-                $(SLAVE_SWIG_WEBUI_OBJ) $(COMMON_OBJ)
+SLAVE_EXE_OBJ = $(SLAVE_OBJ) $(SLAVE_WEBUI_OBJ)				\
+                $(SLAVE_SWIG_WEBUI_OBJ) $(COMMON_OBJ) common/build.o
 
 LAUNCHER_EXE_OBJ = launcher/launcher.o $(COMMON_OBJ)
 
-LOCAL_EXE_OBJ = local/local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)
+LOCAL_EXE_OBJ = local/local.o $(MASTER_OBJ) $(SLAVE_OBJ) $(COMMON_OBJ)	\
+		common/build.o
 
 MESOS_MASTER_EXE = $(BINDIR)/mesos-master
 MESOS_SLAVE_EXE = $(BINDIR)/mesos-slave
@@ -272,6 +265,9 @@ messaging/messages.pb.cc: $(SRCDIR)/messaging/messages.proto
 	mkdir -p messaging
 	$(PROTOC) -I$(SRCDIR)/messaging -I@top_srcdir@/include --cpp_out=messaging $(SRCDIR)/messaging/messages.proto
 
+common/build.o: $(SRCDIR)/common/build.cpp force | common
+	$(CXX) -c $(CXXFLAGS) -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USER\"" -DBUILD_FLAGS="\"$$CFLAGS $$CXXFLAGS\"" -o $@ $<
+
 $(PROTOBUF_OBJ): %.pb.o: %.pb.cc $(INCLUDEDIR)/mesos.hpp
 	$(CXX) -c $(CXXFLAGS) -I@top_srcdir@/$(PROTOBUF)/src -I. -o $@ $<
 
@@ -286,13 +282,13 @@ $(SWIG_WEBUI_OBJ): %.o: %.cpp
 
 $(MESOS_LIBS): $(COMMON_OBJ) | $(LIBDIR)
 
-$(MESOS_SCHED_LIB):$(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(PROTOBUF_OBJ)
+$(MESOS_SCHED_LIB):$(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(PROTOBUF_OBJ) common/build.o
 	$(AR) rcs $@ $^
 
-$(MESOS_EXEC_LIB): $(EXEC_LIB_OBJ) $(PROTOBUF_OBJ)
+$(MESOS_EXEC_LIB): $(EXEC_LIB_OBJ) $(PROTOBUF_OBJ) common/build.o
 	$(AR) rcs $@ $^
 
-$(MESOS_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(EXEC_LIB_OBJ) $(PROTOBUF_OBJ)
+$(MESOS_LIB): $(SCHED_LIB_OBJ) $(MASTER_OBJ) $(SLAVE_OBJ) $(EXEC_LIB_OBJ) $(PROTOBUF_OBJ) common/build.o
 	$(CXX) $(CXXFLAGS) -shared -o $@ $^ $(LDFLAGS) $(LIBS)
 
 webui/master/swig/master_wrap.cpp: $(SRCDIR)/webui/master/swig/master.i $(SRCDIR)/master/state.hpp $(SRCDIR)/master/webui.hpp $(SRCDIR)/master/master.hpp config/config.hpp $(BINDIR)/webui/master/swig
@@ -442,4 +438,4 @@ clean:
 	rm -f mesos.pb.h
 	rm -f TAGS
 
-.PHONY: default java python test all clean
+.PHONY: default java python test all clean force

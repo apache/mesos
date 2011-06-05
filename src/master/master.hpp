@@ -22,6 +22,7 @@
 
 #include "state.hpp"
 
+#include "common/build.hpp"
 #include "common/fatal.hpp"
 #include "common/foreach.hpp"
 #include "common/resources.hpp"

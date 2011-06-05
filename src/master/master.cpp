@@ -170,7 +170,7 @@ void Master::registerOptions(Configurator* configurator)
 state::MasterState * Master::getState()
 {
   state::MasterState *state =
-    new state::MasterState(BUILD_DATE, BUILD_USER, self());
+    new state::MasterState(build::DATE, build::USER, self());
 
   foreachpair (_, Slave *s, slaves) {
     Resources resources(s->info.resources());
