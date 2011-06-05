@@ -178,11 +178,11 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
 
 MesosExecutorDriver::~MesosExecutorDriver()
 {
-  pthread_mutex_destroy(&mutex);
-  pthread_cond_destroy(&cond);
-
   Process::wait(process->self());
   delete process;
+
+  pthread_mutex_destroy(&mutex);
+  pthread_cond_destroy(&cond);
 }
 
 

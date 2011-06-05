@@ -485,9 +485,6 @@ void MesosSchedulerDriver::init(Scheduler* _sched,
 
 MesosSchedulerDriver::~MesosSchedulerDriver()
 {
-  pthread_mutex_destroy(&mutex);
-  pthread_cond_destroy(&cond);
-
   // We want to make sure the SchedulerProcess has completed so it
   // doesn't try to make calls into us after we are gone. There is an
   // unfortunate deadlock scenario that occurs when we try and wait
@@ -505,6 +502,9 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
     Process::wait(process->self());
     delete process;
   }
+
+  pthread_mutex_destroy(&mutex);
+  pthread_cond_destroy(&cond);
 
   if (detector != NULL) {
     MasterDetector::destroy(detector);
