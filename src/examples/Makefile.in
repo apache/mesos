@@ -89,15 +89,6 @@ ifeq ($(WITH_ZOOKEEPER),1)
   LIBS += -lzookeeper_st
 endif
 
-# SCHED_EXES = $(BINDIR)/examples/test-framework		\
-#              $(BINDIR)/examples/cpp-test-framework	\
-#              $(BINDIR)/examples/memhog			\
-#              $(BINDIR)/examples/scheduled-memhog
-
-# EXEC_EXES = $(BINDIR)/examples/test-executor		\
-#             $(BINDIR)/examples/cpp-test-executor	\
-#             $(BINDIR)/examples/memhog-executor
-
 SCHED_EXES = $(BINDIR)/examples/cpp-test-framework	\
              $(BINDIR)/examples/memhog			\
              $(BINDIR)/examples/scheduled-memhog
