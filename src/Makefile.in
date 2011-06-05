@@ -130,7 +130,7 @@ COMMON_OBJ = common/fatal.o common/lock.o detector/detector.o		\
 	     messaging/messages.o
 
 ifeq ($(WITH_ZOOKEEPER),1)
-  COMMON_OBJ += detector/zookeeper.o
+  COMMON_OBJ += common/zookeeper.o
 endif
 
 EXEC_LIB_OBJ = exec/exec.o
