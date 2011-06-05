@@ -164,6 +164,13 @@ protected:
     return ReliableProcess::rsend(to, ID, data.data(), data.size());
   }
 
+  template <MSGID ID>
+  int rsend(const PID &via, const PID &to, const tuple<ID> &t)
+  {
+    const std::string &data = MESOS_MESSAGING_VERSION + "|" + std::string(t);
+    return ReliableProcess::rsend(via, to, ID, data.data(), data.size());
+  }
+
   virtual MSGID receive() { return receive(0); }
 
   virtual MSGID receive(double secs)

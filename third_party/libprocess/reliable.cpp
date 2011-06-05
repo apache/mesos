@@ -4,7 +4,9 @@
 #include "foreach.hpp"
 #include "reliable.hpp"
 
+using std::make_pair;
 using std::map;
+using std::pair;
 
 #define malloc(bytes)                                               \
   ({ void *tmp;                                                     \
@@ -34,10 +36,11 @@ struct rmsg
 class ReliableSender : public Process
 {
 public:
+  PID via;
   struct rmsg *rmsg;
 
-  ReliableSender(struct rmsg *_rmsg)
-    : rmsg(_rmsg) {}
+  ReliableSender(const PID &_via, struct rmsg *_rmsg)
+    : via(_via), rmsg(_rmsg) {}
 
   ~ReliableSender()
   {
@@ -51,7 +54,7 @@ protected:
   void operator () ()
   {
     do {
-      send(rmsg->msg.to, RELIABLE_MSG, (char *) rmsg,
+      send(via, RELIABLE_MSG, (char *) rmsg,
 	   sizeof(struct rmsg) + rmsg->msg.len);
 
       switch (receive(RELIABLE_TIMEOUT)) {
@@ -59,7 +62,11 @@ protected:
 	  // All done!
 	  return;
 	}
-        case RELIABLE_REDIRECT: {
+        case RELIABLE_REDIRECT_VIA: {
+	  via = *reinterpret_cast<const PID *>(body(NULL));
+	  break;
+	}
+        case RELIABLE_REDIRECT_TO: {
 	  rmsg->msg.to = *reinterpret_cast<const PID *>(body(NULL));
 	  break;
 	}
@@ -74,7 +81,7 @@ protected:
 
 
 ReliableProcess::ReliableProcess()
-  : current(NULL), nextSeq(0) {}
+  : current(NULL) {}
 
 
 ReliableProcess::~ReliableProcess()
@@ -110,9 +117,11 @@ bool ReliableProcess::duplicate() const
   // greater than the last one we saw. Note that we don't add the
   // sequence identifier for the current message until the next
   // 'receive' invocation (see below).
-  if (current != NULL)
-    if (recvSeqs.count(current->msg.from) > 0)
-      return current->seq <= recvSeqs.find(current->msg.from)->second;
+  if (current != NULL) {
+    pair<PID, PID> from_to = make_pair(current->msg.from, current->msg.to);
+    if (recvSeqs.count(from_to) > 0)
+      return current->seq <= recvSeqs.find(from_to)->second;
+  }
 
   return false;
 }
@@ -123,7 +132,16 @@ PID ReliableProcess::origin() const
   if (current != NULL)
     return current->msg.from;
 
-  return PID();
+  return from();
+}
+
+
+PID ReliableProcess::destination() const
+{
+  if (current != NULL)
+    return current->msg.to;
+
+  return self();
 }
 
 
@@ -135,10 +153,10 @@ void ReliableProcess::ack()
 }
 
 
-bool ReliableProcess::forward(const PID &to)
+bool ReliableProcess::forward(const PID &via)
 {
   if (current != NULL) {
-    send(to, RELIABLE_MSG, (char *) current,
+    send(via, RELIABLE_MSG, (char *) current,
 	 sizeof(struct rmsg) + current->msg.len);
     return true;
   }
@@ -152,7 +170,7 @@ int ReliableProcess::rsend(const PID &to, MSGID id, const char *data, size_t len
   // Allocate/Initialize outgoing message.
   struct rmsg *rmsg = (struct rmsg *) malloc(sizeof(struct rmsg) + length);
 
-  int seq = nextSeq++;
+  int seq = sentSeqs[to]++;
 
   rmsg->seq = seq;
 
@@ -168,7 +186,36 @@ int ReliableProcess::rsend(const PID &to, MSGID id, const char *data, size_t len
   if (length > 0)
     memcpy((char *) rmsg + sizeof(struct rmsg), data, length);
 
-  ReliableSender *sender = new ReliableSender(rmsg);
+  ReliableSender *sender = new ReliableSender(to, rmsg);
+  PID pid = link(spawn(sender));
+  senders[pid] = sender;
+
+  return seq;
+}
+
+
+int ReliableProcess::rsend(const PID &via, const PID &to, MSGID id, const char *data, size_t length)
+{
+  // Allocate/Initialize outgoing message.
+  struct rmsg *rmsg = (struct rmsg *) malloc(sizeof(struct rmsg) + length);
+
+  int seq = sentSeqs[to]++;
+
+  rmsg->seq = seq;
+
+  rmsg->msg.from.pipe = self().pipe;
+  rmsg->msg.from.ip = self().ip;
+  rmsg->msg.from.port = self().port;
+  rmsg->msg.to.pipe = to.pipe;
+  rmsg->msg.to.ip = to.ip;
+  rmsg->msg.to.port = to.port;
+  rmsg->msg.id = id;
+  rmsg->msg.len = length;
+
+  if (length > 0)
+    memcpy((char *) rmsg + sizeof(struct rmsg), data, length);
+
+  ReliableSender *sender = new ReliableSender(via, rmsg);
   PID pid = link(spawn(sender));
   senders[pid] = sender;
 
@@ -185,9 +232,10 @@ MSGID ReliableProcess::receive(double secs)
     // can be sure that the current message is the next in the
     // sequence (unless it's the first message or a duplicate).
     if (!duplicate()) {
-      assert((recvSeqs.count(current->msg.from) == 0) ||
-	     (recvSeqs[current->msg.from] + 1 == current->seq));
-      recvSeqs[current->msg.from] = current->seq;
+      pair<PID, PID> from_to = make_pair(current->msg.from, current->msg.to);
+      assert((recvSeqs.count(from_to) == 0) ||
+	     (recvSeqs[from_to] + 1 == current->seq));
+      recvSeqs[from_to] = current->seq;
     }
     free(current);
     current = NULL;
@@ -222,8 +270,9 @@ MSGID ReliableProcess::receive(double secs)
 	memcpy((char *) current, data, length);
 
 	// TODO(benh): Don't ignore out-of-order messages!
-	if (recvSeqs.count(current->msg.from) > 0 &&
-            recvSeqs[current->msg.from] + 1 < current->seq) {
+	pair<PID, PID> from_to = make_pair(current->msg.from, current->msg.to);
+	if (recvSeqs.count(from_to) > 0 &&
+            recvSeqs[from_to] + 1 < current->seq) {
           free(current);
           current = NULL;
           continue;
@@ -261,8 +310,10 @@ void ReliableProcess::redirect(const PID &existing, const PID &updated)
   foreachpair (const PID &pid, ReliableSender *sender, senders) {
     assert(pid == sender->self());
     // TODO(benh): Don't look into sender's class like this ... HACK!
+    if (existing == sender->via)
+      send(pid, RELIABLE_REDIRECT_VIA, (char *) &updated, sizeof(PID));
     if (existing == sender->rmsg->msg.to)
-      send(pid, RELIABLE_REDIRECT, (char *) &updated, sizeof(PID));
+      send(pid, RELIABLE_REDIRECT_TO, (char *) &updated, sizeof(PID));
   }
 }
 

@@ -77,14 +77,14 @@ protected:
 
       case PROCESS_TIMEOUT: {
         terminate = true;
-        VLOG(1) << "FT: faking M2F_STATUS_UPDATE due to ReplyToOffer timeout for tid:" << tid;
+        VLOG(1) << "No status updates received for tid:" << tid
+		<< ". Assuming task was lost.";
         send(parent, pack<M2F_STATUS_UPDATE>(tid, TASK_LOST, ""));
         break;
       }
 
       }
     }
-    VLOG(1) << "FT: Exiting reliable reply for tid:" << tid;
   }
 
 private:
@@ -178,7 +178,7 @@ protected:
 	PID masterPid;
 	tie(masterSeq, masterPid) = unpack<NEW_MASTER_DETECTED>(body());
 
-	LOG(INFO) << "New master at " << masterPid << " with ID:" << masterSeq;
+	VLOG(1) << "New master at " << masterPid << " with ID:" << masterSeq;
 
         redirect(master, masterPid);
 	master = masterPid;
@@ -283,10 +283,12 @@ protected:
 
 	tie(sid, fid, tid, state, data) = unpack<S2M_FT_STATUS_UPDATE>(body());
 
-        if (duplicate())
+        if (duplicate()) {
+          VLOG(1) << "Received a duplicate status update for tid " << tid
+		     << ", status = " << state;
           break;
+        }
         ack();
-        VLOG(1) << "FT: Received message with id: " << seq();
 
 	unordered_map <TaskID, RbReply *>::iterator it = rbReplies.find(tid);
 	if (it != rbReplies.end()) {
@@ -347,7 +349,7 @@ protected:
 
       case PROCESS_EXIT: {
 	// TODO(benh): Don't wait for a new master forever.
-	LOG(WARNING) << "Connection to master lost .. waiting for new master.";
+	VLOG(1) << "Connection to master lost .. waiting for new master.";
         break;
       }
 

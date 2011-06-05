@@ -3,6 +3,7 @@
 
 #include <process.hpp>
 
+#include <functional>
 #include <map>
 
 #define RELIABLE_TIMEOUT 10
@@ -11,7 +12,8 @@
 enum {
   RELIABLE_MSG = PROCESS_MSGID,
   RELIABLE_ACK,
-  RELIABLE_REDIRECT,
+  RELIABLE_REDIRECT_VIA,
+  RELIABLE_REDIRECT_TO,
   RELIABLE_MSGID
 };
 
@@ -41,9 +43,16 @@ protected:
   virtual bool duplicate() const;
 
   /**
-   * @return origin of current message, or equal to @see Process::from().
+   * @return origin of current message (if current message is not
+   * reliable this returns Process::from()).
    */
   virtual PID origin() const;
+
+  /**
+   * @return destination of current message (if current message is not
+   * reliable this returns Process::self()).
+   */
+  virtual PID destination() const;
 
   /**
    * Acknowledges the current message by sending an 'ack' back to the
@@ -53,11 +62,11 @@ protected:
 
   /**
    * Forward current message (provided it is _reliable_).
-   * @param to destination
+   * @param via hop (or possibly destination)
    * @return false if the current message is not _reliable_, true
    * otherwise.
    */
-  virtual bool forward(const PID &to);
+  virtual bool forward(const PID &via);
 
   /**
    * Sends a _reliable_ message to PID.
@@ -68,6 +77,16 @@ protected:
   virtual int rsend(const PID &to, MSGID id);
 
   /**
+   * Sends a _reliable_ message via another PID (meant to be
+   * forwarded).
+   * @param via hop
+   * @param to destination
+   * @param id message id
+   * @return sequence number of message
+   */
+  virtual int rsend(const PID &via, const PID &to, MSGID id);
+
+  /**
    * Sends a _reliable_ message with data to PID.
    * @param to destination
    * @param id message id
@@ -76,6 +95,19 @@ protected:
    * @return sequence number of message
    */
   virtual int rsend(const PID &to, MSGID id, const char *data, size_t length);
+
+  /**
+   * Sends a _reliable_ message with data via another process (meant
+   * to be forwarded).
+   * @param via hop
+   * @param to destination
+   * @param id message id
+   * @param data payload
+   * @param length payload length
+   * @return sequence number of message
+   */
+  virtual int rsend(const PID &via, const PID &to, MSGID id, const char *data, size_t length);
+
 
   /* Blocks for message indefinitely. */
   virtual MSGID receive();
@@ -99,8 +131,8 @@ protected:
   
 private:
   struct rmsg *current;
-  int nextSeq;
-  std::map<PID, int> recvSeqs;
+  std::map<PID, int> sentSeqs;
+  std::map<std::pair<PID, PID>, int> recvSeqs;
   std::map<PID, ReliableSender *> senders;
 };
 
@@ -108,6 +140,12 @@ private:
 inline int ReliableProcess::rsend(const PID &to, MSGID id)
 {
   return rsend(to, id, NULL, 0);
+}
+
+
+inline int ReliableProcess::rsend(const PID &via, const PID &to, MSGID id)
+{
+  return rsend(via, to, id, NULL, 0);
 }
 
 

@@ -343,20 +343,28 @@ void Slave::operator () ()
         TaskState taskState;
         string data;
         tie(fid, tid, taskState, data) = unpack<E2S_STATUS_UPDATE>(body());
-        LOG(INFO) << "Got status update for task " << fid << ":" << tid;
-        if (taskState == TASK_FINISHED || taskState == TASK_FAILED ||
-            taskState == TASK_KILLED || taskState == TASK_LOST) {
-          LOG(INFO) << "Task " << fid << ":" << tid << " done";
-          if (Framework *fw = getFramework(fid)) {
-            fw->removeTask(tid);
-            isolationModule->resourcesChanged(fw);
-          }
-        }
 
-        // Reliably send message and save sequence number for canceling later.
-        int seq = rsend(master, pack<S2M_FT_STATUS_UPDATE>(id, fid, tid,
-                                                           taskState, data));
-        seqs[fid].insert(seq);
+        Framework *framework = getFramework(fid);
+        if (framework != NULL) {
+	  LOG(INFO) << "Got status update for task " << fid << ":" << tid;
+	  if (taskState == TASK_FINISHED || taskState == TASK_FAILED ||
+	      taskState == TASK_KILLED || taskState == TASK_LOST) {
+	    LOG(INFO) << "Task " << fid << ":" << tid << " done";
+
+            framework->removeTask(tid);
+            isolationModule->resourcesChanged(framework);
+          }
+
+	  // Reliably send message and save sequence number for
+	  // canceling later.
+	  int seq = rsend(master, framework->pid,
+			  pack<S2M_FT_STATUS_UPDATE>(id, fid, tid,
+						     taskState, data));
+	  seqs[fid].insert(seq);
+	} else {
+	  LOG(WARNING) << "Got status update for UNKNOWN task "
+		       << fid << ":" << tid;
+	}
         break;
       }
 
