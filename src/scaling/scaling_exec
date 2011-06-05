@@ -1,0 +1,3 @@
+#!/bin/sh
+export PYTHONPATH="$PYTHONPATH:../swig/python"
+exec ./scaling_exec.py $@
