@@ -36,6 +36,8 @@ src/webui/slave/swig/slave.py
 src/webui/slave/swig/slave_wrap.cpp
 src/webui/slave/swig/slave_wrap.h
 src/third_party/glog-0.3.1/demangle_unittest
+src/third_party/glog-0.3.1/configure
+src/third_party/glog-0.3.1/src/config.h.in
 src/third_party/glog-0.3.1/libglog.pc
 src/third_party/glog-0.3.1/logging_striptest0
 src/third_party/glog-0.3.1/logging_striptest10
@@ -53,6 +55,7 @@ src/third_party/glog-0.3.1/symbolize_unittest
 src/third_party/glog-0.3.1/utilities_unittest
 src/third_party/libprocess/third_party/libev/stamp-h1
 src/third_party/glog-0.3.1/src/config.h
+src/third_party/gtest-1.5.0/configure
 src/third_party/gtest-1.5.0/build-aux/config.h
 src/third_party/gtest-1.5.0/build-aux/stamp-h1
 src/third_party/gtest-1.5.0/scripts/gtest-config
