@@ -40,10 +40,7 @@ public:
   }
 
   virtual ExecutorInfo getExecutorInfo(SchedulerDriver*) {
-    ostringstream arg;
-    arg << memToHog << " " << taskLen << " " << threadsPerTask;
-    cout << "Executor arg: " << arg.str() << endl;
-    return ExecutorInfo(executor, arg.str());
+    return ExecutorInfo(executor, "");
   }
 
   virtual void registered(SchedulerDriver*, FrameworkID fid) {
@@ -53,7 +50,6 @@ public:
   virtual void resourceOffer(SchedulerDriver* d,
                              OfferID id,
                              const vector<SlaveOffer>& offers) {
-    cout << "." << flush;
     vector<TaskDescription> tasks;
     foreach (const SlaveOffer &offer, offers) {
       // This is kind of ugly because operator[] isn't a const function
@@ -61,12 +57,13 @@ public:
       int64_t mem = lexical_cast<int64_t>(offer.params.find("mem")->second);
       if ((tasksLaunched < totalTasks) && (cpus >= 1 && mem >= memToRequest)) {
         TaskID tid = tasksLaunched++;
-
-        cout << endl << "accepting it to start task " << tid << endl;
-        map<string, string> taskParams;
-        taskParams["cpus"] = "1";
-        taskParams["mem"] = lexical_cast<string>(memToRequest);
-        TaskDescription desc(tid, offer.slaveId, "task", taskParams, "");
+        cout << "Launcing task " << tid << " on " << offer.host << endl;
+        map<string, string> params;
+        params["cpus"] = "1";
+        params["mem"] = lexical_cast<string>(memToRequest);
+        ostringstream arg;
+        arg << memToHog << " " << taskLen << " " << threadsPerTask;
+        TaskDescription desc(tid, offer.slaveId, "task", params, arg.str());
         tasks.push_back(desc);
       }
     }
@@ -76,11 +73,9 @@ public:
   }
 
   virtual void statusUpdate(SchedulerDriver* d, const TaskStatus& status) {
-    cout << endl << "Task " << status.taskId << " is in state " << status.state << endl;
-    if (status.state == TASK_LOST) 
-       {
-	  cout << endl << "Task " << status.taskId << " lost. Not doing anything about it." << endl;
-       }
+    cout << "Task " << status.taskId << " is in state " << status.state << endl;
+    if (status.state == TASK_LOST)
+      cout << "Task " << status.taskId << " lost. Not doing anything about it." << endl;
     if (status.state == TASK_FINISHED)
       tasksFinished++;
     if (tasksFinished == totalTasks)
