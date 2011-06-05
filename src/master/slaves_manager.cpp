@@ -66,7 +66,7 @@ public:
   Promise<bool> updated(const string& path);
 
 private:
-  string parse(const string& key, const string& s);
+  bool parse(const string& key, const string& s, multimap<string, uint16_t>* result);
 
   const string servers;
   const string znode;
@@ -500,56 +500,13 @@ Promise<bool> ZooKeeperSlavesManagerStorage::updated(const string& path)
     }
 
     // Parse what's in ZooKeeper into active/inactive hostname port pairs.
-
-    {
-      const string& temp = parse("active=", result);
-
-      multimap<string, uint16_t> active;
-
-      const vector<string>& tokens = tokenize::split(temp, ",");
-      foreach (const string& token, tokens) {
-        const vector<string>& pairs = tokenize::split(token, ":");
-        if (pairs.size() != 2) {
-          LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
-                       << "', could not parse " << token;
-          return false;
-        }
-
-        try {
-          active.insert(pairs[0], lexical_cast<uint16_t>(pairs[1]));
-        } catch (const bad_lexical_cast&) {
-          LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
-                       << "', could not parse " << token;
-          return false;
-        }
-      }
-
+    multimap<string, uint16_t> active;
+    if (parse("active=", result, &active)) {
       process::dispatch(slavesManager, &SlavesManager::updateActive, active);
     }
 
-    {
-      const string& temp = parse("inactive=", result);
-
-      multimap<string, uint16_t> inactive;
-
-      const vector<string>& tokens = tokenize::split(temp, ",");
-      foreach (const string& token, tokens) {
-        const vector<string>& pairs = tokenize::split(token, ":");
-        if (pairs.size() != 2) {
-          LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
-                       << "', could not parse " << token;
-          return false;
-        }
-
-        try {
-          inactive.insert(pairs[0], lexical_cast<uint16_t>(pairs[1]));
-        } catch (const bad_lexical_cast&) {
-          LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
-                       << "', could not parse " << token;
-          return false;
-        }
-      }
-
+    multimap<string, uint16_t> inactive;
+    if (parse("inactive=", result, &inactive)) {
       process::dispatch(slavesManager, &SlavesManager::updateInactive, inactive);
     }
   } else {
@@ -562,27 +519,48 @@ Promise<bool> ZooKeeperSlavesManagerStorage::updated(const string& path)
 }
 
 
-string ZooKeeperSlavesManagerStorage::parse(const string& key, const string& s)
+bool ZooKeeperSlavesManagerStorage::parse(const string& key, const string& s,
+                                          multimap<string, uint16_t>* result)
 {
   size_t begin = s.find(key);
   if (begin == string::npos) {
     LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                  << "', could not find '" << key << "'";
-    return "";
+    return false;
   }
 
   size_t end = s.find("\n", begin);
   if (end == string::npos) {
     LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                  << "', missing LF after '" << key << "'";
-    return "";
+    return false;
   }
 
   CHECK(end > begin);
 
   size_t length = end - begin - key.size();
 
-  return s.substr(begin + key.size(), length);
+  const string& temp = s.substr(begin + key.size(), length);
+
+  const vector<string>& tokens = tokenize::split(temp, ",");
+  foreach (const string& token, tokens) {
+    const vector<string>& pairs = tokenize::split(token, ":");
+    if (pairs.size() != 2) {
+      LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
+                   << "', could not parse " << token;
+      return false;
+    }
+
+    try {
+      result->insert(pairs[0], lexical_cast<uint16_t>(pairs[1]));
+    } catch (const bad_lexical_cast&) {
+      LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
+                   << "', could not parse " << token;
+      return false;
+    }
+  }
+
+  return true;
 }
 
 #endif // WITH_ZOOKEEPER
@@ -645,12 +623,12 @@ SlavesManager::SlavesManager(const Configuration& conf,
   }
 
   // Set up our HTTP endpoints.
-  install("add", &SlavesManager::add);
-  install("remove", &SlavesManager::remove);
-  install("activate", &SlavesManager::activate);
-  install("deactivate", &SlavesManager::deactivate);
-  install("activated", &SlavesManager::activated);
-  install("deactivated", &SlavesManager::deactivated);
+  installHttpHandler("add", &SlavesManager::add);
+  installHttpHandler("remove", &SlavesManager::remove);
+  installHttpHandler("activate", &SlavesManager::activate);
+  installHttpHandler("deactivate", &SlavesManager::deactivate);
+  installHttpHandler("activated", &SlavesManager::activated);
+  installHttpHandler("deactivated", &SlavesManager::deactivated);
 }
 
 
