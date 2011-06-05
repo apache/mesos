@@ -12,6 +12,8 @@
 #include "common/params.hpp"
 #include "common/string_utils.hpp"
 
+using std::map;
+
 using namespace mesos::internal;
 
 using foreach::_;
@@ -165,6 +167,10 @@ void Configurator::loadCommandLine(int argc,
     args.push_back(string(argv[i]));
   }
 
+  // Remember number of times we see each key to warn the user if we see a
+  // key multiple times (since right now we only use the first value)
+  map<string, int> timesSeen;
+
   for (int i = 0; i < args.size(); i++) {
     string key, val;
     bool set = false;
@@ -218,9 +224,16 @@ void Configurator::loadCommandLine(int argc,
       }
     }
     std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    // Check whether the key has already appeared in the command line
+    timesSeen[key]++;
+    if (timesSeen[key] == 2) {
+      LOG(WARNING) << "\"" << key << "\" option appears multiple times in "
+                   << "command line; only the first value will be used";
+    }
     // Disallow setting "home" since it should only be inferred from
     // the location of the running Mesos binary (if any)
-    if (set && (overwrite || !params.contains(key)) && key != "home") {
+    if (set && (overwrite || !params.contains(key)) && key != "home"
+        && timesSeen[key] == 1) {
       params[key] = val;
     }
   }
@@ -234,6 +247,10 @@ void Configurator::loadConfigFile(const string& fname, bool overwrite)
     string message = "Couldn't read Mesos config file: " + fname;
     throw ConfigurationException(message.c_str());
   }
+
+  // Remember number of times we see each key to warn the user if we see a
+  // key multiple times (since right now we only use the first value)
+  map<string, int> timesSeen;
 
   string line, originalLine;
 
@@ -260,9 +277,16 @@ void Configurator::loadConfigFile(const string& fname, bool overwrite)
     }
     string key = StringUtils::trim(tokens[0]);
     string value = StringUtils::trim(tokens[1]);
+    // Check whether the key has already appeared in this config file
+    timesSeen[key]++;
+    if (timesSeen[key] == 2) {
+      LOG(WARNING) << "\"" << key << "\" option appears multiple times in "
+                   << fname << "; only the first value will be used";
+    }
     // Disallow setting "home" since it should only be inferred from
     // the location of the running Mesos binary (if any)
-    if ((overwrite || !params.contains(key)) && key != "home") {
+    if ((overwrite || !params.contains(key)) && key != "home"
+        && timesSeen[key] == 1) {
       params[key] = value;
     }
   }
