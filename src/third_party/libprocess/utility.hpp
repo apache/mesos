@@ -2,7 +2,7 @@
 #include <string>
 
 std::string
-operator+(const std::string &s, int i)
+operator + (const std::string &s, int i)
 {
   std::stringstream out;
   out << i;

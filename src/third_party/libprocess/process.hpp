@@ -7,13 +7,6 @@
 
 #include <sys/time.h>
 
-#ifdef USE_LITHE
-#include <lithe.hh>
-
-#include <ht/ht.h>
-#include <ht/spinlock.h>
-#endif /* USE_LITHE */
-
 #include <iostream>
 #include <map>
 #include <queue>
@@ -67,104 +60,36 @@ public:
   virtual bool filter(struct msg *) = 0;
 };
 
-#ifdef USE_LITHE
-
-using lithe::Scheduler;
-
-class ProcessScheduler : public Scheduler
-{
-private:
-  int lock;
-  int waiter;
-  lithe_task_t task;
-  std::map<lithe_sched_t *, std::pair<int, int> > children;
-
-protected:
-  void enter();
-  void yield(lithe_sched_t *child);
-  void reg(lithe_sched_t *child);
-  void unreg(lithe_sched_t *child);
-  void request(lithe_sched_t *child, int k);
-  void unblock(lithe_task_t *task);
-
-  void schedule();
-
-public:
-  ProcessScheduler();
-  ~ProcessScheduler();
-};
-
-#else
-
-void * schedule(void *arg);
-
-#endif /* USE_LITHE */
-
 
 class Process {
-private:
-  friend class LinkManager;
-  friend class ProcessManager;
-#ifdef USE_LITHE
-  friend class ProcessScheduler;
-#else
-  friend void * schedule(void *arg);
-#endif /* USE_LITHE */
-
-  /* Flag indicating state of process. */
-  enum { INIT,
-	 READY,
-	 RUNNING,
-	 RECEIVING,
-	 PAUSED,
-	 AWAITING,
-	 WAITING,
-	 INTERRUPTED,
-	 TIMEDOUT,
-	 EXITED } state;
-
-  /* Queue of received messages. */
-  std::deque<struct msg *> msgs;
-
-  /* Current message. */
-  struct msg *current;
-
-  /* Current "blocking" generation. */
-  int generation;
-
-  /* Process PID. */
-  PID pid;
-
-#ifdef USE_LITHE
-  lithe_task_t task;
-#endif /* USE_LITHE */
-
-  /* Continuation/Context of process. */
-  ucontext_t uctx;
-
-  /* Lock/mutex protecting internals. */
-#ifdef USE_LITHE
-  int l;
-  void lock() { spinlock_lock(&l); }
-  void unlock() { spinlock_unlock(&l); }
-#else
-  pthread_mutex_t m;
-  void lock() { pthread_mutex_lock(&m); }
-  void unlock() { pthread_mutex_unlock(&m); }
-#endif /* USE_LITHE */
-
-  /* Enqueues the specified message. */
-  void enqueue(struct msg *msg);
-
-  /* Dequeues a message or returns NULL. */
-  struct msg * dequeue();
-
-#if defined(SWIGPYTHON) || defined(SWIGRUBY)
 public:
-#else
-protected:
-#endif /* SWIG */
+  virtual ~Process();
 
+  /* Returns pid of process; valid even before calling spawn. */
+  PID getPID() const;
+
+  /* Sends a message to PID without a return address. */
+  static void post(const PID &to, MSGID id);
+
+  /* Sends a message with data to PID without a return address. */
+  static void post(const PID &to, MSGID id, const char *data, size_t length);
+
+  /* Spawn a new process. */
+  static PID spawn(Process *process);
+
+  /* Wait for PID to exit (returns true if actually waited on a process). */
+  static bool wait(const PID &pid);
+
+  /* Wait for PID to exit (returns true if actually waited on a process). */
+  static bool wait(Process *process);
+
+  /* Invoke the thunk in a legacy safe way. */
+  static void invoke(const std::tr1::function<void (void)> &thunk);
+
+  /* Filter messages to be enqueued (except for timeout messages). */
+  static void filter(MessageFilter *);
+
+protected:
   Process();
 
   /* Function run when process spawned. */
@@ -227,32 +152,53 @@ protected:
   /* Returns sub-second elapsed time (according to this process). */
   double elapsed();
 
-public:
-  virtual ~Process();
+private:
+  friend class LinkManager;
+  friend class ProcessManager;
+  friend class ProcessReference;
+  friend void * schedule(void *arg);
 
-  /* Returns pid of process; valid even before calling spawn. */
-  PID getPID() const;
+  /* Flag indicating state of process. */
+  enum { INIT,
+	 READY,
+	 RUNNING,
+	 RECEIVING,
+	 PAUSED,
+	 AWAITING,
+	 WAITING,
+	 INTERRUPTED,
+	 TIMEDOUT,
+         EXITING,
+	 EXITED } state;
 
-  /* Sends a message to PID without a return address. */
-  static void post(const PID &to, MSGID id);
+  /* Active references. */
+  int refs;
 
-  /* Sends a message with data to PID without a return address. */
-  static void post(const PID &to, MSGID id, const char *data, size_t length);
+  /* Queue of received messages. */
+  std::deque<struct msg *> msgs;
 
-  /* Spawn a new process. */
-  static PID spawn(Process *process);
+  /* Current message. */
+  struct msg *current;
 
-  /* Wait for PID to exit (returns true if actually waited on a process). */
-  static bool wait(PID pid);
+  /* Current "blocking" generation. */
+  int generation;
 
-  /* Wait for PID to exit (returns true if actually waited on a process). */
-  static bool wait(Process *process);
+  /* Process PID. */
+  PID pid;
 
-  /* Invoke the thunk in a legacy safe way. */
-  static void invoke(const std::tr1::function<void (void)> &thunk);
+  /* Continuation/Context of process. */
+  ucontext_t uctx;
 
-  /* Filter messages to be enqueued (except for timeout messages). */
-  static void filter(MessageFilter *);
+  /* Lock/mutex protecting internals. */
+  pthread_mutex_t m;
+  void lock() { pthread_mutex_lock(&m); }
+  void unlock() { pthread_mutex_unlock(&m); }
+
+  /* Enqueues the specified message. */
+  void enqueue(struct msg *msg);
+
+  /* Dequeues a message or returns NULL. */
+  struct msg * dequeue();
 };
 
 
