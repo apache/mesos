@@ -81,8 +81,8 @@ void Configurator::loadConfigFileIfGiven(bool overwrite) {
   string confDir = "";
   if (params.contains("conf"))
     confDir = params["conf"];
-  else if (params.contains("home")) // find conf dir relative to MESOS_HOME
-    confDir = params["home"] + "/" + DEFAULT_CONFIG_DIR;
+//   else if (params.contains("home")) // find conf dir relative to MESOS_HOME
+//     confDir = params["home"] + "/" + DEFAULT_CONFIG_DIR;
   if (confDir != "")
     loadConfigFile(confDir + "/" + CONFIG_FILE_NAME, overwrite);
 }
@@ -123,14 +123,13 @@ void Configurator::loadCommandLine(int argc,
     char* copyOfArg0 = new char[lengthOfArg0 + 1];
     strcpy(copyOfArg0, argv[0]);
     // Get the directory name from it
-    char* buf = new char[lengthOfArg0 + 1];
-    if (realpath(dirname(copyOfArg0), buf) == 0) {
+    char path[PATH_MAX];
+    if (realpath(dirname(copyOfArg0), path) == 0) {
       throw ConfigurationException(
-          "Could not get directory containing argv[0] -- realpath failed");
+        "Could not get directory containing argv[0] -- realpath failed");
     }
-    params["home"] = buf;
+    params["home"] = path;
     delete[] copyOfArg0;
-    delete[] buf;
   }
 
   // Convert args 1 and above to STL strings
