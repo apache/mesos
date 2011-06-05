@@ -189,6 +189,9 @@ public:
   // Callback used by isolation module to tell us when an executor exits.
   void executorExited(FrameworkID frameworkId, int status);
 
+  // Kill a framework (possibly killing its executor).
+  void killFramework(Framework *framework, bool killExecutor = true);
+
   string getUniqueWorkDirectory(FrameworkID fid);
 
   const Params& getConf();
@@ -203,9 +206,6 @@ protected:
   // Send any tasks queued up for the given framework to its executor
   // (needed if we received tasks while the executor was starting up).
   void sendQueuedTasks(Framework *framework);
-
-  // Kill a framework (possibly killing its executor).
-  void killFramework(Framework *framework, bool killExecutor = true);
 };
 
 }}}

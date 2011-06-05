@@ -164,13 +164,15 @@ void LxcIsolationModule::resourcesChanged(Framework* fw)
     int32_t cpuShares = max(CPU_SHARES_PER_CPU * fw->resources.cpus,
                             MIN_CPU_SHARES);
     if (!setResourceLimit(fw, "cpu.shares", cpuShares)) {
-      slave->removeExecutor(fw->id, true);
+      // Tell slave to kill framework, which will invoke killExecutor.
+      slave->killFramework(fw);
       return;
     }
 
     int64_t rssLimit = max(fw->resources.mem, MIN_RSS);
     if (!setResourceLimit(fw, "memory.limit_in_bytes", rssLimit)) {
-      slave->removeExecutor(fw->id, true);
+      // Tell slave to kill framework, which will invoke killExecutor.
+      slave->killFramework(fw);
       return;
     }
   }
@@ -239,7 +241,7 @@ void LxcIsolationModule::Reaper::operator () ()
             LOG(INFO) << "Telling slave of lost framework " << fid;
             // TODO(benh): This is broken if/when libprocess is parallel!
             module->slave->executorExited(fid, status);
-            delete module->infos[fw->id];
+            delete module->infos[fid];
             module->infos.erase(fid);
             break;
           }
