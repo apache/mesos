@@ -55,15 +55,6 @@ function setuptorque {
 	popd
 }
 
-function setupmpi {
-        ./setup-mpi
-        #setup epilog script
-        cp prologue.setup-mpi-master /var/spool/torque/mom_priv/prologue
-        cp prologue.parallel.setup-mpi-conf /var/spool/torque/mom_priv/prologue.parallel
-        
-	for i in `cat $SLAVES_FILE`; do scp prologue.setup-mpi-master $i:/var/spool/torque/mom_priv/prologue; done
-	for i in `cat $SLAVES_FILE`; do scp prologue.parallel.setup-mpi-conf $i:/var/spool/torque/mom_priv/prologue.parallel; done
-}
 
 function installslaves {
 	pushd ~/torque-2.4.7
@@ -86,7 +77,19 @@ function installslaves {
 	popd
 }
 
+function installmpi {
+        #setup mpich2 on all of the cluster nodes
+        ./setup-mpi
+
+        #setup prologue script
+        cp prologue.setup-mpi-master /var/spool/torque/mom_priv/prologue
+        cp prologue.parallel.setup-mpi-conf /var/spool/torque/mom_priv/prologue.parallel
+        
+	for i in `cat $SLAVES_FILE`; do scp prologue.setup-mpi-master $i:/var/spool/torque/mom_priv/prologue; done
+	for i in `cat $SLAVES_FILE`; do scp prologue.parallel.setup-mpi-conf $i:/var/spool/torque/mom_priv/prologue.parallel; done
+}
+
 #installtorque
 setuptorque
 #installslaves
-setupmpi
+installmpi

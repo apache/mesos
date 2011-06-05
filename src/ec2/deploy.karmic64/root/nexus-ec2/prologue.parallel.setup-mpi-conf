@@ -1,7 +1,6 @@
-#! /usr/bin/env bash
+#! /usr/bin/env sh
 
-apt-get -y install mpich2
-
-touch /etc/mpi.conf
-chmod 600 /etc/mpi.conf
-echo "MPD_SECRETWORD=$1" | cat >> /etc/mpi.conf
+touch /etc/mpd.conf
+chmod 600 /etc/mpd.conf
+echo "MPD_SECRETWORD=$1" | cat >> /etc/mpd.conf
+echo "finished setting up /etc/mpd.conf with value MPD_SECRETWORK=$1"

@@ -22,6 +22,12 @@ SCRIPTS="copy-dir
          setup-apache
          setup-slave              
          setup-torque
+         setup-torque-server
+         start-torque-slaves
+         stop-torque-slaves
+         prologue.parallel.setup-mpi-conf
+         prologue.setup-mpi-master
+         setup-mpi
          ssh-no-keychecking
          start-mos
          start-nexus
