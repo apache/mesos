@@ -660,6 +660,7 @@ CC
 CFLAGS
 CPP'
 ac_subdirs_all='third_party/glog-0.3.1
+third_party/gmock-1.5.0
 third_party/libev-3.8'
 
 # Initialize some variables set by options.
@@ -4206,6 +4207,8 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 
 subdirs="$subdirs third_party/glog-0.3.1"
+
+subdirs="$subdirs third_party/gmock-1.5.0"
 
 subdirs="$subdirs third_party/libev-3.8"
 

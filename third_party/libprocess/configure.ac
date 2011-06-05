@@ -34,6 +34,7 @@ AC_CHECK_FUNCS([gethostbyname gethostname getpagesize memset select socket])
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_SUBDIRS([third_party/glog-0.3.1])
+AC_CONFIG_SUBDIRS([third_party/gmock-1.5.0])
 AC_CONFIG_SUBDIRS([third_party/libev-3.8])
 
 # Temporary fix so we don't build dylib's on Mac OS X.

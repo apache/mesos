@@ -10,13 +10,14 @@ LIBS = @LIBS@
 
 BOOST = third_party/boost-1.37.0
 GLOG = third_party/glog-0.3.1
+GMOCK = third_party/gmock-1.5.0
 LIBEV = third_party/libev-3.8
 RY_HTTP_PARSER = third_party/ry-http-parser-1c3624a
 
 # Get better debugging info.
 CXXFLAGS += -g
 
-# Add . to CXXFLAGS.
+# Add source directory to CXXFLAGS.
 CXXFLAGS += -I@srcdir@
 
 # Add libev to CXXFLAGS.
@@ -29,8 +30,8 @@ CXXFLAGS += -I@srcdir@/$(BOOST)
 CXXFLAGS += -I@srcdir@/$(RY_HTTP_PARSER)
 
 # Add glog to include and lib paths.
-CXXFLAGS += -I@srcdir@/$(GLOG)/src -I@builddir@/$(GLOG)/src
-LDFLAGS += -L@builddir@/$(GLOG)/.libs
+CXXFLAGS += -I@srcdir@/$(GLOG)/src -I$(GLOG)/src
+LDFLAGS += -L$(GLOG)/.libs
 
 # Add -fPIC to CXXFLAGS.
 CXXFLAGS += -fPIC -D_XOPEN_SOURCE
@@ -41,41 +42,72 @@ CXXFLAGS += -MMD -MP
 LDFLAGS += -L. -L$(LIBEV)/.libs
 LIBS += -lprocess -lglog -lev -lpthread
 
-LIBPROCESS_OBJS = process.o pid.o fatal.o tokenize.o latch.o
+LIBPROCESS_OBJ = process.o pid.o fatal.o tokenize.o latch.o
 LIBPROCESS_LIB = libprocess.a
+
+# Create some testing specific flags.
+CXXFLAGS_TEST = $(CXXFLAGS)
+LDFLAGS_TEST = $(LDFLAGS)
+LIBS_TEST = $(LIBS)
+
+# Add gmock/gtest to include paths, library paths, and libraries for testing.
+CXXFLAGS_TEST += -I@srcdir@/$(GMOCK)/include -I@srcdir@/$(GMOCK)/gtest/include
+LDFLAGS_TEST += -L$(GMOCK)/lib/.libs -L$(GMOCK)/gtest/lib/.libs
+LIBS_TEST += -lgmock -lgtest
+
+LIBPROCESS_TEST_OBJ = tests.o
+LIBPROCESS_TEST_EXE = tests
 
 
 default: all
 
--include $(patsubst %.o, %.d, $(LIBPROCESS_OBJS))
+-include $(patsubst %.o, %.d, $(LIBPROCESS_OBJ))
+-include $(patsubst %.o, %.d, $(LIBPROCESS_TEST_OBJ))
+-include $(patsubst %, %.d, $(LIBPROCESS_TEST_EXE))
 
-$(LIBPROCESS_OBJS): %.o: @srcdir@/%.cpp 
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+$(LIBPROCESS_OBJ): %.o: @srcdir@/%.cpp 
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
-$(LIBPROCESS_LIB): $(LIBPROCESS_OBJS)
+$(LIBPROCESS_LIB): $(LIBPROCESS_OBJ)
 	$(AR) rcs $@ $^ $(RY_HTTP_PARSER)/http_parser_g.o
 
 third_party:
 	$(MAKE) -C $(GLOG)
-	$(MAKE) -C @builddir@/$(LIBEV)
-	cp -r @srcdir@/$(RY_HTTP_PARSER) @builddir@/third_party
-	$(MAKE) -C @builddir@/$(RY_HTTP_PARSER) http_parser_g.o
+	$(MAKE) -C $(GMOCK)
+	$(MAKE) -C $(LIBEV)
+	cp -r @srcdir@/$(RY_HTTP_PARSER) third_party
+	$(MAKE) -C $(RY_HTTP_PARSER) http_parser_g.o
+
+$(LIBPROCESS_TEST_OBJ): %.o: @srcdir@/%.cpp
+	$(CXX) -c $(CXXFLAGS_TEST) -o $@ $<
+
+$(LIBPROCESS_TEST_EXE): $(LIBPROCESS_LIB) $(LIBPROCESS_TEST_OBJ)
+	$(CXX) $(CXXFLAGS_TEST) -o $@ $^ $(LDFLAGS_TEST) $(LIBS_TEST)
+
+test: $(LIBPROCESS_TEST_EXE)
+	./$(LIBPROCESS_TEST_EXE)
+
+examples:
+	$(CXX) $(CXXFLAGS) -o example @srcdir@/example.cpp $(LDFLAGS) $(LIBS)
 
 all: third_party $(LIBPROCESS_LIB)
 
-test: all
-	$(CXX) $(CXXFLAGS) -o test @srcdir@/test.cpp $(LDFLAGS) $(LIBS)
-
 clean:
 	$(MAKE) -C $(GLOG) clean
-	$(MAKE) -C @builddir@/$(LIBEV)
-	$(MAKE) -C @builddir@/$(RY_HTTP_PARSER) clean
-	rm -f $(patsubst %.o, %.d, $(LIBPROCESS_OBJS)) $(LIBPROCESS_OBJS) $(LIBPROCESS_LIB)
+	$(MAKE) -C $(GMOCK) clean
+	$(MAKE) -C $(LIBEV)
+	$(MAKE) -C $(RY_HTTP_PARSER) clean
+	rm -f $(patsubst %.o, %.d, $(LIBPROCESS_OBJ)) $(LIBPROCESS_OBJ)
+	rm -f $(LIBPROCESS_LIB)
+	rm -f $(patsubst %.o, %.d, $(LIBPROCESS_TEST_OBJ))
+	rm -f $(LIBPROCESS_TEST_EXE)
+	rm -f example
 
 distclean: clean
 	$(MAKE) -C $(GLOG) distclean
-	$(MAKE) -C @builddir@/$(LIBEV) distclean
+	$(MAKE) -C $(GMOCK) distclean
+	$(MAKE) -C $(LIBEV) distclean
 	rm -f config.status config.cache config.log
 	rm -f Makefile
 
-.PHONY: default third_party all clean
+.PHONY: default third_party test examples all clean
