@@ -109,11 +109,11 @@ done
 echo "Setting up master as slave (i.e. for local)..."
 ./setup-slave
 
-if [ $NUM_MASTERS -gt 1 ]; then
+if [[ `cat $MASTERS | wc -l` > 1 ]] ; then
   echo "RSYNC'ing Hadoop config files for HDFS to masters..."
   for master in `cat $MASTERS`; do
-    echo $slave
-    rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $slave:$HADOOP_HOME
+    echo $master
+    rsync -e "ssh $SSH_OPTS" -az $HADOOP_HOME/conf $master:$HADOOP_HOME
   done
 fi
 
