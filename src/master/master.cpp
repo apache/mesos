@@ -1106,7 +1106,8 @@ void Master::deactivatedSlaveHostnamePort(const string& hostname, uint16_t port)
     // Look for a connected slave and remove it.
     foreachpair (_, Slave* slave, slaves) {
       if (slave->info.hostname() == hostname && slave->pid.port == port) {
-        LOG(WARNING) << "Removing slave " << slave->slaveId
+        LOG(WARNING) << "Removing slave " << slave->slaveId << " at "
+		     << hostname << ":" << port
                      << " because it has been deactivated";
         removeSlave(slave);
         break;
