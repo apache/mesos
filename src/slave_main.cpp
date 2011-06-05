@@ -11,13 +11,13 @@ using namespace nexus::internal::slave;
 void usage(const char *programName)
 {
   cerr << "Usage: " << programName
-       << " [--url URL]"
+       << " --url MASTER_URL"
        << " [--cpus NUM]"
        << " [--mem NUM]"
        << " [--isolation TYPE]"
        << " [--quiet]" << endl
        << endl
-       << "URL (used for connecting to a master) may be one of:" << endl
+       << "MASTER_URL may be one of:" << endl
        << "  nexus://id@host:port" << endl
        << "  zoo://host1:port1,host2:port2,..." << endl
        << "  zoofile://file where file contains a host:port pair per line"
@@ -71,6 +71,11 @@ int main(int argc, char **argv)
       default:
         break;
     }
+  }
+
+  if (url == "") {
+    cerr << "Master URL argument (--url) required." << endl;
+    exit(1);
   }
 
   if (!quiet)
