@@ -1917,8 +1917,8 @@ ev_default_destroy (void)
   ev_default_loop_ptr = 0;
 
 #ifndef _WIN32
-  ev_ref (EV_A); /* child watcher */
-  ev_signal_stop (EV_A_ &childev);
+/*   ev_ref (EV_A); /\* child watcher *\/ */
+/*   ev_signal_stop (EV_A_ &childev); */
 #endif
 
   loop_destroy (EV_A);
