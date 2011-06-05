@@ -1,6 +1,7 @@
 #ifndef __CONFIGURATION_HPP__
 #define __CONFIGURATION_HPP__
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <string>
