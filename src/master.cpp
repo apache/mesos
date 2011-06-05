@@ -453,6 +453,15 @@ void Master::operator () ()
                    << "generating a new id for it.";
       }
 
+      LOG(INFO) << "Re-registering " << slave << " at " << slave->pid;
+      slaves[slave->id] = slave;
+      pidToSid[slave->pid] = slave->id;
+      link(slave->pid);
+      send(slave->pid,
+           pack<M2S_REREGISTER_REPLY>(slave->id, HEARTBEAT_INTERVAL));
+
+      allocator->slaveAdded(slave);
+
       foreach (const Task &t, tasks) {
         Task *task = new Task(t);
         slave->addTask(task);
@@ -469,14 +478,7 @@ void Master::operator () ()
       // TODO(benh|alig): We should put a timeout on how long we keep
       // tasks running that never have frameworks reregister that
       // claim them.
-  
-      LOG(INFO) << "Re-registering " << slave << " at " << slave->pid;
-      slaves[slave->id] = slave;
-      pidToSid[slave->pid] = slave->id;
-      link(slave->pid);
-      send(slave->pid,
-           pack<M2S_REREGISTER_REPLY>(slave->id, HEARTBEAT_INTERVAL));
-      allocator->slaveAdded(slave);
+
       break;
     }
 
