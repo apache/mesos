@@ -76,6 +76,6 @@ function installslaves {
 	popd
 }
 
-#installtorque
+installtorque
 setuptorque
-#installslaves
+installslaves
