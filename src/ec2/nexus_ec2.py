@@ -16,7 +16,7 @@ from tempfile import NamedTemporaryFile
 
 def parse_args():
   parser = OptionParser(usage="nexus-ec2 [options] <action> <cluster_name>"
-      + "\n\n<action> can be: launch, shutdown, login",
+      + "\n\n<action> can be: launch, shutdown, login, get-master",
       add_help_option=False)
   parser.add_option("-h", "--help", action="help",
                     help="Show this help message and exit")
@@ -300,6 +300,12 @@ def main():
       proxy_opt = "-D " + opts.proxy_port
     subprocess.check_call("ssh -o StrictHostKeyChecking=no -i %s %s root@%s" %
         (opts.identity_file, proxy_opt, master), shell=True)
+  elif action == "get-master":
+    (master_res, slave_res) = get_existing_cluster(conn, opts, cluster_name)
+    print master_res.instances[0].public_dns_name
+  else:
+    print >> STDERR, "Invalid action: %s" % action
+    sys.exit(1)
 
 
 if __name__ == "__main__":
