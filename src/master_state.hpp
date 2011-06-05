@@ -79,11 +79,11 @@ struct Task
 
 struct Framework
 {
-  Framework(FrameworkID id_, const std::string& name_,
-      const std::string& executor_, int32_t cpus_, int64_t mem_,
-      time_t connect_)
-    : id(id_), name(name_), executor(executor_), cpus(cpus_), mem(mem_),
-      connect_time(connect_) {}
+  Framework(FrameworkID id_, const std::string& user_,
+      const std::string& name_, const std::string& executor_,
+      int32_t cpus_, int64_t mem_, time_t connect_)
+    : id(id_), user(user_), name(name_), executor(executor_),
+      cpus(cpus_), mem(mem_), connect_time(connect_) {}
 
   Framework() {}
 
@@ -96,6 +96,7 @@ struct Framework
   }
 
   FrameworkID id;
+  std::string user;
   std::string name;
   std::string executor;
   int32_t cpus;

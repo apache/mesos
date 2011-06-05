@@ -73,8 +73,8 @@ Idle: {{idle_cpus}} CPUs, {{format_mem(idle_mem)}} MEM<br />
   <table>
   <tr>
   <th>ID</th>
+  <th>User</th>
   <th>Name</th>
-  <th>Executor</th>
   <th>Running Tasks</th>
   <th>CPUs</th>
   <th>MEM</th>
@@ -93,8 +93,8 @@ Idle: {{idle_cpus}} CPUs, {{format_mem(idle_mem)}} MEM<br />
     %max_share = max(cpu_share, mem_share)
     <tr>
     <td>{{framework.id}}</td>
+    <td>{{framework.user}}</td>
     <td><a href="/framework/{{framework.id}}">{{framework.name}}</a></td>
-    <td>{{os.path.basename(framework.executor)}}</td>
     <td>{{framework.tasks.size()}}</td>
     <td>{{framework.cpus}}</td>
     <td>{{format_mem(framework.mem)}}</td>

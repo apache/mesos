@@ -166,14 +166,14 @@ state::MasterState * Master::getState()
 
   foreachpair (_, Slave *s, slaves) {
     state::Slave *slave = new state::Slave(s->id, s->hostname, s->publicDns,
-          s->resources.cpus, s->resources.mem, s->connectTime);
+        s->resources.cpus, s->resources.mem, s->connectTime);
     state->slaves.push_back(slave);
   }
 
   foreachpair (_, Framework *f, frameworks) {
-    state::Framework *framework = new state::Framework(f->id, f->name, 
-       f->executorInfo.uri, f->resources.cpus, f->resources.mem,
-       f->connectTime);
+    state::Framework *framework = new state::Framework(f->id, f->user,
+        f->name, f->executorInfo.uri, f->resources.cpus, f->resources.mem,
+        f->connectTime);
     state->frameworks.push_back(framework);
     foreachpair (_, Task *t, f->tasks) {
       state::Task *task = new state::Task(t->id, t->name, t->frameworkId,
