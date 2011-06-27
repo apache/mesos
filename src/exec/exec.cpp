@@ -7,61 +7,75 @@
 #include <sstream>
 
 #include <boost/bind.hpp>
-#include <boost/unordered_map.hpp>
 
 #include <mesos/executor.hpp>
 
+#include <process/dispatch.hpp>
 #include <process/process.hpp>
+#include <process/protobuf.hpp>
 
 #include "common/fatal.hpp"
 #include "common/lock.hpp"
 #include "common/logging.hpp"
 #include "common/type_utils.hpp"
+#include "common/uuid.hpp"
 
-#include "messaging/messages.hpp"
+#include "messages/messages.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 
+using namespace process;
+
 using boost::bind;
 using boost::cref;
-using boost::unordered_map;
-
-using process::UPID;
 
 using std::string;
+
+using process::wait; // Necessary on some OS's to disambiguate.
 
 
 namespace mesos { namespace internal {
 
-class ExecutorProcess : public MesosProcess<ExecutorProcess>
+class ExecutorProcess : public ProtobufProcess<ExecutorProcess>
 {
 public:
-  ExecutorProcess(const UPID& _slave, MesosExecutorDriver* _driver,
-                  Executor* _executor, const FrameworkID& _frameworkId,
-                  const ExecutorID& _executorId, bool _local)
-    : slave(_slave), driver(_driver), executor(_executor),
-      frameworkId(_frameworkId), executorId(_executorId),
-      local(_local), terminate(false)
+  ExecutorProcess(const UPID& _slave,
+                  MesosExecutorDriver* _driver,
+                  Executor* _executor,
+                  const FrameworkID& _frameworkId,
+                  const ExecutorID& _executorId,
+                  bool _local)
+    : slave(_slave),
+      driver(_driver),
+      executor(_executor),
+      frameworkId(_frameworkId),
+      executorId(_executorId),
+      local(_local)
   {
-    install(S2E_REGISTER_REPLY, &ExecutorProcess::registerReply,
-            &ExecutorRegisteredMessage::args);
+    installProtobufHandler<ExecutorRegisteredMessage>(
+        &ExecutorProcess::registered,
+        &ExecutorRegisteredMessage::args);
 
-    install(S2E_RUN_TASK, &ExecutorProcess::runTask,
-            &RunTaskMessage::task);
+    installProtobufHandler<RunTaskMessage>(
+        &ExecutorProcess::runTask,
+        &RunTaskMessage::task);
 
-    install(S2E_KILL_TASK, &ExecutorProcess::killTask,
-            &KillTaskMessage::task_id);
+    installProtobufHandler<KillTaskMessage>(
+        &ExecutorProcess::killTask,
+        &KillTaskMessage::task_id);
 
-    install(S2E_FRAMEWORK_MESSAGE, &ExecutorProcess::frameworkMessage,
-	    &FrameworkMessageMessage::slave_id,
-	    &FrameworkMessageMessage::framework_id,
-	    &FrameworkMessageMessage::executor_id,
-	    &FrameworkMessageMessage::data);
+    installProtobufHandler<FrameworkToExecutorMessage>(
+        &ExecutorProcess::frameworkMessage,
+        &FrameworkToExecutorMessage::slave_id,
+        &FrameworkToExecutorMessage::framework_id,
+        &FrameworkToExecutorMessage::executor_id,
+        &FrameworkToExecutorMessage::data);
 
-    install(S2E_KILL_EXECUTOR, &ExecutorProcess::killExecutor);
+    installProtobufHandler<ShutdownExecutorMessage>(
+        &ExecutorProcess::shutdown);
 
-    install(process::EXITED, &ExecutorProcess::exited);
+    installMessageHandler(EXITED, &ExecutorProcess::exited);
   }
 
   virtual ~ExecutorProcess() {}
@@ -74,46 +88,32 @@ protected:
     link(slave);
 
     // Register with slave.
-    MSG<E2S_REGISTER_EXECUTOR> out;
-    out.mutable_framework_id()->MergeFrom(frameworkId);
-    out.mutable_executor_id()->MergeFrom(executorId);
-    send(slave, out);
+    RegisterExecutorMessage message;
+    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_executor_id()->MergeFrom(executorId);
+    send(slave, message);
 
-    while(true) {
-      // Check for terminate in the same way as SchedulerProcess. See
-      // comments there for an explanation of why this is necessary.
-      if (terminate) return;
-
-      serve(0, true);
-    }
+    do { if (serve() == TERMINATE) break; } while (true);
   }
 
-  void registerReply(const ExecutorArgs& args)
+  void registered(const ExecutorArgs& args)
   {
     VLOG(1) << "Executor registered on slave " << args.slave_id();
     slaveId = args.slave_id();
-    process::invoke(bind(&Executor::init, executor, driver, cref(args)));
+    invoke(bind(&Executor::init, executor, driver, cref(args)));
   }
 
   void runTask(const TaskDescription& task)
   {
-    VLOG(1) << "Executor asked to run a task " << task.task_id();
+    VLOG(1) << "Executor asked to run task '" << task.task_id() << "'";
 
-    MSG<E2S_STATUS_UPDATE> out;
-    out.mutable_framework_id()->MergeFrom(frameworkId);
-    TaskStatus* status = out.mutable_status();
-    status->mutable_task_id()->MergeFrom(task.task_id());
-    status->mutable_slave_id()->MergeFrom(slaveId);
-    status->set_state(TASK_RUNNING);
-    send(slave, out);
-
-    process::invoke(bind(&Executor::launchTask, executor, driver, cref(task)));
+    invoke(bind(&Executor::launchTask, executor, driver, cref(task)));
   }
 
   void killTask(const TaskID& taskId)
   {
-    VLOG(1) << "Executor asked to kill task " << taskId;
-    process::invoke(bind(&Executor::killTask, executor, driver, cref(taskId)));
+    VLOG(1) << "Executor asked to kill task '" << taskId << "'";
+    invoke(bind(&Executor::killTask, executor, driver, cref(taskId)));
   }
 
   void frameworkMessage(const SlaveID& slaveId,
@@ -122,18 +122,18 @@ protected:
 			const string& data)
   {
     VLOG(1) << "Executor received framework message";
-    process::invoke(bind(&Executor::frameworkMessage, executor, driver,
-                         cref(data)));
+    invoke(bind(&Executor::frameworkMessage, executor, driver, cref(data)));
   }
 
-  void killExecutor()
+  void shutdown()
   {
     VLOG(1) << "Executor asked to shutdown";
-    process::invoke(bind(&Executor::shutdown, executor, driver));
+    // TODO(benh): Any need to invoke driver.stop?
+    invoke(bind(&Executor::shutdown, executor, driver));
     if (!local) {
       exit(0);
     } else {
-      return;
+      terminate(this);
     }
   }
 
@@ -142,7 +142,7 @@ protected:
     VLOG(1) << "Slave exited, trying to shutdown";
 
     // TODO: Pass an argument to shutdown to tell it this is abnormal?
-    process::invoke(bind(&Executor::shutdown, executor, driver));
+    invoke(bind(&Executor::shutdown, executor, driver));
 
     // This is a pretty bad state ... no slave is left. Rather
     // than exit lets kill our process group (which includes
@@ -152,8 +152,31 @@ protected:
     if (!local) {
       killpg(0, SIGKILL);
     } else {
-      terminate = true;
+      terminate(this);
     }
+  }
+
+  void sendStatusUpdate(const TaskStatus& status)
+  {
+    StatusUpdateMessage message;
+    StatusUpdate* update = message.mutable_update();
+    update->mutable_framework_id()->MergeFrom(frameworkId);
+    update->mutable_executor_id()->MergeFrom(executorId);
+    update->mutable_slave_id()->MergeFrom(slaveId);
+    update->mutable_status()->MergeFrom(status);
+    update->set_timestamp(elapsedTime());
+    update->set_uuid(UUID::random().toBytes());
+    send(slave, message);
+  }
+
+  void sendFrameworkMessage(const string& data)
+  {
+    ExecutorToFrameworkMessage message;
+    message.mutable_slave_id()->MergeFrom(slaveId);
+    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_executor_id()->MergeFrom(executorId);
+    message.set_data(data);
+    send(slave, message);
   }
 
 private:
@@ -166,16 +189,12 @@ private:
   ExecutorID executorId;
   SlaveID slaveId;
   bool local;
-
-  volatile bool terminate;
 };
 
-}} /* namespace mesos { namespace internal { */
+}} // namespace mesos { namespace internal {
 
 
-/*
- * Implementation of C++ API.
- */
+// Implementation of C++ API.
 
 
 MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
@@ -200,7 +219,7 @@ MesosExecutorDriver::~MesosExecutorDriver()
 {
   // Just as in SchedulerProcess, we might wait here indefinitely if
   // MesosExecutorDriver::stop has not been invoked.
-  process::wait(process->self());
+  wait(process);
   delete process;
 
   pthread_mutex_destroy(&mutex);
@@ -273,7 +292,7 @@ int MesosExecutorDriver::start()
   process =
     new ExecutorProcess(slave, this, executor, frameworkId, executorId, local);
 
-  process::spawn(process);
+  spawn(process);
 
   running = true;
 
@@ -290,12 +309,8 @@ int MesosExecutorDriver::stop()
   }
 
   CHECK(process != NULL);
-
-  process->terminate = true;
-  process::post(process->self(), process::TERMINATE);
-
+  terminate(process);
   running = false;
-
   pthread_cond_signal(&cond);
 
   return 0;
@@ -331,17 +346,7 @@ int MesosExecutorDriver::sendStatusUpdate(const TaskStatus& status)
   }
 
   CHECK(process != NULL);
-
-  // Validate that they set the correct slave ID.
-  if (!(process->slaveId == status.slave_id())) {
-    return -1;
-  }
-
-  // TODO(benh): Do a dispatch to Executor first?
-  MSG<E2S_STATUS_UPDATE> out;
-  out.mutable_framework_id()->MergeFrom(process->frameworkId);
-  out.mutable_status()->MergeFrom(status);
-  process->send(process->slave, out);
+  dispatch(process, &ExecutorProcess::sendStatusUpdate, status);
 
   return 0;
 }
@@ -357,14 +362,7 @@ int MesosExecutorDriver::sendFrameworkMessage(const string& data)
   }
 
   CHECK(process != NULL);
-
-  // TODO(benh): Do a dispatch to Executor first?
-  MSG<E2S_FRAMEWORK_MESSAGE> out;
-  out.mutable_slave_id()->MergeFrom(process->slaveId);
-  out.mutable_framework_id()->MergeFrom(process->frameworkId);
-  out.mutable_executor_id()->MergeFrom(process->executorId);
-  out.set_data(data);
-  process->send(process->slave, out);
+  dispatch(process, &ExecutorProcess::sendFrameworkMessage, data);
 
   return 0;
 }

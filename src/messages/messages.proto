@@ -2,6 +2,13 @@ import "mesos.proto";
 
 package mesos.internal;
 
+// TODO(benh): Provide comments for each of these messages. Also,
+// consider splitting these messages into different "packages" which
+// represent which messages get handled by which components (e.g., the
+// "mesos.internal.executor" package includes messages that the
+// executor handles).
+
+
 // TODO(benh): It would be great if this could just be a
 // TaskDescription wherever it gets used! However, doing so would
 // require adding the framework_id field, the executor_id field, and
@@ -10,13 +17,23 @@ package mesos.internal;
 // because storing whatever data is coupled with a TaskDescription
 // could be large and unnecessary.
 message Task {
-  required FrameworkID framework_id = 1;
-  required ExecutorID executor_id = 2;
-  required TaskState state = 3;
-  required string name = 4;
-  required TaskID task_id = 5;
-  required SlaveID slave_id = 6;
+  required string name = 1;
+  required TaskID task_id = 2;
+  required FrameworkID framework_id = 3;
+  required ExecutorID executor_id = 4;
+  required SlaveID slave_id = 5;
+  required TaskState state = 6;
   repeated Resource resources = 7;
+}
+
+
+message StatusUpdate {
+  required FrameworkID framework_id = 1;
+  optional ExecutorID executor_id = 2;
+  optional SlaveID slave_id = 3;
+  required TaskStatus status = 4;
+  required double timestamp = 5;
+  required bytes uuid = 6;
 }
 
 
@@ -26,7 +43,15 @@ message ResourceOffer {
 }
 
 
-message FrameworkMessageMessage { // :(
+message ExecutorToFrameworkMessage {
+  required SlaveID slave_id = 1;
+  required FrameworkID framework_id = 2;
+  required ExecutorID executor_id = 3;
+  required bytes data = 4;
+}
+
+
+message FrameworkToExecutorMessage {
   required SlaveID slave_id = 1;
   required FrameworkID framework_id = 2;
   required ExecutorID executor_id = 3;
@@ -82,8 +107,8 @@ message ReviveOffersMessage {
 
 
 message RunTaskMessage {
-  required FrameworkInfo framework = 1;
-  required FrameworkID framework_id = 2;
+  required FrameworkID framework_id = 1;
+  required FrameworkInfo framework = 2;
   required string pid = 3;
   required TaskDescription task = 4;
 }
@@ -96,15 +121,16 @@ message KillTaskMessage {
 
 
 message StatusUpdateMessage {
-  required FrameworkID framework_id = 1;
-  required TaskStatus status = 2;
+  required StatusUpdate update = 1;
+  optional string pid = 2;
 }
 
 
-message StatusUpdateAckMessage {
-  required FrameworkID framework_id = 1;
-  required SlaveID slave_id = 2;
+message StatusUpdateAcknowledgementMessage {
+  required SlaveID slave_id = 1;
+  required FrameworkID framework_id = 2;
   required TaskID task_id = 3;
+  required bytes uuid = 4;
 }
 
 
@@ -136,6 +162,11 @@ message SlaveRegisteredMessage {
 }
 
 
+message SlaveReregisteredMessage {
+  required SlaveID slave_id = 1;
+}
+
+
 message UnregisterSlaveMessage {
   required SlaveID slave_id = 1;
 }
@@ -146,9 +177,15 @@ message HeartbeatMessage {
 }
 
 
-message KillFrameworkMessage {
+// Tells a slave to shut down all executors of the given framework.
+message ShutdownFrameworkMessage {
   required FrameworkID framework_id = 1;
 }
+
+
+// Tells the executor to initiate a shut down by invoking
+// Executor::shutdown.
+message ShutdownExecutorMessage {}
 
 
 message UpdateFrameworkMessage {
@@ -172,7 +209,7 @@ message ExitedExecutorMessage {
   required SlaveID slave_id = 1;
   required FrameworkID framework_id = 2;
   required ExecutorID executor_id = 3;
-  required int32 result = 4;
+  required int32 status = 4;
 }
 
 
@@ -195,6 +232,8 @@ message FrameworkExpiredMessage {
   required FrameworkID framework_id = 1;
 }
 
+
+message NoMasterDetectedMessage {}
 
 message NewMasterDetectedMessage {
   required string pid = 2;

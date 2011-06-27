@@ -51,6 +51,8 @@ int main(int argc, char** argv)
   // Get absolute path to Mesos home directory based on location of alltests
   mesos::internal::test::mesosHome = getMesosHome(argc, argv);
 
+  std::cout << "MESOS_HOME: " << mesos::internal::test::mesosHome << std::endl;
+
   // Clear any MESOS_ environment variables so they don't affect our tests
   Configurator::clearMesosEnvironmentVars();
 

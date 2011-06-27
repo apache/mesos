@@ -56,7 +56,7 @@ void SimpleAllocator::taskRemoved(Task* task, TaskRemovalReason reason)
 {
   LOG(INFO) << "Removed " << task;
   // Remove all refusers from this slave since it has more resources free
-  Slave* slave = master->lookupSlave(task->slave_id());
+  Slave* slave = master->getSlave(task->slave_id());
   CHECK(slave != 0);
   refusers[slave].clear();
   // Re-offer the resources, unless this task was removed due to a lost
@@ -66,7 +66,7 @@ void SimpleAllocator::taskRemoved(Task* task, TaskRemovalReason reason)
 }
 
 
-void SimpleAllocator::offerReturned(SlotOffer* offer,
+void SimpleAllocator::offerReturned(Offer* offer,
                                     OfferReturnReason reason,
                                     const vector<SlaveResources>& resLeft)
 {
@@ -74,7 +74,7 @@ void SimpleAllocator::offerReturned(SlotOffer* offer,
 
   // If this offer returned due to the framework replying, add it to refusers.
   if (reason == ORR_FRAMEWORK_REPLIED) {
-    Framework* framework = master->lookupFramework(offer->frameworkId);
+    Framework* framework = master->getFramework(offer->frameworkId);
     CHECK(framework != 0);
     foreach (const SlaveResources& r, resLeft) {
       VLOG(1) << "Framework reply leaves " << r.resources.allocatable()
@@ -148,7 +148,7 @@ struct DominantShareComparator
 
     if (share1 == share2)
       // Make the sort deterministic for unit testing.
-      return f1->frameworkId.value() < f2->frameworkId.value();
+      return f1->id.value() < f2->id.value();
     else
       return share1 < share2;
   }
@@ -235,7 +235,7 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
   }
   
   // Clear refusers on any slave that has been refused by everyone
-  foreachpair (Slave* slave, _, freeResources) {
+  foreachkey (Slave* slave, freeResources) {
     unordered_set<Framework*>& refs = refusers[slave];
     if (refs.size() == ordering.size()) {
       VLOG(1) << "Clearing refusers for " << slave
@@ -251,7 +251,7 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
       if (refusers[slave].find(framework) == refusers[slave].end() &&
           !framework->filters(slave, resources)) {
         VLOG(1) << "Offering " << resources << " on " << slave
-                << " to framework " << framework->frameworkId;
+                << " to framework " << framework->id;
         offerable.push_back(SlaveResources(slave, resources));
       }
     }

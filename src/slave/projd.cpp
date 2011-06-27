@@ -7,7 +7,7 @@
 
 #include "common/fatal.hpp"
 
-#include "messaging/messages.hpp"
+#include "messages/messages.hpp"
 
 
 namespace mesos { namespace internal { namespace projd {

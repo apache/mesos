@@ -20,12 +20,18 @@ public:
   virtual void launchTask(ExecutorDriver* driver, const TaskDescription& task)
   {
     cout << "Starting task " << task.task_id().value() << endl;
-    sleep(1);
-    cout << "Finishing task " << task.task_id().value() << endl;
 
     TaskStatus status;
-    *status.mutable_task_id() = task.task_id();
-    *status.mutable_slave_id() = task.slave_id();
+    status.mutable_task_id()->MergeFrom(task.task_id());
+    status.set_state(TASK_RUNNING);
+
+    driver->sendStatusUpdate(status);
+
+    sleep(1);
+
+    cout << "Finishing task " << task.task_id().value() << endl;
+
+    status.mutable_task_id()->MergeFrom(task.task_id());
     status.set_state(TASK_FINISHED);
 
     driver->sendStatusUpdate(status);

@@ -15,10 +15,11 @@ using namespace std::tr1;
 void run(ExecutorDriver* driver, const TaskDescription& task)
 {
   sleep(100);
+
   TaskStatus status;
-  *status.mutable_task_id() = task.task_id();
-  *status.mutable_slave_id() = task.slave_id();
+  status.mutable_task_id()->MergeFrom(task.task_id());
   status.set_state(TASK_FINISHED);
+
   driver->sendStatusUpdate(status);
 }
 
@@ -52,12 +53,18 @@ public:
     pthread_t pthread;
     if (pthread_create(&pthread, NULL, &start, thunk) != 0) {
       TaskStatus status;
-      *status.mutable_task_id() = task.task_id();
-      *status.mutable_slave_id() = task.slave_id();
+      status.mutable_task_id()->MergeFrom(task.task_id());
       status.set_state(TASK_FAILED);
+
       driver->sendStatusUpdate(status);
     } else {
       pthread_detach(pthread);
+
+      TaskStatus status;
+      status.mutable_task_id()->MergeFrom(task.task_id());
+      status.set_state(TASK_RUNNING);
+
+      driver->sendStatusUpdate(status);
     }
   }
 

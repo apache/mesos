@@ -1,16 +1,13 @@
 #ifndef __TYPE_UTILS_HPP__
 #define __TYPE_UTILS_HPP__
 
+#include <google/protobuf/descriptor.h>
+
 #include <mesos/mesos.hpp>
 
 #include <boost/functional/hash.hpp>
 
-#include "messaging/messages.pb.h"
-
-
-// Some memory unit constants.
-const int32_t Megabyte = 1;
-const int32_t Gigabyte = 1024 * Megabyte;
+#include "messages/messages.hpp"
 
 
 namespace mesos {
@@ -48,6 +45,14 @@ inline std::ostream& operator << (std::ostream& stream, const ExecutorID& execut
   stream << executorId.value();
   return stream;
 }
+
+
+inline std::ostream& operator << (std::ostream& stream, const TaskState& state)
+{
+  stream << TaskState_descriptor()->FindValueByNumber(state)->name();
+  return stream;
+}
+
 
 
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)

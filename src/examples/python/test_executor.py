@@ -12,11 +12,16 @@ class MyExecutor(mesos.Executor):
     # threads or processes, rather than inside launchTask itself.
     def run_task():
       print "Running task %s" % task.task_id.value
+      update = mesos_pb2.TaskStatus()
+      update.task_id.value = task.task_id.value
+      update.state = mesos_pb2.TASK_RUNNING
+      driver.sendStatusUpdate(update)
+
       time.sleep(1)
+
       print "Sending status update..."
       update = mesos_pb2.TaskStatus()
       update.task_id.value = task.task_id.value
-      update.slave_id.value = task.slave_id.value
       update.state = mesos_pb2.TASK_FINISHED
       driver.sendStatusUpdate(update)
       print "Sent status update"

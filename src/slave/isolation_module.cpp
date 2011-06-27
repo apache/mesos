@@ -6,12 +6,10 @@
 #include "lxc_isolation_module.hpp"
 #endif
 
-using std::string;
 
-using namespace mesos::internal::slave;
+namespace mesos { namespace internal { namespace slave {
 
-
-IsolationModule * IsolationModule::create(const string &type)
+IsolationModule* IsolationModule::create(const std::string &type)
 {
   if (type == "process")
     return new ProcessBasedIsolationModule();
@@ -27,8 +25,11 @@ IsolationModule * IsolationModule::create(const string &type)
 }
 
 
-void IsolationModule::destroy(IsolationModule *module)
+void IsolationModule::destroy(IsolationModule* module)
 {
-  if (module != NULL)
+  if (module != NULL) {
     delete module;
+  }
 }
+
+}}} // namespace mesos { namespace internal { namespace slave {

@@ -15,7 +15,7 @@ namespace mesos { namespace internal { namespace slave { namespace state {
 struct Task
 {
   Task(std::string id_, const std::string& name_, std::string state_,
-      int32_t cpus_, int64_t mem_)
+      double cpus_, double mem_)
     : id(id_), name(name_), state(state_), cpus(cpus_), mem(mem_) {}
 
   Task() {}
@@ -23,15 +23,15 @@ struct Task
   std::string id;
   std::string name;
   std::string state;
-  int32_t cpus;
-  int64_t mem;
+  double cpus;
+  double mem;
 };
 
 struct Framework
 {
   Framework(std::string id_, const std::string& name_,
       const std::string& executor_uri_, const std::string& executor_status_,
-      int32_t cpus_, int64_t mem_)
+      double cpus_, double mem_)
     : id(id_), name(name_), executor_uri(executor_uri_),
       executor_status(executor_status_), cpus(cpus_), mem(mem_) {}
 
@@ -47,8 +47,8 @@ struct Framework
   std::string name;
   std::string executor_uri;
   std::string executor_status;
-  int32_t cpus;
-  int64_t mem;
+  double cpus;
+  double mem;
 
   std::vector<Task *> tasks;
 };
@@ -56,7 +56,7 @@ struct Framework
 struct SlaveState
 {
   SlaveState(const std::string& build_date_, const std::string& build_user_,
-	     std::string id_, int32_t cpus_, int64_t mem_, const std::string& pid_,
+	     std::string id_, double cpus_, double mem_, const std::string& pid_,
 	     const std::string& master_pid_)
     : build_date(build_date_), build_user(build_user_), id(id_),
       cpus(cpus_), mem(mem_), pid(pid_), master_pid(master_pid_) {}
@@ -72,8 +72,8 @@ struct SlaveState
   std::string build_date;
   std::string build_user;
   std::string id;
-  int32_t cpus;
-  int64_t mem;
+  double cpus;
+  double mem;
   std::string pid;
   std::string master_pid;
 

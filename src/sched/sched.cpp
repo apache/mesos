@@ -8,8 +8,6 @@
 
 #include <arpa/inet.h>
 
-#include <google/protobuf/descriptor.h>
-
 #include <iostream>
 #include <map>
 #include <string>
@@ -19,14 +17,14 @@
 
 #include <mesos/scheduler.hpp>
 
-#include <boost/unordered_map.hpp>
-#include <boost/unordered_set.hpp>
-
+#include <process/dispatch.hpp>
 #include <process/process.hpp>
+#include <process/protobuf.hpp>
 
 #include "configurator/configuration.hpp"
 
 #include "common/fatal.hpp"
+#include "common/hashmap.hpp"
 #include "common/lock.hpp"
 #include "common/logging.hpp"
 #include "common/type_utils.hpp"
@@ -35,23 +33,20 @@
 
 #include "local/local.hpp"
 
-#include "messaging/messages.hpp"
+#include "messages/messages.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 
+using namespace process;
+
 using boost::cref;
-using boost::unordered_map;
-using boost::unordered_set;
-
-using google::protobuf::RepeatedPtrField;
-
-using process::PID;
-using process::UPID;
 
 using std::map;
 using std::string;
 using std::vector;
+
+using process::wait; // Necessary on some OS's to disambiguate.
 
 using std::tr1::bind;
 
@@ -64,81 +59,69 @@ namespace mesos { namespace internal {
 // we allow friend functions to invoke 'send', 'post', etc. Therefore,
 // we must make sure that any necessary synchronization is performed.
 
-class SchedulerProcess : public MesosProcess<SchedulerProcess>
+class SchedulerProcess : public ProtobufProcess<SchedulerProcess>
 {
 public:
-  SchedulerProcess(MesosSchedulerDriver* _driver, Scheduler* _sched,
+  SchedulerProcess(MesosSchedulerDriver* _driver,
+                   Scheduler* _sched,
 		   const FrameworkID& _frameworkId,
                    const FrameworkInfo& _framework)
-    : driver(_driver), sched(_sched), frameworkId(_frameworkId),
-      framework(_framework), generation(0), master(UPID()), terminate(false)
+    : driver(_driver),
+      sched(_sched),
+      frameworkId(_frameworkId),
+      framework(_framework),
+      generation(0),
+      master(UPID())
   {
-    install(NEW_MASTER_DETECTED, &SchedulerProcess::newMasterDetected,
-            &NewMasterDetectedMessage::pid);
+    installProtobufHandler<NewMasterDetectedMessage>(
+        &SchedulerProcess::newMasterDetected,
+        &NewMasterDetectedMessage::pid);
 
-    install(NO_MASTER_DETECTED, &SchedulerProcess::noMasterDetected);
+    installProtobufHandler<NoMasterDetectedMessage>(
+        &SchedulerProcess::noMasterDetected);
 
-    install(M2F_REGISTER_REPLY, &SchedulerProcess::registerReply,
-            &FrameworkRegisteredMessage::framework_id);
+    installProtobufHandler<FrameworkRegisteredMessage>(
+        &SchedulerProcess::registered,
+        &FrameworkRegisteredMessage::framework_id);
 
-    install(M2F_RESOURCE_OFFER, &SchedulerProcess::resourceOffer,
-            &ResourceOfferMessage::offer_id,
-            &ResourceOfferMessage::offers,
-            &ResourceOfferMessage::pids);
+    installProtobufHandler<ResourceOfferMessage>(
+        &SchedulerProcess::resourceOffer,
+        &ResourceOfferMessage::offer_id,
+        &ResourceOfferMessage::offers,
+        &ResourceOfferMessage::pids);
 
-    install(M2F_RESCIND_OFFER, &SchedulerProcess::rescindOffer,
-            &RescindResourceOfferMessage::offer_id);
+    installProtobufHandler<RescindResourceOfferMessage>(
+        &SchedulerProcess::rescindOffer,
+        &RescindResourceOfferMessage::offer_id);
 
-    install(M2F_STATUS_UPDATE, &SchedulerProcess::statusUpdate,
-            &StatusUpdateMessage::framework_id,
-            &StatusUpdateMessage::status);
+    installProtobufHandler<StatusUpdateMessage>(
+        &SchedulerProcess::statusUpdate,
+        &StatusUpdateMessage::update,
+        &StatusUpdateMessage::pid);
 
-    install(M2F_LOST_SLAVE, &SchedulerProcess::lostSlave,
-            &LostSlaveMessage::slave_id);
+    installProtobufHandler<LostSlaveMessage>(
+        &SchedulerProcess::lostSlave,
+        &LostSlaveMessage::slave_id);
 
-    install(M2F_FRAMEWORK_MESSAGE, &SchedulerProcess::frameworkMessage,
-	    &FrameworkMessageMessage::slave_id,
-	    &FrameworkMessageMessage::framework_id,
-	    &FrameworkMessageMessage::executor_id,
-	    &FrameworkMessageMessage::data);
+    installProtobufHandler<ExecutorToFrameworkMessage>(
+        &SchedulerProcess::frameworkMessage,
+        &ExecutorToFrameworkMessage::slave_id,
+        &ExecutorToFrameworkMessage::framework_id,
+        &ExecutorToFrameworkMessage::executor_id,
+        &ExecutorToFrameworkMessage::data);
 
-    install(M2F_ERROR, &SchedulerProcess::error,
-            &FrameworkErrorMessage::code,
-            &FrameworkErrorMessage::message);
+    installProtobufHandler<FrameworkErrorMessage>(
+        &SchedulerProcess::error,
+        &FrameworkErrorMessage::code,
+        &FrameworkErrorMessage::message);
 
-    install(process::EXITED, &SchedulerProcess::exited);
+    installMessageHandler(process::EXITED, &SchedulerProcess::exited);
   }
 
   virtual ~SchedulerProcess() {}
 
 protected:
-  virtual void operator () ()
-  {
-    while (true) {
-      // Sending a message to terminate this process is insufficient
-      // because that message might get queued behind a bunch of other
-      // message. So, when it is time to terminate, we set a flag that
-      // gets re-read by this process after every message. In order to
-      // get this correct we must return from each invocation of
-      // 'serve', to check and see if terminate has been set. In
-      // addition, we need to send a dummy message right after we set
-      // terminate just in case there aren't any messages in the
-      // queue. Note that the terminate field is only read by this
-      // process, so we don't need to protect it in any way. In fact,
-      // using a lock to protect it (or for providing atomicity for
-      // cleanup, for example), might lead to deadlock with the client
-      // code because we already use a lock in SchedulerDriver. That
-      // being said, for now we make terminate 'volatile' to guarantee
-      // that each read is getting a fresh copy.
-      // TODO(benh): Do a coherent read so as to avoid using
-      // 'volatile'.
-      if (terminate) return;
-
-      serve(0, true);
-    }
-  }
-
-  void newMasterDetected(const string& pid)
+  void newMasterDetected(const UPID& pid)
   {
     VLOG(1) << "New master at " << pid;
 
@@ -147,16 +130,16 @@ protected:
 
     if (frameworkId == "") {
       // Touched for the very first time.
-      MSG<F2M_REGISTER_FRAMEWORK> out;
-      out.mutable_framework()->MergeFrom(framework);
-      send(master, out);
+      RegisterFrameworkMessage message;
+      message.mutable_framework()->MergeFrom(framework);
+      send(master, message);
     } else {
       // Not the first time, or failing over.
-      MSG<F2M_REREGISTER_FRAMEWORK> out;
-      out.mutable_framework()->MergeFrom(framework);
-      out.mutable_framework_id()->MergeFrom(frameworkId);
-      out.set_generation(generation++);
-      send(master, out);
+      ReregisterFrameworkMessage message;
+      message.mutable_framework()->MergeFrom(framework);
+      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.set_generation(generation++);
+      send(master, message);
     }
 
     active = true;
@@ -170,12 +153,11 @@ protected:
     active = false;
   }
 
-  void registerReply(const FrameworkID& frameworkId)
+  void registered(const FrameworkID& frameworkId)
   {
     VLOG(1) << "Framework registered with " << frameworkId;
     this->frameworkId = frameworkId;
-    process::invoke(bind(&Scheduler::registered, sched, driver,
-                         cref(frameworkId)));
+    invoke(bind(&Scheduler::registered, sched, driver, cref(frameworkId)));
   }
 
   void resourceOffer(const OfferID& offerId,
@@ -199,26 +181,26 @@ protected:
       }
     }
 
-    process::invoke(bind(&Scheduler::resourceOffer, sched, driver,
-                         cref(offerId), cref(offers)));
+    invoke(bind(&Scheduler::resourceOffer, sched, driver, cref(offerId),
+                cref(offers)));
   }
 
   void rescindOffer(const OfferID& offerId)
   {
     VLOG(1) << "Rescinded offer " << offerId;
     savedOffers.erase(offerId);
-    process::invoke(bind(&Scheduler::offerRescinded, sched, driver, 
-                         cref(offerId)));
+    invoke(bind(&Scheduler::offerRescinded, sched, driver, cref(offerId)));
   }
 
-  void statusUpdate(const FrameworkID& frameworkId, const TaskStatus& status)
+  void statusUpdate(const StatusUpdate& update, const UPID& pid)
   {
-    VLOG(1) << "Status update: task " << status.task_id()
-            << " of framework " << frameworkId
-            << " is now in state "
-            << TaskState_descriptor()->FindValueByNumber(status.state())->name();
+    const TaskStatus& status = update.status();
 
-    CHECK(this->frameworkId == frameworkId);
+    VLOG(1) << "Status update: task " << status.task_id()
+            << " of framework " << update.framework_id()
+            << " is now in state " << status.state();
+
+    CHECK(frameworkId == update.framework_id());
 
     // TODO(benh): Note that this maybe a duplicate status update!
     // Once we get support to try and have a more consistent view
@@ -229,25 +211,27 @@ protected:
     // multiple times (of course, if a scheduler re-uses a TaskID,
     // that could be bad.
 
-    process::invoke(bind(&Scheduler::statusUpdate, sched, driver,
-                         cref(status)));
+    invoke(bind(&Scheduler::statusUpdate, sched, driver, cref(status)));
 
-    // Acknowledge the message (we do this last, after we process::invoked
-    // the scheduler, if we did at all, in case it causes a crash,
-    // since this way the message might get resent/routed after
-    // the scheduler comes back online).
-    MSG<F2M_STATUS_UPDATE_ACK> out;
-    out.mutable_framework_id()->MergeFrom(frameworkId);
-    out.mutable_slave_id()->MergeFrom(status.slave_id());
-    out.mutable_task_id()->MergeFrom(status.task_id());
-    send(master, out);
+    if (pid) {
+      // Acknowledge the message (we do this last, after we invoked
+      // the scheduler, if we did at all, in case it causes a crash,
+      // since this way the message might get resent/routed after the
+      // scheduler comes back online).
+      StatusUpdateAcknowledgementMessage message;
+      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_slave_id()->MergeFrom(update.slave_id());
+      message.mutable_task_id()->MergeFrom(status.task_id());
+      message.set_uuid(update.uuid());
+      send(pid, message);
+    }
   }
 
   void lostSlave(const SlaveID& slaveId)
   {
     VLOG(1) << "Lost slave " << slaveId;
     savedSlavePids.erase(slaveId);
-    process::invoke(bind(&Scheduler::slaveLost, sched, driver, cref(slaveId)));
+    invoke(bind(&Scheduler::slaveLost, sched, driver, cref(slaveId)));
   }
 
   void frameworkMessage(const SlaveID& slaveId,
@@ -256,15 +240,14 @@ protected:
 			const string& data)
   {
     VLOG(1) << "Received framework message";
-    process::invoke(bind(&Scheduler::frameworkMessage, sched, driver,
-                         cref(slaveId), cref(executorId), cref(data)));
+    invoke(bind(&Scheduler::frameworkMessage, sched, driver, cref(slaveId),
+                cref(executorId), cref(data)));
   }
 
   void error(int32_t code, const string& message)
   {
     VLOG(1) << "Got error '" << message << "' (code: " << code << ")";
-    process::invoke(bind(&Scheduler::error, sched, driver, code,
-                         cref(message)));
+    invoke(bind(&Scheduler::error, sched, driver, code, cref(message)));
   }
 
   void exited()
@@ -277,12 +260,16 @@ protected:
 
   void stop()
   {
+    // Whether or not we send an unregister message, we want to
+    // terminate this process ...
+    terminate(self());
+
     if (!active)
       return;
 
-    MSG<F2M_UNREGISTER_FRAMEWORK> out;
-    out.mutable_framework_id()->MergeFrom(frameworkId);
-    send(master, out);
+    UnregisterFrameworkMessage message;
+    message.mutable_framework_id()->MergeFrom(frameworkId);
+    send(master, message);
   }
 
   void killTask(const TaskID& taskId)
@@ -290,10 +277,10 @@ protected:
     if (!active)
       return;
 
-    MSG<F2M_KILL_TASK> out;
-    out.mutable_framework_id()->MergeFrom(frameworkId);
-    out.mutable_task_id()->MergeFrom(taskId);
-    send(master, out);
+    KillTaskMessage message;
+    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_task_id()->MergeFrom(taskId);
+    send(master, message);
   }
 
   void replyToOffer(const OfferID& offerId,
@@ -303,12 +290,12 @@ protected:
     if (!active)
       return;
 
-    MSG<F2M_RESOURCE_OFFER_REPLY> out;
-    out.mutable_framework_id()->MergeFrom(frameworkId);
-    out.mutable_offer_id()->MergeFrom(offerId);
+    ResourceOfferReplyMessage message;
+    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_offer_id()->MergeFrom(offerId);
 
     foreachpair (const string& key, const string& value, params) {
-      Param* param = out.mutable_params()->add_param();
+      Param* param = message.mutable_params()->add_param();
       param->set_key(key);
       param->set_value(value);
     }
@@ -318,13 +305,13 @@ protected:
       // framework messages directly.
       savedSlavePids[task.slave_id()] = savedOffers[offerId][task.slave_id()];
 
-      out.add_tasks()->MergeFrom(task);
+      message.add_tasks()->MergeFrom(task);
     }
 
     // Remove the offer since we saved all the PIDs we might use.
     savedOffers.erase(offerId);
 
-    send(master, out);
+    send(master, message);
   }
 
   void reviveOffers()
@@ -332,9 +319,9 @@ protected:
     if (!active)
       return;
 
-    MSG<F2M_REVIVE_OFFERS> out;
-    out.mutable_framework_id()->MergeFrom(frameworkId);
-    send(master, out);
+    ReviveOffersMessage message;
+    message.mutable_framework_id()->MergeFrom(frameworkId);
+    send(master, message);
   }
 
   void sendFrameworkMessage(const SlaveID& slaveId,
@@ -357,23 +344,22 @@ protected:
       UPID slave = savedSlavePids[slaveId];
       CHECK(slave != UPID());
 
-      // TODO(benh): This is kind of wierd, M2S?
-      MSG<M2S_FRAMEWORK_MESSAGE> out;
-      out.mutable_slave_id()->MergeFrom(slaveId);
-      out.mutable_framework_id()->MergeFrom(frameworkId);
-      out.mutable_executor_id()->MergeFrom(executorId);
-      out.set_data(data);
-      send(slave, out);
+      FrameworkToExecutorMessage message;
+      message.mutable_slave_id()->MergeFrom(slaveId);
+      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_executor_id()->MergeFrom(executorId);
+      message.set_data(data);
+      send(slave, message);
     } else {
       VLOG(1) << "Cannot send directly to slave " << slaveId
 	      << "; sending through master";
 
-      MSG<F2M_FRAMEWORK_MESSAGE> out;
-      out.mutable_slave_id()->MergeFrom(slaveId);
-      out.mutable_framework_id()->MergeFrom(frameworkId);
-      out.mutable_executor_id()->MergeFrom(executorId);
-      out.set_data(data);
-      send(master, out);
+      FrameworkToExecutorMessage message;
+      message.mutable_slave_id()->MergeFrom(slaveId);
+      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_executor_id()->MergeFrom(executorId);
+      message.set_data(data);
+      send(master, message);
     }
   }
 
@@ -388,10 +374,9 @@ private:
   UPID master;
 
   volatile bool active;
-  volatile bool terminate;
 
-  unordered_map<OfferID, unordered_map<SlaveID, UPID> > savedOffers;
-  unordered_map<SlaveID, UPID> savedSlavePids;
+  hashmap<OfferID, hashmap<SlaveID, UPID> > savedOffers;
+  hashmap<SlaveID, UPID> savedSlavePids;
 };
 
 }} // namespace mesos { namespace internal {
@@ -526,7 +511,7 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
   // to the user somehow. Note that we will also wait forever if
   // MesosSchedulerDriver::stop was never called.
   if (process != NULL) {
-    process::wait(process->self());
+    wait(process);
     delete process;
   }
 
@@ -584,7 +569,7 @@ int MesosSchedulerDriver::start()
 
   process = new SchedulerProcess(this, sched, frameworkId, framework);
 
-  UPID pid = process::spawn(process);
+  UPID pid = spawn(process);
 
   // Check and see if we need to launch a local cluster.
   if (url == "local") {
@@ -616,9 +601,7 @@ int MesosSchedulerDriver::stop()
   // getExecutorInfo which threw exceptions, or explicitely called
   // stop. See above in start).
   if (process != NULL) {
-    process::dispatch(process->self(), &SchedulerProcess::stop);
-    process->terminate = true;
-    process::post(process->self(), process::TERMINATE);
+    dispatch(process, &SchedulerProcess::stop);
   }
 
   running = false;
@@ -661,8 +644,7 @@ int MesosSchedulerDriver::killTask(const TaskID& taskId)
     return -1;
   }
 
-  process::dispatch(process->self(), &SchedulerProcess::killTask,
-                    taskId);
+  dispatch(process, &SchedulerProcess::killTask, taskId);
 
   return 0;
 }
@@ -678,8 +660,7 @@ int MesosSchedulerDriver::replyToOffer(const OfferID& offerId,
     return -1;
   }
 
-  process::dispatch(process->self(), &SchedulerProcess::replyToOffer,
-                    offerId, tasks, params);
+  dispatch(process, &SchedulerProcess::replyToOffer, offerId, tasks, params);
 
   return 0;
 }
@@ -693,7 +674,7 @@ int MesosSchedulerDriver::reviveOffers()
     return -1;
   }
 
-  process::dispatch(process->self(), &SchedulerProcess::reviveOffers);
+  dispatch(process, &SchedulerProcess::reviveOffers);
 
   return 0;
 }
@@ -709,8 +690,8 @@ int MesosSchedulerDriver::sendFrameworkMessage(const SlaveID& slaveId,
     return -1;
   }
 
-  process::dispatch(process->self(), &SchedulerProcess::sendFrameworkMessage,
-                    slaveId, executorId, data);
+  dispatch(process, &SchedulerProcess::sendFrameworkMessage,
+           slaveId, executorId, data);
 
   return 0;
 }

@@ -55,6 +55,12 @@ public:
       pthread_t thread;
       pthread_create(&thread, 0, runTask, arg);
       pthread_detach(thread);
+
+      TaskStatus status;
+      status.mutable_task_id()->MergeFrom(task.task_id());
+      status.set_state(TASK_RUNNING);
+
+      driver->sendStatusUpdate(status);
     }
   }
 
@@ -103,8 +109,7 @@ void* runTask(void* threadArg)
         if (arg->threadId == 0) {
           usleep(100000); // sleep 0.1 seconds for other threads to finish
           TaskStatus status;
-          *status.mutable_task_id() = arg->task.task_id();
-          *status.mutable_slave_id() = arg->task.slave_id();
+          status.mutable_task_id()->MergeFrom(arg->task.task_id());
           status.set_state(TASK_FINISHED);
           arg->executor->driver->sendStatusUpdate(status);
         }

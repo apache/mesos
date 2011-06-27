@@ -91,14 +91,6 @@ message ExecutorArgs {
 };
 
 
-message StatusUpdate {
-  required TaskID task_id = 1;
-  required SlaveID slave_id = 2;
-  required TaskState state = 3;
-  optional bytes data = 4;
-}
-
-
 message TaskDescription {
   required string name = 1;
   required TaskID task_id = 2;
@@ -121,9 +113,8 @@ enum TaskState {
 
 message TaskStatus {
   required TaskID task_id = 1;
-  required SlaveID slave_id = 2;
-  required TaskState state = 3;
-  optional bytes data = 4;
+  required TaskState state = 2;
+  optional bytes data = 3;
 }
 
 

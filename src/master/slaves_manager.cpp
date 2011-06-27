@@ -1,9 +1,11 @@
+#include <glog/logging.h>
+
 #include <map>
 #include <sstream>
 
 #include <boost/lexical_cast.hpp>
 
-#include <glog/logging.h>
+#include <process/dispatch.hpp>
 
 #include "config/config.hpp"
 
@@ -568,7 +570,7 @@ bool ZooKeeperSlavesManagerStorage::parse(const string& key, const string& s,
 
 SlavesManager::SlavesManager(const Configuration& conf,
                              const PID<Master>& _master)
-  : process::Process<SlavesManager>("slaves"),
+  : process::ProcessBase("slaves"),
     master(_master)
 {
   // Create the slave manager storage based on configuration.
@@ -754,7 +756,7 @@ void SlavesManager::updateActive(const multimap<string, uint16_t>& updated)
 {
   // Loop through the current active slave hostname:port pairs and
   // remove all that are not found in updated.
-  foreachpaircopy (const string& hostname, uint16_t port, active) {
+  foreachpair (const string& hostname, uint16_t port, utils::copy(active)) {
     if (updated.count(hostname, port) == 0) {
       process::dispatch(master, &Master::deactivatedSlaveHostnamePort,
                         hostname, port);

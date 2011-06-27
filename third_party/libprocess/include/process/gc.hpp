@@ -1,5 +1,5 @@
-#ifndef __GC_HPP__
-#define __GC_HPP__
+#ifndef __PROCESS_GC_HPP__
+#define __PROCESS_GC_HPP__
 
 #include <map>
 
@@ -46,4 +46,4 @@ extern PID<GarbageCollector> gc;
 
 } // namespace process {
 
-#endif // __GC_HPP__
+#endif // __PROCESS_GC_HPP__

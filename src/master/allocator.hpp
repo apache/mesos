@@ -21,7 +21,7 @@ public:
   
   virtual void taskRemoved(Task *task, TaskRemovalReason reason) {}
 
-  virtual void offerReturned(SlotOffer* offer,
+  virtual void offerReturned(Offer* offer,
                              OfferReturnReason reason,
                              const std::vector<SlaveResources>& resourcesLeft) {}
 

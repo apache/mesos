@@ -3,66 +3,64 @@
 
 #include <string>
 
-#include <boost/unordered_map.hpp>
-
 #include "isolation_module.hpp"
+#include "reaper.hpp"
 #include "slave.hpp"
 
-#include "messaging/messages.hpp"
+#include "common/hashmap.hpp"
 
 
 namespace mesos { namespace internal { namespace slave {
 
-using std::string;
-using boost::unordered_map;
-
-class LxcIsolationModule : public IsolationModule {
+class LxcIsolationModule
+  : public IsolationModule, public ProcessExitedListener
+{
 public:
   LxcIsolationModule();
 
   virtual ~LxcIsolationModule();
 
-  virtual void initialize(Slave* slave);
+  virtual void initialize(const Configuration& conf,
+                          bool local,
+                          const process::PID<Slave>& slave);
 
-  virtual void launchExecutor(Framework* framework, Executor* executor);
+  virtual void launchExecutor(const FrameworkID& frameworkId,
+                              const FrameworkInfo& frameworkInfo,
+                              const ExecutorInfo& executorInfo,
+                              const std::string& directory);
 
-  virtual void killExecutor(Framework* framework, Executor* executor);
+  virtual void killExecutor(const FrameworkID& frameworkId,
+                            const ExecutorID& executorId);
 
-  virtual void resourcesChanged(Framework* framework, Executor* executor);
+  virtual void resourcesChanged(const FrameworkID& frameworkId,
+                                const ExecutorID& executorId,
+                                const Resources& resources);
 
-protected:
-  // Run a shell command formatted with varargs and return its exit code.
-  int shell(const char* format, ...);
-
-  // Attempt to set a resource limit of a framework's container for a given
-  // cgroup property (e.g. cpu.shares). Returns true on success.
-  bool setResourceLimit(Framework* framework, Executor* executor,
-			const string& property, int64_t value);
+  virtual void processExited(pid_t pid, int status);
 
 private:
-  // Reaps framework containers and tells the slave if they exit
-  class Reaper : public process::Process<Reaper> {
-    LxcIsolationModule* module;
+  // No copying, no assigning.
+  LxcIsolationModule(const LxcIsolationModule&);
+  LxcIsolationModule& operator = (const LxcIsolationModule&);
 
-  protected:
-    virtual void operator () ();
-
-  public:
-    Reaper(LxcIsolationModule* module);
+  // Per-framework information object maintained in info hashmap.
+  struct ContainerInfo
+  {
+    FrameworkID frameworkId;
+    ExecutorID executorId;
+    std::string container; // Name of Linux container used for this framework.
+    pid_t pid; // PID of lxc-execute command running the executor.
   };
 
-  // Per-framework information object maintained in info hashmap
-  struct FrameworkInfo {
-    string container;    // Name of Linux container used for this framework
-    pid_t lxcExecutePid; // PID of lxc-execute command running the executor
-  };
-
+  // TODO(benh): Make variables const by passing them via constructor.
+  Configuration conf;
+  bool local;
+  process::PID<Slave> slave;
   bool initialized;
-  Slave* slave;
-  boost::unordered_map<FrameworkID, boost::unordered_map<ExecutorID, FrameworkInfo*> > infos;
   Reaper* reaper;
+  hashmap<FrameworkID, hashmap<ExecutorID, ContainerInfo*> > infos;
 };
 
-}}}
+}}} // namespace mesos { namespace internal { namespace slave {
 
-#endif /* __LXC_ISOLATION_MODULE_HPP__ */
+#endif // __LXC_ISOLATION_MODULE_HPP__

@@ -1,5 +1,5 @@
-#ifndef __HTTP_HPP__
-#define __HTTP_HPP__
+#ifndef __PROCESS_HTTP_HPP__
+#define __PROCESS_HTTP_HPP__
 
 #include <string>
 
@@ -78,4 +78,4 @@ struct HttpServiceUnavailableResponse : HttpResponse
 
 } // namespace process {
 
-#endif // __HTTP_HPP
+#endif // __PROCESS_HTTP_HPP

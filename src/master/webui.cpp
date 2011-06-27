@@ -3,6 +3,8 @@
 #include <sstream>
 #include <string>
 
+#include <process/dispatch.hpp>
+
 #include "state.hpp"
 #include "webui.hpp"
 

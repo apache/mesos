@@ -1,3 +1,5 @@
+#include <libgen.h>
+
 #include "common/build.hpp"
 #include "common/logging.hpp"
 
@@ -11,9 +13,6 @@
 
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
-
-using boost::bad_lexical_cast;
-using boost::lexical_cast;
 
 using std::cerr;
 using std::endl;

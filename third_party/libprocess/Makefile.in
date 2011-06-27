@@ -46,7 +46,9 @@ CXXFLAGS += -MMD -MP
 LDFLAGS += -L. -L$(LIBEV)/.libs
 LIBS += -lprocess -lglog -lev -lpthread
 
-LIBPROCESS_OBJ = src/process.o src/pid.o src/fatal.o src/tokenize.o src/latch.o
+LIBPROCESS_OBJ = src/process.o src/pid.o src/fatal.o src/tokenize.o	\
+                 src/latch.o src/timer.o
+
 LIBPROCESS_LIB = libprocess.a
 
 # Create some testing specific flags.

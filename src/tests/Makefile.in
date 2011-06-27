@@ -2,6 +2,8 @@
 
 SHELL = '/bin/sh'
 
+SRCDIR = @srcdir@
+INCLUDEDIR = @top_builddir@/include
 BINDIR = @top_builddir@/bin
 LIBDIR = @top_builddir@/lib
 
@@ -18,12 +20,11 @@ WITH_ZOOKEEPER = @WITH_ZOOKEEPER@
 WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
 
 LIBPROCESS = third_party/libprocess
-
 LIBEV = $(LIBPROCESS)/third_party/libev-3.8
-
+BOOST = third_party/boost-1.37.0
+PROTOBUF = third_party/protobuf-2.3.0
 GLOG = third_party/glog-0.3.1
 GMOCK = third_party/gmock-1.5.0
-
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 
 # Ensure that we get better debugging info.
@@ -34,13 +35,17 @@ CXXFLAGS += -g
 CFLAGS += -I@srcdir@/.. -I..
 CXXFLAGS += -I@srcdir@/.. -I..
 
-# Add include to CFLAGS and CXXFLAGS.
-CFLAGS += -I@top_srcdir@/include
-CXXFLAGS += -I@top_srcdir@/include
+# Add include and build include to CFLAGS and CXXFLAGS.
+CFLAGS += -I@top_srcdir@/include -I$(INCLUDEDIR)
+CXXFLAGS += -I@top_srcdir@/include -I$(INCLUDEDIR)
 
 # Add boost to CFLAGS and CXXFLAGS.
-CFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
-CXXFLAGS += -I@top_srcdir@/third_party/boost-1.37.0
+CFLAGS += -I@top_srcdir@/$(BOOST)
+CXXFLAGS += -I@top_srcdir@/$(BOOST)
+
+# Add protobuf to include and lib paths.
+CXXFLAGS += -I@top_srcdir@/$(PROTOBUF)/src
+LDFLAGS += -L@top_builddir@/$(PROTOBUF)/src/.libs
 
 # Add libprocess to CFLAGS, CXXFLAGS, and LDFLAGS.
 CFLAGS += -I@top_srcdir@/$(LIBPROCESS)/include
@@ -64,29 +69,23 @@ endif
 CFLAGS += -MMD -MP
 CXXFLAGS += -MMD -MP
 
-# Add build date to CFLAGS, CXXFLAGS
-CFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
-CXXFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
-
-# Add build user to CFLAGS, CXXFLAGS
-CFLAGS += -DBUILD_USER="\"$$USER\""
-CXXFLAGS += -DBUILD_USER="\"$$USER\""
-
-# Add glog, gmock, gtest, libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lglog -lgmock -lgtest -lprocess -lev -lpthread -ldl
+# Add protobuf, glog, gmock, gtest, libev, libprocess, pthread, and dl to LIBS.
+LIBS += -lprotobuf -lglog -lgmock -lgtest -lprocess -lev -lpthread -ldl
 
 # Add ZooKeeper if necessary.
 ifeq ($(WITH_ZOOKEEPER),1)
-  LIBS += -lzookeeper_st
+  LIBS += -lzookeeper_mt
 endif
 
 SCHED_LIB = $(LIBDIR)/libmesos_sched.a
 EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
-TESTS_OBJ = main.o utils.o master_test.o offer_reply_errors_test.o	\
-	    resources_test.o external_test.o sample_frameworks_test.o	\
-	    configurator_test.o string_utils_test.o			\
-	    lxc_isolation_test.o
+TESTS_OBJ = main.o utils.o master_tests.o resource_offer_tests.o	\
+	    resource_offer_reply_tests.o fault_tolerant_tests.o		\
+	    resources_tests.o uuid_tests.o external_tests.o		\
+	    sample_frameworks_tests.o configurator_tests.o		\
+	    string_utils_tests.o multimap_tests.o			\
+	    lxc_isolation_tests.o
 
 ALLTESTS_EXE = $(BINDIR)/tests/all-tests
 
@@ -95,7 +94,6 @@ EXTERNAL_SCRIPTS =							\
   $(BINDIR)/tests/external/LxcIsolation/ScaleUpAndDown.sh		\
   $(BINDIR)/tests/external/LxcIsolation/TwoSeparateTasks.sh		\
   $(BINDIR)/tests/external/LxcIsolation/run_scheduled_memhog_test.sh	\
-  $(BINDIR)/tests/external/SampleFrameworks/CFramework.sh		\
   $(BINDIR)/tests/external/SampleFrameworks/CFrameworkCmdlineParsing.sh	\
   $(BINDIR)/tests/external/SampleFrameworks/CFrameworkInvalidCmdline.sh	\
   $(BINDIR)/tests/external/SampleFrameworks/CFrameworkInvalidEnv.sh	\

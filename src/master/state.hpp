@@ -19,24 +19,24 @@ namespace mesos { namespace internal { namespace master { namespace state {
 struct SlaveResources
 {  
   std::string slave_id;
-  int32_t cpus;
-  int64_t mem;
+  double cpus;
+  double mem;
   
-  SlaveResources(std::string _slaveId, int32_t _cpus, int64_t _mem)
+  SlaveResources(std::string _slaveId, double _cpus, double _mem)
     : slave_id(_slaveId), cpus(_cpus), mem(_mem) {}
 };
 
 
-struct SlotOffer
+struct Offer
 {  
   std::string id;
   std::string framework_id;
   std::vector<SlaveResources *> resources;
   
-  SlotOffer(std::string _id, std::string _frameworkId)
+  Offer(std::string _id, std::string _frameworkId)
     : id(_id), framework_id(_frameworkId) {}
     
-  ~SlotOffer()
+  ~Offer()
   {
     foreach (SlaveResources *sr, resources)
       delete sr;
@@ -48,7 +48,7 @@ struct Slave
 {
   Slave(std::string id_, const std::string& host_,
         const std::string& web_ui_url_,
-	int32_t cpus_, int64_t mem_, time_t connect_)
+	double cpus_, double mem_, double connect_)
     : id(id_), host(host_), web_ui_url(web_ui_url_),
       cpus(cpus_), mem(mem_), connect_time(connect_) {}
 
@@ -57,16 +57,16 @@ struct Slave
   std::string id;
   std::string host;
   std::string web_ui_url;
-  int32_t cpus;
-  int64_t mem;
-  int64_t connect_time;
+  double cpus;
+  double mem;
+  double connect_time;
 };
 
 
 struct Task
 {
   Task(std::string id_, const std::string& name_, std::string framework_id_,
-       std::string slaveId_, std::string state_, int32_t _cpus, int64_t _mem)
+       std::string slaveId_, std::string state_, double _cpus, double _mem)
     : id(id_), name(name_), framework_id(framework_id_), slave_id(slaveId_),
       state(state_), cpus(_cpus), mem(_mem) {}
 
@@ -77,8 +77,8 @@ struct Task
   std::string framework_id;
   std::string slave_id;
   std::string state;
-  int32_t cpus;
-  int64_t mem;
+  double cpus;
+  double mem;
 };
 
 
@@ -86,7 +86,7 @@ struct Framework
 {
   Framework(std::string id_, const std::string& user_,
             const std::string& name_, const std::string& executor_,
-            int32_t cpus_, int64_t mem_, time_t connect_)
+            double cpus_, double mem_, double connect_)
     : id(id_), user(user_), name(name_), executor(executor_),
       cpus(cpus_), mem(mem_), connect_time(connect_) {}
 
@@ -96,7 +96,7 @@ struct Framework
   {
     foreach (Task *task, tasks)
       delete task;
-    foreach (SlotOffer *offer, offers)
+    foreach (Offer *offer, offers)
       delete offer;
   }
 
@@ -104,12 +104,12 @@ struct Framework
   std::string user;
   std::string name;
   std::string executor;
-  int32_t cpus;
-  int64_t mem;
-  int64_t connect_time;
+  double cpus;
+  double mem;
+  double connect_time;
 
   std::vector<Task *> tasks;
-  std::vector<SlotOffer *> offers;
+  std::vector<Offer *> offers;
 };
 
 

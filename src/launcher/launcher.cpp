@@ -42,13 +42,14 @@ ExecutorLauncher::ExecutorLauncher(const FrameworkID& _frameworkId,
                                    const string& _hadoopHome,
                                    bool _redirectIO,
                                    bool _shouldSwitchUser,
+				   const string& _container,
                                    const map<string, string>& _params)
   : frameworkId(_frameworkId), executorId(_executorId),
     executorUri(_executorUri), user(_user),
     workDirectory(_workDirectory), slavePid(_slavePid),
     frameworksHome(_frameworksHome), mesosHome(_mesosHome),
     hadoopHome(_hadoopHome), redirectIO(_redirectIO), 
-    shouldSwitchUser(_shouldSwitchUser), params(_params)
+    shouldSwitchUser(_shouldSwitchUser), container(_container), params(_params)
 {}
 
 
@@ -57,7 +58,7 @@ ExecutorLauncher::~ExecutorLauncher()
 }
 
 
-void ExecutorLauncher::run()
+int ExecutorLauncher::run()
 {
   createWorkingDirectory();
 
@@ -79,17 +80,45 @@ void ExecutorLauncher::run()
 
   if (shouldSwitchUser)
     switchUser();
-  
-  // Execute the executor
-  execl(executor.c_str(), executor.c_str(), (char *) NULL);
-  // If we get here, the execl call failed
-  fatalerror("Could not execute %s", executor.c_str());
+
+  // TODO(benh): Clean up this gross special cased LXC garbage!!!!
+
+  if (container != "") {
+    pid_t pid;
+    if ((pid = fork()) == -1) {
+      fatalerror("Failed to fork to launch %s", executor.c_str());
+    }
+
+    if (pid) {
+      // In parent process.
+      int status;
+      wait(&status);
+      // TODO(benh): Provide a utils::os::system.
+      string command = "lxc-stop -n " + container;
+      system(command.c_str());
+      return status;
+    } else {
+      // In child process, execute the executor.
+      execl(executor.c_str(), executor.c_str(), (char *) NULL);
+
+      // If we get here, the execl call failed
+      fatalerror("Could not execute %s", executor.c_str());
+    }
+  } else {
+    // Execute the executor.
+    execl(executor.c_str(), executor.c_str(), (char *) NULL);
+
+    // If we get here, the execl call failed
+    fatalerror("Could not execute %s", executor.c_str());
+  }
 }
 
 
 // Create the executor's working directory and return its path.
 void ExecutorLauncher::createWorkingDirectory()
 {
+  cout << "Creating directory " << workDirectory << endl;
+
   // Split the path into tokens by "/" and make each directory
   vector<string> tokens;
   StringUtils::split(workDirectory, "/", &tokens);
@@ -171,7 +200,7 @@ string ExecutorLauncher::fetchExecutor()
              << "executor path, making it: " << executor << endl;
       } else {
         fatal("A relative path was passed for the executor, but " \
-              "neither MESOS_HOME nor FRAMEWORKS_HOME is set. " \
+              "neither MESOS_HOME nor MESOS_FRAMEWORKS_HOME is set." \
               "Please either specify one of these config options " \
               "or avoid using a relative path.");
       }
@@ -228,12 +257,13 @@ void ExecutorLauncher::setupEnvironment()
   setupEnvVariablesFromParams();
 
   // Set Mesos environment variables to pass slave ID, framework ID, etc.
-  setenv("MESOS_SLAVE_PID", slavePid.c_str(), true);
-  setenv("MESOS_FRAMEWORK_ID", frameworkId.value().c_str(), true);
-  setenv("MESOS_EXECUTOR_ID", executorId.value().c_str(), true);
+  setenv("MESOS_DIRECTORY", workDirectory.c_str(), 1);
+  setenv("MESOS_SLAVE_PID", slavePid.c_str(), 1);
+  setenv("MESOS_FRAMEWORK_ID", frameworkId.value().c_str(), 1);
+  setenv("MESOS_EXECUTOR_ID", executorId.value().c_str(), 1);
   
   // Set LIBPROCESS_PORT so that we bind to a random free port.
-  setenv("LIBPROCESS_PORT", "0", true);
+  setenv("LIBPROCESS_PORT", "0", 1);
 
   // Set MESOS_HOME so that Java and Python executors can find libraries
   if (mesosHome != "") {
@@ -247,7 +277,7 @@ void ExecutorLauncher::setupEnvVariablesFromParams()
   foreachpair (const string& key, const string& value, params) {
     if (key.find("env.") == 0) {
       const string& var = key.substr(strlen("env."));
-      setenv(var.c_str(), value.c_str(), true);
+      setenv(var.c_str(), value.c_str(), 1);
     }
   }
 }
@@ -255,6 +285,8 @@ void ExecutorLauncher::setupEnvVariablesFromParams()
 
 void ExecutorLauncher::switchUser()
 {
+  cout << "Switching user to " << user << endl;
+
   struct passwd *passwd;
   if ((passwd = getpwnam(user.c_str())) == NULL)
     fatal("failed to get username information for %s", user.c_str());
@@ -283,4 +315,5 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
   setenv("MESOS_HADOOP_HOME", hadoopHome.c_str(), 1);
   setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0", 1);
   setenv("MESOS_SWITCH_USER", shouldSwitchUser ? "1" : "0", 1);
+  setenv("MESOS_CONTAINER", container.c_str(), 1);
 }

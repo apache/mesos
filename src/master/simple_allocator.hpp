@@ -6,7 +6,7 @@
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
-#include "messaging/messages.pb.h"
+#include "messages/messages.pb.h"
 
 #include "allocator.hpp"
 
@@ -38,7 +38,7 @@ public:
   
   virtual void taskRemoved(Task* task, TaskRemovalReason reason);
 
-  virtual void offerReturned(SlotOffer* offer,
+  virtual void offerReturned(Offer* offer,
                              OfferReturnReason reason,
                              const std::vector<SlaveResources>& resourcesLeft);
 

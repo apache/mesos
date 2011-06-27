@@ -7,12 +7,12 @@
 
 #include <glog/logging.h>
 
-#include "configuration.hpp"
-#include "option.hpp"
+#include "configurator/configuration.hpp"
+#include "configurator/option.hpp"
 
 
 namespace mesos { namespace internal {
-    
+
 
 /**
  * Exception type thrown by Configurator.
@@ -25,7 +25,7 @@ struct ConfigurationException : std::exception
 };
 
 
-/** 
+/**
  * This class populates a Configuration object, which can be retrieved
  * with getConfiguration(), by reading variables from the command
  * line, a config file or the environment.
@@ -47,7 +47,7 @@ public:
 
 private:
   Configuration conf;
-  std::map<std::string, Option> options;
+  std::map<std::string, ConfigOption> options;
 
 public:
 
@@ -100,12 +100,12 @@ private:
       std::string message = "Duplicate option registration: " + name;
       throw ConfigurationException(message.c_str());
     }
-    options[name] = Option(helpString,
-                           Validator<T>(), 
-                           hasShortName,
-                           shortName,
-                           hasDefault,
-                           defaultValue);
+    options[name] = ConfigOption(helpString,
+                                 Validator<T>(),
+                                 hasShortName,
+                                 shortName,
+                                 hasDefault,
+                                 defaultValue);
   }
 
 public:

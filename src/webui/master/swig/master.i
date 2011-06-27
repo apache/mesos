@@ -19,7 +19,7 @@ extern MasterState *get_master();
 %template(SlaveVec) std::vector<mesos::internal::master::state::Slave*>;
 %template(FrameworkVec) std::vector<mesos::internal::master::state::Framework*>;
 %template(TaskVec) std::vector<mesos::internal::master::state::Task*>;
-%template(OfferVec) std::vector<mesos::internal::master::state::SlotOffer*>;
+%template(OfferVec) std::vector<mesos::internal::master::state::Offer*>;
 %template(SlaveResourcesVec) std::vector<mesos::internal::master::state::SlaveResources*>;
 
 %include <master/state.hpp>

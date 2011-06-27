@@ -133,7 +133,7 @@ Idle: {{idle_cpus}} CPUs, {{format_mem(idle_mem)}} MEM<br />
 
 <h2>Resource Offers</h2>
 
-%# TODO: Sort these by slot offer ID
+%# TODO: Sort these by offer ID
 %if offered_cpus > 0 or offered_mem > 0:
   <table>
   <tr>

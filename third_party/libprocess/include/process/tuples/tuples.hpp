@@ -1,5 +1,5 @@
-#ifndef TUPLES_HPP
-#define TUPLES_HPP
+#ifndef __PROCESS_TUPLES_HPP__
+#define __PROCESS_TUPLES_HPP__
 
 #include <stdlib.h>
 
@@ -14,7 +14,7 @@
 
 namespace process { namespace tuples {
 
-/* TODO(benh): Check stream errors! Report errors! Ahhhh! */
+// TODO(benh): Check stream errors! Report errors! Ahhhh!
 
 struct serializer
 {
@@ -148,7 +148,7 @@ struct deserializer
 };
 
 
-}} /* namespace process { namespace tuples { */
+}} // namespace process { namespace tuples {
 
 
-#endif /* TUPLES_HPP */
+#endif // __PROCESS_TUPLES_HPP__

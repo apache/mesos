@@ -12,6 +12,12 @@ public class TestExecutor implements Executor {
   public void launchTask(final ExecutorDriver driver, final TaskDescription task) {
     new Thread() { public void run() {
       try {
+        TaskStatus status = TaskStatus.newBuilder()
+          .setTaskId(task.getTaskId())
+          .setState(TaskState.TASK_RUNNING).build();
+
+        driver.sendStatusUpdate(status);
+
         System.out.println("Running task " + task.getTaskId());
 
         if (task.hasData()) {
@@ -20,9 +26,8 @@ public class TestExecutor implements Executor {
           Thread.sleep(1000);
         }
 
-        TaskStatus status = TaskStatus.newBuilder()
+        status = TaskStatus.newBuilder()
           .setTaskId(task.getTaskId())
-          .setSlaveId(task.getSlaveId())
           .setState(TaskState.TASK_FINISHED).build();
 
         driver.sendStatusUpdate(status);

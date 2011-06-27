@@ -4,6 +4,8 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <process/protobuf.hpp>
+
 #include "config/config.hpp"
 
 #include "common/fatal.hpp"
@@ -12,7 +14,7 @@
 #include "common/zookeeper.hpp"
 #endif
 
-#include "messaging/messages.hpp"
+#include "messages/messages.hpp"
 
 #include "detector.hpp"
 #include "url_processor.hpp"
@@ -170,16 +172,16 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master)
 {
   // Send a master token.
   {
-    MSG<GOT_MASTER_TOKEN> msg;
-    msg.set_token("0");
-    MesosProcess<class T>::post(master, msg);
+    GotMasterTokenMessage message;
+    message.set_token("0");
+    process::post(master, message);
   }
 
   // Elect the master.
   {
-    MSG<NEW_MASTER_DETECTED> msg;
-    msg.set_pid(master);
-    MesosProcess<class T>::post(master, msg);
+    NewMasterDetectedMessage message;
+    message.set_pid(master);
+    process::post(master, message);
   }
 }
 
@@ -192,23 +194,23 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master,
   if (elect) {
     // Send a master token.
     {
-      MSG<GOT_MASTER_TOKEN> msg;
-      msg.set_token("0");
-      MesosProcess<class T>::post(master, msg);
+      GotMasterTokenMessage message;
+      message.set_token("0");
+      process::post(master, message);
     }
 
     // Elect the master.
     {
-      MSG<NEW_MASTER_DETECTED> msg;
-      msg.set_pid(master);
-      MesosProcess<class T>::post(master, msg);
+      NewMasterDetectedMessage message;
+      message.set_pid(master);
+      process::post(master, message);
     }
   }
 
   // Tell the pid about the master.
-  MSG<NEW_MASTER_DETECTED> msg;
-  msg.set_pid(master);
-  MesosProcess<class T>::post(pid, msg);
+  NewMasterDetectedMessage message;
+  message.set_pid(master);
+  process::post(pid, message);
 }
 
 
@@ -220,24 +222,24 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master,
   if (elect) {
     // Send a master token.
     {
-      MSG<GOT_MASTER_TOKEN> msg;
-      msg.set_token("0");
-      MesosProcess<class T>::post(master, msg);
+      GotMasterTokenMessage message;
+      message.set_token("0");
+      process::post(master, message);
     }
 
     // Elect the master.
     {
-      MSG<NEW_MASTER_DETECTED> msg;
-      msg.set_pid(master);
-      MesosProcess<class T>::post(master, msg);
+      NewMasterDetectedMessage message;
+      message.set_pid(master);
+      process::post(master, message);
     }
   }
 
   // Tell each pid about the master.
   foreach (const UPID& pid, pids) {
-    MSG<NEW_MASTER_DETECTED> msg;
-    msg.set_pid(master);
-    MesosProcess<class T>::post(pid, msg);
+    NewMasterDetectedMessage message;
+    message.set_pid(master);
+    process::post(pid, message);
   }
 }
 
@@ -324,20 +326,20 @@ void ZooKeeperMasterDetector::connected()
 	    zk->error(ret), servers.c_str());
     }
 
-    // Save the sequnce id but only grab the basename, e.g.,
+    // Save the sequence id but only grab the basename, e.g.,
     // "/path/to/znode/000000131" => "000000131".
     size_t index;
     if ((index = result.find_last_of('/')) != string::npos) {  
       mySeq = result.erase(0, index + 1);
     } else {
-      mySeq = "";
+      mySeq = result;
     }
 
     LOG(INFO) << "Created ephemeral/sequence:" << mySeq;
 
-    MSG<GOT_MASTER_TOKEN> msg;
-    msg.set_token(mySeq);
-    MesosProcess<class T>::post(pid, msg);
+    GotMasterTokenMessage message;
+    message.set_token(mySeq);
+    process::post(pid, message);
   }
 
   // Now determine who the master is (it may be us).
@@ -468,7 +470,7 @@ void ZooKeeperMasterDetector::detectMaster()
 
   // No master present (lost or possibly hasn't come up yet).
   if (masterSeq.empty()) {
-    process::post(pid, NO_MASTER_DETECTED);
+    process::post(pid, NoMasterDetectedMessage());
   } else if (masterSeq != currentMasterSeq) {
     // Okay, let's fetch the master pid from ZooKeeper.
     string result;
@@ -479,7 +481,7 @@ void ZooKeeperMasterDetector::detectMaster()
       // the invocation of ZooKeeper::getChildren above.
       LOG(ERROR) << "Master detector failed to fetch new master pid: "
 		 << zk->error(ret);
-      process::post(pid, NO_MASTER_DETECTED);
+      process::post(pid, NoMasterDetectedMessage());
     } else {
       // Now let's parse what we fetched from ZooKeeper.
       LOG(INFO) << "Master detector got new master pid: " << result;
@@ -491,14 +493,14 @@ void ZooKeeperMasterDetector::detectMaster()
 	// might have failed because of DNS, and whoever is using the
 	// detector might sit "unconnected" indefinitely!
 	LOG(ERROR) << "Failed to parse new master pid!";
-	process::post(pid, NO_MASTER_DETECTED);
+	process::post(pid, NoMasterDetectedMessage());
       } else {
 	currentMasterSeq = masterSeq;
 	currentMasterPID = masterPid;
 
-	MSG<NEW_MASTER_DETECTED> msg;
-	msg.set_pid(currentMasterPID);
-	MesosProcess<class T>::post(pid, msg);
+        NewMasterDetectedMessage message;
+	message.set_pid(currentMasterPID);
+	process::post(pid, message);
       }
     }
   }

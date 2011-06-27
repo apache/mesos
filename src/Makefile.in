@@ -98,8 +98,9 @@ endif
 MASTER_OBJ = master/master.o master/slaves_manager.o			\
 	     master/allocator_factory.o master/simple_allocator.o
 
-SLAVE_OBJ = slave/slave.o launcher/launcher.o slave/isolation_module.o	\
-	    slave/process_based_isolation_module.o
+SLAVE_OBJ = slave/slave.o slave/isolation_module.o			\
+	    slave/process_based_isolation_module.o slave/reaper.o	\
+	    launcher/launcher.o
 
 ifeq ($(OS_NAME),solaris)
   SLAVE_OBJ += slave/solaris_project_isolation_module.o
@@ -109,7 +110,7 @@ ifeq ($(OS_NAME),linux)
   SLAVE_OBJ += slave/lxc_isolation_module.o
 endif
 
-PROTOBUF_OBJ = mesos.pb.o messaging/messages.pb.o
+PROTOBUF_OBJ = mesos.pb.o messages/messages.pb.o
 
 MASTER_WEBUI_OBJ = master/webui.o
 MASTER_SWIG_WEBUI_OBJ = webui/master/swig/master_wrap.o
@@ -123,8 +124,7 @@ SWIG_WEBUI_OBJ = $(MASTER_SWIG_WEBUI_OBJ) $(SLAVE_SWIG_WEBUI_OBJ)
 COMMON_OBJ = common/fatal.o common/lock.o detector/detector.o		\
 	     detector/url_processor.o configurator/configurator.o	\
 	     common/string_utils.o common/logging.o			\
-	     common/date_utils.o common/tokenize.o common/resources.o	\
-	     messaging/messages.o
+	     common/date_utils.o common/tokenize.o common/resources.o
 
 ifeq ($(WITH_ZOOKEEPER),1)
   COMMON_OBJ += common/zookeeper.o
@@ -231,7 +231,7 @@ DEPLOY_FILES = $(DEPLOYDIR)/deploy-to-slaves             \
 # Create rules for building the directories that aren't created
 # automagically by configure.
 OBJ_DIRECTORIES = common configurator detector exec launcher local	\
-                  master messaging sched slave
+                  master messages sched slave
 
 WEBUI_DIRECTORIES = $(BINDIR)/webui/common $(BINDIR)/webui/master	\
                     $(BINDIR)/webui/slave $(BINDIR)/webui/static	\
@@ -258,9 +258,9 @@ mesos.pb.cc: @top_srcdir@/include/mesos/mesos.proto
 $(INCLUDEDIR)/mesos/mesos.hpp: mesos.pb.cc | $(INCLUDEDIR) $(INCLUDEDIR)/mesos
 	cp mesos.pb.h $(INCLUDEDIR)/mesos/mesos.hpp
 
-messaging/messages.pb.cc: $(SRCDIR)/messaging/messages.proto
-	mkdir -p messaging
-	$(PROTOC) -I$(SRCDIR)/messaging -I@top_srcdir@/include/mesos --cpp_out=messaging $(SRCDIR)/messaging/messages.proto
+messages/messages.pb.cc: $(SRCDIR)/messages/messages.proto
+	mkdir -p messages
+	$(PROTOC) -I$(SRCDIR)/messages -I@top_srcdir@/include/mesos --cpp_out=messages $(SRCDIR)/messages/messages.proto
 
 common/build.o: $(SRCDIR)/common/build.cpp force | common
 	$(CXX) -c $(CXXFLAGS) -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\"" -DBUILD_USER="\"$$USER\"" -DBUILD_FLAGS="\"$(CFLAGS) $(CXXFLAGS)\"" -o $@ $<

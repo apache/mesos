@@ -13,7 +13,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # Launch master
-$MESOS_HOME/mesos-master -p 5432 > master.log 2>&1 &
+$MESOS_HOME/mesos-master --port=5432 > master.log 2>&1 &
 MASTER_PID=$!
 echo "Launched master, PID = $MASTER_PID"
 sleep 2
@@ -27,8 +27,11 @@ if [[ $KILL_EXIT_CODE -ne 0 ]]; then
 fi
 
 # Launch slave
-$MESOS_HOME/mesos-slave -u 1@$HOSTNAME:5432 -i lxc \
-                        -c 2 -m $[512*1024*1024] > slave.log 2>&1 &
+$MESOS_HOME/mesos-slave \
+    --url=master@localhost:5432 \
+    --isolation=lxc \
+    --resources="cpus:2;mem:$[512*1024*1024]" \
+    > slave.log 2>&1 &
 SLAVE_PID=$!
 echo "Launched slave, PID = $SLAVE_PID"
 sleep 2
@@ -44,7 +47,7 @@ fi
 
 # Launch memhog
 echo "Running scheduled-memhog"
-$MESOS_HOME/scheduled-memhog 1@$HOSTNAME:5432 schedule > memhog.log 2>&1
+$MESOS_HOME/examples/scheduled-memhog master@localhost:5432 schedule > memhog.log 2>&1
 EXIT_CODE=$?
 echo "Memhog exit code: $?"
 sleep 2

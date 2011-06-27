@@ -139,15 +139,15 @@ istream& operator >> (istream& stream, UPID& pid)
   if (result != 0 || hep == NULL) {
     VLOG(2) << "Failed to parse host '" << host
 	    << "' because " << hstrerror(herrno);
-    stream.setstate(std::ios_base::badbit);
     delete[] temp;
+    stream.setstate(std::ios_base::badbit);
     return stream;
   }
 
   if (hep->h_addr_list[0] == NULL) {
     VLOG(2) << "Got no addresses for '" << host << "'";
-    stream.setstate(std::ios_base::badbit);
     delete[] temp;
+    stream.setstate(std::ios_base::badbit);
     return stream;
   }
 

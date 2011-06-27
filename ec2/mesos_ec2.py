@@ -6,6 +6,7 @@ from __future__ import with_statement
 import boto
 import logging
 import os
+import random
 import shutil
 import subprocess
 import sys
@@ -36,7 +37,7 @@ def parse_args():
            "WARNING: must be 64 bit, thus small instances won't work")
   parser.add_option("-m", "--master-instance-type", default="",
       help="Master instance type (leave empty for same as instance-type)")
-  parser.add_option("-z", "--zone", default="us-east-1b",
+  parser.add_option("-z", "--zone", default="",
       help="Availability zone to launch instances in")
   parser.add_option("-a", "--ami", default="ami-fa4eb393",
       help="Amazon Machine Image ID to use")
@@ -413,6 +414,10 @@ def ssh(host, opts, command):
 def main():
   (opts, action, cluster_name) = parse_args()
   conn = boto.connect_ec2()
+
+  # Select an AZ at random if it was not specified.
+  if opts.zone == "":
+    opts.zone = random.choice(conn.get_all_zones()).name
 
   if action == "launch":
     if opts.resume:

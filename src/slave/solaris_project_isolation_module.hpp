@@ -28,7 +28,7 @@ protected:
 
   public:
     Communicator(SolarisProjectIsolationModule* module);
-    void operator() ();
+    virtual void operator() ();
     void stop();
 
   private:

@@ -1,7 +1,5 @@
 #include <gmock/gmock.h>
 
-#include <boost/lexical_cast.hpp>
-
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
@@ -20,8 +18,6 @@
 using namespace mesos;
 using namespace mesos::internal;
 
-using boost::lexical_cast;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -30,7 +26,6 @@ using mesos::internal::slave::Framework;
 using process::PID;
 
 using std::string;
-using std::map;
 using std::vector;
 
 

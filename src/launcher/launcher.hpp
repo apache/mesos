@@ -41,6 +41,7 @@ protected:
   string hadoopHome;
   bool redirectIO;   // Whether to redirect stdout and stderr to files
   bool shouldSwitchUser; // Whether to setuid to framework's user
+  string container;
   map<string, string> params; // Key-value params in framework's ExecutorInfo
 
 public:
@@ -50,6 +51,7 @@ public:
                    const string& _slavePid, const string& _frameworksHome,
                    const string& _mesosHome, const string& _hadoopHome, 
                    bool _redirectIO, bool _shouldSwitchUser,
+		   const string& container,
                    const map<string, string>& _params);
 
   virtual ~ExecutorLauncher();
@@ -57,7 +59,7 @@ public:
   // Primary method to be called to run the user's executor.
   // Create the work directory, fetch the executor, set up the environment,
   // switch user, and exec() the user's executor.
-  virtual void run();
+  virtual int run();
 
   // Set up environment variables for exec'ing a launcher_main.cpp
   // (mesos-launcher binary) process. This is used by isolation modules that

@@ -1,21 +1,25 @@
 #include <libgen.h>
 
+#include "common/build.hpp"
+#include "common/fatal.hpp"
 #include "common/logging.hpp"
 
 #include "configurator/configurator.hpp"
 
+#include "detector/detector.hpp"
+
 #include "master.hpp"
 #include "webui.hpp"
 
-using std::cerr;
-using std::endl;
-using boost::lexical_cast;
-using boost::bad_lexical_cast;
-
+using namespace mesos::internal;
 using namespace mesos::internal::master;
 
+using std::cerr;
+using std::endl;
+using std::string;
 
-void usage(const char* progName, const Configurator& conf)
+
+void usage(const char* progName, const Configurator& configurator)
 {
   cerr << "Usage: " << progName << " [--port=PORT] [--url=URL] [...]" << endl
        << endl
@@ -24,62 +28,69 @@ void usage(const char* progName, const Configurator& conf)
        << "  zoofile://file where file has one host:port pair per line" << endl
        << endl
        << "Supported options:" << endl
-       << conf.getUsage();
+       << configurator.getUsage();
 }
 
 
 int main(int argc, char **argv)
 {
-  Configurator conf;
-  conf.addOption<string>("url", 'u', "URL used for leader election");
-  conf.addOption<int>("port", 'p', "Port to listen on", 5050);
-  conf.addOption<string>("ip", "IP address to listen on");
+  Configurator configurator;
+  Logging::registerOptions(&configurator);
+  Master::registerOptions(&configurator);
+  configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
+  configurator.addOption<string>("ip", "IP address to listen on");
+  configurator.addOption<string>("url", 'u', "URL used for leader election");
 #ifdef MESOS_WEBUI
-  conf.addOption<int>("webui_port", 'w', "Web UI port", 8080);
+  configurator.addOption<int>("webui_port", 'w', "Web UI port", 8080);
 #endif
-  Logging::registerOptions(&conf);
-  Master::registerOptions(&conf);
 
   if (argc == 2 && string("--help") == argv[1]) {
-    usage(argv[0], conf);
+    usage(argv[0], configurator);
     exit(1);
   }
 
-  Params params;
+  Configuration conf;
   try {
-    params = conf.load(argc, argv, true);
+    conf = configurator.load(argc, argv, true);
   } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
     exit(1);
   }
 
-  Logging::init(argv[0], params);
+  Logging::init(argv[0], conf);
 
-  if (params.contains("port"))
-    setenv("LIBPROCESS_PORT", params["port"].c_str(), 1);
+  if (conf.contains("port")) {
+    setenv("LIBPROCESS_PORT", conf["port"].c_str(), 1);
+  }
 
-  if (params.contains("ip"))
-    setenv("LIBPROCESS_IP", params["ip"].c_str(), 1);
+  if (conf.contains("ip")) {
+    setenv("LIBPROCESS_IP", conf["ip"].c_str(), 1);
+  }
 
-  string url = params.get("url", "");
+  // Initialize libprocess library (but not glog, done above).
+  process::initialize(false);
 
-  LOG(INFO) << "Build: " << BUILD_DATE << " by " << BUILD_USER;
+  string url = conf.get("url", "");
+
+  LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
 
-  if (chdir(dirname(argv[0])) != 0)
+  if (chdir(dirname(argv[0])) != 0) {
     fatalerror("Could not chdir into %s", dirname(argv[0]));
+  }
 
-  Master *master = new Master(params);
-  PID pid = Process::spawn(master);
+  Master* master = new Master(conf);
+  process::spawn(master);
 
-  bool quiet = Logging::isQuiet(params);
-  MasterDetector *detector = MasterDetector::create(url, pid, true, quiet);
+  MasterDetector* detector =
+    MasterDetector::create(url, master->self(), true, Logging::isQuiet(conf));
 
 #ifdef MESOS_WEBUI
-  startMasterWebUI(pid, params);
+  startMasterWebUI(master->self(), conf);
 #endif
   
-  Process::wait(pid);
+  process::wait(master->self());
+  delete master;
 
   MasterDetector::destroy(detector);
 
