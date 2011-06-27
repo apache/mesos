@@ -19,28 +19,34 @@ import org.apache.hadoop.mapred.TaskStatus.State;
 import org.apache.hadoop.mapred.TaskTrackerStatus;
 import org.apache.hadoop.net.Node;
 
-import mesos.ExecutorInfo;
-import mesos.FrameworkMessage;
-import mesos.Scheduler;
-import mesos.SchedulerDriver;
-import mesos.SlaveOffer;
-import mesos.TaskDescription;
-import mesos.TaskState;
+import org.apache.mesos.Protos.ExecutorInfo;
+import org.apache.mesos.Protos.ExecutorID;
+import org.apache.mesos.Protos.FrameworkID;
+import org.apache.mesos.Protos.OfferID;
+import org.apache.mesos.Protos.Resource;
+import org.apache.mesos.Protos.SlaveID;
+import org.apache.mesos.Protos.SlaveOffer;
+import org.apache.mesos.Protos.TaskID;
+import org.apache.mesos.Protos.TaskDescription;
+import org.apache.mesos.Protos.TaskState;
+import org.apache.mesos.Protos.TaskStatus;
+import org.apache.mesos.Scheduler;
+import org.apache.mesos.SchedulerDriver;
 
-public class FrameworkScheduler extends Scheduler {
+public class FrameworkScheduler implements Scheduler {
   public static final Log LOG =
     LogFactory.getLog(FrameworkScheduler.class);
   public static final long KILL_UNLAUNCHED_TASKS_SLEEP_TIME = 2000;
 
   private static class MesosTask {
     final boolean isMap;
-    final int mesosId;
+    final TaskID mesosId;
     final String host;
     final long creationTime;
     
     TaskAttemptID hadoopId;
     
-    MesosTask(boolean isMap, int mesosId, String host) {
+    MesosTask(boolean isMap, TaskID mesosId, String host) {
       this.isMap = isMap;
       this.mesosId = mesosId;
       this.host = host;
@@ -57,11 +63,11 @@ public class FrameworkScheduler extends Scheduler {
   }
   
   private static class TaskTrackerInfo {
-    String mesosSlaveId;
+    SlaveID mesosSlaveId;
     List<MesosTask> maps = new LinkedList<MesosTask>();
     List<MesosTask> reduces = new LinkedList<MesosTask>();
     
-    public TaskTrackerInfo(String mesosSlaveId) {
+    public TaskTrackerInfo(SlaveID mesosSlaveId) {
       this.mesosSlaveId = mesosSlaveId;
     }
     
@@ -93,7 +99,8 @@ public class FrameworkScheduler extends Scheduler {
   
   private MesosScheduler mesosSched;
   private SchedulerDriver driver;
-  private String frameworkId;
+  private MesosJobTrackerInstrumentation instrumentation;
+  private FrameworkID frameworkId;
   private Configuration conf;
   private JobTracker jobTracker;
   private boolean running;
@@ -108,8 +115,8 @@ public class FrameworkScheduler extends Scheduler {
   
   private Map<TaskAttemptID, MesosTask> hadoopIdToMesosTask =
     new HashMap<TaskAttemptID, MesosTask>();
-  private Map<Integer, MesosTask> mesosIdToMesosTask =
-    new HashMap<Integer, MesosTask>();
+  private Map<String, MesosTask> mesosIdToMesosTask =
+    new HashMap<String, MesosTask>();
   
   // Counts of various kinds of Mesos tasks
   // TODO: Figure out a better way to keep track of these
@@ -132,6 +139,8 @@ public class FrameworkScheduler extends Scheduler {
     this.mesosSched = mesosSched;
     this.conf = mesosSched.getConf();
     this.jobTracker = mesosSched.jobTracker;
+    this.instrumentation =
+      new MesosJobTrackerInstrumentation(jobTracker, new JobConf(conf), this);
     cpusPerTask = conf.getInt("mapred.mesos.task.cpus", 1);
     memPerTask = conf.getInt("mapred.mesos.task.mem", 1024);
     localityWait = conf.getLong("mapred.mesos.localitywait", 5000);
@@ -140,7 +149,7 @@ public class FrameworkScheduler extends Scheduler {
   }
 
   @Override
-  public void registered(SchedulerDriver d, String fid) {
+  public void registered(SchedulerDriver d, FrameworkID fid) {
     this.driver = d;
     this.frameworkId = fid;
     LOG.info("Registered with Mesos, with framework ID " + fid);
@@ -151,9 +160,32 @@ public class FrameworkScheduler extends Scheduler {
   public void cleanUp() {
     running = false;
   }
+
+  private static Resource makeResource(String name, double value) {
+    return Resource.newBuilder().setName(name).setScalar(
+        Resource.Scalar.newBuilder().setValue(value).build()
+    ).setType(Resource.Type.SCALAR).build();
+  }
+
+  private static double getResource(Collection<Resource> resources, String name) {
+    for (Resource r : resources) {
+      if (r.getName().equals(name)) {
+        return r.getScalar().getValue();
+      }
+    }
+    throw new IndexOutOfBoundsException(name);
+  }
+
+  private static double getResource(SlaveOffer offer, String name) {
+    return getResource(offer.getResourcesList(), name);
+  }
+
+  private static double getResource(TaskDescription task, String name) {
+    return getResource(task.getResourcesList(), name);
+  }
   
   @Override
-  public void resourceOffer(SchedulerDriver d, String oid,
+  public void resourceOffer(SchedulerDriver d, OfferID oid,
       List<SlaveOffer> offers) {
     try {
       synchronized(jobTracker) {
@@ -161,14 +193,14 @@ public class FrameworkScheduler extends Scheduler {
         List<TaskDescription> tasks = new ArrayList<TaskDescription>();
         
         int numOffers = (int) offers.size();
-        int[] cpus = new int[numOffers];
-        int[] mem = new int[numOffers];
+        double[] cpus = new double[numOffers];
+        double[] mem = new double[numOffers];
 
         // Count up the amount of free CPUs and memory on each node 
         for (int i = 0; i < numOffers; i++) {
           SlaveOffer offer = offers.get(i);
-          cpus[i] = Integer.parseInt(offer.getParams().get("cpus"));
-          mem[i] = Integer.parseInt(offer.getParams().get("mem"));
+          cpus[i] = getResource(offer, "cpus");
+          mem[i] = getResource(offer, "mem");
         }
         
         // Assign tasks to the nodes in a round-robin manner, and stop when we
@@ -188,10 +220,10 @@ public class FrameworkScheduler extends Scheduler {
             int i = it.next();
             SlaveOffer offer = offers.get(i);
             TaskDescription task = findTask(
-                offer.getSlaveId(), offer.getHost(), cpus[i], mem[i]);
+                offer.getSlaveId(), offer.getHostname(), cpus[i], mem[i]);
             if (task != null) {
-              cpus[i] -= Integer.parseInt(task.getParams().get("cpus"));
-              mem[i] -= Integer.parseInt(task.getParams().get("mem"));
+              cpus[i] -= getResource(task, "cpus");
+              mem[i] -= getResource(task, "mem");
               tasks.add(task);
             } else {
               it.remove();
@@ -208,11 +240,11 @@ public class FrameworkScheduler extends Scheduler {
     }
   }
   
-  private TaskTrackerInfo getTaskTrackerInfo(String host, String slaveId) {
+  private TaskTrackerInfo getTaskTrackerInfo(String host, SlaveID slaveId) {
     if (ttInfos.containsKey(host)) {
       return ttInfos.get(host);
     } else {
-      TaskTrackerInfo info = new TaskTrackerInfo(slaveId);
+      TaskTrackerInfo info = new TaskTrackerInfo(slaveId.toBuilder().build());
       ttInfos.put(host, info);
       return info;
     }
@@ -220,7 +252,7 @@ public class FrameworkScheduler extends Scheduler {
   
   // Find a single task for a given node. Assumes JobTracker is locked.
   private TaskDescription findTask(
-      String slaveId, String host, int cpus, int mem) {
+      SlaveID slaveId, String host, double cpus, double mem) {
     if (cpus < cpusPerTask || mem < memPerTask) {
       return null; // Too few resources are left on the node
     }
@@ -249,7 +281,7 @@ public class FrameworkScheduler extends Scheduler {
     LOG.info("Task type chosen: " + taskType);
     
     // Get a Mesos task ID for the new task
-    int mesosId = newMesosTaskId();
+    TaskID mesosId = newMesosTaskId();
     
     // Remember that it is launched
     boolean isMap = taskType.equals("map");
@@ -259,19 +291,24 @@ public class FrameworkScheduler extends Scheduler {
       unassignedReduces++;
     }
     MesosTask nt = new MesosTask(isMap, mesosId, host);
-    mesosIdToMesosTask.put(mesosId, nt);
+    mesosIdToMesosTask.put(mesosId.getValue(), nt);
     ttInfo.add(nt);
     
     // Create a task description to pass back to Mesos
     String name = "task " + mesosId + " (" + taskType + ")";
-    Map<String, String> params = new HashMap<String, String>();
-    params.put("cpus", "" + cpusPerTask);
-    params.put("mem", "" + memPerTask);
-    return new TaskDescription(mesosId, slaveId, name, params, new byte[0]);
+    return TaskDescription.newBuilder()
+      .setTaskId(mesosId)
+      .setSlaveId(slaveId)
+      .setName(name)
+      .addResources(makeResource("cpus", cpusPerTask))
+      .addResources(makeResource("mem", memPerTask))
+      .build();
   }
 
-  private int newMesosTaskId() {
-    return nextMesosTaskId.getAndIncrement();
+  private TaskID newMesosTaskId() {
+    return TaskID.newBuilder().setValue(
+        "" + nextMesosTaskId.getAndIncrement()
+    ).build();
   }
 
   @Override
@@ -281,12 +318,19 @@ public class FrameworkScheduler extends Scheduler {
            " web UI port: " + jobTracker.infoPort + ")";
   }
 
+  private static final ExecutorID EXECUTOR_ID =
+    ExecutorID.newBuilder().setValue("default").build();
+
   @Override
   public ExecutorInfo getExecutorInfo(SchedulerDriver driver) {
     try {
       String execPath = new File("bin/mesos-executor").getCanonicalPath();
       byte[] initArg = conf.get("mapred.job.tracker").getBytes("US-ASCII");
-      return new ExecutorInfo(execPath, initArg);
+      return ExecutorInfo.newBuilder()
+        .setUri(execPath)
+        .setData(com.google.protobuf.ByteString.copyFrom(initArg))
+        .setExecutorId(EXECUTOR_ID)
+        .build();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -393,21 +437,32 @@ public class FrameworkScheduler extends Scheduler {
     
     return false;
   }
+
+  public void killedTask(TaskAttemptID hadoopId) {
+    MesosTask nt = hadoopIdToMesosTask.remove(hadoopId);
+    if (nt != null) {
+      askExecutorToUpdateStatus(nt, TaskState.TASK_KILLED);
+      removeTask(nt);
+    }
+  }
   
   @Override
-  public void statusUpdate(SchedulerDriver d, mesos.TaskStatus status) {
+  public void statusUpdate(SchedulerDriver d, TaskStatus status) {
     TaskState state = status.getState();
     if (state == TaskState.TASK_FINISHED || state == TaskState.TASK_FAILED ||
         state == TaskState.TASK_KILLED || state == TaskState.TASK_LOST) {
       synchronized (jobTracker) {
-        int mesosId = status.getTaskId();
-        MesosTask nt = mesosIdToMesosTask.get(mesosId);
+        TaskID mesosId = status.getTaskId();
+        MesosTask nt = mesosIdToMesosTask.get(mesosId.getValue());
         if (nt != null) {
           removeTask(nt);
         }
       }
     }
   }
+
+  @Override
+  public void slaveLost(SchedulerDriver d, SlaveID slaveId) {}
 
   /**
    * Called by JobTracker to ask us to launch tasks on a heartbeat.
@@ -463,7 +518,7 @@ public class FrameworkScheduler extends Scheduler {
                 assignedMaps++;
                 hadoopIdToMesosTask.put(task.getTaskID(), nt);
                 assignedTasks.add(task);
-                task.extraData = "" + nt.mesosId;
+                task.extraData = nt.mesosId.getValue();
               } else {
                 break;
               }
@@ -478,7 +533,7 @@ public class FrameworkScheduler extends Scheduler {
                 assignedReduces++;
                 hadoopIdToMesosTask.put(task.getTaskID(), nt);
                 assignedTasks.add(task);
-                task.extraData = "" + nt.mesosId;
+                task.extraData = nt.mesosId.getValue();
               } else {
                 break;
               }
@@ -496,7 +551,7 @@ public class FrameworkScheduler extends Scheduler {
 
   private void removeTask(MesosTask nt) {
     synchronized (jobTracker) {
-      mesosIdToMesosTask.remove(nt.mesosId);
+      mesosIdToMesosTask.remove(nt.mesosId.getValue());
       if (nt.hadoopId != null) {
         hadoopIdToMesosTask.remove(nt.hadoopId);
       }
@@ -522,11 +577,11 @@ public class FrameworkScheduler extends Scheduler {
     TaskTrackerInfo ttInfo = ttInfos.get(nt.host);
     if (ttInfo != null) {
       HadoopFrameworkMessage message = new HadoopFrameworkMessage(
-          HadoopFrameworkMessage.Type.S2E_SEND_STATUS_UPDATE, state.toString());
+          HadoopFrameworkMessage.Type.S2E_SEND_STATUS_UPDATE, state.toString(),
+          nt.mesosId.getValue());
       try {
         LOG.info("Asking slave " + ttInfo.mesosSlaveId + " to update status");
-        driver.sendFrameworkMessage(new FrameworkMessage(
-            ttInfo.mesosSlaveId, nt.mesosId, message.serialize()));
+        driver.sendFrameworkMessage(ttInfo.mesosSlaveId, EXECUTOR_ID, message.serialize());
       } catch (IOException e) {
         // This exception would only get thrown if we couldn't serialize the
         // HadoopFrameworkMessage, which is a serious problem; crash the JT
@@ -563,9 +618,17 @@ public class FrameworkScheduler extends Scheduler {
   }
   
   @Override
-  public void frameworkMessage(SchedulerDriver d, FrameworkMessage message) {
+  public void frameworkMessage(SchedulerDriver d, SlaveID sId, ExecutorID eId, byte[] message) {
     // TODO: Respond to E2S_KILL_REQUEST message by killing a task
   }
+
+  @Override
+  public void error(SchedulerDriver d, int code, String msg) {
+    LOG.error("FrameworkScheduler.error: " + msg);
+  }
+
+  @Override
+  public void offerRescinded(SchedulerDriver d, OfferID oId) {}
   
   // Methods to check whether a job has runnable tasks
   

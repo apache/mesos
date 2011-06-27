@@ -13,15 +13,18 @@ import org.apache.hadoop.mapred.TaskStatus.State;
 import org.apache.hadoop.mapred.TaskTracker.TaskInProgress;
 import org.hsqldb.lib.Iterator;
 
-import mesos.Executor;
-import mesos.ExecutorArgs;
-import mesos.ExecutorDriver;
-import mesos.FrameworkMessage;
-import mesos.MesosExecutorDriver;
-import mesos.TaskDescription;
-import mesos.TaskState;
+import org.apache.mesos.Executor;
+import org.apache.mesos.ExecutorDriver;
+import org.apache.mesos.MesosExecutorDriver;
+import org.apache.mesos.Protos.ExecutorArgs;
+import org.apache.mesos.Protos.ExecutorID;
+import org.apache.mesos.Protos.SlaveID;
+import org.apache.mesos.Protos.TaskID;
+import org.apache.mesos.Protos.TaskDescription;
+import org.apache.mesos.Protos.TaskState;
+import org.apache.mesos.Protos.TaskStatus;
 
-public class FrameworkExecutor extends Executor {
+public class FrameworkExecutor implements Executor {
   static {
     System.loadLibrary("mesos");
   }
@@ -32,11 +35,11 @@ public class FrameworkExecutor extends Executor {
     LogFactory.getLog(FrameworkExecutor.class);
   
   private ExecutorDriver driver;
-  private String slaveId;
+  private SlaveID slaveId;
   private JobConf conf;
   private TaskTracker taskTracker;
 
-  private Set<Integer> activeMesosTasks = new HashSet<Integer>();
+  private Set<String> activeMesosTasks = new HashSet<String>();
 
   @Override
   public void init(ExecutorDriver d, ExecutorArgs args) {
@@ -46,7 +49,7 @@ public class FrameworkExecutor extends Executor {
       
       // TODO: initialize all of JobConf from ExecutorArgs (using JT's conf)?
       conf = new JobConf();
-      String jobTracker = new String(args.getData());
+      String jobTracker = args.getData().toStringUtf8();
       LOG.info("Setting JobTracker: " + jobTracker);
       conf.set("mapred.job.tracker", jobTracker);
       
@@ -60,7 +63,7 @@ public class FrameworkExecutor extends Executor {
       conf.set("mapred.tasktracker.instrumentation", newInstClassList);
       
       // Get hostname from Mesos to make sure we match what it reports to the JT
-      conf.set("slave.host.name", args.getHost());
+      conf.set("slave.host.name", args.getHostname());
       
       taskTracker = new TaskTracker(conf);
       new Thread("TaskTracker run thread") {
@@ -78,25 +81,32 @@ public class FrameworkExecutor extends Executor {
   @Override
   public void launchTask(ExecutorDriver d, TaskDescription task) {
     LOG.info("Asked to launch Mesos task " + task.getTaskId());
-    activeMesosTasks.add(task.getTaskId());
+    activeMesosTasks.add(task.getTaskId().getValue());
+    d.sendStatusUpdate(TaskStatus.newBuilder()
+                                 .setTaskId(task.getTaskId())
+                                 .setState(TaskState.TASK_RUNNING)
+                                 .build());
   }
   
   @Override
-  public void killTask(ExecutorDriver d, int taskId) {
+  public void killTask(ExecutorDriver d, TaskID taskId) {
     LOG.info("Asked to kill Mesos task " + taskId);
     // TODO: Tell the JobTracker about this using an E2S_KILL_REQUEST message!
   }
-  
-  @Override
-  public void frameworkMessage(ExecutorDriver d, FrameworkMessage msg) {
+ 
+  @Override 
+  public void frameworkMessage(ExecutorDriver d, byte[] msg) {
     try {
-      int mesosId = msg.getTaskId();
-      HadoopFrameworkMessage hfm = new HadoopFrameworkMessage(msg.getData());
+      HadoopFrameworkMessage hfm = new HadoopFrameworkMessage(msg);
       switch (hfm.type) {
         case S2E_SEND_STATUS_UPDATE: {
           TaskState s = TaskState.valueOf(hfm.arg1);
-          LOG.info("Sending status update: " + mesosId + " is " + s);
-          d.sendStatusUpdate(new mesos.TaskStatus(mesosId, s, new byte[0]));
+          LOG.info("Sending status update: " + hfm.arg2 + " is " + s);
+          d.sendStatusUpdate(
+                  TaskStatus.newBuilder().setTaskId(
+                      TaskID.newBuilder().setValue(hfm.arg2).build()
+                  ).setState(s).build()
+          );
           break;
         }
         case S2E_SHUTDOWN_EXECUTOR: {
@@ -110,17 +120,17 @@ public class FrameworkExecutor extends Executor {
     }
   }
   
-  public void statusUpdate(Task task, TaskStatus status) {
+  public void statusUpdate(Task task, org.apache.hadoop.mapred.TaskStatus status) {
     LOG.info("Status update: " + task.getTaskID() + " is " + 
         status.getRunState());
     if (!task.extraData.equals("")) {
       // Parse Mesos ID from extraData
-      int mesosId = Integer.parseInt(task.extraData);
+      String mesosId = task.extraData;
       if (activeMesosTasks.contains(mesosId)) {
         // Check whether the task has finished (either successfully or not),
         // and report to Mesos if it has
         State state = status.getRunState();
-        TaskState mesosState = null;
+        org.apache.mesos.Protos.TaskState mesosState = null;
         if (state == State.SUCCEEDED || state == State.COMMIT_PENDING)
           mesosState = TaskState.TASK_FINISHED;
         else if (state == State.FAILED || state == State.FAILED_UNCLEAN)
@@ -129,12 +139,23 @@ public class FrameworkExecutor extends Executor {
           mesosState = TaskState.TASK_KILLED;
         if (mesosState != null) {
           driver.sendStatusUpdate(
-              new mesos.TaskStatus(mesosId, mesosState, new byte[0]));
+                  TaskStatus.newBuilder().setTaskId(
+                    TaskID.newBuilder().setValue(task.extraData).build()
+                  ).setState(mesosState).build()
+          );
           activeMesosTasks.remove(mesosId);
         }
       }
     }
   }
+
+  @Override
+  public void error(ExecutorDriver d, int code, String msg) {
+    LOG.error("FrameworkExecutor.error: " + msg);
+  }
+
+  @Override
+  public void shutdown(ExecutorDriver d) {}
 
   public static void main(String[] args) {
     instance = new FrameworkExecutor();

@@ -287,6 +287,17 @@ if [ "x$MESOS_HOME" != "x" ] ; then
   CLASSPATH="$CLASSPATH:$MESOS_HOME/lib/java/mesos.jar"
 fi
 CLASSPATH="$CLASSPATH:$HADOOP_HOME/build/contrib/mesos/classes"
+CLASSPATH="$CLASSPATH:$HADOOP_HOME/build/ivy/lib/mesos/common/protobuf-java-2.3.0.jar"
+if [ -d "$HADOOP_HOME/build/ivy/lib/Hadoop/common" ]; then
+for f in $HADOOP_HOME/build/ivy/lib/Hadoop/common/*.jar; do
+  CLASSPATH=${CLASSPATH}:$f;
+done
+fi
+if [ -d "$HADOOP_HOME/contrib/mesos/lib" ]; then
+for f in $HADOOP_HOME/build/ivy/lib/Hadoop/common/*.jar; do
+  CLASSPATH=${CLASSPATH}:$f;
+done
+fi
 
 # cygwin path translation
 if $cygwin; then

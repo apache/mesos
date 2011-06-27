@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import mesos.MesosSchedulerDriver;
-import mesos.SchedulerDriver;
+import org.apache.mesos.MesosSchedulerDriver;
+import org.apache.mesos.SchedulerDriver;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

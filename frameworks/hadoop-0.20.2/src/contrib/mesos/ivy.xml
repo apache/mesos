@@ -34,5 +34,9 @@
       name="junit"
       rev="${junit.version}"
       conf="common->default"/>
+  <dependency org="com.google.protobuf"
+    name="protobuf-java"
+    rev="${protobuf-java.version}"
+    conf="common->default"/>
   </dependencies>
 </ivy-module>

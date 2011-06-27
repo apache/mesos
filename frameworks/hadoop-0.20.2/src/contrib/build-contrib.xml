@@ -212,6 +212,17 @@
         <include name="hadoop-${version}-${name}.jar" />
       </fileset>
     </copy>
+
+    <!-- copy the dependency libraries into the contrib/lib dir -->
+    <mkdir dir="${dist.dir}/contrib/${name}/lib"/>
+    <copy todir="${dist.dir}/contrib/${name}/lib" includeEmptyDirs="false" flatten="true">
+      <fileset dir="${common.ivy.lib.dir}">
+        <!-- except for those already present due to Hadoop -->
+        <present present="srconly" targetdir="${dist.dir}/lib" />
+      </fileset>
+    </copy>
+    <!-- if the lib dir is empty, remove it. -->
+    <delete dir="${dist.dir}/contrib/${name}/lib" includeEmptyDirs="true" excludes="*.jar" />
   </target>
   
   <!-- ================================================================== -->
