@@ -17,7 +17,7 @@ if [ "$PROGRAM" == "mesos-slave" ]; then
     CPUS=`grep processor /proc/cpuinfo | wc -l`
     MEM_KB=`cat /proc/meminfo | grep MemTotal | awk '{print $2}'`
     MEM=$[(MEM_KB - 1024 * 1024) / 1024] # Leaves 1 GB free
-    EXTRA_OPTS="--cpus=$CPUS --mem=$MEM"
+    EXTRA_OPTS="\"--resources=cpus:$CPUS;mem:$MEM\""
   fi
 fi
 

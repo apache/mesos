@@ -6,6 +6,8 @@ DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
 
 $DEPLOY_DIR/start-masters
 
+sleep 1
+
 $DEPLOY_DIR/start-slaves
 
 echo "Everything's started! You should be able to view the master Web UI"

@@ -28,7 +28,7 @@ fi
 MESOS_URL=`$MESOS_HOME/bin/mesos-getconf url`
 if [ "x$MESOS_URL" == "x" ]; then
   FIRST_MASTER=`head -1 "$MASTERS_FILE"`
-  MESOS_URL="mesos://1@$FIRST_MASTER:5050"
+  MESOS_URL="mesos://master@$FIRST_MASTER:5050"
 fi
 
 # Read the deploy_with_sudo config setting to determine whether to run
