@@ -69,8 +69,9 @@ public:
   {
     pthread_mutex_lock(&mutex);
     {
-      while (old == state)
+      while (old == state) {
 	pthread_cond_wait(&cond, &mutex);
+      }
       waiters--;
     }
     pthread_mutex_unlock(&mutex);

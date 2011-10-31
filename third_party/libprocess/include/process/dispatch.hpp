@@ -3,7 +3,7 @@
 
 #include <process/process.hpp>
 
-// Provides "dispatch" abiltiies for a process. That is, given a local
+// Provides "dispatch" abilities for a process. That is, given a local
 // (i.e., typed) pid, one can dispatch a method to it more naturally
 // then sending a string and some bytes of data. This provides better
 // type safety.
@@ -911,10 +911,19 @@ namespace internal {
 template <typename T>
 void __associate(const Future<T>& future, Promise<T> promise)
 {
-  if (future.ready()) {
-    promise.set(future.get());
-  } else if (future.discarded()) {
-    promise.future().discard();
+  // The future associated with this promise is either pending
+  // (because we haven't set it, failed it, or discarded it) or it's
+  // discarded (because the receiver of the future has discarded it).
+  assert(promise.future().isPending() || promise.future().isDiscarded());
+
+  if (promise.future().isPending()) { // Avoid acquiring a lock.
+    if (future.isReady()) {
+      promise.set(future.get());
+    } else if (future.isFailed()) {
+      promise.fail(future.failure());
+    } else if (future.isDiscarded()) {
+      promise.future().discard();
+    }
   }
 }
 
@@ -924,9 +933,7 @@ void associate(const Promise<T>& from, const Promise<T>& to)
 {
   std::tr1::function<void(const Future<T>&)> callback =
     std::tr1::bind(__associate<T>, std::tr1::placeholders::_1, to);
-  Future<T> future = from.future();
-  future.onReady(callback);
-  future.onDiscarded(callback);
+  from.future().onAny(callback);
 }
 
 

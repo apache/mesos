@@ -1,0 +1,110 @@
+#!/bin/bash
+
+cd /root/mesos-ec2
+
+MASTERS=`cat master`
+SLAVES_FILE="slaves"
+SLAVES=`cat $SLAVES_FILE`
+
+SCHEDULER_ITERATION=5
+
+#These seem to be broken, i.e. missing directories after install
+#ssh $MASTERS "apt-get install -y torque-server"
+#ssh $MASTERS "apt-get install -y torque-scheduler"
+#ssh $MASTERS "apt-get install -y torque-client"
+
+#install torque: download/unzip torque
+function installtorque {
+	pushd ~
+	echo "downloading and installing torque on master"
+	#wget http://www.clusterresources.com/downloads/torque/torque-2.4.7.tar.gz
+	rm -rf torque-2.4.7.tar.gz
+	wget http://mesos.berkeley.edu/torque-2.4.7.tar.gz
+	tar xzf torque-2.4.7.tar.gz
+	pushd torque-2.4.7
+	./configure --prefix=/usr
+	make -j8
+	make install
+	popd;popd
+}
+
+function setuptorque {
+	pushd ~/torque-2.4.7
+	echo "running ldconfig on master"
+	ldconfig
+        #./torque.setup root # Note: sets some defaults for batch queue
+	qterm
+        yes|./torque.setup root localhost # Note: sets some defaults for batch queue
+
+	#WARNING: allow root to qsub for debug purposes only, may be dangerous
+	qmgr -c 'set server acl_roots+=root@*' #allow root to submit jobs
+	qmgr -c "set server scheduler_iteration=$SCHEDULER_ITERATION"
+	#qmgr -c 's s allow_node_submit=true' #other hosts can submit too
+
+	NUM_SLAVES=`cat ~/mesos-ec2/slaves|wc -l`
+	#the server be restarted after this
+	qmgr -c "set queue batch resources_available.nodect=$NUM_SLAVES"
+	#qmgr -c "set server resources_available.nodect=$NUM_SLAVES"
+	qterm
+        pbs_server
+
+	touch ~/.rhosts
+	echo `hostname` |cat >> ~/.rhosts
+	echo `hostname -f` |cat >> ~/.rhosts
+	echo localhost |cat >> ~/.rhosts
+
+	popd
+}
+
+
+function installslaves {
+	pushd ~/torque-2.4.7
+	echo "building packages for slave"
+	make packages
+	#install torque-mom on slave nodes
+	apt-get install -y dsh
+	
+        echo "copying slave install packages to nfs"
+	mkdir /nfs/torque
+	cp torque-package-mom-linux-x86_64.sh /nfs/torque/torque-package-mom-linux-x86_64.sh
+	cp torque-package-mom-linux-x86_64.sh /nfs/torque/torque-package-clients-linux-x86_64.sh
+
+	echo "installing torque mom and clients package on slaves"
+	for i in `cat $SLAVES_FILE`; do ssh $i /nfs/torque/torque-package-mom-linux-x86_64.sh --install; ldconfig; done
+	for i in `cat $SLAVES_FILE`; do ssh $i /nfs/torque/torque-package-clients-linux-x86_64.sh --install; ldconfig; done
+
+	echo "Running ldconfig on slaves"
+	dsh -f $SLAVES_FILE ldconfig
+	popd
+}
+
+function installmpi {
+        #setup mpich2 on all of the cluster nodes
+        ./setup-mpi
+
+        #setup prologue script
+        cp ./prologue.setup-mpi-master /var/spool/torque/mom_priv/prologue
+        cp ./epilogue.kill-mpi-ring /var/spool/torque/mom_priv/epilogue
+        
+	for i in `cat $SLAVES_FILE`; do scp ./prologue.setup-mpi-master $i:/var/spool/torque/mom_priv/prologue; done
+	for i in `cat $SLAVES_FILE`; do scp ./epilogue.kill-mpi-ring $i:/var/spool/torque/mom_priv/epilogue; done
+}
+
+function installmaui {
+	pushd ~
+	#http://www.clusterresources.com/download/maui/maui-3.3.tar.gz
+	rm -rf mesos-maui-3.3.tar
+	wget http://mesos.berkeley.edu/mesos-maui-3.3.tar
+	tar -xf mesos-maui-3.3.tar
+	pushd maui-3.3
+	./configure
+	make
+	make install
+	/usr/local/maui/sbin/maui
+}
+
+installtorque
+setuptorque
+installslaves
+installmpi
+installmaui

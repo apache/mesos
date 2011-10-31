@@ -29,6 +29,7 @@ using namespace mesos::internal;
 using std::string;
 
 
+string test::mesosRoot;
 string test::mesosHome;
 
 

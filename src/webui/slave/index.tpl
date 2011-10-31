@@ -1,69 +1,87 @@
-%import os
-%from slave import get_slave
-%from webui_lib import *
-%slave = get_slave()
+% import json
+% import os
+% import time
+% import urllib
+
+% from datetime import datetime
+% from webui_lib import *
+
+% url = "http://localhost:" + slave_port + "/slave/state.json"
+% data = urllib.urlopen(url).read()
+% state = json.loads(data)
+
 <html>
 <head>
-<title>Mesos Slave on {{HOSTNAME}}</title>
-<link rel="stylesheet" type="text/css" href="/static/stylesheet.css" />
+  <title>Mesos Slave</title>
+  <link rel="stylesheet" type="text/css" href="/static/stylesheet.css" />
 </head>
 <body>
 
-<h1>Mesos Slave on {{HOSTNAME}}</h1>
+<h1>Mesos Slave</h1>
+
+% pid = state['pid'] # slave@ip:port
+% _, server = pid.split("@", 1)
+% ip, _ = server.split(":", 1)
+% format = "%a %b %d %Y %I:%M:%S %p " + time.strftime("%Z", time.gmtime())
+% start_local = datetime.fromtimestamp(state['start_time']).strftime(format)
+% start_utc = datetime.utcfromtimestamp(state['start_time']).isoformat(' ')
 
 <p>
-Built: {{slave.build_date}} by {{slave.build_user}}<br />
-Started: {{format_time(start_time)}}<br />
-PID: {{slave.pid}}<br />
-CPUs: {{slave.cpus}}<br />
-MEM: {{format_mem(slave.mem)}}<br />
-%if slave.id == -1:
-  Slave ID: unassigned (not yet registered)<br />
-%else:
-  Slave ID: {{slave.id}}<br />
-%end
-Frameworks: {{slave.frameworks.size()}}<br />
+  Server: {{HOSTNAME}} ({{ip}})<br />
+  Built: {{state['build_date']}} by {{state['build_user']}}<br />
+  Started: {{start_local}} ({{start_utc}} UTC) <br />
+  % if state['id'] == -1:
+  ID: unassigned (not yet registered)<br />
+  % else:
+  ID: {{state['id']}}<br />
+  % end
+  CPUs: {{state['resources']['cpus']}}<br />
+  MEM: {{format_mem(state['resources']['mem'])}}<br />
+  Frameworks: {{len(state['frameworks'])}}<br />
 </p>
 
 <p>
-Log:
-<a href="/log/INFO/100">[last 100 lines]</a>
-<a href="/log/INFO">[full]</a>
+  Log:
+  <a href="/log/INFO/100">[last 100 lines]</a>
+  <a href="/log/INFO">[full]</a>
 </p>
 
 <h2>Frameworks</h2>
 
-%# TODO: Sort these by framework ID
-%if slave.frameworks.size() > 0:
-  <table>
+% # TODO: Sort these by framework ID.
+% if len(state['frameworks']) > 0:
+<table class="lists">
   <tr>
-  <th>ID</th>
-  <th>Name</th>
-  <th>Executor</th>
-  <th>Running Tasks</th>
-  <th>CPUs</th>
-  <th>MEM</th>
-  <th>Executor Status</th>
-  <th>Logs</th>
+    <th class="lists">ID</th>
+    <th class="lists">Name</th>
+    <th class="lists">Running Tasks</th>
+    <th class="lists">CPUs</th>
+    <th class="lists">MEM</th>
   </tr>
-  %for i in range(slave.frameworks.size()):
-    %framework = slave.frameworks[i]
-    <tr>
-    <td>{{framework.id}}</td>
-    <td><a href="/framework/{{framework.id}}">{{framework.name}}</a></td>
-    <td>{{os.path.basename(framework.executor_uri)}}</td>
-    <td>{{framework.tasks.size()}}</td>
-    <td>{{framework.cpus}}</td>
-    <td>{{format_mem(framework.mem)}}</td>
-    <td>{{framework.executor_status}}</td>
-    <td><a href="/framework-logs/{{framework.id}}/stdout">[stdout]</a>
-        <a href="/framework-logs/{{framework.id}}/stderr">[stderr]</a></td>
-    </tr>
-  %end
-  </table>
-%else:
-  <p>No frameworks are active on this slave.</p>
-%end
+  % for framework in state['frameworks']:
+  %   # For now just sum up the tasks and resources across all executors.
+  %   tasks = 0
+  %   cpus = 0
+  %   mem = 0
+  %   for executor in framework['executors']:
+  %     tasks += len(executor['tasks'])
+  %     cpus += executor['resources']['cpus']
+  %     mem += executor['resources']['mem']
+  %   end
+  <tr>
+    <td class="lists">{{framework['id']}}</td>
+    <td class="lists">
+      <a href="/framework/{{framework['id']}}">{{framework['name']}}</a>
+    </td>
+    <td class="lists">{{tasks}}</td>
+    <td class="lists">{{cpus}}</td>
+    <td class="lists">{{format_mem(mem)}}</td>
+  </tr>
+  % end
+</table>
+% else:
+<p>No frameworks are active on this slave.</p>
+% end
 
 </body>
 </html>

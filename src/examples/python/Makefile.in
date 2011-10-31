@@ -30,7 +30,7 @@ PYTHON_SCRIPTS = $(OUTDIR)/test_framework.py        \
 
 PYTHON = $(PYTHON_SCRIPTS)
 
-MESOS_PYTHON_LIB = $(LIBDIR)/python/_mesos.so
+MESOS_PYTHON_LIB = $(LIBDIR)/python
 
 default: all
 

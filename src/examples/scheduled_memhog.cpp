@@ -64,9 +64,8 @@ struct TaskComparator
 class MyScheduler : public Scheduler
 {
 public:
-  MyScheduler(const string& uri_, const string& scheduleFile,
-              int threadsPerTask_)
-    : uri(uri_), threadsPerTask(threadsPerTask_),
+  MyScheduler(const string& scheduleFile, int threadsPerTask_)
+    : threadsPerTask(threadsPerTask_),
       tasksLaunched(0), tasksFinished(0), successfulTasks(0)
   {
     ifstream in(scheduleFile.c_str());
@@ -90,35 +89,21 @@ public:
 
   virtual ~MyScheduler() {}
 
-  virtual string getFrameworkName(SchedulerDriver*)
-  {
-    return "Memory hog";
-  }
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*)
-  {
-    ExecutorInfo executor;
-    executor.mutable_executor_id()->set_value("default");
-    executor.set_uri(uri);
-    return executor;
-  }
-
   virtual void registered(SchedulerDriver*, const FrameworkID&)
   {
     cout << "Registered!" << endl;
     startTime = time(0);
   }
 
-  virtual void resourceOffer(SchedulerDriver* driver,
-                             const OfferID& offerId,
-                             const vector<SlaveOffer>& offers)
+  virtual void resourceOffers(SchedulerDriver* driver,
+                              const vector<Offer>& offers)
   {
     time_t now = time(0);
     double curTime = difftime(now, startTime);
-    vector<TaskDescription> toLaunch;
-    vector<SlaveOffer>::const_iterator iterator = offers.begin();
+    vector<Offer>::const_iterator iterator = offers.begin();
     for (; iterator != offers.end(); ++iterator) {
-      const SlaveOffer& offer = *iterator;
+      const Offer& offer = *iterator;
+
       // Lookup resources we care about.
       // TODO(benh): It would be nice to ultimately have some helper
       // functions for looking up resources.
@@ -137,6 +122,7 @@ public:
       }
 
       // Launch tasks.
+      vector<TaskDescription> toLaunch;
       if (tasksLaunched < tasks.size() &&
           cpus >= 1 &&
           curTime >= tasks[tasksLaunched].launchTime &&
@@ -171,9 +157,9 @@ public:
 
         toLaunch.push_back(task);
       }
-    }
 
-    driver->replyToOffer(offerId, toLaunch);
+      driver->launchTasks(offer.id(), toLaunch);
+    }
   }
 
   virtual void offerRescinded(SchedulerDriver* driver,
@@ -217,7 +203,6 @@ public:
   int successfulTasks;
 
 private:
-  string uri;
   double taskLen;
   int threadsPerTask;
   time_t startTime;
@@ -234,9 +219,12 @@ int main(int argc, char** argv)
   }
   char buf[4096];
   realpath(dirname(argv[0]), buf);
-  string executor = string(buf) + "/memhog-executor";
-  MyScheduler sched(executor, argv[2], 1);
-  MesosSchedulerDriver driver(&sched, argv[1]);
+  string uri = string(buf) + "/memhog-executor";
+  MyScheduler sched(argv[2], 1);
+  ExecutorInfo executor;
+  executor.mutable_executor_id()->set_value("default");
+  executor.set_uri(uri);
+  MesosSchedulerDriver driver(&sched, "Memory hog", executor, argv[1]);
   driver.run();
   return (sched.successfulTasks == sched.tasks.size()) ? 0 : 1;
 }

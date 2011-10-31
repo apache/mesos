@@ -25,11 +25,8 @@
 
 #include "common/foreach.hpp"
 #include "common/resources.hpp"
-#include "common/tokenize.hpp"
+#include "common/strings.hpp"
 
-
-using boost::bad_lexical_cast;
-using boost::lexical_cast;
 
 using std::ostream;
 using std::string;
@@ -587,7 +584,7 @@ Resource Resources::parse(const string& name, const string& value)
   if (index == 0) {
     // This is a ranges.
     Resource::Ranges ranges;
-    const vector<string>& tokens = tokenize::split(temp, "[]-,\n");
+    const vector<string>& tokens = strings::split(temp, "[]-,\n");
     if (tokens.size() % 2 != 0) {
       LOG(FATAL) << "Error parsing value for " << name
                  << ", expecting one or more \"ranges\"";
@@ -597,9 +594,9 @@ Resource Resources::parse(const string& name, const string& value)
 
         int j = i;
         try {
-          range->set_begin(lexical_cast<uint64_t>((tokens[j++])));
-          range->set_end(lexical_cast<uint64_t>(tokens[j++]));
-        } catch (const bad_lexical_cast&) {
+          range->set_begin(boost::lexical_cast<uint64_t>((tokens[j++])));
+          range->set_end(boost::lexical_cast<uint64_t>(tokens[j++]));
+        } catch (const boost::bad_lexical_cast&) {
           LOG(FATAL) << "Error parsing value for " << name
                      << ", expecting non-negative integers in '"
                      << tokens[j - 1] << "'";
@@ -614,7 +611,7 @@ Resource Resources::parse(const string& name, const string& value)
     if (index == 0) {
       // This is a set.
       Resource::Set set;
-      const vector<string>& tokens = tokenize::split(temp, "{},\n");
+      const vector<string>& tokens = strings::split(temp, "{},\n");
       for (int i = 0; i < tokens.size(); i++) {
         set.add_item(tokens[i]);
       }
@@ -625,8 +622,8 @@ Resource Resources::parse(const string& name, const string& value)
       // This *should* be a scalar.
       Resource::Scalar scalar;
       try {
-        scalar.set_value(lexical_cast<double>(temp));
-      } catch (const bad_lexical_cast&) {
+        scalar.set_value(boost::lexical_cast<double>(temp));
+      } catch (const boost::bad_lexical_cast&) {
         LOG(FATAL) << "Error parsing value for " << name
                    << ", expecting a number from '" << temp << "'";
       }
@@ -651,12 +648,12 @@ Resources Resources::parse(const string& s)
   // Tokenize and parse the value of "resources".
   Resources resources;
 
-  vector<string> tokens = tokenize::split(s, ";\n");
+  vector<string> tokens = strings::split(s, ";\n");
 
   for (int i = 0; i < tokens.size(); i++) {
-    const vector<string>& pairs = tokenize::split(tokens[i], ":");
+    const vector<string>& pairs = strings::split(tokens[i], ":");
     if (pairs.size() != 2) {
-      LOG(FATAL) << "bad value for resources, missing ':' within " << pairs[0];
+      LOG(FATAL) << "Bad value for resources, missing ':' within " << pairs[0];
     }
 
     resources += parse(pairs[0], pairs[1]);
@@ -666,4 +663,5 @@ Resources Resources::parse(const string& s)
 }
 
 
-}} // namespace mesos { namespace internal {
+} // namespace internal {
+} // namespace mesos {

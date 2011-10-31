@@ -14,8 +14,8 @@ fi
 # Launch slaves
 for slave in $SLAVES; do
   echo "Starting slave on $slave"
-  echo ssh $SSH_OPTS $slave "$OPTIONAL_SUDO_CMD $DEPLOY_DIR/mesos-daemon mesos-slave -u $MESOS_URL </dev/null >/dev/null" 
-  ssh $SSH_OPTS $slave "$OPTIONAL_SUDO_CMD $DEPLOY_DIR/mesos-daemon mesos-slave -u $MESOS_URL </dev/null >/dev/null" &
+  echo ssh $SSH_OPTS $slave "$OPTIONAL_SUDO_CMD $DEPLOY_DIR/mesos-daemon mesos-slave -m $MESOS_URL </dev/null >/dev/null" 
+  ssh $SSH_OPTS $slave "$OPTIONAL_SUDO_CMD $DEPLOY_DIR/mesos-daemon mesos-slave -m $MESOS_URL </dev/null >/dev/null" &
   sleep 0.1
 done
 wait

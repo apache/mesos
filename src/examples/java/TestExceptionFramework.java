@@ -26,31 +26,17 @@ import org.apache.mesos.Protos.*;
 
 public class TestExceptionFramework {
   static class MyScheduler implements Scheduler {
+    public MyScheduler() {
+    }
+
     @Override
-    public String getFrameworkName(SchedulerDriver driver) {
+    public void registered(SchedulerDriver driver, FrameworkID frameworkId) {
       throw new ArrayIndexOutOfBoundsException();
     }
 
     @Override
-    public ExecutorInfo getExecutorInfo(SchedulerDriver driver) {
-      try {
-        File file = new File("./test_executor");
-        return ExecutorInfo.newBuilder()
-          .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
-          .setUri(file.getCanonicalPath())
-          .build();
-      } catch (Throwable t) {
-        throw new RuntimeException(t);
-      }
-    }
-
-    @Override
-    public void registered(SchedulerDriver driver, FrameworkID frameworkId) {}
-
-    @Override
-    public void resourceOffer(SchedulerDriver driver,
-                              OfferID offerId,
-                              List<SlaveOffer> offers) {}
+    public void resourceOffers(SchedulerDriver driver,
+                               List<Offer> offers) {}
 
     @Override
     public void offerRescinded(SchedulerDriver driver, OfferID offerId) {}
@@ -69,6 +55,14 @@ public class TestExceptionFramework {
   }
 
   public static void main(String[] args) throws Exception {
-    new MesosSchedulerDriver(new MyScheduler(), args[0]).run();
+    ExecutorInfo executorInfo;
+
+    File file = new File("./test_executor");
+    executorInfo = ExecutorInfo.newBuilder()
+                     .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
+                     .setUri(file.getCanonicalPath())
+                     .build();
+
+    new MesosSchedulerDriver(new MyScheduler(), "Exception Framework", executorInfo, args[0]).run();
   }
 }

@@ -29,7 +29,7 @@
 #include "configuration.hpp"
 
 #include "common/foreach.hpp"
-#include "common/string_utils.hpp"
+#include "common/strings.hpp"
 
 using namespace mesos::internal;
 
@@ -283,20 +283,19 @@ void Configurator::loadConfigFile(const string& fname, bool overwrite)
       line = line.substr(0, hash);
     }
     // Check for empty line
-    line = StringUtils::trim(line);
+    line = strings::trim(line);
     if (line == "") {
       continue;
     }
     // Split line by = and trim to get key and value
-    vector<string> tokens;
-    StringUtils::split(line, "=", &tokens);
+    vector<string> tokens = strings::split(line, "=");
     if (tokens.size() != 2) {
-      string message = "Malformed line in config file: '" + 
-                       StringUtils::trim(originalLine) + "'";
+      string message = "Malformed line in config file: '" +
+                       strings::trim(originalLine) + "'";
       throw ConfigurationException(message.c_str());
     }
-    string key = StringUtils::trim(tokens[0]);
-    string value = StringUtils::trim(tokens[1]);
+    string key = strings::trim(tokens[0]);
+    string value = strings::trim(tokens[1]);
     // Check whether the key has already appeared in this config file
     timesSeen[key]++;
     if (timesSeen[key] == 2) {

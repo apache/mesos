@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import mesos
+import mesos_pb2
 import sys
 import time
 import os
@@ -17,16 +18,17 @@ def cleanup():
     None
 
 class MyExecutor(mesos.Executor):
-  def __init__(self):
-    mesos.Executor.__init__(self)
-
   def init(self, driver, arg):
     [ip,port] = arg.data.split(":")
     self.ip = ip
     self.port = port
 
   def launchTask(self, driver, task):
-    print "Running task %d" % task.taskId
+    print "Running task %s" % task.task_id.value
+    update = mesos_pb2.TaskStatus()
+    update.task_id.value = task.task_id.value
+    update.state = mesos_pb2.TASK_RUNNING
+    driver.sendStatusUpdate(update)
     Popen("mpd -n -h "+self.ip+" -p "+self.port, shell=True)
 
   def killTask(self, driver, tid):

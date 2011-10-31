@@ -79,7 +79,7 @@ class ScalingScheduler(mesos.Scheduler):
         self.running[self.tid] = (todo, duration)
         self.tid += 1
         print "Launching (%d, %d) on slave %s" % (todo, duration, offer.slaveId)
-    driver.replyToOffer(oid, tasks, {})
+    driver.launchTasks(oid, tasks)
 
   def statusUpdate(self, driver, status):
     # For now, we are expecting our tasks to be lost ...

@@ -28,13 +28,17 @@
 
 #ifdef MESOS_WEBUI
 
-namespace mesos { namespace internal { namespace slave {
+namespace mesos {
+namespace internal {
+namespace slave {
+namespace webui {
 
-void startSlaveWebUI(const process::PID<Slave>& slave,
-                     const Configuration& conf);
+void start(const process::PID<Slave>& slave, const Configuration& conf);
 
-}}} // namespace mesos { namespace internal { namespace slave {
+} // namespace webui {
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // MESOS_WEBUI
-
 #endif // __SLAVE_WEBUI_HPP__

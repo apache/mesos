@@ -25,6 +25,7 @@
 
 #include <boost/functional/hash.hpp>
 
+#include "common/resources.hpp"
 #include "messages/messages.hpp"
 
 
@@ -70,7 +71,6 @@ inline std::ostream& operator << (std::ostream& stream, const TaskState& state)
   stream << TaskState_descriptor()->FindValueByNumber(state)->name();
   return stream;
 }
-
 
 
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)

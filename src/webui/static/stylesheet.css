@@ -49,22 +49,56 @@ a.visited {
   text-decoration: none;
 }
 
-table
-{
+p.ellipsis {
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -o-text-overflow: ellipsis;
+  -ms-text-overflow: ellipsis;
+}
+
+p.center {
+  text-align: center;
+}
+
+table.lists {
   border-collapse: collapse;
   text-align: left;
 }
 
-th
-{
+th.lists {
   font-weight: bold;
   color: black;
   padding: 2px 10px 10px 10px;
   border-bottom: 2px solid black;
 }
 
-td
-{
+td.lists {
   border-bottom: 1px solid #666;
   padding: 6px 10px;
+}
+
+table.masters {
+  border-collapse: collapse;
+  table-layout:fixed;
+}
+
+td.masters-first {
+  border-top: thin solid black;
+  border-bottom: thin solid black;
+  border-left: thin solid black;
+}
+
+td.masters-middle {
+  border-top: thin solid black;
+  border-bottom: thin solid black;
+  border-left: thin solid black;
+}
+
+td.masters-right {
+  border-top: thin solid black;
+  border-bottom: thin solid black;
+  border-left: thin solid black;
+  border-right: thin solid black;
 }

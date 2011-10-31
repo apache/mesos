@@ -23,8 +23,14 @@ AC_INIT
 if test -z "$PYTHON"; then
   PYTHON=python2.6
 fi
+AC_SUBST(PYTHON)
+if test -z "$PYTHON_CONFIG"; then
+  PYTHON_CONFIG=python2.6-config
+fi
+SETUPTOOLS=third_party/distribute-0.6.19/distribute-0.6.19-py2.6.egg
+AC_SUBST(SETUPTOOLS)
 
-# Update CFLAGS and CXXFLAGS with environment args. 
+# Update CFLAGS and CXXFLAGS with environment args.
 CFLAGS="-O2 -fno-strict-aliasing -fPIC ${CFLAGS}"
 CXXFLAGS="-O2 -fno-strict-aliasing -fPIC ${CXXFLAGS}"
 
@@ -45,11 +51,11 @@ AC_CONFIG_FILES([Makefile
                  src/examples/java/Makefile
                  src/examples/python/Makefile
                  src/tests/Makefile
-                 src/config/config.hpp])
+                 src/config/config.hpp
+                 src/python/setup.py])
 AC_CONFIG_SUBDIRS([third_party/libprocess])
 AC_CONFIG_SUBDIRS([third_party/protobuf-2.3.0])
 AC_CONFIG_SUBDIRS([third_party/glog-0.3.1])
-AC_CONFIG_SUBDIRS([third_party/gmock-1.5.0])
 AC_CONFIG_SUBDIRS([third_party/zookeeper-3.3.1/src/c])
 
 AC_CANONICAL_SYSTEM
@@ -139,8 +145,13 @@ AC_ARG_WITH([python-headers],
 *** --with-python-headers requires an argument]) ;;
 		    *)
                       PYTHON_HEADERS="$withval"
-                      echo running $PYTHON to find compiler flags for creating the Mesos Python library...
-                      PYTHON_LDFLAGS=`$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION")'`
+                      if test -x `which $PYTHON_CONFIG`; then
+                        echo running $PYTHON_CONFIG to find compiler flags for creating the Mesos Python library...
+                        PYTHON_LDFLAGS=`$PYTHON_CONFIG --ldflags`
+                      else
+                        echo running $PYTHON to find compiler flags for creating the Mesos Python library...
+                        PYTHON_LDFLAGS=`$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION")'`
+                      fi
                       HAS_PYTHON="1"
                       ;;
 	          esac],
@@ -158,10 +169,15 @@ AC_ARG_WITH([webui],
                  [enable web UI (requires Python)]),
 	         [case "$with_webui" in
 		    yes) WITH_WEBUI="1"
-                         echo running $PYTHON to find compiler flags for embedding it...
-                         WEBUI_CFLAGS=`$PYTHON -c 'from distutils import sysconfig; print "-I" + sysconfig.get_config_var("INCLUDEPY")'`
+                         if test -x `which $PYTHON_CONFIG`; then
+                           WEBUI_CFLAGS=`$PYTHON_CONFIG --includes`
+                           WEBUI_LDFLAGS=`$PYTHON_CONFIG --ldflags`
+                         else
+                           echo running $PYTHON to find compiler flags for embedding it...
+                           WEBUI_CFLAGS=`$PYTHON -c 'from distutils import sysconfig; print "-I" + sysconfig.get_config_var("INCLUDEPY")'`
+                           WEBUI_LDFLAGS=`$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION")'`
+                         fi
                          WEBUI_CXXFLAGS=$WEBUI_CFLAGS
-                         WEBUI_LDFLAGS=`$PYTHON -c 'from distutils import sysconfig; print sysconfig.get_config_var("LINKFORSHARED") + " -lpython" + sysconfig.get_config_var("VERSION")'`
                          if [[ "$?" -ne "0" ]]; then
                            AC_MSG_ERROR([
 *** Failed to determine compiler flags for embedding Python, needed by web UI.
@@ -176,18 +192,6 @@ AC_SUBST(WITH_WEBUI)
 AC_SUBST(WEBUI_CFLAGS)
 AC_SUBST(WEBUI_CXXFLAGS)
 AC_SUBST(WEBUI_LDFLAGS)
-
-SWIG="swig"
-AC_ARG_WITH([swig],
-  AC_HELP_STRING([--with-swig=PATH],
-                 [use the SWIG binary at PATH]),
-	         [case "$with_swig" in
-		    yes) AC_MSG_ERROR([
-*** --with-swig requires an argument]) ;;
-		    *) SWIG="$withval" ;;
-	          esac],
-	         [])
-AC_SUBST(SWIG)
 
 WITH_ZOOKEEPER="0"
 AC_ARG_WITH([zookeeper],

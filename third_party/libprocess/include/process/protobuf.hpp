@@ -6,20 +6,36 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 
+#include <set>
 #include <vector>
 
+#include <tr1/functional>
 #include <tr1/unordered_map>
 
+#include <process/dispatch.hpp>
 #include <process/process.hpp>
 
 
-// Provides a "protocol buffer process", which is to say a subclass of
-// Process that allows you to install protocol buffer handlers in
-// addition to normal message and HTTP handlers. Then you can simply
-// send around protocol buffer objects which will get passed to the
-// appropriate handlers. Note that this header file assumes you will
-// be linking against BOTH libprotobuf and libglog.
+// Provides an implementation of process::post that for a protobuf.
+namespace process {
 
+inline void post(const process::UPID& to,
+                 const google::protobuf::Message& message)
+{
+  std::string data;
+  message.SerializeToString(&data);
+  post(to, message.GetTypeName(), data.data(), data.size());
+}
+
+} // namespace process {
+
+
+// The rest of this file provides libprocess "support" for using
+// protocol buffers. In particular, this file defines a subclass of
+// Process (ProtobufProcess) that allows you to install protocol
+// buffer handlers in addition to normal message and HTTP
+// handlers. Note that this header file assumes you will be linking
+// against BOTH libprotobuf and libglog.
 
 namespace google { namespace protobuf {
 
@@ -64,6 +80,14 @@ protected:
     do { if (serve() == process::TERMINATE) break; } while (true);
   }
 
+  template <typename M>
+  M message()
+  {
+    M m;
+    m.ParseFromString(process::Process<T>::body());
+    return m;
+  }
+
   void send(const process::UPID& to,
             const google::protobuf::Message& message)
   {
@@ -88,12 +112,24 @@ protected:
   }
 
   template <typename M>
+  void installProtobufHandler(void (T::*method)(const M&))
+  {
+    google::protobuf::Message* m = new M();
+    T* t = static_cast<T*>(this);
+    protobufHandlers[m->GetTypeName()] =
+      std::tr1::bind(&handlerM<M>,
+                     t, method,
+                     std::tr1::placeholders::_1);
+    delete m;
+  }
+
+  template <typename M>
   void installProtobufHandler(void (T::*method)())
   {
     google::protobuf::Message* m = new M();
     T* t = static_cast<T*>(this);
     protobufHandlers[m->GetTypeName()] =
-      std::tr1::bind(&ProtobufProcess<T>::handler0,
+      std::tr1::bind(&handler0,
                      t, method,
                      std::tr1::placeholders::_1);
     delete m;
@@ -190,6 +226,20 @@ protected:
   }
 
 private:
+  template <typename M>
+  static void handlerM(T* t, void (T::*method)(const M&),
+                       const std::string& data)
+  {
+    M m;
+    m.ParseFromString(data);
+    if (m.IsInitialized()) {
+      (t->*method)(m);
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << m.InitializationErrorString();
+    }
+  }
+
   static void handler0(T* t, void (T::*method)(),
                        const std::string& data)
   {
@@ -311,61 +361,66 @@ private:
 };
 
 
-namespace process {
-
-inline void post(const process::UPID& to,
-                 const google::protobuf::Message& message)
+// Implements a process for sending protobuf "requests" to a process
+// and waiting for a protobuf "response", but uses futures so that
+// this can be done without needing to implement a process.
+template <typename Req, typename Res>
+class ReqResProcess
+  : public ProtobufProcess<ReqResProcess<Req, Res> >
 {
-  std::string data;
-  message.SerializeToString(&data);
-  post(to, message.GetTypeName(), data.data(), data.size());
-}
+public:
+  typedef ProtobufProcess<ReqResProcess<Req, Res> > Super;
+
+  ReqResProcess(const process::UPID& _pid, const Req& _req)
+    : pid(_pid), req(_req)
+  {
+    Super::template installProtobufHandler<Res>(
+        &ReqResProcess<Req, Res>::response);
+  }
+
+  process::Promise<Res> run()
+  {
+    send(pid, req);
+    std::tr1::function<void(const process::Future<Res>&)> callback =
+      std::tr1::bind(&ReqResProcess<Req, Res>::terminate,
+                     std::tr1::placeholders::_1, Super::self());
+    promise.future().onAny(callback);
+    return promise;
+  }
+
+private:
+  void response(const Res& res) { promise.set(res); }
+
+  static void terminate(
+      const process::Future<Res>& future,
+      const process::PID<ReqResProcess<Req, Res> >& pid)
+  {
+    process::terminate(pid);
+  }
+
+  const process::UPID pid;
+  const Req req;
+  process::Promise<Res> promise;
+};
 
 
-// template <typename Request, typename Response>
-// class RequestResponseProcess
-//   : public ProtobufProcess<RequestResponseProcess<Request, Response> >
-// {
-// public:
-//   RequestResponseProcess(
-//       const UPID& _pid,
-//       const Request& _request,
-//       const Promise<Response>& _promise)
-//     : pid(_pid), request(_request), promise(_promise) {}
+// Allows you to describe request/response protocols and then use
+// those for sending requests and getting back responses.
+template <typename Req, typename Res>
+struct Protocol
+{
+  process::Future<Res> operator () (
+      const process::UPID& pid,
+      const Req& req) const
+  {
+    // Help debugging by adding some "type constraints".
+    { Req* req = NULL; google::protobuf::Message* m = req; }
+    { Res* res = NULL; google::protobuf::Message* m = res; }
 
-// protected:
-//   virtual void operator () ()
-//   {
-//     send(pid, request);
-//     ProcessBase::receive();
-//     Response response;
-//     CHECK(ProcessBase::name() == response.GetTypeName());
-//     response.ParseFromString(ProcessBase::body());
-//     promise.set(response);
-//   }
-
-// private:
-//   const UPID pid;
-//   const Request request;
-//   Promise<Response> promise;
-// };
-
-
-// template <typename Request, typename Response>
-// struct Protocol
-// {
-//   Future<Response> operator () (const UPID& pid, const Request& request)
-//   {
-//     Future<Response> future;
-//     Promise<Response> promise;
-//     promise.associate(future);
-//     RequestResponseProcess<Request, Response>* process =
-//       new RequestResponseProcess<Request, Response>(pid, request, promise);
-//     spawn(process, true);
-//     return future;
-//   }
-// };
-
-} // namespace process {
+    ReqResProcess<Req, Res>* process = new ReqResProcess<Req, Res>(pid, req);
+    process::spawn(process, true);
+    return process::dispatch(process, &ReqResProcess<Req, Res>::run);
+  }
+};
 
 #endif // __PROCESS_PROTOBUF_HPP__

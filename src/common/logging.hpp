@@ -24,7 +24,8 @@
 #include "configurator/configurator.hpp"
 
 
-namespace mesos { namespace internal {
+namespace mesos {
+namespace internal {
 
 /**
  * Utility functions for configuring and initializing Mesos logging.
@@ -37,6 +38,7 @@ public:
   static bool isQuiet(const Configuration& conf);
 };
 
-}} /* namespace mesos::internal */
+} // namespace internal {
+} // namespace mesos {
 
 #endif

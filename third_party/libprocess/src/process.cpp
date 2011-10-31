@@ -370,8 +370,6 @@ public:
   void run(ProcessBase *process);
   void cleanup(ProcessBase *process);
 
-  static void invoke(const function<void (void)> &thunk);
-
 private:
   timeout create_timeout(ProcessBase *process, double secs);
   void start_timeout(const timeout &timeout);
@@ -460,14 +458,6 @@ static ucontext_t proc_uctx_running;
 //static __thread ProcessBase *proc_process = NULL;
 static ProcessBase *proc_process = NULL;
 
-/* Flag indicating if performing safe call into legacy. */
-// static __thread bool legacy = false;
-static bool legacy = false;
-
-/* Thunk to safely call into legacy. */
-// static __thread function<void (void)> *legacy_thunk;
-static const function<void (void)> *legacy_thunk;
-
 /* Scheduler gate. */
 static Gate *gate = new Gate();
 
@@ -488,6 +478,15 @@ static synchronizable(filterer) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
 
 /* Global garbage collector. */
 PID<GarbageCollector> gc;
+
+/* Thunks to be invoked via process::invoke. */
+static queue<function<void(void)>*>* thunks =
+  new queue<function<void(void)>*>();
+static synchronizable(thunks) = SYNCHRONIZED_INITIALIZER;
+
+/* Thread to invoke thunks (see above). */
+static Gate* invoke_gate = new Gate();
+static pthread_t invoke_thread;
 
 
 int set_nbio(int fd)
@@ -894,6 +893,31 @@ void * serve(void *arg)
 }
 
 
+void* invoker(void* arg)
+{
+  do {
+    Gate::state_t old = invoke_gate->approach();
+
+    function<void(void)>* thunk = NULL;
+    synchronized (thunks) {
+      if (!thunks->empty()) {
+        thunk = thunks->front();
+        thunks->pop();
+      }
+    }
+
+    if (thunk != NULL) {
+      (*thunk)();
+      continue;
+    }
+
+    invoke_gate->arrive(old);
+  } while (true);
+
+  return NULL;
+}
+
+
 void trampoline(int stack0, int stack1, int process0, int process1)
 {
   /* Unpackage the arguments. */
@@ -975,9 +999,10 @@ void * schedule(void *arg)
               // Adjust the current time to the next timeout, provided
               // it is not past the elapsed time.
               ev_tstamp tstamp = timeouts->begin()->first;
-              if (tstamp <= clk->getElapsed())
+              if (tstamp <= clk->getElapsed()) {
                 clk->setCurrent(tstamp);
-              
+              }
+
               update_timer = true;
               ev_async_send(loop, &async_watcher);
             } else {
@@ -999,6 +1024,8 @@ void * schedule(void *arg)
       }
     }
 
+    VLOG(2) << "Resuming " << process->pid;
+
     process->lock();
     {
       CHECK(process->state == ProcessBase::INIT ||
@@ -1010,10 +1037,6 @@ void * schedule(void *arg)
       CHECK(proc_process == NULL);
       proc_process = process;
       swapcontext(&proc_uctx_running, &process->uctx);
-      while (legacy) {
-	(*legacy_thunk)();
-	swapcontext(&proc_uctx_running, &process->uctx);
-      }
       CHECK(proc_process != NULL);
       proc_process = NULL;
     }
@@ -1223,6 +1246,10 @@ void initialize(bool initialize_google_logging)
     PLOG(FATAL) << "Failed to initialize, pthread_create";
   }
 
+  if (pthread_create(&invoke_thread, NULL, invoker, NULL) != 0) {
+    PLOG(FATAL) << "Failed to initialize, pthread_create";
+  }
+
   // Need to set initialzing here so that we can actually invoke
   // 'spawn' below for the garbage collector.
   initializing = false;
@@ -1280,7 +1307,7 @@ void HttpProxy::handle(const Future<HttpResponse>& future, bool persist)
 
 void HttpProxy::ready(const Future<HttpResponse>& future, bool persist)
 {
-  CHECK(future.ready());
+  CHECK(future.isReady());
 
   const HttpResponse& response = future.get();
 
@@ -2325,6 +2352,7 @@ void ProcessManager::run(ProcessBase *process)
   process->unlock();
 
   try {
+    VLOG(2) << "Invoking " << process->pid;
     (*process)();
   } catch (const std::exception &e) {
     std::cerr << "libprocess: " << process->pid
@@ -2349,7 +2377,7 @@ void ProcessManager::cleanup(ProcessBase *process)
 
   // Stop new process references from being created.
   process->state = ProcessBase::FINISHING;
-
+ 
   /* Remove process. */
   synchronized (processes) {
     // Remove from internal clock (if necessary).
@@ -2398,7 +2426,12 @@ void ProcessManager::cleanup(ProcessBase *process)
       foreachpair (_, set<ProcessBase *> &waiting, waiters) {
         CHECK(waiting.find(process) == waiting.end());
       }
-
+ 
+      // Confirm process not in runq.
+      synchronized (runq) {
+        CHECK(find(runq.begin(), runq.end(), process) == runq.end());
+      }
+ 
       // Grab all the waiting processes that are now resumable.
       foreach (ProcessBase *waiter, waiters[process]) {
         resumable.push_back(waiter);
@@ -2422,11 +2455,6 @@ void ProcessManager::cleanup(ProcessBase *process)
 
   // Inform socket manager.
   socket_manager->exited(process);
-
-  // Confirm process not in runq.
-  synchronized (runq) {
-    CHECK(find(runq.begin(), runq.end(), process) == runq.end());
-  }
 
   // N.B. After opening the gate we can no longer dereference
   // 'process' since it might already be cleaned up by user code (a
@@ -2458,16 +2486,6 @@ void ProcessManager::cleanup(ProcessBase *process)
     }
     p->unlock();
   }
-}
-
-
-void ProcessManager::invoke(const function<void (void)> &thunk)
-{
-  legacy_thunk = &thunk;
-  legacy = true;
-  CHECK(proc_process != NULL);
-  swapcontext(&proc_process->uctx, &proc_uctx_running);
-  legacy = false;
 }
 
 
@@ -2528,7 +2546,7 @@ void ProcessManager::cancel_timeout(const timeout &timeout)
 }
 
 
-double Clock::elapsed()
+double Clock::now()
 {
   synchronized (timeouts) {
     if (clk != NULL) {
@@ -3137,7 +3155,7 @@ UPID ProcessBase::spawn(ProcessBase* process, bool manage)
       }
     }
 
-    VLOG(1) << "Spawning process " << process->self();
+    VLOG(2) << "Spawning process " << process->self();
 
     return process_manager->spawn(process, manage);
   } else {
@@ -3218,10 +3236,15 @@ bool wait(const UPID& pid, double secs)
 }
 
 
-void invoke(const function<void (void)> &thunk)
+void invoke(const function<void(void)>& thunk)
 {
   initialize();
-  ProcessManager::invoke(thunk);
+
+  synchronized (thunks) {
+    thunks->push(new function<void(void)>(thunk));
+  }
+
+  invoke_gate->open();
 }
 
 

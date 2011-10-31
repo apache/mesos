@@ -1,10 +1,16 @@
 #include <gmock/gmock.h>
 
+#include <string>
+
+#include <process/async.hpp>
 #include <process/dispatch.hpp>
 #include <process/latch.hpp>
 #include <process/process.hpp>
 #include <process/run.hpp>
 #include <process/timer.hpp>
+
+// Definition of a Set action to be used with gmock.
+ACTION_P2(Set, variable, value) { *variable = value; }
 
 using namespace process;
 
@@ -450,6 +456,50 @@ TEST(libprocess, listener)
   
   terminate(process, false);
   wait(process);
+}
+
+
+class EventReceiver
+{
+public:
+  MOCK_METHOD1(event1, void(int));
+  MOCK_METHOD1(event2, void(const std::string&));
+};
+
+
+TEST(libprocess, Async)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  volatile bool event1Called = false;
+  volatile bool event2Called = false;
+
+  EventReceiver receiver;
+
+  EXPECT_CALL(receiver, event1(42))
+    .WillOnce(Set(&event1Called, true));
+
+  EXPECT_CALL(receiver, event2("event2"))
+    .WillOnce(Set(&event2Called, true));
+
+  async::Dispatch dispatch;
+
+  async::dispatch<void(int)> event1 =
+    dispatch(std::tr1::bind(&EventReceiver::event1,
+                            &receiver,
+                            std::tr1::placeholders::_1));
+
+  event1(42);
+
+  async::dispatch<void(const std::string&)> event2 =
+    dispatch(std::tr1::bind(&EventReceiver::event2,
+                            &receiver,
+                            std::tr1::placeholders::_1));
+
+  event2("event2");
+
+  while (!event1Called);
+  while (!event2Called);
 }
 
 

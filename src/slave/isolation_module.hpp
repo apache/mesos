@@ -52,7 +52,8 @@ public:
   virtual void launchExecutor(const FrameworkID& frameworkId,
                               const FrameworkInfo& frameworkInfo,
                               const ExecutorInfo& executorInfo,
-                              const std::string& directory) = 0;
+                              const std::string& directory,
+                              const Resources& resources) = 0;
 
   // Terminate a framework's executor, if it is still running.
   // The executor is expected to be gone after this method exits.

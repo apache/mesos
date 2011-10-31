@@ -20,6 +20,7 @@
 #define __LXC_ISOLATION_MODULE_HPP__
 
 #include <string>
+#include <vector>
 
 #include "isolation_module.hpp"
 #include "reaper.hpp"
@@ -45,7 +46,8 @@ public:
   virtual void launchExecutor(const FrameworkID& frameworkId,
                               const FrameworkInfo& frameworkInfo,
                               const ExecutorInfo& executorInfo,
-                              const std::string& directory);
+                              const std::string& directory,
+                              const Resources& resources);
 
   virtual void killExecutor(const FrameworkID& frameworkId,
                             const ExecutorID& executorId);
@@ -60,6 +62,14 @@ private:
   // No copying, no assigning.
   LxcIsolationModule(const LxcIsolationModule&);
   LxcIsolationModule& operator = (const LxcIsolationModule&);
+
+  // Attempt to set a resource limit of a container for a given
+  // control group property (e.g. cpu.shares).
+  bool setControlGroupValue(const std::string& container,
+                            const std::string& property,
+                            int64_t value);
+
+  std::vector<std::string> getControlGroupOptions(const Resources& resources);
 
   // Per-framework information object maintained in info hashmap.
   struct ContainerInfo

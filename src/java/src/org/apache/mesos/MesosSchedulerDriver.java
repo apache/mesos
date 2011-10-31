@@ -34,36 +34,49 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     System.loadLibrary("mesos");
   }
 
-  public MesosSchedulerDriver(Scheduler sched, String url, FrameworkID frameworkId) {
+  public MesosSchedulerDriver(Scheduler sched,
+                              String frameworkName,
+                              ExecutorInfo executorInfo,
+                              String url,
+                              FrameworkID frameworkId) {
     this.sched = sched;
     this.url = url;
     this.frameworkId = frameworkId;
-
+    this.frameworkName = frameworkName;
+    this.executorInfo = executorInfo;
     initialize();
   }
 
-  public MesosSchedulerDriver(Scheduler sched, String url) {
-    this(sched, url, FrameworkID.newBuilder().setValue("").build());
+  public MesosSchedulerDriver(Scheduler sched, String frameworkName, ExecutorInfo executorInfo, String url) {
+    this(sched, frameworkName, executorInfo, url, FrameworkID.newBuilder().setValue("").build());
   }
 
-  public native int start();
-  public native int stop();
-  public native int join();
+  public native Status start();
+  public native Status stop(boolean failover);
+  public Status stop() {
+    return stop(false);
+  }
+  public native Status abort();
+  public native Status join();
 
-  public int run() {
-    int ret = start();
-    return ret != 0 ? ret : join();
+  public Status run() {
+    Status ret = start();
+    return ret != Status.OK ? ret : join();
   }
 
-  public native int sendFrameworkMessage(SlaveID slaveId, ExecutorID executorId, byte[] data);
-  public native int killTask(TaskID taskId);
-  public native int replyToOffer(OfferID offerId, Collection<TaskDescription> tasks, Map<String, String> params);
+  public native Status requestResources(Collection<ResourceRequest> requests);
 
-  public int replyToOffer(OfferID offerId, Collection<TaskDescription> tasks) {
-    return replyToOffer(offerId, tasks, Collections.<String, String>emptyMap());
+  public Status launchTasks(OfferID offerId, Collection<TaskDescription> tasks) {
+    return launchTasks(offerId, tasks, Filters.newBuilder().build());
   }
 
-  public native int reviveOffers();
+  public native Status launchTasks(OfferID offerId, Collection<TaskDescription> tasks, Filters filters);
+
+  public native Status killTask(TaskID taskId);
+
+  public native Status reviveOffers();
+
+  public native Status sendFrameworkMessage(SlaveID slaveId, ExecutorID executorId, byte[] data);
 
   protected native void initialize();
   protected native void finalize();
@@ -71,6 +84,8 @@ public class MesosSchedulerDriver implements SchedulerDriver {
   private final Scheduler sched;
   private final String url;
   private final FrameworkID frameworkId;
+  private final String frameworkName;
+  private final ExecutorInfo executorInfo;
 
   private long __sched;
   private long __driver;

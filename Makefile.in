@@ -18,12 +18,14 @@
 
 SHELL = '/bin/sh'
 
+BUILDSRC = @top_builddir@/src
 BINDIR = @top_builddir@/bin
 LIBDIR = @top_builddir@/lib
 CONFDIR = @top_builddir@/conf
 DEPLOYDIR = @top_builddir@/deploy
 
 OS_NAME = @OS_NAME@
+PYTHON = @PYTHON@
 
 MESOS_HOME = @prefix@/mesos
 
@@ -32,22 +34,32 @@ WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
 LIBPROCESS = third_party/libprocess
 PROTOBUF = third_party/protobuf-2.3.0
 GLOG = third_party/glog-0.3.1
-GMOCK = third_party/gmock-1.5.0
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
-
+LEVELDB = third_party/leveldb
+SETUPTOOLS = @SETUPTOOLS@
 
 default: all
 
 src: third_party
 	$(MAKE) -C src
 
-third_party:
+third_party: setuptools
 	$(MAKE) -C $(LIBPROCESS)
 	$(MAKE) -C $(PROTOBUF)
 	$(MAKE) -C $(GLOG)
-	$(MAKE) -C $(GMOCK)
+ifneq (@top_srcdir@,@top_builddir@)
+	mkdir -p @top_builddir@/$(LEVELDB)
+	cp -r @top_srcdir@/$(LEVELDB) @top_builddir@/`dirname $(LEVELDB)`
+endif
+	$(MAKE) -C $(LEVELDB)
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER)
+endif
+
+setuptools:
+ifneq (@top_srcdir@,@top_builddir@)
+	mkdir -p @top_builddir@/`dirname $(SETUPTOOLS)`
+	cp -f @top_srcdir@/$(SETUPTOOLS) @top_builddir@/$(SETUPTOOLS)
 endif
 
 # TODO(benh): Install generated C++ header files.
@@ -61,9 +73,6 @@ install:
 	if test ! -d $(MESOS_HOME)/lib/java; \
 		then mkdir -p $(MESOS_HOME)/lib/java; \
 	fi
-	if test ! -d $(MESOS_HOME)/lib/python; \
-		then mkdir -p $(MESOS_HOME)/lib/python; \
-	fi
 	if test ! -d $(MESOS_HOME)/conf; \
 		then mkdir -p $(MESOS_HOME)/conf; \
 	fi
@@ -75,6 +84,7 @@ install:
 	install -m 755 $(BINDIR)/mesos-local $(MESOS_HOME)/bin
 	install -m 755 $(BINDIR)/mesos-launcher $(MESOS_HOME)/bin
 	install -m 755 $(BINDIR)/mesos-getconf $(MESOS_HOME)/bin
+	install -m 755 $(BINDIR)/killtree.sh $(MESOS_HOME)/bin
 	rsync -avz $(BINDIR)/webui $(MESOS_HOME)/bin
 	rsync -avz $(DEPLOYDIR) $(MESOS_HOME)
 	install -m 755 $(LIBDIR)/libmesos_exec.a $(MESOS_HOME)/lib
@@ -87,8 +97,9 @@ else
 	install -m 755 $(LIBDIR)/java/libmesos.so $(MESOS_HOME)/lib/java
 endif
 	install -m 755 $(LIBDIR)/java/mesos.jar $(MESOS_HOME)/lib/java
-	install -m 755 $(LIBDIR)/python/_mesos.so $(MESOS_HOME)/lib/python
-	install -m 755 $(LIBDIR)/python/mesos.py $(MESOS_HOME)/lib/python
+	mkdir -p $(MESOS_HOME)/lib/python
+	PYTHONPATH=$(SETUPTOOLS):$(MESOS_HOME)/lib/python $(PYTHON) -m easy_install --install-dir $(MESOS_HOME)/lib/python $(BUILDSRC)/python/dist/*.egg
+	PYTHONPATH=$(SETUPTOOLS):$(MESOS_HOME)/lib/python $(PYTHON) -m easy_install --install-dir $(MESOS_HOME)/lib/python @top_builddir@/$(PROTOBUF)/python/dist/*.egg
 
 uninstall:
 	$(error unimplemented)
@@ -101,7 +112,6 @@ distclean:
 	$(MAKE) -C $(LIBPROCESS) distclean
 	$(MAKE) -C $(PROTOBUF) distclean
 	$(MAKE) -C $(GLOG) distclean
-	$(MAKE) -C $(GMOCK) distclean
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) distclean
 endif
@@ -135,7 +145,6 @@ clean:
 	$(MAKE) -C $(LIBPROCESS) clean
 	$(MAKE) -C $(PROTOBUF) clean
 	$(MAKE) -C $(GLOG) clean
-	$(MAKE) -C $(GMOCK) clean
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
 	$(MAKE) -C $(ZOOKEEPER) clean
 endif

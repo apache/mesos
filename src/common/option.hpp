@@ -19,6 +19,8 @@
 #ifndef __OPTION_HPP__
 #define __OPTION_HPP__
 
+#include <assert.h>
+
 template <typename T>
 class Option
 {
@@ -49,9 +51,7 @@ public:
 
   ~Option()
   {
-    if (t != NULL) {
-      delete t;
-    }
+    delete t;
   }
 
   Option<T>& operator = (const Option<T>& that)

@@ -19,25 +19,26 @@ protected:
 Latch::Latch()
 {
   triggered = false;
-  latch = new LatchProcess();
-  spawn(latch);
+
+  // Deadlock is possible if one thread is trying to delete a latch
+  // but the libprocess thread(s) is trying to acquire a resource the
+  // deleting thread is holding. Hence, we only save the PID for
+  // triggering the latch and let the GC actually do the deleting
+  // (thus no waiting is necessary, and deadlocks are avoided).
+  latch = spawn(new LatchProcess(), true);
 }
 
 
 Latch::~Latch()
 {
-  assert(latch != NULL);
-  post(latch->self(), TERMINATE);
-  wait(latch->self());
-  delete latch;
+  post(latch, TERMINATE);
 }
 
 
 void Latch::trigger()
 {
-  assert(latch != NULL);
   if (!triggered) {
-    post(latch->self(), TERMINATE);
+    post(latch, TERMINATE);
     triggered = true;
   }
 }
@@ -45,9 +46,8 @@ void Latch::trigger()
 
 bool Latch::await(double secs)
 {
-  assert(latch != NULL);
   if (!triggered) {
-    return wait(latch->self(), secs);
+    return wait(latch, secs);
   }
 
   return true;

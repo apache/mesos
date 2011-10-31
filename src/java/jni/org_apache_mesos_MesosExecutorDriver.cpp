@@ -76,15 +76,15 @@ void JNIExecutor::init(ExecutorDriver* driver, const ExecutorArgs& args)
 
   env->CallVoidMethod(jexec, init, jdriver, jargs);
 
-  if (!env->ExceptionOccurred()) {
-    jvm->DetachCurrentThread();
-  } else {
+  if (env->ExceptionCheck()) {
     env->ExceptionDescribe();
     env->ExceptionClear();
     jvm->DetachCurrentThread();
-    driver->stop();
-    this->error(driver, -1, "Java exception caught");
+    driver->abort();
+    return;
   }
+
+  jvm->DetachCurrentThread();
 }
 
 
@@ -111,15 +111,15 @@ void JNIExecutor::launchTask(ExecutorDriver* driver, const TaskDescription& desc
 
   env->CallVoidMethod(jexec, launchTask, jdriver, jdesc);
 
-  if (!env->ExceptionOccurred()) {
-    jvm->DetachCurrentThread();
-  } else {
+  if (env->ExceptionCheck()) {
     env->ExceptionDescribe();
     env->ExceptionClear();
     jvm->DetachCurrentThread();
-    driver->stop();
-    this->error(driver, -1, "Java exception caught");
+    driver->abort();
+    return;
   }
+
+  jvm->DetachCurrentThread();
 }
 
 
@@ -146,15 +146,15 @@ void JNIExecutor::killTask(ExecutorDriver* driver, const TaskID& taskId)
 
   env->CallVoidMethod(jexec, killTask, jdriver, jtaskId);
 
-  if (!env->ExceptionOccurred()) {
-    jvm->DetachCurrentThread();
-  } else {
+  if (env->ExceptionCheck()) {
     env->ExceptionDescribe();
     env->ExceptionClear();
     jvm->DetachCurrentThread();
-    driver->stop();
-    this->error(driver, -1, "Java exception caught");
+    driver->abort();
+    return;
   }
+
+  jvm->DetachCurrentThread();
 }
 
 
@@ -183,15 +183,15 @@ void JNIExecutor::frameworkMessage(ExecutorDriver* driver, const string& data)
 
   env->CallVoidMethod(jexec, frameworkMessage, jdriver, jdata);
 
-  if (!env->ExceptionOccurred()) {
-    jvm->DetachCurrentThread();
-  } else {
+  if (env->ExceptionCheck()) {
     env->ExceptionDescribe();
     env->ExceptionClear();
     jvm->DetachCurrentThread();
-    driver->stop();
-    this->error(driver, -1, "Java exception caught");
+    driver->abort();
+    return;
   }
+
+  jvm->DetachCurrentThread();
 }
 
 
@@ -215,15 +215,15 @@ void JNIExecutor::shutdown(ExecutorDriver* driver)
 
   env->CallVoidMethod(jexec, shutdown, jdriver);
 
-  if (!env->ExceptionOccurred()) {
-    jvm->DetachCurrentThread();
-  } else {
+  if (env->ExceptionCheck()) {
     env->ExceptionDescribe();
     env->ExceptionClear();
     jvm->DetachCurrentThread();
-    driver->stop();
-    this->error(driver, -1, "Java exception caught");
+    driver->abort();
+    return;
   }
+
+  jvm->DetachCurrentThread();
 }
 
 
@@ -252,21 +252,19 @@ void JNIExecutor::error(ExecutorDriver* driver, int code, const string& message)
 
   env->CallVoidMethod(jexec, error, jdriver, jcode, jmessage);
 
-  if (!env->ExceptionOccurred()) {
-    jvm->DetachCurrentThread();
-  } else {
+  if (env->ExceptionCheck()) {
     env->ExceptionDescribe();
     env->ExceptionClear();
     jvm->DetachCurrentThread();
-    driver->stop();
-    this->error(driver, -1, "Java exception caught");
+    driver->abort();
+    return;
   }
+
+  jvm->DetachCurrentThread();
 }
 
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /*
  * Class:     org_apache_mesos_MesosExecutorDriver
@@ -278,7 +276,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosExecutorDriver_initialize
 {
   jclass clazz = env->GetObjectClass(thiz);
 
-  // Create a global reference to the MesosExecutorDriver instance.
+  // Create a weak global reference to the MesosExecutorDriver
+  // instance (we want a global reference so the GC doesn't collect
+  // the instance but we make it weak so the JVM can exit).
   jobject jdriver = env->NewWeakGlobalRef(thiz);
 
   // Create the C++ executor and initialize the __exec variable.
@@ -306,8 +306,8 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosExecutorDriver_finalize
   jclass clazz = env->GetObjectClass(thiz);
 
   jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
-  MesosExecutorDriver* driver = (MesosExecutorDriver*)
-    env->GetLongField(thiz, __driver);
+  MesosExecutorDriver* driver =
+    (MesosExecutorDriver*) env->GetLongField(thiz, __driver);
 
   // Call stop just in case.
   driver->stop();
@@ -316,8 +316,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosExecutorDriver_finalize
   delete driver;
 
   jfieldID __exec = env->GetFieldID(clazz, "__exec", "J");
-  JNIExecutor* exec = (JNIExecutor*)
-    env->GetLongField(thiz, __exec);
+  JNIExecutor* exec = (JNIExecutor*) env->GetLongField(thiz, __exec);
 
   env->DeleteWeakGlobalRef(exec->jdriver);
 
@@ -328,85 +327,113 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosExecutorDriver_finalize
 /*
  * Class:     org_apache_mesos_MesosExecutorDriver
  * Method:    start
- * Signature: ()I
+ * Signature: ()Lorg/apache/mesos/Protos/Status;
  */
-JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosExecutorDriver_start
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_start
   (JNIEnv* env, jobject thiz)
 {
   jclass clazz = env->GetObjectClass(thiz);
 
   jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
-  MesosExecutorDriver* driver = (MesosExecutorDriver*)
-    env->GetLongField(thiz, __driver);
+  MesosExecutorDriver* driver =
+    (MesosExecutorDriver*) env->GetLongField(thiz, __driver);
 
-  return driver->start();
+  Status status = driver->start();
+
+  return convert<Status>(env, status);
 }
 
 
 /*
  * Class:     org_apache_mesos_MesosExecutorDriver
  * Method:    stop
- * Signature: ()I
+ * Signature: (Z)Lorg/apache/mesos/Protos/Status;
  */
-JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosExecutorDriver_stop
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_stop
+  (JNIEnv* env, jobject thiz, jboolean failover)
+{
+  jclass clazz = env->GetObjectClass(thiz);
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  MesosExecutorDriver* driver =
+    (MesosExecutorDriver*) env->GetLongField(thiz, __driver);
+
+  Status status = driver->stop(failover);
+
+  return convert<Status>(env, status);
+}
+
+
+/*
+ * Class:     org_apache_mesos_MesosExecutorDriver
+ * Method:    abort
+ * Signature: ()Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_abort
   (JNIEnv* env, jobject thiz)
 {
   jclass clazz = env->GetObjectClass(thiz);
 
   jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
-  MesosExecutorDriver* driver = (MesosExecutorDriver*)
-    env->GetLongField(thiz, __driver);
+  MesosExecutorDriver* driver =
+    (MesosExecutorDriver*) env->GetLongField(thiz, __driver);
 
-  return driver->stop();
+  Status status = driver->abort();
+
+  return convert<Status>(env, status);
 }
 
 
 /*
  * Class:     org_apache_mesos_MesosExecutorDriver
  * Method:    join
- * Signature: ()I
+ * Signature: ()Lorg/apache/mesos/Protos/Status;
  */
-JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosExecutorDriver_join
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_join
   (JNIEnv* env, jobject thiz)
 {
   jclass clazz = env->GetObjectClass(thiz);
 
   jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
-  MesosExecutorDriver* driver = (MesosExecutorDriver*)
-    env->GetLongField(thiz, __driver);
+  MesosExecutorDriver* driver =
+    (MesosExecutorDriver*) env->GetLongField(thiz, __driver);
 
-  return driver->join();
+  Status status = driver->join();
+
+  return convert<Status>(env, status);
 }
 
 
 /*
  * Class:     org_apache_mesos_MesosExecutorDriver
  * Method:    sendStatusUpdate
- * Signature: (Lorg/apache/mesos/Protos$TaskStatus;)I
+ * Signature: (Lorg/apache/mesos/Protos/TaskStatus;)Lorg/apache/mesos/Protos/Status;
  */
-JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendStatusUpdate
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendStatusUpdate
   (JNIEnv* env, jobject thiz, jobject jstatus)
 {
   // Construct a C++ TaskStatus from the Java TaskStatus.
-  const TaskStatus& status = construct<TaskStatus>(env, jstatus);
+  const TaskStatus& taskStatus = construct<TaskStatus>(env, jstatus);
 
   // Now invoke the underlying driver.
   jclass clazz = env->GetObjectClass(thiz);
 
   jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
-  MesosExecutorDriver* driver = (MesosExecutorDriver*)
-    env->GetLongField(thiz, __driver);
+  MesosExecutorDriver* driver =
+    (MesosExecutorDriver*) env->GetLongField(thiz, __driver);
 
-  return driver->sendStatusUpdate(status);
+  Status status = driver->sendStatusUpdate(taskStatus);
+
+  return convert<Status>(env, status);
 }
 
 
 /*
  * Class:     org_apache_mesos_MesosExecutorDriver
  * Method:    sendFrameworkMessage
- * Signature: ([B)I
+ * Signature: ([B)Lorg/apache/mesos/Protos/Status;
  */
-JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendFrameworkMessage
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendFrameworkMessage
   (JNIEnv* env, jobject thiz, jbyteArray jdata)
 {
   // Construct a C++ string from the Java byte array.
@@ -421,13 +448,12 @@ JNIEXPORT jint JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendFrameworkMe
   jclass clazz = env->GetObjectClass(thiz);
 
   jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
-  MesosExecutorDriver* driver = (MesosExecutorDriver*)
-    env->GetLongField(thiz, __driver);
+  MesosExecutorDriver* driver =
+    (MesosExecutorDriver*) env->GetLongField(thiz, __driver);
 
-  return driver->sendFrameworkMessage(temp);
+  Status status = driver->sendFrameworkMessage(temp);
+
+  return convert<Status>(env, status);
 }
 
-
-#ifdef __cplusplus
-}
-#endif
+} // extern "C" {

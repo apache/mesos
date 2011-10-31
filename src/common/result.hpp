@@ -43,6 +43,8 @@ public:
     return Result<T>(ERROR, NULL, message);
   }
 
+  Result(const T& _t) : state(SOME), t(new T(_t)) {}
+
   Result(const Result<T>& that)
   {
     state = that.state;
@@ -54,11 +56,9 @@ public:
     message = that.message;
   }
 
-  virtual ~Result()
+  ~Result()
   {
-    if (t != NULL) {
-      delete t;
-    }
+    delete t;
   }
 
   Result<T>& operator = (const Result<T>& that)
@@ -76,21 +76,21 @@ public:
     return *this;
   }
 
-  bool isSome() { return state == SOME; }
-  bool isNone() { return state == NONE; }
-  bool isError() { return state == ERROR; }
+  bool isSome() const { return state == SOME; }
+  bool isNone() const { return state == NONE; }
+  bool isError() const { return state == ERROR; }
 
-  T get() { assert(state == SOME); return *t; }
+  T get() const { assert(state == SOME); return *t; }
 
-  std::string error() { return message; }
+  std::string error() const { assert(state == ERROR); return message; }
 
+private:
   enum State {
     SOME,
     NONE,
     ERROR
   };
 
-private:
   Result(State _state, T* _t = NULL, const std::string& _message = "")
     : state(_state), t(_t), message(_message) {}
 

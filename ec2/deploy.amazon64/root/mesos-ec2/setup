@@ -186,6 +186,10 @@ echo "Setting up Spark config files..."
 mkdir -p /root/spark/conf
 echo "-Dspark.dfs=hdfs://$HOSTNAME:9000" \
      > /root/spark/conf/java-opts
+chmod u+x /root/spark/conf/spark-env.sh
+
+echo "Deploying Spark config files..."
+/root/mesos-ec2/copy-dir /root/spark/conf
 
 echo "Redeploying /root/mesos..."
 ./redeploy-mesos

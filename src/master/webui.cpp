@@ -23,8 +23,7 @@
 
 #include <process/dispatch.hpp>
 
-#include "state.hpp"
-#include "webui.hpp"
+#include "master/webui.hpp"
 
 #include "configurator/configuration.hpp"
 
@@ -32,45 +31,43 @@
 
 #include <Python.h>
 
-using process::PID;
 
-using std::string;
+namespace mesos {
+namespace internal {
+namespace master {
+namespace webui {
 
-
-extern "C" void init_master();  // Initializer for the Python master module.
-
-
-namespace mesos { namespace internal { namespace master {
-
-static PID<Master> master;
-static string webuiPort;
-static string logDir;
+static std::string masterPort;
+static std::string webuiPort;
+static std::string logDir;
 
 
-void* runMasterWebUI(void*)
+void* run(void*)
 {
-  LOG(INFO) << "Web UI thread started";
+  LOG(INFO) << "Master web server thread started";
   Py_Initialize();
-  char* argv[3];
+  char* argv[4];
   argv[0] = const_cast<char*>("webui/master/webui.py");
-  argv[1] = const_cast<char*>(webuiPort.c_str());
-  argv[2] = const_cast<char*>(logDir.c_str());
-  PySys_SetArgv(3, argv);
-  PyRun_SimpleString("import sys\n"
-      "sys.path.append('webui/master/swig')\n"
+  argv[1] = const_cast<char*>(masterPort.c_str());
+  argv[2] = const_cast<char*>(webuiPort.c_str());
+  argv[3] = const_cast<char*>(logDir.c_str());
+  PySys_SetArgv(4, argv);
+  PyRun_SimpleString(
+      "import sys\n"
       "sys.path.append('webui/common')\n"
       "sys.path.append('webui/bottle-0.8.3')\n");
-  init_master();
   LOG(INFO) << "Loading webui/master/webui.py";
-  FILE *webui = fopen("webui/master/webui.py", "r");
-  PyRun_SimpleFile(webui, "webui/master/webui.py");
-  fclose(webui);
+  FILE* file = fopen("webui/master/webui.py", "r");
+  PyRun_SimpleFile(file, "webui/master/webui.py");
+  fclose(file);
   Py_Finalize();
 }
 
 
-void startMasterWebUI(const PID<Master>& _master, const Configuration& conf)
+void start(const process::PID<Master>& master, const Configuration& conf)
 {
+  masterPort = utils::stringify(master.port);
+
   // TODO(*): It would be nice if we didn't have to be specifying
   // default values for configuration options in the code like
   // this. For example, we specify /tmp for log_dir because that is
@@ -81,24 +78,17 @@ void startMasterWebUI(const PID<Master>& _master, const Configuration& conf)
   webuiPort = conf.get("webui_port", "8080");
   logDir = conf.get("log_dir", FLAGS_log_dir);
 
-  LOG(INFO) << "Starting master web UI on port " << webuiPort;
+  LOG(INFO) << "Starting master web server on port " << webuiPort;
 
-  master = _master;
   pthread_t thread;
-  pthread_create(&thread, 0, runMasterWebUI, NULL);
+  if (pthread_create(&thread, 0, run, NULL) != 0) {
+    LOG(FATAL) << "Failed to create master web server thread";
+  }
 }
 
-
-namespace state {
-
-// From master_state.hpp
-MasterState* get_master()
-{
-  return process::call(master, &Master::getState);
-}
-
-} // namespace state {
-
-}}} // namespace mesos { namespace internal { namespace master {
+} // namespace webui {
+} // namespace master {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // MESOS_WEBUI

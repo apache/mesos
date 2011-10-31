@@ -23,10 +23,12 @@
 
 #include "configurator/configurator.hpp"
 
-#include "common/multimap.hpp"
+#include "common/multihashmap.hpp"
 
 
-namespace mesos { namespace internal { namespace master {
+namespace mesos {
+namespace internal {
+namespace master {
 
 class Master;
 
@@ -55,8 +57,8 @@ public:
   bool activate(const std::string& hostname, uint16_t port);
   bool deactivate(const std::string& hostname, uint16_t port);
 
-  void updateActive(const multimap<std::string, uint16_t>& updated);
-  void updateInactive(const multimap<std::string, uint16_t>& updated);
+  void updateActive(const multihashmap<std::string, uint16_t>& updated);
+  void updateInactive(const multihashmap<std::string, uint16_t>& updated);
 
 private:
   process::Promise<process::HttpResponse> add(const process::HttpRequest& request);
@@ -68,12 +70,14 @@ private:
 
   const process::PID<Master> master;
 
-  multimap<std::string, uint16_t> active;
-  multimap<std::string, uint16_t> inactive;
+  multihashmap<std::string, uint16_t> active;
+  multihashmap<std::string, uint16_t> inactive;
 
   SlavesManagerStorage* storage;
 };
 
-}}} // namespace mesos { namespace internal { namespace master {
+} // namespace master {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __SLAVES_MANAGER_HPP__

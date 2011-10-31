@@ -88,9 +88,9 @@ public:
 template<typename C, typename T, typename P>
 class ConcreteCreator : public Creator<T, P> {
 public:
-  virtual T* instantiate(P p) { return new C(p); }
+  virtual T* instantiate(P p) { return new C(); }
 };
-  
+
 
 template<typename T, typename P> class Factory {
   std::map<std::string, Creator<T, P> *> creators;

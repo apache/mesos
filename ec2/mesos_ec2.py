@@ -37,9 +37,9 @@ def parse_args():
            "WARNING: must be 64 bit, thus small instances won't work")
   parser.add_option("-m", "--master-instance-type", default="",
       help="Master instance type (leave empty for same as instance-type)")
-  parser.add_option("-z", "--zone", default="",
+  parser.add_option("-z", "--zone", default="us-east-1b",
       help="Availability zone to launch instances in")
-  parser.add_option("-a", "--ami", default="ami-fa4eb393",
+  parser.add_option("-a", "--ami", default="ami-4521e52c",
       help="Amazon Machine Image ID to use")
   parser.add_option("-o", "--os", default="amazon64",
       help="OS on the Amazon Machine Image (default: amazon64)")
@@ -358,7 +358,11 @@ def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, zoo_nodes):
         ["%s:2181/mesos" % i.public_dns_name for i in zoo_nodes])
   else:
     zoo_list = "NONE"
-    cluster_url = "1@%s:5050" % active_master
+    # TODO: temporary code to support older versions of Mesos with 1@ URLs
+    if opts.os == "amazon64-new":
+      cluster_url = "master@%s:5050" % active_master
+    else:
+      cluster_url = "1@%s:5050" % active_master
 
   template_vars = {
     "master_list": '\n'.join([i.public_dns_name for i in master_nodes]),

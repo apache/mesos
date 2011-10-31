@@ -23,9 +23,8 @@
 #include <boost/unordered_map.hpp>
 
 #include "common/foreach.hpp"
+#include "common/option.hpp"
 
-
-namespace mesos { namespace internal {
 
 // Provides a hash map via Boost's 'unordered_map'. For most intensive
 // purposes this could be accomplished with a templated typedef, but
@@ -38,10 +37,10 @@ class hashmap : public boost::unordered_map<Key, Value>
 {
 public:
   // Checks whether this map contains a binding for a key.
-  bool contains(const Key& key) { return count(key) > 0; }
+  bool contains(const Key& key) const { return count(key) > 0; }
 
   // Checks whether there exists a bound value in this map.
-  bool containsValue(const Value& v)
+  bool containsValue(const Value& v) const
   {
     foreachvalue (const Value& value, *this) {
       if (value == v) {
@@ -53,7 +52,7 @@ public:
   // Checks whether there exists a value in this map that returns the
   // a result equal to 'r' when the specified method is invoked.
   template <typename R, typename T>
-  bool existsValue(R (T::*method)(), R r)
+  bool existsValue(R (T::*method)(), R r) const
   {
     foreachvalue (const Value& value, *this) {
       const T* t = boost::get_pointer(value);
@@ -66,7 +65,7 @@ public:
   // Checks whether there exists a value in this map whose specified
   // member is equal to 'r'.
   template <typename R, typename T>
-  bool existsValue(R (T::*member), R r)
+  bool existsValue(R (T::*member), R r) const
   {
     foreachvalue (const Value& value, *this) {
       const T* t = boost::get_pointer(value);
@@ -76,7 +75,5 @@ public:
     }
   }
 };
-
-}} // namespace mesos { namespace internal {
 
 #endif // __HASHMAP_HPP__

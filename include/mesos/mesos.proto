@@ -132,6 +132,7 @@ enum TaskState {
 message TaskStatus {
   required TaskID task_id = 1;
   required TaskState state = 2;
+  optional string message = 4; // Possible message explaining state.
   optional bytes data = 3;
 }
 
@@ -139,6 +140,7 @@ message TaskStatus {
 message ExecutorInfo {
   required ExecutorID executor_id = 1;
   required string uri = 2;
+  repeated Resource resources = 5;
   optional Params params = 3;
   optional bytes data = 4;
 }
@@ -160,8 +162,33 @@ message SlaveInfo {
 }
 
 
-message SlaveOffer {
-  required SlaveID slave_id = 1;
-  required string hostname = 2;
-  repeated Resource resources = 3;
+message ResourceRequest {
+  optional SlaveID slave_id = 1;
+  repeated Resource resources = 2;
+}
+
+
+message Offer {
+  required OfferID id = 1;
+  required FrameworkID framework_id = 2;
+  required SlaveID slave_id = 3;
+  required string hostname = 4;
+  repeated Resource resources = 5;
+  repeated ExecutorID executor_ids = 6;
+}
+
+
+message Filters {
+  // Time to consider unused resources refused.
+  optional double refuse_seconds = 1;
+}
+
+
+enum Status {
+  OK = 0;
+
+  DRIVER_NOT_RUNNING = 1;
+  DRIVER_ALREADY_RUNNING = 2;
+  DRIVER_ABORTED = 3;
+  DRIVER_STOPPED = 4;
 }

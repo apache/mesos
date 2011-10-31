@@ -16,7 +16,6 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
-#include <process/promise.hpp>
 
 
 namespace process {
@@ -38,7 +37,7 @@ struct Message {
 
 class Clock {
 public:
-  static double elapsed();
+  static double now();
   static void pause();
   static void resume();
   static void advance(double secs);

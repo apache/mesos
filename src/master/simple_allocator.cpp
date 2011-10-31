@@ -20,43 +20,57 @@
 
 #include <glog/logging.h>
 
-#include "simple_allocator.hpp"
+#include <algorithm>
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::master;
+#include "common/utils.hpp"
 
-using boost::unordered_map;
-using boost::unordered_set;
+#include "master/simple_allocator.hpp"
 
 using std::max;
 using std::sort;
 using std::vector;
 
 
+namespace mesos {
+namespace internal {
+namespace master {
+
+void SimpleAllocator::initialize(Master* _master)
+{
+  master = _master;
+  initialized = true;
+}
+
+
 void SimpleAllocator::frameworkAdded(Framework* framework)
 {
-  LOG(INFO) << "Added " << framework;
+  CHECK(initialized);
+  LOG(INFO) << "Added framework " << framework->id;
   makeNewOffers();
 }
 
 
 void SimpleAllocator::frameworkRemoved(Framework* framework)
 {
-  LOG(INFO) << "Removed " << framework;
-  foreachpair (Slave* s, unordered_set<Framework*>& refs, refusers)
-    refs.erase(framework);
-  // TODO: Re-offer just the slaves that the framework had tasks on?
-  //       Alternatively, comment this out and wait for a timer tick
+  CHECK(initialized);
+
+  foreachkey (const SlaveID& slaveId, utils::copy(refusers)) {
+    refusers.remove(slaveId, framework->id);
+  }
+
+  LOG(INFO) << "Removed framework " << framework->id;
+
   makeNewOffers();
 }
 
 
 void SimpleAllocator::slaveAdded(Slave* slave)
 {
-  LOG(INFO) << "Added " << slave << " with "
-            << Resources(slave->info.resources());
-  refusers[slave] = unordered_set<Framework*>();
+  CHECK(initialized);
+
+  LOG(INFO) << "Added slave " << slave->id
+            << " with " << slave->info.resources();
+
   totalResources += slave->info.resources();
   makeNewOffers(slave);
 }
@@ -64,82 +78,91 @@ void SimpleAllocator::slaveAdded(Slave* slave)
 
 void SimpleAllocator::slaveRemoved(Slave* slave)
 {
-  LOG(INFO) << "Removed " << slave;
+  CHECK(initialized);
+
+  LOG(INFO) << "Removed slave " << slave->id;
+
   totalResources -= slave->info.resources();
-  refusers.erase(slave);
+  refusers.remove(slave->id);
 }
 
 
-void SimpleAllocator::taskRemoved(Task* task, TaskRemovalReason reason)
+void SimpleAllocator::resourcesRequested(
+    const FrameworkID& frameworkId,
+    const vector<ResourceRequest>& requests)
 {
-  LOG(INFO) << "Removed " << task;
-  // Remove all refusers from this slave since it has more resources free
-  Slave* slave = master->getSlave(task->slave_id());
-  CHECK(slave != 0);
-  refusers[slave].clear();
-  // Re-offer the resources, unless this task was removed due to a lost
-  // slave or a lost framework (in which case we'll get another callback)
-  if (reason == TRR_TASK_ENDED || reason == TRR_EXECUTOR_LOST)
-    makeNewOffers(slave);
+  CHECK(initialized);
+
+  LOG(INFO) << "Received resource request from framework " << frameworkId;
 }
 
 
-void SimpleAllocator::offerReturned(Offer* offer,
-                                    OfferReturnReason reason,
-                                    const vector<SlaveResources>& resLeft)
+void SimpleAllocator::resourcesUnused(
+    const FrameworkID& frameworkId,
+    const SlaveID& slaveId,
+    const Resources& resources)
 {
-  LOG(INFO) << "Offer returned: " << offer << ", reason = " << reason;
+  CHECK(initialized);
 
-  // If this offer returned due to the framework replying, add it to refusers.
-  if (reason == ORR_FRAMEWORK_REPLIED) {
-    Framework* framework = master->getFramework(offer->frameworkId);
-    CHECK(framework != 0);
-    foreach (const SlaveResources& r, resLeft) {
-      VLOG(1) << "Framework reply leaves " << r.resources.allocatable()
-              << " free on " << r.slave;
-      if (r.resources.allocatable().size() > 0) {
-        VLOG(1) << "Inserting " << framework << " as refuser for " << r.slave;
-        refusers[r.slave].insert(framework);
-      }
-    }
+  if (resources.allocatable().size() > 0) {
+    VLOG(1) << "Framework " << frameworkId
+            << " left " << resources.allocatable()
+            << " unused on slave " << slaveId;
+    refusers.put(slaveId, frameworkId);
   }
 
-  // Make new offers unless the offer returned due to a lost framework or slave
-  // (in those cases, frameworkRemoved and slaveRemoved will be called later),
-  // or returned due to a framework failover (in which case the framework's
-  // new PID won't be set yet so we just wait for the next timer tick).
-  if (reason != ORR_SLAVE_LOST && reason != ORR_FRAMEWORK_LOST &&
-      reason != ORR_FRAMEWORK_FAILOVER) {
-    vector<Slave*> slaves;
-    foreach (const SlaveResources& r, resLeft)
-      slaves.push_back(r.slave);
-    makeNewOffers(slaves);
+  makeNewOffers();
+}
+
+
+void SimpleAllocator::resourcesRecovered(
+    const FrameworkID& frameworkId,
+    const SlaveID& slaveId,
+    const Resources& resources)
+{
+  CHECK(initialized);
+
+  if (resources.allocatable().size() > 0) {
+    VLOG(1) << "Recovered " << resources.allocatable()
+            << " on slave " << slaveId
+            << " from framework " << frameworkId;
+    refusers.remove(slaveId);
   }
+
+  makeNewOffers();
 }
 
 
 void SimpleAllocator::offersRevived(Framework* framework)
 {
-  LOG(INFO) << "Filters removed for " << framework;
+  CHECK(initialized);
+
+  // TODO(benh): This is broken ... we say filters removed here, but
+  // yet we don't actually do the removing of the filters? The
+  // allocator should really be responsible for filters (if there are
+  // any) because it can best use those for future allocation
+  // decisions.
+  LOG(INFO) << "Filters removed for framework " << framework->id;
+
   makeNewOffers();
 }
 
 
 void SimpleAllocator::timerTick()
 {
-  // TODO: Is this necessary?
+  CHECK(initialized);
   makeNewOffers();
 }
 
 
 namespace {
-  
+
 struct DominantShareComparator
 {
   DominantShareComparator(const Resources& _resources)
     : resources(_resources) {}
-  
-  bool operator () (Framework* f1, Framework* f2)
+
+  bool operator () (Framework* framework1, Framework* framework2)
   {
     double share1 = 0;
     double share2 = 0;
@@ -153,32 +176,34 @@ struct DominantShareComparator
         double total = resource.scalar().value();
 
         if (total > 0) {
+          Resource::Scalar none;
           const Resource::Scalar& scalar1 =
-            f1->resources.getScalar(resource.name(), Resource::Scalar());
-          share1 = max(share1, scalar1.value() / total);
-
+            framework1->resources.get(resource.name(), none);
           const Resource::Scalar& scalar2 =
-            f2->resources.getScalar(resource.name(), Resource::Scalar());
+            framework2->resources.get(resource.name(), none);
+          share1 = max(share1, scalar1.value() / total);
           share2 = max(share2, scalar2.value() / total);
         }
       }
     }
 
-    if (share1 == share2)
+    if (share1 == share2) {
       // Make the sort deterministic for unit testing.
-      return f1->id.value() < f2->id.value();
-    else
+      return framework1->id.value() < framework2->id.value();
+    } else {
       return share1 < share2;
+    }
   }
 
   Resources resources;
 };
 
-}
+} // namespace {
 
 
 vector<Framework*> SimpleAllocator::getAllocationOrdering()
 {
+  CHECK(initialized) << "Cannot get allocation ordering before initialization!";
   vector<Framework*> frameworks = master->getActiveFrameworks();
   DominantShareComparator comp(totalResources);
   sort(frameworks.begin(), frameworks.end(), comp);
@@ -189,6 +214,7 @@ vector<Framework*> SimpleAllocator::getAllocationOrdering()
 void SimpleAllocator::makeNewOffers()
 {
   // TODO: Create a method in master so that we don't return the whole list of slaves
+  CHECK(initialized) << "Cannot make new offers before initialization!";
   vector<Slave*> slaves = master->getActiveSlaves();
   makeNewOffers(slaves);
 }
@@ -196,6 +222,7 @@ void SimpleAllocator::makeNewOffers()
 
 void SimpleAllocator::makeNewOffers(Slave* slave)
 {
+  CHECK(initialized) << "Cannot make new offers before initialization!";
   vector<Slave*> slaves;
   slaves.push_back(slave);
   makeNewOffers(slaves);
@@ -204,19 +231,19 @@ void SimpleAllocator::makeNewOffers(Slave* slave)
 
 void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
 {
+  CHECK(initialized) << "Cannot make new offers before initialization!";
   // Get an ordering of frameworks to send offers to
   vector<Framework*> ordering = getAllocationOrdering();
-  if (ordering.size() == 0) {
-    VLOG(1) << "makeNewOffers returning because no frameworks are connected";
+  if (ordering.empty()) {
+    VLOG(1) << "No frameworks to allocate resources!";
     return;
   }
-  
-  // Find all the free resources that can be allocated.
-  unordered_map<Slave* , Resources> freeResources;
+
+  // Find all the available resources that can be allocated.
+  hashmap<Slave*, Resources> available;
   foreach (Slave* slave, slaves) {
     if (slave->active) {
-      Resources resources = slave->resourcesFree();
-      Resources allocatable = resources.allocatable();
+      Resources resources = slave->resourcesFree().allocatable();
 
       // TODO(benh): For now, only make offers when there is some cpu
       // and memory left. This is an artifact of the original code
@@ -230,56 +257,55 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
       // resources, rather than the master pushing resources out to
       // frameworks.
 
-      Resource::Scalar cpus;
-      cpus.set_value(0);
-
-      cpus = allocatable.getScalar("cpus", cpus);
-
-      Resource::Scalar mem;
-      mem.set_value(0);
-
-      mem = allocatable.getScalar("mem", mem);
+      Resource::Scalar none;
+      Resource::Scalar cpus = resources.get("cpus", none);
+      Resource::Scalar mem = resources.get("mem", none);
 
       if (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) {
-        VLOG(1) << "Found free resources: " << allocatable << " on " << slave;
-        freeResources[slave] = allocatable;
+        VLOG(1) << "Found available resources: " << resources
+                << " on slave " << slave->id;
+        available[slave] = resources;
       }
     }
   }
 
-  if (freeResources.size() == 0) {
-    VLOG(1) << "makeNewOffers returning because there are no free resources";
+  if (available.size() == 0) {
+    VLOG(1) << "No resources available to allocate!";
     return;
   }
-  
-  // Clear refusers on any slave that has been refused by everyone
-  foreachkey (Slave* slave, freeResources) {
-    unordered_set<Framework*>& refs = refusers[slave];
-    if (refs.size() == ordering.size()) {
-      VLOG(1) << "Clearing refusers for " << slave
-              << " because everyone refused it";
-      refs.clear();
+
+  // Clear refusers on any slave that has been refused by everyone.
+  foreachkey (Slave* slave, available) {
+    if (refusers.get(slave->id).size() == ordering.size()) {
+      VLOG(1) << "Clearing refusers for slave " << slave->id
+              << " because EVERYONE has refused resources from it";
+      refusers.remove(slave->id);
     }
   }
 
   foreach (Framework* framework, ordering) {
-    // See which resources this framework can take (given filters & refusals)
-    vector<SlaveResources> offerable;
-    foreachpair (Slave* slave, const Resources& resources, freeResources) {
-      if (refusers[slave].find(framework) == refusers[slave].end() &&
+    // Check if we should offer resources to this framework.
+    hashmap<Slave*, Resources> offerable;
+    foreachpair (Slave* slave, const Resources& resources, available) {
+      if (!refusers.contains(slave->id, framework->id) &&
           !framework->filters(slave, resources)) {
-        VLOG(1) << "Offering " << resources << " on " << slave
+        VLOG(1) << "Offering " << resources
+                << " on slave " << slave->id
                 << " to framework " << framework->id;
-        offerable.push_back(SlaveResources(slave, resources));
+        offerable[slave] = resources;
       }
     }
 
     if (offerable.size() > 0) {
-      foreach (SlaveResources& r, offerable) {
-        freeResources.erase(r.slave);
+      foreachkey (Slave* slave, offerable) {
+        available.erase(slave);
       }
 
-      master->makeOffer(framework, offerable);
+      master->makeOffers(framework, offerable);
     }
   }
 }
+
+} // namespace master {
+} // namespace internal {
+} // namespace mesos {

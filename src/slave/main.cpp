@@ -40,9 +40,9 @@ using std::string;
 void usage(const char *programName, const Configurator& configurator)
 {
   cerr << "Usage: " << programName
-       << " --url=MASTER_URL [--cpus=NUM] [--mem=BYTES] [...]" << endl
+       << " --master=URL [...]" << endl
        << endl
-       << "MASTER_URL may be one of:" << endl
+       << "URL may be one of:" << endl
        << "  mesos://id@host:port" << endl
        << "  zoo://host1:port1,host2:port2,..." << endl
        << "  zoofile://file where file contains a host:port pair per line"
@@ -53,14 +53,14 @@ void usage(const char *programName, const Configurator& configurator)
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   Configurator configurator;
   Logging::registerOptions(&configurator);
   Slave::registerOptions(&configurator);
   configurator.addOption<int>("port", 'p', "Port to listen on", 0);
   configurator.addOption<string>("ip", "IP address to listen on");
-  configurator.addOption<string>("url", 'u', "Master URL");
+  configurator.addOption<string>("master", 'm', "Master URL");
   configurator.addOption<string>("isolation", 'i', "Isolation module name", "process");
 #ifdef MESOS_WEBUI
   configurator.addOption<int>("webui_port", 'w', "Web UI port", 8081);
@@ -92,11 +92,11 @@ int main(int argc, char **argv)
   // Initialize libprocess library (but not glog, done above).
   process::initialize(false);
 
-  if (!conf.contains("url")) {
-    cerr << "Master URL argument (--url) required." << endl;
+  if (!conf.contains("master")) {
+    cerr << "Master URL argument (--master) required." << endl;
     exit(1);
   }
-  string url = conf["url"];
+  string master = conf["master"];
 
   string isolation = conf["isolation"];
   LOG(INFO) << "Creating \"" << isolation << "\" isolation module";
@@ -117,11 +117,14 @@ int main(int argc, char **argv)
   Slave* slave = new Slave(conf, false, isolationModule);
   process::spawn(slave);
 
-  MasterDetector* detector =
-    MasterDetector::create(url, slave->self(), false, Logging::isQuiet(conf));
+  MasterDetector* detector = MasterDetector::create(
+      master,
+      slave->self(),
+      false,
+      Logging::isQuiet(conf));
 
 #ifdef MESOS_WEBUI
-  startSlaveWebUI(slave->self(), conf);
+  webui::start(slave->self(), conf);
 #endif
 
   process::wait(slave->self());

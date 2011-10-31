@@ -23,10 +23,19 @@
 #include "fatal.hpp"
 #include "logging.hpp"
 
-using namespace mesos::internal;
-
 using std::string;
 
+// TODO(benh): Provide a mechanism to initialize the logging only
+// once, possibly using something like pthread_once. In particular, we
+// need to make sure we handle the case that another library is used
+// with Mesos that also uses glog.
+//
+//   static pthread_once_t glog_initialized = PTHREAD_ONCE_INIT;
+//
+//   pthread_once(&glog_initialized, initialize_glog);
+
+namespace mesos {
+namespace internal {
 
 void Logging::registerOptions(Configurator* conf)
 {
@@ -49,11 +58,14 @@ void Logging::init(const char* programName, const Configuration& conf)
     }
     FLAGS_log_dir = logDir;
   }
+
   FLAGS_logbufsecs = conf.get<int>("log_buf_secs", 0);
+
   google::InitGoogleLogging(programName);
 
-  if (!isQuiet(conf))
+  if (!isQuiet(conf)) {
     google::SetStderrLogging(google::INFO);
+  }
 
   LOG(INFO) << "Logging to " << FLAGS_log_dir;
 }
@@ -74,3 +86,6 @@ bool Logging::isQuiet(const Configuration& conf)
 {
   return conf.get<bool>("quiet", false);
 }
+
+} // namespace internal {
+} // namespace mesos {

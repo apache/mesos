@@ -71,15 +71,16 @@ public:
   virtual ~ExecutorDriver() {}
 
   // Lifecycle methods.
-  virtual int start() = 0;
-  virtual int stop() = 0;
-  virtual int join() = 0;
-  virtual int run() = 0; // Start and then join driver.
+  virtual Status start() = 0;
+  virtual Status stop(bool failover = false) = 0;
+  virtual Status abort() = 0;
+  virtual Status join() = 0;
+  virtual Status run() = 0; // Start and then join driver.
 
   // Communication methods from executor to Mesos.
-  virtual int sendStatusUpdate(const TaskStatus& status) = 0;
+  virtual Status sendStatusUpdate(const TaskStatus& status) = 0;
 
-  virtual int sendFrameworkMessage(const std::string& data) = 0;
+  virtual Status sendFrameworkMessage(const std::string& data) = 0;
 };
 
 
@@ -96,13 +97,14 @@ public:
   virtual ~MesosExecutorDriver();
 
   // Lifecycle methods
-  virtual int start();
-  virtual int stop();
-  virtual int join();
-  virtual int run(); // Start and then join driver
+  virtual Status start();
+  virtual Status stop(bool failover = false);
+  virtual Status abort();
+  virtual Status join();
+  virtual Status run(); // Start and then join driver
 
-  virtual int sendStatusUpdate(const TaskStatus& status);
-  virtual int sendFrameworkMessage(const std::string& data);
+  virtual Status sendStatusUpdate(const TaskStatus& status);
+  virtual Status sendFrameworkMessage(const std::string& data);
 
 private:
   friend class internal::ExecutorProcess;
@@ -112,14 +114,21 @@ private:
   // Libprocess process for communicating with slave
   internal::ExecutorProcess* process;
 
-  // Are we currently registered with the slave
-  bool running;
-  
   // Mutex to enforce all non-callbacks are execute serially
   pthread_mutex_t mutex;
 
   // Condition variable for waiting until driver terminates
   pthread_cond_t cond;
+
+  enum State {
+    INITIALIZED,
+    RUNNING,
+    STOPPED,
+    ABORTED
+  };
+
+  // Variable to store the state of the driver.
+  State state;
 };
 
 } // namespace mesos {

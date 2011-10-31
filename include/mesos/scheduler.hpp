@@ -45,19 +45,13 @@ class Scheduler
 public:
   virtual ~Scheduler() {}
 
-  // Callbacks for getting framework properties.
-  virtual std::string getFrameworkName(SchedulerDriver* driver) = 0;
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver* driver) = 0;
-
   // Callbacks for various Mesos events.
 
   virtual void registered(SchedulerDriver* driver,
                           const FrameworkID& frameworkId) = 0;
 
-  virtual void resourceOffer(SchedulerDriver* driver,
-                             const OfferID& offerId,
-                             const std::vector<SlaveOffer>& offers) = 0;
+  virtual void resourceOffers(SchedulerDriver* driver,
+                              const std::vector<Offer>& offers) = 0;
 
   virtual void offerRescinded(SchedulerDriver* driver,
                               const OfferID& offerId) = 0;
@@ -66,8 +60,8 @@ public:
                             const TaskStatus& status) = 0;
 
   virtual void frameworkMessage(SchedulerDriver* driver,
-				const SlaveID& slaveId,
-				const ExecutorID& executorId,
+                                const SlaveID& slaveId,
+                                const ExecutorID& executorId,
                                 const std::string& data) = 0;
 
   virtual void slaveLost(SchedulerDriver* driver,
@@ -93,30 +87,33 @@ public:
   virtual ~SchedulerDriver() {}
 
   // Lifecycle methods.
-  virtual int start() = 0;
-  virtual int stop() = 0;
-  virtual int join() = 0;
-  virtual int run() = 0; // Start and then join driver.
+  virtual Status start() = 0;
+  virtual Status stop(bool failover = false) = 0;
+  // Puts driver into ABORTED state after which no more callbacks
+  // can be made to the scheduler. Also, the master is signalled
+  // that the driver is inactived. The only call a scheduler
+  // can make after abort is stop(), which can un-register the
+  // framework (if requested).
+  virtual Status abort() = 0;
+  virtual Status join() = 0;
+  virtual Status run() = 0; // Start and then join driver.
 
   // Communication methods.
 
-  virtual int sendFrameworkMessage(const SlaveID& slaveId,
-				   const ExecutorID& executorId,
-				   const std::string& data) = 0;
+  virtual Status requestResources(
+      const std::vector<ResourceRequest>& requests) = 0;
 
-  virtual int killTask(const TaskID& taskId) = 0;
+  virtual Status launchTasks(const OfferID& offerId,
+                             const std::vector<TaskDescription>& tasks,
+                             const Filters& filters = Filters()) = 0;
 
-  virtual int replyToOffer(const OfferID& offerId,
-                           const std::vector<TaskDescription>& tasks,
-                           const std::map<std::string, std::string>& params) = 0;
+  virtual Status killTask(const TaskID& taskId) = 0;
 
-  virtual int replyToOffer(const OfferID& offerId,
-                           const std::vector<TaskDescription>& tasks)
-  {
-    return replyToOffer(offerId, tasks, std::map<std::string, std::string>());
-  }
+  virtual Status reviveOffers() = 0;
 
-  virtual int reviveOffers() = 0;
+  virtual Status sendFrameworkMessage(const SlaveID& slaveId,
+                                      const ExecutorID& executorId,
+                                      const std::string& data) = 0;
 };
 
 
@@ -138,6 +135,8 @@ public:
    *        redundant schedulers for the same framework
    */
   MesosSchedulerDriver(Scheduler* sched,
+                       const std::string& frameworkName,
+                       const ExecutorInfo& executorInfo,
                        const std::string& url,
                        const FrameworkID& frameworkId = FrameworkID());
 
@@ -153,10 +152,11 @@ public:
    *        redundant schedulers for the same framework
    */
   MesosSchedulerDriver(Scheduler* sched,
+                       const std::string& frameworkName,
+                       const ExecutorInfo& executorInfo,
                        const std::map<std::string, std::string>& params,
                        const FrameworkID& frameworkId = FrameworkID());
 
-#ifndef SWIG
   /**
    * Create a scheduler driver with a config read from command-line arguments.
    * Additional Mesos config options are read from the environment, as well
@@ -173,43 +173,44 @@ public:
    *        redundant schedulers for the same framework
    */
   MesosSchedulerDriver(Scheduler* sched,
+                       const std::string& frameworkName,
+                       const ExecutorInfo& executorInfo,
                        int argc,
                        char** argv,
                        const FrameworkID& frameworkId = FrameworkID());
-#endif
 
   virtual ~MesosSchedulerDriver();
 
   // Lifecycle methods.
-  virtual int start();
-  virtual int stop();
-  virtual int join();
-  virtual int run(); // Start and then join driver.
+  virtual Status start();
+  virtual Status stop(bool failover = false);
+  virtual Status abort();
+  virtual Status join();
+  virtual Status run(); // Start and then join driver.
 
   // Communication methods.
-  virtual int sendFrameworkMessage(const SlaveID& slaveId,
-				   const ExecutorID& executorId,
-				   const std::string& data);
+  virtual Status requestResources(
+      const std::vector<ResourceRequest>& requests);
 
-  virtual int killTask(const TaskID& taskId);
+  virtual Status launchTasks(const OfferID& offerId,
+                             const std::vector<TaskDescription>& tasks,
+                             const Filters& filters = Filters());
 
-  virtual int replyToOffer(const OfferID& offerId,
-                           const std::vector<TaskDescription>& tasks,
-                           const std::map<std::string, std::string>& params);
+  virtual Status killTask(const TaskID& taskId);
 
-  virtual int replyToOffer(const OfferID& offerId,
-                           const std::vector<TaskDescription>& tasks)
-  {
-    return replyToOffer(offerId, tasks, std::map<std::string, std::string>());
-  }
+  virtual Status reviveOffers();
 
-  virtual int reviveOffers();
+  virtual Status sendFrameworkMessage(const SlaveID& slaveId,
+                                      const ExecutorID& executorId,
+                                      const std::string& data);
 
 private:
   // Initialization method used by constructors
   void init(Scheduler* sched,
             internal::Configuration* conf,
-            const FrameworkID& frameworkId);
+            const FrameworkID& frameworkId,
+            const std::string& frameworkName,
+            const ExecutorInfo& executorInfo);
 
   // Internal utility method to report an error to the scheduler
   void error(int code, const std::string& message);
@@ -217,6 +218,8 @@ private:
   Scheduler* sched;
   std::string url;
   FrameworkID frameworkId;
+  std::string frameworkName;
+  ExecutorInfo executorInfo;
 
   // Libprocess process for communicating with master
   internal::SchedulerProcess* process;
@@ -228,14 +231,21 @@ private:
   // TODO(benh|matei): Does this still need to be a pointer?
   internal::Configuration* conf;
 
-  // Are we currently registered with the master
-  bool running;
-  
   // Mutex to enforce all non-callbacks are execute serially
   pthread_mutex_t mutex;
 
   // Condition variable for waiting until driver terminates
   pthread_cond_t cond;
+
+  enum State {
+    INITIALIZED,
+    RUNNING,
+    STOPPED,
+    ABORTED
+  };
+
+  // Variable to store the state of the driver.
+  State state;
 };
 
 

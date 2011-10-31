@@ -20,7 +20,6 @@
 
 #include <gtest/gtest.h>
 
-#include <libgen.h>
 #include <stdlib.h>
 
 #include <string>
@@ -38,43 +37,52 @@ using namespace mesos::internal::test;
 
 using std::string;
 
-
 namespace {
 
-// Get absolute path to Mesos home directory based on where the alltests
-// binary is located (which should be in MESOS_HOME/bin/tests)
-string getMesosHome(int argc, char** argv) {
-  // Copy argv[0] because dirname can modify it
-  int lengthOfArg0 = strlen(argv[0]);
-  char* copyOfArg0 = new char[lengthOfArg0 + 1];
-  strncpy(copyOfArg0, argv[0], lengthOfArg0 + 1);
-  // Get its directory, and then the parent of the parent of that directory
-  string myDir = string(dirname(copyOfArg0));
-  string parentDir = myDir + "/../..";
-  // Get the real name of this parent directory
+// TODO(John Sirois): Consider lifting this to common/utils.
+string getRealpath(const string& relPath)
+{
   char path[PATH_MAX];
-  if (realpath(parentDir.c_str(), path) == 0) {
-    fatalerror("Failed to find location of MESOS_HOME using realpath");
+  if (realpath(relPath.c_str(), path) == 0) {
+    fatalerror(
+        string("Failed to find location of " + relPath + " using realpath")
+            .c_str());
   }
   return path;
 }
 
+
+string getMesosRoot()
+{
+  return getRealpath(ROOT_DIR);
 }
 
+
+string getMesosHome()
+{
+  return getRealpath(BUILD_DIR);
+}
+
+}
 
 int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  // Get absolute path to Mesos home directory based on location of alltests
-  mesos::internal::test::mesosHome = getMesosHome(argc, argv);
+  // Get the absolute path to the Mesos project root directory.
+  mesos::internal::test::mesosRoot = getMesosRoot();
+
+  std::cout << "MESOS_ROOT: " << mesos::internal::test::mesosRoot << std::endl;
+
+  // Get absolute path to Mesos home install directory.
+  mesos::internal::test::mesosHome = getMesosHome();
 
   std::cout << "MESOS_HOME: " << mesos::internal::test::mesosHome << std::endl;
 
-  // Clear any MESOS_ environment variables so they don't affect our tests
+  // Clear any MESOS_ environment variables so they don't affect our tests.
   Configurator::clearMesosEnvironmentVars();
 
-  // Initialize Google Logging and Google Test
+  // Initialize Google Logging and Google Test.
   google::InitGoogleLogging("alltests");
   testing::InitGoogleTest(&argc, argv);
   testing::FLAGS_gtest_death_test_style = "threadsafe";

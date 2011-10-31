@@ -31,12 +31,14 @@ import org.apache.mesos.Protos.*;
  */
 public interface ExecutorDriver {
   // Lifecycle methods.
-  public int start();
-  public int stop();
-  public int join();
-  public int run();
+  public Status start();
+  public Status stop();
+  public Status stop(boolean failover);
+  public Status abort();
+  public Status join();
+  public Status run();
 
   // Communication methods.
-  public int sendStatusUpdate(TaskStatus status);
-  public int sendFrameworkMessage(byte[] data);
+  public Status sendStatusUpdate(TaskStatus status);
+  public Status sendFrameworkMessage(byte[] data);
 }

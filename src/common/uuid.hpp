@@ -15,6 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef __UUID_HPP__
+#define __UUID_HPP__
 
 #include <assert.h>
 
@@ -26,7 +28,8 @@
 #include <boost/uuid/uuid_generators.hpp>
 
 
-namespace mesos { namespace internal {
+namespace mesos {
+namespace internal {
 
 struct UUID : boost::uuids::uuid
 {
@@ -69,4 +72,7 @@ private:
     : boost::uuids::uuid(uuid) {}
 };
 
-}} // namespace mesos { namespace internal {
+} // namespace internal
+} // namespace mesos
+
+#endif // __UUID_HPP__

@@ -83,19 +83,25 @@ int MesosSchedulerDriverImpl_clear(MesosSchedulerDriverImpl* self);
 // MesosSchedulerDriverImpl methods
 PyObject* MesosSchedulerDriverImpl_start(MesosSchedulerDriverImpl* self);
 
-PyObject* MesosSchedulerDriverImpl_stop(MesosSchedulerDriverImpl* self);
+PyObject* MesosSchedulerDriverImpl_stop(MesosSchedulerDriverImpl* self,
+                                        PyObject* args);
+
+PyObject* MesosSchedulerDriverImpl_abort(MesosSchedulerDriverImpl* self);
 
 PyObject* MesosSchedulerDriverImpl_join(MesosSchedulerDriverImpl* self);
 
 PyObject* MesosSchedulerDriverImpl_run(MesosSchedulerDriverImpl* self);
 
-PyObject* MesosSchedulerDriverImpl_reviveOffers(MesosSchedulerDriverImpl* self);
+PyObject* MesosSchedulerDriverImpl_requestResources(MesosSchedulerDriverImpl* self,
+                                                    PyObject* args);
 
-PyObject* MesosSchedulerDriverImpl_replyToOffer(MesosSchedulerDriverImpl* self,
-                                                PyObject* args);
+PyObject* MesosSchedulerDriverImpl_launchTasks(MesosSchedulerDriverImpl* self,
+                                               PyObject* args);
 
 PyObject* MesosSchedulerDriverImpl_killTask(MesosSchedulerDriverImpl* self,
                                             PyObject* args);
+
+PyObject* MesosSchedulerDriverImpl_reviveOffers(MesosSchedulerDriverImpl* self);
 
 PyObject* MesosSchedulerDriverImpl_sendFrameworkMessage(
     MesosSchedulerDriverImpl* self,

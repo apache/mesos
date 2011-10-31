@@ -24,6 +24,8 @@
 #include <map>
 #include <string>
 
+#include <master/allocator.hpp>
+#include <master/master.hpp>
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
@@ -41,9 +43,15 @@
 namespace mesos { namespace internal { namespace test {
 
 /**
+ * The location of the Mesos project root directory.  Used by tests to locate
+ * various frameworks and binaries.  Initialized in main.cpp.
+ */
+extern std::string mesosRoot;
+
+
+/**
  * The location where Mesos is installed, used by tests to locate various
- * frameworks and binaries. For now it points to the src directory, until
- * we clean up our directory structure a little. Initialized in main.cpp.
+ * frameworks and binaries.  Initialized in main.cpp.
  */
 extern std::string mesosHome;
 
@@ -97,16 +105,14 @@ void enterTestDirectory(const char* testCase, const char* testName);
 class MockScheduler : public Scheduler
 {
 public:
-  MOCK_METHOD1(getFrameworkName, std::string(SchedulerDriver*));
-  MOCK_METHOD1(getExecutorInfo, ExecutorInfo(SchedulerDriver*));
   MOCK_METHOD2(registered, void(SchedulerDriver*, const FrameworkID&));
-  MOCK_METHOD3(resourceOffer, void(SchedulerDriver*, const OfferID&,
-                                   const std::vector<SlaveOffer>&));
+  MOCK_METHOD2(resourceOffers, void(SchedulerDriver*,
+                                    const std::vector<Offer>&));
   MOCK_METHOD2(offerRescinded, void(SchedulerDriver*, const OfferID&));
   MOCK_METHOD2(statusUpdate, void(SchedulerDriver*, const TaskStatus&));
   MOCK_METHOD4(frameworkMessage, void(SchedulerDriver*,
-				      const SlaveID&,
-				      const ExecutorID&,
+                                      const SlaveID&,
+                                      const ExecutorID&,
                                       const std::string&));
   MOCK_METHOD2(slaveLost, void(SchedulerDriver*, const SlaveID&));
   MOCK_METHOD3(error, void(SchedulerDriver*, int, const std::string&));
@@ -125,6 +131,27 @@ public:
   MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const std::string&));
   MOCK_METHOD1(shutdown, void(ExecutorDriver*));
   MOCK_METHOD3(error, void(ExecutorDriver*, int, const std::string&));
+};
+
+
+class MockAllocator : public master::Allocator
+{
+public:
+  MOCK_METHOD1(initialize, void(master::Master*));
+  MOCK_METHOD1(frameworkAdded, void(master::Framework*));
+  MOCK_METHOD1(frameworkRemoved, void(master::Framework*));
+  MOCK_METHOD1(slaveAdded, void(master::Slave*));
+  MOCK_METHOD1(slaveRemoved, void(master::Slave*));
+  MOCK_METHOD2(resourcesRequested, void(const FrameworkID&,
+                                        const std::vector<ResourceRequest>&));
+  MOCK_METHOD3(resourcesUnused, void(const FrameworkID&,
+                                     const SlaveID&,
+                                     const Resources&));
+  MOCK_METHOD3(resourcesRecovered, void(const FrameworkID&,
+                                        const SlaveID&,
+                                        const Resources&));
+  MOCK_METHOD1(offersRevived, void(master::Framework*));
+  MOCK_METHOD0(timerTick, void());
 };
 
 
@@ -231,12 +258,15 @@ public:
   virtual void launchExecutor(const FrameworkID& frameworkId,
                               const FrameworkInfo& frameworkInfo,
                               const ExecutorInfo& executorInfo,
-                              const std::string& directory)
+                              const std::string& directory,
+                              const Resources& resources)
   {
     if (executors.count(executorInfo.executor_id()) > 0) {
       Executor* executor = executors[executorInfo.executor_id()];
       MesosExecutorDriver* driver = new MesosExecutorDriver(executor);
       drivers[executorInfo.executor_id()] = driver;
+
+      directories[executorInfo.executor_id()] = directory;
 
       utils::os::setenv("MESOS_LOCAL", "1");
       utils::os::setenv("MESOS_DIRECTORY", directory);
@@ -274,6 +304,8 @@ public:
                                 const ExecutorID& executorId,
                                 const Resources& resources)
   {}
+
+  std::map<ExecutorID, std::string> directories;
 
 private:
   std::map<ExecutorID, Executor*> executors;

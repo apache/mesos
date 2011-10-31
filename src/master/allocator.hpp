@@ -19,35 +19,64 @@
 #ifndef __ALLOCATOR_HPP__
 #define __ALLOCATOR_HPP__
 
+#include "common/hashmap.hpp"
+#include "common/resources.hpp"
+
 #include "master/master.hpp"
 
-namespace mesos { namespace internal { namespace master {
+
+namespace mesos {
+namespace internal {
+namespace master {
+
+// Basic model of an allocator: resources are allocated to a framework
+// in the form of offers. A framework can refuse some resources in
+// offers and run tasks in others. Resources can be recovered from a
+// framework when tasks finish/fail (or are lost due to a slave
+// failure) or when an offer is rescinded.
 
 class Allocator {
 public:
   virtual ~Allocator() {}
-  
-  virtual void frameworkAdded(Framework *framework) {}
-  
-  virtual void frameworkRemoved(Framework *framework) {}
-  
-  virtual void slaveAdded(Slave *slave) {}
-  
-  virtual void slaveRemoved(Slave *slave) {}
-  
-  virtual void taskAdded(Task *task) {}
-  
-  virtual void taskRemoved(Task *task, TaskRemovalReason reason) {}
 
-  virtual void offerReturned(Offer* offer,
-                             OfferReturnReason reason,
-                             const std::vector<SlaveResources>& resourcesLeft) {}
+  virtual void initialize(Master* _master) {}
 
-  virtual void offersRevived(Framework *framework) {}
+  virtual void frameworkAdded(Framework* framework) {}
+
+  virtual void frameworkRemoved(Framework* framework) {}
+
+  virtual void slaveAdded(Slave* slave) {}
+
+  virtual void slaveRemoved(Slave* slave) {}
+
+  virtual void resourcesRequested(
+      const FrameworkID& frameworkId,
+      const std::vector<ResourceRequest>& requests) {}
+
+  // Whenever resources offered to a framework go unused (e.g.,
+  // refused) the master invokes this callback.
+  virtual void resourcesUnused(
+      const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const Resources& resources) {}
+
+  // Whenever resources are "recovered" in the cluster (e.g., a task
+  // finishes, an offer is removed because a framework has failed or
+  // is failing over) the master invokes this callback.
+  virtual void resourcesRecovered(
+      const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const Resources& resources) {}
+
+  // Whenever a framework that has filtered resources want's to revive
+  // offers for those resources the master invokes this callback.
+  virtual void offersRevived(Framework* framework) {}
 
   virtual void timerTick() {}
 };
 
-}}} /* namespace */
+} // namespace master {
+} // namespace internal {
+} // namespace mesos {
 
-#endif /* __ALLOCATOR_HPP__ */
+#endif // __ALLOCATOR_HPP__

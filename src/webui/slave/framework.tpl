@@ -1,63 +1,89 @@
-%from slave import get_slave
-%from webui_lib import *
-%slave = get_slave()
+% import json
+% import urllib
+
+% from webui_lib import *
+
+% url = "http://localhost:" + slave_port + "/slave/state.json"
+% data = urllib.urlopen(url).read()
+% state = json.loads(data)
+
 <html>
 <head>
-<title>Framework {{framework_id}} on Slave {{HOSTNAME}}</title>
-<link rel="stylesheet" type="text/css" href="/static/stylesheet.css" />
+  <title>Framework {{framework_id}}</title>
+  <link rel="stylesheet" type="text/css" href="/static/stylesheet.css" />
 </head>
 <body>
 
-<h1>Framework {{framework_id}} on Slave {{HOSTNAME}}</h1>
+<h1>Framework {{framework_id}}</h1>
 
-%# Find the framework with the given ID
-%framework = None
-%for i in range(slave.frameworks.size()):
-%  if slave.frameworks[i].id == framework_id:
-%    framework = slave.frameworks[i]
-%  end
-%end
+% # Find the framework with the given ID.
+% framework = None
+% for i in range(len(state['frameworks'])):
+%   if state['frameworks'][i]['id'] == framework_id:
+%     framework = state['frameworks'][i]
+%   end
+% end
 
-%if framework != None:
-  <p>
-  Name: {{framework.name}}<br />
-  Executor: {{framework.executor_uri}}<br />
-  Executor Status: {{framework.executor_status}}<br />
-  Running Tasks: {{framework.tasks.size()}}<br />
-  CPUs: {{framework.cpus}}<br />
-  MEM: {{format_mem(framework.mem)}}<br />
-  </p>
+% if framework != None:
+%   # Count the number of tasks and sum the resources.
+%   tasks = 0
+%   cpus = 0
+%   mem = 0
+%   for executor in framework['executors']:
+%     for task in executor['tasks']:
+%       cpus += task['resources']['cpus']
+%       mem += task['resources']['mem']
+%       tasks += 1
+%     end
+%   end
 
-  <p>Logs:
-     <a href="/framework-logs/{{framework.id}}/stdout">[stdout]</a>
-     <a href="/framework-logs/{{framework.id}}/stderr">[stderr]</a>
-  </p>
+<p>
+  Name: {{framework['name']}}<br />
+  Running Tasks: {{tasks}}<br />
+  CPUs: {{cpus}}<br />
+  MEM: {{format_mem(mem)}}<br />
+</p>
 
-  <h2>Tasks</h2>
+<h2> Executors </h2>
 
-  %# TODO: sort these by task id
-  %if framework.tasks.size() > 0:
-    <table>
+% if len(framework['executors']) > 0:
+    <table class="lists">
     <tr>
-    <th>ID</th>
-    <th>Name</th>
-    <th>State</th>
+    <th class="lists">ID</th>
+    <th class="lists">Tasks</th>
+    <th class="lists">CPUs</th>
+    <th class="lists">MEM</th>
+    <th class="lists">Logs</th>
     </tr>
-    %for i in range(framework.tasks.size()):
-      %task = framework.tasks[i]
-      <tr>
-      <td>{{task.id}}</td>
-      <td>{{task.name}}</td>
-      <td>{{task.state}}</td>
-      </tr>
-    %end
-    </table>
-  %else:
-    <p>No tasks are running.</p>
-  %end
-%else:
-  <p>No framework with ID {{framework_id}} is active on this slave.</p>
-%end
+%   for executor in framework['executors']:
+    <tr>
+%     tasks = 0
+%     cpus = 0
+%     mem = 0
+%     for task in executor['tasks']:
+%       cpus += task['resources']['cpus']
+%       mem += task['resources']['mem']
+%       tasks += 1
+%     end
+      <td class="lists">
+        <a href="/executor/{{framework['id']}}/{{executor['id']}}">{{executor['id']}}</a>
+      </td>
+      <td class="lists">{{tasks}}</td>
+      <td class="lists">{{cpus}}</td>
+      <td class="lists">{{mem}}</td>
+      <td class="lists">
+        <a href="/executor-logs/{{framework['id']}}/{{executor['id']}}/stdout">[stdout]</a>
+        <a href="/executor-logs/{{framework['id']}}/{{executor['id']}}/stderr">[stderr]</a>
+      </td>
+    </tr>
+%   end
+</table>
+% else:
+<p> No executors for this framework are active on this slave.</p>
+% end
+% else:
+<p>No framework with ID {{framework_id}} is active on this slave.</p>
+% end
 
 <p><a href="/">Back to Slave</a></p>
 

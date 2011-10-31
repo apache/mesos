@@ -48,18 +48,12 @@ public:
 
   virtual ~ProxyScheduler() {}
 
-  // Callbacks for getting framework properties.
-  virtual std::string getFrameworkName(SchedulerDriver* driver);
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver* driver);
-
   // Callbacks for various Mesos events.
   virtual void registered(SchedulerDriver* driver,
                           const FrameworkID& frameworkId);
 
-  virtual void resourceOffer(SchedulerDriver* driver,
-                             const OfferID& offerId,
-                             const std::vector<SlaveOffer>& offers);
+  virtual void resourceOffers(SchedulerDriver* driver,
+                              const std::vector<Offer>& offers);
 
   virtual void offerRescinded(SchedulerDriver* driver,
                               const OfferID& offerId);

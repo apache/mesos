@@ -22,11 +22,13 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
-#include "isolation_module.hpp"
-#include "state.hpp"
+#include "slave/constants.hpp"
+#include "slave/http.hpp"
+#include "slave/isolation_module.hpp"
 
 #include "common/resources.hpp"
 #include "common/hashmap.hpp"
+#include "common/type_utils.hpp"
 #include "common/uuid.hpp"
 
 #include "configurator/configurator.hpp"
@@ -38,38 +40,32 @@ namespace mesos { namespace internal { namespace slave {
 
 using namespace process;
 
-struct Framework;
+// Some forward declarations.
 struct Executor;
-
-// TODO(benh): Also make configuration options be constants.
-
-const double EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS = 5.0;
-const double STATUS_UPDATE_RETRY_INTERVAL_SECONDS = 10.0;
+struct Framework;
 
 
-// Slave process.
 class Slave : public ProtobufProcess<Slave>
 {
 public:
-  Slave(const Configuration& conf,
-        bool local,
-        IsolationModule *isolationModule);
-
   Slave(const Resources& resources,
         bool local,
         IsolationModule* isolationModule);
 
+  Slave(const Configuration& conf,
+        bool local,
+        IsolationModule *isolationModule);
+
   virtual ~Slave();
 
   static void registerOptions(Configurator* configurator);
-
-  Promise<state::SlaveState*> getState();
 
   void newMasterDetected(const UPID& pid);
   void noMasterDetected();
   void masterDetectionFailure();
   void registered(const SlaveID& slaveId);
   void reregistered(const SlaveID& slaveId);
+  void doReliableRegistration();
   void runTask(const FrameworkInfo& frameworkInfo,
                const FrameworkID& frameworkId,
                const std::string& pid,
@@ -137,16 +133,24 @@ protected:
   // Helper function for generating a unique work directory for this
   // framework/executor pair (non-trivial since a framework/executor
   // pair may be launched more than once on the same slave).
-  std::string getUniqueWorkDirectory(const FrameworkID& frameworkId,
-                                     const ExecutorID& executorId);
+  std::string createUniqueWorkDirectory(const FrameworkID& frameworkId,
+                                        const ExecutorID& executorId);
 
 private:
-  // TODO(benh): Better naming and name scope for these http handlers.
-  Promise<HttpResponse> http_info_json(const HttpRequest& request);
-  Promise<HttpResponse> http_frameworks_json(const HttpRequest& request);
-  Promise<HttpResponse> http_tasks_json(const HttpRequest& request);
-  Promise<HttpResponse> http_stats_json(const HttpRequest& request);
-  Promise<HttpResponse> http_vars(const HttpRequest& request);
+  // Http handlers, friends of the slave in order to access state,
+  // they get invoked from within the slave so there is no need to
+  // use synchronization mechanisms to protect state.
+  friend Promise<HttpResponse> http::vars(
+      const Slave& slave,
+      const HttpRequest& request);
+
+  friend Promise<HttpResponse> http::json::stats(
+      const Slave& slave,
+      const HttpRequest& request);
+
+  friend Promise<HttpResponse> http::json::state(
+      const Slave& slave,
+      const HttpRequest& request);
 
   const Configuration conf;
 
@@ -174,10 +178,158 @@ private:
 
   double startTime;
 
+  bool connected; // Flag to indicate if slave is registered.
 //   typedef std::pair<FrameworkID, TaskID> StatusUpdateStreamID;
 //   hashmap<std::pair<FrameworkID, TaskID>, StatusUpdateStream*> statusUpdateStreams;
 
 //   hashmap<std::pair<FrameworkID, TaskID>, PendingStatusUpdate> pendingUpdates;
+};
+
+
+// Information describing an executor (goes away if executor crashes).
+struct Executor
+{
+  Executor(const FrameworkID& _frameworkId,
+           const ExecutorInfo& _info,
+           const std::string& _directory)
+    : frameworkId(_frameworkId),
+      info(_info),
+      directory(_directory),
+      id(_info.executor_id()),
+      uuid(UUID::random()),
+      pid(UPID()),
+      shutdown(false),
+      resources(_info.resources()) {}
+
+  ~Executor()
+  {
+    // Delete the tasks.
+    foreachvalue (Task* task, launchedTasks) {
+      delete task;
+    }
+  }
+
+  Task* addTask(const TaskDescription& task)
+  {
+    // The master should enforce unique task IDs, but just in case
+    // maybe we shouldn't make this a fatal error.
+    CHECK(!launchedTasks.contains(task.task_id()));
+
+    Task *t = new Task();
+    t->mutable_framework_id()->MergeFrom(frameworkId);
+    t->mutable_executor_id()->MergeFrom(id);
+    t->set_state(TASK_STARTING);
+    t->set_name(task.name());
+    t->mutable_task_id()->MergeFrom(task.task_id());
+    t->mutable_slave_id()->MergeFrom(task.slave_id());
+    t->mutable_resources()->MergeFrom(task.resources());
+
+    launchedTasks[task.task_id()] = t;
+    resources += task.resources();
+  }
+
+  void removeTask(const TaskID& taskId)
+  {
+    // Remove the task if it's queued.
+    queuedTasks.erase(taskId);
+
+    // Update the resources if it's been launched.
+    if (launchedTasks.contains(taskId)) {
+      Task* task = launchedTasks[taskId];
+      foreach (const Resource& resource, task->resources()) {
+        resources -= resource;
+      }
+      launchedTasks.erase(taskId);
+      delete task;
+    }
+  }
+
+  void updateTaskState(const TaskID& taskId, TaskState state)
+  {
+    if (launchedTasks.contains(taskId)) {
+      launchedTasks[taskId]->set_state(state);
+    }
+  }
+
+  const ExecutorID id;
+  const ExecutorInfo info;
+
+  const FrameworkID frameworkId;
+
+  const std::string directory;
+
+  const UUID uuid; // Distinguishes executor instances with same ExecutorID.
+
+  UPID pid;
+
+  bool shutdown; // Indicates if executor is being shut down.
+
+  Resources resources; // Currently consumed resources.
+
+  hashmap<TaskID, TaskDescription> queuedTasks;
+  hashmap<TaskID, Task*> launchedTasks;
+};
+
+
+// Information about a framework.
+struct Framework
+{
+  Framework(const FrameworkID& _id,
+            const FrameworkInfo& _info,
+            const UPID& _pid)
+    : id(_id), info(_info), pid(_pid) {}
+
+  ~Framework() {}
+
+  Executor* createExecutor(const ExecutorInfo& executorInfo,
+                           const std::string& directory)
+  {
+    Executor* executor = new Executor(id, executorInfo, directory);
+    CHECK(!executors.contains(executorInfo.executor_id()));
+    executors[executorInfo.executor_id()] = executor;
+    return executor;
+  }
+
+  void destroyExecutor(const ExecutorID& executorId)
+  {
+    if (executors.contains(executorId)) {
+      Executor* executor = executors[executorId];
+      executors.erase(executorId);
+      delete executor;
+    }
+  }
+
+  Executor* getExecutor(const ExecutorID& executorId)
+  {
+    if (executors.contains(executorId)) {
+      return executors[executorId];
+    }
+
+    return NULL;
+  }
+
+  Executor* getExecutor(const TaskID& taskId)
+  {
+    foreachvalue (Executor* executor, executors) {
+      if (executor->queuedTasks.contains(taskId) ||
+          executor->launchedTasks.contains(taskId)) {
+        return executor;
+      }
+    }
+
+    return NULL;
+  }
+
+  const FrameworkID id;
+  const FrameworkInfo info;
+
+  UPID pid;
+
+  // Current running executors.
+  hashmap<ExecutorID, Executor*> executors;
+
+  // Status updates keyed by uuid.
+  hashmap<UUID, StatusUpdate> updates;
 };
 
 }}}

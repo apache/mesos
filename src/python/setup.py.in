@@ -1,0 +1,102 @@
+import sys
+
+try:
+  import setuptools as distutils
+except ImportError:
+  print 'Could not find setuptools, bailing.'
+  sys.exit(1)
+
+from distutils.core import setup, Extension
+import os
+import shutil
+import errno
+
+# pushd
+pre_cwd = os.getcwd()
+setup_cwd = os.path.abspath(os.path.dirname(__file__))
+os.chdir(setup_cwd)
+
+mesos_src = os.path.relpath(
+              os.path.abspath(os.path.join(setup_cwd, '@top_srcdir@')),
+              setup_cwd)
+
+mesos_build = os.path.relpath(
+                os.path.abspath(os.path.join(setup_cwd, '@top_builddir@')),
+                setup_cwd)
+
+src_dir = os.path.join('src', 'python', 'native')
+
+EXT_INCLUDES = [
+   # source
+   os.path.join(mesos_src, 'include'),
+   os.path.join(mesos_src, 'third_party', 'protobuf-2.3.0', 'src'),
+
+   # built
+   os.path.join(mesos_build, 'include'),
+   os.path.join(mesos_build, 'src'),
+
+   # python ext modules
+   os.path.join(mesos_src, src_dir)
+]
+
+DEFINE_MACROS = [
+  ('_XOPEN_SOURCE', None)
+]
+
+LIBRARY_OBJECTS = [
+  os.path.join(mesos_build, 'third_party', 'protobuf-2.3.0', 'src', '.libs', 'libprotobuf.a'),
+  os.path.join(mesos_build, 'third_party', 'glog-0.3.1', '.libs', 'libglog.a'),
+  os.path.join(mesos_build, 'third_party', 'libprocess', 'libprocess.a'),
+  os.path.join(mesos_build, 'third_party', 'libprocess', 'third_party', 'libev-3.8', '.libs', 'libev.a'),
+  os.path.join(mesos_build, 'third_party', 'zookeeper-3.3.1', 'src', 'c', '.libs', 'libzookeeper_mt.a'),
+]
+
+LIBRARY_DIRS = []
+
+EXTRA_STATIC_LINKS = [
+  os.path.join(mesos_build, 'lib', 'libmesos_sched.a'),
+  os.path.join(mesos_build, 'lib', 'libmesos_exec.a'),
+]
+
+SOURCES = [
+  os.path.join('native', p)
+    for p in os.listdir(os.path.join(mesos_src, src_dir))
+      if p.endswith('.cpp')
+]
+
+LINK_ARGS = EXTRA_STATIC_LINKS + LIBRARY_OBJECTS
+if 'LDFLAGS' in os.environ:
+  for flag in os.environ['LDFLAGS'].split():
+    if flag.startswith('-l'):
+      LINK_ARGS.append(flag)
+    elif flag.startswith('-L'):
+      LIBRARY_DIRS.append(flag[2:])
+
+mesos_module = \
+  Extension('_mesos',
+            sources = SOURCES,
+            include_dirs = EXT_INCLUDES,
+            define_macros = DEFINE_MACROS,
+            library_dirs = LIBRARY_DIRS,
+            extra_link_args = LINK_ARGS
+            )
+
+# cp -r sourcedir/native builddir/native
+if os.path.abspath(mesos_src) != os.path.abspath(mesos_build):
+  try:
+    shutil.rmtree(os.path.join(mesos_build, src_dir), ignore_errors=True)
+    shutil.copytree(os.path.join(mesos_src, src_dir),
+                    os.path.join(mesos_build, src_dir))
+  except OSError, e:
+    if e.errno != errno.EEXIST:
+      raise
+
+setup(name = 'mesos',
+      version = '1.0',  # TODO(wickman)  This should be versioned along w/ mesos-core.
+      description = 'This is mesos',
+      package_dir = { '': 'src' },
+      packages = ['.'],
+      ext_modules = [mesos_module])
+
+# popd
+os.chdir(pre_cwd)

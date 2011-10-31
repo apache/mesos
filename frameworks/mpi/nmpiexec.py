@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import mesos
+import mesos_pb2
 import os
 import sys
 import time
@@ -16,6 +17,10 @@ CPUS = 1
 MEM = 1024
 
 def mpiexec(driver):
+  print "We've launched all our MPDs; waiting for them to come up"
+  while countMPDs() <= TOTAL_TASKS:
+    print "...waiting on MPD(s)..."
+    time.sleep(1)
   print "Got "+str(TOTAL_TASKS)+" mpd slots, running mpiexec"
   try:
     print "Running: "+"mpiexec -n "+str(TOTAL_TASKS)+" "+MPI_TASK
@@ -26,11 +31,11 @@ def mpiexec(driver):
     exit(2)
   print "mpiexec completed, calling mpdexit "+MPD_PID
   call(["mpdexit",MPD_PID])
+  time.sleep(1)
   driver.stop()
 
 class MyScheduler(mesos.Scheduler):
   def __init__(self, ip, port):
-    mesos.Scheduler.__init__(self)
     self.ip = ip
     self.port = port
     self.tasksLaunched = 0
@@ -42,48 +47,63 @@ class MyScheduler(mesos.Scheduler):
   def getExecutorInfo(self, driver):
     execPath = os.path.join(os.getcwd(), "startmpd.sh")
     initArg = ip + ":" + port
-    return mesos.ExecutorInfo(execPath, initArg)
+    execInfo = mesos_pb2.ExecutorInfo()
+    execInfo.executor_id.value = "default"
+    execInfo.uri = execPath
+    execInfo.data = initArg
+    return execInfo
 
   def registered(self, driver, fid):
     print "Mesos MPI scheduler and mpd running at "+self.ip+":"+self.port
 
   def resourceOffer(self, driver, oid, offers):
-    print "Got offer %s" % oid
+    print "Got offer %s" % oid.value
     tasks = []
     if self.tasksLaunched == TOTAL_TASKS:
       print "Rejecting permanently because we have already started"
       driver.replyToOffer(oid, tasks, {"timeout": "-1"})
       return
     for offer in offers:
-      print "Considering slot on %s" % offer.host
-      cpus = int(offer.params["cpus"])
-      mem = int(offer.params["mem"])
+      print "Considering slot on %s" % offer.hostname
+      cpus = 0
+      mem = 0
+      for r in offer.resources:
+        if r.name == "cpus": 
+          cpus = r.scalar.value
+        elif r.name == "mem":
+          mem = r.scalar.value
       if cpus < CPUS or mem < MEM:
         print "Rejecting slot due to too few resources"
       elif self.tasksLaunched < TOTAL_TASKS:
         tid = self.tasksLaunched
         print "Accepting slot to start mpd %d" % tid
-        params = {"cpus": "%d" % CPUS, "mem": "%d" % MEM}
-        td = mesos.TaskDescription(
-            tid, offer.slaveId, "task %d" % tid, params, "")
-        tasks.append(td)
+        task = mesos_pb2.TaskDescription()
+        task.task_id.value = str(tid)
+        task.slave_id.value = offer.slave_id.value
+        task.name = "task %d" % tid
+        cpus = task.resources.add()
+        cpus.name = "cpus"
+        cpus.type = mesos_pb2.Resource.SCALAR
+        cpus.scalar.value = CPUS
+        mem = task.resources.add()
+        mem.name = "mem"
+        mem.type = mesos_pb2.Resource.SCALAR
+        mem.scalar.value = MEM
+        tasks.append(task)
         self.tasksLaunched += 1
       else:
         print "Rejecting slot because we've launched enough tasks"
-    driver.replyToOffer(oid, tasks, {"timeout": "1"})
+    print "Replying to offer!"
+    driver.replyToOffer(oid, tasks, {"timeout": "-1"})
     if self.tasksLaunched == TOTAL_TASKS:
-      print "We've launched all our MPDs; waiting for them to come up"
-      while countMPDs() <= TOTAL_TASKS:
-        print "...waiting on MPD(s)..."
-        time.sleep(1)
       threading.Thread(target = mpiexec, args=[driver]).start()
 
   def statusUpdate(self, driver, update):
-    print "Task %d in state %d" % (update.taskId, update.state)
-    if (update.state == mesos.TASK_FINISHED or
-        update.state == mesos.TASK_FAILED or
-        update.state == mesos.TASK_KILLED or
-        update.state == mesos.TASK_LOST):
+    print "Task %s in state %s" % (update.task_id.value, update.state)
+    if (update.state == mesos_pb2.TASK_FINISHED or
+        update.state == mesos_pb2.TASK_FAILED or
+        update.state == mesos_pb2.TASK_KILLED or
+        update.state == mesos_pb2.TASK_LOST):
       print "A task finished unexpectedly, calling mpdexit "+MPD_PID
       call(["mpdexit",MPD_PID])
       driver.stop()
@@ -145,6 +165,7 @@ if __name__ == "__main__":
   (ip,port) = parseIpPort(traceline)
 
   MPD_PID = traceline.split(" ")[0]
+  print "MPD_PID is %s" % MPD_PID
 
   sched = MyScheduler(ip, port)
   mesos.MesosSchedulerDriver(sched, args[0]).run()

@@ -27,17 +27,18 @@
 #include <boost/lexical_cast.hpp>
 
 #include "common/foreach.hpp"
-#include "common/string_utils.hpp"
+#include "common/strings.hpp"
 
 
-namespace mesos { namespace internal {
-
+namespace mesos {
+namespace internal {
 
 struct ParseException : std::exception
 {
-  ParseException(const char* msg): message(msg) {}
-  const char* what() const throw () { return message; }
-  const char* message;
+  ParseException(const std::string& _message) : message(_message) {}
+  ~ParseException() throw () {}
+  const char* what() const throw () { return message.c_str(); }
+  const std::string message;
 };
 
 
@@ -78,15 +79,13 @@ public:
    */
   void loadString(const std::string& str)
   {
-    std::vector<std::string> lines;
-    StringUtils::split(str, "\n\r", &lines);
+    std::vector<std::string> lines = strings::split(str, "\n\r");
     foreach (std::string& line, lines) {
-      std::vector<std::string> parts;
-      StringUtils::split(line, "=", &parts);
+      std::vector<std::string> parts = strings::split(line, "=");
       if (parts.size() != 2) {
-        std::ostringstream oss;
-        oss << "Malformed line in params: '" << line << "'";
-        throw ParseException(oss.str().c_str());
+        const Try<std::string>& error =
+          strings::format("Failed to parse '%s'", line.c_str());
+        throw ParseException(error.isSome() ? error.get() : "Failed to parse");
       }
       params[parts[0]] = parts[1];
     }
@@ -161,6 +160,7 @@ public:
 };
 
 
-}}
+} // namespace internal {
+} // namespace mesos {
 
-#endif /* CONFIGURATION_HPP */
+#endif // __CONFIGURATION_HPP__

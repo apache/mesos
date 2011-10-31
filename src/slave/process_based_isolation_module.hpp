@@ -49,7 +49,8 @@ public:
   virtual void launchExecutor(const FrameworkID& frameworkId,
                               const FrameworkInfo& frameworkInfo,
                               const ExecutorInfo& executorInfo,
-                              const std::string& directory);
+                              const std::string& directory,
+                              const Resources& resources);
 
   virtual void killExecutor(const FrameworkID& frameworkId,
                             const ExecutorID& executorId);
@@ -62,8 +63,8 @@ public:
 
 protected:
   // Main method executed after a fork() to create a Launcher for launching
-  // an executor's process. The Launcher will create the child's working
-  // directory, chdir() to it, fetch the executor, set environment varibles,
+  // an executor's process. The Launcher will chdir() to the child's working
+  // directory, fetch the executor, set environment varibles,
   // switch user, etc, and finally exec() the executor process.
   // Subclasses of ProcessBasedIsolationModule that wish to override the
   // default launching behavior should override createLauncher() and return
@@ -79,13 +80,21 @@ private:
   ProcessBasedIsolationModule(const ProcessBasedIsolationModule&);
   ProcessBasedIsolationModule& operator = (const ProcessBasedIsolationModule&);
 
+  struct ProcessInfo
+  {
+    FrameworkID frameworkId;
+    ExecutorID executorId;
+    pid_t pid; // PID of the forked executor process.
+    std::string directory; // Working directory of the executor.
+  };
+
   // TODO(benh): Make variables const by passing them via constructor.
   Configuration conf;
   bool local;
   process::PID<Slave> slave;
   bool initialized;
   Reaper* reaper;
-  hashmap<FrameworkID, hashmap<ExecutorID, pid_t> > pgids;
+  hashmap<FrameworkID, hashmap<ExecutorID, ProcessInfo*> > infos;
 };
 
 }}}

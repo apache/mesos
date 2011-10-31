@@ -1,0 +1,25 @@
+#!/bin/bash
+
+cd /opt/hypertable/current
+
+
+if [ ! -h run ]; then
+    rm -rf run
+    mkdir -p /vol/hypertable/run
+    ln -s /vol/hypertable/run
+fi
+
+if [ ! -h log ]; then
+    rm -rf log
+    mkdir -p /vol/hypertable/log
+    ln -s /vol/hypertable/log
+fi
+
+if [ ! -h hyperspace ]; then
+    rm -rf hyperspace
+    mkdir -p /vol/hypertable/hyperspace
+    ln -s /vol/hypertable/hyperspace
+fi
+
+cd /root/mesos-ec2/hypertable
+cap dist && cap push_config && cap start

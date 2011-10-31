@@ -67,7 +67,7 @@ public:
                    const ExecutorID& _executorId, const string& _executorUri,
                    const string& _user, const string& _workDirectory,
                    const string& _slavePid, const string& _frameworksHome,
-                   const string& _mesosHome, const string& _hadoopHome, 
+                   const string& _mesosHome, const string& _hadoopHome,
                    bool _redirectIO, bool _shouldSwitchUser,
 		   const string& container,
                    const map<string, string>& _params);
@@ -86,8 +86,8 @@ public:
   virtual void setupEnvironmentForLauncherMain();
 
 protected:
-  // Create the executor's working director.
-  virtual void createWorkingDirectory();
+  // Initialize executor's working director.
+  virtual void initializeWorkingDirectory();
 
   // Download the executor's binary if required and return its path.
   // This method is expected to place files in the current directory

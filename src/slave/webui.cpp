@@ -23,8 +23,9 @@
 
 #include <process/dispatch.hpp>
 
-#include "state.hpp"
-#include "webui.hpp"
+#include "slave/webui.hpp"
+
+#include "common/utils.hpp"
 
 #include "configurator/configuration.hpp"
 
@@ -32,47 +33,45 @@
 
 #include <Python.h>
 
-using process::PID;
 
-using std::string;
+namespace mesos {
+namespace internal {
+namespace slave {
+namespace webui {
 
-
-extern "C" void init_slave();  // Initializer for the Python slave module
-
-
-namespace mesos { namespace internal { namespace slave {
-
-static PID<Slave> slave;
-static string webuiPort;
-static string logDir;
-static string workDir;
+static std::string slavePort;
+static std::string webuiPort;
+static std::string logDir;
+static std::string workDir;
 
 
-void* runSlaveWebUI(void*)
+void* run(void*)
 {
-  LOG(INFO) << "Web UI thread started";
+  LOG(INFO) << "Slave web server thread started";
   Py_Initialize();
-  char* argv[4];
-  argv[0] = const_cast<char*>("webui/master/webui.py");
-  argv[1] = const_cast<char*>(webuiPort.c_str());
-  argv[2] = const_cast<char*>(logDir.c_str());
-  argv[3] = const_cast<char*>(workDir.c_str());
-  PySys_SetArgv(4, argv);
-  PyRun_SimpleString("import sys\n"
-      "sys.path.append('webui/slave/swig')\n"
+  char* argv[5];
+  argv[0] = const_cast<char*>("webui/slave/webui.py");
+  argv[1] = const_cast<char*>(slavePort.c_str());
+  argv[2] = const_cast<char*>(webuiPort.c_str());
+  argv[3] = const_cast<char*>(logDir.c_str());
+  argv[4] = const_cast<char*>(workDir.c_str());
+  PySys_SetArgv(5, argv);
+  PyRun_SimpleString(
+      "import sys\n"
       "sys.path.append('webui/common')\n"
       "sys.path.append('webui/bottle-0.8.3')\n");
-  init_slave();
   LOG(INFO) << "Loading webui/slave/webui.py";
-  FILE *webui = fopen("webui/slave/webui.py", "r");
-  PyRun_SimpleFile(webui, "webui/slave/webui.py");
-  fclose(webui);
+  FILE* file = fopen("webui/slave/webui.py", "r");
+  PyRun_SimpleFile(file, "webui/slave/webui.py");
+  fclose(file);
   Py_Finalize();
 }
 
 
-void startSlaveWebUI(const PID<Slave>& _slave, const Configuration& conf)
+void start(const process::PID<Slave>& slave, const Configuration& conf)
 {
+  slavePort = utils::stringify(slave.port);
+
   // TODO(*): See the note in master/webui.cpp about having to
   // determine default values. These should be set by now and can just
   // be used! For example, what happens when the slave code changes
@@ -90,25 +89,17 @@ void startSlaveWebUI(const PID<Slave>& _slave, const Configuration& conf)
 
   CHECK(workDir != "");
 
-  LOG(INFO) << "Starting slave web UI on port " << webuiPort;
+  LOG(INFO) << "Starting slave web server on port " << webuiPort;
 
-  slave = _slave;
   pthread_t thread;
-  pthread_create(&thread, 0, runSlaveWebUI, NULL);
+  if (pthread_create(&thread, 0, run, NULL) != 0) {
+    LOG(FATAL) << "Failed to create slave web server thread";
+  }
 }
 
-
-namespace state {
-
-// From slave_state.hpp.
-SlaveState* get_slave()
-{
-  return process::call(slave, &Slave::getState);
-}
-
-} // namespace state {
-
-}}} // namespace mesos { namespace internal { namespace slave {
-
+} // namespace webui {
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // MESOS_WEBUI

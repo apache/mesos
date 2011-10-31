@@ -39,38 +39,24 @@ const int32_t MEM_PER_TASK = 32;
 class MyScheduler : public Scheduler
 {
 public:
-  MyScheduler(const string& _uri)
-    : uri(_uri), tasksLaunched(0), tasksFinished(0), totalTasks(5) {}
+  MyScheduler()
+    : tasksLaunched(0), tasksFinished(0), totalTasks(5) {}
 
   virtual ~MyScheduler() {}
-
-  virtual string getFrameworkName(SchedulerDriver*)
-  {
-    return "C++ Test Framework";
-  }
-
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver*)
-  {
-    ExecutorInfo executor;
-    executor.mutable_executor_id()->set_value("default");
-    executor.set_uri(uri);
-    return executor;
-  }
 
   virtual void registered(SchedulerDriver*, const FrameworkID&)
   {
     cout << "Registered!" << endl;
   }
 
-  virtual void resourceOffer(SchedulerDriver* driver,
-                             const OfferID& offerId,
-                             const vector<SlaveOffer>& offers)
+  virtual void resourceOffers(SchedulerDriver* driver,
+                              const vector<Offer>& offers)
   {
     cout << "." << flush;
-    vector<TaskDescription> tasks;
-    vector<SlaveOffer>::const_iterator iterator = offers.begin();
+    vector<Offer>::const_iterator iterator = offers.begin();
     for (; iterator != offers.end(); ++iterator) {
-      const SlaveOffer& offer = *iterator;
+      const Offer& offer = *iterator;
+
       // Lookup resources we care about.
       // TODO(benh): It would be nice to ultimately have some helper
       // functions for looking up resources.
@@ -89,6 +75,7 @@ public:
       }
 
       // Launch tasks.
+      vector<TaskDescription> tasks;
       while (tasksLaunched < totalTasks &&
              cpus >= CPUS_PER_TASK &&
              mem >= MEM_PER_TASK) {
@@ -119,9 +106,9 @@ public:
         cpus -= CPUS_PER_TASK;
         mem -= MEM_PER_TASK;
       }
-    }
 
-    driver->replyToOffer(offerId, tasks);
+      driver->launchTasks(offer.id(), tasks);
+    }
   }
 
   virtual void offerRescinded(SchedulerDriver* driver,
@@ -151,7 +138,6 @@ public:
                      const string& message) {}
 
 private:
-  string uri;
   int tasksLaunched;
   int tasksFinished;
   int totalTasks;
@@ -167,10 +153,14 @@ int main(int argc, char** argv)
   // Find this executable's directory to locate executor
   char buf[4096];
   realpath(dirname(argv[0]), buf);
-  string executor = string(buf) + "/cpp-test-executor";
+  string uri = string(buf) + "/cpp-test-executor";
   // Run a Mesos scheduler
-  MyScheduler sched(executor);
-  MesosSchedulerDriver driver(&sched, argv[1]);
+  MyScheduler sched;
+
+  ExecutorInfo executor;
+  executor.mutable_executor_id()->set_value("default");
+  executor.set_uri(uri);
+  MesosSchedulerDriver driver(&sched, "C++ Test Framework", executor, argv[1]);
   driver.run();
   return 0;
 }

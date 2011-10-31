@@ -25,7 +25,12 @@
 
 #include "local/local.hpp"
 
+#include "master/frameworks_manager.hpp"
 #include "master/master.hpp"
+#include "master/simple_allocator.hpp"
+
+#include <process/dispatch.hpp>
+#include <process/future.hpp>
 
 #include "slave/slave.hpp"
 
@@ -35,11 +40,17 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::test;
 
+using mesos::internal::master::FrameworksManager;
+using mesos::internal::master::FrameworksStorage;
+
 using mesos::internal::master::Master;
+using mesos::internal::master::SimpleAllocator;
 
 using mesos::internal::slave::Slave;
 
 using process::PID;
+using process::Future;
+using process::Promise;
 
 using std::string;
 using std::map;
@@ -57,7 +68,8 @@ TEST(MasterTest, TaskRunning)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  Master m;
+  SimpleAllocator a;
+  Master m(&a);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -84,26 +96,19 @@ TEST(MasterTest, TaskRunning)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
 
-  OfferID offerId;
-  vector<SlaveOffer> offers;
+  vector<Offer> offers;
   TaskStatus status;
 
-  trigger resourceOfferCall, statusUpdateCall;
-
-  EXPECT_CALL(sched, getFrameworkName(&driver))
-    .WillOnce(Return(""));
-
-  EXPECT_CALL(sched, getExecutorInfo(&driver))
-    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+  trigger resourceOffersCall, statusUpdateCall;
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
 
-  EXPECT_CALL(sched, resourceOffer(&driver, _, _))
-    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)))
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers),
+                    Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -111,7 +116,7 @@ TEST(MasterTest, TaskRunning)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOfferCall);
+  WAIT_UNTIL(resourceOffersCall);
 
   EXPECT_NE(0, offers.size());
 
@@ -124,7 +129,7 @@ TEST(MasterTest, TaskRunning)
   vector<TaskDescription> tasks;
   tasks.push_back(task);
 
-  driver.replyToOffer(offerId, tasks);
+  driver.launchTasks(offers[0].id(), tasks);
 
   WAIT_UNTIL(statusUpdateCall);
 
@@ -145,7 +150,8 @@ TEST(MasterTest, KillTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  Master m;
+  SimpleAllocator a;
+  Master m(&a);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -177,26 +183,19 @@ TEST(MasterTest, KillTask)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
 
-  OfferID offerId;
-  vector<SlaveOffer> offers;
+  vector<Offer> offers;
   TaskStatus status;
 
-  trigger resourceOfferCall, statusUpdateCall;
-
-  EXPECT_CALL(sched, getFrameworkName(&driver))
-    .WillOnce(Return(""));
-
-  EXPECT_CALL(sched, getExecutorInfo(&driver))
-    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+  trigger resourceOffersCall, statusUpdateCall;
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
 
-  EXPECT_CALL(sched, resourceOffer(&driver, _, _))
-    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)))
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers),
+                    Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -204,7 +203,7 @@ TEST(MasterTest, KillTask)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOfferCall);
+  WAIT_UNTIL(resourceOffersCall);
 
   EXPECT_NE(0, offers.size());
 
@@ -220,7 +219,7 @@ TEST(MasterTest, KillTask)
   vector<TaskDescription> tasks;
   tasks.push_back(task);
 
-  driver.replyToOffer(offerId, tasks);
+  driver.launchTasks(offers[0].id(), tasks);
 
   WAIT_UNTIL(statusUpdateCall);
 
@@ -245,7 +244,8 @@ TEST(MasterTest, FrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  Master m;
+  SimpleAllocator a;
+  Master m(&a);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -285,27 +285,20 @@ TEST(MasterTest, FrameworkMessage)
   // first status update message is sent to it (drop the message).
 
   MockScheduler sched;
-  MesosSchedulerDriver schedDriver(&sched, master);
+  MesosSchedulerDriver schedDriver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
 
-  OfferID offerId;
-  vector<SlaveOffer> offers;
+  vector<Offer> offers;
   TaskStatus status;
   string schedData;
 
-  trigger resourceOfferCall, statusUpdateCall, schedFrameworkMessageCall;
-
-  EXPECT_CALL(sched, getFrameworkName(&schedDriver))
-    .WillOnce(Return(""));
-
-  EXPECT_CALL(sched, getExecutorInfo(&schedDriver))
-    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+  trigger resourceOffersCall, statusUpdateCall, schedFrameworkMessageCall;
 
   EXPECT_CALL(sched, registered(&schedDriver, _))
     .Times(1);
 
-  EXPECT_CALL(sched, resourceOffer(&schedDriver, _, _))
-    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)))
+  EXPECT_CALL(sched, resourceOffers(&schedDriver, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers),
+                    Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
@@ -317,7 +310,7 @@ TEST(MasterTest, FrameworkMessage)
 
   schedDriver.start();
 
-  WAIT_UNTIL(resourceOfferCall);
+  WAIT_UNTIL(resourceOffersCall);
 
   EXPECT_NE(0, offers.size());
 
@@ -330,7 +323,7 @@ TEST(MasterTest, FrameworkMessage)
   vector<TaskDescription> tasks;
   tasks.push_back(task);
 
-  schedDriver.replyToOffer(offerId, tasks);
+  schedDriver.launchTasks(offers[0].id(), tasks);
 
   WAIT_UNTIL(statusUpdateCall);
 
@@ -369,7 +362,8 @@ TEST(MasterTest, MultipleExecutors)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  Master m;
+  SimpleAllocator a;
+  Master m(&a);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec1;
@@ -422,26 +416,19 @@ TEST(MasterTest, MultipleExecutors)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, master);
+  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
 
-  OfferID offerId;
-  vector<SlaveOffer> offers;
+  vector<Offer> offers;
   TaskStatus status1, status2;
 
-  trigger resourceOfferCall, statusUpdateCall1, statusUpdateCall2;
-
-  EXPECT_CALL(sched, getFrameworkName(&driver))
-    .WillOnce(Return(""));
-
-  EXPECT_CALL(sched, getExecutorInfo(&driver))
-    .WillOnce(Return(DEFAULT_EXECUTOR_INFO));
+  trigger resourceOffersCall, statusUpdateCall1, statusUpdateCall2;
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
 
-  EXPECT_CALL(sched, resourceOffer(&driver, _, _))
-    .WillOnce(DoAll(SaveArg<1>(&offerId), SaveArg<2>(&offers),
-                    Trigger(&resourceOfferCall)))
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers),
+                    Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -450,7 +437,7 @@ TEST(MasterTest, MultipleExecutors)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOfferCall);
+  WAIT_UNTIL(resourceOffersCall);
 
   ASSERT_NE(0, offers.size());
 
@@ -474,7 +461,7 @@ TEST(MasterTest, MultipleExecutors)
   tasks.push_back(task1);
   tasks.push_back(task2);
 
-  driver.replyToOffer(offerId, tasks);
+  driver.launchTasks(offers[0].id(), tasks);
 
   WAIT_UNTIL(statusUpdateCall1);
 
@@ -500,4 +487,343 @@ TEST(MasterTest, MultipleExecutors)
 
   process::post(master, process::TERMINATE);
   process::wait(master);
+}
+
+
+// FrameworksManager test cases.
+
+class MockFrameworksStorage : public FrameworksStorage
+{
+public:
+  // We need this typedef because MOCK_METHOD is a macro.
+  typedef map<FrameworkID, FrameworkInfo> Map_FrameworkId_FrameworkInfo;
+
+  MOCK_METHOD0(list, Promise<Result<Map_FrameworkId_FrameworkInfo> >());
+  MOCK_METHOD2(add, Promise<Result<bool> >(const FrameworkID&,
+                                           const FrameworkInfo&));
+  MOCK_METHOD1(remove, Promise<Result<bool> >(const FrameworkID&));
+};
+
+
+// This fixture sets up expectations on the storage class
+// and spawns both storage and frameworks manager.
+class FrameworksManagerTestFixture : public ::testing::Test
+{
+protected:
+  virtual void SetUp()
+  {
+    ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+    storage = new MockFrameworksStorage();
+    process::spawn(storage);
+
+    EXPECT_CALL(*storage, list())
+      .WillOnce(Return(Result<map<FrameworkID, FrameworkInfo> >(infos)));
+
+    EXPECT_CALL(*storage, add(_, _))
+      .WillRepeatedly(Return(Result<bool>::some(true)));
+
+    EXPECT_CALL(*storage, remove(_))
+      .WillRepeatedly(Return(Result<bool>::some(true)));
+
+    manager = new FrameworksManager(storage);
+    process::spawn(manager);
+  }
+
+  virtual void TearDown()
+  {
+    process::terminate(manager);
+    process::wait(manager);
+    delete manager;
+
+    process::terminate(storage);
+    process::wait(storage);
+    delete storage;
+  }
+
+  map<FrameworkID, FrameworkInfo> infos;
+
+  MockFrameworksStorage* storage;
+  FrameworksManager* manager;
+};
+
+
+TEST_F(FrameworksManagerTestFixture, AddFramework)
+{
+  // Test if initially FM returns empty list.
+  Future<Result<map<FrameworkID, FrameworkInfo> > > future =
+    process::dispatch(manager, &FrameworksManager::list);
+
+  ASSERT_TRUE(future.await(2.0));
+  EXPECT_TRUE(future.get().get().empty());
+
+  // Add a dummy framework.
+  FrameworkID id;
+  id.set_value("id");
+
+  FrameworkInfo info;
+  info.set_name("test name");
+  info.set_user("test user");
+
+  // Add the framework.
+  Future<Result<bool> > future2 =
+    process::dispatch(manager, &FrameworksManager::add, id, info);
+
+  ASSERT_TRUE(future2.await(2.0));
+  EXPECT_TRUE(future2.get().get());
+
+  // Check if framework manager returns the added framework.
+  Future<Result<map<FrameworkID, FrameworkInfo> > > future3 =
+    process::dispatch(manager, &FrameworksManager::list);
+
+  ASSERT_TRUE(future3.await(2.0));
+
+  map<FrameworkID, FrameworkInfo> result = future3.get().get();
+
+  ASSERT_EQ(1, result.count(id));
+  EXPECT_EQ("test name", result[id].name());
+  EXPECT_EQ("test user", result[id].user());
+
+  // Check if the framework exists.
+  Future<Result<bool> > future4 =
+    process::dispatch(manager, &FrameworksManager::exists, id);
+
+  ASSERT_TRUE(future4.await(2.0));
+  EXPECT_TRUE(future4.get().get());
+}
+
+
+TEST_F(FrameworksManagerTestFixture, RemoveFramework)
+{
+  // Remove a non-existent framework.
+  FrameworkID id;
+  id.set_value("non-existent framework");
+
+  Future<Result<bool> > future =
+    process::dispatch(manager, &FrameworksManager::remove, id, 0);
+
+  ASSERT_TRUE(future.await(2.0));
+  EXPECT_TRUE(future.get().isError());
+
+  // Remove an existing framework.
+
+  // First add a dummy framework.
+  FrameworkID id2;
+  id2.set_value("id2");
+
+  FrameworkInfo info2;
+  info2.set_name("test name");
+  info2.set_user("test user");
+
+  // Add the framework.
+  Future<Result<bool> > future2 =
+    process::dispatch(manager, &FrameworksManager::add, id2, info2);
+
+  ASSERT_TRUE(future2.await(2.0));
+  EXPECT_TRUE(future2.get().get());
+
+  // Now remove the added framework.
+  Future<Result<bool> > future3 =
+    process::dispatch(manager, &FrameworksManager::remove, id2, 1.0);
+
+  ASSERT_TRUE(future3.await(2.0));
+  EXPECT_TRUE(future2.get().get());
+
+  // Now check if the removed framework exists...it shouldn't.
+  Future<Result<bool> > future4 =
+    process::dispatch(manager, &FrameworksManager::exists, id2);
+
+  ASSERT_TRUE(future4.await(2.0));
+  EXPECT_FALSE(future4.get().get());
+}
+
+
+TEST_F(FrameworksManagerTestFixture, ResurrectFramework)
+{
+  // Resurrect a non-existent framework.
+  FrameworkID id;
+  id.set_value("non-existent framework");
+
+  Future<Result<bool> > future =
+    process::dispatch(manager, &FrameworksManager::resurrect, id);
+
+  ASSERT_TRUE(future.await(2.0));
+  EXPECT_FALSE(future.get().get());
+
+  // Resurrect an existent framework that is NOT being removed.
+  // Add a dummy framework.
+  FrameworkID id2;
+  id2.set_value("id2");
+
+  FrameworkInfo info2;
+  info2.set_name("test name");
+  info2.set_user("test user");
+
+  // Add the framework.
+  Future<Result<bool> > future2 =
+    process::dispatch(manager, &FrameworksManager::add, id2, info2);
+
+  ASSERT_TRUE(future2.await(2.0));
+  EXPECT_TRUE(future2.get().get());
+
+  Future<Result<bool> > future3 =
+    process::dispatch(manager, &FrameworksManager::resurrect, id2);
+
+  ASSERT_TRUE(future3.await(2.0));
+  EXPECT_TRUE(future3.get().get());
+}
+
+
+// NOTE: In the following tests, with paused clocks, future.await() may wait
+// forever. This makes debugging failed tests hard.
+// TODO(vinod) Need better constructs.
+TEST_F(FrameworksManagerTestFixture, ResurrectExpiringFramework)
+{
+  // This is the crucial test.
+  // Resurrect an existing framework that is being removed,is being removed,
+  // which should cause the remove to be unsuccessful.
+
+  // Add a dummy framework.
+  FrameworkID id;
+  id.set_value("id");
+
+  FrameworkInfo info;
+  info.set_name("test name");
+  info.set_user("test user");
+
+  // Add the framework.
+  Future<Result<bool> > future =
+    process::dispatch(manager, &FrameworksManager::add, id, info);
+
+  process::Clock::pause();
+
+  // Remove after 2 secs.
+  Future<Result<bool> > future2 =
+    process::dispatch(manager, &FrameworksManager::remove, id, 2.0);
+
+  // Resurrect in the meanwhile.
+  Future<Result<bool> > future3 =
+    process::dispatch(manager, &FrameworksManager::resurrect, id);
+
+  ASSERT_TRUE(future3.await());
+  EXPECT_TRUE(future3.get().get());
+
+  process::Clock::advance(2.0);
+
+  ASSERT_TRUE(future2.await());
+  EXPECT_FALSE(future2.get().get());
+
+  process::Clock::resume();
+}
+
+
+TEST_F(FrameworksManagerTestFixture, ResurrectInterspersedExpiringFrameworks)
+{
+  // This is another crucial test.
+  // Two remove messages are interspersed with a resurrect.
+  // Only the second remove should actually remove the framework.
+
+  // Add a dummy framework.
+  FrameworkID id;
+  id.set_value("id");
+
+  FrameworkInfo info;
+  info.set_name("test name");
+  info.set_user("test user");
+
+  // Add the framework.
+  Future<Result<bool> > future =
+    process::dispatch(manager, &FrameworksManager::add, id, info);
+
+  process::Clock::pause();
+
+  Future<Result<bool> > future2 =
+    process::dispatch(manager, &FrameworksManager::remove, id, 2.0);
+
+  // Resurrect in the meanwhile.
+  Future<Result<bool> > future3 =
+    process::dispatch(manager, &FrameworksManager::resurrect, id);
+
+  // Remove again.
+  Future<Result<bool> > future4 =
+    process::dispatch(manager, &FrameworksManager::remove, id, 1.0);
+
+  ASSERT_TRUE(future3.await());
+  EXPECT_TRUE(future3.get().get());
+
+  process::Clock::advance(1.0);
+
+  ASSERT_TRUE(future4.await());
+  EXPECT_TRUE(future4.get().get());
+
+  process::Clock::advance(1.0);
+
+  ASSERT_TRUE(future2.await());
+  EXPECT_FALSE(future2.get().get());
+
+  process::Clock::resume();
+}
+
+
+// Not deriving from fixture...because we want to set specific expectations.
+// Specifically we simulate caching failure in FrameworksManager.
+TEST(FrameworksManagerTest, CacheFailure)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  MockFrameworksStorage storage;
+  process::spawn(storage);
+
+  Result<map<FrameworkID, FrameworkInfo> > errMsg =
+    Result<map<FrameworkID, FrameworkInfo> >::error("Fake Caching Error.");
+
+  EXPECT_CALL(storage, list())
+    .Times(2)
+    .WillRepeatedly(Return(errMsg));
+
+  EXPECT_CALL(storage, add(_, _))
+    .WillOnce(Return(Result<bool>::some(true)));
+
+  EXPECT_CALL(storage, remove(_))
+    .Times(0);
+
+  FrameworksManager manager(&storage);
+  process::spawn(manager);
+
+  // Test if initially FrameworksManager returns error.
+  Future<Result<map<FrameworkID, FrameworkInfo> > > future =
+    process::dispatch(manager, &FrameworksManager::list);
+
+  ASSERT_TRUE(future.await(2.0));
+  ASSERT_TRUE(future.get().isError());
+  EXPECT_EQ(future.get().error(), "Error caching framework infos.");
+
+  // Add framework should function normally despite caching failure.
+  FrameworkID id;
+  id.set_value("id");
+
+  FrameworkInfo info;
+  info.set_name("test name");
+  info.set_user("test user");
+
+  // Add the framework.
+  Future<Result<bool> > future2 =
+    process::dispatch(manager, &FrameworksManager::add, id, info);
+
+  ASSERT_TRUE(future2.await(2.0));
+  EXPECT_TRUE(future2.get().get());
+
+  // Remove framework should fail due to caching failure.
+  Future<Result<bool> > future3 =
+    process::dispatch(manager, &FrameworksManager::remove, id, 0);
+
+  ASSERT_TRUE(future3.await(2.0));
+  ASSERT_TRUE(future3.get().isError());
+  EXPECT_EQ(future3.get().error(), "Error caching framework infos.");
+
+  process::terminate(manager);
+  process::wait(manager);
+
+  process::terminate(storage);
+  process::wait(storage);
 }

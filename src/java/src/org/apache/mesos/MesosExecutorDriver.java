@@ -39,23 +39,27 @@ public class MesosExecutorDriver implements ExecutorDriver {
   }
 
   // Lifecycle methods.
-  public native int start();
-  public native int stop();
-  public native int join();
+  public native Status start();
+  public Status stop() {
+    return stop(false);
+  }
+  public native Status stop(boolean failover);
+  public native Status abort();
+  public native Status join();
 
-  public int run() {
-    int ret = start();
-    return ret != 0 ? ret : join();
+  public Status run() {
+    Status ret = start();
+    return ret != Status.OK ? ret : join();
   }
 
-  public native int sendStatusUpdate(TaskStatus status);
-  public native int sendFrameworkMessage(byte[] data);
+  public native Status sendStatusUpdate(TaskStatus status);
+  public native Status sendFrameworkMessage(byte[] data);
 
   protected native void initialize();
   protected native void finalize();
 
   private final Executor exec;
-  
+
   private long __exec;
   private long __driver;
 }

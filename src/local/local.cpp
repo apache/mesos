@@ -32,13 +32,16 @@
 #include "detector/detector.hpp"
 
 #include "master/master.hpp"
+#include "master/simple_allocator.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
 #include "slave/slave.hpp"
 
 using namespace mesos::internal;
 
+using mesos::internal::master::Allocator;
 using mesos::internal::master::Master;
+using mesos::internal::master::SimpleAllocator;
 
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::IsolationModule;
@@ -48,24 +51,14 @@ using process::PID;
 using process::UPID;
 
 using std::map;
+using std::string;
 using std::stringstream;
 using std::vector;
 
 
-namespace {
-
-static pthread_once_t glog_initialized = PTHREAD_ONCE_INIT;
-
-
-void initialize_glog() {
-  google::InitGoogleLogging("mesos-local");
-}
-
-} // namespace {
-
-
 namespace mesos { namespace internal { namespace local {
 
+static Allocator* allocator = NULL;
 static Master* master = NULL;
 static map<IsolationModule*, Slave*> slaves;
 static MasterDetector* detector = NULL;
@@ -85,8 +78,8 @@ void registerOptions(Configurator* configurator)
 PID<Master> launch(int numSlaves,
                    int32_t cpus,
                    int64_t mem,
-                   bool initLogging,
-                   bool quiet)
+                   bool quiet,
+                   Allocator* _allocator)
 {
   Configuration conf;
   conf.set("slaves", "*");
@@ -97,12 +90,11 @@ PID<Master> launch(int numSlaves,
   out << "cpus:" << cpus << ";" << "mem:" << mem;
   conf.set("resources", out.str());
 
-  return launch(conf, initLogging);
+  return launch(conf, _allocator);
 }
 
 
-PID<Master> launch(const Configuration& conf,
-                   bool initLogging)
+PID<Master> launch(const Configuration& conf, Allocator* _allocator)
 {
   int numSlaves = conf.get<int>("num_slaves", 1);
   bool quiet = conf.get<bool>("quiet", false);
@@ -111,14 +103,16 @@ PID<Master> launch(const Configuration& conf,
     fatal("can only launch one local cluster at a time (for now)");
   }
 
-  if (initLogging) {
-    pthread_once(&glog_initialized, initialize_glog);
-    if (!quiet) {
-      google::SetStderrLogging(google::INFO);
-    }
+  if (_allocator == NULL) {
+    // Create default allocator, save it for deleting later.
+    _allocator = allocator = new SimpleAllocator();
+  } else {
+    // TODO(benh): Figure out the behavior of allocator pointer and remove the
+    // else block.
+    allocator = NULL;
   }
 
-  master = new Master(conf);
+  master = new Master(_allocator, conf);
 
   PID<Master> pid = process::spawn(master);
 
@@ -145,6 +139,7 @@ void shutdown()
     process::post(master->self(), process::TERMINATE);
     process::wait(master->self());
     delete master;
+    delete allocator;
     master = NULL;
 
     // TODO(benh): Ugh! Because the isolation module calls back into the

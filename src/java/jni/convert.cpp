@@ -29,13 +29,14 @@ using namespace mesos;
 
 using std::string;
 
-// Facilities for loading Mesos-related classes with the correct ClassLoader.
-// Unfortunately, JNI's FindClass uses the system ClassLoader when it is
-// called from a C++ thread, but in Scala (and probably other Java
-// environments too), this ClassLoader is not enough to locate mesos.jar.
-// Instead, we try to capture Thread.currentThread()'s context ClassLoader
-// when the Mesos library is initialized, in case it has more paths that
-// we can search. We store this in mesosClassLoader and access it through
+// Facilities for loading Mesos-related classes with the correct
+// ClassLoader. Unfortunately, JNI's FindClass uses the system
+// ClassLoader when it is called from a C++ thread, but in Scala (and
+// probably other Java environments too), this ClassLoader is not
+// enough to locate mesos.jar. Instead, we try to capture
+// Thread.currentThread()'s context ClassLoader when the Mesos library
+// is initialized, in case it has more paths that we can search. We
+// store this in mesosClassLoader and access it through
 // FindMesosClass(). We initialize the mesosClassLoader variable in
 // JNI_OnLoad and uninitialize it in JNI_OnUnLoad (see below).
 //
@@ -58,11 +59,10 @@ jclass FindMesosClass(JNIEnv* env, const char* className)
     return env->FindClass(className);
   }
 
-  /*
-   * JNI FindClass uses class names with slashes, but ClassLoader.loadClass
-   * uses the dotted "binary name" format. Convert formats.
-   */
-  std::string convName = className;
+  // JNI FindClass uses class names with slashes, but
+  // ClassLoader.loadClass uses the dotted "binary name"
+  // format. Convert formats.
+  string convName = className;
   for (int i = 0; i < convName.size(); i++) {
     if (convName[i] == '/')
       convName[i] = '.';
@@ -70,63 +70,66 @@ jclass FindMesosClass(JNIEnv* env, const char* className)
 
   jclass javaLangClassLoader = env->FindClass("java/lang/ClassLoader");
   assert(javaLangClassLoader != NULL);
-  jmethodID loadClass = env->GetMethodID(javaLangClassLoader,
-    "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
+  jmethodID loadClass =
+    env->GetMethodID(javaLangClassLoader,
+                     "loadClass",
+                     "(Ljava/lang/String;)Ljava/lang/Class;");
   assert(loadClass != NULL);
-  jclass cls = NULL;
 
-  /* create an object for the class name string; alloc could fail */
+  // Create an object for the class name string; alloc could fail.
   jstring strClassName = env->NewStringUTF(convName.c_str());
   if (env->ExceptionCheck()) {
-    fprintf(stderr, "ERROR: unable to convert '%s' to string\n", convName.c_str());
-    goto bail;
+    fprintf(stderr, "ERROR: unable to convert '%s' to string\n",
+            convName.c_str());
+    return NULL;
   }
 
-  /* try to find the named class */
-  cls = (jclass) env->CallObjectMethod(mesosClassLoader, loadClass,
-                                       strClassName);
+  // Try to find the named class.
+  jclass cls = (jclass) env->CallObjectMethod(mesosClassLoader,
+                                              loadClass,
+                                              strClassName);
+
   if (env->ExceptionCheck()) {
     fprintf(stderr, "ERROR: unable to load class '%s' from %p\n",
-      className, mesosClassLoader);
-    cls = NULL;
-    goto bail;
+            className, mesosClassLoader);
+    return NULL;
   }
 
-bail:
   return cls;
 }
 
-} /* namespace { */
+} // namespace {
 
 
-// Called by JVM when it loads our library
+// Called by JVM when it loads our library.
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
 {
-  // Grab the context ClassLoader of the current thread, if any
-
+  // Grab the context ClassLoader of the current thread, if any.
   JNIEnv* env;
-  if (jvm->GetEnv((void **)&env, JNI_VERSION_1_2)) {
-    return JNI_ERR; /* JNI version not supported */
+  if (jvm->GetEnv((void**) &env, JNI_VERSION_1_2)) {
+    return JNI_ERR; // JNI version not supported.
   }
 
-  jclass javaLangThread, javaLangClassLoader;
-  jmethodID currentThread, getContextClassLoader, loadClass;
-  jobject thread, classLoader;
-
-  /* find this thread's context class loader; none of this is expected to fail */
-  javaLangThread = env->FindClass("java/lang/Thread");
+  // Find thread's context class loader.
+  jclass javaLangThread = env->FindClass("java/lang/Thread");
   assert(javaLangThread != NULL);
-  javaLangClassLoader = env->FindClass("java/lang/ClassLoader");
+
+  jclass javaLangClassLoader = env->FindClass("java/lang/ClassLoader");
   assert(javaLangClassLoader != NULL);
-  currentThread = env->GetStaticMethodID(javaLangThread,
-    "currentThread", "()Ljava/lang/Thread;");
-  getContextClassLoader = env->GetMethodID(javaLangThread,
-    "getContextClassLoader", "()Ljava/lang/ClassLoader;");
+
+  jmethodID currentThread = env->GetStaticMethodID(
+      javaLangThread, "currentThread", "()Ljava/lang/Thread;");
   assert(currentThread != NULL);
+
+  jmethodID getContextClassLoader = env->GetMethodID(
+      javaLangThread, "getContextClassLoader", "()Ljava/lang/ClassLoader;");
   assert(getContextClassLoader != NULL);
-  thread = env->CallStaticObjectMethod(javaLangThread, currentThread);
+
+  jobject thread = env->CallStaticObjectMethod(javaLangThread, currentThread);
   assert(thread != NULL);
-  classLoader = env->CallObjectMethod(thread, getContextClassLoader);
+
+  jobject classLoader = env->CallObjectMethod(thread, getContextClassLoader);
+
   if (classLoader != NULL) {
     mesosClassLoader = env->NewWeakGlobalRef(classLoader);
   }
@@ -135,13 +138,14 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
 }
 
 
-// Called by JVM when it unloads our library
+// Called by JVM when it unloads our library.
 JNIEXPORT void JNICALL JNI_OnUnLoad(JavaVM* jvm, void* reserved)
 {
-  JNIEnv *env;
-  if (jvm->GetEnv((void **)&env, JNI_VERSION_1_2)) {
+  JNIEnv* env;
+  if (jvm->GetEnv((void**) &env, JNI_VERSION_1_2)) {
     return;
   }
+
   if (mesosClassLoader != NULL) {
     env->DeleteWeakGlobalRef(mesosClassLoader);
     mesosClassLoader = NULL;
@@ -336,7 +340,7 @@ jobject convert(JNIEnv* env, const TaskStatus& status)
 
 
 template <>
-jobject convert(JNIEnv* env, const SlaveOffer& offer)
+jobject convert(JNIEnv* env, const Offer& offer)
 {
   string data;
   offer.SerializeToString(&data);
@@ -345,12 +349,12 @@ jobject convert(JNIEnv* env, const SlaveOffer& offer)
   jbyteArray jdata = env->NewByteArray(data.size());
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
-  // SlaveOffer offer = SlaveOffer.parseFrom(data);
-  jclass clazz = FindMesosClass(env, "org/apache/mesos/Protos$SlaveOffer");
+  // Offer offer = Offer.parseFrom(data);
+  jclass clazz = FindMesosClass(env, "org/apache/mesos/Protos$Offer");
 
   jmethodID parseFrom =
     env->GetStaticMethodID(clazz, "parseFrom",
-                           "([B)Lorg/apache/mesos/Protos$SlaveOffer;");
+                           "([B)Lorg/apache/mesos/Protos$Offer;");
 
   jobject joffer = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
@@ -401,4 +405,20 @@ jobject convert(JNIEnv* env, const ExecutorArgs& args)
   jobject jargs = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
   return jargs;
+}
+
+template <>
+jobject convert(JNIEnv* env, const Status& status)
+{
+  jint jvalue = status;
+
+  jclass clazz = FindMesosClass(env, "org/apache/mesos/Protos$Status");
+
+  jmethodID valueOf =
+    env->GetStaticMethodID(clazz, "valueOf",
+                           "(I)Lorg/apache/mesos/Protos$Status;");
+
+  jobject jstate = env->CallStaticObjectMethod(clazz, valueOf, jvalue);
+
+  return jstate;
 }

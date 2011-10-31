@@ -44,61 +44,14 @@ using process::wait; // Necessary on some OS's to disambiguate.
 using std::map;
 using std::max;
 using std::string;
+using std::vector;
 
 
 namespace {
 
 const int32_t CPU_SHARES_PER_CPU = 1024;
 const int32_t MIN_CPU_SHARES = 10;
-const int64_t MIN_RSS_MB = 128 * Megabyte;
-
-
-// TODO(benh): Factor this out into common/utils or possibly into
-// libprocess so that it can handle blocking.
-// Run a shell command formatted with varargs and return its exit code.
-int shell(const char* format, ...)
-{
-  char* cmd;
-  FILE* f;
-  int ret;
-  va_list args;
-  va_start(args, format);
-  if (vasprintf(&cmd, format, args) == -1)
-    return -1;
-  if ((f = popen(cmd, "w")) == NULL)
-    return -1;
-  ret = pclose(f);
-  if (ret == -1)
-    LOG(INFO) << "pclose error: " << strerror(errno);
-  free(cmd);
-  va_end(args);
-  return ret;
-}
-
-
-// Attempt to set a resource limit of a container for a given cgroup
-// property (e.g. cpu.shares). Returns true on success.
-bool setResourceLimit(const string& container,
-		      const string& property,
-		      int64_t value)
-{
-  LOG(INFO) << "Setting " << property
-            << " for container " << container
-            << " to " << value;
-
-  int ret = shell("lxc-cgroup -n %s %s %lld",
-                  container.c_str(),
-                  property.c_str(),
-                  value);
-  if (ret != 0) {
-    LOG(ERROR) << "Failed to set " << property
-               << " for container " << container
-               << ": lxc-cgroup returned " << ret;
-    return false;
-  }
-
-  return true;
-}
+const int64_t MIN_MEMORY_MB = 128 * Megabyte;
 
 } // namespace {
 
@@ -132,7 +85,7 @@ void LxcIsolationModule::initialize(
   conf = _conf;
   local = _local;
   slave = _slave;
-  
+
   // Check if Linux Container tools are available.
   if (system("lxc-version > /dev/null") != 0) {
     LOG(FATAL) << "Could not run lxc-version; make sure Linux Container "
@@ -153,22 +106,22 @@ void LxcIsolationModule::launchExecutor(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
-    const string& directory)
+    const string& directory,
+    const Resources& resources)
 {
-  if (!initialized) {
-    LOG(FATAL) << "Cannot launch executors before initialization!";
-  }
+  CHECK(initialized) << "Cannot launch executors before initialization!";
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
-  LOG(INFO) << "Launching '" << executorInfo.uri()
-            << "' for executor '" << executorId
-            << "' of framework " << frameworkId;
+  LOG(INFO) << "Launching " << executorId
+            << " (" << executorInfo.uri() << ")"
+            << " in " << directory
+            << " with resources " << resources
+            << "' for framework " << frameworkId;
 
   // Create a name for the container.
   std::ostringstream out;
-  out << "mesos.executor-" << executorId
-      << ".framework-" << frameworkId;
+  out << "mesos.executor-" << executorId << ".framework-" << frameworkId;
 
   const string& container = out.str();
 
@@ -186,11 +139,14 @@ void LxcIsolationModule::launchExecutor(
   // automatically creates the container and will delete it when finished.
   pid_t pid;
   if ((pid = fork()) == -1) {
-    PLOG(FATAL) << "Failed to fork to launch lxc-execute";
+    PLOG(FATAL) << "Failed to fork to launch new executor";
   }
 
   if (pid) {
     // In parent process.
+    LOG(INFO) << "Forked executor at = " << pid;
+
+    // Record the pid.
     info->pid = pid;
 
     // Tell the slave this executor has started.
@@ -202,16 +158,16 @@ void LxcIsolationModule::launchExecutor(
     // specified file numbers (0, 1, 2).
     foreach (const string& entry, utils::os::listdir("/proc/self/fd")) {
       if (entry != "." && entry != "..") {
-	try {
-	  int fd = boost::lexical_cast<int>(entry);
-	  if (fd != STDIN_FILENO &&
-	      fd != STDOUT_FILENO &&
-	      fd != STDERR_FILENO) {
-	    close(fd);
-	  }
-	} catch (boost::bad_lexical_cast&) {
-	  LOG(FATAL) << "Failed to close file descriptors";
-	}
+        try {
+          int fd = boost::lexical_cast<int>(entry);
+          if (fd != STDIN_FILENO &&
+            fd != STDOUT_FILENO &&
+            fd != STDERR_FILENO) {
+            close(fd);
+          }
+        } catch (boost::bad_lexical_cast&) {
+          LOG(FATAL) << "Failed to close file descriptors";
+        }
       }
     }
 
@@ -241,14 +197,31 @@ void LxcIsolationModule::launchExecutor(
 
     launcher->setupEnvironmentForLauncherMain();
 
-    // Get location of Mesos install in order to find mesos-launcher.
-    string mesosLauncher = conf.get("home", ".") + "/bin/mesos-launcher";
-    
-    // Run lxc-execute.
-    execlp("lxc-execute", "lxc-execute", "-n", container.c_str(),
-           mesosLauncher.c_str(), (char *) NULL);
+    // Construct the initial control group options that specify the
+    // initial resources limits for this executor.
+    const vector<string>& options = getControlGroupOptions(resources);
 
-    // If we get here, the execlp call failed.
+    const char** args = (const char**) new char*[3 + options.size() + 2];
+
+    int i = 0;
+
+    args[i++] = "lxc-execute";
+    args[i++] = "-n";
+    args[i++] = container.c_str();
+
+    for (int j = 0; j < options.size(); j++) {
+      args[i++] = options[j].c_str();
+    }
+
+    // Determine path for mesos-launcher from Mesos home directory.
+    string path = conf.get("home", ".") + "/bin/mesos-launcher";
+    args[i++] = path.c_str();
+    args[i++] = NULL;
+
+    // Run lxc-execute.
+    execvp(args[0], (char* const*) args);
+
+    // If we get here, the execvp call failed.
     LOG(FATAL) << "Could not exec lxc-execute";
   }
 }
@@ -258,6 +231,7 @@ void LxcIsolationModule::killExecutor(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
+  CHECK(initialized) << "Cannot kill executors before initialization!";
   if (!infos.contains(frameworkId) ||
       !infos[frameworkId].contains(executorId)) {
     LOG(ERROR) << "ERROR! Asked to kill an unknown executor!";
@@ -270,9 +244,15 @@ void LxcIsolationModule::killExecutor(
 
   LOG(INFO) << "Stopping container " << info->container;
 
-  int ret = shell("lxc-stop -n %s", info->container.c_str());
-  if (ret != 0) {
-    LOG(ERROR) << "lxc-stop returned " << ret;
+  Try<int> status =
+    utils::os::shell(NULL, "lxc-stop -n %s", info->container.c_str());
+
+  if (status.isError()) {
+    LOG(ERROR) << "Failed to stop container " << info->container
+               << ": " << status.error();
+  } else if (status.get() != 0) {
+    LOG(ERROR) << "Failed to stop container " << info->container
+               << ", lxc-stop returned: " << status.get();
   }
 
   if (infos[frameworkId].size() == 1) {
@@ -293,6 +273,7 @@ void LxcIsolationModule::resourcesChanged(
     const ExecutorID& executorId,
     const Resources& resources)
 {
+  CHECK(initialized) << "Cannot change resources before initialization!";
   if (!infos.contains(frameworkId) ||
       !infos[frameworkId].contains(executorId)) {
     LOG(ERROR) << "ERROR! Asked to update resources for an unknown executor!";
@@ -313,27 +294,27 @@ void LxcIsolationModule::resourcesChanged(
   string property;
   uint64_t value;
 
-  double cpu = resources.getScalar("cpu", Resource::Scalar()).value();
-  int32_t cpuShares = max(CPU_SHARES_PER_CPU * (int32_t) cpu, MIN_CPU_SHARES);
+  double cpu = resources.get("cpu", Resource::Scalar()).value();
+  int32_t cpu_shares = max(CPU_SHARES_PER_CPU * (int32_t) cpu, MIN_CPU_SHARES);
 
   property = "cpu.shares";
-  value = cpuShares;
+  value = cpu_shares;
 
-  if (!setResourceLimit(container, property, value)) {
-    // TODO(benh): Kill the executor, but do it in such a way that
-    // the slave finds out about it exiting.
+  if (!setControlGroupValue(container, property, value)) {
+    // TODO(benh): Kill the executor, but do it in such a way that the
+    // slave finds out about it exiting.
     return;
   }
 
-  double mem = resources.getScalar("mem", Resource::Scalar()).value();
-  int64_t rssLimit = max((int64_t) mem, MIN_RSS_MB) * 1024LL * 1024LL;
+  double mem = resources.get("mem", Resource::Scalar()).value();
+  int64_t limit_in_bytes = max((int64_t) mem, MIN_MEMORY_MB) * 1024LL * 1024LL;
 
   property = "memory.limit_in_bytes";
-  value = rssLimit;
+  value = limit_in_bytes;
 
-  if (!setResourceLimit(container, property, value)) {
-    // TODO(benh): Kill the executor, but do it in such a way that
-    // the slave finds out about it exiting.
+  if (!setControlGroupValue(container, property, value)) {
+    // TODO(benh): Kill the executor, but do it in such a way that the
+    // slave finds out about it exiting.
     return;
   }
 }
@@ -357,4 +338,60 @@ void LxcIsolationModule::processExited(pid_t pid, int status)
       }
     }
   }
+}
+
+
+bool LxcIsolationModule::setControlGroupValue(
+    const string& container,
+    const string& property,
+    int64_t value)
+{
+  LOG(INFO) << "Setting " << property
+            << " for container " << container
+            << " to " << value;
+
+  Try<int> status =
+    utils::os::shell(NULL, "lxc-cgroup -n %s %s %lld",
+                     container.c_str(), property.c_str(), value);
+
+  if (status.isError()) {
+    LOG(ERROR) << "Failed to set " << property
+               << " for container " << container
+               << ": " << status.error();
+    return false;
+  } else if (status.get() != 0) {
+    LOG(ERROR) << "Failed to set " << property
+               << " for container " << container
+               << ": lxc-cgroup returned " << status.get();
+    return false;
+  }
+
+  return true;
+}
+
+
+vector<string> LxcIsolationModule::getControlGroupOptions(
+    const Resources& resources)
+{
+  vector<string> options;
+
+  std::ostringstream out;
+
+  double cpu = resources.get("cpu", Resource::Scalar()).value();
+  int32_t cpu_shares = max(CPU_SHARES_PER_CPU * (int32_t) cpu, MIN_CPU_SHARES);
+
+  options.push_back("-s");
+  out << "lxc.cgroup.cpu.shares=" << cpu_shares;
+  options.push_back(out.str());
+
+  out.str("");
+
+  double mem = resources.get("mem", Resource::Scalar()).value();
+  int64_t limit_in_bytes = max((int64_t) mem, MIN_MEMORY_MB) * 1024LL * 1024LL;
+
+  options.push_back("-s");
+  out << "lxc.cgroup.memory.limit_in_bytes=" << limit_in_bytes;
+  options.push_back(out.str());
+
+  return options;
 }

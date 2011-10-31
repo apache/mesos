@@ -16,6 +16,8 @@
 
 # Makefile.
 
+TOP := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+
 SHELL = '/bin/sh'
 
 SRCDIR = @srcdir@
@@ -31,25 +33,43 @@ CXXFLAGS = @CXXFLAGS@
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 
+OS_NAME = @OS_NAME@
+
+JAVA_HOME = @JAVA_HOME@
+JAVA_HEADERS = @JAVA_HEADERS@
+
+ifeq ($(OS_NAME),darwin)
+  LDFLAGS += -framework JavaVM
+else
+  # TODO(John Sirois): parameterize via configure templates
+  LDFLAGS += -L$(JAVA_HOME)/jre/lib/amd64/server -ljvm
+endif
+
 WITH_ZOOKEEPER = @WITH_ZOOKEEPER@
 
 WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
 
-LIBPROCESS = third_party/libprocess
-LIBEV = $(LIBPROCESS)/third_party/libev-3.8
 BOOST = third_party/boost-1.37.0
 PROTOBUF = third_party/protobuf-2.3.0
 GLOG = third_party/glog-0.3.1
-GMOCK = third_party/gmock-1.5.0
+LEVELDB = third_party/leveldb
 ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
+LIBPROCESS = third_party/libprocess
+LIBEV = $(LIBPROCESS)/third_party/libev-3.8
+
+# Both GMOCK and GTEST are paths to the source of these libraries,
+# since we don't need to create directories when building the assets
+# from these libraries.
+GMOCK = @top_srcdir@/third_party/gmock-1.6.0
+GTEST = @top_srcdir@/third_party/gmock-1.6.0/gtest
 
 # Ensure that we get better debugging info.
 CFLAGS += -g
 CXXFLAGS += -g
 
 # Add 'src' source dir and build dir to CFLAGS and CXXFLAGS.
-CFLAGS += -I@srcdir@/.. -I..
-CXXFLAGS += -I@srcdir@/.. -I..
+CFLAGS += -I$(SRCDIR)/.. -I..
+CXXFLAGS += -I$(SRCDIR)/.. -I..
 
 # Add include and build include to CFLAGS and CXXFLAGS.
 CFLAGS += -I@top_srcdir@/include -I$(INCLUDEDIR)
@@ -71,9 +91,16 @@ LDFLAGS += -L@top_builddir@/$(LIBPROCESS)
 # Add libev to LDFLAGS.
 LDFLAGS += -L@top_builddir@/$(LIBEV)/.libs
 
-# Add glog, and gmock/gtest to include paths and library paths.
-CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src -I@top_srcdir@/$(GMOCK)/include -I@top_srcdir@/$(GMOCK)/gtest/include
-LDFLAGS += -L@top_builddir@/$(GLOG)/.libs -L@top_builddir@/$(GMOCK)/lib/.libs -L@top_builddir@/$(GMOCK)/gtest/lib/.libs
+# Add glog to include paths and library paths.
+CXXFLAGS += -I@top_srcdir@/$(GLOG)/src -I@top_builddir@/$(GLOG)/src
+LDFLAGS += -L@top_builddir@/$(GLOG)/.libs
+
+# Add leveldb to include and lib paths.
+CXXFLAGS += -I@top_srcdir@/$(LEVELDB)/include
+LDFLAGS += -L@top_builddir@/$(LEVELDB)
+
+# Add gmock and gtest to include paths.
+CXXFLAGS += -I$(GMOCK)/include -I$(GTEST)/include
 
 # Add included ZooKeeper to include and lib paths if necessary.
 ifeq ($(WITH_INCLUDED_ZOOKEEPER),1)
@@ -85,8 +112,8 @@ endif
 CFLAGS += -MMD -MP
 CXXFLAGS += -MMD -MP
 
-# Add protobuf, glog, gmock, gtest, libev, libprocess, pthread, and dl to LIBS.
-LIBS += -lprotobuf -lglog -lgmock -lgtest -lprocess -lev -lpthread -ldl
+# Add protobuf, glog, leveldb, libev, libprocess, pthread, and dl to LIBS.
+LIBS += -lprotobuf -lglog -lleveldb -lprocess -lev -lpthread -ldl
 
 # Add ZooKeeper if necessary.
 ifeq ($(WITH_ZOOKEEPER),1)
@@ -96,14 +123,34 @@ endif
 SCHED_LIB = $(LIBDIR)/libmesos_sched.a
 EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
-TESTS_OBJ = main.o utils.o master_tests.o resource_offer_tests.o	\
-	    resource_offer_reply_tests.o fault_tolerant_tests.o		\
-	    resources_tests.o uuid_tests.o external_tests.o		\
-	    sample_frameworks_tests.o configurator_tests.o		\
-	    string_utils_tests.o multimap_tests.o			\
-	    lxc_isolation_tests.o
+GTEST_HEADERS = $(GTEST)/include/gtest/*.h		\
+                $(GTEST)/include/gtest/internal/*.h
+
+GMOCK_HEADERS = $(GTEST_HEADERS) $(GMOCK)/include/gmock/*.h	\
+                $(GMOCK)/include/gmock/internal/*.h
+
+GTEST_SRC = $(GTEST_HEADERS) $(GTEST)/src/*.h $(GTEST)/src/*.cc
+
+GMOCK_SRC = $(GMOCK_HEADERS) $(GMOCK)/src/*.cc
+
+GTEST_OBJ = gtest-all.o
+
+GMOCK_OBJ = gmock-all.o
+
+GMOCK_LIB = gmock.a
+
+TESTS_OBJ = main.o utils.o master_tests.o resource_offers_tests.o	\
+	    fault_tolerance_tests.o log_tests.o resources_tests.o	\
+	    uuid_tests.o external_tests.o sample_frameworks_tests.o	\
+	    configurator_tests.o strings_tests.o multihashmap_tests.o	\
+	    protobuf_io_tests.o lxc_isolation_tests.o utils_tests.o	\
+	    jvm.o zookeeper_server.o base_zookeeper_test.o		\
+	    zookeeper_server_tests.o zookeeper_tests.o			\
+	    url_processor_tests.o killtree_tests.o exception_tests.o
 
 ALLTESTS_EXE = $(BINDIR)/tests/all-tests
+
+PROCESS_SPAWN = $(BINDIR)/tests/process_spawn
 
 EXTERNAL_SCRIPTS =							\
   $(BINDIR)/tests/external/LxcIsolation/HoldMoreMemThanRequested.sh	\
@@ -116,13 +163,15 @@ EXTERNAL_SCRIPTS =							\
   $(BINDIR)/tests/external/SampleFrameworks/CppFramework.sh		\
   $(BINDIR)/tests/external/SampleFrameworks/JavaExceptionFramework.sh	\
   $(BINDIR)/tests/external/SampleFrameworks/JavaFramework.sh		\
-  $(BINDIR)/tests/external/SampleFrameworks/PythonFramework.sh
+  $(BINDIR)/tests/external/SampleFrameworks/PythonFramework.sh		\
+  $(BINDIR)/tests/external/KillTree/KillTreeTest.sh
 
 # Create rules for building the directories that aren't created
 # automagically by configure.
 DIRECTORIES = $(BINDIR)/tests                                   \
 	      $(BINDIR)/tests/external/LxcIsolation		\
-              $(BINDIR)/tests/external/SampleFrameworks
+              $(BINDIR)/tests/external/SampleFrameworks         \
+              $(BINDIR)/tests/external/KillTree
 
 
 default: all
@@ -133,23 +182,43 @@ default: all
 $(DIRECTORIES): %:
 	mkdir -p $@
 
-$(TESTS_OBJ): %.o: @srcdir@/%.cpp
-	$(CXX) -c $(CXXFLAGS) -o $@ $<
+$(GTEST_OBJ): %.o: $(GTEST)/src/%.cc $(GTEST_SRC)
+	$(CXX) -c $(CXXFLAGS) -I$(GTEST) -I$(GMOCK) $<
+
+$(GMOCK_OBJ): %.o: $(GMOCK)/src/%.cc $(GMOCK_SRC)
+	$(CXX) -c $(CXXFLAGS) -I$(GTEST) -I$(GMOCK) $<
+
+$(GMOCK_LIB): $(GTEST_OBJ) $(GMOCK_OBJ)
+	$(AR) rcs $@ $^
+
+$(TESTS_OBJ): %.o: $(SRCDIR)/%.cpp
+	$(CXX) -c $(CXXFLAGS) \
+	  -DROOT_DIR=\"$(TOP)/@top_srcdir@\" \
+	  -DBUILD_DIR=\"$(TOP)/@top_builddir@\" \
+	  -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OS_NAME) \
+	  -I$(JAVA_HEADERS) -o $@ $<
+
+$(ALLTESTS_EXE): $(TESTS_OBJ) $(GMOCK_LIB) $(SCHED_LIB) $(EXEC_LIB) | $(BINDIR)/tests
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+
+$(PROCESS_SPAWN): $(SRCDIR)/process_spawn.cpp
+	$(CXX) -o $@ $<
 
 $(EXTERNAL_SCRIPTS): | $(BINDIR)/tests/external/LxcIsolation
 $(EXTERNAL_SCRIPTS): | $(BINDIR)/tests/external/SampleFrameworks
-$(EXTERNAL_SCRIPTS): $(BINDIR)/tests/%: @srcdir@/%
+$(EXTERNAL_SCRIPTS): | $(BINDIR)/tests/external/KillTree
+$(EXTERNAL_SCRIPTS): $(BINDIR)/tests/%: $(SRCDIR)/%
 	cp $< $@
-
-$(ALLTESTS_EXE): $(TESTS_OBJ) $(SCHED_LIB) $(EXEC_LIB) | $(BINDIR)/tests
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 test: all
 	$(ALLTESTS_EXE)
 
-all: $(ALLTESTS_EXE) $(EXTERNAL_SCRIPTS) 
+all: $(ALLTESTS_EXE) $(EXTERNAL_SCRIPTS) $(PROCESS_SPAWN)
 
 clean:
+	rm -f $(patsubst %.o, %.d, $(GTEST_OBJ)) $(GTEST_OBJ)
+	rm -f $(patsubst %.o, %.d, $(GMOCK_OBJ)) $(GMOCK_OBJ)
+	rm -f $(GMOCK_LIB)
 	rm -f $(patsubst %.o, %.d, $(TESTS_OBJ))
 	rm -f $(TESTS_OBJ)
 	rm -f $(ALLTESTS_EXE)

@@ -17,23 +17,20 @@
 import sys
 import bottle
 import commands
-import datetime
 
 from bottle import route, send_file, template
-
-start_time = datetime.datetime.now()
 
 
 @route('/')
 def index():
   bottle.TEMPLATES.clear() # For rapid development
-  return template("index", start_time = start_time)
+  return template("index", master_port = master_port)
 
 
 @route('/framework/:id#[0-9-]*#')
 def framework(id):
   bottle.TEMPLATES.clear() # For rapid development
-  return template("framework", framework_id = id)
+  return template("framework", master_port = master_port, framework_id = id)
 
 
 @route('/static/:filename#.*#')
@@ -50,7 +47,8 @@ def log_full(level):
 @route('/log/:level#[A-Z]*#/:lines#[0-9]*#')
 def log_tail(level, lines):
   bottle.response.content_type = 'text/plain'
-  return commands.getoutput('tail -%s %s/mesos-master.%s' % (lines, log_dir, level))
+  command = 'tail -%s %s/mesos-master.%s' % (lines, log_dir, level)
+  return commands.getoutput(command)
 
 
 bottle.TEMPLATE_PATH.append('./webui/master/')
@@ -59,8 +57,9 @@ bottle.TEMPLATE_PATH.append('./webui/master/')
 # expecting have been passed to us, which will give us a better error
 # message when they aren't!
 
-init_port = sys.argv[1]
-log_dir = sys.argv[2]
+master_port = sys.argv[1]
+webui_port = sys.argv[2]
+log_dir = sys.argv[3]
 
 bottle.debug(True)
-bottle.run(host = '0.0.0.0', port = init_port)
+bottle.run(host = '0.0.0.0', port = webui_port)

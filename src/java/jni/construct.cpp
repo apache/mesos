@@ -18,6 +18,8 @@
 
 #include <jni.h>
 
+#include <glog/logging.h>
+
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #include <string>
@@ -42,7 +44,8 @@ T parse(const void* data, int size)
   // will not have this luxury.
   google::protobuf::io::ArrayInputStream stream(data, size);
   T t;
-  t.ParseFromZeroCopyStream(&stream);
+  bool parsed = t.ParseFromZeroCopyStream(&stream);
+  CHECK(parsed) << "Unexpected failure while parsing protobuf";
   return t;
 }
 
@@ -50,12 +53,12 @@ T parse(const void* data, int size)
 template <>
 string construct(JNIEnv* env, jobject jobj)
 {
-  string s;
-  jstring jstr = (jstring) jobj;
-  const char *str = (const char *) env->GetStringUTFChars(jstr, NULL);
-  s = str;
-  env->ReleaseStringUTFChars(jstr, str);
-  return s;
+  jstring js = (jstring) jobj;
+  const char* s = env->GetStringUTFChars(js, NULL);
+  CHECK(s != NULL) << "Out of memory!";
+  string result(s);
+  env->ReleaseStringUTFChars(js, s);
+  return result;
 }
 
 
@@ -107,25 +110,25 @@ map<string, string> construct(JNIEnv *env, jobject jobj)
 }
 
 
-// template <>
-// Params construct(JNIEnv* env, jobject jobj)
-// {
-//   jclass clazz = env->GetObjectClass(jobj);
+template <>
+Filters construct(JNIEnv* env, jobject jobj)
+{
+  jclass clazz = env->GetObjectClass(jobj);
 
-//   // byte[] data = obj.toByteArray();
-//   jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
+  // byte[] data = obj.toByteArray();
+  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
 
-//   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
+  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-//   jbyte* data = env->GetByteArrayElements(jdata, NULL);
-//   jsize length = env->GetArrayLength(jdata);
+  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jsize length = env->GetArrayLength(jdata);
 
-//   const Params& params = parse<Params>(data, length);
+  const Filters& filters = parse<Filters>(data, length);
 
-//   env->ReleaseByteArrayElements(jdata, data, 0);
+  env->ReleaseByteArrayElements(jdata, data, 0);
 
-//   return params;
-// }
+  return filters;
+}
 
 
 template <>
@@ -307,4 +310,25 @@ ExecutorInfo construct(JNIEnv* env, jobject jobj)
   env->ReleaseByteArrayElements(jdata, data, 0);
 
   return executor;
+}
+
+
+template <>
+ResourceRequest construct(JNIEnv* env, jobject jobj)
+{
+  jclass clazz = env->GetObjectClass(jobj);
+
+  // byte[] data = obj.toByteArray();
+  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
+
+  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
+
+  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jsize length = env->GetArrayLength(jdata);
+
+  const ResourceRequest& request = parse<ResourceRequest>(data, length);
+
+  env->ReleaseByteArrayElements(jdata, data, 0);
+
+  return request;
 }

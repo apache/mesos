@@ -55,7 +55,7 @@ class NestedScheduler(mesos.Scheduler):
         tasks.append(task)
         #msg = mesos.FrameworkMessage(-1, , "")
         #executor.sendFrameworkMessage("")
-    driver.replyToOffer(oid, tasks, {})
+    driver.launchTasks(oid, tasks)
 
   def statusUpdate(self, driver, status):
     if status.state == mesos.TASK_FINISHED:
