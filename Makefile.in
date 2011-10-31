@@ -38,6 +38,8 @@ ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 LEVELDB = third_party/leveldb
 SETUPTOOLS = @SETUPTOOLS@
 
+export VERSION = `git describe --tags | cut -f 2,3,4 -d - | sed "s/-/\./"`
+
 default: all
 
 src: third_party
@@ -103,6 +105,9 @@ endif
 
 uninstall:
 	$(error unimplemented)
+
+maven-install:
+	mvn install:install-file -Dfile=$(LIBDIR)/java/mesos.jar -Dsources=$(LIBDIR)/java/mesos-sources.jar -DpomFile=$(LIBDIR)/java/mesos.pom
 
 dist:
 	$(error unimplemented)
