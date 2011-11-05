@@ -351,9 +351,9 @@ ifdef JAVA_HOME
 	$(JAVA_HOME)/bin/javac -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java -sourcepath java/generated -d java/classes java/generated/org/apache/mesos/*.java
 	$(JAVA_HOME)/bin/javac -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes -sourcepath $(SRCDIR)/java/src -d java/classes $(SRCDIR)/java/src/org/apache/mesos/*.java
 	$(JAVA_HOME)/bin/jar cf $@ -C java/classes org
-	$(JAVA_HOME)/bin/jar cf $(LIBDIR)/java/mesos-sources.jar -C java/src org
+	$(JAVA_HOME)/bin/jar cf $(LIBDIR)/java/mesos-sources.jar -C $(SRCDIR)/java/src org
 	$(JAVA_HOME)/bin/jar uf $(LIBDIR)/java/mesos-sources.jar -C java/generated org
-	sed s/%MESOS_VERSION%/$(VERSION)/ java/mesos.pom > $(LIBDIR)/java/mesos.pom
+	sed s/%MESOS_VERSION%/$(VERSION)/ $(SRCDIR)/java/mesos.pom > $(LIBDIR)/java/mesos.pom
 	$(JAVA_HOME)/bin/javah -d java/jni -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes org.apache.mesos.MesosSchedulerDriver
 	$(JAVA_HOME)/bin/javah -d java/jni -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes org.apache.mesos.MesosExecutorDriver
 	$(JAVA_HOME)/bin/javah -d java/jni -classpath @top_builddir@/$(PROTOBUF)/java/src/main/java:java/classes org.apache.mesos.Log
