@@ -25,11 +25,12 @@ import org.apache.mesos.Protos.FrameworkID;
 import org.apache.mesos.Protos.OfferID;
 import org.apache.mesos.Protos.Resource;
 import org.apache.mesos.Protos.SlaveID;
-import org.apache.mesos.Protos.SlaveOffer;
+import org.apache.mesos.Protos.Offer;
 import org.apache.mesos.Protos.TaskID;
 import org.apache.mesos.Protos.TaskDescription;
 import org.apache.mesos.Protos.TaskState;
 import org.apache.mesos.Protos.TaskStatus;
+import org.apache.mesos.Protos.Status;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 
@@ -176,7 +177,7 @@ public class FrameworkScheduler implements Scheduler {
     throw new IndexOutOfBoundsException(name);
   }
 
-  private static double getResource(SlaveOffer offer, String name) {
+  private static double getResource(Offer offer, String name) {
     return getResource(offer.getResourcesList(), name);
   }
 
@@ -185,12 +186,9 @@ public class FrameworkScheduler implements Scheduler {
   }
   
   @Override
-  public void resourceOffer(SchedulerDriver d, OfferID oid,
-      List<SlaveOffer> offers) {
+  public void resourceOffers(SchedulerDriver d, List<Offer> offers) {
     try {
       synchronized(jobTracker) {
-        LOG.info("Got resource offer " + oid);
-        List<TaskDescription> tasks = new ArrayList<TaskDescription>();
         
         int numOffers = (int) offers.size();
         double[] cpus = new double[numOffers];
@@ -198,7 +196,8 @@ public class FrameworkScheduler implements Scheduler {
 
         // Count up the amount of free CPUs and memory on each node 
         for (int i = 0; i < numOffers; i++) {
-          SlaveOffer offer = offers.get(i);
+          Offer offer = offers.get(i);
+          LOG.info("Got resource offer " + offer.getId());
           cpus[i] = getResource(offer, "cpus");
           mem[i] = getResource(offer, "mem");
         }
@@ -212,28 +211,35 @@ public class FrameworkScheduler implements Scheduler {
         // because it minimizing the amount of scanning we need to do if we
         // get a large set of offered nodes.
         List<Integer> indices = new LinkedList<Integer>();
+        List<List<TaskDescription>> replies =
+            new ArrayList<List<TaskDescription>>(numOffers);
         for (int i = 0; i < numOffers; i++) {
           indices.add(i);
+          replies.add(new ArrayList<TaskDescription>());
         }
         while (indices.size() > 0) {
           for (Iterator<Integer> it = indices.iterator(); it.hasNext();) {
             int i = it.next();
-            SlaveOffer offer = offers.get(i);
+            Offer offer = offers.get(i);
             TaskDescription task = findTask(
                 offer.getSlaveId(), offer.getHostname(), cpus[i], mem[i]);
             if (task != null) {
               cpus[i] -= getResource(task, "cpus");
               mem[i] -= getResource(task, "mem");
-              tasks.add(task);
+              replies.get(i).add(task);
             } else {
               it.remove();
             }
           }
         }
-        
-        Map<String, String> params = new HashMap<String, String>();
-        params.put("timeout", "1");
-        d.replyToOffer(oid, tasks, params);
+
+        for (int i = 0; i < numOffers; i++) {
+          OfferID offerId = offers.get(i).getId();
+          Status status = d.launchTasks(offerId, replies.get(i));
+          if (status != Status.OK) {
+            LOG.warn("SchedulerDriver returned irregular status: " + status);
+          }
+        }
       }
     } catch(Exception e) {
       LOG.error("Error in resourceOffer", e);
@@ -311,8 +317,7 @@ public class FrameworkScheduler implements Scheduler {
     ).build();
   }
 
-  @Override
-  public String getFrameworkName(SchedulerDriver driver) {
+  public String getFrameworkName() {
     return "Hadoop: " + jobTracker.getTrackerIdentifier() +
            " (RPC port: " + jobTracker.port + "," +
            " web UI port: " + jobTracker.infoPort + ")";
@@ -321,8 +326,7 @@ public class FrameworkScheduler implements Scheduler {
   private static final ExecutorID EXECUTOR_ID =
     ExecutorID.newBuilder().setValue("default").build();
 
-  @Override
-  public ExecutorInfo getExecutorInfo(SchedulerDriver driver) {
+  public ExecutorInfo getExecutorInfo() {
     try {
       String execPath = new File("bin/mesos-executor").getCanonicalPath();
       byte[] initArg = conf.get("mapred.job.tracker").getBytes("US-ASCII");

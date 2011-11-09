@@ -46,7 +46,10 @@ public class MesosScheduler extends TaskScheduler {
       taskTrackerManager.addJobInProgressListener(eagerInitListener);
       
       frameworkScheduler = new FrameworkScheduler(this); 
-      driver = new MesosSchedulerDriver(frameworkScheduler, master);
+      driver = new MesosSchedulerDriver(frameworkScheduler,
+          frameworkScheduler.getFrameworkName(),
+          frameworkScheduler.getExecutorInfo(),
+          master);
       
       driver.start();
     } catch (Exception e) {
