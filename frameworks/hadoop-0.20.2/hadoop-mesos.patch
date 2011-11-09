@@ -1,6 +1,6 @@
-diff -X excludes -Nru hadoop-0.20.2.orig/bin/hadoop hadoop-0.20.2/bin/hadoop
---- hadoop-0.20.2.orig/bin/hadoop	2010-02-18 23:55:23.000000000 -0800
-+++ hadoop-0.20.2/bin/hadoop	2011-06-26 20:41:10.000000000 -0700
+diff -X excludes -ruN hadoop-0.20.2.orig/bin/hadoop hadoop-0.20.2/bin/hadoop
+--- hadoop-0.20.2.orig/bin/hadoop	2011-11-08 18:34:53.000000000 -0800
++++ hadoop-0.20.2/bin/hadoop	2011-10-12 18:24:05.000000000 -0700
 @@ -226,6 +226,38 @@
    CLASS=org.apache.hadoop.util.VersionInfo
    HADOOP_OPTS="$HADOOP_OPTS $HADOOP_CLIENT_OPTS"
@@ -85,17 +85,17 @@ diff -X excludes -Nru hadoop-0.20.2.orig/bin/hadoop hadoop-0.20.2/bin/hadoop
  # cygwin path translation
  if $cygwin; then
    JAVA_LIBRARY_PATH=`cygpath -p "$JAVA_LIBRARY_PATH"`
-diff -X excludes -Nru hadoop-0.20.2.orig/bin/mesos-executor hadoop-0.20.2/bin/mesos-executor
+diff -X excludes -ruN hadoop-0.20.2.orig/bin/mesos-executor hadoop-0.20.2/bin/mesos-executor
 --- hadoop-0.20.2.orig/bin/mesos-executor	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/bin/mesos-executor	2011-03-19 19:36:37.000000000 -0700
++++ hadoop-0.20.2/bin/mesos-executor	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,4 @@
 +#!/bin/sh
 +COMMAND="`dirname $0`/hadoop org.apache.hadoop.mapred.FrameworkExecutor"
 +echo Running $COMMAND
 +exec $COMMAND
-diff -X excludes -Nru hadoop-0.20.2.orig/bin/mesos-jobtracker-launcher hadoop-0.20.2/bin/mesos-jobtracker-launcher
+diff -X excludes -ruN hadoop-0.20.2.orig/bin/mesos-jobtracker-launcher hadoop-0.20.2/bin/mesos-jobtracker-launcher
 --- hadoop-0.20.2.orig/bin/mesos-jobtracker-launcher	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/bin/mesos-jobtracker-launcher	2011-03-19 19:36:37.000000000 -0700
++++ hadoop-0.20.2/bin/mesos-jobtracker-launcher	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,9 @@
 +#!/usr/bin/env bash
 +if [[ $# -lt 1 ]]; then
@@ -106,9 +106,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/bin/mesos-jobtracker-launcher hadoop-0.
 +CLASS="org.apache.hadoop.mapred.MesosJobTrackerLauncher"
 +HADOOP_HOME="`dirname $0`/.."
 +exec $HADOOP_HOME/bin/hadoop $CLASS $TAG
-diff -X excludes -Nru hadoop-0.20.2.orig/bin/mesos-jobtracker-runner hadoop-0.20.2/bin/mesos-jobtracker-runner
+diff -X excludes -ruN hadoop-0.20.2.orig/bin/mesos-jobtracker-runner hadoop-0.20.2/bin/mesos-jobtracker-runner
 --- hadoop-0.20.2.orig/bin/mesos-jobtracker-runner	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/bin/mesos-jobtracker-runner	2011-03-19 19:36:37.000000000 -0700
++++ hadoop-0.20.2/bin/mesos-jobtracker-runner	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,14 @@
 +#!/usr/bin/env bash
 +if [[ $# -lt 1 ]]; then
@@ -124,18 +124,105 @@ diff -X excludes -Nru hadoop-0.20.2.orig/bin/mesos-jobtracker-runner hadoop-0.20
 +HADOOP_HOME="`dirname $0`/.."
 +cd $HADOOP_HOME # Needed for MesosScheduler to find bin/mesos-executor
 +$HADOOP_HOME/bin/hadoop-daemon.sh start $CLASS $TAG
-diff -X excludes -Nru hadoop-0.20.2.orig/ivy/libraries.properties hadoop-0.20.2/ivy/libraries.properties
---- hadoop-0.20.2.orig/ivy/libraries.properties	2010-02-18 23:55:23.000000000 -0800
-+++ hadoop-0.20.2/ivy/libraries.properties	2011-06-26 20:02:27.000000000 -0700
+diff -X excludes -ruN hadoop-0.20.2.orig/experiment-scripts/get-jt-ports.sh hadoop-0.20.2/experiment-scripts/get-jt-ports.sh
+--- hadoop-0.20.2.orig/experiment-scripts/get-jt-ports.sh	1969-12-31 16:00:00.000000000 -0800
++++ hadoop-0.20.2/experiment-scripts/get-jt-ports.sh	2011-10-12 18:24:05.000000000 -0700
+@@ -0,0 +1,3 @@
++#!/bin/sh
++curl http://localhost:8080/ | grep 'RPC port' | sed 's/.*RPC port: \([0-9]*\),.*/\1/' > ports.txt
++cat ports.txt
+diff -X excludes -ruN hadoop-0.20.2.orig/experiment-scripts/lg.sh hadoop-0.20.2/experiment-scripts/lg.sh
+--- hadoop-0.20.2.orig/experiment-scripts/lg.sh	1969-12-31 16:00:00.000000000 -0800
++++ hadoop-0.20.2/experiment-scripts/lg.sh	2011-10-12 18:24:05.000000000 -0700
+@@ -0,0 +1,3 @@
++#!/bin/sh
++PORT=$1
++time bin/hadoop jar build/hadoop-0.20.1-dev-test.jar loadgen -jt localhost:$PORT -r 0 -keepmap 0.1 -indir rand -outdir out-$RANDOM
+diff -X excludes -ruN hadoop-0.20.2.orig/experiment-scripts/lgs.sh hadoop-0.20.2/experiment-scripts/lgs.sh
+--- hadoop-0.20.2.orig/experiment-scripts/lgs.sh	1969-12-31 16:00:00.000000000 -0800
++++ hadoop-0.20.2/experiment-scripts/lgs.sh	2011-10-12 18:24:05.000000000 -0700
+@@ -0,0 +1,14 @@
++#!/bin/bash
++outdir=$1
++shift
++args=("$@")
++echo "Placing output in directory $outdir"
++mkdir $outdir
++for i in `seq 0 $(($#-1))`; do
++  port=${args[$i]}
++  outfile=$outdir/$i.txt
++  echo "Starting loadgen $i, writing to $outfile..."
++  (./lg.sh $port 2>&1) >$outfile &
++done
++wait
++echo "All done!"
+diff -X excludes -ruN hadoop-0.20.2.orig/experiment-scripts/start-jts.sh hadoop-0.20.2/experiment-scripts/start-jts.sh
+--- hadoop-0.20.2.orig/experiment-scripts/start-jts.sh	1969-12-31 16:00:00.000000000 -0800
++++ hadoop-0.20.2/experiment-scripts/start-jts.sh	2011-10-12 18:24:05.000000000 -0700
+@@ -0,0 +1,2 @@
++#!/bin/sh
++for i in `seq 1 16`; do echo "Starting JobTracker $i"; (bin/hadoop jobtracker 2>&1) > /mnt/jt$i.txt & sleep 6; done
+diff -X excludes -ruN hadoop-0.20.2.orig/experiment-scripts/stop-jts.sh hadoop-0.20.2/experiment-scripts/stop-jts.sh
+--- hadoop-0.20.2.orig/experiment-scripts/stop-jts.sh	1969-12-31 16:00:00.000000000 -0800
++++ hadoop-0.20.2/experiment-scripts/stop-jts.sh	2011-10-12 18:24:05.000000000 -0700
+@@ -0,0 +1,2 @@
++#!/bin/sh
++jps | grep JobTracke | awk '{print $1}' | xargs kill
+diff -X excludes -ruN hadoop-0.20.2.orig/experiment-scripts/watch-output.sh hadoop-0.20.2/experiment-scripts/watch-output.sh
+--- hadoop-0.20.2.orig/experiment-scripts/watch-output.sh	1969-12-31 16:00:00.000000000 -0800
++++ hadoop-0.20.2/experiment-scripts/watch-output.sh	2011-10-12 18:24:05.000000000 -0700
+@@ -0,0 +1,2 @@
++#!/bin/bash
++while true; do echo; for i in `seq 0 15`; do echo -n "$i: "; tail -1 $1/$i.txt; done; sleep 3; done
+diff -X excludes -ruN hadoop-0.20.2.orig/experiment-scripts/wc.sh hadoop-0.20.2/experiment-scripts/wc.sh
+--- hadoop-0.20.2.orig/experiment-scripts/wc.sh	1969-12-31 16:00:00.000000000 -0800
++++ hadoop-0.20.2/experiment-scripts/wc.sh	2011-10-12 18:24:05.000000000 -0700
+@@ -0,0 +1,3 @@
++#!/bin/sh
++PORT=$1
++time bin/hadoop jar build/hadoop-0.20.1-dev-examples.jar wordcount -jt localhost:$PORT randtext2 out-$RANDOM
+diff -X excludes -ruN hadoop-0.20.2.orig/experiment-scripts/wcs.sh hadoop-0.20.2/experiment-scripts/wcs.sh
+--- hadoop-0.20.2.orig/experiment-scripts/wcs.sh	1969-12-31 16:00:00.000000000 -0800
++++ hadoop-0.20.2/experiment-scripts/wcs.sh	2011-10-12 18:24:05.000000000 -0700
+@@ -0,0 +1,14 @@
++#!/bin/bash
++outdir=$1
++shift
++args=("$@")
++echo "Placing output in directory $outdir"
++mkdir $outdir
++for i in `seq 0 $(($#-1))`; do
++  port=${args[$i]}
++  outfile=$outdir/$i.txt
++  echo "Starting wordcount $i, writing to $outfile..."
++  (./wc.sh $port 2>&1) >$outfile &
++done
++wait
++echo "All done!"
+diff -X excludes -ruN hadoop-0.20.2.orig/.gitignore hadoop-0.20.2/.gitignore
+--- hadoop-0.20.2.orig/.gitignore	2011-11-08 18:34:53.000000000 -0800
++++ hadoop-0.20.2/.gitignore	2011-10-12 18:24:05.000000000 -0700
+@@ -29,6 +29,7 @@
+ conf/hadoop-policy.xml
+ conf/capacity-scheduler.xml
+ docs/api/
++ivy/*.jar
+ logs/
+ src/contrib/ec2/bin/hadoop-ec2-env.sh
+ src/contrib/index/conf/index-config.xml
+Binary files hadoop-0.20.2.orig/ivy/ivy-2.0.0-rc2.jar and hadoop-0.20.2/ivy/ivy-2.0.0-rc2.jar differ
+diff -X excludes -ruN hadoop-0.20.2.orig/ivy/libraries.properties hadoop-0.20.2/ivy/libraries.properties
+--- hadoop-0.20.2.orig/ivy/libraries.properties	2011-11-08 18:34:42.000000000 -0800
++++ hadoop-0.20.2/ivy/libraries.properties	2011-10-12 18:24:05.000000000 -0700
 @@ -71,3 +71,5 @@
  
  xmlenc.version=0.52
  xerces.version=1.4.4
 +
 +protobuf-java.version=2.3.0
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/build-contrib.xml hadoop-0.20.2/src/contrib/build-contrib.xml
---- hadoop-0.20.2.orig/src/contrib/build-contrib.xml	2010-02-18 23:55:24.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/build-contrib.xml	2011-06-26 20:02:27.000000000 -0700
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/build-contrib.xml hadoop-0.20.2/src/contrib/build-contrib.xml
+--- hadoop-0.20.2.orig/src/contrib/build-contrib.xml	2011-11-08 18:34:47.000000000 -0800
++++ hadoop-0.20.2/src/contrib/build-contrib.xml	2011-10-12 18:24:05.000000000 -0700
 @@ -77,6 +77,13 @@
    <property name="ivy.artifact.retrieve.pattern"
      			value="${ant.project.name}/[conf]/[artifact]-[revision].[ext]"/>
@@ -176,9 +263,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/build-contrib.xml hadoop-0.
    </target>
    
    <!-- ================================================================== -->
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/build.xml hadoop-0.20.2/src/contrib/build.xml
---- hadoop-0.20.2.orig/src/contrib/build.xml	2010-02-18 23:55:24.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/build.xml	2011-03-19 19:36:37.000000000 -0700
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/build.xml hadoop-0.20.2/src/contrib/build.xml
+--- hadoop-0.20.2.orig/src/contrib/build.xml	2011-11-08 18:34:47.000000000 -0800
++++ hadoop-0.20.2/src/contrib/build.xml	2011-10-12 18:24:05.000000000 -0700
 @@ -50,6 +50,7 @@
        <fileset dir="." includes="streaming/build.xml"/>
        <fileset dir="." includes="fairscheduler/build.xml"/>
@@ -187,9 +274,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/build.xml hadoop-0.20.2/src
      </subant>
    </target>
    
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/build.xml hadoop-0.20.2/src/contrib/mesos/build.xml
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/build.xml hadoop-0.20.2/src/contrib/mesos/build.xml
 --- hadoop-0.20.2.orig/src/contrib/mesos/build.xml	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/build.xml	2011-03-19 19:36:37.000000000 -0700
++++ hadoop-0.20.2/src/contrib/mesos/build.xml	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,39 @@
 +<?xml version="1.0"?>
 +
@@ -230,18 +317,18 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/build.xml hadoop-0.20
 +  <import file="../build-contrib.xml"/>
 +
 +</project>
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/ivy/libraries.properties hadoop-0.20.2/src/contrib/mesos/ivy/libraries.properties
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/ivy/libraries.properties hadoop-0.20.2/src/contrib/mesos/ivy/libraries.properties
 --- hadoop-0.20.2.orig/src/contrib/mesos/ivy/libraries.properties	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/ivy/libraries.properties	2011-03-19 19:36:37.000000000 -0700
++++ hadoop-0.20.2/src/contrib/mesos/ivy/libraries.properties	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,5 @@
 +#This properties file lists the versions of the various artifacts used by streaming.
 +#It drives ivy and the generation of a maven POM
 +
 +#Please list the dependencies name with version if they are different from the ones 
 +#listed in the global libraries.properties file (in alphabetical order)
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/ivy.xml hadoop-0.20.2/src/contrib/mesos/ivy.xml
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/ivy.xml hadoop-0.20.2/src/contrib/mesos/ivy.xml
 --- hadoop-0.20.2.orig/src/contrib/mesos/ivy.xml	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/ivy.xml	2011-06-26 20:02:27.000000000 -0700
++++ hadoop-0.20.2/src/contrib/mesos/ivy.xml	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,42 @@
 +<?xml version="1.0" ?>
 +<ivy-module version="1.0">
@@ -285,9 +372,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/ivy.xml hadoop-0.20.2
 +    conf="common->default"/>
 +  </dependencies>
 +</ivy-module>
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java
 --- hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java	2011-06-26 20:27:16.000000000 -0700
++++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,168 @@
 +package org.apache.hadoop.mapred;
 +
@@ -457,10 +544,10 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +    return instance;
 +  }
 +}
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java
 --- hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java	2011-06-26 20:02:27.000000000 -0700
-@@ -0,0 +1,836 @@
++++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java	2011-11-08 15:39:37.000000000 -0800
+@@ -0,0 +1,840 @@
 +package org.apache.hadoop.mapred;
 +
 +import java.io.File;
@@ -488,11 +575,12 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +import org.apache.mesos.Protos.OfferID;
 +import org.apache.mesos.Protos.Resource;
 +import org.apache.mesos.Protos.SlaveID;
-+import org.apache.mesos.Protos.SlaveOffer;
++import org.apache.mesos.Protos.Offer;
 +import org.apache.mesos.Protos.TaskID;
 +import org.apache.mesos.Protos.TaskDescription;
 +import org.apache.mesos.Protos.TaskState;
 +import org.apache.mesos.Protos.TaskStatus;
++import org.apache.mesos.Protos.Status;
 +import org.apache.mesos.Scheduler;
 +import org.apache.mesos.SchedulerDriver;
 +
@@ -639,7 +727,7 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +    throw new IndexOutOfBoundsException(name);
 +  }
 +
-+  private static double getResource(SlaveOffer offer, String name) {
++  private static double getResource(Offer offer, String name) {
 +    return getResource(offer.getResourcesList(), name);
 +  }
 +
@@ -648,12 +736,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +  }
 +  
 +  @Override
-+  public void resourceOffer(SchedulerDriver d, OfferID oid,
-+      List<SlaveOffer> offers) {
++  public void resourceOffers(SchedulerDriver d, List<Offer> offers) {
 +    try {
 +      synchronized(jobTracker) {
-+        LOG.info("Got resource offer " + oid);
-+        List<TaskDescription> tasks = new ArrayList<TaskDescription>();
 +        
 +        int numOffers = (int) offers.size();
 +        double[] cpus = new double[numOffers];
@@ -661,7 +746,8 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +
 +        // Count up the amount of free CPUs and memory on each node 
 +        for (int i = 0; i < numOffers; i++) {
-+          SlaveOffer offer = offers.get(i);
++          Offer offer = offers.get(i);
++          LOG.info("Got resource offer " + offer.getId());
 +          cpus[i] = getResource(offer, "cpus");
 +          mem[i] = getResource(offer, "mem");
 +        }
@@ -675,28 +761,35 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +        // because it minimizing the amount of scanning we need to do if we
 +        // get a large set of offered nodes.
 +        List<Integer> indices = new LinkedList<Integer>();
++        List<List<TaskDescription>> replies =
++            new ArrayList<List<TaskDescription>>(numOffers);
 +        for (int i = 0; i < numOffers; i++) {
 +          indices.add(i);
++          replies.add(new ArrayList<TaskDescription>());
 +        }
 +        while (indices.size() > 0) {
 +          for (Iterator<Integer> it = indices.iterator(); it.hasNext();) {
 +            int i = it.next();
-+            SlaveOffer offer = offers.get(i);
++            Offer offer = offers.get(i);
 +            TaskDescription task = findTask(
 +                offer.getSlaveId(), offer.getHostname(), cpus[i], mem[i]);
 +            if (task != null) {
 +              cpus[i] -= getResource(task, "cpus");
 +              mem[i] -= getResource(task, "mem");
-+              tasks.add(task);
++              replies.get(i).add(task);
 +            } else {
 +              it.remove();
 +            }
 +          }
 +        }
-+        
-+        Map<String, String> params = new HashMap<String, String>();
-+        params.put("timeout", "1");
-+        d.replyToOffer(oid, tasks, params);
++
++        for (int i = 0; i < numOffers; i++) {
++          OfferID offerId = offers.get(i).getId();
++          Status status = d.launchTasks(offerId, replies.get(i));
++          if (status != Status.OK) {
++            LOG.warn("SchedulerDriver returned irregular status: " + status);
++          }
++        }
 +      }
 +    } catch(Exception e) {
 +      LOG.error("Error in resourceOffer", e);
@@ -774,8 +867,7 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +    ).build();
 +  }
 +
-+  @Override
-+  public String getFrameworkName(SchedulerDriver driver) {
++  public String getFrameworkName() {
 +    return "Hadoop: " + jobTracker.getTrackerIdentifier() +
 +           " (RPC port: " + jobTracker.port + "," +
 +           " web UI port: " + jobTracker.infoPort + ")";
@@ -784,8 +876,7 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +  private static final ExecutorID EXECUTOR_ID =
 +    ExecutorID.newBuilder().setValue("default").build();
 +
-+  @Override
-+  public ExecutorInfo getExecutorInfo(SchedulerDriver driver) {
++  public ExecutorInfo getExecutorInfo() {
 +    try {
 +      String execPath = new File("bin/mesos-executor").getCanonicalPath();
 +      byte[] initArg = conf.get("mapred.job.tracker").getBytes("US-ASCII");
@@ -1297,9 +1388,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +    }
 +  }
 +}
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java
 --- hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java	2011-03-19 19:36:37.000000000 -0700
++++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,53 @@
 +package org.apache.hadoop.mapred;
 +
@@ -1354,9 +1445,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +    return bos.toByteArray();
 +  }
 +}
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerInstrumentation.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerInstrumentation.java
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerInstrumentation.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerInstrumentation.java
 --- hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerInstrumentation.java	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerInstrumentation.java	2011-06-26 20:02:27.000000000 -0700
++++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerInstrumentation.java	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,25 @@
 +package org.apache.hadoop.mapred;
 +
@@ -1383,9 +1474,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +    scheduler.killedTask(taskAttemptID);
 +  }
 +}
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java
 --- hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java	2011-03-19 19:36:37.000000000 -0700
++++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerLauncher.java	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,127 @@
 +package org.apache.hadoop.mapred;
 +
@@ -1514,9 +1605,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +    System.exit(1);
 +  }
 +}
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java
 --- hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java	2011-03-19 19:36:37.000000000 -0700
++++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosJobTrackerRunner.java	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,132 @@
 +package org.apache.hadoop.mapred;
 +
@@ -1650,10 +1741,10 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +    System.exit(1);
 +  }
 +}
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java
 --- hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java	2011-06-26 20:02:27.000000000 -0700
-@@ -0,0 +1,89 @@
++++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java	2011-11-08 15:39:36.000000000 -0800
+@@ -0,0 +1,92 @@
 +package org.apache.hadoop.mapred;
 +
 +import java.io.IOException;
@@ -1702,7 +1793,10 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +      taskTrackerManager.addJobInProgressListener(eagerInitListener);
 +      
 +      frameworkScheduler = new FrameworkScheduler(this); 
-+      driver = new MesosSchedulerDriver(frameworkScheduler, master);
++      driver = new MesosSchedulerDriver(frameworkScheduler,
++          frameworkScheduler.getFrameworkName(),
++          frameworkScheduler.getExecutorInfo(),
++          master);
 +      
 +      driver.start();
 +    } catch (Exception e) {
@@ -1743,9 +1837,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +  }
 +
 +}
-diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java
+diff -X excludes -ruN hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java
 --- hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java	1969-12-31 16:00:00.000000000 -0800
-+++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java	2011-03-19 19:36:37.000000000 -0700
++++ hadoop-0.20.2/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java	2011-10-12 18:24:05.000000000 -0700
 @@ -0,0 +1,28 @@
 +package org.apache.hadoop.mapred;
 +
@@ -1775,9 +1869,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/contrib/mesos/src/java/org/apache/h
 +    executor.statusUpdate(task, taskStatus);
 +  }
 +}
-diff -X excludes -Nru hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/JobInProgress.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/JobInProgress.java
---- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/JobInProgress.java	2010-02-18 23:55:24.000000000 -0800
-+++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/JobInProgress.java	2011-03-19 19:36:38.000000000 -0700
+diff -X excludes -ruN hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/JobInProgress.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/JobInProgress.java
+--- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/JobInProgress.java	2011-11-08 18:34:52.000000000 -0800
++++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/JobInProgress.java	2011-10-12 18:24:06.000000000 -0700
 @@ -2655,4 +2655,16 @@
        return Values.REDUCE.name();
      }
@@ -1795,9 +1889,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/Job
 +    return hasSpeculativeReduces;
 +  }
  }
-diff -X excludes -Nru hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/Task.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/Task.java
---- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/Task.java	2010-02-18 23:55:24.000000000 -0800
-+++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/Task.java	2011-03-19 19:36:38.000000000 -0700
+diff -X excludes -ruN hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/Task.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/Task.java
+--- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/Task.java	2011-11-08 18:34:52.000000000 -0800
++++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/Task.java	2011-10-12 18:24:06.000000000 -0700
 @@ -139,6 +139,7 @@
    protected final Counters.Counter spilledRecordsCounter;
    private String pidFile = "";
@@ -1822,9 +1916,9 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/Tas
    }
  
    @Override
-diff -X excludes -Nru hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskRunner.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskRunner.java
---- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskRunner.java	2010-02-18 23:55:24.000000000 -0800
-+++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskRunner.java	2011-03-19 19:36:38.000000000 -0700
+diff -X excludes -ruN hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskRunner.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskRunner.java
+--- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskRunner.java	2011-11-08 18:34:52.000000000 -0800
++++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskRunner.java	2011-10-12 18:24:06.000000000 -0700
 @@ -389,7 +389,11 @@
        File stdout = TaskLog.getTaskLogFile(taskid, TaskLog.LogName.STDOUT);
        File stderr = TaskLog.getTaskLogFile(taskid, TaskLog.LogName.STDERR);
@@ -1856,9 +1950,23 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/Tas
            }
            throw new IOException("Task process exit with nonzero status of " +
                exitCode + ".");
-diff -X excludes -Nru hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskTracker.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskTracker.java
---- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskTracker.java	2010-02-18 23:55:24.000000000 -0800
-+++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskTracker.java	2011-03-19 19:36:38.000000000 -0700
+diff -X excludes -ruN hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java
+--- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java	2011-11-08 18:34:52.000000000 -0800
++++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java	2011-10-12 18:24:06.000000000 -0700
+@@ -62,4 +62,10 @@
+    */
+   public void reportTaskEnd(TaskAttemptID t) {}
+    
++  /**
++   * Called when a task changes status. 
++   * @param task the task whose status changed
++   * @param taskStatus the new status of the task
++   */
++  public void statusUpdate(Task task, TaskStatus taskStatus) {}
+ }
+diff -X excludes -ruN hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskTracker.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskTracker.java
+--- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskTracker.java	2011-11-08 18:34:52.000000000 -0800
++++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskTracker.java	2011-10-12 18:24:06.000000000 -0700
 @@ -294,10 +294,11 @@
    
    
@@ -1979,17 +2087,3 @@ diff -X excludes -Nru hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/Tas
        return true;
      } else {
        LOG.warn("Progress from unknown child task: "+taskid);
-diff -X excludes -Nru hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java
---- hadoop-0.20.2.orig/src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java	2010-02-18 23:55:24.000000000 -0800
-+++ hadoop-0.20.2/src/mapred/org/apache/hadoop/mapred/TaskTrackerInstrumentation.java	2011-03-19 19:36:38.000000000 -0700
-@@ -62,4 +62,10 @@
-    */
-   public void reportTaskEnd(TaskAttemptID t) {}
-    
-+  /**
-+   * Called when a task changes status. 
-+   * @param task the task whose status changed
-+   * @param taskStatus the new status of the task
-+   */
-+  public void statusUpdate(Task task, TaskStatus taskStatus) {}
- }
