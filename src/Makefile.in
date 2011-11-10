@@ -16,7 +16,7 @@
 
 # Makefile.
 
-SHELL = '/bin/sh'
+SHELL = '/bin/bash'
 
 SRCDIR = @srcdir@
 INCLUDEDIR = @top_builddir@/include

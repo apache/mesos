@@ -16,7 +16,7 @@
 
 # Makefile.
 
-SHELL = '/bin/sh'
+SHELL = '/bin/bash'
 
 BUILDSRC = @top_builddir@/src
 BINDIR = @top_builddir@/bin
