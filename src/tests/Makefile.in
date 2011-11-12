@@ -34,15 +34,17 @@ LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 
 OS_NAME = @OS_NAME@
+OS_ARCH = @target_cpu@
 
 JAVA_HOME = @JAVA_HOME@
 JAVA_HEADERS = @JAVA_HEADERS@
 
 ifeq ($(OS_NAME),darwin)
   LDFLAGS += -framework JavaVM
-else
-  # TODO(John Sirois): parameterize via configure templates
+else ($(OS_ARCH),x86_64)
   LDFLAGS += -L$(JAVA_HOME)/jre/lib/amd64/server -ljvm
+else
+  LDFLAGS += -L$(JAVA_HOME)/jre/lib/i386/server -ljvm
 endif
 
 WITH_ZOOKEEPER = @WITH_ZOOKEEPER@
