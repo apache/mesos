@@ -16,7 +16,7 @@
 
 # Makefile.
 
-SHELL = '/bin/bash'
+SHELL = '/bin/sh'
 
 SRCDIR = @srcdir@
 INCLUDEDIR = @top_builddir@/include
@@ -385,7 +385,7 @@ endif
 	cp $< $@
 	$(PROTOC) --python_out=@top_builddir@/$(PROTOBUF)/python -I@top_srcdir@/$(PROTOBUF)/src @top_srcdir@/$(PROTOBUF)/src/google/protobuf/descriptor.proto
 	$(PROTOC) --python_out=$(LIBDIR)/python -I@top_srcdir@/include/mesos @top_srcdir@/include/mesos/mesos.proto
-	pushd @top_builddir@/$(PROTOBUF)/python ; PYTHONPATH=@top_builddir@/$(SETUPTOOLS) $(PYTHON) setup.py bdist_egg ; popd
+	cd @top_builddir@/$(PROTOBUF)/python && PYTHONPATH=@abs_top_builddir@/$(SETUPTOOLS) $(PYTHON) setup.py bdist_egg
 endif
 
 $(WEBUI_FILES): $(BINDIR)/%: $(SRCDIR)/% | $(WEBUI_DIRECTORIES)
