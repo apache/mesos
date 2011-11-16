@@ -27,7 +27,7 @@ DEPLOYDIR = @top_builddir@/deploy
 OS_NAME = @OS_NAME@
 PYTHON = @PYTHON@
 
-MESOS_HOME = @prefix@/mesos
+MESOS_INSTALL_HOME = $(DESTDIR)@prefix@/mesos
 
 WITH_INCLUDED_ZOOKEEPER = @WITH_INCLUDED_ZOOKEEPER@
 
@@ -66,42 +66,28 @@ endif
 
 # TODO(benh): Install generated C++ header files.
 install:
-	if test ! -d $(MESOS_HOME)/bin; \
-		then mkdir -p $(MESOS_HOME)/bin; \
-	fi
-	if test ! -d $(MESOS_HOME)/lib; \
-		then mkdir -p $(MESOS_HOME)/lib; \
-	fi
-	if test ! -d $(MESOS_HOME)/lib/java; \
-		then mkdir -p $(MESOS_HOME)/lib/java; \
-	fi
-	if test ! -d $(MESOS_HOME)/conf; \
-		then mkdir -p $(MESOS_HOME)/conf; \
-	fi
-	if test ! -d $(MESOS_HOME)/deploy; \
-		then mkdir -p $(MESOS_HOME)/deploy; \
-	fi
-	install -m 755 $(BINDIR)/mesos-master $(MESOS_HOME)/bin
-	install -m 755 $(BINDIR)/mesos-slave $(MESOS_HOME)/bin
-	install -m 755 $(BINDIR)/mesos-local $(MESOS_HOME)/bin
-	install -m 755 $(BINDIR)/mesos-launcher $(MESOS_HOME)/bin
-	install -m 755 $(BINDIR)/mesos-getconf $(MESOS_HOME)/bin
-	install -m 755 $(BINDIR)/killtree.sh $(MESOS_HOME)/bin
-	rsync -avz $(BINDIR)/webui $(MESOS_HOME)/bin
-	rsync -avz $(DEPLOYDIR) $(MESOS_HOME)
-	install -m 755 $(LIBDIR)/libmesos_exec.a $(MESOS_HOME)/lib
-	install -m 755 $(LIBDIR)/libmesos_sched.a $(MESOS_HOME)/lib
+	install -d $(MESOS_INSTALL_HOME)/bin $(MESOS_INSTALL_HOME)/lib/java
+	install -d $(MESOS_INSTALL_HOME)/conf $(MESOS_INSTALL_HOME)/deploy
+	install -m 755 $(BINDIR)/mesos-master $(MESOS_INSTALL_HOME)/bin
+	install -m 755 $(BINDIR)/mesos-slave $(MESOS_INSTALL_HOME)/bin
+	install -m 755 $(BINDIR)/mesos-local $(MESOS_INSTALL_HOME)/bin
+	install -m 755 $(BINDIR)/mesos-launcher $(MESOS_INSTALL_HOME)/bin
+	install -m 755 $(BINDIR)/mesos-getconf $(MESOS_INSTALL_HOME)/bin
+	install -m 755 $(BINDIR)/killtree.sh $(MESOS_INSTALL_HOME)/bin
+	cd $(BINDIR)/webui && find . | cpio -pdmu $(MESOS_INSTALL_HOME)/bin/webui
+	install -m 755 $(LIBDIR)/libmesos_exec.a $(MESOS_INSTALL_HOME)/lib
+	install -m 755 $(LIBDIR)/libmesos_sched.a $(MESOS_INSTALL_HOME)/lib
 ifeq ($(OS_NAME),darwin)
-	install -m 755 $(LIBDIR)/libmesos.dylib $(MESOS_HOME)/lib
-	install -m 755 $(LIBDIR)/java/libmesos.dylib $(MESOS_HOME)/lib/java
+	install -m 755 $(LIBDIR)/libmesos.dylib $(MESOS_INSTALL_HOME)/lib
+	install -m 755 $(LIBDIR)/java/libmesos.dylib $(MESOS_INSTALL_HOME)/lib/java
 else
-	install -m 755 $(LIBDIR)/libmesos.so $(MESOS_HOME)/lib
-	install -m 755 $(LIBDIR)/java/libmesos.so $(MESOS_HOME)/lib/java
+	install -m 755 $(LIBDIR)/libmesos.so $(MESOS_INSTALL_HOME)/lib
+	install -m 755 $(LIBDIR)/java/libmesos.so $(MESOS_INSTALL_HOME)/lib/java
 endif
-	install -m 755 $(LIBDIR)/java/mesos.jar $(MESOS_HOME)/lib/java
-	mkdir -p $(MESOS_HOME)/lib/python
-	PYTHONPATH=$(SETUPTOOLS):$(MESOS_HOME)/lib/python $(PYTHON) -m easy_install --install-dir $(MESOS_HOME)/lib/python $(BUILDSRC)/python/dist/*.egg
-	PYTHONPATH=$(SETUPTOOLS):$(MESOS_HOME)/lib/python $(PYTHON) -m easy_install --install-dir $(MESOS_HOME)/lib/python @top_builddir@/$(PROTOBUF)/python/dist/*.egg
+	install -m 755 $(LIBDIR)/java/mesos.jar $(MESOS_INSTALL_HOME)/lib/java
+	install -d $(MESOS_INSTALL_HOME)/lib/python
+	PYTHONPATH=$(SETUPTOOLS):$(MESOS_INSTALL_HOME)/lib/python $(PYTHON) -m easy_install --install-dir $(MESOS_INSTALL_HOME)/lib/python -a $(BUILDSRC)/python/dist/*.egg
+	PYTHONPATH=$(SETUPTOOLS):$(MESOS_INSTALL_HOME)/lib/python $(PYTHON) -m easy_install --install-dir $(MESOS_INSTALL_HOME)/lib/python -a @top_builddir@/$(PROTOBUF)/python/dist/*.egg
 
 uninstall:
 	$(error unimplemented)
