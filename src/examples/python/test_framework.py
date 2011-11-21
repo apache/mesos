@@ -71,7 +71,7 @@ class MyScheduler(mesos.Scheduler):
       self.tasksFinished += 1
       if self.tasksFinished == TOTAL_TASKS:
         print "All tasks done, exiting"
-        driver.stop()
+        driver.stop(False)
 
 if __name__ == "__main__":
   print "Connecting to %s" % sys.argv[1]
