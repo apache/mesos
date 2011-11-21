@@ -82,5 +82,5 @@ if __name__ == "__main__":
   execInfo.executor_id.value = "default"
   execInfo.uri = execPath
 
-  mesos.MesosSchedulerDriver(MyScheduler(), "Python test framework",
-                             execInfo, sys.argv[1]).run()
+  sys.exit(mesos.MesosSchedulerDriver(MyScheduler(), "Python test framework",
+                                      execInfo, sys.argv[1]).run())
