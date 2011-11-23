@@ -146,7 +146,7 @@
   </tr>
 </table>
 
-<h2>Frameworks</h2>
+<h2>Active Frameworks</h2>
 
 % # TODO: Sort these by framework ID.
 % if len(state['frameworks']) > 0:
@@ -181,7 +181,7 @@
     <td class="lists">{{framework['resources']['cpus']}}</td>
     <td class="lists">{{format_mem(framework['resources']['mem'])}}</td>
     <td class="lists">{{'%.2f' % max_share}}</td>
-    <td class="lists">{{format_time(framework['connect_time'])}}</td>
+    <td class="lists">{{format_time(framework['registered_time'])}}</td>
   </tr>
   % end
 </table>
@@ -209,7 +209,7 @@
     </td>
     <td class="lists">{{slave['resources']['cpus']}}</td>
     <td class="lists">{{format_mem(slave['resources']['mem'])}}</td>
-    <td class="lists">{{format_time(slave['connect_time'])}}</td>
+    <td class="lists">{{format_time(slave['registered_time'])}}</td>
   </tr>
   % end
 </table>
@@ -245,5 +245,30 @@
 <p>No offers are active.</p>
 % end
 
+<h2>Framework History</h2>
+% if len(state['completed_frameworks']) > 0:
+<table class="lists">
+  <tr>
+    <th class="lists">ID</th>
+    <th class="lists">User</th>
+    <th class="lists">Name</th>
+    <th class="lists">Connected</th>
+    <th class="lists">Disconnected</th>
+  </tr>
+  % for framework in state['completed_frameworks']:
+  <tr>
+    <td class="lists">{{framework['id']}}</td>
+    <td class="lists">{{framework['user']}}</td>
+    <td class="lists">
+      <a href="/framework/{{framework['id']}}">{{framework['name']}}</a>
+    </td>
+    <td class="lists">{{format_time(framework['registered_time'])}}</td>
+    <td class="lists">{{format_time(framework['unregistered_time'])}}</td>
+  </tr>
+  % end
+</table>
+% else:
+<p>No frameworks have completed.</p>
+% end
 </body>
 </html>

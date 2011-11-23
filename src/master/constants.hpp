@@ -35,6 +35,14 @@ const int MAX_SLAVE_TIMEOUTS = 5;
 // Time to wait for a framework to failover (TODO(benh): Make configurable)).
 const double FRAMEWORK_FAILOVER_TIMEOUT = 60 * 60 * 24;
 
+// Maximum number of completed frameworks to store in the cache.
+// TODO(thomasm): make configurable
+const int MAX_COMPLETED_FRAMEWORKS = 100;
+
+// Maximum number of completed tasks per framework to store in the cache.
+// TODO(thomasm): make configurable
+const int MAX_COMPLETED_TASKS_PER_FRAMEWORK = 500;
+
 } // namespace mesos {
 } // namespace internal {
 } // namespace master {

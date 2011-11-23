@@ -77,7 +77,10 @@ JSON::Object model(const Framework& framework)
   object.values["name"] = framework.info.name();
   object.values["user"] = framework.info.user();
   object.values["executor_uri"] = framework.info.executor().uri();
-  object.values["connect_time"] = framework.registeredTime;
+  object.values["registered_time"] = framework.registeredTime;
+  object.values["unregistered_time"] = framework.unregisteredTime;
+  object.values["reregistered_time"] = framework.reregisteredTime;
+  object.values["active"] = framework.active;
   object.values["resources"] = model(framework.resources);
 
   // Model all of the tasks associated with a framework.
@@ -88,6 +91,15 @@ JSON::Object model(const Framework& framework)
     }
 
     object.values["tasks"] = array;
+  }
+
+  {
+    JSON::Array array;
+    foreach (const Task& task, framework.completedTasks) {
+      array.values.push_back(model(task));
+    }
+
+    object.values["completed_tasks"] = array;
   }
 
   // Model all of the offers associated with a framework.
@@ -111,7 +123,7 @@ JSON::Object model(const Slave& slave)
   object.values["id"] = slave.id.value();
   object.values["hostname"] = slave.info.hostname();
   object.values["web_ui_url"] = slave.info.public_hostname();
-  object.values["connect_time"] = slave.registeredTime;
+  object.values["registered_time"] = slave.registeredTime;
   object.values["resources"] = model(slave.info.resources());
   return object;
 }
@@ -239,6 +251,17 @@ Promise<HttpResponse> state(
     }
 
     object.values["frameworks"] = array;
+  }
+
+  // Model all of the completed frameworks.
+  {
+    JSON::Array array;
+
+    foreach (const Framework& framework, master.completedFrameworks) {
+      array.values.push_back(model(framework));
+    }
+
+    object.values["completed_frameworks"] = array;
   }
 
   std::ostringstream out;

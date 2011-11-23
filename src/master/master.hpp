@@ -214,6 +214,8 @@ private:
   hashmap<SlaveID, Slave*> slaves;
   hashmap<OfferID, Offer*> offers;
 
+  std::list<Framework> completedFrameworks;
+
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
   int64_t nextSlaveId;     // Used to give each slave a unique ID.
@@ -391,6 +393,13 @@ struct Framework
   void removeTask(Task* task)
   {
     CHECK(tasks.contains(task->task_id()));
+
+    completedTasks.push_back(*task);
+
+    if (completedTasks.size() > MAX_COMPLETED_TASKS_PER_FRAMEWORK) {
+      completedTasks.pop_front();
+    }
+
     tasks.erase(task->task_id());
     resources -= task->resources();
   }
@@ -463,8 +472,12 @@ struct Framework
   bool active; // Turns false when framework is being removed.
   double registeredTime;
   double reregisteredTime;
+  double unregisteredTime;
 
   hashmap<TaskID, Task*> tasks;
+
+  std::list<Task> completedTasks;
+
   hashset<Offer*> offers; // Active offers for framework.
 
   Resources resources; // Total resources (tasks + offers + executors).

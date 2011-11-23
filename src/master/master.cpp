@@ -1566,6 +1566,14 @@ void Master::removeFramework(Framework* framework)
 
   // TODO(benh): unlink(framework->pid);
 
+  framework->unregisteredTime = elapsedTime();
+
+  completedFrameworks.push_back(*framework);
+
+  if (completedFrameworks.size() > MAX_COMPLETED_FRAMEWORKS) {
+    completedFrameworks.pop_front();
+  }
+
   // Delete it.
   frameworks.erase(framework->id);
   allocator->frameworkRemoved(framework);
