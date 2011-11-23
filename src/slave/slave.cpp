@@ -24,6 +24,7 @@
 #include <process/timer.hpp>
 
 #include "common/build.hpp"
+#include "common/option.hpp"
 #include "common/type_utils.hpp"
 #include "common/utils.hpp"
 
@@ -1386,14 +1387,17 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
   LOG(INFO) << "Generating a unique work directory for executor '"
             << executorId << "' of framework " << frameworkId;
 
-  string workDir = ".";
-  if (conf.contains("work_dir")) {
-    workDir = conf.get("work_dir", workDir);
-  } else if (conf.contains("home")) {
-    workDir = conf.get("home", workDir);
+  string workDir = "work";  // No relevant conf options set.
+  Option<string> option = conf.get("work_dir");
+  if (!option.isSome()) {
+    option = conf.get("home");
+    if (option.isSome()) {
+      workDir = option.get() + "/work";
+    }
+  } else {
+    workDir = option.get();
   }
 
-  workDir = workDir + "/work";
 
   std::ostringstream out(std::ios_base::app | std::ios_base::out);
   out << workDir << "/slaves/" << id

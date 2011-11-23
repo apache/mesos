@@ -27,6 +27,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include "common/foreach.hpp"
+#include "common/option.hpp"
 #include "common/strings.hpp"
 
 
@@ -94,6 +95,14 @@ public:
   std::string& operator[] (const std::string& key)
   {
     return params[key];
+  }
+
+  Option<std::string> get(const std::string& key) const
+  {
+    if (!contains(key)) {
+      return Option<std::string>::none();
+    }
+    return get(key, "");
   }
 
   const std::string& get(const std::string& key,
