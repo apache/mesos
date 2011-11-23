@@ -101,7 +101,7 @@ TEST(MasterTest, TaskRunning)
   vector<Offer> offers;
   TaskStatus status;
 
-  trigger resourceOffersCall, statusUpdateCall;
+  trigger resourceOffersCall, statusUpdateCall, resourcesChangedCall;
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
@@ -129,11 +129,16 @@ TEST(MasterTest, TaskRunning)
   vector<TaskDescription> tasks;
   tasks.push_back(task);
 
+  EXPECT_CALL(isolationModule, resourcesChanged(_, _,
+        Resources(offers[0].resources())))
+    .WillOnce(Trigger(&resourcesChangedCall));
+
   driver.launchTasks(offers[0].id(), tasks);
 
   WAIT_UNTIL(statusUpdateCall);
-
   EXPECT_EQ(TASK_RUNNING, status.state());
+
+  WAIT_UNTIL(resourcesChangedCall);
 
   driver.stop();
   driver.join();

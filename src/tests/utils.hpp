@@ -244,7 +244,11 @@ class TestingIsolationModule : public slave::IsolationModule
 {
 public:
   TestingIsolationModule(const std::map<ExecutorID, Executor*>& _executors)
-    : executors(_executors) {}
+    : executors(_executors)
+  {
+    EXPECT_CALL(*this, resourcesChanged(testing::_, testing::_, testing::_))
+      .Times(testing::AnyNumber());
+  }
 
   virtual ~TestingIsolationModule() {}
 
@@ -300,10 +304,10 @@ public:
     }
   }
 
-  virtual void resourcesChanged(const FrameworkID& frameworkId,
-                                const ExecutorID& executorId,
-                                const Resources& resources)
-  {}
+  // Mocked so tests can check that the resources reflect all started tasks.
+  MOCK_METHOD3(resourcesChanged, void(const FrameworkID&,
+                                      const ExecutorID&,
+                                      const Resources&));
 
   std::map<ExecutorID, std::string> directories;
 

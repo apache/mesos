@@ -441,17 +441,19 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
 
       stats.tasks[TASK_STARTING]++;
 
+      // Update the resources.
+      // TODO(Charles Reiss): The isolation module is not guaranteed to update
+      // the resources before the executor acts on its RunTaskMessage.
+      dispatch(isolationModule,
+               &IsolationModule::resourcesChanged,
+               framework->id, executor->id, executor->resources);
+
       RunTaskMessage message;
       message.mutable_framework()->MergeFrom(framework->info);
       message.mutable_framework_id()->MergeFrom(framework->id);
       message.set_pid(framework->pid);
       message.mutable_task()->MergeFrom(task);
       send(executor->pid, message);
-
-      // Now update the resources.
-      dispatch(isolationModule,
-               &IsolationModule::resourcesChanged,
-               framework->id, executor->id, executor->resources);
     }
   } else {
     // Launch an executor for this task.
@@ -747,7 +749,17 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
     // Save the pid for the executor.
     executor->pid = from();
 
-    // Now that the executor is up, set its resource limits.
+    // First account for the tasks we're about to start.
+    foreachvalue (const TaskDescription& task, executor->queuedTasks) {
+      // Add the task to the executor.
+      executor->addTask(task);
+    }
+
+    // Now that the executor is up, set its resource limits including the
+    // currently queued tasks.
+    // TODO(Charles Reiss): We don't actually have a guarantee that this will
+    // be delivered or (where necessary) acted on before the executor gets its
+    // RunTaskMessages.
     dispatch(isolationModule,
              &IsolationModule::resourcesChanged,
              framework->id, executor->id, executor->resources);
@@ -765,11 +777,7 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
     LOG(INFO) << "Flushing queued tasks for framework " << framework->id;
 
     foreachvalue (const TaskDescription& task, executor->queuedTasks) {
-      // Add the task to the executor.
-      executor->addTask(task);
-
       stats.tasks[TASK_STARTING]++;
-
       RunTaskMessage message;
       message.mutable_framework_id()->MergeFrom(framework->id);
       message.mutable_framework()->MergeFrom(framework->info);
