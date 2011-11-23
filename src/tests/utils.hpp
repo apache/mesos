@@ -182,8 +182,8 @@ MATCHER_P3(MsgMatcher, name, from, to, "")
  * using the message matcher (see above) as well as the MockFilter
  * (see above).
  */
-#define EXPECT_MSG(filter, name, from, to)                \
-  EXPECT_CALL(filter, filter(MsgMatcher(name, from, to)))
+#define EXPECT_MSG(mockFilter, name, from, to)                \
+  EXPECT_CALL(mockFilter, filter(MsgMatcher(name, from, to)))
 
 
 /**
@@ -228,7 +228,7 @@ ACTION_P(SendStatusUpdate, state)
     int sleeps = 0;                                                     \
     do {                                                                \
       __sync_synchronize();                                             \
-      if (trigger.value)                                                \
+      if ((trigger).value)                                                \
         break;                                                          \
       usleep(10);                                                       \
       if (sleeps++ >= 200000) {                                         \
