@@ -271,14 +271,15 @@ void Slave::operator () ()
   // this is our hostname, but on EC2 we look for the MESOS_PUBLIC_DNS
   // environment variable. This allows the master to display our
   // public name in its web UI.
-  string public_hostname = hostname;
+  string webui_hostname = hostname;
   if (getenv("MESOS_PUBLIC_DNS") != NULL) {
-    public_hostname = getenv("MESOS_PUBLIC_DNS");
+    webui_hostname = getenv("MESOS_PUBLIC_DNS");
   }
 
   // Initialize slave info.
+  info.set_webui_hostname(webui_hostname);
+  info.set_webui_port(conf.get<int>("webui_port", 8081));
   info.set_hostname(hostname);
-  info.set_public_hostname(public_hostname);
   info.mutable_resources()->MergeFrom(resources);
 
   // Spawn and initialize the isolation module.

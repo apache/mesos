@@ -122,7 +122,8 @@ JSON::Object model(const Slave& slave)
   JSON::Object object;
   object.values["id"] = slave.id.value();
   object.values["hostname"] = slave.info.hostname();
-  object.values["web_ui_url"] = slave.info.public_hostname();
+  object.values["webui_hostname"] = slave.info.webui_hostname();
+  object.values["webui_port"] = slave.info.webui_port();
   object.values["registered_time"] = slave.registeredTime;
   object.values["resources"] = model(slave.info.resources());
   return object;

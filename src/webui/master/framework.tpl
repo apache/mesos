@@ -70,7 +70,7 @@
     <td class="lists">{{task['state']}}</td>
     % if task['slave_id'] in slaves:
     %   slave = slaves[task['slave_id']]
-    <td class="lists"><a href="http://{{slave['web_ui_url']}}:8081/">{{slave['hostname']}}</a></td>
+    <td class="lists"><a href="http://{{slave['webui_hostname']}}:{{slave['webui_port']}}/">{{slave['hostname']}}</a></td>
     % else:
     <td class="lists">Slave {{task['slave_id']}} (disconnected)</td>
     % end
@@ -99,7 +99,7 @@
     <td class="lists">{{task['state']}}</td>
     % if task['slave_id'] in slaves:
     %   slave = slaves[task['slave_id']]
-    <td class="lists"><a href="http://{{slave['web_ui_url']}}:8081/">{{slave['hostname']}}</a></td>
+    <td class="lists"><a href="http://{{slave['webui_hostname']}}:{{slave['webui_port']}}/">{{slave['hostname']}}</a></td>
     % else:
     <td class="lists">Slave {{task['slave_id']}} (disconnected)</td>
     % end

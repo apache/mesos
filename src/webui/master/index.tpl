@@ -205,7 +205,7 @@
   <tr>
     <td class="lists">{{slave['id']}}</td>
     <td class="lists">
-      <a href="http://{{slave['web_ui_url']}}:8081/">{{slave['hostname']}}</a>
+      <a href="http://{{slave['webui_hostname']}}:{{slave['webui_port']}}/">{{slave['hostname']}}</a>
     </td>
     <td class="lists">{{slave['resources']['cpus']}}</td>
     <td class="lists">{{format_mem(slave['resources']['mem'])}}</td>

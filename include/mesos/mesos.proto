@@ -155,10 +155,10 @@ message FrameworkInfo {
 
 message SlaveInfo {
   required string hostname = 1;
-  required string public_hostname = 2;
-  // TODO(benh): Send bound ports (direct and webui).
+  // TODO(benh,andyk): Send bound ports, not just hostname.
+  required string webui_hostname = 2;
+  optional int32 webui_port = 4 [default = 8081];
   repeated Resource resources = 3;
-//   repeated Attribute attribute = ;
 }
 
 
