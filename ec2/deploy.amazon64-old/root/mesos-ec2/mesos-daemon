@@ -19,14 +19,19 @@ shift
 
 EXTRA_OPTS=""
 if [ "$PROGRAM" == "mesos-slave" ]; then
-  # Compute CPU and memory resources, if not specified.
-  if [[ "$*" != *--resources* ]]; then
+  # Compute CPU resources (if not specified).
+  if [[ "$*" != *--cpus* ]]; then
     CPUS=`grep processor /proc/cpuinfo | wc -l`
+    EXTRA_OPTS="$EXTRA_OPTS --cpus=$CPUS"
+  fi
+
+  # Compute memory resources (if not specified).
+  if [[ "$*" != *--mem* ]]; then
     MEM_KB=`cat /proc/meminfo | grep MemTotal | awk '{print $2}'`
     MEM=$[(MEM_KB - 1024 * 1024) / 1024]
-    EXTRA_OPTS="--resources=cpus:$CPUS;mem:$MEM"
+    EXTRA_OPTS="$EXTRA_OPTS --mem=$MEM"
   fi
 fi
 
 cd $MESOS_HOME/bin
-nohup ./$PROGRAM --log_dir=/mnt/mesos-logs --work_dir=/mnt/mesos-work "$EXTRA_OPTS" "$@" </dev/null >/mnt/mesos-logs/$PROGRAM.out 2>&1 &
+nohup ./$PROGRAM --log_dir=/mnt/mesos-logs --work_dir=/mnt/mesos-work $EXTRA_OPTS $@ </dev/null >/mnt/mesos-logs/$PROGRAM.out 2>&1 &

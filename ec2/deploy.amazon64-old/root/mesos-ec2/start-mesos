@@ -29,14 +29,14 @@ if [[ $NUM_ZOOS != 0 ]]; then
   wait
 else
   echo "Starting master on $ACTIVE_MASTER"
-  ssh $SSH_OPTS $ACTIVE_MASTER "/root/mesos-ec2/mesos-daemon mesos-master --failover_timeout=1 -p 5050 $@ </dev/null >/dev/null"
+  ssh $SSH_OPTS $ACTIVE_MASTER "/root/mesos-ec2/mesos-daemon mesos-master -p 5050 $@ </dev/null >/dev/null"
 fi
 
 sleep 5
 
 for slave in $SLAVES; do
   echo "Starting slave on $slave"
-  ssh $SSH_OPTS $slave "/root/mesos-ec2/mesos-daemon mesos-slave -m ${cluster_url} </dev/null >/dev/null" &
+  ssh $SSH_OPTS $slave "/root/mesos-ec2/mesos-daemon mesos-slave -u ${cluster_url} </dev/null >/dev/null" &
   sleep 0.3
 done
 wait

@@ -39,7 +39,7 @@ def parse_args():
       help="Master instance type (leave empty for same as instance-type)")
   parser.add_option("-z", "--zone", default="us-east-1b",
       help="Availability zone to launch instances in")
-  parser.add_option("-a", "--ami", default="ami-4521e52c",
+  parser.add_option("-a", "--ami", default="ami-4517dc2c",
       help="Amazon Machine Image ID to use")
   parser.add_option("-o", "--os", default="amazon64",
       help="OS on the Amazon Machine Image (default: amazon64)")
@@ -328,12 +328,27 @@ def wait_for_cluster(conn, wait_secs, master_nodes, slave_nodes, zoo_nodes):
 
 # Get number of local disks available for a given EC2 instance type.
 def get_num_disks(instance_type):
-  if instance_type in ["m1.xlarge", "c1.xlarge", "m2.xlarge", "cc1.4xlarge"]:
-    return 4
-  elif instance_type in ["m1.small", "c1.medium"]:
-    return 1
+  # From http://docs.amazonwebservices.com/AWSEC2/latest/UserGuide/index.html?InstanceStorage.html
+  disks_by_instance = {
+    "m1.small":    1,
+    "m1.large":    2,
+    "m1.xlarge":   4,
+    "t1.micro":    1,
+    "c1.medium":   1,
+    "c1.xlarge":   4,
+    "m2.xlarge":   1,
+    "m2.2xlarge":  1,
+    "m2.4xlarge":  2,
+    "cc1.4xlarge": 2,
+    "cc2.8xlarge": 4,
+    "cg1.4xlarge": 2
+  }
+  if instance_type in disks_by_instance:
+    return disks_by_instance[instance_type]
   else:
-    return 2
+    print >> stderr, ("WARNING: Don't know number of disks on instance type %s; assuming 1"
+                      % instance_type)
+    return 1
 
 
 # Deploy the configuration file templates in a given local directory to
@@ -359,7 +374,7 @@ def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, zoo_nodes):
   else:
     zoo_list = "NONE"
     # TODO: temporary code to support older versions of Mesos with 1@ URLs
-    if opts.os == "amazon64-new":
+    if opts.os == "amazon64":
       cluster_url = "master@%s:5050" % active_master
     else:
       cluster_url = "1@%s:5050" % active_master
@@ -378,21 +393,22 @@ def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, zoo_nodes):
   # deployed after we substitue template parameters in them
   tmp_dir = tempfile.mkdtemp()
   for path, dirs, files in os.walk(root_dir):
-    dest_dir = os.path.join('/', path[len(root_dir):])
-    local_dir = tmp_dir + dest_dir
-    if not os.path.exists(local_dir):
-      os.makedirs(local_dir)
-    for filename in files:
-      if filename[0] not in '#.~' and filename[-1] != '~':
-        dest_file = os.path.join(dest_dir, filename)
-        local_file = tmp_dir + dest_file
-        with open(os.path.join(path, filename)) as src:
-          with open(local_file, "w") as dest:
-            text = src.read()
-            for key in template_vars:
-              text = text.replace("{{" + key + "}}", template_vars[key])
-            dest.write(text)
-            dest.close()
+    if path.find(".svn") == -1:
+      dest_dir = os.path.join('/', path[len(root_dir):])
+      local_dir = tmp_dir + dest_dir
+      if not os.path.exists(local_dir):
+        os.makedirs(local_dir)
+      for filename in files:
+        if filename[0] not in '#.~' and filename[-1] != '~':
+          dest_file = os.path.join(dest_dir, filename)
+          local_file = tmp_dir + dest_file
+          with open(os.path.join(path, filename)) as src:
+            with open(local_file, "w") as dest:
+              text = src.read()
+              for key in template_vars:
+                text = text.replace("{{" + key + "}}", template_vars[key])
+              dest.write(text)
+              dest.close()
   # rsync the whole directory over to the master machine
   command = (("rsync -rv -e 'ssh -o StrictHostKeyChecking=no -i %s' " + 
       "'%s/' 'root@%s:/'") % (opts.identity_file, tmp_dir, active_master))

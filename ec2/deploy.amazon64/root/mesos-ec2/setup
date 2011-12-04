@@ -49,7 +49,7 @@ PERSISTENT_HDFS=/root/persistent-hdfs
 
 #TODO(*): update config scripts to have conditionals for handling different
 #         platforms
-JAVA_HOME=/usr/lib/jvm/java-1.6.0
+JAVA_HOME=/usr/lib/jvm/java-1.6.0-openjdk.x86_64
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
 
