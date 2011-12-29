@@ -229,7 +229,7 @@ void Master::registerOptions(Configurator* configurator)
   configurator->addOption<int>(
       "failover_timeout",
       "Framework failover timeout in seconds",
-      60 * 60 * 24);
+      DEFAULT_FAILOVER_TIMEOUT);
 }
 
 
@@ -311,7 +311,7 @@ void Master::initialize()
   nextSlaveId = 0;
   nextOfferId = 0;
 
-  failoverTimeout = conf.get<int>("failover_timeout", 60 * 60 * 24);
+  failoverTimeout = conf.get<int>("failover_timeout", DEFAULT_FAILOVER_TIMEOUT);
 
   // Start all the statistics at 0.
   CHECK(TASK_STARTING == TaskState_MIN);

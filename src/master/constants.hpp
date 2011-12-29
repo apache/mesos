@@ -32,8 +32,8 @@ const double SLAVE_PONG_TIMEOUT = 15.0;
 // Maximum number of timeouts until slave is considered failed.
 const int MAX_SLAVE_TIMEOUTS = 5;
 
-// Time to wait for a framework to failover (TODO(benh): Make configurable)).
-const double FRAMEWORK_FAILOVER_TIMEOUT = 60 * 60 * 24;
+// Default time to wait for a framework scheduler to failover.
+const int DEFAULT_FAILOVER_TIMEOUT = 1;
 
 // Maximum number of completed frameworks to store in the cache.
 // TODO(thomasm): make configurable
