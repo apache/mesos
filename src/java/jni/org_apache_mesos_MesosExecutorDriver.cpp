@@ -350,7 +350,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_start
  * Signature: (Z)Lorg/apache/mesos/Protos/Status;
  */
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_stop
-  (JNIEnv* env, jobject thiz, jboolean failover)
+  (JNIEnv* env, jobject thiz)
 {
   jclass clazz = env->GetObjectClass(thiz);
 
@@ -358,7 +358,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_stop
   MesosExecutorDriver* driver =
     (MesosExecutorDriver*) env->GetLongField(thiz, __driver);
 
-  Status status = driver->stop(failover);
+  Status status = driver->stop();
 
   return convert<Status>(env, status);
 }

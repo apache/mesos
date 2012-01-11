@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #ifndef __STRINGS_HPP__
 #define __STRINGS_HPP__
 
@@ -132,6 +150,27 @@ inline std::map<std::string, std::vector<std::string> > pairs(
 
   return result;
 }
+
+
+inline bool checkBracketsMatching(
+    const std::string& s,
+    const char openBracket,
+    const char closeBracket)
+{
+  int count = 0;
+  for (int i = 0; i < s.length(); i++) {
+    if (s[i] == openBracket) {
+      count++;
+    } else if (s[i] == closeBracket) {
+      count--;
+    }
+    if (count < 0) {
+      return false;
+    }
+  }
+  return count == 0;
+}
+
 
 } // namespaces strings {
 

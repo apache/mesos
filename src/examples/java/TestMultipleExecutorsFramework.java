@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -70,15 +70,15 @@ public class TestMultipleExecutorsFramework {
               .setSlaveId(offer.getSlaveId())
               .addResources(Resource.newBuilder()
                             .setName("cpus")
-                            .setType(Resource.Type.SCALAR)
-                            .setScalar(Resource.Scalar.newBuilder()
+                            .setType(Value.Type.SCALAR)
+                            .setScalar(Value.Scalar.newBuilder()
                                        .setValue(1)
                                        .build())
                             .build())
               .addResources(Resource.newBuilder()
                             .setName("mem")
-                            .setType(Resource.Type.SCALAR)
-                            .setScalar(Resource.Scalar.newBuilder()
+                            .setType(Value.Type.SCALAR)
+                            .setScalar(Value.Scalar.newBuilder()
                                        .setValue(128)
                                        .build())
                             .build())
@@ -109,15 +109,15 @@ public class TestMultipleExecutorsFramework {
               .setSlaveId(offer.getSlaveId())
               .addResources(Resource.newBuilder()
                             .setName("cpus")
-                            .setType(Resource.Type.SCALAR)
-                            .setScalar(Resource.Scalar.newBuilder()
+                            .setType(Value.Type.SCALAR)
+                            .setScalar(Value.Scalar.newBuilder()
                                        .setValue(1)
                                        .build())
                             .build())
               .addResources(Resource.newBuilder()
                             .setName("mem")
-                            .setType(Resource.Type.SCALAR)
-                            .setScalar(Resource.Scalar.newBuilder()
+                            .setType(Value.Type.SCALAR)
+                            .setScalar(Value.Scalar.newBuilder()
                                        .setValue(128)
                                        .build())
                             .build())

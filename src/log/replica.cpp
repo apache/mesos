@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <leveldb/comparator.h>
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
@@ -7,6 +25,7 @@
 #include <process/dispatch.hpp>
 #include <process/protobuf.hpp>
 
+#include "common/timer.hpp"
 #include "common/utils.hpp"
 
 #include "log/replica.hpp"
@@ -108,48 +127,55 @@ private:
     }
   };
 
-  static leveldb::Slice slice(uint64_t position)
+  // Returns a string representing the specified position. Note that
+  // we adjust the actual position by incrementing it by 1 because we
+  // reserve 0 for storing the promise record (Record::Promise).
+  static string encode(uint64_t position, bool adjust = true)
   {
-    // TODO(benh): Use varint comparator.
-    LOG(FATAL) << "Unimplemented";
+    // Adjusted stringified represenation is plus 1 of actual position.
+    position = adjust ? position + 1 : position;
+
+    // TODO(benh): Use varint encoding for VarInt64Comparator!
     // string s;
     // google::protobuf::io::StringOutputStream _stream(&s);
     // google::protobuf::io::CodedOutputStream stream(&_stream);
+    // position = adjust ? position + 1 : position;
     // stream.WriteVarint64(position);
     // return s;
-  }
 
-  static string stringify(uint64_t position)
-  {
-    // TODO(benh): Eliminate this once we can use custom comparators!
     Try<string> s = strings::format("%.*d", 10, position);
     CHECK(s.isSome());
     return s.get();
   }
 
-  static uint64_t position(const leveldb::Slice& s)
+  // Returns the position as represented in the specified slice
+  // (performing a decrement as necessary to determine the actual
+  // position represented).
+  static uint64_t decode(const leveldb::Slice& s)
   {
-    // TODO(benh): Use varint comparator.
+    // TODO(benh): Use varint decoding for VarInt64Comparator!
     // uint64_t position;
     // google::protobuf::io::ArrayInputStream _stream(s.data(), s.size());
     // google::protobuf::io::CodedInputStream stream(&_stream);
     // bool success = stream.ReadVarint64(&position);
     // CHECK(success);
-    // return position;
+    // return position - 1; // Actual position is less 1 of stringified.
     Try<uint64_t> position =
       utils::numify<uint64_t>(string(s.data(), s.size()));
     CHECK(position.isSome());
-    return position.get();
+    return position.get() - 1; // Actual position is less 1 of stringified.
   }
 
   // Varint64Comparator comparator; // TODO(benh): Use varint comparator.
 
   leveldb::DB* db;
+
+  uint64_t first; // First position still in leveldb, used during truncation.
 };
 
 
 LevelDBStorage::LevelDBStorage()
-  : db(NULL)
+  : db(NULL), first(0)
 {
   // Nothing to see here.
 }
@@ -173,9 +199,9 @@ Try<State> LevelDBStorage::recover(const string& path)
   // string produces a stable ordering. Checks below.
   // options.comparator = &comparator;
 
-  const string& one = stringify(1);
-  const string& two = stringify(2);
-  const string& ten = stringify(10);
+  const string& one = encode(1);
+  const string& two = encode(2);
+  const string& ten = encode(10);
 
   CHECK(leveldb::BytewiseComparator()->Compare(one, two) < 0);
   CHECK(leveldb::BytewiseComparator()->Compare(two, one) > 0);
@@ -194,6 +220,11 @@ Try<State> LevelDBStorage::recover(const string& path)
   state.coordinator = 0;
   state.begin = 0;
   state.end = 0;
+
+  // TODO(benh): Consider just reading the "promise" record (e.g.,
+  // 'encode(0, false)') and then iterating over the rest of the
+  // records and confirming that they are all indeed of type
+  // Record::Action.
 
   leveldb::Iterator* iterator = db->NewIterator(leveldb::ReadOptions());
 
@@ -243,6 +274,17 @@ Try<State> LevelDBStorage::recover(const string& path)
     iterator->Next();
   }
 
+  // Determine the first position still in leveldb so during a
+  // truncation we can attempt to delete all positions from the first
+  // position up to the truncate position. Note that this is not the
+  // beginning position of the log, but rather the first position that
+  // remains (i.e., hasn't been deleted) in leveldb.
+  iterator->Seek(encode(0));
+
+  if (iterator->Valid()) {
+    first = decode(iterator->key());
+  }
+
   delete iterator;
 
   return state;
@@ -251,6 +293,9 @@ Try<State> LevelDBStorage::recover(const string& path)
 
 Try<void> LevelDBStorage::persist(const Promise& promise)
 {
+  Timer timer;
+  timer.start();
+
   leveldb::WriteOptions options;
   options.sync = true;
 
@@ -264,11 +309,15 @@ Try<void> LevelDBStorage::persist(const Promise& promise)
     return Try<void>::error("Failed to serialize record");
   }
 
-  leveldb::Status status = db->Put(options, stringify(0), value);
+  leveldb::Status status = db->Put(options, encode(0, false), value);
 
   if (!status.ok()) {
     return Try<void>::error(status.ToString());
   }
+
+  LOG(INFO) << "Persisting promise (" << value.size()
+            << " bytes) to leveldb took "
+            << timer.elapsed().millis() << " milliseconds";
 
   return Try<void>::some();
 }
@@ -276,33 +325,8 @@ Try<void> LevelDBStorage::persist(const Promise& promise)
 
 Try<void> LevelDBStorage::persist(const Action& action)
 {
-  leveldb::WriteBatch batch;
-
-  // Delete positions only if a truncate action has been *learned*.
-  // TODO(benh): Consider doing this asynchronously (but will require
-  // synchronization on the underlying DB).
-  if (action.has_learned() && action.learned() &&
-      action.has_type() && action.type() == Action::TRUNCATE) {
-    CHECK(action.has_truncate());
-
-    leveldb::Iterator* iterator = db->NewIterator(leveldb::ReadOptions());
-
-    iterator->Seek(stringify(1)); // The actual "beginning" of the log.
-
-    const string& to = stringify(action.truncate().to() + 1);
-
-    while (iterator->Valid()) {
-      // Only iterate as far as (but excluding) the truncate position.
-      // TODO(benh): Use varint comparator.
-      if (leveldb::BytewiseComparator()->Compare(iterator->key(), to) >= 0) {
-        break;
-      }
-      batch.Delete(iterator->key());
-      iterator->Next();
-    }
-
-    delete iterator;
-  }
+  Timer timer;
+  timer.start();
 
   Record record;
   record.set_type(Record::ACTION);
@@ -314,15 +338,68 @@ Try<void> LevelDBStorage::persist(const Action& action)
     return Try<void>::error("Failed to serialize record");
   }
 
-  batch.Put(stringify(action.position() + 1), value);
-
   leveldb::WriteOptions options;
   options.sync = true;
 
-  leveldb::Status status = db->Write(options, &batch);
+  leveldb::Status status = db->Put(options, encode(action.position()), value);
 
   if (!status.ok()) {
     return Try<void>::error(status.ToString());
+  }
+
+  LOG(INFO) << "Persisting action (" << value.size()
+            << " bytes) to leveldb took "
+            << timer.elapsed().millis() << " milliseconds";
+
+  // Delete positions if a truncate action has been *learned*. Note
+  // that we do this in a best-effort fashion (i.e., we ignore any
+  // failures to the database since we can always try again).
+  if (action.has_type() && action.type() == Action::TRUNCATE &&
+      action.has_learned() && action.learned()) {
+    CHECK(action.has_truncate());
+
+    timer.start(); // Restart the timer.
+
+    // To actually perform the truncation in leveldb we need to remove
+    // all the keys that represent positions no longer in the log. We
+    // do this by attempting to delete all keys that represent the
+    // first position we know is still in leveldb up to (but
+    // excluding) the truncate position. Note that this works because
+    // the semantics of WriteBatch are such that even if the position
+    // doesn't exist (which is possible because this replica has some
+    // holes), we can attempt to delete the key that represents it and
+    // it will just ignore that key. This is *much* cheaper than
+    // actually iterating through the entire database instead (which
+    // was, for posterity, the original implementation). In addition,
+    // caching the "first" position we know is in the database is
+    // cheaper than using an iterator to determine the first position
+    // (which was, for posterity, the second implementation).
+
+    leveldb::WriteBatch batch;
+
+    // Add positions up to (but excluding) the truncate position to
+    // the batch starting at the first position still in leveldb.
+    uint64_t index = 0;
+    while ((first + index) < action.truncate().to()) {
+      batch.Delete(encode(first + index));
+      index++;
+    }
+
+    // If we added any positions, attempt to delete them!
+    if (index > 0) {
+      // We do this write asynchronously (e.g., using default options).
+      leveldb::Status status = db->Write(leveldb::WriteOptions(), &batch);
+
+      if (!status.ok()) {
+        LOG(WARNING) << "Ignoring leveldb batch delete failure: "
+                     << status.ToString();
+      } else {
+        first = action.truncate().to(); // Save the new first position!
+
+        LOG(INFO) << "Deleting ~" << index << " keys from leveldb took "
+                  << timer.elapsed().millis() << " milliseconds";
+      }
+    }
   }
 
   return Try<void>::some();
@@ -331,11 +408,14 @@ Try<void> LevelDBStorage::persist(const Action& action)
 
 Try<Action> LevelDBStorage::read(uint64_t position)
 {
+  Timer timer;
+  timer.start();
+
   string value;
 
   leveldb::ReadOptions options;
 
-  leveldb::Status status = db->Get(options, stringify(position + 1), &value);
+  leveldb::Status status = db->Get(options, encode(position), &value);
 
   if (!status.ok()) {
     return Try<Action>::error(status.ToString());
@@ -352,6 +432,9 @@ Try<Action> LevelDBStorage::read(uint64_t position)
   if (record.type() != Record::ACTION) {
     return Try<Action>::error("Bad record");
   }
+
+  LOG(INFO) << "Reading position from leveldb took "
+            << timer.elapsed().millis() << " milliseconds";
 
   return record.action();
 }
@@ -661,6 +744,8 @@ void ReplicaProcess::promise(const PromiseRequest& request)
 
 void ReplicaProcess::write(const WriteRequest& request)
 {
+  LOG(INFO) << "Replica received write request for position " << request.position();
+
   Result<Action> result = read(request.position());
 
   if (result.isError()) {
@@ -759,6 +844,8 @@ void ReplicaProcess::write(const WriteRequest& request)
 
 void ReplicaProcess::learned(const Action& action)
 {
+  LOG(INFO) << "Replica received learned notice for position " << action.position();
+
   CHECK(action.learned());
 
   if (persist(action)) {
@@ -771,6 +858,8 @@ void ReplicaProcess::learned(const Action& action)
 
 void ReplicaProcess::learn(uint64_t position)
 {
+  LOG(INFO) << "Replica received learn request for position " << position;
+
   Result<Action> result = read(position);
 
   if (result.isError()) {

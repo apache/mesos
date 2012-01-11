@@ -92,6 +92,9 @@ Slave::Slave(const Configuration& _conf,
   resources =
     Resources::parse(conf.get<string>("resources", "cpus:1;mem:1024"));
 
+  attributes =
+    Attributes::parse(conf.get<string>("attributes", ""));
+
   initialize();
 }
 
@@ -277,10 +280,11 @@ void Slave::operator () ()
   }
 
   // Initialize slave info.
+  info.set_hostname(hostname);
   info.set_webui_hostname(webui_hostname);
   info.set_webui_port(conf.get<int>("webui_port", 8081));
-  info.set_hostname(hostname);
   info.mutable_resources()->MergeFrom(resources);
+  info.mutable_attributes()->MergeFrom(attributes);
 
   // Spawn and initialize the isolation module.
   // TODO(benh): Seems like the isolation module should really be
@@ -780,6 +784,7 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
 
     foreachvalue (const TaskDescription& task, executor->queuedTasks) {
       stats.tasks[TASK_STARTING]++;
+
       RunTaskMessage message;
       message.mutable_framework_id()->MergeFrom(framework->id);
       message.mutable_framework()->MergeFrom(framework->info);
@@ -1388,9 +1393,12 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
   LOG(INFO) << "Generating a unique work directory for executor '"
             << executorId << "' of framework " << frameworkId;
 
-  string workDir = "work";  // No relevant conf options set.
+  string workDir = "work";  // Default work directory.
+
+  // Now look for configured work directory.
   Option<string> option = conf.get("work_dir");
-  if (!option.isSome()) {
+  if (option.isNone()) {
+    // Okay, then look for a home directory instead.
     option = conf.get("home");
     if (option.isSome()) {
       workDir = option.get() + "/work";
@@ -1398,7 +1406,6 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
   } else {
     workDir = option.get();
   }
-
 
   std::ostringstream out(std::ios_base::app | std::ios_base::out);
   out << workDir << "/slaves/" << id
@@ -1415,11 +1422,11 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
 
   for (int i = 0; i < INT_MAX; i++) {
     out << i;
-    if (opendir(out.str().c_str()) == NULL && errno == ENOENT)
+    DIR* d = opendir(out.str().c_str());
+    if (d == NULL && errno == ENOENT) {
       break;
-
-    // TODO(benh): Does one need to do any sort of closedir?
-
+    }
+    closedir(d);
     out.str(dir);
   }
 

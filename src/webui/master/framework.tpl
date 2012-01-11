@@ -44,7 +44,7 @@
 <p>
   Name: {{framework['name']}}<br />
   User: {{framework['user']}}<br />
-  Connected: {{format_time(framework['registered_time'])}}<br />
+  Registered: {{format_time(framework['registered_time'])}}<br />
   Executor: {{framework['executor_uri']}}<br />
   Running Tasks: {{len(framework['tasks'])}}<br />
   CPUs: {{framework['resources']['cpus']}}<br />
@@ -60,7 +60,7 @@
     <th class="lists">ID</th>
     <th class="lists">Name</th>
     <th class="lists">State</th>
-    <th class="lists">Running On Slave</th>
+    <th class="lists">Slave</th>
   </tr>
   % for i in range(len(framework['tasks'])):
   %   task = framework['tasks'][i]

@@ -17,11 +17,7 @@
  */
 
 /**
- * ZooKeeper C++ API. Originally created to be used with the
- * Libprocess library (http://www.eecs.berkeley.edu/~benh/libprocess),
- * these C++ classes could also use a different underlying
- * implementation, such as calling the synchronous functions exposed
- * by the ZooKeeper C++ API.
+ * ZooKeeper C++ API.
  *
  * To provide for varying underlying implementations the pimpl idiom
  * (also known as the compiler-firewall, bridge pattern, etc) was used

@@ -66,10 +66,10 @@ public:
       for (int i = 0; i < offer.resources_size(); i++) {
         const Resource& resource = offer.resources(i);
         if (resource.name() == "cpus" &&
-            resource.type() == Resource::SCALAR) {
+            resource.type() == Value::SCALAR) {
           cpus = resource.scalar().value();
         } else if (resource.name() == "mem" &&
-                   resource.type() == Resource::SCALAR) {
+                   resource.type() == Value::SCALAR) {
           mem = resource.scalar().value();
         }
       }
@@ -91,12 +91,12 @@ public:
 
         resource = task.add_resources();
         resource->set_name("cpus");
-        resource->set_type(Resource::SCALAR);
+        resource->set_type(Value::SCALAR);
         resource->mutable_scalar()->set_value(CPUS_PER_TASK);
 
         resource = task.add_resources();
         resource->set_name("mem");
-        resource->set_type(Resource::SCALAR);
+        resource->set_type(Value::SCALAR);
         resource->mutable_scalar()->set_value(MEM_PER_TASK);
 
         tasks.push_back(task);

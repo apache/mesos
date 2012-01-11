@@ -63,28 +63,28 @@
 
 namespace mesos {
 
-bool operator == (const Resource::Scalar& left, const Resource::Scalar& right);
-bool operator <= (const Resource::Scalar& left, const Resource::Scalar& right);
-Resource::Scalar operator + (const Resource::Scalar& left, const Resource::Scalar& right);
-Resource::Scalar operator - (const Resource::Scalar& left, const Resource::Scalar& right);
-Resource::Scalar& operator += (Resource::Scalar& left, const Resource::Scalar& right);
-Resource::Scalar& operator -= (Resource::Scalar& left, const Resource::Scalar& right);
+bool operator == (const Value::Scalar& left, const Value::Scalar& right);
+bool operator <= (const Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar operator + (const Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar operator - (const Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar& operator += (Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar& operator -= (Value::Scalar& left, const Value::Scalar& right);
 
 
-bool operator == (const Resource::Ranges& left, const Resource::Ranges& right);
-bool operator <= (const Resource::Ranges& left, const Resource::Ranges& right);
-Resource::Ranges operator + (const Resource::Ranges& left, const Resource::Ranges& right);
-Resource::Ranges operator - (const Resource::Ranges& left, const Resource::Ranges& right);
-Resource::Ranges& operator += (Resource::Ranges& left, const Resource::Ranges& right);
-Resource::Ranges& operator -= (Resource::Ranges& left, const Resource::Ranges& right);
+bool operator == (const Value::Ranges& left, const Value::Ranges& right);
+bool operator <= (const Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges operator + (const Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges operator - (const Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges& operator += (Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges& operator -= (Value::Ranges& left, const Value::Ranges& right);
 
 
-bool operator == (const Resource::Set& left, const Resource::Set& right);
-bool operator <= (const Resource::Set& left, const Resource::Set& right);
-Resource::Set operator + (const Resource::Set& left, const Resource::Set& right);
-Resource::Set operator - (const Resource::Set& left, const Resource::Set& right);
-Resource::Set& operator += (Resource::Set& left, const Resource::Set& right);
-Resource::Set& operator -= (Resource::Set& left, const Resource::Set& right);
+bool operator == (const Value::Set& left, const Value::Set& right);
+bool operator <= (const Value::Set& left, const Value::Set& right);
+Value::Set operator + (const Value::Set& left, const Value::Set& right);
+Value::Set operator - (const Value::Set& left, const Value::Set& right);
+Value::Set& operator += (Value::Set& left, const Value::Set& right);
+Value::Set& operator -= (Value::Set& left, const Value::Set& right);
 
 
 bool operator == (const Resource& left, const Resource& right);
@@ -229,7 +229,8 @@ public:
     bool added = false;
 
     foreach (const Resource& resource, resources) {
-      if (resource.name() == that.name() && resource.type() == that.type()) {
+      if (resource.name() == that.name() &&
+	resource.type() == that.type()) {
         result.resources.Add()->MergeFrom(resource + that);
         added = true;
       } else {
@@ -249,7 +250,8 @@ public:
     Resources result;
 
     foreach (const Resource& resource, resources) {
-      if (resource.name() == that.name() && resource.type() == that.type()) {
+      if (resource.name() == that.name() &&
+	resource.type() == that.type()) {
         result.resources.Add()->MergeFrom(resource - that);
       } else {
         result.resources.Add()->MergeFrom(resource);
@@ -306,16 +308,19 @@ public:
     if (!resource.has_name() ||
         resource.name() == "" ||
         !resource.has_type() ||
-        !Resource::Type_IsValid(resource.type())) {
+        !Value::Type_IsValid(resource.type())) {
       return false;
     }
 
-    if (resource.type() == Resource::SCALAR) {
+    if (resource.type() == Value::SCALAR) {
       return resource.has_scalar();
-    } else if (resource.type() == Resource::RANGES) {
+    } else if (resource.type() == Value::RANGES) {
       return resource.has_ranges();
-    } else if (resource.type() == Resource::SET) {
+    } else if (resource.type() == Value::SET) {
       return resource.has_ranges();
+    } else if (resource.type() == Value::TEXT) {
+      // Resources doesn't support text.
+      return false;
     }
 
     return false;
@@ -324,16 +329,16 @@ public:
   static bool isAllocatable(const Resource& resource)
   {
     if (isValid(resource)) {
-      if (resource.type() == Resource::SCALAR) {
+      if (resource.type() == Value::SCALAR) {
         if (resource.scalar().value() <= 0) {
           return false;
         }
-      } else if (resource.type() == Resource::RANGES) {
+      } else if (resource.type() == Value::RANGES) {
         if (resource.ranges().range_size() == 0) {
           return false;
         } else {
           for (int i = 0; i < resource.ranges().range_size(); i++) {
-            const Resource::Range& range = resource.ranges().range(i);
+            const Value::Range& range = resource.ranges().range(i);
 
             // Ensure the range make sense (isn't inverted).
             if (range.begin() > range.end()) {
@@ -349,7 +354,7 @@ public:
             }
           }
         }
-      } else if (resource.type() == Resource::SET) {
+      } else if (resource.type() == Value::SET) {
         if (resource.set().item_size() == 0) {
           return false;
         } else {
@@ -378,13 +383,13 @@ private:
 
 
 template <>
-inline Resource::Scalar Resources::get(
+inline Value::Scalar Resources::get(
     const std::string& name,
-    const Resource::Scalar& scalar) const
+    const Value::Scalar& scalar) const
 {
   foreach (const Resource& resource, resources) {
     if (resource.name() == name &&
-        resource.type() == Resource::SCALAR) {
+        resource.type() == Value::SCALAR) {
       return resource.scalar();
     }
   }
@@ -394,13 +399,13 @@ inline Resource::Scalar Resources::get(
 
 
 template <>
-inline Resource::Ranges Resources::get(
+inline Value::Ranges Resources::get(
     const std::string& name,
-    const Resource::Ranges& ranges) const
+    const Value::Ranges& ranges) const
 {
   foreach (const Resource& resource, resources) {
     if (resource.name() == name &&
-        resource.type() == Resource::RANGES) {
+        resource.type() == Value::RANGES) {
       return resource.ranges();
     }
   }
@@ -410,13 +415,13 @@ inline Resource::Ranges Resources::get(
 
 
 template <>
-inline Resource::Set Resources::get(
+inline Value::Set Resources::get(
     const std::string& name,
-    const Resource::Set& set) const
+    const Value::Set& set) const
 {
   foreach (const Resource& resource, resources) {
     if (resource.name() == name &&
-        resource.type() == Resource::SET) {
+        resource.type() == Value::SET) {
       return resource.set();
     }
   }

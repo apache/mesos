@@ -1,8 +1,25 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <algorithm>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
-#include <process/timeout.hpp>
 
 #include "common/foreach.hpp"
 #include "common/option.hpp"
@@ -34,9 +51,15 @@ Coordinator::Coordinator(int _quorum,
 Coordinator::~Coordinator() {}
 
 
-Result<uint64_t> Coordinator::elect()
+Result<uint64_t> Coordinator::elect(const Timeout& timeout)
 {
-  CHECK(!elected);
+  LOG(INFO) << "Coordinator attempting to get elected within "
+            << timeout.remaining() << " seconds";
+
+  if (elected) {
+    // TODO(benh): No-op instead of error?
+    return Result<uint64_t>::error("Coordinator already elected");
+  }
 
   // Get the highest known promise from our local replica.
   Future<uint64_t> promise = replica->promised();
@@ -60,8 +83,6 @@ Result<uint64_t> Coordinator::elect()
 
   Option<Future<PromiseResponse> > option;
   int okays = 0;
-
-  Timeout timeout = 1.0; // TODO(benh): Have timeout get passed in!
 
   do {
     option = select(futures, timeout.remaining());
@@ -87,7 +108,7 @@ Result<uint64_t> Coordinator::elect()
 
   // Either we have a quorum or we timed out.
   if (okays >= quorum) {
-    LOG(INFO) << "Coordinator elected!";
+    LOG(INFO) << "Coordinator elected, attempting to fill missing positions";
     elected = true;
 
     // Need to "catchup" local replica (i.e., fill in any unlearned
@@ -99,19 +120,22 @@ Result<uint64_t> Coordinator::elect()
 
     Future<set<uint64_t> > positions = replica->missing(index);
 
-    positions.await();  // TODO(benh): Have timeout get passed in!
+    positions.await(timeout.remaining());
 
     if (positions.isFailed()) {
+      elected = false;
       return Result<uint64_t>::error(positions.failure());
     }
 
     CHECK(positions.isReady()) << "Not expecting a discarded future!";
 
     foreach (uint64_t position, positions.get()) {
-      Result<Action> result = fill(position);
+      Result<Action> result = fill(position, timeout);
       if (result.isError()) {
+        elected = false;
         return Result<uint64_t>::error(result.error());
       } else if (result.isNone()) {
+        elected = false;
         return Result<uint64_t>::none();
       } else {
         CHECK(result.isSome());
@@ -136,7 +160,9 @@ Result<uint64_t> Coordinator::demote()
 }
 
 
-Result<uint64_t> Coordinator::append(const string& bytes)
+Result<uint64_t> Coordinator::append(
+    const string& bytes,
+    const Timeout& timeout)
 {
   if (!elected) {
     return Result<uint64_t>::error("Coordinator not elected");
@@ -150,7 +176,7 @@ Result<uint64_t> Coordinator::append(const string& bytes)
   Action::Append* append = action.mutable_append();
   append->set_bytes(bytes);
 
-  Result<uint64_t> result = write(action);
+  Result<uint64_t> result = write(action, Timeout(timeout));
 
   if (result.isSome()) {
     CHECK(result.get() == index);
@@ -161,7 +187,9 @@ Result<uint64_t> Coordinator::append(const string& bytes)
 }
 
 
-Result<uint64_t> Coordinator::truncate(uint64_t to)
+Result<uint64_t> Coordinator::truncate(
+    uint64_t to,
+    const Timeout& timeout)
 {
   if (!elected) {
     return Result<uint64_t>::error("Coordinator not elected");
@@ -175,7 +203,7 @@ Result<uint64_t> Coordinator::truncate(uint64_t to)
   Action::Truncate* truncate = action.mutable_truncate();
   truncate->set_to(to);
 
-  Result<uint64_t> result = write(action);
+  Result<uint64_t> result = write(action, timeout);
 
   if (result.isSome()) {
     CHECK(result.get() == index);
@@ -186,11 +214,14 @@ Result<uint64_t> Coordinator::truncate(uint64_t to)
 }
 
 
-Result<uint64_t> Coordinator::write(const Action& action)
+Result<uint64_t> Coordinator::write(
+    const Action& action,
+    const Timeout& timeout)
 {
   LOG(INFO) << "Coordinator attempting to write "
             << Action::Type_Name(action.type())
-            << " action at position " << action.position();
+            << " action at position " << action.position()
+            << " within " << timeout.remaining() << " seconds";
 
   CHECK(elected);
 
@@ -237,8 +268,6 @@ Result<uint64_t> Coordinator::write(const Action& action)
 
   Option<Future<WriteResponse> > option;
   int okays = 0;
-
-  Timeout timeout = 1.0; // TODO(benh): Have timeout get passed in!
 
   do {
     option = select(futures, timeout.remaining());
@@ -307,16 +336,20 @@ Result<uint64_t> Coordinator::commit(const Action& action)
       LOG(FATAL) << "Unknown Action::Type!";
   }
 
+  //  TODO(benh): Add a non-message based way to do this write.
+  Future<WriteResponse> future = protocol::write(replica->pid(), request);
+
   // We send a write request to the *local* replica just as the
   // others: asynchronously via messages. However, rather than add the
   // complications of dealing with timeouts for local operations
   // (especially since we are trying to commit something), we make
   // things simpler and block on the response from the local replica.
-  // TODO(benh): Add a non-message based way to do this write.
+  // Maybe we can let it timeout, but consider it a failure? This
+  // might be sound because we don't send the learned messages ... so
+  // this should be the same as if we just failed before we even do
+  // the write ... a client should just retry this write later.
 
-  Future<WriteResponse> future = protocol::write(replica->pid(), request);
-
-  future.await(); // TODO(benh): Let it timeout, but consider it a failure.
+  future.await(); // TODO(benh): Don't wait forever, see comment above.
 
   if (future.isFailed()) {
     return Result<uint64_t>::error(future.failure());
@@ -349,7 +382,7 @@ Result<uint64_t> Coordinator::commit(const Action& action)
 }
 
 
-Result<Action> Coordinator::fill(uint64_t position)
+Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
 {
   LOG(INFO) << "Coordinator attempting to fill position "
             << position << " in the log";
@@ -366,8 +399,6 @@ Result<Action> Coordinator::fill(uint64_t position)
 
   Option<Future<PromiseResponse> > option;
   list<PromiseResponse> responses;
-
-  Timeout timeout = 1.0; // TODO(benh): Have timeout get passed in!
 
   do {
     option = select(futures, timeout.remaining());
@@ -433,7 +464,7 @@ Result<Action> Coordinator::fill(uint64_t position)
       action.set_performed(id);
     }
 
-    Result<uint64_t> result = write(action);
+    Result<uint64_t> result = write(action, timeout);
 
     if (result.isError()) {
       return Result<Action>::error(result.error());

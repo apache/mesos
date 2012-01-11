@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <gmock/gmock.h>
 
 #include <mesos/executor.hpp>
@@ -64,8 +82,8 @@ TEST(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
   EXPECT_GE(10, offers.size());
 
   Resources resources(offers[0].resources());
-  EXPECT_EQ(2, resources.get("cpus", Resource::Scalar()).value());
-  EXPECT_EQ(1024, resources.get("mem", Resource::Scalar()).value());
+  EXPECT_EQ(2, resources.get("cpus", Value::Scalar()).value());
+  EXPECT_EQ(1024, resources.get("mem", Value::Scalar()).value());
 
   driver.stop();
   driver.join();
@@ -122,7 +140,7 @@ TEST(ResourceOffersTest, TaskUsesNoResources)
   WAIT_UNTIL(statusUpdateCall);
 
   EXPECT_EQ(task.task_id(), status.task_id());
-  EXPECT_EQ(TASK_FAILED, status.state());
+  EXPECT_EQ(TASK_LOST, status.state());
   EXPECT_TRUE(status.has_message());
   EXPECT_EQ("Task uses no resources", status.message());
 
@@ -167,7 +185,7 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
 
   Resource* cpus = task.add_resources();
   cpus->set_name("cpus");
-  cpus->set_type(Resource::SCALAR);
+  cpus->set_type(Value::SCALAR);
   cpus->mutable_scalar()->set_value(0);
 
   vector<TaskDescription> tasks;
@@ -186,7 +204,7 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
   WAIT_UNTIL(statusUpdateCall);
 
   EXPECT_EQ(task.task_id(), status.task_id());
-  EXPECT_EQ(TASK_FAILED, status.state());
+  EXPECT_EQ(TASK_LOST, status.state());
   EXPECT_TRUE(status.has_message());
   EXPECT_EQ("Task uses invalid resources", status.message());
 
@@ -231,7 +249,7 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 
   Resource* cpus = task.add_resources();
   cpus->set_name("cpus");
-  cpus->set_type(Resource::SCALAR);
+  cpus->set_type(Value::SCALAR);
   cpus->mutable_scalar()->set_value(2.01);
 
   vector<TaskDescription> tasks;
@@ -250,7 +268,7 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
   WAIT_UNTIL(statusUpdateCall);
 
   EXPECT_EQ(task.task_id(), status.task_id());
-  EXPECT_EQ(TASK_FAILED, status.state());
+  EXPECT_EQ(TASK_LOST, status.state());
   EXPECT_TRUE(status.has_message());
   EXPECT_EQ("Task uses more resources than offered", status.message());
 
@@ -355,12 +373,12 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskDescriptionError)
 
   Resource* cpus = task.add_resources();
   cpus->set_name("cpus");
-  cpus->set_type(Resource::SCALAR);
+  cpus->set_type(Value::SCALAR);
   cpus->mutable_scalar()->set_value(0);
 
   Resource* mem = task.add_resources();
   mem->set_name("mem");
-  mem->set_type(Resource::SCALAR);
+  mem->set_type(Value::SCALAR);
   mem->mutable_scalar()->set_value(1 * Gigabyte);
 
   vector<TaskDescription> tasks;
@@ -379,7 +397,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskDescriptionError)
   WAIT_UNTIL(sched1StatusUpdateCall);
 
   EXPECT_EQ(task.task_id(), status.task_id());
-  EXPECT_EQ(TASK_FAILED, status.state());
+  EXPECT_EQ(TASK_LOST, status.state());
   EXPECT_TRUE(status.has_message());
   EXPECT_EQ("Task uses invalid resources", status.message());
 

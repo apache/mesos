@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -31,9 +49,9 @@ namespace slave {
 JSON::Object model(const Resources& resources)
 {
   // TODO(benh): Add all of the resources.
-  Resource::Scalar none;
-  Resource::Scalar cpus = resources.get("cpus", none);
-  Resource::Scalar mem = resources.get("mem", none);
+  Value::Scalar none;
+  Value::Scalar cpus = resources.get("cpus", none);
+  Value::Scalar mem = resources.get("mem", none);
 
   JSON::Object object;
   object.values["cpus"] = cpus.value();
@@ -150,7 +168,7 @@ Promise<HttpResponse> stats(
   JSON::render(out, object);
 
   HttpOKResponse response;
-  response.headers["Content-Type"] = "text/x-json";
+  response.headers["Content-Type"] = "application/json";
   response.headers["Content-Length"] = utils::stringify(out.str().size());
   response.body = out.str().data();
   return response;
@@ -185,7 +203,7 @@ Promise<HttpResponse> state(
   JSON::render(out, object);
 
   HttpOKResponse response;
-  response.headers["Content-Type"] = "text/x-json";
+  response.headers["Content-Type"] = "application/json";
   response.headers["Content-Length"] = utils::stringify(out.str().size());
   response.body = out.str().data();
   return response;

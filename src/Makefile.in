@@ -144,7 +144,7 @@ WEBUI_OBJ = $(MASTER_WEBUI_OBJ) $(SLAVE_WEBUI_OBJ)
 COMMON_OBJ = common/fatal.o common/lock.o detector/detector.o		\
 	     detector/url_processor.o configurator/configurator.o	\
 	     common/logging.o common/date_utils.o common/resources.o	\
-	     common/utils.o
+	     common/utils.o common/values.o common/attributes.o
 
 ifeq ($(WITH_ZOOKEEPER),1)
   COMMON_OBJ += zookeeper/zookeeper.o zookeeper/authentication.o	\
@@ -195,7 +195,7 @@ MESOS_EXEC_LIB = $(LIBDIR)/libmesos_exec.a
 
 # C/C++ shared library which contains both the scheduler and executor
 # libraries, in addition to libglog, libprocess, and libev.
-MESOS_LIB_OBJ = 
+MESOS_LIB_OBJ =
 ifeq ($(OS_NAME),darwin)
   MESOS_LIB = $(LIBDIR)/libmesos.dylib
 else

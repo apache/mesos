@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include <algorithm>
-
 #include <glog/logging.h>
 
 #include <algorithm>
@@ -172,14 +170,14 @@ struct DominantShareComparator
     // scalars.
 
     foreach (const Resource& resource, resources) {
-      if (resource.type() == Resource::SCALAR) {
+      if (resource.type() == Value::SCALAR) {
         double total = resource.scalar().value();
 
         if (total > 0) {
-          Resource::Scalar none;
-          const Resource::Scalar& scalar1 =
+          Value::Scalar none;
+          const Value::Scalar& scalar1 =
             framework1->resources.get(resource.name(), none);
-          const Resource::Scalar& scalar2 =
+          const Value::Scalar& scalar2 =
             framework2->resources.get(resource.name(), none);
           share1 = max(share1, scalar1.value() / total);
           share2 = max(share2, scalar2.value() / total);
@@ -257,9 +255,9 @@ void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
       // resources, rather than the master pushing resources out to
       // frameworks.
 
-      Resource::Scalar none;
-      Resource::Scalar cpus = resources.get("cpus", none);
-      Resource::Scalar mem = resources.get("mem", none);
+      Value::Scalar none;
+      Value::Scalar cpus = resources.get("cpus", none);
+      Value::Scalar mem = resources.get("mem", none);
 
       if (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) {
         VLOG(1) << "Found available resources: " << resources

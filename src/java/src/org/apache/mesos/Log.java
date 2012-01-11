@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.mesos;
 
 import java.io.Closeable;
@@ -10,8 +28,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Provides access to a distributed append only log.  The log can be read from using a
- * {@link Log.Reader} and written to using a {@link Log.Writer}.
+ * Provides access to a distributed append only log. The log can be
+ * read from using a {@link Log.Reader} and written to using a {@link
+ * Log.Writer}.
  */
 public class Log {
   static {
@@ -19,8 +38,9 @@ public class Log {
   }
 
   /**
-   * An opaque identifier of a log entry's position within the log.  Can be used to inidicate
-   * {@link Reader#read read} ranges and {@link Writer#truncate truncation} locations.
+   * An opaque identifier of a log entry's position within the
+   * log. Can be used to inidicate {@link Reader#read read} ranges and
+   * {@link Writer#truncate truncation} locations.
    */
   public static class Position implements Comparable<Position> {
     @Override
@@ -64,7 +84,8 @@ public class Log {
   }
 
   /**
-   * Represents an opaque data entry in the {@link Log} with a {@link Position}.
+   * Represents an opaque data entry in the {@link Log} with a {@link
+   * Position}.
    */
   public static class Entry {
     public final Position position;
@@ -107,8 +128,9 @@ public class Log {
   }
 
   /**
-   * Provides read access to the {@link Log}.  This class is safe for use from multiple threads and
-   * for the life of the log regardless of any exceptions thrown from its methods.
+   * Provides read access to the {@link Log}. This class is safe for
+   * use from multiple threads and for the life of the log regardless
+   * of any exceptions thrown from its methods.
    */
   public static class Reader {
     public Reader(Log log) {
@@ -124,7 +146,10 @@ public class Log {
      * failure) and therefore it is currently impossible to tell these
      * two cases apart.
      */
-    public native List<Entry> read(Position from, Position to)
+    public native List<Entry> read(Position from,
+                                   Position to,
+                                   long timeout,
+                                   TimeUnit unit)
       throws TimeoutException, OperationFailedException;
 
     /**
@@ -140,6 +165,7 @@ public class Log {
     public native Position ending();
 
     protected native void initialize(Log log);
+
     protected native void finalize();
 
     private Log log; // Keeps the log from getting garbage collected.
@@ -148,13 +174,14 @@ public class Log {
   }
 
   /**
-   * Provides write access to the {@link Log}.  This class is not safe for use from multiple
-   * threads and instances should be thrown out after any {@link WriterFailedException} is thrown.
+   * Provides write access to the {@link Log}. This class is not safe
+   * for use from multiple threads and instances should be thrown out
+   * after any {@link WriterFailedException} is thrown.
    */
   public static class Writer {
-    public Writer(Log log) {
+    public Writer(Log log, long timeout, TimeUnit unit, int retries) {
       this.log = log;
-      initialize(log);
+      initialize(log, timeout, unit, retries);
     }
 
     /**
@@ -169,7 +196,7 @@ public class Log {
      * WriterFailedException to differentiate the need for a new
      * writer from a bad position, or a bad disk, etc.
      */
-    public native Position append(byte[] data)
+    public native Position append(byte[] data, long timeout, TimeUnit unit)
       throws TimeoutException, WriterFailedException;
 
     /**
@@ -184,10 +211,14 @@ public class Log {
      * WriterFailedException to differentiate the need for a new
      * writer from a bad position, or a bad disk, etc.
      */
-    public native Position truncate(Position to)
+    public native Position truncate(Position to, long timeout, TimeUnit unit)
       throws TimeoutException, WriterFailedException;
 
-    protected native void initialize(Log log);
+    protected native void initialize(Log log,
+                                     long timeout,
+                                     TimeUnit unit,
+                                     int retries);
+
     protected native void finalize();
 
     private Log log; // Keeps the log from getting garbage collected.

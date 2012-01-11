@@ -380,7 +380,7 @@ Status MesosExecutorDriver::start()
 }
 
 
-Status MesosExecutorDriver::stop(bool failover)
+Status MesosExecutorDriver::stop()
 {
   Lock lock(&mutex);
 
@@ -392,9 +392,7 @@ Status MesosExecutorDriver::stop(bool failover)
 
   CHECK(process != NULL);
 
-  if (!failover) {
-    terminate(process);
-  }
+  terminate(process);
 
   state = STOPPED;
   pthread_cond_signal(&cond);

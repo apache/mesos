@@ -21,11 +21,11 @@
 
 #include <glog/logging.h>
 
-#include <boost/lexical_cast.hpp>
-
 #include "common/foreach.hpp"
 #include "common/resources.hpp"
 #include "common/strings.hpp"
+#include "common/try.hpp"
+#include "common/values.hpp"
 
 
 using std::ostream;
@@ -33,51 +33,51 @@ using std::string;
 using std::vector;
 
 
-namespace mesos { 
+namespace mesos {
 
-bool operator == (const Resource::Scalar& left, const Resource::Scalar& right)
+bool operator == (const Value::Scalar& left, const Value::Scalar& right)
 {
   return left.value() == right.value();
 }
 
 
-bool operator <= (const Resource::Scalar& left, const Resource::Scalar& right)
+bool operator <= (const Value::Scalar& left, const Value::Scalar& right)
 {
   return left.value() <= right.value();
 }
 
 
-Resource::Scalar operator + (const Resource::Scalar& left, const Resource::Scalar& right)
+Value::Scalar operator + (const Value::Scalar& left, const Value::Scalar& right)
 {
-  Resource::Scalar result;
+  Value::Scalar result;
   result.set_value(left.value() + right.value());
   return result;
 }
 
-  
-Resource::Scalar operator - (const Resource::Scalar& left, const Resource::Scalar& right)
+
+Value::Scalar operator - (const Value::Scalar& left, const Value::Scalar& right)
 {
-  Resource::Scalar result;
+  Value::Scalar result;
   result.set_value(left.value() - right.value());
   return result;
 }
 
-  
-Resource::Scalar& operator += (Resource::Scalar& left, const Resource::Scalar& right)
+
+Value::Scalar& operator += (Value::Scalar& left, const Value::Scalar& right)
 {
   left.set_value(left.value() + right.value());
   return left;
 }
 
 
-Resource::Scalar& operator -= (Resource::Scalar& left, const Resource::Scalar& right)
+Value::Scalar& operator -= (Value::Scalar& left, const Value::Scalar& right)
 {
   left.set_value(left.value() - right.value());
   return left;
 }
 
 
-static void coalesce(Resource::Ranges* ranges, const Resource::Range& range)
+static void coalesce(Value::Ranges* ranges, const Value::Range& range)
 {
   // Note that we assume that ranges has already been coalesced.
 
@@ -109,18 +109,18 @@ static void coalesce(Resource::Ranges* ranges, const Resource::Range& range)
       break;
     }
   }
-  
+
   if (!coalesced) {
     ranges->add_range()->MergeFrom(range);
   }
 }
 
 
-static void remove(Resource::Ranges* ranges, const Resource::Range& range)
+static void remove(Value::Ranges* ranges, const Value::Range& range)
 {
   // Note that we assume that ranges has already been coalesced.
 
-  Resource::Ranges result;
+  Value::Ranges result;
 
   for (int i = 0; i < ranges->range_size(); i++) {
     int64_t begin = ranges->range(i).begin();
@@ -128,25 +128,25 @@ static void remove(Resource::Ranges* ranges, const Resource::Range& range)
 
     if (begin == range.begin() && range.end() == end) {
       // Remove range from ranges, but keep everything else.
-      for (int j = i; j < ranges->range_size(); j++) {
+      for (int j = i + 1; j < ranges->range_size(); j++) {
         result.add_range()->MergeFrom(ranges->range(j));
       }
       break;
     } else if (begin <= range.begin() && range.end() < end) {
       // Shrink range in ranges.
-      Resource::Range* temp = result.add_range();
+      Value::Range* temp = result.add_range();
       temp->set_begin(range.end() + 1);
       temp->set_end(end);
       break;
     } else if (begin < range.begin() && range.end() >= end) {
       // Shrink end of range in ranges.
-      Resource::Range* temp = result.add_range();
+      Value::Range* temp = result.add_range();
       temp->set_begin(begin);
       temp->set_end(range.begin() - 1);
       break;
     } else if (begin < range.begin() && range.end() < end) {
       // Split range in ranges.
-      Resource::Range* temp = result.add_range();
+      Value::Range* temp = result.add_range();
       temp->set_begin(begin);
       temp->set_end(range.begin() - 1);
       temp = result.add_range();
@@ -160,7 +160,7 @@ static void remove(Resource::Ranges* ranges, const Resource::Range& range)
 }
 
 
-bool operator == (const Resource::Ranges& left, const Resource::Ranges& right)
+bool operator == (const Value::Ranges& left, const Value::Ranges& right)
 {
   if (left.range_size() == right.range_size()) {
     for (int i = 0; i < left.range_size(); i++) {
@@ -186,31 +186,30 @@ bool operator == (const Resource::Ranges& left, const Resource::Ranges& right)
 }
 
 
-bool operator <= (const Resource::Ranges& left, const Resource::Ranges& right)
+bool operator <= (const Value::Ranges& left, const Value::Ranges& right)
 {
-  if (left.range_size() <= right.range_size()) {
-    for (int i = 0; i < left.range_size(); i++) {
-      // Make sure this range is a subset of every range in right.
+   for (int i = 0; i < left.range_size(); i++) {
+      // Make sure this range is a subset of a range in right.
+      bool matched = false;
       for (int j = 0; j < right.range_size(); j++) {
-        if ((left.range(i).begin() <= right.range(j).begin() &&
-             left.range(i).end() > right.range(j).end()) ||
-            (left.range(i).begin() < right.range(j).begin() &&
-             left.range(i).end() >= right.range(j).end())) {
-          return false;
+        if ((left.range(i).begin() >= right.range(j).begin() &&
+             left.range(i).end() <= right.range(j).end())) {
+          matched = true;
+          break;
         }
+      }
+      if (!matched) {
+        return false;
       }
     }
 
     return true;
-  }
-
-  return false;
 }
 
 
-Resource::Ranges operator + (const Resource::Ranges& left, const Resource::Ranges& right)
+Value::Ranges operator + (const Value::Ranges& left, const Value::Ranges& right)
 {
-  Resource::Ranges result;
+  Value::Ranges result;
 
   for (int i = 0; i < left.range_size(); i++) {
     coalesce(&result, left.range(i));
@@ -223,10 +222,10 @@ Resource::Ranges operator + (const Resource::Ranges& left, const Resource::Range
   return result;
 }
 
-  
-Resource::Ranges operator - (const Resource::Ranges& left, const Resource::Ranges& right)
+
+Value::Ranges operator - (const Value::Ranges& left, const Value::Ranges& right)
 {
-  Resource::Ranges result;
+  Value::Ranges result;
 
   for (int i = 0; i < left.range_size(); i++) {
     coalesce(&result, left.range(i));
@@ -243,10 +242,10 @@ Resource::Ranges operator - (const Resource::Ranges& left, const Resource::Range
   return result;
 }
 
-  
-Resource::Ranges& operator += (Resource::Ranges& left, const Resource::Ranges& right)
+
+Value::Ranges& operator += (Value::Ranges& left, const Value::Ranges& right)
 {
-  Resource::Ranges temp;
+  Value::Ranges temp;
 
   for (int i = 0; i < left.range_size(); i++) {
     coalesce(&temp, left.range(i));
@@ -262,9 +261,9 @@ Resource::Ranges& operator += (Resource::Ranges& left, const Resource::Ranges& r
 }
 
 
-Resource::Ranges& operator -= (Resource::Ranges& left, const Resource::Ranges& right)
+Value::Ranges& operator -= (Value::Ranges& left, const Value::Ranges& right)
 {
-  Resource::Ranges temp;
+  Value::Ranges temp;
 
   for (int i = 0; i < left.range_size(); i++) {
     coalesce(&temp, left.range(i));
@@ -284,7 +283,7 @@ Resource::Ranges& operator -= (Resource::Ranges& left, const Resource::Ranges& r
 }
 
 
-bool operator == (const Resource::Set& left, const Resource::Set& right)
+bool operator == (const Value::Set& left, const Value::Set& right)
 {
   if (left.item_size() == right.item_size()) {
     for (int i = 0; i < left.item_size(); i++) {
@@ -309,7 +308,7 @@ bool operator == (const Resource::Set& left, const Resource::Set& right)
 }
 
 
-bool operator <= (const Resource::Set& left, const Resource::Set& right)
+bool operator <= (const Value::Set& left, const Value::Set& right)
 {
   if (left.item_size() <= right.item_size()) {
     for (int i = 0; i < left.item_size(); i++) {
@@ -334,9 +333,9 @@ bool operator <= (const Resource::Set& left, const Resource::Set& right)
 }
 
 
-Resource::Set operator + (const Resource::Set& left, const Resource::Set& right)
+Value::Set operator + (const Value::Set& left, const Value::Set& right)
 {
-  Resource::Set result;
+  Value::Set result;
 
   for (int i = 0; i < left.item_size(); i++) {
     result.add_item(left.item(i));
@@ -360,10 +359,10 @@ Resource::Set operator + (const Resource::Set& left, const Resource::Set& right)
   return result;
 }
 
-  
-Resource::Set operator - (const Resource::Set& left, const Resource::Set& right)
+
+Value::Set operator - (const Value::Set& left, const Value::Set& right)
 {
-  Resource::Set result;
+  Value::Set result;
 
   // Look for the same item in right as we add left to result.
   for (int i = 0; i < left.item_size(); i++) {
@@ -383,8 +382,8 @@ Resource::Set operator - (const Resource::Set& left, const Resource::Set& right)
   return result;
 }
 
-  
-Resource::Set& operator += (Resource::Set& left, const Resource::Set& right)
+
+Value::Set& operator += (Value::Set& left, const Value::Set& right)
 {
   // A little bit of extra logic to avoid adding duplicates from right.
   for (int i = 0; i < right.item_size(); i++) {
@@ -405,7 +404,7 @@ Resource::Set& operator += (Resource::Set& left, const Resource::Set& right)
 }
 
 
-Resource::Set& operator -= (Resource::Set& left, const Resource::Set& right)
+Value::Set& operator -= (Value::Set& left, const Value::Set& right)
 {
   // For each item in right check if it's in left and add it if not.
   for (int i = 0; i < right.item_size(); i++) {
@@ -429,11 +428,11 @@ Resource::Set& operator -= (Resource::Set& left, const Resource::Set& right)
 bool operator == (const Resource& left, const Resource& right)
 {
   if (left.name() == right.name() && left.type() == right.type()) {
-    if (left.type() == Resource::SCALAR) {
+    if (left.type() == Value::SCALAR) {
       return left.scalar() == right.scalar();
-    } else if (left.type() == Resource::RANGES) {
+    } else if (left.type() == Value::RANGES) {
       return left.ranges() == right.ranges();
-    } else if (left.type() == Resource::SET) {
+    } else if (left.type() == Value::SET) {
       return left.set() == right.set();
     }
   }
@@ -445,11 +444,11 @@ bool operator == (const Resource& left, const Resource& right)
 bool operator <= (const Resource& left, const Resource& right)
 {
   if (left.name() == right.name() && left.type() == right.type()) {
-    if (left.type() == Resource::SCALAR) {
+    if (left.type() == Value::SCALAR) {
       return left.scalar() <= right.scalar();
-    } else if (left.type() == Resource::RANGES) {
+    } else if (left.type() == Value::RANGES) {
       return left.ranges() <= right.ranges();
-    } else if (left.type() == Resource::SET) {
+    } else if (left.type() == Value::SET) {
       return left.set() <= right.set();
     }
   }
@@ -463,55 +462,55 @@ Resource operator + (const Resource& left, const Resource& right)
   Resource result = left;
 
   if (left.name() == right.name() && left.type() == right.type()) {
-    if (left.type() == Resource::SCALAR) {
+    if (left.type() == Value::SCALAR) {
       result.mutable_scalar()->MergeFrom(left.scalar() + right.scalar());
-    } else if (left.type() == Resource::RANGES) {
+    } else if (left.type() == Value::RANGES) {
       result.mutable_ranges()->Clear();
       result.mutable_ranges()->MergeFrom(left.ranges() + right.ranges());
-    } else if (left.type() == Resource::SET) {
+    } else if (left.type() == Value::SET) {
       result.mutable_set()->Clear();
       result.mutable_set()->MergeFrom(left.set() + right.set());
     }
   }
-  
+
   return result;
 }
 
-  
+
 Resource operator - (const Resource& left, const Resource& right)
 {
   Resource result = left;
 
   if (left.name() == right.name() && left.type() == right.type()) {
-    if (left.type() == Resource::SCALAR) {
+    if (left.type() == Value::SCALAR) {
       result.mutable_scalar()->MergeFrom(left.scalar() - right.scalar());
-    } else if (left.type() == Resource::RANGES) {
+    } else if (left.type() == Value::RANGES) {
       result.mutable_ranges()->Clear();
       result.mutable_ranges()->MergeFrom(left.ranges() - right.ranges());
-    } else if (left.type() == Resource::SET) {
+    } else if (left.type() == Value::SET) {
       result.mutable_set()->Clear();
       result.mutable_set()->MergeFrom(left.set() - right.set());
     }
   }
-  
+
   return result;
 }
 
-  
+
 Resource& operator += (Resource& left, const Resource& right)
 {
   if (left.name() == right.name() && left.type() == right.type()) {
-    if (left.type() == Resource::SCALAR) {
+    if (left.type() == Value::SCALAR) {
       left.mutable_scalar()->MergeFrom(left.scalar() + right.scalar());
-    } else if (left.type() == Resource::RANGES) {
+    } else if (left.type() == Value::RANGES) {
       left.mutable_ranges()->Clear();
       left.mutable_ranges()->MergeFrom(left.ranges() + right.ranges());
-    } else if (left.type() == Resource::SET) {
+    } else if (left.type() == Value::SET) {
       left.mutable_set()->Clear();
       left.mutable_set()->MergeFrom(left.set() + right.set());
     }
   }
-  
+
   return left;
 }
 
@@ -519,17 +518,17 @@ Resource& operator += (Resource& left, const Resource& right)
 Resource& operator -= (Resource& left, const Resource& right)
 {
   if (left.name() == right.name() && left.type() == right.type()) {
-    if (left.type() == Resource::SCALAR) {
+    if (left.type() == Value::SCALAR) {
       left.mutable_scalar()->MergeFrom(left.scalar() - right.scalar());
-    } else if (left.type() == Resource::RANGES) {
+    } else if (left.type() == Value::RANGES) {
       left.mutable_ranges()->Clear();
       left.mutable_ranges()->MergeFrom(left.ranges() - right.ranges());
-    } else if (left.type() == Resource::SET) {
+    } else if (left.type() == Value::SET) {
       left.mutable_set()->Clear();
       left.mutable_set()->MergeFrom(left.set() - right.set());
     }
   }
-  
+
   return left;
 }
 
@@ -537,9 +536,9 @@ Resource& operator -= (Resource& left, const Resource& right)
 ostream& operator << (ostream& stream, const Resource& resource)
 {
   stream << resource.name() << "=";
-  if (resource.type() == Resource::SCALAR) {
+  if (resource.type() == Value::SCALAR) {
     stream << resource.scalar().value();
-  } else if (resource.type() == Resource::RANGES) {
+  } else if (resource.type() == Value::RANGES) {
     stream << "[";
     for (int i = 0; i < resource.ranges().range_size(); i++) {
       stream << resource.ranges().range(i).begin()
@@ -550,7 +549,7 @@ ostream& operator << (ostream& stream, const Resource& resource)
       }
     }
     stream << "]";
-  } else if (resource.type() == Resource::SET) {
+  } else if (resource.type() == Value::SET) {
     stream << "{";
     for (int i = 0; i < resource.set().item_size(); i++) {
       stream << resource.set().item(i);
@@ -567,81 +566,37 @@ ostream& operator << (ostream& stream, const Resource& resource)
 
 namespace internal {
 
-Resource Resources::parse(const string& name, const string& value)
+Resource Resources::parse(const std::string& name, const std::string& text)
 {
   Resource resource;
-  resource.set_name(name);
+  Try<Value> result = values::parse(text);
 
-  // Remove any spaces from the value.
-  string temp;
-  foreach (const char c, value) {
-    if (c != ' ') {
-      temp += c;
-    }
-  }
+  if (result.isError()) {
+    LOG(FATAL) << "Failed to parse resource " << name
+               << " text " << text
+               << " error " << result.error();
+  } else{
+    Value value = result.get();
+    resource.set_name(name);
 
-  size_t index = temp.find('[');
-  if (index == 0) {
-    // This is a ranges.
-    Resource::Ranges ranges;
-    const vector<string>& tokens = strings::split(temp, "[]-,\n");
-    if (tokens.size() % 2 != 0) {
-      LOG(FATAL) << "Error parsing value for " << name
-                 << ", expecting one or more \"ranges\"";
+    if (value.type() == Value::RANGES) {
+      resource.set_type(Value::RANGES);
+      resource.mutable_ranges()->MergeFrom(value.ranges());
+    } else if (value.type() == Value::SET) {
+      resource.set_type(Value::SET);
+      resource.mutable_set()->MergeFrom(value.set());
+    } else if (value.type() == Value::SCALAR) {
+      resource.set_type(Value::SCALAR);
+      resource.mutable_scalar()->MergeFrom(value.scalar());
     } else {
-      for (int i = 0; i < tokens.size(); i += 2) {
-        Resource::Range *range = ranges.add_range();
-
-        int j = i;
-        try {
-          range->set_begin(boost::lexical_cast<uint64_t>((tokens[j++])));
-          range->set_end(boost::lexical_cast<uint64_t>(tokens[j++]));
-        } catch (const boost::bad_lexical_cast&) {
-          LOG(FATAL) << "Error parsing value for " << name
-                     << ", expecting non-negative integers in '"
-                     << tokens[j - 1] << "'";
-        }
-      }
-
-      resource.set_type(Resource::RANGES);
-      resource.mutable_ranges()->MergeFrom(ranges);
+      LOG(FATAL) << "Bad type for resource " << name
+                 << " text " << text
+                 << " type " << value.type();
     }
-  } else if (index == string::npos) {
-    size_t index = temp.find('{');
-    if (index == 0) {
-      // This is a set.
-      Resource::Set set;
-      const vector<string>& tokens = strings::split(temp, "{},\n");
-      for (int i = 0; i < tokens.size(); i++) {
-        set.add_item(tokens[i]);
-      }
-
-      resource.set_type(Resource::SET);
-      resource.mutable_set()->MergeFrom(set);
-    } else if (index == string::npos) {
-      // This *should* be a scalar.
-      Resource::Scalar scalar;
-      try {
-        scalar.set_value(boost::lexical_cast<double>(temp));
-      } catch (const boost::bad_lexical_cast&) {
-        LOG(FATAL) << "Error parsing value for " << name
-                   << ", expecting a number from '" << temp << "'";
-      }
-
-      resource.set_type(Resource::SCALAR);
-      resource.mutable_scalar()->MergeFrom(scalar);
-    } else {
-      LOG(FATAL) << "Error parsing value for " << name
-                 << ", bad '{' found";
-    }
-  } else {
-    LOG(FATAL) << "Error parsing value for " << name
-               << ", bad '[' found";
   }
 
   return resource;
 }
-
 
 Resources Resources::parse(const string& s)
 {

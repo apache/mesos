@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #ifndef __LOG_HPP__
 #define __LOG_HPP__
 
@@ -6,9 +24,11 @@
 #include <string>
 
 #include <process/process.hpp>
+#include <process/timeout.hpp>
 
 #include "common/foreach.hpp"
 #include "common/result.hpp"
+#include "common/seconds.hpp"
 #include "common/try.hpp"
 
 #include "log/coordinator.hpp"
@@ -103,7 +123,9 @@ public:
 
     // Returns all entries between the specified positions, unless
     // those positions are invalid, in which case returns an error.
-    Result<std::list<Entry> > read(const Position& from, const Position& to);
+    Result<std::list<Entry> > read(const Position& from,
+                                   const Position& to,
+                                   const seconds& timeout);
 
     // Returns the beginning position of the log from the perspective
     // of the local replica (which may be out of date if the log has
@@ -127,20 +149,20 @@ public:
     // one writer (local and remote) is valid at a time. A writer
     // becomes invalid if any operation returns an error, and a new
     // writer must be created in order perform subsequent operations.
-    Writer(Log* log, int retries = 3);
+    Writer(Log* log, const seconds& timeout, int retries = 3);
     ~Writer();
 
     // Attempts to append the specified data to the log. A none result
     // means the operation timed out, otherwise the new ending
     // position of the log is returned or an error. Upon error a new
     // Writer must be created.
-    Result<Position> append(const std::string& data);
+    Result<Position> append(const std::string& data, const seconds& timeout);
 
     // Attempts to truncate the log up to but not including the
     // specificed position. A none result means the operation timed
     // out, otherwise the new ending position of the log is returned
     // or an error. Upon error a new Writer must be created.
-    Result<Position> truncate(const Position& to);
+    Result<Position> truncate(const Position& to, const seconds& timeout);
 
   private:
     Option<std::string> error;
@@ -258,19 +280,19 @@ Log::Reader::~Reader() {}
 
 Result<std::list<Log::Entry> > Log::Reader::read(
     const Log::Position& from,
-    const Log::Position& to)
+    const Log::Position& to,
+    const seconds& timeout)
 {
   process::Future<std::list<Action> > actions =
     replica->read(from.value, to.value);
 
-  // TODO(benh): Take a timeout!
-  actions.await();
-
-  if (actions.isFailed()) {
+  if (!actions.await(timeout.value)) {
+    return Result<std::list<Log::Entry> >::none();
+  } else if (actions.isFailed()) {
     return Result<std::list<Log::Entry> >::error(actions.failure());
   }
 
-  CHECK(actions.isReady()) << "Not expecting discarded future!"; 
+  CHECK(actions.isReady()) << "Not expecting discarded future!";
 
   std::list<Log::Entry> entries;
 
@@ -319,12 +341,14 @@ Log::Position Log::Reader::ending()
 }
 
 
-Log::Writer::Writer(Log* log, int retries)
+Log::Writer::Writer(Log* log, const seconds& timeout, int retries)
   : coordinator(log->quorum, log->replica, log->network),
     error(Option<std::string>::none())
 {
+  LOG(INFO) << "Number of retries: " << retries;
+
   do {
-    Result<uint64_t> result = coordinator.elect();
+    Result<uint64_t> result = coordinator.elect(Timeout(timeout.value));
     if (result.isNone()) {
       retries--;
     } else if (result.isSome()) {
@@ -343,7 +367,9 @@ Log::Writer::~Writer()
 }
 
 
-Result<Log::Position> Log::Writer::append(const std::string& data)
+Result<Log::Position> Log::Writer::append(
+    const std::string& data,
+    const seconds& timeout)
 {
   if (error.isSome()) {
     return Result<Log::Position>::error(error.get());
@@ -351,7 +377,7 @@ Result<Log::Position> Log::Writer::append(const std::string& data)
 
   LOG(INFO) << "Attempting to append " << data.size() << " bytes to the log";
 
-  Result<uint64_t> result = coordinator.append(data);
+  Result<uint64_t> result = coordinator.append(data, Timeout(timeout.value));
 
   if (result.isError()) {
     error = result.error();
@@ -366,7 +392,9 @@ Result<Log::Position> Log::Writer::append(const std::string& data)
 }
 
 
-Result<Log::Position> Log::Writer::truncate(const Log::Position& to)
+Result<Log::Position> Log::Writer::truncate(
+    const Log::Position& to,
+    const seconds& timeout)
 {
   if (error.isSome()) {
     return Result<Log::Position>::error(error.get());
@@ -374,7 +402,8 @@ Result<Log::Position> Log::Writer::truncate(const Log::Position& to)
 
   LOG(INFO) << "Attempting to truncate the log to " << to.value;
 
-  Result<uint64_t> result = coordinator.truncate(to.value);
+  Result<uint64_t> result =
+    coordinator.truncate(to.value, Timeout(timeout.value));
 
   if (result.isError()) {
     error = result.error();

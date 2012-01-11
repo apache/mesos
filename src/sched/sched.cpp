@@ -281,7 +281,8 @@ protected:
 
     invoke(bind(&Scheduler::statusUpdate, sched, driver, status));
 
-    if (pid) {
+    // Send a status update acknowledgement ONLY if not aborted!
+    if (!aborted && pid) {
       // Acknowledge the message (we do this last, after we invoked
       // the scheduler, if we did at all, in case it causes a crash,
       // since this way the message might get resent/routed after the
@@ -409,14 +410,14 @@ protected:
     if (!connected) {
       VLOG(1) << "Ignoring launch tasks message as master is disconnected";
       // NOTE: Reply to the framework with TASK_LOST messages for each
-      // task. This is a hack for now, to not let the scheduler believe the
-      // tasks are forever in PENDING state, when actually the master
-      // never received the launchTask message. Also, realize that this
-      // hack doesn't capture the case when the scheduler process sends it
-      // but the master never receives it (message lost, master failover etc).
-      // In the future, this should be solved by the replicated log and timeouts.
+      // task. This is a hack for now, to not let the scheduler
+      // believe the tasks are forever in PENDING state, when actually
+      // the master never received the launchTask message. Also,
+      // realize that this hack doesn't capture the case when the
+      // scheduler process sends it but the master never receives it
+      // (message lost, master failover etc).  In the future, this
+      // should be solved by the replicated log and timeouts.
       foreach (const TaskDescription& task, tasks) {
-        VLOG(1) << "Sending TASK_LOST update for task" << task.task_id().value();
         StatusUpdate update;
         update.mutable_framework_id()->MergeFrom(frameworkId);
         TaskStatus* status = update.mutable_status();
@@ -437,10 +438,18 @@ protected:
     message.mutable_filters()->MergeFrom(filters);
 
     foreach (const TaskDescription& task, tasks) {
-      VLOG(1) << "Launching task id: " << task.task_id().value() << " name: " << task.name();
       // Keep only the slave PIDs where we run tasks so we can send
       // framework messages directly.
-      savedSlavePids[task.slave_id()] = savedOffers[offerId][task.slave_id()];
+      if (savedOffers.count(offerId) > 0) {
+        if (savedOffers[offerId].count(task.slave_id()) > 0) {
+          savedSlavePids[task.slave_id()] =
+            savedOffers[offerId][task.slave_id()];
+        } else {
+          VLOG(1) << "Attempting to launch a task with the wrong slave id";
+        }
+      } else {
+        VLOG(1) << "Attempting to launch a task with an unknown offer";
+      }
 
       message.add_tasks()->MergeFrom(task);
     }
@@ -464,8 +473,8 @@ protected:
   }
 
   void sendFrameworkMessage(const SlaveID& slaveId,
-			                const ExecutorID& executorId,
-			                const string& data)
+                            const ExecutorID& executorId,
+                            const string& data)
   {
     if (!connected) {
      VLOG(1) << "Ignoring send framework message as master is disconnected";

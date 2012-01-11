@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <gmock/gmock.h>
 
 #include <set>
@@ -10,7 +28,6 @@
 #include "common/type_utils.hpp"
 #include "common/utils.hpp"
 
-#include "log/cache.hpp"
 #include "log/coordinator.hpp"
 #include "log/log.hpp"
 #include "log/replica.hpp"
@@ -29,49 +46,6 @@ using namespace process;
 using testing::_;
 using testing::Eq;
 using testing::Return;
-
-
-TEST(LogTest, Cache)
-{
-  Cache<uint64_t, std::string> cache(10);
-
-  for (int i = 0; i < 10; i++) {
-    cache.put(i, utils::stringify(i));
-  }
-
-  for (int i = 0; i < 10; i++) {
-    Option<std::string> option = cache.get(i);
-    ASSERT_TRUE(option.isSome());
-    EXPECT_EQ(utils::stringify(i), option.get());
-  }
-
-  Option<std::string> option = Option<std::string>::none();
-
-  option = cache.get(1);
-  ASSERT_TRUE(option.isSome());
-  EXPECT_EQ("1", option.get());
-
-  cache.put(10, "10");
-
-  option = cache.get(0);
-  EXPECT_TRUE(option.isNone());
-
-  option = cache.get(10);
-  ASSERT_TRUE(option.isSome());
-  EXPECT_EQ("10", option.get());
-
-  option = cache.get(1);
-  ASSERT_TRUE(option.isSome());
-  EXPECT_EQ("1", option.get());
-
-  cache.put(11, "11");
-
-  option = cache.get(1);
-  EXPECT_TRUE(option.isSome());
-
-  option = cache.get(2);
-  EXPECT_TRUE(option.isNone());
-}
 
 
 TEST(ReplicaTest, Promise)
@@ -304,7 +278,7 @@ TEST(CoordinatorTest, Elect)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect();
+    Result<uint64_t> result = coord.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
@@ -343,7 +317,7 @@ TEST(CoordinatorTest, AppendRead)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect();
+    Result<uint64_t> result = coord.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
@@ -351,7 +325,7 @@ TEST(CoordinatorTest, AppendRead)
   uint64_t position;
 
   {
-    Result<uint64_t> result2 = coord.append("hello world");
+    Result<uint64_t> result2 = coord.append("hello world", Timeout(1.0));
     ASSERT_TRUE(result2.isSome());
     position = result2.get();
     EXPECT_EQ(1, position);
@@ -392,7 +366,7 @@ TEST(CoordinatorTest, AppendReadError)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect();
+    Result<uint64_t> result = coord.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
@@ -400,7 +374,7 @@ TEST(CoordinatorTest, AppendReadError)
   uint64_t position;
 
   {
-    Result<uint64_t> result2 = coord.append("hello world");
+    Result<uint64_t> result2 = coord.append("hello world", Timeout(1.0));
     ASSERT_TRUE(result2.isSome());
     position = result2.get();
     EXPECT_EQ(1, position);
@@ -450,7 +424,7 @@ TEST(CoordinatorTest, DISABLED_ElectNoQuorum)
   Coordinator coord(2, &replica, &network);
 
   {
-    Result<uint64_t> result = coord.elect();
+    Result<uint64_t> result = coord.elect(Timeout(1.0));
     ASSERT_TRUE(result.isNone());
   }
 
@@ -477,7 +451,7 @@ TEST(CoordinatorTest, DISABLED_AppendNoQuorum)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect();
+    Result<uint64_t> result = coord.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
@@ -485,7 +459,7 @@ TEST(CoordinatorTest, DISABLED_AppendNoQuorum)
   network.remove(replica1.pid());
 
   {
-    Result<uint64_t> result = coord.append("hello world");
+    Result<uint64_t> result = coord.append("hello world", Timeout(1.0));
     ASSERT_TRUE(result.isNone());
   }
 
@@ -513,7 +487,7 @@ TEST(CoordinatorTest, Failover)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect();
+    Result<uint64_t> result = coord1.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
@@ -521,7 +495,7 @@ TEST(CoordinatorTest, Failover)
   uint64_t position;
 
   {
-    Result<uint64_t> result = coord1.append("hello world");
+    Result<uint64_t> result = coord1.append("hello world", Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     position = result.get();
     EXPECT_EQ(1, position);
@@ -535,7 +509,7 @@ TEST(CoordinatorTest, Failover)
   Coordinator coord2(2, &replica2, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect();
+    Result<uint64_t> result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -575,7 +549,7 @@ TEST(CoordinatorTest, Demoted)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect();
+    Result<uint64_t> result = coord1.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
@@ -583,7 +557,7 @@ TEST(CoordinatorTest, Demoted)
   uint64_t position;
 
   {
-    Result<uint64_t> result = coord1.append("hello world");
+    Result<uint64_t> result = coord1.append("hello world", Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     position = result.get();
     EXPECT_EQ(1, position);
@@ -597,19 +571,19 @@ TEST(CoordinatorTest, Demoted)
   Coordinator coord2(2, &replica2, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect();
+    Result<uint64_t> result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
 
   {
-    Result<uint64_t> result = coord1.append("hello moto");
+    Result<uint64_t> result = coord1.append("hello moto", Timeout(1.0));
     ASSERT_TRUE(result.isError());
     EXPECT_EQ("Coordinator demoted", result.error());
   }
 
   {
-    Result<uint64_t> result = coord2.append("hello hello");
+    Result<uint64_t> result = coord2.append("hello hello", Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     position = result.get();
     EXPECT_EQ(2, position);
@@ -652,7 +626,7 @@ TEST(CoordinatorTest, Fill)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect();
+    Result<uint64_t> result = coord1.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
@@ -660,7 +634,7 @@ TEST(CoordinatorTest, Fill)
   uint64_t position;
 
   {
-    Result<uint64_t> result = coord1.append("hello world");
+    Result<uint64_t> result = coord1.append("hello world", Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     position = result.get();
     EXPECT_EQ(1, position);
@@ -676,9 +650,9 @@ TEST(CoordinatorTest, Fill)
   Coordinator coord2(2, &replica3, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect();
+    Result<uint64_t> result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isNone());
-    result = coord2.elect();
+    result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -730,7 +704,7 @@ TEST(CoordinatorTest, NotLearnedFill)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect();
+    Result<uint64_t> result = coord1.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
@@ -738,7 +712,7 @@ TEST(CoordinatorTest, NotLearnedFill)
   uint64_t position;
 
   {
-    Result<uint64_t> result = coord1.append("hello world");
+    Result<uint64_t> result = coord1.append("hello world", Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     position = result.get();
     EXPECT_EQ(1, position);
@@ -754,9 +728,9 @@ TEST(CoordinatorTest, NotLearnedFill)
   Coordinator coord2(2, &replica3, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect();
+    Result<uint64_t> result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isNone());
-    result = coord2.elect();
+    result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -799,13 +773,14 @@ TEST(CoordinatorTest, MultipleAppends)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect();
+    Result<uint64_t> result = coord.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Result<uint64_t> result = coord.append(utils::stringify(position));
+    Result<uint64_t> result =
+      coord.append(utils::stringify(position), Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -857,13 +832,14 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect();
+    Result<uint64_t> result = coord1.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Result<uint64_t> result = coord1.append(utils::stringify(position));
+    Result<uint64_t> result =
+      coord1.append(utils::stringify(position), Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -878,9 +854,9 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
   Coordinator coord2(2, &replica3, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect();
+    Result<uint64_t> result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isNone());
-    result = coord2.elect();
+    result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(10, result.get());
   }
@@ -924,19 +900,20 @@ TEST(CoordinatorTest, Truncate)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect();
+    Result<uint64_t> result = coord.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Result<uint64_t> result = coord.append(utils::stringify(position));
+    Result<uint64_t> result =
+      coord.append(utils::stringify(position), Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
 
   {
-    Result<uint64_t> result = coord.truncate(7);
+    Result<uint64_t> result = coord.truncate(7, Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(11, result.get());
   }
@@ -995,19 +972,20 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect();
+    Result<uint64_t> result = coord1.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(0, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Result<uint64_t> result = coord1.append(utils::stringify(position));
+    Result<uint64_t> result =
+      coord1.append(utils::stringify(position), Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
 
   {
-    Result<uint64_t> result = coord1.truncate(7);
+    Result<uint64_t> result = coord1.truncate(7, Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(11, result.get());
   }
@@ -1022,9 +1000,9 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
   Coordinator coord2(2, &replica3, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect();
+    Result<uint64_t> result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isNone());
-    result = coord2.elect();
+    result = coord2.elect(Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(11, result.get());
   }
@@ -1071,16 +1049,16 @@ TEST(LogTest, WriteRead)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log);
+  Log::Writer writer(&log, seconds(1.0));
 
-  Result<Log::Position> position = writer.append("hello world");
+  Result<Log::Position> position = writer.append("hello world", seconds(1.0));
 
   ASSERT_TRUE(position.isSome());
 
   Log::Reader reader(&log);
 
   Result<std::list<Log::Entry> > entries =
-    reader.read(position.get(), position.get());
+    reader.read(position.get(), position.get(), seconds(1.0));
 
   ASSERT_TRUE(entries.isSome());
   ASSERT_EQ(1, entries.get().size());
@@ -1107,9 +1085,9 @@ TEST(LogTest, Position)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log);
+  Log::Writer writer(&log, seconds(1.0));
 
-  Result<Log::Position> position = writer.append("hello world");
+  Result<Log::Position> position = writer.append("hello world", seconds(1.0));
 
   ASSERT_TRUE(position.isSome());
 

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #ifndef __UUID_HPP__
 #define __UUID_HPP__
 

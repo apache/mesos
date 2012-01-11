@@ -38,12 +38,12 @@ class Scheduler:
 # in mock objects for tests.
 class SchedulerDriver:
   def start(self): pass
-  def stop(self, failover = False): pass
+  def stop(self, failover=False): pass
   def abort(self) : pass
   def join(self): pass
   def run(self): pass
   def requestResources(self, requests): pass
-  def launchTasks(self, offerId, tasks, filters = None): pass
+  def launchTasks(self, offerId, tasks, filters=None): pass
   def killTask(self, taskId): pass
   def reviveOffers(self): pass
   def sendFrameworkMessage(self, slaveId, executorId, data): pass
@@ -68,7 +68,7 @@ class Executor:
 # in mock objects for tests.
 class ExecutorDriver:
   def start(self): pass
-  def stop(self, failover = False): pass
+  def stop(self): pass
   def abort(self): pass
   def join(self): pass
   def run(self): pass

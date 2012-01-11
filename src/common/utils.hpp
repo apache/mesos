@@ -29,7 +29,6 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <unistd.h>
 
 #include <google/protobuf/message.h>

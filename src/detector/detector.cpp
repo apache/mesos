@@ -31,6 +31,7 @@
 
 #ifdef WITH_ZOOKEEPER
 #include "zookeeper/zookeeper.hpp"
+#include "zookeeper/authentication.hpp"
 #endif
 
 #include "messages/messages.hpp"
@@ -121,6 +122,7 @@ private:
 
   const string servers;
   const pair<string, string>* credentials;
+  ACL_vector acl;
   const string znode;
   const UPID pid;
   bool contend;
@@ -342,6 +344,8 @@ void ZooKeeperMasterDetector::initialize(bool quiet,
 
   credentials = _credentials;
 
+  acl = credentials != NULL ? zookeeper::EVERYONE_READ_CREATOR_ALL : ZOO_OPEN_ACL_UNSAFE;
+
   // Start up the ZooKeeper connection!
   zk = new ZooKeeper(servers, milliseconds(10000), this);
 }
@@ -357,19 +361,6 @@ ZooKeeperMasterDetector::~ZooKeeperMasterDetector()
 }
 
 
-static ACL _EVERYONE_READ_CREATOR_ALL_ACL[] = {
-    {ZOO_PERM_READ, ZOO_ANYONE_ID_UNSAFE},
-    {ZOO_PERM_ALL, ZOO_AUTH_IDS}
-};
-
-
-// An ACL that ensures we're the only authenticated user to mutate our nodes -
-// others are welcome to read.
-static ACL_vector EVERYONE_READ_CREATOR_ALL = {
-    2, _EVERYONE_READ_CREATOR_ALL_ACL
-};
-
-
 void ZooKeeperMasterDetector::connected()
 {
   LOG(INFO) << "Master detector connected to ZooKeeper ...";
@@ -379,7 +370,7 @@ void ZooKeeperMasterDetector::connected()
     std::string username = credentials->first;
     std::string password = credentials->second;
     LOG(INFO) << "Authenticating to ZooKeeper with " << username << ":XXXXX";
-    ret = zk->authenticate(username, password);
+    ret = zk->authenticate("digest", username + ":" + password);
     if (ret != ZOK) {
       fatal("Failed to authenticate with ZooKeeper (%s) at : %s",
             zk->message(ret), servers.c_str());
@@ -404,7 +395,7 @@ void ZooKeeperMasterDetector::connected()
     LOG(INFO) << "Trying to create znode '" << prefix << "' in ZooKeeper";
 
     // Create the node (even if it already exists).
-    ret = zk->create(prefix, "", EVERYONE_READ_CREATOR_ALL, 0, &result);
+    ret = zk->create(prefix, "", acl, 0, &result);
 
     if (ret != ZOK && ret != ZNODEEXISTS) {
       fatal("failed to create ZooKeeper znode! (%s)", zk->message(ret));
@@ -422,7 +413,7 @@ void ZooKeeperMasterDetector::connected()
 
   if (contend) {
     // We contend with the pid given in constructor.
-    ret = zk->create(znode + "/", pid, EVERYONE_READ_CREATOR_ALL,
+    ret = zk->create(znode + "/", pid, acl,
 		     ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
 
     if (ret != ZOK) {

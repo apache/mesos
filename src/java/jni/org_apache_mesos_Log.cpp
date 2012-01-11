@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <jni.h>
 
 #include "log/log.hpp"
@@ -95,10 +113,15 @@ extern "C" {
 /*
  * Class:     org_apache_mesos_Log_Reader
  * Method:    read
- * Signature: (Lorg/apache/mesos/Log/Position;Lorg/apache/mesos/Log/Position;)Ljava/util/List;
+ * Signature: (Lorg/apache/mesos/Log/Position;Lorg/apache/mesos/Log/Position;JLjava/util/concurrent/TimeUnit;)Ljava/util/List;
  */
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
-  (JNIEnv* env, jobject thiz, jobject jfrom, jobject jto)
+  (JNIEnv* env,
+   jobject thiz,
+   jobject jfrom,
+   jobject jto,
+   jlong jtimeout,
+   jobject junit)
 {
   // Read out __reader.
   jclass clazz = env->GetObjectClass(thiz);
@@ -115,7 +138,16 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
   Log::Position from = log->position(identity(env, jfrom));
   Log::Position to = log->position(identity(env, jto));
 
-  Result<std::list<Log::Entry> > entries = reader->read(from, to);
+  clazz = env->GetObjectClass(junit);
+
+  // long seconds = unit.toSeconds(time);
+  jmethodID toSeconds = env->GetMethodID(clazz, "toSeconds", "(J)J");
+
+  jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
+
+  seconds timeout(jseconds);
+
+  Result<std::list<Log::Entry> > entries = reader->read(from, to, timeout);
 
   if (entries.isError()) {
     clazz = env->FindClass("org/apache/mesos/Log$OperationFailedException");
@@ -239,10 +271,10 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_00024Reader_finalize
 /*
  * Class:     org_apache_mesos_Log_Writer
  * Method:    append
- * Signature: ([B)Lorg/apache/mesos/Log/Position;
+ * Signature: ([BJLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/Log/Position;
  */
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
-  (JNIEnv* env, jobject thiz, jbyteArray jdata)
+  (JNIEnv* env, jobject thiz, jbyteArray jdata, jlong jtimeout, jobject junit)
 {
   // Read out __writer.
   jclass clazz = env->GetObjectClass(thiz);
@@ -256,7 +288,16 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
 
   std::string data((char*) temp, (size_t) length);
 
-  Result<Log::Position> position = writer->append(data);
+  clazz = env->GetObjectClass(junit);
+
+  // long seconds = unit.toSeconds(time);
+  jmethodID toSeconds = env->GetMethodID(clazz, "toSeconds", "(J)J");
+
+  jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
+
+  seconds timeout(jseconds);
+
+  Result<Log::Position> position = writer->append(data, timeout);
 
   env->ReleaseByteArrayElements(jdata, temp, 0);
 
@@ -281,10 +322,10 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
 /*
  * Class:     org_apache_mesos_Log_Writer
  * Method:    truncate
- * Signature: (Lorg/apache/mesos/Log/Position;)Lorg/apache/mesos/Log/Position;
+ * Signature: (Lorg/apache/mesos/Log/Position;JLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/Log/Position;
  */
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
-  (JNIEnv* env, jobject thiz, jobject jto)
+  (JNIEnv* env, jobject thiz, jobject jto, jlong jtimeout, jobject junit)
 {
   // Read out __writer.
   jclass clazz = env->GetObjectClass(thiz);
@@ -294,15 +335,22 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
   Log::Writer* writer = (Log::Writer*) env->GetLongField(thiz, __writer);
 
   // Also need __log.
-  clazz = env->GetObjectClass(thiz);
-
   jfieldID __log = env->GetFieldID(clazz, "__log", "J");
 
   Log* log = (Log*) env->GetLongField(thiz, __log);
 
   Log::Position to = log->position(identity(env, jto));
 
-  Result<Log::Position> position = writer->truncate(to);
+  clazz = env->GetObjectClass(junit);
+
+  // long seconds = unit.toSeconds(time);
+  jmethodID toSeconds = env->GetMethodID(clazz, "toSeconds", "(J)J");
+
+  jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
+
+  seconds timeout(jseconds);
+
+  Result<Log::Position> position = writer->truncate(to, timeout);
 
   if (position.isError()) {
     clazz = env->FindClass("org/apache/mesos/Log$WriterFailedException");
@@ -325,10 +373,15 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
 /*
  * Class:     org_apache_mesos_Log_Writer
  * Method:    initialize
- * Signature: (Lorg/apache/mesos/Log;)V
+ * Signature: (Lorg/apache/mesos/Log;JLjava/util/concurrent/TimeUnit;I)V
  */
 JNIEXPORT void JNICALL Java_org_apache_mesos_Log_00024Writer_initialize
-  (JNIEnv* env, jobject thiz, jobject jlog)
+  (JNIEnv* env,
+   jobject thiz,
+   jobject jlog,
+   jlong jtimeout,
+   jobject junit,
+   jint jretries)
 {
   // Get log.__log out and store it.
   jclass clazz = env->GetObjectClass(jlog);
@@ -342,8 +395,21 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_00024Writer_initialize
   __log = env->GetFieldID(clazz, "__log", "J");
   env->SetLongField(thiz, __log, (jlong) log);
 
+  clazz = env->GetObjectClass(junit);
+
+  // long seconds = unit.toSeconds(time);
+  jmethodID toSeconds = env->GetMethodID(clazz, "toSeconds", "(J)J");
+
+  jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
+
+  seconds timeout(jseconds);
+
+  int retries = jretries;
+
   // Create the C++ Log::Writer and initialize the __writer variable.
-  Log::Writer* writer = new Log::Writer(log);
+  Log::Writer* writer = new Log::Writer(log, timeout, retries);
+
+  clazz = env->GetObjectClass(thiz);
 
   jfieldID __writer = env->GetFieldID(clazz, "__writer", "J");
   env->SetLongField(thiz, __writer, (jlong) writer);

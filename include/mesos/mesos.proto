@@ -60,19 +60,12 @@ message Params {
 }
 
 
-// TODO(benh): Add support for attributes.
-// message Attribute {
-//   required string name = 1;
-//   required string value = 2;
-// }
-
-
-// TODO(benh): Add better support for resources.
-message Resource {
+message Value {
   enum Type {
     SCALAR = 0;
     RANGES = 1;
     SET = 2;
+    TEXT = 3;
   }
 
   message Scalar {
@@ -89,14 +82,39 @@ message Resource {
   }
 
   message Set {
-    repeated string item = 1; 
+    repeated string item = 1;
   }
 
+  message Text {
+    required string value = 1;
+  }
+
+  required Type type = 1;
+  optional Scalar scalar = 2;
+  optional Ranges ranges = 3;
+  optional Set set = 4;
+  optional Text text = 5;
+}
+
+
+// Attribute doesn't support arithmetic operations.
+message Attribute {
   required string name = 1;
-  required Type type = 2;
-  optional Scalar scalar = 3;
-  optional Ranges ranges = 4;
-  optional Set set = 5;
+  required Value.Type type = 2;
+  optional Value.Scalar scalar = 3;
+  optional Value.Ranges ranges = 4;
+  optional Value.Text text = 5;
+}
+
+
+// TODO(benh): Add better support for resources.
+// Resource support arithmetic operations.
+message Resource {
+  required string name = 1;
+  required Value.Type type = 2;
+  optional Value.Scalar scalar = 3;
+  optional Value.Ranges ranges = 4;
+  optional Value.Set set = 5;
 }
 
 
@@ -154,11 +172,12 @@ message FrameworkInfo {
 
 
 message SlaveInfo {
-  required string hostname = 1;
   // TODO(benh,andyk): Send bound ports, not just hostname.
+  required string hostname = 1;
   required string webui_hostname = 2;
   optional int32 webui_port = 4 [default = 8081];
   repeated Resource resources = 3;
+  repeated Attribute attributes = 5;
 }
 
 
@@ -175,6 +194,7 @@ message Offer {
   required string hostname = 4;
   repeated Resource resources = 5;
   repeated ExecutorID executor_ids = 6;
+  repeated Attribute attributes = 7;
 }
 
 

@@ -72,7 +72,7 @@ public:
 
   // Lifecycle methods.
   virtual Status start() = 0;
-  virtual Status stop(bool failover = false) = 0;
+  virtual Status stop() = 0;
   virtual Status abort() = 0;
   virtual Status join() = 0;
   virtual Status run() = 0; // Start and then join driver.
@@ -98,7 +98,7 @@ public:
 
   // Lifecycle methods
   virtual Status start();
-  virtual Status stop(bool failover = false);
+  virtual Status stop();
   virtual Status abort();
   virtual Status join();
   virtual Status run(); // Start and then join driver

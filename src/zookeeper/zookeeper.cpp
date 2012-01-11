@@ -576,13 +576,13 @@ int64_t ZooKeeper::getSessionId()
 }
 
 
-int ZooKeeper::authenticate(const string& username, const string& password)
+int ZooKeeper::authenticate(const string& scheme, const string& credentials)
 {
 #ifndef USE_THREADED_ZOOKEEPER
   return process::call(impl->self(), &ZooKeeperImpl::authenticate,
-                       cref(username), cref(password));
+                       cref(scheme), cref(credentials));
 #else
-  Promise<int> promise = impl->authenticate(username, password);
+  Promise<int> promise = impl->authenticate(scheme, credentials);
   return promise.future().get();
 #endif // USE_THREADED_ZOOKEEPER
 }

@@ -91,7 +91,7 @@ PyTypeObject MesosExecutorDriverImplType = {
 PyMethodDef MesosExecutorDriverImpl_methods[] = {
   {"start", (PyCFunction) MesosExecutorDriverImpl_start, METH_NOARGS,
    "Start the driver to connect to Mesos"},
-  {"stop", (PyCFunction) MesosExecutorDriverImpl_stop, METH_VARARGS,
+  {"stop", (PyCFunction) MesosExecutorDriverImpl_stop, METH_NOARGS,
    "Stop the driver, disconnecting from Mesos"},
   {"abort", (PyCFunction) MesosExecutorDriverImpl_abort, METH_NOARGS,
    "Abort the driver, disallowing calls from and to the driver"},
@@ -223,21 +223,14 @@ PyObject* MesosExecutorDriverImpl_start(MesosExecutorDriverImpl* self)
 }
 
 
-PyObject* MesosExecutorDriverImpl_stop(MesosExecutorDriverImpl* self,
-                                       PyObject* args)
+PyObject* MesosExecutorDriverImpl_stop(MesosExecutorDriverImpl* self)
 {
   if (self->driver == NULL) {
     PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is NULL");
     return NULL;
   }
 
-  bool failover = false;
-
-  if (!PyArg_ParseTuple(args, "b", &failover)) {
-    return NULL;
-  }
-
-  Status status = self->driver->stop(failover);
+  Status status = self->driver->stop();
   return PyInt_FromLong(status); // Sets an exception if creating the int fails
 }
 

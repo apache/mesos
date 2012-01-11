@@ -68,6 +68,7 @@ case "${target_os}" in
     echo Setting up build environment for ${target_cpu} ${target_os}
     echo ===========================================================
     OS_NAME=linux
+    LIBS="-lrt"
     ;;
   darwin*)
     echo ===========================================================
