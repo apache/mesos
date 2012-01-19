@@ -1,8 +1,0 @@
-#!/bin/bash
-if [ "x$PYTHON" == "x" ]; then
-  PYTHON=python2.6
-fi
-FRAMEWORK_DIR="`cd $(dirname $0); pwd`"
-MESOS_HOME="$FRAMEWORK_DIR/../../.."
-export PYTHONPATH=`echo $MESOS_HOME/third_party/distribute-*/distribute-*.egg`:`echo $MESOS_HOME/src/python/dist/*.egg`:$MESOS_HOME/third_party/protobuf-2.3.0/python:$PYTHONPATH
-exec $PYTHON $FRAMEWORK_DIR/test_framework.py "$@"

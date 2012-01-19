@@ -24,6 +24,32 @@ import urllib
 
 from bottle import abort, route, send_file, template
 
+from optparse import OptionParser
+
+
+# Parse options for this script.
+parser = OptionParser()
+
+parser.add_option('--slave_port', default=None)
+parser.add_option('--webui_port', default=None)
+parser.add_option('--log_dir', default=None)
+parser.add_option('--work_dir', default=None)
+
+(options, args) = parser.parse_args(sys.argv)
+
+assert options.slave_port is not None, "Missing --slave_port argument"
+assert options.webui_port is not None, "Missing --webui_port argument"
+assert options.log_dir is not None, "Missing --log_dir argument"
+assert options.work_dir is not None, "Missing --log_dir argument"
+
+slave_port = options.slave_port
+webui_port = options.webui_port
+log_dir = options.log_dir
+work_dir = options.work_dir
+
+# Recover the webui directory from argv[0].
+webui_dir = os.path.abspath(os.path.dirname(sys.argv[0]) + '/..')
+
 
 @route('/')
 def index():
@@ -45,7 +71,7 @@ def executor(fid, eid):
 
 @route('/static/:filename#.*#')
 def static(filename):
-  send_file(filename, root = './webui/static')
+  send_file(filename, root = webui_dir + '/static')
 
 
 @route('/log/:level#[A-Z]*#')
@@ -94,16 +120,6 @@ def framework_log_tail(fid, eid, log_type, lines):
     abort(403, 'Slave not yet registered with master')
 
 
-bottle.TEMPLATE_PATH.append('./webui/slave/')
-
-# TODO(*): Add an assert to confirm that all the arguments we are
-# expecting have been passed to us, which will give us a better error
-# message when they aren't!
-
-slave_port = sys.argv[1]
-webui_port = sys.argv[2]
-log_dir = sys.argv[3]
-work_dir = sys.argv[4]
-
+bottle.TEMPLATE_PATH.append(webui_dir + '/slave')
 bottle.debug(True)
 bottle.run(host = '0.0.0.0', port = webui_port)

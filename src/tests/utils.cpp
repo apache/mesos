@@ -29,8 +29,8 @@ using namespace mesos::internal;
 using std::string;
 
 
-string test::mesosRoot;
-string test::mesosHome;
+string test::mesosSourceDirectory;
+string test::mesosBuildDirectory;
 
 
 namespace {
@@ -52,7 +52,8 @@ bool isValidTestName(const char* name) {
 /**
  * Create and clean up the work directory for a given test, and cd into it,
  * given the test's test case name and test name.
- * Test directories are placed in <mesosHome>/test_output/<testCase>/<testName>.
+ * Test directories are placed in
+ * <mesosBuildDir>/test_output/<testCase>/<testName>.
  */
 void test::enterTestDirectory(const char* testCase, const char* testName)
 {
@@ -65,7 +66,8 @@ void test::enterTestDirectory(const char* testCase, const char* testName)
            << "only contain alphanumeric and underscore characters)";
   }
   // Make the work directory for this test
-  string workDir = mesosHome + "/test_output/" + testCase + "/" + testName;
+  string workDir = mesosBuildDirectory + "/test_output/" + testCase + "/"
+    + testName;
   string command = "rm -fr '" + workDir + "'";
   ASSERT_EQ(0, system(command.c_str())) << "Command failed: " << command;
   command = "mkdir -p '" + workDir + "'";

@@ -55,6 +55,8 @@ void usage(const char *programName, const Configurator& configurator)
 
 int main(int argc, char** argv)
 {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   Configurator configurator;
   Logging::registerOptions(&configurator);
   Slave::registerOptions(&configurator);

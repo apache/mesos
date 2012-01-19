@@ -52,13 +52,13 @@ string getRealpath(const string& relPath)
 }
 
 
-string getMesosRoot()
+string getMesosSourceDirectory()
 {
-  return getRealpath(ROOT_DIR);
+  return getRealpath(SOURCE_DIR);
 }
 
 
-string getMesosHome()
+string getMesosBuildDirectory()
 {
   return getRealpath(BUILD_DIR);
 }
@@ -70,14 +70,16 @@ int main(int argc, char** argv)
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   // Get the absolute path to the Mesos project root directory.
-  mesos::internal::test::mesosRoot = getMesosRoot();
+  mesos::internal::test::mesosSourceDirectory = getMesosSourceDirectory();
 
-  std::cout << "MESOS_ROOT: " << mesos::internal::test::mesosRoot << std::endl;
+  std::cout << "Source directory: "
+            << mesos::internal::test::mesosSourceDirectory << std::endl;
 
   // Get absolute path to Mesos home install directory.
-  mesos::internal::test::mesosHome = getMesosHome();
+  mesos::internal::test::mesosBuildDirectory = getMesosBuildDirectory();
 
-  std::cout << "MESOS_HOME: " << mesos::internal::test::mesosHome << std::endl;
+  std::cout << "Build directory: "
+            << mesos::internal::test::mesosBuildDirectory << std::endl;
 
   // Clear any MESOS_ environment variables so they don't affect our tests.
   Configurator::clearMesosEnvironmentVars();

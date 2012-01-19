@@ -34,9 +34,7 @@
 #include "log/coordinator.hpp"
 #include "log/replica.hpp"
 
-#ifdef WITH_ZOOKEEPER
 #include "zookeeper/group.hpp"
-#endif // WITH_ZOOKEEPER
 
 namespace mesos {
 namespace internal {
@@ -175,10 +173,10 @@ public:
   Log(int _quorum,
       const std::string& path,
       const std::set<process::UPID>& pids)
-#ifdef WITH_ZOOKEEPER
     : group(NULL)
-#endif // WITH_ZOOKEEPER
   {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+
     quorum = _quorum;
 
     replica = new Replica(path);
@@ -189,7 +187,6 @@ public:
     network->add(replica->pid());
   }
 
-#ifdef WITH_ZOOKEEPER
   // Creates a new replicated log that assumes the specified quorum
   // size, is backed by a file at the specified path, and coordiantes
   // with other replicas associated with the specified ZooKeeper
@@ -202,6 +199,8 @@ public:
       const Option<zookeeper::Authentication>& auth
         = Option<zookeeper::Authentication>::none())
   {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+
     quorum = _quorum;
 
     replica = new Replica(path);
@@ -221,14 +220,11 @@ public:
       .onFailed(dispatch(lambda::bind(&Log::failed, this, lambda::_1)))
       .onDiscarded(dispatch(lambda::bind(&Log::discarded, this)));
   }
-#endif // WITH_ZOOKEEPER
 
   ~Log()
   {
     delete network;
-#ifdef WITH_ZOOKEEPER
     delete group;
-#endif // WITH_ZOOKEEPER
     delete replica;
   }
 
@@ -253,7 +249,6 @@ private:
   friend class Reader;
   friend class Writer;
 
-#ifdef WITH_ZOOKEEPER
   // TODO(benh): Factor this out into some sort of "membership renewer".
   void watch(const std::set<zookeeper::Group::Membership>& memberships);
   void failed(const std::string& message) const;
@@ -262,7 +257,6 @@ private:
   zookeeper::Group* group;
   process::Future<zookeeper::Group::Membership> membership;
   async::Dispatch dispatch;
-#endif // WITH_ZOOKEEPER
 
   int quorum;
 
@@ -418,7 +412,6 @@ Result<Log::Position> Log::Writer::truncate(
 }
 
 
-#ifdef WITH_ZOOKEEPER
 void Log::watch(const std::set<zookeeper::Group::Membership>& memberships)
 {
   if (membership.isReady() && memberships.count(membership.get()) == 0) {
@@ -446,7 +439,6 @@ void Log::discarded() const
 {
   LOG(FATAL) << "Not expecting future to get discarded!";
 }
-#endif // WITH_ZOOKEEPER
 
 } // namespace log {
 } // namespace internal {

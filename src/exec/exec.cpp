@@ -263,6 +263,8 @@ private:
 MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
   : executor(_executor), state(INITIALIZED), process(NULL)
 {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   // Create mutex and condition variable
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);

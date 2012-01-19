@@ -36,12 +36,18 @@ inline Try<int> killtree(
     bool killgroups,
     bool killsess)
 {
-  if (utils::os::hasenv("MESOS_HOME")) {
-    return Try<int>::error("Expecting MESOS_HOME to be set");
+  std::string cmdline;
+  // TODO(Charles Reiss): Use a configuration option.
+  if (utils::os::hasenv("MESOS_KILLTREE")) {
+    // Set by mesos-build-env.sh.
+    cmdline = utils::os::getenv("MESOS_KILLTREE");
+  } else if (utils::os::hasenv("MESOS_SOURCE_DIR")) {
+    // Set by test harness for external tests.
+    cmdline = utils::os::getenv("MESOS_SOURCE_DIR") +
+        "/src/scripts/killtree.sh";
+  } else {
+    cmdline = MESOS_LIBEXECDIR "/killtree.sh";
   }
-
-  std::string cmdline = utils::os::getenv("MESOS_HOME");
-  cmdline += "/killtree.sh";
   cmdline += " -p " + pid;
   cmdline += " -s " + signal;
   if (killgroups) cmdline += " -g";

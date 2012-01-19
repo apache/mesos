@@ -57,6 +57,8 @@ void usage(const char* programName, const Configurator& configurator)
 
 int main(int argc, char **argv)
 {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   Configurator configurator;
   local::registerOptions(&configurator);
   configurator.addOption<int>("port", 'p', "Port to listen on", 5050);

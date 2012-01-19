@@ -111,7 +111,7 @@ void ProcessBasedIsolationModule::launchExecutor(
 
   if (pid) {
     // In parent process.
-    LOG(INFO) << "Forked executor at = " << pid;
+    LOG(INFO) << "Forked executor at " << pid;
 
     // Record the pid (should also be the pgis since we setsid below).
     infos[frameworkId][executorId]->pid = pid;

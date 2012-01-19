@@ -53,7 +53,7 @@ public class TestMultipleExecutorsFramework {
     public void resourceOffers(SchedulerDriver driver,
                                List<Offer> offers) {
       try {
-        File file = new File("./test_executor");
+        File file = new File("./test-executor");
 
         for (Offer offer : offers) {
           List<TaskDescription> tasks = new ArrayList<TaskDescription>();
@@ -172,24 +172,38 @@ public class TestMultipleExecutorsFramework {
     private boolean barLaunched = false;
   }
 
+  private static void usage() {
+    String name = TestMultipleExecutorsFramework.class.getName();
+    System.err.println("Usage: " + name + " master <tasks>");
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length < 1 || args.length > 2) {
-      System.out.println("Invalid use: please specify a master");
-    } else {
-      ExecutorInfo executorInfo;
-
-      File file = new File("./test_executor");
-      executorInfo = ExecutorInfo.newBuilder()
-                       .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
-                       .setUri(file.getCanonicalPath())
-                       .build();
-
-      if (args.length == 1) {
-        new MesosSchedulerDriver(new MyScheduler(), "Java test framework", executorInfo, args[0]).run();
-      } else {
-        new MesosSchedulerDriver(new MyScheduler(Integer.parseInt(args[1])),
-                                 "Java test framework", executorInfo, args[0]).run();
-      }
+      usage();
+      System.exit(1);
     }
+
+    ExecutorInfo executorInfo = ExecutorInfo.newBuilder()
+      .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
+      .setUri(new File("./test-executor").getCanonicalPath())
+      .build();
+
+    MesosSchedulerDriver driver;
+
+    if (args.length == 1) {
+      driver = new MesosSchedulerDriver(
+          new MyScheduler(),
+          "Java test framework",
+          executorInfo,
+          args[0]);
+    } else {
+      driver = new MesosSchedulerDriver(
+          new MyScheduler(Integer.parseInt(args[1])),
+          "Java test framework",
+          executorInfo,
+          args[0]);
+    }
+
+    System.exit(driver.run() == Status.OK ? 0 : 1);
   }
 }

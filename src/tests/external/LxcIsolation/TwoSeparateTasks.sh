@@ -10,4 +10,4 @@ export DESIRED_MEMHOG_EXIT_CODE=0
 
 # Exec run_scheduled_memhog_test.sh, which actually runs the test and reports
 # whether memhog gave the desired exit status through its exit status
-exec $MESOS_HOME/tests/external/LxcIsolation/run_scheduled_memhog_test.sh
+exec $MESOS_SOURCE_DIR/src/tests/external/LxcIsolation/run_scheduled_memhog_test.sh

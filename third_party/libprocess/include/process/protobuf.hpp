@@ -99,7 +99,7 @@ protected:
 
   using process::Process<T>::send;
 
-  const std::string& serve(double secs = 0, bool once = false)
+  std::string serve(double secs = 0, bool once = false)
   {
     do {
       const std::string& name = process::Process<T>::serve(secs, once);

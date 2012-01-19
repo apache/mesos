@@ -30,9 +30,7 @@
 #include "common/fatal.hpp"
 #include "common/strings.hpp"
 
-#ifdef WITH_ZOOKEEPER
 #include "zookeeper/zookeeper.hpp"
-#endif
 
 #include "master.hpp"
 #include "slaves_manager.hpp"
@@ -59,8 +57,6 @@ using std::map;
 using std::string;
 using std::vector;
 
-
-#ifdef WITH_ZOOKEEPER
 
 // Forward declaration of watcher.
 class ZooKeeperSlavesManagerStorageWatcher;
@@ -588,8 +584,6 @@ bool ZooKeeperSlavesManagerStorage::parse(
   return true;
 }
 
-#endif // WITH_ZOOKEEPER
-
 
 SlavesManager::SlavesManager(const Configuration& conf,
                              const PID<Master>& _master)
@@ -603,7 +597,6 @@ SlavesManager::SlavesManager(const Configuration& conf,
   string zoo = "zoo://";
   size_t index = slaves.find(zoo);
   if (index == 0) {
-#ifdef WITH_ZOOKEEPER
     // TODO(benh): Consider actually using the chroot feature of
     // ZooKeeper, rather than just using it's syntax.
     string temp = slaves.substr(zoo.size());
@@ -621,10 +614,6 @@ SlavesManager::SlavesManager(const Configuration& conf,
 
     storage = new ZooKeeperSlavesManagerStorage(servers, znode, self());
     process::spawn(storage);
-#else
-    fatal("Cannot get active/inactive slave information using 'zoo://',"
-          " ZooKeeper is not supported in this build");
-#endif // WITH_ZOOKEEPER
   } else {
     // Parse 'slaves' as initial active hostname:port pairs.
     if (slaves != "*") {

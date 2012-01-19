@@ -214,7 +214,7 @@ void LxcIsolationModule::launchExecutor(
     }
 
     // Determine path for mesos-launcher from Mesos home directory.
-    string path = conf.get("home", ".") + "/bin/mesos-launcher";
+    string path = conf.get("launcher_dir", MESOS_LIBEXECDIR) + "/mesos-launcher";
     args[i++] = path.c_str();
     args[i++] = NULL;
 

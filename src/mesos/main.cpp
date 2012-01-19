@@ -32,6 +32,8 @@ void usage(const char* programName, const Configurator& configurator)
 
 int main(int argc, char** argv)
 {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   // TODO(vinod): Add options!
   Configurator configurator;
 

@@ -4,7 +4,7 @@
   <artifactId>mesos</artifactId>
   <name>Mesos</name>
   <groupId>org.mesosproject</groupId>
-  <version>%MESOS_VERSION%</version>
+  <version>@PACKAGE_VERSION@</version>
   <dependencies>
     <dependency>
       <artifactId>protobuf-java</artifactId>

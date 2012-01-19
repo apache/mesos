@@ -49,6 +49,8 @@ const char * getenvOrEmpty(const char *variable)
 
 int main(int argc, char **argv)
 {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   FrameworkID frameworkId;
   frameworkId.set_value(getenvOrFail("MESOS_FRAMEWORK_ID"));
 

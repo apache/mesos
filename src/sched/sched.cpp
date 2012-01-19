@@ -625,6 +625,8 @@ void MesosSchedulerDriver::init(Scheduler* _sched,
                                 const std::string& _frameworkName,
                                 const ExecutorInfo& _executorInfo)
 {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   sched = _sched;
   conf = _conf;
   frameworkId = _frameworkId;

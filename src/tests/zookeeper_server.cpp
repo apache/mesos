@@ -27,7 +27,8 @@
 #include "common/utils.hpp"
 #include "common/uuid.hpp"
 
-#include "tests/jvm.hpp"
+#include "jvm/jvm.hpp"
+
 #include "tests/zookeeper_server.hpp"
 
 namespace mesos {

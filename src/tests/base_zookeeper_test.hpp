@@ -27,7 +27,8 @@
 
 #include "common/seconds.hpp"
 
-#include "tests/jvm.hpp"
+#include "jvm/jvm.hpp"
+
 #include "tests/zookeeper_server.hpp"
 
 using std::tr1::function;

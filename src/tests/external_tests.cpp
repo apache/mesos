@@ -50,8 +50,8 @@ void mesos::internal::test::runExternalTest(const char* testCase,
   // Create and go into the test's work directory
   enterTestDirectory(testCase, testName);
   // Figure out the absolute path to the test script
-  string script = mesosHome + "/bin/tests/external/" + testCase
-                             + "/" + testName + ".sh";
+  string script = mesosSourceDirectory + "/src/tests/external/" + testCase +
+      "/" + testName + ".sh";
   // Fork a process to change directory and run the test
   pid_t pid;
   if ((pid = fork()) == -1) {
@@ -69,7 +69,11 @@ void mesos::internal::test::runExternalTest(const char* testCase,
       fatalerror("freopen failed");
     if (freopen("stderr", "w", stderr) == NULL)
       fatalerror("freopen failed");
-    setenv("MESOS_HOME", mesosHome.c_str(), 1);
+    setenv("MESOS_SOURCE_DIR", mesosSourceDirectory.c_str(), 1);
+    setenv("MESOS_BUILD_DIR", mesosBuildDirectory.c_str(), 1);
+    setenv("MESOS_WEBUI_DIR",
+           (mesosSourceDirectory + "/src/webui").c_str(), 1);
+    setenv("MESOS_LAUNCHER_DIR", (mesosBuildDirectory + "/src").c_str(), 1);
     execl(script.c_str(), script.c_str(), (char*) NULL);
     // If we get here, execl failed; report the error
     fatalerror("Could not execute %s", script.c_str());

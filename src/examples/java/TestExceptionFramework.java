@@ -54,15 +54,28 @@ public class TestExceptionFramework {
     public void error(SchedulerDriver driver, int code, String message) {}
   }
 
+  private static void usage() {
+    String name = TestExceptionFramework.class.getName();
+    System.err.println("Usage: " + name + " master");
+  }
+
   public static void main(String[] args) throws Exception {
-    ExecutorInfo executorInfo;
+    if (args.length != 1) {
+      usage();
+      System.exit(1);
+    }
 
-    File file = new File("./test_executor");
-    executorInfo = ExecutorInfo.newBuilder()
-                     .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
-                     .setUri(file.getCanonicalPath())
-                     .build();
+    ExecutorInfo executorInfo = ExecutorInfo.newBuilder()
+      .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
+      .setUri(new File("./test-executor").getCanonicalPath())
+      .build();
 
-    new MesosSchedulerDriver(new MyScheduler(), "Exception Framework", executorInfo, args[0]).run();
+    MesosSchedulerDriver driver = new MesosSchedulerDriver(
+        new MyScheduler(),
+        "Exception Framework",
+        executorInfo,
+        args[0]);
+
+    System.exit(driver.run() == Status.OK ? 0 : 1);
   }
 }

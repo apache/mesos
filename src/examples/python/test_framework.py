@@ -54,12 +54,12 @@ class MyScheduler(mesos.Scheduler):
 
         cpus = task.resources.add()
         cpus.name = "cpus"
-        cpus.type = mesos_pb2.Resource.SCALAR
+        cpus.type = mesos_pb2.Value.SCALAR
         cpus.scalar.value = TASK_CPUS
 
         mem = task.resources.add()
         mem.name = "mem"
-        mem.type = mesos_pb2.Resource.SCALAR
+        mem.type = mesos_pb2.Value.SCALAR
         mem.scalar.value = TASK_MEM
 
         tasks.append(task)
@@ -74,13 +74,18 @@ class MyScheduler(mesos.Scheduler):
         driver.stop()
 
 if __name__ == "__main__":
-  print "Connecting to %s" % sys.argv[1]
+  if len(sys.argv) != 2:
+    print "Usage: %s master" % sys.argv[0]
+    sys.exit(1)
 
-  frameworkDir = os.path.abspath(os.path.dirname(sys.argv[0]))
-  execPath = os.path.join(frameworkDir, "test_executor")
   execInfo = mesos_pb2.ExecutorInfo()
   execInfo.executor_id.value = "default"
-  execInfo.uri = execPath
+  execInfo.uri = os.path.abspath("./test-executor")
 
-  sys.exit(mesos.MesosSchedulerDriver(MyScheduler(), "Python test framework",
-                                      execInfo, sys.argv[1]).run())
+  driver = mesos.MesosSchedulerDriver(
+    MyScheduler(),
+    "Python test framework",
+    execInfo,
+    sys.argv[1])
+
+  sys.exit(driver.run())
