@@ -173,7 +173,7 @@ libmesos_no_third_party_la_SOURCES += common/build.hpp			\
 	configurator/configuration.hpp configurator/configurator.hpp	\
 	configurator/option.hpp detector/detector.hpp			\
 	detector/url_processor.hpp launcher/launcher.hpp		\
-	local/local.hpp log/cache.hpp log/coordinator.hpp		\
+	local/local.hpp log/coordinator.hpp				\
 	log/replica.hpp log/log.hpp log/network.hpp			\
 	master/allocator.hpp master/allocator_factory.hpp		\
 	master/constants.hpp master/frameworks_manager.hpp		\
@@ -216,7 +216,7 @@ libmesos_no_third_party_la_LIBADD += libbuild.la
 
 # Convenience library for the log to include leveldb headers.
 noinst_LTLIBRARIES += liblog.la
-liblog_la_SOURCES = log/coordinator.cpp log/replica.cpp	\
+liblog_la_SOURCES = log/coordinator.cpp log/replica.cpp
 nodist_liblog_la_SOURCES = $(LOG_PROTOS)
 liblog_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
 liblog_la_CXXFLAGS = $(MESOS_CXXFLAGS)
@@ -233,8 +233,6 @@ libwebui_la_SOURCES = master/webui.cpp slave/webui.cpp common/webui_utils.cpp
 libwebui_la_SOURCES += master/webui.hpp slave/webui.hpp common/webui_utils.hpp
 libwebui_la_CPPFLAGS = $(MESOS_CPPFLAGS) $(WEBUI_CPPFLAGS)
 libwebui_la_CXXFLAGS = $(MESOS_CXXFLAGS)
-
-libmesos_no_third_party_la_LIBADD += libwebui.la
 endif
 
 
@@ -255,7 +253,7 @@ libmesos_la_LIBADD = libmesos_no_third_party.la
 # For non-convenience libraries we need to link them in to make the shared
 # library each time. (Currently, we don't support platforms where this is not
 # possible.)
-libmesos_la_LIBADD += $(top_builddir)/$(PROTOBUF)/src/.libs/libprotobufl.a
+libmesos_la_LIBADD += $(top_builddir)/$(PROTOBUF)/src/.libs/libprotobuf.a
 libmesos_la_LIBADD += $(top_builddir)/$(GLOG)/.libs/libglog.la
 libmesos_la_LIBADD += $(top_builddir)/$(LIBPROCESS)/libprocess.a
 libmesos_la_LIBADD += $(top_builddir)/$(LIBEV)/.libs/libev.la
