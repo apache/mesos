@@ -346,7 +346,7 @@ public:
             }
 
             // Ensure ranges don't overlap (but not necessarily coalesced).
-            for (int j = j + 1; j < resource.ranges().range_size(); j++) {
+            for (int j = i + 1; j < resource.ranges().range_size(); j++) {
               if (range.begin() <= resource.ranges().range(j).begin() &&
                   resource.ranges().range(j).begin() <= range.end()) {
                 return false;
