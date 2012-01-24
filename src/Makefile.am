@@ -151,7 +151,14 @@ libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
 	common/logging.cpp common/utils.cpp common/date_utils.cpp	\
 	common/resources.cpp common/attributes.cpp common/values.cpp	\
 	zookeeper/zookeeper.cpp zookeeper/authentication.cpp		\
-	zookeeper/group.cpp
+	zookeeper/group.cpp messages/log.proto messages/messages.proto
+
+pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\
+		     $(top_srcdir)/include/mesos/scheduler.hpp	\
+		     $(top_srcdir)/include/mesos/mesos.hpp	\
+		     $(top_srcdir)/include/mesos/mesos.proto
+
+nodist_pkginclude_HEADERS = mesos.pb.h
 
 if OS_LINUX
   libmesos_no_third_party_la_SOURCES += slave/lxc_isolation_module.cpp
@@ -161,23 +168,24 @@ endif
 
 EXTRA_DIST += slave/solaris_project_isolation_module.cpp
 
-libmesos_no_third_party_la_SOURCES += common/build.hpp			\
-	common/date_utils.hpp common/factory.hpp common/fatal.hpp	\
-	common/foreach.hpp common/hashmap.hpp common/hashset.hpp	\
-	common/json.hpp common/lock.hpp common/logging.hpp		\
-	common/lambda.hpp common/option.hpp common/resources.hpp	\
-	common/result.hpp common/multihashmap.hpp			\
+libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
+	common/build.hpp common/date_utils.hpp common/factory.hpp	\
+	common/fatal.hpp common/foreach.hpp common/hashmap.hpp		\
+	common/hashset.hpp common/json.hpp common/lock.hpp		\
+	common/logging.hpp common/lambda.hpp common/option.hpp		\
+	common/resources.hpp common/result.hpp common/multihashmap.hpp	\
 	common/process_utils.hpp common/seconds.hpp common/try.hpp	\
-	common/type_utils.hpp common/units.hpp common/uuid.hpp		\
-	common/strings.hpp common/values.hpp common/attributes.hpp	\
+	common/type_utils.hpp common/thread.hpp common/timer.hpp	\
+	common/utils.hpp common/units.hpp common/uuid.hpp		\
+	common/strings.hpp common/values.hpp				\
 	configurator/configuration.hpp configurator/configurator.hpp	\
 	configurator/option.hpp detector/detector.hpp			\
 	detector/url_processor.hpp launcher/launcher.hpp		\
-	local/local.hpp log/coordinator.hpp				\
-	log/replica.hpp log/log.hpp log/network.hpp			\
-	master/allocator.hpp master/allocator_factory.hpp		\
-	master/constants.hpp master/frameworks_manager.hpp		\
-	master/http.hpp master/master.hpp master/simple_allocator.hpp	\
+	local/local.hpp log/coordinator.hpp log/replica.hpp		\
+	log/log.hpp log/network.hpp master/allocator.hpp		\
+	master/allocator_factory.hpp master/constants.hpp		\
+	master/frameworks_manager.hpp master/http.hpp			\
+	master/master.hpp master/simple_allocator.hpp			\
 	master/slaves_manager.hpp master/webui.hpp messages/log.hpp	\
 	messages/messages.hpp slave/constants.hpp slave/http.hpp	\
 	slave/isolation_module.hpp slave/isolation_module_factory.hpp	\
@@ -185,10 +193,10 @@ libmesos_no_third_party_la_SOURCES += common/build.hpp			\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
 	slave/webui.hpp tests/external_test.hpp				\
-	tests/base_zookeeper_test.hpp tests/jvm.hpp tests/utils.hpp	\
+	tests/base_zookeeper_test.hpp tests/utils.hpp			\
 	tests/zookeeper_server.hpp zookeeper/authentication.hpp		\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
-	zookeeper/zookeeper.hpp jvm/jvm.hpp
+	zookeeper/zookeeper.hpp
 
 libmesos_no_third_party_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
@@ -329,6 +337,31 @@ nobase_dist_webui_SCRIPTS += $(WEBUISCRIPTS)
 dist_pkglibexec_SCRIPTS += scripts/killtree.sh
 
 
+# Java related files are listed outside if HAS_JAVA so we can add them
+# to EXTRA_DIST unconditionally.
+
+# Mesos JAR.
+MESOS_JAR = mesos.jar
+MESOS_JAR_SRCROOT = $(srcdir)/java/src
+MESOS_JAR_SRCDIR = $(srcdir)/java/src/org/apache/mesos
+MESOS_JAR_SRC = $(MESOS_JAR_SRCDIR)/ExecutorDriver.java		\
+		$(MESOS_JAR_SRCDIR)/Executor.java		\
+		$(MESOS_JAR_SRCDIR)/Log.java			\
+		$(MESOS_JAR_SRCDIR)/MesosExecutorDriver.java	\
+		$(MESOS_JAR_SRCDIR)/MesosSchedulerDriver.java	\
+		$(MESOS_JAR_SRCDIR)/SchedulerDriver.java	\
+		$(MESOS_JAR_SRCDIR)/Scheduler.java
+
+EXTRA_DIST += $(MESOS_JAR_SRC)
+
+# We build all the Java examples into their own JAR.
+EXAMPLES_JAR = examples.jar
+JAVA_EXAMPLES_SRC = $(srcdir)/examples/java/TestExceptionFramework.java	\
+	$(srcdir)/examples/java/TestExecutor.java			\
+	$(srcdir)/examples/java/TestFramework.java			\
+	$(srcdir)/examples/java/TestMultipleExecutorsFramework.java
+EXTRA_DIST += $(JAVA_EXAMPLES_SRC)
+
 if HAS_JAVA
 # Protocol buffers JAR.
 PROTOBUF_JAR = ../protobuf.jar
@@ -346,15 +379,6 @@ $(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
 	@$(JAVA_HOME)/bin/jar cf $@ -C ../$(PROTOBUF)/java/src/main/java com
 
 CLEANFILES += $(PROTOBUF_JAR)
-
-
-# Mesos JAR.
-MESOS_JAR = mesos.jar
-MESOS_JAR_SRCROOT = $(srcdir)/java/src
-MESOS_JAR_SRCDIR = $(srcdir)/java/src/org/apache/mesos
-MESOS_JAR_SRC = $(MESOS_JAR_SRCDIR)/*.java
-
-EXTRA_DIST += $(MESOS_JAR_SRC)
 
 $(MESOS_JAR): $(MESOS_JAR_SRC) $(JAVA_PROTOS) $(PROTOBUF_JAR)
 	@echo "Building mesos.jar ..."
@@ -439,15 +463,6 @@ java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
 	@$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.Log
 
-# We build all the Java examples into their own JAR.
-EXAMPLES_JAR = examples.jar
-JAVA_EXAMPLES_SRC = $(srcdir)/examples/TestExceptionFramework.java	\
-	$(srcdir)/examples/TestExecutor.java				\
-	$(srcdir)/examples/TestFramework.java				\
-	$(srcidr)/examples/TestMultipleExecutorsFramework.java
-
-EXTRA_DIST += $(JAVA_EXAMPLES_SOURCES)
-
 $(EXAMPLES_JAR): $(JAVA_EXAMPLES_SOURCES)
 	@echo "Building examples.jar ..."
 	@$(MKDIR_P) examples/java
@@ -465,37 +480,34 @@ PHONY_TARGETS += maven-install
 endif # HAS_JAVA
 
 
-if HAS_PYTHON
-# TODO(Charles Reiss): Figure out how to do a proper out-of-source
-# build of these Python eggs. Right now we copy the entire source
-# directories into the build directory.
+# Python files listed outside HAS_PYTHON so they are included with the
+# distribution unconditionally.
+EXTRA_DIST += python/src/mesos.py				\
+	      python/native/mesos_executor_driver_impl.cpp	\
+	      python/native/mesos_executor_driver_impl.hpp	\
+	      python/native/mesos_scheduler_driver_impl.cpp	\
+	      python/native/mesos_scheduler_driver_impl.hpp	\
+	      python/native/module.cpp python/native/module.hpp	\
+	      python/native/proxy_executor.cpp			\
+	      python/native/proxy_executor.hpp			\
+	      python/native/proxy_scheduler.cpp			\
+	      python/native/proxy_scheduler.hpp
 
+if HAS_PYTHON
 # This builds a Python egg against libmesos_no_third_party.a that is
 # self-contained. It currently depends on the libraries in third_party
 # being built as .a's. (If this is changed, the setup.py will need to
 # be edited).
-#
+
+# TODO(Charles Reiss): Figure out how to do a proper out-of-source
+# build of these Python eggs. Right now we copy the entire source
+# directories into the build directory.
+
 # TODO(Charles Reiss): Additionally support building and installing
 # Python libraries that link against the system libmesos.so. This
 # should be the default mode if we eventually are able to rely on
 # system versions of our dependencies (since we won't be able to
 # create a standalone egg anyways).
-
-# We need to be able to "name" the egg that gets generated via
-# setup.py so that we don't attempt to rebuild it each time, hence the
-# need for PYTHON_EGG_POSTFIX.
-MESOS_EGG = python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
-
-$(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
-	      $(PYTHON_PROTOS) libmesos_no_third_party.la	\
-	      $(PROTOBUF_EGG)
-	@echo "Building Mesos Python egg ..."
-	@$(MKDIR_P) python/src
-	@cp -pf $(srcdir)/python/src/mesos.py python/src
-	@cp -pf $(PYTHON_PROTOS) python/src
-	@PYTHONPATH=../$(SETUPTOOLS) $(PYTHON) python/setup.py bdist_egg
-
-CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*
 
 # TODO(Charles Reiss): Don't hard code this verison number.
 PROTOBUF_EGG =								\
@@ -514,9 +526,23 @@ $(PROTOBUF_EGG):
 
 CLEANFILES += $(PROTOBUF_EGG)
 
-all-local: $(MESOS_EGG)
+MESOS_EGG = python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
+
+$(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
+	      $(PYTHON_PROTOS) libmesos_no_third_party.la	\
+	      $(PROTOBUF_EGG)
+	@echo "Building Mesos Python egg ..."
+	@$(MKDIR_P) python/src
+	@cp -pf $(srcdir)/python/src/mesos.py python/src
+	@cp -pf $(PYTHON_PROTOS) python/src
+	@PYTHONPATH=../$(SETUPTOOLS) $(PYTHON) python/setup.py bdist_egg
+
+CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*
 
 pythonegg_DATA = $(MESOS_EGG)
+
+# Make sure the egg gets built via 'make all'.
+all-local: $(MESOS_EGG)
 endif # HAS_PYTHON
 
 

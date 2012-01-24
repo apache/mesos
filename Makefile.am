@@ -39,6 +39,8 @@ LIBPROCESS = third_party/libprocess
 LEVELDB = third_party/leveldb
 SETUPTOOLS = third_party/distribute-0.6.19
 
+EXTRA_DIST = support/colors.sh
+
 # Build the gmock library for tests (check target).
 check_LTLIBRARIES = libgmock.la
 libgmock_la_SOURCES = $(top_srcdir)/$(GMOCK)/src/gmock-all.cc	\
