@@ -401,7 +401,12 @@ libjava_la_DEPENDENCIES = $(MESOS_PROTO)
 
 libjava_la_LIBADD = $(JAVA_LDFLAGS)
 
-libmesos_no_third_party_la_LIBADD += libjava.la
+# We don't add libjava.la to libmesos_no_third_party.la so we don't
+# include the JNI bindings in the Python egg (but we might want to
+# reconsider this in the future). We also need to add the JAVA_LDFLAGS
+# to libmesos.la so on Linux we set the rpath for libmesos.so.
+libmesos_la_LIBADD += libjava.la
+libmesos_la_LIBADD += $(JAVA_LDFLAGS)
 
 # We need to generate the JNI header files before we build the sources
 # and the easiest way to do that with autotools is with the
@@ -482,15 +487,15 @@ if HAS_PYTHON
 MESOS_EGG = python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
 $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
-	       $(PYTHON_PROTOS) libmesos_no_third_party.la	\
-	       $(PROTOBUF_EGG)
+	      $(PYTHON_PROTOS) libmesos_no_third_party.la	\
+	      $(PROTOBUF_EGG)
 	@echo "Building Mesos Python egg ..."
 	@$(MKDIR_P) python/src
 	@cp -pf $(srcdir)/python/src/mesos.py python/src
 	@cp -pf $(PYTHON_PROTOS) python/src
 	@PYTHONPATH=../$(SETUPTOOLS) $(PYTHON) python/setup.py bdist_egg
 
-CLEANFILES += $(MESOS_EGG)
+CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*
 
 # TODO(Charles Reiss): Don't hard code this verison number.
 PROTOBUF_EGG =								\
