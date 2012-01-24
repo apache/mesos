@@ -6,7 +6,7 @@ MESOS_SOURCE_DIR=@abs_top_srcdir@
 MESOS_BUILD_DIR=@abs_top_builddir@
 
 # Use colors for errors.
-source ${MESOS_SOURCE_DIR}/support/colors.sh
+. ${MESOS_SOURCE_DIR}/support/colors.sh
 
 PROTOBUF_JAR=${MESOS_BUILD_DIR}/protobuf.jar
 

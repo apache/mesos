@@ -19,6 +19,6 @@
 # This is a wrapper for running mesos-local before it is installed
 # that first sets up environment variables as appropriate.
 
-source @abs_top_builddir@/bin/mesos-build-env.sh
+. @abs_top_builddir@/bin/mesos-build-env.sh
 
 @abs_top_builddir@/src/mesos-local "${@}"

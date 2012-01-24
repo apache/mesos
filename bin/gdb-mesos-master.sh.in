@@ -20,7 +20,7 @@
 # installed that first sets up environment variables as appropriate.
 
 # Use colors for errors.
-source @abs_top_srcdir@/support/colors.sh
+. @abs_top_srcdir@/support/colors.sh
 
 OS=`uname`
 
@@ -40,7 +40,7 @@ if test $? != 0; then
   exit 1
 fi
 
-source @abs_top_builddir@/bin/mesos-build-env.sh
+. @abs_top_builddir@/bin/mesos-build-env.sh
 
 exec ${LIBTOOL} --mode=execute gdb --args \
   @abs_top_builddir@/src/mesos-master "${@}"
