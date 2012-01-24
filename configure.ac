@@ -26,10 +26,7 @@ AC_CANONICAL_BUILD
 AC_CANONICAL_TARGET
 
 # Initialize automake.
-AM_INIT_AUTOMAKE([-Wall -Werror silent-rules foreign])
-
-# Allow less verbose output when building.
-AM_SILENT_RULES
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 # Initialize libtool (LT_OUTPUT builds ./libtool immediately, needed
 # so we can do tests with libtool during configuration).
