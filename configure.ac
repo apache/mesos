@@ -219,6 +219,7 @@ __EOF__
       for arch in amd64 i386; do
         dir="$JAVA_HOME/jre/lib/$arch/server"
         if test -e "$dir"; then
+          # Note that these are libtool specific flags.
           JAVA_LDFLAGS="-L$dir -R$dir -Wl,-ljvm"
           break;
           fi
