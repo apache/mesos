@@ -241,6 +241,7 @@ libwebui_la_SOURCES = master/webui.cpp slave/webui.cpp common/webui_utils.cpp
 libwebui_la_SOURCES += master/webui.hpp slave/webui.hpp common/webui_utils.hpp
 libwebui_la_CPPFLAGS = $(MESOS_CPPFLAGS) $(WEBUI_CPPFLAGS)
 libwebui_la_CXXFLAGS = $(MESOS_CXXFLAGS)
+libwebui_la_LIBADD = $(WEBUI_LDFLAGS)
 endif
 
 
@@ -276,14 +277,12 @@ sbin_PROGRAMS += mesos-master
 mesos_master_SOURCES = master/main.cpp
 mesos_master_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_master_CXXFLAGS = $(MESOS_CXXFLAGS)
-mesos_master_LDFLAGS = $(WEBUI_LDFLAGS) $(AM_LDFLAGS)
 mesos_master_LDADD = libwebui.la libmesos.la
 
 sbin_PROGRAMS += mesos-slave
 mesos_slave_SOURCES = slave/main.cpp
 mesos_slave_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_slave_CXXFLAGS = $(MESOS_CXXFLAGS)
-mesos_slave_LDFLAGS = $(WEBUI_LDFLAGS) $(AM_LDFLAGS)
 mesos_slave_LDADD = libwebui.la libmesos.la
 
 bin_PROGRAMS += mesos-local
