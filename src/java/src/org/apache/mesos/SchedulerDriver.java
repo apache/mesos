@@ -24,20 +24,107 @@ import java.util.Collection;
 import java.util.Map;
 
 
+/**
+ * Abstract interface for connecting a scheduler to Mesos. This
+ * interface is used both to manage the scheduler's lifecycle (start
+ * it, stop it, or wait for it to finish) and to interact with Mesos
+ * (e.g., launch tasks, kill tasks, etc.).
+ */
 public interface SchedulerDriver {
-  // Lifecycle methods.
-  public Status start();
-  public Status stop();
-  public Status stop(boolean failover);
-  public Status abort();
-  public Status join();
-  public Status run();
+  /**
+   * Starts the scheduler driver. This needs to be called before any
+   * other driver calls are made.
+   */
+  Status start();
 
-  // Communication methods.
-  public Status requestResources(Collection<ResourceRequest> requests);
-  public Status launchTasks(OfferID offerId, Collection<TaskDescription> tasks, Filters filters);
-  public Status launchTasks(OfferID offerId, Collection<TaskDescription> tasks);
-  public Status killTask(TaskID taskId);
-  public Status reviveOffers();
-  public Status sendFrameworkMessage(SlaveID slaveId, ExecutorID executorId, byte[] data);
-};
+  /**
+   * Stops the scheduler driver. If the 'failover' flag is set to
+   * false then it is expected that this framework will never
+   * reconnect to Mesos and all of it's executors and tasks can be
+   * terminated. Otherwise, all executors and tasks will remain
+   * running (for some master specified failover timeout) allowing the
+   * scheduler to reconnect (possibly in the same process, or from a
+   * different process, for example, on a different machine).
+   */
+  Status stop(boolean failover);
+
+  /**
+   * Stops the scheduler driver assuming no failover.
+   */
+  Status stop();
+
+  /**
+   * Aborts the driver so that no more callbacks can be made to the
+   * scheduler. The semantics of abort and stop have deliberately been
+   * separated so that code can detect an aborted driver (i.e., via
+   * the return status of {@link #join}, see below), and instantiate
+   * and start another driver if desired (from within the same
+   * process).
+   */
+  Status abort();
+
+  /**
+   * Waits for the driver to be stopped or aborted, possibly
+   * _blocking_ the current thread indefinitely. The return status of
+   * this function can be used to determine if the driver was aborted
+   * (see mesos.proto for a description of Status).
+   */
+  Status join();
+
+  /**
+   * Starts and immediately joins (i.e., blocks on) the driver.
+   */
+  Status run();
+
+  /**
+   * Requests resources from Mesos (see mesos.proto for a description
+   * of ResourceRequest and how, for example, to request resources
+   * from specific slaves). Any resources available are offered to the
+   * framework via {@link Scheduler#resourceOffers} callback,
+   * asynchronously.
+   */
+  Status requestResources(Collection<ResourceRequest> requests);
+
+  /**
+   * Launches the given set of tasks. Note that the current mechanism
+   * of rejecting resources is to invoke this with an empty collection
+   * of tasks. A framework can also specify filters on all resources
+   * unused (see mesos.proto for a description of Filters). Note that
+   * currently tasks can only be launched per offer. In the future,
+   * frameworks will be allowed to aggregate offers (resources) to
+   * launch their tasks.
+   */
+  Status launchTasks(OfferID offerId,
+                     Collection<TaskDescription> tasks,
+                     Filters filters);
+
+  /**
+   * Launches the given set of tasks. See above for details.
+   */
+  Status launchTasks(OfferID offerId,
+                     Collection<TaskDescription> tasks);
+
+  /**
+   * Kills the specified task. Note that attempting to kill a task is
+   * currently not reliable. If, for example, a scheduler fails over
+   * while it was attempting to kill a task it will need to retry in
+   * the future (these semantics may be changed in the future).
+   */
+  Status killTask(TaskID taskId);
+
+  /**
+   * Removes all filters, previously set by the framework (via {@link
+   * #launchTasks}). This enables the framework to receive offers
+   * from those filtered slaves.
+   */
+  Status reviveOffers();
+
+  /**
+   * Sends a message from the framework to one of its executors. These
+   * messages are best effort; do not expect a framework message to be
+   * retransmitted in any reliable fashion.
+   */
+  Status sendFrameworkMessage(SlaveID slaveId,
+                              ExecutorID executorId,
+                              byte[] data);
+}

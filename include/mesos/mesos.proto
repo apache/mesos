@@ -22,44 +22,112 @@ option java_package = "org.apache.mesos";
 option java_outer_classname = "Protos";
 
 
+/**
+ * Status is used to indicate the state of the scheduler and executor
+ * driver after function calls.
+ */
+enum Status {
+  OK = 0;
+
+  DRIVER_NOT_RUNNING = 1;
+  DRIVER_ALREADY_RUNNING = 2;
+  DRIVER_ABORTED = 3;
+  DRIVER_STOPPED = 4;
+}
+
+
+/**
+ * A unique ID assigned to a framework. A framework can reuse this ID
+ * in order to do failover (see MesosSchedulerDriver).
+ */
 message FrameworkID {
   required string value = 1;
 }
 
 
+/**
+ * A unique ID assigned to an offer.
+ */
 message OfferID {
   required string value = 1;
 }
 
 
+/**
+ * A unique ID assigned to a slave. Currently, a slave gets a new ID
+ * whenever it (re)registers with Mesos. Framework writers shouldn't
+ * assume any binding between a slave ID and and a hostname.
+ */
 message SlaveID {
   required string value = 1;
 }
 
 
+/**
+ * A framework generated ID to distinguish a task. The ID must remain
+ * unique while the task is active. However, a framework can reuse an
+ * ID _only_ if a previous task with the same ID has reached a
+ * terminal state (e.g., TASK_FINISHED, TASK_LOST, TASK_KILLED, etc.).
+ */
 message TaskID {
   required string value = 1;
 }
 
 
+/**
+ * A framework generated ID to distinguish an executor. Only one
+ * executor with the same ID can be active on the same slave at a
+ * time.
+ */
 message ExecutorID {
   required string value = 1;
 }
 
 
-message Param {
-  required string key = 1;
-  required string value = 2;
+/**
+ * Describes a framework, including its default executor.
+ */
+message FrameworkInfo {
+  required string user = 1;
+  required string name = 2;
+  required ExecutorInfo executor = 3;
 }
 
 
-// TODO(benh): Eliminate this once some notion of a protocol buffer
-// ResourceOffer object makes it's way to the Mesos interface.
-message Params {
-  repeated Param param = 1;
+/**
+ * Describes information about an executor. The 'params' field can be
+ * used to set environment variables for the executor. The 'data'
+ * field can be used to pass arbitrary bytes to an executor (see
+ * ExecutorArgs and Executor::init).
+ */
+message ExecutorInfo {
+  required ExecutorID executor_id = 1;
+  required string uri = 2;
+  repeated Resource resources = 5;
+  optional Params params = 3;
+  optional bytes data = 4;
 }
 
 
+/**
+ * Describes a slave. The 'webui_hostname' and 'webui_port' are
+ * provided in the event a host has different private and public
+ * hostnames (e.g., Amazon EC2).
+ */
+message SlaveInfo {
+  required string hostname = 1;
+  // TODO(benh,andyk): Send bound ports, not just hostname.
+  required string webui_hostname = 2;
+  optional int32 webui_port = 4 [default = 8081];
+  repeated Resource resources = 3;
+  repeated Attribute attributes = 5;
+}
+
+
+/**
+ * Describes an Attribute or Resource "value". A value is described
+ * using the standard protocol buffer "union" trick.
+ */
 message Value {
   enum Type {
     SCALAR = 0;
@@ -97,7 +165,11 @@ message Value {
 }
 
 
-// Attribute doesn't support arithmetic operations.
+/**
+ * Describes an attribute that can be set on a machine. For now,
+ * attributes and resources share the same "value" type, but this may
+ * change in the future and attributes may only be string based.
+ */
 message Attribute {
   required string name = 1;
   required Value.Type type = 2;
@@ -107,8 +179,15 @@ message Attribute {
 }
 
 
-// TODO(benh): Add better support for resources.
-// Resource support arithmetic operations.
+/**
+ * Describes a resource on a machine. A resource can take on one of
+ * three types: scalar (double), a list of finite and discrete ranges
+ * (e.g., [1-10, 20-30]), or a set of items. A resource is described
+ * using the standard protocol buffer "union" trick.
+ *
+ * TODO(benh): Add better support for "expected" resources (e.g.,
+ * cpus, memory, disk, network).
+ */
 message Resource {
   required string name = 1;
   required Value.Type type = 2;
@@ -118,15 +197,41 @@ message Resource {
 }
 
 
-message ExecutorArgs {
-  required FrameworkID framework_id = 1;
-  required ExecutorID executor_id = 2;
+/**
+ * Describes a request for resources that can be used by a framework
+ * to proactively influence the allocator.  If 'slave_id' is provided
+ * then this request is assumed to only apply to resources on that
+ * slave.
+ */
+message ResourceRequest {
+  optional SlaveID slave_id = 1;
+  repeated Resource resources = 2;
+}
+
+
+/**
+ * Describes some resources available on a slave. An offer only
+ * contains resources from a single slave.
+ */
+message Offer {
+  required OfferID id = 1;
+  required FrameworkID framework_id = 2;
   required SlaveID slave_id = 3;
   required string hostname = 4;
-  optional bytes data = 5;
-};
+  repeated Resource resources = 5;
+  repeated Attribute attributes = 7;
+  repeated ExecutorID executor_ids = 6;
+}
 
 
+/**
+ * Describes a task. Passed from the scheduler all the way to an
+ * executor (see SchedulerDriver::launchTasks and
+ * Executor::launchTask). If no executor is specified then the default
+ * executor is assumed (see FrameworkInfo). Otherwise, a different
+ * executor can be used to launch this task, and subsequent tasks
+ * meant for the same executor can reuse the same ExecutorInfo struct.
+ */
 message TaskDescription {
   required string name = 1;
   required TaskID task_id = 2;
@@ -137,16 +242,26 @@ message TaskDescription {
 }
 
 
+/**
+ * Describes possible task states. IMPORTANT: Mesos assumes tasks that
+ * enter terminal states (see below) imply the task is no longer
+ * running and thus clean up any thing associated with the task
+ * (ultimately offering any resources being consumed by that task to
+ * another task).
+ */
 enum TaskState {
   TASK_STARTING = 0;
   TASK_RUNNING = 1;
-  TASK_FINISHED = 2;
-  TASK_FAILED = 3;
-  TASK_KILLED = 4;
-  TASK_LOST = 5;
+  TASK_FINISHED = 2; // TERMINAL.
+  TASK_FAILED = 3; // TERMINAL.
+  TASK_KILLED = 4; // TERMINAL.
+  TASK_LOST = 5; // TERMINAL.
 }
 
 
+/**
+ * Describes the current status of a task.
+ */
 message TaskStatus {
   required TaskID task_id = 1;
   required TaskState state = 2;
@@ -155,60 +270,40 @@ message TaskStatus {
 }
 
 
-message ExecutorInfo {
-  required ExecutorID executor_id = 1;
-  required string uri = 2;
-  repeated Resource resources = 5;
-  optional Params params = 3;
-  optional bytes data = 4;
-}
-
-
-message FrameworkInfo {
-  required string user = 1;
-  required string name = 2;
-  required ExecutorInfo executor = 3;
-}
-
-
-message SlaveInfo {
-  // TODO(benh,andyk): Send bound ports, not just hostname.
-  required string hostname = 1;
-  required string webui_hostname = 2;
-  optional int32 webui_port = 4 [default = 8081];
-  repeated Resource resources = 3;
-  repeated Attribute attributes = 5;
-}
-
-
-message ResourceRequest {
-  optional SlaveID slave_id = 1;
-  repeated Resource resources = 2;
-}
-
-
-message Offer {
-  required OfferID id = 1;
-  required FrameworkID framework_id = 2;
-  required SlaveID slave_id = 3;
-  required string hostname = 4;
-  repeated Resource resources = 5;
-  repeated ExecutorID executor_ids = 6;
-  repeated Attribute attributes = 7;
-}
-
-
+/**
+ * Describes possible filters that can be applied to unused resources
+ * (see SchedulerDriver::launchTasks) to influence the allocator.
+ */
 message Filters {
   // Time to consider unused resources refused.
   optional double refuse_seconds = 1;
 }
 
 
-enum Status {
-  OK = 0;
+/**
+ * Passed to Executor::init.
+ */
+message ExecutorArgs {
+  required FrameworkID framework_id = 1;
+  required ExecutorID executor_id = 2;
+  required SlaveID slave_id = 3;
+  required string hostname = 4;
+  optional bytes data = 5;
+}
 
-  DRIVER_NOT_RUNNING = 1;
-  DRIVER_ALREADY_RUNNING = 2;
-  DRIVER_ABORTED = 3;
-  DRIVER_STOPPED = 4;
+
+/**
+ * A generic (key, value) pair used in various places for parameters.
+ */
+message Param {
+  required string key = 1;
+  required string value = 2;
+}
+ 
+ 
+/**
+ * Collection of Param.
+ */
+message Params {
+  repeated Param param = 1;
 }

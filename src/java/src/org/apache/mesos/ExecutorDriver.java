@@ -22,22 +22,60 @@ import org.apache.mesos.Protos.*;
 
 
 /**
- * Abstract interface for driving an executor connected to Mesos.
- * This interface is used both to start the executor running (and
- * communicating with the slave) and to send information from the executor
- * to Nexus (such as status updates). Concrete implementations of
- * ExecutorDriver will take a Executor as a parameter in order to make
- * callbacks into it on various events.
+ * Abstract interface for connecting an executor to Mesos. This
+ * interface is used both to manage the executor's lifecycle (start
+ * it, stop it, or wait for it to finish) and to interact with Mesos
+ * (e.g., send status updates, send framework messages, etc.).
  */
 public interface ExecutorDriver {
-  // Lifecycle methods.
+  /**
+   * Starts the executor driver. This needs to be called before any
+   * other driver calls are made.
+   */
   public Status start();
-  public Status stop();
-  public Status abort();
-  public Status join();
-  public Status run();
 
-  // Communication methods.
+  /**
+   * Stops the scheduler driver.
+   */
+  public Status stop();
+
+  /**
+   * Aborts the driver so that no more callbacks can be made to the
+   * scheduler. The semantics of abort and stop have deliberately been
+   * separated so that code can detect an aborted driver (i.e., via
+   * the return status of {@link SchedulerDriver#join}, see below),
+   * and instantiate and start another driver if desired (from within
+   * the same process ... although this functionality is currently not
+   * supported for executors).
+   */
+  public Status abort();
+  
+  /**
+   * Waits for the driver to be stopped or aborted, possibly
+   * _blocking_ the current thread indefinitely. The return status of
+   * this function can be used to determine if the driver was aborted
+   * (see mesos.proto for a description of Status).
+   */
+  public Status join();
+  
+  /**
+   * Starts and immediately joins (i.e., blocks on) the driver.
+   */
+  public Status run();
+ 
+  /**
+   * Sends a status update to the framework scheduler, retrying as
+   * necessary until an acknowledgement has been received or the
+   * executor is terminated (in which case, a TASK_LOST status update
+   * will be sent). See {@link Scheduler#statusUpdate} for more
+   * information about status update acknowledgements.
+   */
   public Status sendStatusUpdate(TaskStatus status);
+  
+  /**
+   * Sends a message to the framework scheduler. These messages are
+   * best effort; do not expect a framework message to be
+   * retransmitted in any reliable fashion.
+   */
   public Status sendFrameworkMessage(byte[] data);
 }

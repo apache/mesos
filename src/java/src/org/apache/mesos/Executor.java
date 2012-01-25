@@ -23,12 +23,70 @@ import org.apache.mesos.Protos.*;
 
 /**
  * Callback interface to be implemented by frameworks' executors.
+ * Note that only one callback will be invoked at a time, so it is not
+ * recommended that you block within a callback because it may cause a
+ * deadlock.
+ *
+ * Each callback includes a reference to the executor driver that was
+ * used to run this executor. The reference will not change for the
+ * duration of an executor (i.e., from the point you do {@link
+ * ExecutorDriver#start} to the point that {@link ExecutorDriver#join}
+ * returns). This is intended for convenience so that an executor
+ * doesn't need to store a reference to the driver itself.
  */
 public interface Executor {
-  public void init(ExecutorDriver driver, ExecutorArgs args);
-  public void launchTask(ExecutorDriver driver, TaskDescription task);
-  public void killTask(ExecutorDriver driver, TaskID taskId);
-  public void frameworkMessage(ExecutorDriver driver, byte[] data);
-  public void shutdown(ExecutorDriver driver);
-  public void error(ExecutorDriver driver, int code, String message);
+  /**
+   * Invoked once the executor driver has been able to successfully
+   * connect with Mesos. See mesos.proto for a description of the
+   * ExecutorArgs argument. In particular, a scheduler can pass some
+   * data to it's executors through the {@link ExecutorInfo#data}
+   * field which gets copied into the {@link ExecutorArgs#data}
+   * field. (TODO(benh): This callback will likely become two
+   * callbacks, registered/reregistered, once executors can outlive
+   * slaves.)
+   */
+  void init(ExecutorDriver driver, ExecutorArgs args);
+
+  /**
+   * Invoked when a task has been launched on this executor (initiated
+   * via {@link Scheduler#launchTasks}. Note that this task can be
+   * realized with a thread, a process, or some simple computation,
+   * however, no other callbacks will be invoked on this executor
+   * until this callback has returned.
+   */
+  void launchTask(ExecutorDriver driver, TaskDescription task);
+
+  /**
+   * Invoked when a task running within this executor has been killed
+   * (via {@link SchedulerDriver#killTask}). Note that no status
+   * update will be sent on behalf of the executor, the executor is
+   * responsible for creating a new TaskStatus (i.e., with
+   * TASK_KILLED) and invoking {@link
+   * ExecutorDriver#sendStatusUpdate}.
+   */
+  void killTask(ExecutorDriver driver, TaskID taskId);
+
+  /**
+   * Invoked when a framework message has arrived for this
+   * executor. These messages are best effort; do not expect a
+   * framework message to be retransmitted in any reliable fashion.
+   */
+  void frameworkMessage(ExecutorDriver driver, byte[] data);
+
+  /**
+   * Invoked when the executor should terminate all of it's currently
+   * running tasks. Note that after a Mesos has determined that an
+   * executor has terminated any tasks that the executor did not send
+   * terminal status updates for (e.g., TASK_KILLED, TASK_FINISHED,
+   * TASK_FAILED, etc) a TASK_LOST status update will be created.
+   */
+  void shutdown(ExecutorDriver driver);
+
+  /**
+   * Invoked when a fatal error has occured with the executor and/or
+   * executor driver. The driver will be aborted BEFORE invoking this
+   * callback. This function is deprecated and will probably be
+   * removed in a subsequent release.
+   */
+  void error(ExecutorDriver driver, int code, String message);
 }

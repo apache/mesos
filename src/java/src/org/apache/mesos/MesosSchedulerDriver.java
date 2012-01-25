@@ -26,14 +26,40 @@ import java.util.Map;
 
 
 /**
- * Concrete implementation of SchedulerDriver that communicates with
- * a Mesos master.
+ * Concrete implementation of a SchedulerDriver that connects a
+ * Scheduler with a Mesos master. The MesosSchedulerDriver is
+ * thread-safe.
+ *
+ * Note that scheduler failover is supported in Mesos. After a
+ * scheduler is registered with Mesos it may failover (to a new
+ * process on the same machine or across multiple machines) by
+ * creating a new driver with the ID given to it in {@link
+ * Scheduler#registered}.
+ *
+ * The driver is responsible for invoking the Scheduler callbacks as
+ * it communicates with the Mesos master.
+ *
+ * Note that blocking on the MesosSchedulerDriver (e.g., via {@link
+ * #join}) doesn't affect the scheduler callbacks in anyway because
+ * they are handled by a different thread.
+ *
+ * See src/examples/java/TestFramework.java for an example of using
+ * the MesosSchedulerDriver.
  */
 public class MesosSchedulerDriver implements SchedulerDriver {
   static {
     System.loadLibrary("mesos");
   }
 
+  /**
+   * Creates a new scheduler driver that connects to a Mesos master
+   * through the specified URL. Optionally providing an existing
+   * framework ID can be used to failover a framework.
+   *
+   * Any Mesos configuration options are read from environment
+   * variables, as well as any configuration files found through the
+   * environment variables.
+   */
   public MesosSchedulerDriver(Scheduler sched,
                               String frameworkName,
                               ExecutorInfo executorInfo,
@@ -44,7 +70,7 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     }
 
     if (frameworkName == null) {
-      throw new NullPointerException("Not expecting a null scheduler");
+      throw new NullPointerException("Not expecting a null framework name");
     }
 
     this.sched = sched;
@@ -55,10 +81,23 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     initialize();
   }
 
-  public MesosSchedulerDriver(Scheduler sched, String frameworkName, ExecutorInfo executorInfo, String url) {
-    this(sched, frameworkName, executorInfo, url, FrameworkID.newBuilder().setValue("").build());
+  /**
+   * Creates a new scheduler driver. See above for details.
+   */
+  public MesosSchedulerDriver(Scheduler sched,
+                              String frameworkName,
+                              ExecutorInfo executorInfo,
+                              String url) {
+    this(sched,
+         frameworkName,
+         executorInfo,
+         url,
+         FrameworkID.newBuilder().setValue("").build());
   }
 
+  /**
+   * See SchedulerDriver for descriptions of these.
+   */
   public native Status start();
   public native Status stop(boolean failover);
   public Status stop() {
@@ -74,17 +113,22 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status requestResources(Collection<ResourceRequest> requests);
 
-  public Status launchTasks(OfferID offerId, Collection<TaskDescription> tasks) {
+  public Status launchTasks(OfferID offerId,
+                            Collection<TaskDescription> tasks) {
     return launchTasks(offerId, tasks, Filters.newBuilder().build());
   }
 
-  public native Status launchTasks(OfferID offerId, Collection<TaskDescription> tasks, Filters filters);
+  public native Status launchTasks(OfferID offerId,
+                                   Collection<TaskDescription> tasks,
+                                   Filters filters);
 
   public native Status killTask(TaskID taskId);
 
   public native Status reviveOffers();
 
-  public native Status sendFrameworkMessage(SlaveID slaveId, ExecutorID executorId, byte[] data);
+  public native Status sendFrameworkMessage(SlaveID slaveId,
+                                            ExecutorID executorId,
+                                            byte[] data);
 
   protected native void initialize();
   protected native void finalize();
@@ -97,4 +141,4 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   private long __sched;
   private long __driver;
-};
+}

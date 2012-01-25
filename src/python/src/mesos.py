@@ -14,12 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# See include/mesos/scheduler.hpp, include/mesos/executor.hpp and
+# include/mesos/mesos.proto for more information documenting this
+# interface.
+
 import sys
 import _mesos
 
-
-# Base class for Mesos schedulers. Users' schedulers should extend this class
-# to get default implementations of methods they don't override.
+# Base class for Mesos schedulers. Users' schedulers should extend
+# this class to get default implementations of methods they don't
+# override.
 class Scheduler:
   def registered(self, driver, frameworkId): pass
   def resourceOffers(self, driver, offers): pass
@@ -28,14 +32,14 @@ class Scheduler:
   def frameworkMessage(self, driver, message): pass
   def slaveLost(self, driver, slaveId): pass
 
-  # Default implementation of error() prints to stderr because we can't
-  # make error() an abstract method in Python
+  # Default implementation of error() prints to stderr because we
+  # can't make error() an abstract method in Python.
   def error(self, driver, code, message):
     print >> sys.stderr, "Error from Mesos: %s (code: %d)" % (message, code)
 
 
-# Interface for Mesos scheduler drivers. Users may wish to extend this class
-# in mock objects for tests.
+# Interface for Mesos scheduler drivers. Users may wish to extend this
+# class in mock objects for tests.
 class SchedulerDriver:
   def start(self): pass
   def stop(self, failover=False): pass
@@ -49,8 +53,8 @@ class SchedulerDriver:
   def sendFrameworkMessage(self, slaveId, executorId, data): pass
 
 
-# Base class for Mesos executors. Users' executors should extend this class
-# to get default implementations of methods they don't override.
+# Base class for Mesos executors. Users' executors should extend this
+# class to get default implementations of methods they don't override.
 class Executor:
   def init(self, driver, args): pass
   def launchTask(self, driver, task): pass
@@ -58,14 +62,14 @@ class Executor:
   def frameworkMessage(self, driver, message): pass
   def shutdown(self, driver): pass
 
-  # Default implementation of error() prints to stderr because we can't
-  # make error() an abstract method in Python
+  # Default implementation of error() prints to stderr because we
+  # can't make error() an abstract method in Python.
   def error(self, driver, code, message):
     print >> sys.stderr, "Error from Mesos: %s (code: %d)" % (message, code)
 
 
-# Interface for Mesos executor drivers. Users may wish to extend this class
-# in mock objects for tests.
+# Interface for Mesos executor drivers. Users may wish to extend this
+# class in mock objects for tests.
 class ExecutorDriver:
   def start(self): pass
   def stop(self): pass
