@@ -14,14 +14,20 @@ test ! -z "${PYTHON}" && \
 
 PYTHON=@PYTHON@
 
+DISTRIBUTE_EGG=`echo ${MESOS_BUILD_DIR}/third_party/distribute-*/*.egg`
+
+test ! -e ${DISTRIBUTE_EGG} && \
+  echo "${RED}Failed to find ${DISTRIBUTE_EGG}${NORMAL}" && \
+  exit 1
+
 PROTOBUF=${MESOS_BUILD_DIR}/third_party/protobuf-2.3.0
-PROTOBUF_EGG=`ls ${PROTOBUF}/python/dist/protobuf*.egg`
+PROTOBUF_EGG=`echo ${PROTOBUF}/python/dist/protobuf*.egg`
 
 test ! -e ${PROTOBUF_EGG} && \
   echo "${RED}Failed to find ${PROTOBUF_EGG}${NORMAL}" && \
   exit 1
 
-MESOS_EGG=`ls ${MESOS_BUILD_DIR}/src/python/dist/mesos*.egg`
+MESOS_EGG=`echo ${MESOS_BUILD_DIR}/src/python/dist/mesos*.egg`
 
 test ! -e ${MESOS_EGG} && \
   echo "${RED}Failed to find ${MESOS_EGG}${NORMAL}" && \
@@ -37,4 +43,5 @@ test ! -e ${SCRIPT} && \
 # framework is able to find the executor.
 cd `dirname ${0}`
 
-PYTHONPATH=${MESOS_EGG}:${PROTOBUF_EGG} exec ${PYTHON} ${SCRIPT} "${@}"
+PYTHONPATH="${DISTRIBUTE_EGG}:${MESOS_EGG}:${PROTOBUF_EGG}" \
+  exec ${PYTHON} ${SCRIPT} "${@}"
