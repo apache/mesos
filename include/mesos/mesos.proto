@@ -110,6 +110,18 @@ message ExecutorInfo {
 
 
 /**
+ * Describes a master. This will probably have more fields in the
+ * future which might be used, for example, to link a framework webui
+ * to a master webui.
+ */
+message MasterInfo {
+  required string id = 1;
+  required uint32 ip = 2;
+  required uint32 port = 3;
+}
+
+
+/**
  * Describes a slave. The 'webui_hostname' and 'webui_port' are
  * provided in the event a host has different private and public
  * hostnames (e.g., Amazon EC2).

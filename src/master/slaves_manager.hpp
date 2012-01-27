@@ -36,10 +36,10 @@ class Master;
 class SlavesManagerStorage : public process::Process<SlavesManagerStorage>
 {
 public:
-  virtual process::Promise<bool> add(const std::string& hostname, uint16_t port) { return true; }
-  virtual process::Promise<bool> remove(const std::string& hostname, uint16_t port) { return true; }
-  virtual process::Promise<bool> activate(const std::string& hostname, uint16_t port) { return true; }
-  virtual process::Promise<bool> deactivate(const std::string& hostname, uint16_t port) { return true; }
+  virtual process::Future<bool> add(const std::string& hostname, uint16_t port) { return true; }
+  virtual process::Future<bool> remove(const std::string& hostname, uint16_t port) { return true; }
+  virtual process::Future<bool> activate(const std::string& hostname, uint16_t port) { return true; }
+  virtual process::Future<bool> deactivate(const std::string& hostname, uint16_t port) { return true; }
 };
 
 
@@ -61,12 +61,12 @@ public:
   void updateInactive(const multihashmap<std::string, uint16_t>& updated);
 
 private:
-  process::Promise<process::HttpResponse> add(const process::HttpRequest& request);
-  process::Promise<process::HttpResponse> remove(const process::HttpRequest& request);
-  process::Promise<process::HttpResponse> activate(const process::HttpRequest& request);
-  process::Promise<process::HttpResponse> deactivate(const process::HttpRequest& request);
-  process::Promise<process::HttpResponse> activated(const process::HttpRequest& request);
-  process::Promise<process::HttpResponse> deactivated(const process::HttpRequest& request);
+  process::Future<process::HttpResponse> add(const process::HttpRequest& request);
+  process::Future<process::HttpResponse> remove(const process::HttpRequest& request);
+  process::Future<process::HttpResponse> activate(const process::HttpRequest& request);
+  process::Future<process::HttpResponse> deactivate(const process::HttpRequest& request);
+  process::Future<process::HttpResponse> activated(const process::HttpRequest& request);
+  process::Future<process::HttpResponse> deactivated(const process::HttpRequest& request);
 
   const process::PID<Master> master;
 

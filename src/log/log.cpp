@@ -241,7 +241,7 @@ public:
   void updated(const string& path);
 
 protected:
-  virtual void operator () ();
+  virtual void initialze();
 
 private:
   // Updates the group.
@@ -526,13 +526,11 @@ void LogProcess::updated(const string& path)
 }
 
 
-void LogProcess::operator () ()
+void LogProcess::initalize()
 {
   // TODO(benh): Real testing requires injecting a ZooKeeper instance.
   watcher = new LogProcessWatcher(self());
   zk = new ZooKeeper(servers, 10000, watcher);
-
-  do { if (serve() == process::TERMINATE) break; } while (true);
 }
 
 

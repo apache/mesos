@@ -61,6 +61,8 @@ public:
 
   static void registerOptions(Configurator* configurator);
 
+  void shutdown();
+
   void newMasterDetected(const UPID& pid);
   void noMasterDetected();
   void masterDetectionFailure();
@@ -91,8 +93,7 @@ public:
                        const FrameworkID& frameworkId,
                        const ExecutorID& executorId,
                        const std::string& data);
-  void ping();
-  void exited();
+  void ping(const UPID& from, const std::string& body);
 
   void statusUpdateTimeout(const FrameworkID& frameworkId, const UUID& uuid);
 
@@ -105,9 +106,9 @@ public:
                       int status);
 
 protected:
-  virtual void operator () ();
-
-  void initialize();
+  virtual void initialize();
+  virtual void finalize();
+  virtual void exited(const UPID& pid);
 
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
@@ -141,15 +142,15 @@ private:
   // Http handlers, friends of the slave in order to access state,
   // they get invoked from within the slave so there is no need to
   // use synchronization mechanisms to protect state.
-  friend Promise<HttpResponse> http::vars(
+  friend Future<HttpResponse> http::vars(
       const Slave& slave,
       const HttpRequest& request);
 
-  friend Promise<HttpResponse> http::json::stats(
+  friend Future<HttpResponse> http::json::stats(
       const Slave& slave,
       const HttpRequest& request);
 
-  friend Promise<HttpResponse> http::json::state(
+  friend Future<HttpResponse> http::json::state(
       const Slave& slave,
       const HttpRequest& request);
 

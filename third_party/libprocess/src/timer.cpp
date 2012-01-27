@@ -1,5 +1,7 @@
 #include <process/timer.hpp>
 
+#include "timeout.hpp"
+
 namespace process {
 
 class TimerProcess : public Process<TimerProcess>
@@ -27,6 +29,9 @@ private:
 };
 
 
+static void dispatch()
+
+
 Timer::Timer(double secs,
              const UPID& pid,
              std::tr1::function<void(ProcessBase*)>* dispatcher)
@@ -45,7 +50,7 @@ Timer::~Timer()
 
 void Timer::cancel()
 {
-  terminate(timer);
+  timeouts::cancel(timeout);
 }
 
 } // namespace process {

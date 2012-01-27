@@ -24,8 +24,6 @@
 #include <string>
 #include <sstream>
 
-#include <boost/bind.hpp>
-
 #include <mesos/executor.hpp>
 
 #include <process/dispatch.hpp>
@@ -46,14 +44,13 @@ using namespace mesos::internal;
 
 using namespace process;
 
-using boost::bind;
-
 using std::string;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
 
-namespace mesos { namespace internal {
+namespace mesos {
+namespace internal {
 
 class ExecutorProcess : public ProtobufProcess<ExecutorProcess>
 {
@@ -74,35 +71,33 @@ public:
       aborted(false),
       directory(_directory)
   {
-    installProtobufHandler<ExecutorRegisteredMessage>(
+    install<ExecutorRegisteredMessage>(
         &ExecutorProcess::registered,
         &ExecutorRegisteredMessage::args);
 
-    installProtobufHandler<RunTaskMessage>(
+    install<RunTaskMessage>(
         &ExecutorProcess::runTask,
         &RunTaskMessage::task);
 
-    installProtobufHandler<KillTaskMessage>(
+    install<KillTaskMessage>(
         &ExecutorProcess::killTask,
         &KillTaskMessage::task_id);
 
-    installProtobufHandler<FrameworkToExecutorMessage>(
+    install<FrameworkToExecutorMessage>(
         &ExecutorProcess::frameworkMessage,
         &FrameworkToExecutorMessage::slave_id,
         &FrameworkToExecutorMessage::framework_id,
         &FrameworkToExecutorMessage::executor_id,
         &FrameworkToExecutorMessage::data);
 
-    installProtobufHandler<ShutdownExecutorMessage>(
+    install<ShutdownExecutorMessage>(
         &ExecutorProcess::shutdown);
-
-    installMessageHandler(EXITED, &ExecutorProcess::exited);
   }
 
   virtual ~ExecutorProcess() {}
 
 protected:
-  virtual void operator () ()
+  virtual void initialize()
   {
     VLOG(1) << "Executor started at: " << self();
 
@@ -113,8 +108,6 @@ protected:
     message.mutable_framework_id()->MergeFrom(frameworkId);
     message.mutable_executor_id()->MergeFrom(executorId);
     send(slave, message);
-
-    do { if (serve() == TERMINATE) break; } while (true);
   }
 
   void registered(const ExecutorArgs& args)
@@ -127,7 +120,7 @@ protected:
     VLOG(1) << "Executor registered on slave " << args.slave_id();
 
     slaveId = args.slave_id();
-    invoke(bind(&Executor::init, executor, driver, args));
+    executor->init(driver, args);
   }
 
   void runTask(const TaskDescription& task)
@@ -139,7 +132,7 @@ protected:
 
     VLOG(1) << "Executor asked to run task '" << task.task_id() << "'";
 
-    invoke(bind(&Executor::launchTask, executor, driver, task));
+    executor->launchTask(driver, task);
   }
 
   void killTask(const TaskID& taskId)
@@ -151,7 +144,7 @@ protected:
 
     VLOG(1) << "Executor asked to kill task '" << taskId << "'";
 
-    invoke(bind(&Executor::killTask, executor, driver, taskId));
+    executor->killTask(driver, taskId);
   }
 
   void frameworkMessage(const SlaveID& slaveId,
@@ -166,7 +159,7 @@ protected:
 
     VLOG(1) << "Executor received framework message";
 
-    invoke(bind(&Executor::frameworkMessage, executor, driver, data));
+    executor->frameworkMessage(driver, data);
   }
 
   void shutdown()
@@ -179,7 +172,7 @@ protected:
     VLOG(1) << "Executor asked to shutdown";
 
     // TODO(benh): Any need to invoke driver.stop?
-    invoke(bind(&Executor::shutdown, executor, driver));
+    executor->shutdown(driver);
     if (!local) {
       exit(0);
     } else {
@@ -193,7 +186,7 @@ protected:
     aborted = true;
   }
 
-  void exited()
+  virtual void exited(const UPID& pid)
   {
     if (aborted) {
       VLOG(1) << "Ignoring exited event because the driver is aborted!";
@@ -203,7 +196,7 @@ protected:
     VLOG(1) << "Slave exited, trying to shutdown";
 
     // TODO: Pass an argument to shutdown to tell it this is abnormal?
-    invoke(bind(&Executor::shutdown, executor, driver));
+    executor->shutdown(driver);
 
     // This is a pretty bad state ... no slave is left. Rather
     // than exit lets kill our process group (which includes
@@ -225,7 +218,7 @@ protected:
     update->mutable_executor_id()->MergeFrom(executorId);
     update->mutable_slave_id()->MergeFrom(slaveId);
     update->mutable_status()->MergeFrom(status);
-    update->set_timestamp(elapsedTime());
+    update->set_timestamp(Clock::now());
     update->set_uuid(UUID::random().toBytes());
     send(slave, message);
   }
@@ -254,7 +247,8 @@ private:
   const std::string directory;
 };
 
-}} // namespace mesos { namespace internal {
+} // namespace internal {
+} // namespace mesos {
 
 
 // Implementation of C++ API.
@@ -397,6 +391,11 @@ Status MesosExecutorDriver::stop()
   terminate(process);
 
   state = STOPPED;
+
+  // TODO(benh): Set the condition variable in ExecutorProcess just as
+  // we do with the MesosSchedulerDriver and SchedulerProcess:
+  // dispatch(process, &ExecutorProcess::stop);
+
   pthread_cond_signal(&cond);
 
   return OK;
@@ -418,6 +417,9 @@ Status MesosExecutorDriver::abort()
   state = ABORTED;
 
   CHECK(process != NULL);
+
+  // TODO(benh): Set the condition variable in ExecutorProcess just as
+  // we do with the MesosSchedulerDriver and SchedulerProcess.
 
   dispatch(process, &ExecutorProcess::abort);
 

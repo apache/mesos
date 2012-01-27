@@ -27,7 +27,9 @@
 
 using std::map;
 
-namespace mesos { namespace internal { namespace master {
+namespace mesos {
+namespace internal {
+namespace master {
 
 // Constructor: Initializes storage and resets cached flag.
 FrameworksManager::FrameworksManager(FrameworksStorage* _storage)
@@ -39,8 +41,8 @@ FrameworksManager::FrameworksManager(FrameworksStorage* _storage)
 Result<map<FrameworkID, FrameworkInfo> > FrameworksManager::list()
 {
   if (!cache()) {
-    return Result<map<FrameworkID,
-                      FrameworkInfo> >::error("Error caching framework infos.");
+    return Result<map<FrameworkID, FrameworkInfo> >
+      ::error("Error caching framework infos.");
   }
 
   map<FrameworkID, FrameworkInfo> result;
@@ -68,23 +70,27 @@ Result<bool> FrameworksManager::add(const FrameworkID& id,
   //      return Result<bool>::error("Error caching framework infos.");
   //    }
   //
-  //  if(infos.count(id)){
+  //  if (infos.count(id) > 0) {
   //    LOG(INFO) << "Duplicate framework detected...id: " << id;
   //
-  //    if(infos[id].first. == info)
+  //    if (infos[id].first == info)
   //    {
   //      LOG(INFO) << "Duplicate framework information detected...returning.";
   //      return Result<bool>::some(true);
   //    }
   //  }
 
-  Result<bool> result =
-    call(storage, &FrameworksStorage::add, id, info);
+  Future<Result<bool> > result =
+    dispatch(storage, &FrameworksStorage::add, id, info);
 
-  if (result.isError()) {
+  result.await();
+
+  CHECK(result.isReady());
+
+  if (result.get().isError()) {
     LOG(ERROR) << "Error adding framework to underlying storage: "
-               << result.error();
-    return result;
+               << result.get().error();
+    return result.get();
   }
 
   infos[id] = std::make_pair(info, Option<double>::none());
@@ -93,26 +99,26 @@ Result<bool> FrameworksManager::add(const FrameworkID& id,
 }
 
 
-// Remove a framework after a delay.
-// Actually sends a message to self after the given delay.
-Promise<Result<bool> > FrameworksManager::remove(const FrameworkID& id,
-                                                 double delay_secs)
+Future<Result<bool> > FrameworksManager::remove(const FrameworkID& id,
+                                                const seconds& s)
 {
   if (!cache()) {
     return Result<bool>::error("Error caching framework infos.");
   }
 
-  if(!infos.count(id)) {
+  if (infos.count(id) == 0) {
     LOG(INFO) << "Can't remove non-existent Framework: " << id;
     return Result<bool>::error("Error removing non-existing framework.");
   }
 
-  // Set the option to contain the firing time of the message.
-  infos[id].second = Option<double>::some(elapsedTime() + delay_secs);
+  LOG(INFO) << "Expiring framework " << id << " in " << s.value << " seconds";
 
-  Promise<Result<bool> > promise;
-  delay(delay_secs, self(), &FrameworksManager::expire, id, promise);
-  return promise;
+  // Set the option to contain the firing time of the message.
+  infos[id].second = Option<double>::some(Clock::now() + s.value);
+
+  Promise<Result<bool> >* promise = new Promise<Result<bool> >();
+  delay(s.value, self(), &FrameworksManager::expire, id, promise);
+  return promise->future();
 }
 
 
@@ -125,7 +131,7 @@ Result<bool> FrameworksManager::resurrect(const FrameworkID& id)
     return Result<bool>::error("Error caching framework infos.");
   }
 
-  if (infos.count(id)) {
+  if (infos.count(id) > 0) {
     infos[id].second = Option<double>::none();
 
     return true;
@@ -149,32 +155,44 @@ Result<bool> FrameworksManager::exists(const FrameworkID& id)
 // Actually removes the framework from the underlying storage.
 // Checks for the case when the framework is being resurrected.
 void FrameworksManager::expire(const FrameworkID& id,
-                               Promise<Result<bool> > promise)
+                               Promise<Result<bool> >* promise)
 {
-  if (infos.count(id)) {
-    Option<double>& option = infos[id].second;
+  if (infos.count(id) > 0) {
+    const Option<double>& option = infos[id].second;
 
-    if (option.isSome() && elapsedTime() >= option.get()) {
-      LOG(INFO) << "Removing framework " << id << " from storage";
+    if (option.isSome()) {
+      if (Clock::now() >= option.get()) {
+        LOG(INFO) << "Removing framework " << id << " from storage";
 
-      Result<bool> result = call(storage, &FrameworksStorage::remove, id);
+        Future<Result<bool> > result =
+          dispatch(storage, &FrameworksStorage::remove, id);
 
-      // If storage returns successfully remove from cache.
-      if (!result.isError()) {
-        infos.erase(id);
+        result.await();
+
+        CHECK(result.isReady());
+
+        // If storage returns successfully remove from cache.
+        if (!result.get().isError()) {
+          infos.erase(id);
+        }
+        promise->set(result.get());
+        delete promise;
+        return;
+      } else {
+        LOG(INFO) << "Framework appears to be resurrected, and then "
+                  << "re-removed, so ignoring this delayed expire";
       }
-      promise.set(result);
-      return;
     } else {
       LOG(INFO) << "Framework appears to have been "
-                << "resurrected, ignoring delayed expire.";
+                << "resurrected, ignoring delayed expire";
     }
   } else {
     LOG(INFO) << "Framework has already been removed by someone else,"
-              << "ignoring delayed expire.";
+              << "ignoring delayed expire";
   }
 
-  promise.set(Result<bool>::some(false));
+  promise->set(Result<bool>::some(false));
+  delete promise;
 }
 
 
@@ -182,16 +200,22 @@ void FrameworksManager::expire(const FrameworkID& id,
 bool FrameworksManager::cache()
 {
   if (!cached) {
-    Result<map<FrameworkID, FrameworkInfo> > result =
-        call(storage, &FrameworksStorage::list);
+    LOG(INFO) << "Caching framework information";
 
-    if (result.isError()) {
+    Future<Result<map<FrameworkID, FrameworkInfo> > > result =
+      dispatch(storage, &FrameworksStorage::list);
+
+    result.await();
+
+    CHECK(result.isReady());
+
+    if (result.get().isError()) {
       LOG(ERROR) << "Error getting framework info from underlying storage: "
-                 << result.error();
+                 << result.get().error();
       return false;
     }
 
-    foreachpair (const FrameworkID& id, const FrameworkInfo& info, result.get()) {
+    foreachpair (const FrameworkID& id, const FrameworkInfo& info, result.get().get()) {
       infos[id] = std::make_pair(info, Option<double>::none());
     }
 
@@ -201,4 +225,6 @@ bool FrameworksManager::cache()
   return true;
 }
 
-}}}  // namespace mesos { namespace internal { namespace master {
+}  // namespace master {
+}  // namespace internal {
+}  // namespace mesos {

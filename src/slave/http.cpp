@@ -30,9 +30,9 @@
 #include "slave/http.hpp"
 #include "slave/slave.hpp"
 
+using process::Future;
 using process::HttpResponse;
 using process::HttpRequest;
-using process::Promise;
 
 using std::string;
 
@@ -113,7 +113,7 @@ JSON::Object model(const Framework& framework)
 
 namespace http {
 
-Promise<HttpResponse> vars(
+Future<HttpResponse> vars(
     const Slave& slave,
     const HttpRequest& request)
 {
@@ -146,7 +146,7 @@ Promise<HttpResponse> vars(
 
 namespace json {
 
-Promise<HttpResponse> stats(
+Future<HttpResponse> stats(
     const Slave& slave,
     const HttpRequest& request)
 {
@@ -175,7 +175,7 @@ Promise<HttpResponse> stats(
 }
 
 
-Promise<HttpResponse> state(
+Future<HttpResponse> state(
     const Slave& slave,
     const HttpRequest& request)
 {

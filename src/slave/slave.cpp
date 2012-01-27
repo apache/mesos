@@ -76,9 +76,7 @@ Slave::Slave(const Resources& _resources,
     resources(_resources),
     local(_local),
     isolationModule(_isolationModule)
-{
-  initialize();
-}
+{}
 
 
 Slave::Slave(const Configuration& _conf,
@@ -94,8 +92,6 @@ Slave::Slave(const Configuration& _conf,
 
   attributes =
     Attributes::parse(conf.get<string>("attributes", ""));
-
-  initialize();
 }
 
 
@@ -152,111 +148,6 @@ void Slave::registerOptions(Configurator* configurator)
 
 void Slave::initialize()
 {
-  // Start all the statistics at 0.
-  CHECK(TASK_STARTING == TaskState_MIN);
-  CHECK(TASK_LOST == TaskState_MAX);
-  stats.tasks[TASK_STARTING] = 0;
-  stats.tasks[TASK_RUNNING] = 0;
-  stats.tasks[TASK_FINISHED] = 0;
-  stats.tasks[TASK_FAILED] = 0;
-  stats.tasks[TASK_KILLED] = 0;
-  stats.tasks[TASK_LOST] = 0;
-  stats.validStatusUpdates = 0;
-  stats.invalidStatusUpdates = 0;
-  stats.validFrameworkMessages = 0;
-  stats.invalidFrameworkMessages = 0;
-
-  startTime = elapsedTime();
-  connected = false;
-
-  // Install protobuf handlers.
-  installProtobufHandler<NewMasterDetectedMessage>(
-      &Slave::newMasterDetected,
-      &NewMasterDetectedMessage::pid);
-
-  installProtobufHandler<NoMasterDetectedMessage>(
-      &Slave::noMasterDetected);
-
-  installProtobufHandler<SlaveRegisteredMessage>(
-      &Slave::registered,
-      &SlaveRegisteredMessage::slave_id);
-
-  installProtobufHandler<SlaveReregisteredMessage>(
-      &Slave::reregistered,
-      &SlaveReregisteredMessage::slave_id);
-
-  installProtobufHandler<RunTaskMessage>(
-      &Slave::runTask,
-      &RunTaskMessage::framework,
-      &RunTaskMessage::framework_id,
-      &RunTaskMessage::pid,
-      &RunTaskMessage::task);
-
-  installProtobufHandler<KillTaskMessage>(
-      &Slave::killTask,
-      &KillTaskMessage::framework_id,
-      &KillTaskMessage::task_id);
-
-  installProtobufHandler<ShutdownFrameworkMessage>(
-      &Slave::shutdownFramework,
-      &ShutdownFrameworkMessage::framework_id);
-
-  installProtobufHandler<FrameworkToExecutorMessage>(
-      &Slave::schedulerMessage,
-      &FrameworkToExecutorMessage::slave_id,
-      &FrameworkToExecutorMessage::framework_id,
-      &FrameworkToExecutorMessage::executor_id,
-      &FrameworkToExecutorMessage::data);
-
-  installProtobufHandler<UpdateFrameworkMessage>(
-      &Slave::updateFramework,
-      &UpdateFrameworkMessage::framework_id,
-      &UpdateFrameworkMessage::pid);
-
-  installProtobufHandler<StatusUpdateAcknowledgementMessage>(
-      &Slave::statusUpdateAcknowledgement,
-      &StatusUpdateAcknowledgementMessage::slave_id,
-      &StatusUpdateAcknowledgementMessage::framework_id,
-      &StatusUpdateAcknowledgementMessage::task_id,
-      &StatusUpdateAcknowledgementMessage::uuid);
-
-  installProtobufHandler<RegisterExecutorMessage>(
-      &Slave::registerExecutor,
-      &RegisterExecutorMessage::framework_id,
-      &RegisterExecutorMessage::executor_id);
-
-  installProtobufHandler<StatusUpdateMessage>(
-      &Slave::statusUpdate,
-      &StatusUpdateMessage::update);
-
-  installProtobufHandler<ExecutorToFrameworkMessage>(
-      &Slave::executorMessage,
-      &ExecutorToFrameworkMessage::slave_id,
-      &ExecutorToFrameworkMessage::framework_id,
-      &ExecutorToFrameworkMessage::executor_id,
-      &ExecutorToFrameworkMessage::data);
-
-  // Install some message handlers.
-  installMessageHandler(process::EXITED, &Slave::exited);
-  installMessageHandler("PING", &Slave::ping);
-
-  // Install some HTTP handlers.
-  installHttpHandler(
-      "vars",
-      bind(&http::vars, cref(*this), params::_1));
-
-  installHttpHandler(
-      "stats.json",
-      bind(&http::json::stats, cref(*this), params::_1));
-
-  installHttpHandler(
-      "state.json",
-      bind(&http::json::state, cref(*this), params::_1));
-}
-
-
-void Slave::operator () ()
-{
   LOG(INFO) << "Slave started at " << self();
   LOG(INFO) << "Slave resources: " << resources;
 
@@ -273,7 +164,7 @@ void Slave::operator () ()
   // Check and see if we have a different public DNS name. Normally
   // this is our hostname, but on EC2 we look for the MESOS_PUBLIC_DNS
   // environment variable. This allows the master to display our
-  // public name in its web UI.
+  // public name in its webui.
   string webui_hostname = hostname;
   if (getenv("MESOS_PUBLIC_DNS") != NULL) {
     webui_hostname = getenv("MESOS_PUBLIC_DNS");
@@ -294,28 +185,130 @@ void Slave::operator () ()
            &IsolationModule::initialize,
            conf, local, self());
 
-  while (true) {
-    serve(1);
-    if (name() == TERMINATE) {
-      LOG(INFO) << "Asked to terminate by " << from();
-      foreachkey (const FrameworkID& frameworkId, frameworks) {
-        // TODO(benh): Because a shut down isn't instantaneous (but has
-        // a shut down/kill phases) we might not actually propogate all
-        // the status updates appropriately here. Consider providing
-        // an alternative function which skips the shut down phase and
-        // simply does a kill (sending all status updates
-        // immediately). Of course, this still isn't sufficient
-        // because those status updates might get lost and we won't
-        // resend them unless we build that into the system.
-        shutdownFramework(frameworkId);
-      }
-      break;
-    }
+  // Start all the statistics at 0.
+  CHECK(TASK_STARTING == TaskState_MIN);
+  CHECK(TASK_LOST == TaskState_MAX);
+  stats.tasks[TASK_STARTING] = 0;
+  stats.tasks[TASK_RUNNING] = 0;
+  stats.tasks[TASK_FINISHED] = 0;
+  stats.tasks[TASK_FAILED] = 0;
+  stats.tasks[TASK_KILLED] = 0;
+  stats.tasks[TASK_LOST] = 0;
+  stats.validStatusUpdates = 0;
+  stats.invalidStatusUpdates = 0;
+  stats.validFrameworkMessages = 0;
+  stats.invalidFrameworkMessages = 0;
+
+  startTime = Clock::now();
+
+  connected = false;
+
+  // Install protobuf handlers.
+  install<NewMasterDetectedMessage>(
+      &Slave::newMasterDetected,
+      &NewMasterDetectedMessage::pid);
+
+  install<NoMasterDetectedMessage>(
+      &Slave::noMasterDetected);
+
+  install<SlaveRegisteredMessage>(
+      &Slave::registered,
+      &SlaveRegisteredMessage::slave_id);
+
+  install<SlaveReregisteredMessage>(
+      &Slave::reregistered,
+      &SlaveReregisteredMessage::slave_id);
+
+  install<RunTaskMessage>(
+      &Slave::runTask,
+      &RunTaskMessage::framework,
+      &RunTaskMessage::framework_id,
+      &RunTaskMessage::pid,
+      &RunTaskMessage::task);
+
+  install<KillTaskMessage>(
+      &Slave::killTask,
+      &KillTaskMessage::framework_id,
+      &KillTaskMessage::task_id);
+
+  install<ShutdownFrameworkMessage>(
+      &Slave::shutdownFramework,
+      &ShutdownFrameworkMessage::framework_id);
+
+  install<FrameworkToExecutorMessage>(
+      &Slave::schedulerMessage,
+      &FrameworkToExecutorMessage::slave_id,
+      &FrameworkToExecutorMessage::framework_id,
+      &FrameworkToExecutorMessage::executor_id,
+      &FrameworkToExecutorMessage::data);
+
+  install<UpdateFrameworkMessage>(
+      &Slave::updateFramework,
+      &UpdateFrameworkMessage::framework_id,
+      &UpdateFrameworkMessage::pid);
+
+  install<StatusUpdateAcknowledgementMessage>(
+      &Slave::statusUpdateAcknowledgement,
+      &StatusUpdateAcknowledgementMessage::slave_id,
+      &StatusUpdateAcknowledgementMessage::framework_id,
+      &StatusUpdateAcknowledgementMessage::task_id,
+      &StatusUpdateAcknowledgementMessage::uuid);
+
+  install<RegisterExecutorMessage>(
+      &Slave::registerExecutor,
+      &RegisterExecutorMessage::framework_id,
+      &RegisterExecutorMessage::executor_id);
+
+  install<StatusUpdateMessage>(
+      &Slave::statusUpdate,
+      &StatusUpdateMessage::update);
+
+  install<ExecutorToFrameworkMessage>(
+      &Slave::executorMessage,
+      &ExecutorToFrameworkMessage::slave_id,
+      &ExecutorToFrameworkMessage::framework_id,
+      &ExecutorToFrameworkMessage::executor_id,
+      &ExecutorToFrameworkMessage::data);
+
+  install<ShutdownMessage>(
+      &Slave::shutdown);
+  
+  // Install the ping message handler.
+  install("PING", &Slave::ping);
+
+  // Setup some HTTP routes.
+  route("vars", bind(&http::vars, cref(*this), params::_1));
+  route("stats.json", bind(&http::json::stats, cref(*this), params::_1));
+  route("state.json", bind(&http::json::state, cref(*this), params::_1));
+}
+
+
+void Slave::finalize()
+{
+  LOG(INFO) << "Slave terminating";
+
+  foreachkey (const FrameworkID& frameworkId, frameworks) {
+    // TODO(benh): Because a shut down isn't instantaneous (but has
+    // a shut down/kill phases) we might not actually propogate all
+    // the status updates appropriately here. Consider providing
+    // an alternative function which skips the shut down phase and
+    // simply does a kill (sending all status updates
+    // immediately). Of course, this still isn't sufficient
+    // because those status updates might get lost and we won't
+    // resend them unless we build that into the system.
+    shutdownFramework(frameworkId);
   }
 
   // Stop the isolation module.
   terminate(isolationModule);
   wait(isolationModule);
+}
+
+
+void Slave::shutdown()
+{
+  LOG(INFO) << "Slave asked to shut down";
+  terminate(self());
 }
 
 
@@ -432,7 +425,7 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
       TaskStatus* status = update->mutable_status();
       status->mutable_task_id()->MergeFrom(task.task_id());
       status->set_state(TASK_LOST);
-      update->set_timestamp(elapsedTime());
+      update->set_timestamp(Clock::now());
       update->set_uuid(UUID::random().toBytes());
       send(master, message);
     } else if (!executor->pid) {
@@ -505,7 +498,7 @@ void Slave::killTask(const FrameworkID& frameworkId,
     TaskStatus* status = update->mutable_status();
     status->mutable_task_id()->MergeFrom(taskId);
     status->set_state(TASK_LOST);
-    update->set_timestamp(elapsedTime());
+    update->set_timestamp(Clock::now());
     update->set_uuid(UUID::random().toBytes());
     send(master, message);
 
@@ -528,7 +521,7 @@ void Slave::killTask(const FrameworkID& frameworkId,
     TaskStatus* status = update->mutable_status();
     status->mutable_task_id()->MergeFrom(taskId);
     status->set_state(TASK_LOST);
-    update->set_timestamp(elapsedTime());
+    update->set_timestamp(Clock::now());
     update->set_uuid(UUID::random().toBytes());
     send(master, message);
   } else if (!executor->pid) {
@@ -548,7 +541,7 @@ void Slave::killTask(const FrameworkID& frameworkId,
     TaskStatus* status = update->mutable_status();
     status->mutable_task_id()->MergeFrom(taskId);
     status->set_state(TASK_KILLED);
-    update->set_timestamp(elapsedTime());
+    update->set_timestamp(Clock::now());
     update->set_uuid(UUID::random().toBytes());
     send(master, message);
   } else {
@@ -717,7 +710,7 @@ void Slave::statusUpdateAcknowledgement(const SlaveID& slaveId,
 //       message.set_reliable(true);
 //       send(master, message);
 
-//       stream->timeout = elapsedTime() + STATUS_UPDATE_RETRY_INTERVAL;
+//       stream->timeout = Clock::now() + STATUS_UPDATE_RETRY_INTERVAL;
 //     }
 //   }
 // }
@@ -735,7 +728,7 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
     LOG(WARNING) << "Framework " << frameworkId
                  << " does not exist (it may have been killed),"
                  << " telling executor to exit";
-    send(from(), ShutdownExecutorMessage());
+    reply(ShutdownExecutorMessage());
     return;
   }
 
@@ -745,15 +738,15 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
   if (executor == NULL) {
     LOG(WARNING) << "WARNING! Unexpected executor '" << executorId
                  << "' registering for framework " << frameworkId;
-    send(from(), ShutdownExecutorMessage());
+    reply(ShutdownExecutorMessage());
   } else if (executor->pid) {
     LOG(WARNING) << "WARNING! executor '" << executorId
                  << "' of framework " << frameworkId
                  << " is already running";
-    send(from(), ShutdownExecutorMessage());
+    reply(ShutdownExecutorMessage());
   } else {
     // Save the pid for the executor.
-    executor->pid = from();
+    executor->pid = from;
 
     // First account for the tasks we're about to start.
     foreachvalue (const TaskDescription& task, executor->queuedTasks) {
@@ -911,7 +904,7 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
 //     message.set_reliable(true);
 //     send(master, message);
 
-//     stream->timeout = elapsedTime() + STATUS_UPDATE_RETRY_INTERVAL;
+//     stream->timeout = Clock::now() + STATUS_UPDATE_RETRY_INTERVAL;
 //   }
 
 //   stats.tasks[status.state()]++;
@@ -1003,9 +996,9 @@ void Slave::executorMessage(const SlaveID& slaveId,
 }
 
 
-void Slave::ping()
+void Slave::ping(const UPID& from, const string& body)
 {
-  send(from(), "PONG");
+  send(from, "PONG");
 }
 
 
@@ -1035,7 +1028,7 @@ void Slave::statusUpdateTimeout(
 // void Slave::timeout()
 // {
 //   // Check and see if we should re-send any status updates.
-//   double now = elapsedTime();
+//   double now = Clock::now();
 
 //   foreachvalue (StatusUpdateStream* stream, statusUpdateStreams) {
 //     CHECK(stream->timeout > 0);
@@ -1058,11 +1051,11 @@ void Slave::statusUpdateTimeout(
 // }
 
 
-void Slave::exited()
+void Slave::exited(const UPID& pid)
 {
-  LOG(INFO) << "Process exited: " << from();
+  LOG(INFO) << "Process exited: " << from;
 
-  if (from() == master) {
+  if (master == pid) {
     LOG(WARNING) << "WARNING! Master disconnected!"
                  << " Waiting for a new master to be elected.";
     // TODO(benh): After so long waiting for a master, commit suicide.
@@ -1155,7 +1148,7 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
 //     message.set_reliable(true);
 //     send(master, message);
 
-//     stream->timeout = elapsedTime() + STATUS_UPDATE_RETRY_INTERVAL;
+//     stream->timeout = Clock::now() + STATUS_UPDATE_RETRY_INTERVAL;
 //   }
 
 //   return stream;
@@ -1417,27 +1410,21 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
   // framework on this slave).
   out << "/runs/";
 
-  string dir;
-  dir = out.str();
+  const string& prefix = out.str();
 
   for (int i = 0; i < INT_MAX; i++) {
     out << i;
-    DIR* d = opendir(out.str().c_str());
-    if (d == NULL && errno == ENOENT) {
-      break;
+    VLOG(1) << "Checking if " << out.str() << " already exists";
+    if (!utils::os::exists(out.str())) {
+      bool created = utils::os::mkdir(out.str());
+      CHECK(created) << "Error creating work directory: " << out.str();
+      return out.str();
+    } else {
+      out.str(prefix); // Try with prefix again.
     }
-    closedir(d);
-    out.str(dir);
   }
-
-  dir = out.str();
-
-  bool created = utils::os::mkdir(out.str());
-
-  CHECK(created) << "Error creating work directory: " << dir;
-
-  return dir;
 }
 
-
-}}} // namespace mesos { namespace internal { namespace slave {
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {

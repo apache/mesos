@@ -27,22 +27,25 @@
 
 #include "common/option.hpp"
 #include "common/result.hpp"
+#include "common/seconds.hpp"
 
 #include "messages/messages.hpp"
 
-namespace mesos { namespace internal { namespace master {
+namespace mesos {
+namespace internal {
+namespace master {
 
 using namespace process;
 
 class FrameworksStorage : public Process<FrameworksStorage>
 {
 public:
-  virtual Promise<Result<std::map<FrameworkID, FrameworkInfo> > > list() = 0;
+  virtual Future<Result<std::map<FrameworkID, FrameworkInfo> > > list() = 0;
 
-  virtual Promise<Result<bool> > add(const FrameworkID& id,
+  virtual Future<Result<bool> > add(const FrameworkID& id,
       const FrameworkInfo& info) = 0;
 
-  virtual Promise<Result<bool> > remove(const FrameworkID& id) = 0;
+  virtual Future<Result<bool> > remove(const FrameworkID& id) = 0;
 };
 
 class FrameworksManager : public Process<FrameworksManager>
@@ -57,8 +60,8 @@ public:
   // Add a new framework.
   Result<bool> add(const FrameworkID& id, const FrameworkInfo& info);
 
-  // Remove a framework after a certain delay.
-  Promise<Result<bool> > remove(const FrameworkID& id, double delay_secs);
+  // Remove a framework after a specified number of seconds.
+  Future<Result<bool> > remove(const FrameworkID& id, const seconds& s);
 
   // Resurrect the framework.
   Result<bool> resurrect(const FrameworkID& id);
@@ -68,7 +71,7 @@ public:
   Result<bool> exists(const FrameworkID& id);
 
 private:
-  void expire(const FrameworkID& id, Promise<Result<bool> > promise);
+  void expire(const FrameworkID& id, Promise<Result<bool> >* promise);
 
   bool cache();
 
@@ -82,5 +85,8 @@ private:
   std::map<FrameworkID, std::pair<FrameworkInfo, Option<double> > > infos;
 };
 
-}}} // namespace mesos { namespace internal { namespace master {
+} // namespace master {
+} // namespace internal {
+} // namespace mesos {
+
 #endif // __MASTER_FRAMEWORKS_MANAGER_HPP__

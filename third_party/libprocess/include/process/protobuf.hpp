@@ -72,20 +72,15 @@ public:
   virtual ~ProtobufProcess() {}
 
 protected:
-  virtual void operator () ()
+  virtual void visit(const process::MessageEvent& event)
   {
-    // TODO(benh): Shouldn't we just make Process::serve be a virtual
-    // function, and then the one we get from process::Process will be
-    // sufficient?
-    do { if (serve() == process::TERMINATE) break; } while (true);
-  }
-
-  template <typename M>
-  M message()
-  {
-    M m;
-    m.ParseFromString(process::Process<T>::body());
-    return m;
+    if (protobufHandlers.count(event.message->name) > 0) {
+      from = event.message->from; // For 'reply'.
+      protobufHandlers[event.message->name](event.message->body);
+      from = process::UPID();
+    } else {
+      process::Process<T>::visit(event);
+    }
   }
 
   void send(const process::UPID& to,
@@ -99,20 +94,16 @@ protected:
 
   using process::Process<T>::send;
 
-  std::string serve(double secs = 0, bool once = false)
+  void reply(const google::protobuf::Message& message)
   {
-    do {
-      const std::string& name = process::Process<T>::serve(secs, once);
-      if (protobufHandlers.count(name) > 0) {
-        protobufHandlers[name](process::Process<T>::body());
-      } else {
-        return name;
-      }
-    } while (!once);
+    CHECK(from) << "Attempting to reply without a sender";
+    std::string data;
+    message.SerializeToString(&data);
+    send(from, message);
   }
 
   template <typename M>
-  void installProtobufHandler(void (T::*method)(const M&))
+  void install(void (T::*method)(const M&))
   {
     google::protobuf::Message* m = new M();
     T* t = static_cast<T*>(this);
@@ -124,7 +115,7 @@ protected:
   }
 
   template <typename M>
-  void installProtobufHandler(void (T::*method)())
+  void install(void (T::*method)())
   {
     google::protobuf::Message* m = new M();
     T* t = static_cast<T*>(this);
@@ -137,7 +128,7 @@ protected:
 
   template <typename M,
             typename P1, typename P1C>
-  void installProtobufHandler(void (T::*method)(P1C),
+  void install(void (T::*method)(P1C),
                               P1 (M::*param1)() const)
   {
     google::protobuf::Message* m = new M();
@@ -152,7 +143,7 @@ protected:
   template <typename M,
             typename P1, typename P1C,
             typename P2, typename P2C>
-  void installProtobufHandler(void (T::*method)(P1C, P2C),
+  void install(void (T::*method)(P1C, P2C),
                               P1 (M::*p1)() const,
                               P2 (M::*p2)() const)
   {
@@ -169,7 +160,7 @@ protected:
             typename P1, typename P1C,
             typename P2, typename P2C,
             typename P3, typename P3C>
-  void installProtobufHandler(void (T::*method)(P1C, P2C, P3C),
+  void install(void (T::*method)(P1C, P2C, P3C),
                               P1 (M::*p1)() const,
                               P2 (M::*p2)() const,
                               P3 (M::*p3)() const)
@@ -188,7 +179,7 @@ protected:
             typename P2, typename P2C,
             typename P3, typename P3C,
             typename P4, typename P4C>
-  void installProtobufHandler(void (T::*method)(P1C, P2C, P3C, P4C),
+  void install(void (T::*method)(P1C, P2C, P3C, P4C),
                               P1 (M::*p1)() const,
                               P2 (M::*p2)() const,
                               P3 (M::*p3)() const,
@@ -209,7 +200,7 @@ protected:
             typename P3, typename P3C,
             typename P4, typename P4C,
             typename P5, typename P5C>
-  void installProtobufHandler(void (T::*method)(P1C, P2C, P3C, P4C, P5C),
+  void install(void (T::*method)(P1C, P2C, P3C, P4C, P5C),
                               P1 (M::*p1)() const,
                               P2 (M::*p2)() const,
                               P3 (M::*p3)() const,
@@ -224,6 +215,10 @@ protected:
                      std::tr1::placeholders::_1);
     delete m;
   }
+
+  using process::Process<T>::install;
+
+  process::UPID from; // Sender of "current" message, accessible by subclasses.
 
 private:
   template <typename M>
@@ -374,18 +369,19 @@ public:
   ReqResProcess(const process::UPID& _pid, const Req& _req)
     : pid(_pid), req(_req)
   {
-    Super::template installProtobufHandler<Res>(
+    Super::template install<Res>(
         &ReqResProcess<Req, Res>::response);
   }
 
-  process::Promise<Res> run()
+  process::Future<Res> run()
   {
     send(pid, req);
     std::tr1::function<void(const process::Future<Res>&)> callback =
       std::tr1::bind(&ReqResProcess<Req, Res>::terminate,
-                     std::tr1::placeholders::_1, Super::self());
+                     std::tr1::placeholders::_1,
+                     Super::self());
     promise.future().onAny(callback);
-    return promise;
+    return promise.future();
   }
 
 private:

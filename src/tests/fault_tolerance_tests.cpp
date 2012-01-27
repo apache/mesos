@@ -44,6 +44,7 @@ using mesos::internal::slave::ProcessBasedIsolationModule;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::STATUS_UPDATE_RETRY_INTERVAL_SECONDS;
 
+using process::Clock;
 using process::PID;
 
 using std::string;
@@ -59,7 +60,6 @@ using testing::Eq;
 using testing::Not;
 using testing::Return;
 using testing::SaveArg;
-using testing::SaveArgPointee;
 
 
 TEST(FaultToleranceTest, SlaveLost)
@@ -108,7 +108,7 @@ TEST(FaultToleranceTest, SlaveLost)
   EXPECT_CALL(sched, slaveLost(&driver, offers[0].slave_id()))
     .WillOnce(Trigger(&slaveLostCall));
 
-  process::post(slave, process::TERMINATE);
+  process::terminate(slave);
 
   WAIT_UNTIL(offerRescindedCall);
   WAIT_UNTIL(slaveLostCall);
@@ -118,7 +118,7 @@ TEST(FaultToleranceTest, SlaveLost)
 
   process::wait(slave);
 
-  process::post(master, process::TERMINATE);
+  process::terminate(master);
   process::wait(master);
 }
 
@@ -127,12 +127,12 @@ TEST(FaultToleranceTest, SlavePartitioned)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  process::Clock::pause();
+  Clock::pause();
 
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
@@ -140,7 +140,7 @@ TEST(FaultToleranceTest, SlavePartitioned)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
 
-  trigger slaveLostCall;
+  trigger slaveLostCall, pingMsg;
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
@@ -154,14 +154,20 @@ TEST(FaultToleranceTest, SlavePartitioned)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(Trigger(&slaveLostCall));
 
-  EXPECT_MSG(filter, Eq("PONG"), _, _)
+  EXPECT_MESSAGE(filter, Eq("PING"), _, _)
+    .WillRepeatedly(DoAll(Trigger(&pingMsg),
+                          Return(false)));
+
+  EXPECT_MESSAGE(filter, Eq("PONG"), _, _)
     .WillRepeatedly(Return(true));
 
   driver.start();
 
+  WAIT_UNTIL(pingMsg);
+
   double secs = master::SLAVE_PONG_TIMEOUT * master::MAX_SLAVE_TIMEOUTS;
 
-  process::Clock::advance(secs);
+  Clock::advance(secs);
 
   WAIT_UNTIL(slaveLostCall);
 
@@ -172,7 +178,7 @@ TEST(FaultToleranceTest, SlavePartitioned)
 
   process::filter(NULL);
 
-  process::Clock::resume();
+  Clock::resume();
 }
 
 
@@ -249,7 +255,7 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
@@ -270,7 +276,7 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
 
   // Drop the registered message, in the first attempt, but allow subsequent
   // tries.
-  EXPECT_MSG(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(Return(true))
     .WillRepeatedly(Return(false));
 
@@ -294,7 +300,7 @@ TEST(FaultToleranceTest, FrameworkReregister)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
@@ -316,11 +322,11 @@ TEST(FaultToleranceTest, FrameworkReregister)
   process::Message message;
   trigger schedReregisteredMsg;
 
-  EXPECT_MSG(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(SaveArgPointee<0>(&message),
+  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
                     Return(false)));
 
-  EXPECT_MSG(filter, Eq(FrameworkReregisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(FrameworkReregisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&schedReregisteredMsg),
                     Return(false)));
 
@@ -358,7 +364,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   SimpleAllocator a;
@@ -410,8 +416,8 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
 
   process::Message message;
 
-  EXPECT_MSG(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(SaveArgPointee<0>(&message),
+  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
                     Return(false)));
 
   driver.start();
@@ -442,10 +448,10 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   driver.stop();
   driver.join();
 
-  process::post(slave, process::TERMINATE);
+  process::terminate(slave);
   process::wait(slave);
 
-  process::post(master, process::TERMINATE);
+  process::terminate(master);
   process::wait(master);
 
   process::filter(NULL);
@@ -456,12 +462,12 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  process::Clock::pause();
+  Clock::pause();
 
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   SimpleAllocator a;
@@ -516,7 +522,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(sched1, error(&driver1, _, "Framework failover"))
     .Times(1);
 
-  EXPECT_MSG(filter, Eq(StatusUpdateMessage().GetTypeName()), _,
+  EXPECT_MESSAGE(filter, Eq(StatusUpdateMessage().GetTypeName()), _,
              Not(AnyOf(Eq(master), Eq(slave))))
     .WillOnce(DoAll(Trigger(&statusUpdateMsg), Return(true)))
     .RetiresOnSaturation();
@@ -561,7 +567,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   WAIT_UNTIL(registeredCall);
 
-  process::Clock::advance(STATUS_UPDATE_RETRY_INTERVAL_SECONDS);
+  Clock::advance(STATUS_UPDATE_RETRY_INTERVAL_SECONDS);
 
   WAIT_UNTIL(statusUpdateCall);
 
@@ -571,15 +577,15 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   driver1.join();
   driver2.join();
 
-  process::post(slave, process::TERMINATE);
+  process::terminate(slave);
   process::wait(slave);
 
-  process::post(master, process::TERMINATE);
+  process::terminate(master);
   process::wait(master);
 
   process::filter(NULL);
 
-  process::Clock::resume();
+  Clock::resume();
 }
 
 
@@ -686,10 +692,10 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   driver1.join();
   driver2.join();
 
-  process::post(slave, process::TERMINATE);
+  process::terminate(slave);
   process::wait(slave);
 
-  process::post(master, process::TERMINATE);
+  process::terminate(master);
   process::wait(master);
 }
 
@@ -701,7 +707,7 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   SimpleAllocator a;
@@ -732,7 +738,7 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
   trigger slaveRegisterMsg;
 
   // Drop the first registered message, but allow subsequent messages.
-  EXPECT_MSG(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(Return(true))
     .WillRepeatedly(DoAll(Trigger(&slaveRegisterMsg), Return(false)));
 
@@ -743,10 +749,10 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
   driver.stop();
   driver.join();
 
-  process::post(slave, process::TERMINATE);
+  process::terminate(slave);
   process::wait(slave);
 
-  process::post(master, process::TERMINATE);
+  process::terminate(master);
   process::wait(master);
 
   process::filter(NULL);
@@ -760,7 +766,7 @@ TEST(FaultToleranceTest, SlaveReregister)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   SimpleAllocator a;
@@ -790,7 +796,7 @@ TEST(FaultToleranceTest, SlaveReregister)
 
   trigger slaveReRegisterMsg;
 
-  EXPECT_MSG(filter, Eq(SlaveReregisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(SlaveReregisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&slaveReRegisterMsg), Return(false)));
 
   driver.start();
@@ -810,10 +816,10 @@ TEST(FaultToleranceTest, SlaveReregister)
   driver.stop();
   driver.join();
 
-  process::post(slave, process::TERMINATE);
+  process::terminate(slave);
   process::wait(slave);
 
-  process::post(master, process::TERMINATE);
+  process::terminate(master);
   process::wait(master);
 
   process::filter(NULL);

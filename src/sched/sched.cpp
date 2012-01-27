@@ -30,8 +30,6 @@
 #include <string>
 #include <sstream>
 
-#include <tr1/functional>
-
 #include <mesos/scheduler.hpp>
 
 #include <process/dispatch.hpp>
@@ -65,10 +63,9 @@ using std::vector;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
-using std::tr1::bind;
 
-
-namespace mesos { namespace internal {
+namespace mesos {
+namespace internal {
 
 // The scheduler process (below) is responsible for interacting with
 // the master and responding to Mesos API calls from scheduler
@@ -80,59 +77,63 @@ class SchedulerProcess : public ProtobufProcess<SchedulerProcess>
 {
 public:
   SchedulerProcess(MesosSchedulerDriver* _driver,
-                   Scheduler* _sched,
+                   Scheduler* _scheduler,
                    const FrameworkID& _frameworkId,
-                   const FrameworkInfo& _framework)
+                   const FrameworkInfo& _framework,
+                   pthread_mutex_t* _mutex,
+                   pthread_cond_t* _cond)
     : driver(_driver),
-      sched(_sched),
+      scheduler(_scheduler),
       frameworkId(_frameworkId),
       framework(_framework),
+      mutex(_mutex),
+      cond(_cond),
       master(UPID()),
       failover(!(_frameworkId == "")),
       connected(false),
       aborted(false)
   {
-    installProtobufHandler<NewMasterDetectedMessage>(
+    install<NewMasterDetectedMessage>(
         &SchedulerProcess::newMasterDetected,
         &NewMasterDetectedMessage::pid);
 
-    installProtobufHandler<NoMasterDetectedMessage>(
+    install<NoMasterDetectedMessage>(
         &SchedulerProcess::noMasterDetected);
 
-    installProtobufHandler<FrameworkRegisteredMessage>(
+    install<FrameworkRegisteredMessage>(
         &SchedulerProcess::registered,
         &FrameworkRegisteredMessage::framework_id);
 
-    installProtobufHandler<FrameworkReregisteredMessage>(
+    install<FrameworkReregisteredMessage>(
         &SchedulerProcess::reregistered,
         &FrameworkReregisteredMessage::framework_id);
 
-    installProtobufHandler<ResourceOffersMessage>(
+    install<ResourceOffersMessage>(
         &SchedulerProcess::resourceOffers,
         &ResourceOffersMessage::offers,
         &ResourceOffersMessage::pids);
 
-    installProtobufHandler<RescindResourceOfferMessage>(
+    install<RescindResourceOfferMessage>(
         &SchedulerProcess::rescindOffer,
         &RescindResourceOfferMessage::offer_id);
 
-    installProtobufHandler<StatusUpdateMessage>(
+    install<StatusUpdateMessage>(
         &SchedulerProcess::statusUpdate,
         &StatusUpdateMessage::update,
         &StatusUpdateMessage::pid);
 
-    installProtobufHandler<LostSlaveMessage>(
+    install<LostSlaveMessage>(
         &SchedulerProcess::lostSlave,
         &LostSlaveMessage::slave_id);
 
-    installProtobufHandler<ExecutorToFrameworkMessage>(
+    install<ExecutorToFrameworkMessage>(
         &SchedulerProcess::frameworkMessage,
         &ExecutorToFrameworkMessage::slave_id,
         &ExecutorToFrameworkMessage::framework_id,
         &ExecutorToFrameworkMessage::executor_id,
         &ExecutorToFrameworkMessage::data);
 
-    installProtobufHandler<FrameworkErrorMessage>(
+    install<FrameworkErrorMessage>(
         &SchedulerProcess::error,
         &FrameworkErrorMessage::code,
         &FrameworkErrorMessage::message);
@@ -176,7 +177,7 @@ protected:
     connected = true;
     failover = false;
 
-    invoke(bind(&Scheduler::registered, sched, driver, frameworkId));
+    scheduler->registered(driver, frameworkId);
   }
 
   void reregistered(const FrameworkID& frameworkId)
@@ -237,7 +238,7 @@ protected:
       }
     }
 
-    invoke(bind(&Scheduler::resourceOffers, sched, driver, offers));
+    scheduler->resourceOffers(driver, offers);
   }
 
   void rescindOffer(const OfferID& offerId)
@@ -251,7 +252,8 @@ protected:
     VLOG(1) << "Rescinded offer " << offerId;
 
     savedOffers.erase(offerId);
-    invoke(bind(&Scheduler::offerRescinded, sched, driver, offerId));
+
+    scheduler->offerRescinded(driver, offerId);
   }
 
   void statusUpdate(const StatusUpdate& update, const UPID& pid)
@@ -279,7 +281,7 @@ protected:
     // multiple times (of course, if a scheduler re-uses a TaskID,
     // that could be bad.
 
-    invoke(bind(&Scheduler::statusUpdate, sched, driver, status));
+    scheduler->statusUpdate(driver, status);
 
     // Send a status update acknowledgement ONLY if not aborted!
     if (!aborted && pid) {
@@ -306,7 +308,8 @@ protected:
     VLOG(1) << "Lost slave " << slaveId;
 
     savedSlavePids.erase(slaveId);
-    invoke(bind(&Scheduler::slaveLost, sched, driver, slaveId));
+
+    scheduler->slaveLost(driver, slaveId);
   }
 
   void frameworkMessage(const SlaveID& slaveId,
@@ -321,8 +324,7 @@ protected:
 
     VLOG(1) << "Received framework message";
 
-    invoke(bind(&Scheduler::frameworkMessage,
-                sched, driver, slaveId, executorId, data));
+    scheduler->frameworkMessage(driver, slaveId, executorId, data);
   }
 
   void error(int32_t code, const string& message)
@@ -336,7 +338,7 @@ protected:
 
     driver->abort();
 
-    invoke(bind(&Scheduler::error, sched, driver, code, message));
+    scheduler->error(driver, code, message);
   }
 
   void stop(bool failover)
@@ -352,14 +354,21 @@ protected:
       message.mutable_framework_id()->MergeFrom(frameworkId);
       send(master, message);
     }
+
+    Lock lock(mutex);
+    pthread_cond_signal(cond);
   }
 
-  // NOTE: This function stops any further callbacks from reaching the
-  // scheduler by informing the master. The abort flag stops
-  // those callbacks that are already enqueued.
+  // NOTE: This function informs the master to stop attempting to send
+  // messages to this scheduler. The abort flag stops any already
+  // enqueued messages or messages in flight from being handled. We
+  // don't want to terminate the process because one might do a
+  // MesosSchedulerDriver::stop later, which dispatches to
+  // SchedulerProcess::stop.
   void abort()
   {
     VLOG(1) << "Aborting the framework";
+
     aborted = true;
 
     if (!connected) {
@@ -373,6 +382,8 @@ protected:
     message.mutable_framework_id()->MergeFrom(frameworkId);
     send(master, message);
 
+    Lock lock(mutex);
+    pthread_cond_signal(cond);
   }
 
   void killTask(const TaskID& taskId)
@@ -424,7 +435,7 @@ protected:
         status->mutable_task_id()->MergeFrom(task.task_id());
         status->set_state(TASK_LOST);
         status->set_message("Master Disconnected");
-        update.set_timestamp(elapsedTime());
+        update.set_timestamp(Clock::now());
         update.set_uuid(UUID::random().toBytes());
 
         statusUpdate(update, UPID());
@@ -517,9 +528,11 @@ private:
   friend class mesos::MesosSchedulerDriver;
 
   MesosSchedulerDriver* driver;
-  Scheduler* sched;
+  Scheduler* scheduler;
   FrameworkID frameworkId;
   FrameworkInfo framework;
+  pthread_mutex_t* mutex;
+  pthread_cond_t* cond;
   bool failover;
   UPID master;
 
@@ -530,7 +543,8 @@ private:
   hashmap<SlaveID, UPID> savedSlavePids;
 };
 
-}} // namespace mesos { namespace internal {
+} // namespace internal {
+} // namespace mesos {
 
 
 // Implementation of C++ API.
@@ -546,7 +560,7 @@ private:
 // (2) There is a variable called state, that represents the current
 //     state of the driver and is used to enforce its state transitions.
 
-MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
+MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
                                            const std::string& frameworkName,
                                            const ExecutorInfo& executorInfo,
                                            const string& url,
@@ -563,15 +577,15 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
   } catch (ConfigurationException& e) {
     // TODO(benh|matei): Are error callbacks not fatal!?
     string message = string("Configuration error: ") + e.what();
-    sched->error(this, 2, message);
+    scheduler->error(this, 2, message);
     conf = new Configuration();
   }
   conf->set("url", url); // Override URL param with the one from the user
-  init(sched, conf, frameworkId, frameworkName, executorInfo);
+  init(scheduler, conf, frameworkId, frameworkName, executorInfo);
 }
 
 
-MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
+MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
                                            const std::string& frameworkName,
                                            const ExecutorInfo& executorInfo,
                                            const map<string, string> &params,
@@ -588,14 +602,14 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
   } catch (ConfigurationException& e) {
     // TODO(benh|matei): Are error callbacks not fatal?
     string message = string("Configuration error: ") + e.what();
-    sched->error(this, 2, message);
+    scheduler->error(this, 2, message);
     conf = new Configuration();
   }
-  init(sched, conf, frameworkId, frameworkName, executorInfo);
+  init(scheduler, conf, frameworkId, frameworkName, executorInfo);
 }
 
 
-MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
+MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
                                            const std::string& frameworkName,
                                            const ExecutorInfo& executorInfo,
                                            int argc,
@@ -612,14 +626,14 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* sched,
     conf = new Configuration(configurator.load(argc, argv, false));
   } catch (ConfigurationException& e) {
     string message = string("Configuration error: ") + e.what();
-    sched->error(this, 2, message);
+    scheduler->error(this, 2, message);
     conf = new Configuration();
   }
-  init(sched, conf, frameworkId, frameworkName, executorInfo);
+  init(scheduler, conf, frameworkId, frameworkName, executorInfo);
 }
 
 
-void MesosSchedulerDriver::init(Scheduler* _sched,
+void MesosSchedulerDriver::init(Scheduler* _scheduler,
                                 Configuration* _conf,
                                 const FrameworkID& _frameworkId,
                                 const std::string& _frameworkName,
@@ -627,7 +641,7 @@ void MesosSchedulerDriver::init(Scheduler* _sched,
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  sched = _sched;
+  scheduler = _scheduler;
   conf = _conf;
   frameworkId = _frameworkId;
   frameworkName = _frameworkName;
@@ -667,7 +681,9 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
   // that we could add a method to libprocess that told us whether or
   // not this was about to be deadlock, and possibly report this back
   // to the user somehow. Note that we will also wait forever if
-  // MesosSchedulerDriver::stop was never called.
+  // MesosSchedulerDriver::stop was never called. It might make sense
+  // to try and add some more debug output for the case where we wait
+  // indefinitely due to deadlock ...
   if (process != NULL) {
     wait(process);
     delete process;
@@ -714,7 +730,10 @@ Status MesosSchedulerDriver::start()
 
   CHECK(process == NULL);
 
-  process = new SchedulerProcess(this, sched, frameworkId, framework);
+  // TODO(benh): Consider using a libprocess Latch rather than a
+  // pthread mutex and condition variable for signaling.
+  process = new SchedulerProcess(this, scheduler, frameworkId,
+                                 framework, &mutex, &cond);
 
   UPID pid = spawn(process);
 
@@ -755,8 +774,6 @@ Status MesosSchedulerDriver::stop(bool failover)
   // local clusters to exist (i.e. not use global vars in local.cpp) so that
   // ours can just be an instance variable in MesosSchedulerDriver.
 
-  pthread_cond_signal(&cond);
-
   return OK;
 }
 
@@ -779,8 +796,6 @@ Status MesosSchedulerDriver::abort()
 
   state = ABORTED;
 
-  pthread_cond_signal(&cond);
-
   return OK;
 }
 
@@ -801,10 +816,29 @@ Status MesosSchedulerDriver::join()
     pthread_cond_wait(&cond, &mutex);
   }
 
-  if (state == ABORTED)
+  if (state == ABORTED) {
     return DRIVER_ABORTED;
+  }
 
   CHECK(state == STOPPED);
+
+//   // If the driver has been stopped, then we wait for SchedulerProcess
+//   // to terminate. This is necessary to support languages like Python
+//   // that use reference counting on their objects. Without doing this
+//   // the Python interpreter might attempt to delete the
+//   // MesosSchedulerDriver instance from within the context of the
+//   // SchedulerProcess (because a thread is trying to call into a
+//   // scheduler but there are no more references to
+//   // MesosSchedulerDriver), which means we would deadlock and wait
+//   // forever since the MesosSchedulerDriver destructor waits for the
+//   // process to terminate forever. Note that we don't need to wait if
+//   // the driver has been aborted because we won't actually call back
+//   // in to the driver in that case, and thus we won't have 
+
+//   lock.unlock(); // Let a thread in SchedulerProcess use the driver.
+
+//   CHECK(process != NULL);
+//   wait(process);
 
   return OK;
 }
@@ -892,12 +926,6 @@ Status MesosSchedulerDriver::sendFrameworkMessage(
            slaveId, executorId, data);
 
   return OK;
-}
-
-
-void MesosSchedulerDriver::error(int code, const string& message)
-{
-  sched->error(this, code, message);
 }
 
 

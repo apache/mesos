@@ -284,7 +284,7 @@ public:
    * variables, as well as any configuration files found through the
    * environment variables.
    */
-  MesosSchedulerDriver(Scheduler* sched,
+  MesosSchedulerDriver(Scheduler* scheduler,
                        const std::string& frameworkName,
                        const ExecutorInfo& executorInfo,
                        const std::string& url,
@@ -299,7 +299,7 @@ public:
    * Additional Mesos config options are obtained from the 'params'
    * argument.
    */
-  MesosSchedulerDriver(Scheduler* sched,
+  MesosSchedulerDriver(Scheduler* scheduler,
                        const std::string& frameworkName,
                        const ExecutorInfo& executorInfo,
                        const std::map<std::string, std::string>& params,
@@ -311,7 +311,7 @@ public:
    * command-line (via 'argc' and 'argv'). Optionally providing an
    * existing framework ID can be used to failover a framework.
    */
-  MesosSchedulerDriver(Scheduler* sched,
+  MesosSchedulerDriver(Scheduler* scheduler,
                        const std::string& frameworkName,
                        const ExecutorInfo& executorInfo,
                        int argc,
@@ -349,16 +349,13 @@ public:
 
 private:
   // Initialization method used by constructors.
-  void init(Scheduler* sched,
+  void init(Scheduler* scheduler,
             internal::Configuration* conf,
             const FrameworkID& frameworkId,
             const std::string& frameworkName,
             const ExecutorInfo& executorInfo);
 
-  // Internal utility method to report an error to the scheduler.
-  void error(int code, const std::string& message);
-
-  Scheduler* sched;
+  Scheduler* scheduler;
   std::string url;
   FrameworkID frameworkId;
   std::string frameworkName;

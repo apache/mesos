@@ -91,6 +91,7 @@ void ProxyScheduler::resourceOffers(SchedulerDriver* driver,
                             (char*) "OO",
                             impl,
                             list);
+
   if (res == NULL) {
     cerr << "Failed to call scheduler's resourceOffer" << endl;
     goto cleanup;

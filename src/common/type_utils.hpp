@@ -73,6 +73,13 @@ inline std::ostream& operator << (std::ostream& stream, const TaskState& state)
 }
 
 
+inline std::ostream& operator << (std::ostream& stream, const TaskDescription& task)
+{
+  stream << task.DebugString();
+  return stream;
+}
+
+
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() == right.value();

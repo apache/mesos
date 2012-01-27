@@ -60,58 +60,56 @@ public:
   SlaveObserver(const UPID& _slave,
                 const SlaveInfo& _slaveInfo,
                 const SlaveID& _slaveId,
-                const PID<SlavesManager>& _slavesManager)
+                const PID<Master>& _master)
     : slave(_slave),
       slaveInfo(_slaveInfo),
       slaveId(_slaveId),
-      slavesManager(_slavesManager),
+      master(_master),
       timeouts(0),
-      pinged(false) {}
-
-  virtual ~SlaveObserver() {}
+      pinged(false)
+  {
+    install("PONG", &SlaveObserver::pong);
+  }
 
 protected:
-  virtual void operator () ()
+  virtual void initialize()
   {
-    // Send a ping some interval after we heard the last pong. Or if
-    // we don't hear a pong, increment the number of timeouts from the
-    // slave and try and send another ping. If we eventually timeout too
-    // many missed pongs in a row, consider the slave dead.
     send(slave, "PING");
     pinged = true;
+    delay(SLAVE_PONG_TIMEOUT, self(), &SlaveObserver::timeout);
+  }
 
-    do {
-      receive(SLAVE_PONG_TIMEOUT);
-      if (name() == "PONG") {
-        timeouts = 0;
-        pinged = false;
-      } else if (name() == TIMEOUT) {
-        if (pinged) {
-          timeouts++;
-          pinged = false;
-        }
+  void pong(const UPID& from, const string& body)
+  {
+    timeouts = 0;
+    pinged = false;
+  }
 
-        send(slave, "PING");
-        pinged = true;
-      } else if (name() == TERMINATE) {
+  void timeout()
+  {
+    if (pinged) { // So we haven't got back a pong yet ...
+      if (++timeouts >= MAX_SLAVE_TIMEOUTS) {
+        deactivate();
         return;
       }
-    } while (timeouts < MAX_SLAVE_TIMEOUTS);
-
-    // Tell the slave manager to deactivate the slave, this will take
-    // care of updating the master too.
-    while (!call(slavesManager, &SlavesManager::deactivate,
-                 slaveInfo.hostname(), slave.port)) {
-      LOG(WARNING) << "Slave \"failed\" but can't be deactivated, retrying";
-      pause(5);
     }
+
+    send(slave, "PING");
+    pinged = true;
+    delay(SLAVE_PONG_TIMEOUT, self(), &SlaveObserver::timeout);
+  }
+
+  void deactivate()
+  {
+    dispatch(master, &Master::deactivatedSlaveHostnamePort,
+             slaveInfo.hostname(), slave.port);
   }
 
 private:
   const UPID slave;
   const SlaveInfo slaveInfo;
   const SlaveID slaveId;
-  const PID<SlavesManager> slavesManager;
+  const PID<Master> master;
   int timeouts;
   bool pinged;
 };
@@ -134,10 +132,15 @@ struct SlaveRegistrar
                   const PID<Master>& master,
                   const PID<SlavesManager>& slavesManager)
   {
-    if (!call(slavesManager, &SlavesManager::add,
-              slave->info.hostname(), slave->pid.port)) {
+    Future<bool> added = dispatch(slavesManager, &SlavesManager::add,
+                                  slave->info.hostname(), slave->pid.port);
+    added.await();
+    if (!added.isReady() || !added.get()) {
       LOG(WARNING) << "Could not register slave because failed"
                    << " to add it to the slaves maanger";
+      // TODO(benh): This could be because our acknowledgement to the
+      // slave was dropped, so they retried, and now we should
+      // probably send another acknowledgement.
       delete slave;
       return false;
     }
@@ -166,10 +169,15 @@ struct SlaveReregistrar
                   const PID<Master>& master,
                   const PID<SlavesManager>& slavesManager)
   {
-    if (!call(slavesManager, &SlavesManager::add,
-              slave->info.hostname(), slave->pid.port)) {
+    Future<bool> added = dispatch(slavesManager, &SlavesManager::add,
+                                  slave->info.hostname(), slave->pid.port);
+    added.await();
+    if (!added.isReady() || !added.get()) {
       LOG(WARNING) << "Could not register slave because failed"
                    << " to add it to the slaves maanger";
+      // TODO(benh): This could be because our acknowledgement to the
+      // slave was dropped, so they retried, and now we should
+      // probably send another acknowledgement.
       delete slave;
       return false;
     }
@@ -182,18 +190,14 @@ struct SlaveReregistrar
 Master::Master(Allocator* _allocator)
   : ProcessBase("master"),
     allocator(_allocator)
-{
-  initialize();
-}
+{}
 
 
 Master::Master(Allocator* _allocator, const Configuration& conf)
   : ProcessBase("master"),
     allocator(_allocator),
     conf(conf)
-{
-  initialize();
-}
+{}
 
 
 Master::~Master()
@@ -259,24 +263,24 @@ vector<Slave*> Master::getActiveSlaves() const
 }
 
 
-void Master::operator () ()
+void Master::initialize()
 {
   LOG(INFO) << "Master started at mesos://" << self();
 
-  // Don't do anything until we get a master token.
-  while (receive() != GotMasterTokenMessage().GetTypeName()) {
-    LOG(INFO) << "Oops! We're dropping a message since "
-              << "we haven't received an identifier yet!";
-  }
+  // The master ID is currently comprised of the current date, the IP
+  // address and port from self() and the OS PID.
 
-  GotMasterTokenMessage message;
-  message.ParseFromString(body());
+  Try<string> id =
+    strings::format("%s%d-%d-%d", DateUtils::currentDate().c_str(),
+                    self().ip, self().port, getpid());
 
-  // The master ID is comprised of the current date and some ephemeral
-  // token (e.g., determined by ZooKeeper).
+  CHECK(!id.isError()) << id.error();
 
-  id = DateUtils::currentDate() + "-" + message.token();
-  LOG(INFO) << "Master ID: " << id;
+  info.set_id(id.get());
+  info.set_ip(self().ip);
+  info.set_port(self().port);
+
+  LOG(INFO) << "Master ID: " << info.id();
 
   // Setup slave manager.
   slavesManager = new SlavesManager(conf, self());
@@ -284,27 +288,6 @@ void Master::operator () ()
 
   allocator->initialize(this);
 
-  // Start our timer ticks.
-  delay(1.0, self(), &Master::timerTick);
-
-  while (true) {
-    serve();
-    if (name() == TERMINATE) {
-      LOG(INFO) << "Asked to terminate by " << from();
-      foreachvalue (Slave* slave, slaves) {
-        send(slave->pid, TERMINATE);
-      }
-      break;
-    } else {
-      LOG(WARNING) << "Dropping unknown message '" << name() << "'"
-                   << " from: " << from();
-    }
-  }
-}
-
-
-void Master::initialize()
-{
   elected = false;
 
   nextFrameworkId = 0;
@@ -327,115 +310,153 @@ void Master::initialize()
   stats.validFrameworkMessages = 0;
   stats.invalidFrameworkMessages = 0;
 
-  startTime = elapsedTime();
+  startTime = Clock::now();
+
+  // Start our timer ticks.
+  delay(1.0, self(), &Master::timerTick);
 
   // Install handler functions for certain messages.
-  installProtobufHandler<SubmitSchedulerRequest>(
+  install<SubmitSchedulerRequest>(
       &Master::submitScheduler,
       &SubmitSchedulerRequest::name);
 
-  installProtobufHandler<NewMasterDetectedMessage>(
+  install<NewMasterDetectedMessage>(
       &Master::newMasterDetected,
       &NewMasterDetectedMessage::pid);
 
-  installProtobufHandler<NoMasterDetectedMessage>(
+  install<NoMasterDetectedMessage>(
       &Master::noMasterDetected);
 
-  installProtobufHandler<RegisterFrameworkMessage>(
+  install<RegisterFrameworkMessage>(
       &Master::registerFramework,
       &RegisterFrameworkMessage::framework);
 
-  installProtobufHandler<ReregisterFrameworkMessage>(
+  install<ReregisterFrameworkMessage>(
       &Master::reregisterFramework,
       &ReregisterFrameworkMessage::framework_id,
       &ReregisterFrameworkMessage::framework,
       &ReregisterFrameworkMessage::failover);
 
-  installProtobufHandler<UnregisterFrameworkMessage>(
+  install<UnregisterFrameworkMessage>(
       &Master::unregisterFramework,
       &UnregisterFrameworkMessage::framework_id);
 
-  installProtobufHandler<DeactivateFrameworkMessage>(
+  install<DeactivateFrameworkMessage>(
         &Master::deactivateFramework,
         &DeactivateFrameworkMessage::framework_id);
 
-  installProtobufHandler<ResourceRequestMessage>(
+  install<ResourceRequestMessage>(
       &Master::resourceRequest,
       &ResourceRequestMessage::framework_id,
       &ResourceRequestMessage::requests);
 
-  installProtobufHandler<LaunchTasksMessage>(
+  install<LaunchTasksMessage>(
       &Master::launchTasks,
       &LaunchTasksMessage::framework_id,
       &LaunchTasksMessage::offer_id,
       &LaunchTasksMessage::tasks,
       &LaunchTasksMessage::filters);
 
-  installProtobufHandler<ReviveOffersMessage>(
+  install<ReviveOffersMessage>(
       &Master::reviveOffers,
       &ReviveOffersMessage::framework_id);
 
-  installProtobufHandler<KillTaskMessage>(
+  install<KillTaskMessage>(
       &Master::killTask,
       &KillTaskMessage::framework_id,
       &KillTaskMessage::task_id);
 
-  installProtobufHandler<FrameworkToExecutorMessage>(
+  install<FrameworkToExecutorMessage>(
       &Master::schedulerMessage,
       &FrameworkToExecutorMessage::slave_id,
       &FrameworkToExecutorMessage::framework_id,
       &FrameworkToExecutorMessage::executor_id,
       &FrameworkToExecutorMessage::data);
 
-  installProtobufHandler<RegisterSlaveMessage>(
+  install<RegisterSlaveMessage>(
       &Master::registerSlave,
       &RegisterSlaveMessage::slave);
 
-  installProtobufHandler<ReregisterSlaveMessage>(
+  install<ReregisterSlaveMessage>(
       &Master::reregisterSlave,
       &ReregisterSlaveMessage::slave_id,
       &ReregisterSlaveMessage::slave,
       &ReregisterSlaveMessage::executor_infos,
       &ReregisterSlaveMessage::tasks);
 
-  installProtobufHandler<UnregisterSlaveMessage>(
+  install<UnregisterSlaveMessage>(
       &Master::unregisterSlave,
       &UnregisterSlaveMessage::slave_id);
 
-  installProtobufHandler<StatusUpdateMessage>(
+  install<StatusUpdateMessage>(
       &Master::statusUpdate,
       &StatusUpdateMessage::update,
       &StatusUpdateMessage::pid);
 
-  installProtobufHandler<ExecutorToFrameworkMessage>(
+  install<ExecutorToFrameworkMessage>(
       &Master::executorMessage,
       &ExecutorToFrameworkMessage::slave_id,
       &ExecutorToFrameworkMessage::framework_id,
       &ExecutorToFrameworkMessage::executor_id,
       &ExecutorToFrameworkMessage::data);
 
-  installProtobufHandler<ExitedExecutorMessage>(
+  install<ExitedExecutorMessage>(
       &Master::exitedExecutor,
       &ExitedExecutorMessage::slave_id,
       &ExitedExecutorMessage::framework_id,
       &ExitedExecutorMessage::executor_id,
       &ExitedExecutorMessage::status);
 
-  // Install some message handlers.
-  installMessageHandler(EXITED, &Master::exited);
+  // Setup HTTP request handlers.
+  route("vars", bind(&http::vars, cref(*this), params::_1));
+  route("stats.json", bind(&http::json::stats, cref(*this), params::_1));
+  route("state.json", bind(&http::json::state, cref(*this), params::_1));
+}
 
-  // Install HTTP request handlers.
-  installHttpHandler(
-      "vars",
-      bind(&http::vars, cref(*this), params::_1));
 
-  installHttpHandler(
-      "stats.json",
-      bind(&http::json::stats, cref(*this), params::_1));
+void Master::finalize()
+{
+  LOG(INFO) << "Master terminating";
+  foreachvalue (Slave* slave, slaves) {
+    send(slave->pid, ShutdownMessage());
+  }
+}
 
-  installHttpHandler(
-      "state.json",
-      bind(&http::json::state, cref(*this), params::_1));
+
+void Master::exited(const UPID& pid)
+{
+  foreachvalue (Framework* framework, frameworks) {
+    if (framework->pid == pid) {
+      LOG(INFO) << "Framework " << framework->id << " disconnected";
+
+//       removeFramework(framework);
+
+      // Stop sending offers here for now.
+      framework->active = false;
+
+      // Delay dispatching a message to ourselves for the timeout.
+      delay(failoverTimeout, self(),
+            &Master::frameworkFailoverTimeout,
+            framework->id, framework->reregisteredTime);
+
+      // Remove the framework's offers.
+      foreach (Offer* offer, utils::copy(framework->offers)) {
+        allocator->resourcesRecovered(offer->framework_id(),
+                                      offer->slave_id(),
+                                      offer->resources());
+        removeOffer(offer);
+      }
+      return;
+    }
+  }
+
+  foreachvalue (Slave* slave, slaves) {
+    if (slave->pid == pid) {
+      LOG(INFO) << "Slave " << slave->id << " disconnected";
+      removeSlave(slave);
+      return;
+    }
+  }
 }
 
 
@@ -444,7 +465,7 @@ void Master::submitScheduler(const string& name)
   LOG(INFO) << "Scheduler submit request for " << name;
   SubmitSchedulerResponse response;
   response.set_okay(false);
-  send(from(), response);
+  reply(response);
 }
 
 
@@ -487,16 +508,16 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
   }
 
   Framework* framework =
-    new Framework(frameworkInfo, newFrameworkId(), from(), elapsedTime());
+    new Framework(frameworkInfo, newFrameworkId(), from, Clock::now());
 
-  LOG(INFO) << "Registering framework " << framework->id << " at " << from();
+  LOG(INFO) << "Registering framework " << framework->id << " at " << from;
 
   if (framework->info.executor().uri() == "") {
     LOG(INFO) << framework << " registering without an executor URI";
     FrameworkErrorMessage message;
     message.set_code(1);
     message.set_message("No executor URI given");
-    send(from(), message);
+    reply(message);
     delete framework;
     return;
   }
@@ -509,7 +530,7 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
     FrameworkErrorMessage message;
     message.set_code(1);
     message.set_message("User 'root' is not allowed to run frameworks");
-    send(from(), message);
+    reply(message);
     delete framework;
     return;
   }
@@ -533,7 +554,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
     FrameworkErrorMessage message;
     message.set_code(1);
     message.set_message("Missing framework id");
-    send(from(), message);
+    reply(message);
     return;
   }
 
@@ -543,12 +564,12 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
     FrameworkErrorMessage message;
     message.set_code(1);
     message.set_message("No executor URI given");
-    send(from(), message);
+    reply(message);
     return;
   }
 
   LOG(INFO) << "Re-registering framework " << frameworkId
-            << " at " << from();
+            << " at " << from;
 
   if (frameworks.count(frameworkId) > 0) {
     // Using the "failover" of the scheduler allows us to keep a
@@ -567,7 +588,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
       // TODO: Should we check whether the new scheduler has given
       // us a different framework name, user name or executor info?
       LOG(INFO) << "Framework " << frameworkId << " failed over";
-      failoverFramework(framework, from());
+      failoverFramework(framework, from);
     } else {
       LOG(INFO) << "Allowing the Framework " << frameworkId
                 << " to re-register with an already used id";
@@ -585,7 +606,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
 
       FrameworkReregisteredMessage message;
       message.mutable_framework_id()->MergeFrom(frameworkId);
-      send(from(), message);
+      reply(message);
       return;
     }
   } else {
@@ -594,7 +615,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
     // failed-over one is connecting. Create a Framework object and add
     // any tasks it has that have been reported by reconnecting slaves.
     Framework* framework =
-      new Framework(frameworkInfo, frameworkId, from(), elapsedTime());
+      new Framework(frameworkInfo, frameworkId, from, Clock::now());
 
     // TODO(benh): Check for root submissions like above!
 
@@ -626,7 +647,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
   foreachvalue (Slave* slave, slaves) {
     UpdateFrameworkMessage message;
     message.mutable_framework_id()->MergeFrom(frameworkId);
-    message.set_pid(from());
+    message.set_pid(from);
     send(slave->pid, message);
   }
 }
@@ -638,10 +659,10 @@ void Master::unregisterFramework(const FrameworkID& frameworkId)
 
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
-    if (framework->pid == from()) {
+    if (framework->pid == from) {
       removeFramework(framework);
     } else {
-      LOG(WARNING) << from() << " tried to unregister framework; "
+      LOG(WARNING) << from << " tried to unregister framework; "
                    << "expecting " << framework->pid;
     }
   }
@@ -654,10 +675,10 @@ void Master::deactivateFramework(const FrameworkID& frameworkId)
   Framework* framework = getFramework(frameworkId);
 
   if (framework != NULL) {
-    if (framework->pid == from()) {
+    if (framework->pid == from) {
       framework->active = false;
     } else {
-      LOG(WARNING) << from() << " tried to deactivate framework; "
+      LOG(WARNING) << from << " tried to deactivate framework; "
         << "expecting " << framework->pid;
     }
   }
@@ -696,6 +717,7 @@ void Master::launchTasks(const FrameworkID& frameworkId,
       // to same offer, etc). Report all tasks in it as failed.
       // TODO: Consider adding a new task state TASK_INVALID for
       // situations like these.
+      LOG(WARNING) << "Offer " << offerId << " is no longer valid";
       foreach (const TaskDescription& task, tasks) {
         StatusUpdateMessage message;
         StatusUpdate* update = message.mutable_update();
@@ -704,7 +726,7 @@ void Master::launchTasks(const FrameworkID& frameworkId,
         status->mutable_task_id()->MergeFrom(task.task_id());
         status->set_state(TASK_LOST);
         status->set_message("Task launched with invalid offer");
-        update->set_timestamp(elapsedTime());
+        update->set_timestamp(Clock::now());
         update->set_uuid(UUID::random().toBytes());
         send(framework->pid, message);
       }
@@ -762,7 +784,7 @@ void Master::killTask(const FrameworkID& frameworkId,
       status->mutable_task_id()->MergeFrom(taskId);
       status->set_state(TASK_LOST);
       status->set_message("Task not found");
-      update->set_timestamp(elapsedTime());
+      update->set_timestamp(Clock::now());
       update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
     }
@@ -812,22 +834,39 @@ void Master::registerSlave(const SlaveInfo& slaveInfo)
     return;
   }
 
-  Slave* slave = new Slave(slaveInfo, newSlaveId(), from(), elapsedTime());
+  // Check if this slave has already registered (because it's retrying).
+  foreachvalue (Slave* slave, slaves) {
+    if (slave->pid == from) {
+      LOG(INFO) << "Slave " << slave->id << " (" << slave->info.hostname()
+                << ") already registered, re-sending acknowledgement";
+      SlaveRegisteredMessage message;
+      message.mutable_slave_id()->MergeFrom(slave->id);
+      send(slave->pid, message);
+      return;
+    }
+  }
+
+  Slave* slave = new Slave(slaveInfo, newSlaveId(), from, Clock::now());
 
   LOG(INFO) << "Attempting to register slave " << slave->id
             << " at " << slave->pid;
 
-  // Checks if this slave, or if all slaves, can be accepted.
-  if (slaveHostnamePorts.contains(slaveInfo.hostname(), from().port)) {
-    run(&SlaveRegistrar::run, slave, self());
-  } else if (conf.get<string>("slaves", "*") == "*") {
-    run(&SlaveRegistrar::run, slave, self(), slavesManager->self());
-  } else {
-    LOG(WARNING) << "Cannot register slave at "
-                 << slaveInfo.hostname() << ":" << from().port
-                 << " because not in allocated set of slaves!";
-    send(from(), TERMINATE);
-  }
+  // TODO(benh): We assume all slaves can register for now.
+  CHECK(conf.get<string>("slaves", "*") == "*");
+  activatedSlaveHostnamePort(slave->info.hostname(), slave->pid.port);
+  addSlave(slave);
+
+//   // Checks if this slave, or if all slaves, can be accepted.
+//   if (slaveHostnamePorts.contains(slaveInfo.hostname(), from.port)) {
+//     run(&SlaveRegistrar::run, slave, self());
+//   } else if (conf.get<string>("slaves", "*") == "*") {
+//     run(&SlaveRegistrar::run, slave, self(), slavesManager->self());
+//   } else {
+//     LOG(WARNING) << "Cannot register slave at "
+//                  << slaveInfo.hostname() << ":" << from.port
+//                  << " because not in allocated set of slaves!";
+//     reply(ShutdownMessage());
+//   }
 }
 
 
@@ -843,18 +882,18 @@ void Master::reregisterSlave(const SlaveID& slaveId,
 
   if (slaveId == "") {
     LOG(ERROR) << "Slave re-registered without an id!";
-    send(from(), TERMINATE);
+    reply(ShutdownMessage());
   } else {
     Slave* slave = getSlave(slaveId);
     if (slave != NULL) {
-      // NOTE: This handles the case where a slave tries to re-register with an
-      // existing master (e.g. because of a spurious zookeeper session
-      // expiration.)
-      // For now, we assume this slave is not nefarious (eventually this will
-      // be handled by orthogonal security measures like key based
-      // authentication).
+      // NOTE: This handles the case where a slave tries to
+      // re-register with an existing master (e.g. because of a
+      // spurious zookeeper session expiration).
+      // For now, we assume this slave is not nefarious (eventually
+      // this will be handled by orthogonal security measures like key
+      // based authentication).
 
-      LOG(WARNING) << "Slave at " << from()
+      LOG(WARNING) << "Slave at " << from
                    << " is being allowed to re-register with an already"
                    << " in use id (" << slaveId << ")";
 
@@ -863,23 +902,28 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       send(slave->pid, message);
 
     } else {
-      Slave* slave = new Slave(slaveInfo, slaveId, from(), elapsedTime());
+      Slave* slave = new Slave(slaveInfo, slaveId, from, Clock::now());
 
       LOG(INFO) << "Attempting to re-register slave " << slave->id
                 << " at " << slave->pid;
 
-      // Checks if this slave, or if all slaves, can be accepted.
-      if (slaveHostnamePorts.contains(slaveInfo.hostname(), from().port)) {
-        run(&SlaveReregistrar::run, slave, executorInfos, tasks, self());
-      } else if (conf.get<string>("slaves", "*") == "*") {
-        run(&SlaveReregistrar::run,
-            slave, executorInfos, tasks, self(), slavesManager->self());
-      } else {
-        LOG(WARNING) << "Cannot re-register slave at "
-                     << slaveInfo.hostname() << ":" << from().port
-                     << " because not in allocated set of slaves!";
-        send(from(), TERMINATE);
-      }
+      // TODO(benh): We assume all slaves can register for now.
+      CHECK(conf.get<string>("slaves", "*") == "*");
+      activatedSlaveHostnamePort(slave->info.hostname(), slave->pid.port);
+      readdSlave(slave, executorInfos, tasks);
+
+//       // Checks if this slave, or if all slaves, can be accepted.
+//       if (slaveHostnamePorts.contains(slaveInfo.hostname(), from.port)) {
+//         run(&SlaveReregistrar::run, slave, executorInfos, tasks, self());
+//       } else if (conf.get<string>("slaves", "*") == "*") {
+//         run(&SlaveReregistrar::run,
+//             slave, executorInfos, tasks, self(), slavesManager->self());
+//       } else {
+//         LOG(WARNING) << "Cannot re-register slave at "
+//                      << slaveInfo.hostname() << ":" << from.port
+//                      << " because not in allocated set of slaves!";
+//         reply(ShutdownMessage());
+//       }
     }
   }
 }
@@ -902,7 +946,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 {
   const TaskStatus& status = update.status();
 
-  LOG(INFO) << "Status update from " << from()
+  LOG(INFO) << "Status update from " << from
             << ": task " << status.task_id()
             << " of framework " << update.framework_id()
             << " is now in state " << status.state();
@@ -934,19 +978,19 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
         stats.validStatusUpdates++;
       } else {
-        LOG(WARNING) << "Status update from " << from()
+        LOG(WARNING) << "Status update from " << from
                      << ": error, couldn't lookup "
                      << "task " << status.task_id();
 	stats.invalidStatusUpdates++;
       }
     } else {
-      LOG(WARNING) << "Status update from " << from()
+      LOG(WARNING) << "Status update from " << from
                    << ": error, couldn't lookup "
                    << "framework " << update.framework_id();
       stats.invalidStatusUpdates++;
     }
   } else {
-    LOG(WARNING) << "Status update from " << from()
+    LOG(WARNING) << "Status update from " << from
                  << ": error, couldn't lookup slave "
                  << update.slave_id();
     stats.invalidStatusUpdates++;
@@ -1030,7 +1074,7 @@ void Master::exitedExecutor(const SlaveID& slaveId,
           status->mutable_task_id()->MergeFrom(task->task_id());
           status->set_state(TASK_LOST);
           status->set_message("Lost executor");
-          update->set_timestamp(elapsedTime());
+          update->set_timestamp(Clock::now());
           update->set_uuid(UUID::random().toBytes());
           send(framework->pid, message);
 
@@ -1074,7 +1118,7 @@ void Master::deactivatedSlaveHostnamePort(const string& hostname,
         LOG(WARNING) << "Removing slave " << slave->id << " at "
           << hostname << ":" << port
           << " because it has been deactivated";
-        send(slave->pid, TERMINATE);
+        send(slave->pid, ShutdownMessage());
         removeSlave(slave);
         break;
       }
@@ -1091,7 +1135,7 @@ void Master::timerTick()
 {
   // Check which framework filters can be expired.
   foreachvalue (Framework* framework, frameworks) {
-    framework->removeExpiredFilters(elapsedTime());
+    framework->removeExpiredFilters(Clock::now());
   }
 
   // Do allocations!
@@ -1111,43 +1155,6 @@ void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,
     LOG(INFO) << "Framework failover timeout, removing framework "
               << framework->id;
     removeFramework(framework);
-  }
-}
-
-
-void Master::exited()
-{
-  foreachvalue (Framework* framework, frameworks) {
-    if (framework->pid == from()) {
-      LOG(INFO) << "Framework " << framework->id << " disconnected";
-
-//       removeFramework(framework);
-
-      // Stop sending offers here for now.
-      framework->active = false;
-
-      // Delay dispatching a message to ourselves for the timeout.
-      delay(failoverTimeout, self(),
-            &Master::frameworkFailoverTimeout,
-            framework->id, framework->reregisteredTime);
-
-      // Remove the framework's offers.
-      foreach (Offer* offer, utils::copy(framework->offers)) {
-        allocator->resourcesRecovered(offer->framework_id(),
-                                      offer->slave_id(),
-                                      offer->resources());
-        removeOffer(offer);
-      }
-      return;
-    }
-  }
-
-  foreachvalue (Slave* slave, slaves) {
-    if (slave->pid == from()) {
-      LOG(INFO) << "Slave " << slave->id << " disconnected";
-      removeSlave(slave);
-      return;
-    }
   }
 }
 
@@ -1368,6 +1375,7 @@ void Master::processTasks(Offer* offer,
       usedResources += launchTask(task, framework, slave);
     } else {
       // Error validating task, send a failed status update.
+      LOG(WARNING) << "Error validating task: " << error.get();
       StatusUpdateMessage message;
       StatusUpdate* update = message.mutable_update();
       update->mutable_framework_id()->MergeFrom(framework->id);
@@ -1375,7 +1383,7 @@ void Master::processTasks(Offer* offer,
       status->mutable_task_id()->MergeFrom(task.task_id());
       status->set_state(TASK_LOST);
       status->set_message(error.get());
-      update->set_timestamp(elapsedTime());
+      update->set_timestamp(Clock::now());
       update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
     }
@@ -1414,7 +1422,7 @@ void Master::processTasks(Offer* offer,
               << " for framework " << framework->id
               << " for " << timeout << " seconds";
     framework->slaveFilter[slave] =
-      (timeout == -1) ? 0 : elapsedTime() + timeout;
+      (timeout == -1) ? 0 : Clock::now() + timeout;
   }
 
   removeOffer(offer);
@@ -1518,7 +1526,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   // Make sure we can get offers again.
   framework->active = true;
 
-  framework->reregisteredTime = elapsedTime();
+  framework->reregisteredTime = Clock::now();
 
   {
     FrameworkRegisteredMessage message;
@@ -1582,7 +1590,7 @@ void Master::removeFramework(Framework* framework)
 
   // TODO(benh): unlink(framework->pid);
 
-  framework->unregisteredTime = elapsedTime();
+  framework->unregisteredTime = Clock::now();
 
   completedFrameworks.push_back(*framework);
 
@@ -1626,7 +1634,7 @@ void Master::addSlave(Slave* slave, bool reregister)
 
   // Set up an observer for the slave.
   slave->observer = new SlaveObserver(slave->pid, slave->info,
-                                      slave->id, slavesManager->self());
+                                      slave->id, self());
   spawn(slave->observer);
 
   allocator->slaveAdded(slave);
@@ -1717,7 +1725,7 @@ void Master::removeSlave(Slave* slave)
       status->mutable_task_id()->MergeFrom(task->task_id());
       status->set_state(TASK_LOST);
       status->set_message("Slave removed");
-      update->set_timestamp(elapsedTime());
+      update->set_timestamp(Clock::now());
       update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
     }
@@ -1853,7 +1861,7 @@ FrameworkID Master::newFrameworkId()
 {
   std::ostringstream out;
 
-  out << id << "-" << std::setw(4)
+  out << info.id() << "-" << std::setw(4)
       << std::setfill('0') << nextFrameworkId++;
 
   FrameworkID frameworkId;
@@ -1866,7 +1874,7 @@ FrameworkID Master::newFrameworkId()
 OfferID Master::newOfferId()
 {
   OfferID offerId;
-  offerId.set_value(id + "-" + utils::stringify(nextOfferId++));
+  offerId.set_value(info.id() + "-" + utils::stringify(nextOfferId++));
   return offerId;
 }
 
@@ -1874,7 +1882,7 @@ OfferID Master::newOfferId()
 SlaveID Master::newSlaveId()
 {
   SlaveID slaveId;
-  slaveId.set_value(id + "-" + utils::stringify(nextSlaveId++));
+  slaveId.set_value(info.id() + "-" + utils::stringify(nextSlaveId++));
   return slaveId;
 }
 

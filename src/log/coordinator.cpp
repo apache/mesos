@@ -22,7 +22,6 @@
 #include <process/future.hpp>
 
 #include "common/foreach.hpp"
-#include "common/option.hpp"
 
 #include "log/coordinator.hpp"
 #include "log/replica.hpp"
@@ -64,9 +63,9 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
   // Get the highest known promise from our local replica.
   Future<uint64_t> promise = replica->promised();
 
-  promise.await(); // TODO(benh): Take a timeout and use it here!
-
-  if (promise.isFailed()) {
+  if (!promise.await(timeout.remaining())) {
+    return Result<uint64_t>::none();
+  } else if (promise.isFailed()) {
     return Result<uint64_t>::error(promise.failure());
   }
 
@@ -81,14 +80,13 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
   set<Future<PromiseResponse> > futures =
     broadcast(protocol::promise, request);
 
-  Option<Future<PromiseResponse> > option;
   int okays = 0;
 
   do {
-    option = select(futures, timeout.remaining());
-    if (option.isSome()) {
-      CHECK(option.get().isReady());
-      const PromiseResponse& response = option.get().get();
+    Future<Future<PromiseResponse> > future = select(futures);
+    if (future.await(timeout.remaining())) {
+      CHECK(future.get().isReady());
+      const PromiseResponse& response = future.get().get();
       if (!response.okay()) {
         return Result<uint64_t>::none(); // Lost an election, but can retry.
       } else if (response.okay()) {
@@ -99,9 +97,9 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
           break;
         }
       }
-      futures.erase(option.get());
+      futures.erase(future.get());
     }
-  } while (option.isSome());
+  } while (timeout.remaining() > 0);
 
   // Discard the remaining futures.
   discard(futures);
@@ -120,9 +118,10 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
 
     Future<set<uint64_t> > positions = replica->missing(index);
 
-    positions.await(timeout.remaining());
-
-    if (positions.isFailed()) {
+    if (!positions.await(timeout.remaining())) {
+      elected = false;
+      return Result<uint64_t>::none();
+    } else if (positions.isFailed()) {
       elected = false;
       return Result<uint64_t>::error(positions.failure());
     }
@@ -176,7 +175,7 @@ Result<uint64_t> Coordinator::append(
   Action::Append* append = action.mutable_append();
   append->set_bytes(bytes);
 
-  Result<uint64_t> result = write(action, Timeout(timeout));
+  Result<uint64_t> result = write(action, timeout);
 
   if (result.isSome()) {
     CHECK(result.get() == index);
@@ -266,17 +265,15 @@ Result<uint64_t> Coordinator::write(
   set<Future<WriteResponse> > futures =
     remotecast(protocol::write, request);
 
-  Option<Future<WriteResponse> > option;
   int okays = 0;
 
   do {
-    option = select(futures, timeout.remaining());
-    if (option.isSome()) {
-      CHECK(option.get().isReady());
-      const WriteResponse& response = option.get().get();
+    Future<Future<WriteResponse> > future = select(futures);
+    if (future.await(timeout.remaining())) {
+      CHECK(future.get().isReady());
+      const WriteResponse& response = future.get().get();
       CHECK(response.id() == request.id());
       CHECK(response.position() == request.position());
-
       if (!response.okay()) {
         elected = false;
         return Result<uint64_t>::error("Coordinator demoted");
@@ -296,11 +293,11 @@ Result<uint64_t> Coordinator::write(
           }
         }
       }
-      futures.erase(option.get());
+      futures.erase(future.get());
     }
-  } while (option.isSome());
+  } while (timeout.remaining() > 0);
 
-  // Timed out ...
+  // Timed out ... discard remaining futures.
   discard(futures);
   return Result<uint64_t>::none();
 }
@@ -397,14 +394,13 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
   set<Future<PromiseResponse> > futures =
     broadcast(protocol::promise, request);
 
-  Option<Future<PromiseResponse> > option;
   list<PromiseResponse> responses;
 
   do {
-    option = select(futures, timeout.remaining());
-    if (option.isSome()) {
-      CHECK(option.get().isReady());
-      const PromiseResponse& response = option.get().get();
+    Future<Future<PromiseResponse> > future = select(futures);
+    if (future.await(timeout.remaining())) {
+      CHECK(future.get().isReady());
+      const PromiseResponse& response = future.get().get();
       CHECK(response.id() == request.id());
       if (!response.okay()) {
         elected = false;
@@ -415,9 +411,9 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
           break;
         }
       }
-      futures.erase(option.get());
+      futures.erase(future.get());
     }
-  } while (option.isSome());
+  } while (timeout.remaining() > 0);
 
   // Discard the remaining futures.
   discard(futures);

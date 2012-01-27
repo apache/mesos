@@ -9,13 +9,6 @@ namespace process {
 // within libprocess such that it doesn't cost a memory allocation, a
 // spawn, a message send, a wait, and two user-space context-switchs.
 
-class LatchProcess : public Process<LatchProcess>
-{
-protected:
-  virtual void operator () () { receive(); }
-};
-
-
 Latch::Latch()
 {
   triggered = false;
@@ -25,20 +18,20 @@ Latch::Latch()
   // deleting thread is holding. Hence, we only save the PID for
   // triggering the latch and let the GC actually do the deleting
   // (thus no waiting is necessary, and deadlocks are avoided).
-  latch = spawn(new LatchProcess(), true);
+  pid = spawn(new ProcessBase(), true);
 }
 
 
 Latch::~Latch()
 {
-  post(latch, TERMINATE);
+  terminate(pid);
 }
 
 
 void Latch::trigger()
 {
   if (!triggered) {
-    post(latch, TERMINATE);
+    terminate(pid);
     triggered = true;
   }
 }
@@ -47,7 +40,7 @@ void Latch::trigger()
 bool Latch::await(double secs)
 {
   if (!triggered) {
-    return wait(latch, secs);
+    return wait(pid, secs);
   }
 
   return true;

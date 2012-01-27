@@ -74,8 +74,7 @@ GMOCK_OBJ = gmock-all.o
 
 GMOCK_LIB = gmock.a
 
-LIBPROCESS_OBJ = src/process.o src/pid.o src/fatal.o src/tokenize.o	\
-                 src/latch.o src/timer.o
+LIBPROCESS_OBJ = src/process.o src/pid.o src/latch.o
 
 LIBPROCESS_LIB = libprocess.a
 

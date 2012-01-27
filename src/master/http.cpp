@@ -30,9 +30,9 @@
 #include "master/http.hpp"
 #include "master/master.hpp"
 
+using process::Future;
 using process::HttpResponse;
 using process::HttpRequest;
-using process::Promise;
 
 using std::string;
 
@@ -151,7 +151,7 @@ JSON::Object model(const Slave& slave)
 
 namespace http {
 
-Promise<HttpResponse> vars(
+Future<HttpResponse> vars(
     const Master& master,
     const HttpRequest& request)
 {
@@ -184,7 +184,7 @@ Promise<HttpResponse> vars(
 
 namespace json {
 
-Promise<HttpResponse> stats(
+Future<HttpResponse> stats(
     const Master& master,
     const HttpRequest& request)
 {
@@ -240,7 +240,7 @@ Promise<HttpResponse> stats(
 }
 
 
-Promise<HttpResponse> state(
+Future<HttpResponse> state(
     const Master& master,
     const HttpRequest& request)
 {
@@ -250,7 +250,7 @@ Promise<HttpResponse> state(
   object.values["build_date"] = build::DATE;
   object.values["build_user"] = build::USER;
   object.values["start_time"] = master.startTime;
-  object.values["id"] = master.id;
+  object.values["id"] = master.info.id();
   object.values["pid"] = string(master.self());
 
   // Model all of the slaves.

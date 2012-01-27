@@ -118,6 +118,8 @@ PID<Master> launch(const Configuration& conf, Allocator* _allocator)
 
   vector<UPID> pids;
 
+  // TODO(benh): Launching more than one slave is actually not kosher
+  // since each slave tries to take the "slave" id.
   for (int i = 0; i < numSlaves; i++) {
     // TODO(benh): Create a local isolation module?
     ProcessBasedIsolationModule *isolationModule =
@@ -136,7 +138,7 @@ PID<Master> launch(const Configuration& conf, Allocator* _allocator)
 void shutdown()
 {
   if (master != NULL) {
-    process::post(master->self(), process::TERMINATE);
+    process::terminate(master->self());
     process::wait(master->self());
     delete master;
     delete allocator;
@@ -149,7 +151,7 @@ void shutdown()
     // we have stopped the slave.
 
     foreachpair (IsolationModule* isolationModule, Slave* slave, slaves) {
-      process::post(slave->self(), process::TERMINATE);
+      process::terminate(slave->self());
       process::wait(slave->self());
       delete isolationModule;
       delete slave;

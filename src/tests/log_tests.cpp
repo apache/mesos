@@ -679,10 +679,10 @@ TEST(CoordinatorTest, NotLearnedFill)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  EXPECT_MSG(filter, Eq(LearnedMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(LearnedMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   const std::string path1 = utils::os::getcwd() + "/.log1";
@@ -807,10 +807,10 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  EXPECT_MSG(filter, Eq(LearnedMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(LearnedMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   const std::string path1 = utils::os::getcwd() + "/.log1";
@@ -947,10 +947,10 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  EXPECT_MSG(filter, Eq(LearnedMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(LearnedMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   const std::string path1 = utils::os::getcwd() + "/.log1";

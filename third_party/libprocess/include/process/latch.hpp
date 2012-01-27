@@ -5,16 +5,14 @@
 
 namespace process {
 
-class LatchProcess;
-
 class Latch
 {
 public:
   Latch();
   virtual ~Latch();
 
-  bool operator == (const Latch& that) const { return latch == that.latch; }
-  bool operator < (const Latch& that) const { return latch < that.latch; }
+  bool operator == (const Latch& that) const { return pid == that.pid; }
+  bool operator < (const Latch& that) const { return pid < that.pid; }
 
   void trigger();
   bool await(double secs = 0);
@@ -25,7 +23,7 @@ private:
   Latch& operator = (const Latch& that);
 
   bool triggered;
-  PID<LatchProcess> latch;
+  UPID pid;
 };
 
 }  // namespace process {

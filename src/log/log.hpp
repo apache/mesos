@@ -212,13 +212,13 @@ public:
     LOG(INFO) << "Attempting to join replica to ZooKeeper group";
 
     membership = group->join(replica->pid())
-      .onFailed(dispatch(lambda::bind(&Log::failed, this, lambda::_1)))
-      .onDiscarded(dispatch(lambda::bind(&Log::discarded, this)));
+      .onFailed(executor.defer(lambda::bind(&Log::failed, this, lambda::_1)))
+      .onDiscarded(executor.defer(lambda::bind(&Log::discarded, this)));
 
     group->watch()
-      .onReady(dispatch(lambda::bind(&Log::watch, this, lambda::_1)))
-      .onFailed(dispatch(lambda::bind(&Log::failed, this, lambda::_1)))
-      .onDiscarded(dispatch(lambda::bind(&Log::discarded, this)));
+      .onReady(executor.defer(lambda::bind(&Log::watch, this, lambda::_1)))
+      .onFailed(executor.defer(lambda::bind(&Log::failed, this, lambda::_1)))
+      .onDiscarded(executor.defer(lambda::bind(&Log::discarded, this)));
   }
 
   ~Log()
@@ -256,7 +256,7 @@ private:
 
   zookeeper::Group* group;
   process::Future<zookeeper::Group::Membership> membership;
-  async::Dispatch dispatch;
+  process::Executor executor;
 
   int quorum;
 
@@ -418,14 +418,14 @@ void Log::watch(const std::set<zookeeper::Group::Membership>& memberships)
     // Our replica's membership must have expired, join back up.
     LOG(INFO) << "Renewing replica group membership";
     membership = group->join(replica->pid())
-      .onFailed(dispatch(lambda::bind(&Log::failed, this, lambda::_1)))
-      .onDiscarded(dispatch(lambda::bind(&Log::discarded, this)));
+      .onFailed(executor.defer(lambda::bind(&Log::failed, this, lambda::_1)))
+      .onDiscarded(executor.defer(lambda::bind(&Log::discarded, this)));
   }
 
   group->watch(memberships)
-    .onReady(dispatch(lambda::bind(&Log::watch, this, lambda::_1)))
-    .onFailed(dispatch(lambda::bind(&Log::failed, this, lambda::_1)))
-    .onDiscarded(dispatch(lambda::bind(&Log::discarded, this)));
+    .onReady(executor.defer(lambda::bind(&Log::watch, this, lambda::_1)))
+    .onFailed(executor.defer(lambda::bind(&Log::failed, this, lambda::_1)))
+    .onDiscarded(executor.defer(lambda::bind(&Log::discarded, this)));
 }
 
 

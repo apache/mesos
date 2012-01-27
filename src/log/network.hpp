@@ -25,8 +25,8 @@
 #include <set>
 #include <string>
 
-#include <process/async.hpp>
-#include <process/process.hpp>
+#include <process/deferred.hpp>
+#include <process/executor.hpp>
 #include <process/protobuf.hpp>
 #include <process/timeout.hpp>
 
@@ -34,7 +34,6 @@
 
 #include "common/foreach.hpp"
 #include "common/lambda.hpp"
-#include "common/option.hpp"
 #include "common/seconds.hpp"
 #include "common/utils.hpp"
 
@@ -107,7 +106,7 @@ private:
 
   zookeeper::Group* group;
 
-  async::Dispatch dispatch;
+  process::Executor executor;
 };
 
 
@@ -216,6 +215,7 @@ inline void Network::remove(const process::UPID& pid)
   process::dispatch(process, &NetworkProcess::remove, pid);
 }
 
+
 inline void Network::set(const std::set<process::UPID>& pids)
 {
   process::dispatch(process, &NetworkProcess::set, pids);
@@ -239,8 +239,7 @@ void Network::broadcast(
     const std::set<process::UPID>& filter)
 {
   // Need to disambiguate overloaded function.
-  void (NetworkProcess::*broadcast) (
-      const M&, const std::set<process::UPID>&) =
+  void (NetworkProcess::*broadcast)(const M&, const std::set<process::UPID>&) =
     &NetworkProcess::broadcast<M>;
 
   process::dispatch(process, broadcast, m, filter);
@@ -256,12 +255,19 @@ inline ZooKeeperNetwork::ZooKeeperNetwork(zookeeper::Group* _group)
 inline void ZooKeeperNetwork::watch(
     const std::set<zookeeper::Group::Membership>& memberships)
 {
+  process::deferred<void(const std::set<zookeeper::Group::Membership>&)> ready =
+    executor.defer(lambda::bind(&ZooKeeperNetwork::ready, this, lambda::_1));
+
+  process::deferred<void(const std::string&)> failed =
+    executor.defer(lambda::bind(&ZooKeeperNetwork::failed, this, lambda::_1));
+
+  process::deferred<void(void)> discarded =
+    executor.defer(lambda::bind(&ZooKeeperNetwork::discarded, this));
+
   group->watch(memberships)
-    .onReady(dispatch(lambda::bind(&ZooKeeperNetwork::ready,
-                                   this, lambda::_1)))
-    .onFailed(dispatch(lambda::bind(&ZooKeeperNetwork::failed,
-                                    this, lambda::_1)))
-    .onDiscarded(dispatch(lambda::bind(&ZooKeeperNetwork::discarded, this)));
+    .onReady(ready)
+    .onFailed(failed)
+    .onDiscarded(discarded);
 }
 
 
@@ -279,18 +285,16 @@ inline void ZooKeeperNetwork::ready(
 
   std::set<process::UPID> pids;
 
-  Option<process::Future<std::string> > option;
-
   process::Timeout timeout = 5.0;
 
   while (!futures.empty()) {
-    option = select(futures, timeout.remaining());
-    if (option.isSome()) {
-      CHECK(option.get().isReady());
-      process::UPID pid(option.get().get());
-      CHECK(pid) << "Failed to parse '" << option.get().get() << "'";
+    process::Future<process::Future<std::string> > future = select(futures);
+    if (future.await(timeout.remaining())) {
+      CHECK(future.get().isReady());
+      process::UPID pid(future.get().get());
+      CHECK(pid) << "Failed to parse '" << future.get().get() << "'";
       pids.insert(pid);
-      futures.erase(option.get());
+      futures.erase(future.get());
     } else {
       watch(); // Try again later assuming empty group.
       return;

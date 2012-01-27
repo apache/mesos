@@ -1,7 +1,10 @@
-#ifndef FOREACH_HPP
-#define FOREACH_HPP
+#ifndef __FOREACH_HPP__
+#define __FOREACH_HPP__
 
 #include <boost/foreach.hpp>
+
+#include <boost/tuple/tuple.hpp>
+
 
 #define BOOST_FOREACH_PAIR(VARFIRST, VARSECOND, COL)                                            \
     BOOST_FOREACH_PREAMBLE()                                                                    \
@@ -23,8 +26,10 @@
 #define foreach BOOST_FOREACH
 #define foreachpair BOOST_FOREACH_PAIR
 
-#include <boost/tuple/tuple.hpp>
+#define foreachkey(VAR, COL)                    \
+  foreachpair (VAR, boost::tuples::ignore, COL)
 
-const boost::tuples::detail::swallow_assign _ = boost::tuples::ignore;
+#define foreachvalue(VAR, COL)                  \
+  foreachpair (boost::tuples::ignore, VAR, COL)
 
-#endif /* FOREACH_HPP */
+#endif // __FOREACH_HPP__

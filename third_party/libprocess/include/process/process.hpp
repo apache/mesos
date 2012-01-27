@@ -1,57 +1,24 @@
 #ifndef __PROCESS_PROCESS_HPP__
 #define __PROCESS_PROCESS_HPP__
 
-#include <assert.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include <ucontext.h>
-
-#include <sys/time.h>
+#include <pthread.h>
 
 #include <map>
 #include <queue>
 
 #include <tr1/functional>
 
-#include <process/future.hpp>
+#include <process/clock.hpp>
+#include <process/event.hpp>
+#include <process/filter.hpp>
 #include <process/http.hpp>
+#include <process/message.hpp>
 #include <process/pid.hpp>
-
 
 namespace process {
 
-const std::string NOTHING = "__process_nothing__";
-const std::string ERROR = "__process_error__";
-const std::string TIMEOUT = "__process_timeout__";
-const std::string EXITED = "__process_exited__";
-const std::string TERMINATE = "__process_terminate__";
-
-
-struct Message {
-  std::string name;
-  UPID from;
-  UPID to;
-  std::string body;
-};
-
-
-class Clock {
-public:
-  static double now();
-  static void pause();
-  static void resume();
-  static void advance(double secs);
-};
-
-
-class Filter {
-public:
-  // TODO(benh): Support filtering HTTP requests?
-  virtual bool filter(Message*) = 0;
-};
-
-
-class ProcessBase
+class ProcessBase : public EventVisitor
 {
 public:
   ProcessBase(const std::string& id = "");
@@ -60,61 +27,85 @@ public:
 
   UPID self() const { return pid; }
 
-  static UPID spawn(ProcessBase* process, bool manage = false);
-
 protected:
-  // Function run when process spawned.
-//   virtual void operator () () = 0;
-  virtual void operator () ()
+  // Invoked when an event is serviced.
+  virtual void serve(const Event& event)
   {
-    do { if (serve() == TERMINATE) break; } while (true);
+    event.visit(this);
   }
 
-  // Returns the sender's PID of the last dequeued (current) message.
-  UPID from() const;
+  // Callbacks used to visit (i.e., handle) a specific event.
+  virtual void visit(const MessageEvent& event);
+  virtual void visit(const DispatchEvent& event);
+  virtual void visit(const HttpEvent& event);
+  virtual void visit(const ExitedEvent& event);
+  virtual void visit(const TerminateEvent& event);
 
-  // Returns the name of the last dequeued (current) message.
-  const std::string& name() const;
+  // Invoked when a process gets spawned.
+  virtual void initialize() {}
 
-  // Returns the body of the last dequeued (current) message.
-  const std::string& body() const;
+  // Invoked when a process is terminated (unless visit is overriden).
+  virtual void finalize() {}
 
-  // Put a message at front of queue.
-  void inject(const UPID& from,
-              const std::string& name,
-              const char* data = NULL,
-              size_t length = 0);
+  // Invoked when a linked process has exited (see link).
+  virtual void exited(const UPID& pid) {}
+
+  // Invoked when a linked process can no longer be monitored (see link).
+  virtual void lost(const UPID& pid) {}
+
+  // Puts a message at front of queue.
+  void inject(
+      const UPID& from,
+      const std::string& name,
+      const char* data = NULL,
+      size_t length = 0);
 
   // Sends a message with data to PID.
-  void send(const UPID& to,
-            const std::string &name,
-            const char *data = NULL,
-            size_t length = 0);
+  void send(
+      const UPID& to,
+      const std::string& name,
+      const char* data = NULL,
+      size_t length = 0);
 
-  // Blocks for message at most specified seconds (0 implies forever).
-  std::string receive(double secs = 0);
-
-  // Processes dispatch messages.
-  std::string serve(double secs = 0, bool once = false);
-
-  // Blocks at least specified seconds (may block longer).
-  void pause(double secs);
-
-  // Links with the specified PID.
+  // Links with the specified PID. Linking with a process from within
+  // the same "operating system process" is gauranteed to give you
+  // perfect monitoring of that process. However, linking with a
+  // process on another machine might result in receiving lost
+  // callbacks due to the nature of a distributed environment.
   UPID link(const UPID& pid);
 
-  // IO events for polling.
-  enum { RDONLY = 01, WRONLY = 02, RDWR = 03 };
+  // The default visit implementation for message events invokes
+  // installed message handlers, or delegates the message to another
+  // process (a delegate can be installed below but a message handler
+  // always takes precedence over delegating). A message handler is
+  // any function which takes two arguments, the "from" pid and the
+  // message body.
+  typedef std::tr1::function<void(const UPID&, const std::string&)>
+  MessageHandler;
 
-  // Wait until operation is ready for file descriptor (or message
-  // received ignore is false).
-  bool poll(int fd, int op, double secs = 0, bool ignore = true);
+  // Setup a handler for a message.
+  void install(
+      const std::string& name,
+      const MessageHandler& handler)
+  {
+    handlers.message[name] = handler;
+  }
 
-  // Returns true if operation on file descriptor is ready.
-  bool ready(int fd, int op);
-
-  // Returns sub-second elapsed time (according to this process).
-  double elapsedTime();
+  template <typename T>
+  void install(
+      const std::string& name,
+      void (T::*method)(const UPID&, const std::string&))
+  {
+    // Note that we use dynamic_cast here so a process can use
+    // multiple inheritance if it sees so fit (e.g., to implement
+    // multiple callback interfaces).
+    MessageHandler handler =
+      std::tr1::bind(method,
+                     dynamic_cast<T*>(this),
+                     std::tr1::placeholders::_1,
+                     std::tr1::placeholders::_2);
+    install(name, handler);
+  }
 
   // Delegate incoming message's with the specified name to pid.
   void delegate(const std::string& name, const UPID& pid)
@@ -122,112 +113,72 @@ protected:
     delegates[name] = pid;
   }
 
-  typedef std::tr1::function<void()> MessageHandler;
+  // The default visit implementation for HTTP events invokes
+  // installed HTTP handlers. A HTTP handler is any function which
+  // takes an HttpRequest object and returns and HttpResponse.
+  typedef std::tr1::function<Future<HttpResponse>(const HttpRequest&)>
+  HttpRequestHandler;
 
-  // Install a handler for a message.
-  void installMessageHandler(
-      const std::string& name,
-      const MessageHandler& handler)
-  {
-    messageHandlers[name] = handler;
-  }
-
-  template <typename T>
-  void installMessageHandler(
-      const std::string& name,
-      void (T::*method)())
-  {
-    MessageHandler handler = std::tr1::bind(method, dynamic_cast<T*>(this));
-    installMessageHandler(name, handler);
-  }
-
-  typedef std::tr1::function<Promise<HttpResponse>(const HttpRequest&)>
-    HttpRequestHandler;
-
-  // Install a handler for an HTTP request.
-  void installHttpHandler(
+  // Setup a handler for an HTTP request.
+  void route(
       const std::string& name,
       const HttpRequestHandler& handler)
   {
-    httpHandlers[name] = handler;
+    handlers.http[name] = handler;
   }
 
   template <typename T>
-  void installHttpHandler(
+  void route(
       const std::string& name,
-      Promise<HttpResponse> (T::*method)(const HttpRequest&))
+      Future<HttpResponse> (T::*method)(const HttpRequest&))
   {
+    // Note that we use dynamic_cast here so a process can use
+    // multiple inheritance if it sees so fit (e.g., to implement
+    // multiple callback interfaces).
     HttpRequestHandler handler =
       std::tr1::bind(method, dynamic_cast<T*>(this),
                      std::tr1::placeholders::_1);
-    installHttpHandler(name, handler);
+    route(name, handler);
   }
 
 private:
   friend class SocketManager;
   friend class ProcessManager;
   friend class ProcessReference;
-  friend void* schedule(void *);
+  friend void* schedule(void*);
 
   // Process states.
-  enum { INIT,
-	 READY,
+  enum { BOTTOM,
+         READY,
 	 RUNNING,
-	 RECEIVING,
-	 SERVING,
-	 PAUSED,
-	 POLLING,
-	 WAITING,
-	 INTERRUPTED,
-	 TIMEDOUT,
-         FINISHING,
+         BLOCKED,
 	 FINISHED } state;
 
-  // Lock/mutex protecting internals.
+  // Mutex protecting internals. TODO(benh): Replace with a spinlock.
   pthread_mutex_t m;
   void lock() { pthread_mutex_lock(&m); }
   void unlock() { pthread_mutex_unlock(&m); }
 
-  // Enqueue the specified message, request, or dispatcher.
-  void enqueue(Message* message, bool inject = false);
-  void enqueue(std::pair<HttpRequest*, Promise<HttpResponse>*>* request);
-  void enqueue(std::tr1::function<void(ProcessBase*)>* dispatcher);
+  // Enqueue the specified message, request, or function call.
+  void enqueue(Event* event, bool inject = false);
 
-  // Dequeue a message, request, or dispatcher, or returns NULL.
-  template <typename T> T* dequeue();
-
-  // Queue of received messages.
-  std::deque<Message*> messages;
-
-  // Queue of HTTP requests (with the promise used for responses).
-  std::deque<std::pair<HttpRequest*, Promise<HttpResponse>*>*> requests;
-
-  // Queue of dispatchers.
-  std::deque<std::tr1::function<void(ProcessBase*)>*> dispatchers;
+  // Queue of received events.
+  std::deque<Event*> events;
 
   // Delegates for messages.
   std::map<std::string, UPID> delegates;
 
-  // Handlers for messages.
-  std::map<std::string, MessageHandler> messageHandlers;
-
-  // Handlers for HTTP requests.
-  std::map<std::string, HttpRequestHandler> httpHandlers;
-
-  // Current message.
-  Message* current;
+  // Handlers for messages and HTTP requests.
+  struct {
+    std::map<std::string, MessageHandler> message;
+    std::map<std::string, HttpRequestHandler> http;
+  } handlers;
 
   // Active references.
   int refs;
 
-  // Current "blocking" generation.
-  int generation;
-
   // Process PID.
   UPID pid;
-
-  // Continuation/Context of process.
-  ucontext_t uctx;
 };
 
 
@@ -257,10 +208,12 @@ void initialize(bool initialize_google_logging = true);
  * @param process process to be spawned
  * @param manage boolean whether process should get garbage collected
  */
+UPID spawn(ProcessBase* process, bool manage = false);
+
 template <typename T>
 PID<T> spawn(T* t, bool manage = false)
 {
-  if (!ProcessBase::spawn(t, manage)) {
+  if (!spawn(static_cast<ProcessBase*>(t), manage)) {
     return PID<T>();
   }
 
@@ -298,23 +251,6 @@ void terminate(const ProcessBase* process, bool inject = true);
 bool wait(const UPID& pid, double secs = 0);
 bool wait(const ProcessBase& process, double secs = 0);
 bool wait(const ProcessBase* process, double secs = 0);
-
-
-/**
- * Invoke the thunk in a legacy safe way (i.e., outside of libprocess).
- *
- * @param thunk function to be invoked
- */
-void invoke(const std::tr1::function<void(void)>& thunk);
-
-
-/**
- * Use the specified filter on messages that get enqueued (note,
- * however, that you cannot filter timeout messages).
- *
- * @param filter message filter
- */
-void filter(Filter* filter);
 
 
 /**

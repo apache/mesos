@@ -1,14 +1,16 @@
 #ifndef __PROCESS_FUTURE_HPP__
 #define __PROCESS_FUTURE_HPP__
 
+#include <assert.h>
+
 #include <queue>
 #include <set>
 
 #include <tr1/functional>
+#include <tr1/memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 
 #include <process/latch.hpp>
 #include <process/option.hpp>
-
 
 namespace process {
 
@@ -29,9 +31,9 @@ public:
   Future(const Future<T>& that);
   ~Future();
 
-  // Futures are assignable. This results in the reference to the
-  // previous future data being decremented and a reference to 'that'
-  // being incremented.
+  // Futures are assignable (and copyable). This results in the
+  // reference to the previous future data being decremented and a
+  // reference to 'that' being incremented.
   Future<T>& operator = (const Future<T>& that);
 
   // Comparision operators useful for using futures in collections.
@@ -108,15 +110,13 @@ private:
 };
 
 
-// TODO(benh): Consider making promise a non-copyable, non-assignabl
-// subclass of Future. For now, they'll live as distinct types.
+// TODO(benh): Making Promise a subclass of Future?
 template <typename T>
 class Promise
 {
 public:
   Promise();
   Promise(const T& t);
-  Promise(const Promise<T>& that);
   ~Promise();
 
   bool set(const T& _t);
@@ -126,8 +126,9 @@ public:
   Future<T> future() const;
 
 private:
-  // Not assignable.
-  void operator = (const Promise<T>&);
+  // Not copyable, not assignable.
+  Promise(const Promise<T>&);
+  Promise<T>& operator = (const Promise<T>&);
 
   Future<T> f;
 };
@@ -148,11 +149,6 @@ Promise<T>::Promise() {}
 template <typename T>
 Promise<T>::Promise(const T& t)
   : f(t) {}
-
-
-template <typename T>
-Promise<T>::Promise(const Promise<T>& that)
-  : f(that.f) {}
 
 
 template <typename T>
@@ -197,62 +193,56 @@ inline void release(int* lock)
   assert(unlocked);
 }
 
-namespace callbacks {
-
 template <typename T>
-void select(const Future<T>& future, Promise<Future<T> > promise)
+void select(
+    const Future<T>& future,
+    std::tr1::shared_ptr<Promise<Future<T > > > promise)
 {
   // We never fail the future associated with our promise.
-  assert(!promise.future().isFailed());
+  assert(!promise->future().isFailed());
 
-  if (promise.future().isPending()) { // Avoid acquiring a lock.
+  if (promise->future().isPending()) { // No-op if it's discarded.
     if (future.isReady()) { // We only set the promise if a future is ready.
-      promise.set(future);
+      promise->set(future);
     }
   }
 }
 
-} // namespace callback {
 } // namespace internal {
 
 
 // TODO(benh): Move select and discard into 'futures' namespace.
 
-// Returns an option of a ready future or none in the event of
-// timeout. Note that select DOES NOT return for a future that has
-// failed or been discarded.
+// Returns a future that captures any ready future in a set. Note that
+// select DOES NOT capture a future that has failed or been discarded.
 template <typename T>
-Option<Future<T> > select(const std::set<Future<T> >& futures, double secs)
+Future<Future<T> > select(const std::set<Future<T> >& futures)
 {
-  Promise<Future<T> > promise;
+  std::tr1::shared_ptr<Promise<Future<T> > > promise(
+      new Promise<Future<T> >());
 
-  std::tr1::function<void(const Future<T>&)> callback =
-    std::tr1::bind(internal::callbacks::select<T>,
-                   std::tr1::placeholders::_1, promise);
+  Future<Future<T> > future = promise->future();
+
+  std::tr1::function<void(const Future<T>&)> select =
+    std::tr1::bind(&internal::select<T>,
+                   std::tr1::placeholders::_1,
+                   promise);
 
   typename std::set<Future<T> >::iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-    const Future<T>& future = *iterator;
-    future.onAny(callback);
+    (*iterator).onAny(select);
   }
 
-  Future<Future<T> > future = promise.future();
-
-  if (future.await(secs)) {
-    return Option<Future<T> >::some(future.get());
-  } else {
-    future.discard();
-    return Option<Future<T> >::none();
-  }
+  return future;
 }
 
 
 template <typename T>
 void discard(const std::set<Future<T> >& futures)
 {
-  typename std::set<Future<T> >::const_iterator iterator;
+  typename std::set<Future<T> >::iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-    Future<T> future = *iterator;
+    Future<T> future = *iterator; // Need a non-const copy to discard.
     future.discard();
   }
 }

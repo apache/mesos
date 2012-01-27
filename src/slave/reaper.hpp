@@ -24,7 +24,9 @@
 #include <process/process.hpp>
 
 
-namespace mesos { namespace internal { namespace slave {
+namespace mesos {
+namespace internal {
+namespace slave {
 
 class ProcessExitedListener : public process::Process<ProcessExitedListener>
 {
@@ -42,13 +44,17 @@ public:
   void addProcessExitedListener(const process::PID<ProcessExitedListener>&);
 
 protected:
-  virtual void operator () ();
+  virtual void initialize();
+
+  void reap();
 
 private:
   std::set<process::PID<ProcessExitedListener> > listeners;
 };
 
 
-}}} // namespace mesos { namespace internal { namespace slave {
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __REAPER_HPP__

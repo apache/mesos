@@ -175,13 +175,23 @@ void MesosExecutorDriverImpl_dealloc(MesosExecutorDriverImpl* self)
 {
   if (self->driver != NULL) {
     self->driver->stop();
+    // We need to wrap the driver destructor in an "allow threads"
+    // macro since the MesosExecutorDriver destructor waits for the
+    // ExecutorProcess to terminate and there might be a thread that
+    // is trying to acquire the GIL to call through the
+    // ProxyExecutor. It will only be after this thread executes that
+    // the ExecutorProcess might actually get a terminate.
+    Py_BEGIN_ALLOW_THREADS
     delete self->driver;
+    Py_END_ALLOW_THREADS
     self->driver = NULL;
   }
+
   if (self->proxyExecutor != NULL) {
     delete self->proxyExecutor;
     self->proxyExecutor = NULL;
   }
+
   MesosExecutorDriverImpl_clear(self);
   self->ob_type->tp_free((PyObject*) self);
 }

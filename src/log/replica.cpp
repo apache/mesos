@@ -459,7 +459,7 @@ public:
 
   // Returns all the actions between the specified positions, unless
   // those positions are invalid, in which case returns an error.
-  process::Promise<std::list<Action> > read(uint64_t from, uint64_t to);
+  process::Future<std::list<Action> > read(uint64_t from, uint64_t to);
 
   // Returns missing positions in the log (i.e., unlearned or holes)
   // up to the specified position.
@@ -527,17 +527,17 @@ ReplicaProcess::ReplicaProcess(const string& path)
   recover(path);
 
   // Install protobuf handlers.
-  installProtobufHandler<PromiseRequest>(
+  install<PromiseRequest>(
       &ReplicaProcess::promise);
 
-  installProtobufHandler<WriteRequest>(
+  install<WriteRequest>(
       &ReplicaProcess::write);
 
-  installProtobufHandler<LearnedMessage>(
+  install<LearnedMessage>(
       &ReplicaProcess::learned,
       &LearnedMessage::action);
 
-  installProtobufHandler<LearnRequest>(
+  install<LearnRequest>(
       &ReplicaProcess::learn,
       &LearnRequest::position);
 }
@@ -574,22 +574,22 @@ Result<Action> ReplicaProcess::read(uint64_t position)
 
 // TODO(benh): Make this function actually return a Try once we change
 // the future semantics to not include failures.
-process::Promise<list<Action> > ReplicaProcess::read(
+process::Future<list<Action> > ReplicaProcess::read(
     uint64_t from,
     uint64_t to)
 {
   if (to < from) {
     process::Promise<list<Action> > promise;
     promise.fail("Bad read range (to < from)");
-    return promise;
+    return promise.future();
   } else if (from < begin) {
     process::Promise<list<Action> > promise;
     promise.fail("Bad read range (truncated position)");
-    return promise;
+    return promise.future();
   } else if (end < to) {
     process::Promise<list<Action> > promise;
     promise.fail("Bad read range (past end of log)");
-    return promise;
+    return promise.future();
   }
 
   list<Action> actions;
@@ -600,7 +600,7 @@ process::Promise<list<Action> > ReplicaProcess::read(
     if (result.isError()) {
       process::Promise<list<Action> > promise;
       promise.fail(result.error());
-      return promise;
+      return promise.future();
     } else if (result.isSome()) {
       actions.push_back(result.get());
     }
@@ -688,7 +688,7 @@ void ReplicaProcess::promise(const PromiseRequest& request)
         response.set_okay(true);
         response.set_id(request.id());
         response.set_position(request.position());
-        send(from(), response);
+        reply(response);
       }
     } else {
       CHECK(result.isSome());
@@ -700,7 +700,7 @@ void ReplicaProcess::promise(const PromiseRequest& request)
         response.set_okay(false);
         response.set_id(request.id());
         response.set_position(request.position());
-        send(from(), response);
+        reply(response);
       } else {
         Action original = action;
         action.set_promised(request.id());
@@ -710,7 +710,7 @@ void ReplicaProcess::promise(const PromiseRequest& request)
           response.set_okay(true);
           response.set_id(request.id());
           response.mutable_action()->MergeFrom(original);
-          send(from(), response);
+          reply(response);
         }
       }
     }
@@ -722,7 +722,7 @@ void ReplicaProcess::promise(const PromiseRequest& request)
       PromiseResponse response;
       response.set_okay(false);
       response.set_id(request.id());
-      send(from(), response);
+      reply(response);
     } else {
       Promise promise;
       promise.set_id(request.id());
@@ -735,7 +735,7 @@ void ReplicaProcess::promise(const PromiseRequest& request)
         response.set_okay(true);
         response.set_id(request.id());
         response.set_position(end);
-        send(from(), response);
+        reply(response);
       }
     }
   }
@@ -757,7 +757,7 @@ void ReplicaProcess::write(const WriteRequest& request)
       response.set_okay(false);
       response.set_id(request.id());
       response.set_position(request.position());
-      send(from(), response);
+      reply(response);
     } else {
       Action action;
       action.set_position(request.position());
@@ -788,7 +788,7 @@ void ReplicaProcess::write(const WriteRequest& request)
         response.set_okay(true);
         response.set_id(request.id());
         response.set_position(request.position());
-        send(from(), response);
+        reply(response);
       }
     }
   } else if (result.isSome()) {
@@ -800,7 +800,7 @@ void ReplicaProcess::write(const WriteRequest& request)
       response.set_okay(false);
       response.set_id(request.id());
       response.set_position(request.position());
-      send(from(), response);
+      reply(response);
     } else {
       // TODO(benh): Check if this position has already been learned,
       // and if so, check that we are re-writing the same value!
@@ -835,7 +835,7 @@ void ReplicaProcess::write(const WriteRequest& request)
         response.set_okay(true);
         response.set_id(request.id());
         response.set_position(request.position());
-        send(from(), response);
+        reply(response);
       }
     }
   }
@@ -871,11 +871,11 @@ void ReplicaProcess::learn(uint64_t position)
     LearnResponse response;
     response.set_okay(true);
     response.mutable_action()->MergeFrom(result.get());
-    send(from(), response);
+    reply(response);
   } else {
     LearnResponse response;
     response.set_okay(false);
-    send(from(), response);
+    reply(response);
   }
 }
 

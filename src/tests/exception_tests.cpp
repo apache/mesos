@@ -57,7 +57,6 @@ using testing::Eq;
 using testing::Not;
 using testing::Return;
 using testing::SaveArg;
-using testing::SaveArgPointee;
 
 
 TEST(ExceptionTest, AbortOnFrameworkError)
@@ -109,7 +108,7 @@ TEST(ExceptionTest, DeactiveFrameworkOnAbort)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
@@ -131,7 +130,7 @@ TEST(ExceptionTest, DeactiveFrameworkOnAbort)
 
   trigger deactivateMsg;
 
-  EXPECT_MSG(filter, Eq(DeactivateFrameworkMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(DeactivateFrameworkMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&deactivateMsg), Return(false)));
 
   driver.start();
@@ -197,7 +196,7 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   MockFilter filter;
   process::filter(&filter);
 
-  EXPECT_MSG(filter, _, _, _)
+  EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
@@ -236,13 +235,14 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   process::Message message;
   trigger rescindMsg, unregisterMsg;
 
-  EXPECT_MSG(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(SaveArgPointee<0>(&message),Return(false)));
+  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
+                    Return(false)));
 
-  EXPECT_MSG(filter, Eq(RescindResourceOfferMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(RescindResourceOfferMessage().GetTypeName()), _, _)
     .WillOnce(Trigger(&rescindMsg));
 
-  EXPECT_MSG(filter, Eq(UnregisterFrameworkMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(filter, Eq(UnregisterFrameworkMessage().GetTypeName()), _, _)
       .WillOnce(Trigger(&unregisterMsg));
 
   driver.start();

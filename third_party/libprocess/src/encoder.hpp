@@ -5,6 +5,8 @@
 
 #include <process/process.hpp>
 
+#include "foreach.hpp"
+
 
 namespace process {
 
@@ -131,7 +133,6 @@ public:
     return out.str();
   }
 };
-
 
 }  // namespace process {
 

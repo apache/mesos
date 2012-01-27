@@ -11,7 +11,7 @@ namespace process {
 class GarbageCollector : public Process<GarbageCollector>
 {
 public:
-  GarbageCollector() {}
+  GarbageCollector() : ProcessBase("__gc__") {}
   virtual ~GarbageCollector() {}
 
   template <typename T>
@@ -25,15 +25,12 @@ public:
   }
 
 protected:
-  virtual void operator () ()
+  virtual void exited(const UPID& pid)
   {
-    while (true) {
-      serve();
-      if (name() == EXITED && processes.count(from()) > 0) {
-        const ProcessBase* process = processes[from()];
-        processes.erase(from());
-        delete process;
-      }
+    if (processes.count(pid) > 0) {
+      const ProcessBase* process = processes[pid];
+      processes.erase(pid);
+      delete process;
     }
   }
 

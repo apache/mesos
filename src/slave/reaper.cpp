@@ -20,6 +20,7 @@
 #include <sys/wait.h>
 
 #include <process/dispatch.hpp>
+#include <process/timer.hpp>
 
 #include "reaper.hpp"
 
@@ -28,7 +29,9 @@
 using namespace process;
 
 
-namespace mesos { namespace internal { namespace slave {
+namespace mesos {
+namespace internal {
+namespace slave {
 
 Reaper::Reaper() {}
 
@@ -43,24 +46,28 @@ void Reaper::addProcessExitedListener(
 }
 
 
-void Reaper::operator () ()
+void Reaper::initialize()
 {
-  while (true) {
-    serve(1);
-    if (name() == TIMEOUT) {
-      // Check whether any child process has exited.
-      pid_t pid;
-      int status;
-      if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
-        foreach (const PID<ProcessExitedListener>& listener, listeners) {
-          dispatch(listener, &ProcessExitedListener::processExited,
-                   pid, status);
-        }
-      }
-    } else if (name() == TERMINATE) {
-      return;
-    }
-  }
+  delay(1.0, self(), &Reaper::reap);
 }
 
-}}} // namespace mesos { namespace internal { namespace slave {
+
+void Reaper::reap()
+{
+  // Check whether any child process has exited.
+  pid_t pid;
+  int status;
+  if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
+    foreach (const PID<ProcessExitedListener>& listener, listeners) {
+      dispatch(listener, &ProcessExitedListener::processExited, pid, status);
+    }
+  }
+
+  delay(1.0, self(), &Reaper::reap); // Reap forever!
+}
+
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
+
+

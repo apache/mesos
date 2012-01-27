@@ -215,7 +215,15 @@ void MesosSchedulerDriverImpl_dealloc(MesosSchedulerDriverImpl* self)
 {
   if (self->driver != NULL) {
     self->driver->stop();
+    // We need to wrap the driver destructor in an "allow threads"
+    // macro since the MesosSchedulerDriver destructor waits for the
+    // SchedulerProcess to terminate and there might be a thread that
+    // is trying to acquire the GIL to call through the
+    // ProxyScheduler. It will only be after this thread executes that
+    // the SchedulerProcess might actually get a terminate.
+    Py_BEGIN_ALLOW_THREADS
     delete self->driver;
+    Py_END_ALLOW_THREADS
     self->driver = NULL;
   }
 
@@ -273,9 +281,9 @@ PyObject* MesosSchedulerDriverImpl_stop(MesosSchedulerDriverImpl* self,
     return NULL;
   }
 
-  bool failover = false;
+  bool failover = false; // Should match default in mesos.py.
 
-  if (!PyArg_ParseTuple(args, "b", &failover)) {
+  if (!PyArg_ParseTuple(args, "|b", &failover)) {
     return NULL;
   }
 

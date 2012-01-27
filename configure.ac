@@ -128,8 +128,6 @@ case "${target_os}" in
     echo Setting up build environment for ${target_cpu} ${target_os}
     echo ===========================================================
     OS_NAME=darwin
-    CFLAGS="$CFLAGS -D_XOPEN_SOURCE"
-    CXXFLAGS="$CXXFLAGS -D_XOPEN_SOURCE"
     ;;
   solaris*)
     echo ===========================================================
