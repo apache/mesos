@@ -29,6 +29,11 @@ ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
 LIBPROCESS = third_party/libprocess
 LIBEV = $(LIBPROCESS)/third_party/libev-3.8
 
+# Unfortunatley, 'pkglibexecdir' is not set before automake 1.11, so
+# we need to do it manually (unless we in the future assume an
+# automake version).
+pkglibexecdir = $(libexecdir)/$(PACKAGE)
+
 # These next definitions may not seem like, much, but they are very
 # important! They inform where things that have the webui_, pythonegg_
 # and javalib_ prefix get installed! Also note that pkg*dir contains
@@ -531,8 +536,10 @@ $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
 	      $(PYTHON_PROTOS) libmesos_no_third_party.la	\
 	      $(PROTOBUF_EGG)
 	@echo "Building Mesos Python egg ..."
-	@$(MKDIR_P) python/src
-	@cp -pf $(srcdir)/python/src/mesos.py python/src
+	@if test "$(top_srcdir)" != "$(top_builddir)"; then \
+	  @$(MKDIR_P) python/src; \
+	  cp -pf $(srcdir)/python/src/mesos.py python/src; \
+	fi
 	@cp -pf $(PYTHON_PROTOS) python/src
 	@PYTHONPATH=../$(SETUPTOOLS) $(PYTHON) python/setup.py bdist_egg
 
