@@ -1,8 +1,8 @@
 #ifndef __PROCESS_FUTURE_HPP__
 #define __PROCESS_FUTURE_HPP__
 
-#include <abort.h>
 #include <assert.h>
+#include <stdlib.h> // For abort.
 
 #include <queue>
 #include <set>
