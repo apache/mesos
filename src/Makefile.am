@@ -74,7 +74,7 @@ AM_LIBS = $(PTHREAD_LIBS)
 
 # Setup CPPFLAGS that are used for most source files.
 MESOS_CPPFLAGS = $(AM_CPPFLAGS)
-MESOS_CPPFLAGS += -DMESOS_WEBUI_DIR=\"$(webuidir)\"
+MESOS_CPPFLAGS += -DMESOS_WEBUI_DIR=\"$(webuidir)/webui\"
 MESOS_CPPFLAGS += -DMESOS_LIBEXECDIR=\"$(pkglibexecdir)\"
 MESOS_CPPFLAGS += -I$(top_srcdir)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(BOOST)
