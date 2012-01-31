@@ -526,7 +526,7 @@ $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
 	      $(PROTOBUF_EGG)
 	@echo "Building Mesos Python egg ..."
 	@if test "$(top_srcdir)" != "$(top_builddir)"; then \
-	  @$(MKDIR_P) python/src; \
+	  $(MKDIR_P) python/src; \
 	  cp -pf $(srcdir)/python/src/mesos.py python/src; \
 	fi
 	@cp -pf $(PYTHON_PROTOS) python/src
