@@ -112,6 +112,9 @@ AC_ARG_VAR([JAVA_CPPFLAGS], [preprocessor flags for JDK])
 
 AC_ARG_VAR([JAVA_LDFLAGS], [linker flags for JDK])
 
+AC_ARG_VAR([PYTHON], [which Python interpreter to use])
+
+
 # Determine the current OS (TODO(benh): Does autotools do this for us?).
 case "${target_os}" in
   linux*)
@@ -142,8 +145,10 @@ case "${target_os}" in
     AC_MSG_ERROR("Mesos is currently unsupported on your platform.")
   esac
 
-# Useful for conditionally including source files.
+
+# Used for conditionally including source files.
 AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
+
 
 # TODO(benh): Consider using AS_IF instead of just shell 'if'
 # statements for better autoconf style (the AS_IF macros also make
