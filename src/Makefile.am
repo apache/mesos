@@ -515,7 +515,7 @@ $(PROTOBUF_EGG):
 	    ../$(PROTOBUF)/src/google/protobuf; \
 	fi
 	@cd ../$(PROTOBUF)/python && \
-	  PYTHONPATH=../$(SETUPTOOLS) $(PYTHON) setup.py bdist_egg
+	  PYTHONPATH=../../../$(SETUPTOOLS) $(PYTHON) setup.py bdist_egg
 
 CLEANFILES += $(PROTOBUF_EGG)
 
