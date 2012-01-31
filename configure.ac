@@ -39,7 +39,7 @@ LT_INIT
 LT_LANG([C++])
 LT_OUTPUT
 
-# The default CFLAGS/CXXFLAGS from autoconf when using gcd is usually
+# The default CFLAGS/CXXFLAGS from autoconf when using gcc is usually
 # "-g -O2". These really slow down compiling our tests, so we turn
 # them off and enable them (where desired) directly in the
 # Makefile. Note that this should not have an impact on users setting
@@ -90,6 +90,11 @@ AC_ARG_ENABLE([webui],
               AS_HELP_STRING([--disable-webui],
                              [don't build webui (requires Python 2.6)]),
               [], [enable_webui=yes])
+
+AC_ARG_ENABLE([optimize],
+              AS_HELP_STRING([--disable-optimize],
+                             [don't try to compile with optimizations]),
+              [], [enable_optimize=yes])
 
 AC_ARG_WITH([included-zookeeper],
             AS_HELP_STRING([--without-included-zookeeper],
@@ -336,6 +341,15 @@ if test "x$enable_webui" = "xyes"; then
 fi
 
 AM_CONDITIONAL([WEBUI], [test "x$webui" = "xyes"])
+
+
+# Check if we should try and enable optimizations.
+if test "x$enable_optimize" = "xyes"; then
+  # For now, we only turn on optimizations for gcc.
+  if test "x$GCC" = "xyes"; then
+    CXXFLAGS="$CXXFLAGS -g2 -O2"
+  fi
+fi
 
 
 # Configure the included ZooKeeper if necessary, if not consider

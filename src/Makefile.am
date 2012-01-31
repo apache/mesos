@@ -72,7 +72,7 @@ PHONY_TARGETS =
 AM_CXXFLAGS = $(PTHREAD_CFLAGS)
 AM_LIBS = $(PTHREAD_LIBS)
 
-# Setup CPPFLAGS and CXXFLAGS that are used for most source files.
+# Setup CPPFLAGS that are used for most source files.
 MESOS_CPPFLAGS = $(AM_CPPFLAGS)
 MESOS_CPPFLAGS += -DMESOS_WEBUI_DIR=\"$(webuidir)\"
 MESOS_CPPFLAGS += -DMESOS_LIBEXECDIR=\"$(pkglibexecdir)\"
@@ -87,8 +87,6 @@ if WITH_INCLUDED_ZOOKEEPER
   MESOS_CPPFLAGS += -I$(top_srcdir)/$(ZOOKEEPER)/include
   MESOS_CPPFLAGS += -I$(top_srcdir)/$(ZOOKEEPER)/generated
 endif
-
-MESOS_CXXFLAGS = -g2 -O2 $(AM_CXXFLAGS)
 
 
 # README: we build the Mesos library out of a collection of
@@ -205,8 +203,6 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 
 libmesos_no_third_party_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
-libmesos_no_third_party_la_CXXFLAGS = $(MESOS_CXXFLAGS)
-
 libmesos_no_third_party_la_LIBADD = # Initialized to allow += below.
 
 # Convenience library that *always* gets rebuilt to ensure accurate info.
@@ -217,7 +213,11 @@ libbuild_la_CPPFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
 libbuild_la_CPPFLAGS += -DBUILD_USER="\"$$USER\""
 
 # We need to escape the build flags properly.
-BUILD_FLAGS=$(echo $(MESOS_CPPFLAGS) | sed 's/\"/\\\"/g') $(MESOS_CXXFLAGS)
+BUILD_FLAGS = $(echo $(MESOS_CPPFLAGS) $(CPPFLAGS) | sed 's/\"/\\\"/g') \
+              $(echo $(AM_CFLAGS) $(CFLAGS) | sed 's/\"/\\\"/g') \
+              $(echo $(AM_CXXFLAGS) $(CXXFLAGS) | sed 's/\"/\\\"/g')
+
+# TODO(benh): Provide other build flags such as WEBUI_FLAGS, etc.
 
 libbuild_la_CPPFLAGS += -DBUILD_FLAGS="\"$$BUILD_FLAGS\""
 
@@ -232,7 +232,6 @@ noinst_LTLIBRARIES += liblog.la
 liblog_la_SOURCES = log/coordinator.cpp log/replica.cpp
 nodist_liblog_la_SOURCES = $(LOG_PROTOS)
 liblog_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
-liblog_la_CXXFLAGS = $(MESOS_CXXFLAGS)
 liblog_la_LDFLAGS = -L../$(LEVELDB)
 liblog_la_LIBADD = -lleveldb
 
@@ -245,7 +244,6 @@ noinst_LTLIBRARIES += libwebui.la
 libwebui_la_SOURCES = master/webui.cpp slave/webui.cpp common/webui_utils.cpp
 libwebui_la_SOURCES += master/webui.hpp slave/webui.hpp common/webui_utils.hpp
 libwebui_la_CPPFLAGS = $(MESOS_CPPFLAGS) $(WEBUI_CPPFLAGS)
-libwebui_la_CXXFLAGS = $(MESOS_CXXFLAGS)
 libwebui_la_LIBADD = $(WEBUI_LDFLAGS)
 endif
 
@@ -281,44 +279,37 @@ endif
 sbin_PROGRAMS += mesos-master
 mesos_master_SOURCES = master/main.cpp
 mesos_master_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_master_CXXFLAGS = $(MESOS_CXXFLAGS)
 mesos_master_LDADD = libwebui.la libmesos.la
 
 sbin_PROGRAMS += mesos-slave
 mesos_slave_SOURCES = slave/main.cpp
 mesos_slave_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_slave_CXXFLAGS = $(MESOS_CXXFLAGS)
 mesos_slave_LDADD = libwebui.la libmesos.la
 
 bin_PROGRAMS += mesos-local
 mesos_local_SOURCES = local/main.cpp
 mesos_local_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_local_CXXFLAGS = $(MESOS_CXXFLAGS)
 mesos_local_LDADD = libmesos.la
 
 pkglibexec_PROGRAMS += mesos-launcher
 mesos_launcher_SOURCES = launcher/main.cpp launcher/launcher.cpp
 mesos_launcher_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_launcher_CXXFLAGS = $(MESOS_CXXFLAGS)
 mesos_launcher_LDADD = libmesos.la
 
 bin_PROGRAMS += mesos-log
 mesos_log_SOURCES = log/main.cpp
 mesos_log_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_log_CXXFLAGS = $(MESOS_CXXFLAGS)
 mesos_log_LDADD = libmesos.la
 
 # TODO(benh): Support Solaris.
 # bin_PROGRAMS += mesos-projd
 # mesos_projd_SOURCES = slave/projd.cpp
 # mesos_projd_CPPFLAGS = $(MESOS_CPPFLAGS)
-# mesos_projd_CXXFLAGS = $(MESOS_CXXFLAGS)
 # mesos_projd_LDADD = libmesos.la
 
 bin_PROGRAMS += mesos-mesos
 mesos_mesos_SOURCES = mesos/main.cpp
 mesos_mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_mesos_CXXFLAGS = $(MESOS_CXXFLAGS)
 mesos_mesos_LDADD = libmesos.la
 
 
@@ -422,8 +413,6 @@ libjava_la_SOURCES += java/jni/convert.hpp java/jni/construct.hpp jvm/jvm.hpp
 libjava_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libjava_la_CPPFLAGS += $(JAVA_CPPFLAGS)
 libjava_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
-
-libjava_la_CXXFLAGS = $(MESOS_CXXFLAGS)
 
 libjava_la_DEPENDENCIES = $(MESOS_PROTO)
 
@@ -612,8 +601,6 @@ mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
 mesos_tests_CPPFLAGS += -DBUILD_DIR=\"$(abs_top_builddir)\"
 mesos_tests_CPPFLAGS += -I$(top_srcdir)/$(GTEST)/include
 mesos_tests_CPPFLAGS += -I$(top_srcdir)/$(GMOCK)/include
-
-mesos_tests_CXXFLAGS = -g2 -O0 $(AM_CXXFLAGS)
 
 mesos_tests_LDADD = ../.libs/libgmock.la libmesos.la
 
