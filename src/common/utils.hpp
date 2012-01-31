@@ -40,6 +40,7 @@
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
+#include <iostream>
 #include <list>
 #include <set>
 
