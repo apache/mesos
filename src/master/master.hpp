@@ -24,6 +24,7 @@
 
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
+#include <process/timer.hpp>
 
 #include "common/foreach.hpp"
 #include "common/hashmap.hpp"
@@ -228,6 +229,8 @@ private:
   } stats;
 
   double startTime; // Start time used to calculate uptime.
+
+  process::timer timerTickTimer;
 };
 
 
