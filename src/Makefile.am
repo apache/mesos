@@ -101,7 +101,7 @@ MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 
 CXX_PROTOS = mesos.pb.cc mesos.pb.h
 JAVA_PROTOS = java/generated/org/apache/mesos/Protos.java
-PYTHON_PROTOS = python/mesos_pb2.py
+PYTHON_PROTOS = python/src/mesos_pb2.py
 
 BUILT_SOURCES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
 CLEANFILES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
@@ -132,7 +132,7 @@ $(JAVA_PROTOS): $(MESOS_PROTO)
 
 $(PYTHON_PROTOS): $(MESOS_PROTO)
 	@$(MKDIR_P) $(@D)
-	@$(PROTOC) $(PROTOCFLAGS) --python_out=python $^
+	@$(PROTOC) $(PROTOCFLAGS) --python_out=python/src $^
 
 # We even use a convenience library for most of Mesos so that we can
 # exclude third party libraries so setuptools/distribute can build a
@@ -375,6 +375,7 @@ $(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
 
 CLEANFILES += $(PROTOBUF_JAR)
 
+
 $(MESOS_JAR): $(MESOS_JAR_SRC) $(JAVA_PROTOS) $(PROTOBUF_JAR)
 	@echo "Building mesos.jar ..."
 	@rm -f java/classes/org/apache/mesos/*
@@ -383,6 +384,8 @@ $(MESOS_JAR): $(MESOS_JAR_SRC) $(JAVA_PROTOS) $(PROTOBUF_JAR)
           -cp $(PROTOBUF_JAR) -sourcepath java/generated \
           -d java/classes $(MESOS_JAR_SRC) $(JAVA_PROTOS)
 	@$(JAVA_HOME)/bin/jar cf $@ -C java/classes org
+
+CLEANFILES += $(MESOS_JAR)
 
 javalib_DATA = $(MESOS_JAR)
 
@@ -394,7 +397,7 @@ $(MESOS_SOURCES_JAR): $(MESOS_JAR_SRC)
 	@$(JAVA_HOME)/bin/jar cf $@ -C $(MESOS_JAR_SRCROOT) org
 	@$(JAVA_HOME)/bin/jar uf $@ -C java/generated org
 
-CLEANFILES += java/classes $(MESOS_JAR) $(MESOS_SOURCES_JAR)
+CLEANFILES += $(MESOS_SOURCES_JAR)
 
 
 # Convenience library for JNI bindings.
@@ -465,12 +468,21 @@ $(EXAMPLES_JAR): $(JAVA_EXAMPLES_SOURCES)
           $(srcdir)/examples/java/*.java
 	@$(JAVA_HOME)/bin/jar cf $@ -C examples/java .
 
+CLEANFILES += $(EXMAPLES_JAR)
+
 maven-install: $(MESOS_JAR) $(MESOS_SOURCES_JAR) java/mesos.pom
 	mvn install:install-file -Dfile=$(MESOS_JAR)	\
           -Dsources=$(MESOS_SOURCES_JAR) -DpomFile=java/mesos.pom
 
 PHONY_TARGETS += maven-install
 endif # HAS_JAVA
+
+clean-java:
+	-rm -rf java/classes
+	-rm -f examples/java/*.class
+	-rm -f java/jni/org_apache_mesos*.h
+
+PHONY_TARGETS += clean-java
 
 
 # Python files listed outside HAS_PYTHON so they are included with the
@@ -529,7 +541,6 @@ $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
 	  $(MKDIR_P) python/src; \
 	  cp -pf $(srcdir)/python/src/mesos.py python/src; \
 	fi
-	@cp -pf $(PYTHON_PROTOS) python/src
 	@PYTHONPATH=../$(SETUPTOOLS) $(PYTHON) python/setup.py bdist_egg
 
 CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*
@@ -539,6 +550,18 @@ pythonegg_DATA = $(MESOS_EGG)
 # Make sure the egg gets built via 'make all'.
 all-local: $(MESOS_EGG)
 endif # HAS_PYTHON
+
+# Note that to clean up the copied Python files we have to 'chmod u+w
+# python/native' because creating a distribution can eliminate write
+# permissions for the owner which are conserved even after we 'cp -p'
+# so we won't be able to delete the files until we update permissions.
+clean-python:
+	test "$(top_srcdir)" = "$(top_builddir)" || \
+	  (chmod -R u+w python/native; \
+	   rm -rf python/src/mesos.py python/native)
+	-rm -rf python/src/mesos.egg-info python/build
+
+PHONY_TARGETS += clean-python
 
 
 # Test (make check) binaries.
@@ -646,6 +669,13 @@ dist_check_SCRIPTS += $(EXTERNALSCRIPTS)
 
 TESTS += mesos-tests
 
+clean-check:
+	-rm -rf $(top_builddir)/test_output
+
+PHONY_TARGETS += clean-check
+
 FORCE:
+
+clean-local: clean-java clean-python clean-check
 
 .PHONY: $(PHONY_TARGETS)
