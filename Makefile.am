@@ -52,7 +52,7 @@ libgmock_la_CPPFLAGS = -I$(top_srcdir)/$(GTEST)/include         \
 
 # Since we generate several files in src/ with config.status, make
 # sure they're regenerated before we recurse into the src directory.
-all-recursive: src/config/config.hpp src/python/setup.py src/java/mesos.pom
+all-recursive: src/python/setup.py src/java/mesos.pom
 
 # Most of our third party libraries support VPATH builds so we can
 # simply invoke make on them provided they have been configured
