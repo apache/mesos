@@ -1,12 +1,12 @@
 #ifndef __COMMON_WEBUI_UTILS_HPP__
 #define __COMMON_WEBUI_UTILS_HPP__
 
+#ifdef MESOS_WEBUI
+
 #include <string>
 #include <vector>
 
 #include "configurator/configuration.hpp"
-
-#ifdef MESOS_WEBUI
 
 namespace mesos {
 namespace internal {

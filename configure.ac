@@ -67,7 +67,6 @@ AC_CONFIG_SUBDIRS([third_party/glog-0.3.1])
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
-AC_CONFIG_FILES([src/config/config.hpp])
 AC_CONFIG_FILES([bin/mesos-build-env.sh])
 AC_CONFIG_FILES([bin/mesos-master.sh], [chmod +x bin/mesos-master.sh])
 AC_CONFIG_FILES([bin/mesos-slave.sh], [chmod +x bin/mesos-slave.sh])
@@ -274,7 +273,8 @@ __EOF__
                   [chmod +x src/examples/java/test-multiple-executors-framework])
   AC_CONFIG_FILES([src/java/mesos.pom])
 
-  AC_SUBST([HAS_JAVA], [1]) # Used to decide whether to run Java tests.
+  AC_DEFINE([MESOS_HAS_JAVA])
+
   has_java=yes
 fi
 
@@ -306,7 +306,9 @@ if test "x$enable_python" = "xyes"; then
   AC_SUBST([PYTHON_EGG_POSTFIX])
   AC_SUBST([PYTHON_EGG_PUREPY_POSTFIX])
   AC_SUBST([PYTHON]) # Used by the example shell scripts and src/Makefile.am.
-  AC_SUBST([HAS_PYTHON], [1]) # Used to decide whether to run Python tests.
+
+  AC_DEFINE([MESOS_HAS_PYTHON])
+
   has_python=yes
 fi
 
@@ -336,7 +338,9 @@ if test "x$enable_webui" = "xyes"; then
 
   AC_SUBST([WEBUI_CPPFLAGS])
   AC_SUBST([WEBUI_LDFLAGS])
-  AC_SUBST([WEBUI], [1]) # Used to conditionally include code.
+
+  AC_DEFINE([MESOS_WEBUI])
+
   webui=yes
 fi
 

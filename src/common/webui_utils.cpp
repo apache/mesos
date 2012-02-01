@@ -1,15 +1,13 @@
-#include <tr1/functional>
+#ifdef MESOS_WEBUI
 
-#include "config/config.hpp"
+#include <Python.h>
+
+#include <tr1/functional>
 
 #include "common/strings.hpp"
 #include "common/thread.hpp"
 #include "common/utils.hpp"
 #include "common/webui_utils.hpp"
-
-#ifdef MESOS_WEBUI // Must be checked after including config/config.hpp.
-
-#include <Python.h> // Only attempt to include if building the webui.
 
 namespace mesos {
 namespace internal {

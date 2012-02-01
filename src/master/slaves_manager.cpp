@@ -25,8 +25,6 @@
 
 #include <process/dispatch.hpp>
 
-#include "config/config.hpp"
-
 #include "common/fatal.hpp"
 #include "common/strings.hpp"
 

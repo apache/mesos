@@ -30,8 +30,6 @@
 #include <process/protobuf.hpp>
 #include <process/timeout.hpp>
 
-#include "config/config.hpp"
-
 #include "common/foreach.hpp"
 #include "common/lambda.hpp"
 #include "common/seconds.hpp"

@@ -26,8 +26,6 @@
 #include <process/run.hpp>
 #include <process/timer.hpp>
 
-#include "config/config.hpp"
-
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
 #include "common/utils.hpp"

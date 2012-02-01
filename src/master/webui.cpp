@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
+#ifdef MESOS_WEBUI
+
 #include <process/process.hpp>
 
 #include "master/webui.hpp"
 
 #include "common/utils.hpp"
 #include "common/webui_utils.hpp"
-
-#ifdef MESOS_WEBUI
 
 namespace mesos {
 namespace internal {

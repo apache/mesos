@@ -24,8 +24,6 @@
 
 #include <process/protobuf.hpp>
 
-#include "config/config.hpp"
-
 #include "common/fatal.hpp"
 #include "common/foreach.hpp"
 

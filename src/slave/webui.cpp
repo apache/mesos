@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#ifdef MESOS_WEBUI
+
 #include <process/process.hpp>
 
 #include "slave/webui.hpp"
@@ -25,8 +27,6 @@
 #include "common/webui_utils.hpp"
 
 #include "configurator/configuration.hpp"
-
-#ifdef MESOS_WEBUI
 
 namespace mesos {
 namespace internal {

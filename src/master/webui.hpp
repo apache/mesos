@@ -19,14 +19,11 @@
 #ifndef __MASTER_WEBUI_HPP__
 #define __MASTER_WEBUI_HPP__
 
+#ifdef MESOS_WEBUI
+
 #include <process/process.hpp>
 
 #include "master.hpp"
-
-#include "config/config.hpp"
-
-
-#ifdef MESOS_WEBUI
 
 namespace mesos {
 namespace internal {
