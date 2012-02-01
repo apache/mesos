@@ -32,7 +32,7 @@ using std::string;
 class JNIExecutor : public Executor
 {
 public:
-  JNIExecutor(JNIEnv* _env, jobject _jdriver)
+  JNIExecutor(JNIEnv* _env, jweak _jdriver)
     : jvm(NULL), env(_env), jdriver(_jdriver)
   {
     env->GetJavaVM(&jvm);
@@ -49,7 +49,7 @@ public:
 
   JavaVM* jvm;
   JNIEnv* env;
-  jobject jdriver;
+  jweak jdriver;
 };
 
 
@@ -279,7 +279,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosExecutorDriver_initialize
   // Create a weak global reference to the MesosExecutorDriver
   // instance (we want a global reference so the GC doesn't collect
   // the instance but we make it weak so the JVM can exit).
-  jobject jdriver = env->NewWeakGlobalRef(thiz);
+  jweak jdriver = env->NewWeakGlobalRef(thiz);
 
   // Create the C++ executor and initialize the __exec variable.
   JNIExecutor* exec = new JNIExecutor(env, jdriver);

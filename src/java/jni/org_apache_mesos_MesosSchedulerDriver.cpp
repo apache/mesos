@@ -38,7 +38,7 @@ using std::vector;
 class JNIScheduler : public Scheduler
 {
 public:
-  JNIScheduler(JNIEnv* _env, jobject _jdriver)
+  JNIScheduler(JNIEnv* _env, jweak _jdriver)
     : jvm(NULL), env(_env), jdriver(_jdriver)
   {
     env->GetJavaVM(&jvm);
@@ -63,7 +63,7 @@ public:
 
   JavaVM* jvm;
   JNIEnv* env;
-  jobject jdriver;
+  jweak jdriver;
 };
 
 
@@ -430,7 +430,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_initialize
   // Create a weak global reference to the MesosSchedulerDriver
   // instance (we want a global reference so the GC doesn't collect
   // the instance but we make it weak so the JVM can exit).
-  jobject jdriver = env->NewWeakGlobalRef(thiz);
+  jweak jdriver = env->NewWeakGlobalRef(thiz);
 
   // Create the C++ scheduler and initialize the __sched variable.
   JNIScheduler* sched = new JNIScheduler(env, jdriver);
