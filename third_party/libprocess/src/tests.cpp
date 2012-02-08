@@ -544,11 +544,12 @@ TEST(libprocess, select)
 
   promise1.set(42);
 
-  Future<int> future = select(futures);
+  Future<Future<int> > future = select(futures);
 
   EXPECT_TRUE(future.await());
   EXPECT_TRUE(future.isReady());
-  EXPECT_EQ(42, future.get());
+  EXPECT_TRUE(future.get().isReady());
+  EXPECT_EQ(42, future.get().get());
 }
 
 
