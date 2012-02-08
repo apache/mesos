@@ -282,6 +282,8 @@ public:
   void enqueue(ProcessBase* process);
   ProcessBase* dequeue();
 
+  void settle();
+
 private:
   // Map of all local spawned and running processes.
   map<string, ProcessBase*> processes;
@@ -293,6 +295,9 @@ private:
   // Queue of runnable processes (implemented using list).
   list<ProcessBase*> runq;
   synchronizable(runq);
+
+  // Number of running processes, to support Clock::settle operation.
+  int running;
 };
 
 
@@ -336,6 +341,11 @@ static synchronizable(watchers) = SYNCHRONIZED_INITIALIZER;
 static map<double, list<timer> >* timeouts =
   new map<double, list<timer> >();
 static synchronizable(timeouts) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
+
+// For supporting Clock::settle(), true if timers have been removed
+// from 'timeouts' but may not have been executed yet. Protected by
+// the timeouts lock. This is only used when the clock is paused.
+static bool pending_timers = false;
 
 // Flag to indicate whether or to update the timer on async interrupt.
 static bool update_timer = false;
@@ -516,6 +526,12 @@ void Clock::order(ProcessBase* from, ProcessBase* to)
   update(to, now(from));
 }
 
+void Clock::settle()
+{
+  CHECK(clock::paused); // TODO(benh): Consider returning a bool instead.
+  process_manager->settle();
+}
+
 
 int set_nbio(int fd)
 {
@@ -652,6 +668,10 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
       VLOG(2) << "Have timeout(s) at "
               << std::fixed << std::setprecision(9) << timeout;
 
+      // Record that we have pending timers to execute so the
+      // Clock::settle() operation can wait until we're done.
+      pending_timers = true;
+
       foreach (const timer& timer, (*timeouts)[timeout]) {
         timedout.push_back(timer);
       }
@@ -710,6 +730,13 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
   // this async so that we don't tie up the event thread!).
   foreach (const timer& timer, timedout) {
     timer.thunk();
+  }
+
+  // Mark ourselves as done executing the timers since it's now safe
+  // for a call to Clock::settle() to check if there will be any
+  // future timeouts reached.
+  synchronized (timeouts) {
+    pending_timers = false;
   }
 }
 
@@ -1633,6 +1660,8 @@ ProcessManager::ProcessManager()
 {
   synchronizer(processes) = SYNCHRONIZED_INITIALIZER;
   synchronizer(runq) = SYNCHRONIZED_INITIALIZER;
+  running = 0;
+  __sync_synchronize(); // Ensure write to 'running' visible in other threads.
 }
 
 
@@ -1862,6 +1891,9 @@ void ProcessManager::resume(ProcessBase* process)
   }
 
   __process__ = NULL;
+
+  CHECK_GE(running, 1);
+  __sync_fetch_and_sub(&running, 1);
 }
 
 
@@ -2039,6 +2071,7 @@ bool ProcessManager::wait(const UPID& pid)
   if (process != NULL) {
     VLOG(1) << "Donating thread to " << process->pid << " while waiting";
     ProcessBase* donator = __process__;
+    __sync_fetch_and_add(&running, 1);
     process_manager->resume(process);
     __process__ = donator;
   }
@@ -2092,10 +2125,48 @@ ProcessBase* ProcessManager::dequeue()
     if (!runq.empty()) {
       process = runq.front();
       runq.pop_front();
+      // Increment the running count of processes in order to support
+      // the Clock::settle() operation (this must be done atomically
+      // with removing the process from the runq).
+      __sync_fetch_and_add(&running, 1);
     }
   }
 
   return process;
+}
+
+
+void ProcessManager::settle()
+{
+  bool done = true;
+  do {
+    usleep(10000);
+    done = true;
+    // Hopefully this is the only place we acquire both these locks.
+    synchronized (runq) {
+      synchronized (timeouts) {
+        CHECK(Clock::paused()); // Since another thread could resume the clock!
+
+        if (!runq.empty()) {
+          done = false;
+        }
+
+        __sync_synchronize(); // Read barrier for 'running'.
+        if (running > 0) {
+          done = false;
+        }
+
+        if (timeouts->size() > 0 &&
+            timeouts->begin()->first <= clock::current) {
+          done = false;
+        }
+
+        if (pending_timers) {
+          done = false;
+        }
+      }
+    }
+  } while (!done);
 }
 
 

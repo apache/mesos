@@ -18,6 +18,7 @@ public:
   static void update(double secs);
   static void update(ProcessBase* process, double secs);
   static void order(ProcessBase* from, ProcessBase* to);
+  static void settle();
 };
 
 } // namespace process {
