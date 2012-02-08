@@ -459,7 +459,7 @@ java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
 	@$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.Log
 
-$(EXAMPLES_JAR): $(JAVA_EXAMPLES_SOURCES)
+$(EXAMPLES_JAR): $(JAVA_EXAMPLES_SRC)
 	@echo "Building examples.jar ..."
 	@$(MKDIR_P) examples/java
 	@$(JAVA_HOME)/bin/javac -cp					\
