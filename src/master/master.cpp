@@ -1652,18 +1652,21 @@ void Master::readdSlave(Slave* slave,
   foreach (const Task& task, tasks) {
     Task* t = new Task(task);
 
-    // Find the executor running this task and add it to the slave.
+    // Find the executor running this task and add the executor to the
+    // slave (unless it has already been added).
     foreach (const ExecutorInfo& executorInfo, executorInfos) {
       if (executorInfo.executor_id() == task.executor_id()) {
         if (!slave->hasExecutor(task.framework_id(), task.executor_id())) {
           slave->addExecutor(task.framework_id(), executorInfo);
         }
 
-        // Also add it to the framework if it has re-registered with us.
+        // Also try to add the executor to the framework if the
+        // framework has re-registered with this master.
         Framework* framework = getFramework(task.framework_id());
         if (framework != NULL) {
-          CHECK(!framework->hasExecutor(slave->id, task.executor_id()));
-          framework->addExecutor(slave->id, executorInfo);
+          if (!framework->hasExecutor(slave->id, task.executor_id())) {
+	    framework->addExecutor(slave->id, executorInfo);
+	  }
         }
         break;
       }
