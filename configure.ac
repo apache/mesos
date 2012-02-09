@@ -55,6 +55,21 @@ AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS=""])
 CONFIGURE_ARGS="$ac_configure_args"
 AC_SUBST(CONFIGURE_ARGS)
 
+# Force configured third_party libraries (currently only libprocess)
+# to only build a static library with position independent code so
+# that we can produce a final shared library which includes everything
+# necessary (and only install that).
+ac_configure_args_pre="$ac_configure_args"
+ac_configure_args_post="$ac_configure_args --enable-shared=no --with-pic"
+ac_configure_args="$ac_configure_args_post"
+
+# Make sure config.status doesn't get the changed configure arguments,
+# so it can rerun configure in the root directory correctly. This is
+# necessary for Makefile rules which would regenerate files (e.g.,
+# 'Makefile') after configure.ac was updated.
+AC_CONFIG_COMMANDS_PRE([ac_configure_args="$ac_configure_args_pre"])
+AC_CONFIG_COMMANDS_POST([ac_configure_args="$ac_configure_args_post"])
+
 AC_CONFIG_SUBDIRS([third_party/libprocess])
 
 AC_CONFIG_FILES([Makefile])
