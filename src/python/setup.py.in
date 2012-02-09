@@ -29,9 +29,9 @@ src_dir = os.path.join('src', 'python', 'native')
 EXT_INCLUDES = [
    # source
    os.path.join(mesos_src, 'include'),
-   os.path.join(mesos_src, 'third_party', 'protobuf-2.3.0', 'src'),
 
    # built
+   os.path.join(mesos_build, 'third_party', 'protobuf-2.3.0', 'src'),
    os.path.join(mesos_build, 'include'),
    os.path.join(mesos_build, 'src'),
 
