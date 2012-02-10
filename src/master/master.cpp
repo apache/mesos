@@ -1217,6 +1217,8 @@ struct TaskDescriptionVisitor
       Offer* offer,
       Framework* framework,
       Slave* slave) = 0;
+
+  virtual ~TaskDescriptionVisitor() {}
 };
 
 

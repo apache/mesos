@@ -97,10 +97,17 @@ Slave::Slave(const Configuration& _conf,
 
 Slave::~Slave()
 {
-  // TODO(benh): Shut down and free frameworks?
+  // TODO(benh): Shut down frameworks?
 
-  // TODO(benh): Shut down and free executors? The executor should get
-  // an "exited" event and initiate a shut down itself.
+  // TODO(benh): Shut down executors? The executor should get an "exited"
+  // event and initiate a shut down itself.
+
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      delete executor;
+    }
+    delete framework;
+  }
 }
 
 
