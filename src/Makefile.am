@@ -48,7 +48,7 @@ javalibdir = $(libdir)/java
 
 # Used for building Python eggs.
 SETUPTOOLS = \
-  $(top_srcdir)/third_party/distribute-0.6.19/distribute-0.6.19-py2.6.egg
+  $(abs_top_srcdir)/third_party/distribute-0.6.19/distribute-0.6.19-py2.6.egg
 
 # Protocol buffer compiler.
 PROTOC = ../$(PROTOBUF)/src/protoc
@@ -268,13 +268,13 @@ libmesos_la_LIBADD = libmesos_no_third_party.la
 # For non-convenience libraries we need to link them in to make the shared
 # library each time. (Currently, we don't support platforms where this is not
 # possible.)
-libmesos_la_LIBADD += $(top_builddir)/$(PROTOBUF)/src/.libs/libprotobuf.la
-libmesos_la_LIBADD += $(top_builddir)/$(GLOG)/.libs/libglog.la
-libmesos_la_LIBADD += $(top_builddir)/$(LIBPROCESS)/libprocess.a
-libmesos_la_LIBADD += $(top_builddir)/$(LIBEV)/.libs/libev.la
+libmesos_la_LIBADD += ../$(PROTOBUF)/src/.libs/libprotobuf.la
+libmesos_la_LIBADD += ../$(GLOG)/.libs/libglog.la
+libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.a
+libmesos_la_LIBADD += ../$(LIBEV)/.libs/libev.la
 
 if WITH_INCLUDED_ZOOKEEPER
-  libmesos_la_LIBADD += $(top_builddir)/$(ZOOKEEPER)/.libs/libzookeeper_mt.a
+  libmesos_la_LIBADD += ../$(ZOOKEEPER)/.libs/libzookeeper_mt.a
 endif
 
 
@@ -368,7 +368,7 @@ PROTOBUF_JAR = ../protobuf.jar
 $(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
 	@echo "Building protobuf.jar ..."
 	@$(MKDIR_P) ../$(PROTOBUF)/java/src/main/java
-	@$(PROTOC) --java_out=$(top_builddir)/$(PROTOBUF)/java/src/main/java \
+	@$(PROTOC) --java_out=../$(PROTOBUF)/java/src/main/java \
           -I../$(PROTOBUF)/src \
           ../$(PROTOBUF)/src/google/protobuf/descriptor.proto
 	@$(JAVA_HOME)/bin/javac \
@@ -668,7 +668,7 @@ dist_check_SCRIPTS += $(EXTERNALSCRIPTS)
 TESTS += mesos-tests
 
 clean-check:
-	-rm -rf $(top_builddir)/test_output
+	-rm -rf ../test_output
 
 PHONY_TARGETS += clean-check
 
