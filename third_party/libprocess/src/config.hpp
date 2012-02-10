@@ -27,12 +27,18 @@
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
 #endif
+#define sendfile(s, fd, offset, size)            \
+  ({ off_t length = size; \
+     sendfile(fd, s, offset, &length, NULL, 0) == 0 ? length : -1; })
 #endif /* __APPLE__ */
 
 #ifdef __linux__
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
 #endif
+#define sendfile(s, fd, offset, size) \
+  ({ off_t _offset = offset; \
+    sendfile(s, fd, &_offset, size) == -1 ? -1 : length : offset - _offset; })
 #endif /* __linux__ */
 
 #endif /* CONFIG_HPP */

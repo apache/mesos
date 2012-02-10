@@ -2,10 +2,12 @@
 #define __PROCESS_EVENT_HPP__
 
 #include <tr1/functional>
+#include <tr1/memory> // TODO(benh): Replace all shared_ptr with unique_ptr.
 
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/message.hpp>
+#include <process/socket.hpp>
 
 namespace process {
 
@@ -30,6 +32,8 @@ struct EventVisitor
 
 struct Event
 {
+  virtual ~Event() {}
+
   virtual void visit(EventVisitor* visitor) const = 0;
 
   template <typename T>
@@ -71,7 +75,7 @@ struct MessageEvent : Event
   MessageEvent(Message* _message)
     : message(_message) {}
 
-  ~MessageEvent()
+  virtual ~MessageEvent()
   {
     delete message;
   }
@@ -92,10 +96,10 @@ private:
 
 struct HttpEvent : Event
 {
-  HttpEvent(int _c, HttpRequest* _request)
-    : c(_c), request(_request) {}
+  HttpEvent(const Socket& _socket, HttpRequest* _request)
+    : socket(_socket), request(_request) {}
 
-  ~HttpEvent()
+  virtual ~HttpEvent()
   {
     delete request;
   }
@@ -105,7 +109,7 @@ struct HttpEvent : Event
     visitor->visit(*this);
   }
 
-  const int c;
+  const Socket socket;
   HttpRequest* const request;
 
 private:
@@ -117,20 +121,16 @@ private:
 
 struct DispatchEvent : Event
 {
-  DispatchEvent(std::tr1::function<void(ProcessBase*)>* _function)
-    : function(_function) {}
-
-  ~DispatchEvent()
-  {
-    delete function;
-  }
+  DispatchEvent(
+      const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& _f)
+    : f(_f) {}
 
   virtual void visit(EventVisitor* visitor) const
   {
     visitor->visit(*this);
   }
 
-  std::tr1::function<void(ProcessBase*)>* const function;
+  const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > f;
 
 private:
   // Not copyable, not assignable.

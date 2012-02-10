@@ -1,6 +1,8 @@
 #ifndef __ENCODER_HPP__
 #define __ENCODER_HPP__
 
+#include <ev.h>
+
 #include <sstream>
 
 #include <process/process.hpp>
@@ -10,7 +12,20 @@
 
 namespace process {
 
-class DataEncoder
+typedef void (*Sender)(struct ev_loop*, ev_io*, int);
+
+extern void send_data(struct ev_loop*, ev_io*, int);
+extern void send_file(struct ev_loop*, ev_io*, int);
+
+
+class Encoder
+{
+public:
+  virtual Sender sender() = 0;
+};
+
+
+class DataEncoder : public Encoder
 {
 public:
   DataEncoder(const std::string& _data)
@@ -18,7 +33,12 @@ public:
 
   virtual ~DataEncoder() {}
 
-  const char* next(size_t* length)
+  virtual Sender sender()
+  {
+    return send_data;
+  }
+
+  virtual const char* next(size_t* length)
   {
     size_t temp = index;
     index = data.size();
@@ -26,14 +46,14 @@ public:
     return data.data() + temp;
   }
 
-  void backup(size_t length)
+  virtual void backup(size_t length)
   {
     if (index >= length) {
       index -= length;
     }
   }
 
-  size_t remaining() const
+  virtual size_t remaining() const
   {
     return data.size() - index;
   }
@@ -120,8 +140,8 @@ public:
       out << key << ": " << value << "\r\n";
     }
 
-    // Make sure at least the "Content-Length" header since is present
-    // in order to signal to a client the end of a response.
+    // Make sure at least the "Content-Length" header is present in
+    // order to signal to a client the end of a response.
     if (headers.count("Content-Length") == 0) {
       out << "Content-Length: " << response.body.size() << "\r\n";
     }
@@ -132,6 +152,50 @@ public:
 
     return out.str();
   }
+};
+
+
+class FileEncoder : public Encoder
+{
+public:
+  FileEncoder(int _fd, size_t _size)
+    : fd(_fd), size(_size), index(0) {}
+
+  virtual ~FileEncoder()
+  {
+    close(fd);
+  }
+
+  virtual Sender sender()
+  {
+    return send_file;
+  }
+
+  virtual int next(off_t* offset, size_t* length)
+  {
+    off_t temp = index;
+    index = size;
+    *offset = temp;
+    *length = size - temp;
+    return fd;
+  }
+
+  virtual void backup(size_t length)
+  {
+    if (index >= length) {
+      index -= length;
+    }
+  }
+
+  virtual size_t remaining() const
+  {
+    return size - index;
+  }
+
+private:
+  int fd;
+  size_t size;
+  off_t index;
 };
 
 }  // namespace process {

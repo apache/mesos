@@ -67,8 +67,8 @@ public:
   // future gets set, fails, or is discarded.
   typedef std::tr1::function<void(const T&)> ReadyCallback;
   typedef std::tr1::function<void(const std::string&)> FailedCallback;
-  typedef std::tr1::function<void()> DiscardedCallback;
-  typedef std::tr1::function<void(const Future<T>&)> AnyCallback;
+  typedef std::tr1::function<void(void)> DiscardedCallback;
+  typedef std::tr1::function<void(void)> AnyCallback;
 
   // Installs callbacks for the specified events and returns a const
   // reference to 'this' in order to easily support chaining.
@@ -231,7 +231,7 @@ Future<Future<T> > select(const std::set<Future<T> >& futures)
 
   typename std::set<Future<T> >::iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-    (*iterator).onAny(select);
+    (*iterator).onAny(std::tr1::bind(select, (*iterator)));
   }
 
   return future;
@@ -352,7 +352,7 @@ bool Future<T>::discard()
 
     while (!onAnyCallbacks->empty()) {
       // TODO(*): Invoke callbacks in another execution context.
-      onAnyCallbacks->front()(*this);
+      onAnyCallbacks->front()();
       onAnyCallbacks->pop();
     }
   }
@@ -531,7 +531,7 @@ const Future<T>& Future<T>::onAny(const AnyCallback& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback(*this);
+    callback();
   }
 
   return *this;
@@ -568,7 +568,7 @@ bool Future<T>::set(const T& _t)
 
     while (!onAnyCallbacks->empty()) {
       // TODO(*): Invoke callbacks in another execution context.
-      onAnyCallbacks->front()(*this);
+      onAnyCallbacks->front()();
       onAnyCallbacks->pop();
     }
   }
@@ -607,7 +607,7 @@ bool Future<T>::fail(const std::string& _message)
 
     while (!onAnyCallbacks->empty()) {
       // TODO(*): Invoke callbacks in another execution context.
-      onAnyCallbacks->front()(*this);
+      onAnyCallbacks->front()();
       onAnyCallbacks->pop();
     }
   }

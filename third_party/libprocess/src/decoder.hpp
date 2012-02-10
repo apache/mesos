@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <process/http.hpp>
+#include <process/socket.hpp>
 
 #include "foreach.hpp"
 
@@ -17,8 +18,8 @@ namespace process {
 class DataDecoder
 {
 public:
-  DataDecoder()
-    : failure(false), request(NULL)
+  DataDecoder(const Socket& _s)
+    : s(_s), failure(false), request(NULL)
   {
     settings.on_message_begin = &DataDecoder::on_message_begin;
     settings.on_header_field = &DataDecoder::on_header_field;
@@ -56,6 +57,11 @@ public:
   bool failed() const
   {
     return failure;
+  }
+
+  Socket socket() const
+  {
+    return s;
   }
 
 private:
@@ -166,6 +172,8 @@ private:
     decoder->request->body.append(data, length);
     return 0;
   }
+
+  const Socket s; // The socket this decoder is associated with.
 
   bool failure;
 

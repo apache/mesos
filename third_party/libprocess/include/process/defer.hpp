@@ -55,6 +55,7 @@ deferred<void(void)> defer(
   return defer(process->self(), method);
 }
 
+
 #define TEMPLATE(Z, N, DATA)                                            \
   template <typename T,                                                 \
             ENUM_PARAMS(N, typename P),                                 \
@@ -63,7 +64,7 @@ deferred<void(void)> defer(
                              void (T::*method)(ENUM_PARAMS(N, P)),      \
                              ENUM_BINARY_PARAMS(N, A, a))               \
   {                                                                     \
-    void (*dispatch)(const PID<T>&, void (T::*)(ENUM_PARAMS(N, P))) =   \
+    void (*dispatch)(const PID<T>&, void (T::*)(ENUM_PARAMS(N, P)), ENUM_PARAMS(N, A)) = \
       &process::template dispatch<T, ENUM_PARAMS(N, P), ENUM_PARAMS(N, A)>; \
                                                                         \
     return deferred<void(void)>(                                        \
@@ -143,7 +144,7 @@ deferred<Future<R>(void)> defer(
             ENUM_PARAMS(N, typename A)>                                 \
   deferred<Future<R>(void)> defer(                                      \
       const PID<T>& pid,                                                \
-      Future<R> (T::*method)(ENUM_PARAMS(N, P)),                       \
+      Future<R> (T::*method)(ENUM_PARAMS(N, P)),                        \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
     Future<R> (*dispatch)(const PID<T>&, Future<R> (T::*)(ENUM_PARAMS(N, P)), ENUM_PARAMS(N, A)) = \
@@ -171,7 +172,7 @@ deferred<Future<R>(void)> defer(
             ENUM_PARAMS(N, typename A)>                                 \
   deferred<Future<R>(void)> defer(                                      \
       const Process<T>* process,                                        \
-      Future<R> (T::*method)(ENUM_PARAMS(N, P)),                       \
+      Future<R> (T::*method)(ENUM_PARAMS(N, P)),                        \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
     return defer(process->self(), method, ENUM_PARAMS(N, a));           \

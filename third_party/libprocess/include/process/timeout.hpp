@@ -38,6 +38,13 @@ public:
     return *this;
   }
 
+  // Returns the value of the timeout as the number of seconds elapsed
+  // since the epoch.
+  double value() const
+  {
+    return timeout;
+  }
+
   // Returns the number of seconds reamining.
   double remaining() const
   {

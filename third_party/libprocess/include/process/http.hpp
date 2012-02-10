@@ -21,19 +21,35 @@ struct HttpRequest
 
 struct HttpResponse
 {
+  HttpResponse() : type(BODY) {}
+
   // TODO(benh): Add major/minor version.
   std::string status;
   std::map<std::string, std::string> headers;
+
   // TODO(benh): Make body a stream (channel) instead, and allow a
   // response to be returned without forcing the stream to be
   // finished.
+
+  // Either provide a 'body' or an absolute 'path' to a file. If a
+  // path is specified then we will attempt to perform a 'sendfile'
+  // operation on the file. In either case you are expected to
+  // properly specify the 'Content-Type' header, but the
+  // 'Content-Length' header will be filled in for you if you specify
+  // a path. Distinguish between the two using 'type' below.
+  enum {
+    BODY,
+    PATH
+  } type;
+
   std::string body;
+  std::string path;
 };
 
 
 struct HttpOKResponse : HttpResponse
 {
-  HttpOKResponse()
+  HttpOKResponse() : HttpResponse()
   {
     status = "200 OK";
   }
@@ -42,7 +58,7 @@ struct HttpOKResponse : HttpResponse
 
 struct HttpBadRequestResponse : HttpResponse
 {
-  HttpBadRequestResponse()
+  HttpBadRequestResponse() : HttpResponse()
   {
     status = "400 Bad Request";
   }
@@ -51,7 +67,7 @@ struct HttpBadRequestResponse : HttpResponse
 
 struct HttpNotFoundResponse : HttpResponse
 {
-  HttpNotFoundResponse()
+  HttpNotFoundResponse() : HttpResponse()
   {
     status = "404 Not Found";
   }
@@ -60,7 +76,7 @@ struct HttpNotFoundResponse : HttpResponse
 
 struct HttpInternalServerErrorResponse : HttpResponse
 {
-  HttpInternalServerErrorResponse()
+  HttpInternalServerErrorResponse() : HttpResponse()
   {
     status = "500 Internal Server Error";
   }
@@ -69,7 +85,7 @@ struct HttpInternalServerErrorResponse : HttpResponse
 
 struct HttpServiceUnavailableResponse : HttpResponse
 {
-  HttpServiceUnavailableResponse()
+  HttpServiceUnavailableResponse() : HttpResponse()
   {
     status = "503 Service Unavailable";
   }

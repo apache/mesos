@@ -40,13 +40,15 @@ namespace internal {
 
 // The internal dispatch routine schedules a function to get invoked
 // within the context of the process associated with the specified pid
-// (first argument), unless that process is no longer valid (either
-// way this routine assumes ownership of the function and calls delete
-// on it). Note that this routine does not expect anything in
-// particular about the specified function (second argument). The
-// semantics are simple: the function gets applied/invoked with the
-// process as its first argument.
-void dispatch(const UPID& pid, std::tr1::function<void(ProcessBase*)>* f);
+// (first argument), unless that process is no longer valid. Note that
+// this routine does not expect anything in particular about the
+// specified function (second argument). The semantics are simple: the
+// function gets applied/invoked with the process as its first
+// argument. Currently we wrap the function in a shared_ptr but this
+// will probably change in the future to unique_ptr (or a variant).
+void dispatch(
+    const UPID& pid,
+    const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& f);
 
 
 // The magic of dispatch actually occurs within the dispatcher
@@ -78,7 +80,7 @@ void __associate(const Future<T>& from, std::tr1::shared_ptr<Promise<T> > to)
 template <typename T>
 void associate(const Future<T>& from, std::tr1::shared_ptr<Promise<T> > to)
 {
-  from.onAny(std::tr1::bind(__associate<T>, std::tr1::placeholders::_1, to));
+  from.onAny(std::tr1::bind(&__associate<T>, from, to));
 }
 
 
@@ -150,11 +152,11 @@ void rdispatcher(
 //                          std::tr1::placeholders::_1,
 //                          std::forward<P>(p)...)));
 //
-//   std::tr1::function<void(ProcessBase*)>* dispatcher =
-//     new std::tr1::function<void(ProcessBase*)>(
-//         std::tr1::bind(&internal::vdispatcher<T>,
-//                        std::tr1::placeholders::_1,
-//                        thunk));
+//   std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > dispatcher(
+//       new std::tr1::function<void(ProcessBase*)>(
+//           std::tr1::bind(&internal::vdispatcher<T>,
+//                          std::tr1::placeholders::_1,
+//                          thunk)));
 //
 //   internal::dispatch(pid, dispatcher);
 // }
@@ -168,11 +170,11 @@ void dispatch(
       new std::tr1::function<void(T*)>(
           std::tr1::bind(method, std::tr1::placeholders::_1)));
 
-  std::tr1::function<void(ProcessBase*)>* dispatcher =
-    new std::tr1::function<void(ProcessBase*)>(
-        std::tr1::bind(&internal::vdispatcher<T>,
-                       std::tr1::placeholders::_1,
-                       thunk));
+  std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > dispatcher(
+      new std::tr1::function<void(ProcessBase*)>(
+          std::tr1::bind(&internal::vdispatcher<T>,
+                         std::tr1::placeholders::_1,
+                         thunk)));
 
   internal::dispatch(pid, dispatcher);
 }
@@ -208,11 +210,11 @@ void dispatch(
                            std::tr1::placeholders::_1,                  \
                            ENUM_PARAMS(N, a))));                        \
                                                                         \
-    std::tr1::function<void(ProcessBase*)>* dispatcher =                \
-      new std::tr1::function<void(ProcessBase*)>(                       \
-          std::tr1::bind(&internal::vdispatcher<T>,                     \
-                         std::tr1::placeholders::_1,                    \
-                         thunk));                                       \
+    std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > dispatcher( \
+        new std::tr1::function<void(ProcessBase*)>(                     \
+            std::tr1::bind(&internal::vdispatcher<T>,                   \
+                           std::tr1::placeholders::_1,                  \
+                           thunk)));                                    \
                                                                         \
     internal::dispatch(pid, dispatcher);                                \
   }                                                                     \
@@ -260,11 +262,11 @@ void dispatch(
 //   std::tr1::shared_ptr<Promise<R> > promise(new Promise<R>());
 //   Future<R> future = promise->future();
 //
-//   std::tr1::function<void(ProcessBase*)>* dispatcher =
-//     new std::tr1::function<void(ProcessBase*)>(
-//         std::tr1::bind(&internal::pdispatcher<R, T>,
-//                        std::tr1::placeholders::_1,
-//                        thunk, promise));
+//   std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > dispatcher(
+//       new std::tr1::function<void(ProcessBase*)>(
+//           std::tr1::bind(&internal::pdispatcher<R, T>,
+//                          std::tr1::placeholders::_1,
+//                          thunk, promise)));
 //
 //   internal::dispatch(pid, dispatcher);
 //
@@ -283,11 +285,11 @@ Future<R> dispatch(
   std::tr1::shared_ptr<Promise<R> > promise(new Promise<R>());
   Future<R> future = promise->future();
 
-  std::tr1::function<void(ProcessBase*)>* dispatcher =
-    new std::tr1::function<void(ProcessBase*)>(
-        std::tr1::bind(&internal::pdispatcher<R, T>,
-                       std::tr1::placeholders::_1,
-                       thunk, promise));
+  std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > dispatcher(
+      new std::tr1::function<void(ProcessBase*)>(
+          std::tr1::bind(&internal::pdispatcher<R, T>,
+                         std::tr1::placeholders::_1,
+                         thunk, promise)));
 
   internal::dispatch(pid, dispatcher);
 
@@ -329,11 +331,11 @@ Future<R> dispatch(
     std::tr1::shared_ptr<Promise<R> > promise(new Promise<R>());        \
     Future<R> future = promise->future();                               \
                                                                         \
-    std::tr1::function<void(ProcessBase*)>* dispatcher =                \
-      new std::tr1::function<void(ProcessBase*)>(                       \
-          std::tr1::bind(&internal::pdispatcher<R, T>,                  \
-                         std::tr1::placeholders::_1,                    \
-                         thunk, promise));                              \
+    std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > dispatcher( \
+        new std::tr1::function<void(ProcessBase*)>(                     \
+            std::tr1::bind(&internal::pdispatcher<R, T>,                \
+                           std::tr1::placeholders::_1,                  \
+                           thunk, promise)));                           \
                                                                         \
     internal::dispatch(pid, dispatcher);                                \
                                                                         \
@@ -385,11 +387,11 @@ Future<R> dispatch(
 //   std::tr1::shared_ptr<Promise<R> > promise(new Promise<R>());
 //   Future<R> future = promise->future();
 //
-//   std::tr1::function<void(ProcessBase*)>* dispatcher =
-//     new std::tr1::function<void(ProcessBase*)>(
-//         std::tr1::bind(&internal::rdispatcher<R, T>,
-//                        std::tr1::placeholders::_1,
-//                        thunk, promise));
+//   std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > dispatcher(
+//       new std::tr1::function<void(ProcessBase*)>(
+//           std::tr1::bind(&internal::rdispatcher<R, T>,
+//                          std::tr1::placeholders::_1,
+//                          thunk, promise)));
 //
 //   internal::dispatch(pid, dispatcher);
 //
@@ -408,11 +410,11 @@ Future<R> dispatch(
   std::tr1::shared_ptr<Promise<R> > promise(new Promise<R>());
   Future<R> future = promise->future();
 
-  std::tr1::function<void(ProcessBase*)>* dispatcher =
-    new std::tr1::function<void(ProcessBase*)>(
-        std::tr1::bind(&internal::rdispatcher<R, T>,
-                       std::tr1::placeholders::_1,
-                       thunk, promise));
+  std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > dispatcher(
+      new std::tr1::function<void(ProcessBase*)>(
+          std::tr1::bind(&internal::rdispatcher<R, T>,
+                         std::tr1::placeholders::_1,
+                         thunk, promise)));
 
   internal::dispatch(pid, dispatcher);
 
@@ -454,11 +456,11 @@ Future<R> dispatch(
     std::tr1::shared_ptr<Promise<R> > promise(new Promise<R>());        \
     Future<R> future = promise->future();                               \
                                                                         \
-    std::tr1::function<void(ProcessBase*)>* dispatcher =                \
-      new std::tr1::function<void(ProcessBase*)>(                       \
-          std::tr1::bind(&internal::rdispatcher<R, T>,                  \
-                         std::tr1::placeholders::_1,                    \
-                         thunk, promise));                              \
+    std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > dispatcher( \
+        new std::tr1::function<void(ProcessBase*)>(                     \
+            std::tr1::bind(&internal::rdispatcher<R, T>,                \
+                           std::tr1::placeholders::_1,                  \
+                           thunk, promise)));                           \
                                                                         \
     internal::dispatch(pid, dispatcher);                                \
                                                                         \

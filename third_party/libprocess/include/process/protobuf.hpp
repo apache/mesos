@@ -376,10 +376,8 @@ public:
   process::Future<Res> run()
   {
     send(pid, req);
-    std::tr1::function<void(const process::Future<Res>&)> callback =
-      std::tr1::bind(&ReqResProcess<Req, Res>::terminate,
-                     std::tr1::placeholders::_1,
-                     Super::self());
+    std::tr1::function<void(void)> callback =
+      std::tr1::bind(&ReqResProcess<Req, Res>::terminate, Super::self());
     promise.future().onAny(callback);
     return promise.future();
   }
@@ -387,9 +385,7 @@ public:
 private:
   void response(const Res& res) { promise.set(res); }
 
-  static void terminate(
-      const process::Future<Res>& future,
-      const process::PID<ReqResProcess<Req, Res> >& pid)
+  static void terminate(const process::PID<ReqResProcess<Req, Res> >& pid)
   {
     process::terminate(pid);
   }

@@ -141,6 +141,27 @@ protected:
     route(name, handler);
   }
 
+  // Provide the static resource(s) at the specified _absolute_ path
+  // for the specified name. For example, assuming the process named
+  // "server" invoked 'provide("name", "path")' then an HTTP request
+  // for '/server/name' would return the file found at 'path'. If the
+  // specified path is a directory then an HTTP request for
+  // '/server/name/file' would return the file found at
+  // '/path/file'. The 'Content-Type' header of the HTTP response will
+  // be set to the specified type.
+  void provide(
+      const std::string& name,
+      const std::string& path,
+      const std::string& type)
+  {
+    // TODO(benh): Check that name is only alphanumeric (i.e., has no
+    // '/') and that path is absolute.
+    Resource resource;
+    resource.path = path;
+    resource.type = type;
+    resources[name] = resource;
+  }
+
 private:
   friend class SocketManager;
   friend class ProcessManager;
@@ -174,6 +195,16 @@ private:
     std::map<std::string, HttpRequestHandler> http;
   } handlers;
 
+  // Definition of a static resource.
+  struct Resource
+  {
+    std::string path;
+    std::string type;
+  };
+
+  // Static resource(s) to provide.
+  std::map<std::string, Resource> resources;
+
   // Active references.
   int refs;
 
@@ -195,11 +226,17 @@ public:
 /**
  * Initialize the library.
  *
- * @param initialize_google_logging whether or not to initialize the
+ * @param delegate process to receive root HTTP requests
+ * @param initialize_glog whether or not to initialize the
  *        Google Logging library (glog). If the application is also
  *        using glog, this should be set to false.
  */
-void initialize(bool initialize_google_logging = true);
+void initialize(const std::string& delegate = "", bool initialize_glog = true);
+
+inline void initialize(bool initialize_glog)
+{
+  initialize("", initialize_glog);
+}
 
 
 /**
