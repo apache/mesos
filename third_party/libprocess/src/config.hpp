@@ -36,6 +36,7 @@
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
 #endif
+#include <sys/sendfile.h>
 #define sendfile(s, fd, offset, size) \
   ({ off_t _offset = offset; \
     sendfile(s, fd, &_offset, size) == -1 ? -1 : length : offset - _offset; })
