@@ -431,3 +431,11 @@ TEST(ResourcesTest, SetSubtraction)
   EXPECT_EQ(1, set.item_size());
   EXPECT_EQ("sda1", set.item(0));
 }
+
+TEST(ResourcesTest, EmptyUnequal)
+{
+  Resources empty = Resources::parse("");
+  Resources cpus2 = Resources::parse("cpus:2");
+
+  EXPECT_FALSE(empty == cpus2);
+}
