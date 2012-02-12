@@ -47,7 +47,7 @@ PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 LIBPROCESS = libprocess
 
-EXTRA_DIST = $(BOOST).tar.gz $(BOTO).tar.gz				\
+EXTRA_DIST = $(BOOST).tar.gz $(BOTO).zip				\
 	$(DISTRIBUTE)/distribute-$(DISTRIBUTE_VERSION)-py2.6.egg	\
 	$(GLOG).tar.gz $(GMOCK).tar.gz $(LEVELDB).tar.gz		\
 	$(PROTOBUF).tar.gz $(ZOOKEEPER).tar.gz
