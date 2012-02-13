@@ -94,7 +94,7 @@ $(BOOST)/boost: $(BOOST)-stamp
 
 THIRD_PARTY_LIBS = $(GLOG)/libglog.la $(PROTOBUF)/src/libprotobuf.la	\
 	$(PROTOBUF)/src/protoc $(LEVELDB)/libleveldb.a $(DISTRIBUTE)	\
-	$(BOTO)-stamp $(BOOST)-stamp
+	$(BOOST)-stamp
 
 if WITH_INCLUDED_ZOOKEEPER
 THIRD_PARTY_LIBS += $(ZOOKEEPER)/src/c/libzookeeper_mt.la
