@@ -48,7 +48,7 @@ LIBRARY_OBJECTS = [
   os.path.join(mesos_build, 'third_party', 'glog-0.3.1', '.libs', 'libglog.a'),
   os.path.join(mesos_build, 'third_party', 'libprocess', 'libprocess.a'),
   os.path.join(mesos_build, 'third_party', 'libprocess', 'third_party', 'libev-3.8', '.libs', 'libev.a'),
-  os.path.join(mesos_build, 'third_party', 'zookeeper-3.3.1', 'src', 'c', '.libs', 'libzookeeper_mt.a'),
+  os.path.join(mesos_build, 'third_party', 'zookeeper-3.3.4', 'src', 'c', '.libs', 'libzookeeper_mt.a'),
 ]
 
 LIBRARY_DIRS = []
