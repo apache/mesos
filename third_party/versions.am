@@ -1,0 +1,27 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+# This automake utility file is included from third_party/Makefile.am and
+# src/Makefile.am, so we can update the version numbers of third_party packges
+# in exactly one place.
+
+GLOG_VERSION = 0.3.1
+GMOCK_VERSION = 1.6.0
+ZOOKEEPER_VERSION = 3.3.4
+PROTOBUF_VERSION = 2.3.0
+BOOST_VERSION = 1.37.0
+DISTRIBUTE_VERSION = 0.6.19
+BOTO_VERSION = 2.0b2

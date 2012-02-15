@@ -77,10 +77,10 @@ void BaseZooKeeperTest::SetUpTestCase()
   if (singleton == NULL) {
     std::vector<std::string> opts;
 
-    // TODO(Charles Reiss): ZooKeeper version should not be hardcoded here.
-    std::string zkHome = mesosBuildDirectory + "/third_party/zookeeper-3.3.1";
+    std::string zkHome = mesosBuildDirectory +
+        "/third_party/zookeeper-" ZOOKEEPER_VERSION;
     std::string classpath = "-Djava.class.path=" +
-        zkHome + "/zookeeper-3.3.1.jar:" +
+        zkHome + "/zookeeper-" ZOOKEEPER_VERSION ".jar:" +
         zkHome + "/lib/log4j-1.2.15.jar";
     LOG(INFO) << "Using classpath setup: " << classpath << std::endl;
     opts.push_back(classpath);

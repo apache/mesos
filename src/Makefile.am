@@ -19,15 +19,18 @@
 # master/http.cpp and slave/http.cpp.
 AUTOMAKE_OPTIONS = subdir-objects
 
+include ../third_party/versions.am
+
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
-BOOST = third_party/boost-1.37.0
-PROTOBUF = third_party/protobuf-2.3.0
-GLOG = third_party/glog-0.3.1
-GMOCK = third_party/gmock-1.6.0
+BOOST = third_party/boost-$(BOOST_VERSION)
+DISTRIBUTE = third_party/distribute-$(DISTRIBUTE_VERSION)
+PROTOBUF = third_party/protobuf-$(PROTOBUF_VERSION)
+GLOG = third_party/glog-$(GLOG_VERSION)
+GMOCK = third_party/gmock-$(GMOCK_VERSION)
 GTEST = $(GMOCK)/gtest
 LEVELDB = third_party/leveldb
-ZOOKEEPER = third_party/zookeeper-3.3.1/src/c
+ZOOKEEPER = third_party/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 LIBPROCESS = third_party/libprocess
 LIBEV = $(LIBPROCESS)/third_party/libev-3.8
 
@@ -48,7 +51,7 @@ javalibdir = $(libdir)/java
 
 # Used for building Python eggs.
 SETUPTOOLS = \
-  $(abs_top_srcdir)/third_party/distribute-0.6.19/distribute-0.6.19-py2.6.egg
+  $(abs_top_srcdir)/$(DISTRIBUTE)/distribute-$(DISTRIBUTE_VERSION)-py2.6.egg
 
 # Protocol buffer compiler.
 PROTOC = ../$(PROTOBUF)/src/protoc
@@ -524,9 +527,8 @@ if HAS_PYTHON
 # system versions of our dependencies (since we won't be able to
 # create a standalone egg anyways).
 
-# TODO(Charles Reiss): Don't hard code this verison number.
-PROTOBUF_EGG =								\
-  ../$(PROTOBUF)/python/dist/protobuf-2.3.0$(PYTHON_EGG_PUREPY_POSTFIX).egg
+PROTOBUF_EGG_SUFFIX = $(PROTOBUF_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
+PROTOBUF_EGG = ../$(PROTOBUF)/python/dist/protobuf-$(PROTOBUF_EGG_SUFFIX)
 
 $(PROTOBUF_EGG):
 	@echo "Building protobuf Python egg ..."
@@ -639,6 +641,7 @@ if HAS_JAVA
                          tests/zookeeper_server_tests.cpp	\
                          tests/zookeeper_tests.cpp
   mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)
+  mesos_tests_CPPFLAGS += -DZOOKEEPER_VERSION=\"$(ZOOKEEPER_VERSION)\"
   mesos_tests_LDFLAGS = $(JAVA_LDFLAGS) $(AM_LDFLAGS)
   mesos_tests_DEPENDENCIES += $(EXAMPLES_JAR)
 

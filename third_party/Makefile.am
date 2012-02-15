@@ -28,13 +28,7 @@ BUILT_SOURCES =
 #  '--srcdir=...' when configuring.
 CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 
-GLOG_VERSION = 0.3.1
-GMOCK_VERSION = 1.6.0
-ZOOKEEPER_VERSION = 3.3.1
-PROTOBUF_VERSION = 2.3.0
-BOOST_VERSION = 1.37.0
-DISTRIBUTE_VERSION = 0.6.19
-BOTO_VERSION = 2.0b2
+include versions.am
 
 BOOST = boost-$(BOOST_VERSION)
 BOTO = boto-$(BOTO_VERSION)
