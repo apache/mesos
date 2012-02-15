@@ -1236,7 +1236,7 @@ void initialize(const string& delegate, bool initialize_glog)
   }
 
   // Create a "server" socket for communicating with other nodes.
-  if ((__s__ = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0) {
+  if ((__s__ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     PLOG(FATAL) << "Failed to initialize, socket";
   }
 
@@ -1542,7 +1542,7 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
       // Okay, no link, lets create a socket.
       int s;
 
-      if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0) {
+      if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         PLOG(FATAL) << "Failed to link, socket";
       }
 
@@ -1683,7 +1683,7 @@ void SocketManager::send(Message* message)
       // exists, so we create a temporary one.
       int s;
 
-      if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0) {
+      if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         PLOG(FATAL) << "Failed to send, socket";
       }
 
@@ -1918,8 +1918,8 @@ void SocketManager::exited(ProcessBase* process)
 ProcessManager::ProcessManager(const string& _delegate)
   : delegate(_delegate)
 {
-  synchronizer(processes) = SYNCHRONIZED_INITIALIZER;
-  synchronizer(runq) = SYNCHRONIZED_INITIALIZER;
+  synchronizer(processes) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
+  synchronizer(runq) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
   running = 0;
   __sync_synchronize(); // Ensure write to 'running' visible in other threads.
 }
@@ -2687,7 +2687,7 @@ void ProcessBase::visit(const HttpEvent& event)
     dispatch(proxy, &HttpProxy::handle, future, event.request->keepAlive);
 
     // Now call the handler and associate the response with the promise.
-    internal::associate(handlers.http[name](*event.request), promise);
+    promise->associate(handlers.http[name](*event.request));
   } else if (resources.count(name) > 0) {
     HttpOKResponse response;
     response.headers["Content-Type"] = resources[name].type;
