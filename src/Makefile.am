@@ -60,16 +60,17 @@ noinst_LTLIBRARIES =
 sbin_PROGRAMS =
 bin_PROGRAMS =
 pkglibexec_PROGRAMS =
-dist_pkglibexec_SCRIPTS = 
+dist_pkglibexec_SCRIPTS =
 webui_SCRIPTS =
 nobase_dist_webui_SCRIPTS =
 check_PROGRAMS =
-dist_check_SCRIPTS = 
+dist_check_SCRIPTS =
+check_SCRIPTS =
 BUILT_SOURCES =
 TESTS =
 CLEANFILES =
 EXTRA_DIST =
-PHONY_TARGETS = 
+PHONY_TARGETS =
 
 # Add compiler and linker flags for pthreads.
 AM_CXXFLAGS = $(PTHREAD_CFLAGS)
@@ -277,17 +278,22 @@ if WITH_INCLUDED_ZOOKEEPER
   libmesos_la_LIBADD += ../$(ZOOKEEPER)/.libs/libzookeeper_mt.a
 endif
 
+if WEBUI
+  WEBUI_LIBS = libwebui.la
+else
+  WEBUI_LIBS =
+endif
 
 # Binaries.
 sbin_PROGRAMS += mesos-master
 mesos_master_SOURCES = master/main.cpp
 mesos_master_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_master_LDADD = libwebui.la libmesos.la
+mesos_master_LDADD = $(WEBUI_LIBS) libmesos.la
 
 sbin_PROGRAMS += mesos-slave
 mesos_slave_SOURCES = slave/main.cpp
 mesos_slave_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_slave_LDADD = libwebui.la libmesos.la
+mesos_slave_LDADD = $(WEBUI_LIBS) libmesos.la
 
 bin_PROGRAMS += mesos-local
 mesos_local_SOURCES = local/main.cpp
@@ -635,22 +641,28 @@ if HAS_JAVA
   mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)
   mesos_tests_LDFLAGS = $(JAVA_LDFLAGS) $(AM_LDFLAGS)
   mesos_tests_DEPENDENCIES += $(EXAMPLES_JAR)
+
+  EXAMPLESSCRIPTSJAVA = examples/java/test-framework			\
+			examples/java/test-executor			\
+			examples/java/test-exception-framework		\
+			examples/java/test-multiple-executors-framework
+
+  check_SCRIPTS += $(EXAMPLESCRIPTSJAVA)
+  mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSJAVA)
 endif
 
 if HAS_PYTHON
   mesos_tests_DEPENDENCIES += $(MESOS_EGG)
+
+  EXAMPLESCRIPTSPYTHON = examples/python/test_framework.py	\
+			 examples/python/test-framework		\
+			 examples/python/test_executor.py	\
+			 examples/python/test-executor
+
+  check_SCRIPTS += $(EXAMPLESCRIPTSPYTHON)
+  mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSPYTHON)
 endif
 
-EXAMPLESSCRIPTS = examples/java/test-framework				\
-                  examples/java/test-executor				\
-                  examples/java/test-exception-framework		\
-                  examples/java/test-multiple-executors-framework	\
-                  examples/python/test_framework.py			\
-                  examples/python/test-framework			\
-                  examples/python/test_executor.py			\
-                  examples/python/test-executor
-
-dist_check_SCRIPTS += $(EXAMPLESSCRIPTS)
 
 EXTERNALSCRIPTS =						\
   tests/external/LxcIsolation/HoldMoreMemThanRequested.sh	\
