@@ -1769,6 +1769,12 @@ Encoder* SocketManager::next(int s)
 
         dispose.erase(s);
         sockets.erase(s);
+
+        // We don't actually close the socket (we wait for the Socket
+        // abstraction to close it once there are no more references),
+        // but we do shutdown the receiving end so any DataDecoder
+        // will get cleaned up (which might have the last reference).
+        shutdown(s, SHUT_RD);
       }
     }
   }
