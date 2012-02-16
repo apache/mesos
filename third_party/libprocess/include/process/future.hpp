@@ -27,6 +27,9 @@ template <typename T>
 class Future
 {
 public:
+  // Constructs a failed future.
+  static Future<T> failed(const std::string& message);
+
   Future();
   Future(const T& _t);
   Future(const Future<T>& that);
@@ -111,7 +114,7 @@ private:
 };
 
 
-// TODO(benh): Making Promise a subclass of Future?
+// TODO(benh): Make Promise a subclass of Future?
 template <typename T>
 class Promise
 {
@@ -122,6 +125,20 @@ public:
 
   bool set(const T& _t);
   bool fail(const std::string& message);
+
+  bool associate(const Future<T>& future)
+  {
+    if (!f.isPending()) {
+      return false;
+    }
+
+    future
+      .onReady(std::tr1::bind(&Future<T>::set, f, std::tr1::placeholders::_1))
+      .onFailed(std::tr1::bind(&Future<T>::fail, f, std::tr1::placeholders::_1))
+      .onDiscarded(std::tr1::bind(&Future<T>::discard, f));
+
+    return true;
+  }
 
   // Returns a copy of the future associated with this promise.
   Future<T> future() const;
@@ -187,12 +204,14 @@ inline void acquire(int* lock)
   }
 }
 
+
 inline void release(int* lock)
 {
   // Unlock via a compare-and-swap so we get a memory barrier too.
   bool unlocked = __sync_bool_compare_and_swap(lock, 1, 0);
   assert(unlocked);
 }
+
 
 template <typename T>
 void select(
@@ -246,6 +265,15 @@ void discard(const std::set<Future<T> >& futures)
     Future<T> future = *iterator; // Need a non-const copy to discard.
     future.discard();
   }
+}
+
+
+template <typename T>
+Future<T> Future<T>::failed(const std::string& message)
+{
+  Future<T> future;
+  future.fail(message);
+  return future;
 }
 
 

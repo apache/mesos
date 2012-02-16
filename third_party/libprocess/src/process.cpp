@@ -2687,7 +2687,7 @@ void ProcessBase::visit(const HttpEvent& event)
     dispatch(proxy, &HttpProxy::handle, future, event.request->keepAlive);
 
     // Now call the handler and associate the response with the promise.
-    internal::associate(handlers.http[name](*event.request), promise);
+    promise->associate(handlers.http[name](*event.request));
   } else if (resources.count(name) > 0) {
     HttpOKResponse response;
     response.headers["Content-Type"] = resources[name].type;

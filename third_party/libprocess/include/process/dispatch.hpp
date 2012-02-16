@@ -50,44 +50,10 @@ void dispatch(
     const UPID& pid,
     const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& f);
 
-
-// The magic of dispatch actually occurs within the dispatcher
-// routines. In particular, some of the dispatcher routines need to
-// wait for values and "associate" them with the future that got
-// returned from the original call to dispatch. Those association
-// functions are defined here:
-
-template <typename T>
-void __associate(const Future<T>& from, std::tr1::shared_ptr<Promise<T> > to)
-{
-  // The future associated with this promise is either pending
-  // (because we haven't set it, failed it, or discarded it) or it's
-  // discarded (because the receiver of the future has discarded it).
-  assert(to->future().isPending() || to->future().isDiscarded());
-
-  if (to->future().isPending()) { // No-op if it's discarded.
-    if (from.isReady()) {
-      to->set(from.get());
-    } else if (from.isFailed()) {
-      to->fail(from.failure());
-    } else if (from.isDiscarded()) {
-      to->future().discard();
-    }
-  }
-}
-
-
-template <typename T>
-void associate(const Future<T>& from, std::tr1::shared_ptr<Promise<T> > to)
-{
-  from.onAny(std::tr1::bind(&__associate<T>, from, to));
-}
-
-
-// Finally come the dispatcher functions (one for each return type:
-// void, future, value) which should complete the picture. Given the
-// process argument these routines downcast the process to the correct
-// subtype and invoke the thunk using the subtype as the argument
+// For each return type (void, future, value) there is a dispatcher
+// function which should complete the picture. Given the process
+// argument these routines downcast the process to the correct subtype
+// and invoke the thunk using the subtype as the argument
 // (receiver). Note that we must use dynamic_cast because we permit a
 // process to use multiple inheritance (e.g., to expose multiple
 // callback interfaces).
@@ -113,7 +79,7 @@ void pdispatcher(
   assert(process != NULL);
   T* t = dynamic_cast<T*>(process);
   assert(t != NULL);
-  associate((*thunk)(t), promise);
+  promise->associate((*thunk)(t));
 }
 
 

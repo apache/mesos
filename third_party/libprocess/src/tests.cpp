@@ -8,6 +8,7 @@
 #include <string>
 #include <sstream>
 
+#include <process/collect.hpp>
 #include <process/clock.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
@@ -73,8 +74,31 @@ TEST(libprocess, future)
 {
   Promise<bool> promise;
   promise.set(true);
-  promise.future().await();
+  ASSERT_TRUE(promise.future().isReady());
   EXPECT_TRUE(promise.future().get());
+}
+
+
+TEST(libprocess, associate)
+{
+  Promise<bool> promise1;
+  Future<bool> future1(true);
+  promise1.associate(future1);
+  ASSERT_TRUE(promise1.future().isReady());
+  EXPECT_TRUE(promise1.future().get());
+
+  Promise<bool> promise2;
+  Future<bool> future2;
+  promise2.associate(future2);
+  future2.discard();
+  ASSERT_TRUE(promise2.future().isDiscarded());
+
+  Promise<bool> promise3;
+  Promise<bool> promise4;
+  promise3.associate(promise4.future());
+  promise4.fail("associate");
+  ASSERT_TRUE(promise3.future().isFailed());
+  EXPECT_EQ("associate", promise3.future().failure());
 }
 
 
@@ -550,6 +574,41 @@ TEST(libprocess, select)
   EXPECT_TRUE(future.isReady());
   EXPECT_TRUE(future.get().isReady());
   EXPECT_EQ(42, future.get().get());
+}
+
+
+TEST(libprocess, collect)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Promise<int> promise1;
+  Promise<int> promise2;
+  Promise<int> promise3;
+  Promise<int> promise4;
+
+  std::set<Future<int> > futures;
+  futures.insert(promise1.future());
+  futures.insert(promise2.future());
+  futures.insert(promise3.future());
+  futures.insert(promise4.future());
+
+  promise1.set(1);
+  promise2.set(2);
+  promise3.set(3);
+  promise4.set(4);
+
+  Future<std::set<int> > future = collect(futures);
+
+  EXPECT_TRUE(future.await());
+  EXPECT_TRUE(future.isReady());
+
+  std::set<int> values;
+  values.insert(1);
+  values.insert(2);
+  values.insert(3);
+  values.insert(4);
+
+  EXPECT_EQ(values, future.get());
 }
 
 
