@@ -38,4 +38,4 @@ test $? != 0 && \
 . @abs_top_builddir@/bin/mesos-build-env.sh
 
 exec ${LIBTOOL} --mode=execute gdb --args \
-  @abs_top_builddir@/src/mesos-master "${@}"
+  @abs_top_builddir@/src/mesos-tests "${@}"

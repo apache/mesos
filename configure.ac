@@ -76,12 +76,14 @@ AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([third_party/Makefile])
 AC_CONFIG_FILES([bin/mesos-build-env.sh])
+AC_CONFIG_FILES([bin/mesos-local.sh], [chmod +x bin/mesos-local.sh])
 AC_CONFIG_FILES([bin/mesos-master.sh], [chmod +x bin/mesos-master.sh])
 AC_CONFIG_FILES([bin/mesos-slave.sh], [chmod +x bin/mesos-slave.sh])
-AC_CONFIG_FILES([bin/mesos-local.sh], [chmod +x bin/mesos-local.sh])
+AC_CONFIG_FILES([bin/mesos-tests.sh], [chmod +x bin/mesos-tests.sh])
+AC_CONFIG_FILES([bin/gdb-mesos-local.sh], [chmod +x bin/gdb-mesos-local.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-master.sh], [chmod +x bin/gdb-mesos-master.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-slave.sh], [chmod +x bin/gdb-mesos-slave.sh])
-AC_CONFIG_FILES([bin/gdb-mesos-local.sh], [chmod +x bin/gdb-mesos-local.sh])
+AC_CONFIG_FILES([bin/gdb-mesos-tests.sh], [chmod +x bin/gdb-mesos-tests.sh])
 
 AC_ARG_ENABLE([java],
               AS_HELP_STRING([--disable-java],

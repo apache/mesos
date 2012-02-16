@@ -22,23 +22,18 @@
 # Use colors for errors.
 . @abs_top_srcdir@/support/colors.sh
 
-OS=`uname`
+LIBTOOL=@abs_top_builddir@/libtool
 
-if test "${OS}" == "Darwin"; then
-    LIBTOOL=glibtool
-else
-    LIBTOOL=libtool
-fi
+test ! -e ${LIBTOOL} && \
+  echo "${RED}Failed to find ${LIBTOOL}, have you run configure?${NORMAL}" && \
+  exit 1
 
 # Confirm libtool has "gdb" support.
 ${LIBTOOL} --mode=execute gdb -batch >/dev/null 2>&1
 
-if test $? != 0; then
-  echo "${RED}Failed to find a valid libtool that supports gdb${NORMAL}"
-  test "${OS}" == "Darwin" && \
-    echo "This appears to be OS X, try installing Xcode to get 'glibtool'"
+test $? != 0 && \
+  echo "${RED}Generated libtool doesn't appear to support gdb${NORMAL}" && \
   exit 1
-fi
 
 . @abs_top_builddir@/bin/mesos-build-env.sh
 
