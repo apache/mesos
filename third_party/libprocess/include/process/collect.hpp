@@ -11,7 +11,10 @@
 
 namespace process {
 
-// Transforms a set of futures of type T into a set of T's.
+// Waits on each future in the specified set and returns the set of
+// resulting values. If any future is discarded then the result will
+// be a failure. Likewise, if any future fails than the result future
+// will be a failure.
 template <typename T>
 Future<std::set<T> > collect(std::set<Future<T> >& futures);
 
@@ -53,9 +56,9 @@ private:
   void waited(const Future<T>& future)
   {
     if (future.isFailed()) {
-      promise->fail(future.failure());
+      promise->fail("Collect failed: " + future.failure());
     } else if (future.isDiscarded()) {
-      promise->future().discard();
+      promise->fail("Collect failed: future discarded");
     } else {
       assert(future.isReady());
       values.insert(future.get());
