@@ -33,7 +33,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 # Initialize libtool (LT_OUTPUT builds ./libtool immediately, needed
-# so we can do tests with libtool during configuration).
+# if we want to do tests with libtool during configuration).
 LT_PREREQ([2.2])
 LT_INIT
 LT_LANG([C++])
@@ -370,7 +370,7 @@ AM_CONDITIONAL([WITH_INCLUDED_ZOOKEEPER],
                [test "x$with_included_zookeeper" = "xyes"])
 
 
-# Checks for programs.
+# Checks for gcc toolchain (we rely on some atomic builtins for now).
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 

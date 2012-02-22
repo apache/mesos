@@ -41,6 +41,7 @@ PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 LIBPROCESS = libprocess
 
+
 EXTRA_DIST = $(BOOST).tar.gz $(BOTO).zip				\
 	$(DISTRIBUTE)/distribute-$(DISTRIBUTE_VERSION)-py2.6.egg	\
 	$(GLOG).tar.gz $(GMOCK).tar.gz $(LEVELDB).tar.gz		\
@@ -49,27 +50,34 @@ EXTRA_DIST = $(BOOST).tar.gz $(BOTO).zip				\
 CLEAN_EXTRACTED = $(BOOST) $(BOTO) $(GLOG) $(GMOCK) $(LEVELDB)	\
 	$(PROTOBUF) $(ZOOKEEPER)
 
+
+# Convenience library for gmock/gtest.
 check_LTLIBRARIES = libgmock.la
 nodist_libgmock_la_SOURCES = $(GTEST)/src/gtest-all.cc \
                              $(GMOCK)/src/gmock-all.cc
 libgmock_la_CPPFLAGS = -I$(GTEST)/include -I$(GTEST) \
                        -I$(GMOCK)/include -I$(GMOCK)
 
+# We list the gmock/gtest sources in BUILT_SOURCES to make sure that
+# the gmock package gets unarchived first.
 BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
+
+
+# This is where the magic happens: we use stamp files as dependencies
+# which cause the packages to get extracted as necessary.
 %-stamp:: %.tar.gz
 	gzip -d -c $^ | tar xf -
 	touch $@
 
-$(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
-$(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
+
+$(BOOST)/boost: $(BOOST)-stamp
 
 $(GLOG)/libglog.la: $(GLOG)-stamp
 	cd $(GLOG) && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 
-$(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
-	cd $(ZOOKEEPER)/src/c && ./configure $(SUBCONFIG_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS)
+$(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
+$(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 
 # TODO(charles): Figure out PIC options in our configure.ac or create
 # a configure.ac for leveldb.
@@ -84,11 +92,13 @@ $(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
           $(MAKE) $(AM_MAKEFLAGS)
 	touch $@
 
-$(BOOST)/boost: $(BOOST)-stamp
+$(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
+	cd $(ZOOKEEPER)/src/c && ./configure $(CONFIGURE_ARGS) && \
+          $(MAKE) $(AM_MAKEFLAGS)
 
-THIRD_PARTY_LIBS = $(GLOG)/libglog.la $(PROTOBUF)/src/libprotobuf.la	\
-	$(PROTOBUF)/src/protoc $(LEVELDB)/libleveldb.a $(DISTRIBUTE)	\
-	$(BOOST)-stamp
+THIRD_PARTY_LIBS = $(BOOST)-stamp $(GLOG)/libglog.la		\
+	$(LEVELDB)/libleveldb.a $(PROTOBUF)/src/libprotobuf.la	\
+	$(PROTOBUF)/src/protoc
 
 if WITH_INCLUDED_ZOOKEEPER
 THIRD_PARTY_LIBS += $(ZOOKEEPER)/src/c/libzookeeper_mt.la

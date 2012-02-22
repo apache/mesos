@@ -6,89 +6,99 @@ except ImportError:
   print 'Could not find setuptools, bailing.'
   sys.exit(1)
 
-from distutils.core import setup, Extension
+import errno
+import glob
 import os
 import shutil
-import errno
 
-# pushd
-pre_cwd = os.getcwd()
-setup_cwd = os.path.abspath(os.path.dirname(__file__))
-os.chdir(setup_cwd)
+from distutils.core import setup, Extension
 
-mesos_src = os.path.relpath(
-              os.path.abspath(os.path.join(setup_cwd, '@top_srcdir@')),
-              setup_cwd)
+abs_top_srcdir = '@abs_top_srcdir@'
+abs_top_builddir = '@abs_top_builddir@'
 
-mesos_build = os.path.relpath(
-                os.path.abspath(os.path.join(setup_cwd, '@top_builddir@')),
-                setup_cwd)
+src_python_dist = os.path.join('src', 'python', 'dist')
+src_python_native = os.path.join('src', 'python', 'native')
 
-src_dir = os.path.join('src', 'python', 'native')
+protobuf = os.path.join('third_party', 'protobuf-2.3.0')
+glog = os.path.join('third_party', 'glog-0.3.1')
+zookeeper = os.path.join('third_party', 'zookeeper-3.3.4', 'src', 'c')
+libprocess = os.path.join('third_party', 'libprocess')
+libev = os.path.join(libprocess, 'third_party', 'libev-3.8')
 
-EXT_INCLUDES = [
-   # source
-   os.path.join(mesos_src, 'include'),
+# We need to execute from the same directory as this script.
+os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
-   # built
-   os.path.join(mesos_build, 'third_party', 'protobuf-2.3.0', 'src'),
-   os.path.join(mesos_build, 'include'),
-   os.path.join(mesos_build, 'src'),
+# Copy the native source files if we are building in a remote build
+# directory. This is necessary because the sources list must be
+# relative to the directory where this script resides.
+# $ cp -rf abs_top_srcdir/native abs_top_builddir/native
+if os.path.abspath(abs_top_srcdir) != os.path.abspath(abs_top_builddir):
+  try:
+    shutil.rmtree(os.path.join(abs_top_builddir, src_python_native), ignore_errors=True)
+    shutil.copytree(os.path.join(abs_top_srcdir, src_python_native),
+                    os.path.join(abs_top_builddir, src_python_native))
+  except OSError, e:
+    if e.errno != errno.EEXIST:
+      raise
 
-   # python ext modules
-   os.path.join(mesos_src, src_dir)
+
+# Build the list of source files. Note that each source must be
+# relative to our current directory (where this script lives).
+SOURCES = [
+  os.path.join('native', file)
+    for file in os.listdir(os.path.join(abs_top_srcdir, src_python_native))
+      if file.endswith('.cpp')
 ]
 
-DEFINE_MACROS = [
-  ('_XOPEN_SOURCE', None)
-]
-
-LIBRARY_OBJECTS = [
-  os.path.join(mesos_build, 'third_party', 'protobuf-2.3.0', 'src', '.libs', 'libprotobuf.a'),
-  os.path.join(mesos_build, 'third_party', 'glog-0.3.1', '.libs', 'libglog.a'),
-  os.path.join(mesos_build, 'third_party', 'libprocess', 'libprocess.a'),
-  os.path.join(mesos_build, 'third_party', 'libprocess', 'third_party', 'libev-3.8', '.libs', 'libev.a'),
-  os.path.join(mesos_build, 'third_party', 'zookeeper-3.3.4', 'src', 'c', '.libs', 'libzookeeper_mt.a'),
+INCLUDE_DIRS = [
+   os.path.join(abs_top_srcdir, 'include'),
+   os.path.join(abs_top_builddir, 'include'),
+   os.path.join(abs_top_builddir, 'src'),
+   os.path.join(abs_top_builddir, src_python_native),
+   os.path.join(abs_top_builddir, 'third_party', 'protobuf-2.3.0', 'src'),
 ]
 
 LIBRARY_DIRS = []
 
-EXTRA_STATIC_LINKS = [
-  os.path.join(mesos_build, 'src', '.libs', 'libmesos_no_third_party.a'),
+EXTRA_OBJECTS = [
+  os.path.join(abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a'),
+  os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a'),
+  os.path.join(abs_top_builddir, libprocess, '.libs', 'libprocess.a'),
+  os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),
+  os.path.join(abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a'),
+  os.path.join(abs_top_builddir, 'src', '.libs', 'libmesos_no_third_party.a'),
 ]
 
-SOURCES = [
-  os.path.join('native', p)
-    for p in os.listdir(os.path.join(mesos_src, src_dir))
-      if p.endswith('.cpp')
-]
+EXTRA_LINK_ARGS = []
 
-LINK_ARGS = EXTRA_STATIC_LINKS + LIBRARY_OBJECTS
 if 'LDFLAGS' in os.environ:
   for flag in os.environ['LDFLAGS'].split():
     if flag.startswith('-l'):
-      LINK_ARGS.append(flag)
+      EXTRA_LINK_ARGS.append(flag)
     elif flag.startswith('-L'):
       LIBRARY_DIRS.append(flag[2:])
 
+DEPENDS = [
+  os.path.join(abs_top_srcdir, 'src', 'python', source)
+    for source in SOURCES
+]
+
+# Note that we add EXTRA_OBJECTS to our dependency list to make sure
+# that we rebuild this module when one of them changes (e.g.,
+# libprocess). Unfortunately, since we rebuild the convenience library
+# libmesos_no_third_party.a each time we run make (to make sure it has
+# accurate build information in build.hpp), that causes us to rebuild
+# this each time.
 mesos_module = \
   Extension('_mesos',
             sources = SOURCES,
-            include_dirs = EXT_INCLUDES,
-            define_macros = DEFINE_MACROS,
+            include_dirs = INCLUDE_DIRS,
             library_dirs = LIBRARY_DIRS,
-            extra_link_args = LINK_ARGS
+            extra_objects = EXTRA_OBJECTS,
+            extra_link_args = EXTRA_LINK_ARGS,
+            depends = EXTRA_OBJECTS,
+            language = 'c++',
             )
-
-# cp -r sourcedir/native builddir/native
-if os.path.abspath(mesos_src) != os.path.abspath(mesos_build):
-  try:
-    shutil.rmtree(os.path.join(mesos_build, src_dir), ignore_errors=True)
-    shutil.copytree(os.path.join(mesos_src, src_dir),
-                    os.path.join(mesos_build, src_dir))
-  except OSError, e:
-    if e.errno != errno.EEXIST:
-      raise
 
 setup(name = 'mesos',
       version = '@PACKAGE_VERSION@',
@@ -96,6 +106,3 @@ setup(name = 'mesos',
       package_dir = { '': 'src' },
       packages = ['.'],
       ext_modules = [mesos_module])
-
-# popd
-os.chdir(pre_cwd)

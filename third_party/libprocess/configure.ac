@@ -1,42 +1,52 @@
 # Generated with autoscan, then modified appropriately.
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.61)
-AC_INIT
-AC_CONFIG_SRCDIR([src/process.cpp])
+AC_PREREQ([2.61])
+AC_INIT([libprocess], [0.0.1])
 
-# Checks for programs.
+# Have autoconf setup some variables related to the system.
+AC_CANONICAL_HOST
+AC_CANONICAL_BUILD
+AC_CANONICAL_TARGET
+
+AC_LANG([C++])
+
+AC_CONFIG_MACRO_DIR([m4])
+
+# Initialize automake.
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+
+# Initialize libtool (LT_OUTPUT builds ./libtool immediately, needed
+# if we want to do tests with libtool during configuration).
+LT_PREREQ([2.2])
+LT_INIT
+LT_LANG([C++])
+LT_OUTPUT
+
+# The default CFLAGS/CXXFLAGS from autoconf when using gcc is usually
+# "-g -O2". These really slow down compiling our tests, so we turn
+# them off and enable them (where desired) directly in the
+# Makefile. Note that this should not have an impact on users setting
+# CFLAGS/CXXFLAGS directly at configure time, or when running make.
+AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"], [CFLAGS=""])
+AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS=""])
+
+# Save the configure arguments so we can pass them to any third_party
+# libraries that we might run configure on (see
+# third_party/Makefile.am). One downside of our strategy for shipping
+# and building third_party libraries is that we can't expose options
+# from nested third_party configure scripts.
+CONFIGURE_ARGS="$ac_configure_args"
+AC_SUBST(CONFIGURE_ARGS)
+
+# Checks for gcc toolchain (we rely on some atomic builtins for now).
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 
-# Check for pthread library.
-AC_CHECK_LIB([pthread], [pthread_create], [], [AC_MSG_FAILURE([
-*** The pthread library is missing or cannot be found.])])
-
-# Checks for header files.
-AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
-
-# Checks for typedefs, structures, and compiler characteristics.
-AC_HEADER_STDBOOL
-AC_C_CONST
-AC_C_INLINE
-AC_TYPE_SIZE_T
-AC_HEADER_TIME
-
-# Checks for library functions.
-AC_PROG_GCC_TRADITIONAL
-AC_FUNC_MALLOC
-AC_FUNC_MMAP
-AC_FUNC_REALLOC
-AC_FUNC_SELECT_ARGTYPES
-AC_CHECK_FUNCS([gethostbyname gethostname getpagesize memset select socket])
+# Check for pthreads (uses m4/acx_pthread.m4).
+ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_SUBDIRS([third_party/glog-0.3.1])
-AC_CONFIG_SUBDIRS([third_party/libev-3.8])
-
-# Temporary fix so we don't build dylib's on Mac OS X.
-ac_configure_args="$ac_configure_args --enable-shared=no"
+AC_CONFIG_FILES([third_party/Makefile])
 
 AC_OUTPUT

@@ -88,7 +88,6 @@ MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
 MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(GLOG)/src
-MESOS_CPPFLAGS += -I../$(GLOG)/src
 
 if WITH_INCLUDED_ZOOKEEPER
   MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/include
@@ -262,8 +261,8 @@ libmesos_la_SOURCES = $(MESOS_PROTO) # Part of the distribution.
 
 libmesos_la_LDFLAGS = -version-info 0:0 -shared
 
-# Since we just include the convenience library, we need to tell
-# libtool to build this as a C++ library.
+# Since we just include the convenience library (and no sources), we
+# need to tell libtool to build this as a C++ library.
 libmesos_la_LIBTOOLFLAGS = --tag=CXX
 
 # Add the convenience library.
@@ -274,11 +273,11 @@ libmesos_la_LIBADD = libmesos_no_third_party.la
 # possible.)
 libmesos_la_LIBADD += ../$(PROTOBUF)/src/.libs/libprotobuf.la
 libmesos_la_LIBADD += ../$(GLOG)/.libs/libglog.la
-libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.a
+libmesos_la_LIBADD += ../$(LIBPROCESS)/.libs/libprocess.la
 libmesos_la_LIBADD += ../$(LIBEV)/.libs/libev.la
 
 if WITH_INCLUDED_ZOOKEEPER
-  libmesos_la_LIBADD += ../$(ZOOKEEPER)/.libs/libzookeeper_mt.a
+  libmesos_la_LIBADD += ../$(ZOOKEEPER)/.libs/libzookeeper_mt.la
 endif
 
 if WEBUI
