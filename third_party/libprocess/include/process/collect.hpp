@@ -3,7 +3,7 @@
 
 #include <assert.h>
 
-#include <set>
+#include <list>
 
 #include <process/defer.hpp>
 #include <process/future.hpp>
@@ -16,7 +16,7 @@ namespace process {
 // be a failure. Likewise, if any future fails than the result future
 // will be a failure.
 template <typename T>
-Future<std::set<T> > collect(std::set<Future<T> >& futures);
+Future<std::list<T> > collect(std::list<Future<T> >& futures);
 
 
 namespace internal {
@@ -26,8 +26,8 @@ class CollectProcess : public Process<CollectProcess<T> >
 {
 public:
   CollectProcess(
-      const std::set<Future<T> >& _futures,
-      Promise<std::set<T> >* _promise)
+      const std::list<Future<T> >& _futures,
+      Promise<std::list<T> >* _promise)
     : futures(_futures), promise(_promise) {}
 
   virtual ~CollectProcess()
@@ -40,7 +40,7 @@ public:
     // Stop this nonsense if nobody cares.
     promise->future().onDiscarded(defer(this, &CollectProcess::discarded));
 
-    typename std::set<Future<T> >::iterator iterator;
+    typename std::list<Future<T> >::iterator iterator;
     for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
       const Future<T>& future = *iterator;
       future.onAny(defer(this, &CollectProcess::waited, future));
@@ -61,7 +61,7 @@ private:
       promise->fail("Collect failed: future discarded");
     } else {
       assert(future.isReady());
-      values.insert(future.get());
+      values.push_back(future.get());
       if (futures.size() == values.size()) {
         promise->set(values);
         terminate(this);
@@ -69,18 +69,18 @@ private:
     }
   }
 
-  std::set<Future<T> > futures;
-  Promise<std::set<T> >* promise;
-  std::set<T> values;
+  std::list<Future<T> > futures;
+  Promise<std::list<T> >* promise;
+  std::list<T> values;
 };
 
 } // namespace internal {
 
 
 template <typename T>
-inline Future<std::set<T> > collect(std::set<Future<T> >& futures)
+inline Future<std::list<T> > collect(std::list<Future<T> >& futures)
 {
-  Promise<std::set<T> >* promise = new Promise<std::set<T> >();
+  Promise<std::list<T> >* promise = new Promise<std::list<T> >();
   spawn(new internal::CollectProcess<T>(futures, promise), true);
   return promise->future();
 }
