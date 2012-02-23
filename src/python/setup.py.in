@@ -61,12 +61,12 @@ INCLUDE_DIRS = [
 LIBRARY_DIRS = []
 
 EXTRA_OBJECTS = [
+  os.path.join(abs_top_builddir, 'src', '.libs', 'libmesos_no_third_party.a'),
   os.path.join(abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a'),
   os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a'),
+  os.path.join(abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a'),
   os.path.join(abs_top_builddir, libprocess, '.libs', 'libprocess.a'),
   os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),
-  os.path.join(abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a'),
-  os.path.join(abs_top_builddir, 'src', '.libs', 'libmesos_no_third_party.a'),
 ]
 
 EXTRA_LINK_ARGS = []
