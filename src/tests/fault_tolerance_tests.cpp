@@ -482,8 +482,9 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdate(TASK_RUNNING));
 
+  trigger shutdownCall;
   EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
+    .WillOnce(Trigger(&shutdownCall));
 
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
@@ -582,6 +583,9 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   process::terminate(master);
   process::wait(master);
+
+  // Ensures MockExecutor no longer being used by MesosExecutorDriver.
+  WAIT_UNTIL(shutdownCall);
 
   process::filter(NULL);
 
