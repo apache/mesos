@@ -112,7 +112,7 @@ public class TestFramework {
   }
 
   private static void usage() {
-    String name = TestMultipleExecutorsFramework.class.getName();
+    String name = TestFramework.class.getName();
     System.err.println("Usage: " + name + " master <tasks>");
   }
 
