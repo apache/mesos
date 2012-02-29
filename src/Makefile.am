@@ -65,7 +65,7 @@ bin_PROGRAMS =
 pkglibexec_PROGRAMS =
 dist_pkglibexec_SCRIPTS =
 webui_SCRIPTS =
-nobase_dist_webui_SCRIPTS =
+nobase_dist_webui_DATA =
 check_PROGRAMS =
 dist_check_SCRIPTS =
 check_SCRIPTS =
@@ -336,7 +336,7 @@ WEBUISCRIPTS = webui/bottle-0.8.3/bottle.py		\
                webui/slave/webui.py			\
                webui/static/stylesheet.css
 
-nobase_dist_webui_SCRIPTS += $(WEBUISCRIPTS)
+nobase_dist_webui_DATA += $(WEBUISCRIPTS)
 
 
 # We also need to include the killtree script.
