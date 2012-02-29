@@ -151,7 +151,7 @@ fi
 if [[ "$DOWNLOADED" == "1" ]] ; then
   echo "Building Mesos..."
   pushd /root/mesos > /dev/null 2>&1
-  ./configure.template.ubuntu-lucid-64
+  ./configure.ubuntu-lucid-64
   make clean
   make
   popd > /dev/null 2>&1

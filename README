@@ -1,1 +1,121 @@
-See the wiki at https://github.com/mesos/mesos/wikis.
+Building and Installing
+=======================
+
+For the impatient:
+
+  $ ./configure
+  $ make
+  $ make check
+  $ make install
+
+Alternatively (and recommended), use a remote build directory:
+
+  $ mkdir build
+  $ cd build
+  $ ../configure
+  $ make
+  $ make check
+  $ make install
+
+If you can't seem to find configure then you probably downloaded the
+source, you'll need to "bootstrap" your development environment with:
+
+  $ ./bootstrap
+
+There are numerous configuration options that might be applicable to
+you. Check them out via:
+
+  $ ./configure --help
+
+The specific options that might be relevant include:
+
+  --disable-java          don't build Java bindings
+  --disable-python        don't build Python bindings
+  --disable-webui         don't build webui (requires Python 2.6)
+  --disable-optimize      don't try to compile with optimizations
+  --without-included-zookeeper
+                          excludes building and using the included ZooKeeper
+                          package in lieu of a system installed version (note,
+                          however, that no attempt is made to find the package
+                          and explicitly setting CPPFLAGS and LDFLAGS as
+                          appropriate may be necessary)
+
+And the specific environment variables that might be relevant are:
+
+  JAVA_HOME   location of Java Development Kit (JDK)
+  JAVA_CPPFLAGS
+              preprocessor flags for JDK
+  JAVA_LDFLAGS
+              linker flags for JDK
+  PYTHON      which Python interpreter to use
+
+We've tailored a few scripts with the configure options and
+environment variables necessary for different environments:
+
+  ./configure.amazon-linux-64
+  ./configure.centos-5.4-64
+  ./configure.macosx
+  ./configure.ubuntu-hardy-64
+  ./configure.ubuntu-karmic-64
+  ./configure.ubuntu-lucid-64
+  ./configure.ubuntu-natty-64
+
+
+Java
+====
+
+During configuraiton we attempt to determine a suitable location for
+JDK so that we can build JNI based libraries. If we can not do so, you
+may need to try setting JAVA_HOME, JAVA_CPPFLAGS, or JAVA_LDFLAGS
+manually.
+
+The resulting libmesos.a/so/dylib will include the Java bindings (JNI)
+if they are enabled (which they are by default, and can be disabled
+with the '--disable-java' configuration option). The Mesos JAR can be
+found in [build]/src (where [build] represents a remote build
+directory if any).
+
+
+Python
+======
+
+We build a Python egg that can be included in the PYTHONPATH when
+running Python based frameworks. The Python egg is built in
+[build]/src/python/dist (where [build] represents a remote build
+directory if any).
+
+
+Running Mesos before Installing
+===============================
+
+After running 'make' but before running 'make install' you can run any
+of the binaries but certain environment variables must be set up first
+(see [build]/bin/mesos-build-env.sh.in). It's advisable to run the
+binaries by using the wrapper scripts provided in [build]/bin. Note
+that these scripts also have a GDB variant that starts the binaries in
+GDB when you want to debug.
+
+
+Examples and Tests
+==================
+
+After running 'make check' there will be a collection of examples and
+tests that get built. Check out [build]/src/examples and
+[build]/src/examples/java and [build]/src/examples/python. In
+addition, see [build]/bin for scripts that can run the tests and also
+launch the tests in GDB.
+
+
+Installing
+==========
+
+Note that 'make install' may require superuser privileges. Consider
+changing the installation prefix (i.e., the '--prefix=...'
+configuration option) or doing 'make install DESTDIR=...'.
+
+
+As always, if you run into any issues please email:
+
+  mesos-dev@incubator.apache.org
+
+(Remember to include as much debug information as possible.)

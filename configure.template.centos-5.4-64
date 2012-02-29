@@ -1,9 +1,0 @@
-#!/bin/sh
-
-export LDFLAGS=-lunwind-x86_64
-
-$(dirname $0)/configure \
-  --with-python-headers=/usr/include/python2.6 \
-  --with-java-home=/usr/java/default \
-  --with-webui \
-  --with-included-zookeeper $@
