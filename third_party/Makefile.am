@@ -24,6 +24,8 @@
 
 BUILT_SOURCES =
 
+SUBDIRS = libprocess
+
 # We need to add '--srcdir=.' needed because 'make distcheck' adds
 #  '--srcdir=...' when configuring.
 CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
@@ -39,7 +41,6 @@ GTEST = $(GMOCK)/gtest
 LEVELDB = leveldb
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
-LIBPROCESS = libprocess
 
 
 EXTRA_DIST = $(BOOST).tar.gz $(BOTO).zip				\
@@ -105,9 +106,7 @@ THIRD_PARTY_LIBS += $(ZOOKEEPER)/src/c/libzookeeper_mt.la
 endif
 
 all-local: $(THIRD_PARTY_LIBS)
-	@cd $(LIBPROCESS) && $(MAKE) $(AM_MAKEFLAGS) all
 
 clean-local:
-	@cd $(LIBPROCESS) && $(MAKE) $(AM_MAKEFLAGS) clean
 	rm -r -f $(CLEAN_EXTRACTED)
 	rm -f *-stamp

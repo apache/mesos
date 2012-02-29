@@ -586,27 +586,27 @@ TEST(libprocess, collect)
   Promise<int> promise3;
   Promise<int> promise4;
 
-  std::set<Future<int> > futures;
-  futures.insert(promise1.future());
-  futures.insert(promise2.future());
-  futures.insert(promise3.future());
-  futures.insert(promise4.future());
+  std::list<Future<int> > futures;
+  futures.push_back(promise1.future());
+  futures.push_back(promise2.future());
+  futures.push_back(promise3.future());
+  futures.push_back(promise4.future());
 
   promise1.set(1);
   promise2.set(2);
   promise3.set(3);
   promise4.set(4);
 
-  Future<std::set<int> > future = collect(futures);
+  Future<std::list<int> > future = collect(futures);
 
   EXPECT_TRUE(future.await());
   EXPECT_TRUE(future.isReady());
 
-  std::set<int> values;
-  values.insert(1);
-  values.insert(2);
-  values.insert(3);
-  values.insert(4);
+  std::list<int> values;
+  values.push_back(1);
+  values.push_back(2);
+  values.push_back(3);
+  values.push_back(4);
 
   EXPECT_EQ(values, future.get());
 }

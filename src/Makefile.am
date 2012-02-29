@@ -367,6 +367,7 @@ JAVA_EXAMPLES_SRC = $(srcdir)/examples/java/TestExceptionFramework.java	\
 	$(srcdir)/examples/java/TestFramework.java			\
 	$(srcdir)/examples/java/TestMultipleExecutorsFramework.java
 EXTRA_DIST += $(JAVA_EXAMPLES_SRC)
+CLEANFILES += $(EXAMPLES_JAR)
 
 if HAS_JAVA
 # Protocol buffers JAR.
@@ -664,6 +665,9 @@ if HAS_PYTHON
   check_SCRIPTS += $(EXAMPLESCRIPTSPYTHON)
   mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSPYTHON)
 endif
+
+EXTRA_DIST += examples/python/test_framework.py \
+	      examples/python/test_executor.py
 
 
 EXTERNALSCRIPTS =						\
