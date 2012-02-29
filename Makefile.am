@@ -20,7 +20,7 @@ AUTOMAKE_OPTIONS = foreign
 
 SUBDIRS = . third_party src
 
-EXTRA_DIST = support/colors.sh
+EXTRA_DIST = bootstrap LICENSE NOTICE README support/colors.sh
 
 # Since we generate several files in src/ with config.status, make
 # sure they're regenerated before we recurse into the src directory.
