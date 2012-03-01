@@ -84,9 +84,10 @@ fi
 if test ! -d ${hadoop}; then
     cat <<__EOF__
 
-The first step is to extract ${hadoop}.tar.gz via:
+We've included the 0.20.205.0 version of Hadoop in this directory
+(${hadoop}.tar.gz). Start by extracting it:
 
-$ tar zxvf ${hadoop}.tar.gz
+  $ tar zxvf ${hadoop}.tar.gz
 
 __EOF__
     read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
@@ -111,7 +112,7 @@ new code at src/contrib/mesos. (Note that the changes to Hadoop have
 been committed in revisions r1033804 and r987589 so at some point we
 won't need to apply any patch at all.) We'll apply the patch with:
 
-$ patch -p2 <${hadoop}.patch
+  $ patch -p2 <${hadoop}.patch
 
 __EOF__
 
@@ -133,7 +134,7 @@ if test ! -x ${hadoop}/bin/mesos-executor; then
 
 We'll also need to make one of the new files executable via:
 
-$ chmod +x ${hadoop}/bin/mesos-executor
+  $ chmod +x ${hadoop}/bin/mesos-executor
 
 __EOF__
     read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
@@ -148,7 +149,7 @@ cat <<__EOF__
 
 Okay, now let's change into the directory in order to build Hadoop.
 
-$ cd ${hadoop}
+  $ cd ${hadoop}
 
 __EOF__
 
@@ -172,8 +173,6 @@ default classpath).
 This tutorial assumes you've built Mesos already. We'll use the
 environment variable MESOS_BUILD_DIR to denote this directory.
 
-We'll look for MESOS_BUILD_DIR in '../..' first.
-
 __EOF__
 
 read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
@@ -181,14 +180,14 @@ echo
 
 DEFAULT=../..
 MESOS_BUILD_DIR=`cd ${DEFAULT} && pwd`
-MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar
 
-while test ! -f ${MESOS_JAR}; do
+while test ! -f ${MESOS_BUILD_DIR}/src/mesos.jar; do
     cat <<__EOF__
 
-${RED}It doesn't look like you used ${MESOS_BUILD_DIR} to build
-Mesos. Maybe you need to go back and run 'make' in that directory
-before continuing?${NORMAL}
+${RED}We couldn't automagically determine MESOS_BUILD_DIR. It doesn't
+look like you used ${MESOS_BUILD_DIR} to build Mesos. Maybe you need
+to go back and run 'make' in that directory before
+continuing?${NORMAL}
 
 __EOF__
 
@@ -196,7 +195,6 @@ __EOF__
     echo
     test -z ${REPLY} && REPLY=${DEFAULT}
     MESOS_BUILD_DIR=`cd ${REPLY} && pwd`
-    MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar
 done
 
 
@@ -211,18 +209,19 @@ __EOF__
 cat <<__EOF__
 
 Okay, let's try building Hadoop now! We need to let the build system
-know where the Mesos JAR is located (e.g.,
-\${MESOS_BUILD_DIR}/src/mesos.jar) using the MESOS_JAR environment
-variable. We can put it on the command line with 'ant like this:
+know where the Mesos JAR is located by using the MESOS_JAR environment
+variable (i.e., MESOS_JAR=\${MESOS_BUILD_DIR}/src/mesos.jar). We can
+put it on the command line with 'ant like this:
 
-$ MESOS_JAR=${MESOS_JAR} ant
+  $ MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar ant
 
 __EOF__
 
 read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
 echo
 
-MESOS_JAR=${MESOS_JAR} ant || fail "MESOS_JAR=${MESOS_JAR} ant"
+MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar ant || \
+    fail "MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar ant"
 
 
 # Apply conf/mapred-site.xml patch.
@@ -249,13 +248,15 @@ The 'mapred.jobtracker.taskScheduler' property must be set to
 
 If you've alredy got a Mesos master running you can use that for
 'mapred.mesos.master', but for this tutorial well just use 'local' in
-order to bring up a Mesos "cluster" within the process.
+order to bring up a Mesos "cluster" within the process. To connect to
+a remote master simply use the Mesos URL used to connect the slave to
+the master (e.g., mesos://master@localhost:5050).
 
 We've got a prepared patch for conf/mapred-site.xml that makes the
 changes necessary to get everything running. We can apply that patch
 like so:
 
-$ patch -p3 <../${hadoop}_conf_mapred-site.xml.patch
+  $ patch -p3 <../${hadoop}_conf_mapred-site.xml.patch
 
 __EOF__
 
@@ -302,7 +303,7 @@ includes:
 We've got a prepared patch for conf/hadoop-env.sh that makes the
 necessary changes. We can apply that patch like so:
 
-$ patch -p3 <../${hadoop}_conf_hadoop-env.sh.patch
+  $ patch -p3 <../${hadoop}_conf_hadoop-env.sh.patch
 
 (Note that this patch assumes MESOS_BUILD_DIR is '../..' and you'll
 need to specify that on the command line when you try and run the
@@ -344,7 +345,7 @@ cat <<__EOF__
 
 Let's go ahead and try and start the JobTracker via:
 
-$ ./bin/hadoop jobtracker
+  $ ./bin/hadoop jobtracker
 
 Note that if you applied our conf/hadoop-env.sh patch we assume that
 MESOS_BUILD_DIR is located at '../..'. If this isn't the case (i.e.,
@@ -352,7 +353,7 @@ you specified a different build directory than the default during this
 tutorial) than you'll need to set that variable either directly in
 conf/hadoop-env.sh or on the command line via:
 
-$ MESOS_BUILD_DIR=${MESOS_BUILD_DIR} ./bin/hadoop jobtracker
+  $ MESOS_BUILD_DIR=/path/to/mesos/build ./bin/hadoop jobtracker
 
 __EOF__
 
@@ -379,8 +380,8 @@ cat <<__EOF__
 
 Alright, now let's run the "wordcount" example via:
 
-$ ./bin/hadoop jar hadoop-examples-0.20.205.0.jar wordcount \
-src/contrib/mesos/src/java/org/apache/hadoop/mapred out
+  $ ./bin/hadoop jar hadoop-examples-0.20.205.0.jar wordcount \
+  src/contrib/mesos/src/java/org/apache/hadoop/mapred out
 
 __EOF__
 

@@ -1,0 +1,139 @@
+Welcome to the tutorial on running Apache Hadoop on top of Mesos!
+
+
+Consider running the interactive tutorial at TUTORIAL.sh instead.
+                                                 ^
+                                                 |
+                                                 |
+                  (try me)   +-------------------+
+
+
+Patch the Hadoop distribution
+=============================
+
+We've included the 0.20.205.0 version of Hadoop in this directory
+(hadoop-0.20.205.0.tar.gz). Start by extracting it:
+
+  $ tar zxvf hadoop-0.20.205.0.tar.gz
+
+To run Hadoop on Mesos we need to apply a rather minor patch. The
+patch makes a small number of modifications in Hadoop, and adds some
+new code at src/contrib/mesos. (Note that the changes to Hadoop have
+been committed in revisions r1033804 and r987589 so at some point we
+won't need to apply any patch at all.) We'll apply the patch with:
+
+  $ patch -p2 <hadoop-0.20.205.0.patch
+
+We'll also need to make one of the new files executable via:
+
+  $ chmod +x hadoop-0.20.205.0/bin/mesos-executor
+
+
+Build Hadoop
+============
+
+Okay, now let's change into the directory in order to build Hadoop.
+
+  $ cd hadoop-0.20.205.0
+
+Okay, now we're ready to build and then run Hadoop! There are a couple
+important considerations. First, we need to locate the Mesos JAR and
+native library (i.e., libmesos.so on Linux and libmesos.dylib on Mac
+OS X). The Mesos JAR is used for both building and running, while the
+native library is only used for running. In addition, we need to
+locate the Protobuf JAR (if you don't already have one one your
+default classpath).
+
+This tutorial assumes you've built Mesos already. We'll use the
+environment variable MESOS_BUILD_DIR to denote this directory.
+
+Okay, let's try building Hadoop now! We need to let the build system
+know where the Mesos JAR is located by using the MESOS_JAR environment
+variable (i.e., MESOS_JAR=\${MESOS_BUILD_DIR}/src/mesos.jar). We can
+put it on the command line with 'ant like this:
+
+  $ MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar ant
+
+
+Configure Hadoop
+================
+
+Build success! Now let's run something!
+
+First we need to configure Hadoop appropriately by modifying
+conf/mapred-site.xml (as is always required when running Hadoop). In
+order to run Hadoop on Mesos we need to set at least these three
+properties:
+
+  mapred.job.tracker
+
+  mapred.jobtracker.taskScheduler
+
+  mapred.mesos.master
+
+The 'mapred.job.tracker' property should be set to the host:port where
+you want to launch the JobTracker (e.g., localhost:54321).
+
+The 'mapred.jobtracker.taskScheduler' property must be set to
+'org.apache.hadoop.mapred.MesosScheduler'.
+
+If you've alredy got a Mesos master running you can use that for
+'mapred.mesos.master', but for this tutorial well just use 'local' in
+order to bring up a Mesos "cluster" within the process. To connect to
+a remote master simply use the Mesos URL used to connect the slave to
+the master (e.g., mesos://master@localhost:5050).
+
+We've got a prepared patch for conf/mapred-site.xml that makes the
+changes necessary to get everything running. We can apply that patch
+like so:
+
+  $ patch -p3 <../hadoop-0.20.205.0_conf_mapred-site.xml.patch
+
+
+Set up the runtime environment
+==============================
+
+Now in order to actually run Hadoop we need to set up our environment
+appropriately for Hadoop. We can do this in conf/hadoop-env.sh This
+includes:
+
+  (1) Setting JAVA_HOME (a prerequisite to running this tutorial).
+  (2) Adding the Mesos contrib class files to HADOOP_CLASSPATH.
+  (3) Adding mesos.jar to the HADOOP_CLASSPATH.
+  (4) Adding protobuf.jar to the HADOOP_CLASSPATH.
+  (5) Setting MESOS_NATIVE_LIBRARY to point to the native library.
+
+We've got a prepared patch for conf/hadoop-env.sh that makes the
+necessary changes. We can apply that patch like so:
+
+  $ patch -p3 <../hadoop-0.20.205.0_conf_hadoop-env.sh.patch
+
+(Note that this patch assumes MESOS_BUILD_DIR is '../..' and you'll
+need to specify that on the command line when you try and run the
+JobTracker if that's not the case ... don't worry, we'll remind you
+again later.)
+
+
+Run a JobTracker
+================
+
+Let's go ahead and try and start the JobTracker via:
+
+  $ ./bin/hadoop jobtracker
+
+Note that if you applied our conf/hadoop-env.sh patch we assume that
+MESOS_BUILD_DIR is located at '../..'. If this isn't the case (i.e.,
+you specified a different build directory than the default during this
+tutorial) than you'll need to set that variable either directly in
+conf/hadoop-env.sh or on the command line via:
+
+  $ MESOS_BUILD_DIR=/path/to/mesos/build ./bin/hadoop jobtracker
+
+
+Run the wordcount example
+=========================
+
+Alright, now let's run the "wordcount" example via:
+
+  $ ./bin/hadoop jar hadoop-examples-0.20.205.0.jar wordcount \
+  src/contrib/mesos/src/java/org/apache/hadoop/mapred out
