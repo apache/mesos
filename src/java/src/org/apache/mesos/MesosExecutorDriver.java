@@ -38,7 +38,7 @@ import org.apache.mesos.Protos.*;
  */
 public class MesosExecutorDriver implements ExecutorDriver {
   static {
-    System.loadLibrary("mesos");
+    MesosNativeLibrary.load();
   }
 
   /**

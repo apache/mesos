@@ -106,6 +106,13 @@ addition, see [build]/bin for scripts that can run the tests and also
 launch the tests in GDB.
 
 
+Hadoop
+======
+
+Included in the distribution is a runnable tutorial on using Hadoop on
+Mesos (./hadoop/TUTORIAL.sh). Try it out!
+
+
 Installing
 ==========
 

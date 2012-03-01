@@ -354,6 +354,7 @@ MESOS_JAR_SRC = $(MESOS_JAR_SRCDIR)/ExecutorDriver.java		\
 		$(MESOS_JAR_SRCDIR)/Executor.java		\
 		$(MESOS_JAR_SRCDIR)/Log.java			\
 		$(MESOS_JAR_SRCDIR)/MesosExecutorDriver.java	\
+		$(MESOS_JAR_SRCDIR)/MesosNativeLibrary.java	\
 		$(MESOS_JAR_SRCDIR)/MesosSchedulerDriver.java	\
 		$(MESOS_JAR_SRCDIR)/SchedulerDriver.java	\
 		$(MESOS_JAR_SRCDIR)/Scheduler.java

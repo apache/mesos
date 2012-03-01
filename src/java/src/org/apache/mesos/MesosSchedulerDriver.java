@@ -48,7 +48,7 @@ import java.util.Map;
  */
 public class MesosSchedulerDriver implements SchedulerDriver {
   static {
-    System.loadLibrary("mesos");
+    MesosNativeLibrary.load();
   }
 
   /**

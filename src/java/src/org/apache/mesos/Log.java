@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class Log {
   static {
-    System.loadLibrary("mesos");
+    MesosNativeLibrary.load();
   }
 
   /**

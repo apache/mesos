@@ -68,6 +68,7 @@ public class TestExecutor implements Executor {
   public void error(ExecutorDriver driver, int code, String message) {}
 
   public static void main(String[] args) throws Exception {
-    new MesosExecutorDriver(new TestExecutor()).run();
+    MesosExecutorDriver driver = new MesosExecutorDriver(new TestExecutor());
+    System.exit(driver.run() == Status.OK ? 0 : 1);
   }
 }

@@ -1,0 +1,22 @@
+diff --git a/hadoop/hadoop-0.20.205.0/conf/mapred-site.xml b/hadoop/hadoop-0.20.205.0/conf/mapred-site.xml
+index 970c8fe..f9f272d 100644
+--- a/hadoop/hadoop-0.20.205.0/conf/mapred-site.xml
++++ b/hadoop/hadoop-0.20.205.0/conf/mapred-site.xml
+@@ -4,5 +4,16 @@
+ <!-- Put site-specific property overrides in this file. -->
+ 
+ <configuration>
+-
++  <property>
++    <name>mapred.job.tracker</name>
++    <value>localhost:54311</value>
++  </property>
++  <property>
++    <name>mapred.jobtracker.taskScheduler</name>
++    <value>org.apache.hadoop.mapred.MesosScheduler</value>
++  </property>
++  <property>
++    <name>mapred.mesos.master</name>
++    <value>local</value>
++  </property>
+ </configuration>

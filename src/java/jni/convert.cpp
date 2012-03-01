@@ -106,7 +106,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
 {
   // Grab the context ClassLoader of the current thread, if any.
   JNIEnv* env;
-  if (jvm->GetEnv((void**) &env, JNI_VERSION_1_2)) {
+  if (jvm->GetEnv((void**) &env, JNI_VERSION_1_2) != JNI_OK) {
     return JNI_ERR; // JNI version not supported.
   }
 
@@ -134,6 +134,15 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
     mesosClassLoader = env->NewWeakGlobalRef(classLoader);
   }
 
+  // Set the 'loaded' property so we don't try and load it again. This
+  // is necessary because a native library can be loaded either with
+  // 'System.load' or 'System.loadLibrary' and while redundant calls
+  // to 'System.loadLibrary' will be ignored one call of each could
+  // cause an error.
+  jclass clazz = env->FindClass("org/apache/mesos/MesosNativeLibrary");
+  jfieldID loaded = env->GetStaticFieldID(clazz, "loaded", "Z");
+  env->SetStaticBooleanField(clazz, loaded, (jboolean) true);
+
   return JNI_VERSION_1_2;
 }
 
@@ -142,9 +151,11 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
 JNIEXPORT void JNICALL JNI_OnUnLoad(JavaVM* jvm, void* reserved)
 {
   JNIEnv* env;
-  if (jvm->GetEnv((void**) &env, JNI_VERSION_1_2)) {
+  if (jvm->GetEnv((void**) &env, JNI_VERSION_1_2) != JNI_OK) {
     return;
   }
+
+  // TODO(benh): Must we set 'MesosNativeLibrary.loaded' to false?
 
   if (mesosClassLoader != NULL) {
     env->DeleteWeakGlobalRef(mesosClassLoader);
