@@ -102,7 +102,11 @@ THIRD_PARTY_LIBS = $(BOOST)-stamp $(GLOG)/libglog.la		\
 	$(PROTOBUF)/src/protoc
 
 if WITH_INCLUDED_ZOOKEEPER
-THIRD_PARTY_LIBS += $(ZOOKEEPER)/src/c/libzookeeper_mt.la
+  THIRD_PARTY_LIBS += $(ZOOKEEPER)/src/c/libzookeeper_mt.la
+else
+  # Now matter what we need to extract ZooKeeper so that we can run
+  # 'make check' (some of our tests need the ZooKeeper JAR).
+  THIRD_PARTY_LIBS += $(ZOOKEEPER)-stamp
 endif
 
 all-local: $(THIRD_PARTY_LIBS)
