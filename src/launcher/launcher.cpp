@@ -29,50 +29,51 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <boost/lexical_cast.hpp>
-
-#include "launcher.hpp"
-
+#include "common/fatal.hpp"
 #include "common/foreach.hpp"
+#include "common/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::launcher;
-
-using boost::lexical_cast;
+#include "launcher/launcher.hpp"
 
 using std::cout;
 using std::endl;
 using std::ostringstream;
 using std::string;
-using std::vector;
+
+namespace mesos {
+namespace internal {
+namespace launcher {
+
+ExecutorLauncher::ExecutorLauncher(
+    const FrameworkID& _frameworkId,
+    const ExecutorID& _executorId,
+    const string& _executorUri,
+    const string& _user,
+    const string& _workDirectory,
+    const string& _slavePid,
+    const string& _frameworksHome,
+    const string& _mesosHome,
+    const string& _hadoopHome,
+    bool _redirectIO,
+    bool _shouldSwitchUser,
+    const string& _container,
+    const Environment& _environment)
+  : frameworkId(_frameworkId),
+    executorId(_executorId),
+    executorUri(_executorUri),
+    user(_user),
+    workDirectory(_workDirectory),
+    slavePid(_slavePid),
+    frameworksHome(_frameworksHome),
+    mesosHome(_mesosHome),
+    hadoopHome(_hadoopHome),
+    redirectIO(_redirectIO),
+    shouldSwitchUser(_shouldSwitchUser),
+    container(_container),
+    environment(_environment) {}
 
 
-ExecutorLauncher::ExecutorLauncher(const FrameworkID& _frameworkId,
-                                   const ExecutorID& _executorId,
-                                   const string& _executorUri,
-                                   const string& _user,
-                                   const string& _workDirectory,
-                                   const string& _slavePid,
-                                   const string& _frameworksHome,
-                                   const string& _mesosHome,
-                                   const string& _hadoopHome,
-                                   bool _redirectIO,
-                                   bool _shouldSwitchUser,
-                                   const string& _container,
-                                   const map<string, string>& _params)
-  : frameworkId(_frameworkId), executorId(_executorId),
-    executorUri(_executorUri), user(_user),
-    workDirectory(_workDirectory), slavePid(_slavePid),
-    frameworksHome(_frameworksHome), mesosHome(_mesosHome),
-    hadoopHome(_hadoopHome), redirectIO(_redirectIO),
-    shouldSwitchUser(_shouldSwitchUser), container(_container), params(_params)
-{}
-
-
-ExecutorLauncher::~ExecutorLauncher()
-{
-}
+ExecutorLauncher::~ExecutorLauncher() {}
 
 
 int ExecutorLauncher::run()
@@ -257,32 +258,23 @@ string ExecutorLauncher::fetchExecutor()
 // Set up environment variables for launching a framework's executor.
 void ExecutorLauncher::setupEnvironment()
 {
-  // Set any environment variables given as env.* params in the ExecutorInfo
-  setupEnvVariablesFromParams();
+  // Set up the environment as specified in the ExecutorInfo.
+  foreach (const Environment::Variable& variable, environment.variables()) {
+    utils::os::setenv(variable.name(), variable.value());
+  }
 
-  // Set Mesos environment variables to pass slave ID, framework ID, etc.
-  setenv("MESOS_DIRECTORY", workDirectory.c_str(), 1);
-  setenv("MESOS_SLAVE_PID", slavePid.c_str(), 1);
-  setenv("MESOS_FRAMEWORK_ID", frameworkId.value().c_str(), 1);
-  setenv("MESOS_EXECUTOR_ID", executorId.value().c_str(), 1);
+  // Set Mesos environment variables for slave ID, framework ID, etc.
+  utils::os::setenv("MESOS_DIRECTORY", workDirectory);
+  utils::os::setenv("MESOS_SLAVE_PID", slavePid);
+  utils::os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
+  utils::os::setenv("MESOS_EXECUTOR_ID", executorId.value());
 
   // Set LIBPROCESS_PORT so that we bind to a random free port.
-  setenv("LIBPROCESS_PORT", "0", 1);
+  utils::os::setenv("LIBPROCESS_PORT", "0");
 
   // Set MESOS_HOME so that Java and Python executors can find libraries
   if (mesosHome != "") {
-    setenv("MESOS_HOME", mesosHome.c_str(), 1);
-  }
-}
-
-
-void ExecutorLauncher::setupEnvVariablesFromParams()
-{
-  foreachpair (const string& key, const string& value, params) {
-    if (key.find("env.") == 0) {
-      const string& var = key.substr(strlen("env."));
-      setenv(var.c_str(), value.c_str(), 1);
-    }
+    utils::os::setenv("MESOS_HOME", mesosHome);
   }
 }
 
@@ -291,33 +283,39 @@ void ExecutorLauncher::switchUser()
 {
   cout << "Switching user to " << user << endl;
 
-  struct passwd *passwd;
-  if ((passwd = getpwnam(user.c_str())) == NULL)
+  struct passwd* passwd;
+  if ((passwd = getpwnam(user.c_str())) == NULL) {
     fatal("failed to get username information for %s", user.c_str());
+  }
 
-  if (setgid(passwd->pw_gid) < 0)
+  if (setgid(passwd->pw_gid) < 0) {
     fatalerror("failed to setgid");
+  }
 
-  if (setuid(passwd->pw_uid) < 0)
+  if (setuid(passwd->pw_uid) < 0) {
     fatalerror("failed to setuid");
+  }
 }
 
 
 void ExecutorLauncher::setupEnvironmentForLauncherMain()
 {
-  // Set up environment variables passed through env.* params
   setupEnvironment();
 
   // Set up Mesos environment variables that launcher_main.cpp will
-  // pass as arguments to an ExecutorLauncher there
-  setenv("MESOS_FRAMEWORK_ID", frameworkId.value().c_str(), 1);
-  setenv("MESOS_EXECUTOR_URI", executorUri.c_str(), 1);
-  setenv("MESOS_USER", user.c_str(), 1);
-  setenv("MESOS_WORK_DIRECTORY", workDirectory.c_str(), 1);
-  setenv("MESOS_SLAVE_PID", slavePid.c_str(), 1);
-  setenv("MESOS_HOME", mesosHome.c_str(), 1);
-  setenv("MESOS_HADOOP_HOME", hadoopHome.c_str(), 1);
-  setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0", 1);
-  setenv("MESOS_SWITCH_USER", shouldSwitchUser ? "1" : "0", 1);
-  setenv("MESOS_CONTAINER", container.c_str(), 1);
+  // pass as arguments to an ExecutorLauncher there.
+  utils::os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
+  utils::os::setenv("MESOS_EXECUTOR_URI", executorUri);
+  utils::os::setenv("MESOS_USER", user);
+  utils::os::setenv("MESOS_WORK_DIRECTORY", workDirectory);
+  utils::os::setenv("MESOS_SLAVE_PID", slavePid);
+  utils::os::setenv("MESOS_HOME", mesosHome);
+  utils::os::setenv("MESOS_HADOOP_HOME", hadoopHome);
+  utils::os::setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0");
+  utils::os::setenv("MESOS_SWITCH_USER", shouldSwitchUser ? "1" : "0");
+  utils::os::setenv("MESOS_CONTAINER", container);
 }
+
+} // namespace launcher {
+} // namespace internal {
+} // namespace mesos {

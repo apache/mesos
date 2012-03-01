@@ -171,15 +171,6 @@ void LxcIsolationModule::launchExecutor(
       }
     }
 
-    // Create an ExecutorLauncher to set up the environment for executing
-    // an external launcher_main.cpp process (inside of lxc-execute).
-    map<string, string> params;
-
-    for (int i = 0; i < executorInfo.params().param_size(); i++) {
-      params[executorInfo.params().param(i).key()] =
-        executorInfo.params().param(i).value();
-    }
-
     ExecutorLauncher* launcher =
       new ExecutorLauncher(frameworkId,
 			   executorId,
@@ -193,7 +184,7 @@ void LxcIsolationModule::launchExecutor(
 			   !local,
 			   conf.get("switch_user", true),
 			   container,
-			   params);
+			   executorInfo.environment());
 
     launcher->setupEnvironmentForLauncherMain();
 

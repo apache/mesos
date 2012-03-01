@@ -24,7 +24,14 @@ import org.apache.mesos.Protos.*;
 
 public class TestExecutor implements Executor {
   @Override
-  public void init(ExecutorDriver driver, ExecutorArgs args) {}
+  public void registered(ExecutorDriver driver,
+                         ExecutorInfo executorInfo,
+                         FrameworkID frameworkId,
+                         FrameworkInfo frameworkInfo,
+                         SlaveID slaveId,
+                         SlaveInfo slaveInfo) {
+    System.out.println("Registered executor on " + slaveInfo.getHostname());
+  }
 
   @Override
   public void launchTask(final ExecutorDriver driver, final TaskDescription task) {

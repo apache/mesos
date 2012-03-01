@@ -56,11 +56,19 @@ public:
 
   virtual ~MemHogExecutor() {}
 
-  virtual void init(ExecutorDriver* driver, const ExecutorArgs &args) {
+  virtual void registered(ExecutorDriver* driver,
+                          const ExecutorInfo& executorInfo,
+                          const FrameworkID& frameworkId,
+                          const FrameworkInfo& frameworkInfo,
+                          const SlaveID& slaveId,
+                          const SlaveInfo& slaveInfo)
+  {
+    cout << "Registered executor on " << slaveInfo.hostname() << endl;
     this->driver = driver;
   }
 
-  virtual void launchTask(ExecutorDriver*, const TaskDescription& task) {
+  virtual void launchTask(ExecutorDriver* driver, const TaskDescription& task)
+  {
     cout << "Executor starting task " << task.task_id().value() << endl;
     int64_t memToHog;
     double duration;

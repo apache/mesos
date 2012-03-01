@@ -78,14 +78,18 @@ public:
 
   /**
    * Invoked once the executor driver has been able to successfully
-   * connect with Mesos. See mesos.proto for a description of the
-   * ExecutorArgs argument. In particular, a scheduler can pass some
-   * data to it's executors through the ExecutorInfo::data field which
-   * gets copied into the ExecutorArgs::data field. (TODO(benh): This
-   * callback will likely become two callbacks,
-   * registered/reregistered, once executors can outlive slaves.)
+   * connect with Mesos. In particular, a scheduler can pass some
+   * data to it's executors through the FrameworkInfo.ExecutorInfo's
+   * data field.
+   * TODO(vinod): Add a new reregistered callback for when the executor
+   * re-connects with a restarted slave.
    */
-  virtual void init(ExecutorDriver* driver, const ExecutorArgs& args) = 0;
+  virtual void registered(ExecutorDriver* driver,
+                          const ExecutorInfo& executorInfo,
+                          const FrameworkID& frameworkId,
+                          const FrameworkInfo& frameworkInfo,
+                          const SlaveID& slaveId,
+                          const SlaveInfo& slaveInfo) = 0;
 
   /**
    * Invoked when a task has been launched on this executor (initiated
@@ -222,7 +226,8 @@ class MesosExecutorDriver : public ExecutorDriver
 {
 public:
   /**
-   * Creates a new driver that uses the specified Executor. Note 
+   * Creates a new driver that uses the specified Executor. Note, the
+   * executor pointer must outlive the driver.
    */
   MesosExecutorDriver(Executor* executor);
 

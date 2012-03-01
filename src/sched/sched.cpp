@@ -833,7 +833,7 @@ Status MesosSchedulerDriver::join()
 //   // forever since the MesosSchedulerDriver destructor waits for the
 //   // process to terminate forever. Note that we don't need to wait if
 //   // the driver has been aborted because we won't actually call back
-//   // in to the driver in that case, and thus we won't have 
+//   // in to the driver in that case, and thus we won't have
 
 //   lock.unlock(); // Let a thread in SchedulerProcess use the driver.
 

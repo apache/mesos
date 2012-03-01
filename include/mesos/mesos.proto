@@ -97,15 +97,14 @@ message FrameworkInfo {
 /**
  * Describes information about an executor. The 'params' field can be
  * used to set environment variables for the executor. The 'data'
- * field can be used to pass arbitrary bytes to an executor (see
- * ExecutorArgs and Executor::init).
+ * field can be used to pass arbitrary bytes to an executor.
  */
 message ExecutorInfo {
   required ExecutorID executor_id = 1;
   required string uri = 2;
   repeated Resource resources = 5;
-  optional Params params = 3;
   optional bytes data = 4;
+  optional Environment environment = 6;
 }
 
 
@@ -293,29 +292,32 @@ message Filters {
 
 
 /**
- * Passed to Executor::init.
- */
-message ExecutorArgs {
-  required FrameworkID framework_id = 1;
-  required ExecutorID executor_id = 2;
-  required SlaveID slave_id = 3;
-  required string hostname = 4;
-  optional bytes data = 5;
+* Describes a collection of environment variables. This is used with
+* the ExecutorInfo in order to set environment variables before
+* launching the executor.
+*/
+message Environment {
+  message Variable {
+    required string name = 1;
+    required string value = 2;
+  }
+
+  repeated Variable variables = 1;
 }
 
 
 /**
  * A generic (key, value) pair used in various places for parameters.
  */
-message Param {
+message Parameter {
   required string key = 1;
   required string value = 2;
 }
  
  
 /**
- * Collection of Param.
+ * Collection of Parameter.
  */
-message Params {
-  repeated Param param = 1;
+message Parameters {
+  repeated Parameter parameter = 1;
 }

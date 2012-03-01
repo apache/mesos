@@ -37,15 +37,17 @@ import org.apache.mesos.Protos.*;
 public interface Executor {
   /**
    * Invoked once the executor driver has been able to successfully
-   * connect with Mesos. See mesos.proto for a description of the
-   * ExecutorArgs argument. In particular, a scheduler can pass some
+   * connect with Mesos. In particular, a scheduler can pass some
    * data to it's executors through the {@link ExecutorInfo#data}
-   * field which gets copied into the {@link ExecutorArgs#data}
-   * field. (TODO(benh): This callback will likely become two
-   * callbacks, registered/reregistered, once executors can outlive
-   * slaves.)
+   * field. TODO(vinod): Add a new reregistered callback for when the executor
+   * re-connects with a restarted slave.
    */
-  void init(ExecutorDriver driver, ExecutorArgs args);
+  void registered(ExecutorDriver driver,
+                  ExecutorInfo executorInfo,
+                  FrameworkID frameworkId,
+                  FrameworkInfo frameworkInfo,
+                  SlaveID slaveId,
+                  SlaveInfo slaveInfo);
 
   /**
    * Invoked when a task has been launched on this executor (initiated

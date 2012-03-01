@@ -33,26 +33,47 @@ using std::map;
 
 namespace mesos { namespace python {
 
-void ProxyExecutor::init(ExecutorDriver* driver,
-                         const ExecutorArgs& args)
+void ProxyExecutor::registered(ExecutorDriver* driver,
+                               const ExecutorInfo& executorInfo,
+                               const FrameworkID& frameworkId,
+                               const FrameworkInfo& frameworkInfo,
+                               const SlaveID& slaveId,
+                               const SlaveInfo& slaveInfo)
 {
   InterpreterLock lock;
 
-  PyObject* argsObj = NULL;
+  PyObject* executorInfoObj = NULL;
+  PyObject* frameworkIdObj = NULL;
+  PyObject* frameworkInfoObj = NULL;
+  PyObject* slaveIdObj = NULL;
+  PyObject* slaveInfoObj = NULL;
   PyObject* res = NULL;
 
-  argsObj = createPythonProtobuf(args, "ExecutorArgs");
-  if (argsObj == NULL) {
+  executorInfoObj = createPythonProtobuf(executorInfo, "ExecutorInfo");
+  frameworkIdObj = createPythonProtobuf(frameworkId, "FrameworkID");
+  frameworkInfoObj = createPythonProtobuf(frameworkInfo, "FrameworkInfo");
+  slaveIdObj = createPythonProtobuf(slaveId, "SlaveID");
+  slaveInfoObj = createPythonProtobuf(slaveInfo, "SlaveInfo");
+
+  if (executorInfoObj == NULL ||
+      frameworkIdObj == NULL ||
+      frameworkInfoObj == NULL ||
+      slaveIdObj == NULL ||
+      slaveInfoObj == NULL) {
     goto cleanup; // createPythonProtobuf will have set an exception
   }
 
   res = PyObject_CallMethod(impl->pythonExecutor,
-                            (char*) "init",
-                            (char*) "OO",
+                            (char*) "registered",
+                            (char*) "OOOOOO",
                             impl,
-                            argsObj);
+                            executorInfoObj,
+                            frameworkIdObj,
+                            frameworkInfoObj,
+                            slaveIdObj,
+                            slaveInfoObj);
   if (res == NULL) {
-    cerr << "Failed to call executor's init" << endl;
+    cerr << "Failed to call executor registered" << endl;
     goto cleanup;
   }
 
@@ -61,7 +82,11 @@ cleanup:
     PyErr_Print();
     driver->abort();
   }
-  Py_XDECREF(argsObj);
+  Py_XDECREF(executorInfoObj);
+  Py_XDECREF(frameworkIdObj);
+  Py_XDECREF(frameworkInfoObj);
+  Py_XDECREF(slaveIdObj);
+  Py_XDECREF(slaveInfoObj);
   Py_XDECREF(res);
 }
 

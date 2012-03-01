@@ -127,7 +127,12 @@ public:
 class MockExecutor : public Executor
 {
 public:
-  MOCK_METHOD2(init, void(ExecutorDriver*, const ExecutorArgs&));
+  MOCK_METHOD6(registered, void(ExecutorDriver*,
+                                const ExecutorInfo&,
+                                const FrameworkID&,
+                                const FrameworkInfo&,
+                                const SlaveID&,
+                                const SlaveInfo&));
   MOCK_METHOD2(launchTask, void(ExecutorDriver*, const TaskDescription&));
   MOCK_METHOD2(killTask, void(ExecutorDriver*, const TaskID&));
   MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const std::string&));

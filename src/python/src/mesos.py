@@ -56,7 +56,8 @@ class SchedulerDriver:
 # Base class for Mesos executors. Users' executors should extend this
 # class to get default implementations of methods they don't override.
 class Executor:
-  def init(self, driver, args): pass
+  def registered(self, driver, executorInfo, frameworkId, frameworkInfo,
+                 slaveId, slaveInfo): pass
   def launchTask(self, driver, task): pass
   def killTask(self, driver, taskId): pass
   def frameworkMessage(self, driver, message): pass

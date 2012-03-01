@@ -48,7 +48,12 @@ public:
 
   virtual ~ProxyExecutor() {}
 
-  virtual void init(ExecutorDriver* driver, const ExecutorArgs& args);
+  virtual void registered(ExecutorDriver* driver,
+                          const ExecutorInfo& executorInfo,
+                          const FrameworkID& frameworkId,
+                          const FrameworkInfo& frameworkInfo,
+                          const SlaveID& slaveId,
+                          const SlaveInfo& slaveInfo);
 
   virtual void launchTask(ExecutorDriver* driver,
                           const TaskDescription& task);

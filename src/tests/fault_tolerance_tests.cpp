@@ -372,7 +372,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
-  EXPECT_CALL(exec, init(_, _))
+  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
     .Times(0);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -476,7 +476,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   MockExecutor exec;
 
-  EXPECT_CALL(exec, init(_, _))
+  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -605,7 +605,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   ExecutorDriver* execDriver;
 
-  EXPECT_CALL(exec, init(_, _))
+  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
     .WillOnce(SaveArg<0>(&execDriver));
 
   EXPECT_CALL(exec, launchTask(_, _))

@@ -24,6 +24,7 @@
 
 #include "local.hpp"
 
+#include "common/fatal.hpp"
 #include "common/foreach.hpp"
 #include "common/logging.hpp"
 

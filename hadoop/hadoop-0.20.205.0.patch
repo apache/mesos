@@ -163,7 +163,7 @@ new file mode 100644
 index 0000000..e369f39
 --- /dev/null
 +++ b/hadoop/hadoop-0.20.205.0/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,196 @@
 +package org.apache.hadoop.mapred;
 +
 +import java.io.IOException;
@@ -182,8 +182,11 @@ index 0000000..e369f39
 +import org.apache.mesos.Executor;
 +import org.apache.mesos.ExecutorDriver;
 +import org.apache.mesos.MesosExecutorDriver;
-+import org.apache.mesos.Protos.ExecutorArgs;
++import org.apache.mesos.Protos.ExecutorInfo;
++import org.apache.mesos.Protos.FrameworkID;
++import org.apache.mesos.Protos.FrameworkInfo;
 +import org.apache.mesos.Protos.SlaveID;
++import org.apache.mesos.Protos.SlaveInfo;
 +import org.apache.mesos.Protos.Status;
 +import org.apache.mesos.Protos.TaskID;
 +import org.apache.mesos.Protos.TaskDescription;
@@ -203,17 +206,22 @@ index 0000000..e369f39
 +  private Set<TaskID> activeMesosTasks = new HashSet<TaskID>();
 +
 +  @Override
-+  public void init(ExecutorDriver d, ExecutorArgs args) {
++  public void registered(ExecutorDriver d,
++                         ExecutorInfo executorInfo,
++                         FrameworkID frameworkId,
++                         FrameworkInfo frameworkInfo,
++                         SlaveID slaveId,
++                         SlaveInfo slaveInfo) {
 +    try {
 +      Thread.currentThread().setContextClassLoader(
 +        TaskTracker.class.getClassLoader());
 +
 +      this.driver = d;
-+      slaveId = args.getSlaveId();
++      this.slaveId = slaveId;
 +      
 +      // TODO: initialize all of JobConf from ExecutorArgs (using JT's conf)?
 +      conf = new JobConf();
-+      String jobTracker = args.getData().toStringUtf8();
++      String jobTracker = executorInfo.getData().toStringUtf8();
 +      LOG.info("Setting JobTracker: " + jobTracker);
 +      conf.set("mapred.job.tracker", jobTracker);
 +      
@@ -227,7 +235,7 @@ index 0000000..e369f39
 +      conf.set("mapred.tasktracker.instrumentation", newInstClassList);
 +      
 +      // Get hostname from Mesos to make sure we match what it reports to the JT
-+      conf.set("slave.host.name", args.getHostname());
++      conf.set("slave.host.name", slaveInfo.getHostname());
 +      
 +      taskTracker = new TaskTracker(conf);
 +      new Thread("TaskTracker run thread") {

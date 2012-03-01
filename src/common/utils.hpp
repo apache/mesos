@@ -129,7 +129,11 @@ inline std::string getenv(const std::string& key, bool expected = true)
     LOG(FATAL) << "Expecting '" << key << "' in environment variables";
   }
 
-  return std::string(value);
+  if (value != NULL) {
+    return std::string(value);
+  }
+
+  return std::string();
 }
 
 

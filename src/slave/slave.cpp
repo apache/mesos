@@ -772,12 +772,11 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
 
     // Tell executor it's registered and give it any queued tasks.
     ExecutorRegisteredMessage message;
-    ExecutorArgs* args = message.mutable_args();
-    args->mutable_framework_id()->MergeFrom(framework->id);
-    args->mutable_executor_id()->MergeFrom(executor->id);
-    args->mutable_slave_id()->MergeFrom(id);
-    args->set_hostname(info.hostname());
-    args->set_data(executor->info.data());
+    message.mutable_executor_info()->MergeFrom(executor->info);
+    message.mutable_framework_id()->MergeFrom(framework->id);
+    message.mutable_framework_info()->MergeFrom(framework->info);
+    message.mutable_slave_id()->MergeFrom(id);
+    message.mutable_slave_info()->MergeFrom(info);
     send(executor->pid, message);
 
     LOG(INFO) << "Flushing queued tasks for framework " << framework->id;

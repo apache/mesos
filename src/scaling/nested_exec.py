@@ -26,8 +26,8 @@ class NestedExecutor(mesos.Executor):
     mesos.Executor.__init__(self)
     self.tid = -1
 
-  def init(self, driver, args):
-    self.fid = args.frameworkId
+  def registered(self, driver, executorInfo, frameworkId, framworkInfo, slaveId, slaveInfo):
+    self.frameworkId = frameworkId
 
   def launchTask(self, driver, task):
     self.tid = task.taskId
@@ -38,7 +38,7 @@ class NestedExecutor(mesos.Executor):
     status = mesos.TaskStatus(self.tid, mesos.TASK_FINISHED, "")
     driver.sendStatusUpdate(status)
     time.sleep(1)
-    
+
   def killTask(self, driver, tid):
     if (self.tid != tid):
       print "Expecting different task id ... killing anyway!"

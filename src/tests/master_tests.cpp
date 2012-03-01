@@ -76,7 +76,7 @@ TEST(MasterTest, TaskRunning)
 
   trigger shutdownCall;
 
-  EXPECT_CALL(exec, init(_, _))
+  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -168,7 +168,7 @@ TEST(MasterTest, KillTask)
 
   trigger killTaskCall, shutdownCall;
 
-  EXPECT_CALL(exec, init(_, _))
+  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -263,13 +263,12 @@ TEST(MasterTest, FrameworkMessage)
   MockExecutor exec;
 
   ExecutorDriver* execDriver;
-  ExecutorArgs args;
   string execData;
 
   trigger execFrameworkMessageCall, shutdownCall;
 
-  EXPECT_CALL(exec, init(_, _))
-    .WillOnce(DoAll(SaveArg<0>(&execDriver), SaveArg<1>(&args)));
+  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdate(TASK_RUNNING));
@@ -384,7 +383,7 @@ TEST(MasterTest, MultipleExecutors)
   TaskDescription exec1Task;
   trigger exec1LaunchTaskCall, exec1ShutdownCall;
 
-  EXPECT_CALL(exec1, init(_, _))
+  EXPECT_CALL(exec1, registered(_, _, _, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec1, launchTask(_, _))
@@ -399,7 +398,7 @@ TEST(MasterTest, MultipleExecutors)
   TaskDescription exec2Task;
   trigger exec2LaunchTaskCall, exec2ShutdownCall;
 
-  EXPECT_CALL(exec2, init(_, _))
+  EXPECT_CALL(exec2, registered(_, _, _, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec2, launchTask(_, _))

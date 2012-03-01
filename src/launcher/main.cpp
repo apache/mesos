@@ -18,56 +18,36 @@
 
 #include <mesos/mesos.hpp>
 
-#include <boost/lexical_cast.hpp>
+#include "common/utils.hpp"
 
-#include "launcher.hpp"
-
-using std::string;
-
-using boost::lexical_cast;
+#include "launcher/launcher.hpp"
 
 using namespace mesos;
-using namespace mesos::internal::launcher;
+using namespace mesos::internal; // For 'utils'.
 
 
-const char * getenvOrFail(const char *variable)
-{
-  const char *value = getenv(variable);
-  if (!value)
-    fatal("environment variable %s not set", variable);
-  return value;
-}
-
-
-const char * getenvOrEmpty(const char *variable)
-{
-  const char *value = getenv(variable);
-  if (!value) return "";
-  return value;
-}
-
-
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   FrameworkID frameworkId;
-  frameworkId.set_value(getenvOrFail("MESOS_FRAMEWORK_ID"));
+  frameworkId.set_value(utils::os::getenv("MESOS_FRAMEWORK_ID"));
 
   ExecutorID executorId;
-  executorId.set_value(getenvOrFail("MESOS_EXECUTOR_ID"));
+  executorId.set_value(utils::os::getenv("MESOS_EXECUTOR_ID"));
 
-  return ExecutorLauncher(frameworkId,
-			  executorId,
-			  getenvOrFail("MESOS_EXECUTOR_URI"),
-			  getenvOrFail("MESOS_USER"),
-			  getenvOrFail("MESOS_WORK_DIRECTORY"),
-			  getenvOrFail("MESOS_SLAVE_PID"),
-			  getenvOrEmpty("MESOS_FRAMEWORKS_HOME"),
-			  getenvOrFail("MESOS_HOME"),
-			  getenvOrFail("MESOS_HADOOP_HOME"),
-			  lexical_cast<bool>(getenvOrFail("MESOS_REDIRECT_IO")),
-			  lexical_cast<bool>(getenvOrFail("MESOS_SWITCH_USER")),
-			  getenvOrEmpty("MESOS_CONTAINER"),
-			  map<string, string>()).run();
+  return mesos::internal::launcher::ExecutorLauncher(
+      frameworkId,
+      executorId,
+      utils::os::getenv("MESOS_EXECUTOR_URI"),
+      utils::os::getenv("MESOS_USER"),
+      utils::os::getenv("MESOS_WORK_DIRECTORY"),
+      utils::os::getenv("MESOS_SLAVE_PID"),
+      utils::os::getenv("MESOS_FRAMEWORKS_HOME", false),
+      utils::os::getenv("MESOS_HOME"),
+      utils::os::getenv("MESOS_HADOOP_HOME"),
+      utils::os::getenv("MESOS_REDIRECT_IO") == "1",
+      utils::os::getenv("MESOS_SWITCH_USER") == "1",
+      utils::os::getenv("MESOS_CONTAINER", false),
+      Environment()).run();
 }

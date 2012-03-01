@@ -30,9 +30,14 @@ class MyExecutor : public Executor
 public:
   virtual ~MyExecutor() {}
 
-  virtual void init(ExecutorDriver*, const ExecutorArgs& args)
+  virtual void registered(ExecutorDriver* driver,
+                          const ExecutorInfo& executorInfo,
+                          const FrameworkID& frameworkId,
+                          const FrameworkInfo& frameworkInfo,
+                          const SlaveID& slaveId,
+                          const SlaveInfo& slaveInfo)
   {
-    cout << "Initalized executor on " << args.hostname() << endl;
+    cout << "Registered executor on " << slaveInfo.hostname() << endl;
   }
 
   virtual void launchTask(ExecutorDriver* driver, const TaskDescription& task)

@@ -19,20 +19,13 @@
 #ifndef __LAUNCHER_HPP__
 #define __LAUNCHER_HPP__
 
-#include <map>
 #include <string>
-#include <vector>
 
 #include <mesos/mesos.hpp>
 
-#include "common/fatal.hpp"
-
-
-namespace mesos { namespace internal { namespace launcher {
-
-using std::map;
-using std::string;
-using std::vector;
+namespace mesos {
+namespace internal {
+namespace launcher {
 
 // This class sets up the environment for an executor and then exec()'s it.
 // It can either be used after a fork() in the slave process, or run as a
@@ -47,30 +40,21 @@ using std::vector;
 // Isolation modules that wish to override the default behaviour can subclass
 // Launcher and override some of the methods to perform extra actions.
 class ExecutorLauncher {
-protected:
-  FrameworkID frameworkId;
-  ExecutorID executorId;
-  string executorUri;
-  string user;
-  string workDirectory; // Directory in which the framework should run
-  string slavePid;
-  string frameworksHome;
-  string mesosHome;
-  string hadoopHome;
-  bool redirectIO;   // Whether to redirect stdout and stderr to files
-  bool shouldSwitchUser; // Whether to setuid to framework's user
-  string container;
-  map<string, string> params; // Key-value params in framework's ExecutorInfo
-
 public:
-  ExecutorLauncher(const FrameworkID& _frameworkId,
-                   const ExecutorID& _executorId, const string& _executorUri,
-                   const string& _user, const string& _workDirectory,
-                   const string& _slavePid, const string& _frameworksHome,
-                   const string& _mesosHome, const string& _hadoopHome,
-                   bool _redirectIO, bool _shouldSwitchUser,
-		   const string& container,
-                   const map<string, string>& _params);
+  ExecutorLauncher(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::string& executorUri,
+      const std::string& user,
+      const std::string& workDirectory,
+      const std::string& slavePid,
+      const std::string& frameworksHome,
+      const std::string& mesosHome,
+      const std::string& hadoopHome,
+      bool redirectIO,
+      bool shouldSwitchUser,
+      const std::string& container,
+      const Environment& environment);
 
   virtual ~ExecutorLauncher();
 
@@ -92,7 +76,7 @@ protected:
   // Download the executor's binary if required and return its path.
   // This method is expected to place files in the current directory
   // (which will be the workDirectory).
-  virtual string fetchExecutor();
+  virtual std::string fetchExecutor();
 
   // Set up environment variables for launching a framework's executor.
   virtual void setupEnvironment();
@@ -100,11 +84,24 @@ protected:
   // Switch to a framework's user in preparation for exec()'ing its executor.
   virtual void switchUser();
 
-private:
-  // Set any environment variables given as env.* params in the ExecutorInfo
-  void setupEnvVariablesFromParams();
+protected:
+  FrameworkID frameworkId;
+  ExecutorID executorId;
+  std::string executorUri;
+  std::string user;
+  std::string workDirectory; // Directory in which the framework should run.
+  std::string slavePid;
+  std::string frameworksHome;
+  std::string mesosHome;
+  std::string hadoopHome;
+  bool redirectIO;   // Whether to redirect stdout and stderr to files.
+  bool shouldSwitchUser; // Whether to setuid to framework's user.
+  std::string container;
+  Environment environment;
 };
 
-}}}
+} // namespace launcher {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __LAUNCHER_HPP__

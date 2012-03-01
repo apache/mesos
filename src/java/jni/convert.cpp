@@ -195,6 +195,29 @@ jobject convert(JNIEnv* env, const FrameworkID& frameworkId)
 
 
 template <>
+jobject convert(JNIEnv* env, const FrameworkInfo& frameworkInfo)
+{
+  string data;
+  frameworkInfo.SerializeToString(&data);
+
+  // byte[] data = ..;
+  jbyteArray jdata = env->NewByteArray(data.size());
+  env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
+
+  // FrameworkInfo frameworkInfo = FrameworkInfo.parseFrom(data);
+  jclass clazz = FindMesosClass(env, "org/apache/mesos/Protos$FrameworkInfo");
+
+  jmethodID parseFrom =
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$FrameworkInfo;");
+
+  jobject jframeworkInfo = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
+
+  return jframeworkInfo;
+}
+
+
+template <>
 jobject convert(JNIEnv* env, const ExecutorID& executorId)
 {
   string data;
@@ -260,6 +283,29 @@ jobject convert(JNIEnv* env, const SlaveID& slaveId)
   jobject jslaveId = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
   return jslaveId;
+}
+
+
+template <>
+jobject convert(JNIEnv* env, const SlaveInfo& slaveInfo)
+{
+  string data;
+  slaveInfo.SerializeToString(&data);
+
+  // byte[] data = ..;
+  jbyteArray jdata = env->NewByteArray(data.size());
+  env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
+
+  // SlaveInfo slaveInfo = SlaveInfo.parseFrom(data);
+  jclass clazz = FindMesosClass(env, "org/apache/mesos/Protos$SlaveInfo");
+
+  jmethodID parseFrom =
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$SlaveInfo;");
+
+  jobject jslaveInfo = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
+
+  return jslaveInfo;
 }
 
 
@@ -395,28 +441,6 @@ jobject convert(JNIEnv* env, const ExecutorInfo& executor)
   return jexecutor;
 }
 
-
-template <>
-jobject convert(JNIEnv* env, const ExecutorArgs& args)
-{
-  string data;
-  args.SerializeToString(&data);
-
-  // byte[] data = ..;
-  jbyteArray jdata = env->NewByteArray(data.size());
-  env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
-
-  // ExecutorArgs args = ExecutorArgs.parseFrom(data);
-  jclass clazz = FindMesosClass(env, "org/apache/mesos/Protos$ExecutorArgs");
-
-  jmethodID parseFrom =
-    env->GetStaticMethodID(clazz, "parseFrom",
-                           "([B)Lorg/apache/mesos/Protos$ExecutorArgs;");
-
-  jobject jargs = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
-
-  return jargs;
-}
 
 template <>
 jobject convert(JNIEnv* env, const Status& status)

@@ -40,7 +40,12 @@ public:
 
   virtual ~JNIExecutor() {}
 
-  virtual void init(ExecutorDriver* driver, const ExecutorArgs& args);
+  virtual void registered(ExecutorDriver* driver,
+                          const ExecutorInfo& executorInfo,
+                          const FrameworkID& frameworkId,
+                          const FrameworkInfo& frameworkInfo,
+                          const SlaveID& slaveId,
+                          const SlaveInfo& slaveInfo);
   virtual void launchTask(ExecutorDriver* driver, const TaskDescription& task);
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId);
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data);
@@ -53,7 +58,12 @@ public:
 };
 
 
-void JNIExecutor::init(ExecutorDriver* driver, const ExecutorArgs& args)
+void JNIExecutor::registered(ExecutorDriver* driver,
+                            const ExecutorInfo& executorInfo,
+                            const FrameworkID& frameworkId,
+                            const FrameworkInfo& frameworkInfo,
+                            const SlaveID& slaveId,
+                            const SlaveInfo& slaveInfo)
 {
   jvm->AttachCurrentThread((void**) &env, NULL);
 
@@ -64,17 +74,26 @@ void JNIExecutor::init(ExecutorDriver* driver, const ExecutorArgs& args)
 
   clazz = env->GetObjectClass(jexec);
 
-  // exec.init(driver);
-  jmethodID init =
-    env->GetMethodID(clazz, "init",
-		     "(Lorg/apache/mesos/ExecutorDriver;"
-		     "Lorg/apache/mesos/Protos$ExecutorArgs;)V");
+  // exec.registered(driver);
+  jmethodID registered =
+    env->GetMethodID(clazz, "registered",
+                     "(Lorg/apache/mesos/ExecutorDriver;"
+                     "Lorg/apache/mesos/Protos$ExecutorInfo;"
+                     "Lorg/apache/mesos/Protos$FrameworkID;"
+                     "Lorg/apache/mesos/Protos$FrameworkInfo;"
+                     "Lorg/apache/mesos/Protos$SlaveID;"
+                     "Lorg/apache/mesos/Protos$SlaveInfo;)V");
 
-  jobject jargs = convert<ExecutorArgs>(env, args);
+  jobject jexecutorInfo = convert<ExecutorInfo>(env, executorInfo);
+  jobject jframeworkId = convert<FrameworkID>(env, frameworkId);
+  jobject jframeworkInfo = convert<FrameworkInfo>(env, frameworkInfo);
+  jobject jslaveId = convert<SlaveID>(env, slaveId);
+  jobject jslaveInfo = convert<SlaveInfo>(env, slaveInfo);
 
   env->ExceptionClear();
 
-  env->CallVoidMethod(jexec, init, jdriver, jargs);
+  env->CallVoidMethod(jexec, registered, jdriver, jexecutorInfo,
+                      jframeworkId, jframeworkInfo, jslaveId, jslaveInfo);
 
   if (env->ExceptionCheck()) {
     env->ExceptionDescribe();

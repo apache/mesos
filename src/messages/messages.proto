@@ -239,7 +239,11 @@ message RegisterExecutorMessage {
 
 
 message ExecutorRegisteredMessage {
-  required ExecutorArgs args = 1;
+  required ExecutorInfo executor_info = 2;
+  required FrameworkID framework_id = 3;
+  required FrameworkInfo framework_info = 4;
+  required SlaveID slave_id = 5;
+  required SlaveInfo slave_info = 6;
 }
 
 
@@ -262,7 +266,7 @@ message ProjdReadyMessage {
 
 
 message ProjdUpdateResourcesMessage {
-  optional Params params = 1;
+  optional Parameters parameters = 1;
 }
 
 

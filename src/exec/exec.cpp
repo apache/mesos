@@ -73,7 +73,11 @@ public:
   {
     install<ExecutorRegisteredMessage>(
         &ExecutorProcess::registered,
-        &ExecutorRegisteredMessage::args);
+        &ExecutorRegisteredMessage::executor_info,
+        &ExecutorRegisteredMessage::framework_id,
+        &ExecutorRegisteredMessage::framework_info,
+        &ExecutorRegisteredMessage::slave_id,
+        &ExecutorRegisteredMessage::slave_info);
 
     install<RunTaskMessage>(
         &ExecutorProcess::runTask,
@@ -110,23 +114,30 @@ protected:
     send(slave, message);
   }
 
-  void registered(const ExecutorArgs& args)
+  void registered(const ExecutorInfo& executorInfo,
+                  const FrameworkID& frameworkId,
+                  const FrameworkInfo& frameworkInfo,
+                  const SlaveID& slaveId,
+                  const SlaveInfo& slaveInfo)
   {
     if (aborted) {
-      VLOG(1) << "Ignoring registered message because the driver is aborted!";
+      VLOG(1) << "Ignoring registered message from slave " << slaveId
+              << " because the driver is aborted!";
       return;
     }
 
-    VLOG(1) << "Executor registered on slave " << args.slave_id();
+    VLOG(1) << "Executor registered on slave " << slaveId;
 
-    slaveId = args.slave_id();
-    executor->init(driver, args);
+    this->slaveId = slaveId;
+    executor->registered(
+        driver, executorInfo, frameworkId, frameworkInfo, slaveId, slaveInfo);
   }
 
   void runTask(const TaskDescription& task)
   {
     if (aborted) {
-      VLOG(1) << "Ignore run task message because the driver is aborted!";
+      VLOG(1) << "Ignoring run task message for task " << task.task_id()
+              << " because the driver is aborted!";
       return;
     }
 
@@ -138,7 +149,8 @@ protected:
   void killTask(const TaskID& taskId)
   {
     if (aborted) {
-      VLOG(1) << "Ignoring kill task message because the driver is aborted!";
+      VLOG(1) << "Ignoring kill task message for task " << taskId
+              <<" because the driver is aborted!";
       return;
     }
 
@@ -212,6 +224,9 @@ protected:
 
   void sendStatusUpdate(const TaskStatus& status)
   {
+    VLOG(1) << "Executor sending status update for task "
+            << status.task_id() << " in state " << status.state();
+
     StatusUpdateMessage message;
     StatusUpdate* update = message.mutable_update();
     update->mutable_framework_id()->MergeFrom(frameworkId);
@@ -220,6 +235,7 @@ protected:
     update->mutable_status()->MergeFrom(status);
     update->set_timestamp(Clock::now());
     update->set_uuid(UUID::random().toBytes());
+
     send(slave, message);
   }
 
