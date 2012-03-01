@@ -279,7 +279,7 @@ void Slave::initialize()
 
   install<ShutdownMessage>(
       &Slave::shutdown);
-  
+
   // Install the ping message handler.
   install("PING", &Slave::ping);
 
@@ -1027,6 +1027,11 @@ void Slave::statusUpdateTimeout(
       message.mutable_update()->MergeFrom(update);
       message.set_pid(self());
       send(master, message);
+
+      // Send us a message to try and resend after some delay.
+      delay(STATUS_UPDATE_RETRY_INTERVAL_SECONDS,
+            self(), &Slave::statusUpdateTimeout,
+            framework->id, uuid);
     }
   }
 }
