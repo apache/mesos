@@ -16,14 +16,38 @@
  * limitations under the License.
  */
 
-#ifndef __VALUE_PARSER_HPP__
-#define __VALUE_PARSER_HPP__
+#ifndef __VALUES_HPP__
+#define __VALUES_HPP__
 
 #include <mesos/mesos.hpp>
 
 #include "common/try.hpp"
 
 namespace mesos {
+
+bool operator == (const Value::Scalar& left, const Value::Scalar& right);
+bool operator <= (const Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar operator + (const Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar operator - (const Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar& operator += (Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar& operator -= (Value::Scalar& left, const Value::Scalar& right);
+
+bool operator == (const Value::Ranges& left, const Value::Ranges& right);
+bool operator <= (const Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges operator + (const Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges operator - (const Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges& operator += (Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges& operator -= (Value::Ranges& left, const Value::Ranges& right);
+
+bool operator == (const Value::Set& left, const Value::Set& right);
+bool operator <= (const Value::Set& left, const Value::Set& right);
+Value::Set operator + (const Value::Set& left, const Value::Set& right);
+Value::Set operator - (const Value::Set& left, const Value::Set& right);
+Value::Set& operator += (Value::Set& left, const Value::Set& right);
+Value::Set& operator -= (Value::Set& left, const Value::Set& right);
+
+bool operator == (const Value::Text& left, const Value::Text& right);
+
 namespace internal {
 namespace values {
 
@@ -31,6 +55,7 @@ Try<Value> parse(const std::string& text);
 
 } // namespace values
 } // namespace internal
+
 } // namespace mesos
 
-#endif // __VALUE_PARSER_HPP__
+#endif // __VALUES_HPP__

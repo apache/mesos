@@ -32,8 +32,8 @@ using std::string;
 TEST(AttributesTest, Parsing)
 {
   Attributes a = Attributes::parse("cpus:45.55;"
-                                    "ports:[10000-20000, 30000-50000];"
-                                    "rack:rack1,rack2");
+                                   "ports:[10000-20000, 30000-50000];"
+                                   "rack:rack1,rack2");
   ASSERT_EQ(Value::SCALAR, a.get(0).type());
   ASSERT_EQ("cpus", a.get(0).name());
   ASSERT_EQ(45.55, a.get(0).scalar().value());
@@ -50,4 +50,18 @@ TEST(AttributesTest, Parsing)
   ASSERT_EQ(Value::TEXT, a.get(2).type());
   ASSERT_EQ("rack", a.get(2).name());
   ASSERT_EQ("rack1,rack2", a.get(2).text().value());
+}
+
+
+TEST(AttributesTest, Equality)
+{
+  Attributes a = Attributes::parse("cpus:45.55;"
+                                   "ports:[10000-20000, 30000-50000];"
+                                   "rack:rack1,rack2");
+  EXPECT_EQ(a, Attributes::parse("cpus:45.55;ports:[10000-20000,30000-50000];"
+                                 "rack:rack1,rack2"));
+  EXPECT_EQ(Attributes::parse(""), Attributes::parse(""));
+  EXPECT_NE(a, Attributes::parse(""));
+  EXPECT_NE(a, Attributes::parse("cpus:45.55;ports:45.55;rack:45.55"));
+  EXPECT_NE(Attributes::parse(""), a);
 }

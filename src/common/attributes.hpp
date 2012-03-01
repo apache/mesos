@@ -25,6 +25,7 @@
 #include <mesos/mesos.hpp>
 
 #include "common/foreach.hpp"
+#include "common/logging.hpp"
 #include "common/option.hpp"
 #include "common/values.hpp"
 
@@ -57,6 +58,47 @@ public:
     return *this;
   }
 
+  bool operator == (const Attributes& that) const
+  {
+    if (size() != that.size()) {
+      return false;
+    }
+
+    foreach (const Attribute& attribute, attributes) {
+      Option<Attribute> maybeAttribute = that.get(attribute);
+      if (maybeAttribute.isNone()) {
+        return false;
+      }
+      const Attribute& thatAttribute = maybeAttribute.get();
+      switch (attribute.type()) {
+        case Value::SCALAR:
+          if (!(attribute.scalar() == thatAttribute.scalar())) {
+            return false;
+          }
+          break;
+        case Value::RANGES:
+          if (!(attribute.ranges() == thatAttribute.ranges())) {
+            return false;
+          }
+          break;
+        case Value::TEXT:
+          if (!(attribute.text() == thatAttribute.text())) {
+            return false;
+          }
+          break;
+        case Value::SET:
+          LOG(FATAL) << "Sets not supported for attributes";
+      }
+    }
+
+    return true;
+  }
+
+  bool operator != (const Attributes& that) const
+  {
+    return !(*this == that);
+  }
+
   size_t size() const
   {
     return attributes.size();
@@ -77,6 +119,18 @@ public:
   const Attribute get(int index) const
   {
     return attributes.Get(index);
+  }
+
+  const Option<Attribute> get(const Attribute& thatAttribute) const
+  {
+    foreach (const Attribute& attribute, attributes) {
+      if (attribute.name() == thatAttribute.name() &&
+          attribute.type() == thatAttribute.type()) {
+        return attribute;
+      }
+    }
+
+    return Option<Attribute>::none();
   }
 
   template <typename T>
@@ -123,6 +177,55 @@ public:
 private:
   google::protobuf::RepeatedPtrField<Attribute> attributes;
 };
+
+
+template <>
+inline Value::Scalar Attributes::get(
+    const std::string& name,
+    const Value::Scalar& scalar) const
+{
+  foreach (const Attribute& attribute, attributes) {
+    if (attribute.name() == name &&
+        attribute.type() == Value::SCALAR) {
+      return attribute.scalar();
+    }
+  }
+
+  return scalar;
+}
+
+
+template <>
+inline Value::Ranges Attributes::get(
+    const std::string& name,
+    const Value::Ranges& ranges) const
+{
+  foreach (const Attribute& attribute, attributes) {
+    if (attribute.name() == name &&
+        attribute.type() == Value::RANGES) {
+      return attribute.ranges();
+    }
+  }
+
+  return ranges;
+}
+
+
+template <>
+inline Value::Text Attributes::get(
+    const std::string& name,
+    const Value::Text& text) const
+{
+  foreach (const Attribute& attribute, attributes) {
+    if (attribute.name() == name &&
+        attribute.type() == Value::TEXT) {
+      return attribute.text();
+    }
+  }
+
+  return text;
+}
+
 
 } // namespace internal {
 } // namespace mesos {

@@ -26,6 +26,7 @@
 
 #include "common/foreach.hpp"
 #include "common/option.hpp"
+#include "common/values.hpp"
 
 
 // Resources come in three types: scalar, ranges, and sets. These are
@@ -62,29 +63,6 @@
 
 
 namespace mesos {
-
-bool operator == (const Value::Scalar& left, const Value::Scalar& right);
-bool operator <= (const Value::Scalar& left, const Value::Scalar& right);
-Value::Scalar operator + (const Value::Scalar& left, const Value::Scalar& right);
-Value::Scalar operator - (const Value::Scalar& left, const Value::Scalar& right);
-Value::Scalar& operator += (Value::Scalar& left, const Value::Scalar& right);
-Value::Scalar& operator -= (Value::Scalar& left, const Value::Scalar& right);
-
-
-bool operator == (const Value::Ranges& left, const Value::Ranges& right);
-bool operator <= (const Value::Ranges& left, const Value::Ranges& right);
-Value::Ranges operator + (const Value::Ranges& left, const Value::Ranges& right);
-Value::Ranges operator - (const Value::Ranges& left, const Value::Ranges& right);
-Value::Ranges& operator += (Value::Ranges& left, const Value::Ranges& right);
-Value::Ranges& operator -= (Value::Ranges& left, const Value::Ranges& right);
-
-
-bool operator == (const Value::Set& left, const Value::Set& right);
-bool operator <= (const Value::Set& left, const Value::Set& right);
-Value::Set operator + (const Value::Set& left, const Value::Set& right);
-Value::Set operator - (const Value::Set& left, const Value::Set& right);
-Value::Set& operator += (Value::Set& left, const Value::Set& right);
-Value::Set& operator -= (Value::Set& left, const Value::Set& right);
 
 
 bool operator == (const Resource& left, const Resource& right);
