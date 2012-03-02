@@ -178,10 +178,9 @@ __EOF__
 read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
 echo
 
-DEFAULT=../..
-MESOS_BUILD_DIR=`cd ${DEFAULT} && pwd`
+MESOS_BUILD_DIR=`cd ../../ && pwd`
 
-while test ! -f ${MESOS_BUILD_DIR}/src/mesos.jar; do
+while test ! -f `echo ${MESOS_BUILD_DIR}/src/mesos-*.jar`; do
     cat <<__EOF__
 
 ${RED}We couldn't automagically determine MESOS_BUILD_DIR. It doesn't
@@ -191,6 +190,7 @@ continuing?${NORMAL}
 
 __EOF__
 
+    DEFAULT=${MESOS_BUILD_DIR}
     read -e -p "${BRIGHT}Where is the build directory?${NORMAL} [${DEFAULT}] "
     echo
     test -z ${REPLY} && REPLY=${DEFAULT}
@@ -205,23 +205,26 @@ Using ${BRIGHT}${MESOS_BUILD_DIR}${NORMAL} as the build directory.
 __EOF__
 
 
+VERSION=`echo @PACKAGE_VERSION@ | ${MESOS_BUILD_DIR}/config.status --file=-:-`
+
+
 # Build with ant.
 cat <<__EOF__
 
 Okay, let's try building Hadoop now! We need to let the build system
 know where the Mesos JAR is located by using the MESOS_JAR environment
-variable (i.e., MESOS_JAR=\${MESOS_BUILD_DIR}/src/mesos.jar). We can
-put it on the command line with 'ant like this:
+variable (i.e., MESOS_JAR=\${MESOS_BUILD_DIR}/src/mesos-${VERSION}.jar). We
+can put it on the command line with 'ant like this:
 
-  $ MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar ant
+  $ MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos-${VERSION}.jar ant
 
 __EOF__
 
 read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
 echo
 
-MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar ant || \
-    fail "MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar ant"
+MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos-${VERSION}.jar ant || \
+    fail "MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos-${VERSION}.jar ant"
 
 
 # Apply conf/mapred-site.xml patch.
@@ -296,8 +299,8 @@ includes:
 
   (1) Setting JAVA_HOME (a prerequisite to running this tutorial).
   (2) Adding the Mesos contrib class files to HADOOP_CLASSPATH.
-  (3) Adding mesos.jar to the HADOOP_CLASSPATH.
-  (4) Adding protobuf.jar to the HADOOP_CLASSPATH.
+  (3) Adding mesos-${VERSION}.jar to the HADOOP_CLASSPATH.
+  (4) Adding protobuf-2.3.0.jar to the HADOOP_CLASSPATH.
   (5) Setting MESOS_NATIVE_LIBRARY to point to the native library.
 
 We've got a prepared patch for conf/hadoop-env.sh that makes the

@@ -347,7 +347,7 @@ dist_pkglibexec_SCRIPTS += scripts/killtree.sh
 # to EXTRA_DIST unconditionally.
 
 # Mesos JAR.
-MESOS_JAR = mesos.jar
+MESOS_JAR = mesos-$(PACKAGE_VERSION).jar
 MESOS_JAR_SRCROOT = $(srcdir)/java/src
 MESOS_JAR_SRCDIR = $(srcdir)/java/src/org/apache/mesos
 MESOS_JAR_SRC = $(MESOS_JAR_SRCDIR)/ExecutorDriver.java		\
@@ -372,11 +372,11 @@ CLEANFILES += $(EXAMPLES_JAR)
 
 if HAS_JAVA
 # Protocol buffers JAR.
-PROTOBUF_JAR = ../protobuf.jar
+PROTOBUF_JAR = ../protobuf-$(PROTOBUF_VERSION).jar
 
 # TODO(charles): Move into third_party/Makefile.am.
 $(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
-	@echo "Building protobuf.jar ..."
+	@echo "Building protobuf-$(PROTOBUF_VERSION).jar ..."
 	@$(MKDIR_P) ../$(PROTOBUF)/java/src/main/java
 	@$(PROTOC) --java_out=../$(PROTOBUF)/java/src/main/java \
           -I../$(PROTOBUF)/src \
@@ -391,7 +391,7 @@ CLEANFILES += $(PROTOBUF_JAR)
 
 
 $(MESOS_JAR): $(MESOS_JAR_SRC) $(JAVA_PROTOS) $(PROTOBUF_JAR)
-	@echo "Building mesos.jar ..."
+	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
 	@rm -f java/classes/org/apache/mesos/*
 	@$(MKDIR_P) java/classes/org/apache/mesos
 	@$(JAVA_HOME)/bin/javac \

@@ -2,7 +2,7 @@ diff --git a/hadoop/hadoop-0.20.205.0/conf/hadoop-env.sh b/hadoop/hadoop-0.20.20
 index ada5bef..76aaf48 100644
 --- a/hadoop/hadoop-0.20.205.0/conf/hadoop-env.sh
 +++ b/hadoop/hadoop-0.20.205.0/conf/hadoop-env.sh
-@@ -5,11 +5,24 @@
+@@ -5,11 +5,25 @@
  # set JAVA_HOME in this file, so that it is correctly defined on
  # remote nodes.
  
@@ -11,10 +11,11 @@ index ada5bef..76aaf48 100644
 +    export MESOS_BUILD_DIR=`cd ../.. && pwd`
 +
 +# Google protobuf (necessary for running the MesosScheduler).
-+export PROTOBUF_JAR=${MESOS_BUILD_DIR}/protobuf.jar
++export PROTOBUF_JAR=${MESOS_BUILD_DIR}/protobuf-2.3.0.jar
 +
 +# Mesos.
-+export MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar
++MESOS_VERSION=`echo @PACKAGE_VERSION@ | ${MESOS_BUILD_DIR}/config.status --file=-:-`
++export MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos-${MESOS_VERSION}.jar
 +
 +# Native Mesos library.
 +export MESOS_NATIVE_LIBRARY=${MESOS_BUILD_DIR}/src/.libs/libmesos.dylib

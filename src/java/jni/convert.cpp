@@ -33,7 +33,7 @@ using std::string;
 // ClassLoader. Unfortunately, JNI's FindClass uses the system
 // ClassLoader when it is called from a C++ thread, but in Scala (and
 // probably other Java environments too), this ClassLoader is not
-// enough to locate mesos.jar. Instead, we try to capture
+// enough to locate the Mesos JAR. Instead, we try to capture
 // Thread.currentThread()'s context ClassLoader when the Mesos library
 // is initialized, in case it has more paths that we can search. We
 // store this in mesosClassLoader and access it through

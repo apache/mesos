@@ -49,10 +49,10 @@ environment variable MESOS_BUILD_DIR to denote this directory.
 
 Okay, let's try building Hadoop now! We need to let the build system
 know where the Mesos JAR is located by using the MESOS_JAR environment
-variable (i.e., MESOS_JAR=\${MESOS_BUILD_DIR}/src/mesos.jar). We can
-put it on the command line with 'ant like this:
+variable (i.e., MESOS_JAR=\${MESOS_BUILD_DIR}/src/mesos-x.y.z.jar). We
+can put it on the command line with 'ant like this:
 
-  $ MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos.jar ant
+  $ MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos-x.y.z.jar ant
 
 
 Configure Hadoop
@@ -99,8 +99,8 @@ includes:
 
   (1) Setting JAVA_HOME (a prerequisite to running this tutorial).
   (2) Adding the Mesos contrib class files to HADOOP_CLASSPATH.
-  (3) Adding mesos.jar to the HADOOP_CLASSPATH.
-  (4) Adding protobuf.jar to the HADOOP_CLASSPATH.
+  (3) Adding mesos-x.y.z.jar to the HADOOP_CLASSPATH.
+  (4) Adding protobuf-2.3.0.jar to the HADOOP_CLASSPATH.
   (5) Setting MESOS_NATIVE_LIBRARY to point to the native library.
 
 We've got a prepared patch for conf/hadoop-env.sh that makes the
