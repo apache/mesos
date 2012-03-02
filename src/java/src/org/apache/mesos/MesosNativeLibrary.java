@@ -34,13 +34,21 @@ public class MesosNativeLibrary {
     if (!loaded) {
       final String MESOS_NATIVE_LIBRARY = System.getenv("MESOS_NATIVE_LIBRARY");
       if (MESOS_NATIVE_LIBRARY != null) {
-        System.out.println("Attempting to load native Mesos library at '" +
-                           MESOS_NATIVE_LIBRARY + "'");
-        System.load(MESOS_NATIVE_LIBRARY);
+        try {
+          System.load(MESOS_NATIVE_LIBRARY);
+        } catch (UnsatisfiedLinkError error) {
+          System.err.println("Failed to load native Mesos library at " +
+                             MESOS_NATIVE_LIBRARY);
+          throw error;
+        }
       } else {
-        System.out.println("Attempting to load native Mesos library from '" +
-                           System.getenv("java.library.path") + "'");
-        System.loadLibrary("mesos");
+        try {
+          System.loadLibrary("mesos");
+        } catch (UnsatisfiedLinkError error) {
+          System.err.println("Failed to load native Mesos library from " +
+                             System.getenv("java.library.path"));
+          throw error;
+        }
       }
     }
   }
