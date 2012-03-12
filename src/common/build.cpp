@@ -18,13 +18,16 @@
 
 #include <string>
 
-using std::string;
+#include "common/build.hpp"
 
+namespace mesos {
+namespace internal {
+namespace build {
 
-namespace mesos { namespace internal { namespace build {
+const std::string DATE = BUILD_DATE;
+const std::string USER = BUILD_USER;
+const std::string FLAGS = BUILD_FLAGS;
 
-extern const string DATE = BUILD_DATE;
-extern const string USER = BUILD_USER;
-extern const string FLAGS = BUILD_FLAGS;
-
-}}} // namespace mesos { namespace internal { namespace build {
+} // namespace build {
+} // namespace internal {
+} // namespace mesos {

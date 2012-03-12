@@ -164,6 +164,15 @@ case "${target_os}" in
 AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 
 
+# Checks for gcc toolchain (we rely on some atomic builtins for now).
+AC_PROG_CXX([g++])
+AC_PROG_CC([gcc])
+
+
+# Check for pthreads (uses m4/acx_pthread.m4).
+ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
+
+
 # TODO(benh): Consider using AS_IF instead of just shell 'if'
 # statements for better autoconf style (the AS_IF macros also make
 # sure variable dependencies are handled appropriately).
@@ -368,13 +377,5 @@ fi
 
 AM_CONDITIONAL([WITH_INCLUDED_ZOOKEEPER],
                [test "x$with_included_zookeeper" = "xyes"])
-
-
-# Checks for gcc toolchain (we rely on some atomic builtins for now).
-AC_PROG_CXX([g++])
-AC_PROG_CC([gcc])
-
-# Check for pthreads (uses m4/acx_pthread.m4).
-ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
 AC_OUTPUT

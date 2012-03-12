@@ -21,8 +21,15 @@ src_python_native = os.path.join('src', 'python', 'native')
 
 protobuf = os.path.join('third_party', 'protobuf-2.3.0')
 glog = os.path.join('third_party', 'glog-0.3.1')
+leveldb = os.path.join('third_party', 'leveldb')
 zookeeper = os.path.join('third_party', 'zookeeper-3.3.4', 'src', 'c')
 libprocess = os.path.join('third_party', 'libprocess')
+
+# Even though a statically compiled libprocess should include libev,
+# before installation this isn't the case, so while a libtool managed
+# build will correctly pull in libev when building the final result,
+# we need to explicitely include libev here (or more precisely, down
+# where we actually include libev.a).
 libev = os.path.join(libprocess, 'third_party', 'libev-3.8')
 
 # We need to execute from the same directory as this script.
@@ -64,6 +71,7 @@ EXTRA_OBJECTS = [
   os.path.join(abs_top_builddir, 'src', '.libs', 'libmesos_no_third_party.a'),
   os.path.join(abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a'),
   os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a'),
+  os.path.join(abs_top_builddir, leveldb, 'libleveldb.a'),
   os.path.join(abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a'),
   os.path.join(abs_top_builddir, libprocess, '.libs', 'libprocess.a'),
   os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),

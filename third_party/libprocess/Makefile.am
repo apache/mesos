@@ -17,31 +17,48 @@ RY_HTTP_PARSER = third_party/ry-http-parser-$(RY_HTTP_PARSER_VERSION)
 LIBEV = third_party/libev-$(LIBEV_VERSION)
 
 
-# Library.
-lib_LTLIBRARIES = libprocess.la
+# Library. It is not installable presently because most people link
+# the libprocess statically into their resulting library or binary and
+# don't want any parts of libprocess to get installed (which happens
+# even if you attempt to do conditional installation via configure
+# arguments, see configure.ac).
+noinst_LTLIBRARIES = libprocess.la
+
 libprocess_la_SOURCES = src/process.cpp src/pid.cpp src/latch.cpp	\
 	src/tokenize.cpp src/config.hpp src/decoder.hpp			\
 	src/encoder.hpp src/foreach.hpp src/gate.hpp			\
 	src/synchronized.hpp src/thread.hpp src/tokenize.hpp
+
 libprocess_la_CPPFLAGS = -I$(srcdir)/include -I$(BOOST) -I$(GLOG)/src	\
 	-I$(RY_HTTP_PARSER) -I$(LIBEV) $(AM_CPPFLAGS)
-libprocess_la_LIBADD = $(GLOG)/.libs/libglog.la				\
-	third_party/libry_http_parser.la $(LIBEV)/.libs/libev.la
+
+libprocess_la_LIBADD = $(GLOG)/libglog.la				\
+	third_party/libry_http_parser.la $(LIBEV)/libev.la
 
 
 # Headers.
-pkginclude_HEADERS = include/process/clock.hpp				\
-	include/process/collect.hpp include/process/defer.hpp		\
-	include/process/deferred.hpp include/process/dispatch.hpp	\
-	include/process/event.hpp include/process/executor.hpp		\
-	include/process/filter.hpp include/process/future.hpp		\
-	include/process/gc.hpp include/process/http.hpp			\
-	include/process/latch.hpp include/process/message.hpp		\
-	include/process/option.hpp include/process/pid.hpp		\
-	include/process/preprocessor.hpp include/process/process.hpp	\
-	include/process/protobuf.hpp include/process/run.hpp		\
-	include/process/socket.hpp include/process/timeout.hpp		\
-	include/process/timer.hpp
+libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
+	$(top_srcdir)/include/process/collect.hpp			\
+	$(top_srcdir)/include/process/defer.hpp				\
+	$(top_srcdir)/include/process/deferred.hpp			\
+	$(top_srcdir)/include/process/dispatch.hpp			\
+	$(top_srcdir)/include/process/event.hpp				\
+	$(top_srcdir)/include/process/executor.hpp			\
+	$(top_srcdir)/include/process/filter.hpp			\
+	$(top_srcdir)/include/process/future.hpp			\
+	$(top_srcdir)/include/process/gc.hpp				\
+	$(top_srcdir)/include/process/http.hpp				\
+	$(top_srcdir)/include/process/latch.hpp				\
+	$(top_srcdir)/include/process/message.hpp			\
+	$(top_srcdir)/include/process/option.hpp			\
+	$(top_srcdir)/include/process/pid.hpp				\
+	$(top_srcdir)/include/process/preprocessor.hpp			\
+	$(top_srcdir)/include/process/process.hpp			\
+	$(top_srcdir)/include/process/protobuf.hpp			\
+	$(top_srcdir)/include/process/run.hpp				\
+	$(top_srcdir)/include/process/socket.hpp			\
+	$(top_srcdir)/include/process/timeout.hpp			\
+	$(top_srcdir)/include/process/timer.hpp
 
 
 # Tests.

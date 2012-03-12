@@ -32,7 +32,6 @@ GTEST = $(GMOCK)/gtest
 LEVELDB = third_party/leveldb
 ZOOKEEPER = third_party/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 LIBPROCESS = third_party/libprocess
-LIBEV = $(LIBPROCESS)/third_party/libev-3.8
 
 # Unfortunatley, 'pkglibexecdir' is not set before automake 1.11, so
 # we need to do it manually (unless we in the future assume an
@@ -227,19 +226,15 @@ BUILD_FLAGS = $(echo $(MESOS_CPPFLAGS) $(CPPFLAGS) | sed 's/\"/\\\"/g') \
 
 libbuild_la_CPPFLAGS += -DBUILD_FLAGS="\"$$BUILD_FLAGS\""
 
-# Using the FORCE target is how we make sure it always get's built!
-libbuild_la_DEPENDENCIES = FORCE
-
 libmesos_no_third_party_la_LIBADD += libbuild.la
 
 
-# Convenience library for the log to include leveldb headers.
+# Convenience library for building the replicated log in order to
+# include the leveldb headers.
 noinst_LTLIBRARIES += liblog.la
 liblog_la_SOURCES = log/coordinator.cpp log/replica.cpp
 nodist_liblog_la_SOURCES = $(LOG_PROTOS)
 liblog_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
-liblog_la_LDFLAGS = -L../$(LEVELDB)
-liblog_la_LIBADD = -lleveldb
 
 libmesos_no_third_party_la_LIBADD += liblog.la
 
@@ -251,6 +246,16 @@ libwebui_la_SOURCES = master/webui.cpp slave/webui.cpp common/webui_utils.cpp
 libwebui_la_SOURCES += master/webui.hpp slave/webui.hpp common/webui_utils.hpp
 libwebui_la_CPPFLAGS = $(MESOS_CPPFLAGS) $(WEBUI_CPPFLAGS)
 libwebui_la_LIBADD = $(WEBUI_LDFLAGS)
+
+# Also define WEBUI_LIB to include the webui so when we build the
+# binaries (e.g., mesos-master, mesos-slave) the webui will get
+# included (we don't include it by default in either
+# libmesos_no_third_party.la or libmesos.la because that would force a
+# dependency on Python, but in the future we might want to support
+# this when we want a "local" run to include support for the webui).
+WEBUI_LIB = libwebui.la
+else
+WEBUI_LIB =
 endif
 
 
@@ -271,31 +276,31 @@ libmesos_la_LIBADD = libmesos_no_third_party.la
 # For non-convenience libraries we need to link them in to make the shared
 # library each time. (Currently, we don't support platforms where this is not
 # possible.)
-libmesos_la_LIBADD += ../$(PROTOBUF)/src/.libs/libprotobuf.la
-libmesos_la_LIBADD += ../$(GLOG)/.libs/libglog.la
-libmesos_la_LIBADD += ../$(LIBPROCESS)/.libs/libprocess.la
-libmesos_la_LIBADD += ../$(LIBEV)/.libs/libev.la
+libmesos_la_LIBADD += ../$(PROTOBUF)/src/libprotobuf.la
+libmesos_la_LIBADD += ../$(GLOG)/libglog.la
+
+# We need to directly include the leveldb library in order to avoid
+# the installed libmesos.la file to include leveldb in
+# 'dependency_libs' (via '-L../third_party/leveldb -lleveldb').
+libmesos_la_LIBADD += ../$(LEVELDB)/libleveldb.a
 
 if WITH_INCLUDED_ZOOKEEPER
-  libmesos_la_LIBADD += ../$(ZOOKEEPER)/.libs/libzookeeper_mt.la
+  libmesos_la_LIBADD += ../$(ZOOKEEPER)/libzookeeper_mt.la
 endif
 
-if WEBUI
-  WEBUI_LIBS = libwebui.la
-else
-  WEBUI_LIBS =
-endif
+libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
+
 
 # Binaries.
 sbin_PROGRAMS += mesos-master
 mesos_master_SOURCES = master/main.cpp
 mesos_master_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_master_LDADD = $(WEBUI_LIBS) libmesos.la
+mesos_master_LDADD = $(WEBUI_LIB) libmesos.la
 
 sbin_PROGRAMS += mesos-slave
 mesos_slave_SOURCES = slave/main.cpp
 mesos_slave_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_slave_LDADD = $(WEBUI_LIBS) libmesos.la
+mesos_slave_LDADD = $(WEBUI_LIB) libmesos.la
 
 bin_PROGRAMS += mesos-local
 mesos_local_SOURCES = local/main.cpp
@@ -691,8 +696,6 @@ clean-check:
 	-rm -rf ../test_output
 
 PHONY_TARGETS += clean-check
-
-FORCE:
 
 clean-local: clean-java clean-python clean-check
 

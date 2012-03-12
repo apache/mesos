@@ -78,7 +78,7 @@ void ProxyScheduler::resourceOffers(SchedulerDriver* driver,
   if (list == NULL) {
     goto cleanup;
   }
-  for (int i = 0; i < offers.size(); i++) {
+  for (size_t i = 0; i < offers.size(); i++) {
     PyObject* offer = createPythonProtobuf(offers[i], "Offer");
     if (offer == NULL) {
       goto cleanup;

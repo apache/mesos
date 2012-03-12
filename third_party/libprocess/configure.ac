@@ -39,14 +39,19 @@ AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS=""])
 CONFIGURE_ARGS="$ac_configure_args"
 AC_SUBST(CONFIGURE_ARGS)
 
+AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([third_party/Makefile])
+
+AC_ARG_ENABLE([install],
+              AS_HELP_STRING([--enable-install],
+                             [install libprocess]),
+              [AC_MSG_ERROR([libprocess can not currently be installed])])
+
 # Checks for gcc toolchain (we rely on some atomic builtins for now).
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 
 # Check for pthreads (uses m4/acx_pthread.m4).
 ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
-
-AC_CONFIG_FILES([Makefile])
-AC_CONFIG_FILES([third_party/Makefile])
 
 AC_OUTPUT
