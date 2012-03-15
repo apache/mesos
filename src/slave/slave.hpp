@@ -305,14 +305,13 @@ struct Framework
       executor.mutable_executor_id()->set_value(id);
 
       // Now determine the path to the executor.
-      const std::string& directory = conf.get("launcher_dir", MESOS_LIBEXECDIR);
+      Try<std::string> path = utils::os::realpath(
+          conf.get("launcher_dir", MESOS_LIBEXECDIR) + "/mesos-executor");
 
-      // TODO(benh): Check the directory is absolute (or make it so).
-
-      if (utils::os::exists(directory, true)) {
-        executor.mutable_command()->set_value(directory + "/mesos-executor");
+      if (path.isSome()) {
+        executor.mutable_command()->set_value(path.get());
       } else {
-        executor.mutable_command()->set_value("exit 1");
+        executor.mutable_command()->set_value("echo '" + path.error() + "'");
       }
 
       // TODO(benh): Set some resources for the executor so that a task
