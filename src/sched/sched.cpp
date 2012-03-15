@@ -171,6 +171,12 @@ protected:
       return;
     }
 
+    if (connected) {
+      VLOG(1) << "Ignoring framework registered message because "
+              << "the driver is already connected!";
+      return;
+    }
+
     VLOG(1) << "Framework registered with " << frameworkId;
 
     this->frameworkId = frameworkId;
@@ -182,7 +188,20 @@ protected:
 
   void reregistered(const FrameworkID& frameworkId)
   {
+    if (aborted) {
+      VLOG(1) << "Ignoring framework re-registered message because "
+              << "the driver is aborted!";
+      return;
+    }
+
+    if (connected) {
+      VLOG(1) << "Ignoring framework re-registered message because "
+              << "the driver is already connected!";
+      return;
+    }
+
     VLOG(1) << "Framework re-registered with " << frameworkId;
+
     CHECK(this->frameworkId == frameworkId);
 
     connected = true;

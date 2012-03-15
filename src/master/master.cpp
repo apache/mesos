@@ -507,6 +507,18 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
     return;
   }
 
+  // Check if this framework is already registered (because it retries).
+  foreachvalue (Framework* framework, frameworks) {
+    if (framework->pid == from) {
+      LOG(INFO) << "Framework " << framework->id << " (" << framework->pid
+                << ") already registered, resending acknowledgement";
+      FrameworkRegisteredMessage message;
+      message.mutable_framework_id()->MergeFrom(framework->id);
+      reply(message);
+      return;
+    }
+  }
+
   Framework* framework =
     new Framework(frameworkInfo, newFrameworkId(), from, Clock::now());
 
@@ -814,14 +826,14 @@ void Master::registerSlave(const SlaveInfo& slaveInfo)
     return;
   }
 
-  // Check if this slave has already registered (because it's retrying).
+  // Check if this slave is already registered (because it retries).
   foreachvalue (Slave* slave, slaves) {
     if (slave->pid == from) {
       LOG(INFO) << "Slave " << slave->id << " (" << slave->info.hostname()
-                << ") already registered, re-sending acknowledgement";
+                << ") already registered, resending acknowledgement";
       SlaveRegisteredMessage message;
       message.mutable_slave_id()->MergeFrom(slave->id);
-      send(slave->pid, message);
+      reply(message);
       return;
     }
   }
@@ -879,8 +891,7 @@ void Master::reregisterSlave(const SlaveID& slaveId,
 
       SlaveReregisteredMessage message;
       message.mutable_slave_id()->MergeFrom(slave->id);
-      send(slave->pid, message);
-
+      reply(message);
     } else {
       Slave* slave = new Slave(slaveInfo, slaveId, from, Clock::now());
 

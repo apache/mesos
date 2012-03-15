@@ -135,17 +135,29 @@ TEST(FaultToleranceTest, SlavePartitioned)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
+  trigger pingMsg;
+
+  // Set these expectations up before we spawn the slave (in
+  // local::launch) so that we don't miss the first PING.
+  EXPECT_MESSAGE(filter, Eq("PING"), _, _)
+    .WillRepeatedly(DoAll(Trigger(&pingMsg),
+                          Return(false)));
+
+  EXPECT_MESSAGE(filter, Eq("PONG"), _, _)
+    .WillRepeatedly(Return(true));
+
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
 
-  trigger slaveLostCall, pingMsg;
+  trigger resourceOffersCall, slaveLostCall;
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(Trigger(&resourceOffersCall))
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
@@ -154,20 +166,16 @@ TEST(FaultToleranceTest, SlavePartitioned)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(Trigger(&slaveLostCall));
 
-  EXPECT_MESSAGE(filter, Eq("PING"), _, _)
-    .WillRepeatedly(DoAll(Trigger(&pingMsg),
-                          Return(false)));
-
-  EXPECT_MESSAGE(filter, Eq("PONG"), _, _)
-    .WillRepeatedly(Return(true));
-
   driver.start();
 
+  // Need to make sure the framework AND slave have registered with
+  // master, waiting for resource offers should accomplish both.
+  WAIT_UNTIL(resourceOffersCall);
+
+  // We expect at least one PING by now.
   WAIT_UNTIL(pingMsg);
 
-  double secs = master::SLAVE_PONG_TIMEOUT * master::MAX_SLAVE_TIMEOUTS;
-
-  Clock::advance(secs);
+  Clock::advance(master::SLAVE_PONG_TIMEOUT * master::MAX_SLAVE_TIMEOUTS);
 
   WAIT_UNTIL(slaveLostCall);
 
@@ -252,6 +260,8 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
+  Clock::pause();
+
   MockFilter filter;
   process::filter(&filter);
 
@@ -274,13 +284,19 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
 
-  // Drop the registered message, in the first attempt, but allow subsequent
-  // tries.
+  trigger frameworkRegisteredMsg;
+
+  // Drop the first framework registered message, allow subsequent messages.
   EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(Return(true))
+    .WillOnce(DoAll(Trigger(&frameworkRegisteredMsg),
+                    Return(true)))
     .WillRepeatedly(Return(false));
 
   driver.start();
+
+  WAIT_UNTIL(frameworkRegisteredMsg);
+
+  Clock::advance(1.0); // TODO(benh): Pull out constant from SchedulerProcess.
 
   WAIT_UNTIL(schedRegisteredCall); // Ensures registered message is received.
 
@@ -290,6 +306,8 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
   local::shutdown();
 
   process::filter(NULL);
+
+  Clock::resume();
 }
 
 
@@ -708,11 +726,20 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
+  Clock::pause();
+
   MockFilter filter;
   process::filter(&filter);
 
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
+
+  trigger slaveRegisteredMsg1, slaveRegisteredMsg2;
+
+  // Drop the first slave registered message, allow subsequent messages.
+  EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg1), Return(true)))
+    .WillRepeatedly(DoAll(Trigger(&slaveRegisteredMsg2), Return(false)));
 
   SimpleAllocator a;
   Master m(&a);
@@ -739,16 +766,13 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
     .WillOnce(Trigger(&resourceOffersCall))
     .WillRepeatedly(Return());
 
-  trigger slaveRegisterMsg;
-
-  // Drop the first registered message, but allow subsequent messages.
-  EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(Return(true))
-    .WillRepeatedly(DoAll(Trigger(&slaveRegisterMsg), Return(false)));
-
   driver.start();
 
-  WAIT_UNTIL(slaveRegisterMsg);
+  WAIT_UNTIL(slaveRegisteredMsg1);
+
+  Clock::advance(1.0); // TODO(benh): Pull out constant from Slave.
+
+  WAIT_UNTIL(slaveRegisteredMsg2);
 
   driver.stop();
   driver.join();
@@ -760,6 +784,8 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
   process::wait(master);
 
   process::filter(NULL);
+
+  Clock::resume();
 }
 
 
