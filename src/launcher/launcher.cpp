@@ -187,6 +187,26 @@ void ExecutorLauncher::fetchExecutor()
       if (chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
                 S_IROTH | S_IXOTH) != 0)
         fatalerror("chmod failed");
+    } else if (executor.find("http://") == 0
+               || executor.find("https://") == 0
+               || executor.find("ftp://") == 0
+               || executor.find("ftps://") == 0) {
+      string path = executor.substr(executor.find("://") + 3);
+      CHECK(path.find("/") != string::npos) << "Malformed URL (missing path)";
+      CHECK(path.size() > path.find("/") + 1) << "Malformed URL (missing path)";
+      path =  "./" + path.substr(path.find_last_of("/") + 1);
+      cout << "Downloading " << executor << " to " << path << endl;
+      Try<int> code = utils::http::download(executor, path);
+      if (code.isError()) {
+        fatal("Error downloading executor: %s", code.error().c_str());
+      } else if (code.get() != 200) {
+        fatal("Error downloading executor, received http status: %d",
+              code.get());
+      }
+      executor = path;
+      if (chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+                S_IROTH | S_IXOTH) != 0)
+        fatalerror("chmod failed");
     } else if (executor.find_first_of("/") != 0) {
       // We got a non-Hadoop and non-absolute path.
       // Try prepending MESOS_HOME to it.

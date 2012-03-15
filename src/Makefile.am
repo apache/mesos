@@ -236,6 +236,10 @@ liblog_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
 libmesos_no_third_party_la_LIBADD += liblog.la
 
 
+# Libraries for performing HTTP requests.
+libmesos_no_third_party_la_LIBADD += -lcurl -lssl -lcrypto -lz
+
+
 # Convenience library for the webui to include Python specific flags.
 if WEBUI
 noinst_LTLIBRARIES += libwebui.la

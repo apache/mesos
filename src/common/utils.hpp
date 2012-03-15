@@ -29,8 +29,11 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include <curl/curl.h>
 
 #include <google/protobuf/message.h>
 
@@ -47,6 +50,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include "common/foreach.hpp"
+#include "common/logging.hpp"
 #include "common/option.hpp"
 #include "common/result.hpp"
 #include "common/strings.hpp"
@@ -628,7 +632,59 @@ inline Result<bool> read(const std::string& path,
   return result;
 }
 
+
 } // namespace protobuf {
+
+// Handles http requests.
+namespace http {
+
+// Returns the HTTP code resulting from attempting to download the
+// specified url into a file at the specified path.
+inline Try<int> download(const std::string& url, const std::string& path)
+{
+  Result<int> fd = utils::os::open(path, O_CREAT | O_WRONLY,
+                                   S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+  CHECK(!fd.isNone());
+
+  if (fd.isError()) {
+    return Try<int>::error(fd.error());
+  }
+
+  curl_global_init(CURL_GLOBAL_ALL);
+  CURL* curl = curl_easy_init();
+
+  if (curl == NULL) {
+    curl_easy_cleanup(curl);
+    utils::os::close(fd.get());
+    return Try<int>::error("Failed to initialize cURL");
+  }
+
+  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
+
+  FILE* file = fdopen(fd.get(), "w");
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
+
+  CURLcode curlErrorCode = curl_easy_perform(curl);
+  if (curlErrorCode != 0) {
+    curl_easy_cleanup(curl);
+    fclose(file);
+    return Try<int>::error(curl_easy_strerror(curlErrorCode));
+  }
+
+  long httpCode;
+  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+  curl_easy_cleanup(curl);
+
+  if (!fclose(file)) {
+    return Try<int>::error("Unable to close file handle!");
+  }
+
+  return Try<int>::some(httpCode);
+}
+
+} // namespace http {
 
 } // namespace utils {
 } // namespace internal {

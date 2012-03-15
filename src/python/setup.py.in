@@ -77,7 +77,8 @@ EXTRA_OBJECTS = [
   os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),
 ]
 
-EXTRA_LINK_ARGS = []
+# Libraries for performing HTTP requests.
+EXTRA_LINK_ARGS = [ "-lcurl", "-lssl", "-lcrypto", "-lz" ]
 
 if 'LDFLAGS' in os.environ:
   for flag in os.environ['LDFLAGS'].split():
