@@ -16,19 +16,23 @@
  * limitations under the License.
  */
 
-#include <cstdlib>
+#include <unistd.h>
+
 #include <iostream>
 
 #include <mesos/executor.hpp>
 
 using namespace mesos;
-using namespace std;
+
+using std::cout;
+using std::endl;
+using std::string;
 
 
-class MyExecutor : public Executor
+class TestExecutor : public Executor
 {
 public:
-  virtual ~MyExecutor() {}
+  virtual ~TestExecutor() {}
 
   virtual void registered(ExecutorDriver* driver,
                           const ExecutorInfo& executorInfo,
@@ -61,21 +65,15 @@ public:
   }
 
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId) {}
-
-  virtual void frameworkMessage(ExecutorDriver* driver,
-                                const string& data) {}
-
+  virtual void frameworkMessage(ExecutorDriver* driver, const string& data) {}
   virtual void shutdown(ExecutorDriver* driver) {}
-
-  virtual void error(ExecutorDriver* driver, int code,
-                     const std::string& message) {}
+  virtual void error(ExecutorDriver* driver, int code, const string& message) {}
 };
 
 
 int main(int argc, char** argv)
 {
-  MyExecutor exec;
-  MesosExecutorDriver driver(&exec);
-  driver.run();
-  return 0;
+  TestExecutor executor;
+  MesosExecutorDriver driver(&executor);
+  return driver.run() == DRIVER_STOPPED ? 0 : 1;
 }

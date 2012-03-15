@@ -25,10 +25,7 @@ import org.apache.mesos.Protos.*;
 
 
 public class TestExceptionFramework {
-  static class MyScheduler implements Scheduler {
-    public MyScheduler() {
-    }
-
+  static class TestExceptionScheduler implements Scheduler {
     @Override
     public void registered(SchedulerDriver driver, FrameworkID frameworkId) {
       throw new ArrayIndexOutOfBoundsException();
@@ -65,17 +62,19 @@ public class TestExceptionFramework {
       System.exit(1);
     }
 
+    String uri = new File("./test-executor").getCanonicalPath();
+
     ExecutorInfo executorInfo = ExecutorInfo.newBuilder()
       .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
-      .setUri(new File("./test-executor").getCanonicalPath())
+      .setCommand(CommandInfo.newBuilder().setUri(uri).setValue(uri).build())
       .build();
 
     MesosSchedulerDriver driver = new MesosSchedulerDriver(
-        new MyScheduler(),
+        new TestExceptionScheduler(),
         "Exception Framework",
         executorInfo,
         args[0]);
 
-    System.exit(driver.run() == Status.OK ? 0 : 1);
+    System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);
   }
 }

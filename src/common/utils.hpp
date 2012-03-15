@@ -29,6 +29,7 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <google/protobuf/message.h>
@@ -239,20 +240,20 @@ inline bool mkdir(const std::string& directory)
 bool rmdir(const std::string& directory);
 
 
-// Changes the specified file's user and group ownership to that of
+// Changes the specified path's user and group ownership to that of
 // the specified user..
-inline bool chown(const std::string& user, const std::string& file)
+inline bool chown(const std::string& user, const std::string& path)
 {
-  struct passwd* passwd;
+  passwd* passwd;
   if ((passwd = ::getpwnam(user.c_str())) == NULL) {
     PLOG(ERROR) << "Failed to get user information for '"
-                << user
-                << "', getpwnam";
+                << user << "', getpwnam";
     return false;
   }
 
-  if (::chown(file.c_str(), passwd->pw_uid, passwd->pw_gid) < 0) {
-    PLOG(ERROR) << "Failed to change file user and group ownership, chown";
+  if (::chown(path.c_str(), passwd->pw_uid, passwd->pw_gid) < 0) {
+    PLOG(ERROR) << "Failed to change user and group ownership of '"
+                << path << "', chown";
     return false;
   }
 
@@ -273,11 +274,10 @@ inline bool chdir(const std::string& directory)
 
 inline bool su(const std::string& user)
 {
-  struct passwd* passwd;
+  passwd* passwd;
   if ((passwd = ::getpwnam(user.c_str())) == NULL) {
     PLOG(ERROR) << "Failed to get user information for '"
-                << user
-                << "', getpwnam";
+                << user << "', getpwnam";
     return false;
   }
 
@@ -463,6 +463,12 @@ inline Try<int> shell(std::iostream* ios, const std::string& fmt, ...)
   }
 
   return status;
+}
+
+
+inline int system(const std::string& command)
+{
+  return ::system(command.c_str());
 }
 
 } // namespace os {

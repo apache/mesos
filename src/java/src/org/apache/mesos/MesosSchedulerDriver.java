@@ -107,8 +107,8 @@ public class MesosSchedulerDriver implements SchedulerDriver {
   public native Status join();
 
   public Status run() {
-    Status ret = start();
-    return ret != Status.OK ? ret : join();
+    Status status = start();
+    return status != Status.DRIVER_RUNNING ? status : join();
   }
 
   public native Status requestResources(Collection<ResourceRequest> requests);

@@ -18,31 +18,34 @@
 
 #include <libgen.h>
 
-#include <cstdlib>
 #include <iostream>
-#include <sstream>
+#include <string>
 
 #include <boost/lexical_cast.hpp>
 
 #include <mesos/scheduler.hpp>
 
 using namespace mesos;
-using namespace std;
 
 using boost::lexical_cast;
 
+using std::cout;
+using std::cerr;
+using std::endl;
+using std::flush;
+using std::string;
+using std::vector;
 
-class MyScheduler : public Scheduler
+const int32_t CPUS_PER_TASK = 1;
+const int32_t MEM_PER_TASK = 32;
+
+class NoExecutorScheduler : public Scheduler
 {
 public:
-  MyScheduler(int totalTasks_, double taskLen_,
-      int threadsPerTask_, int64_t memToRequest_, int64_t memToHog_)
-    : totalTasks(totalTasks_), taskLen(taskLen_),
-      threadsPerTask(threadsPerTask_),
-      memToRequest(memToRequest_), memToHog(memToHog_),
-      tasksLaunched(0), tasksFinished(0) {}
+  NoExecutorScheduler()
+    : tasksLaunched(0), tasksFinished(0), totalTasks(5) {}
 
-  virtual ~MyScheduler() {}
+  virtual ~NoExecutorScheduler() {}
 
   virtual void registered(SchedulerDriver*, const FrameworkID&)
   {
@@ -52,9 +55,9 @@ public:
   virtual void resourceOffers(SchedulerDriver* driver,
                               const vector<Offer>& offers)
   {
-    vector<Offer>::const_iterator iterator = offers.begin();
-    for (; iterator != offers.end(); ++iterator) {
-      const Offer& offer = *iterator;
+    cout << "." << flush;
+    for (int i = 0; i < offers.size(); i++) {
+      const Offer& offer = offers[i];
 
       // Lookup resources we care about.
       // TODO(benh): It would be nice to ultimately have some helper
@@ -73,9 +76,11 @@ public:
         }
       }
 
-      // Launch task (only one per offer).
+      // Launch tasks.
       vector<TaskDescription> tasks;
-      if ((tasksLaunched < totalTasks) && (cpus >= 1 && mem >= memToRequest)) {
+      while (tasksLaunched < totalTasks &&
+             cpus >= CPUS_PER_TASK &&
+             mem >= MEM_PER_TASK) {
         int taskId = tasksLaunched++;
 
         cout << "Starting task " << taskId << " on "
@@ -85,24 +90,24 @@ public:
         task.set_name("Task " + lexical_cast<string>(taskId));
         task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
+        task.mutable_command()->set_value("sleep 1");
 
         Resource* resource;
 
         resource = task.add_resources();
         resource->set_name("cpus");
         resource->set_type(Value::SCALAR);
-        resource->mutable_scalar()->set_value(1);
+        resource->mutable_scalar()->set_value(CPUS_PER_TASK);
 
         resource = task.add_resources();
         resource->set_name("mem");
         resource->set_type(Value::SCALAR);
-        resource->mutable_scalar()->set_value(memToRequest);
-
-        ostringstream data;
-        data << memToHog << " " << taskLen << " " << threadsPerTask;
-        task.set_data(data.str());
+        resource->mutable_scalar()->set_value(MEM_PER_TASK);
 
         tasks.push_back(task);
+
+        cpus -= CPUS_PER_TASK;
+        mem -= MEM_PER_TASK;
       }
 
       driver->launchTasks(offer.id(), tasks);
@@ -118,10 +123,6 @@ public:
 
     cout << "Task " << taskId << " is in state " << status.state() << endl;
 
-    if (status.state() == TASK_LOST)
-      cout << "Task " << taskId
-           << " lost. Not doing anything about it." << endl;
-
     if (status.state() == TASK_FINISHED)
       tasksFinished++;
 
@@ -135,15 +136,9 @@ public:
                                 const string& data) {}
 
   virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid) {}
-
-  virtual void error(SchedulerDriver* driver, int code,
-                     const std::string& message) {}
+  virtual void error(SchedulerDriver* driver, int code, const string& message) {}
 
 private:
-  double taskLen;
-  int threadsPerTask;
-  int memToRequest;
-  int memToHog;
   int tasksLaunched;
   int tasksFinished;
   int totalTasks;
@@ -152,25 +147,19 @@ private:
 
 int main(int argc, char** argv)
 {
-  if (argc != 7) {
-    cerr << "Usage: " << argv[0]
-         << " <master> <tasks> <task_len> <threads_per_task>"
-         << " <MB_to_request> <MB_per_task>" << endl;
+  if (argc != 2) {
+    cerr << "Usage: " << argv[0] << " <masterPid>" << endl;
     return -1;
   }
-  // Find this executable's directory to locate executor
-  char buf[4096];
-  realpath(dirname(argv[0]), buf);
-  string uri = string(buf) + "/memhog-executor";
-  MyScheduler sched(lexical_cast<int>(argv[2]),
-                    lexical_cast<double>(argv[3]),
-                    lexical_cast<int>(argv[4]),
-                    lexical_cast<int64_t>(argv[5]),
-                    lexical_cast<int64_t>(argv[6]));
+
+  NoExecutorScheduler scheduler;
+
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
-  executor.set_uri(uri);
-  MesosSchedulerDriver driver(&sched, "Memory hog", executor, argv[1]);
-  driver.run();
-  return 0;
+  executor.mutable_command()->set_value("exit 1");
+
+  MesosSchedulerDriver driver(
+      &scheduler, "C++ Test Framework", executor, argv[1]);
+
+  return driver.run() == DRIVER_STOPPED ? 0 : 1;
 }

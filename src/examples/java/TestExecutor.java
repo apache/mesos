@@ -76,6 +76,6 @@ public class TestExecutor implements Executor {
 
   public static void main(String[] args) throws Exception {
     MesosExecutorDriver driver = new MesosExecutorDriver(new TestExecutor());
-    System.exit(driver.run() == Status.OK ? 0 : 1);
+    System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);
   }
 }

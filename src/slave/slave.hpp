@@ -30,6 +30,7 @@
 #include "common/resources.hpp"
 #include "common/hashmap.hpp"
 #include "common/type_utils.hpp"
+#include "common/utils.hpp"
 #include "common/uuid.hpp"
 
 #include "configurator/configurator.hpp"
@@ -283,6 +284,48 @@ struct Framework
     : id(_id), info(_info), pid(_pid) {}
 
   ~Framework() {}
+
+  // Returns an ExecutorInfo for a TaskDescription (possibly
+  // constructing one if the task has a CommandInfo).
+  ExecutorInfo getExecutorInfo(const TaskDescription& task,
+                               const Configuration& conf)
+  {
+    if (task.has_command()) {
+      ExecutorInfo executor;
+
+      // Prepare an executor id which includes information on the
+      // command being launched.
+      std::string id = "Task " + task.task_id().value() + " (";
+      if (task.command().value().length() > 15) {
+        id += task.command().value().substr(0, 12) + "...)";
+      } else {
+        id += task.command().value() + ")";
+      }
+
+      executor.mutable_executor_id()->set_value(id);
+
+      // Now determine the path to the executor.
+      const std::string& directory = conf.get("launcher_dir", MESOS_LIBEXECDIR);
+
+      // TODO(benh): Check the directory is absolute (or make it so).
+
+      if (utils::os::exists(directory, true)) {
+        executor.mutable_command()->set_value(directory + "/mesos-executor");
+      } else {
+        executor.mutable_command()->set_value("exit 1");
+      }
+
+      // TODO(benh): Set some resources for the executor so that a task
+      // doesn't end up getting killed because the amount of resources of
+      // the executor went over those allocated. Note that this might mean
+      // that the number of resources on the machine will actually be
+      // slightly oversubscribed, so we'll need to reevaluate with respect
+      // to resources that can't be oversubscribed.
+      return executor;
+    }
+
+    return task.has_executor() ? task.executor() : info.executor();
+  }
 
   Executor* createExecutor(const ExecutorInfo& executorInfo,
                            const std::string& directory)

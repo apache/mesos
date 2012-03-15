@@ -460,7 +460,7 @@ TEST(MasterTest, MultipleExecutors)
   task1.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
   task1.mutable_executor()->mutable_executor_id()->MergeFrom(executorId1);
-  task1.mutable_executor()->set_uri("noexecutor");
+  task1.mutable_executor()->mutable_command()->set_value("exit 1");
 
   TaskDescription task2;
   task2.set_name("");
@@ -468,7 +468,7 @@ TEST(MasterTest, MultipleExecutors)
   task2.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task2.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
   task2.mutable_executor()->mutable_executor_id()->MergeFrom(executorId2);
-  task2.mutable_executor()->set_uri("noexecutor");
+  task2.mutable_executor()->mutable_command()->set_value("exit 1");
 
   vector<TaskDescription> tasks;
   tasks.push_back(task1);

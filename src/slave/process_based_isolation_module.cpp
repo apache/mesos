@@ -89,7 +89,7 @@ void ProcessBasedIsolationModule::launchExecutor(
   const ExecutorID& executorId = executorInfo.executor_id();
 
   LOG(INFO) << "Launching " << executorId
-            << " (" << executorInfo.uri() << ")"
+            << " (" << executorInfo.command().uri() << ")"
             << " in " << directory
             << " with resources " << resources
             << "' for framework " << frameworkId;
@@ -186,7 +186,8 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
 {
   return new ExecutorLauncher(frameworkId,
                               executorInfo.executor_id(),
-                              executorInfo.uri(),
+                              executorInfo.command().uri(),
+                              executorInfo.command().value(),
                               frameworkInfo.user(),
                               directory,
                               slave,
@@ -196,7 +197,7 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
                               !local,
                               conf.get("switch_user", true),
                               "",
-                              executorInfo.environment());
+                              executorInfo.command().environment());
 }
 
 

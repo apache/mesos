@@ -408,9 +408,7 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
     frameworks[frameworkId] = framework;
   }
 
-  const ExecutorInfo& executorInfo = task.has_executor()
-    ? task.executor()
-    : framework->info.executor();
+  const ExecutorInfo& executorInfo = framework->getExecutorInfo(task, conf);
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
@@ -463,8 +461,8 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
     }
   } else {
     // Launch an executor for this task.
-    const string& directory = createUniqueWorkDirectory(framework->id,
-                                                        executorId);
+    const string& directory =
+      createUniqueWorkDirectory(framework->id, executorId);
 
     LOG(INFO) << "Using '" << directory
               << "' as work directory for executor '" << executorId

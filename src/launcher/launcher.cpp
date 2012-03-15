@@ -48,6 +48,7 @@ ExecutorLauncher::ExecutorLauncher(
     const FrameworkID& _frameworkId,
     const ExecutorID& _executorId,
     const string& _executorUri,
+    const string& _command,
     const string& _user,
     const string& _workDirectory,
     const string& _slavePid,
@@ -61,6 +62,7 @@ ExecutorLauncher::ExecutorLauncher(
   : frameworkId(_frameworkId),
     executorId(_executorId),
     executorUri(_executorUri),
+    command(_command),
     user(_user),
     workDirectory(_workDirectory),
     slavePid(_slavePid),
@@ -81,177 +83,170 @@ int ExecutorLauncher::run()
   initializeWorkingDirectory();
 
   // Enter working directory
-  if (chdir(workDirectory.c_str()) < 0)
+  if (chdir(workDirectory.c_str()) < 0) {
     fatalerror("chdir into framework working directory failed");
+  }
 
   // Redirect output to files in working dir if required
   if (redirectIO) {
-    if (freopen("stdout", "w", stdout) == NULL)
+    if (freopen("stdout", "w", stdout) == NULL) {
       fatalerror("freopen failed");
-    if (freopen("stderr", "w", stderr) == NULL)
+    }
+    if (freopen("stderr", "w", stderr) == NULL) {
       fatalerror("freopen failed");
+    }
   }
 
-  string executor = fetchExecutor();
+  fetchExecutor(); // TODO(benh): fetchExecutors();
 
   setupEnvironment();
 
-  if (shouldSwitchUser)
+  if (shouldSwitchUser) {
     switchUser();
+  }
 
   // TODO(benh): Clean up this gross special cased LXC garbage!!!!
-
   if (container != "") {
+    // If we are running with a container than we need to fork an
+    // extra time so that we can correctly cleanup the container when
+    // the executor exits.
     pid_t pid;
     if ((pid = fork()) == -1) {
-      fatalerror("Failed to fork to launch %s", executor.c_str());
+      fatalerror("Failed to fork to run '%s'", command.c_str());
     }
 
-    if (pid) {
-      // In parent process.
+    if (pid != 0) {
+      // In parent process, wait for the child to finish.
       int status;
       wait(&status);
-      // TODO(benh): Provide a utils::os::system.
-      string command = "lxc-stop -n " + container;
-      system(command.c_str());
+      utils::os::system("lxc-stop -n " + container);
       return status;
-    } else {
-      // In child process, execute the executor.
-      execl(executor.c_str(), executor.c_str(), (char *) NULL);
-
-      // If we get here, the execl call failed
-      fatalerror("Could not execute %s", executor.c_str());
     }
-  } else {
-    // Execute the executor.
-    execl(executor.c_str(), executor.c_str(), (char *) NULL);
-
-    // If we get here, the execl call failed
-    fatalerror("Could not execute %s", executor.c_str());
   }
+
+  // Execute the command (via '/bin/sh -c command').
+  execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
+
+  // If we get here, the execv call failedl
+  fatalerror("Could not execute '/bin/sh -c %s'", command.c_str());
 }
 
 
 // Own the working directory, if necessary.
 void ExecutorLauncher::initializeWorkingDirectory()
 {
-  // NOTE(vinod): The directory creation now happens in the slave
-  // instead of executor.
+  // TODO(benh): Do this in the slave?
   if (shouldSwitchUser) {
-    struct passwd *passwd;
-    if ((passwd = getpwnam(user.c_str())) == NULL)
-      fatal("Failed to get username information for %s.", user.c_str());
-
-    if (chown(workDirectory.c_str(), passwd->pw_uid, passwd->pw_gid) < 0)
-      fatalerror("Failed to chown framework's working directory %s to %s.",
-                 workDirectory.c_str(), passwd->pw_uid);
+    if (!utils::os::chown(user, workDirectory)) {
+      fatal("Failed to change ownership of framework's working directory");
+    }
   }
 }
 
 
 // Download the executor's binary if required and return its path.
-string ExecutorLauncher::fetchExecutor()
+void ExecutorLauncher::fetchExecutor()
 {
-  string executor = executorUri;
+  if (executorUri != "") {
+    string executor = executorUri;
 
-  // Some checks to make using the executor in shell commands safe;
-  // these should be pushed into the master and reported to the user
-  if (executor.find_first_of('\\') != string::npos ||
-      executor.find_first_of('\'') != string::npos ||
-      executor.find_first_of('\0') != string::npos) {
-    fatal("Illegal characters in executor path");
-  }
-  // Grab the executor from HDFS if its path begins with hdfs://
-  // TODO: Enforce some size limits on files we get from HDFS
-  if (executor.find("hdfs://") == 0) {
-    // Locate Hadoop's bin/hadoop script. If a Hadoop home was given to us by
-    // the slave (from the Mesos config file), use that. Otherwise check for
-    // a HADOOP_HOME environment variable. Finally, if that doesn't exist,
-    // try looking for hadoop on the PATH.
-    string hadoopScript;
-    if (hadoopHome != "") {
-      hadoopScript = hadoopHome + "/bin/hadoop";
-    } else if (getenv("HADOOP_HOME") != 0) {
-      hadoopScript = string(getenv("HADOOP_HOME")) + "/bin/hadoop";
-    } else {
-      hadoopScript = "hadoop"; // Look for hadoop on the PATH.
+    // Some checks to make using the executor in shell commands safe;
+    // these should be pushed into the master and reported to the user
+    if (executor.find_first_of('\\') != string::npos ||
+        executor.find_first_of('\'') != string::npos ||
+        executor.find_first_of('\0') != string::npos) {
+      fatal("Illegal characters in executor path");
     }
-
-    string localFile = string("./") + basename((char *) executor.c_str());
-    ostringstream command;
-    command << hadoopScript << " fs -copyToLocal '" << executor
-            << "' '" << localFile << "'";
-    cout << "Downloading executor from " << executor << endl;
-    cout << "HDFS command: " << command.str() << endl;
-
-    int ret = system(command.str().c_str());
-    if (ret != 0)
-      fatal("HDFS copyToLocal failed: return code %d", ret);
-    executor = localFile;
-    if (chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
-              S_IROTH | S_IXOTH) != 0)
-      fatalerror("chmod failed");
-  } else if (executor.find_first_of("/") != 0) {
-    // We got a non-Hadoop and non-absolute path.
-    // Try prepending MESOS_HOME to it.
-    if (frameworksHome != "") {
-      executor = frameworksHome + "/" + executor;
-      cout << "Prepended frameworksHome to executor path, making it: "
-           << executor << endl;
-    } else {
-      if (mesosHome != "") {
-        executor = mesosHome + "/frameworks/" + executor;
-        cout << "Prepended MESOS_HOME/frameworks/ to relative "
-             << "executor path, making it: " << executor << endl;
+    // Grab the executor from HDFS if its path begins with hdfs://
+    // TODO: Enforce some size limits on files we get from HDFS
+    if (executor.find("hdfs://") == 0) {
+      // Locate Hadoop's bin/hadoop script. If a Hadoop home was given to us by
+      // the slave (from the Mesos config file), use that. Otherwise check for
+      // a HADOOP_HOME environment variable. Finally, if that doesn't exist,
+      // try looking for hadoop on the PATH.
+      string hadoopScript;
+      if (hadoopHome != "") {
+        hadoopScript = hadoopHome + "/bin/hadoop";
+      } else if (getenv("HADOOP_HOME") != 0) {
+        hadoopScript = string(getenv("HADOOP_HOME")) + "/bin/hadoop";
       } else {
-        fatal("A relative path was passed for the executor, but " \
-              "neither MESOS_HOME nor MESOS_FRAMEWORKS_HOME is set." \
-              "Please either specify one of these config options " \
-              "or avoid using a relative path.");
+        hadoopScript = "hadoop"; // Look for hadoop on the PATH.
       }
-    }
-  }
 
-  // If the executor was a .tgz, untar it in the work directory. The .tgz
-  // expected to contain a single directory. This directory should contain
-  // a program or script called "executor" to run the executor. We chdir
-  // into this directory and run the script from in there.
-  if (executor.rfind(".tgz") == executor.size() - strlen(".tgz")) {
-    string command = "tar xzf '" + executor + "'";
-    cout << "Untarring executor: " + command << endl;
-    int ret = system(command.c_str());
-    if (ret != 0)
-      fatal("Untar failed: return code %d", ret);
-    // The .tgz should have contained a single directory; find it
-    if (DIR *dir = opendir(".")) {
-      bool found = false;
-      string dirname = "";
-      while (struct dirent *ent = readdir(dir)) {
-        if (string(".") != ent->d_name && string("..") != ent->d_name) {
-          struct stat info;
-          if (stat(ent->d_name, &info) == 0) {
-            if (S_ISDIR(info.st_mode)) {
-              if (found) // Already found a directory earlier
-                fatal("Executor .tgz must contain a single directory");
-              dirname = ent->d_name;
-              found = true;
-            }
-          } else {
-            fatalerror("Stat failed on %s", ent->d_name);
-          }
+      string localFile = string("./") + basename((char *) executor.c_str());
+      ostringstream command;
+      command << hadoopScript << " fs -copyToLocal '" << executor
+              << "' '" << localFile << "'";
+      cout << "Downloading executor from " << executor << endl;
+      cout << "HDFS command: " << command.str() << endl;
+
+      int ret = system(command.str().c_str());
+      if (ret != 0)
+        fatal("HDFS copyToLocal failed: return code %d", ret);
+      executor = localFile;
+      if (chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+                S_IROTH | S_IXOTH) != 0)
+        fatalerror("chmod failed");
+    } else if (executor.find_first_of("/") != 0) {
+      // We got a non-Hadoop and non-absolute path.
+      // Try prepending MESOS_HOME to it.
+      if (frameworksHome != "") {
+        executor = frameworksHome + "/" + executor;
+        cout << "Prepended frameworksHome to executor path, making it: "
+             << executor << endl;
+      } else {
+        if (mesosHome != "") {
+          executor = mesosHome + "/frameworks/" + executor;
+          cout << "Prepended MESOS_HOME/frameworks/ to relative "
+               << "executor path, making it: " << executor << endl;
+        } else {
+          fatal("A relative path was passed for the executor, but "  \
+                "neither MESOS_HOME nor MESOS_FRAMEWORKS_HOME is set."  \
+                "Please either specify one of these config options "    \
+                "or avoid using a relative path.");
         }
       }
-      if (!found) // No directory found
-        fatal("Executor .tgz must contain a single directory");
-      if (chdir(dirname.c_str()) < 0)
-        fatalerror("Chdir failed");
-      executor = "./executor";
-    } else {
-      fatalerror("Failed to list work directory");
+    }
+
+    // If the executor was a .tgz, untar it in the work directory. The .tgz
+    // expected to contain a single directory. This directory should contain
+    // a program or script called "executor" to run the executor. We chdir
+    // into this directory and run the script from in there.
+    if (executor.rfind(".tgz") == executor.size() - strlen(".tgz")) {
+      string command = "tar xzf '" + executor + "'";
+      cout << "Untarring executor: " + command << endl;
+      int ret = system(command.c_str());
+      if (ret != 0)
+        fatal("Untar failed: return code %d", ret);
+      // The .tgz should have contained a single directory; find it
+      if (DIR *dir = opendir(".")) {
+        bool found = false;
+        string dirname = "";
+        while (struct dirent *ent = readdir(dir)) {
+          if (string(".") != ent->d_name && string("..") != ent->d_name) {
+            struct stat info;
+            if (stat(ent->d_name, &info) == 0) {
+              if (S_ISDIR(info.st_mode)) {
+                if (found) // Already found a directory earlier
+                  fatal("Executor .tgz must contain a single directory");
+                dirname = ent->d_name;
+                found = true;
+              }
+            } else {
+              fatalerror("Stat failed on %s", ent->d_name);
+            }
+          }
+        }
+        if (!found) // No directory found
+          fatal("Executor .tgz must contain a single directory");
+        if (chdir(dirname.c_str()) < 0)
+          fatalerror("Chdir failed");
+        executor = "./executor";
+      } else {
+        fatalerror("Failed to list work directory");
+      }
     }
   }
-
-  return executor;
 }
 
 
@@ -282,18 +277,8 @@ void ExecutorLauncher::setupEnvironment()
 void ExecutorLauncher::switchUser()
 {
   cout << "Switching user to " << user << endl;
-
-  struct passwd* passwd;
-  if ((passwd = getpwnam(user.c_str())) == NULL) {
-    fatal("failed to get username information for %s", user.c_str());
-  }
-
-  if (setgid(passwd->pw_gid) < 0) {
-    fatalerror("failed to setgid");
-  }
-
-  if (setuid(passwd->pw_uid) < 0) {
-    fatalerror("failed to setuid");
+  if (!utils::os::su(user)) {
+    fatal("Failed to switch to user");
   }
 }
 
@@ -302,10 +287,11 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
 {
   setupEnvironment();
 
-  // Set up Mesos environment variables that launcher_main.cpp will
+  // Set up Mesos environment variables that launcher/main.cpp will
   // pass as arguments to an ExecutorLauncher there.
   utils::os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
   utils::os::setenv("MESOS_EXECUTOR_URI", executorUri);
+  utils::os::setenv("MESOS_COMMAND", command);
   utils::os::setenv("MESOS_USER", user);
   utils::os::setenv("MESOS_WORK_DIRECTORY", workDirectory);
   utils::os::setenv("MESOS_SLAVE_PID", slavePid);

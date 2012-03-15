@@ -264,15 +264,8 @@ private:
   // Condition variable for waiting until driver terminates.
   pthread_cond_t cond;
 
-  enum State {
-    INITIALIZED,
-    RUNNING,
-    STOPPED,
-    ABORTED
-  };
-
-  // Variable to store the state of the driver.
-  State state;
+  // Current status of the driver.
+  Status status;
 };
 
 } // namespace mesos {

@@ -443,6 +443,24 @@ protected:
       return;
     }
 
+    // Check that each TaskDescription has either no ExecutorInfo and
+    // no CommandInfo or only one of them.
+    foreach (const TaskDescription& task, tasks) {
+      if (task.has_command() && task.has_executor()) {
+        StatusUpdate update;
+        update.mutable_framework_id()->MergeFrom(frameworkId);
+        TaskStatus* status = update.mutable_status();
+        status->mutable_task_id()->MergeFrom(task.task_id());
+        status->set_state(TASK_LOST);
+        status->set_message(
+            "Task cannot have both an 'executor' and a 'command'");
+        update.set_timestamp(Clock::now());
+        update.set_uuid(UUID::random().toBytes());
+
+        statusUpdate(update, UPID());
+      }
+    }
+
     LaunchTasksMessage message;
     message.mutable_framework_id()->MergeFrom(frameworkId);
     message.mutable_offer_id()->MergeFrom(offerId);
@@ -649,7 +667,7 @@ void MesosSchedulerDriver::init(Scheduler* _scheduler,
   url = conf->get<string>("url", "local");
   process = NULL;
   detector = NULL;
-  state = INITIALIZED;
+  status = DRIVER_NOT_STARTED;
 
   // Create mutex and condition variable
   pthread_mutexattr_t attr;
@@ -710,17 +728,9 @@ Status MesosSchedulerDriver::start()
 {
   Lock lock(&mutex);
 
-  if (state == RUNNING) {
-    return DRIVER_ALREADY_RUNNING;
-  } else if (state == STOPPED) {
-    return DRIVER_STOPPED;
-  } else if (state == ABORTED) {
-    return DRIVER_ABORTED;
+  if (status != DRIVER_NOT_STARTED) {
+    return status;
   }
-
-  // Set running here so we can recognize an exception from calls into
-  // Java (via getFrameworkName or getExecutorInfo).
-  state = RUNNING;;
 
   // Set up framework info.
   FrameworkInfo framework;
@@ -749,7 +759,7 @@ Status MesosSchedulerDriver::start()
     detector = MasterDetector::create(url, pid, false, false);
   }
 
-  return OK;
+  return status = DRIVER_RUNNING;
 }
 
 
@@ -757,24 +767,24 @@ Status MesosSchedulerDriver::stop(bool failover)
 {
   Lock lock(&mutex);
 
-  if (state == STOPPED) {
-    return DRIVER_STOPPED;
-  } else if (state != RUNNING && state != ABORTED) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING && status != DRIVER_ABORTED) {
+    return status;
   }
 
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::stop, failover);
 
-  state = STOPPED;
-
   // TODO: It might make more sense to clean up our local cluster here than in
   // the destructor. However, what would be even better is to allow multiple
   // local clusters to exist (i.e. not use global vars in local.cpp) so that
   // ours can just be an instance variable in MesosSchedulerDriver.
 
-  return OK;
+  bool aborted = status == DRIVER_ABORTED;
+
+  status = DRIVER_STOPPED;
+
+  return aborted ? DRIVER_ABORTED : status;
 }
 
 
@@ -782,21 +792,15 @@ Status MesosSchedulerDriver::abort()
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state == STOPPED) {
-    return DRIVER_STOPPED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::abort);
 
-  state = ABORTED;
-
-  return OK;
+  return status = DRIVER_ABORTED;
 }
 
 
@@ -804,50 +808,24 @@ Status MesosSchedulerDriver::join()
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state == STOPPED) {
-    return DRIVER_STOPPED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
-  while (state == RUNNING) {
+  while (status == DRIVER_RUNNING) {
     pthread_cond_wait(&cond, &mutex);
   }
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  }
+  CHECK(status == DRIVER_ABORTED || status == DRIVER_STOPPED);
 
-  CHECK(state == STOPPED);
-
-//   // If the driver has been stopped, then we wait for SchedulerProcess
-//   // to terminate. This is necessary to support languages like Python
-//   // that use reference counting on their objects. Without doing this
-//   // the Python interpreter might attempt to delete the
-//   // MesosSchedulerDriver instance from within the context of the
-//   // SchedulerProcess (because a thread is trying to call into a
-//   // scheduler but there are no more references to
-//   // MesosSchedulerDriver), which means we would deadlock and wait
-//   // forever since the MesosSchedulerDriver destructor waits for the
-//   // process to terminate forever. Note that we don't need to wait if
-//   // the driver has been aborted because we won't actually call back
-//   // in to the driver in that case, and thus we won't have
-
-//   lock.unlock(); // Let a thread in SchedulerProcess use the driver.
-
-//   CHECK(process != NULL);
-//   wait(process);
-
-  return OK;
+  return status;
 }
 
 
 Status MesosSchedulerDriver::run()
 {
   Status status = start();
-  return status != OK ? status : join();
+  return status != DRIVER_RUNNING ? status : join();
 }
 
 
@@ -855,37 +833,34 @@ Status MesosSchedulerDriver::killTask(const TaskID& taskId)
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::killTask, taskId);
 
-  return OK;
+  return status;
 }
 
 
-Status MesosSchedulerDriver::launchTasks(const OfferID& offerId,
-                                         const vector<TaskDescription>& tasks,
-                                         const Filters& filters)
+Status MesosSchedulerDriver::launchTasks(
+    const OfferID& offerId,
+    const vector<TaskDescription>& tasks,
+    const Filters& filters)
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::launchTasks, offerId, tasks, filters);
 
-  return OK;
+  return status;
 }
 
 
@@ -893,17 +868,15 @@ Status MesosSchedulerDriver::reviveOffers()
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::reviveOffers);
 
-  return OK;
+  return status;
 }
 
 
@@ -914,10 +887,8 @@ Status MesosSchedulerDriver::sendFrameworkMessage(
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
   CHECK(process != NULL);
@@ -925,7 +896,7 @@ Status MesosSchedulerDriver::sendFrameworkMessage(
   dispatch(process, &SchedulerProcess::sendFrameworkMessage,
            slaveId, executorId, data);
 
-  return OK;
+  return status;
 }
 
 
@@ -934,15 +905,13 @@ Status MesosSchedulerDriver::requestResources(
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::requestResources, requests);
 
-  return OK;
+  return status;
 }

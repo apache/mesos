@@ -45,6 +45,7 @@ public:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const std::string& executorUri,
+      const std::string& command,
       const std::string& user,
       const std::string& workDirectory,
       const std::string& slavePid,
@@ -76,7 +77,7 @@ protected:
   // Download the executor's binary if required and return its path.
   // This method is expected to place files in the current directory
   // (which will be the workDirectory).
-  virtual std::string fetchExecutor();
+  virtual void fetchExecutor();
 
   // Set up environment variables for launching a framework's executor.
   virtual void setupEnvironment();
@@ -88,6 +89,7 @@ protected:
   FrameworkID frameworkId;
   ExecutorID executorId;
   std::string executorUri;
+  std::string command;
   std::string user;
   std::string workDirectory; // Directory in which the framework should run.
   std::string slavePid;

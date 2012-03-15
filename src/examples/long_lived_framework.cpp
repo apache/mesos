@@ -18,31 +18,34 @@
 
 #include <libgen.h>
 
-#include <cstdlib>
 #include <iostream>
-#include <sstream>
+#include <string>
 
 #include <boost/lexical_cast.hpp>
 
 #include <mesos/scheduler.hpp>
 
 using namespace mesos;
-using namespace std;
 
 using boost::lexical_cast;
 
+using std::cout;
+using std::cerr;
+using std::endl;
+using std::flush;
+using std::string;
+using std::vector;
 
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 32;
 
-
-class MyScheduler : public Scheduler
+class LongLivedScheduler : public Scheduler
 {
 public:
-  MyScheduler()
+  LongLivedScheduler()
     : tasksLaunched(0) {}
 
-  virtual ~MyScheduler() {}
+  virtual ~LongLivedScheduler() {}
 
   virtual void registered(SchedulerDriver*, const FrameworkID&)
   {
@@ -50,12 +53,11 @@ public:
   }
 
   virtual void resourceOffers(SchedulerDriver* driver,
-                             const vector<Offer>& offers)
+                              const vector<Offer>& offers)
   {
     cout << "." << flush;
-    vector<Offer>::const_iterator iterator = offers.begin();
-    for (; iterator != offers.end(); ++iterator) {
-      const Offer& offer = *iterator;
+    for (int i = 0; i < offers.size(); i++) {
+      const Offer& offer = offers[i];
 
       // Lookup resources we care about.
       // TODO(benh): It would be nice to ultimately have some helper
@@ -140,16 +142,24 @@ int main(int argc, char** argv)
     cerr << "Usage: " << argv[0] << " <masterPid>" << endl;
     return -1;
   }
-  // Find this executable's directory to locate executor
+
+  // Find this executable's directory to locate executor.
   char buf[4096];
   realpath(dirname(argv[0]), buf);
   string uri = string(buf) + "/long-lived-executor";
-  // Run a Mesos scheduler
-  MyScheduler sched;
+  if (getenv("MESOS_BUILD_DIR")) {
+    uri = string(getenv("MESOS_BUILD_DIR")) + "/src/long-lived-executor";
+  }
+
+  LongLivedScheduler scheduler;
+
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
-  executor.set_uri(uri);
-  MesosSchedulerDriver driver(&sched, "C++ Test Framework", executor, argv[1]);
-  driver.run();
-  return 0;
+  executor.mutable_command()->set_uri(uri);
+  executor.mutable_command()->set_value(uri);
+
+  MesosSchedulerDriver driver(
+      &scheduler, "C++ Test Framework", executor, argv[1]);
+
+  return driver.run() == DRIVER_STOPPED ? 0 : 1;
 }

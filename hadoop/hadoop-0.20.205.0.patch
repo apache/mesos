@@ -353,9 +353,9 @@ index 0000000..e369f39
 +  public static void main(String[] args) {
 +    instance = new FrameworkExecutor();
 +    MesosExecutorDriver driver = new MesosExecutorDriver(instance);
-+    System.exit(driver.run() == Status.OK ? 0 : 1);
++    System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);
 +  }
-+  
++
 +  static FrameworkExecutor getInstance() {
 +    return instance;
 +  }
@@ -365,7 +365,7 @@ new file mode 100644
 index 0000000..312cfdb
 --- /dev/null
 +++ b/hadoop/hadoop-0.20.205.0/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java
-@@ -0,0 +1,874 @@
+@@ -0,0 +1,877 @@
 +package org.apache.hadoop.mapred;
 +
 +import java.io.File;
@@ -389,6 +389,7 @@ index 0000000..312cfdb
 +import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
 +import org.apache.hadoop.net.Node;
 +
++import org.apache.mesos.Protos.CommandInfo;
 +import org.apache.mesos.Protos.ExecutorInfo;
 +import org.apache.mesos.Protos.ExecutorID;
 +import org.apache.mesos.Protos.FrameworkID;
@@ -598,7 +599,7 @@ index 0000000..312cfdb
 +        for (int i = 0; i < numOffers; i++) {
 +          OfferID offerId = offers.get(i).getId();
 +          Status status = d.launchTasks(offerId, replies.get(i));
-+          if (status != Status.OK) {
++          if (status != Status.DRIVER_RUNNING) {
 +            LOG.warn("SchedulerDriver returned irregular status: " + status);
 +          }
 +        }
@@ -695,7 +696,9 @@ index 0000000..312cfdb
 +        String execPath = new File("bin/mesos-executor").getCanonicalPath();
 +        byte[] initArg = conf.get("mapred.job.tracker").getBytes("US-ASCII");
 +        return ExecutorInfo.newBuilder()
-+          .setUri(execPath)
++          .setCommand(CommandInfo.newBuilder()
++                      .setUri(execPath)
++                      .setValue(execPath).build())
 +          .setData(com.google.protobuf.ByteString.copyFrom(initArg))
 +          .setExecutorId(EXECUTOR_ID)
 +          .build();

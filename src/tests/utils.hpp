@@ -86,14 +86,14 @@ void enterTestDirectory(const char* testCase, const char* testName);
 #define DEFAULT_EXECUTOR_INFO                                           \
       ({ ExecutorInfo executor;                                         \
         executor.mutable_executor_id()->set_value("default");           \
-        executor.set_uri("noexecutor");                                 \
+        executor.mutable_command()->set_value("exit 1");                \
         executor; })
 
 
 #define CREATE_EXECUTOR_INFO(executorId, uri)                           \
       ({ ExecutorInfo executor;                                         \
         executor.mutable_executor_id()->MergeFrom(executorId);          \
-        executor.set_uri(uri);                                          \
+        executor.mutable_command()->set_value("exit 1");                \
         executor; })
 
 

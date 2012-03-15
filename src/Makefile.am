@@ -305,9 +305,14 @@ mesos_local_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_local_LDADD = libmesos.la
 
 pkglibexec_PROGRAMS += mesos-launcher
-mesos_launcher_SOURCES = launcher/main.cpp launcher/launcher.cpp
+mesos_launcher_SOURCES = launcher/main.cpp
 mesos_launcher_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_launcher_LDADD = libmesos.la
+
+pkglibexec_PROGRAMS += mesos-executor
+mesos_executor_SOURCES = launcher/executor.cpp
+mesos_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_executor_LDADD = libmesos.la
 
 bin_PROGRAMS += mesos-log
 mesos_log_SOURCES = log/main.cpp
@@ -591,20 +596,10 @@ long_lived_executor_SOURCES = examples/long_lived_executor.cpp
 long_lived_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 long_lived_executor_LDADD = libmesos.la
 
-check_PROGRAMS += memhog
-memhog_SOURCES = examples/memhog.cpp
-memhog_CPPFLAGS = $(MESOS_CPPFLAGS)
-memhog_LDADD = libmesos.la
-
-check_PROGRAMS += scheduled-memhog
-scheduled_memhog_SOURCES = examples/scheduled_memhog.cpp
-scheduled_memhog_CPPFLAGS = $(MESOS_CPPFLAGS)
-scheduled_memhog_LDADD = libmesos.la
-
-check_PROGRAMS += memhog-executor
-memhog_executor_SOURCES = examples/memhog_executor.cpp
-memhog_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
-memhog_executor_LDADD = libmesos.la
+check_PROGRAMS += no-executor-framework
+no_executor_framework_SOURCES = examples/no_executor_framework.cpp
+no_executor_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+no_executor_framework_LDADD = libmesos.la
 
 check_PROGRAMS += mesos-tests
 

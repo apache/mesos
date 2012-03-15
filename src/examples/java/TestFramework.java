@@ -29,16 +29,16 @@ import org.apache.mesos.Protos.*;
 
 
 public class TestFramework {
-  static class MyScheduler implements Scheduler {
+  static class TestScheduler implements Scheduler {
     int launchedTasks = 0;
     int finishedTasks = 0;
     final int totalTasks;
 
-    public MyScheduler() {
+    public TestScheduler() {
       this(5);
     }
 
-    public MyScheduler(int numTasks) {
+    public TestScheduler(int numTasks) {
       totalTasks = numTasks;
     }
 
@@ -123,27 +123,29 @@ public class TestFramework {
       System.exit(1);
     }
 
+    String uri = new File("./test-executor").getCanonicalPath();
+
     ExecutorInfo executorInfo = ExecutorInfo.newBuilder()
       .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
-      .setUri(new File("./test-executor").getCanonicalPath())
+      .setCommand(CommandInfo.newBuilder().setUri(uri).setValue(uri).build())
       .build();
 
     MesosSchedulerDriver driver;
 
     if (args.length == 1) {
       driver = new MesosSchedulerDriver(
-          new MyScheduler(),
+          new TestScheduler(),
           "Java test framework",
           executorInfo,
           args[0]);
     } else {
       driver = new MesosSchedulerDriver(
-          new MyScheduler(Integer.parseInt(args[1])),
+          new TestScheduler(Integer.parseInt(args[1])),
           "Java test framework",
           executorInfo,
           args[0]);
     }
 
-    System.exit(driver.run() == Status.OK ? 0 : 1);
+    System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);
   }
 }

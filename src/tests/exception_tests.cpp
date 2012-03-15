@@ -59,48 +59,6 @@ using testing::Return;
 using testing::SaveArg;
 
 
-TEST(ExceptionTest, AbortOnFrameworkError)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
-
-  MockScheduler sched;
-
-  // Create an invalid ExecutorInfo to trigger framework error.
-  MesosSchedulerDriver driver(&sched,
-                              "",
-                              CREATE_EXECUTOR_INFO(DEFAULT_EXECUTOR_ID, ""),
-                              master);
-
-  trigger errorCall;
-
-  EXPECT_CALL(sched, registered(&driver, _))
-    .Times(0);
-
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(sched, offerRescinded(&driver, _))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(sched, error(&driver, _, _))
-    .WillOnce(Trigger(&errorCall));
-
-  driver.start();
-
-  WAIT_UNTIL(errorCall);
-
-  Status status = driver.join();
-
-  ASSERT_EQ(DRIVER_ABORTED, status);
-
-  driver.stop();
-
-  local::shutdown();
-}
-
-
 TEST(ExceptionTest, DeactiveFrameworkOnAbort)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
@@ -137,10 +95,7 @@ TEST(ExceptionTest, DeactiveFrameworkOnAbort)
 
   WAIT_UNTIL(schedRegisteredCall);
 
-  Status status;
-
-  status = driver.abort();
-  ASSERT_EQ(OK, status);
+  ASSERT_EQ(DRIVER_ABORTED, driver.abort());
 
   WAIT_UNTIL(deactivateMsg);
 
@@ -176,13 +131,9 @@ TEST(ExceptionTest, DisallowSchedulerActionsOnAbort)
 
   WAIT_UNTIL(schedRegisteredCall);
 
-  Status status;
+  ASSERT_EQ(DRIVER_ABORTED, driver.abort());
 
-  status = driver.abort();
-  ASSERT_EQ(OK, status);
-
-  status = driver.reviveOffers();
-  ASSERT_EQ(DRIVER_ABORTED, status);
+  ASSERT_EQ(DRIVER_ABORTED, driver.reviveOffers());
 
   driver.stop();
   local::shutdown();
@@ -250,10 +201,8 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   WAIT_UNTIL(resourceOffersCall);
   EXPECT_NE(0, offers.size());
 
-  Status status;
 
-  status = driver.abort();
-  ASSERT_EQ(OK, status);
+  ASSERT_EQ(DRIVER_ABORTED, driver.abort());
 
   // Simulate a message from master to the scheduler.
   RescindResourceOfferMessage rescindMessage;

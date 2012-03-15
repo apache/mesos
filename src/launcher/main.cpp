@@ -40,6 +40,7 @@ int main(int argc, char** argv)
       frameworkId,
       executorId,
       utils::os::getenv("MESOS_EXECUTOR_URI"),
+      utils::os::getenv("MESOS_COMMAND"),
       utils::os::getenv("MESOS_USER"),
       utils::os::getenv("MESOS_WORK_DIRECTORY"),
       utils::os::getenv("MESOS_SLAVE_PID"),

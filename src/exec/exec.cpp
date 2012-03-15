@@ -271,7 +271,7 @@ private:
 
 
 MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
-  : executor(_executor), state(INITIALIZED), process(NULL)
+  : executor(_executor), status(DRIVER_NOT_STARTED), process(NULL)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -306,12 +306,8 @@ Status MesosExecutorDriver::start()
 {
   Lock lock(&mutex);
 
-  if (state == RUNNING) {
-    return DRIVER_ALREADY_RUNNING;
-  } else if (state == STOPPED) {
-    return DRIVER_STOPPED;
-  } else if (state == ABORTED) {
-    return DRIVER_ABORTED;
+  if (status != DRIVER_NOT_STARTED) {
+    return status;
   }
 
   // Set stream buffering mode to flush on newlines so that we capture logs
@@ -386,9 +382,7 @@ Status MesosExecutorDriver::start()
 
   spawn(process);
 
-  state = RUNNING;
-
-  return OK;
+  return status = DRIVER_RUNNING;
 }
 
 
@@ -396,17 +390,13 @@ Status MesosExecutorDriver::stop()
 {
   Lock lock(&mutex);
 
-  if (state == STOPPED) {
-    return DRIVER_STOPPED;
-  } else if (state != RUNNING && state != ABORTED) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING && status != DRIVER_ABORTED) {
+    return status;
   }
 
   CHECK(process != NULL);
 
   terminate(process);
-
-  state = STOPPED;
 
   // TODO(benh): Set the condition variable in ExecutorProcess just as
   // we do with the MesosSchedulerDriver and SchedulerProcess:
@@ -414,7 +404,11 @@ Status MesosExecutorDriver::stop()
 
   pthread_cond_signal(&cond);
 
-  return OK;
+  bool aborted = status == DRIVER_ABORTED;
+
+  status = DRIVER_STOPPED;
+
+  return aborted ? DRIVER_ABORTED : status;
 }
 
 
@@ -422,15 +416,9 @@ Status MesosExecutorDriver::abort()
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state == STOPPED) {
-    return DRIVER_STOPPED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
-
-  state = ABORTED;
 
   CHECK(process != NULL);
 
@@ -441,7 +429,7 @@ Status MesosExecutorDriver::abort()
 
   pthread_cond_signal(&cond);
 
-  return OK;
+  return status = DRIVER_ABORTED;
 }
 
 
@@ -449,50 +437,40 @@ Status MesosExecutorDriver::join()
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state == STOPPED) {
-    return DRIVER_STOPPED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
-  while (state == RUNNING) {
+  while (status == DRIVER_RUNNING) {
     pthread_cond_wait(&cond, &mutex);
   }
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  }
+  CHECK(status == DRIVER_ABORTED || status == DRIVER_STOPPED);
 
-  CHECK(state == STOPPED);
-
-  return OK;
+  return status;
 }
 
 
 Status MesosExecutorDriver::run()
 {
   Status status = start();
-  return status != OK ? status : join();
+  return status != DRIVER_RUNNING ? status : join();
 }
 
 
-Status MesosExecutorDriver::sendStatusUpdate(const TaskStatus& status)
+Status MesosExecutorDriver::sendStatusUpdate(const TaskStatus& taskStatus)
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
   CHECK(process != NULL);
 
-  dispatch(process, &ExecutorProcess::sendStatusUpdate, status);
+  dispatch(process, &ExecutorProcess::sendStatusUpdate, taskStatus);
 
-  return OK;
+  return status;
 }
 
 
@@ -500,15 +478,13 @@ Status MesosExecutorDriver::sendFrameworkMessage(const string& data)
 {
   Lock lock(&mutex);
 
-  if (state == ABORTED) {
-    return DRIVER_ABORTED;
-  } else if (state != RUNNING) {
-    return DRIVER_NOT_RUNNING;
+  if (status != DRIVER_RUNNING) {
+    return status;
   }
 
   CHECK(process != NULL);
 
   dispatch(process, &ExecutorProcess::sendFrameworkMessage, data);
 
-  return OK;
+  return status;
 }

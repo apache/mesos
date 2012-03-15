@@ -93,10 +93,7 @@ DEPENDS = [
 
 # Note that we add EXTRA_OBJECTS to our dependency list to make sure
 # that we rebuild this module when one of them changes (e.g.,
-# libprocess). Unfortunately, since we rebuild the convenience library
-# libmesos_no_third_party.a each time we run make (to make sure it has
-# accurate build information in build.hpp), that causes us to rebuild
-# this each time.
+# libprocess).
 mesos_module = \
   Extension('_mesos',
             sources = SOURCES,

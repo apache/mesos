@@ -114,14 +114,14 @@ void LxcIsolationModule::launchExecutor(
   const ExecutorID& executorId = executorInfo.executor_id();
 
   LOG(INFO) << "Launching " << executorId
-            << " (" << executorInfo.uri() << ")"
+            << " (" << executorInfo.command().uri() << ")"
             << " in " << directory
             << " with resources " << resources
             << "' for framework " << frameworkId;
 
   // Create a name for the container.
   std::ostringstream out;
-  out << "mesos.executor-" << executorId << ".framework-" << frameworkId;
+  out << "mesos_executor_" << executorId << "_framework_" << frameworkId;
 
   const string& container = out.str();
 
@@ -174,7 +174,8 @@ void LxcIsolationModule::launchExecutor(
     ExecutorLauncher* launcher =
       new ExecutorLauncher(frameworkId,
 			   executorId,
-			   executorInfo.uri(),
+			   executorInfo.command().uri(),
+			   executorInfo.command().value(),
 			   frameworkInfo.user(),
                            directory,
 			   slave,
@@ -184,7 +185,7 @@ void LxcIsolationModule::launchExecutor(
 			   !local,
 			   conf.get("switch_user", true),
 			   container,
-			   executorInfo.environment());
+			   executorInfo.command().environment());
 
     launcher->setupEnvironmentForLauncherMain();
 
@@ -205,7 +206,8 @@ void LxcIsolationModule::launchExecutor(
     }
 
     // Determine path for mesos-launcher from Mesos home directory.
-    string path = conf.get("launcher_dir", MESOS_LIBEXECDIR) + "/mesos-launcher";
+    string path =
+      conf.get("launcher_dir", MESOS_LIBEXECDIR) + "/mesos-launcher";
     args[i++] = path.c_str();
     args[i++] = NULL;
 

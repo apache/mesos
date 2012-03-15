@@ -28,7 +28,7 @@ TOTAL_TASKS = 5
 TASK_CPUS = 1
 TASK_MEM = 32
 
-class MyScheduler(mesos.Scheduler):
+class TestScheduler(mesos.Scheduler):
   def __init__(self):
     self.tasksLaunched = 0
     self.tasksFinished = 0
@@ -80,12 +80,13 @@ if __name__ == "__main__":
 
   execInfo = mesos_pb2.ExecutorInfo()
   execInfo.executor_id.value = "default"
-  execInfo.uri = os.path.abspath("./test-executor")
+  execInfo.command.uri = os.path.abspath("./test-executor")
+  execInfo.command.value = os.path.abspath("./test-executor")
 
   driver = mesos.MesosSchedulerDriver(
-    MyScheduler(),
+    TestScheduler(),
     "Python test framework",
     execInfo,
     sys.argv[1])
 
-  sys.exit(driver.run())
+  sys.exit(0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1)

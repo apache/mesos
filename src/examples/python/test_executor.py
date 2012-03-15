@@ -47,4 +47,5 @@ class MyExecutor(mesos.Executor):
 
 if __name__ == "__main__":
   print "Starting executor"
-  mesos.MesosExecutorDriver(MyExecutor()).run()
+  driver = mesos.MesosExecutorDriver(MyExecutor())
+  sys.exit(0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1)

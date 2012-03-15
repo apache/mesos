@@ -208,7 +208,7 @@ TEST(FaultToleranceTest, SchedulerFailover)
   EXPECT_CALL(sched1, offerRescinded(&driver1, _))
     .Times(AtMost(1));
 
-  EXPECT_CALL(sched1, error(&driver1, _, "Framework failover"))
+  EXPECT_CALL(sched1, error(&driver1, _, "Framework failed over"))
     .Times(1);
 
   driver1.start();
@@ -238,11 +238,11 @@ TEST(FaultToleranceTest, SchedulerFailover)
 
   WAIT_UNTIL(sched2RegisteredCall);
 
-  driver1.stop();
-  driver2.stop();
+  EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver2.join());
 
-  driver1.join();
-  driver2.join();
+  EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver1.join());
 
   local::shutdown();
 }
@@ -520,7 +520,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
     .Times(0);
 
-  EXPECT_CALL(sched1, error(&driver1, _, "Framework failover"))
+  EXPECT_CALL(sched1, error(&driver1, _, "Framework failed over"))
     .Times(1);
 
   EXPECT_MESSAGE(filter, Eq(StatusUpdateMessage().GetTypeName()), _,
@@ -646,7 +646,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
                     Trigger(&sched1ResourceOfferCall)))
     .WillRepeatedly(Return());
 
-  EXPECT_CALL(sched1, error(&driver1, _, "Framework failover"))
+  EXPECT_CALL(sched1, error(&driver1, _, "Framework failed over"))
     .Times(1);
 
   driver1.start();

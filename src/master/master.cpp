@@ -512,16 +512,6 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
 
   LOG(INFO) << "Registering framework " << framework->id << " at " << from;
 
-  if (framework->info.executor().uri() == "") {
-    LOG(INFO) << framework << " registering without an executor URI";
-    FrameworkErrorMessage message;
-    message.set_code(1);
-    message.set_message("No executor URI given");
-    reply(message);
-    delete framework;
-    return;
-  }
-
   bool rootSubmissions = conf.get<bool>("root_submissions", true);
 
   if (framework->info.user() == "root" && rootSubmissions == false) {
@@ -553,17 +543,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
     LOG(ERROR) << "Framework re-registering without an id!";
     FrameworkErrorMessage message;
     message.set_code(1);
-    message.set_message("Missing framework id");
-    reply(message);
-    return;
-  }
-
-  if (frameworkInfo.executor().uri() == "") {
-    LOG(INFO) << "Framework " << frameworkId << " re-registering "
-              << "without an executor URI";
-    FrameworkErrorMessage message;
-    message.set_code(1);
-    message.set_message("No executor URI given");
+    message.set_message("Framework reregistered without a framework id");
     reply(message);
     return;
   }
@@ -1516,7 +1496,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   {
     FrameworkErrorMessage message;
     message.set_code(1);
-    message.set_message("Framework failover");
+    message.set_message("Framework failed over");
     send(oldPid, message);
   }
 
