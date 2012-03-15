@@ -15,21 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __BUILD_HPP__
-#define __BUILD_HPP__
 
-#include <string>
+#ifndef __MESOS_HPP__
+#define __MESOS_HPP__
 
-namespace mesos {
-namespace internal {
-namespace build {
+#include <mesos.pb.h> // ONLY USEFUL AFTER RUNNING PROTOC.
 
-extern const std::string DATE;
-extern const std::string USER;
-extern const std::string FLAGS;
+#define MESOS_VERSION "@PACKAGE_VERSION@"
 
-} // namespace build {
-} // namespace internal {
-} // namespace mesos {
+// TODO(benh): MESOS_MAJOR_VERSION, MESOS_MINOR_VERSION, MESOS_PATCH_VERSION.
 
-#endif // __BUILD_HPP__
+#endif // __MESOS_HPP__

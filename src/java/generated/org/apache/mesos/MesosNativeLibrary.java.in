@@ -46,12 +46,14 @@ public class MesosNativeLibrary {
           System.loadLibrary("mesos");
         } catch (UnsatisfiedLinkError error) {
           System.err.println("Failed to load native Mesos library from " +
-                             System.getenv("java.library.path"));
+                             System.getProperty("java.library.path"));
           throw error;
         }
       }
     }
   }
+
+  public static final String VERSION = "@PACKAGE_VERSION@";
 
   private static boolean loaded = false;
 }

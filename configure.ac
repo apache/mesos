@@ -18,7 +18,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
-AC_INIT([mesos], [0.0.1])
+AC_INIT([mesos], [0.9.0])
 
 # Have autoconf setup some variables related to the system.
 AC_CANONICAL_HOST
@@ -75,6 +75,7 @@ AC_CONFIG_SUBDIRS([third_party/libprocess])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([third_party/Makefile])
+
 AC_CONFIG_FILES([bin/mesos-build-env.sh])
 AC_CONFIG_FILES([bin/mesos-local.sh], [chmod +x bin/mesos-local.sh])
 AC_CONFIG_FILES([bin/mesos-master.sh], [chmod +x bin/mesos-master.sh])
@@ -84,6 +85,9 @@ AC_CONFIG_FILES([bin/gdb-mesos-local.sh], [chmod +x bin/gdb-mesos-local.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-master.sh], [chmod +x bin/gdb-mesos-master.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-slave.sh], [chmod +x bin/gdb-mesos-slave.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-tests.sh], [chmod +x bin/gdb-mesos-tests.sh])
+AC_CONFIG_FILES([include/mesos/mesos.hpp])
+AC_CONFIG_FILES([src/java/generated/org/apache/mesos/MesosNativeLibrary.java])
+
 
 AC_ARG_ENABLE([java],
               AS_HELP_STRING([--disable-java],

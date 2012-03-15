@@ -38,15 +38,12 @@ LIBPROCESS = third_party/libprocess
 # automake version).
 pkglibexecdir = $(libexecdir)/$(PACKAGE)
 
-# These next definitions may not seem like, much, but they are very
-# important! They inform where things that have the webui_, pythonegg_
-# and javalib_ prefix get installed! Also note that pkg*dir contains
-# the package name in the path (in our case 'mesos') which is valuable
-# because we'd prefer /path/to/mesos/webui versus something like
-# /path/to/webui.
+# Set install directory for webui artifacts (i.e., the location where
+# anything with the webui_ prefix will get installed). Also note that
+# pkg*dir contains the package name in the path (in our case 'mesos')
+# which is valuable because we'd prefer /path/to/mesos/webui versus
+# something like /path/to/webui.
 webuidir = $(pkgdatadir)
-pythoneggdir = $(pythondir)
-javalibdir = $(libdir)/java
 
 # Used for building Python eggs.
 SETUPTOOLS = \
@@ -84,6 +81,7 @@ MESOS_CPPFLAGS += -DMESOS_WEBUI_DIR=\"$(webuidir)/webui\"
 MESOS_CPPFLAGS += -DMESOS_LIBEXECDIR=\"$(pkglibexecdir)\"
 MESOS_CPPFLAGS += -I$(top_srcdir)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
+MESOS_CPPFLAGS += -I../include
 MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(GLOG)/src
@@ -163,10 +161,9 @@ libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
 
 pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\
 		     $(top_srcdir)/include/mesos/scheduler.hpp	\
-		     $(top_srcdir)/include/mesos/mesos.hpp	\
 		     $(top_srcdir)/include/mesos/mesos.proto
 
-nodist_pkginclude_HEADERS = mesos.pb.h
+nodist_pkginclude_HEADERS = ../include/mesos/mesos.hpp mesos.pb.h
 
 if OS_LINUX
   libmesos_no_third_party_la_SOURCES += slave/lxc_isolation_module.cpp
@@ -264,7 +261,7 @@ lib_LTLIBRARIES += libmesos.la
 
 libmesos_la_SOURCES = $(MESOS_PROTO) # Part of the distribution.
 
-libmesos_la_LDFLAGS = -version-info 0:0 -shared
+libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION) -version-info 0:0:0 -shared
 
 # Since we just include the convenience library (and no sources), we
 # need to tell libtool to build this as a C++ library.
@@ -353,27 +350,28 @@ dist_pkglibexec_SCRIPTS += scripts/killtree.sh
 
 # Mesos JAR.
 MESOS_JAR = mesos-$(PACKAGE_VERSION).jar
-MESOS_JAR_SRCROOT = $(srcdir)/java/src
-MESOS_JAR_SRCDIR = $(srcdir)/java/src/org/apache/mesos
-MESOS_JAR_SRC = $(MESOS_JAR_SRCDIR)/ExecutorDriver.java		\
-		$(MESOS_JAR_SRCDIR)/Executor.java		\
-		$(MESOS_JAR_SRCDIR)/Log.java			\
-		$(MESOS_JAR_SRCDIR)/MesosExecutorDriver.java	\
-		$(MESOS_JAR_SRCDIR)/MesosNativeLibrary.java	\
-		$(MESOS_JAR_SRCDIR)/MesosSchedulerDriver.java	\
-		$(MESOS_JAR_SRCDIR)/SchedulerDriver.java	\
-		$(MESOS_JAR_SRCDIR)/Scheduler.java
-
-EXTRA_DIST += $(MESOS_JAR_SRC)
+MESOS_JAR_SOURCE =							\
+	$(srcdir)/java/src/org/apache/mesos/ExecutorDriver.java		\
+	$(srcdir)/java/src/org/apache/mesos/Executor.java		\
+	$(srcdir)/java/src/org/apache/mesos/Log.java			\
+	$(srcdir)/java/src/org/apache/mesos/MesosExecutorDriver.java	\
+	$(srcdir)/java/src/org/apache/mesos/MesosSchedulerDriver.java	\
+	$(srcdir)/java/src/org/apache/mesos/SchedulerDriver.java	\
+	$(srcdir)/java/src/org/apache/mesos/Scheduler.java
+MESOS_JAR_GENERATED = $(JAVA_PROTOS)					\
+	java/generated/org/apache/mesos/MesosNativeLibrary.java
+EXTRA_DIST += $(MESOS_JAR_SOURCE)					\
+	$(srcdir)/java/generated/org/apache/mesos/MesosNativeLibrary.java.in
 
 # We build all the Java examples into their own JAR.
 EXAMPLES_JAR = examples.jar
-JAVA_EXAMPLES_SRC = $(srcdir)/examples/java/TestExceptionFramework.java	\
+EXAMPLES_SOURCE =							\
+	$(srcdir)/examples/java/TestExceptionFramework.java		\
 	$(srcdir)/examples/java/TestExecutor.java			\
 	$(srcdir)/examples/java/TestFramework.java			\
 	$(srcdir)/examples/java/TestMultipleExecutorsFramework.java
-EXTRA_DIST += $(JAVA_EXAMPLES_SRC)
-CLEANFILES += $(EXAMPLES_JAR)
+EXTRA_DIST += $(EXAMPLES_SOURCE)
+
 
 if HAS_JAVA
 # Protocol buffers JAR.
@@ -395,25 +393,23 @@ $(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
 CLEANFILES += $(PROTOBUF_JAR)
 
 
-$(MESOS_JAR): $(MESOS_JAR_SRC) $(JAVA_PROTOS) $(PROTOBUF_JAR)
+$(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) $(PROTOBUF_JAR)
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
 	@rm -f java/classes/org/apache/mesos/*
 	@$(MKDIR_P) java/classes/org/apache/mesos
 	@$(JAVA_HOME)/bin/javac \
-          -cp $(PROTOBUF_JAR) -sourcepath java/generated \
-          -d java/classes $(MESOS_JAR_SRC) $(JAVA_PROTOS)
+          -cp $(PROTOBUF_JAR) \
+          -d java/classes $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED)
 	@$(JAVA_HOME)/bin/jar cf $@ -C java/classes org
 
 CLEANFILES += $(MESOS_JAR)
 
-javalib_DATA = $(MESOS_JAR)
 
+MESOS_SOURCES_JAR = ../src/mesos-$(PACKAGE_VERSION)-sources.jar
 
-MESOS_SOURCES_JAR = ../src/mesos-sources.jar
-
-$(MESOS_SOURCES_JAR): $(MESOS_JAR_SRC)
+$(MESOS_SOURCES_JAR): $(MESOS_JAR_SOURCE)
 	@rm -f $(MESOS_SOURCES_JAR)
-	@$(JAVA_HOME)/bin/jar cf $@ -C $(MESOS_JAR_SRCROOT) org
+	@$(JAVA_HOME)/bin/jar cf $@ -C $(srcdir)/java/src org
 	@$(JAVA_HOME)/bin/jar uf $@ -C java/generated org
 
 CLEANFILES += $(MESOS_SOURCES_JAR)
@@ -478,7 +474,7 @@ java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
 	@$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.Log
 
-$(EXAMPLES_JAR): $(JAVA_EXAMPLES_SRC)
+$(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
 	@$(MKDIR_P) examples/java
 	@$(JAVA_HOME)/bin/javac -cp					\
@@ -487,7 +483,7 @@ $(EXAMPLES_JAR): $(JAVA_EXAMPLES_SRC)
           $(srcdir)/examples/java/*.java
 	@$(JAVA_HOME)/bin/jar cf $@ -C examples/java .
 
-CLEANFILES += $(EXMAPLES_JAR)
+CLEANFILES += $(EXAMPLES_JAR)
 
 maven-install: $(MESOS_JAR) $(MESOS_SOURCES_JAR) java/mesos.pom
 	mvn install:install-file -Dfile=$(MESOS_JAR)	\
@@ -556,8 +552,6 @@ $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
 	@PYTHONPATH=$(SETUPTOOLS) $(PYTHON) python/setup.py bdist_egg
 
 CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*
-
-pythonegg_DATA = $(MESOS_EGG)
 
 # Make sure the egg gets built via 'make all'.
 all-local: $(MESOS_EGG)

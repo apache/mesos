@@ -96,7 +96,7 @@ string JNIScheduler::getFrameworkName(SchedulerDriver* driver)
     return "";
   }
 
-  string name = construct<string>(env, (jstring) jname);
+  string name = construct<string>(env, jname);
 
   jvm->DetachCurrentThread();
 

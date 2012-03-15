@@ -89,13 +89,14 @@ public class TestFramework {
 
     @Override
     public void statusUpdate(SchedulerDriver driver, TaskStatus status) {
-      System.out.println("Status update: task " + status.getTaskId() +
+      System.out.println("Status update: task " + status.getTaskId().getValue() +
                          " is in state " + status.getState());
       if (status.getState() == TaskState.TASK_FINISHED) {
         finishedTasks++;
         System.out.println("Finished tasks: " + finishedTasks);
-        if (finishedTasks == totalTasks)
+        if (finishedTasks == totalTasks) {
           driver.stop();
+        }
       }
     }
 
