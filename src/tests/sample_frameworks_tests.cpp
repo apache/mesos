@@ -23,11 +23,12 @@
 
 // Run each of the sample frameworks in local mode.
 TEST_EXTERNAL(SampleFrameworks, CppFramework)
+TEST_EXTERNAL(SampleFrameworks, NoExecutorFramework)
 
 #ifdef MESOS_HAS_JAVA
   TEST_EXTERNAL(SampleFrameworks, JavaFramework)
   TEST_EXTERNAL(SampleFrameworks, JavaExceptionFramework)
-#endif 
+#endif
 
 #ifdef MESOS_HAS_PYTHON
   TEST_EXTERNAL(SampleFrameworks, PythonFramework)
