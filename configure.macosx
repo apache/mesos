@@ -1,20 +1,12 @@
 #!/bin/sh
 
-ENV_VARS= # Empty by default.
+# Set JAVA_CPPFLAGS for 10.7 if they aren't set since the JAVA_HOME
+# discovered during configure using 'java.home' does not include the
+# JNI headers.
+if test `sw_vers -productVersion | grep 10.7` -a ! -z "${JAVA_CPPFLAGS}"; then
+    exec `dirname ${0}`/configure \
+        JAVA_CPPFLAGS=-I/System/Library/Frameworks/JavaVM.framework/Headers \
+        ${@}
+fi
 
-# Set environment variables JAVA_HOME and JAVA_CPPFLAGS for 10.7 since
-# the JAVA_HOME discovered during configure using 'java.home' does not
-# have the JNI headers.
-case `sw_vers -productVersion` in
-  10.7*)
-        test ! -z "${JAVA_HOME}" || \
-            JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Home
-
-        test ! -z "${JAVA_CPPFLAGS}" || \
-            JAVA_CPPFLAGS=-I${JAVA_HOME}/../Headers
-
-        ENV_VARS="JAVA_HOME=${JAVA_HOME} JAVA_CPPFLAGS=${JAVA_CPPFLAGS}"
-        ;;
-esac
-
-exec `dirname ${0}`/configure ${ENV_VARS} ${@}
+exec `dirname ${0}`/configure ${@}
