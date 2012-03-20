@@ -50,7 +50,7 @@ public:
 
   virtual void resourcesRequested(
       const FrameworkID& frameworkId,
-      const std::vector<ResourceRequest>& requests);
+      const std::vector<Request>& requests);
 
   virtual void resourcesUnused(
     const FrameworkID& frameworkId,

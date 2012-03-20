@@ -46,7 +46,7 @@ public:
                           const FrameworkInfo& frameworkInfo,
                           const SlaveID& slaveId,
                           const SlaveInfo& slaveInfo);
-  virtual void launchTask(ExecutorDriver* driver, const TaskDescription& task);
+  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task);
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId);
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data);
   virtual void shutdown(ExecutorDriver* driver);
@@ -107,7 +107,7 @@ void JNIExecutor::registered(ExecutorDriver* driver,
 }
 
 
-void JNIExecutor::launchTask(ExecutorDriver* driver, const TaskDescription& desc)
+void JNIExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& desc)
 {
   jvm->AttachCurrentThread((void**) &env, NULL);
 
@@ -122,9 +122,9 @@ void JNIExecutor::launchTask(ExecutorDriver* driver, const TaskDescription& desc
   jmethodID launchTask =
     env->GetMethodID(clazz, "launchTask",
 		     "(Lorg/apache/mesos/ExecutorDriver;"
-		     "Lorg/apache/mesos/Protos$TaskDescription;)V");
+		     "Lorg/apache/mesos/Protos$TaskInfo;)V");
 
-  jobject jdesc = convert<TaskDescription>(env, desc);
+  jobject jdesc = convert<TaskInfo>(env, desc);
 
   env->ExceptionClear();
 

@@ -28,11 +28,11 @@ package mesos.internal;
 
 
 // TODO(benh): It would be great if this could just be a
-// TaskDescription wherever it gets used! However, doing so would
+// TaskInfo wherever it gets used! However, doing so would
 // require adding the framework_id field, the executor_id field, and
-// the state field into TaskDescription though (or send them another
+// the state field into TaskInfo though (or send them another
 // way). Also, one performance reason why we don't do that now is
-// because storing whatever data is coupled with a TaskDescription
+// because storing whatever data is coupled with a TaskInfo
 // could be large and unnecessary.
 message Task {
   required string name = 1;
@@ -115,7 +115,7 @@ message DeactivateFrameworkMessage {
 
 message ResourceRequestMessage {
   required FrameworkID framework_id = 1;
-  repeated ResourceRequest requests = 2;
+  repeated Request requests = 2;
 }
 
 
@@ -128,7 +128,7 @@ message ResourceOffersMessage {
 message LaunchTasksMessage {
   required FrameworkID framework_id = 1;
   required OfferID offer_id = 2;
-  repeated TaskDescription tasks = 3;
+  repeated TaskInfo tasks = 3;
   required Filters filters = 5;
 }
 
@@ -147,7 +147,7 @@ message RunTaskMessage {
   required FrameworkID framework_id = 1;
   required FrameworkInfo framework = 2;
   required string pid = 3;
-  required TaskDescription task = 4;
+  required TaskInfo task = 4;
 }
 
 

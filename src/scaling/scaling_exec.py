@@ -49,7 +49,7 @@ class NestedScheduler(mesos.Scheduler):
       if self.todo != self.tid:
         self.tid += 1
         pars = {"cpus": "%d" % CPUS, "mem": "%d" % MEM}
-        task = mesos.TaskDescription(self.tid, offer.slaveId,
+        task = mesos.TaskInfo(self.tid, offer.slaveId,
                                      "task %d" % self.tid, pars,
                                      pickle.dumps(self.duration))
         tasks.append(task)

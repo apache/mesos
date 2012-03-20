@@ -398,7 +398,7 @@ void Slave::doReliableRegistration()
 void Slave::runTask(const FrameworkInfo& frameworkInfo,
                     const FrameworkID& frameworkId,
                     const string& pid,
-                    const TaskDescription& task)
+                    const TaskInfo& task)
 {
   LOG(INFO) << "Got assigned task " << task.task_id()
             << " for framework " << frameworkId;
@@ -755,7 +755,7 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
     executor->pid = from;
 
     // First account for the tasks we're about to start.
-    foreachvalue (const TaskDescription& task, executor->queuedTasks) {
+    foreachvalue (const TaskInfo& task, executor->queuedTasks) {
       // Add the task to the executor.
       executor->addTask(task);
     }
@@ -780,7 +780,7 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
 
     LOG(INFO) << "Flushing queued tasks for framework " << framework->id;
 
-    foreachvalue (const TaskDescription& task, executor->queuedTasks) {
+    foreachvalue (const TaskInfo& task, executor->queuedTasks) {
       stats.tasks[TASK_STARTING]++;
 
       RunTaskMessage message;

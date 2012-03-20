@@ -32,7 +32,7 @@ using std::endl;
 using std::string;
 
 
-void run(ExecutorDriver* driver, const TaskDescription& task)
+void run(ExecutorDriver* driver, const TaskInfo& task)
 {
   sleep(100);
 
@@ -68,7 +68,7 @@ public:
     cout << "Registered executor on " << slaveInfo.hostname() << endl;
   }
 
-  virtual void launchTask(ExecutorDriver* driver, const TaskDescription& task)
+  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
     cout << "Starting task " << task.task_id().value() << endl;
 

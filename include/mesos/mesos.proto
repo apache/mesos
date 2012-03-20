@@ -225,7 +225,7 @@ message Resource {
  * then this request is assumed to only apply to resources on that
  * slave.
  */
-message ResourceRequest {
+message Request {
   optional SlaveID slave_id = 1;
   repeated Resource resources = 2;
 }
@@ -254,7 +254,7 @@ message Offer {
  * executor can be used to launch this task, and subsequent tasks
  * meant for the same executor can reuse the same ExecutorInfo struct.
  */
-message TaskDescription {
+message TaskInfo {
   required string name = 1;
   required TaskID task_id = 2;
   required SlaveID slave_id = 3;

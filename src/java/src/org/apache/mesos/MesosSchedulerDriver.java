@@ -111,15 +111,15 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     return status != Status.DRIVER_RUNNING ? status : join();
   }
 
-  public native Status requestResources(Collection<ResourceRequest> requests);
+  public native Status requestResources(Collection<Request> requests);
 
   public Status launchTasks(OfferID offerId,
-                            Collection<TaskDescription> tasks) {
+                            Collection<TaskInfo> tasks) {
     return launchTasks(offerId, tasks, Filters.newBuilder().build());
   }
 
   public native Status launchTasks(OfferID offerId,
-                                   Collection<TaskDescription> tasks,
+                                   Collection<TaskInfo> tasks,
                                    Filters filters);
 
   public native Status killTask(TaskID taskId);

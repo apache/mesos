@@ -122,13 +122,13 @@ TEST(MasterTest, TaskRunning)
 
   EXPECT_NE(0, offers.size());
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   EXPECT_CALL(isolationModule,
@@ -220,13 +220,13 @@ TEST(MasterTest, KillTask)
   TaskID taskId;
   taskId.set_value("1");
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->MergeFrom(taskId);
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   driver.launchTasks(offers[0].id(), tasks);
@@ -325,13 +325,13 @@ TEST(MasterTest, FrameworkMessage)
 
   EXPECT_NE(0, offers.size());
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   schedDriver.launchTasks(offers[0].id(), tasks);
@@ -380,7 +380,7 @@ TEST(MasterTest, MultipleExecutors)
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec1;
-  TaskDescription exec1Task;
+  TaskInfo exec1Task;
   trigger exec1LaunchTaskCall, exec1ShutdownCall;
 
   EXPECT_CALL(exec1, registered(_, _, _, _, _, _))
@@ -395,7 +395,7 @@ TEST(MasterTest, MultipleExecutors)
     .WillOnce(Trigger(&exec1ShutdownCall));
 
   MockExecutor exec2;
-  TaskDescription exec2Task;
+  TaskInfo exec2Task;
   trigger exec2LaunchTaskCall, exec2ShutdownCall;
 
   EXPECT_CALL(exec2, registered(_, _, _, _, _, _))
@@ -454,7 +454,7 @@ TEST(MasterTest, MultipleExecutors)
 
   ASSERT_NE(0, offers.size());
 
-  TaskDescription task1;
+  TaskInfo task1;
   task1.set_name("");
   task1.mutable_task_id()->set_value("1");
   task1.mutable_slave_id()->MergeFrom(offers[0].slave_id());
@@ -462,7 +462,7 @@ TEST(MasterTest, MultipleExecutors)
   task1.mutable_executor()->mutable_executor_id()->MergeFrom(executorId1);
   task1.mutable_executor()->mutable_command()->set_value("exit 1");
 
-  TaskDescription task2;
+  TaskInfo task2;
   task2.set_name("");
   task2.mutable_task_id()->set_value("2");
   task2.mutable_slave_id()->MergeFrom(offers[0].slave_id());
@@ -470,7 +470,7 @@ TEST(MasterTest, MultipleExecutors)
   task2.mutable_executor()->mutable_executor_id()->MergeFrom(executorId2);
   task2.mutable_executor()->mutable_command()->set_value("exit 1");
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task1);
   tasks.push_back(task2);
 

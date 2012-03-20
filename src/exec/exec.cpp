@@ -133,7 +133,7 @@ protected:
         driver, executorInfo, frameworkId, frameworkInfo, slaveId, slaveInfo);
   }
 
-  void runTask(const TaskDescription& task)
+  void runTask(const TaskInfo& task)
   {
     if (aborted) {
       VLOG(1) << "Ignoring run task message for task " << task.task_id()

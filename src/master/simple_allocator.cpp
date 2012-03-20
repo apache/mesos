@@ -87,7 +87,7 @@ void SimpleAllocator::slaveRemoved(Slave* slave)
 
 void SimpleAllocator::resourcesRequested(
     const FrameworkID& frameworkId,
-    const vector<ResourceRequest>& requests)
+    const vector<Request>& requests)
 {
   CHECK(initialized);
 

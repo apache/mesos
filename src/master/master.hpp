@@ -78,10 +78,10 @@ public:
   void unregisterFramework(const FrameworkID& frameworkId);
   void deactivateFramework(const FrameworkID& frameworkId);
   void resourceRequest(const FrameworkID& frameworkId,
-                       const std::vector<ResourceRequest>& requests);
+                       const std::vector<Request>& requests);
   void launchTasks(const FrameworkID& frameworkId,
                    const OfferID& offerId,
-                   const std::vector<TaskDescription>& tasks,
+                   const std::vector<TaskInfo>& tasks,
                    const Filters& filters);
   void reviveOffers(const FrameworkID& frameworkId);
   void killTask(const FrameworkID& frameworkId, const TaskID& taskId);
@@ -130,7 +130,7 @@ protected:
   void processTasks(Offer* offer,
                     Framework* framework,
                     Slave* slave,
-                    const std::vector<TaskDescription>& tasks,
+                    const std::vector<TaskInfo>& tasks,
                     const Filters& filters);
 
   // Add a framework.
@@ -156,7 +156,7 @@ protected:
 
   // Launch a task from a task description, and returned the consumed
   // resources for the task and possibly it's executor.
-  Resources launchTask(const TaskDescription& task,
+  Resources launchTask(const TaskInfo& task,
                        Framework* framework,
                        Slave* slave);
 

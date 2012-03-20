@@ -646,8 +646,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_launchTasks
   // Construct a C++ OfferID from the Java OfferID.
   const OfferID& offerId = construct<OfferID>(env, jofferId);
 
-  // Construct a C++ TaskDescription from each Java TaskDescription.
-  vector<TaskDescription> tasks;
+  // Construct a C++ TaskInfo from each Java TaskInfo.
+  vector<TaskInfo> tasks;
 
   jclass clazz = env->GetObjectClass(jtasks);
 
@@ -666,7 +666,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_launchTasks
   while (env->CallBooleanMethod(jiterator, hasNext)) {
     // Object task = iterator.next();
     jobject jtask = env->CallObjectMethod(jiterator, next);
-    const TaskDescription& task = construct<TaskDescription>(env, jtask);
+    const TaskInfo& task = construct<TaskInfo>(env, jtask);
     tasks.push_back(task);
   }
 
@@ -720,8 +720,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_requestReso
   MesosSchedulerDriver* driver =
     (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
 
-  // Construct a C++ ResourceRequest from each Java ResourceRequest.
-  vector<ResourceRequest> requests;
+  // Construct a C++ Request from each Java Request.
+  vector<Request> requests;
 
   clazz = env->GetObjectClass(jrequests);
 
@@ -740,7 +740,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_requestReso
   while (env->CallBooleanMethod(jrequests, hasNext)) {
     // Object task = iterator.next();
     jobject jrequest = env->CallObjectMethod(jiterator, next);
-    const ResourceRequest& request = construct<ResourceRequest>(env, jrequest);
+    const Request& request = construct<Request>(env, jrequest);
     requests.push_back(request);
   }
 

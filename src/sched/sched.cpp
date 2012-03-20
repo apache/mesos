@@ -418,7 +418,7 @@ protected:
     send(master, message);
   }
 
-  void requestResources(const vector<ResourceRequest>& requests)
+  void requestResources(const vector<Request>& requests)
   {
     if (!connected) {
       VLOG(1) << "Ignoring request resources message as master is disconnected";
@@ -427,14 +427,14 @@ protected:
 
     ResourceRequestMessage message;
     message.mutable_framework_id()->MergeFrom(frameworkId);
-    foreach (const ResourceRequest& request, requests) {
+    foreach (const Request& request, requests) {
       message.add_requests()->MergeFrom(request);
     }
     send(master, message);
   }
 
   void launchTasks(const OfferID& offerId,
-                   const vector<TaskDescription>& tasks,
+                   const vector<TaskInfo>& tasks,
                    const Filters& filters)
   {
     if (!connected) {
@@ -447,7 +447,7 @@ protected:
       // scheduler process sends it but the master never receives it
       // (message lost, master failover etc).  In the future, this
       // should be solved by the replicated log and timeouts.
-      foreach (const TaskDescription& task, tasks) {
+      foreach (const TaskInfo& task, tasks) {
         StatusUpdate update;
         update.mutable_framework_id()->MergeFrom(frameworkId);
         TaskStatus* status = update.mutable_status();
@@ -462,9 +462,9 @@ protected:
       return;
     }
 
-    // Check that each TaskDescription has either no ExecutorInfo and
+    // Check that each TaskInfo has either no ExecutorInfo and
     // no CommandInfo or only one of them.
-    foreach (const TaskDescription& task, tasks) {
+    foreach (const TaskInfo& task, tasks) {
       if (task.has_command() && task.has_executor()) {
         StatusUpdate update;
         update.mutable_framework_id()->MergeFrom(frameworkId);
@@ -485,7 +485,7 @@ protected:
     message.mutable_offer_id()->MergeFrom(offerId);
     message.mutable_filters()->MergeFrom(filters);
 
-    foreach (const TaskDescription& task, tasks) {
+    foreach (const TaskInfo& task, tasks) {
       // Keep only the slave PIDs where we run tasks so we can send
       // framework messages directly.
       if (savedOffers.count(offerId) > 0) {
@@ -866,7 +866,7 @@ Status MesosSchedulerDriver::killTask(const TaskID& taskId)
 
 Status MesosSchedulerDriver::launchTasks(
     const OfferID& offerId,
-    const vector<TaskDescription>& tasks,
+    const vector<TaskInfo>& tasks,
     const Filters& filters)
 {
   Lock lock(&mutex);
@@ -920,7 +920,7 @@ Status MesosSchedulerDriver::sendFrameworkMessage(
 
 
 Status MesosSchedulerDriver::requestResources(
-    const vector<ResourceRequest>& requests)
+    const vector<Request>& requests)
 {
   Lock lock(&mutex);
 

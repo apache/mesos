@@ -34,7 +34,7 @@ public class TestExecutor implements Executor {
   }
 
   @Override
-  public void launchTask(final ExecutorDriver driver, final TaskDescription task) {
+  public void launchTask(final ExecutorDriver driver, final TaskInfo task) {
     new Thread() { public void run() {
       try {
         TaskStatus status = TaskStatus.newBuilder()

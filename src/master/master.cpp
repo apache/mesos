@@ -680,7 +680,7 @@ void Master::deactivateFramework(const FrameworkID& frameworkId)
 
 
 void Master::resourceRequest(const FrameworkID& frameworkId,
-                             const vector<ResourceRequest>& requests)
+                             const vector<Request>& requests)
 {
   allocator->resourcesRequested(frameworkId, requests);
 }
@@ -688,7 +688,7 @@ void Master::resourceRequest(const FrameworkID& frameworkId,
 
 void Master::launchTasks(const FrameworkID& frameworkId,
                          const OfferID& offerId,
-                         const vector<TaskDescription>& tasks,
+                         const vector<TaskInfo>& tasks,
                          const Filters& filters)
 {
   LOG(INFO) << "Received reply for offer " << offerId;
@@ -712,7 +712,7 @@ void Master::launchTasks(const FrameworkID& frameworkId,
       // TODO: Consider adding a new task state TASK_INVALID for
       // situations like these.
       LOG(WARNING) << "Offer " << offerId << " is no longer valid";
-      foreach (const TaskDescription& task, tasks) {
+      foreach (const TaskInfo& task, tasks) {
         StatusUpdateMessage message;
         StatusUpdate* update = message.mutable_update();
         update->mutable_framework_id()->MergeFrom(frameworkId);
@@ -1201,35 +1201,35 @@ void Master::makeOffers(Framework* framework,
 // back to the framework for only that task description. An instance
 // will be reused for each task description from same offer, but not
 // for task descriptions from different offers.
-typedef Option<string> TaskDescriptionError;
+typedef Option<string> TaskInfoError;
 
-struct TaskDescriptionVisitor
+struct TaskInfoVisitor
 {
-  virtual TaskDescriptionError operator () (
-      const TaskDescription& task,
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
       Offer* offer,
       Framework* framework,
       Slave* slave) = 0;
 
-  virtual ~TaskDescriptionVisitor() {}
+  virtual ~TaskInfoVisitor() {}
 };
 
 
 // Checks that the slave ID used by a task is correct.
-struct SlaveIDChecker : TaskDescriptionVisitor
+struct SlaveIDChecker : TaskInfoVisitor
 {
-  virtual TaskDescriptionError operator () (
-      const TaskDescription& task,
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
       Offer* offer,
       Framework* framework,
       Slave* slave)
   {
     if (!(task.slave_id() == slave->id)) {
-      return TaskDescriptionError::some(
+      return TaskInfoError::some(
           "Task uses invalid slave: " + task.slave_id().value());
     }
 
-    return TaskDescriptionError::none();
+    return TaskInfoError::none();
   }
 };
 
@@ -1238,10 +1238,10 @@ struct SlaveIDChecker : TaskDescriptionVisitor
 // task actually gets launched (for example, another checker may
 // return an error for a task), we always consider it an error when a
 // task tries to re-use an ID.
-struct UniqueTaskIDChecker : TaskDescriptionVisitor
+struct UniqueTaskIDChecker : TaskInfoVisitor
 {
-  virtual TaskDescriptionError operator () (
-      const TaskDescription& task,
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
       Offer* offer,
       Framework* framework,
       Slave* slave)
@@ -1249,13 +1249,13 @@ struct UniqueTaskIDChecker : TaskDescriptionVisitor
     const TaskID& taskId = task.task_id();
 
     if (ids.contains(taskId) || framework->tasks.contains(taskId)) {
-      return TaskDescriptionError::some(
+      return TaskInfoError::some(
           "Task has duplicate ID: " + taskId.value());
     }
 
     ids.insert(taskId);
 
-    return TaskDescriptionError::none();
+    return TaskInfoError::none();
   }
 
   hashset<TaskID> ids;
@@ -1265,22 +1265,22 @@ struct UniqueTaskIDChecker : TaskDescriptionVisitor
 // Checks that the used resources by a task (and executor if
 // necessary) on each slave does not exceed the total resources
 // offered on that slave
-struct ResourceUsageChecker : TaskDescriptionVisitor
+struct ResourceUsageChecker : TaskInfoVisitor
 {
-  virtual TaskDescriptionError operator () (
-      const TaskDescription& task,
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
       Offer* offer,
       Framework* framework,
       Slave* slave)
   {
     if (task.resources().size() == 0) {
-      return TaskDescriptionError::some("Task uses no resources");
+      return TaskInfoError::some("Task uses no resources");
     }
 
     foreach (const Resource& resource, task.resources()) {
       if (!Resources::isAllocatable(resource)) {
         // TODO(benh): Send back the invalid resources?
-        return TaskDescriptionError::some("Task uses invalid resources");
+        return TaskInfoError::some("Task uses invalid resources");
       }
     }
 
@@ -1294,7 +1294,7 @@ struct ResourceUsageChecker : TaskDescriptionVisitor
     foreach (const Resource& resource, executorInfo.resources()) {
       if (!Resources::isAllocatable(resource)) {
         // TODO(benh): Send back the invalid resources?
-        return TaskDescriptionError::some(
+        return TaskInfoError::some(
             "Task's executor uses invalid resources");
       }
     }
@@ -1303,7 +1303,7 @@ struct ResourceUsageChecker : TaskDescriptionVisitor
     Resources taskResources = task.resources();
 
     if (!((usedResources + taskResources) <= offer->resources())) {
-      return TaskDescriptionError::some(
+      return TaskInfoError::some(
           "Task uses more resources than offered");
     }
 
@@ -1318,7 +1318,7 @@ struct ResourceUsageChecker : TaskDescriptionVisitor
                   << usedResources << " is greater than offered "
                   << offer->resources();
 
-	  return TaskDescriptionError::some(
+	  return TaskInfoError::some(
               "Task + executor uses more resources than offered");
         }
       }
@@ -1327,7 +1327,7 @@ struct ResourceUsageChecker : TaskDescriptionVisitor
 
     usedResources += taskResources;
 
-    return TaskDescriptionError::none();
+    return TaskInfoError::none();
   }
 
   Resources usedResources;
@@ -1341,24 +1341,24 @@ struct ResourceUsageChecker : TaskDescriptionVisitor
 void Master::processTasks(Offer* offer,
                           Framework* framework,
                           Slave* slave,
-                          const vector<TaskDescription>& tasks,
+                          const vector<TaskInfo>& tasks,
                           const Filters& filters)
 {
   Resources usedResources; // Accumulated resources used from this offer.
 
   // Create task visitors.
-  list<TaskDescriptionVisitor*> visitors;
+  list<TaskInfoVisitor*> visitors;
   visitors.push_back(new SlaveIDChecker());
   visitors.push_back(new UniqueTaskIDChecker());
   visitors.push_back(new ResourceUsageChecker());
 
   // Loop through each task and check it's validity.
-  foreach (const TaskDescription& task, tasks) {
+  foreach (const TaskInfo& task, tasks) {
     // Possible error found while checking task's validity.
-    TaskDescriptionError error = TaskDescriptionError::none();
+    TaskInfoError error = TaskInfoError::none();
 
     // Invoke each visitor.
-    foreach (TaskDescriptionVisitor* visitor, visitors) {
+    foreach (TaskInfoVisitor* visitor, visitors) {
       error = (*visitor)(task, offer, framework, slave);
       if (error.isSome()) {
         break;
@@ -1386,7 +1386,7 @@ void Master::processTasks(Offer* offer,
 
   // Cleanup visitors.
   do {
-    TaskDescriptionVisitor* visitor = visitors.front();
+    TaskInfoVisitor* visitor = visitors.front();
     visitors.pop_front();
     delete visitor;
   } while (!visitors.empty());
@@ -1424,7 +1424,7 @@ void Master::processTasks(Offer* offer,
 }
 
 
-Resources Master::launchTask(const TaskDescription& task,
+Resources Master::launchTask(const TaskInfo& task,
                              Framework* framework,
                              Slave* slave)
 {

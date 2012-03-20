@@ -56,7 +56,7 @@ public interface Executor {
    * however, no other callbacks will be invoked on this executor
    * until this callback has returned.
    */
-  void launchTask(ExecutorDriver driver, TaskDescription task);
+  void launchTask(ExecutorDriver driver, TaskInfo task);
 
   /**
    * Invoked when a task running within this executor has been killed

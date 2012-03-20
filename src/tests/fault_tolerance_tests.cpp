@@ -448,13 +448,13 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
 
   EXPECT_NE(0, offers.size());
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("test task");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   driver.launchTasks(offers[0].id(), tasks);
@@ -552,13 +552,13 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   EXPECT_NE(0, offers.size());
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   driver1.launchTasks(offers[0].id(), tasks);
@@ -673,13 +673,13 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   EXPECT_NE(0, offers.size());
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   driver1.launchTasks(offers[0].id(), tasks);

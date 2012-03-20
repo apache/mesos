@@ -56,7 +56,7 @@ public:
                           const SlaveInfo& slaveInfo);
 
   virtual void launchTask(ExecutorDriver* driver,
-                          const TaskDescription& task);
+                          const TaskInfo& task);
 
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId);
 

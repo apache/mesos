@@ -44,7 +44,7 @@ public:
     cout << "Registered executor on " << slaveInfo.hostname() << endl;
   }
 
-  virtual void launchTask(ExecutorDriver* driver, const TaskDescription& task)
+  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
     cout << "Starting task " << task.task_id().value() << endl;
 

@@ -77,7 +77,7 @@ public:
       }
 
       // Launch tasks.
-      vector<TaskDescription> tasks;
+      vector<TaskInfo> tasks;
       while (tasksLaunched < totalTasks &&
              cpus >= CPUS_PER_TASK &&
              mem >= MEM_PER_TASK) {
@@ -86,7 +86,7 @@ public:
         cout << "Starting task " << taskId << " on "
              << offer.hostname() << endl;
 
-        TaskDescription task;
+        TaskInfo task;
         task.set_name("Task " + lexical_cast<string>(taskId));
         task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
         task.mutable_slave_id()->MergeFrom(offer.slave_id());

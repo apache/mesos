@@ -97,7 +97,7 @@ public:
     std::cout << "Registered executor on " << slaveInfo.hostname() << std::endl;
   }
 
-  virtual void launchTask(ExecutorDriver* driver, const TaskDescription& task)
+  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
     if (launched) {
       TaskStatus status;

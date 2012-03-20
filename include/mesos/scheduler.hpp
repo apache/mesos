@@ -205,12 +205,12 @@ public:
 
   /**
    * Requests resources from Mesos (see mesos.proto for a description
-   * of ResourceRequest and how, for example, to request resources
+   * of Request and how, for example, to request resources
    * from specific slaves). Any resources available are offered to the
    * framework via Scheduler::resourceOffers callback, asynchronously.
    */
   virtual Status requestResources(
-      const std::vector<ResourceRequest>& requests) = 0;
+      const std::vector<Request>& requests) = 0;
 
   /**
    * Launches the given set of tasks. Note that the current mechanism
@@ -222,7 +222,7 @@ public:
    * launch their tasks.
    */
   virtual Status launchTasks(const OfferID& offerId,
-                             const std::vector<TaskDescription>& tasks,
+                             const std::vector<TaskInfo>& tasks,
                              const Filters& filters = Filters()) = 0;
 
   /**
@@ -335,10 +335,10 @@ public:
   virtual Status join();
   virtual Status run();
   virtual Status requestResources(
-      const std::vector<ResourceRequest>& requests);
+      const std::vector<Request>& requests);
   virtual Status launchTasks(
       const OfferID& offerId,
-      const std::vector<TaskDescription>& tasks,
+      const std::vector<TaskInfo>& tasks,
       const Filters& filters = Filters());
   virtual Status killTask(const TaskID& taskId);
   virtual Status reviveOffers();

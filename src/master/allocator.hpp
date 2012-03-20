@@ -51,7 +51,7 @@ public:
 
   virtual void resourcesRequested(
       const FrameworkID& frameworkId,
-      const std::vector<ResourceRequest>& requests) {}
+      const std::vector<Request>& requests) {}
 
   // Whenever resources offered to a framework go unused (e.g.,
   // refused) the master invokes this callback.

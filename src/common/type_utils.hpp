@@ -73,7 +73,7 @@ inline std::ostream& operator << (std::ostream& stream, const TaskState& state)
 }
 
 
-inline std::ostream& operator << (std::ostream& stream, const TaskDescription& task)
+inline std::ostream& operator << (std::ostream& stream, const TaskInfo& task)
 {
   stream << task.DebugString();
   return stream;

@@ -47,7 +47,7 @@ class TestScheduler(mesos.Scheduler):
 
         print "Accepting offer on %s to start task %d" % (offer.hostname, tid)
 
-        task = mesos_pb2.TaskDescription()
+        task = mesos_pb2.TaskInfo()
         task.task_id.value = str(tid)
         task.slave_id.value = offer.slave_id.value
         task.name = "task %d" % tid

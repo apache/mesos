@@ -251,7 +251,7 @@ TaskState construct(JNIEnv* env, jobject jobj)
 
 
 template <>
-TaskDescription construct(JNIEnv* env, jobject jobj)
+TaskInfo construct(JNIEnv* env, jobject jobj)
 {
   jclass clazz = env->GetObjectClass(jobj);
 
@@ -263,7 +263,7 @@ TaskDescription construct(JNIEnv* env, jobject jobj)
   jbyte* data = env->GetByteArrayElements(jdata, NULL);
   jsize length = env->GetArrayLength(jdata);
 
-  const TaskDescription& task = parse<TaskDescription>(data, length);
+  const TaskInfo& task = parse<TaskInfo>(data, length);
 
   env->ReleaseByteArrayElements(jdata, data, 0);
 
@@ -314,7 +314,7 @@ ExecutorInfo construct(JNIEnv* env, jobject jobj)
 
 
 template <>
-ResourceRequest construct(JNIEnv* env, jobject jobj)
+Request construct(JNIEnv* env, jobject jobj)
 {
   jclass clazz = env->GetObjectClass(jobj);
 
@@ -326,7 +326,7 @@ ResourceRequest construct(JNIEnv* env, jobject jobj)
   jbyte* data = env->GetByteArrayElements(jdata, NULL);
   jsize length = env->GetArrayLength(jdata);
 
-  const ResourceRequest& request = parse<ResourceRequest>(data, length);
+  const Request& request = parse<Request>(data, length);
 
   env->ReleaseByteArrayElements(jdata, data, 0);
 

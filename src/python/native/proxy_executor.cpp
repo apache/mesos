@@ -92,14 +92,14 @@ cleanup:
 
 
 void ProxyExecutor::launchTask(ExecutorDriver* driver,
-                               const TaskDescription& task)
+                               const TaskInfo& task)
 {
   InterpreterLock lock;
 
   PyObject* taskObj = NULL;
   PyObject* res = NULL;
 
-  taskObj = createPythonProtobuf(task, "TaskDescription");
+  taskObj = createPythonProtobuf(task, "TaskInfo");
   if (taskObj == NULL) {
     goto cleanup; // createPythonProtobuf will have set an exception
   }

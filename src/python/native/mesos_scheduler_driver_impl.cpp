@@ -343,7 +343,7 @@ PyObject* MesosSchedulerDriverImpl_requestResources(MesosSchedulerDriverImpl* se
   }
 
   PyObject* requestsObj = NULL;
-  vector<ResourceRequest> requests;
+  vector<Request> requests;
 
   if (!PyArg_ParseTuple(args, "O", &requestsObj)) {
     return NULL;
@@ -359,10 +359,10 @@ PyObject* MesosSchedulerDriverImpl_requestResources(MesosSchedulerDriverImpl* se
     if (requestObj == NULL) {
       return NULL; // Exception will have been set by PyList_GetItem
     }
-    ResourceRequest request;
+    Request request;
     if (!readPythonProtobuf(requestObj, &request)) {
       PyErr_Format(PyExc_Exception,
-                   "Could not deserialize Python ResourceRequest");
+                   "Could not deserialize Python Request");
       return NULL;
     }
     requests.push_back(request);
@@ -385,7 +385,7 @@ PyObject* MesosSchedulerDriverImpl_launchTasks(MesosSchedulerDriverImpl* self,
   PyObject* tasksObj = NULL;
   PyObject* filtersObj = NULL;
   OfferID offerId;
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   Filters filters;
 
   if (!PyArg_ParseTuple(args, "OO|O", &offerIdObj, &tasksObj, &filtersObj)) {
@@ -407,10 +407,10 @@ PyObject* MesosSchedulerDriverImpl_launchTasks(MesosSchedulerDriverImpl* self,
     if (taskObj == NULL) {
       return NULL; // Exception will have been set by PyList_GetItem
     }
-    TaskDescription task;
+    TaskInfo task;
     if (!readPythonProtobuf(taskObj, &task)) {
       PyErr_Format(PyExc_Exception,
-                   "Could not deserialize Python TaskDescription");
+                   "Could not deserialize Python TaskInfo");
       return NULL;
     }
     tasks.push_back(task);

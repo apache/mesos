@@ -119,12 +119,12 @@ TEST(ResourceOffersTest, TaskUsesNoResources)
 
   EXPECT_NE(0, offers.size());
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   TaskStatus status;
@@ -178,7 +178,7 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
 
   EXPECT_NE(0, offers.size());
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
@@ -188,7 +188,7 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
   cpus->set_type(Value::SCALAR);
   cpus->mutable_scalar()->set_value(0);
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   TaskStatus status;
@@ -242,7 +242,7 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 
   EXPECT_NE(0, offers.size());
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
@@ -252,7 +252,7 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
   cpus->set_type(Value::SCALAR);
   cpus->mutable_scalar()->set_value(2.01);
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   TaskStatus status;
@@ -306,7 +306,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 
   EXPECT_NE(0, offers.size());
 
-  vector<TaskDescription> tasks; // Use nothing!
+  vector<TaskInfo> tasks; // Use nothing!
 
   driver1.launchTasks(offers[0].id(), tasks);
 
@@ -339,7 +339,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 }
 
 
-TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskDescriptionError)
+TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -366,7 +366,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskDescriptionError)
 
   EXPECT_NE(0, offers.size());
 
-  TaskDescription task;
+  TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
@@ -381,7 +381,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskDescriptionError)
   mem->set_type(Value::SCALAR);
   mem->mutable_scalar()->set_value(1 * Gigabyte);
 
-  vector<TaskDescription> tasks;
+  vector<TaskInfo> tasks;
   tasks.push_back(task);
 
   TaskStatus status;
@@ -437,7 +437,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskDescriptionError)
 // unique task IDs and aggregate resource usage.
 
 
-TEST(ResourceOffersTest, ResourceRequest)
+TEST(ResourceOffersTest, Request)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -475,9 +475,9 @@ TEST(ResourceOffersTest, ResourceRequest)
 
   WAIT_UNTIL(registeredCall);
 
-  vector<ResourceRequest> requestsSent;
-  vector<ResourceRequest> requestsReceived;
-  ResourceRequest request;
+  vector<Request> requestsSent;
+  vector<Request> requestsReceived;
+  Request request;
   request.mutable_slave_id()->set_value("test");
   requestsSent.push_back(request);
 

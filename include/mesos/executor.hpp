@@ -99,7 +99,7 @@ public:
    * callback has returned.
    */
   virtual void launchTask(ExecutorDriver* driver,
-                          const TaskDescription& task) = 0;
+                          const TaskInfo& task) = 0;
 
   /**
    * Invoked when a task running within this executor has been killed

@@ -372,7 +372,7 @@ jobject convert(JNIEnv* env, const TaskState& state)
 
 
 template <>
-jobject convert(JNIEnv* env, const TaskDescription& task)
+jobject convert(JNIEnv* env, const TaskInfo& task)
 {
   string data;
   task.SerializeToString(&data);
@@ -381,12 +381,12 @@ jobject convert(JNIEnv* env, const TaskDescription& task)
   jbyteArray jdata = env->NewByteArray(data.size());
   env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
 
-  // TaskDescription task = TaskDescription.parseFrom(data);
-  jclass clazz = FindMesosClass(env, "org/apache/mesos/Protos$TaskDescription");
+  // TaskInfo task = TaskInfo.parseFrom(data);
+  jclass clazz = FindMesosClass(env, "org/apache/mesos/Protos$TaskInfo");
 
   jmethodID parseFrom =
     env->GetStaticMethodID(clazz, "parseFrom",
-                           "([B)Lorg/apache/mesos/Protos$TaskDescription;");
+                           "([B)Lorg/apache/mesos/Protos$TaskInfo;");
 
   jobject jtask = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 

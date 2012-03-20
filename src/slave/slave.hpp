@@ -73,7 +73,7 @@ public:
   void runTask(const FrameworkInfo& frameworkInfo,
                const FrameworkID& frameworkId,
                const std::string& pid,
-               const TaskDescription& task);
+               const TaskInfo& task);
   void killTask(const FrameworkID& frameworkId,
                 const TaskID& taskId);
   void shutdownFramework(const FrameworkID& frameworkId);
@@ -213,7 +213,7 @@ struct Executor
     }
   }
 
-  Task* addTask(const TaskDescription& task)
+  Task* addTask(const TaskInfo& task)
   {
     // The master should enforce unique task IDs, but just in case
     // maybe we shouldn't make this a fatal error.
@@ -274,7 +274,7 @@ struct Executor
 
   Resources resources; // Currently consumed resources.
 
-  hashmap<TaskID, TaskDescription> queuedTasks;
+  hashmap<TaskID, TaskInfo> queuedTasks;
   hashmap<TaskID, Task*> launchedTasks;
 };
 
@@ -290,9 +290,9 @@ struct Framework
 
   ~Framework() {}
 
-  // Returns an ExecutorInfo for a TaskDescription (possibly
+  // Returns an ExecutorInfo for a TaskInfo (possibly
   // constructing one if the task has a CommandInfo).
-  ExecutorInfo getExecutorInfo(const TaskDescription& task)
+  ExecutorInfo getExecutorInfo(const TaskInfo& task)
   {
     if (task.has_command()) {
       ExecutorInfo executor;

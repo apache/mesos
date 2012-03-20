@@ -133,7 +133,7 @@ public:
                                 const FrameworkInfo&,
                                 const SlaveID&,
                                 const SlaveInfo&));
-  MOCK_METHOD2(launchTask, void(ExecutorDriver*, const TaskDescription&));
+  MOCK_METHOD2(launchTask, void(ExecutorDriver*, const TaskInfo&));
   MOCK_METHOD2(killTask, void(ExecutorDriver*, const TaskID&));
   MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const std::string&));
   MOCK_METHOD1(shutdown, void(ExecutorDriver*));
@@ -150,7 +150,7 @@ public:
   MOCK_METHOD1(slaveAdded, void(master::Slave*));
   MOCK_METHOD1(slaveRemoved, void(master::Slave*));
   MOCK_METHOD2(resourcesRequested, void(const FrameworkID&,
-                                        const std::vector<ResourceRequest>&));
+                                        const std::vector<Request>&));
   MOCK_METHOD3(resourcesUnused, void(const FrameworkID&,
                                      const SlaveID&,
                                      const Resources&));

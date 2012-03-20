@@ -78,12 +78,12 @@ public interface SchedulerDriver {
 
   /**
    * Requests resources from Mesos (see mesos.proto for a description
-   * of ResourceRequest and how, for example, to request resources
+   * of Request and how, for example, to request resources
    * from specific slaves). Any resources available are offered to the
    * framework via {@link Scheduler#resourceOffers} callback,
    * asynchronously.
    */
-  Status requestResources(Collection<ResourceRequest> requests);
+  Status requestResources(Collection<Request> requests);
 
   /**
    * Launches the given set of tasks. Note that the current mechanism
@@ -95,14 +95,14 @@ public interface SchedulerDriver {
    * launch their tasks.
    */
   Status launchTasks(OfferID offerId,
-                     Collection<TaskDescription> tasks,
+                     Collection<TaskInfo> tasks,
                      Filters filters);
 
   /**
    * Launches the given set of tasks. See above for details.
    */
   Status launchTasks(OfferID offerId,
-                     Collection<TaskDescription> tasks);
+                     Collection<TaskInfo> tasks);
 
   /**
    * Kills the specified task. Note that attempting to kill a task is

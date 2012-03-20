@@ -51,14 +51,14 @@ public class TestFramework {
     public void resourceOffers(SchedulerDriver driver,
                                List<Offer> offers) {
       for (Offer offer : offers) {
-        List<TaskDescription> tasks = new ArrayList<TaskDescription>();
+        List<TaskInfo> tasks = new ArrayList<TaskInfo>();
         if (launchedTasks < totalTasks) {
           TaskID taskId = TaskID.newBuilder()
             .setValue(Integer.toString(launchedTasks++)).build();
 
           System.out.println("Launching task " + taskId.getValue());
 
-          TaskDescription task = TaskDescription.newBuilder()
+          TaskInfo task = TaskInfo.newBuilder()
             .setName("task " + taskId.getValue())
             .setTaskId(taskId)
             .setSlaveId(offer.getSlaveId())

@@ -73,8 +73,8 @@ class ScalingScheduler(mesos.Scheduler):
         (todo, duration) = config[self.tid]
         arg = pickle.dumps((self.master, (todo, duration)))
         pars = {"cpus": "%d" % CPUS, "mem": "%d" % MEM}
-        task = mesos.TaskDescription(self.tid, offer.slaveId,
-                                     "task %d" % self.tid, pars, arg)
+        task = mesos.TaskInfo(self.tid, offer.slaveId,
+                              "task %d" % self.tid, pars, arg)
         tasks.append(task)
         self.running[self.tid] = (todo, duration)
         self.tid += 1
