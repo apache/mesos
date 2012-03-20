@@ -42,7 +42,7 @@ int main(int argc, char** argv)
   // Initialize glog.
   google::InitGoogleLogging("alltests");
 
-  if (argc == 2 && strcmp("-v", argv[1]) == 0) {
+  if (argc >= 2 && strcmp("-v", argv[1]) == 0) {
     google::SetStderrLogging(google::INFO);
   }
 
