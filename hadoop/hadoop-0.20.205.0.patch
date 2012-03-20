@@ -189,7 +189,7 @@ index 0000000..e369f39
 +import org.apache.mesos.Protos.SlaveInfo;
 +import org.apache.mesos.Protos.Status;
 +import org.apache.mesos.Protos.TaskID;
-+import org.apache.mesos.Protos.TaskDescription;
++import org.apache.mesos.Protos.TaskInfo;
 +import org.apache.mesos.Protos.TaskState;
 +
 +public class FrameworkExecutor implements Executor {
@@ -251,7 +251,7 @@ index 0000000..e369f39
 +  }
 +  
 +  @Override
-+  public void launchTask(ExecutorDriver d, TaskDescription task) {
++  public void launchTask(ExecutorDriver d, TaskInfo task) {
 +    LOG.info("Asked to launch Mesos task " + task.getTaskId().getValue());
 +    activeMesosTasks.add(task.getTaskId());
 +  }
@@ -399,7 +399,7 @@ index 0000000..312cfdb
 +import org.apache.mesos.Protos.SlaveID;
 +import org.apache.mesos.Protos.Offer;
 +import org.apache.mesos.Protos.TaskID;
-+import org.apache.mesos.Protos.TaskDescription;
++import org.apache.mesos.Protos.TaskInfo;
 +import org.apache.mesos.Protos.TaskState;
 +import org.apache.mesos.Protos.Status;
 +import org.apache.mesos.Scheduler;
@@ -544,7 +544,7 @@ index 0000000..312cfdb
 +    return getResource(offer.getResourcesList(), name);
 +  }
 +
-+  private static double getResource(TaskDescription task, String name) {
++  private static double getResource(TaskInfo task, String name) {
 +    return getResource(task.getResourcesList(), name);
 +  }
 +  
@@ -574,17 +574,17 @@ index 0000000..312cfdb
 +        // because it minimizing the amount of scanning we need to do if we
 +        // get a large set of offered nodes.
 +        List<Integer> indices = new LinkedList<Integer>();
-+        List<List<TaskDescription>> replies =
-+            new ArrayList<List<TaskDescription>>(numOffers);
++        List<List<TaskInfo>> replies =
++            new ArrayList<List<TaskInfo>>(numOffers);
 +        for (int i = 0; i < numOffers; i++) {
 +          indices.add(i);
-+          replies.add(new ArrayList<TaskDescription>());
++          replies.add(new ArrayList<TaskInfo>());
 +        }
 +        while (indices.size() > 0) {
 +          for (Iterator<Integer> it = indices.iterator(); it.hasNext();) {
 +            int i = it.next();
 +            Offer offer = offers.get(i);
-+            TaskDescription task = findTask(
++            TaskInfo task = findTask(
 +                offer.getSlaveId(), offer.getHostname(), cpus[i], mem[i]);
 +            if (task != null) {
 +              cpus[i] -= getResource(task, "cpus");
@@ -620,7 +620,7 @@ index 0000000..312cfdb
 +  }
 +  
 +  // Find a single task for a given node. Assumes JobTracker is locked.
-+  private TaskDescription findTask(
++  private TaskInfo findTask(
 +      SlaveID slaveId, String host, double cpus, double mem) {
 +    if (cpus < cpusPerTask || mem < memPerTask) {
 +      return null; // Too few resources are left on the node
@@ -667,7 +667,7 @@ index 0000000..312cfdb
 +             " as " + taskType + " on " + host);
 +    
 +    // Create a task description to pass back to Mesos.
-+    return TaskDescription.newBuilder()
++    return TaskInfo.newBuilder()
 +        .setTaskId(mesosId)
 +        .setSlaveId(slaveId)
 +        .setName("task " + mesosId.getValue() + " (" + taskType + ")")
