@@ -1254,7 +1254,7 @@ void initialize(const string& delegate, bool initialize_glog)
   sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = PF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
+  addr.sin_addr.s_addr = __ip__;
   addr.sin_port = htons(__port__);
 
   if (bind(__s__, (sockaddr*) &addr, sizeof(addr)) < 0) {
