@@ -44,30 +44,25 @@ static void waiter(pid_t pid, const TaskID& taskId, ExecutorDriver* driver)
 {
   int status;
   while (wait(&status) != pid || WIFSTOPPED(status));
+
+  CHECK(WIFEXITED(status) || WIFSIGNALED(status));
+
   std::cout << "Waited on process " << pid
             << ", returned status " << status << std::endl;
 
   TaskStatus taskStatus;
   taskStatus.mutable_task_id()->MergeFrom(taskId);
 
-  Try<string> message;
-
-  if (WIFEXITED(status)) {
-    if (WEXITSTATUS(status) == 0) {
-      taskStatus.set_state(TASK_FINISHED);
-    } else {
-      taskStatus.set_state(TASK_FAILED);
-    }
-    message = strings::format(
-        "Command exited with status %d", WEXITSTATUS(status));
+  if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+    taskStatus.set_state(TASK_FINISHED);
   } else {
-    CHECK(WIFSIGNALED(status));
     taskStatus.set_state(TASK_FAILED);
-    if (WIFSIGNALED(status)) {
-      message = strings::format(
-          "Command terminated with signal %s", strsignal(WTERMSIG(status)));
-    }
   }
+
+  Try<string> message = WIFEXITED(status)
+    ? strings::format("Command exited with status %d", WEXITSTATUS(status))
+    : strings::format("Command terminated with signal %s",
+                      strsignal(WTERMSIG(status)));
 
   if (message.isSome()) {
     taskStatus.set_message(message.get());
