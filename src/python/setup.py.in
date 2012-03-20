@@ -77,15 +77,12 @@ EXTRA_OBJECTS = [
   os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),
 ]
 
-# Libraries for performing HTTP requests.
-EXTRA_LINK_ARGS = [ "-lcurl", "-lssl", "-lcrypto", "-lz" ]
+EXTRA_LINK_ARGS = []
 
-if 'LDFLAGS' in os.environ:
-  for flag in os.environ['LDFLAGS'].split():
-    if flag.startswith('-l'):
-      EXTRA_LINK_ARGS.append(flag)
-    elif flag.startswith('-L'):
-      LIBRARY_DIRS.append(flag[2:])
+# Add any libraries from LIBS.
+if 'LIBS' in os.environ:
+  for library in os.environ['LIBS'].split():
+    EXTRA_LINK_ARGS.append(library)
 
 DEPENDS = [
   os.path.join(abs_top_srcdir, 'src', 'python', source)
