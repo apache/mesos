@@ -3,10 +3,12 @@
 # Set JAVA_CPPFLAGS for 10.7 if they aren't set since the JAVA_HOME
 # discovered during configure using 'java.home' does not include the
 # JNI headers.
-if test `sw_vers -productVersion | grep 10.7` -a ! -z "${JAVA_CPPFLAGS}"; then
-    exec `dirname ${0}`/configure \
-        JAVA_CPPFLAGS=-I/System/Library/Frameworks/JavaVM.framework/Headers \
-        ${@}
+if test ! -z `sw_vers -productVersion | grep 10.7`; then
+  if test -z "${JAVA_CPPFLAGS}"; then
+      exec `dirname ${0}`/configure \
+          JAVA_CPPFLAGS=-I/System/Library/Frameworks/JavaVM.framework/Headers \
+          ${@}
+  fi
 fi
 
 exec `dirname ${0}`/configure ${@}
