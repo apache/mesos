@@ -1429,38 +1429,48 @@ Resources Master::launchTask(const TaskDescription& task,
   CHECK(framework != NULL);
   CHECK(slave != NULL);
 
-  // Count the total resources consumed by launching this task to
-  // return to the caller.
-  Resources resources;
+  Resources resources; // Total resources used on slave by launching this task.
 
-  // Determine the executor for this task.
-  const ExecutorInfo& executorInfo = task.has_executor()
-    ? task.executor()
-    : framework->info.executor();
+  // Determine if this task launches an executor, and if so make sure
+  // the slave and framework state has been updated accordingly.
+  Option<ExecutorID> executorId;
 
+  if (!task.has_command()) {
+    const ExecutorInfo& executorInfo = task.has_executor()
+      ? task.executor()
+      : framework->info.executor();
+
+    // TODO(benh): Refactor this code into Slave::addTask.
+    if (!slave->hasExecutor(framework->id, executorInfo.executor_id())) {
+      CHECK(!framework->hasExecutor(slave->id, executorInfo.executor_id()));
+      slave->addExecutor(framework->id, executorInfo);
+      framework->addExecutor(slave->id, executorInfo);
+      resources += executorInfo.resources();
+    }
+
+    executorId = Option<ExecutorID>::some(executorInfo.executor_id());
+  }
+
+  // Add the task to the framework and slave.
   Task* t = new Task();
   t->mutable_framework_id()->MergeFrom(framework->id);
-  t->mutable_executor_id()->MergeFrom(executorInfo.executor_id());
   t->set_state(TASK_STARTING);
   t->set_name(task.name());
   t->mutable_task_id()->MergeFrom(task.task_id());
   t->mutable_slave_id()->MergeFrom(task.slave_id());
   t->mutable_resources()->MergeFrom(task.resources());
 
-  framework->addTask(t);
-
-  // TODO(benh): Refactor this code into Slave::addTask.
-  if (!slave->hasExecutor(framework->id, executorInfo.executor_id())) {
-    CHECK(!framework->hasExecutor(slave->id, executorInfo.executor_id()));
-    slave->addExecutor(framework->id, executorInfo);
-    framework->addExecutor(slave->id, executorInfo);
-    resources += executorInfo.resources();
+  if (executorId.isSome()) {
+    t->mutable_executor_id()->MergeFrom(executorId.get());
   }
+
+  framework->addTask(t);
 
   slave->addTask(t);
 
   resources += task.resources();
 
+  // Tell the slave to launch the task!
   LOG(INFO) << "Launching task " << task.task_id()
             << " with resources " << task.resources()
             << " on slave " << slave->id;
@@ -1645,23 +1655,25 @@ void Master::readdSlave(Slave* slave,
   foreach (const Task& task, tasks) {
     Task* t = new Task(task);
 
-    // Find the executor running this task and add the executor to the
-    // slave (unless it has already been added).
-    foreach (const ExecutorInfo& executorInfo, executorInfos) {
-      if (executorInfo.executor_id() == task.executor_id()) {
-        if (!slave->hasExecutor(task.framework_id(), task.executor_id())) {
-          slave->addExecutor(task.framework_id(), executorInfo);
-        }
+    // If this task has an executor then add it to the slave's state
+    // (unless it has already been added).
+    if (t->has_executor_id()) {
+      foreach (const ExecutorInfo& executorInfo, executorInfos) {
+        if (executorInfo.executor_id() == task.executor_id()) {
+          if (!slave->hasExecutor(task.framework_id(), task.executor_id())) {
+            slave->addExecutor(task.framework_id(), executorInfo);
+          }
 
-        // Also try to add the executor to the framework if the
-        // framework has re-registered with this master.
-        Framework* framework = getFramework(task.framework_id());
-        if (framework != NULL) {
-          if (!framework->hasExecutor(slave->id, task.executor_id())) {
-	    framework->addExecutor(slave->id, executorInfo);
-	  }
+          // Also try to add the executor to the framework if the
+          // framework has re-registered with this master.
+          Framework* framework = getFramework(task.framework_id());
+          if (framework != NULL) {
+            if (!framework->hasExecutor(slave->id, task.executor_id())) {
+              framework->addExecutor(slave->id, executorInfo);
+            }
+          }
+          break;
         }
-        break;
       }
     }
 

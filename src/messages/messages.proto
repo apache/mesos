@@ -38,7 +38,7 @@ message Task {
   required string name = 1;
   required TaskID task_id = 2;
   required FrameworkID framework_id = 3;
-  required ExecutorID executor_id = 4;
+  optional ExecutorID executor_id = 4;
   required SlaveID slave_id = 5;
   required TaskState state = 6;
   repeated Resource resources = 7;

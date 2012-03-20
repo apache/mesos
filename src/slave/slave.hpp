@@ -221,12 +221,15 @@ struct Executor
 
     Task *t = new Task();
     t->mutable_framework_id()->MergeFrom(frameworkId);
-    t->mutable_executor_id()->MergeFrom(id);
     t->set_state(TASK_STARTING);
     t->set_name(task.name());
     t->mutable_task_id()->MergeFrom(task.task_id());
     t->mutable_slave_id()->MergeFrom(task.slave_id());
     t->mutable_resources()->MergeFrom(task.resources());
+
+    if (!task.has_command()) {
+      t->mutable_executor_id()->MergeFrom(id);
+    }
 
     launchedTasks[task.task_id()] = t;
     resources += task.resources();
@@ -280,15 +283,15 @@ struct Framework
 {
   Framework(const FrameworkID& _id,
             const FrameworkInfo& _info,
-            const UPID& _pid)
-    : id(_id), info(_info), pid(_pid) {}
+            const UPID& _pid,
+            const Configuration& _conf)
+    : id(_id), info(_info), pid(_pid), conf(_conf) {}
 
   ~Framework() {}
 
   // Returns an ExecutorInfo for a TaskDescription (possibly
   // constructing one if the task has a CommandInfo).
-  ExecutorInfo getExecutorInfo(const TaskDescription& task,
-                               const Configuration& conf)
+  ExecutorInfo getExecutorInfo(const TaskDescription& task)
   {
     if (task.has_command()) {
       ExecutorInfo executor;
@@ -311,7 +314,8 @@ struct Framework
       if (path.isSome()) {
         executor.mutable_command()->set_value(path.get());
       } else {
-        executor.mutable_command()->set_value("echo '" + path.error() + "'");
+        executor.mutable_command()->set_value(
+            "echo '" + path.error() + "'; exit 1");
       }
 
       // TODO(benh): Set some resources for the executor so that a task
@@ -369,6 +373,8 @@ struct Framework
   const FrameworkInfo info;
 
   UPID pid;
+
+  const Configuration conf;
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;

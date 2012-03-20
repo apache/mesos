@@ -17,6 +17,7 @@
  */
 
 #include <errno.h>
+#include <signal.h>
 
 #include <algorithm>
 #include <iomanip>
@@ -404,11 +405,11 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    framework = new Framework(frameworkId, frameworkInfo, pid);
+    framework = new Framework(frameworkId, frameworkInfo, pid, conf);
     frameworks[frameworkId] = framework;
   }
 
-  const ExecutorInfo& executorInfo = framework->getExecutorInfo(task, conf);
+  const ExecutorInfo& executorInfo = framework->getExecutorInfo(task);
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
@@ -1265,25 +1266,79 @@ void Slave::executorExited(const FrameworkID& frameworkId,
                            const ExecutorID& executorId,
                            int status)
 {
+  LOG(INFO) << "Executor '" << executorId
+            << "' of framework " << frameworkId
+            << (WIFEXITED(status)
+                ? " has exited with status "
+                : " has terminated with signal ")
+            << (WIFEXITED(status)
+                ? utils::stringify(WEXITSTATUS(status))
+                : strsignal(WTERMSIG(status)));
+
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    LOG(WARNING) << "WARNING! Unknown executor '" << executorId
-                 << "' of unknown framework " << frameworkId
-                 << " has exited with status " << status;
+    LOG(WARNING) << "Framework " << frameworkId
+                 << " for executor '" << executorId
+                 << "' is no longer valid";
     return;
   }
 
   Executor* executor = framework->getExecutor(executorId);
   if (executor == NULL) {
-    LOG(WARNING) << "WARNING! UNKNOWN executor '" << executorId
+    LOG(WARNING) << "Invalid executor '" << executorId
                  << "' of framework " << frameworkId
-                 << " has exited with status " << status;
+                 << " has exited/terminated";
     return;
   }
 
-  LOG(INFO) << "Executor '" << executorId
-            << "' of framework " << frameworkId
-            << " has exited with status " << status;
+  // Check if the executor was only for running a task with a command
+  // and if so send a status update for that task.
+  Option<TaskID> taskId;
+
+  if (!executor->queuedTasks.empty() &&
+      executor->queuedTasks.begin()->second.has_command()) {
+    taskId = Option<TaskID>::some(
+        executor->queuedTasks.begin()->second.task_id());
+  } else if (!executor->launchedTasks.empty() &&
+             executor->launchedTasks.begin()->second->has_executor_id()) {
+    taskId = Option<TaskID>::some(
+        executor->launchedTasks.begin()->second->task_id());
+  }
+
+  if (taskId.isSome()) {
+    TaskStatus status;
+    status.mutable_task_id()->MergeFrom(taskId.get());
+    status.set_state(TASK_FAILED);
+    status.set_message("Executor running the task's command failed");
+
+    StatusUpdate update;
+    update.mutable_framework_id()->MergeFrom(frameworkId);
+    update.mutable_slave_id()->MergeFrom(id);
+    update.mutable_status()->MergeFrom(status);
+    update.set_timestamp(Clock::now());
+    update.set_uuid(UUID::random().toBytes());
+
+    // Send message and record the status for possible resending.
+    StatusUpdateMessage message;
+    message.mutable_update()->MergeFrom(update);
+    message.set_pid(self());
+    send(master, message);
+
+    UUID uuid = UUID::fromBytes(update.uuid());
+
+    // Send us a message to try and resend after some delay.
+    delay(STATUS_UPDATE_RETRY_INTERVAL_SECONDS,
+          self(), &Slave::statusUpdateTimeout,
+          framework->id, uuid);
+
+    framework->updates[uuid] = update;
+
+    stats.tasks[status.state()]++;
+  }
+
+  // TODO(benh): Send status updates for remaining tasks here rather
+  // than at the master! As in, eliminate the code in
+  // Master::exitedExecutor and put it here.
 
   ExitedExecutorMessage message;
   message.mutable_slave_id()->MergeFrom(id);
@@ -1291,10 +1346,6 @@ void Slave::executorExited(const FrameworkID& frameworkId,
   message.mutable_executor_id()->MergeFrom(executorId);
   message.set_status(status);
   send(master, message);
-
-  // TODO(benh): Send status updates for remaining tasks here rather
-  // than at the master! As in, eliminate the code in
-  // Master::exitedExecutor and put it here.
 
   framework->destroyExecutor(executor->id);
 

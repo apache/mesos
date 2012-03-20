@@ -38,6 +38,8 @@ public:
     return Try<T>(ERROR, NULL, message);
   }
 
+  Try() : state(ERROR), t(NULL), message("Uninitialized Try") {}
+
   Try(const T& _t) : state(SOME), t(new T(_t)) {}
 
   Try(const Try<T>& that)

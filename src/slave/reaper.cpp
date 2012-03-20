@@ -58,8 +58,11 @@ void Reaper::reap()
   pid_t pid;
   int status;
   if ((pid = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
-    foreach (const PID<ProcessExitedListener>& listener, listeners) {
-      dispatch(listener, &ProcessExitedListener::processExited, pid, status);
+    // Ignore this if the child process has only stopped.
+    if (!WIFSTOPPED(status)) {
+      foreach (const PID<ProcessExitedListener>& listener, listeners) {
+        dispatch(listener, &ProcessExitedListener::processExited, pid, status);
+      }
     }
   }
 

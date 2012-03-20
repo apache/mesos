@@ -43,21 +43,31 @@ namespace internal {
 static void waiter(pid_t pid, const TaskID& taskId, ExecutorDriver* driver)
 {
   int status;
-  while (wait(&status) != pid);
+  while (wait(&status) != pid || WIFSTOPPED(status));
   std::cout << "Waited on process " << pid
             << ", returned status " << status << std::endl;
 
   TaskStatus taskStatus;
   taskStatus.mutable_task_id()->MergeFrom(taskId);
 
-  if (status != 0) {
-    taskStatus.set_state(TASK_FAILED);
-  } else {
-    taskStatus.set_state(TASK_FINISHED);
-  }
+  Try<string> message;
 
-  Try<string> message =
-    strings::format("Command finished with status %d", status);
+  if (WIFEXITED(status)) {
+    if (WEXITSTATUS(status) == 0) {
+      taskStatus.set_state(TASK_FINISHED);
+    } else {
+      taskStatus.set_state(TASK_FAILED);
+    }
+    message = strings::format(
+        "Command exited with status %d", WEXITSTATUS(status));
+  } else {
+    CHECK(WIFSIGNALED(status));
+    taskStatus.set_state(TASK_FAILED);
+    if (WIFSIGNALED(status)) {
+      message = strings::format(
+          "Command terminated with signal %s", strsignal(WTERMSIG(status)));
+    }
+  }
 
   if (message.isSome()) {
     taskStatus.set_message(message.get());
@@ -65,8 +75,8 @@ static void waiter(pid_t pid, const TaskID& taskId, ExecutorDriver* driver)
 
   driver->sendStatusUpdate(taskStatus);
 
-  // A hack for now ... but we need to wait until for the status update
-  // to get sent before we shut ourselves down.
+  // A hack for now ... but we need to wait until for the status
+  // update to get sent to the slave before we shut ourselves down.
   sleep(1);
   driver->stop();
 }
