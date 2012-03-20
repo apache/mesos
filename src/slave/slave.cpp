@@ -1483,6 +1483,8 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
       out.str(prefix); // Try with prefix again.
     }
   }
+  LOG(FATAL) << "Could not create work directory for executor '" << executorId
+             << "' of framework" << frameworkId;
 }
 
 } // namespace slave {

@@ -141,12 +141,13 @@ MasterDetector* MasterDetector::create(const string &url,
                                        bool contend,
                                        bool quiet)
 {
-  if (url == "")
+  if (url == "") {
     if (contend) {
       return new BasicMasterDetector(pid);
     } else {
       fatal("cannot use specified url to detect master");
     }
+  }
 
   MasterDetector *detector = NULL;
 

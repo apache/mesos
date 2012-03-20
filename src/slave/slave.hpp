@@ -233,6 +233,7 @@ struct Executor
 
     launchedTasks[task.task_id()] = t;
     resources += task.resources();
+    return t;
   }
 
   void removeTask(const TaskID& taskId)

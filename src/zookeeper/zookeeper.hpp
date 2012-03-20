@@ -55,7 +55,7 @@ public:
 		       const std::string &path) = 0;
 
   Watcher();
-  ~Watcher();
+  virtual ~Watcher();
   Watcher(const Watcher &that);
   Watcher & operator = (const Watcher &that);
 };

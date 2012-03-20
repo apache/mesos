@@ -18,6 +18,7 @@ void* __run(void* arg)
     reinterpret_cast<std::tr1::function<void(void)>*>(arg);
   (*function)();
   delete function;
+  return 0;
 }
 
 

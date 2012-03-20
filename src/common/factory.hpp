@@ -82,6 +82,8 @@ namespace mesos { namespace internal { namespace factory {
 template<typename T, typename P> class Creator {
 public:
   virtual T * instantiate(P p) = 0;
+
+  virtual ~Creator() {}
 };
 
 

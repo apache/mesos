@@ -39,6 +39,8 @@ public:
    **/
   virtual bool isValid(const std::string& val) const = 0;
 
+  virtual ~ValidatorBase() {}
+
 protected:
   template <class T>
   bool isValidInternal(const std::string& val) const

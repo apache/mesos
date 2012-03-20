@@ -124,6 +124,7 @@ struct SlaveRegistrar
     // TODO(benh): Do a reverse lookup to ensure IP maps to
     // hostname, or check credentials of this slave.
     dispatch(master, &Master::addSlave, slave, false);
+    return true;
   }
 
   static bool run(Slave* slave,
@@ -159,6 +160,7 @@ struct SlaveReregistrar
     // TODO(benh): Do a reverse lookup to ensure IP maps to
     // hostname, or check credentials of this slave.
     dispatch(master, &Master::readdSlave, slave, executorInfos, tasks);
+    return true;
   }
 
   static bool run(Slave* slave,
