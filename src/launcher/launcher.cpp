@@ -196,11 +196,11 @@ void ExecutorLauncher::fetchExecutor()
       CHECK(path.size() > path.find("/") + 1) << "Malformed URL (missing path)";
       path =  "./" + path.substr(path.find_last_of("/") + 1);
       cout << "Downloading " << executor << " to " << path << endl;
-      Try<int> code = utils::http::download(executor, path);
+      Try<int> code = utils::net::download(executor, path);
       if (code.isError()) {
         fatal("Error downloading executor: %s", code.error().c_str());
       } else if (code.get() != 200) {
-        fatal("Error downloading executor, received http status: %d",
+        fatal("Error downloading executor, received HTTP/FTP return code: %d",
               code.get());
       }
       executor = path;

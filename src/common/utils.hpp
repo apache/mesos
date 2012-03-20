@@ -33,7 +33,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#ifdef HAVE_LIBCURL
 #include <curl/curl.h>
+#endif
 
 #include <google/protobuf/message.h>
 
@@ -647,12 +649,15 @@ inline Result<bool> read(const std::string& path,
 } // namespace protobuf {
 
 // Handles http requests.
-namespace http {
+namespace net {
 
-// Returns the HTTP code resulting from attempting to download the
-// specified url into a file at the specified path.
+// Returns the return code resulting from attempting to download the
+// specified HTTP or FTP URL into a file at the specified path.
 inline Try<int> download(const std::string& url, const std::string& path)
 {
+#ifndef HAVE_LIBCURL
+  return Try<int>::error("Downloading via HTTP/FTP is not supported");
+#else
   Result<int> fd = utils::os::open(path, O_CREAT | O_WRONLY,
                                    S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
@@ -668,7 +673,7 @@ inline Try<int> download(const std::string& url, const std::string& path)
   if (curl == NULL) {
     curl_easy_cleanup(curl);
     utils::os::close(fd.get());
-    return Try<int>::error("Failed to initialize cURL");
+    return Try<int>::error("Failed to initialize libcurl");
   }
 
   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -684,18 +689,19 @@ inline Try<int> download(const std::string& url, const std::string& path)
     return Try<int>::error(curl_easy_strerror(curlErrorCode));
   }
 
-  long httpCode;
-  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+  long code;
+  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
   curl_easy_cleanup(curl);
 
   if (!fclose(file)) {
-    return Try<int>::error("Unable to close file handle!");
+    return Try<int>::error("Failed to close file handle");
   }
 
-  return Try<int>::some(httpCode);
+  return Try<int>::some(code);
+#endif // HAVE_LIBCURL
 }
 
-} // namespace http {
+} // namespace net {
 
 } // namespace utils {
 } // namespace internal {

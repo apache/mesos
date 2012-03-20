@@ -109,6 +109,12 @@ AC_ARG_ENABLE([optimize],
                              [don't try to compile with optimizations]),
               [], [enable_optimize=yes])
 
+AC_ARG_WITH([curl],
+            AS_HELP_STRING([--with-curl],
+                           [builds Mesos assuming libcurl
+                           (and its dependencies) are available]),
+             [], [with_curl=no])
+
 AC_ARG_WITH([included-zookeeper],
             AS_HELP_STRING([--without-included-zookeeper],
                            [excludes building and using the included ZooKeeper
@@ -379,7 +385,21 @@ if test "x$enable_optimize" = "xyes"; then
 fi
 
 
+# Check if we should/can build with libcurl.
+if test "x$with_curl" = "xyes"; then
+  AC_CHECK_LIB([z], [gzread], [],
+               [AC_MSG_ERROR([can't find libz])])
+  AC_CHECK_LIB([crypto], [BN_init], [],
+               [AC_MSG_ERROR([can't find libcrypto])])
+  AC_CHECK_LIB([ssl], [SSL_accept], [],
+               [AC_MSG_ERROR([can't find libssl])])
+  AC_CHECK_LIB([curl], [curl_global_init], [],
+               [AC_MSG_ERROR([can't find libcurl])])
+fi
+
+
 AM_CONDITIONAL([WITH_INCLUDED_ZOOKEEPER],
                [test "x$with_included_zookeeper" = "xyes"])
+
 
 AC_OUTPUT
