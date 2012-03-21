@@ -887,7 +887,7 @@ Status MesosSchedulerDriver::declineOffer(
     const OfferID& offerId,
     const Filters& filters)
 {
-  return launchTasks(offerId, vector<TaskDescription>(), filters);
+  return launchTasks(offerId, vector<TaskInfo>(), filters);
 }
 
 
