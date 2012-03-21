@@ -688,6 +688,33 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_launchTasks
 
 /*
  * Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    declineOffer
+ * Signature: (Lorg/apache/mesos/Protos/OfferID;Lorg/apache/mesos/Protos/Filters;)Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_declineOffer
+  (JNIEnv* env, jobject thiz, jobject jofferId, jobject jfilters)
+{
+  // Construct a C++ OfferID from the Java OfferID.
+  const OfferID& offerId = construct<OfferID>(env, jofferId);
+
+  // Construct a C++ Filters from the Java Filters.
+  const Filters& filters = construct<Filters>(env, jfilters);
+
+  // Now invoke the underlying driver.
+  jclass clazz = env->GetObjectClass(thiz);
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  MesosSchedulerDriver* driver =
+    (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
+
+  Status status = driver->declineOffer(offerId, filters);
+
+  return convert<Status>(env, status);
+}
+
+
+/*
+ * Class:     org_apache_mesos_MesosSchedulerDriver
  * Method:    reviveOffers
  * Signature: ()Lorg/apache/mesos/Protos/Status;
  */

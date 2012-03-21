@@ -883,6 +883,14 @@ Status MesosSchedulerDriver::launchTasks(
 }
 
 
+Status MesosSchedulerDriver::declineOffer(
+    const OfferID& offerId,
+    const Filters& filters)
+{
+  return launchTasks(offerId, vector<TaskDescription>(), filters);
+}
+
+
 Status MesosSchedulerDriver::reviveOffers()
 {
   Lock lock(&mutex);

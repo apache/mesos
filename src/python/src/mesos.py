@@ -49,6 +49,7 @@ class SchedulerDriver:
   def requestResources(self, requests): pass
   def launchTasks(self, offerId, tasks, filters=None): pass
   def killTask(self, taskId): pass
+  def declineOffer(self, offerId, filters=None): pass
   def reviveOffers(self): pass
   def sendFrameworkMessage(self, slaveId, executorId, data): pass
 

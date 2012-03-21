@@ -213,13 +213,15 @@ public:
       const std::vector<Request>& requests) = 0;
 
   /**
-   * Launches the given set of tasks. Note that the current mechanism
-   * of rejecting resources is to invoke this with an empty collection
-   * of tasks. A framework can also specify filters on all resources
-   * unused (see mesos.proto for a description of Filters). Note that
-   * currently tasks can only be launched per offer. In the future,
-   * frameworks will be allowed to aggregate offers (resources) to
-   * launch their tasks.
+   * Launches the given set of tasks. Any resources remaining (i.e.,
+   * not used by the tasks or their executors) will be considered
+   * declined. The specified filters are applied on all unused
+   * resources (see mesos.proto for a description of Filters).
+   * Invoking this function with an empty collection of tasks declines
+   * this offer in its entirety (see Scheduler::declineOffer). Note
+   * that currently tasks can only be launched per offer. In the
+   * future, frameworks will be allowed to aggregate offers
+   * (resources) to launch their tasks.
    */
   virtual Status launchTasks(const OfferID& offerId,
                              const std::vector<TaskInfo>& tasks,
@@ -232,6 +234,16 @@ public:
    * the future (these semantics may be changed in the future).
    */
   virtual Status killTask(const TaskID& taskId) = 0;
+
+  /**
+   * Declines an offer in its entirety and applies the specified
+   * filters on the resources (see mesos.proto for a description of
+   * Filters). Note that this can be done at any time, it is not
+   * necessary to do this within the Scheduler::resourceOffers
+   * callback.
+   */
+  virtual Status declineOffer(const OfferID& offerId,
+                              const Filters& filters = Filters()) = 0;
 
   /**
    * Removes all filters previously set by the framework (via
@@ -341,6 +353,8 @@ public:
       const std::vector<TaskInfo>& tasks,
       const Filters& filters = Filters());
   virtual Status killTask(const TaskID& taskId);
+  virtual Status declineOffer(const OfferID& offerId,
+                              const Filters& filters = Filters());
   virtual Status reviveOffers();
   virtual Status sendFrameworkMessage(
       const SlaveID& slaveId,

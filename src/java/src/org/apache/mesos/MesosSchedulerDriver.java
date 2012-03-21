@@ -124,6 +124,12 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status killTask(TaskID taskId);
 
+  public Status declineOffer(OfferID offerId) {
+    return declineOffer(offerId, Filters.newBuilder().build());
+  }
+
+  public native Status declineOffer(OfferID offerId, Filters filters);
+
   public native Status reviveOffers();
 
   public native Status sendFrameworkMessage(SlaveID slaveId,

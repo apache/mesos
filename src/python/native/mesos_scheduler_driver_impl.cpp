@@ -269,7 +269,7 @@ PyObject* MesosSchedulerDriverImpl_start(MesosSchedulerDriverImpl* self)
   }
 
   Status status = self->driver->start();
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 
@@ -288,7 +288,7 @@ PyObject* MesosSchedulerDriverImpl_stop(MesosSchedulerDriverImpl* self,
   }
 
   Status status = self->driver->stop(failover);
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 
@@ -300,7 +300,7 @@ PyObject* MesosSchedulerDriverImpl_abort(MesosSchedulerDriverImpl* self)
   }
 
   Status status = self->driver->abort();
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 
@@ -315,7 +315,7 @@ PyObject* MesosSchedulerDriverImpl_join(MesosSchedulerDriverImpl* self)
   Py_BEGIN_ALLOW_THREADS
   status = self->driver->join();
   Py_END_ALLOW_THREADS
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 
@@ -330,7 +330,7 @@ PyObject* MesosSchedulerDriverImpl_run(MesosSchedulerDriverImpl* self)
   Py_BEGIN_ALLOW_THREADS
   status = self->driver->run();
   Py_END_ALLOW_THREADS
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 
@@ -369,7 +369,7 @@ PyObject* MesosSchedulerDriverImpl_requestResources(MesosSchedulerDriverImpl* se
   }
 
   Status status = self->driver->requestResources(requests);
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 
@@ -425,7 +425,7 @@ PyObject* MesosSchedulerDriverImpl_launchTasks(MesosSchedulerDriverImpl* self,
   }
 
   Status status = self->driver->launchTasks(offerId, tasks, filters);
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 
@@ -448,7 +448,42 @@ PyObject* MesosSchedulerDriverImpl_killTask(MesosSchedulerDriverImpl* self,
   }
 
   Status status = self->driver->killTask(tid);
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
+}
+
+
+PyObject* MesosSchedulerDriverImpl_declineOffer(MesosSchedulerDriverImpl* self,
+                                                PyObject* args)
+{
+  if (self->driver == NULL) {
+    PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is NULL");
+    return NULL;
+  }
+
+  PyObject* offerIdObj = NULL;
+  PyObject* filtersObj = NULL;
+  OfferID offerId;
+  Filters filters;
+
+  if (!PyArg_ParseTuple(args, "O|O", &offerIdObj, &filtersObj)) {
+    return NULL;
+  }
+
+  if (!readPythonProtobuf(offerIdObj, &offerId)) {
+    PyErr_Format(PyExc_Exception, "Could not deserialize Python OfferID");
+    return NULL;
+  }
+
+  if (filtersObj != NULL) {
+    if (!readPythonProtobuf(filtersObj, &filters)) {
+      PyErr_Format(PyExc_Exception,
+                   "Could not deserialize Python Filters");
+      return NULL;
+    }
+  }
+
+  Status status = self->driver->declineOffer(offerId, filters);
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 
@@ -460,7 +495,7 @@ PyObject* MesosSchedulerDriverImpl_reviveOffers(MesosSchedulerDriverImpl* self)
   }
 
   Status status = self->driver->reviveOffers();
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 
@@ -492,7 +527,7 @@ PyObject* MesosSchedulerDriverImpl_sendFrameworkMessage(
   }
 
   Status status = self->driver->sendFrameworkMessage(sid, eid, data);
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
 }} /* namespace mesos { namespace python { */

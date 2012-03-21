@@ -86,10 +86,12 @@ public interface SchedulerDriver {
   Status requestResources(Collection<Request> requests);
 
   /**
-   * Launches the given set of tasks. Note that the current mechanism
-   * of rejecting resources is to invoke this with an empty collection
-   * of tasks. A framework can also specify filters on all resources
-   * unused (see mesos.proto for a description of Filters). Note that
+   * Launches the given set of tasks. Any resources remaining (i.e.,
+   * not used by the tasks or their executors) will be considered
+   * declined. The specified filters are applied on all unused
+   * resources (see mesos.proto for a description of Filters).
+   * Invoking this function with an empty collection of tasks declines
+   * this offer in its entirety (see {@link #declineOffer}. Note that
    * currently tasks can only be launched per offer. In the future,
    * frameworks will be allowed to aggregate offers (resources) to
    * launch their tasks.
@@ -101,8 +103,7 @@ public interface SchedulerDriver {
   /**
    * Launches the given set of tasks. See above for details.
    */
-  Status launchTasks(OfferID offerId,
-                     Collection<TaskInfo> tasks);
+  Status launchTasks(OfferID offerId, Collection<TaskInfo> tasks);
 
   /**
    * Kills the specified task. Note that attempting to kill a task is
@@ -111,6 +112,20 @@ public interface SchedulerDriver {
    * the future (these semantics may be changed in the future).
    */
   Status killTask(TaskID taskId);
+
+  /**
+   * Declines an offer in its entirety and applies the specified
+   * filters on the resources (see mesos.proto for a description of
+   * Filters). Note that this can be done at any time, it is not
+   * necessary to do this within the {@link Scheduler#resourceOffers}
+   * callback.
+   */
+  Status declineOffer(OfferID offerId, Filters filters);
+
+  /**
+   * Declines an offer in its entirety. See above for details.
+   */
+  Status declineOffer(OfferID offerId);
 
   /**
    * Removes all filters, previously set by the framework (via {@link
