@@ -734,12 +734,12 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  trigger slaveRegisteredMsg1, slaveRegisteredMsg2;
+  trigger slaveRegisteredMsg;
 
   // Drop the first slave registered message, allow subsequent messages.
   EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg1), Return(true)))
-    .WillRepeatedly(DoAll(Trigger(&slaveRegisteredMsg2), Return(false)));
+    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg), Return(true)))
+    .WillRepeatedly(Return(false));
 
   SimpleAllocator a;
   Master m(&a);
@@ -768,11 +768,11 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
 
   driver.start();
 
-  WAIT_UNTIL(slaveRegisteredMsg1);
+  WAIT_UNTIL(slaveRegisteredMsg);
 
   Clock::advance(1.0); // TODO(benh): Pull out constant from Slave.
 
-  WAIT_UNTIL(slaveRegisteredMsg2);
+  WAIT_UNTIL(resourceOffersCall);
 
   driver.stop();
   driver.join();
