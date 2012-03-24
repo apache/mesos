@@ -80,8 +80,8 @@ void enterTestDirectory(const char* testCase, const char* testName);
 
 
 /**
- * Macros to get a "default" dummy ExecutorInfo object for testing or
- * create one out of an ExecutorID and string.
+ * Macros to get a "default" ExecutorInfo object for testing or create
+ * one out of an ExecutorID and command.
  */
 #define DEFAULT_EXECUTOR_INFO                                           \
       ({ ExecutorInfo executor;                                         \
@@ -90,10 +90,10 @@ void enterTestDirectory(const char* testCase, const char* testName);
         executor; })
 
 
-#define CREATE_EXECUTOR_INFO(executorId, uri)                           \
+#define CREATE_EXECUTOR_INFO(executorId, command)                       \
       ({ ExecutorInfo executor;                                         \
         executor.mutable_executor_id()->MergeFrom(executorId);          \
-        executor.mutable_command()->set_value("exit 1");                \
+        executor.mutable_command()->set_value(command);                 \
         executor; })
 
 

@@ -42,8 +42,9 @@ const int32_t MEM_PER_TASK = 32;
 class LongLivedScheduler : public Scheduler
 {
 public:
-  LongLivedScheduler()
-    : tasksLaunched(0) {}
+  LongLivedScheduler(const ExecutorInfo& _executor)
+    : executor(_executor),
+      tasksLaunched(0) {}
 
   virtual ~LongLivedScheduler() {}
 
@@ -88,6 +89,7 @@ public:
         task.set_name("Task " + lexical_cast<string>(taskId));
         task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
+        task.mutable_executor()->MergeFrom(executor);
 
         Resource* resource;
 
@@ -131,6 +133,7 @@ public:
                      const string& message) {}
 
 private:
+  const ExecutorInfo executor;
   string uri;
   int tasksLaunched;
 };
@@ -151,15 +154,14 @@ int main(int argc, char** argv)
     uri = string(getenv("MESOS_BUILD_DIR")) + "/src/long-lived-executor";
   }
 
-  LongLivedScheduler scheduler;
-
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_command()->set_uri(uri);
   executor.mutable_command()->set_value(uri);
 
-  MesosSchedulerDriver driver(
-      &scheduler, "C++ Test Framework", executor, argv[1]);
+  LongLivedScheduler scheduler(executor);
+
+  MesosSchedulerDriver driver(&scheduler, "C++ Test Framework", argv[1]);
 
   return driver.run() == DRIVER_STOPPED ? 0 : 1;
 }

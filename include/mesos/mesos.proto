@@ -83,12 +83,11 @@ message ExecutorID {
 
 
 /**
- * Describes a framework, including its default executor.
+ * Describes a framework.
  */
 message FrameworkInfo {
   required string user = 1;
   required string name = 2;
-  required ExecutorInfo executor = 3;
 }
 
 
@@ -305,8 +304,8 @@ message Filters {
 
 /**
 * Describes a collection of environment variables. This is used with
-* the ExecutorInfo in order to set environment variables before
-* launching the executor.
+* CommandInfo in order to set environment variables before running a
+* command.
 */
 message Environment {
   message Variable {

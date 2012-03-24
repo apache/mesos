@@ -62,22 +62,28 @@ public class MesosSchedulerDriver implements SchedulerDriver {
    */
   public MesosSchedulerDriver(Scheduler sched,
                               String frameworkName,
-                              ExecutorInfo executorInfo,
                               String url,
                               FrameworkID frameworkId) {
     if (sched == null) {
-      throw new NullPointerException("Not expecting a null scheduler");
+      throw new NullPointerException("Not expecting a null Scheduler");
     }
 
     if (frameworkName == null) {
       throw new NullPointerException("Not expecting a null framework name");
     }
 
+    if (url == null) {
+      throw new NullPointerException("Not expecting a null URL");
+    }
+
+    if (frameworkId == null) {
+      throw new NullPointerException("Not expecting a null FrameworkID");
+    }
+
     this.sched = sched;
+    this.frameworkName = frameworkName;
     this.url = url;
     this.frameworkId = frameworkId;
-    this.frameworkName = frameworkName;
-    this.executorInfo = executorInfo;
     initialize();
   }
 
@@ -86,11 +92,9 @@ public class MesosSchedulerDriver implements SchedulerDriver {
    */
   public MesosSchedulerDriver(Scheduler sched,
                               String frameworkName,
-                              ExecutorInfo executorInfo,
                               String url) {
     this(sched,
          frameworkName,
-         executorInfo,
          url,
          FrameworkID.newBuilder().setValue("").build());
   }
@@ -143,7 +147,6 @@ public class MesosSchedulerDriver implements SchedulerDriver {
   private final String url;
   private final FrameworkID frameworkId;
   private final String frameworkName;
-  private final ExecutorInfo executorInfo;
 
   private long __sched;
   private long __driver;

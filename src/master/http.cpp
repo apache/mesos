@@ -94,7 +94,6 @@ JSON::Object model(const Framework& framework)
   object.values["id"] = framework.id.value();
   object.values["name"] = framework.info.name();
   object.values["user"] = framework.info.user();
-  object.values["executor_uri"] = framework.info.executor().command().uri();
   object.values["registered_time"] = framework.registeredTime;
   object.values["unregistered_time"] = framework.unregisteredTime;
   object.values["reregistered_time"] = framework.reregisteredTime;

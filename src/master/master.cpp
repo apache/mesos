@@ -621,11 +621,13 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
         if (framework->id == task->framework_id()) {
           framework->addTask(task);
           // Also add the task's executor for resource accounting.
-          if (!framework->hasExecutor(slave->id, task->executor_id())) {
-            CHECK(slave->hasExecutor(framework->id, task->executor_id()));
-            const ExecutorInfo& executorInfo =
-              slave->executors[framework->id][task->executor_id()];
-            framework->addExecutor(slave->id, executorInfo);
+          if (task->has_executor_id()) {
+            if (!framework->hasExecutor(slave->id, task->executor_id())) {
+              CHECK(slave->hasExecutor(framework->id, task->executor_id()));
+              const ExecutorInfo& executorInfo =
+                slave->executors[framework->id][task->executor_id()];
+              framework->addExecutor(slave->id, executorInfo);
+            }
           }
         }
       }
@@ -699,7 +701,7 @@ void Master::launchTasks(const FrameworkID& frameworkId,
     // *from the same slave* to be used to launch tasks. This can be
     // accomplished rather easily by collecting and merging all offers
     // into a mega-offer and passing that offer to
-    // Master::processOfferReply.
+    // Master::processTasks.
     Offer* offer = getOffer(offerId);
     if (offer != NULL) {
       CHECK(offer->framework_id() == frameworkId);
@@ -1284,45 +1286,41 @@ struct ResourceUsageChecker : TaskInfoVisitor
       }
     }
 
-    // Check that the executor is using some resources.
-    const ExecutorInfo& executorInfo = task.has_executor()
-      ? task.executor()
-      : framework->info.executor();
-
-    // TODO(benh): Check that the executor uses some resources.
-
-    foreach (const Resource& resource, executorInfo.resources()) {
-      if (!Resources::isAllocatable(resource)) {
-        // TODO(benh): Send back the invalid resources?
-        return TaskInfoError::some(
-            "Task's executor uses invalid resources");
-      }
-    }
-
     // Check if this task uses more resources than offered.
     Resources taskResources = task.resources();
 
     if (!((usedResources + taskResources) <= offer->resources())) {
-      return TaskInfoError::some(
-          "Task uses more resources than offered");
+      return TaskInfoError::some("Task uses more resources than offered");
     }
 
-    // Check if this task's executor is running, and if not check if
-    // the task + the executor use more resources than offered.
-    if (!executors.contains(executorInfo.executor_id())) {
-      if (!slave->hasExecutor(framework->id, executorInfo.executor_id())) {
-        taskResources += executorInfo.resources();
-        if (!((usedResources + taskResources) <= offer->resources())) {
-          LOG(WARNING) << "Task " << task.task_id() << " attempted to use "
-                  << taskResources << " combined with already used "
-                  << usedResources << " is greater than offered "
-                  << offer->resources();
+    // Check this task's executor's resources.
+    if (task.has_executor()) {
+      // TODO(benh): Check that the executor uses some resources.
 
-	  return TaskInfoError::some(
-              "Task + executor uses more resources than offered");
+      foreach (const Resource& resource, task.executor().resources()) {
+        if (!Resources::isAllocatable(resource)) {
+          // TODO(benh): Send back the invalid resources?
+          return TaskInfoError::some("Task's executor uses invalid resources");
         }
       }
-      executors.insert(executorInfo.executor_id());
+
+      // Check if this task's executor is running, and if not check if
+      // the task + the executor use more resources than offered.
+      if (!executors.contains(task.executor().executor_id())) {
+        if (!slave->hasExecutor(framework->id, task.executor().executor_id())) {
+          taskResources += task.executor().resources();
+          if (!((usedResources + taskResources) <= offer->resources())) {
+            LOG(WARNING) << "Task " << task.task_id() << " attempted to use "
+                         << taskResources << " combined with already used "
+                         << usedResources << " is greater than offered "
+                         << offer->resources();
+
+            return TaskInfoError::some(
+                "Task + executor uses more resources than offered");
+          }
+        }
+        executors.insert(task.executor().executor_id());
+      }
     }
 
     usedResources += taskResources;
@@ -1332,6 +1330,33 @@ struct ResourceUsageChecker : TaskInfoVisitor
 
   Resources usedResources;
   hashset<ExecutorID> executors;
+};
+
+
+// Checks that tasks that use the "same" executor (i.e., same
+// ExecutorID) have an identical ExecutorInfo.
+struct ExecutorInfoChecker : TaskInfoVisitor
+{
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
+      Offer* offer,
+      Framework* framework,
+      Slave* slave)
+  {
+    if (task.has_executor()) {
+      if (slave->hasExecutor(framework->id, task.executor().executor_id())) {
+        const ExecutorInfo& executorInfo =
+          slave->executors[framework->id][task.executor().executor_id()];
+        if (!(task.executor() == executorInfo)) {
+          return TaskInfoError::some(
+              "Task has invalid ExecutorInfo (existing ExecutorInfo"
+              " with same ExecutorID is not compatible)");
+        }
+      }
+    }
+
+    return TaskInfoError::none();
+  }
 };
 
 
@@ -1351,6 +1376,7 @@ void Master::processTasks(Offer* offer,
   visitors.push_back(new SlaveIDChecker());
   visitors.push_back(new UniqueTaskIDChecker());
   visitors.push_back(new ResourceUsageChecker());
+  visitors.push_back(new ExecutorInfoChecker());
 
   // Loop through each task and check it's validity.
   foreach (const TaskInfo& task, tasks) {
@@ -1437,20 +1463,16 @@ Resources Master::launchTask(const TaskInfo& task,
   // the slave and framework state has been updated accordingly.
   Option<ExecutorID> executorId;
 
-  if (!task.has_command()) {
-    const ExecutorInfo& executorInfo = task.has_executor()
-      ? task.executor()
-      : framework->info.executor();
-
+  if (task.has_executor()) {
     // TODO(benh): Refactor this code into Slave::addTask.
-    if (!slave->hasExecutor(framework->id, executorInfo.executor_id())) {
-      CHECK(!framework->hasExecutor(slave->id, executorInfo.executor_id()));
-      slave->addExecutor(framework->id, executorInfo);
-      framework->addExecutor(slave->id, executorInfo);
-      resources += executorInfo.resources();
+    if (!slave->hasExecutor(framework->id, task.executor().executor_id())) {
+      CHECK(!framework->hasExecutor(slave->id, task.executor().executor_id()));
+      slave->addExecutor(framework->id, task.executor());
+      framework->addExecutor(slave->id, task.executor());
+      resources += task.executor().resources();
     }
 
-    executorId = Option<ExecutorID>::some(executorInfo.executor_id());
+    executorId = Option<ExecutorID>::some(task.executor().executor_id());
   }
 
   // Add the task to the framework and slave.
@@ -1658,7 +1680,11 @@ void Master::readdSlave(Slave* slave,
     Task* t = new Task(task);
 
     // If this task has an executor then add it to the slave's state
-    // (unless it has already been added).
+    // (unless it has already been added). TODO(benh): There is
+    // actually an accounting bug here because we won't end up adding
+    // all running executors (because some might not be running tasks)
+    // which means that more resources will be available on that slave
+    // than are actually available.
     if (t->has_executor_id()) {
       foreach (const ExecutorInfo& executorInfo, executorInfos) {
         if (executorInfo.executor_id() == task.executor_id()) {

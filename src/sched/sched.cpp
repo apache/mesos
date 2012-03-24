@@ -462,17 +462,17 @@ protected:
       return;
     }
 
-    // Check that each TaskInfo has either no ExecutorInfo and
-    // no CommandInfo or only one of them.
+    // Check that each TaskInfo has either an ExecutorInfo or a
+    // CommandInfo but not both.
     foreach (const TaskInfo& task, tasks) {
-      if (task.has_command() && task.has_executor()) {
+      if (task.has_executor() == task.has_command()) {
         StatusUpdate update;
         update.mutable_framework_id()->MergeFrom(frameworkId);
         TaskStatus* status = update.mutable_status();
         status->mutable_task_id()->MergeFrom(task.task_id());
         status->set_state(TASK_LOST);
         status->set_message(
-            "Task cannot have both an 'executor' and a 'command'");
+            "TaskInfo must have either an 'executor' or a 'command'");
         update.set_timestamp(Clock::now());
         update.set_uuid(UUID::random().toBytes());
 
@@ -599,7 +599,6 @@ private:
 
 MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
                                            const std::string& frameworkName,
-                                           const ExecutorInfo& executorInfo,
                                            const string& url,
                                            const FrameworkID& frameworkId)
 {
@@ -618,13 +617,12 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
     conf = new Configuration();
   }
   conf->set("url", url); // Override URL param with the one from the user
-  init(scheduler, conf, frameworkId, frameworkName, executorInfo);
+  initialize(scheduler, conf, frameworkId, frameworkName);
 }
 
 
 MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
                                            const std::string& frameworkName,
-                                           const ExecutorInfo& executorInfo,
                                            const map<string, string> &params,
                                            const FrameworkID& frameworkId)
 {
@@ -642,13 +640,12 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
     scheduler->error(this, 2, message);
     conf = new Configuration();
   }
-  init(scheduler, conf, frameworkId, frameworkName, executorInfo);
+  initialize(scheduler, conf, frameworkId, frameworkName);
 }
 
 
 MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
                                            const std::string& frameworkName,
-                                           const ExecutorInfo& executorInfo,
                                            int argc,
                                            char** argv,
                                            const FrameworkID& frameworkId)
@@ -666,15 +663,14 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
     scheduler->error(this, 2, message);
     conf = new Configuration();
   }
-  init(scheduler, conf, frameworkId, frameworkName, executorInfo);
+  initialize(scheduler, conf, frameworkId, frameworkName);
 }
 
 
-void MesosSchedulerDriver::init(Scheduler* _scheduler,
-                                Configuration* _conf,
-                                const FrameworkID& _frameworkId,
-                                const std::string& _frameworkName,
-                                const ExecutorInfo& _executorInfo)
+void MesosSchedulerDriver::initialize(Scheduler* _scheduler,
+                                      Configuration* _conf,
+                                      const FrameworkID& _frameworkId,
+                                      const std::string& _frameworkName)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -682,7 +678,6 @@ void MesosSchedulerDriver::init(Scheduler* _scheduler,
   conf = _conf;
   frameworkId = _frameworkId;
   frameworkName = _frameworkName;
-  executorInfo = _executorInfo;
   url = conf->get<string>("url", "local");
   process = NULL;
   detector = NULL;
@@ -755,7 +750,6 @@ Status MesosSchedulerDriver::start()
   FrameworkInfo framework;
   framework.set_user(utils::os::user());
   framework.set_name(frameworkName);
-  framework.mutable_executor()->MergeFrom(executorInfo);
 
   CHECK(process == NULL);
 

@@ -18,6 +18,10 @@
 
 #include <gmock/gmock.h>
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
@@ -80,7 +84,7 @@ TEST(FaultToleranceTest, SlaveLost)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   vector<Offer> offers;
 
@@ -149,7 +153,7 @@ TEST(FaultToleranceTest, SlavePartitioned)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   trigger resourceOffersCall, slaveLostCall;
 
@@ -201,7 +205,7 @@ TEST(FaultToleranceTest, SchedulerFailover)
   // scheduler.
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver1(&sched1, "", master);
 
   FrameworkID frameworkId;
 
@@ -228,8 +232,7 @@ TEST(FaultToleranceTest, SchedulerFailover)
   // gets a registered callback..
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, "", DEFAULT_EXECUTOR_INFO,
-                               master, frameworkId);
+  MesosSchedulerDriver driver2(&sched2, "", master, frameworkId);
 
   trigger sched2RegisteredCall;
 
@@ -271,7 +274,7 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   trigger schedRegisteredCall;
 
@@ -324,7 +327,7 @@ TEST(FaultToleranceTest, FrameworkReregister)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   trigger schedRegisteredCall;
 
@@ -412,7 +415,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
   vector<Offer> offers;
   trigger statusUpdateCall, resourceOffersCall;
   TaskStatus status;
@@ -453,6 +456,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -494,13 +498,14 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   MockExecutor exec;
 
+  trigger shutdownCall;
+
   EXPECT_CALL(exec, registered(_, _, _, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdate(TASK_RUNNING));
 
-  trigger shutdownCall;
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
@@ -520,7 +525,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   // first status update message is sent to it (drop the message).
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver1(&sched1, "", master);
 
   FrameworkID frameworkId;
   vector<Offer> offers;
@@ -557,6 +562,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -571,8 +577,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   // timeout to kick in and another status update message is sent.
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, "", DEFAULT_EXECUTOR_INFO,
-                               master, frameworkId);
+  MesosSchedulerDriver driver2(&sched2, "", master, frameworkId);
 
   trigger registeredCall, statusUpdateCall;
 
@@ -596,14 +601,13 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   driver1.join();
   driver2.join();
 
+  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+
   process::terminate(slave);
   process::wait(slave);
 
   process::terminate(master);
   process::wait(master);
-
-  // Ensures MockExecutor no longer being used by MesosExecutorDriver.
-  WAIT_UNTIL(shutdownCall);
 
   process::filter(NULL);
 
@@ -646,7 +650,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   MockScheduler sched1;
 
-  MesosSchedulerDriver driver1(&sched1, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver1(&sched1, "", master);
 
   FrameworkID frameworkId;
 
@@ -678,6 +682,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -689,8 +694,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   EXPECT_EQ(TASK_RUNNING, status.state());
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, "", DEFAULT_EXECUTOR_INFO,
-                               master, frameworkId);
+  MesosSchedulerDriver driver2(&sched2, "", master, frameworkId);
 
   trigger sched2RegisteredCall, sched2FrameworkMessageCall;
 
@@ -755,7 +759,7 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   trigger resourceOffersCall;
 
@@ -813,7 +817,7 @@ TEST(FaultToleranceTest, SlaveReregister)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   trigger resourceOffersCall;
 

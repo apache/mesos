@@ -62,17 +62,9 @@ public class TestExceptionFramework {
       System.exit(1);
     }
 
-    String uri = new File("./test-executor").getCanonicalPath();
-
-    ExecutorInfo executorInfo = ExecutorInfo.newBuilder()
-      .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
-      .setCommand(CommandInfo.newBuilder().setUri(uri).setValue(uri).build())
-      .build();
-
     MesosSchedulerDriver driver = new MesosSchedulerDriver(
         new TestExceptionScheduler(),
         "Exception Framework",
-        executorInfo,
         args[0]);
 
     System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);

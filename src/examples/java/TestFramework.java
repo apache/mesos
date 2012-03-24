@@ -30,16 +30,13 @@ import org.apache.mesos.Protos.*;
 
 public class TestFramework {
   static class TestScheduler implements Scheduler {
-    int launchedTasks = 0;
-    int finishedTasks = 0;
-    final int totalTasks;
-
-    public TestScheduler() {
-      this(5);
+    public TestScheduler(ExecutorInfo executor) {
+      this(executor, 5);
     }
 
-    public TestScheduler(int numTasks) {
-      totalTasks = numTasks;
+    public TestScheduler(ExecutorInfo executor, int totalTasks) {
+      this.executor = executor;
+      this.totalTasks = totalTasks;
     }
 
     @Override
@@ -76,6 +73,7 @@ public class TestFramework {
                                      .setValue(128)
                                      .build())
                           .build())
+            .setExecutor(executor)
             .build();
           tasks.add(task);
         }
@@ -101,7 +99,10 @@ public class TestFramework {
     }
 
     @Override
-    public void frameworkMessage(SchedulerDriver driver, SlaveID slaveId, ExecutorID executorId, byte[] data) {}
+    public void frameworkMessage(SchedulerDriver driver,
+                                 SlaveID slaveId,
+                                 ExecutorID executorId,
+                                 byte[] data) {}
 
     @Override
     public void slaveLost(SchedulerDriver driver, SlaveID slaveId) {}
@@ -110,6 +111,11 @@ public class TestFramework {
     public void error(SchedulerDriver driver, int code, String message) {
       System.out.println("Error: " + message);
     }
+
+    private final ExecutorInfo executor;
+    private final int totalTasks;
+    private int launchedTasks = 0;
+    private int finishedTasks = 0;
   }
 
   private static void usage() {
@@ -125,26 +131,20 @@ public class TestFramework {
 
     String uri = new File("./test-executor").getCanonicalPath();
 
-    ExecutorInfo executorInfo = ExecutorInfo.newBuilder()
+    ExecutorInfo executor = ExecutorInfo.newBuilder()
       .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
       .setCommand(CommandInfo.newBuilder().setUri(uri).setValue(uri).build())
       .build();
 
-    MesosSchedulerDriver driver;
-
-    if (args.length == 1) {
-      driver = new MesosSchedulerDriver(
-          new TestScheduler(),
+    MesosSchedulerDriver driver = args.length == 1
+      ? new MesosSchedulerDriver(
+          new TestScheduler(executor),
           "Java test framework",
-          executorInfo,
-          args[0]);
-    } else {
-      driver = new MesosSchedulerDriver(
-          new TestScheduler(Integer.parseInt(args[1])),
-          "Java test framework",
-          executorInfo,
-          args[0]);
-    }
+          args[0])
+    : new MesosSchedulerDriver(
+        new TestScheduler(executor, Integer.parseInt(args[1])),
+        "Java test framework",
+        args[0]);
 
     System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);
   }

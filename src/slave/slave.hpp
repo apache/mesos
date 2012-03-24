@@ -294,6 +294,8 @@ struct Framework
   // constructing one if the task has a CommandInfo).
   ExecutorInfo getExecutorInfo(const TaskInfo& task)
   {
+    CHECK(task.has_executor() != task.has_command());
+
     if (task.has_command()) {
       ExecutorInfo executor;
 
@@ -328,7 +330,7 @@ struct Framework
       return executor;
     }
 
-    return task.has_executor() ? task.executor() : info.executor();
+    return task.executor();
   }
 
   Executor* createExecutor(const ExecutorInfo& executorInfo,

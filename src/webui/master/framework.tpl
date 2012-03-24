@@ -45,7 +45,6 @@
   Name: {{framework['name']}}<br />
   User: {{framework['user']}}<br />
   Registered: {{format_time(framework['registered_time'])}}<br />
-  Executor: {{framework['executor_uri']}}<br />
   Running Tasks: {{len(framework['tasks'])}}<br />
   CPUs: {{framework['resources']['cpus']}}<br />
   MEM: {{format_mem(framework['resources']['mem'])}}<br />

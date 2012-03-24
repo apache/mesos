@@ -16,11 +16,6 @@
  * limitations under the License.
  */
 
-#ifdef __APPLE__
-// Since Python.h defines _XOPEN_SOURCE on Mac OS X, we undefine it
-// here so that we don't get warning messages during the build.
-#undef _XOPEN_SOURCE
-#endif // __APPLE__
 #include <Python.h>
 
 #include "mesos_scheduler_driver_impl.hpp"
@@ -153,10 +148,9 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
   const char* url;
   PyObject *frameworkIdObj = NULL;
   const char* frameworkName;
-  PyObject *executorInfoObj = NULL;
 
-  if (!PyArg_ParseTuple(args, "OsOs|O", &pythonSchedulerObj, &frameworkName,
-                        &executorInfoObj, &url, &frameworkIdObj)) {
+  if (!PyArg_ParseTuple(args, "Oss|O", &pythonSchedulerObj, &frameworkName,
+                        &url, &frameworkIdObj)) {
     return -1;
   }
 
@@ -186,22 +180,14 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
     }
   }
 
-  ExecutorInfo executorInfo;
-  if (executorInfoObj != NULL) {
-    if (!readPythonProtobuf(executorInfoObj, &executorInfo)) {
-      PyErr_Format(PyExc_Exception, "Could not deserialize Python ExecutorInfo");
-      return -1;
-    }
-  }
-
   self->proxyScheduler = new ProxyScheduler(self);
 
   if (frameworkIdObj != NULL) {
     self->driver = new MesosSchedulerDriver(self->proxyScheduler, frameworkName,
-                                            executorInfo, url, frameworkId);
+                                            url, frameworkId);
   } else {
     self->driver = new MesosSchedulerDriver(self->proxyScheduler, frameworkName,
-                                            executorInfo, url);
+                                            url);
   }
 
   return 0;

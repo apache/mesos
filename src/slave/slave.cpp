@@ -752,6 +752,11 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
                  << "' of framework " << frameworkId
                  << " is already running";
     reply(ShutdownExecutorMessage());
+  } else if (executor->shutdown) {
+    LOG(WARNING) << "WARNING! executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " should be shutting down";
+    reply(ShutdownExecutorMessage());
   } else {
     // Save the pid for the executor.
     executor->pid = from;

@@ -209,8 +209,7 @@ public:
    * from specific slaves). Any resources available are offered to the
    * framework via Scheduler::resourceOffers callback, asynchronously.
    */
-  virtual Status requestResources(
-      const std::vector<Request>& requests) = 0;
+  virtual Status requestResources(const std::vector<Request>& requests) = 0;
 
   /**
    * Launches the given set of tasks. Any resources remaining (i.e.,
@@ -298,7 +297,6 @@ public:
    */
   MesosSchedulerDriver(Scheduler* scheduler,
                        const std::string& frameworkName,
-                       const ExecutorInfo& executorInfo,
                        const std::string& url,
                        const FrameworkID& frameworkId = FrameworkID());
 
@@ -313,7 +311,6 @@ public:
    */
   MesosSchedulerDriver(Scheduler* scheduler,
                        const std::string& frameworkName,
-                       const ExecutorInfo& executorInfo,
                        const std::map<std::string, std::string>& params,
                        const FrameworkID& frameworkId = FrameworkID());
 
@@ -325,7 +322,6 @@ public:
    */
   MesosSchedulerDriver(Scheduler* scheduler,
                        const std::string& frameworkName,
-                       const ExecutorInfo& executorInfo,
                        int argc,
                        char** argv,
                        const FrameworkID& frameworkId = FrameworkID());
@@ -346,34 +342,29 @@ public:
   virtual Status abort();
   virtual Status join();
   virtual Status run();
-  virtual Status requestResources(
-      const std::vector<Request>& requests);
-  virtual Status launchTasks(
-      const OfferID& offerId,
-      const std::vector<TaskInfo>& tasks,
-      const Filters& filters = Filters());
+  virtual Status requestResources(const std::vector<Request>& requests);
+  virtual Status launchTasks(const OfferID& offerId,
+                             const std::vector<TaskInfo>& tasks,
+                             const Filters& filters = Filters());
   virtual Status killTask(const TaskID& taskId);
   virtual Status declineOffer(const OfferID& offerId,
                               const Filters& filters = Filters());
   virtual Status reviveOffers();
-  virtual Status sendFrameworkMessage(
-      const SlaveID& slaveId,
-      const ExecutorID& executorId,
-      const std::string& data);
+  virtual Status sendFrameworkMessage(const SlaveID& slaveId,
+                                      const ExecutorID& executorId,
+                                      const std::string& data);
 
 private:
   // Initialization method used by constructors.
-  void init(Scheduler* scheduler,
-            internal::Configuration* conf,
-            const FrameworkID& frameworkId,
-            const std::string& frameworkName,
-            const ExecutorInfo& executorInfo);
+  void initialize(Scheduler* scheduler,
+                  internal::Configuration* conf,
+                  const FrameworkID& frameworkId,
+                  const std::string& frameworkName);
 
   Scheduler* scheduler;
   std::string url;
   FrameworkID frameworkId;
   std::string frameworkName;
-  ExecutorInfo executorInfo;
 
   // Libprocess process for communicating with master.
   internal::SchedulerProcess* process;

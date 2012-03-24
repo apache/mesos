@@ -16,11 +16,6 @@
  * limitations under the License.
  */
 
-#ifdef __APPLE__
-// Since Python.h defines _XOPEN_SOURCE on Mac OS X, we undefine it
-// here so that we don't get warning messages during the build.
-#undef _XOPEN_SOURCE
-#endif // __APPLE__
 #include <Python.h>
 
 #include "mesos_executor_driver_impl.hpp"

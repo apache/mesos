@@ -98,7 +98,7 @@ TEST(MasterTest, TaskRunning)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   vector<Offer> offers;
   TaskStatus status;
@@ -127,6 +127,7 @@ TEST(MasterTest, TaskRunning)
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -146,7 +147,7 @@ TEST(MasterTest, TaskRunning)
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(shutdownCall); // To ensure can deallocate MockExecutor.
+  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
 
   process::terminate(slave);
   process::wait(slave);
@@ -193,7 +194,7 @@ TEST(MasterTest, KillTask)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   vector<Offer> offers;
   TaskStatus status;
@@ -225,6 +226,7 @@ TEST(MasterTest, KillTask)
   task.mutable_task_id()->MergeFrom(taskId);
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -296,7 +298,7 @@ TEST(MasterTest, FrameworkMessage)
   // first status update message is sent to it (drop the message).
 
   MockScheduler sched;
-  MesosSchedulerDriver schedDriver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver schedDriver(&sched, "", master);
 
   vector<Offer> offers;
   TaskStatus status;
@@ -330,6 +332,7 @@ TEST(MasterTest, FrameworkMessage)
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -429,7 +432,7 @@ TEST(MasterTest, MultipleExecutors)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   vector<Offer> offers;
   TaskStatus status1, status2;
@@ -454,21 +457,23 @@ TEST(MasterTest, MultipleExecutors)
 
   ASSERT_NE(0, offers.size());
 
+  ExecutorInfo executor1 = CREATE_EXECUTOR_INFO(executorId1, "exit 1");
+
   TaskInfo task1;
   task1.set_name("");
   task1.mutable_task_id()->set_value("1");
   task1.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
-  task1.mutable_executor()->mutable_executor_id()->MergeFrom(executorId1);
-  task1.mutable_executor()->mutable_command()->set_value("exit 1");
+  task1.mutable_executor()->MergeFrom(executor1);
+
+  ExecutorInfo executor2 = CREATE_EXECUTOR_INFO(executorId2, "exit 1");
 
   TaskInfo task2;
   task2.set_name("");
   task2.mutable_task_id()->set_value("2");
   task2.mutable_slave_id()->MergeFrom(offers[0].slave_id());
   task2.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
-  task2.mutable_executor()->mutable_executor_id()->MergeFrom(executorId2);
-  task2.mutable_executor()->mutable_command()->set_value("exit 1");
+  task2.mutable_executor()->MergeFrom(executor2);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task1);

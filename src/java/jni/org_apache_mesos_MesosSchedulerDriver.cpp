@@ -46,8 +46,6 @@ public:
 
   virtual ~JNIScheduler() {}
 
-  virtual string getFrameworkName(SchedulerDriver* driver);
-  virtual ExecutorInfo getExecutorInfo(SchedulerDriver* driver);
   virtual void registered(SchedulerDriver* driver,
                           const FrameworkID& frameworkId);
   virtual void resourceOffers(SchedulerDriver* driver,
@@ -65,80 +63,6 @@ public:
   JNIEnv* env;
   jweak jdriver;
 };
-
-
-string JNIScheduler::getFrameworkName(SchedulerDriver* driver)
-{
-  jvm->AttachCurrentThread((void**) &env, NULL);
-
-  jclass clazz = env->GetObjectClass(jdriver);
-
-  jfieldID sched = env->GetFieldID(clazz, "sched", "Lorg/apache/mesos/Scheduler;");
-  jobject jsched = env->GetObjectField(jdriver, sched);
-
-  clazz = env->GetObjectClass(jsched);
-
-  // String name = sched.getFrameworkName(driver);
-  jmethodID getFrameworkName =
-    env->GetMethodID(clazz, "getFrameworkName",
-		     "(Lorg/apache/mesos/SchedulerDriver;)"
-		     "Ljava/lang/String;");
-
-  env->ExceptionClear();
-
-  jobject jname = env->CallObjectMethod(jsched, getFrameworkName, jdriver);
-
-  if (env->ExceptionCheck()) {
-    env->ExceptionDescribe();
-    env->ExceptionClear();
-    jvm->DetachCurrentThread();
-    driver->abort();
-    return "";
-  }
-
-  string name = construct<string>(env, jname);
-
-  jvm->DetachCurrentThread();
-
-  return name;
-}
-
-
-ExecutorInfo JNIScheduler::getExecutorInfo(SchedulerDriver* driver)
-{
-  jvm->AttachCurrentThread((void**) &env, NULL);
-
-  jclass clazz = env->GetObjectClass(jdriver);
-
-  jfieldID sched = env->GetFieldID(clazz, "sched", "Lorg/apache/mesos/Scheduler;");
-  jobject jsched = env->GetObjectField(jdriver, sched);
-
-  clazz = env->GetObjectClass(jsched);
-
-  // ExecutorInfo executor = sched.getExecutorInfo(driver);
-  jmethodID getExecutorInfo =
-    env->GetMethodID(clazz, "getExecutorInfo",
-		     "(Lorg/apache/mesos/SchedulerDriver;)"
-		     "Lorg/apache/mesos/Protos$ExecutorInfo;");
-
-  env->ExceptionClear();
-
-  jobject jexecutor = env->CallObjectMethod(jsched, getExecutorInfo, jdriver);
-
-  if (env->ExceptionCheck()) {
-    env->ExceptionDescribe();
-    env->ExceptionClear();
-    jvm->DetachCurrentThread();
-    driver->abort();
-    return ExecutorInfo();
-  }
-
-  ExecutorInfo executor = construct<ExecutorInfo>(env, jexecutor);
-
-  jvm->DetachCurrentThread();
-
-  return executor;
-}
 
 
 void JNIScheduler::registered(SchedulerDriver* driver,
@@ -438,6 +362,10 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_initialize
   jfieldID __sched = env->GetFieldID(clazz, "__sched", "J");
   env->SetLongField(thiz, __sched, (jlong) sched);
 
+  // Get out the framework name passed into the constructor.
+  jfieldID frameworkName = env->GetFieldID(clazz, "frameworkName", "Ljava/lang/String;");
+  jobject jframeworkName = env->GetObjectField(thiz, frameworkName);
+
   // Get out the url passed into the constructor.
   jfieldID url = env->GetFieldID(clazz, "url", "Ljava/lang/String;");
   jobject jurl = env->GetObjectField(thiz, url);
@@ -446,19 +374,10 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_initialize
   jfieldID frameworkId = env->GetFieldID(clazz, "frameworkId", "Lorg/apache/mesos/Protos$FrameworkID;");
   jobject jframeworkId = env->GetObjectField(thiz, frameworkId);
 
-  // Get out the framework name passed into the constructor.
-  jfieldID frameworkName = env->GetFieldID(clazz, "frameworkName", "Ljava/lang/String;");
-  jobject jframeworkName = env->GetObjectField(thiz, frameworkName);
-
-  // Get out the executor info passed into the constructor.
-  jfieldID executorInfo = env->GetFieldID(clazz, "executorInfo", "Lorg/apache/mesos/Protos$ExecutorInfo;");
-  jobject jexecutorInfo = env->GetObjectField(thiz, executorInfo);
-
   // Create the C++ driver and initialize the __driver variable.
   MesosSchedulerDriver* driver =
     new MesosSchedulerDriver(sched,
                              construct<string>(env, jframeworkName),
-                             construct<ExecutorInfo>(env, jexecutorInfo),
                              construct<string>(env, jurl),
                              construct<FrameworkID>(env, jframeworkId));
 

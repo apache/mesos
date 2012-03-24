@@ -73,7 +73,7 @@ TEST(ExceptionTest, DeactiveFrameworkOnAbort)
 
   MockScheduler sched;
 
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   trigger schedRegisteredCall;
 
@@ -114,7 +114,7 @@ TEST(ExceptionTest, DisallowSchedulerActionsOnAbort)
 
   MockScheduler sched;
 
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   trigger schedRegisteredCall;
 
@@ -154,7 +154,7 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 
   MockScheduler sched;
 
-  MesosSchedulerDriver driver(&sched, "", DEFAULT_EXECUTOR_INFO, master);
+  MesosSchedulerDriver driver(&sched, "", master);
 
   EXPECT_CALL(sched, registered(&driver, _))
     .Times(1);

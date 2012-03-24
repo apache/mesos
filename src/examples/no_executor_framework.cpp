@@ -154,12 +154,7 @@ int main(int argc, char** argv)
 
   NoExecutorScheduler scheduler;
 
-  ExecutorInfo executor;
-  executor.mutable_executor_id()->set_value("default");
-  executor.mutable_command()->set_value("exit 1");
-
-  MesosSchedulerDriver driver(
-      &scheduler, "C++ Test Framework", executor, argv[1]);
+  MesosSchedulerDriver driver(&scheduler, "C++ Test Framework", argv[1]);
 
   return driver.run() == DRIVER_STOPPED ? 0 : 1;
 }

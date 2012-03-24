@@ -29,7 +29,8 @@ TASK_CPUS = 1
 TASK_MEM = 32
 
 class TestScheduler(mesos.Scheduler):
-  def __init__(self):
+  def __init__(self, executor):
+    self.executor = executor
     self.tasksLaunched = 0
     self.tasksFinished = 0
 
@@ -51,6 +52,7 @@ class TestScheduler(mesos.Scheduler):
         task.task_id.value = str(tid)
         task.slave_id.value = offer.slave_id.value
         task.name = "task %d" % tid
+        task.executor.MergeFrom(self.executor)
 
         cpus = task.resources.add()
         cpus.name = "cpus"
@@ -78,15 +80,14 @@ if __name__ == "__main__":
     print "Usage: %s master" % sys.argv[0]
     sys.exit(1)
 
-  execInfo = mesos_pb2.ExecutorInfo()
-  execInfo.executor_id.value = "default"
-  execInfo.command.uri = os.path.abspath("./test-executor")
-  execInfo.command.value = os.path.abspath("./test-executor")
+  executor = mesos_pb2.ExecutorInfo()
+  executor.executor_id.value = "default"
+  executor.command.uri = os.path.abspath("./test-executor")
+  executor.command.value = os.path.abspath("./test-executor")
 
   driver = mesos.MesosSchedulerDriver(
-    TestScheduler(),
+    TestScheduler(executor),
     "Python test framework",
-    execInfo,
     sys.argv[1])
 
   sys.exit(0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1)

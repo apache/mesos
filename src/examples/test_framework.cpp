@@ -42,8 +42,11 @@ const int32_t MEM_PER_TASK = 32;
 class TestScheduler : public Scheduler
 {
 public:
-  TestScheduler()
-    : tasksLaunched(0), tasksFinished(0), totalTasks(5) {}
+  TestScheduler(const ExecutorInfo& _executor)
+    : executor(_executor),
+      tasksLaunched(0),
+      tasksFinished(0),
+      totalTasks(5) {}
 
   virtual ~TestScheduler() {}
 
@@ -90,6 +93,7 @@ public:
         task.set_name("Task " + lexical_cast<string>(taskId));
         task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
+        task.mutable_executor()->MergeFrom(executor);
 
         Resource* resource;
 
@@ -140,6 +144,7 @@ public:
                      const string& message) {}
 
 private:
+  const ExecutorInfo executor;
   int tasksLaunched;
   int tasksFinished;
   int totalTasks;
@@ -161,15 +166,14 @@ int main(int argc, char** argv)
     uri = string(getenv("MESOS_BUILD_DIR")) + "/src/test-executor";
   }
 
-  TestScheduler scheduler;
-
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_command()->set_uri(uri);
   executor.mutable_command()->set_value(uri);
 
-  MesosSchedulerDriver driver(
-      &scheduler, "C++ Test Framework", executor, argv[1]);
+  TestScheduler scheduler(executor);
+
+  MesosSchedulerDriver driver(&scheduler, "C++ Test Framework", argv[1]);
 
   return driver.run() == DRIVER_STOPPED ? 0 : 1;
 }
