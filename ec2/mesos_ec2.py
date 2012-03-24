@@ -1,6 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import with_statement
 
 import boto
@@ -12,9 +28,14 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib2
 from optparse import OptionParser
 from sys import stderr
 from boto.ec2.blockdevicemapping import BlockDeviceMapping, EBSBlockDeviceType
+
+
+# A static URL from which to figure out the latest Mesos EC2 AMI
+LATEST_AMI_URL = "https://s3.amazonaws.com/mesos-images/ids/latest"
 
 
 # Configure and parse our command-line arguments
@@ -40,7 +61,8 @@ def parse_args():
   parser.add_option("-z", "--zone", default="us-east-1b",
       help="Availability zone to launch instances in")
   parser.add_option("-a", "--ami", default="ami-4517dc2c",
-      help="Amazon Machine Image ID to use")
+      help="Amazon Machine Image ID to use, or 'latest' to use latest " +
+           "availabe AMI (default: ami-4517dc2c)")
   parser.add_option("-o", "--os", default="amazon64",
       help="OS on the Amazon Machine Image (default: amazon64)")
   parser.add_option("-d", "--download", metavar="SOURCE", default="none",
@@ -168,6 +190,14 @@ def launch_cluster(conn, opts, cluster_name):
             "group %s, %s or %s" % (master_group.name, slave_group.name, zoo_group.name))
         sys.exit(1)
   print "Launching instances..."
+
+  if opts.ami == "latest":
+    # Figure out the latest AMI from our static URL
+    try:
+      opts.ami = urllib2.urlopen(LATEST_AMI_URL).read().strip()
+    except:
+      print >> stderr, "Could not read " + LATEST_AMI_URL
+
   try:
     image = conn.get_all_images(image_ids=[opts.ami])[0]
   except:
