@@ -155,6 +155,7 @@ Future<HttpResponse> stats(
   JSON::Object object;
   object.values["uptime"] = Clock::now() - slave.startTime;
   object.values["total_frameworks"] = slave.frameworks.size();
+  object.values["staged_tasks"] = slave.stats.tasks[TASK_STAGING];
   object.values["started_tasks"] = slave.stats.tasks[TASK_STARTING];
   object.values["finished_tasks"] = slave.stats.tasks[TASK_FINISHED];
   object.values["killed_tasks"] = slave.stats.tasks[TASK_KILLED];

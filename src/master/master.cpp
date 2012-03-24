@@ -297,8 +297,7 @@ void Master::initialize()
   failoverTimeout = conf.get<int>("failover_timeout", FRAMEWORK_FAILOVER_TIMEOUT);
 
   // Start all the statistics at 0.
-  CHECK(TASK_STARTING == TaskState_MIN);
-  CHECK(TASK_LOST == TaskState_MAX);
+  stats.tasks[TASK_STAGING] = 0;
   stats.tasks[TASK_STARTING] = 0;
   stats.tasks[TASK_RUNNING] = 0;
   stats.tasks[TASK_FINISHED] = 0;
@@ -1478,7 +1477,7 @@ Resources Master::launchTask(const TaskInfo& task,
   // Add the task to the framework and slave.
   Task* t = new Task();
   t->mutable_framework_id()->MergeFrom(framework->id);
-  t->set_state(TASK_STARTING);
+  t->set_state(TASK_STAGING);
   t->set_name(task.name());
   t->mutable_task_id()->MergeFrom(task.task_id());
   t->mutable_slave_id()->MergeFrom(task.slave_id());
@@ -1506,11 +1505,7 @@ Resources Master::launchTask(const TaskInfo& task,
   message.mutable_task()->MergeFrom(task);
   send(slave->pid, message);
 
-  // TODO(benh): This is a double count if the executor decides to
-  // send a status update for TASK_STARTING itself. Currently we don't
-  // disallow this although we really should have a state machine that
-  // makes sure transitions are valid.
-  stats.tasks[TASK_STARTING]++;
+  stats.tasks[TASK_STAGING]++;
 
   return resources;
 }

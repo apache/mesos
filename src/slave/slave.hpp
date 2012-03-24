@@ -221,7 +221,7 @@ struct Executor
 
     Task *t = new Task();
     t->mutable_framework_id()->MergeFrom(frameworkId);
-    t->set_state(TASK_STARTING);
+    t->set_state(TASK_STAGING);
     t->set_name(task.name());
     t->mutable_task_id()->MergeFrom(task.task_id());
     t->mutable_slave_id()->MergeFrom(task.slave_id());

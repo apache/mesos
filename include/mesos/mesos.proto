@@ -272,6 +272,7 @@ message TaskInfo {
  * another task).
  */
 enum TaskState {
+  TASK_STAGING = 6; // Initial state. Framework status updates should not use.
   TASK_STARTING = 0;
   TASK_RUNNING = 1;
   TASK_FINISHED = 2; // TERMINAL.

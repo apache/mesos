@@ -196,8 +196,7 @@ void Slave::initialize()
            conf, local, self());
 
   // Start all the statistics at 0.
-  CHECK(TASK_STARTING == TaskState_MIN);
-  CHECK(TASK_LOST == TaskState_MAX);
+  stats.tasks[TASK_STAGING] = 0;
   stats.tasks[TASK_STARTING] = 0;
   stats.tasks[TASK_RUNNING] = 0;
   stats.tasks[TASK_FINISHED] = 0;
@@ -446,7 +445,7 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
       // Add the task and send it to the executor.
       executor->addTask(task);
 
-      stats.tasks[TASK_STARTING]++;
+      stats.tasks[TASK_STAGING]++;
 
       // Update the resources.
       // TODO(Charles Reiss): The isolation module is not guaranteed to update
@@ -788,7 +787,7 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
     LOG(INFO) << "Flushing queued tasks for framework " << framework->id;
 
     foreachvalue (const TaskInfo& task, executor->queuedTasks) {
-      stats.tasks[TASK_STARTING]++;
+      stats.tasks[TASK_STAGING]++;
 
       RunTaskMessage message;
       message.mutable_framework_id()->MergeFrom(framework->id);

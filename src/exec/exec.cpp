@@ -227,6 +227,16 @@ protected:
     VLOG(1) << "Executor sending status update for task "
             << status.task_id() << " in state " << status.state();
 
+    if (status.state() == TASK_STAGING) {
+      VLOG(1) << "Executor is not allowed to send "
+              << "TASK_STAGING status updates. Aborting!";
+
+      driver->abort();
+      executor->error(driver, 1,
+                      "Attempted to send TASK_STAGING status update");
+      return;
+    }
+
     StatusUpdateMessage message;
     StatusUpdate* update = message.mutable_update();
     update->mutable_framework_id()->MergeFrom(frameworkId);

@@ -130,8 +130,7 @@ public:
   /**
    * Invoked when a fatal error has occured with the executor and/or
    * executor driver. The driver will be aborted BEFORE invoking this
-   * callback. This function is deprecated and will probably be
-   * removed in a subsequent release.
+   * callback.
    */
   virtual void error(ExecutorDriver* driver,
                      int code,

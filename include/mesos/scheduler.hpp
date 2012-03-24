@@ -139,8 +139,7 @@ public:
   /**
    * Invoked when there is an unrecoverable error in the scheduler or
    * scheduler driver. The driver will be aborted BEFORE invoking this
-   * callback. This function is deprecated and will probably be
-   * removed in a subsequent release.
+   * callback.
    */
   virtual void error(SchedulerDriver* driver,
                      int code,

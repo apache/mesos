@@ -196,6 +196,7 @@ Future<HttpResponse> stats(
   object.values["active_schedulers"] = master.getActiveFrameworks().size();
   object.values["activated_slaves"] = master.slaveHostnamePorts.size();
   object.values["connected_slaves"] = master.slaves.size();
+  object.values["staged_tasks"] = master.stats.tasks[TASK_STAGING];
   object.values["started_tasks"] = master.stats.tasks[TASK_STARTING];
   object.values["finished_tasks"] = master.stats.tasks[TASK_FINISHED];
   object.values["killed_tasks"] = master.stats.tasks[TASK_KILLED];
