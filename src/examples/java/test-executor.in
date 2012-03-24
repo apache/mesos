@@ -5,6 +5,10 @@
 MESOS_SOURCE_DIR=@abs_top_srcdir@
 MESOS_BUILD_DIR=@abs_top_builddir@
 
+# Locate Java from environment or use configure discovered location.
+JAVA_HOME=${JAVA_HOME-@JAVA_HOME@}
+JAVA=${JAVA-${JAVA_HOME}/bin/java}
+
 # Use colors for errors.
 . ${MESOS_SOURCE_DIR}/support/colors.sh
 
@@ -26,6 +30,6 @@ test ! -e ${EXAMPLES_JAR} && \
   echo "${RED}Failed to find ${EXAMPLES_JAR}${NORMAL}" && \
   exit 1
 
-exec java -cp ${PROTOBUF_JAR}:${MESOS_JAR}:${EXAMPLES_JAR} \
+exec ${JAVA} -cp ${PROTOBUF_JAR}:${MESOS_JAR}:${EXAMPLES_JAR} \
   -Djava.library.path=${MESOS_BUILD_DIR}/src/.libs \
   TestExecutor "${@}"
