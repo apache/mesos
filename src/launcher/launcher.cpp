@@ -53,7 +53,6 @@ ExecutorLauncher::ExecutorLauncher(
     const string& _workDirectory,
     const string& _slavePid,
     const string& _frameworksHome,
-    const string& _mesosHome,
     const string& _hadoopHome,
     bool _redirectIO,
     bool _shouldSwitchUser,
@@ -67,7 +66,6 @@ ExecutorLauncher::ExecutorLauncher(
     workDirectory(_workDirectory),
     slavePid(_slavePid),
     frameworksHome(_frameworksHome),
-    mesosHome(_mesosHome),
     hadoopHome(_hadoopHome),
     redirectIO(_redirectIO),
     shouldSwitchUser(_shouldSwitchUser),
@@ -209,22 +207,15 @@ void ExecutorLauncher::fetchExecutor()
         fatalerror("chmod failed");
     } else if (executor.find_first_of("/") != 0) {
       // We got a non-Hadoop and non-absolute path.
-      // Try prepending MESOS_HOME to it.
       if (frameworksHome != "") {
         executor = frameworksHome + "/" + executor;
-        cout << "Prepended frameworksHome to executor path, making it: "
-             << executor << endl;
+        cout << "Prepended configuration option frameworks_home to executor "
+             << "path, making it: " << executor << endl;
       } else {
-        if (mesosHome != "") {
-          executor = mesosHome + "/frameworks/" + executor;
-          cout << "Prepended MESOS_HOME/frameworks/ to relative "
-               << "executor path, making it: " << executor << endl;
-        } else {
-          fatal("A relative path was passed for the executor, but "  \
-                "neither MESOS_HOME nor MESOS_FRAMEWORKS_HOME is set."  \
-                "Please either specify one of these config options "    \
-                "or avoid using a relative path.");
-        }
+        fatal("A relative path was passed for the executor, but "
+              "the configuration option frameworks_home is not set. "
+              "Please either specify this config option "
+              "or avoid using a relative path.");
       }
     }
 
@@ -286,11 +277,6 @@ void ExecutorLauncher::setupEnvironment()
 
   // Set LIBPROCESS_PORT so that we bind to a random free port.
   utils::os::setenv("LIBPROCESS_PORT", "0");
-
-  // Set MESOS_HOME so that Java and Python executors can find libraries
-  if (mesosHome != "") {
-    utils::os::setenv("MESOS_HOME", mesosHome);
-  }
 }
 
 
@@ -315,7 +301,6 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
   utils::os::setenv("MESOS_USER", user);
   utils::os::setenv("MESOS_WORK_DIRECTORY", workDirectory);
   utils::os::setenv("MESOS_SLAVE_PID", slavePid);
-  utils::os::setenv("MESOS_HOME", mesosHome);
   utils::os::setenv("MESOS_HADOOP_HOME", hadoopHome);
   utils::os::setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0");
   utils::os::setenv("MESOS_SWITCH_USER", shouldSwitchUser ? "1" : "0");

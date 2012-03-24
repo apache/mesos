@@ -26,6 +26,7 @@
 
 #include "common/build.hpp"
 #include "common/option.hpp"
+#include "common/try.hpp"
 #include "common/type_utils.hpp"
 #include "common/utils.hpp"
 
@@ -126,7 +127,7 @@ void Slave::registerOptions(Configurator* configurator)
   configurator->addOption<string>(
       "work_dir",
       "Where to place framework work directories\n"
-      "(default: MESOS_HOME/work)");
+      "(default: ./work)");
 
   configurator->addOption<string>(
       "hadoop_home",
@@ -145,7 +146,7 @@ void Slave::registerOptions(Configurator* configurator)
   configurator->addOption<string>(
       "frameworks_home",
       "Directory prepended to relative executor\n"
-      "paths (default: MESOS_HOME/frameworks)");
+      "paths (no default)");
 
   configurator->addOption<double>(
       "executor_shutdown_timeout_seconds",
@@ -159,6 +160,7 @@ void Slave::initialize()
   LOG(INFO) << "Slave started at " << self();
   LOG(INFO) << "Slave resources: " << resources;
 
+  // Determine our hostname.
   Result<string> result = utils::os::hostname();
 
   if (result.isError()) {
@@ -1446,22 +1448,9 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
   LOG(INFO) << "Generating a unique work directory for executor '"
             << executorId << "' of framework " << frameworkId;
 
-  string workDir = "work";  // Default work directory.
-
-  // Now look for configured work directory.
-  Option<string> option = conf.get("work_dir");
-  if (option.isNone()) {
-    // Okay, then look for a home directory instead.
-    option = conf.get("home");
-    if (option.isSome()) {
-      workDir = option.get() + "/work";
-    }
-  } else {
-    workDir = option.get();
-  }
-
   std::ostringstream out(std::ios_base::app | std::ios_base::out);
-  out << workDir << "/slaves/" << id
+  out << conf.get("work_dir", "./work")
+      << "/slaves/" << id
       << "/frameworks/" << frameworkId
       << "/executors/" << executorId;
 
@@ -1483,8 +1472,9 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
       out.str(prefix); // Try with prefix again.
     }
   }
-  LOG(FATAL) << "Could not create work directory for executor '" << executorId
-             << "' of framework" << frameworkId;
+
+  LOG(FATAL) << "Could not create work directory for executor '"
+             << executorId << "' of framework" << frameworkId;
 }
 
 } // namespace slave {

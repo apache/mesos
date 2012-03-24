@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 
   Configuration conf;
   try {
-    conf = configurator.load(argc, argv, true);
+    conf = configurator.load(argc, argv);
   } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
     exit(1);

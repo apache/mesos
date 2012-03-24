@@ -22,6 +22,6 @@ if [ "$PROGRAM" == "mesos-slave" ]; then
 fi
 
 
-cd $MESOS_HOME
+cd $DEPLOY_DIR
 echo "now in dir `pwd`"
-nohup ./bin/$PROGRAM "$EXTRA_OPTS" $@ </dev/null >/dev/null 2>&1 &
+nohup $MESOS_SBIN/$PROGRAM "$EXTRA_OPTS" $@ </dev/null >/dev/null 2>&1 &

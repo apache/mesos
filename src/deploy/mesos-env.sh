@@ -3,18 +3,22 @@
 DEPLOY_DIR=`dirname "$0"`
 DEPLOY_DIR=`cd "$DEPLOY_DIR"; pwd`
 
-# Locate MESOS_HOME relative to deploy directory
-MESOS_HOME=`cd "$DEPLOY_DIR/.."; pwd`
+# Locate MESOS_CONF relative to deploy directory
+MESOS_CONF=`cd "$DEPLOY_DIR/../conf"; pwd`
+MESOS_BIN=`cd "$DEPLOY_DIR/../bin"; pwd`
+MESOS_SBIN=`cd "$DEPLOY_DIR/../bin"; pwd`
+
+export MESOS_CONF
 
 # Find files that list masters and slaves
-MASTERS_FILE="$MESOS_HOME/conf/masters"
+MASTERS_FILE="$MESOS_CONF/masters"
 if [ -e "$MASTERS_FILE" ]; then
   MASTERS=`cat "$MASTERS_FILE"`
 else
   echo "Error: $MASTERS_FILE does not exist" >&2
   exit 1
 fi
-SLAVES_FILE="$MESOS_HOME/conf/slaves"
+SLAVES_FILE="$MESOS_CONF/slaves"
 if [ -e "$SLAVES_FILE" ]; then
   SLAVES=`cat "$SLAVES_FILE"`
 else
@@ -25,7 +29,7 @@ fi
 # Find Mesos URL to use; first look to see if url is set in
 # the Mesos config file, and if it isn't, use 1@MASTER:5050
 # (taking the first master in the masters file)
-MESOS_URL=`$MESOS_HOME/bin/mesos-getconf url`
+MESOS_URL=`$MESOS_BIN/mesos-getconf url`
 if [ "x$MESOS_URL" == "x" ]; then
   FIRST_MASTER=`head -1 "$MASTERS_FILE"`
   MESOS_URL="mesos://master@$FIRST_MASTER:5050"
@@ -33,10 +37,10 @@ fi
 
 # Read the deploy_with_sudo config setting to determine whether to run
 # slave daemons as sudo.
-DEPLOY_WITH_SUDO=`$MESOS_HOME/bin/mesos-getconf deploy_with_sudo`
+DEPLOY_WITH_SUDO=`$MESOS_BIN/mesos-getconf deploy_with_sudo`
 
 # Read any user-configurable environment variables set in the deploy-env.sh file
 # in MESOS_HOME/conf, such as SSH options.
-if [ -e $MESOS_HOME/conf/deploy-env.sh ]; then
-  . $MESOS_HOME/conf/deploy-env.sh
+if [ -e $MESOS_CONF/deploy-env.sh ]; then
+  . $MESOS_CONF/deploy-env.sh
 fi

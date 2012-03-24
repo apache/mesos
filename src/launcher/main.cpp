@@ -45,7 +45,6 @@ int main(int argc, char** argv)
       utils::os::getenv("MESOS_WORK_DIRECTORY"),
       utils::os::getenv("MESOS_SLAVE_PID"),
       utils::os::getenv("MESOS_FRAMEWORKS_HOME", false),
-      utils::os::getenv("MESOS_HOME"),
       utils::os::getenv("MESOS_HADOOP_HOME"),
       utils::os::getenv("MESOS_REDIRECT_IO") == "1",
       utils::os::getenv("MESOS_SWITCH_USER") == "1",

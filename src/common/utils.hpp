@@ -203,7 +203,8 @@ inline std::string basename(const std::string& path)
 inline Try<std::string> realpath(const std::string& path)
 {
   char temp[PATH_MAX];
-  if (::realpath(path.c_str(), temp) == 0) {
+  if (::realpath(path.c_str(), temp) == NULL) {
+    // TODO(benh): Include strerror(errno).
     return Try<std::string>::error(
         "Failed to canonicalize " + path + " into an absolute path");
   }

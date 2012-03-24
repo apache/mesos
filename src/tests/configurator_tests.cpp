@@ -63,13 +63,13 @@ TEST(ConfiguratorTest, DefaultOptions)
   EXPECT_NO_THROW(conf.addOption<bool>("test2", "Another tester", 0));
   EXPECT_NO_THROW(conf.addOption<long>("test3", "Tests the default", 2010));
   EXPECT_NO_THROW(conf.addOption<string>("test4", "Option without default"));
-  EXPECT_NO_THROW(conf.addOption<string>("test5", "Option with a default", 
+  EXPECT_NO_THROW(conf.addOption<string>("test5", "Option with a default",
                                          "default"));
   EXPECT_NO_THROW(conf.addOption<bool>("test6", "Toggler...", false));
   EXPECT_NO_THROW(conf.addOption<bool>("test7", "Toggler...", true));
-  EXPECT_NO_THROW(conf.addOption<string>("test8", "Overridden default", 
+  EXPECT_NO_THROW(conf.addOption<string>("test8", "Overridden default",
                                          "default"));
-  EXPECT_NO_THROW(conf.load(ARGC, argv, false));
+  EXPECT_NO_THROW(conf.load(ARGC, argv));
 
   EXPECT_NO_THROW(conf.addOption<int>("excp", "Exception tester.", 50));
   EXPECT_THROW(conf.validate(), ConfigurationException);
@@ -113,7 +113,7 @@ TEST(ConfiguratorTest, CommandLine)
   EXPECT_NO_THROW(conf.addOption<bool>("bool3", 'a', "toggler", false));
   EXPECT_NO_THROW(conf.addOption<bool>("bool4", 'b', "toggler", true));
 
-  EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
+  EXPECT_NO_THROW( conf.load(ARGC, argv) );
 
   EXPECT_EQ("text1",       conf.getConfiguration()["test1"]);
   EXPECT_EQ("1",           conf.getConfiguration()["test2"]);
@@ -126,31 +126,6 @@ TEST(ConfiguratorTest, CommandLine)
   EXPECT_EQ("0",           conf.getConfiguration()["bool4"]);
 }
 
-
-// Check whether specifying MESOS_HOME allows a config file to be loaded
-// from the default config directory (MESOS_HOME/conf)
-TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithMesosHome)
-{
-  if (mkdir("bin", 0755) != 0)
-    FAIL() << "Failed to create directory bin";
-  if (mkdir("conf", 0755) != 0)
-    FAIL() << "Failed to create directory conf";
-  ofstream file("conf/mesos.conf");
-  file << "test1=coffee # beans are tasty\n";
-  file << "# just a comment\n";
-  file << "test2=tea\n";
-  file.close();
-
-  setenv("MESOS_HOME", ".", 1);
-  Configurator conf;
-  char* argv[1] = { (char*) "bin/foo" };
-  EXPECT_NO_THROW( conf.load(1, argv, true) );
-  unsetenv("MESOS_HOME");
-
-  EXPECT_EQ("coffee", conf.getConfiguration()["test1"]);
-  EXPECT_EQ("tea",    conf.getConfiguration()["test2"]);
-}
-  
 
 // Check whether specifying just MESOS_CONF allows a config file to be loaded
 TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithConfDir)
@@ -165,31 +140,6 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithConfDir)
   setenv("MESOS_CONF", "conf2", 1);
   Configurator conf;
   EXPECT_NO_THROW( conf.load() );
-  unsetenv("MESOS_CONF");
-
-  EXPECT_EQ("shake", conf.getConfiguration()["test3"]);
-  EXPECT_EQ("milk",  conf.getConfiguration()["test4"]);
-}
-
-
-// Check that setting MESOS_CONF variable overrides the default location
-// of conf directory relative in MESOS_HOME/conf.
-TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithHomeAndDir)
-{
-  if (mkdir("bin", 0755) != 0)
-    FAIL() << "Failed to create directory bin";
-  if (mkdir("conf2", 0755) != 0)
-    FAIL() << "Failed to create directory conf2";
-  ofstream file("conf2/mesos.conf");
-  file << "test3=shake # sugar bomb\n";
-  file << "# just a comment\n";
-  file << "test4=milk\n";
-  file.close();
-
-  setenv("MESOS_CONF", "conf2", 1);
-  Configurator conf;
-  char* argv[1] = { (char*) "bin/foo" };
-  EXPECT_NO_THROW( conf.load(1, argv, true) );
   unsetenv("MESOS_CONF");
 
   EXPECT_EQ("shake", conf.getConfiguration()["test3"]);
@@ -219,7 +169,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
   argv[3] = (char*) "--d=fromCmdLine";
 
   Configurator conf;
-  EXPECT_NO_THROW( conf.load(ARGC, argv, false) );
+  EXPECT_NO_THROW( conf.load(ARGC, argv) );
 
   EXPECT_EQ("1",           conf.getConfiguration()["a"]);
   EXPECT_EQ("overridden",  conf.getConfiguration()["b"]);
@@ -249,6 +199,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
   // Set environment to contain parameters a and b
   setenv("MESOS_A", "fromEnv", 1);
   setenv("MESOS_B", "fromEnv", 1);
+  setenv("MESOS_CONF", "conf", 1);
 
   // Pass parameters a and c from the command line
   const int ARGC = 3;
@@ -258,11 +209,12 @@ TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
   argv[2] = (char*) "--c=fromCmdLine";
 
   Configurator conf;
-  EXPECT_NO_THROW( conf.load(ARGC, argv, true) );
+  EXPECT_NO_THROW(conf.load(ARGC, argv));
 
   // Clear the environment vars set above
   unsetenv("MESOS_A");
   unsetenv("MESOS_B");
+  unsetenv("MESOS_CONF");
 
   // Check that every variable is obtained from the highest-priority location
   // (command line > env > file)

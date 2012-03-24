@@ -44,7 +44,7 @@ int main(int argc, char** argv)
 
   Configuration conf;
   try {
-    conf = configurator.load(argc, argv, true);
+    conf = configurator.load(argc, argv);
   } catch (const ConfigurationException& e) {
     std::cerr << "Configuration error: " << e.what() << std::endl;
     exit(1);

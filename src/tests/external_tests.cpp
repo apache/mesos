@@ -64,7 +64,7 @@ void mesos::internal::test::runExternalTest(const char* testCase,
     ASSERT_EQ(0, exitCode) << "External test " << testName << " failed";
   } else {
     // In child process. Redirect standard output and error to files,
-    // set MESOS_HOME environment variable, and exec the test script.
+    // set environment variables, and exec the test script.
     if (freopen("stdout", "w", stdout) == NULL)
       fatalerror("freopen failed");
     if (freopen("stderr", "w", stderr) == NULL)

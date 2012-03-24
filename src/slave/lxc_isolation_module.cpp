@@ -180,7 +180,6 @@ void LxcIsolationModule::launchExecutor(
                            directory,
 			   slave,
 			   conf.get("frameworks_home", ""),
-			   conf.get("home", ""),
 			   conf.get("hadoop_home", ""),
 			   !local,
 			   conf.get("switch_user", true),

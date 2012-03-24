@@ -660,7 +660,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
   local::registerOptions(&configurator);
   Configuration* conf;
   try {
-    conf = new Configuration(configurator.load(argc, argv, false));
+    conf = new Configuration(configurator.load(argc, argv));
   } catch (ConfigurationException& e) {
     string message = string("Configuration error: ") + e.what();
     scheduler->error(this, 2, message);

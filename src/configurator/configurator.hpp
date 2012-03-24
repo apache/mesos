@@ -53,11 +53,9 @@ struct ConfigurationException : std::exception
  * (i) Environment variables. It adds all variables starting with MESOS_.
  * (ii) Command line variables. Supports "--key=val" "-key val" "-opt" "--opt"
  * (iii) Config file. It ignores comments "#". It finds the file mesos.conf
- * in the directory specified by the "conf" option. Otherwise, it looks for
- * mesos.conf in the directory MESOS_HOME/conf (only if the running binary
- * is a Mesos binary, so that MESOS_HOME can be inferred from its location).
+ * in the directory specified by the "conf" option.
  **/
-class Configurator 
+class Configurator
 {
 public:
   static const char* DEFAULT_CONFIG_DIR;
@@ -70,7 +68,7 @@ private:
 
 public:
 
-  /** 
+  /**
    * Initializes a Configurator with no options set and only the "conf"
    * option registered.
    **/
@@ -91,7 +89,7 @@ public:
    **/
   std::string getUsage() const;
 
-  
+
 private:
   /**
    * Private method for adding an option with, potentially, a default
@@ -101,8 +99,8 @@ private:
    * @param hasShortName whether the option has a short name
    * @param shortName character representing short name of option, e.g. 'h'
    * @param hasDefault whether the option has a default value
-   * @param defaultValue default value of the option, as a string. 
-   *        The default option is put in the internal conf, 
+   * @param defaultValue default value of the option, as a string.
+   *        The default option is put in the internal conf,
    *        unless the option already has a value in conf.
    **/
   template <class T>
@@ -134,7 +132,7 @@ public:
    * @param helpString description of the option, may contain line breaks
    **/
   template <class T>
-  void addOption(const std::string& optName, const std::string& helpString) 
+  void addOption(const std::string& optName, const std::string& helpString)
   {
     addOption<T>(optName, helpString, false, '\0', false, "");
   }
@@ -148,7 +146,7 @@ public:
   template <class T>
   void addOption(const std::string& optName,
                  char shortName,
-                 const std::string& helpString) 
+                 const std::string& helpString)
   {
     addOption<T>(optName, helpString, true, shortName, false, "");
   }
@@ -158,14 +156,14 @@ public:
    * @param optName name of the option, e.g. "home"
    * @param helpString description of the option, may contain line breaks
    * @param defaultValue default value of option.
-   *        The default option is put in the internal conf, 
+   *        The default option is put in the internal conf,
    *        unless the option already has a value in conf.
    *        Its type must support operator<<(ostream,...)
    **/
   template <class T>
   void addOption(const std::string& optName,
                  const std::string& helpString,
-                 const T& defaultValue) 
+                 const T& defaultValue)
   {
     std::string defaultStr = boost::lexical_cast<std::string>(defaultValue);
     addOption<T>(optName, helpString, false, '\0', true, defaultStr);
@@ -224,13 +222,10 @@ public:
    *
    * @param argc is the number of parameters in argv
    * @param argv is an array of c-strings containing parameters
-   * @param inferMesosHomeFromArg0 whether to set mesos home to directory
-   *                               containing argv[0] (the program being run)
    * @return the loaded Configuration object
    **/
   Configuration& load(int argc,
-                      char** argv,
-                      bool inferMesosHomeFromArg0 = false);
+                      char** argv);
 
 
   /**
@@ -251,7 +246,7 @@ public:
   Configuration& load();
 
 
-  /** 
+  /**
    * Populates its internal Configuration with key/value parameters
    * from environment, a provided map, and config file.
    *
@@ -282,7 +277,7 @@ private:
    * Parses the environment variables and populates a Configuration.
    * It picks all environment variables that start with MESOS_.
    * The environment variable MESOS_FOO=/dir would lead to key=foo val=/dir
-   * @param overwrite whether to overwrite keys that already have values 
+   * @param overwrite whether to overwrite keys that already have values
    *         in the internal params (true by default)
    **/
   void loadEnv(bool overwrite = true);
@@ -293,18 +288,15 @@ private:
    *
    * It extracts four type of command line parameters:
    * "--key=val", "-key val", "--key", "-key". The two last cases will
-   * have default value "1" in the Params. 
+   * have default value "1" in the Params.
    *
    * @param argc is the number of parameters in argv
    * @param argv is an array of c-strings containing parameters
-   * @param inferMesosHomeFromArg0 whether to set mesos home to directory
-   *                               containing argv[0] (the program being run)
-   * @param overwrite whether to overwrite keys that already have values 
+   * @param overwrite whether to overwrite keys that already have values
    *         in the internal params (true by default)
    **/
   void loadCommandLine(int argc,
                        char** argv,
-                       bool inferMesosHomeFromArg0, 
                        bool overwrite = true);
 
   /**
@@ -319,14 +311,14 @@ private:
    * Comments, which should start with #, are ignored.
    *
    * @param fname is the name of the config file to open
-   * @param overwrite whether to overwrite keys that already have values 
+   * @param overwrite whether to overwrite keys that already have values
    *         in the internal params (false by default)
    **/
   void loadConfigFile(const std::string& fname, bool overwrite = false);
 
   /**
    * Load the config file set through the command line or environment, if any.
-   * @param overwrite whether to overwrite keys that already have values 
+   * @param overwrite whether to overwrite keys that already have values
    *         in the internal params (false by default)
    */
   void loadConfigFileIfGiven(bool overwrite = false);
@@ -353,7 +345,7 @@ private:
    * @param key the option name parsed from the flag (without --no)
    * @param gotBool whether the option was passed as a bool
    */
-  void checkCommandLineParamFormat(const std::string& key, bool gotBool) 
+  void checkCommandLineParamFormat(const std::string& key, bool gotBool)
     throw(ConfigurationException);
 
   /**

@@ -41,7 +41,7 @@ void Logging::registerOptions(Configurator* conf)
 {
   conf->addOption<bool>("quiet", 'q', "Disable logging to stderr", false);
   conf->addOption<string>("log_dir",
-                          "Where to put logs (default: MESOS_HOME/logs)");
+                          "Where to put logs (default: glog default)");
   conf->addOption<int>("log_buf_secs",
                        "How many seconds to buffer log messages for\n",
                        0);
@@ -73,12 +73,7 @@ void Logging::init(const char* programName, const Configuration& conf)
 
 string Logging::getLogDir(const Configuration& conf)
 {
-  if (conf.contains("log_dir"))
-    return conf.get("log_dir", "");
-  else if (conf.contains("home"))
-    return conf.get("home", "") + "/logs";
-  else
-    return "";
+  return conf.get("log_dir", "");
 }
 
 

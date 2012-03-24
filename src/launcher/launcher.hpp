@@ -50,7 +50,6 @@ public:
       const std::string& workDirectory,
       const std::string& slavePid,
       const std::string& frameworksHome,
-      const std::string& mesosHome,
       const std::string& hadoopHome,
       bool redirectIO,
       bool shouldSwitchUser,
@@ -94,7 +93,6 @@ protected:
   std::string workDirectory; // Directory in which the framework should run.
   std::string slavePid;
   std::string frameworksHome;
-  std::string mesosHome;
   std::string hadoopHome;
   bool redirectIO;   // Whether to redirect stdout and stderr to files.
   bool shouldSwitchUser; // Whether to setuid to framework's user.
