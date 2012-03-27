@@ -97,7 +97,7 @@ Now in order to actually run Hadoop we need to set up our environment
 appropriately for Hadoop. We can do this in conf/hadoop-env.sh This
 includes:
 
-  (1) Setting JAVA_HOME (a prerequisite to running this tutorial).
+  (1) Setting JAVA_HOME (unnecessary if JAVA_HOME is set in your environment).
   (2) Adding the Mesos contrib class files to HADOOP_CLASSPATH.
   (3) Adding mesos-x.y.z.jar to the HADOOP_CLASSPATH.
   (4) Adding protobuf-2.3.0.jar to the HADOOP_CLASSPATH.

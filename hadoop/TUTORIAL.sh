@@ -73,10 +73,11 @@ __EOF__
 if test -z ${JAVA_HOME}; then
     cat <<__EOF__
 
-${RED}You need to set JAVA_HOME before you can run this tutorial!${NORMAL}
+${RED}You probably need to set JAVA_HOME in order to run this tutorial!${NORMAL}
 
 __EOF__
-    exit 1
+    read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
+    echo
 fi
 
 
@@ -297,7 +298,7 @@ Now in order to actually run Hadoop we need to set up our environment
 appropriately for Hadoop. We can do this in conf/hadoop-env.sh This
 includes:
 
-  (1) Setting JAVA_HOME (a prerequisite to running this tutorial).
+  (1) Setting JAVA_HOME (unnecessary if JAVA_HOME is set in your environment).
   (2) Adding the Mesos contrib class files to HADOOP_CLASSPATH.
   (3) Adding mesos-${VERSION}.jar to the HADOOP_CLASSPATH.
   (4) Adding protobuf-2.3.0.jar to the HADOOP_CLASSPATH.

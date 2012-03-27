@@ -18,7 +18,7 @@ index ada5bef..76aaf48 100644
 +export MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos-${MESOS_VERSION}.jar
 +
 +# Native Mesos library.
-+export MESOS_NATIVE_LIBRARY=${MESOS_BUILD_DIR}/src/.libs/libmesos.dylib
++export MESOS_NATIVE_LIBRARY=`if test -e ${MESOS_BUILD_DIR}/src/.libs/libmesos.so; then echo ${MESOS_BUILD_DIR}/src/.libs/libmesos.so; elif test -e ${MESOS_BUILD_DIR}/src/.libs/libmesos.dylib; then echo ${MESOS_BUILD_DIR}/src/.libs/libmesos.dylib; fi`
 +
  # The java implementation to use.  Required.
  # export JAVA_HOME=/usr/lib/j2sdk1.5-sun
