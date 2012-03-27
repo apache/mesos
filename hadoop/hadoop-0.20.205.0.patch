@@ -365,7 +365,7 @@ new file mode 100644
 index 0000000..312cfdb
 --- /dev/null
 +++ b/hadoop/hadoop-0.20.205.0/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java
-@@ -0,0 +1,878 @@
+@@ -0,0 +1,877 @@
 +package org.apache.hadoop.mapred;
 +
 +import java.io.File;
@@ -698,7 +698,6 @@ index 0000000..312cfdb
 +        byte[] initArg = conf.get("mapred.job.tracker").getBytes("US-ASCII");
 +        return ExecutorInfo.newBuilder()
 +          .setCommand(CommandInfo.newBuilder()
-+                      .setUri(execPath)
 +                      .setValue(execPath).build())
 +          .setData(com.google.protobuf.ByteString.copyFrom(initArg))
 +          .setExecutorId(EXECUTOR_ID)
