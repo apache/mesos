@@ -89,7 +89,7 @@ void ProcessBasedIsolationModule::launchExecutor(
   const ExecutorID& executorId = executorInfo.executor_id();
 
   LOG(INFO) << "Launching " << executorId
-            << " (" << executorInfo.command().uri() << ")"
+            << " (" << executorInfo.command().value() << ")"
             << " in " << directory
             << " with resources " << resources
             << "' for framework " << frameworkId;
@@ -186,8 +186,7 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
 {
   return new ExecutorLauncher(frameworkId,
                               executorInfo.executor_id(),
-                              executorInfo.command().uri(),
-                              executorInfo.command().value(),
+                              executorInfo.command(),
                               frameworkInfo.user(),
                               directory,
                               slave,
@@ -195,8 +194,7 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
                               conf.get("hadoop_home", ""),
                               !local,
                               conf.get("switch_user", true),
-                              "",
-                              executorInfo.command().environment());
+                              "");
 }
 
 

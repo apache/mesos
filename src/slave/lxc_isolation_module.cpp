@@ -174,17 +174,15 @@ void LxcIsolationModule::launchExecutor(
     ExecutorLauncher* launcher =
       new ExecutorLauncher(frameworkId,
 			   executorId,
-			   executorInfo.command().uri(),
-			   executorInfo.command().value(),
+			   executorInfo.command(),
 			   frameworkInfo.user(),
-                           directory,
+         directory,
 			   slave,
 			   conf.get("frameworks_home", ""),
 			   conf.get("hadoop_home", ""),
 			   !local,
 			   conf.get("switch_user", true),
-			   container,
-			   executorInfo.command().environment());
+			   container);
 
     launcher->setupEnvironmentForLauncherMain();
 

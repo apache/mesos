@@ -187,6 +187,7 @@ inline bool operator == (const Environment& left, const Environment& right)
       if (name == right.variables().Get(j).name() &&
           value == right.variables().Get(j).value()) {
         found = true;
+        break;
       }
     }
     if (!found) {
@@ -198,11 +199,35 @@ inline bool operator == (const Environment& left, const Environment& right)
 }
 
 
+inline bool operator == (const CommandInfo::URI& left,
+                         const CommandInfo::URI& right)
+{
+  return left.has_executable() == right.has_executable() &&
+    (!left.has_executable() || (left.executable() == right.executable())) &&
+    left.value() == right.value();
+}
+
+
 inline bool operator == (const CommandInfo& left, const CommandInfo& right)
 {
-  return left.has_uri() == right.has_uri() &&
-    (!left.has_uri() || (left.uri() == right.uri())) &&
-    left.has_environment() == right.has_environment() &&
+  if (left.uris().size() != right.uris().size()) {
+    return false;
+  }
+
+  for (int i=0; i<left.uris().size(); i++) {
+    bool found = false;
+    for (int j=0; j<right.uris().size(); j++) {
+      if (left.uris().Get(i) == right.uris().Get(j)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  return left.has_environment() == right.has_environment() &&
     (!left.has_environment() || (left.environment() == right.environment())) &&
     left.value() == right.value();
 }

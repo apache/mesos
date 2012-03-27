@@ -93,12 +93,20 @@ message FrameworkInfo {
 
 /**
  * Describes a command, executed via: '/bin/sh -c value'. Any uri's
- * specified are fetched before executing the command. In addition,
- * any environment variables are set before executing the command (so
- * they can be used to "parameterize" your command).
+ * specified are fetched before executing the command.
+ * If executable field for an uri is set, executable file permission 
+ * is set on the downloaded file. Also, if the downloaded file has ".tgz" 
+ * extension it is extracted into the executor's working directory.
+ * In addition, any environment variables are set before executing 
+ * the command (so they can be used to "parameterize" your command).
  */
 message CommandInfo {
-  optional string uri = 1; // TODO(benh): Make this repeated.
+  message URI {
+   required string value = 1;
+   optional bool executable = 2;
+  }
+
+  repeated URI uris = 1;
   optional Environment environment = 2;
   required string value = 3;
 }

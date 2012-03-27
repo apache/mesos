@@ -18,6 +18,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include "common/strings.hpp"
 #include "common/utils.hpp"
 
 #include "launcher/launcher.hpp"
@@ -36,11 +37,27 @@ int main(int argc, char** argv)
   ExecutorID executorId;
   executorId.set_value(utils::os::getenv("MESOS_EXECUTOR_ID"));
 
+  CommandInfo commandInfo;
+  commandInfo.set_value(utils::os::getenv("MESOS_COMMAND"));
+
+  // Construct URIs from the encoded environment string.
+  const std::string& uris = utils::os::getenv("MESOS_EXECUTOR_URIS");
+  foreach (const std::string& token, strings::split(uris, " ")) {
+    size_t pos = token.rfind("+"); // Delim between uri and exec permission.
+    CHECK(pos != std::string::npos) << "Invalid executor uri token in env "
+                                    << token;
+
+    CommandInfo::URI uri;
+    uri.set_value(token.substr(0, pos));
+    uri.set_executable(token.substr(pos + 1) == "1");
+
+    commandInfo.add_uris()->MergeFrom(uri);
+  }
+
   return mesos::internal::launcher::ExecutorLauncher(
       frameworkId,
       executorId,
-      utils::os::getenv("MESOS_EXECUTOR_URI"),
-      utils::os::getenv("MESOS_COMMAND"),
+      commandInfo,
       utils::os::getenv("MESOS_USER"),
       utils::os::getenv("MESOS_WORK_DIRECTORY"),
       utils::os::getenv("MESOS_SLAVE_PID"),
@@ -48,6 +65,6 @@ int main(int argc, char** argv)
       utils::os::getenv("MESOS_HADOOP_HOME"),
       utils::os::getenv("MESOS_REDIRECT_IO") == "1",
       utils::os::getenv("MESOS_SWITCH_USER") == "1",
-      utils::os::getenv("MESOS_CONTAINER", false),
-      Environment()).run();
+      utils::os::getenv("MESOS_CONTAINER", false))
+    .run();
 }

@@ -47,8 +47,7 @@ namespace launcher {
 ExecutorLauncher::ExecutorLauncher(
     const FrameworkID& _frameworkId,
     const ExecutorID& _executorId,
-    const string& _executorUri,
-    const string& _command,
+    const CommandInfo& _commandInfo,
     const string& _user,
     const string& _workDirectory,
     const string& _slavePid,
@@ -56,12 +55,10 @@ ExecutorLauncher::ExecutorLauncher(
     const string& _hadoopHome,
     bool _redirectIO,
     bool _shouldSwitchUser,
-    const string& _container,
-    const Environment& _environment)
+    const string& _container)
   : frameworkId(_frameworkId),
     executorId(_executorId),
-    executorUri(_executorUri),
-    command(_command),
+    commandInfo(_commandInfo),
     user(_user),
     workDirectory(_workDirectory),
     slavePid(_slavePid),
@@ -69,8 +66,7 @@ ExecutorLauncher::ExecutorLauncher(
     hadoopHome(_hadoopHome),
     redirectIO(_redirectIO),
     shouldSwitchUser(_shouldSwitchUser),
-    container(_container),
-    environment(_environment) {}
+    container(_container) {}
 
 
 ExecutorLauncher::~ExecutorLauncher() {}
@@ -95,13 +91,15 @@ int ExecutorLauncher::run()
     }
   }
 
-  fetchExecutor(); // TODO(benh): fetchExecutors();
+  fetchExecutors();
 
   setupEnvironment();
 
   if (shouldSwitchUser) {
     switchUser();
   }
+
+  const string& command = commandInfo.value();
 
   // TODO(benh): Clean up this gross special cased LXC garbage!!!!
   if (container != "") {
@@ -142,11 +140,13 @@ void ExecutorLauncher::initializeWorkingDirectory()
 }
 
 
-// Download the executor's binary if required and return its path.
-void ExecutorLauncher::fetchExecutor()
+// Download the executor's files and optionally set executable permissions
+// if requested.
+void ExecutorLauncher::fetchExecutors()
 {
-  if (executorUri != "") {
-    string executor = executorUri;
+  foreach(const CommandInfo::URI& uri, commandInfo.uris()) {
+    string executor = uri.value();
+    bool executable = uri.has_executable() && uri.executable();
 
     // Some checks to make using the executor in shell commands safe;
     // these should be pushed into the master and reported to the user
@@ -182,7 +182,7 @@ void ExecutorLauncher::fetchExecutor()
       if (ret != 0)
         fatal("HDFS copyToLocal failed: return code %d", ret);
       executor = localFile;
-      if (chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+      if (executable && chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
                 S_IROTH | S_IXOTH) != 0)
         fatalerror("chmod failed");
     } else if (executor.find("http://") == 0
@@ -202,7 +202,7 @@ void ExecutorLauncher::fetchExecutor()
               code.get());
       }
       executor = path;
-      if (chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+      if (executable && chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
                 S_IROTH | S_IXOTH) != 0)
         fatalerror("chmod failed");
     } else if (executor.find_first_of("/") != 0) {
@@ -219,43 +219,13 @@ void ExecutorLauncher::fetchExecutor()
       }
     }
 
-    // If the executor was a .tgz, untar it in the work directory. The .tgz
-    // expected to contain a single directory. This directory should contain
-    // a program or script called "executor" to run the executor. We chdir
-    // into this directory and run the script from in there.
+    // If the executor was a .tgz, untar it in the work directory.
     if (executor.rfind(".tgz") == executor.size() - strlen(".tgz")) {
       string command = "tar xzf '" + executor + "'";
       cout << "Untarring executor: " + command << endl;
       int ret = system(command.c_str());
       if (ret != 0)
         fatal("Untar failed: return code %d", ret);
-      // The .tgz should have contained a single directory; find it
-      if (DIR *dir = opendir(".")) {
-        bool found = false;
-        string dirname = "";
-        while (struct dirent *ent = readdir(dir)) {
-          if (string(".") != ent->d_name && string("..") != ent->d_name) {
-            struct stat info;
-            if (stat(ent->d_name, &info) == 0) {
-              if (S_ISDIR(info.st_mode)) {
-                if (found) // Already found a directory earlier
-                  fatal("Executor .tgz must contain a single directory");
-                dirname = ent->d_name;
-                found = true;
-              }
-            } else {
-              fatalerror("Stat failed on %s", ent->d_name);
-            }
-          }
-        }
-        if (!found) // No directory found
-          fatal("Executor .tgz must contain a single directory");
-        if (chdir(dirname.c_str()) < 0)
-          fatalerror("Chdir failed");
-        executor = "./executor";
-      } else {
-        fatalerror("Failed to list work directory");
-      }
     }
   }
 }
@@ -265,8 +235,11 @@ void ExecutorLauncher::fetchExecutor()
 void ExecutorLauncher::setupEnvironment()
 {
   // Set up the environment as specified in the ExecutorInfo.
-  foreach (const Environment::Variable& variable, environment.variables()) {
-    utils::os::setenv(variable.name(), variable.value());
+  if (commandInfo.has_environment()) {
+    foreach (const Environment::Variable& variable,
+             commandInfo.environment().variables()) {
+      utils::os::setenv(variable.name(), variable.value());
+    }
   }
 
   // Set Mesos environment variables for slave ID, framework ID, etc.
@@ -295,9 +268,21 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
 
   // Set up Mesos environment variables that launcher/main.cpp will
   // pass as arguments to an ExecutorLauncher there.
+  string uris = "";
+  foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
+   uris += uri.value() + "+" +
+           (uri.has_executable() && uri.executable() ? "1" : "0");
+   uris += " ";
+  }
+
+  // Remove extra space at the end.
+  if (uris.size() > 0) {
+    uris = strings::trim(uris);
+  }
+
   utils::os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
-  utils::os::setenv("MESOS_EXECUTOR_URI", executorUri);
-  utils::os::setenv("MESOS_COMMAND", command);
+  utils::os::setenv("MESOS_COMMAND", commandInfo.value());
+  utils::os::setenv("MESOS_EXECUTOR_URIS", uris);
   utils::os::setenv("MESOS_USER", user);
   utils::os::setenv("MESOS_WORK_DIRECTORY", workDirectory);
   utils::os::setenv("MESOS_SLAVE_PID", slavePid);

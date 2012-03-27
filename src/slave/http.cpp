@@ -65,7 +65,6 @@ JSON::Object model(const Executor& executor)
 {
   JSON::Object object;
   object.values["id"] = executor.id.value();
-  object.values["uri"] = executor.info.command().uri();
   object.values["directory"] = executor.directory;
   object.values["resources"] = model(executor.resources);
 

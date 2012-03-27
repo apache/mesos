@@ -133,7 +133,7 @@ public class TestFramework {
 
     ExecutorInfo executor = ExecutorInfo.newBuilder()
       .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
-      .setCommand(CommandInfo.newBuilder().setUri(uri).setValue(uri).build())
+      .setCommand(CommandInfo.newBuilder().setValue(uri).build())
       .build();
 
     MesosSchedulerDriver driver = args.length == 1
