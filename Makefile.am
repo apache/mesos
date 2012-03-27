@@ -62,4 +62,47 @@ PHONY_TARGETS += maven-install
 endif
 
 
+# EC2 support.
+EXTRA_DIST += ec2/mesos-ec2 ec2/mesos_ec2.py
+
+EXTRA_DIST +=									\
+  ec2/deploy.amazon64/root/ephemeral-hdfs/conf/core-site.xml			\
+  ec2/deploy.amazon64/root/ephemeral-hdfs/conf/hadoop-env.sh			\
+  ec2/deploy.amazon64/root/ephemeral-hdfs/conf/hdfs-site.xml			\
+  ec2/deploy.amazon64/root/ephemeral-hdfs/conf/mapred-site.xml			\
+  ec2/deploy.amazon64/root/ephemeral-hdfs/conf/masters				\
+  ec2/deploy.amazon64/root/ephemeral-hdfs/conf/slaves				\
+  ec2/deploy.amazon64/root/mesos-ec2/cluster-url				\
+  ec2/deploy.amazon64/root/mesos-ec2/copy-dir					\
+  ec2/deploy.amazon64/root/mesos-ec2/create-swap				\
+  ec2/deploy.amazon64/root/mesos-ec2/hadoop-framework-conf/core-site.xml	\
+  ec2/deploy.amazon64/root/mesos-ec2/hadoop-framework-conf/hadoop-env.sh	\
+  ec2/deploy.amazon64/root/mesos-ec2/hadoop-framework-conf/mapred-site.xml	\
+  ec2/deploy.amazon64/root/mesos-ec2/haproxy+apache/haproxy.config.template	\
+  ec2/deploy.amazon64/root/mesos-ec2/hypertable/Capfile				\
+  ec2/deploy.amazon64/root/mesos-ec2/hypertable/hypertable.cfg			\
+  ec2/deploy.amazon64/root/mesos-ec2/masters					\
+  ec2/deploy.amazon64/root/mesos-ec2/mesos-daemon				\
+  ec2/deploy.amazon64/root/mesos-ec2/redeploy-mesos				\
+  ec2/deploy.amazon64/root/mesos-ec2/setup					\
+  ec2/deploy.amazon64/root/mesos-ec2/setup-slave				\
+  ec2/deploy.amazon64/root/mesos-ec2/setup-torque				\
+  ec2/deploy.amazon64/root/mesos-ec2/slaves					\
+  ec2/deploy.amazon64/root/mesos-ec2/ssh-no-keychecking				\
+  ec2/deploy.amazon64/root/mesos-ec2/start-hypertable				\
+  ec2/deploy.amazon64/root/mesos-ec2/start-mesos				\
+  ec2/deploy.amazon64/root/mesos-ec2/stop-hypertable				\
+  ec2/deploy.amazon64/root/mesos-ec2/stop-mesos					\
+  ec2/deploy.amazon64/root/mesos-ec2/zoo					\
+  ec2/deploy.amazon64/root/persistent-hdfs/conf/core-site.xml			\
+  ec2/deploy.amazon64/root/persistent-hdfs/conf/hadoop-env.sh			\
+  ec2/deploy.amazon64/root/persistent-hdfs/conf/hdfs-site.xml			\
+  ec2/deploy.amazon64/root/persistent-hdfs/conf/mapred-site.xml			\
+  ec2/deploy.amazon64/root/persistent-hdfs/conf/masters				\
+  ec2/deploy.amazon64/root/persistent-hdfs/conf/slaves				\
+  ec2/deploy.amazon64/root/spark/conf/spark-env.sh
+
+EXTRA_DIST += ec2/deploy.generic/root/mesos-ec2/ec2-variables.sh
+
+
 .PHONY: $(PHONY_TARGETS)
