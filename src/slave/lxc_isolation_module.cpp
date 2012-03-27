@@ -114,7 +114,7 @@ void LxcIsolationModule::launchExecutor(
   const ExecutorID& executorId = executorInfo.executor_id();
 
   LOG(INFO) << "Launching " << executorId
-            << " (" << executorInfo.command().uri() << ")"
+            << " (" << executorInfo.command().value() << ")"
             << " in " << directory
             << " with resources " << resources
             << "' for framework " << frameworkId;
@@ -176,7 +176,7 @@ void LxcIsolationModule::launchExecutor(
 			   executorId,
 			   executorInfo.command(),
 			   frameworkInfo.user(),
-         directory,
+                           directory,
 			   slave,
 			   conf.get("frameworks_home", ""),
 			   conf.get("hadoop_home", ""),

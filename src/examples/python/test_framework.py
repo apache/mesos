@@ -82,7 +82,6 @@ if __name__ == "__main__":
 
   executor = mesos_pb2.ExecutorInfo()
   executor.executor_id.value = "default"
-  executor.command.uri = os.path.abspath("./test-executor")
   executor.command.value = os.path.abspath("./test-executor")
 
   driver = mesos.MesosSchedulerDriver(
