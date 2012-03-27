@@ -84,7 +84,7 @@ TEST(FaultToleranceTest, SlaveLost)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
 
@@ -153,7 +153,7 @@ TEST(FaultToleranceTest, SlavePartitioned)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger resourceOffersCall, slaveLostCall;
 
@@ -205,7 +205,7 @@ TEST(FaultToleranceTest, SchedulerFailover)
   // scheduler.
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, "", master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
 
   FrameworkID frameworkId;
 
@@ -220,7 +220,7 @@ TEST(FaultToleranceTest, SchedulerFailover)
   EXPECT_CALL(sched1, offerRescinded(&driver1, _))
     .Times(AtMost(1));
 
-  EXPECT_CALL(sched1, error(&driver1, _, "Framework failed over"))
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
     .Times(1);
 
   driver1.start();
@@ -232,7 +232,11 @@ TEST(FaultToleranceTest, SchedulerFailover)
   // gets a registered callback..
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, "", master, frameworkId);
+
+  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId);
+
+  MesosSchedulerDriver driver2(&sched2, framework2, master);
 
   trigger sched2RegisteredCall;
 
@@ -274,7 +278,7 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger schedRegisteredCall;
 
@@ -327,7 +331,7 @@ TEST(FaultToleranceTest, FrameworkReregister)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger schedRegisteredCall, schedReregisteredCall;
 
@@ -414,7 +418,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
   vector<Offer> offers;
   trigger statusUpdateCall, resourceOffersCall;
   TaskStatus status;
@@ -524,7 +528,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   // first status update message is sent to it (drop the message).
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, "", master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
 
   FrameworkID frameworkId;
   vector<Offer> offers;
@@ -542,7 +546,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
     .Times(0);
 
-  EXPECT_CALL(sched1, error(&driver1, _, "Framework failed over"))
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
     .Times(1);
 
   EXPECT_MESSAGE(filter, Eq(StatusUpdateMessage().GetTypeName()), _,
@@ -576,7 +580,11 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   // timeout to kick in and another status update message is sent.
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, "", master, frameworkId);
+
+  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId);
+
+  MesosSchedulerDriver driver2(&sched2, framework2, master);
 
   trigger registeredCall, statusUpdateCall;
 
@@ -649,7 +657,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   MockScheduler sched1;
 
-  MesosSchedulerDriver driver1(&sched1, "", master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
 
   FrameworkID frameworkId;
 
@@ -667,7 +675,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
                     Trigger(&sched1ResourceOfferCall)))
     .WillRepeatedly(Return());
 
-  EXPECT_CALL(sched1, error(&driver1, _, "Framework failed over"))
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
     .Times(1);
 
   driver1.start();
@@ -693,7 +701,11 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   EXPECT_EQ(TASK_RUNNING, status.state());
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, "", master, frameworkId);
+
+  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId);
+
+  MesosSchedulerDriver driver2(&sched2, framework2, master);
 
   trigger sched2RegisteredCall, sched2FrameworkMessageCall;
 
@@ -758,7 +770,7 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger resourceOffersCall;
 
@@ -816,7 +828,7 @@ TEST(FaultToleranceTest, SlaveReregister)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger resourceOffersCall;
 

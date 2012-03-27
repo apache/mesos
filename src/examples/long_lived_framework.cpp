@@ -140,8 +140,7 @@ public:
                             const SlaveID& slaveId,
                             int status) {}
 
-  virtual void error(SchedulerDriver* driver, int code,
-                     const string& message) {}
+  virtual void error(SchedulerDriver* driver, const string& message) {}
 
 private:
   const ExecutorInfo executor;
@@ -153,7 +152,7 @@ private:
 int main(int argc, char** argv)
 {
   if (argc != 2) {
-    cerr << "Usage: " << argv[0] << " <masterPid>" << endl;
+    cerr << "Usage: " << argv[0] << " <master>" << endl;
     return -1;
   }
 
@@ -171,7 +170,11 @@ int main(int argc, char** argv)
 
   LongLivedScheduler scheduler(executor);
 
-  MesosSchedulerDriver driver(&scheduler, "C++ Test Framework", argv[1]);
+  FrameworkInfo framework;
+  framework.set_user(""); // Have Mesos fill in the current user.
+  framework.set_name("Long Lived Framework (C++)");
+
+  MesosSchedulerDriver driver(&scheduler, framework, argv[1]);
 
   return driver.run() == DRIVER_STOPPED ? 0 : 1;
 }

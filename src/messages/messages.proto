@@ -89,7 +89,6 @@ message RegisterFrameworkMessage {
 
 
 message ReregisterFrameworkMessage {
-  required FrameworkID framework_id = 1;
   required FrameworkInfo framework = 2;
   required bool failover = 3;
 }
@@ -179,7 +178,6 @@ message LostSlaveMessage {
 
 
 message FrameworkErrorMessage {
-  required int32 code = 1;
   required string message = 2;
 }
 

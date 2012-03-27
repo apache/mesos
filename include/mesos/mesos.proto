@@ -83,11 +83,17 @@ message ExecutorID {
 
 
 /**
- * Describes a framework.
+ * Describes a framework. If the user field is set to an empty string
+ * Mesos will automagically set it to the current user. Note that the
+ * ID is only available after a framework has registered, however, it
+ * is included here in order to facilitate scheduler failover (i.e.,
+ * if it is set then the MesosSchedulerDriver expects the scheduler is
+ * performing failover).
  */
 message FrameworkInfo {
   required string user = 1;
   required string name = 2;
+  optional FrameworkID id = 3;
 }
 
 

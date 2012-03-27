@@ -347,8 +347,8 @@ index 0000000..e369f39
 +  }
 +
 +  @Override
-+  public void error(ExecutorDriver d, int code, String msg) {
-+    LOG.error("FrameworkExecutor.error: " + msg);
++  public void error(ExecutorDriver d, String message) {
++    LOG.error("FrameworkExecutor.error: " + message);
 +  }
 +
 +  @Override
@@ -369,7 +369,7 @@ new file mode 100644
 index 0000000..312cfdb
 --- /dev/null
 +++ b/hadoop/hadoop-0.20.205.0/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java
-@@ -0,0 +1,892 @@
+@@ -0,0 +1,894 @@
 +package org.apache.hadoop.mapred;
 +
 +import java.io.File;
@@ -394,9 +394,10 @@ index 0000000..312cfdb
 +import org.apache.hadoop.net.Node;
 +
 +import org.apache.mesos.Protos.CommandInfo;
-+import org.apache.mesos.Protos.ExecutorInfo;
 +import org.apache.mesos.Protos.ExecutorID;
++import org.apache.mesos.Protos.ExecutorInfo;
 +import org.apache.mesos.Protos.FrameworkID;
++import org.apache.mesos.Protos.FrameworkInfo;
 +import org.apache.mesos.Protos.MasterInfo;
 +import org.apache.mesos.Protos.Offer;
 +import org.apache.mesos.Protos.OfferID;
@@ -693,29 +694,31 @@ index 0000000..312cfdb
 +    ).build();
 +  }
 +
-+  public String getFrameworkName() {
-+    return "Hadoop: " + jobTracker.getTrackerIdentifier() +
-+           " (RPC port: " + jobTracker.port + "," +
-+           " web UI port: " + jobTracker.infoPort + ")";
++  public FrameworkInfo getFrameworkInfo() {
++    String name = "Hadoop: " + jobTracker.getTrackerIdentifier() +
++      " (RPC port: " + jobTracker.port + "," +
++      " web UI port: " + jobTracker.infoPort + ")";
++
++    return FrameworkInfo.newBuilder().setUser("").setName(name).build();
 +  }
 +
 +  private static final ExecutorID EXECUTOR_ID =
 +      ExecutorID.newBuilder().setValue("default").build();
 +
-+    public ExecutorInfo getExecutorInfo() {
-+      try {
-+        String execPath = new File("bin/mesos-executor").getCanonicalPath();
-+        byte[] initArg = conf.get("mapred.job.tracker").getBytes("US-ASCII");
-+        return ExecutorInfo.newBuilder()
-+          .setCommand(CommandInfo.newBuilder()
-+                      .setValue(execPath).build())
-+          .setData(com.google.protobuf.ByteString.copyFrom(initArg))
-+          .setExecutorId(EXECUTOR_ID)
-+          .build();
-+      } catch (IOException e) {
-+        throw new RuntimeException(e);
-+      }
++  public ExecutorInfo getExecutorInfo() {
++    try {
++      String execPath = new File("bin/mesos-executor").getCanonicalPath();
++      byte[] initArg = conf.get("mapred.job.tracker").getBytes("US-ASCII");
++      return ExecutorInfo.newBuilder()
++        .setCommand(CommandInfo.newBuilder()
++                    .setValue(execPath).build())
++        .setData(com.google.protobuf.ByteString.copyFrom(initArg))
++        .setExecutorId(EXECUTOR_ID)
++        .build();
++    } catch (IOException e) {
++      throw new RuntimeException(e);
 +    }
++  }
 +
 +  // TODO: Make this return a count instead of a boolean?
 +  // TODO: Cache result for some time so we don't iterate through all jobs
@@ -1049,9 +1052,8 @@ index 0000000..312cfdb
 +                           SlaveID slaveId,
 +                           int status) {}
 +
-+  @Override
-+  public void error(SchedulerDriver d, int code, String msg) {
-+    LOG.error("FrameworkScheduler.error: " + msg);
++  public void error(SchedulerDriver d, String message) {
++    LOG.error("FrameworkScheduler.error: " + message);
 +  }
 +
 +  @Override
@@ -1326,7 +1328,7 @@ new file mode 100644
 index 0000000..a16af72
 --- /dev/null
 +++ b/hadoop/hadoop-0.20.205.0/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,86 @@
 +package org.apache.hadoop.mapred;
 +
 +import java.io.IOException;
@@ -1371,9 +1373,8 @@ index 0000000..a16af72
 +      taskTrackerManager.addJobInProgressListener(eagerInitListener);
 +
 +      frameworkScheduler = new FrameworkScheduler(this);
-+      driver = new MesosSchedulerDriver(frameworkScheduler,
-+          frameworkScheduler.getFrameworkName(),
-+          master);
++      driver = new MesosSchedulerDriver(
++          frameworkScheduler, frameworkScheduler.getFrameworkInfo(), master);
 +
 +      driver.start();
 +    } catch (Exception e) {

@@ -144,21 +144,27 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
                                   PyObject* args,
                                   PyObject* kwds)
 {
-  PyObject *pythonSchedulerObj = NULL;
-  const char* url;
-  PyObject *frameworkIdObj = NULL;
-  const char* frameworkName;
+  PyObject* schedulerObj = NULL;
+  PyObject* frameworkObj = NULL;
+  const char* master;
 
-  if (!PyArg_ParseTuple(args, "Oss|O", &pythonSchedulerObj, &frameworkName,
-                        &url, &frameworkIdObj)) {
+  if (!PyArg_ParseTuple(args, "OOs", &schedulerObj, &frameworkObj, &master)) {
     return -1;
   }
 
-  if (pythonSchedulerObj != NULL) {
+  if (schedulerObj != NULL) {
     PyObject* tmp = self->pythonScheduler;
-    Py_INCREF(pythonSchedulerObj);
-    self->pythonScheduler = pythonSchedulerObj;
+    Py_INCREF(schedulerObj);
+    self->pythonScheduler = schedulerObj;
     Py_XDECREF(tmp);
+  }
+
+  FrameworkInfo framework;
+  if (frameworkObj != NULL) {
+    if (!readPythonProtobuf(frameworkObj, &framework)) {
+      PyErr_Format(PyExc_Exception, "Could not deserialize Python FrameworkInfo");
+      return -1;
+    }
   }
 
   if (self->driver != NULL) {
@@ -172,23 +178,10 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
     self->proxyScheduler = NULL;
   }
 
-  FrameworkID frameworkId;
-  if (frameworkIdObj != NULL) {
-    if (!readPythonProtobuf(frameworkIdObj, &frameworkId)) {
-      PyErr_Format(PyExc_Exception, "Could not deserialize Python FrameworkId");
-      return -1;
-    }
-  }
-
   self->proxyScheduler = new ProxyScheduler(self);
 
-  if (frameworkIdObj != NULL) {
-    self->driver = new MesosSchedulerDriver(self->proxyScheduler, frameworkName,
-                                            url, frameworkId);
-  } else {
-    self->driver = new MesosSchedulerDriver(self->proxyScheduler, frameworkName,
-                                            url);
-  }
+  self->driver =
+    new MesosSchedulerDriver(self->proxyScheduler, framework, master);
 
   return 0;
 }
@@ -347,8 +340,7 @@ PyObject* MesosSchedulerDriverImpl_requestResources(MesosSchedulerDriverImpl* se
     }
     Request request;
     if (!readPythonProtobuf(requestObj, &request)) {
-      PyErr_Format(PyExc_Exception,
-                   "Could not deserialize Python Request");
+      PyErr_Format(PyExc_Exception, "Could not deserialize Python Request");
       return NULL;
     }
     requests.push_back(request);

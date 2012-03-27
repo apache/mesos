@@ -66,14 +66,13 @@
 
 % pid = state['pid'] # master@ip:port
 % _, server = pid.split("@", 1)
-% ip, _ = server.split(":", 1)
+% ip, port = server.split(":", 1)
 % format = "%a %b %d %Y %I:%M:%S %p " + time.strftime("%Z", time.gmtime())
 % start_local = datetime.fromtimestamp(state['start_time']).strftime(format)
 % start_utc = datetime.utcfromtimestamp(state['start_time']).isoformat(' ')
 
 <p>
-  Server: {{HOSTNAME}} ({{ip}})<br />
-  PID: {{state['pid']}}<br />
+  Server: {{HOSTNAME}}:{{port}} ({{ip}}:{{port}})<br />
   Built: {{state['build_date']}} by {{state['build_user']}}<br />
   Started: {{start_local}} ({{start_utc}} UTC)<br />
   ID: {{state['id']}}<br />

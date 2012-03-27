@@ -27,8 +27,10 @@
 
 #include <process/process.hpp>
 
+#include "common/try.hpp"
 
-namespace mesos { namespace internal {
+namespace mesos {
+namespace internal {
 
 /**
  * Implements functionality for:
@@ -41,22 +43,23 @@ public:
   virtual ~MasterDetector() = 0;
 
   /**
-   * Creates a master detector that, given the specified url, knows
-   * how to connect to the master, or contend to be a master. The
-   * master detector sends messages to the specified pid when a new
-   * master is elected, a master is lost, etc.
+   * Creates a master detector that, given the specified master (which
+   * may be a ZooKeeper URL), knows how to connect to the master, or
+   * contend to be a master. The master detector sends messages to the
+   * specified pid when a new master is elected, a master is lost,
+   * etc.
    *
-   * @param url string possibly containing zoo://, zoofile://, mesos://
+   * @param master string possibly containing zk:// or file://
    * @param pid libprocess pid to both receive our messages and be
    *   used if we should contend
    * @param contend true if should contend to be master
    * @param quite true if should limit log output
    * @return instance of MasterDetector
    */
-  static MasterDetector* create(const std::string& url,
-				const process::UPID& pid,
-				bool contend = false,
-				bool quiet = true);
+  static Try<MasterDetector*> create(const std::string& master,
+                                     const process::UPID& pid,
+                                     bool contend = false,
+                                     bool quiet = true);
 
   /**
    * Cleans up and deallocates the detector.
@@ -101,7 +104,8 @@ private:
   const process::UPID master;
 };
 
-}} // namespace mesos { namespace internal {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __MASTER_DETECTOR_HPP__
 

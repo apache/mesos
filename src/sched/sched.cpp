@@ -78,18 +78,16 @@ class SchedulerProcess : public ProtobufProcess<SchedulerProcess>
 public:
   SchedulerProcess(MesosSchedulerDriver* _driver,
                    Scheduler* _scheduler,
-                   const FrameworkID& _frameworkId,
                    const FrameworkInfo& _framework,
                    pthread_mutex_t* _mutex,
                    pthread_cond_t* _cond)
     : driver(_driver),
       scheduler(_scheduler),
-      frameworkId(_frameworkId),
       framework(_framework),
       mutex(_mutex),
       cond(_cond),
       master(UPID()),
-      failover(!(_frameworkId == "")),
+      failover(_framework.has_id() && !framework.id().value().empty()),
       connected(false),
       aborted(false)
   {
@@ -137,7 +135,6 @@ public:
 
     install<FrameworkErrorMessage>(
         &SchedulerProcess::error,
-        &FrameworkErrorMessage::code,
         &FrameworkErrorMessage::message);
   }
 
@@ -183,7 +180,8 @@ protected:
 
     VLOG(1) << "Framework registered with " << frameworkId;
 
-    this->frameworkId = frameworkId;
+    framework.mutable_id()->MergeFrom(frameworkId);
+
     connected = true;
     failover = false;
 
@@ -206,7 +204,7 @@ protected:
 
     VLOG(1) << "Framework re-registered with " << frameworkId;
 
-    CHECK(this->frameworkId == frameworkId);
+    CHECK(framework.id() == frameworkId);
 
     connected = true;
     failover = false;
@@ -220,7 +218,7 @@ protected:
       return;
     }
 
-    if (frameworkId == "") {
+    if (!framework.has_id() || framework.id() == "") {
       // Touched for the very first time.
       RegisterFrameworkMessage message;
       message.mutable_framework()->MergeFrom(framework);
@@ -229,7 +227,6 @@ protected:
       // Not the first time, or failing over.
       ReregisterFrameworkMessage message;
       message.mutable_framework()->MergeFrom(framework);
-      message.mutable_framework_id()->MergeFrom(frameworkId);
       message.set_failover(failover);
       send(master, message);
     }
@@ -295,7 +292,7 @@ protected:
             << " of framework " << update.framework_id()
             << " is now in state " << status.state();
 
-    CHECK(frameworkId == update.framework_id());
+    CHECK(framework.id() == update.framework_id());
 
     // TODO(benh): Note that this maybe a duplicate status update!
     // Once we get support to try and have a more consistent view
@@ -315,7 +312,7 @@ protected:
       // since this way the message might get resent/routed after the
       // scheduler comes back online).
       StatusUpdateAcknowledgementMessage message;
-      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_framework_id()->MergeFrom(framework.id());
       message.mutable_slave_id()->MergeFrom(update.slave_id());
       message.mutable_task_id()->MergeFrom(status.task_id());
       message.set_uuid(update.uuid());
@@ -352,18 +349,18 @@ protected:
     scheduler->frameworkMessage(driver, executorId, slaveId, data);
   }
 
-  void error(int32_t code, const string& message)
+  void error(const string& message)
   {
     if (aborted) {
       VLOG(1) << "Ignoring error message because the driver is aborted!";
       return;
     }
 
-    VLOG(1) << "Got error '" << message << "' (code: " << code << ")";
+    VLOG(1) << "Got error '" << message << "'";
 
     driver->abort();
 
-    scheduler->error(driver, code, message);
+    scheduler->error(driver, message);
   }
 
   void stop(bool failover)
@@ -376,7 +373,7 @@ protected:
 
     if (connected && !failover) {
       UnregisterFrameworkMessage message;
-      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_framework_id()->MergeFrom(framework.id());
       send(master, message);
     }
 
@@ -401,10 +398,8 @@ protected:
       return;
     }
 
-    VLOG(1) << "Deactivating the framework " << frameworkId;
-
     DeactivateFrameworkMessage message;
-    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_framework_id()->MergeFrom(framework.id());
     send(master, message);
 
     Lock lock(mutex);
@@ -419,7 +414,7 @@ protected:
     }
 
     KillTaskMessage message;
-    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_framework_id()->MergeFrom(framework.id());
     message.mutable_task_id()->MergeFrom(taskId);
     send(master, message);
   }
@@ -432,7 +427,7 @@ protected:
     }
 
     ResourceRequestMessage message;
-    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_framework_id()->MergeFrom(framework.id());
     foreach (const Request& request, requests) {
       message.add_requests()->MergeFrom(request);
     }
@@ -455,7 +450,7 @@ protected:
       // should be solved by the replicated log and timeouts.
       foreach (const TaskInfo& task, tasks) {
         StatusUpdate update;
-        update.mutable_framework_id()->MergeFrom(frameworkId);
+        update.mutable_framework_id()->MergeFrom(framework.id());
         TaskStatus* status = update.mutable_status();
         status->mutable_task_id()->MergeFrom(task.task_id());
         status->set_state(TASK_LOST);
@@ -473,7 +468,7 @@ protected:
     foreach (const TaskInfo& task, tasks) {
       if (task.has_executor() == task.has_command()) {
         StatusUpdate update;
-        update.mutable_framework_id()->MergeFrom(frameworkId);
+        update.mutable_framework_id()->MergeFrom(framework.id());
         TaskStatus* status = update.mutable_status();
         status->mutable_task_id()->MergeFrom(task.task_id());
         status->set_state(TASK_LOST);
@@ -487,7 +482,7 @@ protected:
     }
 
     LaunchTasksMessage message;
-    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_framework_id()->MergeFrom(framework.id());
     message.mutable_offer_id()->MergeFrom(offerId);
     message.mutable_filters()->MergeFrom(filters);
 
@@ -522,7 +517,7 @@ protected:
     }
 
     ReviveOffersMessage message;
-    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_framework_id()->MergeFrom(framework.id());
     send(master, message);
   }
 
@@ -550,7 +545,7 @@ protected:
 
       FrameworkToExecutorMessage message;
       message.mutable_slave_id()->MergeFrom(slaveId);
-      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_framework_id()->MergeFrom(framework.id());
       message.mutable_executor_id()->MergeFrom(executorId);
       message.set_data(data);
       send(slave, message);
@@ -560,7 +555,7 @@ protected:
 
       FrameworkToExecutorMessage message;
       message.mutable_slave_id()->MergeFrom(slaveId);
-      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_framework_id()->MergeFrom(framework.id());
       message.mutable_executor_id()->MergeFrom(executorId);
       message.set_data(data);
       send(master, message);
@@ -572,7 +567,6 @@ private:
 
   MesosSchedulerDriver* driver;
   Scheduler* scheduler;
-  FrameworkID frameworkId;
   FrameworkInfo framework;
   pthread_mutex_t* mutex;
   pthread_cond_t* cond;
@@ -603,93 +597,36 @@ private:
 // (2) There is a variable called state, that represents the current
 //     state of the driver and is used to enforce its state transitions.
 
-MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
-                                           const std::string& frameworkName,
-                                           const string& url,
-                                           const FrameworkID& frameworkId)
-{
-  Configurator configurator;
-  // TODO(benh): Only register local options if this is running with
-  // 'local' or 'localquiet'! Perhaps create a registerOptions for the
-  // scheduler?
-  local::registerOptions(&configurator);
-  Configuration* conf;
-  try {
-    conf = new Configuration(configurator.load());
-  } catch (ConfigurationException& e) {
-    // TODO(benh|matei): Are error callbacks not fatal!?
-    string message = string("Configuration error: ") + e.what();
-    scheduler->error(this, 2, message);
-    conf = new Configuration();
-  }
-  conf->set("url", url); // Override URL param with the one from the user
-  initialize(scheduler, conf, frameworkId, frameworkName);
-}
-
-
-MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
-                                           const std::string& frameworkName,
-                                           const map<string, string> &params,
-                                           const FrameworkID& frameworkId)
-{
-  Configurator configurator;
-  // TODO(benh): Only register local options if this is running with
-  // 'local' or 'localquiet'! Perhaps create a registerOptions for the
-  // scheduler?
-  local::registerOptions(&configurator);
-  Configuration* conf;
-  try {
-    conf = new Configuration(configurator.load(params));
-  } catch (ConfigurationException& e) {
-    // TODO(benh|matei): Are error callbacks not fatal?
-    string message = string("Configuration error: ") + e.what();
-    scheduler->error(this, 2, message);
-    conf = new Configuration();
-  }
-  initialize(scheduler, conf, frameworkId, frameworkName);
-}
-
-
-MesosSchedulerDriver::MesosSchedulerDriver(Scheduler* scheduler,
-                                           const std::string& frameworkName,
-                                           int argc,
-                                           char** argv,
-                                           const FrameworkID& frameworkId)
-{
-  Configurator configurator;
-  // TODO(benh): Only register local options if this is running with
-  // 'local' or 'localquiet'! Perhaps create a registerOptions for the
-  // scheduler?
-  local::registerOptions(&configurator);
-  Configuration* conf;
-  try {
-    conf = new Configuration(configurator.load(argc, argv));
-  } catch (ConfigurationException& e) {
-    string message = string("Configuration error: ") + e.what();
-    scheduler->error(this, 2, message);
-    conf = new Configuration();
-  }
-  initialize(scheduler, conf, frameworkId, frameworkName);
-}
-
-
-void MesosSchedulerDriver::initialize(Scheduler* _scheduler,
-                                      Configuration* _conf,
-                                      const FrameworkID& _frameworkId,
-                                      const std::string& _frameworkName)
+MesosSchedulerDriver::MesosSchedulerDriver(
+    Scheduler* _scheduler,
+    const FrameworkInfo& _framework,
+    const string& _master)
+  : scheduler(_scheduler),
+    framework(_framework),
+    master(_master),
+    process(NULL),
+    detector(NULL),
+    status(DRIVER_NOT_STARTED)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  scheduler = _scheduler;
-  conf = _conf;
-  frameworkId = _frameworkId;
-  frameworkName = _frameworkName;
-  url = conf->get<string>("url", "local");
-  process = NULL;
-  detector = NULL;
-  status = DRIVER_NOT_STARTED;
+  // Load the configuration.
+  Configurator configurator;
 
-  // Create mutex and condition variable
+  if (master == "local" || master == "localquiet") {
+    local::registerOptions(&configurator);
+  }
+
+  try {
+    conf = new Configuration(configurator.load());
+  } catch (ConfigurationException& e) {
+    status = DRIVER_ABORTED;
+    string message = string("Configuration error: ") + e.what();
+    scheduler->error(this, message);
+    return;
+  }
+
+  // Initialize mutex and condition variable.
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -738,7 +675,7 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
   delete conf;
 
   // Check and see if we need to shutdown a local cluster.
-  if (url == "local" || url == "localquiet") {
+  if (master == "local" || master == "localquiet") {
     local::shutdown();
   }
 }
@@ -752,30 +689,32 @@ Status MesosSchedulerDriver::start()
     return status;
   }
 
-  // Set up framework info.
-  FrameworkInfo framework;
-  framework.set_user(utils::os::user());
-  framework.set_name(frameworkName);
+  // TODO(benh): Check the user the framework wants to run tasks as,
+  // see if the current user can switch to that user, or via an
+  // authentication module ensure this is acceptable.
+
+  // If no user specified, just use the current user.
+  if (framework.user() == "") {
+    framework.set_user(utils::os::user());
+  }
 
   CHECK(process == NULL);
 
   // TODO(benh): Consider using a libprocess Latch rather than a
   // pthread mutex and condition variable for signaling.
-  process = new SchedulerProcess(this, scheduler, frameworkId,
-                                 framework, &mutex, &cond);
+  process = new SchedulerProcess(this, scheduler, framework, &mutex, &cond);
 
-  UPID pid = spawn(process);
+  spawn(process);
 
-  // Check and see if we need to launch a local cluster.
-  if (url == "local") {
-    const PID<master::Master>& master = local::launch(*conf);
-    detector = new BasicMasterDetector(master, pid);
-  } else if (url == "localquiet") {
+  // Launch a local cluster if necessary.
+  if (master == "local") {
+    detector = new BasicMasterDetector(local::launch(*conf), process->self());
+  } else if (master == "localquiet") {
     conf->set("quiet", 1);
-    const PID<master::Master>& master = local::launch(*conf);
-    detector = new BasicMasterDetector(master, pid);
+    detector = new BasicMasterDetector(local::launch(*conf), process->self());
   } else {
-    detector = MasterDetector::create(url, pid, false, false);
+    detector =
+      MasterDetector::create(master, process->self(), false, false).get();
   }
 
   return status = DRIVER_RUNNING;

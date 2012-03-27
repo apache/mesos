@@ -98,7 +98,7 @@ TEST(MasterTest, TaskRunning)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
   TaskStatus status;
@@ -194,7 +194,7 @@ TEST(MasterTest, KillTask)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
   TaskStatus status;
@@ -298,7 +298,7 @@ TEST(MasterTest, FrameworkMessage)
   // first status update message is sent to it (drop the message).
 
   MockScheduler sched;
-  MesosSchedulerDriver schedDriver(&sched, "", master);
+  MesosSchedulerDriver schedDriver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
   TaskStatus status;
@@ -432,7 +432,7 @@ TEST(MasterTest, MultipleExecutors)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
   TaskStatus status1, status2;
@@ -540,7 +540,8 @@ TEST(MasterTest, MasterInfo)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
   MasterInfo masterInfo;
 
   trigger registeredCall;
@@ -601,7 +602,8 @@ TEST(MasterTest, MasterInfoOnReElection)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
   MasterInfo masterInfo;
 
   trigger registeredCall, reregisteredCall;
@@ -693,7 +695,8 @@ TEST(MasterTest, MasterLost)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
   MasterInfo masterInfo;
 
   trigger registeredCall, masterLostCall;

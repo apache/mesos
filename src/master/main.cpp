@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-#include <libgen.h>
+#include <libgen.h> // For chdir.
 
 #include "common/build.hpp"
 #include "common/fatal.hpp"
 #include "common/logging.hpp"
+#include "common/try.hpp"
 
 #include "configurator/configurator.hpp"
 
@@ -39,13 +40,10 @@ using std::endl;
 using std::string;
 
 
-void usage(const char* progName, const Configurator& configurator)
+void usage(const char* programName, const Configurator& configurator)
 {
-  cerr << "Usage: " << progName << " [--port=PORT] [--url=URL] [...]" << endl
+  cerr << "Usage: " << programName << " [...]" << endl
        << endl
-       << "URL (used for leader election with ZooKeeper) may be one of:" << endl
-       << "  zoo://host1:port1,host2:port2,..." << endl
-       << "  zoofile://file where file has one host:port pair per line" << endl
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();
@@ -59,12 +57,22 @@ int main(int argc, char **argv)
   Configurator configurator;
   Logging::registerOptions(&configurator);
   Master::registerOptions(&configurator);
+
+  // The following options are executable specific (e.g., since we
+  // only have one instance of libprocess per execution, we only want
+  // to advertise the port and ip option once, here).
   configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
   configurator.addOption<string>("ip", "IP address to listen on");
-  configurator.addOption<string>("url", 'u', "URL used for leader election");
 #ifdef MESOS_WEBUI
-  configurator.addOption<int>("webui_port", 'w', "Web UI port", 8080);
+  configurator.addOption<int>("webui_port", "Web UI port", 8080);
 #endif
+  configurator.addOption<string>(
+      "zk",
+      "ZooKeeper URL (used for leader election amongst masters)\n"
+      "May be one of:\n"
+      "  zk://host1:port1,host2:port2,.../path\n"
+      "  zk://username:password@host1:port1,host2:port2,.../path\n"
+      "  file://path/to/file where file contains one of the above");
 
   if (argc == 2 && string("--help") == argv[1]) {
     usage(argv[0], configurator);
@@ -92,7 +100,7 @@ int main(int argc, char **argv)
   // Initialize libprocess library (but not glog, done above).
   process::initialize(false);
 
-  string url = conf.get("url", "");
+  string zk = conf.get("zk", "");
 
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
@@ -106,8 +114,11 @@ int main(int argc, char **argv)
   Master* master = new Master(allocator, conf);
   process::spawn(master);
 
-  MasterDetector* detector =
-    MasterDetector::create(url, master->self(), true, Logging::isQuiet(conf));
+  Try<MasterDetector*> detector =
+    MasterDetector::create(zk, master->self(), true, Logging::isQuiet(conf));
+
+  CHECK(detector.isSome())
+    << "Failed to create a master detector: " << detector.error();
 
 #ifdef MESOS_WEBUI
   webui::start(master->self(), conf);
@@ -117,7 +128,7 @@ int main(int argc, char **argv)
   delete master;
   delete allocator;
 
-  MasterDetector::destroy(detector);
+  MasterDetector::destroy(detector.get());
 
   return 0;
 }

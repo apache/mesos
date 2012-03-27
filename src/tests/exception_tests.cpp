@@ -73,7 +73,7 @@ TEST(ExceptionTest, DeactiveFrameworkOnAbort)
 
   MockScheduler sched;
 
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger schedRegisteredCall;
 
@@ -114,7 +114,7 @@ TEST(ExceptionTest, DisallowSchedulerActionsOnAbort)
 
   MockScheduler sched;
 
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger schedRegisteredCall;
 
@@ -154,7 +154,7 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 
   MockScheduler sched;
 
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -180,7 +180,7 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   EXPECT_CALL(sched, slaveLost(&driver, _))
       .Times(0);
 
-  EXPECT_CALL(sched, error(&driver, _, _))
+  EXPECT_CALL(sched, error(&driver, _))
       .Times(0);
 
   process::Message message;

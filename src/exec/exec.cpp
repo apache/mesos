@@ -231,8 +231,9 @@ protected:
               << "TASK_STAGING status updates. Aborting!";
 
       driver->abort();
-      executor->error(driver, 1,
-                      "Attempted to send TASK_STAGING status update");
+
+      executor->error(driver, "Attempted to send TASK_STAGING status update");
+
       return;
     }
 

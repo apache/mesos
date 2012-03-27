@@ -178,8 +178,7 @@ public class TestMultipleExecutorsFramework {
                              SlaveID slaveId,
                              int status) {}
 
-    @Override
-    public void error(SchedulerDriver driver, int code, String message) {
+    public void error(SchedulerDriver driver, String message) {
       System.out.println("Error: " + message);
     }
 
@@ -200,9 +199,14 @@ public class TestMultipleExecutorsFramework {
       System.exit(1);
     }
 
+    FrameworkInfo framework = FrameworkInfo.newBuilder()
+        .setUser("") // Have Mesos fill in the current user.
+        .setName("Test Multiple Executors Framework (Java)")
+        .build();
+
     MesosSchedulerDriver driver = new MesosSchedulerDriver(
         new TestScheduler(),
-        "Java test framework",
+        framework,
         args[0]);
 
     System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);

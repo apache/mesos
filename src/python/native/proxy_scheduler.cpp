@@ -30,8 +30,8 @@ using std::string;
 using std::vector;
 using std::map;
 
-
-namespace mesos { namespace python {
+namespace mesos {
+namespace python {
 
 void ProxyScheduler::registered(SchedulerDriver* driver,
                                 const FrameworkID& frameworkId,
@@ -259,8 +259,31 @@ cleanup:
 }
 
 
-void ProxyScheduler::slaveLost(SchedulerDriver* driver,
-                               const SlaveID& slaveId)
+void ProxyScheduler::masterLost(SchedulerDriver* driver)
+{
+  InterpreterLock lock;
+
+  PyObject* res = NULL;
+
+  res = PyObject_CallMethod(impl->pythonScheduler,
+                            (char*) "masterLost",
+                            (char*) "O",
+                            impl);
+  if (res == NULL) {
+    cerr << "Failed to call scheduler's masterLost" << endl;
+    goto cleanup;
+  }
+
+cleanup:
+  if (PyErr_Occurred()) {
+    PyErr_Print();
+    driver->abort();
+  }
+  Py_XDECREF(res);
+}
+
+
+void ProxyScheduler::slaveLost(SchedulerDriver* driver, const SlaveID& slaveId)
 {
   InterpreterLock lock;
 
@@ -333,40 +356,13 @@ cleanup:
 }
 
 
-void ProxyScheduler::masterLost(SchedulerDriver* driver)
-{
-  InterpreterLock lock;
-
-  PyObject* res = NULL;
-
-  res = PyObject_CallMethod(impl->pythonScheduler,
-                            (char*) "masterLost",
-                            (char*) "O",
-                            impl);
-  if (res == NULL) {
-    cerr << "Failed to call scheduler's masterLost" << endl;
-    goto cleanup;
-  }
-
-cleanup:
-  if (PyErr_Occurred()) {
-    PyErr_Print();
-    driver->abort();
-  }
-  Py_XDECREF(res);
-}
-
-
-void ProxyScheduler::error(SchedulerDriver* driver,
-                           int code,
-                           const string& message)
+void ProxyScheduler::error(SchedulerDriver* driver, const string& message)
 {
   InterpreterLock lock;
   PyObject* res = PyObject_CallMethod(impl->pythonScheduler,
                                       (char*) "error",
-                                      (char*) "Ois",
+                                      (char*) "Os",
                                       impl,
-                                      code,
                                       message.c_str());
   if (res == NULL) {
     cerr << "Failed to call scheduler's error" << endl;
@@ -380,4 +376,5 @@ cleanup:
   Py_XDECREF(res);
 }
 
-}} /* namespace mesos { namespace python { */
+} // namespace python {
+} // namespace mesos {

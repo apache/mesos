@@ -30,8 +30,8 @@ using std::string;
 using std::vector;
 using std::map;
 
-
-namespace mesos { namespace python {
+namespace mesos {
+namespace python {
 
 void ProxyExecutor::registered(ExecutorDriver* driver,
                                const ExecutorInfo& executorInfo,
@@ -245,16 +245,13 @@ cleanup:
 }
 
 
-void ProxyExecutor::error(ExecutorDriver* driver,
-                          int code,
-                          const string& message)
+void ProxyExecutor::error(ExecutorDriver* driver, const string& message)
 {
   InterpreterLock lock;
   PyObject* res = PyObject_CallMethod(impl->pythonExecutor,
                                       (char*) "error",
-                                      (char*) "Ois",
+                                      (char*) "Os",
                                       impl,
-                                      code,
                                       message.c_str());
   if (res == NULL) {
     cerr << "Failed to call executor's error" << endl;
@@ -268,4 +265,5 @@ cleanup:
   Py_XDECREF(res);
 }
 
-}} /* namespace mesos { namespace python { */
+} // namespace python {
+} // namespace mesos {

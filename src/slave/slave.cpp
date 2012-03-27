@@ -157,7 +157,7 @@ void Slave::registerOptions(Configurator* configurator)
 
 void Slave::initialize()
 {
-  LOG(INFO) << "Slave started at " << self();
+  LOG(INFO) << "Slave started on " << string(self()).substr(6);
   LOG(INFO) << "Slave resources: " << resources;
 
   // Determine our hostname.
@@ -345,6 +345,7 @@ void Slave::registered(const SlaveID& slaveId)
 {
   LOG(INFO) << "Registered with master; given slave ID " << slaveId;
   id = slaveId;
+
   connected = true;
 }
 

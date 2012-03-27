@@ -121,8 +121,7 @@ public class TestFramework {
                              SlaveID slaveId,
                              int status) {}
 
-    @Override
-    public void error(SchedulerDriver driver, int code, String message) {
+    public void error(SchedulerDriver driver, String message) {
       System.out.println("Error: " + message);
     }
 
@@ -150,14 +149,19 @@ public class TestFramework {
       .setCommand(CommandInfo.newBuilder().setValue(uri).build())
       .build();
 
+    FrameworkInfo framework = FrameworkInfo.newBuilder()
+        .setUser("") // Have Mesos fill in the current user.
+        .setName("Test Framework (Java)")
+        .build();
+
     MesosSchedulerDriver driver = args.length == 1
       ? new MesosSchedulerDriver(
           new TestScheduler(executor),
-          "Java test framework",
+          framework,
           args[0])
     : new MesosSchedulerDriver(
         new TestScheduler(executor, Integer.parseInt(args[1])),
-        "Java test framework",
+        framework,
         args[0]);
 
     System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);

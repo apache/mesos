@@ -148,10 +148,7 @@ public:
                             const SlaveID& slaveId,
                             int status) {}
 
-  virtual void error(SchedulerDriver* driver,
-                     int code,
-                     const string& message) {}
-
+  virtual void error(SchedulerDriver* driver, const string& message) {}
 
 private:
   int tasksLaunched;
@@ -163,13 +160,17 @@ private:
 int main(int argc, char** argv)
 {
   if (argc != 2) {
-    cerr << "Usage: " << argv[0] << " <masterPid>" << endl;
+    cerr << "Usage: " << argv[0] << " <master>" << endl;
     return -1;
   }
 
   NoExecutorScheduler scheduler;
 
-  MesosSchedulerDriver driver(&scheduler, "C++ Test Framework", argv[1]);
+  FrameworkInfo framework;
+  framework.set_user(""); // Have Mesos fill in the current user.
+  framework.set_name("No Executor Framework (C++)");
+
+  MesosSchedulerDriver driver(&scheduler, framework, argv[1]);
 
   return driver.run() == DRIVER_STOPPED ? 0 : 1;
 }

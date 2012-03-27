@@ -26,18 +26,16 @@
 
 #include <mesos/executor.hpp>
 
-
-namespace mesos { namespace python {
+namespace mesos {
+namespace python {
 
 struct MesosExecutorDriverImpl;
 
 /**
- * Proxy Executor implementation that will call into Python
+ * Proxy Executor implementation that will call into Python.
  */
 class ProxyExecutor : public Executor
 {
-  MesosExecutorDriverImpl *impl;
-
 public:
   ProxyExecutor(MesosExecutorDriverImpl *_impl) : impl(_impl) {}
 
@@ -47,27 +45,20 @@ public:
                           const ExecutorInfo& executorInfo,
                           const FrameworkInfo& frameworkInfo,
                           const SlaveInfo& slaveInfo);
-
-  virtual void reregistered(ExecutorDriver* driver,
-                            const SlaveInfo& slaveInfo);
-
-  virtual void launchTask(ExecutorDriver* driver,
-                          const TaskInfo& task);
-
+  virtual void reregistered(ExecutorDriver* driver, const SlaveInfo& slaveInfo);
+  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task);
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId);
-
   virtual void frameworkMessage(ExecutorDriver* driver,
                                 const std::string& data);
-
   virtual void slaveLost(ExecutorDriver* driver);
-
   virtual void shutdown(ExecutorDriver* driver);
+  virtual void error(ExecutorDriver* driver, const std::string& message);
 
-  virtual void error(ExecutorDriver* driver,
-                     int code,
-                     const std::string& message);
+private:
+  MesosExecutorDriverImpl *impl;
 };
 
-}} /* namespace mesos { namespace python { */
+} // namespace python {
+} // namespace mesos {
 
-#endif /* PROXY_EXECUTOR_HPP */
+#endif // PROXY_EXECUTOR_HPP

@@ -72,7 +72,7 @@ public:
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data) {}
   virtual void slaveLost(ExecutorDriver* driver) {}
   virtual void shutdown(ExecutorDriver* driver) {}
-  virtual void error(ExecutorDriver* driver, int code, const string& message) {}
+  virtual void error(ExecutorDriver* driver, const string& message) {}
 };
 
 

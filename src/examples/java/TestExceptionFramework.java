@@ -64,8 +64,7 @@ public class TestExceptionFramework {
                              SlaveID slaveId,
                              int status) {}
 
-    @Override
-    public void error(SchedulerDriver driver, int code, String message) {}
+    public void error(SchedulerDriver driver, String message) {}
   }
 
   private static void usage() {
@@ -79,9 +78,14 @@ public class TestExceptionFramework {
       System.exit(1);
     }
 
+    FrameworkInfo framework = FrameworkInfo.newBuilder()
+        .setUser("") // Have Mesos fill in the current user.
+        .setName("Exception Framework (Java)")
+        .build();
+
     MesosSchedulerDriver driver = new MesosSchedulerDriver(
         new TestExceptionScheduler(),
-        "Exception Framework",
+        framework,
         args[0]);
 
     System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);

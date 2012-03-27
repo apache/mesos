@@ -575,11 +575,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
 
     env->ReleaseByteArrayElements(jcredentials, temp, 0);
 
-    zookeeper::Authentication auth;
-    auth.scheme = scheme;
-    auth.credentials = credentials;
+    zookeeper::Authentication authentication(scheme, credentials);
 
-    log = new Log(quorum, path, servers, timeout, znode, auth);
+    log = new Log(quorum, path, servers, timeout, znode, authentication);
   } else {
     log = new Log(quorum, path, servers, timeout, znode);
   }

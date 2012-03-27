@@ -80,8 +80,7 @@ void enterTestDirectory(const char* testCase, const char* testName);
 
 
 /**
- * Macros to get a "default" ExecutorInfo object for testing or create
- * one out of an ExecutorID and command.
+ * Macros to get/create (default) ExecutorInfos and FrameworkInfos.
  */
 #define DEFAULT_EXECUTOR_INFO                                           \
       ({ ExecutorInfo executor;                                         \
@@ -95,6 +94,12 @@ void enterTestDirectory(const char* testCase, const char* testName);
         executor.mutable_executor_id()->MergeFrom(executorId);          \
         executor.mutable_command()->set_value(command);                 \
         executor; })
+
+
+#define DEFAULT_FRAMEWORK_INFO                                          \
+     ({ FrameworkInfo framework;                                        \
+        framework.set_name("default");                                  \
+        framework; })
 
 
 #define DEFAULT_EXECUTOR_ID						\
@@ -119,13 +124,13 @@ public:
                                       const ExecutorID&,
                                       const SlaveID&,
                                       const std::string&));
-  MOCK_METHOD2(slaveLost, void(SchedulerDriver*, const SlaveID&));
-  MOCK_METHOD3(error, void(SchedulerDriver*, int, const std::string&));
   MOCK_METHOD1(masterLost, void(SchedulerDriver*));
+  MOCK_METHOD2(slaveLost, void(SchedulerDriver*, const SlaveID&));
   MOCK_METHOD4(executorLost, void(SchedulerDriver*,
                                   const ExecutorID&,
                                   const SlaveID&,
                                   int));
+  MOCK_METHOD2(error, void(SchedulerDriver*, const std::string&));
 };
 
 
@@ -146,7 +151,7 @@ public:
   MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const std::string&));
   MOCK_METHOD1(slaveLost, void(ExecutorDriver*));
   MOCK_METHOD1(shutdown, void(ExecutorDriver*));
-  MOCK_METHOD3(error, void(ExecutorDriver*, int, const std::string&));
+  MOCK_METHOD2(error, void(ExecutorDriver*, const std::string&));
 };
 
 

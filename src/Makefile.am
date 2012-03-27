@@ -153,9 +153,9 @@ libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
 	slave/process_based_isolation_module.cpp slave/reaper.cpp	\
 	launcher/launcher.cpp exec/exec.cpp common/fatal.cpp		\
 	common/lock.cpp detector/detector.cpp				\
-	detector/url_processor.cpp configurator/configurator.cpp	\
-	common/logging.cpp common/utils.cpp common/date_utils.cpp	\
-	common/resources.cpp common/attributes.cpp common/values.cpp	\
+	configurator/configurator.cpp common/logging.cpp		\
+	common/utils.cpp common/date_utils.cpp common/resources.cpp	\
+	common/attributes.cpp common/values.cpp				\
 	zookeeper/zookeeper.cpp zookeeper/authentication.cpp		\
 	zookeeper/group.cpp messages/log.proto messages/messages.proto
 
@@ -185,12 +185,11 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/strings.hpp common/values.hpp				\
 	configurator/configuration.hpp configurator/configurator.hpp	\
 	configurator/option.hpp detector/detector.hpp			\
-	detector/url_processor.hpp launcher/launcher.hpp		\
-	local/local.hpp log/coordinator.hpp log/replica.hpp		\
-	log/log.hpp log/network.hpp master/allocator.hpp		\
-	master/allocator_factory.hpp master/constants.hpp		\
-	master/frameworks_manager.hpp master/http.hpp			\
-	master/master.hpp master/simple_allocator.hpp			\
+	launcher/launcher.hpp local/local.hpp log/coordinator.hpp	\
+	log/replica.hpp log/log.hpp log/network.hpp			\
+	master/allocator.hpp master/allocator_factory.hpp		\
+	master/constants.hpp master/frameworks_manager.hpp		\
+	master/http.hpp master/master.hpp master/simple_allocator.hpp	\
 	master/slaves_manager.hpp master/webui.hpp messages/log.hpp	\
 	messages/messages.hpp slave/constants.hpp slave/http.hpp	\
 	slave/isolation_module.hpp slave/isolation_module_factory.hpp	\
@@ -617,10 +616,11 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/protobuf_io_tests.cpp			\
 	              tests/lxc_isolation_tests.cpp			\
 	              tests/utils_tests.cpp				\
-	              tests/url_processor_tests.cpp			\
+	              tests/zookeeper_url_tests.cpp			\
 	              tests/killtree_tests.cpp				\
 	              tests/exception_tests.cpp				\
-		      tests/attributes_test.cpp
+	              tests/attributes_tests.cpp			\
+	              tests/master_detector_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"

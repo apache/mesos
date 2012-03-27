@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-#include <vector>
-
 #include <glog/logging.h>
+
+#include <fstream>
+#include <vector>
 
 #include <boost/lexical_cast.hpp>
 
@@ -28,11 +29,11 @@
 #include "common/foreach.hpp"
 
 #include "detector/detector.hpp"
-#include "detector/url_processor.hpp"
 
 #include "messages/messages.hpp"
 
 #include "zookeeper/authentication.hpp"
+#include "zookeeper/url.hpp"
 #include "zookeeper/zookeeper.hpp"
 
 using namespace mesos;
@@ -63,33 +64,7 @@ public:
    * needed for slaves and frameworks)
    * @param quiet verbosity logging level for underlying ZooKeeper library
    */
-  ZooKeeperMasterDetector(const string& servers,
-                          const string& znode,
-                          const UPID& pid,
-                          bool contend,
-                          bool quiet);
-
-  /**
-   * Uses ZooKeeper for both detecting masters and contending to be a
-   * master and secures the nodes it uses to track contention and detection
-   * against others writing or deleting these nodes.
-   *
-   * @param username username to authenticate to ZooKeeper with using digest
-   * authentication
-   * @param password password to authenticate to ZooKeeper with using digest
-   * authentication
-   * @param server comma separated list of server host:port pairs
-   * @param znode top-level "ZooKeeper node" (directory) to use
-   * @param pid libprocess pid to send messages/updates to (and to
-   * use for contending to be a master)
-   * @param contend true if should contend to be master and false otherwise (not
-   * needed for slaves and frameworks)
-   * @param quiet verbosity logging level for underlying ZooKeeper library
-   */
-  ZooKeeperMasterDetector(const string& username,
-                          const string& password,
-                          const string& servers,
-                          const string& znode,
+  ZooKeeperMasterDetector(const zookeeper::URL& url,
                           const UPID& pid,
                           bool contend,
                           bool quiet);
@@ -102,8 +77,6 @@ public:
   virtual void process(ZooKeeper *zk, int type, int state, const string &path);
 
 private:
-  void initialize(bool quiet = false,
-                  const pair<string, string>* _credentials = NULL);
   void connected();
   void reconnecting();
   void reconnected();
@@ -115,15 +88,15 @@ private:
    */
   void detectMaster();
 
-  const string servers;
-  const pair<string, string>* credentials;
-  ACL_vector acl;
-  const string znode;
+  const zookeeper::URL url;
   const UPID pid;
   bool contend;
+
   bool reconnect;
 
-  ZooKeeper *zk;
+  ACL_vector acl;
+
+  ZooKeeper* zk;
 
   // Our sequence string if contending to be a master.
   string mySeq;
@@ -136,80 +109,60 @@ private:
 MasterDetector::~MasterDetector() {}
 
 
-MasterDetector* MasterDetector::create(const string &url,
-                                       const UPID &pid,
-                                       bool contend,
-                                       bool quiet)
+Try<MasterDetector*> MasterDetector::create(const string& master,
+                                            const UPID& pid,
+                                            bool contend,
+                                            bool quiet)
 {
-  if (url == "") {
+  if (master == "") {
     if (contend) {
       return new BasicMasterDetector(pid);
     } else {
-      fatal("cannot use specified url to detect master");
+      return Try<MasterDetector*>::error("Cannot detect master");
     }
+  } else if (master.find("zk://") == 0) {
+    Try<zookeeper::URL> url = zookeeper::URL::parse(master);
+    if (url.isError()) {
+      return Try<MasterDetector*>::error(url.error());
+    }
+    if (url.get().path == "/") {
+      return Try<MasterDetector*>::error(
+          "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
+    }
+    return new ZooKeeperMasterDetector(url.get(), pid, contend, quiet);
+  } else if (master.find("file://") == 0) {
+    const std::string& path = master.substr(7);
+    std::ifstream file(path.c_str());
+    if (!file.is_open()) {
+      return Try<MasterDetector*>::error(
+          "Failed to open file at '" + path + "'");
+    }
+
+    std::string line;
+    getline(file, line);
+
+    if (!file) {
+      file.close();
+      return Try<MasterDetector*>::error(
+          "Failed to read from file at '" + path + "'");
+    }
+
+    file.close();
+
+    return create(line, pid, contend, quiet);
   }
 
-  MasterDetector *detector = NULL;
+  // Okay, try and parse what we got as a PID.
+  process::UPID masterPid = master.find("master@") == 0
+    ? process::UPID(master)
+    : process::UPID("master@" + master);
 
-  // Parse the url.
-  pair<UrlProcessor::URLType, string> urlPair = UrlProcessor::process(url);
-
-  switch (urlPair.first) {
-    // ZooKeeper URL.
-    case UrlProcessor::ZOO: {
-      // TODO(benh): Consider actually using the chroot feature of
-      // ZooKeeper, rather than just using it's syntax.
-      size_t index = urlPair.second.find("/");
-      if (index == string::npos) {
-        fatal("expecting chroot path for ZooKeeper");
-      }
-
-      const string& servers = urlPair.second.substr(0, index);
-
-      const string& znode = urlPair.second.substr(index);
-      if (znode == "/") {
-        fatal("expecting chroot path for ZooKeeper ('/' is not supported)");
-      }
-
-      index = servers.find("@");
-      if (index == string::npos) {
-        detector = new ZooKeeperMasterDetector(servers, znode, pid, contend,
-                                               quiet);
-      } else {
-        const string& auth = servers.substr(0, index);
-        const string& endpoints = servers.substr(index + 1);
-        index = auth.find(":");
-        if (index == string::npos) {
-          fatal("invalid auth specification, must be of form user:pass@...");
-        }
-        const string& username = auth.substr(0, index);
-        const string& password = auth.substr(index + 1);
-        detector = new ZooKeeperMasterDetector(username, password, endpoints,
-            znode, pid, contend, quiet);
-      }
-      break;
-    }
-
-    // Mesos URL or libprocess pid.
-    case UrlProcessor::MESOS:
-    case UrlProcessor::UNKNOWN: {
-      if (contend) {
-        // TODO(benh): Wierdnesses like this makes it seem like there
-        // should be a separate elector and detector. In particular,
-        // it doesn't make sense to pass a libprocess pid and attempt
-        // to contend (at least not right now).
-        fatal("cannot contend to be a master with specified url");
-      } else {
-        UPID master(urlPair.second);
-        if (!master)
-          fatal("cannot use specified url to detect master");
-        detector = new BasicMasterDetector(master, pid);
-      }
-      break;
-    }
+  if (!masterPid) {
+    return Try<MasterDetector*>::error(
+        "Cannot parse '" + std::string(masterPid) + "'");
   }
 
-  return detector;
+  return new BasicMasterDetector(masterPid, pid);
 }
 
 
@@ -300,55 +253,31 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master,
 BasicMasterDetector::~BasicMasterDetector() {}
 
 
-ZooKeeperMasterDetector::ZooKeeperMasterDetector(const string& servers,
-                                                 const string& znode,
-                                                 const UPID& pid,
-                                                 bool contend,
-                                                 bool quiet)
-  : servers(servers), znode(znode), pid(pid), contend(contend), reconnect(false)
-{
-  initialize(quiet);
-}
-
-
-ZooKeeperMasterDetector::ZooKeeperMasterDetector(const string& username,
-                                                 const string& password,
-                                                 const string& servers,
-                                                 const string& znode,
-                                                 const UPID& pid,
-                                                 bool contend,
-                                                 bool quiet)
-  : servers(servers), znode(znode), pid(pid), contend(contend), reconnect(false)
-{
-  initialize(quiet, new pair<string, string>(username, password));
-}
-
-
-void ZooKeeperMasterDetector::initialize(bool quiet,
-      const pair<string, string>* _credentials)
+ZooKeeperMasterDetector::ZooKeeperMasterDetector(
+    const zookeeper::URL& _url,
+    const UPID& _pid,
+    bool _contend,
+    bool quiet)
+  : url(_url),
+    pid(_pid),
+    contend(_contend),
+    reconnect(false)
 {
   // Set verbosity level for underlying ZooKeeper library logging.
   // TODO(benh): Put this in the C++ API.
   zoo_set_debug_level(quiet ? ZOO_LOG_LEVEL_ERROR : ZOO_LOG_LEVEL_DEBUG);
 
-  credentials = _credentials;
-
-  acl = credentials != NULL
+  acl = url.authentication.isSome()
     ? zookeeper::EVERYONE_READ_CREATOR_ALL
     : ZOO_OPEN_ACL_UNSAFE;
 
   // Start up the ZooKeeper connection!
-  zk = new ZooKeeper(servers, milliseconds(10000), this);
+  zk = new ZooKeeper(url.servers, milliseconds(10000), this);
 }
 
 ZooKeeperMasterDetector::~ZooKeeperMasterDetector()
 {
-  if (credentials != NULL) {
-    delete credentials;
-  }
-  if (zk != NULL) {
-    delete zk;
-  }
+  delete zk;
 }
 
 
@@ -357,14 +286,13 @@ void ZooKeeperMasterDetector::connected()
   LOG(INFO) << "Master detector connected to ZooKeeper ...";
 
   int ret;
-  if (credentials != NULL) {
-    std::string username = credentials->first;
-    std::string password = credentials->second;
-    LOG(INFO) << "Authenticating to ZooKeeper with " << username << ":XXXXX";
-    ret = zk->authenticate("digest", username + ":" + password);
+  if (url.authentication.isSome()) {
+    const std::string& scheme = url.authentication.get().scheme;
+    const std::string& credentials = url.authentication.get().credentials;
+    LOG(INFO) << "Authenticating to ZooKeeper using scheme '" << scheme << "'";
+    ret = zk->authenticate(scheme, credentials);
     if (ret != ZOK) {
-      fatal("Failed to authenticate with ZooKeeper (%s) at : %s",
-            zk->message(ret), servers.c_str());
+      fatal("Failed to authenticate with ZooKeeper: %s", zk->message(ret));
     }
   }
 
@@ -372,16 +300,16 @@ void ZooKeeperMasterDetector::connected()
 
   static const string delimiter = "/";
 
-  // Assume the znode that was created does not end with a "/".
-  CHECK(znode.at(znode.length() - 1) != '/');
+  // Assume the path (chroot) being used does not end with a "/".
+  CHECK(url.path.at(url.path.length() - 1) != '/');
 
-  // Create directory path znodes as necessary.
-  size_t index = znode.find(delimiter, 0);
+  // Create znodes as necessary.
+  size_t index = url.path.find(delimiter, 0);
 
   while (index < string::npos) {
     // Get out the prefix to create.
-    index = znode.find(delimiter, index + 1);
-    string prefix = znode.substr(0, index);
+    index = url.path.find(delimiter, index + 1);
+    string prefix = url.path.substr(0, index);
 
     LOG(INFO) << "Trying to create znode '" << prefix << "' in ZooKeeper";
 
@@ -389,28 +317,24 @@ void ZooKeeperMasterDetector::connected()
     ret = zk->create(prefix, "", acl, 0, &result);
 
     if (ret != ZOK && ret != ZNODEEXISTS) {
-      fatal("failed to create ZooKeeper znode! (%s)", zk->message(ret));
+      fatal("Failed to create ZooKeeper znode: %s", zk->message(ret));
     }
   }
 
   // Wierdness in ZooKeeper timing, let's check that everything is created.
-  ret = zk->get(znode, false, &result, NULL);
+  ret = zk->get(url.path, false, &result, NULL);
 
   if (ret != ZOK) {
-    fatal("ZooKeeper not responding correctly (%s). "
-	  "Make sure ZooKeeper is running on: %s",
-	  zk->message(ret), servers.c_str());
+    fatal("Unexpected ZooKeeper failure: %s", zk->message(ret));
   }
 
   if (contend) {
     // We contend with the pid given in constructor.
-    ret = zk->create(znode + "/", pid, acl,
-		     ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
+    ret = zk->create(url.path + "/", pid, acl,
+                     ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
 
     if (ret != ZOK) {
-      fatal("ZooKeeper not responding correctly (%s). "
-	    "Make sure ZooKeeper is running on: %s",
-	    zk->message(ret), servers.c_str());
+      fatal("Unexpected ZooKeeper failure: %s", zk->message(ret));
     }
 
     // Save the sequence id but only grab the basename, e.g.,
@@ -452,20 +376,18 @@ void ZooKeeperMasterDetector::reconnected()
 
   if (contend) {
     // Contending for master, confirm our ephemeral sequence znode exists.
-    ret = zk->get(znode + "/" + mySeq, false, &result, NULL);
+    ret = zk->get(url.path + "/" + mySeq, false, &result, NULL);
 
     // We might no longer be the master! Commit suicide for now
     // (hoping another master is on standbye), but in the future
     // it would be nice if we could go back on standbye.
     if (ret == ZNONODE) {
-      fatal("failed to reconnect to ZooKeeper quickly enough "
+      fatal("Failed to reconnect to ZooKeeper quickly enough "
 	    "(our ephemeral sequence znode is gone), commiting suicide!");
     }
 
     if (ret != ZOK) {
-      fatal("ZooKeeper not responding correctly (%s). "
-	    "Make sure ZooKeeper is running on: %s",
-	    zk->message(ret), servers.c_str());
+      fatal("Unexpected ZooKeeper error: %s", zk->message(ret));
     }
 
     // We are still the master!
@@ -484,7 +406,7 @@ void ZooKeeperMasterDetector::expired()
   CHECK(zk != NULL);
   delete zk;
 
-  zk = new ZooKeeper(servers, milliseconds(10000), this);
+  zk = new ZooKeeper(url.servers, milliseconds(10000), this);
 }
 
 
@@ -535,14 +457,13 @@ void ZooKeeperMasterDetector::detectMaster()
 {
   vector<string> results;
 
-  int ret = zk->getChildren(znode, true, &results);
+  int ret = zk->getChildren(url.path, true, &results);
 
   if (ret != ZOK) {
-    LOG(ERROR) << "Master detector failed to get masters: "
-	       << zk->message(ret);
+    LOG(ERROR) << "Master detector failed to get masters: " << zk->message(ret);
   } else {
     LOG(INFO) << "Master detector found " << results.size()
-	      << " registered masters";
+              << " registered masters";
   }
 
   string masterSeq;
@@ -561,7 +482,7 @@ void ZooKeeperMasterDetector::detectMaster()
   } else if (masterSeq != currentMasterSeq) {
     // Okay, let's fetch the master pid from ZooKeeper.
     string result;
-    ret = zk->get(znode + "/" + masterSeq, false, &result, NULL);
+    ret = zk->get(url.path + "/" + masterSeq, false, &result, NULL);
 
     if (ret != ZOK) {
       // This is possible because the master might have failed since

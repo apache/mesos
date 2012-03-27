@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-#include <libgen.h>
+#include <libgen.h> // For chdir.
 
 #include "common/build.hpp"
 #include "common/logging.hpp"
+#include "common/try.hpp"
 
 #include "configurator/configurator.hpp"
 
@@ -39,13 +40,7 @@ using std::string;
 
 void usage(const char *programName, const Configurator& configurator)
 {
-  cerr << "Usage: " << programName
-       << " --master=URL [...]" << endl
-       << endl
-       << "URL may be one of:" << endl
-       << "  mesos://id@host:port" << endl
-       << "  zoo://host1:port1,host2:port2,..." << endl
-       << "  zoofile://file where file contains a host:port pair per line"
+  cerr << "Usage: " << programName << " [...]" << endl
        << endl
        << endl
        << "Supported options:" << endl
@@ -60,13 +55,24 @@ int main(int argc, char** argv)
   Configurator configurator;
   Logging::registerOptions(&configurator);
   Slave::registerOptions(&configurator);
+
+  // The following options are executable specific (e.g., since we
+  // only have one instance of libprocess per execution, we only want
+  // to advertise the port and ip option once, here).
   configurator.addOption<int>("port", 'p', "Port to listen on", 0);
   configurator.addOption<string>("ip", "IP address to listen on");
-  configurator.addOption<string>("master", 'm', "Master URL");
-  configurator.addOption<string>("isolation", 'i', "Isolation module name", "process");
+  configurator.addOption<string>("isolation", "Isolation module", "process");
 #ifdef MESOS_WEBUI
-  configurator.addOption<int>("webui_port", 'w', "Web UI port", 8081);
+  configurator.addOption<int>("webui_port", "Web UI port", 8081);
 #endif
+  configurator.addOption<string>(
+      "master",
+      'm',
+      "May be one of:\n"
+      "  host:port\n"
+      "  zk://host1:port1,host2:port2,.../path\n"
+      "  zk://username:password@host1:port1,host2:port2,.../path\n"
+      "  file://path/to/file (where file contains one of the above)");
 
   if (argc == 2 && string("--help") == argv[1]) {
     usage(argv[0], configurator);
@@ -95,9 +101,10 @@ int main(int argc, char** argv)
   process::initialize(false);
 
   if (!conf.contains("master")) {
-    cerr << "Master URL argument (--master) required." << endl;
+    cerr << "Missing required option --master (-m)" << endl;
     exit(1);
   }
+
   string master = conf["master"];
 
   string isolation = conf["isolation"];
@@ -119,11 +126,11 @@ int main(int argc, char** argv)
   Slave* slave = new Slave(conf, false, isolationModule);
   process::spawn(slave);
 
-  MasterDetector* detector = MasterDetector::create(
-      master,
-      slave->self(),
-      false,
-      Logging::isQuiet(conf));
+  Try<MasterDetector*> detector =
+    MasterDetector::create(master, slave->self(), false, Logging::isQuiet(conf));
+
+  CHECK(detector.isSome())
+    << "Failed to create a master detector: " << detector.error();
 
 #ifdef MESOS_WEBUI
   webui::start(slave->self(), conf);
@@ -132,7 +139,7 @@ int main(int argc, char** argv)
   process::wait(slave->self());
   delete slave;
 
-  MasterDetector::destroy(detector);
+  MasterDetector::destroy(detector.get());
   IsolationModule::destroy(isolationModule);
 
   return 0;

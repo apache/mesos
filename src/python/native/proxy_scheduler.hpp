@@ -26,61 +26,47 @@
 
 #include <mesos/scheduler.hpp>
 
-
-namespace mesos { namespace python {
+namespace mesos {
+namespace python {
 
 struct MesosSchedulerDriverImpl;
 
 /**
- * Proxy Scheduler implementation that will call into Python
+ * Proxy Scheduler implementation that will call into Python.
  */
 class ProxyScheduler : public Scheduler
 {
-  MesosSchedulerDriverImpl *impl;
-
 public:
-  ProxyScheduler(MesosSchedulerDriverImpl *_impl) : impl(_impl) {}
+  ProxyScheduler(MesosSchedulerDriverImpl* _impl) : impl(_impl) {}
 
   virtual ~ProxyScheduler() {}
 
-  // Callbacks for various Mesos events.
   virtual void registered(SchedulerDriver* driver,
                           const FrameworkID& frameworkId,
                           const MasterInfo& masterInfo);
-
   virtual void reregistered(SchedulerDriver* driver,
-                          const MasterInfo& masterInfo);
-
+                            const MasterInfo& masterInfo);
   virtual void resourceOffers(SchedulerDriver* driver,
                               const std::vector<Offer>& offers);
-
-  virtual void offerRescinded(SchedulerDriver* driver,
-                              const OfferID& offerId);
-
-  virtual void statusUpdate(SchedulerDriver* driver,
-                            const TaskStatus& status);
-
+  virtual void offerRescinded(SchedulerDriver* driver, const OfferID& offerId);
+  virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status);
   virtual void frameworkMessage(SchedulerDriver* driver,
                                 const ExecutorID& executorId,
                                 const SlaveID& slaveId,
                                 const std::string& data);
-
-  virtual void slaveLost(SchedulerDriver* driver,
-                         const SlaveID& slaveId);
-
   virtual void masterLost(SchedulerDriver* driver);
-
+  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId);
   virtual void executorLost(SchedulerDriver* driver,
                             const ExecutorID& executorId,
                             const SlaveID& slaveId,
                             int status);
+  virtual void error(SchedulerDriver* driver, const std::string& message);
 
-  virtual void error(SchedulerDriver* driver,
-                     int code,
-                     const std::string& message);
-
+private:
+  MesosSchedulerDriverImpl* impl;
 };
 
-}} /* namespace mesos { namespace python { */
+} // namespace python {
+} // namespace mesos {
 
-#endif /* PROXY_SCHEDULER_HPP */
+#endif // PROXY_SCHEDULER_HPP

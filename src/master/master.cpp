@@ -265,7 +265,7 @@ vector<Slave*> Master::getActiveSlaves() const
 
 void Master::initialize()
 {
-  LOG(INFO) << "Master started at mesos://" << self();
+  LOG(INFO) << "Master started on " << string(self()).substr(7);
 
   // The master ID is currently comprised of the current date, the IP
   // address and port from self() and the OS PID.
@@ -332,7 +332,6 @@ void Master::initialize()
 
   install<ReregisterFrameworkMessage>(
       &Master::reregisterFramework,
-      &ReregisterFrameworkMessage::framework_id,
       &ReregisterFrameworkMessage::framework,
       &ReregisterFrameworkMessage::failover);
 
@@ -532,7 +531,6 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
     LOG(INFO) << framework << " registering as root, but "
       << "root submissions are disabled on this cluster";
     FrameworkErrorMessage message;
-    message.set_code(1);
     message.set_message("User 'root' is not allowed to run frameworks");
     reply(message);
     delete framework;
@@ -543,8 +541,7 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
 }
 
 
-void Master::reregisterFramework(const FrameworkID& frameworkId,
-                                 const FrameworkInfo& frameworkInfo,
+void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
                                  bool failover)
 {
   if (!elected) {
@@ -553,19 +550,18 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
     return;
   }
 
-  if (frameworkId == "") {
+  if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
     LOG(ERROR) << "Framework re-registering without an id!";
     FrameworkErrorMessage message;
-    message.set_code(1);
     message.set_message("Framework reregistered without a framework id");
     reply(message);
     return;
   }
 
-  LOG(INFO) << "Re-registering framework " << frameworkId
+  LOG(INFO) << "Re-registering framework " << frameworkInfo.id()
             << " at " << from;
 
-  if (frameworks.count(frameworkId) > 0) {
+  if (frameworks.count(frameworkInfo.id()) > 0) {
     // Using the "failover" of the scheduler allows us to keep a
     // scheduler that got partitioned but didn't die (in ZooKeeper
     // speak this means didn't lose their session) and then
@@ -576,15 +572,15 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
     // (if necessary) by the master and the master will always
     // know which scheduler is the correct one.
 
-    Framework* framework = frameworks[frameworkId];
+    Framework* framework = frameworks[frameworkInfo.id()];
 
     if (failover) {
       // TODO: Should we check whether the new scheduler has given
       // us a different framework name, user name or executor info?
-      LOG(INFO) << "Framework " << frameworkId << " failed over";
+      LOG(INFO) << "Framework " << frameworkInfo.id() << " failed over";
       failoverFramework(framework, from);
     } else {
-      LOG(INFO) << "Allowing the Framework " << frameworkId
+      LOG(INFO) << "Allowing the Framework " << frameworkInfo.id()
                 << " to re-register with an already used id";
 
       // Remove any offers sent to this framework.
@@ -599,7 +595,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
       }
 
       FrameworkReregisteredMessage message;
-      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_framework_id()->MergeFrom(frameworkInfo.id());
       message.mutable_master_info()->MergeFrom(info);
       reply(message);
       return;
@@ -610,7 +606,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
     // failed-over one is connecting. Create a Framework object and add
     // any tasks it has that have been reported by reconnecting slaves.
     Framework* framework =
-      new Framework(frameworkInfo, frameworkId, from, Clock::now());
+      new Framework(frameworkInfo, frameworkInfo.id(), from, Clock::now());
 
     // TODO(benh): Check for root submissions like above!
 
@@ -635,7 +631,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
     }
   }
 
-  CHECK(frameworks.count(frameworkId) > 0);
+  CHECK(frameworks.count(frameworkInfo.id()) > 0);
 
   // Broadcast the new framework pid to all the slaves. We have to
   // broadcast because an executor might be running on a slave but
@@ -643,7 +639,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
   // potential scalability issue ...
   foreachvalue (Slave* slave, slaves) {
     UpdateFrameworkMessage message;
-    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_framework_id()->MergeFrom(frameworkInfo.id());
     message.set_pid(from);
     send(slave->pid, message);
   }
@@ -1538,7 +1534,6 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
 
   {
     FrameworkErrorMessage message;
-    message.set_code(1);
     message.set_message("Framework failed over");
     send(oldPid, message);
   }

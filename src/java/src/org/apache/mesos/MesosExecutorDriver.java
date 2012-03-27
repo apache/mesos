@@ -44,8 +44,12 @@ public class MesosExecutorDriver implements ExecutorDriver {
   /**
    * Creates a new driver that uses the specified Executor.
    */
-  public MesosExecutorDriver(Executor exec) {
-    this.exec = exec;
+  public MesosExecutorDriver(Executor executor) {
+    if (executor == null) {
+      throw new NullPointerException("Not expecting a null Executor");
+    }
+
+    this.executor = executor;
 
     initialize();
   }
@@ -69,8 +73,8 @@ public class MesosExecutorDriver implements ExecutorDriver {
   protected native void initialize();
   protected native void finalize();
 
-  private final Executor exec;
+  private final Executor executor;
 
-  private long __exec;
+  private long __executor;
   private long __driver;
 }

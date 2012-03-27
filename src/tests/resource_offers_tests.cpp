@@ -66,7 +66,7 @@ TEST(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
   PID<Master> master = local::launch(10, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
 
@@ -108,7 +108,7 @@ TEST(ResourceOffersTest, TaskUsesNoResources)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
 
@@ -168,7 +168,7 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
 
@@ -233,7 +233,7 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
 
@@ -298,7 +298,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, "", master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
 
@@ -326,7 +326,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   driver1.join();
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, "", master);
+  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger sched2ResourceOfferCall;
 
@@ -358,7 +358,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, "", master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
 
@@ -418,7 +418,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   driver1.join();
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, "", master);
+  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger sched2ResourceOffersCall;
 
@@ -477,7 +477,7 @@ TEST(ResourceOffersTest, Request)
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false, &allocator);
 
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   trigger registeredCall;
 
@@ -549,7 +549,7 @@ TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
   BasicMasterDetector detector(master, slave, true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, "", master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
   vector<Offer> offers;
 

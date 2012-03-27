@@ -12,17 +12,12 @@ using namespace process;
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::string;
 
 
 void usage(const char* programName, const Configurator& configurator)
 {
-  cerr << "Usage: " << programName
-       << " --master=URL --name=NAME --num-replicas=NUM [...]" << endl
-       << endl
-       << "'master' may be one of:" << endl
-       << "  mesos://id@host:port" << endl
-       << "  zoo://host1:port1,host2:port2,..." << endl
-       << "  zoofile://file where file contains a host:port pair per line"
+  cerr << "Usage: " << programName << " [...]" << endl
        << endl
        << endl
        << "Supported options:" << endl
@@ -34,10 +29,26 @@ int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  // TODO(vinod): Add options!
   Configurator configurator;
 
-  if (argc == 2 && std::string("--help") == argv[1]) {
+  // The following options are executable specific (e.g., since we
+  // only have one instance of libprocess per execution, we only want
+  // to advertise the port and ip option once, here).
+  configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
+  configurator.addOption<string>("ip", "IP address to listen on");
+#ifdef MESOS_WEBUI
+  configurator.addOption<int>("webui_port", "Web UI port", 8080);
+#endif
+  configurator.addOption<string>(
+      "master",
+      'm',
+      "May be one of:\n"
+      "  host:port\n"
+      "  zk://host1:port1,host2:port2,.../path\n"
+      "  zk://username:password@host1:port1,host2:port2,.../path\n"
+      "  file://path/to/file (where file contains one of the above)");
+
+  if (argc == 2 && string("--help") == argv[1]) {
     usage(argv[0], configurator);
     exit(1);
   }
@@ -46,7 +57,7 @@ int main(int argc, char** argv)
   try {
     conf = configurator.load(argc, argv);
   } catch (const ConfigurationException& e) {
-    std::cerr << "Configuration error: " << e.what() << std::endl;
+    cerr << "Configuration error: " << e.what() << endl;
     exit(1);
   }
 
@@ -54,6 +65,7 @@ int main(int argc, char** argv)
   process::initialize();
 
   if (!conf.contains("master")) {
+    cerr << "Missing required option --master (-m)" << endl;
     usage(argv[0], configurator);
     exit(1);
   }
@@ -68,6 +80,8 @@ int main(int argc, char** argv)
   }
 
   if (!conf.contains("name")) {
+    // TODO(benh): Need to add '--name' as an option.
+    cerr << "Missing --name (-n)" << endl;
     usage(argv[0], configurator);
     exit(1);
   }

@@ -76,7 +76,7 @@ public class TestExecutor implements Executor {
   public void shutdown(ExecutorDriver driver) {}
 
   @Override
-  public void error(ExecutorDriver driver, int code, String message) {}
+  public void error(ExecutorDriver driver, String message) {}
 
   public static void main(String[] args) throws Exception {
     MesosExecutorDriver driver = new MesosExecutorDriver(new TestExecutor());

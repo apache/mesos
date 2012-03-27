@@ -84,9 +84,13 @@ if __name__ == "__main__":
   executor.executor_id.value = "default"
   executor.command.value = os.path.abspath("./test-executor")
 
+  framework = mesos_pb2.FrameworkInfo()
+  framework.user = "" # Have Mesos fill in the current user.
+  framework.name = "Test Framework (Python)"
+
   driver = mesos.MesosSchedulerDriver(
     TestScheduler(executor),
-    "Python test framework",
+    framework,
     sys.argv[1])
 
   sys.exit(0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1)

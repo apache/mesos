@@ -37,8 +37,8 @@ class Scheduler:
 
   # Default implementation of error() prints to stderr because we
   # can't make error() an abstract method in Python.
-  def error(self, driver, code, message):
-    print >> sys.stderr, "Error from Mesos: %s (code: %d)" % (message, code)
+  def error(self, driver, message):
+    print >> sys.stderr, "Error from Mesos: %s " % message
 
 
 # Interface for Mesos scheduler drivers. Users may wish to extend this
@@ -70,8 +70,8 @@ class Executor:
 
   # Default implementation of error() prints to stderr because we
   # can't make error() an abstract method in Python.
-  def error(self, driver, code, message):
-    print >> sys.stderr, "Error from Mesos: %s (code: %d)" % (message, code)
+  def error(self, driver, message):
+    print >> sys.stderr, "Error from Mesos: %s" % message
 
 
 # Interface for Mesos executor drivers. Users may wish to extend this

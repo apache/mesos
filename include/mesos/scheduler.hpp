@@ -167,9 +167,7 @@ public:
    * scheduler driver. The driver will be aborted BEFORE invoking this
    * callback.
    */
-  virtual void error(SchedulerDriver* driver,
-                     int code,
-                     const std::string& message) = 0;
+  virtual void error(SchedulerDriver* driver, const std::string& message) = 0;
 };
 
 
@@ -312,44 +310,24 @@ class MesosSchedulerDriver : public SchedulerDriver
 {
 public:
   /**
-   * Creates a new scheduler driver that connects to a Mesos master
-   * through the specified URL. Optionally providing an existing
-   * framework ID can be used to failover a framework.
+   * Creates a new driver for the specified scheduler. The master
+   * should be one of:
+   *
+   *     host:port
+   *     zk://host1:port1,host2:port2,.../path
+   *     zk://username:password@host1:port1,host2:port2,.../path
+   *     file:///path/to/file (where file contains one of the above)
+   *
+   * The driver will attempt to "failover" if the specified
+   * FrameworkInfo includes a valid FrameworkID.
    *
    * Any Mesos configuration options are read from environment
    * variables, as well as any configuration files found through the
    * environment variables.
    */
   MesosSchedulerDriver(Scheduler* scheduler,
-                       const std::string& frameworkName,
-                       const std::string& url,
-                       const FrameworkID& frameworkId = FrameworkID());
-
-  /**
-   * Creates a new scheduler driver that connects to a Mesos master
-   * through a "url" configuration option specified in the 'params'
-   * argument. Optionally providing an existing framework ID can be
-   * used to failover a framework.
-   *
-   * Additional Mesos config options are obtained from the 'params'
-   * argument.
-   */
-  MesosSchedulerDriver(Scheduler* scheduler,
-                       const std::string& frameworkName,
-                       const std::map<std::string, std::string>& params,
-                       const FrameworkID& frameworkId = FrameworkID());
-
-  /**
-   * Creates a new scheduler driver that connects to a Mesos master
-   * through a "url" configuration option specified on the
-   * command-line (via 'argc' and 'argv'). Optionally providing an
-   * existing framework ID can be used to failover a framework.
-   */
-  MesosSchedulerDriver(Scheduler* scheduler,
-                       const std::string& frameworkName,
-                       int argc,
-                       char** argv,
-                       const FrameworkID& frameworkId = FrameworkID());
+                       const FrameworkInfo& framework,
+                       const std::string& master);
 
   /**
    * This destructor will block indefinitely if
@@ -380,16 +358,9 @@ public:
                                       const std::string& data);
 
 private:
-  // Initialization method used by constructors.
-  void initialize(Scheduler* scheduler,
-                  internal::Configuration* conf,
-                  const FrameworkID& frameworkId,
-                  const std::string& frameworkName);
-
   Scheduler* scheduler;
-  std::string url;
-  FrameworkID frameworkId;
-  std::string frameworkName;
+  FrameworkInfo framework;
+  std::string master;
 
   // Libprocess process for communicating with master.
   internal::SchedulerProcess* process;
@@ -398,7 +369,6 @@ private:
   internal::MasterDetector* detector;
 
   // Configuration options.
-  // TODO(benh|matei): Does this still need to be a pointer?
   internal::Configuration* conf;
 
   // Mutex to enforce all non-callbacks are execute serially.

@@ -72,8 +72,7 @@ public:
   void noMasterDetected();
   void masterDetectionFailure();
   void registerFramework(const FrameworkInfo& frameworkInfo);
-  void reregisterFramework(const FrameworkID& frameworkId,
-                           const FrameworkInfo& frameworkInfo,
+  void reregisterFramework(const FrameworkInfo& frameworkInfo,
                            bool failover);
   void unregisterFramework(const FrameworkID& frameworkId);
   void deactivateFramework(const FrameworkID& frameworkId);
@@ -475,7 +474,7 @@ struct Framework
     }
   }
 
-  const FrameworkID id;
+  const FrameworkID id; // TODO(benh): Store this in 'info.
   const FrameworkInfo info;
 
   UPID pid;

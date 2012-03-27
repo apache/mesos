@@ -159,7 +159,7 @@ public:
     }
   }
 
-  virtual void error(ExecutorDriver* driver, int code, const string& message) {}
+  virtual void error(ExecutorDriver* driver, const string& message) {}
 
 private:
   bool launched;

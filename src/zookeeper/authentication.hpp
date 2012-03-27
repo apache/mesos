@@ -9,8 +9,14 @@ namespace zookeeper {
 
 struct Authentication
 {
-  std::string scheme;
-  std::string credentials;
+  Authentication(
+      const std::string& _scheme,
+      const std::string& _credentials)
+    : scheme(_scheme),
+      credentials(_credentials) {}
+
+  const std::string scheme;
+  const std::string credentials;
 };
 
 

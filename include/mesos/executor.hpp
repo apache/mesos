@@ -139,9 +139,7 @@ public:
    * executor driver. The driver will be aborted BEFORE invoking this
    * callback.
    */
-  virtual void error(ExecutorDriver* driver,
-                     int code,
-                     const std::string& message) = 0;
+  virtual void error(ExecutorDriver* driver, const std::string& message) = 0;
 };
 
 
