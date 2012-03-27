@@ -50,7 +50,6 @@ namespace {
 
 jweak mesosClassLoader = NULL; // Initialized in JNI_OnLoad later in this file.
 
-
 jclass FindMesosClass(JNIEnv* env, const char* className)
 {
   if (env->ExceptionCheck()) {
@@ -235,6 +234,29 @@ jobject convert(JNIEnv* env, const FrameworkInfo& frameworkInfo)
   jobject jframeworkInfo = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
 
   return jframeworkInfo;
+}
+
+
+template <>
+jobject convert(JNIEnv* env, const MasterInfo& masterInfo)
+{
+  string data;
+  masterInfo.SerializeToString(&data);
+
+  // byte[] data = ..;
+  jbyteArray jdata = env->NewByteArray(data.size());
+  env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
+
+  // MasterInfo masterInfo = MasterInfo.parseFrom(data);
+  jclass clazz = FindMesosClass(env, "org/apache/mesos/Protos$MasterInfo");
+
+  jmethodID parseFrom =
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/Protos$MasterInfo;");
+
+  jobject jmasterInfo = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
+
+  return jmasterInfo;
 }
 
 

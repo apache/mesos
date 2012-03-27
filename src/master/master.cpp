@@ -515,6 +515,7 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
                 << ") already registered, resending acknowledgement";
       FrameworkRegisteredMessage message;
       message.mutable_framework_id()->MergeFrom(framework->id);
+      message.mutable_master_info()->MergeFrom(info);
       reply(message);
       return;
     }
@@ -599,6 +600,7 @@ void Master::reregisterFramework(const FrameworkID& frameworkId,
 
       FrameworkReregisteredMessage message;
       message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_master_info()->MergeFrom(info);
       reply(message);
       return;
     }
@@ -1521,6 +1523,7 @@ void Master::addFramework(Framework* framework)
 
   FrameworkRegisteredMessage message;
   message.mutable_framework_id()->MergeFrom(framework->id);
+  message.mutable_master_info()->MergeFrom(info);
   send(framework->pid, message);
 
   allocator->frameworkAdded(framework);
@@ -1553,6 +1556,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   {
     FrameworkRegisteredMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id);
+    message.mutable_master_info()->MergeFrom(info);
     send(newPid, message);
   }
 

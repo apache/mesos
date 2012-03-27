@@ -139,7 +139,7 @@ public interface SchedulerDriver {
    * messages are best effort; do not expect a framework message to be
    * retransmitted in any reliable fashion.
    */
-  Status sendFrameworkMessage(SlaveID slaveId,
-                              ExecutorID executorId,
+  Status sendFrameworkMessage(ExecutorID executorId,
+                              SlaveID slaveId,
                               byte[] data);
 }

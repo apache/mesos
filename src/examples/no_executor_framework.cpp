@@ -47,10 +47,14 @@ public:
 
   virtual ~NoExecutorScheduler() {}
 
-  virtual void registered(SchedulerDriver*, const FrameworkID&)
+  virtual void registered(SchedulerDriver*,
+                          const FrameworkID&,
+                          const MasterInfo&)
   {
     cout << "Registered!" << endl;
   }
+
+  virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo) {}
 
   virtual void resourceOffers(SchedulerDriver* driver,
                               const vector<Offer>& offers)
@@ -131,12 +135,23 @@ public:
   }
 
   virtual void frameworkMessage(SchedulerDriver* driver,
-				const SlaveID& slaveId,
-				const ExecutorID& executorId,
+                                const ExecutorID& executorId,
+                                const SlaveID& slaveId,
                                 const string& data) {}
 
-  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid) {}
-  virtual void error(SchedulerDriver* driver, int code, const string& message) {}
+  virtual void masterLost(SchedulerDriver* driver) {}
+
+  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId) {}
+
+  virtual void executorLost(SchedulerDriver* driver,
+                            const ExecutorID& executorId,
+                            const SlaveID& slaveId,
+                            int status) {}
+
+  virtual void error(SchedulerDriver* driver,
+                     int code,
+                     const string& message) {}
+
 
 private:
   int tasksLaunched;

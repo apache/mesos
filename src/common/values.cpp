@@ -121,11 +121,10 @@ Try<Value> parse(const std::string& text) {
       return Try<Value>::error(
         "Error parsing value " + text + ", bad '{' found");
     }
-  } else {
-    return Try<Value>::error(
-      "Error parsing value " + text + ", bad '[' found");
   }
 
+  return Try<Value>::error(
+    "Error parsing value " + text + ", bad '[' found");
 }
 
 } // namespace values {

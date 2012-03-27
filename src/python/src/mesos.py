@@ -25,12 +25,15 @@ import _mesos
 # this class to get default implementations of methods they don't
 # override.
 class Scheduler:
-  def registered(self, driver, frameworkId): pass
+  def registered(self, driver, frameworkId, masterInfo): pass
+  def reregistered(self, driver, masterInfo): pass
   def resourceOffers(self, driver, offers): pass
   def offerRescinded(self, driver, offerId): pass
   def statusUpdate(self, driver, status): pass
   def frameworkMessage(self, driver, message): pass
+  def masterLost(self, driver): pass
   def slaveLost(self, driver, slaveId): pass
+  def executorLost(self, driver, executorId, slaveId, status): pass
 
   # Default implementation of error() prints to stderr because we
   # can't make error() an abstract method in Python.
@@ -51,17 +54,18 @@ class SchedulerDriver:
   def killTask(self, taskId): pass
   def declineOffer(self, offerId, filters=None): pass
   def reviveOffers(self): pass
-  def sendFrameworkMessage(self, slaveId, executorId, data): pass
+  def sendFrameworkMessage(self, executorId, slaveId, data): pass
 
 
 # Base class for Mesos executors. Users' executors should extend this
 # class to get default implementations of methods they don't override.
 class Executor:
-  def registered(self, driver, executorInfo, frameworkId, frameworkInfo,
-                 slaveId, slaveInfo): pass
+  def registered(self, driver, executorInfo, frameworkInfo, slaveInfo): pass
+  def reregistered(self, driver, slaveInfo): pass
   def launchTask(self, driver, task): pass
   def killTask(self, driver, taskId): pass
   def frameworkMessage(self, driver, message): pass
+  def slaveLost(self, driver): pass
   def shutdown(self, driver): pass
 
   # Default implementation of error() prints to stderr because we

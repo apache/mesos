@@ -72,7 +72,7 @@ TEST(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
 
   trigger resourceOffersCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -114,7 +114,7 @@ TEST(ResourceOffersTest, TaskUsesNoResources)
 
   trigger resourceOffersCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -174,7 +174,7 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
 
   trigger resourceOffersCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -239,7 +239,7 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 
   trigger resourceOffersCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -304,7 +304,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 
   trigger sched1ResourceOfferCall;
 
-  EXPECT_CALL(sched1, registered(&driver1, _))
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
     .Times(1);
 
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -330,7 +330,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 
   trigger sched2ResourceOfferCall;
 
-  EXPECT_CALL(sched2, registered(&driver2, _))
+  EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
 
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
@@ -364,7 +364,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
   trigger sched1ResourceOffersCall;
 
-  EXPECT_CALL(sched1, registered(&driver1, _))
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
     .Times(1);
 
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -422,7 +422,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
   trigger sched2ResourceOffersCall;
 
-  EXPECT_CALL(sched2, registered(&driver2, _))
+  EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
 
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
@@ -481,7 +481,7 @@ TEST(ResourceOffersTest, Request)
 
   trigger registeredCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(Trigger(&registeredCall));
 
   driver.start();
@@ -527,7 +527,7 @@ TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
 
   trigger shutdownCall;
 
-  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
+  EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(AtMost(1));
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -555,7 +555,7 @@ TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
 
   trigger resourceOffersCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))

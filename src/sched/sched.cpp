@@ -102,11 +102,13 @@ public:
 
     install<FrameworkRegisteredMessage>(
         &SchedulerProcess::registered,
-        &FrameworkRegisteredMessage::framework_id);
+        &FrameworkRegisteredMessage::framework_id,
+        &FrameworkRegisteredMessage::master_info);
 
     install<FrameworkReregisteredMessage>(
         &SchedulerProcess::reregistered,
-        &FrameworkReregisteredMessage::framework_id);
+        &FrameworkReregisteredMessage::framework_id,
+        &FrameworkReregisteredMessage::master_info);
 
     install<ResourceOffersMessage>(
         &SchedulerProcess::resourceOffers,
@@ -161,9 +163,11 @@ protected:
     // since we might get reconnected to a master imminently.
     connected = false;
     master = UPID();
+
+    scheduler->masterLost(driver);
   }
 
-  void registered(const FrameworkID& frameworkId)
+  void registered(const FrameworkID& frameworkId, const MasterInfo& masterInfo)
   {
     if (aborted) {
       VLOG(1) << "Ignoring framework registered message because "
@@ -183,10 +187,10 @@ protected:
     connected = true;
     failover = false;
 
-    scheduler->registered(driver, frameworkId);
+    scheduler->registered(driver, frameworkId, masterInfo);
   }
 
-  void reregistered(const FrameworkID& frameworkId)
+  void reregistered(const FrameworkID& frameworkId, const MasterInfo& masterInfo)
   {
     if (aborted) {
       VLOG(1) << "Ignoring framework re-registered message because "
@@ -206,6 +210,8 @@ protected:
 
     connected = true;
     failover = false;
+
+    scheduler->reregistered(driver, masterInfo);
   }
 
   void doReliableRegistration()
@@ -332,9 +338,9 @@ protected:
   }
 
   void frameworkMessage(const SlaveID& slaveId,
-			const FrameworkID& frameworkId,
-			const ExecutorID& executorId,
-			const string& data)
+                        const FrameworkID& frameworkId,
+                        const ExecutorID& executorId,
+                        const string& data)
   {
     if (aborted) {
       VLOG(1) << "Ignoring framework message because the driver is aborted!";
@@ -343,7 +349,7 @@ protected:
 
     VLOG(1) << "Received framework message";
 
-    scheduler->frameworkMessage(driver, slaveId, executorId, data);
+    scheduler->frameworkMessage(driver, executorId, slaveId, data);
   }
 
   void error(int32_t code, const string& message)
@@ -520,8 +526,8 @@ protected:
     send(master, message);
   }
 
-  void sendFrameworkMessage(const SlaveID& slaveId,
-                            const ExecutorID& executorId,
+  void sendFrameworkMessage(const ExecutorID& executorId,
+                            const SlaveID& slaveId,
                             const string& data)
   {
     if (!connected) {
@@ -902,8 +908,8 @@ Status MesosSchedulerDriver::reviveOffers()
 
 
 Status MesosSchedulerDriver::sendFrameworkMessage(
-    const SlaveID& slaveId,
     const ExecutorID& executorId,
+    const SlaveID& slaveId,
     const string& data)
 {
   Lock lock(&mutex);
@@ -915,7 +921,7 @@ Status MesosSchedulerDriver::sendFrameworkMessage(
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::sendFrameworkMessage,
-           slaveId, executorId, data);
+           executorId, slaveId, data);
 
   return status;
 }

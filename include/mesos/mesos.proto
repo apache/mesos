@@ -102,8 +102,8 @@ message FrameworkInfo {
  */
 message CommandInfo {
   message URI {
-   required string value = 1;
-   optional bool executable = 2;
+    required string value = 1;
+    optional bool executable = 2;
   }
 
   repeated URI uris = 1;
@@ -140,7 +140,9 @@ message MasterInfo {
 /**
  * Describes a slave. The 'webui_hostname' and 'webui_port' are
  * provided in the event a host has different private and public
- * hostnames (e.g., Amazon EC2).
+ * hostnames (e.g., Amazon EC2). Note that the 'id' field is only
+ * available after a slave is registered with the master, and is made
+ * available here to facilitate re-registration.
  */
 message SlaveInfo {
   required string hostname = 1;
@@ -149,6 +151,7 @@ message SlaveInfo {
   optional int32 webui_port = 4 [default = 8081];
   repeated Resource resources = 3;
   repeated Attribute attributes = 5;
+  optional SlaveID id = 6;
 }
 
 

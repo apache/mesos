@@ -45,7 +45,11 @@ public:
 
   // Callbacks for various Mesos events.
   virtual void registered(SchedulerDriver* driver,
-                          const FrameworkID& frameworkId);
+                          const FrameworkID& frameworkId,
+                          const MasterInfo& masterInfo);
+
+  virtual void reregistered(SchedulerDriver* driver,
+                          const MasterInfo& masterInfo);
 
   virtual void resourceOffers(SchedulerDriver* driver,
                               const std::vector<Offer>& offers);
@@ -57,12 +61,19 @@ public:
                             const TaskStatus& status);
 
   virtual void frameworkMessage(SchedulerDriver* driver,
-                                const SlaveID& slaveId,
                                 const ExecutorID& executorId,
+                                const SlaveID& slaveId,
                                 const std::string& data);
 
   virtual void slaveLost(SchedulerDriver* driver,
                          const SlaveID& slaveId);
+
+  virtual void masterLost(SchedulerDriver* driver);
+
+  virtual void executorLost(SchedulerDriver* driver,
+                            const ExecutorID& executorId,
+                            const SlaveID& slaveId,
+                            int status);
 
   virtual void error(SchedulerDriver* driver,
                      int code,

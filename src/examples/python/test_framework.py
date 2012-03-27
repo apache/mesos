@@ -34,8 +34,8 @@ class TestScheduler(mesos.Scheduler):
     self.tasksLaunched = 0
     self.tasksFinished = 0
 
-  def registered(self, driver, fid):
-    print "Registered with framework ID %s" % fid.value
+  def registered(self, driver, frameworkId, masterInfo):
+    print "Registered with framework ID %s" % frameworkId.value
 
   def resourceOffers(self, driver, offers):
     print "Got %d resource offers" % len(offers)

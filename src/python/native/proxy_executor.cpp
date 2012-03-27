@@ -35,42 +35,32 @@ namespace mesos { namespace python {
 
 void ProxyExecutor::registered(ExecutorDriver* driver,
                                const ExecutorInfo& executorInfo,
-                               const FrameworkID& frameworkId,
                                const FrameworkInfo& frameworkInfo,
-                               const SlaveID& slaveId,
                                const SlaveInfo& slaveInfo)
 {
   InterpreterLock lock;
 
   PyObject* executorInfoObj = NULL;
-  PyObject* frameworkIdObj = NULL;
   PyObject* frameworkInfoObj = NULL;
-  PyObject* slaveIdObj = NULL;
   PyObject* slaveInfoObj = NULL;
   PyObject* res = NULL;
 
   executorInfoObj = createPythonProtobuf(executorInfo, "ExecutorInfo");
-  frameworkIdObj = createPythonProtobuf(frameworkId, "FrameworkID");
   frameworkInfoObj = createPythonProtobuf(frameworkInfo, "FrameworkInfo");
-  slaveIdObj = createPythonProtobuf(slaveId, "SlaveID");
   slaveInfoObj = createPythonProtobuf(slaveInfo, "SlaveInfo");
 
   if (executorInfoObj == NULL ||
-      frameworkIdObj == NULL ||
       frameworkInfoObj == NULL ||
-      slaveIdObj == NULL ||
       slaveInfoObj == NULL) {
     goto cleanup; // createPythonProtobuf will have set an exception
   }
 
   res = PyObject_CallMethod(impl->pythonExecutor,
                             (char*) "registered",
-                            (char*) "OOOOOO",
+                            (char*) "OOOO",
                             impl,
                             executorInfoObj,
-                            frameworkIdObj,
                             frameworkInfoObj,
-                            slaveIdObj,
                             slaveInfoObj);
   if (res == NULL) {
     cerr << "Failed to call executor registered" << endl;
@@ -83,9 +73,41 @@ cleanup:
     driver->abort();
   }
   Py_XDECREF(executorInfoObj);
-  Py_XDECREF(frameworkIdObj);
   Py_XDECREF(frameworkInfoObj);
-  Py_XDECREF(slaveIdObj);
+  Py_XDECREF(slaveInfoObj);
+  Py_XDECREF(res);
+}
+
+
+void ProxyExecutor::reregistered(ExecutorDriver* driver,
+                                 const SlaveInfo& slaveInfo)
+{
+  InterpreterLock lock;
+
+  PyObject* slaveInfoObj = NULL;
+  PyObject* res = NULL;
+
+  slaveInfoObj = createPythonProtobuf(slaveInfo, "SlaveInfo");
+
+  if (slaveInfoObj == NULL) {
+    goto cleanup; // createPythonProtobuf will have set an exception
+  }
+
+  res = PyObject_CallMethod(impl->pythonExecutor,
+                            (char*) "reregistered",
+                            (char*) "OO",
+                            impl,
+                            slaveInfoObj);
+  if (res == NULL) {
+    cerr << "Failed to call executor re-registered" << endl;
+    goto cleanup;
+  }
+
+cleanup:
+  if (PyErr_Occurred()) {
+    PyErr_Print();
+    driver->abort();
+  }
   Py_XDECREF(slaveInfoObj);
   Py_XDECREF(res);
 }
@@ -174,6 +196,26 @@ void ProxyExecutor::frameworkMessage(ExecutorDriver* driver,
     goto cleanup;
   }
 
+cleanup:
+  if (PyErr_Occurred()) {
+    PyErr_Print();
+    driver->abort();
+  }
+  Py_XDECREF(res);
+}
+
+
+void ProxyExecutor::slaveLost(ExecutorDriver* driver)
+{
+  InterpreterLock lock;
+  PyObject* res = PyObject_CallMethod(impl->pythonExecutor,
+                            (char*) "slaveLost",
+                            (char*) "O",
+                            impl);
+  if (res == NULL) {
+    cerr << "Failed to call executor's slaveLost" << endl;
+    goto cleanup;
+  }
 cleanup:
   if (PyErr_Occurred()) {
     PyErr_Print();

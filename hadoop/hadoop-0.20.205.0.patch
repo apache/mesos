@@ -163,7 +163,7 @@ new file mode 100644
 index 0000000..e369f39
 --- /dev/null
 +++ b/hadoop/hadoop-0.20.205.0/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,200 @@
 +package org.apache.hadoop.mapred;
 +
 +import java.io.IOException;
@@ -208,9 +208,7 @@ index 0000000..e369f39
 +  @Override
 +  public void registered(ExecutorDriver d,
 +                         ExecutorInfo executorInfo,
-+                         FrameworkID frameworkId,
 +                         FrameworkInfo frameworkInfo,
-+                         SlaveID slaveId,
 +                         SlaveInfo slaveInfo) {
 +    try {
 +      Thread.currentThread().setContextClassLoader(
@@ -251,6 +249,9 @@ index 0000000..e369f39
 +  }
 +
 +  @Override
++  public void reregistered(ExecutorDriver driver, SlaveInfo slaveInfo) {}
++
++  @Override
 +  public void launchTask(ExecutorDriver d, TaskInfo task) {
 +    LOG.info("Asked to launch Mesos task " + task.getTaskId().getValue());
 +    activeMesosTasks.add(task.getTaskId());
@@ -286,6 +287,9 @@ index 0000000..e369f39
 +          "Failed to deserialize HadoopFrameworkMessage", e);
 +    }
 +  }
++
++  @Override
++  public void slaveLost(ExecutorDriver driver) {}
 +
 +  public void statusUpdate(Task task, TaskStatus status) {
 +    // There are some tasks that get launched implicitly (e.g., the
@@ -365,7 +369,7 @@ new file mode 100644
 index 0000000..312cfdb
 --- /dev/null
 +++ b/hadoop/hadoop-0.20.205.0/src/contrib/mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java
-@@ -0,0 +1,877 @@
+@@ -0,0 +1,892 @@
 +package org.apache.hadoop.mapred;
 +
 +import java.io.File;
@@ -393,17 +397,18 @@ index 0000000..312cfdb
 +import org.apache.mesos.Protos.ExecutorInfo;
 +import org.apache.mesos.Protos.ExecutorID;
 +import org.apache.mesos.Protos.FrameworkID;
-+import org.apache.mesos.Protos.OfferID;
-+import org.apache.mesos.Protos.Value;
-+import org.apache.mesos.Protos.Resource;
-+import org.apache.mesos.Protos.SlaveID;
++import org.apache.mesos.Protos.MasterInfo;
 +import org.apache.mesos.Protos.Offer;
++import org.apache.mesos.Protos.OfferID;
++import org.apache.mesos.Protos.Resource;
++import org.apache.mesos.Scheduler;
++import org.apache.mesos.SchedulerDriver;
++import org.apache.mesos.Protos.SlaveID;
++import org.apache.mesos.Protos.Status;
 +import org.apache.mesos.Protos.TaskID;
 +import org.apache.mesos.Protos.TaskInfo;
 +import org.apache.mesos.Protos.TaskState;
-+import org.apache.mesos.Protos.Status;
-+import org.apache.mesos.Scheduler;
-+import org.apache.mesos.SchedulerDriver;
++import org.apache.mesos.Protos.Value;
 +
 +public class FrameworkScheduler implements Scheduler {
 +  public static final Log LOG =
@@ -513,13 +518,18 @@ index 0000000..312cfdb
 +  }
 +
 +  @Override
-+  public void registered(SchedulerDriver d, FrameworkID fid) {
++  public void registered(SchedulerDriver d,
++                         FrameworkID frameworkId,
++                         MasterInfo masterInfo) {
 +    this.driver = d;
-+    this.frameworkId = fid;
-+    LOG.info("Registered with Mesos, with framework ID " + fid);
++    this.frameworkId = frameworkId;
++    LOG.info("Registered with Mesos, with framework ID " + frameworkId);
 +    running = true;
 +    new KillTimedOutTasksThread().start();
 +  }
++
++  @Override
++  public void reregistered(SchedulerDriver driver, MasterInfo masterInfo) {}
 +
 +  public void cleanUp() {
 +    running = false;
@@ -854,9 +864,6 @@ index 0000000..312cfdb
 +    }
 +  }
 +
-+  @Override
-+  public void slaveLost(SchedulerDriver d, SlaveID slaveId) {}
-+
 +  /**
 +   * Called by JobTracker to ask us to launch tasks on a heartbeat.
 +   *
@@ -985,7 +992,7 @@ index 0000000..312cfdb
 +                 " to update status for task " + nt.mesosId.getValue() +
 +                 " to " + state);
 +        driver.sendFrameworkMessage(
-+            ttInfo.mesosSlaveId, EXECUTOR_ID, message.serialize());
++            EXECUTOR_ID, ttInfo.mesosSlaveId, message.serialize());
 +      } catch (IOException e) {
 +        // This exception would only get thrown if we couldn't
 +        // serialize the HadoopFrameworkMessage, which is a serious
@@ -1026,9 +1033,21 @@ index 0000000..312cfdb
 +  }
 +
 +  @Override
-+  public void frameworkMessage(SchedulerDriver d, SlaveID sId, ExecutorID eId, byte[] message) {
++  public void frameworkMessage(SchedulerDriver d, ExecutorID eId, SlaveID sId, byte[] message) {
 +    // TODO: Respond to E2S_KILL_REQUEST message by killing a task
 +  }
++
++  @Override
++  public void masterLost(SchedulerDriver d) {}
++
++  @Override
++  public void slaveLost(SchedulerDriver d, SlaveID slaveId) {}
++
++  @Override
++  public void executorLost(SchedulerDriver d,
++                           ExecutorID executorId,
++                           SlaveID slaveId,
++                           int status) {}
 +
 +  @Override
 +  public void error(SchedulerDriver d, int code, String msg) {

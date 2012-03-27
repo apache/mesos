@@ -76,7 +76,7 @@ TEST(MasterTest, TaskRunning)
 
   trigger shutdownCall;
 
-  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
+  EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -105,7 +105,7 @@ TEST(MasterTest, TaskRunning)
 
   trigger resourceOffersCall, statusUpdateCall, resourcesChangedCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -169,7 +169,7 @@ TEST(MasterTest, KillTask)
 
   trigger killTaskCall, shutdownCall;
 
-  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
+  EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -201,7 +201,7 @@ TEST(MasterTest, KillTask)
 
   trigger resourceOffersCall, statusUpdateCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -269,7 +269,7 @@ TEST(MasterTest, FrameworkMessage)
 
   trigger execFrameworkMessageCall, shutdownCall;
 
-  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
+  EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(SaveArg<0>(&execDriver));
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -306,7 +306,7 @@ TEST(MasterTest, FrameworkMessage)
 
   trigger resourceOffersCall, statusUpdateCall, schedFrameworkMessageCall;
 
-  EXPECT_CALL(sched, registered(&schedDriver, _))
+  EXPECT_CALL(sched, registered(&schedDriver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&schedDriver, _))
@@ -345,9 +345,9 @@ TEST(MasterTest, FrameworkMessage)
 
   string hello = "hello";
 
-  schedDriver.sendFrameworkMessage(offers[0].slave_id(),
-				   DEFAULT_EXECUTOR_ID,
-				   hello);
+  schedDriver.sendFrameworkMessage(DEFAULT_EXECUTOR_ID,
+                                   offers[0].slave_id(),
+                                   hello);
 
   WAIT_UNTIL(execFrameworkMessageCall);
 
@@ -386,7 +386,7 @@ TEST(MasterTest, MultipleExecutors)
   TaskInfo exec1Task;
   trigger exec1LaunchTaskCall, exec1ShutdownCall;
 
-  EXPECT_CALL(exec1, registered(_, _, _, _, _, _))
+  EXPECT_CALL(exec1, registered(_, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec1, launchTask(_, _))
@@ -401,7 +401,7 @@ TEST(MasterTest, MultipleExecutors)
   TaskInfo exec2Task;
   trigger exec2LaunchTaskCall, exec2ShutdownCall;
 
-  EXPECT_CALL(exec2, registered(_, _, _, _, _, _))
+  EXPECT_CALL(exec2, registered(_, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec2, launchTask(_, _))
@@ -439,7 +439,7 @@ TEST(MasterTest, MultipleExecutors)
 
   trigger resourceOffersCall, statusUpdateCall1, statusUpdateCall2;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -511,6 +511,144 @@ TEST(MasterTest, MultipleExecutors)
 }
 
 
+TEST(MasterTest, MasterInfo)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  MockFilter filter;
+  process::filter(&filter);
+
+  EXPECT_MESSAGE(filter, _, _, _)
+    .WillRepeatedly(Return(false));
+
+  SimpleAllocator a;
+  Master m(&a);
+  PID<Master> master = process::spawn(&m);
+
+  MockExecutor exec;
+
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
+
+  Resources resources = Resources::parse("cpus:2;mem:1024");
+
+  Slave s(resources, true, &isolationModule);
+  PID<Slave> slave = process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, "", master);
+  MasterInfo masterInfo;
+
+  trigger registeredCall;
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(DoAll(SaveArg<2>(&masterInfo),
+                    Trigger(&registeredCall)));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return());
+
+  driver.start();
+
+  WAIT_UNTIL(registeredCall);
+
+  EXPECT_EQ(master.port, masterInfo.port());
+  EXPECT_EQ(master.ip, masterInfo.ip());
+
+  driver.stop();
+  driver.join();
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
+
+  process::filter(NULL);
+}
+
+
+TEST(MasterTest, MasterInfoOnReElection)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  MockFilter filter;
+  process::filter(&filter);
+
+  EXPECT_MESSAGE(filter, _, _, _)
+    .WillRepeatedly(Return(false));
+
+  SimpleAllocator a;
+  Master m(&a);
+  PID<Master> master = process::spawn(&m);
+
+  MockExecutor exec;
+
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
+
+  Resources resources = Resources::parse("cpus:2;mem:1024");
+
+  Slave s(resources, true, &isolationModule);
+  PID<Slave> slave = process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, "", master);
+  MasterInfo masterInfo;
+
+  trigger registeredCall, reregisteredCall;
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(Trigger(&registeredCall));
+
+  EXPECT_CALL(sched, reregistered(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&masterInfo),Trigger(&reregisteredCall)));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return());
+
+  process::Message message;
+
+  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
+                    Return(false)));
+
+  driver.start();
+
+  WAIT_UNTIL(registeredCall);
+
+  // Simulate a spurious newMasterDetected event (e.g., due to ZooKeeper
+  // expiration) at the scheduler.
+  NewMasterDetectedMessage newMasterDetectedMsg;
+  newMasterDetectedMsg.set_pid(master);
+
+  process::post(message.to, newMasterDetectedMsg);
+
+  WAIT_UNTIL(reregisteredCall);
+
+  EXPECT_EQ(master.port, masterInfo.port());
+  EXPECT_EQ(master.ip, masterInfo.ip());
+
+  driver.stop();
+  driver.join();
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
+
+  process::filter(NULL);
+}
+
 // FrameworksManager test cases.
 
 class MockFrameworksStorage : public FrameworksStorage
@@ -525,6 +663,77 @@ public:
   MOCK_METHOD1(remove, Future<Result<bool> >(const FrameworkID&));
 };
 
+
+TEST(MasterTest, MasterLost)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  MockFilter filter;
+  process::filter(&filter);
+
+  EXPECT_MESSAGE(filter, _, _, _)
+    .WillRepeatedly(Return(false));
+
+  SimpleAllocator a;
+  Master m(&a);
+  PID<Master> master = process::spawn(&m);
+
+  MockExecutor exec;
+
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
+
+  Resources resources = Resources::parse("cpus:2;mem:1024");
+
+  Slave s(resources, true, &isolationModule);
+  PID<Slave> slave = process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, "", master);
+  MasterInfo masterInfo;
+
+  trigger registeredCall, masterLostCall;
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(Trigger(&registeredCall));
+
+  EXPECT_CALL(sched, masterLost(&driver))
+    .WillOnce(Trigger(&masterLostCall));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return());
+
+  process::Message message;
+
+  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
+                    Return(false)));
+
+  driver.start();
+
+  WAIT_UNTIL(registeredCall);
+
+  // Simulate a spurious noMasterDetected event at the scheduler.
+  NoMasterDetectedMessage noMasterDetectedMsg;
+  process::post(message.to, noMasterDetectedMsg);
+
+  WAIT_UNTIL(masterLostCall);
+
+  driver.stop();
+  driver.join();
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
+
+  process::filter(NULL);
+}
 
 // This fixture sets up expectations on the storage class
 // and spawns both storage and frameworks manager.

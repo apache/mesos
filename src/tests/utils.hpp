@@ -107,17 +107,25 @@ void enterTestDirectory(const char* testCase, const char* testName);
 class MockScheduler : public Scheduler
 {
 public:
-  MOCK_METHOD2(registered, void(SchedulerDriver*, const FrameworkID&));
+  MOCK_METHOD3(registered, void(SchedulerDriver*,
+                                const FrameworkID&,
+                                const MasterInfo&));
+  MOCK_METHOD2(reregistered, void(SchedulerDriver*, const MasterInfo&));
   MOCK_METHOD2(resourceOffers, void(SchedulerDriver*,
                                     const std::vector<Offer>&));
   MOCK_METHOD2(offerRescinded, void(SchedulerDriver*, const OfferID&));
   MOCK_METHOD2(statusUpdate, void(SchedulerDriver*, const TaskStatus&));
   MOCK_METHOD4(frameworkMessage, void(SchedulerDriver*,
-                                      const SlaveID&,
                                       const ExecutorID&,
+                                      const SlaveID&,
                                       const std::string&));
   MOCK_METHOD2(slaveLost, void(SchedulerDriver*, const SlaveID&));
   MOCK_METHOD3(error, void(SchedulerDriver*, int, const std::string&));
+  MOCK_METHOD1(masterLost, void(SchedulerDriver*));
+  MOCK_METHOD4(executorLost, void(SchedulerDriver*,
+                                  const ExecutorID&,
+                                  const SlaveID&,
+                                  int));
 };
 
 
@@ -127,15 +135,16 @@ public:
 class MockExecutor : public Executor
 {
 public:
-  MOCK_METHOD6(registered, void(ExecutorDriver*,
+  MOCK_METHOD4(registered, void(ExecutorDriver*,
                                 const ExecutorInfo&,
-                                const FrameworkID&,
                                 const FrameworkInfo&,
-                                const SlaveID&,
                                 const SlaveInfo&));
+  MOCK_METHOD2(reregistered, void(ExecutorDriver*,
+                                  const SlaveInfo&));
   MOCK_METHOD2(launchTask, void(ExecutorDriver*, const TaskInfo&));
   MOCK_METHOD2(killTask, void(ExecutorDriver*, const TaskID&));
   MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const std::string&));
+  MOCK_METHOD1(slaveLost, void(ExecutorDriver*));
   MOCK_METHOD1(shutdown, void(ExecutorDriver*));
   MOCK_METHOD3(error, void(ExecutorDriver*, int, const std::string&));
 };

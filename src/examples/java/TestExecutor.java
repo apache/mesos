@@ -26,12 +26,13 @@ public class TestExecutor implements Executor {
   @Override
   public void registered(ExecutorDriver driver,
                          ExecutorInfo executorInfo,
-                         FrameworkID frameworkId,
                          FrameworkInfo frameworkInfo,
-                         SlaveID slaveId,
                          SlaveInfo slaveInfo) {
     System.out.println("Registered executor on " + slaveInfo.getHostname());
   }
+
+  @Override
+  public void reregistered(ExecutorDriver driver, SlaveInfo executorInfo) {}
 
   @Override
   public void launchTask(final ExecutorDriver driver, final TaskInfo task) {
@@ -67,6 +68,9 @@ public class TestExecutor implements Executor {
 
   @Override
   public void frameworkMessage(ExecutorDriver driver, byte[] data) {}
+
+  @Override
+  public void slaveLost(ExecutorDriver driver) {}
 
   @Override
   public void shutdown(ExecutorDriver driver) {}

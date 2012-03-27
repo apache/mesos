@@ -31,8 +31,8 @@ using std::string;
 using std::vector;
 using std::map;
 
-
-namespace mesos { namespace python {
+namespace mesos {
+namespace python {
 
 /**
  * Python type object for MesosSchedulerDriverImpl.
@@ -495,25 +495,25 @@ PyObject* MesosSchedulerDriverImpl_sendFrameworkMessage(
   }
 
 
-  PyObject* sidObj = NULL;
-  PyObject* eidObj = NULL;
-  SlaveID sid;
-  ExecutorID eid;
+  PyObject* slaveIdObj = NULL;
+  PyObject* executorIdObj = NULL;
+  SlaveID slaveId;
+  ExecutorID executorId;
   const char* data;
-  if (!PyArg_ParseTuple(args, "OOs", &sidObj, &eidObj, &data)) {
+  if (!PyArg_ParseTuple(args, "OOs", &executorIdObj, &slaveIdObj, &data)) {
     return NULL;
   }
-  if (!readPythonProtobuf(sidObj, &sid)) {
-    PyErr_Format(PyExc_Exception, "Could not deserialize Python SlaveID");
-    return NULL;
-  }
-  if (!readPythonProtobuf(eidObj, &eid)) {
+  if (!readPythonProtobuf(executorIdObj, &executorId)) {
     PyErr_Format(PyExc_Exception, "Could not deserialize Python ExecutorID");
     return NULL;
   }
-
-  Status status = self->driver->sendFrameworkMessage(sid, eid, data);
+  if (!readPythonProtobuf(slaveIdObj, &slaveId)) {
+    PyErr_Format(PyExc_Exception, "Could not deserialize Python SlaveID");
+    return NULL;
+  }
+  Status status = self->driver->sendFrameworkMessage(executorId, slaveId, data);
   return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
-}} /* namespace mesos { namespace python { */
+} // namespace python {
+} // namespace mesos {

@@ -33,9 +33,14 @@ import org.apache.mesos.Protos.*;
 public class TestMultipleExecutorsFramework {
   static class TestScheduler implements Scheduler {
     @Override
-    public void registered(SchedulerDriver driver, FrameworkID frameworkId) {
+    public void registered(SchedulerDriver driver,
+                           FrameworkID frameworkId,
+                           MasterInfo masterInfo) {
       System.out.println("Registered! ID = " + frameworkId.getValue());
     }
+
+    @Override
+    public void reregistered(SchedulerDriver driver, MasterInfo masterInfo) {}
 
     @Override
     public void resourceOffers(SchedulerDriver driver,
@@ -157,12 +162,21 @@ public class TestMultipleExecutorsFramework {
 
     @Override
     public void frameworkMessage(SchedulerDriver driver,
-                                 SlaveID slaveId,
                                  ExecutorID executorId,
+                                 SlaveID slaveId,
                                  byte[] data) {}
 
     @Override
+    public void masterLost(SchedulerDriver driver) {}
+
+    @Override
     public void slaveLost(SchedulerDriver driver, SlaveID slaveId) {}
+
+    @Override
+    public void executorLost(SchedulerDriver driver,
+                             ExecutorID executorId,
+                             SlaveID slaveId,
+                             int status) {}
 
     @Override
     public void error(SchedulerDriver driver, int code, String message) {

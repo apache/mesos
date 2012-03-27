@@ -136,8 +136,8 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status reviveOffers();
 
-  public native Status sendFrameworkMessage(SlaveID slaveId,
-                                            ExecutorID executorId,
+  public native Status sendFrameworkMessage(ExecutorID executorId,
+                                            SlaveID slaveId,
                                             byte[] data);
 
   protected native void initialize();

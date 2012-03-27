@@ -90,7 +90,7 @@ TEST(FaultToleranceTest, SlaveLost)
 
   trigger resourceOffersCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -157,7 +157,7 @@ TEST(FaultToleranceTest, SlavePartitioned)
 
   trigger resourceOffersCall, slaveLostCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -211,7 +211,7 @@ TEST(FaultToleranceTest, SchedulerFailover)
 
   trigger sched1RegisteredCall;
 
-  EXPECT_CALL(sched1, registered(&driver1, _))
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
     .WillOnce(DoAll(SaveArg<1>(&frameworkId), Trigger(&sched1RegisteredCall)));
 
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -236,7 +236,7 @@ TEST(FaultToleranceTest, SchedulerFailover)
 
   trigger sched2RegisteredCall;
 
-  EXPECT_CALL(sched2, registered(&driver2, frameworkId))
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
     .WillOnce(Trigger(&sched2RegisteredCall));
 
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
@@ -278,7 +278,7 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
 
   trigger schedRegisteredCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(Trigger(&schedRegisteredCall));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -329,10 +329,13 @@ TEST(FaultToleranceTest, FrameworkReregister)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, "", master);
 
-  trigger schedRegisteredCall;
+  trigger schedRegisteredCall, schedReregisteredCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(Trigger(&schedRegisteredCall));
+
+  EXPECT_CALL(sched, reregistered(&driver, _))
+    .WillOnce(Trigger(&schedReregisteredCall));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return());
@@ -341,14 +344,9 @@ TEST(FaultToleranceTest, FrameworkReregister)
     .Times(AtMost(1));
 
   process::Message message;
-  trigger schedReregisteredMsg;
 
   EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
-                    Return(false)));
-
-  EXPECT_MESSAGE(filter, Eq(FrameworkReregisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&schedReregisteredMsg),
                     Return(false)));
 
   driver.start();
@@ -362,7 +360,7 @@ TEST(FaultToleranceTest, FrameworkReregister)
 
   process::post(message.to, newMasterDetectedMsg);
 
-  WAIT_UNTIL(schedReregisteredMsg);
+  WAIT_UNTIL(schedReregisteredCall);
 
   driver.stop();
   driver.join();
@@ -371,6 +369,7 @@ TEST(FaultToleranceTest, FrameworkReregister)
 
   process::filter(NULL);
 }
+
 
 // TOOD(vinod): Disabling this test for now because
 // of the following race condition breaking this test:
@@ -393,7 +392,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
-  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
+  EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(0);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -420,7 +419,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   trigger statusUpdateCall, resourceOffersCall;
   TaskStatus status;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -500,7 +499,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   trigger shutdownCall;
 
-  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
+  EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -532,7 +531,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   trigger resourceOffersCall, statusUpdateMsg;
 
-  EXPECT_CALL(sched1, registered(&driver1, _))
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -581,7 +580,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   trigger registeredCall, statusUpdateCall;
 
-  EXPECT_CALL(sched2, registered(&driver2, frameworkId))
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
     .WillOnce(Trigger(&registeredCall));
 
   EXPECT_CALL(sched2, statusUpdate(&driver2, _))
@@ -627,7 +626,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   ExecutorDriver* execDriver;
 
-  EXPECT_CALL(exec, registered(_, _, _, _, _, _))
+  EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(SaveArg<0>(&execDriver));
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -658,7 +657,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   TaskStatus status;
   trigger sched1ResourceOfferCall, sched1StatusUpdateCall;
 
-  EXPECT_CALL(sched1, registered(&driver1, _))
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
     .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&sched1StatusUpdateCall)));
@@ -698,7 +697,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   trigger sched2RegisteredCall, sched2FrameworkMessageCall;
 
-  EXPECT_CALL(sched2, registered(&driver2, frameworkId))
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
     .WillOnce(Trigger(&sched2RegisteredCall));
 
   EXPECT_CALL(sched2, frameworkMessage(&driver2, _, _, _))
@@ -763,7 +762,7 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
 
   trigger resourceOffersCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -821,7 +820,7 @@ TEST(FaultToleranceTest, SlaveReregister)
 
   trigger resourceOffersCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))

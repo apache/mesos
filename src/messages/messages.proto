@@ -97,10 +97,12 @@ message ReregisterFrameworkMessage {
 
 message FrameworkRegisteredMessage {
   required FrameworkID framework_id = 1;
+  required MasterInfo master_info = 2;
 }
 
 message FrameworkReregisteredMessage {
   required FrameworkID framework_id = 1;
+  required MasterInfo master_info = 2;
 }
 
 message UnregisterFrameworkMessage {

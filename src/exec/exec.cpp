@@ -129,8 +129,7 @@ protected:
     VLOG(1) << "Executor registered on slave " << slaveId;
 
     this->slaveId = slaveId;
-    executor->registered(
-        driver, executorInfo, frameworkId, frameworkInfo, slaveId, slaveInfo);
+    executor->registered(driver, executorInfo, frameworkInfo, slaveInfo);
   }
 
   void runTask(const TaskInfo& task)
@@ -160,9 +159,9 @@ protected:
   }
 
   void frameworkMessage(const SlaveID& slaveId,
-			const FrameworkID& frameworkId,
-			const ExecutorID& executorId,
-			const string& data)
+                        const FrameworkID& frameworkId,
+                        const ExecutorID& executorId,
+                        const string& data)
   {
     if (aborted) {
       VLOG(1) << "Ignoring framework message because the driver is aborted!";

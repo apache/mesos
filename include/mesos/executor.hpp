@@ -81,15 +81,17 @@ public:
    * connect with Mesos. In particular, a scheduler can pass some
    * data to it's executors through the FrameworkInfo.ExecutorInfo's
    * data field.
-   * TODO(vinod): Add a new reregistered callback for when the executor
-   * re-connects with a restarted slave.
    */
   virtual void registered(ExecutorDriver* driver,
                           const ExecutorInfo& executorInfo,
-                          const FrameworkID& frameworkId,
                           const FrameworkInfo& frameworkInfo,
-                          const SlaveID& slaveId,
                           const SlaveInfo& slaveInfo) = 0;
+
+  /**
+   * Invoked when the executor re-registers with a restarted slave.
+   */
+  virtual void reregistered(ExecutorDriver* driver,
+                            const SlaveInfo& slaveInfo) = 0;
 
   /**
    * Invoked when a task has been launched on this executor (initiated
@@ -115,8 +117,13 @@ public:
    * executor. These messages are best effort; do not expect a
    * framework message to be retransmitted in any reliable fashion.
    */
-  virtual void frameworkMessage(ExecutorDriver* driver,
-				const std::string& data) = 0;
+    virtual void frameworkMessage(ExecutorDriver* driver,
+                                  const std::string& data) = 0;
+
+  /**
+   * Invoked when the executor has lost connection with its slave.
+   */
+  virtual void slaveLost(ExecutorDriver* driver) = 0;
 
   /**
    * Invoked when the executor should terminate all of it's currently

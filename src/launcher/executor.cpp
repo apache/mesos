@@ -89,13 +89,19 @@ public:
   virtual void registered(
       ExecutorDriver* driver,
       const ExecutorInfo& executorInfo,
-      const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const SlaveID& slaveId,
       const SlaveInfo& slaveInfo)
   {
     std::cout << "Registered executor on " << slaveInfo.hostname() << std::endl;
   }
+
+  virtual void reregistered(ExecutorDriver* driver,
+                            const SlaveInfo& slaveInfo)
+  {
+    std::cout << "Re-registered executor on " << slaveInfo.hostname()
+      << std::endl;
+  }
+
 
   virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
@@ -142,6 +148,8 @@ public:
   }
 
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data) {}
+
+  virtual void slaveLost(ExecutorDriver* driver) {}
 
   virtual void shutdown(ExecutorDriver* driver)
   {

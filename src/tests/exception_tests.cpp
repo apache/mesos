@@ -77,7 +77,7 @@ TEST(ExceptionTest, DeactiveFrameworkOnAbort)
 
   trigger schedRegisteredCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(Trigger(&schedRegisteredCall));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -118,7 +118,7 @@ TEST(ExceptionTest, DisallowSchedulerActionsOnAbort)
 
   trigger schedRegisteredCall;
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(Trigger(&schedRegisteredCall));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -156,7 +156,7 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 
   MesosSchedulerDriver driver(&sched, "", master);
 
-  EXPECT_CALL(sched, registered(&driver, _))
+  EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
   trigger resourceOffersCall;
