@@ -334,38 +334,38 @@ mesos_mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_mesos_LDADD = libmesos.la
 
 
-# We need to include the webui scripts so they get installed.
-WEBUISCRIPTS = webui/bottle-0.8.3/bottle.py		\
-               webui/common/webui_lib.py		\
-               webui/master/framework.tpl		\
-               webui/master/index.tpl			\
-               webui/master/webui.py			\
-               webui/slave/framework.tpl		\
-               webui/slave/executor.tpl			\
-               webui/slave/index.tpl			\
-               webui/slave/webui.py			\
-               webui/static/stylesheet.css
-
-nobase_dist_webui_DATA += $(WEBUISCRIPTS)
+# Need to specify where the webui "artifacts" should get installed.
+nobase_dist_webui_DATA += webui/bottle-0.8.3/bottle.py	\
+  webui/common/webui_lib.py webui/master/framework.tpl	\
+  webui/master/index.tpl webui/master/webui.py		\
+  webui/slave/framework.tpl webui/slave/executor.tpl	\
+  webui/slave/index.tpl webui/slave/webui.py		\
+  webui/static/stylesheet.css
 
 
-# We also need to include the killtree script.
+# And need to install the killtree script.
 dist_pkglibexec_SCRIPTS += scripts/killtree.sh
 
 
-# Deploy scripts.
-DEPLOYSCRIPTS = deploy/mesos-daemon.sh deploy/mesos-start-cluster.sh	\
-  deploy/mesos-start-masters.sh deploy/mesos-start-slaves.sh		\
-  deploy/mesos-stop-cluster.sh deploy/mesos-stop-masters.sh		\
-  deploy/mesos-stop-slaves.sh
-
-nodist_sbin_SCRIPTS += $(DEPLOYSCRIPTS)
+# And the deploy related stuff.
+nodist_sbin_SCRIPTS += deploy/mesos-daemon.sh			\
+  deploy/mesos-start-cluster.sh deploy/mesos-start-masters.sh	\
+  deploy/mesos-start-slaves.sh deploy/mesos-stop-cluster.sh	\
+  deploy/mesos-stop-masters.sh deploy/mesos-stop-slaves.sh
 
 nobase_pkglocalstate_DATA += deploy/mesos-deploy-env.sh.template
 
+# Need to explicitly add this because by default DATA files are not
+# included in distributions.
+EXTRA_DIST += deploy/mesos-deploy-env.sh.template
 
-# Configuration file.
+
+# And the configuration file.
 nobase_pkglocalstate_DATA += conf/mesos.conf.template
+
+# Need to explicitly add this because by default DATA files are not
+# included in distributions.
+EXTRA_DIST += conf/mesos.conf.template
 
 
 # Java related files are listed outside if HAS_JAVA so we can add them
@@ -692,6 +692,7 @@ EXTERNALSCRIPTS =						\
   tests/external/LxcIsolation/TwoSeparateTasks.sh		\
   tests/external/LxcIsolation/run_scheduled_memhog_test.sh	\
   tests/external/SampleFrameworks/CppFramework.sh		\
+  tests/external/SampleFrameworks/NoExecutorFramework.sh	\
   tests/external/SampleFrameworks/JavaExceptionFramework.sh	\
   tests/external/SampleFrameworks/JavaFramework.sh		\
   tests/external/SampleFrameworks/PythonFramework.sh		\

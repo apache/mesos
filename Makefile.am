@@ -20,7 +20,7 @@ AUTOMAKE_OPTIONS = foreign
 
 SUBDIRS = . third_party src
 
-EXTRA_DIST = bootstrap LICENSE NOTICE README support/colors.sh
+EXTRA_DIST =
 
 PHONY_TARGETS = # Initialized to empty.
 
@@ -30,11 +30,20 @@ PHONY_TARGETS = # Initialized to empty.
 all-recursive: src/python/setup.py src/java/mesos.pom
 
 
+# Standard stuff.
+EXTRA_DIST += bootstrap LICENSE NOTICE README support/colors.sh
+
+
+# Extra configure scripts.
+EXTRA_DIST += configure.amazon-linux-64 configure.centos-5.4-64		\
+  configure.macosx configure.ubuntu-lucid-64 configure.ubuntu-natty-64
+
+
 # We include support for Hadoop on Mesos in the distribution.
 EXTRA_DIST += hadoop/TUTORIAL.sh hadoop/hadoop-0.20.205.0.patch	\
-	hadoop/hadoop-0.20.205.0.tar.gz				\
-	hadoop/hadoop-0.20.205.0_conf_hadoop-env.sh.patch	\
-	hadoop/hadoop-0.20.205.0_conf_mapred-site.xml.patch
+  hadoop/hadoop-0.20.205.0.tar.gz				\
+  hadoop/hadoop-0.20.205.0_conf_hadoop-env.sh.patch		\
+  hadoop/hadoop-0.20.205.0_conf_mapred-site.xml.patch
 
 # Defines a target which runs the Hadoop tutorial to make sure
 # everything works. At some point we might want to do this
