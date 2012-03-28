@@ -22,7 +22,7 @@ private:
   ExecutorProcess& operator = (const ExecutorProcess&);
 
   // No arg invoke.
-  void invoke(const std::tr1::function<void()>& f) { f(); }
+  void invoke(const std::tr1::function<void(void)>& f) { f(); }
 
   // Args invoke.
 #define TEMPLATE(Z, N, DATA)                                   \

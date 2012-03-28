@@ -134,10 +134,11 @@ TEST(libprocess, spawn)
 class DispatchProcess : public Process<DispatchProcess>
 {
 public:
-  MOCK_METHOD0(func0, void());
+  MOCK_METHOD0(func0, void(void));
   MOCK_METHOD1(func1, bool(bool));
   MOCK_METHOD1(func2, Future<bool>(bool));
   MOCK_METHOD1(func3, int(int));
+  MOCK_METHOD2(func4, Future<bool>(bool, int));
 };
 
 
@@ -183,31 +184,66 @@ TEST(libprocess, defer)
 
   DispatchProcess process;
 
+  EXPECT_CALL(process, func0())
+    .Times(1);
+
   EXPECT_CALL(process, func1(_))
     .WillOnce(ReturnArg<0>());
 
   EXPECT_CALL(process, func2(_))
     .WillOnce(ReturnArg<0>());
 
+  EXPECT_CALL(process, func4(_, _))
+    .WillRepeatedly(ReturnArg<0>());
+
   PID<DispatchProcess> pid = spawn(&process);
 
   ASSERT_FALSE(!pid);
 
-  deferred<Future<bool>(void)> func1 =
-    defer(pid, &DispatchProcess::func1, true);
+  {
+    deferred<void(void)> func0 =
+      defer(pid, &DispatchProcess::func0);
+    func0();
+  }
 
   Future<bool> future;
 
-  future = func1();
+  {
+    deferred<Future<bool>(void)> func1 =
+      defer(pid, &DispatchProcess::func1, true);
+    future = func1();
+    EXPECT_TRUE(future.get());
+  }
 
-  EXPECT_TRUE(future.get());
+  {
+    deferred<Future<bool>(void)> func2 =
+      defer(pid, &DispatchProcess::func2, true);
+    future = func2();
+    EXPECT_TRUE(future.get());
+  }
 
-  deferred<Future<bool>(void)> func2 =
-    defer(pid, &DispatchProcess::func2, true);
-  
-  future = func2();
+  {
+    deferred<Future<bool>(void)> func4 =
+      defer(pid, &DispatchProcess::func4, true, 42);
+    future = func4();
+    EXPECT_TRUE(future.get());
+  }
 
-  EXPECT_TRUE(future.get());
+  {
+    deferred<Future<bool>(bool)> func4 =
+      defer(pid, &DispatchProcess::func4, std::tr1::placeholders::_1, 42);
+    future = func4(false);
+    EXPECT_FALSE(future.get());
+  }
+
+  {
+    deferred<Future<bool>(int)> func4 =
+      defer(pid, &DispatchProcess::func4, true, std::tr1::placeholders::_1);
+    future = func4(42);
+    EXPECT_TRUE(future.get());
+  }
+
+  // only take const &!
 
   terminate(pid);
   wait(pid);
