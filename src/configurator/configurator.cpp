@@ -30,6 +30,7 @@
 
 #include "common/foreach.hpp"
 #include "common/strings.hpp"
+#include "common/utils.hpp"
 
 using namespace mesos::internal;
 
@@ -66,8 +67,7 @@ Configurator::Configurator()
 {
   addOption<string>("conf",
                     "Specifies a config directory from which to\n"
-                    "read Mesos config files. The Mesos binaries\n"
-                    "use <install location>/conf by default");
+                    "read Mesos config files.");
 }
 
 
@@ -117,9 +117,15 @@ Configuration& Configurator::load(const map<string, string>& _params)
 
 void Configurator::loadConfigFileIfGiven(bool overwrite) {
   if (conf.contains("conf")) {
-    // If conf param is given, always look for a config file in that directory
-    string confDir = conf["conf"];
-    loadConfigFile(confDir + "/" + CONFIG_FILE_NAME, overwrite);
+    // If conf param is given, always look for a config file in that directory.
+    Try<string> path =
+      utils::os::realpath(conf["conf"] + "/" + CONFIG_FILE_NAME);
+
+    if (path.isError()) {
+      LOG(WARNING) << "Cannot load config file: " << path.error();
+    } else {
+      loadConfigFile(path.get(), overwrite);
+    }
   }
 }
 

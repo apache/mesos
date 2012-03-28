@@ -33,16 +33,19 @@ LEVELDB = third_party/leveldb
 ZOOKEEPER = third_party/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 LIBPROCESS = third_party/libprocess
 
-# Unfortunatley, 'pkglibexecdir' is not set before automake 1.11, so
-# we need to do it manually (unless we in the future assume an
-# automake version).
+# Unfortunatley, 'pkglibexecdir' and 'pkglocalstatedir' are not set
+# before automake 1.11, so we need to set them manually (until we in
+# the future assume an automake version).
 pkglibexecdir = $(libexecdir)/$(PACKAGE)
+pkglocalstatedir = $(localstatedir)/$(PACKAGE)
 
 # Set install directory for webui artifacts (i.e., the location where
-# anything with the webui_ prefix will get installed). Also note that
-# pkg*dir contains the package name in the path (in our case 'mesos')
-# which is valuable because we'd prefer /path/to/mesos/webui versus
-# something like /path/to/webui.
+# anything with the webui_ prefix in this file will get
+# installed). Also note that pkg*dir contains the package name in the
+# path (in our case 'mesos') which is valuable because we'd prefer
+# /path/to/mesos/webui versus something like /path/to/webui. Note that
+# datadir (e.g., /usr/local/share) is for read-only "data" and
+# localstatedir (e.g., /usr/local/var) is for modifiable "data".
 webuidir = $(pkgdatadir)
 
 # Used for building Python eggs.
@@ -60,8 +63,9 @@ sbin_PROGRAMS =
 bin_PROGRAMS =
 pkglibexec_PROGRAMS =
 dist_pkglibexec_SCRIPTS =
-webui_SCRIPTS =
 nobase_dist_webui_DATA =
+nodist_sbin_SCRIPTS =
+nobase_pkglocalstate_DATA =
 check_PROGRAMS =
 dist_check_SCRIPTS =
 check_SCRIPTS =
@@ -347,6 +351,21 @@ nobase_dist_webui_DATA += $(WEBUISCRIPTS)
 
 # We also need to include the killtree script.
 dist_pkglibexec_SCRIPTS += scripts/killtree.sh
+
+
+# Deploy scripts.
+DEPLOYSCRIPTS = deploy/mesos-daemon.sh deploy/mesos-start-cluster.sh	\
+  deploy/mesos-start-masters.sh deploy/mesos-start-slaves.sh		\
+  deploy/mesos-stop-cluster.sh deploy/mesos-stop-masters.sh		\
+  deploy/mesos-stop-slaves.sh
+
+nodist_sbin_SCRIPTS += $(DEPLOYSCRIPTS)
+
+nobase_pkglocalstate_DATA += deploy/mesos-deploy-env.sh.template
+
+
+# Configuration file.
+nobase_pkglocalstate_DATA += conf/mesos.conf.template
 
 
 # Java related files are listed outside if HAS_JAVA so we can add them

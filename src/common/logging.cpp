@@ -52,7 +52,9 @@ void Logging::init(const char* programName, const Configuration& conf)
 {
   // Set glog's parameters through Google Flags variables
   string logDir = getLogDir(conf);
-  if (logDir != "") {
+  if (logDir == "") {
+    FLAGS_logtostderr = true;
+  } else {
     if (mkdir(logDir.c_str(), 0755) < 0 && errno != EEXIST) {
       fatalerror("Failed to create log directory %s", logDir.c_str());
     }
@@ -67,7 +69,7 @@ void Logging::init(const char* programName, const Configuration& conf)
     google::SetStderrLogging(google::INFO);
   }
 
-  LOG(INFO) << "Logging to " << FLAGS_log_dir;
+  LOG(INFO) << "Logging to " << FLAGS_logtostderr ? "<stderr>" : FLAGS_log_dir;
 }
 
 

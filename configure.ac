@@ -85,7 +85,17 @@ AC_CONFIG_FILES([bin/gdb-mesos-local.sh], [chmod +x bin/gdb-mesos-local.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-master.sh], [chmod +x bin/gdb-mesos-master.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-slave.sh], [chmod +x bin/gdb-mesos-slave.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-tests.sh], [chmod +x bin/gdb-mesos-tests.sh])
+
+AC_CONFIG_FILES([src/deploy/mesos-daemon.sh])
+AC_CONFIG_FILES([src/deploy/mesos-start-cluster.sh])
+AC_CONFIG_FILES([src/deploy/mesos-start-masters.sh])
+AC_CONFIG_FILES([src/deploy/mesos-start-slaves.sh])
+AC_CONFIG_FILES([src/deploy/mesos-stop-cluster.sh])
+AC_CONFIG_FILES([src/deploy/mesos-stop-masters.sh])
+AC_CONFIG_FILES([src/deploy/mesos-stop-slaves.sh])
+
 AC_CONFIG_FILES([include/mesos/mesos.hpp])
+
 AC_CONFIG_FILES([src/java/generated/org/apache/mesos/MesosNativeLibrary.java])
 
 

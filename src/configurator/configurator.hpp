@@ -224,8 +224,7 @@ public:
    * @param argv is an array of c-strings containing parameters
    * @return the loaded Configuration object
    **/
-  Configuration& load(int argc,
-                      char** argv);
+  Configuration& load(int argc, char** argv);
 
 
   /**

@@ -116,10 +116,60 @@ Mesos (./hadoop/TUTORIAL.sh). Try it out!
 Installing
 ==========
 
-Note that 'make install' may require superuser privileges. Consider
-changing the installation prefix (i.e., the '--prefix=...'
-configuration option) or doing 'make install DESTDIR=...'.
+You can install the binaries and libraries with:
 
+  $ make install
+
+Note that this may require superuser privileges. You can change the
+installation prefix during configure by using the --prefix option, for
+example:
+
+  $ ./configure --prefix=/home/benh/mesos
+
+Then installation will occur in /home/benh/mesos.
+
+
+Running a Mesos Cluster
+==========================
+
+Included in an installation are some "deploy" scripts that can be used
+to start and stop a Mesos cluster. The scripts can only be used after
+installation (see the previous section on how to install without
+superuser privileges), and are installed by default in [prefix]/sbin
+(unless you set --sbindir or --exec-prefix during configuration). Note
+that the scripts expect the same installation directories on each host
+in the cluster. The scripts DO NOT copy any Mesos binaries, libraries,
+configuration files (or themselves) to other hosts in the cluster
+(it's expected that you'll do the installation yourself).
+
+The scripts assume the presence of a 'masters' and a 'slaves' file in
+[prefix]/var/mesos/deploy by default (unless you set --localstatedir
+during configuration). These files should contain a list of
+hostnames/IPs to be used (one per line) for running master(s) and
+slave(s) respectively.
+
+Configuration options for either the mesos-master or mesos-slave are
+expected to be set on each host before trying to start a cluster. The
+deploy scripts assume the configuration file will be located at
+[prefix]/var/mesos/conf/mesos.conf on all hosts. Note that you'll need
+to at least set the '--master' option on slave hosts!
+
+Options specific to running the "deploy" scripts (e.g., whether to use
+sudo, what ssh options to use when connecting to each host) can be set
+in [prefix]/var/mesos/deploy/mesos-deploy-env.sh.
+
+Once you've populated the 'masters' and 'slaves' file and set up
+configuration options on each host as appropriate you can start a
+cluster by doing:
+
+  $ [prefix]/sbin/mesos-start-cluster.sh
+
+And you can stop the cluster by doing:
+
+  $ [prefix]/sbin/mesos-stop-cluster.sh
+
+
+======================================================================
 
 As always, if you run into any issues please email:
 

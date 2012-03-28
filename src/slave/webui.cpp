@@ -40,7 +40,7 @@ void start(const process::PID<Slave>& slave, const Configuration& conf)
   args[0] = "--slave_port=" + utils::stringify(slave.port);
   args[1] = "--webui_port=" + conf.get("webui_port", "8081");
   args[2] = "--log_dir=" + conf.get("log_dir", FLAGS_log_dir);
-  args[3] = "--work_dir=" + conf.get("work_dir", "./work");
+  args[3] = "--work_dir=" + conf.get("work_dir", "/tmp/mesos");
 
   utils::webui::start(conf, "slave/webui.py", args);
 }

@@ -127,7 +127,7 @@ void Slave::registerOptions(Configurator* configurator)
   configurator->addOption<string>(
       "work_dir",
       "Where to place framework work directories\n"
-      "(default: ./work)");
+      "(default: /tmp/mesos)");
 
   configurator->addOption<string>(
       "hadoop_home",
@@ -1454,7 +1454,7 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
             << executorId << "' of framework " << frameworkId;
 
   std::ostringstream out(std::ios_base::app | std::ios_base::out);
-  out << conf.get("work_dir", "./work")
+  out << conf.get("work_dir", "/tmp/mesos")
       << "/slaves/" << id
       << "/frameworks/" << frameworkId
       << "/executors/" << executorId;
