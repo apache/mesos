@@ -1,3 +1,3 @@
 #!/bin/sh
 
-exec `dirname ${0}`/configure LDFLAGS=-lunwind-x86_64 JAVA_HOME=/usr/java/default ${@}
+exec `dirname ${0}`/configure LIBS=-lunwind-x86_64 JAVA_HOME=/usr/java/default ${@}
