@@ -26,6 +26,7 @@
 
 #include "common/build.hpp"
 #include "common/option.hpp"
+#include "common/strings.hpp"
 #include "common/try.hpp"
 #include "common/type_utils.hpp"
 #include "common/utils.hpp"
@@ -89,8 +90,38 @@ Slave::Slave(const Configuration& _conf,
     local(_local),
     isolationModule(_isolationModule)
 {
+  Try<long> cpus = utils::os::cpus();
+  Try<long> mem = utils::os::memory();
+
+  if (!cpus.isSome()) {
+    LOG(WARNING) << "Failed to auto-detect the number of cpus to use,"
+                 << " defaulting to 1";
+    cpus = Try<long>::some(1);
+  }
+
+  if (!mem.isSome()) {
+    LOG(WARNING) << "Failed to auto-detect the size of main memory,"
+                 << " defaulting to 1024 MB";
+    mem = Try<long>::some(1024);
+  } else {
+    // Convert to MB.
+    mem = mem.get() / 1048576;
+
+    // Leave 1 GB free if we have more than 1 GB, otherwise, use all!
+    // TODO(benh): Have better default scheme (e.g., % of mem not
+    // greater than 1 GB?)
+    if (mem.get() > 1024) {
+      mem = Try<long>::some(mem.get() - 1024);
+    }
+  }
+
+  Try<string> defaults =
+    strings::format("cpus:%d;mem:%d", cpus.get(), mem.get());
+
+  CHECK(defaults.isSome());
+
   resources =
-    Resources::parse(conf.get<string>("resources", "cpus:1;mem:1024"));
+    Resources::parse(conf.get<string>("resources", defaults.get()));
 
   attributes =
     Attributes::parse(conf.get<string>("attributes", ""));

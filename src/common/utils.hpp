@@ -42,6 +42,9 @@
 #include <glog/logging.h>
 
 #include <sys/stat.h>
+#ifdef __linux__
+#include <sys/sysinfo.h>
+#endif
 #include <sys/types.h>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -487,6 +490,28 @@ inline Try<int> shell(std::iostream* ios, const std::string& fmt, ...)
 inline int system(const std::string& command)
 {
   return ::system(command.c_str());
+}
+
+
+// Returns the total number of cpus (cores).
+inline Try<long> cpus()
+{
+  return sysconf(_SC_NPROCESSORS_ONLN);
+}
+
+
+// Returns the total size of main memory in bytes.
+inline Try<long> memory()
+{
+#ifdef __linux__
+  struct sysinfo info;
+  if (sysinfo(&info) != 0) {
+    return Try<long>::error(strerror(errno));
+  }
+  return info.totalram;
+#else
+  return Try<long>::error("Cannot determine the size of main memory");
+#endif
 }
 
 } // namespace os {

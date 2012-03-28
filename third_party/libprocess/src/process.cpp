@@ -414,8 +414,6 @@ static bool pending_timers = false;
 // Flag to indicate whether or to update the timer on async interrupt.
 static bool update_timer = false;
 
-const int NUMBER_OF_PROCESSING_THREADS = 4; // TODO(benh): Do 2x cores.
-
 
 // Thread local process pointer magic (constructed in
 // 'initialize'). We need the extra level of indirection from
@@ -1201,7 +1199,9 @@ void initialize(const string& delegate, bool initialize_glog)
   _process_ = new ThreadLocal<ProcessBase>(key);
 
   // Setup processing threads.
-  for (int i = 0; i < NUMBER_OF_PROCESSING_THREADS; i++) {
+  long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+
+  for (int i = 0; i < cpus; i++) {
     pthread_t thread; // For now, not saving handles on our threads.
     if (pthread_create(&thread, NULL, schedule, NULL) != 0) {
       LOG(FATAL) << "Failed to initialize, pthread_create";
@@ -1343,7 +1343,8 @@ void initialize(const string& delegate, bool initialize_glog)
     PLOG(FATAL) << "Failed to initialize, inet_ntop";
   }
 
-  VLOG(1) << "libprocess is initialized on " << temp << ":" << __port__;
+  VLOG(1) << "libprocess is initialized on " << temp << ":" << __port__
+          << " for " << cpus << " cpus";
 }
 
 
