@@ -27,11 +27,11 @@ import _mesos
 class Scheduler:
   def registered(self, driver, frameworkId, masterInfo): pass
   def reregistered(self, driver, masterInfo): pass
+  def disconnected(self, driver): pass
   def resourceOffers(self, driver, offers): pass
   def offerRescinded(self, driver, offerId): pass
   def statusUpdate(self, driver, status): pass
   def frameworkMessage(self, driver, message): pass
-  def masterLost(self, driver): pass
   def slaveLost(self, driver, slaveId): pass
   def executorLost(self, driver, executorId, slaveId, status): pass
 
@@ -62,10 +62,10 @@ class SchedulerDriver:
 class Executor:
   def registered(self, driver, executorInfo, frameworkInfo, slaveInfo): pass
   def reregistered(self, driver, slaveInfo): pass
+  def disconnected(self, driver): pass
   def launchTask(self, driver, task): pass
   def killTask(self, driver, taskId): pass
   def frameworkMessage(self, driver, message): pass
-  def slaveLost(self, driver): pass
   def shutdown(self, driver): pass
 
   # Default implementation of error() prints to stderr because we

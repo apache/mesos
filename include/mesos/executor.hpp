@@ -94,6 +94,12 @@ public:
                             const SlaveInfo& slaveInfo) = 0;
 
   /**
+   * Invoked when the executor becomes "disconnected" from the slave
+   * (e.g., the slave is being restarted due to an upgrade).
+   */
+  virtual void disconnected(ExecutorDriver* driver) = 0;
+
+  /**
    * Invoked when a task has been launched on this executor (initiated
    * via Scheduler::launchTasks). Note that this task can be realized
    * with a thread, a process, or some simple computation, however, no
@@ -119,11 +125,6 @@ public:
    */
     virtual void frameworkMessage(ExecutorDriver* driver,
                                   const std::string& data) = 0;
-
-  /**
-   * Invoked when the executor has lost connection with its slave.
-   */
-  virtual void slaveLost(ExecutorDriver* driver) = 0;
 
   /**
    * Invoked when the executor should terminate all of it's currently

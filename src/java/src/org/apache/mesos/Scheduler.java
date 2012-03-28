@@ -106,10 +106,10 @@ public interface Scheduler {
                         byte[] data);
 
   /**
-   * Invoked when the leading master is no longer active.
-   * Typically, this is followed by a leader election for a new master.
+   * Invoked when the scheduler becomes "disconnected" from the master
+   * (e.g., the master fails and another is taking over).
    */
-  void masterLost(SchedulerDriver driver);
+  void disconnected(SchedulerDriver driver);
 
   /**
    * Invoked when a slave has been determined unreachable (e.g.,

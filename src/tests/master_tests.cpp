@@ -699,13 +699,13 @@ TEST(MasterTest, MasterLost)
 
   MasterInfo masterInfo;
 
-  trigger registeredCall, masterLostCall;
+  trigger registeredCall, disconnectedCall;
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(Trigger(&registeredCall));
 
-  EXPECT_CALL(sched, masterLost(&driver))
-    .WillOnce(Trigger(&masterLostCall));
+  EXPECT_CALL(sched, disconnected(&driver))
+    .WillOnce(Trigger(&disconnectedCall));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return());
@@ -724,7 +724,7 @@ TEST(MasterTest, MasterLost)
   NoMasterDetectedMessage noMasterDetectedMsg;
   process::post(message.to, noMasterDetectedMsg);
 
-  WAIT_UNTIL(masterLostCall);
+  WAIT_UNTIL(disconnectedCall);
 
   driver.stop();
   driver.join();

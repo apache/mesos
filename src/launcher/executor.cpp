@@ -102,6 +102,7 @@ public:
       << std::endl;
   }
 
+  virtual void disconnected(ExecutorDriver* driver) {}
 
   virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
@@ -148,8 +149,6 @@ public:
   }
 
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data) {}
-
-  virtual void slaveLost(ExecutorDriver* driver) {}
 
   virtual void shutdown(ExecutorDriver* driver)
   {

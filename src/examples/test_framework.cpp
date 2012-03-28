@@ -59,6 +59,8 @@ public:
 
   virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo) {}
 
+  virtual void disconnected(SchedulerDriver* driver) {}
+
   virtual void resourceOffers(SchedulerDriver* driver,
                               const vector<Offer>& offers)
   {
@@ -141,8 +143,6 @@ public:
                                 const ExecutorID& executorId,
                                 const SlaveID& slaveId,
                                 const string& data) {}
-
-  virtual void masterLost(SchedulerDriver* driver) {}
 
   virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid) {}
 

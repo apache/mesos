@@ -116,6 +116,7 @@ public:
                                 const FrameworkID&,
                                 const MasterInfo&));
   MOCK_METHOD2(reregistered, void(SchedulerDriver*, const MasterInfo&));
+  MOCK_METHOD1(disconnected, void(SchedulerDriver*));
   MOCK_METHOD2(resourceOffers, void(SchedulerDriver*,
                                     const std::vector<Offer>&));
   MOCK_METHOD2(offerRescinded, void(SchedulerDriver*, const OfferID&));
@@ -124,7 +125,6 @@ public:
                                       const ExecutorID&,
                                       const SlaveID&,
                                       const std::string&));
-  MOCK_METHOD1(masterLost, void(SchedulerDriver*));
   MOCK_METHOD2(slaveLost, void(SchedulerDriver*, const SlaveID&));
   MOCK_METHOD4(executorLost, void(SchedulerDriver*,
                                   const ExecutorID&,
@@ -144,12 +144,11 @@ public:
                                 const ExecutorInfo&,
                                 const FrameworkInfo&,
                                 const SlaveInfo&));
-  MOCK_METHOD2(reregistered, void(ExecutorDriver*,
-                                  const SlaveInfo&));
+  MOCK_METHOD2(reregistered, void(ExecutorDriver*, const SlaveInfo&));
+  MOCK_METHOD1(disconnected, void(ExecutorDriver*));
   MOCK_METHOD2(launchTask, void(ExecutorDriver*, const TaskInfo&));
   MOCK_METHOD2(killTask, void(ExecutorDriver*, const TaskID&));
   MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const std::string&));
-  MOCK_METHOD1(slaveLost, void(ExecutorDriver*));
   MOCK_METHOD1(shutdown, void(ExecutorDriver*));
   MOCK_METHOD2(error, void(ExecutorDriver*, const std::string&));
 };

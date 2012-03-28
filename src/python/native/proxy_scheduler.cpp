@@ -108,6 +108,30 @@ cleanup:
 }
 
 
+void ProxyScheduler::disconnected(SchedulerDriver* driver)
+{
+  InterpreterLock lock;
+
+  PyObject* res = NULL;
+
+  res = PyObject_CallMethod(impl->pythonScheduler,
+                            (char*) "disconnected",
+                            (char*) "O",
+                            impl);
+  if (res == NULL) {
+    cerr << "Failed to call scheduler's disconnected" << endl;
+    goto cleanup;
+  }
+
+cleanup:
+  if (PyErr_Occurred()) {
+    PyErr_Print();
+    driver->abort();
+  }
+  Py_XDECREF(res);
+}
+
+
 void ProxyScheduler::resourceOffers(SchedulerDriver* driver,
                                     const vector<Offer>& offers)
 {
@@ -255,30 +279,6 @@ cleanup:
   }
   Py_XDECREF(eid);
   Py_XDECREF(sid);
-  Py_XDECREF(res);
-}
-
-
-void ProxyScheduler::masterLost(SchedulerDriver* driver)
-{
-  InterpreterLock lock;
-
-  PyObject* res = NULL;
-
-  res = PyObject_CallMethod(impl->pythonScheduler,
-                            (char*) "masterLost",
-                            (char*) "O",
-                            impl);
-  if (res == NULL) {
-    cerr << "Failed to call scheduler's masterLost" << endl;
-    goto cleanup;
-  }
-
-cleanup:
-  if (PyErr_Occurred()) {
-    PyErr_Print();
-    driver->abort();
-  }
   Py_XDECREF(res);
 }
 

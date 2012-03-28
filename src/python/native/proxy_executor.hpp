@@ -46,11 +46,11 @@ public:
                           const FrameworkInfo& frameworkInfo,
                           const SlaveInfo& slaveInfo);
   virtual void reregistered(ExecutorDriver* driver, const SlaveInfo& slaveInfo);
+  virtual void disconnected(ExecutorDriver* driver);
   virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task);
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId);
   virtual void frameworkMessage(ExecutorDriver* driver,
                                 const std::string& data);
-  virtual void slaveLost(ExecutorDriver* driver);
   virtual void shutdown(ExecutorDriver* driver);
   virtual void error(ExecutorDriver* driver, const std::string& message);
 

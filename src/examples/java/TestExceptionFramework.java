@@ -37,6 +37,9 @@ public class TestExceptionFramework {
     public void reregistered(SchedulerDriver driver, MasterInfo masterInfo) {}
 
     @Override
+    public void disconnected(SchedulerDriver driver) {}
+
+    @Override
     public void resourceOffers(SchedulerDriver driver,
                                List<Offer> offers) {}
 
@@ -51,9 +54,6 @@ public class TestExceptionFramework {
                                  ExecutorID executorId,
                                  SlaveID slaveId,
                                  byte[] data) {}
-
-    @Override
-    public void masterLost(SchedulerDriver driver) {}
 
     @Override
     public void slaveLost(SchedulerDriver driver, SlaveID slaveId) {}

@@ -53,6 +53,12 @@ public interface Executor {
   void reregistered(ExecutorDriver driver, SlaveInfo slaveInfo);
 
   /**
+   * Invoked when the executor becomes "disconnected" from the slave
+   * (e.g., the slave is being restarted due to an upgrade).
+   */
+  void disconnected(ExecutorDriver driver);
+
+  /**
    * Invoked when a task has been launched on this executor (initiated
    * via {@link Scheduler#launchTasks}. Note that this task can be
    * realized with a thread, a process, or some simple computation,
@@ -77,12 +83,6 @@ public interface Executor {
    * framework message to be retransmitted in any reliable fashion.
    */
   void frameworkMessage(ExecutorDriver driver, byte[] data);
-
-  /**
-   * Invoked when the executor has lost connection with its slave, for
-   * example, when the slave restarts during an upgrade.
-   */
-  void slaveLost(ExecutorDriver driver);
 
   /**
    * Invoked when the executor should terminate all of it's currently

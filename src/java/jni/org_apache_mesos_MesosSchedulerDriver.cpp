@@ -50,6 +50,7 @@ public:
                           const FrameworkID& frameworkId,
                           const MasterInfo& masterInfo);
   virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo);
+  virtual void disconnected(SchedulerDriver* driver);
   virtual void resourceOffers(SchedulerDriver* driver,
                               const vector<Offer>& offers);
   virtual void offerRescinded(SchedulerDriver* driver, const OfferID& offerId);
@@ -58,7 +59,6 @@ public:
                                 const ExecutorID& executorId,
                                 const SlaveID& slaveId,
                                 const string& data);
-  virtual void masterLost(SchedulerDriver* driver);
   virtual void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId);
   virtual void executorLost(SchedulerDriver* driver,
                             const ExecutorID& executorId,
@@ -135,6 +135,38 @@ void JNIScheduler::reregistered(SchedulerDriver* driver,
   env->ExceptionClear();
 
   env->CallVoidMethod(jscheduler, reregistered, jdriver, jmasterInfo);
+
+  if (env->ExceptionCheck()) {
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+    jvm->DetachCurrentThread();
+    driver->abort();
+    return;
+  }
+
+  jvm->DetachCurrentThread();
+}
+
+
+void JNIScheduler::disconnected(SchedulerDriver* driver)
+{
+  jvm->AttachCurrentThread((void**) &env, NULL);
+
+  jclass clazz = env->GetObjectClass(jdriver);
+
+  jfieldID scheduler = env->GetFieldID(clazz, "scheduler", "Lorg/apache/mesos/Scheduler;");
+  jobject jscheduler = env->GetObjectField(jdriver, scheduler);
+
+  clazz = env->GetObjectClass(jscheduler);
+
+  // scheduler.disconnected(driver);
+  jmethodID disconnected =
+    env->GetMethodID(clazz, "disconnected",
+         "(Lorg/apache/mesos/SchedulerDriver;)V");
+
+  env->ExceptionClear();
+
+  env->CallVoidMethod(jscheduler, disconnected, jdriver);
 
   if (env->ExceptionCheck()) {
     env->ExceptionDescribe();
@@ -300,38 +332,6 @@ void JNIScheduler::frameworkMessage(SchedulerDriver* driver,
 
   env->CallVoidMethod(jscheduler, frameworkMessage,
 		      jdriver, jexecutorId, jslaveId, jdata);
-
-  if (env->ExceptionCheck()) {
-    env->ExceptionDescribe();
-    env->ExceptionClear();
-    jvm->DetachCurrentThread();
-    driver->abort();
-    return;
-  }
-
-  jvm->DetachCurrentThread();
-}
-
-
-void JNIScheduler::masterLost(SchedulerDriver* driver)
-{
-  jvm->AttachCurrentThread((void**) &env, NULL);
-
-  jclass clazz = env->GetObjectClass(jdriver);
-
-  jfieldID scheduler = env->GetFieldID(clazz, "scheduler", "Lorg/apache/mesos/Scheduler;");
-  jobject jscheduler = env->GetObjectField(jdriver, scheduler);
-
-  clazz = env->GetObjectClass(jscheduler);
-
-  // scheduler.masterLost(driver);
-  jmethodID masterLost =
-    env->GetMethodID(clazz, "masterLost",
-         "(Lorg/apache/mesos/SchedulerDriver;)V");
-
-  env->ExceptionClear();
-
-  env->CallVoidMethod(jscheduler, masterLost, jdriver);
 
   if (env->ExceptionCheck()) {
     env->ExceptionDescribe();

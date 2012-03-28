@@ -50,6 +50,9 @@ public class TestFramework {
     public void reregistered(SchedulerDriver driver, MasterInfo masterInfo) {}
 
     @Override
+    public void disconnected(SchedulerDriver driver) {}
+
+    @Override
     public void resourceOffers(SchedulerDriver driver,
                                List<Offer> offers) {
       for (Offer offer : offers) {
@@ -108,9 +111,6 @@ public class TestFramework {
                                  ExecutorID executorId,
                                  SlaveID slaveId,
                                  byte[] data) {}
-
-    @Override
-    public void masterLost(SchedulerDriver driver) {}
 
     @Override
     public void slaveLost(SchedulerDriver driver, SlaveID slaveId) {}

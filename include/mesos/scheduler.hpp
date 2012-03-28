@@ -87,6 +87,12 @@ public:
                             const MasterInfo& masterInfo) = 0;
 
   /**
+   * Invoked when the scheduler becomes "disconnected" from the master
+   * (e.g., the master fails and another is taking over).
+   */
+  virtual void disconnected(SchedulerDriver* driver) = 0;
+
+  /**
    * Invoked when resources have been offered to this framework. A
    * single offer will only contain resources from a single slave.
    * Resources associated with an offer will not be re-offered to
@@ -137,12 +143,6 @@ public:
                                 const ExecutorID& executorId,
                                 const SlaveID& slaveId,
                                 const std::string& data) = 0;
-
-  /**
-   * Invoked when the leading master is no longer active.
-   * Typically, this is followed by a leader election for a new master.
-   */
-  virtual void masterLost(SchedulerDriver* driver) = 0;
 
   /**
    * Invoked when a slave has been determined unreachable (e.g.,

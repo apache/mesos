@@ -35,6 +35,9 @@ public class TestExecutor implements Executor {
   public void reregistered(ExecutorDriver driver, SlaveInfo executorInfo) {}
 
   @Override
+  public void disconnected(ExecutorDriver driver) {}
+
+  @Override
   public void launchTask(final ExecutorDriver driver, final TaskInfo task) {
     new Thread() { public void run() {
       try {
@@ -68,9 +71,6 @@ public class TestExecutor implements Executor {
 
   @Override
   public void frameworkMessage(ExecutorDriver driver, byte[] data) {}
-
-  @Override
-  public void slaveLost(ExecutorDriver driver) {}
 
   @Override
   public void shutdown(ExecutorDriver driver) {}

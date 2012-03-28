@@ -43,6 +43,9 @@ public class TestMultipleExecutorsFramework {
     public void reregistered(SchedulerDriver driver, MasterInfo masterInfo) {}
 
     @Override
+    public void disconnected(SchedulerDriver driver) {}
+
+    @Override
     public void resourceOffers(SchedulerDriver driver,
                                List<Offer> offers) {
       try {
@@ -165,9 +168,6 @@ public class TestMultipleExecutorsFramework {
                                  ExecutorID executorId,
                                  SlaveID slaveId,
                                  byte[] data) {}
-
-    @Override
-    public void masterLost(SchedulerDriver driver) {}
 
     @Override
     public void slaveLost(SchedulerDriver driver, SlaveID slaveId) {}

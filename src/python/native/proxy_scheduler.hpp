@@ -46,6 +46,7 @@ public:
                           const MasterInfo& masterInfo);
   virtual void reregistered(SchedulerDriver* driver,
                             const MasterInfo& masterInfo);
+  virtual void disconnected(SchedulerDriver* driver);
   virtual void resourceOffers(SchedulerDriver* driver,
                               const std::vector<Offer>& offers);
   virtual void offerRescinded(SchedulerDriver* driver, const OfferID& offerId);
@@ -54,7 +55,6 @@ public:
                                 const ExecutorID& executorId,
                                 const SlaveID& slaveId,
                                 const std::string& data);
-  virtual void masterLost(SchedulerDriver* driver);
   virtual void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId);
   virtual void executorLost(SchedulerDriver* driver,
                             const ExecutorID& executorId,

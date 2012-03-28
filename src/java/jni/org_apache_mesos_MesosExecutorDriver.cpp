@@ -45,10 +45,10 @@ public:
                           const FrameworkInfo& frameworkInfo,
                           const SlaveInfo& slaveInfo);
   virtual void reregistered(ExecutorDriver* driver, const SlaveInfo& slaveInfo);
+  virtual void disconnected(ExecutorDriver* driver);
   virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task);
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId);
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data);
-  virtual void slaveLost(ExecutorDriver* driver);
   virtual void shutdown(ExecutorDriver* driver);
   virtual void error(ExecutorDriver* driver, const string& message);
 
@@ -124,6 +124,38 @@ void JNIExecutor::reregistered(ExecutorDriver* driver,
   env->ExceptionClear();
 
   env->CallVoidMethod(jexecutor, reregistered, jdriver, jslaveInfo);
+
+  if (env->ExceptionCheck()) {
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+    jvm->DetachCurrentThread();
+    driver->abort();
+    return;
+  }
+
+  jvm->DetachCurrentThread();
+}
+
+
+void JNIExecutor::disconnected(ExecutorDriver* driver)
+{
+  jvm->AttachCurrentThread((void**) &env, NULL);
+
+  jclass clazz = env->GetObjectClass(jdriver);
+
+  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
+  jobject jexecutor = env->GetObjectField(jdriver, executor);
+
+  clazz = env->GetObjectClass(jexecutor);
+
+  // executor.disconnected(driver);
+  jmethodID disconnected =
+    env->GetMethodID(clazz, "disconnected",
+         "(Lorg/apache/mesos/ExecutorDriver;)V");
+
+  env->ExceptionClear();
+
+  env->CallVoidMethod(jexecutor, disconnected, jdriver);
 
   if (env->ExceptionCheck()) {
     env->ExceptionDescribe();
@@ -231,38 +263,6 @@ void JNIExecutor::frameworkMessage(ExecutorDriver* driver, const string& data)
   env->ExceptionClear();
 
   env->CallVoidMethod(jexecutor, frameworkMessage, jdriver, jdata);
-
-  if (env->ExceptionCheck()) {
-    env->ExceptionDescribe();
-    env->ExceptionClear();
-    jvm->DetachCurrentThread();
-    driver->abort();
-    return;
-  }
-
-  jvm->DetachCurrentThread();
-}
-
-
-void JNIExecutor::slaveLost(ExecutorDriver* driver)
-{
-  jvm->AttachCurrentThread((void**) &env, NULL);
-
-  jclass clazz = env->GetObjectClass(jdriver);
-
-  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
-  jobject jexecutor = env->GetObjectField(jdriver, executor);
-
-  clazz = env->GetObjectClass(jexecutor);
-
-  // executor.slaveLost(driver);
-  jmethodID slaveLost =
-    env->GetMethodID(clazz, "slaveLost",
-         "(Lorg/apache/mesos/ExecutorDriver;)V");
-
-  env->ExceptionClear();
-
-  env->CallVoidMethod(jexecutor, slaveLost, jdriver);
 
   if (env->ExceptionCheck()) {
     env->ExceptionDescribe();

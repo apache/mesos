@@ -161,7 +161,7 @@ protected:
     connected = false;
     master = UPID();
 
-    scheduler->masterLost(driver);
+    scheduler->disconnected(driver);
   }
 
   void registered(const FrameworkID& frameworkId, const MasterInfo& masterInfo)

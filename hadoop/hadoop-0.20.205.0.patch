@@ -252,6 +252,9 @@ index 0000000..e369f39
 +  public void reregistered(ExecutorDriver driver, SlaveInfo slaveInfo) {}
 +
 +  @Override
++  public void disconnected(ExecutorDriver driver) {}
++
++  @Override
 +  public void launchTask(ExecutorDriver d, TaskInfo task) {
 +    LOG.info("Asked to launch Mesos task " + task.getTaskId().getValue());
 +    activeMesosTasks.add(task.getTaskId());
@@ -287,9 +290,6 @@ index 0000000..e369f39
 +          "Failed to deserialize HadoopFrameworkMessage", e);
 +    }
 +  }
-+
-+  @Override
-+  public void slaveLost(ExecutorDriver driver) {}
 +
 +  public void statusUpdate(Task task, TaskStatus status) {
 +    // There are some tasks that get launched implicitly (e.g., the
@@ -531,6 +531,9 @@ index 0000000..312cfdb
 +
 +  @Override
 +  public void reregistered(SchedulerDriver driver, MasterInfo masterInfo) {}
++
++  @Override
++  public void disconnected(SchedulerDriver d) {}
 +
 +  public void cleanUp() {
 +    running = false;
@@ -1039,9 +1042,6 @@ index 0000000..312cfdb
 +  public void frameworkMessage(SchedulerDriver d, ExecutorID eId, SlaveID sId, byte[] message) {
 +    // TODO: Respond to E2S_KILL_REQUEST message by killing a task
 +  }
-+
-+  @Override
-+  public void masterLost(SchedulerDriver d) {}
 +
 +  @Override
 +  public void slaveLost(SchedulerDriver d, SlaveID slaveId) {}

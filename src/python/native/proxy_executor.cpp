@@ -113,6 +113,26 @@ cleanup:
 }
 
 
+void ProxyExecutor::disconnected(ExecutorDriver* driver)
+{
+  InterpreterLock lock;
+  PyObject* res = PyObject_CallMethod(impl->pythonExecutor,
+                            (char*) "disconnected",
+                            (char*) "O",
+                            impl);
+  if (res == NULL) {
+    cerr << "Failed to call executor's disconnected" << endl;
+    goto cleanup;
+  }
+cleanup:
+  if (PyErr_Occurred()) {
+    PyErr_Print();
+    driver->abort();
+  }
+  Py_XDECREF(res);
+}
+
+
 void ProxyExecutor::launchTask(ExecutorDriver* driver,
                                const TaskInfo& task)
 {
@@ -196,26 +216,6 @@ void ProxyExecutor::frameworkMessage(ExecutorDriver* driver,
     goto cleanup;
   }
 
-cleanup:
-  if (PyErr_Occurred()) {
-    PyErr_Print();
-    driver->abort();
-  }
-  Py_XDECREF(res);
-}
-
-
-void ProxyExecutor::slaveLost(ExecutorDriver* driver)
-{
-  InterpreterLock lock;
-  PyObject* res = PyObject_CallMethod(impl->pythonExecutor,
-                            (char*) "slaveLost",
-                            (char*) "O",
-                            impl);
-  if (res == NULL) {
-    cerr << "Failed to call executor's slaveLost" << endl;
-    goto cleanup;
-  }
 cleanup:
   if (PyErr_Occurred()) {
     PyErr_Print();

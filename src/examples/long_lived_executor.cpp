@@ -72,6 +72,8 @@ public:
     cout << "Re-registered executor on " << slaveInfo.hostname() << endl;
   }
 
+  virtual void disconnected(ExecutorDriver* driver) {}
+
   virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
     cout << "Starting task " << task.task_id().value() << endl;
@@ -99,7 +101,6 @@ public:
 
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId) {}
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data) {}
-  virtual void slaveLost(ExecutorDriver* driver) {}
   virtual void shutdown(ExecutorDriver* driver) {}
   virtual void error(ExecutorDriver* driver, const string& message) {}
 };
