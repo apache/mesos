@@ -156,7 +156,7 @@ case "${target_os}" in
     echo Setting up build environment for ${target_cpu} ${target_os}
     echo ===========================================================
     OS_NAME=linux
-    LIBS="-lrt"
+    LIBS="$LIBS -lrt"
     ;;
   darwin*)
     echo ===========================================================
@@ -173,7 +173,7 @@ case "${target_os}" in
     CXX=g++-4.3.2
     CFLAGS="$CFLAGS -pthreads -march=i586"
     CXXFLAGS="$CXXFLAGS -pthreads -march=i586"
-    LIBS="-lsocket -lnsl -lproject -lproc"
+    LIBS="$LIBS -lsocket -lnsl -lproject -lproc"
     ;;
   *)
     AC_MSG_ERROR("Mesos is currently unsupported on your platform.")
