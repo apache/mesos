@@ -1,0 +1,36 @@
+#!/bin/sh
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+
+DEPLOY_DIR=@localstatedir@/@PACKAGE@/deploy
+
+# Pull in deploy specific options.
+test -e ${DEPLOY_DIR}/mesos-deploy-env.sh && \
+  . ${DEPLOY_DIR}/mesos-deploy-env.sh
+
+# Find the list of slaves.
+SLAVES_FILE="${DEPLOY_DIR}/slaves"
+if test ! -e ${SLAVES_FILE}; then
+  echo "Failed to find ${SLAVES_FILE}"
+  exit 1
+fi
+
+SLAVES=`cat ${SLAVES_FILE}`
+
+daemon="@sbindir@/mesos-daemon.sh"
+
+# Add sudo if requested.
+if test "x${DEPLOY_WITH_SUDO}" = "x1"; then
+  daemon="sudo ${daemon}"
+fi
+
+# Launch slaves.
+for slave in ${SLAVES}; do
+  echo "Starting mesos-slave on ${slave}"
+  echo ssh ${SSH_OPTS} ${slave} "${daemon} mesos-slave </dev/null >/dev/null"
+  ssh ${SSH_OPTS} ${slave} "${daemon} mesos-slave </dev/null >/dev/null" &
+  sleep 0.1
+done
+
+wait # Wait for all the ssh's to finish.

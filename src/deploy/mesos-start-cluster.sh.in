@@ -1,0 +1,37 @@
+#!/bin/sh
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+
+DEPLOY_DIR=@localstatedir@/@PACKAGE@/deploy
+
+# Pull in deploy specific options.
+test -e ${DEPLOY_DIR}/mesos-deploy-env.sh && \
+  . ${DEPLOY_DIR}/mesos-deploy-env.sh
+
+function usage() {
+  echo "Usage: mesos-start-cluster.sh [-h] [-s]"
+  echo " -h          display this message"
+  echo " -s          use sudo to start mesos-master and mesos-slave"
+  if test ${#} -gt 0; then
+    echo
+    echo "${@}"
+  fi
+  exit 1
+}
+
+while getopts "hs" opt
+do
+  case ${opt} in
+    h) usage ;;
+    s) export DEPLOY_WITH_SUDO=1 ;;
+    *) usage "Invalid option: -${OPTARG}" ;;
+  esac
+done
+
+@sbindir@/mesos-start-masters.sh && sleep 1 && @sbindir@/mesos-start-slaves.sh
+
+# TODO(benh): Check the health of the masters (and possibly slaves)
+# and print the masters webui address (or just the leading master).
+
+echo "Everything's started!"

@@ -1,0 +1,28 @@
+#!/bin/sh
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+
+function usage() {
+  echo "Usage: mesos-stop-cluster.sh [-h] [-s]"
+  echo " -h          display this message"
+  echo " -s          use sudo to stop mesos-master and mesos-slave"
+  if test ${#} -gt 0; then
+    echo
+    echo "${@}"
+  fi
+  exit 1
+}
+
+while getopts "hs" opt
+do
+  case ${opt} in
+    h) usage ;;
+    s) export DEPLOY_WITH_SUDO=1 ;;
+    *) usage "Invalid option: -${OPTARG}" ;;
+  esac
+done
+
+@sbindir@/mesos-stop-slaves.sh && sleep 1 && @sbindir@/mesos-stop-masters.sh
+
+echo "Everything's stopped!"

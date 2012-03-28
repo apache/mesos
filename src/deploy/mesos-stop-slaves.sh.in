@@ -1,0 +1,32 @@
+#!/bin/sh
+
+prefix=@prefix@
+DEPLOY_DIR=@localstatedir@/@PACKAGE@/deploy
+
+# Pull in deploy specific options.
+test -e ${DEPLOY_DIR}/mesos-deploy-env.sh && \
+  . ${DEPLOY_DIR}/mesos-deploy-env.sh
+
+# Find the list of slaves.
+SLAVES_FILE="${DEPLOY_DIR}/slaves"
+if test ! -e ${SLAVES_FILE}; then
+  echo "Failed to find ${SLAVES_FILE}"
+  exit 1
+fi
+
+SLAVES=`cat ${SLAVES_FILE}`
+
+killall="killall"
+
+# Add sudo if requested.
+if test "x${DEPLOY_WITH_SUDO}" = "x1"; then
+  killall="sudo ${killall}"
+fi
+
+for slave in ${SLAVES}; do
+  echo "Stopping mesos-slave on ${slave}"
+  ssh ${SSH_OPTS} ${slave} "${killall} mesos-slave" &
+  sleep 0.1
+done
+
+wait # Wait for all the ssh's to finish.

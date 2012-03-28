@@ -1,0 +1,14 @@
+#!/bin/sh
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+
+# Increase the default number of open file descriptors.
+ulimit -n 8192
+
+PROGRAM=${1}
+
+shift # Remove PROGRAM from the argument list (since we pass ${@} below).
+
+nohup @sbindir@/${PROGRAM} \
+  --conf=@localstatedir@/mesos/conf ${@} </dev/null >/dev/null 2>&1 &
