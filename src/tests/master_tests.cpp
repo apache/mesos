@@ -457,7 +457,8 @@ TEST(MasterTest, MultipleExecutors)
 
   ASSERT_NE(0, offers.size());
 
-  ExecutorInfo executor1 = CREATE_EXECUTOR_INFO(executorId1, "exit 1");
+  ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
+  executor1 = CREATE_EXECUTOR_INFO(executorId1, "exit 1");
 
   TaskInfo task1;
   task1.set_name("");
@@ -466,7 +467,8 @@ TEST(MasterTest, MultipleExecutors)
   task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
   task1.mutable_executor()->MergeFrom(executor1);
 
-  ExecutorInfo executor2 = CREATE_EXECUTOR_INFO(executorId2, "exit 1");
+  ExecutorInfo executor2; // Bug in gcc 4.1.*, must assign on next line.
+  executor2 = CREATE_EXECUTOR_INFO(executorId2, "exit 1");
 
   TaskInfo task2;
   task2.set_name("");

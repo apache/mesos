@@ -233,7 +233,8 @@ TEST(FaultToleranceTest, SchedulerFailover)
 
   MockScheduler sched2;
 
-  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId);
 
   MesosSchedulerDriver driver2(&sched2, framework2, master);
@@ -581,7 +582,8 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   MockScheduler sched2;
 
-  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId);
 
   MesosSchedulerDriver driver2(&sched2, framework2, master);
@@ -702,7 +704,8 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   MockScheduler sched2;
 
-  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId);
 
   MesosSchedulerDriver driver2(&sched2, framework2, master);
