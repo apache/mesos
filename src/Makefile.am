@@ -204,7 +204,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	tests/base_zookeeper_test.hpp tests/utils.hpp			\
 	tests/zookeeper_server.hpp zookeeper/authentication.hpp		\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
-	zookeeper/zookeeper.hpp
+	zookeeper/zookeeper.hpp zookeeper/url.hpp
 
 libmesos_no_third_party_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
