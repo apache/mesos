@@ -69,7 +69,7 @@ void Logging::init(const char* programName, const Configuration& conf)
     google::SetStderrLogging(google::INFO);
   }
 
-  LOG(INFO) << "Logging to " << FLAGS_logtostderr ? "<stderr>" : FLAGS_log_dir;
+  LOG(INFO) << "Logging to " << (FLAGS_logtostderr ? "<stderr>" : FLAGS_log_dir);
 }
 
 

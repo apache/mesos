@@ -21,12 +21,8 @@
 
 MESOS_WEBUI_DIR=@abs_top_srcdir@/src/webui
 MESOS_LAUNCHER_DIR=@abs_top_builddir@/src
-MESOS_LOG_DIR=${MESOS_LOG_DIR:-/var/tmp/mesos-dev-logs}
-MESOS_WORK_DIR=${MESOS_WORK_DIR:-/var/tmp/mesos-dev-work}
 MESOS_KILLTREE=@abs_top_srcdir@/src/scripts/killtree.sh
 
 export MESOS_WEBUI_DIR
 export MESOS_LAUNCHER_DIR
-export MESOS_LOG_DIR
-export MESOS_WORK_DIR
 export MESOS_KILLTREE

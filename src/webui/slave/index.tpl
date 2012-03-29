@@ -42,8 +42,12 @@
 
 <p>
   Log:
+% if log_dir != "":
   <a href="/log/INFO/100">[last 100 lines]</a>
   <a href="/log/INFO">[full]</a>
+% else:
+  Logging to a file is not enabled, please set the 'log_dir' option.
+% end
 </p>
 
 <h2>Frameworks</h2>

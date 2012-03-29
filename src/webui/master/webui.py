@@ -48,7 +48,7 @@ webui_dir = os.path.abspath(os.path.dirname(sys.argv[0]) + '/..')
 @route('/')
 def index():
   bottle.TEMPLATES.clear() # For rapid development
-  return template("index", master_port = master_port)
+  return template("index", master_port = master_port, log_dir = log_dir)
 
 
 @route('/framework/:id#[0-9-]*#')
