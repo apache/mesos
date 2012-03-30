@@ -172,43 +172,44 @@ Value::Scalar& operator -= (Value::Scalar& left, const Value::Scalar& right)
   return left;
 }
 
+namespace ranges {
+
+static void add(Value::Ranges* result, int64_t begin, int64_t end)
+{
+  if (begin > end) {
+    return;
+  }
+  Value::Range* range = result->add_range();
+  range->set_begin(begin);
+  range->set_end(end);
+}
+
+}
 
 static void coalesce(Value::Ranges* ranges, const Value::Range& range)
 {
   // Note that we assume that ranges has already been coalesced.
 
-  bool coalesced = false;
+  Value::Ranges result;
+  Value::Range temp = range;
 
   for (int i = 0; i < ranges->range_size(); i++) {
-    int64_t begin = ranges->range(i).begin();
-    int64_t end = ranges->range(i).end();
+    const Value::Range& current = ranges->range(i);
 
-    if (begin <= range.begin() && range.end() <= end) {
-      // Ignore range since it is subsumed by a range in ranges.
-      coalesced = true;
-      break;
-    } else if (begin <= range.begin() && end < range.end()) {
-      // Grow the end of the range in ranges.
-      ranges->mutable_range(i)->set_end(range.end());
-      coalesced = true;
-      break;
-    } else if (range.begin() < begin && range.end() <= end) {
-      // Grow the beginning of the range in ranges.
-      ranges->mutable_range(i)->set_begin(range.begin());
-      coalesced = true;
-      break;
-    } else if (range.begin() < begin && end < range.end()) {
-      // Replace (grow both the beginning and the end) of the range in ranges.
-      ranges->mutable_range(i)->set_begin(range.begin());
-      ranges->mutable_range(i)->set_end(range.end());
-      coalesced = true;
-      break;
+    // Check if current and range overlap. Note, we only need to
+    // compare with range and not with temp to check for overlap
+    // because we expect ranges to be coalesced to begin with!
+    if (current.begin() <= range.end() && current.end() >= range.begin() ) {
+      // Update temp with new boundaries.
+      temp.set_begin(std::min(range.begin(), current.begin()));
+      temp.set_end(std::max(range.end(), current.end()));
+    } else { // No overlap.
+      result.add_range()->MergeFrom(current);
     }
   }
 
-  if (!coalesced) {
-    ranges->add_range()->MergeFrom(range);
-  }
+  result.add_range()->MergeFrom(temp);
+  *ranges = result;
 }
 
 
@@ -219,36 +220,44 @@ static void remove(Value::Ranges* ranges, const Value::Range& range)
   Value::Ranges result;
 
   for (int i = 0; i < ranges->range_size(); i++) {
-    int64_t begin = ranges->range(i).begin();
-    int64_t end = ranges->range(i).end();
+    const Value::Range& current = ranges->range(i);
 
-    if (begin == range.begin() && range.end() == end) {
-      // Remove range from ranges, but keep everything else.
-      for (int j = i + 1; j < ranges->range_size(); j++) {
-        result.add_range()->MergeFrom(ranges->range(j));
-      }
-      break;
-    } else if (begin <= range.begin() && range.end() < end) {
-      // Shrink range in ranges.
-      Value::Range* temp = result.add_range();
-      temp->set_begin(range.end() + 1);
-      temp->set_end(end);
-      break;
-    } else if (begin < range.begin() && range.end() >= end) {
-      // Shrink end of range in ranges.
-      Value::Range* temp = result.add_range();
-      temp->set_begin(begin);
-      temp->set_end(range.begin() - 1);
-      break;
-    } else if (begin < range.begin() && range.end() < end) {
-      // Split range in ranges.
-      Value::Range* temp = result.add_range();
-      temp->set_begin(begin);
-      temp->set_end(range.begin() - 1);
-      temp = result.add_range();
-      temp->set_begin(range.end() + 1);
-      temp->set_end(end);
-      break;
+    // Note that these if/else if conditionals are in a particular
+    // order. In particular, the last two assume that the "subsumes"
+    // checks have already occured.
+    if (range.begin() <= current.begin() && range.end() >= current.end()) {
+      // Range subsumes current.
+      // current:  |     |
+      // range:  |         |
+      // range:  |       |
+      // range:    |       |
+      // range:    |     |
+    } else if (range.begin() >= current.begin() && range.end() <= current.end()) {
+      // Range is subsumed by current.
+      // current:  |     |
+      // range:      | |
+      // range:    |   |
+      // range:      |   |
+      ranges::add(&result, current.begin(), range.begin() - 1);
+      ranges::add(&result, range.end() + 1, current.end());
+    } else if (range.begin() <= current.begin() && range.end() >= current.begin()) {
+      // Range overlaps to the left.
+      // current:  |     |
+      // range:  |     |
+      // range:  | |
+      ranges::add(&result, range.end() + 1, current.end());
+    } else if (range.begin() <= current.end() && range.end() >= current.end()) {
+      // Range overlaps to the right.
+      // current:  |     |
+      // range:      |      |
+      // range:          |  |
+      ranges::add(&result, current.begin(), range.begin() - 1);
+    } else {
+      // Range doesn't overlap current.
+      // current:        |   |
+      // range:   |   |
+      // range:                |   |
+      ranges::add(&result, current.begin(), current.end());
     }
   }
 

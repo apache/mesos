@@ -212,7 +212,7 @@ public:
 
     foreach (const Resource& resource, resources) {
       if (resource.name() == that.name() &&
-	resource.type() == that.type()) {
+          resource.type() == that.type()) {
         result.resources.Add()->MergeFrom(resource + that);
         added = true;
       } else {
@@ -233,7 +233,7 @@ public:
 
     foreach (const Resource& resource, resources) {
       if (resource.name() == that.name() &&
-	resource.type() == that.type()) {
+          resource.type() == that.type()) {
         result.resources.Add()->MergeFrom(resource - that);
       } else {
         result.resources.Add()->MergeFrom(resource);

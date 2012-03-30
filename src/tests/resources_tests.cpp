@@ -264,9 +264,24 @@ TEST(ResourcesTest, RangesAddition)
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
-  EXPECT_EQ(1, ranges.range_size());
-  EXPECT_EQ(10000, ranges.range(0).begin());
-  EXPECT_EQ(50000, ranges.range(0).end());
+  EXPECT_EQ(values::parse("[10000-50000]").get().ranges(), ranges);
+}
+
+
+TEST(ResourcesTest, RangesAddition2)
+{
+  Resource ports1 = Resources::parse("ports", "[1-10, 5-30, 50-60]");
+  Resource ports2 = Resources::parse("ports", "[1-65, 70-80]");
+
+  Resources r;
+  r += ports1;
+  r += ports2;
+
+  EXPECT_EQ(1, r.size());
+
+  const Value::Ranges& ranges = r.get("ports", Value::Ranges());
+
+  EXPECT_EQ(values::parse("[1-65, 70-80]").get().ranges(), ranges);
 }
 
 
@@ -283,9 +298,7 @@ TEST(ResourcesTest, RangesSubtraction)
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
-  EXPECT_EQ(1, ranges.range_size());
-  EXPECT_EQ(20001, ranges.range(0).begin());
-  EXPECT_EQ(29999, ranges.range(0).end());
+  EXPECT_EQ(values::parse("[20001-29999]").get().ranges(), ranges);
 }
 
 
@@ -302,9 +315,7 @@ TEST(ResourcesTest, RangesSubtraction1)
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
-  EXPECT_EQ(1, ranges.range_size());
-  EXPECT_EQ(50002, ranges.range(0).begin());
-  EXPECT_EQ(60000, ranges.range(0).end());
+  EXPECT_EQ(values::parse("[50002-60000]").get().ranges(), ranges);
 }
 
 
@@ -321,9 +332,7 @@ TEST(ResourcesTest, RangesSubtraction2)
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
-  EXPECT_EQ(1, ranges.range_size());
-  EXPECT_EQ(50001, ranges.range(0).begin());
-  EXPECT_EQ(60000, ranges.range(0).end());
+  EXPECT_EQ(values::parse("[50001-60000]").get().ranges(), ranges);
 }
 
 
@@ -342,9 +351,7 @@ TEST(ResourcesTest, RangesSubtraction3)
 
   const Value::Ranges& ranges = resourcesFree.get("ports", Value::Ranges());
 
-  EXPECT_EQ(1, ranges.range_size());
-  EXPECT_EQ(50002, ranges.range(0).begin());
-  EXPECT_EQ(60000, ranges.range(0).end());
+  EXPECT_EQ(values::parse("[50002-60000]").get().ranges(), ranges);
 }
 
 
@@ -363,6 +370,23 @@ TEST(ResourcesTest, RangesSubtraction4)
   const Value::Ranges& ranges = resourcesOffered.get("ports", Value::Ranges());
 
   EXPECT_EQ(0, ranges.range_size());
+}
+
+
+TEST(ResourcesTest, RangesSubtraction5)
+{
+  Resource ports1 = Resources::parse("ports", "[1-10, 20-30, 40-50]");
+  Resource ports2 = Resources::parse("ports", "[2-9, 15-45, 48-50]");
+
+  Resources r;
+  r += ports1;
+  r -= ports2;
+
+  EXPECT_EQ(1, r.size());
+
+  const Value::Ranges& ranges = r.get("ports", Value::Ranges());
+
+  EXPECT_EQ(values::parse("[1-1, 10-10, 46-47]").get().ranges(), ranges);
 }
 
 
