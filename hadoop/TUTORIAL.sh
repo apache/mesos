@@ -301,7 +301,7 @@ includes:
   (1) Setting JAVA_HOME (unnecessary if JAVA_HOME is set in your environment).
   (2) Adding the Mesos contrib class files to HADOOP_CLASSPATH.
   (3) Adding mesos-${VERSION}.jar to the HADOOP_CLASSPATH.
-  (4) Adding protobuf-2.3.0.jar to the HADOOP_CLASSPATH.
+  (4) Adding protobuf-2.4.1.jar to the HADOOP_CLASSPATH.
   (5) Setting MESOS_NATIVE_LIBRARY to point to the native library.
 
 We've got a prepared patch for conf/hadoop-env.sh that makes the

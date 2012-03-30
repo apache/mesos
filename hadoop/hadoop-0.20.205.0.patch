@@ -16,7 +16,7 @@ index b47b4c3..713f0c1 100644
  xmlenc.version=0.52
  xerces.version=1.4.4
 +
-+protobuf-java.version=2.3.0
++protobuf-java.version=2.4.1
 diff --git a/hadoop/hadoop-0.20.205.0/src/contrib/build-contrib.xml b/hadoop/hadoop-0.20.205.0/src/contrib/build-contrib.xml
 index c4b6aae..2f6e092 100644
 --- a/hadoop/hadoop-0.20.205.0/src/contrib/build-contrib.xml
