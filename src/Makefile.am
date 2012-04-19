@@ -48,11 +48,6 @@ pkglocalstatedir = $(localstatedir)/$(PACKAGE)
 # localstatedir (e.g., /usr/local/var) is for modifiable "data".
 webuidir = $(pkgdatadir)
 
-# Used for building Python eggs.
-DISTRIBUTE_EGG_SUFFIX = $(DISTRIBUTE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
-DISTRIBUTE_EGG = \
-  $(abs_top_builddir)/$(DISTRIBUTE)/dist/distribute-$(DISTRIBUTE_EGG_SUFFIX)
-
 # Protocol buffer compiler.
 PROTOC = ../$(PROTOBUF)/src/protoc
 PROTOCFLAGS = -I$(top_srcdir)/include/mesos -I$(srcdir)
@@ -538,6 +533,22 @@ EXTRA_DIST += python/src/mesos.py				\
 	      python/native/proxy_scheduler.hpp
 
 if HAS_PYTHON
+# Used for building Python eggs.
+DISTRIBUTE_EGG_SUFFIX = $(DISTRIBUTE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
+DISTRIBUTE_EGG = \
+  $(abs_top_builddir)/$(DISTRIBUTE)/dist/distribute-$(DISTRIBUTE_EGG_SUFFIX)
+
+# Build a protobuf Python egg.
+PROTOBUF_EGG_SUFFIX = $(PROTOBUF_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
+PROTOBUF_EGG = ../$(PROTOBUF)/python/dist/protobuf-$(PROTOBUF_EGG_SUFFIX)
+
+$(PROTOBUF_EGG):
+	@echo "Building protobuf Python egg ..."
+	@cd ../$(PROTOBUF)/python && \
+	  PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) setup.py bdist_egg
+
+CLEANFILES += $(PROTOBUF_EGG)
+
 # This builds a Python egg against libmesos_no_third_party.a that is
 # self-contained. It currently depends on the libraries in third_party
 # being built as .a's. (If this is changed, the setup.py will need to
@@ -552,16 +563,6 @@ if HAS_PYTHON
 # should be the default mode if we eventually are able to rely on
 # system versions of our dependencies (since we won't be able to
 # create a standalone egg anyways).
-
-PROTOBUF_EGG_SUFFIX = $(PROTOBUF_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
-PROTOBUF_EGG = ../$(PROTOBUF)/python/dist/protobuf-$(PROTOBUF_EGG_SUFFIX)
-
-$(PROTOBUF_EGG):
-	@echo "Building protobuf Python egg ..."
-	@cd ../$(PROTOBUF)/python && \
-	  PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) setup.py bdist_egg
-
-CLEANFILES += $(PROTOBUF_EGG)
 
 MESOS_EGG = python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
