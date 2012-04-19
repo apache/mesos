@@ -80,7 +80,7 @@ void ProxyScheduler::reregistered(SchedulerDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* minfo = minfo;
+  PyObject* minfo = NULL;
   PyObject* res = NULL;
 
   minfo = createPythonProtobuf(masterInfo, "MasterInfo");

@@ -49,8 +49,9 @@ pkglocalstatedir = $(localstatedir)/$(PACKAGE)
 webuidir = $(pkgdatadir)
 
 # Used for building Python eggs.
-SETUPTOOLS = \
-  $(abs_top_srcdir)/$(DISTRIBUTE)/distribute-$(DISTRIBUTE_VERSION)-py2.6.egg
+DISTRIBUTE_EGG_SUFFIX = $(DISTRIBUTE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
+DISTRIBUTE_EGG = \
+  $(abs_top_builddir)/$(DISTRIBUTE)/dist/distribute-$(DISTRIBUTE_EGG_SUFFIX)
 
 # Protocol buffer compiler.
 PROTOC = ../$(PROTOBUF)/src/protoc
@@ -558,21 +559,21 @@ PROTOBUF_EGG = ../$(PROTOBUF)/python/dist/protobuf-$(PROTOBUF_EGG_SUFFIX)
 $(PROTOBUF_EGG):
 	@echo "Building protobuf Python egg ..."
 	@cd ../$(PROTOBUF)/python && \
-	  PYTHONPATH=$(SETUPTOOLS) $(PYTHON) setup.py bdist_egg
+	  PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) setup.py bdist_egg
 
 CLEANFILES += $(PROTOBUF_EGG)
 
 MESOS_EGG = python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
 $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
-	      $(PYTHON_PROTOS) libmesos_no_third_party.la	\
-	      $(PROTOBUF_EGG)
+              $(PYTHON_PROTOS) libmesos_no_third_party.la	\
+              $(PROTOBUF_EGG)
 	@echo "Building Mesos Python egg ..."
 	@if test "$(top_srcdir)" != "$(top_builddir)"; then \
 	  $(MKDIR_P) python/src; \
 	  cp -pf $(srcdir)/python/src/mesos.py python/src; \
 	fi
-	@LIBS="$(LIBS)" PYTHONPATH=$(SETUPTOOLS) \
+	@LIBS="$(LIBS)" PYTHONPATH=$(DISTRIBUTE_EGG) \
 	  $(PYTHON) python/setup.py bdist_egg
 
 CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*
