@@ -72,11 +72,13 @@ BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
 
 $(BOOST)/boost: $(BOOST)-stamp
 
+if HAS_PYTHON
 DISTRIBUTE_EGG = \
   $(DISTRIBUTE)/dist/$(DISTRIBUTE)$(PYTHON_EGG_PUREPY_POSTFIX).egg
 
 $(DISTRIBUTE_EGG): $(DISTRIBUTE)-stamp
 	cd $(DISTRIBUTE) && $(PYTHON) setup.py bdist_egg
+endif
 
 $(GLOG)/libglog.la: $(GLOG)-stamp
 	cd $(GLOG) && ./configure $(CONFIGURE_ARGS) && \
@@ -102,9 +104,13 @@ $(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
 	cd $(ZOOKEEPER)/src/c && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 
-THIRD_PARTY_LIBS = $(BOOST)-stamp $(DISTRIBUTE_EGG) $(GLOG)/libglog.la	\
-	$(LEVELDB)/libleveldb.a $(PROTOBUF)/src/libprotobuf.la		\
+THIRD_PARTY_LIBS = $(BOOST)-stamp $(GLOG)/libglog.la		\
+	$(LEVELDB)/libleveldb.a $(PROTOBUF)/src/libprotobuf.la	\
 	$(PROTOBUF)/src/protoc
+
+if HAS_PYTHON
+  THIRD_PARTY_LIBS += $(DISTRIBUTE_EGG)
+endif
 
 if WITH_INCLUDED_ZOOKEEPER
   THIRD_PARTY_LIBS += $(ZOOKEEPER)/src/c/libzookeeper_mt.la
