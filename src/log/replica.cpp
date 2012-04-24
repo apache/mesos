@@ -913,6 +913,23 @@ bool ReplicaProcess::persist(const Action& action)
   if (action.has_learned() && action.learned()) {
     unlearned.erase(action.position());
     if (action.has_type() && action.type() == Action::TRUNCATE) {
+      // No longer consider truncated positions as holes (so that a
+      // coordinator doesn't try and fill them).
+      foreach (uint64_t position, utils::copy(holes)) {
+        if (position < action.truncate().to()) {
+          holes.erase(position);
+        }
+      }
+
+      // No longer consider truncated positions as unlearned (so that
+      // a coordinator doesn't try and fill them).
+      foreach (uint64_t position, utils::copy(unlearned)) {
+        if (position < action.truncate().to()) {
+          unlearned.erase(position);
+        }
+      }
+
+      // And update the beginning position.
       begin = std::max(begin, action.truncate().to());
     }
   }
