@@ -145,19 +145,22 @@ void ExecutorLauncher::initializeWorkingDirectory()
 void ExecutorLauncher::fetchExecutors()
 {
   foreach(const CommandInfo::URI& uri, commandInfo.uris()) {
-    string executor = uri.value();
+    string resource = uri.value();
     bool executable = uri.has_executable() && uri.executable();
 
-    // Some checks to make using the executor in shell commands safe;
-    // these should be pushed into the master and reported to the user
-    if (executor.find_first_of('\\') != string::npos ||
-        executor.find_first_of('\'') != string::npos ||
-        executor.find_first_of('\0') != string::npos) {
-      fatal("Illegal characters in executor path");
+    // Some checks to make sure using the URI value in shell commands
+    // is safe. TODO(benh): These should be pushed into the scheduler
+    // driver and reported to the user.
+    if (resource.find_first_of('\\') != string::npos ||
+        resource.find_first_of('\'') != string::npos ||
+        resource.find_first_of('\0') != string::npos) {
+      fatal("Illegal characters in URI");
     }
-    // Grab the executor from HDFS if its path begins with hdfs://
-    // TODO: Enforce some size limits on files we get from HDFS
-    if (executor.find("hdfs://") == 0) {
+
+    // Grab the resource from HDFS if its path begins with hdfs:// or
+    // htfp://. TODO(matei): Enforce some size limits on files we get
+    // from HDFS
+    if (resource.find("hdfs://") == 0 || resource.find("hftp://") == 0) {
       // Locate Hadoop's bin/hadoop script. If a Hadoop home was given to us by
       // the slave (from the Mesos config file), use that. Otherwise check for
       // a HADOOP_HOME environment variable. Finally, if that doesn't exist,
@@ -171,61 +174,70 @@ void ExecutorLauncher::fetchExecutors()
         hadoopScript = "hadoop"; // Look for hadoop on the PATH.
       }
 
-      string localFile = string("./") + basename((char *) executor.c_str());
+      string localFile = string("./") + basename((char *) resource.c_str());
       ostringstream command;
-      command << hadoopScript << " fs -copyToLocal '" << executor
+      command << hadoopScript << " fs -copyToLocal '" << resource
               << "' '" << localFile << "'";
-      cout << "Downloading executor from " << executor << endl;
+      cout << "Downloading resource from " << resource << endl;
       cout << "HDFS command: " << command.str() << endl;
 
       int ret = system(command.str().c_str());
       if (ret != 0)
         fatal("HDFS copyToLocal failed: return code %d", ret);
-      executor = localFile;
-      if (executable && chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+      resource = localFile;
+      if (executable && chmod(resource.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
                 S_IROTH | S_IXOTH) != 0)
         fatalerror("chmod failed");
-    } else if (executor.find("http://") == 0
-               || executor.find("https://") == 0
-               || executor.find("ftp://") == 0
-               || executor.find("ftps://") == 0) {
-      string path = executor.substr(executor.find("://") + 3);
+    } else if (resource.find("http://") == 0
+               || resource.find("https://") == 0
+               || resource.find("ftp://") == 0
+               || resource.find("ftps://") == 0) {
+      string path = resource.substr(resource.find("://") + 3);
       CHECK(path.find("/") != string::npos) << "Malformed URL (missing path)";
       CHECK(path.size() > path.find("/") + 1) << "Malformed URL (missing path)";
       path =  "./" + path.substr(path.find_last_of("/") + 1);
-      cout << "Downloading " << executor << " to " << path << endl;
-      Try<int> code = utils::net::download(executor, path);
+      cout << "Downloading " << resource << " to " << path << endl;
+      Try<int> code = utils::net::download(resource, path);
       if (code.isError()) {
-        fatal("Error downloading executor: %s", code.error().c_str());
+        fatal("Error downloading resource: %s", code.error().c_str());
       } else if (code.get() != 200) {
-        fatal("Error downloading executor, received HTTP/FTP return code: %d",
+        fatal("Error downloading resource, received HTTP/FTP return code: %d",
               code.get());
       }
-      executor = path;
-      if (executable && chmod(executor.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+      resource = path;
+      if (executable && chmod(resource.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
                 S_IROTH | S_IXOTH) != 0)
         fatalerror("chmod failed");
-    } else if (executor.find_first_of("/") != 0) {
+    } else if (resource.find_first_of("/") != 0) {
       // We got a non-Hadoop and non-absolute path.
       if (frameworksHome != "") {
-        executor = frameworksHome + "/" + executor;
-        cout << "Prepended configuration option frameworks_home to executor "
-             << "path, making it: " << executor << endl;
+        resource = frameworksHome + "/" + resource;
+        cout << "Prepended configuration option frameworks_home to resource "
+             << "path, making it: " << resource << endl;
       } else {
-        fatal("A relative path was passed for the executor, but "
+        fatal("A relative path was passed for the resource, but "
               "the configuration option frameworks_home is not set. "
               "Please either specify this config option "
               "or avoid using a relative path.");
       }
     }
 
-    // If the executor was a .tgz, untar it in the work directory.
-    if (executor.rfind(".tgz") == executor.size() - strlen(".tgz")) {
-      string command = "tar xzf '" + executor + "'";
-      cout << "Untarring executor: " + command << endl;
-      int ret = system(command.c_str());
-      if (ret != 0)
-        fatal("Untar failed: return code %d", ret);
+    // Extract any .tgz, tar.gz, or zip files.
+    if (strings::endsWith(resource, ".tgz") ||
+        strings::endsWith(resource, ".tar.gz")) {
+      string command = "tar xzf '" + resource + "'";
+      cout << "Extracting resource: " + command << endl;
+      int code = system(command.c_str());
+      if (code != 0) {
+        fatal("Failed to extract resource: tar exit code %d", code);
+      }
+    } else if (strings::endsWith(resource, ".zip")) {
+      string command = "unzip '" + resource + "'";
+      cout << "Extracting resource: " + command << endl;
+      int code = system(command.c_str());
+      if (code != 0) {
+        fatal("Failed to extract resource: unzip exit code %d", code);
+      }
     }
   }
 }

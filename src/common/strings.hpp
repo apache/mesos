@@ -172,6 +172,11 @@ inline bool checkBracketsMatching(
 }
 
 
+inline bool endsWith(const std::string& s, const std::string& suffix)
+{
+  return s.rfind(suffix) == s.length() - suffix.length();
+}
+
 } // namespaces strings {
 
 #endif // __STRINGS_HPP__
