@@ -55,7 +55,7 @@ public:
     process::wait(process);
   }
 
-  bool stop()
+  void stop()
   {
     process::terminate(process);
 
