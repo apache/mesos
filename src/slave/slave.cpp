@@ -71,6 +71,15 @@ namespace mesos { namespace internal { namespace slave {
 //   double timeout;
 // };
 
+// Helper function that returns true if the task state is terminal
+bool isTerminalTaskState(TaskState state)
+{
+  return state == TASK_FINISHED ||
+    state == TASK_FAILED ||
+    state == TASK_KILLED ||
+    state == TASK_LOST;
+}
+
 
 Slave::Slave(const Resources& _resources,
              bool _local,
@@ -678,7 +687,14 @@ void Slave::statusUpdateAcknowledgement(const SlaveID& slaveId,
       LOG(INFO) << "Got acknowledgement of status update"
                 << " for task " << taskId
                 << " of framework " << frameworkId;
+
       framework->updates.erase(UUID::fromBytes(uuid));
+
+      // Cleanup if this framework has no executors running and no pending updates.
+      if (framework->executors.size() == 0 && framework->updates.empty()) {
+        frameworks.erase(framework->id);
+        delete framework;
+      }
     }
   }
 }
@@ -969,10 +985,7 @@ void Slave::statusUpdate(const StatusUpdate& update)
       executor->updateTaskState(status.task_id(), status.state());
 
       // Handle the task appropriately if it's terminated.
-      if (status.state() == TASK_FINISHED ||
-          status.state() == TASK_FAILED ||
-          status.state() == TASK_KILLED ||
-          status.state() == TASK_LOST) {
+      if (isTerminalTaskState(status.state())) {
         executor->removeTask(status.task_id());
 
         dispatch(isolationModule,
@@ -1299,6 +1312,57 @@ void Slave::executorStarted(const FrameworkID& frameworkId,
 }
 
 
+StatusUpdate Slave::createStatusUpdate(const TaskID& taskId,
+                                       const ExecutorID& executorId,
+                                       const FrameworkID& frameworkId,
+                                       TaskState taskState,
+                                       const string& reason)
+{
+  TaskStatus status;
+  status.mutable_task_id()->MergeFrom(taskId);
+  status.set_state(taskState);
+  status.set_message(reason);
+
+  StatusUpdate update;
+  update.mutable_framework_id()->MergeFrom(frameworkId);
+  update.mutable_slave_id()->MergeFrom(id);
+  update.mutable_executor_id()->MergeFrom(executorId);
+  update.mutable_status()->MergeFrom(status);
+  update.set_timestamp(Clock::now());
+  update.set_uuid(UUID::random().toBytes());
+
+  return update;
+}
+
+
+// Called when an executor is exited.
+// Transitions a live task to TASK_LOST/TASK_FAILED and sends status update.
+void Slave::transitionLiveTask(const TaskID& taskId,
+                               const ExecutorID& executorId,
+                               const FrameworkID& frameworkId,
+                               bool isCommandExecutor,
+                               int status)
+{
+  StatusUpdate update;
+
+  if (isCommandExecutor) {
+    update = createStatusUpdate(taskId,
+                                executorId,
+                                frameworkId,
+                                TASK_FAILED,
+                                "Executor running the task's command failed");
+  } else {
+    update = createStatusUpdate(taskId,
+                                executorId,
+                                frameworkId,
+                                TASK_LOST,
+                                "Executor exited");
+  }
+
+  statusUpdate(update);
+}
+
+
 // Called by the isolation module when an executor process exits.
 void Slave::executorExited(const FrameworkID& frameworkId,
                            const ExecutorID& executorId,
@@ -1329,71 +1393,44 @@ void Slave::executorExited(const FrameworkID& frameworkId,
     return;
   }
 
-  // Check if the executor was only for running a task with a command
-  // and if so send a status update for that task.
-  Option<TaskID> taskId;
+  bool isCommandExecutor = false;
 
-  if (!executor->queuedTasks.empty() &&
-      executor->queuedTasks.begin()->second.has_command()) {
-    taskId = Option<TaskID>::some(
-        executor->queuedTasks.begin()->second.task_id());
-  } else if (!executor->launchedTasks.empty() &&
-             executor->launchedTasks.begin()->second->has_executor_id()) {
-    taskId = Option<TaskID>::some(
-        executor->launchedTasks.begin()->second->task_id());
+  // Transition all live tasks to TASK_LOST/TASK_FAILED.
+  foreachvalue (Task* task, executor->launchedTasks) {
+    if (!isTerminalTaskState(task->state())) {
+      isCommandExecutor = !task->has_executor_id();
+
+      transitionLiveTask(task->task_id(),
+                         executor->id,
+                         framework->id,
+                         isCommandExecutor,
+                         status);
+    }
   }
 
-  if (taskId.isSome()) {
-    TaskStatus status;
-    status.mutable_task_id()->MergeFrom(taskId.get());
-    status.set_state(TASK_FAILED);
-    status.set_message("Executor running the task's command failed");
+  // Transition all queued tasks to TASK_LOST/TASK_FAILED.
+  foreachvalue (const TaskInfo& task, executor->queuedTasks) {
+    isCommandExecutor = task.has_command();
 
-    StatusUpdate update;
-    update.mutable_framework_id()->MergeFrom(frameworkId);
-    update.mutable_slave_id()->MergeFrom(id);
-    update.mutable_status()->MergeFrom(status);
-    update.set_timestamp(Clock::now());
-    update.set_uuid(UUID::random().toBytes());
+    transitionLiveTask(task.task_id(),
+                       executor->id,
+                       framework->id,
+                       isCommandExecutor,
+                       status);
+  }
 
-    // Send message and record the status for possible resending.
-    StatusUpdateMessage message;
-    message.mutable_update()->MergeFrom(update);
-    message.set_pid(self());
+
+  if (!isCommandExecutor) {
+    ExitedExecutorMessage message;
+    message.mutable_slave_id()->MergeFrom(id);
+    message.mutable_framework_id()->MergeFrom(frameworkId);
+    message.mutable_executor_id()->MergeFrom(executorId);
+    message.set_status(status);
+
     send(master, message);
-
-    UUID uuid = UUID::fromBytes(update.uuid());
-
-    // Send us a message to try and resend after some delay.
-    delay(STATUS_UPDATE_RETRY_INTERVAL_SECONDS,
-          self(), &Slave::statusUpdateTimeout,
-          framework->id, uuid);
-
-    framework->updates[uuid] = update;
-
-    stats.tasks[status.state()]++;
   }
-
-  // TODO(benh): Send status updates for remaining tasks here rather
-  // than at the master! As in, eliminate the code in
-  // Master::exitedExecutor and put it here.
-
-  ExitedExecutorMessage message;
-  message.mutable_slave_id()->MergeFrom(id);
-  message.mutable_framework_id()->MergeFrom(frameworkId);
-  message.mutable_executor_id()->MergeFrom(executorId);
-  message.set_status(status);
-  send(master, message);
 
   framework->destroyExecutor(executor->id);
-
-  // Cleanup if this framework has nothing running.
-  if (framework->executors.size() == 0) {
-    // TODO(benh): But there might be some remaining status updates
-    // that haven't been acknowledged!
-    frameworks.erase(framework->id);
-    delete framework;
-  }
 }
 
 
@@ -1441,26 +1478,8 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
              &IsolationModule::killExecutor,
              framework->id, executor->id);
 
-    ExitedExecutorMessage message;
-    message.mutable_slave_id()->MergeFrom(id);
-    message.mutable_framework_id()->MergeFrom(frameworkId);
-    message.mutable_executor_id()->MergeFrom(executorId);
-    message.set_status(-1);
-    send(master, message);
-
-    // TODO(benh): Send status updates for remaining tasks here rather
-    // than at the master! As in, eliminate the code in
-    // Master::exitedExecutor and put it here.
-
-    framework->destroyExecutor(executor->id);
-
-    // Cleanup if this framework has nothing running.
-    if (framework->executors.size() == 0) {
-      // TODO(benh): But there might be some remaining status updates
-      // that haven't been acknowledged!
-      frameworks.erase(framework->id);
-      delete framework;
-    }
+    // Call executorExited here to transition live tasks to LOST/FAILED.
+    executorExited(frameworkId, executorId, 0);
   }
 }
 

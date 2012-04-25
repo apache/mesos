@@ -1043,43 +1043,6 @@ void Master::exitedExecutor(const SlaveID& slaveId,
                 << " (" << slave->info.hostname() << ") "
                 << "exited with status " << status;
 
-      // TODO(benh): What about a status update that is on it's way
-      // from the slave but got re-ordered on the wire? By sending
-      // this status updates here we are not allowing possibly
-      // finished tasks to reach the scheduler appropriately. In
-      // stead, it seems like perhaps the right thing to do is to have
-      // the slave be responsible for sending those status updates,
-      // and have the master (or better yet ... and soon ... the
-      // scheduler) decide that a task is dead only when a slave lost
-      // has occured.
-
-      // Tell the framework which tasks have been lost.
-      foreachvalue (Task* task, utils::copy(framework->tasks)) {
-        if (task->slave_id() == slave->id &&
-            task->executor_id() == executorId) {
-          StatusUpdateMessage message;
-          StatusUpdate* update = message.mutable_update();
-          update->mutable_framework_id()->MergeFrom(task->framework_id());
-          update->mutable_executor_id()->MergeFrom(task->executor_id());
-          update->mutable_slave_id()->MergeFrom(task->slave_id());
-          TaskStatus* status = update->mutable_status();
-          status->mutable_task_id()->MergeFrom(task->task_id());
-          status->set_state(TASK_LOST);
-          status->set_message("Lost executor");
-          update->set_timestamp(Clock::now());
-          update->set_uuid(UUID::random().toBytes());
-          send(framework->pid, message);
-
-          LOG(INFO) << "Removing task " << task->task_id()
-                    << " of framework " << frameworkId
-                    << " because of lost executor";
-
-          stats.tasks[TASK_LOST]++;
-
-          removeTask(task);
-        }
-      }
-
       // Remove executor from slave and framework.
       slave->removeExecutor(frameworkId, executorId);
       framework->removeExecutor(slave->id, executorId);

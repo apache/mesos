@@ -98,6 +98,12 @@ public:
 
   void statusUpdateTimeout(const FrameworkID& frameworkId, const UUID& uuid);
 
+  StatusUpdate createStatusUpdate(const TaskID& taskId,
+                                  const ExecutorID& executorId,
+                                  const FrameworkID& frameworkId,
+                                  TaskState taskState,
+                                  const std::string& message);
+
   void executorStarted(const FrameworkID& frameworkId,
                        const ExecutorID& executorId,
                        pid_t pid);
@@ -106,6 +112,11 @@ public:
                       const ExecutorID& executorId,
                       int status);
 
+  void transitionLiveTask(const TaskID& taskId,
+                          const ExecutorID& executorId,
+                          const FrameworkID& frameworkId,
+                          bool command_executor,
+                          int status);
 protected:
   virtual void initialize();
   virtual void finalize();
