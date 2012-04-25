@@ -511,10 +511,13 @@ maven-install: $(MESOS_JAR) $(MESOS_SOURCES_JAR) java/mesos.pom
 PHONY_TARGETS += maven-install
 endif # HAS_JAVA
 
+# We remove mesos-*.jar here to make sure any older versions of the
+# jar are removed.
 clean-java:
 	-rm -rf java/classes
 	-rm -f examples/java/*.class
 	-rm -f java/jni/org_apache_mesos*.h
+	-rm -f mesos-*.jar
 
 PHONY_TARGETS += clean-java
 
@@ -587,11 +590,15 @@ endif # HAS_PYTHON
 # python/native' because creating a distribution can eliminate write
 # permissions for the owner which are conserved even after we 'cp -p'
 # so we won't be able to delete the files until we update permissions.
+#
+# We remove mesos-*.egg here to make sure any older versions of the
+# egg or versions for different architectures are removed.
 clean-python:
 	test "$(top_srcdir)" = "$(top_builddir)" || \
 	  (chmod -R u+w python/native; \
 	   rm -rf python/src/mesos.py python/native)
 	-rm -rf python/src/mesos.egg-info python/build
+	-rm -f python/dist/mesos-*.egg
 
 PHONY_TARGETS += clean-python
 
