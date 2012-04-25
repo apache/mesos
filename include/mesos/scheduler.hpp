@@ -197,7 +197,7 @@ public:
    * false then it is expected that this framework will never
    * reconnect to Mesos and all of it's executors and tasks can be
    * terminated. Otherwise, all executors and tasks will remain
-   * running (for some master specified failover timeout) allowing the
+   * running (for some framework specific failover timeout) allowing the
    * scheduler to reconnect (possibly in the same process, or from a
    * different process, for example, on a different machine).
    */

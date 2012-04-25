@@ -229,11 +229,6 @@ void Master::registerOptions(Configurator* configurator)
       "root_submissions",
       "Can root submit frameworks?",
       true);
-
-  configurator->addOption<int>(
-      "failover_timeout",
-      "Framework failover timeout in seconds",
-      FRAMEWORK_FAILOVER_TIMEOUT);
 }
 
 
@@ -293,8 +288,6 @@ void Master::initialize()
   nextFrameworkId = 0;
   nextSlaveId = 0;
   nextOfferId = 0;
-
-  failoverTimeout = conf.get<int>("failover_timeout", FRAMEWORK_FAILOVER_TIMEOUT);
 
   // Start all the statistics at 0.
   stats.tasks[TASK_STAGING] = 0;
@@ -433,6 +426,11 @@ void Master::exited(const UPID& pid)
 
       // Stop sending offers here for now.
       framework->active = false;
+
+      double failoverTimeout = framework->info.failover_timeout();
+
+      LOG(INFO) << "Giving framework " << framework->id << " "
+                << failoverTimeout << " seconds to failover";
 
       // Delay dispatching a message to ourselves for the timeout.
       delay(failoverTimeout, self(),

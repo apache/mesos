@@ -88,12 +88,15 @@ message ExecutorID {
  * ID is only available after a framework has registered, however, it
  * is included here in order to facilitate scheduler failover (i.e.,
  * if it is set then the MesosSchedulerDriver expects the scheduler is
- * performing failover).
+ * performing failover). The amount of time that the master will wait
+ * for the scheduler to failover before removing the framework is
+ * specified by failover_timeout.
  */
 message FrameworkInfo {
   required string user = 1;
   required string name = 2;
   optional FrameworkID id = 3;
+  optional double failover_timeout = 4 [default = 0.0];
 }
 
 

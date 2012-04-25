@@ -212,8 +212,6 @@ private:
 
   std::list<Framework> completedFrameworks;
 
-  double failoverTimeout; // Failover timeout for frameworks, in seconds.
-
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
   int64_t nextSlaveId;     // Used to give each slave a unique ID.
