@@ -216,6 +216,9 @@ Try<State> LevelDBStorage::recover(const string& path)
     return Try<State>::error(status.ToString());
   }
 
+  // TODO(benh): Conditionally compact to avoid long recovery times?
+  db->CompactRange(NULL, NULL);
+
   State state;
   state.coordinator = 0;
   state.begin = 0;
