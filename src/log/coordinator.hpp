@@ -99,7 +99,7 @@ private:
 
   bool elected; // True if this coordinator has been elected.
 
-  int quorum; // Quorum size.
+  const int quorum; // Quorum size.
 
   Replica* replica; // Local log replica.
 

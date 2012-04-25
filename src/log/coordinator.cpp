@@ -373,6 +373,9 @@ Result<uint64_t> Coordinator::commit(const Action& action)
     message.mutable_action()->set_learned(true);
   }
 
+  LOG(INFO) << "Telling other replicas of learned action at position "
+            << action.position();
+
   remotecast(message);
 
   return action.position();
@@ -428,7 +431,18 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
       if (response.has_action()) {
         CHECK(response.action().position() == position);
         if (response.action().has_learned() && response.action().learned()) {
-          // Received a learned action, try and commit locally.
+          // Received a learned action, try and commit locally. Note
+          // that there is no checking that we get the _same_ learned
+          // action in the event we get multiple responses with
+          // learned actions, we just take the "first". In fact, there
+          // is a specific instance in which learned actions will NOT
+          // be the same! In this instance, one replica may return
+          // that the action is a learned no-op because it knows the
+          // position has been truncated while another replica (that
+          // hasn't learned the truncation yet) might return the
+          // actual action at this position. Picking either action is
+          // _correct_, since eventually we know this position will be
+          // truncated. Fun!
           Result<uint64_t> result = commit(response.action());
           if (result.isError()) {
             return Result<Action>::error(result.error());

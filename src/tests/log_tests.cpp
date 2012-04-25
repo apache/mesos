@@ -1034,6 +1034,87 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
 }
 
 
+TEST(CoordinatorTest, TruncateLearnedFill)
+{
+  const std::string path1 = utils::os::getcwd() + "/.log1";
+  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path3 = utils::os::getcwd() + "/.log3";
+
+  utils::os::rmdir(path1);
+  utils::os::rmdir(path2);
+  utils::os::rmdir(path3);
+
+  Replica replica1(path1);
+  Replica replica2(path2);
+
+  Network network1;
+
+  network1.add(replica1.pid());
+  network1.add(replica2.pid());
+
+  Coordinator coord1(2, &replica1, &network1);
+
+  {
+    Result<uint64_t> result = coord1.elect(Timeout(1.0));
+    ASSERT_TRUE(result.isSome());
+    EXPECT_EQ(0, result.get());
+  }
+
+  for (uint64_t position = 1; position <= 10; position++) {
+    Result<uint64_t> result =
+      coord1.append(utils::stringify(position), Timeout(1.0));
+    ASSERT_TRUE(result.isSome());
+    EXPECT_EQ(position, result.get());
+  }
+
+  {
+    Result<uint64_t> result = coord1.truncate(7, Timeout(1.0));
+    ASSERT_TRUE(result.isSome());
+    EXPECT_EQ(11, result.get());
+  }
+
+  Replica replica3(path3);
+
+  Network network2;
+
+  network2.add(replica2.pid());
+  network2.add(replica3.pid());
+
+  Coordinator coord2(2, &replica3, &network2);
+
+  {
+    Result<uint64_t> result = coord2.elect(Timeout(1.0));
+    ASSERT_TRUE(result.isNone());
+    result = coord2.elect(Timeout(1.0));
+    ASSERT_TRUE(result.isSome());
+    EXPECT_EQ(11, result.get());
+  }
+
+  {
+    Future<std::list<Action> > actions = replica3.read(6, 10);
+    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.isFailed());
+    EXPECT_EQ("Bad read range (truncated position)", actions.failure());
+  }
+
+  {
+    Future<std::list<Action> > actions = replica3.read(7, 10);
+    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.isReady());
+    EXPECT_EQ(4, actions.get().size());
+    foreach (const Action& action, actions.get()) {
+      ASSERT_TRUE(action.has_type());
+      ASSERT_EQ(Action::APPEND, action.type());
+      EXPECT_EQ(utils::stringify(action.position()), action.append().bytes());
+    }
+  }
+
+  utils::os::rmdir(path1);
+  utils::os::rmdir(path2);
+  utils::os::rmdir(path3);
+}
+
+
 TEST(LogTest, WriteRead)
 {
   const std::string path1 = utils::os::getcwd() + "/.log1";

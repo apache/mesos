@@ -203,6 +203,8 @@ public:
 
     quorum = _quorum;
 
+    LOG(INFO) << "Creating a new log replica";
+
     replica = new Replica(path);
 
     group = new zookeeper::Group(servers, timeout, znode, auth);
@@ -339,8 +341,6 @@ Log::Writer::Writer(Log* log, const seconds& timeout, int retries)
   : coordinator(log->quorum, log->replica, log->network),
     error(Option<std::string>::none())
 {
-  LOG(INFO) << "Number of retries: " << retries;
-
   do {
     Result<uint64_t> result = coordinator.elect(Timeout(timeout.value));
     if (result.isNone()) {

@@ -209,6 +209,9 @@ Try<State> LevelDBStorage::recover(const string& path)
   CHECK(leveldb::BytewiseComparator()->Compare(ten, two) > 0);
   CHECK(leveldb::BytewiseComparator()->Compare(ten, ten) == 0);
 
+  Timer timer;
+  timer.start();
+
   leveldb::Status status = leveldb::DB::Open(options, path, &db);
 
   if (!status.ok()) {
@@ -216,8 +219,16 @@ Try<State> LevelDBStorage::recover(const string& path)
     return Try<State>::error(status.ToString());
   }
 
+  LOG(INFO) << "Opened db in "
+	    << timer.elapsed().millis() << " milliseconds";
+
+  timer.start(); // Restart the timer.
+
   // TODO(benh): Conditionally compact to avoid long recovery times?
   db->CompactRange(NULL, NULL);
+
+  LOG(INFO) << "Compacted db in "
+	    << timer.elapsed().millis() << " milliseconds";
 
   State state;
   state.coordinator = 0;
@@ -229,11 +240,26 @@ Try<State> LevelDBStorage::recover(const string& path)
   // records and confirming that they are all indeed of type
   // Record::Action.
 
+  timer.start(); // Restart the timer.
+
   leveldb::Iterator* iterator = db->NewIterator(leveldb::ReadOptions());
+
+  LOG(INFO) << "Created db iterator in " << timer.elapsed().millis()
+            << " milliseconds";
+
+  timer.start(); // Restart the timer.
 
   iterator->SeekToFirst();
 
+  LOG(INFO) << "Seeked to beginning of db in "
+	    << timer.elapsed().millis() << " milliseconds";
+
+  timer.start(); // Restart the timer.
+
+  uint64_t keys = 0;
+
   while (iterator->Valid()) {
+    keys++;
     const leveldb::Slice& slice = iterator->value();
 
     google::protobuf::io::ArrayInputStream stream(slice.data(), slice.size());
@@ -276,6 +302,9 @@ Try<State> LevelDBStorage::recover(const string& path)
 
     iterator->Next();
   }
+
+  LOG(INFO) << "Iterated through " << keys << " keys in the db in "
+	    << timer.elapsed().millis() << " milliseconds";
 
   // Determine the first position still in leveldb so during a
   // truncation we can attempt to delete all positions from the first
@@ -675,6 +704,32 @@ void ReplicaProcess::promise(const PromiseRequest& request)
     LOG(INFO) << "Replica received explicit promise request for "
               << request.id() << " for position " << request.position();
 
+    // If the position has been truncated, tell the coordinator that
+    // it's a learned no-op. This can happen when a replica has missed
+    // some truncates and it's coordinator tries to fill some
+    // truncated positions on election. A learned no-op is safe since
+    // the coordinator should eventually learn that this position was
+    // actually truncated. The action must be _learned_ so that the
+    // coordinator doesn't attempt to run a full Paxos round which
+    // will never succeed because this replica will not permit the
+    // write (because ReplicaProcess::write "ignores" writes on
+    // truncated positions).
+    if (request.position() < begin) {
+      Action action;
+      action.set_position(request.position());
+      action.set_promised(coordinator); // Use the last coordinator.
+      action.set_performed(coordinator); // Use the last coordinator.
+      action.set_learned(true);
+      action.set_type(Action::NOP);
+      action.mutable_nop()->MergeFrom(Action::Nop());
+
+      PromiseResponse response;
+      response.set_okay(true);
+      response.set_id(request.id());
+      response.mutable_action()->MergeFrom(action);
+      reply(response);
+    }
+
     // Need to get the action for the specified position.
     Result<Action> result = read(request.position());
 
@@ -722,6 +777,8 @@ void ReplicaProcess::promise(const PromiseRequest& request)
               << request.id();
 
     if (request.id() <= coordinator) { // Only make an implicit promise once!
+      LOG(INFO) << "Replica denying promise request for "
+                << request.id();
       PromiseResponse response;
       response.set_okay(false);
       response.set_id(request.id());
