@@ -1,0 +1,3 @@
+#!/bin/sh
+
+exec `dirname ${0}`/hadoop org.apache.hadoop.mapred.FrameworkExecutor

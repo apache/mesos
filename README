@@ -112,6 +112,11 @@ Hadoop
 Included in the distribution is a runnable tutorial on using Hadoop on
 Mesos (./hadoop/TUTORIAL.sh). Try it out!
 
+You can also "build" a self-contained distribution of Hadoop with the
+necessary Mesos components by doing 'make hadoop-0.20.205.0' or 'make
+hadoop-0.20.2-cdh3u3' from within [build]/hadoop (this uses the
+tutorial mentioned above).
+
 
 Installing
 ==========

@@ -73,6 +73,8 @@ AC_CONFIG_COMMANDS_POST([ac_configure_args="$ac_configure_args_post"])
 AC_CONFIG_SUBDIRS([third_party/libprocess])
 
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([ec2/Makefile])
+AC_CONFIG_FILES([hadoop/Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([third_party/Makefile])
 
