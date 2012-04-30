@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include <pthread.h>
-
 #include <map>
 #include <sstream>
 #include <vector>
@@ -26,7 +24,6 @@
 
 #include "common/fatal.hpp"
 #include "common/foreach.hpp"
-#include "common/logging.hpp"
 
 #include "configurator/configurator.hpp"
 
@@ -67,12 +64,13 @@ static MasterDetector* detector = NULL;
 
 void registerOptions(Configurator* configurator)
 {
-  Logging::registerOptions(configurator);
   Master::registerOptions(configurator);
   Slave::registerOptions(configurator);
-  configurator->addOption<int>("num_slaves",
-                               "Number of slaves to create for local cluster",
-                               1);
+
+  configurator->addOption<int>(
+      "num_slaves",
+      "Number of slaves to create for local cluster",
+      1);
 }
 
 

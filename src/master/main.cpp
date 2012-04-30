@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-#include <libgen.h> // For chdir.
-
 #include "common/build.hpp"
-#include "common/fatal.hpp"
 #include "common/logging.hpp"
 #include "common/try.hpp"
+#include "common/utils.hpp"
 
 #include "configurator/configurator.hpp"
 
@@ -40,10 +38,9 @@ using std::endl;
 using std::string;
 
 
-void usage(const char* programName, const Configurator& configurator)
+void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << programName << " [...]" << endl
-       << endl
+  cerr << "Usage: " << utils::os::basename(argv0) << " [...]" << endl
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();
@@ -55,7 +52,9 @@ int main(int argc, char **argv)
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   Configurator configurator;
-  Logging::registerOptions(&configurator);
+
+  logging::registerOptions(&configurator);
+
   Master::registerOptions(&configurator);
 
   // The following options are executable specific (e.g., since we
@@ -87,35 +86,33 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  Logging::init(argv[0], conf);
-
   if (conf.contains("port")) {
-    setenv("LIBPROCESS_PORT", conf["port"].c_str(), 1);
+    utils::os::setenv("LIBPROCESS_PORT", conf["port"]);
   }
 
   if (conf.contains("ip")) {
-    setenv("LIBPROCESS_IP", conf["ip"].c_str(), 1);
+    utils::os::setenv("LIBPROCESS_IP", conf["ip"]);
   }
 
-  // Initialize libprocess library (but not glog, done above).
-  process::initialize(false);
+  // Initialize libprocess.
+  process::initialize();
 
-  string zk = conf.get("zk", "");
+  logging::initialize(argv[0], conf);
+
+  string zk = conf.get<std::string>("zk", "");
 
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
-
-  if (chdir(dirname(argv[0])) != 0) {
-    fatalerror("Could not chdir into %s", dirname(argv[0]));
-  }
 
   Allocator* allocator = new SimpleAllocator();
 
   Master* master = new Master(allocator, conf);
   process::spawn(master);
 
+  bool quiet = conf.get<bool>("quiet", false);
+
   Try<MasterDetector*> detector =
-    MasterDetector::create(zk, master->self(), true, Logging::isQuiet(conf));
+    MasterDetector::create(zk, master->self(), true, quiet);
 
   CHECK(detector.isSome())
     << "Failed to create a master detector: " << detector.error();

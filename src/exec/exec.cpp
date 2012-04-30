@@ -293,10 +293,10 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
   pthread_mutexattr_destroy(&attr);
   pthread_cond_init(&cond, 0);
 
-  // TODO(benh): Initialize glog.
+  // Initialize libprocess.
+  process::initialize();
 
-  // Initialize libprocess library (but not glog, done above).
-  process::initialize(false);
+  // TODO(benh): Initialize glog.
 }
 
 

@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-#include <libgen.h> // For chdir.
-
 #include "common/build.hpp"
 #include "common/logging.hpp"
 #include "common/try.hpp"
+#include "common/utils.hpp"
 
 #include "configurator/configurator.hpp"
 
@@ -38,10 +37,9 @@ using std::endl;
 using std::string;
 
 
-void usage(const char *programName, const Configurator& configurator)
+void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << programName << " [...]" << endl
-       << endl
+  cerr << "Usage: " << utils::os::basename(argv0) << " [...]" << endl
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();
@@ -53,7 +51,9 @@ int main(int argc, char** argv)
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   Configurator configurator;
-  Logging::registerOptions(&configurator);
+
+  logging::registerOptions(&configurator);
+
   Slave::registerOptions(&configurator);
 
   // The following options are executable specific (e.g., since we
@@ -87,18 +87,18 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  Logging::init(argv[0], conf);
-
   if (conf.contains("port")) {
-    setenv("LIBPROCESS_PORT", conf["port"].c_str(), 1);
+    utils::os::setenv("LIBPROCESS_PORT", conf["port"]);
   }
 
   if (conf.contains("ip")) {
-    setenv("LIBPROCESS_IP", conf["ip"].c_str(), 1);
+    utils::os::setenv("LIBPROCESS_IP", conf["ip"]);
   }
 
-  // Initialize libprocess library (but not glog, done above).
-  process::initialize(false);
+  // Initialize libprocess.
+  process::initialize();
+
+  logging::initialize(argv[0], conf);
 
   if (!conf.contains("master")) {
     cerr << "Missing required option --master (-m)" << endl;
@@ -119,15 +119,13 @@ int main(int argc, char** argv)
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos slave";
 
-  if (chdir(dirname(argv[0])) != 0) {
-    fatalerror("Could not chdir into %s", dirname(argv[0]));
-  }
-
   Slave* slave = new Slave(conf, false, isolationModule);
   process::spawn(slave);
 
+  bool quiet = conf.get<bool>("quiet", false);
+
   Try<MasterDetector*> detector =
-    MasterDetector::create(master, slave->self(), false, Logging::isQuiet(conf));
+    MasterDetector::create(master, slave->self(), false, quiet);
 
   CHECK(detector.isSome())
     << "Failed to create a master detector: " << detector.error();

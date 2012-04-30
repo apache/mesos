@@ -21,24 +21,20 @@
 
 #include <string>
 
-#include "configurator/configurator.hpp"
+#include <glog/logging.h> // Includes LOG(*), PLOG(*), CHECK, etc.
 
+#include "configurator/configuration.hpp"
+#include "configurator/configurator.hpp"
 
 namespace mesos {
 namespace internal {
+namespace logging {
 
-/**
- * Utility functions for configuring and initializing Mesos logging.
- */
-class Logging {
-public:
-  static void registerOptions(Configurator* conf);
-  static void init(const char* programName, const Configuration& conf);
-  static std::string getLogDir(const Configuration& conf);
-  static bool isQuiet(const Configuration& conf);
-};
+void registerOptions(Configurator* configurator);
+void initialize(const std::string& argv0, const Configuration& conf);
 
+} // namespace logging {
 } // namespace internal {
 } // namespace mesos {
 
-#endif
+#endif // __LOGGING_HPP__

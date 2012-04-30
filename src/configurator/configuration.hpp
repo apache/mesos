@@ -97,44 +97,26 @@ public:
     return params[key];
   }
 
-  Option<std::string> get(const std::string& key) const
-  {
-    if (!contains(key)) {
-      return Option<std::string>::none();
-    }
-    return get(key, "");
-  }
-
-  const std::string& get(const std::string& key,
-                         const std::string& defaultValue) const
+  template <typename T>
+  Option<T> get(const std::string& key) const
   {
     std::map<std::string, std::string>::const_iterator it = params.find(key);
-    return (it != params.end()) ? it->second : defaultValue;
-  }
+    if (it != params.end()) {
+      return boost::lexical_cast<T>(it->second);
+    }
 
-  int getInt(const std::string& key, int defaultValue) const
-  {
-    return get<int>(key, defaultValue);
-  }
-
-  int32_t getInt32(const std::string& key, int32_t defaultValue) const
-  {
-    return get<int32_t>(key, defaultValue);
-  }
-
-  int64_t getInt64(const std::string& key, int64_t defaultValue) const
-  {
-    return get<int64_t>(key, defaultValue);
+    return Option<T>::none();
   }
 
   template <typename T>
   T get(const std::string& key, const T& defaultValue) const
   {
     std::map<std::string, std::string>::const_iterator it = params.find(key);
-    if (it != params.end())
+    if (it != params.end()) {
       return boost::lexical_cast<T>(it->second);
-    else
-      return defaultValue;
+    }
+
+    return defaultValue;
   }
 
   template <typename T>

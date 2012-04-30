@@ -224,19 +224,14 @@ public:
 
 
 /**
- * Initialize the library.
+ * Initialize the library. Note that libprocess uses Google's glog and
+ * you can specify options for it (e.g., a logging directory) via
+ * environment variables (see the glog documentation for more
+ * information).
  *
  * @param delegate process to receive root HTTP requests
- * @param initialize_glog whether or not to initialize the
- *        Google Logging library (glog). If the application is also
- *        using glog, this should be set to false.
  */
-void initialize(const std::string& delegate = "", bool initialize_glog = true);
-
-inline void initialize(bool initialize_glog)
-{
-  initialize("", initialize_glog);
-}
+void initialize(const std::string& delegate = "");
 
 
 /**

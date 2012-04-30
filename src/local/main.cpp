@@ -19,13 +19,14 @@
 #include <iostream>
 #include <string>
 
-#include "local.hpp"
+#include "common/logging.hpp"
+#include "common/utils.hpp"
 
 #include "configurator/configurator.hpp"
 
 #include "detector/detector.hpp"
 
-#include "common/logging.hpp"
+#include "local/local.hpp"
 
 #include "master/master.hpp"
 
@@ -41,14 +42,11 @@ using std::endl;
 using std::string;
 
 
-void usage(const char* programName, const Configurator& configurator)
+void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << programName
-       << " [--port=PORT] [--slaves=N] [--cpus=CPUS] [--mem=MEM] [...]" << endl
+  cerr << "Usage: " << utils::os::basename(argv0) << " [...]" << endl
        << endl
-       << "Launches a single-process cluster containing N slaves, each of "
-       << "which report" << endl << "CPUS cores and MEM bytes of memory."
-       << endl
+       << "Launches a cluster within a single OS process."
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();
@@ -60,7 +58,11 @@ int main(int argc, char **argv)
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   Configurator configurator;
+
+  logging::registerOptions(&configurator);
+
   local::registerOptions(&configurator);
+
   configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
   configurator.addOption<string>("ip", "IP address to listen on");
 
@@ -77,18 +79,18 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  Logging::init(argv[0], conf);
-
   if (conf.contains("port")) {
-    setenv("LIBPROCESS_PORT", conf["port"].c_str(), 1);
+    utils::os::setenv("LIBPROCESS_PORT", conf["port"]);
   }
 
   if (conf.contains("ip")) {
-    setenv("LIBPROCESS_IP", conf["ip"].c_str(), 1);
+    utils::os::setenv("LIBPROCESS_IP", conf["ip"]);
   }
 
-  // Initialize libprocess library (but not glog, done above).
-  process::initialize(false);
+  // Initialize libprocess.
+  process::initialize();
+
+  logging::initialize(argv[0], conf);
 
   process::wait(local::launch(conf, false));
 

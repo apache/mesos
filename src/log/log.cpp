@@ -639,7 +639,7 @@ int main(int argc, char** argv)
     truncations[at] = to;
   }
 
-  process::initialize(true);
+  process::initialize();
 
   LogProcess log(quorum, file, servers, znode, end, truncations);
   spawn(log);

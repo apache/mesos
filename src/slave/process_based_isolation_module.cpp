@@ -190,10 +190,10 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
                               frameworkInfo.user(),
                               directory,
                               slave,
-                              conf.get("frameworks_home", ""),
-                              conf.get("hadoop_home", ""),
+                              conf.get<string>("frameworks_home", ""),
+                              conf.get<string>("hadoop_home", ""),
                               !local,
-                              conf.get("switch_user", true),
+                              conf.get<bool>("switch_user", true),
                               "");
 }
 

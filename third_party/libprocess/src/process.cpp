@@ -1137,7 +1137,7 @@ void* schedule(void* arg)
 // }
 
 
-void initialize(const string& delegate, bool initialize_glog)
+void initialize(const string& delegate)
 {
   // TODO(benh): Return an error if attempting to initialize again
   // with a different delegate then originally specified.
@@ -1159,11 +1159,6 @@ void initialize(const string& delegate, bool initialize_glog)
       while (initializing);
       return;
     }
-  }
-
-  if (initialize_glog) {
-    google::InitGoogleLogging("<<libprocess>>");
-    google::LogToStderr();
   }
 
 //   // Install signal handler.

@@ -45,7 +45,6 @@ void usage(const char* argv0, const Configurator& configurator)
 {
   cerr << "Usage: " << utils::os::basename(argv0) << " [...] path/to/log"
        << endl
-       << endl
        << "Supported options:" << endl
        << configurator.getUsage();
 }
@@ -54,7 +53,8 @@ void usage(const char* argv0, const Configurator& configurator)
 int main(int argc, char** argv)
 {
   Configurator configurator;
-  Logging::registerOptions(&configurator);
+
+  logging::registerOptions(&configurator);
 
   configurator.addOption<uint64_t>(
       "from",
@@ -83,11 +83,11 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  Logging::init(argv[0], conf);
+  process::initialize();
+
+  logging::initialize(argv[0], conf);
 
   string path = argv[argc - 1];
-
-  process::initialize(false);
 
   Replica replica(path);
 

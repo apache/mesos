@@ -16,73 +16,79 @@
  * limitations under the License.
  */
 
-#include <sys/stat.h>
-
 #include <glog/logging.h>
 
-#include "fatal.hpp"
-#include "logging.hpp"
+#include <process/once.hpp>
+
+#include "common/logging.hpp"
+#include "common/utils.hpp"
 
 using std::string;
 
-// TODO(benh): Provide a mechanism to initialize the logging only
-// once, possibly using something like pthread_once. In particular, we
-// need to make sure we handle the case that another library is used
-// with Mesos that also uses glog.
-//
-//   static pthread_once_t glog_initialized = PTHREAD_ONCE_INIT;
-//
-//   pthread_once(&glog_initialized, initialize_glog);
-
 namespace mesos {
 namespace internal {
+namespace logging {
 
-void Logging::registerOptions(Configurator* conf)
+void registerOptions(Configurator* configurator)
 {
-  conf->addOption<bool>("quiet", 'q', "Disable logging to stderr", false);
-  conf->addOption<string>("log_dir",
-                          "Where to put logs (default: glog default)");
-  conf->addOption<int>("log_buf_secs",
-                       "How many seconds to buffer log messages for\n",
-                       0);
+  configurator->addOption<bool>(
+      "quiet",
+      'q',
+      "Disable logging to stderr (default: false)",
+      false);
+
+  configurator->addOption<string>(
+      "log_dir",
+      "Location to put log files (no default, nothing"
+      " is written to disk unless specified; "
+      " does not affect logging to stderr)");
+
+  configurator->addOption<int>(
+      "logbufsecs",
+      "How many seconds to buffer log messages for (default: 0)",
+      0);
 }
 
 
-void Logging::init(const char* programName, const Configuration& conf)
+void initialize(const string& argv0, const Configuration& conf)
 {
-  // Set glog's parameters through Google Flags variables
-  string logDir = getLogDir(conf);
-  if (logDir == "") {
-    FLAGS_logtostderr = true;
-  } else {
-    if (mkdir(logDir.c_str(), 0755) < 0 && errno != EEXIST) {
-      fatalerror("Failed to create log directory %s", logDir.c_str());
+  static process::Once initialized;
+
+  if (initialized.once()) {
+    return;
+  }
+
+  Option<string> directory = conf.get<string>("log_dir");
+
+  // Set glog's parameters through Google Flags variables.
+  if (directory.isSome()) {
+    if (!utils::os::mkdir(directory.get())) {
+      std::cerr << "Could not initialize logging: Failed to create directory "
+                << directory.get() << std::endl;
+      exit(1);
     }
-    FLAGS_log_dir = logDir;
+    FLAGS_log_dir = directory.get();
   }
 
-  FLAGS_logbufsecs = conf.get<int>("log_buf_secs", 0);
 
-  google::InitGoogleLogging(programName);
+  // Log everything to stderr IN ADDITION to log files unless
+  // otherwise specified.
+  bool quiet = conf.get<bool>("quiet", false);
 
-  if (!isQuiet(conf)) {
-    google::SetStderrLogging(google::INFO);
+  if (!quiet) {
+    FLAGS_stderrthreshold = 0; // INFO.
   }
 
-  LOG(INFO) << "Logging to " << (FLAGS_logtostderr ? "<stderr>" : FLAGS_log_dir);
+  FLAGS_logbufsecs = conf.get<int>("logbufsecs", 0);
+
+  google::InitGoogleLogging(argv0.c_str());
+
+  LOG(INFO) << "Logging to " <<
+    (directory.isSome() ? directory.get() : "STDERR");
+
+  initialized.done();
 }
 
-
-string Logging::getLogDir(const Configuration& conf)
-{
-  return conf.get("log_dir", "");
-}
-
-
-bool Logging::isQuiet(const Configuration& conf)
-{
-  return conf.get<bool>("quiet", false);
-}
-
+} // namespace logging {
 } // namespace internal {
 } // namespace mesos {

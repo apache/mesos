@@ -178,10 +178,10 @@ void LxcIsolationModule::launchExecutor(
 			   frameworkInfo.user(),
                            directory,
 			   slave,
-			   conf.get("frameworks_home", ""),
-			   conf.get("hadoop_home", ""),
+			   conf.get<string>("frameworks_home", ""),
+			   conf.get<string>("hadoop_home", ""),
 			   !local,
-			   conf.get("switch_user", true),
+			   conf.get<bool>("switch_user", true),
 			   container);
 
     launcher->setupEnvironmentForLauncherMain();
@@ -204,7 +204,7 @@ void LxcIsolationModule::launchExecutor(
 
     // Determine path for mesos-launcher from Mesos home directory.
     string path =
-      conf.get("launcher_dir", MESOS_LIBEXECDIR) + "/mesos-launcher";
+      conf.get<string>("launcher_dir", MESOS_LIBEXECDIR) + "/mesos-launcher";
     args[i++] = path.c_str();
     args[i++] = NULL;
 

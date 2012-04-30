@@ -1504,7 +1504,7 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
             << executorId << "' of framework " << frameworkId;
 
   std::ostringstream out(std::ios_base::app | std::ios_base::out);
-  out << conf.get("work_dir", "/tmp/mesos")
+  out << conf.get<string>("work_dir", "/tmp/mesos")
       << "/slaves/" << id
       << "/frameworks/" << frameworkId
       << "/executors/" << executorId;

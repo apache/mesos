@@ -1,6 +1,8 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include "common/utils.hpp"
+
 #include "configurator/configurator.hpp"
 
 #include "messages/messages.hpp"
@@ -15,10 +17,9 @@ using std::endl;
 using std::string;
 
 
-void usage(const char* programName, const Configurator& configurator)
+void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << programName << " [...]" << endl
-       << endl
+  cerr << "Usage: " << utils::os::basename(argv0) << " [...]" << endl
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();
@@ -61,7 +62,7 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  // Initialize libprocess library
+  // Initialize libprocess.
   process::initialize();
 
   if (!conf.contains("master")) {

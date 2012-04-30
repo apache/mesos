@@ -613,6 +613,8 @@ MesosSchedulerDriver::MesosSchedulerDriver(
   // Load the configuration.
   Configurator configurator;
 
+  logging::registerOptions(&configurator);
+
   if (master == "local" || master == "localquiet") {
     local::registerOptions(&configurator);
   }
@@ -626,6 +628,17 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     return;
   }
 
+  // Initialize libprocess.
+  process::initialize();
+
+  // TODO(benh): Consider eliminating 'localquiet' so that we don't
+  // have to have weird semantics when the 'quiet' option is set to
+  // false but 'localquiet' is being used.
+  conf->set("quiet", master == "localquiet");
+
+  // TODO(benh): Replace whitespace in framework.name() with '_'?
+  logging::initialize(framework.name(), *conf);
+
   // Initialize mutex and condition variable.
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);
@@ -633,11 +646,6 @@ MesosSchedulerDriver::MesosSchedulerDriver(
   pthread_mutex_init(&mutex, &attr);
   pthread_mutexattr_destroy(&attr);
   pthread_cond_init(&cond, 0);
-
-  // TODO(benh): Initialize glog.
-
-  // Initialize libprocess library (but not glog, done above).
-  process::initialize(false);
 }
 
 

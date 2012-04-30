@@ -34,8 +34,8 @@ void start(const process::PID<Master>& master, const Configuration& conf)
 {
   std::vector<std::string> args(3);
   args[0] = "--master_port=" + utils::stringify(master.port);
-  args[1] = "--webui_port=" + conf.get("webui_port", "8080");
-  args[2] = "--log_dir=" + conf.get("log_dir", FLAGS_log_dir);
+  args[1] = "--webui_port=" + conf.get<std::string>("webui_port", "8080");
+  args[2] = "--log_dir=" + conf.get<std::string>("log_dir", FLAGS_log_dir);
 
   utils::webui::start(conf, "master/webui.py", args);
 }

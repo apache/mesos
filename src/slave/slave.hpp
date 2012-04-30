@@ -322,8 +322,11 @@ struct Framework
       executor.mutable_executor_id()->set_value(id);
 
       // Now determine the path to the executor.
-      Try<std::string> path = utils::os::realpath(
-          conf.get("launcher_dir", MESOS_LIBEXECDIR) + "/mesos-executor");
+      std::string directory =
+        conf.get<std::string>("launcher_dir", MESOS_LIBEXECDIR);
+
+      Try<std::string> path =
+        utils::os::realpath(directory + "/mesos-executor");
 
       if (path.isSome()) {
         executor.mutable_command()->set_value(path.get());

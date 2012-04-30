@@ -62,7 +62,7 @@ void start(const Configuration& conf,
   // is necessary for running out of the build directory before 'make
   // install') or the directory determined at build time via the
   // preprocessor macro '-DMESOS_WEBUI_DIR' set in the Makefile.
-  std::string directory = conf.get("webui_dir", MESOS_WEBUI_DIR);
+  std::string directory = conf.get<std::string>("webui_dir", MESOS_WEBUI_DIR);
 
   // Remove any trailing '/' in directory.
   directory = strings::remove(directory, "/", strings::SUFFIX);
