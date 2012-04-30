@@ -46,6 +46,7 @@
 
 #include <process/clock.hpp>
 #include <process/defer.hpp>
+#include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/executor.hpp>
 #include <process/filter.hpp>

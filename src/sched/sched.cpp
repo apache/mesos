@@ -32,11 +32,11 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
-#include <process/timer.hpp>
 
 #include "configurator/configuration.hpp"
 

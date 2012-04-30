@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-#include <glog/logging.h>
-
-#include <process/timer.hpp>
+#include <process/delay.hpp>
+#include <process/dispatch.hpp>
 
 #include "master/frameworks_manager.hpp"
 
 #include "common/foreach.hpp"
+#include "common/logging.hpp"
 #include "common/type_utils.hpp"
 
 using std::map;

@@ -1,6 +1,8 @@
 #ifndef __PROCESS_DEFER_HPP__
 #define __PROCESS_DEFER_HPP__
 
+#include <tr1/functional>
+
 #include <process/deferred.hpp>
 #include <process/dispatch.hpp>
 

@@ -21,13 +21,12 @@
 #include <list>
 #include <sstream>
 
-#include <glog/logging.h>
-
+#include <process/delay.hpp>
 #include <process/run.hpp>
-#include <process/timer.hpp>
 
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
+#include "common/logging.hpp"
 #include "common/utils.hpp"
 #include "common/uuid.hpp"
 

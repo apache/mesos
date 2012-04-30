@@ -21,8 +21,7 @@
 #include <map>
 
 #include <process/dispatch.hpp>
-
-#include "lxc_isolation_module.hpp"
+#include <process/id.hpp>
 
 #include "common/foreach.hpp"
 #include "common/type_utils.hpp"
@@ -30,6 +29,8 @@
 #include "common/utils.hpp"
 
 #include "launcher/launcher.hpp"
+
+#include "slave/lxc_isolation_module.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;

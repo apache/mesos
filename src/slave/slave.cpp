@@ -22,8 +22,9 @@
 #include <algorithm>
 #include <iomanip>
 
+#include <process/delay.hpp>
+#include <process/dispatch.hpp>
 #include <process/id.hpp>
-#include <process/timer.hpp>
 
 #include "common/build.hpp"
 #include "common/option.hpp"

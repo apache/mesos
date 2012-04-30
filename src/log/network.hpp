@@ -25,7 +25,7 @@
 #include <set>
 #include <string>
 
-#include <process/deferred.hpp>
+#include <process/collect.hpp>
 #include <process/executor.hpp>
 #include <process/protobuf.hpp>
 #include <process/timeout.hpp>
@@ -89,22 +89,21 @@ public:
   ZooKeeperNetwork(zookeeper::Group* group);
 
 private:
+  typedef ZooKeeperNetwork This;
+
   // Helper that sets up a watch on the group.
-  void watch(const std::set<zookeeper::Group::Membership>& memberships =
-             std::set<zookeeper::Group::Membership>());
+  void watch(const std::set<zookeeper::Group::Membership>& expected);
 
-  // Invoked when the group has updated.
-  void ready(const std::set<zookeeper::Group::Membership>& memberships);
+  // Invoked when the group memberships have changed.
+  void watched();
 
-  // Invoked if watching the group fails.
-  void failed(const std::string& message) const;
-
-  // Invoked if we were unable to watch the group.
-  void discarded() const;
+  // Invoked when group members data has been collected.
+  void collected();
 
   zookeeper::Group* group;
-
   process::Executor executor;
+  process::Future<std::set<zookeeper::Group::Membership> > memberships;
+  process::Future<std::list<std::string> > infos;
 };
 
 
@@ -243,60 +242,68 @@ void Network::broadcast(
   process::dispatch(process, broadcast, m, filter);
 }
 
+
 inline ZooKeeperNetwork::ZooKeeperNetwork(zookeeper::Group* _group)
   : group(_group)
 {
-  watch();
+  watch(std::set<zookeeper::Group::Membership>());
 }
 
 
 inline void ZooKeeperNetwork::watch(
-    const std::set<zookeeper::Group::Membership>& memberships)
+    const std::set<zookeeper::Group::Membership>& expected)
 {
-  process::deferred<void(const std::set<zookeeper::Group::Membership>&)> ready =
-    executor.defer(lambda::bind(&ZooKeeperNetwork::ready, this, lambda::_1));
-
-  process::deferred<void(const std::string&)> failed =
-    executor.defer(lambda::bind(&ZooKeeperNetwork::failed, this, lambda::_1));
-
-  process::deferred<void(void)> discarded =
-    executor.defer(lambda::bind(&ZooKeeperNetwork::discarded, this));
-
-  group->watch(memberships)
-    .onReady(ready)
-    .onFailed(failed)
-    .onDiscarded(discarded);
+  memberships = group->watch(expected);
+  memberships.onAny(executor.defer(lambda::bind(&This::watched, this)));
 }
 
 
-inline void ZooKeeperNetwork::ready(
-    const std::set<zookeeper::Group::Membership>& memberships)
+inline void ZooKeeperNetwork::watched()
 {
+  if (memberships.isFailed()) {
+    // We can't do much here, we could try creating another Group but
+    // that might just continue indifinitely, so we fail early
+    // instead. Note that Group handles all retryable/recoverable
+    // ZooKeeper errors internally.
+    LOG(FATAL) << "Failed to watch ZooKeeper group: " << memberships.failure();
+  }
+
+  CHECK(memberships.isReady()); // Not expecting Group to discard futures.
+
   LOG(INFO) << "ZooKeeper group memberships changed";
 
-  // Get infos for each membership in order to convert them to PIDs.
-  std::set<process::Future<std::string> > futures;
+  // Get data for each membership in order to convert them to PIDs.
+  std::list<process::Future<std::string> > futures;
 
-  foreach (const zookeeper::Group::Membership& membership, memberships) {
-    futures.insert(group->info(membership));
+  foreach (const zookeeper::Group::Membership& membership, memberships.get()) {
+    futures.push_back(group->info(membership));
   }
+
+  infos = process::collect(futures, process::Timeout(5.0));
+  infos.onAny(executor.defer(lambda::bind(&This::collected, this)));
+}
+
+
+inline void ZooKeeperNetwork::collected()
+{
+  if (infos.isFailed()) {
+    LOG(WARNING) << "Failed to get data for ZooKeeper group members: "
+                 << infos.failure();
+
+    // Try again later assuming empty group. Note that this does not
+    // remove any of the current group members.
+    watch(std::set<zookeeper::Group::Membership>());
+    return;
+  }
+
+  CHECK(infos.isReady()); // Not expecting collect to discard futures.
 
   std::set<process::UPID> pids;
 
-  process::Timeout timeout = 5.0;
-
-  while (!futures.empty()) {
-    process::Future<process::Future<std::string> > future = select(futures);
-    if (future.await(timeout.remaining())) {
-      CHECK(future.get().isReady());
-      process::UPID pid(future.get().get());
-      CHECK(pid) << "Failed to parse '" << future.get().get() << "'";
-      pids.insert(pid);
-      futures.erase(future.get());
-    } else {
-      watch(); // Try again later assuming empty group.
-      return;
-    }
+  foreach (const std::string& info, infos.get()) {
+    process::UPID pid(info);
+    CHECK(pid) << "Failed to parse '" << info << "'";
+    pids.insert(pid);
   }
 
   LOG(INFO) << "ZooKeeper group PIDs: "
@@ -304,19 +311,7 @@ inline void ZooKeeperNetwork::ready(
 
   set(pids); // Update the network.
 
-  watch(memberships);
-}
-
-
-inline void ZooKeeperNetwork::failed(const std::string& message) const
-{
-  LOG(FATAL) << "Failed to watch ZooKeeper group: "<< message;
-}
-
-
-inline void ZooKeeperNetwork::discarded() const
-{
-  LOG(FATAL) << "Unexpected discarded future while watching ZooKeeper group";
+  watch(memberships.get());
 }
 
 #endif // __NETWORK_HPP__

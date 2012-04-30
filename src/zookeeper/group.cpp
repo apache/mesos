@@ -4,8 +4,9 @@
 #include <utility>
 #include <vector>
 
+#include <process/delay.hpp>
+#include <process/dispatch.hpp>
 #include <process/process.hpp>
-#include <process/timer.hpp>
 
 #include "common/result.hpp"
 #include "common/strings.hpp"

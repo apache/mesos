@@ -6,8 +6,11 @@
 #include <list>
 
 #include <process/defer.hpp>
+#include <process/delay.hpp>
 #include <process/future.hpp>
+#include <process/option.hpp>
 #include <process/process.hpp>
+#include <process/timeout.hpp>
 
 namespace process {
 
@@ -16,7 +19,9 @@ namespace process {
 // be a failure. Likewise, if any future fails than the result future
 // will be a failure.
 template <typename T>
-Future<std::list<T> > collect(std::list<Future<T> >& futures);
+Future<std::list<T> > collect(
+    std::list<Future<T> >& futures,
+    const Option<Timeout>& timeout = Option<Timeout>::none());
 
 
 namespace internal {
@@ -27,8 +32,11 @@ class CollectProcess : public Process<CollectProcess<T> >
 public:
   CollectProcess(
       const std::list<Future<T> >& _futures,
+      const Option<Timeout>& _timeout,
       Promise<std::list<T> >* _promise)
-    : futures(_futures), promise(_promise) {}
+    : futures(_futures),
+      timeout(_timeout),
+      promise(_promise) {}
 
   virtual ~CollectProcess()
   {
@@ -40,7 +48,12 @@ public:
     // Stop this nonsense if nobody cares.
     promise->future().onDiscarded(defer(this, &CollectProcess::discarded));
 
-    typename std::list<Future<T> >::iterator iterator;
+    // Only wait as long as requested.
+    if (timeout.isSome()) {
+      delay(timeout.get().remaining(), this, &CollectProcess::timedout);
+    }
+
+    typename std::list<Future<T> >::const_iterator iterator;
     for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
       const Future<T>& future = *iterator;
       future.onAny(defer(this, &CollectProcess::waited, future));
@@ -50,6 +63,12 @@ public:
 private:
   void discarded()
   {
+    terminate(this);
+  }
+
+  void timedout()
+  {
+    promise->fail("Collect failed: timed out");
     terminate(this);
   }
 
@@ -69,7 +88,8 @@ private:
     }
   }
 
-  std::list<Future<T> > futures;
+  const std::list<Future<T> > futures;
+  const Option<Timeout> timeout;
   Promise<std::list<T> >* promise;
   std::list<T> values;
 };
@@ -78,10 +98,12 @@ private:
 
 
 template <typename T>
-inline Future<std::list<T> > collect(std::list<Future<T> >& futures)
+inline Future<std::list<T> > collect(
+    std::list<Future<T> >& futures,
+    const Option<Timeout>& timeout)
 {
   Promise<std::list<T> >* promise = new Promise<std::list<T> >();
-  spawn(new internal::CollectProcess<T>(futures, promise), true);
+  spawn(new internal::CollectProcess<T>(futures, timeout, promise), true);
   return promise->future();
 }
 

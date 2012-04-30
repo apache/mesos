@@ -11,6 +11,7 @@
 #include <process/collect.hpp>
 #include <process/clock.hpp>
 #include <process/defer.hpp>
+#include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/executor.hpp>
 #include <process/filter.hpp>
@@ -18,7 +19,6 @@
 #include <process/gc.hpp>
 #include <process/process.hpp>
 #include <process/run.hpp>
-#include <process/timer.hpp>
 
 #include "encoder.hpp"
 #include "thread.hpp"
