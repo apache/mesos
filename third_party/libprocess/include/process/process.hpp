@@ -220,6 +220,11 @@ public:
 
   // Returns pid of process; valid even before calling spawn.
   PID<T> self() const { return PID<T>(dynamic_cast<const T*>(this)); }
+
+protected:
+  // Useful typedefs for dispatch/delay/defer to self()/this.
+  typedef T Self;
+  typedef T This;
 };
 
 
