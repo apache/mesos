@@ -3,6 +3,7 @@
 
 #include <process/deferred.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/preprocessor.hpp>
 
 namespace process {
@@ -14,7 +15,7 @@ class ExecutorProcess : public process::Process<ExecutorProcess>
 private:
   friend class Executor;
 
-  ExecutorProcess() {}
+  ExecutorProcess() : ProcessBase(ID::generate("__executor__")) {}
   ~ExecutorProcess() {}
 
   // Not copyable, not assignable.

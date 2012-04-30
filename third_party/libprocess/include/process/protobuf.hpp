@@ -66,9 +66,6 @@ template <typename T>
 class ProtobufProcess : public process::Process<T>
 {
 public:
-  ProtobufProcess(const std::string& id = "")
-    : process::Process<T>(id) {}
-
   virtual ~ProtobufProcess() {}
 
 protected:

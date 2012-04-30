@@ -57,7 +57,8 @@ const int64_t MIN_MEMORY_MB = 128 * Megabyte;
 
 
 LxcIsolationModule::LxcIsolationModule()
-  : initialized(false)
+  : ProcessBase(ID::generate("lxc-isolation-module")),
+    initialized(false)
 {
   // Spawn the reaper, note that it might send us a message before we
   // actually get spawned ourselves, but that's okay, the message will

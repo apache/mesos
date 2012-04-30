@@ -18,8 +18,6 @@
 
 #include <signal.h>
 
-#include <glog/logging.h>
-
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -27,6 +25,7 @@
 #include <mesos/executor.hpp>
 
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -62,7 +61,8 @@ public:
                   const ExecutorID& _executorId,
                   bool _local,
                   const std::string& _directory)
-    : slave(_slave),
+    : ProcessBase(ID::generate("executor")),
+      slave(_slave),
       driver(_driver),
       executor(_executor),
       frameworkId(_frameworkId),

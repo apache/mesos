@@ -20,20 +20,21 @@
 #include <sys/wait.h>
 
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/timer.hpp>
-
-#include "reaper.hpp"
 
 #include "common/foreach.hpp"
 
-using namespace process;
+#include "slave/reaper.hpp"
 
+using namespace process;
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-Reaper::Reaper() {}
+Reaper::Reaper()
+  : ProcessBase(ID::generate("reaper")) {}
 
 
 Reaper::~Reaper() {}

@@ -33,6 +33,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 #include <process/timer.hpp>
@@ -81,7 +82,8 @@ public:
                    const FrameworkInfo& _framework,
                    pthread_mutex_t* _mutex,
                    pthread_cond_t* _cond)
-    : driver(_driver),
+    : ProcessBase(ID::generate("scheduler")),
+      driver(_driver),
       scheduler(_scheduler),
       framework(_framework),
       mutex(_mutex),

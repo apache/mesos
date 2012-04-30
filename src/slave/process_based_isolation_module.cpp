@@ -21,6 +21,7 @@
 #include <map>
 
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 
 #include "process_based_isolation_module.hpp"
 
@@ -44,7 +45,8 @@ using process::wait; // Necessary on some OS's to disambiguate.
 
 
 ProcessBasedIsolationModule::ProcessBasedIsolationModule()
-  : initialized(false)
+  : ProcessBase(ID::generate("process-isolation-module")),
+    initialized(false)
 {
   // Spawn the reaper, note that it might send us a message before we
   // actually get spawned ourselves, but that's okay, the message will

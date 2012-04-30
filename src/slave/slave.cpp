@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iomanip>
 
+#include <process/id.hpp>
 #include <process/timer.hpp>
 
 #include "common/build.hpp"
@@ -84,7 +85,7 @@ bool isTerminalTaskState(TaskState state)
 Slave::Slave(const Resources& _resources,
              bool _local,
              IsolationModule* _isolationModule)
-  : ProcessBase("slave"),
+  : ProcessBase(ID::generate("slave")),
     resources(_resources),
     local(_local),
     isolationModule(_isolationModule)
@@ -94,7 +95,7 @@ Slave::Slave(const Resources& _resources,
 Slave::Slave(const Configuration& _conf,
              bool _local,
              IsolationModule* _isolationModule)
-  : ProcessBase("slave"),
+  : ProcessBase(ID::generate("slave")),
     conf(_conf),
     local(_local),
     isolationModule(_isolationModule)

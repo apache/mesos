@@ -216,7 +216,7 @@ private:
 template <typename T>
 class Process : public virtual ProcessBase {
 public:
-  Process(const std::string& id = "") : ProcessBase(id) {}
+  virtual ~Process() {}
 
   // Returns pid of process; valid even before calling spawn.
   PID<T> self() const { return PID<T>(dynamic_cast<const T*>(this)); }

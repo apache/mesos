@@ -51,6 +51,7 @@
 #include <process/filter.hpp>
 #include <process/future.hpp>
 #include <process/gc.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/socket.hpp>
 #include <process/timer.hpp>
@@ -125,6 +126,18 @@ public:
 
 
 namespace process {
+
+namespace ID {
+
+string generate(const string& prefix)
+{
+  static map<string, int> prefixes;
+  stringstream out;
+  out << __sync_add_and_fetch(&prefixes[prefix], 1);
+  return prefix + "(" + out.str() + ")";
+}
+
+} // namespace ID {
 
 // Provides reference counting semantics for a process pointer.
 class ProcessReference
@@ -1356,7 +1369,8 @@ void initialize(const string& delegate)
 
 
 HttpProxy::HttpProxy(const Socket& _socket)
-  : socket(_socket) {}
+  : ProcessBase(ID::generate("__http__")),
+    socket(_socket) {}
 
 
 HttpProxy::~HttpProxy()
@@ -2522,7 +2536,7 @@ bool cancel(const Timer& timer)
 } // namespace timers {
 
 
-ProcessBase::ProcessBase(const std::string& _id)
+ProcessBase::ProcessBase(const std::string& id)
 {
   process::initialize();
 
@@ -2532,15 +2546,7 @@ ProcessBase::ProcessBase(const std::string& _id)
 
   refs = 0;
 
-  if (_id != "") {
-    pid.id = _id;
-  } else {
-    // Generate string representation of unique id for process.
-    stringstream out;
-    out << __sync_add_and_fetch(&__id__, 1);
-    pid.id = out.str();
-  }
-
+  pid.id = id != "" ? id : ID::generate();
   pid.ip = __ip__;
   pid.port = __port__;
 
@@ -2798,7 +2804,10 @@ class WaitWaiter : public Process<WaitWaiter>
 {
 public:
   WaitWaiter(const UPID& _pid, double _secs, bool* _waited)
-    : pid(_pid), secs(_secs), waited(_waited) {}
+    : ProcessBase(ID::generate("__waiter__")),
+      pid(_pid),
+      secs(_secs),
+      waited(_waited) {}
 
   virtual void initialize()
   {
