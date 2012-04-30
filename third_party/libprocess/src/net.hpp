@@ -42,23 +42,23 @@ protected:
   {
     if ((s = ::socket(AF_INET, protocol, IPPROTO_IP)) < 0)
       throw runtime_error(string("socket: ") += strerror(errno));
-    
-    int flags = 1;
-    if (ioctl(s, FIONBIO, &flags) &&
-	((flags = fcntl(s, F_GETFL, 0)) < 0 ||
-	 fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0))
-      throw runtime_error(string("ioctl/fcntl: ") += strerror(errno));
+
+    socket(s);
   }
 
-  virtual void socket(int _s)
+  virtual void socket(int sd)
   {
-    s = _s;
-    
+    s = sd;
+
     int flags = 1;
     if (ioctl(s, FIONBIO, &flags) &&
-	((flags = fcntl(s, F_GETFL, 0)) < 0 ||
-	 fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0))
+        ((flags = fcntl(s, F_GETFL, 0)) < 0 ||
+          fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0))
       throw runtime_error(string("ioctl/fcntl: ") += strerror(errno));
+
+    if (fcntl(s, F_SETFD, FD_CLOEXEC) < 0) {
+      throw runtime_error(string("fcntl: ") += strerror(errno));
+    }
   }
 
   virtual void bind(in_addr_t ip, in_port_t port)
@@ -108,7 +108,7 @@ protected:
     } while (offset != bytes);
 
     return offset;
-  }  
+  }
 
   virtual void send(const void *buf, size_t bytes)
   {
@@ -116,7 +116,7 @@ protected:
     do {
       size_t len =
 	::send(s, (char *) buf + offset, bytes - offset, MSG_NOSIGNAL);
-      
+
       if (len > 0)
 	offset += len;
       else if (len < 0 && errno == EWOULDBLOCK)
@@ -175,13 +175,13 @@ protected:
       c = ::accept(SocketProcess<protocol>::s,
 		       (struct sockaddr *) &addr,
 		       (socklen_t *) &size);
-    
+
       if (c == 0)
 	throw runtime_error(string("accept: ") += strerror(errno));
       else if (c < 0 && (errno != EWOULDBLOCK))
 	throw runtime_error(string("accept: ") += strerror(errno));
     } while (!(c > 0));
-    
+
     return c;
   }
 

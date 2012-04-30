@@ -1058,6 +1058,13 @@ void accept(struct ev_loop* loop, ev_io* watcher, int revents)
   }
 
   if (set_nbio(s) < 0) {
+    PLOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, set_nbio";
+    close(s);
+    return;
+  }
+
+  if (fcntl(s, F_SETFD, FD_CLOEXEC)) {
+    PLOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, FD_CLOEXEC";
     close(s);
     return;
   }
@@ -1242,6 +1249,11 @@ void initialize(const string& delegate, bool initialize_glog)
   // Make socket non-blocking.
   if (set_nbio(__s__) < 0) {
     PLOG(FATAL) << "Failed to initialize, set_nbio";
+  }
+
+  // Set FD_CLOEXEC flag.
+  if (fcntl(__s__, F_SETFD, FD_CLOEXEC)) {
+    PLOG(FATAL) << "Failed to initialize, FD_CLOEXEC";
   }
 
   // Allow address reuse.
@@ -1550,6 +1562,10 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
         PLOG(FATAL) << "Failed to link, set_nbio";
       }
 
+      if (fcntl(s, F_SETFD, FD_CLOEXEC)) {
+        PLOG(FATAL) << "Failed to link, FD_CLOEXEC";
+      }
+
       Socket socket = Socket(s);
 
       sockets[s] = socket;
@@ -1689,6 +1705,10 @@ void SocketManager::send(Message* message)
 
       if (set_nbio(s) < 0) {
         PLOG(FATAL) << "Failed to send, set_nbio";
+      }
+
+      if (fcntl(s, F_SETFD, FD_CLOEXEC)) {
+        PLOG(FATAL) << "Failed to send, FD_CLOEXEC";
       }
 
       sockets[s] = Socket(s);
