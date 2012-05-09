@@ -1539,7 +1539,9 @@ SocketManager::~SocketManager() {}
 
 Socket SocketManager::accepted(int s)
 {
-  return sockets[s] = Socket(s);
+  synchronized (this) {
+    return sockets[s] = Socket(s);
+  }
 }
 
 
