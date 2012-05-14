@@ -23,7 +23,9 @@ class Group
 public:
   // Represents a group membership. Note that we order memberships by
   // membership id (that is, an older membership is ordered before a
-  // younger membership).
+  // younger membership). In addition, we do not use the "cancelled"
+  // future to compare memberships so that two memberships created
+  // from different Group instances will still be considered the same.
   struct Membership
   {
     bool operator == (const Membership& that) const
@@ -56,12 +58,25 @@ public:
       return sequence;
     }
 
+    // Returns a future that is only satisfied once this membership
+    // has been cancelled. In which case, the value of the future is
+    // true if you own this membership and cancelled it by invoking
+    // Group::cancel. Otherwise, the value of the future is false (and
+    // could signify cancellation due to a sesssion expiration or
+    // operator error).
+    process::Future<bool> cancelled() const
+    {
+      return cancelled_;
+    }
+
   private:
     friend class GroupProcess; // Creates and manages memberships.
 
-    Membership(uint64_t _sequence) : sequence(_sequence) {}
+    Membership(uint64_t _sequence, const process::Future<bool>& cancelled)
+      : sequence(_sequence), cancelled_(cancelled) {}
 
     uint64_t sequence;
+    process::Future<bool> cancelled_;
   };
 
   // Constructs this group using the specified ZooKeeper servers (list
@@ -74,19 +89,19 @@ public:
 
   // Returns the result of trying to join a "group" in ZooKeeper. If
   // succesful, an "owned" membership will be returned whose
-  // retrievable information will be a copy of the specified
-  // parameter. A membership is not "renewed" in the event of a
-  // ZooKeeper session expiration. Instead, a client should watch the
-  // group memberships and rejoin the group as appropriate.
-  process::Future<Membership> join(const std::string& info);
+  // retrievable data will be a copy of the specified parameter. A
+  // membership is not "renewed" in the event of a ZooKeeper session
+  // expiration. Instead, a client should watch the group memberships
+  // and rejoin the group as appropriate.
+  process::Future<Membership> join(const std::string& data);
 
   // Returns the result of trying to cancel a membership. Note that
   // only memberships that are "owned" (see join) can be canceled.
   process::Future<bool> cancel(const Membership& membership);
 
-  // Returns the result of trying to fetch the information associated
-  // with a group membership.
-  process::Future<std::string> info(const Membership& membership);
+  // Returns the result of trying to fetch the data associated with a
+  // group membership.
+  process::Future<std::string> data(const Membership& membership);
 
   // Returns a future that gets set when the group memberships differ
   // from the "expected" memberships specified.

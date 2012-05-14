@@ -93,14 +93,14 @@ TEST_F(ZooKeeperTest, Group)
   EXPECT_EQ(1, memberships.get().size());
   EXPECT_EQ(1, memberships.get().count(membership.get()));
 
-  process::Future<std::string> info = group.info(membership.get());
+  process::Future<std::string> data = group.data(membership.get());
 
-  info.await();
+  data.await();
 
-  ASSERT_FALSE(info.isFailed()) << info.failure();
-  ASSERT_FALSE(info.isDiscarded());
-  ASSERT_TRUE(info.isReady());
-  EXPECT_EQ("hello world", info.get());
+  ASSERT_FALSE(data.isFailed()) << data.failure();
+  ASSERT_FALSE(data.isDiscarded());
+  ASSERT_TRUE(data.isReady());
+  EXPECT_EQ("hello world", data.get());
 
   process::Future<bool> cancellation = group.cancel(membership.get());
 
@@ -117,6 +117,9 @@ TEST_F(ZooKeeperTest, Group)
 
   ASSERT_TRUE(memberships.isReady());
   EXPECT_EQ(0, memberships.get().size());
+
+  ASSERT_TRUE(membership.get().cancelled().isReady());
+  ASSERT_TRUE(membership.get().cancelled().get());
 }
 
 
@@ -150,7 +153,7 @@ TEST_F(ZooKeeperTest, GroupJoinWithDisconnect)
 }
 
 
-TEST_F(ZooKeeperTest, GroupInfoWithDisconnect)
+TEST_F(ZooKeeperTest, GroupDataWithDisconnect)
 {
   zookeeper::Group group(zks->connectString(), NO_TIMEOUT, "/test/");
 
@@ -174,18 +177,18 @@ TEST_F(ZooKeeperTest, GroupInfoWithDisconnect)
 
   zks->shutdownNetwork();
 
-  process::Future<std::string> info = group.info(membership.get());
+  process::Future<std::string> data = group.data(membership.get());
 
-  EXPECT_TRUE(info.isPending());
+  EXPECT_TRUE(data.isPending());
 
   zks->startNetwork();
 
-  info.await();
+  data.await();
 
-  ASSERT_FALSE(info.isFailed()) << info.failure();
-  ASSERT_FALSE(info.isDiscarded());
-  ASSERT_TRUE(info.isReady());
-  EXPECT_EQ("hello world", info.get());
+  ASSERT_FALSE(data.isFailed()) << data.failure();
+  ASSERT_FALSE(data.isDiscarded());
+  ASSERT_TRUE(data.isReady());
+  EXPECT_EQ("hello world", data.get());
 }
 
 
@@ -211,16 +214,16 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
   EXPECT_EQ(1, memberships.get().size());
   EXPECT_EQ(1, memberships.get().count(membership.get()));
 
-  process::Future<std::string> info = group.info(membership.get());
+  process::Future<std::string> data = group.data(membership.get());
 
-  EXPECT_TRUE(info.isPending());
+  EXPECT_TRUE(data.isPending());
 
-  info.await();
+  data.await();
 
-  ASSERT_FALSE(info.isFailed()) << info.failure();
-  ASSERT_FALSE(info.isDiscarded());
-  ASSERT_TRUE(info.isReady());
-  EXPECT_EQ("hello world", info.get());
+  ASSERT_FALSE(data.isFailed()) << data.failure();
+  ASSERT_FALSE(data.isDiscarded());
+  ASSERT_TRUE(data.isReady());
+  EXPECT_EQ("hello world", data.get());
 
   zks->shutdownNetwork();
 
@@ -243,6 +246,9 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
 
   ASSERT_TRUE(memberships.isReady());
   EXPECT_EQ(0, memberships.get().size());
+
+  ASSERT_TRUE(membership.get().cancelled().isReady());
+  ASSERT_TRUE(membership.get().cancelled().get());
 }
 
 
@@ -285,4 +291,78 @@ TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
 
   ASSERT_TRUE(memberships.isReady());
   EXPECT_EQ(0, memberships.get().size());
+
+  ASSERT_TRUE(membership.get().cancelled().isReady());
+  ASSERT_FALSE(membership.get().cancelled().get());
+}
+
+
+TEST_F(ZooKeeperTest, MultipleGroups)
+{
+  zookeeper::Group group1(zks->connectString(), NO_TIMEOUT, "/test/");
+  zookeeper::Group group2(zks->connectString(), NO_TIMEOUT, "/test/");
+
+  process::Future<zookeeper::Group::Membership> membership1 =
+    group1.join("group 1");
+
+  membership1.await();
+
+  ASSERT_FALSE(membership1.isFailed()) << membership1.failure();
+  ASSERT_FALSE(membership1.isDiscarded());
+  ASSERT_TRUE(membership1.isReady());
+
+  process::Future<zookeeper::Group::Membership> membership2 =
+    group2.join("group 2");
+
+  membership2.await();
+
+  ASSERT_FALSE(membership2.isFailed()) << membership2.failure();
+  ASSERT_FALSE(membership2.isDiscarded());
+  ASSERT_TRUE(membership2.isReady());
+
+  process::Future<std::set<zookeeper::Group::Membership> > memberships1 =
+    group1.watch();
+
+  memberships1.await();
+
+  ASSERT_TRUE(memberships1.isReady());
+  EXPECT_EQ(2, memberships1.get().size());
+  EXPECT_EQ(1, memberships1.get().count(membership1.get()));
+  EXPECT_EQ(1, memberships1.get().count(membership2.get()));
+
+  process::Future<std::set<zookeeper::Group::Membership> > memberships2 =
+    group2.watch();
+
+  memberships2.await();
+
+  ASSERT_TRUE(memberships2.isReady());
+  EXPECT_EQ(2, memberships2.get().size());
+  EXPECT_EQ(1, memberships2.get().count(membership1.get()));
+  EXPECT_EQ(1, memberships2.get().count(membership2.get()));
+
+  process::Future<bool> cancelled;
+
+  // Now watch the membership owned by group1 from group2.
+  foreach (const zookeeper::Group::Membership& membership, memberships2.get()) {
+    if (membership == membership1.get()) {
+      cancelled = membership.cancelled();
+      break;
+    }
+  }
+
+  process::Future<Option<int64_t> > session1 = group1.session();
+
+  session1.await();
+
+  ASSERT_FALSE(session1.isFailed()) << session1.failure();
+  ASSERT_FALSE(session1.isDiscarded());
+  ASSERT_TRUE(session1.isReady());
+  ASSERT_TRUE(session1.get().isSome());
+
+  zks->expireSession(session1.get().get());
+
+  cancelled.await();
+
+  ASSERT_TRUE(cancelled.isReady());
+  ASSERT_FALSE(cancelled.get());
 }

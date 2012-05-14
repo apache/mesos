@@ -32,6 +32,7 @@
 
 #include "common/foreach.hpp"
 #include "common/lambda.hpp"
+#include "common/logging.hpp"
 #include "common/seconds.hpp"
 #include "common/utils.hpp"
 
@@ -103,7 +104,7 @@ private:
   zookeeper::Group* group;
   process::Executor executor;
   process::Future<std::set<zookeeper::Group::Membership> > memberships;
-  process::Future<std::list<std::string> > infos;
+  process::Future<std::list<std::string> > datas;
 };
 
 
@@ -276,19 +277,19 @@ inline void ZooKeeperNetwork::watched()
   std::list<process::Future<std::string> > futures;
 
   foreach (const zookeeper::Group::Membership& membership, memberships.get()) {
-    futures.push_back(group->info(membership));
+    futures.push_back(group->data(membership));
   }
 
-  infos = process::collect(futures, process::Timeout(5.0));
-  infos.onAny(executor.defer(lambda::bind(&This::collected, this)));
+  datas = process::collect(futures, process::Timeout(5.0));
+  datas.onAny(executor.defer(lambda::bind(&This::collected, this)));
 }
 
 
 inline void ZooKeeperNetwork::collected()
 {
-  if (infos.isFailed()) {
+  if (datas.isFailed()) {
     LOG(WARNING) << "Failed to get data for ZooKeeper group members: "
-                 << infos.failure();
+                 << datas.failure();
 
     // Try again later assuming empty group. Note that this does not
     // remove any of the current group members.
@@ -296,13 +297,13 @@ inline void ZooKeeperNetwork::collected()
     return;
   }
 
-  CHECK(infos.isReady()); // Not expecting collect to discard futures.
+  CHECK(datas.isReady()); // Not expecting collect to discard futures.
 
   std::set<process::UPID> pids;
 
-  foreach (const std::string& info, infos.get()) {
-    process::UPID pid(info);
-    CHECK(pid) << "Failed to parse '" << info << "'";
+  foreach (const std::string& data, datas.get()) {
+    process::UPID pid(data);
+    CHECK(pid) << "Failed to parse '" << data << "'";
     pids.insert(pid);
   }
 
