@@ -30,6 +30,7 @@ from optparse import OptionParser
 # Parse options for this script.
 parser = OptionParser()
 
+parser.add_option('--slave_id', default=None)
 parser.add_option('--slave_port', default=None)
 parser.add_option('--webui_port', default=None)
 parser.add_option('--log_dir', default=None)
@@ -37,11 +38,13 @@ parser.add_option('--work_dir', default=None)
 
 (options, args) = parser.parse_args(sys.argv)
 
+assert options.slave_id is not None, "Missing --slave_id argument"
 assert options.slave_port is not None, "Missing --slave_port argument"
 assert options.webui_port is not None, "Missing --webui_port argument"
 assert options.log_dir is not None, "Missing --log_dir argument"
 assert options.work_dir is not None, "Missing --log_dir argument"
 
+slave_id = options.slave_id
 slave_port = options.slave_port
 webui_port = options.webui_port
 log_dir = options.log_dir
@@ -54,19 +57,23 @@ webui_dir = os.path.abspath(os.path.dirname(sys.argv[0]) + '/..')
 @route('/')
 def index():
   bottle.TEMPLATES.clear() # For rapid development
-  return template("index", slave_port = slave_port, log_dir = log_dir)
+  return template("index", slave_id = slave_id,
+                  slave_port = slave_port, log_dir = log_dir)
 
 
 @route('/framework/:id#.*#')
 def framework(id):
   bottle.TEMPLATES.clear() # For rapid development
-  return template("framework", slave_port = slave_port, framework_id = id)
+  return template("framework", slave_id = slave_id,
+                  slave_port = slave_port, framework_id = id)
 
 
 @route('/executor/:fid#.*#/:eid#.*#')
 def executor(fid, eid):
   bottle.TEMPLATES.clear() # For rapid development
-  return template("executor", slave_port = slave_port, framework_id = fid, executor_id = eid)
+  return template("executor", slave_id = slave_id,
+                  slave_port = slave_port, framework_id = fid,
+                  executor_id = eid)
 
 
 @route('/static/:filename#.*#')
@@ -89,7 +96,7 @@ def log_tail(level, lines):
 
 @route('/executor-logs/:fid#.*#/:eid#.*#/:log_type#[a-z]*#')
 def framework_log_full(fid, eid, log_type):
-  url = "http://localhost:" + slave_port + "/slave/state.json"
+  url = "http://localhost:" + slave_port + "/" + slave_id + "/state.json"
   data = urllib.urlopen(url).read()
   state = json.loads(data)
   sid = state['id']
@@ -106,7 +113,7 @@ def framework_log_full(fid, eid, log_type):
 @route('/executor-logs/:fid#.*#/:eid#.*#/:log_type#[a-z]*#/:lines#[0-9]*#')
 def framework_log_tail(fid, eid, log_type, lines):
   bottle.response.content_type = 'text/plain'
-  url = "http://localhost:" + slave_port + "/slave/state.json"
+  url = "http://localhost:" + slave_port + "/" + slave_id + "/state.json"
   data = urllib.urlopen(url).read()
   state = json.loads(data)
   sid = state['id']

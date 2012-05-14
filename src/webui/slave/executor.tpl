@@ -3,7 +3,7 @@
 
 % from webui_lib import *
 
-% url = "http://localhost:" + slave_port + "/slave/state.json"
+% url = "http://localhost:" + slave_port + "/" + slave_id + "/state.json"
 % data = urllib.urlopen(url).read()
 % state = json.loads(data)
 
