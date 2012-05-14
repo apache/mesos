@@ -134,15 +134,22 @@ inline std::vector<std::string> split(
 }
 
 
+// Returns a map of strings to strings based on calling split
+// twice. For example:
+//
+//   pairs("foo=1;bar=2;foo=3", ";&", "=")
+//
+// Would return a map with the following:
+//   foo: [1, 3]
+//   bar: [2]
 inline std::map<std::string, std::vector<std::string> > pairs(
-    const std::string& s, char delim1, char delim2)
+    const std::string& s, const std::string& delims1, const std::string& delims2)
 {
   std::map<std::string, std::vector<std::string> > result;
 
-  const std::vector<std::string>& tokens = split(s, std::string(1, delim1));
+  const std::vector<std::string>& tokens = split(s, delims1);
   foreach (const std::string& token, tokens) {
-    const std::vector<std::string>& pairs =
-      split(token, std::string(1, delim2));
+    const std::vector<std::string>& pairs = split(token, delims2);
     if (pairs.size() == 2) {
       result[pairs[0]].push_back(pairs[1]);
     }

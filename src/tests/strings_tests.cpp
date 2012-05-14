@@ -134,7 +134,7 @@ TEST(StringsTest, SplitWithMultipleDelims)
 
 TEST(StringsTest, Pairs)
 {
-  map<string, vector<string> > pairs = strings::pairs("one=1,two=2", ',', '=');
+  map<string, vector<string> > pairs = strings::pairs("one=1,two=2", ",", "=");
   ASSERT_EQ(2, pairs.size());
   ASSERT_EQ(1, pairs.count("one"));
   ASSERT_EQ(1, pairs["one"].size());

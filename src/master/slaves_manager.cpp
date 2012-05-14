@@ -820,7 +820,7 @@ Future<HttpResponse> SlavesManager::add(const HttpRequest& request)
   uint16_t port = 0;
 
   map<string, vector<string> > pairs =
-    strings::pairs(request.query, ',', '=');
+    strings::pairs(request.query, ",", "=");
 
   // Make sure there is at least a 'hostname=' and 'port='.
   if (pairs.count("hostname") == 0) {
@@ -863,7 +863,7 @@ Future<HttpResponse> SlavesManager::remove(const HttpRequest& request)
   uint16_t port = 0;
 
   map<string, vector<string> > pairs =
-    strings::pairs(request.query, ',', '=');
+    strings::pairs(request.query, ",", "=");
 
   // Make sure there is at least a 'hostname=' and 'port='.
   if (pairs.count("hostname") == 0) {
@@ -906,7 +906,7 @@ Future<HttpResponse> SlavesManager::activate(const HttpRequest& request)
   uint16_t port = 0;
 
   map<string, vector<string> > pairs =
-    strings::pairs(request.query, ',', '=');
+    strings::pairs(request.query, ",", "=");
 
   // Make sure there is at least a 'hostname=' and 'port='.
   if (pairs.count("hostname") == 0) {
@@ -949,7 +949,7 @@ Future<HttpResponse> SlavesManager::deactivate(const HttpRequest& request)
   uint16_t port = 0;
 
   map<string, vector<string> > pairs =
-    strings::pairs(request.query, ',', '=');
+    strings::pairs(request.query, ",", "=");
 
   // Make sure there is at least a 'hostname=' and 'port='.
   if (pairs.count("hostname") == 0) {
