@@ -102,6 +102,44 @@ TEST(libprocess, associate)
 }
 
 
+Future<std::string> itoa1(int* const& i)
+{
+  std::ostringstream out;
+  out << *i;
+  return out.str();
+}
+
+
+std::string itoa2(int* const& i)
+{
+  std::ostringstream out;
+  out << *i;
+  return out.str();
+}
+
+
+TEST(libprocess, then)
+{
+  Promise<int*> promise;
+
+  int i = 42;
+
+  promise.set(&i);
+
+  Future<std::string> future = promise.future()
+    .then(std::tr1::bind(&itoa1, std::tr1::placeholders::_1));
+
+  ASSERT_TRUE(future.isReady());
+  EXPECT_EQ("42", future.get());
+
+  future = promise.future()
+    .then(std::tr1::bind(&itoa2, std::tr1::placeholders::_1));
+
+  ASSERT_TRUE(future.isReady());
+  EXPECT_EQ("42", future.get());
+}
+
+
 class SpawnProcess : public Process<SpawnProcess>
 {
 public:

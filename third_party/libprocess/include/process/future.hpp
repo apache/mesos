@@ -80,6 +80,25 @@ public:
   const Future<T>& onDiscarded(const DiscardedCallback& callback) const;
   const Future<T>& onAny(const AnyCallback& callback) const;
 
+  // Installs callbacks that get executed when this future is ready
+  // and associates the result of the callback with the future that is
+  // returned to the caller (which may be of a different type).
+  template <typename X>
+  Future<X> then(
+      const std::tr1::_Bind<
+      Future<X>(*(std::tr1::_Placeholder<1>))(const T&)>& b) const;
+
+  template <typename X>
+  Future<X> then(
+      const std::tr1::_Bind<
+      X(*(std::tr1::_Placeholder<1>))(const T&)>& b) const;
+
+  template <typename X>
+  Future<X> then(const std::tr1::function<Future<X>(const T&)>& f) const;
+
+  template <typename X>
+  Future<X> then(const std::tr1::function<X(const T&)>& f) const;
+
 private:
   friend class Promise<T>;
 
@@ -563,6 +582,120 @@ const Future<T>& Future<T>::onAny(const AnyCallback& callback) const
   }
 
   return *this;
+}
+
+
+namespace internal {
+
+template <typename T, typename X>
+void thenf(const std::tr1::shared_ptr<Promise<X> >& promise,
+          const std::tr1::function<Future<X>(const T&)>& callback,
+          const Future<T>& future)
+{
+  if (future.isReady()) {
+    promise->associate(callback(future.get()));
+  } else if (future.isFailed()) {
+    promise->fail(future.failure());
+  } else if (future.isDiscarded()) {
+    promise->future().discard();
+  }
+}
+
+template <typename T, typename X>
+void then(const std::tr1::shared_ptr<Promise<X> >& promise,
+          const std::tr1::function<X(const T&)>& callback,
+          const Future<T>& future)
+{
+  if (future.isReady()) {
+    promise->set(callback(future.get()));
+  } else if (future.isFailed()) {
+    promise->fail(future.failure());
+  } else if (future.isDiscarded()) {
+    promise->future().discard();
+  }
+}
+
+
+} // namespace internal {
+
+
+template <typename T>
+template <typename X>
+Future<X> Future<T>::then(const std::tr1::function<Future<X>(const T&)>& f) const
+{
+  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
+
+  std::tr1::function<void(void)> thenf =
+    std::tr1::bind(&internal::thenf<T, X>,
+                   promise,
+                   f,
+                   *this);
+
+  onAny(thenf);
+
+  return promise->future();
+}
+
+
+template <typename T>
+template <typename X>
+Future<X> Future<T>::then(const std::tr1::function<X(const T&)>& f) const
+{
+  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
+
+  std::tr1::function<void(void)> then =
+    std::tr1::bind(&internal::then<T, X>,
+                   promise,
+                   f,
+                   *this);
+
+  onAny(then);
+
+  return promise->future();
+}
+
+
+template <typename T>
+template <typename X>
+Future<X> Future<T>::then(
+    const std::tr1::_Bind<
+    Future<X>(*(std::tr1::_Placeholder<1>))(const T&)>& b) const
+{
+  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
+
+  std::tr1::function<Future<X>(const T&)> callback = b;
+
+  std::tr1::function<void(void)> thenf =
+    std::tr1::bind(&internal::thenf<T, X>,
+                   promise,
+                   callback,
+                   *this);
+
+  onAny(thenf);
+
+  return promise->future();
+}
+
+
+template <typename T>
+template <typename X>
+Future<X> Future<T>::then(
+    const std::tr1::_Bind<
+    X(*(std::tr1::_Placeholder<1>))(const T&)>& b) const
+{
+  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
+
+  std::tr1::function<X(const T&)> callback = b;
+
+  std::tr1::function<void(void)> then =
+    std::tr1::bind(&internal::then<T, X>,
+                   promise,
+                   callback,
+                   *this);
+
+  onAny(then);
+
+  return promise->future();
 }
 
 
