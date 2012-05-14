@@ -29,7 +29,9 @@
 #endif
 #define sendfile(s, fd, offset, size) \
   ({ off_t length = size; \
-     sendfile(fd, s, offset, &length, NULL, 0) == 0 ? length : -1; })
+    sendfile(fd, s, offset, &length, NULL, 0) == 0 \
+      ? length \
+      : (errno == EAGAIN ? (length > 0 ? length : -1) : -1); })
 #endif /* __APPLE__ */
 
 #ifdef __linux__
