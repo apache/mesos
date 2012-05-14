@@ -108,7 +108,24 @@ struct Renderer : boost::static_visitor<>
 
   void operator () (const String& string) const
   {
-    out << "\"" << string.value << "\"";
+    // TODO(benh): This escaping DOES NOT handle unicode.
+    out << "\"";
+    std::string::const_iterator iterator = string.value.begin();
+    while (iterator != string.value.end()) {
+      switch (*iterator) {
+        case '"': out << "\\\""; break;
+        case '\\': out << "\\\\"; break;
+        case '/': out << "\\/"; break;
+        case '\b': out << "\\b"; break;
+        case '\f': out << "\\f"; break;
+        case '\n': out << "\\n"; break;
+        case '\r': out << "\\r"; break;
+        case '\t': out << "\\t"; break;
+        default: out << *iterator; break;
+      }
+      ++iterator;
+    }
+    out << "\"";
   }
 
   void operator () (const Number& number) const
