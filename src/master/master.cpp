@@ -134,8 +134,8 @@ struct SlaveRegistrar
                                   slave->info.hostname(), slave->pid.port);
     added.await();
     if (!added.isReady() || !added.get()) {
-      LOG(WARNING) << "Could not register slave because failed"
-                   << " to add it to the slaves maanger";
+      LOG(WARNING) << "Could not register slave on "<< slave->info.hostname()
+                   << " because failed to add it to the slaves maanger";
       // TODO(benh): This could be because our acknowledgement to the
       // slave was dropped, so they retried, and now we should
       // probably send another acknowledgement.
@@ -172,8 +172,8 @@ struct SlaveReregistrar
                                   slave->info.hostname(), slave->pid.port);
     added.await();
     if (!added.isReady() || !added.get()) {
-      LOG(WARNING) << "Could not register slave because failed"
-                   << " to add it to the slaves maanger";
+      LOG(WARNING) << "Could not register slave on " << slave->info.hostname()
+                   << " because failed to add it to the slaves manager";
       // TODO(benh): This could be because our acknowledgement to the
       // slave was dropped, so they retried, and now we should
       // probably send another acknowledgement.
@@ -526,7 +526,7 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
 
   if (framework->info.user() == "root" && rootSubmissions == false) {
     LOG(INFO) << framework << " registering as root, but "
-      << "root submissions are disabled on this cluster";
+              << "root submissions are disabled on this cluster";
     FrameworkErrorMessage message;
     message.set_message("User 'root' is not allowed to run frameworks");
     reply(message);
@@ -661,15 +661,16 @@ void Master::unregisterFramework(const FrameworkID& frameworkId)
 
 void Master::deactivateFramework(const FrameworkID& frameworkId)
 {
-  LOG(INFO) << "Asked to deactivate framework " << frameworkId;
   Framework* framework = getFramework(frameworkId);
 
   if (framework != NULL) {
     if (framework->pid == from) {
+      LOG(INFO) << "Deactivating framework " << frameworkId
+                << " as requested by " << from;
       framework->active = false;
     } else {
       LOG(WARNING) << from << " tried to deactivate framework; "
-        << "expecting " << framework->pid;
+                   << "expecting " << framework->pid;
     }
   }
 }
@@ -749,7 +750,8 @@ void Master::killTask(const FrameworkID& frameworkId,
       Slave* slave = getSlave(task->slave_id());
       CHECK(slave != NULL);
 
-      LOG(INFO) << "Telling slave " << slave->id
+      LOG(INFO) << "Telling slave " << slave->id << " ("
+                << slave->info.hostname() << ")"
                 << " to kill task " << taskId
                 << " of framework " << frameworkId;
 
@@ -783,8 +785,8 @@ void Master::killTask(const FrameworkID& frameworkId,
 
 
 void Master::schedulerMessage(const SlaveID& slaveId,
-			      const FrameworkID& frameworkId,
-			      const ExecutorID& executorId,
+                              const FrameworkID& frameworkId,
+                              const ExecutorID& executorId,
                               const string& data)
 {
   Framework* framework = getFramework(frameworkId);
@@ -792,7 +794,8 @@ void Master::schedulerMessage(const SlaveID& slaveId,
     Slave* slave = getSlave(slaveId);
     if (slave != NULL) {
       LOG(INFO) << "Sending framework message for framework "
-                << frameworkId << " to slave " << slaveId;
+                << frameworkId << " to slave " << slaveId
+                << " (" << slave->info.hostname() << ")";
 
       FrameworkToExecutorMessage message;
       message.mutable_slave_id()->MergeFrom(slaveId);
@@ -820,7 +823,8 @@ void Master::schedulerMessage(const SlaveID& slaveId,
 void Master::registerSlave(const SlaveInfo& slaveInfo)
 {
   if (!elected) {
-    LOG(WARNING) << "Ignoring register slave message since not elected yet";
+    LOG(WARNING) << "Ignoring register slave message from "
+                 << slaveInfo.hostname() << " since not elected yet";
     return;
   }
 
@@ -838,7 +842,7 @@ void Master::registerSlave(const SlaveInfo& slaveInfo)
 
   Slave* slave = new Slave(slaveInfo, newSlaveId(), from, Clock::now());
 
-  LOG(INFO) << "Attempting to register slave " << slave->id
+  LOG(INFO) << "Attempting to register slave on " << slave->info.hostname()
             << " at " << slave->pid;
 
   // TODO(benh): We assume all slaves can register for now.
@@ -866,7 +870,8 @@ void Master::reregisterSlave(const SlaveID& slaveId,
                              const vector<Task>& tasks)
 {
   if (!elected) {
-    LOG(WARNING) << "Ignoring re-register slave message since not elected yet";
+    LOG(WARNING) << "Ignoring re-register slave message from "
+                 << slaveInfo.hostname() << " since not elected yet";
     return;
   }
 
@@ -883,8 +888,8 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       // this will be handled by orthogonal security measures like key
       // based authentication).
 
-      LOG(WARNING) << "Slave at " << from
-                   << " is being allowed to re-register with an already"
+      LOG(WARNING) << "Slave at " << from << " (" << slave->info.hostname()
+                   << ") is being allowed to re-register with an already"
                    << " in use id (" << slaveId << ")";
 
       SlaveReregisteredMessage message;
@@ -893,8 +898,8 @@ void Master::reregisterSlave(const SlaveID& slaveId,
     } else {
       Slave* slave = new Slave(slaveInfo, slaveId, from, Clock::now());
 
-      LOG(INFO) << "Attempting to re-register slave " << slave->id
-                << " at " << slave->pid;
+      LOG(INFO) << "Attempting to re-register slave " << slave->id << " at "
+                << slave->pid << " (" << slave->info.hostname() << ")";
 
       // TODO(benh): We assume all slaves can register for now.
       CHECK(conf.get<string>("slaves", "*") == "*");
@@ -967,14 +972,14 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
         stats.validStatusUpdates++;
       } else {
-        LOG(WARNING) << "Status update from " << from
-                     << ": error, couldn't lookup "
+        LOG(WARNING) << "Status update from " << from << " ("
+                     << slave->info.hostname() << "): error, couldn't lookup "
                      << "task " << status.task_id();
-	stats.invalidStatusUpdates++;
+        stats.invalidStatusUpdates++;
       }
     } else {
-      LOG(WARNING) << "Status update from " << from
-                   << ": error, couldn't lookup "
+      LOG(WARNING) << "Status update from " << from << " ("
+                   << slave->info.hostname() << "): error, couldn't lookup "
                    << "framework " << update.framework_id();
       stats.invalidStatusUpdates++;
     }
@@ -988,15 +993,16 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
 
 void Master::executorMessage(const SlaveID& slaveId,
-			     const FrameworkID& frameworkId,
-			     const ExecutorID& executorId,
+                             const FrameworkID& frameworkId,
+                             const ExecutorID& executorId,
                              const string& data)
 {
   Slave* slave = getSlave(slaveId);
   if (slave != NULL) {
     Framework* framework = getFramework(frameworkId);
     if (framework != NULL) {
-      LOG(INFO) << "Sending framework message from slave " << slaveId
+      LOG(INFO) << "Sending framework message from slave " << slaveId << " ("
+                << slave->info.hostname() << ")"
                 << " to framework " << frameworkId;
       ExecutorToFrameworkMessage message;
       message.mutable_slave_id()->MergeFrom(slaveId);
@@ -1008,7 +1014,8 @@ void Master::executorMessage(const SlaveID& slaveId,
       stats.validFrameworkMessages++;
     } else {
       LOG(WARNING) << "Cannot send framework message from slave "
-                   << slaveId << " to framework " << frameworkId
+                   << slaveId << " (" << slave->info.hostname()
+                   << ") to framework " << frameworkId
                    << " because framework does not exist";
       stats.invalidFrameworkMessages++;
     }
@@ -1026,10 +1033,8 @@ void Master::exitedExecutor(const SlaveID& slaveId,
                             const ExecutorID& executorId,
                             int32_t status)
 {
-  // TODO(benh): Send status updates for the tasks running under this
-  // executor from the slave! Maybe requires adding an extra "reason"
-  // so that people can see that the tasks were lost because of
-
+  // Only update master's internal data structures here for properly accounting.
+  // The TASK_LOST updates are handled by the slave.
   Slave* slave = getSlave(slaveId);
   if (slave != NULL) {
     Framework* framework = getFramework(frameworkId);
@@ -1068,8 +1073,8 @@ void Master::deactivatedSlaveHostnamePort(const string& hostname,
     foreachvalue (Slave* slave, slaves) {
       if (slave->info.hostname() == hostname && slave->pid.port == port) {
         LOG(WARNING) << "Removing slave " << slave->id << " at "
-          << hostname << ":" << port
-          << " because it has been deactivated";
+                     << hostname << ":" << port
+                     << " because it has been deactivated";
         send(slave->pid, ShutdownMessage());
         removeSlave(slave);
         break;
@@ -1397,8 +1402,8 @@ void Master::processTasks(Offer* offer,
   // Only add a filter on a slave if none of the resources are used.
   if (timeout != 0 && usedResources.size() == 0) {
     LOG(INFO) << "Filtered slave " << slave->id
-              << " for framework " << framework->id
-              << " for " << timeout << " seconds";
+              << " (" << slave->info.hostname() << ") for framework "
+              << framework->id << " for " << timeout << " seconds";
     framework->slaveFilter[slave] =
       (timeout == -1) ? 0 : Clock::now() + timeout;
   }
@@ -1453,8 +1458,8 @@ Resources Master::launchTask(const TaskInfo& task,
 
   // Tell the slave to launch the task!
   LOG(INFO) << "Launching task " << task.task_id()
-            << " with resources " << task.resources()
-            << " on slave " << slave->id;
+            << " with resources " << task.resources() << " on slave "
+            << slave->id << " (" << slave->info.hostname() << ")";
 
   RunTaskMessage message;
   message.mutable_framework()->MergeFrom(framework->info);
@@ -1681,7 +1686,8 @@ void Master::readdSlave(Slave* slave,
       // reregister and claim them.
       LOG(WARNING) << "Possibly orphaned task " << task.task_id()
                    << " of framework " << task.framework_id()
-                   << " running on slave " << slave->id;
+                   << " running on slave " << slave->id << " ("
+                   << slave->info.hostname() << ")";
     }
   }
 }
