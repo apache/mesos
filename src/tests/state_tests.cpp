@@ -34,7 +34,9 @@
 
 #include "state/state.hpp"
 
+#ifdef MESOS_HAS_JAVA
 #include "tests/base_zookeeper_test.hpp"
+#endif
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -236,6 +238,7 @@ TEST_F(LevelDBStateTest, GetGetSetSetGet)
 }
 
 
+#ifdef MESOS_HAS_JAVA
 class ZooKeeperStateTest : public mesos::internal::test::BaseZooKeeperTest
 {
 public:
@@ -275,3 +278,4 @@ TEST_F(ZooKeeperStateTest, GetGetSetSetGet)
 {
   GetGetSetSetGet(state);
 }
+#endif // MESOS_HAS_JAVA
