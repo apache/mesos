@@ -119,6 +119,11 @@ LOG_PROTOS = messages/log.pb.cc messages/log.pb.h
 BUILT_SOURCES += $(LOG_PROTOS)
 CLEANFILES += $(LOG_PROTOS)
 
+STATE_PROTOS = messages/state.pb.cc messages/state.pb.h
+
+BUILT_SOURCES += $(STATE_PROTOS)
+CLEANFILES += $(STATE_PROTOS)
+
 
 # Targets for generating protocol buffer code.
 %.pb.cc %.pb.h: $(top_srcdir)/include/mesos/%.proto
@@ -157,7 +162,7 @@ libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
 	common/utils.cpp common/date_utils.cpp common/resources.cpp	\
 	common/attributes.cpp common/values.cpp				\
 	zookeeper/zookeeper.cpp zookeeper/authentication.cpp		\
-	zookeeper/group.cpp messages/log.proto messages/messages.proto
+	zookeeper/group.cpp messages/messages.proto
 
 pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\
 		     $(top_srcdir)/include/mesos/scheduler.hpp	\
@@ -185,12 +190,11 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/strings.hpp common/values.hpp				\
 	configurator/configuration.hpp configurator/configurator.hpp	\
 	configurator/option.hpp detector/detector.hpp			\
-	launcher/launcher.hpp local/local.hpp log/coordinator.hpp	\
-	log/replica.hpp log/log.hpp log/network.hpp			\
-	master/allocator.hpp master/allocator_factory.hpp		\
-	master/constants.hpp master/frameworks_manager.hpp		\
-	master/http.hpp master/master.hpp master/simple_allocator.hpp	\
-	master/slaves_manager.hpp master/webui.hpp messages/log.hpp	\
+	launcher/launcher.hpp local/local.hpp master/allocator.hpp	\
+	master/allocator_factory.hpp master/constants.hpp		\
+	master/frameworks_manager.hpp master/http.hpp			\
+	master/master.hpp master/simple_allocator.hpp			\
+	master/slaves_manager.hpp master/webui.hpp			\
 	messages/messages.hpp slave/constants.hpp slave/http.hpp	\
 	slave/isolation_module.hpp slave/isolation_module_factory.hpp	\
 	slave/lxc_isolation_module.hpp					\
@@ -229,10 +233,24 @@ libmesos_no_third_party_la_LIBADD += libbuild.la
 # include the leveldb headers.
 noinst_LTLIBRARIES += liblog.la
 liblog_la_SOURCES = log/coordinator.cpp log/replica.cpp
+liblog_la_SOURCES += log/coordinator.hpp log/replica.hpp log/log.hpp	\
+  log/network.hpp messages/log.hpp messages/log.proto
 nodist_liblog_la_SOURCES = $(LOG_PROTOS)
 liblog_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
 
 libmesos_no_third_party_la_LIBADD += liblog.la
+
+
+# Convenience library for building "state" abstraction in order to
+# include the leveldb headers.
+noinst_LTLIBRARIES += libstate.la
+libstate_la_SOURCES = state/leveldb.cpp state/zookeeper.cpp
+libstate_la_SOURCES += state/state.hpp messages/state.hpp	\
+  messages/state.proto
+nodist_libstate_la_SOURCES = $(STATE_PROTOS)
+libstate_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
+
+libmesos_no_third_party_la_LIBADD += libstate.la
 
 
 # Convenience library for the webui to include Python specific flags.
@@ -632,7 +650,7 @@ no_executor_framework_LDADD = libmesos.la
 check_PROGRAMS += mesos-tests
 
 mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
-	              tests/master_tests.cpp				\
+	              tests/master_tests.cpp tests/state_tests.cpp	\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
 	              tests/log_tests.cpp tests/resources_tests.cpp	\

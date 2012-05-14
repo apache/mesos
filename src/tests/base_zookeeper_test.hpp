@@ -62,7 +62,7 @@ public:
     };
 
     TestWatcher();
-    ~TestWatcher();
+    virtual ~TestWatcher();
 
     virtual void process(ZooKeeper* zk, int type, int state,
         const std::string& path);

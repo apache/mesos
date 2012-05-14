@@ -42,8 +42,8 @@ public:
   GroupProcess(const string& servers,
                const seconds& timeout,
                const string& znode,
-               const Option<Authentication>& auth = Option<Authentication>());
-  ~GroupProcess();
+               const Option<Authentication>& auth);
+  virtual ~GroupProcess();
 
   virtual void initialize();
 
@@ -183,6 +183,8 @@ GroupProcess::GroupProcess(
     acl(_auth.isSome()
         ? EVERYONE_READ_CREATOR_ALL
         : ZOO_OPEN_ACL_UNSAFE),
+    watcher(NULL),
+    zk(NULL),
     state(DISCONNECTED),
     retrying(false)
 {}
@@ -213,9 +215,7 @@ void GroupProcess::initialize()
 Future<Group::Membership> GroupProcess::join(const string& data)
 {
   if (error.isSome()) {
-    Promise<Group::Membership> promise;
-    promise.fail(error.get());
-    return promise.future();
+    return Future<Group::Membership>::failed(error.get());
   } else if (state != CONNECTED) {
     Join* join = new Join(data);
     pending.joins.push(join);
@@ -241,9 +241,7 @@ Future<Group::Membership> GroupProcess::join(const string& data)
     pending.joins.push(join);
     return join->promise.future();
   } else if (membership.isError()) {
-    Promise<Group::Membership> promise;
-    promise.fail(membership.error());
-    return promise.future();
+    return Future<Group::Membership>::failed(membership.error());
   }
 
   return membership.get();
@@ -253,9 +251,7 @@ Future<Group::Membership> GroupProcess::join(const string& data)
 Future<bool> GroupProcess::cancel(const Group::Membership& membership)
 {
   if (error.isSome()) {
-    Promise<bool> promise;
-    promise.fail(error.get());
-    return promise.future();
+    return Future<bool>::failed(error.get());
   } else if (owned.count(membership.id()) == 0) {
     // TODO(benh): Should this be an error? Right now a user can't
     // differentiate when 'false' means they can't cancel because it's
@@ -286,9 +282,7 @@ Future<bool> GroupProcess::cancel(const Group::Membership& membership)
     pending.cancels.push(cancel);
     return cancel->promise.future();
   } else if (cancellation.isError()) {
-    Promise<bool> promise;
-    promise.fail(cancellation.error());
-    return promise.future();
+    return Future<bool>::failed(cancellation.error());
   }
 
   return cancellation.get();
@@ -298,9 +292,7 @@ Future<bool> GroupProcess::cancel(const Group::Membership& membership)
 Future<string> GroupProcess::data(const Group::Membership& membership)
 {
   if (error.isSome()) {
-    Promise<string> promise;
-    promise.fail(error.get());
-    return promise.future();
+    return Future<string>::failed(error.get());
   } else if (state != CONNECTED) {
     Data* data = new Data(membership);
     pending.datas.push(data);
@@ -318,9 +310,7 @@ Future<string> GroupProcess::data(const Group::Membership& membership)
     pending.datas.push(data);
     return data->promise.future();
   } else if (result.isError()) {
-    Promise<string> promise;
-    promise.fail(result.error());
-    return promise.future();
+    return Future<string>::failed(result.error());
   }
 
   return result.get();
@@ -331,9 +321,7 @@ Future<set<Group::Membership> > GroupProcess::watch(
     const set<Group::Membership>& expected)
 {
   if (error.isSome()) {
-    Promise<set<Group::Membership> > promise;
-    promise.fail(error.get());
-    return promise.future();
+    return Future<set<Group::Membership> >::failed(error.get());
   } else if (state != CONNECTED) {
     Watch* watch = new Watch(expected);
     pending.watches.push(watch);
@@ -388,7 +376,8 @@ Future<Option<int64_t> > GroupProcess::session()
 void GroupProcess::connected(bool reconnect)
 {
   if (!reconnect) {
-    // Authenticate if necessary.
+    // Authenticate if necessary (and we are connected for the first
+    // time, or after a session expiration).
     if (auth.isSome()) {
       LOG(INFO) << "Authenticating with ZooKeeper using " << auth.get().scheme;
 
@@ -405,9 +394,8 @@ void GroupProcess::connected(bool reconnect)
       }
     }
 
-    CHECK(znode.size() == 0 || znode.at(znode.size() - 1) != '/');
-
     // Create directory path znodes as necessary.
+    CHECK(znode.size() == 0 || znode.at(znode.size() - 1) != '/');
     size_t index = znode.find("/", 0);
 
     while (index < string::npos) {
