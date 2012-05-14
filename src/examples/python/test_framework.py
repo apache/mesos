@@ -65,7 +65,7 @@ class TestScheduler(mesos.Scheduler):
         mem.scalar.value = TASK_MEM
 
         tasks.append(task)
-        driver.launchTasks(offer.id, tasks)
+      driver.launchTasks(offer.id, tasks)
 
   def statusUpdate(self, driver, update):
     print "Task %s is in state %d" % (update.task_id.value, update.state)
