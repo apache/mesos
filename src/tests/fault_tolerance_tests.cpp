@@ -740,6 +740,122 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 }
 
 
+TEST(FaultToleranceTest, SchedulerExit)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  MockFilter filter;
+  process::filter(&filter);
+
+  EXPECT_MESSAGE(filter, _, _, _)
+    .WillRepeatedly(Return(false));
+
+  SimpleAllocator a;
+  Master m(&a);
+  PID<Master> master = process::spawn(&m);
+
+  trigger statusUpdateMsg;
+  process::Message message;
+
+  // Trigger on the second status update received.
+  EXPECT_MESSAGE(filter, Eq(StatusUpdateMessage().GetTypeName()), _, Eq(master))
+    .WillOnce(Return(false))
+    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
+                    Trigger(&statusUpdateMsg),Return(false)));
+
+  MockExecutor exec;
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdate(TASK_RUNNING));
+
+  trigger shutdownCall;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(Trigger(&shutdownCall));
+
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
+
+  Resources resources = Resources::parse("cpus:2;mem:1024");
+
+  Slave s(resources, true, &isolationModule);
+  PID<Slave> slave = process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
+  FrameworkID frameworkId;
+
+  vector<Offer> offers;
+  TaskStatus status;
+  trigger schedResourceOfferCall, schedStatusUpdateCall;
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&schedStatusUpdateCall)));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers),
+                    Trigger(&schedResourceOfferCall)))
+    .WillRepeatedly(Return());
+
+  driver.start();
+
+  WAIT_UNTIL(schedResourceOfferCall);
+
+  EXPECT_NE(0, offers.size());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  driver.launchTasks(offers[0].id(), tasks);
+
+  WAIT_UNTIL(schedStatusUpdateCall);
+
+  EXPECT_EQ(TASK_RUNNING, status.state());
+
+  driver.stop();
+  driver.join();
+
+  WAIT_UNTIL(shutdownCall);
+
+  // Simulate a executorExited message from isolation module to the slave.
+  process::dispatch(slave, &Slave::executorExited,
+                    frameworkId, DEFAULT_EXECUTOR_ID, 0);
+
+  WAIT_UNTIL(statusUpdateMsg);
+
+  StatusUpdateMessage statusUpdate;
+  statusUpdate.ParseFromString(message.body);
+
+  EXPECT_EQ(TASK_LOST, statusUpdate.update().status().state());
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
+
+  process::filter(NULL);
+}
+
+
 TEST(FaultToleranceTest, SlaveReliableRegistration)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);

@@ -627,8 +627,8 @@ void Slave::shutdownFramework(const FrameworkID& frameworkId)
 
 
 void Slave::schedulerMessage(const SlaveID& slaveId,
-			     const FrameworkID& frameworkId,
-			     const ExecutorID& executorId,
+                             const FrameworkID& frameworkId,
+                             const ExecutorID& executorId,
                              const string& data)
 {
   Framework* framework = getFramework(frameworkId);
@@ -1398,7 +1398,7 @@ void Slave::executorExited(const FrameworkID& frameworkId,
   bool isCommandExecutor = false;
 
   // Transition all live tasks to TASK_LOST/TASK_FAILED.
-  foreachvalue (Task* task, executor->launchedTasks) {
+  foreachvalue (Task* task, utils::copy(executor->launchedTasks)) {
     if (!isTerminalTaskState(task->state())) {
       isCommandExecutor = !task->has_executor_id();
 
@@ -1411,7 +1411,7 @@ void Slave::executorExited(const FrameworkID& frameworkId,
   }
 
   // Transition all queued tasks to TASK_LOST/TASK_FAILED.
-  foreachvalue (const TaskInfo& task, executor->queuedTasks) {
+  foreachvalue (const TaskInfo& task, utils::copy(executor->queuedTasks)) {
     isCommandExecutor = task.has_command();
 
     transitionLiveTask(task.task_id(),
@@ -1467,12 +1467,8 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
   }
 
   Executor* executor = framework->getExecutor(executorId);
-  if (executor == NULL) {
-    return;
-  }
-
   // Make sure this timeout is valid.
-  if (executor->uuid == uuid) {
+  if (executor != NULL && executor->uuid == uuid) {
     LOG(INFO) << "Killing executor '" << executor->id
               << "' of framework " << framework->id;
 
@@ -1480,8 +1476,13 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
              &IsolationModule::killExecutor,
              framework->id, executor->id);
 
-    // Call executorExited here to transition live tasks to LOST/FAILED.
-    executorExited(frameworkId, executorId, 0);
+    framework->destroyExecutor(executor->id);
+  }
+
+  // Cleanup if this framework has no executors running.
+  if (framework->executors.size() == 0) {
+    frameworks.erase(framework->id);
+    delete framework;
   }
 }
 
