@@ -45,7 +45,7 @@ public:
                const Option<Authentication>& auth = Option<Authentication>());
   ~GroupProcess();
 
-  void initialize();
+  virtual void initialize();
 
   // Group implementation.
   Future<Group::Membership> join(const string& data);
@@ -825,7 +825,6 @@ Group::Group(const string& servers,
 {
   process = new GroupProcess(servers, timeout, znode, auth);
   spawn(process);
-  dispatch(process, &GroupProcess::initialize);
 }
 
 

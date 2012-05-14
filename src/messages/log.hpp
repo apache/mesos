@@ -22,5 +22,3 @@
 #include "messages/log.pb.h"
 
 #endif // __MESSAGES_LOG_HPP__
-
-

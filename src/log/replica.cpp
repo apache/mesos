@@ -40,7 +40,6 @@ using std::list;
 using std::set;
 using std::string;
 
-
 namespace mesos {
 namespace internal {
 namespace log {
@@ -443,9 +442,9 @@ Try<Action> LevelDBStorage::read(uint64_t position)
   Timer timer;
   timer.start();
 
-  string value;
-
   leveldb::ReadOptions options;
+
+  string value;
 
   leveldb::Status status = db->Get(options, encode(position), &value);
 

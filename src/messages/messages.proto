@@ -55,6 +55,12 @@ message StatusUpdate {
 }
 
 
+message Slaves
+{
+  repeated SlaveInfo infos = 1;
+}
+
+
 message SubmitSchedulerRequest
 {
   required string name = 1;
