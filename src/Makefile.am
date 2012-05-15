@@ -348,13 +348,84 @@ mesos_mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_mesos_LDADD = libmesos.la
 
 
-# Need to specify where the webui "artifacts" should get installed.
+# Need to distribute/install Python webui.
 nobase_dist_webui_DATA += webui/bottle-0.8.3/bottle.py	\
   webui/common/webui_lib.py webui/master/framework.tpl	\
   webui/master/index.tpl webui/master/webui.py		\
   webui/slave/framework.tpl webui/slave/executor.tpl	\
   webui/slave/index.tpl webui/slave/webui.py		\
   webui/static/stylesheet.css
+
+# Need to distribute/install webui javascript.
+nobase_dist_webui_DATA += webui/master/static/controllers.js	\
+  webui/master/static/app.js \
+  webui/master/static/dashboard.js
+
+# Need to distribute/install webui CSS.
+nobase_dist_webui_DATA += webui/master/static/graph.css	\
+  webui/master/static/mesos.css
+
+# Need to distribute/install webui HTML.
+nobase_dist_webui_DATA += webui/master/static/dashboard.html		\
+  webui/master/static/framework.html					\
+  webui/master/static/frameworks.html webui/master/static/home.html	\
+  webui/master/static/index.html webui/master/static/log.html		\
+  webui/master/static/slaves.html
+
+# Need to distribute/install third_party javascript.
+nobase_dist_webui_DATA += webui/master/static/angular-1.0.0rc8.js	\
+  webui/master/static/underscore-min.js					\
+  webui/master/static/cubism.v1.js webui/master/static/d3.v2.js
+
+# Need to distribute/install bootstrap.
+nobase_dist_webui_DATA +=							  \
+  webui/master/static/bootstrap/css/bootstrap-responsive.css			  \
+  webui/master/static/bootstrap/css/bootstrap.css				  \
+  webui/master/static/bootstrap/css/docs.css					  \
+  webui/master/static/bootstrap/ico/favicon.ico					  \
+  webui/master/static/bootstrap/img/bird.png					  \
+  webui/master/static/bootstrap/img/bootstrap-mdo-sfmoma-01.jpg			  \
+  webui/master/static/bootstrap/img/bootstrap-mdo-sfmoma-02.jpg			  \
+  webui/master/static/bootstrap/img/bootstrap-mdo-sfmoma-03.jpg			  \
+  webui/master/static/bootstrap/img/browsers.png				  \
+  webui/master/static/bootstrap/img/github-16px.png				  \
+  webui/master/static/bootstrap/img/glyphicons/glyphicons_009_magic.png		  \
+  webui/master/static/bootstrap/img/glyphicons/glyphicons_042_group.png		  \
+  webui/master/static/bootstrap/img/glyphicons/glyphicons_079_podium.png	  \
+  webui/master/static/bootstrap/img/glyphicons/glyphicons_082_roundabout.png	  \
+  webui/master/static/bootstrap/img/glyphicons/glyphicons_155_show_thumbnails.png \
+  webui/master/static/bootstrap/img/glyphicons/glyphicons_163_iphone.png	  \
+  webui/master/static/bootstrap/img/glyphicons/glyphicons_214_resize_small.png	  \
+  webui/master/static/bootstrap/img/glyphicons/glyphicons_266_book_open.png	  \
+  webui/master/static/bootstrap/img/glyphicons-halflings-white.png		  \
+  webui/master/static/bootstrap/img/glyphicons-halflings.png			  \
+  webui/master/static/bootstrap/img/grid-18px-masked.png			  \
+  webui/master/static/bootstrap/img/icon-css3.png				  \
+  webui/master/static/bootstrap/img/icon-github.png				  \
+  webui/master/static/bootstrap/img/icon-html5.png				  \
+  webui/master/static/bootstrap/img/icon-twitter.png				  \
+  webui/master/static/bootstrap/img/less-logo-large.png				  \
+  webui/master/static/bootstrap/img/less-small.png				  \
+  webui/master/static/bootstrap/img/responsive-illustrations.png		  \
+  webui/master/static/bootstrap/js/application.js				  \
+  webui/master/static/bootstrap/js/bootstrap-alert.js				  \
+  webui/master/static/bootstrap/js/bootstrap-button.js				  \
+  webui/master/static/bootstrap/js/bootstrap-carousel.js			  \
+  webui/master/static/bootstrap/js/bootstrap-collapse.js			  \
+  webui/master/static/bootstrap/js/bootstrap-dropdown.js			  \
+  webui/master/static/bootstrap/js/bootstrap-modal.js				  \
+  webui/master/static/bootstrap/js/bootstrap-popover.js				  \
+  webui/master/static/bootstrap/js/bootstrap-scrollspy.js			  \
+  webui/master/static/bootstrap/js/bootstrap-tab.js				  \
+  webui/master/static/bootstrap/js/bootstrap-tooltip.js				  \
+  webui/master/static/bootstrap/js/bootstrap-transition.js			  \
+  webui/master/static/bootstrap/js/bootstrap-typeahead.js			  \
+  webui/master/static/bootstrap/js/bootstrap.js					  \
+  webui/master/static/bootstrap/js/bootstrap.min.js				  \
+  webui/master/static/bootstrap/js/google-code-prettify/prettify.css		  \
+  webui/master/static/bootstrap/js/google-code-prettify/prettify.js		  \
+  webui/master/static/bootstrap/js/jquery.js					  \
+  webui/master/static/bootstrap/js/README.md
 
 
 # And need to install the killtree script.
