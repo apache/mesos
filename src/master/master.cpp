@@ -401,6 +401,19 @@ void Master::initialize()
   route("vars", bind(&http::vars, cref(*this), params::_1));
   route("stats.json", bind(&http::json::stats, cref(*this), params::_1));
   route("state.json", bind(&http::json::state, cref(*this), params::_1));
+  route("log.json", bind(&http::json::log, cref(*this), params::_1));
+
+  // Use either a directory specified via configuration options (which
+  // is necessary for running out of the build directory before 'make
+  // install') or the directory determined at build time via the
+  // preprocessor macro '-DMESOS_WEBUI_DIR' set in the Makefile.
+  std::string directory = conf.get<std::string>("webui_dir", MESOS_WEBUI_DIR);
+
+  // Remove any trailing '/' in directory.
+  directory = strings::remove(directory, "/", strings::SUFFIX);
+
+  provide("", directory + "/master/static/index.html");
+  provide("static", directory + "/master/static");
 }
 
 

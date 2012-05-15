@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="mesos">
+  <head>
+    <meta charset="utf-8">
+    <title>Mesos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <!-- styles -->
+    <link href="/static/bootstrap/css/bootstrap.css" rel="stylesheet">
+    <link href="/static/bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
+
+    <link href="/static/mesos.css" rel="stylesheet">
+    <link href="/static/graph.css" rel="stylesheet">
+    
+    <script src="/static/bootstrap/js/jquery.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-transition.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-alert.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-modal.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-dropdown.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-scrollspy.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-tab.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-tooltip.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-popover.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-button.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-collapse.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-carousel.js"></script>
+    <script src="/static/bootstrap/js/bootstrap-typeahead.js"></script>
+
+    <script src="/static/underscore-min.js"></script>
+    <script src="/static/angular-1.0.0rc8.js"></script>
+    <script src="/static/d3.v2.js"></script>
+    <script src="/static/cubism.v1.js"></script>
+
+    <script src="/static/app.js"></script>
+    <script src="/static/controllers.js"></script>
+    <script src="/static/dashboard.js"></script>
+
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- fav and touch icons -->
+    <link rel="shortcut icon" href="/static/bootstrap/ico/favicon.ico">
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-fixed-top" id="navbar">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="#">Mesos</a>
+          <div class="nav-collapse">
+            <ul class="nav">
+              <li data-tabname="home"><a href="#">Home</a></li>
+              <li data-tabname="dashboard"><a href="#/dashboard">Dashboard</a></li>
+              <li data-tabname="log"><a href="#/log">Log</a></li>
+              <li data-tabname="frameworks"><a href="#/frameworks">Frameworks</a></li>
+              <li data-tabname="slaves"><a href="#/slaves">Slaves</a></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+
+    <div ng-controller="MainCntl">
+
+      <div class="container">
+        <div ng-view></div>
+      </div>
+
+      <div class="modal hide fade" style="display: none;" id="error-modal">
+        <div class="modal-header">
+          <button class="close" data-dismiss="modal">×</button>
+          <h3>Failed to connect to {{$location.host()}}:{{$location.port()}}!</h3>
+        </div>
+        <div class="modal-body">
+          <p>
+            Retrying in <b>{{retry / 1000}}</b> seconds ...
+            <a href="{{$location.path()}}" data-dismiss="modal">try now</a>.
+          </p>
+        </div>
+        <div class="modal-footer">
+        </div>
+      </div>
+
+    </div>
+
+  </body>
+</html>
+
+
+<!--     <div class="container" id="main_content"></div> -->

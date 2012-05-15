@@ -1,0 +1,19 @@
+body {
+  padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+}
+
+dl.inline dt, dl.inline dd {
+  float: left;
+}
+
+dl.inline dd + dt, dl.inline dd + dd {
+  clear: left
+}
+
+dl.inline dd + dd {
+  float: none
+}
+
+dl.inline dt {
+  font-weight: bold
+}

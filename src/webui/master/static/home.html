@@ -1,0 +1,167 @@
+<div class="row">
+  <div class="span3">
+    <div class="well">
+      <dl class="inline clearfix">
+        <dt>Server:</dt>
+        <dd>{{state.pid.split("@")[1]}}</dd>
+        <dt>Built:</dt>
+        <dd>{{state.build_date}} by <i>{{state.build_user}}</i></dd>
+        <dt>Started:</dt>
+        <dd>{{state.start_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</dd>
+        <dt>ID:</dt>
+        <dd>{{state.id}}</dd>
+      </dl>
+      
+      <h2>Resources</h2>
+      <table class="table table-condensed">
+        <thead>
+          <tr>
+            <th></th>
+            <th>CPUs</th>
+            <th>Memory</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>Total</th>
+            <td>{{total_cpus}}</td>
+            <td>{{total_mem / 1024}} GB</td>
+          </tr>
+          <tr>
+            <th>Used</th>
+            <td>{{used_cpus}}</td>
+            <td>{{used_mem / 1024}} GB</td>
+          </tr>
+          <tr>
+            <th>Offered</th>
+            <td>{{offered_cpus}}</td>
+            <td>{{offered_mem / 1024}} GB</td>
+          </tr>
+          <tr>
+            <th>Idle</th>
+            <td>{{idle_cpus}}</td>
+            <td>{{idle_mem / 1024}} GB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <div class="span9">
+    <h2>
+      Active Frameworks
+      <small>(<a href="#/frameworks">see all</a>)</small>
+    </h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>User</th>
+          <th>Name</th>
+          <th>Active Tasks</th>
+          <th>CPUs</th>
+          <th>Mem</th>
+          <th>Max Share</th>
+          <th>Registered</th>
+          <th>Reregistered</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="framework in frameworks">
+          <td>
+            <abbr title="{{framework.id}}">{{framework.id | truncateMesosID}}</abbr>
+          </td>
+          <td>{{framework.user}}</td>
+          <td><a href="{{'#/framework/' + framework.id}}">{{framework.name}}</a></td>
+          <td>{{framework.tasks.length}}</td>
+          <td>{{framework.resources.cpus}}</td>
+          <td>{{framework.resources.mem / 1024}} GB</td>
+          <td>{{framework.max_share * 100}}%</td>
+          <td>{{framework.registered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
+          <td>{{framework.reregistered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+    <h2>
+      Active Slaves
+      <small>(<a href="#/slaves">see all</a>)</small>
+    </h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Host</th>
+          <th>CPUs</th>
+          <th>Mem</th>
+          <th>Connected at</th>
+        </tr>
+      </thead>
+      <tr ng-repeat="slave in state.slaves">
+          <td>
+            <abbr title="{{slave.id}}">{{slave.id | truncateMesosID}}</abbr>
+          </td>
+        <td>
+          <a href="http://{{slave.webui_hostname}}:{{slave.webui_port}}/">
+            {{slave.hostname}}
+          </a>
+        </td>
+        <td>{{slave.resources.cpus}}</td>
+        <td>{{slave.resources.mem / 1024}} GB</td>
+        <td>{{slave.registered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
+      </tr>
+    </table>
+    
+    <h2>Offers</h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Framework</th>
+          <th>Host</th>
+          <th>Resources</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="offer in offers">
+          <td>
+            <abbr title="{{offer.id}}">{{offer.id | truncateMesosID}}</abbr>
+          </td>
+          <td><a href="{{'#/framework/' + offer.framework_id}}">{{frameworks[offer.framework_id].name}}</a></td>
+          <td>
+            <a href="http://{{slaves[offer.slave_id].webui_hostname}}:{{slaves[offer.slave_id].webui_port}}/">
+              {{slaves[offer.slave_id].hostname}}
+            </a>
+          </td>
+          <td>{{offer.resources}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Terminated Frameworks</h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>User</th>
+          <th>Name</th>
+          <th>Registered</th>
+          <th>Unregistered</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="framework in completed_frameworks">
+          <td>
+            <abbr title="{{framework.id}}">{{framework.id | truncateMesosID}}</abbr>
+          </td>
+          <td>{{framework.user}}</td>
+          <td><a href="{{'#/framework/' + framework.id}}">{{framework.name}}</a></td>
+          <td>{{framework.registered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
+          <td>{{framework.unregistered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+</div>

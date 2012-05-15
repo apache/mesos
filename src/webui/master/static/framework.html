@@ -1,0 +1,89 @@
+<ul class="breadcrumb">
+  <li>
+    <a href="#">Home</a> <span class="divider">/</span>
+  </li>
+  <li>
+    <a href="#/frameworks">Frameworks</a> <span class="divider">/</span>
+  </li>
+  <li class="active">
+    {{framework.name}}
+    <em>({{framework.id}})</em>
+  </li>
+</ul>
+
+<div class="alert hide" id="terminated-alert">
+  <button class="close" data-dismiss="alert">×</button>
+  <strong>This framework has terminated!</strong>
+</div>
+
+<div class="alert hide" id="missing-alert">
+  <button class="close" data-dismiss="alert">×</button>
+  <strong>No framework by that ID could be found!</strong>
+</div>
+  
+<div class="row hide" id="framework">
+  <div class="span3">
+    <div class="well">
+      <dl class="inline clearfix">
+        <dt>Name:</dt>
+        <dd>{{framework.name}}</dd>
+        <dt>ID:</dt>
+        <dd>{{framework.id}}</dd>
+        <dt>User:</dt>
+        <dd>{{framework.user}}</dd>
+        <dt>Registered:</dt>
+        <dd>{{framework.registered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</dd>
+        <dt>Re-registered:</dt>
+        <dd>{{framework.reregistered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</dd>
+        <dt>Active tasks:</dt>
+        <dd>{{framework.tasks.length}}</dd>
+        <dt>CPUs:</dt>
+        <dd>{{framework.resources.cpus}}</dd>
+        <dt>Mem:</dt>
+        <dd>{{framework.resources.mem / 1024}} GB</dd>
+      </dl>
+    </div>
+  </div>
+    
+  <div class="span9">
+    <h2 id="frameworks">Active Tasks</h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>State</th>
+          <th>Slave</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="task in framework.tasks">
+          <td>{{task.id}}</td>
+          <td>{{task.name}}</td>
+          <td>{{task.state}}</td>
+          <td>{{task.slave_id}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="frameworks">Terminated Tasks</h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>State</th>
+          <th>Slave</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="task in framework.completed_tasks">
+          <td>{{task.id}}</td>
+          <td>{{task.name}}</td>
+          <td>{{task.state}}</td>
+          <td>{{task.slave_id}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

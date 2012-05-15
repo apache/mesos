@@ -88,7 +88,7 @@ int main(int argc, char **argv)
   }
 
   // Initialize libprocess.
-  process::initialize();
+  process::initialize("master");
 
   logging::initialize(argv[0], conf);
 

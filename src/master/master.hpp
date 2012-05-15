@@ -195,6 +195,10 @@ private:
       const Master& master,
       const HttpRequest& request);
 
+  friend Future<HttpResponse> http::json::log(
+      const Master& master,
+      const HttpRequest& request);
+
   const Configuration conf;
 
   bool elected;
