@@ -1,6 +1,10 @@
 #ifdef MESOS_WEBUI
 
 #include <Python.h>
+#include <unistd.h>
+
+#include <sys/types.h>
+#include <sys/uio.h>
 
 #include <tr1/functional>
 
@@ -54,6 +58,16 @@ static void run(const std::string& directory,
 }
 
 
+void wait(int fd)
+{
+  char temp[8];
+  if (read(fd, temp, 8) == -1) {
+    PLOG(FATAL) << "Failed to read on pipe from parent";
+  }
+  exit(1);
+}
+
+
 void start(const Configuration& conf,
            const std::string& script,
            const std::vector<std::string>& args)
@@ -84,9 +98,31 @@ void start(const Configuration& conf,
   // interpreter errors (and maybe even remove the need for two C-c to
   // exit the process).
 
-  if (!thread::start(std::tr1::bind(&run, directory, script, args), true)) {
-    LOG(FATAL) << "Failed to start webui thread";
+  int pipes[2];
+  pipe(pipes);
+
+  pid_t pid;
+  if ((pid = fork()) == -1) {
+    PLOG(FATAL) << "Failed to fork to launch new executor";
   }
+
+  if (pid) {
+    // In parent process.
+    close(pipes[0]); // Close the reader end in the parent.
+  } else {
+    // In child process.
+    close(pipes[1]); // Close the writer end in the child.
+
+    if (!thread::start(std::tr1::bind(&wait, pipes[0]), true)) {
+      LOG(FATAL) << "Failed to start wait thread";
+    }
+
+    run(directory, script, args);
+  }
+
+//   if (!thread::start(std::tr1::bind(&run, directory, script, args), true)) {
+//     LOG(FATAL) << "Failed to start webui thread";
+//   }
 }
 
 } // namespace webui {
