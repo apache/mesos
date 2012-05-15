@@ -102,9 +102,13 @@ JSON::Object model(const Framework& framework)
   object.values["user"] = framework.info.user();
   object.values["registered_time"] = framework.registeredTime;
   object.values["unregistered_time"] = framework.unregisteredTime;
-  object.values["reregistered_time"] = framework.reregisteredTime;
   object.values["active"] = framework.active;
   object.values["resources"] = model(framework.resources);
+
+  // TODO(benh): Consider making reregisteredTime an Option.
+  if (framework.registeredTime != framework.reregisteredTime) {
+    object.values["reregistered_time"] = framework.reregisteredTime;
+  }
 
   // Model all of the tasks associated with a framework.
   {
@@ -254,6 +258,7 @@ Future<HttpResponse> state(
 
   JSON::Object object;
   object.values["build_date"] = build::DATE;
+  object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
   object.values["start_time"] = master.startTime;
   object.values["id"] = master.info.id();

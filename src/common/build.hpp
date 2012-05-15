@@ -25,6 +25,7 @@ namespace internal {
 namespace build {
 
 extern const std::string DATE;
+extern const double TIME;
 extern const std::string USER;
 extern const std::string FLAGS;
 

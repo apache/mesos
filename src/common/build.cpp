@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <stdlib.h> // For atof.
+
 #include <string>
 
 #include "common/build.hpp"
@@ -25,6 +27,7 @@ namespace internal {
 namespace build {
 
 const std::string DATE = BUILD_DATE;
+const double TIME = atof(BUILD_TIME);
 const std::string USER = BUILD_USER;
 const std::string FLAGS = BUILD_FLAGS;
 

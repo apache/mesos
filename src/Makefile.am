@@ -215,6 +215,7 @@ noinst_LTLIBRARIES += libbuild.la
 libbuild_la_SOURCES = common/build.cpp
 libbuild_la_CPPFLAGS = $(AM_CPPFLAGS)
 libbuild_la_CPPFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
+libbuild_la_CPPFLAGS += -DBUILD_TIME="\"$$(date '+%s')\""
 libbuild_la_CPPFLAGS += -DBUILD_USER="\"$$USER\""
 
 # We need to escape the build flags properly.
