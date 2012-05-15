@@ -81,7 +81,11 @@ int ExecutorLauncher::run()
     fatalerror("chdir into framework working directory failed");
   }
 
-  // Redirect output to files in working dir if required
+  if (shouldSwitchUser) {
+    switchUser();
+  }
+
+  // Redirect output to files in working dir if required.
   if (redirectIO) {
     if (freopen("stdout", "w", stdout) == NULL) {
       fatalerror("freopen failed");
@@ -94,10 +98,6 @@ int ExecutorLauncher::run()
   fetchExecutors();
 
   setupEnvironment();
-
-  if (shouldSwitchUser) {
-    switchUser();
-  }
 
   const string& command = commandInfo.value();
 
@@ -267,9 +267,9 @@ void ExecutorLauncher::setupEnvironment()
 
 void ExecutorLauncher::switchUser()
 {
-  cout << "Switching user to " << user << endl;
   if (!utils::os::su(user)) {
-    fatal("Failed to switch to user");
+    fatal("Failed to switch to user %s for executor %s of framework %s",
+          user.c_str(), frameworkId.value().c_str(), executorId.value().c_str());
   }
 }
 
