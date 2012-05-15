@@ -79,6 +79,10 @@ function update($scope, data) {
 // the state).
 function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
 
+  // Initialize popovers and bind the function used to show a popover.
+  Popovers.initialize();
+  $scope.popover = Popovers.show;
+
   $scope.$location = $location;
   $scope.delay = 2000;
   $scope.retry = 0;
@@ -91,7 +95,7 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
         $defer(poll, $scope.delay);
       })
       .error(function(data) {
-        if ($scope.delay >= 32000) {
+        if ($scope.delay >= 128000) {
           $scope.delay = 2000;
         } else {
           $scope.delay = $scope.delay * 2;

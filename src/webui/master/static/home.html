@@ -5,11 +5,23 @@
         <dt>Server:</dt>
         <dd>{{state.pid.split("@")[1]}}</dd>
         <dt>Built:</dt>
-        <dd>{{state.build_date}} by <i>{{state.build_user}}</i></dd>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.build_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Built">
+            {{state.build_time * 1000 | relativeDate}}
+          </a> by <i>{{state.build_user}}</i>
+        </dd>
         <dt>Started:</dt>
-        <dd>{{state.start_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</dd>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.start_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Started">
+            {{state.start_time * 1000 | relativeDate}}
+          </a>
+        </dd>
         <dt>ID:</dt>
-        <dd>{{state.id}}</dd>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.id}}" data-original-title="ID">
+            {{state.id | truncateMesosID}}
+          </a>
+        </dd>
       </dl>
       
       <h2>Resources</h2>
@@ -69,7 +81,9 @@
       <tbody>
         <tr ng-repeat="framework in frameworks">
           <td>
-            <abbr title="{{framework.id}}">{{framework.id | truncateMesosID}}</abbr>
+            <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{framework.id}}" data-original-title="ID">
+              {{framework.id | truncateMesosID}}
+            </a>
           </td>
           <td>{{framework.user}}</td>
           <td><a href="{{'#/framework/' + framework.id}}">{{framework.name}}</a></td>
@@ -77,8 +91,16 @@
           <td>{{framework.resources.cpus}}</td>
           <td>{{framework.resources.mem / 1024}} GB</td>
           <td>{{framework.max_share * 100}}%</td>
-          <td>{{framework.registered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
-          <td>{{framework.reregistered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
+          <td>
+            <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{framework.registered_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Registered">
+              {{framework.registered_time * 1000 | relativeDate}}
+            </a>
+          </td>
+          <td>
+            <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{framework.reregistered_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Reregistered">
+              {{framework.reregistered_time * 1000 | relativeDate}}
+            </a>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -95,12 +117,14 @@
           <th>Host</th>
           <th>CPUs</th>
           <th>Mem</th>
-          <th>Connected at</th>
+          <th>Registered</th>
         </tr>
       </thead>
-      <tr ng-repeat="slave in state.slaves">
-          <td>
-            <abbr title="{{slave.id}}">{{slave.id | truncateMesosID}}</abbr>
+      <tr ng-repeat="slave in slaves">
+        <td>
+          <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{slave.id}}" data-original-title="ID">
+            {{slave.id | truncateMesosID}}
+          </a>
           </td>
         <td>
           <a href="http://{{slave.webui_hostname}}:{{slave.webui_port}}/">
@@ -109,7 +133,11 @@
         </td>
         <td>{{slave.resources.cpus}}</td>
         <td>{{slave.resources.mem / 1024}} GB</td>
-        <td>{{slave.registered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
+        <td>
+          <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{slave.registered_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Registered">
+            {{slave.registered_time * 1000 | relativeDate}}
+          </a>
+        </td>
       </tr>
     </table>
     

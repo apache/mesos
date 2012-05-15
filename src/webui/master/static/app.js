@@ -16,6 +16,11 @@ angular.module('mesos', []).
       var short_id =  id.split('-').splice(2,2).join('-');
       return '…' + short_id;
     }
+  })
+  .filter('relativeDate', function() {
+    return function(date) {
+      return relativeDate(date);
+    }
   });
 
 function setNavbarActiveTab(tab_name) {
