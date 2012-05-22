@@ -41,7 +41,7 @@
 #include <sys/sendfile.h>
 #define sendfile(s, fd, offset, size) \
   ({ off_t _offset = offset; \
-    sendfile(s, fd, &_offset, size) == -1 ? -1 : offset - _offset; })
+    sendfile(s, fd, &_offset, size) == -1 ? -1 : _offset - offset; })
 #endif /* __linux__ */
 
 #endif /* CONFIG_HPP */
