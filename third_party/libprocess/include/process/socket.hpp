@@ -2,6 +2,7 @@
 #define __PROCESS_SOCKET_HPP__
 
 #include <assert.h>
+#include <unistd.h> // For close.
 
 // An abstraction around a socket (file descriptor) that provides
 // reference counting such that the socket is only closed (and thus,
