@@ -83,11 +83,11 @@ Try<ProcessStatistics> stat(pid_t pid)
 
   std::string comm;
   char state;
-  int ppid;
-  int pgrp;
-  int session;
+  pid_t ppid;
+  pid_t pgrp;
+  pid_t session;
   int tty_nr;
-  int tpgid;
+  pid_t tpgid;
   unsigned int flags;
   unsigned long minflt;
   unsigned long cminflt;
