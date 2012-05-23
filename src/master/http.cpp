@@ -347,7 +347,7 @@ Future<HttpResponse> log(
   string directory = master.conf.get<string>("log_dir", FLAGS_log_dir);
   string path = directory + "/mesos-master." + level;
 
-  Result<int> fd = utils::os::open(path, O_RDONLY);
+  Try<int> fd = utils::os::open(path, O_RDONLY);
 
   if (fd.isError()) {
     LOG(WARNING) << "Failed to open log file at "
