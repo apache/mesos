@@ -38,17 +38,34 @@ static hashset<std::string> listfiles(const std::string& dir)
 }
 
 
-TEST(UtilsTest, rmdir)
+class UtilsTest : public ::testing::Test
+{
+protected:
+  virtual void SetUp()
+  {
+    tmpdir = "/tmp/" + UUID::random().toString();
+    mkdir(tmpdir);
+  }
+
+  virtual void TearDown()
+  {
+    rmdir(tmpdir);
+  }
+
+  std::string tmpdir;
+};
+
+
+TEST_F(UtilsTest, rmdir)
 {
   // TODO(John Sirois): It would be good to use something like mkdtemp, but
   //abstract away a proper platform independent /tmp dir.
-  std::string tmpdir = "/tmp/zks-" + UUID::random().toString();
 
   hashset<std::string> emptyListing;
   emptyListing.insert(".");
   emptyListing.insert("..");
 
-  hashset<std::string> expectedListing;
+  hashset<std::string> expectedListing = emptyListing;
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
 
   mkdir(tmpdir + "/a/b/c");
@@ -78,11 +95,61 @@ TEST(UtilsTest, rmdir)
 
   expectedListing = emptyListing;
   EXPECT_EQ(expectedListing, listfiles(tmpdir + "/e/f"));
+}
 
-  rmdir(tmpdir);
 
-  expectedListing.clear();
-  EXPECT_EQ(expectedListing, listfiles(tmpdir));
+TEST_F(UtilsTest, touch)
+{
+  const std::string& testfile  = tmpdir + "/" + UUID::random().toString();
+  Try<bool> result = touch(testfile);
+
+  ASSERT_TRUE(result.get());
+  ASSERT_TRUE(exists(testfile));
+}
+
+
+TEST_F(UtilsTest, readWriteString)
+{
+  const std::string& testfile  = tmpdir + "/" + UUID::random().toString();
+  const std::string& teststr = "test";
+
+  Try<bool> result = write(testfile, teststr);
+  ASSERT_TRUE(result.get());
+
+  Result<std::string> readstr = read(testfile);
+
+  ASSERT_TRUE(readstr.isSome());
+  EXPECT_EQ(teststr, readstr.get());
+}
+
+
+TEST_F(UtilsTest, find)
+{
+  const std::string& testdir  = tmpdir + "/" + UUID::random().toString();
+  const std::string& subdir = testdir + "/test1";
+  ASSERT_TRUE(mkdir(subdir)); // Create the directories.
+
+  // Now write some files.
+  const std::string& file1 = testdir + "/file1.txt";
+  const std::string& file2 = subdir + "/file2.txt";
+  const std::string& file3 = subdir + "/file3.jpg";
+
+  ASSERT_TRUE(touch(file1).get());
+  ASSERT_TRUE(touch(file2).get());
+  ASSERT_TRUE(touch(file3).get());
+
+  // Find "*.txt" files.
+  Try<std::list<std::string> > result = find(testdir, ".txt");
+  ASSERT_TRUE(result.isSome());
+
+  hashset<std::string> files;
+  foreach (const std::string& file, result.get()) {
+    files.insert(file);
+  }
+
+  ASSERT_EQ(2, files.size());
+  ASSERT_TRUE(files.contains(file1));
+  ASSERT_TRUE(files.contains(file2));
 }
 
 } // namespace os

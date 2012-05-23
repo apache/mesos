@@ -33,10 +33,8 @@ TEST(ProtobufIOTest, Basic)
 {
   const std::string file = ".protobuf_io_test_basic";
 
-  Result<int> result = Result<int>::none();
-
-  result = utils::os::open(file, O_CREAT | O_WRONLY | O_SYNC,
-                           S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  Try<int> result = utils::os::open(file, O_CREAT | O_WRONLY | O_SYNC,
+                                    S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   ASSERT_TRUE(result.isSome());
   int fdw = result.get();
@@ -52,7 +50,7 @@ TEST(ProtobufIOTest, Basic)
   for (int i = 0; i < writes; i++) {
     FrameworkID frameworkId;
     frameworkId.set_value(utils::stringify(i));
-    Result<bool> result = utils::protobuf::write(fdw, frameworkId);
+    Try<bool> result = utils::protobuf::write(fdw, frameworkId);
     ASSERT_TRUE(result.isSome());
     EXPECT_TRUE(result.get());
   }

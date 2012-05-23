@@ -186,7 +186,8 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/hashset.hpp common/json.hpp common/lock.hpp		\
 	common/logging.hpp common/lambda.hpp common/option.hpp		\
 	common/resources.hpp common/result.hpp common/multihashmap.hpp	\
-	common/process_utils.hpp common/seconds.hpp common/try.hpp	\
+	common/process_utils.hpp common/protobuf_utils.hpp		\
+	common/seconds.hpp common/try.hpp				\
 	common/type_utils.hpp common/thread.hpp common/timer.hpp	\
 	common/utils.hpp common/units.hpp common/uuid.hpp		\
 	common/strings.hpp common/values.hpp				\

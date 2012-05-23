@@ -203,13 +203,11 @@ void Slave::initialize()
   LOG(INFO) << "Slave resources: " << resources;
 
   // Determine our hostname.
-  Result<string> result = utils::os::hostname();
+  Try<string> result = utils::os::hostname();
 
   if (result.isError()) {
     LOG(FATAL) << "Failed to get hostname: " << result.error();
   }
-
-  CHECK(result.isSome());
 
   string hostname = result.get();
 
@@ -734,7 +732,7 @@ void Slave::statusUpdateAcknowledgement(const SlaveID& slaveId,
 //     // Write the update out to disk.
 //     CHECK(stream->acknowledged != NULL);
 
-//     Result<bool> result =
+//     Try<bool> result =
 //       utils::protobuf::write(stream->acknowledged, update);
 
 //     if (result.isError()) {
