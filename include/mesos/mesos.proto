@@ -268,9 +268,8 @@ message Offer {
 /**
  * Describes a task. Passed from the scheduler all the way to an
  * executor (see SchedulerDriver::launchTasks and
- * Executor::launchTask). If no executor is specified then the default
- * executor is assumed (see FrameworkInfo). Otherwise, a different
- * executor can be used to launch this task, and subsequent tasks
+ * Executor::launchTask). Either ExecutorInfo or CommandInfo should be set.
+ * A different executor can be used to launch this task, and subsequent tasks
  * meant for the same executor can reuse the same ExecutorInfo struct.
  */
 message TaskInfo {

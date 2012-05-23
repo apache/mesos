@@ -134,7 +134,8 @@ void ExecutorLauncher::initializeWorkingDirectory()
   // TODO(benh): Do this in the slave?
   if (shouldSwitchUser) {
     if (!utils::os::chown(user, workDirectory)) {
-      fatal("Failed to change ownership of framework's working directory");
+      fatal("Failed to change ownership of framework's working directory %s "
+            "to user %s", workDirectory.c_str(), user.c_str());
     }
   }
 }
@@ -181,13 +182,11 @@ void ExecutorLauncher::fetchExecutors()
       cout << "Downloading resource from " << resource << endl;
       cout << "HDFS command: " << command.str() << endl;
 
-      int ret = system(command.str().c_str());
-      if (ret != 0)
+      int ret = utils::os::system(command.str());
+      if (ret != 0) {
         fatal("HDFS copyToLocal failed: return code %d", ret);
+      }
       resource = localFile;
-      if (executable && chmod(resource.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
-                S_IROTH | S_IXOTH) != 0)
-        fatalerror("chmod failed");
     } else if (resource.find("http://") == 0
                || resource.find("https://") == 0
                || resource.find("ftp://") == 0
@@ -205,21 +204,37 @@ void ExecutorLauncher::fetchExecutors()
               code.get());
       }
       resource = path;
-      if (executable && chmod(resource.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
-                S_IROTH | S_IXOTH) != 0)
-        fatalerror("chmod failed");
-    } else if (resource.find_first_of("/") != 0) {
-      // We got a non-Hadoop and non-absolute path.
-      if (frameworksHome != "") {
-        resource = frameworksHome + "/" + resource;
-        cout << "Prepended configuration option frameworks_home to resource "
-             << "path, making it: " << resource << endl;
-      } else {
-        fatal("A relative path was passed for the resource, but "
-              "the configuration option frameworks_home is not set. "
-              "Please either specify this config option "
-              "or avoid using a relative path.");
+    } else { // Copy the local resource.
+      if (resource.find_first_of("/") != 0) {
+        // We got a non-Hadoop and non-absolute path.
+        if (frameworksHome != "") {
+          resource = frameworksHome + "/" + resource;
+          cout << "Prepended configuration option frameworks_home to resource "
+            << "path, making it: " << resource << endl;
+        } else {
+          fatal("A relative path was passed for the resource, but "
+            "the configuration option frameworks_home is not set. "
+            "Please either specify this config option "
+            "or avoid using a relative path.");
+        }
       }
+
+      // Copy the resource to the current working directory.
+      ostringstream command;
+      command << "cp " << resource << " .";
+      cout << "Copying resource from " << resource << " to .";
+
+      int ret = utils::os::system(command.str());
+      if (ret != 0) {
+        fatal("Copy failed: return code %d", ret);
+      }
+      resource = "./" + utils::os::basename(resource);
+    }
+
+    if (executable &&
+        utils::os::chmod(resource.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+                         S_IROTH | S_IXOTH)) {
+      fatalerror("chmod failed");
     }
 
     // Extract any .tgz, tar.gz, or zip files.
@@ -227,14 +242,14 @@ void ExecutorLauncher::fetchExecutors()
         strings::endsWith(resource, ".tar.gz")) {
       string command = "tar xzf '" + resource + "'";
       cout << "Extracting resource: " + command << endl;
-      int code = system(command.c_str());
+      int code = utils::os::system(command);
       if (code != 0) {
         fatal("Failed to extract resource: tar exit code %d", code);
       }
     } else if (strings::endsWith(resource, ".zip")) {
       string command = "unzip '" + resource + "'";
       cout << "Extracting resource: " + command << endl;
-      int code = system(command.c_str());
+      int code = utils::os::system(command);
       if (code != 0) {
         fatal("Failed to extract resource: unzip exit code %d", code);
       }
@@ -269,7 +284,7 @@ void ExecutorLauncher::switchUser()
 {
   if (!utils::os::su(user)) {
     fatal("Failed to switch to user %s for executor %s of framework %s",
-          user.c_str(), frameworkId.value().c_str(), executorId.value().c_str());
+          user.c_str(), executorId.value().c_str(), frameworkId.value().c_str());
   }
 }
 

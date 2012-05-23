@@ -405,6 +405,18 @@ inline bool chown(const std::string& user, const std::string& path)
 }
 
 
+inline bool chmod(const std::string& path, int mode)
+{
+  if (::chmod(path.c_str(), mode) < 0) {
+    PLOG(ERROR) << "Failed to changed the mode of the path " << path
+                << " due to " << strerror(errno);
+    return false;
+  }
+
+  return true;
+}
+
+
 inline bool chdir(const std::string& directory)
 {
   if (chdir(directory.c_str()) < 0) {
