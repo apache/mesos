@@ -362,8 +362,8 @@ nobase_dist_webui_DATA += webui/bottle-0.8.3/bottle.py	\
 
 # Need to distribute/install webui javascript.
 nobase_dist_webui_DATA += webui/master/static/controllers.js	\
-  webui/master/static/app.js \
-  webui/master/static/dashboard.js
+  webui/master/static/app.js webui/master/static/dashboard.js	\
+  webui/master/static/popovers.js
 
 # Need to distribute/install webui CSS.
 nobase_dist_webui_DATA += webui/master/static/graph.css	\
@@ -379,7 +379,8 @@ nobase_dist_webui_DATA += webui/master/static/dashboard.html		\
 # Need to distribute/install third_party javascript.
 nobase_dist_webui_DATA += webui/master/static/angular-1.0.0rc8.js	\
   webui/master/static/underscore-min.js					\
-  webui/master/static/cubism.v1.js webui/master/static/d3.v2.js
+  webui/master/static/cubism.v1.js webui/master/static/d3.v2.js		\
+  webui/master/static/relative-date.js
 
 # Need to distribute/install bootstrap.
 nobase_dist_webui_DATA +=							  \
