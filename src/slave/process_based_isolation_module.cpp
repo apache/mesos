@@ -155,7 +155,7 @@ void ProcessBasedIsolationModule::killExecutor(
     // TODO(vinod): Call killtree on the pid of the actual executor process
     // that is running the tasks (stored in the local storage by the
     // executor module).
-    utils::process::killtree(pid, SIGKILL, true, true);
+    utils::process::killtree(pid, SIGKILL, true, true, true);
 
     ProcessInfo* info = infos[frameworkId][executorId];
 

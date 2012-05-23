@@ -116,6 +116,14 @@ if [[ ${?} -ne 0 ]]; then
     exit 1
 fi
 
+printpids() {
+  name="$1"
+  tpids="$2"
+  if [[ ! -z ${tpids} ]]; then
+      result=$(echo ${tpids} | xargs ps xo pid,ppid,pgid,sess,command -p)
+      printf "\n${name}\n${result}\n"
+  fi
+}
 
 PIDS=${PID} # Already processed pids, global variable hack.
 
@@ -124,7 +132,7 @@ killtree() {
 
     # Output pid if requested.
     if [[ ${VERBOSE} -eq 1 ]]; then
-        printf "\nkilltree on ${MYPID}\n"
+        printpids "KILLPID" ${MYPID}
     fi
 
     # Stop the process to keep it from forking while we are killing it
@@ -152,6 +160,10 @@ killtree() {
     # Now collect all the children.
     CHILDPIDS=$(ps axo ppid,pid | awk '{ if ($1 == '${MYPID}') print $2 }')
 
+    if [[ ${VERBOSE} -eq 1 ]]; then
+        printpids "CHILDPIDS" "${CHILDPIDS}"
+    fi
+
     # Optionally collect all processes that are part of the process group.
     GROUPPIDS=""
     if [[ ${KILLGROUPS} -eq 1 ]]; then
@@ -163,6 +175,10 @@ killtree() {
             # Now get all members.
             GROUPPIDS=$(ps axo pgid,pid \
                 | awk '{ if ($1 == '${MYPGID}') print $2 }')
+
+	    if [[ ${VERBOSE} -eq 1 ]]; then
+	        printpids "GROUPPIDS" "${GROUPPIDS}"
+	    fi
 	fi
     fi
 
@@ -177,6 +193,10 @@ killtree() {
             # Now get all members.
             SESSPIDS=$(ps axo sess,pid \
                 | awk '{ if ($1 == "'${MYPSID}'") print $2 }')
+
+	    if [[ ${VERBOSE} -eq 1 ]]; then
+                printpids "SESSPIDS" "${SESSPIDS}"
+	    fi
 	fi
     fi
 

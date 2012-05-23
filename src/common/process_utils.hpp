@@ -34,7 +34,8 @@ inline Try<int> killtree(
     pid_t pid,
     int signal,
     bool killgroups,
-    bool killsess)
+    bool killsess,
+    bool verbose)
 {
   std::string cmdline;
 
@@ -58,8 +59,9 @@ inline Try<int> killtree(
   // Also add flags to kill all encountered groups and sessions.
   if (killgroups) cmdline += " -g";
   if (killsess) cmdline += " -x";
+  if (verbose) cmdline += " -v";
 
-  return utils::os::shell(NULL, cmdline);
+  return utils::os::shell(verbose ? &LOG(INFO) : NULL, cmdline);
 }
 
 } // namespace mesos {

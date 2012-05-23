@@ -443,7 +443,8 @@ inline Result<std::string> hostname()
 
 // Runs a shell command formatted with varargs and return the return value
 // of the command. Optionally, the output is returned via an argument.
-inline Try<int> shell(std::iostream* ios, const std::string& fmt, ...)
+// TODO(vinod): Pass an istream object that can provide input to the command.
+inline Try<int> shell(std::ostream* os, const std::string& fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
@@ -466,8 +467,8 @@ inline Try<int> shell(std::iostream* ios, const std::string& fmt, ...)
   // NOTE(vinod): Ideally the if and while loops should be interchanged. But
   // we get a broken pipe error if we don't read the output and simply close.
   while (fgets(line, sizeof(line), file) != NULL) {
-    if (ios != NULL) {
-      *ios << line ;
+    if (os != NULL) {
+      *os << line ;
     }
   }
 
