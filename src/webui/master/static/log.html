@@ -1,8 +1,65 @@
-<div class="alert alert-error hide" id="log-not-found-alert">
-  <button class="close" data-dismiss="alert">×</button>
-  <strong>Logging to a file is not enabled, please set the 'log_dir' option.</strong>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>MESOS MASTER LOG</title>
 
-<div>
-  <pre id="log"></pre>
-</div>
+    <style type="text/css">
+      .log {
+        font-family: "Inconsolata", "Monaco", "Courier New", "Courier";
+        line-height:16px;
+        font-size: 14px;
+      }
+
+      .invert {
+        color: #FFFFFF;
+        text-decoration: none;
+        background: #000000;
+      }
+    </style>
+  </head>
+
+  <body style="overflow: hidden;">
+    <div id="data" class="log" style="white-space:pre-wrap;"></div>
+
+    <div style="position: absolute; left: 5px; top: 0px;">
+      <p id="indicator" class="log invert"></p>
+    </div>
+
+    <script src="/static/bootstrap/js/jquery.js"></script>
+
+    <script src="/static/underscore-min.js"></script>
+
+    <script src="/static/jquery.pailer.js"></script>
+
+    <script>
+      // TODO(benh): Give focus to $('#data') so we can initially page
+      // with the arrow keys.
+      $(window).keydown(function(event) {
+        if ($('#data').scrollTop() == 0) {
+          if (event.keyCode == 38) { // UP.
+          }
+        }
+      });
+
+      function resize() {
+        var margin_left = parseInt($('body').css('margin-left'));
+        var margin_top = parseInt($('body').css('margin-top'));
+        var margin_bottom = parseInt($('body').css('margin-bottom'));
+        $('#data').width($(window).width() - margin_left);
+        $('#data').height($(window).height() - margin_top - margin_bottom);
+      }
+
+      $(window).resize(resize);
+
+      $(document).ready(function() {
+        resize();
+
+        $('#data').pailer({
+          'url': window.name,
+          'indicator': $('#indicator')
+        });
+      });
+    </script>
+  </body>
+</html>

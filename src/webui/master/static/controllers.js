@@ -3,7 +3,7 @@
 
 // Update the outermost scope with the new state.
 function update($scope, data) {
-  // Don't do anythinf if the data hasn't changed.
+  // Don't do anything if the data hasn't changed.
   if ($scope.data == data) {
     return;
   }
@@ -142,64 +142,21 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
   poll();
 }
 
+
 function HomeCtrl($scope) {
   setNavbarActiveTab('home');
-}
 
-var offset = -1;
-var log = '';
-
-function LogCtrl($scope, $http, $defer) {
-  setNavbarActiveTab('log');
-
-  $('#log').html(log);
-
-  var deferred = undefined;
-
-  var tail = function() {
-    $http.get('master/log.json?offset=' + offset)
-      .success(function(data) {
-        // Get the last "page" of data if this was the first time.
-        if (offset == -1) {
-          // TODO(benh): Define a "page" size.
-          if (data.offset > 1000) {
-            offset = data.offset - 1000;
-          } else {
-            offset = 0;
-          }
-          deferred = $defer(tail, 0);
-          return;
-        } else {
-          offset = data.offset + data.length;
-        }
-
-        if (data.length > 0) {
-          // Truncate to the first newline if this is the first time
-          // (and we aren't reading from the beginning of the log).
-          if (log == '' && data.offset != 0) {
-            log = data.data.substring(data.data.indexOf("\n") + 1);
-            $('#log').append(log);
-          } else {
-            log += data.data;
-            $('#log').append(data.data);
-          }
-        }
-
-        deferred = $defer(tail, 1000);
-      })
-      .error(function(data, status) {
-        if (status == 404) {
-          $('#log-not-found-alert').show();
-        } else {
-          deferred = $defer(tail, 1000);
-        }
-      });
+  $scope.log = function($event) {
+    if (!$scope.state.log_dir) {
+      $('#no-log-dir-modal').modal('show');
+    } else {
+      window.open('/static/log.html',
+                  '/master/log.json',
+                  'width=580px, height=700px');
+    }
   }
-
-  tail();
-
-  $scope.$on('$beforeRouteChange', function() { $defer.cancel(deferred); });
 }
+
 
 function DashboardCtrl($scope) {
   setNavbarActiveTab('dashboard');
@@ -218,10 +175,11 @@ function DashboardCtrl($scope) {
   $scope.$on('$beforeRouteChange', function() { context.stop(); });
 }
 
+
 function FrameworksCtrl($scope) {
   setNavbarActiveTab('frameworks');
-  
 }
+
 
 function FrameworkCtrl($scope, $routeParams) {
   setNavbarActiveTab('frameworks');

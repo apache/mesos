@@ -1,3 +1,15 @@
+<div class="modal hide fade" style="display: none;" id="no-log-dir-modal">
+  <div class="modal-header">
+    <button class="close" data-dismiss="modal">×</button>
+    <h3>Logging to a file is not enabled!</h3>
+  </div>
+  <div class="modal-body">
+    <p>Set the 'log_dir' option if you wish to access the logs.</p>
+  </div>
+  <div class="modal-footer">
+  </div>
+</div>
+
 <div class="row">
   <div class="span3">
     <div class="well">
@@ -23,7 +35,9 @@
           </a>
         </dd>
       </dl>
-      
+
+      <p><a href="" ng-click="log($event)">LOG</a></p>
+
       <h2>Resources</h2>
       <table class="table table-condensed">
         <thead>

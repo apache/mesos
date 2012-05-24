@@ -5,7 +5,6 @@ angular.module('mesos', []).
     $routeProvider
       .when('/', {template: 'static/home.html', controller: HomeCtrl})
       .when('/dashboard', {template: 'static/dashboard.html', controller: DashboardCtrl})
-      .when('/log', {template: 'static/log.html', controller: LogCtrl})
       .when('/frameworks', {template: 'static/frameworks.html', controller: FrameworksCtrl})
       .when('/framework/:id', {template: 'static/framework.html', controller: FrameworkCtrl})
       .when('/slaves', {template: 'static/slaves.html', controller: SlavesCtrl})
