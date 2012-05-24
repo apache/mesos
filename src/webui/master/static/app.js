@@ -13,8 +13,18 @@ angular.module('mesos', []).
   }])
   .filter('truncateMesosID', function() {
     return function(id) {
-      var short_id =  id.split('-').splice(2,2).join('-');
-      return '…' + short_id;
+      return '…' + id.split('-').splice(3, 3).join('-');
+    }
+  })
+  .filter('truncateMesosState', function() {
+    return function(state) {
+      // Remove the "TASK_" prefix.
+      return state.substring(5);
+    }
+  })
+  .filter('mesosDate', function($filter) {
+    return function(date) {
+      return $filter('date')(date, 'MM/dd/yyyy H:mm:ss');
     }
   })
   .filter('relativeDate', function() {

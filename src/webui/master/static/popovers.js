@@ -1,6 +1,6 @@
 // An abstraction for handling popovers.
 var Popovers = {
-  popover: false,
+  exist: false, // Indicates whether a popover is currently open or not.
 
   initialize: function() {
     // Turn off popovers if one is shown and we click on something
@@ -14,35 +14,35 @@ var Popovers = {
         return;
       }
 
-      if (Popovers.popover && event.target.rel != 'popover') {
+      if (Popovers.exist && event.target.rel != 'popover') {
         Popovers.hide();
       }
     });
   },
 
-  show: function(event, p) {
+  show: function(event, placement) {
     Popovers.hide(); // Hide any popovers if some are currently shown.
 
     var target = $(event.target);
     target.popover({
       html: true,
-      placement: p,
+      placement: placement,
       trigger: 'manual'
     });
 
     target.popover('show');
-    Popovers.popover = true;
+    Popovers.exist = true;
     // TODO(benh): event.preventDefault();
     },
 
   hide: function() {
     // We can't just keep a reference to the element that triggered
-    // the popover because the DOM is constantly changing (thanks to
-    // AngularJS) and so the best we can do is just remove (i.e.,
-    // hide) all "popovers".
+    // the popover because the DOM might have changed (e.g., if using
+    // something like AngularJS) and so the best we can do is just
+    // remove (i.e., hide) all "popovers".
     $('.popover').each(function() {
       $(this).remove();
     });
-    Popovers.popover = false;
+    Popovers.exist = false;
   }
 }

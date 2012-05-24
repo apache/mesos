@@ -11,16 +11,16 @@
   </li>
 </ul>
 
-<div class="alert hide" id="terminated-alert">
+<div class="alert alert-error hide" id="terminated-alert">
   <button class="close" data-dismiss="alert">×</button>
   <strong>This framework has terminated!</strong>
 </div>
 
-<div class="alert hide" id="missing-alert">
+<div class="alert alert-error hide" id="missing-alert">
   <button class="close" data-dismiss="alert">×</button>
   <strong>No framework by that ID could be found!</strong>
 </div>
-  
+
 <div class="row hide" id="framework">
   <div class="span3">
     <div class="well">
@@ -28,13 +28,25 @@
         <dt>Name:</dt>
         <dd>{{framework.name}}</dd>
         <dt>ID:</dt>
-        <dd>{{framework.id}}</dd>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{framework.id}}" data-original-title="ID">
+            {{framework.id | truncateMesosID}}
+          </a>
+        </dd>
         <dt>User:</dt>
         <dd>{{framework.user}}</dd>
         <dt>Registered:</dt>
-        <dd>{{framework.registered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</dd>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{framework.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
+            {{framework.registered_time * 1000 | relativeDate}}
+          </a>
+        </dd>
         <dt>Re-registered:</dt>
-        <dd>{{framework.reregistered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</dd>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.reregistered_time * 1000 | mesosDate}}" data-original-title="Reregistered">
+            {{framework.reregistered_time * 1000 | relativeDate}}
+          </a>
+        </dd>
         <dt>Active tasks:</dt>
         <dd>{{framework.tasks.length}}</dd>
         <dt>CPUs:</dt>
@@ -53,15 +65,19 @@
           <th>ID</th>
           <th>Name</th>
           <th>State</th>
-          <th>Slave</th>
+          <th>Host</th>
         </tr>
       </thead>
       <tbody>
         <tr ng-repeat="task in framework.tasks">
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
-          <td>{{task.state}}</td>
-          <td>{{task.slave_id}}</td>
+          <td>{{task.state | truncateMesosState}}</td>
+          <td>
+            <a href="http://{{slaves[task.slave_id].webui_hostname}}:{{slaves[task.slave_id].webui_port}}/">
+              {{slaves[task.slave_id].hostname}}
+            </a>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -73,15 +89,19 @@
           <th>ID</th>
           <th>Name</th>
           <th>State</th>
-          <th>Slave</th>
+          <th>Host</th>
         </tr>
       </thead>
       <tbody>
         <tr ng-repeat="task in framework.completed_tasks">
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
-          <td>{{task.state}}</td>
-          <td>{{task.slave_id}}</td>
+          <td>{{task.state | truncateMesosState}}</td>
+          <td>
+            <a href="http://{{slaves[task.slave_id].webui_hostname}}:{{slaves[task.slave_id].webui_port}}/">
+              {{slaves[task.slave_id].hostname}}
+            </a>
+          </td>
         </tr>
       </tbody>
     </table>

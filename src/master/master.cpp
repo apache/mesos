@@ -265,7 +265,7 @@ void Master::initialize()
   // address and port from self() and the OS PID.
 
   Try<string> id =
-    strings::format("%s%d-%d-%d", DateUtils::currentDate().c_str(),
+    strings::format("%s-%d-%d-%d", DateUtils::currentDate().c_str(),
                     self().ip, self().port, getpid());
 
   CHECK(!id.isError()) << id.error();

@@ -6,13 +6,13 @@
         <dd>{{state.pid.split("@")[1]}}</dd>
         <dt>Built:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.build_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Built">
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.build_time * 1000 | mesosDate}}" data-original-title="Built">
             {{state.build_time * 1000 | relativeDate}}
           </a> by <i>{{state.build_user}}</i>
         </dd>
         <dt>Started:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.start_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Started">
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.start_time * 1000 | mesosDate}}" data-original-title="Started">
             {{state.start_time * 1000 | relativeDate}}
           </a>
         </dd>
@@ -81,7 +81,7 @@
       <tbody>
         <tr ng-repeat="framework in frameworks">
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{framework.id}}" data-original-title="ID">
+            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.id}}" data-original-title="ID">
               {{framework.id | truncateMesosID}}
             </a>
           </td>
@@ -92,12 +92,12 @@
           <td>{{framework.resources.mem / 1024}} GB</td>
           <td>{{framework.max_share * 100}}%</td>
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{framework.registered_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Registered">
+            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
               {{framework.registered_time * 1000 | relativeDate}}
             </a>
           </td>
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{framework.reregistered_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Reregistered">
+            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.reregistered_time * 1000 | mesosDate}}" data-original-title="Reregistered">
               {{framework.reregistered_time * 1000 | relativeDate}}
             </a>
           </td>
@@ -122,10 +122,10 @@
       </thead>
       <tr ng-repeat="slave in slaves">
         <td>
-          <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{slave.id}}" data-original-title="ID">
+          <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.id}}" data-original-title="ID">
             {{slave.id | truncateMesosID}}
           </a>
-          </td>
+        </td>
         <td>
           <a href="http://{{slave.webui_hostname}}:{{slave.webui_port}}/">
             {{slave.hostname}}
@@ -134,7 +134,7 @@
         <td>{{slave.resources.cpus}}</td>
         <td>{{slave.resources.mem / 1024}} GB</td>
         <td>
-          <a href="" rel="popover" ng-click="popover($event, 'top')" data-content="{{slave.registered_time * 1000 | date:'MM/dd/yyyy H:mm:ss'}}" data-original-title="Registered">
+          <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
             {{slave.registered_time * 1000 | relativeDate}}
           </a>
         </td>
@@ -185,8 +185,16 @@
           </td>
           <td>{{framework.user}}</td>
           <td><a href="{{'#/framework/' + framework.id}}">{{framework.name}}</a></td>
-          <td>{{framework.registered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
-          <td>{{framework.unregistered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
+          <td>
+            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
+              {{framework.registered_time * 1000 | relativeDate}}
+            </a>
+          </td>
+          <td>
+            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.unregistered_time * 1000 | mesosDate}}" data-original-title="Unregistered">
+              {{framework.unregistered_time * 1000 | relativeDate}}
+            </a>
+          </td>
         </tr>
       </tbody>
     </table>

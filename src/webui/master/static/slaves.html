@@ -6,11 +6,15 @@
       <th>Host</th>
       <th>CPUs</th>
       <th>Mem</th>
-      <th>Connected at</th>
+      <th>Registered</th>
     </tr>
   </thead>
   <tr ng-repeat="slave in state.slaves">
-    <td>{{slave.id}}</td>
+    <td>
+      <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.id}}" data-original-title="ID">
+        {{slave.id | truncateMesosID}}
+      </a>
+    </td>
     <td>
       <a href="http://{{slave.webui_hostname}}:{{slave.webui_port}}/">
         {{slave.hostname}}
@@ -18,6 +22,10 @@
     </td>
     <td>{{slave.resources.cpus}}</td>
     <td>{{slave.resources.mem / 1024}} GB</td>
-    <td>{{slave.registered_time * 1000 | date:"MM/dd/yyyy H:mm:ss"}}</td>
+    <td>
+      <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
+        {{slave.registered_time * 1000 | relativeDate}}
+      </a>
+    </td>
   </tr>
 </table>

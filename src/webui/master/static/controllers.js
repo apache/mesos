@@ -3,7 +3,13 @@
 
 // Update the outermost scope with the new state.
 function update($scope, data) {
-  $scope.state = data;
+  // Don't do anythinf if the data hasn't changed.
+  if ($scope.data == data) {
+    return;
+  }
+
+  $scope.data = data;
+  $scope.state = $.parseJSON(data);
 
   $scope.total_cpus = 0;
   $scope.total_mem = 0;
@@ -78,6 +84,9 @@ function update($scope, data) {
 // active controller/view to easily access anything in scope (e.g.,
 // the state).
 function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
+  // Turn off the loading gif, turn on the navbar.
+  $("#loading").hide();
+  $("#navbar").show();
 
   // Initialize popovers and bind the function used to show a popover.
   Popovers.initialize();
@@ -88,7 +97,8 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
   $scope.retry = 0;
 
   var poll = function() {
-    $http.get('master/state.json')
+    $http.get('master/state.json',
+              {transformResponse: function(data) { return data; }})
       .success(function(data) {
         update($scope, data);
         $scope.delay = 2000;
