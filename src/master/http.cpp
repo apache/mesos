@@ -324,10 +324,9 @@ Future<HttpResponse> log(
 
   off_t offset = -1;
   ssize_t length = -1;
-  string level = pairs.count("level") ? pairs["level"][0] : "INFO";
+  string level = pairs.count("level") > 0 ? pairs["level"][0] : "INFO";
 
-  if (pairs.count("offset") > 0) {
-    CHECK(pairs["offset"].size() > 0);
+  if (pairs.count("offset") > 0 && pairs["offset"].size() > 0) {
     Try<off_t> result = utils::numify<off_t>(pairs["offset"].back());
     if (result.isError()) {
       LOG(WARNING) << "Failed to \"numify\" the 'offset' ("
