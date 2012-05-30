@@ -67,7 +67,7 @@ class SlaveTest : public ::testing::Test
 protected:
   static void SetUpTestCase()
   {
-    conf.set("MESOS_WORK_DIR", "/tmp/mesos");
+    conf.set("work_dir", "/tmp/mesos-tests");
     workDir = conf["work_dir"];
   }
 
