@@ -23,12 +23,12 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
-#include "process_based_isolation_module.hpp"
-
 #include "common/foreach.hpp"
 #include "common/type_utils.hpp"
 #include "common/utils.hpp"
 #include "common/process_utils.hpp"
+
+#include "slave/process_based_isolation_module.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -106,12 +106,25 @@ void ProcessBasedIsolationModule::launchExecutor(
 
   infos[frameworkId][executorId] = info;
 
+  // Use pipes to determine which child has successfully changed session.
+  int pipes[2];
+  pipe(pipes);
+
   pid_t pid;
   if ((pid = fork()) == -1) {
     PLOG(FATAL) << "Failed to fork to launch new executor";
   }
 
   if (pid) {
+    close(pipes[1]);
+
+    // Get the child's pid via the pipe.
+    if (read(pipes[0], &pid, sizeof(pid)) == -1) {
+      PLOG(FATAL) << "Failed to get child PID from pipe";
+    }
+
+    close(pipes[0]);
+
     // In parent process.
     LOG(INFO) << "Forked executor at " << pid;
 
@@ -123,9 +136,31 @@ void ProcessBasedIsolationModule::launchExecutor(
              frameworkId, executorId, pid);
   } else {
     // In child process, make cleanup easier.
-    if ((pid = setsid()) == -1) {
-      PLOG(FATAL) << "Failed to put executor in own session";
+    // NOTE: We setsid() in a loop because setsid() might fail if another
+    // process has the same process group id as the calling process.
+    close(pipes[0]);
+    while ((pid = setsid()) == -1) {
+      PLOG(ERROR) << "Could not put executor in own session, "
+                  << "forking another process and retrying";
+
+      if ((pid = fork()) == -1) {
+        LOG(ERROR) << "Failed to fork to launch executor";
+        exit(-1);
+      }
+
+      if (pid) {
+        // In parent process.
+        // It is ok to suicide here, though process reaper signals the exit,
+        // because the process isolation module ignores unknown processes.
+        exit(-1);
+      }
     }
+
+    if (write(pipes[1], &pid, sizeof(pid)) != sizeof(pid)) {
+      PLOG(FATAL) << "Failed to write PID on pipe";
+    }
+
+    close(pipes[1]);
 
     ExecutorLauncher* launcher =
       createExecutorLauncher(frameworkId, frameworkInfo,
@@ -156,6 +191,17 @@ void ProcessBasedIsolationModule::killExecutor(
     // that is running the tasks (stored in the local storage by the
     // executor module).
     utils::process::killtree(pid, SIGKILL, true, true, true);
+
+    // Also kill all processes that belong to the process group of the executor.
+    // This is valuable in situations where the top level executor process
+    // exited and hence killtree is unable to kill any spawned orphans.
+    // NOTE: This assumes that the process group id of the executor process is
+    // same as its pid (which is expected to be the case with setsid()).
+    // TODO(vinod): Also (recursively) kill processes belonging to the
+    // same session, but have a different process group id.
+    if (killpg(pid, SIGKILL) == -1 && errno != ESRCH) {
+      LOG(ERROR) << "ERROR! Killing process group " << pid;
+    }
 
     ProcessInfo* info = infos[frameworkId][executorId];
 
@@ -207,10 +253,10 @@ void ProcessBasedIsolationModule::processExited(pid_t pid, int status)
         const ExecutorID& executorId, ProcessInfo* info, infos[frameworkId]) {
       if (info->pid == pid) {
         LOG(INFO) << "Telling slave of lost executor " << executorId
-          << " of framework " << frameworkId;
+                  << " of framework " << frameworkId;
 
-        dispatch(slave, &Slave::executorExited,
-                 frameworkId, executorId, status);
+        dispatch(slave, &Slave::executorExited, frameworkId, executorId,
+                 status);
 
         // Try and cleanup after the executor.
         killExecutor(frameworkId, executorId);
