@@ -25,7 +25,7 @@
 
 #include <tr1/functional>
 
-#include "common/seconds.hpp"
+#include "common/time.hpp"
 
 #include "jvm/jvm.hpp"
 

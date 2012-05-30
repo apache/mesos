@@ -26,7 +26,7 @@
 #include <process/timeout.hpp>
 
 #include "common/result.hpp"
-#include "common/seconds.hpp"
+#include "common/time.hpp"
 
 #include "log/network.hpp"
 #include "log/replica.hpp"

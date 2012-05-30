@@ -31,7 +31,7 @@
 #include <string>
 #include <vector>
 
-#include "common/seconds.hpp"
+#include "common/time.hpp"
 
 
 /* Forward declarations of classes we are using. */
@@ -154,7 +154,7 @@ public:
    * will automatically get removed if the client session goes
    * away. If the ZOO_SEQUENCE flag is set, a unique monotonically
    * increasing sequence number is appended to the path name.
-   * 
+   *
    * \param path The name of the node. Expressed as a file name with
    *    slashes separating ancestors of the node.
    * \param data The data to be stored in the node.
@@ -184,7 +184,7 @@ public:
 
   /**
    * \brief delete a node in zookeeper synchronously.
-   * 
+   *
    * \param path the name of the node. Expressed as a file name with
    *    slashes separating ancestors of the node.
    * \param version the expected version of the node. The function
@@ -205,7 +205,7 @@ public:
 
   /**
    * \brief checks the existence of a node in zookeeper synchronously.
-   * 
+   *
    * \param path the name of the node. Expressed as a file name with
    *    slashes separating ancestors of the node.
    * \param watch if true, a watch will be set at the server to
@@ -225,7 +225,7 @@ public:
 
   /**
    * \brief gets the data associated with a node synchronously.
-   * 
+   *
    * \param path the name of the node. Expressed as a file name with
    *    slashes separating ancestors of the node.
    * \param watch if nonzero, a watch will be set at the server to
@@ -248,7 +248,7 @@ public:
 
   /**
    * \brief lists the children of a node synchronously.
-   * 
+   *
    * \param path the name of the node. Expressed as a file name with
    *   slashes separating ancestors of the node.
    * \param watch if true, a watch will be set at the server to notify
@@ -268,13 +268,13 @@ public:
 
   /**
    * \brief sets the data associated with a node.
-   * 
-   * \param path the name of the node. Expressed as a file name with slashes 
+   *
+   * \param path the name of the node. Expressed as a file name with slashes
    * separating ancestors of the node.
    * \param data the data to be written to the node.
-   * \param version the expected version of the node. The function will fail if 
-   * the actual version of the node does not match the expected version. If -1 is 
-   * used the version check will not take place. 
+   * \param version the expected version of the node. The function will fail if
+   * the actual version of the node does not match the expected version. If -1 is
+   * used the version check will not take place.
    * \return the return code for the function call.
    * ZOK operation completed succesfully
    * ZNONODE the node does not exist.

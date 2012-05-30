@@ -10,7 +10,7 @@
 #include "common/logging.hpp"
 #include "common/option.hpp"
 #include "common/result.hpp"
-#include "common/seconds.hpp"
+#include "common/time.hpp"
 #include "common/strings.hpp"
 #include "common/try.hpp"
 #include "common/uuid.hpp"

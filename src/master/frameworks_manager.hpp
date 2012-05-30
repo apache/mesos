@@ -27,7 +27,7 @@
 
 #include "common/option.hpp"
 #include "common/result.hpp"
-#include "common/seconds.hpp"
+#include "common/time.hpp"
 
 #include "messages/messages.hpp"
 

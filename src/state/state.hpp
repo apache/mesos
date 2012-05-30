@@ -29,7 +29,7 @@
 
 #include "common/logging.hpp"
 #include "common/option.hpp"
-#include "common/seconds.hpp"
+#include "common/time.hpp"
 #include "common/uuid.hpp"
 
 #include "messages/state.hpp"

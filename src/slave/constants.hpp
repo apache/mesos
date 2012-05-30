@@ -27,6 +27,7 @@ namespace slave {
 
 const double EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS = 5.0;
 const double STATUS_UPDATE_RETRY_INTERVAL_SECONDS = 10.0;
+const double GC_TIMEOUT_HOURS = 7.0 * 24.0; // 1 week.
 
 } // namespace slave {
 } // namespace internal {

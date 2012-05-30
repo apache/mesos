@@ -187,7 +187,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/logging.hpp common/lambda.hpp common/option.hpp		\
 	common/resources.hpp common/result.hpp common/multihashmap.hpp	\
 	common/process_utils.hpp common/protobuf_utils.hpp		\
-	common/seconds.hpp common/try.hpp				\
+	common/time.hpp common/try.hpp				\
 	common/type_utils.hpp common/thread.hpp common/timer.hpp	\
 	common/utils.hpp common/units.hpp common/uuid.hpp		\
 	common/strings.hpp common/values.hpp				\
@@ -730,6 +730,7 @@ check_PROGRAMS += mesos-tests
 
 mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/master_tests.cpp tests/state_tests.cpp	\
+	              tests/slave_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
 	              tests/log_tests.cpp tests/resources_tests.cpp	\

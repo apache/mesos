@@ -351,6 +351,18 @@ inline bool exists(const std::string& path, bool directory = false)
 }
 
 
+inline Try<long> modtime(const std::string& path)
+{
+  struct stat s;
+
+  if (::stat(path.c_str(), &s) < 0) {
+    return Try<long>::error("Cannot stat " + path + " for modification time");
+  }
+
+  return s.st_mtime;
+}
+
+
 inline bool mkdir(const std::string& directory)
 {
   try {

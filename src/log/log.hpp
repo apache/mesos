@@ -28,7 +28,7 @@
 
 #include "common/foreach.hpp"
 #include "common/result.hpp"
-#include "common/seconds.hpp"
+#include "common/time.hpp"
 #include "common/try.hpp"
 
 #include "log/coordinator.hpp"

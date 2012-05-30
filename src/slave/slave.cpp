@@ -29,6 +29,7 @@
 #include "common/build.hpp"
 #include "common/option.hpp"
 #include "common/strings.hpp"
+#include "common/time.hpp"
 #include "common/try.hpp"
 #include "common/type_utils.hpp"
 #include "common/utils.hpp"
@@ -194,6 +195,12 @@ void Slave::registerOptions(Configurator* configurator)
       "executor_shutdown_timeout_seconds",
       "Amount of time (in seconds) to wait for an executor to shut down\n",
       EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS);
+
+  configurator->addOption<double>(
+      "gc_timeout_hours",
+      "Amount of time (in hours) to wait before cleaning up \n"
+      "executor directories\n",
+      GC_TIMEOUT_HOURS);
 }
 
 
@@ -226,6 +233,9 @@ void Slave::initialize()
   info.set_webui_port(conf.get<int>("webui_port", 8081));
   info.mutable_resources()->MergeFrom(resources);
   info.mutable_attributes()->MergeFrom(attributes);
+
+
+  workRootDir = conf.get<string>("work_dir", "/tmp/mesos");
 
   // Spawn and initialize the isolation module.
   // TODO(benh): Seems like the isolation module should really be
@@ -387,6 +397,8 @@ void Slave::registered(const SlaveID& slaveId)
   id = slaveId;
 
   connected = true;
+
+  garbageCollectSlaveDirs(workRootDir + "/slaves");
 }
 
 
@@ -1430,6 +1442,7 @@ void Slave::executorExited(const FrameworkID& frameworkId,
     send(master, message);
   }
 
+  garbageCollectExecutorDir(executor->directory);
   framework->destroyExecutor(executor->id);
 }
 
@@ -1474,6 +1487,7 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
              &IsolationModule::killExecutor,
              framework->id, executor->id);
 
+    garbageCollectExecutorDir(executor->directory);
     framework->destroyExecutor(executor->id);
   }
 
@@ -1481,6 +1495,47 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
   if (framework->executors.size() == 0) {
     frameworks.erase(framework->id);
     delete framework;
+  }
+}
+
+
+void Slave::garbageCollectExecutorDir(const string& dir)
+{
+  hours timeout(conf.get<double>("gc_timeout_hours", GC_TIMEOUT_HOURS));
+  std::list<string> result;
+
+  LOG(INFO) << "Scheduling executor directory " << dir << " for deletion";
+  result.push_back(dir);
+
+  delay(timeout.secs(), self(), &Slave::garbageCollect, result);
+}
+
+
+void Slave::garbageCollectSlaveDirs(const string& dir)
+{
+  hours timeout(conf.get<double>("gc_timeout_hours", GC_TIMEOUT_HOURS));
+  std::list<string> result;
+
+  foreach (const string& d, utils::os::listdir(dir)) {
+    if (d != "." && d != ".." && d != id.value()) {
+      const string& path = dir + "/" + d;
+      Try<long> modtime = utils::os::modtime(path);
+      if (utils::os::exists(path, true) && // Check if its a directory.
+        modtime.isSome() && (Clock::now() - modtime.get()) > timeout.secs()) {
+        LOG(INFO) << "Scheduling slave directory " << path << " for deletion";
+        result.push_back(path);
+      }
+    }
+  }
+  garbageCollect(result); // Delete these right away.
+}
+
+
+void Slave::garbageCollect(const std::list<string>& directories)
+{
+  foreach (const string& dir, directories) {
+    LOG(INFO) << "Deleting directory " << dir;
+    utils::os::rmdir(dir);
   }
 }
 
@@ -1505,7 +1560,7 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
             << executorId << "' of framework " << frameworkId;
 
   std::ostringstream out(std::ios_base::app | std::ios_base::out);
-  out << conf.get<string>("work_dir", "/tmp/mesos")
+  out << workRootDir
       << "/slaves/" << id
       << "/frameworks/" << frameworkId
       << "/executors/" << executorId;
@@ -1531,6 +1586,7 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
 
   LOG(FATAL) << "Could not create work directory for executor '"
              << executorId << "' of framework" << frameworkId;
+  return NULL;
 }
 
 } // namespace slave {

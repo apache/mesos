@@ -28,7 +28,7 @@
 
 #include <sys/time.h>
 
-#include "common/seconds.hpp"
+#include "common/time.hpp"
 
 class Timer
 {

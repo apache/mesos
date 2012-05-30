@@ -6,7 +6,7 @@
 #include "process/future.hpp"
 #include "process/option.hpp"
 
-#include "common/seconds.hpp"
+#include "common/time.hpp"
 
 #include "zookeeper/authentication.hpp"
 
