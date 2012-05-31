@@ -21,16 +21,10 @@
 
 #include <sys/types.h> // For pid_t.
 
-#include <linux/version.h>
-
 #include <set>
 #include <string>
 
 #include "common/try.hpp"
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-#error "Expecting Linux version >= 2.6.27"
-#endif
 
 namespace mesos {
 namespace internal {
@@ -101,14 +95,7 @@ struct ProcessStatistics
       unsigned long _sigcatch,
       unsigned long _wchan,
       unsigned long _nswap,
-      unsigned long _cnswap,
-      int _exit_signal, // Since Linux 2.1.22.
-      int _processor, // Since Linux 2.2.8.
-      unsigned int _rt_priority, // Since Linux 2.5.19.
-      unsigned int _policy, // Since Linux 2.5.19.
-      unsigned long long _delayacct_blkio_ticks, // Since Linux 2.6.18.
-      unsigned long _guest_time, // Since Linux 2.6.24.
-      unsigned int _cguest_time) // Since Linux 2.6.24.
+      unsigned long _cnswap)
   : pid(_pid),
     comm(_comm),
     state(_state),
@@ -143,14 +130,7 @@ struct ProcessStatistics
     sigcatch(_sigcatch),
     wchan(_wchan),
     nswap(_nswap),
-    cnswap(_cnswap),
-    exit_signal(_exit_signal),
-    processor(_processor),
-    rt_priority(_rt_priority),
-    policy(_policy),
-    delayacct_blkio_ticks(_delayacct_blkio_ticks),
-    guest_time(_guest_time),
-    cguest_time(_cguest_time)
+    cnswap(_cnswap)
   {}
 
   const pid_t pid;
@@ -188,13 +168,6 @@ struct ProcessStatistics
   const unsigned long wchan;
   const unsigned long nswap;
   const unsigned long cnswap;
-  const int exit_signal;
-  const int processor;
-  const unsigned int rt_priority;
-  const unsigned int policy;
-  const unsigned long long delayacct_blkio_ticks;
-  const unsigned long guest_time;
-  const unsigned int cguest_time;
 };
 
 } // namespace proc {

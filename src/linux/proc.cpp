@@ -131,9 +131,7 @@ Try<ProcessStatistics> stat(pid_t pid)
        >> utime >> stime >> cutime >> cstime >> priority >> nice
        >> num_threads >> itrealvalue >> starttime >> vsize >> rss
        >> rsslim >> startcode >> endcode >> startstack >> kstkeip
-       >> signal >> blocked >> sigcatch >> wchan >> nswap >> cnswap
-       >> exit_signal >> processor >> rt_priority >> policy
-       >> delayacct_blkio_ticks >> guest_time >> cguest_time;
+       >> signal >> blocked >> sigcatch >> wchan >> nswap >> cnswap;
 
   // Check for any read/parse errors.
   if (file.fail() && !file.eof()) {
@@ -148,9 +146,7 @@ Try<ProcessStatistics> stat(pid_t pid)
                            utime, stime, cutime, cstime, priority, nice,
                            num_threads, itrealvalue, starttime, vsize, rss,
                            rsslim, startcode, endcode, startstack, kstkeip,
-                           signal, blocked, sigcatch, wchan, nswap, cnswap,
-                           exit_signal, processor, rt_priority, policy,
-                           delayacct_blkio_ticks, guest_time, cguest_time);
+                           signal, blocked, sigcatch, wchan, nswap, cnswap);
 }
 
 } // namespace proc {
