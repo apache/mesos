@@ -39,9 +39,9 @@ libprocess_la_LIBADD = $(GLOG)/libglog.la				\
 # Headers.
 libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/process/collect.hpp			\
-	$(top_srcdir)/include/process/delay.hpp				\
 	$(top_srcdir)/include/process/defer.hpp				\
 	$(top_srcdir)/include/process/deferred.hpp			\
+	$(top_srcdir)/include/process/delay.hpp				\
 	$(top_srcdir)/include/process/dispatch.hpp			\
 	$(top_srcdir)/include/process/event.hpp				\
 	$(top_srcdir)/include/process/executor.hpp			\
@@ -52,6 +52,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/process/id.hpp				\
 	$(top_srcdir)/include/process/latch.hpp				\
 	$(top_srcdir)/include/process/message.hpp			\
+	$(top_srcdir)/include/process/mime.hpp				\
 	$(top_srcdir)/include/process/nothing.hpp			\
 	$(top_srcdir)/include/process/once.hpp				\
 	$(top_srcdir)/include/process/option.hpp			\
