@@ -255,8 +255,8 @@ void ProcessBasedIsolationModule::processExited(pid_t pid, int status)
         LOG(INFO) << "Telling slave of lost executor " << executorId
                   << " of framework " << frameworkId;
 
-        dispatch(slave, &Slave::executorExited, frameworkId, executorId,
-                 status);
+        dispatch(slave, &Slave::executorExited,
+                 frameworkId, executorId, status);
 
         // Try and cleanup after the executor.
         killExecutor(frameworkId, executorId);

@@ -191,14 +191,17 @@ string SlaveTest::workDir;
 
 TEST_F(SlaveTest, GarbageCollectSlaveDirs)
 {
-  trigger slaveRegisteredMsg;
   process::Message message;
-
+  trigger slaveRegisteredMsg;
   EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
     .WillRepeatedly(DoAll(
         SaveArgField<0>(&process::MessageEvent::message, &message),
         Trigger(&slaveRegisteredMsg),
         Return(false)));
+
+  trigger lostSlaveMsg;
+  EXPECT_MESSAGE(filter, Eq(LostSlaveMessage().GetTypeName()), _, _)
+    .WillRepeatedly(DoAll(Trigger(&lostSlaveMsg), Return(false)));
 
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
@@ -244,6 +247,8 @@ TEST_F(SlaveTest, GarbageCollectSlaveDirs)
 
   hours timeout(slave::GC_TIMEOUT_HOURS);
   Clock::advance(timeout.secs());
+
+  WAIT_UNTIL(lostSlaveMsg);
 
   // Reset the triggers.
   slaveRegisteredMsg.value = false;
