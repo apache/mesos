@@ -50,6 +50,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/process/gc.hpp				\
 	$(top_srcdir)/include/process/http.hpp				\
 	$(top_srcdir)/include/process/id.hpp				\
+	$(top_srcdir)/include/process/io.hpp				\
 	$(top_srcdir)/include/process/latch.hpp				\
 	$(top_srcdir)/include/process/message.hpp			\
 	$(top_srcdir)/include/process/mime.hpp				\

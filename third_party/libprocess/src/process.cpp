@@ -53,6 +53,7 @@
 #include <process/future.hpp>
 #include <process/gc.hpp>
 #include <process/id.hpp>
+#include <process/io.hpp>
 #include <process/mime.hpp>
 #include <process/process.hpp>
 #include <process/socket.hpp>
@@ -1111,6 +1112,17 @@ void accept(struct ev_loop* loop, ev_io* watcher, int revents)
     ev_io_init(watcher, recv_data, s, EV_READ);
     ev_io_start(loop, watcher);
   }
+}
+
+
+void polled(struct ev_loop* loop, ev_io* watcher, int revents)
+{
+  Promise<short>* promise = (Promise<short>*) watcher->data;
+  promise->set(revents);
+  delete promise;
+
+  ev_io_stop(loop, watcher);
+  delete watcher;
 }
 
 
@@ -2958,6 +2970,36 @@ void post(const UPID& to, const string& name, const char* data, size_t length)
   // Encode and transport outgoing message.
   transport(encode(UPID(), to, name, string(data, length)));
 }
+
+
+namespace io {
+
+Future<short> poll(int fd, short events)
+{
+  // TODO(benh): Check if the file descriptor is non-blocking?
+
+  Promise<short>* promise = new Promise<short>();
+
+  // Get a copy of the future to avoid any races with the event loop.
+  Future<short> future = promise->future();
+
+  ev_io* watcher = new ev_io();
+  watcher->data = promise;
+
+  ev_io_init(watcher, polled, fd, events);
+
+  // Enqueue the watcher.
+  synchronized (watchers) {
+    watchers->push(watcher);
+  }
+
+  // Interrupt the loop.
+  ev_async_send(loop, &async_watcher);
+
+  return future;
+}
+
+} // namespace io {
 
 
 namespace internal {

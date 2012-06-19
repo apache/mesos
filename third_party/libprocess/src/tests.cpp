@@ -17,6 +17,7 @@
 #include <process/filter.hpp>
 #include <process/future.hpp>
 #include <process/gc.hpp>
+#include <process/io.hpp>
 #include <process/process.hpp>
 #include <process/run.hpp>
 
@@ -983,6 +984,29 @@ TEST(libprocess, http)
 
   terminate(process);
   wait(process);
+}
+
+
+TEST(libprocess, poll)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  int pipes[2];
+  pipe(pipes);
+
+  Future<short> future = io::poll(pipes[0], io::READ);
+
+  EXPECT_FALSE(future.isReady());
+
+  ASSERT_EQ(3, write(pipes[1], "hi", 3));
+
+  future.await();
+
+  ASSERT_TRUE(future.isReady());
+  EXPECT_EQ(io::READ, future.get());
+
+  close(pipes[0]);
+  close(pipes[1]);
 }
 
 
