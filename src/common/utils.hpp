@@ -46,6 +46,7 @@
 #include <sys/sysinfo.h>
 #endif
 #include <sys/types.h>
+#include <sys/utsname.h>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
@@ -699,6 +700,78 @@ inline Try<long> memory()
   return Try<long>::error("Cannot determine the size of main memory");
 #endif
 }
+
+
+// The structure returned by uname describing the currently running system.
+struct UTSInfo
+{
+  std::string sysname;    // Operating system name (e.g. Linux).
+  std::string nodename;   // Network name of this machine.
+  std::string release;    // Release level of the operating system.
+  std::string version;    // Version level of the operating system.
+  std::string machine;    // Machine hardware platform.
+};
+
+
+// Return the system information.
+inline Try<UTSInfo> uname()
+{
+  struct utsname name;
+
+  if (::uname(&name) < 0) {
+    return Try<UTSInfo>::error(
+        "Failed to get system information: " + std::string(strerror(errno)));
+  }
+
+  UTSInfo info;
+  info.sysname = name.sysname;
+  info.nodename = name.nodename;
+  info.release = name.release;
+  info.version = name.version;
+  info.machine = name.machine;
+  return info;
+}
+
+
+// Return the operating system name (e.g. Linux).
+inline Try<std::string> sysname()
+{
+  Try<UTSInfo> info = uname();
+  if (info.isError()) {
+    return Try<std::string>::error(info.error());
+  }
+
+  return info.get().sysname;
+}
+
+
+// The OS release level.
+struct Release
+{
+  int version;
+  int major;
+  int minor;
+};
+
+
+// Return the OS release numbers.
+inline Try<Release> release()
+{
+  Try<UTSInfo> info = uname();
+  if (info.isError()) {
+    return Try<Release>::error(info.error());
+  }
+
+  Release r;
+  if (::sscanf(info.get().release.c_str(), "%d.%d.%d",
+               &r.version, &r.major, &r.minor) != 3) {
+    return Try<Release>::error(
+        "Parsing release number error: " + info.get().release);
+  }
+
+  return r;
+}
+
 
 } // namespace os {
 

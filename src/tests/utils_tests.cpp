@@ -152,6 +152,43 @@ TEST_F(UtilsTest, find)
   ASSERT_TRUE(files.contains(file2));
 }
 
+
+TEST_F(UtilsTest, uname)
+{
+  Try<UTSInfo> info = uname();
+
+  ASSERT_TRUE(info.isSome());
+#ifdef __linux__
+  EXPECT_EQ(info.get().sysname, "Linux");
+#endif
+#ifdef __APPLE__
+  EXPECT_EQ(info.get().sysname, "Darwin");
+#endif
+}
+
+
+TEST_F(UtilsTest, sysname)
+{
+  Try<std::string> name = sysname();
+
+  ASSERT_TRUE(name.isSome());
+#ifdef __linux__
+  EXPECT_EQ(name.get(), "Linux");
+#endif
+#ifdef __APPLE__
+  EXPECT_EQ(name.get(), "Darwin");
+#endif
+}
+
+
+TEST_F(UtilsTest, release)
+{
+  Try<Release> info = release();
+
+  ASSERT_TRUE(info.isSome());
+}
+
+
 } // namespace os
 } // namespace utils
 } // namespace internal
