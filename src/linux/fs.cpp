@@ -33,9 +33,10 @@ namespace fs {
 
 
 // Lock for guarding accesses to fstab functions.
-static Lock* fstabLock = new Lock(new pthread_mutex_t);
+static pthread_mutex_t fstabMutex = PTHREAD_MUTEX_INITIALIZER;
+
 // Lock for guarding accesses to mntent functions.
-static Lock* mntentLock = new Lock(new pthread_mutex_t);
+static pthread_mutex_t mntentMutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 bool MountTable::Entry::hasOption(const std::string& option)
@@ -81,8 +82,8 @@ Try<MountTable> MountTable::read(const std::string& path)
     table.entries.push_back(entry);
 #else
     // Reentrant version does not exist. Use locks.
-    mntentLock->lock();
     {
+      Lock lock(&mntentLock);
       struct mntent* mntent = ::getmntent(file);
       if (mntent == NULL) {
         // NULL means the end of enties.
@@ -98,7 +99,6 @@ Try<MountTable> MountTable::read(const std::string& path)
                               mntent->mnt_passno);
       table.entries.push_back(entry);
     }
-    mntentLock->unlock();
 #endif
   }
 
@@ -113,11 +113,11 @@ Try<FileSystemTable> FileSystemTable::read()
   FileSystemTable table;
 
   // Use locks since fstab functions are not thread-safe.
-  fstabLock->lock();
   {
+    Lock lock(&fstabMutex);
+
     // Open file _PATH_FSTAB (/etc/fstab).
     if (::setfsent() == 0) {
-      fstabLock->unlock();
       return Try<FileSystemTable>::error("Failed to open file system table");
     }
 
@@ -140,7 +140,6 @@ Try<FileSystemTable> FileSystemTable::read()
 
     ::endfsent();
   }
-  fstabLock->unlock();
 
   return table;
 }
