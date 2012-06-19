@@ -50,13 +50,17 @@ void registerOptions(Configurator* configurator)
 }
 
 
-void initialize(const string& argv0, const Configuration& conf)
+void initialize(const string& _argv0, const Configuration& conf)
 {
   static process::Once initialized;
 
   if (initialized.once()) {
     return;
   }
+
+  // Persistent copy of argv0 since InitGoogleLogging requires the
+  // string we pass to it to be accessible indefinitely.
+  static string argv0 = _argv0;
 
   Option<string> directory = conf.get<string>("log_dir");
 
