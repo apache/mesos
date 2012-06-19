@@ -179,10 +179,23 @@ inline bool checkBracketsMatching(
 }
 
 
+inline bool startsWith(const std::string& s, const std::string& prefix)
+{
+  return s.find(prefix) == 0;
+}
+
+
 inline bool endsWith(const std::string& s, const std::string& suffix)
 {
   return s.rfind(suffix) == s.length() - suffix.length();
 }
+
+
+inline bool contains(const std::string& s, const std::string& substr)
+{
+  return s.find(substr) != std::string::npos;
+}
+
 
 } // namespaces strings {
 

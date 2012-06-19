@@ -143,3 +143,18 @@ TEST(StringsTest, Pairs)
   ASSERT_EQ(1, pairs["two"].size());
   EXPECT_EQ("2", pairs["two"].front());
 }
+
+
+TEST(StringsTest, StartsWith)
+{
+  EXPECT_TRUE(strings::startsWith("hello world", "hello"));
+  EXPECT_FALSE(strings::startsWith("hello world", "no"));
+  EXPECT_FALSE(strings::startsWith("hello world", "ello"));
+}
+
+
+TEST(StringsTest, Contains)
+{
+  EXPECT_TRUE(strings::contains("hello world", "world"));
+  EXPECT_FALSE(strings::contains("hello world", "no"));
+}
