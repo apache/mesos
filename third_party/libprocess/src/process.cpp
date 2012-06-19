@@ -2179,12 +2179,18 @@ UPID ProcessManager::spawn(ProcessBase* process, bool manage)
     dispatch(gc, &GarbageCollector::manage<ProcessBase>, process);
   }
 
+  // We save the PID before enqueueing the process to avoid the race
+  // condition that occurs when a user has a very short process and
+  // the process gets run and cleaned up before we return from enqueue
+  // (e.g., when 'manage' is set to true).
+  UPID pid = process->self();
+
   // Add process to the run queue (so 'initialize' will get invoked).
   enqueue(process);
 
-  VLOG(2) << "Spawned process " << process->self();
+  VLOG(2) << "Spawned process " << pid;
 
-  return process->self();
+  return pid;
 }
 
 

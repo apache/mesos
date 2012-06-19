@@ -252,11 +252,16 @@ UPID spawn(ProcessBase* process, bool manage = false);
 template <typename T>
 PID<T> spawn(T* t, bool manage = false)
 {
+  // We save the pid before spawn is called because it's possible that
+  // the process has already been deleted after spawn returns (e.g.,
+  // if 'manage' is true).
+  PID<T> pid(t);
+
   if (!spawn(static_cast<ProcessBase*>(t), manage)) {
     return PID<T>();
   }
 
-  return PID<T>(t);
+  return pid;
 }
 
 template <typename T>
