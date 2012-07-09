@@ -1386,7 +1386,7 @@ void Slave::executorExited(const FrameworkID& frameworkId,
                 ? " has exited with status "
                 : " has terminated with signal ")
             << (WIFEXITED(status)
-                ? utils::stringify(WEXITSTATUS(status))
+                ? stringify(WEXITSTATUS(status))
                 : strsignal(WTERMSIG(status)));
 
   Framework* framework = getFramework(frameworkId);

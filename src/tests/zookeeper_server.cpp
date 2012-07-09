@@ -169,7 +169,7 @@ void ZooKeeperServer::expireSession(int64_t sessionId)
 std::string ZooKeeperServer::connectString() const
 {
   checkStarted();
-  return "127.0.0.1:" + utils::stringify(port);
+  return "127.0.0.1:" + stringify(port);
 }
 
 

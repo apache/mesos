@@ -1037,8 +1037,8 @@ void ReplicaProcess::recover(const string& path)
 
   LOG(INFO) << "Replica recovered with log positions "
             << begin << " -> " << end
-            << " and holes " << utils::stringify(holes)
-            << " and unlearned " << utils::stringify(unlearned);
+            << " and holes " << stringify(holes)
+            << " and unlearned " << stringify(unlearned);
 }
 
 

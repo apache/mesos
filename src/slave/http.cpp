@@ -120,9 +120,9 @@ Future<HttpResponse> vars(
 
   // TODO(benh): Consider separating collecting the actual vars we
   // want to display from rendering them. Trying to just create a
-  // map<string, string> required a lot of calls to utils::stringify
-  // (or using an std::ostringstream) and didn't actually seem to be
-  // that much more clear than just rendering directly.
+  // map<string, string> required a lot of calls to stringify (or
+  // using an std::ostringstream) and didn't actually seem to be that
+  // much more clear than just rendering directly.
   std::ostringstream out;
 
   out <<
@@ -137,7 +137,7 @@ Future<HttpResponse> vars(
 
   HttpOKResponse response;
   response.headers["Content-Type"] = "text/plain";
-  response.headers["Content-Length"] = utils::stringify(out.str().size());
+  response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
   return response;
 }
@@ -169,7 +169,7 @@ Future<HttpResponse> stats(
 
   HttpOKResponse response;
   response.headers["Content-Type"] = "application/json";
-  response.headers["Content-Length"] = utils::stringify(out.str().size());
+  response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
   return response;
 }
@@ -204,7 +204,7 @@ Future<HttpResponse> state(
 
   HttpOKResponse response;
   response.headers["Content-Type"] = "application/json";
-  response.headers["Content-Length"] = utils::stringify(out.str().size());
+  response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
   return response;
 }

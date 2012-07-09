@@ -1883,7 +1883,7 @@ FrameworkID Master::newFrameworkId()
 OfferID Master::newOfferId()
 {
   OfferID offerId;
-  offerId.set_value(info.id() + "-" + utils::stringify(nextOfferId++));
+  offerId.set_value(info.id() + "-" + stringify(nextOfferId++));
   return offerId;
 }
 
@@ -1891,7 +1891,7 @@ OfferID Master::newOfferId()
 SlaveID Master::newSlaveId()
 {
   SlaveID slaveId;
-  slaveId.set_value(info.id() + "-" + utils::stringify(nextSlaveId++));
+  slaveId.set_value(info.id() + "-" + stringify(nextSlaveId++));
   return slaveId;
 }
 

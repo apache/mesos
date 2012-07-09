@@ -189,13 +189,14 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/lock.hpp common/logging.hpp common/lambda.hpp		\
 	common/option.hpp common/resources.hpp common/result.hpp	\
 	common/multihashmap.hpp common/process_utils.hpp		\
-	common/time.hpp common/try.hpp common/type_utils.hpp		\
-	common/thread.hpp common/timer.hpp common/utils.hpp		\
-	common/units.hpp common/uuid.hpp common/strings.hpp		\
-	common/values.hpp configurator/configuration.hpp		\
-	configurator/configurator.hpp configurator/option.hpp		\
-	detector/detector.hpp launcher/launcher.hpp linux/fs.hpp	\
-	linux/proc.hpp local/local.hpp master/allocator.hpp		\
+	common/stringify.hpp common/strings.hpp common/time.hpp		\
+	common/try.hpp common/type_utils.hpp common/thread.hpp		\
+	common/timer.hpp common/utils.hpp common/units.hpp		\
+	common/uuid.hpp common/values.hpp				\
+	configurator/configuration.hpp configurator/configurator.hpp	\
+	configurator/option.hpp detector/detector.hpp			\
+	launcher/launcher.hpp linux/fs.hpp linux/proc.hpp		\
+	local/local.hpp master/allocator.hpp				\
 	master/allocator_factory.hpp master/constants.hpp		\
 	master/frameworks_manager.hpp master/http.hpp			\
 	master/master.hpp master/simple_allocator.hpp			\

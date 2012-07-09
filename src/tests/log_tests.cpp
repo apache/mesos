@@ -780,7 +780,7 @@ TEST(CoordinatorTest, MultipleAppends)
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord.append(utils::stringify(position), Timeout(1.0));
+      coord.append(stringify(position), Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -793,7 +793,7 @@ TEST(CoordinatorTest, MultipleAppends)
     foreach (const Action& action, actions.get()) {
       ASSERT_TRUE(action.has_type());
       ASSERT_EQ(Action::APPEND, action.type());
-      EXPECT_EQ(utils::stringify(action.position()), action.append().bytes());
+      EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
 
@@ -839,7 +839,7 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord1.append(utils::stringify(position), Timeout(1.0));
+      coord1.append(stringify(position), Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -869,7 +869,7 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
     foreach (const Action& action, actions.get()) {
       ASSERT_TRUE(action.has_type());
       ASSERT_EQ(Action::APPEND, action.type());
-      EXPECT_EQ(utils::stringify(action.position()), action.append().bytes());
+      EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
 
@@ -907,7 +907,7 @@ TEST(CoordinatorTest, Truncate)
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord.append(utils::stringify(position), Timeout(1.0));
+      coord.append(stringify(position), Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -933,7 +933,7 @@ TEST(CoordinatorTest, Truncate)
     foreach (const Action& action, actions.get()) {
       ASSERT_TRUE(action.has_type());
       ASSERT_EQ(Action::APPEND, action.type());
-      EXPECT_EQ(utils::stringify(action.position()), action.append().bytes());
+      EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
 
@@ -979,7 +979,7 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord1.append(utils::stringify(position), Timeout(1.0));
+      coord1.append(stringify(position), Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -1022,7 +1022,7 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
     foreach (const Action& action, actions.get()) {
       ASSERT_TRUE(action.has_type());
       ASSERT_EQ(Action::APPEND, action.type());
-      EXPECT_EQ(utils::stringify(action.position()), action.append().bytes());
+      EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
 
@@ -1062,7 +1062,7 @@ TEST(CoordinatorTest, TruncateLearnedFill)
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord1.append(utils::stringify(position), Timeout(1.0));
+      coord1.append(stringify(position), Timeout(1.0));
     ASSERT_TRUE(result.isSome());
     EXPECT_EQ(position, result.get());
   }
@@ -1105,7 +1105,7 @@ TEST(CoordinatorTest, TruncateLearnedFill)
     foreach (const Action& action, actions.get()) {
       ASSERT_TRUE(action.has_type());
       ASSERT_EQ(Action::APPEND, action.type());
-      EXPECT_EQ(utils::stringify(action.position()), action.append().bytes());
+      EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
 

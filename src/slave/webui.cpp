@@ -38,7 +38,7 @@ void start(const process::PID<Slave>& slave, const Configuration& conf)
 {
   std::vector<std::string> args(5);
   args[0] = "--slave_id=" + slave.id;
-  args[1] = "--slave_port=" + utils::stringify(slave.port);
+  args[1] = "--slave_port=" + stringify(slave.port);
   args[2] = "--webui_port=" + conf.get<std::string>("webui_port", "8081");
   args[3] = "--log_dir=" + conf.get<std::string>("log_dir", FLAGS_log_dir);
   args[4] = "--work_dir=" + conf.get<std::string>("work_dir", "/tmp/mesos");

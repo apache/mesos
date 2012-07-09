@@ -194,7 +194,7 @@ bool coordinate(Coordinator* coordinator,
       }
     }
 
-    Result<uint64_t> result = coordinator->append(utils::stringify(value));
+    Result<uint64_t> result = coordinator->append(stringify(value));
     if (result.isError()) {
       LOG(INFO) << "Restarting due to append error";
       restart();

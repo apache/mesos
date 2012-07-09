@@ -307,8 +307,7 @@ inline void ZooKeeperNetwork::collected()
     pids.insert(pid);
   }
 
-  LOG(INFO) << "ZooKeeper group PIDs: "
-            << mesos::internal::utils::stringify(pids);
+  LOG(INFO) << "ZooKeeper group PIDs: " << stringify(pids);
 
   set(pids); // Update the network.
 

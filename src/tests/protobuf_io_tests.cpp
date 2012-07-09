@@ -49,7 +49,7 @@ TEST(ProtobufIOTest, Basic)
 
   for (int i = 0; i < writes; i++) {
     FrameworkID frameworkId;
-    frameworkId.set_value(utils::stringify(i));
+    frameworkId.set_value(stringify(i));
     Try<bool> result = utils::protobuf::write(fdw, frameworkId);
     ASSERT_TRUE(result.isSome());
     EXPECT_TRUE(result.get());
@@ -60,7 +60,7 @@ TEST(ProtobufIOTest, Basic)
     Result<bool> result = utils::protobuf::read(fdr, &frameworkId);
     ASSERT_TRUE(result.isSome());
     EXPECT_TRUE(result.get());
-    EXPECT_EQ(frameworkId.value(), utils::stringify(i));
+    EXPECT_EQ(frameworkId.value(), stringify(i));
   }
 
   utils::os::close(fdw);

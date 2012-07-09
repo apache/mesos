@@ -73,7 +73,7 @@ Try<SystemStatistics> stat()
 
 Try<ProcessStatistics> stat(pid_t pid)
 {
-  string path = "/proc/" + utils::stringify(pid) + "/stat";
+  string path = "/proc/" + stringify(pid) + "/stat";
 
   ifstream file(path.c_str());
 
