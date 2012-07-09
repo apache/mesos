@@ -39,6 +39,10 @@ EXTRA_DIST += configure.amazon-linux-64 configure.centos-5.4-64		\
   configure.macosx configure.ubuntu-lucid-64 configure.ubuntu-natty-64
 
 
+# MPI framework.
+EXTRA_DIST += mpi/README mpi/mpiexec-mesos.in mpi/mpiexec-mesos.py
+
+
 if HAS_JAVA
 maven-install:
 	@cd src && $(MAKE) $(AM_MAKEFLAGS) maven-install

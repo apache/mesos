@@ -100,6 +100,8 @@ AC_CONFIG_FILES([include/mesos/mesos.hpp])
 
 AC_CONFIG_FILES([src/java/generated/org/apache/mesos/MesosNativeLibrary.java])
 
+AC_CONFIG_FILES([mpi/mpiexec-mesos], [chmod +x mpi/mpiexec-mesos])
+
 
 AC_ARG_ENABLE([java],
               AS_HELP_STRING([--disable-java],
