@@ -19,45 +19,14 @@
 #ifndef __STRINGS_HPP__
 #define __STRINGS_HPP__
 
-#include <stdarg.h>
-#include <stdio.h>
-
 #include <string>
 #include <map>
 #include <vector>
 
 #include "common/foreach.hpp"
-#include "common/try.hpp"
-
+#include "common/format.hpp" // TODO(benh): Include format.hpp explicitly.
 
 namespace strings {
-
-inline Try<std::string> format(const std::string& fmt, va_list args)
-{
-  char* temp;
-  if (vasprintf(&temp, fmt.c_str(), args) == -1) {
-    // Note that temp is undefined, so we do not need to call free.
-    return Try<std::string>::error(
-        "Failed to format '" + fmt + "' (possibly out of memory)");
-  }
-  std::string result(temp);
-  free(temp);
-  return result;
-}
-
-
-// TODO(benh): Can we implement a variant of format which for all
-// possible argument permutations invokes std::string::c_str on each
-// std::string?
-inline Try<std::string> format(const std::string& fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  const Try<std::string>& result = format(fmt, args);
-  va_end(args);
-  return result;
-}
-
 
 // Flags indicating how remove should operate.
 enum Mode {
@@ -143,7 +112,9 @@ inline std::vector<std::string> split(
 //   foo: [1, 3]
 //   bar: [2]
 inline std::map<std::string, std::vector<std::string> > pairs(
-    const std::string& s, const std::string& delims1, const std::string& delims2)
+    const std::string& s,
+    const std::string& delims1,
+    const std::string& delims2)
 {
   std::map<std::string, std::vector<std::string> > result;
 
