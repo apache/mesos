@@ -83,10 +83,10 @@ Try<T> numify(const std::string& s)
   try {
     return boost::lexical_cast<T>(s);
   } catch (const boost::bad_lexical_cast&) {
-    const Try<std::string>& message = strings::format(
-      "Failed to convert '%s' to number", s.c_str());
-    return Try<T>::error(
-      message.isSome() ? message.get() : "Failed to convert to number");
+    const Try<std::string>& message =
+      strings::format("Failed to convert '%s' to number", s);
+    CHECK(message.isSome());
+    return Try<T>::error(message.get());
   }
 }
 
@@ -608,7 +608,7 @@ inline Try<int> shell(std::ostream* os, const std::string& fmt, ...)
   va_list args;
   va_start(args, fmt);
 
-  const Try<std::string>& cmdline = strings::format(fmt, args);
+  const Try<std::string>& cmdline = strings::internal::format(fmt, args);
 
   va_end(args);
 

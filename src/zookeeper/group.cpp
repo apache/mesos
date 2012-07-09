@@ -414,7 +414,7 @@ void GroupProcess::connected(bool reconnect)
       } else if (code != ZOK && code != ZNODEEXISTS) {
         Try<string> message = strings::format(
             "Failed to create '%s' in ZooKeeper: %s",
-            prefix.c_str(), zk->message(code));
+            prefix, zk->message(code));
         error = message.isSome()
           ? message.get()
           : "Failed to create node in ZooKeeper";
@@ -511,7 +511,7 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
   } else if (code != ZOK) {
     Try<string> message = strings::format(
         "Failed to create ephemeral node at '%s' in ZooKeeper: %s",
-        znode.c_str(), zk->message(code));
+        znode, zk->message(code));
     return Result<Group::Membership>::error(
         message.isSome() ? message.get()
         : "Failed to create ephemeral node in ZooKeeper");
@@ -557,7 +557,7 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
   } else if (code != ZOK) {
     Try<string> message = strings::format(
         "Failed to remove ephemeral node '%s' in ZooKeeper: %s",
-        path.c_str(), zk->message(code));
+        path, zk->message(code));
     return Result<bool>::error(
         message.isSome() ? message.get()
         : "Failed to remove ephemeral node in ZooKeeper");
@@ -602,7 +602,7 @@ Result<string> GroupProcess::doData(const Group::Membership& membership)
   } else if (code != ZOK) {
     Try<string> message = strings::format(
         "Failed to get data for ephemeral node '%s' in ZooKeeper: %s",
-        path.c_str(), zk->message(code));
+        path, zk->message(code));
     return Result<string>::error(
         message.isSome() ? message.get()
         : "Failed to get data for ephemeral node in ZooKeeper");
@@ -628,7 +628,7 @@ bool GroupProcess::cache()
   } else if (code != ZOK) {
     Try<string> message = strings::format(
         "Non-retryable error attempting to get children of '%s'"
-        " in ZooKeeper: %s", znode.c_str(), zk->message(code));
+        " in ZooKeeper: %s", znode, zk->message(code));
     error = message.isSome()
       ? message.get()
       : "Non-retryable error attempting to get children in ZooKeeper";

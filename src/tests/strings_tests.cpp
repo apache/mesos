@@ -38,6 +38,12 @@ TEST(StringsTest, Format)
   result = strings::format("hello %s", "fourty-two");
   ASSERT_TRUE(result.isSome());
   EXPECT_EQ("hello fourty-two", result.get());
+
+  string hello = "hello";
+
+  result = strings::format("%s %s", hello, "fourty-two");
+  ASSERT_TRUE(result.isSome());
+  EXPECT_EQ("hello fourty-two", result.get());
 }
 
 
