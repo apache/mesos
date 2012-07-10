@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <unistd.h>
 #include <gmock/gmock.h>
 
 #include <mesos/executor.hpp>
@@ -652,6 +653,97 @@ TEST(MasterTest, MasterInfoOnReElection)
 
   process::filter(NULL);
 }
+
+
+class WhitelistFixture : public ::testing::Test
+{
+protected:
+  WhitelistFixture()
+    : path("whitelist.txt")
+  {}
+
+  virtual ~WhitelistFixture()
+  {
+    utils::os::rm(path);
+  }
+
+  const string path;
+};
+
+
+TEST_F(WhitelistFixture, WhitelistSlave)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  MockFilter filter;
+  process::filter(&filter);
+
+  EXPECT_MESSAGE(filter, _, _, _)
+    .WillRepeatedly(Return(false));
+
+  // Add some hosts to the white list.
+  Try<string> hostname = utils::os::hostname();
+  ASSERT_TRUE(hostname.isSome());
+  string hosts = hostname.get() + "\n" + "dummy-slave";
+  CHECK (utils::os::write(path, hosts).isSome()) << "Error writing whitelist";
+
+  DominantShareAllocator a;
+  Configuration conf;
+  conf.set("whitelist", "file://" + path);
+  Master m(&a, conf);
+  PID<Master> master = process::spawn(&m);
+
+  trigger slaveRegisteredMsg;
+
+  EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg), Return(false)));
+
+  MockExecutor exec;
+
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
+
+  Resources resources = Resources::parse("cpus:2;mem:1024");
+
+  Slave s(resources, true, &isolationModule);
+  PID<Slave> slave = process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
+  MasterInfo masterInfo;
+
+  trigger registeredCall, reregisteredCall;
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(Trigger(&registeredCall));
+
+  trigger resourceOffersCall;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(Trigger(&resourceOffersCall));
+
+  driver.start();
+
+  WAIT_UNTIL(slaveRegisteredMsg);
+
+  WAIT_UNTIL(resourceOffersCall);
+
+  driver.stop();
+  driver.join();
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
+
+  process::filter(NULL);
+}
+
 
 // FrameworksManager test cases.
 

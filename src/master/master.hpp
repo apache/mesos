@@ -29,6 +29,7 @@
 #include "common/hashmap.hpp"
 #include "common/hashset.hpp"
 #include "common/multihashmap.hpp"
+#include "common/option.hpp"
 #include "common/resources.hpp"
 #include "common/type_utils.hpp"
 #include "common/units.hpp"
@@ -54,6 +55,7 @@ class SlavesManager;
 struct Framework;
 struct Slave;
 class SlaveObserver;
+class WhitelistWatcher;
 
 
 class Master : public ProtobufProcess<Master>
@@ -197,6 +199,7 @@ private:
 
   Allocator* allocator;
   SlavesManager* slavesManager;
+  WhitelistWatcher* whitelistWatcher;
 
   MasterInfo info;
 
@@ -259,7 +262,7 @@ struct Slave
     CHECK(tasks.count(key) == 0);
     tasks[key] = task;
     VLOG(1) << "Adding task with resources " << task->resources()
-	    << " on slave " << id;
+            << " on slave " << id;
     resourcesInUse += task->resources();
   }
 
@@ -270,7 +273,7 @@ struct Slave
     CHECK(tasks.count(key) > 0);
     tasks.erase(key);
     VLOG(1) << "Removing task with resources " << task->resources()
-	    << " on slave " << id;
+            << " on slave " << id;
     resourcesInUse -= task->resources();
   }
 
@@ -279,7 +282,7 @@ struct Slave
     CHECK(!offers.contains(offer));
     offers.insert(offer);
     VLOG(1) << "Adding offer with resources " << offer->resources()
-	    << " on slave " << id;
+            << " on slave " << id;
     resourcesOffered += offer->resources();
   }
 
@@ -288,7 +291,7 @@ struct Slave
     CHECK(offers.contains(offer));
     offers.erase(offer);
     VLOG(1) << "Removing offer with resources " << offer->resources()
-	    << " on slave " << id;
+            << " on slave " << id;
     resourcesOffered -= offer->resources();
   }
 
@@ -327,10 +330,10 @@ struct Slave
   {
     Resources resources = info.resources() - (resourcesOffered + resourcesInUse);
     VLOG(1) << "Calculating resources free on slave " << id << std::endl
-	    << "    Resources: " << info.resources() << std::endl
-	    << "    Resources Offered: " << resourcesOffered << std::endl
-	    << "    Resources In Use: " << resourcesInUse << std::endl
-	    << "    Resources Free: " << resources << std::endl;
+            << "    Resources: " << info.resources() << std::endl
+            << "    Resources Offered: " << resourcesOffered << std::endl
+            << "    Resources In Use: " << resourcesInUse << std::endl
+            << "    Resources Free: " << resources << std::endl;
     return resources;
   }
 

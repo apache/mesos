@@ -48,6 +48,17 @@ public:
     return *this;
   }
 
+  bool operator == (const Option<T>& that) const
+  {
+    return (state == NONE && that.state == NONE) ||
+        (state == SOME && that.state == SOME && *t == *that.t);
+  }
+
+  bool operator != (const Option<T>& that) const
+  {
+    return !operator == (that);
+  }
+
   bool isSome() const { return state == SOME; }
   bool isNone() const { return state == NONE; }
 

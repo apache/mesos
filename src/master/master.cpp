@@ -27,6 +27,7 @@
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
 #include "common/logging.hpp"
+#include "common/strings.hpp"
 #include "common/utils.hpp"
 #include "common/uuid.hpp"
 
@@ -49,6 +50,67 @@ using std::tr1::bind;
 namespace mesos {
 namespace internal {
 namespace master {
+
+class WhitelistWatcher : public Process<WhitelistWatcher> {
+public:
+  WhitelistWatcher(const string& _path, Allocator* _allocator)
+  : path(_path), allocator(_allocator) {}
+
+protected:
+  virtual void initialize()
+  {
+    watch();
+  }
+
+  void watch()
+  {
+    // Get the list of white listed slaves.
+    Option<hashset<string> > whitelist;
+    if (path == "*") { // Accept all slaves.
+      LOG(WARNING) << "No whitelist given. Advertising offers for all slaves";
+    } else {
+      // Read from local file.
+      // TODO(vinod): Add support for reading from ZooKeeper.
+      CHECK(path.find("file://") == 0)
+          << "File path " << path << " should start with file://";
+
+      // TODO(vinod): Ensure this read is atomic w.r.t external
+      // writes/updates to this file.
+      Result<string> result = utils::os::read(path.substr(strlen("file://")));
+      if (result.isError()) {
+        LOG(ERROR) << "Error reading whitelist file "
+                   << result.error() << ". Retrying";
+        whitelist = lastWhitelist;
+      } else if (result.isNone()) {
+        LOG(WARNING) << "Empty whitelist file "
+                     << path << ". No offers will be made!";
+        whitelist = Option<hashset<string> >::some(hashset<string>());
+      } else {
+        hashset<string> hostnames;
+        vector<string> lines = strings::split(result.get(), "\n");
+        foreach (const string& hostname, lines) {
+          hostnames.insert(hostname);
+        }
+        whitelist = Option<hashset<string> >::some(hostnames);
+      }
+    }
+
+    // Send the whitelist to allocator, if necessary.
+    if (whitelist != lastWhitelist) {
+      dispatch(allocator, &Allocator::updateWhitelist, whitelist);
+    }
+
+    // Check again.
+    lastWhitelist = whitelist;
+    delay(WATCH_TIMEOUT, self(), &WhitelistWatcher::watch);
+  }
+
+private:
+  Allocator* allocator;
+  const string path;
+  Option<hashset<string> > lastWhitelist;
+};
+
 
 class SlaveObserver : public Process<SlaveObserver>
 {
@@ -216,6 +278,11 @@ Master::~Master()
   wait(slavesManager);
 
   delete slavesManager;
+
+  terminate(whitelistWatcher);
+  wait(whitelistWatcher);
+
+  delete whitelistWatcher;
 }
 
 
@@ -227,6 +294,11 @@ void Master::registerOptions(Configurator* configurator)
       "root_submissions",
       "Can root submit frameworks?",
       true);
+
+  configurator->addOption<string>(
+        "whitelist",
+        "Path to a file with a list of slaves (one per line) to advertise resource offers for.\n"
+        "Should be of the form: file://path/to/file\n");
 }
 
 
@@ -256,6 +328,11 @@ void Master::initialize()
   // Spawn the allocator.
   spawn(allocator);
   dispatch(allocator, &Allocator::initialize, self());
+
+  // Parse the white list
+  whitelistWatcher = new WhitelistWatcher(conf.get<string>("whitelist", "*"),
+                                          allocator);
+  spawn(whitelistWatcher);
 
   elected = false;
 

@@ -55,6 +55,9 @@ const int MAX_COMPLETED_FRAMEWORKS = 100;
 // cache.  TODO(thomasm): Make configurable.
 const int MAX_COMPLETED_TASKS_PER_FRAMEWORK = 500;
 
+// Time interval to check for updated watchers list.
+const int WATCH_TIMEOUT = 5;
+
 } // namespace mesos {
 } // namespace internal {
 } // namespace master {

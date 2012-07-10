@@ -23,6 +23,7 @@
 
 #include "common/hashmap.hpp"
 #include "common/multihashmap.hpp"
+#include "common/option.hpp"
 
 #include "master/allocator.hpp"
 
@@ -58,6 +59,9 @@ public:
 
   virtual void slaveRemoved(const SlaveID& slaveId);
 
+  virtual void updateWhitelist(
+      const Option<hashset<std::string> >& whitelist);
+
   virtual void resourcesRequested(
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
@@ -88,6 +92,9 @@ private:
   // Remove a filter for the specified framework.
   void expire(const FrameworkID& frameworkId, Filter* filter);
 
+  // Checks whether the slave is whitelisted.
+  bool isWhitelisted(const SlaveID& slave);
+
   bool initialized;
 
   process::PID<Master> master;
@@ -109,6 +116,9 @@ private:
 
   // Filters that have been added by frameworks.
   multihashmap<FrameworkID, Filter*> filters;
+
+  // Slaves to send offers for.
+  Option<hashset<std::string> > whitelist;
 };
 
 } // namespace master {

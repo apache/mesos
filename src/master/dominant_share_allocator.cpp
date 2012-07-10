@@ -29,6 +29,7 @@
 #include "master/dominant_share_allocator.hpp"
 
 using std::sort;
+using std::string;
 using std::vector;
 
 
@@ -227,6 +228,22 @@ void DominantShareAllocator::slaveRemoved(const SlaveID& slaveId)
 }
 
 
+void DominantShareAllocator::updateWhitelist(
+    const Option<hashset<string> >& _whitelist)
+{
+  CHECK(initialized);
+
+  whitelist = _whitelist;
+
+  if (whitelist.isSome()) {
+    LOG(INFO) << "Updated slave white list:";
+    foreach (const string& hostname, whitelist.get()) {
+      LOG(INFO) << "\t" << hostname;
+    }
+  }
+}
+
+
 void DominantShareAllocator::resourcesRequested(
     const FrameworkID& frameworkId,
     const vector<Request>& requests)
@@ -385,27 +402,29 @@ void DominantShareAllocator::allocate(const hashset<SlaveID>& slaveIds)
   // allocatable and above a certain threshold, see below).
   hashmap<SlaveID, Resources> available;
   foreachpair (const SlaveID& slaveId, Resources resources, allocatable) {
-    resources = resources.allocatable(); // Make sure they're allocatable.
+    if (isWhitelisted(slaveId)) {
+      resources = resources.allocatable(); // Make sure they're allocatable.
 
-    // TODO(benh): For now, only make offers when there is some cpu
-    // and memory left. This is an artifact of the original code that
-    // only offered when there was at least 1 cpu "unit" available,
-    // and without doing this a framework might get offered resources
-    // with only memory available (which it obviously will decline)
-    // and then end up waiting the default Filters::refuse_seconds
-    // (unless the framework set it to something different).
+      // TODO(benh): For now, only make offers when there is some cpu
+      // and memory left. This is an artifact of the original code
+      // that only offered when there was at least 1 cpu "unit"
+      // available, and without doing this a framework might get
+      // offered resources with only memory available (which it
+      // obviously will decline) and then end up waiting the default
+      // Filters::refuse_seconds (unless the framework set it to
+      // something different).
 
-    Value::Scalar none;
-    Value::Scalar cpus = resources.get("cpus", none);
-    Value::Scalar mem = resources.get("mem", none);
+      Value::Scalar none;
+      Value::Scalar cpus = resources.get("cpus", none);
+      Value::Scalar mem = resources.get("mem", none);
 
-    if (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) {
-      VLOG(1) << "Found available resources: " << resources
-	      << " on slave " << slaveId;
-      available[slaveId] = resources;
+      if (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) {
+        VLOG(1) << "Found available resources: " << resources
+                << " on slave " << slaveId;
+        available[slaveId] = resources;
+      }
     }
   }
-
 
   if (available.size() == 0) {
     VLOG(1) << "No resources available to allocate!";
@@ -468,6 +487,17 @@ void DominantShareAllocator::expire(
       delete filter;
     }
   }
+}
+
+
+bool DominantShareAllocator::isWhitelisted(const SlaveID& slaveId)
+{
+  CHECK(initialized);
+
+  CHECK(slaves.contains(slaveId));
+
+  return whitelist.isNone() ||
+    whitelist.get().contains(slaves[slaveId].hostname());
 }
 
 } // namespace master {

@@ -189,6 +189,22 @@ TEST_F(UtilsTest, release)
 }
 
 
+
+TEST_F(UtilsTest, hashset)
+{
+  hashset<std::string> hs1;
+  hs1.insert(std::string("HS1"));
+  hs1.insert(std::string("HS3"));
+
+  hashset<std::string> hs2;
+  hs2.insert(std::string("HS2"));
+
+  hs1 = hs2;
+  ASSERT_TRUE(hs1.size() == 1);
+  ASSERT_TRUE(hs1.contains("HS2"));
+  ASSERT_TRUE(hs1 == hs2);
+}
+
 } // namespace os
 } // namespace utils
 } // namespace internal

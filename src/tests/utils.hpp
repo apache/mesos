@@ -31,8 +31,9 @@
 
 #include <process/process.hpp>
 
-#include "common/utils.hpp"
+#include "common/option.hpp"
 #include "common/type_utils.hpp"
+#include "common/utils.hpp"
 
 #include "master/master.hpp"
 
@@ -167,6 +168,7 @@ public:
                                 const SlaveInfo&,
                                 const hashmap<FrameworkID, Resources>&));
   MOCK_METHOD1(slaveRemoved, void(const SlaveID&));
+  MOCK_METHOD1(updateWhitelist, void(const Option<hashset<std::string> >&));
   MOCK_METHOD2(resourcesRequested, void(const FrameworkID&,
                                         const std::vector<Request>&));
   MOCK_METHOD4(resourcesUnused, void(const FrameworkID&,

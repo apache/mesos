@@ -20,6 +20,7 @@
 #define __ALLOCATOR_HPP__
 
 #include "common/hashmap.hpp"
+#include "common/option.hpp"
 #include "common/resources.hpp"
 
 #include "master/master.hpp"
@@ -53,6 +54,9 @@ public:
                           const hashmap<FrameworkID, Resources>& used) = 0;
 
   virtual void slaveRemoved(const SlaveID& slaveId) = 0;
+
+  virtual void updateWhitelist(
+      const Option<hashset<std::string> >& whitelist) = 0;
 
   virtual void resourcesRequested(
       const FrameworkID& frameworkId,
