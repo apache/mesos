@@ -26,7 +26,6 @@
 #include "local/local.hpp"
 
 #include "master/master.hpp"
-#include "master/simple_allocator.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
 #include "slave/slave.hpp"
@@ -38,7 +37,6 @@ using namespace mesos::internal;
 using namespace mesos::internal::test;
 
 using mesos::internal::master::Master;
-using mesos::internal::master::SimpleAllocator;
 
 using mesos::internal::slave::Slave;
 

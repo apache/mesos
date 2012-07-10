@@ -174,9 +174,7 @@ protected:
   SlaveID newSlaveId();
 
 private:
-
-  // TODO(benh): Remove once SimpleAllocator doesn't use Master::get*.
-  friend class SimpleAllocator;
+  friend class DominantShareAllocator;
   friend struct SlaveRegistrar;
   friend struct SlaveReregistrar;
 

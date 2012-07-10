@@ -22,7 +22,7 @@
 
 #include "common/utils.hpp"
 
-#include "master/simple_allocator.hpp"
+#include "master/dominant_share_allocator.hpp"
 
 using std::max;
 using std::sort;
@@ -33,14 +33,14 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-void SimpleAllocator::initialize(Master* _master)
+void DominantShareAllocator::initialize(Master* _master)
 {
   master = _master;
   initialized = true;
 }
 
 
-void SimpleAllocator::frameworkAdded(Framework* framework)
+void DominantShareAllocator::frameworkAdded(Framework* framework)
 {
   CHECK(initialized);
   LOG(INFO) << "Added framework " << framework->id;
@@ -48,7 +48,7 @@ void SimpleAllocator::frameworkAdded(Framework* framework)
 }
 
 
-void SimpleAllocator::frameworkRemoved(Framework* framework)
+void DominantShareAllocator::frameworkRemoved(Framework* framework)
 {
   CHECK(initialized);
 
@@ -62,7 +62,7 @@ void SimpleAllocator::frameworkRemoved(Framework* framework)
 }
 
 
-void SimpleAllocator::slaveAdded(Slave* slave)
+void DominantShareAllocator::slaveAdded(Slave* slave)
 {
   CHECK(initialized);
 
@@ -74,7 +74,7 @@ void SimpleAllocator::slaveAdded(Slave* slave)
 }
 
 
-void SimpleAllocator::slaveRemoved(Slave* slave)
+void DominantShareAllocator::slaveRemoved(Slave* slave)
 {
   CHECK(initialized);
 
@@ -85,7 +85,7 @@ void SimpleAllocator::slaveRemoved(Slave* slave)
 }
 
 
-void SimpleAllocator::resourcesRequested(
+void DominantShareAllocator::resourcesRequested(
     const FrameworkID& frameworkId,
     const vector<Request>& requests)
 {
@@ -95,7 +95,7 @@ void SimpleAllocator::resourcesRequested(
 }
 
 
-void SimpleAllocator::resourcesUnused(
+void DominantShareAllocator::resourcesUnused(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources)
@@ -113,7 +113,7 @@ void SimpleAllocator::resourcesUnused(
 }
 
 
-void SimpleAllocator::resourcesRecovered(
+void DominantShareAllocator::resourcesRecovered(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources)
@@ -131,7 +131,7 @@ void SimpleAllocator::resourcesRecovered(
 }
 
 
-void SimpleAllocator::offersRevived(Framework* framework)
+void DominantShareAllocator::offersRevived(Framework* framework)
 {
   CHECK(initialized);
 
@@ -146,7 +146,7 @@ void SimpleAllocator::offersRevived(Framework* framework)
 }
 
 
-void SimpleAllocator::timerTick()
+void DominantShareAllocator::timerTick()
 {
   CHECK(initialized);
   makeNewOffers();
@@ -199,7 +199,7 @@ struct DominantShareComparator
 } // namespace {
 
 
-vector<Framework*> SimpleAllocator::getAllocationOrdering()
+vector<Framework*> DominantShareAllocator::getAllocationOrdering()
 {
   CHECK(initialized) << "Cannot get allocation ordering before initialization!";
   vector<Framework*> frameworks = master->getActiveFrameworks();
@@ -209,7 +209,7 @@ vector<Framework*> SimpleAllocator::getAllocationOrdering()
 }
 
 
-void SimpleAllocator::makeNewOffers()
+void DominantShareAllocator::makeNewOffers()
 {
   // TODO: Create a method in master so that we don't return the whole list of slaves
   CHECK(initialized) << "Cannot make new offers before initialization!";
@@ -218,7 +218,7 @@ void SimpleAllocator::makeNewOffers()
 }
 
 
-void SimpleAllocator::makeNewOffers(Slave* slave)
+void DominantShareAllocator::makeNewOffers(Slave* slave)
 {
   CHECK(initialized) << "Cannot make new offers before initialization!";
   vector<Slave*> slaves;
@@ -227,7 +227,7 @@ void SimpleAllocator::makeNewOffers(Slave* slave)
 }
 
 
-void SimpleAllocator::makeNewOffers(const vector<Slave*>& slaves)
+void DominantShareAllocator::makeNewOffers(const vector<Slave*>& slaves)
 {
   CHECK(initialized) << "Cannot make new offers before initialization!";
   // Get an ordering of frameworks to send offers to

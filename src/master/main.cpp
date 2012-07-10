@@ -26,7 +26,7 @@
 #include "detector/detector.hpp"
 
 #include "master/allocator.hpp"
-#include "master/simple_allocator.hpp"
+#include "master/dominant_share_allocator.hpp"
 #include "master/master.hpp"
 #include "master/webui.hpp"
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
 
-  Allocator* allocator = new SimpleAllocator();
+  Allocator* allocator = new DominantShareAllocator();
 
   Master* master = new Master(allocator, conf);
   process::spawn(master);

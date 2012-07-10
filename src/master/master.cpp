@@ -31,7 +31,6 @@
 #include "common/uuid.hpp"
 
 #include "master/allocator.hpp"
-#include "master/allocator_factory.hpp"
 #include "master/master.hpp"
 #include "master/slaves_manager.hpp"
 

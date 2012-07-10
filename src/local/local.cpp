@@ -29,8 +29,8 @@
 
 #include "detector/detector.hpp"
 
+#include "master/dominant_share_allocator.hpp"
 #include "master/master.hpp"
-#include "master/simple_allocator.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
 #include "slave/slave.hpp"
@@ -38,8 +38,8 @@
 using namespace mesos::internal;
 
 using mesos::internal::master::Allocator;
+using mesos::internal::master::DominantShareAllocator;
 using mesos::internal::master::Master;
-using mesos::internal::master::SimpleAllocator;
 
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::IsolationModule;
@@ -104,7 +104,7 @@ PID<Master> launch(const Configuration& conf, Allocator* _allocator)
 
   if (_allocator == NULL) {
     // Create default allocator, save it for deleting later.
-    _allocator = allocator = new SimpleAllocator();
+    _allocator = allocator = new DominantShareAllocator();
   } else {
     // TODO(benh): Figure out the behavior of allocator pointer and remove the
     // else block.

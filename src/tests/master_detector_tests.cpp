@@ -30,8 +30,8 @@
 
 #include "detector/detector.hpp"
 
+#include "master/dominant_share_allocator.hpp"
 #include "master/master.hpp"
-#include "master/simple_allocator.hpp"
 
 #include "slave/slave.hpp"
 
@@ -42,7 +42,7 @@ using namespace mesos::internal;
 using namespace mesos::internal::test;
 
 using mesos::internal::master::Master;
-using mesos::internal::master::SimpleAllocator;
+using mesos::internal::master::DominantShareAllocator;
 
 using mesos::internal::slave::Slave;
 
@@ -58,7 +58,7 @@ TEST(MasterDetector, File)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  SimpleAllocator a;
+  DominantShareAllocator a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 

@@ -25,9 +25,9 @@
 
 #include "local/local.hpp"
 
+#include "master/dominant_share_allocator.hpp"
 #include "master/frameworks_manager.hpp"
 #include "master/master.hpp"
-#include "master/simple_allocator.hpp"
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -44,7 +44,7 @@ using mesos::internal::master::FrameworksManager;
 using mesos::internal::master::FrameworksStorage;
 
 using mesos::internal::master::Master;
-using mesos::internal::master::SimpleAllocator;
+using mesos::internal::master::DominantShareAllocator;
 
 using mesos::internal::slave::Slave;
 
@@ -68,7 +68,7 @@ TEST(MasterTest, TaskRunning)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  SimpleAllocator a;
+  DominantShareAllocator a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -161,7 +161,7 @@ TEST(MasterTest, KillTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  SimpleAllocator a;
+  DominantShareAllocator a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -258,7 +258,7 @@ TEST(MasterTest, FrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  SimpleAllocator a;
+  DominantShareAllocator a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -378,7 +378,7 @@ TEST(MasterTest, MultipleExecutors)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  SimpleAllocator a;
+  DominantShareAllocator a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -523,7 +523,7 @@ TEST(MasterTest, MasterInfo)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  SimpleAllocator a;
+  DominantShareAllocator a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -585,7 +585,7 @@ TEST(MasterTest, MasterInfoOnReElection)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  SimpleAllocator a;
+  DominantShareAllocator a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -678,7 +678,7 @@ TEST(MasterTest, MasterLost)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  SimpleAllocator a;
+  DominantShareAllocator a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 

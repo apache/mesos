@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __SIMPLE_ALLOCATOR_HPP__
-#define __SIMPLE_ALLOCATOR_HPP__
+#ifndef __DOMINANT_SHARE_ALLOCATOR_HPP__
+#define __DOMINANT_SHARE_ALLOCATOR_HPP__
 
 #include <vector>
 
@@ -31,12 +31,12 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-class SimpleAllocator : public Allocator
+class DominantShareAllocator : public Allocator
 {
 public:
-  SimpleAllocator(): initialized(false) {}
+  DominantShareAllocator(): initialized(false) {}
 
-  virtual ~SimpleAllocator() {}
+  virtual ~DominantShareAllocator() {}
 
   virtual void initialize(Master* _master);
 
@@ -95,4 +95,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __SIMPLE_ALLOCATOR_HPP__
+#endif // __DOMINANT_SHARE_ALLOCATOR_HPP__
