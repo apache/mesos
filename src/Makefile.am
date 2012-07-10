@@ -172,10 +172,12 @@ nodist_pkginclude_HEADERS = ../include/mesos/mesos.hpp mesos.pb.h
 
 if OS_LINUX
   libmesos_no_third_party_la_SOURCES += slave/lxc_isolation_module.cpp
+  libmesos_no_third_party_la_SOURCES += linux/cgroups.cpp
   libmesos_no_third_party_la_SOURCES += linux/fs.cpp
   libmesos_no_third_party_la_SOURCES += linux/proc.cpp
 else
   EXTRA_DIST += slave/lxc_isolation_module.cpp
+  EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
   EXTRA_DIST += linux/proc.cpp
 endif
@@ -195,8 +197,8 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/uuid.hpp common/values.hpp				\
 	configurator/configuration.hpp configurator/configurator.hpp	\
 	configurator/option.hpp detector/detector.hpp			\
-	launcher/launcher.hpp linux/fs.hpp linux/proc.hpp		\
-	local/local.hpp master/allocator.hpp				\
+	launcher/launcher.hpp linux/cgroups.hpp linux/fs.hpp		\
+	linux/proc.hpp local/local.hpp master/allocator.hpp		\
 	master/allocator_factory.hpp master/constants.hpp		\
 	master/frameworks_manager.hpp master/http.hpp			\
 	master/master.hpp master/simple_allocator.hpp			\
@@ -762,6 +764,7 @@ mesos_tests_LDADD = ../third_party/libgmock.la libmesos.la
 mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 
 if OS_LINUX
+  mesos_tests_SOURCES += tests/cgroups_tests.cpp
   mesos_tests_SOURCES += tests/fs_tests.cpp
   mesos_tests_SOURCES += tests/proc_tests.cpp
 endif
