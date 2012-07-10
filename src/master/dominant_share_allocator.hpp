@@ -31,22 +31,32 @@ namespace mesos {
 namespace internal {
 namespace master {
 
+// Forward declarations.
+class Filter;
+class RefusedFilter;
+
+
 class DominantShareAllocator : public Allocator
 {
 public:
-  DominantShareAllocator(): initialized(false) {}
+  DominantShareAllocator() : initialized(false) {}
 
   virtual ~DominantShareAllocator() {}
 
-  virtual void initialize(Master* _master);
+  virtual void initialize(const process::PID<Master>& _master);
 
-  virtual void frameworkAdded(Framework* framework);
+  virtual void frameworkAdded(const FrameworkID& frameworkId,
+                              const FrameworkInfo& frameworkInfo);
 
-  virtual void frameworkRemoved(Framework* framework);
+  virtual void frameworkDeactivated(const FrameworkID& frameworkId);
 
-  virtual void slaveAdded(Slave* slave);
+  virtual void frameworkRemoved(const FrameworkID& frameworkId);
 
-  virtual void slaveRemoved(Slave* slave);
+  virtual void slaveAdded(const SlaveID& slaveId,
+                          const SlaveInfo& slaveInfo,
+                          const hashmap<FrameworkID, Resources>& used);
+
+  virtual void slaveRemoved(const SlaveID& slaveId);
 
   virtual void resourcesRequested(
       const FrameworkID& frameworkId,
@@ -55,40 +65,50 @@ public:
   virtual void resourcesUnused(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    const Resources& resources);
+    const Resources& resources,
+    const Option<Filters>& filters);
 
   virtual void resourcesRecovered(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources);
 
-  virtual void offersRevived(Framework* framework);
-
-  virtual void timerTick();
+  virtual void offersRevived(const FrameworkID& frameworkId);
 
 private:
-  // Get an ordering to consider frameworks in for launching tasks.
-  std::vector<Framework*> getAllocationOrdering();
+  // Allocate any allocatable resources.
+  void allocate();
 
-  // Look at the full state of the cluster and send out offers.
-  void makeNewOffers();
+  // Allocate resources just from the specified slave.
+  void allocate(const SlaveID& slaveId);
 
-  // Make resource offers for just one slave.
-  void makeNewOffers(Slave* slave);
+  // Allocate resources from the specified slaves.
+  void allocate(const hashset<SlaveID>& slaveIds);
 
-  // Make resource offers for a subset of the slaves.
-  void makeNewOffers(const std::vector<Slave*>& slaves);
+  // Remove a filter for the specified framework.
+  void expire(const FrameworkID& frameworkId, Filter* filter);
 
   bool initialized;
 
-  Master* master;
+  process::PID<Master> master;
 
-  Resources totalResources;
+  // Frameworks that are currently active.
+  hashmap<FrameworkID, FrameworkInfo> frameworks;
 
-  // Remember which frameworks refused each slave "recently"; this is
-  // cleared when the slave's free resources go up or when everyone
-  // has refused it.
-  multihashmap<SlaveID, FrameworkID> refusers;
+  // Slaves that are currently active.
+  hashmap<SlaveID, SlaveInfo> slaves;
+
+  // Resources in the cluster.
+  Resources resources;
+
+  // Resources allocated to frameworks.
+  hashmap<FrameworkID, Resources> allocated;
+
+  // Resources that are allocatable on a slave.
+  hashmap<SlaveID, Resources> allocatable;
+
+  // Filters that have been added by frameworks.
+  multihashmap<FrameworkID, Filter*> filters;
 };
 
 } // namespace master {

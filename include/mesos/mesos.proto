@@ -122,12 +122,12 @@ message CommandInfo {
 
 
 /**
- * Describes information about an executor. The 'params' field can be
- * used to set environment variables for the executor. The 'data'
- * field can be used to pass arbitrary bytes to an executor.
+ * Describes information about an executor. The 'data' field can be
+ * used to pass arbitrary bytes to an executor.
  */
 message ExecutorInfo {
   required ExecutorID executor_id = 1;
+  optional FrameworkID framework_id = 8; // TODO(benh): Make this required.
   required CommandInfo command = 7;
   repeated Resource resources = 5;
   optional bytes data = 4;
@@ -317,8 +317,13 @@ message TaskStatus {
  * (see SchedulerDriver::launchTasks) to influence the allocator.
  */
 message Filters {
-  // Time to consider unused resources refused.
-  optional double refuse_seconds = 1;
+  // Time to consider unused resources refused. Note that all unused
+  // resources will be considered refused and use the default value
+  // (below) regardless of whether Filters was passed to
+  // SchedulerDriver::launchTasks. You MUST pass Filters with this
+  // field set to change this behavior (i.e., get another offer which
+  // includes unused resources sooner or later than the default).
+  optional double refuse_seconds = 1 [default = 5.0];
 }
 
 

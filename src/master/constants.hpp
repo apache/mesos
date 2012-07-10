@@ -29,9 +29,6 @@ namespace master {
 // Maximum number of slot offers to have outstanding for each framework.
 const int MAX_OFFERS_PER_FRAMEWORK = 50;
 
-// Seconds until unused resources are re-offered to a framework.
-const double UNUSED_RESOURCES_TIMEOUT = 5.0;
-
 // Minimum number of cpus / task.
 const int32_t MIN_CPUS = 1;
 

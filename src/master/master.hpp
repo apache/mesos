@@ -24,7 +24,6 @@
 
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
-#include <process/timer.hpp>
 
 #include "common/foreach.hpp"
 #include "common/hashmap.hpp"
@@ -105,23 +104,19 @@ public:
                       int32_t status);
   void activatedSlaveHostnamePort(const std::string& hostname, uint16_t port);
   void deactivatedSlaveHostnamePort(const std::string& hostname, uint16_t port);
-  void timerTick();
   void frameworkFailoverTimeout(const FrameworkID& frameworkId,
                                 double reregisteredTime);
 
-  // Return connected frameworks that are not in the process of being removed
-  std::vector<Framework*> getActiveFrameworks() const;
-
-  // Return connected slaves that are not in the process of being removed
-  std::vector<Slave*> getActiveSlaves() const;
-
-  void makeOffers(Framework* framework,
-                  const hashmap<Slave*, Resources>& offered);
+  void offer(const FrameworkID& framework,
+             const hashmap<SlaveID, Resources>& resources);
 
 protected:
   virtual void initialize();
   virtual void finalize();
   virtual void exited(const UPID& pid);
+
+  // Return connected frameworks that are not in the process of being removed
+  std::vector<Framework*> getActiveFrameworks() const;
 
   // Process a launch tasks request (for a non-cancelled offer) by
   // launching the desired tasks (if the offer contains a valid set of
@@ -174,7 +169,6 @@ protected:
   SlaveID newSlaveId();
 
 private:
-  friend class DominantShareAllocator;
   friend struct SlaveRegistrar;
   friend struct SlaveReregistrar;
 
@@ -228,8 +222,6 @@ private:
   } stats;
 
   double startTime; // Start time used to calculate uptime.
-
-  process::Timer timerTickTimer;
 };
 
 
@@ -243,7 +235,6 @@ struct Slave
     : info(_info),
       id(_id),
       pid(_pid),
-      active(true),
       registeredTime(time),
       lastHeartbeat(time) {}
 
@@ -348,7 +339,6 @@ struct Slave
 
   UPID pid;
 
-  bool active; // Turns false when slave is being removed.
   double registeredTime;
   double lastHeartbeat;
 
@@ -372,9 +362,9 @@ struct Slave
 struct Framework
 {
   Framework(const FrameworkInfo& _info,
-	    const FrameworkID& _id,
+            const FrameworkID& _id,
             const UPID& _pid,
-	    double time)
+            double time)
     : info(_info),
       id(_id),
       pid(_pid),
@@ -459,20 +449,6 @@ struct Framework
     }
   }
 
-  bool filters(Slave* slave, Resources resources)
-  {
-    // TODO: Implement other filters
-    return slaveFilter.find(slave) != slaveFilter.end();
-  }
-
-  void removeExpiredFilters(double now)
-  {
-    foreachpair (Slave* slave, double removalTime, utils::copy(slaveFilter)) {
-      if (removalTime != 0 && removalTime <= now) {
-        slaveFilter.erase(slave);
-      }
-    }
-  }
 
   const FrameworkID id; // TODO(benh): Store this in 'info.
   const FrameworkInfo info;
@@ -493,10 +469,6 @@ struct Framework
   Resources resources; // Total resources (tasks + offers + executors).
 
   hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo> > executors;
-
-  // Contains a time of unfiltering for each slave we've filtered,
-  // or 0 for slaves that we want to keep filtered forever
-  hashmap<Slave*, double> slaveFilter;
 };
 
 } // namespace master {

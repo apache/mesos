@@ -34,6 +34,8 @@
 #include "common/utils.hpp"
 #include "common/type_utils.hpp"
 
+#include "master/master.hpp"
+
 #include "messages/messages.hpp"
 
 #include "slave/isolation_module.hpp"
@@ -157,21 +159,24 @@ public:
 class MockAllocator : public master::Allocator
 {
 public:
-  MOCK_METHOD1(initialize, void(master::Master*));
-  MOCK_METHOD1(frameworkAdded, void(master::Framework*));
-  MOCK_METHOD1(frameworkRemoved, void(master::Framework*));
-  MOCK_METHOD1(slaveAdded, void(master::Slave*));
-  MOCK_METHOD1(slaveRemoved, void(master::Slave*));
+  MOCK_METHOD1(initialize, void(const process::PID<master::Master>&));
+  MOCK_METHOD2(frameworkAdded, void(const FrameworkID&, const FrameworkInfo&));
+  MOCK_METHOD1(frameworkDeactivated, void(const FrameworkID&));
+  MOCK_METHOD1(frameworkRemoved, void(const FrameworkID&));
+  MOCK_METHOD3(slaveAdded, void(const SlaveID&,
+                                const SlaveInfo&,
+                                const hashmap<FrameworkID, Resources>&));
+  MOCK_METHOD1(slaveRemoved, void(const SlaveID&));
   MOCK_METHOD2(resourcesRequested, void(const FrameworkID&,
                                         const std::vector<Request>&));
-  MOCK_METHOD3(resourcesUnused, void(const FrameworkID&,
+  MOCK_METHOD4(resourcesUnused, void(const FrameworkID&,
                                      const SlaveID&,
-                                     const Resources&));
+                                     const Resources&,
+				     const Option<Filters>& filters));
   MOCK_METHOD3(resourcesRecovered, void(const FrameworkID&,
                                         const SlaveID&,
                                         const Resources&));
-  MOCK_METHOD1(offersRevived, void(master::Framework*));
-  MOCK_METHOD0(timerTick, void());
+  MOCK_METHOD1(offersRevived, void(const FrameworkID&));
 };
 
 

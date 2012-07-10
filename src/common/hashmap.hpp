@@ -22,6 +22,7 @@
 #include <boost/get_pointer.hpp>
 #include <boost/unordered_map.hpp>
 
+#include "common/hashset.hpp"
 #include "common/foreach.hpp"
 #include "common/option.hpp"
 
@@ -47,6 +48,26 @@ public:
         return true;
       }
     }
+  }
+
+  // Returns the set of keys in this map.
+  hashset<Key> keys() const
+  {
+    hashset<Key> result;
+    foreachkey (const Key& key, *this) {
+      result.insert(key);
+    }
+    return result;
+  }
+
+  // Returns the set of values in this map.
+  hashset<Value> values() const
+  {
+    hashset<Value> result;
+    foreachvalue (const Value& value, *this) {
+      result.insert(value);
+    }
+    return result;
   }
 
   // Checks whether there exists a value in this map that returns the

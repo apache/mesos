@@ -16,15 +16,18 @@
  * limitations under the License.
  */
 
-#include <glog/logging.h>
-
 #include <algorithm>
 
+#include <process/defer.hpp>
+#include <process/delay.hpp>
+#include <process/timer.hpp>
+
+#include "common/foreach.hpp"
+#include "common/logging.hpp"
 #include "common/utils.hpp"
 
 #include "master/dominant_share_allocator.hpp"
 
-using std::max;
 using std::sort;
 using std::vector;
 
@@ -33,55 +36,194 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-void DominantShareAllocator::initialize(Master* _master)
+// Used to represent "filters" for resources unused in offers.
+class Filter
+{
+public:
+  virtual ~Filter() {}
+  virtual bool filter(const SlaveID& slaveId, const Resources& resources) = 0;
+};
+
+class RefusedFilter : public Filter
+{
+public:
+  RefusedFilter(const SlaveID& _slaveId,
+                const Resources& _resources,
+                const Timeout& _timeout)
+    : slaveId(_slaveId),
+      resources(_resources),
+      timeout(_timeout) {}
+
+  virtual bool filter(const SlaveID& slaveId, const Resources& resources)
+  {
+    return slaveId == this->slaveId &&
+      resources <= this->resources &&
+      timeout.remaining() < 0.0;
+  }
+
+  const SlaveID slaveId;
+  const Resources resources;
+  const Timeout timeout;
+};
+
+
+struct DominantShareComparator
+{
+  DominantShareComparator(const Resources& _resources,
+                          const hashmap<FrameworkID, Resources>& _allocated)
+    : resources(_resources),
+      allocated(_allocated)
+  {}
+
+  bool operator () (const FrameworkID& frameworkId1,
+                    const FrameworkID& frameworkId2)
+  {
+    double share1 = 0;
+    double share2 = 0;
+
+    // TODO(benh): This implementaion of "dominant resource fairness"
+    // currently does not take into account resources that are not
+    // scalars.
+
+    foreach (const Resource& resource, resources) {
+      if (resource.type() == Value::SCALAR) {
+        double total = resource.scalar().value();
+
+        if (total > 0) {
+          Value::Scalar none;
+          const Value::Scalar& scalar1 =
+            allocated[frameworkId1].get(resource.name(), none);
+          const Value::Scalar& scalar2 =
+            allocated[frameworkId2].get(resource.name(), none);
+          share1 = std::max(share1, scalar1.value() / total);
+          share2 = std::max(share2, scalar2.value() / total);
+        }
+      }
+    }
+
+    if (share1 == share2) {
+      // Make the sort deterministic for unit testing.
+      return frameworkId1 < frameworkId2;
+    } else {
+      return share1 < share2;
+    }
+  }
+
+  const Resources resources;
+  hashmap<FrameworkID, Resources> allocated; // Not const for the '[]' operator.
+};
+
+
+void DominantShareAllocator::initialize(const process::PID<Master>& _master)
 {
   master = _master;
   initialized = true;
+
+  // TODO(benh): Consider running periodic allocations. This will
+  // definitely be necessary for frameworks that hoard resources (in
+  // offers), since otherwise we'll just sit waiting.
+  // delay(1.0, self(), &DominantShareAllocator::allocate);
 }
 
 
-void DominantShareAllocator::frameworkAdded(Framework* framework)
+void DominantShareAllocator::frameworkAdded(
+    const FrameworkID& frameworkId,
+    const FrameworkInfo& frameworkInfo)
 {
   CHECK(initialized);
-  LOG(INFO) << "Added framework " << framework->id;
-  makeNewOffers();
+
+  frameworks[frameworkId] = frameworkInfo;
+
+  LOG(INFO) << "Added framework " << frameworkId;
+
+  allocate();
 }
 
 
-void DominantShareAllocator::frameworkRemoved(Framework* framework)
+void DominantShareAllocator::frameworkDeactivated(
+    const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
-  foreachkey (const SlaveID& slaveId, utils::copy(refusers)) {
-    refusers.remove(slaveId, framework->id);
+  frameworks.erase(frameworkId);
+
+  LOG(INFO) << "Deactivated framework " << frameworkId;
+}
+
+
+void DominantShareAllocator::frameworkRemoved(const FrameworkID& frameworkId)
+{
+  CHECK(initialized);
+
+  // Might not be in 'frameworks' because it was previously
+  // deactivated and never re-added.
+
+  frameworks.erase(frameworkId);
+
+  allocated.erase(frameworkId);
+
+  foreach (Filter* filter, filters.get(frameworkId)) {
+    filters.remove(frameworkId, filter);
+    delete filter;
   }
 
-  LOG(INFO) << "Removed framework " << framework->id;
+  filters.remove(frameworkId);
 
-  makeNewOffers();
+  LOG(INFO) << "Removed framework " << frameworkId;
+
+  allocate();
 }
 
 
-void DominantShareAllocator::slaveAdded(Slave* slave)
+void DominantShareAllocator::slaveAdded(
+    const SlaveID& slaveId,
+    const SlaveInfo& slaveInfo,
+    const hashmap<FrameworkID, Resources>& used)
 {
   CHECK(initialized);
 
-  LOG(INFO) << "Added slave " << slave->id
-            << " with " << slave->info.resources();
+  CHECK(!slaves.contains(slaveId));
 
-  totalResources += slave->info.resources();
-  makeNewOffers(slave);
+  slaves[slaveId] = slaveInfo;
+
+  resources += slaveInfo.resources();
+
+  Resources unused = slaveInfo.resources();
+
+  foreachpair (const FrameworkID& frameworkId, const Resources& resources, used) {
+    CHECK(frameworks.contains(frameworkId));
+    allocated[frameworkId] += resources;
+    unused -= resources;
+  }
+
+  allocatable[slaveId] = unused;
+
+  LOG(INFO) << "Added slave " << slaveId << " (" << slaveInfo.hostname()
+            << ") with " << slaveInfo.resources()
+            << " (and " << unused << " available)";
+
+  allocate(slaveId);
 }
 
 
-void DominantShareAllocator::slaveRemoved(Slave* slave)
+void DominantShareAllocator::slaveRemoved(const SlaveID& slaveId)
 {
   CHECK(initialized);
 
-  LOG(INFO) << "Removed slave " << slave->id;
+  CHECK(slaves.contains(slaveId));
 
-  totalResources -= slave->info.resources();
-  refusers.remove(slave->id);
+  resources -= slaves[slaveId].resources();
+
+  slaves.erase(slaveId);
+
+  allocatable.erase(slaveId);
+
+  // Note that we DO NOT actually delete any filters associated with
+  // this slave, that will occur when the delayed
+  // DominantShareAllocator::expire gets invoked (or the framework
+  // that applied the filters gets removed).
+
+  LOG(INFO) << "Removed slave " << slaveId;
 }
 
 
@@ -98,18 +240,47 @@ void DominantShareAllocator::resourcesRequested(
 void DominantShareAllocator::resourcesUnused(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    const Resources& resources)
+    const Resources& resources,
+    const Option<Filters>& filters)
 {
   CHECK(initialized);
 
-  if (resources.allocatable().size() > 0) {
-    VLOG(1) << "Framework " << frameworkId
-            << " left " << resources.allocatable()
-            << " unused on slave " << slaveId;
-    refusers.put(slaveId, frameworkId);
+  if (resources.allocatable().size() == 0) {
+    return;
   }
 
-  makeNewOffers();
+  VLOG(1) << "Framework " << frameworkId
+          << " left " << resources.allocatable()
+          << " unused on slave " << slaveId;
+
+  // Updated resources allocated to framework.
+  CHECK(allocated.contains(frameworkId));
+  allocated[frameworkId] -= resources;
+
+  // Update resources allocatable on slave.
+  CHECK(allocatable.contains(slaveId));
+  allocatable[slaveId] += resources;
+
+  // Create a refused resources filter.
+  double timeout = filters.isSome()
+    ? filters.get().refuse_seconds()
+    : Filters().refuse_seconds();
+
+  if (timeout != 0.0) {
+    LOG(INFO) << "Framework " << frameworkId
+	      << " filtered slave " << slaveId
+	      << " for " << timeout << " seconds";
+
+    // Create a new filter and delay it's expiration.
+    Filter* filter = new RefusedFilter(slaveId, resources, timeout);
+    this->filters.put(frameworkId, filter);
+
+    // TODO(benh): Use 'this' and '&This::' as appropriate.
+    delay(timeout, PID<DominantShareAllocator>(this), &DominantShareAllocator::expire,
+	  frameworkId, filter);
+  }
+
+  allocate(slaveId);
 }
 
 
@@ -120,186 +291,181 @@ void DominantShareAllocator::resourcesRecovered(
 {
   CHECK(initialized);
 
-  if (resources.allocatable().size() > 0) {
+  if (resources.allocatable().size() == 0) {
+    return;
+  }
+
+  // Updated resources allocated to framework (if framework still
+  // exists, which it might not in the event that we dispatched
+  // Master::offer before we received Allocator::frameworkRemoved or
+  // Allocator::frameworkDeactivated).
+  if (allocated.contains(frameworkId)) {
+    allocated[frameworkId] -= resources;
+  }
+
+  // Update resources allocatable on slave (if slave still exists,
+  // which it might not in the event that we dispatched Master::offer
+  // before we received Allocator::slaveRemoved).
+  if (allocatable.contains(slaveId)) {
+    allocatable[slaveId] += resources;
+
     VLOG(1) << "Recovered " << resources.allocatable()
             << " on slave " << slaveId
             << " from framework " << frameworkId;
-    refusers.remove(slaveId);
-  }
 
-  makeNewOffers();
+    allocate(slaveId);
+  }
 }
 
 
-void DominantShareAllocator::offersRevived(Framework* framework)
+void DominantShareAllocator::offersRevived(const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
-  // TODO(benh): This is broken ... we say filters removed here, but
-  // yet we don't actually do the removing of the filters? The
-  // allocator should really be responsible for filters (if there are
-  // any) because it can best use those for future allocation
-  // decisions.
-  LOG(INFO) << "Filters removed for framework " << framework->id;
+  // TODO(benh): We don't actually delete each Filter right now
+  // because that should happen when DominantShareAllocator::expire
+  // gets invoked. If we delete the Filter here it's possible that the
+  // same Filter (i.e., same address) could get reused and
+  // DominantShareAllocator::expire would expire that filter too
+  // soon. Note that this only works right now because ALL Filter
+  // types "expire".
 
-  makeNewOffers();
-}
-
-
-void DominantShareAllocator::timerTick()
-{
-  CHECK(initialized);
-  makeNewOffers();
-}
-
-
-namespace {
-
-struct DominantShareComparator
-{
-  DominantShareComparator(const Resources& _resources)
-    : resources(_resources) {}
-
-  bool operator () (Framework* framework1, Framework* framework2)
-  {
-    double share1 = 0;
-    double share2 = 0;
-
-    // TODO(benh): This implementaion of "dominant resource fairness"
-    // currently does not take into account resources that are not
-    // scalars.
-
-    foreach (const Resource& resource, resources) {
-      if (resource.type() == Value::SCALAR) {
-        double total = resource.scalar().value();
-
-        if (total > 0) {
-          Value::Scalar none;
-          const Value::Scalar& scalar1 =
-            framework1->resources.get(resource.name(), none);
-          const Value::Scalar& scalar2 =
-            framework2->resources.get(resource.name(), none);
-          share1 = max(share1, scalar1.value() / total);
-          share2 = max(share2, scalar2.value() / total);
-        }
-      }
-    }
-
-    if (share1 == share2) {
-      // Make the sort deterministic for unit testing.
-      return framework1->id.value() < framework2->id.value();
-    } else {
-      return share1 < share2;
-    }
+  foreach (Filter* filter, filters.get(frameworkId)) {
+    filters.remove(frameworkId, filter);
+    delete filter;
   }
 
-  Resources resources;
-};
+  filters.remove(frameworkId);
 
-} // namespace {
+  LOG(INFO) << "Removed filters for framework " << frameworkId;
 
-
-vector<Framework*> DominantShareAllocator::getAllocationOrdering()
-{
-  CHECK(initialized) << "Cannot get allocation ordering before initialization!";
-  vector<Framework*> frameworks = master->getActiveFrameworks();
-  DominantShareComparator comp(totalResources);
-  sort(frameworks.begin(), frameworks.end(), comp);
-  return frameworks;
+  allocate();
 }
 
 
-void DominantShareAllocator::makeNewOffers()
+void DominantShareAllocator::allocate()
 {
-  // TODO: Create a method in master so that we don't return the whole list of slaves
-  CHECK(initialized) << "Cannot make new offers before initialization!";
-  vector<Slave*> slaves = master->getActiveSlaves();
-  makeNewOffers(slaves);
+  CHECK(initialized);
+
+  allocate(slaves.keys());
 }
 
 
-void DominantShareAllocator::makeNewOffers(Slave* slave)
+void DominantShareAllocator::allocate(const SlaveID& slaveId)
 {
-  CHECK(initialized) << "Cannot make new offers before initialization!";
-  vector<Slave*> slaves;
-  slaves.push_back(slave);
-  makeNewOffers(slaves);
+  CHECK(initialized);
+
+  hashset<SlaveID> slaveIds;
+  slaveIds.insert(slaveId);
+
+  allocate(slaveIds);
 }
 
 
-void DominantShareAllocator::makeNewOffers(const vector<Slave*>& slaves)
+void DominantShareAllocator::allocate(const hashset<SlaveID>& slaveIds)
 {
-  CHECK(initialized) << "Cannot make new offers before initialization!";
-  // Get an ordering of frameworks to send offers to
-  vector<Framework*> ordering = getAllocationOrdering();
-  if (ordering.empty()) {
+  CHECK(initialized);
+
+  // Order frameworks by dominant resource fairness.
+  if (frameworks.size() == 0) {
     VLOG(1) << "No frameworks to allocate resources!";
     return;
   }
 
-  // Find all the available resources that can be allocated.
-  hashmap<Slave*, Resources> available;
-  foreach (Slave* slave, slaves) {
-    if (slave->active) {
-      Resources resources = slave->resourcesFree().allocatable();
+  vector<FrameworkID> frameworkIds;
 
-      // TODO(benh): For now, only make offers when there is some cpu
-      // and memory left. This is an artifact of the original code
-      // that only offered when there was at least 1 cpu "unit"
-      // available, and without doing this a framework might get
-      // offered resources with only memory available (which it
-      // obviously won't take) and then get added as a refuser for
-      // that slave and therefore have to wait upwards of
-      // DEFAULT_REFUSAL_TIMEOUT until resources come from that slave
-      // again. In the long run, frameworks will poll the master for
-      // resources, rather than the master pushing resources out to
-      // frameworks.
+  foreachkey (const FrameworkID& frameworkId, frameworks) {
+    frameworkIds.push_back(frameworkId);
+  }
 
-      Value::Scalar none;
-      Value::Scalar cpus = resources.get("cpus", none);
-      Value::Scalar mem = resources.get("mem", none);
+  DominantShareComparator comparator(resources, allocated);
+  sort(frameworkIds.begin(), frameworkIds.end(), comparator);
 
-      if (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) {
-        VLOG(1) << "Found available resources: " << resources
-                << " on slave " << slave->id;
-        available[slave] = resources;
-      }
+  // Get out only "available" resources (i.e., resources that are
+  // allocatable and above a certain threshold, see below).
+  hashmap<SlaveID, Resources> available;
+  foreachpair (const SlaveID& slaveId, Resources resources, allocatable) {
+    resources = resources.allocatable(); // Make sure they're allocatable.
+
+    // TODO(benh): For now, only make offers when there is some cpu
+    // and memory left. This is an artifact of the original code that
+    // only offered when there was at least 1 cpu "unit" available,
+    // and without doing this a framework might get offered resources
+    // with only memory available (which it obviously will decline)
+    // and then end up waiting the default Filters::refuse_seconds
+    // (unless the framework set it to something different).
+
+    Value::Scalar none;
+    Value::Scalar cpus = resources.get("cpus", none);
+    Value::Scalar mem = resources.get("mem", none);
+
+    if (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) {
+      VLOG(1) << "Found available resources: " << resources
+	      << " on slave " << slaveId;
+      available[slaveId] = resources;
     }
   }
+
 
   if (available.size() == 0) {
     VLOG(1) << "No resources available to allocate!";
     return;
   }
 
-  // Clear refusers on any slave that has been refused by everyone.
-  foreachkey (Slave* slave, available) {
-    if (refusers.get(slave->id).size() == ordering.size()) {
-      VLOG(1) << "Clearing refusers for slave " << slave->id
-              << " because EVERYONE has refused resources from it";
-      refusers.remove(slave->id);
-    }
-  }
-
-  foreach (Framework* framework, ordering) {
+  foreach (const FrameworkID& frameworkId, frameworkIds) {
     // Check if we should offer resources to this framework.
-    hashmap<Slave*, Resources> offerable;
-    foreachpair (Slave* slave, const Resources& resources, available) {
-      if (!refusers.contains(slave->id, framework->id) &&
-          !framework->filters(slave, resources)) {
+    hashmap<SlaveID, Resources> offerable;
+    foreachpair (const SlaveID& slaveId, const Resources& resources, available) {
+      // Check whether or not this framework filters this slave.
+      bool filtered = false;
+
+      foreach (Filter* filter, filters.get(frameworkId)) {
+        if (filter->filter(slaveId, resources)) {
+          VLOG(1) << "Filtered " << resources
+                  << " on slave " << slaveId
+                  << " for framework " << frameworkId;
+          filtered = true;
+          break;
+        }
+      }
+
+      if (!filtered) {
         VLOG(1) << "Offering " << resources
-                << " on slave " << slave->id
-                << " to framework " << framework->id;
-        offerable[slave] = resources;
+                << " on slave " << slaveId
+                << " to framework " << frameworkId;
+        offerable[slaveId] = resources;
+
+        // Update framework and slave resources.
+        allocated[frameworkId] += resources;
+        allocatable[slaveId] -= resources;
       }
     }
 
     if (offerable.size() > 0) {
-      foreachkey (Slave* slave, offerable) {
-        available.erase(slave);
+      foreachkey (const SlaveID& slaveId, offerable) {
+        available.erase(slaveId);
       }
+      dispatch(master, &Master::offer, frameworkId, offerable);
+    }
+  }
+}
 
-      master->makeOffers(framework, offerable);
+
+void DominantShareAllocator::expire(
+    const FrameworkID& frameworkId,
+    Filter* filter)
+{
+  // Framework might have been removed, in which case it's filters
+  // should also already have been deleted.
+  if (frameworks.contains(frameworkId)) {
+    // Check and see if the filter was already removed in
+    // DominantShareAllocator::offersRevived (but not deleted).
+    if (filters.contains(frameworkId, filter)) {
+      filters.remove(frameworkId, filter);
+      delete filter;
+      allocate();
+    } else {
+      delete filter;
     }
   }
 }

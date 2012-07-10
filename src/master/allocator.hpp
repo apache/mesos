@@ -35,30 +35,36 @@ namespace master {
 // framework when tasks finish/fail (or are lost due to a slave
 // failure) or when an offer is rescinded.
 
-class Allocator {
+class Allocator : public process::Process<Allocator> {
 public:
   virtual ~Allocator() {}
 
-  virtual void initialize(Master* _master) {}
+  virtual void initialize(const process::PID<Master>& master) = 0;
 
-  virtual void frameworkAdded(Framework* framework) {}
+  virtual void frameworkAdded(const FrameworkID& frameworkId,
+                              const FrameworkInfo& frameworkInfo) = 0;
 
-  virtual void frameworkRemoved(Framework* framework) {}
+  virtual void frameworkDeactivated(const FrameworkID& frameworkId) = 0;
 
-  virtual void slaveAdded(Slave* slave) {}
+  virtual void frameworkRemoved(const FrameworkID& frameworkId) = 0;
 
-  virtual void slaveRemoved(Slave* slave) {}
+  virtual void slaveAdded(const SlaveID& slaveId,
+                          const SlaveInfo& slaveInfo,
+                          const hashmap<FrameworkID, Resources>& used) = 0;
+
+  virtual void slaveRemoved(const SlaveID& slaveId) = 0;
 
   virtual void resourcesRequested(
       const FrameworkID& frameworkId,
-      const std::vector<Request>& requests) {}
+      const std::vector<Request>& requests) = 0;
 
   // Whenever resources offered to a framework go unused (e.g.,
   // refused) the master invokes this callback.
   virtual void resourcesUnused(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const Resources& resources) {}
+      const Resources& resources,
+      const Option<Filters>& filters) = 0;
 
   // Whenever resources are "recovered" in the cluster (e.g., a task
   // finishes, an offer is removed because a framework has failed or
@@ -66,13 +72,11 @@ public:
   virtual void resourcesRecovered(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const Resources& resources) {}
+      const Resources& resources) = 0;
 
-  // Whenever a framework that has filtered resources want's to revive
+  // Whenever a framework that has filtered resources wants to revive
   // offers for those resources the master invokes this callback.
-  virtual void offersRevived(Framework* framework) {}
-
-  virtual void timerTick() {}
+  virtual void offersRevived(const FrameworkID& frameworkId) = 0;
 };
 
 } // namespace master {

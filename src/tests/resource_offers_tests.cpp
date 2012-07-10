@@ -460,19 +460,19 @@ TEST(ResourceOffersTest, Request)
   EXPECT_CALL(allocator, initialize(_))
     .WillOnce(Return());
 
-  EXPECT_CALL(allocator, frameworkAdded(_))
+  EXPECT_CALL(allocator, frameworkAdded(_, _))
     .WillOnce(Return());
+
+  EXPECT_CALL(allocator, frameworkDeactivated(_))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(allocator, frameworkRemoved(_))
-    .WillOnce(Return());
+    .WillRepeatedly(Return());
 
-  EXPECT_CALL(allocator, slaveAdded(_))
+  EXPECT_CALL(allocator, slaveAdded(_, _, _))
     .WillRepeatedly(Return());
 
   EXPECT_CALL(allocator, slaveRemoved(_))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(allocator, timerTick())
     .WillRepeatedly(Return());
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false, &allocator);

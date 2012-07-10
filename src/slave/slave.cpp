@@ -433,7 +433,10 @@ void Slave::doReliableRegistration()
 
     foreachvalue (Framework* framework, frameworks) {
       foreachvalue (Executor* executor, framework->executors) {
-        message.add_executor_infos()->MergeFrom(executor->info);
+        // TODO(benh): Kill this once framework_id is required on ExecutorInfo.
+        ExecutorInfo* executorInfo = message.add_executor_infos();
+        executorInfo->MergeFrom(executor->info);
+        executorInfo->mutable_framework_id()->MergeFrom(framework->id);
         foreachvalue (Task* task, executor->launchedTasks) {
           // TODO(benh): Also need to send queued tasks here ...
           message.add_tasks()->MergeFrom(*task);

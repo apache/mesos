@@ -219,7 +219,7 @@ Future<HttpResponse> stats(
   // compute capacity of scalar resources.
   Resources totalResources;
   Resources usedResources;
-  foreach (Slave* slave, master.getActiveSlaves()) {
+  foreachvalue (Slave* slave, master.slaves) {
     totalResources += slave->info.resources();
     usedResources += slave->resourcesInUse;
   }
