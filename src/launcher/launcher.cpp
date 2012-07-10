@@ -232,8 +232,8 @@ void ExecutorLauncher::fetchExecutors()
     }
 
     if (executable &&
-        utils::os::chmod(resource.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
-                         S_IROTH | S_IXOTH)) {
+        !utils::os::chmod(resource.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+                          S_IROTH | S_IXOTH)) {
       fatalerror("chmod failed");
     }
 
