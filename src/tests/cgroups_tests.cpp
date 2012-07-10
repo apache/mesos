@@ -23,6 +23,7 @@
 #include <gmock/gmock.h>
 
 #include "common/option.hpp"
+#include "common/stringify.hpp"
 #include "common/strings.hpp"
 #include "common/utils.hpp"
 
@@ -316,7 +317,7 @@ TEST_F(CgroupsSimpleTest, ROOT_CGROUPS_CreateRemoveCgroup)
 TEST_F(CgroupsTest, ROOT_CGROUPS_ReadControl)
 {
   Try<std::string> result = std::string();
-  std::string pid = utils::stringify(::getpid());
+  std::string pid = stringify(::getpid());
 
   result = cgroups::readControl(hierarchy, "/stu", "invalid");
   EXPECT_TRUE(result.isError());
@@ -330,7 +331,7 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_ReadControl)
 TEST_F(CgroupsTest, ROOT_CGROUPS_WriteControl)
 {
   Try<bool> result = false;
-  std::string pid = utils::stringify(::getpid());
+  std::string pid = stringify(::getpid());
 
   result = cgroups::writeControl(hierarchy, "/prof", "invalid", "invalid");
   EXPECT_TRUE(result.isError());

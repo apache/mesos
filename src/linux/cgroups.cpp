@@ -25,6 +25,7 @@
 #include <sstream>
 
 #include "common/foreach.hpp"
+#include "common/stringify.hpp"
 #include "common/strings.hpp"
 #include "common/utils.hpp"
 
@@ -743,7 +744,7 @@ Try<bool> assignTask(const std::string& hierarchy,
   return internal::writeControl(hierarchy,
                                 cgroup,
                                 "tasks",
-                                utils::stringify(pid));
+                                stringify(pid));
 }
 
 
