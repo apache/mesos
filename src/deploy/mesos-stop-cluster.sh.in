@@ -3,7 +3,7 @@
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 
-function usage() {
+usage() {
   echo "Usage: mesos-stop-cluster.sh [-h] [-s]"
   echo " -h          display this message"
   echo " -s          use sudo to stop mesos-master and mesos-slave"
