@@ -42,6 +42,8 @@
 #include "slave/isolation_module.hpp"
 #include "slave/slave.hpp"
 
+using ::testing::_;
+using ::testing::Invoke;
 
 namespace mesos {
 namespace internal {
@@ -136,6 +138,78 @@ public:
   MOCK_METHOD2(error, void(SchedulerDriver*, const std::string&));
 };
 
+// For use with a MockScheduler, for example:
+// EXPECT_CALL(sched, resourceOffers(_, _))
+//   .WillOnce(LaunchTasks(TASKS, CPUS, MEM));
+// Launches up to TASKS no-op tasks, if possible,
+// each with CPUS cpus and MEM memory.
+ACTION_P3(LaunchTasks, tasks, cpus, mem)
+{
+  SchedulerDriver* driver = arg0;
+  std::vector<Offer> offers = arg1;
+  int numTasks = tasks;
+
+  int launched = 0;
+  for (int i = 0; i < offers.size(); i++) {
+    const Offer& offer = offers[i];
+    double offeredCpus = 0;
+    double offeredMem = 0;
+
+    for (int i = 0; i < offer.resources_size(); i++) {
+      const Resource& resource = offer.resources(i);
+      if (resource.name() == "cpus" &&
+	  resource.type() == Value::SCALAR) {
+	offeredCpus = resource.scalar().value();
+      } else if (resource.name() == "mem" &&
+		 resource.type() == Value::SCALAR) {
+	offeredMem = resource.scalar().value();
+      }
+    }
+
+    std::vector<TaskInfo> tasks;
+    if (offeredCpus >= cpus &&
+	offeredMem >= mem &&
+	launched < numTasks) {
+      TaskInfo task;
+      task.set_name("TestTask");
+      task.mutable_task_id()->set_value("TestTask1");
+      task.mutable_slave_id()->MergeFrom(offer.slave_id());
+
+      ExecutorInfo executor;
+      executor.mutable_executor_id()->set_value("default");
+      executor.mutable_command()->set_value(":");
+      task.mutable_executor()->MergeFrom(executor);
+
+      Resource* resource;
+      resource = task.add_resources();
+      resource->set_name("cpus");
+      resource->set_type(Value::SCALAR);
+      resource->mutable_scalar()->set_value(cpus);
+
+      resource = task.add_resources();
+      resource->set_name("mem");
+      resource->set_type(Value::SCALAR);
+      resource->mutable_scalar()->set_value(mem);
+
+      tasks.push_back(task);
+      launched++;
+    }
+
+    driver->launchTasks(offer.id(), tasks);
+  }
+}
+
+// Like LaunchTasks, but decline the entire offer and
+// don't launch any tasks.
+ACTION(DeclineOffers)
+{
+  SchedulerDriver* driver = arg0;
+  std::vector<Offer> offers = arg1;
+
+  for (int i = 0; i < offers.size(); i++) {
+    driver->declineOffer(offers[i].id());
+  }
+}
 
 /**
  * Definition of a mock Executor to be used in tests with gmock.
@@ -157,9 +231,41 @@ public:
 };
 
 
+template <typename T = master::Allocator>
 class MockAllocator : public master::Allocator
 {
 public:
+  MockAllocator() {
+    ON_CALL(*this, initialize(_))
+      .WillByDefault(Invoke(&real, &T::initialize));
+
+    ON_CALL(*this, frameworkAdded(_, _))
+      .WillByDefault(Invoke(&real, &T::frameworkAdded));
+
+    ON_CALL(*this, frameworkDeactivated(_))
+      .WillByDefault(Invoke(&real, &T::frameworkDeactivated));
+
+    ON_CALL(*this, frameworkRemoved(_))
+      .WillByDefault(Invoke(&real, &T::frameworkRemoved));
+
+    ON_CALL(*this, slaveAdded(_, _, _))
+      .WillByDefault(Invoke(&real, &T::slaveAdded));
+
+    ON_CALL(*this, slaveRemoved(_))
+      .WillByDefault(Invoke(&real, &T::slaveRemoved));
+
+    ON_CALL(*this, resourcesRequested(_, _))
+      .WillByDefault(Invoke(&real, &T::resourcesRequested));
+
+    ON_CALL(*this, resourcesUnused(_, _, _, _))
+      .WillByDefault(Invoke(&real, &T::resourcesUnused));
+
+    ON_CALL(*this, resourcesRecovered(_, _, _))
+      .WillByDefault(Invoke(&real, &T::resourcesRecovered));
+
+    ON_CALL(*this, offersRevived(_))
+      .WillByDefault(Invoke(&real, &T::offersRevived));
+  }
   MOCK_METHOD1(initialize, void(const process::PID<master::Master>&));
   MOCK_METHOD2(frameworkAdded, void(const FrameworkID&, const FrameworkInfo&));
   MOCK_METHOD1(frameworkDeactivated, void(const FrameworkID&));
@@ -179,7 +285,38 @@ public:
                                         const SlaveID&,
                                         const Resources&));
   MOCK_METHOD1(offersRevived, void(const FrameworkID&));
+
+  T real;
 };
+
+
+// The following actions make up for the fact that DoDefault
+// cannot be used inside a DoAll, for example:
+// EXPECT_CALL(allocator, frameworkAdded(_))
+//   .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
+//                   Trigger(&frameworkAddedTrigger)));
+ACTION_P(InvokeFrameworkAdded, allocator)
+{
+  allocator->real.frameworkAdded(arg0, arg1);
+}
+
+
+ACTION_P(InvokeFrameworkRemoved, allocator)
+{
+  allocator->real.frameworkRemoved(arg0);
+}
+
+
+ACTION_P(InvokeSlaveAdded, allocator)
+{
+  allocator->real.slaveAdded(arg0, arg1, arg2);
+}
+
+
+ACTION_P(InvokeResourcesUnused, allocator)
+{
+  allocator->real.resourcesUnused(arg0, arg1, arg2, arg3);
+}
 
 
 /**

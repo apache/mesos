@@ -96,6 +96,12 @@ inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 }
 
 
+inline bool operator == (const FrameworkInfo& left, const FrameworkInfo& right)
+{
+  return (left.name() == right.name()) && (left.user() == right.user());
+}
+
+
 inline bool operator == (const OfferID& left, const OfferID& right)
 {
   return left.value() == right.value();

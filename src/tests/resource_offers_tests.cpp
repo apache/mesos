@@ -455,7 +455,7 @@ TEST(ResourceOffersTest, Request)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   MockScheduler sched;
-  MockAllocator allocator;
+  MockAllocator<DominantShareAllocator> allocator;
 
   EXPECT_CALL(allocator, initialize(_))
     .WillOnce(Return());

@@ -751,7 +751,8 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/killtree_tests.cpp				\
 	              tests/exception_tests.cpp				\
 	              tests/attributes_tests.cpp			\
-	              tests/master_detector_tests.cpp
+	              tests/master_detector_tests.cpp			\
+	              tests/allocator_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
