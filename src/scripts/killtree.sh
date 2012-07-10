@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 PID=
 SIGNAL="TERM"
@@ -120,7 +120,7 @@ printpids() {
   name="${1}"
   tpids="${2}"
   if [[ ! -z ${tpids} ]]; then
-      result=$(echo ${tpids} | xargs ps xo pid,ppid,pgid,sess,command -p)
+      result=$(echo ${tpids} | xargs ps o pid,ppid,pgid,sess,command -p)
       printf "\n${name}\n${result}\n"
   fi
 }
