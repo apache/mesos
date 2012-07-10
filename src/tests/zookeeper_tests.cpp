@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <zookeeper.h>
+
 #include <string>
 
 #include <gtest/gtest.h>
@@ -365,4 +367,52 @@ TEST_F(ZooKeeperTest, MultipleGroups)
 
   ASSERT_TRUE(cancelled.isReady());
   ASSERT_FALSE(cancelled.get());
+}
+
+
+TEST_F(ZooKeeperTest, GroupPathWithRestrictivePerms)
+{
+  mesos::internal::test::BaseZooKeeperTest::TestWatcher watcher;
+
+  ZooKeeper authenticatedZk(zks->connectString(), NO_TIMEOUT, &watcher);
+  watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
+  authenticatedZk.authenticate("digest", "creator:creator");
+  authenticatedZk.create("/read-only",
+                         "42",
+                         zookeeper::EVERYONE_READ_CREATOR_ALL,
+                         0,
+                         NULL);
+  assertGet(&authenticatedZk, "/read-only", "42");
+  authenticatedZk.create("/read-only/writable",
+                         "37",
+                         ZOO_OPEN_ACL_UNSAFE,
+                         0,
+                         NULL);
+  assertGet(&authenticatedZk, "/read-only/writable", "37");
+
+  zookeeper::Authentication auth("digest", "non-creator:non-creator");
+
+  zookeeper::Group failedGroup1(zks->connectString(), NO_TIMEOUT,
+                                "/read-only/", auth);
+  process::Future<zookeeper::Group::Membership> failedMembership1 =
+    failedGroup1.join("fail");
+  failedMembership1.await();
+  ASSERT_TRUE(failedMembership1.isFailed());
+
+  zookeeper::Group failedGroup2(zks->connectString(), NO_TIMEOUT,
+                                "/read-only/new", auth);
+  process::Future<zookeeper::Group::Membership> failedMembership2 =
+    failedGroup2.join("fail");
+  failedMembership2.await();
+  ASSERT_TRUE(failedMembership2.isFailed());
+
+  zookeeper::Group successGroup(zks->connectString(), NO_TIMEOUT,
+                                "/read-only/writable/", auth);
+  process::Future<zookeeper::Group::Membership> successMembership =
+    successGroup.join("succeed");
+  successMembership.await();
+
+  ASSERT_FALSE(successMembership.isFailed()) << successMembership.failure();
+  ASSERT_FALSE(successMembership.isDiscarded());
+  ASSERT_TRUE(successMembership.isReady());
 }
