@@ -516,7 +516,7 @@ void Master::exited(const UPID& pid)
 
   foreachvalue (Slave* slave, slaves) {
     if (slave->pid == pid) {
-      LOG(INFO) << "Slave " << slave->id << " disconnected";
+      LOG(INFO) << "Slave " << slave->id << "(" << slave->info.hostname() << ") disconnected";
       removeSlave(slave);
       return;
     }
@@ -1634,6 +1634,8 @@ void Master::removeFramework(Framework* framework)
   // Remove pointers to the framework's tasks in slaves.
   foreachvalue (Task* task, utils::copy(framework->tasks)) {
     Slave* slave = getSlave(task->slave_id());
+    // Since we only find out about tasks when the slave reregisters,
+    // it must be the case that the slave exists!
     CHECK(slave != NULL);
     removeTask(task);
   }
@@ -1808,7 +1810,7 @@ void Master::removeSlave(Slave* slave)
       TaskStatus* status = update->mutable_status();
       status->mutable_task_id()->MergeFrom(task->task_id());
       status->set_state(TASK_LOST);
-      status->set_message("Slave removed");
+      status->set_message("Slave " + slave->info.hostname() + " removed");
       update->set_timestamp(Clock::now());
       update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
@@ -1864,8 +1866,9 @@ void Master::removeTask(Task* task)
 {
   // Remove from framework.
   Framework* framework = getFramework(task->framework_id());
-  CHECK(framework != NULL);
-  framework->removeTask(task);
+  if (framework != NULL) { // A framework might not be re-connected yet.
+    framework->removeTask(task);
+  }
 
   // Remove from slave.
   Slave* slave = getSlave(task->slave_id());
@@ -1874,8 +1877,8 @@ void Master::removeTask(Task* task)
 
   // Tell the allocator about the recovered resources.
   dispatch(allocator, &Allocator::resourcesRecovered,
-           framework->id,
-           slave->id,
+           task->framework_id(),
+           task->slave_id(),
            Resources(task->resources()));
 
   delete task;
