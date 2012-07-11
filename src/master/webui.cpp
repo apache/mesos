@@ -20,9 +20,12 @@
 
 #include <process/process.hpp>
 
+#include "master/flags.hpp"
 #include "master/webui.hpp"
 
 #include "common/utils.hpp"
+
+#include "configurator/configuration.hpp"
 
 #include "webui/webui.hpp"
 
@@ -38,7 +41,9 @@ void start(const process::PID<Master>& master, const Configuration& conf)
   args[1] = "--webui_port=" + conf.get<std::string>("webui_port", "8080");
   args[2] = "--log_dir=" + conf.get<std::string>("log_dir", FLAGS_log_dir);
 
-  mesos::internal::webui::start(conf, "master/webui.py", args);
+  mesos::internal::webui::start(conf.get<std::string>("webui_dir", MESOS_WEBUI_DIR),
+                                "master/webui.py",
+                                args);
 }
 
 } // namespace webui {

@@ -6,17 +6,15 @@
 #include <string>
 #include <vector>
 
-#include "configurator/configuration.hpp"
-
 namespace mesos {
 namespace internal {
 namespace webui {
 
-// Starts the Python based webui using the webui directory found via
-// any configuration options and the specified webui script (relative
-// path from webui directory), and args (accessible in the webui
-// script via 'sys.argv' offset by +1).
-void start(const Configuration& conf,
+// Starts the Python based webui using the specified webui directory
+// and the specified webui script (relative path from webui
+// directory), and args (accessible in the webui script via 'sys.argv'
+// offset by +1).
+void start(const std::string& directory,
            const std::string& script,
            const std::vector<std::string>& args);
 

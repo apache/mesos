@@ -44,8 +44,7 @@ public:
 
     add(&webui_dir,
         "webui_dir",
-        "Directory from which to serve files "
-        "for the webui",
+        "Location of the webui files/assets",
         MESOS_WEBUI_DIR);
 
     add(&whitelist,

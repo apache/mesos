@@ -44,7 +44,9 @@ void start(const process::PID<Slave>& slave, const Configuration& conf)
   args[3] = "--log_dir=" + conf.get<std::string>("log_dir", FLAGS_log_dir);
   args[4] = "--work_dir=" + conf.get<std::string>("work_dir", "/tmp/mesos");
 
-  mesos::internal::webui::start(conf, "slave/webui.py", args);
+  mesos::internal::webui::start(conf.get<std::string>("webui_dir", MESOS_WEBUI_DIR),
+                                "slave/webui.py",
+                                args);
 }
 
 } // namespace webui {

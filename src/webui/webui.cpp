@@ -23,7 +23,7 @@ static void run(const std::string& directory,
                 const std::vector<std::string>& args)
 {
   // Setup the Python interpreter and load the script.
-  std::string path = directory + "/" + script;
+  std::string path = utils::path::join(directory, script);
 
   Py_Initialize();
 
@@ -41,8 +41,8 @@ static void run(const std::string& directory,
   // Run some code to setup PATH and add webui_dir as a variable.
   std::string code =
     "import sys\n"
-    "sys.path.append('" + directory + "/common')\n"
-    "sys.path.append('" + directory + "/bottle-0.8.3')\n";
+    "sys.path.append('" + utils::path::join(directory, "common") + "')\n"
+    "sys.path.append('" + utils::path::join(directory, "bottle-0.8.3") + "')\n";
 
   PyRun_SimpleString(code.c_str());
 
@@ -68,25 +68,16 @@ void wait(int fd)
 }
 
 
-void start(const Configuration& conf,
+void start(const std::string& directory,
            const std::string& script,
            const std::vector<std::string>& args)
 {
-  // Use either a directory specified via configuration options (which
-  // is necessary for running out of the build directory before 'make
-  // install') or the directory determined at build time via the
-  // preprocessor macro '-DMESOS_WEBUI_DIR' set in the Makefile.
-  std::string directory = conf.get<std::string>("webui_dir", MESOS_WEBUI_DIR);
-
-  // Remove any trailing '/' in directory.
-  directory = strings::remove(directory, "/", strings::SUFFIX);
-
   // Make sure script is a relative path.
   CHECK(script[0] != '/')
     << "Expecting relative path for webui script (relative to 'webui_dir')";
 
   // Make sure directory/script exists.
-  std::string path = directory + "/" + script;
+  std::string path = utils::path::join(directory, script);
 
   CHECK(utils::os::exists(path))
     << "Failed to find webui script at '" << path << "'";
@@ -119,10 +110,6 @@ void start(const Configuration& conf,
 
     run(directory, script, args);
   }
-
-//   if (!thread::start(std::tr1::bind(&run, directory, script, args), true)) {
-//     LOG(FATAL) << "Failed to start webui thread";
-//   }
 }
 
 } // namespace webui {

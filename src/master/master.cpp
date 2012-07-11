@@ -440,13 +440,8 @@ void Master::initialize()
   // build directory before 'make install') or determined at build
   // time via the preprocessor macro '-DMESOS_WEBUI_DIR' set in the
   // Makefile.
-  string webui_dir = flags.webui_dir;
-
-  // Remove any trailing '/' in directory.
-  webui_dir = strings::remove(webui_dir, "/", strings::SUFFIX);
-
-  provide("", webui_dir + "/master/static/index.html");
-  provide("static", webui_dir + "/master/static");
+  provide("", utils::path::join(flags.webui_dir, "master/static/index.html"));
+  provide("static", utils::path::join(flags.webui_dir, "master/static"));
 }
 
 
