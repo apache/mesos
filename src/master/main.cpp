@@ -76,7 +76,7 @@ int main(int argc, char **argv)
             "");
 
 #ifdef MESOS_WEBUI
-  int webui_port;
+  short webui_port;
   flags.add(&webui_port, "webui_port", "Web UI port", 8080);
 #endif
 
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
   Master* master = new Master(allocator, flags);
   process::spawn(master);
 
-  bool quiet = ((logging::Flags) flags).quiet;
+  bool quiet = flags.as<logging::Flags>().quiet;
 
   Try<MasterDetector*> detector =
     MasterDetector::create(zk, master->self(), true, quiet);
@@ -131,7 +131,10 @@ int main(int argc, char **argv)
     << "Failed to create a master detector: " << detector.error();
 
 #ifdef MESOS_WEBUI
-  webui::start(master->self(), configuration);
+  webui::start(master->self(),
+               flags,
+               webui_port,
+               flags.as<logging::Flags>().log_dir);
 #endif
 
   process::wait(master->self());
