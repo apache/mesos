@@ -26,6 +26,7 @@
 
 #include "flags/flags.hpp"
 
+#include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 #include "master/allocator.hpp"
@@ -50,14 +51,14 @@ void usage(const char* argv0, const Configurator& configurator)
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   flags::Flags<logging::Flags, master::Flags> flags;
 
   // The following flags are executable specific (e.g., since we only
-  // have one instance of libprocess per execution, we only want to
+  // have one instance of libprocess per execution, we only want toa
   // advertise the port and ip option once, here).
   string port;
   flags.add(&port, "port", "Port to listen on", "5050");
@@ -122,19 +123,14 @@ int main(int argc, char **argv)
   Master* master = new Master(allocator, flags);
   process::spawn(master);
 
-  bool quiet = flags.as<logging::Flags>().quiet;
-
   Try<MasterDetector*> detector =
-    MasterDetector::create(zk, master->self(), true, quiet);
+    MasterDetector::create(zk, master->self(), true, flags.quiet);
 
   CHECK(detector.isSome())
     << "Failed to create a master detector: " << detector.error();
 
 #ifdef MESOS_WEBUI
-  webui::start(master->self(),
-               flags,
-               webui_port,
-               flags.as<logging::Flags>().log_dir);
+  webui::start(master->self(), flags.webui_dir, webui_port, flags.log_dir);
 #endif
 
   process::wait(master->self());

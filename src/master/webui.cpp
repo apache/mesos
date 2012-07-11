@@ -20,7 +20,6 @@
 
 #include <process/process.hpp>
 
-#include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/webui.hpp"
 
@@ -35,7 +34,7 @@ namespace master {
 namespace webui {
 
 void start(const process::PID<Master>& master,
-           const Flags& flags,
+           const std::string& webui_dir,
            short webui_port,
            const Option<std::string>& log_dir)
 {
@@ -44,7 +43,7 @@ void start(const process::PID<Master>& master,
   args[1] = "--webui_port=" + stringify(webui_port);
   args[2] = "--log_dir=" + (log_dir.isSome() ? log_dir.get() : "");
 
-  mesos::internal::webui::start(flags.webui_dir, "master/webui.py", args);
+  mesos::internal::webui::start(webui_dir, "master/webui.py", args);
 }
 
 } // namespace webui {

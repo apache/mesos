@@ -30,9 +30,6 @@ namespace mesos {
 namespace internal {
 namespace logging {
 
-Flags flags;
-
-
 void registerOptions(Configurator* configurator)
 {
   configurator->addOption<bool>(
@@ -98,7 +95,7 @@ void initialize(const string& _argv0, const Configuration& conf)
 }
 
 
-void initialize(const string& _argv0, const Flags& _flags)
+void initialize(const string& _argv0, const Flags& flags)
 {
   static process::Once initialized;
 
@@ -109,9 +106,6 @@ void initialize(const string& _argv0, const Flags& _flags)
   // Persistent copy of argv0 since InitGoogleLogging requires the
   // string we pass to it to be accessible indefinitely.
   static string argv0 = _argv0;
-
-  // Save the flags for use in other places.
-  flags = _flags;
 
   // Set glog's parameters through Google Flags variables.
   if (flags.log_dir.isSome()) {

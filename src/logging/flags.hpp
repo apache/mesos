@@ -16,28 +16,44 @@
  * limitations under the License.
  */
 
-#ifndef __LOGGING_LOGGING_HPP__
-#define __LOGGING_LOGGING_HPP__
+#ifndef __LOGGING_FLAGS_HPP__
+#define __LOGGING_FLAGS_HPP__
 
-#include <string>
-
-#include <glog/logging.h> // Includes LOG(*), PLOG(*), CHECK, etc.
-
-#include "configurator/configuration.hpp"
-#include "configurator/configurator.hpp"
-
-#include "logging/flags.hpp"
+#include "flags/flags.hpp"
 
 namespace mesos {
 namespace internal {
 namespace logging {
 
-void registerOptions(Configurator* configurator);
-void initialize(const std::string& argv0, const Configuration& conf);
-void initialize(const std::string& argv0, const Flags& flags);
+class Flags : public virtual flags::FlagsBase
+{
+public:
+  Flags()
+  {
+    add(&Flags::quiet,
+        "quiet",
+        "Disable logging to stderr",
+        false);
+
+    add(&Flags::log_dir,
+        "log_dir",
+        "Location to put log files (no default, nothing "
+        "is written to disk unless specified; "
+        "does not affect logging to stderr)");
+
+    add(&Flags::logbufsecs,
+        "logbufsecs",
+        "How many seconds to buffer log messages for",
+        0);
+  }
+
+  bool quiet;
+  Option<std::string> log_dir;
+  int logbufsecs;
+};
 
 } // namespace logging {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __LOGGING_LOGGING_HPP__
+#endif // __LOGGING_FLAGS_HPP__

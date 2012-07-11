@@ -25,24 +25,24 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-class Flags : public flags::FlagsBase
+class Flags : public virtual flags::FlagsBase
 {
 public:
   Flags()
   {
-    add(&root_submissions,
+    add(&Flags::root_submissions,
         "root_submissions",
         "Can root submit frameworks?",
         true);
 
-    add(&slaves,
+    add(&Flags::slaves,
         "slaves",
         "Initial slaves that should be "
         "considered part of this cluster "
         "(or if using ZooKeeper a URL)",
         "*");
 
-    add(&webui_dir,
+    add(&Flags::webui_dir,
         "webui_dir",
         "Location of the webui files/assets",
         MESOS_WEBUI_DIR);

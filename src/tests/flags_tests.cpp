@@ -31,31 +31,31 @@
 
 using namespace flags;
 
-class TestFlags : public FlagsBase
+class TestFlags : public virtual FlagsBase
 {
 public:
   TestFlags()
   {
-    add(&name1,
+    add(&TestFlags::name1,
         "name1",
         "Set name1",
         "ben folds");
 
-    add(&name2,
+    add(&TestFlags::name2,
         "name2",
         "Set name2",
         42);
 
-    add(&name3,
+    add(&TestFlags::name3,
         "name3",
         "Set name3",
         false);
 
-    add(&name4,
+    add(&TestFlags::name4,
         "name4",
         "Set name4");
 
-    add(&name5,
+    add(&TestFlags::name5,
         "name5",
         "Set name5");
   }
@@ -94,7 +94,7 @@ TEST(FlagsTest, Load)
 
 TEST(FlagsTest, Add)
 {
-  TestFlags flags;
+  Flags<TestFlags> flags;
 
   Option<std::string> name6;
 
@@ -145,23 +145,19 @@ TEST(FlagsTest, Flags)
 
   flags.load(values);
 
-  TestFlags testFlags = flags;
-
-  EXPECT_EQ("billy joel", testFlags.name1);
-  EXPECT_EQ(43, testFlags.name2);
-  EXPECT_EQ(false, testFlags.name3);
-  ASSERT_TRUE(testFlags.name4.isSome());
-  EXPECT_EQ(false, testFlags.name4.get());
-  ASSERT_TRUE(testFlags.name5.isSome());
-  EXPECT_EQ(true, testFlags.name5.get());
+  EXPECT_EQ("billy joel", flags.name1);
+  EXPECT_EQ(43, flags.name2);
+  EXPECT_EQ(false, flags.name3);
+  ASSERT_TRUE(flags.name4.isSome());
+  EXPECT_EQ(false, flags.name4.get());
+  ASSERT_TRUE(flags.name5.isSome());
+  EXPECT_EQ(true, flags.name5.get());
 }
 
 
 TEST(FlagsTest, Configurator)
 {
   Flags<TestFlags> flags;
-
-  mesos::internal::Configurator configurator(flags);
 
   int argc = 6;
   char* argv[argc];
@@ -173,6 +169,7 @@ TEST(FlagsTest, Configurator)
   argv[4] = "--no-name4";
   argv[5] = "--name5";
 
+  mesos::internal::Configurator configurator(flags);
   mesos::internal::Configuration conf;
   try {
     conf = configurator.load(argc, argv);
@@ -183,13 +180,11 @@ TEST(FlagsTest, Configurator)
 
   flags.load(conf.getMap());
 
-  TestFlags testFlags = flags;
-
-  EXPECT_EQ("billy joel", testFlags.name1);
-  EXPECT_EQ(43, testFlags.name2);
-  EXPECT_EQ(false, testFlags.name3);
-  ASSERT_TRUE(testFlags.name4.isSome());
-  EXPECT_EQ(false, testFlags.name4.get());
-  ASSERT_TRUE(testFlags.name5.isSome());
-  EXPECT_EQ(true, testFlags.name5.get());
+  EXPECT_EQ("billy joel", flags.name1);
+  EXPECT_EQ(43, flags.name2);
+  EXPECT_EQ(false, flags.name3);
+  ASSERT_TRUE(flags.name4.isSome());
+  EXPECT_EQ(false, flags.name4.get());
+  ASSERT_TRUE(flags.name5.isSome());
+  EXPECT_EQ(true, flags.name5.get());
 }

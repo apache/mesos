@@ -36,6 +36,10 @@
 #include "common/units.hpp"
 #include "common/utils.hpp"
 
+#include "flags/flags.hpp"
+
+#include "logging/flags.hpp"
+
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/http.hpp"
@@ -62,7 +66,8 @@ class Master : public ProtobufProcess<Master>
 {
 public:
   Master(Allocator* allocator);
-  Master(Allocator* allocator, const Flags& flags);
+  Master(Allocator* allocator,
+         const flags::Flags<logging::Flags, master::Flags>& flags);
 
   virtual ~Master();
 
@@ -191,7 +196,7 @@ private:
       const Master& master,
       const process::http::Request& request);
 
-  const Flags flags;
+  const flags::Flags<logging::Flags, master::Flags> flags;
 
   bool elected;
 

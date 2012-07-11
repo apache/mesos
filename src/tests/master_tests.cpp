@@ -26,6 +26,10 @@
 
 #include "local/local.hpp"
 
+#include "logging/flags.hpp"
+
+#include "flags/flags.hpp"
+
 #include "master/dominant_share_allocator.hpp"
 #include "master/flags.hpp"
 #include "master/frameworks_manager.hpp"
@@ -689,7 +693,7 @@ TEST_F(WhitelistFixture, WhitelistSlave)
   CHECK (utils::os::write(path, hosts).isSome()) << "Error writing whitelist";
 
   DominantShareAllocator a;
-  master::Flags flags; 
+  flags::Flags<logging::Flags, master::Flags> flags;
   flags.whitelist = "file://" + path;
   Master m(&a, flags);
   PID<Master> master = process::spawn(&m);

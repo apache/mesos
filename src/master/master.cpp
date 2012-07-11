@@ -29,9 +29,12 @@
 #include "common/utils.hpp"
 #include "common/uuid.hpp"
 
-#include "logging/logging.hpp"
+#include "flags/flags.hpp"
+
+#include "logging/flags.hpp"
 
 #include "master/allocator.hpp"
+#include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/slaves_manager.hpp"
 
@@ -253,7 +256,8 @@ Master::Master(Allocator* _allocator)
 {}
 
 
-Master::Master(Allocator* _allocator, const Flags& _flags)
+Master::Master(Allocator* _allocator,
+               const flags::Flags<logging::Flags, master::Flags>& _flags)
   : ProcessBase("master"),
     allocator(_allocator),
     flags(_flags)

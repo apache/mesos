@@ -266,8 +266,8 @@ Future<Response> state(
   object.values["id"] = master.info.id();
   object.values["pid"] = string(master.self());
 
-  if (logging::flags.log_dir.isSome()) {
-    object.values["log_dir"] = logging::flags.log_dir.get();
+  if (master.flags.log_dir.isSome()) {
+    object.values["log_dir"] = master.flags.log_dir.get();
   }
 
   // Model all of the slaves.
@@ -349,11 +349,11 @@ Future<Response> log(
     length = result.get();
   }
 
-  if (logging::flags.log_dir.isNone()) {
+  if (master.flags.log_dir.isNone()) {
     return NotFound();
   }
 
-  string path = logging::flags.log_dir.get() + "/mesos-master." + level;
+  string path = master.flags.log_dir.get() + "/mesos-master." + level;
 
   Try<int> fd = utils::os::open(path, O_RDONLY);
 

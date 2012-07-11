@@ -28,6 +28,7 @@
 #include "configurator/configuration.hpp"
 #include "configurator/option.hpp"
 
+#include "flags/flag.hpp"
 #include "flags/flags.hpp"
 
 namespace mesos {
@@ -90,47 +91,7 @@ public:
                            "Specifies a config directory from which to\n"
                            "read Mesos config files.");
 
-    foreachvalue (const flags::Flag& flag, flags.flags) {
-      if (!flag.boolean) {
-        addOption<std::string>(flag.name, flag.help);
-      } else {
-        addOption<bool>(flag.name, flag.help);
-      }
-    }
-
-    foreachvalue (const flags::Flag& flag, flags.flags1.flags) {
-      if (!flag.boolean) {
-        addOption<std::string>(flag.name, flag.help);
-      } else {
-        addOption<bool>(flag.name, flag.help);
-      }
-    }
-
-    foreachvalue (const flags::Flag& flag, flags.flags2.flags) {
-      if (!flag.boolean) {
-        addOption<std::string>(flag.name, flag.help);
-      } else {
-        addOption<bool>(flag.name, flag.help);
-      }
-    }
-
-    foreachvalue (const flags::Flag& flag, flags.flags3.flags) {
-      if (!flag.boolean) {
-        addOption<std::string>(flag.name, flag.help);
-      } else {
-        addOption<bool>(flag.name, flag.help);
-      }
-    }
-
-    foreachvalue (const flags::Flag& flag, flags.flags4.flags) {
-      if (!flag.boolean) {
-        addOption<std::string>(flag.name, flag.help);
-      } else {
-        addOption<bool>(flag.name, flag.help);
-      }
-    }
-
-    foreachvalue (const flags::Flag& flag, flags.flags5.flags) {
+    foreachvalue (const flags::Flag& flag, flags) {
       if (!flag.boolean) {
         addOption<std::string>(flag.name, flag.help);
       } else {
