@@ -59,8 +59,8 @@ int main(int argc, char **argv)
   // The following flags are executable specific (e.g., since we only
   // have one instance of libprocess per execution, we only want to
   // advertise the port and ip option once, here).
-  Option<string> port;
-  flags.add(&port, "port", "Port to listen on");
+  string port;
+  flags.add(&port, "port", "Port to listen on", "5050");
 
   Option<string> ip;
   flags.add(&ip, "ip", "IP address to listen on");
@@ -103,15 +103,13 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  if (port.isSome()) {
-    utils::os::setenv("LIBPROCESS_PORT", port.get());
-  }
+  // Initialize libprocess.
+  utils::os::setenv("LIBPROCESS_PORT", port);
 
   if (ip.isSome()) {
     utils::os::setenv("LIBPROCESS_IP", ip.get());
   }
 
-  // Initialize libprocess.
   process::initialize("master");
 
   logging::initialize(argv[0], flags);
