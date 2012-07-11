@@ -5,18 +5,19 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/preprocessor.hpp>
+#include <process/thread.hpp>
 
 namespace process {
 
 // Underlying "process" which handles invoking actual callbacks
 // created through an Executor.
-class ExecutorProcess : public process::Process<ExecutorProcess>
+class ExecutorProcess : public Process<ExecutorProcess>
 {
 private:
   friend class Executor;
 
   ExecutorProcess() : ProcessBase(ID::generate("__executor__")) {}
-  ~ExecutorProcess() {}
+  virtual ~ExecutorProcess() {}
 
   // Not copyable, not assignable.
   ExecutorProcess(const ExecutorProcess&);
@@ -26,8 +27,8 @@ private:
   void invoke(const std::tr1::function<void(void)>& f) { f(); }
 
   // Args invoke.
-#define TEMPLATE(Z, N, DATA)                                   \
-  template <ENUM_PARAMS(N, typename A)>                        \
+#define TEMPLATE(Z, N, DATA)                                            \
+  template <ENUM_PARAMS(N, typename A)>                                 \
   void CAT(invoke, N)(                                         \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f,    \
       ENUM_BINARY_PARAMS(N, A, a))                             \
@@ -46,19 +47,20 @@ private:
 class Executor
 {
 public:
-  Executor() {
-    process::spawn(process);
+  Executor()
+  {
+    spawn(process);
   }
 
   ~Executor()
   {
-    process::terminate(process);
-    process::wait(process);
+    terminate(process);
+    wait(process);
   }
 
   void stop()
   {
-    process::terminate(process);
+    terminate(process);
 
     // TODO(benh): Note that this doesn't wait because that could
     // cause a deadlock ... thus, the semantics here are that no more
@@ -107,9 +109,9 @@ public:
   // define wrappers for all std::tr1::bind results. First we start
   // with the non-member std::tr1::bind results.
   deferred<void(void)> defer(
-      const std::tr1::_Bind<void(*())()>& b)
+      const std::tr1::_Bind<void(*(void))(void)>& b)
   {
-    return defer(std::tr1::function<void()>(b));
+    return defer(std::tr1::function<void(void)>(b));
   }
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -216,20 +218,21 @@ private:
   Executor& operator = (const Executor&);
 
   static void dispatcher(
-      const process::PID<ExecutorProcess>& pid,
+      const PID<ExecutorProcess>& pid,
       const std::tr1::function<void(void)>& f)
   {
-    process::dispatch(pid, &ExecutorProcess::invoke, f);
+    // TODO(benh): Why not just use internal::dispatch?
+    dispatch(pid, &ExecutorProcess::invoke, f);
   }
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename A)>                                 \
   static void CAT(dispatcher, N)(                                       \
-      const process::PID<ExecutorProcess>& pid,                         \
+      const PID<ExecutorProcess>& pid,                                  \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f,             \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
-    process::dispatch(                                                  \
+    dispatch(                                                           \
         pid,                                                            \
         &ExecutorProcess::CAT(invoke, N)<ENUM_PARAMS(N, A)>,            \
         f, ENUM_PARAMS(N, a));                                          \
@@ -240,6 +243,16 @@ private:
 
   ExecutorProcess process;
 };
+
+
+// Per thread executor pointer. The extra level of indirection from
+// _executor_ to __executor__ is used in order to take advantage of
+// the ThreadLocal operators without needing the extra dereference as
+// well as lazily construct the actual executor.
+extern ThreadLocal<Executor>* _executor_;
+
+#define __executor__                                                    \
+  (*_executor_ == NULL ? *_executor_ = new Executor() : *_executor_)
 
 } // namespace process {
 

@@ -20,9 +20,9 @@
 #include <process/io.hpp>
 #include <process/process.hpp>
 #include <process/run.hpp>
+#include <process/thread.hpp>
 
 #include "encoder.hpp"
-#include "thread.hpp"
 
 // Definition of a Set action to be used with gmock.
 ACTION_P2(Set, variable, value) { *variable = value; }
@@ -36,10 +36,7 @@ using testing::ReturnArg;
 
 TEST(libprocess, thread)
 {
-  pthread_key_t key;
-  ASSERT_EQ(0, pthread_key_create(&key, NULL));
-
-  ThreadLocal<ProcessBase>* _process_ = new ThreadLocal<ProcessBase>(key);
+  ThreadLocal<ProcessBase>* _process_ = new ThreadLocal<ProcessBase>();
 
   ProcessBase* process = new ProcessBase();
 
@@ -56,8 +53,6 @@ TEST(libprocess, thread)
 
   delete process;
   delete _process_;
-
-  ASSERT_EQ(0, pthread_key_delete(key));
 }
 
 
@@ -217,7 +212,7 @@ TEST(libprocess, dispatch)
 }
 
 
-TEST(libprocess, defer)
+TEST(libprocess, defer1)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -286,6 +281,86 @@ TEST(libprocess, defer)
 
   terminate(pid);
   wait(pid);
+}
+
+
+template <typename T>
+void set(T* t1, const T& t2)
+{
+  *t1 = t2;
+}
+
+
+class DeferProcess : public Process<DeferProcess>
+{
+public:
+  DeferProcess(volatile bool* _bool1, volatile bool* _bool2)
+    : bool1(_bool1), bool2(_bool2) {}
+
+protected:
+  virtual void initialize()
+  {
+    deferred<void(bool)> set1 =
+      defer(std::tr1::function<void(bool)>(
+                std::tr1::bind(&set<volatile bool>,
+                               bool1,
+                               std::tr1::placeholders::_1)));
+
+    set1(true);
+
+    deferred<void(bool)> set2 =
+      defer(std::tr1::function<void(bool)>(
+                std::tr1::bind(&set<volatile bool>,
+                               bool2,
+                               std::tr1::placeholders::_1)));
+
+    set2(true);
+  }
+
+private:
+  volatile bool* bool1;
+  volatile bool* bool2;
+};
+
+
+TEST(libprocess, defer2)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  volatile bool bool1 = false;
+  volatile bool bool2 = false;
+
+  DeferProcess process(&bool1, &bool2);
+
+  PID<DeferProcess> pid = spawn(process);
+
+  while (!bool1);
+  while (!bool2);
+
+  terminate(pid);
+  wait(pid);
+
+  bool1 = false;
+  bool2 = false;
+
+  deferred<void(bool)> set1 =
+    defer(std::tr1::function<void(bool)>(
+              std::tr1::bind(&set<volatile bool>,
+                             &bool1,
+                             std::tr1::placeholders::_1)));
+
+  set1(true);
+
+  deferred<void(bool)> set2 =
+    defer(std::tr1::function<void(bool)>(
+              std::tr1::bind(&set<volatile bool>,
+                             &bool2,
+                             std::tr1::placeholders::_1)));
+
+  set2(true);
+
+  while (!bool1);
+  while (!bool2);
 }
 
 
@@ -931,10 +1006,10 @@ class HttpProcess : public Process<HttpProcess>
 public:
   HttpProcess()
   {
-    route("handler", &HttpProcess::handler);
+    route("/handler", &HttpProcess::handler);
   }
 
-  MOCK_METHOD1(handler, Future<HttpResponse>(const HttpRequest&));
+  MOCK_METHOD1(handler, Future<http::Response>(const http::Request&));
 };
 
 
@@ -945,7 +1020,7 @@ TEST(libprocess, http)
   HttpProcess process;
 
   EXPECT_CALL(process, handler(_))
-    .WillOnce(Return(HttpOKResponse()));
+    .WillOnce(Return(http::OK()));
 
   spawn(process);
 

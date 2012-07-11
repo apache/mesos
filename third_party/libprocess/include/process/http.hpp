@@ -1,11 +1,13 @@
 #ifndef __PROCESS_HTTP_HPP__
 #define __PROCESS_HTTP_HPP__
 
+#include <map>
 #include <string>
 
 namespace process {
+namespace http {
 
-struct HttpRequest
+struct Request
 {
   // TODO(benh): Add major/minor version.
   std::map<std::string, std::string> headers;
@@ -19,9 +21,9 @@ struct HttpRequest
 };
 
 
-struct HttpResponse
+struct Response
 {
-  HttpResponse() : type(BODY) {}
+  Response() : type(BODY) {}
 
   // TODO(benh): Add major/minor version.
   std::string status;
@@ -47,51 +49,51 @@ struct HttpResponse
 };
 
 
-struct HttpOKResponse : HttpResponse
+struct OK : Response
 {
-  HttpOKResponse() : HttpResponse()
+  OK() : Response()
   {
     status = "200 OK";
   }
 };
 
 
-struct HttpBadRequestResponse : HttpResponse
+struct BadRequest : Response
 {
-  HttpBadRequestResponse() : HttpResponse()
+  BadRequest() : Response()
   {
     status = "400 Bad Request";
   }
 };
 
 
-struct HttpNotFoundResponse : HttpResponse
+struct NotFound : Response
 {
-  HttpNotFoundResponse() : HttpResponse()
+  NotFound() : Response()
   {
     status = "404 Not Found";
   }
 };
 
 
-struct HttpInternalServerErrorResponse : HttpResponse
+struct InternalServerError : Response
 {
-  HttpInternalServerErrorResponse() : HttpResponse()
+  InternalServerError() : Response()
   {
     status = "500 Internal Server Error";
   }
 };
 
 
-struct HttpServiceUnavailableResponse : HttpResponse
+struct ServiceUnavailable : Response
 {
-  HttpServiceUnavailableResponse() : HttpResponse()
+  ServiceUnavailable() : Response()
   {
     status = "503 Service Unavailable";
   }
 };
 
-
+} // namespace http {
 } // namespace process {
 
-#endif // __PROCESS_HTTP_HPP
+#endif // __PROCESS_HTTP_HPP__

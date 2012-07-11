@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include <process/http.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -174,24 +175,24 @@ private:
   friend struct SlaveRegistrar;
   friend struct SlaveReregistrar;
 
-  // Http handlers, friends of the master in order to access state,
+  // HTTP handlers, friends of the master in order to access state,
   // they get invoked from within the master so there is no need to
   // use synchronization mechanisms to protect state.
-  friend Future<HttpResponse> http::vars(
+  friend Future<process::http::Response> http::vars(
       const Master& master,
-      const HttpRequest& request);
+      const process::http::Request& request);
 
-  friend Future<HttpResponse> http::json::stats(
+  friend Future<process::http::Response> http::json::stats(
       const Master& master,
-      const HttpRequest& request);
+      const process::http::Request& request);
 
-  friend Future<HttpResponse> http::json::state(
+  friend Future<process::http::Response> http::json::state(
       const Master& master,
-      const HttpRequest& request);
+      const process::http::Request& request);
 
-  friend Future<HttpResponse> http::json::log(
+  friend Future<process::http::Response> http::json::log(
       const Master& master,
-      const HttpRequest& request);
+      const process::http::Request& request);
 
   const Configuration conf;
 

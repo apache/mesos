@@ -16,6 +16,7 @@
 #include <process/message.hpp>
 #include <process/mime.hpp>
 #include <process/pid.hpp>
+#include <process/thread.hpp>
 
 namespace process {
 
@@ -116,22 +117,26 @@ protected:
 
   // The default visit implementation for HTTP events invokes
   // installed HTTP handlers. A HTTP handler is any function which
-  // takes an HttpRequest object and returns and HttpResponse.
-  typedef std::tr1::function<Future<HttpResponse>(const HttpRequest&)>
+  // takes an http::Request object and returns an http::Response.
+  typedef std::tr1::function<Future<http::Response>(const http::Request&)>
   HttpRequestHandler;
 
   // Setup a handler for an HTTP request.
-  void route(
+  bool route(
       const std::string& name,
       const HttpRequestHandler& handler)
   {
-    handlers.http[name] = handler;
+    if (name.find('/') != 0) {
+      return false;
+    }
+    handlers.http[name.substr(1)] = handler;
+    return true;
   }
 
   template <typename T>
-  void route(
+  bool route(
       const std::string& name,
-      Future<HttpResponse> (T::*method)(const HttpRequest&))
+      Future<http::Response> (T::*method)(const http::Request&))
   {
     // Note that we use dynamic_cast here so a process can use
     // multiple inheritance if it sees so fit (e.g., to implement
@@ -139,7 +144,7 @@ protected:
     HttpRequestHandler handler =
       std::tr1::bind(method, dynamic_cast<T*>(this),
                      std::tr1::placeholders::_1);
-    route(name, handler);
+    return route(name, handler);
   }
 
   // Provide the static asset(s) at the specified _absolute_ path for
@@ -278,7 +283,7 @@ PID<T> spawn(T& t, bool manage = false)
  * future we plan to make this more explicit via the use of a PID
  * instead of a UPID).
  *
- * @param inject if true message will be put on front of messae queue
+ * @param inject if true message will be put on front of message queue
  */
 void terminate(const UPID& pid, bool inject = true);
 void terminate(const ProcessBase& process, bool inject = true);
@@ -334,6 +339,14 @@ inline bool wait(const ProcessBase* process, double secs)
 {
   return wait(process->self(), secs);
 }
+
+
+// Per thread process pointer. The extra level of indirection from
+// _process_ to __process__ is used in order to take advantage of the
+// ThreadLocal operators without needing the extra dereference.
+extern ThreadLocal<ProcessBase>* _process_;
+
+#define __process__ (*_process_)
 
 } // namespace process {
 

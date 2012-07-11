@@ -27,9 +27,9 @@
 #define foreachpair BOOST_FOREACH_PAIR
 
 #define foreachkey(VAR, COL)                    \
-  foreachpair (VAR, boost::tuples::ignore, COL)
+  foreach (boost::tuples::tie(VAR, boost::tuples::ignore), COL)
 
 #define foreachvalue(VAR, COL)                  \
-  foreachpair (boost::tuples::ignore, VAR, COL)
+  foreach (boost::tuples::tie(boost::tuples::ignore, VAR), COL)
 
 #endif // __FOREACH_HPP__

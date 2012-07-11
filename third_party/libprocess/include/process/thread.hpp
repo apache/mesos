@@ -2,18 +2,25 @@
 #define __PROCESS_THREAD_HPP__
 
 #include <pthread.h>
-
-#include <glog/logging.h>
+#include <stdio.h> // For perror.
+#include <stdlib.h> // For abort.
 
 template <typename T>
 struct ThreadLocal
 {
-  explicit ThreadLocal(pthread_key_t _key) : key(_key) {}
+  ThreadLocal()
+  {
+    if (pthread_key_create(&key, NULL) != 0) {
+      perror("Failed to create thread local, pthread_key_create");
+      abort();
+    }
+  }
 
   ThreadLocal<T>& operator = (T* t)
   {
     if (pthread_setspecific(key, t) != 0) {
-      PLOG(FATAL) << "Failed to set thread local, pthread_setspecific";
+      perror("Failed to set thread local, pthread_setspecific");
+      abort();
     }
     return *this;
   }
@@ -36,7 +43,7 @@ private:
   bool operator < (const ThreadLocal<T>&) const;
   bool operator > (const ThreadLocal<T>&) const;
 
-  const pthread_key_t key;
+  pthread_key_t key;
 };
 
 #endif // __PROCESS_THREAD_HPP__

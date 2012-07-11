@@ -35,17 +35,21 @@
 #include "master/http.hpp"
 #include "master/master.hpp"
 
+namespace mesos {
+namespace internal {
+namespace master {
+
 using process::Future;
-using process::HttpResponse;
-using process::HttpRequest;
+
+using process::http::InternalServerError;
+using process::http::NotFound;
+using process::http::OK;
+using process::http::Response;
+using process::http::Request;
 
 using std::map;
 using std::string;
 using std::vector;
-
-namespace mesos {
-namespace internal {
-namespace master {
 
 // TODO(benh): Consider moving the modeling code some place else so
 // that it can be shared between slave/http.cpp and master/http.cpp.
@@ -160,9 +164,9 @@ JSON::Object model(const Slave& slave)
 
 namespace http {
 
-Future<HttpResponse> vars(
+Future<Response> vars(
     const Master& master,
-    const HttpRequest& request)
+    const Request& request)
 {
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
@@ -183,7 +187,7 @@ Future<HttpResponse> vars(
     out << key << " " << value << "\n";
   }
 
-  HttpOKResponse response;
+  OK response;
   response.headers["Content-Type"] = "text/plain";
   response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
@@ -193,9 +197,9 @@ Future<HttpResponse> vars(
 
 namespace json {
 
-Future<HttpResponse> stats(
+Future<Response> stats(
     const Master& master,
-    const HttpRequest& request)
+    const Request& request)
 {
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
@@ -242,7 +246,7 @@ Future<HttpResponse> stats(
 
   JSON::render(out, object);
 
-  HttpOKResponse response;
+  OK response;
   response.headers["Content-Type"] = "application/json";
   response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
@@ -250,9 +254,9 @@ Future<HttpResponse> stats(
 }
 
 
-Future<HttpResponse> state(
+Future<Response> state(
     const Master& master,
-    const HttpRequest& request)
+    const Request& request)
 {
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
@@ -305,7 +309,7 @@ Future<HttpResponse> state(
 
   JSON::render(out, object);
 
-  HttpOKResponse response;
+  OK response;
   response.headers["Content-Type"] = "application/json";
   response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
@@ -313,9 +317,9 @@ Future<HttpResponse> state(
 }
 
 
-Future<HttpResponse> log(
+Future<Response> log(
     const Master& master,
-    const HttpRequest& request)
+    const Request& request)
 {
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
@@ -332,7 +336,7 @@ Future<HttpResponse> log(
       LOG(WARNING) << "Failed to \"numify\" the 'offset' ("
                    << pairs["offset"].back() << "): "
                    << result.error();
-      return HttpInternalServerErrorResponse();
+      return InternalServerError();
     }
     offset = result.get();
   }
@@ -344,7 +348,7 @@ Future<HttpResponse> log(
       LOG(WARNING) << "Failed to \"numify\" the 'length' ("
                    << pairs["length"].back() << "): "
                    << result.error();
-      return HttpInternalServerErrorResponse();
+      return InternalServerError();
     }
     length = result.get();
   }
@@ -352,7 +356,7 @@ Future<HttpResponse> log(
   Option<string> directory = master.conf.get<string>("log_dir");
 
   if (directory.isNone()) {
-    return HttpNotFoundResponse();
+    return NotFound();
   }
 
   string path = directory.get() + "/mesos-master." + level;
@@ -362,7 +366,7 @@ Future<HttpResponse> log(
   if (fd.isError()) {
     LOG(WARNING) << "Failed to open log file at "
                  << path << ": " << fd.error();
-    return HttpInternalServerErrorResponse();
+    return InternalServerError();
   }
 
   off_t size = lseek(fd.get(), 0, SEEK_END);
@@ -370,7 +374,7 @@ Future<HttpResponse> log(
   if (size == -1) {
     PLOG(WARNING) << "Failed to seek in the log";
     close(fd.get());
-    return HttpInternalServerErrorResponse();
+    return InternalServerError();
   }
 
   if (offset == -1) {
@@ -388,7 +392,7 @@ Future<HttpResponse> log(
     if (lseek(fd.get(), offset, SEEK_SET) == -1) {
       PLOG(WARNING) << "Failed to seek in the log";
       close(fd.get());
-      return HttpInternalServerErrorResponse();
+      return InternalServerError();
     }
 
     // Read length bytes (or to EOF).
@@ -404,7 +408,7 @@ Future<HttpResponse> log(
       PLOG(WARNING) << "Failed to read from the log";
       delete[] temp;
       close(fd.get());
-      return HttpInternalServerErrorResponse();
+      return InternalServerError();
     } else {
       object.values["offset"] = offset;
       object.values["length"] = length;
@@ -422,7 +426,7 @@ Future<HttpResponse> log(
 
   JSON::render(out, object);
 
-  HttpOKResponse response;
+  OK response;
   response.headers["Content-Type"] = "application/json";
   response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();

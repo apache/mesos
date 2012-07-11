@@ -33,28 +33,28 @@ namespace http {
 
 // Returns current vars in "key value\n" format (keys do not contain
 // spaces, values may contain spaces but are ended by a newline).
-process::Future<process::HttpResponse> vars(
+process::Future<process::http::Response> vars(
     const Master& master,
-    const process::HttpRequest& request);
+    const process::http::Request& request);
 
 
 namespace json {
 
 // Returns current statistics of the master.
-process::Future<process::HttpResponse> stats(
+process::Future<process::http::Response> stats(
     const Master& master,
-    const process::HttpRequest& request);
+    const process::http::Request& request);
 
 
 // Returns current state of the cluster that the master knows about.
-process::Future<process::HttpResponse> state(
+process::Future<process::http::Response> state(
     const Master& master,
-    const process::HttpRequest& request);
+    const process::http::Request& request);
 
 // Returns data from the log.
-process::Future<process::HttpResponse> log(
+process::Future<process::http::Response> log(
     const Master& master,
-    const process::HttpRequest& request);
+    const process::http::Request& request);
 
 } // namespace json {
 } // namespace http {

@@ -96,7 +96,7 @@ private:
 
 struct HttpEvent : Event
 {
-  HttpEvent(const Socket& _socket, HttpRequest* _request)
+  HttpEvent(const Socket& _socket, http::Request* _request)
     : socket(_socket), request(_request) {}
 
   virtual ~HttpEvent()
@@ -110,7 +110,7 @@ struct HttpEvent : Event
   }
 
   const Socket socket;
-  HttpRequest* const request;
+  http::Request* const request;
 
 private:
   // Not copyable, not assignable.

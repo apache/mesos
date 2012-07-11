@@ -19,6 +19,7 @@
 #ifndef __SLAVE_HPP__
 #define __SLAVE_HPP__
 
+#include <process/http.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -161,20 +162,20 @@ protected:
                                         const ExecutorID& executorId);
 
 private:
-  // Http handlers, friends of the slave in order to access state,
+  // HTTP handlers, friends of the slave in order to access state,
   // they get invoked from within the slave so there is no need to
   // use synchronization mechanisms to protect state.
-  friend Future<HttpResponse> http::vars(
+  friend Future<process::http::Response> http::vars(
       const Slave& slave,
-      const HttpRequest& request);
+      const process::http::Request& request);
 
-  friend Future<HttpResponse> http::json::stats(
+  friend Future<process::http::Response> http::json::stats(
       const Slave& slave,
-      const HttpRequest& request);
+      const process::http::Request& request);
 
-  friend Future<HttpResponse> http::json::state(
+  friend Future<process::http::Response> http::json::state(
       const Slave& slave,
-      const HttpRequest& request);
+      const process::http::Request& request);
 
   const Configuration conf;
 

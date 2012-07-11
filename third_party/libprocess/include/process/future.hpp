@@ -15,6 +15,17 @@
 
 namespace process {
 
+namespace internal {
+
+template <typename T>
+struct wrap;
+
+template <typename T>
+struct unwrap;
+
+} // namespace internal {
+
+
 // Forward declaration of Promise.
 template <typename T>
 class Promise;
@@ -99,6 +110,12 @@ public:
   template <typename X>
   Future<X> then(const std::tr1::function<X(const T&)>& f) const;
 
+#if __cplusplus >= 201103L
+  template <typename F>
+  auto then(F f) const
+    -> typename internal::wrap<decltype(f(T()))>::Type;
+#endif
+
 private:
   friend class Promise<T>;
 
@@ -143,21 +160,9 @@ public:
   ~Promise();
 
   bool set(const T& _t);
+  bool set(const Future<T>& future); // Alias for associate.
+  bool associate(const Future<T>& future);
   bool fail(const std::string& message);
-
-  bool associate(const Future<T>& future)
-  {
-    if (!f.isPending()) {
-      return false;
-    }
-
-    future
-      .onReady(std::tr1::bind(&Future<T>::set, f, std::tr1::placeholders::_1))
-      .onFailed(std::tr1::bind(&Future<T>::fail, f, std::tr1::placeholders::_1))
-      .onDiscarded(std::tr1::bind(&Future<T>::discard, f));
-
-    return true;
-  }
 
   // Returns a copy of the future associated with this promise.
   Future<T> future() const;
@@ -200,6 +205,29 @@ bool Promise<T>::set(const T& t)
 
 
 template <typename T>
+bool Promise<T>::set(const Future<T>& future)
+{
+  return associate(future);
+}
+
+
+template <typename T>
+bool Promise<T>::associate(const Future<T>& future)
+{
+  if (!f.isPending()) {
+    return false;
+  }
+
+  future
+    .onReady(std::tr1::bind(&Future<T>::set, f, std::tr1::placeholders::_1))
+    .onFailed(std::tr1::bind(&Future<T>::fail, f, std::tr1::placeholders::_1))
+    .onDiscarded(std::tr1::bind(&Future<T>::discard, f));
+
+  return true;
+}
+
+
+template <typename T>
 bool Promise<T>::fail(const std::string& message)
 {
   return f.fail(message);
@@ -215,6 +243,34 @@ Future<T> Promise<T>::future() const
 
 // Internal helper utilities.
 namespace internal {
+
+template <typename T>
+struct wrap
+{
+  typedef Future<T> Type;
+};
+
+
+template <typename X>
+struct wrap<Future<X> >
+{
+  typedef Future<X> Type;
+};
+
+
+template <typename T>
+struct unwrap
+{
+  typedef T Type;
+};
+
+
+template <typename X>
+struct unwrap<Future<X> >
+{
+  typedef X Type;
+};
+
 
 inline void acquire(int* lock)
 {
@@ -697,6 +753,31 @@ Future<X> Future<T>::then(
 
   return promise->future();
 }
+
+
+#if __cplusplus >= 201103L
+template <typename T>
+template <typename F>
+auto Future<T>::then(F f) const
+  -> typename internal::wrap<decltype(f(T()))>::Type
+{
+  typedef typename internal::unwrap<decltype(f(T()))>::Type X;
+
+  std::tr1::shared_ptr<Promise<X>> promise(new Promise<X>());
+
+  onAny([=] () {
+      if (this->isReady()) {
+        promise->set(f(this->get()));
+      } else if (this->isFailed()) {
+        promise->fail(this->failure());
+      } else if (this->isDiscarded()) {
+        promise->future().discard();
+      }
+    });
+
+  return promise->future();
+}
+#endif
 
 
 template <typename T>

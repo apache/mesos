@@ -5,6 +5,7 @@
 
 #include <sstream>
 
+#include <process/http.hpp>
 #include <process/process.hpp>
 
 #include "foreach.hpp"
@@ -110,10 +111,10 @@ private:
 class HttpResponseEncoder : public DataEncoder
 {
 public:
-  HttpResponseEncoder(const HttpResponse& response)
+  HttpResponseEncoder(const http::Response& response)
     : DataEncoder(encode(response)) {}
 
-  static std::string encode(const HttpResponse& response)
+  static std::string encode(const http::Response& response)
   {
     std::ostringstream out;
 

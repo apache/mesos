@@ -37,7 +37,7 @@ public:
     parser.data = this;
   }
 
-  std::deque<HttpRequest*> decode(const char* data, size_t length)
+  std::deque<http::Request*> decode(const char* data, size_t length)
   {
     size_t parsed = http_parser_execute(&parser, &settings, data, length);
 
@@ -46,12 +46,12 @@ public:
     }
 
     if (!requests.empty()) {
-      std::deque<HttpRequest*> result = requests;
+      std::deque<http::Request*> result = requests;
       requests.clear();
       return result;
     }
 
-    return std::deque<HttpRequest*>();
+    return std::deque<http::Request*>();
   }
 
   bool failed() const
@@ -76,7 +76,7 @@ private:
     decoder->value.clear();
 
     assert(decoder->request == NULL);
-    decoder->request = new HttpRequest();
+    decoder->request = new http::Request();
     decoder->request->headers.clear();
     decoder->request->method.clear();
     decoder->request->path.clear();
@@ -99,7 +99,7 @@ private:
   static int on_message_complete(http_parser* p)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
-//     std::cout << "HttpRequest:" << std::endl;
+//     std::cout << "http::Request:" << std::endl;
 //     std::cout << "  method: " << decoder->request->method << std::endl;
 //     std::cout << "  path: " << decoder->request->path << std::endl;
     decoder->requests.push_back(decoder->request);
@@ -188,9 +188,9 @@ private:
   std::string field;
   std::string value;
 
-  HttpRequest* request;
+  http::Request* request;
 
-  std::deque<HttpRequest*> requests;
+  std::deque<http::Request*> requests;
 };
 
 }  // namespace process {

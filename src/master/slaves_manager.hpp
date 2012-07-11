@@ -19,6 +19,7 @@
 #ifndef __SLAVES_MANAGER_HPP__
 #define __SLAVES_MANAGER_HPP__
 
+#include <process/http.hpp>
 #include <process/process.hpp>
 
 #include "configurator/configurator.hpp"
@@ -36,17 +37,41 @@ class Master;
 class SlavesManagerStorage : public process::Process<SlavesManagerStorage>
 {
 public:
-  virtual process::Future<bool> add(const std::string& hostname, uint16_t port) { return true; }
-  virtual process::Future<bool> remove(const std::string& hostname, uint16_t port) { return true; }
-  virtual process::Future<bool> activate(const std::string& hostname, uint16_t port) { return true; }
-  virtual process::Future<bool> deactivate(const std::string& hostname, uint16_t port) { return true; }
+  virtual process::Future<bool> add(
+      const std::string& hostname,
+      uint16_t port)
+  {
+    return true;
+  }
+
+  virtual process::Future<bool> remove(
+      const std::string& hostname,
+      uint16_t port)
+  {
+    return true;
+  }
+
+  virtual process::Future<bool> activate(
+      const std::string& hostname,
+      uint16_t port)
+  {
+    return true;
+  }
+
+  virtual process::Future<bool> deactivate(
+      const std::string& hostname,
+      uint16_t port)
+  {
+    return true;
+  }
 };
 
 
 class SlavesManager : public process::Process<SlavesManager>
 {
 public:
-  SlavesManager(const Configuration& conf, const process::PID<Master>& _master);
+  SlavesManager(const Configuration& conf,
+                const process::PID<Master>& _master);
 
   virtual ~SlavesManager();
 
@@ -61,12 +86,18 @@ public:
   void updateInactive(const multihashmap<std::string, uint16_t>& updated);
 
 private:
-  process::Future<process::HttpResponse> add(const process::HttpRequest& request);
-  process::Future<process::HttpResponse> remove(const process::HttpRequest& request);
-  process::Future<process::HttpResponse> activate(const process::HttpRequest& request);
-  process::Future<process::HttpResponse> deactivate(const process::HttpRequest& request);
-  process::Future<process::HttpResponse> activated(const process::HttpRequest& request);
-  process::Future<process::HttpResponse> deactivated(const process::HttpRequest& request);
+  process::Future<process::http::Response> add(
+      const process::http::Request& request);
+  process::Future<process::http::Response> remove(
+      const process::http::Request& request);
+  process::Future<process::http::Response> activate(
+      const process::http::Request& request);
+  process::Future<process::http::Response> deactivate(
+      const process::http::Request& request);
+  process::Future<process::http::Response> activated(
+      const process::http::Request& request);
+  process::Future<process::http::Response> deactivated(
+      const process::http::Request& request);
 
   const process::PID<Master> master;
 

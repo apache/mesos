@@ -51,7 +51,7 @@ public:
   bool operator == (const Option<T>& that) const
   {
     return (state == NONE && that.state == NONE) ||
-        (state == SOME && that.state == SOME && *t == *that.t);
+      (state == SOME && that.state == SOME && *t == *that.t);
   }
 
   bool operator != (const Option<T>& that) const

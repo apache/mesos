@@ -57,6 +57,7 @@
 #include <process/mime.hpp>
 #include <process/process.hpp>
 #include <process/socket.hpp>
+#include <process/thread.hpp>
 #include <process/timer.hpp>
 
 #include "config.hpp"
@@ -65,9 +66,15 @@
 #include "foreach.hpp"
 #include "gate.hpp"
 #include "synchronized.hpp"
-#include "thread.hpp"
 #include "tokenize.hpp"
 
+using process::http::BadRequest;
+using process::http::InternalServerError;
+using process::http::NotFound;
+using process::http::OK;
+using process::http::Request;
+using process::http::Response;
+using process::http::ServiceUnavailable;
 
 using std::deque;
 using std::find;
@@ -242,18 +249,18 @@ public:
 
   // Enqueues the response to be sent once all previously enqueued
   // responses have been processed (e.g., waited for and sent).
-  void enqueue(const HttpResponse& response, bool persist);
+  void enqueue(const Response& response, bool persist);
 
   // Enqueues a future to a response that will get waited on (up to
   // some timeout) and then sent once all previously enqueued
   // responses have been processed (e.g., waited for and sent).
-  void handle(Future<HttpResponse>* future, bool persist);
+  void handle(Future<Response>* future, bool persist);
 
 private:
   void next();
-  void waited(const Future<HttpResponse>& future);
-  void timedout(const Future<HttpResponse>& future);
-  void process(Future<HttpResponse>* future, bool persist);
+  void waited(const Future<Response>& future);
+  void timedout(const Future<Response>& future);
+  void process(Future<Response>* future, bool persist);
 
   Socket socket; // Wrap the socket to keep it from getting closed.
 
@@ -261,7 +268,7 @@ private:
   // and whether or not the socket should be persisted (vs closed).
   struct Item
   {
-    Item(Future<HttpResponse>* _future, bool _persist)
+    Item(Future<Response>* _future, bool _persist)
       : future(_future), persist(_persist) {}
 
     ~Item()
@@ -269,7 +276,7 @@ private:
       delete future;
     }
 
-    Future<HttpResponse>* future;
+    Future<Response>* future;
     bool persist;
   };
 
@@ -292,7 +299,7 @@ public:
   PID<HttpProxy> proxy(int s);
 
   void send(Encoder* encoder, int s, bool persist);
-  void send(const HttpResponse& response, int s, bool persist);
+  void send(const Response& response, int s, bool persist);
   void send(Message* message);
 
   Encoder* next(int s);
@@ -349,7 +356,7 @@ public:
 
   bool handle(
       const Socket& socket,
-      HttpRequest* request,
+      Request* request,
       ProcessBase* sender = NULL);
 
   bool deliver(
@@ -438,16 +445,6 @@ static bool pending_timers = false;
 // Flag to indicate whether or to update the timer on async interrupt.
 static bool update_timer = false;
 
-
-// Thread local process pointer magic (constructed in
-// 'initialize'). We need the extra level of indirection from
-// _process_ to __process__ so that we can take advantage of the
-// operators without needing the extra dereference.
-static ThreadLocal<ProcessBase>* _process_ = NULL;
-
-#define __process__ (*_process_)
-
-
 // Scheduling gate that threads wait at when there is nothing to run.
 static Gate* gate = new Gate();
 
@@ -459,6 +456,12 @@ static synchronizable(filterer) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
 
 // Global garbage collector.
 PID<GarbageCollector> gc;
+
+// Per thread process pointer.
+ThreadLocal<ProcessBase>* _process_ = new ThreadLocal<ProcessBase>();
+
+// Per thread executor pointer.
+ThreadLocal<Executor>* _executor_ = new ThreadLocal<Executor>();
 
 
 // We namespace the clock related variables to keep them well
@@ -654,7 +657,7 @@ static void transport(Message* message, ProcessBase* sender = NULL)
 }
 
 
-static bool libprocess(HttpRequest* request)
+static bool libprocess(Request* request)
 {
   return request->method == "POST" &&
     request->headers.count("User-Agent") > 0 &&
@@ -662,7 +665,7 @@ static bool libprocess(HttpRequest* request)
 }
 
 
-static Message* parse(HttpRequest* request)
+static Message* parse(Request* request)
 {
   // TODO(benh): Do better error handling (to deal with a malformed
   // libprocess message, malicious or otherwise).
@@ -748,7 +751,8 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
     VLOG(1) << "Handling timeouts up to "
             << std::fixed << std::setprecision(9) << now;
 
-    foreachkey (double timeout, *timeouts) {
+    double timeout;
+    foreachkey (timeout, *timeouts) {
       if (timeout > now) {
         break;
       }
@@ -866,10 +870,10 @@ void recv_data(struct ev_loop* loop, ev_io* watcher, int revents)
       CHECK(length > 0);
 
       // Decode as much of the data as possible into HTTP requests.
-      const deque<HttpRequest*>& requests = decoder->decode(data, length);
+      const deque<Request*>& requests = decoder->decode(data, length);
 
       if (!requests.empty()) {
-        foreach (HttpRequest* request, requests) {
+        foreach (Request* request, requests) {
           process_manager->handle(decoder->socket(), request);
         }
       } else if (requests.empty() && decoder->failed()) {
@@ -1136,8 +1140,6 @@ void* serve(void* arg)
 
 void* schedule(void* arg)
 {
-  __process__ = NULL; // Start off not running anything.
-
   do {
     ProcessBase* process = process_manager->dequeue();
     if (process == NULL) {
@@ -1226,14 +1228,6 @@ void initialize(const string& delegate)
   // Create a new ProcessManager and SocketManager.
   process_manager = new ProcessManager(delegate);
   socket_manager = new SocketManager();
-
-  // Setup the thread local process pointer.
-  pthread_key_t key;
-  if (pthread_key_create(&key, NULL) != 0) {
-    LOG(FATAL) << "Failed to initialize, pthread_key_create";
-  }
-
-  _process_ = new ThreadLocal<ProcessBase>(key);
 
   // Setup processing threads.
   long cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -1408,13 +1402,13 @@ HttpProxy::~HttpProxy()
 }
 
 
-void HttpProxy::enqueue(const HttpResponse& response, bool persist)
+void HttpProxy::enqueue(const Response& response, bool persist)
 {
-  handle(new Future<HttpResponse>(response), persist);
+  handle(new Future<Response>(response), persist);
 }
 
 
-void HttpProxy::handle(Future<HttpResponse>* future, bool persist)
+void HttpProxy::handle(Future<Response>* future, bool persist)
 {
   items.push(new Item(future, persist));
 
@@ -1445,7 +1439,7 @@ void HttpProxy::next()
 }
 
 
-void HttpProxy::waited(const Future<HttpResponse>& future)
+void HttpProxy::waited(const Future<Response>& future)
 {
   if (items.size() > 0) { // The timer might have already fired.
     Item* item = items.front();
@@ -1457,8 +1451,7 @@ void HttpProxy::waited(const Future<HttpResponse>& future)
       } else {
         // TODO(benh): Consider handling other "states" of future
         // (discarded, failed, etc) with different HTTP statuses.
-        socket_manager->send(
-            HttpServiceUnavailableResponse(), socket, item->persist);
+        socket_manager->send(ServiceUnavailable(), socket, item->persist);
       }
 
       items.pop();
@@ -1470,13 +1463,12 @@ void HttpProxy::waited(const Future<HttpResponse>& future)
 }
 
 
-void HttpProxy::timedout(const Future<HttpResponse>& future)
+void HttpProxy::timedout(const Future<Response>& future)
 {
   if (items.size() > 0) { // We might not have been able to cancel the timer.
     Item* item = items.front();
     if (future == *item->future) {
-      socket_manager->send(
-          HttpServiceUnavailableResponse(), socket, item->persist);
+      socket_manager->send(ServiceUnavailable(), socket, item->persist);
       items.pop();
       delete item;
     }
@@ -1486,11 +1478,11 @@ void HttpProxy::timedout(const Future<HttpResponse>& future)
 }
 
 
-void HttpProxy::process(Future<HttpResponse>* future, bool persist)
+void HttpProxy::process(Future<Response>* future, bool persist)
 {
   CHECK(future->isReady());
 
-  HttpResponse response = future->get();
+  Response response = future->get();
 
   // Don't persist connection if headers include 'Connection: close'.
   if (response.headers.count("Connection") > 0) {
@@ -1501,7 +1493,7 @@ void HttpProxy::process(Future<HttpResponse>* future, bool persist)
   }
 
   // If the response specifies a path, try and perform a sendfile.
-  if (response.type == HttpResponse::PATH) {
+  if (response.type == Response::PATH) {
     // Make sure no body is sent (this is really an error and
     // should be reported and no response sent.
     response.body.clear();
@@ -1511,25 +1503,21 @@ void HttpProxy::process(Future<HttpResponse>* future, bool persist)
     if (fd < 0) {
       if (errno == ENOENT || errno == ENOTDIR) {
           VLOG(1) << "Returning '404 Not Found' for path '" << path << "'";
-          socket_manager->send(
-              HttpNotFoundResponse(), socket, persist);
+          socket_manager->send(NotFound(), socket, persist);
       } else {
         const char* error = strerror(errno);
         VLOG(1) << "Failed to send file at '" << path << "': " << error;
-        socket_manager->send(
-                             HttpInternalServerErrorResponse(), socket, persist);
+        socket_manager->send(InternalServerError(), socket, persist);
       }
     } else {
       struct stat s; // Need 'struct' because of function named 'stat'.
       if (fstat(fd, &s) != 0) {
         const char* error = strerror(errno);
         VLOG(1) << "Failed to send file at '" << path << "': " << error;
-        socket_manager->send(
-            HttpInternalServerErrorResponse(), socket, persist);
+        socket_manager->send(InternalServerError(), socket, persist);
       } else if (S_ISDIR(s.st_mode)) {
         VLOG(1) << "Returning '404 Not Found' for directory '" << path << "'";
-        socket_manager->send(
-            HttpNotFoundResponse(), socket, persist);
+        socket_manager->send(NotFound(), socket, persist);
       } else {
         // While the user is expected to properly set a 'Content-Type'
         // header, we fill in the 'Content-Length' header.
@@ -1726,7 +1714,7 @@ void SocketManager::send(Encoder* encoder, int s, bool persist)
 }
 
 
-void SocketManager::send(const HttpResponse& response, int s, bool persist)
+void SocketManager::send(const Response& response, int s, bool persist)
 {
   send(new HttpResponseEncoder(response), s, persist);
 }
@@ -1923,7 +1911,7 @@ void SocketManager::close(int s)
   //
   // Because, for example, there could be a race between an HttpProxy
   // trying to do send a response with SocketManager::send() or a
-  // process might be responding to another HttpRequest (e.g., trying
+  // process might be responding to another Request (e.g., trying
   // to do a sendfile) since these things may be happening
   // asynchronously we can't close the socket yet, because it might
   // get reused before any of the above things have finished, and then
@@ -2027,7 +2015,7 @@ ProcessReference ProcessManager::use(const UPID& pid)
 
 bool ProcessManager::handle(
     const Socket& socket,
-    HttpRequest* request,
+    Request* request,
     ProcessBase* sender)
 {
   CHECK(request != NULL);
@@ -2059,8 +2047,7 @@ bool ProcessManager::handle(
 
     // Enqueue the response with the HttpProxy so that it respects the
     // order of requests to account for HTTP/1.1 pipelining.
-    dispatch(proxy, &HttpProxy::enqueue,
-             HttpBadRequestResponse(), request->keepAlive);
+    dispatch(proxy, &HttpProxy::enqueue, BadRequest(), request->keepAlive);
 
     // Cleanup request.
     delete request;
@@ -2077,8 +2064,7 @@ bool ProcessManager::handle(
 
     // Enqueue the response with the HttpProxy so that it respects the
     // order of requests to account for HTTP/1.1 pipelining.
-    dispatch(proxy, &HttpProxy::enqueue,
-             HttpNotFoundResponse(), request->keepAlive);
+    dispatch(proxy, &HttpProxy::enqueue, NotFound(), request->keepAlive);
 
     // Cleanup request.
     delete request;
@@ -2130,8 +2116,7 @@ bool ProcessManager::handle(
 
     // Enqueue the response with the HttpProxy so that it respects the
     // order of requests to account for HTTP/1.1 pipelining.
-    dispatch(proxy, &HttpProxy::enqueue,
-             HttpNotFoundResponse(), request->keepAlive);
+    dispatch(proxy, &HttpProxy::enqueue, NotFound(), request->keepAlive);
 
     // Cleanup request.
     delete request;
@@ -2759,7 +2744,7 @@ void ProcessBase::visit(const HttpEvent& event)
   VLOG(1) << "Handling HTTP event for process '" << pid.id << "'"
           << " with path: '" << event.request->path << "'";
 
-  CHECK(event.request->path.find('/') == 0); // See ProcessManager::deliver.
+  CHECK(event.request->path.find('/') == 0); // See ProcessManager::handle.
 
   // Split the path by '/'.
   vector<string> tokens = tokenize(event.request->path, "/");
@@ -2771,10 +2756,10 @@ void ProcessBase::visit(const HttpEvent& event)
   if (handlers.http.count(name) > 0) {
     // Create the promise to link with whatever gets returned, as well
     // as a future to wait for the response.
-    std::tr1::shared_ptr<Promise<HttpResponse> > promise(
-        new Promise<HttpResponse>());
+    std::tr1::shared_ptr<Promise<Response> > promise(
+        new Promise<Response>());
 
-    Future<HttpResponse>* future = new Future<HttpResponse>(promise->future());
+    Future<Response>* future = new Future<Response>(promise->future());
 
     // Get the HttpProxy pid for this socket.
     PID<HttpProxy> proxy = socket_manager->proxy(event.socket);
@@ -2785,8 +2770,8 @@ void ProcessBase::visit(const HttpEvent& event)
     // Now call the handler and associate the response with the promise.
     promise->associate(handlers.http[name](*event.request));
   } else if (assets.count(name) > 0) {
-    HttpOKResponse response;
-    response.type = HttpResponse::PATH;
+    OK response;
+    response.type = Response::PATH;
     response.path = assets[name].path;
 
     // Construct the final path by appending remaining tokens.
@@ -2823,7 +2808,7 @@ void ProcessBase::visit(const HttpEvent& event)
     // Enqueue the response with the HttpProxy so that it respects the
     // order of requests to account for HTTP/1.1 pipelining.
     dispatch(proxy, &HttpProxy::enqueue,
-             HttpNotFoundResponse(), event.request->keepAlive);
+             NotFound(), event.request->keepAlive);
   }
 }
 

@@ -30,16 +30,17 @@
 #include "slave/http.hpp"
 #include "slave/slave.hpp"
 
-using process::Future;
-using process::HttpResponse;
-using process::HttpRequest;
-
-using std::string;
-
-
 namespace mesos {
 namespace internal {
 namespace slave {
+
+using process::Future;
+
+using process::http::OK;
+using process::http::Response;
+using process::http::Request;
+
+using std::string;
 
 // TODO(benh): Consider moving the modeling code some place else so
 // that it can be shared between slave/http.cpp and master/http.cpp.
@@ -112,9 +113,9 @@ JSON::Object model(const Framework& framework)
 
 namespace http {
 
-Future<HttpResponse> vars(
+Future<Response> vars(
     const Slave& slave,
-    const HttpRequest& request)
+    const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
@@ -135,7 +136,7 @@ Future<HttpResponse> vars(
     out << key << " " << value << "\n";
   }
 
-  HttpOKResponse response;
+  OK response;
   response.headers["Content-Type"] = "text/plain";
   response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
@@ -145,9 +146,9 @@ Future<HttpResponse> vars(
 
 namespace json {
 
-Future<HttpResponse> stats(
+Future<Response> stats(
     const Slave& slave,
-    const HttpRequest& request)
+    const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
@@ -167,7 +168,7 @@ Future<HttpResponse> stats(
 
   JSON::render(out, object);
 
-  HttpOKResponse response;
+  OK response;
   response.headers["Content-Type"] = "application/json";
   response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
@@ -175,9 +176,9 @@ Future<HttpResponse> stats(
 }
 
 
-Future<HttpResponse> state(
+Future<Response> state(
     const Slave& slave,
-    const HttpRequest& request)
+    const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
@@ -202,7 +203,7 @@ Future<HttpResponse> state(
 
   JSON::render(out, object);
 
-  HttpOKResponse response;
+  OK response;
   response.headers["Content-Type"] = "application/json";
   response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();

@@ -1,54 +1,42 @@
 #include <iostream>
 #include <sstream>
 
-#include <process.hpp>
+#include <process/defer.hpp>
+#include <process/dispatch.hpp>
+#include <process/future.hpp>
+#include <process/http.hpp>
+#include <process/process.hpp>
 
+using namespace process;
 
-using process::Future;
-using process::HttpOKResponse;
-using process::HttpRequest;
-using process::HttpResponse;
-using process::PID;
-using process::Process;
-using process::Promise;
+using namespace process::http;
 
+using std::string;
 
 class MyProcess : public Process<MyProcess>
 {
 public:
-  MyProcess()
-  {
-    std::cout << "MyProcess at " << self() << std::endl;
+  MyProcess() {}
+  virtual ~MyProcess() {}
 
-    install("ehlo", &MyProcess::ehlo);
-    install("vars", &MyProcess::vars);
-  }
-
-  Promise<int> func1()
+  Future<int> func1()
   {
-    std::cout << "MyProcess::func1 (this = " << this << ")" << std::endl;
-    return promise;
+    promise.future().onAny(
+        defer([=] () {
+            terminate(self());
+          }));
+    return promise.future();
   }
 
   void func2(int i)
   {
-    std::cout << "MyProcess::func2 (this = " << this << ")" << std::endl;
     promise.set(i);
   }
 
-  void ehlo()
+  Future<Response> vars(const Request& request)
   {
-    std::cout << "MyProcess::ehlo (this = " << this << ")" << std::endl;
-    std::cout << "from(): " << from() << std::endl;
-    std::cout << "name(): " << name() << std::endl;
-    std::cout << "body(): " << body() << std::endl;
-  }
-
-  Promise<HttpResponse> vars(const HttpRequest& request)
-  {
-    std::cout << "MyProcess::vars (this = " << this << ")" << std::endl;
-    std::string body = "... vars here ...";
-    HttpOKResponse response;
+    string body = "... vars here ...";
+    OK response;
     response.headers["Content-Type"] = "text/plain";
     std::ostringstream out;
     out << body.size();
@@ -57,26 +45,77 @@ public:
     return response;
   }
 
+  void stop(const UPID& from, const string& body)
+  {
+    terminate(self());
+  }
+
+protected:
+  virtual void initialize()
+  {
+//     route("/vars", &MyProcess::vars);
+    route("/vars", [=] (const Request& request) {
+        string body = "... vars here ...";
+        OK response;
+        response.headers["Content-Type"] = "text/plain";
+        std::ostringstream out;
+        out << body.size();
+        response.headers["Content-Length"] = out.str();
+        response.body = body;
+        return response;
+      });
+
+//     install("stop", &MyProcess::stop);
+    install("stop", [=] (const UPID& from, const string& body) {
+        terminate(self());
+      });
+  }
+
 private:
   Promise<int> promise;
 };
 
 
-class Foo : public Process<Foo> {};
-
-
 int main(int argc, char** argv)
 {
   MyProcess process;
-  PID<MyProcess> pid = process::spawn(&process);
+  PID<MyProcess> pid = spawn(&process);
 
-  Future<int> future = process::dispatch(pid, &MyProcess::func1);
-  process::dispatch(pid, &MyProcess::func2, 42);
+  PID<> pid2 = pid;
 
-  std::cout << future.get() << std::endl;
+// --------------------------------------
 
-  process::post(pid, "ehlo");
+//   Future<int> future = dispatch(pid, &MyProcess::func1);
+//   dispatch(pid, &MyProcess::func2, 42);
 
-  process::wait(pid);
+//   std::cout << future.get() << std::endl;
+
+//   post(pid, "stop");
+
+// --------------------------------------
+
+//   Promise<bool> p;
+
+//   dispatch(pid, &MyProcess::func1)
+//     .then([=, &p] (int i) {
+//         p.set(i == 42);
+//         return p.future();
+//       })
+//     .then([=] (bool b) {
+//         if (b) {
+//           post(pid, "stop");
+//         }
+//         return true; // No Future<void>.
+//       });
+
+//   dispatch(pid, &MyProcess::func2, 42);
+
+// --------------------------------------
+
+  dispatch(pid, &MyProcess::func1);
+  dispatch(pid, &MyProcess::func2, 42);
+
+
+  wait(pid);
   return 0;
 }
