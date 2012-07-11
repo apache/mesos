@@ -27,6 +27,7 @@
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
 
+#include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 #include "tests/utils.hpp"
@@ -126,32 +127,36 @@ int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  Configurator configurator;
-
-  logging::registerOptions(&configurator);
+  flags::Flags<logging::Flags> flags;
 
   // We log to stderr by default, but when running tests we'd prefer
   // less junk to fly by, so force one to specify the verbosity.
-  configurator.addOption<bool>(
-      "verbose",
-      'v',
-      "Log all severity levels to stderr (default: serverity above ERROR)",
-      false);
+  bool verbose;
 
-  configurator.addOption<bool>(
-      "help",
-      'h',
-      "Prints this usage message");
+  flags.add(&verbose,
+            "verbose",
+            "Log all severity levels to stderr",
+            false);
 
-  Configuration conf;
+  bool help;
+  flags.add(&help,
+            "help",
+            "Prints this help message",
+            false);
+
+  Configurator configurator(flags);
+  Configuration configuration;
   try {
-    conf = configurator.load(argc, argv);
-  } catch (const ConfigurationException& e) {
+    configuration = configurator.load(argc, argv);
+  } catch (ConfigurationException& e) {
     cerr << "Configuration error: " << e.what() << endl;
+    usage(argv[0], configurator);
     exit(1);
   }
 
-  if (conf.contains("help")) {
+  flags.load(configuration.getMap());
+
+  if (help) {
     usage(argv[0], configurator);
     cerr << endl;
     testing::InitGoogleTest(&argc, argv); // Get usage from gtest too.
@@ -162,10 +167,12 @@ int main(int argc, char** argv)
   process::initialize();
 
   // Be quiet by default!
-  conf.set("quiet", !conf.get("verbose", false));
+  if (!verbose) {
+    flags.quiet = true;
+  }
 
   // Initialize logging.
-  logging::initialize(argv[0], conf);
+  logging::initialize(argv[0], flags);
 
   // Initialize gmock/gtest.
   testing::InitGoogleTest(&argc, argv);

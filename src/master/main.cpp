@@ -21,6 +21,7 @@
 #include "common/try.hpp"
 #include "common/utils.hpp"
 
+#include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
 
 #include "detector/detector.hpp"

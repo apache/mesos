@@ -30,71 +30,6 @@ namespace mesos {
 namespace internal {
 namespace logging {
 
-void registerOptions(Configurator* configurator)
-{
-  configurator->addOption<bool>(
-      "quiet",
-      'q',
-      "Disable logging to stderr (default: false)",
-      false);
-
-  configurator->addOption<string>(
-      "log_dir",
-      "Location to put log files (no default, nothing"
-      " is written to disk unless specified; "
-      " does not affect logging to stderr)");
-
-  configurator->addOption<int>(
-      "logbufsecs",
-      "How many seconds to buffer log messages for (default: 0)",
-      0);
-}
-
-
-void initialize(const string& _argv0, const Configuration& conf)
-{
-  static process::Once initialized;
-
-  if (initialized.once()) {
-    return;
-  }
-
-  // Persistent copy of argv0 since InitGoogleLogging requires the
-  // string we pass to it to be accessible indefinitely.
-  static string argv0 = _argv0;
-
-  Option<string> directory = conf.get<string>("log_dir");
-
-  // Set glog's parameters through Google Flags variables.
-  if (directory.isSome()) {
-    if (!utils::os::mkdir(directory.get())) {
-      std::cerr << "Could not initialize logging: Failed to create directory "
-                << directory.get() << std::endl;
-      exit(1);
-    }
-    FLAGS_log_dir = directory.get();
-  }
-
-
-  // Log everything to stderr IN ADDITION to log files unless
-  // otherwise specified.
-  bool quiet = conf.get<bool>("quiet", false);
-
-  if (!quiet) {
-    FLAGS_stderrthreshold = 0; // INFO.
-  }
-
-  FLAGS_logbufsecs = conf.get<int>("logbufsecs", 0);
-
-  google::InitGoogleLogging(argv0.c_str());
-
-  LOG(INFO) << "Logging to " <<
-    (directory.isSome() ? directory.get() : "STDERR");
-
-  initialized.done();
-}
-
-
 void initialize(const string& _argv0, const Flags& flags)
 {
   static process::Once initialized;
@@ -116,7 +51,6 @@ void initialize(const string& _argv0, const Flags& flags)
     }
     FLAGS_log_dir = flags.log_dir.get();
   }
-
 
   // Log everything to stderr IN ADDITION to log files unless
   // otherwise specified.

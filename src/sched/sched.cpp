@@ -49,8 +49,11 @@
 
 #include "detector/detector.hpp"
 
+#include "flags/flags.hpp"
+
 #include "local/local.hpp"
 
+#include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 #include "messages/messages.hpp"
@@ -656,6 +659,10 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     return;
   }
 
+  flags::Flags<logging::Flags> flags;
+
+  flags.load(configuration.getMap());
+
   // Initialize libprocess.
   process::initialize();
 
@@ -665,7 +672,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
   configuration.set("quiet", master == "localquiet");
 
   // TODO(benh): Replace whitespace in framework.name() with '_'?
-  logging::initialize(framework.name(), configuration);
+  logging::initialize(framework.name(), flags);
 
   // Initialize mutex and condition variable. TODO(benh): Consider
   // using a libprocess Latch rather than a pthread mutex and

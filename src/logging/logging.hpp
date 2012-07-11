@@ -32,8 +32,6 @@ namespace mesos {
 namespace internal {
 namespace logging {
 
-void registerOptions(Configurator* configurator);
-void initialize(const std::string& argv0, const Configuration& conf);
 void initialize(const std::string& argv0, const Flags& flags);
 
 } // namespace logging {

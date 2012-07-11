@@ -16,39 +16,31 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_LOCAL_HPP__
-#define __MESOS_LOCAL_HPP__
+#ifndef __LOCAL_FLAGS_HPP__
+#define __LOCAL_FLAGS_HPP__
 
-#include <process/process.hpp>
-
-#include "configurator/configuration.hpp"
-
-#include "master/allocator.hpp"
-#include "master/master.hpp"
+#include "flags/flags.hpp"
 
 namespace mesos {
 namespace internal {
 namespace local {
 
-// Launch a local cluster with a given number of slaves and given numbers
-// of CPUs and memory per slave. Additionally one can also toggle whether
-// to initialize Google Logging and whether to log quietly.
-process::PID<master::Master> launch(int numSlaves,
-                                    int32_t cpus,
-                                    int64_t mem,
-                                    bool quiet,
-                                    master::Allocator* _allocator = NULL);
+class Flags : public virtual flags::FlagsBase
+{
+public:
+  Flags()
+  {
+    add(&Flags::num_slaves,
+        "num_slaves",
+        "Number of slaves to launch for local cluster",
+        1);
+  }
 
-
-// Launch a local cluster with a given configuration.
-process::PID<master::Master> launch(const Configuration& configuration,
-                                    master::Allocator* _allocator = NULL);
-
-
-void shutdown();
+  int num_slaves;
+};
 
 } // namespace local {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_LOCAL_HPP__
+#endif // __LOCAL_FLAGS_HPP__

@@ -19,12 +19,14 @@
 #include <iostream>
 #include <string>
 
+#include "common/stringify.hpp"
 #include "common/utils.hpp"
 
 #include "configurator/configurator.hpp"
 
 #include "detector/detector.hpp"
 
+#include "local/flags.hpp"
 #include "local/local.hpp"
 
 #include "master/master.hpp"
@@ -58,42 +60,58 @@ int main(int argc, char **argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  Configurator configurator;
+  // TODO(benh): Add master and slave flags! This is impossible right
+  // now because both have 'webui_dir' and 'webui_port' that
+  // conflict. For now, all the flags will still get "validated" when
+  // we load them (i.e., in local::launch), they just won't be visible
+  // when you do '--help' (which is probably not a huge issue for
+  // mesos-local).
+  flags::Flags<logging::Flags, local::Flags> flags;
 
-  logging::registerOptions(&configurator);
+  // The following flags are executable specific (e.g., since we only
+  // have one instance of libprocess per execution, we only want to
+  // advertise the port and ip option once, here).
+  short port;
+  flags.add(&port, "port", "Port to listen on", 5050);
 
-  local::registerOptions(&configurator);
+  Option<string> ip;
+  flags.add(&ip, "ip", "IP address to listen on");
 
-  configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
-  configurator.addOption<string>("ip", "IP address to listen on");
+  bool help;
+  flags.add(&help,
+            "help",
+            "Prints this help message",
+            false);
 
-  if (argc == 2 && string("--help") == argv[1]) {
+  Configurator configurator(flags);
+  Configuration configuration;
+  try {
+    configuration = configurator.load(argc, argv);
+  } catch (ConfigurationException& e) {
+    cerr << "Configuration error: " << e.what() << endl;
     usage(argv[0], configurator);
     exit(1);
   }
 
-  Configuration conf;
-  try {
-    conf = configurator.load(argc, argv);
-  } catch (ConfigurationException& e) {
-    cerr << "Configuration error: " << e.what() << endl;
+  flags.load(configuration.getMap());
+
+  if (help) {
+    usage(argv[0], configurator);
     exit(1);
   }
 
-  if (conf.contains("port")) {
-    utils::os::setenv("LIBPROCESS_PORT", conf["port"]);
-  }
-
-  if (conf.contains("ip")) {
-    utils::os::setenv("LIBPROCESS_IP", conf["ip"]);
-  }
-
   // Initialize libprocess.
+  utils::os::setenv("LIBPROCESS_PORT", stringify(port));
+
+  if (ip.isSome()) {
+    utils::os::setenv("LIBPROCESS_IP", ip.get());
+  }
+
   process::initialize("master");
 
-  logging::initialize(argv[0], conf);
+  logging::initialize(argv[0], flags);
 
-  process::wait(local::launch(conf, false));
+  process::wait(local::launch(configuration, false));
 
   return 0;
 }

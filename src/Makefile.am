@@ -198,13 +198,13 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	configurator/configurator.hpp configurator/option.hpp		\
 	detector/detector.hpp flags/flag.hpp flags/flags.hpp		\
 	flags/loader.hpp launcher/launcher.hpp linux/cgroups.hpp	\
-	linux/fs.hpp linux/proc.hpp local/local.hpp logging/flags.hpp	\
-	logging/logging.hpp master/allocator.hpp master/constants.hpp	\
-	master/frameworks_manager.hpp master/http.hpp			\
-	master/master.hpp master/dominant_share_allocator.hpp		\
-	master/slaves_manager.hpp master/webui.hpp			\
-	messages/messages.hpp slave/constants.hpp slave/flags.hpp	\
-	slave/http.hpp slave/isolation_module.hpp			\
+	linux/fs.hpp linux/proc.hpp local/flags.hpp local/local.hpp	\
+	logging/flags.hpp logging/logging.hpp master/allocator.hpp	\
+	master/constants.hpp master/frameworks_manager.hpp		\
+	master/http.hpp master/master.hpp				\
+	master/dominant_share_allocator.hpp master/slaves_manager.hpp	\
+	master/webui.hpp messages/messages.hpp slave/constants.hpp	\
+	slave/flags.hpp slave/http.hpp slave/isolation_module.hpp	\
 	slave/isolation_module_factory.hpp				\
 	slave/lxc_isolation_module.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\

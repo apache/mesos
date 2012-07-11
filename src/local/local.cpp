@@ -68,15 +68,6 @@ static map<IsolationModule*, Slave*> slaves;
 static MasterDetector* detector = NULL;
 
 
-void registerOptions(Configurator* configurator)
-{
-  configurator->addOption<int>(
-      "num_slaves",
-      "Number of slaves to create for local cluster",
-      1);
-}
-
-
 PID<Master> launch(int numSlaves,
                    int32_t cpus,
                    int64_t mem,

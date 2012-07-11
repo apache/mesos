@@ -174,8 +174,7 @@ TEST(FlagsTest, Configurator)
   try {
     configuration = configurator.load(argc, argv);
   } catch (mesos::internal::ConfigurationException& e) {
-    std::cerr << "Configuration error: " << e.what() << std::endl;
-    FAIL();
+    FAIL() << "Configuration error: " << e.what();
   }
 
   flags.load(configuration.getMap());
