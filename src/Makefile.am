@@ -747,6 +747,7 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/protobuf_io_tests.cpp			\
 	              tests/lxc_isolation_tests.cpp			\
 	              tests/utils_tests.cpp				\
+	              tests/stout_tests.cpp				\
 	              tests/zookeeper_url_tests.cpp			\
 	              tests/killtree_tests.cpp				\
 	              tests/exception_tests.cpp				\
