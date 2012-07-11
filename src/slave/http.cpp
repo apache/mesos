@@ -131,10 +131,7 @@ Future<Response> vars(
     "build_user " << build::USER << "\n" <<
     "build_flags " << build::FLAGS << "\n";
 
-  // Also add the configuration values.
-  foreachpair (const string& key, const string& value, slave.conf.getMap()) {
-    out << key << " " << value << "\n";
-  }
+  // TODO(benh): Output flags.
 
   OK response;
   response.headers["Content-Type"] = "text/plain";

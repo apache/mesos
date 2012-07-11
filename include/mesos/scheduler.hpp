@@ -41,8 +41,6 @@ class SchedulerDriver;
 
 namespace internal {
 class SchedulerProcess;
-class MasterDetector;
-class Configuration;
 }
 
 
@@ -364,12 +362,6 @@ private:
 
   // Libprocess process for communicating with master.
   internal::SchedulerProcess* process;
-
-  // Coordination between masters
-  internal::MasterDetector* detector;
-
-  // Configuration options.
-  internal::Configuration* conf;
 
   // Mutex to enforce all non-callbacks are execute serially.
   pthread_mutex_t mutex;

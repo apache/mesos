@@ -203,8 +203,9 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	master/frameworks_manager.hpp master/http.hpp			\
 	master/master.hpp master/dominant_share_allocator.hpp		\
 	master/slaves_manager.hpp master/webui.hpp			\
-	messages/messages.hpp slave/constants.hpp slave/http.hpp	\
-	slave/isolation_module.hpp slave/isolation_module_factory.hpp	\
+	messages/messages.hpp slave/constants.hpp slave/flags.hpp	\
+	slave/http.hpp slave/isolation_module.hpp			\
+	slave/isolation_module_factory.hpp				\
 	slave/lxc_isolation_module.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\

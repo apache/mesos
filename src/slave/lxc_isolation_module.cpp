@@ -30,6 +30,7 @@
 
 #include "launcher/launcher.hpp"
 
+#include "slave/flags.hpp"
 #include "slave/lxc_isolation_module.hpp"
 
 using namespace mesos;
@@ -80,11 +81,11 @@ LxcIsolationModule::~LxcIsolationModule()
 
 
 void LxcIsolationModule::initialize(
-    const Configuration& _conf,
+    const Flags& _flags,
     bool _local,
     const PID<Slave>& _slave)
 {
-  conf = _conf;
+  flags = _flags;
   local = _local;
   slave = _slave;
 
@@ -180,10 +181,10 @@ void LxcIsolationModule::launchExecutor(
 			   frameworkInfo.user(),
                            directory,
 			   slave,
-			   conf.get<string>("frameworks_home", ""),
-			   conf.get<string>("hadoop_home", ""),
+			   flags.frameworks_home,
+			   flags.hadoop_home,
 			   !local,
-			   conf.get<bool>("switch_user", true),
+			   flags.switch_user,
 			   container);
 
     launcher->setupEnvironmentForLauncherMain();
@@ -205,8 +206,7 @@ void LxcIsolationModule::launchExecutor(
     }
 
     // Determine path for mesos-launcher from Mesos home directory.
-    string path =
-      conf.get<string>("launcher_dir", MESOS_LIBEXECDIR) + "/mesos-launcher";
+    string path = utils::path::join(flags.launcher_dir, "mesos-launcher");
     args[i++] = path.c_str();
     args[i++] = NULL;
 

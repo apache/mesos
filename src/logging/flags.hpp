@@ -19,6 +19,10 @@
 #ifndef __LOGGING_FLAGS_HPP__
 #define __LOGGING_FLAGS_HPP__
 
+#include <string>
+
+#include "common/option.hpp"
+
 #include "flags/flags.hpp"
 
 namespace mesos {

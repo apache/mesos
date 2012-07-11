@@ -25,13 +25,15 @@
 
 #include <process/process.hpp>
 
-#include "configurator/configuration.hpp"
-
 #include "common/resources.hpp"
 
+#include "slave/flags.hpp"
 
-namespace mesos { namespace internal { namespace slave {
+namespace mesos {
+namespace internal {
+namespace slave {
 
+// Forward declaration.
 class Slave;
 
 
@@ -44,7 +46,7 @@ public:
   virtual ~IsolationModule() {}
 
   // Called during slave initialization.
-  virtual void initialize(const Configuration& conf,
+  virtual void initialize(const Flags& flags,
                           bool local,
                           const process::PID<Slave>& slave) = 0;
 
@@ -67,6 +69,8 @@ public:
                                 const Resources& resources) = 0;
 };
 
-}}} // namespace mesos { namespace internal { namespace slave {
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __ISOLATION_MODULE_HPP__

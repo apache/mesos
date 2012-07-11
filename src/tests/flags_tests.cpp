@@ -170,15 +170,15 @@ TEST(FlagsTest, Configurator)
   argv[5] = "--name5";
 
   mesos::internal::Configurator configurator(flags);
-  mesos::internal::Configuration conf;
+  mesos::internal::Configuration configuration;
   try {
-    conf = configurator.load(argc, argv);
+    configuration = configurator.load(argc, argv);
   } catch (mesos::internal::ConfigurationException& e) {
     std::cerr << "Configuration error: " << e.what() << std::endl;
     FAIL();
   }
 
-  flags.load(conf.getMap());
+  flags.load(configuration.getMap());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);

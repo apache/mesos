@@ -24,6 +24,7 @@
 #include <process/protobuf.hpp>
 
 #include "slave/constants.hpp"
+#include "slave/flags.hpp"
 #include "slave/http.hpp"
 #include "slave/isolation_module.hpp"
 
@@ -34,12 +35,12 @@
 #include "common/utils.hpp"
 #include "common/uuid.hpp"
 
-#include "configurator/configurator.hpp"
-
 #include "messages/messages.hpp"
 
 
-namespace mesos { namespace internal { namespace slave {
+namespace mesos {
+namespace internal {
+namespace slave {
 
 using namespace process;
 
@@ -55,13 +56,11 @@ public:
         bool local,
         IsolationModule* isolationModule);
 
-  Slave(const Configuration& conf,
+  Slave(const Flags& flags,
         bool local,
         IsolationModule *isolationModule);
 
   virtual ~Slave();
-
-  static void registerOptions(Configurator* configurator);
 
   void shutdown();
 
@@ -177,7 +176,7 @@ private:
       const Slave& slave,
       const process::http::Request& request);
 
-  const Configuration conf;
+  const Flags flags;
 
   bool local;
 
@@ -205,8 +204,6 @@ private:
   double startTime;
 
   bool connected; // Flag to indicate if slave is registered.
-
-  std::string workRootDir; // Root directory under which executor work directories are stored.
 };
 
 
@@ -305,8 +302,11 @@ struct Framework
   Framework(const FrameworkID& _id,
             const FrameworkInfo& _info,
             const UPID& _pid,
-            const Configuration& _conf)
-    : id(_id), info(_info), pid(_pid), conf(_conf) {}
+            const Flags& _flags)
+    : id(_id),
+      info(_info),
+      pid(_pid),
+      flags(_flags) {}
 
   ~Framework() {}
 
@@ -331,11 +331,8 @@ struct Framework
       executor.mutable_executor_id()->set_value(id);
 
       // Now determine the path to the executor.
-      std::string directory =
-        conf.get<std::string>("launcher_dir", MESOS_LIBEXECDIR);
-
-      Try<std::string> path =
-        utils::os::realpath(directory + "/mesos-executor");
+      Try<std::string> path = utils::os::realpath(
+          utils::path::join(flags.launcher_dir, "mesos-executor"));
 
       if (path.isSome()) {
         executor.mutable_command()->set_value(path.get());
@@ -400,7 +397,7 @@ struct Framework
 
   UPID pid;
 
-  const Configuration conf;
+  const Flags flags;
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
@@ -409,6 +406,8 @@ struct Framework
   hashmap<UUID, StatusUpdate> updates;
 };
 
-}}}
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __SLAVE_HPP__

@@ -28,6 +28,7 @@
 #include "common/utils.hpp"
 #include "common/process_utils.hpp"
 
+#include "slave/flags.hpp"
 #include "slave/process_based_isolation_module.hpp"
 
 using namespace mesos;
@@ -67,11 +68,11 @@ ProcessBasedIsolationModule::~ProcessBasedIsolationModule()
 
 
 void ProcessBasedIsolationModule::initialize(
-    const Configuration& _conf,
+    const Flags& _flags,
     bool _local,
     const PID<Slave>& _slave)
 {
-  conf = _conf;
+  flags = _flags;
   local = _local;
   slave = _slave;
 
@@ -238,10 +239,10 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
                               frameworkInfo.user(),
                               directory,
                               slave,
-                              conf.get<string>("frameworks_home", ""),
-                              conf.get<string>("hadoop_home", ""),
+                              flags.frameworks_home,
+                              flags.hadoop_home,
                               !local,
-                              conf.get<bool>("switch_user", true),
+                              flags.switch_user,
                               "");
 }
 

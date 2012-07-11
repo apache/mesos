@@ -23,14 +23,20 @@
 
 #include <process/process.hpp>
 
-#include "slave.hpp"
+#include "flags/flags.hpp"
+
+#include "logging/flags.hpp"
+
+#include "slave/flags.hpp"
+#include "slave/slave.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
 namespace webui {
 
-void start(const process::PID<Slave>& slave, const Configuration& conf);
+void start(const process::PID<Slave>& slave,
+           const flags::Flags<logging::Flags, slave::Flags>& flags);
 
 } // namespace webui {
 } // namespace slave {

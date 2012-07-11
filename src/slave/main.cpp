@@ -17,13 +17,18 @@
  */
 
 #include "common/build.hpp"
+#include "common/stringify.hpp"
 #include "common/try.hpp"
 #include "common/utils.hpp"
 
+#include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
 
 #include "detector/detector.hpp"
 
+#include "flags/flags.hpp"
+
+#include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 #include "slave/isolation_module_factory.hpp"
@@ -51,67 +56,72 @@ int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  Configurator configurator;
+  flags::Flags<logging::Flags, slave::Flags> flags;
 
-  logging::registerOptions(&configurator);
+  // The following flags are executable specific (e.g., since we only
+  // have one instance of libprocess per execution, we only want to
+  // advertise the port and ip option once, here).
+  Option<short> port;
+  flags.add(&port, "port", "Port to listen on");
 
-  Slave::registerOptions(&configurator);
+  Option<string> ip;
+  flags.add(&ip, "ip", "IP address to listen on");
 
-  // The following options are executable specific (e.g., since we
-  // only have one instance of libprocess per execution, we only want
-  // to advertise the port and ip option once, here).
-  configurator.addOption<int>("port", 'p', "Port to listen on", 0);
-  configurator.addOption<string>("ip", "IP address to listen on");
-  configurator.addOption<string>("isolation", "Isolation module", "process");
-#ifdef MESOS_WEBUI
-  configurator.addOption<int>("webui_port", "Web UI port", 8081);
-#endif
-  configurator.addOption<string>(
-      "master",
-      'm',
-      "May be one of:\n"
-      "  host:port\n"
-      "  zk://host1:port1,host2:port2,.../path\n"
-      "  zk://username:password@host1:port1,host2:port2,.../path\n"
-      "  file://path/to/file (where file contains one of the above)");
+  string isolation;
+  flags.add(&isolation, "isolation", "Isolation module", "process");
 
-  if (argc == 2 && string("--help") == argv[1]) {
+  Option<string> master;
+  flags.add(&master,
+            "master",
+            "May be one of:\n"
+            "  zk://host1:port1,host2:port2,.../path\n"
+            "  zk://username:password@host1:port1,host2:port2,.../path\n"
+            "  file://path/to/file (where file contains one of the above)");
+
+  bool help;
+  flags.add(&help,
+            "help",
+            "Prints this help message",
+            false);
+
+  Configurator configurator(flags);
+  Configuration configuration;
+  try {
+    configuration = configurator.load(argc, argv);
+  } catch (ConfigurationException& e) {
+    cerr << "Configuration error: " << e.what() << endl;
     usage(argv[0], configurator);
     exit(1);
   }
 
-  Configuration conf;
-  try {
-    conf = configurator.load(argc, argv);
-  } catch (ConfigurationException& e) {
-    cerr << "Configuration error: " << e.what() << endl;
+  flags.load(configuration.getMap());
+
+  if (help) {
+    usage(argv[0], configurator);
     exit(1);
   }
 
-  if (conf.contains("port")) {
-    utils::os::setenv("LIBPROCESS_PORT", conf["port"]);
-  }
-
-  if (conf.contains("ip")) {
-    utils::os::setenv("LIBPROCESS_IP", conf["ip"]);
+  if (master.isNone()) {
+    cerr << "Missing required option --master" << endl;
+    exit(1);
   }
 
   // Initialize libprocess.
-  process::initialize();
-
-  logging::initialize(argv[0], conf);
-
-  if (!conf.contains("master")) {
-    cerr << "Missing required option --master (-m)" << endl;
-    exit(1);
+  if (port.isSome()) {
+    utils::os::setenv("LIBPROCESS_PORT", stringify(port.get()));
   }
 
-  string master = conf["master"];
+  if (ip.isSome()) {
+    utils::os::setenv("LIBPROCESS_IP", ip.get());
+  }
 
-  string isolation = conf["isolation"];
+  process::initialize();
+
+  logging::initialize(argv[0], flags);
+
   LOG(INFO) << "Creating \"" << isolation << "\" isolation module";
-  IsolationModule* isolationModule = IsolationModule::create(isolation);
 
+  IsolationModule* isolationModule = IsolationModule::create(isolation);
   if (isolationModule == NULL) {
     cerr << "Unrecognized isolation type: " << isolation << endl;
     exit(1);
@@ -120,19 +130,17 @@ int main(int argc, char** argv)
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos slave";
 
-  Slave* slave = new Slave(conf, false, isolationModule);
+  Slave* slave = new Slave(flags, false, isolationModule);
   process::spawn(slave);
 
-  bool quiet = conf.get<bool>("quiet", false);
-
   Try<MasterDetector*> detector =
-    MasterDetector::create(master, slave->self(), false, quiet);
+    MasterDetector::create(master.get(), slave->self(), false, flags.quiet);
 
   CHECK(detector.isSome())
     << "Failed to create a master detector: " << detector.error();
 
 #ifdef MESOS_WEBUI
-  webui::start(slave->self(), conf);
+  webui::start(slave->self(), flags);
 #endif
 
   process::wait(slave->self());

@@ -67,7 +67,8 @@
 //
 // You can not add duplicate flags, this is checked for you at compile
 // time for composite flags (e.g., Flag<MyFlags1, MyFlags2>) and also
-// checked at runtime for any other flags added via Flags::add(...).
+// checked at runtime for any other flags added via inheritance or
+// Flags::add(...).
 //
 // Flags that can not be loaded (e.g., attempting to use the 'no-'
 // prefix for a flag that is not boolean) will print a message to

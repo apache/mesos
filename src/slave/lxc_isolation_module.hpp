@@ -22,14 +22,15 @@
 #include <string>
 #include <vector>
 
-#include "isolation_module.hpp"
-#include "reaper.hpp"
-#include "slave.hpp"
-
 #include "common/hashmap.hpp"
 
+#include "slave/isolation_module.hpp"
+#include "slave/reaper.hpp"
+#include "slave/slave.hpp"
 
-namespace mesos { namespace internal { namespace slave {
+namespace mesos {
+namespace internal {
+namespace slave {
 
 class LxcIsolationModule
   : public IsolationModule, public ProcessExitedListener
@@ -39,7 +40,7 @@ public:
 
   virtual ~LxcIsolationModule();
 
-  virtual void initialize(const Configuration& conf,
+  virtual void initialize(const Flags& flags,
                           bool local,
                           const process::PID<Slave>& slave);
 
@@ -81,7 +82,7 @@ private:
   };
 
   // TODO(benh): Make variables const by passing them via constructor.
-  Configuration conf;
+  Flags flags;
   bool local;
   process::PID<Slave> slave;
   bool initialized;
@@ -89,6 +90,8 @@ private:
   hashmap<FrameworkID, hashmap<ExecutorID, ContainerInfo*> > infos;
 };
 
-}}} // namespace mesos { namespace internal { namespace slave {
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __LXC_ISOLATION_MODULE_HPP__

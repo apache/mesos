@@ -441,7 +441,7 @@ public:
 
   virtual ~TestingIsolationModule() {}
 
-  virtual void initialize(const Configuration& conf,
+  virtual void initialize(const slave::Flags& flags,
                           bool local,
                           const process::PID<slave::Slave>& _slave)
   {

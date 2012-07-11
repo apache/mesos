@@ -23,8 +23,11 @@
 
 #include <process/process.hpp>
 
-#include "common/option.hpp"
+#include "flags/flags.hpp"
 
+#include "logging/flags.hpp"
+
+#include "master/flags.hpp"
 #include "master/master.hpp"
 
 namespace mesos {
@@ -33,9 +36,7 @@ namespace master {
 namespace webui {
 
 void start(const process::PID<Master>& master,
-           const std::string& webui_dir,
-           short webui_port,
-           const Option<std::string>& log_dir);
+           const flags::Flags<logging::Flags, master::Flags>& flags);
 
 } // namespace webui {
 } // namespace master {

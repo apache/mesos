@@ -17,6 +17,7 @@
  */
 
 #include "common/build.hpp"
+#include "common/stringify.hpp"
 #include "common/try.hpp"
 #include "common/utils.hpp"
 
@@ -58,10 +59,10 @@ int main(int argc, char** argv)
   flags::Flags<logging::Flags, master::Flags> flags;
 
   // The following flags are executable specific (e.g., since we only
-  // have one instance of libprocess per execution, we only want toa
+  // have one instance of libprocess per execution, we only want to
   // advertise the port and ip option once, here).
-  string port;
-  flags.add(&port, "port", "Port to listen on", "5050");
+  short port;
+  flags.add(&port, "port", "Port to listen on", 5050);
 
   Option<string> ip;
   flags.add(&ip, "ip", "IP address to listen on");
@@ -76,15 +77,10 @@ int main(int argc, char** argv)
             "  file://path/to/file (where file contains one of the above)",
             "");
 
-#ifdef MESOS_WEBUI
-  short webui_port;
-  flags.add(&webui_port, "webui_port", "Web UI port", 8080);
-#endif
-
   bool help;
   flags.add(&help,
             "help",
-            "Prints this usage message",
+            "Prints this help message",
             false);
 
   Configurator configurator(flags);
@@ -105,7 +101,7 @@ int main(int argc, char** argv)
   }
 
   // Initialize libprocess.
-  utils::os::setenv("LIBPROCESS_PORT", port);
+  utils::os::setenv("LIBPROCESS_PORT", stringify(port));
 
   if (ip.isSome()) {
     utils::os::setenv("LIBPROCESS_IP", ip.get());
@@ -130,7 +126,7 @@ int main(int argc, char** argv)
     << "Failed to create a master detector: " << detector.error();
 
 #ifdef MESOS_WEBUI
-  webui::start(master->self(), flags.webui_dir, webui_port, flags.log_dir);
+  webui::start(master->self(), flags);
 #endif
 
   process::wait(master->self());

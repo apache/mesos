@@ -21,13 +21,14 @@
 
 #include <process/process.hpp>
 
-#include "configurator/configurator.hpp"
+#include "configurator/configuration.hpp"
 
 #include "master/allocator.hpp"
 #include "master/master.hpp"
 
-
-namespace mesos { namespace internal { namespace local {
+namespace mesos {
+namespace internal {
+namespace local {
 
 // Register the options recognized by the local runner (a combination of
 // master and slave options) with a configurator.
@@ -45,12 +46,14 @@ process::PID<master::Master> launch(int numSlaves,
 
 
 // Launch a local cluster with a given configuration.
-process::PID<master::Master> launch(const Configuration& conf,
+process::PID<master::Master> launch(const Configuration& configuration,
                                     master::Allocator* _allocator = NULL);
 
 
 void shutdown();
 
-}}} // namespace mesos { namespace internal { namespace local {
+} // namespace local {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __MESOS_LOCAL_HPP__

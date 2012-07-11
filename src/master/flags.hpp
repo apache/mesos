@@ -19,6 +19,8 @@
 #ifndef __MASTER_FLAGS_HPP__
 #define __MASTER_FLAGS_HPP__
 
+#include <string>
+
 #include "flags/flags.hpp"
 
 namespace mesos {
@@ -47,18 +49,23 @@ public:
         "Location of the webui files/assets",
         MESOS_WEBUI_DIR);
 
-    add(&whitelist,
+    add(&Flags::webui_port,
+        "webui_port",
+        "Web UI port (deprecated)",
+        8080);
+
+    add(&Flags::whitelist,
         "whitelist",
         "Path to a file with a list of slaves\n"
         "(one per line) to advertise offers for;\n"
         "should be of the form: file://path/to/file",
         "*");
-        
   }
 
   bool root_submissions;
   std::string slaves;
   std::string webui_dir;
+  short webui_port;
   std::string whitelist;
 };
 

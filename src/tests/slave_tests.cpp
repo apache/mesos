@@ -34,6 +34,7 @@
 #include "master/dominant_share_allocator.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/utils.hpp"
@@ -67,8 +68,7 @@ class SlaveTest : public ::testing::Test
 protected:
   static void SetUpTestCase()
   {
-    conf.set("work_dir", "/tmp/mesos-tests");
-    workDir = conf["work_dir"];
+    flags.work_dir = "/tmp/mesos-tests";
   }
 
   virtual void SetUp()
@@ -109,14 +109,14 @@ protected:
 
     process::filter(NULL);
 
-    utils::os::rmdir(workDir);
+    utils::os::rmdir(flags.work_dir);
   }
 
   void startSlave()
   {
     isolationModule = new TestingIsolationModule(execs);
 
-    s = new Slave(conf, true, isolationModule);
+    s = new Slave(flags, true, isolationModule);
     slave = process::spawn(s);
 
     detector = new BasicMasterDetector(master, slave, true);
@@ -179,14 +179,12 @@ protected:
   MockFilter filter;
   PID<Master> master;
   PID<Slave> slave;
-  static Configuration conf;
-  static string workDir;
+  static slave::Flags flags;
 };
 
 
 // Initialize static members here.
-Configuration SlaveTest::conf;
-string SlaveTest::workDir;
+slave::Flags SlaveTest::flags;
 
 
 TEST_F(SlaveTest, GarbageCollectSlaveDirs)
@@ -237,7 +235,7 @@ TEST_F(SlaveTest, GarbageCollectSlaveDirs)
   SlaveID slaveId = registeredMsg.slave_id();
 
   // Make sure directory exists.
-  const std::string& slaveDir = workDir + "/slaves/" + slaveId.value();
+  const std::string& slaveDir = flags.work_dir + "/slaves/" + slaveId.value();
   ASSERT_TRUE(utils::os::exists(slaveDir));
 
   Clock::pause();
@@ -268,7 +266,8 @@ TEST_F(SlaveTest, GarbageCollectSlaveDirs)
   // By this time the old slave directory should be cleaned up and
   // the new directory should exist.
   ASSERT_FALSE(utils::os::exists(slaveDir));
-  ASSERT_TRUE(utils::os::exists(workDir + "/slaves/" + slaveId2.value()));
+  ASSERT_TRUE(utils::os::exists(flags.work_dir + "/slaves/" +
+                                slaveId2.value()));
 
   Clock::resume();
 
