@@ -196,7 +196,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/timer.hpp common/utils.hpp common/units.hpp		\
 	common/uuid.hpp common/values.hpp				\
 	configurator/configuration.hpp configurator/configurator.hpp	\
-	configurator/option.hpp detector/detector.hpp			\
+	configurator/option.hpp detector/detector.hpp flags/flags.hpp	\
 	launcher/launcher.hpp linux/cgroups.hpp linux/fs.hpp		\
 	linux/proc.hpp local/local.hpp master/allocator.hpp		\
 	master/constants.hpp master/frameworks_manager.hpp		\
@@ -738,8 +738,9 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/slave_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
-	              tests/log_tests.cpp tests/resources_tests.cpp	\
-	              tests/uuid_tests.cpp tests/external_tests.cpp	\
+	              tests/flags_tests.cpp tests/log_tests.cpp		\
+	              tests/resources_tests.cpp tests/uuid_tests.cpp	\
+	              tests/external_tests.cpp				\
 	              tests/sample_frameworks_tests.cpp			\
 	              tests/configurator_tests.cpp			\
 	              tests/strings_tests.cpp				\

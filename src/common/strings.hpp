@@ -168,6 +168,21 @@ inline bool contains(const std::string& s, const std::string& substr)
 }
 
 
+inline std::string lower(const std::string& s)
+{
+  std::string result = s;
+  std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+  return result;
+}
+
+
+inline std::string upper(const std::string& s)
+{
+  std::string result = s;
+  std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+  return result;
+}
+
 } // namespaces strings {
 
 #endif // __STRINGS_HPP__
