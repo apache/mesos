@@ -264,8 +264,8 @@ libmesos_no_third_party_la_LIBADD += libstate.la
 # Convenience library for the webui to include Python specific flags.
 if WEBUI
 noinst_LTLIBRARIES += libwebui.la
-libwebui_la_SOURCES = master/webui.cpp slave/webui.cpp common/webui_utils.cpp
-libwebui_la_SOURCES += master/webui.hpp slave/webui.hpp common/webui_utils.hpp
+libwebui_la_SOURCES = master/webui.cpp slave/webui.cpp webui/webui.cpp
+libwebui_la_SOURCES += master/webui.hpp slave/webui.hpp webui/webui.hpp
 libwebui_la_CPPFLAGS = $(MESOS_CPPFLAGS) $(WEBUI_CPPFLAGS)
 libwebui_la_LIBADD = $(WEBUI_LDFLAGS)
 

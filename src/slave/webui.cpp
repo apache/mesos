@@ -25,9 +25,10 @@
 #include "common/option.hpp"
 #include "common/try.hpp"
 #include "common/utils.hpp"
-#include "common/webui_utils.hpp"
 
 #include "configurator/configuration.hpp"
+
+#include "webui/webui.hpp"
 
 namespace mesos {
 namespace internal {
@@ -43,7 +44,7 @@ void start(const process::PID<Slave>& slave, const Configuration& conf)
   args[3] = "--log_dir=" + conf.get<std::string>("log_dir", FLAGS_log_dir);
   args[4] = "--work_dir=" + conf.get<std::string>("work_dir", "/tmp/mesos");
 
-  utils::webui::start(conf, "slave/webui.py", args);
+  mesos::internal::webui::start(conf, "slave/webui.py", args);
 }
 
 } // namespace webui {

@@ -11,11 +11,11 @@
 #include "common/strings.hpp"
 #include "common/thread.hpp"
 #include "common/utils.hpp"
-#include "common/webui_utils.hpp"
+
+#include "webui/webui.hpp"
 
 namespace mesos {
 namespace internal {
-namespace utils {
 namespace webui {
 
 static void run(const std::string& directory,
@@ -126,7 +126,6 @@ void start(const Configuration& conf,
 }
 
 } // namespace webui {
-} // namespace utils {
 } // namespace internal {
 } // namespace mesos {
 

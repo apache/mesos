@@ -1,5 +1,5 @@
-#ifndef __COMMON_WEBUI_UTILS_HPP__
-#define __COMMON_WEBUI_UTILS_HPP__
+#ifndef __WEBUI_HPP__
+#define __WEBUI_HPP__
 
 #ifdef MESOS_WEBUI
 
@@ -10,7 +10,6 @@
 
 namespace mesos {
 namespace internal {
-namespace utils {
 namespace webui {
 
 // Starts the Python based webui using the webui directory found via
@@ -22,10 +21,9 @@ void start(const Configuration& conf,
            const std::vector<std::string>& args);
 
 } // namespace webui {
-} // namespace utils {
 } // namespace internal {
 } // namespace mesos {
 
 #endif // MESOS_WEBUI
 
-#endif // __COMMON_WEBUI_UTILS_HPP__
+#endif // ___WEBUI_HPP__
