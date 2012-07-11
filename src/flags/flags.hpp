@@ -88,10 +88,11 @@ public:
            const std::string& help);
 
   virtual void load(const std::map<std::string, Option<std::string> >& values);
+  virtual void load(const std::map<std::string, std::string>& values);
 
   std::map<std::string, Flag> flags;
 
-protected:
+private:
   template <typename T>
   static void load(
       const std::string& value,
@@ -184,6 +185,17 @@ public:
     FlagsBase::load(values);
   }
 
+  virtual void load(const std::map<std::string, std::string>& values)
+  {
+    flags1.load(values);
+    flags2.load(values);
+    flags3.load(values);
+    flags4.load(values);
+    flags5.load(values);
+
+    FlagsBase::load(values);
+  }
+
   template <typename T1, typename T2>
   void add(T1* t1,
            const std::string& name,
@@ -238,7 +250,6 @@ public:
     return flags5;
   }
 
-private:
   Flags1 flags1;
   Flags2 flags2;
   Flags3 flags3;
@@ -309,7 +320,7 @@ void FlagsBase::add(
 }
 
 
-void FlagsBase::load(const std::map<std::string, Option<std::string> >& values)
+inline void FlagsBase::load(const std::map<std::string, Option<std::string> >& values)
 {
   std::map<std::string, Option<std::string> >::const_iterator iterator;
   
@@ -346,6 +357,18 @@ void FlagsBase::load(const std::map<std::string, Option<std::string> >& values)
       }
     }
   }
+}
+
+
+inline void FlagsBase::load(const std::map<std::string, std::string>& values)
+{
+  std::map<std::string, Option<std::string> > values2;
+
+  foreachpair (const std::string& key, const std::string& value, values) {
+    values2[key] = Option<std::string>::some(value);
+  }
+
+  load(values2);
 }
 
 
@@ -389,7 +412,7 @@ void FlagsBase::loadOptional(
 // values may have white spaces (e.g., "billy joel") and we want to
 // capture the entire value.
 template <>
-void FlagsBase::load<std::string>(
+inline void FlagsBase::load<std::string>(
     const std::string& name,
     const std::string& value,
     std::string* s)
@@ -399,7 +422,7 @@ void FlagsBase::load<std::string>(
 
 
 template <>
-void FlagsBase::loadOptional<std::string>(
+inline void FlagsBase::loadOptional<std::string>(
     const std::string& name,
     const std::string& value,
     Option<std::string>* option)
@@ -412,7 +435,7 @@ void FlagsBase::loadOptional<std::string>(
 // both alpha versions of booleans (e.g. "true", "false") and numeric
 // versions (e.g., "1", "0").
 template <>
-void FlagsBase::load<bool>(
+inline void FlagsBase::load<bool>(
     const std::string& name,
     const std::string& value,
     bool* b)
@@ -431,7 +454,7 @@ void FlagsBase::load<bool>(
 
 
 template <>
-void FlagsBase::loadOptional<bool>(
+inline void FlagsBase::loadOptional<bool>(
     const std::string& name,
     const std::string& value,
     Option<bool>* option)

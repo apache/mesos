@@ -63,14 +63,6 @@ char** getEnviron() { return environ; }
 #endif /* __APPLE__ */
 
 
-Configurator::Configurator()
-{
-  addOption<string>("conf",
-                    "Specifies a config directory from which to\n"
-                    "read Mesos config files.");
-}
-
-
 void Configurator::validate()
 {
   foreachpair (const string& key, const ConfigOption& opt, options) {
