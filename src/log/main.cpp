@@ -23,13 +23,14 @@
 #include <process/process.hpp>
 
 #include "common/foreach.hpp"
-#include "common/logging.hpp"
 #include "common/utils.hpp"
 
 #include "configurator/configurator.hpp"
 #include "configurator/configuration.hpp"
 
 #include "log/replica.hpp"
+
+#include "logging/logging.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;

@@ -26,12 +26,44 @@
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
 
+#include "flags/flags.hpp"
+
 namespace mesos {
 namespace internal {
 namespace logging {
 
+class Flags : public flags::FlagsBase
+{
+public:
+  Flags()
+  {
+    add(&quiet,
+        "quiet",
+        "Disable logging to stderr",
+        false);
+
+    add(&log_dir,
+        "log_dir",
+        "Location to put log files (no default, nothing "
+        "is written to disk unless specified; "
+        "does not affect logging to stderr)");
+
+    add(&logbufsecs,
+        "logbufsecs",
+        "How many seconds to buffer log messages for",
+        0);
+  }
+
+  bool quiet;
+  Option<std::string> log_dir;
+  int logbufsecs;
+};
+
+extern Flags flags;
+
 void registerOptions(Configurator* configurator);
 void initialize(const std::string& argv0, const Configuration& conf);
+void initialize(const std::string& argv0, const Flags& flags);
 
 } // namespace logging {
 } // namespace internal {

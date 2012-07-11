@@ -43,13 +43,14 @@
 #include "common/fatal.hpp"
 #include "common/hashmap.hpp"
 #include "common/lock.hpp"
-#include "common/logging.hpp"
 #include "common/type_utils.hpp"
 #include "common/uuid.hpp"
 
 #include "detector/detector.hpp"
 
 #include "local/local.hpp"
+
+#include "logging/logging.hpp"
 
 #include "messages/messages.hpp"
 

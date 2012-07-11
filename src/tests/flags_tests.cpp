@@ -29,6 +29,8 @@
 
 #include "flags/flags.hpp"
 
+using namespace flags;
+
 class TestFlags : public FlagsBase
 {
 public:

@@ -26,10 +26,10 @@
 
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
-#include "common/logging.hpp"
-#include "common/strings.hpp"
 #include "common/utils.hpp"
 #include "common/uuid.hpp"
+
+#include "logging/logging.hpp"
 
 #include "master/allocator.hpp"
 #include "master/master.hpp"
@@ -253,10 +253,10 @@ Master::Master(Allocator* _allocator)
 {}
 
 
-Master::Master(Allocator* _allocator, const Configuration& conf)
+Master::Master(Allocator* _allocator, const Flags& _flags)
   : ProcessBase("master"),
     allocator(_allocator),
-    conf(conf)
+    flags(_flags)
 {}
 
 
@@ -286,22 +286,6 @@ Master::~Master()
 }
 
 
-void Master::registerOptions(Configurator* configurator)
-{
-  SlavesManager::registerOptions(configurator);
-
-  configurator->addOption<bool>(
-      "root_submissions",
-      "Can root submit frameworks?",
-      true);
-
-  configurator->addOption<string>(
-        "whitelist",
-        "Path to a file with a list of slaves (one per line) to advertise resource offers for.\n"
-        "Should be of the form: file://path/to/file\n");
-}
-
-
 void Master::initialize()
 {
   LOG(INFO) << "Master started on " << string(self()).substr(7);
@@ -322,7 +306,7 @@ void Master::initialize()
   LOG(INFO) << "Master ID: " << info.id();
 
   // Setup slave manager.
-  slavesManager = new SlavesManager(conf, self());
+  slavesManager = new SlavesManager(flags, self());
   spawn(slavesManager);
 
   // Spawn the allocator.
@@ -330,8 +314,7 @@ void Master::initialize()
   dispatch(allocator, &Allocator::initialize, self());
 
   // Parse the white list
-  whitelistWatcher = new WhitelistWatcher(conf.get<string>("whitelist", "*"),
-                                          allocator);
+  whitelistWatcher = new WhitelistWatcher(flags.whitelist, allocator);
   spawn(whitelistWatcher);
 
   elected = false;
@@ -452,17 +435,18 @@ void Master::initialize()
   route("state.json", bind(&http::json::state, cref(*this), params::_1));
   route("log.json", bind(&http::json::log, cref(*this), params::_1));
 
-  // Use either a directory specified via configuration options (which
-  // is necessary for running out of the build directory before 'make
-  // install') or the directory determined at build time via the
-  // preprocessor macro '-DMESOS_WEBUI_DIR' set in the Makefile.
-  std::string directory = conf.get<std::string>("webui_dir", MESOS_WEBUI_DIR);
+  // Provide HTTP assets from a "webui" directory. This is either
+  // specified via flags (which is necessary for running out of the
+  // build directory before 'make install') or determined at build
+  // time via the preprocessor macro '-DMESOS_WEBUI_DIR' set in the
+  // Makefile.
+  string webui_dir = flags.webui_dir;
 
   // Remove any trailing '/' in directory.
-  directory = strings::remove(directory, "/", strings::SUFFIX);
+  webui_dir = strings::remove(webui_dir, "/", strings::SUFFIX);
 
-  provide("", directory + "/master/static/index.html");
-  provide("static", directory + "/master/static");
+  provide("", webui_dir + "/master/static/index.html");
+  provide("static", webui_dir + "/master/static");
 }
 
 
@@ -589,7 +573,7 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
 
   LOG(INFO) << "Registering framework " << framework->id << " at " << from;
 
-  bool rootSubmissions = conf.get<bool>("root_submissions", true);
+  bool rootSubmissions = flags.root_submissions;
 
   if (framework->info.user() == "root" && rootSubmissions == false) {
     LOG(INFO) << framework << " registering as root, but "
@@ -911,14 +895,14 @@ void Master::registerSlave(const SlaveInfo& slaveInfo)
             << " at " << slave->pid;
 
   // TODO(benh): We assume all slaves can register for now.
-  CHECK(conf.get<string>("slaves", "*") == "*");
+  CHECK(flags.slaves == "*");
   activatedSlaveHostnamePort(slave->info.hostname(), slave->pid.port);
   addSlave(slave);
 
 //   // Checks if this slave, or if all slaves, can be accepted.
 //   if (slaveHostnamePorts.contains(slaveInfo.hostname(), from.port)) {
 //     run(&SlaveRegistrar::run, slave, self());
-//   } else if (conf.get<string>("slaves", "*") == "*") {
+//   } else if (flags.slaves == "*") {
 //     run(&SlaveRegistrar::run, slave, self(), slavesManager->self());
 //   } else {
 //     LOG(WARNING) << "Cannot register slave at "
@@ -967,14 +951,14 @@ void Master::reregisterSlave(const SlaveID& slaveId,
                 << slave->pid << " (" << slave->info.hostname() << ")";
 
       // TODO(benh): We assume all slaves can register for now.
-      CHECK(conf.get<string>("slaves", "*") == "*");
+      CHECK(flags.slaves == "*");
       activatedSlaveHostnamePort(slave->info.hostname(), slave->pid.port);
       readdSlave(slave, executorInfos, tasks);
 
 //       // Checks if this slave, or if all slaves, can be accepted.
 //       if (slaveHostnamePorts.contains(slaveInfo.hostname(), from.port)) {
 //         run(&SlaveReregistrar::run, slave, executorInfos, tasks, self());
-//       } else if (conf.get<string>("slaves", "*") == "*") {
+//       } else if (flags.slaves == "*") {
 //         run(&SlaveReregistrar::run,
 //             slave, executorInfos, tasks, self(), slavesManager->self());
 //       } else {

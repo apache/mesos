@@ -25,12 +25,13 @@
 #include "common/build.hpp"
 #include "common/foreach.hpp"
 #include "common/json.hpp"
-#include "common/logging.hpp"
 #include "common/resources.hpp"
 #include "common/result.hpp"
 #include "common/strings.hpp"
 #include "common/type_utils.hpp"
 #include "common/utils.hpp"
+
+#include "logging/logging.hpp"
 
 #include "master/http.hpp"
 #include "master/master.hpp"
@@ -182,10 +183,7 @@ Future<Response> vars(
     "build_user " << build::USER << "\n" <<
     "build_flags " << build::FLAGS << "\n";
 
-  // Also add the configuration values.
-  foreachpair (const string& key, const string& value, master.conf.getMap()) {
-    out << key << " " << value << "\n";
-  }
+  // TODO(benh): Output flags.
 
   OK response;
   response.headers["Content-Type"] = "text/plain";
@@ -268,10 +266,8 @@ Future<Response> state(
   object.values["id"] = master.info.id();
   object.values["pid"] = string(master.self());
 
-  Option<string> directory = master.conf.get<string>("log_dir");
-
-  if (directory.isSome()) {
-    object.values["log_dir"] = directory.get();
+  if (logging::flags.log_dir.isSome()) {
+    object.values["log_dir"] = logging::flags.log_dir.get();
   }
 
   // Model all of the slaves.
@@ -353,13 +349,11 @@ Future<Response> log(
     length = result.get();
   }
 
-  Option<string> directory = master.conf.get<string>("log_dir");
-
-  if (directory.isNone()) {
+  if (logging::flags.log_dir.isNone()) {
     return NotFound();
   }
 
-  string path = directory.get() + "/mesos-master." + level;
+  string path = logging::flags.log_dir.get() + "/mesos-master." + level;
 
   Try<int> fd = utils::os::open(path, O_RDONLY);
 

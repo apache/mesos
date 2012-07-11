@@ -32,9 +32,10 @@
 
 #include "common/foreach.hpp"
 #include "common/lambda.hpp"
-#include "common/logging.hpp"
 #include "common/time.hpp"
 #include "common/utils.hpp"
+
+#include "logging/logging.hpp"
 
 #include "zookeeper/group.hpp"
 

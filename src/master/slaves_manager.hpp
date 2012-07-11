@@ -22,10 +22,9 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
-#include "configurator/configurator.hpp"
-
 #include "common/multihashmap.hpp"
 
+#include "master/flags.hpp"
 
 namespace mesos {
 namespace internal {
@@ -70,12 +69,9 @@ public:
 class SlavesManager : public process::Process<SlavesManager>
 {
 public:
-  SlavesManager(const Configuration& conf,
-                const process::PID<Master>& _master);
+  SlavesManager(const Flags& flags, const process::PID<Master>& _master);
 
   virtual ~SlavesManager();
-
-  static void registerOptions(Configurator* configurator);
 
   bool add(const std::string& hostname, uint16_t port);
   bool remove(const std::string& hostname, uint16_t port);

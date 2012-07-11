@@ -27,10 +27,11 @@
 
 #include <process/future.hpp>
 
-#include "common/logging.hpp"
 #include "common/option.hpp"
 #include "common/time.hpp"
 #include "common/uuid.hpp"
+
+#include "logging/logging.hpp"
 
 #include "messages/state.hpp"
 

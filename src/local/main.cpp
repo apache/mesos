@@ -19,7 +19,6 @@
 #include <iostream>
 #include <string>
 
-#include "common/logging.hpp"
 #include "common/utils.hpp"
 
 #include "configurator/configurator.hpp"
@@ -31,6 +30,8 @@
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"
+
+#include "logging/logging.hpp"
 
 using namespace mesos::internal;
 

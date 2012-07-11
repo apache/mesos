@@ -20,14 +20,18 @@
 
 #include <process/once.hpp>
 
-#include "common/logging.hpp"
 #include "common/utils.hpp"
+
+#include "logging/logging.hpp"
 
 using std::string;
 
 namespace mesos {
 namespace internal {
 namespace logging {
+
+Flags flags;
+
 
 void registerOptions(Configurator* configurator)
 {
@@ -89,6 +93,49 @@ void initialize(const string& _argv0, const Configuration& conf)
 
   LOG(INFO) << "Logging to " <<
     (directory.isSome() ? directory.get() : "STDERR");
+
+  initialized.done();
+}
+
+
+void initialize(const string& _argv0, const Flags& _flags)
+{
+  static process::Once initialized;
+
+  if (initialized.once()) {
+    return;
+  }
+
+  // Persistent copy of argv0 since InitGoogleLogging requires the
+  // string we pass to it to be accessible indefinitely.
+  static string argv0 = _argv0;
+
+  // Save the flags for use in other places.
+  flags = _flags;
+
+  // Set glog's parameters through Google Flags variables.
+  if (flags.log_dir.isSome()) {
+    if (!utils::os::mkdir(flags.log_dir.get())) {
+      std::cerr << "Could not initialize logging: Failed to create directory "
+                << flags.log_dir.get() << std::endl;
+      exit(1);
+    }
+    FLAGS_log_dir = flags.log_dir.get();
+  }
+
+
+  // Log everything to stderr IN ADDITION to log files unless
+  // otherwise specified.
+  if (!flags.quiet) {
+    FLAGS_stderrthreshold = 0; // INFO.
+  }
+
+  FLAGS_logbufsecs = flags.logbufsecs;
+
+  google::InitGoogleLogging(argv0.c_str());
+
+  LOG(INFO) << "Logging to " <<
+    (flags.log_dir.isSome() ? flags.log_dir.get() : "STDERR");
 
   initialized.done();
 }

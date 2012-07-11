@@ -90,7 +90,7 @@ public:
                            "Specifies a config directory from which to\n"
                            "read Mesos config files.");
 
-    foreachvalue (const FlagsBase::Flag& flag, flags.flags) {
+    foreachvalue (const flags::Flag& flag, flags.flags) {
       if (!flag.boolean) {
         addOption<std::string>(flag.name, flag.help);
       } else {
@@ -98,7 +98,7 @@ public:
       }
     }
 
-    foreachvalue (const FlagsBase::Flag& flag, flags.flags1.flags) {
+    foreachvalue (const flags::Flag& flag, flags.flags1.flags) {
       if (!flag.boolean) {
         addOption<std::string>(flag.name, flag.help);
       } else {
@@ -106,7 +106,7 @@ public:
       }
     }
 
-    foreachvalue (const FlagsBase::Flag& flag, flags.flags2.flags) {
+    foreachvalue (const flags::Flag& flag, flags.flags2.flags) {
       if (!flag.boolean) {
         addOption<std::string>(flag.name, flag.help);
       } else {
@@ -114,7 +114,7 @@ public:
       }
     }
 
-    foreachvalue (const FlagsBase::Flag& flag, flags.flags3.flags) {
+    foreachvalue (const flags::Flag& flag, flags.flags3.flags) {
       if (!flag.boolean) {
         addOption<std::string>(flag.name, flag.help);
       } else {
@@ -122,7 +122,7 @@ public:
       }
     }
 
-    foreachvalue (const FlagsBase::Flag& flag, flags.flags4.flags) {
+    foreachvalue (const flags::Flag& flag, flags.flags4.flags) {
       if (!flag.boolean) {
         addOption<std::string>(flag.name, flag.help);
       } else {
@@ -130,7 +130,7 @@ public:
       }
     }
 
-    foreachvalue (const FlagsBase::Flag& flag, flags.flags5.flags) {
+    foreachvalue (const flags::Flag& flag, flags.flags5.flags) {
       if (!flag.boolean) {
         addOption<std::string>(flag.name, flag.help);
       } else {

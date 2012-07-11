@@ -25,9 +25,10 @@
 
 #include <mesos/executor.hpp>
 
-#include "common/logging.hpp"
 #include "common/strings.hpp"
 #include "common/thread.hpp"
+
+#include "logging/logging.hpp"
 
 using std::string;
 

@@ -29,10 +29,12 @@
 #include "common/fatal.hpp"
 #include "common/strings.hpp"
 
-#include "zookeeper/zookeeper.hpp"
+#include "flags/flags.hpp"
 
-#include "master.hpp"
-#include "slaves_manager.hpp"
+#include "master/master.hpp"
+#include "master/slaves_manager.hpp"
+
+#include "zookeeper/zookeeper.hpp"
 
 namespace mesos {
 namespace internal {
@@ -585,13 +587,12 @@ bool ZooKeeperSlavesManagerStorage::parse(
 }
 
 
-SlavesManager::SlavesManager(const Configuration& conf,
-                             const PID<Master>& _master)
+SlavesManager::SlavesManager(const Flags& flags, const PID<Master>& _master)
   : process::ProcessBase("slaves"),
     master(_master)
 {
-  // Create the slave manager storage based on configuration.
-  const string& slaves = conf.get<string>("slaves", "*");
+  // Create the slave manager storage based on flags.
+  const string& slaves = flags.slaves;
 
   // Check if 'slaves' starts with "zoo://".
   string zoo = "zoo://";
@@ -651,15 +652,6 @@ SlavesManager::~SlavesManager()
   process::terminate(storage->self());
   process::wait(storage->self());
   delete storage;
-}
-
-
-void SlavesManager::registerOptions(Configurator* configurator)
-{
-  configurator->addOption<string>("slaves",
-                                  "Initial slaves that should be "
-                                  "considered part of this cluster "
-                                  "(or if using ZooKeeper a URL)", "*");
 }
 
 

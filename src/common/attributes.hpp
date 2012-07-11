@@ -25,9 +25,10 @@
 #include <mesos/mesos.hpp>
 
 #include "common/foreach.hpp"
-#include "common/logging.hpp"
 #include "common/option.hpp"
 #include "common/values.hpp"
+
+#include "logging/logging.hpp"
 
 namespace mesos {
 namespace internal {

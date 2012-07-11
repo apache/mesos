@@ -17,7 +17,6 @@
  */
 
 #include "common/build.hpp"
-#include "common/logging.hpp"
 #include "common/try.hpp"
 #include "common/utils.hpp"
 
@@ -25,9 +24,11 @@
 
 #include "detector/detector.hpp"
 
-#include "isolation_module_factory.hpp"
-#include "slave.hpp"
-#include "webui.hpp"
+#include "logging/logging.hpp"
+
+#include "slave/isolation_module_factory.hpp"
+#include "slave/slave.hpp"
+#include "slave/webui.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::slave;

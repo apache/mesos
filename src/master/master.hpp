@@ -36,9 +36,8 @@
 #include "common/units.hpp"
 #include "common/utils.hpp"
 
-#include "configurator/configurator.hpp"
-
 #include "master/constants.hpp"
+#include "master/flags.hpp"
 #include "master/http.hpp"
 
 #include "messages/messages.hpp"
@@ -62,12 +61,10 @@ class WhitelistWatcher;
 class Master : public ProtobufProcess<Master>
 {
 public:
-  Master(Allocator* _allocator);
-  Master(Allocator* _allocator, const Configuration& conf);
+  Master(Allocator* allocator);
+  Master(Allocator* allocator, const Flags& flags);
 
   virtual ~Master();
-
-  static void registerOptions(Configurator* configurator);
 
   void submitScheduler(const std::string& name);
   void newMasterDetected(const UPID& pid);
@@ -194,7 +191,7 @@ private:
       const Master& master,
       const process::http::Request& request);
 
-  const Configuration conf;
+  const Flags flags;
 
   bool elected;
 

@@ -23,8 +23,9 @@
 #include <process/timer.hpp>
 
 #include "common/foreach.hpp"
-#include "common/logging.hpp"
 #include "common/utils.hpp"
+
+#include "logging/logging.hpp"
 
 #include "master/dominant_share_allocator.hpp"
 

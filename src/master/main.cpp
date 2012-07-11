@@ -17,13 +17,16 @@
  */
 
 #include "common/build.hpp"
-#include "common/logging.hpp"
 #include "common/try.hpp"
 #include "common/utils.hpp"
 
 #include "configurator/configurator.hpp"
 
 #include "detector/detector.hpp"
+
+#include "flags/flags.hpp"
+
+#include "logging/logging.hpp"
 
 #include "master/allocator.hpp"
 #include "master/dominant_share_allocator.hpp"
@@ -51,65 +54,77 @@ int main(int argc, char **argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  Configurator configurator;
+  flags::Flags<logging::Flags, master::Flags> flags;
 
-  logging::registerOptions(&configurator);
+  // The following flags are executable specific (e.g., since we only
+  // have one instance of libprocess per execution, we only want to
+  // advertise the port and ip option once, here).
+  Option<string> port;
+  flags.add(&port, "port", "Port to listen on");
 
-  Master::registerOptions(&configurator);
+  Option<string> ip;
+  flags.add(&ip, "ip", "IP address to listen on");
 
-  // The following options are executable specific (e.g., since we
-  // only have one instance of libprocess per execution, we only want
-  // to advertise the port and ip option once, here).
-  configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
-  configurator.addOption<string>("ip", "IP address to listen on");
+  string zk;
+  flags.add(&zk,
+            "zk",
+            "ZooKeeper URL (used for leader election amongst masters)\n"
+            "May be one of:\n"
+            "  zk://host1:port1,host2:port2,.../path\n"
+            "  zk://username:password@host1:port1,host2:port2,.../path\n"
+            "  file://path/to/file (where file contains one of the above)",
+            "");
+
 #ifdef MESOS_WEBUI
-  configurator.addOption<int>("webui_port", "Web UI port", 8080);
+  int webui_port;
+  flags.add(&webui_port, "webui_port", "Web UI port", 8080);
 #endif
-  configurator.addOption<string>(
-      "zk",
-      "ZooKeeper URL (used for leader election amongst masters)\n"
-      "May be one of:\n"
-      "  zk://host1:port1,host2:port2,.../path\n"
-      "  zk://username:password@host1:port1,host2:port2,.../path\n"
-      "  file://path/to/file (where file contains one of the above)");
 
-  if (argc == 2 && string("--help") == argv[1]) {
+  bool help;
+  flags.add(&help,
+            "help",
+            "Prints this usage message",
+            false);
+
+  Configurator configurator(flags);
+  Configuration configuration;
+  try {
+    configuration = configurator.load(argc, argv);
+  } catch (ConfigurationException& e) {
+    cerr << "Configuration error: " << e.what() << endl;
     usage(argv[0], configurator);
     exit(1);
   }
 
-  Configuration conf;
-  try {
-    conf = configurator.load(argc, argv);
-  } catch (ConfigurationException& e) {
-    cerr << "Configuration error: " << e.what() << endl;
+  flags.load(configuration.getMap());
+
+  if (help) {
+    usage(argv[0], configurator);
     exit(1);
   }
 
-  if (conf.contains("port")) {
-    utils::os::setenv("LIBPROCESS_PORT", conf["port"]);
+  if (port.isSome()) {
+    utils::os::setenv("LIBPROCESS_PORT", port.get());
   }
 
-  if (conf.contains("ip")) {
-    utils::os::setenv("LIBPROCESS_IP", conf["ip"]);
+  if (ip.isSome()) {
+    utils::os::setenv("LIBPROCESS_IP", ip.get());
   }
 
   // Initialize libprocess.
   process::initialize("master");
 
-  logging::initialize(argv[0], conf);
-
-  string zk = conf.get<std::string>("zk", "");
+  logging::initialize(argv[0], flags);
 
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
 
   Allocator* allocator = new DominantShareAllocator();
 
-  Master* master = new Master(allocator, conf);
+  Master* master = new Master(allocator, flags);
   process::spawn(master);
 
-  bool quiet = conf.get<bool>("quiet", false);
+  bool quiet = ((logging::Flags) flags).quiet;
 
   Try<MasterDetector*> detector =
     MasterDetector::create(zk, master->self(), true, quiet);
@@ -118,7 +133,7 @@ int main(int argc, char **argv)
     << "Failed to create a master detector: " << detector.error();
 
 #ifdef MESOS_WEBUI
-  webui::start(master->self(), conf);
+  webui::start(master->self(), configuration);
 #endif
 
   process::wait(master->self());

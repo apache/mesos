@@ -8,10 +8,11 @@
 #include <process/future.hpp>
 #include <process/process.hpp>
 
-#include "common/logging.hpp"
 #include "common/option.hpp"
 #include "common/try.hpp"
 #include "common/uuid.hpp"
+
+#include "logging/logging.hpp"
 
 #include "messages/state.hpp"
 

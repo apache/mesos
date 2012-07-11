@@ -56,12 +56,13 @@
 #include <boost/lexical_cast.hpp>
 
 #include "common/foreach.hpp"
-#include "common/logging.hpp"
 #include "common/option.hpp"
 #include "common/result.hpp"
 #include "common/stringify.hpp"
 #include "common/strings.hpp"
 #include "common/try.hpp"
+
+#include "logging/logging.hpp"
 
 #ifdef __APPLE__
 #define gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)  \

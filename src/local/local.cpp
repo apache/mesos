@@ -64,7 +64,7 @@ static MasterDetector* detector = NULL;
 
 void registerOptions(Configurator* configurator)
 {
-  Master::registerOptions(configurator);
+  // TODO(benh): Generate flags out of master::Flags.
   Slave::registerOptions(configurator);
 
   configurator->addOption<int>(
@@ -111,7 +111,7 @@ PID<Master> launch(const Configuration& conf, Allocator* _allocator)
     allocator = NULL;
   }
 
-  master = new Master(_allocator, conf);
+  master = new Master(_allocator); // TODO(benh): Pass flags.
 
   PID<Master> pid = process::spawn(master);
 

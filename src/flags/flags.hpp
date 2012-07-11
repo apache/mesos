@@ -65,17 +65,20 @@
 // TODO(benh): Make prefix for environment variables configurable
 // (e.g., "MESOS_").
 
+namespace flags {
+
+struct Flag
+{
+  std::string name;
+  std::string help;
+  bool boolean;
+  std::tr1::function<void(const std::string&)> loader;
+};
+
+
 class FlagsBase
 {
 public:
-  struct Flag
-  {
-    std::string name;
-    std::string help;
-    bool boolean;
-    std::tr1::function<void(const std::string&)> loader;
-  };
-
   template <typename T1, typename T2>
   void add(T1* t1,
            const std::string& name,
@@ -470,5 +473,7 @@ inline void FlagsBase::loadOptional<bool>(
     abort();
   }
 }
+
+} // namespace flags {
 
 #endif // __FLAGS_HPP__

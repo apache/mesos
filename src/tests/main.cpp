@@ -22,11 +22,12 @@
 
 #include <process/process.hpp>
 
-#include "common/logging.hpp"
 #include "common/utils.hpp"
 
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
+
+#include "logging/logging.hpp"
 
 #include "tests/utils.hpp"
 

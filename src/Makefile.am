@@ -158,9 +158,9 @@ libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
 	slave/process_based_isolation_module.cpp slave/reaper.cpp	\
 	launcher/launcher.cpp exec/exec.cpp common/fatal.cpp		\
 	common/lock.cpp detector/detector.cpp				\
-	configurator/configurator.cpp common/logging.cpp		\
-	common/utils.cpp common/date_utils.cpp common/resources.cpp	\
-	common/attributes.cpp common/values.cpp				\
+	configurator/configurator.cpp common/utils.cpp			\
+	common/date_utils.cpp common/resources.cpp			\
+	common/attributes.cpp common/values.cpp logging/logging.cpp	\
 	zookeeper/zookeeper.cpp zookeeper/authentication.cpp		\
 	zookeeper/group.cpp messages/messages.proto
 
@@ -188,23 +188,22 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
 	common/fatal.hpp common/foreach.hpp common/format.hpp		\
 	common/hashmap.hpp common/hashset.hpp common/json.hpp		\
-	common/lock.hpp common/logging.hpp common/lambda.hpp		\
-	common/option.hpp common/resources.hpp common/result.hpp	\
-	common/multihashmap.hpp common/process_utils.hpp		\
-	common/stringify.hpp common/strings.hpp common/time.hpp		\
-	common/try.hpp common/type_utils.hpp common/thread.hpp		\
-	common/timer.hpp common/utils.hpp common/units.hpp		\
-	common/uuid.hpp common/values.hpp				\
-	configurator/configuration.hpp configurator/configurator.hpp	\
-	configurator/option.hpp detector/detector.hpp flags/flags.hpp	\
-	launcher/launcher.hpp linux/cgroups.hpp linux/fs.hpp		\
-	linux/proc.hpp local/local.hpp master/allocator.hpp		\
-	master/constants.hpp master/frameworks_manager.hpp		\
-	master/http.hpp master/master.hpp				\
-	master/dominant_share_allocator.hpp master/slaves_manager.hpp	\
-	master/webui.hpp messages/messages.hpp slave/constants.hpp	\
-	slave/http.hpp slave/isolation_module.hpp			\
-	slave/isolation_module_factory.hpp				\
+	common/lock.hpp common/lambda.hpp common/option.hpp		\
+	common/resources.hpp common/result.hpp common/multihashmap.hpp	\
+	common/process_utils.hpp common/stringify.hpp			\
+	common/strings.hpp common/time.hpp common/try.hpp		\
+	common/type_utils.hpp common/thread.hpp common/timer.hpp	\
+	common/utils.hpp common/units.hpp common/uuid.hpp		\
+	common/values.hpp configurator/configuration.hpp		\
+	configurator/configurator.hpp configurator/option.hpp		\
+	detector/detector.hpp flags/flags.hpp launcher/launcher.hpp	\
+	linux/cgroups.hpp linux/fs.hpp linux/proc.hpp local/local.hpp	\
+	logging/logging.hpp master/allocator.hpp master/constants.hpp	\
+	master/frameworks_manager.hpp master/http.hpp			\
+	master/master.hpp master/dominant_share_allocator.hpp		\
+	master/slaves_manager.hpp master/webui.hpp			\
+	messages/messages.hpp slave/constants.hpp slave/http.hpp	\
+	slave/isolation_module.hpp slave/isolation_module_factory.hpp	\
 	slave/lxc_isolation_module.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
