@@ -65,7 +65,26 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/process/socket.hpp			\
 	$(top_srcdir)/include/process/thread.hpp			\
 	$(top_srcdir)/include/process/timeout.hpp			\
-	$(top_srcdir)/include/process/timer.hpp
+	$(top_srcdir)/include/process/timer.hpp				\
+	$(top_srcdir)/include/stout/cache.hpp				\
+	$(top_srcdir)/include/stout/fatal.hpp				\
+	$(top_srcdir)/include/stout/foreach.hpp				\
+	$(top_srcdir)/include/stout/format.hpp				\
+	$(top_srcdir)/include/stout/hashmap.hpp				\
+	$(top_srcdir)/include/stout/hashset.hpp				\
+	$(top_srcdir)/include/stout/json.hpp				\
+	$(top_srcdir)/include/stout/lambda.hpp				\
+	$(top_srcdir)/include/stout/multihashmap.hpp			\
+	$(top_srcdir)/include/stout/net.hpp				\
+	$(top_srcdir)/include/stout/option.hpp				\
+	$(top_srcdir)/include/stout/os.hpp				\
+	$(top_srcdir)/include/stout/protobuf.hpp			\
+	$(top_srcdir)/include/stout/stringify.hpp			\
+	$(top_srcdir)/include/stout/strings.hpp				\
+	$(top_srcdir)/include/stout/time.hpp				\
+	$(top_srcdir)/include/stout/timer.hpp				\
+	$(top_srcdir)/include/stout/try.hpp				\
+	$(top_srcdir)/include/stout/uuid.hpp
 
 
 # Tests.
