@@ -37,8 +37,8 @@ public:
 
     add(&Flags::log_dir,
         "log_dir",
-        "Location to put log files (no default, nothing "
-        "is written to disk unless specified; "
+        "Location to put log files (no default, nothing\n"
+        "is written to disk unless specified;\n"
         "does not affect logging to stderr)");
 
     add(&Flags::logbufsecs,

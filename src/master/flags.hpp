@@ -37,8 +37,8 @@ public:
 
     add(&Flags::slaves,
         "slaves",
-        "Initial slaves that should be "
-        "considered part of this cluster "
+        "Initial slaves that should be\n"
+        "considered part of this cluster\n"
         "(or if using ZooKeeper a URL)",
         "*");
 
@@ -49,8 +49,8 @@ public:
 
     add(&whitelist,
         "whitelist",
-        "Path to a file with a list of slaves "
-        "(one per line) to advertise offers for; "
+        "Path to a file with a list of slaves\n"
+        "(one per line) to advertise offers for;\n"
         "should be of the form: file://path/to/file",
         "*");
         
