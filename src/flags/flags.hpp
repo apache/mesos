@@ -253,6 +253,12 @@ public:
     return flags5;
   }
 
+  template <typename T>
+  T as() const
+  {
+    return (T) *this;
+  }
+
   Flags1 flags1;
   Flags2 flags2;
   Flags3 flags3;
