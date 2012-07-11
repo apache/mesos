@@ -92,6 +92,20 @@ Try<T> numify(const std::string& s)
 }
 
 
+namespace path {
+
+inline std::string join(const std::string& path1, const std::string& path2)
+{
+  return
+    strings::remove(path1, "/", strings::SUFFIX) + "/" +
+    strings::remove(path2, "/", strings::PREFIX);
+}
+
+// TODO(benh): Provide implementations for more than two paths.
+
+} // namespace path {
+
+
 namespace os {
 
 // Checks if the specified key is in the environment variables.
