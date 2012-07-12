@@ -86,7 +86,7 @@ public:
       const google::protobuf::Message* message = &t; // Check T is a protobuf.
     }
 
-    Entry entry;
+    Entry entry; // Not const so Variable is copyable.
     T t;
   };
 
