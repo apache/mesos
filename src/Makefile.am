@@ -156,9 +156,8 @@ libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
 	master/dominant_share_allocator.cpp slave/slave.cpp		\
 	slave/http.cpp slave/isolation_module.cpp			\
 	slave/process_based_isolation_module.cpp slave/reaper.cpp	\
-	launcher/launcher.cpp exec/exec.cpp common/fatal.cpp		\
-	common/lock.cpp detector/detector.cpp				\
-	configurator/configurator.cpp common/utils.cpp			\
+	launcher/launcher.cpp exec/exec.cpp common/lock.cpp		\
+	detector/detector.cpp configurator/configurator.cpp		\
 	common/date_utils.cpp common/resources.cpp			\
 	common/attributes.cpp common/values.cpp logging/logging.cpp	\
 	zookeeper/zookeeper.cpp zookeeper/authentication.cpp		\
@@ -186,14 +185,8 @@ EXTRA_DIST += slave/solaris_project_isolation_module.cpp
 
 libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
-	common/fatal.hpp common/foreach.hpp common/format.hpp		\
-	common/hashmap.hpp common/hashset.hpp common/json.hpp		\
-	common/lock.hpp common/lambda.hpp common/option.hpp		\
-	common/resources.hpp common/result.hpp common/multihashmap.hpp	\
-	common/process_utils.hpp common/stringify.hpp			\
-	common/strings.hpp common/time.hpp common/try.hpp		\
-	common/type_utils.hpp common/thread.hpp common/timer.hpp	\
-	common/utils.hpp common/units.hpp common/uuid.hpp		\
+	common/lock.hpp common/resources.hpp common/process_utils.hpp	\
+	common/type_utils.hpp common/thread.hpp common/units.hpp	\
 	common/values.hpp configurator/configuration.hpp		\
 	configurator/configurator.hpp configurator/option.hpp		\
 	detector/detector.hpp flags/flag.hpp flags/flags.hpp		\
@@ -740,15 +733,13 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
 	              tests/flags_tests.cpp tests/log_tests.cpp		\
-	              tests/resources_tests.cpp tests/uuid_tests.cpp	\
+	              tests/resources_tests.cpp				\
 	              tests/external_tests.cpp				\
 	              tests/sample_frameworks_tests.cpp			\
 	              tests/configurator_tests.cpp			\
-	              tests/strings_tests.cpp				\
 	              tests/multihashmap_tests.cpp			\
 	              tests/protobuf_io_tests.cpp			\
 	              tests/lxc_isolation_tests.cpp			\
-	              tests/utils_tests.cpp				\
 	              tests/stout_tests.cpp				\
 	              tests/zookeeper_url_tests.cpp			\
 	              tests/killtree_tests.cpp				\

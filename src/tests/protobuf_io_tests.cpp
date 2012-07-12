@@ -20,7 +20,9 @@
 
 #include <gmock/gmock.h>
 
-#include "common/utils.hpp"
+#include <stout/os.hpp>
+#include <stout/protobuf.hpp>
+
 #include "common/type_utils.hpp"
 
 #include "messages/messages.hpp"
@@ -33,14 +35,14 @@ TEST(ProtobufIOTest, Basic)
 {
   const std::string file = ".protobuf_io_test_basic";
 
-  Try<int> result = utils::os::open(file, O_CREAT | O_WRONLY | O_SYNC,
-                                    S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  Try<int> result = os::open(file, O_CREAT | O_WRONLY | O_SYNC,
+                             S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   ASSERT_TRUE(result.isSome());
   int fdw = result.get();
 
-  result = utils::os::open(file, O_CREAT | O_RDONLY,
-                           S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  result = os::open(file, O_CREAT | O_RDONLY,
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   ASSERT_TRUE(result.isSome());
   int fdr = result.get();
@@ -50,21 +52,21 @@ TEST(ProtobufIOTest, Basic)
   for (int i = 0; i < writes; i++) {
     FrameworkID frameworkId;
     frameworkId.set_value(stringify(i));
-    Try<bool> result = utils::protobuf::write(fdw, frameworkId);
+    Try<bool> result = protobuf::write(fdw, frameworkId);
     ASSERT_TRUE(result.isSome());
     EXPECT_TRUE(result.get());
   }
 
   for (int i = 0; i < writes; i++) {
     FrameworkID frameworkId;
-    Result<bool> result = utils::protobuf::read(fdr, &frameworkId);
+    Result<bool> result = protobuf::read(fdr, &frameworkId);
     ASSERT_TRUE(result.isSome());
     EXPECT_TRUE(result.get());
     EXPECT_EQ(frameworkId.value(), stringify(i));
   }
 
-  utils::os::close(fdw);
-  utils::os::close(fdr);
+  os::close(fdw);
+  os::close(fdr);
 
-  utils::os::rm(file);
+  os::rm(file);
 }

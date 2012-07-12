@@ -21,9 +21,9 @@
 
 #include <sys/task.h>
 
-#include "solaris_project_isolation_module.hpp"
+#include <stout/foreach.hpp>
 
-#include "common/foreach.hpp"
+#include "solaris_project_isolation_module.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;

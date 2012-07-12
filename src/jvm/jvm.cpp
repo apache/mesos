@@ -8,9 +8,8 @@
 #include <sstream>
 #include <vector>
 
-#include "common/hashmap.hpp"
-#include "common/foreach.hpp"
-#include "common/utils.hpp"
+#include <stout/hashmap.hpp>
+#include <stout/foreach.hpp>
 
 #include "jvm/jvm.hpp"
 

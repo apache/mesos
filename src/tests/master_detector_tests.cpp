@@ -26,7 +26,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
-#include "common/try.hpp"
+#include <stout/os.hpp>
+#include <stout/try.hpp>
 
 #include "detector/detector.hpp"
 
@@ -87,7 +88,7 @@ TEST(MasterDetector, File)
   Try<MasterDetector*> detector2 =
     MasterDetector::create("file://" + path, slave, false, true);
 
-  utils::os::rm(path);
+  os::rm(path);
 
   ASSERT_TRUE(detector2.isSome());
 

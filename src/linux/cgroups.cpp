@@ -24,10 +24,11 @@
 #include <map>
 #include <sstream>
 
-#include "common/foreach.hpp"
-#include "common/stringify.hpp"
-#include "common/strings.hpp"
-#include "common/utils.hpp"
+#include <stout/foreach.hpp>
+#include <stout/option.hpp>
+#include <stout/os.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 
 #include "linux/cgroups.hpp"
 #include "linux/fs.hpp"
@@ -240,7 +241,7 @@ static Try<std::string> readControl(const std::string& hierarchy,
 {
   std::string path = hierarchy + "/" + cgroup + "/" + control;
 
-  // We do not use utils::os::read here because it cannot correctly read proc or
+  // We do not use os::read here because it cannot correctly read proc or
   // cgroups control files (lseek will return error).
   std::ifstream file(path.c_str());
 
@@ -306,7 +307,7 @@ static Try<bool> writeControl(const std::string& hierarchy,
 
 bool enabled()
 {
-  return utils::os::exists("/proc/cgroups");
+  return os::exists("/proc/cgroups");
 }
 
 
@@ -394,7 +395,7 @@ Try<std::set<std::string> > subsystems()
 Try<std::set<std::string> > subsystems(const std::string& hierarchy)
 {
   // We compare the canonicalized absolute paths.
-  Try<std::string> hierarchyAbsPath = utils::os::realpath(hierarchy);
+  Try<std::string> hierarchyAbsPath = os::realpath(hierarchy);
   if (hierarchyAbsPath.isError()) {
     return Try<std::set<std::string> >::error(hierarchyAbsPath.error());
   }
@@ -409,7 +410,7 @@ Try<std::set<std::string> > subsystems(const std::string& hierarchy)
   Option<fs::MountTable::Entry> hierarchyEntry;
   foreach (const fs::MountTable::Entry& entry, table.get().entries) {
     if (entry.type == "cgroup") {
-      Try<std::string> dirAbsPath = utils::os::realpath(entry.dir);
+      Try<std::string> dirAbsPath = os::realpath(entry.dir);
       if (dirAbsPath.isError()) {
         return Try<std::set<std::string> >::error(dirAbsPath.error());
       }
@@ -450,7 +451,7 @@ Try<std::set<std::string> > subsystems(const std::string& hierarchy)
 Try<bool> createHierarchy(const std::string& hierarchy,
                           const std::string& subsystems)
 {
-  if (utils::os::exists(hierarchy)) {
+  if (os::exists(hierarchy)) {
     return Try<bool>::error(
         hierarchy + " already exists in the file system");
   }
@@ -472,14 +473,14 @@ Try<bool> createHierarchy(const std::string& hierarchy,
   }
 
   // Create the directory for the hierarchy.
-  if (!utils::os::mkdir(hierarchy)) {
+  if (!os::mkdir(hierarchy)) {
     return Try<bool>::error("Failed to create " + hierarchy);
   }
 
   // Mount the virtual file system (attach subsystems).
   Try<bool> mountResult = internal::mount(hierarchy, subsystems);
   if (mountResult.isError()) {
-    utils::os::rmdir(hierarchy);
+    os::rmdir(hierarchy);
     return Try<bool>::error(mountResult.error());
   }
 
@@ -499,7 +500,7 @@ Try<bool> removeHierarchy(const std::string& hierarchy)
     return Try<bool>::error(unmount.error());
   }
 
-  if (!utils::os::rmdir(hierarchy)) {
+  if (!os::rmdir(hierarchy)) {
     return Try<bool>::error("Failed to remove directory " + hierarchy);
   }
 
@@ -588,7 +589,7 @@ Try<bool> checkCgroup(const std::string& hierarchy,
   }
 
   std::string path = hierarchy + "/" + cgroup;
-  if (!utils::os::exists(path)) {
+  if (!os::exists(path)) {
     return Try<bool>::error("Cgroup " + cgroup + " is not valid");
   }
 
@@ -633,7 +634,7 @@ Try<bool> checkControl(const std::string& hierarchy,
   }
 
   std::string path = hierarchy + "/" + cgroup + "/" + control;
-  if (!utils::os::exists(path)) {
+  if (!os::exists(path)) {
     return Try<bool>::error("Control file " + path + " does not exist");
   }
 
@@ -649,12 +650,12 @@ Try<std::vector<std::string> > getCgroups(const std::string& hierarchy,
     return Try<std::vector<std::string> >::error(check.error());
   }
 
-  Try<std::string> hierarchyAbsPath = utils::os::realpath(hierarchy);
+  Try<std::string> hierarchyAbsPath = os::realpath(hierarchy);
   if (hierarchyAbsPath.isError()) {
     return Try<std::vector<std::string> >::error(hierarchyAbsPath.error());
   }
 
-  Try<std::string> destAbsPath = utils::os::realpath(hierarchy + "/" + cgroup);
+  Try<std::string> destAbsPath = os::realpath(hierarchy + "/" + cgroup);
   if (destAbsPath.isError()) {
     return Try<std::vector<std::string> >::error(destAbsPath.error());
   }

@@ -24,9 +24,10 @@
 #include <process/future.hpp>
 #include <process/protobuf.hpp>
 
-#include "common/option.hpp"
+#include <stout/option.hpp>
+#include <stout/os.hpp>
+
 #include "common/type_utils.hpp"
-#include "common/utils.hpp"
 
 #include "log/coordinator.hpp"
 #include "log/log.hpp"
@@ -50,9 +51,9 @@ using testing::Return;
 
 TEST(ReplicaTest, Promise)
 {
-  const std::string path = utils::os::getcwd() + "/.log";
+  const std::string path = os::getcwd() + "/.log";
 
-  utils::os::rmdir(path);
+  os::rmdir(path);
 
   Replica replica(path);
 
@@ -101,15 +102,15 @@ TEST(ReplicaTest, Promise)
   EXPECT_EQ(0, response.position());
   EXPECT_FALSE(response.has_action());
 
-  utils::os::rmdir(path);
+  os::rmdir(path);
 }
 
 
 TEST(ReplicaTest, Append)
 {
-  const std::string path = utils::os::getcwd() + "/.log";
+  const std::string path = os::getcwd() + "/.log";
 
-  utils::os::rmdir(path);
+  os::rmdir(path);
 
   Replica replica(path);
 
@@ -166,15 +167,15 @@ TEST(ReplicaTest, Append)
   EXPECT_FALSE(action.has_truncate());
   EXPECT_EQ("hello world", action.append().bytes());
 
-  utils::os::rmdir(path);
+  os::rmdir(path);
 }
 
 
 TEST(ReplicaTest, Recover)
 {
-  const std::string path = utils::os::getcwd() + "/.log";
+  const std::string path = os::getcwd() + "/.log";
 
-  utils::os::rmdir(path);
+  os::rmdir(path);
 
   Replica replica1(path);
 
@@ -255,17 +256,17 @@ TEST(ReplicaTest, Recover)
     EXPECT_EQ("hello world", action.append().bytes());
   }
 
-  utils::os::rmdir(path);
+  os::rmdir(path);
 }
 
 
 TEST(CoordinatorTest, Elect)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -293,18 +294,18 @@ TEST(CoordinatorTest, Elect)
     ASSERT_EQ(Action::NOP, actions.get().front().type());
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 
 TEST(CoordinatorTest, AppendRead)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -342,18 +343,18 @@ TEST(CoordinatorTest, AppendRead)
     EXPECT_EQ("hello world", actions.get().front().append().bytes());
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 
 TEST(CoordinatorTest, AppendReadError)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -388,8 +389,8 @@ TEST(CoordinatorTest, AppendReadError)
     EXPECT_EQ("Bad read range (past end of log)", actions.failure());
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 
@@ -411,9 +412,9 @@ TEST(CoordinatorTest, AppendReadError)
 
 TEST(CoordinatorTest, DISABLED_ElectNoQuorum)
 {
-  const std::string path = utils::os::getcwd() + "/.log";
+  const std::string path = os::getcwd() + "/.log";
 
-  utils::os::rmdir(path);
+  os::rmdir(path);
 
   Replica replica(path);
 
@@ -428,17 +429,17 @@ TEST(CoordinatorTest, DISABLED_ElectNoQuorum)
     ASSERT_TRUE(result.isNone());
   }
 
-  utils::os::rmdir(path);
+  os::rmdir(path);
 }
 
 
 TEST(CoordinatorTest, DISABLED_AppendNoQuorum)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -463,18 +464,18 @@ TEST(CoordinatorTest, DISABLED_AppendNoQuorum)
     ASSERT_TRUE(result.isNone());
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 
 TEST(CoordinatorTest, Failover)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -525,18 +526,18 @@ TEST(CoordinatorTest, Failover)
     EXPECT_EQ("hello world", actions.get().front().append().bytes());
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 
 TEST(CoordinatorTest, Demoted)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -600,20 +601,20 @@ TEST(CoordinatorTest, Demoted)
     EXPECT_EQ("hello hello", actions.get().front().append().bytes());
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 
 TEST(CoordinatorTest, Fill)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
-  const std::string path3 = utils::os::getcwd() + "/.log3";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
+  const std::string path3 = os::getcwd() + "/.log3";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -668,9 +669,9 @@ TEST(CoordinatorTest, Fill)
     EXPECT_EQ("hello world", actions.get().front().append().bytes());
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 }
 
 
@@ -685,13 +686,13 @@ TEST(CoordinatorTest, NotLearnedFill)
   EXPECT_MESSAGE(filter, Eq(LearnedMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
-  const std::string path3 = utils::os::getcwd() + "/.log3";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
+  const std::string path3 = os::getcwd() + "/.log3";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -746,9 +747,9 @@ TEST(CoordinatorTest, NotLearnedFill)
     EXPECT_EQ("hello world", actions.get().front().append().bytes());
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 
   process::filter(NULL);
 }
@@ -756,11 +757,11 @@ TEST(CoordinatorTest, NotLearnedFill)
 
 TEST(CoordinatorTest, MultipleAppends)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -797,8 +798,8 @@ TEST(CoordinatorTest, MultipleAppends)
     }
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 
@@ -813,13 +814,13 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
   EXPECT_MESSAGE(filter, Eq(LearnedMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
-  const std::string path3 = utils::os::getcwd() + "/.log3";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
+  const std::string path3 = os::getcwd() + "/.log3";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -873,9 +874,9 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
     }
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 
   process::filter(NULL);
 }
@@ -883,11 +884,11 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
 
 TEST(CoordinatorTest, Truncate)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -937,8 +938,8 @@ TEST(CoordinatorTest, Truncate)
     }
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 
@@ -953,13 +954,13 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
   EXPECT_MESSAGE(filter, Eq(LearnedMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
-  const std::string path3 = utils::os::getcwd() + "/.log3";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
+  const std::string path3 = os::getcwd() + "/.log3";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -1026,9 +1027,9 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
     }
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 
   process::filter(NULL);
 }
@@ -1036,13 +1037,13 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
 
 TEST(CoordinatorTest, TruncateLearnedFill)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
-  const std::string path3 = utils::os::getcwd() + "/.log3";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
+  const std::string path3 = os::getcwd() + "/.log3";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -1109,19 +1110,19 @@ TEST(CoordinatorTest, TruncateLearnedFill)
     }
   }
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
-  utils::os::rmdir(path3);
+  os::rmdir(path1);
+  os::rmdir(path2);
+  os::rmdir(path3);
 }
 
 
 TEST(LogTest, WriteRead)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
 
@@ -1146,18 +1147,18 @@ TEST(LogTest, WriteRead)
   EXPECT_EQ(position.get(), entries.get().front().position);
   EXPECT_EQ("hello world", entries.get().front().data);
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 
 TEST(LogTest, Position)
 {
-  const std::string path1 = utils::os::getcwd() + "/.log1";
-  const std::string path2 = utils::os::getcwd() + "/.log2";
+  const std::string path1 = os::getcwd() + "/.log1";
+  const std::string path2 = os::getcwd() + "/.log2";
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 
   Replica replica1(path1);
 
@@ -1174,8 +1175,8 @@ TEST(LogTest, Position)
 
   ASSERT_EQ(position.get(), log.position(position.get().identity()));
 
-  utils::os::rmdir(path1);
-  utils::os::rmdir(path2);
+  os::rmdir(path1);
+  os::rmdir(path2);
 }
 
 

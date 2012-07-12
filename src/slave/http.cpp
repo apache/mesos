@@ -20,12 +20,12 @@
 #include <sstream>
 #include <string>
 
+#include <stout/foreach.hpp>
+#include <stout/json.hpp>
+
 #include "common/build.hpp"
-#include "common/foreach.hpp"
-#include "common/json.hpp"
 #include "common/resources.hpp"
 #include "common/type_utils.hpp"
-#include "common/utils.hpp"
 
 #include "slave/http.hpp"
 #include "slave/slave.hpp"

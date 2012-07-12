@@ -23,7 +23,7 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
-#include "common/foreach.hpp"
+#include <stout/foreach.hpp>
 
 #include "slave/reaper.hpp"
 

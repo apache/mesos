@@ -21,10 +21,11 @@
 
 #include <glog/logging.h>
 
-#include "common/foreach.hpp"
+#include <stout/foreach.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
+
 #include "common/resources.hpp"
-#include "common/strings.hpp"
-#include "common/try.hpp"
 #include "common/values.hpp"
 
 

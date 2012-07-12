@@ -26,8 +26,8 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
-#include "common/result.hpp"
-#include "common/try.hpp"
+#include <stout/result.hpp>
+#include <stout/try.hpp>
 
 #include "messages/log.hpp"
 

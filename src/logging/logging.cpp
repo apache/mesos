@@ -20,7 +20,7 @@
 
 #include <process/once.hpp>
 
-#include "common/utils.hpp"
+#include <stout/os.hpp>
 
 #include "logging/logging.hpp"
 
@@ -44,7 +44,7 @@ void initialize(const string& _argv0, const Flags& flags)
 
   // Set glog's parameters through Google Flags variables.
   if (flags.log_dir.isSome()) {
-    if (!utils::os::mkdir(flags.log_dir.get())) {
+    if (!os::mkdir(flags.log_dir.get())) {
       std::cerr << "Could not initialize logging: Failed to create directory "
                 << flags.log_dir.get() << std::endl;
       exit(1);

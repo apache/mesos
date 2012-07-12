@@ -1,6 +1,5 @@
 #ifdef MESOS_WEBUI
 
-#include <Python.h>
 #include <unistd.h>
 
 #include <sys/types.h>
@@ -8,11 +7,18 @@
 
 #include <tr1/functional>
 
-#include "common/strings.hpp"
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/strings.hpp>
+
 #include "common/thread.hpp"
-#include "common/utils.hpp"
 
 #include "webui/webui.hpp"
+
+// TODO(jieyu): We put this include here so that we don't get complaint from
+// fts.h: "<fts.h> cannot be used with -D_FILE_OFFSET_BITS==64". We don't use
+// any of the function defined in fts.h in this file.
+#include <Python.h>
 
 namespace mesos {
 namespace internal {
@@ -23,7 +29,7 @@ static void run(const std::string& directory,
                 const std::vector<std::string>& args)
 {
   // Setup the Python interpreter and load the script.
-  std::string path = utils::path::join(directory, script);
+  std::string path = path::join(directory, script);
 
   Py_Initialize();
 
@@ -41,8 +47,8 @@ static void run(const std::string& directory,
   // Run some code to setup PATH and add webui_dir as a variable.
   std::string code =
     "import sys\n"
-    "sys.path.append('" + utils::path::join(directory, "common") + "')\n"
-    "sys.path.append('" + utils::path::join(directory, "bottle-0.8.3") + "')\n";
+    "sys.path.append('" + path::join(directory, "common") + "')\n"
+    "sys.path.append('" + path::join(directory, "bottle-0.8.3") + "')\n";
 
   PyRun_SimpleString(code.c_str());
 
@@ -77,9 +83,9 @@ void start(const std::string& directory,
     << "Expecting relative path for webui script (relative to 'webui_dir')";
 
   // Make sure directory/script exists.
-  std::string path = utils::path::join(directory, script);
+  std::string path = path::join(directory, script);
 
-  CHECK(utils::os::exists(path))
+  CHECK(os::exists(path))
     << "Failed to find webui script at '" << path << "'";
 
   // TODO(benh): Consider actually forking a process for the webui

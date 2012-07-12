@@ -22,7 +22,7 @@
 #include <map>
 #include <string>
 
-#include "common/option.hpp"
+#include <stout/option.hpp>
 
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"

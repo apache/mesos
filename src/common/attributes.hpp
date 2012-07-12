@@ -24,8 +24,9 @@
 
 #include <mesos/mesos.hpp>
 
-#include "common/foreach.hpp"
-#include "common/option.hpp"
+#include <stout/foreach.hpp>
+#include <stout/option.hpp>
+
 #include "common/values.hpp"
 
 #include "logging/logging.hpp"

@@ -24,10 +24,13 @@
 #include <process/delay.hpp>
 #include <process/run.hpp>
 
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/utils.hpp>
+#include <stout/uuid.hpp>
+
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
-#include "common/utils.hpp"
-#include "common/uuid.hpp"
 
 #include "flags/flags.hpp"
 
@@ -79,7 +82,7 @@ protected:
 
       // TODO(vinod): Ensure this read is atomic w.r.t external
       // writes/updates to this file.
-      Result<string> result = utils::os::read(path.substr(strlen("file://")));
+      Result<string> result = os::read(path.substr(strlen("file://")));
       if (result.isError()) {
         LOG(ERROR) << "Error reading whitelist file "
                    << result.error() << ". Retrying";
@@ -444,8 +447,8 @@ void Master::initialize()
   // build directory before 'make install') or determined at build
   // time via the preprocessor macro '-DMESOS_WEBUI_DIR' set in the
   // Makefile.
-  provide("", utils::path::join(flags.webui_dir, "master/static/index.html"));
-  provide("static", utils::path::join(flags.webui_dir, "master/static"));
+  provide("", path::join(flags.webui_dir, "master/static/index.html"));
+  provide("static", path::join(flags.webui_dir, "master/static"));
 }
 
 

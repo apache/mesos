@@ -23,9 +23,9 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
-#include "common/foreach.hpp"
+#include <stout/foreach.hpp>
+
 #include "common/type_utils.hpp"
-#include "common/utils.hpp"
 #include "common/process_utils.hpp"
 
 #include "slave/flags.hpp"

@@ -26,10 +26,10 @@
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
-#include "common/foreach.hpp"
-#include "common/result.hpp"
-#include "common/time.hpp"
-#include "common/try.hpp"
+#include <stout/foreach.hpp>
+#include <stout/result.hpp>
+#include <stout/time.hpp>
+#include <stout/try.hpp>
 
 #include "log/coordinator.hpp"
 #include "log/replica.hpp"

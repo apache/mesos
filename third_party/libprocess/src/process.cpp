@@ -60,10 +60,12 @@
 #include <process/thread.hpp>
 #include <process/timer.hpp>
 
+#include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
+
 #include "config.hpp"
 #include "decoder.hpp"
 #include "encoder.hpp"
-#include "foreach.hpp"
 #include "gate.hpp"
 #include "synchronized.hpp"
 #include "tokenize.hpp"
@@ -89,16 +91,6 @@ using std::stack;
 using std::string;
 using std::stringstream;
 using std::vector;
-
-// We wrap some of the functional std::tr1 symbols in the 'lambda'
-// namespace to make code less verbose.
-namespace lambda {
-
-using std::tr1::bind;
-using std::tr1::function;
-using namespace std::tr1::placeholders;
-
-} // namespace lambda {
 
 
 template <int i>

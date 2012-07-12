@@ -38,14 +38,16 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/fatal.hpp>
+#include <stout/hashmap.hpp>
+#include <stout/os.hpp>
+#include <stout/uuid.hpp>
+
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
 
-#include "common/fatal.hpp"
-#include "common/hashmap.hpp"
 #include "common/lock.hpp"
 #include "common/type_utils.hpp"
-#include "common/uuid.hpp"
 
 #include "detector/detector.hpp"
 
@@ -690,7 +692,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
 
   // If no user specified, just use the current user.
   if (framework.user() == "") {
-    framework.set_user(utils::os::user());
+    framework.set_user(os::user());
   }
 
   // Launch a local cluster if necessary.

@@ -26,7 +26,7 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
-#include "common/fatal.hpp"
+#include <stout/fatal.hpp>
 
 #include "zookeeper/zookeeper.hpp"
 

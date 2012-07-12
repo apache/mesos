@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include "common/hashmap.hpp"
+#include <stout/hashmap.hpp>
 
 #include "slave/isolation_module.hpp"
 #include "slave/reaper.hpp"

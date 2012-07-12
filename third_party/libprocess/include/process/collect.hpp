@@ -8,9 +8,10 @@
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/future.hpp>
-#include <process/option.hpp>
 #include <process/process.hpp>
 #include <process/timeout.hpp>
+
+#include <stout/option.hpp>
 
 namespace process {
 

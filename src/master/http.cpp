@@ -22,14 +22,16 @@
 #include <string>
 #include <vector>
 
+#include <stout/foreach.hpp>
+#include <stout/json.hpp>
+#include <stout/numify.hpp>
+#include <stout/os.hpp>
+#include <stout/result.hpp>
+#include <stout/strings.hpp>
+
 #include "common/build.hpp"
-#include "common/foreach.hpp"
-#include "common/json.hpp"
 #include "common/resources.hpp"
-#include "common/result.hpp"
-#include "common/strings.hpp"
 #include "common/type_utils.hpp"
-#include "common/utils.hpp"
 
 #include "logging/logging.hpp"
 
@@ -327,7 +329,7 @@ Future<Response> log(
   string level = pairs.count("level") > 0 ? pairs["level"][0] : "INFO";
 
   if (pairs.count("offset") > 0 && pairs["offset"].size() > 0) {
-    Try<off_t> result = utils::numify<off_t>(pairs["offset"].back());
+    Try<off_t> result = numify<off_t>(pairs["offset"].back());
     if (result.isError()) {
       LOG(WARNING) << "Failed to \"numify\" the 'offset' ("
                    << pairs["offset"].back() << "): "
@@ -339,7 +341,7 @@ Future<Response> log(
 
   if (pairs.count("length") > 0) {
     CHECK(pairs["length"].size() > 0);
-    Try<ssize_t> result = utils::numify<ssize_t>(pairs["length"].back());
+    Try<ssize_t> result = numify<ssize_t>(pairs["length"].back());
     if (result.isError()) {
       LOG(WARNING) << "Failed to \"numify\" the 'length' ("
                    << pairs["length"].back() << "): "
@@ -355,7 +357,7 @@ Future<Response> log(
 
   string path = master.flags.log_dir.get() + "/mesos-master." + level;
 
-  Try<int> fd = utils::os::open(path, O_RDONLY);
+  Try<int> fd = os::open(path, O_RDONLY);
 
   if (fd.isError()) {
     LOG(WARNING) << "Failed to open log file at "

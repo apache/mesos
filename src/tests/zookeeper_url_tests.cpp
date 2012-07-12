@@ -18,7 +18,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common/try.hpp"
+#include <stout/try.hpp>
 
 #include "zookeeper/url.hpp"
 

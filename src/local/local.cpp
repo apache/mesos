@@ -20,10 +20,10 @@
 #include <sstream>
 #include <vector>
 
-#include "local.hpp"
+#include <stout/fatal.hpp>
+#include <stout/foreach.hpp>
 
-#include "common/fatal.hpp"
-#include "common/foreach.hpp"
+#include "local.hpp"
 
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"

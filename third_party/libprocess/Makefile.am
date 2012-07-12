@@ -26,8 +26,8 @@ noinst_LTLIBRARIES = libprocess.la
 
 libprocess_la_SOURCES = src/process.cpp src/pid.cpp src/latch.cpp	\
 	src/tokenize.cpp src/config.hpp src/decoder.hpp			\
-	src/encoder.hpp src/foreach.hpp src/gate.hpp			\
-	src/synchronized.hpp src/tokenize.hpp
+	src/encoder.hpp src/gate.hpp src/synchronized.hpp		\
+	src/tokenize.hpp
 
 libprocess_la_CPPFLAGS = -I$(srcdir)/include -I$(BOOST) -I$(GLOG)/src	\
 	-I$(RY_HTTP_PARSER) -I$(LIBEV) $(AM_CPPFLAGS)
@@ -56,7 +56,6 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/process/mime.hpp				\
 	$(top_srcdir)/include/process/nothing.hpp			\
 	$(top_srcdir)/include/process/once.hpp				\
-	$(top_srcdir)/include/process/option.hpp			\
 	$(top_srcdir)/include/process/pid.hpp				\
 	$(top_srcdir)/include/process/preprocessor.hpp			\
 	$(top_srcdir)/include/process/process.hpp			\
@@ -76,6 +75,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/stout/lambda.hpp				\
 	$(top_srcdir)/include/stout/multihashmap.hpp			\
 	$(top_srcdir)/include/stout/net.hpp				\
+	$(top_srcdir)/include/stout/numify.hpp				\
 	$(top_srcdir)/include/stout/option.hpp				\
 	$(top_srcdir)/include/stout/os.hpp				\
 	$(top_srcdir)/include/stout/protobuf.hpp			\
@@ -84,6 +84,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/stout/time.hpp				\
 	$(top_srcdir)/include/stout/timer.hpp				\
 	$(top_srcdir)/include/stout/try.hpp				\
+	$(top_srcdir)/include/stout/utils.hpp				\
 	$(top_srcdir)/include/stout/uuid.hpp
 
 

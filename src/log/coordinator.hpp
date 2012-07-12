@@ -25,8 +25,8 @@
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
-#include "common/result.hpp"
-#include "common/time.hpp"
+#include <stout/result.hpp>
+#include <stout/time.hpp>
 
 #include "log/network.hpp"
 #include "log/replica.hpp"

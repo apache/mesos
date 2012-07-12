@@ -20,8 +20,8 @@
 
 #include <string>
 
-#include "common/foreach.hpp"
-#include "common/multihashmap.hpp"
+#include <stout/foreach.hpp>
+#include <stout/multihashmap.hpp>
 
 using std::string;
 

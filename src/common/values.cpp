@@ -23,9 +23,10 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include "common/foreach.hpp"
+#include <stout/foreach.hpp>
+#include <stout/strings.hpp>
+
 #include "common/resources.hpp"
-#include "common/strings.hpp"
 #include "common/values.hpp"
 
 using std::ostream;

@@ -6,7 +6,7 @@
 
 #include <tr1/functional>
 
-#include "common/option.hpp"
+#include <stout/option.hpp>
 
 namespace flags {
 

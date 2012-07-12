@@ -27,9 +27,9 @@
 
 #include <process/future.hpp>
 
-#include "common/option.hpp"
-#include "common/time.hpp"
-#include "common/uuid.hpp"
+#include <stout/option.hpp>
+#include <stout/time.hpp>
+#include <stout/uuid.hpp>
 
 #include "logging/logging.hpp"
 

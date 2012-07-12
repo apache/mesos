@@ -19,8 +19,9 @@
 #ifndef __ALLOCATOR_HPP__
 #define __ALLOCATOR_HPP__
 
-#include "common/hashmap.hpp"
-#include "common/option.hpp"
+#include <stout/hashmap.hpp>
+#include <stout/option.hpp>
+
 #include "common/resources.hpp"
 
 #include "master/master.hpp"

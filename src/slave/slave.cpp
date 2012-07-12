@@ -26,13 +26,16 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
+#include <stout/option.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/strings.hpp>
+#include <stout/time.hpp>
+#include <stout/try.hpp>
+#include <stout/utils.hpp>
+
 #include "common/build.hpp"
-#include "common/option.hpp"
-#include "common/strings.hpp"
-#include "common/time.hpp"
-#include "common/try.hpp"
 #include "common/type_utils.hpp"
-#include "common/utils.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
@@ -105,8 +108,8 @@ Slave::Slave(const Flags& _flags,
 {
   if (flags.resources.isNone()) {
     // TODO(benh): Move this compuation into Flags as the "default".
-    Try<long> cpus = utils::os::cpus();
-    Try<long> mem = utils::os::memory();
+    Try<long> cpus = os::cpus();
+    Try<long> mem = os::memory();
 
     if (!cpus.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the number of cpus to use,"
@@ -168,7 +171,7 @@ void Slave::initialize()
   LOG(INFO) << "Slave resources: " << resources;
 
   // Determine our hostname.
-  Try<string> result = utils::os::hostname();
+  Try<string> result = os::hostname();
 
   if (result.isError()) {
     LOG(FATAL) << "Failed to get hostname: " << result.error();
@@ -353,7 +356,7 @@ void Slave::registered(const SlaveID& slaveId)
 
   connected = true;
 
-  garbageCollectSlaveDirs(utils::path::join(flags.work_dir, "slaves"));
+  garbageCollectSlaveDirs(path::join(flags.work_dir, "slaves"));
 }
 
 
@@ -1473,11 +1476,11 @@ void Slave::garbageCollectSlaveDirs(const string& dir)
 
   std::list<string> result;
 
-  foreach (const string& d, utils::os::listdir(dir)) {
+  foreach (const string& d, os::listdir(dir)) {
     if (d != "." && d != ".." && d != id.value()) {
       const string& path = dir + "/" + d;
-      Try<long> modtime = utils::os::modtime(path);
-      if (utils::os::exists(path, true) && // Check if its a directory.
+      Try<long> modtime = os::modtime(path);
+      if (os::exists(path, true) && // Check if its a directory.
         modtime.isSome() && (Clock::now() - modtime.get()) > timeout.secs()) {
         LOG(INFO) << "Scheduling slave directory " << path << " for deletion";
         result.push_back(path);
@@ -1492,7 +1495,7 @@ void Slave::garbageCollect(const std::list<string>& directories)
 {
   foreach (const string& dir, directories) {
     LOG(INFO) << "Deleting directory " << dir;
-    utils::os::rmdir(dir);
+    os::rmdir(dir);
   }
 }
 
@@ -1532,8 +1535,8 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
   for (int i = 0; i < INT_MAX; i++) {
     out << i;
     VLOG(1) << "Checking if " << out.str() << " already exists";
-    if (!utils::os::exists(out.str())) {
-      bool created = utils::os::mkdir(out.str());
+    if (!os::exists(out.str())) {
+      bool created = os::mkdir(out.str());
       CHECK(created) << "Error creating work directory: " << out.str();
       return out.str();
     } else {

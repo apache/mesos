@@ -22,8 +22,8 @@
 #include <iostream>
 #include <sstream>
 
-#include "common/strings.hpp"
-#include "common/utils.hpp"
+#include <stout/os.hpp>
+#include <stout/strings.hpp>
 
 namespace mesos {
 namespace internal {
@@ -40,12 +40,12 @@ inline Try<int> killtree(
   std::string cmdline;
 
   // TODO(Charles Reiss): Use a configuration option.
-  if (utils::os::hasenv("MESOS_KILLTREE")) {
+  if (os::hasenv("MESOS_KILLTREE")) {
     // Set by mesos-build-env.sh.
-    cmdline = utils::os::getenv("MESOS_KILLTREE");
-  } else if (utils::os::hasenv("MESOS_SOURCE_DIR")) {
+    cmdline = os::getenv("MESOS_KILLTREE");
+  } else if (os::hasenv("MESOS_SOURCE_DIR")) {
     // Set by test harness for external tests.
-    cmdline = utils::os::getenv("MESOS_SOURCE_DIR") +
+    cmdline = os::getenv("MESOS_SOURCE_DIR") +
       "/src/scripts/killtree.sh";
   } else {
     cmdline = MESOS_LIBEXECDIR "/killtree.sh";
@@ -61,7 +61,7 @@ inline Try<int> killtree(
   if (killsess) cmdline += " -x";
   if (verbose) cmdline += " -v";
 
-  return utils::os::shell(verbose ? &LOG(INFO) : NULL, cmdline);
+  return os::shell(verbose ? &LOG(INFO) : NULL, cmdline);
 }
 
 } // namespace mesos {

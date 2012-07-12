@@ -23,7 +23,7 @@
 
 #include <glog/logging.h>
 
-#include "common/utils.hpp"
+#include <stout/os.hpp>
 
 #include "jvm/jvm.hpp"
 
@@ -73,7 +73,7 @@ private:
     ~TemporaryDirectory()
     {
       jvm->deleteGlobalRef(file);
-      if (!utils::os::rmdir(path)) {
+      if (!os::rmdir(path)) {
         LOG(WARNING) << "Failed to delete temp dir: " << path;
       }
     }

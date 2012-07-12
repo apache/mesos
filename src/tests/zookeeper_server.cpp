@@ -24,8 +24,7 @@
 #include <sstream>
 #include <vector>
 
-#include "common/utils.hpp"
-#include "common/uuid.hpp"
+#include <stout/uuid.hpp>
 
 #include "jvm/jvm.hpp"
 

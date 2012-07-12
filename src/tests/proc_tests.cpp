@@ -22,7 +22,7 @@
 
 #include <set>
 
-#include "common/try.hpp"
+#include <stout/try.hpp>
 
 #include "linux/proc.hpp"
 

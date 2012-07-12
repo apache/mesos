@@ -8,7 +8,7 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
-#include "foreach.hpp"
+#include <stout/foreach.hpp>
 
 
 namespace process {

@@ -22,7 +22,7 @@
 
 #include <process/process.hpp>
 
-#include "common/utils.hpp"
+#include <stout/os.hpp>
 
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
@@ -49,14 +49,14 @@ using std::string;
 static bool shouldRun(const std::string& name)
 {
   if (strings::contains(name, "ROOT") &&
-      utils::os::user() != "root") {
+      os::user() != "root") {
     return false;
   }
 
   // TODO(jieyu): Replace the cgroups check with cgroups::enabled() once the
   // cgroups module is checked in.
   if (strings::contains(name, "CGROUPS") &&
-      !utils::os::exists("/proc/cgroups")) {
+      !os::exists("/proc/cgroups")) {
     return false;
   }
 
@@ -116,7 +116,7 @@ static void setupFilter()
 
 void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << utils::os::basename(argv0) << " [...]" << endl
+  cerr << "Usage: " << os::basename(argv0) << " [...]" << endl
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();
@@ -179,14 +179,14 @@ int main(int argc, char** argv)
   testing::FLAGS_gtest_death_test_style = "threadsafe";
 
   // Get the absolute path to the source (i.e., root) directory.
-  Try<string> path = utils::os::realpath(SOURCE_DIR);
+  Try<string> path = os::realpath(SOURCE_DIR);
   CHECK(path.isSome()) << "Error getting source directory " << path.error();
   mesosSourceDirectory = path.get();
 
   std::cout << "Source directory: " << mesosSourceDirectory << std::endl;
 
   // Get absolute path to the build directory.
-  path = utils::os::realpath(BUILD_DIR);
+  path = os::realpath(BUILD_DIR);
   CHECK(path.isSome()) << "Error getting build directory " << path.error();
   mesosBuildDirectory = path.get();
 

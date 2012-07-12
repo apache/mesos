@@ -24,7 +24,7 @@
 #include <set>
 #include <string>
 
-#include "common/try.hpp"
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {

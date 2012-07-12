@@ -26,8 +26,9 @@
 #include <process/http.hpp>
 #include <process/dispatch.hpp>
 
-#include "common/fatal.hpp"
-#include "common/strings.hpp"
+#include <stout/fatal.hpp>
+#include <stout/strings.hpp>
+#include <stout/utils.hpp>
 
 #include "flags/flags.hpp"
 

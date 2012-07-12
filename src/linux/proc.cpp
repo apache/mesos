@@ -4,8 +4,9 @@
 #include <set>
 #include <string>
 
-#include "common/try.hpp"
-#include "common/utils.hpp"
+#include <stout/numify.hpp>
+#include <stout/os.hpp>
+#include <stout/try.hpp>
 
 #include "linux/proc.hpp"
 
@@ -21,8 +22,8 @@ Try<set<pid_t> > pids()
 {
   set<pid_t> pids;
 
-  foreach (const string& path, utils::os::listdir("/proc")) {
-    Try<pid_t> pid = utils::numify<pid_t>(path);
+  foreach (const string& path, os::listdir("/proc")) {
+    Try<pid_t> pid = numify<pid_t>(path);
 
     // Ignore paths that can't be numified.
     if (pid.isSome()) {
@@ -56,7 +57,7 @@ Try<SystemStatistics> stat()
       return Try<SystemStatistics>::error("Failed to read /proc/stat");
     } else if (line.find("btime ") == 0) {
       Try<unsigned long long> number =
-        utils::numify<unsigned long long>(line.substr(6));
+        numify<unsigned long long>(line.substr(6));
       if (number.isSome()) {
         btime = number.get();
       } else {

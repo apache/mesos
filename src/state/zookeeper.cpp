@@ -7,12 +7,12 @@
 #include <process/future.hpp>
 #include <process/process.hpp>
 
-#include "common/option.hpp"
-#include "common/result.hpp"
-#include "common/time.hpp"
-#include "common/strings.hpp"
-#include "common/try.hpp"
-#include "common/uuid.hpp"
+#include <stout/option.hpp>
+#include <stout/result.hpp>
+#include <stout/strings.hpp>
+#include <stout/time.hpp>
+#include <stout/try.hpp>
+#include <stout/uuid.hpp>
 
 #include "logging/logging.hpp"
 

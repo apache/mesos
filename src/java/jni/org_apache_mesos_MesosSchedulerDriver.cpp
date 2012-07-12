@@ -22,11 +22,11 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <stout/foreach.hpp>
+
 #include "construct.hpp"
 #include "convert.hpp"
 #include "org_apache_mesos_MesosSchedulerDriver.h"
-
-#include "common/foreach.hpp"
 
 using namespace mesos;
 

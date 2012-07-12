@@ -25,8 +25,8 @@
 
 #include <process/protobuf.hpp>
 
-#include "common/fatal.hpp"
-#include "common/foreach.hpp"
+#include <stout/fatal.hpp>
+#include <stout/foreach.hpp>
 
 #include "detector/detector.hpp"
 

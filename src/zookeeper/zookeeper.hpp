@@ -31,7 +31,7 @@
 #include <string>
 #include <vector>
 
-#include "common/time.hpp"
+#include <stout/time.hpp>
 
 
 /* Forward declarations of classes we are using. */

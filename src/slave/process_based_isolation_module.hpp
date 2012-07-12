@@ -23,7 +23,7 @@
 
 #include <sys/types.h>
 
-#include "common/hashmap.hpp"
+#include <stout/hashmap.hpp>
 
 #include "launcher/launcher.hpp"
 

@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+
 #include <leveldb/comparator.h>
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
@@ -25,8 +27,10 @@
 #include <process/dispatch.hpp>
 #include <process/protobuf.hpp>
 
-#include "common/timer.hpp"
-#include "common/utils.hpp"
+#include <stout/foreach.hpp>
+#include <stout/numify.hpp>
+#include <stout/timer.hpp>
+#include <stout/utils.hpp>
 
 #include "log/replica.hpp"
 
@@ -159,8 +163,7 @@ private:
     // bool success = stream.ReadVarint64(&position);
     // CHECK(success);
     // return position - 1; // Actual position is less 1 of stringified.
-    Try<uint64_t> position =
-      utils::numify<uint64_t>(string(s.data(), s.size()));
+    Try<uint64_t> position = numify<uint64_t>(string(s.data(), s.size()));
     CHECK(position.isSome());
     return position.get() - 1; // Actual position is less 1 of stringified.
   }

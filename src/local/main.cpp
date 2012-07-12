@@ -19,8 +19,8 @@
 #include <iostream>
 #include <string>
 
-#include "common/stringify.hpp"
-#include "common/utils.hpp"
+#include <stout/os.hpp>
+#include <stout/stringify.hpp>
 
 #include "configurator/configurator.hpp"
 
@@ -47,7 +47,7 @@ using std::string;
 
 void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << utils::os::basename(argv0) << " [...]" << endl
+  cerr << "Usage: " << os::basename(argv0) << " [...]" << endl
        << endl
        << "Launches a cluster within a single OS process."
        << endl
@@ -101,10 +101,10 @@ int main(int argc, char **argv)
   }
 
   // Initialize libprocess.
-  utils::os::setenv("LIBPROCESS_PORT", stringify(port));
+  os::setenv("LIBPROCESS_PORT", stringify(port));
 
   if (ip.isSome()) {
-    utils::os::setenv("LIBPROCESS_IP", ip.get());
+    os::setenv("LIBPROCESS_IP", ip.get());
   }
 
   process::initialize("master");

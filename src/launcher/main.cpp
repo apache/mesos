@@ -18,8 +18,8 @@
 
 #include <mesos/mesos.hpp>
 
-#include "common/strings.hpp"
-#include "common/utils.hpp"
+#include <stout/strings.hpp>
+#include <stout/os.hpp>
 
 #include "launcher/launcher.hpp"
 
@@ -32,16 +32,16 @@ int main(int argc, char** argv)
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   FrameworkID frameworkId;
-  frameworkId.set_value(utils::os::getenv("MESOS_FRAMEWORK_ID"));
+  frameworkId.set_value(os::getenv("MESOS_FRAMEWORK_ID"));
 
   ExecutorID executorId;
-  executorId.set_value(utils::os::getenv("MESOS_EXECUTOR_ID"));
+  executorId.set_value(os::getenv("MESOS_EXECUTOR_ID"));
 
   CommandInfo commandInfo;
-  commandInfo.set_value(utils::os::getenv("MESOS_COMMAND"));
+  commandInfo.set_value(os::getenv("MESOS_COMMAND"));
 
   // Construct URIs from the encoded environment string.
-  const std::string& uris = utils::os::getenv("MESOS_EXECUTOR_URIS");
+  const std::string& uris = os::getenv("MESOS_EXECUTOR_URIS");
   foreach (const std::string& token, strings::split(uris, " ")) {
     size_t pos = token.rfind("+"); // Delim between uri and exec permission.
     CHECK(pos != std::string::npos) << "Invalid executor uri token in env "
@@ -58,13 +58,13 @@ int main(int argc, char** argv)
       frameworkId,
       executorId,
       commandInfo,
-      utils::os::getenv("MESOS_USER"),
-      utils::os::getenv("MESOS_WORK_DIRECTORY"),
-      utils::os::getenv("MESOS_SLAVE_PID"),
-      utils::os::getenv("MESOS_FRAMEWORKS_HOME", false),
-      utils::os::getenv("MESOS_HADOOP_HOME"),
-      utils::os::getenv("MESOS_REDIRECT_IO") == "1",
-      utils::os::getenv("MESOS_SWITCH_USER") == "1",
-      utils::os::getenv("MESOS_CONTAINER", false))
+      os::getenv("MESOS_USER"),
+      os::getenv("MESOS_WORK_DIRECTORY"),
+      os::getenv("MESOS_SLAVE_PID"),
+      os::getenv("MESOS_FRAMEWORKS_HOME", false),
+      os::getenv("MESOS_HADOOP_HOME"),
+      os::getenv("MESOS_REDIRECT_IO") == "1",
+      os::getenv("MESOS_SWITCH_USER") == "1",
+      os::getenv("MESOS_CONTAINER", false))
     .run();
 }

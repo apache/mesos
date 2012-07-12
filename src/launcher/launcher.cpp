@@ -29,9 +29,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include "common/fatal.hpp"
-#include "common/foreach.hpp"
-#include "common/utils.hpp"
+#include <stout/fatal.hpp>
+#include <stout/foreach.hpp>
+#include <stout/net.hpp>
+#include <stout/os.hpp>
 
 #include "launcher/launcher.hpp"
 
@@ -115,7 +116,7 @@ int ExecutorLauncher::run()
       // In parent process, wait for the child to finish.
       int status;
       wait(&status);
-      utils::os::system("lxc-stop -n " + container);
+      os::system("lxc-stop -n " + container);
       return status;
     }
   }
@@ -133,7 +134,7 @@ void ExecutorLauncher::initializeWorkingDirectory()
 {
   // TODO(benh): Do this in the slave?
   if (shouldSwitchUser) {
-    if (!utils::os::chown(user, workDirectory)) {
+    if (!os::chown(user, workDirectory)) {
       fatal("Failed to change ownership of framework's working directory %s "
             "to user %s", workDirectory.c_str(), user.c_str());
     }
@@ -182,7 +183,7 @@ void ExecutorLauncher::fetchExecutors()
       cout << "Downloading resource from " << resource << endl;
       cout << "HDFS command: " << command.str() << endl;
 
-      int ret = utils::os::system(command.str());
+      int ret = os::system(command.str());
       if (ret != 0) {
         fatal("HDFS copyToLocal failed: return code %d", ret);
       }
@@ -196,7 +197,7 @@ void ExecutorLauncher::fetchExecutors()
       CHECK(path.size() > path.find("/") + 1) << "Malformed URL (missing path)";
       path =  "./" + path.substr(path.find_last_of("/") + 1);
       cout << "Downloading " << resource << " to " << path << endl;
-      Try<int> code = utils::net::download(resource, path);
+      Try<int> code = net::download(resource, path);
       if (code.isError()) {
         fatal("Error downloading resource: %s", code.error().c_str());
       } else if (code.get() != 200) {
@@ -224,15 +225,15 @@ void ExecutorLauncher::fetchExecutors()
       command << "cp " << resource << " .";
       cout << "Copying resource from " << resource << " to .";
 
-      int ret = utils::os::system(command.str());
+      int ret = os::system(command.str());
       if (ret != 0) {
         fatal("Copy failed: return code %d", ret);
       }
-      resource = "./" + utils::os::basename(resource);
+      resource = "./" + os::basename(resource);
     }
 
     if (executable &&
-        !utils::os::chmod(resource.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
+        !os::chmod(resource.c_str(), S_IRWXU | S_IRGRP | S_IXGRP |
                           S_IROTH | S_IXOTH)) {
       fatalerror("chmod failed");
     }
@@ -242,14 +243,14 @@ void ExecutorLauncher::fetchExecutors()
         strings::endsWith(resource, ".tar.gz")) {
       string command = "tar xzf '" + resource + "'";
       cout << "Extracting resource: " + command << endl;
-      int code = utils::os::system(command);
+      int code = os::system(command);
       if (code != 0) {
         fatal("Failed to extract resource: tar exit code %d", code);
       }
     } else if (strings::endsWith(resource, ".zip")) {
       string command = "unzip '" + resource + "'";
       cout << "Extracting resource: " + command << endl;
-      int code = utils::os::system(command);
+      int code = os::system(command);
       if (code != 0) {
         fatal("Failed to extract resource: unzip exit code %d", code);
       }
@@ -265,24 +266,24 @@ void ExecutorLauncher::setupEnvironment()
   if (commandInfo.has_environment()) {
     foreach (const Environment::Variable& variable,
              commandInfo.environment().variables()) {
-      utils::os::setenv(variable.name(), variable.value());
+      os::setenv(variable.name(), variable.value());
     }
   }
 
   // Set Mesos environment variables for slave ID, framework ID, etc.
-  utils::os::setenv("MESOS_DIRECTORY", workDirectory);
-  utils::os::setenv("MESOS_SLAVE_PID", slavePid);
-  utils::os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
-  utils::os::setenv("MESOS_EXECUTOR_ID", executorId.value());
+  os::setenv("MESOS_DIRECTORY", workDirectory);
+  os::setenv("MESOS_SLAVE_PID", slavePid);
+  os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
+  os::setenv("MESOS_EXECUTOR_ID", executorId.value());
 
   // Set LIBPROCESS_PORT so that we bind to a random free port.
-  utils::os::setenv("LIBPROCESS_PORT", "0");
+  os::setenv("LIBPROCESS_PORT", "0");
 }
 
 
 void ExecutorLauncher::switchUser()
 {
-  if (!utils::os::su(user)) {
+  if (!os::su(user)) {
     fatal("Failed to switch to user %s for executor %s of framework %s",
           user.c_str(), executorId.value().c_str(), frameworkId.value().c_str());
   }
@@ -307,16 +308,16 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
     uris = strings::trim(uris);
   }
 
-  utils::os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
-  utils::os::setenv("MESOS_COMMAND", commandInfo.value());
-  utils::os::setenv("MESOS_EXECUTOR_URIS", uris);
-  utils::os::setenv("MESOS_USER", user);
-  utils::os::setenv("MESOS_WORK_DIRECTORY", workDirectory);
-  utils::os::setenv("MESOS_SLAVE_PID", slavePid);
-  utils::os::setenv("MESOS_HADOOP_HOME", hadoopHome);
-  utils::os::setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0");
-  utils::os::setenv("MESOS_SWITCH_USER", shouldSwitchUser ? "1" : "0");
-  utils::os::setenv("MESOS_CONTAINER", container);
+  os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
+  os::setenv("MESOS_COMMAND", commandInfo.value());
+  os::setenv("MESOS_EXECUTOR_URIS", uris);
+  os::setenv("MESOS_USER", user);
+  os::setenv("MESOS_WORK_DIRECTORY", workDirectory);
+  os::setenv("MESOS_SLAVE_PID", slavePid);
+  os::setenv("MESOS_HADOOP_HOME", hadoopHome);
+  os::setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0");
+  os::setenv("MESOS_SWITCH_USER", shouldSwitchUser ? "1" : "0");
+  os::setenv("MESOS_CONTAINER", container);
 }
 
 } // namespace launcher {

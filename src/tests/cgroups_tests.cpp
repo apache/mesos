@@ -22,15 +22,12 @@
 
 #include <gmock/gmock.h>
 
-#include "common/option.hpp"
-#include "common/stringify.hpp"
-#include "common/strings.hpp"
-#include "common/utils.hpp"
+#include <stout/option.hpp>
+#include <stout/os.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 
 #include "linux/cgroups.hpp"
-
-
-using namespace mesos::internal;
 
 
 // Define the test fixture for the cgroups tests.
@@ -79,8 +76,8 @@ protected:
     }
 
     // Remove the directory if still exists.
-    if (utils::os::exists(hierarchy)) {
-      utils::os::rmdir(hierarchy);
+    if (os::exists(hierarchy)) {
+      os::rmdir(hierarchy);
     }
   }
 

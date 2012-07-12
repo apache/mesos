@@ -23,7 +23,7 @@
 #include <iostream>
 #include <string>
 
-#include "common/fatal.hpp"
+#include <stout/fatal.hpp>
 
 #include "messages/messages.hpp"
 

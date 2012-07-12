@@ -22,9 +22,9 @@
 
 #include <process/process.hpp>
 
-#include "common/foreach.hpp"
-#include "common/option.hpp"
-#include "common/utils.hpp"
+#include <stout/foreach.hpp>
+#include <stout/option.hpp>
+#include <stout/os.hpp>
 
 #include "configurator/configurator.hpp"
 #include "configurator/configuration.hpp"
@@ -48,7 +48,7 @@ using std::string;
 
 void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << utils::os::basename(argv0) << " [...] path/to/log"
+  cerr << "Usage: " << os::basename(argv0) << " [...] path/to/log"
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();

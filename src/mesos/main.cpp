@@ -1,7 +1,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
-#include "common/utils.hpp"
+#include <stout/os.hpp>
 
 #include "configurator/configurator.hpp"
 
@@ -19,7 +19,7 @@ using std::string;
 
 void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << utils::os::basename(argv0) << " [...]" << endl
+  cerr << "Usage: " << os::basename(argv0) << " [...]" << endl
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();

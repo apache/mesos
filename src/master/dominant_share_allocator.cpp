@@ -22,8 +22,7 @@
 #include <process/delay.hpp>
 #include <process/timer.hpp>
 
-#include "common/foreach.hpp"
-#include "common/utils.hpp"
+#include <stout/foreach.hpp>
 
 #include "logging/logging.hpp"
 

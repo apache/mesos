@@ -23,10 +23,12 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
-#include "common/foreach.hpp"
+#include <stout/foreach.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+
 #include "common/type_utils.hpp"
 #include "common/units.hpp"
-#include "common/utils.hpp"
 
 #include "launcher/launcher.hpp"
 
@@ -159,7 +161,7 @@ void LxcIsolationModule::launchExecutor(
     // Close unnecessary file descriptors. Note that we are assuming
     // stdin, stdout, and stderr can ONLY be found at the POSIX
     // specified file numbers (0, 1, 2).
-    foreach (const string& entry, utils::os::listdir("/proc/self/fd")) {
+    foreach (const string& entry, os::listdir("/proc/self/fd")) {
       if (entry != "." && entry != "..") {
         try {
           int fd = boost::lexical_cast<int>(entry);
@@ -206,7 +208,7 @@ void LxcIsolationModule::launchExecutor(
     }
 
     // Determine path for mesos-launcher from Mesos home directory.
-    string path = utils::path::join(flags.launcher_dir, "mesos-launcher");
+    string path = path::join(flags.launcher_dir, "mesos-launcher");
     args[i++] = path.c_str();
     args[i++] = NULL;
 
@@ -237,7 +239,7 @@ void LxcIsolationModule::killExecutor(
   LOG(INFO) << "Stopping container " << info->container;
 
   Try<int> status =
-    utils::os::shell(NULL, "lxc-stop -n %s", info->container.c_str());
+    os::shell(NULL, "lxc-stop -n %s", info->container.c_str());
 
   if (status.isError()) {
     LOG(ERROR) << "Failed to stop container " << info->container
@@ -343,7 +345,7 @@ bool LxcIsolationModule::setControlGroupValue(
             << " to " << value;
 
   Try<int> status =
-    utils::os::shell(NULL, "lxc-cgroup -n %s %s %lld",
+    os::shell(NULL, "lxc-cgroup -n %s %s %lld",
                      container.c_str(), property.c_str(), value);
 
   if (status.isError()) {

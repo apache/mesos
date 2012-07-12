@@ -25,9 +25,9 @@
 
 #include <process/process.hpp>
 
-#include "common/option.hpp"
-#include "common/result.hpp"
-#include "common/time.hpp"
+#include <stout/option.hpp>
+#include <stout/result.hpp>
+#include <stout/time.hpp>
 
 #include "messages/messages.hpp"
 

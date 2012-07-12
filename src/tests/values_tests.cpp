@@ -21,8 +21,10 @@
 
 #include <gtest/gtest.h>
 
-#include "common/try.hpp"
+#include <stout/try.hpp>
+
 #include "common/values.hpp"
+
 #include "master/master.hpp"
 
 using namespace mesos;

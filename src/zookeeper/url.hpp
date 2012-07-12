@@ -21,9 +21,9 @@
 
 #include <string>
 
-#include "common/option.hpp"
-#include "common/strings.hpp"
-#include "common/try.hpp"
+#include <stout/option.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
 
 #include "zookeeper/authentication.hpp"
 

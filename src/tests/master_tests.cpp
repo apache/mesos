@@ -22,6 +22,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <stout/os.hpp>
+
 #include "detector/detector.hpp"
 
 #include "local/local.hpp"
@@ -669,7 +671,7 @@ protected:
 
   virtual ~WhitelistFixture()
   {
-    utils::os::rm(path);
+    os::rm(path);
   }
 
   const string path;
@@ -687,10 +689,10 @@ TEST_F(WhitelistFixture, WhitelistSlave)
     .WillRepeatedly(Return(false));
 
   // Add some hosts to the white list.
-  Try<string> hostname = utils::os::hostname();
+  Try<string> hostname = os::hostname();
   ASSERT_TRUE(hostname.isSome());
   string hosts = hostname.get() + "\n" + "dummy-slave";
-  CHECK (utils::os::write(path, hosts).isSome()) << "Error writing whitelist";
+  CHECK (os::write(path, hosts).isSome()) << "Error writing whitelist";
 
   DominantShareAllocator a;
   flags::Flags<logging::Flags, master::Flags> flags;

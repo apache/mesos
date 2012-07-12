@@ -8,9 +8,11 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
-#include "common/result.hpp"
-#include "common/strings.hpp"
-#include "common/utils.hpp"
+#include <stout/numify.hpp>
+#include <stout/os.hpp>
+#include <stout/result.hpp>
+#include <stout/strings.hpp>
+#include <stout/utils.hpp>
 
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/group.hpp"
@@ -18,8 +20,6 @@
 #include "zookeeper/zookeeper.hpp"
 
 using namespace process;
-
-namespace utils = mesos::internal::utils; // TODO(benh): Pull utils out.
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -556,9 +556,9 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
 
   // Save the sequence number but only grab the basename. Example:
   // "/path/to/znode/0000000131" => "0000000131".
-  result = utils::os::basename(result);
+  result = os::basename(result);
 
-  Try<uint64_t> sequence = utils::numify<uint64_t>(result);
+  Try<uint64_t> sequence = numify<uint64_t>(result);
   CHECK(sequence.isSome()) << sequence.error();
 
   Promise<bool>* cancelled = new Promise<bool>();
@@ -673,7 +673,7 @@ bool GroupProcess::cache()
   set<uint64_t> sequences;
 
   foreach (const string& result, results) {
-    Try<uint64_t> sequence = utils::numify<uint64_t>(result);
+    Try<uint64_t> sequence = numify<uint64_t>(result);
 
     // Skip it if it couldn't be converted to a number.
     if (sequence.isError()) {

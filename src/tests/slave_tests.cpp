@@ -24,7 +24,8 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 
-#include "common/time.hpp"
+#include <stout/os.hpp>
+#include <stout/time.hpp>
 
 #include "detector/detector.hpp"
 
@@ -109,7 +110,7 @@ protected:
 
     process::filter(NULL);
 
-    utils::os::rmdir(flags.work_dir);
+    os::rmdir(flags.work_dir);
   }
 
   void startSlave()
@@ -236,7 +237,7 @@ TEST_F(SlaveTest, GarbageCollectSlaveDirs)
 
   // Make sure directory exists.
   const std::string& slaveDir = flags.work_dir + "/slaves/" + slaveId.value();
-  ASSERT_TRUE(utils::os::exists(slaveDir));
+  ASSERT_TRUE(os::exists(slaveDir));
 
   Clock::pause();
 
@@ -265,8 +266,8 @@ TEST_F(SlaveTest, GarbageCollectSlaveDirs)
 
   // By this time the old slave directory should be cleaned up and
   // the new directory should exist.
-  ASSERT_FALSE(utils::os::exists(slaveDir));
-  ASSERT_TRUE(utils::os::exists(flags.work_dir + "/slaves/" +
+  ASSERT_FALSE(os::exists(slaveDir));
+  ASSERT_TRUE(os::exists(flags.work_dir + "/slaves/" +
                                 slaveId2.value()));
 
   Clock::resume();
@@ -309,7 +310,7 @@ TEST_F(SlaveTest, GarbageCollectExecutorDir)
   const std::string executorDir =
       isolationModule->directories[DEFAULT_EXECUTOR_ID];
 
-  ASSERT_TRUE(utils::os::exists(executorDir));
+  ASSERT_TRUE(os::exists(executorDir));
 
   statusUpdateCall.value = false;
   resourceOffersCall.value = false;
@@ -342,7 +343,7 @@ TEST_F(SlaveTest, GarbageCollectExecutorDir)
   WAIT_UNTIL(statusUpdateCall); // TASK_LOST
 
   // First executor's directory should be gced by now.
-  ASSERT_FALSE(utils::os::exists(executorDir));
+  ASSERT_FALSE(os::exists(executorDir));
 
   Clock::resume();
 

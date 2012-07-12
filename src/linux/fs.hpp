@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-#include "common/try.hpp"
+#include <stout/try.hpp>
 
 
 namespace mesos {

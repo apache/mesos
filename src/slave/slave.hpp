@@ -23,6 +23,11 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/hashmap.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/uuid.hpp>
+
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/http.hpp"
@@ -30,10 +35,7 @@
 
 #include "common/attributes.hpp"
 #include "common/resources.hpp"
-#include "common/hashmap.hpp"
 #include "common/type_utils.hpp"
-#include "common/utils.hpp"
-#include "common/uuid.hpp"
 
 #include "messages/messages.hpp"
 
@@ -331,8 +333,8 @@ struct Framework
       executor.mutable_executor_id()->set_value(id);
 
       // Now determine the path to the executor.
-      Try<std::string> path = utils::os::realpath(
-          utils::path::join(flags.launcher_dir, "mesos-executor"));
+      Try<std::string> path = os::realpath(
+          path::join(flags.launcher_dir, "mesos-executor"));
 
       if (path.isSome()) {
         executor.mutable_command()->set_value(path.get());

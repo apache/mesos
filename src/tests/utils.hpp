@@ -31,9 +31,10 @@
 
 #include <process/process.hpp>
 
-#include "common/option.hpp"
+#include <stout/option.hpp>
+#include <stout/os.hpp>
+
 #include "common/type_utils.hpp"
-#include "common/utils.hpp"
 
 #include "master/master.hpp"
 
@@ -461,19 +462,19 @@ public:
 
       directories[executorInfo.executor_id()] = directory;
 
-      utils::os::setenv("MESOS_LOCAL", "1");
-      utils::os::setenv("MESOS_DIRECTORY", directory);
-      utils::os::setenv("MESOS_SLAVE_PID", slave);
-      utils::os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
-      utils::os::setenv("MESOS_EXECUTOR_ID", executorInfo.executor_id().value());
+      os::setenv("MESOS_LOCAL", "1");
+      os::setenv("MESOS_DIRECTORY", directory);
+      os::setenv("MESOS_SLAVE_PID", slave);
+      os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
+      os::setenv("MESOS_EXECUTOR_ID", executorInfo.executor_id().value());
 
       driver->start();
 
-      utils::os::unsetenv("MESOS_LOCAL");
-      utils::os::unsetenv("MESOS_DIRECTORY");
-      utils::os::unsetenv("MESOS_SLAVE_PID");
-      utils::os::unsetenv("MESOS_FRAMEWORK_ID");
-      utils::os::unsetenv("MESOS_EXECUTOR_ID");
+      os::unsetenv("MESOS_LOCAL");
+      os::unsetenv("MESOS_DIRECTORY");
+      os::unsetenv("MESOS_SLAVE_PID");
+      os::unsetenv("MESOS_FRAMEWORK_ID");
+      os::unsetenv("MESOS_EXECUTOR_ID");
     } else {
       FAIL() << "Cannot launch executor";
     }

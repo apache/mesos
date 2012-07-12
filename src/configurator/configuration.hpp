@@ -26,9 +26,9 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include "common/foreach.hpp"
-#include "common/option.hpp"
-#include "common/strings.hpp"
+#include <stout/foreach.hpp>
+#include <stout/option.hpp>
+#include <stout/strings.hpp>
 
 
 namespace mesos {

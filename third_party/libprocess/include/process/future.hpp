@@ -11,7 +11,8 @@
 #include <tr1/memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 
 #include <process/latch.hpp>
-#include <process/option.hpp>
+
+#include <stout/option.hpp>
 
 namespace process {
 

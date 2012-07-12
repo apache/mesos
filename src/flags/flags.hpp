@@ -9,8 +9,8 @@
 
 #include <tr1/functional>
 
-#include "common/option.hpp"
-#include "common/stringify.hpp"
+#include <stout/option.hpp>
+#include <stout/stringify.hpp>
 
 #include "flags/flag.hpp"
 #include "flags/loader.hpp"

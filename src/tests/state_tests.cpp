@@ -26,9 +26,10 @@
 #include <process/future.hpp>
 #include <process/protobuf.hpp>
 
-#include "common/option.hpp"
+#include <stout/option.hpp>
+#include <stout/os.hpp>
+
 #include "common/type_utils.hpp"
-#include "common/utils.hpp"
 
 #include "messages/messages.hpp"
 
@@ -198,19 +199,19 @@ class LevelDBStateTest : public ::testing::Test
 {
 public:
   LevelDBStateTest()
-    : state(NULL), path(utils::os::getcwd() + "/.state") {}
+    : state(NULL), path(os::getcwd() + "/.state") {}
 
 protected:
   virtual void SetUp()
   {
-    utils::os::rmdir(path);
+    os::rmdir(path);
     state = new LevelDBState(path);
   }
 
   virtual void TearDown()
   {
     delete state;
-    utils::os::rmdir(path);
+    os::rmdir(path);
   }
 
   State* state;

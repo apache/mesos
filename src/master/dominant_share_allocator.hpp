@@ -21,9 +21,9 @@
 
 #include <vector>
 
-#include "common/hashmap.hpp"
-#include "common/multihashmap.hpp"
-#include "common/option.hpp"
+#include <stout/hashmap.hpp>
+#include <stout/multihashmap.hpp>
+#include <stout/option.hpp>
 
 #include "master/allocator.hpp"
 

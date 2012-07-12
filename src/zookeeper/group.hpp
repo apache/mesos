@@ -4,9 +4,9 @@
 #include <set>
 
 #include "process/future.hpp"
-#include "process/option.hpp"
 
-#include "common/time.hpp"
+#include <stout/option.hpp>
+#include <stout/time.hpp>
 
 #include "zookeeper/authentication.hpp"
 

@@ -22,7 +22,7 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
-#include "common/multihashmap.hpp"
+#include <stout/multihashmap.hpp>
 
 #include "master/flags.hpp"
 

@@ -25,12 +25,12 @@
 #include <fstream>
 #include <iostream>
 
+#include <stout/foreach.hpp>
+#include <stout/os.hpp>
+#include <stout/strings.hpp>
+
 #include "configurator.hpp"
 #include "configuration.hpp"
-
-#include "common/foreach.hpp"
-#include "common/strings.hpp"
-#include "common/utils.hpp"
 
 using namespace mesos::internal;
 
@@ -111,7 +111,7 @@ void Configurator::loadConfigFileIfGiven(bool overwrite) {
   if (conf.contains("conf")) {
     // If conf param is given, always look for a config file in that directory.
     Try<string> path =
-      utils::os::realpath(conf["conf"] + "/" + CONFIG_FILE_NAME);
+      os::realpath(conf["conf"] + "/" + CONFIG_FILE_NAME);
 
     if (path.isError()) {
       LOG(WARNING) << "Cannot load config file: " << path.error();

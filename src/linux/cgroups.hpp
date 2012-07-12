@@ -25,7 +25,7 @@
 
 #include <sys/types.h>
 
-#include "common/try.hpp"
+#include <stout/try.hpp>
 
 
 namespace cgroups {

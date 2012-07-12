@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
+#include <stout/os.hpp>
+#include <stout/stringify.hpp>
+#include <stout/try.hpp>
+
 #include "common/build.hpp"
-#include "common/stringify.hpp"
-#include "common/try.hpp"
-#include "common/utils.hpp"
 
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
@@ -45,7 +46,7 @@ using std::string;
 
 void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << utils::os::basename(argv0) << " [...]" << endl
+  cerr << "Usage: " << os::basename(argv0) << " [...]" << endl
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();
@@ -108,11 +109,11 @@ int main(int argc, char** argv)
 
   // Initialize libprocess.
   if (port.isSome()) {
-    utils::os::setenv("LIBPROCESS_PORT", stringify(port.get()));
+    os::setenv("LIBPROCESS_PORT", stringify(port.get()));
   }
 
   if (ip.isSome()) {
-    utils::os::setenv("LIBPROCESS_IP", ip.get());
+    os::setenv("LIBPROCESS_IP", ip.get());
   }
 
   process::initialize();

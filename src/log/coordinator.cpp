@@ -21,7 +21,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 
-#include "common/foreach.hpp"
+#include <stout/foreach.hpp>
 
 #include "log/coordinator.hpp"
 #include "log/replica.hpp"

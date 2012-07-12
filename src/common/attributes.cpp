@@ -21,9 +21,10 @@
 
 #include <glog/logging.h>
 
+#include <stout/foreach.hpp>
+#include <stout/strings.hpp>
+
 #include "common/attributes.hpp"
-#include "common/foreach.hpp"
-#include "common/strings.hpp"
 
 using std::ostream;
 using std::string;

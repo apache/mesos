@@ -26,15 +26,15 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
-#include "common/foreach.hpp"
-#include "common/hashmap.hpp"
-#include "common/hashset.hpp"
-#include "common/multihashmap.hpp"
-#include "common/option.hpp"
+#include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
+#include <stout/multihashmap.hpp>
+#include <stout/option.hpp>
+
 #include "common/resources.hpp"
 #include "common/type_utils.hpp"
 #include "common/units.hpp"
-#include "common/utils.hpp"
 
 #include "flags/flags.hpp"
 

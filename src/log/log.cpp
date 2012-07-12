@@ -49,9 +49,9 @@
 #include <process/process.hpp>
 #include <process/run.hpp>
 
-#include "common/fatal.hpp"
-#include "common/foreach.hpp"
-#include "common/result.hpp"
+#include <stout/fatal.hpp>
+#include <stout/foreach.hpp>
+#include <stout/result.hpp>
 
 #include "zookeeper/zookeeper.hpp"
 

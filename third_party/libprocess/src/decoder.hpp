@@ -10,7 +10,7 @@
 #include <process/http.hpp>
 #include <process/socket.hpp>
 
-#include "foreach.hpp"
+#include <stout/foreach.hpp>
 
 
 namespace process {

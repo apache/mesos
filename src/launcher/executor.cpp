@@ -25,7 +25,8 @@
 
 #include <mesos/executor.hpp>
 
-#include "common/strings.hpp"
+#include <stout/strings.hpp>
+
 #include "common/thread.hpp"
 
 #include "logging/logging.hpp"

@@ -24,7 +24,7 @@
 
 #include <pthread.h>
 
-#include "fatal.hpp"
+#include <stout/fatal.hpp>
 
 
 // These two macros create a Factory class that constructs instances of

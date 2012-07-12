@@ -20,7 +20,7 @@
 
 #include <process/process.hpp>
 
-#include "common/stringify.hpp"
+#include <stout/stringify.hpp>
 
 #include "flags/flags.hpp"
 

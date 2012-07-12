@@ -20,10 +20,10 @@
 
 #include <gmock/gmock.h>
 
-#include "common/option.hpp"
-#include "common/try.hpp"
+#include <stout/foreach.hpp>
+#include <stout/option.hpp>
+#include <stout/try.hpp>
 
-#include "common/foreach.hpp"
 #include "linux/fs.hpp"
 
 using namespace mesos;

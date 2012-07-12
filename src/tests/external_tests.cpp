@@ -24,7 +24,7 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include "common/fatal.hpp"
+#include <stout/fatal.hpp>
 
 #include "tests/external_test.hpp"
 #include "tests/utils.hpp"

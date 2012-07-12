@@ -21,7 +21,7 @@
 
 #include <string>
 
-#include "common/option.hpp"
+#include <stout/option.hpp>
 
 #include "flags/flags.hpp"
 

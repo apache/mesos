@@ -21,7 +21,7 @@
 
 #include <mesos/mesos.hpp>
 
-#include "common/try.hpp"
+#include <stout/try.hpp>
 
 namespace mesos {
 
