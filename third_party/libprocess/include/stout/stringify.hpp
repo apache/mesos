@@ -23,6 +23,13 @@ std::string stringify(T t)
 }
 
 
+template <>
+inline std::string stringify(bool b)
+{
+  return b ? "true" : "false";
+}
+
+
 template <typename T>
 std::string stringify(const std::set<T>& set)
 {

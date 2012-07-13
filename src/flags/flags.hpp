@@ -181,9 +181,12 @@ void FlagsBase::add(
     ? " (default: " // On same line, add space.
     : "(default: "; // On newline.
 
-  flag.help += flag.boolean
-    ? (m2 ? "true" : "false")
-    : stringify(m2);
+  // Update the help string to include the default value.
+  flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
+    ? " (default: " // On same line, add space.
+    : "(default: "; // On newline.
+  flag.help += stringify(m2);
+  flag.help += ")";
 
   flag.help += ")";
 
