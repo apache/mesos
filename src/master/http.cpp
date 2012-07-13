@@ -44,6 +44,7 @@ namespace master {
 
 using process::Future;
 
+using process::http::BadRequest;
 using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::OK;
@@ -331,22 +332,21 @@ Future<Response> log(
   if (pairs.count("offset") > 0 && pairs["offset"].size() > 0) {
     Try<off_t> result = numify<off_t>(pairs["offset"].back());
     if (result.isError()) {
-      LOG(WARNING) << "Failed to \"numify\" the 'offset' ("
-                   << pairs["offset"].back() << "): "
+      LOG(WARNING) << "Failed to \"numify\" the 'offset' value (\""
+                   << pairs["offset"].back() << "\"): "
                    << result.error();
-      return InternalServerError();
+      return BadRequest();
     }
     offset = result.get();
   }
 
-  if (pairs.count("length") > 0) {
-    CHECK(pairs["length"].size() > 0);
+  if (pairs.count("length") > 0 && pairs["length"].size() > 0) {
     Try<ssize_t> result = numify<ssize_t>(pairs["length"].back());
     if (result.isError()) {
-      LOG(WARNING) << "Failed to \"numify\" the 'length' ("
-                   << pairs["length"].back() << "): "
+      LOG(WARNING) << "Failed to \"numify\" the 'length' value (\""
+                   << pairs["length"].back() << "\"): "
                    << result.error();
-      return InternalServerError();
+      return BadRequest();
     }
     length = result.get();
   }
