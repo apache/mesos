@@ -316,11 +316,7 @@ void Flags<Flags1, Flags2, Flags3, Flags4, Flags5>::add(
   flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
     ? " (default: " // On same line, add space.
     : "(default: "; // On newline.
-
-  flag.help += flag.boolean
-    ? (t2 ? "true" : "false")
-    : stringify(t2);
-
+  flag.help += stringify(t2);
   flag.help += ")";
 
   FlagsBase::add(flag);
