@@ -385,6 +385,7 @@ ACTION_TEMPLATE(SaveArgField,
 struct trigger
 {
   trigger() : value(false) {}
+  operator bool () const { return value; }
   bool value;
 };
 
@@ -393,6 +394,24 @@ struct trigger
  * Definition of the Trigger action to be used with gmock.
  */
 ACTION_P(Trigger, trigger) { trigger->value = true; }
+
+
+/**
+ * Definition of an 'increment' action to be used with gmock.
+ */
+ACTION_P(Increment, variable)
+{
+  *variable = *variable + 1;
+}
+
+
+/**
+ * Definition of a 'decrement' action to be used with gmock.
+ */
+ACTION_P(Decrement, variable)
+{
+  *variable = *variable - 1;
+}
 
 
 /**
@@ -408,21 +427,21 @@ ACTION_P(SendStatusUpdate, state)
 
 
 /**
- * This macro can be used to wait until some trigger has
- * occured. Currently, a test will wait no longer than approxiamtely 2
+ * This macro can be used to wait until some expression evaluates to
+ * true. Currently, a test will wait no longer than approxiamtely 2
  * seconds (10 us * 200000). At some point we may add a mechanism to
  * specify how long to try and wait.
  */
-#define WAIT_UNTIL(trigger)                                             \
+#define WAIT_UNTIL(e)                                                   \
   do {                                                                  \
     int sleeps = 0;                                                     \
     do {                                                                \
       __sync_synchronize();                                             \
-      if ((trigger).value)                                              \
+      if (e)                                                            \
         break;                                                          \
       usleep(10);                                                       \
       if (sleeps++ >= 200000) {                                         \
-        FAIL() << "Waited too long for trigger!";                       \
+        FAIL() << "Waited too long for '" #e "'";                       \
         ::exit(-1); /* TODO(benh): Figure out how not to exit! */       \
         break;                                                          \
       }                                                                 \

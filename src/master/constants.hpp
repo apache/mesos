@@ -41,11 +41,11 @@ const int32_t MAX_CPUS = 1000 * 1000;
 // Maximum amount of memory / machine.
 const int32_t MAX_MEM = 1024 * 1024 * Megabyte;
 
-// Acceptable timeout for slave PONG.
-const double SLAVE_PONG_TIMEOUT = 15.0;
+// Acceptable timeout for slave PING.
+const double SLAVE_PING_TIMEOUT = 15.0;
 
-// Maximum number of timeouts until slave is considered failed.
-const int MAX_SLAVE_TIMEOUTS = 5;
+// Maximum number of ping timeouts until slave is considered failed.
+const int MAX_SLAVE_PING_TIMEOUTS = 5;
 
 // Maximum number of completed frameworks to store in the cache.
 // TODO(thomasm): Make configurable.

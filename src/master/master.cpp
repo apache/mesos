@@ -22,6 +22,7 @@
 #include <sstream>
 
 #include <process/delay.hpp>
+#include <process/id.hpp>
 #include <process/run.hpp>
 
 #include <stout/os.hpp>
@@ -125,7 +126,8 @@ public:
                 const SlaveInfo& _slaveInfo,
                 const SlaveID& _slaveId,
                 const PID<Master>& _master)
-    : slave(_slave),
+    : ProcessBase(ID::generate("slave-observer")),
+      slave(_slave),
       slaveInfo(_slaveInfo),
       slaveId(_slaveId),
       master(_master),
@@ -140,7 +142,7 @@ protected:
   {
     send(slave, "PING");
     pinged = true;
-    delay(SLAVE_PONG_TIMEOUT, self(), &SlaveObserver::timeout);
+    delay(SLAVE_PING_TIMEOUT, self(), &SlaveObserver::timeout);
   }
 
   void pong(const UPID& from, const string& body)
@@ -152,7 +154,7 @@ protected:
   void timeout()
   {
     if (pinged) { // So we haven't got back a pong yet ...
-      if (++timeouts >= MAX_SLAVE_TIMEOUTS) {
+      if (++timeouts >= MAX_SLAVE_PING_TIMEOUTS) {
         deactivate();
         return;
       }
@@ -160,7 +162,7 @@ protected:
 
     send(slave, "PING");
     pinged = true;
-    delay(SLAVE_PONG_TIMEOUT, self(), &SlaveObserver::timeout);
+    delay(SLAVE_PING_TIMEOUT, self(), &SlaveObserver::timeout);
   }
 
   void deactivate()

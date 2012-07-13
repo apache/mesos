@@ -139,12 +139,12 @@ TEST(FaultToleranceTest, SlavePartitioned)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  trigger pingMsg;
+  int pings = 0;
 
   // Set these expectations up before we spawn the slave (in
   // local::launch) so that we don't miss the first PING.
   EXPECT_MESSAGE(filter, Eq("PING"), _, _)
-    .WillRepeatedly(DoAll(Trigger(&pingMsg),
+    .WillRepeatedly(DoAll(Increment(&pings),
                           Return(false)));
 
   EXPECT_MESSAGE(filter, Eq("PONG"), _, _)
@@ -176,10 +176,14 @@ TEST(FaultToleranceTest, SlavePartitioned)
   // master, waiting for resource offers should accomplish both.
   WAIT_UNTIL(resourceOffersCall);
 
-  // We expect at least one PING by now.
-  WAIT_UNTIL(pingMsg);
+  // Now advance through the PINGs.
+  do {
+    int count = pings;
+    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    WAIT_UNTIL(pings == count + 1);
+  } while (pings < master::MAX_SLAVE_PING_TIMEOUTS);
 
-  Clock::advance(master::SLAVE_PONG_TIMEOUT * master::MAX_SLAVE_TIMEOUTS);
+  Clock::advance(master::SLAVE_PING_TIMEOUT);
 
   WAIT_UNTIL(slaveLostCall);
 
