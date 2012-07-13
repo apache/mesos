@@ -38,7 +38,7 @@ struct stringify;
 
 #if __cplusplus >= 201103L
 template <typename ...T>
-std::string format(const std::string& s, const T& ...t)
+Try<std::string> format(const std::string& s, const T& ...t)
 {
   return internal::format(
       s,

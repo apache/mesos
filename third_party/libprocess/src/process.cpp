@@ -348,7 +348,11 @@ public:
 
   bool handle(
       const Socket& socket,
-      Request* request,
+      Request* request);
+
+  bool deliver(
+      ProcessBase* receiver,
+      Event* event,
       ProcessBase* sender = NULL);
 
   bool deliver(
@@ -507,7 +511,7 @@ void Clock::pause()
     if (!clock::paused) {
       clock::initial = clock::current = now();
       clock::paused = true;
-      VLOG(1) << "Clock paused at " << fixedprecision<9> << clock::initial;
+      VLOG(2) << "Clock paused at " << fixedprecision<9> << clock::initial;
     }
   }
 
@@ -529,7 +533,7 @@ void Clock::resume()
 
   synchronized (timeouts) {
     if (clock::paused) {
-      VLOG(1) << "Clock resumed at "
+      VLOG(2) << "Clock resumed at "
               << std::fixed << std::setprecision(9) << clock::current;
       clock::paused = false;
       clock::currents->clear();
@@ -545,7 +549,7 @@ void Clock::advance(double secs)
   synchronized (timeouts) {
     if (clock::paused) {
       clock::current += secs;
-      VLOG(1) << "Clock advanced ("
+      VLOG(2) << "Clock advanced ("
               << std::fixed << std::setprecision(9) << secs
               << " seconds) to " << clock::current;
       if (!update_timer) {
@@ -557,15 +561,28 @@ void Clock::advance(double secs)
 }
 
 
+void Clock::advance(ProcessBase* process, double secs)
+{
+  synchronized (timeouts) {
+    if (clock::paused) {
+      double current = now(process);
+      current += secs;
+      (*clock::currents)[process] = current;
+      VLOG(2) << "Clock of " << process->self() << " advanced ("
+              << std::fixed << std::setprecision(9) << secs
+              << " seconds) to " << current;
+    }
+  }
+}
+
+
 void Clock::update(double secs)
 {
-  VLOG(2) << "Attempting to update clock to "
-          << std::fixed << std::setprecision(9) << secs;
   synchronized (timeouts) {
     if (clock::paused) {
       if (clock::current < secs) {
         clock::current = secs;
-        VLOG(1) << "Clock updated to "
+        VLOG(2) << "Clock updated to "
                 << std::fixed << std::setprecision(9) << clock::current;
         if (!update_timer) {
           update_timer = true;
@@ -740,7 +757,7 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
   synchronized (timeouts) {
     double now = Clock::now();
 
-    VLOG(1) << "Handling timeouts up to "
+    VLOG(3) << "Handling timeouts up to "
             << std::fixed << std::setprecision(9) << now;
 
     double timeout;
@@ -749,7 +766,7 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
         break;
       }
 
-      VLOG(2) << "Have timeout(s) at "
+      VLOG(3) << "Have timeout(s) at "
               << std::fixed << std::setprecision(9) << timeout;
 
       // Record that we have pending timers to execute so the
@@ -849,9 +866,9 @@ void recv_data(struct ev_loop* loop, ev_io* watcher, int revents)
       // Socket error or closed.
       if (length < 0) {
         const char* error = strerror(errno);
-        VLOG(2) << "Socket error while receiving: " << error;
+        VLOG(1) << "Socket error while receiving: " << error;
       } else {
-        VLOG(2) << "Socket closed while receiving";
+        VLOG(1) << "Socket closed while receiving";
       }
       socket_manager->close(s);
       delete decoder;
@@ -869,7 +886,7 @@ void recv_data(struct ev_loop* loop, ev_io* watcher, int revents)
           process_manager->handle(decoder->socket(), request);
         }
       } else if (requests.empty() && decoder->failed()) {
-        VLOG(2) << "Decoder error while receiving";
+        VLOG(1) << "Decoder error while receiving";
         socket_manager->close(s);
         delete decoder;
         ev_io_stop(loop, watcher);
@@ -908,9 +925,9 @@ void send_data(struct ev_loop* loop, ev_io* watcher, int revents)
       // Socket error or closed.
       if (length < 0) {
         const char* error = strerror(errno);
-        VLOG(2) << "Socket error while sending: " << error;
+        VLOG(1) << "Socket error while sending: " << error;
       } else {
-        VLOG(2) << "Socket closed while sending";
+        VLOG(1) << "Socket closed while sending";
       }
       socket_manager->close(s);
       delete encoder;
@@ -2007,8 +2024,7 @@ ProcessReference ProcessManager::use(const UPID& pid)
 
 bool ProcessManager::handle(
     const Socket& socket,
-    Request* request,
-    ProcessBase* sender)
+    Request* request)
 {
   CHECK(request != NULL);
 
@@ -2018,7 +2034,9 @@ bool ProcessManager::handle(
     Message* message = parse(request);
     if (message != NULL) {
       delete request;
-      return deliver(message->to, new MessageEvent(message), sender);
+      // TODO(benh): Use the sender PID in order to capture
+      // happens-before timing relationships for testing.
+      return deliver(message->to, new MessageEvent(message));
     }
 
     VLOG(1) << "Failed to handle libprocess request: "
@@ -2083,41 +2101,56 @@ bool ProcessManager::handle(
   }
 
   if (receiver) {
-    // If we have a local sender AND we are using a manual clock
-    // then update the current time of the receiver to preserve
-    // the happens-before relationship between the sender and
-    // receiver. Note that the assumption is that the sender
-    // remains valid for at least the duration of this routine (so
-    // that we can look up it's current time).
-    if (sender != NULL) {
-      synchronized (timeouts) {
-        if (Clock::paused()) {
+    // TODO(benh): Use the sender PID in order to capture
+    // happens-before timing relationships for testing.
+    return deliver(receiver, new HttpEvent(socket, request));
+  }
+
+  // This has no receiver, send error response.
+  VLOG(1) << "Returning '404 Not Found' for '" << request->path << "'";
+
+  // Get the HttpProxy pid for this socket.
+  PID<HttpProxy> proxy = socket_manager->proxy(socket);
+
+  // Enqueue the response with the HttpProxy so that it respects the
+  // order of requests to account for HTTP/1.1 pipelining.
+  dispatch(proxy, &HttpProxy::enqueue, NotFound(), request->keepAlive);
+
+  // Cleanup request.
+  delete request;
+  return false;
+}
+
+
+bool ProcessManager::deliver(
+    ProcessBase* receiver,
+    Event* event,
+    ProcessBase* sender)
+{
+  CHECK(event != NULL);
+
+  // If we are using a manual clock then update the current time of
+  // the receiver using the sender if necessary to preserve the
+  // happens-before relationship between the sender and receiver. Note
+  // that the assumption is that the sender remains valid for at least
+  // the duration of this routine (so that we can look up it's current
+  // time).
+  if (Clock::paused()) {
+    synchronized (timeouts) {
+      if (Clock::paused()) {
+        if (sender != NULL) {
           Clock::order(sender, receiver);
+        } else {
+          Clock::update(receiver, Clock::now());
         }
       }
     }
-
-    // Enqueue the event.
-    receiver->enqueue(new HttpEvent(socket, request));
-  } else {
-    // This has no receiver, send error response.
-    VLOG(1) << "Returning '404 Not Found' for '" << request->path << "'";
-
-    // Get the HttpProxy pid for this socket.
-    PID<HttpProxy> proxy = socket_manager->proxy(socket);
-
-    // Enqueue the response with the HttpProxy so that it respects the
-    // order of requests to account for HTTP/1.1 pipelining.
-    dispatch(proxy, &HttpProxy::enqueue, NotFound(), request->keepAlive);
-
-    // Cleanup request.
-    delete request;
-    return false;
   }
+
+  receiver->enqueue(event);
 
   return true;
 }
-
 
 bool ProcessManager::deliver(
     const UPID& to,
@@ -2127,27 +2160,11 @@ bool ProcessManager::deliver(
   CHECK(event != NULL);
 
   if (ProcessReference receiver = use(to)) {
-    // If we have a local sender AND we are using a manual clock
-    // then update the current time of the receiver to preserve
-    // the happens-before relationship between the sender and
-    // receiver. Note that the assumption is that the sender
-    // remains valid for at least the duration of this routine (so
-    // that we can look up it's current time).
-    if (sender != NULL) {
-      synchronized (timeouts) {
-        if (Clock::paused()) {
-          Clock::order(sender, receiver);
-        }
-      }
-    }
-
-    receiver->enqueue(event);
-  } else {
-    delete event;
-    return false;
+    return deliver(receiver, event, sender);
   }
 
-  return true;
+  delete event;
+  return false;
 }
 
 
@@ -2360,13 +2377,19 @@ void ProcessManager::terminate(
     ProcessBase* sender)
 {
   if (ProcessReference process = use(pid)) {
-    if (sender != NULL) {
+    if (Clock::paused()) {
       synchronized (timeouts) {
         if (Clock::paused()) {
-          Clock::order(sender, process);
+          if (sender != NULL) {
+            Clock::order(sender, process);
+          } else {
+            Clock::update(process, Clock::now());
+          }
         }
       }
+    }
 
+    if (sender != NULL) {
       process->enqueue(new TerminateEvent(sender->self()), inject);
     } else {
       process->enqueue(new TerminateEvent(UPID()), inject);
@@ -2425,7 +2448,7 @@ bool ProcessManager::wait(const UPID& pid)
   }
 
   if (process != NULL) {
-    VLOG(1) << "Donating thread to " << process->pid << " while waiting";
+    VLOG(2) << "Donating thread to " << process->pid << " while waiting";
     ProcessBase* donator = __process__;
     __sync_fetch_and_add(&running, 1);
     process_manager->resume(process);
@@ -2538,7 +2561,7 @@ Timer create(double secs, const lambda::function<void(void)>& thunk)
 
   Timer timer(__sync_fetch_and_add(&id, 1), timeout, pid, thunk);
 
-  VLOG(2) << "Created a timer for "
+  VLOG(3) << "Created a timer for "
           << std::fixed << std::setprecision(9) << timeout.value();
 
   // Add the timer.
@@ -2598,11 +2621,15 @@ ProcessBase::ProcessBase(const std::string& id)
 
   // If using a manual clock, try and set current time of process
   // using happens before relationship between creator and createe!
-  synchronized (timeouts) {
-    if (Clock::paused()) {
-      clock::currents->erase(this); // In case the address is reused!
-      if (__process__ != NULL) {
-        Clock::order(__process__, this);
+  if (Clock::paused()) {
+    synchronized (timeouts) {
+      if (Clock::paused()) {
+        clock::currents->erase(this); // In case the address is reused!
+        if (__process__ != NULL) {
+          Clock::order(__process__, this);
+        } else {
+          Clock::update(this, Clock::now());
+        }
       }
     }
   }
@@ -2836,12 +2863,14 @@ UPID spawn(ProcessBase* process, bool manage)
   if (process != NULL) {
     // If using a manual clock, try and set current time of process
     // using happens before relationship between spawner and spawnee!
-    synchronized (timeouts) {
-      if (Clock::paused()) {
-        if (__process__ != NULL) {
-          Clock::order(__process__, process);
-        } else {
-          Clock::update(process, Clock::now());
+    if (Clock::paused()) {
+      synchronized (timeouts) {
+        if (Clock::paused()) {
+          if (__process__ != NULL) {
+            Clock::order(__process__, process);
+          } else {
+            Clock::update(process, Clock::now());
+          }
         }
       }
     }
@@ -2870,7 +2899,7 @@ public:
 
   virtual void initialize()
   {
-    VLOG(2) << "Running waiter process for " << pid;
+    VLOG(3) << "Running waiter process for " << pid;
     link(pid);
     delay(secs, self(), &WaitWaiter::timeout);
   }
@@ -2878,14 +2907,14 @@ public:
 private:
   virtual void exited(const UPID&)
   {
-    VLOG(2) << "Waiter process waited for " << pid;
+    VLOG(3) << "Waiter process waited for " << pid;
     *waited = true;
     terminate(self());
   }
 
   void timeout()
   {
-    VLOG(2) << "Waiter process timed out waiting for " << pid;
+    VLOG(3) << "Waiter process timed out waiting for " << pid;
     *waited = false;
     terminate(self());
   }

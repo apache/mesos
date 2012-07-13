@@ -17,11 +17,11 @@ struct hours
   inline operator milliseconds () const;
   inline operator microseconds () const;
   inline operator nanoseconds () const;
-  double mins() const { return value * 60; }
-  double secs() const { return value * 3600; }
-  double millis() const { return value * 3600 * 1000; }
-  double micros() const { return value * 3600 * 1000000; }
-  double nanos() const { return value * 3600 * 1000000000; }
+  double mins() const { return value * 60.0; }
+  double secs() const { return value * 3600.0; }
+  double millis() const { return value * 3600.0 * 1000.0; }
+  double micros() const { return value * 3600.0 * 1000000.0; }
+  double nanos() const { return value * 3600.0 * 1000000000.0; }
   const double value;
 };
 
@@ -34,11 +34,11 @@ struct minutes
   inline operator milliseconds () const;
   inline operator microseconds () const;
   inline operator nanoseconds () const;
-  double hrs() const {return value / 60; }
-  double secs() const { return value * 60; }
-  double millis() const { return value * 60 * 1000; }
-  double micros() const { return value * 60 * 1000000; }
-  double nanos() const { return value * 60 * 1000000000; }
+  double hrs() const {return value / 60.0; }
+  double secs() const { return value * 60.0; }
+  double millis() const { return value * 60.0 * 1000.0; }
+  double micros() const { return value * 60.0 * 1000000.0; }
+  double nanos() const { return value * 60.0 * 1000000000.0; }
   const double value;
 };
 
@@ -51,11 +51,12 @@ struct seconds
   inline operator milliseconds () const;
   inline operator microseconds () const;
   inline operator nanoseconds () const;
-  double hrs() const { return value / 3600; }
-  double mins() const { return value / 60; }
-  double millis() const { return value * 1000; }
-  double micros() const { return value * 1000000; }
-  double nanos() const { return value * 1000000000; }
+  double hrs() const { return value / 3600.0; }
+  double mins() const { return value / 60.0; }
+  double millis() const { return value * 1000.0; }
+  double micros() const { return value * 1000000.0; }
+  double nanos() const { return value * 1000000000.0; }
+  bool operator < (const seconds& that) const { return value < that.value; }
   const double value;
 };
 
@@ -68,11 +69,12 @@ struct milliseconds
   inline operator seconds () const;
   inline operator microseconds () const;
   inline operator nanoseconds () const;
-  double hrs() const { return value / (3600 * 1000); }
-  double mins() const { return value / (60 * 1000); }
-  double secs() const { return value / 1000; }
-  double micros() const { return value * 1000; }
-  double nanos() const { return value * 1000000; }
+  double hrs() const { return value / (3600.0 * 1000.0); }
+  double mins() const { return value / (60.0 * 1000.0); }
+  double secs() const { return value / 1000.0; }
+  double micros() const { return value * 1000.0; }
+  double nanos() const { return value * 1000000.0; }
+  bool operator < (const milliseconds& that) const { return value < that.value; }
   const double value;
 };
 
@@ -85,11 +87,12 @@ struct microseconds
   inline operator seconds () const;
   inline operator milliseconds () const;
   inline operator nanoseconds () const;
-  double hrs() const { return value / (3600 * 1000000); }
-  double mins() const { return value / (60 * 1000000); }
-  double secs() const { return value / 1000000; }
-  double millis() const { return value / 1000; }
-  double nanos() const { return value * 1000; }
+  double hrs() const { return value / (3600.0 * 1000000.0); }
+  double mins() const { return value / (60.0 * 1000000.0); }
+  double secs() const { return value / 1000000.0; }
+  double millis() const { return value / 1000.0; }
+  double nanos() const { return value * 1000.0; }
+  bool operator < (const microseconds& that) const { return value < that.value; }
   const double value;
 };
 
@@ -102,11 +105,12 @@ struct nanoseconds
   inline operator seconds () const;
   inline operator milliseconds () const;
   inline operator microseconds () const;
-  double hrs() const { return value / (3600 * 1000000000); }
-  double mins() const { return value / (60 * 1000000000); }
-  double secs() const { return value / 1000000000; }
-  double millis() const { return value / 1000000; }
-  double micros() const { return value / 1000; }
+  double hrs() const { return value / (3600.0 * 1000000000.0); }
+  double mins() const { return value / (60.0 * 1000000000.0); }
+  double secs() const { return value / 1000000000.0; }
+  double millis() const { return value / 1000000.0; }
+  double micros() const { return value / 1000.0; }
+  bool operator < (const nanoseconds& that) const { return value < that.value; }
   const double value;
 };
 

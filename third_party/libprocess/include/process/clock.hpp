@@ -15,6 +15,7 @@ public:
   static bool paused();
   static void resume();
   static void advance(double secs);
+  static void advance(ProcessBase* process, double secs);
   static void update(double secs);
   static void update(ProcessBase* process, double secs);
   static void order(ProcessBase* from, ProcessBase* to);

@@ -7,9 +7,9 @@
 #include "foreach.hpp"
 
 
-// Provides a hash map via Boost's 'unordered_map'. For most intensive
+// Provides a hash set via Boost's 'unordered_set'. For most intensive
 // purposes this could be accomplished with a templated typedef, but
-// those don't exist (until C++-0x). Also, doing it this way allows us
+// those don't exist (until C++-11). Also, doing it this way allows us
 // to add functionality, or better naming of existing functionality,
 // etc.
 
@@ -18,7 +18,10 @@ class hashset : public boost::unordered_set<Elem>
 {
 public:
   // Checks whether this map contains a binding for a key.
-  bool contains(const Elem& elem) const { return count(elem) > 0; }
+  bool contains(const Elem& elem) const
+  {
+    return boost::unordered_set<Elem>::count(elem) > 0;
+  }
 
   // Checks whether there exists a value in this set that returns the
   // a result equal to 'r' when the specified method is invoked.

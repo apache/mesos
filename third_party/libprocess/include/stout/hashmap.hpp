@@ -11,7 +11,7 @@
 
 // Provides a hash map via Boost's 'unordered_map'. For most intensive
 // purposes this could be accomplished with a templated typedef, but
-// those don't exist (until C++-0x). Also, doing it this way allows us
+// those don't exist (until C++-11). Also, doing it this way allows us
 // to add functionality, or better naming of existing functionality,
 // etc.
 
@@ -20,7 +20,10 @@ class hashmap : public boost::unordered_map<Key, Value>
 {
 public:
   // Checks whether this map contains a binding for a key.
-  bool contains(const Key& key) const { return count(key) > 0; }
+  bool contains(const Key& key) const
+  {
+    return boost::unordered_map<Key, Value>::count(key) > 0;
+  }
 
   // Checks whether there exists a bound value in this map.
   bool containsValue(const Value& v) const

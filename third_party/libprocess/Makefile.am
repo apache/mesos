@@ -25,9 +25,9 @@ LIBEV = third_party/libev-$(LIBEV_VERSION)
 noinst_LTLIBRARIES = libprocess.la
 
 libprocess_la_SOURCES = src/process.cpp src/pid.cpp src/latch.cpp	\
-	src/tokenize.cpp src/config.hpp src/decoder.hpp			\
-	src/encoder.hpp src/gate.hpp src/synchronized.hpp		\
-	src/tokenize.hpp
+	src/statistics.cpp src/tokenize.cpp src/config.hpp		\
+	src/decoder.hpp src/encoder.hpp src/gate.hpp			\
+	src/synchronized.hpp src/tokenize.hpp
 
 libprocess_la_CPPFLAGS = -I$(srcdir)/include -I$(BOOST) -I$(GLOG)/src	\
 	-I$(RY_HTTP_PARSER) -I$(LIBEV) $(AM_CPPFLAGS)
@@ -62,6 +62,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/process/protobuf.hpp			\
 	$(top_srcdir)/include/process/run.hpp				\
 	$(top_srcdir)/include/process/socket.hpp			\
+	$(top_srcdir)/include/process/statistics.hpp			\
 	$(top_srcdir)/include/process/thread.hpp			\
 	$(top_srcdir)/include/process/timeout.hpp			\
 	$(top_srcdir)/include/process/timer.hpp				\
@@ -91,7 +92,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 # Tests.
 check_PROGRAMS = tests
 
-tests_SOURCES = src/tests.cpp
+tests_SOURCES = src/tests.cpp src/statistics_tests.cpp
 tests_CPPFLAGS = -I$(GTEST)/include -I$(GMOCK)/include	\
 	$(libprocess_la_CPPFLAGS)
 tests_LDADD = third_party/libgmock.la libprocess.la
