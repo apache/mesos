@@ -69,9 +69,7 @@ TEST(FsTest, MountTableHasOption)
   }
 
   ASSERT_TRUE(proc.isSome());
-  EXPECT_TRUE(proc.get().hasOption("rw"));
-  EXPECT_TRUE(proc.get().hasOption("noexec"));
-  EXPECT_TRUE(proc.get().hasOption("nodev"));
+  EXPECT_TRUE(proc.get().hasOption(MNTOPT_RW));
 }
 
 
