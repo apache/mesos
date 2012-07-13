@@ -17,6 +17,7 @@
  */
 
 #include <pthread.h>
+#include <stdlib.h> // For random.
 
 #include <cstdlib>
 #include <iostream>
@@ -34,7 +35,7 @@ using std::string;
 
 void run(ExecutorDriver* driver, const TaskInfo& task)
 {
-  sleep(100);
+  sleep(random() % 10);
 
   TaskStatus status;
   status.mutable_task_id()->MergeFrom(task.task_id());
