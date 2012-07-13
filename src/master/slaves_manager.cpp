@@ -639,12 +639,12 @@ SlavesManager::SlavesManager(const Flags& flags, const PID<Master>& _master)
   }
 
   // Setup our HTTP endpoints.
-  route("add", &SlavesManager::add);
-  route("remove", &SlavesManager::remove);
-  route("activate", &SlavesManager::activate);
-  route("deactivate", &SlavesManager::deactivate);
-  route("activated", &SlavesManager::activated);
-  route("deactivated", &SlavesManager::deactivated);
+  route("/add", &SlavesManager::add);
+  route("/remove", &SlavesManager::remove);
+  route("/activate", &SlavesManager::activate);
+  route("/deactivate", &SlavesManager::deactivate);
+  route("/activated", &SlavesManager::activated);
+  route("/deactivated", &SlavesManager::deactivated);
 }
 
 

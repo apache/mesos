@@ -294,9 +294,9 @@ void Slave::initialize()
   install("PING", &Slave::ping);
 
   // Setup some HTTP routes.
-  route("vars", bind(&http::vars, cref(*this), params::_1));
-  route("stats.json", bind(&http::json::stats, cref(*this), params::_1));
-  route("state.json", bind(&http::json::state, cref(*this), params::_1));
+  route("/vars", bind(&http::vars, cref(*this), params::_1));
+  route("/stats.json", bind(&http::json::stats, cref(*this), params::_1));
+  route("/state.json", bind(&http::json::state, cref(*this), params::_1));
 }
 
 

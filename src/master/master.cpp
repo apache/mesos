@@ -439,10 +439,10 @@ void Master::initialize()
       &ExitedExecutorMessage::status);
 
   // Setup HTTP request handlers.
-  route("vars", bind(&http::vars, cref(*this), params::_1));
-  route("stats.json", bind(&http::json::stats, cref(*this), params::_1));
-  route("state.json", bind(&http::json::state, cref(*this), params::_1));
-  route("log.json", bind(&http::json::log, cref(*this), params::_1));
+  route("/vars", bind(&http::vars, cref(*this), params::_1));
+  route("/stats.json", bind(&http::json::stats, cref(*this), params::_1));
+  route("/state.json", bind(&http::json::state, cref(*this), params::_1));
+  route("/log.json", bind(&http::json::log, cref(*this), params::_1));
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the
