@@ -79,7 +79,9 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/stout/numify.hpp				\
 	$(top_srcdir)/include/stout/option.hpp				\
 	$(top_srcdir)/include/stout/os.hpp				\
+	$(top_srcdir)/include/stout/path.hpp				\
 	$(top_srcdir)/include/stout/protobuf.hpp			\
+	$(top_srcdir)/include/stout/result.hpp				\
 	$(top_srcdir)/include/stout/stringify.hpp			\
 	$(top_srcdir)/include/stout/strings.hpp				\
 	$(top_srcdir)/include/stout/time.hpp				\
