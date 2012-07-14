@@ -348,8 +348,8 @@ struct Slave
   double registeredTime;
   double lastHeartbeat;
 
-  Resources resourcesOffered; // Resources currently in offers.
-  Resources resourcesInUse;   // Resources currently used by tasks.
+  Resources resourcesOffered; // Resources offered.
+  Resources resourcesInUse;   // Resources used by tasks and executors.
 
   // Executors running on this slave.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > executors;

@@ -129,11 +129,22 @@ void DominantShareAllocator::initialize(const process::PID<Master>& _master)
 
 void DominantShareAllocator::frameworkAdded(
     const FrameworkID& frameworkId,
-    const FrameworkInfo& frameworkInfo)
+    const FrameworkInfo& frameworkInfo,
+    const Resources& used)
 {
   CHECK(initialized);
 
-  frameworks[frameworkId] = frameworkInfo;
+  if (!frameworks.contains(frameworkId)) {
+    frameworks[frameworkId] = frameworkInfo;
+    allocated[frameworkId] += used;
+  } else {
+    // We at least update the framework info. TODO(benh): Consider
+    // adding a check which confirms that the resources used are a
+    // subset or equal to the resources allocated (a subset because
+    // the allocator might have just asked the master to offer some
+    // more resources).
+    frameworks[frameworkId] = frameworkInfo;
+  }
 
   LOG(INFO) << "Added framework " << frameworkId;
 
@@ -192,8 +203,9 @@ void DominantShareAllocator::slaveAdded(
   Resources unused = slaveInfo.resources();
 
   foreachpair (const FrameworkID& frameworkId, const Resources& resources, used) {
-    CHECK(frameworks.contains(frameworkId));
-    allocated[frameworkId] += resources;
+    if (frameworks.contains(frameworkId)) {
+      allocated[frameworkId] += resources;
+    }
     unused -= resources;
   }
 

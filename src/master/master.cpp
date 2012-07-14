@@ -661,8 +661,6 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
 
     // TODO(benh): Check for root submissions like above!
 
-    addFramework(framework);
-
     // Add any running tasks reported by slaves for this framework.
     foreachpair (const SlaveID& slaveId, Slave* slave, slaves) {
       foreachvalue (Task* task, slave->tasks) {
@@ -680,6 +678,11 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
         }
       }
     }
+
+    // N.B. Need to add the framwwork _after_ we add it's tasks
+    // (above) so that we can properly determine the resources it's
+    // currently using!
+    addFramework(framework);
   }
 
   CHECK(frameworks.count(frameworkInfo.id()) > 0);
@@ -1554,7 +1557,7 @@ void Master::addFramework(Framework* framework)
   send(framework->pid, message);
 
   dispatch(allocator, &Allocator::frameworkAdded,
-           framework->id, framework->info);
+           framework->id, framework->info, framework->resources);
 }
 
 
@@ -1579,7 +1582,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   framework->active = true;
 
   dispatch(allocator, &Allocator::frameworkAdded,
-           framework->id, framework->info);
+           framework->id, framework->info, framework->resources);
 
   framework->reregisteredTime = Clock::now();
 

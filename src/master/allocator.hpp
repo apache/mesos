@@ -44,7 +44,8 @@ public:
   virtual void initialize(const process::PID<Master>& master) = 0;
 
   virtual void frameworkAdded(const FrameworkID& frameworkId,
-                              const FrameworkInfo& frameworkInfo) = 0;
+                              const FrameworkInfo& frameworkInfo,
+                              const Resources& used) = 0;
 
   virtual void frameworkDeactivated(const FrameworkID& frameworkId) = 0;
 

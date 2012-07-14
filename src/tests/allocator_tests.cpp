@@ -94,18 +94,18 @@ TEST(AllocatorTest, DominantShareAllocator)
 
   EXPECT_CALL(a, initialize(_));
 
-  EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo1)))
+  EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo1), _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&a),
 		    SaveArg<0>(&frameworkId1)));
 
   trigger framework2Added;
-  EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo2)))
+  EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo2), _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&a),
 		    SaveArg<0>(&frameworkId2),
 		    Trigger(&framework2Added)));
 
   trigger framework3Added;
-  EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo3)))
+  EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo3), _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&a),
 		    SaveArg<0>(&frameworkId3),
 		    Trigger(&framework3Added)));
@@ -271,7 +271,7 @@ TYPED_TEST(AllocatorTest, MockAllocator)
 {
   EXPECT_CALL(this->allocator, initialize(_));
 
-  EXPECT_CALL(this->allocator, frameworkAdded(_, _));
+  EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_));
 
@@ -335,7 +335,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
 {
   EXPECT_CALL(this->allocator, initialize(_));
 
-  EXPECT_CALL(this->allocator, frameworkAdded(_, _))
+  EXPECT_CALL(this->allocator, frameworkAdded(_, _, _))
     .Times(2);
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -440,11 +440,11 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 
   EXPECT_CALL(this->allocator, initialize(_));
 
-  EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo1)))
+  EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo1), _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator),
 		    SaveArg<0>(&frameworkId1)));
 
-  EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo2)))
+  EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo2), _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator),
 		    SaveArg<0>(&frameworkId2)));
 
@@ -575,7 +575,7 @@ TYPED_TEST(MasterFailoverAllocatorTest, MasterFailover)
   EXPECT_CALL(this->allocator2, initialize(_));
 
   trigger frameworkAdded;
-  EXPECT_CALL(this->allocator2, frameworkAdded(_, _));
+  EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _));
 
   EXPECT_CALL(this->allocator2, frameworkDeactivated(_));
 

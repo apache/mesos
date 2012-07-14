@@ -240,7 +240,7 @@ public:
     ON_CALL(*this, initialize(_))
       .WillByDefault(Invoke(&real, &T::initialize));
 
-    ON_CALL(*this, frameworkAdded(_, _))
+    ON_CALL(*this, frameworkAdded(_, _, _))
       .WillByDefault(Invoke(&real, &T::frameworkAdded));
 
     ON_CALL(*this, frameworkDeactivated(_))
@@ -268,7 +268,9 @@ public:
       .WillByDefault(Invoke(&real, &T::offersRevived));
   }
   MOCK_METHOD1(initialize, void(const process::PID<master::Master>&));
-  MOCK_METHOD2(frameworkAdded, void(const FrameworkID&, const FrameworkInfo&));
+  MOCK_METHOD3(frameworkAdded, void(const FrameworkID&,
+                                    const FrameworkInfo&,
+                                    const Resources&));
   MOCK_METHOD1(frameworkDeactivated, void(const FrameworkID&));
   MOCK_METHOD1(frameworkRemoved, void(const FrameworkID&));
   MOCK_METHOD3(slaveAdded, void(const SlaveID&,
@@ -293,12 +295,12 @@ public:
 
 // The following actions make up for the fact that DoDefault
 // cannot be used inside a DoAll, for example:
-// EXPECT_CALL(allocator, frameworkAdded(_))
+// EXPECT_CALL(allocator, frameworkAdded(_, _, _))
 //   .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
 //                   Trigger(&frameworkAddedTrigger)));
 ACTION_P(InvokeFrameworkAdded, allocator)
 {
-  allocator->real.frameworkAdded(arg0, arg1);
+  allocator->real.frameworkAdded(arg0, arg1, arg2);
 }
 
 

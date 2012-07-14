@@ -460,7 +460,7 @@ TEST(ResourceOffersTest, Request)
   EXPECT_CALL(allocator, initialize(_))
     .WillOnce(Return());
 
-  EXPECT_CALL(allocator, frameworkAdded(_, _))
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _))
     .WillOnce(Return());
 
   EXPECT_CALL(allocator, frameworkDeactivated(_))
