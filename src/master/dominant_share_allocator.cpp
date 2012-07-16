@@ -134,17 +134,22 @@ void DominantShareAllocator::frameworkAdded(
 {
   CHECK(initialized);
 
+  // Either a framework is being added for the first time or it's
+  // being "re-added" (e.g., due to failover). If it's being added for
+  // the first time it's possible that it has some resources already
+  // allocated to it (e.g., because it just registered with a new
+  // master even though the slaves have already registered).
   if (!frameworks.contains(frameworkId)) {
-    frameworks[frameworkId] = frameworkInfo;
-    allocated[frameworkId] += used;
-  } else {
-    // We at least update the framework info. TODO(benh): Consider
-    // adding a check which confirms that the resources used are a
-    // subset or equal to the resources allocated (a subset because
-    // the allocator might have just asked the master to offer some
-    // more resources).
-    frameworks[frameworkId] = frameworkInfo;
+    CHECK(!allocated.contains(frameworkId));
+    allocated[frameworkId] = used;
   }
+
+  // We always update the framework info, even if we already had some
+  // state about the framework. TODO(benh): Consider adding a check
+  // which confirms that the resources used are a subset or equal to
+  // the resources allocated (a subset because the allocator might
+  // have just asked the master to offer some more resources).
+  frameworks[frameworkId] = frameworkInfo;
 
   LOG(INFO) << "Added framework " << frameworkId;
 
@@ -206,7 +211,7 @@ void DominantShareAllocator::slaveAdded(
     if (frameworks.contains(frameworkId)) {
       allocated[frameworkId] += resources;
     }
-    unused -= resources;
+    unused -= resources; // Only want to allocate resources that are not used!
   }
 
   allocatable[slaveId] = unused;
