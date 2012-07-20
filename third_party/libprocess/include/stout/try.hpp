@@ -41,6 +41,7 @@ public:
   Try<T>& operator = (const Try<T>& that)
   {
     if (this != &that) {
+      delete t;
       state = that.state;
       if (that.t != NULL) {
         t = new T(*that.t);

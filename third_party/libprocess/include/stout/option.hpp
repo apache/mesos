@@ -39,6 +39,7 @@ public:
   Option<T>& operator = (const Option<T>& that)
   {
     if (this != &that) {
+      delete t;
       state = that.state;
       if (that.t != NULL) {
         t = new T(*that.t);
