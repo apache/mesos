@@ -890,6 +890,7 @@ void Future<T>::cleanup()
     if (*state == PENDING) {
       *refs = 1;
       discard();
+      __sync_sub_and_fetch(refs, 1);
     }
 
     // Now try and cleanup again (this time we know the future has
@@ -898,7 +899,7 @@ void Future<T>::cleanup()
     // just return without doing anything, but the state will forever
     // be "discarded".
     assert(refs != NULL);
-    if (__sync_sub_and_fetch(refs, 1) == 0) {
+    if (*refs == 0) {
       delete refs;
       refs = NULL;
       assert(lock != NULL);
