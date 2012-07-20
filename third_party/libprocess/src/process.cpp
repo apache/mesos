@@ -2335,11 +2335,6 @@ void ProcessManager::cleanup(ProcessBase* process)
     socket_manager->exited(process);
   }
 
-  // Confirm process not in runq.
-  synchronized (runq) {
-    CHECK(find(runq.begin(), runq.end(), process) == runq.end());
-  }
-
   // ***************************************************************
   // At this point we can no longer dereference the process since it
   // might already be deallocated (e.g., by the garbage collector).
