@@ -58,8 +58,8 @@ public:
   virtual bool filter(const SlaveID& slaveId, const Resources& resources)
   {
     return slaveId == this->slaveId &&
-      resources <= this->resources &&
-      timeout.remaining() < 0.0;
+      resources <= this->resources && // Refused resources are superset.
+      timeout.remaining() > 0.0;
   }
 
   const SlaveID slaveId;
@@ -181,6 +181,8 @@ void DominantShareAllocator::frameworkRemoved(const FrameworkID& frameworkId)
 
   foreach (Filter* filter, filters.get(frameworkId)) {
     filters.remove(frameworkId, filter);
+    // We *must* delete filter because DominantShareAllocator::expire
+    // will have an invalid FrameworkID and won't delete.
     delete filter;
   }
 
@@ -356,17 +358,16 @@ void DominantShareAllocator::offersRevived(const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
-  // TODO(benh): We don't actually delete each Filter right now
-  // because that should happen when DominantShareAllocator::expire
-  // gets invoked. If we delete the Filter here it's possible that the
-  // same Filter (i.e., same address) could get reused and
-  // DominantShareAllocator::expire would expire that filter too
-  // soon. Note that this only works right now because ALL Filter
-  // types "expire".
-
   foreach (Filter* filter, filters.get(frameworkId)) {
     filters.remove(frameworkId, filter);
-    delete filter;
+
+    // TODO(benh): We don't actually delete each Filter right now
+    // because that should happen when DominantShareAllocator::expire
+    // gets invoked. If we delete the Filter here it's possible that
+    // the same Filter (i.e., same address) could get reused and
+    // DominantShareAllocator::expire would expire that filter too
+    // soon. Note that this only works right now because ALL Filter
+    // types "expire".
   }
 
   filters.remove(frameworkId);
