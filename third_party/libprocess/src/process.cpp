@@ -2590,6 +2590,8 @@ bool cancel(const Timer& timer)
     // Check if the timeout is still pending, and if so, erase it. In
     // addition, erase an empty list if we just removed the last
     // timeout.
+    // TODO(benh): If two timers are created with the same timeout,
+    // this will erase *both*. Fix this!
     if (timeouts->count(timer.timeout().value()) > 0) {
       canceled = true;
       (*timeouts)[timer.timeout().value()].remove(timer);

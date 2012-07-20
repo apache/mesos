@@ -4,6 +4,8 @@
 #include <map>
 #include <string>
 
+#include <stout/stringify.hpp>
+
 namespace process {
 namespace http {
 
@@ -23,7 +25,14 @@ struct Request
 
 struct Response
 {
-  Response() : type(BODY) {}
+  Response(const std::string& _body = "")
+    : type(BODY),
+      body(_body)
+  {
+    if (!body.empty()) {
+      headers["Content-Length"] = stringify(body.size());
+    }
+  }
 
   // TODO(benh): Add major/minor version.
   std::string status;
@@ -51,7 +60,7 @@ struct Response
 
 struct OK : Response
 {
-  OK() : Response()
+  OK(const std::string& body = "") : Response(body)
   {
     status = "200 OK";
   }
@@ -60,7 +69,7 @@ struct OK : Response
 
 struct BadRequest : Response
 {
-  BadRequest() : Response()
+  BadRequest(const std::string& body = "") : Response(body)
   {
     status = "400 Bad Request";
   }
@@ -69,7 +78,7 @@ struct BadRequest : Response
 
 struct NotFound : Response
 {
-  NotFound() : Response()
+  NotFound(const std::string& body = "") : Response(body)
   {
     status = "404 Not Found";
   }
@@ -78,7 +87,7 @@ struct NotFound : Response
 
 struct InternalServerError : Response
 {
-  InternalServerError() : Response()
+  InternalServerError(const std::string& body = "") : Response(body)
   {
     status = "500 Internal Server Error";
   }
@@ -87,7 +96,7 @@ struct InternalServerError : Response
 
 struct ServiceUnavailable : Response
 {
-  ServiceUnavailable() : Response()
+  ServiceUnavailable(const std::string& body = "") : Response(body)
   {
     status = "503 Service Unavailable";
   }

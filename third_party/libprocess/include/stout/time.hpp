@@ -1,6 +1,14 @@
 #ifndef __STOUT_TIME_HPP__
 #define __STOUT_TIME_HPP__
 
+#include <ctype.h> // For 'isdigit'.
+
+#include <string>
+
+#include "numify.hpp"
+#include "try.hpp"
+
+// Forward declarations.
 struct hours;
 struct minutes;
 struct seconds;
@@ -46,6 +54,7 @@ struct minutes
 struct seconds
 {
   explicit seconds(double _value) : value(_value) {}
+  static inline Try<seconds> parse(const std::string& s);
   inline operator hours () const;
   inline operator minutes () const;
   inline operator milliseconds () const;
@@ -172,6 +181,44 @@ inline minutes::operator microseconds () const
 inline minutes::operator nanoseconds () const
 {
   return nanoseconds(nanos());
+}
+
+
+inline Try<seconds> seconds::parse(const std::string& s)
+{
+  // TODO(benh): Support negative durations (i.e., starts with '-') as
+  // well as values that use a decimal point.
+  size_t index = 0;
+  while (index < s.size()) {
+    if (isdigit(s[index])) {
+      index++;
+      continue;
+    }
+
+    Try<double> value = numify<double>(s.substr(0, index));
+
+    if (value.isError()) {
+      return Try<seconds>::error(value.error());
+    }
+
+    const std::string& unit = s.substr(index);
+
+    if (unit == "ns") {
+      return seconds(nanoseconds(value.get()));
+    } else if (unit == "us") {
+      return seconds(microseconds(value.get()));
+    } else if (unit == "ms") {
+      return seconds(microseconds(value.get()));
+    } else if (unit == "secs") {
+      return seconds(value.get());
+    } else if (unit == "mins") {
+      return seconds(minutes(value.get()));
+    } else if (unit == "hrs") {
+      return seconds(hours(value.get()));
+    } else {
+      return Try<seconds>::error("Unknown duration unit '" + unit + "'");
+    }
+  }
 }
 
 
