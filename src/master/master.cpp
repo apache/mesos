@@ -257,7 +257,8 @@ struct SlaveReregistrar
 
 Master::Master(Allocator* _allocator)
   : ProcessBase("master"),
-    allocator(_allocator)
+    allocator(_allocator),
+    flags()
 {}
 
 
