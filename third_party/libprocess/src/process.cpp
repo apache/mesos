@@ -1809,42 +1809,56 @@ Encoder* SocketManager::next(int s)
   HttpProxy* proxy = NULL; // Non-null if needs to be terminated.
 
   synchronized (this) {
-    CHECK(sockets.count(s) > 0);
-    CHECK(outgoing.count(s) > 0);
+    // We cannot assume 'sockets.count(s) > 0' here because it's
+    // possible that 's' has been removed with a a call to
+    // SocketManager::close. For example, it could be the case that a
+    // socket has gone to CLOSE_WAIT and the call to 'recv' in
+    // recv_data returned 0 causing SocketManager::close to get
+    // invoked. Later a call to 'send' or 'sendfile' (e.g., in
+    // send_data or send_file) can "succeed" (because the socket is
+    // not "closed" yet because there are still some Socket
+    // references, namely the reference being used in send_data or
+    // send_file!). However, when SocketManger::next is actually
+    // invoked we find out there there is no more data and thus stop
+    // sending.
+    // TODO(benh): Should we actually finish sending the data!?
+    if (sockets.count(s) > 0) {
+      CHECK(outgoing.count(s) > 0);
 
-    if (!outgoing[s].empty()) {
-      // More messages!
-      Encoder* encoder = outgoing[s].front();
-      outgoing[s].pop();
-      return encoder;
-    } else {
-      // No more messages ... erase the outgoing queue.
-      outgoing.erase(s);
+      if (!outgoing[s].empty()) {
+        // More messages!
+        Encoder* encoder = outgoing[s].front();
+        outgoing[s].pop();
+        return encoder;
+      } else {
+        // No more messages ... erase the outgoing queue.
+        outgoing.erase(s);
 
-      if (dispose.count(s) > 0) {
-        // This is either a temporary socket we created or it's a
-        // socket that we were receiving data from and possibly
-        // sending HTTP responses back on. Clean up either way.
-        if (nodes.count(s) > 0) {
-          const Node& node = nodes[s];
-          CHECK(temps.count(node) > 0 && temps[node] == s);
-          temps.erase(node);
-          nodes.erase(s);
+        if (dispose.count(s) > 0) {
+          // This is either a temporary socket we created or it's a
+          // socket that we were receiving data from and possibly
+          // sending HTTP responses back on. Clean up either way.
+          if (nodes.count(s) > 0) {
+            const Node& node = nodes[s];
+            CHECK(temps.count(node) > 0 && temps[node] == s);
+            temps.erase(node);
+            nodes.erase(s);
+          }
+
+          if (proxies.count(s) > 0) {
+            proxy = proxies[s];
+            proxies.erase(s);
+          }
+
+          dispose.erase(s);
+          sockets.erase(s);
+
+          // We don't actually close the socket (we wait for the Socket
+          // abstraction to close it once there are no more references),
+          // but we do shutdown the receiving end so any DataDecoder
+          // will get cleaned up (which might have the last reference).
+          shutdown(s, SHUT_RD);
         }
-
-        if (proxies.count(s) > 0) {
-          proxy = proxies[s];
-          proxies.erase(s);
-        }
-
-        dispose.erase(s);
-        sockets.erase(s);
-
-        // We don't actually close the socket (we wait for the Socket
-        // abstraction to close it once there are no more references),
-        // but we do shutdown the receiving end so any DataDecoder
-        // will get cleaned up (which might have the last reference).
-        shutdown(s, SHUT_RD);
       }
     }
   }
