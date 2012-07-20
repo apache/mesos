@@ -1,7 +1,7 @@
 #ifndef __STOUT_STRINGIFY_HPP__
 #define __STOUT_STRINGIFY_HPP__
 
-#include <stdlib.h>
+#include <stdlib.h> // For 'abort'.
 
 #include <iostream> // For 'std::cerr' and 'std::endl'.
 #include <list>
@@ -81,6 +81,5 @@ std::string stringify(const std::map<K, V>& map)
   out << " }";
   return out.str();
 }
-
 
 #endif // __STOUT_STRINGIFY_HPP__
