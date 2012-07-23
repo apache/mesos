@@ -63,7 +63,7 @@ int main(int argc, char** argv)
   // The following flags are executable specific (e.g., since we only
   // have one instance of libprocess per execution, we only want to
   // advertise the port and ip option once, here).
-  short port;
+  uint16_t port;
   flags.add(&port, "port", "Port to listen on", 5050);
 
   Option<string> ip;

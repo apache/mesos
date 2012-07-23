@@ -103,7 +103,7 @@ public:
   std::string work_dir;
   std::string launcher_dir;
   std::string webui_dir;
-  short webui_port;
+  uint16_t webui_port;
   std::string hadoop_home; // TODO(benh): Make an Option.
   bool switch_user;
   std::string frameworks_home;  // TODO(benh): Make an Option.

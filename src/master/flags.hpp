@@ -65,7 +65,7 @@ public:
   bool root_submissions;
   std::string slaves;
   std::string webui_dir;
-  short webui_port;
+  uint16_t webui_port;
   std::string whitelist;
 };
 

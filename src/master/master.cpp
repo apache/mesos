@@ -505,7 +505,8 @@ void Master::exited(const UPID& pid)
 
   foreachvalue (Slave* slave, slaves) {
     if (slave->pid == pid) {
-      LOG(INFO) << "Slave " << slave->id << "(" << slave->info.hostname() << ") disconnected";
+      LOG(INFO) << "Slave " << slave->id << "(" << slave->info.hostname()
+                << ") disconnected";
       removeSlave(slave);
       return;
     }
@@ -1336,6 +1337,11 @@ struct ResourceUsageChecker : TaskInfoVisitor
     Resources taskResources = task.resources();
 
     if (!((usedResources + taskResources) <= offer->resources())) {
+      LOG(WARNING) << "Task " << task.task_id() << " attempted to use "
+                   << taskResources << " combined with already used "
+                   << usedResources << " is greater than offered "
+                   << offer->resources();
+
       return TaskInfoError::some("Task uses more resources than offered");
     }
 
@@ -1346,6 +1352,8 @@ struct ResourceUsageChecker : TaskInfoVisitor
       foreach (const Resource& resource, task.executor().resources()) {
         if (!Resources::isAllocatable(resource)) {
           // TODO(benh): Send back the invalid resources?
+          LOG(WARNING) << "Executor for task " << task.task_id()
+                       << " uses invalid resources " << resource;
           return TaskInfoError::some("Task's executor uses invalid resources");
         }
       }
@@ -1356,10 +1364,10 @@ struct ResourceUsageChecker : TaskInfoVisitor
         if (!slave->hasExecutor(framework->id, task.executor().executor_id())) {
           taskResources += task.executor().resources();
           if (!((usedResources + taskResources) <= offer->resources())) {
-            LOG(WARNING) << "Task " << task.task_id() << " attempted to use "
-                         << taskResources << " combined with already used "
-                         << usedResources << " is greater than offered "
-                         << offer->resources();
+            LOG(WARNING) << "Task " << task.task_id() << " + executor attempted"
+                         << " to use " << taskResources << " combined with"
+                         << " already used " << usedResources << " is greater"
+                         << " than offered " << offer->resources();
 
             return TaskInfoError::some(
                 "Task + executor uses more resources than offered");
@@ -1442,7 +1450,8 @@ void Master::processTasks(Offer* offer,
       usedResources += launchTask(task, framework, slave);
     } else {
       // Error validating task, send a failed status update.
-      LOG(WARNING) << "Error validating task: " << error.get();
+      LOG(WARNING) << "Error validating task " << task.task_id()
+                   << " : " << error.get();
       StatusUpdateMessage message;
       StatusUpdate* update = message.mutable_update();
       update->mutable_framework_id()->MergeFrom(framework->id);
