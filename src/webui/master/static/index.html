@@ -53,6 +53,16 @@
     <div ng-controller="MainCntl">
 
       <div class="container">
+        <div class="alert hide" id="no-leader-alert">
+          <button class="close" data-dismiss="alert">×</button>
+          <strong>No master is currently leading ...</strong>
+        </div>
+        <div class="alert alert-error hide" id="not-leader-alert">
+          <button class="close" data-dismiss="alert">×</button>
+          <strong>This master is <u>not the leader</u>, redirecting in {{redirect / 1000}} seconds ...</strong>
+          <a href="http://{{leader}}">go now</a>
+        </div>
+
         <div ng-view></div>
       </div>
 

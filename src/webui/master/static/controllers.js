@@ -2,14 +2,40 @@
 
 
 // Update the outermost scope with the new state.
-function update($scope, data) {
+function update($scope, $defer, data) {
   // Don't do anything if the data hasn't changed.
   if ($scope.data == data) {
-    return;
+    return true; // Continue polling.
   }
 
   $scope.data = data;
   $scope.state = $.parseJSON(data);
+
+  // Determine if there is a leader (and redirect if not the leader).
+  if (!$scope.state.leader) {
+    $("#no-leader-alert").show();
+  } else {
+    $("#no-leader-alert").hide();
+
+    // Redirect if we aren't the leader.
+    if ($scope.state.leader != $scope.state.pid) {
+      $scope.redirect = 6000;
+      $scope.leader = $scope.state.leader.split("@")[1];
+      $("#not-leader-alert").show();
+
+      var countdown = function() {
+        if ($scope.redirect == 0) {
+          // TODO(benh): Use '$window'.
+          window.location = 'http://' + $scope.leader;
+        } else {
+          $scope.redirect = $scope.redirect - 1000;
+          $defer(countdown, 1000);
+        }
+      }
+      countdown();
+      return false; // Don't continue polling.
+    }
+  }
 
   $scope.total_cpus = 0;
   $scope.total_mem = 0;
@@ -75,6 +101,8 @@ function update($scope, data) {
   });
 
   $.event.trigger('state_updated');
+
+  return true; // Continue polling.
 }
 
 // Main controller that can be used to handle "global" events. E.g.,:
@@ -100,9 +128,10 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
     $http.get('master/state.json',
               {transformResponse: function(data) { return data; }})
       .success(function(data) {
-        update($scope, data);
-        $scope.delay = 2000;
-        $defer(poll, $scope.delay);
+        if (update($scope, $defer, data)) {
+          $scope.delay = 2000;
+          $defer(poll, $scope.delay);
+        }
       })
       .error(function(data) {
         if ($scope.delay >= 128000) {
@@ -111,7 +140,7 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
           $scope.delay = $scope.delay * 2;
         }
         $scope.retry = $scope.delay;
-        function countdown() {
+        var countdown = function() {
           if ($scope.retry == 0) {
             $('#error-modal').modal('hide');
           } else {

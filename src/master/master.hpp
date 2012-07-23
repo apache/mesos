@@ -198,6 +198,8 @@ private:
 
   const flags::Flags<logging::Flags, master::Flags> flags;
 
+  UPID leader; // Current leading master.
+
   bool elected;
 
   Allocator* allocator;

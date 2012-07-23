@@ -528,16 +528,16 @@ void Master::newMasterDetected(const UPID& pid)
   // master, (2) newly elected master, (3) no longer elected master,
   // or (4) still elected master.
 
-  UPID master = pid;
+  leader = pid;
 
-  if (master != self() && !elected) {
+  if (leader != self() && !elected) {
     LOG(INFO) << "Waiting to be master!";
-  } else if (master == self() && !elected) {
+  } else if (leader == self() && !elected) {
     LOG(INFO) << "Elected as master!";
     elected = true;
-  } else if (master != self() && elected) {
+  } else if (leader != self() && elected) {
     LOG(FATAL) << "No longer elected master ... committing suicide!";
-  } else if (master == self() && elected) {
+  } else if (leader == self() && elected) {
     LOG(INFO) << "Still acting as master!";
   }
 }

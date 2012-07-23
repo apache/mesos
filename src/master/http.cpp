@@ -269,6 +269,11 @@ Future<Response> state(
   object.values["id"] = master.info.id();
   object.values["pid"] = string(master.self());
 
+  // TODO(benh): Use an Option for the leader PID.
+  if (master.leader != UPID()) {
+    object.values["leader"] = string(master.leader);
+  }
+
   if (master.flags.log_dir.isSome()) {
     object.values["log_dir"] = master.flags.log_dir.get();
   }
