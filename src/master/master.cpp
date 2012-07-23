@@ -1580,10 +1580,11 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   link(newPid);
 
   // Make sure we can get offers again.
-  framework->active = true;
-
-  dispatch(allocator, &Allocator::frameworkAdded,
-           framework->id, framework->info, framework->resources);
+  if (!framework->active) {
+    framework->active = true;
+    dispatch(allocator, &Allocator::frameworkActivated,
+             framework->id, framework->info);
+  }
 
   framework->reregisteredTime = Clock::now();
 
@@ -1645,7 +1646,13 @@ void Master::removeFramework(Framework* framework)
   foreachkey (const SlaveID& slaveId, framework->executors) {
     Slave* slave = getSlave(slaveId);
     if (slave != NULL) {
-      foreachkey (const ExecutorID& executorId, framework->executors[slaveId]) {
+      foreachpair (const ExecutorID& executorId,
+                   const ExecutorInfo& executorInfo,
+                   framework->executors[slaveId]) {
+        dispatch(allocator, &Allocator::resourcesRecovered,
+                 framework->id,
+                 slave->id,
+                 executorInfo.resources());
         slave->removeExecutor(framework->id, executorId);
       }
     }

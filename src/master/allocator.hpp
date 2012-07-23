@@ -47,9 +47,12 @@ public:
                               const FrameworkInfo& frameworkInfo,
                               const Resources& used) = 0;
 
-  virtual void frameworkDeactivated(const FrameworkID& frameworkId) = 0;
-
   virtual void frameworkRemoved(const FrameworkID& frameworkId) = 0;
+
+  virtual void frameworkActivated(const FrameworkID& frameworkId,
+                                  const FrameworkInfo& frameworkInfo) = 0;
+
+  virtual void frameworkDeactivated(const FrameworkID& frameworkId) = 0;
 
   virtual void slaveAdded(const SlaveID& slaveId,
                           const SlaveInfo& slaveInfo,

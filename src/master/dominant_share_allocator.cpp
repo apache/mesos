@@ -134,37 +134,15 @@ void DominantShareAllocator::frameworkAdded(
 {
   CHECK(initialized);
 
-  // Either a framework is being added for the first time or it's
-  // being "re-added" (e.g., due to failover). If it's being added for
-  // the first time it's possible that it has some resources already
-  // allocated to it (e.g., because it just registered with a new
-  // master even though the slaves have already registered).
-  if (!frameworks.contains(frameworkId)) {
-    CHECK(!allocated.contains(frameworkId));
-    allocated[frameworkId] = used;
-  }
+  CHECK(!frameworks.contains(frameworkId));
+  CHECK(!allocated.contains(frameworkId));
 
-  // We always update the framework info, even if we already had some
-  // state about the framework. TODO(benh): Consider adding a check
-  // which confirms that the resources used are a subset or equal to
-  // the resources allocated (a subset because the allocator might
-  // have just asked the master to offer some more resources).
   frameworks[frameworkId] = frameworkInfo;
+  allocated[frameworkId] = used;
 
   LOG(INFO) << "Added framework " << frameworkId;
 
   allocate();
-}
-
-
-void DominantShareAllocator::frameworkDeactivated(
-    const FrameworkID& frameworkId)
-{
-  CHECK(initialized);
-
-  frameworks.erase(frameworkId);
-
-  LOG(INFO) << "Deactivated framework " << frameworkId;
 }
 
 
@@ -181,16 +159,46 @@ void DominantShareAllocator::frameworkRemoved(const FrameworkID& frameworkId)
 
   foreach (Filter* filter, filters.get(frameworkId)) {
     filters.remove(frameworkId, filter);
-    // We *must* delete filter because DominantShareAllocator::expire
-    // will have an invalid FrameworkID and won't delete.
-    delete filter;
+
+    // Do not delete the filter, see comments in
+    // DominantShareAllocator::offersRevived and
+    // DominantShareAllocator::expire.
   }
 
   filters.remove(frameworkId);
 
   LOG(INFO) << "Removed framework " << frameworkId;
+}
 
-  allocate();
+
+void DominantShareAllocator::frameworkActivated(
+    const FrameworkID& frameworkId,
+    const FrameworkInfo& frameworkInfo)
+{
+  CHECK(initialized);
+
+  CHECK(!frameworks.contains(frameworkId));
+
+  frameworks[frameworkId] = frameworkInfo;
+}
+
+
+void DominantShareAllocator::frameworkDeactivated(
+    const FrameworkID& frameworkId)
+{
+  CHECK(initialized);
+
+  frameworks.erase(frameworkId);
+
+  // Note that we *do not* remove the resources allocated to this
+  // framework (i.e., 'allocated.erase(frameworkId)'). For now, this
+  // is important because we might have already dispatched a
+  // Master::offer and we'll soon be getting back an
+  // Allocator::resourcesRecovered where we'll update 'allocated'
+  // appropriately. We might be able to collapse the added/removed and
+  // activated/deactivated in the future.
+
+  LOG(INFO) << "Deactivated framework " << frameworkId;
 }
 
 
@@ -333,8 +341,7 @@ void DominantShareAllocator::resourcesRecovered(
 
   // Updated resources allocated to framework (if framework still
   // exists, which it might not in the event that we dispatched
-  // Master::offer before we received Allocator::frameworkRemoved or
-  // Allocator::frameworkDeactivated).
+  // Master::offer before we received Allocator::frameworkRemoved).
   if (allocated.contains(frameworkId)) {
     allocated[frameworkId] -= resources;
   }
@@ -361,13 +368,12 @@ void DominantShareAllocator::offersRevived(const FrameworkID& frameworkId)
   foreach (Filter* filter, filters.get(frameworkId)) {
     filters.remove(frameworkId, filter);
 
-    // TODO(benh): We don't actually delete each Filter right now
-    // because that should happen when DominantShareAllocator::expire
-    // gets invoked. If we delete the Filter here it's possible that
-    // the same Filter (i.e., same address) could get reused and
-    // DominantShareAllocator::expire would expire that filter too
-    // soon. Note that this only works right now because ALL Filter
-    // types "expire".
+    // We delete each actual Filter when
+    // DominantShareAllocator::expire gets invoked. If we delete the
+    // Filter here it's possible that the same Filter (i.e., same
+    // address) could get reused and DominantShareAllocator::expire
+    // would expire that filter too soon. Note that this only works
+    // right now because ALL Filter types "expire".
   }
 
   filters.remove(frameworkId);
@@ -492,19 +498,18 @@ void DominantShareAllocator::expire(
     const FrameworkID& frameworkId,
     Filter* filter)
 {
-  // Framework might have been removed, in which case it's filters
-  // should also already have been deleted.
-  if (frameworks.contains(frameworkId)) {
-    // Check and see if the filter was already removed in
-    // DominantShareAllocator::offersRevived (but not deleted).
-    if (filters.contains(frameworkId, filter)) {
-      filters.remove(frameworkId, filter);
-      delete filter;
-      allocate();
-    } else {
-      delete filter;
-    }
+  // The filter might have already been removed (e.g., if the
+  // framework no longer exists or in
+  // DominantShareAllocator::offersRevived) but not yet deleted (to
+  // keep the address from getting reused possibly causing premature
+  // expiration).
+  if (frameworks.contains(frameworkId) &&
+      filters.contains(frameworkId, filter)) {
+    filters.remove(frameworkId, filter);
+    allocate();
   }
+
+  delete filter;
 }
 
 

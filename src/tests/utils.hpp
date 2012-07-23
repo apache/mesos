@@ -243,11 +243,14 @@ public:
     ON_CALL(*this, frameworkAdded(_, _, _))
       .WillByDefault(Invoke(&real, &T::frameworkAdded));
 
-    ON_CALL(*this, frameworkDeactivated(_))
-      .WillByDefault(Invoke(&real, &T::frameworkDeactivated));
-
     ON_CALL(*this, frameworkRemoved(_))
       .WillByDefault(Invoke(&real, &T::frameworkRemoved));
+
+    ON_CALL(*this, frameworkActivated(_, _))
+      .WillByDefault(Invoke(&real, &T::frameworkActivated));
+
+    ON_CALL(*this, frameworkDeactivated(_))
+      .WillByDefault(Invoke(&real, &T::frameworkDeactivated));
 
     ON_CALL(*this, slaveAdded(_, _, _))
       .WillByDefault(Invoke(&real, &T::slaveAdded));
@@ -271,8 +274,10 @@ public:
   MOCK_METHOD3(frameworkAdded, void(const FrameworkID&,
                                     const FrameworkInfo&,
                                     const Resources&));
-  MOCK_METHOD1(frameworkDeactivated, void(const FrameworkID&));
   MOCK_METHOD1(frameworkRemoved, void(const FrameworkID&));
+  MOCK_METHOD2(frameworkActivated, void(const FrameworkID&,
+                                        const FrameworkInfo&));
+  MOCK_METHOD1(frameworkDeactivated, void(const FrameworkID&));
   MOCK_METHOD3(slaveAdded, void(const SlaveID&,
                                 const SlaveInfo&,
                                 const hashmap<FrameworkID, Resources>&));
