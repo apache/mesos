@@ -180,6 +180,10 @@ void DominantShareAllocator::frameworkActivated(
   CHECK(!frameworks.contains(frameworkId));
 
   frameworks[frameworkId] = frameworkInfo;
+
+  LOG(INFO) << "Activated framework " << frameworkId;
+
+  allocate();
 }
 
 
