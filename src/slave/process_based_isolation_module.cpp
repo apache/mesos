@@ -24,6 +24,7 @@
 #include <process/id.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/os.hpp>
 
 #include "common/type_utils.hpp"
 #include "common/process_utils.hpp"
@@ -110,6 +111,15 @@ void ProcessBasedIsolationModule::launchExecutor(
   // Use pipes to determine which child has successfully changed session.
   int pipes[2];
   pipe(pipes);
+
+  // Set the FD_CLOEXEC flags on these pipes
+  Try<bool> result = os::cloexec(pipes[0]);
+  CHECK(result.isSome()) << "Error setting FD_CLOEXEC on pipe[0] "
+                         << result.error();
+
+  result = os::cloexec(pipes[1]);
+  CHECK(result.isSome()) << "Error setting FD_CLOEXEC on pipe[1] "
+                         << result.error();
 
   pid_t pid;
   if ((pid = fork()) == -1) {

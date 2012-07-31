@@ -24,6 +24,7 @@
 
 #include <mesos/executor.hpp>
 
+#include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -39,6 +40,8 @@
 
 #include "messages/messages.hpp"
 
+#include "slave/constants.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 
@@ -51,6 +54,27 @@ using process::wait; // Necessary on some OS's to disambiguate.
 
 namespace mesos {
 namespace internal {
+
+class ShutdownProcess : public Process<ShutdownProcess>
+{
+protected:
+  virtual void initialize()
+  {
+    LOG(INFO) << "Scheduling shutdown of the executor";
+    delay(slave::EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS, self(), &Self::kill);
+  }
+
+  void kill()
+  {
+    LOG(INFO) << "Committing suicide by killing the process group";
+
+    // TODO(vinod): Invoke killtree without killing ourselves.
+    // Kill the process group (including ourself).
+    killpg(0, SIGKILL);
+    LOG(FATAL) << "ERROR! Killing process group"; // We should never come here.
+  }
+};
+
 
 class ExecutorProcess : public ProtobufProcess<ExecutorProcess>
 {
@@ -183,11 +207,15 @@ protected:
 
     VLOG(1) << "Executor asked to shutdown";
 
+    if (!local) {
+      // Start the Shutdown Process.
+      spawn(new ShutdownProcess(), true);
+    }
+
     // TODO(benh): Any need to invoke driver.stop?
     executor->shutdown(driver);
-    if (!local) {
-      exit(0);
-    } else {
+
+    if (local) {
       terminate(this);
     }
   }
@@ -207,6 +235,11 @@ protected:
 
     VLOG(1) << "Slave exited, trying to shutdown";
 
+    if (!local) {
+      // Start the Shutdown Process.
+      spawn(new ShutdownProcess(), true);
+    }
+
     // TODO: Pass an argument to shutdown to tell it this is abnormal?
     executor->shutdown(driver);
 
@@ -215,9 +248,7 @@ protected:
     // ourself) hoping to clean up any processes this executor
     // launched itself.
     // TODO(benh): Maybe do a SIGTERM and then later do a SIGKILL?
-    if (!local) {
-      killpg(0, SIGKILL);
-    } else {
+    if (local) {
       terminate(this);
     }
   }

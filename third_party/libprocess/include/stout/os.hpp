@@ -106,6 +106,19 @@ inline Try<bool> close(int fd)
 }
 
 
+inline Try<bool> cloexec(int fd)
+{
+  int flags = ::fcntl(fd, F_GETFD);
+  if (flags == -1) {
+    return Try<bool>::error(strerror(errno));
+  }
+  if (::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+    return Try<bool>::error(strerror(errno));;
+  }
+  return true;
+}
+
+
 inline Try<bool> touch(const std::string& path)
 {
   Try<int> fd = open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
