@@ -119,6 +119,34 @@ inline Try<bool> cloexec(int fd)
 }
 
 
+inline Try<bool> nonblock(int fd)
+{
+  int flags = ::fcntl(fd, F_GETFL);
+
+  if (flags == -1) {
+    return Try<bool>::error(strerror(errno));
+  }
+
+  if (::fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+    return Try<bool>::error(strerror(errno));
+  }
+
+  return true;
+}
+
+
+inline Try<bool> isNonblock(int fd)
+{
+  int flags = ::fcntl(fd, F_GETFL);
+
+  if (flags == -1) {
+    return Try<bool>::error(strerror(errno));
+  }
+
+  return (flags & O_NONBLOCK) != 0;
+}
+
+
 inline Try<bool> touch(const std::string& path)
 {
   Try<int> fd = open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);

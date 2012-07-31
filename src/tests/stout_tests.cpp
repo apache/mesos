@@ -239,6 +239,36 @@ TEST_F(StoutUtilsTest, rmdir)
 }
 
 
+TEST_F(StoutUtilsTest, nonblock)
+{
+  int pipes[2];
+  ASSERT_NE(-1, pipe(pipes));
+
+  Try<bool> result = false;
+
+  result = os::isNonblock(pipes[0]);
+  ASSERT_TRUE(result.isSome());
+  EXPECT_FALSE(result.get());
+
+  result = os::nonblock(pipes[0]);
+  ASSERT_TRUE(result.isSome());
+  EXPECT_TRUE(result.get());
+
+  result = os::isNonblock(pipes[0]);
+  ASSERT_TRUE(result.isSome());
+  EXPECT_TRUE(result.get());
+
+  close(pipes[0]);
+  close(pipes[1]);
+
+  result = os::nonblock(pipes[0]);
+  EXPECT_TRUE(result.isError());
+
+  result = os::isNonblock(pipes[0]);
+  EXPECT_TRUE(result.isError());
+}
+
+
 TEST_F(StoutUtilsTest, touch)
 {
   const std::string& testfile  = tmpdir + "/" + UUID::random().toString();
