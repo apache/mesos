@@ -22,6 +22,8 @@
 #include <process/run.hpp>
 #include <process/thread.hpp>
 
+#include <stout/os.hpp>
+
 #include "encoder.hpp"
 
 using namespace process;
@@ -1080,6 +1082,81 @@ TEST(Process, poll)
 
   close(pipes[0]);
   close(pipes[1]);
+}
+
+
+TEST(Process, read)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  int pipes[2];
+  char data[3];
+  Future<size_t> future;
+
+  // Create a blocking pipe.
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  // Test on a blocking file descriptor.
+  future = io::read(pipes[0], data, 3);
+  future.await(1.0);
+  EXPECT_TRUE(future.isFailed());
+
+  close(pipes[0]);
+  close(pipes[1]);
+
+  // Test on a closed file descriptor.
+  future = io::read(pipes[0], data, 3);
+  future.await(1.0);
+  EXPECT_TRUE(future.isFailed());
+
+  // Create a nonblocking pipe.
+  ASSERT_NE(-1, ::pipe(pipes));
+  ASSERT_TRUE(os::nonblock(pipes[0]).isSome());
+  ASSERT_TRUE(os::nonblock(pipes[1]).isSome());
+
+  // Test reading nothing.
+  future = io::read(pipes[0], data, 0);
+  future.await(1.0);
+  EXPECT_TRUE(future.isFailed());
+
+  // Test successful read.
+  future = io::read(pipes[0], data, 3);
+  ASSERT_FALSE(future.isReady());
+
+  ASSERT_EQ(2, write(pipes[1], "hi", 2));
+  future.await(1.0);
+  ASSERT_TRUE(future.isReady());
+  ASSERT_EQ(2, future.get());
+  EXPECT_EQ('h', data[0]);
+  EXPECT_EQ('i', data[1]);
+
+  // Test cancellation.
+  future = io::read(pipes[0], data, 1);
+  ASSERT_FALSE(future.isReady());
+
+  future.discard();
+
+  ASSERT_EQ(3, write(pipes[1], "omg", 3));
+
+  future = io::read(pipes[0], data, 3);
+  future.await(1.0);
+  ASSERT_TRUE(future.isReady());
+  ASSERT_EQ(3, future.get());
+  EXPECT_EQ('o', data[0]);
+  EXPECT_EQ('m', data[1]);
+  EXPECT_EQ('g', data[2]);
+
+  // Test read EOF.
+  future = io::read(pipes[0], data, 3);
+  ASSERT_FALSE(future.isReady());
+
+  close(pipes[1]);
+
+  future.await(1.0);
+  ASSERT_TRUE(future.isReady());
+  EXPECT_EQ(0, future.get());
+
+  close(pipes[0]);
 }
 
 
