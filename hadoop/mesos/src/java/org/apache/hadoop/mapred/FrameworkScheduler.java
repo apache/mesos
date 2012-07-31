@@ -379,24 +379,19 @@ public class FrameworkScheduler implements Scheduler {
       neededMaps += 1;
 
     if (unassignedMaps < neededMaps) {
-      /*
-      // Figure out what locality level to allow using delay scheduling
-      long now = System.currentTimeMillis();
-      if (lastCanLaunchMapTime == -1)
-        lastCanLaunchMapTime = now;
-      int maxLevel; // Cache level to search for maps in
-      if (lastMapWasLocal) {
-        timeWaitedForLocalMap += now - lastCanLaunchMapTime;
-        if (timeWaitedForLocalMap >= localityWait) {
-          maxLevel = Integer.MAX_VALUE;
-        } else {
-          maxLevel = 1;
+      // 0. check for a failed map task to place. These tasks are not included
+      // in the "normal" lists of tasks in the JobInProgress object.
+      for (JobInProgress job: jobs) {
+        int state = job.getStatus().getRunState();
+        if (job.failedMaps != null && state == JobStatus.RUNNING) {
+          for (TaskInProgress tip : job.failedMaps) {
+            if (!tip.hasFailedOnMachine(host)) {
+              return true;
+            }
+          }
         }
-      } else {
-        maxLevel = Integer.MAX_VALUE;
       }
-      lastCanLaunchMapTime = now;
-      */
+
       int maxLevel = Integer.MAX_VALUE;
       // Look for a map with the required level
       for (JobInProgress job: jobs) {
