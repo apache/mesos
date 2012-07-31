@@ -204,13 +204,14 @@ TEST(ResourcesTest, ScalarSubtraction)
 
 TEST(ResourcesTest, RangesEquals)
 {
-  Resource ports = Resources::parse("ports", "[20000-40000]");
+  Resource ports1 = Resources::parse("ports", "[20-40]");
+  Resource ports2 = Resources::parse("ports", "[20-30, 31-39, 40-40]");
 
   Resources r1;
-  r1 += ports;
+  r1 += ports1;
 
   Resources r2;
-  r2 += ports;
+  r2 += ports2;
 
   EXPECT_EQ(r1, r2);
 }
@@ -222,11 +223,13 @@ TEST(ResourcesTest, RangesSubset)
   Resource ports2 = Resources::parse("ports", "[1-10]");
   Resource ports3 = Resources::parse("ports", "[2-3]");
   Resource ports4 = Resources::parse("ports", "[1-2, 4-6]");
+  Resource ports5 = Resources::parse("ports", "[1-4, 5-5]");
 
   EXPECT_EQ(2, ports1.ranges().range_size());
   EXPECT_EQ(1, ports2.ranges().range_size());
   EXPECT_EQ(1, ports3.ranges().range_size());
   EXPECT_EQ(2, ports4.ranges().range_size());
+  EXPECT_EQ(2, ports5.ranges().range_size());
 
   Resources r1;
   r1 += ports1;
@@ -240,6 +243,9 @@ TEST(ResourcesTest, RangesSubset)
   Resources r4;
   r4 += ports4;
 
+  Resources r5;
+  r5 += ports5;
+
   EXPECT_TRUE(r1 <= r2);
   EXPECT_FALSE(r2 <= r1);
   EXPECT_FALSE(r1 <= r3);
@@ -248,6 +254,8 @@ TEST(ResourcesTest, RangesSubset)
   EXPECT_FALSE(r2 <= r3);
   EXPECT_TRUE(r1 <= r4);
   EXPECT_TRUE(r4 <= r2);
+  EXPECT_TRUE(r1 <= r5);
+  EXPECT_FALSE(r5 <= r1);
 }
 
 
@@ -282,6 +290,43 @@ TEST(ResourcesTest, RangesAddition2)
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
   EXPECT_EQ(values::parse("[1-65, 70-80]").get().ranges(), ranges);
+}
+
+
+TEST(ResourcesTest, RangesAdditon3)
+{
+  Resource ports1 = Resources::parse("ports", "[1-2]");
+  Resource ports2 = Resources::parse("ports", "[3-4]");
+  Resource ports3 = Resources::parse("ports", "[7-8]");
+  Resource ports4 = Resources::parse("ports", "[5-6]");
+
+  Resources r1;
+  r1 += ports1;
+  r1 += ports2;
+
+  EXPECT_EQ(1, r1.size());
+
+  const Value::Ranges& ranges = r1.get("ports", Value::Ranges());
+
+  EXPECT_EQ(values::parse("[1-4]").get().ranges(), ranges);
+
+  Resources r2;
+  r2 += ports3;
+  r2 += ports4;
+
+  EXPECT_EQ(1, r2.size());
+
+  const Value::Ranges& ranges2 = r2.get("ports", Value::Ranges());
+
+  EXPECT_EQ(values::parse("[5-8]").get().ranges(), ranges2);
+
+  r2 += r1;
+
+  EXPECT_EQ(1, r2.size());
+
+  const Value::Ranges& ranges3 = r2.get("ports", Value::Ranges());
+
+  EXPECT_EQ(values::parse("[1-8]").get().ranges(), ranges3);
 }
 
 
@@ -387,6 +432,23 @@ TEST(ResourcesTest, RangesSubtraction5)
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
   EXPECT_EQ(values::parse("[1-1, 10-10, 46-47]").get().ranges(), ranges);
+}
+
+
+TEST(ResourcesTest, RangesSubtraction6)
+{
+  Resource ports1 = Resources::parse("ports", "[1-10]");
+  Resource ports2 = Resources::parse("ports", "[11-20]");
+
+  Resources r;
+  r += ports1;
+  r -= ports2;
+
+  EXPECT_EQ(1, r.size());
+
+  const Value::Ranges& ranges = r.get("ports", Value::Ranges());
+
+  EXPECT_EQ(values::parse("[1-10]").get().ranges(), ranges);
 }
 
 

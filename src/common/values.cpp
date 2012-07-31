@@ -187,6 +187,8 @@ static void add(Value::Ranges* result, int64_t begin, int64_t end)
 
 }
 
+
+// Coalesce the given 'range' into already coalesced 'ranges'.
 static void coalesce(Value::Ranges* ranges, const Value::Range& range)
 {
   // Note that we assume that ranges has already been coalesced.
@@ -200,7 +202,11 @@ static void coalesce(Value::Ranges* ranges, const Value::Range& range)
     // Check if current and range overlap. Note, we only need to
     // compare with range and not with temp to check for overlap
     // because we expect ranges to be coalesced to begin with!
-    if (current.begin() <= range.end() && current.end() >= range.begin() ) {
+    if (current.begin() <= range.end() + 1 &&
+        current.end() >= range.begin() - 1) {
+      // current:   |   |
+      // range:       |   |
+      // range:   |   |
       // Update temp with new boundaries.
       temp.set_begin(std::min(range.begin(), current.begin()));
       temp.set_end(std::max(range.end(), current.end()));
@@ -211,6 +217,17 @@ static void coalesce(Value::Ranges* ranges, const Value::Range& range)
 
   result.add_range()->MergeFrom(temp);
   *ranges = result;
+}
+
+
+// Coalesce the given un-coalesced 'uranges' into already coalesced 'ranges'.
+static void coalesce(Value::Ranges* ranges, const Value::Ranges& uranges)
+{
+  // Note that we assume that ranges has already been coalesced.
+
+  for (int i = 0; i < uranges.range_size(); i++) {
+    coalesce(ranges, uranges.range(i));
+  }
 }
 
 
@@ -233,7 +250,8 @@ static void remove(Value::Ranges* ranges, const Value::Range& range)
       // range:  |       |
       // range:    |       |
       // range:    |     |
-    } else if (range.begin() >= current.begin() && range.end() <= current.end()) {
+    } else if (range.begin() >= current.begin() &&
+               range.end() <= current.end()) {
       // Range is subsumed by current.
       // current:  |     |
       // range:      | |
@@ -241,7 +259,8 @@ static void remove(Value::Ranges* ranges, const Value::Range& range)
       // range:      |   |
       ranges::add(&result, current.begin(), range.begin() - 1);
       ranges::add(&result, range.end() + 1, current.end());
-    } else if (range.begin() <= current.begin() && range.end() >= current.begin()) {
+    } else if (range.begin() <= current.begin() &&
+               range.end() >= current.begin()) {
       // Range overlaps to the left.
       // current:  |     |
       // range:  |     |
@@ -266,8 +285,14 @@ static void remove(Value::Ranges* ranges, const Value::Range& range)
 }
 
 
-bool operator == (const Value::Ranges& left, const Value::Ranges& right)
+bool operator == (const Value::Ranges& _left, const Value::Ranges& _right)
 {
+  Value::Ranges left;
+  coalesce(&left, _left);
+
+  Value::Ranges right;
+  coalesce(&right, _right);
+
   if (left.range_size() == right.range_size()) {
     for (int i = 0; i < left.range_size(); i++) {
       // Make sure this range is equal to a range in the right.
@@ -292,24 +317,30 @@ bool operator == (const Value::Ranges& left, const Value::Ranges& right)
 }
 
 
-bool operator <= (const Value::Ranges& left, const Value::Ranges& right)
+bool operator <= (const Value::Ranges& _left, const Value::Ranges& _right)
 {
-   for (int i = 0; i < left.range_size(); i++) {
-      // Make sure this range is a subset of a range in right.
-      bool matched = false;
-      for (int j = 0; j < right.range_size(); j++) {
-        if ((left.range(i).begin() >= right.range(j).begin() &&
-             left.range(i).end() <= right.range(j).end())) {
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) {
-        return false;
+  Value::Ranges left;
+  coalesce(&left, _left);
+
+  Value::Ranges right;
+  coalesce(&right, _right);
+
+  for (int i = 0; i < left.range_size(); i++) {
+    // Make sure this range is a subset of a range in right.
+    bool matched = false;
+    for (int j = 0; j < right.range_size(); j++) {
+      if (left.range(i).begin() >= right.range(j).begin() &&
+          left.range(i).end() <= right.range(j).end()) {
+        matched = true;
+        break;
       }
     }
+    if (!matched) {
+      return false;
+    }
+  }
 
-    return true;
+  return true;
 }
 
 
@@ -317,13 +348,8 @@ Value::Ranges operator + (const Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges result;
 
-  for (int i = 0; i < left.range_size(); i++) {
-    coalesce(&result, left.range(i));
-  }
-
-  for (int i = 0; i < right.range_size(); i++) {
-    coalesce(&result, right.range(i));
-  }
+  coalesce(&result, left);
+  coalesce(&result, right);
 
   return result;
 }
@@ -333,13 +359,8 @@ Value::Ranges operator - (const Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges result;
 
-  for (int i = 0; i < left.range_size(); i++) {
-    coalesce(&result, left.range(i));
-  }
-
-  for (int i = 0; i < right.range_size(); i++) {
-    coalesce(&result, right.range(i));
-  }
+  coalesce(&result, left);
+  coalesce(&result, right);
 
   for (int i = 0; i < right.range_size(); i++) {
     remove(&result, right.range(i));
@@ -353,15 +374,11 @@ Value::Ranges& operator += (Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges temp;
 
-  for (int i = 0; i < left.range_size(); i++) {
-    coalesce(&temp, left.range(i));
-  }
+  coalesce(&temp, left);
 
   left = temp;
 
-  for (int i = 0; i < right.range_size(); i++) {
-    coalesce(&left, right.range(i));
-  }
+  coalesce(&left, right);
 
   return left;
 }
@@ -371,13 +388,8 @@ Value::Ranges& operator -= (Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges temp;
 
-  for (int i = 0; i < left.range_size(); i++) {
-    coalesce(&temp, left.range(i));
-  }
-
-  for (int i = 0; i < right.range_size(); i++) {
-    coalesce(&temp, right.range(i));
-  }
+  coalesce(&temp, left);
+  coalesce(&temp, right);
 
   left = temp;
 
