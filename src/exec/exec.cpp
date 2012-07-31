@@ -71,7 +71,11 @@ protected:
     // TODO(vinod): Invoke killtree without killing ourselves.
     // Kill the process group (including ourself).
     killpg(0, SIGKILL);
-    LOG(FATAL) << "ERROR! Killing process group"; // We should never come here.
+
+    // The signal might not get delivered immediately, so sleep for a
+    // few seconds. Worst case scenario, exit abnormally.
+    sleep(5);
+    exit(-1);
   }
 };
 
