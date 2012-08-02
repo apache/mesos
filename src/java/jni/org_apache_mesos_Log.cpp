@@ -563,8 +563,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
 
   std::string znode = construct<std::string>(env, jznode);
 
-  Log *log;
-  // if either of these are null, then assume Credentials.NONE
+  // Create the C++ Log.
+  Log* log = NULL;
+
   if (jscheme != NULL && jcredentials != NULL) {
     std::string scheme = construct<std::string>(env, jscheme);
 
@@ -582,7 +583,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
     log = new Log(quorum, path, servers, timeout, znode);
   }
 
-  // Create the C++ Log and initialize the __log variable.
+  CHECK(log != NULL);
+
+  // Initialize the __log variable.
   clazz = env->GetObjectClass(thiz);
 
   jfieldID __log = env->GetFieldID(clazz, "__log", "J");
