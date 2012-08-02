@@ -11,6 +11,10 @@
 
 using namespace mesos::internal::state;
 
+using process::Future;
+
+using std::string;
+
 extern "C" {
 
 /*
@@ -26,7 +30,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
    jobject junit,
    jstring jznode)
 {
-  std::string servers = construct<std::string>(env, jservers);
+  string servers = construct<string>(env, jservers);
 
   jclass clazz = env->GetObjectClass(junit);
 
@@ -37,7 +41,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
 
   seconds timeout(jseconds);
 
-  std::string znode = construct<std::string>(env, jznode);
+  string znode = construct<string>(env, jznode);
 
    // Create the C++ State and initialize the __state variable.
   State<>* state = new ZooKeeperState<>(servers, timeout, znode);
@@ -64,7 +68,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
    jstring jscheme,
    jbyteArray jcredentials)
 {
-  std::string servers = construct<std::string>(env, jservers);
+  string servers = construct<string>(env, jservers);
 
   jclass clazz = env->GetObjectClass(junit);
 
@@ -75,17 +79,17 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
 
   seconds timeout(jseconds);
 
-  std::string znode = construct<std::string>(env, jznode);
+  string znode = construct<string>(env, jznode);
 
   // Create the C++ State.
   State<>* state = NULL;
   if (jscheme != NULL && jcredentials != NULL) {
-    std::string scheme = construct<std::string>(env, jscheme);
+    string scheme = construct<string>(env, jscheme);
 
     jbyte* temp = env->GetByteArrayElements(jcredentials, NULL);
     jsize length = env->GetArrayLength(jcredentials);
 
-    std::string credentials((char*) temp, (size_t) length);
+    string credentials((char*) temp, (size_t) length);
 
     env->ReleaseByteArrayElements(jcredentials, temp, 0);
 
@@ -127,12 +131,12 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_finalize
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
  * Method:    __get
- * Signature: (Ljava/lang/String;)Lorg/apache/mesos/state/Variable;
+ * Signature: (Ljava/lang/String;)J
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get
+JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get
   (JNIEnv* env, jobject thiz, jstring jname)
 {
-  std::string name = construct<std::string>(env, jname);
+  string name = construct<string>(env, jname);
 
   jclass clazz = env->GetObjectClass(thiz);
 
@@ -140,25 +144,88 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get
 
   State<>* state = (State<>*) env->GetLongField(thiz, __state);
 
-  process::Future<Variable<std::string> > future =
-    state->get<std::string>(name);
+  Future<Variable<string> >* future =
+    new Future<Variable<string> >(state->get<string>(name));
 
-  future.await();
+  return (jlong) future;
+}
 
-  if (future.isFailed()) {
-    clazz = env->FindClass("java/util/concurrent/ExecutionException");
-    env->ThrowNew(clazz, future.failure().c_str());
-  } else if (future.isDiscarded()) {
-    clazz = env->FindClass("java/util/concurrent/CancellationException");
-    env->ThrowNew(clazz, "Future was discarded");
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __get_cancel
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1cancel
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+
+  if (!future->isDiscarded()) {
+    future->discard();
+    return (jboolean) future->isDiscarded();
   }
 
-  CHECK(future.isReady());
+  return (jboolean) true;
+}
 
-  Variable<std::string>* variable = new Variable<std::string>(future.get());
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __get_is_cancelled
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1is_1cancelled
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+
+  return (jboolean) future->isDiscarded();
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __get_is_done
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1is_1done
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+
+  return (jboolean) !future->isPending();
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __get_await
+ * Signature: (J)Lorg/apache/mesos/state/Variable;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1await
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+
+  future->await();
+
+  if (future->isFailed()) {
+    jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
+    env->ThrowNew(clazz, future->failure().c_str());
+    return NULL;
+  } else if (future->isDiscarded()) {
+    jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
+    env->ThrowNew(clazz, "Future was discarded");
+    return NULL;
+  }
+
+  CHECK(future->isReady());
+
+  Variable<string>* variable = new Variable<string>(future->get());
 
   // Variable variable = new Variable();
-   clazz = env->FindClass("org/apache/mesos/state/Variable");
+  jclass clazz = env->FindClass("org/apache/mesos/state/Variable");
 
   jmethodID _init_ = env->GetMethodID(clazz, "<init>", "()V");
   jobject jvariable = env->NewObject(clazz, _init_);
@@ -172,18 +239,85 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __set
- * Signature: (Lorg/apache/mesos/state/Variable;)B
+ * Method:    __get_await_timeout
+ * Signature: (JJLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1await_1timeout
+  (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
+{
+  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+
+  jclass clazz = env->GetObjectClass(junit);
+
+  // long seconds = unit.toSeconds(time);
+  jmethodID toSeconds = env->GetMethodID(clazz, "toSeconds", "(J)J");
+
+  jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
+
+  seconds timeout(jseconds);
+
+  if (future->await(timeout.value)) {
+    if (future->isFailed()) {
+      clazz = env->FindClass("java/util/concurrent/ExecutionException");
+      env->ThrowNew(clazz, future->failure().c_str());
+      return NULL;
+    } else if (future->isDiscarded()) {
+      clazz = env->FindClass("java/util/concurrent/CancellationException");
+      env->ThrowNew(clazz, "Future was discarded");
+      return NULL;
+    }
+
+    CHECK(future->isReady());
+    Variable<string>* variable = new Variable<string>(future->get());
+
+    // Variable variable = new Variable();
+    clazz = env->FindClass("org/apache/mesos/state/Variable");
+
+    jmethodID _init_ = env->GetMethodID(clazz, "<init>", "()V");
+    jobject jvariable = env->NewObject(clazz, _init_);
+
+    jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
+    env->SetLongField(jvariable, __variable, (jlong) variable);
+
+    return jvariable;
+  }
+
+  clazz = env->FindClass("java/util/concurrent/TimeoutException");
+  env->ThrowNew(clazz, "Failed to wait for future within timeout");
+
+  return NULL;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __get_finalize
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1finalize
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+
+  delete future;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __set
+ * Signature: (Lorg/apache/mesos/state/Variable;)J
+ */
+JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set
   (JNIEnv* env, jobject thiz, jobject jvariable)
 {
   jclass clazz = env->GetObjectClass(jvariable);
 
   jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
 
-  Variable<std::string>* variable =
-    (Variable<std::string>*) env->GetLongField(jvariable, __variable);
+  // Create a copy of the old variable to support the immutable Java API.
+  Variable<string>* variable = new Variable<string>(
+      *((Variable<string>*) env->GetLongField(jvariable, __variable)));
 
   clazz = env->GetObjectClass(thiz);
 
@@ -191,21 +325,194 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set
 
   State<>* state = (State<>*) env->GetLongField(thiz, __state);
 
-  process::Future<bool> future = state->set(variable);
+  Future<bool>* future = new Future<bool>(state->set(variable));
 
-  future.await();
+  return (jlong)
+    new std::pair<Variable<string>*, Future<bool>*>(variable, future);
+}
 
-  if (future.isFailed()) {
-    jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
-    env->ThrowNew(clazz, future.failure().c_str());
-  } else if (future.isDiscarded()) {
-    jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
-    env->ThrowNew(clazz, "Future was discarded");
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __set_cancel
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1cancel
+  (JNIEnv* env, jobject thiz, jlong jpair)
+{
+  std::pair<Variable<string>*, Future<bool>*>* pair =
+    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
+
+  Future<bool>* future = pair->second;
+
+  if (!future->isDiscarded()) {
+    future->discard();
+    return (jboolean) future->isDiscarded();
   }
 
-  CHECK(future.isReady());
+  return (jboolean) true;
+}
 
-  return (jboolean) future.get();
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __set_is_cancelled
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1is_1cancelled
+  (JNIEnv* env, jobject thiz, jlong jpair)
+{
+  std::pair<Variable<string>*, Future<bool>*>* pair =
+    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
+
+  Future<bool>* future = pair->second;
+
+  return (jboolean) future->isDiscarded();
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __set_is_done
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1is_1done
+  (JNIEnv* env, jobject thiz, jlong jpair)
+{
+  std::pair<Variable<string>*, Future<bool>*>* pair =
+    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
+
+  Future<bool>* future = pair->second;
+
+  return (jboolean) !future->isPending();
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __set_await
+ * Signature: (J)Lorg/apache/mesos/state/Variable;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1await
+  (JNIEnv* env, jobject thiz, jlong jpair)
+{
+  std::pair<Variable<string>*, Future<bool>*>* pair =
+    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
+
+  Future<bool>* future = pair->second;
+
+  future->await();
+
+  if (future->isFailed()) {
+    jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
+    env->ThrowNew(clazz, future->failure().c_str());
+    return NULL;
+  } else if (future->isDiscarded()) {
+    jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
+    env->ThrowNew(clazz, "Future was discarded");
+    return NULL;
+  }
+
+  CHECK(future->isReady());
+
+  if (future->get()) {
+    // Copy our copy of the old variable to support the immutable Java API.
+    Variable<string>* variable = new Variable<string>(*pair->first);
+
+    // Variable variable = new Variable();
+    jclass clazz = env->FindClass("org/apache/mesos/state/Variable");
+
+    jmethodID _init_ = env->GetMethodID(clazz, "<init>", "()V");
+    jobject jvariable = env->NewObject(clazz, _init_);
+
+    jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
+    env->SetLongField(jvariable, __variable, (jlong) variable);
+
+    return jvariable;
+  }
+
+  return NULL;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __set_await_timeout
+ * Signature: (JJLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1await_1timeout
+  (JNIEnv* env, jobject thiz, jlong jpair, jlong jtimeout, jobject junit)
+{
+  std::pair<Variable<string>*, Future<bool>*>* pair =
+    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
+
+  Future<bool>* future = pair->second;
+
+  jclass clazz = env->GetObjectClass(junit);
+
+  // long seconds = unit.toSeconds(time);
+  jmethodID toSeconds = env->GetMethodID(clazz, "toSeconds", "(J)J");
+
+  jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
+
+  seconds timeout(jseconds);
+
+  if (future->await(timeout.value)) {
+    if (future->isFailed()) {
+      clazz = env->FindClass("java/util/concurrent/ExecutionException");
+      env->ThrowNew(clazz, future->failure().c_str());
+      return NULL;
+    } else if (future->isDiscarded()) {
+      clazz = env->FindClass("java/util/concurrent/CancellationException");
+      env->ThrowNew(clazz, "Future was discarded");
+      return NULL;
+    }
+
+    CHECK(future->isReady());
+
+    if (future->get()) {
+      // Copy our copy of the old variable to support the immutable Java API.
+      Variable<string>* variable = new Variable<string>(*pair->first);
+
+      // Variable variable = new Variable();
+      clazz = env->FindClass("org/apache/mesos/state/Variable");
+
+      jmethodID _init_ = env->GetMethodID(clazz, "<init>", "()V");
+      jobject jvariable = env->NewObject(clazz, _init_);
+
+      jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
+      env->SetLongField(jvariable, __variable, (jlong) variable);
+
+      return jvariable;
+    }
+
+    return NULL;
+  }
+
+  clazz = env->FindClass("java/util/concurrent/TimeoutException");
+  env->ThrowNew(clazz, "Failed to wait for future within timeout");
+
+  return NULL;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __set_finalize
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1finalize
+  (JNIEnv* env, jobject thiz, jlong jpair)
+{
+  std::pair<Variable<string>*, Future<bool>*>* pair =
+    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
+
+  // We can delete the "variable" (i.e., pair->first) because we gave
+  // copies (on the heap) to each of the Java Variable objects.
+
+  delete pair->first;
+  delete pair->second;
+  delete pair;
 }
 
 } // extern "C" {

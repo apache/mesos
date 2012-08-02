@@ -18,9 +18,9 @@
 
 package org.apache.mesos.state;
 
-import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.mesos.MesosNativeLibrary;
@@ -72,22 +72,82 @@ class ZooKeeperState implements State {
 
   @Override
   public Future<Variable> get(final String name) {
-    // TODO(benh): Asynchronously start the operation before returning.
-    return new FutureTask<Variable>(new Callable<Variable>() {
-        public Variable call() {
-          return __get(name);
+    final long future = __get(name); // Asynchronously start the operation.
+    return new Future<Variable>() {
+      @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        if (mayInterruptIfRunning) {
+          return __get_cancel(future);
         }
-      });
+        return false; // Should not interrupt and already running (or finished).
+      }
+
+      @Override
+      public boolean isCancelled() {
+        return __get_is_cancelled(future);
+      }
+
+      @Override
+      public boolean isDone() {
+        return __get_is_done(future);
+      }
+
+      @Override
+      public Variable get() throws InterruptedException, ExecutionException {
+        return __get_await(future);
+      }
+
+      @Override
+      public Variable get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+        return __get_await_timeout(future, timeout, unit);
+      }
+
+      @Override
+      protected void finalize() {
+        __get_finalize(future);
+      }
+    };
   }
 
   @Override
-  public Future<Boolean> set(final Variable variable) {
-    // TODO(benh): Asynchronously start the operation before returning.
-    return new FutureTask<Boolean>(new Callable<Boolean>() {
-        public Boolean call() {
-          return __set(variable);
+  public Future<Variable> set(Variable variable) {
+    final long pair = __set(variable); // Asynchronously start the operation.
+    return new Future<Variable>() {
+      @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        if (mayInterruptIfRunning) {
+          return __set_cancel(pair);
         }
-      });
+        return false; // Should not interrupt and already running (or finished).
+      }
+
+      @Override
+      public boolean isCancelled() {
+        return __set_is_cancelled(pair);
+      }
+
+      @Override
+      public boolean isDone() {
+        return __set_is_done(pair);
+      }
+
+      @Override
+      public Variable get() throws InterruptedException, ExecutionException {
+        return __set_await(pair);
+      }
+
+      @Override
+      public Variable get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+        return __set_await_timeout(pair, timeout, unit);
+      }
+
+      @Override
+      protected void finalize() {
+        __set_finalize(pair);
+      }
+    };
   }
 
   protected native void initialize(String servers,
@@ -105,8 +165,23 @@ class ZooKeeperState implements State {
   protected native void finalize();
 
   // Native implementations of get/set.
-  private native Variable __get(String name);
-  private native boolean __set(Variable variable);
+  private native long __get(String name);
+  private native boolean __get_cancel(long future);
+  private native boolean __get_is_cancelled(long future);
+  private native boolean __get_is_done(long future);
+  private native Variable __get_await(long future);
+  private native Variable __get_await_timeout(
+      long future, long timeout, TimeUnit unit);
+  private native void __get_finalize(long future);
+
+  private native long __set(Variable variable);
+  private native boolean __set_cancel(long pair);
+  private native boolean __set_is_cancelled(long pair);
+  private native boolean __set_is_done(long pair);
+  private native Variable __set_await(long pair);
+  private native Variable __set_await_timeout(
+      long pair, long timeout, TimeUnit unit);
+  private native void __set_finalize(long pair);
 
   private long __state;
 };

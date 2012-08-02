@@ -19,7 +19,7 @@
 package org.apache.mesos.state;
 
 public class Variable {
-  private Variable() {} // Only constructable by native code.
+  protected Variable() {}
 
   /**
    * Returns the current value of this variable.
@@ -29,7 +29,7 @@ public class Variable {
   /**
    * Updates the current value of this variable.
    */
-  public native void mutate(byte[] value);
+  public native Variable mutate(byte[] value);
 
   protected native void finalize();
 

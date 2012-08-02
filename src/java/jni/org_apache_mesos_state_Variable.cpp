@@ -35,22 +35,36 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_mesos_state_Variable_value
 /*
  * Class:     org_apache_mesos_state_Variable
  * Method:    mutate
- * Signature: ([B)V
+ * Signature: ([B)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_Variable_mutate
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_Variable_mutate
   (JNIEnv* env, jobject thiz, jbyteArray jvalue)
 {
   jclass clazz = env->GetObjectClass(thiz);
 
   jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
 
-  Variable<std::string>* variable =
-    (Variable<std::string>*) env->GetLongField(thiz, __variable);
+  // Create a copy of the old variable to support the immutable Java API.
+  Variable<std::string>* variable = new Variable<std::string>(
+      *((Variable<std::string>*) env->GetLongField(thiz, __variable)));
 
   jbyte* value = env->GetByteArrayElements(jvalue, NULL);
   jsize length = env->GetArrayLength(jvalue);
 
+  // Update the value of the new copy.
   (*variable)->assign((const char*) value, length);
+
+  env->ReleaseByteArrayElements(jvalue, value, 0);
+
+  // Variable variable = new Variable();
+  clazz = env->FindClass("org/apache/mesos/state/Variable");
+
+  jmethodID _init_ = env->GetMethodID(clazz, "<init>", "()V");
+  jobject jvariable = env->NewObject(clazz, _init_);
+
+  env->SetLongField(jvariable, __variable, (jlong) variable);
+
+  return jvariable;
 }
 
 

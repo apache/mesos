@@ -72,11 +72,6 @@ public:
     return &t;
   }
 
-  void mutate(const T& _t)
-  {
-    t = _t;
-  }
-
 private:
   template <typename Serializer>
   friend class State; // Creates and manages variables.

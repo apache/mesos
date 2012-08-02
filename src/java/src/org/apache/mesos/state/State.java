@@ -38,19 +38,21 @@ import java.util.concurrent.Future;
  *   State state = new ZooKeeperState();
  *   Future<Variable> variable = state.get("machines");
  *   Variable machines = variable.get();
- *   machines.mutate(...);
- *   Future<Boolean> set = state.set(machines);
+ *   machines = machines.mutate(...);
+ *   variable = state.set(machines);
+ *   machines = variable.get();
  */
 public interface State {
   /**
-   * Returns a "variable" representing the value from the state
-   * associated with the specified name.
+   * Returns an immutable "variable" representing the current value
+   * from the state associated with the specified name.
    */
   Future<Variable> get(String name);
 
   /**
-   * Returns true if successfully updating the specified "variable"
-   * in the state.
+   * Returns an immutable "variable" representing the current value in
+   * the state if updating the specified variable in the state was
+   * successful, otherwise returns null.
    */
-  Future<Boolean> set(Variable variable);
+  Future<Variable> set(Variable variable);
 }

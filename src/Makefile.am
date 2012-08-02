@@ -475,6 +475,7 @@ MESOS_JAR_SOURCE =							\
 	$(srcdir)/java/src/org/apache/mesos/MesosSchedulerDriver.java	\
 	$(srcdir)/java/src/org/apache/mesos/SchedulerDriver.java	\
 	$(srcdir)/java/src/org/apache/mesos/Scheduler.java		\
+	$(srcdir)/java/src/org/apache/mesos/state/InMemoryState.java	\
 	$(srcdir)/java/src/org/apache/mesos/state/State.java		\
 	$(srcdir)/java/src/org/apache/mesos/state/Variable.java		\
 	$(srcdir)/java/src/org/apache/mesos/state/ZooKeeperState.java
