@@ -16,41 +16,16 @@
 
 #include "messages/state.hpp"
 
+#include "state/leveldb.hpp"
 #include "state/state.hpp"
 
 using namespace process;
-
-using process::wait; // Necessary on some OS's to disambiguate.
 
 using std::string;
 
 namespace mesos {
 namespace internal {
 namespace state {
-
-class LevelDBStateProcess : public Process<LevelDBStateProcess>
-{
-public:
-  LevelDBStateProcess(const string& path);
-  virtual ~LevelDBStateProcess();
-
-  virtual void initialize();
-
-  // State implementation.
-  Future<Option<Entry> > fetch(const string& name);
-  Future<bool> swap(const Entry& entry, const UUID& uuid);
-
-private:
-  // Helpers for interacting with leveldb.
-  Try<Option<Entry> > get(const string& name);
-  Try<bool> put(const Entry& entry);
-
-  const string path;
-  leveldb::DB* db;
-
-  Option<string> error;
-};
-
 
 LevelDBStateProcess::LevelDBStateProcess(const string& _path)
   : path(_path), db(NULL) {}
@@ -178,33 +153,6 @@ Try<bool> LevelDBStateProcess::put(const Entry& entry)
   }
 
   return true;
-}
-
-
-LevelDBState::LevelDBState(const std::string& path)
-{
-  process = new LevelDBStateProcess(path);
-  spawn(process);
-}
-
-
-LevelDBState::~LevelDBState()
-{
-  terminate(process);
-  wait(process);
-  delete process;
-}
-
-
-Future<Option<Entry> > LevelDBState::fetch(const string& name)
-{
-  return dispatch(process, &LevelDBStateProcess::fetch, name);
-}
-
-
-Future<bool> LevelDBState::swap(const Entry& entry, const UUID& uuid)
-{
-  return dispatch(process, &LevelDBStateProcess::swap, entry, uuid);
 }
 
 } // namespace state {

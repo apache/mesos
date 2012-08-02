@@ -33,7 +33,10 @@
 
 #include "messages/messages.hpp"
 
+#include "state/leveldb.hpp"
+#include "state/serializer.hpp"
 #include "state/state.hpp"
+#include "state/zookeeper.hpp"
 
 #ifdef MESOS_HAS_JAVA
 #include "tests/base_zookeeper_test.hpp"
@@ -48,15 +51,15 @@ using namespace mesos::internal::test;
 using namespace process;
 
 
-void GetSetGet(State* state)
+void GetSetGet(State<ProtobufSerializer>* state)
 {
-  Future<State::Variable<Slaves> > variable = state->get<Slaves>("slaves");
+  Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
 
   variable.await();
 
   ASSERT_TRUE(variable.isReady());
 
-  State::Variable<Slaves> slaves1 = variable.get();
+  Variable<Slaves> slaves1 = variable.get();
 
   EXPECT_TRUE(slaves1->infos().size() == 0);
 
@@ -79,7 +82,7 @@ void GetSetGet(State* state)
 
   ASSERT_TRUE(variable.isReady());
 
-  State::Variable<Slaves> slaves2 = variable.get();
+  Variable<Slaves> slaves2 = variable.get();
 
   ASSERT_TRUE(slaves2->infos().size() == 1);
   EXPECT_EQ("localhost", slaves2->infos(0).hostname());
@@ -87,15 +90,15 @@ void GetSetGet(State* state)
 }
 
 
-void GetSetSetGet(State* state)
+void GetSetSetGet(State<ProtobufSerializer>* state)
 {
-  Future<State::Variable<Slaves> > variable = state->get<Slaves>("slaves");
+  Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
 
   variable.await();
 
   ASSERT_TRUE(variable.isReady());
 
-  State::Variable<Slaves> slaves1 = variable.get();
+  Variable<Slaves> slaves1 = variable.get();
 
   EXPECT_TRUE(slaves1->infos().size() == 0);
 
@@ -125,7 +128,7 @@ void GetSetSetGet(State* state)
 
   ASSERT_TRUE(variable.isReady());
 
-  State::Variable<Slaves> slaves2 = variable.get();
+  Variable<Slaves> slaves2 = variable.get();
 
   ASSERT_TRUE(slaves2->infos().size() == 1);
   EXPECT_EQ("localhost", slaves2->infos(0).hostname());
@@ -133,15 +136,15 @@ void GetSetSetGet(State* state)
 }
 
 
-void GetGetSetSetGet(State* state)
+void GetGetSetSetGet(State<ProtobufSerializer>* state)
 {
-  Future<State::Variable<Slaves> > variable = state->get<Slaves>("slaves");
+  Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
 
   variable.await();
 
   ASSERT_TRUE(variable.isReady());
 
-  State::Variable<Slaves> slaves1 = variable.get();
+  Variable<Slaves> slaves1 = variable.get();
 
   EXPECT_TRUE(slaves1->infos().size() == 0);
 
@@ -151,7 +154,7 @@ void GetGetSetSetGet(State* state)
 
   ASSERT_TRUE(variable.isReady());
 
-  State::Variable<Slaves> slaves2 = variable.get();
+  Variable<Slaves> slaves2 = variable.get();
 
   EXPECT_TRUE(slaves2->infos().size() == 0);
 
@@ -205,7 +208,7 @@ protected:
   virtual void SetUp()
   {
     os::rmdir(path);
-    state = new LevelDBState(path);
+    state = new LevelDBState<ProtobufSerializer>(path);
   }
 
   virtual void TearDown()
@@ -214,7 +217,7 @@ protected:
     os::rmdir(path);
   }
 
-  State* state;
+  State<ProtobufSerializer>* state;
 
 private:
   const std::string path;
@@ -250,7 +253,10 @@ protected:
   virtual void SetUp()
   {
     BaseZooKeeperTest::SetUp();
-    state = new ZooKeeperState(zks->connectString(), NO_TIMEOUT, "/state/");
+    state = new ZooKeeperState<ProtobufSerializer>(
+        zks->connectString(),
+        NO_TIMEOUT,
+        "/state/");
   }
 
   virtual void TearDown()
@@ -259,7 +265,7 @@ protected:
     BaseZooKeeperTest::TearDown();
   }
 
-  State* state;
+  State<ProtobufSerializer>* state;
 };
 
 

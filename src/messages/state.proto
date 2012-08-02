@@ -18,13 +18,9 @@
 
 package mesos.internal.state;
 
-// Describes a state entry, effectively a key/value pair. We include
-// the protocol buffer descriptor so that we can check usage.
+// Describes a state entry, a versioned (via a UUID) key/value pair.
 message Entry {
   required string name = 1;
   required bytes uuid = 2;
-  required string type = 3;
-  // TODO(benh): Consider saving more information about the type.
-  // required google.protobuf.DescriptorProto message_type = 3;
-  required bytes value = 4;
+  required bytes value = 3;
 }

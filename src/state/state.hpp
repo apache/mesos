@@ -16,39 +16,30 @@
  * limitations under the License.
  */
 
-#ifndef __STATE_HPP__
-#define __STATE_HPP__
-
-#include <google/protobuf/message.h>
-
-#include <google/protobuf/io/zero_copy_stream_impl.h> // For ArrayInputStream.
+#ifndef __STATE_STATE_HPP__
+#define __STATE_STATE_HPP__
 
 #include <string>
 
 #include <process/future.hpp>
 
 #include <stout/option.hpp>
-#include <stout/time.hpp>
+#include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
 #include "logging/logging.hpp"
 
 #include "messages/state.hpp"
 
-#include "zookeeper/authentication.hpp"
+#include "state/serializer.hpp"
 
 namespace mesos {
 namespace internal {
 namespace state {
 
-// Forward declarations.
-class LevelDBStateProcess;
-class ZooKeeperStateProcess;
-
 // An abstraction of "state" (possibly between multiple distributed
 // components) represented by "variables" (effectively key/value
-// pairs). The value of a variable in the state must be a protocol
-// buffer. Variables are versioned such that setting a variable in the
+// pairs). Variables are versioned such that setting a variable in the
 // state will only succeed if the variable has not changed since last
 // fetched. Varying implementations of state provide varying
 // replicated guarantees.
@@ -59,37 +50,50 @@ class ZooKeeperStateProcess;
 // performed on the variable since your get.
 
 // Example:
-//   State* state = new ZooKeeperState();
-//   Future<State::Variable<Slaves> > variable = state->get<Slaves>("slaves");
-//   State::Variable<Slaves> slaves = variable.get();
+
+//   State<ProtobufSerializer>* state = new ZooKeeperState<ProtobufSerializer>();
+//   Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
+//   Variable<Slaves> slaves = variable.get();
 //   slaves->add_infos()->MergeFrom(info);
 //   Future<bool> set = state->set(&slaves);
 
+// Forward declarations.
+template <typename Serializer>
+class State;
+class ZooKeeperStateProcess;
+
+
+template <typename T>
+class Variable
+{
+public:
+  T* operator -> ()
+  {
+    return &t;
+  }
+
+  void mutate(const T& _t)
+  {
+    t = _t;
+  }
+
+private:
+  template <typename Serializer>
+  friend class State; // Creates and manages variables.
+
+  Variable(const Entry& _entry, const T& _t)
+    : entry(_entry), t(_t)
+  {}
+
+  Entry entry; // Not const so Variable is copyable.
+  T t;
+};
+
+
+template <typename Serializer = StringSerializer>
 class State
 {
 public:
-  template <typename T>
-  class Variable
-  {
-  public:
-    T* operator -> ()
-    {
-      return &t;
-    }
-
-  private:
-    friend class State; // Creates and manages variables.
-
-    Variable(const Entry& _entry, const T& _t)
-      : entry(_entry), t(_t)
-    {
-      const google::protobuf::Message* message = &t; // Check T is a protobuf.
-    }
-
-    Entry entry; // Not const so Variable is copyable.
-    T t;
-  };
-
   State() {}
   virtual ~State() {}
 
@@ -111,77 +115,77 @@ protected:
   virtual process::Future<bool> swap(const Entry& entry, const UUID& uuid) = 0;
 
 private:
-  // Helper to convert an Entry to a Variable<T>. We make this a
+  // Helper to convert an Entry into some Variable<T> (or create a
+  // default Entry in the event no Entry was found). We make this a
   // static member of State for friend access to Variable's
   // constructor.
   template <typename T>
-  static process::Future<State::Variable<T> > convert(
+  static process::Future<Variable<T> > convert(
       const std::string& name,
       const Option<Entry>& option);
+
 };
 
 
-// Helper for converting an Entry into a Variable<T>.
+template <typename Serializer>
 template <typename T>
-process::Future<State::Variable<T> > State::convert(
+process::Future<Variable<T> > State<Serializer>::convert(
     const std::string& name,
     const Option<Entry>& option)
 {
-  T t;
-
   if (option.isSome()) {
     const Entry& entry = option.get();
 
-    // TODO(benh): Check _compatibility_ versus equivalance.
-    CHECK(t.GetDescriptor()->full_name() == entry.type());
+    Try<T> t = Serializer::template deserialize<T>(entry.value());
 
-    const std::string& value = entry.value();
-    google::protobuf::io::ArrayInputStream stream(value.data(), value.size());
-    if (!t.ParseFromZeroCopyStream(&stream)) {
-      return process::Future<State::Variable<T> >::failed(
-          "Failed to deserialize " + t.GetDescriptor()->full_name());
+    if (t.isError()) {
+      return process::Future<Variable<T> >::failed(t.error());
     }
 
-    return State::Variable<T>(entry, t);
+    return Variable<T>(entry, t.get());
   }
 
   // Otherwise, construct a Variable out of a new Entry with a default
   // value for T (and a random UUID to start).
-  std::string value;
+  T t;
 
-  if (!t.SerializeToString(&value)) {
-    return process::Future<State::Variable<T> >::failed(
-        "Failed to serialize " + t.GetDescriptor()->full_name());
+  Try<std::string> value = Serializer::template serialize<T>(t);
+
+  if (value.isError()) {
+    return process::Future<Variable<T> >::failed(value.error());
   }
 
   Entry entry;
   entry.set_name(name);
   entry.set_uuid(UUID::random().toBytes());
-  entry.set_type(t.GetDescriptor()->full_name());
-  entry.set_value(value);
+  entry.set_value(value.get());
 
-  return State::Variable<T>(entry, t);
+  return Variable<T>(entry, t);
 }
 
 
+template <typename Serializer>
 template <typename T>
-process::Future<State::Variable<T> > State::get(const std::string& name)
+process::Future<Variable<T> > State<Serializer>::get(const std::string& name)
 {
   std::tr1::function<
-  process::Future<State::Variable<T> >(const Option<Entry>&)> convert =
-    std::tr1::bind(&State::convert<T>, name, std::tr1::placeholders::_1);
+  process::Future<Variable<T> >(const Option<Entry>&)> convert =
+    std::tr1::bind(&State<Serializer>::template convert<T>,
+                   name,
+                   std::tr1::placeholders::_1);
 
   return fetch(name).then(convert);
 }
 
 
+template <typename Serializer>
 template <typename T>
-process::Future<bool> State::set(State::Variable<T>* variable)
+process::Future<bool> State<Serializer>::set(Variable<T>* variable)
 {
-  std::string value;
-  if (!variable->t.SerializeToString(&value)) {
-    return process::Future<bool>::failed(
-        "Failed to serialize " + variable->entry.type());
+  Try<std::string> value = Serializer::template serialize<T>(variable->t);
+
+  if (value.isError()) {
+    return process::Future<bool>::failed(value.error());
   }
 
   // Note that we try and swap an entry even if the value didn't change!
@@ -189,65 +193,13 @@ process::Future<bool> State::set(State::Variable<T>* variable)
 
   // Update the UUID and value of the entry.
   variable->entry.set_uuid(UUID::random().toBytes());
-  variable->entry.set_value(value);
+  variable->entry.set_value(value.get());
 
   return swap(variable->entry, uuid);
 }
-
-
-class LevelDBState : public State
-{
-public:
-  LevelDBState(const std::string& path);
-  virtual ~LevelDBState();
-
-protected:
-  // State implementation.
-  virtual process::Future<Option<Entry> > fetch(const std::string& name);
-  virtual process::Future<bool> swap(const Entry& entry, const UUID& uuid);
-
-private:
-  LevelDBStateProcess* process;
-};
-
-
-class ZooKeeperState : public State
-{
-public:
-  // TODO(benh): Just take a zookeeper::URL.
-  ZooKeeperState(
-      const std::string& servers,
-      const seconds& timeout,
-      const std::string& znode,
-      const Option<zookeeper::Authentication>& auth =
-      Option<zookeeper::Authentication>());
-  virtual ~ZooKeeperState();
-
-protected:
-  // State implementation.
-  virtual process::Future<Option<Entry> > fetch(const std::string& name);
-  virtual process::Future<bool> swap(const Entry& entry, const UUID& uuid);
-
-private:
-  ZooKeeperStateProcess* process;
-};
 
 } // namespace state {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __STATE_HPP__
-
-
-
-
-// need a Future::operator -> (), plus a test
-
-
-// have a way to "watch" a Variable and get a future that signifies when/if it has changed?
-
-// need a master work directory for local leveldb version of State!
-
-// use leveldb for non-ha version of master (no reading/writing files)
-
-// need to set the location of master detector zk znode, and set this znode location
+#endif // __STATE_STATE_HPP__

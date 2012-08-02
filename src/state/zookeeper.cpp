@@ -19,14 +19,13 @@
 #include "messages/state.hpp"
 
 #include "state/state.hpp"
+#include "state/zookeeper.hpp"
 
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/watcher.hpp"
 #include "zookeeper/zookeeper.hpp"
 
 using namespace process;
-
-using process::wait; // Necessary on some OS's to disambiguate.
 
 using std::queue;
 using std::string;
@@ -36,78 +35,6 @@ using zookeeper::Authentication;
 namespace mesos {
 namespace internal {
 namespace state {
-
-class ZooKeeperStateProcess : public Process<ZooKeeperStateProcess>
-{
-public:
-  ZooKeeperStateProcess(
-      const string& servers,
-      const seconds& timeout,
-      const string& znode,
-      const Option<Authentication>& auth);
-  virtual ~ZooKeeperStateProcess();
-
-  virtual void initialize();
-
-  // State implementation.
-  Future<Option<Entry> > fetch(const string& name);
-  Future<bool> swap(const Entry& entry, const UUID& uuid);
-
-  // ZooKeeper events.
-  void connected(bool reconnect);
-  void reconnecting();
-  void expired();
-  void updated(const string& path);
-  void created(const string& path);
-  void deleted(const string& path);
-
-private:
-  // Helpers for fetching and swapping.
-  Result<Option<Entry> > doFetch(const string& name);
-  Result<bool> doSwap(const Entry& entry, const UUID& uuid);
-
-  const string servers;
-  const seconds timeout;
-  const string znode;
-
-  Option<Authentication> auth; // ZooKeeper authentication.
-
-  const ACL_vector acl; // Default ACL to use.
-
-  Watcher* watcher;
-  ZooKeeper* zk;
-
-  enum State { // ZooKeeper connection state.
-    DISCONNECTED,
-    CONNECTING,
-    CONNECTED,
-  } state;
-
-  struct Fetch
-  {
-    Fetch(const string& _name)
-      : name(_name) {}
-    string name;
-    Promise<Option<Entry> > promise;
-  };
-
-  struct Swap
-  {
-    Swap(const Entry& _entry, const UUID& _uuid)
-      : entry(_entry), uuid(_uuid) {}
-    Entry entry;
-    UUID uuid;
-    Promise<bool> promise;
-  };
-
-  struct {
-    queue<Fetch*> fetches;
-    queue<Swap*> swaps;
-  } pending;
-
-  Option<string> error;
-};
-
 
 // Helper for failing a queue of promises.
 template <typename T>
@@ -423,37 +350,6 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
   }
 
   return true;
-}
-
-
-ZooKeeperState::ZooKeeperState(
-    const string& servers,
-    const seconds& timeout,
-    const string& znode,
-    const Option<Authentication>& auth)
-{
-  process = new ZooKeeperStateProcess(servers, timeout, znode, auth);
-  spawn(process);
-}
-
-
-ZooKeeperState::~ZooKeeperState()
-{
-  terminate(process);
-  wait(process);
-  delete process;
-}
-
-
-Future<Option<Entry> > ZooKeeperState::fetch(const string& name)
-{
-  return dispatch(process, &ZooKeeperStateProcess::fetch, name);
-}
-
-
-Future<bool> ZooKeeperState::swap(const Entry& entry, const UUID& uuid)
-{
-  return dispatch(process, &ZooKeeperStateProcess::swap, entry, uuid);
 }
 
 } // namespace state {
