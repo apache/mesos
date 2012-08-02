@@ -249,7 +249,8 @@ libmesos_no_third_party_la_LIBADD += liblog.la
 # include the leveldb headers.
 noinst_LTLIBRARIES += libstate.la
 libstate_la_SOURCES = state/leveldb.cpp state/zookeeper.cpp
-libstate_la_SOURCES += state/state.hpp messages/state.hpp	\
+libstate_la_SOURCES += state/leveldb.hpp state/serializer.hpp	\
+  state/state.hpp state/zookeeper.hpp messages/state.hpp	\
   messages/state.proto
 nodist_libstate_la_SOURCES = $(STATE_PROTOS)
 libstate_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
@@ -473,7 +474,10 @@ MESOS_JAR_SOURCE =							\
 	$(srcdir)/java/src/org/apache/mesos/MesosExecutorDriver.java	\
 	$(srcdir)/java/src/org/apache/mesos/MesosSchedulerDriver.java	\
 	$(srcdir)/java/src/org/apache/mesos/SchedulerDriver.java	\
-	$(srcdir)/java/src/org/apache/mesos/Scheduler.java
+	$(srcdir)/java/src/org/apache/mesos/Scheduler.java		\
+	$(srcdir)/java/src/org/apache/mesos/state/State.java		\
+	$(srcdir)/java/src/org/apache/mesos/state/Variable.java		\
+	$(srcdir)/java/src/org/apache/mesos/state/ZooKeeperState.java
 MESOS_JAR_GENERATED = $(JAVA_PROTOS)					\
 	java/generated/org/apache/mesos/MesosNativeLibrary.java
 EXTRA_DIST += $(MESOS_JAR_SOURCE)					\
@@ -511,7 +515,7 @@ CLEANFILES += $(PROTOBUF_JAR)
 
 $(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) $(PROTOBUF_JAR)
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
-	@rm -f java/classes/org/apache/mesos/*
+	@rm -rf java/classes/org/apache/mesos
 	@$(MKDIR_P) java/classes/org/apache/mesos
 	@$(JAVA_HOME)/bin/javac \
           -cp $(PROTOBUF_JAR) \
@@ -538,9 +542,11 @@ CLEANFILES += $(MESOS_SOURCES_JAR)
 noinst_LTLIBRARIES += libjava.la
 
 libjava_la_SOURCES = java/jni/convert.cpp java/jni/construct.cpp	\
+	java/jni/org_apache_mesos_Log.cpp				\
 	java/jni/org_apache_mesos_MesosSchedulerDriver.cpp		\
 	java/jni/org_apache_mesos_MesosExecutorDriver.cpp		\
-	java/jni/org_apache_mesos_Log.cpp jvm/jvm.cpp
+	java/jni/org_apache_mesos_state_Variable.cpp			\
+	java/jni/org_apache_mesos_state_ZooKeeperState.cpp jvm/jvm.cpp
 
 libjava_la_SOURCES += java/jni/convert.hpp java/jni/construct.hpp jvm/jvm.hpp
 
@@ -569,11 +575,15 @@ libmesos_la_LIBADD += $(JAVA_LDFLAGS)
 nodist_libjava_la_SOURCES =					\
 	java/jni/org_apache_mesos_MesosSchedulerDriver.h	\
 	java/jni/org_apache_mesos_MesosExecutorDriver.h		\
-	java/jni/org_apache_mesos_Log.h
+	java/jni/org_apache_mesos_Log.h				\
+	java/jni/org_apache_mesos_state_Variable.h		\
+	java/jni/org_apache_mesos_state_ZooKeeperState.h
 
 BUILT_SOURCES += java/jni/org_apache_mesos_MesosSchedulerDriver.h	\
 	java/jni/org_apache_mesos_MesosExecutorDriver.h			\
-	java/jni/org_apache_mesos_Log.h
+	java/jni/org_apache_mesos_Log.h					\
+	java/jni/org_apache_mesos_state_Variable.h		\
+	java/jni/org_apache_mesos_state_ZooKeeperState.h
 
 
 java/jni/org_apache_mesos_MesosSchedulerDriver.h: $(MESOS_JAR)
@@ -589,6 +599,14 @@ java/jni/org_apache_mesos_MesosExecutorDriver.h: $(MESOS_JAR)
 java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
 	@$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.Log
+
+java/jni/org_apache_mesos_state_Variable.h: $(MESOS_JAR)
+	@$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+          $(PROTOBUF_JAR):java/classes org.apache.mesos.state.Variable
+
+java/jni/org_apache_mesos_state_ZooKeeperState.h: $(MESOS_JAR)
+	@$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+          $(PROTOBUF_JAR):java/classes org.apache.mesos.state.ZooKeeperState
 
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
