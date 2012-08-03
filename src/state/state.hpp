@@ -20,6 +20,7 @@
 #define __STATE_STATE_HPP__
 
 #include <string>
+#include <vector>
 
 #include <process/future.hpp>
 
@@ -102,6 +103,9 @@ public:
   // valid (or an error if one occurs).
   template <typename T>
   process::Future<bool> set(Variable<T>* variable);
+
+  // Returns the collection of variable names in the state.
+  virtual process::Future<std::vector<std::string> > names() = 0;
 
 protected:
   // Fetch and swap state entries, factored out to allow State

@@ -2,6 +2,7 @@
 
 #include <queue>
 #include <string>
+#include <vector>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -29,6 +30,7 @@ using namespace process;
 
 using std::queue;
 using std::string;
+using std::vector;
 
 using zookeeper::Authentication;
 
@@ -69,6 +71,7 @@ ZooKeeperStateProcess::ZooKeeperStateProcess(
 
 ZooKeeperStateProcess::~ZooKeeperStateProcess()
 {
+  fail(&pending.names, "No longer managing state");
   fail(&pending.fetches, "No longer managing state");
   fail(&pending.swaps, "No longer managing state");
 
@@ -83,6 +86,30 @@ void ZooKeeperStateProcess::initialize()
   // instantiating the ZooKeeper instance and being spawned ourself.
   watcher = new ProcessWatcher<ZooKeeperStateProcess>(self());
   zk = new ZooKeeper(servers, timeout, watcher);
+}
+
+
+Future<vector<string> > ZooKeeperStateProcess::names()
+{
+  if (error.isSome()) {
+    return Future<vector<string> >::failed(error.get());
+  } else if (state != CONNECTED) {
+    Names* names = new Names();
+    pending.names.push(names);
+    return names->promise.future();
+  }
+
+  Result<vector<string> > result = doNames();
+
+  if (result.isNone()) { // Try again later.
+    Names* names = new Names();
+    pending.names.push(names);
+    return names->promise.future();
+  } else if (result.isError()) {
+    return Future<vector<string> >::failed(result.error());
+  }
+
+  return result.get();
 }
 
 
@@ -157,6 +184,20 @@ void ZooKeeperStateProcess::connected(bool reconnect)
 
   state = CONNECTED;
 
+  while (!pending.names.empty()) {
+    Names* names = pending.names.front();
+    Result<vector<string> > result = doNames();
+    if (result.isNone()) {
+      return; // Try again later.
+    } else if (result.isError()) {
+      names->promise.fail(result.error());
+    } else {
+      names->promise.set(result.get());
+    }
+    pending.names.pop();
+    delete names;
+  }
+
   while (!pending.fetches.empty()) {
     Fetch* fetch = pending.fetches.front();
     Result<Option<Entry> > result = doFetch(fetch->name);
@@ -222,6 +263,29 @@ void ZooKeeperStateProcess::deleted(const string& path)
 }
 
 
+Result<vector<string> > ZooKeeperStateProcess::doNames()
+{
+  // Get all children to determine current memberships.
+  vector<string> results;
+
+  int code = zk->getChildren(znode, false, &results);
+
+  if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
+    CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
+    return Result<vector<string> >::none(); // Try again later.
+  } else if (code != ZOK) {
+    return Result<vector<string> >::error(
+        "Failed to get children of '" + znode +
+        "' in ZooKeeper: " + zk->message(code));
+  }
+
+  // TODO(benh): It might make sense to "mangle" the names so that we
+  // can determine when a znode has incorrectly been added that
+  // actually doesn't store an Entry.
+  return results;
+}
+
+
 Result<Option<Entry> > ZooKeeperStateProcess::doFetch(const string& name)
 {
   CHECK(error.isNone()) << ": " << error.get();
@@ -236,7 +300,7 @@ Result<Option<Entry> > ZooKeeperStateProcess::doFetch(const string& name)
     return Option<Entry>::none();
   } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<Option<Entry> >::none();
+    return Result<Option<Entry> >::none(); // Try again later.
   } else if (code != ZOK) {
     return Result<Option<Entry> >::error(
         "Failed to get '" + znode + "/" + name +
@@ -292,7 +356,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
 
       if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
         CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-        return Result<bool>::none();
+        return Result<bool>::none(); // Try again later.
       } else if (code != ZOK && code != ZNODEEXISTS) {
         return Result<bool>::error(
             "Failed to create '" + prefix +
@@ -306,7 +370,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
       return false; // Lost a race with someone else.
     } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
       CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-      return Result<bool>::none();
+      return Result<bool>::none(); // Try again later.
     } else if (code != ZOK) {
       return Result<bool>::error(
           "Failed to create '" + znode + "/" + entry.name() +
@@ -316,7 +380,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
     return true;
   } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<bool>::none();
+    return Result<bool>::none(); // Try again later.
   } else if (code != ZOK) {
     return Result<bool>::error(
         "Failed to get '" + znode + "/" + entry.name() +
@@ -342,7 +406,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
     return false;
   } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<bool>::none();
+    return Result<bool>::none(); // Try again later.
   } else if (code != ZOK) {
     return Result<bool>::error(
         "Failed to set '" + znode + "/" + entry.name() +

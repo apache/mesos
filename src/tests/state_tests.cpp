@@ -20,6 +20,7 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -198,6 +199,42 @@ void GetGetSetSetGet(State<ProtobufSerializer>* state)
 }
 
 
+void Names(State<ProtobufSerializer>* state)
+{
+  Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
+
+  variable.await();
+
+  ASSERT_TRUE(variable.isReady());
+
+  Variable<Slaves> slaves1 = variable.get();
+
+  EXPECT_TRUE(slaves1->infos().size() == 0);
+
+  SlaveInfo info;
+  info.set_hostname("localhost");
+  info.set_webui_hostname("localhost");
+
+  slaves1->add_infos()->MergeFrom(info);
+
+  Future<bool> result = state->set(&slaves1);
+
+  result.await();
+
+  ASSERT_TRUE(result.isReady());
+  EXPECT_TRUE(result.get());
+
+  Future<std::vector<std::string> > names = state->names();
+
+  names.await();
+
+  ASSERT_TRUE(names.isReady());
+
+  ASSERT_TRUE(names.get().size() == 1);
+  EXPECT_EQ("slaves", names.get()[0]);
+}
+
+
 class LevelDBStateTest : public ::testing::Test
 {
 public:
@@ -239,6 +276,12 @@ TEST_F(LevelDBStateTest, GetSetSetGet)
 TEST_F(LevelDBStateTest, GetGetSetSetGet)
 {
   GetGetSetSetGet(state);
+}
+
+
+TEST_F(LevelDBStateTest, Names)
+{
+  Names(state);
 }
 
 
@@ -284,5 +327,10 @@ TEST_F(ZooKeeperStateTest, GetSetSetGet)
 TEST_F(ZooKeeperStateTest, GetGetSetSetGet)
 {
   GetGetSetSetGet(state);
+}
+
+TEST_F(ZooKeeperStateTest, Names)
+{
+  Names(state);
 }
 #endif // MESOS_HAS_JAVA

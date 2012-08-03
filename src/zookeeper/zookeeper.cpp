@@ -541,9 +541,9 @@ int ZooKeeper::set(const string& path, const string& data, int version)
 }
 
 
-const char* ZooKeeper::message(int code) const
+string ZooKeeper::message(int code) const
 {
-  return zerror(code);
+  return string(zerror(code));
 }
 
 

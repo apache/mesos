@@ -444,7 +444,7 @@ void GroupProcess::connected(bool reconnect)
     } else if (code != ZOK) {
       Try<string> message = strings::format(
           "Unable to write to configured group path '%s' in ZooKeeper: %s",
-          znode.c_str(), zk->message(code));
+          znode, zk->message(code));
       error = message.isSome()
         ? message.get()
         : "Failed to create node in ZooKeeper";

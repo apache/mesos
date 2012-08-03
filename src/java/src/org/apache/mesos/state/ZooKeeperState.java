@@ -18,6 +18,8 @@
 
 package org.apache.mesos.state;
 
+import java.util.Iterator;
+
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
@@ -94,13 +96,13 @@ class ZooKeeperState implements State {
 
       @Override
       public Variable get() throws InterruptedException, ExecutionException {
-        return __get_await(future);
+        return __get_get(future);
       }
 
       @Override
       public Variable get(long timeout, TimeUnit unit)
         throws InterruptedException, ExecutionException, TimeoutException {
-        return __get_await_timeout(future, timeout, unit);
+        return __get_get_timeout(future, timeout, unit);
       }
 
       @Override
@@ -134,18 +136,58 @@ class ZooKeeperState implements State {
 
       @Override
       public Variable get() throws InterruptedException, ExecutionException {
-        return __set_await(pair);
+        return __set_get(pair);
       }
 
       @Override
       public Variable get(long timeout, TimeUnit unit)
         throws InterruptedException, ExecutionException, TimeoutException {
-        return __set_await_timeout(pair, timeout, unit);
+        return __set_get_timeout(pair, timeout, unit);
       }
 
       @Override
       protected void finalize() {
         __set_finalize(pair);
+      }
+    };
+  }
+
+  @Override
+  public Future<Iterator<String>> names() {
+    final long future = __names(); // Asynchronously start the operation.
+    return new Future<Iterator<String>>() {
+      @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        if (mayInterruptIfRunning) {
+          return __names_cancel(future);
+        }
+        return false; // Should not interrupt and already running (or finished).
+      }
+
+      @Override
+      public boolean isCancelled() {
+        return __names_is_cancelled(future);
+      }
+
+      @Override
+      public boolean isDone() {
+        return __names_is_done(future);
+      }
+
+      @Override
+      public Iterator<String> get() throws InterruptedException, ExecutionException {
+        return __names_get(future);
+      }
+
+      @Override
+      public Iterator<String> get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+        return __names_get_timeout(future, timeout, unit);
+      }
+
+      @Override
+      protected void finalize() {
+        __names_finalize(future);
       }
     };
   }
@@ -164,13 +206,13 @@ class ZooKeeperState implements State {
 
   protected native void finalize();
 
-  // Native implementations of get/set.
+  // Native implementations of get, set, and names.
   private native long __get(String name);
   private native boolean __get_cancel(long future);
   private native boolean __get_is_cancelled(long future);
   private native boolean __get_is_done(long future);
-  private native Variable __get_await(long future);
-  private native Variable __get_await_timeout(
+  private native Variable __get_get(long future);
+  private native Variable __get_get_timeout(
       long future, long timeout, TimeUnit unit);
   private native void __get_finalize(long future);
 
@@ -178,10 +220,19 @@ class ZooKeeperState implements State {
   private native boolean __set_cancel(long pair);
   private native boolean __set_is_cancelled(long pair);
   private native boolean __set_is_done(long pair);
-  private native Variable __set_await(long pair);
-  private native Variable __set_await_timeout(
+  private native Variable __set_get(long pair);
+  private native Variable __set_get_timeout(
       long pair, long timeout, TimeUnit unit);
   private native void __set_finalize(long pair);
+
+  private native long __names();
+  private native boolean __names_cancel(long future);
+  private native boolean __names_is_cancelled(long future);
+  private native boolean __names_is_done(long future);
+  private native Iterator<String> __names_get(long future);
+  private native Iterator<String> __names_get_timeout(
+      long future, long timeout, TimeUnit unit);
+  private native void __names_finalize(long future);
 
   private long __state;
 };

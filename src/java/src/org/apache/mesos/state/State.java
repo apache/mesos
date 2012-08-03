@@ -18,6 +18,8 @@
 
 package org.apache.mesos.state;
 
+import java.util.Iterator;
+
 import java.util.concurrent.Future;
 
 /**
@@ -55,4 +57,9 @@ public interface State {
    * successful, otherwise returns null.
    */
   Future<Variable> set(Variable variable);
+
+  /**
+   * Returns an iterator of variable names in the state.
+   */
+  Future<Iterator<String>> names();
 }

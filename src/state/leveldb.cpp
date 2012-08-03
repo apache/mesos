@@ -3,6 +3,7 @@
 #include <google/protobuf/message.h>
 
 #include <string>
+#include <vector>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -22,6 +23,7 @@
 using namespace process;
 
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -51,6 +53,29 @@ void LevelDBStateProcess::initialize()
 
   // TODO(benh): Conditionally compact to avoid long recovery times?
   db->CompactRange(NULL, NULL);
+}
+
+
+Future<vector<string> > LevelDBStateProcess::names()
+{
+  if (error.isSome()) {
+    return Future<vector<string> >::failed(error.get());
+  }
+
+  vector<string> results;
+
+  leveldb::Iterator* iterator = db->NewIterator(leveldb::ReadOptions());
+
+  iterator->SeekToFirst();
+
+  while (iterator->Valid()) {
+    results.push_back(iterator->key().ToString());
+    iterator->Next();
+  }
+
+  delete iterator;
+
+  return results;
 }
 
 

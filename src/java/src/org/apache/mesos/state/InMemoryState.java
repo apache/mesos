@@ -18,6 +18,7 @@
 
 package org.apache.mesos.state;
 
+import java.util.Iterator;
 import java.util.UUID;
 
 import java.util.concurrent.Callable;
@@ -61,7 +62,12 @@ public class InMemoryState implements State {
       return futureFrom((Variable) new InMemoryVariable(entry));
     }
 
-    return futureFrom(null);
+    return futureFrom((Variable) null);
+  }
+
+  @Override
+  public Future<Iterator<String>> names() {
+    return futureFrom(entries.keySet().iterator());
   }
 
   private static class InMemoryVariable extends Variable {

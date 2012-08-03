@@ -3,6 +3,7 @@
 
 #include <queue>
 #include <string>
+#include <vector>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -44,8 +45,11 @@ public:
       Option<zookeeper::Authentication>());
   virtual ~ZooKeeperState();
 
-protected:
   // State implementation.
+  virtual process::Future<std::vector<std::string> > names();
+
+protected:
+  // More State implementation.
   virtual process::Future<Option<Entry> > fetch(const std::string& name);
   virtual process::Future<bool> swap(const Entry& entry, const UUID& uuid);
 
@@ -67,6 +71,7 @@ public:
   virtual void initialize();
 
   // State implementation.
+  process::Future<std::vector<std::string> > names();
   process::Future<Option<Entry> > fetch(const std::string& name);
   process::Future<bool> swap(const Entry& entry, const UUID& uuid);
 
@@ -79,7 +84,8 @@ public:
   void deleted(const std::string& path);
 
 private:
-  // Helpers for fetching and swapping.
+  // Helpers for getting the names, fetching, and swapping.
+  Result<std::vector<std::string> > doNames();
   Result<Option<Entry> > doFetch(const std::string& name);
   Result<bool> doSwap(const Entry& entry, const UUID& uuid);
 
@@ -100,6 +106,11 @@ private:
     CONNECTED,
   } state;
 
+  struct Names
+  {
+    process::Promise<std::vector<std::string> > promise;
+  };
+
   struct Fetch
   {
     Fetch(const std::string& _name)
@@ -117,7 +128,10 @@ private:
     process::Promise<bool> promise;
   };
 
+  // TODO(benh): Make pending a single queue of "operations" that can
+  // be "invoked" (C++11 lambdas would help).
   struct {
+    std::queue<Names*> names;
     std::queue<Fetch*> fetches;
     std::queue<Swap*> swaps;
   } pending;
@@ -144,6 +158,13 @@ ZooKeeperState<Serializer>::~ZooKeeperState()
   process::terminate(process);
   process::wait(process);
   delete process;
+}
+
+
+template <typename Serializer>
+process::Future<std::vector<std::string> > ZooKeeperState<Serializer>::names()
+{
+  return process::dispatch(process, &ZooKeeperStateProcess::names);
 }
 
 

@@ -291,7 +291,7 @@ public:
    *
    * \return string message corresponding to return code.
    */
-  const char* message(int code) const;
+  std::string message(int code) const;
 
   /**
    * \brief returns whether or not the specified return code implies

@@ -1,6 +1,9 @@
 #ifndef __STATE_LEVELDB_HPP__
 #define __STATE_LEVELDB_HPP__
 
+#include <string>
+#include <vector>
+
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/process.hpp>
@@ -33,8 +36,11 @@ public:
   LevelDBState(const std::string& path);
   virtual ~LevelDBState();
 
-protected:
   // State implementation.
+  virtual process::Future<std::vector<std::string> > names();
+
+protected:
+  // More State implementation.
   virtual process::Future<Option<Entry> > fetch(const std::string& name);
   virtual process::Future<bool> swap(const Entry& entry, const UUID& uuid);
 
@@ -52,6 +58,7 @@ public:
   virtual void initialize();
 
   // State implementation.
+  process::Future<std::vector<std::string> > names();
   process::Future<Option<Entry> > fetch(const std::string& name);
   process::Future<bool> swap(const Entry& entry, const UUID& uuid);
 
@@ -81,6 +88,13 @@ LevelDBState<Serializer>::~LevelDBState()
   process::terminate(process);
   process::wait(process);
   delete process;
+}
+
+
+template <typename Serializer>
+process::Future<std::vector<std::string> > LevelDBState<Serializer>::names()
+{
+  return process::dispatch(process, &LevelDBStateProcess::names);
 }
 
 
