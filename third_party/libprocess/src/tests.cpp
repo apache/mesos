@@ -136,6 +136,74 @@ TEST(Process, then)
 }
 
 
+Future<bool> readyFuture()
+{
+  return true;
+}
+
+
+Future<bool> failedFuture()
+{
+  return Future<bool>::failed("The value is not positive (or zero)");
+}
+
+
+Future<bool> pendingFuture(Future<bool>* future)
+{
+  return *future; // Keep it pending.
+}
+
+
+Future<std::string> second(const bool& b)
+{
+  return b ? std::string("true") : std::string("false");
+}
+
+
+Future<std::string> third(const std::string& s)
+{
+  return s;
+}
+
+
+TEST(Process, chain)
+{
+  Promise<int*> promise;
+
+  Future<std::string> s = readyFuture()
+    .then(std::tr1::bind(&second, std::tr1::placeholders::_1))
+    .then(std::tr1::bind(&third, std::tr1::placeholders::_1));
+
+  s.await();
+
+  ASSERT_TRUE(s.isReady());
+  EXPECT_EQ("true", s.get());
+
+  s = failedFuture()
+    .then(std::tr1::bind(&second, std::tr1::placeholders::_1))
+    .then(std::tr1::bind(&third, std::tr1::placeholders::_1));
+
+  s.await();
+
+  ASSERT_TRUE(s.isFailed());
+
+  Future<bool> future;
+
+  s = pendingFuture(&future)
+    .then(std::tr1::bind(&second, std::tr1::placeholders::_1))
+    .then(std::tr1::bind(&third, std::tr1::placeholders::_1));
+
+  ASSERT_TRUE(s.isPending());
+  ASSERT_TRUE(future.isPending());
+
+  s.discard();
+
+  future.await();
+
+  ASSERT_TRUE(future.isDiscarded());
+}
+
+
 class SpawnProcess : public Process<SpawnProcess>
 {
 public:
