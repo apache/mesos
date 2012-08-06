@@ -114,40 +114,40 @@ class ZooKeeperState implements State {
 
   @Override
   public Future<Variable> set(Variable variable) {
-    final long pair = __set(variable); // Asynchronously start the operation.
+    final long future = __set(variable); // Asynchronously start the operation.
     return new Future<Variable>() {
       @Override
       public boolean cancel(boolean mayInterruptIfRunning) {
         if (mayInterruptIfRunning) {
-          return __set_cancel(pair);
+          return __set_cancel(future);
         }
         return false; // Should not interrupt and already running (or finished).
       }
 
       @Override
       public boolean isCancelled() {
-        return __set_is_cancelled(pair);
+        return __set_is_cancelled(future);
       }
 
       @Override
       public boolean isDone() {
-        return __set_is_done(pair);
+        return __set_is_done(future);
       }
 
       @Override
       public Variable get() throws InterruptedException, ExecutionException {
-        return __set_get(pair);
+        return __set_get(future);
       }
 
       @Override
       public Variable get(long timeout, TimeUnit unit)
         throws InterruptedException, ExecutionException, TimeoutException {
-        return __set_get_timeout(pair, timeout, unit);
+        return __set_get_timeout(future, timeout, unit);
       }
 
       @Override
       protected void finalize() {
-        __set_finalize(pair);
+        __set_finalize(future);
       }
     };
   }
@@ -217,13 +217,13 @@ class ZooKeeperState implements State {
   private native void __get_finalize(long future);
 
   private native long __set(Variable variable);
-  private native boolean __set_cancel(long pair);
-  private native boolean __set_is_cancelled(long pair);
-  private native boolean __set_is_done(long pair);
-  private native Variable __set_get(long pair);
+  private native boolean __set_cancel(long future);
+  private native boolean __set_is_cancelled(long future);
+  private native boolean __set_is_done(long future);
+  private native Variable __set_get(long future);
   private native Variable __set_get_timeout(
-      long pair, long timeout, TimeUnit unit);
-  private native void __set_finalize(long pair);
+      long future, long timeout, TimeUnit unit);
+  private native void __set_finalize(long future);
 
   private native long __names();
   private native boolean __names_cancel(long future);

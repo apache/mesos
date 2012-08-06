@@ -70,12 +70,12 @@ void GetSetGet(State<ProtobufSerializer>* state)
 
   slaves1->add_infos()->MergeFrom(info);
 
-  Future<bool> result = state->set(&slaves1);
+  Future<Option<Variable<Slaves> > > result = state->set(slaves1);
 
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  EXPECT_TRUE(result.get());
+  ASSERT_TRUE(result.get().isSome());
 
   variable = state->get<Slaves>("slaves");
 
@@ -109,19 +109,21 @@ void GetSetSetGet(State<ProtobufSerializer>* state)
 
   slaves1->add_infos()->MergeFrom(info);
 
-  Future<bool> result = state->set(&slaves1);
+  Future<Option<Variable<Slaves> > > result = state->set(slaves1);
 
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  EXPECT_TRUE(result.get());
+  ASSERT_TRUE(result.get().isSome());
 
-  result = state->set(&slaves1);
+  slaves1 = result.get().get();
+
+  result = state->set(slaves1);
 
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  EXPECT_TRUE(result.get());
+  ASSERT_TRUE(result.get().isSome());
 
   variable = state->get<Slaves>("slaves");
 
@@ -165,12 +167,12 @@ void GetGetSetSetGet(State<ProtobufSerializer>* state)
 
   slaves2->add_infos()->MergeFrom(info2);
 
-  Future<bool> result = state->set(&slaves2);
+  Future<Option<Variable<Slaves> > > result = state->set(slaves2);
 
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  EXPECT_TRUE(result.get());
+  ASSERT_TRUE(result.get().isSome());
 
   SlaveInfo info1;
   info1.set_hostname("localhost1");
@@ -178,12 +180,12 @@ void GetGetSetSetGet(State<ProtobufSerializer>* state)
 
   slaves1->add_infos()->MergeFrom(info1);
 
-  result = state->set(&slaves1);
+  result = state->set(slaves1);
 
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  EXPECT_FALSE(result.get());
+  EXPECT_TRUE(result.get().isNone());
 
   variable = state->get<Slaves>("slaves");
 
@@ -217,19 +219,18 @@ void Names(State<ProtobufSerializer>* state)
 
   slaves1->add_infos()->MergeFrom(info);
 
-  Future<bool> result = state->set(&slaves1);
+  Future<Option<Variable<Slaves> > > result = state->set(slaves1);
 
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  EXPECT_TRUE(result.get());
+  EXPECT_TRUE(result.get().isSome());
 
   Future<std::vector<std::string> > names = state->names();
 
   names.await();
 
   ASSERT_TRUE(names.isReady());
-
   ASSERT_TRUE(names.get().size() == 1);
   EXPECT_EQ("slaves", names.get()[0]);
 }

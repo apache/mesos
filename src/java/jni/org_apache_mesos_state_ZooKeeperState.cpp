@@ -318,9 +318,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set
 
   jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
 
-  // Create a copy of the old variable to support the immutable Java API.
-  Variable<string>* variable = new Variable<string>(
-      *((Variable<string>*) env->GetLongField(jvariable, __variable)));
+  Variable<string>* variable = (Variable<string>*)
+    env->GetLongField(jvariable, __variable);
 
   clazz = env->GetObjectClass(thiz);
 
@@ -328,10 +327,10 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set
 
   State<>* state = (State<>*) env->GetLongField(thiz, __state);
 
-  Future<bool>* future = new Future<bool>(state->set(variable));
+  Future<Option<Variable<string> > >* future =
+    new Future<Option<Variable<string> > >(state->set(*variable));
 
-  return (jlong)
-    new std::pair<Variable<string>*, Future<bool>*>(variable, future);
+  return (jlong) future;
 }
 
 
@@ -341,12 +340,10 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set
  * Signature: (J)Z
  */
 JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1cancel
-  (JNIEnv* env, jobject thiz, jlong jpair)
+  (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  std::pair<Variable<string>*, Future<bool>*>* pair =
-    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
-
-  Future<bool>* future = pair->second;
+  Future<Option<Variable<string> > >* future =
+    (Future<Option<Variable<string> > >*) jfuture;
 
   if (!future->isDiscarded()) {
     future->discard();
@@ -363,12 +360,10 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1c
  * Signature: (J)Z
  */
 JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1is_1cancelled
-  (JNIEnv* env, jobject thiz, jlong jpair)
+  (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  std::pair<Variable<string>*, Future<bool>*>* pair =
-    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
-
-  Future<bool>* future = pair->second;
+  Future<Option<Variable<string> > >* future =
+    (Future<Option<Variable<string> > >*) jfuture;
 
   return (jboolean) future->isDiscarded();
 }
@@ -380,12 +375,10 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1i
  * Signature: (J)Z
  */
 JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1is_1done
-  (JNIEnv* env, jobject thiz, jlong jpair)
+  (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  std::pair<Variable<string>*, Future<bool>*>* pair =
-    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
-
-  Future<bool>* future = pair->second;
+  Future<Option<Variable<string> > >* future =
+    (Future<Option<Variable<string> > >*) jfuture;
 
   return (jboolean) !future->isPending();
 }
@@ -397,12 +390,10 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1i
  * Signature: (J)Lorg/apache/mesos/state/Variable;
  */
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1get
-  (JNIEnv* env, jobject thiz, jlong jpair)
+  (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  std::pair<Variable<string>*, Future<bool>*>* pair =
-    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
-
-  Future<bool>* future = pair->second;
+  Future<Option<Variable<string> > >* future =
+    (Future<Option<Variable<string> > >*) jfuture;
 
   future->await();
 
@@ -418,9 +409,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
 
   CHECK(future->isReady());
 
-  if (future->get()) {
-    // Copy our copy of the old variable to support the immutable Java API.
-    Variable<string>* variable = new Variable<string>(*pair->first);
+  if (future->get().isSome()) {
+    Variable<string>* variable = new Variable<string>(future->get().get());
 
     // Variable variable = new Variable();
     jclass clazz = env->FindClass("org/apache/mesos/state/Variable");
@@ -444,12 +434,10 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
  * Signature: (JJLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
  */
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1get_1timeout
-  (JNIEnv* env, jobject thiz, jlong jpair, jlong jtimeout, jobject junit)
+  (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
 {
-  std::pair<Variable<string>*, Future<bool>*>* pair =
-    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
-
-  Future<bool>* future = pair->second;
+  Future<Option<Variable<string> > >* future =
+    (Future<Option<Variable<string> > >*) jfuture;
 
   jclass clazz = env->GetObjectClass(junit);
 
@@ -473,9 +461,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
 
     CHECK(future->isReady());
 
-    if (future->get()) {
-      // Copy our copy of the old variable to support the immutable Java API.
-      Variable<string>* variable = new Variable<string>(*pair->first);
+    if (future->get().isSome()) {
+      Variable<string>* variable = new Variable<string>(future->get().get());
 
       // Variable variable = new Variable();
       clazz = env->FindClass("org/apache/mesos/state/Variable");
@@ -505,17 +492,12 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1finalize
-  (JNIEnv* env, jobject thiz, jlong jpair)
+  (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  std::pair<Variable<string>*, Future<bool>*>* pair =
-    (std::pair<Variable<string>*, Future<bool>*>*) jpair;
+  Future<Option<Variable<string> > >* future =
+    (Future<Option<Variable<string> > >*) jfuture;
 
-  // We can delete the "variable" (i.e., pair->first) because we gave
-  // copies (on the heap) to each of the Java Variable objects.
-
-  delete pair->first;
-  delete pair->second;
-  delete pair;
+  delete future;
 }
 
 
@@ -532,7 +514,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1names
   jfieldID __state = env->GetFieldID(clazz, "__state", "J");
 
   State<>* state = (State<>*) env->GetLongField(thiz, __state);
-
 
   Future<vector<string> >* future = new Future<vector<string> >(state->names());
 

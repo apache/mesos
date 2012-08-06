@@ -102,7 +102,7 @@ public:
   // otherwise false if the version of the variable was no longer
   // valid (or an error if one occurs).
   template <typename T>
-  process::Future<bool> set(Variable<T>* variable);
+  process::Future<Option<Variable<T> > > set(const Variable<T>& variable);
 
   // Returns the collection of variable names in the state.
   virtual process::Future<std::vector<std::string> > names() = 0;
@@ -114,21 +114,25 @@ protected:
   virtual process::Future<bool> swap(const Entry& entry, const UUID& uuid) = 0;
 
 private:
-  // Helper to convert an Entry into some Variable<T> (or create a
-  // default Entry in the event no Entry was found). We make this a
-  // static member of State for friend access to Variable's
+  // Helpers to handle future results from fetch and swap. We make
+  // these static members of State for friend access to Variable's
   // constructor.
   template <typename T>
-  static process::Future<Variable<T> > convert(
+  static process::Future<Variable<T> > _get(
       const std::string& name,
       const Option<Entry>& option);
 
+  template <typename T>
+  static process::Future<Option<Variable<T> > > _set(
+      const Entry& entry,
+      const T& t,
+      const bool& b); // TODO(benh): Remove 'const &' after fixing libprocess.
 };
 
 
 template <typename Serializer>
 template <typename T>
-process::Future<Variable<T> > State<Serializer>::convert(
+process::Future<Variable<T> > State<Serializer>::_get(
     const std::string& name,
     const Option<Entry>& option)
 {
@@ -165,37 +169,65 @@ process::Future<Variable<T> > State<Serializer>::convert(
 
 template <typename Serializer>
 template <typename T>
-process::Future<Variable<T> > State<Serializer>::get(const std::string& name)
+process::Future<Option<Variable<T> > > State<Serializer>::_set(
+    const Entry& entry,
+    const T& t,
+    const bool& b) // TODO(benh): Remove 'const &' after fixing libprocess.
 {
-  std::tr1::function<
-  process::Future<Variable<T> >(const Option<Entry>&)> convert =
-    std::tr1::bind(&State<Serializer>::template convert<T>,
-                   name,
-                   std::tr1::placeholders::_1);
+  if (b) {
+    return Option<Variable<T> >::some(Variable<T>(entry, t));
+  }
 
-  return fetch(name).then(convert);
+  return Option<Variable<T> >::none();
 }
 
 
 template <typename Serializer>
 template <typename T>
-process::Future<bool> State<Serializer>::set(Variable<T>* variable)
+process::Future<Variable<T> > State<Serializer>::get(const std::string& name)
 {
-  Try<std::string> value = Serializer::template serialize<T>(variable->t);
+  std::tr1::function<
+  process::Future<Variable<T> >(const Option<Entry>&)> _get =
+    std::tr1::bind(&State<Serializer>::template _get<T>,
+                   name,
+                   std::tr1::placeholders::_1);
+
+  return fetch(name).then(_get);
+}
+
+
+template <typename Serializer>
+template <typename T>
+process::Future<Option<Variable<T> > > State<Serializer>::set(
+      const Variable<T>& variable)
+{
+  Try<std::string> value = Serializer::template serialize<T>(variable.t);
 
   if (value.isError()) {
-    return process::Future<bool>::failed(value.error());
+    return process::Future<Option<Variable<T> > >::failed(value.error());
   }
 
   // Note that we try and swap an entry even if the value didn't change!
-  UUID uuid = UUID::fromBytes(variable->entry.uuid());
+  UUID uuid = UUID::fromBytes(variable.entry.uuid());
 
-  // Update the UUID and value of the entry.
-  variable->entry.set_uuid(UUID::random().toBytes());
-  variable->entry.set_value(value.get());
+  // Create a new entry that should be replace the existing entry
+  // provided the UUID matches.
+  Entry entry;
+  entry.set_name(variable.entry.name());
+  entry.set_uuid(UUID::random().toBytes());
+  entry.set_value(value.get());
 
-  return swap(variable->entry, uuid);
+  std::tr1::function<
+  process::Future<Option<Variable<T> > >(const bool&)> _set =
+    std::tr1::bind(&State<Serializer>::template _set<T>,
+                   entry,
+                   variable.t,
+                   std::tr1::placeholders::_1);
+
+  return swap(entry, uuid).then(_set);
 }
+
+
 
 } // namespace state {
 } // namespace internal {
