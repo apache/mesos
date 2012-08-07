@@ -30,6 +30,7 @@
 #include <map>
 #include <sstream>
 
+#include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/io.hpp>
@@ -1343,6 +1344,124 @@ Future<bool> killTasks(const std::string& hierarchy,
     new internal::TasksKiller(hierarchy, cgroup, interval);
   Future<bool> future = killer->future();
   spawn(killer, true);
+  return future;
+}
+
+
+namespace internal {
+
+// The process used to destroy a cgroup.
+class Destroyer : public Process<Destroyer>
+{
+public:
+  Destroyer(const std::string& _hierarchy,
+            const std::vector<std::string>& _cgroups,
+            const seconds& _interval)
+    : hierarchy(_hierarchy),
+      cgroups(_cgroups),
+      interval(_interval) {}
+
+  virtual ~Destroyer() {}
+
+  // Return a future indicating the state of the destroyer.
+  Future<bool> future() { return promise.future(); }
+
+protected:
+  virtual void initialize()
+  {
+    // Stop when no one cares.
+    promise.future().onDiscarded(lambda::bind(
+          static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
+
+    if (interval.value < 0) {
+      promise.fail("Invalid interval: " + stringify(interval.value));
+      terminate(self());
+      return;
+    }
+
+    // Kill tasks in the given cgroups in parallel. Use collect mechanism to
+    // wait until all kill processes finish.
+    foreach (const std::string& cgroup, cgroups) {
+      Future<bool> killer = killTasks(hierarchy, cgroup, interval);
+      killers.push_back(killer);
+    }
+
+    Future<std::list<bool> > kill = collect(killers);
+    kill.onAny(defer(self(), &Destroyer::killed, kill));
+  }
+
+  virtual void finalize()
+  {
+    // Cancel the operation if the user discards the future.
+    if (promise.future().isDiscarded()) {
+      discard<bool>(killers);
+    }
+  }
+
+private:
+  void killed(const Future<std::list<bool> >& kill)
+  {
+    if (kill.isReady()) {
+      remove();
+    } else if (kill.isFailed()) {
+      promise.fail(kill.failure());
+      terminate(self());
+    } else {
+      LOG(FATAL) << "Invalid kill state";
+    }
+  }
+
+  void remove()
+  {
+    foreach (const std::string& cgroup, cgroups) {
+      Try<bool> remove = internal::removeCgroup(hierarchy, cgroup);
+      if (remove.isError()) {
+        promise.fail(remove.error());
+        terminate(self());
+        return;
+      }
+    }
+
+    promise.set(true);
+    terminate(self());
+  }
+
+  std::string hierarchy;
+  std::vector<std::string> cgroups;
+  const seconds interval;
+  Promise<bool> promise;
+
+  // The killer processes used to atomically kill tasks in each cgroup.
+  std::list<Future<bool> > killers;
+};
+
+} // namespace internal {
+
+
+Future<bool> destroyCgroup(const std::string& hierarchy,
+                           const std::string& cgroup,
+                           const seconds& interval)
+{
+  Try<bool> cgroupCheck = checkCgroup(hierarchy, cgroup);
+  if (cgroupCheck.isError()) {
+    return Future<bool>::failed(cgroupCheck.error());
+  }
+
+  // Construct the vector of cgroups to destroy.
+  Try<std::vector<std::string> > cgroups = getCgroups(hierarchy, cgroup);
+  if (cgroups.isError()) {
+    return Future<bool>::failed(cgroups.error());
+  }
+
+  std::vector<std::string> toDestroy = cgroups.get();
+  if (cgroup != "/") {
+    toDestroy.push_back(cgroup);
+  }
+
+  internal::Destroyer* destroyer =
+    new internal::Destroyer(hierarchy, toDestroy, interval);
+  Future<bool> future = destroyer->future();
+  spawn(destroyer, true);
   return future;
 }
 

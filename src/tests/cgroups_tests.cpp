@@ -575,3 +575,64 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_KillTasks)
     FAIL() << "Reach an unreachable statement!";
   }
 }
+
+
+TEST_F(CgroupsTest, ROOT_CGROUPS_DestroyCgroup)
+{
+  Future<bool> future = cgroups::destroyCgroup(hierarchy, "/stu/under");
+  future.await(5.0);
+  ASSERT_TRUE(future.isReady());
+  EXPECT_TRUE(future.get());
+
+  int pipes[2];
+  int dummy;
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid) {
+    // In parent process.
+    ::close(pipes[1]);
+
+    // Wait until all children have assigned the cgroup.
+    ASSERT_NE(-1, ::read(pipes[0], &dummy, sizeof(dummy)));
+    ASSERT_NE(-1, ::read(pipes[0], &dummy, sizeof(dummy)));
+    ASSERT_NE(-1, ::read(pipes[0], &dummy, sizeof(dummy)));
+    ASSERT_NE(-1, ::read(pipes[0], &dummy, sizeof(dummy)));
+    ::close(pipes[0]);
+
+    Future<bool> future = cgroups::destroyCgroup(hierarchy, "/");
+    future.await(5.0);
+    ASSERT_TRUE(future.isReady());
+    EXPECT_TRUE(future.get());
+
+    int status;
+    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
+  } else {
+    // In child process.
+    // We create 4 child processes here using two forks to test the case in
+    // which there are multiple active processes in the given cgroup.
+    ::fork();
+    ::fork();
+
+    // Put self into "/prof" cgroup.
+    Try<bool> assign = cgroups::assignTask(hierarchy, "/prof", ::getpid());
+    if (assign.isError()) {
+      FAIL() << "Failed to assign cgroup: " << assign.error();
+    }
+
+    // Notify the parent.
+    ::close(pipes[0]);
+    if (::write(pipes[1], &dummy, sizeof(dummy)) != sizeof(dummy)) {
+      FAIL() << "Failed to notify the parent";
+    }
+    ::close(pipes[1]);
+
+    // Wait kill signal from parent.
+    while (true) ;
+
+    // Should not reach here.
+    FAIL() << "Reach an unreachable statement!";
+  }
+}

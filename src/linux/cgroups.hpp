@@ -303,6 +303,24 @@ process::Future<bool> killTasks(const std::string& hierarchy,
                                 const std::string& cgroup,
                                 const seconds& interval = seconds(0.1));
 
+
+// Destroy a cgroup under a given hierarchy. This function is different from
+// removeCgroup in that it tries to kill all tasks in the given cgroup so that
+// this cgroup can be removed. It will also recursively remove sub-cgroups if
+// exist. The given cgroup itself will also be destroyed. However, if the given
+// cgroup is the root cgroup, it will not be destroyed (cannot destroy a root
+// cgroup). The function returns a future indicating the state of the destroy
+// process. The future will become ready when the destroy operation finishes.
+// @param   hierarchy   Path to the hierarchy root.
+// @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   interval    The time interval in seconds between two state check
+//                      requests (default: 0.1 seconds).
+// @return  A future which will become ready when the operation is done.
+//          Error if some unexpected happens.
+process::Future<bool> destroyCgroup(const std::string& hierarchy,
+                                    const std::string& cgroup = "/",
+                                    const seconds& interval = seconds(0.1));
+
 } // namespace cgroups {
 
 #endif // __CGROUPS_HPP__

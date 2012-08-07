@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdlib.h> // For abort.
 
+#include <list>
 #include <queue>
 #include <set>
 
@@ -336,7 +337,18 @@ Future<Future<T> > select(const std::set<Future<T> >& futures)
 template <typename T>
 void discard(const std::set<Future<T> >& futures)
 {
-  typename std::set<Future<T> >::iterator iterator;
+  typename std::set<Future<T> >::const_iterator iterator;
+  for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
+    Future<T> future = *iterator; // Need a non-const copy to discard.
+    future.discard();
+  }
+}
+
+
+template <typename T>
+void discard(const std::list<Future<T> >& futures)
+{
+  typename std::list<Future<T> >::const_iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
     Future<T> future = *iterator; // Need a non-const copy to discard.
     future.discard();
