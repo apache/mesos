@@ -18,9 +18,11 @@
 
 #include <errno.h>
 #include <fts.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include <sys/syscall.h>
+#include <sys/types.h>
 
 #include <glog/logging.h>
 
@@ -1125,6 +1127,222 @@ Future<bool> thawCgroup(const std::string& hierarchy,
     new internal::Freezer(hierarchy, cgroup, "THAW", interval);
   Future<bool> future = freezer->future();
   spawn(freezer, true);
+  return future;
+}
+
+
+namespace internal{
+
+// The process used to wait for a cgroup to become empty (no task in it).
+class EmptyWatcher: public Process<EmptyWatcher>
+{
+public:
+  EmptyWatcher(const std::string& _hierarchy,
+               const std::string& _cgroup,
+               const seconds& _interval)
+    : hierarchy(_hierarchy),
+      cgroup(_cgroup),
+      interval(_interval) {}
+
+  virtual ~EmptyWatcher() {}
+
+  // Return a future indicating the state of the watcher.
+  Future<bool> future() { return promise.future(); }
+
+protected:
+  virtual void initialize()
+  {
+    // Stop when no one cares.
+    promise.future().onDiscarded(lambda::bind(
+        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
+
+    if (interval.value < 0) {
+      promise.fail("Invalid interval: " + stringify(interval.value));
+      terminate(self());
+      return;
+    }
+
+    check();
+  }
+
+private:
+  void check()
+  {
+    Try<std::string> state = internal::readControl(hierarchy,
+                                                   cgroup,
+                                                   "tasks");
+    if (state.isError()) {
+      promise.fail(state.error());
+      terminate(self());
+      return;
+    }
+
+    if (strings::trim(state.get()).empty()) {
+      promise.set(true);
+      terminate(self());
+    } else {
+      // Re-check needed.
+      delay(interval.value, self(), &EmptyWatcher::check);
+    }
+  }
+
+  std::string hierarchy;
+  std::string cgroup;
+  const seconds interval;
+  Promise<bool> promise;
+};
+
+
+// The process used to atomically kill all tasks in a cgroup.
+class TasksKiller : public Process<TasksKiller>
+{
+public:
+  TasksKiller(const std::string& _hierarchy,
+              const std::string& _cgroup,
+              const seconds& _interval)
+    : hierarchy(_hierarchy),
+      cgroup(_cgroup),
+      interval(_interval) {}
+
+  virtual ~TasksKiller() {}
+
+  // Return a future indicating the state of the killer.
+  Future<bool> future() { return promise.future(); }
+
+protected:
+  virtual void initialize()
+  {
+    // Stop when no one cares.
+    promise.future().onDiscarded(lambda::bind(
+          static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
+
+    if (interval.value < 0) {
+      promise.fail("Invalid interval: " + stringify(interval.value));
+      terminate(self());
+      return;
+    }
+
+    lambda::function<Future<bool>(const bool&)>
+      funcFreeze = defer(self(), &TasksKiller::freeze);
+    lambda::function<Future<bool>(const bool&)>
+      funcKill = defer(self(), &TasksKiller::kill);
+    lambda::function<Future<bool>(const bool&)>
+      funcThaw = defer(self(), &TasksKiller::thaw);
+    lambda::function<Future<bool>(const bool&)>
+      funcEmpty = defer(self(), &TasksKiller::empty);
+
+    Future<bool> finish = Future<bool>(true)
+      .then(funcFreeze)   // Freeze the cgroup.
+      .then(funcKill)     // Send kill signals to all tasks in the cgroup.
+      .then(funcThaw)     // Thaw the cgroup to let kill signals be received.
+      .then(funcEmpty);   // Wait until no task in the cgroup.
+
+    finish.onAny(defer(self(), &TasksKiller::finished, finish));
+  }
+
+  virtual void finalize()
+  {
+    // Cancel the operation if the user discards the future.
+    if (promise.future().isDiscarded()) {
+      // TODO(jieyu): We manually discard the pending futures here because
+      // Future::then does not handle cascading discard. The correct semantics
+      // for Future::then is: if we discard an "outer" future, we need to make
+      // sure we clean up all the other dependent futures as well (cascading
+      // discard). This code will be removed once we fix the bug in
+      // Future::then function.
+      if (futureFreeze.isPending()) {
+        futureFreeze.discard();
+      } else if (futureThaw.isPending()) {
+        futureThaw.discard();
+      } else if (futureEmpty.isPending()) {
+        futureEmpty.discard();
+      }
+    }
+  }
+
+private:
+  Future<bool> freeze()
+  {
+    futureFreeze = freezeCgroup(hierarchy, cgroup, interval);
+    return futureFreeze;
+  }
+
+  Future<bool> kill()
+  {
+    Try<std::set<pid_t> > tasks = getTasks(hierarchy, cgroup);
+    if (tasks.isError()) {
+      return Future<bool>::failed(tasks.error());
+    } else {
+      foreach (pid_t pid, tasks.get()) {
+        if (::kill(pid, SIGKILL) == -1) {
+          return Future<bool>::failed("Failed to kill process " +
+            stringify(pid) + ": " + strerror(errno));
+        }
+      }
+    }
+
+    return true;
+  }
+
+  Future<bool> thaw()
+  {
+    futureThaw = thawCgroup(hierarchy, cgroup, interval);
+    return futureThaw;
+  }
+
+  Future<bool> empty()
+  {
+    EmptyWatcher* watcher = new EmptyWatcher(hierarchy, cgroup, interval);
+    Future<bool> futureEmpty = watcher->future();
+    spawn(watcher, true);
+    return futureEmpty;
+  }
+
+  void finished(const Future<bool>& finish)
+  {
+    CHECK(!finish.isPending() && !finish.isDiscarded());
+
+    if (finish.isReady()) {
+      promise.set(true);
+    } else if (finish.isFailed()) {
+      promise.fail(finish.failure());
+    }
+
+    terminate(self());
+  }
+
+  std::string hierarchy;
+  std::string cgroup;
+  const seconds interval;
+  Promise<bool> promise;
+
+  // Intermediate futures (used for asynchronous cancellation).
+  Future<bool> futureFreeze;
+  Future<bool> futureThaw;
+  Future<bool> futureEmpty;
+};
+
+} // namespace internal {
+
+
+Future<bool> killTasks(const std::string& hierarchy,
+                       const std::string& cgroup,
+                       const seconds& interval)
+{
+  Try<bool> freezerCheck = checkHierarchy(hierarchy, "freezer");
+  if (freezerCheck.isError()) {
+    return Future<bool>::failed(freezerCheck.error());
+  }
+
+  Try<bool> cgroupCheck = checkCgroup(hierarchy, cgroup);
+  if (cgroupCheck.isError()) {
+    return Future<bool>::failed(cgroupCheck.error());
+  }
+
+  internal::TasksKiller* killer =
+    new internal::TasksKiller(hierarchy, cgroup, interval);
+  Future<bool> future = killer->future();
+  spawn(killer, true);
   return future;
 }
 

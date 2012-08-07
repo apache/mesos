@@ -284,6 +284,25 @@ process::Future<bool> thawCgroup(const std::string& hierarchy,
                                  const std::string& cgroup,
                                  const seconds& interval = seconds(0.1));
 
+
+// Atomically kill all tasks in a given cgroup. This function will return a
+// future which will become ready when the operation is successfully done. To
+// atomically kill all tasks in a cgroup, it freezes the cgroup, send SIGKILL
+// signal to all tasks in the cgroup, thaw the cgroup, and finally wait for the
+// tasks file to become empty.  The function will return future failure if error
+// occurs. For example, it will return future failure immediately if the given
+// hierarchy or the given cgroup is not valid, or the freezer subsystem is not
+// available or not properly attached to the given hierarchy.
+// @param   hierarchy   Path to the hierarchy root.
+// @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   interval    The time interval in seconds between two state check
+//                      requests (default: 0.1 seconds).
+// @return  A future which will become ready when the operation is done.
+//          Error if some unexpected happens.
+process::Future<bool> killTasks(const std::string& hierarchy,
+                                const std::string& cgroup,
+                                const seconds& interval = seconds(0.1));
+
 } // namespace cgroups {
 
 #endif // __CGROUPS_HPP__
