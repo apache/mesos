@@ -459,3 +459,65 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_ListenEvent)
     FAIL() << "OOM does not happen!";
   }
 }
+
+
+TEST_F(CgroupsTest, ROOT_CGROUPS_Freezer)
+{
+  int pipes[2];
+  int dummy;
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid) {
+    // In parent process.
+    ::close(pipes[1]);
+
+    // Wait until child has assigned the cgroup.
+    ASSERT_NE(-1, ::read(pipes[0], &dummy, sizeof(dummy)));
+    ::close(pipes[0]);
+
+    // Freeze the "/prof" cgroup.
+    Future<bool> freeze = cgroups::freezeCgroup(hierarchy, "/prof");
+    freeze.await(5.0);
+    ASSERT_TRUE(freeze.isReady());
+    EXPECT_EQ(true, freeze.get());
+
+    // Thaw the "/prof" cgroup.
+    Future<bool> thaw = cgroups::thawCgroup(hierarchy, "/prof");
+    thaw.await(5.0);
+    ASSERT_TRUE(thaw.isReady());
+    EXPECT_EQ(true, thaw.get());
+
+    // Kill the child process.
+    ASSERT_NE(-1, ::kill(pid, SIGKILL));
+
+    // Wait for the child process.
+    int status;
+    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
+  } else {
+    // In child process.
+    close(pipes[0]);
+
+    // Put self into the "/prof" cgroup.
+    Try<bool> assign = cgroups::assignTask(hierarchy,
+                                           "/prof",
+                                           ::getpid());
+    if (assign.isError()) {
+      FAIL() << "Failed to assign cgroup: " << assign.error();
+    }
+
+    // Notify the parent.
+    if (::write(pipes[1], &dummy, sizeof(dummy)) != sizeof(dummy)) {
+      FAIL() << "Failed to notify the parent";
+    }
+    ::close(pipes[1]);
+
+    // Infinite loop here.
+    while (true) ;
+
+    // Should not reach here.
+    FAIL() << "Reach an unreachable statement!";
+  }
+}

@@ -29,6 +29,7 @@
 #include <sstream>
 
 #include <process/defer.hpp>
+#include <process/delay.hpp>
 #include <process/io.hpp>
 #include <process/process.hpp>
 
@@ -941,6 +942,189 @@ Future<uint64_t> listenEvent(const std::string& hierarchy,
     new internal::EventListener(hierarchy, cgroup, control, args);
   Future<uint64_t> future = listener->future();
   spawn(listener, true);
+  return future;
+}
+
+
+namespace internal {
+
+
+// The process that freezes or thaws the cgroup.
+class Freezer : public Process<Freezer>
+{
+public:
+  Freezer(const std::string& _hierarchy,
+          const std::string& _cgroup,
+          const std::string& _action,
+          const seconds& _interval)
+    : hierarchy(_hierarchy),
+      cgroup(_cgroup),
+      action(_action),
+      interval(_interval) {}
+
+  virtual ~Freezer() {}
+
+  // Return a future indicating the state of the freezer.
+  Future<bool> future() { return promise.future(); }
+
+protected:
+  virtual void initialize()
+  {
+    // Stop the process if no one cares.
+    promise.future().onDiscarded(lambda::bind(
+        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
+
+    if (interval.value < 0) {
+      promise.fail("Invalid interval: " + stringify(interval.value));
+      terminate(self());
+      return;
+    }
+
+    // Start the action.
+    if (action == "FREEZE") {
+      freeze();
+    } else if (action == "THAW") {
+      thaw();
+    } else {
+      promise.fail("Invalid action: " + action);
+      terminate(self());
+    }
+  }
+
+private:
+  void freeze()
+  {
+    Try<bool> result = internal::writeControl(hierarchy,
+                                              cgroup,
+                                              "freezer.state",
+                                              "FROZEN");
+    if (result.isError()) {
+      promise.fail(result.error());
+      terminate(self());
+    } else {
+      watchFrozen();
+    }
+  }
+
+  void thaw()
+  {
+    Try<bool> result = internal::writeControl(hierarchy,
+                                              cgroup,
+                                              "freezer.state",
+                                              "THAWED");
+    if (result.isError()) {
+      promise.fail(result.error());
+      terminate(self());
+    } else {
+      watchThawed();
+    }
+  }
+
+  void watchFrozen()
+  {
+    Try<std::string> state = internal::readControl(hierarchy,
+                                                   cgroup,
+                                                   "freezer.state");
+    if (state.isError()) {
+      promise.fail(state.error());
+      terminate(self());
+      return;
+    }
+
+    if (strings::trim(state.get()) == "FROZEN") {
+      promise.set(true);
+      terminate(self());
+    } else if (strings::trim(state.get()) == "FREEZING") {
+      // Not done yet, keep watching.
+      delay(interval.value, self(), &Freezer::watchFrozen);
+    } else {
+      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get());
+    }
+  }
+
+  void watchThawed()
+  {
+    Try<std::string> state = internal::readControl(hierarchy,
+                                                   cgroup,
+                                                   "freezer.state");
+    if (state.isError()) {
+      promise.fail(state.error());
+      terminate(self());
+      return;
+    }
+
+    if (strings::trim(state.get()) == "THAWED") {
+      promise.set(true);
+      terminate(self());
+    } else if (strings::trim(state.get()) == "FROZEN") {
+      // Not done yet, keep watching.
+      delay(interval.value, self(), &Freezer::watchThawed);
+    } else {
+      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get());
+    }
+  }
+
+  std::string hierarchy;
+  std::string cgroup;
+  std::string action;
+  const seconds interval;
+  Promise<bool> promise;
+};
+
+
+} // namespace internal {
+
+
+Future<bool> freezeCgroup(const std::string& hierarchy,
+                          const std::string& cgroup,
+                          const seconds& interval)
+{
+  Try<bool> check = checkControl(hierarchy, cgroup, "freezer.state");
+  if (check.isError()) {
+    return Future<bool>::failed(check.error());
+  }
+
+  // Check the current freezer state.
+  Try<std::string> state = internal::readControl(hierarchy,
+                                                 cgroup,
+                                                 "freezer.state");
+  if (state.isError()) {
+    return Future<bool>::failed(state.error());
+  } else if (strings::trim(state.get()) == "FROZEN") {
+    return Future<bool>::failed("Cannot freeze a frozen cgroup");
+  }
+
+  internal::Freezer* freezer =
+    new internal::Freezer(hierarchy, cgroup, "FREEZE", interval);
+  Future<bool> future = freezer->future();
+  spawn(freezer, true);
+  return future;
+}
+
+
+Future<bool> thawCgroup(const std::string& hierarchy,
+                        const std::string& cgroup,
+                        const seconds& interval)
+{
+  Try<bool> check = checkControl(hierarchy, cgroup, "freezer.state");
+  if (check.isError()) {
+    return Future<bool>::failed(check.error());
+  }
+
+  // Check the current freezer state.
+  Try<std::string> state = internal::readControl(hierarchy,
+                                                 cgroup,
+                                                 "freezer.state");
+  if (state.isError()) {
+    return Future<bool>::failed(state.error());
+  } else if (strings::trim(state.get()) == "THAWED") {
+    return Future<bool>::failed("Cannot thaw a thawed cgroup");
+  }
+
+  internal::Freezer* freezer =
+    new internal::Freezer(hierarchy, cgroup, "THAW", interval);
+  Future<bool> future = freezer->future();
+  spawn(freezer, true);
   return future;
 }
 
