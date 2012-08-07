@@ -191,11 +191,11 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/type_utils.hpp common/thread.hpp common/units.hpp	\
 	common/values.hpp configurator/configuration.hpp		\
 	configurator/configurator.hpp configurator/option.hpp		\
-	detector/detector.hpp flags/flag.hpp flags/flags.hpp		\
-	flags/loader.hpp launcher/launcher.hpp linux/cgroups.hpp	\
-	linux/fs.hpp linux/proc.hpp local/flags.hpp local/local.hpp	\
-	logging/flags.hpp logging/logging.hpp master/allocator.hpp	\
-	master/constants.hpp master/flags.hpp				\
+	detector/detector.hpp examples/utils.hpp flags/flag.hpp		\
+	flags/flags.hpp flags/loader.hpp launcher/launcher.hpp		\
+	linux/cgroups.hpp linux/fs.hpp linux/proc.hpp local/flags.hpp	\
+	local/local.hpp logging/flags.hpp logging/logging.hpp		\
+	master/allocator.hpp master/constants.hpp master/flags.hpp	\
 	master/frameworks_manager.hpp master/http.hpp			\
 	master/master.hpp master/dominant_share_allocator.hpp		\
 	master/slaves_manager.hpp master/webui.hpp			\
@@ -833,16 +833,17 @@ EXTRA_DIST += examples/python/test_framework.py \
 	      examples/python/test_executor.py
 
 
-EXTERNALSCRIPTS =						\
-  tests/external/LxcIsolation/HoldMoreMemThanRequested.sh	\
-  tests/external/LxcIsolation/ScaleUpAndDown.sh			\
-  tests/external/LxcIsolation/TwoSeparateTasks.sh		\
-  tests/external/LxcIsolation/run_scheduled_memhog_test.sh	\
-  tests/external/SampleFrameworks/CppFramework.sh		\
-  tests/external/SampleFrameworks/NoExecutorFramework.sh	\
-  tests/external/SampleFrameworks/JavaExceptionFramework.sh	\
-  tests/external/SampleFrameworks/JavaFramework.sh		\
-  tests/external/SampleFrameworks/PythonFramework.sh		\
+EXTERNALSCRIPTS =							\
+  tests/external/CgroupsIsolation/ROOT_CGROUPS_BalloonFramework.sh	\
+  tests/external/LxcIsolation/HoldMoreMemThanRequested.sh		\
+  tests/external/LxcIsolation/ScaleUpAndDown.sh				\
+  tests/external/LxcIsolation/TwoSeparateTasks.sh			\
+  tests/external/LxcIsolation/run_scheduled_memhog_test.sh		\
+  tests/external/SampleFrameworks/CppFramework.sh			\
+  tests/external/SampleFrameworks/NoExecutorFramework.sh		\
+  tests/external/SampleFrameworks/JavaExceptionFramework.sh		\
+  tests/external/SampleFrameworks/JavaFramework.sh			\
+  tests/external/SampleFrameworks/PythonFramework.sh			\
   tests/external/KillTree/KillTreeTest.sh
 
 dist_check_SCRIPTS += $(EXTERNALSCRIPTS)
