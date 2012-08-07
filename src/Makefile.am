@@ -170,11 +170,13 @@ pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\
 nodist_pkginclude_HEADERS = ../include/mesos/mesos.hpp mesos.pb.h
 
 if OS_LINUX
+  libmesos_no_third_party_la_SOURCES += slave/cgroups_isolation_module.cpp
   libmesos_no_third_party_la_SOURCES += slave/lxc_isolation_module.cpp
   libmesos_no_third_party_la_SOURCES += linux/cgroups.cpp
   libmesos_no_third_party_la_SOURCES += linux/fs.cpp
   libmesos_no_third_party_la_SOURCES += linux/proc.cpp
 else
+  EXTRA_DIST += slave/cgroups_isolation_module.cpp
   EXTRA_DIST += slave/lxc_isolation_module.cpp
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
@@ -200,6 +202,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	messages/messages.hpp slave/constants.hpp slave/flags.hpp	\
 	slave/http.hpp slave/isolation_module.hpp			\
 	slave/isolation_module_factory.hpp				\
+	slave/cgroups_isolation_module.hpp				\
 	slave/lxc_isolation_module.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
@@ -745,6 +748,16 @@ no_executor_framework_SOURCES = examples/no_executor_framework.cpp
 no_executor_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 no_executor_framework_LDADD = libmesos.la
 
+check_PROGRAMS += balloon-framework
+balloon_framework_SOURCES = examples/balloon_framework.cpp
+balloon_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+balloon_framework_LDADD = libmesos.la
+
+check_PROGRAMS += balloon-executor
+balloon_executor_SOURCES = examples/balloon_executor.cpp
+balloon_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
+balloon_executor_LDADD = libmesos.la
+
 check_PROGRAMS += mesos-tests
 
 mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
@@ -779,6 +792,7 @@ mesos_tests_LDADD = ../third_party/libgmock.la libmesos.la
 mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 
 if OS_LINUX
+  mesos_tests_SOURCES += tests/cgroups_isolation_tests.cpp
   mesos_tests_SOURCES += tests/cgroups_tests.cpp
   mesos_tests_SOURCES += tests/fs_tests.cpp
   mesos_tests_SOURCES += tests/proc_tests.cpp

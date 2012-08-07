@@ -96,6 +96,13 @@ public:
         "Amount of time (in hours) to wait before\n"
         "cleaning up executor directories",
         GC_TIMEOUT_HOURS);
+
+#ifdef __linux__
+    add(&Flags::cgroups_hierarchy_root,
+        "cgroups_hierarchy_root",
+        "The path to the cgroups hierarchy root\n",
+        "/cgroups");
+#endif
   }
 
   Option<std::string> resources;
@@ -109,6 +116,9 @@ public:
   std::string frameworks_home;  // TODO(benh): Make an Option.
   double executor_shutdown_timeout_seconds;
   double gc_timeout_hours;
+#ifdef __linux__
+  std::string cgroups_hierarchy_root;
+#endif
 };
 
 } // namespace mesos {

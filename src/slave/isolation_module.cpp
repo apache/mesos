@@ -21,6 +21,7 @@
 #ifdef __sun__
 #include "solaris_project_isolation_module.hpp"
 #elif __linux__
+#include "cgroups_isolation_module.hpp"
 #include "lxc_isolation_module.hpp"
 #endif
 
@@ -35,6 +36,8 @@ IsolationModule* IsolationModule::create(const std::string &type)
   else if (type == "project")
     return new SolarisProjectIsolationModule();
 #elif __linux__
+  else if (type == "cgroups")
+    return new CgroupsIsolationModule();
   else if (type == "lxc")
     return new LxcIsolationModule();
 #endif
