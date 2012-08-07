@@ -17,6 +17,7 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <fts.h>
 #include <signal.h>
 #include <unistd.h>
