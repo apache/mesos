@@ -20,11 +20,20 @@
 #include <fts.h>
 #include <unistd.h>
 
+#include <sys/syscall.h>
+
+#include <glog/logging.h>
+
 #include <fstream>
 #include <map>
 #include <sstream>
 
+#include <process/defer.hpp>
+#include <process/io.hpp>
+#include <process/process.hpp>
+
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -33,19 +42,10 @@
 #include "linux/cgroups.hpp"
 #include "linux/fs.hpp"
 
-
+using namespace process;
 using namespace mesos::internal;
 
-
 namespace cgroups {
-
-
-//////////////////////////////////////////////////////////////////////////////
-// The following *internal* functions provide very basic controls over Linux
-// cgroups. Sanity checks are removed from these functions for performance.
-// Users can always wrap these functions to provide various checks if needed.
-//////////////////////////////////////////////////////////////////////////////
-
 
 namespace internal {
 
@@ -296,13 +296,7 @@ static Try<bool> writeControl(const std::string& hierarchy,
   return true;
 }
 
-
 } // namespace internal {
-
-
-//////////////////////////////////////////////////////////////////////////////
-// The following functions are visible to users.
-//////////////////////////////////////////////////////////////////////////////
 
 
 bool enabled()
@@ -748,5 +742,206 @@ Try<bool> assignTask(const std::string& hierarchy,
                                 stringify(pid));
 }
 
+
+namespace internal {
+
+#ifndef __NR_eventfd2
+#error "The eventfd2 syscall is unavailable."
+#endif
+
+#define EFD_SEMAPHORE (1 << 0)
+#define EFD_CLOEXEC O_CLOEXEC
+#define EFD_NONBLOCK O_NONBLOCK
+
+static int eventfd(unsigned int initval, int flags)
+{
+  return ::syscall(__NR_eventfd2, initval, flags);
+}
+
+
+// In cgroups, there is mechanism which allows to get notifications about
+// changing status of a cgroup. It is based on Linux eventfd. See more
+// information in the kernel documentation ("Notification API"). This function
+// will create an eventfd and write appropriate control file to correlate the
+// eventfd with a type of event so that users can start polling on the eventfd
+// to get notified. It returns the eventfd (file descriptor) if the notifier has
+// been successfully opened. This function assumes all the parameters are valid.
+// The eventfd is set to be non-blocking.
+// @param   hierarchy   Path to the hierarchy root.
+// @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   control     Name of the control file.
+// @param   args        Control specific arguments.
+// @return  The eventfd if the operation succeeds.
+//          Error if the operation fails.
+static Try<int> openNotifier(const std::string& hierarchy,
+                             const std::string& cgroup,
+                             const std::string& control,
+                             const Option<std::string>& args =
+                               Option<std::string>::none())
+{
+  int efd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+  if (efd < 0) {
+    return Try<int>::error(
+        "Create eventfd failed: " + std::string(strerror(errno)));
+  }
+
+  // Open the control file.
+  std::string path = hierarchy + "/" + cgroup + "/" + control;
+  Try<int> cfd = os::open(path, O_RDWR);
+  if (cfd.isError()) {
+    os::close(efd);
+    return Try<int>::error(cfd.error());
+  }
+
+  // Write the event control file (cgroup.event_control).
+  std::ostringstream out;
+  out << std::dec << efd << " " << cfd.get();
+  if (args.isSome()) {
+    out << " " << args.get();
+  }
+  Try<bool> write = internal::writeControl(hierarchy,
+                                           cgroup,
+                                           "cgroup.event_control",
+                                           out.str());
+  if (write.isError()) {
+    os::close(efd);
+    os::close(cfd.get());
+    return Try<int>::error(write.error());
+  }
+
+  os::close(cfd.get());
+
+  return efd;
+}
+
+
+// Close a notifier. The parameter fd is the eventfd returned by openNotifier.
+// @param   fd      The eventfd returned by openNotifier.
+// @return  True if the operation succeeds.
+//          Error if the operation fails.
+static Try<bool> closeNotifier(int fd)
+{
+  return os::close(fd);
+}
+
+
+// The process listening on event notifier. This class is invisible to users.
+class EventListener : public Process<EventListener>
+{
+public:
+  EventListener(const std::string& _hierarchy,
+                const std::string& _cgroup,
+                const std::string& _control,
+                const Option<std::string>& _args)
+    : hierarchy(_hierarchy),
+      cgroup(_cgroup),
+      control(_control),
+      args(_args),
+      data(0) {}
+
+  virtual ~EventListener() {}
+
+  Future<uint64_t> future() { return promise.future(); }
+
+protected:
+  virtual void initialize()
+  {
+    // Stop the listener if no one cares. Note that here we explicitly specify
+    // the type of the terminate function because it is an overloaded function.
+    // The compiler complains if we do not do it.
+    promise.future().onDiscarded(lambda::bind(
+        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
+
+    // Open the event file.
+    Try<int> fd = internal::openNotifier(hierarchy, cgroup, control, args);
+    if (fd.isError()) {
+      promise.fail(fd.error());
+      terminate(self());
+      return;
+    }
+
+    // Remember the opened event file.
+    eventfd = fd.get();
+
+    // Perform nonblocking read on the event file. The nonblocking read will
+    // start polling on the event file until it becomes readable. If we can
+    // successfully read 8 bytes (sizeof uint64_t) from the event file, it
+    // indicates an event has occurred.
+    reading = io::read(eventfd.get(), &data, sizeof(data));
+    reading.onAny(defer(self(), &EventListener::notified));
+  }
+
+  virtual void finalize()
+  {
+    // Discard the nonblocking read.
+    reading.discard();
+
+    // Close the eventfd if needed.
+    if (eventfd.isSome()) {
+      Try<bool> close = internal::closeNotifier(eventfd.get());
+      if (close.isError()) {
+        LOG(ERROR) << "Closing eventfd " << eventfd.get()
+                   << " failed: " << close.error();
+      }
+    }
+  }
+
+private:
+  // This function is called when the nonblocking read on the eventfd has
+  // result, either because the event has happened, or an error has occurred.
+  void notified()
+  {
+    // Ignore this function if the promise is no longer pending.
+    if (!promise.future().isPending()) {
+      return;
+    }
+
+    // Since the future reading can only be discarded when the promise is no
+    // longer pending, we shall never see a discarded reading here because of
+    // the check in the beginning of the function.
+    CHECK(!reading.isDiscarded());
+
+    if (reading.isFailed()) {
+      promise.fail("Failed to read eventfd: " + reading.failure());
+    } else {
+      if (reading.get() == sizeof(data)) {
+        promise.set(data);
+      } else {
+        promise.fail("Read less than expected");
+      }
+    }
+
+    terminate(self());
+  }
+
+  std::string hierarchy;
+  std::string cgroup;
+  std::string control;
+  Option<std::string> args;
+  Promise<uint64_t> promise;
+  Future<size_t> reading;
+  Option<int> eventfd;  // The eventfd if opened.
+  uint64_t data; // The data read from the eventfd.
+};
+
+} // namespace internal {
+
+
+Future<uint64_t> listenEvent(const std::string& hierarchy,
+                             const std::string& cgroup,
+                             const std::string& control,
+                             const Option<std::string>& args)
+{
+  Try<bool> check = checkControl(hierarchy, cgroup, control);
+  if (check.isError()) {
+    return Future<uint64_t>::failed(check.error());
+  }
+
+  internal::EventListener* listener =
+    new internal::EventListener(hierarchy, cgroup, control, args);
+  Future<uint64_t> future = listener->future();
+  spawn(listener, true);
+  return future;
+}
 
 } // namespace cgroups {

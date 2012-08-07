@@ -25,8 +25,10 @@
 
 #include <sys/types.h>
 
-#include <stout/try.hpp>
+#include <process/future.hpp>
 
+#include <stout/option.hpp>
+#include <stout/try.hpp>
 
 namespace cgroups {
 
@@ -229,7 +231,22 @@ Try<bool> assignTask(const std::string& hierarchy,
                      pid_t pid);
 
 
-} // namespace cgroups {
+// Listen on an event notifier and return a future which will become ready when
+// the certain event happens. This function will return a future failure if some
+// expected happens (e.g. the given hierarchy does not have the proper
+// subsystems attached).
+// @param   hierarchy   Path to the hierarchy root.
+// @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   control     Name of the control file.
+// @param   args        Control specific arguments.
+// @return  A future which contains the value read from the file when ready.
+//          Error if some unexpected happens.
+process::Future<uint64_t> listenEvent(const std::string& hierarchy,
+                                      const std::string& cgroup,
+                                      const std::string& control,
+                                      const Option<std::string>& args =
+                                        Option<std::string>::none());
 
+} // namespace cgroups {
 
 #endif // __CGROUPS_HPP__
