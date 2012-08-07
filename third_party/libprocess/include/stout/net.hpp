@@ -1,7 +1,11 @@
 #ifndef __STOUT_NET_HPP__
 #define __STOUT_NET_HPP__
 
+#include <netdb.h>
 #include <stdio.h>
+
+#include <sys/param.h>
+#include <sys/socket.h>
 
 #ifdef HAVE_LIBCURL
 #include <curl/curl.h>
@@ -13,7 +17,7 @@
 #include "try.hpp"
 
 
-// Handles http requests.
+// Network utilities.
 namespace net {
 
 // Returns the return code resulting from attempting to download the
@@ -66,6 +70,29 @@ inline Try<int> download(const std::string& url, const std::string& path)
 #endif // HAVE_LIBCURL
 }
 
+// Returns a Try of the hostname for the provided IP. If the hostname cannot
+// be resolved, then a string version of the IP address is returned.
+inline Try<std::string> getHostname(uint32_t ip)
+{
+  sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = ip;
+
+  char hostname[MAXHOSTNAMELEN];
+  if (getnameinfo(
+      (sockaddr*)&addr,
+      sizeof(addr),
+      hostname,
+      MAXHOSTNAMELEN,
+      NULL,
+      NULL,
+      0) != 0) {
+    return Try<std::string>::error(strerror(errno));
+  }
+
+  return std::string(hostname);
+}
 
 } // namespace net {
 

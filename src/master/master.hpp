@@ -184,6 +184,10 @@ private:
       const Master& master,
       const process::http::Request& request);
 
+  friend Future<process::http::Response> http::redirect(
+      const Master& master,
+      const process::http::Request& request);
+
   friend Future<process::http::Response> http::json::stats(
       const Master& master,
       const process::http::Request& request);

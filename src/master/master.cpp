@@ -440,6 +440,7 @@ void Master::initialize()
       &ExitedExecutorMessage::status);
 
   // Setup HTTP request handlers.
+  route("/redirect", bind(&http::redirect, cref(*this), params::_1));
   route("/vars", bind(&http::vars, cref(*this), params::_1));
   route("/stats.json", bind(&http::json::stats, cref(*this), params::_1));
   route("/state.json", bind(&http::json::state, cref(*this), params::_1));

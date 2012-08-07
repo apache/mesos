@@ -24,6 +24,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
+#include <stout/net.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/result.hpp>
@@ -48,6 +49,7 @@ using process::http::BadRequest;
 using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::OK;
+using process::http::TemporaryRedirect;
 using process::http::Response;
 using process::http::Request;
 
@@ -193,6 +195,24 @@ Future<Response> vars(
   response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
   return response;
+}
+
+Future<Response> redirect(
+    const Master& master,
+    const Request& request)
+{
+  VLOG(1) << "HTTP request for '" << request.path << "'";
+
+  // If there's no leader, redirect to this master's base url.
+  UPID pid = master.leader != UPID() ? master.leader : master.self();
+
+  Try<string> hostname = net::getHostname(pid.ip);
+  if (hostname.isError()) {
+    return InternalServerError(hostname.error());
+  }
+
+  return TemporaryRedirect(
+      "http://" + hostname.get() + ":" + stringify(pid.port));
 }
 
 

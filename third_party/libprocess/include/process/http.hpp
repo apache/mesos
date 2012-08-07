@@ -102,6 +102,16 @@ struct ServiceUnavailable : Response
   }
 };
 
+
+struct TemporaryRedirect : Response
+{
+  TemporaryRedirect(const std::string& url) : Response("")
+  {
+    status = "307 Temporary Redirect";
+    headers["Location"] = url;
+  }
+};
+
 } // namespace http {
 } // namespace process {
 

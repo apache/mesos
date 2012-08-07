@@ -37,6 +37,11 @@ process::Future<process::http::Response> vars(
     const Master& master,
     const process::http::Request& request);
 
+// Redirects immediately to the current leader. If there's no leader, this
+// redirects to the master.
+process::Future<process::http::Response> redirect(
+    const Master& master,
+    const process::http::Request& request);
 
 namespace json {
 
