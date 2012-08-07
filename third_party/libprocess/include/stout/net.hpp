@@ -6,6 +6,7 @@
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 
 #ifdef HAVE_LIBCURL
 #include <curl/curl.h>
@@ -86,7 +87,7 @@ inline Try<std::string> getHostname(uint32_t ip)
       hostname,
       MAXHOSTNAMELEN,
       NULL,
-      NULL,
+      0,
       0) != 0) {
     return Try<std::string>::error(strerror(errno));
   }
