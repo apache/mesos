@@ -17,13 +17,17 @@
  */
 
 #include <errno.h>
-#include <fcntl.h>
 #include <fts.h>
 #include <signal.h>
 #include <unistd.h>
 
 #include <sys/syscall.h>
 #include <sys/types.h>
+
+// For older versions of glibc we need to get O_CLOEXEC from
+// linux/fcntl.h, but on some versions that requires sys/types.h to be
+// included _first_.
+#include <linux/fcntl.h>
 
 #include <glog/logging.h>
 
