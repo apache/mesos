@@ -24,11 +24,6 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 
-// For older versions of glibc we need to get O_CLOEXEC from
-// linux/fcntl.h, but on some versions that requires sys/types.h to be
-// included _first_.
-#include <linux/fcntl.h>
-
 #include <glog/logging.h>
 
 #include <fstream>
@@ -754,17 +749,48 @@ Try<bool> assignTask(const std::string& hierarchy,
 
 namespace internal {
 
-#ifndef __NR_eventfd2
-#error "The eventfd2 syscall is unavailable."
-#endif
-
+#ifndef EFD_SEMAPHORE
 #define EFD_SEMAPHORE (1 << 0)
-#define EFD_CLOEXEC O_CLOEXEC
-#define EFD_NONBLOCK O_NONBLOCK
+#endif
+#ifndef EFD_CLOEXEC
+#define EFD_CLOEXEC 02000000
+#endif
+#ifndef EFD_NONBLOCK
+#define EFD_NONBLOCK 04000
+#endif
 
 static int eventfd(unsigned int initval, int flags)
 {
+#ifdef __NR_eventfd2
   return ::syscall(__NR_eventfd2, initval, flags);
+#elif defined(__NR_eventfd)
+  int fd = ::syscall(__NR_eventfd, initval);
+  if (fd == -1) {
+    return -1;
+  }
+
+  // Manually set CLOEXEC and NONBLOCK.
+  if ((flags & EFD_CLOEXEC) != 0) {
+    Try<bool> cloexec = os::cloexec(fd);
+    if (cloexec.isError()) {
+      os::close(fd);
+      return -1;
+    }
+  }
+
+  if ((flags & EFD_NONBLOCK) != 0) {
+    Try<bool> nonblock = os::nonblock(fd);
+    if (nonblock.isError()) {
+      os::close(fd);
+      return -1;
+    }
+  }
+
+  // Return the file descriptor.
+  return fd;
+#else
+#error "The eventfd syscall is not available."
+#endif
 }
 
 
@@ -788,7 +814,7 @@ static Try<int> openNotifier(const std::string& hierarchy,
                              const Option<std::string>& args =
                                Option<std::string>::none())
 {
-  int efd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+  int efd = internal::eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
   if (efd < 0) {
     return Try<int>::error(
         "Create eventfd failed: " + std::string(strerror(errno)));

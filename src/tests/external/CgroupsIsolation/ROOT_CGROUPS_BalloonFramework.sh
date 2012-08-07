@@ -26,6 +26,7 @@ fi
 $MESOS_BUILD_DIR/src/mesos-slave \
     --master=localhost:5432 \
     --isolation=cgroups \
+    --cgroups_hierarchy_root=/cgroups \
     --resources="cpus:1;mem:96" \
     > slave.log 2>&1 &
 SLAVE_PID=$!
@@ -56,6 +57,10 @@ sleep 2
 echo "Killing master: $MASTER_PID"
 kill $MASTER_PID
 sleep 2
+
+# Cleanup the cgroups hierarchy root
+rmdir /cgroups/*
+umount /cgroups
 
 echo "Exiting"
 # Check whether balloon framework returned the right code
