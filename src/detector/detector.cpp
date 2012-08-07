@@ -25,10 +25,11 @@
 
 #include <process/protobuf.hpp>
 
-#include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
 
 #include "detector/detector.hpp"
+
+#include "logging/logging.hpp"
 
 #include "messages/messages.hpp"
 
@@ -285,14 +286,15 @@ void ZooKeeperMasterDetector::connected()
 {
   LOG(INFO) << "Master detector connected to ZooKeeper ...";
 
-  int ret;
+  int code;
   if (url.authentication.isSome()) {
     const std::string& scheme = url.authentication.get().scheme;
     const std::string& credentials = url.authentication.get().credentials;
     LOG(INFO) << "Authenticating to ZooKeeper using scheme '" << scheme << "'";
-    ret = zk->authenticate(scheme, credentials);
-    if (ret != ZOK) {
-      fatal("Failed to authenticate with ZooKeeper: %s", zk->message(ret));
+    code = zk->authenticate(scheme, credentials);
+    if (code != ZOK) {
+      LOG(FATAL) << "Failed to authenticate with ZooKeeper: "
+                 << zk->message(code);
     }
   }
 
@@ -314,27 +316,27 @@ void ZooKeeperMasterDetector::connected()
     LOG(INFO) << "Trying to create znode '" << prefix << "' in ZooKeeper";
 
     // Create the node (even if it already exists).
-    ret = zk->create(prefix, "", acl, 0, &result);
+    code = zk->create(prefix, "", acl, 0, &result);
 
-    if (ret != ZOK && ret != ZNODEEXISTS) {
-      fatal("Failed to create ZooKeeper znode: %s", zk->message(ret));
+    if (code != ZOK && code != ZNODEEXISTS) {
+      LOG(FATAL) << "Failed to create ZooKeeper znode: " << zk->message(code);
     }
   }
 
   // Wierdness in ZooKeeper timing, let's check that everything is created.
-  ret = zk->get(url.path, false, &result, NULL);
+  code = zk->get(url.path, false, &result, NULL);
 
-  if (ret != ZOK) {
-    fatal("Unexpected ZooKeeper failure: %s", zk->message(ret));
+  if (code != ZOK) {
+    LOG(FATAL) << "Unexpected ZooKeeper failure: " << zk->message(code);
   }
 
   if (contend) {
     // We contend with the pid given in constructor.
-    ret = zk->create(url.path + "/", pid, acl,
+    code = zk->create(url.path + "/", pid, acl,
                      ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
 
-    if (ret != ZOK) {
-      fatal("Unexpected ZooKeeper failure: %s", zk->message(ret));
+    if (code != ZOK) {
+      LOG(FATAL) << "Unexpected ZooKeeper failure: %s" << zk->message(code);
     }
 
     // Save the sequence id but only grab the basename, e.g.,
@@ -369,25 +371,25 @@ void ZooKeeperMasterDetector::reconnected()
 {
   LOG(INFO) << "Master detector reconnected ...";
 
-  int ret;
+  int code;
   string result;
 
   static const string delimiter = "/";
 
   if (contend) {
     // Contending for master, confirm our ephemeral sequence znode exists.
-    ret = zk->get(url.path + "/" + mySeq, false, &result, NULL);
+    code = zk->get(url.path + "/" + mySeq, false, &result, NULL);
 
     // We might no longer be the master! Commit suicide for now
     // (hoping another master is on standbye), but in the future
     // it would be nice if we could go back on standbye.
-    if (ret == ZNONODE) {
-      fatal("Failed to reconnect to ZooKeeper quickly enough "
-	    "(our ephemeral sequence znode is gone), commiting suicide!");
+    if (code == ZNONODE) {
+      LOG(FATAL) << "Failed to reconnect to ZooKeeper quickly enough "
+        "(our ephemeral sequence znode is gone), commiting suicide!";
     }
 
-    if (ret != ZOK) {
-      fatal("Unexpected ZooKeeper error: %s", zk->message(ret));
+    if (code != ZOK) {
+      LOG(FATAL) << "Unexpected ZooKeeper error: " << zk->message(code);
     }
 
     // We are still the master!
@@ -457,10 +459,11 @@ void ZooKeeperMasterDetector::detectMaster()
 {
   vector<string> results;
 
-  int ret = zk->getChildren(url.path, true, &results);
+  int code = zk->getChildren(url.path, true, &results);
 
-  if (ret != ZOK) {
-    LOG(ERROR) << "Master detector failed to get masters: " << zk->message(ret);
+  if (code != ZOK) {
+    LOG(ERROR) << "Master detector failed to get masters: "
+               << zk->message(code);
   } else {
     LOG(INFO) << "Master detector found " << results.size()
               << " registered masters";
@@ -482,13 +485,13 @@ void ZooKeeperMasterDetector::detectMaster()
   } else if (masterSeq != currentMasterSeq) {
     // Okay, let's fetch the master pid from ZooKeeper.
     string result;
-    ret = zk->get(url.path + "/" + masterSeq, false, &result, NULL);
+    code = zk->get(url.path + "/" + masterSeq, false, &result, NULL);
 
-    if (ret != ZOK) {
+    if (code != ZOK) {
       // This is possible because the master might have failed since
       // the invocation of ZooKeeper::getChildren above.
       LOG(ERROR) << "Master detector failed to fetch new master pid: "
-		 << zk->message(ret);
+		 << zk->message(code);
       process::post(pid, NoMasterDetectedMessage());
     } else {
       // Now let's parse what we fetched from ZooKeeper.
