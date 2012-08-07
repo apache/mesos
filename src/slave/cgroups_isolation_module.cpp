@@ -95,11 +95,14 @@ void CgroupsIsolationModule::initialize(
   // Configure cgroups hierarchy root path.
   hierarchy = flags.cgroups_hierarchy_root;
 
+  LOG(INFO) << "Using " << hierarchy << " as cgroups hierarchy root";
+
   // Configure required/optional subsystems.
   hashset<std::string> requiredSubsystems;
   hashset<std::string> optionalSubsystems;
 
   requiredSubsystems.insert("cpu");
+  requiredSubsystems.insert("cpuset");
   requiredSubsystems.insert("memory");
   requiredSubsystems.insert("freezer");
 
@@ -218,14 +221,15 @@ void CgroupsIsolationModule::launchExecutor(
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
+  // Register the cgroup information.
+  registerCgroupInfo(frameworkId, executorId);
+
   LOG(INFO) << "Launching " << executorId
             << " (" << executorInfo.command().value() << ")"
             << " in " << directory
             << " with resources " << resources
-            << " for framework " << frameworkId;
-
-  // Register the cgroup information.
-  registerCgroupInfo(frameworkId, executorId);
+            << " for framework " << frameworkId
+            << " in cgroup " << getCgroupName(frameworkId, executorId);
 
   // Create a new cgroup for the executor.
   Try<bool> create =
@@ -234,6 +238,51 @@ void CgroupsIsolationModule::launchExecutor(
     LOG(FATAL) << "Failed to create cgroup for executor " << executorId
                << " of framework " << frameworkId
                << ": " << create.error();
+  }
+
+  // Copy the values of cpuset.cpus and cpuset.mems from the cgroups hierarchy
+  // root. This is necessary because the newly created cgroup does not have
+  // these two values set.
+  // TODO(jieyu): Think about other ways that do not rely on the values from the
+  // cgroups hierarchy root.
+  Try<std::string> rootCpusetCpus =
+    cgroups::readControl(hierarchy,
+                         "/",
+                         "cpuset.cpus");
+  if (rootCpusetCpus.isError()) {
+    LOG(FATAL) << "Failed to get cpuset.cpus in hierarchy root: "
+               << rootCpusetCpus.error();
+  }
+
+  Try<std::string> rootCpusetMems =
+    cgroups::readControl(hierarchy,
+                         "/",
+                         "cpuset.mems");
+  if (rootCpusetMems.isError()) {
+    LOG(FATAL) << "Failed to get cpuset.mems in hierarchy root: "
+               << rootCpusetMems.error();
+  }
+
+  Try<bool> setCpusetCpus =
+    cgroups::writeControl(hierarchy,
+                          getCgroupName(frameworkId, executorId),
+                          "cpuset.cpus",
+                          rootCpusetCpus.get());
+  if (setCpusetCpus.isError()) {
+    LOG(FATAL) << "Failed to write cpuset.cpus for executor "
+               << executorId << " of framework " << frameworkId
+               << ": " << setCpusetCpus.error();
+  }
+
+  Try<bool> setCpusetMems =
+    cgroups::writeControl(hierarchy,
+                          getCgroupName(frameworkId, executorId),
+                          "cpuset.mems",
+                          rootCpusetMems.get());
+  if (setCpusetMems.isError()) {
+    LOG(FATAL) << "Failed to write cpuset.mems for executor "
+               << executorId << " of framework " << frameworkId
+               << ": " << setCpusetMems.error();
   }
 
   // Setup the initial resource constrains.
