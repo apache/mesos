@@ -202,6 +202,16 @@ void DominantShareAllocator::frameworkDeactivated(
   // appropriately. We might be able to collapse the added/removed and
   // activated/deactivated in the future.
 
+  foreach (Filter* filter, filters.get(frameworkId)) {
+    filters.remove(frameworkId, filter);
+
+    // Do not delete the filter, see comments in
+    // DominantShareAllocator::offersRevived and
+    // DominantShareAllocator::expire.
+  }
+
+  filters.remove(frameworkId);
+
   LOG(INFO) << "Deactivated framework " << frameworkId;
 }
 
@@ -324,8 +334,8 @@ void DominantShareAllocator::resourcesUnused(
     this->filters.put(frameworkId, filter);
 
     // TODO(benh): Use 'this' and '&This::' as appropriate.
-    delay(timeout, PID<DominantShareAllocator>(this), &DominantShareAllocator::expire,
-	  frameworkId, filter);
+    delay(timeout, PID<DominantShareAllocator>(this),
+          &DominantShareAllocator::expire, frameworkId, filter);
   }
 
   allocate(slaveId);
@@ -507,8 +517,7 @@ void DominantShareAllocator::expire(
   // DominantShareAllocator::offersRevived) but not yet deleted (to
   // keep the address from getting reused possibly causing premature
   // expiration).
-  if (frameworks.contains(frameworkId) &&
-      filters.contains(frameworkId, filter)) {
+  if (filters.contains(frameworkId, filter)) {
     filters.remove(frameworkId, filter);
     allocate();
   }
