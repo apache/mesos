@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>MESOS MASTER LOG</title>
+    <title></title>
 
     <style type="text/css">
       .log {
@@ -55,8 +55,19 @@
       $(document).ready(function() {
         resize();
 
+        document.title = window.name;
+
         $('#data').pailer({
-          'url': window.name,
+          'read': function(options) {
+            var settings = $.extend({
+              'offset': -1,
+              'length': -1
+            }, options);
+            var url = window.name
+              + '?offset=' + settings.offset
+              + '&length=' + settings.length;
+            return $.getJSON(url);
+          },
           'indicator': $('#indicator')
         });
       });

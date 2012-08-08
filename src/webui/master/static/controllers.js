@@ -133,7 +133,7 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
           $defer(poll, $scope.delay);
         }
       })
-      .error(function(data) {
+      .error(function() {
         if ($scope.delay >= 128000) {
           $scope.delay = 2000;
         } else {
@@ -179,7 +179,7 @@ function HomeCtrl($scope) {
     if (!$scope.state.log_dir) {
       $('#no-log-dir-modal').modal('show');
     } else {
-      window.open('/static/log.html',
+      window.open('/static/pailer.html',
                   '/master/log.json',
                   'width=580px, height=700px');
     }
@@ -235,6 +235,7 @@ function FrameworkCtrl($scope, $routeParams) {
     $(document).off('state_updated', update);
   });
 }
+
 
 function SlavesCtrl($scope) {
   setNavbarActiveTab('slaves');

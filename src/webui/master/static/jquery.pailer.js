@@ -2,17 +2,17 @@
 // 'PAILer'). Paging occurs when scrolling reaches the "top" and
 // tailing occurs when scrolling has reached the "bottom".
 
-// A URL must be passed for reading the data (in
-// bytes). The plugin assumes the URL can be passed the query
-// field/value pairs 'offset=N' and 'length=N' in order to get data
-// from the specified offset for the specified length,
-// respectively. The result from the query is expected to be a JSON
-// object with at least two fields defined: 'offset' and 'length'. A
-// third field, 'data' may be provided if 'length' is greater than
-// 0. If the offset requested is greater than the available offset,
-// the result should be a JSON object with the 'offset' field set to
-// the available offset (i.e., the length of the data) and the 'length'
-// field set to 0.
+// A 'read' function must be provided for reading the data (in
+// bytes). This function should expect an "options" object with the
+// fields 'offset' and 'length' set for reading the data. The result
+// from of the function should be a "promise" like value which has a
+// 'success' and 'error' callback which each take a function. An
+// object with at least two fields defined ('offset' and 'length') is
+// expected on success. A third field, 'data' may be provided if
+// 'length' is greater than 0. If the offset requested is greater than
+// the available offset, the result should be an object with the
+// 'offset' field set to the available offset (i.e., the length of the
+// data) and the 'length' field set to 0.
 
 // The plugin prepends, appends, and updates the "html" component of
 // the elements specified in the jQuery selector (e.g., doing
@@ -38,15 +38,24 @@
 //     </div>
 //  Javascript:
 //    $('#data').pailer({
-//      'url': '/url/for/data.json',
+//      'read': function(options) {
+//        var settings = $.extend({
+//          'offset': -1,
+//          'length': -1
+//        }, options);
+//        var url = '/url/for/data'
+//          + '?offset=' + settings.offset
+//          + '&length=' + settings.length;
+//        return $.getJSON(url);
+//      },
 //      'indicator': $('#indicator')
 //    });
 
-(function($){
-  function Pailer(url, element, indicator, page_size, truncate_length) {
+(function($) {
+  function Pailer(read, element, indicator, page_size, truncate_length) {
     var this_ = this;
 
-    this_.url = url;
+    this_.read = read;
     this_.element = element;
     this_.indicator = indicator;
     this_.initialized = false;
@@ -88,9 +97,7 @@
     // Set an indicator while we load the data.
     this_.indicate('(LOADING)');
 
-    var url = this_.url + '?offset=-1';
-
-    $.getJSON(url)
+    this_.read({'offset': -1})
       .success(function(data) {
         this_.indicate('');
 
@@ -105,16 +112,12 @@
         this_.element.html('');
         setTimeout(function() { this_.tail(); }, 0);
       })
-      .error(function(data, status) {
-        if (status == 404) {
-          this_.indicate('(FILE NOT FOUND)');
-        } else {
-          this_.indicate('(FAILED TO INITIALIZE ... RETRYING)');
-          setTimeout(function() {
-            this_.indicate('');
-            this_.initialize();
-          }, 1000);
-        }
+      .error(function() {
+        this_.indicate('(FAILED TO INITIALIZE ... RETRYING)');
+        setTimeout(function() {
+          this_.indicate('');
+          this_.initialize();
+        }, 1000);
       });
   }
 
@@ -146,11 +149,7 @@
       offset = 0;
     }
 
-    var url = this_.url
-      + '?offset=' + offset
-      + '&length=' + this_.page_size;
-
-    $.getJSON(url)
+    this_.read({'offset': offset, 'length': this_.page_size})
       .success(function(data) {
         this_.indicate('(PAGED)');
         setTimeout(function() { this_.indicate(''); }, 1000);
@@ -177,16 +176,12 @@
           this_.paging = false;
         }
       })
-      .error(function(data, status) {
-        if (status == 404) {
-          this_.indicate('(FILE NOT FOUND)');
-        } else {
-          this_.indicate('(FAILED TO PAGE ... RETRYING)');
-          setTimeout(function() {
-            this_.indicate('');
-            this_.page();
-          }, 1000);
-        }
+      .error(function() {
+        this_.indicate('(FAILED TO PAGE ... RETRYING)');
+        setTimeout(function() {
+          this_.indicate('');
+          this_.page();
+        }, 1000);
       });
   }
 
@@ -198,11 +193,7 @@
       return;
     }
 
-    var url = this_.url
-      + '?offset=' + this_.end
-      + '&length=' + this_.truncate_length;
-
-    $.getJSON(url)
+    this_.read({'offset': this_.end, 'length': this_.truncate_length})
       .success(function(data) {
         var scrollTop = this_.element.scrollTop();
         var height = this_.element.height();
@@ -252,17 +243,13 @@
           setTimeout(function() { this_.tail(); }, 1000);
         }
       })
-      .error(function(data, status) {
-        if (status == 404) {
-          this_.indicate('(FILE NOT FOUND)');
-        } else {
-          this_.indicate('(FAILED TO TAIL ... RETRYING)');
-          this_.initialized = false;
-          setTimeout(function() {
-            this_.indicate('');
-            this_.initialize();
-          }, 1000);
-        }
+      .error(function() {
+        this_.indicate('(FAILED TO TAIL ... RETRYING)');
+        this_.initialized = false;
+        setTimeout(function() {
+          this_.indicate('');
+          this_.initialize();
+        }, 1000);
       });
   }
 
@@ -289,18 +276,22 @@
 
   $.fn.pailer = function(options) {
     var settings = $.extend({
-      'page-size': 10000,
-      'truncate-length': 50000
+      'read': function() { return {
+        'success': function() {},
+        'error': function(f) { f(); }
+      }},
+      'page_size': 10000,
+      'truncate_length': 50000
     }, options);
 
     this.each(function() {
       var pailer = $.data(this, 'pailer');
       if (!pailer) {
-        pailer = new Pailer(settings['url'],
+        pailer = new Pailer(settings.read,
                             $(this),
-                            settings['indicator'],
-                            settings['page-size'],
-                            settings['truncate-length']);
+                            settings.indicator,
+                            settings.page_size,
+                            settings.truncate_length);
         $.data(this, 'pailer', pailer);
         pailer.initialize();
       }
