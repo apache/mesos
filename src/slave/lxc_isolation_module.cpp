@@ -289,7 +289,7 @@ void LxcIsolationModule::resourcesChanged(
   uint64_t value;
 
   double cpu = resources.get("cpus", Value::Scalar()).value();
-  int32_t cpu_shares = max(CPU_SHARES_PER_CPU * (int32_t) cpu, MIN_CPU_SHARES);
+  int32_t cpu_shares = max((int32_t)(CPU_SHARES_PER_CPU * cpu), MIN_CPU_SHARES);
 
   property = "cpu.shares";
   value = cpu_shares;

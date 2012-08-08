@@ -479,7 +479,7 @@ Try<bool> CgroupsIsolationModule::cpusChanged(
   } else {
     double cpus = cpusResource.get().scalar().value();
     size_t cpuShares =
-      std::max(CPU_SHARES_PER_CPU * (size_t)cpus, MIN_CPU_SHARES);
+      std::max((size_t)(CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
 
     Try<bool> set =
       cgroups::writeControl(hierarchy,
