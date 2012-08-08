@@ -1125,7 +1125,8 @@ Future<bool> freezeCgroup(const std::string& hierarchy,
   if (state.isError()) {
     return Future<bool>::failed(state.error());
   } else if (strings::trim(state.get()) == "FROZEN") {
-    return Future<bool>::failed("Cannot freeze a frozen cgroup");
+    // Immediately return success.
+    return true;
   }
 
   internal::Freezer* freezer =
@@ -1152,7 +1153,8 @@ Future<bool> thawCgroup(const std::string& hierarchy,
   if (state.isError()) {
     return Future<bool>::failed(state.error());
   } else if (strings::trim(state.get()) == "THAWED") {
-    return Future<bool>::failed("Cannot thaw a thawed cgroup");
+    // Immediately return success.
+    return true;
   }
 
   internal::Freezer* freezer =
