@@ -37,6 +37,8 @@
 #include "common/resources.hpp"
 #include "common/type_utils.hpp"
 
+#include "files/files.hpp"
+
 #include "messages/messages.hpp"
 
 
@@ -58,7 +60,7 @@ public:
         bool local,
         IsolationModule* isolationModule);
 
-  Slave(const Flags& flags,
+  Slave(const flags::Flags<logging::Flags, slave::Flags>& flags,
         bool local,
         IsolationModule *isolationModule);
 
@@ -178,7 +180,7 @@ private:
       const Slave& slave,
       const process::http::Request& request);
 
-  const Flags flags;
+  const flags::Flags<logging::Flags, slave::Flags> flags;
 
   bool local;
 
@@ -206,6 +208,8 @@ private:
   double startTime;
 
   bool connected; // Flag to indicate if slave is registered.
+
+  Files files;
 };
 
 

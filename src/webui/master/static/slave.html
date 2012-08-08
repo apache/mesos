@@ -1,0 +1,50 @@
+<ul class="breadcrumb">
+  <li>
+    <a href="#">Home</a> <span class="divider">/</span>
+  </li>
+  <li>
+    <a href="#/slaves">Slaves</a> <span class="divider">/</span>
+  </li>
+  <li class="active">
+    <em>({{slave.id}})</em>
+  </li>
+</ul>
+
+<div class="alert alert-error hide" id="missing-alert">
+  <button class="close" data-dismiss="alert">×</button>
+  <strong>No slave by that ID could be found!</strong>
+</div>
+
+<div class="modal hide fade" style="display: none;" id="no-log-dir-modal">
+  <div class="modal-header">
+    <button class="close" data-dismiss="modal">×</button>
+    <h3>Logging to a file is not enabled!</h3>
+  </div>
+  <div class="modal-body">
+    <p>Set the 'log_dir' option if you wish to access the logs.</p>
+  </div>
+  <div class="modal-footer">
+  </div>
+</div>
+
+<div class="row hide" id="slave">
+  <div class="span3">
+    <div class="well">
+      <dl class="inline clearfix">
+        <dt>Started:</dt>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.start_time * 1000 | mesosDate}}" data-original-title="Started">
+            {{state.start_time * 1000 | relativeDate}}
+          </a>
+        </dd>
+        <dt>ID:</dt>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.id}}" data-original-title="ID">
+            {{state.id | truncateMesosID}}
+          </a>
+        </dd>
+      </dl>
+      <p><a href="" ng-click="log($event)">LOG</a></p>
+    </div>
+  </div>
+</div>

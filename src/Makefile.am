@@ -378,7 +378,7 @@ nobase_dist_webui_DATA += webui/master/static/graph.css	\
 nobase_dist_webui_DATA += webui/master/static/dashboard.html		\
   webui/master/static/framework.html					\
   webui/master/static/frameworks.html webui/master/static/home.html	\
-  webui/master/static/index.html webui/master/static/log.html		\
+  webui/master/static/index.html webui/master/static/pailer.html	\
   webui/master/static/slaves.html
 
 # Need to distribute/install webui images.

@@ -140,11 +140,7 @@
             {{slave.id | truncateMesosID}}
           </a>
         </td>
-        <td>
-          <a href="http://{{slave.webui_hostname}}:{{slave.webui_port}}/">
-            {{slave.hostname}}
-          </a>
-        </td>
+        <td><a href="#/slave/{{slave.id}}">{{slave.hostname}}</a></td>
         <td>{{slave.resources.cpus}}</td>
         <td>{{slave.resources.mem / 1024}} GB</td>
         <td>

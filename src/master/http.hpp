@@ -56,11 +56,6 @@ process::Future<process::http::Response> state(
     const Master& master,
     const process::http::Request& request);
 
-// Returns data from the log.
-process::Future<process::http::Response> log(
-    const Master& master,
-    const process::http::Request& request);
-
 } // namespace json {
 } // namespace http {
 } // namespace master {

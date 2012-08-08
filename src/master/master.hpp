@@ -40,6 +40,8 @@
 
 #include "logging/flags.hpp"
 
+#include "files/files.hpp"
+
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/http.hpp"
@@ -196,10 +198,6 @@ private:
       const Master& master,
       const process::http::Request& request);
 
-  friend Future<process::http::Response> http::json::log(
-      const Master& master,
-      const process::http::Request& request);
-
   const flags::Flags<logging::Flags, master::Flags> flags;
 
   UPID leader; // Current leading master.
@@ -234,6 +232,8 @@ private:
   } stats;
 
   double startTime; // Start time used to calculate uptime.
+
+  Files files;
 };
 
 

@@ -179,9 +179,15 @@ function HomeCtrl($scope) {
     if (!$scope.state.log_dir) {
       $('#no-log-dir-modal').modal('show');
     } else {
-      window.open('/static/pailer.html',
-                  '/master/log.json',
-                  'width=580px, height=700px');
+      var url = '/files/read.json?name=/log';
+      var pailer =
+        window.open('/static/pailer.html', url, 'width=580px, height=700px');
+
+      // Need to use window.onload instead of document.ready to make
+      // sure the title doesn't get overwritten.
+      pailer.onload = function() {
+        pailer.document.title = 'Mesos Master (' + location.host + ')';
+      }
     }
   }
 }
@@ -239,4 +245,56 @@ function FrameworkCtrl($scope, $routeParams) {
 
 function SlavesCtrl($scope) {
   setNavbarActiveTab('slaves');
+}
+
+
+function SlaveCtrl($scope, $routeParams, $http) {
+  setNavbarActiveTab('slaves');
+
+  var host = undefined;
+
+  $scope.log = function($event) {
+    if (!$scope.state.log_dir) {
+      $('#no-log-dir-modal').modal('show');
+    } else {
+      var url = 'http://' + host + '/files/read.json?name=/log';
+      var pailer =
+        window.open('/static/pailer.html', url, 'width=580px, height=700px');
+
+     // Need to use window.onload instead of document.ready to make
+      // sure the title doesn't get overwritten.
+      pailer.onload = function() {
+        pailer.document.title = 'Mesos Slave (' + host + ')';
+      }
+    }
+  }
+
+  var update = function() {
+    if ($routeParams.id in $scope.slaves) {
+      var pid = $scope.slaves[$routeParams.id].pid;
+      var id = pid.substring(0, pid.indexOf('@'));
+      host = pid.substring(pid.indexOf('@') + 1);
+      var url = 'http://' + host + '/' + id
+        + '/state.json?jsonp=JSON_CALLBACK';
+      $http.jsonp(url)
+        .success(function(data) {
+          $scope.state = data;
+          $('#slave').show();
+        })
+        .error(function() {
+          alert('unimplemented');
+        });
+    } else {
+      $('#missing-alert').show();
+    }
+  }
+
+  if ($scope.state) {
+    update();
+  }
+
+  $(document).on('state_updated', update);
+  $scope.$on('$beforeRouteChange', function() {
+    $(document).off('state_updated', update);
+  });
 }

@@ -55,8 +55,6 @@
       $(document).ready(function() {
         resize();
 
-        document.title = window.name;
-
         $('#data').pailer({
           'read': function(options) {
             var settings = $.extend({
@@ -64,8 +62,9 @@
               'length': -1
             }, options);
             var url = window.name
-              + '?offset=' + settings.offset
-              + '&length=' + settings.length;
+              + '&offset=' + settings.offset
+              + '&length=' + settings.length
+              + '&jsonp=?';
             return $.getJSON(url);
           },
           'indicator': $('#indicator')

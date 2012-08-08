@@ -115,7 +115,7 @@ PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
 
   vector<UPID> pids;
 
-  slave::Flags flags;
+  flags::Flags<logging::Flags, slave::Flags> flags;
   flags.load(configuration.getMap());
 
   for (int i = 0; i < numSlaves; i++) {

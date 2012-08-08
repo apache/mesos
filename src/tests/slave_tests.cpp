@@ -29,6 +29,8 @@
 
 #include "detector/detector.hpp"
 
+#include "logging/logging.hpp"
+
 #include "local/local.hpp"
 
 #include "master/master.hpp"
@@ -180,12 +182,12 @@ protected:
   MockFilter filter;
   PID<Master> master;
   PID<Slave> slave;
-  static slave::Flags flags;
+  static flags::Flags<logging::Flags, slave::Flags> flags;
 };
 
 
 // Initialize static members here.
-slave::Flags SlaveTest::flags;
+flags::Flags<logging::Flags, slave::Flags> SlaveTest::flags;
 
 
 TEST_F(SlaveTest, GarbageCollectSlaveDirs)

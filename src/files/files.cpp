@@ -174,7 +174,7 @@ Future<Response> FilesProcess::read(const Request& request)
       // suffix, if it's not a directory and there is a suffix, return
       // '404 Not Found'.
       string path = paths[prefix];
-      if (utils::os::exists(path, true)) {
+      if (os::exists(path, true)) {
         path += "/" + suffix;
 
         // Canonicalize the absolute path and make sure the result
@@ -275,7 +275,7 @@ Future<Response> FilesProcess::read(const Request& request)
         response.headers["Content-Type"] = "application/json";
       }
 
-      response.headers["Content-Length"] = utils::stringify(out.str().size());
+      response.headers["Content-Length"] = stringify(out.str().size());
       response.body = out.str().data();
 
       return response;

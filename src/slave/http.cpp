@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-#include <iomanip>
+#include <map>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 
 #include "common/build.hpp"
 #include "common/resources.hpp"
@@ -40,7 +43,10 @@ using process::http::OK;
 using process::http::Response;
 using process::http::Request;
 
+using std::map;
 using std::string;
+using std::vector;
+
 
 // TODO(benh): Consider moving the modeling code some place else so
 // that it can be shared between slave/http.cpp and master/http.cpp.
@@ -179,6 +185,15 @@ Future<Response> state(
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
+  map<string, vector<string> > pairs =
+    strings::pairs(request.query, ";&", "=");
+
+  Option<string> jsonp;
+
+  if (pairs.count("jsonp") > 0 && pairs["jsonp"].size() > 0) {
+    jsonp = pairs["jsonp"].back();
+  }
+
   JSON::Object object;
   object.values["build_date"] = build::DATE;
   object.values["build_user"] = build::USER;
@@ -186,6 +201,10 @@ Future<Response> state(
   object.values["id"] = slave.id.value();
   object.values["pid"] = string(slave.self());
   object.values["resources"] = model(slave.resources);
+
+  if (slave.flags.log_dir.isSome()) {
+    object.values["log_dir"] = slave.flags.log_dir.get();
+  }
 
   JSON::Array array;
 
@@ -198,12 +217,24 @@ Future<Response> state(
 
   std::ostringstream out;
 
+  if (jsonp.isSome()) {
+    out << jsonp.get() << "(";
+  }
+
   JSON::render(out, object);
 
   OK response;
-  response.headers["Content-Type"] = "application/json";
+
+  if (jsonp.isSome()) {
+    out << ");";
+    response.headers["Content-Type"] = "text/javascript";
+  } else {
+    response.headers["Content-Type"] = "application/json";
+  }
+
   response.headers["Content-Length"] = stringify(out.str().size());
   response.body = out.str().data();
+
   return response;
 }
 

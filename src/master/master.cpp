@@ -444,7 +444,6 @@ void Master::initialize()
   route("/vars", bind(&http::vars, cref(*this), params::_1));
   route("/stats.json", bind(&http::json::stats, cref(*this), params::_1));
   route("/state.json", bind(&http::json::state, cref(*this), params::_1));
-  route("/log.json", bind(&http::json::log, cref(*this), params::_1));
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the
@@ -453,6 +452,11 @@ void Master::initialize()
   // Makefile.
   provide("", path::join(flags.webui_dir, "master/static/index.html"));
   provide("static", path::join(flags.webui_dir, "master/static"));
+
+  // TODO(benh): Ask glog for file name (i.e., mesos-master.INFO).
+  if (flags.log_dir.isSome()) {
+    files.attach(flags.log_dir.get() + "/mesos-master.INFO", "/log");
+  }
 }
 
 

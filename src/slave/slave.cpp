@@ -50,7 +50,9 @@ using std::tr1::cref;
 using std::tr1::bind;
 
 
-namespace mesos { namespace internal { namespace slave {
+namespace mesos {
+namespace internal {
+namespace slave {
 
 // // Represents a pending status update that has been sent and we are
 // // waiting for an acknowledgement. In pa
@@ -94,11 +96,12 @@ Slave::Slave(const Resources& _resources,
   : ProcessBase(ID::generate("slave")),
     resources(_resources),
     local(_local),
-    isolationModule(_isolationModule)
+    isolationModule(_isolationModule),
+    flags()
 {}
 
 
-Slave::Slave(const Flags& _flags,
+Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
              bool _local,
              IsolationModule* _isolationModule)
   : ProcessBase(ID::generate("slave")),
@@ -297,6 +300,11 @@ void Slave::initialize()
   route("/vars", bind(&http::vars, cref(*this), params::_1));
   route("/stats.json", bind(&http::json::stats, cref(*this), params::_1));
   route("/state.json", bind(&http::json::state, cref(*this), params::_1));
+
+  // TODO(benh): Ask glog for file name (i.e., mesos-slave.INFO).
+  if (flags.log_dir.isSome()) {
+    files.attach(flags.log_dir.get() + "/mesos-slave.INFO", "/log");
+  }
 }
 
 
