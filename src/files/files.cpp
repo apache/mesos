@@ -40,8 +40,8 @@ namespace internal {
 class FilesProcess : public Process<FilesProcess>
 {
 public:
-  FilesProcess() {}
-  virtual ~FilesProcess() {}
+  FilesProcess();
+  virtual ~FilesProcess();
 
   // Files implementation.
   Future<bool> attach(const string& path, const string& name);
@@ -51,12 +51,21 @@ protected:
   virtual void initialize();
 
 private:
-  // JSON endpoints.
+  // HTTP endpoints.
   Future<Response> browse(const Request& request);
   Future<Response> read(const Request& request);
 
   hashmap<string, string> paths;
 };
+
+
+FilesProcess::FilesProcess()
+  : ProcessBase("files")
+{}
+
+
+FilesProcess::~FilesProcess()
+{}
 
 
 void FilesProcess::initialize()
@@ -144,6 +153,12 @@ Future<Response> FilesProcess::read(const Request& request)
     length = result.get();
   }
 
+  Option<string> jsonp;
+
+  if (pairs.count("jsonp") > 0 && pairs["jsonp"].size() > 0) {
+    jsonp = pairs["jsonp"].back();
+  }
+
   // Now try and see if this name has been attached. We check for the
   // longest possible prefix match and if found append any suffix to
   // the attached path (provided the path is to a directory).
@@ -158,9 +173,9 @@ Future<Response> FilesProcess::read(const Request& request)
       // Determine the final path: if it's a directory, append the
       // suffix, if it's not a directory and there is a suffix, return
       // '404 Not Found'.
-      string path;
-      if (os::exists(paths[prefix], true)) {
-        path = paths[prefix] + "/" + suffix;
+      string path = paths[prefix];
+      if (utils::os::exists(path, true)) {
+        path += "/" + suffix;
 
         // Canonicalize the absolute path and make sure the result
         // doesn't break out of the chroot (i.e., resolving any '..'
@@ -175,6 +190,8 @@ Future<Response> FilesProcess::read(const Request& request)
 
         path = result.get();
       } else if (suffix != "") {
+        // Request is assuming attached path is a directory, but it is
+        // not! Rather than 'Bad Request', treat this as 'Not Found'.
         return NotFound();
       }
 
@@ -243,12 +260,24 @@ Future<Response> FilesProcess::read(const Request& request)
 
       std::ostringstream out;
 
+      if (jsonp.isSome()) {
+        out << jsonp.get() << "(";
+      }
+
       JSON::render(out, object);
 
       OK response;
-      response.headers["Content-Type"] = "application/json";
-      response.headers["Content-Length"] = stringify(out.str().size());
+
+      if (jsonp.isSome()) {
+        out << ");";
+        response.headers["Content-Type"] = "text/javascript";
+      } else {
+        response.headers["Content-Type"] = "application/json";
+      }
+
+      response.headers["Content-Length"] = utils::stringify(out.str().size());
       response.body = out.str().data();
+
       return response;
     }
   }
