@@ -352,7 +352,7 @@ Future<Response> log(
 
   off_t offset = -1;
   ssize_t length = -1;
-  string level = pairs.count("level") > 0 ? pairs["level"][0] : "INFO";
+  string level = "INFO";
 
   if (pairs.count("offset") > 0 && pairs["offset"].size() > 0) {
     Try<off_t> result = numify<off_t>(pairs["offset"].back());
@@ -374,6 +374,10 @@ Future<Response> log(
       return BadRequest();
     }
     length = result.get();
+  }
+
+  if (pairs.count("level") > 0 && pairs["level"].size() > 0) {
+    level = pairs["level"].back();
   }
 
   if (master.flags.log_dir.isNone()) {

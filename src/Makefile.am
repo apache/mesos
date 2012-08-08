@@ -159,9 +159,10 @@ libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
 	launcher/launcher.cpp exec/exec.cpp common/lock.cpp		\
 	detector/detector.cpp configurator/configurator.cpp		\
 	common/date_utils.cpp common/resources.cpp			\
-	common/attributes.cpp common/values.cpp logging/logging.cpp	\
-	zookeeper/zookeeper.cpp zookeeper/authentication.cpp		\
-	zookeeper/group.cpp messages/messages.proto
+	common/attributes.cpp common/values.cpp files/files.cpp		\
+	logging/logging.cpp zookeeper/zookeeper.cpp			\
+	zookeeper/authentication.cpp zookeeper/group.cpp		\
+	messages/messages.proto
 
 pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\
 		     $(top_srcdir)/include/mesos/scheduler.hpp	\
@@ -191,7 +192,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/type_utils.hpp common/thread.hpp common/units.hpp	\
 	common/values.hpp configurator/configuration.hpp		\
 	configurator/configurator.hpp configurator/option.hpp		\
-	detector/detector.hpp examples/utils.hpp flags/flag.hpp		\
+	detector/detector.hpp examples/utils.hpp files/files.hpp	\
 	flags/flags.hpp flags/loader.hpp launcher/launcher.hpp		\
 	linux/cgroups.hpp linux/fs.hpp linux/proc.hpp local/flags.hpp	\
 	local/local.hpp logging/flags.hpp logging/logging.hpp		\

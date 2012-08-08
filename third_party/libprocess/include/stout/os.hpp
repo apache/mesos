@@ -155,6 +155,10 @@ inline Try<bool> touch(const std::string& path)
     return Try<bool>::error("Failed to open file " + path);
   }
 
+  // TODO(benh): Is opening/closing sufficient to have the same
+  // semantics as the touch utility (i.e., doesn't the utility change
+  // the modified date)?
+
   Try<bool> result = close(fd.get());
 
   if (result.isError()) {
