@@ -198,6 +198,27 @@ void CgroupsIsolationModule::initialize(
     }
   }
 
+  // Try to cleanup the cgroups in the cgroups hierarchy root that belong to
+  // this module (which are created in the previous executions).
+  Try<std::vector<std::string> > cgroups = cgroups::getCgroups(hierarchy);
+  if (cgroups.isError()) {
+    LOG(FATAL) << "Failed to peek cgroups in hierarchy " << hierarchy
+               << ": " << cgroups.error();
+  }
+
+  foreach (const std::string cgroup, cgroups.get()) {
+    if (isValidCgroupName(cgroup)) {
+      LOG(INFO) << "Removing stale cgroup " << cgroup
+                << " in hierarchy " << hierarchy;
+      Future<bool> future = cgroups::destroyCgroup(hierarchy, cgroup);
+      future.onAny(
+          defer(PID<CgroupsIsolationModule>(this),
+                &CgroupsIsolationModule::destroyWaited,
+                cgroup,
+                future));
+    }
+  }
+
   // Configure resource subsystem mapping.
   resourceSubsystemMap["cpus"] = "cpu";
   resourceSubsystemMap["mem"] = "memory";
@@ -365,9 +386,7 @@ void CgroupsIsolationModule::killExecutor(
   future.onAny(
       defer(PID<CgroupsIsolationModule>(this),
             &CgroupsIsolationModule::destroyWaited,
-            frameworkId,
-            executorId,
-            info->tag,
+            getCgroupName(frameworkId, executorId),
             future));
 
   // We do not unregister the cgroup info here, instead, we ask the process
@@ -629,19 +648,14 @@ void CgroupsIsolationModule::oom(
 
 
 void CgroupsIsolationModule::destroyWaited(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
-    const std::string& tag,
+    const std::string& cgroup,
     const Future<bool>& future)
 {
   if (future.isReady()) {
-    LOG(INFO) << "Successfully destroyed the cgroup for executor "
-              << executorId << " of framework " << frameworkId
-              << " with tag " << tag;
+    LOG(INFO) << "Successfully destroyed the cgroup " << cgroup;
   } else {
-    LOG(FATAL) << "Failed to destroy the cgroup for executor "
-               << executorId << " of framework " << frameworkId
-               << " with tag " << tag << ": " << future.failure();
+    LOG(FATAL) << "Failed to destroy the cgroup " << cgroup
+               << ": " << future.failure();
   }
 }
 
@@ -716,6 +730,19 @@ std::string CgroupsIsolationModule::getCgroupName(
       << "_executor_" << executorId
       << "_tag_" << info->tag;
   return out.str();
+}
+
+
+bool CgroupsIsolationModule::isValidCgroupName(const std::string& name)
+{
+  std::string trimmedName = strings::trim(name, "/");
+  if (strings::startsWith(trimmedName, "mesos_cgroup_framework_") &&
+      strings::contains(trimmedName, "_executor_") &&
+      strings::contains(trimmedName, "_tag_")) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 } // namespace mesos {

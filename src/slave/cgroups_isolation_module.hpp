@@ -145,13 +145,9 @@ private:
            const std::string& tag);
 
   // This callback is invoked when destroy cgroup has a result.
-  // @param   frameworkId   The id of the given framework.
-  // @param   executorId    The id of the given executor.
-  // @param   tag           The uuid tag.
+  // @param   cgroup        The cgroup that is being destroyed.
   // @param   future        The future describing the destroy process.
-  void destroyWaited(const FrameworkID& frameworkId,
-                     const ExecutorID& executorId,
-                     const std::string& tag,
+  void destroyWaited(const std::string& cgroup,
                      const process::Future<bool>& future);
 
   // Register a cgroup in the isolation module.
@@ -186,6 +182,12 @@ private:
   // @return  The canonicalized name of the cgroup.
   std::string getCgroupName(const FrameworkID& frameworkId,
                             const ExecutorID& executorId);
+
+  // Return true if the given name is a valid cgroup name used by this isolation
+  // module.
+  // @param   name          The name to check.
+  // @return  True if the given name is valid cgroup name, False otherwise.
+  bool isValidCgroupName(const std::string& name);
 
   Flags flags;
   bool local;
