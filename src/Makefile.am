@@ -193,10 +193,11 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/values.hpp configurator/configuration.hpp		\
 	configurator/configurator.hpp configurator/option.hpp		\
 	detector/detector.hpp examples/utils.hpp files/files.hpp	\
-	flags/flags.hpp flags/loader.hpp launcher/launcher.hpp		\
-	linux/cgroups.hpp linux/fs.hpp linux/proc.hpp local/flags.hpp	\
-	local/local.hpp logging/flags.hpp logging/logging.hpp		\
-	master/allocator.hpp master/constants.hpp master/flags.hpp	\
+	flags/flag.hpp flags/flags.hpp flags/loader.hpp			\
+	launcher/launcher.hpp linux/cgroups.hpp linux/fs.hpp		\
+	linux/proc.hpp local/flags.hpp local/local.hpp			\
+	logging/flags.hpp logging/logging.hpp master/allocator.hpp	\
+	master/constants.hpp master/flags.hpp				\
 	master/frameworks_manager.hpp master/http.hpp			\
 	master/master.hpp master/dominant_share_allocator.hpp		\
 	master/slaves_manager.hpp master/webui.hpp			\
