@@ -45,6 +45,7 @@
 
 #include "linux/cgroups.hpp"
 #include "linux/fs.hpp"
+#include "linux/proc.hpp"
 
 using namespace process;
 using namespace mesos::internal;
@@ -1069,6 +1070,44 @@ private:
       promise.set(true);
       terminate(self());
     } else if (strings::trim(state.get()) == "FREEZING") {
+      // The freezer.state is in FREEZING state. This is because not all the
+      // processes in the given cgroup can be frozen at the moment. The main
+      // cause is that some of the processes are in stopped/traced state ('T'
+      // state shown in ps command). It is likely that the freezer.state keeps
+      // in FREEZING state if these stopped/traced processes are not resumed.
+      // Therefore, here we send SIGCONT to those stopped/traced processes to
+      // make sure that the freezer can finish.
+      // TODO(jieyu): This code can be removed in the future as the newer
+      // version of the kernel solves this problem (e.g. Linux-3.2.0).
+      Try<std::set<pid_t> > pids = getTasks(hierarchy, cgroup);
+      if (pids.isError()) {
+        promise.fail(pids.error());
+        terminate(self());
+        return;
+      }
+
+      // We don't need to worry about the race condition here as it is not
+      // possible to add new processes into this cgroup or remove processes from
+      // this cgroup when freezer.state is in FREEZING state.
+      foreach (pid_t pid, pids.get()) {
+        Try<proc::ProcessStatistics> stat = proc::stat(pid);
+        if (stat.isError()) {
+          promise.fail(pids.error());
+          terminate(self());
+          return;
+        }
+
+        // Check whether the process is in stopped/traced state.
+        if (stat.get().state == 'T') {
+          // Send a SIGCONT signal to the process.
+          if (::kill(pid, SIGCONT) == -1) {
+            promise.fail(strerror(errno));
+            terminate(self());
+            return;
+          }
+        }
+      }
+
       // Not done yet, keep watching.
       delay(interval.value, self(), &Freezer::watchFrozen);
     } else {
