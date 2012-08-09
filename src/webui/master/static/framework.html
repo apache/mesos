@@ -52,11 +52,11 @@
         <dt>CPUs:</dt>
         <dd>{{framework.resources.cpus}}</dd>
         <dt>Mem:</dt>
-        <dd>{{framework.resources.mem / 1024}} GB</dd>
+        <dd>{{framework.resources.mem / 1024 | number:2}} GB</dd>
       </dl>
     </div>
   </div>
-    
+
   <div class="span9">
     <h2 id="frameworks">Active Tasks</h2>
     <table class="table table-striped table-bordered table-condensed">

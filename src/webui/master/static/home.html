@@ -51,22 +51,22 @@
           <tr>
             <th>Total</th>
             <td>{{total_cpus}}</td>
-            <td>{{total_mem / 1024}} GB</td>
+            <td>{{total_mem / 1024 | number:2}} GB</td>
           </tr>
           <tr>
             <th>Used</th>
             <td>{{used_cpus}}</td>
-            <td>{{used_mem / 1024}} GB</td>
+            <td>{{used_mem / 1024 | number:2}} GB</td>
           </tr>
           <tr>
             <th>Offered</th>
             <td>{{offered_cpus}}</td>
-            <td>{{offered_mem / 1024}} GB</td>
+            <td>{{offered_mem / 1024 | number:2}} GB</td>
           </tr>
           <tr>
             <th>Idle</th>
             <td>{{idle_cpus}}</td>
-            <td>{{idle_mem / 1024}} GB</td>
+            <td>{{idle_mem / 1024 | number:2}} GB</td>
           </tr>
         </tbody>
       </table>
@@ -103,8 +103,8 @@
           <td><a href="{{'#/framework/' + framework.id}}">{{framework.name}}</a></td>
           <td>{{framework.tasks.length}}</td>
           <td>{{framework.resources.cpus}}</td>
-          <td>{{framework.resources.mem / 1024}} GB</td>
-          <td>{{framework.max_share * 100}}%</td>
+          <td>{{framework.resources.mem / 1024 | number:2}} GB</td>
+          <td>{{framework.max_share * 100 | number:2}}%</td>
           <td>
             <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
               {{framework.registered_time * 1000 | relativeDate}}
@@ -142,7 +142,7 @@
         </td>
         <td><a href="#/slave/{{slave.id}}">{{slave.hostname}}</a></td>
         <td>{{slave.resources.cpus}}</td>
-        <td>{{slave.resources.mem / 1024}} GB</td>
+        <td>{{slave.resources.mem / 1024 | number:2}} GB</td>
         <td>
           <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
             {{slave.registered_time * 1000 | relativeDate}}
@@ -158,7 +158,8 @@
           <th>ID</th>
           <th>Framework</th>
           <th>Host</th>
-          <th>Resources</th>
+          <th>CPUs</th>
+          <th>Mem</th>
         </tr>
       </thead>
       <tbody>
@@ -172,7 +173,8 @@
               {{slaves[offer.slave_id].hostname}}
             </a>
           </td>
-          <td>{{offer.resources}}</td>
+          <td>{{offer.resources.cpus}}</td>
+          <td>{{offer.resources.mem / 1024 | number:2}} GB</td>
         </tr>
       </tbody>
     </table>
