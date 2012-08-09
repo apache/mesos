@@ -1257,48 +1257,35 @@ protected:
     }
 
     lambda::function<Future<bool>(const bool&)>
-      funcFreeze = defer(self(), &TasksKiller::freeze);
+      funcFreeze = defer(self(), &Self::freeze);
     lambda::function<Future<bool>(const bool&)>
-      funcKill = defer(self(), &TasksKiller::kill);
+      funcKill = defer(self(), &Self::kill);
     lambda::function<Future<bool>(const bool&)>
-      funcThaw = defer(self(), &TasksKiller::thaw);
+      funcThaw = defer(self(), &Self::thaw);
     lambda::function<Future<bool>(const bool&)>
-      funcEmpty = defer(self(), &TasksKiller::empty);
+      funcEmpty = defer(self(), &Self::empty);
 
-    Future<bool> finish = Future<bool>(true)
+    finish = Future<bool>(true)
       .then(funcFreeze)   // Freeze the cgroup.
       .then(funcKill)     // Send kill signals to all tasks in the cgroup.
       .then(funcThaw)     // Thaw the cgroup to let kill signals be received.
       .then(funcEmpty);   // Wait until no task in the cgroup.
 
-    finish.onAny(defer(self(), &TasksKiller::finished, finish));
+    finish.onAny(defer(self(), &Self::finished));
   }
 
   virtual void finalize()
   {
     // Cancel the operation if the user discards the future.
     if (promise.future().isDiscarded()) {
-      // TODO(jieyu): We manually discard the pending futures here because
-      // Future::then does not handle cascading discard. The correct semantics
-      // for Future::then is: if we discard an "outer" future, we need to make
-      // sure we clean up all the other dependent futures as well (cascading
-      // discard). This code will be removed once we fix the bug in
-      // Future::then function.
-      if (futureFreeze.isPending()) {
-        futureFreeze.discard();
-      } else if (futureThaw.isPending()) {
-        futureThaw.discard();
-      } else if (futureEmpty.isPending()) {
-        futureEmpty.discard();
-      }
+      finish.discard();
     }
   }
 
 private:
   Future<bool> freeze()
   {
-    futureFreeze = freezeCgroup(hierarchy, cgroup, interval);
-    return futureFreeze;
+    return freezeCgroup(hierarchy, cgroup, interval);
   }
 
   Future<bool> kill()
@@ -1320,8 +1307,7 @@ private:
 
   Future<bool> thaw()
   {
-    futureThaw = thawCgroup(hierarchy, cgroup, interval);
-    return futureThaw;
+    return thawCgroup(hierarchy, cgroup, interval);
   }
 
   Future<bool> empty()
@@ -1332,14 +1318,19 @@ private:
     return futureEmpty;
   }
 
-  void finished(const Future<bool>& finish)
+  void finished()
   {
+    // The only place that 'finish' can be discarded is in the finalize
+    // function. Once the process has been terminated, we should not be able to
+    // see any function in this process being called because the dispatch will
+    // simply drop those messages. So, we should never see 'finish' in discarded
+    // state here.
     CHECK(!finish.isPending() && !finish.isDiscarded());
 
-    if (finish.isReady()) {
-      promise.set(true);
-    } else if (finish.isFailed()) {
+    if (finish.isFailed()) {
       promise.fail(finish.failure());
+    } else {
+      promise.set(true);
     }
 
     terminate(self());
@@ -1349,11 +1340,7 @@ private:
   std::string cgroup;
   const seconds interval;
   Promise<bool> promise;
-
-  // Intermediate futures (used for asynchronous cancellation).
-  Future<bool> futureFreeze;
-  Future<bool> futureThaw;
-  Future<bool> futureEmpty;
+  Future<bool> finish;
 };
 
 } // namespace internal {
