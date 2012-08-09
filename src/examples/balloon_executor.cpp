@@ -31,15 +31,19 @@
 using namespace mesos;
 
 
+// The amount of memory in MB each balloon step consumes.
+const static size_t BALLOON_STEP_MB = 64;
+
+
 // This function will increase the memory footprint gradually. The parameter
 // limit specifies the upper limit (in MB) of the memory footprint. The
 // parameter step specifies the step size (in MB).
-static void balloon(size_t limit, size_t step)
+static void balloon(size_t limit)
 {
-  size_t chunk = step * 1024 * 1024;
-  for (size_t i = 0; i < limit / step; i++) {
+  size_t chunk = BALLOON_STEP_MB * 1024 * 1024;
+  for (size_t i = 0; i < limit / BALLOON_STEP_MB; i++) {
     std::cout << "Increasing memory footprint by "
-              << step << " MB" << std::endl;
+              << BALLOON_STEP_MB << " MB" << std::endl;
 
     // Allocate virtual memory.
     char* buffer = (char *)malloc(chunk);
@@ -66,11 +70,6 @@ public:
                           const FrameworkInfo& frameworkInfo,
                           const SlaveInfo& slaveInfo)
   {
-    // Setup balloon step.
-    Try<size_t> step = numify<size_t>(executorInfo.data());
-    assert(step.isSome());
-    balloonStep = step.get();
-
     std::cout << "Registered" << std::endl;
   }
 
@@ -105,7 +104,7 @@ public:
     // of memory allocated to this executor. In that case, the isolation module
     // (e.g. cgroups) should be able to detect that and the task should not be
     // able to reach TASK_FINISHED state.
-    balloon(balloonLimit, balloonStep);
+    balloon(balloonLimit);
 
     std::cout << "Finishing task " << task.task_id().value() << std::endl;
 
@@ -134,10 +133,6 @@ public:
   {
     std::cout << "Error message: " << message << std::endl;
   }
-
-private:
-  // The amount of memory in MB each balloon step consumes.
-  size_t balloonStep;
 };
 
 

@@ -39,9 +39,6 @@ using namespace mesos;
 // The amount of memory in MB the executor itself takes.
 const static size_t EXECUTOR_MEMORY_MB = 64;
 
-// The amount of memory in MB each balloon step consumes.
-const static size_t BALLOON_STEP_MB = 64;
-
 
 class BalloonScheduler : public Scheduler
 {
@@ -192,7 +189,6 @@ int main(int argc, char** argv)
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_command()->set_value(uri);
-  executor.set_data(stringify<size_t>(BALLOON_STEP_MB));
 
   Resource* mem = executor.add_resources();
   mem->set_name("mem");
