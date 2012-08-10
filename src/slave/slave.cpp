@@ -364,7 +364,33 @@ void Slave::registered(const SlaveID& slaveId)
 
   connected = true;
 
-  garbageCollectSlaveDirs(path::join(flags.work_dir, "slaves"));
+  // Schedule all old slave directories to get garbage
+  // collected. TODO(benh): It's unclear if we really need/want to
+  // wait until the slave is registered to do this.
+  hours timeout(flags.gc_timeout_hours);
+
+  const string& directory = path::join(flags.work_dir, "slaves");
+
+  foreach (const string& file, os::ls(directory)) {
+    const string& path = path::join(directory, file);
+
+    // Check that this path is a directory but not our directory!
+    if (os::exists(path, true) && file != id.value()) {
+
+      Try<long> time = os::mtime(path);
+
+      if (time.isSome()) {
+        // Schedule the directory to be removed after some remaining
+        // delta of the timeout and last modification time.
+        seconds delta(timeout.secs() - (Clock::now() - time.get()));
+        gc.schedule(delta, path);
+      } else {
+        LOG(WARNING) << "Failed to get the modification time of "
+                     << path << ": " << time.error();
+        gc.schedule(timeout, path);
+      }
+    }
+  }
 }
 
 
@@ -1411,7 +1437,9 @@ void Slave::executorExited(const FrameworkID& frameworkId,
     send(master, message);
   }
 
-  garbageCollectExecutorDir(executor->directory);
+  // Schedule the executor directory to get garbage collected.
+  gc.schedule(hours(flags.gc_timeout_hours), executor->directory);
+
   framework->destroyExecutor(executor->id);
 }
 
@@ -1454,7 +1482,9 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
              &IsolationModule::killExecutor,
              framework->id, executor->id);
 
-    garbageCollectExecutorDir(executor->directory);
+    // Schedule the executor directory to get garbage collected.
+    gc.schedule(hours(flags.gc_timeout_hours), executor->directory);
+
     framework->destroyExecutor(executor->id);
   }
 
@@ -1462,48 +1492,6 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
   if (framework->executors.size() == 0) {
     frameworks.erase(framework->id);
     delete framework;
-  }
-}
-
-
-void Slave::garbageCollectExecutorDir(const string& dir)
-{
-  hours timeout(flags.gc_timeout_hours);
-  std::list<string> result;
-
-  LOG(INFO) << "Scheduling executor directory " << dir << " for deletion";
-  result.push_back(dir);
-
-  delay(timeout.secs(), self(), &Slave::garbageCollect, result);
-}
-
-
-void Slave::garbageCollectSlaveDirs(const string& dir)
-{
-  hours timeout(flags.gc_timeout_hours);
-
-  std::list<string> result;
-
-  foreach (const string& d, os::listdir(dir)) {
-    if (d != "." && d != ".." && d != id.value()) {
-      const string& path = dir + "/" + d;
-      Try<long> modtime = os::modtime(path);
-      if (os::exists(path, true) && // Check if its a directory.
-        modtime.isSome() && (Clock::now() - modtime.get()) > timeout.secs()) {
-        LOG(INFO) << "Scheduling slave directory " << path << " for deletion";
-        result.push_back(path);
-      }
-    }
-  }
-  garbageCollect(result); // Delete these right away.
-}
-
-
-void Slave::garbageCollect(const std::list<string>& directories)
-{
-  foreach (const string& dir, directories) {
-    LOG(INFO) << "Deleting directory " << dir;
-    os::rmdir(dir);
   }
 }
 

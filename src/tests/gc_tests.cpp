@@ -66,7 +66,7 @@ using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
 
-class SlaveTest : public ::testing::Test
+class GarbageCollectorTest : public ::testing::Test
 {
 protected:
   static void SetUpTestCase()
@@ -176,6 +176,7 @@ protected:
   MockScheduler sched;
   MesosSchedulerDriver* driver;
   trigger resourceOffersCall;
+  SlaveRegisteredMessage registeredMsg;
   vector<Offer> offers;
   TaskStatus status;
   vector<TaskInfo> tasks;
@@ -187,18 +188,19 @@ protected:
 
 
 // Initialize static members here.
-flags::Flags<logging::Flags, slave::Flags> SlaveTest::flags;
+flags::Flags<logging::Flags, slave::Flags> GarbageCollectorTest::flags;
 
 
-TEST_F(SlaveTest, GarbageCollectSlaveDirs)
+TEST_F(GarbageCollectorTest, Restart)
 {
   process::Message message;
-  trigger slaveRegisteredMsg;
+  trigger slaveRegisteredMsg1, slaveRegisteredMsg2;
   EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
-    .WillRepeatedly(DoAll(
+    .WillOnce(DoAll(
         SaveArgField<0>(&process::MessageEvent::message, &message),
-        Trigger(&slaveRegisteredMsg),
-        Return(false)));
+        Trigger(&slaveRegisteredMsg1),
+        Return(false)))
+    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg2), Return(false)));
 
   trigger lostSlaveMsg;
   EXPECT_MESSAGE(filter, Eq(LostSlaveMessage().GetTypeName()), _, _)
@@ -210,67 +212,60 @@ TEST_F(SlaveTest, GarbageCollectSlaveDirs)
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillRepeatedly(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)));
 
-  trigger statusUpdateCall, statusUpdateCall2;
+  trigger statusUpdateCall;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)))
-    .WillOnce(Return()) // Ignore the TASK_LOST update.
-    .WillOnce(Trigger(&statusUpdateCall2));
+    .WillRepeatedly(Return()); // Ignore remaining updates (e.g., TASK_LOST).
 
   EXPECT_CALL(sched, slaveLost(_, _))
     .Times(1);
 
-  // Start the slave.
   startSlave();
+
+  WAIT_UNTIL(slaveRegisteredMsg1);
+
+  // Capture the slave id.
+  registeredMsg.ParseFromString(message.body);
+  SlaveID slaveId = registeredMsg.slave_id();
 
   driver->start();
 
   WAIT_UNTIL(resourceOffersCall);
+
   launchTask();
 
   WAIT_UNTIL(statusUpdateCall);
 
   EXPECT_EQ(TASK_RUNNING, status.state());
 
-  SlaveRegisteredMessage registeredMsg;
-
-  WAIT_UNTIL(slaveRegisteredMsg); // Capture the slave id.
-  registeredMsg.ParseFromString(message.body);
-  SlaveID slaveId = registeredMsg.slave_id();
-
-  // Make sure directory exists.
+  // Make sure directory exists. Need to do this AFTER getting a
+  // status update for a task because the directory won't get created
+  // until the SlaveRegisteredMessage has been received.
   const std::string& slaveDir = flags.work_dir + "/slaves/" + slaveId.value();
   ASSERT_TRUE(os::exists(slaveDir));
 
   Clock::pause();
 
-  // Advance the clock and restart the slave.
   stopSlave();
-
-  hours timeout(slave::GC_TIMEOUT_HOURS);
-  Clock::advance(timeout.secs());
 
   WAIT_UNTIL(lostSlaveMsg);
 
-  // Reset the triggers.
-  slaveRegisteredMsg.value = false;
-  resourceOffersCall.value = false;
-
   startSlave();
 
-  WAIT_UNTIL(slaveRegisteredMsg); // Capture the new slave id.
-  registeredMsg.ParseFromString(message.body);
-  SlaveID slaveId2 = registeredMsg.slave_id();
+  // In order to make sure the slave has scheduled some directories to
+  // get garbaged collected we need to wait until the slave has been
+  // registered. TODO(benh): We really need to wait until the
+  // GarbageCollectorProcess has dispatched a message back to itself.
+  WAIT_UNTIL(slaveRegisteredMsg2);
 
-  WAIT_UNTIL(resourceOffersCall);
-  launchTask();
+  sleep(1);
 
-  WAIT_UNTIL(statusUpdateCall2);
+  Clock::advance(hours(flags.gc_timeout_hours).secs());
 
-  // By this time the old slave directory should be cleaned up and
-  // the new directory should exist.
+  Clock::settle();
+
+  // By this time the old slave directory should be cleaned up.
   ASSERT_FALSE(os::exists(slaveDir));
-  ASSERT_TRUE(os::exists(flags.work_dir + "/slaves/" +
-                                slaveId2.value()));
 
   Clock::resume();
 
@@ -279,10 +274,11 @@ TEST_F(SlaveTest, GarbageCollectSlaveDirs)
 }
 
 
-TEST_F(SlaveTest, GarbageCollectExecutorDir)
+TEST_F(GarbageCollectorTest, ExitedExecutor)
 {
-  trigger runTaskMsg;
-  process::Message message;
+  trigger exitedExecutorMsg;
+  EXPECT_MESSAGE(filter, Eq(ExitedExecutorMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(Trigger(&exitedExecutorMsg), Return(false)));
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -291,60 +287,51 @@ TEST_F(SlaveTest, GarbageCollectExecutorDir)
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillRepeatedly(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)));
 
-  trigger statusUpdateCall, statusUpdateCall2;
+  trigger statusUpdateCall;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)))
     .WillOnce(Return()) // Ignore the TASK_LOST update.
     .WillRepeatedly(Trigger(&statusUpdateCall));
 
-  // Start the slave.
   startSlave();
 
   driver->start();
 
   WAIT_UNTIL(resourceOffersCall);
+
   launchTask();
 
   WAIT_UNTIL(statusUpdateCall);
 
   EXPECT_EQ(TASK_RUNNING, status.state());
 
-  const std::string executorDir =
-      isolationModule->directories[DEFAULT_EXECUTOR_ID];
+  const std::string& executorDir =
+    isolationModule->directories[DEFAULT_EXECUTOR_ID];
 
   ASSERT_TRUE(os::exists(executorDir));
 
-  statusUpdateCall.value = false;
-  resourceOffersCall.value = false;
+  Clock::pause();
 
   // Kill the executor and inform the slave.
   isolationModule->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
+
   process::dispatch(slave, &Slave::executorExited, frameworkId,
                     DEFAULT_EXECUTOR_ID, 0);
 
-  statusUpdateCall.value = false;
-  WAIT_UNTIL(resourceOffersCall);
-  launchTask();
-  WAIT_UNTIL(statusUpdateCall); // TASK_RUNNING
+  // In order to make sure the slave has scheduled the executor
+  // directory to get garbage collected we need to wait until the
+  // slave has sent the ExecutorExited message. TODO(benh): We really
+  // need to wait until the GarbageCollectorProcess has dispatched a
+  // message back to itself.
+  WAIT_UNTIL(exitedExecutorMsg);
 
-  Clock::pause();
+  sleep(1);
 
-  hours timeout(slave::GC_TIMEOUT_HOURS);
-  Clock::advance(timeout.secs());
+  Clock::advance(hours(flags.gc_timeout_hours).secs());
 
-  // Kill the new executor and inform the slave.
-  // We do this to make sure we can capture an event (TASK_LOST) that tells us
-  // that the slave has processed its previous message (garbageCollect).
-  isolationModule->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
-  process::dispatch(slave, &Slave::executorExited, frameworkId,
-                    DEFAULT_EXECUTOR_ID, 0);
+  Clock::settle();
 
-  statusUpdateCall.value = false;
-  WAIT_UNTIL(resourceOffersCall);
-  launchTask();
-  WAIT_UNTIL(statusUpdateCall); // TASK_LOST
-
-  // First executor's directory should be gced by now.
+  // First executor's directory should be gc'ed by now.
   ASSERT_FALSE(os::exists(executorDir));
 
   Clock::resume();

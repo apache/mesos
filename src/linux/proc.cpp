@@ -22,10 +22,10 @@ Try<set<pid_t> > pids()
 {
   set<pid_t> pids;
 
-  foreach (const string& path, os::listdir("/proc")) {
-    Try<pid_t> pid = numify<pid_t>(path);
+  foreach (const string& file, os::ls("/proc")) {
+    Try<pid_t> pid = numify<pid_t>(file);
 
-    // Ignore paths that can't be numified.
+    // Ignore files that can't be numified.
     if (pid.isSome()) {
       pids.insert(pid.get());
     }

@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <glog/logging.h>
@@ -315,12 +316,13 @@ inline bool exists(const std::string& path, bool directory = false)
 }
 
 
-inline Try<long> modtime(const std::string& path)
+// TODO(benh): Put this in the 'paths' or 'files' or 'fs' namespace.
+inline Try<long> mtime(const std::string& path)
 {
   struct stat s;
 
   if (::stat(path.c_str(), &s) < 0) {
-    return Try<long>::error("Cannot stat " + path + " for modification time");
+    return Try<long>::error(strerror(errno));
   }
 
   return s.st_mtime;
@@ -480,7 +482,7 @@ inline std::string getcwd()
 }
 
 
-inline std::list<std::string> listdir(const std::string& directory)
+inline std::list<std::string> ls(const std::string& directory)
 {
   std::list<std::string> result;
 
@@ -519,6 +521,9 @@ inline std::list<std::string> listdir(const std::string& directory)
   int error;
 
   while ((error = readdir_r(dir, temp, &entry)) == 0 && entry != NULL) {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+      continue;
+    }
     result.push_back(entry->d_name);
   }
 
@@ -548,7 +553,7 @@ inline Try<std::list<std::string> > find(const std::string& directory,
     return Try<std::list<std::string> >::error("Directory " + directory + " doesn't exist!");
   }
 
-  foreach (const std::string& entry, listdir(directory)) {
+  foreach (const std::string& entry, ls(directory)) {
     if (entry == "." || entry == "..") {
       continue;
     }

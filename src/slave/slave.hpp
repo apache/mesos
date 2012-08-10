@@ -30,6 +30,7 @@
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
+#include "slave/gc.hpp"
 #include "slave/http.hpp"
 #include "slave/isolation_module.hpp"
 
@@ -142,16 +143,6 @@ protected:
                                const ExecutorID& executorId,
                                const UUID& uuid);
 
-  // Schedules the executor directory for deletion after a timeout.
-  void garbageCollectExecutorDir(const std::string& directory);
-
-  // Schedules old slave directories under the given directory root
-  // for deletion after a timeout.
-  void garbageCollectSlaveDirs(const std::string& directory);
-
-  // Actually deletes the directories.
-  void garbageCollect(const std::list<std::string>& directories);
-
 //   // Create a new status update stream.
 //   StatusUpdates* createStatusUpdateStream(const StatusUpdateStreamID& streamId,
 //                                           const string& directory);
@@ -210,6 +201,7 @@ private:
   bool connected; // Flag to indicate if slave is registered.
 
   Files files;
+  GarbageCollector gc;
 };
 
 

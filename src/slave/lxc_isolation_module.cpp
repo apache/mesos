@@ -161,7 +161,7 @@ void LxcIsolationModule::launchExecutor(
     // Close unnecessary file descriptors. Note that we are assuming
     // stdin, stdout, and stderr can ONLY be found at the POSIX
     // specified file numbers (0, 1, 2).
-    foreach (const string& entry, os::listdir("/proc/self/fd")) {
+    foreach (const string& entry, os::ls("/proc/self/fd")) {
       if (entry != "." && entry != "..") {
         try {
           int fd = boost::lexical_cast<int>(entry);

@@ -153,8 +153,8 @@ nodist_libmesos_no_third_party_la_SOURCES = $(CXX_PROTOS) $(MESSAGES_PROTOS)
 libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
 	master/master.cpp master/http.cpp master/slaves_manager.cpp	\
 	master/frameworks_manager.cpp					\
-	master/dominant_share_allocator.cpp slave/slave.cpp		\
-	slave/http.cpp slave/isolation_module.cpp			\
+	master/dominant_share_allocator.cpp slave/gc.cpp		\
+	slave/slave.cpp slave/http.cpp slave/isolation_module.cpp	\
 	slave/process_based_isolation_module.cpp slave/reaper.cpp	\
 	launcher/launcher.cpp exec/exec.cpp common/lock.cpp		\
 	detector/detector.cpp configurator/configurator.cpp		\
@@ -202,7 +202,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	master/master.hpp master/dominant_share_allocator.hpp		\
 	master/slaves_manager.hpp master/webui.hpp			\
 	messages/messages.hpp slave/constants.hpp slave/flags.hpp	\
-	slave/http.hpp slave/isolation_module.hpp			\
+	slave/gc.hpp slave/http.hpp slave/isolation_module.hpp		\
 	slave/isolation_module_factory.hpp				\
 	slave/cgroups_isolation_module.hpp				\
 	slave/lxc_isolation_module.hpp					\
@@ -764,7 +764,7 @@ check_PROGRAMS += mesos-tests
 
 mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/master_tests.cpp tests/state_tests.cpp	\
-	              tests/slave_tests.cpp				\
+	              tests/gc_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
 	              tests/flags_tests.cpp tests/log_tests.cpp		\

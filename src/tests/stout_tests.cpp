@@ -172,7 +172,7 @@ TEST(StoutStringsTest, Contains)
 static hashset<std::string> listfiles(const std::string& dir)
 {
   hashset<std::string> fileset;
-  foreach (const std::string& file, os::listdir(dir)) {
+  foreach (const std::string& file, os::ls(dir)) {
     fileset.insert(file);
   }
   return fileset;
@@ -200,41 +200,39 @@ protected:
 TEST_F(StoutUtilsTest, rmdir)
 {
   // TODO(John Sirois): It would be good to use something like mkdtemp, but
-  //abstract away a proper platform independent /tmp dir.
+  // abstract away a proper platform independent /tmp dir.
 
-  hashset<std::string> emptyListing;
-  emptyListing.insert(".");
-  emptyListing.insert("..");
+  const hashset<std::string> EMPTY;
 
-  hashset<std::string> expectedListing = emptyListing;
+  hashset<std::string> expectedListing = EMPTY;
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
 
   os::mkdir(tmpdir + "/a/b/c");
   os::mkdir(tmpdir + "/a/b/d");
   os::mkdir(tmpdir + "/e/f");
 
-  expectedListing = emptyListing;
+  expectedListing = EMPTY;
   expectedListing.insert("a");
   expectedListing.insert("e");
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
 
-  expectedListing = emptyListing;
+  expectedListing = EMPTY;
   expectedListing.insert("b");
   EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a"));
 
-  expectedListing = emptyListing;
+  expectedListing = EMPTY;
   expectedListing.insert("c");
   expectedListing.insert("d");
   EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a/b"));
 
-  expectedListing = emptyListing;
+  expectedListing = EMPTY;
   EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a/b/c"));
   EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a/b/d"));
 
   expectedListing.insert("f");
   EXPECT_EQ(expectedListing, listfiles(tmpdir + "/e"));
 
-  expectedListing = emptyListing;
+  expectedListing = EMPTY;
   EXPECT_EQ(expectedListing, listfiles(tmpdir + "/e/f"));
 }
 
