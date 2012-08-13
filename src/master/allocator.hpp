@@ -24,6 +24,7 @@
 
 #include "common/resources.hpp"
 
+#include "master/flags.hpp"
 #include "master/master.hpp"
 
 
@@ -41,7 +42,8 @@ class Allocator : public process::Process<Allocator> {
 public:
   virtual ~Allocator() {}
 
-  virtual void initialize(const process::PID<Master>& master) = 0;
+  virtual void initialize(const Flags& flags,
+                          const process::PID<Master>& master) = 0;
 
   virtual void frameworkAdded(const FrameworkID& frameworkId,
                               const FrameworkInfo& frameworkInfo,

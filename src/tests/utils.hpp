@@ -237,7 +237,7 @@ class MockAllocator : public master::Allocator
 {
 public:
   MockAllocator() {
-    ON_CALL(*this, initialize(_))
+    ON_CALL(*this, initialize(_, _))
       .WillByDefault(Invoke(&real, &T::initialize));
 
     ON_CALL(*this, frameworkAdded(_, _, _))
@@ -270,7 +270,8 @@ public:
     ON_CALL(*this, offersRevived(_))
       .WillByDefault(Invoke(&real, &T::offersRevived));
   }
-  MOCK_METHOD1(initialize, void(const process::PID<master::Master>&));
+  MOCK_METHOD2(initialize, void(const master::Flags&,
+                                const process::PID<master::Master>&));
   MOCK_METHOD3(frameworkAdded, void(const FrameworkID&,
                                     const FrameworkInfo&,
                                     const Resources&));

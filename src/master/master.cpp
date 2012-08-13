@@ -321,7 +321,7 @@ void Master::initialize()
 
   // Spawn the allocator.
   spawn(allocator);
-  dispatch(allocator, &Allocator::initialize, self());
+  dispatch(allocator, &Allocator::initialize, flags, self());
 
   // Parse the white list
   whitelistWatcher = new WhitelistWatcher(flags.whitelist, allocator);
@@ -752,8 +752,6 @@ void Master::launchTasks(const FrameworkID& frameworkId,
                          const vector<TaskInfo>& tasks,
                          const Filters& filters)
 {
-  LOG(INFO) << "Received reply for offer " << offerId;
-
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
     // TODO(benh): Support offer "hoarding" and allow multiple offers
@@ -1428,6 +1426,11 @@ void Master::processTasks(Offer* offer,
                           const vector<TaskInfo>& tasks,
                           const Filters& filters)
 {
+  VLOG(1) << "Processing reply for offer " << offer->id()
+          << " on slave " << slave->id
+          << " (" << slave->info.hostname() << ")"
+          << " for framework " << framework->id;
+
   Resources usedResources; // Accumulated resources used from this offer.
 
   // Create task visitors.

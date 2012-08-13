@@ -26,7 +26,7 @@
 #include <stout/option.hpp>
 
 #include "master/allocator.hpp"
-
+#include "master/flags.hpp"
 
 namespace mesos {
 namespace internal {
@@ -44,7 +44,13 @@ public:
 
   virtual ~DominantShareAllocator() {}
 
-  virtual void initialize(const process::PID<Master>& master);
+  process::PID<DominantShareAllocator> self()
+  {
+    return process::PID<DominantShareAllocator>(this);
+  }
+
+  virtual void initialize(const Flags& flags,
+                          const process::PID<Master>& master);
 
   virtual void frameworkAdded(const FrameworkID& frameworkId,
                               const FrameworkInfo& frameworkInfo,
@@ -84,6 +90,9 @@ public:
   virtual void offersRevived(const FrameworkID& frameworkId);
 
 private:
+  // Callback for doing batch allocations.
+  void batch();
+
   // Allocate any allocatable resources.
   void allocate();
 
@@ -101,6 +110,7 @@ private:
 
   bool initialized;
 
+  Flags flags;
   process::PID<Master> master;
 
   // Frameworks that are currently active.

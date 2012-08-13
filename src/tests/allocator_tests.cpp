@@ -92,7 +92,7 @@ TEST(AllocatorTest, DominantShareAllocator)
 
   MockAllocator<DominantShareAllocator> a;
 
-  EXPECT_CALL(a, initialize(_));
+  EXPECT_CALL(a, initialize(_, _));
 
   EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo1), _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&a),
@@ -257,6 +257,17 @@ template <typename T = Allocator>
 class AllocatorTest : public ::testing::Test
 {
 protected:
+  virtual void SetUp()
+  {
+    process::spawn(allocator.real);
+  }
+
+  virtual void TearDown()
+  {
+    process::terminate(allocator.real);
+    process::wait(allocator.real);
+  }
+
   MockAllocator<T> allocator;
 };
 
@@ -269,7 +280,7 @@ TYPED_TEST_CASE(AllocatorTest, AllocatorTypes);
 
 TYPED_TEST(AllocatorTest, MockAllocator)
 {
-  EXPECT_CALL(this->allocator, initialize(_));
+  EXPECT_CALL(this->allocator, initialize(_, _));
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -333,7 +344,7 @@ TYPED_TEST(AllocatorTest, MockAllocator)
 
 TYPED_TEST(AllocatorTest, ResourcesUnused)
 {
-  EXPECT_CALL(this->allocator, initialize(_));
+  EXPECT_CALL(this->allocator, initialize(_, _));
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _))
     .Times(2);
@@ -438,7 +449,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   frameworkInfo2.set_name("framework2");
   FrameworkID frameworkId2;
 
-  EXPECT_CALL(this->allocator, initialize(_));
+  EXPECT_CALL(this->allocator, initialize(_, _));
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo1), _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator),
@@ -572,7 +583,7 @@ TYPED_TEST_CASE(MasterFailoverAllocatorTest, AllocatorTypes);
 TYPED_TEST(MasterFailoverAllocatorTest, MasterFailover)
 {
   trigger slaveAdded;
-  EXPECT_CALL(this->allocator2, initialize(_));
+  EXPECT_CALL(this->allocator2, initialize(_, _));
 
   trigger frameworkAdded;
   EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _));

@@ -23,15 +23,16 @@
 #include <process/timer.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/timer.hpp>
 
 #include "logging/logging.hpp"
 
 #include "master/dominant_share_allocator.hpp"
+#include "master/flags.hpp"
 
 using std::sort;
 using std::string;
 using std::vector;
-
 
 namespace mesos {
 namespace internal {
@@ -115,15 +116,15 @@ struct DominantShareComparator
 };
 
 
-void DominantShareAllocator::initialize(const process::PID<Master>& _master)
+void DominantShareAllocator::initialize(
+    const Flags& _flags,
+    const process::PID<Master>& _master)
 {
+  flags = _flags;
   master = _master;
   initialized = true;
 
-  // TODO(benh): Consider running periodic allocations. This will
-  // definitely be necessary for frameworks that hoard resources (in
-  // offers), since otherwise we'll just sit waiting.
-  // delay(1.0, self(), &DominantShareAllocator::allocate);
+  delay(flags.batch_seconds, self(), &DominantShareAllocator::batch);
 }
 
 
@@ -325,20 +326,18 @@ void DominantShareAllocator::resourcesUnused(
     : Filters().refuse_seconds();
 
   if (timeout != 0.0) {
-    LOG(INFO) << "Framework " << frameworkId
-	      << " filtered slave " << slaveId
-	      << " for " << timeout << " seconds";
+    VLOG(1) << "Framework " << frameworkId
+            << " refused resources on slave " << slaveId
+            << "(" << slaves[slaveId].hostname() << "), "
+            << " creating " << timeout << " second filter";
 
     // Create a new filter and delay it's expiration.
     Filter* filter = new RefusedFilter(slaveId, resources, timeout);
     this->filters.put(frameworkId, filter);
 
-    // TODO(benh): Use 'this' and '&This::' as appropriate.
-    delay(timeout, PID<DominantShareAllocator>(this),
-          &DominantShareAllocator::expire, frameworkId, filter);
+    delay(timeout, self(), &DominantShareAllocator::expire,
+          frameworkId, filter);
   }
-
-  allocate(slaveId);
 }
 
 
@@ -369,8 +368,6 @@ void DominantShareAllocator::resourcesRecovered(
     VLOG(1) << "Recovered " << resources.allocatable()
             << " on slave " << slaveId
             << " from framework " << frameworkId;
-
-    allocate(slaveId);
   }
 }
 
@@ -398,11 +395,26 @@ void DominantShareAllocator::offersRevived(const FrameworkID& frameworkId)
 }
 
 
+void DominantShareAllocator::batch()
+{
+  CHECK(initialized);
+  allocate();
+  delay(flags.batch_seconds, self(), &DominantShareAllocator::batch);
+}
+
+
 void DominantShareAllocator::allocate()
 {
   CHECK(initialized);
 
+  ::Timer timer;
+  timer.start();
+
   allocate(slaves.keys());
+
+  LOG(INFO) << "Performed allocation for "
+            << slaves.size() << " slaves in "
+            << timer.elapsed().millis() << " milliseconds";
 }
 
 
@@ -413,7 +425,14 @@ void DominantShareAllocator::allocate(const SlaveID& slaveId)
   hashset<SlaveID> slaveIds;
   slaveIds.insert(slaveId);
 
+  ::Timer timer;
+  timer.start();
+
   allocate(slaveIds);
+
+  LOG(INFO) << "Performed allocation for slave "
+            << slaveId << " in "
+            << timer.elapsed().millis() << " milliseconds";
 }
 
 
@@ -440,6 +459,10 @@ void DominantShareAllocator::allocate(const hashset<SlaveID>& slaveIds)
   // allocatable and above a certain threshold, see below).
   hashmap<SlaveID, Resources> available;
   foreachpair (const SlaveID& slaveId, Resources resources, allocatable) {
+    if (!slaveIds.contains(slaveId)) {
+      continue;
+    }
+
     if (isWhitelisted(slaveId)) {
       resources = resources.allocatable(); // Make sure they're allocatable.
 
@@ -519,7 +542,6 @@ void DominantShareAllocator::expire(
   // expiration).
   if (filters.contains(frameworkId, filter)) {
     filters.remove(frameworkId, filter);
-    allocate();
   }
 
   delete filter;

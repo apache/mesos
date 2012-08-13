@@ -60,6 +60,11 @@ public:
         "(one per line) to advertise offers for;\n"
         "should be of the form: file://path/to/file",
         "*");
+
+    add(&Flags::batch_seconds,
+        "batch_seconds",
+        "Seconds to wait between batch allocations",
+        1.0);
   }
 
   bool root_submissions;
@@ -67,6 +72,7 @@ public:
   std::string webui_dir;
   uint16_t webui_port;
   std::string whitelist;
+  double batch_seconds;
 };
 
 } // namespace mesos {
