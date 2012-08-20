@@ -301,7 +301,7 @@ TEST(MasterTest, RecoverResources)
   BasicMasterDetector detector(master, slave, true);
 
   ExecutorInfo executorInfo;
-  executorInfo.mergeFrom(DEFAULT_EXECUTOR_INFO);
+  executorInfo.MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   Resources executorResources = Resources::parse(
       "cpus:0.3;mem:200;ports:[5-8, 23-25]");
