@@ -34,7 +34,6 @@
 #include "local/local.hpp"
 
 #include "master/master.hpp"
-#include "master/dominant_share_allocator.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
@@ -47,7 +46,6 @@ using namespace mesos::internal;
 using namespace mesos::internal::test;
 
 using mesos::internal::master::Master;
-using mesos::internal::master::DominantShareAllocator;
 
 using mesos::internal::slave::Slave;
 
@@ -83,7 +81,7 @@ protected:
     EXPECT_MESSAGE(filter, _, _, _)
       .WillRepeatedly(Return(false));
 
-    a = new DominantShareAllocator();
+    a = new TestAllocatorProcess();
     m = new Master(a);
     master = process::spawn(m);
 
@@ -166,7 +164,7 @@ protected:
     launchTask(DEFAULT_EXECUTOR_INFO);
   }
 
-  DominantShareAllocator* a;
+  TestAllocatorProcess* a;
   Master* m;
   TestingIsolationModule* isolationModule;
   Slave* s;

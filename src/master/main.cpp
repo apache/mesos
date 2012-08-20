@@ -33,7 +33,6 @@
 #include "logging/logging.hpp"
 
 #include "master/allocator.hpp"
-#include "master/dominant_share_allocator.hpp"
 #include "master/master.hpp"
 #include "master/webui.hpp"
 
@@ -116,7 +115,8 @@ int main(int argc, char** argv)
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
 
-  Allocator* allocator = new DominantShareAllocator();
+  AllocatorProcess* allocator = AllocatorProcess::create(flags.user_sorter,
+							 flags.framework_sorter);
 
   Master* master = new Master(allocator, flags);
   process::spawn(master);

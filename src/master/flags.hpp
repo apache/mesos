@@ -61,6 +61,20 @@ public:
         "should be of the form: file://path/to/file",
         "*");
 
+    add(&Flags::user_sorter,
+        "user_sorter",
+        "Policy to use for allocating resources\n"
+        "between users. May be one of:\n"
+        "  dominant_resource_fairness (drf)",
+        "drf");
+ 
+    add(&Flags::framework_sorter,
+        "framework_sorter",
+        "Policy to use for allocating resources\n"
+        "between a given user's frameworks. Options\n"
+        "are the same as for user_allocator",
+        "drf");
+
     add(&Flags::batch_seconds,
         "batch_seconds",
         "Seconds to wait between batch allocations",
@@ -77,6 +91,8 @@ public:
   std::string webui_dir;
   uint16_t webui_port;
   std::string whitelist;
+  std::string user_sorter;
+  std::string framework_sorter;
   double batch_seconds;
   Option<std::string> cluster;
 };

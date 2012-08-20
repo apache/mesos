@@ -29,7 +29,6 @@
 
 #include "local/local.hpp"
 
-#include "master/dominant_share_allocator.hpp"
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"
@@ -41,7 +40,6 @@ using namespace mesos::internal;
 using namespace mesos::internal::test;
 
 using mesos::internal::master::Master;
-using mesos::internal::master::DominantShareAllocator;
 
 using mesos::internal::slave::Slave;
 
@@ -455,7 +453,7 @@ TEST(ResourceOffersTest, Request)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   MockScheduler sched;
-  MockAllocator<DominantShareAllocator> allocator;
+  MockAllocator<TestAllocatorProcess > allocator;
 
   EXPECT_CALL(allocator, initialize(_, _))
     .WillOnce(Return());
@@ -519,7 +517,7 @@ TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 

@@ -29,7 +29,6 @@
 
 #include "local/local.hpp"
 
-#include "master/dominant_share_allocator.hpp"
 #include "master/master.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
@@ -42,7 +41,6 @@ using namespace mesos::internal;
 using namespace mesos::internal::test;
 
 using mesos::internal::master::Master;
-using mesos::internal::master::DominantShareAllocator;
 
 using mesos::internal::slave::ProcessBasedIsolationModule;
 using mesos::internal::slave::Slave;
@@ -70,7 +68,7 @@ TEST(FaultToleranceTest, SlaveLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -396,7 +394,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -500,7 +498,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -632,7 +630,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -754,7 +752,7 @@ TEST(FaultToleranceTest, SchedulerExit)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -879,7 +877,7 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
     .WillOnce(DoAll(Trigger(&slaveRegisteredMsg), Return(true)))
     .WillRepeatedly(Return(false));
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -937,7 +935,7 @@ TEST(FaultToleranceTest, SlaveReregister)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 

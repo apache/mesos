@@ -20,7 +20,6 @@
 #define __ALLOCATOR_HPP__
 
 #include <stout/hashmap.hpp>
-#include <stout/option.hpp>
 
 #include "common/resources.hpp"
 
@@ -38,9 +37,9 @@ namespace master {
 // framework when tasks finish/fail (or are lost due to a slave
 // failure) or when an offer is rescinded.
 
-class Allocator : public process::Process<Allocator> {
+class AllocatorProcess : public process::Process<AllocatorProcess> {
 public:
-  virtual ~Allocator() {}
+  virtual ~AllocatorProcess() {}
 
   virtual void initialize(const Flags& flags,
                           const process::PID<Master>& master) = 0;
@@ -88,6 +87,9 @@ public:
   // Whenever a framework that has filtered resources wants to revive
   // offers for those resources the master invokes this callback.
   virtual void offersRevived(const FrameworkID& frameworkId) = 0;
+
+  static AllocatorProcess* create(const std::string& userSorterType,
+				  const std::string& frameworkSorterType);
 };
 
 } // namespace master {

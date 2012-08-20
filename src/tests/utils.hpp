@@ -36,6 +36,8 @@
 
 #include "common/type_utils.hpp"
 
+#include "master/drf_sorter.hpp"
+#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "messages/messages.hpp"
@@ -167,13 +169,14 @@ ACTION_P3(LaunchTasks, tasks, cpus, mem)
       }
     }
 
+    int nextTaskId = 0;
     std::vector<TaskInfo> tasks;
-    if (offeredCpus >= cpus &&
+    while (offeredCpus >= cpus &&
 	offeredMem >= mem &&
 	launched < numTasks) {
       TaskInfo task;
       task.set_name("TestTask");
-      task.mutable_task_id()->set_value("TestTask1");
+      task.mutable_task_id()->set_value(stringify(nextTaskId++));
       task.mutable_slave_id()->MergeFrom(offer.slave_id());
 
       ExecutorInfo executor;
@@ -194,6 +197,8 @@ ACTION_P3(LaunchTasks, tasks, cpus, mem)
 
       tasks.push_back(task);
       launched++;
+      offeredCpus -= cpus;
+      offeredMem -= mem;
     }
 
     driver->launchTasks(offer.id(), tasks);
@@ -211,6 +216,7 @@ ACTION(DeclineOffers)
     driver->declineOffer(offers[i].id());
   }
 }
+
 
 /**
  * Definition of a mock Executor to be used in tests with gmock.
@@ -232,8 +238,8 @@ public:
 };
 
 
-template <typename T = master::Allocator>
-class MockAllocator : public master::Allocator
+template <typename T = master::AllocatorProcess>
+class MockAllocator : public master::AllocatorProcess
 {
 public:
   MockAllocator() {
@@ -257,6 +263,9 @@ public:
 
     ON_CALL(*this, slaveRemoved(_))
       .WillByDefault(Invoke(&real, &T::slaveRemoved));
+
+    ON_CALL(*this, updateWhitelist(_))
+      .WillByDefault(Invoke(&real, &T::updateWhitelist));
 
     ON_CALL(*this, resourcesRequested(_, _))
       .WillByDefault(Invoke(&real, &T::resourcesRequested));
@@ -299,6 +308,14 @@ public:
 };
 
 
+class TestAllocatorProcess
+  : public master::HierarchicalAllocatorProcess<master::DRFSorter, master::DRFSorter>
+{};
+
+
+typedef ::testing::Types<master::HierarchicalAllocatorProcess<master::DRFSorter, master::DRFSorter> > AllocatorTypes;
+
+
 // The following actions make up for the fact that DoDefault
 // cannot be used inside a DoAll, for example:
 // EXPECT_CALL(allocator, frameworkAdded(_, _, _))
@@ -316,15 +333,101 @@ ACTION_P(InvokeFrameworkRemoved, allocator)
 }
 
 
+ACTION_P(InvokeFrameworkActivated, allocator)
+{
+  allocator->real.frameworkActivated(arg0, arg1);
+}
+
+
+ACTION_P(InvokeFrameworkDeactivated, allocator)
+{
+  allocator->real.frameworkDeactivated(arg0);
+}
+
+
 ACTION_P(InvokeSlaveAdded, allocator)
 {
   allocator->real.slaveAdded(arg0, arg1, arg2);
 }
 
 
+ACTION_P(InvokeSlaveRemoved, allocator)
+{
+  allocator->real.slaveRemoved(arg0);
+}
+
+
+ACTION_P(InvokeUpdateWhitelist, allocator)
+{
+  allocator->real.updateWhitelist(arg0);
+}
+
+
 ACTION_P(InvokeResourcesUnused, allocator)
 {
   allocator->real.resourcesUnused(arg0, arg1, arg2, arg3);
+}
+
+
+ACTION_P2(InvokeUnusedWithFilters, allocator, timeout)
+{
+  Filters filters;
+  filters.set_refuse_seconds(timeout);
+  allocator->real.resourcesUnused(arg0, arg1, arg2, filters);
+}
+
+
+class OfferEqMatcher
+  : public ::testing::MatcherInterface<const std::vector<Offer>& >
+{
+public:
+  OfferEqMatcher(int _cpus, int _mem)
+    : cpus(_cpus), mem(_mem) {}
+
+  virtual bool MatchAndExplain(const std::vector<Offer>& offers,
+			       ::testing::MatchResultListener* listener) const
+  {
+    double totalCpus = 0;
+    double totalMem = 0;
+
+    foreach (const Offer& offer, offers) {
+      foreach (const Resource& resource, offer.resources()) {
+	if (resource.name() == "cpus") {
+	  totalCpus += resource.scalar().value();
+	} else if (resource.name() == "mem") {
+	  totalMem += resource.scalar().value();
+	}
+      }
+    }
+
+    bool matches = totalCpus == cpus && totalMem == mem;
+
+    if (!matches) {
+      *listener << totalCpus << " cpus and " << totalMem << "mem";
+    }
+
+    return matches;
+  }
+
+  virtual void DescribeTo(::std::ostream* os) const
+  {
+    *os << "contains " << cpus << " cpus and " << mem << " mem";
+  }
+
+  virtual void DescribeNegationTo(::std::ostream* os) const
+  {
+    *os << "does not contain " << cpus << " cpus and "  << mem << " mem";
+  }
+
+private:
+  int cpus;
+  int mem;
+};
+
+
+inline const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, int mem)
+{
+  return MakeMatcher(new OfferEqMatcher(cpus, mem));
 }
 
 

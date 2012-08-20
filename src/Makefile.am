@@ -151,9 +151,9 @@ noinst_LTLIBRARIES += libmesos_no_third_party.la
 nodist_libmesos_no_third_party_la_SOURCES = $(CXX_PROTOS) $(MESSAGES_PROTOS)
 
 libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
-	master/master.cpp master/http.cpp master/slaves_manager.cpp	\
-	master/frameworks_manager.cpp					\
-	master/dominant_share_allocator.cpp slave/gc.cpp		\
+	master/allocator.cpp master/drf_sorter.cpp			\
+	master/frameworks_manager.cpp master/http.cpp master/master.cpp	\
+	master/slaves_manager.cpp slave/gc.cpp				\
 	slave/slave.cpp slave/http.cpp slave/isolation_module.cpp	\
 	slave/process_based_isolation_module.cpp slave/reaper.cpp	\
 	launcher/launcher.cpp exec/exec.cpp common/lock.cpp		\
@@ -197,10 +197,11 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	launcher/launcher.hpp linux/cgroups.hpp linux/fs.hpp		\
 	linux/proc.hpp local/flags.hpp local/local.hpp			\
 	logging/flags.hpp logging/logging.hpp master/allocator.hpp	\
-	master/constants.hpp master/flags.hpp				\
-	master/frameworks_manager.hpp master/http.hpp			\
-	master/master.hpp master/dominant_share_allocator.hpp		\
-	master/slaves_manager.hpp master/webui.hpp			\
+	master/constants.hpp master/drf_sorter.hpp			\
+	master/flags.hpp master/frameworks_manager.hpp			\
+	master/hierarchical_allocator_process.hpp			\
+	master/http.hpp master/master.hpp				\
+	master/slaves_manager.hpp master/sorter.hpp master/webui.hpp	\
 	messages/messages.hpp slave/constants.hpp slave/flags.hpp	\
 	slave/gc.hpp slave/http.hpp slave/isolation_module.hpp		\
 	slave/isolation_module_factory.hpp				\
@@ -781,6 +782,7 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/exception_tests.cpp				\
 	              tests/attributes_tests.cpp			\
 	              tests/master_detector_tests.cpp			\
+	              tests/sorter_tests.cpp				\
 	              tests/allocator_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -804,7 +806,8 @@ if HAS_JAVA
   mesos_tests_SOURCES += tests/zookeeper_server.cpp		\
                          tests/base_zookeeper_test.cpp		\
                          tests/zookeeper_server_tests.cpp	\
-                         tests/zookeeper_tests.cpp
+                         tests/zookeeper_tests.cpp		\
+                         tests/allocator_zookeeper_tests.cpp
   mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)
   mesos_tests_CPPFLAGS += -DZOOKEEPER_VERSION=\"$(ZOOKEEPER_VERSION)\"
   mesos_tests_LDFLAGS = $(JAVA_LDFLAGS) $(AM_LDFLAGS)

@@ -37,12 +37,12 @@ process::PID<master::Master> launch(int numSlaves,
                                     int32_t cpus,
                                     int64_t mem,
                                     bool quiet,
-                                    master::Allocator* _allocator = NULL);
+                                    master::AllocatorProcess* _allocator = NULL);
 
 
 // Launch a local cluster with a given configuration.
 process::PID<master::Master> launch(const Configuration& configuration,
-                                    master::Allocator* _allocator = NULL);
+                                    master::AllocatorProcess* _allocator = NULL);
 
 
 void shutdown();

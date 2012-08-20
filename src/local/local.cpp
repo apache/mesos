@@ -33,7 +33,6 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/dominant_share_allocator.hpp"
 #include "master/master.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
@@ -41,8 +40,7 @@
 
 using namespace mesos::internal;
 
-using mesos::internal::master::Allocator;
-using mesos::internal::master::DominantShareAllocator;
+using mesos::internal::master::AllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -62,7 +60,7 @@ namespace mesos {
 namespace internal {
 namespace local {
 
-static Allocator* allocator = NULL;
+static AllocatorProcess* allocator = NULL;
 static Master* master = NULL;
 static map<IsolationModule*, Slave*> slaves;
 static MasterDetector* detector = NULL;
@@ -72,7 +70,7 @@ PID<Master> launch(int numSlaves,
                    int32_t cpus,
                    int64_t mem,
                    bool quiet,
-                   Allocator* _allocator)
+                   AllocatorProcess* _allocator)
 {
   Configuration configuration;
   configuration.set("slaves", "*");
@@ -87,7 +85,7 @@ PID<Master> launch(int numSlaves,
 }
 
 
-PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
+PID<Master> launch(const Configuration& configuration, AllocatorProcess* _allocator)
 {
   int numSlaves = configuration.get<int>("num_slaves", 1);
   bool quiet = configuration.get<bool>("quiet", false);
@@ -98,7 +96,7 @@ PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
 
   if (_allocator == NULL) {
     // Create default allocator, save it for deleting later.
-    _allocator = allocator = new DominantShareAllocator();
+    _allocator = allocator = AllocatorProcess::create("drf", "drf");
   } else {
     // TODO(benh): Figure out the behavior of allocator pointer and remove the
     // else block.

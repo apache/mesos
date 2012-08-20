@@ -32,7 +32,6 @@
 
 #include "flags/flags.hpp"
 
-#include "master/dominant_share_allocator.hpp"
 #include "master/flags.hpp"
 #include "master/frameworks_manager.hpp"
 #include "master/master.hpp"
@@ -52,7 +51,6 @@ using mesos::internal::master::FrameworksManager;
 using mesos::internal::master::FrameworksStorage;
 
 using mesos::internal::master::Master;
-using mesos::internal::master::DominantShareAllocator;
 
 using mesos::internal::slave::Slave;
 
@@ -76,7 +74,7 @@ TEST(MasterTest, TaskRunning)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -169,7 +167,7 @@ TEST(MasterTest, KillTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -266,7 +264,7 @@ TEST(MasterTest, RecoverResources)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -400,7 +398,7 @@ TEST(MasterTest, FrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -520,7 +518,7 @@ TEST(MasterTest, MultipleExecutors)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -665,7 +663,7 @@ TEST(MasterTest, MasterInfo)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -727,7 +725,7 @@ TEST(MasterTest, MasterInfoOnReElection)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
@@ -828,7 +826,7 @@ TEST_F(WhitelistFixture, WhitelistSlave)
   string hosts = hostname.get() + "\n" + "dummy-slave";
   CHECK (os::write(path, hosts).isSome()) << "Error writing whitelist";
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   flags::Flags<logging::Flags, master::Flags> flags;
   flags.whitelist = "file://" + path;
   Master m(&a, flags);
@@ -911,7 +909,7 @@ TEST(MasterTest, MasterLost)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  DominantShareAllocator a;
+  TestAllocatorProcess a;
   Master m(&a);
   PID<Master> master = process::spawn(&m);
 
