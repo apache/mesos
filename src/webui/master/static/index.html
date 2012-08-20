@@ -29,28 +29,31 @@
       <p>Loading ...</p>
     </div>
 
-    <div class="navbar navbar-fixed-top hide" id="navbar">
-      <div class="navbar-inner">
-        <div class="container">
-          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </a>
-          <a class="brand" href="#">Mesos</a>
-          <div class="nav-collapse">
-            <ul class="nav">
-              <li data-tabname="home"><a href="#">Home</a></li>
-              <li data-tabname="dashboard"><a href="#/dashboard">Dashboard</a></li>
-              <li data-tabname="frameworks"><a href="#/frameworks">Frameworks</a></li>
-              <li data-tabname="slaves"><a href="#/slaves">Slaves</a></li>
-            </ul>
-          </div><!--/.nav-collapse -->
+    <div ng-controller="MainCntl">
+
+      <div class="navbar navbar-fixed-top hide" id="navbar">
+        <div class="navbar-inner">
+          <div class="container">
+            <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </a>
+            <a class="brand" href="#">Mesos</a>
+            <div class="nav-collapse">
+              <ul class="nav">
+                <li data-tabname="home"><a href="#">Home</a></li>
+                <li data-tabname="dashboard"><a href="#/dashboard">Dashboard</a></li>
+                <li data-tabname="frameworks"><a href="#/frameworks">Frameworks</a></li>
+                <li data-tabname="slaves"><a href="#/slaves">Slaves</a></li>
+              </ul>
+              <ul class="nav pull-right">
+                <li><p class="navbar-text">{{state.cluster}}</p></li>
+              </ul>
+            </div><!--/.nav-collapse -->
+          </div>
         </div>
       </div>
-    </div>
-
-    <div ng-controller="MainCntl">
 
       <div class="container">
         <div class="alert hide" id="no-leader-alert">

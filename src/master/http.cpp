@@ -290,6 +290,10 @@ Future<Response> state(
   object.values["id"] = master.info.id();
   object.values["pid"] = string(master.self());
 
+  if (master.flags.cluster.isSome()) {
+    object.values["cluster"] = master.flags.cluster.get();
+  }
+
   // TODO(benh): Use an Option for the leader PID.
   if (master.leader != UPID()) {
     object.values["leader"] = string(master.leader);

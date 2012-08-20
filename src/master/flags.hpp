@@ -65,6 +65,11 @@ public:
         "batch_seconds",
         "Seconds to wait between batch allocations",
         1.0);
+
+    add(&Flags::cluster,
+        "cluster",
+        "Human readable name for the cluster,\n"
+        "displayed in the webui");
   }
 
   bool root_submissions;
@@ -73,6 +78,7 @@ public:
   uint16_t webui_port;
   std::string whitelist;
   double batch_seconds;
+  Option<std::string> cluster;
 };
 
 } // namespace mesos {
