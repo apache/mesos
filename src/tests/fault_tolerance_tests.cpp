@@ -512,7 +512,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdate(TASK_RUNNING));
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
@@ -644,7 +644,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
     .WillOnce(SaveArg<0>(&execDriver));
 
   EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdate(TASK_RUNNING));
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -773,7 +773,7 @@ TEST(FaultToleranceTest, SchedulerExit)
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdate(TASK_RUNNING));
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   trigger shutdownCall;
   EXPECT_CALL(exec, shutdown(_))

@@ -498,8 +498,8 @@ void Master::exited(const UPID& pid)
 
       // Remove the framework's offers.
       foreach (Offer* offer, utils::copy(framework->offers)) {
-	dispatch(allocator, &Allocator::resourcesRecovered,
-		 offer->framework_id(),
+        dispatch(allocator, &Allocator::resourcesRecovered,
+                 offer->framework_id(),
                  offer->slave_id(),
                  Resources(offer->resources()));
         removeOffer(offer);
@@ -1098,22 +1098,41 @@ void Master::exitedExecutor(const SlaveID& slaveId,
   // The TASK_LOST updates are handled by the slave.
   Slave* slave = getSlave(slaveId);
   if (slave != NULL) {
-    Framework* framework = getFramework(frameworkId);
-    if (framework != NULL) {
+    // Tell the allocator about the recovered resources.
+    if (slave->hasExecutor(frameworkId, executorId)) {
+      ExecutorInfo executor = slave->executors[frameworkId][executorId];
+
       LOG(INFO) << "Executor " << executorId
-                << " of framework " << framework->id
-                << " on slave " << slave->id
-                << " (" << slave->info.hostname() << ") "
-                << "exited with status " << status;
+                << " of framework " << frameworkId
+                << " on slave " << slaveId
+                << " (" << slave->info.hostname() << ")"
+                << " exited with status " << status;
+
+      dispatch(allocator, &Allocator::resourcesRecovered,
+               frameworkId,
+               slaveId,
+               Resources(executor.resources()));
 
       // Remove executor from slave and framework.
       slave->removeExecutor(frameworkId, executorId);
+    } else {
+      LOG(WARNING) << "Ignoring unknown exited executor "
+                   << executorId << " on slave " << slaveId
+                   << " (" << slave->info.hostname() << ")";
+    }
+
+    Framework* framework = getFramework(frameworkId);
+    if (framework != NULL) {
       framework->removeExecutor(slave->id, executorId);
 
       // TODO(benh): Send the framework it's executor's exit status?
       // Or maybe at least have something like
       // Scheduler::executorLost?
     }
+  } else {
+    LOG(INFO) << "Ignoring unknown exited executor " << executorId
+              << " of framework " << frameworkId
+              << " on unknown slave " << slaveId;
   }
 }
 

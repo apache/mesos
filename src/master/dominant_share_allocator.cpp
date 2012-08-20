@@ -367,7 +367,9 @@ void DominantShareAllocator::resourcesRecovered(
 
     VLOG(1) << "Recovered " << resources.allocatable()
             << " on slave " << slaveId
-            << " from framework " << frameworkId;
+            << " from framework " << frameworkId
+            << "; resources now allocatable on slave: "
+            << allocatable[slaveId].allocatable();
   }
 }
 

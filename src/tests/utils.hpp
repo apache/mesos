@@ -423,12 +423,24 @@ ACTION_P(Decrement, variable)
 
 
 /**
- * Definition of the SendStatusUpdate action to be used with gmock.
+ * Definition of the SendStatusUpdateFromTask action to be used with gmock.
  */
-ACTION_P(SendStatusUpdate, state)
+ACTION_P(SendStatusUpdateFromTask, state)
 {
   TaskStatus status;
   status.mutable_task_id()->MergeFrom(arg1.task_id());
+  status.set_state(state);
+  arg0->sendStatusUpdate(status);
+}
+
+
+/**
+ * Definition of the SendStatusUpdateFromTaskID action to be used with gmock.
+ */
+ACTION_P(SendStatusUpdateFromTaskID, state)
+{
+  TaskStatus status;
+  status.mutable_task_id()->MergeFrom(arg1);
   status.set_state(state);
   arg0->sendStatusUpdate(status);
 }

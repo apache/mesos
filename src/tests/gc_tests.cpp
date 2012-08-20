@@ -93,7 +93,7 @@ protected:
       .WillRepeatedly(Return());
 
     EXPECT_CALL(exec, launchTask(_, _))
-      .WillRepeatedly(SendStatusUpdate(TASK_RUNNING));
+      .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
 
     EXPECT_CALL(exec, shutdown(_))
       .WillRepeatedly(Return());

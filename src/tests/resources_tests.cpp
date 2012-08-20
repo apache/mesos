@@ -330,6 +330,23 @@ TEST(ResourcesTest, RangesAdditon3)
 }
 
 
+TEST(ResourcesTest, RangesAddition4)
+{
+  Resource ports1 = Resources::parse("ports", "[1-4, 9-10, 20-22, 26-30]");
+  Resource ports2 = Resources::parse("ports", "[5-8, 23-25]");
+
+  Resources r;
+  r += ports1;
+  r += ports2;
+
+  EXPECT_EQ(1, r.size());
+
+  const Value::Ranges& ranges = r.get("ports", Value::Ranges());
+
+  EXPECT_EQ(values::parse("[1-10, 20-30]").get().ranges(), ranges);
+}
+
+
 TEST(ResourcesTest, RangesSubtraction)
 {
   Resource ports1 = Resources::parse("ports", "[20000-40000]");

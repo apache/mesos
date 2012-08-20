@@ -88,7 +88,7 @@ TEST(MasterTest, TaskRunning)
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdate(TASK_RUNNING));
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
@@ -181,7 +181,7 @@ TEST(MasterTest, KillTask)
     .Times(1);
 
   EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdate(TASK_RUNNING));
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   EXPECT_CALL(exec, killTask(_, _))
     .WillOnce(Trigger(&killTaskCall));
@@ -262,6 +262,138 @@ TEST(MasterTest, KillTask)
 }
 
 
+TEST(MasterTest, RecoverResources)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  DominantShareAllocator a;
+  Master m(&a);
+  PID<Master> master = process::spawn(&m);
+
+  MockExecutor exec;
+
+  trigger killTaskCall, shutdownCall;
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(DoAll(Trigger(&killTaskCall),
+                    SendStatusUpdateFromTaskID(TASK_KILLED)));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(Trigger(&shutdownCall));
+
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
+
+  Resources slaveResources = Resources::parse(
+      "cpus:2;mem:1024;ports:[1-10, 20-30]");
+
+  Slave s(slaveResources, true, &isolationModule);
+  PID<Slave> slave = process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+  Resources executorResources = Resources::parse(
+      "cpus:0.3;mem:200;ports:[5-8, 23-25]");
+  executorInfo.mutable_resources()->MergeFrom(executorResources);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
+  vector<Offer> offers1, offers2, offers3;
+  TaskStatus status;
+
+  trigger resourceOffersCall1, resourceOffersCall2, resourceOffersCall3;
+  trigger statusUpdateCall;
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers1),
+                    Trigger(&resourceOffersCall1)))
+    .WillOnce(DoAll(SaveArg<1>(&offers2),
+                    Trigger(&resourceOffersCall2)))
+    .WillOnce(DoAll(SaveArg<1>(&offers3),
+                    Trigger(&resourceOffersCall3)))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillRepeatedly(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOffersCall1);
+
+  EXPECT_NE(0, offers1.size());
+
+  TaskID taskId;
+  taskId.set_value("1");
+
+  Resources taskResources = offers1[0].resources() - executorResources;
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->MergeFrom(taskId);
+  task.mutable_slave_id()->MergeFrom(offers1[0].slave_id());
+  task.mutable_resources()->MergeFrom(taskResources);
+  task.mutable_executor()->MergeFrom(executorInfo);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  driver.launchTasks(offers1[0].id(), tasks);
+
+  WAIT_UNTIL(statusUpdateCall);
+
+  EXPECT_EQ(TASK_RUNNING, status.state());
+
+  driver.killTask(taskId);
+
+  WAIT_UNTIL(killTaskCall);
+
+  // Scheduler should get an offer for task resources.
+  WAIT_UNTIL(resourceOffersCall2);
+
+  EXPECT_NE(0, offers2.size());
+
+  Offer offer = offers2[0];
+  EXPECT_EQ(taskResources, offer.resources());
+
+  driver.declineOffer(offer.id());
+
+  // Now simulate a executorExited call to the slave.
+  process::dispatch(slave,
+                    &Slave::executorExited,
+                    offer.framework_id(),
+                    executorInfo.executor_id(),
+                    0);
+
+  // Scheduler should get an offer for the complete slave resources.
+  WAIT_UNTIL(resourceOffersCall3);
+
+  EXPECT_NE(0, offers3.size());
+  EXPECT_EQ(slaveResources, offers3[0].resources());
+
+  driver.stop();
+  driver.join();
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
+}
+
+
 TEST(MasterTest, FrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
@@ -281,7 +413,7 @@ TEST(MasterTest, FrameworkMessage)
     .WillOnce(SaveArg<0>(&execDriver));
 
   EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdate(TASK_RUNNING));
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   EXPECT_CALL(exec, frameworkMessage(_, _))
     .WillOnce(DoAll(SaveArg<1>(&execData),
@@ -400,7 +532,7 @@ TEST(MasterTest, MultipleExecutors)
   EXPECT_CALL(exec1, launchTask(_, _))
     .WillOnce(DoAll(SaveArg<1>(&exec1Task),
                     Trigger(&exec1LaunchTaskCall),
-                    SendStatusUpdate(TASK_RUNNING)));
+                    SendStatusUpdateFromTask(TASK_RUNNING)));
 
   EXPECT_CALL(exec1, shutdown(_))
     .WillOnce(Trigger(&exec1ShutdownCall));
@@ -415,7 +547,7 @@ TEST(MasterTest, MultipleExecutors)
   EXPECT_CALL(exec2, launchTask(_, _))
     .WillOnce(DoAll(SaveArg<1>(&exec2Task),
                     Trigger(&exec2LaunchTaskCall),
-                    SendStatusUpdate(TASK_RUNNING)));
+                    SendStatusUpdateFromTask(TASK_RUNNING)));
 
   EXPECT_CALL(exec2, shutdown(_))
     .WillOnce(Trigger(&exec2ShutdownCall));

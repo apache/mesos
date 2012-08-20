@@ -29,6 +29,8 @@
 #include "common/resources.hpp"
 #include "common/values.hpp"
 
+using std::max;
+using std::min;
 using std::ostream;
 using std::string;
 using std::vector;
@@ -208,8 +210,8 @@ static void coalesce(Value::Ranges* ranges, const Value::Range& range)
       // range:       |   |
       // range:   |   |
       // Update temp with new boundaries.
-      temp.set_begin(std::min(range.begin(), current.begin()));
-      temp.set_end(std::max(range.end(), current.end()));
+      temp.set_begin(min(temp.begin(), min(range.begin(), current.begin())));
+      temp.set_end(max(temp.end(), max(range.end(), current.end())));
     } else { // No overlap.
       result.add_range()->MergeFrom(current);
     }

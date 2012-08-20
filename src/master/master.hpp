@@ -312,7 +312,7 @@ struct Slave
   }
 
   void addExecutor(const FrameworkID& frameworkId,
-		   const ExecutorInfo& executorInfo)
+                   const ExecutorInfo& executorInfo)
   {
     CHECK(!hasExecutor(frameworkId, executorInfo.executor_id()));
     executors[frameworkId][executorInfo.executor_id()] = executorInfo;
@@ -322,7 +322,7 @@ struct Slave
   }
 
   void removeExecutor(const FrameworkID& frameworkId,
-		      const ExecutorID& executorId)
+                      const ExecutorID& executorId)
   {
     if (hasExecutor(frameworkId, executorId)) {
       // Update the resources in use to reflect removing this executor.
