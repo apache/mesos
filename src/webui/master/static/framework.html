@@ -48,11 +48,11 @@
           </a>
         </dd>
         <dt>Active tasks:</dt>
-        <dd>{{framework.tasks.length}}</dd>
+        <dd>{{framework.tasks.length | number}}</dd>
         <dt>CPUs:</dt>
-        <dd>{{framework.resources.cpus}}</dd>
+        <dd>{{framework.resources.cpus | number}}</dd>
         <dt>Mem:</dt>
-        <dd>{{framework.resources.mem / 1024 | number:2}} GB</dd>
+        <dd>{{framework.resources.mem / 1024 | number}} GB</dd>
       </dl>
     </div>
   </div>

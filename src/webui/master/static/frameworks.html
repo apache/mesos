@@ -34,9 +34,9 @@
           <td>{{framework.user}}</td>
           <td><a href="{{'#/framework/' + framework.id}}">{{framework.name}}</a></td>
           <td>{{framework.tasks.length}}</td>
-          <td>{{framework.resources.cpus}}</td>
-          <td>{{framework.resources.mem / 1024 | number:2}} GB</td>
-          <td>{{framework.max_share * 100 | number:2}}%</td>
+          <td>{{framework.resources.cpus | number}}</td>
+          <td>{{framework.resources.mem / 1024 | number}} GB</td>
+          <td>{{framework.max_share * 100 | number}}%</td>
           <td>
             <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
               {{framework.registered_time * 1000 | relativeDate}}

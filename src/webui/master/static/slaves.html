@@ -25,8 +25,8 @@
       </a>
     </td>
     <td><a href="#/slave/{{slave.id}}">{{slave.hostname}}</a></td>
-    <td>{{slave.resources.cpus}}</td>
-    <td>{{slave.resources.mem / 1024 | number:2}} GB</td>
+    <td>{{slave.resources.cpus | number}}</td>
+    <td>{{slave.resources.mem / 1024 | number}} GB</td>
     <td>
       <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
         {{slave.registered_time * 1000 | relativeDate}}
