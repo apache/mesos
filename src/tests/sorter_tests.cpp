@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <stdarg.h>
+
 #include <gmock/gmock.h>
 
 #include "master/drf_sorter.hpp"
