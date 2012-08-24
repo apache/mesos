@@ -3040,6 +3040,8 @@ void read(int fd,
 
 Future<short> poll(int fd, short events)
 {
+  process::initialize();
+
   // TODO(benh): Check if the file descriptor is non-blocking?
 
   Promise<short>* promise = new Promise<short>();
@@ -3066,6 +3068,8 @@ Future<short> poll(int fd, short events)
 
 Future<size_t> read(int fd, void* data, size_t size)
 {
+  process::initialize();
+
   std::tr1::shared_ptr<Promise<size_t> > promise(new Promise<size_t>());
 
   // Check the file descriptor.

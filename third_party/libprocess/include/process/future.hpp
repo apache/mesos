@@ -803,19 +803,25 @@ auto Future<T>::then(F f) const
 
   std::tr1::shared_ptr<Promise<X>> promise(new Promise<X>());
 
+  // TODO(benh): Need to use a weak_ptr here so that we don't keep the
+  // future from getting cleaned up when there are no actually no more
+  // references!
+  Future<T> future(*this);
+
   onAny([=] () {
-      if (this->isReady()) {
-        promise->set(f(this->get()));
-      } else if (this->isFailed()) {
-        promise->fail(this->failure());
-      } else if (this->isDiscarded()) {
+      if (future.isReady()) {
+        promise->set(f(future.get()));
+      } else if (future.isFailed()) {
+        promise->fail(future.failure());
+      } else if (future.isDiscarded()) {
         promise->future().discard();
+      } else if (future.isPending()) {
       }
     });
 
   promise->future().onDiscarded([=] () {
-      if (this->isPending()) {
-        this->discard();
+      if (future.isPending()) {
+        Future<T>(future).discard(); // Need copy since 'discard' isn't const.
       }
     });
 
