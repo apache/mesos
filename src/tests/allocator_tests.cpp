@@ -57,6 +57,22 @@ using testing::Return;
 using testing::SaveArg;
 
 
+void checkResources(vector<Offer> offers, int cpus, int mem)
+{
+  EXPECT_EQ(1u, offers.size());
+
+  EXPECT_EQ(2, offers[0].resources().size());
+
+  foreach (const Resource& resource, offers[0].resources()) {
+    if (resource.name() == "cpus") {
+      EXPECT_EQ(resource.scalar().value(), cpus);
+    } else if (resource.name() == "mem") {
+      EXPECT_EQ(resource.scalar().value(), mem);
+    }
+  }
+}
+
+
 TEST(AllocatorTest, DRFAllocatorProcess)
 {
   FrameworkInfo frameworkInfo1;

@@ -73,7 +73,7 @@ Try<Value> parse(const std::string& text) {
       return Try<Value>::error("Error parsing value: " + text +
                                ", expect one or more \"ranges \"");
     } else {
-      for (int i = 0; i < tokens.size(); i += 2) {
+      for (size_t i = 0; i < tokens.size(); i += 2) {
         Value::Range *range = ranges.add_range();
 
         int j = i;
@@ -97,7 +97,7 @@ Try<Value> parse(const std::string& text) {
       // This is a set.
       Value::Set set;
       const vector<string>& tokens = strings::split(temp, "{},\n");
-      for (int i = 0; i < tokens.size(); i++) {
+      for (size_t i = 0; i < tokens.size(); i++) {
         set.add_item(tokens[i]);
       }
 

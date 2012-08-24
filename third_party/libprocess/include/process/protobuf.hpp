@@ -403,8 +403,8 @@ struct Protocol
       const Req& req) const
   {
     // Help debugging by adding some "type constraints".
-    { Req* req = NULL; google::protobuf::Message* m = req; }
-    { Res* res = NULL; google::protobuf::Message* m = res; }
+    { Req* req = NULL; google::protobuf::Message* m = req; (void)m; }
+    { Res* res = NULL; google::protobuf::Message* m = res; (void)m; }
 
     ReqResProcess<Req, Res>* process = new ReqResProcess<Req, Res>(pid, req);
     process::spawn(process, true);

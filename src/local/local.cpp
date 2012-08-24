@@ -88,7 +88,6 @@ PID<Master> launch(int numSlaves,
 PID<Master> launch(const Configuration& configuration, AllocatorProcess* _allocator)
 {
   int numSlaves = configuration.get<int>("num_slaves", 1);
-  bool quiet = configuration.get<bool>("quiet", false);
 
   if (master != NULL) {
     LOG(FATAL) << "Can only launch one local cluster at a time (for now)";

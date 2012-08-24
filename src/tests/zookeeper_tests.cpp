@@ -92,8 +92,8 @@ TEST_F(ZooKeeperTest, Group)
   memberships.await();
 
   ASSERT_TRUE(memberships.isReady());
-  EXPECT_EQ(1, memberships.get().size());
-  EXPECT_EQ(1, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships.get().size());
+  EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   process::Future<std::string> data = group.data(membership.get());
 
@@ -118,7 +118,7 @@ TEST_F(ZooKeeperTest, Group)
   memberships.await();
 
   ASSERT_TRUE(memberships.isReady());
-  EXPECT_EQ(0, memberships.get().size());
+  EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
   ASSERT_TRUE(membership.get().cancelled().get());
@@ -150,8 +150,8 @@ TEST_F(ZooKeeperTest, GroupJoinWithDisconnect)
   memberships.await();
 
   ASSERT_TRUE(memberships.isReady());
-  EXPECT_EQ(1, memberships.get().size());
-  EXPECT_EQ(1, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships.get().size());
+  EXPECT_EQ(1u, memberships.get().count(membership.get()));
 }
 
 
@@ -174,8 +174,8 @@ TEST_F(ZooKeeperTest, GroupDataWithDisconnect)
   memberships.await();
 
   ASSERT_TRUE(memberships.isReady());
-  EXPECT_EQ(1, memberships.get().size());
-  EXPECT_EQ(1, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships.get().size());
+  EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   zks->shutdownNetwork();
 
@@ -213,8 +213,8 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
   memberships.await();
 
   ASSERT_TRUE(memberships.isReady());
-  EXPECT_EQ(1, memberships.get().size());
-  EXPECT_EQ(1, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships.get().size());
+  EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   process::Future<std::string> data = group.data(membership.get());
 
@@ -247,7 +247,7 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
   memberships.await();
 
   ASSERT_TRUE(memberships.isReady());
-  EXPECT_EQ(0, memberships.get().size());
+  EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
   ASSERT_TRUE(membership.get().cancelled().get());
@@ -273,8 +273,8 @@ TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
   memberships.await();
 
   ASSERT_TRUE(memberships.isReady());
-  EXPECT_EQ(1, memberships.get().size());
-  EXPECT_EQ(1, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships.get().size());
+  EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   process::Future<Option<int64_t> > session = group.session();
 
@@ -292,7 +292,7 @@ TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
   memberships.await();
 
   ASSERT_TRUE(memberships.isReady());
-  EXPECT_EQ(0, memberships.get().size());
+  EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
   ASSERT_FALSE(membership.get().cancelled().get());
@@ -328,9 +328,9 @@ TEST_F(ZooKeeperTest, MultipleGroups)
   memberships1.await();
 
   ASSERT_TRUE(memberships1.isReady());
-  EXPECT_EQ(2, memberships1.get().size());
-  EXPECT_EQ(1, memberships1.get().count(membership1.get()));
-  EXPECT_EQ(1, memberships1.get().count(membership2.get()));
+  EXPECT_EQ(2u, memberships1.get().size());
+  EXPECT_EQ(1u, memberships1.get().count(membership1.get()));
+  EXPECT_EQ(1u, memberships1.get().count(membership2.get()));
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships2 =
     group2.watch();
@@ -338,9 +338,9 @@ TEST_F(ZooKeeperTest, MultipleGroups)
   memberships2.await();
 
   ASSERT_TRUE(memberships2.isReady());
-  EXPECT_EQ(2, memberships2.get().size());
-  EXPECT_EQ(1, memberships2.get().count(membership1.get()));
-  EXPECT_EQ(1, memberships2.get().count(membership2.get()));
+  EXPECT_EQ(2u, memberships2.get().size());
+  EXPECT_EQ(1u, memberships2.get().count(membership1.get()));
+  EXPECT_EQ(1u, memberships2.get().count(membership2.get()));
 
   process::Future<bool> cancelled;
 

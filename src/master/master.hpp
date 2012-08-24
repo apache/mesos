@@ -244,11 +244,12 @@ struct Slave
         const SlaveID& _id,
         const UPID& _pid,
         double time)
-    : info(_info),
-      id(_id),
+    : id(_id),
+      info(_info),
       pid(_pid),
       registeredTime(time),
-      lastHeartbeat(time) {}
+      lastHeartbeat(time),
+      observer(NULL) {}
 
   ~Slave() {}
 
@@ -377,8 +378,8 @@ struct Framework
             const FrameworkID& _id,
             const UPID& _pid,
             double time)
-    : info(_info),
-      id(_id),
+    : id(_id),
+      info(_info),
       pid(_pid),
       active(true),
       registeredTime(time),

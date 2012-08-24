@@ -117,9 +117,9 @@ public:
   ConfigOption(const ConfigOption& opt)
     : helpString(opt.helpString),
       hasDefault(opt.hasDefault),
+      defaultValue(opt.defaultValue),
       hasShortName(opt.hasShortName),
-      shortName(opt.shortName),
-      defaultValue(opt.defaultValue)
+      shortName(opt.shortName)
   {
     validator = (opt.validator == NULL) ? NULL : opt.validator->clone();
   }

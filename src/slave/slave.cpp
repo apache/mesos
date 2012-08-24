@@ -94,11 +94,10 @@ Slave::Slave(const Resources& _resources,
              bool _local,
              IsolationModule* _isolationModule)
   : ProcessBase(ID::generate("slave")),
-    resources(_resources),
+    flags(),
     local(_local),
-    isolationModule(_isolationModule),
-    flags()
-{}
+    resources(_resources),
+    isolationModule(_isolationModule) {}
 
 
 Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,

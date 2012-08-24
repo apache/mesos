@@ -67,7 +67,7 @@ jclass FindMesosClass(JNIEnv* env, const char* className)
   // ClassLoader.loadClass uses the dotted "binary name"
   // format. Convert formats.
   string convName = className;
-  for (int i = 0; i < convName.size(); i++) {
+  for (uint32_t i = 0; i < convName.size(); i++) {
     if (convName[i] == '/')
       convName[i] = '.';
   }

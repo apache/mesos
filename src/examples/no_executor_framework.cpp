@@ -62,7 +62,7 @@ public:
                               const vector<Offer>& offers)
   {
     cout << "." << flush;
-    for (int i = 0; i < offers.size(); i++) {
+    for (size_t i = 0; i < offers.size(); i++) {
       const Offer& offer = offers[i];
 
       // Lookup resources we care about.

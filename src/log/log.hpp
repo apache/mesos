@@ -338,8 +338,8 @@ Log::Position Log::Reader::ending()
 
 
 Log::Writer::Writer(Log* log, const seconds& timeout, int retries)
-  : coordinator(log->quorum, log->replica, log->network),
-    error(Option<std::string>::none())
+  : error(Option<std::string>::none()),
+    coordinator(log->quorum, log->replica, log->network)
 {
   do {
     Result<uint64_t> result = coordinator.elect(Timeout(timeout.value));

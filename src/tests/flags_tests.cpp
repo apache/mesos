@@ -162,12 +162,12 @@ TEST(FlagsTest, Configurator)
   int argc = 6;
   char* argv[argc];
 
-  argv[0] = "/path/to/program";
-  argv[1] = "--name1=billy joel";
-  argv[2] = "--name2=43";
-  argv[3] = "--no-name3";
-  argv[4] = "--no-name4";
-  argv[5] = "--name5";
+  argv[0] = (char*) "/path/to/program";
+  argv[1] = (char*) "--name1=billy joel";
+  argv[2] = (char*) "--name2=43";
+  argv[3] = (char*) "--no-name3";
+  argv[4] = (char*) "--no-name4";
+  argv[5] = (char*) "--name5";
 
   mesos::internal::Configurator configurator(flags);
   mesos::internal::Configuration configuration;

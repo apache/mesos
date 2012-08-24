@@ -317,7 +317,9 @@ private:
 
 
 MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
-  : executor(_executor), status(DRIVER_NOT_STARTED), process(NULL)
+  : executor(_executor),
+    process(NULL),
+    status(DRIVER_NOT_STARTED)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 

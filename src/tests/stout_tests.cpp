@@ -75,21 +75,21 @@ TEST(StoutStringsTest, Trim)
 TEST(StoutStringsTest, SplitEmptyString)
 {
   vector<string> tokens = strings::split("", " ");
-  ASSERT_EQ(0, tokens.size());
+  ASSERT_EQ(0u, tokens.size());
 }
 
 
 TEST(StoutStringsTest, SplitDelimOnlyString)
 {
   vector<string> tokens = strings::split("   ", " ");
-  ASSERT_EQ(0, tokens.size());
+  ASSERT_EQ(0u, tokens.size());
 }
 
 
 TEST(StoutStringsTest, Split)
 {
   vector<string> tokens = strings::split("hello world,  what's up?", " ");
-  ASSERT_EQ(4, tokens.size());
+  ASSERT_EQ(4u, tokens.size());
   EXPECT_EQ("hello",  tokens[0]);
   EXPECT_EQ("world,", tokens[1]);
   EXPECT_EQ("what's", tokens[2]);
@@ -100,7 +100,7 @@ TEST(StoutStringsTest, Split)
 TEST(StoutStringsTest, SplitStringWithDelimsAtStart)
 {
   vector<string> tokens = strings::split("  hello world,  what's up?", " ");
-  ASSERT_EQ(4, tokens.size());
+  ASSERT_EQ(4u, tokens.size());
   EXPECT_EQ("hello",  tokens[0]);
   EXPECT_EQ("world,", tokens[1]);
   EXPECT_EQ("what's", tokens[2]);
@@ -111,7 +111,7 @@ TEST(StoutStringsTest, SplitStringWithDelimsAtStart)
 TEST(StoutStringsTest, SplitStringWithDelimsAtEnd)
 {
   vector<string> tokens = strings::split("hello world,  what's up?  ", " ");
-  ASSERT_EQ(4, tokens.size());
+  ASSERT_EQ(4u, tokens.size());
   EXPECT_EQ("hello",  tokens[0]);
   EXPECT_EQ("world,", tokens[1]);
   EXPECT_EQ("what's", tokens[2]);
@@ -122,7 +122,7 @@ TEST(StoutStringsTest, SplitStringWithDelimsAtEnd)
 TEST(StoutStringsTest, SplitStringWithDelimsAtStartAndEnd)
 {
   vector<string> tokens = strings::split("  hello world,  what's up?  ", " ");
-  ASSERT_EQ(4, tokens.size());
+  ASSERT_EQ(4u, tokens.size());
   EXPECT_EQ("hello",  tokens[0]);
   EXPECT_EQ("world,", tokens[1]);
   EXPECT_EQ("what's", tokens[2]);
@@ -133,7 +133,7 @@ TEST(StoutStringsTest, SplitStringWithDelimsAtStartAndEnd)
 TEST(StoutStringsTest, SplitWithMultipleDelims)
 {
   vector<string> tokens = strings::split("hello\tworld,  \twhat's up?", " \t");
-  ASSERT_EQ(4, tokens.size());
+  ASSERT_EQ(4u, tokens.size());
   EXPECT_EQ("hello",  tokens[0]);
   EXPECT_EQ("world,", tokens[1]);
   EXPECT_EQ("what's", tokens[2]);
@@ -144,12 +144,12 @@ TEST(StoutStringsTest, SplitWithMultipleDelims)
 TEST(StoutStringsTest, Pairs)
 {
   map<string, vector<string> > pairs = strings::pairs("one=1,two=2", ",", "=");
-  ASSERT_EQ(2, pairs.size());
-  ASSERT_EQ(1, pairs.count("one"));
-  ASSERT_EQ(1, pairs["one"].size());
+  ASSERT_EQ(2u, pairs.size());
+  ASSERT_EQ(1u, pairs.count("one"));
+  ASSERT_EQ(1u, pairs["one"].size());
   EXPECT_EQ("1", pairs["one"].front());
-  ASSERT_EQ(1, pairs.count("two"));
-  ASSERT_EQ(1, pairs["two"].size());
+  ASSERT_EQ(1u, pairs.count("two"));
+  ASSERT_EQ(1u, pairs["two"].size());
   EXPECT_EQ("2", pairs["two"].front());
 }
 
@@ -316,7 +316,7 @@ TEST_F(StoutUtilsTest, find)
     files.insert(file);
   }
 
-  ASSERT_EQ(2, files.size());
+  ASSERT_EQ(2u, files.size());
   ASSERT_TRUE(files.contains(file1));
   ASSERT_TRUE(files.contains(file2));
 }
@@ -368,7 +368,7 @@ TEST_F(StoutUtilsTest, hashset)
   hs2.insert(std::string("HS2"));
 
   hs1 = hs2;
-  ASSERT_TRUE(hs1.size() == 1);
+  ASSERT_EQ(1u, hs1.size());
   ASSERT_TRUE(hs1.contains("HS2"));
   ASSERT_TRUE(hs1 == hs2);
 }
@@ -407,20 +407,20 @@ TEST(StoutMultihashmapTest, Put)
   multihashmap<string, uint16_t> map;
 
   map.put("foo", 1024);
-  ASSERT_EQ(1, map.get("foo").size());
+  ASSERT_EQ(1u, map.get("foo").size());
 
   map.put("foo", 1025);
-  ASSERT_EQ(2, map.get("foo").size());
+  ASSERT_EQ(2u, map.get("foo").size());
 
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 
   map.put("bar", 1024);
-  ASSERT_EQ(1, map.get("bar").size());
+  ASSERT_EQ(1u, map.get("bar").size());
 
   map.put("bar", 1025);
-  ASSERT_EQ(2, map.get("bar").size());
+  ASSERT_EQ(2u, map.get("bar").size());
 
-  ASSERT_EQ(4, map.size());
+  ASSERT_EQ(4u, map.size());
 }
 
 
@@ -430,19 +430,19 @@ TEST(StoutMultihashmapTest, Remove)
 
   map.put("foo", 1024);
   map.remove("foo", 1024);
-  ASSERT_EQ(0, map.get("foo").size());
+  ASSERT_EQ(0u, map.get("foo").size());
 
-  ASSERT_EQ(0, map.size());
+  ASSERT_EQ(0u, map.size());
 
   map.put("foo", 1024);
   map.put("foo", 1025);
-  ASSERT_EQ(2, map.get("foo").size());
+  ASSERT_EQ(2u, map.get("foo").size());
 
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 
   map.remove("foo");
-  ASSERT_EQ(0, map.get("foo").size());
-  ASSERT_EQ(0, map.size());
+  ASSERT_EQ(0u, map.get("foo").size());
+  ASSERT_EQ(0u, map.size());
 }
 
 
@@ -452,17 +452,17 @@ TEST(StoutMultihashmapTest, Size)
 
   map.put("foo", 1024);
   map.put("foo", 1025);
-  ASSERT_EQ(2, map.get("foo").size());
+  ASSERT_EQ(2u, map.get("foo").size());
   ASSERT_TRUE(map.contains("foo", 1024));
   ASSERT_TRUE(map.contains("foo", 1025));
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 
   map.put("bar", 1024);
   map.put("bar", 1025);
-  ASSERT_EQ(2, map.get("bar").size());
+  ASSERT_EQ(2u, map.get("bar").size());
   ASSERT_TRUE(map.contains("bar", 1024));
   ASSERT_TRUE(map.contains("bar", 1025));
-  ASSERT_EQ(4, map.size());
+  ASSERT_EQ(4u, map.size());
 }
 
 
@@ -472,7 +472,7 @@ TEST(StoutMultihashmapTest, Iterator)
 
   map.put("foo", 1024);
   map.put("foo", 1025);
-  ASSERT_EQ(2, map.get("foo").size());
+  ASSERT_EQ(2u, map.get("foo").size());
   ASSERT_TRUE(map.contains("foo", 1024));
   ASSERT_TRUE(map.contains("foo", 1025));
 
@@ -500,8 +500,8 @@ TEST(StoutMultihashmapTest, Foreach)
 
   map.put("foo", 1024);
   map.put("bar", 1025);
-  ASSERT_EQ(1, map.get("foo").size());
-  ASSERT_EQ(1, map.get("bar").size());
+  ASSERT_EQ(1u, map.get("foo").size());
+  ASSERT_EQ(1u, map.get("bar").size());
   ASSERT_TRUE(map.contains("foo", 1024));
   ASSERT_TRUE(map.contains("bar", 1025));
 

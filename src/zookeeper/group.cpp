@@ -700,7 +700,6 @@ bool GroupProcess::cache()
   }
 
   foreachpair (uint64_t sequence, Promise<bool>* cancelled, utils::copy(unowned)) {
-    Promise<bool>* cancelled = unowned[sequence];
     if (sequences.count(sequence) == 0) {
       cancelled->set(false);
       unowned.erase(sequence); // Okay since iterating over a copy.

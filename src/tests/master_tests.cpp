@@ -126,7 +126,7 @@ TEST(MasterTest, TaskRunning)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("");
@@ -222,7 +222,7 @@ TEST(MasterTest, KillTask)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskID taskId;
   taskId.set_value("1");
@@ -333,7 +333,7 @@ TEST(MasterTest, RecoverResources)
 
   WAIT_UNTIL(resourceOffersCall1);
 
-  EXPECT_NE(0, offers1.size());
+  EXPECT_NE(0u, offers1.size());
 
   TaskID taskId;
   taskId.set_value("1");
@@ -363,7 +363,7 @@ TEST(MasterTest, RecoverResources)
   // Scheduler should get an offer for task resources.
   WAIT_UNTIL(resourceOffersCall2);
 
-  EXPECT_NE(0, offers2.size());
+  EXPECT_NE(0u, offers2.size());
 
   Offer offer = offers2[0];
   EXPECT_EQ(taskResources, offer.resources());
@@ -380,7 +380,7 @@ TEST(MasterTest, RecoverResources)
   // Scheduler should get an offer for the complete slave resources.
   WAIT_UNTIL(resourceOffersCall3);
 
-  EXPECT_NE(0, offers3.size());
+  EXPECT_NE(0u, offers3.size());
   EXPECT_EQ(slaveResources, offers3[0].resources());
 
   driver.stop();
@@ -465,7 +465,7 @@ TEST(MasterTest, FrameworkMessage)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("");
@@ -595,7 +595,7 @@ TEST(MasterTest, MultipleExecutors)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  ASSERT_NE(0, offers.size());
+  ASSERT_NE(0u, offers.size());
 
   ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
   executor1 = CREATE_EXECUTOR_INFO(executorId1, "exit 1");
@@ -1046,7 +1046,7 @@ TEST_F(FrameworksManagerTestFixture, AddFramework)
 
   map<FrameworkID, FrameworkInfo> result = future3.get().get();
 
-  ASSERT_EQ(1, result.count(id));
+  ASSERT_EQ(1u, result.count(id));
   EXPECT_EQ("test name", result[id].name());
   EXPECT_EQ("test user", result[id].user());
 

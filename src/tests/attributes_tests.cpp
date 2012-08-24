@@ -41,10 +41,10 @@ TEST(AttributesTest, Parsing)
   ASSERT_EQ(Value::RANGES, a.get(1).type());
   ASSERT_EQ("ports", a.get(1).name());
   ASSERT_EQ(2, a.get(1).ranges().range_size());
-  ASSERT_EQ(10000, a.get(1).ranges().range(0).begin());
-  ASSERT_EQ(20000, a.get(1).ranges().range(0).end());
-  ASSERT_EQ(30000, a.get(1).ranges().range(1).begin());
-  ASSERT_EQ(50000, a.get(1).ranges().range(1).end());
+  ASSERT_EQ(10000u, a.get(1).ranges().range(0).begin());
+  ASSERT_EQ(20000u, a.get(1).ranges().range(0).end());
+  ASSERT_EQ(30000u, a.get(1).ranges().range(1).begin());
+  ASSERT_EQ(50000u, a.get(1).ranges().range(1).end());
 
 
   ASSERT_EQ(Value::TEXT, a.get(2).type());

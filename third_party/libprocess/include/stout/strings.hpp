@@ -119,7 +119,7 @@ inline bool checkBracketsMatching(
     const char closeBracket)
 {
   int count = 0;
-  for (int i = 0; i < s.length(); i++) {
+  for (size_t i = 0; i < s.length(); i++) {
     if (s[i] == openBracket) {
       count++;
     } else if (s[i] == closeBracket) {

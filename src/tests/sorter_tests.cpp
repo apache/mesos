@@ -31,7 +31,7 @@ using mesos::internal::master::DRFSorter;
 using std::list;
 using std::string;
 
-void checkSorter(Sorter& sorter, int count, ...)
+void checkSorter(Sorter& sorter, uint32_t count, ...)
 {
   va_list elements;
   va_start(elements, count);

@@ -216,7 +216,7 @@ Resources Resources::parse(const string& s)
 
   vector<string> tokens = strings::split(s, ";\n");
 
-  for (int i = 0; i < tokens.size(); i++) {
+  for (size_t i = 0; i < tokens.size(); i++) {
     const vector<string>& pairs = strings::split(tokens[i], ":");
     if (pairs.size() != 2) {
       LOG(FATAL) << "Bad value for resources, missing ':' within " << pairs[0];

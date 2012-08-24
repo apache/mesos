@@ -33,8 +33,9 @@
 #include "try.hpp"
 
 #ifdef __APPLE__
+// Assigning the result pointer to ret silences an unused var warning.
 #define gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)  \
-  ({ *(result) = gethostbyname2(name, af); 0; })
+  ({ (void)ret; *(result) = gethostbyname2(name, af); 0; })
 #endif // __APPLE__
 
 namespace os {
@@ -179,8 +180,9 @@ inline Try<bool> write(int fd, const std::string& message)
     return Try<bool>::error(strerror(errno));
   }
 
-  CHECK(length != 0);
-  CHECK(length == message.length()); // TODO(benh): Handle a non-blocking fd?
+  CHECK(length > 0);
+  // TODO(benh): Handle a non-blocking fd?
+  CHECK(static_cast<size_t>(length) == message.length());
 
   return true;
 }

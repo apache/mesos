@@ -85,8 +85,8 @@ TEST(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
-  EXPECT_GE(10, offers.size());
+  EXPECT_NE(0u, offers.size());
+  EXPECT_GE(10u, offers.size());
 
   Resources resources(offers[0].resources());
   EXPECT_EQ(2, resources.get("cpus", Value::Scalar()).value());
@@ -124,7 +124,7 @@ TEST(ResourceOffersTest, TaskUsesNoResources)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("");
@@ -184,7 +184,7 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("");
@@ -249,7 +249,7 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("");
@@ -314,7 +314,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 
   WAIT_UNTIL(sched1ResourceOfferCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   vector<TaskInfo> tasks; // Use nothing!
 
@@ -374,7 +374,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
   WAIT_UNTIL(sched1ResourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("");
@@ -503,7 +503,7 @@ TEST(ResourceOffersTest, Request)
   WAIT_UNTIL(resourcesRequestedCall);
 
   EXPECT_EQ(requestsSent.size(), requestsReceived.size());
-  EXPECT_NE(0, requestsReceived.size());
+  EXPECT_NE(0u, requestsReceived.size());
   EXPECT_EQ(request.slave_id(), requestsReceived[0].slave_id());
 
   driver.stop();
@@ -565,7 +565,7 @@ TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");

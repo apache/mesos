@@ -100,7 +100,7 @@ TEST(FaultToleranceTest, SlaveLost)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_EQ(1, offers.size());
+  EXPECT_EQ(1u, offers.size());
 
   trigger offerRescindedCall, slaveLostCall;
 
@@ -137,7 +137,7 @@ TEST(FaultToleranceTest, SlavePartitioned)
   EXPECT_MESSAGE(filter, _, _, _)
     .WillRepeatedly(Return(false));
 
-  int pings = 0;
+  uint32_t pings = 0;
 
   // Set these expectations up before we spawn the slave (in
   // local::launch) so that we don't miss the first PING.
@@ -176,7 +176,7 @@ TEST(FaultToleranceTest, SlavePartitioned)
 
   // Now advance through the PINGs.
   do {
-    int count = pings;
+    uint32_t count = pings;
     Clock::advance(master::SLAVE_PING_TIMEOUT);
     WAIT_UNTIL(pings == count + 1);
   } while (pings < master::MAX_SLAVE_PING_TIMEOUTS);
@@ -455,7 +455,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
   NoMasterDetectedMessage noMasterDetectedMsg;
   process::post(message.to, noMasterDetectedMsg);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("test task");
@@ -561,7 +561,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   WAIT_UNTIL(resourceOffersCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("");
@@ -686,7 +686,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   WAIT_UNTIL(sched1ResourceOfferCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("");
@@ -814,7 +814,7 @@ TEST(FaultToleranceTest, SchedulerExit)
 
   WAIT_UNTIL(schedResourceOfferCall);
 
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
   TaskInfo task;
   task.set_name("");

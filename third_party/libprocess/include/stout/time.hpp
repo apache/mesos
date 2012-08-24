@@ -219,6 +219,8 @@ inline Try<seconds> seconds::parse(const std::string& s)
       return Try<seconds>::error("Unknown duration unit '" + unit + "'");
     }
   }
+
+  return Try<seconds>::error("Invalid duration string.");
 }
 
 

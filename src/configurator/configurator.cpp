@@ -161,15 +161,15 @@ void Configurator::loadCommandLine(int argc,
   // key multiple times (since right now we only use the first value)
   map<string, int> timesSeen;
 
-  for (int i = 0; i < args.size(); i++) {
+  for (size_t i = 0; i < args.size(); i++) {
     string key, val;
     bool set = false;
-    if (args[i].find("--", 0) == 0) { 
+    if (args[i].find("--", 0) == 0) {
       // handle "--" case
       size_t eq = args[i].find_first_of("=");
-      if (eq == string::npos && 
+      if (eq == string::npos &&
           args[i].find("--no-", 0) == 0) { // handle --no-blah
-        key = args[i].substr(5); 
+        key = args[i].substr(5);
         val = "0";
         set = true;
         checkCommandLineParamFormat(key, true);
@@ -283,7 +283,7 @@ string Configurator::getUsage() const
   string usage;
 
   map<string,string> col1; // key -> col 1 string
-  int maxLen = 0;
+  size_t maxLen = 0;
 
   // construct string for the first column and get size of column
   foreachpair (const string& key, const ConfigOption& opt, options) {

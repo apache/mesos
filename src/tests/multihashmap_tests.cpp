@@ -31,20 +31,20 @@ TEST(Multihashmap, Put)
   multihashmap<string, uint16_t> map;
 
   map.put("foo", 1024);
-  ASSERT_EQ(1, map.get("foo").size());
+  ASSERT_EQ(1u, map.get("foo").size());
 
   map.put("foo", 1025);
-  ASSERT_EQ(2, map.get("foo").size());
+  ASSERT_EQ(2u, map.get("foo").size());
 
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 
   map.put("bar", 1024);
-  ASSERT_EQ(1, map.get("bar").size());
+  ASSERT_EQ(1u, map.get("bar").size());
 
   map.put("bar", 1025);
-  ASSERT_EQ(2, map.get("bar").size());
+  ASSERT_EQ(2u, map.get("bar").size());
 
-  ASSERT_EQ(4, map.size());
+  ASSERT_EQ(4u, map.size());
 }
 
 
@@ -54,19 +54,19 @@ TEST(Multihashmap, Remove)
 
   map.put("foo", 1024);
   map.remove("foo", 1024);
-  ASSERT_EQ(0, map.get("foo").size());
+  ASSERT_EQ(0u, map.get("foo").size());
 
-  ASSERT_EQ(0, map.size());
+  ASSERT_EQ(0u, map.size());
 
   map.put("foo", 1024);
   map.put("foo", 1025);
-  ASSERT_EQ(2, map.get("foo").size());
+  ASSERT_EQ(2u, map.get("foo").size());
 
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 
   map.remove("foo");
-  ASSERT_EQ(0, map.get("foo").size());
-  ASSERT_EQ(0, map.size());
+  ASSERT_EQ(0u, map.get("foo").size());
+  ASSERT_EQ(0u, map.size());
 }
 
 
@@ -76,17 +76,17 @@ TEST(Multihashmap, Size)
 
   map.put("foo", 1024);
   map.put("foo", 1025);
-  ASSERT_EQ(2, map.get("foo").size());
+  ASSERT_EQ(2u, map.get("foo").size());
   ASSERT_TRUE(map.contains("foo", 1024));
   ASSERT_TRUE(map.contains("foo", 1025));
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 
   map.put("bar", 1024);
   map.put("bar", 1025);
-  ASSERT_EQ(2, map.get("bar").size());
+  ASSERT_EQ(2u, map.get("bar").size());
   ASSERT_TRUE(map.contains("bar", 1024));
   ASSERT_TRUE(map.contains("bar", 1025));
-  ASSERT_EQ(4, map.size());
+  ASSERT_EQ(4u, map.size());
 }
 
 
@@ -96,7 +96,7 @@ TEST(Multihashmap, Iterator)
 
   map.put("foo", 1024);
   map.put("foo", 1025);
-  ASSERT_EQ(2, map.get("foo").size());
+  ASSERT_EQ(2u, map.get("foo").size());
   ASSERT_TRUE(map.contains("foo", 1024));
   ASSERT_TRUE(map.contains("foo", 1025));
 
@@ -124,8 +124,8 @@ TEST(Multihashmap, Foreach)
 
   map.put("foo", 1024);
   map.put("bar", 1025);
-  ASSERT_EQ(1, map.get("foo").size());
-  ASSERT_EQ(1, map.get("bar").size());
+  ASSERT_EQ(1u, map.get("foo").size());
+  ASSERT_EQ(1u, map.get("bar").size());
   ASSERT_TRUE(map.contains("foo", 1024));
   ASSERT_TRUE(map.contains("bar", 1025));
 

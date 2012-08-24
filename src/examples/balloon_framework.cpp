@@ -73,7 +73,7 @@ public:
   {
     std::cout << "Resource offers received" << std::endl;
 
-    for (int i = 0; i < offers.size(); i++) {
+    for (size_t i = 0; i < offers.size(); i++) {
       const Offer& offer = offers[i];
 
       // We just launch one task.

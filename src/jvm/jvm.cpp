@@ -467,9 +467,7 @@ double Jvm::getStaticField<double>(const JField& field)
 
 
 Jvm::Jvm(const std::vector<std::string>& options, JNIVersion jniVersion)
-  : jvm(NULL),
-    env(NULL),
-    voidClass("V"),
+  : voidClass("V"),
     booleanClass("Z"),
     byteClass("B"),
     charClass("C"),
@@ -478,14 +476,16 @@ Jvm::Jvm(const std::vector<std::string>& options, JNIVersion jniVersion)
     longClass("J"),
     floatClass("F"),
     doubleClass("D"),
-    stringClass(JClass::forName("java/lang/String"))
+    stringClass(JClass::forName("java/lang/String")),
+    jvm(NULL),
+    env(NULL)
 {
   JavaVMInitArgs vmArgs;
   vmArgs.version = jniVersion;
   vmArgs.ignoreUnrecognized = false;
 
   JavaVMOption* opts = new JavaVMOption[options.size()];
-  for (int i = 0; i < options.size(); i++) {
+  for (size_t i = 0; i < options.size(); i++) {
     opts[i].optionString = const_cast<char*>(options[i].c_str());
   }
   vmArgs.nOptions = options.size();

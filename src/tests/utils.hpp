@@ -153,27 +153,26 @@ ACTION_P3(LaunchTasks, tasks, cpus, mem)
   int numTasks = tasks;
 
   int launched = 0;
-  for (int i = 0; i < offers.size(); i++) {
+  for (size_t i = 0; i < offers.size(); i++) {
     const Offer& offer = offers[i];
     double offeredCpus = 0;
     double offeredMem = 0;
 
-    for (int i = 0; i < offer.resources_size(); i++) {
-      const Resource& resource = offer.resources(i);
+    for (int j = 0; j < offer.resources_size(); j++) {
+      const Resource& resource = offer.resources(j);
       if (resource.name() == "cpus" &&
-	  resource.type() == Value::SCALAR) {
-	offeredCpus = resource.scalar().value();
+	        resource.type() == Value::SCALAR) {
+	      offeredCpus = resource.scalar().value();
       } else if (resource.name() == "mem" &&
-		 resource.type() == Value::SCALAR) {
-	offeredMem = resource.scalar().value();
+		             resource.type() == Value::SCALAR) {
+	      offeredMem = resource.scalar().value();
       }
     }
 
     int nextTaskId = 0;
     std::vector<TaskInfo> tasks;
-    while (offeredCpus >= cpus &&
-	offeredMem >= mem &&
-	launched < numTasks) {
+
+    while (offeredCpus >= cpus && offeredMem >= mem && launched < numTasks) {
       TaskInfo task;
       task.set_name("TestTask");
       task.mutable_task_id()->set_value(stringify(nextTaskId++));
@@ -212,7 +211,7 @@ ACTION(DeclineOffers)
   SchedulerDriver* driver = arg0;
   std::vector<Offer> offers = arg1;
 
-  for (int i = 0; i < offers.size(); i++) {
+  for (size_t i = 0; i < offers.size(); i++) {
     driver->declineOffer(offers[i].id());
   }
 }
@@ -504,7 +503,10 @@ struct trigger
 /**
  * Definition of the Trigger action to be used with gmock.
  */
-ACTION_P(Trigger, trigger) { trigger->value = true; }
+ACTION_P(Trigger, trigger)
+{
+  trigger->value = true;
+}
 
 
 /**

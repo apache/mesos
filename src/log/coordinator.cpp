@@ -80,7 +80,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
   set<Future<PromiseResponse> > futures =
     broadcast(protocol::promise, request);
 
-  int okays = 0;
+  uint32_t okays = 0;
 
   do {
     Future<Future<PromiseResponse> > future = select(futures);
@@ -265,7 +265,7 @@ Result<uint64_t> Coordinator::write(
   set<Future<WriteResponse> > futures =
     remotecast(protocol::write, request);
 
-  int okays = 0;
+  uint32_t okays = 0;
 
   do {
     Future<Future<WriteResponse> > future = select(futures);

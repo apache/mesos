@@ -38,7 +38,7 @@ static void run(const std::string& directory,
 
   argv[0] = const_cast<char*>(path.c_str());
 
-  for (int i = 0; i < args.size(); i++) {
+  for (uint32_t i = 0; i < args.size(); i++) {
     argv[i + 1] = const_cast<char*>(args[i].c_str());
   }
 

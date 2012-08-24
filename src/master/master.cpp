@@ -113,8 +113,8 @@ protected:
   }
 
 private:
-  AllocatorProcess* allocator;
   const string path;
+  AllocatorProcess* allocator;
   Option<hashset<string> > lastWhitelist;
 };
 
@@ -176,7 +176,7 @@ private:
   const SlaveInfo slaveInfo;
   const SlaveID slaveId;
   const PID<Master> master;
-  int timeouts;
+  uint32_t timeouts;
   bool pinged;
 };
 
@@ -257,17 +257,15 @@ struct SlaveReregistrar
 
 Master::Master(AllocatorProcess* _allocator)
   : ProcessBase("master"),
-    allocator(_allocator),
-    flags()
-{}
+    flags(),
+    allocator(_allocator) {}
 
 
 Master::Master(AllocatorProcess* _allocator,
                const flags::Flags<logging::Flags, master::Flags>& _flags)
   : ProcessBase("master"),
-    allocator(_allocator),
-    flags(_flags)
-{}
+    flags(_flags),
+    allocator(_allocator) {}
 
 
 Master::~Master()
@@ -669,7 +667,7 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     // TODO(benh): Check for root submissions like above!
 
     // Add any running tasks reported by slaves for this framework.
-    foreachpair (const SlaveID& slaveId, Slave* slave, slaves) {
+    foreachvalue (Slave* slave, slaves) {
       foreachvalue (Task* task, slave->tasks) {
         if (framework->id == task->framework_id()) {
           framework->addTask(task);

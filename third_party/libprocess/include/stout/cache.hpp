@@ -124,6 +124,7 @@ std::ostream& operator << (
     CHECK(i2 != c.values.end());
     stream << *i2 << std::endl;
   }
+  return stream;
 }
 
 #endif // __STOUT_CACHE_HPP__

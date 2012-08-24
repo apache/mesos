@@ -97,8 +97,8 @@ public:
       url(_url),
       mutex(_mutex),
       cond(_cond),
-      master(UPID()),
       failover(_framework.has_id() && !framework.id().value().empty()),
+      master(UPID()),
       connected(false),
       aborted(false),
       // TODO(benh): Add Try().
@@ -281,7 +281,7 @@ protected:
 
     // Save the pid associated with each slave (one per offer) so
     // later we can send framework messages directly.
-    for (int i = 0; i < offers.size(); i++) {
+    for (size_t i = 0; i < offers.size(); i++) {
       UPID pid(pids[i]);
       // Check if parse failed (e.g., due to DNS).
       if (pid != UPID()) {

@@ -30,33 +30,33 @@ namespace master {
 const int MAX_OFFERS_PER_FRAMEWORK = 50;
 
 // Minimum number of cpus / task.
-const int32_t MIN_CPUS = 1;
+const uint32_t MIN_CPUS = 1;
 
 // Minimum amount of memory / task.
-const int32_t MIN_MEM = 32 * Megabyte;
+const uint32_t MIN_MEM = 32 * Megabyte;
 
 // Maximum number of CPUs per machine.
-const int32_t MAX_CPUS = 1000 * 1000;
+const uint32_t MAX_CPUS = 1000 * 1000;
 
 // Maximum amount of memory / machine.
-const int32_t MAX_MEM = 1024 * 1024 * Megabyte;
+const uint32_t MAX_MEM = 1024 * 1024 * Megabyte;
 
 // Acceptable timeout for slave PING.
 const double SLAVE_PING_TIMEOUT = 15.0;
 
 // Maximum number of ping timeouts until slave is considered failed.
-const int MAX_SLAVE_PING_TIMEOUTS = 5;
+const uint32_t MAX_SLAVE_PING_TIMEOUTS = 5;
 
 // Maximum number of completed frameworks to store in the cache.
 // TODO(thomasm): Make configurable.
-const int MAX_COMPLETED_FRAMEWORKS = 100;
+const uint32_t MAX_COMPLETED_FRAMEWORKS = 100;
 
 // Maximum number of completed tasks per framework to store in the
 // cache.  TODO(thomasm): Make configurable.
-const int MAX_COMPLETED_TASKS_PER_FRAMEWORK = 500;
+const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK = 500;
 
 // Time interval to check for updated watchers list.
-const int WATCH_TIMEOUT = 5;
+const uint32_t WATCH_TIMEOUT = 5;
 
 } // namespace mesos {
 } // namespace internal {

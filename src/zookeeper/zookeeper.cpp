@@ -163,8 +163,11 @@ public:
   ZooKeeperImpl(ZooKeeper* zk,
                 const string& servers,
                 const milliseconds& timeout,
-		Watcher* watcher)
-    : zk(zk), servers(servers), timeout(timeout), watcher(watcher)
+		            Watcher* watcher)
+    : servers(servers),
+      timeout(timeout),
+      zk(zk),
+      watcher(watcher)
   {
     if (watcher == NULL) {
       LOG(FATAL) << "Cannot instantiate ZooKeeper with NULL watcher";

@@ -82,7 +82,7 @@ TEST(ResourcesTest, Printing)
 TEST(ResourcesTest, InitializedIsEmpty)
 {
   Resources r;
-  EXPECT_EQ(0, r.size());
+  EXPECT_EQ(0u, r.size());
 }
 
 
@@ -93,11 +93,11 @@ TEST(ResourcesTest, BadResourcesNotAllocatable)
   cpus.mutable_scalar()->set_value(1);
   Resources r;
   r += cpus;
-  EXPECT_EQ(0, r.allocatable().size());
+  EXPECT_EQ(0u, r.allocatable().size());
   cpus.set_name("cpus");
   cpus.mutable_scalar()->set_value(0);
   r += cpus;
-  EXPECT_EQ(0, r.allocatable().size());
+  EXPECT_EQ(0u, r.allocatable().size());
 }
 
 
@@ -114,8 +114,8 @@ TEST(ResourcesTest, ScalarEquals)
   r2 += cpus;
   r2 += mem;
 
-  EXPECT_EQ(2, r1.size());
-  EXPECT_EQ(2, r2.size());
+  EXPECT_EQ(2u, r1.size());
+  EXPECT_EQ(2u, r2.size());
   EXPECT_EQ(r1, r2);
 }
 
@@ -158,13 +158,13 @@ TEST(ResourcesTest, ScalarAddition)
   r2 += mem2;
 
   Resources sum = r1 + r2;
-  EXPECT_EQ(2, sum.size());
+  EXPECT_EQ(2u, sum.size());
   EXPECT_EQ(3, sum.get("cpus", Value::Scalar()).value());
   EXPECT_EQ(15, sum.get("mem", Value::Scalar()).value());
 
   Resources r = r1;
   r += r2;
-  EXPECT_EQ(2, r.size());
+  EXPECT_EQ(2u, r.size());
   EXPECT_EQ(3, r.get("cpus", Value::Scalar()).value());
   EXPECT_EQ(15, r.get("mem", Value::Scalar()).value());
 }
@@ -187,7 +187,7 @@ TEST(ResourcesTest, ScalarSubtraction)
   r2 += mem2;
 
   Resources diff = r1 - r2;
-  EXPECT_EQ(2, diff.size());
+  EXPECT_EQ(2u, diff.size());
   EXPECT_EQ(49.5, diff.get("cpus", Value::Scalar()).value());
   EXPECT_EQ(3072, diff.get("mem", Value::Scalar()).value());
 
@@ -198,7 +198,7 @@ TEST(ResourcesTest, ScalarSubtraction)
 
   r = r1;
   r -= r1;
-  EXPECT_EQ(0, r.allocatable().size());
+  EXPECT_EQ(0u, r.allocatable().size());
 }
 
 
@@ -268,7 +268,7 @@ TEST(ResourcesTest, RangesAddition)
   r += ports1;
   r += ports2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
@@ -285,7 +285,7 @@ TEST(ResourcesTest, RangesAddition2)
   r += ports1;
   r += ports2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
@@ -304,7 +304,7 @@ TEST(ResourcesTest, RangesAdditon3)
   r1 += ports1;
   r1 += ports2;
 
-  EXPECT_EQ(1, r1.size());
+  EXPECT_EQ(1u, r1.size());
 
   const Value::Ranges& ranges = r1.get("ports", Value::Ranges());
 
@@ -314,7 +314,7 @@ TEST(ResourcesTest, RangesAdditon3)
   r2 += ports3;
   r2 += ports4;
 
-  EXPECT_EQ(1, r2.size());
+  EXPECT_EQ(1u, r2.size());
 
   const Value::Ranges& ranges2 = r2.get("ports", Value::Ranges());
 
@@ -322,7 +322,7 @@ TEST(ResourcesTest, RangesAdditon3)
 
   r2 += r1;
 
-  EXPECT_EQ(1, r2.size());
+  EXPECT_EQ(1u, r2.size());
 
   const Value::Ranges& ranges3 = r2.get("ports", Value::Ranges());
 
@@ -339,7 +339,7 @@ TEST(ResourcesTest, RangesAddition4)
   r += ports1;
   r += ports2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
@@ -356,7 +356,7 @@ TEST(ResourcesTest, RangesSubtraction)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
@@ -373,7 +373,7 @@ TEST(ResourcesTest, RangesSubtraction1)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
@@ -390,7 +390,7 @@ TEST(ResourcesTest, RangesSubtraction2)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
@@ -409,7 +409,7 @@ TEST(ResourcesTest, RangesSubtraction3)
 
   resourcesFree = resourcesFree.allocatable();
 
-  EXPECT_EQ(1, resourcesFree.size());
+  EXPECT_EQ(1u, resourcesFree.size());
 
   const Value::Ranges& ranges = resourcesFree.get("ports", Value::Ranges());
 
@@ -427,7 +427,7 @@ TEST(ResourcesTest, RangesSubtraction4)
 
   resourcesOffered -= resources;
 
-  EXPECT_EQ(1, resourcesOffered.size());
+  EXPECT_EQ(1u, resourcesOffered.size());
 
   const Value::Ranges& ranges = resourcesOffered.get("ports", Value::Ranges());
 
@@ -444,7 +444,7 @@ TEST(ResourcesTest, RangesSubtraction5)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
@@ -461,7 +461,7 @@ TEST(ResourcesTest, RangesSubtraction6)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Ranges& ranges = r.get("ports", Value::Ranges());
 
@@ -494,8 +494,8 @@ TEST(ResourcesTest, SetSubset)
   Resources r2;
   r2 += disks2;
 
-  EXPECT_EQ(1, r1.size());
-  EXPECT_EQ(1, r2.size());
+  EXPECT_EQ(1u, r1.size());
+  EXPECT_EQ(1u, r2.size());
   EXPECT_TRUE(r1 <= r2);
   EXPECT_FALSE(r2 <= r1);
 }
@@ -510,7 +510,7 @@ TEST(ResourcesTest, SetAddition)
   r += disks1;
   r += disks2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Set& set = r.get("disks", Value::Set());
 
@@ -527,7 +527,7 @@ TEST(ResourcesTest, SetSubtraction)
   r += disks1;
   r -= disks2;
 
-  EXPECT_EQ(1, r.size());
+  EXPECT_EQ(1u, r.size());
 
   const Value::Set& set = r.get("disks", Value::Set());
 

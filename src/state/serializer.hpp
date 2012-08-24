@@ -35,7 +35,7 @@ struct ProtobufSerializer
   static Try<T> deserialize(const std::string& value)
   {
     T t;
-    const google::protobuf::Message* message = &t; // Check T is a protobuf.
+    (void)static_cast<google::protobuf::Message*>(&t);
 
     google::protobuf::io::ArrayInputStream stream(value.data(), value.size());
     if (!t.ParseFromZeroCopyStream(&stream)) {

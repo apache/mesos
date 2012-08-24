@@ -189,15 +189,15 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
                     Return(false)));
 
   EXPECT_MESSAGE(filter, Eq(RescindResourceOfferMessage().GetTypeName()), _, _)
-    .WillOnce(Trigger(&rescindMsg));
+    .WillOnce(DoAll(Trigger(&rescindMsg), Return(false)));
 
   EXPECT_MESSAGE(filter, Eq(UnregisterFrameworkMessage().GetTypeName()), _, _)
-      .WillOnce(Trigger(&unregisterMsg));
+      .WillOnce(DoAll(Trigger(&unregisterMsg), Return(false)));
 
   driver.start();
 
   WAIT_UNTIL(resourceOffersCall);
-  EXPECT_NE(0, offers.size());
+  EXPECT_NE(0u, offers.size());
 
 
   ASSERT_EQ(DRIVER_ABORTED, driver.abort());

@@ -62,9 +62,9 @@ private:
   URL(const std::string& credentials,
       const std::string& _servers,
       const std::string& _path)
-    : servers(_servers),
-      path(_path),
-      authentication(Authentication("digest", credentials)) {}
+    : authentication(Authentication("digest", credentials)),
+      servers(_servers),
+      path(_path) {}
 };
 
 

@@ -143,7 +143,7 @@ protected:
   // Launches a task based on the received offer.
   void launchTask(const ExecutorInfo& executorInfo)
   {
-    EXPECT_NE(0, offers.size());
+    EXPECT_NE(0u, offers.size());
 
     TaskInfo task;
     task.set_name("");

@@ -211,10 +211,10 @@ struct Executor
   Executor(const FrameworkID& _frameworkId,
            const ExecutorInfo& _info,
            const std::string& _directory)
-    : frameworkId(_frameworkId),
+    : id(_info.executor_id()),
       info(_info),
+      frameworkId(_frameworkId),
       directory(_directory),
-      id(_info.executor_id()),
       uuid(UUID::random()),
       pid(UPID()),
       shutdown(false),

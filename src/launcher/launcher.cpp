@@ -124,8 +124,10 @@ int ExecutorLauncher::run()
   // Execute the command (via '/bin/sh -c command').
   execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
 
-  // If we get here, the execv call failedl
+  // If we get here, the execv call failed.
   fatalerror("Could not execute '/bin/sh -c %s'", command.c_str());
+
+  return -1; // Silence end of non-void function warning.
 }
 
 
