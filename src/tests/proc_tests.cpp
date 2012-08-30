@@ -40,9 +40,9 @@ TEST(ProcTest, Pids)
   Try<set<pid_t> > pids = proc::pids();
 
   ASSERT_TRUE(pids.isSome());
-  EXPECT_NE(0, pids.get().size());
-  EXPECT_EQ(1, pids.get().count(getpid()));
-  EXPECT_EQ(1, pids.get().count(1));
+  EXPECT_NE(0u, pids.get().size());
+  EXPECT_EQ(1u, pids.get().count(getpid()));
+  EXPECT_EQ(1u, pids.get().count(1));
 }
 
 
@@ -51,7 +51,7 @@ TEST(ProcTest, SystemStatistics)
   Try<SystemStatistics> statistics = proc::stat();
 
   ASSERT_TRUE(statistics.isSome());
-  EXPECT_NE(0, statistics.get().btime);
+  EXPECT_NE(0u, statistics.get().btime);
 }
 
 

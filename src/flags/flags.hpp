@@ -85,6 +85,7 @@ namespace flags {
 class FlagsBase
 {
 public:
+  virtual ~FlagsBase() {}
   virtual void load(const std::map<std::string, Option<std::string> >& values);
   virtual void load(const std::map<std::string, std::string>& values);
 

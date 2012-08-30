@@ -597,15 +597,13 @@ inline Try<std::string> hostname()
     return Try<std::string>::error(strerror(errno));
   }
 
-  struct hostent he, *hep;
-  char* temp;
-  size_t length;
-  int result;
-  int herrno;
-
   // Allocate temporary buffer for gethostbyname2_r.
-  length = 1024;
-  temp = new char[length];
+  size_t length = 1024;
+  char* temp = new char[length];
+
+  struct hostent he, *hep = NULL;
+  int result = 0;
+  int herrno = 0;
 
   while ((result = gethostbyname2_r(host, AF_INET, &he, temp,
                                     length, &hep, &herrno)) == ERANGE) {

@@ -41,7 +41,7 @@ Try<set<pid_t> > pids()
 
 Try<SystemStatistics> stat()
 {
-  unsigned long long btime;
+  unsigned long long btime = 0;
 
   ifstream file("/proc/stat");
 
@@ -116,13 +116,15 @@ Try<ProcessStatistics> stat(pid_t pid)
   unsigned long wchan;
   unsigned long nswap;
   unsigned long cnswap;
-  int exit_signal;
-  int processor;
-  unsigned int rt_priority;
-  unsigned int policy;
-  unsigned long long delayacct_blkio_ticks;
-  unsigned long guest_time;
-  unsigned int cguest_time;
+
+  // NOTE: The following are unused for now.
+  // int exit_signal;
+  // int processor;
+  // unsigned int rt_priority;
+  // unsigned int policy;
+  // unsigned long long delayacct_blkio_ticks;
+  // unsigned long guest_time;
+  // unsigned int cguest_time;
 
   string _; // For ignoring fields.
 

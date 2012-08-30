@@ -22,6 +22,7 @@ struct TerminateEvent;
 
 struct EventVisitor
 {
+  virtual ~EventVisitor() {}
   virtual void visit(const MessageEvent& event) {}
   virtual void visit(const DispatchEvent& event) {}
   virtual void visit(const HttpEvent& event) {}

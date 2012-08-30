@@ -184,7 +184,14 @@ public:
 
     // TODO(benh): Link with WatcherProcess PID?
 
-    zh = zookeeper_init(servers.c_str(), event, timeout.value, NULL, this, 0);
+    zh = zookeeper_init(
+        servers.c_str(),
+        event,
+        static_cast<int>(timeout.value),
+        NULL,
+        this,
+        0);
+
     if (zh == NULL) {
       PLOG(FATAL) << "Failed to create ZooKeeper, zookeeper_init";
     }

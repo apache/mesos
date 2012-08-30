@@ -19,7 +19,7 @@
 # third_party packages in exactly one place. For now, however, we
 # still need to update version numbers in src/setup.py.in too!
 
-BOOST_VERSION = 1.37.0
+BOOST_VERSION = 1.51.0
 BOTO_VERSION = 2.0b2
 DISTRIBUTE_VERSION = 0.6.26
 GLOG_VERSION = 0.3.1

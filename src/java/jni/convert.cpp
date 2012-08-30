@@ -28,6 +28,8 @@
 #include "construct.hpp"
 #include "convert.hpp"
 
+#include "jvm/jvm.hpp"
+
 #include "logging/logging.hpp"
 
 using namespace mesos;
@@ -110,7 +112,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
 {
   // Grab the context ClassLoader of the current thread, if any.
   JNIEnv* env;
-  if (jvm->GetEnv((void**) &env, JNI_VERSION_1_2) != JNI_OK) {
+  if (jvm->GetEnv(JNIENV_CAST(&env), JNI_VERSION_1_2) != JNI_OK) {
     return JNI_ERR; // JNI version not supported.
   }
 
@@ -172,7 +174,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
 JNIEXPORT void JNICALL JNI_OnUnLoad(JavaVM* jvm, void* reserved)
 {
   JNIEnv* env;
-  if (jvm->GetEnv((void**) &env, JNI_VERSION_1_2) != JNI_OK) {
+  if (jvm->GetEnv(JNIENV_CAST(&env), JNI_VERSION_1_2) != JNI_OK) {
     return;
   }
 

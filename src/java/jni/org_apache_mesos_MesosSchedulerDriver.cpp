@@ -24,6 +24,8 @@
 
 #include <stout/foreach.hpp>
 
+#include "jvm/jvm.hpp"
+
 #include "construct.hpp"
 #include "convert.hpp"
 #include "org_apache_mesos_MesosSchedulerDriver.h"
@@ -76,7 +78,7 @@ void JNIScheduler::registered(SchedulerDriver* driver,
                               const FrameworkID& frameworkId,
                               const MasterInfo& masterInfo)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -115,7 +117,7 @@ void JNIScheduler::registered(SchedulerDriver* driver,
 void JNIScheduler::reregistered(SchedulerDriver* driver,
                                 const MasterInfo& masterInfo)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -150,7 +152,7 @@ void JNIScheduler::reregistered(SchedulerDriver* driver,
 
 void JNIScheduler::disconnected(SchedulerDriver* driver)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -183,7 +185,7 @@ void JNIScheduler::disconnected(SchedulerDriver* driver)
 void JNIScheduler::resourceOffers(SchedulerDriver* driver,
                                   const vector<Offer>& offers)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -231,7 +233,7 @@ void JNIScheduler::resourceOffers(SchedulerDriver* driver,
 void JNIScheduler::offerRescinded(SchedulerDriver* driver,
                                   const OfferID& offerId)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -267,7 +269,7 @@ void JNIScheduler::offerRescinded(SchedulerDriver* driver,
 void JNIScheduler::statusUpdate(SchedulerDriver* driver,
                                 const TaskStatus& status)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -305,7 +307,7 @@ void JNIScheduler::frameworkMessage(SchedulerDriver* driver,
                                     const SlaveID& slaveId,
                                     const string& data)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -347,7 +349,7 @@ void JNIScheduler::frameworkMessage(SchedulerDriver* driver,
 
 void JNIScheduler::slaveLost(SchedulerDriver* driver, const SlaveID& slaveId)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -385,7 +387,7 @@ void JNIScheduler::executorLost(SchedulerDriver* driver,
                                 const SlaveID& slaveId,
                                 int status)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -427,7 +429,7 @@ void JNIScheduler::executorLost(SchedulerDriver* driver,
 
 void JNIScheduler::error(SchedulerDriver* driver, const string& message)
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
   jclass clazz = env->GetObjectClass(jdriver);
 

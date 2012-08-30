@@ -32,13 +32,6 @@ namespace internal {
 namespace fs {
 
 
-// Lock for guarding accesses to fstab functions.
-static pthread_mutex_t fstabMutex = PTHREAD_MUTEX_INITIALIZER;
-
-// Lock for guarding accesses to mntent functions.
-static pthread_mutex_t mntentMutex = PTHREAD_MUTEX_INITIALIZER;
-
-
 bool MountTable::Entry::hasOption(const std::string& option)
 {
   struct mntent mntent;
@@ -81,13 +74,16 @@ Try<MountTable> MountTable::read(const std::string& path)
                             mntent->mnt_passno);
     table.entries.push_back(entry);
 #else
-    // Reentrant version does not exist. Use locks.
+    // Mutex for guarding calls into non-reentrant mount table
+    // functions. We use a static local variable to avoid unused
+    // variable warnings.
+    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
     {
-      Lock lock(&mntentLock);
+      Lock lock(&mutex);
       struct mntent* mntent = ::getmntent(file);
       if (mntent == NULL) {
         // NULL means the end of enties.
-        mntentLock->unlock();
         break;
       }
 
@@ -110,11 +106,15 @@ Try<MountTable> MountTable::read(const std::string& path)
 
 Try<FileSystemTable> FileSystemTable::read()
 {
+  // Mutex for guarding calls into non-reentrant fstab functions. We
+  // use a static local variable to avoid unused variable warnings.
+  static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
   FileSystemTable table;
 
   // Use locks since fstab functions are not thread-safe.
   {
-    Lock lock(&fstabMutex);
+    Lock lock(&mutex);
 
     // Open file _PATH_FSTAB (/etc/fstab).
     if (::setfsent() == 0) {

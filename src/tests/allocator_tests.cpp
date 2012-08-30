@@ -1039,7 +1039,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   // out so that all resources not used by the launched task
   // will get offered together. TODO(tmarshall): replace this
   // with a Clock::advance().
-  sleep(.1);
+  sleep(1);
 
   WAIT_UNTIL(launchTaskTrigger);
 

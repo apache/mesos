@@ -491,7 +491,7 @@ Jvm::Jvm(const std::vector<std::string>& options, JNIVersion jniVersion)
   vmArgs.nOptions = options.size();
   vmArgs.options = opts;
 
-  int result = JNI_CreateJavaVM(&jvm, (void**) &env, &vmArgs);
+  int result = JNI_CreateJavaVM(&jvm, JNIENV_CAST(&env), &vmArgs);
   CHECK(result != JNI_ERR) << "Failed to create JVM!";
 
   delete[] opts;
@@ -506,13 +506,13 @@ Jvm::~Jvm()
 
 void Jvm::attachDaemon()
 {
-  jvm->AttachCurrentThreadAsDaemon((void**) &env, NULL);
+  jvm->AttachCurrentThreadAsDaemon(JNIENV_CAST(&env), NULL);
 }
 
 
 void Jvm::attach()
 {
-  jvm->AttachCurrentThread((void**) &env, NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 }
 
 

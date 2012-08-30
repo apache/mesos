@@ -7,6 +7,15 @@
 
 #include <vector>
 
+// Some compilers give us warnings about 'dereferencing type-punned
+// pointer will break strict-aliasing rules' when we cast our JNIEnv**
+// to void**. We use this function to do the magic for us.
+inline void** JNIENV_CAST(JNIEnv** env)
+{
+  return reinterpret_cast<void**>(env);
+}
+
+
 namespace mesos {
 namespace internal {
 

@@ -35,6 +35,7 @@ struct Client
 
 struct DRFComparator
 {
+  virtual ~DRFComparator() {}
   virtual bool operator () (const Client& client1,
                             const Client& client2);
 };

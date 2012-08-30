@@ -22,6 +22,7 @@ extern void send_file(struct ev_loop*, ev_io*, int);
 class Encoder
 {
 public:
+  virtual ~Encoder() {}
   virtual Sender sender() = 0;
 };
 

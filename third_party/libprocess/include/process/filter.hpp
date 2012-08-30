@@ -4,9 +4,10 @@
 #include <process/event.hpp>
 
 namespace process {
- 
+
 class Filter {
 public:
+  virtual ~Filter() {}
   virtual bool filter(const MessageEvent& event) { return false; }
   virtual bool filter(const DispatchEvent& event) { return false; }
   virtual bool filter(const HttpEvent& event) { return false; }

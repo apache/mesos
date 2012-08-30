@@ -197,13 +197,13 @@ void LxcIsolationModule::launchExecutor(
 
     const char** args = (const char**) new char*[3 + options.size() + 2];
 
-    int i = 0;
+    size_t i = 0;
 
     args[i++] = "lxc-execute";
     args[i++] = "-n";
     args[i++] = container.c_str();
 
-    for (int j = 0; j < options.size(); j++) {
+    for (size_t j = 0; j < options.size(); j++) {
       args[i++] = options[j].c_str();
     }
 
