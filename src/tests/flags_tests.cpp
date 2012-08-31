@@ -84,11 +84,11 @@ TEST(FlagsTest, Load)
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
-  EXPECT_EQ(false, flags.name3);
+  EXPECT_FALSE(flags.name3);
   ASSERT_TRUE(flags.name4.isSome());
-  EXPECT_EQ(false, flags.name4.get());
+  EXPECT_FALSE(flags.name4.get());
   ASSERT_TRUE(flags.name5.isSome());
-  EXPECT_EQ(true, flags.name5.get());
+  EXPECT_TRUE(flags.name5.get());
 }
 
 
@@ -125,7 +125,7 @@ TEST(FlagsTest, Add)
   ASSERT_TRUE(name6.isSome());
   EXPECT_EQ("ben folds", name6.get());
 
-  EXPECT_EQ(false, name7);
+  EXPECT_FALSE(name7);
 
   ASSERT_TRUE(name8.isNone());
 }
@@ -147,11 +147,11 @@ TEST(FlagsTest, Flags)
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
-  EXPECT_EQ(false, flags.name3);
+  EXPECT_FALSE(flags.name3);
   ASSERT_TRUE(flags.name4.isSome());
-  EXPECT_EQ(false, flags.name4.get());
+  EXPECT_FALSE(flags.name4.get());
   ASSERT_TRUE(flags.name5.isSome());
-  EXPECT_EQ(true, flags.name5.get());
+  EXPECT_TRUE(flags.name5.get());
 }
 
 
@@ -181,9 +181,9 @@ TEST(FlagsTest, Configurator)
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
-  EXPECT_EQ(false, flags.name3);
+  EXPECT_FALSE(flags.name3);
   ASSERT_TRUE(flags.name4.isSome());
-  EXPECT_EQ(false, flags.name4.get());
+  EXPECT_FALSE(flags.name4.get());
   ASSERT_TRUE(flags.name5.isSome());
-  EXPECT_EQ(true, flags.name5.get());
+  EXPECT_TRUE(flags.name5.get());
 }

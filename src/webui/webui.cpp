@@ -15,6 +15,12 @@
 
 #include "webui/webui.hpp"
 
+// The python include redefines _POSIX_C_SOURCE and _XOPEN_SOURCE, so this
+// is for eliminating the redefinition warnings. This will die along with the
+// old webui.
+#undef _POSIX_C_SOURCE
+#undef _XOPEN_SOURCE
+
 // TODO(jieyu): We put this include here so that we don't get complaint from
 // fts.h: "<fts.h> cannot be used with -D_FILE_OFFSET_BITS==64". We don't use
 // any of the function defined in fts.h in this file.

@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 
   logging::initialize(argv[0], flags);
 
-  process::wait(local::launch(configuration, false));
+  process::wait(local::launch(configuration));
 
   return 0;
 }

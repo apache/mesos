@@ -29,6 +29,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <stout/numify.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
 #include "examples/utils.hpp"
@@ -179,9 +180,8 @@ int main(int argc, char** argv)
   }
 
   // Find this executable's directory to locate executor.
-  char buf[MAXPATHLEN];
-  ::realpath(::dirname(argv[0]), buf);
-  std::string uri = std::string(buf) + "/balloon-executor";
+  std::string path = os::realpath(::dirname(argv[0])).get();
+  std::string uri = path + "/balloon-executor";
   if (getenv("MESOS_BUILD_DIR")) {
     uri = std::string(::getenv("MESOS_BUILD_DIR")) + "/src/balloon-executor";
   }

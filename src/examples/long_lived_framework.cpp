@@ -25,6 +25,8 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <stout/os.hpp>
+
 using namespace mesos;
 
 using boost::lexical_cast;
@@ -157,9 +159,8 @@ int main(int argc, char** argv)
   }
 
   // Find this executable's directory to locate executor.
-  char buf[4096];
-  realpath(dirname(argv[0]), buf);
-  string uri = string(buf) + "/long-lived-executor";
+  string path = os::realpath(dirname(argv[0])).get();
+  string uri = path + "/long-lived-executor";
   if (getenv("MESOS_BUILD_DIR")) {
     uri = string(getenv("MESOS_BUILD_DIR")) + "/src/long-lived-executor";
   }
