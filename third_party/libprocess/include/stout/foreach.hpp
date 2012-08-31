@@ -5,15 +5,12 @@
 
 #include <boost/tuple/tuple.hpp>
 
+namespace __foreach__ {
 
-// TODO(bmahler): Do not name this namespace 'internal', it causes the namesapce
-// to be nested within the process namespace, this should be investigated and
-// fixed at some point.
-namespace hidden {
-
-// NOTE: This is a duplicate of boosts swallow_assign in boost/tuple_basic.hpp
-// We've added this copy because of a change in boost that doesn't allow us to
-// use detail::ignore with our foreachpair any longer.
+// NOTE: This is a copied from Boost
+// (boost/tuple/detail/tuple_basic_no_partial_spec.hpp) because the
+// new 'boost::tuples::ignore' does not work in our 'foreachkey' and
+// 'foreachvalue'.
 struct swallow_assign {
   template<typename T>
   swallow_assign const& operator=(const T&) const {
@@ -23,7 +20,7 @@ struct swallow_assign {
 
 swallow_assign const ignore = swallow_assign();
 
-}  // namespace hidden
+} // namespace __foreach__ {
 
 #define BOOST_FOREACH_PAIR(VARFIRST, VARSECOND, COL)                                            \
     BOOST_FOREACH_PREAMBLE()                                                                    \
@@ -46,9 +43,9 @@ swallow_assign const ignore = swallow_assign();
 #define foreachpair BOOST_FOREACH_PAIR
 
 #define foreachkey(VAR, COL)                    \
-  foreachpair (VAR, hidden::ignore, COL)
+  foreachpair (VAR, __foreach__::ignore, COL)
 
 #define foreachvalue(VAR, COL)                  \
-  foreachpair (hidden::ignore, VAR, COL)
+  foreachpair (__foreach__::ignore, VAR, COL)
 
 #endif // __STOUT_FOREACH_HPP__
