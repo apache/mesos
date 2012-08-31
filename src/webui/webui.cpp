@@ -96,7 +96,9 @@ void start(const std::string& directory,
   // exit the process).
 
   int pipes[2];
-  pipe(pipes);
+  if (pipe(pipes) < 0) {
+    PLOG(FATAL) << "Failed to create a pipe";
+  }
 
   // Set the FD_CLOEXEC flags on these pipes
   Try<bool> result = os::cloexec(pipes[0]);
