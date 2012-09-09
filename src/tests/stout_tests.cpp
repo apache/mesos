@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <stout/cache.hpp>
+#include <stout/duration.hpp>
 #include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
 #include <stout/format.hpp>
@@ -25,6 +26,34 @@
 #include <stout/uuid.hpp>
 
 using namespace std;
+
+
+TEST(Stout, Duration)
+{
+  Try<Duration> _3hrs = Duration::parse("3hrs");
+  ASSERT_TRUE(_3hrs.isSome());
+
+  EXPECT_EQ(Hours(3.0), _3hrs.get());
+  EXPECT_EQ(Minutes(180.0), _3hrs.get());
+  EXPECT_EQ(Seconds(10800.0), _3hrs.get());
+  EXPECT_EQ(Milliseconds(10800000.0), _3hrs.get());
+
+  EXPECT_EQ(Milliseconds(1000.0), Seconds(1.0));
+
+  EXPECT_GT(Weeks(1.0), Days(6.0));
+
+  EXPECT_LT(Hours(23.0), Days(1.0));
+
+  EXPECT_LE(Hours(24.0), Days(1.0));
+  EXPECT_GE(Hours(24.0), Days(1.0));
+
+  EXPECT_NE(Minutes(59.0), Hours(1.0));
+
+  Try<Duration> _3_5hrs = Duration::parse("3.5hrs");
+  ASSERT_TRUE(_3_5hrs.isSome());
+
+  EXPECT_EQ(Hours(3.5), _3_5hrs.get());
+}
 
 
 TEST(StoutStringsTest, Format)
