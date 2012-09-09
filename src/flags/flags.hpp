@@ -11,9 +11,11 @@
 
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
+#include <stout/try.hpp>
 
 #include "flags/flag.hpp"
 #include "flags/loader.hpp"
+#include "flags/parse.hpp"
 
 // An abstraction for application/library "flags". An example is
 // probably best:
@@ -95,14 +97,14 @@ public:
   const_iterator end() const { return flags.end(); }
 
 protected:
-  template <typename T, typename M1, typename M2>
-  void add(M1 T::*m1,
+  template <typename Flags, typename T1, typename T2>
+  void add(T1 Flags::*t1,
            const std::string& name,
            const std::string& help,
-           const M2& m2);
+           const T2& t2);
 
-  template <typename T, typename M>
-  void add(Option<M> T::*option,
+  template <typename Flags, typename T>
+  void add(Option<T> Flags::*option,
            const std::string& name,
            const std::string& help);
 
@@ -150,31 +152,33 @@ public:
 };
 
 
-template <typename T, typename M1, typename M2>
+template <typename Flags, typename T1, typename T2>
 void FlagsBase::add(
-    M1 T::*m1,
+    T1 Flags::*t1,
     const std::string& name,
     const std::string& help,
-    const M2& m2)
+    const T2& t2)
 {
-  T* t = dynamic_cast<T*>(this);
-  if (t == NULL) {
+  Flags* flags = dynamic_cast<Flags*>(this);
+  if (flags == NULL) {
     std::cerr << "Attempted to add flag '" << name
               << "' with incompatible type" << std::endl;
     abort();
   } else {
-    t->*m1 = m2; // Set the default.
+    flags->*t1 = t2; // Set the default.
   }
 
   Flag flag;
   flag.name = name;
   flag.help = help;
-  flag.boolean = typeid(M1) == typeid(bool);
+  flag.boolean = typeid(T1) == typeid(bool);
   flag.loader = std::tr1::bind(
-      &MemberLoader<T, M1>::load,
-      name,
-      m1,
+      &MemberLoader<Flags, T1>::load,
       std::tr1::placeholders::_1,
+      t1,
+      std::tr1::function<Try<T1>(const std::string&)>(
+          std::tr1::bind(&parse<T1>, std::tr1::placeholders::_1)),
+      name,
       std::tr1::placeholders::_2);
 
   // Update the help string to include the default value.
@@ -186,7 +190,7 @@ void FlagsBase::add(
   flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
     ? " (default: " // On same line, add space.
     : "(default: "; // On newline.
-  flag.help += stringify(m2);
+  flag.help += stringify(t2);
   flag.help += ")";
 
   flag.help += ")";
@@ -195,14 +199,14 @@ void FlagsBase::add(
 }
 
 
-template <typename T, typename M>
+template <typename Flags, typename T>
 void FlagsBase::add(
-    Option<M> T::*option,
+    Option<T> Flags::*option,
     const std::string& name,
     const std::string& help)
 {
-  T* t = dynamic_cast<T*>(this);
-  if (t == NULL) {
+  Flags* flags = dynamic_cast<Flags*>(this);
+  if (flags == NULL) {
     std::cerr << "Attempted to add flag '" << name
               << "' with incompatible type" << std::endl;
     abort();
@@ -211,12 +215,14 @@ void FlagsBase::add(
   Flag flag;
   flag.name = name;
   flag.help = help;
-  flag.boolean = typeid(M) == typeid(bool);
+  flag.boolean = typeid(T) == typeid(bool);
   flag.loader = std::tr1::bind(
-      &OptionMemberLoader<T, M>::load,
-      name,
-      option,
+      &OptionMemberLoader<Flags, T>::load,
       std::tr1::placeholders::_1,
+      option,
+      std::tr1::function<Try<T>(const std::string&)>(
+          std::tr1::bind(&parse<T>, std::tr1::placeholders::_1)),
+      name,
       std::tr1::placeholders::_2);
 
   add(flag);
@@ -309,8 +315,10 @@ void Flags<Flags1, Flags2, Flags3, Flags4, Flags5>::add(
   flag.boolean = typeid(T1) == typeid(bool);
   flag.loader = std::tr1::bind(
       &Loader<T1>::load,
-      name,
       t1,
+      std::tr1::function<Try<T1>(const std::string&)>(
+          std::tr1::bind(&parse<T1>, std::tr1::placeholders::_1)),
+      name,
       std::tr1::placeholders::_2); // Use _2 because ignore FlagsBase*.
 
   // Update the help string to include the default value.
@@ -341,8 +349,10 @@ void Flags<Flags1, Flags2, Flags3, Flags4, Flags5>::add(
   flag.boolean = typeid(T) == typeid(bool);
   flag.loader = std::tr1::bind(
       &OptionLoader<T>::load,
-      name,
       option,
+      std::tr1::function<Try<T>(const std::string&)>(
+          std::tr1::bind(&parse<T>, std::tr1::placeholders::_1)),
+      name,
       std::tr1::placeholders::_2); // Use _2 because ignore FlagsBase*.
 
   FlagsBase::add(flag);
