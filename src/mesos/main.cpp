@@ -96,7 +96,7 @@ int main(int argc, char** argv)
 
   Future<SubmitSchedulerResponse> future = submit(master, request);
 
-  future.await(5.0);
+  future.await(Seconds(5.0));
 
   if (future.isReady()) {
     if (future.get().okay()) {

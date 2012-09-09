@@ -44,7 +44,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::ProcessBasedIsolationModule;
 using mesos::internal::slave::Slave;
-using mesos::internal::slave::STATUS_UPDATE_RETRY_INTERVAL_SECONDS;
+using mesos::internal::slave::STATUS_UPDATE_RETRY_INTERVAL;
 
 using process::Clock;
 using process::PID;
@@ -177,11 +177,11 @@ TEST(FaultToleranceTest, SlavePartitioned)
   // Now advance through the PINGs.
   do {
     uint32_t count = pings;
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(master::SLAVE_PING_TIMEOUT.secs());
     WAIT_UNTIL(pings == count + 1);
   } while (pings < master::MAX_SLAVE_PING_TIMEOUTS);
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(master::SLAVE_PING_TIMEOUT.secs());
 
   WAIT_UNTIL(slaveLostCall);
 
@@ -602,7 +602,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   WAIT_UNTIL(registeredCall);
 
-  Clock::advance(STATUS_UPDATE_RETRY_INTERVAL_SECONDS);
+  Clock::advance(STATUS_UPDATE_RETRY_INTERVAL.secs());
 
   WAIT_UNTIL(statusUpdateCall);
 

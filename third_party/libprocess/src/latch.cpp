@@ -2,6 +2,8 @@
 #include <process/latch.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
+
 namespace process {
 
 // TODO(benh): Provide an "optimized" implementation of a latch that
@@ -37,10 +39,10 @@ void Latch::trigger()
 }
 
 
-bool Latch::await(double secs)
+bool Latch::await(const Duration& duration)
 {
   if (!triggered) {
-    return wait(pid, secs);
+    return wait(pid, duration);
   }
 
   return true;

@@ -439,7 +439,7 @@ void Slave::doReliableRegistration()
   }
 
   // Re-try registration if necessary.
-  delay(1.0, self(), &Slave::doReliableRegistration);
+  delay(Seconds(1.0), self(), &Slave::doReliableRegistration);
 }
 
 
@@ -1008,7 +1008,7 @@ void Slave::statusUpdate(const StatusUpdate& update)
       UUID uuid = UUID::fromBytes(update.uuid());
 
       // Send us a message to try and resend after some delay.
-      delay(STATUS_UPDATE_RETRY_INTERVAL_SECONDS,
+      delay(STATUS_UPDATE_RETRY_INTERVAL,
             self(), &Slave::statusUpdateTimeout,
             framework->id, uuid);
 
@@ -1084,7 +1084,7 @@ void Slave::statusUpdateTimeout(
       send(master, message);
 
       // Send us a message to try and resend after some delay.
-      delay(STATUS_UPDATE_RETRY_INTERVAL_SECONDS,
+      delay(STATUS_UPDATE_RETRY_INTERVAL,
             self(), &Slave::statusUpdateTimeout,
             framework->id, uuid);
     }
@@ -1455,7 +1455,7 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
   executor->shutdown = true;
 
   // Prepare for sending a kill if the executor doesn't comply.
-  delay(flags.executor_shutdown_timeout_seconds,
+  delay(Seconds(flags.executor_shutdown_timeout_seconds),
         self(),
         &Slave::shutdownExecutorTimeout,
         framework->id, executor->id, executor->uuid);

@@ -6,6 +6,8 @@
 #include <process/dispatch.hpp>
 #include <process/timer.hpp>
 
+#include <stout/duration.hpp>
+
 namespace process {
 
 // The 'delay' mechanism enables you to delay a dispatch to a process
@@ -14,7 +16,7 @@ namespace process {
 // executing concurrently).
 
 template <typename T>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const PID<T>& pid,
             void (T::*method)())
 {
@@ -31,30 +33,30 @@ Timer delay(double secs,
   std::tr1::function<void(void)> dispatch =
     std::tr1::bind(internal::dispatch, pid, dispatcher);
 
-  return timers::create(secs, dispatch);
+  return Timer::create(duration, dispatch);
 }
 
 
 template <typename T>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const Process<T>& process,
             void (T::*method)())
 {
-  return delay(secs, process.self(), method);
+  return delay(duration, process.self(), method);
 }
 
 
 template <typename T>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const Process<T>* process,
             void (T::*method)())
 {
-  return delay(secs, process->self(), method);
+  return delay(duration, process->self(), method);
 }
 
 
 template <typename T, typename P1, typename A1>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const PID<T>& pid,
             void (T::*method)(P1),
             A1 a1)
@@ -72,34 +74,34 @@ Timer delay(double secs,
   std::tr1::function<void(void)> dispatch =
     std::tr1::bind(internal::dispatch, pid, dispatcher);
 
-  return timers::create(secs, dispatch);
+  return Timer::create(duration, dispatch);
 }
 
 
 template <typename T, typename P1, typename A1>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const Process<T>& process,
             void (T::*method)(P1),
             A1 a1)
 {
-  return delay(secs, process.self(), method, a1);
+  return delay(duration, process.self(), method, a1);
 }
 
 
 template <typename T, typename P1, typename A1>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const Process<T>* process,
             void (T::*method)(P1),
             A1 a1)
 {
-  return delay(secs, process->self(), method, a1);
+  return delay(duration, process->self(), method, a1);
 }
 
 
 template <typename T,
           typename P1, typename P2,
           typename A1, typename A2>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const PID<T>& pid,
             void (T::*method)(P1, P2),
             A1 a1, A2 a2)
@@ -117,38 +119,38 @@ Timer delay(double secs,
   std::tr1::function<void(void)> dispatch =
     std::tr1::bind(internal::dispatch, pid, dispatcher);
 
-  return timers::create(secs, dispatch);
+  return Timer::create(duration, dispatch);
 }
 
 
 template <typename T,
           typename P1, typename P2,
           typename A1, typename A2>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const Process<T>& process,
             void (T::*method)(P1, P2),
             A1 a1, A2 a2)
 {
-  return delay(secs, process.self(), method, a1, a2);
+  return delay(duration, process.self(), method, a1, a2);
 }
 
 
 template <typename T,
           typename P1, typename P2,
           typename A1, typename A2>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const Process<T>* process,
             void (T::*method)(P1, P2),
             A1 a1, A2 a2)
 {
-  return delay(secs, process->self(), method, a1, a2);
+  return delay(duration, process->self(), method, a1, a2);
 }
 
 
 template <typename T,
           typename P1, typename P2, typename P3,
           typename A1, typename A2, typename A3>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const PID<T>& pid,
             void (T::*method)(P1, P2, P3),
             A1 a1, A2 a2, A3 a3)
@@ -166,31 +168,31 @@ Timer delay(double secs,
   std::tr1::function<void(void)> dispatch =
     std::tr1::bind(internal::dispatch, pid, dispatcher);
 
-  return timers::create(secs, dispatch);
+  return Timer::create(duration, dispatch);
 }
 
 
 template <typename T,
           typename P1, typename P2, typename P3,
           typename A1, typename A2, typename A3>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const Process<T>& process,
             void (T::*method)(P1, P2, P3),
             A1 a1, A2 a2, A3 a3)
 {
-  return delay(secs, process.self(), method, a1, a2, a3);
+  return delay(duration, process.self(), method, a1, a2, a3);
 }
 
 
 template <typename T,
           typename P1, typename P2, typename P3,
           typename A1, typename A2, typename A3>
-Timer delay(double secs,
+Timer delay(const Duration& duration,
             const Process<T>* process,
             void (T::*method)(P1, P2, P3),
             A1 a1, A2 a2, A3 a3)
 {
-  return delay(secs, process->self(), method, a1, a2, a3);
+  return delay(duration, process->self(), method, a1, a2, a3);
 }
 
 } // namespace process {

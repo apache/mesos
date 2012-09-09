@@ -36,6 +36,7 @@
 #include <process/io.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
@@ -991,7 +992,7 @@ public:
   Freezer(const std::string& _hierarchy,
           const std::string& _cgroup,
           const std::string& _action,
-          const seconds& _interval)
+          const Duration& _interval)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
       action(_action),
@@ -1009,8 +1010,8 @@ protected:
     promise.future().onDiscarded(lambda::bind(
         static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
-    if (interval.value < 0) {
-      promise.fail("Invalid interval: " + stringify(interval.value));
+    if (interval < Seconds(0)) {
+      promise.fail("Invalid interval: " + stringify(interval));
       terminate(self());
       return;
     }
@@ -1109,7 +1110,7 @@ private:
       }
 
       // Not done yet, keep watching.
-      delay(interval.value, self(), &Freezer::watchFrozen);
+      delay(interval, self(), &Freezer::watchFrozen);
     } else {
       LOG(FATAL) << "Unexpected state: " << strings::trim(state.get());
     }
@@ -1131,7 +1132,7 @@ private:
       terminate(self());
     } else if (strings::trim(state.get()) == "FROZEN") {
       // Not done yet, keep watching.
-      delay(interval.value, self(), &Freezer::watchThawed);
+      delay(interval, self(), &Freezer::watchThawed);
     } else {
       LOG(FATAL) << "Unexpected state: " << strings::trim(state.get());
     }
@@ -1140,7 +1141,7 @@ private:
   std::string hierarchy;
   std::string cgroup;
   std::string action;
-  const seconds interval;
+  const Duration interval;
   Promise<bool> promise;
 };
 
@@ -1150,7 +1151,7 @@ private:
 
 Future<bool> freezeCgroup(const std::string& hierarchy,
                           const std::string& cgroup,
-                          const seconds& interval)
+                          const Duration& interval)
 {
   Try<bool> check = checkControl(hierarchy, cgroup, "freezer.state");
   if (check.isError()) {
@@ -1178,7 +1179,7 @@ Future<bool> freezeCgroup(const std::string& hierarchy,
 
 Future<bool> thawCgroup(const std::string& hierarchy,
                         const std::string& cgroup,
-                        const seconds& interval)
+                        const Duration& interval)
 {
   Try<bool> check = checkControl(hierarchy, cgroup, "freezer.state");
   if (check.isError()) {
@@ -1212,7 +1213,7 @@ class EmptyWatcher: public Process<EmptyWatcher>
 public:
   EmptyWatcher(const std::string& _hierarchy,
                const std::string& _cgroup,
-               const seconds& _interval)
+               const Duration& _interval)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
       interval(_interval) {}
@@ -1229,8 +1230,8 @@ protected:
     promise.future().onDiscarded(lambda::bind(
         static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
-    if (interval.value < 0) {
-      promise.fail("Invalid interval: " + stringify(interval.value));
+    if (interval < Seconds(0)) {
+      promise.fail("Invalid interval: " + stringify(interval));
       terminate(self());
       return;
     }
@@ -1255,13 +1256,13 @@ private:
       terminate(self());
     } else {
       // Re-check needed.
-      delay(interval.value, self(), &EmptyWatcher::check);
+      delay(interval, self(), &EmptyWatcher::check);
     }
   }
 
   std::string hierarchy;
   std::string cgroup;
-  const seconds interval;
+  const Duration interval;
   Promise<bool> promise;
 };
 
@@ -1272,7 +1273,7 @@ class TasksKiller : public Process<TasksKiller>
 public:
   TasksKiller(const std::string& _hierarchy,
               const std::string& _cgroup,
-              const seconds& _interval)
+              const Duration& _interval)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
       interval(_interval) {}
@@ -1289,8 +1290,8 @@ protected:
     promise.future().onDiscarded(lambda::bind(
           static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
-    if (interval.value < 0) {
-      promise.fail("Invalid interval: " + stringify(interval.value));
+    if (interval < Seconds(0)) {
+      promise.fail("Invalid interval: " + stringify(interval));
       terminate(self());
       return;
     }
@@ -1377,7 +1378,7 @@ private:
 
   std::string hierarchy;
   std::string cgroup;
-  const seconds interval;
+  const Duration interval;
   Promise<bool> promise;
   Future<bool> finish;
 };
@@ -1387,7 +1388,7 @@ private:
 
 Future<bool> killTasks(const std::string& hierarchy,
                        const std::string& cgroup,
-                       const seconds& interval)
+                       const Duration& interval)
 {
   Try<bool> freezerCheck = checkHierarchy(hierarchy, "freezer");
   if (freezerCheck.isError()) {
@@ -1415,7 +1416,7 @@ class Destroyer : public Process<Destroyer>
 public:
   Destroyer(const std::string& _hierarchy,
             const std::vector<std::string>& _cgroups,
-            const seconds& _interval)
+            const Duration& _interval)
     : hierarchy(_hierarchy),
       cgroups(_cgroups),
       interval(_interval) {}
@@ -1432,8 +1433,8 @@ protected:
     promise.future().onDiscarded(lambda::bind(
           static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
-    if (interval.value < 0) {
-      promise.fail("Invalid interval: " + stringify(interval.value));
+    if (interval < Seconds(0)) {
+      promise.fail("Invalid interval: " + stringify(interval));
       terminate(self());
       return;
     }
@@ -1487,7 +1488,7 @@ private:
 
   std::string hierarchy;
   std::vector<std::string> cgroups;
-  const seconds interval;
+  const Duration interval;
   Promise<bool> promise;
 
   // The killer processes used to atomically kill tasks in each cgroup.
@@ -1499,7 +1500,7 @@ private:
 
 Future<bool> destroyCgroup(const std::string& hierarchy,
                            const std::string& cgroup,
-                           const seconds& interval)
+                           const Duration& interval)
 {
   Try<bool> cgroupCheck = checkCgroup(hierarchy, cgroup);
   if (cgroupCheck.isError()) {

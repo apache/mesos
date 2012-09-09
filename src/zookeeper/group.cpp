@@ -34,7 +34,8 @@ using std::vector;
 
 namespace zookeeper {
 
-const double RETRY_SECONDS = 2.0; // Time to wait after retryable errors.
+// Time to wait after retryable errors.
+const Duration RETRY_INTERVAL = Seconds(2.0);
 
 
 class GroupProcess : public Process<GroupProcess>
@@ -83,7 +84,7 @@ private:
   // that it is not specific to any particular operation, but rather
   // attempts to perform all pending operations (including caching
   // memberships if necessary).
-  void retry(double seconds);
+  void retry(const Duration& duration);
 
   // Fails all pending operations.
   void abort();
@@ -235,7 +236,7 @@ Future<Group::Membership> GroupProcess::join(const string& data)
 
   if (membership.isNone()) { // Try again later.
     if (!retrying) {
-      delay(RETRY_SECONDS, self(), &GroupProcess::retry, RETRY_SECONDS);
+      delay(RETRY_INTERVAL, self(), &GroupProcess::retry, RETRY_INTERVAL);
       retrying = true;
     }
     Join* join = new Join(data);
@@ -276,7 +277,7 @@ Future<bool> GroupProcess::cancel(const Group::Membership& membership)
 
   if (cancellation.isNone()) { // Try again later.
     if (!retrying) {
-      delay(RETRY_SECONDS, self(), &GroupProcess::retry, RETRY_SECONDS);
+      delay(RETRY_INTERVAL, self(), &GroupProcess::retry, RETRY_INTERVAL);
       retrying = true;
     }
     Cancel* cancel = new Cancel(membership);
@@ -344,7 +345,7 @@ Future<set<Group::Membership> > GroupProcess::watch(
 
   if (memberships.isNone()) { // Try again later.
     if (!retrying) {
-      delay(RETRY_SECONDS, self(), &GroupProcess::retry, RETRY_SECONDS);
+      delay(RETRY_INTERVAL, self(), &GroupProcess::retry, RETRY_INTERVAL);
       retrying = true;
     }
     Watch* watch = new Watch(expected);
@@ -506,7 +507,7 @@ void GroupProcess::updated(const string& path)
 
   if (memberships.isNone()) { // Something changed so we must try again later.
     if (!retrying) {
-      delay(RETRY_SECONDS, self(), &GroupProcess::retry, RETRY_SECONDS);
+      delay(RETRY_INTERVAL, self(), &GroupProcess::retry, RETRY_INTERVAL);
       retrying = true;
     }
   } else {
@@ -812,14 +813,14 @@ bool GroupProcess::sync()
 }
 
 
-void GroupProcess::retry(double seconds)
+void GroupProcess::retry(const Duration& duration)
 {
   if (error.isSome() || state != CONNECTED) {
     retrying = false; // Stop retrying, we'll sync at reconnect (if no error).
   } else if (error.isNone() && state == CONNECTED) {
     bool synced = sync(); // Might get another retryable error.
     if (!synced && error.isNone()) {
-      seconds = std::min(seconds * 2.0, 60.0); // Backoff.
+      Seconds seconds(std::min(duration.secs() * 2.0, 60.0)); // Backoff.
       delay(seconds, self(), &GroupProcess::retry, seconds);
     } else {
       retrying = false;

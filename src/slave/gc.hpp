@@ -46,7 +46,7 @@ public:
   ~GarbageCollector();
 
   // Schedules the specified path for removal after the specified
-  // amount of time has elapsed and returns true if the file was
+  // duration of time has elapsed and returns true if the file was
   // successfully removed and false if the file didn't exist (or an
   // error, e.g., permission denied).
   process::Future<bool> schedule(const Duration& d, const std::string& path);

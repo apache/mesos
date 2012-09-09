@@ -49,7 +49,7 @@ void Reaper::addProcessExitedListener(
 
 void Reaper::initialize()
 {
-  delay(1.0, self(), &Reaper::reap);
+  delay(Seconds(1.0), self(), &Reaper::reap);
 }
 
 
@@ -67,7 +67,7 @@ void Reaper::reap()
     }
   }
 
-  delay(1.0, self(), &Reaper::reap); // Reap forever!
+  delay(Seconds(1.0), self(), &Reaper::reap); // Reap forever!
 }
 
 } // namespace slave {

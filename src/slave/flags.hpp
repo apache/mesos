@@ -89,7 +89,7 @@ public:
         "executor_shutdown_timeout_seconds",
         "Amount of time (in seconds) to wait for\n"
         "an executor to shut down",
-        EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS);
+        EXECUTOR_SHUTDOWN_TIMEOUT.secs());
 
     add(&Flags::gc_timeout_hours,
         "gc_timeout_hours",

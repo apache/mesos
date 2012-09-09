@@ -61,7 +61,9 @@ protected:
   virtual void initialize()
   {
     LOG(INFO) << "Scheduling shutdown of the executor";
-    delay(slave::EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS, self(), &Self::kill);
+    // TODO(benh): Pass the shutdown timeout with ExecutorRegistered
+    // since it might have gotten configured on the command line.
+    delay(slave::EXECUTOR_SHUTDOWN_TIMEOUT, self(), &Self::kill);
   }
 
   void kill()

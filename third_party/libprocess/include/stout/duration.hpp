@@ -3,6 +3,8 @@
 
 #include <ctype.h> // For 'isdigit'.
 
+#include <iomanip>
+#include <iostream>
 #include <string>
 
 #include "numify.hpp"
@@ -12,15 +14,21 @@
 class Duration
 {
 public:
-  double nanos() const { return value; }
-  double micros() const { return value / MICROSECONDS; }
-  double millis() const { return value / MILLISECONDS; }
+  double ns() const { return value; }
+  double us() const { return value / MICROSECONDS; }
+  double ms() const { return value / MILLISECONDS; }
   double secs() const { return value / SECONDS; }
   double mins() const { return value / MINUTES; }
+  double hrs() const { return value / HOURS; }
   double days() const { return value / DAYS; }
   double weeks() const { return value / WEEKS; }
 
   bool operator < (const Duration& that) const { return value < that.value; }
+  bool operator <= (const Duration& that) const { return value <= that.value; }
+  bool operator > (const Duration& that) const { return value > that.value; }
+  bool operator >= (const Duration& that) const { return value >= that.value; }
+  bool operator == (const Duration& that) const { return value == that.value; }
+  bool operator != (const Duration& that) const { return value != that.value; }
 
   static Try<Duration> parse(const std::string& s)
   {
@@ -146,5 +154,43 @@ public:
   explicit Weeks(double value)
     : Duration(value, WEEKS) {}
 };
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const Duration& duration)
+{
+  // Fix the number digits after the decimal point.
+  std::ios_base::fmtflags flags = stream.flags();
+  long precision = stream.precision();
+
+  stream.setf(std::ios::fixed, std::ios::floatfield);
+  stream.precision(2);
+
+  if (duration < Microseconds(1)) {
+    stream << duration.ns() << "ns";
+  } else if (duration < Milliseconds(1)) {
+    stream << duration.us() << "us";
+  } else if (duration < Seconds(1)) {
+    stream << duration.ms() << "ms";
+  } else if (duration < Minutes(1)) {
+    stream << duration.secs() << "secs";
+  } else if (duration < Hours(1)) {
+    stream << duration.mins() << "mins";
+  } else if (duration < Days(1)) {
+    stream << duration.hrs() << "hrs";
+  } else if (duration < Weeks(1)) {
+    stream << duration.days() << "days";
+  } else {
+    stream << duration.weeks() << "weeks";
+  }
+
+  // Return the stream to original formatting state.
+  stream.unsetf(std::ios::floatfield);
+  stream.setf(flags);
+  stream.precision(precision);
+
+  return stream;
+}
 
 #endif // __STOUT_DURATION_HPP__

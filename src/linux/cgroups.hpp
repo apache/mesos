@@ -261,7 +261,7 @@ process::Future<uint64_t> listenEvent(const std::string& hierarchy,
 // the given cgroup is not valid, or the given cgroup has already been frozen.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   interval    The time interval in seconds between two state check
+// @param   interval    The time interval between two state check
 //                      requests (default: 0.1 seconds).
 // @return  A future which will become ready when all processes are frozen.
 //          Error if some unexpected happens.
@@ -276,7 +276,7 @@ process::Future<bool> freezeCgroup(const std::string& hierarchy,
 // allow users to cancel the operation.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   interval    The time interval in seconds between two state check
+// @param   interval    The time interval between two state check
 //                      requests (default: 0.1 seconds).
 // @return  A future which will become ready when all processes are thawed.
 //          Error if some unexpected happens.
@@ -295,7 +295,7 @@ process::Future<bool> thawCgroup(const std::string& hierarchy,
 // available or not properly attached to the given hierarchy.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   interval    The time interval in seconds between two state check
+// @param   interval    The time interval between two state check
 //                      requests (default: 0.1 seconds).
 // @return  A future which will become ready when the operation is done.
 //          Error if some unexpected happens.
@@ -313,7 +313,7 @@ process::Future<bool> killTasks(const std::string& hierarchy,
 // process. The future will become ready when the destroy operation finishes.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   interval    The time interval in seconds between two state check
+// @param   interval    The time interval between two state check
 //                      requests (default: 0.1 seconds).
 // @return  A future which will become ready when the operation is done.
 //          Error if some unexpected happens.

@@ -109,7 +109,7 @@ protected:
 
     // Check again.
     lastWhitelist = whitelist;
-    delay(WATCH_TIMEOUT, self(), &WhitelistWatcher::watch);
+    delay(WHITELIST_WATCH_INTERVAL, self(), &WhitelistWatcher::watch);
   }
 
 private:
@@ -484,10 +484,10 @@ void Master::exited(const UPID& pid)
       // Tell the allocator to stop allocating resources to this framework.
       dispatch(allocator, &AllocatorProcess::frameworkDeactivated, framework->id);
 
-      double failoverTimeout = framework->info.failover_timeout();
+      Seconds failoverTimeout(framework->info.failover_timeout());
 
       LOG(INFO) << "Giving framework " << framework->id << " "
-                << failoverTimeout << " seconds to failover";
+                << failoverTimeout << " to failover";
 
       // Delay dispatching a message to ourselves for the timeout.
       delay(failoverTimeout, self(),

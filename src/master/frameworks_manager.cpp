@@ -113,14 +113,13 @@ Future<Result<bool> > FrameworksManager::remove(const FrameworkID& id,
     return Result<bool>::error("Error removing non-existing framework.");
   }
 
-  LOG(INFO) << "Expiring framework " << id
-            << " in " << timeout.secs() << " seconds";
+  LOG(INFO) << "Expiring framework " << id << " in " << timeout;
 
   // Set the option to contain the firing time of the message.
   infos[id].second = Option<double>::some(Clock::now() + timeout.secs());
 
   Promise<Result<bool> >* promise = new Promise<Result<bool> >();
-  delay(timeout.secs(), self(), &FrameworksManager::expire, id, promise);
+  delay(timeout, self(), &FrameworksManager::expire, id, promise);
   return promise->future();
 }
 

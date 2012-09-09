@@ -7,27 +7,22 @@
 
 #include <process/timeout.hpp>
 
+#include <stout/duration.hpp>
+
 namespace process {
 
-// Timer support! Note that we don't store a pointer to the issuing
-// process (if there is one) because we can't dereference it because
-// it might no longer be valid. (Instead we can use the PID to check
-// if the issuing process is still valid and get a refernce to it).
-
-class Timer; // Forward declaration.
-
-namespace timers {
-
-Timer create(double secs, const std::tr1::function<void(void)>& thunk);
-bool cancel(const Timer& timer);
-
-} // namespace timers {
-
+// Timer support!
 
 class Timer
 {
 public:
   Timer() : id(0), t(0), pid(process::UPID()), thunk(&abort) {}
+
+  static Timer create(
+      const Duration& duration,
+      const std::tr1::function<void(void)>& thunk);
+
+  static bool cancel(const Timer& timer);
 
   bool operator == (const Timer& that) const
   {
@@ -55,8 +50,6 @@ public:
   }
 
 private:
-  friend Timer timers::create(double, const std::tr1::function<void(void)>&);
-
   Timer(long _id,
         const Timeout& _t,
         const process::UPID& _pid,
@@ -65,8 +58,16 @@ private:
   {}
 
   uint64_t id; // Used for equality.
+
   Timeout t;
-  process::UPID pid; // Running process when this timer was created.
+
+  // We store the PID of the "issuing" (i.e., "running") process (if
+  // there is one). We don't store a pointer to the process because we
+  // can't dereference it since it might no longer be valid. (Instead,
+  // the PID can be used internally to check if the process is still
+  // valid and get a refernce to it.)
+  process::UPID pid;
+
   std::tr1::function<void(void)> thunk;
 };
 

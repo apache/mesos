@@ -1020,7 +1020,7 @@ TEST_F(FrameworksManagerTestFixture, AddFramework)
   Future<Result<map<FrameworkID, FrameworkInfo> > > future =
     process::dispatch(manager, &FrameworksManager::list);
 
-  ASSERT_TRUE(future.await(2.0));
+  ASSERT_TRUE(future.await(Seconds(2.0)));
   EXPECT_TRUE(future.get().get().empty());
 
   // Add a dummy framework.
@@ -1035,14 +1035,14 @@ TEST_F(FrameworksManagerTestFixture, AddFramework)
   Future<Result<bool> > future2 =
     process::dispatch(manager, &FrameworksManager::add, id, info);
 
-  ASSERT_TRUE(future2.await(2.0));
+  ASSERT_TRUE(future2.await(Seconds(2.0)));
   EXPECT_TRUE(future2.get().get());
 
   // Check if framework manager returns the added framework.
   Future<Result<map<FrameworkID, FrameworkInfo> > > future3 =
     process::dispatch(manager, &FrameworksManager::list);
 
-  ASSERT_TRUE(future3.await(2.0));
+  ASSERT_TRUE(future3.await(Seconds(2.0)));
 
   map<FrameworkID, FrameworkInfo> result = future3.get().get();
 
@@ -1054,7 +1054,7 @@ TEST_F(FrameworksManagerTestFixture, AddFramework)
   Future<Result<bool> > future4 =
     process::dispatch(manager, &FrameworksManager::exists, id);
 
-  ASSERT_TRUE(future4.await(2.0));
+  ASSERT_TRUE(future4.await(Seconds(2.0)));
   EXPECT_TRUE(future4.get().get());
 }
 
@@ -1070,7 +1070,7 @@ TEST_F(FrameworksManagerTestFixture, RemoveFramework)
   Future<Result<bool> > future1 =
     process::dispatch(manager, &FrameworksManager::remove, id, Seconds(0));
 
-  ASSERT_TRUE(future1.await(2.0));
+  ASSERT_TRUE(future1.await(Seconds(2.0)));
   EXPECT_TRUE(future1.get().isError());
 
   // Remove an existing framework.
@@ -1087,7 +1087,7 @@ TEST_F(FrameworksManagerTestFixture, RemoveFramework)
   Future<Result<bool> > future2 =
     process::dispatch(manager, &FrameworksManager::add, id2, info2);
 
-  ASSERT_TRUE(future2.await(2.0));
+  ASSERT_TRUE(future2.await(Seconds(2.0)));
   EXPECT_TRUE(future2.get().get());
 
   // Now remove the added framework.
@@ -1096,14 +1096,14 @@ TEST_F(FrameworksManagerTestFixture, RemoveFramework)
 
   Clock::update(Clock::now(manager) + 1.0);
 
-  ASSERT_TRUE(future3.await(2.0));
+  ASSERT_TRUE(future3.await(Seconds(2.0)));
   EXPECT_TRUE(future2.get().get());
 
   // Now check if the removed framework exists...it shouldn't.
   Future<Result<bool> > future4 =
     process::dispatch(manager, &FrameworksManager::exists, id2);
 
-  ASSERT_TRUE(future4.await(2.0));
+  ASSERT_TRUE(future4.await(Seconds(2.0)));
   EXPECT_FALSE(future4.get().get());
 
   Clock::resume();
@@ -1119,7 +1119,7 @@ TEST_F(FrameworksManagerTestFixture, ResurrectFramework)
   Future<Result<bool> > future1 =
     process::dispatch(manager, &FrameworksManager::resurrect, id);
 
-  ASSERT_TRUE(future1.await(2.0));
+  ASSERT_TRUE(future1.await(Seconds(2.0)));
   EXPECT_FALSE(future1.get().get());
 
   // Resurrect an existent framework that is NOT being removed.
@@ -1135,13 +1135,13 @@ TEST_F(FrameworksManagerTestFixture, ResurrectFramework)
   Future<Result<bool> > future2 =
     process::dispatch(manager, &FrameworksManager::add, id2, info2);
 
-  ASSERT_TRUE(future2.await(2.0));
+  ASSERT_TRUE(future2.await(Seconds(2.0)));
   EXPECT_TRUE(future2.get().get());
 
   Future<Result<bool> > future3 =
     process::dispatch(manager, &FrameworksManager::resurrect, id2);
 
-  ASSERT_TRUE(future3.await(2.0));
+  ASSERT_TRUE(future3.await(Seconds(2.0)));
   EXPECT_TRUE(future3.get().get());
 }
 
@@ -1175,12 +1175,12 @@ TEST_F(FrameworksManagerTestFixture, ResurrectExpiringFramework)
   Future<Result<bool> > future2 =
     process::dispatch(manager, &FrameworksManager::resurrect, id);
 
-  ASSERT_TRUE(future2.await(2.0));
+  ASSERT_TRUE(future2.await(Seconds(2.0)));
   EXPECT_TRUE(future2.get().get());
 
   Clock::update(Clock::now(manager) + 2.0);
 
-  ASSERT_TRUE(future1.await(2.0));
+  ASSERT_TRUE(future1.await(Seconds(2.0)));
   EXPECT_FALSE(future1.get().get());
 
   Clock::resume();
@@ -1217,17 +1217,17 @@ TEST_F(FrameworksManagerTestFixture, ResurrectInterspersedExpiringFrameworks)
   Future<Result<bool> > future3 =
     process::dispatch(manager, &FrameworksManager::remove, id, Seconds(1.0));
 
-  ASSERT_TRUE(future2.await(2.0));
+  ASSERT_TRUE(future2.await(Seconds(2.0)));
   EXPECT_TRUE(future2.get().get());
 
   Clock::update(Clock::now(manager) + 1.0);
 
-  ASSERT_TRUE(future3.await(2.0));
+  ASSERT_TRUE(future3.await(Seconds(2.0)));
   EXPECT_TRUE(future3.get().get());
 
   Clock::update(Clock::now(manager) + 2.0);
 
-  ASSERT_TRUE(future1.await(2.0));
+  ASSERT_TRUE(future1.await(Seconds(2.0)));
   EXPECT_FALSE(future1.get().get());
 
   Clock::resume();
@@ -1263,7 +1263,7 @@ TEST(FrameworksManagerTest, CacheFailure)
   Future<Result<map<FrameworkID, FrameworkInfo> > > future1 =
     process::dispatch(manager, &FrameworksManager::list);
 
-  ASSERT_TRUE(future1.await(2.0));
+  ASSERT_TRUE(future1.await(Seconds(2.0)));
   ASSERT_TRUE(future1.get().isError());
   EXPECT_EQ(future1.get().error(), "Error caching framework infos.");
 
@@ -1279,14 +1279,14 @@ TEST(FrameworksManagerTest, CacheFailure)
   Future<Result<bool> > future2 =
     process::dispatch(manager, &FrameworksManager::add, id, info);
 
-  ASSERT_TRUE(future2.await(2.0));
+  ASSERT_TRUE(future2.await(Seconds(2.0)));
   EXPECT_TRUE(future2.get().get());
 
   // Remove framework should fail due to caching failure.
   Future<Result<bool> > future3 =
     process::dispatch(manager, &FrameworksManager::remove, id, Seconds(0));
 
-  ASSERT_TRUE(future3.await(2.0));
+  ASSERT_TRUE(future3.await(Seconds(2.0)));
   ASSERT_TRUE(future3.get().isError());
   EXPECT_EQ(future3.get().error(), "Error caching framework infos.");
 

@@ -19,6 +19,8 @@
 #ifndef __MASTER_CONSTANTS_HPP__
 #define __MASTER_CONSTANTS_HPP__
 
+#include <stout/duration.hpp>
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -41,8 +43,8 @@ const uint32_t MAX_CPUS = 1000 * 1000;
 // Maximum amount of memory / machine.
 const uint32_t MAX_MEM = 1024 * 1024 * Megabyte;
 
-// Acceptable timeout for slave PING.
-const double SLAVE_PING_TIMEOUT = 15.0;
+// Amount of time within which a slave PING should be received.
+const Duration SLAVE_PING_TIMEOUT = Seconds(15.0);
 
 // Maximum number of ping timeouts until slave is considered failed.
 const uint32_t MAX_SLAVE_PING_TIMEOUTS = 5;
@@ -56,7 +58,7 @@ const uint32_t MAX_COMPLETED_FRAMEWORKS = 100;
 const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK = 500;
 
 // Time interval to check for updated watchers list.
-const uint32_t WATCH_TIMEOUT = 5;
+const Duration WHITELIST_WATCH_INTERVAL = Seconds(5.0);
 
 } // namespace mesos {
 } // namespace internal {

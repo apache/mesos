@@ -427,7 +427,7 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_ListenEvent)
 
   if (pid) {
     // In parent process.
-    future.await(5.0); // Timeout in 5 seconds.
+    future.await(Seconds(5.0));
 
     EXPECT_TRUE(future.isReady());
 
@@ -480,13 +480,13 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_Freezer)
 
     // Freeze the "/prof" cgroup.
     Future<bool> freeze = cgroups::freezeCgroup(hierarchy, "/prof");
-    freeze.await(5.0);
+    freeze.await(Seconds(5.0));
     ASSERT_TRUE(freeze.isReady());
     EXPECT_EQ(true, freeze.get());
 
     // Thaw the "/prof" cgroup.
     Future<bool> thaw = cgroups::thawCgroup(hierarchy, "/prof");
-    thaw.await(5.0);
+    thaw.await(Seconds(5.0));
     ASSERT_TRUE(thaw.isReady());
     EXPECT_EQ(true, thaw.get());
 
@@ -544,7 +544,7 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_KillTasks)
     ::close(pipes[0]);
 
     Future<bool> future = cgroups::killTasks(hierarchy, "/prof");
-    future.await(5.0);
+    future.await(Seconds(5.0));
     ASSERT_TRUE(future.isReady());
     EXPECT_TRUE(future.get());
 
@@ -580,7 +580,7 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_KillTasks)
 TEST_F(CgroupsTest, ROOT_CGROUPS_DestroyCgroup)
 {
   Future<bool> future = cgroups::destroyCgroup(hierarchy, "/stu/under");
-  future.await(5.0);
+  future.await(Seconds(5.0));
   ASSERT_TRUE(future.isReady());
   EXPECT_TRUE(future.get());
 
@@ -603,7 +603,7 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_DestroyCgroup)
     ::close(pipes[0]);
 
     Future<bool> future = cgroups::destroyCgroup(hierarchy, "/");
-    future.await(5.0);
+    future.await(Seconds(5.0));
     ASSERT_TRUE(future.isReady());
     EXPECT_TRUE(future.get());
 

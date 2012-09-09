@@ -60,6 +60,7 @@
 #include <process/thread.hpp>
 #include <process/timer.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/os.hpp>
@@ -1428,8 +1429,9 @@ void HttpProxy::handle(Future<Response>* future, bool persist)
         defer(self(), &HttpProxy::waited, *future));
 
     // Also create a timer so we don't wait forever.
-    timer =
-      timers::create(30, defer(self(), &HttpProxy::timedout, *future));
+    timer = Timer::create(
+        Seconds(30.0),
+        defer(self(), &HttpProxy::timedout, *future));
   }
 }
 
@@ -1443,8 +1445,9 @@ void HttpProxy::next()
         defer(self(), &HttpProxy::waited, *item->future));
 
     // Also create a timer so we don't wait forever.
-    timer =
-      timers::create(30, defer(self(), &HttpProxy::timedout, *item->future));
+    timer = Timer::create(
+        Seconds(30.0),
+        defer(self(), &HttpProxy::timedout, *item->future));
   }
 }
 
@@ -1454,7 +1457,7 @@ void HttpProxy::waited(const Future<Response>& future)
   if (items.size() > 0) { // The timer might have already fired.
     Item* item = items.front();
     if (future == *item->future) { // Another future might already be queued.
-      timers::cancel(timer);
+      Timer::cancel(timer);
 
       if (item->future->isReady()) {
         process(item->future, item->persist);
@@ -2559,13 +2562,13 @@ void ProcessManager::settle()
 }
 
 
-namespace timers {
-
-Timer create(double secs, const lambda::function<void(void)>& thunk)
+Timer Timer::create(
+    const Duration& duration,
+    const lambda::function<void(void)>& thunk)
 {
   static uint64_t id = 1; // Start at 1 since Timer() instances start with 0.
 
-  Timeout timeout(secs); // Assumes Clock::now() does Clock::now(__process__).
+  Timeout timeout(duration.secs()); // Assumes Clock::now() does Clock::now(__process__).
 
   UPID pid = __process__ != NULL ? __process__->self() : UPID();
 
@@ -2593,7 +2596,7 @@ Timer create(double secs, const lambda::function<void(void)>& thunk)
 }
 
 
-bool cancel(const Timer& timer)
+bool Timer::cancel(const Timer& timer)
 {
   bool canceled = false;
   synchronized (timeouts) {
@@ -2613,8 +2616,6 @@ bool cancel(const Timer& timer)
 
   return canceled;
 }
-
-} // namespace timers {
 
 
 ProcessBase::ProcessBase(const std::string& id)
@@ -2903,17 +2904,17 @@ void terminate(const UPID& pid, bool inject)
 class WaitWaiter : public Process<WaitWaiter>
 {
 public:
-  WaitWaiter(const UPID& _pid, double _secs, bool* _waited)
+  WaitWaiter(const UPID& _pid, const Duration& _duration, bool* _waited)
     : ProcessBase(ID::generate("__waiter__")),
       pid(_pid),
-      secs(_secs),
+      duration(_duration),
       waited(_waited) {}
 
   virtual void initialize()
   {
     VLOG(3) << "Running waiter process for " << pid;
     link(pid);
-    delay(secs, self(), &WaitWaiter::timeout);
+    delay(duration, self(), &WaitWaiter::timeout);
   }
 
 private:
@@ -2933,12 +2934,12 @@ private:
 
 private:
   const UPID pid;
-  const double secs;
+  const Duration duration;
   bool* const waited;
 };
 
 
-bool wait(const UPID& pid, double secs)
+bool wait(const UPID& pid, const Duration& duration)
 {
   process::initialize();
 
@@ -2953,13 +2954,13 @@ bool wait(const UPID& pid, double secs)
               << pid << " that it is currently executing." << std::endl;
   }
 
-  if (secs == 0) {
+  if (duration == Seconds(0)) {
     return process_manager->wait(pid);
   }
 
   bool waited = false;
 
-  WaitWaiter waiter(pid, secs, &waited);
+  WaitWaiter waiter(pid, duration, &waited);
   spawn(waiter);
   wait(waiter);
 

@@ -139,7 +139,7 @@ private:
 
   void revert()
   {
-    if (timeout.remaining() == 0.0) {
+    if (timeout.remaining() == Seconds(0)) {
       set(original);
     }
   }

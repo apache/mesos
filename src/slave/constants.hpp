@@ -19,14 +19,16 @@
 #ifndef __SLAVE_CONSTANTS_HPP__
 #define __SLAVE_CONSTANTS_HPP__
 
+#include <stout/duration.hpp>
+
 namespace mesos {
 namespace internal {
 namespace slave {
 
 // TODO(benh): Also make configuration options be constants.
 
-const double EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS = 5.0;
-const double STATUS_UPDATE_RETRY_INTERVAL_SECONDS = 10.0;
+const Duration EXECUTOR_SHUTDOWN_TIMEOUT = Seconds(5.0);
+const Duration STATUS_UPDATE_RETRY_INTERVAL = Seconds(10.0);
 const double GC_TIMEOUT_HOURS = 7.0 * 24.0; // 1 week.
 
 } // namespace slave {

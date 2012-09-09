@@ -59,7 +59,7 @@ Future<bool> GarbageCollectorProcess::schedule(
 
   Promise<bool>* promise = new Promise<bool>();
 
-  delay(d.secs(), self(), &Self::remove, path, promise);
+  delay(d, self(), &Self::remove, path, promise);
 
   return promise->future();
 }

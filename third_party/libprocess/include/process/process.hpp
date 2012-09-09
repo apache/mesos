@@ -18,6 +18,8 @@
 #include <process/pid.hpp>
 #include <process/thread.hpp>
 
+#include <stout/duration.hpp>
+
 namespace process {
 
 class ProcessBase : public EventVisitor
@@ -297,9 +299,9 @@ void terminate(const ProcessBase* process, bool inject = true);
  * @param PID id of the process
  * @param secs max time to wait, 0 implies wait for ever
  */
-bool wait(const UPID& pid, double secs = 0);
-bool wait(const ProcessBase& process, double secs = 0);
-bool wait(const ProcessBase* process, double secs = 0);
+bool wait(const UPID& pid, const Duration& duration = Seconds(0));
+bool wait(const ProcessBase& process, const Duration& duration = Seconds(0));
+bool wait(const ProcessBase* process, const Duration& duration = Seconds(0));
 
 
 /**
@@ -329,15 +331,15 @@ inline void terminate(const ProcessBase* process, bool inject)
 }
 
 
-inline bool wait(const ProcessBase& process, double secs)
+inline bool wait(const ProcessBase& process, const Duration& duration)
 {
-  return wait(process.self(), secs);
+  return wait(process.self(), duration);
 }
 
 
-inline bool wait(const ProcessBase* process, double secs)
+inline bool wait(const ProcessBase* process, const Duration& duration)
 {
-  return wait(process->self(), secs);
+  return wait(process->self(), duration);
 }
 
 

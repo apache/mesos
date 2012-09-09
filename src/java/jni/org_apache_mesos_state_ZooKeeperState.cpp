@@ -259,9 +259,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1ge
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Seconds timeout(jseconds);
+  Seconds seconds(jseconds);
 
-  if (future->await(timeout.secs())) {
+  if (future->await(seconds)) {
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());
@@ -448,9 +448,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Seconds timeout(jseconds);
+  Seconds seconds(jseconds);
 
-  if (future->await(timeout.secs())) {
+  if (future->await(seconds)) {
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());
@@ -632,9 +632,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1names_1
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Seconds timeout(jseconds);
+  Seconds seconds(jseconds);
 
-  if (future->await(timeout.secs())) {
+  if (future->await(seconds)) {
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());

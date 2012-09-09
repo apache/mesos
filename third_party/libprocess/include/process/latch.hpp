@@ -3,6 +3,8 @@
 
 #include <process/pid.hpp>
 
+#include <stout/duration.hpp>
+
 namespace process {
 
 class Latch
@@ -15,7 +17,7 @@ public:
   bool operator < (const Latch& that) const { return pid < that.pid; }
 
   void trigger();
-  bool await(double secs = 0);
+  bool await(const Duration& duration = Seconds(0));
 
 private:
   // Not copyable, not assignable.

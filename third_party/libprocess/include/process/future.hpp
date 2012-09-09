@@ -13,6 +13,7 @@
 
 #include <process/latch.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 
 namespace process {
@@ -70,7 +71,7 @@ public:
   bool discard();
 
   // Waits for this future to become ready, discarded, or failed.
-  bool await(double secs = 0) const;
+  bool await(const Duration& duration = Seconds(0)) const;
 
   // Return the value associated with this future, waits indefinitely
   // until a value gets associated or until the future is discarded.
@@ -510,11 +511,11 @@ bool Future<T>::isFailed() const
 
 
 template <typename T>
-bool Future<T>::await(double secs) const
+bool Future<T>::await(const Duration& duration) const
 {
   if (!isReady() && !isDiscarded() && !isFailed()) {
     assert(latch != NULL);
-    return latch->await(secs);
+    return latch->await(duration);
   }
   return true;
 }

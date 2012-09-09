@@ -22,6 +22,7 @@
 #include <process/run.hpp>
 #include <process/thread.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/os.hpp>
 
 #include "encoder.hpp"
@@ -641,11 +642,9 @@ TEST(Process, delay)
 
   spawn(process);
 
-  double seconds = 5.0;
+  delay(Seconds(5.0), process.self(), &TimeoutProcess::timeout);
 
-  delay(seconds, process.self(), &TimeoutProcess::timeout);
-
-  Clock::advance(seconds);
+  Clock::advance(5.0);
 
   while (!timeoutCalled);
 
@@ -838,7 +837,7 @@ public:
   virtual void initialize()
   {
     usleep(10000);
-    delay(0.0, self(), &SettleProcess::afterDelay);
+    delay(Seconds(0), self(), &SettleProcess::afterDelay);
   }
 
   void afterDelay()
@@ -1166,7 +1165,7 @@ TEST(Process, read)
 
   // Test on a blocking file descriptor.
   future = io::read(pipes[0], data, 3);
-  future.await(1.0);
+  future.await(Seconds(1.0));
   EXPECT_TRUE(future.isFailed());
 
   close(pipes[0]);
@@ -1174,7 +1173,7 @@ TEST(Process, read)
 
   // Test on a closed file descriptor.
   future = io::read(pipes[0], data, 3);
-  future.await(1.0);
+  future.await(Seconds(1.0));
   EXPECT_TRUE(future.isFailed());
 
   // Create a nonblocking pipe.
@@ -1184,7 +1183,7 @@ TEST(Process, read)
 
   // Test reading nothing.
   future = io::read(pipes[0], data, 0);
-  future.await(1.0);
+  future.await(Seconds(1.0));
   EXPECT_TRUE(future.isFailed());
 
   // Test successful read.
@@ -1192,7 +1191,7 @@ TEST(Process, read)
   ASSERT_FALSE(future.isReady());
 
   ASSERT_EQ(2, write(pipes[1], "hi", 2));
-  future.await(1.0);
+  future.await(Seconds(1.0));
   ASSERT_TRUE(future.isReady());
   ASSERT_EQ(2, future.get());
   EXPECT_EQ('h', data[0]);
@@ -1207,7 +1206,7 @@ TEST(Process, read)
   ASSERT_EQ(3, write(pipes[1], "omg", 3));
 
   future = io::read(pipes[0], data, 3);
-  future.await(1.0);
+  future.await(Seconds(1.0));
   ASSERT_TRUE(future.isReady());
   ASSERT_EQ(3, future.get());
   EXPECT_EQ('o', data[0]);
@@ -1220,7 +1219,7 @@ TEST(Process, read)
 
   close(pipes[1]);
 
-  future.await(1.0);
+  future.await(Seconds(1.0));
   ASSERT_TRUE(future.isReady());
   EXPECT_EQ(0, future.get());
 

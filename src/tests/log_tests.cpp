@@ -65,7 +65,7 @@ TEST(ReplicaTest, Promise)
 
   future = protocol::promise(replica.pid(), request);
 
-  future.await(2.0);
+  future.await(Seconds(2.0));
   ASSERT_TRUE(future.isReady());
 
   response = future.get();
@@ -79,7 +79,7 @@ TEST(ReplicaTest, Promise)
 
   future = protocol::promise(replica.pid(), request);
 
-  future.await(2.0);
+  future.await(Seconds(2.0));
   ASSERT_TRUE(future.isReady());
 
   response = future.get();
@@ -92,7 +92,7 @@ TEST(ReplicaTest, Promise)
 
   future = protocol::promise(replica.pid(), request);
 
-  future.await(2.0);
+  future.await(Seconds(2.0));
   ASSERT_TRUE(future.isReady());
 
   response = future.get();
@@ -122,7 +122,7 @@ TEST(ReplicaTest, Append)
   Future<PromiseResponse> future1 =
     protocol::promise(replica.pid(), request1);
 
-  future1.await(2.0);
+  future1.await(Seconds(2.0));
   ASSERT_TRUE(future1.isReady());
 
   PromiseResponse response1 = future1.get();
@@ -141,7 +141,7 @@ TEST(ReplicaTest, Append)
   Future<WriteResponse> future2 =
     protocol::write(replica.pid(), request2);
 
-  future2.await(2.0);
+  future2.await(Seconds(2.0));
   ASSERT_TRUE(future2.isReady());
 
   WriteResponse response2 = future2.get();
@@ -150,7 +150,7 @@ TEST(ReplicaTest, Append)
   EXPECT_EQ(1u, response2.position());
 
   Future<std::list<Action> > actions = replica.read(1, 1);
-  ASSERT_TRUE(actions.await(2.0));
+  ASSERT_TRUE(actions.await(Seconds(2.0)));
   ASSERT_TRUE(actions.isReady());
   ASSERT_EQ(1u, actions.get().size());
 
@@ -187,7 +187,7 @@ TEST(ReplicaTest, Recover)
   Future<PromiseResponse> future1 =
     protocol::promise(replica1.pid(), request1);
 
-  future1.await(2.0);
+  future1.await(Seconds(2.0));
   ASSERT_TRUE(future1.isReady());
 
   PromiseResponse response1 = future1.get();
@@ -206,7 +206,7 @@ TEST(ReplicaTest, Recover)
   Future<WriteResponse> future2 =
     protocol::write(replica1.pid(), request2);
 
-  future2.await(2.0);
+  future2.await(Seconds(2.0));
   ASSERT_TRUE(future2.isReady());
 
   WriteResponse response2 = future2.get();
@@ -215,7 +215,7 @@ TEST(ReplicaTest, Recover)
   EXPECT_EQ(1u, response2.position());
 
   Future<std::list<Action> > actions1 = replica1.read(1, 1);
-  ASSERT_TRUE(actions1.await(2.0));
+  ASSERT_TRUE(actions1.await(Seconds(2.0)));
   ASSERT_TRUE(actions1.isReady());
   ASSERT_EQ(1u, actions1.get().size());
 
@@ -237,7 +237,7 @@ TEST(ReplicaTest, Recover)
   Replica replica2(path);
 
   Future<std::list<Action> > actions2 = replica2.read(1, 1);
-  ASSERT_TRUE(actions2.await(2.0));
+  ASSERT_TRUE(actions2.await(Seconds(2.0)));
   ASSERT_TRUE(actions2.isReady());
   ASSERT_EQ(1u, actions2.get().size());
 
@@ -286,7 +286,7 @@ TEST(CoordinatorTest, Elect)
 
   {
     Future<std::list<Action> > actions = replica1.read(0, 0);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(0u, actions.get().front().position());
@@ -334,7 +334,7 @@ TEST(CoordinatorTest, AppendRead)
 
   {
     Future<std::list<Action> > actions = replica1.read(position, position);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -384,7 +384,7 @@ TEST(CoordinatorTest, AppendReadError)
   {
     position += 1;
     Future<std::list<Action> > actions = replica1.read(position, position);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isFailed());
     EXPECT_EQ("Bad read range (past end of log)", actions.failure());
   }
@@ -517,7 +517,7 @@ TEST(CoordinatorTest, Failover)
 
   {
     Future<std::list<Action> > actions = replica2.read(position, position);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -592,7 +592,7 @@ TEST(CoordinatorTest, Demoted)
 
   {
     Future<std::list<Action> > actions = replica2.read(position, position);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -660,7 +660,7 @@ TEST(CoordinatorTest, Fill)
 
   {
     Future<std::list<Action> > actions = replica3.read(position, position);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -738,7 +738,7 @@ TEST(CoordinatorTest, NotLearnedFill)
 
   {
     Future<std::list<Action> > actions = replica3.read(position, position);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -788,7 +788,7 @@ TEST(CoordinatorTest, MultipleAppends)
 
   {
     Future<std::list<Action> > actions = replica1.read(1, 10);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(10u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -864,7 +864,7 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
 
   {
     Future<std::list<Action> > actions = replica3.read(1, 10);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(10u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -921,14 +921,14 @@ TEST(CoordinatorTest, Truncate)
 
   {
     Future<std::list<Action> > actions = replica1.read(6, 10);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isFailed());
     EXPECT_EQ("Bad read range (truncated position)", actions.failure());
   }
 
   {
     Future<std::list<Action> > actions = replica1.read(7, 10);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(4u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -1010,14 +1010,14 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
 
   {
     Future<std::list<Action> > actions = replica3.read(6, 10);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isFailed());
     EXPECT_EQ("Bad read range (truncated position)", actions.failure());
   }
 
   {
     Future<std::list<Action> > actions = replica3.read(7, 10);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(4u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -1093,14 +1093,14 @@ TEST(CoordinatorTest, TruncateLearnedFill)
 
   {
     Future<std::list<Action> > actions = replica3.read(6, 10);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isFailed());
     EXPECT_EQ("Bad read range (truncated position)", actions.failure());
   }
 
   {
     Future<std::list<Action> > actions = replica3.read(7, 10);
-    ASSERT_TRUE(actions.await(2.0));
+    ASSERT_TRUE(actions.await(Seconds(2.0)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(4u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -1131,16 +1131,16 @@ TEST(LogTest, WriteRead)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, Seconds(1.0));
+  Log::Writer writer(&log, Timeout(1.0));
 
-  Result<Log::Position> position = writer.append("hello world", Seconds(1.0));
+  Result<Log::Position> position = writer.append("hello world", Timeout(1.0));
 
   ASSERT_TRUE(position.isSome());
 
   Log::Reader reader(&log);
 
   Result<std::list<Log::Entry> > entries =
-    reader.read(position.get(), position.get(), Seconds(1.0));
+    reader.read(position.get(), position.get(), Timeout(1.0));
 
   ASSERT_TRUE(entries.isSome());
   ASSERT_EQ(1u, entries.get().size());
@@ -1167,9 +1167,9 @@ TEST(LogTest, Position)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, Seconds(1.0));
+  Log::Writer writer(&log, Timeout(1.0));
 
-  Result<Log::Position> position = writer.append("hello world", Seconds(1.0));
+  Result<Log::Position> position = writer.append("hello world", Timeout(1.0));
 
   ASSERT_TRUE(position.isSome());
 

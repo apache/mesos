@@ -45,11 +45,11 @@ public:
     return timeout;
   }
 
-  // Returns the number of seconds reamining.
-  double remaining() const
+  // Returns the amount of time remaining.
+  Duration remaining() const
   {
     double seconds = timeout - Clock::now();
-    return seconds > 0 ? seconds : 0;
+    return Seconds(seconds > 0 ? seconds : 0);
   }
 
 private:

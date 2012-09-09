@@ -21,6 +21,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 
 #include "log/coordinator.hpp"
@@ -99,7 +100,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
       }
       futures.erase(future.get());
     }
-  } while (timeout.remaining() > 0);
+  } while (timeout.remaining() > Seconds(0));
 
   // Discard the remaining futures.
   discard(futures);
@@ -295,7 +296,7 @@ Result<uint64_t> Coordinator::write(
       }
       futures.erase(future.get());
     }
-  } while (timeout.remaining() > 0);
+  } while (timeout.remaining() > Seconds(0));
 
   // Timed out ... discard remaining futures.
   discard(futures);
@@ -416,7 +417,7 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
       }
       futures.erase(future.get());
     }
-  } while (timeout.remaining() > 0);
+  } while (timeout.remaining() > Seconds(0));
 
   // Discard the remaining futures.
   discard(futures);

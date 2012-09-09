@@ -18,6 +18,8 @@
 
 #include <jni.h>
 
+#include <stout/duration.hpp>
+
 #include "log/log.hpp"
 
 #include "construct.hpp"
@@ -145,7 +147,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Seconds timeout(jseconds);
+  Timeout timeout(jseconds);
 
   Result<std::list<Log::Entry> > entries = reader->read(from, to, timeout);
 
@@ -295,7 +297,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Seconds timeout(jseconds);
+  Timeout timeout(jseconds);
 
   Result<Log::Position> position = writer->append(data, timeout);
 
@@ -348,7 +350,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Seconds timeout(jseconds);
+  Timeout timeout(jseconds);
 
   Result<Log::Position> position = writer->truncate(to, timeout);
 
@@ -402,7 +404,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_00024Writer_initialize
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Seconds timeout(jseconds);
+  Timeout timeout(jseconds);
 
   int retries = jretries;
 

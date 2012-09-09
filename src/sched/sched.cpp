@@ -38,6 +38,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/fatal.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/os.hpp>
@@ -263,7 +264,7 @@ protected:
       send(master, message);
     }
 
-    delay(1.0, self(), &SchedulerProcess::doReliableRegistration);
+    delay(Seconds(1.0), self(), &SchedulerProcess::doReliableRegistration);
   }
 
   void resourceOffers(const vector<Offer>& offers,

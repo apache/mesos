@@ -173,7 +173,7 @@ public:
   {
     return slaveId == this->slaveId &&
       resources <= this->resources && // Refused resources are superset.
-      timeout.remaining() > 0.0;
+      timeout.remaining() > Seconds(0);
   }
 
   const SlaveID slaveId;
@@ -192,7 +192,7 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::initialize(
   initialized = true;
   userSorter = new UserSorter();
 
-  delay(flags.batch_seconds, self(),
+  delay(Seconds(flags.batch_seconds), self(),
 	&HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::batch);
 }
 
@@ -432,17 +432,17 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesUnused(
   allocatable[slaveId] += resources;
 
   // Create a refused resources filter.
-  double timeout = filters.isSome()
-    ? filters.get().refuse_seconds()
-    : Filters().refuse_seconds();
+  Seconds timeout(filters.isSome()
+                  ? filters.get().refuse_seconds()
+                  : Filters().refuse_seconds());
 
-  if (timeout != 0.0) {
+  if (timeout != Seconds(0)) {
     LOG(INFO) << "Framework " << frameworkId
 	      << " filtered slave " << slaveId
-	      << " for " << timeout << " seconds\n";
+	      << " for " << timeout;
 
     // Create a new filter and delay it's expiration.
-    mesos::internal::master::Filter* filter = new RefusedFilter(slaveId, resources, timeout);
+    mesos::internal::master::Filter* filter = new RefusedFilter(slaveId, resources, timeout.secs());
     this->filters.put(frameworkId, filter);
 
     delay(timeout, self(),
@@ -519,7 +519,7 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::batch()
 {
   CHECK(initialized);
   allocate();
-  delay(flags.batch_seconds, self(),
+  delay(Seconds(flags.batch_seconds), self(),
 	&HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::batch);
 }
 
@@ -536,7 +536,7 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate()
 
   LOG(INFO) << "Performed allocation for "
             << slaves.size() << " slaves in "
-            << timer.elapsed().millis() << " milliseconds";
+            << timer.elapsed();
 }
 
 
@@ -555,7 +555,7 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(const S
 
   LOG(INFO) << "Performed allocation for slave "
             << slaveId << " in "
-            << timer.elapsed().millis() << " milliseconds";
+            << timer.elapsed();
 }
 
 
