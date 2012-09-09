@@ -14,22 +14,6 @@
 class Duration
 {
 public:
-  double ns() const { return value; }
-  double us() const { return value / MICROSECONDS; }
-  double ms() const { return value / MILLISECONDS; }
-  double secs() const { return value / SECONDS; }
-  double mins() const { return value / MINUTES; }
-  double hrs() const { return value / HOURS; }
-  double days() const { return value / DAYS; }
-  double weeks() const { return value / WEEKS; }
-
-  bool operator < (const Duration& that) const { return value < that.value; }
-  bool operator <= (const Duration& that) const { return value <= that.value; }
-  bool operator > (const Duration& that) const { return value > that.value; }
-  bool operator >= (const Duration& that) const { return value >= that.value; }
-  bool operator == (const Duration& that) const { return value == that.value; }
-  bool operator != (const Duration& that) const { return value != that.value; }
-
   static Try<Duration> parse(const std::string& s)
   {
     // TODO(benh): Support negative durations (i.e., starts with '-').
@@ -70,6 +54,24 @@ public:
     }
     return Try<Duration>::error("Invalid duration '" + s + "'");
   }
+
+  Duration() : value(0.0) {}
+
+  double ns() const { return value; }
+  double us() const { return value / MICROSECONDS; }
+  double ms() const { return value / MILLISECONDS; }
+  double secs() const { return value / SECONDS; }
+  double mins() const { return value / MINUTES; }
+  double hrs() const { return value / HOURS; }
+  double days() const { return value / DAYS; }
+  double weeks() const { return value / WEEKS; }
+
+  bool operator < (const Duration& that) const { return value < that.value; }
+  bool operator <= (const Duration& that) const { return value <= that.value; }
+  bool operator > (const Duration& that) const { return value > that.value; }
+  bool operator >= (const Duration& that) const { return value >= that.value; }
+  bool operator == (const Duration& that) const { return value == that.value; }
+  bool operator != (const Duration& that) const { return value != that.value; }
 
 protected:
   static const uint64_t NANOSECONDS = 1;

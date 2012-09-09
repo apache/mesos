@@ -192,7 +192,7 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::initialize(
   initialized = true;
   userSorter = new UserSorter();
 
-  delay(Seconds(flags.batch_seconds), self(),
+  delay(flags.allocation_interval, self(),
 	&HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::batch);
 }
 
@@ -519,7 +519,7 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::batch()
 {
   CHECK(initialized);
   allocate();
-  delay(Seconds(flags.batch_seconds), self(),
+  delay(flags.allocation_interval, self(),
 	&HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::batch);
 }
 

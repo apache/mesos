@@ -366,8 +366,6 @@ void Slave::registered(const SlaveID& slaveId)
   // Schedule all old slave directories to get garbage
   // collected. TODO(benh): It's unclear if we really need/want to
   // wait until the slave is registered to do this.
-  Hours timeout(flags.gc_timeout_hours);
-
   const string& directory = path::join(flags.work_dir, "slaves");
 
   foreach (const string& file, os::ls(directory)) {
@@ -380,13 +378,13 @@ void Slave::registered(const SlaveID& slaveId)
 
       if (time.isSome()) {
         // Schedule the directory to be removed after some remaining
-        // delta of the timeout and last modification time.
-        Seconds delta(timeout.secs() - (Clock::now() - time.get()));
+        // delta of the delay and last modification time.
+        Seconds delta(flags.gc_delay.secs() - (Clock::now() - time.get()));
         gc.schedule(delta, path);
       } else {
         LOG(WARNING) << "Failed to get the modification time of "
                      << path << ": " << time.error();
-        gc.schedule(timeout, path);
+        gc.schedule(flags.gc_delay, path);
       }
     }
   }
@@ -1437,7 +1435,7 @@ void Slave::executorExited(const FrameworkID& frameworkId,
   }
 
   // Schedule the executor directory to get garbage collected.
-  gc.schedule(Hours(flags.gc_timeout_hours), executor->directory);
+  gc.schedule(flags.gc_delay, executor->directory);
 
   framework->destroyExecutor(executor->id);
 }
@@ -1455,7 +1453,7 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
   executor->shutdown = true;
 
   // Prepare for sending a kill if the executor doesn't comply.
-  delay(Seconds(flags.executor_shutdown_timeout_seconds),
+  delay(flags.executor_shutdown_grace_period,
         self(),
         &Slave::shutdownExecutorTimeout,
         framework->id, executor->id, executor->uuid);
@@ -1482,7 +1480,7 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
              framework->id, executor->id);
 
     // Schedule the executor directory to get garbage collected.
-    gc.schedule(Hours(flags.gc_timeout_hours), executor->directory);
+    gc.schedule(flags.gc_delay, executor->directory);
 
     framework->destroyExecutor(executor->id);
   }

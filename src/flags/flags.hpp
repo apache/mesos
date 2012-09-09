@@ -185,11 +185,6 @@ void FlagsBase::add(
   flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
     ? " (default: " // On same line, add space.
     : "(default: "; // On newline.
-
-  // Update the help string to include the default value.
-  flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
-    ? " (default: " // On same line, add space.
-    : "(default: "; // On newline.
   flag.help += stringify(t2);
   flag.help += ")";
 

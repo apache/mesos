@@ -22,6 +22,7 @@
 #include <map>
 #include <string>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 
 #include "configurator/configuration.hpp"
@@ -186,4 +187,35 @@ TEST(FlagsTest, Configurator)
   EXPECT_FALSE(flags.name4.get());
   ASSERT_TRUE(flags.name5.isSome());
   EXPECT_TRUE(flags.name5.get());
+}
+
+
+TEST(FlagsTest, Duration)
+{
+  Flags<TestFlags> flags;
+
+  Duration name6;
+
+  flags.add(&name6,
+            "name6",
+            "Amount of time",
+            Milliseconds(100));
+
+  Option<Duration> name7;
+
+  flags.add(&name7,
+            "name7",
+            "Also some amount of time");
+
+  std::map<std::string, Option<std::string> > values;
+
+  values["name6"] = Option<std::string>::some("2mins");
+  values["name7"] = Option<std::string>::some("3hrs");
+
+  flags.load(values);
+
+  EXPECT_EQ(Minutes(2), name6);
+
+  ASSERT_TRUE(name7.isSome());
+  EXPECT_EQ(Hours(3), name7.get());
 }

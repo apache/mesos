@@ -63,7 +63,7 @@ protected:
     LOG(INFO) << "Scheduling shutdown of the executor";
     // TODO(benh): Pass the shutdown timeout with ExecutorRegistered
     // since it might have gotten configured on the command line.
-    delay(slave::EXECUTOR_SHUTDOWN_TIMEOUT, self(), &Self::kill);
+    delay(slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD, self(), &Self::kill);
   }
 
   void kill()

@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 
 #include "flags/flags.hpp"
@@ -85,17 +86,17 @@ public:
         "Directory prepended to relative executor URIs",
         "");
 
-    add(&Flags::executor_shutdown_timeout_seconds,
-        "executor_shutdown_timeout_seconds",
-        "Amount of time (in seconds) to wait for\n"
-        "an executor to shut down",
-        EXECUTOR_SHUTDOWN_TIMEOUT.secs());
+    add(&Flags::executor_shutdown_grace_period,
+        "executor_shutdown_grace_period",
+        "Amount of time to wait for an executor\n"
+        "to shut down (e.g., 60secs, 3mins, etc)",
+        EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
-    add(&Flags::gc_timeout_hours,
-        "gc_timeout_hours",
-        "Amount of time (in hours) to wait before\n"
-        "cleaning up executor directories",
-        GC_TIMEOUT_HOURS);
+    add(&Flags::gc_delay,
+        "gc_delay",
+        "Amount of time to wait before cleaning up\n"
+        "executor directories (e.g., 3days, 2weeks, etc)",
+        GC_DELAY);
 
 #ifdef __linux__
     add(&Flags::cgroups_hierarchy_root,
@@ -114,8 +115,8 @@ public:
   std::string hadoop_home; // TODO(benh): Make an Option.
   bool switch_user;
   std::string frameworks_home;  // TODO(benh): Make an Option.
-  double executor_shutdown_timeout_seconds;
-  double gc_timeout_hours;
+  Duration executor_shutdown_grace_period;
+  Duration gc_delay;
 #ifdef __linux__
   std::string cgroups_hierarchy_root;
 #endif

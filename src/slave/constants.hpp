@@ -25,11 +25,9 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// TODO(benh): Also make configuration options be constants.
-
-const Duration EXECUTOR_SHUTDOWN_TIMEOUT = Seconds(5.0);
+const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5.0);
 const Duration STATUS_UPDATE_RETRY_INTERVAL = Seconds(10.0);
-const double GC_TIMEOUT_HOURS = 7.0 * 24.0; // 1 week.
+const Duration GC_DELAY = Weeks(1.0);
 
 } // namespace slave {
 } // namespace internal {

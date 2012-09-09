@@ -6,6 +6,7 @@
 
 #include <tr1/functional>
 
+#include <stout/duration.hpp>
 #include <stout/try.hpp>
 
 namespace flags {
@@ -39,6 +40,13 @@ inline Try<bool> parse(const std::string& value)
     return false;
   }
   return Try<bool>::error("Expecting a boolean (e.g., true or false)");
+}
+
+
+template <>
+inline Try<Duration> parse(const std::string& value)
+{
+  return Duration::parse(value);
 }
 
 } // namespace flags {

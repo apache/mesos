@@ -21,6 +21,8 @@
 
 #include <string>
 
+#include <stout/duration.hpp>
+
 #include "flags/flags.hpp"
 
 namespace mesos {
@@ -75,10 +77,11 @@ public:
         "are the same as for user_allocator",
         "drf");
 
-    add(&Flags::batch_seconds,
-        "batch_seconds",
-        "Seconds to wait between batch allocations",
-        1.0);
+    add(&Flags::allocation_interval,
+        "allocation_interval",
+        "Amount of time to wait between performing\n"
+        " (batch) allocations (e.g., 500ms, 1sec, etc)",
+        Seconds(1.0));
 
     add(&Flags::cluster,
         "cluster",
@@ -93,7 +96,7 @@ public:
   std::string whitelist;
   std::string user_sorter;
   std::string framework_sorter;
-  double batch_seconds;
+  Duration allocation_interval;
   Option<std::string> cluster;
 };
 

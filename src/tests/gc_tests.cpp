@@ -258,7 +258,7 @@ TEST_F(GarbageCollectorTest, Restart)
 
   sleep(1);
 
-  Clock::advance(Hours(flags.gc_timeout_hours).secs());
+  Clock::advance(flags.gc_delay.secs());
 
   Clock::settle();
 
@@ -325,7 +325,7 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
 
   sleep(1);
 
-  Clock::advance(Hours(flags.gc_timeout_hours).secs());
+  Clock::advance(flags.gc_delay.secs());
 
   Clock::settle();
 
