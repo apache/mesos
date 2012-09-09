@@ -5,8 +5,8 @@
 
 #include "process/future.hpp"
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
-#include <stout/time.hpp>
 
 #include "zookeeper/authentication.hpp"
 
@@ -82,7 +82,7 @@ public:
   // Constructs this group using the specified ZooKeeper servers (list
   // of host:port) with the given timeout at the specified znode.
   Group(const std::string& servers,
-        const seconds& timeout,
+        const Duration& timeout,
         const std::string& znode,
         const Option<Authentication>& auth = Option<Authentication>::none());
   ~Group();

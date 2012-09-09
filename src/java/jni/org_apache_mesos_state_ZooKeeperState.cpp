@@ -5,6 +5,8 @@
 
 #include <process/future.hpp>
 
+#include <stout/duration.hpp>
+
 #include "state/state.hpp"
 #include "state/zookeeper.hpp"
 
@@ -42,7 +44,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
   string znode = construct<string>(env, jznode);
 
@@ -80,7 +82,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
   string znode = construct<string>(env, jznode);
 
@@ -257,9 +259,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1ge
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
-  if (future->await(timeout.value)) {
+  if (future->await(timeout.secs())) {
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());
@@ -446,9 +448,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
-  if (future->await(timeout.value)) {
+  if (future->await(timeout.secs())) {
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());
@@ -630,9 +632,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1names_1
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
-  if (future->await(timeout.value)) {
+  if (future->await(timeout.secs())) {
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());

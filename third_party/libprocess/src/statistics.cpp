@@ -13,6 +13,7 @@
 #include <process/process.hpp>
 #include <process/statistics.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
@@ -20,7 +21,6 @@
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
-#include <stout/time.hpp>
 
 using namespace process;
 using namespace process::http;
@@ -34,7 +34,7 @@ namespace process {
 class StatisticsProcess : public Process<StatisticsProcess>
 {
 public:
-  StatisticsProcess(const seconds& _window)
+  StatisticsProcess(const Seconds& _window)
     : ProcessBase("statistics"),
       window(_window)
   {}
@@ -42,10 +42,10 @@ public:
   virtual ~StatisticsProcess() {}
 
   // Statistics implementation.
-  map<seconds, double> get(
+  map<Seconds, double> get(
       const string& name,
-      const Option<seconds>& start,
-      const Option<seconds>& stop);
+      const Option<Seconds>& start,
+      const Option<Seconds>& stop);
   void set(const string& name, double value);
   void increment(const string& name);
   void decrement(const string& name);
@@ -68,38 +68,38 @@ private:
   // Returns the time series of a statistic in JSON.
   Future<Response> series(const Request& request);
 
-  const seconds window;
+  const Seconds window;
 
   // We use a map instead of a hashmap to store the values because
   // that way we can retrieve a series in sorted order efficiently.
-  hashmap<string, map<seconds, double> > statistics;
+  hashmap<string, map<Seconds, double> > statistics;
 };
 
 
-map<seconds, double> StatisticsProcess::get(
+map<Seconds, double> StatisticsProcess::get(
     const string& name,
-    const Option<seconds>& start,
-    const Option<seconds>& stop)
+    const Option<Seconds>& start,
+    const Option<Seconds>& stop)
 {
   if (!statistics.contains(name)) {
-    return map<seconds, double>();
+    return map<Seconds, double>();
   }
 
-  const std::map<seconds, double>& values = statistics.find(name)->second;
+  const std::map<Seconds, double>& values = statistics.find(name)->second;
 
-  map<seconds, double>::const_iterator lower =
-    values.lower_bound(start.isSome() ? start.get() : seconds(0.0));
+  map<Seconds, double>::const_iterator lower =
+    values.lower_bound(start.isSome() ? start.get() : Seconds(0.0));
 
-  map<seconds, double>::const_iterator upper =
-    values.upper_bound(stop.isSome() ? stop.get() : seconds(DBL_MAX));
+  map<Seconds, double>::const_iterator upper =
+    values.upper_bound(stop.isSome() ? stop.get() : Seconds(DBL_MAX));
 
-  return map<seconds, double>(lower, upper);
+  return map<Seconds, double>(lower, upper);
 }
 
 
 void StatisticsProcess::set(const string& name, double value)
 {
-  statistics[name][seconds(Clock::now())] = value;
+  statistics[name][Seconds(Clock::now())] = value;
   truncate(name);
 }
 
@@ -108,9 +108,9 @@ void StatisticsProcess::increment(const string& name)
 {
   if (statistics[name].size() > 0) {
     double d = statistics[name].rbegin()->second;
-    statistics[name][seconds(Clock::now())] = d + 1.0;
+    statistics[name][Seconds(Clock::now())] = d + 1.0;
   } else {
-    statistics[name][seconds(Clock::now())] = 1.0;
+    statistics[name][Seconds(Clock::now())] = 1.0;
   }
 
   truncate(name);
@@ -121,9 +121,9 @@ void StatisticsProcess::decrement(const string& name)
 {
   if (statistics[name].size() > 0) {
     double d = statistics[name].rbegin()->second;
-    statistics[name][seconds(Clock::now())] = d - 1.0;
+    statistics[name][Seconds(Clock::now())] = d - 1.0;
   } else {
-    statistics[name][seconds(Clock::now())] = -1.0;
+    statistics[name][Seconds(Clock::now())] = -1.0;
   }
 
   truncate(name);
@@ -140,9 +140,9 @@ void StatisticsProcess::truncate(const string& name)
     return;
   }
 
-  map<seconds, double>::iterator start = statistics[name].begin();
+  map<Seconds, double>::iterator start = statistics[name].begin();
 
-  while ((Clock::now() - start->first.value) > window.value) {
+  while ((Clock::now() - start->first.secs()) > window.secs()) {
     statistics[name].erase(start);
     if (statistics[name].size() == 1) {
       break;
@@ -160,7 +160,7 @@ Future<Response> StatisticsProcess::snapshot(const Request& request)
     CHECK(statistics[name].size() > 0);
     JSON::Object object;
     object.values["name"] = name;
-    object.values["time"] = statistics[name].rbegin()->first.value;
+    object.values["time"] = statistics[name].rbegin()->first.secs();
     object.values["value"] = statistics[name].rbegin()->second;
     array.values.push_back(object);
   }
@@ -187,8 +187,8 @@ Future<Response> StatisticsProcess::series(const Request& request)
     ? Option<string>::some(pairs["name"].back())
     : Option<string>::none();
 
-  Option<seconds> start = Option<seconds>::none();
-  Option<seconds> stop = Option<seconds>::none();
+  Option<Seconds> start = Option<Seconds>::none();
+  Option<Seconds> stop = Option<Seconds>::none();
 
   if (pairs.count("start") > 0 && pairs["start"].size() > 0) {
     Try<double> result = numify<double>(pairs["start"].back());
@@ -198,7 +198,7 @@ Future<Response> StatisticsProcess::series(const Request& request)
                    << result.error();
       return BadRequest();
     }
-    start = Option<seconds>::some(seconds(result.get()));
+    start = Option<Seconds>::some(Seconds(result.get()));
   }
 
   if (pairs.count("stop") > 0 && pairs["stop"].size() > 0) {
@@ -209,17 +209,17 @@ Future<Response> StatisticsProcess::series(const Request& request)
                    << result.error();
       return BadRequest();
     }
-    stop = Option<seconds>::some(seconds(result.get()));
+    stop = Option<Seconds>::some(Seconds(result.get()));
   }
 
   if (name.isSome()) {
     JSON::Array array;
 
-    map<seconds, double> values = get(name.get(), start, stop);
+    map<Seconds, double> values = get(name.get(), start, stop);
 
-    foreachpair (const seconds& s, double value, values) {
+    foreachpair (const Seconds& s, double value, values) {
       JSON::Object object;
-      object.values["time"] = s.value;
+      object.values["time"] = s.secs();
       object.values["value"] = value;
       array.values.push_back(object);
     }
@@ -239,7 +239,7 @@ Future<Response> StatisticsProcess::series(const Request& request)
 }
 
 
-Statistics::Statistics(const seconds& window)
+Statistics::Statistics(const Seconds& window)
 {
   process = new StatisticsProcess(window);
   spawn(process);
@@ -253,10 +253,10 @@ Statistics::~Statistics()
 }
 
 
-Future<map<seconds, double> > Statistics::get(
+Future<map<Seconds, double> > Statistics::get(
     const string& name,
-    const Option<seconds>& start,
-    const Option<seconds>& stop)
+    const Option<Seconds>& start,
+    const Option<Seconds>& stop)
 {
   return dispatch(process, &StatisticsProcess::get, name, start, stop);
 }

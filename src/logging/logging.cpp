@@ -29,10 +29,10 @@
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
-#include <stout/time.hpp>
 #include <stout/try.hpp>
 
 #include "logging/logging.hpp"
@@ -110,7 +110,7 @@ private:
       return BadRequest("'" + stringify(v.get()) + "' < original level.\n");
     }
 
-    Try<seconds> s = seconds::parse(duration.get());
+    Try<Duration> s = Duration::parse(duration.get());
 
     if (s.isError()) {
       return BadRequest(s.error() + ".\n");
@@ -121,7 +121,7 @@ private:
 
     // Start a revert timer (if necessary).
     if (v.get() != original) {
-      timeout = s.get().value;
+      timeout = s.get().secs();
       delay(timeout.remaining(), this, &This::revert);
     }
 

@@ -26,11 +26,11 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
-#include <stout/time.hpp>
 #include <stout/try.hpp>
 #include <stout/utils.hpp>
 
@@ -366,7 +366,7 @@ void Slave::registered(const SlaveID& slaveId)
   // Schedule all old slave directories to get garbage
   // collected. TODO(benh): It's unclear if we really need/want to
   // wait until the slave is registered to do this.
-  hours timeout(flags.gc_timeout_hours);
+  Hours timeout(flags.gc_timeout_hours);
 
   const string& directory = path::join(flags.work_dir, "slaves");
 
@@ -381,7 +381,7 @@ void Slave::registered(const SlaveID& slaveId)
       if (time.isSome()) {
         // Schedule the directory to be removed after some remaining
         // delta of the timeout and last modification time.
-        seconds delta(timeout.secs() - (Clock::now() - time.get()));
+        Seconds delta(timeout.secs() - (Clock::now() - time.get()));
         gc.schedule(delta, path);
       } else {
         LOG(WARNING) << "Failed to get the modification time of "
@@ -1437,7 +1437,7 @@ void Slave::executorExited(const FrameworkID& frameworkId,
   }
 
   // Schedule the executor directory to get garbage collected.
-  gc.schedule(hours(flags.gc_timeout_hours), executor->directory);
+  gc.schedule(Hours(flags.gc_timeout_hours), executor->directory);
 
   framework->destroyExecutor(executor->id);
 }
@@ -1482,7 +1482,7 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
              framework->id, executor->id);
 
     // Schedule the executor directory to get garbage collected.
-    gc.schedule(hours(flags.gc_timeout_hours), executor->directory);
+    gc.schedule(Hours(flags.gc_timeout_hours), executor->directory);
 
     framework->destroyExecutor(executor->id);
   }

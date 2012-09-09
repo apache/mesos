@@ -273,7 +273,7 @@ ZooKeeperMasterDetector::ZooKeeperMasterDetector(
     : ZOO_OPEN_ACL_UNSAFE;
 
   // Start up the ZooKeeper connection!
-  zk = new ZooKeeper(url.servers, milliseconds(10000), this);
+  zk = new ZooKeeper(url.servers, Milliseconds(10000), this);
 }
 
 ZooKeeperMasterDetector::~ZooKeeperMasterDetector()
@@ -408,7 +408,7 @@ void ZooKeeperMasterDetector::expired()
   CHECK(zk != NULL);
   delete zk;
 
-  zk = new ZooKeeper(url.servers, milliseconds(10000), this);
+  zk = new ZooKeeper(url.servers, Milliseconds(10000), this);
 }
 
 

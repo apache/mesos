@@ -151,7 +151,7 @@ ZooKeeperSlavesManagerStorage::ZooKeeperSlavesManagerStorage(const string& _serv
 {
   PID<ZooKeeperSlavesManagerStorage> pid(*this);
   watcher = new ZooKeeperSlavesManagerStorageWatcher(pid);
-  zk = new ZooKeeper(servers, milliseconds(10000), watcher);
+  zk = new ZooKeeper(servers, Milliseconds(10000), watcher);
 }
 
 
@@ -495,7 +495,7 @@ Future<bool> ZooKeeperSlavesManagerStorage::expired()
   CHECK(zk != NULL);
   delete zk;
 
-  zk = new ZooKeeper(servers, milliseconds(10000), watcher);
+  zk = new ZooKeeper(servers, Milliseconds(10000), watcher);
 
   // TODO(benh): Put mechanisms in place such that reconnects may
   // fail (or just take too long).

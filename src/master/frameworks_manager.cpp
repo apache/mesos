@@ -102,7 +102,7 @@ Result<bool> FrameworksManager::add(const FrameworkID& id,
 
 
 Future<Result<bool> > FrameworksManager::remove(const FrameworkID& id,
-                                                const seconds& s)
+                                                const Duration& timeout)
 {
   if (!cache()) {
     return Result<bool>::error("Error caching framework infos.");
@@ -113,13 +113,14 @@ Future<Result<bool> > FrameworksManager::remove(const FrameworkID& id,
     return Result<bool>::error("Error removing non-existing framework.");
   }
 
-  LOG(INFO) << "Expiring framework " << id << " in " << s.value << " seconds";
+  LOG(INFO) << "Expiring framework " << id
+            << " in " << timeout.secs() << " seconds";
 
   // Set the option to contain the firing time of the message.
-  infos[id].second = Option<double>::some(Clock::now() + s.value);
+  infos[id].second = Option<double>::some(Clock::now() + timeout.secs());
 
   Promise<Result<bool> >* promise = new Promise<Result<bool> >();
-  delay(s.value, self(), &FrameworksManager::expire, id, promise);
+  delay(timeout.secs(), self(), &FrameworksManager::expire, id, promise);
   return promise->future();
 }
 

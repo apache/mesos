@@ -8,10 +8,10 @@
 #include <process/future.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
-#include <stout/time.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
@@ -53,7 +53,7 @@ void fail(queue<T*>* queue, const string& message)
 
 ZooKeeperStateProcess::ZooKeeperStateProcess(
     const string& _servers,
-    const seconds& _timeout,
+    const Duration& _timeout,
     const string& _znode,
     const Option<Authentication>& _auth)
   : servers(_servers),

@@ -9,9 +9,9 @@
 #include <process/future.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
-#include <stout/time.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
@@ -39,7 +39,7 @@ public:
   // TODO(benh): Just take a zookeeper::URL.
   ZooKeeperState(
       const std::string& servers,
-      const seconds& timeout,
+      const Duration& timeout,
       const std::string& znode,
       const Option<zookeeper::Authentication>& auth =
       Option<zookeeper::Authentication>());
@@ -63,7 +63,7 @@ class ZooKeeperStateProcess : public process::Process<ZooKeeperStateProcess>
 public:
   ZooKeeperStateProcess(
       const std::string& servers,
-      const seconds& timeout,
+      const Duration& timeout,
       const std::string& znode,
       const Option<zookeeper::Authentication>& auth);
   virtual ~ZooKeeperStateProcess();
@@ -90,7 +90,7 @@ private:
   Result<bool> doSwap(const Entry& entry, const UUID& uuid);
 
   const std::string servers;
-  const seconds timeout;
+  const Duration timeout;
   const std::string znode;
 
   Option<zookeeper::Authentication> auth; // ZooKeeper authentication.
@@ -143,7 +143,7 @@ private:
 template <typename Serializer>
 ZooKeeperState<Serializer>::ZooKeeperState(
     const std::string& servers,
-    const seconds& timeout,
+    const Duration& timeout,
     const std::string& znode,
     const Option<zookeeper::Authentication>& auth)
 {

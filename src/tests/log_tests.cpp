@@ -1131,16 +1131,16 @@ TEST(LogTest, WriteRead)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, seconds(1.0));
+  Log::Writer writer(&log, Seconds(1.0));
 
-  Result<Log::Position> position = writer.append("hello world", seconds(1.0));
+  Result<Log::Position> position = writer.append("hello world", Seconds(1.0));
 
   ASSERT_TRUE(position.isSome());
 
   Log::Reader reader(&log);
 
   Result<std::list<Log::Entry> > entries =
-    reader.read(position.get(), position.get(), seconds(1.0));
+    reader.read(position.get(), position.get(), Seconds(1.0));
 
   ASSERT_TRUE(entries.isSome());
   ASSERT_EQ(1u, entries.get().size());
@@ -1167,9 +1167,9 @@ TEST(LogTest, Position)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, seconds(1.0));
+  Log::Writer writer(&log, Seconds(1.0));
 
-  Result<Log::Position> position = writer.append("hello world", seconds(1.0));
+  Result<Log::Position> position = writer.append("hello world", Seconds(1.0));
 
   ASSERT_TRUE(position.isSome());
 

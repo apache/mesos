@@ -24,8 +24,8 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/os.hpp>
-#include <stout/time.hpp>
 
 #include "detector/detector.hpp"
 
@@ -258,7 +258,7 @@ TEST_F(GarbageCollectorTest, Restart)
 
   sleep(1);
 
-  Clock::advance(hours(flags.gc_timeout_hours).secs());
+  Clock::advance(Hours(flags.gc_timeout_hours).secs());
 
   Clock::settle();
 
@@ -325,7 +325,7 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
 
   sleep(1);
 
-  Clock::advance(hours(flags.gc_timeout_hours).secs());
+  Clock::advance(Hours(flags.gc_timeout_hours).secs());
 
   Clock::settle();
 

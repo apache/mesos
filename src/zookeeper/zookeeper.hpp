@@ -31,7 +31,7 @@
 #include <string>
 #include <vector>
 
-#include <stout/time.hpp>
+#include <stout/duration.hpp>
 
 
 /* Forward declarations of classes we are using. */
@@ -121,7 +121,7 @@ public:
    *    method will be invoked.
    */
   ZooKeeper(const std::string &servers,
-            const milliseconds& timeout,
+            const Duration& timeout,
             Watcher *watcher);
 
   ~ZooKeeper();

@@ -27,8 +27,8 @@
 
 #include <process/future.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
-#include <stout/time.hpp>
 #include <stout/try.hpp>
 
 namespace cgroups {
@@ -267,7 +267,7 @@ process::Future<uint64_t> listenEvent(const std::string& hierarchy,
 //          Error if some unexpected happens.
 process::Future<bool> freezeCgroup(const std::string& hierarchy,
                                    const std::string& cgroup,
-                                   const seconds& interval = seconds(0.1));
+                                   const Duration& interval = Seconds(0.1));
 
 
 // Thaw the given cgroup. This is a revert operation of freezeCgroup. It will
@@ -282,7 +282,7 @@ process::Future<bool> freezeCgroup(const std::string& hierarchy,
 //          Error if some unexpected happens.
 process::Future<bool> thawCgroup(const std::string& hierarchy,
                                  const std::string& cgroup,
-                                 const seconds& interval = seconds(0.1));
+                                 const Duration& interval = Seconds(0.1));
 
 
 // Atomically kill all tasks in a given cgroup. This function will return a
@@ -301,7 +301,7 @@ process::Future<bool> thawCgroup(const std::string& hierarchy,
 //          Error if some unexpected happens.
 process::Future<bool> killTasks(const std::string& hierarchy,
                                 const std::string& cgroup,
-                                const seconds& interval = seconds(0.1));
+                                const Duration& interval = Seconds(0.1));
 
 
 // Destroy a cgroup under a given hierarchy. This function is different from
@@ -319,7 +319,7 @@ process::Future<bool> killTasks(const std::string& hierarchy,
 //          Error if some unexpected happens.
 process::Future<bool> destroyCgroup(const std::string& hierarchy,
                                     const std::string& cgroup = "/",
-                                    const seconds& interval = seconds(0.1));
+                                    const Duration& interval = Seconds(0.1));
 
 } // namespace cgroups {
 

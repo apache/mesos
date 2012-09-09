@@ -26,9 +26,9 @@
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/result.hpp>
-#include <stout/time.hpp>
 #include <stout/try.hpp>
 
 #include "log/coordinator.hpp"
@@ -123,7 +123,7 @@ public:
     // those positions are invalid, in which case returns an error.
     Result<std::list<Entry> > read(const Position& from,
                                    const Position& to,
-                                   const seconds& timeout);
+                                   const Duration& timeout);
 
     // Returns the beginning position of the log from the perspective
     // of the local replica (which may be out of date if the log has
@@ -147,20 +147,20 @@ public:
     // one writer (local and remote) is valid at a time. A writer
     // becomes invalid if any operation returns an error, and a new
     // writer must be created in order perform subsequent operations.
-    Writer(Log* log, const seconds& timeout, int retries = 3);
+    Writer(Log* log, const Duration& timeout, int retries = 3);
     ~Writer();
 
     // Attempts to append the specified data to the log. A none result
     // means the operation timed out, otherwise the new ending
     // position of the log is returned or an error. Upon error a new
     // Writer must be created.
-    Result<Position> append(const std::string& data, const seconds& timeout);
+    Result<Position> append(const std::string& data, const Duration& timeout);
 
     // Attempts to truncate the log up to but not including the
     // specificed position. A none result means the operation timed
     // out, otherwise the new ending position of the log is returned
     // or an error. Upon error a new Writer must be created.
-    Result<Position> truncate(const Position& to, const seconds& timeout);
+    Result<Position> truncate(const Position& to, const Duration& timeout);
 
   private:
     Option<std::string> error;
@@ -194,7 +194,7 @@ public:
   Log(int _quorum,
       const std::string& path,
       const std::string& servers,
-      const seconds& timeout,
+      const Seconds& timeout,
       const std::string& znode,
       const Option<zookeeper::Authentication>& auth
         = Option<zookeeper::Authentication>::none())
@@ -277,12 +277,12 @@ Log::Reader::~Reader() {}
 Result<std::list<Log::Entry> > Log::Reader::read(
     const Log::Position& from,
     const Log::Position& to,
-    const seconds& timeout)
+    const Duration& timeout)
 {
   process::Future<std::list<Action> > actions =
     replica->read(from.value, to.value);
 
-  if (!actions.await(timeout.value)) {
+  if (!actions.await(timeout.secs())) {
     return Result<std::list<Log::Entry> >::none();
   } else if (actions.isFailed()) {
     return Result<std::list<Log::Entry> >::error(actions.failure());
@@ -337,12 +337,12 @@ Log::Position Log::Reader::ending()
 }
 
 
-Log::Writer::Writer(Log* log, const seconds& timeout, int retries)
+Log::Writer::Writer(Log* log, const Duration& timeout, int retries)
   : error(Option<std::string>::none()),
     coordinator(log->quorum, log->replica, log->network)
 {
   do {
-    Result<uint64_t> result = coordinator.elect(Timeout(timeout.value));
+    Result<uint64_t> result = coordinator.elect(Timeout(timeout.secs()));
     if (result.isNone()) {
       retries--;
     } else if (result.isSome()) {
@@ -363,7 +363,7 @@ Log::Writer::~Writer()
 
 Result<Log::Position> Log::Writer::append(
     const std::string& data,
-    const seconds& timeout)
+    const Duration& timeout)
 {
   if (error.isSome()) {
     return Result<Log::Position>::error(error.get());
@@ -371,7 +371,7 @@ Result<Log::Position> Log::Writer::append(
 
   LOG(INFO) << "Attempting to append " << data.size() << " bytes to the log";
 
-  Result<uint64_t> result = coordinator.append(data, Timeout(timeout.value));
+  Result<uint64_t> result = coordinator.append(data, Timeout(timeout.secs()));
 
   if (result.isError()) {
     error = result.error();
@@ -388,7 +388,7 @@ Result<Log::Position> Log::Writer::append(
 
 Result<Log::Position> Log::Writer::truncate(
     const Log::Position& to,
-    const seconds& timeout)
+    const Duration& timeout)
 {
   if (error.isSome()) {
     return Result<Log::Position>::error(error.get());
@@ -397,7 +397,7 @@ Result<Log::Position> Log::Writer::truncate(
   LOG(INFO) << "Attempting to truncate the log to " << to.value;
 
   Result<uint64_t> result =
-    coordinator.truncate(to.value, Timeout(timeout.value));
+    coordinator.truncate(to.value, Timeout(timeout.secs()));
 
   if (result.isError()) {
     error = result.error();

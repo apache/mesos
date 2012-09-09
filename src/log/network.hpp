@@ -32,7 +32,6 @@
 
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
-#include <stout/time.hpp>
 
 #include "logging/logging.hpp"
 

@@ -23,7 +23,7 @@
 
 #include <process/future.hpp>
 
-#include <stout/time.hpp>
+#include <stout/duration.hpp>
 
 namespace mesos {
 namespace internal {
@@ -46,10 +46,10 @@ public:
   ~GarbageCollector();
 
   // Schedules the specified path for removal after the specified
-  // number of seconds have elapsed and returns true if the file was
+  // amount of time has elapsed and returns true if the file was
   // successfully removed and false if the file didn't exist (or an
   // error, e.g., permission denied).
-  process::Future<bool> schedule(const seconds& s, const std::string& path);
+  process::Future<bool> schedule(const Duration& d, const std::string& path);
 
 private:
   GarbageCollectorProcess* process;

@@ -1068,7 +1068,7 @@ TEST_F(FrameworksManagerTestFixture, RemoveFramework)
   id.set_value("non-existent framework");
 
   Future<Result<bool> > future1 =
-    process::dispatch(manager, &FrameworksManager::remove, id, seconds(0));
+    process::dispatch(manager, &FrameworksManager::remove, id, Seconds(0));
 
   ASSERT_TRUE(future1.await(2.0));
   EXPECT_TRUE(future1.get().isError());
@@ -1092,7 +1092,7 @@ TEST_F(FrameworksManagerTestFixture, RemoveFramework)
 
   // Now remove the added framework.
   Future<Result<bool> > future3 =
-    process::dispatch(manager, &FrameworksManager::remove, id2, seconds(1.0));
+    process::dispatch(manager, &FrameworksManager::remove, id2, Seconds(1.0));
 
   Clock::update(Clock::now(manager) + 1.0);
 
@@ -1169,7 +1169,7 @@ TEST_F(FrameworksManagerTestFixture, ResurrectExpiringFramework)
 
   // Remove after 2 secs.
   Future<Result<bool> > future1 =
-    process::dispatch(manager, &FrameworksManager::remove, id, seconds(2.0));
+    process::dispatch(manager, &FrameworksManager::remove, id, Seconds(2.0));
 
   // Resurrect in the meanwhile.
   Future<Result<bool> > future2 =
@@ -1207,7 +1207,7 @@ TEST_F(FrameworksManagerTestFixture, ResurrectInterspersedExpiringFrameworks)
   Clock::pause();
 
   Future<Result<bool> > future1 =
-    process::dispatch(manager, &FrameworksManager::remove, id, seconds(2.0));
+    process::dispatch(manager, &FrameworksManager::remove, id, Seconds(2.0));
 
   // Resurrect in the meanwhile.
   Future<Result<bool> > future2 =
@@ -1215,7 +1215,7 @@ TEST_F(FrameworksManagerTestFixture, ResurrectInterspersedExpiringFrameworks)
 
   // Remove again.
   Future<Result<bool> > future3 =
-    process::dispatch(manager, &FrameworksManager::remove, id, seconds(1.0));
+    process::dispatch(manager, &FrameworksManager::remove, id, Seconds(1.0));
 
   ASSERT_TRUE(future2.await(2.0));
   EXPECT_TRUE(future2.get().get());
@@ -1284,7 +1284,7 @@ TEST(FrameworksManagerTest, CacheFailure)
 
   // Remove framework should fail due to caching failure.
   Future<Result<bool> > future3 =
-    process::dispatch(manager, &FrameworksManager::remove, id, seconds(0));
+    process::dispatch(manager, &FrameworksManager::remove, id, Seconds(0));
 
   ASSERT_TRUE(future3.await(2.0));
   ASSERT_TRUE(future3.get().isError());

@@ -10,7 +10,7 @@
 
 #include <sys/time.h>
 
-#include "time.hpp"
+#include "duration.hpp"
 
 class Timer
 {
@@ -29,13 +29,13 @@ public:
     running = false;
   }
 
-  nanoseconds elapsed()
+  Nanoseconds elapsed()
   {
     if (!running) {
-      return nanoseconds(diff(stopped, started));
+      return Nanoseconds(diff(stopped, started));
     }
 
-    return nanoseconds(diff(now(), started));
+    return Nanoseconds(diff(now(), started));
   }
 
 private:

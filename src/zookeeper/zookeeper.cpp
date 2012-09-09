@@ -26,6 +26,7 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/fatal.hpp>
 
 #include "zookeeper/zookeeper.hpp"
@@ -162,8 +163,8 @@ class ZooKeeperImpl
 public:
   ZooKeeperImpl(ZooKeeper* zk,
                 const string& servers,
-                const milliseconds& timeout,
-		            Watcher* watcher)
+                const Duration& timeout,
+                Watcher* watcher)
     : servers(servers),
       timeout(timeout),
       zk(zk),
@@ -187,7 +188,7 @@ public:
     zh = zookeeper_init(
         servers.c_str(),
         event,
-        static_cast<int>(timeout.value),
+        static_cast<int>(timeout.ms()),
         NULL,
         this,
         0);
@@ -471,7 +472,7 @@ private:
   friend class ZooKeeper;
 
   const string servers; // ZooKeeper host:port pairs.
-  const milliseconds timeout; // ZooKeeper session timeout.
+  const Duration timeout; // ZooKeeper session timeout.
 
   ZooKeeper* zk; // ZooKeeper instance.
   zhandle_t* zh; // ZooKeeper connection handle.
@@ -482,7 +483,7 @@ private:
 
 
 ZooKeeper::ZooKeeper(const string& servers,
-                     const milliseconds& timeout,
+                     const Duration& timeout,
                      Watcher* watcher)
 {
   impl = new ZooKeeperImpl(this, servers, timeout, watcher);

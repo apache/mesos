@@ -145,7 +145,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
   Result<std::list<Log::Entry> > entries = reader->read(from, to, timeout);
 
@@ -295,7 +295,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
   Result<Log::Position> position = writer->append(data, timeout);
 
@@ -348,7 +348,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
   Result<Log::Position> position = writer->truncate(to, timeout);
 
@@ -402,7 +402,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_00024Writer_initialize
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
   int retries = jretries;
 
@@ -515,7 +515,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
   std::string znode = construct<std::string>(env, jznode);
 
@@ -559,7 +559,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  seconds timeout(jseconds);
+  Seconds timeout(jseconds);
 
   std::string znode = construct<std::string>(env, jznode);
 

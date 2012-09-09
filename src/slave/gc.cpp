@@ -23,8 +23,8 @@
 #include <process/future.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/os.hpp>
-#include <stout/time.hpp>
 
 #include "logging/logging.hpp"
 
@@ -44,7 +44,7 @@ class GarbageCollectorProcess : public Process<GarbageCollectorProcess>
 {
 public:
   // GarbageCollector implementation.
-  Future<bool> schedule(const seconds& s, const string& path);
+  Future<bool> schedule(const Duration& d, const string& path);
 
 private:
   void remove(const string& path, Promise<bool>* promise);
@@ -52,14 +52,14 @@ private:
 
 
 Future<bool> GarbageCollectorProcess::schedule(
-    const seconds& s,
+    const Duration& d,
     const string& path)
 {
   LOG(INFO) << "Scheduling " << path << " for removal";
 
   Promise<bool>* promise = new Promise<bool>();
 
-  delay(s.value, self(), &Self::remove, path, promise);
+  delay(d.secs(), self(), &Self::remove, path, promise);
 
   return promise->future();
 }
@@ -95,10 +95,10 @@ GarbageCollector::~GarbageCollector()
 
 
 Future<bool> GarbageCollector::schedule(
-    const seconds& s,
+    const Duration& d,
     const string& path)
 {
-  return dispatch(process, &GarbageCollectorProcess::schedule, s, path);
+  return dispatch(process, &GarbageCollectorProcess::schedule, d, path);
 }
 
 } // namespace mesos {

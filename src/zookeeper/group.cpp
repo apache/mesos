@@ -8,6 +8,7 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/result.hpp>
@@ -40,7 +41,7 @@ class GroupProcess : public Process<GroupProcess>
 {
 public:
   GroupProcess(const string& servers,
-               const seconds& timeout,
+               const Duration& timeout,
                const string& znode,
                const Option<Authentication>& auth);
   virtual ~GroupProcess();
@@ -90,7 +91,7 @@ private:
   Option<string> error; // Potential non-retryable error.
 
   const string servers;
-  const seconds timeout;
+  const Duration timeout;
   const string znode;
 
   Option<Authentication> auth; // ZooKeeper authentication.
@@ -173,7 +174,7 @@ void fail(queue<T*>* queue, const string& message)
 
 GroupProcess::GroupProcess(
     const string& _servers,
-    const seconds& _timeout,
+    const Duration& _timeout,
     const string& _znode,
     const Option<Authentication>& _auth)
   : servers(_servers),
@@ -839,7 +840,7 @@ void GroupProcess::abort()
 
 
 Group::Group(const string& servers,
-             const seconds& timeout,
+             const Duration& timeout,
              const string& znode,
              const Option<Authentication>& auth)
 {

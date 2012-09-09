@@ -25,7 +25,7 @@
 
 #include <tr1/functional>
 
-#include <stout/time.hpp>
+#include <stout/duration.hpp>
 
 #include "jvm/jvm.hpp"
 
@@ -92,7 +92,7 @@ protected:
   virtual void TearDown();
 
   // A very long session timeout that simulates no timeout for test cases.
-  static const milliseconds NO_TIMEOUT;
+  static const Milliseconds NO_TIMEOUT;
 
   ZooKeeperServer* zks;
 

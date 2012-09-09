@@ -25,9 +25,9 @@
 
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
-#include <stout/time.hpp>
 
 #include "messages/messages.hpp"
 
@@ -60,8 +60,8 @@ public:
   // Add a new framework.
   Result<bool> add(const FrameworkID& id, const FrameworkInfo& info);
 
-  // Remove a framework after a specified number of seconds.
-  Future<Result<bool> > remove(const FrameworkID& id, const seconds& s);
+  // Remove a framework after a specified amount of time.
+  Future<Result<bool> > remove(const FrameworkID& id, const Duration& timeout);
 
   // Resurrect the framework.
   Result<bool> resurrect(const FrameworkID& id);

@@ -3,8 +3,8 @@
 
 #include <process/future.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
-#include <stout/time.hpp>
 
 namespace process {
 
@@ -17,14 +17,14 @@ class StatisticsProcess;
 class Statistics
 {
 public:
-  Statistics(const seconds& window);
+  Statistics(const Seconds& window);
   ~Statistics();
 
   // Returns the time series of a statistic.
-  process::Future<std::map<seconds, double> > get(
+  process::Future<std::map<Seconds, double> > get(
       const std::string& name,
-      const Option<seconds>& start = Option<seconds>::none(),
-      const Option<seconds>& stop = Option<seconds>::none());
+      const Option<Seconds>& start = Option<Seconds>::none(),
+      const Option<Seconds>& stop = Option<Seconds>::none());
 
   // Sets the current value of a statistic.
   void set(const std::string& name, double value);

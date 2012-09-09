@@ -67,6 +67,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/process/timeout.hpp			\
 	$(top_srcdir)/include/process/timer.hpp				\
 	$(top_srcdir)/include/stout/cache.hpp				\
+	$(top_srcdir)/include/stout/duration.hpp			\
 	$(top_srcdir)/include/stout/fatal.hpp				\
 	$(top_srcdir)/include/stout/foreach.hpp				\
 	$(top_srcdir)/include/stout/format.hpp				\
@@ -84,7 +85,6 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/stout/result.hpp				\
 	$(top_srcdir)/include/stout/stringify.hpp			\
 	$(top_srcdir)/include/stout/strings.hpp				\
-	$(top_srcdir)/include/stout/time.hpp				\
 	$(top_srcdir)/include/stout/timer.hpp				\
 	$(top_srcdir)/include/stout/try.hpp				\
 	$(top_srcdir)/include/stout/utils.hpp				\

@@ -44,7 +44,7 @@ namespace mesos {
 namespace internal {
 namespace test {
 
-const milliseconds BaseZooKeeperTest::NO_TIMEOUT(5000);
+const Milliseconds BaseZooKeeperTest::NO_TIMEOUT(5000);
 
 
 static void silenceServerLogs(Jvm* jvm)
