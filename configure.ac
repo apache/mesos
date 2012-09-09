@@ -30,7 +30,11 @@ AC_LANG([C++])
 AC_CONFIG_MACRO_DIR([m4])
 
 # Initialize automake.
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+# -Wno-portability, since we require GNU Make for % patterns
+AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability foreign])
+
+# This is required for linking non-POSIX libs.
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 
 # Initialize libtool (LT_OUTPUT builds ./libtool immediately, needed
 # if we want to do tests with libtool during configuration).
