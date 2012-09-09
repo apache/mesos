@@ -21,7 +21,6 @@
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
-#include <stout/timer.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 

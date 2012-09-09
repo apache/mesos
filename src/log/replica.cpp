@@ -29,7 +29,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/numify.hpp>
-#include <stout/timer.hpp>
+#include <stout/stopwatch.hpp>
 #include <stout/utils.hpp>
 
 #include "log/replica.hpp"
@@ -211,8 +211,8 @@ Try<State> LevelDBStorage::recover(const string& path)
   CHECK(leveldb::BytewiseComparator()->Compare(ten, two) > 0);
   CHECK(leveldb::BytewiseComparator()->Compare(ten, ten) == 0);
 
-  Timer timer;
-  timer.start();
+  Stopwatch stopwatch;
+  stopwatch.start();
 
   leveldb::Status status = leveldb::DB::Open(options, path, &db);
 
@@ -221,14 +221,14 @@ Try<State> LevelDBStorage::recover(const string& path)
     return Try<State>::error(status.ToString());
   }
 
-  LOG(INFO) << "Opened db in " << timer.elapsed();
+  LOG(INFO) << "Opened db in " << stopwatch.elapsed();
 
-  timer.start(); // Restart the timer.
+  stopwatch.start(); // Restart the stopwatch.
 
   // TODO(benh): Conditionally compact to avoid long recovery times?
   db->CompactRange(NULL, NULL);
 
-  LOG(INFO) << "Compacted db in " << timer.elapsed();
+  LOG(INFO) << "Compacted db in " << stopwatch.elapsed();
 
   State state;
   state.coordinator = 0;
@@ -240,19 +240,19 @@ Try<State> LevelDBStorage::recover(const string& path)
   // records and confirming that they are all indeed of type
   // Record::Action.
 
-  timer.start(); // Restart the timer.
+  stopwatch.start(); // Restart the stopwatch.
 
   leveldb::Iterator* iterator = db->NewIterator(leveldb::ReadOptions());
 
-  LOG(INFO) << "Created db iterator in " << timer.elapsed();
+  LOG(INFO) << "Created db iterator in " << stopwatch.elapsed();
 
-  timer.start(); // Restart the timer.
+  stopwatch.start(); // Restart the stopwatch.
 
   iterator->SeekToFirst();
 
-  LOG(INFO) << "Seeked to beginning of db in " << timer.elapsed();
+  LOG(INFO) << "Seeked to beginning of db in " << stopwatch.elapsed();
 
-  timer.start(); // Restart the timer.
+  stopwatch.start(); // Restart the stopwatch.
 
   uint64_t keys = 0;
 
@@ -302,7 +302,7 @@ Try<State> LevelDBStorage::recover(const string& path)
   }
 
   LOG(INFO) << "Iterated through " << keys
-            << " keys in the db in " << timer.elapsed();
+            << " keys in the db in " << stopwatch.elapsed();
 
   // Determine the first position still in leveldb so during a
   // truncation we can attempt to delete all positions from the first
@@ -323,8 +323,8 @@ Try<State> LevelDBStorage::recover(const string& path)
 
 Try<void> LevelDBStorage::persist(const Promise& promise)
 {
-  Timer timer;
-  timer.start();
+  Stopwatch stopwatch;
+  stopwatch.start();
 
   leveldb::WriteOptions options;
   options.sync = true;
@@ -346,7 +346,7 @@ Try<void> LevelDBStorage::persist(const Promise& promise)
   }
 
   LOG(INFO) << "Persisting promise (" << value.size()
-            << " bytes) to leveldb took " << timer.elapsed();
+            << " bytes) to leveldb took " << stopwatch.elapsed();
 
   return Try<void>::some();
 }
@@ -354,8 +354,8 @@ Try<void> LevelDBStorage::persist(const Promise& promise)
 
 Try<void> LevelDBStorage::persist(const Action& action)
 {
-  Timer timer;
-  timer.start();
+  Stopwatch stopwatch;
+  stopwatch.start();
 
   Record record;
   record.set_type(Record::ACTION);
@@ -377,7 +377,7 @@ Try<void> LevelDBStorage::persist(const Action& action)
   }
 
   LOG(INFO) << "Persisting action (" << value.size()
-            << " bytes) to leveldb took " << timer.elapsed();
+            << " bytes) to leveldb took " << stopwatch.elapsed();
 
   // Delete positions if a truncate action has been *learned*. Note
   // that we do this in a best-effort fashion (i.e., we ignore any
@@ -386,7 +386,7 @@ Try<void> LevelDBStorage::persist(const Action& action)
       action.has_learned() && action.learned()) {
     CHECK(action.has_truncate());
 
-    timer.start(); // Restart the timer.
+    stopwatch.start(); // Restart the stopwatch.
 
     // To actually perform the truncation in leveldb we need to remove
     // all the keys that represent positions no longer in the log. We
@@ -425,7 +425,7 @@ Try<void> LevelDBStorage::persist(const Action& action)
         first = action.truncate().to(); // Save the new first position!
 
         LOG(INFO) << "Deleting ~" << index
-                  << " keys from leveldb took " << timer.elapsed();
+                  << " keys from leveldb took " << stopwatch.elapsed();
       }
     }
   }
@@ -436,8 +436,8 @@ Try<void> LevelDBStorage::persist(const Action& action)
 
 Try<Action> LevelDBStorage::read(uint64_t position)
 {
-  Timer timer;
-  timer.start();
+  Stopwatch stopwatch;
+  stopwatch.start();
 
   leveldb::ReadOptions options;
 
@@ -461,7 +461,7 @@ Try<Action> LevelDBStorage::read(uint64_t position)
     return Try<Action>::error("Bad record");
   }
 
-  LOG(INFO) << "Reading position from leveldb took " << timer.elapsed();
+  LOG(INFO) << "Reading position from leveldb took " << stopwatch.elapsed();
 
   return record.action();
 }

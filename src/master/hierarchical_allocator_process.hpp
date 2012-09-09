@@ -23,7 +23,7 @@
 #include <process/timer.hpp>
 
 #include <stout/hashmap.hpp>
-#include <stout/timer.hpp>
+#include <stout/stopwatch.hpp>
 
 #include "common/resources.hpp"
 
@@ -529,14 +529,13 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate()
 {
   CHECK(initialized);
 
-  ::Timer timer;
-  timer.start();
+  Stopwatch stopwatch;
+  stopwatch.start();
 
   allocate(slaves.keys());
 
-  LOG(INFO) << "Performed allocation for "
-            << slaves.size() << " slaves in "
-            << timer.elapsed();
+  LOG(INFO) << "Performed allocation for " << slaves.size()
+            << " slaves in " << stopwatch.elapsed();
 }
 
 
@@ -548,14 +547,13 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(const S
   hashset<SlaveID> slaveIds;
   slaveIds.insert(slaveId);
 
-  ::Timer timer;
-  timer.start();
+  Stopwatch stopwatch;
+  stopwatch.start();
 
   allocate(slaveIds);
 
-  LOG(INFO) << "Performed allocation for slave "
-            << slaveId << " in "
-            << timer.elapsed();
+  LOG(INFO) << "Performed allocation for slave " << slaveId
+            << " in " << stopwatch.elapsed();
 }
 
 

@@ -83,9 +83,9 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/stout/path.hpp				\
 	$(top_srcdir)/include/stout/protobuf.hpp			\
 	$(top_srcdir)/include/stout/result.hpp				\
+	$(top_srcdir)/include/stout/stopwatch.hpp			\
 	$(top_srcdir)/include/stout/stringify.hpp			\
 	$(top_srcdir)/include/stout/strings.hpp				\
-	$(top_srcdir)/include/stout/timer.hpp				\
 	$(top_srcdir)/include/stout/try.hpp				\
 	$(top_srcdir)/include/stout/utils.hpp				\
 	$(top_srcdir)/include/stout/uuid.hpp

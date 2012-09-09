@@ -1,5 +1,5 @@
-#ifndef __STOUT_TIMER_HPP__
-#define __STOUT_TIMER_HPP__
+#ifndef __STOUT_STOPWATCH_HPP__
+#define __STOUT_STOPWATCH_HPP__
 
 #include <time.h>
 
@@ -12,10 +12,10 @@
 
 #include "duration.hpp"
 
-class Timer
+class Stopwatch
 {
 public:
-  Timer() : running(false) { started.tv_sec = 0; started.tv_nsec = 0; }
+  Stopwatch() : running(false) { started.tv_sec = 0; started.tv_nsec = 0; }
 
   void start()
   {
@@ -67,4 +67,4 @@ private:
   timespec started, stopped;
 };
 
-#endif // __STOUT_TIMER_HPP__
+#endif // __STOUT_STOPWATCH_HPP__
