@@ -18,6 +18,8 @@
 
 #include <jni.h>
 
+#include <process/timeout.hpp>
+
 #include <stout/duration.hpp>
 
 #include "log/log.hpp"
@@ -147,9 +149,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Timeout timeout(jseconds);
-
-  Result<std::list<Log::Entry> > entries = reader->read(from, to, timeout);
+  Result<std::list<Log::Entry> > entries =
+    reader->read(from, to, Timeout(Seconds(jseconds)));
 
   if (entries.isError()) {
     clazz = env->FindClass("org/apache/mesos/Log$OperationFailedException");
@@ -297,9 +298,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Timeout timeout(jseconds);
-
-  Result<Log::Position> position = writer->append(data, timeout);
+  Result<Log::Position> position =
+    writer->append(data, Timeout(Seconds(jseconds)));
 
   env->ReleaseByteArrayElements(jdata, temp, 0);
 
@@ -350,9 +350,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Timeout timeout(jseconds);
-
-  Result<Log::Position> position = writer->truncate(to, timeout);
+  Result<Log::Position> position =
+    writer->truncate(to, Timeout(Seconds(jseconds)));
 
   if (position.isError()) {
     clazz = env->FindClass("org/apache/mesos/Log$WriterFailedException");
@@ -404,12 +403,11 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_00024Writer_initialize
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Timeout timeout(jseconds);
-
   int retries = jretries;
 
   // Create the C++ Log::Writer and initialize the __writer variable.
-  Log::Writer* writer = new Log::Writer(log, timeout, retries);
+  Log::Writer* writer =
+    new Log::Writer(log, Timeout(Seconds(jseconds)), retries);
 
   clazz = env->GetObjectClass(thiz);
 
@@ -517,12 +515,12 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Seconds timeout(jseconds);
+  Seconds seconds(jseconds);
 
   std::string znode = construct<std::string>(env, jznode);
 
    // Create the C++ Log and initialize the __log variable.
-  Log* log = new Log(quorum, path, servers, timeout, znode);
+  Log* log = new Log(quorum, path, servers, seconds, znode);
 
   clazz = env->GetObjectClass(thiz);
 
@@ -561,7 +559,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Seconds timeout(jseconds);
+  Seconds seconds(jseconds);
 
   std::string znode = construct<std::string>(env, jznode);
 
@@ -580,9 +578,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
 
     zookeeper::Authentication authentication(scheme, credentials);
 
-    log = new Log(quorum, path, servers, timeout, znode, authentication);
+    log = new Log(quorum, path, servers, seconds, znode, authentication);
   } else {
-    log = new Log(quorum, path, servers, timeout, znode);
+    log = new Log(quorum, path, servers, seconds, znode);
   }
 
   CHECK(log != NULL);

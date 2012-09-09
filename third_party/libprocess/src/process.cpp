@@ -2568,7 +2568,7 @@ Timer Timer::create(
 {
   static uint64_t id = 1; // Start at 1 since Timer() instances start with 0.
 
-  Timeout timeout(duration.secs()); // Assumes Clock::now() does Clock::now(__process__).
+  Timeout timeout(duration); // Assumes Clock::now() does Clock::now(__process__).
 
   UPID pid = __process__ != NULL ? __process__->self() : UPID();
 

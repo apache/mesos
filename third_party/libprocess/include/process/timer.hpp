@@ -16,7 +16,7 @@ namespace process {
 class Timer
 {
 public:
-  Timer() : id(0), t(0), pid(process::UPID()), thunk(&abort) {}
+  Timer() : id(0), pid(process::UPID()), thunk(&abort) {}
 
   static Timer create(
       const Duration& duration,

@@ -110,10 +110,10 @@ private:
       return BadRequest("'" + stringify(v.get()) + "' < original level.\n");
     }
 
-    Try<Duration> s = Duration::parse(duration.get());
+    Try<Duration> d = Duration::parse(duration.get());
 
-    if (s.isError()) {
-      return BadRequest(s.error() + ".\n");
+    if (d.isError()) {
+      return BadRequest(d.error() + ".\n");
     }
 
     // Set the logging level.
@@ -121,7 +121,7 @@ private:
 
     // Start a revert timer (if necessary).
     if (v.get() != original) {
-      timeout = s.get().secs();
+      timeout = d.get();
       delay(timeout.remaining(), this, &This::revert);
     }
 

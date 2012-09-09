@@ -3,6 +3,8 @@
 
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
+
 namespace process {
 
 class Timeout
@@ -13,9 +15,9 @@ public:
     timeout = Clock::now();
   }
 
-  Timeout(double seconds)
+  Timeout(const Duration& duration)
   {
-    timeout = Clock::now() + seconds;
+    timeout = Clock::now() + duration.secs();
   }
 
   Timeout(const Timeout& that)
@@ -32,9 +34,9 @@ public:
     return *this;
   }
 
-  Timeout& operator = (double seconds)
+  Timeout& operator = (const Duration& duration)
   {
-    timeout = Clock::now() + seconds;
+    timeout = Clock::now() + duration.secs();
     return *this;
   }
 

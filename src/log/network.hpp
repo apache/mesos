@@ -30,6 +30,7 @@
 #include <process/protobuf.hpp>
 #include <process/timeout.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 
@@ -279,7 +280,7 @@ inline void ZooKeeperNetwork::watched()
     futures.push_back(group->data(membership));
   }
 
-  datas = process::collect(futures, process::Timeout(5.0));
+  datas = process::collect(futures, process::Timeout(Seconds(5.0)));
   datas.onAny(executor.defer(lambda::bind(&This::collected, this)));
 }
 

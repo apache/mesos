@@ -20,8 +20,10 @@
 #define __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
 
 #include <process/delay.hpp>
+#include <process/timeout.hpp>
 #include <process/timer.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/stopwatch.hpp>
 
@@ -432,21 +434,25 @@ void HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesUnused(
   allocatable[slaveId] += resources;
 
   // Create a refused resources filter.
-  Seconds timeout(filters.isSome()
+  Seconds seconds(filters.isSome()
                   ? filters.get().refuse_seconds()
                   : Filters().refuse_seconds());
 
-  if (timeout != Seconds(0)) {
+  if (seconds != Seconds(0)) {
     LOG(INFO) << "Framework " << frameworkId
 	      << " filtered slave " << slaveId
-	      << " for " << timeout;
+	      << " for " << seconds;
 
     // Create a new filter and delay it's expiration.
-    mesos::internal::master::Filter* filter = new RefusedFilter(slaveId, resources, timeout.secs());
+    mesos::internal::master::Filter* filter =
+      new RefusedFilter(slaveId, resources, Timeout(seconds));
+
     this->filters.put(frameworkId, filter);
 
-    delay(timeout, self(),
-          &HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::expire, frameworkId, filter);
+    delay(seconds, self(),
+          &HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::expire,
+          frameworkId,
+          filter);
   }
 }
 
