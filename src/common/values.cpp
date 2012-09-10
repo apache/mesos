@@ -68,7 +68,7 @@ Try<Value> parse(const std::string& text) {
   if (index == 0) {
     // This is a ranges.
     Value::Ranges ranges;
-    const vector<string>& tokens = strings::split(temp, "[]-,\n");
+    const vector<string>& tokens = strings::tokenize(temp, "[]-,\n");
     if (tokens.size() % 2 != 0) {
       return Try<Value>::error("Error parsing value: " + text +
                                ", expect one or more \"ranges \"");
@@ -96,7 +96,7 @@ Try<Value> parse(const std::string& text) {
     if (index == 0) {
       // This is a set.
       Value::Set set;
-      const vector<string>& tokens = strings::split(temp, "{},\n");
+      const vector<string>& tokens = strings::tokenize(temp, "{},\n");
       for (size_t i = 0; i < tokens.size(); i++) {
         set.add_item(tokens[i]);
       }

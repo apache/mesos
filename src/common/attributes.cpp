@@ -72,10 +72,10 @@ Attributes Attributes::parse(const string& s)
   // Tokenize and parse the value of "attributes".
   Attributes attributes;
 
-  vector<string> tokens = strings::split(s, ";\n");
+  vector<string> tokens = strings::tokenize(s, ";\n");
 
   for (size_t i = 0; i < tokens.size(); i++) {
-    const vector<string>& pairs = strings::split(tokens[i], ":");
+    const vector<string>& pairs = strings::tokenize(tokens[i], ":");
     if (pairs.size() != 2) {
       LOG(FATAL) << "Bad value for attributes, missing ':' within " << pairs[0];
     }

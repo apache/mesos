@@ -99,72 +99,156 @@ TEST(StoutStringsTest, Trim)
 }
 
 
+TEST(StoutStringsTest, Tokenize)
+{
+  vector<string> tokens = strings::tokenize("hello world,  what's up?", " ");
+  ASSERT_EQ(4u, tokens.size());
+  EXPECT_EQ("hello",  tokens[0]);
+  EXPECT_EQ("world,", tokens[1]);
+  EXPECT_EQ("what's", tokens[2]);
+  EXPECT_EQ("up?",    tokens[3]);
+}
+
+
+TEST(StoutStringsTest, TokenizeStringWithDelimsAtStart)
+{
+  vector<string> tokens = strings::tokenize("  hello world,  what's up?", " ");
+  ASSERT_EQ(4u, tokens.size());
+  EXPECT_EQ("hello",  tokens[0]);
+  EXPECT_EQ("world,", tokens[1]);
+  EXPECT_EQ("what's", tokens[2]);
+  EXPECT_EQ("up?",    tokens[3]);
+}
+
+
+TEST(StoutStringsTest, TokenizeStringWithDelimsAtEnd)
+{
+  vector<string> tokens = strings::tokenize("hello world,  what's up?  ", " ");
+  ASSERT_EQ(4u, tokens.size());
+  EXPECT_EQ("hello",  tokens[0]);
+  EXPECT_EQ("world,", tokens[1]);
+  EXPECT_EQ("what's", tokens[2]);
+  EXPECT_EQ("up?",    tokens[3]);
+}
+
+
+TEST(StoutStringsTest, TokenizeStringWithDelimsAtStartAndEnd)
+{
+  vector<string> tokens = strings::tokenize("  hello world,  what's up?  ", " ");
+  ASSERT_EQ(4u, tokens.size());
+  EXPECT_EQ("hello",  tokens[0]);
+  EXPECT_EQ("world,", tokens[1]);
+  EXPECT_EQ("what's", tokens[2]);
+  EXPECT_EQ("up?",    tokens[3]);
+}
+
+
+TEST(StoutStringsTest, TokenizeWithMultipleDelims)
+{
+  vector<string> tokens = strings::tokenize("hello\tworld,  \twhat's up?",
+                                            " \t");
+  ASSERT_EQ(4u, tokens.size());
+  EXPECT_EQ("hello",  tokens[0]);
+  EXPECT_EQ("world,", tokens[1]);
+  EXPECT_EQ("what's", tokens[2]);
+  EXPECT_EQ("up?",    tokens[3]);
+}
+
+
+TEST(StoutStringsTest, TokenizeEmptyString)
+{
+  vector<string> tokens = strings::tokenize("", " ");
+  ASSERT_EQ(0u, tokens.size());
+}
+
+
+TEST(StoutStringsTest, TokenizeDelimOnlyString)
+{
+  vector<string> tokens = strings::tokenize("   ", " ");
+  ASSERT_EQ(0u, tokens.size());
+}
+
+
 TEST(StoutStringsTest, SplitEmptyString)
 {
-  vector<string> tokens = strings::split("", " ");
-  ASSERT_EQ(0u, tokens.size());
+  vector<string> tokens = strings::split("", ",");
+  ASSERT_EQ(1u, tokens.size());
+  EXPECT_EQ("", tokens[0]);
 }
 
 
 TEST(StoutStringsTest, SplitDelimOnlyString)
 {
-  vector<string> tokens = strings::split("   ", " ");
-  ASSERT_EQ(0u, tokens.size());
+  vector<string> tokens = strings::split(",,,", ",");
+  ASSERT_EQ(4u, tokens.size());
+  EXPECT_EQ("", tokens[0]);
+  EXPECT_EQ("", tokens[1]);
+  EXPECT_EQ("", tokens[2]);
+  EXPECT_EQ("", tokens[3]);
 }
 
 
 TEST(StoutStringsTest, Split)
 {
-  vector<string> tokens = strings::split("hello world,  what's up?", " ");
+  vector<string> tokens = strings::split("foo,bar,,baz", ",");
   ASSERT_EQ(4u, tokens.size());
-  EXPECT_EQ("hello",  tokens[0]);
-  EXPECT_EQ("world,", tokens[1]);
-  EXPECT_EQ("what's", tokens[2]);
-  EXPECT_EQ("up?",    tokens[3]);
+  EXPECT_EQ("foo", tokens[0]);
+  EXPECT_EQ("bar", tokens[1]);
+  EXPECT_EQ("",    tokens[2]);
+  EXPECT_EQ("baz", tokens[3]);
 }
 
 
 TEST(StoutStringsTest, SplitStringWithDelimsAtStart)
 {
-  vector<string> tokens = strings::split("  hello world,  what's up?", " ");
-  ASSERT_EQ(4u, tokens.size());
-  EXPECT_EQ("hello",  tokens[0]);
-  EXPECT_EQ("world,", tokens[1]);
-  EXPECT_EQ("what's", tokens[2]);
-  EXPECT_EQ("up?",    tokens[3]);
+  vector<string> tokens = strings::split(",,foo,bar,,baz", ",");
+  ASSERT_EQ(6u, tokens.size());
+  EXPECT_EQ("",    tokens[0]);
+  EXPECT_EQ("",    tokens[1]);
+  EXPECT_EQ("foo", tokens[2]);
+  EXPECT_EQ("bar", tokens[3]);
+  EXPECT_EQ("",    tokens[4]);
+  EXPECT_EQ("baz", tokens[5]);
 }
 
 
 TEST(StoutStringsTest, SplitStringWithDelimsAtEnd)
 {
-  vector<string> tokens = strings::split("hello world,  what's up?  ", " ");
-  ASSERT_EQ(4u, tokens.size());
-  EXPECT_EQ("hello",  tokens[0]);
-  EXPECT_EQ("world,", tokens[1]);
-  EXPECT_EQ("what's", tokens[2]);
-  EXPECT_EQ("up?",    tokens[3]);
+  vector<string> tokens = strings::split("foo,bar,,baz,,", ",");
+  ASSERT_EQ(6u, tokens.size());
+  EXPECT_EQ("foo", tokens[0]);
+  EXPECT_EQ("bar", tokens[1]);
+  EXPECT_EQ("",    tokens[2]);
+  EXPECT_EQ("baz", tokens[3]);
+  EXPECT_EQ("",    tokens[4]);
+  EXPECT_EQ("",    tokens[5]);
 }
 
 
 TEST(StoutStringsTest, SplitStringWithDelimsAtStartAndEnd)
 {
-  vector<string> tokens = strings::split("  hello world,  what's up?  ", " ");
-  ASSERT_EQ(4u, tokens.size());
-  EXPECT_EQ("hello",  tokens[0]);
-  EXPECT_EQ("world,", tokens[1]);
-  EXPECT_EQ("what's", tokens[2]);
-  EXPECT_EQ("up?",    tokens[3]);
+  vector<string> tokens = strings::split(",,foo,bar,,", ",");
+  ASSERT_EQ(6u, tokens.size());
+  EXPECT_EQ("",    tokens[0]);
+  EXPECT_EQ("",    tokens[1]);
+  EXPECT_EQ("foo", tokens[2]);
+  EXPECT_EQ("bar", tokens[3]);
+  EXPECT_EQ("",    tokens[4]);
+  EXPECT_EQ("",    tokens[5]);
 }
 
 
 TEST(StoutStringsTest, SplitWithMultipleDelims)
 {
-  vector<string> tokens = strings::split("hello\tworld,  \twhat's up?", " \t");
-  ASSERT_EQ(4u, tokens.size());
-  EXPECT_EQ("hello",  tokens[0]);
-  EXPECT_EQ("world,", tokens[1]);
-  EXPECT_EQ("what's", tokens[2]);
-  EXPECT_EQ("up?",    tokens[3]);
+  vector<string> tokens = strings::split("foo.bar,.,.baz.", ",.");
+  ASSERT_EQ(7u, tokens.size());
+  EXPECT_EQ("foo", tokens[0]);
+  EXPECT_EQ("bar", tokens[1]);
+  EXPECT_EQ("",    tokens[2]);
+  EXPECT_EQ("",    tokens[3]);
+  EXPECT_EQ("",    tokens[4]);
+  EXPECT_EQ("baz", tokens[5]);
+  EXPECT_EQ("",    tokens[6]);
 }
 
 

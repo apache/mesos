@@ -139,12 +139,13 @@ TEST(AllocatorTest, DRFAllocatorProcess)
   EXPECT_CALL(a, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(m);
 
   ProcessBasedIsolationModule isolationModule;
   Resources resources = Resources::parse("cpus:2;mem:1024");
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave1 = process::spawn(s);
 
   BasicMasterDetector detector(master, slave1, true);
@@ -186,7 +187,7 @@ TEST(AllocatorTest, DRFAllocatorProcess)
   WAIT_UNTIL(framework2Added);
 
   Resources resources2 = Resources::parse("cpus:1;mem:512");
-  Slave s2(resources2, true, &isolationModule);
+  Slave s2(resources2, true, &isolationModule, &files);
   PID<Slave> slave2 = process::spawn(s2);
 
   BasicMasterDetector detector2(master, slave2, true);
@@ -196,7 +197,7 @@ TEST(AllocatorTest, DRFAllocatorProcess)
   EXPECT_THAT(offers2, OfferEq(1, 512));
 
   Resources resources3 = Resources::parse("cpus:3;mem:2048");
-  Slave s3(resources3, true, &isolationModule);
+  Slave s3(resources3, true, &isolationModule, &files);
   PID<Slave> slave3 = process::spawn(s3);
   BasicMasterDetector detector3(master, slave3, true);
 
@@ -220,7 +221,7 @@ TEST(AllocatorTest, DRFAllocatorProcess)
   WAIT_UNTIL(framework3Added);
 
   Resources resources4 = Resources::parse("cpus:4;mem:4096");
-  Slave s4(resources4, true, &isolationModule);
+  Slave s4(resources4, true, &isolationModule, &files);
   PID<Slave> slave4 = process::spawn(s4);
   BasicMasterDetector detector4(master, slave4, true);
 
@@ -297,13 +298,14 @@ TYPED_TEST(AllocatorTest, MockAllocator)
 
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
 
-  Master m(&this->allocator);
+  Files files;
+  Master m(&this->allocator, &files);
   PID<Master> master = process::spawn(&m);
 
   ProcessBasedIsolationModule isolationModule;
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -375,12 +377,13 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(Return());
 
-  Master m(&(this->allocator));
+  Files files;
+  Master m(&(this->allocator), &files);
   PID<Master> master = process::spawn(m);
 
   ProcessBasedIsolationModule isolationModule;
   Resources resources1 = Resources::parse("cpus:2;mem:1024");
-  Slave s(resources1, true, &isolationModule);
+  Slave s(resources1, true, &isolationModule, &files);
   PID<Slave> slave1 = process::spawn(s);
   BasicMasterDetector(master, slave1, true);
 
@@ -488,14 +491,15 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 		    SaveArg<2>(&savedResources)))
     .WillRepeatedly(DoDefault());
 
-  Master m(&(this->allocator));
+  Files files;
+  Master m(&(this->allocator), &files);
   PID<Master> master = process::spawn(&m);
 
   ProcessBasedIsolationModule isolationModule;
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -600,7 +604,8 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
     .WillRepeatedly(InvokeUnusedWithFilters(&this->allocator, 0));
 
-  Master m(&this->allocator);
+  Files files;
+  Master m(&this->allocator, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -621,7 +626,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   EXPECT_CALL(isolationModule, resourcesChanged(_, _, _));
 
   Resources resources = Resources::parse("cpus:3;mem:1024");
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
   BasicMasterDetector detector(master, slave, true);
 
@@ -727,7 +732,8 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
-  Master m(&this->allocator);
+  Files files;
+  Master m(&this->allocator, &files);
   PID<Master> master = process::spawn(m);
 
   MockExecutor exec;
@@ -752,7 +758,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
     .Times(2);
 
   Resources resources1 = Resources::parse("cpus:3;mem:1024");
-  Slave s1(resources1, true, &isolationModule);
+  Slave s1(resources1, true, &isolationModule, &files);
   PID<Slave> slave1 = process::spawn(s1);
   BasicMasterDetector detector1(master, slave1, true);
 
@@ -853,7 +859,8 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 		    Trigger(&slaveRemovedTrigger1)))
     .WillOnce(Trigger(&slaveRemovedTrigger2));
 
-  Master m(&this->allocator);
+  Files files;
+  Master m(&this->allocator, &files);
   PID<Master> master = process::spawn(m);
 
   MockExecutor exec;
@@ -875,7 +882,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   EXPECT_CALL(isolationModule, resourcesChanged(_, _, _));
 
   Resources resources1 = Resources::parse("cpus:2;mem:1024");
-  Slave s1(resources1, true, &isolationModule);
+  Slave s1(resources1, true, &isolationModule, &files);
   PID<Slave> slave1 = process::spawn(s1);
   BasicMasterDetector detector1(master, slave1, true);
 
@@ -923,7 +930,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   ProcessBasedIsolationModule isolationModule2;
   Resources resources2 = Resources::parse("cpus:3;mem:256");
-  Slave s2(resources2, true, &isolationModule2);
+  Slave s2(resources2, true, &isolationModule2, &files);
   PID<Slave> slave2 = process::spawn(s2);
   BasicMasterDetector detector2(master, slave2, true);
 
@@ -975,7 +982,8 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  Master m(&this->allocator);
+  Files files;
+  Master m(&this->allocator, &files);
   PID<Master> master = process::spawn(m);
 
   MockExecutor exec;
@@ -999,7 +1007,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   EXPECT_CALL(isolationModule, resourcesChanged(_, _, _));
 
   Resources resources1 = Resources::parse("cpus:3;mem:1024");
-  Slave s1(resources1, true, &isolationModule);
+  Slave s1(resources1, true, &isolationModule, &files);
   PID<Slave> slave1 = process::spawn(s1);
   BasicMasterDetector detector1(master, slave1, true);
 
@@ -1044,7 +1052,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   WAIT_UNTIL(launchTaskTrigger);
 
   Resources resources2 = Resources::parse("cpus:4;mem:2048");
-  Slave s2(resources2, true, &isolationModule);
+  Slave s2(resources2, true, &isolationModule, &files);
   PID<Slave> slave2 = process::spawn(s2);
   BasicMasterDetector detector2(master, slave2, true);
 
@@ -1099,7 +1107,8 @@ TYPED_TEST(AllocatorTest, TaskFinished)
     .WillOnce(InvokeUnusedWithFilters(&this->allocator, 0))
     .WillRepeatedly(InvokeUnusedWithFilters(&this->allocator, 1));
 
-  Master m(&this->allocator);
+  Files files;
+  Master m(&this->allocator, &files);
   PID<Master> master = process::spawn(m);
 
   MockExecutor exec;
@@ -1127,7 +1136,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
     .Times(2);
 
   Resources resources1 = Resources::parse("cpus:3;mem:1024");
-  Slave s1(resources1, true, &isolationModule);
+  Slave s1(resources1, true, &isolationModule, &files);
   PID<Slave> slave1 = process::spawn(s1);
   BasicMasterDetector detector1(master, slave1, true);
 
@@ -1220,9 +1229,10 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   string path = "whitelist.txt";
   CHECK (os::write(path, hosts).isSome()) << "Error writing whitelist";
 
+  Files files;
   flags::Flags<logging::Flags, master::Flags> flags;
   flags.whitelist = "file://" + path; // TODO(benh): Put in /tmp.
-  Master m(&this->allocator, flags);
+  Master m(&this->allocator, &files, flags);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -1232,7 +1242,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
 
   TestingIsolationModule isolationModule(execs);
   Resources resources = Resources::parse("cpus:2;mem:1024");
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

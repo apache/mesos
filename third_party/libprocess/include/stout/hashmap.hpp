@@ -35,6 +35,18 @@ public:
     }
   }
 
+  // Returns an Option for the binding to the key.
+  Option<Value> get(const Key& key) const
+  {
+    typedef typename boost::unordered_map<Key, Value>::const_iterator
+        const_iterator;
+    const_iterator it = boost::unordered_map<Key, Value>::find(key);
+    if (it == boost::unordered_map<Key, Value>::end()) {
+      return Option<Value>::none();
+    }
+    return it->second;
+  }
+
   // Returns the set of keys in this map.
   hashset<Key> keys() const
   {

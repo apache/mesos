@@ -21,6 +21,7 @@
 #include <list>
 #include <sstream>
 
+#include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
 #include <process/run.hpp>
@@ -94,7 +95,7 @@ protected:
         whitelist = Option<hashset<string> >::some(hashset<string>());
       } else {
         hashset<string> hostnames;
-        vector<string> lines = strings::split(result.get(), "\n");
+        vector<string> lines = strings::tokenize(result.get(), "\n");
         foreach (const string& hostname, lines) {
           hostnames.insert(hostname);
         }
@@ -255,17 +256,20 @@ struct SlaveReregistrar
 };
 
 
-Master::Master(AllocatorProcess* _allocator)
+Master::Master(AllocatorProcess* _allocator, Files* _files)
   : ProcessBase("master"),
     flags(),
-    allocator(_allocator) {}
+    allocator(_allocator),
+    files(_files) {}
 
 
 Master::Master(AllocatorProcess* _allocator,
+               Files* _files,
                const flags::Flags<logging::Flags, master::Flags>& _flags)
   : ProcessBase("master"),
     flags(_flags),
-    allocator(_allocator) {}
+    allocator(_allocator),
+    files(_files) {}
 
 
 Master::~Master()
@@ -452,8 +456,13 @@ void Master::initialize()
   provide("static", path::join(flags.webui_dir, "master/static"));
 
   // TODO(benh): Ask glog for file name (i.e., mesos-master.INFO).
+  // Blocked on http://code.google.com/p/google-glog/issues/detail?id=116
+  // Alternatively, initialize() could take the executable name.
   if (flags.log_dir.isSome()) {
-    files.attach(flags.log_dir.get() + "/mesos-master.INFO", "/log");
+    Future<Nothing> result = files->attach(
+        path::join(flags.log_dir.get(), "mesos-master.INFO"),
+        "/log");
+    result.onAny(defer(self(), &Self::fileAttached, result));
   }
 }
 
@@ -513,6 +522,17 @@ void Master::exited(const UPID& pid)
       removeSlave(slave);
       return;
     }
+  }
+}
+
+
+void Master::fileAttached(const Future<Nothing>& result)
+{
+  CHECK(!result.isDiscarded());
+  if (result.isReady()) {
+    LOG(INFO) << "Master attached log file successfully";
+  } else {
+    LOG(ERROR) << "Failed to attach log file: " << result.failure();
   }
 }
 

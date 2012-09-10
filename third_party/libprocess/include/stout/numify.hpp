@@ -23,4 +23,7 @@ Try<T> numify(const std::string& s)
   }
 }
 
+// TODO(bmahler): Add a numify that takes an Option<string> to simplify
+// http request handling logic.
+
 #endif // __STOUT_NUMIFY_HPP__

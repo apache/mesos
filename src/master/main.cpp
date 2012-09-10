@@ -117,8 +117,8 @@ int main(int argc, char** argv)
 
   AllocatorProcess* allocator = AllocatorProcess::create(flags.user_sorter,
 							 flags.framework_sorter);
-
-  Master* master = new Master(allocator, flags);
+  Files files;
+  Master* master = new Master(allocator, &files, flags);
   process::spawn(master);
 
   Try<MasterDetector*> detector =

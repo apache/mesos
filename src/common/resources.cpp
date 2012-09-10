@@ -214,10 +214,10 @@ Resources Resources::parse(const string& s)
   // Tokenize and parse the value of "resources".
   Resources resources;
 
-  vector<string> tokens = strings::split(s, ";\n");
+  vector<string> tokens = strings::tokenize(s, ";\n");
 
   for (size_t i = 0; i < tokens.size(); i++) {
-    const vector<string>& pairs = strings::split(tokens[i], ":");
+    const vector<string>& pairs = strings::tokenize(tokens[i], ":");
     if (pairs.size() != 2) {
       LOG(FATAL) << "Bad value for resources, missing ':' within " << pairs[0];
     }

@@ -22,6 +22,12 @@
 #include <string>
 
 #include <process/future.hpp>
+#include <process/http.hpp>
+#include <process/pid.hpp>
+
+#include <stout/json.hpp>
+#include <stout/nothing.hpp>
+#include <stout/path.hpp>
 
 namespace mesos {
 namespace internal {
@@ -44,16 +50,39 @@ public:
 
   // Returns the result of trying to attach the specified path
   // (directory or file) at the specified name.
-  process::Future<bool> attach(
+  process::Future<Nothing> attach(
       const std::string& path,
       const std::string& name);
 
   // Removes the specified name.
   void detach(const std::string& name);
 
+  // Returns the pid for the FilesProcess.
+  // NOTE: This has been made visible for testing.
+  process::PID<> pid();
+
 private:
   FilesProcess* process;
 };
+
+
+// Returns our JSON representation of a file or directory.
+inline JSON::Object jsonFileInfo(const std::string& path,
+                                 bool isDir,
+                                 size_t size)
+{
+  JSON::Object file;
+  file.values["path"] = path;
+  file.values["size"] = size;
+
+  if (isDir) {
+    file.values["dir"] = JSON::True();
+  } else {
+    file.values["dir"] = JSON::False();
+  }
+
+  return file;
+}
 
 } // namespace internal {
 } // namespace mesos {

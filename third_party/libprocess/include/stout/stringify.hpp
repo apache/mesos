@@ -10,6 +10,7 @@
 #include <sstream> // For 'std::ostringstream'.
 #include <string>
 
+
 template <typename T>
 std::string stringify(T t)
 {

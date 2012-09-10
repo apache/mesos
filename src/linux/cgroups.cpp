@@ -313,7 +313,7 @@ bool enabled()
 
 Try<bool> enabled(const std::string& subsystems)
 {
-  std::vector<std::string> names = strings::split(subsystems, ",");
+  std::vector<std::string> names = strings::tokenize(subsystems, ",");
   if (names.empty()) {
     return Try<bool>::error("No subsystem is specified");
   }
@@ -344,7 +344,7 @@ Try<bool> enabled(const std::string& subsystems)
 
 Try<bool> busy(const std::string& subsystems)
 {
-  std::vector<std::string> names = strings::split(subsystems, ",");
+  std::vector<std::string> names = strings::tokenize(subsystems, ",");
   if (names.empty()) {
     return Try<bool>::error("No subsystem is specified");
   }
@@ -536,7 +536,7 @@ Try<bool> checkHierarchy(const std::string& hierarchy,
   }
 
   std::set<std::string> names = namesResult.get();
-  foreach (const std::string& name, strings::split(subsystems, ",")) {
+  foreach (const std::string& name, strings::tokenize(subsystems, ",")) {
     if (names.find(name) == names.end()) {
       return Try<bool>::error(
           "Subsystem " + name + " is not found or enabled");

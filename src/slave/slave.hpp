@@ -59,11 +59,13 @@ class Slave : public ProtobufProcess<Slave>
 public:
   Slave(const Resources& resources,
         bool local,
-        IsolationModule* isolationModule);
+        IsolationModule* isolationModule,
+        Files* files);
 
   Slave(const flags::Flags<logging::Flags, slave::Flags>& flags,
         bool local,
-        IsolationModule *isolationModule);
+        IsolationModule *isolationModule,
+        Files* files);
 
   virtual ~Slave();
 
@@ -127,6 +129,8 @@ protected:
   virtual void finalize();
   virtual void exited(const UPID& pid);
 
+  void fileAttached(const Future<Nothing>& result);
+
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
 
@@ -186,6 +190,7 @@ private:
   hashmap<FrameworkID, Framework*> frameworks;
 
   IsolationModule* isolationModule;
+  Files* files;
 
   // Statistics (initialized in Slave::initialize).
   struct {
@@ -200,7 +205,6 @@ private:
 
   bool connected; // Flag to indicate if slave is registered.
 
-  Files files;
   GarbageCollector gc;
 };
 

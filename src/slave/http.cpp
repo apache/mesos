@@ -138,12 +138,7 @@ Future<Response> vars(
     "build_flags " << build::FLAGS << "\n";
 
   // TODO(benh): Output flags.
-
-  OK response;
-  response.headers["Content-Type"] = "text/plain";
-  response.headers["Content-Length"] = stringify(out.str().size());
-  response.body = out.str().data();
-  return response;
+  return OK(out.str(), request.query.get("jsonp"));
 }
 
 
@@ -167,15 +162,7 @@ Future<Response> stats(
   object.values["valid_status_updates"] = slave.stats.validStatusUpdates;
   object.values["invalid_status_updates"] = slave.stats.invalidStatusUpdates;
 
-  std::ostringstream out;
-
-  JSON::render(out, object);
-
-  OK response;
-  response.headers["Content-Type"] = "application/json";
-  response.headers["Content-Length"] = stringify(out.str().size());
-  response.body = out.str().data();
-  return response;
+  return OK(object, request.query.get("jsonp"));
 }
 
 
@@ -184,15 +171,6 @@ Future<Response> state(
     const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
-
-  map<string, vector<string> > pairs =
-    strings::pairs(request.query, ";&", "=");
-
-  Option<string> jsonp;
-
-  if (pairs.count("jsonp") > 0 && pairs["jsonp"].size() > 0) {
-    jsonp = pairs["jsonp"].back();
-  }
 
   JSON::Object object;
   object.values["build_date"] = build::DATE;
@@ -214,28 +192,7 @@ Future<Response> state(
   }
 
   object.values["frameworks"] = array;
-
-  std::ostringstream out;
-
-  if (jsonp.isSome()) {
-    out << jsonp.get() << "(";
-  }
-
-  JSON::render(out, object);
-
-  OK response;
-
-  if (jsonp.isSome()) {
-    out << ");";
-    response.headers["Content-Type"] = "text/javascript";
-  } else {
-    response.headers["Content-Type"] = "application/json";
-  }
-
-  response.headers["Content-Length"] = stringify(out.str().size());
-  response.body = out.str().data();
-
-  return response;
+  return OK(object, request.query.get("jsonp"));
 }
 
 } // namespace json {

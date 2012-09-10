@@ -2,6 +2,7 @@
 #define __STOUT_PATH_HPP__
 
 #include <string>
+#include <vector>
 
 #include "strings.hpp"
 
@@ -14,7 +15,19 @@ inline std::string join(const std::string& path1, const std::string& path2)
     strings::remove(path2, "/", strings::PREFIX);
 }
 
-// TODO(benh): Provide implementations for more than two paths.
+
+inline std::string join(const std::vector<std::string>& paths)
+{
+  if (paths.empty()) {
+    return "";
+  }
+
+  std::string result = paths[0];
+  for (size_t i = 1; i < paths.size(); ++i) {
+    result = join(result, paths[i]);
+  }
+  return result;
+}
 
 } // namespace path {
 

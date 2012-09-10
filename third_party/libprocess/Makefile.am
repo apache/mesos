@@ -25,9 +25,8 @@ LIBEV = third_party/libev-$(LIBEV_VERSION)
 noinst_LTLIBRARIES = libprocess.la
 
 libprocess_la_SOURCES = src/process.cpp src/pid.cpp src/latch.cpp	\
-	src/statistics.cpp src/tokenize.cpp src/config.hpp		\
-	src/decoder.hpp src/encoder.hpp src/gate.hpp			\
-	src/synchronized.hpp src/tokenize.hpp
+	src/statistics.cpp src/config.hpp src/decoder.hpp	\
+	src/encoder.hpp src/gate.hpp src/synchronized.hpp
 
 libprocess_la_CPPFLAGS = -I$(srcdir)/include -I$(BOOST) -I$(GLOG)/src	\
 	-I$(RY_HTTP_PARSER) -I$(LIBEV) $(AM_CPPFLAGS)
@@ -54,7 +53,6 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/process/latch.hpp				\
 	$(top_srcdir)/include/process/message.hpp			\
 	$(top_srcdir)/include/process/mime.hpp				\
-	$(top_srcdir)/include/process/nothing.hpp			\
 	$(top_srcdir)/include/process/once.hpp				\
 	$(top_srcdir)/include/process/pid.hpp				\
 	$(top_srcdir)/include/process/preprocessor.hpp			\
@@ -77,6 +75,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/stout/lambda.hpp				\
 	$(top_srcdir)/include/stout/multihashmap.hpp			\
 	$(top_srcdir)/include/stout/net.hpp				\
+	$(top_srcdir)/include/stout/nothing.hpp			\
 	$(top_srcdir)/include/stout/numify.hpp				\
 	$(top_srcdir)/include/stout/option.hpp				\
 	$(top_srcdir)/include/stout/os.hpp				\

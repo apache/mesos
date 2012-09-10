@@ -82,7 +82,8 @@ protected:
       .WillRepeatedly(Return(false));
 
     a = new TestAllocatorProcess();
-    m = new Master(a);
+    files = new Files();
+    m = new Master(a, files);
     master = process::spawn(m);
 
     execs[DEFAULT_EXECUTOR_ID] = &exec;
@@ -107,7 +108,7 @@ protected:
     process::wait(master);
     delete m;
     delete a;
-
+    delete files;
     process::filter(NULL);
 
     os::rmdir(flags.work_dir);
@@ -117,7 +118,7 @@ protected:
   {
     isolationModule = new TestingIsolationModule(execs);
 
-    s = new Slave(flags, true, isolationModule);
+    s = new Slave(flags, true, isolationModule, files);
     slave = process::spawn(s);
 
     detector = new BasicMasterDetector(master, slave, true);
@@ -168,6 +169,7 @@ protected:
   Master* m;
   TestingIsolationModule* isolationModule;
   Slave* s;
+  Files* files;
   BasicMasterDetector* detector;
   MockExecutor exec, exec1;
   map<ExecutorID, Executor*> execs;

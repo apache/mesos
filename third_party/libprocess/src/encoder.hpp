@@ -9,6 +9,7 @@
 #include <process/process.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 
 
 namespace process {
@@ -123,7 +124,7 @@ public:
 
     out << "HTTP/1.1 " << response.status << "\r\n";
 
-    std::map<std::string, std::string> headers = response.headers;
+    hashmap<std::string, std::string> headers = response.headers;
 
     // HTTP 1.1 requires the "Date" header. In the future once we
     // start checking the version (above) then we can conditionally

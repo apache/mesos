@@ -73,20 +73,8 @@ protected:
 private:
   Future<Response> toggle(const Request& request)
   {
-    map<string, vector<string> > pairs =
-      strings::pairs(request.query, ";&", "=");
-
-    Option<string> level;
-
-    if (pairs.count("level") > 0 && pairs["level"].size() > 0) {
-      level = pairs["level"].back();
-    }
-
-    Option<string> duration;
-
-    if (pairs.count("duration") > 0 && pairs["duration"].size() > 0) {
-      duration = pairs["duration"].back();
-    }
+    Option<string> level = request.query.get("level");
+    Option<string> duration = request.query.get("duration");
 
     if (level.isNone() && duration.isNone()) {
       return OK(stringify(FLAGS_v) + "\n");

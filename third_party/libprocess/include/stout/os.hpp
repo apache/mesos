@@ -86,6 +86,19 @@ inline void unsetenv(const std::string& key)
 }
 
 
+inline Try<bool> access(const std::string& path, int how)
+{
+  if (::access(path.c_str(), how) < 0) {
+    if (errno == EACCES) {
+      return false;
+    } else {
+      return Try<bool>::error(strerror(errno));
+    }
+  }
+  return true;
+}
+
+
 inline Try<int> open(const std::string& path, int oflag, mode_t mode = 0)
 {
   int fd = ::open(path.c_str(), oflag, mode);
@@ -121,6 +134,7 @@ inline Try<bool> cloexec(int fd)
 }
 
 
+// TODO(bmahler): Refactor this and others into Try<Nothing> as appropriate.
 inline Try<bool> nonblock(int fd)
 {
   int flags = ::fcntl(fd, F_GETFL);
@@ -196,7 +210,8 @@ inline Try<bool> write(const std::string& path,
   Try<int> fd = os::open(path, O_WRONLY | O_CREAT | O_TRUNC,
                          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
   if (fd.isError()) {
-    return Try<bool>::error("Failed to open file " + path);
+    return Try<bool>::error("Failed to open file " + path + " : " +
+        strerror(errno));
   }
 
   Try<bool> result = write(fd.get(), message);
@@ -305,16 +320,36 @@ inline Try<std::string> realpath(const std::string& path)
 }
 
 
-inline bool exists(const std::string& path, bool directory = false)
+inline bool isdir(const std::string& path)
 {
   struct stat s;
 
   if (::stat(path.c_str(), &s) < 0) {
     return false;
   }
+  return S_ISDIR(s.st_mode);
+}
 
-  // Check if it's a directory if requested.
-  return directory ? S_ISDIR(s.st_mode) : true;
+
+inline bool isfile(const std::string& path)
+{
+  struct stat s;
+
+  if (::stat(path.c_str(), &s) < 0) {
+    return false;
+  }
+  return !S_ISDIR(s.st_mode);
+}
+
+
+inline bool exists(const std::string& path)
+{
+  struct stat s;
+
+  if (::stat(path.c_str(), &s) < 0) {
+    return false;
+  }
+  return true;
 }
 
 
@@ -334,8 +369,7 @@ inline Try<long> mtime(const std::string& path)
 inline bool mkdir(const std::string& directory)
 {
   try {
-    std::vector<std::string> tokens = strings::split(directory, "/");
-
+    std::vector<std::string> tokens = strings::tokenize(directory, "/");
     std::string path = "";
 
     // We got an absolute path, so keep the leading slash.
@@ -551,7 +585,7 @@ inline Try<std::list<std::string> > find(const std::string& directory,
 {
   std::list<std::string> results;
 
-  if (!exists(directory, true)) {
+  if (!isdir(directory)) {
     return Try<std::list<std::string> >::error("Directory " + directory + " doesn't exist!");
   }
 
@@ -562,7 +596,7 @@ inline Try<std::list<std::string> > find(const std::string& directory,
     std::string result = directory + '/' + entry;
     // This is just a hack to check whether this path is a regular file or
     // a (sub) directory.
-    if (exists(result, true)) { // If its a directory recurse.
+    if (isdir(result)) { // If its a directory recurse.
       CHECK(find(result, pattern).isSome()) << "Directory " << directory << " doesn't exist";
       foreach (const std::string& path, find(result, pattern).get()) {
         results.push_back(path);

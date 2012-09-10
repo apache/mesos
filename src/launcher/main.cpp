@@ -42,7 +42,7 @@ int main(int argc, char** argv)
 
   // Construct URIs from the encoded environment string.
   const std::string& uris = os::getenv("MESOS_EXECUTOR_URIS");
-  foreach (const std::string& token, strings::split(uris, " ")) {
+  foreach (const std::string& token, strings::tokenize(uris, " ")) {
     size_t pos = token.rfind("+"); // Delim between uri and exec permission.
     CHECK(pos != std::string::npos) << "Invalid executor uri token in env "
                                     << token;

@@ -165,77 +165,49 @@ Future<Response> StatisticsProcess::snapshot(const Request& request)
     array.values.push_back(object);
   }
 
-  std::ostringstream out;
-
-  JSON::render(out, array);
-
-  OK response;
-  response.headers["Content-Type"] = "application/json";
-  response.headers["Content-Length"] = stringify(out.str().size());
-  response.body = out.str().data();
-  return response;
+  return OK(array, request.query.get("jsonp"));
 }
 
 
 Future<Response> StatisticsProcess::series(const Request& request)
 {
-  // Get field=value pairs.
-  map<string, vector<string> > pairs =
-    strings::pairs(request.query, ";&", "=");
+  Option<string> name = request.query.get("name");
 
-  Option<string> name = pairs.count("name") > 0 && pairs["name"].size() > 0
-    ? Option<string>::some(pairs["name"].back())
-    : Option<string>::none();
+  if (!name.isSome()) {
+    return BadRequest("Expected 'name=val' in query.");
+  }
 
   Option<Seconds> start = Option<Seconds>::none();
   Option<Seconds> stop = Option<Seconds>::none();
 
-  if (pairs.count("start") > 0 && pairs["start"].size() > 0) {
-    Try<double> result = numify<double>(pairs["start"].back());
+  if (request.query.get("start").isSome()) {
+    Try<double> result = numify<double>(request.query.get("start").get());
     if (result.isError()) {
-      LOG(WARNING) << "Failed to \"numify\" the 'start' value (\""
-                   << pairs["start"].back() << "\"): "
-                   << result.error();
-      return BadRequest();
+      return BadRequest("Failed to parse start: " + result.error());
     }
     start = Option<Seconds>::some(Seconds(result.get()));
   }
 
-  if (pairs.count("stop") > 0 && pairs["stop"].size() > 0) {
-    Try<double> result = numify<double>(pairs["stop"].back());
+  if (request.query.get("stop").isSome()) {
+    Try<double> result = numify<double>(request.query.get("stop").get());
     if (result.isError()) {
-      LOG(WARNING) << "Failed to \"numify\" the 'stop' value (\""
-                   << pairs["stop"].back() << "\"): "
-                   << result.error();
-      return BadRequest();
+      return BadRequest("Failed to parse stop: " + result.error());
     }
     stop = Option<Seconds>::some(Seconds(result.get()));
   }
 
-  if (name.isSome()) {
-    JSON::Array array;
+  JSON::Array array;
 
-    map<Seconds, double> values = get(name.get(), start, stop);
+  map<Seconds, double> values = get(name.get(), start, stop);
 
-    foreachpair (const Seconds& s, double value, values) {
-      JSON::Object object;
-      object.values["time"] = s.secs();
-      object.values["value"] = value;
-      array.values.push_back(object);
-    }
-
-    std::ostringstream out;
-
-    JSON::render(out, array);
-
-    OK response;
-    response.headers["Content-Type"] = "application/json";
-    response.headers["Content-Length"] = stringify(out.str().size());
-    response.body = out.str().data();
-    return response;
+  foreachpair (const Seconds& s, double value, values) {
+    JSON::Object object;
+    object.values["time"] = s.secs();
+    object.values["value"] = value;
+    array.values.push_back(object);
   }
 
-  return BadRequest();
+  return OK(array, request.query.get("jsonp"));
 }
 
 

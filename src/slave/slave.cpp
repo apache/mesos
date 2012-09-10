@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iomanip>
 
+#include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
@@ -92,21 +93,25 @@ bool isTerminalTaskState(TaskState state)
 
 Slave::Slave(const Resources& _resources,
              bool _local,
-             IsolationModule* _isolationModule)
+             IsolationModule* _isolationModule,
+             Files* _files)
   : ProcessBase(ID::generate("slave")),
     flags(),
     local(_local),
     resources(_resources),
-    isolationModule(_isolationModule) {}
+    isolationModule(_isolationModule),
+    files(_files) {}
 
 
 Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
              bool _local,
-             IsolationModule* _isolationModule)
+             IsolationModule* _isolationModule,
+             Files* _files)
   : ProcessBase(ID::generate("slave")),
     flags(_flags),
     local(_local),
-    isolationModule(_isolationModule)
+    isolationModule(_isolationModule),
+    files(_files)
 {
   if (flags.resources.isNone()) {
     // TODO(benh): Move this compuation into Flags as the "default".
@@ -301,8 +306,13 @@ void Slave::initialize()
   route("/state.json", bind(&http::json::state, cref(*this), params::_1));
 
   // TODO(benh): Ask glog for file name (i.e., mesos-slave.INFO).
+  // Blocked on http://code.google.com/p/google-glog/issues/detail?id=116
+  // Alternatively, initialize() could take the executable name.
   if (flags.log_dir.isSome()) {
-    files.attach(flags.log_dir.get() + "/mesos-slave.INFO", "/log");
+    Future<Nothing> result = files->attach(
+        path::join(flags.log_dir.get(), "mesos-slave.INFO"),
+        "/log");
+    result.onAny(defer(self(), &Self::fileAttached, result));
   }
 }
 
@@ -333,6 +343,17 @@ void Slave::shutdown()
 {
   LOG(INFO) << "Slave asked to shut down";
   terminate(self());
+}
+
+
+void Slave::fileAttached(const Future<Nothing>& result)
+{
+  CHECK(!result.isDiscarded());
+  if (result.isReady()) {
+    LOG(INFO) << "Master attached log file successfully";
+  } else {
+    LOG(ERROR) << "Failed to attach log file: " << result.failure();
+  }
 }
 
 
@@ -372,7 +393,7 @@ void Slave::registered(const SlaveID& slaveId)
     const string& path = path::join(directory, file);
 
     // Check that this path is a directory but not our directory!
-    if (os::exists(path, true) && file != id.value()) {
+    if (os::isdir(path) && file != id.value()) {
 
       Try<long> time = os::mtime(path);
 

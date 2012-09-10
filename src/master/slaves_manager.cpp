@@ -27,6 +27,7 @@
 #include <process/dispatch.hpp>
 
 #include <stout/fatal.hpp>
+#include <stout/numify.hpp>
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 
@@ -49,6 +50,7 @@ using process::PID;
 using process::Process;
 using process::UPID;
 
+using process::http::BadRequest;
 using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::OK;
@@ -566,9 +568,9 @@ bool ZooKeeperSlavesManagerStorage::parse(
 
   const string& temp = s.substr(begin + key.size(), length);
 
-  const vector<string>& tokens = strings::split(temp, ",");
+  const vector<string>& tokens = strings::tokenize(temp, ",");
   foreach (const string& token, tokens) {
-    const vector<string>& pairs = strings::split(token, ":");
+    const vector<string>& pairs = strings::tokenize(token, ":");
     if (pairs.size() != 2) {
       LOG(WARNING) << "Slaves manager storage found bad data in '" << znode
                    << "', could not parse " << token;
@@ -619,9 +621,9 @@ SlavesManager::SlavesManager(const Flags& flags, const PID<Master>& _master)
   } else {
     // Parse 'slaves' as initial active hostname:port pairs.
     if (slaves != "*") {
-      const vector<string>& tokens = strings::split(slaves, ",");
+      const vector<string>& tokens = strings::tokenize(slaves, ",");
       foreach (const string& token, tokens) {
-        const vector<string>& pairs = strings::split(token, ":");
+        const vector<string>& pairs = strings::tokenize(token, ":");
         if (pairs.size() != 2) {
           fatal("Failed to parse \"%s\" in option 'slaves'", token.c_str());
         }
@@ -810,173 +812,145 @@ void SlavesManager::updateInactive(
 
 Future<Response> SlavesManager::add(const Request& request)
 {
-  // Parse the query to get out the slave hostname and port.
-  string hostname = "";
-  uint16_t port = 0;
-
-  map<string, vector<string> > pairs =
-    strings::pairs(request.query, ",", "=");
+  Option<string> hostname = request.query.get("hostname");
+  Option<string> portString = request.query.get("port");
 
   // Make sure there is at least a 'hostname=' and 'port='.
-  if (pairs.count("hostname") == 0) {
-    LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
-                 << " when trying to add a slave";
-    return NotFound();
-  } else if (pairs.count("port") == 0) {
-    LOG(WARNING) << "Slaves manager expecting 'port' in query string"
-                 << " when trying to add a slave";
-    return NotFound();
+  if (hostname.isNone()) {
+    string error = "Slaves manager expecting 'hostname' in query string"
+                   " when trying to add a slave";
+    LOG(WARNING) << error;
+    return BadRequest(error);
+  } else if (portString.isNone()) {
+    string error = "Slaves manager expecting 'port' in query string"
+                   " when trying to add a slave";
+    LOG(WARNING) << error;
+    return BadRequest(error);
   }
 
-  hostname = pairs["hostname"].front();
-
   // Check that 'port' is valid.
-  try {
-    port = lexical_cast<uint16_t>(pairs["port"].front());
-  } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Slaves manager failed to parse 'port = "
-		 << pairs["port"].front()
-                 << "'  when trying to add a slave";
-    return NotFound();
+  Try<uint16_t> port = numify<uint16_t>(portString.get());
+  if (port.isError()) {
+    string error = string("Slaves manager failed to parse "
+        "'port = ") + portString.get() + "' when trying to add a slave";
+    LOG(WARNING) << error;
+    return BadRequest(error);
   }
 
   LOG(INFO) << "Slaves manager received HTTP request to add slave at "
-	    << hostname << ":" << port;
+            << hostname.get() << ":" << port.get();
 
-  if (add(hostname, port)) {
+  if (add(hostname.get(), port.get())) {
     return OK();
-  } else {
-    return InternalServerError();
   }
+  return InternalServerError();
 }
 
 
 Future<Response> SlavesManager::remove(const Request& request)
 {
-  // Parse the query to get out the slave hostname and port.
-  string hostname = "";
-  uint16_t port = 0;
-
-  map<string, vector<string> > pairs =
-    strings::pairs(request.query, ",", "=");
+  Option<string> hostname = request.query.get("hostname");
+  Option<string> portString = request.query.get("port");
 
   // Make sure there is at least a 'hostname=' and 'port='.
-  if (pairs.count("hostname") == 0) {
-    LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
-                 << " when trying to remove a slave";
-    return NotFound();
-  } else if (pairs.count("port") == 0) {
-    LOG(WARNING) << "Slaves manager expecting 'port' in query string"
-                 << " when trying to remove a slave";
-    return NotFound();
+  if (hostname.isNone()) {
+    string error = "Slaves manager expecting 'hostname' in query string"
+                   " when trying to remove a slave";
+    LOG(WARNING) << error;
+    return BadRequest(error);
+  } else if (portString.isNone()) {
+    string error = "Slaves manager expecting 'port' in query string"
+                   " when trying to remove a slave";
+    LOG(WARNING) << error;
+    return BadRequest(error);
   }
 
-  hostname = pairs["hostname"].front();
-
   // Check that 'port' is valid.
-  try {
-    port = lexical_cast<uint16_t>(pairs["port"].front());
-  } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Slaves manager failed to parse 'port = "
-		 << pairs["port"].front()
-                 << "'  when trying to remove a slave";
-    return NotFound();
+  Try<uint16_t> port = numify<uint16_t>(portString.get());
+  if (port.isError()) {
+    string error = string("Slaves manager failed to parse "
+        "'port = ") + portString.get() + "' when trying to remove a slave";
+    LOG(WARNING) << error;
+    return BadRequest(error);
   }
 
   LOG(INFO) << "Slaves manager received HTTP request to remove slave at "
-	    << hostname << ":" << port;
+            << hostname.get() << ":" << port.get();
 
-  if (remove(hostname, port)) {
+  if (remove(hostname.get(), port.get())) {
     return OK();
-  } else {
-    return InternalServerError();
   }
+  return InternalServerError();
 }
 
 
 Future<Response> SlavesManager::activate(const Request& request)
 {
-  // Parse the query to get out the slave hostname and port.
-  string hostname = "";
-  uint16_t port = 0;
-
-  map<string, vector<string> > pairs =
-    strings::pairs(request.query, ",", "=");
+  Option<string> hostname = request.query.get("hostname");
+  Option<string> portString = request.query.get("port");
 
   // Make sure there is at least a 'hostname=' and 'port='.
-  if (pairs.count("hostname") == 0) {
+  if (hostname.isNone()) {
     LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
                  << " when trying to activate a slave";
     return NotFound();
-  } else if (pairs.count("port") == 0) {
+  } else if (portString.isNone()) {
     LOG(WARNING) << "Slaves manager expecting 'port' in query string"
                  << " when trying to activate a slave";
     return NotFound();
   }
 
-  hostname = pairs["hostname"].front();
-
   // Check that 'port' is valid.
-  try {
-    port = lexical_cast<uint16_t>(pairs["port"].front());
-  } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Slaves manager failed to parse 'port = "
-		 << pairs["port"].front()
-                 << "'  when trying to activate a slave";
-    return NotFound();
+  Try<uint16_t> port = numify<uint16_t>(portString.get());
+  if (port.isError()) {
+    string error = string("Slaves manager failed to parse "
+        "'port = ") + portString.get() + "' when trying to activate a slave";
+    LOG(WARNING) << error;
+    return BadRequest(error);
   }
 
   LOG(INFO) << "Slaves manager received HTTP request to activate slave at "
-	    << hostname << ":" << port;
+            << hostname.get() << ":" << port.get();
 
-  if (activate(hostname, port)) {
+  if (activate(hostname.get(), port.get())) {
     return OK();
-  } else {
-    return InternalServerError();
   }
+  return InternalServerError();
 }
 
 
 Future<Response> SlavesManager::deactivate(const Request& request)
 {
-  // Parse the query to get out the slave hostname and port.
-  string hostname = "";
-  uint16_t port = 0;
-
-  map<string, vector<string> > pairs =
-    strings::pairs(request.query, ",", "=");
+  Option<string> hostname = request.query.get("hostname");
+  Option<string> portString = request.query.get("port");
 
   // Make sure there is at least a 'hostname=' and 'port='.
-  if (pairs.count("hostname") == 0) {
+  if (hostname.isNone()) {
     LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
                  << " when trying to deactivate a slave";
     return NotFound();
-  } else if (pairs.count("port") == 0) {
+  } else if (portString.isNone()) {
     LOG(WARNING) << "Slaves manager expecting 'port' in query string"
                  << " when trying to deactivate a slave";
     return NotFound();
   }
 
-  hostname = pairs["hostname"].front();
-
   // Check that 'port' is valid.
-  try {
-    port = lexical_cast<uint16_t>(pairs["port"].front());
-  } catch (const bad_lexical_cast&) {
-    LOG(WARNING) << "Slaves manager failed to parse 'port = "
-		 << pairs["port"].front()
-                 << "'  when trying to deactivate a slave";
-    return NotFound();
+  Try<uint16_t> port = numify<uint16_t>(portString.get());
+  if (port.isError()) {
+    string error = string("Slaves manager failed to parse "
+        "'port = ") + portString.get() + "' when trying to deactivate a slave";
+    LOG(WARNING) << error;
+    return BadRequest(error);
   }
 
   LOG(INFO) << "Slaves manager received HTTP request to deactivate slave at "
-	    << hostname << ":" << port;
+            << hostname.get() << ":" << port.get();
 
-  if (deactivate(hostname, port)) {
+  if (deactivate(hostname.get(), port.get())) {
     return OK();
-  } else {
-    return InternalServerError();
   }
+  return InternalServerError();
 }
 
 
@@ -990,11 +964,7 @@ Future<Response> SlavesManager::activated(const Request& request)
     out << hostname << ":" << port << "\n";
   }
 
-  OK response;
-  response.headers["Content-Type"] = "text/plain";
-  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
-  response.body = out.str().data();
-  return response;
+  return OK(out.str());
 }
 
 
@@ -1008,11 +978,7 @@ Future<Response> SlavesManager::deactivated(const Request& request)
     out << hostname << ":" << port << "\n";
   }
 
-  OK response;
-  response.headers["Content-Type"] = "text/plain";
-  response.headers["Content-Length"] = lexical_cast<string>(out.str().size());
-  response.body = out.str().data();
-  return response;
+  return OK(out.str());
 }
 
 } // namespace master {

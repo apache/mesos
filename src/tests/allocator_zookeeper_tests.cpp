@@ -100,7 +100,8 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   EXPECT_MESSAGE(filter, Eq(ReregisterSlaveMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
-  Master m(&this->allocator1);
+  Files files;
+  Master m(&this->allocator1, &files);
   PID<Master> master1 = process::spawn(&m);
 
   string zk = "zk://" + this->zks->connectString() + "/znode";
@@ -125,7 +126,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   TestingIsolationModule isolationModule(execs);
   Resources resources = Resources::parse("cpus:2;mem:1024");
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   Try<MasterDetector*> slave_detector =
@@ -181,7 +182,8 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   WAIT_UNTIL(shutdownMessageTrigger);
 
-  Master m2(&(this->allocator2));
+  Files files2;
+  Master m2(&(this->allocator2), &files2);
   PID<Master> master2 = process::spawn(m2);
 
   Try<MasterDetector*> detector2 =
@@ -250,7 +252,8 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   EXPECT_MESSAGE(filter, Eq(ReregisterFrameworkMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
-  Master m(&this->allocator1);
+  Files files;
+  Master m(&this->allocator1, &files);
   PID<Master> master1 = process::spawn(&m);
 
   string zk = "zk://" + this->zks->connectString() + "/znode";
@@ -275,7 +278,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
 
   TestingIsolationModule isolationModule(execs);
   Resources resources = Resources::parse("cpus:2;mem:1024");
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   Try<MasterDetector*> slave_detector =
@@ -331,7 +334,8 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
 
   WAIT_UNTIL(shutdownMessageTrigger);
 
-  Master m2(&(this->allocator2));
+  Files files2;
+  Master m2(&(this->allocator2), &files2);
   PID<Master> master2 = process::spawn(m2);
 
   Try<MasterDetector*> detector2 =

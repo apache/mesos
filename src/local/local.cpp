@@ -64,6 +64,7 @@ static AllocatorProcess* allocator = NULL;
 static Master* master = NULL;
 static map<IsolationModule*, Slave*> slaves;
 static MasterDetector* detector = NULL;
+static Files* files = NULL;
 
 
 PID<Master> launch(int numSlaves,
@@ -85,7 +86,8 @@ PID<Master> launch(int numSlaves,
 }
 
 
-PID<Master> launch(const Configuration& configuration, AllocatorProcess* _allocator)
+PID<Master> launch(const Configuration& configuration,
+                   AllocatorProcess* _allocator)
 {
   int numSlaves = configuration.get<int>("num_slaves", 1);
 
@@ -102,10 +104,12 @@ PID<Master> launch(const Configuration& configuration, AllocatorProcess* _alloca
     allocator = NULL;
   }
 
+  files = new Files();
+
   {
     flags::Flags<logging::Flags, master::Flags> flags;
     flags.load(configuration.getMap());
-    master = new Master(_allocator, flags);
+    master = new Master(_allocator, files, flags);
   }
 
   PID<Master> pid = process::spawn(master);
@@ -119,7 +123,7 @@ PID<Master> launch(const Configuration& configuration, AllocatorProcess* _alloca
     // TODO(benh): Create a local isolation module?
     ProcessBasedIsolationModule* isolationModule =
       new ProcessBasedIsolationModule();
-    Slave* slave = new Slave(flags, true, isolationModule);
+    Slave* slave = new Slave(flags, true, isolationModule, files);
     slaves[isolationModule] = slave;
     pids.push_back(process::spawn(slave));
   }
@@ -156,6 +160,9 @@ void shutdown()
 
     delete detector;
     detector = NULL;
+
+    delete files;
+    files = NULL;
   }
 }
 

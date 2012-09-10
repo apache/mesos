@@ -58,7 +58,8 @@ TEST(MasterDetector, File)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   map<ExecutorID, Executor*> execs;
@@ -67,7 +68,7 @@ TEST(MasterDetector, File)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   // Write "master" to a file and use the "file://" mechanism to

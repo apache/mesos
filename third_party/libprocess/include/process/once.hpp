@@ -2,7 +2,8 @@
 #define __PROCESS_ONCE_HPP__
 
 #include <process/future.hpp>
-#include <process/nothing.hpp>
+
+#include <stout/nothing.hpp>
 
 namespace process {
 

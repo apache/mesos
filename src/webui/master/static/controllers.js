@@ -201,7 +201,7 @@ function HomeCtrl($scope) {
     if (!$scope.state.log_dir) {
       $('#no-log-dir-modal').modal('show');
     } else {
-      var url = '/files/read.json?name=/log';
+      var url = '/files/read.json?path=/log';
       var pailer =
         window.open('/static/pailer.html', url, 'width=580px, height=700px');
 
@@ -279,7 +279,7 @@ function SlaveCtrl($scope, $routeParams, $http) {
     if (!$scope.state.log_dir) {
       $('#no-log-dir-modal').modal('show');
     } else {
-      var url = 'http://' + host + '/files/read.json?name=/log';
+      var url = 'http://' + host + '/files/read.json?path=/log';
       var pailer =
         window.open('/static/pailer.html', url, 'width=580px, height=700px');
 

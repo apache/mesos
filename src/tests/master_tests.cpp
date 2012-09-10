@@ -75,7 +75,8 @@ TEST(MasterTest, TaskRunning)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -98,7 +99,7 @@ TEST(MasterTest, TaskRunning)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -168,7 +169,8 @@ TEST(MasterTest, KillTask)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -194,7 +196,7 @@ TEST(MasterTest, KillTask)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -265,7 +267,8 @@ TEST(MasterTest, RecoverResources)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -293,7 +296,7 @@ TEST(MasterTest, RecoverResources)
   Resources slaveResources = Resources::parse(
       "cpus:2;mem:1024;ports:[1-10, 20-30]");
 
-  Slave s(slaveResources, true, &isolationModule);
+  Slave s(slaveResources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -399,7 +402,8 @@ TEST(MasterTest, FrameworkMessage)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -429,7 +433,7 @@ TEST(MasterTest, FrameworkMessage)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -519,7 +523,8 @@ TEST(MasterTest, MultipleExecutors)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec1;
@@ -566,7 +571,7 @@ TEST(MasterTest, MultipleExecutors)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -664,7 +669,8 @@ TEST(MasterTest, MasterInfo)
     .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -676,7 +682,7 @@ TEST(MasterTest, MasterInfo)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -726,7 +732,8 @@ TEST(MasterTest, MasterInfoOnReElection)
     .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -738,7 +745,7 @@ TEST(MasterTest, MasterInfoOnReElection)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -827,9 +834,10 @@ TEST_F(WhitelistFixture, WhitelistSlave)
   CHECK (os::write(path, hosts).isSome()) << "Error writing whitelist";
 
   TestAllocatorProcess a;
+  Files files;
   flags::Flags<logging::Flags, master::Flags> flags;
   flags.whitelist = "file://" + path;
-  Master m(&a, flags);
+  Master m(&a, &files, flags);
   PID<Master> master = process::spawn(&m);
 
   trigger slaveRegisteredMsg;
@@ -846,7 +854,7 @@ TEST_F(WhitelistFixture, WhitelistSlave)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -910,7 +918,8 @@ TEST(MasterTest, MasterLost)
     .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -922,7 +931,7 @@ TEST(MasterTest, MasterLost)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

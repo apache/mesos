@@ -96,6 +96,7 @@ struct PID : UPID
     // Only allow upcasts!
     T* t = NULL;
     Base* base = t;
+    (void)base;  // Eliminate unused base warning.
     PID<Base> pid;
     pid.id = id;
     pid.ip = ip;

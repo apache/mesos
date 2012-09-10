@@ -1,6 +1,8 @@
 #ifndef __PROCESS_IO_HPP__
 #define __PROCESS_IO_HPP__
 
+#include <string>
+
 #include <process/future.hpp>
 
 namespace process {
@@ -25,6 +27,11 @@ Future<short> poll(int fd, short events);
 // bytes read or zero on end-of-file (an error is indicated by failing the
 // future, thus only a 'size_t' is necessary rather than a 'ssize_t').
 Future<size_t> read(int fd, void* data, size_t size);
+
+// Performs a series of asynchronous reads, until EOF is reached.
+// NOTE: When using this, ensure the sender will close the connection
+// so that EOF can be reached.
+Future<std::string> read(int fd);
 
 } // namespace io {
 } // namespace process {

@@ -67,8 +67,9 @@ class WhitelistWatcher;
 class Master : public ProtobufProcess<Master>
 {
 public:
-  Master(AllocatorProcess* allocator);
+  Master(AllocatorProcess* allocator, Files* files);
   Master(AllocatorProcess* allocator,
+         Files* files,
          const flags::Flags<logging::Flags, master::Flags>& flags);
 
   virtual ~Master();
@@ -121,6 +122,8 @@ protected:
   virtual void initialize();
   virtual void finalize();
   virtual void exited(const UPID& pid);
+
+  void fileAttached(const Future<Nothing>& result);
 
   // Return connected frameworks that are not in the process of being removed
   std::vector<Framework*> getActiveFrameworks() const;
@@ -207,6 +210,7 @@ private:
   AllocatorProcess* allocator;
   SlavesManager* slavesManager;
   WhitelistWatcher* whitelistWatcher;
+  Files* files;
 
   MasterInfo info;
 
@@ -232,8 +236,6 @@ private:
   } stats;
 
   double startTime; // Start time used to calculate uptime.
-
-  Files files;
 };
 
 

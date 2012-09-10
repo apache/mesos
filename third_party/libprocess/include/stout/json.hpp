@@ -168,17 +168,16 @@ private:
 };
 
 
-inline void render(std::ostream& out, const Object& object)
+inline void render(std::ostream& out, const Value& value)
 {
-  Value value = object;
   boost::apply_visitor(Renderer(out), value);
 }
 
 
-inline void render(std::ostream& out, const Array& array)
+inline std::ostream& operator<<(std::ostream& out, const JSON::Value& value)
 {
-  Value value = array;
-  boost::apply_visitor(Renderer(out), value);
+  JSON::render(out, value);
+  return out;
 }
 
 } // namespace JSON {

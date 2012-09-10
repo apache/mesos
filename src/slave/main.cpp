@@ -131,7 +131,8 @@ int main(int argc, char** argv)
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos slave";
 
-  Slave* slave = new Slave(flags, false, isolationModule);
+  Files files;
+  Slave* slave = new Slave(flags, false, isolationModule, &files);
   process::spawn(slave);
 
   Try<MasterDetector*> detector =

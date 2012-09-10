@@ -190,12 +190,7 @@ Future<Response> vars(
     "build_flags " << build::FLAGS << "\n";
 
   // TODO(benh): Output flags.
-
-  OK response;
-  response.headers["Content-Type"] = "text/plain";
-  response.headers["Content-Length"] = stringify(out.str().size());
-  response.body = out.str().data();
-  return response;
+  return OK(out.str(), request.query.get("jsonp"));
 }
 
 Future<Response> redirect(
@@ -264,15 +259,7 @@ Future<Response> stats(
     }
   }
 
-  std::ostringstream out;
-
-  JSON::render(out, object);
-
-  OK response;
-  response.headers["Content-Type"] = "application/json";
-  response.headers["Content-Length"] = stringify(out.str().size());
-  response.body = out.str().data();
-  return response;
+  return OK(object, request.query.get("jsonp"));
 }
 
 
@@ -334,15 +321,7 @@ Future<Response> state(
     object.values["completed_frameworks"] = array;
   }
 
-  std::ostringstream out;
-
-  JSON::render(out, object);
-
-  OK response;
-  response.headers["Content-Type"] = "application/json";
-  response.headers["Content-Length"] = stringify(out.str().size());
-  response.body = out.str().data();
-  return response;
+  return OK(object, request.query.get("jsonp"));
 }
 
 } // namespace json {

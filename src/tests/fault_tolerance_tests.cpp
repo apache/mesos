@@ -69,14 +69,15 @@ TEST(FaultToleranceTest, SlaveLost)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   ProcessBasedIsolationModule isolationModule;
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -395,7 +396,8 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
     .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -415,7 +417,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -499,7 +501,8 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
     .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -522,7 +525,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -631,7 +634,8 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -654,7 +658,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -753,7 +757,8 @@ TEST(FaultToleranceTest, SchedulerExit)
     .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   trigger statusUpdateMsg;
@@ -784,7 +789,7 @@ TEST(FaultToleranceTest, SchedulerExit)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -878,14 +883,15 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
     .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   ProcessBasedIsolationModule isolationModule;
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -936,14 +942,15 @@ TEST(FaultToleranceTest, SlaveReregister)
     .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   ProcessBasedIsolationModule isolationModule;
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

@@ -59,13 +59,15 @@ inline std::string trim(
 }
 
 
-inline std::vector<std::string> split(
+// Tokenizes the string using the delimiters.
+// Empty tokens will not be included in the result.
+inline std::vector<std::string> tokenize(
     const std::string& s,
     const std::string& delims)
 {
+  size_t offset = 0;
   std::vector<std::string> tokens;
 
-  size_t offset = 0;
   while (true) {
     size_t i = s.find_first_not_of(delims, offset);
     if (std::string::npos == i) {
@@ -83,6 +85,31 @@ inline std::vector<std::string> split(
     tokens.push_back(s.substr(i, j - i));
     offset = j;
   }
+  return tokens;
+}
+
+
+// Splits the string using the provided delimiters.
+// Empty tokens are allowed in the result.
+inline std::vector<std::string> split(
+    const std::string& s,
+    const std::string& delims)
+{
+  std::vector<std::string> tokens;
+  size_t offset = 0;
+  size_t next = 0;
+
+  while (true) {
+    next = s.find_first_of(delims, offset);
+    if (next == std::string::npos) {
+      tokens.push_back(s.substr(offset));
+      break;
+    }
+
+    tokens.push_back(s.substr(offset, next - offset));
+    offset = next + 1;
+  }
+  return tokens;
 }
 
 
@@ -101,9 +128,9 @@ inline std::map<std::string, std::vector<std::string> > pairs(
 {
   std::map<std::string, std::vector<std::string> > result;
 
-  const std::vector<std::string>& tokens = split(s, delims1);
+  const std::vector<std::string>& tokens = tokenize(s, delims1);
   foreach (const std::string& token, tokens) {
-    const std::vector<std::string>& pairs = split(token, delims2);
+    const std::vector<std::string>& pairs = tokenize(token, delims2);
     if (pairs.size() == 2) {
       result[pairs[0]].push_back(pairs[1]);
     }

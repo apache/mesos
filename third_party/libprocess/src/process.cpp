@@ -63,14 +63,15 @@
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
+#include <stout/net.hpp>
 #include <stout/os.hpp>
+#include <stout/strings.hpp>
 
 #include "config.hpp"
 #include "decoder.hpp"
 #include "encoder.hpp"
 #include "gate.hpp"
 #include "synchronized.hpp"
-#include "tokenize.hpp"
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -144,6 +145,13 @@ string generate(const string& prefix)
 }
 
 } // namespace ID {
+
+
+namespace http {
+
+hashmap<uint16_t, string> statuses;
+
+} // namespace http {
 
 
 namespace mime {
@@ -626,6 +634,7 @@ void Clock::settle()
 }
 
 
+// TODO(bmahler): Kill this in favor of os::nonblock().
 int set_nbio(int fd)
 {
   int flags;
@@ -1390,6 +1399,9 @@ void initialize(const string& delegate)
   // Initialize the mime types.
   mime::initialize();
 
+  // Initialize the response statuses.
+  http::initialize();
+
   char temp[INET_ADDRSTRLEN];
   if (inet_ntop(AF_INET, (in_addr*) &__ip__, temp, INET_ADDRSTRLEN) == NULL) {
     PLOG(FATAL) << "Failed to initialize, inet_ntop";
@@ -2102,7 +2114,7 @@ bool ProcessManager::handle(
   }
 
   // Split the path by '/'.
-  vector<string> tokens = tokenize(request->path, "/");
+  vector<string> tokens = strings::tokenize(request->path, "/");
 
   // Try and determine a receiver, otherwise try and delegate.
   ProcessReference receiver;
@@ -2620,7 +2632,7 @@ bool Timer::cancel(const Timer& timer)
 }
 
 
-ProcessBase::ProcessBase(const std::string& id)
+ProcessBase::ProcessBase(const string& id)
 {
   process::initialize();
 
@@ -2781,7 +2793,7 @@ void ProcessBase::visit(const HttpEvent& event)
   CHECK(event.request->path.find('/') == 0); // See ProcessManager::handle.
 
   // Split the path by '/'.
-  vector<string> tokens = tokenize(event.request->path, "/");
+  vector<string> tokens = strings::tokenize(event.request->path, "/");
   CHECK(tokens.size() >= 1);
   CHECK(tokens[0] == pid.id);
 
@@ -3108,8 +3120,174 @@ Future<size_t> read(int fd, void* data, size_t size)
   return promise->future();
 }
 
+namespace internal {
+
+#if __cplusplus >= 201103L
+Future<string> _read(int fd, string* buffer, char* data, size_t length)
+{
+  return io::read(fd, data, length)
+    .then([=] (size_t size) {
+      if (size == 0) { // EOF.
+        string result(*buffer);
+        delete buffer;
+        delete[] data;
+        return Future<string>(result);
+      }
+      buffer->append(data, size);
+      return _read(fd, buffer, data, length);
+    });
+}
+#else
+// Forward declataion.
+Future<string> _read(int fd, string* buffer, char* data, size_t length);
+
+
+Future<string> __read(
+    const size_t& size,
+    // TODO(benh): Remove 'const &' after fixing libprocess.
+    int fd,
+    string* buffer,
+    char* data,
+    size_t length)
+{
+  if (size == 0) { // EOF.
+    string result(*buffer);
+    delete buffer;
+    delete[] data;
+    return Future<string>(result);
+  }
+
+  buffer->append(data, size);
+  return _read(fd, buffer, data, length);
+}
+
+
+Future<string> _read(int fd, string* buffer, char* data, size_t length)
+{
+  std::tr1::function<Future<string>(const size_t&)> f = std::tr1::bind(
+      __read, std::tr1::placeholders::_1, fd, buffer, data, length);
+
+  return io::read(fd, data, length).then(f);
+}
+#endif
+
+} // namespace internal
+
+Future<string> read(int fd)
+{
+  process::initialize();
+
+  // TODO(benh): Wrap up this data as a struct, use 'Owner'.
+  // TODO(bmahler): For efficiency, use a rope for the buffer.
+  string* buffer = new string();
+  size_t length = 1024;
+  char* data = new char[length];
+
+  return internal::_read(fd, buffer, data, length);
+}
+
+
 } // namespace io {
 
+
+namespace http {
+
+namespace internal {
+
+Future<Response> decode(const string& buffer)
+{
+  ResponseDecoder decoder;
+  deque<Response*> responses = decoder.decode(buffer.c_str(), buffer.length());
+
+  if (decoder.failed() || responses.empty()) {
+    for (size_t i = 0; i < responses.size(); ++i) {
+      delete responses[i];
+    }
+    return Future<Response>::failed("Failed to decode HTTP response");
+  } else if (responses.size() > 1) {
+    PLOG(ERROR) << "Received more than 1 HTTP Response";
+  }
+
+  Response response = *responses[0];
+  for (size_t i = 0; i < responses.size(); ++i) {
+    delete responses[i];
+  }
+
+  return response;
+}
+
+} // namespace internal {
+
+
+Future<Response> get(const PID<>& pid, const string& query, const string& body)
+{
+  int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+
+  if (s < 0) {
+    return Future<Response>::failed(
+        string("Failed to create socket: ") + strerror(errno));
+  }
+
+  Try<bool> cloexec = os::cloexec(s);
+  if (!cloexec.isSome()) {
+    return Future<Response>::failed(
+        string("Failed to cloexec: ") + cloexec.error());
+  } else if (!cloexec.get()) {
+    // TODO(bmahler): Never happens, refactor later into Try<Nothing>.
+    return Future<Response>::failed("Failed to cloexec");
+  }
+
+  sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(pid.port);
+  addr.sin_addr.s_addr = pid.ip;
+
+  if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
+    return Future<Response>::failed(strerror(errno));
+  }
+
+  std::ostringstream out;
+
+  out << "GET /" << pid.id << "/" << query << " HTTP/1.1\r\n"
+      << "Connection: close\r\n"
+      << "\r\n"
+      << body;
+
+  // TODO(bmahler): Use benh's async write when it gets committed.
+  const string& data = out.str();
+  int remaining = data.size();
+
+  while (remaining > 0) {
+    int n = write(s, data.data() + (data.size() - remaining), remaining);
+
+    if (n < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      return Future<Response>::failed(strerror(errno));
+    }
+
+    remaining -= n;
+  }
+
+  Try<bool> nonblock = os::nonblock(s);
+  if (!nonblock.isSome()) {
+    return Future<Response>::failed(
+        string("Failed to set nonblocking: ") + nonblock.error());
+  } else if (!nonblock.get()) {
+    // TODO(bmahler): Never happens, refactor later into Try<Nothing>.
+    return Future<Response>::failed("Failed to set nonblocking");
+  }
+
+  // Decode once the async read completes.
+  std::tr1::function<Future<Response>(const string&)> decode =
+    std::tr1::bind(internal::decode, std::tr1::placeholders::_1);
+
+  return io::read(s).then(decode);
+}
+
+}  // namespace http {
 
 namespace internal {
 

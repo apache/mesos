@@ -473,7 +473,8 @@ TEST(ResourceOffersTest, Request)
   EXPECT_CALL(allocator, slaveRemoved(_))
     .WillRepeatedly(Return());
 
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, false, &allocator);
+  PID<Master> master = local::launch(
+      1, 2, 1 * Gigabyte, false, &allocator);
 
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
@@ -518,7 +519,8 @@ TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   TestAllocatorProcess a;
-  Master m(&a);
+  Files files;
+  Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -541,7 +543,7 @@ TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
 
   Resources resources = Resources::parse("cpus:2;mem:1024");
 
-  Slave s(resources, true, &isolationModule);
+  Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

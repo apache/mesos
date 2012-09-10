@@ -21,6 +21,7 @@
 
 #include <gmock/gmock.h>
 
+#include <fstream>
 #include <map>
 #include <string>
 
@@ -29,6 +30,7 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/future.hpp>
 #include <process/process.hpp>
 
 #include <stout/option.hpp>
@@ -112,6 +114,47 @@ void enterTestDirectory(const char* testCase, const char* testName);
 
 #define DEFAULT_EXECUTOR_ID						\
       DEFAULT_EXECUTOR_INFO.executor_id()
+
+
+template <typename T>
+void ASSERT_FUTURE_WILL_SUCCEED(const process::Future<T>& future)
+{
+  ASSERT_TRUE(future.await());
+  ASSERT_FALSE(future.isFailed()) << future.failure();
+}
+
+
+template <typename T>
+void EXPECT_FUTURE_WILL_SUCCEED(const process::Future<T>& future)
+{
+  ASSERT_TRUE(future.await());
+  EXPECT_FALSE(future.isFailed()) << future.failure();
+}
+
+
+template <typename T>
+void ASSERT_FUTURE_WILL_FAIL(const process::Future<T>& future)
+{
+  ASSERT_TRUE(future.await());
+  ASSERT_TRUE(future.isFailed());
+}
+
+
+template <typename T>
+void EXPECT_FUTURE_WILL_FAIL(const process::Future<T>& future)
+{
+  ASSERT_TRUE(future.await());
+  EXPECT_TRUE(future.isFailed());
+}
+
+
+template <typename T>
+void EXPECT_RESPONSE_STATUS_WILL_EQ(const std::string& expected,
+                                    const process::Future<T>& future)
+{
+  ASSERT_FUTURE_WILL_SUCCEED(future);
+  EXPECT_EQ(expected, future.get().status);
+}
 
 
 /**

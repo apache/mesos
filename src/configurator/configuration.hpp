@@ -80,9 +80,9 @@ public:
    */
   void loadString(const std::string& str)
   {
-    std::vector<std::string> lines = strings::split(str, "\n\r");
+    std::vector<std::string> lines = strings::tokenize(str, "\n\r");
     foreach (std::string& line, lines) {
-      std::vector<std::string> parts = strings::split(line, "=");
+      std::vector<std::string> parts = strings::tokenize(line, "=");
       if (parts.size() != 2) {
         const Try<std::string>& error =
           strings::format("Failed to parse '%s'", line);
