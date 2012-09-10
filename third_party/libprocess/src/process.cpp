@@ -72,6 +72,8 @@
 #include "synchronized.hpp"
 #include "tokenize.hpp"
 
+using process::wait; // Necessary on some OS's to disambiguate.
+
 using process::http::BadRequest;
 using process::http::InternalServerError;
 using process::http::NotFound;
