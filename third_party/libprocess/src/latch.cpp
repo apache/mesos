@@ -42,7 +42,7 @@ void Latch::trigger()
 bool Latch::await(const Duration& duration)
 {
   if (!triggered) {
-    return wait(pid, duration);
+    return process::wait(pid, duration); // Explict to disambiguate.
   }
 
   return true;
