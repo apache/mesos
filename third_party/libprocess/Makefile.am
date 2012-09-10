@@ -75,7 +75,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
 	$(top_srcdir)/include/stout/lambda.hpp				\
 	$(top_srcdir)/include/stout/multihashmap.hpp			\
 	$(top_srcdir)/include/stout/net.hpp				\
-	$(top_srcdir)/include/stout/nothing.hpp			\
+	$(top_srcdir)/include/stout/nothing.hpp				\
 	$(top_srcdir)/include/stout/numify.hpp				\
 	$(top_srcdir)/include/stout/option.hpp				\
 	$(top_srcdir)/include/stout/os.hpp				\
