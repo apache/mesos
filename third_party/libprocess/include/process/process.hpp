@@ -333,13 +333,13 @@ inline void terminate(const ProcessBase* process, bool inject)
 
 inline bool wait(const ProcessBase& process, const Duration& duration)
 {
-  return wait(process.self(), duration);
+  return process::wait(process.self(), duration); // Explicit to disambiguate.
 }
 
 
 inline bool wait(const ProcessBase* process, const Duration& duration)
 {
-  return wait(process->self(), duration);
+  return process::wait(process->self(), duration); // Explicit to disambiguate.
 }
 
 
