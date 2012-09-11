@@ -252,6 +252,17 @@ void CgroupsIsolationModule::launchExecutor(
             << " for framework " << frameworkId
             << " in cgroup " << getCgroupName(frameworkId, executorId);
 
+  // First fetch the executor.
+  launcher::ExecutorLauncher* launcher = createExecutorLauncher(frameworkId,
+                                                                frameworkInfo,
+                                                                executorInfo,
+                                                                directory);
+
+  if (launcher->setup() < 0) {
+    LOG(ERROR) << "Error setting up executor " << executorId;
+    return;
+  }
+
   // Create a new cgroup for the executor.
   Try<bool> create =
     cgroups::createCgroup(hierarchy, getCgroupName(frameworkId, executorId));
@@ -334,7 +345,6 @@ void CgroupsIsolationModule::launchExecutor(
              executorId,
              pid);
   } else {
-    // In child process.
     // Put self into the newly created cgroup.
     Try<bool> assign =
       cgroups::assignTask(hierarchy,
@@ -346,12 +356,8 @@ void CgroupsIsolationModule::launchExecutor(
                  << ": " << assign.error();
     }
 
-    launcher::ExecutorLauncher* launcher =
-      createExecutorLauncher(frameworkId,
-                             frameworkInfo,
-                             executorInfo,
-                             directory);
-    launcher->run();
+    // Now launch the executor.
+    launcher->launch();
   }
 }
 
