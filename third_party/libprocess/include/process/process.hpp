@@ -249,6 +249,19 @@ void initialize(const std::string& delegate = "");
 
 
 /**
+ * Returns the IP address associated with this instance of the
+ * library.
+ */
+uint32_t ip();
+
+
+/**
+ * Returns the port associated with this instance of the library.
+ */
+uint16_t port();
+
+
+/**
  * Spawn a new process.
  *
  * @param process process to be spawned

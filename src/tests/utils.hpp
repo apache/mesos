@@ -31,6 +31,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/process.hpp>
 
 #include <stout/option.hpp>
@@ -120,6 +121,7 @@ template <typename T>
 void ASSERT_FUTURE_WILL_SUCCEED(const process::Future<T>& future)
 {
   ASSERT_TRUE(future.await());
+  ASSERT_FALSE(future.isDiscarded());
   ASSERT_FALSE(future.isFailed()) << future.failure();
 }
 
@@ -128,6 +130,7 @@ template <typename T>
 void EXPECT_FUTURE_WILL_SUCCEED(const process::Future<T>& future)
 {
   ASSERT_TRUE(future.await());
+  EXPECT_FALSE(future.isDiscarded());
   EXPECT_FALSE(future.isFailed()) << future.failure();
 }
 
@@ -148,12 +151,37 @@ void EXPECT_FUTURE_WILL_FAIL(const process::Future<T>& future)
 }
 
 
-template <typename T>
-void EXPECT_RESPONSE_STATUS_WILL_EQ(const std::string& expected,
-                                    const process::Future<T>& future)
+template <typename T1, typename T2>
+void ASSERT_FUTURE_WILL_EQ(const T1& t1, const process::Future<T2>& future)
+{
+  ASSERT_FUTURE_WILL_SUCCEED(future);
+  ASSERT_EQ(t1, future.get());
+}
+
+
+template <typename T1, typename T2>
+void EXPECT_FUTURE_WILL_EQ(const T1& t1, const process::Future<T2>& future)
+{
+  ASSERT_FUTURE_WILL_SUCCEED(future);
+  EXPECT_EQ(t1, future.get());
+}
+
+
+inline void EXPECT_RESPONSE_STATUS_WILL_EQ(
+    const std::string& expected,
+    const process::Future<process::http::Response>& future)
 {
   ASSERT_FUTURE_WILL_SUCCEED(future);
   EXPECT_EQ(expected, future.get().status);
+}
+
+
+inline void EXPECT_RESPONSE_BODY_WILL_EQ(
+    const std::string& expected,
+    const process::Future<process::http::Response>& future)
+{
+  ASSERT_FUTURE_WILL_SUCCEED(future);
+  EXPECT_EQ(expected, future.get().body);
 }
 
 

@@ -768,9 +768,8 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/gc_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
-	              tests/files_tests.cpp				\
-	              tests/flags_tests.cpp tests/log_tests.cpp		\
-	              tests/resources_tests.cpp				\
+	              tests/files_tests.cpp tests/flags_tests.cpp	\
+	              tests/log_tests.cpp tests/resources_tests.cpp	\
 	              tests/external_tests.cpp				\
 	              tests/sample_frameworks_tests.cpp			\
 	              tests/configurator_tests.cpp			\
@@ -783,8 +782,8 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/exception_tests.cpp				\
 	              tests/attributes_tests.cpp			\
 	              tests/master_detector_tests.cpp			\
-	              tests/sorter_tests.cpp				\
-	              tests/allocator_tests.cpp
+	              tests/sorter_tests.cpp tests/allocator_tests.cpp	\
+	              tests/logging_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"

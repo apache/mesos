@@ -1412,6 +1412,20 @@ void initialize(const string& delegate)
 }
 
 
+uint32_t ip()
+{
+  process::initialize();
+  return __ip__;
+}
+
+
+uint16_t port()
+{
+  process::initialize();
+  return __port__;
+}
+
+
 HttpProxy::HttpProxy(const Socket& _socket)
   : ProcessBase(ID::generate("__http__")),
     socket(_socket) {}

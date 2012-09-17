@@ -23,12 +23,16 @@
 #include <gtest/gtest.h>
 
 #include "tests/base_zookeeper_test.hpp"
+#include "tests/utils.hpp"
 
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/group.hpp"
 
+using namespace mesos::internal;
+using namespace mesos::internal::test;
 
-class ZooKeeperTest : public mesos::internal::test::BaseZooKeeperTest {
+
+class ZooKeeperTest : public BaseZooKeeperTest {
 protected:
   void assertGet(ZooKeeper* client,
                  const std::string& path,
@@ -48,7 +52,7 @@ protected:
 
 TEST_F(ZooKeeperTest, Auth)
 {
-  mesos::internal::test::BaseZooKeeperTest::TestWatcher watcher;
+  BaseZooKeeperTest::TestWatcher watcher;
 
   ZooKeeper authenticatedZk(zks->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
@@ -80,44 +84,26 @@ TEST_F(ZooKeeperTest, Group)
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
 
-  membership.await();
-
-  ASSERT_FALSE(membership.isFailed()) << membership.failure();
-  ASSERT_FALSE(membership.isDiscarded());
-  ASSERT_TRUE(membership.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  memberships.await();
-
-  ASSERT_TRUE(memberships.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   process::Future<std::string> data = group.data(membership.get());
 
-  data.await();
-
-  ASSERT_FALSE(data.isFailed()) << data.failure();
-  ASSERT_FALSE(data.isDiscarded());
-  ASSERT_TRUE(data.isReady());
-  EXPECT_EQ("hello world", data.get());
+  EXPECT_FUTURE_WILL_EQ("hello world", data);
 
   process::Future<bool> cancellation = group.cancel(membership.get());
 
-  cancellation.await();
-
-  ASSERT_FALSE(cancellation.isFailed()) << cancellation.failure();
-  ASSERT_FALSE(cancellation.isDiscarded());
-  ASSERT_TRUE(cancellation.isReady());
-  EXPECT_TRUE(cancellation.get());
+  EXPECT_FUTURE_WILL_EQ(true, cancellation);
 
   memberships = group.watch(memberships.get());
 
-  memberships.await();
-
-  ASSERT_TRUE(memberships.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships);
   EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
@@ -138,18 +124,12 @@ TEST_F(ZooKeeperTest, GroupJoinWithDisconnect)
 
   zks->startNetwork();
 
-  membership.await();
-
-  ASSERT_FALSE(membership.isFailed()) << membership.failure();
-  ASSERT_FALSE(membership.isDiscarded());
-  ASSERT_TRUE(membership.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  memberships.await();
-
-  ASSERT_TRUE(memberships.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 }
@@ -162,18 +142,12 @@ TEST_F(ZooKeeperTest, GroupDataWithDisconnect)
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
 
-  membership.await();
-
-  ASSERT_FALSE(membership.isFailed()) << membership.failure();
-  ASSERT_FALSE(membership.isDiscarded());
-  ASSERT_TRUE(membership.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  memberships.await();
-
-  ASSERT_TRUE(memberships.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
@@ -185,12 +159,7 @@ TEST_F(ZooKeeperTest, GroupDataWithDisconnect)
 
   zks->startNetwork();
 
-  data.await();
-
-  ASSERT_FALSE(data.isFailed()) << data.failure();
-  ASSERT_FALSE(data.isDiscarded());
-  ASSERT_TRUE(data.isReady());
-  EXPECT_EQ("hello world", data.get());
+  EXPECT_FUTURE_WILL_EQ("hello world", data);
 }
 
 
@@ -201,31 +170,18 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
 
-  membership.await();
-
-  ASSERT_FALSE(membership.isFailed()) << membership.failure();
-  ASSERT_FALSE(membership.isDiscarded());
-  ASSERT_TRUE(membership.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  memberships.await();
-
-  ASSERT_TRUE(memberships.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   process::Future<std::string> data = group.data(membership.get());
 
-  EXPECT_TRUE(data.isPending());
-
-  data.await();
-
-  ASSERT_FALSE(data.isFailed()) << data.failure();
-  ASSERT_FALSE(data.isDiscarded());
-  ASSERT_TRUE(data.isReady());
-  EXPECT_EQ("hello world", data.get());
+  EXPECT_FUTURE_WILL_EQ("hello world", data);
 
   zks->shutdownNetwork();
 
@@ -235,18 +191,11 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
 
   zks->startNetwork();
 
-  cancellation.await();
-
-  ASSERT_FALSE(cancellation.isFailed()) << cancellation.failure();
-  ASSERT_FALSE(cancellation.isDiscarded());
-  ASSERT_TRUE(cancellation.isReady());
-  EXPECT_TRUE(cancellation.get());
+  EXPECT_FUTURE_WILL_EQ(true, cancellation);
 
   memberships = group.watch(memberships.get());
 
-  memberships.await();
-
-  ASSERT_TRUE(memberships.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships);
   EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
@@ -261,37 +210,25 @@ TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
 
-  membership.await();
-
-  ASSERT_FALSE(membership.isFailed()) << membership.failure();
-  ASSERT_FALSE(membership.isDiscarded());
-  ASSERT_TRUE(membership.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  memberships.await();
-
-  ASSERT_TRUE(memberships.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   process::Future<Option<int64_t> > session = group.session();
 
-  session.await();
-
-  ASSERT_FALSE(session.isFailed()) << session.failure();
-  ASSERT_FALSE(session.isDiscarded());
-  ASSERT_TRUE(session.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(session);
   ASSERT_TRUE(session.get().isSome());
 
   memberships = group.watch(memberships.get());
 
   zks->expireSession(session.get().get());
 
-  memberships.await();
-
-  ASSERT_TRUE(memberships.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships);
   EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
@@ -307,27 +244,17 @@ TEST_F(ZooKeeperTest, MultipleGroups)
   process::Future<zookeeper::Group::Membership> membership1 =
     group1.join("group 1");
 
-  membership1.await();
-
-  ASSERT_FALSE(membership1.isFailed()) << membership1.failure();
-  ASSERT_FALSE(membership1.isDiscarded());
-  ASSERT_TRUE(membership1.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(membership1);
 
   process::Future<zookeeper::Group::Membership> membership2 =
     group2.join("group 2");
 
-  membership2.await();
-
-  ASSERT_FALSE(membership2.isFailed()) << membership2.failure();
-  ASSERT_FALSE(membership2.isDiscarded());
-  ASSERT_TRUE(membership2.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(membership2);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships1 =
     group1.watch();
 
-  memberships1.await();
-
-  ASSERT_TRUE(memberships1.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships1);
   EXPECT_EQ(2u, memberships1.get().size());
   EXPECT_EQ(1u, memberships1.get().count(membership1.get()));
   EXPECT_EQ(1u, memberships1.get().count(membership2.get()));
@@ -335,9 +262,7 @@ TEST_F(ZooKeeperTest, MultipleGroups)
   process::Future<std::set<zookeeper::Group::Membership> > memberships2 =
     group2.watch();
 
-  memberships2.await();
-
-  ASSERT_TRUE(memberships2.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(memberships2);
   EXPECT_EQ(2u, memberships2.get().size());
   EXPECT_EQ(1u, memberships2.get().count(membership1.get()));
   EXPECT_EQ(1u, memberships2.get().count(membership2.get()));
@@ -354,25 +279,18 @@ TEST_F(ZooKeeperTest, MultipleGroups)
 
   process::Future<Option<int64_t> > session1 = group1.session();
 
-  session1.await();
-
-  ASSERT_FALSE(session1.isFailed()) << session1.failure();
-  ASSERT_FALSE(session1.isDiscarded());
-  ASSERT_TRUE(session1.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(session1);
   ASSERT_TRUE(session1.get().isSome());
 
   zks->expireSession(session1.get().get());
 
-  cancelled.await();
-
-  ASSERT_TRUE(cancelled.isReady());
-  ASSERT_FALSE(cancelled.get());
+  ASSERT_FUTURE_WILL_EQ(false, cancelled);
 }
 
 
 TEST_F(ZooKeeperTest, GroupPathWithRestrictivePerms)
 {
-  mesos::internal::test::BaseZooKeeperTest::TestWatcher watcher;
+  BaseZooKeeperTest::TestWatcher watcher;
 
   ZooKeeper authenticatedZk(zks->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
@@ -396,23 +314,20 @@ TEST_F(ZooKeeperTest, GroupPathWithRestrictivePerms)
                                 "/read-only/", auth);
   process::Future<zookeeper::Group::Membership> failedMembership1 =
     failedGroup1.join("fail");
-  failedMembership1.await();
-  ASSERT_TRUE(failedMembership1.isFailed());
+
+  ASSERT_FUTURE_WILL_FAIL(failedMembership1);
 
   zookeeper::Group failedGroup2(zks->connectString(), NO_TIMEOUT,
                                 "/read-only/new", auth);
   process::Future<zookeeper::Group::Membership> failedMembership2 =
     failedGroup2.join("fail");
-  failedMembership2.await();
-  ASSERT_TRUE(failedMembership2.isFailed());
+
+  ASSERT_FUTURE_WILL_FAIL(failedMembership2);
 
   zookeeper::Group successGroup(zks->connectString(), NO_TIMEOUT,
                                 "/read-only/writable/", auth);
   process::Future<zookeeper::Group::Membership> successMembership =
     successGroup.join("succeed");
-  successMembership.await();
 
-  ASSERT_FALSE(successMembership.isFailed()) << successMembership.failure();
-  ASSERT_FALSE(successMembership.isDiscarded());
-  ASSERT_TRUE(successMembership.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(successMembership);
 }
