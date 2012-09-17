@@ -8,6 +8,7 @@
 #include <string>
 #include <sstream>
 
+#include <process/async.hpp>
 #include <process/collect.hpp>
 #include <process/clock.hpp>
 #include <process/defer.hpp>
@@ -1224,6 +1225,61 @@ TEST(Process, read)
   EXPECT_EQ(0, future.get());
 
   close(pipes[0]);
+}
+
+
+int foo()
+{
+  return 1;
+}
+
+int foo1(int a)
+{
+  return a;
+}
+
+
+int foo2(int a, int b)
+{
+  return a + b;
+}
+
+
+int foo3(int a, int b, int c)
+{
+  return a + b + c;
+}
+
+
+int foo4(int a, int b, int c, int d)
+{
+  return a + b + c + d;
+}
+
+
+void bar(int a)
+{
+  return;
+}
+
+
+TEST(Process, async)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  // Non-void functions with different no.of args.
+  EXPECT_EQ(1, async(&foo).get());
+  EXPECT_EQ(10, async(&foo1, 10).get());
+  EXPECT_EQ(30, async(&foo2, 10, 20).get());
+  EXPECT_EQ(60, async(&foo3, 10, 20, 30).get());
+  EXPECT_EQ(100, async(&foo4, 10, 20, 30, 40).get());
+
+  // Non-void function with a complex arg.
+  int i = 42;
+  EXPECT_EQ("42", async(&itoa2, &i).get());
+
+  // Non-void function that returns a future.
+  EXPECT_EQ("42", async(&itoa1, &i).get().get());
 }
 
 
