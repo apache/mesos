@@ -181,7 +181,9 @@ void ProcessBasedIsolationModule::launchExecutor(
       createExecutorLauncher(frameworkId, frameworkInfo,
                              executorInfo, directory);
 
-    launcher->run();
+    if (launcher->run() < 0) {
+      LOG(FATAL) << "Failed to launch executor";
+    }
   }
 }
 

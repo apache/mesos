@@ -259,7 +259,22 @@ void CgroupsIsolationModule::launchExecutor(
                                                                 directory);
 
   if (launcher->setup() < 0) {
-    LOG(ERROR) << "Error setting up executor " << executorId;
+    LOG(ERROR) << "Error setting up executor " << executorId
+               << " for framework " << frameworkId;
+
+    delete launcher;
+
+    unregisterCgroupInfo(frameworkId, executorId);
+
+    LOG(INFO) << "Telling slave of lost executor " << executorId
+              << " of framework " << frameworkId;
+
+    dispatch(slave,
+             &Slave::executorExited,
+             frameworkId,
+             executorId,
+             -1); // TODO(benh): Determine "correct" status.
+
     return;
   }
 
@@ -345,6 +360,7 @@ void CgroupsIsolationModule::launchExecutor(
              executorId,
              pid);
   } else {
+    // In child process.
     // Put self into the newly created cgroup.
     Try<bool> assign =
       cgroups::assignTask(hierarchy,
