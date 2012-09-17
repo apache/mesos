@@ -28,6 +28,7 @@ namespace slave {
 const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5.0);
 const Duration STATUS_UPDATE_RETRY_INTERVAL = Seconds(10.0);
 const Duration GC_DELAY = Weeks(1.0);
+const Duration DISK_WATCH_INTERVAL = Minutes(1.0);
 
 } // namespace slave {
 } // namespace internal {

@@ -73,6 +73,8 @@ public:
   bool operator == (const Duration& that) const { return value == that.value; }
   bool operator != (const Duration& that) const { return value != that.value; }
 
+  // TODO(vinod): Overload arithmetic operators.
+
 protected:
   static const uint64_t NANOSECONDS = 1;
   static const uint64_t MICROSECONDS = 1000 * NANOSECONDS;

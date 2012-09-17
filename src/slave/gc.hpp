@@ -51,6 +51,10 @@ public:
   // error, e.g., permission denied).
   process::Future<bool> schedule(const Duration& d, const std::string& path);
 
+  // Deletes all the directories, whose scheduled garbage collection time
+  // is within the next 'd' duration of time.
+  void prune(const Duration& d);
+
 private:
   GarbageCollectorProcess* process;
 };

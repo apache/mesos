@@ -27,6 +27,8 @@
 #include <stout/duration.hpp>
 #include <stout/os.hpp>
 
+#include "common/resources.hpp"
+
 #include "detector/detector.hpp"
 
 #include "logging/logging.hpp"
@@ -70,6 +72,12 @@ protected:
   static void SetUpTestCase()
   {
     flags.work_dir = "/tmp/mesos-tests";
+    flags.resources = Option<string>::some("cpus:2;mem:1024");
+
+    Resources resources = Resources::parse(flags.resources.get());
+    Value::Scalar none;
+    cpus = resources.get("cpus", none).value();
+    mem = resources.get("mem", none).value();
   }
 
   virtual void SetUp()
@@ -87,17 +95,6 @@ protected:
     master = process::spawn(m);
 
     execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-    EXPECT_CALL(exec, registered(_, _, _, _))
-      .WillRepeatedly(Return());
-
-    EXPECT_CALL(exec, launchTask(_, _))
-      .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
-
-    EXPECT_CALL(exec, shutdown(_))
-      .WillRepeatedly(Return());
-
-    driver = new MesosSchedulerDriver(&sched, DEFAULT_FRAMEWORK_INFO, master);
   }
 
   virtual void TearDown()
@@ -141,30 +138,6 @@ protected:
     startSlave();
   }
 
-  // Launches a task based on the received offer.
-  void launchTask(const ExecutorInfo& executorInfo)
-  {
-    EXPECT_NE(0u, offers.size());
-
-    TaskInfo task;
-    task.set_name("");
-    task.mutable_task_id()->set_value(UUID::random().toString());
-    task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-    task.mutable_resources()->MergeFrom(offers[0].resources());
-    task.mutable_executor()->MergeFrom(executorInfo);
-
-    tasks.push_back(task);
-
-    driver->launchTasks(offers[0].id(), tasks);
-
-    tasks.clear();
-  }
-
-  void launchTask()
-  {
-    launchTask(DEFAULT_EXECUTOR_INFO);
-  }
-
   TestAllocatorProcess* a;
   Master* m;
   TestingIsolationModule* isolationModule;
@@ -174,25 +147,26 @@ protected:
   MockExecutor exec, exec1;
   map<ExecutorID, Executor*> execs;
   MockScheduler sched;
-  MesosSchedulerDriver* driver;
-  trigger resourceOffersCall;
   SlaveRegisteredMessage registeredMsg;
-  vector<Offer> offers;
   TaskStatus status;
-  vector<TaskInfo> tasks;
   MockFilter filter;
   PID<Master> master;
   PID<Slave> slave;
   static flags::Flags<logging::Flags, slave::Flags> flags;
+  static double cpus;
+  static double mem;
 };
 
 
 // Initialize static members here.
 flags::Flags<logging::Flags, slave::Flags> GarbageCollectorTest::flags;
+double GarbageCollectorTest::cpus;
+double GarbageCollectorTest::mem;
 
 
 TEST_F(GarbageCollectorTest, Restart)
 {
+  // Messages expectations.
   process::Message message;
   trigger slaveRegisteredMsg1, slaveRegisteredMsg2;
   EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
@@ -206,11 +180,23 @@ TEST_F(GarbageCollectorTest, Restart)
   EXPECT_MESSAGE(filter, Eq(LostSlaveMessage().GetTypeName()), _, _)
     .WillRepeatedly(DoAll(Trigger(&lostSlaveMsg), Return(false)));
 
+  // Executor expectations.
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(Return());
+
+  // Scheduler expectations.
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillRepeatedly(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)));
+    .WillOnce(LaunchTasks(1, cpus, mem))
+    .WillRepeatedly(Return());
 
   trigger statusUpdateCall;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -228,11 +214,9 @@ TEST_F(GarbageCollectorTest, Restart)
   registeredMsg.ParseFromString(message.body);
   SlaveID slaveId = registeredMsg.slave_id();
 
-  driver->start();
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  WAIT_UNTIL(resourceOffersCall);
-
-  launchTask();
+  driver.start();
 
   WAIT_UNTIL(statusUpdateCall);
 
@@ -269,23 +253,36 @@ TEST_F(GarbageCollectorTest, Restart)
 
   Clock::resume();
 
-  driver->stop();
-  driver->join();
+  driver.stop();
+  driver.join();
 }
 
 
 TEST_F(GarbageCollectorTest, ExitedExecutor)
 {
+  // Messages expectations.
   trigger exitedExecutorMsg;
   EXPECT_MESSAGE(filter, Eq(ExitedExecutorMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&exitedExecutorMsg), Return(false)));
 
+  // Executor expectations.
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(Return());
+
+  // Scheduler expectations.
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillRepeatedly(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)));
+    .WillOnce(LaunchTasks(1, cpus, mem))
+    .WillRepeatedly(Return());
 
   trigger statusUpdateCall;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -295,11 +292,9 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
 
   startSlave();
 
-  driver->start();
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  WAIT_UNTIL(resourceOffersCall);
-
-  launchTask();
+  driver.start();
 
   WAIT_UNTIL(statusUpdateCall);
 
@@ -331,11 +326,92 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
 
   Clock::settle();
 
-  // First executor's directory should be gc'ed by now.
+  // Executor's directory should be gc'ed by now.
   ASSERT_FALSE(os::exists(executorDir));
 
   Clock::resume();
 
-  driver->stop();
-  driver->join();
+  driver.stop();
+  driver.join();
+}
+
+
+TEST_F(GarbageCollectorTest, DiskUsage)
+{
+  // Messages expectations.
+  trigger exitedExecutorMsg;
+  EXPECT_MESSAGE(filter, Eq(ExitedExecutorMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(Trigger(&exitedExecutorMsg), Return(false)));
+
+  // Executor expectations.
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(Return());
+
+  // Scheduler expectations.
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(1, cpus, mem))
+    .WillRepeatedly(Return());
+
+  trigger statusUpdateCall;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)))
+    .WillOnce(Return()) // Ignore the TASK_LOST update.
+    .WillRepeatedly(Trigger(&statusUpdateCall));
+
+  startSlave();
+
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
+  driver.start();
+
+  WAIT_UNTIL(statusUpdateCall);
+
+  EXPECT_EQ(TASK_RUNNING, status.state());
+
+  const std::string& executorDir =
+    isolationModule->directories[DEFAULT_EXECUTOR_ID];
+
+  ASSERT_TRUE(os::exists(executorDir));
+
+  Clock::pause();
+
+  // Kill the executor and inform the slave.
+  isolationModule->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
+
+  process::dispatch(slave, &Slave::executorExited, frameworkId,
+                    DEFAULT_EXECUTOR_ID, 0);
+
+  // In order to make sure the slave has scheduled the executor
+  // directory to get garbage collected we need to wait until the
+  // slave has sent the ExecutorExited message. TODO(benh): We really
+  // need to wait until the GarbageCollectorProcess has dispatched a
+  // message back to itself.
+  WAIT_UNTIL(exitedExecutorMsg);
+
+  // Simulate a disk full message to the slave.
+  process::dispatch(slave, &Slave::_checkDiskUsage, Try<double>::some(1));
+
+  // TODO(vinod): As above, we need to wait until GarbageCollectorProcess has
+  // dispatched remove message back to itself.
+  sleep(1);
+
+  Clock::settle();
+
+  // Executor's directory should be gc'ed by now.
+  ASSERT_FALSE(os::exists(executorDir));
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
 }

@@ -18,6 +18,7 @@
 #include <glog/logging.h>
 
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #ifdef __linux__
 #include <sys/sysinfo.h>
 #endif
@@ -165,7 +166,8 @@ inline Try<bool> isNonblock(int fd)
 
 inline Try<bool> touch(const std::string& path)
 {
-  Try<int> fd = open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  Try<int> fd =
+      open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
     return Try<bool>::error("Failed to open file " + path);
@@ -586,7 +588,8 @@ inline Try<std::list<std::string> > find(const std::string& directory,
   std::list<std::string> results;
 
   if (!isdir(directory)) {
-    return Try<std::list<std::string> >::error("Directory " + directory + " doesn't exist!");
+    return Try<std::list<std::string> >::error(
+        "Directory " + directory + " doesn't exist!");
   }
 
   foreach (const std::string& entry, ls(directory)) {
@@ -597,7 +600,8 @@ inline Try<std::list<std::string> > find(const std::string& directory,
     // This is just a hack to check whether this path is a regular file or
     // a (sub) directory.
     if (isdir(result)) { // If its a directory recurse.
-      CHECK(find(result, pattern).isSome()) << "Directory " << directory << " doesn't exist";
+      CHECK(find(result, pattern).isSome())
+        << "Directory " << directory << " doesn't exist";
       foreach (const std::string& path, find(result, pattern).get()) {
         results.push_back(path);
       }
@@ -609,6 +613,17 @@ inline Try<std::list<std::string> > find(const std::string& directory,
   }
 
   return results;
+}
+
+
+// Returns relative disk usage of the file system mounted at the given path.
+inline Try<double> usage(const std::string& fs = "/")
+{
+  struct statvfs buf;
+  if (statvfs(fs.c_str(), &buf) < 0) {
+    return Try<double>::error(strerror(errno));
+  }
+  return (double) (buf.f_blocks - buf.f_bfree) / buf.f_blocks;
 }
 
 

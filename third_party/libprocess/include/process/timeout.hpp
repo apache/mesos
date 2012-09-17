@@ -40,6 +40,21 @@ public:
     return *this;
   }
 
+  bool operator == (const Timeout& that) const
+  {
+      return timeout == that.timeout;
+  }
+
+  bool operator < (const Timeout& that) const
+  {
+      return timeout < that.timeout;
+  }
+
+  bool operator <= (const Timeout& that) const
+  {
+    return timeout <= that.timeout;
+  }
+
   // Returns the value of the timeout as the number of seconds elapsed
   // since the epoch.
   double value() const

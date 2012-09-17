@@ -94,9 +94,17 @@ public:
 
     add(&Flags::gc_delay,
         "gc_delay",
-        "Amount of time to wait before cleaning up\n"
-        "executor directories (e.g., 3days, 2weeks, etc)",
+        "Maximum amount of time to wait before cleaning up\n"
+        "executor directories (e.g., 3days, 2weeks, etc).\n"
+        "Note that this delay may be shorter depending on\n"
+        "the available disk usage.",
         GC_DELAY);
+
+    add(&Flags::disk_watch_interval,
+        "disk_watch_interval",
+        "Periodic time interval (e.g., 10secs, 2mins, etc)\n"
+        "to check the disk usage",
+        DISK_WATCH_INTERVAL);
 
 #ifdef __linux__
     add(&Flags::cgroups_hierarchy_root,
@@ -117,6 +125,7 @@ public:
   std::string frameworks_home;  // TODO(benh): Make an Option.
   Duration executor_shutdown_grace_period;
   Duration gc_delay;
+  Duration disk_watch_interval;
 #ifdef __linux__
   std::string cgroups_hierarchy_root;
 #endif

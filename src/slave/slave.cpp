@@ -31,6 +31,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/numify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/utils.hpp>
@@ -209,6 +210,12 @@ void Slave::initialize()
   dispatch(isolationModule,
            &IsolationModule::initialize,
            flags, local, self());
+
+  // Start disk monitoring.
+  // NOTE: We send a delayed message here instead of directly calling
+  // checkDiskUsage, to make disabling this feature easy (e.g by specifying
+  // a very large disk_watch_interval).
+  delay(flags.disk_watch_interval, self(), &Slave::checkDiskUsage);
 
   // Start all the statistics at 0.
   stats.tasks[TASK_STAGING] = 0;
@@ -519,6 +526,10 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
       dispatch(isolationModule,
                &IsolationModule::resourcesChanged,
                framework->id, executor->id, executor->resources);
+
+      LOG(INFO) << "Sending task '" << task.task_id()
+                << "' to executor '" << executorId
+                << "' of framework " << framework->id;
 
       RunTaskMessage message;
       message.mutable_framework()->MergeFrom(framework->info);
@@ -1542,25 +1553,75 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
   // Find a unique directory based on the path given by the slave
   // (this is because we might launch multiple executors from the same
   // framework on this slave).
+  // NOTE: The run number of the new directory will be the highest of
+  // all the existing run directories for this executor.
   out << "/runs/";
 
-  const string& prefix = out.str();
+  int maxrun = 0;
+  foreach (const string& runStr, os::ls(out.str())) {
+    Try<int> run = numify<int>(runStr);
+    if (run.isError()) {
+      LOG(ERROR) << "Ignoring invalid run directory " << runStr;
+      continue;
+    }
 
-  for (int i = 0; i < INT_MAX; i++) {
-    out << i;
-    VLOG(1) << "Checking if " << out.str() << " already exists";
-    if (!os::exists(out.str())) {
-      bool created = os::mkdir(out.str());
-      CHECK(created) << "Error creating work directory: " << out.str();
-      return out.str();
+    maxrun = std::max(maxrun, run.get());
+  }
+  out << maxrun;
+
+  bool created = os::mkdir(out.str());
+  CHECK(created) << "Error creating work directory " << out.str();
+
+  return out.str();
+}
+
+
+// TODO(vinod): Figure out a way to express this function via cmd line.
+Duration Slave::age(double usage)
+{
+ return Weeks(flags.gc_delay.weeks() * (1.0 - usage));
+}
+
+
+void Slave::checkDiskUsage()
+{
+  VLOG(1) << "Checking disk usage";
+
+  // TODO(vinod): We are making usage a Future, so that we can plug-in
+  // os::usage() into async.
+  Future<Try<double> > usage = os::usage();
+
+  usage.onAny(
+      defer(self(),
+            &Slave::_checkDiskUsage,
+            usage));
+}
+
+
+void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
+{
+  if (!usage.isReady()) {
+    LOG(WARNING) << "Error getting disk usage";
+  } else {
+    Try<double> result = usage.get();
+
+    if (result.isSome()) {
+      double use = result.get();
+
+      LOG(INFO) << "Current disk usage " << std::setiosflags(std::ios::fixed)
+                << std::setprecision(2) << 100 * use << "%."
+                << " Max allowed age: " << age(use);
+
+      // We prune all directories whose deletion time is within
+      // the next 'gc_delay - age'. Since a directory is always
+      // scheduled for deletion 'gc_delay' into the future, only directories
+      // that are at least 'age' old are deleted.
+      gc.prune(Weeks(flags.gc_delay.weeks() - age(use).weeks()));
     } else {
-      out.str(prefix); // Try with prefix again.
+      LOG(WARNING) << "Unable to get disk usage: " << result.error();
     }
   }
-
-  LOG(FATAL) << "Could not create work directory for executor '"
-             << executorId << "' of framework" << frameworkId;
-  return NULL;
+  delay(flags.disk_watch_interval, self(), &Slave::checkDiskUsage);
 }
 
 } // namespace slave {

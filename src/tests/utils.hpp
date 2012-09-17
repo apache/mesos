@@ -275,6 +275,7 @@ ACTION_P3(LaunchTasks, tasks, cpus, mem)
   }
 }
 
+
 // Like LaunchTasks, but decline the entire offer and
 // don't launch any tasks.
 ACTION(DeclineOffers)

@@ -124,6 +124,14 @@ public:
                           const FrameworkID& frameworkId,
                           bool command_executor,
                           int status);
+
+  // NOTE: Pulled this to public to make it visible for testing.
+  // Garbage collects the directories based on the current disk usage.
+  // TODO(vinod): Instead of making this function public, we need to
+  // mock both GarbageCollector (and pass it through slave's constructor)
+  // and os calls.
+  void _checkDiskUsage(const Future<Try<double> >& capacity);
+
 protected:
   virtual void initialize();
   virtual void finalize();
@@ -158,6 +166,14 @@ protected:
   // pair may be launched more than once on the same slave).
   std::string createUniqueWorkDirectory(const FrameworkID& frameworkId,
                                         const ExecutorID& executorId);
+
+
+  // This function returns the max age of executor/slave directories allowed,
+  // given a disk usage. This value could be used to tune gc.
+  Duration age(double usage);
+
+  // Checks the current disk usage and schedules for gc as necessary.
+  void checkDiskUsage();
 
 private:
   // HTTP handlers, friends of the slave in order to access state,
