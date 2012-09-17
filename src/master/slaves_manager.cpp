@@ -812,29 +812,20 @@ void SlavesManager::updateInactive(
 
 Future<Response> SlavesManager::add(const Request& request)
 {
+  // Make sure we have 'hostname=value'.
   Option<string> hostname = request.query.get("hostname");
-  Option<string> portString = request.query.get("port");
 
-  // Make sure there is at least a 'hostname=' and 'port='.
-  if (hostname.isNone()) {
-    string error = "Slaves manager expecting 'hostname' in query string"
-                   " when trying to add a slave";
-    LOG(WARNING) << error;
-    return BadRequest(error);
-  } else if (portString.isNone()) {
-    string error = "Slaves manager expecting 'port' in query string"
-                   " when trying to add a slave";
-    LOG(WARNING) << error;
-    return BadRequest(error);
+  if (hostname.isNone() || hostname.get() == "") {
+    return BadRequest("Expecting 'hostname=value' in query.\n");
   }
 
-  // Check that 'port' is valid.
-  Try<uint16_t> port = numify<uint16_t>(portString.get());
-  if (port.isError()) {
-    string error = string("Slaves manager failed to parse "
-        "'port = ") + portString.get() + "' when trying to add a slave";
-    LOG(WARNING) << error;
-    return BadRequest(error);
+  // Make sure we have 'port=value' and that it's a valid number.
+  Result<uint16_t> port = numify<uint16_t>(request.query.get("port"));
+
+  if (port.isNone()) {
+    return BadRequest("Expecting 'port=value' in query.\n");
+  } else if (port.isError()) {
+    return BadRequest("Invalid port: " + port.error() + ".\n");
   }
 
   LOG(INFO) << "Slaves manager received HTTP request to add slave at "
@@ -849,29 +840,20 @@ Future<Response> SlavesManager::add(const Request& request)
 
 Future<Response> SlavesManager::remove(const Request& request)
 {
+  // Make sure we have 'hostname=value'.
   Option<string> hostname = request.query.get("hostname");
-  Option<string> portString = request.query.get("port");
 
-  // Make sure there is at least a 'hostname=' and 'port='.
-  if (hostname.isNone()) {
-    string error = "Slaves manager expecting 'hostname' in query string"
-                   " when trying to remove a slave";
-    LOG(WARNING) << error;
-    return BadRequest(error);
-  } else if (portString.isNone()) {
-    string error = "Slaves manager expecting 'port' in query string"
-                   " when trying to remove a slave";
-    LOG(WARNING) << error;
-    return BadRequest(error);
+  if (hostname.isNone() || hostname.get() == "") {
+    return BadRequest("Expecting 'hostname=value' in query.\n");
   }
 
-  // Check that 'port' is valid.
-  Try<uint16_t> port = numify<uint16_t>(portString.get());
-  if (port.isError()) {
-    string error = string("Slaves manager failed to parse "
-        "'port = ") + portString.get() + "' when trying to remove a slave";
-    LOG(WARNING) << error;
-    return BadRequest(error);
+  // Make sure we have 'port=value' and that it's a valid number.
+  Result<uint16_t> port = numify<uint16_t>(request.query.get("port"));
+
+  if (port.isNone()) {
+    return BadRequest("Expecting 'port=value' in query.\n");
+  } else if (port.isError()) {
+    return BadRequest("Invalid port: " + port.error() + ".\n");
   }
 
   LOG(INFO) << "Slaves manager received HTTP request to remove slave at "
@@ -886,27 +868,20 @@ Future<Response> SlavesManager::remove(const Request& request)
 
 Future<Response> SlavesManager::activate(const Request& request)
 {
+  // Make sure we have 'hostname=value'.
   Option<string> hostname = request.query.get("hostname");
-  Option<string> portString = request.query.get("port");
 
-  // Make sure there is at least a 'hostname=' and 'port='.
-  if (hostname.isNone()) {
-    LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
-                 << " when trying to activate a slave";
-    return NotFound();
-  } else if (portString.isNone()) {
-    LOG(WARNING) << "Slaves manager expecting 'port' in query string"
-                 << " when trying to activate a slave";
-    return NotFound();
+  if (hostname.isNone() || hostname.get() == "") {
+    return BadRequest("Expecting 'hostname=value' in query.\n");
   }
 
-  // Check that 'port' is valid.
-  Try<uint16_t> port = numify<uint16_t>(portString.get());
-  if (port.isError()) {
-    string error = string("Slaves manager failed to parse "
-        "'port = ") + portString.get() + "' when trying to activate a slave";
-    LOG(WARNING) << error;
-    return BadRequest(error);
+  // Make sure we have 'port=value' and that it's a valid number.
+  Result<uint16_t> port = numify<uint16_t>(request.query.get("port"));
+
+  if (port.isNone()) {
+    return BadRequest("Expecting 'port=value' in query.\n");
+  } else if (port.isError()) {
+    return BadRequest("Invalid port: " + port.error() + ".\n");
   }
 
   LOG(INFO) << "Slaves manager received HTTP request to activate slave at "
@@ -921,27 +896,20 @@ Future<Response> SlavesManager::activate(const Request& request)
 
 Future<Response> SlavesManager::deactivate(const Request& request)
 {
+  // Make sure we have 'hostname=value'.
   Option<string> hostname = request.query.get("hostname");
-  Option<string> portString = request.query.get("port");
 
-  // Make sure there is at least a 'hostname=' and 'port='.
-  if (hostname.isNone()) {
-    LOG(WARNING) << "Slaves manager expecting 'hostname' in query string"
-                 << " when trying to deactivate a slave";
-    return NotFound();
-  } else if (portString.isNone()) {
-    LOG(WARNING) << "Slaves manager expecting 'port' in query string"
-                 << " when trying to deactivate a slave";
-    return NotFound();
+  if (hostname.isNone() || hostname.get() == "") {
+    return BadRequest("Expecting 'hostname=value' in query.\n");
   }
 
-  // Check that 'port' is valid.
-  Try<uint16_t> port = numify<uint16_t>(portString.get());
-  if (port.isError()) {
-    string error = string("Slaves manager failed to parse "
-        "'port = ") + portString.get() + "' when trying to deactivate a slave";
-    LOG(WARNING) << error;
-    return BadRequest(error);
+  // Make sure we have 'port=value' and that it's a valid number.
+  Result<uint16_t> port = numify<uint16_t>(request.query.get("port"));
+
+  if (port.isNone()) {
+    return BadRequest("Expecting 'port=value' in query.\n");
+  } else if (port.isError()) {
+    return BadRequest("Invalid port: " + port.error() + ".\n");
   }
 
   LOG(INFO) << "Slaves manager received HTTP request to deactivate slave at "

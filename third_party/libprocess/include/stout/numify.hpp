@@ -8,6 +8,8 @@
 #include <boost/lexical_cast.hpp>
 
 #include "format.hpp"
+#include "option.hpp"
+#include "result.hpp"
 #include "try.hpp"
 
 template <typename T>
@@ -23,7 +25,20 @@ Try<T> numify(const std::string& s)
   }
 }
 
-// TODO(bmahler): Add a numify that takes an Option<string> to simplify
-// http request handling logic.
+
+template <typename T>
+Result<T> numify(const Option<std::string>& s)
+{
+  if (s.isSome()) {
+    Try<T> t = numify<T>(s.get());
+    if (t.isSome()) {
+      return Result<T>::some(t.get());
+    } else if (t.isError()) {
+      return Result<T>::error(t.error());
+    }
+  }
+
+  return Result<T>::none();
+}
 
 #endif // __STOUT_NUMIFY_HPP__
