@@ -113,14 +113,14 @@ inline std::vector<std::string> split(
 }
 
 
-// Returns a map of strings to strings based on calling split
-// twice. For example:
+// Returns a map of strings to strings based on calling tokenize
+// twice. All non-pairs are discarded. For example:
 //
-//   pairs("foo=1;bar=2;foo=3", ";&", "=")
+//   pairs("foo=1;bar=2;baz;foo=3;bam=1=2", ";&", "=")
 //
 // Would return a map with the following:
-//   foo: [1, 3]
-//   bar: [2]
+//   bar: ["2"]
+//   foo: ["1", "3"]
 inline std::map<std::string, std::vector<std::string> > pairs(
     const std::string& s,
     const std::string& delims1,

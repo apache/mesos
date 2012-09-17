@@ -145,13 +145,14 @@ struct TemporaryRedirect : Response
 
 namespace query {
 
-// Returns a string map based on calling split twice. For example:
+// Parses an HTTP query string into a map. For example:
 //
-//   pairs("foo=1;bar=2;foo=3", ";&", "=")
+//   parse("foo=1;bar=2;baz;foo=3")
 //
 // Would return a map with the following:
-//   foo: 3
-//   bar: 2
+//   bar: "2"
+//   baz: ""
+//   foo: "3"
 //
 // We use the last value for a key for simplicity, since the RFC does not
 // specify how to handle duplicate keys:
