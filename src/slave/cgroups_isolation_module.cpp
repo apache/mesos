@@ -253,16 +253,22 @@ void CgroupsIsolationModule::launchExecutor(
             << " in cgroup " << getCgroupName(frameworkId, executorId);
 
   // First fetch the executor.
-  launcher::ExecutorLauncher* launcher = createExecutorLauncher(frameworkId,
-                                                                frameworkInfo,
-                                                                executorInfo,
-                                                                directory);
+  launcher::ExecutorLauncher launcher(
+      frameworkId,
+      executorInfo.executor_id(),
+      executorInfo.command(),
+      frameworkInfo.user(),
+      directory,
+      slave,
+      flags.frameworks_home,
+      flags.hadoop_home,
+      !local,
+      flags.switch_user,
+      "");
 
-  if (launcher->setup() < 0) {
+  if (launcher.setup() < 0) {
     LOG(ERROR) << "Error setting up executor " << executorId
                << " for framework " << frameworkId;
-
-    delete launcher;
 
     unregisterCgroupInfo(frameworkId, executorId);
 
@@ -372,8 +378,8 @@ void CgroupsIsolationModule::launchExecutor(
                  << ": " << assign.error();
     }
 
-    // Now launch the executor.
-    launcher->launch();
+    // Now launch the executor (this function should not return).
+    launcher.launch();
   }
 }
 
@@ -480,27 +486,6 @@ void CgroupsIsolationModule::processExited(pid_t pid, int status)
 
     unregisterCgroupInfo(frameworkId, executorId);
   }
-}
-
-
-launcher::ExecutorLauncher* CgroupsIsolationModule::createExecutorLauncher(
-    const FrameworkID& frameworkId,
-    const FrameworkInfo& frameworkInfo,
-    const ExecutorInfo& executorInfo,
-    const std::string& directory)
-{
-  return new launcher::ExecutorLauncher(
-      frameworkId,
-      executorInfo.executor_id(),
-      executorInfo.command(),
-      frameworkInfo.user(),
-      directory,
-      slave,
-      flags.frameworks_home,
-      flags.hadoop_home,
-      !local,
-      flags.switch_user,
-      "");
 }
 
 
