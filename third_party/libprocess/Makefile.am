@@ -25,7 +25,7 @@ LIBEV = third_party/libev-$(LIBEV_VERSION)
 noinst_LTLIBRARIES = libprocess.la
 
 libprocess_la_SOURCES = src/process.cpp src/pid.cpp src/latch.cpp	\
-	src/statistics.cpp src/config.hpp src/decoder.hpp	\
+	src/statistics.cpp src/config.hpp src/decoder.hpp		\
 	src/encoder.hpp src/gate.hpp src/synchronized.hpp
 
 libprocess_la_CPPFLAGS = -I$(srcdir)/include -I$(BOOST) -I$(GLOG)/src	\
@@ -36,7 +36,8 @@ libprocess_la_LIBADD = $(GLOG)/libglog.la				\
 
 
 # Headers.
-libprocess_la_SOURCES += $(top_srcdir)/include/process/clock.hpp	\
+libprocess_la_SOURCES += $(top_srcdir)/include/process/async.hpp	\
+	$(top_srcdir)/include/process/clock.hpp				\
 	$(top_srcdir)/include/process/collect.hpp			\
 	$(top_srcdir)/include/process/defer.hpp				\
 	$(top_srcdir)/include/process/deferred.hpp			\
