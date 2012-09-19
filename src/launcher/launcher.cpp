@@ -36,6 +36,7 @@
 
 #include "launcher/launcher.hpp"
 
+using std::cerr;
 using std::cout;
 using std::endl;
 using std::ostringstream;
@@ -81,25 +82,25 @@ int ExecutorLauncher::setup()
 
   // TODO(benh): Do this in the slave?
   if (shouldSwitchUser && !os::chown(user, workDirectory)) {
-    VLOG(1) << "Failed to change ownership of framework's working directory "
-            << workDirectory << " to user " << user;
+    cerr << "Failed to change ownership of framework's working directory "
+         << workDirectory << " to user " << user << endl;
     return -1;
   }
 
   // Enter working directory.
   if (os::chdir(workDirectory) < 0) {
-    VLOG(1) << "Failed to chdir into framework working directory";
+    cerr << "Failed to chdir into framework working directory" << endl;
     return -1;
   }
 
   if (fetchExecutors() < 0) {
-    VLOG(1) << "Failed to fetch executors";
+    cerr << "Failed to fetch executors" << endl;
     return -1;
   }
 
   // Go back to previous directory.
   if (os::chdir(cwd) < 0) {
-    VLOG(1) << "Failed to chdir (back) into slave directory";
+    cerr << "Failed to chdir (back) into slave directory" << endl;
     return -1;
   }
 
@@ -175,7 +176,7 @@ int ExecutorLauncher::run()
 // if requested.
 int ExecutorLauncher::fetchExecutors()
 {
-  VLOG(1) << "Fetching executors into " << workDirectory;
+  cerr << "Fetching executors into " << workDirectory << endl;
 
   foreach(const CommandInfo::URI& uri, commandInfo.uris()) {
     string resource = uri.value();
@@ -187,7 +188,7 @@ int ExecutorLauncher::fetchExecutors()
     if (resource.find_first_of('\\') != string::npos ||
         resource.find_first_of('\'') != string::npos ||
         resource.find_first_of('\0') != string::npos) {
-      VLOG(1) << "Illegal characters in URI";
+      cerr << "Illegal characters in URI" << endl;
       return -1;
     }
 
@@ -217,7 +218,7 @@ int ExecutorLauncher::fetchExecutors()
 
       int ret = os::system(command.str());
       if (ret != 0) {
-        VLOG(1) << "HDFS copyToLocal failed: return code " << ret;
+        cerr << "HDFS copyToLocal failed: return code " << ret << endl;
         return -1;
       }
       resource = localFile;
@@ -232,11 +233,11 @@ int ExecutorLauncher::fetchExecutors()
       cout << "Downloading " << resource << " to " << path << endl;
       Try<int> code = net::download(resource, path);
       if (code.isError()) {
-        VLOG(1) << "Error downloading resource: " << code.error().c_str();
+        cerr << "Error downloading resource: " << code.error().c_str() << endl;
         return -1;
       } else if (code.get() != 200) {
-        VLOG(1) << "Error downloading resource, received HTTP/FTP return code "
-                << code.get();
+        cerr << "Error downloading resource, received HTTP/FTP return code "
+             << code.get() << endl;
         return -1;
       }
       resource = path;
@@ -248,10 +249,10 @@ int ExecutorLauncher::fetchExecutors()
           cout << "Prepended configuration option frameworks_home to resource "
             << "path, making it: " << resource << endl;
         } else {
-          VLOG(1) << "A relative path was passed for the resource, but "
-                  << "the configuration option frameworks_home is not set. "
-                  << "Please either specify this config option "
-                  << "or avoid using a relative path.";
+          cerr << "A relative path was passed for the resource, but "
+               << "the configuration option frameworks_home is not set. "
+               << "Please either specify this config option "
+               << "or avoid using a relative path" << endl;
           return -1;
         }
       }
@@ -269,13 +270,13 @@ int ExecutorLauncher::fetchExecutors()
     }
 
     if (shouldSwitchUser && !os::chown(user, resource)) {
-      VLOG(1) << "Failed to chown " << resource;
+      cerr << "Failed to chown " << resource << endl;
       return -1;
     }
 
     if (executable &&
         !os::chmod(resource, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
-      VLOG(1) << "Failed to chmod " << resource;
+      cerr << "Failed to chmod " << resource << endl;
       return -1;
     }
 
@@ -286,7 +287,7 @@ int ExecutorLauncher::fetchExecutors()
       cout << "Extracting resource: " + command << endl;
       int code = os::system(command);
       if (code != 0) {
-        VLOG(1) << "Failed to extract resource: tar exit code " << code;
+        cerr << "Failed to extract resource: tar exit code " << code << endl;
         return -1;
       }
     } else if (strings::endsWith(resource, ".zip")) {
@@ -294,7 +295,7 @@ int ExecutorLauncher::fetchExecutors()
       cout << "Extracting resource: " + command << endl;
       int code = os::system(command);
       if (code != 0) {
-        VLOG(1) << "Failed to extract resource: unzip exit code " << code;
+        cerr << "Failed to extract resource: unzip exit code " << code << endl;
         return -1;
       }
     }
