@@ -17,9 +17,13 @@
  */
 
 #include <assert.h>
+#include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <sys/mman.h>
 
 #include <iostream>
 #include <string>
@@ -45,17 +49,27 @@ static void balloon(size_t limit)
     std::cout << "Increasing memory footprint by "
               << BALLOON_STEP_MB << " MB" << std::endl;
 
-    // Allocate virtual memory.
-    char* buffer = (char *)malloc(chunk);
+    // Allocate page aligned virtual memory.
+    char* buffer = NULL;
+    if (posix_memalign((void**) &buffer, getpagesize(), chunk) != 0) {
+      perror("Failed to allocate page aligned memory, posix_memalign");
+      abort();
+    }
 
-    // We use memset here so that the memory actually gets paged in. However,
-    // the memory may get paged out again depending on the OS page replacement
-    // algorithm. Therefore, to ensure X MB of memory is actually used, we need
-    // to pass Y (Y > X) to this function.
-    ::memset(buffer, 1, chunk);
+    // We use mlock and memset here to make sure that the memory
+    // actually gets paged in and thus accounted for.
+    if (mlock(buffer, chunk) != 0) {
+      perror("Failed to lock memory, mlock");
+      abort();
+    }
+
+    if (memset(buffer, 1, chunk) != 0) {
+      perror("Failed to fill memory, memset");
+      abort();
+    }
 
     // Try not to increase the memory footprint too fast.
-    ::sleep(1);
+    sleep(1);
   }
 }
 

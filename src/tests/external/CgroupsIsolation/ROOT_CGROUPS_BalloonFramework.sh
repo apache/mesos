@@ -59,8 +59,11 @@ kill $MASTER_PID
 sleep 2
 
 # Cleanup the cgroups hierarchy root
-rmdir /cgroups/*
-umount /cgroups
+find /cgroups/* -depth -type d | xargs rmdir
+NUM_CGROUPS=`find /cgroups/* -depth -type d | wc -l`
+if [[ $NUM_CGROUPS -eq 0 ]]; then
+  umount /cgroups
+fi
 
 echo "Exiting"
 # Check whether balloon framework returned the right code

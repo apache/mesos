@@ -17,10 +17,13 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -411,10 +414,21 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_ListenEvent)
 
     // Blow up the memory.
     size_t limit = 1024 * 1024 * 512;
-    char* ptr = (char*) ::malloc(limit);
-    assert(ptr != NULL);
-    for (size_t i = 0; i < limit; i++) {
-      ptr[i] = '\1';
+    char* ptr = NULL;
+
+    if (posix_memalign((void**) &ptr, getpagesize(), limit) != 0) {
+      FAIL() << "Failed to allocate page-aligned memory, posix_memalign: "
+             << strerror(errno);
+    }
+
+    // We use mlock and memset here to make sure that the memory
+    // actually gets paged in and thus accounted for.
+    if (mlock(ptr, limit) != 0) {
+      FAIL() << "Failed to lock memory, mlock: " << strerror(errno);
+    }
+
+    if (memset(ptr, 1, limit) != 0) {
+      FAIL() << "Failed to fill memory, memset: " << strerror(errno);
     }
 
     // Should not reach here.
