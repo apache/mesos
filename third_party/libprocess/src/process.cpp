@@ -2971,7 +2971,7 @@ bool wait(const UPID& pid, const Duration& duration)
               << pid << " that it is currently executing." << std::endl;
   }
 
-  if (duration == Seconds(0)) {
+  if (duration == Seconds(-1.0)) {
     return process_manager->wait(pid);
   }
 
