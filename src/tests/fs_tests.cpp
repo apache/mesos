@@ -79,17 +79,14 @@ TEST(FsTest, FileSystemTableRead)
 
   ASSERT_TRUE(table.isSome());
 
+  // NOTE: We do not check for /proc because, it is not always present in
+  // /etc/fstab.
   Option<FileSystemTable::Entry> root = Option<FileSystemTable::Entry>::none();
-  Option<FileSystemTable::Entry> proc = Option<FileSystemTable::Entry>::none();
   foreach (const FileSystemTable::Entry& entry, table.get().entries) {
     if (entry.file == "/") {
       root = entry;
-    } else if (entry.file == "/proc") {
-      proc = entry;
     }
   }
 
   EXPECT_TRUE(root.isSome());
-  ASSERT_TRUE(proc.isSome());
-  EXPECT_EQ(proc.get().vfstype, "proc");
 }

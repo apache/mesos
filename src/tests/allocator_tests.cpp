@@ -284,7 +284,8 @@ TYPED_TEST(AllocatorTest, MockAllocator)
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .WillRepeatedly(DoDefault());
 
   trigger frameworkRemovedTrigger;
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
@@ -843,7 +844,8 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
     .WillOnce(Trigger(&frameworkRemovedTrigger));
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _))
     .Times(2);
@@ -961,7 +963,8 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
     .WillOnce(Trigger(&frameworkRemovedTrigger));
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _))
     .Times(2);
@@ -1084,9 +1087,11 @@ TYPED_TEST(AllocatorTest, TaskFinished)
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
-  EXPECT_CALL(this->allocator, frameworkRemoved(_));
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
@@ -1204,9 +1209,11 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
-  EXPECT_CALL(this->allocator, frameworkRemoved(_));
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
