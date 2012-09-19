@@ -97,18 +97,18 @@ private:
   // @param   executorId    The id of the given executor.
   // @param   resources     The handle for the resources.
   // @return  Whether the operation successes.
-  Try<bool> cpusChanged(const FrameworkID& frameworkId,
-                        const ExecutorID& executorId,
-                        const Resources& resources);
+  Try<Nothing> cpusChanged(const FrameworkID& frameworkId,
+                           const ExecutorID& executorId,
+                           const Resources& resources);
 
   // The callback which will be invoked when "mem" resource has changed.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   // @param   resources     The handle for the resources.
   // @return  Whether the operation successes.
-  Try<bool> memChanged(const FrameworkID& frameworkId,
-                       const ExecutorID& executorId,
-                       const Resources& resources);
+  Try<Nothing> memChanged(const FrameworkID& frameworkId,
+                          const ExecutorID& executorId,
+                          const Resources& resources);
 
   // Start listening on OOM events. This function will create an eventfd and
   // start polling on it.
@@ -200,7 +200,7 @@ private:
   // Mapping between resource name to the corresponding resource changed
   // handler function.
   hashmap<std::string,
-          Try<bool>(CgroupsIsolationModule::*)(
+          Try<Nothing>(CgroupsIsolationModule::*)(
               const FrameworkID&,
               const ExecutorID&,
               const Resources&)> resourceChangedHandlers;

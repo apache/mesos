@@ -145,35 +145,35 @@ Try<FileSystemTable> FileSystemTable::read()
 }
 
 
-Try<bool> mount(const std::string& source,
-                const std::string& target,
-                const std::string& type,
-                unsigned long flags,
-                const void* data)
+Try<Nothing> mount(const std::string& source,
+                   const std::string& target,
+                   const std::string& type,
+                   unsigned long flags,
+                   const void* data)
 {
   // The prototype of function 'mount' on Linux is as follows:
   // int mount(const char *source, const char *target,
   //           const char *filesystemtype, unsigned long mountflags,
   //           const void *data);
   if (::mount(source.c_str(), target.c_str(), type.c_str(), flags, data) < 0) {
-    return Try<bool>::error(
+    return Try<Nothing>::error(
         "Failed to mount " + source + " at " + target + ": " + strerror(errno));
   }
 
-  return true;
+  return Nothing();
 }
 
 
-Try<bool> unmount(const std::string& target, int flags)
+Try<Nothing> unmount(const std::string& target, int flags)
 {
   // The prototype of function 'umount2' on Linux is as follows:
   // int umount2(const char *target, int flags);
   if (::umount2(target.c_str(), flags) < 0) {
-    return Try<bool>::error(
+    return Try<Nothing>::error(
         "Failed to unmount " + target + ": " + strerror(errno));
   }
 
-  return true;
+  return Nothing();
 }
 
 

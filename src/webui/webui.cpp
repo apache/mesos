@@ -107,13 +107,13 @@ void start(const std::string& directory,
   }
 
   // Set the FD_CLOEXEC flags on these pipes
-  Try<bool> result = os::cloexec(pipes[0]);
-  CHECK(result.isSome()) << "Error setting FD_CLOEXEC on pipe[0] "
-                         << result.error();
+  Try<Nothing> cloexec = os::cloexec(pipes[0]);
+  CHECK(cloexec.isSome()) << "Error setting FD_CLOEXEC on pipe[0] "
+                          << cloexec.error();
 
-  result = os::cloexec(pipes[1]);
-  CHECK(result.isSome()) << "Error setting FD_CLOEXEC on pipe[1] "
-                         << result.error();
+  cloexec = os::cloexec(pipes[1]);
+  CHECK(cloexec.isSome()) << "Error setting FD_CLOEXEC on pipe[1] "
+                          << cloexec.error();
 
   pid_t pid;
   if ((pid = fork()) == -1) {

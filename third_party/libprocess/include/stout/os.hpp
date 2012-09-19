@@ -29,6 +29,7 @@
 #include <string>
 
 #include "foreach.hpp"
+#include "nothing.hpp"
 #include "result.hpp"
 #include "strings.hpp"
 #include "try.hpp"
@@ -112,43 +113,45 @@ inline Try<int> open(const std::string& path, int oflag, mode_t mode = 0)
 }
 
 
-inline Try<bool> close(int fd)
+inline Try<Nothing> close(int fd)
 {
   if (::close(fd) != 0) {
-    return Try<bool>::error(strerror(errno));
+    return Try<Nothing>::error(strerror(errno));
   }
 
-  return true;
+  return Nothing();
 }
 
 
-inline Try<bool> cloexec(int fd)
+inline Try<Nothing> cloexec(int fd)
 {
   int flags = ::fcntl(fd, F_GETFD);
+
   if (flags == -1) {
-    return Try<bool>::error(strerror(errno));
+    return Try<Nothing>::error(strerror(errno));
   }
+
   if (::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
-    return Try<bool>::error(strerror(errno));;
+    return Try<Nothing>::error(strerror(errno));;
   }
-  return true;
+
+  return Nothing();
 }
 
 
-// TODO(bmahler): Refactor this and others into Try<Nothing> as appropriate.
-inline Try<bool> nonblock(int fd)
+inline Try<Nothing> nonblock(int fd)
 {
   int flags = ::fcntl(fd, F_GETFL);
 
   if (flags == -1) {
-    return Try<bool>::error(strerror(errno));
+    return Try<Nothing>::error(strerror(errno));
   }
 
   if (::fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-    return Try<bool>::error(strerror(errno));
+    return Try<Nothing>::error(strerror(errno));
   }
 
-  return true;
+  return Nothing();
 }
 
 
@@ -164,59 +167,52 @@ inline Try<bool> isNonblock(int fd)
 }
 
 
-inline Try<bool> touch(const std::string& path)
+inline Try<Nothing> touch(const std::string& path)
 {
   Try<int> fd =
       open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
-    return Try<bool>::error("Failed to open file " + path);
+    return Try<Nothing>::error("Failed to open file " + path);
   }
 
   // TODO(benh): Is opening/closing sufficient to have the same
   // semantics as the touch utility (i.e., doesn't the utility change
   // the modified date)?
-
-  Try<bool> result = close(fd.get());
-
-  if (result.isError()) {
-    return Try<bool>::error("Failed to close file " + path);
-  }
-
-  return true;
+  return close(fd.get());
 }
 
 
 // Write out the string to the file at the current fd position.
-inline Try<bool> write(int fd, const std::string& message)
+inline Try<Nothing> write(int fd, const std::string& message)
 {
   ssize_t length = ::write(fd, message.data(), message.length());
 
   if (length == -1) {
-    return Try<bool>::error(strerror(errno));
+    return Try<Nothing>::error(strerror(errno));
   }
 
   CHECK(length > 0);
   // TODO(benh): Handle a non-blocking fd?
   CHECK(static_cast<size_t>(length) == message.length());
 
-  return true;
+  return Nothing();
 }
 
 
 // A wrapper function that wraps the above write() with
 // open and closing the file.
-inline Try<bool> write(const std::string& path,
+inline Try<Nothing> write(const std::string& path,
                        const std::string& message)
 {
   Try<int> fd = os::open(path, O_WRONLY | O_CREAT | O_TRUNC,
                          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
   if (fd.isError()) {
-    return Try<bool>::error("Failed to open file " + path + " : " +
+    return Try<Nothing>::error("Failed to open file " + path + " : " +
         strerror(errno));
   }
 
-  Try<bool> result = write(fd.get(), message);
+  Try<Nothing> result = write(fd.get(), message);
 
   // NOTE: We ignore the return value of close(). This is because users calling
   // this function are interested in the return value of write(). Also an
@@ -288,13 +284,13 @@ inline Result<std::string> read(const std::string& path)
 }
 
 
-inline Try<bool> rm(const std::string& path)
+inline Try<Nothing> rm(const std::string& path)
 {
   if (::remove(path.c_str()) != 0) {
-    return Try<bool>::error(strerror(errno));
+    return Try<Nothing>::error(strerror(errno));
   }
 
-  return true;
+  return Nothing();
 }
 
 
@@ -368,7 +364,7 @@ inline Try<long> mtime(const std::string& path)
 }
 
 
-inline bool mkdir(const std::string& directory)
+inline Try<Nothing> mkdir(const std::string& directory)
 {
   try {
     std::vector<std::string> tokens = strings::tokenize(directory, "/");
@@ -382,39 +378,43 @@ inline bool mkdir(const std::string& directory)
     foreach (const std::string& token, tokens) {
       path += token;
       if (::mkdir(path.c_str(), 0755) < 0 && errno != EEXIST) {
-        PLOG(ERROR) << "Failed to make directory, mkdir";
-        return false;
+        return Try<Nothing>::error(
+            std::string("Failed to mkdir: ") + strerror(errno));
       }
       path += "/";
     }
   } catch (...) {
-    return false;
+    return Try<Nothing>::error("");
   }
 
-  return true;
+  return Nothing();
 }
 
 
 // Recursively deletes a directory akin to: 'rm -r'. Note that this
 // function expects an absolute path.
-inline bool rmdir(const std::string& directory)
+inline Try<Nothing> rmdir(const std::string& directory)
 {
   char* paths[] = {const_cast<char*>(directory.c_str()), NULL};
 
   FTS* tree = fts_open(paths, FTS_NOCHDIR, NULL);
   if (tree == NULL) {
-    return false;
+    return Try<Nothing>::error(strerror(errno));
   }
 
   FTSENT* node;
   while ((node = fts_read(tree)) != NULL) {
     switch (node->fts_info) {
       case FTS_DP:
-        ::rmdir(node->fts_path);
+        if (::rmdir(node->fts_path) < 0 && errno != ENOENT) {
+          return Try<Nothing>::error(strerror(errno));
+        }
         break;
       case FTS_F:
       case FTS_SL:
-        ::unlink(node->fts_path);
+        if (::unlink(node->fts_path) < 0 && errno != ENOENT) {
+          return Try<Nothing>::error(strerror(errno));
+        }
         break;
       default:
         break;
@@ -422,13 +422,18 @@ inline bool rmdir(const std::string& directory)
   }
 
   if (errno != 0) {
-    return false;
+    return Try<Nothing>::error(strerror(errno));
   }
 
-  return fts_close(tree) == 0;
+  if (fts_close(tree) < 0) {
+    return Try<Nothing>::error(strerror(errno));
+  }
+
+  return Nothing();
 }
 
 
+// TODO(bmahler): Clean these bool functions to return Try<Nothing>.
 // Changes the specified path's user and group ownership to that of
 // the specified user..
 inline bool chown(const std::string& user, const std::string& path)

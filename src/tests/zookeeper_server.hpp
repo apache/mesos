@@ -73,8 +73,10 @@ private:
     ~TemporaryDirectory()
     {
       jvm->deleteGlobalRef(file);
-      if (!os::rmdir(path)) {
-        LOG(WARNING) << "Failed to delete temp dir: " << path;
+      Try<Nothing> rmdir = os::rmdir(path);
+      if (rmdir.isError()) {
+        LOG(WARNING) << "Failed to delete temp dir '"
+                     << path << "': " << rmdir.error();
       }
     }
   };

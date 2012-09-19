@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
 
@@ -125,19 +126,19 @@ struct FileSystemTable {
 // @param   type      File system type (listed in /proc/filesystems).
 // @param   flags     Mount flags.
 // @param   data      Extra data interpreted by different file systems.
-// @return  Whether the mount operation successes.
-Try<bool> mount(const std::string& source,
-                const std::string& target,
-                const std::string& type,
-                unsigned long flags,
-                const void* data);
+// @return  Whether the mount operation succeeds.
+Try<Nothing> mount(const std::string& source,
+                   const std::string& target,
+                   const std::string& type,
+                   unsigned long flags,
+                   const void* data);
 
 
 // Unmount a file system.
 // @param   target    The (topmost) directory where the file system attaches.
 // @param   flags     Unmount flags.
-// @return  Whether the unmount operation successes.
-Try<bool> unmount(const std::string& target, int flags = 0);
+// @return  Whether the unmount operation succeeds.
+Try<Nothing> unmount(const std::string& target, int flags = 0);
 
 
 } // namespace fs {

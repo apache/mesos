@@ -353,37 +353,31 @@ TEST_F(StoutUtilsTest, nonblock)
   int pipes[2];
   ASSERT_NE(-1, pipe(pipes));
 
-  Try<bool> result = false;
+  Try<bool> isNonBlock = false;
 
-  result = os::isNonblock(pipes[0]);
-  ASSERT_TRUE(result.isSome());
-  EXPECT_FALSE(result.get());
+  isNonBlock = os::isNonblock(pipes[0]);
+  ASSERT_TRUE(isNonBlock.isSome());
+  EXPECT_FALSE(isNonBlock.get());
 
-  result = os::nonblock(pipes[0]);
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
+  ASSERT_TRUE(os::nonblock(pipes[0]).isSome());
 
-  result = os::isNonblock(pipes[0]);
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
+  isNonBlock = os::isNonblock(pipes[0]);
+  ASSERT_TRUE(isNonBlock.isSome());
+  EXPECT_TRUE(isNonBlock.get());
 
   close(pipes[0]);
   close(pipes[1]);
 
-  result = os::nonblock(pipes[0]);
-  EXPECT_TRUE(result.isError());
-
-  result = os::isNonblock(pipes[0]);
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(os::nonblock(pipes[0]).isError());
+  EXPECT_TRUE(os::nonblock(pipes[0]).isError());
 }
 
 
 TEST_F(StoutUtilsTest, touch)
 {
   const std::string& testfile  = tmpdir + "/" + UUID::random().toString();
-  Try<bool> result = os::touch(testfile);
 
-  ASSERT_TRUE(result.get());
+  ASSERT_TRUE(os::touch(testfile).isSome());
   ASSERT_TRUE(os::exists(testfile));
 }
 
@@ -393,8 +387,7 @@ TEST_F(StoutUtilsTest, readWriteString)
   const std::string& testfile  = tmpdir + "/" + UUID::random().toString();
   const std::string& teststr = "test";
 
-  Try<bool> result = os::write(testfile, teststr);
-  ASSERT_TRUE(result.get());
+  ASSERT_TRUE(os::write(testfile, teststr).isSome());
 
   Result<std::string> readstr = os::read(testfile);
 
@@ -407,16 +400,16 @@ TEST_F(StoutUtilsTest, find)
 {
   const std::string& testdir  = tmpdir + "/" + UUID::random().toString();
   const std::string& subdir = testdir + "/test1";
-  ASSERT_TRUE(os::mkdir(subdir)); // Create the directories.
+  ASSERT_TRUE(os::mkdir(subdir).isSome()); // Create the directories.
 
   // Now write some files.
   const std::string& file1 = testdir + "/file1.txt";
   const std::string& file2 = subdir + "/file2.txt";
   const std::string& file3 = subdir + "/file3.jpg";
 
-  ASSERT_TRUE(os::touch(file1).get());
-  ASSERT_TRUE(os::touch(file2).get());
-  ASSERT_TRUE(os::touch(file3).get());
+  ASSERT_TRUE(os::touch(file1).isSome());
+  ASSERT_TRUE(os::touch(file2).isSome());
+  ASSERT_TRUE(os::touch(file3).isSome());
 
   // Find "*.txt" files.
   Try<std::list<std::string> > result = os::find(testdir, ".txt");

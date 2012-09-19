@@ -1,6 +1,5 @@
 #include <errno.h>
 #include <ev.h>
-#include <fcntl.h>
 #include <limits.h>
 #include <libgen.h>
 #include <netdb.h>
@@ -634,25 +633,6 @@ void Clock::settle()
 }
 
 
-// TODO(bmahler): Kill this in favor of os::nonblock().
-int set_nbio(int fd)
-{
-  int flags;
-
-  /* If they have O_NONBLOCK, use the Posix way to do it. */
-#ifdef O_NONBLOCK
-  /* TODO(*): O_NONBLOCK is defined but broken on SunOS 4.1.x and AIX 3.2.5. */
-  if (-1 == (flags = fcntl(fd, F_GETFL, 0)))
-    flags = 0;
-  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-#else
-  /* Otherwise, use the old way of doing it. */
-  flags = 1;
-  return ioctl(fd, FIOBIO, &flags);
-#endif
-}
-
-
 static Message* encode(const UPID& from,
                        const UPID& to,
                        const string& name,
@@ -1107,14 +1087,18 @@ void accept(struct ev_loop* loop, ev_io* watcher, int revents)
     return;
   }
 
-  if (set_nbio(s) < 0) {
-    PLOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, set_nbio";
+  Try<Nothing> nonblock = os::nonblock(s);
+  if (nonblock.isError()) {
+    LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, nonblock: "
+                                << nonblock.error();
     close(s);
     return;
   }
 
-  if (fcntl(s, F_SETFD, FD_CLOEXEC)) {
-    PLOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, FD_CLOEXEC";
+  Try<Nothing> cloexec = os::cloexec(s);
+  if (cloexec.isError()) {
+    LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, cloexec: "
+                                << cloexec.error();
     close(s);
     return;
   }
@@ -1293,13 +1277,15 @@ void initialize(const string& delegate)
   }
 
   // Make socket non-blocking.
-  if (set_nbio(__s__) < 0) {
-    PLOG(FATAL) << "Failed to initialize, set_nbio";
+  Try<Nothing> nonblock = os::nonblock(__s__);
+  if (nonblock.isError()) {
+    LOG(FATAL) << "Failed to initialize, nonblock: " << nonblock.error();
   }
 
   // Set FD_CLOEXEC flag.
-  if (fcntl(__s__, F_SETFD, FD_CLOEXEC)) {
-    PLOG(FATAL) << "Failed to initialize, FD_CLOEXEC";
+  Try<Nothing> cloexec = os::cloexec(__s__);
+  if (cloexec.isError()) {
+    LOG(FATAL) << "Failed to initialize, cloexec: " << cloexec.error();
   }
 
   // Allow address reuse.
@@ -1630,12 +1616,14 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
         PLOG(FATAL) << "Failed to link, socket";
       }
 
-      if (set_nbio(s) < 0) {
-        PLOG(FATAL) << "Failed to link, set_nbio";
+      Try<Nothing> nonblock = os::nonblock(s);
+      if (nonblock.isError()) {
+        LOG(FATAL) << "Failed to link, nonblock: " << nonblock.error();
       }
 
-      if (fcntl(s, F_SETFD, FD_CLOEXEC)) {
-        PLOG(FATAL) << "Failed to link, FD_CLOEXEC";
+      Try<Nothing> cloexec = os::cloexec(s);
+      if (cloexec.isError()) {
+        LOG(FATAL) << "Failed to link, cloexec: " << cloexec.error();
       }
 
       Socket socket = Socket(s);
@@ -1785,12 +1773,14 @@ void SocketManager::send(Message* message)
         PLOG(FATAL) << "Failed to send, socket";
       }
 
-      if (set_nbio(s) < 0) {
-        PLOG(FATAL) << "Failed to send, set_nbio";
+      Try<Nothing> nonblock = os::nonblock(s);
+      if (nonblock.isError()) {
+        LOG(FATAL) << "Failed to send, nonblock: " << nonblock.error();
       }
 
-      if (fcntl(s, F_SETFD, FD_CLOEXEC)) {
-        PLOG(FATAL) << "Failed to send, FD_CLOEXEC";
+      Try<Nothing> cloexec = os::cloexec(s);
+      if (cloexec.isError()) {
+        LOG(FATAL) << "Failed to send, cloexec: " << cloexec.error();
       }
 
       sockets[s] = Socket(s);
@@ -3242,13 +3232,9 @@ Future<Response> get(const PID<>& pid, const string& query, const string& body)
         string("Failed to create socket: ") + strerror(errno));
   }
 
-  Try<bool> cloexec = os::cloexec(s);
+  Try<Nothing> cloexec = os::cloexec(s);
   if (!cloexec.isSome()) {
-    return Future<Response>::failed(
-        string("Failed to cloexec: ") + cloexec.error());
-  } else if (!cloexec.get()) {
-    // TODO(bmahler): Never happens, refactor later into Try<Nothing>.
-    return Future<Response>::failed("Failed to cloexec");
+    return Future<Response>::failed("Failed to cloexec: " + cloexec.error());
   }
 
   sockaddr_in addr;
@@ -3285,13 +3271,10 @@ Future<Response> get(const PID<>& pid, const string& query, const string& body)
     remaining -= n;
   }
 
-  Try<bool> nonblock = os::nonblock(s);
+  Try<Nothing> nonblock = os::nonblock(s);
   if (!nonblock.isSome()) {
     return Future<Response>::failed(
-        string("Failed to set nonblocking: ") + nonblock.error());
-  } else if (!nonblock.get()) {
-    // TODO(bmahler): Never happens, refactor later into Try<Nothing>.
-    return Future<Response>::failed("Failed to set nonblocking");
+        "Failed to set nonblock: " + nonblock.error());
   }
 
   // Decode once the async read completes.

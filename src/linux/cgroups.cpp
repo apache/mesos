@@ -56,6 +56,7 @@ namespace cgroups {
 namespace internal {
 
 
+// TODO(bmahler): Change all unnecessary Future<bool>'s to Future<Nothing>'s.
 // Snapshot a subsystem (modeled after a line in /proc/cgroups).
 struct SubsystemInfo
 {
@@ -150,21 +151,12 @@ static Try<std::map<std::string, SubsystemInfo> > subsystems()
 // are enabled in the current platform.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   subsystems  Comma-separated subsystem names.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<bool> mount(const std::string& hierarchy,
-                       const std::string& subsystems)
+static Try<Nothing> mount(const std::string& hierarchy,
+                          const std::string& subsystems)
 {
-  Try<bool> result = fs::mount(subsystems,
-                               hierarchy,
-                               "cgroup",
-                               0,
-                               subsystems.c_str());
-  if (result.isError()) {
-    return Try<bool>::error(result.error());
-  }
-
-  return true;
+  return fs::mount(subsystems, hierarchy, "cgroup", 0, subsystems.c_str());
 }
 
 
@@ -173,16 +165,11 @@ static Try<bool> mount(const std::string& hierarchy,
 // assumes the given hierarchy is currently mounted with a cgroups virtual file
 // system.
 // @param   hierarchy   Path to the hierarchy root.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<bool> unmount(const std::string& hierarchy)
+static Try<Nothing> unmount(const std::string& hierarchy)
 {
-  Try<bool> result = fs::unmount(hierarchy);
-  if (result.isError()) {
-    return Try<bool>::error(result.error());
-  }
-
-  return true;
+  return fs::unmount(hierarchy);
 }
 
 
@@ -195,18 +182,20 @@ static Try<bool> unmount(const std::string& hierarchy)
 // any of the parent cgroups does not exist.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<bool> createCgroup(const std::string& hierarchy,
-                              const std::string& cgroup)
+static Try<Nothing> createCgroup(const std::string& hierarchy,
+                                 const std::string& cgroup)
 {
   std::string path = hierarchy + "/" + cgroup;
-  if (::mkdir(path.c_str(), 0755) < 0) {
-    return Try<bool>::error(
-        "Failed to create cgroup at " + path + ": " + strerror(errno));
+  Try<Nothing> mkdir = os::mkdir(path);
+
+  if (mkdir.isError()) {
+    return Try<Nothing>::error(
+        "Failed to create cgroup at " + path + ": " + mkdir.error());
   }
 
-  return true;
+  return mkdir;
 }
 
 
@@ -218,18 +207,20 @@ static Try<bool> createCgroup(const std::string& hierarchy,
 // either processes or sub-cgroups inside.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<bool> removeCgroup(const std::string& hierarchy,
-                              const std::string& cgroup)
+static Try<Nothing> removeCgroup(const std::string& hierarchy,
+                                 const std::string& cgroup)
 {
   std::string path = hierarchy + "/" + cgroup;
-  if (::rmdir(path.c_str()) < 0) {
-    return Try<bool>::error(
-        "Failed to remove cgroup at " + path + ": " + strerror(errno));
+  Try<Nothing> rmdir = os::rmdir(path);
+
+  if (rmdir.isError()) {
+    return Try<Nothing>::error(
+        "Failed to remove cgroup at " + path + ": " + rmdir.error());
   }
 
-  return true;
+  return rmdir;
 }
 
 
@@ -275,18 +266,18 @@ static Try<std::string> readControl(const std::string& hierarchy,
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
 // @param   value       Value to be written.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<bool> writeControl(const std::string& hierarchy,
-                              const std::string& cgroup,
-                              const std::string& control,
-                              const std::string& value)
+static Try<Nothing> writeControl(const std::string& hierarchy,
+                                 const std::string& cgroup,
+                                 const std::string& control,
+                                 const std::string& value)
 {
   std::string path = hierarchy + "/" + cgroup + "/" + control;
   std::ofstream file(path.c_str());
 
   if (!file.is_open()) {
-    return Try<bool>::error("Failed to open file " + path);
+    return Try<Nothing>::error("Failed to open file " + path);
   }
 
   file << value << std::endl;
@@ -295,11 +286,11 @@ static Try<bool> writeControl(const std::string& hierarchy,
     // TODO(jieyu): Make sure that the way we get errno here is portable.
     std::string msg = strerror(errno);
     file.close();
-    return Try<bool>::error(msg);
+    return Try<Nothing>::error(msg);
   }
 
   file.close();
-  return true;
+  return Nothing();
 }
 
 } // namespace internal {
@@ -448,152 +439,156 @@ Try<std::set<std::string> > subsystems(const std::string& hierarchy)
 }
 
 
-Try<bool> createHierarchy(const std::string& hierarchy,
-                          const std::string& subsystems)
+Try<Nothing> createHierarchy(const std::string& hierarchy,
+                             const std::string& subsystems)
 {
   if (os::exists(hierarchy)) {
-    return Try<bool>::error(
+    return Try<Nothing>::error(
         hierarchy + " already exists in the file system");
   }
 
   // Make sure all subsystems are enabled.
   Try<bool> enabledResult = enabled(subsystems);
   if (enabledResult.isError()) {
-    return Try<bool>::error(enabledResult.error());
+    return Try<Nothing>::error(enabledResult.error());
   } else if (!enabledResult.get()) {
-    return Try<bool>::error("Some subsystems are not enabled");
+    return Try<Nothing>::error("Some subsystems are not enabled");
   }
 
   // Make sure none of the subsystems are busy.
   Try<bool> busyResult = busy(subsystems);
   if (busyResult.isError()) {
-    return Try<bool>::error(busyResult.error());
+    return Try<Nothing>::error(busyResult.error());
   } else if (busyResult.get()) {
-    return Try<bool>::error("Some subsystems are currently being attached");
+    return Try<Nothing>::error("Some subsystems are currently being attached");
   }
 
   // Create the directory for the hierarchy.
-  if (!os::mkdir(hierarchy)) {
-    return Try<bool>::error("Failed to create " + hierarchy);
+  Try<Nothing> mkdir = os::mkdir(hierarchy);
+  if (mkdir.isError()) {
+    return Try<Nothing>::error(
+        "Failed to create " + hierarchy + ": " + mkdir.error());
   }
 
   // Mount the virtual file system (attach subsystems).
-  Try<bool> mountResult = internal::mount(hierarchy, subsystems);
+  Try<Nothing> mountResult = internal::mount(hierarchy, subsystems);
   if (mountResult.isError()) {
+    // Ignore success or failure of rmdir.
     os::rmdir(hierarchy);
-    return Try<bool>::error(mountResult.error());
+    return mountResult;
   }
 
-  return true;
+  return Nothing();
 }
 
 
-Try<bool> removeHierarchy(const std::string& hierarchy)
+Try<Nothing> removeHierarchy(const std::string& hierarchy)
 {
-  Try<bool> check = checkHierarchy(hierarchy);
+  Try<Nothing> check = checkHierarchy(hierarchy);
   if (check.isError()) {
-    return Try<bool>::error(check.error());
+    return check;
   }
 
-  Try<bool> unmount = internal::unmount(hierarchy);
+  Try<Nothing> unmount = internal::unmount(hierarchy);
   if (unmount.isError()) {
-    return Try<bool>::error(unmount.error());
+    return unmount;
   }
 
-  if (!os::rmdir(hierarchy)) {
-    return Try<bool>::error("Failed to remove directory " + hierarchy);
+  Try<Nothing> rmdir = os::rmdir(hierarchy);
+  if (rmdir.isError()) {
+    return Try<Nothing>::error("Failed to rmdir " + hierarchy + rmdir.error());
   }
 
-  return true;
+  return Nothing();
 }
 
 
-Try<bool> checkHierarchy(const std::string& hierarchy)
+Try<Nothing> checkHierarchy(const std::string& hierarchy)
 {
   Try<std::set<std::string> > names = subsystems(hierarchy);
   if (names.isError()) {
-    return Try<bool>::error(names.error());
+    return Try<Nothing>::error(names.error());
   }
 
-  return true;
+  return Nothing();
 }
 
 
-Try<bool> checkHierarchy(const std::string& hierarchy,
-                         const std::string& subsystems)
+Try<Nothing> checkHierarchy(const std::string& hierarchy,
+                            const std::string& subsystems)
 {
   // Check if subsystems are enabled in the system.
   Try<bool> enabledResult = enabled(subsystems);
   if (enabledResult.isError()) {
-    return Try<bool>::error(enabledResult.error());
+    return Try<Nothing>::error(enabledResult.error());
   } else if (!enabledResult.get()) {
-    return Try<bool>::error("Some subsystems are not enabled");
+    return Try<Nothing>::error("Some subsystems are not enabled");
   }
 
   Try<std::set<std::string> > namesResult = cgroups::subsystems(hierarchy);
   if (namesResult.isError()) {
-    return Try<bool>::error(namesResult.error());
+    return Try<Nothing>::error(namesResult.error());
   }
 
   std::set<std::string> names = namesResult.get();
   foreach (const std::string& name, strings::tokenize(subsystems, ",")) {
     if (names.find(name) == names.end()) {
-      return Try<bool>::error(
+      return Try<Nothing>::error(
           "Subsystem " + name + " is not found or enabled");
     }
   }
 
-  return true;
+  return Nothing();
 }
 
 
-Try<bool> createCgroup(const std::string& hierarchy,
-                       const std::string& cgroup)
+Try<Nothing> createCgroup(const std::string& hierarchy,
+                          const std::string& cgroup)
 {
-  Try<bool> check = checkHierarchy(hierarchy);
+  Try<Nothing> check = checkHierarchy(hierarchy);
   if (check.isError()) {
-    return Try<bool>::error(check.error());
+    return check;
   }
 
   return internal::createCgroup(hierarchy, cgroup);
 }
 
 
-Try<bool> removeCgroup(const std::string& hierarchy,
-                       const std::string& cgroup)
+Try<Nothing> removeCgroup(const std::string& hierarchy,
+                          const std::string& cgroup)
 {
-  Try<bool> check = checkCgroup(hierarchy, cgroup);
+  Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
-    return Try<bool>::error(check.error());
+    return check;
   }
 
   Try<std::vector<std::string> > cgroups = getCgroups(hierarchy, cgroup);
   if (cgroups.isError()) {
-    return Try<bool>::error(cgroups.error());
+    return Try<Nothing>::error(cgroups.error());
   }
 
   if (!cgroups.get().empty()) {
-    return Try<bool>::error("Sub-cgroups exist in " + cgroup);
+    return Try<Nothing>::error("Sub-cgroups exist in " + cgroup);
   }
 
   return internal::removeCgroup(hierarchy, cgroup);
 }
 
 
-Try<bool> checkCgroup(const std::string& hierarchy,
-                      const std::string& cgroup)
+Try<Nothing> checkCgroup(const std::string& hierarchy,
+                         const std::string& cgroup)
 {
-  Try<bool> check = checkHierarchy(hierarchy);
+  Try<Nothing> check = checkHierarchy(hierarchy);
   if (check.isError()) {
-    return Try<bool>::error(check.error());
+    return check;
   }
 
   std::string path = hierarchy + "/" + cgroup;
   if (!os::exists(path)) {
-    return Try<bool>::error("Cgroup " + cgroup + " is not valid");
+    return Try<Nothing>::error("Cgroup " + cgroup + " is not valid");
   }
 
-  return true;
+  return Nothing();
 }
 
 
@@ -601,7 +596,7 @@ Try<std::string> readControl(const std::string& hierarchy,
                              const std::string& cgroup,
                              const std::string& control)
 {
-  Try<bool> check = checkControl(hierarchy, cgroup, control);
+  Try<Nothing> check = checkControl(hierarchy, cgroup, control);
   if (check.isError()) {
     return Try<std::string>::error(check.error());
   }
@@ -610,42 +605,42 @@ Try<std::string> readControl(const std::string& hierarchy,
 }
 
 
-Try<bool> writeControl(const std::string& hierarchy,
-                       const std::string& cgroup,
-                       const std::string& control,
-                       const std::string& value)
+Try<Nothing> writeControl(const std::string& hierarchy,
+                          const std::string& cgroup,
+                          const std::string& control,
+                          const std::string& value)
 {
-  Try<bool> check = checkControl(hierarchy, cgroup, control);
+  Try<Nothing> check = checkControl(hierarchy, cgroup, control);
   if (check.isError()) {
-    return Try<bool>::error(check.error());
+    return check;
   }
 
   return internal::writeControl(hierarchy, cgroup, control, value);
 }
 
 
-Try<bool> checkControl(const std::string& hierarchy,
-                       const std::string& cgroup,
-                       const std::string& control)
+Try<Nothing> checkControl(const std::string& hierarchy,
+                          const std::string& cgroup,
+                          const std::string& control)
 {
-  Try<bool> check = checkCgroup(hierarchy, cgroup);
+  Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
-    return Try<bool>::error(check.error());
+    return check;
   }
 
   std::string path = hierarchy + "/" + cgroup + "/" + control;
   if (!os::exists(path)) {
-    return Try<bool>::error("Control file " + path + " does not exist");
+    return Try<Nothing>::error("Control file " + path + " does not exist");
   }
 
-  return true;
+  return Nothing();
 }
 
 
 Try<std::vector<std::string> > getCgroups(const std::string& hierarchy,
                                           const std::string& cgroup)
 {
-  Try<bool> check = checkCgroup(hierarchy, cgroup);
+  Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
     return Try<std::vector<std::string> >::error(check.error());
   }
@@ -701,7 +696,7 @@ Try<std::vector<std::string> > getCgroups(const std::string& hierarchy,
 Try<std::set<pid_t> > getTasks(const std::string& hierarchy,
                                const std::string& cgroup)
 {
-  Try<bool> check = checkCgroup(hierarchy, cgroup);
+  Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
     return Try<std::set<pid_t> >::error(check.error());
   }
@@ -733,13 +728,13 @@ Try<std::set<pid_t> > getTasks(const std::string& hierarchy,
 }
 
 
-Try<bool> assignTask(const std::string& hierarchy,
-                     const std::string& cgroup,
-                     pid_t pid)
+Try<Nothing> assignTask(const std::string& hierarchy,
+                        const std::string& cgroup,
+                        pid_t pid)
 {
-  Try<bool> check = checkCgroup(hierarchy, cgroup);
+  Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
-    return Try<bool>::error(check.error());
+    return check;
   }
 
   return internal::writeControl(hierarchy,
@@ -773,16 +768,14 @@ static int eventfd(unsigned int initval, int flags)
 
   // Manually set CLOEXEC and NONBLOCK.
   if ((flags & EFD_CLOEXEC) != 0) {
-    Try<bool> cloexec = os::cloexec(fd);
-    if (cloexec.isError()) {
+    if (os::cloexec(fd).isError()) {
       os::close(fd);
       return -1;
     }
   }
 
   if ((flags & EFD_NONBLOCK) != 0) {
-    Try<bool> nonblock = os::nonblock(fd);
-    if (nonblock.isError()) {
+    if (os::nonblock(fd).isError()) {
       os::close(fd);
       return -1;
     }
@@ -836,10 +829,10 @@ static Try<int> openNotifier(const std::string& hierarchy,
   if (args.isSome()) {
     out << " " << args.get();
   }
-  Try<bool> write = internal::writeControl(hierarchy,
-                                           cgroup,
-                                           "cgroup.event_control",
-                                           out.str());
+  Try<Nothing> write = internal::writeControl(hierarchy,
+                                              cgroup,
+                                              "cgroup.event_control",
+                                              out.str());
   if (write.isError()) {
     os::close(efd);
     os::close(cfd.get());
@@ -854,9 +847,9 @@ static Try<int> openNotifier(const std::string& hierarchy,
 
 // Close a notifier. The parameter fd is the eventfd returned by openNotifier.
 // @param   fd      The eventfd returned by openNotifier.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<bool> closeNotifier(int fd)
+static Try<Nothing> closeNotifier(int fd)
 {
   return os::close(fd);
 }
@@ -915,7 +908,7 @@ protected:
 
     // Close the eventfd if needed.
     if (eventfd.isSome()) {
-      Try<bool> close = internal::closeNotifier(eventfd.get());
+      Try<Nothing> close = internal::closeNotifier(eventfd.get());
       if (close.isError()) {
         LOG(ERROR) << "Closing eventfd " << eventfd.get()
                    << " failed: " << close.error();
@@ -969,7 +962,7 @@ Future<uint64_t> listenEvent(const std::string& hierarchy,
                              const std::string& control,
                              const Option<std::string>& args)
 {
-  Try<bool> check = checkControl(hierarchy, cgroup, control);
+  Try<Nothing> check = checkControl(hierarchy, cgroup, control);
   if (check.isError()) {
     return Future<uint64_t>::failed(check.error());
   }
@@ -1030,10 +1023,10 @@ protected:
 private:
   void freeze()
   {
-    Try<bool> result = internal::writeControl(hierarchy,
-                                              cgroup,
-                                              "freezer.state",
-                                              "FROZEN");
+    Try<Nothing> result = internal::writeControl(hierarchy,
+                                                 cgroup,
+                                                 "freezer.state",
+                                                 "FROZEN");
     if (result.isError()) {
       promise.fail(result.error());
       terminate(self());
@@ -1044,10 +1037,10 @@ private:
 
   void thaw()
   {
-    Try<bool> result = internal::writeControl(hierarchy,
-                                              cgroup,
-                                              "freezer.state",
-                                              "THAWED");
+    Try<Nothing> result = internal::writeControl(hierarchy,
+                                                 cgroup,
+                                                 "freezer.state",
+                                                 "THAWED");
     if (result.isError()) {
       promise.fail(result.error());
       terminate(self());
@@ -1153,7 +1146,7 @@ Future<bool> freezeCgroup(const std::string& hierarchy,
                           const std::string& cgroup,
                           const Duration& interval)
 {
-  Try<bool> check = checkControl(hierarchy, cgroup, "freezer.state");
+  Try<Nothing> check = checkControl(hierarchy, cgroup, "freezer.state");
   if (check.isError()) {
     return Future<bool>::failed(check.error());
   }
@@ -1181,7 +1174,7 @@ Future<bool> thawCgroup(const std::string& hierarchy,
                         const std::string& cgroup,
                         const Duration& interval)
 {
-  Try<bool> check = checkControl(hierarchy, cgroup, "freezer.state");
+  Try<Nothing> check = checkControl(hierarchy, cgroup, "freezer.state");
   if (check.isError()) {
     return Future<bool>::failed(check.error());
   }
@@ -1390,12 +1383,12 @@ Future<bool> killTasks(const std::string& hierarchy,
                        const std::string& cgroup,
                        const Duration& interval)
 {
-  Try<bool> freezerCheck = checkHierarchy(hierarchy, "freezer");
+  Try<Nothing> freezerCheck = checkHierarchy(hierarchy, "freezer");
   if (freezerCheck.isError()) {
     return Future<bool>::failed(freezerCheck.error());
   }
 
-  Try<bool> cgroupCheck = checkCgroup(hierarchy, cgroup);
+  Try<Nothing> cgroupCheck = checkCgroup(hierarchy, cgroup);
   if (cgroupCheck.isError()) {
     return Future<bool>::failed(cgroupCheck.error());
   }
@@ -1474,7 +1467,7 @@ private:
   void remove()
   {
     foreach (const std::string& cgroup, cgroups) {
-      Try<bool> remove = internal::removeCgroup(hierarchy, cgroup);
+      Try<Nothing> remove = internal::removeCgroup(hierarchy, cgroup);
       if (remove.isError()) {
         promise.fail(remove.error());
         terminate(self());
@@ -1502,7 +1495,7 @@ Future<bool> destroyCgroup(const std::string& hierarchy,
                            const std::string& cgroup,
                            const Duration& interval)
 {
-  Try<bool> cgroupCheck = checkCgroup(hierarchy, cgroup);
+  Try<Nothing> cgroupCheck = checkCgroup(hierarchy, cgroup);
   if (cgroupCheck.isError()) {
     return Future<bool>::failed(cgroupCheck.error());
   }

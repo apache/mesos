@@ -28,6 +28,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/nothing.hpp>
 #include <stout/numify.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/utils.hpp>
@@ -74,8 +75,8 @@ class Storage
 public:
   virtual ~Storage() {}
   virtual Try<State> recover(const string& path) = 0;
-  virtual Try<void> persist(const Promise& promise) = 0;
-  virtual Try<void> persist(const Action& action) = 0;
+  virtual Try<Nothing> persist(const Promise& promise) = 0;
+  virtual Try<Nothing> persist(const Action& action) = 0;
   virtual Try<Action> read(uint64_t position) = 0;
 };
 
@@ -88,8 +89,8 @@ public:
   virtual ~LevelDBStorage();
 
   virtual Try<State> recover(const string& path);
-  virtual Try<void> persist(const Promise& promise);
-  virtual Try<void> persist(const Action& action);
+  virtual Try<Nothing> persist(const Promise& promise);
+  virtual Try<Nothing> persist(const Action& action);
   virtual Try<Action> read(uint64_t position);
 
 private:
@@ -321,7 +322,7 @@ Try<State> LevelDBStorage::recover(const string& path)
 }
 
 
-Try<void> LevelDBStorage::persist(const Promise& promise)
+Try<Nothing> LevelDBStorage::persist(const Promise& promise)
 {
   Stopwatch stopwatch;
   stopwatch.start();
@@ -336,23 +337,23 @@ Try<void> LevelDBStorage::persist(const Promise& promise)
   string value;
 
   if (!record.SerializeToString(&value)) {
-    return Try<void>::error("Failed to serialize record");
+    return Try<Nothing>::error("Failed to serialize record");
   }
 
   leveldb::Status status = db->Put(options, encode(0, false), value);
 
   if (!status.ok()) {
-    return Try<void>::error(status.ToString());
+    return Try<Nothing>::error(status.ToString());
   }
 
   LOG(INFO) << "Persisting promise (" << value.size()
             << " bytes) to leveldb took " << stopwatch.elapsed();
 
-  return Try<void>::some();
+  return Nothing();
 }
 
 
-Try<void> LevelDBStorage::persist(const Action& action)
+Try<Nothing> LevelDBStorage::persist(const Action& action)
 {
   Stopwatch stopwatch;
   stopwatch.start();
@@ -364,7 +365,7 @@ Try<void> LevelDBStorage::persist(const Action& action)
   string value;
 
   if (!record.SerializeToString(&value)) {
-    return Try<void>::error("Failed to serialize record");
+    return Try<Nothing>::error("Failed to serialize record");
   }
 
   leveldb::WriteOptions options;
@@ -373,7 +374,7 @@ Try<void> LevelDBStorage::persist(const Action& action)
   leveldb::Status status = db->Put(options, encode(action.position()), value);
 
   if (!status.ok()) {
-    return Try<void>::error(status.ToString());
+    return Try<Nothing>::error(status.ToString());
   }
 
   LOG(INFO) << "Persisting action (" << value.size()
@@ -430,7 +431,7 @@ Try<void> LevelDBStorage::persist(const Action& action)
     }
   }
 
-  return Try<void>::some();
+  return Nothing();
 }
 
 
@@ -937,7 +938,7 @@ void ReplicaProcess::learn(uint64_t position)
 
 bool ReplicaProcess::persist(const Promise& promise)
 {
-  Try<void> persisted = storage->persist(promise);
+  Try<Nothing> persisted = storage->persist(promise);
 
   if (persisted.isError()) {
     LOG(ERROR) << "Error writing to log: " << persisted.error();
@@ -952,7 +953,7 @@ bool ReplicaProcess::persist(const Promise& promise)
 
 bool ReplicaProcess::persist(const Action& action)
 {
-  Try<void> persisted = storage->persist(action);
+  Try<Nothing> persisted = storage->persist(action);
 
   if (persisted.isError()) {
     LOG(ERROR) << "Error writing to log: " << persisted.error();

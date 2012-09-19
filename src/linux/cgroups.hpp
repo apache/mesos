@@ -94,36 +94,36 @@ Try<std::set<std::string> > subsystems(const std::string& hierarchy);
 // virtual file system will be mounted with proper subsystems attached.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   subsystems  Comma-separated subsystem names.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<bool> createHierarchy(const std::string& hierarchy,
-                          const std::string& subsystems);
+Try<Nothing> createHierarchy(const std::string& hierarchy,
+                             const std::string& subsystems);
 
 
 // Remove a hierarchy and the directory associated with it. This function will
 // return error if the given hierarchy is not valid. Also, it will return error
 // if the given hierarchy has cgroups inside.
 // @param   hierarchy   Path to the hierarchy root.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<bool> removeHierarchy(const std::string& hierarchy);
+Try<Nothing> removeHierarchy(const std::string& hierarchy);
 
 
 // Check whether a given directory is a hierarchy root for cgroups.
 // @param   hierarchy   Path to the hierarchy root.
-// @return  True if the given directory is a hierarchy root.
+// @return  Some if the given directory is a hierarchy root.
 //          Error if the check fails.
-Try<bool> checkHierarchy(const std::string& hierarchy);
+Try<Nothing> checkHierarchy(const std::string& hierarchy);
 
 
 // Check whether a given directory is a hierarchy root for cgroups, and whether
 // it has proper subsystems attached.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   subsystems  Comma-separated subsystem names.
-// @return  True if the check succeeds.
+// @return  Some if the check succeeds.
 //          Error if the check fails.
-Try<bool> checkHierarchy(const std::string& hierarchy,
-                         const std::string& subsystems);
+Try<Nothing> checkHierarchy(const std::string& hierarchy,
+                            const std::string& subsystems);
 
 
 // Create a cgroup under a given hierarchy. This function will return error if
@@ -132,10 +132,10 @@ Try<bool> checkHierarchy(const std::string& hierarchy,
 // return error.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<bool> createCgroup(const std::string& hierarchy,
-                       const std::string& cgroup);
+Try<Nothing> createCgroup(const std::string& hierarchy,
+                          const std::string& cgroup);
 
 
 // Remove a cgroup under a given hierarchy. This function will return error if
@@ -145,18 +145,18 @@ Try<bool> createCgroup(const std::string& hierarchy,
 // given cgroup, the removal operation will also fail.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-Try<bool> removeCgroup(const std::string& hierarchy,
-                       const std::string& cgroup);
+Try<Nothing> removeCgroup(const std::string& hierarchy,
+                          const std::string& cgroup);
 
 
 // Check whether a given cgroup under a given hierarchy is valid. This function
 // will verify both the given hierarchy and the given cgroup.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @return  True if the check succeeds.
+// @return  Some if the check succeeds.
 //          Error if the check fails.
-Try<bool> checkCgroup(const std::string& hierarchy,
-                      const std::string& cgroup);
+Try<Nothing> checkCgroup(const std::string& hierarchy,
+                         const std::string& cgroup);
 
 
 // Read a control file. Control files are used to monitor and control cgroups.
@@ -178,12 +178,12 @@ Try<std::string> readControl(const std::string& hierarchy,
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
 // @param   value       Value to be written.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<bool> writeControl(const std::string& hierarchy,
-                       const std::string& cgroup,
-                       const std::string& control,
-                       const std::string& value);
+Try<Nothing> writeControl(const std::string& hierarchy,
+                          const std::string& cgroup,
+                          const std::string& control,
+                          const std::string& value);
 
 
 // Check whether a control file is valid under a given cgroup and a given
@@ -193,11 +193,11 @@ Try<bool> writeControl(const std::string& hierarchy,
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
-// @return  True if the check succeeds.
+// @return  Some if the check succeeds.
 //          Error if the check fails.
-Try<bool> checkControl(const std::string& hierarchy,
-                       const std::string& cgroup,
-                       const std::string& control);
+Try<Nothing> checkControl(const std::string& hierarchy,
+                          const std::string& cgroup,
+                          const std::string& control);
 
 
 // Return all the cgroups under the given cgroup of a given hierarchy. By
@@ -225,11 +225,11 @@ Try<std::set<pid_t> > getTasks(const std::string& hierarchy,
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   pid         The pid of the given process.
-// @return  True if the operation succeeds.
+// @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<bool> assignTask(const std::string& hierarchy,
-                     const std::string& cgroup,
-                     pid_t pid);
+Try<Nothing> assignTask(const std::string& hierarchy,
+                        const std::string& cgroup,
+                        pid_t pid);
 
 
 // Listen on an event notifier and return a future which will become ready when

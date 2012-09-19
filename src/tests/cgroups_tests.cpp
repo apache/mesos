@@ -68,8 +68,7 @@ protected:
 
   void cleanup()
   {
-    Try<bool> check = cgroups::checkHierarchy(hierarchy);
-    if (check.isSome()) {
+    if (cgroups::checkHierarchy(hierarchy).isSome()) {
       // Remove all cgroups.
       Try<std::vector<std::string> > cgroups = cgroups::getCgroups(hierarchy);
       ASSERT_TRUE(cgroups.isSome());
@@ -217,103 +216,69 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_SubsystemsHierarchy)
 
 TEST_F(CgroupsSimpleTest, ROOT_CGROUPS_CreateRemoveHierarchy)
 {
-  Try<bool> result = false;
+  EXPECT_TRUE(cgroups::createHierarchy("/tmp", "cpu").isError());
 
-  result = cgroups::createHierarchy("/tmp", "cpu");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::createHierarchy(hierarchy, "invalid").isError());
 
-  result = cgroups::createHierarchy(hierarchy, "invalid");
-  EXPECT_TRUE(result.isError());
+  ASSERT_TRUE(cgroups::createHierarchy(hierarchy, "cpu,memory").isSome());
 
-  result = cgroups::createHierarchy(hierarchy, "cpu,memory");
-  ASSERT_TRUE(result.isSome());
+  EXPECT_TRUE(cgroups::createHierarchy(hierarchy, "cpuset").isError());
 
-  result = cgroups::createHierarchy(hierarchy, "cpuset");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::removeHierarchy("/tmp").isError());
 
-  result = cgroups::removeHierarchy("/tmp");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::removeHierarchy(hierarchy);
-  ASSERT_TRUE(result.isSome());
+  ASSERT_TRUE(cgroups::removeHierarchy(hierarchy).isSome());
 }
 
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_CheckHierarchy)
 {
-  Try<bool> result = false;
+  EXPECT_TRUE(cgroups::checkHierarchy("/tmp-nonexist").isError());
 
-  result = cgroups::checkHierarchy("/tmp-nonexist");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::checkHierarchy("/tmp").isError());
 
-  result = cgroups::checkHierarchy("/tmp");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy).isSome());
 
-  result = cgroups::checkHierarchy(hierarchy);
-  EXPECT_TRUE(result.isSome());
+  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy + "/").isSome());
 
-  result = cgroups::checkHierarchy(hierarchy + "/");
-  EXPECT_TRUE(result.isSome());
-
-  result = cgroups::checkHierarchy(hierarchy + "/stu");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy + "/stu").isError());
 }
 
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_CheckHierarchySubsystems)
 {
-  Try<bool> result = false;
+  EXPECT_TRUE(cgroups::checkHierarchy("/tmp-nonexist", "cpu").isError());
 
-  result = cgroups::checkHierarchy("/tmp-nonexist", "cpu");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::checkHierarchy("/tmp", "cpu,memory").isError());
 
-  result = cgroups::checkHierarchy("/tmp", "cpu,memory");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::checkHierarchy("/tmp", "cpu").isError());
 
-  result = cgroups::checkHierarchy("/tmp", "cpu");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::checkHierarchy("/tmp", "invalid").isError());
 
-  result = cgroups::checkHierarchy("/tmp", "invalid");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy, "cpu,memory").isSome());
 
-  result = cgroups::checkHierarchy(hierarchy, "cpu,memory");
-  EXPECT_TRUE(result.isSome());
+  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy, "memory").isSome());
 
-  result = cgroups::checkHierarchy(hierarchy, "memory");
-  EXPECT_TRUE(result.isSome());
+  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy, "invalid").isError());
 
-  result = cgroups::checkHierarchy(hierarchy, "invalid");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::checkHierarchy(hierarchy + "/stu", "cpu");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy + "/stu", "cpu").isError());
 }
 
 
 TEST_F(CgroupsSimpleTest, ROOT_CGROUPS_CreateRemoveCgroup)
 {
-  Try<bool> result = false;
+  EXPECT_TRUE(cgroups::createCgroup("/tmp", "test").isError());
 
-  result = cgroups::createCgroup("/tmp", "test");
-  EXPECT_TRUE(result.isError());
+  ASSERT_TRUE(cgroups::createHierarchy(hierarchy, "cpu,memory").isSome());
 
-  result = cgroups::createHierarchy(hierarchy, "cpu,memory");
-  ASSERT_TRUE(result.isSome());
+  EXPECT_TRUE(cgroups::createCgroup(hierarchy, "test/1").isError());
 
-  result = cgroups::createCgroup(hierarchy, "test/1");
-  EXPECT_TRUE(result.isError());
+  ASSERT_TRUE(cgroups::createCgroup(hierarchy, "test").isSome());
 
-  result = cgroups::createCgroup(hierarchy, "test");
-  ASSERT_TRUE(result.isSome());
+  EXPECT_TRUE(cgroups::removeCgroup(hierarchy, "invalid").isError());
 
-  result = cgroups::removeCgroup(hierarchy, "invalid");
-  EXPECT_TRUE(result.isError());
+  ASSERT_TRUE(cgroups::removeCgroup(hierarchy, "test").isSome());
 
-  result = cgroups::removeCgroup(hierarchy, "test");
-  ASSERT_TRUE(result.isSome());
-
-  result = cgroups::removeHierarchy(hierarchy);
-  ASSERT_TRUE(result.isSome());
+  ASSERT_TRUE(cgroups::removeHierarchy(hierarchy).isSome());
 }
 
 
@@ -333,14 +298,14 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_ReadControl)
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_WriteControl)
 {
-  Try<bool> result = false;
   std::string pid = stringify(::getpid());
 
-  result = cgroups::writeControl(hierarchy, "/prof", "invalid", "invalid");
-  EXPECT_TRUE(result.isError());
+  EXPECT_TRUE(cgroups::writeControl(hierarchy,
+                                    "/prof",
+                                    "invalid",
+                                    "invalid").isError());
 
-  result = cgroups::writeControl(hierarchy, "/prof", "tasks", pid);
-  ASSERT_TRUE(result.isSome());
+  ASSERT_TRUE(cgroups::writeControl(hierarchy, "/prof", "tasks", pid).isSome());
 
   Try<std::set<pid_t> > tasks = cgroups::getTasks(hierarchy, "/prof");
   ASSERT_TRUE(tasks.isSome());
@@ -348,8 +313,7 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_WriteControl)
   std::set<pid_t> pids = tasks.get();
   EXPECT_NE(pids.find(::getpid()), pids.end());
 
-  result = cgroups::writeControl(hierarchy, "/", "tasks", pid);
-  ASSERT_TRUE(result.isSome());
+  ASSERT_TRUE(cgroups::writeControl(hierarchy, "/", "tasks", pid).isSome());
 }
 
 
@@ -392,19 +356,17 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_GetTasks)
 TEST_F(CgroupsTest, ROOT_CGROUPS_ListenEvent)
 {
   // Disable oom killer.
-  Try<bool> disableResult = cgroups::writeControl(hierarchy,
-                                                  "/prof",
-                                                  "memory.oom_control",
-                                                  "1");
-  ASSERT_TRUE(disableResult.isSome());
+  ASSERT_TRUE(cgroups::writeControl(hierarchy,
+                                    "/prof",
+                                    "memory.oom_control",
+                                    "1").isSome());
 
   // Limit the memory usage of "/prof" to 64MB.
   size_t limit = 1024 * 1024 * 64;
-  Try<bool> writeResult = cgroups::writeControl(hierarchy,
-                                                "/prof",
-                                                "memory.limit_in_bytes",
-                                                stringify(limit));
-  ASSERT_TRUE(writeResult.isSome());
+  ASSERT_TRUE(cgroups::writeControl(hierarchy,
+                                    "/prof",
+                                    "memory.limit_in_bytes",
+                                    stringify(limit)).isSome());
 
   // Listen on oom events for "/prof" cgroup.
   Future<uint64_t> future =
@@ -440,9 +402,9 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_ListenEvent)
   } else {
     // In child process. We try to trigger an oom here.
     // Put self into the "/prof" cgroup.
-    Try<bool> assignResult = cgroups::assignTask(hierarchy,
-                                                 "/prof",
-                                                 ::getpid());
+    Try<Nothing> assignResult = cgroups::assignTask(hierarchy,
+                                                    "/prof",
+                                                    ::getpid());
     if (assignResult.isError()) {
       FAIL() << "Failed to assign cgroup: " << assignResult.error();
     }
@@ -501,9 +463,9 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_Freezer)
     close(pipes[0]);
 
     // Put self into the "/prof" cgroup.
-    Try<bool> assign = cgroups::assignTask(hierarchy,
-                                           "/prof",
-                                           ::getpid());
+    Try<Nothing> assign = cgroups::assignTask(hierarchy,
+                                              "/prof",
+                                              ::getpid());
     if (assign.isError()) {
       FAIL() << "Failed to assign cgroup: " << assign.error();
     }
@@ -556,7 +518,7 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_KillTasks)
     ::fork();
 
     // Put self into "/prof" cgroup.
-    Try<bool> assign = cgroups::assignTask(hierarchy, "/prof", ::getpid());
+    Try<Nothing> assign = cgroups::assignTask(hierarchy, "/prof", ::getpid());
     if (assign.isError()) {
       FAIL() << "Failed to assign cgroup: " << assign.error();
     }
@@ -617,7 +579,7 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_DestroyCgroup)
     ::fork();
 
     // Put self into "/prof" cgroup.
-    Try<bool> assign = cgroups::assignTask(hierarchy, "/prof", ::getpid());
+    Try<Nothing> assign = cgroups::assignTask(hierarchy, "/prof", ::getpid());
     if (assign.isError()) {
       FAIL() << "Failed to assign cgroup: " << assign.error();
     }

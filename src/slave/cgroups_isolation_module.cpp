@@ -139,8 +139,7 @@ void CgroupsIsolationModule::initialize(
   }
 
   // Prepare the cgroups hierarchy root.
-  Try<bool> check = cgroups::checkHierarchy(hierarchy);
-  if (check.isError()) {
+  if (cgroups::checkHierarchy(hierarchy).isError()) {
     // The given hierarchy is not a cgroups hierarchy root. We will try to
     // create a cgroups hierarchy root there.
     if (os::exists(hierarchy)) {
@@ -176,8 +175,8 @@ void CgroupsIsolationModule::initialize(
     }
 
     // Create the cgroups hierarchy root.
-    Try<bool> create = cgroups::createHierarchy(hierarchy,
-                                                strings::trim(subsystems, ","));
+    Try<Nothing> create =
+        cgroups::createHierarchy(hierarchy, strings::trim(subsystems, ","));
     if (create.isError()) {
       LOG(FATAL) << "Failed to create cgroups hierarchy root at " << hierarchy
                  << ": " << create.error();
@@ -285,7 +284,7 @@ void CgroupsIsolationModule::launchExecutor(
   }
 
   // Create a new cgroup for the executor.
-  Try<bool> create =
+  Try<Nothing> create =
     cgroups::createCgroup(hierarchy, getCgroupName(frameworkId, executorId));
   if (create.isError()) {
     LOG(FATAL) << "Failed to create cgroup for executor " << executorId
@@ -316,7 +315,7 @@ void CgroupsIsolationModule::launchExecutor(
                << rootCpusetMems.error();
   }
 
-  Try<bool> setCpusetCpus =
+  Try<Nothing> setCpusetCpus =
     cgroups::writeControl(hierarchy,
                           getCgroupName(frameworkId, executorId),
                           "cpuset.cpus",
@@ -327,7 +326,7 @@ void CgroupsIsolationModule::launchExecutor(
                << ": " << setCpusetCpus.error();
   }
 
-  Try<bool> setCpusetMems =
+  Try<Nothing> setCpusetMems =
     cgroups::writeControl(hierarchy,
                           getCgroupName(frameworkId, executorId),
                           "cpuset.mems",
@@ -368,7 +367,7 @@ void CgroupsIsolationModule::launchExecutor(
   } else {
     // In child process.
     // Put self into the newly created cgroup.
-    Try<bool> assign =
+    Try<Nothing> assign =
       cgroups::assignTask(hierarchy,
                           getCgroupName(frameworkId, executorId),
                           ::getpid());
@@ -451,7 +450,7 @@ void CgroupsIsolationModule::resourcesChanged(
       // not depend on any subsystem, or the dependent subsystem is active.
       if (!resourceSubsystemMap.contains(name) ||
           activatedSubsystems.contains(resourceSubsystemMap[name])) {
-        Try<bool> result =
+        Try<Nothing> result =
           (this->*resourceChangedHandlers[name])(frameworkId,
                                                  executorId,
                                                  resources);
@@ -489,7 +488,7 @@ void CgroupsIsolationModule::processExited(pid_t pid, int status)
 }
 
 
-Try<bool> CgroupsIsolationModule::cpusChanged(
+Try<Nothing> CgroupsIsolationModule::cpusChanged(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const Resources& resources)
@@ -507,13 +506,13 @@ Try<bool> CgroupsIsolationModule::cpusChanged(
     size_t cpuShares =
       std::max((size_t)(CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
 
-    Try<bool> set =
+    Try<Nothing> set =
       cgroups::writeControl(hierarchy,
                             getCgroupName(frameworkId, executorId),
                             "cpu.shares",
                             stringify(cpuShares));
     if (set.isError()) {
-      return Try<bool>::error(set.error());
+      return set;
     }
 
     LOG(INFO) << "Write cpu.shares = " << cpuShares
@@ -521,11 +520,11 @@ Try<bool> CgroupsIsolationModule::cpusChanged(
               << " of framework " << frameworkId;
   }
 
-  return true;
+  return Nothing();
 }
 
 
-Try<bool> CgroupsIsolationModule::memChanged(
+Try<Nothing> CgroupsIsolationModule::memChanged(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const Resources& resources)
@@ -543,13 +542,13 @@ Try<bool> CgroupsIsolationModule::memChanged(
     size_t limitInBytes =
       std::max((size_t)mem, MIN_MEMORY_MB) * 1024LL * 1024LL;
 
-    Try<bool> set =
+    Try<Nothing> set =
       cgroups::writeControl(hierarchy,
                             getCgroupName(frameworkId, executorId),
                             "memory.limit_in_bytes",
                             stringify(limitInBytes));
     if (set.isError()) {
-      return Try<bool>::error(set.error());
+      return set;
     }
 
     LOG(INFO) << "Write memory.limit_in_bytes = " << limitInBytes
@@ -557,7 +556,7 @@ Try<bool> CgroupsIsolationModule::memChanged(
               << " of framework " << frameworkId;
   }
 
-  return true;
+  return Nothing();
 }
 
 

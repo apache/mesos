@@ -44,16 +44,15 @@ using process::http::Response;
 TEST_WITH_WORKDIR(FilesTest, AttachTest)
 {
   Files files;
-
-  ASSERT_TRUE(os::write("file", "body").get());
-  ASSERT_TRUE(os::mkdir("dir"));
+  ASSERT_TRUE(os::write("file", "body").isSome());
+  ASSERT_TRUE(os::mkdir("dir").isSome());
 
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "myname"));   // Valid file.
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("dir", "mydir"));     // Valid dir.
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "myname"));   // Re-attach.
   EXPECT_FUTURE_WILL_FAIL(files.attach("missing", "somename")); // Missing file.
 
-  ASSERT_TRUE(os::write("file2", "body").get());
+  ASSERT_TRUE(os::write("file2", "body").isSome());
 
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("file2", "myname"));  // Overwrite.
   EXPECT_FUTURE_WILL_FAIL(files.attach("$@", "foo"));           // Bad path.
@@ -64,7 +63,7 @@ TEST_WITH_WORKDIR(FilesTest, DetachTest)
 {
   Files files;
 
-  ASSERT_TRUE(os::write("file", "body").get());
+  ASSERT_TRUE(os::write("file", "body").isSome());
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "myname"));
 
   files.detach("myname");
@@ -98,7 +97,7 @@ TEST_WITH_WORKDIR(FilesTest, ReadTest)
       response);
 
   // Now write a file.
-  ASSERT_TRUE(os::write("file", "body").get());
+  ASSERT_TRUE(os::write("file", "body").isSome());
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "/myname"));
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "myname"));
 
@@ -131,9 +130,9 @@ TEST_WITH_WORKDIR(FilesTest, ResolveTest)
   const process::PID<>& pid = files.pid();
 
   // Test the directory / file resolution.
-  ASSERT_TRUE(os::mkdir("1/2"));
-  ASSERT_TRUE(os::write("1/two", "two").get());
-  ASSERT_TRUE(os::write("1/2/three", "three").get());
+  ASSERT_TRUE(os::mkdir("1/2").isSome());
+  ASSERT_TRUE(os::write("1/two", "two").isSome());
+  ASSERT_TRUE(os::write("1/2/three", "three").isSome());
 
   // Attach some paths.
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("1", "one"));
@@ -191,10 +190,10 @@ TEST_WITH_WORKDIR(FilesTest, BrowseTest)
   Files files;
   const process::PID<>& pid = files.pid();
 
-  ASSERT_TRUE(os::mkdir("1/2"));
-  ASSERT_TRUE(os::mkdir("1/3"));
-  ASSERT_TRUE(os::write("1/two", "two").get());
-  ASSERT_TRUE(os::write("1/three", "three").get());
+  ASSERT_TRUE(os::mkdir("1/2").isSome());
+  ASSERT_TRUE(os::mkdir("1/3").isSome());
+  ASSERT_TRUE(os::write("1/two", "two").isSome());
+  ASSERT_TRUE(os::write("1/three", "three").isSome());
 
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("1", "one"));
 

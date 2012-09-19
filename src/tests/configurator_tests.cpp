@@ -130,11 +130,11 @@ TEST(ConfiguratorTest, CommandLine)
 // Check whether specifying just MESOS_CONF allows a config file to be loaded
 TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithConfDir)
 {
-  ASSERT_TRUE(os::mkdir("conf2"));
+  ASSERT_TRUE(os::mkdir("conf2").isSome());
   ASSERT_TRUE(os::write("conf2/mesos.conf",
                         "test3=shake # sugar bomb\n"
                         "# just a comment\n"
-                        "test4=milk\n").get());
+                        "test4=milk\n").isSome());
 
   setenv("MESOS_CONF", "conf2", 1);
   Configurator conf;
@@ -150,12 +150,12 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithConfDir)
 // we load values from the config file first and then the command line
 TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
 {
-  ASSERT_TRUE(os::mkdir("bin"));
-  ASSERT_TRUE(os::mkdir("conf2"));
+  ASSERT_TRUE(os::mkdir("bin").isSome());
+  ASSERT_TRUE(os::mkdir("conf2").isSome());
   ASSERT_TRUE(os::write("conf2/mesos.conf",
                         "a=1\n"
                         "b=2\n"
-                        "c=3").get());
+                        "c=3").isSome());
 
   const int ARGC = 4;
   char* argv[ARGC];
@@ -180,13 +180,13 @@ TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
 // second should be environment variables, and last should be the file.
 TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
 {
-  ASSERT_TRUE(os::mkdir("bin"));
-  ASSERT_TRUE(os::mkdir("conf"));
+  ASSERT_TRUE(os::mkdir("bin").isSome());
+  ASSERT_TRUE(os::mkdir("conf").isSome());
   ASSERT_TRUE(os::write("conf/mesos.conf",
                         "a=fromFile\n"
                         "b=fromFile\n"
                         "c=fromFile\n"
-                        "d=fromFile\n").get());
+                        "d=fromFile\n").isSome());
 
   // Set environment to contain parameters a and b
   setenv("MESOS_A", "fromEnv", 1);
@@ -220,7 +220,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
 // Check that spaces before and after the = signs in config files are ignored
 TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileSpacesIgnored)
 {
-  ASSERT_TRUE(os::mkdir("conf"));
+  ASSERT_TRUE(os::mkdir("conf").isSome());
   ASSERT_TRUE(os::write("conf/mesos.conf",
                         "test1=coffee # beans are tasty\n"
                         "# just a comment\n"
@@ -230,7 +230,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileSpacesIgnored)
                         "test3=  water\n"
                         "   test4 =  milk\n"
                         "  test5 =  hot  chocolate\t\n"
-                        "\ttest6 =  juice# #\n").get());
+                        "\ttest6 =  juice# #\n").isSome());
 
   Configurator conf;
   setenv("MESOS_CONF", "conf", 1);
@@ -249,11 +249,11 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileSpacesIgnored)
 // Check that exceptions are thrown on invalid config file
 TEST_WITH_WORKDIR(ConfiguratorTest, MalformedConfigFile)
 {
-  ASSERT_TRUE(os::mkdir("conf"));
+  ASSERT_TRUE(os::mkdir("conf").isSome());
   ASSERT_TRUE(os::write("conf/mesos.conf",
                         "test1=coffee\n"
                         "JUNK\n"
-                        "test2=tea\n").get());
+                        "test2=tea\n").isSome());
 
   setenv("MESOS_CONF", "conf", 1);
   Configurator conf;

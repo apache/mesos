@@ -152,9 +152,10 @@ void initialize(const string& _argv0, const Flags& flags)
 
   // Set glog's parameters through Google Flags variables.
   if (flags.log_dir.isSome()) {
-    if (!os::mkdir(flags.log_dir.get())) {
+    Try<Nothing> mkdir = os::mkdir(flags.log_dir.get());
+    if (mkdir.isError()) {
       std::cerr << "Could not initialize logging: Failed to create directory "
-                << flags.log_dir.get() << std::endl;
+                << flags.log_dir.get() << ": " << mkdir.error() << std::endl;
       exit(1);
     }
     FLAGS_log_dir = flags.log_dir.get();

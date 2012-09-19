@@ -53,7 +53,7 @@ public:
   virtual ~GarbageCollectorProcess();
 
   // GarbageCollector implementation.
-  Future<bool> schedule(const Duration& d, const string& path);
+  Future<Nothing> schedule(const Duration& d, const string& path);
 
   void prune(const Duration& d);
 
@@ -62,11 +62,11 @@ private:
 
   struct PathInfo
   {
-    PathInfo(const string& _path, Promise<bool>* _promise)
+    PathInfo(const string& _path, Promise<Nothing>* _promise)
       : path(_path), promise(_promise) {}
 
     string path;
-    Promise<bool>* promise;
+    Promise<Nothing>* promise;
   };
 
   // Store all the paths that needed to be deleted after a given timeout.
@@ -90,13 +90,13 @@ GarbageCollectorProcess::~GarbageCollectorProcess()
 }
 
 
-Future<bool> GarbageCollectorProcess::schedule(
+Future<Nothing> GarbageCollectorProcess::schedule(
     const Duration& d,
     const string& path)
 {
   LOG(INFO) << "Scheduling " << path << " for removal";
 
-  Promise<bool>* promise = new Promise<bool>();
+  Promise<Nothing>* promise = new Promise<Nothing>();
 
   Timeout removalTime(d);
 
@@ -135,17 +135,18 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
   if (paths.count(removalTime) > 0) {
     foreach (const PathInfo& info, paths[removalTime]) {
       const string& path = info.path;
-      Promise<bool>* promise = info.promise;
+      Promise<Nothing>* promise = info.promise;
 
       LOG(INFO) << "Deleting " << path;
 
-      // TODO(benh): Check error conditions of 'rmdir', e.g., permission
-      // denied, file no longer exists, etc.
-      // TODO(vinod): Consider invoking rmdir via async.
-      bool result = os::rmdir(path);
-
-      VLOG(1) << "Deleted " << path;
-      promise->set(result);
+      Try<Nothing> result = os::rmdir(path);
+      if (result.isError()) {
+        LOG(WARNING) << "Failed to delete " << path << ": " << result.error();
+        promise->fail(result.error());
+      } else {
+        VLOG(1) << "Deleted " << path;
+        promise->set(result.get());
+      }
       delete promise;
     }
     paths.erase(removalTime);
@@ -187,7 +188,7 @@ GarbageCollector::~GarbageCollector()
 }
 
 
-Future<bool> GarbageCollector::schedule(
+Future<Nothing> GarbageCollector::schedule(
     const Duration& d,
     const string& path)
 {

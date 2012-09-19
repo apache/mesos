@@ -1587,8 +1587,9 @@ string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
   }
   out << maxrun;
 
-  bool created = os::mkdir(out.str());
-  CHECK(created) << "Error creating work directory " << out.str();
+  Try<Nothing> mkdir = os::mkdir(out.str());
+  CHECK(mkdir.isSome()) << "Error creating work directory '"
+                        << out.str() << "': " << mkdir.error();
 
   return out.str();
 }

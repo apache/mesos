@@ -24,6 +24,8 @@
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
@@ -49,7 +51,7 @@ public:
   // duration of time has elapsed and returns true if the file was
   // successfully removed and false if the file didn't exist (or an
   // error, e.g., permission denied).
-  process::Future<bool> schedule(const Duration& d, const std::string& path);
+  process::Future<Nothing> schedule(const Duration& d, const std::string& path);
 
   // Deletes all the directories, whose scheduled garbage collection time
   // is within the next 'd' duration of time.
