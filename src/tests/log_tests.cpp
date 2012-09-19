@@ -396,23 +396,7 @@ TEST(CoordinatorTest, AppendReadError)
 }
 
 
-// TODO(benh): The coordinator tests that rely on timeouts can't rely
-// on pausing the clock because when they get run with other tests
-// there could be some lingering timeouts that cause the clock to
-// advance such that the timeout within Coordinator::elect or
-// Coordinator::append get started beyond what we expect. If this
-// happens it doesn't matter what we "advance" the clock by, since
-// certain orderings might still cause the test to hang, waiting for a
-// future that started later than expected because the clock got
-// updated unknowingly. This would be solved if Coordinator was
-// actually a Process because then it would have a time associated
-// with it and all processes that it creates (transitively). There
-// might be a way to fix this by giving threads a similar role in
-// libprocess, but until that happens these tests do not use the clock
-// and are therefore disabled by default so as not to pause the tests
-// for random unknown periods of time (but can still be run manually).
-
-TEST(CoordinatorTest, DISABLED_ElectNoQuorum)
+TEST(CoordinatorTest, ElectNoQuorum)
 {
   const std::string path = os::getcwd() + "/.log";
 
@@ -426,16 +410,25 @@ TEST(CoordinatorTest, DISABLED_ElectNoQuorum)
 
   Coordinator coord(2, &replica, &network);
 
+  Clock::pause();
+
+  // Create a timeout here so that we can advance time.
+  Timeout timeout(Seconds(2.0));
+
+  Clock::advance(2.0);
+
   {
-    Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isNone());
+    Result<uint64_t> result = coord.elect(timeout);
+    EXPECT_TRUE(result.isNone());
   }
 
   os::rmdir(path);
+
+  Clock::resume();
 }
 
 
-TEST(CoordinatorTest, DISABLED_AppendNoQuorum)
+TEST(CoordinatorTest, AppendNoQuorum)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
@@ -459,13 +452,21 @@ TEST(CoordinatorTest, DISABLED_AppendNoQuorum)
     EXPECT_EQ(0u, result.get());
   }
 
-  network.remove(replica1.pid());
+  network.remove(replica2.pid());
+
+  Clock::pause();
+
+  // Create a timeout here so that we can advance time.
+  Timeout timeout(Seconds(2.0));
+
+  Clock::advance(2.0);
 
   {
-    Result<uint64_t> result =
-      coord.append("hello world", Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isNone());
+    Result<uint64_t> result = coord.append("hello world", timeout);
+    EXPECT_TRUE(result.isNone());
   }
+
+  Clock::resume();
 
   os::rmdir(path1);
   os::rmdir(path2);
@@ -499,7 +500,8 @@ TEST(CoordinatorTest, Failover)
   uint64_t position;
 
   {
-    Result<uint64_t> result = coord1.append("hello world", Timeout(Seconds(2.0)));
+    Result<uint64_t> result =
+      coord1.append("hello world", Timeout(Seconds(2.0)));
     ASSERT_TRUE(result.isSome());
     position = result.get();
     EXPECT_EQ(1u, position);
