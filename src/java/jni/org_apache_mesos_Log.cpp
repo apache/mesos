@@ -403,11 +403,12 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_00024Writer_initialize
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
+  Seconds seconds(jseconds);
+
   int retries = jretries;
 
   // Create the C++ Log::Writer and initialize the __writer variable.
-  Log::Writer* writer =
-    new Log::Writer(log, Timeout(Seconds(jseconds)), retries);
+  Log::Writer* writer = new Log::Writer(log, seconds, retries);
 
   clazz = env->GetObjectClass(thiz);
 

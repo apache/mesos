@@ -146,7 +146,7 @@ public:
     // one writer (local and remote) is valid at a time. A writer
     // becomes invalid if any operation returns an error, and a new
     // writer must be created in order perform subsequent operations.
-    Writer(Log* log, const Timeout& timeout, int retries = 3);
+    Writer(Log* log, const Duration& timeout, int retries = 3);
     ~Writer();
 
     // Attempts to append the specified data to the log. A none result
@@ -336,12 +336,12 @@ Log::Position Log::Reader::ending()
 }
 
 
-Log::Writer::Writer(Log* log, const Timeout& timeout, int retries)
+Log::Writer::Writer(Log* log, const Duration& timeout, int retries)
   : error(Option<std::string>::none()),
     coordinator(log->quorum, log->replica, log->network)
 {
   do {
-    Result<uint64_t> result = coordinator.elect(timeout);
+    Result<uint64_t> result = coordinator.elect(Timeout(timeout));
     if (result.isNone()) {
       retries--;
     } else if (result.isSome()) {

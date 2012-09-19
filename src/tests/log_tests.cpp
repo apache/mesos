@@ -1141,7 +1141,7 @@ TEST(LogTest, WriteRead)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, Timeout(Seconds(2.0)));
+  Log::Writer writer(&log, Seconds(2.0));
 
   Result<Log::Position> position =
     writer.append("hello world", Timeout(Seconds(2.0)));
@@ -1178,7 +1178,7 @@ TEST(LogTest, Position)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, Timeout(Seconds(2.0)));
+  Log::Writer writer(&log, Seconds(2.0));
 
   Result<Log::Position> position =
     writer.append("hello world", Timeout(Seconds(2.0)));
