@@ -38,9 +38,11 @@
 #include <stout/utils.hpp>
 
 #include "common/build.hpp"
+#include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 
 #include "slave/flags.hpp"
+#include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
 namespace params = std::tr1::placeholders;
@@ -56,42 +58,6 @@ using std::tr1::bind;
 namespace mesos {
 namespace internal {
 namespace slave {
-
-// // Represents a pending status update that has been sent and we are
-// // waiting for an acknowledgement. In pa
-
-// // stream of status updates for a framework/task. Note
-// // that these are stored in the slave rather than per Framework
-// // because a framework might go away before all of the status
-// // updates have been sent and acknowledged.
-// struct Slave::StatusUpdateStream
-// {
-//   StatusUpdateStreamID streamId;
-//   string directory;
-//   FILE* updates;
-//   FILE* acknowledged;
-//   queue<StatusUpdate> pending;
-//   double timeout;
-// };
-
-
-//   StatusUpdateStreamID id;
-
-
-
-//   queue<StatusUpdate> pending;
-//   double timeout;
-// };
-
-// Helper function that returns true if the task state is terminal
-bool isTerminalTaskState(TaskState state)
-{
-  return state == TASK_FINISHED ||
-    state == TASK_FAILED ||
-    state == TASK_KILLED ||
-    state == TASK_LOST;
-}
-
 
 Slave::Slave(const Resources& _resources,
              bool _local,
@@ -559,7 +525,8 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
   } else {
     // Launch an executor for this task.
     const string& directory =
-      createUniqueWorkDirectory(framework->id, executorId);
+        paths::createUniqueExecutorWorkDirectory(flags.work_dir, id,
+                                                 framework->id, executorId);
 
     LOG(INFO) << "Using '" << directory
               << "' as work directory for executor '" << executorId
@@ -754,77 +721,6 @@ void Slave::statusUpdateAcknowledgement(const SlaveID& slaveId,
 }
 
 
-// void Slave::statusUpdateAcknowledged(const SlaveID& slaveId,
-//                                      const FrameworkID& frameworkId,
-//                                      const TaskID& taskId,
-//                                      uint32_t sequence)
-// {
-//   StatusUpdateStreamID id(frameworkId, taskId);
-//   StatusUpdateStream* stream = getStatusUpdateStream(id);
-
-//   if (stream == NULL) {
-//     LOG(WARNING) << "WARNING! Received unexpected status update"
-//                  << " acknowledgement for task " << taskId
-//                  << " of framework " << frameworkId;
-//     return;
-//   }
-
-//   CHECK(!stream->pending.empty());
-
-//   const StatusUpdate& update = stream->pending.front();
-
-//   if (update->sequence() != sequence) {
-//     LOG(WARNING) << "WARNING! Received status update acknowledgement"
-//                  << " with bad sequence number (received " << sequence
-//                  << ", expecting " << update->sequence()
-//                  << ") for task " << taskId
-//                  << " of framework " << frameworkId;
-//   } else {
-//     LOG(INFO) << "Received status update acknowledgement for task "
-//               << taskId << " of framework " << frameworkId;
-
-//     // Write the update out to disk.
-//     CHECK(stream->acknowledged != NULL);
-
-//     Try<bool> result =
-//       utils::protobuf::write(stream->acknowledged, update);
-
-//     if (result.isError()) {
-//       // Failing here is rather dramatic, but so is not being able to
-//       // write to disk ... seems like failing early and often might do
-//       // more benefit than harm.
-//       LOG(FATAL) << "Failed to write status update to "
-//                  << stream->directory << "/acknowledged: "
-//                  << result.message();
-//     }
-
-//     stream->pending.pop();
-
-//     bool empty = stream->pending.empty();
-
-//     bool terminal =
-//       update.status().state() == TASK_FINISHED &&
-//       update.status().state() == TASK_FAILED &&
-//       update.status().state() == TASK_KILLED &&
-//       update.status().state() == TASK_LOST;
-
-//     if (empty && terminal) {
-//       cleanupStatusUpdateStream(stream);
-//     } else if (!empty && terminal) {
-//       LOG(WARNING) << "WARNING! Acknowledged a \"terminal\""
-//                    << " task status but updates are still pending";
-//     } else if (!empty) {
-//       StatusUpdateMessage message;
-//       message.mutable_update()->MergeFrom(stream->pending.front());
-//       message.set_reliable(true);
-//       send(master, message);
-
-//       stream->timeout = Clock::now() + STATUS_UPDATE_RETRY_INTERVAL;
-//     }
-//   }
-// }
-
-
 void Slave::registerExecutor(const FrameworkID& frameworkId,
                              const ExecutorID& executorId)
 {
@@ -904,126 +800,6 @@ void Slave::registerExecutor(const FrameworkID& frameworkId,
 }
 
 
-// void Slave::statusUpdate(const StatusUpdate& update)
-// {
-//   LOG(INFO) << "Received update that task " << update.status().task_id()
-//             << " of framework " << update.framework_id()
-//             << " is now in state " << update.status().state();
-
-//   Framework* framework = getFramework(update.framework_id());
-//   if (framework == NULL) {
-//     LOG(WARNING) << "WARNING! Failed to lookup"
-//                  << " framework " << update.framework_id()
-//                  << " of received status update";
-//     stats.invalidStatusUpdates++;
-//     return;
-//   }
-
-//   Executor* executor = framework->getExecutor(update.status().task_id());
-//   if (executor == NULL) {
-//     LOG(WARNING) << "WARNING! Failed to lookup executor"
-//                  << " for framework " << update.framework_id()
-//                  << " of received status update";
-//     stats.invalidStatusUpdates++;
-//     return;
-//   }
-
-//   // Create/Get the status update stream for this framework/task.
-//   StatusUpdateStreamID id(update.framework_id(), update.status().task_id());
-
-//   if (!statusUpdateStreams.contains(id)) {
-//     StatusUpdateStream* stream =
-//       createStatusUpdateStream(id, executor->directory);
-
-//     if (stream == NULL) {
-//       LOG(WARNING) << "WARNING! Failed to create status update"
-//                    << " stream for task " << update.status().task_id()
-//                    << " of framework " << update.framework_id()
-//                    << " ... removing executor!";
-//       removeExecutor(framework, executor);
-//       return;
-//     }
-//   }
-
-//   StatusUpdateStream* stream = getStatusUpdateStream(id);
-
-//   CHECK(stream != NULL);
-
-//   // If we are already waiting on an acknowledgement, check that this
-//   // update (coming from the executor), is the same one that we are
-//   // waiting on being acknowledged.
-
-//   // Check that this is status update has not already been
-//   // acknowledged. this could happen because a slave writes the
-//   // acknowledged message but then fails before it can pass the
-//   // message on to the executor, so the executor tries again.
-
-//   returnhere;
-
-//   // TODO(benh): Check that this update hasn't already been received
-//   // or acknowledged! This could happen if a slave receives a status
-//   // update from an executor, then crashes after it writes it to disk
-//   // but before it sends an ack back to
-
-//   // Okay, record this update as received.
-//   CHECK(stream->received != NULL);
-
-//   Result<bool> result =
-//     utils::protobuf::write(stream->received, &update);
-
-//   if (result.isError()) {
-//     // Failing here is rather dramatic, but so is not being able to
-//     // write to disk ... seems like failing early and often might do
-//     // more benefit than harm.
-//     LOG(FATAL) << "Failed to write status update to "
-//                << stream->directory << "/received: "
-//                << result.message();
-//   }
-
-//   // Now acknowledge the executor.
-//   StatusUpdateAcknowledgementMessage message;
-//   message.mutable_framework_id()->MergeFrom(update.framework_id());
-//   message.mutable_slave_id()->MergeFrom(update.slave_id());
-//   message.mutable_task_id()->MergeFrom(update.status().task_id());
-//   send(executor->pid, message);
-
-//   executor->updateTaskState(
-//       update.status().task_id(),
-//       update.status().state());
-
-//   // Remove the task if it's reached a terminal state.
-//   bool terminal =
-//     update.status().state() == TASK_FINISHED &&
-//     update.status().state() == TASK_FAILED &&
-//     update.status().state() == TASK_KILLED &&
-//     update.status().state() == TASK_LOST;
-
-//   if (terminal) {
-//     executor->removeTask(update.status().task_id());
-//     isolationModule->resourcesChanged(
-//         framework->id, framework->info,
-//         executor->info, executor->resources);
-//   }
-
-//   stream->pending.push(update);
-
-//   // Send the status update if this is the first in the
-//   // stream. Subsequent status updates will get sent in
-//   // Slave::statusUpdateAcknowledged.
-//   if (stream->pending.size() == 1) {
-//     CHECK(stream->timeout == -1);
-//     StatusUpdateMessage message;
-//     message.mutable_update()->MergeFrom(update);
-//     message.set_reliable(true);
-//     send(master, message);
-
-//     stream->timeout = Clock::now() + STATUS_UPDATE_RETRY_INTERVAL;
-//   }
-
-//   stats.tasks[status.state()]++;
-//   stats.validStatusUpdates++;
-// }
-
 void Slave::statusUpdate(const StatusUpdate& update)
 {
   const TaskStatus& status = update.status();
@@ -1039,7 +815,7 @@ void Slave::statusUpdate(const StatusUpdate& update)
       executor->updateTaskState(status.task_id(), status.state());
 
       // Handle the task appropriately if it's terminated.
-      if (isTerminalTaskState(status.state())) {
+      if (protobuf::isTerminalState(status.state())) {
         executor->removeTask(status.task_id());
 
         dispatch(isolationModule,
@@ -1140,32 +916,6 @@ void Slave::statusUpdateTimeout(
 }
 
 
-// void Slave::timeout()
-// {
-//   // Check and see if we should re-send any status updates.
-//   double now = Clock::now();
-
-//   foreachvalue (StatusUpdateStream* stream, statusUpdateStreams) {
-//     CHECK(stream->timeout > 0);
-//     if (stream->timeout < now) {
-//       CHECK(!stream->pending.empty());
-//       const StatusUpdate& update = stream->pending.front();
-
-//       LOG(WARNING) << "WARNING! Resending status update"
-//                 << " for task " << update.status().task_id()
-//                 << " of framework " << update.framework_id();
-
-//       StatusUpdateMessage message;
-//       message.mutable_update()->MergeFrom(update);
-//       message.set_reliable(true);
-//       send(master, message);
-
-//       stream->timeout = now + STATUS_UPDATE_RETRY_INTERVAL;
-//     }
-//   }
-// }
-
-
 void Slave::exited(const UPID& pid)
 {
   LOG(INFO) << "Process exited: " << from;
@@ -1186,174 +936,6 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
 
   return NULL;
 }
-
-
-// StatusUpdates* Slave::getStatusUpdateStream(const StatusUpdateStreamID& id)
-// {
-//   if (statusUpdateStreams.contains(id)) {
-//     return statusUpdateStreams[id];
-//   }
-
-//   return NULL;
-// }
-
-
-// StatusUpdateStream* Slave::createStatusUpdateStream(
-//     const FrameworkID& frameworkId,
-//     const TaskID& taskId,
-//     const string& directory)
-// {
-//   StatusUpdateStream* stream = new StatusUpdates();
-//   stream->id = id;
-//   stream->directory = directory;
-//   stream->received = NULL;
-//   stream->acknowledged = NULL;
-//   stream->timeout = -1;
-
-//   streams[id] = stream;
-
-//   // Open file descriptors for "updates" and "acknowledged".
-//   string path;
-//   Result<int> result;
-
-//   path = stream->directory + "/received";
-//   result = utils::os::open(path, O_CREAT | O_RDWR | O_SYNC);
-//   if (result.isError() || result.isNone()) {
-//     LOG(WARNING) << "Failed to open " << path
-//                  << " for storing received status updates";
-//     cleanupStatusUpdateStream(stream);
-//     return NULL;
-//   }
-
-//   stream->received = result.get();
-
-//   path = updates->directory + "/acknowledged";
-//   result = utils::os::open(path, O_CREAT | O_RDWR | O_SYNC);
-//   if (result.isError() || result.isNone()) {
-//     LOG(WARNING) << "Failed to open " << path <<
-//                  << " for storing acknowledged status updates";
-//     cleanupStatusUpdateStream(stream);
-//     return NULL;
-//   }
-
-//   stream->acknowledged = result.get();
-
-//   // Replay the status updates. This is necessary because the slave
-//   // might have crashed but was restarted before the executors
-//   // died. Or another task with the same id as before got run again on
-//   // the same executor.
-//   bool replayed = replayStatusUpdateStream(stream);
-
-//   if (!replayed) {
-//     LOG(WARNING) << "Failed to correctly replay status updates"
-//                  << " for task " << taskId
-//                  << " of framework " << frameworkId
-//                  << " found at " << path;
-//     cleanupStatusUpdateStream(stream);
-//     return NULL;
-//   }
-
-//   // Start sending any pending status updates. In this case, the slave
-//   // probably died after it sent the status update and never received
-//   // the acknowledgement.
-//   if (!stream->pending.empty()) {
-//     StatusUpdate* update = stream->pending.front();
-//     StatusUpdateMessage message;
-//     message.mutable_update()->MergeFrom(*update);
-//     message.set_reliable(true);
-//     send(master, message);
-
-//     stream->timeout = Clock::now() + STATUS_UPDATE_RETRY_INTERVAL;
-//   }
-
-//   return stream;
-// }
-
-
-// bool Slave::replayStatusUpdateStream(StatusUpdateStream* stream)
-// {
-//   CHECK(stream->received != NULL);
-//   CHECK(stream->acknowledged != NULL);
-
-//   Result<StatusUpdate*> result;
-
-//   // Okay, now read all the recevied status updates.
-//   hashmap<uint32_t, StatusUpdate> pending;
-
-//   result = utils::protobuf::read(stream->received);
-//   while (result.isSome()) {
-//     StatusUpdate* update = result.get();
-//     CHECK(!pending.contains(update->sequence()));
-//     pending[update->sequence()] = *update;
-//     delete update;
-//     result = utils::protobuf::read(stream->received);
-//   }
-
-//   if (result.isError()) {
-//     return false;
-//   }
-
-//   CHECK(result.isNone());
-
-//   LOG(INFO) << "Recovered " << pending.size()
-//             << " TOTAL status updates for task "
-//             << stream->id.second << " of framework "
-//             << stream->id.first;
-
-//   // Okay, now get all the acknowledged status updates.
-//   result = utils::protobuf::read(stream->acknowledged);
-//   while (result.isSome()) {
-//     StatusUpdate* update = result.get();
-//     stream->sequence = std::max(stream->sequence, update->sequence());
-//     CHECK(pending.contains(update->sequence()));
-//     pending.erase(update->sequence());
-//     delete update;
-//     result = utils::protobuf::read(stream->acknowledged);
-//   }
-
-//   if (result.isError()) {
-//     return false;
-//   }
-
-//   CHECK(result.isNone());
-
-//   LOG(INFO) << "Recovered " << pending.size()
-//             << " PENDING status updates for task "
-//             << stream->id.second << " of framework "
-//             << stream->id.first;
-
-//   // Add the pending status updates in sorted order.
-//   uint32_t sequence = 0;
-
-//   while (!pending.empty()) {
-//     // Find the smallest sequence number.
-//     foreachvalue (const StatusUpdate& update, pending) {
-//       sequence = std::min(sequence, update.sequence());
-//     }
-
-//     // Push that update and remove it from pending.
-//     stream->pending.push(pending[sequence]);
-//     pending.erase(sequence);
-//   }
-
-//   return true;
-// }
-
-
-// void Slave::cleanupStatusUpdateStream(StatusUpdateStream* stream)
-// {
-//   if (stream->received != NULL) {
-//     fclose(stream->received);
-//   }
-
-//   if (stream->acknowledged != NULL) {
-//     fclose(stream->acknowledged);
-//   }
-
-//   streams.erase(stream->id);
-
-//   delete stream;
-// }
 
 
 // N.B. When the slave is running in "local" mode then the pid is
@@ -1451,7 +1033,7 @@ void Slave::executorExited(const FrameworkID& frameworkId,
 
   // Transition all live tasks to TASK_LOST/TASK_FAILED.
   foreachvalue (Task* task, utils::copy(executor->launchedTasks)) {
-    if (!isTerminalTaskState(task->state())) {
+    if (!protobuf::isTerminalState(task->state())) {
       isCommandExecutor = !task->has_executor_id();
 
       transitionLiveTask(task->task_id(),
@@ -1543,58 +1125,6 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
 }
 
 
-// void Slave::recover()
-// {
-//   // if we find an executor that is no longer running and it's last
-//   // acknowledged task statuses are not terminal, create a
-//   // statusupdatestream for each task and try and reliably send
-//   // TASK_LOST updates.
-
-//   // otherwise once we reconnect the executor will just start sending
-//   // us status updates that we need to send, wait for ack, write to
-//   // disk, and then respond.
-// }
-
-
-string Slave::createUniqueWorkDirectory(const FrameworkID& frameworkId,
-                                        const ExecutorID& executorId)
-{
-  LOG(INFO) << "Generating a unique work directory for executor '"
-            << executorId << "' of framework " << frameworkId;
-
-  std::ostringstream out(std::ios_base::app | std::ios_base::out);
-  out << flags.work_dir
-      << "/slaves/" << id
-      << "/frameworks/" << frameworkId
-      << "/executors/" << executorId;
-
-  // Find a unique directory based on the path given by the slave
-  // (this is because we might launch multiple executors from the same
-  // framework on this slave).
-  // NOTE: The run number of the new directory will be the highest of
-  // all the existing run directories for this executor.
-  out << "/runs/";
-
-  int maxrun = 0;
-  foreach (const string& runStr, os::ls(out.str())) {
-    Try<int> run = numify<int>(runStr);
-    if (run.isError()) {
-      LOG(ERROR) << "Ignoring invalid run directory " << runStr;
-      continue;
-    }
-
-    maxrun = std::max(maxrun, run.get());
-  }
-  out << maxrun;
-
-  Try<Nothing> mkdir = os::mkdir(out.str());
-  CHECK(mkdir.isSome()) << "Error creating work directory '"
-                        << out.str() << "': " << mkdir.error();
-
-  return out.str();
-}
-
-
 // TODO(vinod): Figure out a way to express this function via cmd line.
 Duration Slave::age(double usage)
 {
@@ -1606,7 +1136,7 @@ void Slave::checkDiskUsage()
 {
   VLOG(1) << "Checking disk usage";
 
-  // TODO(vinod): We are making usage a Future, so that we can plug-in
+  // TODO(vinod): We are making usage a Future, so that we can plug in
   // os::usage() into async.
   Future<Try<double> > usage = os::usage();
 

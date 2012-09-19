@@ -33,6 +33,7 @@
 #include "slave/gc.hpp"
 #include "slave/http.hpp"
 #include "slave/isolation_module.hpp"
+#include "slave/state.hpp"
 
 #include "common/attributes.hpp"
 #include "common/resources.hpp"
@@ -155,19 +156,6 @@ protected:
                                const ExecutorID& executorId,
                                const UUID& uuid);
 
-//   // Create a new status update stream.
-//   StatusUpdates* createStatusUpdateStream(const StatusUpdateStreamID& streamId,
-//                                           const string& directory);
-
-//   StatusUpdates* getStatusUpdateStream(const StatusUpdateStreamID& streamId);
-
-  // Helper function for generating a unique work directory for this
-  // framework/executor pair (non-trivial since a framework/executor
-  // pair may be launched more than once on the same slave).
-  std::string createUniqueWorkDirectory(const FrameworkID& frameworkId,
-                                        const ExecutorID& executorId);
-
-
   // This function returns the max age of executor/slave directories allowed,
   // given a disk usage. This value could be used to tune gc.
   Duration age(double usage);
@@ -222,6 +210,8 @@ private:
   bool connected; // Flag to indicate if slave is registered.
 
   GarbageCollector gc;
+
+  state::SlaveState state;
 };
 
 
@@ -350,7 +340,7 @@ struct Framework
 
       // Now determine the path to the executor.
       Try<std::string> path = os::realpath(
-          path::join(flags.launcher_dir, "mesos-executor"));
+          ::path::join(flags.launcher_dir, "mesos-executor"));
 
       if (path.isSome()) {
         executor.mutable_command()->set_value(path.get());

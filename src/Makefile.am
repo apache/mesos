@@ -154,7 +154,7 @@ nodist_libmesos_no_third_party_la_SOURCES = $(CXX_PROTOS) $(MESSAGES_PROTOS)
 libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
 	master/allocator.cpp master/drf_sorter.cpp			\
 	master/frameworks_manager.cpp master/http.cpp master/master.cpp	\
-	master/slaves_manager.cpp slave/gc.cpp				\
+	master/slaves_manager.cpp slave/gc.cpp slave/state.cpp		\
 	slave/slave.cpp slave/http.cpp slave/isolation_module.cpp	\
 	slave/process_based_isolation_module.cpp slave/reaper.cpp	\
 	launcher/launcher.cpp exec/exec.cpp common/lock.cpp		\
@@ -207,6 +207,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/isolation_module.hpp slave/isolation_module_factory.hpp	\
 	slave/cgroups_isolation_module.hpp				\
 	slave/lxc_isolation_module.hpp					\
+	slave/paths.hpp slave/state.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
 	slave/webui.hpp tests/external_test.hpp				\
@@ -589,7 +590,7 @@ nodist_libjava_la_SOURCES =					\
 BUILT_SOURCES += java/jni/org_apache_mesos_MesosSchedulerDriver.h	\
 	java/jni/org_apache_mesos_MesosExecutorDriver.h			\
 	java/jni/org_apache_mesos_Log.h					\
-	java/jni/org_apache_mesos_state_Variable.h		\
+	java/jni/org_apache_mesos_state_Variable.h			\
 	java/jni/org_apache_mesos_state_ZooKeeperState.h
 
 
@@ -765,6 +766,7 @@ check_PROGRAMS += mesos-tests
 
 mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/master_tests.cpp tests/state_tests.cpp	\
+	              tests/slave_state_tests.cpp			\
 	              tests/gc_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\

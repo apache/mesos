@@ -282,9 +282,13 @@ struct stringify<T, false>
 template <typename T>
 struct stringify<T, true>
 {
-  stringify(const T& t) : s(::stringify(t)) {}
+  stringify(const T& _t) : s(::stringify(_t)) {}
   const char* get() { return s.c_str(); }
-  const std::string& s;
+
+  // NOTE: We need to do the copy here, because the temporary returned by
+  // ::stringify() doesn't outlive the get() call inside strings::format().
+  // TODO(vinod): Figure out a fix for using const ref here.
+  const std::string s;
 };
 
 

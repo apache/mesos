@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <glob.h>
 #include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
@@ -26,6 +27,8 @@
 #include <sys/utsname.h>
 
 #include <list>
+#include <set>
+#include <sstream>
 #include <string>
 
 #include "foreach.hpp"
@@ -180,6 +183,24 @@ inline Try<Nothing> touch(const std::string& path)
   // semantics as the touch utility (i.e., doesn't the utility change
   // the modified date)?
   return close(fd.get());
+}
+
+
+// Creates a temporary file under 'root' directory and returns its path.
+inline Try<std::string> mktemp(const std::string& root = "/tmp")
+{
+  const std::string path = root + "/XXXXXX";
+  char* temp = new char[path.size() + 1];
+
+  if (::mktemp(::strncpy(temp, path.c_str(), path.size())) != NULL) {
+    std::string result(temp);
+    delete temp;
+    return result;
+  } else {
+    delete temp;
+    return Try<std::string>::error(
+        std::string("Cannot create temporary file: ") + strerror(errno));
+  }
 }
 
 
@@ -390,6 +411,22 @@ inline Try<Nothing> mkdir(const std::string& directory)
   return Nothing();
 }
 
+// Creates a temporary directory under 'root' directory and returns its path.
+inline Try<std::string> mkdtemp(const std::string& root = "/tmp")
+{
+  const std::string path = root + "/XXXXXX";
+  char* temp = new char[path.size() + 1];
+
+  if (::mkdtemp(::strncpy(temp, path.c_str(), path.size())) != NULL) {
+    std::string result(temp);
+    delete temp;
+    return result;
+  } else {
+    delete temp;
+    return Try<std::string>::error(
+        std::string("Cannot create temporary directory: ") + strerror(errno));
+  }
+}
 
 // Recursively deletes a directory akin to: 'rm -r'. Note that this
 // function expects an absolute path.
@@ -722,6 +759,33 @@ inline Try<int> shell(std::ostream* os, const std::string& fmt, ...)
   }
 
   return status;
+}
+
+
+// Returns the list of files that match the given (shell) pattern.
+inline Try<std::list<std::string> > glob(const std::string& pattern)
+{
+  glob_t g;
+  int status = ::glob(pattern.c_str(), GLOB_NOSORT, NULL, &g);
+
+  std::list<std::string> result;
+
+  if (status != 0) {
+    if (status == GLOB_NOMATCH) {
+      return result; // Empty list.
+    } else {
+      return Try<std::list<std::string> >::error(
+          "Error globbing pattern '" + pattern + "':" + strerror(errno));
+    }
+  }
+
+  for (size_t i = 0; i < g.gl_pathc; ++i) {
+    result.push_back(g.gl_pathv[i]);
+  }
+
+  globfree(&g); // Best-effort free of dynamically allocated memory.
+
+  return result;
 }
 
 
