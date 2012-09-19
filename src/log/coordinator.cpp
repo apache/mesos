@@ -54,7 +54,7 @@ Coordinator::~Coordinator() {}
 Result<uint64_t> Coordinator::elect(const Timeout& timeout)
 {
   LOG(INFO) << "Coordinator attempting to get elected within "
-            << timeout.remaining() << " seconds";
+            << timeout.remaining();
 
   if (elected) {
     // TODO(benh): No-op instead of error?
@@ -221,7 +221,7 @@ Result<uint64_t> Coordinator::write(
   LOG(INFO) << "Coordinator attempting to write "
             << Action::Type_Name(action.type())
             << " action at position " << action.position()
-            << " within " << timeout.remaining() << " seconds";
+            << " within " << timeout.remaining();
 
   CHECK(elected);
 
