@@ -139,7 +139,7 @@ Future<Response> FilesProcess::browse(const Request& request)
   // The result will be a sorted (on path) array of files and dirs:
   // [{"name": "README", "path": "dir/README" "dir":False, "size":42}, ...]
   map<string, JSON::Object> files;
-  foreach(const string& filename, os::ls(resolvedPath.get())) {
+  foreach (const string& filename, os::ls(resolvedPath.get())) {
     struct stat s;
     string fullPath = path::join(resolvedPath.get(), filename);
 

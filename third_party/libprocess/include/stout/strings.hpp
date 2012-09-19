@@ -140,6 +140,23 @@ inline std::map<std::string, std::vector<std::string> > pairs(
 }
 
 
+// Returns a string which is the concatenation of the strings in
+// items, the separator is inserted between elements.
+inline std::string join(const std::vector<std::string>& items,
+                        const std::string& separator = "") {
+  if (items.empty()) {
+    return "";
+  }
+
+  std::string result = items[0];
+  for (size_t i = 1; i < items.size(); ++i) {
+    result.append(separator);
+    result.append(items[i]);
+  }
+  return result;
+}
+
+
 inline bool checkBracketsMatching(
     const std::string& s,
     const char openBracket,

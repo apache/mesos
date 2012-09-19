@@ -32,6 +32,25 @@ using std::vector;
 
 
 namespace mesos {
+
+
+std::ostream& operator << (std::ostream& stream, const Attribute& attribute)
+{
+  stream << attribute.name() << "=";
+  switch (attribute.type()) {
+    case Value::SCALAR: stream << attribute.scalar(); break;
+    case Value::RANGES: stream << attribute.ranges(); break;
+    case Value::SET:    stream << attribute.set();    break;
+    case Value::TEXT:   stream << attribute.text();   break;
+    default:
+      LOG(FATAL) << "Unexpected Value type: " << attribute.type();
+      break;
+  }
+
+  return stream;
+}
+
+
 namespace internal {
 
 Attribute Attributes::parse(const std::string& name, const std::string& text)

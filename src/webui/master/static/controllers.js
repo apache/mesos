@@ -1,11 +1,63 @@
 'use strict';
 
+var slaves = [];
+
+
+// Table Object.
+//   selected_column: column predicate for the selected column.
+//   reverse:         boolean indicating sort order.
+function Table(selected_column) {
+  if (this instanceof Table) {
+    this.selected_column = selected_column;
+    this.reverse = true;
+  } else {
+    return new Table(selected_column);
+  }
+}
+
+
 function hasSelectedText () {
   if (window.getSelection) {  // All browsers except IE before version 9.
     var range = window.getSelection();
     return range.toString().length > 0;
   }
   return false;
+}
+
+
+// Returns a curried function for returning the HTML 'class=' tag
+// attribute value for sorting table columns in the provided scope.
+function columnClass($scope) {
+  // For the given table column, this behaves as follows:
+  // Column unselected            : ''
+  // Column selected / descending : 'descending'
+  // Column selected / ascending  : 'ascending'
+  return function(table, column) {
+    if ($scope.tables[table].selected_column === column) {
+      if ($scope.tables[table].reverse) {
+        return 'descending';
+      } else {
+        return 'ascending';
+      }
+    }
+    return '';
+  }
+}
+
+
+// Returns a curried function to be called when a table column is clicked
+// in the provided scope.
+function selectColumn($scope) {
+  // Assigns the given table column as the sort column, flipping the
+  // sort order if the sort column has not changed.
+  return function(table, column) {
+    if ($scope.tables[table].selected_column === column) {
+      $scope.tables[table].reverse = !$scope.tables[table].reverse;
+    } else {
+      $scope.tables[table].reverse = true;
+    }
+    $scope.tables[table].selected_column = column;
+  }
 }
 
 
@@ -86,6 +138,16 @@ function update($scope, $defer, data) {
   $scope.offered_cpus = 0;
   $scope.offered_mem = 0;
 
+  $scope.staged_tasks = $scope.state.staged_tasks;
+  $scope.started_tasks = $scope.state.started_tasks;
+  $scope.finished_tasks = $scope.state.finished_tasks;
+  $scope.killed_tasks = $scope.state.killed_tasks;
+  $scope.failed_tasks = $scope.state.failed_tasks;
+  $scope.lost_tasks = $scope.state.lost_tasks;
+
+  $scope.activated_slaves = $scope.state.activated_slaves;
+  $scope.connected_slaves = $scope.state.connected_slaves;
+
   _.each($scope.slaves, function(slave) {
     $scope.total_cpus += slave.resources.cpus;
     $scope.total_mem += slave.resources.mem;
@@ -94,6 +156,8 @@ function update($scope, $defer, data) {
   _.each($scope.frameworks, function(framework) {
       $scope.used_cpus += framework.resources.cpus;
       $scope.used_mem += framework.resources.mem;
+      $scope.active_tasks += framework.tasks.length;
+      $scope.completed_tasks += framework.completed_tasks.length;
 
       framework.cpus_share = 0;
       if ($scope.total_cpus > 0) {
@@ -111,6 +175,8 @@ function update($scope, $defer, data) {
   _.each($scope.offers, function(offer) {
     $scope.offered_cpus += offer.resources.cpus;
     $scope.offered_mem += offer.resources.mem;
+    offer.framework_name = $scope.frameworks[offer.framework_id].name;
+    offer.hostname = $scope.slaves[offer.slave_id].hostname;
   });
 
   $scope.used_cpus -= $scope.offered_cpus;
@@ -136,6 +202,11 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
   // Turn off the loading gif, turn on the navbar.
   $("#loading").hide();
   $("#navbar").show();
+
+  // Adding bindings into scope so that they can be used from within
+  // AngularJS expressions.
+  $scope._ = _;
+  $scope.stringify = JSON.stringify;
 
   // Initialize popovers and bind the function used to show a popover.
   Popovers.initialize();
@@ -197,6 +268,15 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
 function HomeCtrl($scope) {
   setNavbarActiveTab('home');
 
+  $scope.tables = {};
+  $scope.tables['frameworks'] = new Table('id');
+  $scope.tables['slaves'] = new Table('id');
+  $scope.tables['offers'] = new Table('id');
+  $scope.tables['completed_frameworks'] = new Table('id');
+
+  $scope.columnClass = columnClass($scope);
+  $scope.selectColumn = selectColumn($scope);
+
   $scope.log = function($event) {
     if (!$scope.state.log_dir) {
       $('#no-log-dir-modal').modal('show');
@@ -217,7 +297,7 @@ function HomeCtrl($scope) {
 
 function DashboardCtrl($scope) {
   setNavbarActiveTab('dashboard');
-  
+
   var context = cubism.context()
     .step(1000)
     .size(1440);
@@ -235,11 +315,24 @@ function DashboardCtrl($scope) {
 
 function FrameworksCtrl($scope) {
   setNavbarActiveTab('frameworks');
+
+  $scope.tables = {};
+  $scope.tables['frameworks'] = new Table('id');
+
+  $scope.columnClass = columnClass($scope);
+  $scope.selectColumn = selectColumn($scope);
 }
 
 
 function FrameworkCtrl($scope, $routeParams) {
   setNavbarActiveTab('frameworks');
+
+  $scope.tables = {};
+  $scope.tables['active_tasks'] = new Table('id');
+  $scope.tables['completed_tasks'] = new Table('id');
+
+  $scope.columnClass = columnClass($scope);
+  $scope.selectColumn = selectColumn($scope);
 
   var update = function() {
     if ($routeParams.id in $scope.completed_frameworks) {
@@ -267,6 +360,12 @@ function FrameworkCtrl($scope, $routeParams) {
 
 function SlavesCtrl($scope) {
   setNavbarActiveTab('slaves');
+
+  $scope.tables = {};
+  $scope.tables['slaves'] = new Table('id');
+
+  $scope.columnClass = columnClass($scope);
+  $scope.selectColumn = selectColumn($scope);
 }
 
 

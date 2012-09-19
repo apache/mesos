@@ -147,28 +147,14 @@ Resource& operator -= (Resource& left, const Resource& right)
 ostream& operator << (ostream& stream, const Resource& resource)
 {
   stream << resource.name() << "=";
-  if (resource.type() == Value::SCALAR) {
-    stream << resource.scalar().value();
-  } else if (resource.type() == Value::RANGES) {
-    stream << "[";
-    for (int i = 0; i < resource.ranges().range_size(); i++) {
-      stream << resource.ranges().range(i).begin()
-             << "-"
-             << resource.ranges().range(i).end();
-      if (i + 1 < resource.ranges().range_size()) {
-        stream << ", ";
-      }
-    }
-    stream << "]";
-  } else if (resource.type() == Value::SET) {
-    stream << "{";
-    for (int i = 0; i < resource.set().item_size(); i++) {
-      stream << resource.set().item(i);
-      if (i + 1 < resource.set().item_size()) {
-        stream << ", ";
-      }
-    }
-    stream << "}";
+
+  switch (resource.type()) {
+    case Value::SCALAR: stream << resource.scalar(); break;
+    case Value::RANGES: stream << resource.ranges(); break;
+    case Value::SET:    stream << resource.set();    break;
+    default:
+      LOG(FATAL) << "Unexpected Value type: " << resource.type();
+      break;
   }
 
   return stream;

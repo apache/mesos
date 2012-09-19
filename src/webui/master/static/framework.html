@@ -62,14 +62,26 @@
     <table class="table table-striped table-bordered table-condensed">
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Name</th>
-          <th>State</th>
-          <th>Host</th>
+          <th ng-class="columnClass('active_tasks', 'id')"
+              ng-click="selectColumn('active_tasks', 'id')">
+            <a href="">ID</a>
+          </th>
+          <th ng-class="columnClass('active_tasks', 'name')"
+              ng-click="selectColumn('active_tasks', 'name')">
+            <a href="">Name</a>
+          </th>
+          <th ng-class="columnClass('active_tasks', 'state')"
+              ng-click="selectColumn('active_tasks', 'state')">
+            <a href="">State</a>
+          </th>
+          <th ng-class="columnClass('active_tasks', 'host')"
+              ng-click="selectColumn('active_tasks', 'host')">
+            <a href="">Host</a>
+          </th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="task in framework.tasks">
+        <tr ng-repeat="task in framework.tasks | orderBy:tables['active_tasks'].selected_column:tables['active_tasks'].reverse">
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
@@ -82,18 +94,30 @@
       </tbody>
     </table>
 
-    <h2 id="frameworks">Terminated Tasks</h2>
+    <h2 id="frameworks">Completed Tasks</h2>
     <table class="table table-striped table-bordered table-condensed">
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Name</th>
-          <th>State</th>
-          <th>Host</th>
+          <th ng-class="columnClass('completed_tasks', 'id')"
+              ng-click="selectColumn('completed_tasks', 'id')">
+            <a href="">ID</a>
+          </th>
+          <th ng-class="columnClass('completed_tasks', 'name')"
+              ng-click="selectColumn('completed_tasks', 'name')">
+            <a href="">Name</a>
+          </th>
+          <th ng-class="columnClass('completed_tasks', 'state')"
+              ng-click="selectColumn('completed_tasks', 'state')">
+            <a href="">State</a>
+          </th>
+          <th ng-class="columnClass('completed_tasks', 'host')"
+              ng-click="selectColumn('completed_tasks', 'host')">
+            <a href="">Host</a>
+          </th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="task in framework.completed_tasks">
+        <tr ng-repeat="task in framework.completed_tasks | orderBy:tables['completed_tasks'].selected_column:tables['completed_tasks'].reverse">
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>

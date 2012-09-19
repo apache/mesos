@@ -134,6 +134,12 @@ Try<Value> parse(const std::string& text) {
 } // namespace internal {
 
 
+ostream& operator << (ostream& stream, const Value::Scalar& scalar)
+{
+  return stream << scalar.value();
+}
+
+
 bool operator == (const Value::Scalar& left, const Value::Scalar& right)
 {
   return left.value() == right.value();
@@ -287,6 +293,20 @@ static void remove(Value::Ranges* ranges, const Value::Range& range)
 }
 
 
+ostream& operator << (ostream& stream, const Value::Ranges& ranges)
+{
+  stream << "[";
+  for (int i = 0; i < ranges.range_size(); i++) {
+    stream << ranges.range(i).begin() << "-" << ranges.range(i).end();
+    if (i + 1 < ranges.range_size()) {
+      stream << ", ";
+    }
+  }
+  stream << "]";
+  return stream;
+}
+
+
 bool operator == (const Value::Ranges& _left, const Value::Ranges& _right)
 {
   Value::Ranges left;
@@ -400,6 +420,20 @@ Value::Ranges& operator -= (Value::Ranges& left, const Value::Ranges& right)
   }
 
   return left;
+}
+
+
+ostream& operator << (ostream& stream, const Value::Set& set)
+{
+  stream << "{";
+  for (int i = 0; i < set.item_size(); i++) {
+    stream << set.item(i);
+    if (i + 1 < set.item_size()) {
+      stream << ", ";
+    }
+  }
+  stream << "}";
+  return stream;
 }
 
 
@@ -543,6 +577,13 @@ Value::Set& operator -= (Value::Set& left, const Value::Set& right)
 
   return left;
 }
+
+
+ostream& operator << (ostream& stream, const Value::Text& value)
+{
+  return stream << value.value();
+}
+
 
 bool operator == (const Value::Text& left, const Value::Text& right)
 {

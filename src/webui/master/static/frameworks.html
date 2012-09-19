@@ -13,19 +13,46 @@
     <table class="table table-striped table-bordered table-condensed">
       <thead>
         <tr>
-          <th>ID</th>
-          <th>User</th>
-          <th>Name</th>
-          <th>Active Tasks</th>
-          <th>CPUs</th>
-          <th>Mem</th>
-          <th>Max Share</th>
-          <th>Registered</th>
-          <th>Reregistered</th>
+          <th ng-class="columnClass('frameworks', 'id')"
+              ng-click="selectColumn('frameworks', 'id')">
+            <a href="">ID</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'user')"
+              ng-click="selectColumn('frameworks', 'user')">
+            <a href="">User</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'name')"
+              ng-click="selectColumn('frameworks', 'name')">
+            <a href="">Name</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'tasks.length')"
+              ng-click="selectColumn('frameworks', 'tasks.length')">
+            <a href="">Active Tasks</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'resources.cpus')"
+              ng-click="selectColumn('frameworks', 'resources.cpus')">
+            <a href="">CPUs</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'resources.mem')"
+              ng-click="selectColumn('frameworks', 'resources.mem')">
+            <a href="">Mem</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'max_share')"
+              ng-click="selectColumn('frameworks', 'max_share')">
+            <a href="">Max Share</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'registered_time')"
+              ng-click="selectColumn('frameworks', 'registered_time')">
+            <a href="">Registered</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'reregistered_time')"
+              ng-click="selectColumn('frameworks', 'reregistered_time')">
+            <a href="">Re-Registered</a>
+          </th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="framework in frameworks">
+        <tr ng-repeat="framework in _.values(frameworks) | orderBy:tables['frameworks'].selected_column:tables['frameworks'].reverse">
           <td>
             <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.id}}" data-original-title="ID">
               {{framework.id | truncateMesosID}}

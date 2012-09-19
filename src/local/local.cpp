@@ -68,8 +68,9 @@ static Files* files = NULL;
 
 
 PID<Master> launch(int numSlaves,
-                   int32_t cpus,
-                   int64_t mem,
+                   double cpus,
+                   uint64_t mem,
+                   uint64_t disk,
                    bool quiet,
                    AllocatorProcess* _allocator)
 {
@@ -79,7 +80,7 @@ PID<Master> launch(int numSlaves,
   configuration.set("quiet", quiet);
 
   stringstream out;
-  out << "cpus:" << cpus << ";" << "mem:" << mem;
+  out << "cpus:" << cpus << ";" << "mem:" << mem << ";" << "disk:" << disk;
   configuration.set("resources", out.str());
 
   return launch(configuration, _allocator);

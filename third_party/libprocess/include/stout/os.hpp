@@ -734,16 +734,16 @@ inline Try<long> cpus()
 
 
 // Returns the total size of main memory in bytes.
-inline Try<long> memory()
+inline Try<uint64_t> memory()
 {
 #ifdef __linux__
   struct sysinfo info;
   if (sysinfo(&info) != 0) {
-    return Try<long>::error(strerror(errno));
+    return Try<uint64_t>::error(strerror(errno));
   }
   return info.totalram;
 #else
-  return Try<long>::error("Cannot determine the size of main memory");
+  return Try<uint64_t>::error("Cannot determine the size of main memory");
 #endif
 }
 

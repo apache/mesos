@@ -300,7 +300,7 @@ public:
     } else if (resource.type() == Value::RANGES) {
       return resource.has_ranges();
     } else if (resource.type() == Value::SET) {
-      return resource.has_ranges();
+      return resource.has_set();
     } else if (resource.type() == Value::TEXT) {
       // Resources doesn't support text.
       return false;

@@ -34,8 +34,9 @@ namespace local {
 // of CPUs and memory per slave. Additionally one can also toggle whether
 // to initialize Google Logging and whether to log quietly.
 process::PID<master::Master> launch(int numSlaves,
-                                    int32_t cpus,
-                                    int64_t mem,
+                                    double cpus,
+                                    uint64_t mem,
+                                    uint64_t disk,
                                     bool quiet,
                                     master::AllocatorProcess* _allocator = NULL);
 

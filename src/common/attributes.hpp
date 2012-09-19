@@ -32,6 +32,11 @@
 #include "logging/logging.hpp"
 
 namespace mesos {
+
+
+std::ostream& operator << (std::ostream& stream, const Attribute& attribute);
+
+
 namespace internal {
 
 

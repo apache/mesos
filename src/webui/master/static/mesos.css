@@ -17,3 +17,13 @@ dl.inline dd + dd {
 dl.inline dt {
   font-weight: bold
 }
+
+th.descending:after {
+  padding-left: 5px;
+  content: "▼";
+}
+
+th.ascending:after {
+  padding-left: 5px;
+  content: "▲";
+}

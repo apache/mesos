@@ -11,14 +11,33 @@
 <table class="table table-striped table-bordered table-condensed">
   <thead>
     <tr>
-      <th>ID</th>
-      <th>Host</th>
-      <th>CPUs</th>
-      <th>Mem</th>
-      <th>Registered</th>
+      <th ng-class="columnClass('slaves', 'id')"
+          ng-click="selectColumn('slaves', 'id')">
+        <a href="">ID</a>
+      </th>
+      <th ng-class="columnClass('slaves', 'hostname')"
+          ng-click="selectColumn('slaves', 'hostname')">
+        <a href="">Host</a>
+      </th>
+      <th ng-class="columnClass('slaves', 'resources.cpus')"
+          ng-click="selectColumn('slaves', 'resources.cpus')">
+        <a href="">CPUs</a>
+      </th>
+          <th ng-class="columnClass('slaves', 'resources.mem')"
+              ng-click="selectColumn('slaves', 'resources.mem')">
+        <a href="">Mem</a>
+      </th>
+      <th ng-class="columnClass('slaves', 'resources.disk')"
+          ng-click="selectColumn('slaves', 'resources.disk')">
+        <a href="">Disk</a>
+      </th>
+      <th ng-class="columnClass('slaves', 'registered_time')"
+          ng-click="selectColumn('slaves', 'registered_time')">
+        <a href="">Registered</a>
+      </th>
     </tr>
   </thead>
-  <tr ng-repeat="slave in state.slaves">
+  <tr ng-repeat="slave in _.values(slaves) | orderBy:tables['slaves'].selected_column:tables['slaves'].reverse">
     <td>
       <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.id}}" data-original-title="ID">
         {{slave.id | truncateMesosID}}
@@ -27,6 +46,7 @@
     <td><a href="#/slave/{{slave.id}}">{{slave.hostname}}</a></td>
     <td>{{slave.resources.cpus | number}}</td>
     <td>{{slave.resources.mem / 1024 | number}} GB</td>
+    <td>{{slave.resources.disk / 1024 | number}} GB</td>
     <td>
       <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
         {{slave.registered_time * 1000 | relativeDate}}

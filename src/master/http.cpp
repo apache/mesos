@@ -30,6 +30,7 @@
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
 
+#include "common/attributes.hpp"
 #include "common/build.hpp"
 #include "common/resources.hpp"
 #include "common/type_utils.hpp"
@@ -64,14 +65,52 @@ using std::vector;
 // Returns a JSON object modeled on a Resources.
 JSON::Object model(const Resources& resources)
 {
-  // TODO(benh): Add all of the resources.
-  Value::Scalar none;
-  Value::Scalar cpus = resources.get("cpus", none);
-  Value::Scalar mem = resources.get("mem", none);
-
   JSON::Object object;
-  object.values["cpus"] = cpus.value();
-  object.values["mem"] = mem.value();
+
+  foreach (const Resource& resource, resources) {
+    switch (resource.type()) {
+      case Value::SCALAR:
+        object.values[resource.name()] = resource.scalar().value();
+        break;
+      case Value::RANGES:
+        object.values[resource.name()] = stringify(resource.ranges());
+        break;
+      case Value::SET:
+        object.values[resource.name()] = stringify(resource.set());
+        break;
+      default:
+        LOG(FATAL) << "Unexpected Value type: " << resource.type();
+        break;
+    }
+  }
+
+  return object;
+}
+
+
+JSON::Object model(const Attributes& attributes)
+{
+  JSON::Object object;
+
+  foreach (const Attribute& attribute, attributes) {
+    switch (attribute.type()) {
+      case Value::SCALAR:
+        object.values[attribute.name()] = attribute.scalar().value();
+        break;
+      case Value::RANGES:
+        object.values[attribute.name()] = stringify(attribute.ranges());
+        break;
+      case Value::SET:
+        object.values[attribute.name()] = stringify(attribute.set());
+        break;
+      case Value::TEXT:
+        object.values[attribute.name()] = attribute.text().value();
+        break;
+      default:
+        LOG(FATAL) << "Unexpected Value type: " << attribute.type();
+        break;
+    }
+  }
 
   return object;
 }
@@ -165,6 +204,7 @@ JSON::Object model(const Slave& slave)
   object.values["webui_port"] = slave.info.webui_port();
   object.values["registered_time"] = slave.registeredTime;
   object.values["resources"] = model(slave.info.resources());
+  object.values["attributes"] = model(slave.info.attributes());
   return object;
 }
 
@@ -276,6 +316,14 @@ Future<Response> state(
   object.values["start_time"] = master.startTime;
   object.values["id"] = master.info.id();
   object.values["pid"] = string(master.self());
+  object.values["activated_slaves"] = master.slaveHostnamePorts.size();
+  object.values["connected_slaves"] = master.slaves.size();
+  object.values["staged_tasks"] = master.stats.tasks[TASK_STAGING];
+  object.values["started_tasks"] = master.stats.tasks[TASK_STARTING];
+  object.values["finished_tasks"] = master.stats.tasks[TASK_FINISHED];
+  object.values["killed_tasks"] = master.stats.tasks[TASK_KILLED];
+  object.values["failed_tasks"] = master.stats.tasks[TASK_FAILED];
+  object.values["lost_tasks"] = master.stats.tasks[TASK_LOST];
 
   if (master.flags.cluster.isSome()) {
     object.values["cluster"] = master.flags.cluster.get();

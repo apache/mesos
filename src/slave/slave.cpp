@@ -28,6 +28,7 @@
 #include <process/id.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/fs.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -115,9 +116,10 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
     files(_files)
 {
   if (flags.resources.isNone()) {
-    // TODO(benh): Move this compuation into Flags as the "default".
+    // TODO(benh): Move this computation into Flags as the "default".
     Try<long> cpus = os::cpus();
-    Try<long> mem = os::memory();
+    Try<uint64_t> mem = os::memory();
+    Try<uint64_t> disk = fs::available();
 
     if (!cpus.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the number of cpus to use,"
@@ -128,7 +130,7 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
     if (!mem.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the size of main memory,"
                    << " defaulting to 1024 MB";
-      mem = Try<long>::some(1024);
+      mem = Try<uint64_t>::some(1024);
     } else {
       // Convert to MB.
       mem = mem.get() / 1048576;
@@ -137,12 +139,28 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
       // TODO(benh): Have better default scheme (e.g., % of mem not
       // greater than 1 GB?)
       if (mem.get() > 1024) {
-        mem = Try<long>::some(mem.get() - 1024);
+        mem = Try<uint64_t>::some(mem.get() - 1024);
       }
     }
 
-    Try<string> defaults =
-      strings::format("cpus:%d;mem:%d", cpus.get(), mem.get());
+    if (!disk.isSome()) {
+      LOG(WARNING) << "Failed to auto-detect the free disk space,"
+                   << " defaulting to 10 GB";
+      disk = Try<uint64_t>::some(1024 * 10);
+    } else {
+      // Convert to MB.
+      disk = disk.get() / 1048576;
+
+      // Leave 5 GB free if we have more than 10 GB, otherwise, use all!
+      // TODO(benh): Have better default scheme (e.g., % of disk not
+      // greater than 10 GB?)
+      if (disk.get() > 1024 * 10) {
+        disk = Try<uint64_t>::some(disk.get() - (1024 * 5));
+      }
+    }
+
+    Try<string> defaults = strings::format(
+        "cpus:%d;mem:%d;disk:%d", cpus.get(), mem.get(), disk.get());
 
     CHECK(defaults.isSome());
 
