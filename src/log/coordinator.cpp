@@ -299,6 +299,9 @@ Result<uint64_t> Coordinator::write(
   } while (timeout.remaining() > Seconds(0));
 
   // Timed out ... discard remaining futures.
+  LOG(INFO) << "Coordinator timed out while attempting to write "
+            << Action::Type_Name(action.type())
+            << " action at position " << action.position();
   discard(futures);
   return Result<uint64_t>::none();
 }
@@ -488,6 +491,8 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
   }
 
   // Timed out ...
+  LOG(INFO) << "Coordinator timed out attempting to fill position "
+            << position << " in the log";
   return Result<Action>::none();
 }
 
