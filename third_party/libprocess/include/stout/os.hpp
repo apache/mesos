@@ -33,6 +33,7 @@
 
 #include "foreach.hpp"
 #include "nothing.hpp"
+#include "path.hpp"
 #include "result.hpp"
 #include "strings.hpp"
 #include "try.hpp"
@@ -189,10 +190,10 @@ inline Try<Nothing> touch(const std::string& path)
 // Creates a temporary file under 'root' directory and returns its path.
 inline Try<std::string> mktemp(const std::string& root = "/tmp")
 {
-  const std::string path = root + "/XXXXXX";
+  const std::string path = path::join(root, "XXXXXX");
   char* temp = new char[path.size() + 1];
 
-  if (::mktemp(::strncpy(temp, path.c_str(), path.size())) != NULL) {
+  if (::mktemp(::strcpy(temp, path.c_str())) != NULL) {
     std::string result(temp);
     delete temp;
     return result;
@@ -224,7 +225,7 @@ inline Try<Nothing> write(int fd, const std::string& message)
 // A wrapper function that wraps the above write() with
 // open and closing the file.
 inline Try<Nothing> write(const std::string& path,
-                       const std::string& message)
+                          const std::string& message)
 {
   Try<int> fd = os::open(path, O_WRONLY | O_CREAT | O_TRUNC,
                          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
@@ -315,15 +316,35 @@ inline Try<Nothing> rm(const std::string& path)
 }
 
 
-inline std::string basename(const std::string& path)
+inline Try<std::string> basename(const std::string& path)
 {
-  return ::basename(const_cast<char*>(path.c_str()));
+  char* temp = new char[path.size() + 1];
+  char* result = ::basename(::strcpy(temp, path.c_str()));
+  if (result == NULL) {
+    delete temp;
+    return Try<std::string>::error(
+        "Error getting basename of '" + path + "': " + strerror(errno));
+  }
+
+  std::string s(result);
+  delete temp;
+  return s;
 }
 
 
-inline std::string dirname(const std::string& path)
+inline Try<std::string> dirname(const std::string& path)
 {
-  return ::dirname(const_cast<char*>(path.c_str()));
+  char* temp = new char[path.size() + 1];
+  char* result = ::dirname(::strcpy(temp, path.c_str()));
+  if (result == NULL) {
+    delete temp;
+    return Try<std::string>::error(
+        "Error getting dirname of '" + path + "': " + strerror(errno));
+  }
+
+  std::string s(result);
+  delete temp;
+  return s;
 }
 
 
@@ -333,7 +354,7 @@ inline Try<std::string> realpath(const std::string& path)
   if (::realpath(path.c_str(), temp) == NULL) {
     // TODO(benh): Include strerror(errno).
     return Try<std::string>::error(
-      "Failed to canonicalize " + path + " into an absolute path");
+        "Failed to canonicalize " + path + " into an absolute path");
   }
   return std::string(temp);
 }
@@ -414,10 +435,10 @@ inline Try<Nothing> mkdir(const std::string& directory)
 // Creates a temporary directory under 'root' directory and returns its path.
 inline Try<std::string> mkdtemp(const std::string& root = "/tmp")
 {
-  const std::string path = root + "/XXXXXX";
+  const std::string path = path::join(root, "XXXXXX");
   char* temp = new char[path.size() + 1];
 
-  if (::mkdtemp(::strncpy(temp, path.c_str(), path.size())) != NULL) {
+  if (::mkdtemp(::strcpy(temp, path.c_str())) != NULL) {
     std::string result(temp);
     delete temp;
     return result;
@@ -624,8 +645,9 @@ inline std::list<std::string> ls(const std::string& directory)
 // NOTE: Directory path should not end with '/'.
 // TODO(vinod): Support regular expressions for pattern.
 // TODO(vinod): Consider using ftw or a non-recursive approach.
-inline Try<std::list<std::string> > find(const std::string& directory,
-                                         const std::string& pattern)
+inline Try<std::list<std::string> > find(
+    const std::string& directory,
+    const std::string& pattern)
 {
   std::list<std::string> results;
 
@@ -635,21 +657,19 @@ inline Try<std::list<std::string> > find(const std::string& directory,
   }
 
   foreach (const std::string& entry, ls(directory)) {
-    if (entry == "." || entry == "..") {
-      continue;
-    }
-    std::string result = directory + '/' + entry;
-    // This is just a hack to check whether this path is a regular file or
-    // a (sub) directory.
-    if (isdir(result)) { // If its a directory recurse.
-      CHECK(find(result, pattern).isSome())
-        << "Directory " << directory << " doesn't exist";
-      foreach (const std::string& path, find(result, pattern).get()) {
-        results.push_back(path);
+    std::string path = path::join(directory, entry);
+    // If it's a directory, recurse.
+    if (isdir(path)) {
+      Try<std::list<std::string> > matches = find(path, pattern);
+      if (matches.isError()) {
+        return matches;
+      }
+      foreach (const std::string& match, matches.get()) {
+        results.push_back(match);
       }
     } else {
-      if (basename(result).find(pattern) != std::string::npos) {
-        results.push_back(result); // Matched the file pattern!
+      if (entry.find(pattern) != std::string::npos) {
+        results.push_back(path); // Matched the file pattern!
       }
     }
   }

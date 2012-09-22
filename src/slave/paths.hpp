@@ -199,14 +199,18 @@ inline std::string createUniqueExecutorWorkDirectory(
 
   CHECK(!paths.isError()) << paths.error();
 
-  if (paths.isSome()) {
-    foreach (const std::string& path, paths.get()) {
-      Try<int> temp = numify<int>(os::basename(path));
-      if (temp.isError()) {
-        continue;
-      }
-      run = std::max(run, temp.get());
+  foreach (const std::string& path, paths.get()) {
+    Try<std::string> base = os::basename(path);
+    if (base.isError()) {
+      LOG(ERROR) << base.error();
+      continue;
     }
+
+    Try<int> temp = numify<int>(base.get());
+    if (temp.isError()) {
+      continue;
+    }
+    run = std::max(run, temp.get());
   }
 
   std::string path =

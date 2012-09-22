@@ -48,7 +48,7 @@ using std::string;
 
 void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << os::basename(argv0) << " [...] path/to/log"
+  cerr << "Usage: " << os::basename(argv0).get() << " [...] path/to/log"
        << endl
        << "Supported options:" << endl
        << configurator.getUsage();

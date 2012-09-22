@@ -50,8 +50,8 @@ static void balloon(size_t limit)
               << BALLOON_STEP_MB << " MB" << std::endl;
 
     // Allocate page-aligned virtual memory.
-    char* buffer = NULL;
-    if (posix_memalign((void**) &buffer, getpagesize(), chunk) != 0) {
+    void* buffer = NULL;
+    if (posix_memalign(&buffer, getpagesize(), chunk) != 0) {
       perror("Failed to allocate page-aligned memory, posix_memalign");
       abort();
     }

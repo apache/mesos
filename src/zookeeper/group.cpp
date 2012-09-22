@@ -558,9 +558,13 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
 
   // Save the sequence number but only grab the basename. Example:
   // "/path/to/znode/0000000131" => "0000000131".
-  result = os::basename(result);
+  Try<string> base = os::basename(result);
+  if (base.isError()) {
+    return Result<Group::Membership>::error(
+        "Failed to get the sequence number: " + base.error());
+  }
 
-  Try<uint64_t> sequence = numify<uint64_t>(result);
+  Try<uint64_t> sequence = numify<uint64_t>(base.get());
   CHECK(sequence.isSome()) << sequence.error();
 
   Promise<bool>* cancelled = new Promise<bool>();

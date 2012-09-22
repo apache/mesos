@@ -37,7 +37,7 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
 
   foreach (const string& path, frameworks.get()) {
     FrameworkID frameworkId;
-    frameworkId.set_value(os::basename(path));
+    frameworkId.set_value(os::basename(path).get());
 
     // Find the executors.
     Try<list<string> > executors =
@@ -52,7 +52,7 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
 
     foreach (const string& path, executors.get()) {
       ExecutorID executorId;
-      executorId.set_value(os::basename(path));
+      executorId.set_value(os::basename(path).get());
 
       // Find the runs.
       Try<list<string> > runs =
@@ -65,7 +65,7 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
       }
 
       foreach (const string& path, runs.get()) {
-        Try<int> result = numify<int>(os::basename(path));
+        Try<int> result = numify<int>(os::basename(path).get());
         if (!result.isSome()) {
           LOG(ERROR) << "Non-numeric run number in path " << path;
           continue;
@@ -91,7 +91,7 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
 
         foreach (const string& path, tasks.get()) {
           TaskID taskId;
-          taskId.set_value(os::basename(path));
+          taskId.set_value(os::basename(path).get());
 
           state.frameworks[frameworkId].executors[executorId].runs[run].tasks
             .insert(taskId);
@@ -104,14 +104,15 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
 
 
 // Helper functions for check-pointing slave data.
+
 void writeTask(Task* task, const string& taskDir)
 {
   const string& path = taskDir + "/task";
 
-  Try<Nothing> created = os::mkdir(os::dirname(path));
+  Try<Nothing> created = os::mkdir(taskDir);
 
   CHECK(created.isSome())
-    << "Error creating directory '" << os::dirname(path)
+    << "Error creating task directory '" << taskDir
     << "': " << created.error();
 
   LOG(INFO) << "Writing task description for task "
@@ -129,10 +130,10 @@ void writeSlaveID(const string& rootDir, const SlaveID& slaveId)
 {
   const string& path = paths::getSlaveIDPath(rootDir);
 
-  Try<Nothing> created = os::mkdir(os::dirname(path));
+  Try<Nothing> created = os::mkdir(os::dirname(path).get());
 
   CHECK(created.isSome())
-    << "Error creating directory '" << os::dirname(path)
+    << "Error creating directory '" << os::dirname(path).get()
     << "': " << created.error();
 
   LOG(INFO) << "Writing slave id " << slaveId << " to " << path;
@@ -173,10 +174,10 @@ void writeFrameworkPID(const string& metaRootDir,
   const string& path = paths::getFrameworkPIDPath(metaRootDir, slaveId,
                                                   frameworkId);
 
-  Try<Nothing> created = os::mkdir(os::dirname(path));
+  Try<Nothing> created = os::mkdir(os::dirname(path).get());
 
   CHECK(created.isSome())
-    << "Error creating directory '" << os::dirname(path)
+    << "Error creating directory '" << os::dirname(path).get()
     << "': " << created.error();
 
   LOG(INFO) << "Writing framework pid " << pid << " to " << path;

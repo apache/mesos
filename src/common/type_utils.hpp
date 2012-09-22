@@ -83,13 +83,6 @@ inline std::ostream& operator << (std::ostream& stream, const TaskInfo& task)
 }
 
 
-inline std::ostream& operator << (std::ostream& stream, const Value::Ranges& ranges)
-{
-  stream << ranges.DebugString();
-  return stream;
-}
-
-
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() == right.value();

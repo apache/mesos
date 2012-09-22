@@ -189,6 +189,7 @@ EXTRA_DIST += slave/solaris_project_isolation_module.cpp
 
 libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
+	common/protobuf_utils.hpp					\
 	common/lock.hpp common/resources.hpp common/process_utils.hpp	\
 	common/type_utils.hpp common/thread.hpp common/units.hpp	\
 	common/values.hpp configurator/configuration.hpp		\

@@ -228,4 +228,4 @@ Future<typename std::tr1::result_of<F(A1, A2, A3, A4)>::type>
 
 } // namespace process {
 
-#endif __ASYNC_HPP__
+#endif // __ASYNC_HPP__

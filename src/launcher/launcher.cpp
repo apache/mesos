@@ -33,6 +33,7 @@
 #include <stout/foreach.hpp>
 #include <stout/net.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 
 #include "launcher/launcher.hpp"
 
@@ -202,14 +203,20 @@ int ExecutorLauncher::fetchExecutors()
       // try looking for hadoop on the PATH.
       string hadoopScript;
       if (hadoopHome != "") {
-        hadoopScript = hadoopHome + "/bin/hadoop";
+        hadoopScript = path::join(hadoopHome, "bin/hadoop");
       } else if (getenv("HADOOP_HOME") != 0) {
-        hadoopScript = string(getenv("HADOOP_HOME")) + "/bin/hadoop";
+        hadoopScript = path::join(string(getenv("HADOOP_HOME")), "bin/hadoop");
       } else {
         hadoopScript = "hadoop"; // Look for hadoop on the PATH.
       }
 
-      string localFile = string("./") + basename((char *) resource.c_str());
+      Try<std::string> base = os::basename(resource);
+      if (base.isError()) {
+        cerr << base.error() << endl;
+        return -1;
+      }
+
+      string localFile = path::join(".", base.get());
       ostringstream command;
       command << hadoopScript << " fs -copyToLocal '" << resource
               << "' '" << localFile << "'";
@@ -229,7 +236,7 @@ int ExecutorLauncher::fetchExecutors()
       string path = resource.substr(resource.find("://") + 3);
       CHECK(path.find("/") != string::npos) << "Malformed URL (missing path)";
       CHECK(path.size() > path.find("/") + 1) << "Malformed URL (missing path)";
-      path =  "./" + path.substr(path.find_last_of("/") + 1);
+      path =  path::join(".", path.substr(path.find_last_of("/") + 1));
       cout << "Downloading " << resource << " to " << path << endl;
       Try<int> code = net::download(resource, path);
       if (code.isError()) {
@@ -245,9 +252,9 @@ int ExecutorLauncher::fetchExecutors()
       if (resource.find_first_of("/") != 0) {
         // We got a non-Hadoop and non-absolute path.
         if (frameworksHome != "") {
-          resource = frameworksHome + "/" + resource;
+          resource = path::join(frameworksHome, resource);
           cout << "Prepended configuration option frameworks_home to resource "
-            << "path, making it: " << resource << endl;
+               << "path, making it: " << resource << endl;
         } else {
           cerr << "A relative path was passed for the resource, but "
                << "the configuration option frameworks_home is not set. "
@@ -264,9 +271,17 @@ int ExecutorLauncher::fetchExecutors()
 
       int ret = os::system(command.str());
       if (ret != 0) {
-        fatal("Copy failed: return code %d", ret);
+        cerr << "Failed to copy " << resource << ": Exit code " << ret << endl;
+        return -1;
       }
-      resource = "./" + os::basename(resource);
+
+      Try<std::string> base = os::basename(resource);
+      if (base.isError()) {
+        cerr << base.error() << endl;
+        return -1;
+      }
+
+      resource = path::join(".", base.get());
     }
 
     if (shouldSwitchUser && !os::chown(user, resource)) {

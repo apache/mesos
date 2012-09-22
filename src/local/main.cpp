@@ -47,7 +47,7 @@ using std::string;
 
 void usage(const char* argv0, const Configurator& configurator)
 {
-  cerr << "Usage: " << os::basename(argv0) << " [...]" << endl
+  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
        << endl
        << "Launches a cluster within a single OS process."
        << endl

@@ -44,7 +44,10 @@ protected:
     executorId.set_value("executor1");
     taskId.set_value("task1");
     run = 0;
-    rootDir = os::mkdtemp().get();
+
+    Try<string> path = os::mkdtemp();
+    CHECK(path.isSome()) << "Failed to mkdtemp " << path.error();
+    rootDir = path.get();
   }
 
   virtual ~SlaveStateFixture()
