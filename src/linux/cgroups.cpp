@@ -1023,10 +1023,11 @@ protected:
 private:
   void freeze()
   {
-    Try<Nothing> result = internal::writeControl(hierarchy,
-                                                 cgroup,
-                                                 "freezer.state",
-                                                 "FROZEN");
+    LOG(INFO) << "Attempting to freeze cgroup '" << cgroup << "'";
+
+    Try<Nothing> result =
+      internal::writeControl(hierarchy, cgroup, "freezer.state", "FROZEN");
+
     if (result.isError()) {
       promise.fail(result.error());
       terminate(self());
@@ -1037,10 +1038,11 @@ private:
 
   void thaw()
   {
-    Try<Nothing> result = internal::writeControl(hierarchy,
-                                                 cgroup,
-                                                 "freezer.state",
-                                                 "THAWED");
+    LOG(INFO) << "Attempting to thaw cgroup '" << cgroup << "'";
+
+    Try<Nothing> result =
+      internal::writeControl(hierarchy, cgroup, "freezer.state", "THAWED");
+
     if (result.isError()) {
       promise.fail(result.error());
       terminate(self());
@@ -1051,9 +1053,11 @@ private:
 
   void watchFrozen()
   {
-    Try<std::string> state = internal::readControl(hierarchy,
-                                                   cgroup,
-                                                   "freezer.state");
+    LOG(INFO) << "Checking frozen status of cgroup '" << cgroup << "'";
+
+    Try<std::string> state =
+      internal::readControl(hierarchy, cgroup, "freezer.state");
+
     if (state.isError()) {
       promise.fail(state.error());
       terminate(self());
@@ -1061,6 +1065,7 @@ private:
     }
 
     if (strings::trim(state.get()) == "FROZEN") {
+      LOG(INFO) << "Successfully froze cgroup '" << cgroup << "'";
       promise.set(true);
       terminate(self());
     } else if (strings::trim(state.get()) == "FREEZING") {
@@ -1102,7 +1107,18 @@ private:
         }
       }
 
-      // Not done yet, keep watching.
+      LOG(INFO) << "Retrying to freeze cgroup '" << cgroup << "'";
+
+      Try<Nothing> result =
+        internal::writeControl(hierarchy, cgroup, "freezer.state", "FROZEN");
+
+      if (result.isError()) {
+        promise.fail(result.error());
+        terminate(self());
+        return;
+      }
+
+      // Not done yet, keep watching (and possibly retrying).
       delay(interval, self(), &Freezer::watchFrozen);
     } else {
       LOG(FATAL) << "Unexpected state: " << strings::trim(state.get());
@@ -1111,9 +1127,11 @@ private:
 
   void watchThawed()
   {
-    Try<std::string> state = internal::readControl(hierarchy,
-                                                   cgroup,
-                                                   "freezer.state");
+    LOG(INFO) << "Checking thaw status of cgroup '" << cgroup << "'";
+
+    Try<std::string> state =
+      internal::readControl(hierarchy, cgroup, "freezer.state");
+
     if (state.isError()) {
       promise.fail(state.error());
       terminate(self());
@@ -1121,6 +1139,7 @@ private:
     }
 
     if (strings::trim(state.get()) == "THAWED") {
+      LOG(INFO) << "Successfully thawed cgroup '" << cgroup << "'";
       promise.set(true);
       terminate(self());
     } else if (strings::trim(state.get()) == "FROZEN") {
@@ -1131,9 +1150,9 @@ private:
     }
   }
 
-  std::string hierarchy;
-  std::string cgroup;
-  std::string action;
+  const std::string hierarchy;
+  const std::string cgroup;
+  const std::string action;
   const Duration interval;
   Promise<bool> promise;
 };
