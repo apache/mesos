@@ -371,33 +371,12 @@ void ZooKeeperMasterDetector::reconnected()
 {
   LOG(INFO) << "Master detector reconnected ...";
 
-  int code;
-  string result;
-
-  static const string delimiter = "/";
-
-  if (contend) {
-    // Contending for master, confirm our ephemeral sequence znode exists.
-    code = zk->get(url.path + "/" + mySeq, false, &result, NULL);
-
-    // We might no longer be the master! Commit suicide for now
-    // (hoping another master is on standbye), but in the future
-    // it would be nice if we could go back on standbye.
-    if (code == ZNONODE) {
-      LOG(FATAL) << "Failed to reconnect to ZooKeeper quickly enough "
-        "(our ephemeral sequence znode is gone), commiting suicide!";
-    }
-
-    if (code != ZOK) {
-      LOG(FATAL) << "Unexpected ZooKeeper error: " << zk->message(code);
-    }
-
-    // We are still the master!
-    LOG(INFO) << "Still acting as master";
-  } else {
-    // Reconnected, but maybe the master changed?
-    detectMaster();
-  }
+  // Either we were the master and we're still the master (because we
+  // haven't yet gotten a session expiration), or someone else was the
+  // master and they're still the master, or someone else was the
+  // master and someone else still is now the master. Either way, run
+  // the leader detector.
+  detectMaster();
 }
 
 
