@@ -396,67 +396,40 @@ void GroupProcess::connected(bool reconnect)
       }
     }
 
-    // Create directory path znodes as necessary.
+    // Create znode path (including intermediate znodes) as necessary.
     CHECK(znode.size() == 0 || znode.at(znode.size() - 1) != '/');
-    size_t index = znode.find("/", 0);
 
-    while (index < string::npos) {
-      // Get out the prefix to create.
-      index = znode.find("/", index + 1);
-      const string& prefix = znode.substr(0, index);
+    LOG(INFO) << "Trying to create path '" << znode << "' in ZooKeeper";
 
-      LOG(INFO) << "Trying to create '" << prefix << "' in ZooKeeper";
+    int code = zk->create(znode, "", acl, 0, NULL, true);
 
-      // Create the node (even if it already exists).
-      int code = zk->create(prefix, "", acl, 0, NULL);
-
-      if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
-        CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-        return; // Try again later.
-      } else if (code != ZOK && code != ZNODEEXISTS && code != ZNOAUTH) {
-        // We fail all non-OK return codes except for ZNODEEXISTS and ZNOAUTH:
-        // ZNODEEXISTS says the node in the znode path we are trying to create
-        //   already exists - this is what we wanted, so we continue.
-        // ZNOAUTH says we can't write the node, but it doesn't tell us
-        //   whether the node already exists.  We take the optimistic approach
-        //   and assume the node's parent doesn't allow us to write an already
-        //   existing node.  As long as the last node in the znode path exists
-        //   (or we can create it) and we can write children to that last node,
-        //   we're good.  This condition is tested below when we're done trying
-        //   to create the znode path.
-        Try<string> message = strings::format(
-            "Failed to create '%s' in ZooKeeper: %s",
-            prefix, zk->message(code));
-        error = message.isSome()
-          ? message.get()
-          : "Failed to create node in ZooKeeper";
-        abort(); // Cancels everything pending.
-        return;
-      }
-    }
-
-    // Now check we have perms to write to the final znode - this is required
-    // to run the Group.
-    string result;
-    int code = zk->create(znode + "/__write_test_", "", acl,
-                          ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
-    if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
+    // We fail all non-OK return codes except ZNONODEEXISTS (since
+    // that means the path we were trying to create exists) and
+    // ZNOAUTH (since it's possible that the ACLs on 'dirname(znode)'
+    // don't allow us to create a child znode but we are allowed to
+    // create children of 'znode' itself, which will be determined
+    // when we first do a Group::join). Note that it's also possible
+    // we got back a ZNONODE because we could not create one of the
+    // intermediate znodes (in which case we'll abort in the 'else'
+    // below since ZNONODE is non-retryable). TODO(benh): Need to
+    // check that we also can put a watch on the children of 'znode'.
+    if (code == ZINVALIDSTATE ||
+        (code != ZOK &&
+         code != ZNODEEXISTS &&
+         code != ZNOAUTH &&
+         zk->retryable(code))) {
       CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
       return; // Try again later.
-    } else if (code != ZOK) {
+    } else if (code != ZOK && code != ZNODEEXISTS && code != ZNOAUTH) {
       Try<string> message = strings::format(
-          "Unable to write to configured group path '%s' in ZooKeeper: %s",
+          "Failed to create '%s' in ZooKeeper: %s",
           znode, zk->message(code));
       error = message.isSome()
         ? message.get()
-        : "Failed to create node in ZooKeeper";
+        : "Failed to create znode in ZooKeeper";
       abort(); // Cancels everything pending.
       return;
     }
-
-    // Make a best-effort only attempt to clean up our write test node -
-    // it will die with our session if the attempts fails.
-    zk->remove(result, -1);
   }
 
   state = CONNECTED;
@@ -841,6 +814,9 @@ void GroupProcess::abort()
   fail(&pending.cancels, error.get());
   fail(&pending.datas, error.get());
   fail(&pending.watches, error.get());
+
+  // TODO(benh): Delete the ZooKeeper instance in order to terminate
+  // our session (cleaning up any ephemeral znodes as necessary)?
 }
 
 

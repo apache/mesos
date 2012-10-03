@@ -27,6 +27,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include "detector/detector.hpp"
@@ -90,6 +91,54 @@ TEST_F(ZooKeeperTest, Auth)
   nonOwnerZk.authenticate("digest", "non-owner:non-owner");
   assertGet(&nonOwnerZk, "/test", "42");
   assertNotSet(&nonOwnerZk, "/test", "37");
+}
+
+
+TEST_F(ZooKeeperTest, Create)
+{
+  BaseZooKeeperTest::TestWatcher watcher;
+
+  ZooKeeper authenticatedZk(zks->connectString(), NO_TIMEOUT, &watcher);
+  watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
+  authenticatedZk.authenticate("digest", "creator:creator");
+  EXPECT_EQ(ZOK, authenticatedZk.create("/foo/bar",
+                                        "",
+                                        zookeeper::EVERYONE_READ_CREATOR_ALL,
+                                        0,
+                                        NULL,
+                                        true));
+  authenticatedZk.create("/foo/bar/baz",
+                         "43",
+                         zookeeper::EVERYONE_CREATE_AND_READ_CREATOR_ALL,
+                         0,
+                         NULL);
+  assertGet(&authenticatedZk, "/foo/bar/baz", "43");
+
+  ZooKeeper nonOwnerZk(zks->connectString(), NO_TIMEOUT, &watcher);
+  watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
+  nonOwnerZk.authenticate("digest", "non-owner:non-owner");
+  EXPECT_EQ(ZNOAUTH, nonOwnerZk.create("/foo/bar/baz",
+                                       "",
+                                       zookeeper::EVERYONE_READ_CREATOR_ALL,
+                                       0,
+                                       NULL,
+                                       true));
+  EXPECT_EQ(ZOK, nonOwnerZk.create("/foo/bar/baz/bam",
+                                   "44",
+                                   zookeeper::EVERYONE_READ_CREATOR_ALL,
+                                   0,
+                                   NULL,
+                                   true));
+  assertGet(&nonOwnerZk, "/foo/bar/baz/bam", "44");
+
+  std::string result;
+  EXPECT_EQ(ZOK, nonOwnerZk.create("/foo/bar/baz/",
+                                   "",
+                                   zookeeper::EVERYONE_READ_CREATOR_ALL,
+                                   ZOO_SEQUENCE | ZOO_EPHEMERAL,
+                                   &result,
+                                   true));
+  EXPECT_TRUE(strings::startsWith(result, "/foo/bar/baz/0"));
 }
 
 

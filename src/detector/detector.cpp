@@ -301,57 +301,49 @@ void ZooKeeperMasterDetectorProcess::connected(bool reconnect)
   if (!reconnect) {
     LOG(INFO) << "Master detector connected to ZooKeeper ...";
 
-    int code;
     if (url.authentication.isSome()) {
       const std::string& scheme = url.authentication.get().scheme;
       const std::string& credentials = url.authentication.get().credentials;
       LOG(INFO) << "Authenticating to ZooKeeper using scheme '" << scheme << "'";
-      code = zk->authenticate(scheme, credentials);
+      int code = zk->authenticate(scheme, credentials);
       if (code != ZOK) {
         LOG(FATAL) << "Failed to authenticate with ZooKeeper: "
                    << zk->message(code);
       }
     }
 
-    string result;
-
-    static const string delimiter = "/";
-
     // Assume the path (chroot) being used does not end with a "/".
     CHECK(url.path.at(url.path.length() - 1) != '/');
 
-    // Create znodes as necessary.
-    size_t index = url.path.find(delimiter, 0);
+    // Create znode path (including intermediate znodes) as necessary.
+    LOG(INFO) << "Trying to create path '" << url.path << "' in ZooKeeper";
 
-    while (index < string::npos) {
-      // Get out the prefix to create.
-      index = url.path.find(delimiter, index + 1);
-      string prefix = url.path.substr(0, index);
+    int code = zk->create(url.path, "", acl, 0, NULL, true);
 
-      LOG(INFO) << "Trying to create znode '" << prefix << "' in ZooKeeper";
-
-      // Create the node (even if it already exists).
-      code = zk->create(prefix, "", acl, 0, &result);
-
-      if (code != ZOK && code != ZNODEEXISTS) {
-        LOG(FATAL) << "Failed to create ZooKeeper znode: " << zk->message(code);
-      }
-    }
-
-    // Wierdness in ZooKeeper timing, let's check that everything is created.
-    code = zk->get(url.path, false, &result, NULL);
-
-    if (code != ZOK) {
-      LOG(FATAL) << "Unexpected ZooKeeper failure: " << zk->message(code);
+    // We fail all non-OK return codes except ZNODEEXISTS (since that
+    // means the path we were trying to create exists) and ZNOAUTH
+    // (since it's possible that the ACLs on 'dirname(url.path)' don't
+    // allow us to create a child znode but we are allowed to create
+    // children of 'url.path' itself, which will be determined below
+    // if we are contending). Note that it's also possible we got back
+    // a ZNONODE because we could not create one of the intermediate
+    // znodes (in which case we'll abort in the 'else' below since
+    // ZNONODE is non-retryable). TODO(benh): Need to check that we
+    // also can put a watch on the children of 'url.path'.
+    if (code != ZOK && code != ZNODEEXISTS && code != ZNOAUTH) {
+      LOG(FATAL) << "Failed to create '" << url.path
+                 << "' in ZooKeeper: " << zk->message(code);
     }
 
     if (contend) {
       // We contend with the pid given in constructor.
-      code = zk->create(url.path + "/", pid, acl,
-                        ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
+      string result;
+      int code = zk->create(url.path + "/", pid, acl,
+                            ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
 
       if (code != ZOK) {
-        LOG(FATAL) << "Unexpected ZooKeeper failure: %s" << zk->message(code);
+        LOG(FATAL) << "Unable to create ephemeral child of '" << url.path
+                   << "' in ZooKeeper: %s" << zk->message(code);
       }
 
       // Save the sequence id but only grab the basename, e.g.,

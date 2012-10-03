@@ -166,6 +166,9 @@ public:
    *    the new node (this might be different than the supplied path
    *    because of the ZOO_SEQUENCE flag).  The path string will always
    *    be null-terminated.
+   * \param recursive if true, attempts to create all intermediate
+   *   znodes as required; note that 'flags' and 'data' will only be
+   *   applied to the creation of 'basename(path)'.
    * \return  one of the following codes are returned:
    * ZOK operation completed succesfully
    * ZNONODE the parent node does not exist.
@@ -180,7 +183,8 @@ public:
 	     const std::string &data,
 	     const ACL_vector &acl,
 	     int flags,
-	     std::string *result);
+	     std::string *result,
+             bool recursive = false);
 
   /**
    * \brief delete a node in zookeeper synchronously.
