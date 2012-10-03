@@ -18,15 +18,20 @@
 
 #include <zookeeper.h>
 
+#include <gmock/gmock.h>
+
 #include <string>
 
-#include <gtest/gtest.h>
-
+#include <process/clock.hpp>
 #include <process/process.hpp>
+#include <process/protobuf.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/try.hpp>
 
 #include "detector/detector.hpp"
+
+#include "messages/messages.hpp"
 
 #include "tests/base_zookeeper_test.hpp"
 #include "tests/utils.hpp"
@@ -36,6 +41,11 @@
 
 using namespace mesos::internal;
 using namespace mesos::internal::test;
+
+using process::Clock;
+
+using testing::_;
+using testing::Return;
 
 
 class ZooKeeperTest : public BaseZooKeeperTest {
@@ -163,6 +173,11 @@ TEST_F(ZooKeeperTest, MasterDetectors)
 
   WAIT_UNTIL(newMasterDetectedCall2);
 
+  // Destroying detector1 (below) might cause another election so we
+  // need to set up expectations appropriately.
+  EXPECT_CALL(mock2, newMasterDetected(_))
+    .WillRepeatedly(Return());
+
   MasterDetector::destroy(detector1.get());
 
   process::terminate(mock1);
@@ -172,6 +187,53 @@ TEST_F(ZooKeeperTest, MasterDetectors)
 
   process::terminate(mock2);
   process::wait(mock2);
+}
+
+
+TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
+{
+  Clock::pause();
+
+  MockMasterDetectorListenerProcess mock;
+  process::spawn(mock);
+
+  trigger newMasterDetectedCall1;
+  EXPECT_CALL(mock, newMasterDetected(mock.self()))
+    .WillOnce(Trigger(&newMasterDetectedCall1));
+
+  std::string master = "zk://" + zks->connectString() + "/mesos";
+
+  Try<MasterDetector*> detector =
+    MasterDetector::create(master, mock.self(), true, true);
+
+  EXPECT_TRUE(detector.isSome()) << detector.error();
+
+  WAIT_UNTIL(newMasterDetectedCall1);
+
+  trigger noMasterDetectedCall;
+  EXPECT_CALL(mock, noMasterDetected())
+    .WillOnce(Trigger(&noMasterDetectedCall));
+
+  zks->shutdownNetwork();
+
+  Clock::advance(10.0); // TODO(benh): Get session timeout from detector.
+
+  WAIT_UNTIL(noMasterDetectedCall);
+
+  trigger newMasterDetectedCall2;
+  EXPECT_CALL(mock, newMasterDetected(mock.self()))
+    .WillOnce(Trigger(&newMasterDetectedCall2));
+
+  zks->startNetwork();
+
+  WAIT_FOR(newMasterDetectedCall2, Seconds(5.0));
+
+  MasterDetector::destroy(detector.get());
+
+  process::terminate(mock);
+  process::wait(mock);
+
+  Clock::resume();
 }
 
 

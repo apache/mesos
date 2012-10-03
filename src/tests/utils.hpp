@@ -19,6 +19,8 @@
 #ifndef __TESTING_UTILS_HPP__
 #define __TESTING_UTILS_HPP__
 
+#include <unistd.h> // For usleep.
+
 #include <gmock/gmock.h>
 
 #include <fstream>
@@ -34,6 +36,7 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 
@@ -624,26 +627,29 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
 
 
 /**
- * This macro can be used to wait until some expression evaluates to
- * true. Currently, a test will wait no longer than approxiamtely 2
- * seconds (10 us * 200000). At some point we may add a mechanism to
- * specify how long to try and wait.
+ * These macros can be used to wait until some expression evaluates to true.
  */
-#define WAIT_UNTIL(e)                                                   \
+#define WAIT_FOR(expression, duration)                                  \
   do {                                                                  \
-    int sleeps = 0;                                                     \
+    unsigned int sleeps = 0;                                            \
     do {                                                                \
       __sync_synchronize();                                             \
-      if (e)                                                            \
+      if (expression) {                                                 \
         break;                                                          \
+      }                                                                 \
       usleep(10);                                                       \
-      if (sleeps++ >= 200000) {                                         \
-        FAIL() << "Waited too long for '" #e "'";                       \
+      sleeps++;                                                         \
+      if (Microseconds(10 * sleeps) >= duration) {                      \
+        FAIL() << "Waited too long for '" #expression "'";              \
         ::exit(-1); /* TODO(benh): Figure out how not to exit! */       \
         break;                                                          \
       }                                                                 \
     } while (true);                                                     \
   } while (false)
+
+
+#define WAIT_UNTIL(expression)                  \
+  WAIT_FOR(expression, Seconds(2.0))
 
 
 class TestingIsolationModule : public slave::IsolationModule
