@@ -293,8 +293,3 @@ message NoMasterDetectedMessage {}
 message NewMasterDetectedMessage {
   required string pid = 2;
 }
-
-
-message GotMasterTokenMessage {
-  required string token = 1;
-}
