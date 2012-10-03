@@ -104,9 +104,6 @@ private:
   bool expire;
   Option<Timer> timer;
 
-  // Our sequence string if contending to be a master.
-  Option<string> mySeq;
-
   string currentMasterSeq;
   UPID currentMasterPID;
 };
@@ -346,16 +343,7 @@ void ZooKeeperMasterDetectorProcess::connected(bool reconnect)
                    << "' in ZooKeeper: %s" << zk->message(code);
       }
 
-      // Save the sequence id but only grab the basename, e.g.,
-      // "/path/to/znode/000000131" => "000000131".
-      size_t index;
-      if ((index = result.find_last_of('/')) != string::npos) {
-        mySeq = result.erase(0, index + 1);
-      } else {
-        mySeq = result;
-      }
-
-      LOG(INFO) << "Created ephemeral/sequence:" << mySeq.get();
+      LOG(INFO) << "Created ephemeral/sequence znode at '" << result << "'";
     }
 
     // Now determine who the master is (it may be us).
