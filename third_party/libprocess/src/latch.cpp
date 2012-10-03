@@ -42,7 +42,18 @@ void Latch::trigger()
 bool Latch::await(const Duration& duration)
 {
   if (!triggered) {
-    return process::wait(pid, duration); // Explict to disambiguate.
+    process::wait(pid, duration); // Explict to disambiguate.
+    // It's possible that we failed to wait because:
+    //   (1) Our process has already terminated.
+    //   (2) We timed out (i.e., duration was not "infinite").
+
+    // In the event of (1) we might need to return 'true' since a
+    // terminated process might imply that the latch has been
+    // triggered. To capture this we simply return the value of
+    // 'triggered' (which will also capture cases where we actually
+    // timed out but have since triggered, which seems like an
+    // acceptable semantics given such a "tie").
+    return triggered;
   }
 
   return true;
