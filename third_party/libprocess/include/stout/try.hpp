@@ -3,6 +3,7 @@
 
 #include <assert.h>
 
+#include <iostream>
 #include <string>
 
 
@@ -57,7 +58,14 @@ public:
   bool isSome() const { return state == SOME; }
   bool isError() const { return state == ERROR; }
 
-  T get() const { assert(state == SOME); return *t; }
+  T get() const
+  {
+    if (state != SOME) {
+      std::cerr << "Try::get() but state == ERROR: " << error() << std::endl;
+      abort();
+    }
+    return *t;
+  }
 
   std::string error() const { assert(state == ERROR); return message; }
 

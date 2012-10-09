@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdlib.h> // For abort.
 
+#include <iostream>
 #include <list>
 #include <queue>
 #include <set>
@@ -528,7 +529,15 @@ T Future<T>::get() const
     await();
   }
 
+  CHECK(!isPending()) << "Future was in PENDING after await()";
+
   if (!isReady()) {
+    if (isFailed()) {
+      std::cerr << "Future::get() but state == FAILED: "
+                << failure()  << std::endl;
+    } else if (isDiscarded()) {
+      std::cerr << "Future::get() but state == DISCARDED" << std::endl;
+    }
     abort();
   }
 
