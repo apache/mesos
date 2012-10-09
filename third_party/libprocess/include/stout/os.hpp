@@ -352,9 +352,9 @@ inline Try<std::string> realpath(const std::string& path)
 {
   char temp[PATH_MAX];
   if (::realpath(path.c_str(), temp) == NULL) {
-    // TODO(benh): Include strerror(errno).
     return Try<std::string>::error(
-        "Failed to canonicalize " + path + " into an absolute path");
+        "Failed to canonicalize '" + path + "' into an absolute path: "
+        + strerror(errno));
   }
   return std::string(temp);
 }
@@ -421,7 +421,7 @@ inline Try<Nothing> mkdir(const std::string& directory)
       path += token;
       if (::mkdir(path.c_str(), 0755) < 0 && errno != EEXIST) {
         return Try<Nothing>::error(
-            std::string("Failed to mkdir: ") + strerror(errno));
+            "Failed to mkdir: '" + path + "': " + strerror(errno));
       }
       path += "/";
     }
