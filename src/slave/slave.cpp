@@ -300,10 +300,9 @@ void Slave::initialize()
   // Blocked on http://code.google.com/p/google-glog/issues/detail?id=116
   // Alternatively, initialize() could take the executable name.
   if (flags.log_dir.isSome()) {
-    Future<Nothing> result = files->attach(
-        path::join(flags.log_dir.get(), "mesos-slave.INFO"),
-        "/log");
-    result.onAny(defer(self(), &Self::fileAttached, result));
+    string logPath = path::join(flags.log_dir.get(), "mesos-slave.INFO");
+    Future<Nothing> result = files->attach(logPath, "/log");
+    result.onAny(defer(self(), &Self::fileAttached, result, logPath));
   }
 }
 
@@ -345,13 +344,14 @@ void Slave::shutdown()
 }
 
 
-void Slave::fileAttached(const Future<Nothing>& result)
+void Slave::fileAttached(const Future<Nothing>& result, const string& path)
 {
   CHECK(!result.isDiscarded());
   if (result.isReady()) {
-    LOG(INFO) << "Master attached log file successfully";
+    VLOG(1) << "Successfully attached file '" << path << "'";
   } else {
-    LOG(ERROR) << "Failed to attach log file: " << result.failure();
+    LOG(ERROR) << "Failed to attach file '" << path << "': "
+               << result.failure();
   }
 }
 
@@ -535,6 +535,14 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
     const string& directory =
         paths::createUniqueExecutorWorkDirectory(flags.work_dir, id,
                                                  framework->id, executorId);
+
+    // NOTE: This constant "virtual path" format is shared with the webui.
+    // TODO(bmahler): Pass this to the webui explicitly via the existing JSON.
+    string attached =
+        strings::format("/slaves/%s/frameworks/%s/executors/%s",
+            id.value(), framework->id.value(), executorId.value()).get();
+    Future<Nothing> result = files->attach(directory, attached);
+    result.onAny(defer(self(), &Self::fileAttached, result, directory));
 
     LOG(INFO) << "Using '" << directory
               << "' as work directory for executor '" << executorId

@@ -123,7 +123,7 @@ protected:
   virtual void finalize();
   virtual void exited(const UPID& pid);
 
-  void fileAttached(const Future<Nothing>& result);
+  void fileAttached(const Future<Nothing>& result, const std::string& path);
 
   // Return connected frameworks that are not in the process of being removed
   std::vector<Framework*> getActiveFrameworks() const;

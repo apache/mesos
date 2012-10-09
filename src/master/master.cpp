@@ -459,10 +459,9 @@ void Master::initialize()
   // Blocked on http://code.google.com/p/google-glog/issues/detail?id=116
   // Alternatively, initialize() could take the executable name.
   if (flags.log_dir.isSome()) {
-    Future<Nothing> result = files->attach(
-        path::join(flags.log_dir.get(), "mesos-master.INFO"),
-        "/log");
-    result.onAny(defer(self(), &Self::fileAttached, result));
+    string logPath = path::join(flags.log_dir.get(), "mesos-master.INFO");
+    Future<Nothing> result = files->attach(logPath, "/log");
+    result.onAny(defer(self(), &Self::fileAttached, result, logPath));
   }
 }
 
@@ -526,13 +525,14 @@ void Master::exited(const UPID& pid)
 }
 
 
-void Master::fileAttached(const Future<Nothing>& result)
+void Master::fileAttached(const Future<Nothing>& result, const string& path)
 {
   CHECK(!result.isDiscarded());
   if (result.isReady()) {
-    LOG(INFO) << "Master attached log file successfully";
+    VLOG(1) << "Successfully attached file '" << path << "'";
   } else {
-    LOG(ERROR) << "Failed to attach log file: " << result.failure();
+    LOG(ERROR) << "Failed to attach file '" << path << "': "
+               << result.failure();
   }
 }
 

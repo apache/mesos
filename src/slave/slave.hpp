@@ -138,7 +138,7 @@ protected:
   virtual void finalize();
   virtual void exited(const UPID& pid);
 
-  void fileAttached(const Future<Nothing>& result);
+  void fileAttached(const Future<Nothing>& result, const std::string& path);
 
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
