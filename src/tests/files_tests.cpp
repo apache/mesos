@@ -198,11 +198,16 @@ TEST_WITH_WORKDIR(FilesTest, BrowseTest)
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("1", "one"));
 
   // Get the listing.
+  struct stat s;
   JSON::Array expected;
-  expected.values.push_back(jsonFileInfo("one/2", true, 0u));
-  expected.values.push_back(jsonFileInfo("one/3", true, 0u));
-  expected.values.push_back(jsonFileInfo("one/three", false, 5u));
-  expected.values.push_back(jsonFileInfo("one/two", false, 3u));
+  ASSERT_EQ(0, stat("1/2", &s));
+  expected.values.push_back(jsonFileInfo("one/2", s));
+  ASSERT_EQ(0, stat("1/3", &s));
+  expected.values.push_back(jsonFileInfo("one/3", s));
+  ASSERT_EQ(0, stat("1/three", &s));
+  expected.values.push_back(jsonFileInfo("one/three", s));
+  ASSERT_EQ(0, stat("1/two", &s));
+  expected.values.push_back(jsonFileInfo("one/two", s));
 
   Future<Response> response = process::http::get(pid, "browse.json?path=one/");
 

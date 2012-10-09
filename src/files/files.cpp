@@ -148,9 +148,7 @@ Future<Response> FilesProcess::browse(const Request& request)
       continue;
     }
 
-    files[fullPath] = jsonFileInfo(path::join(path.get(), filename),
-                                   S_ISDIR(s.st_mode),
-                                   S_ISDIR(s.st_mode) ? 0 : s.st_size);
+    files[fullPath] = jsonFileInfo(path::join(path.get(), filename), s);
   }
 
   JSON::Array listing;

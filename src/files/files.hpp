@@ -19,12 +19,18 @@
 #ifndef __FILES_HPP__
 #define __FILES_HPP__
 
+#include <grp.h>
+#include <pwd.h>
+
+#include <sys/stat.h>
+
 #include <string>
 
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
 
+#include <stout/format.hpp>
 #include <stout/json.hpp>
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
@@ -67,18 +73,73 @@ private:
 
 
 // Returns our JSON representation of a file or directory.
+// The JSON contains all of the information one would find in ls -l.
+// Example JSON:
+// {
+//   'path': '\/some\/file',
+//   'mode': '-rwxrwxrwx',
+//   'nlink': 5,
+//   'uid': 'bmahler',
+//   'gid': 'employee',
+//   'size': 4096,           // Bytes.
+//   'mtime': 1348258116,    // Unix timestamp.
+// }
 inline JSON::Object jsonFileInfo(const std::string& path,
-                                 bool isDir,
-                                 size_t size)
+                                 const struct stat& s)
 {
   JSON::Object file;
   file.values["path"] = path;
-  file.values["size"] = size;
+  file.values["nlink"] = s.st_nlink;
+  file.values["size"] = s.st_size;
+  file.values["mtime"] = s.st_mtime;
 
-  if (isDir) {
-    file.values["dir"] = JSON::True();
+  char filetype;
+  if (S_ISREG(s.st_mode)) {
+    filetype = '-';
+  } else if (S_ISDIR(s.st_mode)) {
+    filetype = 'd';
+  } else if (S_ISCHR(s.st_mode)) {
+    filetype = 'c';
+  } else if (S_ISBLK(s.st_mode)) {
+    filetype = 'b';
+  } else if (S_ISFIFO(s.st_mode)) {
+    filetype = 'p';
+  } else if (S_ISLNK(s.st_mode)) {
+    filetype = 'l';
+  } else if (S_ISSOCK(s.st_mode)) {
+    filetype = 's';
   } else {
-    file.values["dir"] = JSON::False();
+    filetype = '-';
+  }
+
+  int owner = (s.st_mode & 0700) >> 6;
+  int group = (s.st_mode & 0070) >> 3;
+  int other = s.st_mode & 0007;
+
+  file.values["mode"] = strings::format("%c%c%c%c%c%c%c%c%c%c",
+      filetype,
+      (owner & 0x4) ? 'r' : '-',
+      (owner & 0x2) ? 'w' : '-',
+      (owner & 0x1) ? 'x' : '-',
+      (group & 0x4) ? 'r' : '-',
+      (group & 0x2) ? 'w' : '-',
+      (group & 0x1) ? 'x' : '-',
+      (other & 0x4) ? 'r' : '-',
+      (other & 0x2) ? 'w' : '-',
+      (other & 0x1) ? 'x' : '-').get();
+
+  passwd* p = getpwuid(s.st_uid);
+  if (p != NULL) {
+    file.values["uid"] = p->pw_name;
+  } else {
+    file.values["uid"] = stringify(s.st_uid);
+  }
+
+  struct group* g = getgrgid(s.st_gid);
+  if (g != NULL) {
+    file.values["gid"] = g->gr_name;
+  } else {
+    file.values["gid"] = stringify(s.st_gid);
   }
 
   return file;
