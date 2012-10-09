@@ -406,9 +406,13 @@ inline Try<long> mtime(const std::string& path)
 }
 
 
-inline Try<Nothing> mkdir(const std::string& directory)
+inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
 {
-  try {
+  if (!recursive) {
+    if (::mkdir(directory.c_str(), 0755) < 0) {
+      return Try<Nothing>::error(strerror(errno));
+    }
+  } else {
     std::vector<std::string> tokens = strings::tokenize(directory, "/");
     std::string path = "";
 
@@ -420,13 +424,10 @@ inline Try<Nothing> mkdir(const std::string& directory)
     foreach (const std::string& token, tokens) {
       path += token;
       if (::mkdir(path.c_str(), 0755) < 0 && errno != EEXIST) {
-        return Try<Nothing>::error(
-            "Failed to mkdir: '" + path + "': " + strerror(errno));
+        return Try<Nothing>::error(strerror(errno));
       }
       path += "/";
     }
-  } catch (...) {
-    return Try<Nothing>::error("");
   }
 
   return Nothing();
@@ -449,42 +450,49 @@ inline Try<std::string> mkdtemp(const std::string& root = "/tmp")
   }
 }
 
-// Recursively deletes a directory akin to: 'rm -r'. Note that this
-// function expects an absolute path.
-inline Try<Nothing> rmdir(const std::string& directory)
+// By default, recursively deletes a directory akin to: 'rm -r'. If the
+// programmer sets recursive to false, it deletes a directory akin to: 'rmdir'.
+// Note that this function expects an absolute path.
+inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
 {
-  char* paths[] = {const_cast<char*>(directory.c_str()), NULL};
-
-  FTS* tree = fts_open(paths, FTS_NOCHDIR, NULL);
-  if (tree == NULL) {
-    return Try<Nothing>::error(strerror(errno));
-  }
-
-  FTSENT* node;
-  while ((node = fts_read(tree)) != NULL) {
-    switch (node->fts_info) {
-      case FTS_DP:
-        if (::rmdir(node->fts_path) < 0 && errno != ENOENT) {
-          return Try<Nothing>::error(strerror(errno));
-        }
-        break;
-      case FTS_F:
-      case FTS_SL:
-        if (::unlink(node->fts_path) < 0 && errno != ENOENT) {
-          return Try<Nothing>::error(strerror(errno));
-        }
-        break;
-      default:
-        break;
+  if (!recursive) {
+    if (::rmdir(directory.c_str()) < 0) {
+      return Try<Nothing>::error(strerror(errno));
     }
-  }
+  } else {
+    char* paths[] = {const_cast<char*>(directory.c_str()), NULL};
 
-  if (errno != 0) {
-    return Try<Nothing>::error(strerror(errno));
-  }
+    FTS* tree = fts_open(paths, FTS_NOCHDIR, NULL);
+    if (tree == NULL) {
+      return Try<Nothing>::error(strerror(errno));
+    }
 
-  if (fts_close(tree) < 0) {
-    return Try<Nothing>::error(strerror(errno));
+    FTSENT* node;
+    while ((node = fts_read(tree)) != NULL) {
+      switch (node->fts_info) {
+        case FTS_DP:
+          if (::rmdir(node->fts_path) < 0 && errno != ENOENT) {
+            return Try<Nothing>::error(strerror(errno));
+          }
+          break;
+        case FTS_F:
+        case FTS_SL:
+          if (::unlink(node->fts_path) < 0 && errno != ENOENT) {
+            return Try<Nothing>::error(strerror(errno));
+          }
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (errno != 0) {
+      return Try<Nothing>::error(strerror(errno));
+    }
+
+    if (fts_close(tree) < 0) {
+      return Try<Nothing>::error(strerror(errno));
+    }
   }
 
   return Nothing();

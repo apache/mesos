@@ -188,7 +188,9 @@ static Try<Nothing> createCgroup(const std::string& hierarchy,
                                  const std::string& cgroup)
 {
   std::string path = hierarchy + "/" + cgroup;
-  Try<Nothing> mkdir = os::mkdir(path);
+
+  // Do NOT recursively create cgroups.
+  Try<Nothing> mkdir = os::mkdir(path, false);
 
   if (mkdir.isError()) {
     return Try<Nothing>::error(
@@ -213,7 +215,9 @@ static Try<Nothing> removeCgroup(const std::string& hierarchy,
                                  const std::string& cgroup)
 {
   std::string path = hierarchy + "/" + cgroup;
-  Try<Nothing> rmdir = os::rmdir(path);
+
+  // Do NOT recursively remove cgroups.
+  Try<Nothing> rmdir = os::rmdir(path, false);
 
   if (rmdir.isError()) {
     return Try<Nothing>::error(
