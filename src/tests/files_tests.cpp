@@ -167,6 +167,18 @@ TEST_WITH_WORKDIR(FilesTest, ResolveTest)
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
+  // Percent encoded '/' urls.
+  response = process::http::get(pid, "read.json?path=%2Fone%2F2%2Fthree&offset=0");
+
+  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
+  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+
+  response = process::http::get(pid,
+      "read.json?path=one%2Ftwo%2Fthree&offset=0");
+
+  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
+  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+
   // Reading dirs not allowed.
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       BadRequest().status,
@@ -210,6 +222,11 @@ TEST_WITH_WORKDIR(FilesTest, BrowseTest)
   expected.values.push_back(jsonFileInfo("one/two", s));
 
   Future<Response> response = process::http::get(pid, "browse.json?path=one/");
+
+  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
+  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+
+  response = process::http::get(pid, "browse.json?path=one%2F");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);

@@ -11,6 +11,7 @@
 #include <process/socket.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/try.hpp>
 
 
 // TODO(bmahler): Upgrade our http_parser to the latest version.
@@ -106,6 +107,12 @@ private:
 //     std::cout << "  method: " << decoder->request->method << std::endl;
 //     std::cout << "  path: " << decoder->request->path << std::endl;
     // Parse the query key/values.
+    Try<std::string> decoded = http::query::decode(decoder->query);
+    if (decoded.isError()) {
+      return 1;
+    }
+
+    decoder->query = decoded.get();
     decoder->request->query = http::query::parse(decoder->query);
     decoder->requests.push_back(decoder->request);
     decoder->request = NULL;

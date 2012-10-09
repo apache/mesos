@@ -1,7 +1,13 @@
 #ifndef __PROCESS_HTTP_HPP__
 #define __PROCESS_HTTP_HPP__
 
+#include <cctype>
+#include <cstdlib>
+#include <iomanip>
+#include <sstream>
 #include <string>
+
+#include <limits.h>
 
 #include <process/future.hpp>
 #include <process/pid.hpp>
@@ -175,6 +181,92 @@ inline hashmap<std::string, std::string> parse(const std::string& query)
 
   return result;
 }
+
+
+// Returns a percent-encoded string according to RFC 3986.
+// The input string must not already be percent encoded.
+inline std::string encode(const std::string& s)
+{
+  std::ostringstream out;
+
+  foreach (unsigned char c, s) {
+    switch (c) {
+      // Reserved characters.
+      case '$':
+      case '&':
+      case '+':
+      case ',':
+      case '/':
+      case ':':
+      case ';':
+      case '=':
+      case '?':
+      case '@':
+      // Unsafe characters.
+      case ' ':
+      case '"':
+      case '<':
+      case '>':
+      case '#':
+      case '%':
+      case '{':
+      case '}':
+      case '|':
+      case '\\':
+      case '^':
+      case '~':
+      case '[':
+      case ']':
+      case '`':
+        out << '%' << std::setfill('0') << std::setw(2) << std::hex << c;
+        break;
+      default:
+        // ASCII control characters and non-ASCII characters.
+        if (c < 0x20 || c > 0x7F) {
+          out << '%' << std::setfill('0') << std::setw(2) << std::hex << c;
+        } else {
+          out << c;
+        }
+        break;
+    }
+  }
+
+  return out.str();
+}
+
+
+// Decodes a percent-encoded string according to RFC 3986.
+// The input string must not already be decoded.
+// Returns error on the occurrence of a malformed % escape in s.
+inline Try<std::string> decode(const std::string& s)
+{
+  std::ostringstream out;
+
+  for (size_t i = 0; i < s.length(); ++i) {
+    if (s[i] != '%') {
+      out << s[i];
+      continue;
+    }
+
+    // We now expect two more characters: % HEXDIG HEXDIG
+    if (i + 2 >= s.length() || !isxdigit(s[i+1]) || !isxdigit(s[i+2])) {
+      return Try<std::string>::error(
+          "Malformed % escape in '" + s + "': '" + s.substr(i, 3) + "'");
+    }
+
+    // Convert from HEXDIG HEXDIG to char value.
+    std::istringstream in(s.substr(i + 1, 2));
+    unsigned long l;
+    in >> std::hex >> l;
+    CHECK(l >= 0 && l <= UCHAR_MAX);
+    out << static_cast<unsigned char>(l);
+
+    i += 2;
+  }
+
+  return out.str();
+}
+
 
 }  // namespace query {
 
