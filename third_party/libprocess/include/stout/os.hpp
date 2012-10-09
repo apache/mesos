@@ -378,7 +378,7 @@ inline bool isfile(const std::string& path)
   if (::stat(path.c_str(), &s) < 0) {
     return false;
   }
-  return !S_ISDIR(s.st_mode);
+  return S_ISREG(s.st_mode);
 }
 
 
