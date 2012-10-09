@@ -29,7 +29,7 @@ function hasSelectedText () {
 // attribute value for sorting table columns in the provided scope.
 function columnClass($scope) {
   // For the given table column, this behaves as follows:
-  // Column unselected            : ''
+  // Column unselected            : 'unselected'
   // Column selected / descending : 'descending'
   // Column selected / ascending  : 'ascending'
   return function(table, column) {
@@ -40,7 +40,7 @@ function columnClass($scope) {
         return 'ascending';
       }
     }
-    return '';
+    return 'unselected';
   }
 }
 

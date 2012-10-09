@@ -27,3 +27,8 @@ th.ascending:after {
   padding-left: 5px;
   content: "▲";
 }
+
+th.unselected:after {
+  padding-left: 5px;
+  content: "　";
+}
