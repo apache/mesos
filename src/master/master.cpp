@@ -459,9 +459,9 @@ void Master::initialize()
   // Blocked on http://code.google.com/p/google-glog/issues/detail?id=116
   // Alternatively, initialize() could take the executable name.
   if (flags.log_dir.isSome()) {
-    string logPath = path::join(flags.log_dir.get(), "mesos-master.INFO");
-    Future<Nothing> result = files->attach(logPath, "/log");
-    result.onAny(defer(self(), &Self::fileAttached, result, logPath));
+    string path = path::join(flags.log_dir.get(), "mesos-master.INFO");
+    files->attach(path, "/log")
+      .onAny(defer(self(), &Self::fileAttached, params::_1, path));
   }
 }
 

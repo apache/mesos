@@ -56,8 +56,8 @@ public:
 
     typename std::list<Future<T> >::const_iterator iterator;
     for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-      const Future<T>& future = *iterator;
-      future.onAny(defer(this, &CollectProcess::waited, future));
+      (*iterator).onAny(
+          defer(this, &CollectProcess::waited, std::tr1::placeholders::_1));
     }
   }
 
@@ -69,6 +69,14 @@ private:
 
   void timedout()
   {
+    // Need to discard all of the futures so any of their associated
+    // resources can get properly cleaned up.
+    typename std::list<Future<T> >::const_iterator iterator;
+    for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
+      Future<T> future = *iterator; // Need a non-const copy to discard.
+      future.discard();
+    }
+
     promise->fail("Collect failed: timed out");
     terminate(this);
   }

@@ -1437,14 +1437,7 @@ void HttpProxy::handle(Future<Response>* future, bool persist)
   items.push(new Item(future, persist));
 
   if (items.size() == 1) {
-    // Wait for any transition of the future.
-    items.front()->future->onAny(
-        defer(self(), &HttpProxy::waited, *future));
-
-    // Also create a timer so we don't wait forever.
-    timer = Timer::create(
-        Seconds(30.0),
-        defer(self(), &HttpProxy::timedout, *future));
+    next();
   }
 }
 
@@ -1452,24 +1445,26 @@ void HttpProxy::handle(Future<Response>* future, bool persist)
 void HttpProxy::next()
 {
   if (items.size() > 0) {
-    Item* item = items.front();
     // Wait for any transition of the future.
-    item->future->onAny(
-        defer(self(), &HttpProxy::waited, *item->future));
+    items.front()->future->onAny(
+        defer(self(), &HttpProxy::waited, lambda::_1));
 
     // Also create a timer so we don't wait forever.
     timer = Timer::create(
         Seconds(30.0),
-        defer(self(), &HttpProxy::timedout, *item->future));
+        defer(self(), &HttpProxy::timedout, *(items.front()->future)));
   }
 }
 
 
 void HttpProxy::waited(const Future<Response>& future)
 {
-  if (items.size() > 0) { // The timer might have already fired.
+  // If the item in the top of the queue is for this future, then
+  // process the response (otherwise, HttpProxy::timedout must have
+  // been executed while the future was being satisfied).
+  if (items.size() > 0) {
     Item* item = items.front();
-    if (future == *item->future) { // Another future might already be queued.
+    if (future == *item->future) {
       Timer::cancel(timer);
 
       if (item->future->isReady()) {
@@ -1491,7 +1486,11 @@ void HttpProxy::waited(const Future<Response>& future)
 
 void HttpProxy::timedout(const Future<Response>& future)
 {
-  if (items.size() > 0) { // We might not have been able to cancel the timer.
+  // If the item in the top of the queue is for this future, then
+  // we've timed out and need to send a ServiceUnavailable (otherwise,
+  // HttpProxy::waited must have been executed but the timer wasn't
+  // cancelled in time).
+  if (items.size() > 0) {
     Item* item = items.front();
     if (future == *item->future) {
       socket_manager->send(ServiceUnavailable(), socket, item->persist);
@@ -3035,14 +3034,8 @@ void read(int fd,
     if (length < 0) {
       if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
         // Restart the read operation.
-        Future<short> future = poll(fd, process::io::READ);
-        future.onAny(
-            lambda::bind(&internal::read,
-                         fd,
-                         data,
-                         size,
-                         promise,
-                         future));
+        poll(fd, process::io::READ).onAny(
+            lambda::bind(&internal::read, fd, data, size, promise, lambda::_1));
       } else {
         // Error occurred.
         promise->fail(strerror(errno));
@@ -3107,14 +3100,8 @@ Future<size_t> read(int fd, void* data, size_t size)
     return promise->future();
   }
 
-  Future<short> future = poll(fd, process::io::READ);
-  future.onAny(
-      lambda::bind(&internal::read,
-                   fd,
-                   data,
-                   size,
-                   promise,
-                   future));
+  Future<short> future = poll(fd, process::io::READ).onAny(
+      lambda::bind(&internal::read, fd, data, size, promise, lambda::_1));
 
   // Also cancel the polling if promise->future() is discarded.
   promise->future().onDiscarded(
@@ -3167,8 +3154,8 @@ Future<string> __read(
 
 Future<string> _read(int fd, string* buffer, char* data, size_t length)
 {
-  std::tr1::function<Future<string>(const size_t&)> f = std::tr1::bind(
-      __read, std::tr1::placeholders::_1, fd, buffer, data, length);
+  std::tr1::function<Future<string>(const size_t&)> f =
+    std::tr1::bind(__read, lambda::_1, fd, buffer, data, length);
 
   return io::read(fd, data, length).then(f);
 }
@@ -3278,7 +3265,7 @@ Future<Response> get(const PID<>& pid, const string& query, const string& body)
 
   // Decode once the async read completes.
   std::tr1::function<Future<Response>(const string&)> decode =
-    std::tr1::bind(internal::decode, std::tr1::placeholders::_1);
+    std::tr1::bind(internal::decode, lambda::_1);
 
   return io::read(s).then(decode);
 }

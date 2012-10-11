@@ -22,9 +22,9 @@ public:
   Future<int> func1()
   {
     promise.future().onAny(
-        defer([=] () {
-            terminate(self());
-          }));
+        defer([=] (const Future<int>& future) {
+          terminate(self());
+        }));
     return promise.future();
   }
 

@@ -300,9 +300,9 @@ void Slave::initialize()
   // Blocked on http://code.google.com/p/google-glog/issues/detail?id=116
   // Alternatively, initialize() could take the executable name.
   if (flags.log_dir.isSome()) {
-    string logPath = path::join(flags.log_dir.get(), "mesos-slave.INFO");
-    Future<Nothing> result = files->attach(logPath, "/log");
-    result.onAny(defer(self(), &Self::fileAttached, result, logPath));
+    string path = path::join(flags.log_dir.get(), "mesos-slave.INFO");
+    files->attach(path, "/log")
+      .onAny(defer(self(), &Self::fileAttached, params::_1, path));
   }
 }
 
@@ -538,11 +538,14 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
 
     // NOTE: This constant "virtual path" format is shared with the webui.
     // TODO(bmahler): Pass this to the webui explicitly via the existing JSON.
-    string attached =
-        strings::format("/slaves/%s/frameworks/%s/executors/%s",
-            id.value(), framework->id.value(), executorId.value()).get();
-    Future<Nothing> result = files->attach(directory, attached);
-    result.onAny(defer(self(), &Self::fileAttached, result, directory));
+    string attached = strings::format(
+        "/slaves/%s/frameworks/%s/executors/%s",
+        id.value(),
+        framework->id.value(),
+        executorId.value()).get();
+
+    files->attach(directory, attached)
+      .onAny(defer(self(), &Self::fileAttached, params::_1, directory));
 
     LOG(INFO) << "Using '" << directory
               << "' as work directory for executor '" << executorId
@@ -1161,12 +1164,8 @@ void Slave::checkDiskUsage()
 
   // TODO(vinod): We are making usage a Future, so that we can plug in
   // os::usage() into async.
-  Future<Try<double> > usage = os::usage();
-
-  usage.onAny(
-      defer(self(),
-            &Slave::_checkDiskUsage,
-            usage));
+  Future<Try<double> >(os::usage())
+    .onAny(defer(self(), &Slave::_checkDiskUsage, params::_1));
 }
 
 

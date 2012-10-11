@@ -27,6 +27,7 @@
 #include <process/dispatch.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -209,12 +210,11 @@ void CgroupsIsolationModule::initialize(
     if (isValidCgroupName(cgroup)) {
       LOG(INFO) << "Removing stale cgroup " << cgroup
                 << " in hierarchy " << hierarchy;
-      Future<bool> future = cgroups::destroyCgroup(hierarchy, cgroup);
-      future.onAny(
-          defer(PID<CgroupsIsolationModule>(this),
-                &CgroupsIsolationModule::destroyWaited,
-                cgroup,
-                future));
+      cgroups::destroyCgroup(hierarchy, cgroup)
+        .onAny(defer(PID<CgroupsIsolationModule>(this),
+                     &CgroupsIsolationModule::destroyWaited,
+                     cgroup,
+                     lambda::_1));
     }
   }
 
@@ -407,14 +407,11 @@ void CgroupsIsolationModule::killExecutor(
   // wait for it to succeed as we don't want to block the isolation module.
   // Instead, we register a callback which will be invoked when its result is
   // ready.
-  Future<bool> future =
-    cgroups::destroyCgroup(hierarchy,
-                           getCgroupName(frameworkId, executorId));
-  future.onAny(
-      defer(PID<CgroupsIsolationModule>(this),
-            &CgroupsIsolationModule::destroyWaited,
-            getCgroupName(frameworkId, executorId),
-            future));
+  cgroups::destroyCgroup(hierarchy, getCgroupName(frameworkId, executorId))
+    .onAny(defer(PID<CgroupsIsolationModule>(this),
+                 &CgroupsIsolationModule::destroyWaited,
+                 getCgroupName(frameworkId, executorId),
+                 lambda::_1));
 
   // We do not unregister the cgroup info here, instead, we ask the process
   // exit handler to unregister the cgroup info.
@@ -580,7 +577,7 @@ void CgroupsIsolationModule::oomListen(
                << ": "<< info->oomNotifier.failure();
   }
 
-  LOG(INFO) << "Start listening for OOM events for executor " << executorId
+  LOG(INFO) << "Started listening for OOM events for executor " << executorId
             << " of framework " << frameworkId;
 
   info->oomNotifier.onAny(
@@ -589,7 +586,7 @@ void CgroupsIsolationModule::oomListen(
             frameworkId,
             executorId,
             info->tag,
-            info->oomNotifier));
+            lambda::_1));
 }
 
 

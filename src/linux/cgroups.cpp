@@ -902,7 +902,7 @@ protected:
     // successfully read 8 bytes (sizeof uint64_t) from the event file, it
     // indicates an event has occurred.
     reading = io::read(eventfd.get(), &data, sizeof(data));
-    reading.onAny(defer(self(), &EventListener::notified));
+    reading.onAny(defer(self(), &EventListener::notified, lambda::_1));
   }
 
   virtual void finalize()
@@ -923,7 +923,7 @@ protected:
 private:
   // This function is called when the nonblocking read on the eventfd has
   // result, either because the event has happened, or an error has occurred.
-  void notified()
+  void notified(const Future<size_t>&)
   {
     // Ignore this function if the promise is no longer pending.
     if (!promise.future().isPending()) {
@@ -1327,7 +1327,7 @@ protected:
       .then(funcThaw)     // Thaw the cgroup to let kill signals be received.
       .then(funcEmpty);   // Wait until no task in the cgroup.
 
-    finish.onAny(defer(self(), &Self::finished));
+    finish.onAny(defer(self(), &Self::finished, lambda::_1));
   }
 
   virtual void finalize()
@@ -1374,7 +1374,7 @@ private:
     return futureEmpty;
   }
 
-  void finished()
+  void finished(const Future<bool>&)
   {
     // The only place that 'finish' can be discarded is in the finalize
     // function. Once the process has been terminated, we should not be able to
@@ -1462,8 +1462,8 @@ protected:
       killers.push_back(killer);
     }
 
-    Future<std::list<bool> > kill = collect(killers);
-    kill.onAny(defer(self(), &Destroyer::killed, kill));
+    collect(killers)
+      .onAny(defer(self(), &Destroyer::killed, lambda::_1));
   }
 
   virtual void finalize()

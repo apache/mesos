@@ -100,6 +100,22 @@ TEST(Process, associate)
 }
 
 
+void onAny(const Future<bool>& future, bool* b)
+{
+  ASSERT_TRUE(future.isReady());
+  *b = future.get();
+}
+
+
+TEST(Process, onAny)
+{
+  bool b = false;
+  Future<bool>(true)
+    .onAny(std::tr1::bind(&onAny, std::tr1::placeholders::_1, &b));
+  EXPECT_TRUE(b);
+}
+
+
 Future<std::string> itoa1(int* const& i)
 {
   std::ostringstream out;

@@ -96,15 +96,14 @@ private:
   void watch(const std::set<zookeeper::Group::Membership>& expected);
 
   // Invoked when the group memberships have changed.
-  void watched();
+  void watched(const process::Future<std::set<zookeeper::Group::Membership> >&);
 
   // Invoked when group members data has been collected.
-  void collected();
+  void collected(const process::Future<std::list<std::string> >& datas);
 
   zookeeper::Group* group;
   process::Executor executor;
   process::Future<std::set<zookeeper::Group::Membership> > memberships;
-  process::Future<std::list<std::string> > datas;
 };
 
 
@@ -255,11 +254,13 @@ inline void ZooKeeperNetwork::watch(
     const std::set<zookeeper::Group::Membership>& expected)
 {
   memberships = group->watch(expected);
-  memberships.onAny(executor.defer(lambda::bind(&This::watched, this)));
+  memberships
+    .onAny(executor.defer(lambda::bind(&This::watched, this, lambda::_1)));
 }
 
 
-inline void ZooKeeperNetwork::watched()
+inline void ZooKeeperNetwork::watched(
+    const process::Future<std::set<zookeeper::Group::Membership> >&)
 {
   if (memberships.isFailed()) {
     // We can't do much here, we could try creating another Group but
@@ -280,12 +281,13 @@ inline void ZooKeeperNetwork::watched()
     futures.push_back(group->data(membership));
   }
 
-  datas = process::collect(futures, process::Timeout(Seconds(5.0)));
-  datas.onAny(executor.defer(lambda::bind(&This::collected, this)));
+  process::collect(futures, process::Timeout(Seconds(5.0)))
+    .onAny(executor.defer(lambda::bind(&This::collected, this, lambda::_1)));
 }
 
 
-inline void ZooKeeperNetwork::collected()
+inline void ZooKeeperNetwork::collected(
+    const process::Future<std::list<std::string> >& datas)
 {
   if (datas.isFailed()) {
     LOG(WARNING) << "Failed to get data for ZooKeeper group members: "

@@ -86,7 +86,7 @@ public:
   typedef std::tr1::function<void(const T&)> ReadyCallback;
   typedef std::tr1::function<void(const std::string&)> FailedCallback;
   typedef std::tr1::function<void(void)> DiscardedCallback;
-  typedef std::tr1::function<void(void)> AnyCallback;
+  typedef std::tr1::function<void(const Future<T>&)> AnyCallback;
 
   // Installs callbacks for the specified events and returns a const
   // reference to 'this' in order to easily support chaining.
@@ -329,7 +329,7 @@ Future<Future<T> > select(const std::set<Future<T> >& futures)
 
   typename std::set<Future<T> >::iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-    (*iterator).onAny(std::tr1::bind(select, (*iterator)));
+    (*iterator).onAny(std::tr1::bind(select, std::tr1::placeholders::_1));
   }
 
   return future;
@@ -470,7 +470,7 @@ bool Future<T>::discard()
 
     while (!onAnyCallbacks->empty()) {
       // TODO(*): Invoke callbacks in another execution context.
-      onAnyCallbacks->front()();
+      onAnyCallbacks->front()(*this);
       onAnyCallbacks->pop();
     }
   }
@@ -657,7 +657,7 @@ const Future<T>& Future<T>::onAny(const AnyCallback& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback();
+    callback(*this);
   }
 
   return *this;
@@ -666,51 +666,34 @@ const Future<T>& Future<T>::onAny(const AnyCallback& callback) const
 
 namespace internal {
 
-// TODO(benh): Need to pass 'future' as a weak_ptr so that we can
-// avoid reference counting cycles!
 template <typename T, typename X>
 void thenf(const std::tr1::shared_ptr<Promise<X> >& promise,
            const std::tr1::function<Future<X>(const T&)>& callback,
-           const std::tr1::shared_ptr<Future<T> >& future)
+           const Future<T>& future)
 {
-  // Propagate discarding up the chain (triggered via setting
-  // onDiscarded on promise->future() in Future::then below).
-  if (promise->future().isDiscarded()) {
-    future->discard();
-  } else {
-    if (future->isReady()) {
-      promise->associate(callback(future->get()));
-    } else if (future->isFailed()) {
-      promise->fail(future->failure());
-    } else if (future->isDiscarded()) {
-      promise->future().discard();
-    }
+  if (future.isReady()) {
+    promise->associate(callback(future.get()));
+  } else if (future.isFailed()) {
+    promise->fail(future.failure());
+  } else if (future.isDiscarded()) {
+    promise->future().discard();
   }
 }
 
 
-// TODO(benh): Need to pass 'future' as a weak_ptr so that we can
-// avoid reference counting cycles!
 template <typename T, typename X>
 void then(const std::tr1::shared_ptr<Promise<X> >& promise,
           const std::tr1::function<X(const T&)>& callback,
-          const std::tr1::shared_ptr<Future<T> >& future)
+          const Future<T>& future)
 {
-  // Propagate discarding up the chain (triggered via setting
-  // onDiscarded on promise->future() in Future::then below).
-  if (promise->future().isDiscarded()) {
-    future->discard();
-  } else {
-    if (future->isReady()) {
-      promise->set(callback(future->get()));
-    } else if (future->isFailed()) {
-      promise->fail(future->failure());
-    } else if (future->isDiscarded()) {
-      promise->future().discard();
-    }
+  if (future.isReady()) {
+    promise->set(callback(future.get()));
+  } else if (future.isFailed()) {
+    promise->fail(future.failure());
+  } else if (future.isDiscarded()) {
+    promise->future().discard();
   }
 }
-
 
 } // namespace internal {
 
@@ -721,15 +704,23 @@ Future<X> Future<T>::then(const std::tr1::function<Future<X>(const T&)>& f) cons
 {
   std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
 
-  std::tr1::function<void(void)> thenf =
+  std::tr1::function<void(const Future<T>&)> thenf =
     std::tr1::bind(&internal::thenf<T, X>,
                    promise,
                    f,
-                   std::tr1::shared_ptr<Future<T> >(new Future<T>(*this)));
+                   std::tr1::placeholders::_1);
 
   onAny(thenf);
 
-  promise->future().onDiscarded(thenf);
+  // Propagate discarding up the chain (note that we bind with a copy
+  // of this future since 'this' might no longer be valid but other
+  // references might still exist.
+  // TODO(benh): Need to pass 'future' as a weak_ptr so that we can
+  // avoid reference counting cycles!
+  std::tr1::function<void(void)> discard =
+    std::tr1::bind(&Future<T>::discard, *this);
+
+  promise->future().onDiscarded(discard);
 
   return promise->future();
 }
@@ -741,15 +732,23 @@ Future<X> Future<T>::then(const std::tr1::function<X(const T&)>& f) const
 {
   std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
 
-  std::tr1::function<void(void)> then =
+  std::tr1::function<void(const Future<T>&)> then =
     std::tr1::bind(&internal::then<T, X>,
                    promise,
                    f,
-                   std::tr1::shared_ptr<Future<T> >(new Future<T>(*this)));
+                   std::tr1::placeholders::_1);
 
   onAny(then);
 
-  promise->future().onDiscarded(then);
+  // Propagate discarding up the chain (note that we bind with a copy
+  // of this future since 'this' might no longer be valid but other
+  // references might still exist.
+  // TODO(benh): Need to pass 'future' as a weak_ptr so that we can
+  // avoid reference counting cycles!
+  std::tr1::function<void(void)> discard =
+    std::tr1::bind(&Future<T>::discard, *this);
+
+  promise->future().onDiscarded(discard);
 
   return promise->future();
 }
@@ -765,15 +764,23 @@ Future<X> Future<T>::then(
 
   std::tr1::function<Future<X>(const T&)> callback = b;
 
-  std::tr1::function<void(void)> thenf =
+  std::tr1::function<void(const Future<T>&)> thenf =
     std::tr1::bind(&internal::thenf<T, X>,
                    promise,
                    callback,
-                   std::tr1::shared_ptr<Future<T> >(new Future<T>(*this)));
+                   std::tr1::placeholders::_1);
 
   onAny(thenf);
 
-  promise->future().onDiscarded(thenf);
+  // Propagate discarding up the chain (note that we bind with a copy
+  // of this future since 'this' might no longer be valid but other
+  // references might still exist.
+  // TODO(benh): Need to pass 'future' as a weak_ptr so that we can
+  // avoid reference counting cycles!
+  std::tr1::function<void(void)> discard =
+    std::tr1::bind(&Future<T>::discard, *this);
+
+  promise->future().onDiscarded(discard);
 
   return promise->future();
 }
@@ -789,15 +796,23 @@ Future<X> Future<T>::then(
 
   std::tr1::function<X(const T&)> callback = b;
 
-  std::tr1::function<void(void)> then =
+  std::tr1::function<void(const Future<T>&)> then =
     std::tr1::bind(&internal::then<T, X>,
                    promise,
                    callback,
-                   std::tr1::shared_ptr<Future<T> >(new Future<T>(*this)));
+                   std::tr1::placeholders::_1);
 
   onAny(then);
 
-  promise->future().onDiscarded(then);
+  // Propagate discarding up the chain (note that we bind with a copy
+  // of this future since 'this' might no longer be valid but other
+  // references might still exist.
+  // TODO(benh): Need to pass 'future' as a weak_ptr so that we can
+  // avoid reference counting cycles!
+  std::tr1::function<void(void)> discard =
+    std::tr1::bind(&Future<T>::discard, *this);
+
+  promise->future().onDiscarded(discard);
 
   return promise->future();
 }
@@ -813,27 +828,23 @@ auto Future<T>::then(F f) const
 
   std::tr1::shared_ptr<Promise<X>> promise(new Promise<X>());
 
-  // TODO(benh): Need to use a weak_ptr here so that we don't keep the
-  // future from getting cleaned up when there are no actually no more
-  // references!
+  onAny([=] (const Future<T>& future) {
+    if (future.isReady()) {
+      promise->set(f(future.get()));
+    } else if (future.isFailed()) {
+      promise->fail(future.failure());
+    } else if (future.isDiscarded()) {
+      promise->future().discard();
+    }
+  });
+
+  // TODO(benh): Need to use weak_ptr here so that we can avoid
+  // reference counting cycles!
   Future<T> future(*this);
 
-  onAny([=] () {
-      if (future.isReady()) {
-        promise->set(f(future.get()));
-      } else if (future.isFailed()) {
-        promise->fail(future.failure());
-      } else if (future.isDiscarded()) {
-        promise->future().discard();
-      } else if (future.isPending()) {
-      }
-    });
-
   promise->future().onDiscarded([=] () {
-      if (future.isPending()) {
-        Future<T>(future).discard(); // Need copy since 'discard' isn't const.
-      }
-    });
+    future.discard(); // Need a non-const copy to discard.
+  });
 
   return promise->future();
 }
@@ -870,7 +881,7 @@ bool Future<T>::set(const T& _t)
 
     while (!onAnyCallbacks->empty()) {
       // TODO(*): Invoke callbacks in another execution context.
-      onAnyCallbacks->front()();
+      onAnyCallbacks->front()(*this);
       onAnyCallbacks->pop();
     }
   }
@@ -909,7 +920,7 @@ bool Future<T>::fail(const std::string& _message)
 
     while (!onAnyCallbacks->empty()) {
       // TODO(*): Invoke callbacks in another execution context.
-      onAnyCallbacks->front()();
+      onAnyCallbacks->front()(*this);
       onAnyCallbacks->pop();
     }
   }

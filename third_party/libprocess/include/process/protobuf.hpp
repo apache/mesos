@@ -357,34 +357,34 @@ private:
 // and waiting for a protobuf "response", but uses futures so that
 // this can be done without needing to implement a process.
 template <typename Req, typename Res>
-class ReqResProcess
-  : public ProtobufProcess<ReqResProcess<Req, Res> >
+class ReqResProcess : public ProtobufProcess<ReqResProcess<Req, Res> >
 {
 public:
-  typedef ProtobufProcess<ReqResProcess<Req, Res> > Super;
-
   ReqResProcess(const process::UPID& _pid, const Req& _req)
     : pid(_pid), req(_req)
   {
-    Super::template install<Res>(
-        &ReqResProcess<Req, Res>::response);
+    ProtobufProcess<ReqResProcess<Req, Res> >::template
+      install<Res>(&ReqResProcess<Req, Res>::response);
   }
 
   process::Future<Res> run()
   {
+    // Terminate this process if no one cares about the response
+    // (note, we need to disambiguate the process::terminate).
+    void (*terminate)(const process::UPID&, bool) = &process::terminate;
+    promise.future().onDiscarded(
+        std::tr1::bind(terminate, process::ProcessBase::self(), true));
+
     send(pid, req);
-    std::tr1::function<void(void)> callback =
-      std::tr1::bind(&ReqResProcess<Req, Res>::terminate, Super::self());
-    promise.future().onAny(callback);
+
     return promise.future();
   }
 
 private:
-  void response(const Res& res) { promise.set(res); }
-
-  static void terminate(const process::PID<ReqResProcess<Req, Res> >& pid)
+  void response(const Res& res)
   {
-    process::terminate(pid);
+    promise.set(res);
+    process::terminate(process::ProcessBase::self());
   }
 
   const process::UPID pid;
