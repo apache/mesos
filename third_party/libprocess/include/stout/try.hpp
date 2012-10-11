@@ -2,6 +2,7 @@
 #define __STOUT_TRY_HPP__
 
 #include <assert.h>
+#include <stdlib.h> // For abort.
 
 #include <iostream>
 #include <string>
