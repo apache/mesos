@@ -144,45 +144,62 @@
     }
 
     var offset = this_.start - this_.page_size;
+    var length = this_.page_size;
 
     if (offset < 0) {
       offset = 0;
+      length = this_.start;
     }
 
-    this_.read({'offset': offset, 'length': this_.page_size})
-      .success(function(data) {
-        this_.indicate('(PAGED)');
-        setTimeout(function() { this_.indicate(''); }, 1000);
+    // Buffer the data in case what gets read is less than 'length'.
+    var buffer = '';
 
-        if (data.length > 0) {
-          // Truncate to the first newline (unless this is the beginning).
-          if (data.offset != 0) {
-            var index = data.data.indexOf('\n') + 1;
-            data.offset += index;
-            data.data = data.data.substring(index);
-            data.length -= index;
+    var read = function(offset, length) {
+      this_.read({'offset': offset, 'length': length})
+        .success(function(data) {
+          if (data.length < length) {
+              buffer += data.data;
+              read(offset + data.length, length - data.length);
+          } else if (data.length > 0) {
+            this_.indicate('(PAGED)');
+            setTimeout(function() { this_.indicate(''); }, 1000);
+
+            // Prepend buffer onto data.
+            data.offset -= buffer.length;
+            data.data = buffer + data.data;
+            data.length = data.data.length;
+
+            // Truncate to the first newline (unless this is the beginning).
+            if (data.offset != 0) {
+              var index = data.data.indexOf('\n') + 1;
+              data.offset += index;
+              data.data = data.data.substring(index);
+              data.length -= index;
+            }
+
+            this_.start = data.offset;
+
+            var scrollTop = this_.element.scrollTop();
+            var scrollHeight = this_.element[0].scrollHeight;
+
+            this_.element.prepend(data.data);
+
+            scrollTop += this_.element[0].scrollHeight - scrollHeight;
+            this_.element.scrollTop(scrollTop);
+
+            this_.paging = false;
           }
+        })
+        .error(function() {
+          this_.indicate('(FAILED TO PAGE ... RETRYING)');
+          setTimeout(function() {
+            this_.indicate('');
+            this_.page();
+          }, 1000);
+        });
+    }
 
-          this_.start = data.offset;
-
-          var scrollTop = this_.element.scrollTop();
-          var scrollHeight = this_.element[0].scrollHeight;
-
-          this_.element.prepend(data.data);
-
-          scrollTop += this_.element[0].scrollHeight - scrollHeight;
-          this_.element.scrollTop(scrollTop);
-
-          this_.paging = false;
-        }
-      })
-      .error(function() {
-        this_.indicate('(FAILED TO PAGE ... RETRYING)');
-        setTimeout(function() {
-          this_.indicate('');
-          this_.page();
-        }, 1000);
-      });
+    read(offset, length);
   }
 
 
@@ -280,7 +297,7 @@
         'success': function() {},
         'error': function(f) { f(); }
       }},
-      'page_size': 10000,
+      'page_size': 8 * 4096, // 8 "pages".
       'truncate_length': 50000
     }, options);
 
