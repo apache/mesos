@@ -2827,13 +2827,15 @@ void ProcessBase::visit(const HttpEvent& event)
       response.path += "/" + tokens[i];
     }
 
-    // Try and determine the Content-Type.
-    size_t index = response.path.find_last_of('.');
-
-    if (index != string::npos) {
-      string extension = response.path.substr(index);
-      if (assets[name].types.count(extension) > 0) {
-        response.headers["Content-Type"] = assets[name].types[extension];
+    // Try and determine the Content-Type from an extension.
+    Try<string> basename = os::basename(response.path);
+    if (!basename.isError()) {
+      size_t index = basename.get().find_last_of('.');
+      if (index != string::npos) {
+        string extension = basename.get().substr(index);
+        if (assets[name].types.count(extension) > 0) {
+          response.headers["Content-Type"] = assets[name].types[extension];
+        }
       }
     }
 
