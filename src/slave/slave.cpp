@@ -41,6 +41,8 @@
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 
+#include "logging/logging.hpp"
+
 #include "slave/flags.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
@@ -296,13 +298,14 @@ void Slave::initialize()
   route("/stats.json", bind(&http::json::stats, cref(*this), params::_1));
   route("/state.json", bind(&http::json::state, cref(*this), params::_1));
 
-  // TODO(benh): Ask glog for file name (i.e., mesos-slave.INFO).
-  // Blocked on http://code.google.com/p/google-glog/issues/detail?id=116
-  // Alternatively, initialize() could take the executable name.
   if (flags.log_dir.isSome()) {
-    string path = path::join(flags.log_dir.get(), "mesos-slave.INFO");
-    files->attach(path, "/log")
-      .onAny(defer(self(), &Self::fileAttached, params::_1, path));
+    Try<string> log = logging::getLogFile(google::INFO);
+    if (log.isError()) {
+      LOG(ERROR) << "Slave log file cannot be found: " << log.error();
+    } else {
+      files->attach(log.get(), "/slave/log")
+        .onAny(defer(self(), &Self::fileAttached, params::_1, log.get()));
+    }
   }
 }
 

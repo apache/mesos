@@ -30,8 +30,10 @@
 #include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/format.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
@@ -138,6 +140,11 @@ private:
 };
 
 
+// Persistent copy of argv0 since InitGoogleLogging requires the
+// string we pass to it to be accessible indefinitely.
+string argv0;
+
+
 void initialize(const string& _argv0, const Flags& flags)
 {
   static Once* initialized = new Once();
@@ -146,9 +153,7 @@ void initialize(const string& _argv0, const Flags& flags)
     return;
   }
 
-  // Persistent copy of argv0 since InitGoogleLogging requires the
-  // string we pass to it to be accessible indefinitely.
-  static string argv0 = _argv0;
+  argv0 = _argv0;
 
   // Set glog's parameters through Google Flags variables.
   if (flags.log_dir.isSome()) {
@@ -179,6 +184,31 @@ void initialize(const string& _argv0, const Flags& flags)
   spawn(new LoggingProcess(), true);
 
   initialized->done();
+}
+
+
+Try<string> getLogFile(google::LogSeverity severity)
+{
+  if (FLAGS_log_dir.empty()) {
+    return Try<string>::error("The 'log_dir' option was not specified");
+  }
+
+  string suffix;
+  switch (severity) {
+    case google::INFO:    suffix = ".INFO";    break;
+    case google::WARNING: suffix = ".WARNING"; break;
+    case google::ERROR:   suffix = ".ERROR";   break;
+    default:
+      return Try<string>::error(
+          strings::format("Unknown log severity: %d", severity).get());
+  }
+
+  Try<string> basename = os::basename(argv0);
+  if (basename.isError()) {
+    return basename;
+  }
+
+  return path::join(FLAGS_log_dir, basename.get()) + suffix;
 }
 
 } // namespace logging {

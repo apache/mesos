@@ -37,6 +37,7 @@
 #include "flags/flags.hpp"
 
 #include "logging/flags.hpp"
+#include "logging/logging.hpp"
 
 #include "master/allocator.hpp"
 #include "master/flags.hpp"
@@ -455,13 +456,14 @@ void Master::initialize()
   provide("", path::join(flags.webui_dir, "master/static/index.html"));
   provide("static", path::join(flags.webui_dir, "master/static"));
 
-  // TODO(benh): Ask glog for file name (i.e., mesos-master.INFO).
-  // Blocked on http://code.google.com/p/google-glog/issues/detail?id=116
-  // Alternatively, initialize() could take the executable name.
   if (flags.log_dir.isSome()) {
-    string path = path::join(flags.log_dir.get(), "mesos-master.INFO");
-    files->attach(path, "/log")
-      .onAny(defer(self(), &Self::fileAttached, params::_1, path));
+    Try<string> log = logging::getLogFile(google::INFO);
+    if (log.isError()) {
+      LOG(ERROR) << "Master log file cannot be found: " << log.error();
+    } else {
+      files->attach(log.get(), "/master/log")
+        .onAny(defer(self(), &Self::fileAttached, params::_1, log.get()));
+    }
   }
 }
 

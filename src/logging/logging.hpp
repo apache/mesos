@@ -28,11 +28,18 @@
 
 #include "logging/flags.hpp"
 
+#include "stout/try.hpp"
+
 namespace mesos {
 namespace internal {
 namespace logging {
 
 void initialize(const std::string& argv0, const Flags& flags);
+
+
+// Returns the log file for the provided severity level.
+// LogSeverity is one of {INFO, WARNING, ERROR}.
+Try<std::string> getLogFile(google::LogSeverity severity);
 
 } // namespace logging {
 } // namespace internal {
