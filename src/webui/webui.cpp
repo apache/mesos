@@ -1,9 +1,12 @@
 #ifdef MESOS_WEBUI
 
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <sys/types.h>
 #include <sys/uio.h>
+
+#include <iostream>
 
 #include <tr1/functional>
 
@@ -58,7 +61,7 @@ static void run(const std::string& directory,
 
   PyRun_SimpleString(code.c_str());
 
-  LOG(INFO) << "Loading webui script at '" << path << "'";
+  std::cerr << "Loading webui script at '" << path << "'" << std::endl;
 
   FILE* file = fopen(path.c_str(), "r");
   PyRun_SimpleFile(file, path.c_str());
@@ -74,9 +77,10 @@ void wait(int fd)
 {
   char temp[8];
   if (read(fd, temp, 8) == -1) {
-    PLOG(FATAL) << "Failed to read on pipe from parent";
+    std::cerr << "Failed to read on pipe from parent" << std::endl;
+    abort();
   }
-  exit(1);
+  exit(0);
 }
 
 
@@ -128,7 +132,8 @@ void start(const std::string& directory,
     close(pipes[1]); // Close the writer end in the child.
 
     if (!thread::start(std::tr1::bind(&wait, pipes[0]), true)) {
-      LOG(FATAL) << "Failed to start wait thread";
+      std::cerr << "Failed to start wait thread" << std::endl;
+      abort();
     }
 
     run(directory, script, args);
