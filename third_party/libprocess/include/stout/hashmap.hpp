@@ -19,6 +19,10 @@ template <typename Key, typename Value>
 class hashmap : public boost::unordered_map<Key, Value>
 {
 public:
+  // An explicit default constructor is needed so
+  // 'const hashmap<T> map;' is not an error.
+  hashmap() {}
+
   // Checks whether this map contains a binding for a key.
   bool contains(const Key& key) const
   {
