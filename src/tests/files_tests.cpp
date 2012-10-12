@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <string>
+
 #include <gmock/gmock.h>
 
 #include <process/future.hpp>
@@ -39,6 +41,8 @@ using process::http::BadRequest;
 using process::http::NotFound;
 using process::http::OK;
 using process::http::Response;
+
+using std::string;
 
 
 TEST_WITH_WORKDIR(FilesTest, AttachTest)
@@ -86,14 +90,14 @@ TEST_WITH_WORKDIR(FilesTest, ReadTest)
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(
-      "Failed to parse offset: Failed to convert 'hello' to number",
+      "Failed to parse offset: Failed to convert 'hello' to number.\n",
       response);
 
   response = process::http::get(pid, "read.json?path=none&length=hello");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(
-      "Failed to parse length: Failed to convert 'hello' to number",
+      "Failed to parse length: Failed to convert 'hello' to number.\n",
       response);
 
   // Now write a file.
@@ -246,4 +250,39 @@ TEST_WITH_WORKDIR(FilesTest, BrowseTest)
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       NotFound().status,
       process::http::get(pid, "browse.json?path=missing"));
+}
+
+
+TEST_WITH_WORKDIR(FilesTest, DownloadTest)
+{
+  Files files;
+  const process::PID<>& pid = files.pid();
+
+  // This is a one-pixel black gif image.
+  char gifData[] = {
+      0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x01, 0x00, 0x01, 0x00, 0x91, 0x00,
+      0x00, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x02,
+      0x02, 0x4c, 0x01, 0x00, 0x3b, 0x00
+  };
+  string data(gifData, sizeof(gifData));
+
+  ASSERT_TRUE(os::write("binary", "no file extension").isSome());
+  ASSERT_TRUE(os::write("black.gif", data).isSome());
+  EXPECT_FUTURE_WILL_SUCCEED(files.attach("binary", "binary"));
+  EXPECT_FUTURE_WILL_SUCCEED(files.attach("black.gif", "black.gif"));
+
+  Future<Response> response =
+    process::http::get(pid, "download.json?path=binary");
+  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
+  EXPECT_RESPONSE_HEADER_WILL_EQ(
+      "application/octet-stream",
+      "Content-Type",
+      response);
+  EXPECT_RESPONSE_BODY_WILL_EQ("no file extension", response);
+
+  response = process::http::get(pid, "download.json?path=black.gif");
+  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
+  EXPECT_RESPONSE_HEADER_WILL_EQ("image/gif", "Content-Type", response);
+  EXPECT_RESPONSE_BODY_WILL_EQ(data, response);
 }

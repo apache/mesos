@@ -247,6 +247,8 @@ inline Try<Nothing> write(const std::string& path,
 
 // Read the contents of the file from its current offset
 // and return it as a string.
+// TODO(bmahler): Change this to a Try<std::string> since none()
+// is equivalent to an empty string.
 inline Result<std::string> read(int fd)
 {
   // Get the size of the file.

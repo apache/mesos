@@ -3195,7 +3195,8 @@ Future<Response> decode(const string& buffer)
     for (size_t i = 0; i < responses.size(); ++i) {
       delete responses[i];
     }
-    return Future<Response>::failed("Failed to decode HTTP response");
+    return Future<Response>::failed(
+        "Failed to decode HTTP response:\n" + buffer + "\n");
   } else if (responses.size() > 1) {
     PLOG(ERROR) << "Received more than 1 HTTP Response";
   }

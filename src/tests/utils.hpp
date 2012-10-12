@@ -188,6 +188,15 @@ inline void EXPECT_RESPONSE_BODY_WILL_EQ(
 }
 
 
+#define EXPECT_RESPONSE_HEADER_WILL_EQ(expected, headerKey, future)            \
+  do {                                                                         \
+    typeof(future) _future = future;                                           \
+    ASSERT_FUTURE_WILL_SUCCEED(future);                                        \
+    EXPECT_TRUE(_future.get().headers.contains(headerKey));                    \
+    EXPECT_EQ(expected, _future.get().headers.find(headerKey)->second);        \
+  } while (false);
+
+
 /**
  * Definition of a mock Scheduler to be used in tests with gmock.
  */

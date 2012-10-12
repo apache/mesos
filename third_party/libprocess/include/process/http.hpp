@@ -103,6 +103,16 @@ struct OK : Response
 };
 
 
+struct TemporaryRedirect : Response
+{
+  TemporaryRedirect(const std::string& url) : Response("")
+  {
+    status = "307 Temporary Redirect";
+    headers["Location"] = url;
+  }
+};
+
+
 struct BadRequest : Response
 {
   BadRequest(const std::string& body = "") : Response(body)
@@ -135,16 +145,6 @@ struct ServiceUnavailable : Response
   ServiceUnavailable(const std::string& body = "") : Response(body)
   {
     status = "503 Service Unavailable";
-  }
-};
-
-
-struct TemporaryRedirect : Response
-{
-  TemporaryRedirect(const std::string& url) : Response("")
-  {
-    status = "307 Temporary Redirect";
-    headers["Location"] = url;
   }
 };
 

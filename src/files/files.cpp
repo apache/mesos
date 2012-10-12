@@ -7,6 +7,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
+#include <process/mime.hpp>
 #include <process/process.hpp>
 
 #include <stout/hashmap.hpp>
@@ -58,6 +59,7 @@ private:
   // HTTP endpoints.
   Future<Response> browse(const Request& request);
   Future<Response> read(const Request& request);
+  Future<Response> download(const Request& request);
   Future<Response> debug(const Request& request);
 
   // Resolves the virtual path to an actual path.
@@ -80,6 +82,7 @@ void FilesProcess::initialize()
 {
   route("/browse.json", &FilesProcess::browse);
   route("/read.json", &FilesProcess::read);
+  route("/download.json", &FilesProcess::download);
   route("/debug.json", &FilesProcess::debug);
 }
 
@@ -131,7 +134,7 @@ Future<Response> FilesProcess::browse(const Request& request)
   Result<string> resolvedPath = resolve(path.get());
 
   if (resolvedPath.isError()) {
-    return InternalServerError(resolvedPath.error());
+    return InternalServerError(resolvedPath.error() + ".\n");
   } else if (resolvedPath.isNone()) {
     return NotFound();
   }
@@ -173,7 +176,7 @@ Future<Response> FilesProcess::read(const Request& request)
   if (request.query.get("offset").isSome()) {
     Try<off_t> result = numify<off_t>(request.query.get("offset").get());
     if (result.isError()) {
-      return BadRequest("Failed to parse offset: " + result.error());
+      return BadRequest("Failed to parse offset: " + result.error() + ".\n");
     }
     offset = result.get();
   }
@@ -183,7 +186,7 @@ Future<Response> FilesProcess::read(const Request& request)
   if (request.query.get("length").isSome()) {
     Try<ssize_t> result = numify<ssize_t>(request.query.get("length").get());
     if (result.isError()) {
-      return BadRequest("Failed to parse length: " + result.error());
+      return BadRequest("Failed to parse length: " + result.error() + ".\n");
     }
     length = result.get();
   }
@@ -191,14 +194,14 @@ Future<Response> FilesProcess::read(const Request& request)
   Result<string> resolvedPath = resolve(path.get());
 
   if (resolvedPath.isError()) {
-    return BadRequest(resolvedPath.error());
+    return BadRequest(resolvedPath.error() + ".\n");
   } else if (!resolvedPath.isSome()) {
     return NotFound();
   }
 
   // Don't read directories.
   if (os::isdir(resolvedPath.get())) {
-    return BadRequest("Cannot read a directory.");
+    return BadRequest("Cannot read a directory.\n");
   }
 
   // TODO(benh): Cache file descriptors so we aren't constantly
@@ -209,7 +212,7 @@ Future<Response> FilesProcess::read(const Request& request)
     string error = strings::format("Failed to open file at '%s': %s",
         resolvedPath.get(), fd.error()).get();
     LOG(WARNING) << error;
-    return InternalServerError(error);
+    return InternalServerError(error + ".\n");
   }
 
   off_t size = lseek(fd.get(), 0, SEEK_END);
@@ -219,7 +222,7 @@ Future<Response> FilesProcess::read(const Request& request)
         resolvedPath.get(), strerror(errno)).get();
     LOG(WARNING) << error;
     close(fd.get());
-    return InternalServerError(error);
+    return InternalServerError(error + ".\n");
   }
 
   if (offset == -1) {
@@ -239,7 +242,7 @@ Future<Response> FilesProcess::read(const Request& request)
           resolvedPath.get(), strerror(errno)).get();
       LOG(WARNING) << error;
       close(fd.get());
-      return InternalServerError(error);
+      return InternalServerError(error + ".\n");
     }
 
     // Read length bytes (or to EOF).
@@ -258,7 +261,7 @@ Future<Response> FilesProcess::read(const Request& request)
       LOG(WARNING) << error;
       delete[] temp;
       close(fd.get());
-      return InternalServerError(error);
+      return InternalServerError(error + ".\n");
     } else {
       object.values["offset"] = offset;
       object.values["length"] = length;
@@ -273,6 +276,53 @@ Future<Response> FilesProcess::read(const Request& request)
   close(fd.get());
 
   return OK(object, request.query.get("jsonp"));
+}
+
+
+Future<Response> FilesProcess::download(const Request& request)
+{
+  Option<string> path = request.query.get("path");
+
+  if (!path.isSome() || path.get().empty()) {
+    return BadRequest("Expecting 'path=value' in query.\n");
+  }
+
+  Result<string> resolvedPath = resolve(path.get());
+
+  if (resolvedPath.isError()) {
+    return BadRequest(resolvedPath.error() + ".\n");
+  } else if (!resolvedPath.isSome()) {
+    return NotFound();
+  }
+
+  // Don't download directories.
+  if (os::isdir(resolvedPath.get())) {
+    return BadRequest("Cannot download a directory.\n");
+  }
+
+  Try<string> basename = os::basename(resolvedPath.get());
+  if (basename.isError()) {
+    LOG(ERROR) << basename.error();
+    return InternalServerError(basename.error() + ".\n");
+  }
+
+  OK response;
+  response.type = response.PATH;
+  response.path = resolvedPath.get();
+  response.headers["Content-Type"] = "application/octet-stream";
+  response.headers["Content-Disposition"] =
+    strings::format("attachment; filename=%s", basename.get()).get();
+
+  // Attempt to detect the mime type.
+  size_t index = basename.get().find_last_of('.');
+  if (index != string::npos) {
+    string extension = basename.get().substr(index);
+    if (mime::types.count(extension) > 0) {
+      response.headers["Content-Type"] = mime::types[extension];
+    }
+  }
+
+  return response;
 }
 
 
@@ -327,9 +377,9 @@ Result<string> FilesProcess::resolve(const string& path)
       // accessible.
       Try<string> result = os::realpath(path);
       if (result.isError()) {
-        return Result<string>::error("Cannot resolve path.");
+        return Result<string>::error("Cannot resolve path");
       } else if (!strings::startsWith(result.get(), paths[prefix])) {
-        return Result<string>::error("Resolved path is inaccessible.");
+        return Result<string>::error("Resolved path is inaccessible");
       }
 
       path = result.get();
