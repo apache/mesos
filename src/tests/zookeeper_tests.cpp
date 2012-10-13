@@ -49,22 +49,19 @@ using testing::_;
 using testing::Return;
 
 
-class ZooKeeperTest : public BaseZooKeeperTest {
-protected:
-  void assertGet(ZooKeeper* client,
-                 const std::string& path,
-                 const std::string& expected) {
-    std::string result;
-    ASSERT_EQ(ZOK, client->get(path, false, &result, NULL));
-    ASSERT_EQ(expected, result);
-  }
+#define assertGet(zk, path, expected)				\
+  do {								\
+    std::string result;						\
+    ASSERT_EQ(ZOK, zk.get(path, false, &result, NULL));		\
+    ASSERT_EQ(expected, result);				\
+  } while (false)
 
-  void assertNotSet(ZooKeeper* client,
-                    const std::string& path,
-                    const std::string& value) {
-    ASSERT_EQ(ZNOAUTH, client->set(path, value, -1));
-  }
-};
+
+#define assertNotSet(zk, path, value)		\
+  ASSERT_EQ(ZNOAUTH, zk.set(path, value, -1))
+
+
+class ZooKeeperTest : public BaseZooKeeperTest {};
 
 
 TEST_F(ZooKeeperTest, Auth)
@@ -79,18 +76,18 @@ TEST_F(ZooKeeperTest, Auth)
                          zookeeper::EVERYONE_READ_CREATOR_ALL,
                          0,
                          NULL);
-  assertGet(&authenticatedZk, "/test", "42");
+  assertGet(authenticatedZk, "/test", "42");
 
   ZooKeeper unauthenticatedZk(zks->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
-  assertGet(&unauthenticatedZk, "/test", "42");
-  assertNotSet(&unauthenticatedZk, "/test", "37");
+  assertGet(unauthenticatedZk, "/test", "42");
+  assertNotSet(unauthenticatedZk, "/test", "37");
 
   ZooKeeper nonOwnerZk(zks->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
   nonOwnerZk.authenticate("digest", "non-owner:non-owner");
-  assertGet(&nonOwnerZk, "/test", "42");
-  assertNotSet(&nonOwnerZk, "/test", "37");
+  assertGet(nonOwnerZk, "/test", "42");
+  assertNotSet(nonOwnerZk, "/test", "37");
 }
 
 
@@ -112,7 +109,7 @@ TEST_F(ZooKeeperTest, Create)
                          zookeeper::EVERYONE_CREATE_AND_READ_CREATOR_ALL,
                          0,
                          NULL);
-  assertGet(&authenticatedZk, "/foo/bar/baz", "43");
+  assertGet(authenticatedZk, "/foo/bar/baz", "43");
 
   ZooKeeper nonOwnerZk(zks->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
@@ -129,7 +126,7 @@ TEST_F(ZooKeeperTest, Create)
                                    0,
                                    NULL,
                                    true));
-  assertGet(&nonOwnerZk, "/foo/bar/baz/bam", "44");
+  assertGet(nonOwnerZk, "/foo/bar/baz/bam", "44");
 
   std::string result;
   EXPECT_EQ(ZOK, nonOwnerZk.create("/foo/bar/baz/",
@@ -509,13 +506,13 @@ TEST_F(ZooKeeperTest, GroupPathWithRestrictivePerms)
                          zookeeper::EVERYONE_READ_CREATOR_ALL,
                          0,
                          NULL);
-  assertGet(&authenticatedZk, "/read-only", "42");
+  assertGet(authenticatedZk, "/read-only", "42");
   authenticatedZk.create("/read-only/writable",
                          "37",
                          ZOO_OPEN_ACL_UNSAFE,
                          0,
                          NULL);
-  assertGet(&authenticatedZk, "/read-only/writable", "37");
+  assertGet(authenticatedZk, "/read-only/writable", "37");
 
   zookeeper::Authentication auth("digest", "non-creator:non-creator");
 
