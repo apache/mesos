@@ -32,6 +32,7 @@ using namespace process;
 
 using testing::_;
 using testing::Assign;
+using testing::DoAll;
 using testing::Return;
 using testing::ReturnArg;
 
@@ -1092,10 +1093,12 @@ class HttpProcess : public Process<HttpProcess>
 public:
   HttpProcess()
   {
-    route("/handler", &HttpProcess::handler);
+    route("/body", &HttpProcess::body);
+    route("/pipe", &HttpProcess::pipe);
   }
 
-  MOCK_METHOD1(handler, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(body, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(pipe, Future<http::Response>(const http::Request&));
 };
 
 
@@ -1105,11 +1108,9 @@ TEST(Process, http)
 
   HttpProcess process;
 
-  EXPECT_CALL(process, handler(_))
-    .WillOnce(Return(http::OK()));
-
   spawn(process);
 
+  // First hit '/body' (using explicit sockets and HTTP/1.0).
   int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
   ASSERT_LE(0, s);
@@ -1123,13 +1124,15 @@ TEST(Process, http)
   ASSERT_EQ(0, connect(s, (sockaddr*) &addr, sizeof(addr)));
 
   std::ostringstream out;
-
-  out << "GET /" << process.self().id << "/" << "handler"
+  out << "GET /" << process.self().id << "/body"
       << " HTTP/1.0\r\n"
       << "Connection: Keep-Alive\r\n"
       << "\r\n";
 
   const std::string& data = out.str();
+
+  EXPECT_CALL(process, body(_))
+    .WillOnce(Return(http::OK()));
 
   ASSERT_EQ(data.size(), write(s, data.data(), data.size()));
 
@@ -1142,6 +1145,33 @@ TEST(Process, http)
   ASSERT_EQ(response, std::string(temp, response.size()));
 
   ASSERT_EQ(0, close(s));
+
+  // Now hit '/pipe' (by using http::get).
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  http::OK ok;
+  ok.type = http::Response::PIPE;
+  ok.pipe = pipes[0];
+
+  volatile bool pipeCalled = false;
+
+  EXPECT_CALL(process, pipe(_))
+    .WillOnce(DoAll(Assign(&pipeCalled, true),
+                    Return(ok)));
+
+  Future<http::Response> future = http::get(process.self(), "pipe");
+
+  while (!pipeCalled);
+
+  ASSERT_TRUE(os::write(pipes[1], "Hello World\n").isSome());
+  ASSERT_TRUE(os::close(pipes[1]).isSome());
+
+  future.await(Seconds(1.0));
+  ASSERT_TRUE(future.isReady());
+  ASSERT_EQ(http::statuses[200], future.get().status);
+  ASSERT_EQ("chunked", future.get().headers["Transfer-Encoding"]);
+  ASSERT_EQ("Hello World\n", future.get().body);
 
   terminate(process);
   wait(process);
