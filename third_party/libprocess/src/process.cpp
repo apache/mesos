@@ -261,7 +261,6 @@ public:
 private:
   void next();
   void waited(const Future<Response>& future);
-  void timedout(const Future<Response>& future);
   void process(Future<Response>* future, bool persist);
 
   Socket socket; // Wrap the socket to keep it from getting closed.
@@ -283,8 +282,6 @@ private:
   };
 
   queue<Item*> items;
-
-  Timer timer; // Used to bound the wait on each future.
 };
 
 
@@ -1448,58 +1445,28 @@ void HttpProxy::next()
     // Wait for any transition of the future.
     items.front()->future->onAny(
         defer(self(), &HttpProxy::waited, lambda::_1));
-
-    // Also create a timer so we don't wait forever.
-    timer = Timer::create(
-        Seconds(30.0),
-        defer(self(), &HttpProxy::timedout, *(items.front()->future)));
   }
 }
 
 
 void HttpProxy::waited(const Future<Response>& future)
 {
-  // If the item in the top of the queue is for this future, then
-  // process the response (otherwise, HttpProxy::timedout must have
-  // been executed while the future was being satisfied).
-  if (items.size() > 0) {
-    Item* item = items.front();
-    if (future == *item->future) {
-      Timer::cancel(timer);
+  CHECK(items.size() > 0);
+  Item* item = items.front();
+  CHECK(future == *item->future);
 
-      if (item->future->isReady()) {
-        process(item->future, item->persist);
-      } else {
-        // TODO(benh): Consider handling other "states" of future
-        // (discarded, failed, etc) with different HTTP statuses.
-        socket_manager->send(ServiceUnavailable(), socket, item->persist);
-      }
-
-      items.pop();
-      delete item;
-
-      next();
-    }
+  if (item->future->isReady()) {
+    process(item->future, item->persist);
+  } else {
+    // TODO(benh): Consider handling other "states" of future
+    // (discarded, failed, etc) with different HTTP statuses.
+    socket_manager->send(ServiceUnavailable(), socket, item->persist);
   }
-}
 
+  items.pop();
+  delete item;
 
-void HttpProxy::timedout(const Future<Response>& future)
-{
-  // If the item in the top of the queue is for this future, then
-  // we've timed out and need to send a ServiceUnavailable (otherwise,
-  // HttpProxy::waited must have been executed but the timer wasn't
-  // cancelled in time).
-  if (items.size() > 0) {
-    Item* item = items.front();
-    if (future == *item->future) {
-      socket_manager->send(ServiceUnavailable(), socket, item->persist);
-      items.pop();
-      delete item;
-    }
-
-    next();
-  }
+  next();
 }
 
 
