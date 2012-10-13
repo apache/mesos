@@ -1304,20 +1304,20 @@ TEST(Process, async)
 TEST(HTTP, encode)
 {
   std::string unencoded = "a$&+,/:;=?@ \"<>#%{}|\\^~[]`\x19\x80\xFF\x00";
-  std::string encoded = http::query::encode(unencoded);
+  std::string encoded = http::encode(unencoded);
 
   EXPECT_EQ("a%24%26%2B%2C%2F%3A$3B%3D%3F%40%20%22%3C%3E%32"
             "%25%7B%7D%7C%5C%5E%7E%5B%5D%60%19%80%FF%00",
             encoded);
 
-  Try<std::string> decoded = http::query::decode(encoded);
+  Try<std::string> decoded = http::decode(encoded);
   EXPECT_TRUE(decoded.isSome()) << decoded.error();
   EXPECT_EQ(unencoded, decoded.get());
 
-  EXPECT_TRUE(http::query::decode("%").isError());
-  EXPECT_TRUE(http::query::decode("%1").isError());
-  EXPECT_TRUE(http::query::decode("%;1").isError());
-  EXPECT_TRUE(http::query::decode("%1;").isError());
+  EXPECT_TRUE(http::decode("%").isError());
+  EXPECT_TRUE(http::decode("%1").isError());
+  EXPECT_TRUE(http::decode("%;1").isError());
+  EXPECT_TRUE(http::decode("%1;").isError());
 }
 
 

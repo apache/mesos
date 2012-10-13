@@ -38,51 +38,71 @@ struct Request
 
 struct Response
 {
-  Response(const std::string& _body = "")
+  Response()
+    : type(NONE)
+  {}
+
+  Response(const std::string& _body)
     : type(BODY),
       body(_body)
   {
-    if (!body.empty()) {
-      headers["Content-Length"] = stringify(body.size());
-    }
+    headers["Content-Length"] = stringify(body.size());
   }
 
   // TODO(benh): Add major/minor version.
   std::string status;
   hashmap<std::string, std::string> headers;
 
-  // TODO(benh): Make body a stream (channel) instead, and allow a
-  // response to be returned without forcing the stream to be
-  // finished.
-
-  // Either provide a 'body' or an absolute 'path' to a file. If a
-  // path is specified then we will attempt to perform a 'sendfile'
-  // operation on the file. In either case you are expected to
-  // properly specify the 'Content-Type' header, but the
-  // 'Content-Length' header will be filled in for you if you specify
-  // a path. Distinguish between the two using 'type' below.
+  // Either provide a "body", an absolute "path" to a file, or a
+  // "pipe" for streaming a response. Distinguish between the cases
+  // using 'type' below.
+  //
+  // BODY: Uses 'body' as the body of the response.
+  //
+  // PATH: Attempts to perform a 'sendfile' operation on the file
+  // found at 'path'.
+  //
+  // PIPE: Splices data from 'pipe' using 'Transfer-Encoding=chunked'.
+  // Note that the read end of the pipe will be closed by libprocess
+  // either after the write end has been closed or if the socket the
+  // data is being spliced to has been closed (i.e., no body is
+  // listening any longer). This can cause writes to the pipe to
+  // generate a SIGPIPE (which will terminate your program unless you
+  // explicitly ignore them or handle them).
+  //
+  // In all cases (BODY, PATH, PIPE), you are expected to properly
+  // specify the 'Content-Type' header, but the 'Content-Length' and
+  // or 'Transfer-Encoding' headers will be filled in for you.
   enum {
+    NONE,
     BODY,
-    PATH
+    PATH,
+    PIPE
   } type;
 
   std::string body;
   std::string path;
+  int pipe; // See comment above regarding the semantics for closing.
 };
 
 
 struct OK : Response
 {
-  OK(const std::string& body = "")
-    : Response(body)
+  OK()
+  {
+    status = "200 OK";
+  }
+
+  OK(const std::string& body) : Response(body)
   {
     status = "200 OK";
   }
 
   OK(const JSON::Value& value,
      const Option<std::string>& jsonp = Option<std::string>::none())
-    : Response()
   {
+    type = BODY;
+
     status = "200 OK";
 
     std::ostringstream out;
@@ -108,7 +128,7 @@ struct OK : Response
 
 struct TemporaryRedirect : Response
 {
-  TemporaryRedirect(const std::string& url) : Response("")
+  TemporaryRedirect(const std::string& url)
   {
     status = "307 Temporary Redirect";
     headers["Location"] = url;
@@ -118,7 +138,13 @@ struct TemporaryRedirect : Response
 
 struct BadRequest : Response
 {
-  BadRequest(const std::string& body = "") : Response(body)
+  BadRequest()
+  {
+    status = "400 Bad Request";
+  }
+
+  BadRequest(const std::string& body)
+    : Response(body)
   {
     status = "400 Bad Request";
   }
@@ -127,7 +153,12 @@ struct BadRequest : Response
 
 struct NotFound : Response
 {
-  NotFound(const std::string& body = "") : Response(body)
+  NotFound()
+  {
+    status = "404 Not Found";
+  }
+
+  NotFound(const std::string& body) : Response(body)
   {
     status = "404 Not Found";
   }
@@ -136,7 +167,12 @@ struct NotFound : Response
 
 struct InternalServerError : Response
 {
-  InternalServerError(const std::string& body = "") : Response(body)
+  InternalServerError()
+  {
+    status = "500 Internal Server Error";
+  }
+
+  InternalServerError(const std::string& body) : Response(body)
   {
     status = "500 Internal Server Error";
   }
@@ -145,7 +181,12 @@ struct InternalServerError : Response
 
 struct ServiceUnavailable : Response
 {
-  ServiceUnavailable(const std::string& body = "") : Response(body)
+  ServiceUnavailable()
+  {
+    status = "503 Service Unavailable";
+  }
+
+  ServiceUnavailable(const std::string& body) : Response(body)
   {
     status = "503 Service Unavailable";
   }
@@ -184,6 +225,8 @@ inline hashmap<std::string, std::string> parse(const std::string& query)
 
   return result;
 }
+
+} // namespace query {
 
 
 // Returns a percent-encoded string according to RFC 3986.
@@ -270,8 +313,6 @@ inline Try<std::string> decode(const std::string& s)
   return out.str();
 }
 
-
-}  // namespace query {
 
 // Sends a blocking HTTP GET request to the process with the given upid.
 // Returns the HTTP response from the process, read asynchronously.

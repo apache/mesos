@@ -143,15 +143,23 @@ public:
       out << key << ": " << value << "\r\n";
     }
 
-    // Make sure at least the "Content-Length" header is present in
-    // order to signal to a client the end of a response.
-    if (headers.count("Content-Length") == 0) {
+    // Add a Content-Length header if the response is of type "none"
+    // or "body" and no Content-Length header has been supplied.
+    if (response.type == http::Response::NONE &&
+        headers.contains("Content-Length")) {
+      out << "Content-Length: 0\r\n";
+    } else if (response.type == http::Response::BODY &&
+               headers.contains("Content-Length")) {
       out << "Content-Length: " << response.body.size() << "\r\n";
     }
 
+    // Use a CRLF to mark end of headers.
     out << "\r\n";
 
-    out.write(response.body.data(), response.body.size());
+    // Add the body if necessary.
+    if (response.type == http::Response::BODY) {
+      out.write(response.body.data(), response.body.size());
+    }
 
     return out.str();
   }

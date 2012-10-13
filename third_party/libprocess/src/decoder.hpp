@@ -113,7 +113,7 @@ private:
 //     std::cout << "  method: " << decoder->request->method << std::endl;
 //     std::cout << "  path: " << decoder->request->path << std::endl;
     // Parse the query key/values.
-    Try<std::string> decoded = http::query::decode(decoder->query);
+    Try<std::string> decoded = http::decode(decoder->query);
     if (decoded.isError()) {
       return 1;
     }
