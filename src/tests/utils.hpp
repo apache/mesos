@@ -120,83 +120,6 @@ void enterTestDirectory(const char* testCase, const char* testName);
       DEFAULT_EXECUTOR_INFO.executor_id()
 
 
-template <typename T>
-void ASSERT_FUTURE_WILL_SUCCEED(const process::Future<T>& future)
-{
-  ASSERT_TRUE(future.await());
-  ASSERT_FALSE(future.isDiscarded());
-  ASSERT_FALSE(future.isFailed()) << future.failure();
-}
-
-
-template <typename T>
-void EXPECT_FUTURE_WILL_SUCCEED(const process::Future<T>& future)
-{
-  ASSERT_TRUE(future.await());
-  EXPECT_FALSE(future.isDiscarded());
-  EXPECT_FALSE(future.isFailed()) << future.failure();
-}
-
-
-template <typename T>
-void ASSERT_FUTURE_WILL_FAIL(const process::Future<T>& future)
-{
-  ASSERT_TRUE(future.await());
-  ASSERT_TRUE(future.isFailed());
-}
-
-
-template <typename T>
-void EXPECT_FUTURE_WILL_FAIL(const process::Future<T>& future)
-{
-  ASSERT_TRUE(future.await());
-  EXPECT_TRUE(future.isFailed());
-}
-
-
-template <typename T1, typename T2>
-void ASSERT_FUTURE_WILL_EQ(const T1& t1, const process::Future<T2>& future)
-{
-  ASSERT_FUTURE_WILL_SUCCEED(future);
-  ASSERT_EQ(t1, future.get());
-}
-
-
-template <typename T1, typename T2>
-void EXPECT_FUTURE_WILL_EQ(const T1& t1, const process::Future<T2>& future)
-{
-  ASSERT_FUTURE_WILL_SUCCEED(future);
-  EXPECT_EQ(t1, future.get());
-}
-
-
-inline void EXPECT_RESPONSE_STATUS_WILL_EQ(
-    const std::string& expected,
-    const process::Future<process::http::Response>& future)
-{
-  ASSERT_FUTURE_WILL_SUCCEED(future);
-  EXPECT_EQ(expected, future.get().status);
-}
-
-
-inline void EXPECT_RESPONSE_BODY_WILL_EQ(
-    const std::string& expected,
-    const process::Future<process::http::Response>& future)
-{
-  ASSERT_FUTURE_WILL_SUCCEED(future);
-  EXPECT_EQ(expected, future.get().body);
-}
-
-
-#define EXPECT_RESPONSE_HEADER_WILL_EQ(expected, headerKey, future)            \
-  do {                                                                         \
-    typeof(future) _future = future;                                           \
-    ASSERT_FUTURE_WILL_SUCCEED(future);                                        \
-    EXPECT_TRUE(_future.get().headers.contains(headerKey));                    \
-    EXPECT_EQ(expected, _future.get().headers.find(headerKey)->second);        \
-  } while (false);
-
-
 /**
  * Definition of a mock Scheduler to be used in tests with gmock.
  */
@@ -741,5 +664,163 @@ private:
 } // namespace test {
 } // namespace internal {
 } // namespace mesos {
+
+
+template <typename T>
+std::string assertSomeError(const Option<T>& o)
+{
+  CHECK(!o.isSome());
+  return "Option is NONE";
+}
+
+
+template <typename T>
+std::string assertSomeError(const Try<T>& t)
+{
+  CHECK(!t.isSome());
+  return t.error();
+}
+
+
+template <typename T>
+std::string assertSomeError(const Result<T>& r)
+{
+  CHECK(!r.isSome());
+  if (r.isNone()) {
+    return "Result is NONE";
+  }
+  return r.error();
+}
+
+
+#define ASSERT_SOME(s)                                    \
+  do {                                                    \
+    typeof(s) __s = (s);                                  \
+    ASSERT_TRUE(__s.isSome()) << assertSomeError(__s);    \
+  } while (false)
+
+
+#define EXPECT_SOME(s)                                    \
+  do {                                                    \
+    typeof(s) __s = (s);                                  \
+    EXPECT_TRUE(__s.isSome()) << assertSomeError(__s);    \
+  } while (false)
+
+
+#define ASSERT_SOME_EQ(expected, s)             \
+  do {                                          \
+    typeof(s) _s = (s);                         \
+    ASSERT_SOME(_s);                            \
+    ASSERT_EQ(expected, _s.get());              \
+  } while (false)
+
+
+#define EXPECT_SOME_EQ(expected, s)             \
+  do {                                          \
+    typeof(s) _s = (s);                         \
+    ASSERT_SOME(_s);                            \
+    EXPECT_EQ(expected, _s.get());              \
+  } while (false)
+
+
+#define ASSERT_SOME_TRUE(s)                     \
+  do {                                          \
+    typeof(s) _s = (s);                         \
+    ASSERT_SOME(_s);                            \
+    ASSERT_TRUE(_s.get());                      \
+  } while (false)
+
+
+#define EXPECT_SOME_TRUE(s)                      \
+  do {                                           \
+    typeof(s) _s = (s);                          \
+    ASSERT_SOME(_s);                             \
+    EXPECT_TRUE(_s.get());                       \
+  } while (false)
+
+
+#define ASSERT_ERROR(s)                         \
+  ASSERT_TRUE(s.isError())
+
+
+#define EXPECT_ERROR(s)                         \
+  EXPECT_TRUE(s.isError())
+
+
+#define ASSERT_FUTURE_WILL_SUCCEED(future)                      \
+  do {                                                          \
+    typeof(future) __future = (future);                         \
+    ASSERT_TRUE(__future.await());                              \
+    ASSERT_FALSE(__future.isDiscarded());                       \
+    ASSERT_FALSE(__future.isFailed()) << __future.failure();    \
+  } while (false)
+
+
+#define EXPECT_FUTURE_WILL_SUCCEED(future)                      \
+  do {                                                          \
+    typeof(future) __future = (future);                         \
+    ASSERT_TRUE(__future.await());                              \
+    EXPECT_FALSE(__future.isDiscarded());                       \
+    EXPECT_FALSE(__future.isFailed()) << __future.failure();    \
+  } while (false)
+
+
+#define ASSERT_FUTURE_WILL_FAIL(future)       \
+  do {                                        \
+    typeof(future) __future = (future);       \
+    ASSERT_TRUE(__future.await());            \
+    ASSERT_TRUE(__future.isFailed());         \
+  } while (false)
+
+
+#define EXPECT_FUTURE_WILL_FAIL(future)       \
+  do {                                        \
+    typeof(future) __future = (future);       \
+    ASSERT_TRUE(__future.await());            \
+    EXPECT_TRUE(__future.isFailed());         \
+  } while (false)
+
+
+#define ASSERT_FUTURE_WILL_EQ(expected, future) \
+  do {                                          \
+    typeof(future) _future = (future);          \
+    ASSERT_FUTURE_WILL_SUCCEED(_future);        \
+    ASSERT_EQ(expected, _future.get());         \
+  } while (false)
+
+
+#define EXPECT_FUTURE_WILL_EQ(expected, future) \
+  do {                                          \
+    typeof(future) _future = (future);          \
+    ASSERT_FUTURE_WILL_SUCCEED(_future);        \
+    EXPECT_EQ(expected, _future.get());         \
+  } while (false)
+
+
+#define EXPECT_RESPONSE_STATUS_WILL_EQ(expected, future)        \
+  do {                                                          \
+    typeof(future) _future = (future);                          \
+    ASSERT_FUTURE_WILL_SUCCEED(_future);                        \
+    const process::http::Response& response = _future.get();    \
+    EXPECT_EQ(expected, response.status);                       \
+  } while (false)
+
+
+#define EXPECT_RESPONSE_BODY_WILL_EQ(expected, future)           \
+  do {                                                           \
+    typeof(future) _future = (future);                           \
+    ASSERT_FUTURE_WILL_SUCCEED(_future);                         \
+    const process::http::Response& response = _future.get();     \
+    EXPECT_EQ(expected, response.body);                          \
+  } while (false);
+
+
+#define EXPECT_RESPONSE_HEADER_WILL_EQ(expected, header, future)        \
+  do {                                                                  \
+    typeof(future) _future = future;                                    \
+    ASSERT_FUTURE_WILL_SUCCEED(future);                                 \
+    EXPECT_TRUE(_future.get().headers.contains(header));                \
+    EXPECT_EQ(expected, _future.get().headers.find(header)->second);    \
+  } while (false);
 
 #endif // __TESTING_UTILS_HPP__

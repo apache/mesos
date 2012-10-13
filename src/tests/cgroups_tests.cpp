@@ -36,6 +36,8 @@
 
 #include "linux/cgroups.hpp"
 
+#include "tests/utils.hpp"
+
 using namespace process;
 
 
@@ -59,14 +61,14 @@ protected:
   {
     // Create a hierarchy for test.
     std::string subsystems = "cpu,memory,freezer";
-    ASSERT_TRUE(cgroups::createHierarchy(hierarchy, subsystems).isSome());
+    ASSERT_SOME(cgroups::createHierarchy(hierarchy, subsystems));
 
     // Create cgroups for test.
-    ASSERT_TRUE(cgroups::createCgroup(hierarchy, "prof").isSome());
-    ASSERT_TRUE(cgroups::createCgroup(hierarchy, "stu").isSome());
-    ASSERT_TRUE(cgroups::createCgroup(hierarchy, "stu/grad").isSome());
-    ASSERT_TRUE(cgroups::createCgroup(hierarchy, "stu/under").isSome());
-    ASSERT_TRUE(cgroups::createCgroup(hierarchy, "stu/under/senior").isSome());
+    ASSERT_SOME(cgroups::createCgroup(hierarchy, "prof"));
+    ASSERT_SOME(cgroups::createCgroup(hierarchy, "stu"));
+    ASSERT_SOME(cgroups::createCgroup(hierarchy, "stu/grad"));
+    ASSERT_SOME(cgroups::createCgroup(hierarchy, "stu/under"));
+    ASSERT_SOME(cgroups::createCgroup(hierarchy, "stu/under/senior"));
   }
 
   void cleanup()
@@ -74,13 +76,13 @@ protected:
     if (cgroups::checkHierarchy(hierarchy).isSome()) {
       // Remove all cgroups.
       Try<std::vector<std::string> > cgroups = cgroups::getCgroups(hierarchy);
-      ASSERT_TRUE(cgroups.isSome());
+      ASSERT_SOME(cgroups);
       foreach (const std::string& cgroup, cgroups.get()) {
-        ASSERT_TRUE(cgroups::removeCgroup(hierarchy, cgroup).isSome());
+        ASSERT_SOME(cgroups::removeCgroup(hierarchy, cgroup));
       }
 
       // Remove the hierarchy.
-      ASSERT_TRUE(cgroups::removeHierarchy(hierarchy).isSome());
+      ASSERT_SOME(cgroups::removeHierarchy(hierarchy));
     }
 
     // Remove the directory if still exists.
@@ -111,76 +113,34 @@ const std::string CgroupsTest::hierarchy = "/tmp/mesos_cgroups_test_hierarchy";
 
 TEST_F(CgroupsSimpleTest, ROOT_CGROUPS_Enabled)
 {
-  Try<bool> result = false;
-
-  result = cgroups::enabled("cpu");
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
-
-  result = cgroups::enabled(",cpu");
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
-
-  result = cgroups::enabled("cpu,memory");
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
-
-  result = cgroups::enabled("cpu,memory,");
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
-
-  result = cgroups::enabled("invalid");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::enabled("cpu,invalid");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::enabled(",");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::enabled("");
-  EXPECT_TRUE(result.isError());
+  EXPECT_SOME_TRUE(cgroups::enabled("cpu"));
+  EXPECT_SOME_TRUE(cgroups::enabled(",cpu"));
+  EXPECT_SOME_TRUE(cgroups::enabled("cpu,memory"));
+  EXPECT_SOME_TRUE(cgroups::enabled("cpu,memory,"));
+  EXPECT_ERROR(cgroups::enabled("invalid"));
+  EXPECT_ERROR(cgroups::enabled("cpu,invalid"));
+  EXPECT_ERROR(cgroups::enabled(","));
+  EXPECT_ERROR(cgroups::enabled(""));
 }
 
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_Busy)
 {
-  Try<bool> result = false;
-
-  result = cgroups::busy("invalid");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::busy("cpu,invalid");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::busy(",");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::busy("");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::busy("cpu");
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
-
-  result = cgroups::busy(",cpu");
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
-
-  result = cgroups::busy("cpu,memory");
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
-
-  result = cgroups::busy("cpu,memory,");
-  ASSERT_TRUE(result.isSome());
-  EXPECT_TRUE(result.get());
+  EXPECT_ERROR(cgroups::busy("invalid"));
+  EXPECT_ERROR(cgroups::busy("cpu,invalid"));
+  EXPECT_ERROR(cgroups::busy(","));
+  EXPECT_ERROR(cgroups::busy(""));
+  EXPECT_SOME_TRUE(cgroups::busy("cpu"));
+  EXPECT_SOME_TRUE(cgroups::busy(",cpu"));
+  EXPECT_SOME_TRUE(cgroups::busy("cpu,memory"));
+  EXPECT_SOME_TRUE(cgroups::busy("cpu,memory,"));
 }
 
 
 TEST_F(CgroupsSimpleTest, ROOT_CGROUPS_Subsystems)
 {
   Try<std::set<std::string> > names = cgroups::subsystems();
-  ASSERT_TRUE(names.isSome());
+  ASSERT_SOME(names);
 
   Option<std::string> cpu;
   Option<std::string> memory;
@@ -192,15 +152,15 @@ TEST_F(CgroupsSimpleTest, ROOT_CGROUPS_Subsystems)
     }
   }
 
-  EXPECT_TRUE(cpu.isSome());
-  EXPECT_TRUE(memory.isSome());
+  EXPECT_SOME(cpu);
+  EXPECT_SOME(memory);
 }
 
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_SubsystemsHierarchy)
 {
   Try<std::set<std::string> > names = cgroups::subsystems(hierarchy);
-  ASSERT_TRUE(names.isSome());
+  ASSERT_SOME(names);
 
   Option<std::string> cpu;
   Option<std::string> memory;
@@ -212,118 +172,116 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_SubsystemsHierarchy)
     }
   }
 
-  EXPECT_TRUE(cpu.isSome());
-  EXPECT_TRUE(memory.isSome());
+  EXPECT_SOME(cpu);
+  EXPECT_SOME(memory);
 }
 
 
 TEST_F(CgroupsSimpleTest, ROOT_CGROUPS_CreateRemoveHierarchy)
 {
-  EXPECT_TRUE(cgroups::createHierarchy("/tmp", "cpu").isError());
+  EXPECT_ERROR(cgroups::createHierarchy("/tmp", "cpu"));
 
-  EXPECT_TRUE(cgroups::createHierarchy(hierarchy, "invalid").isError());
+  EXPECT_ERROR(cgroups::createHierarchy(hierarchy, "invalid"));
 
-  ASSERT_TRUE(cgroups::createHierarchy(hierarchy, "cpu,memory").isSome());
+  ASSERT_SOME(cgroups::createHierarchy(hierarchy, "cpu,memory"));
 
-  EXPECT_TRUE(cgroups::createHierarchy(hierarchy, "cpuset").isError());
+  EXPECT_ERROR(cgroups::createHierarchy(hierarchy, "cpuset"));
 
-  EXPECT_TRUE(cgroups::removeHierarchy("/tmp").isError());
+  EXPECT_ERROR(cgroups::removeHierarchy("/tmp"));
 
-  ASSERT_TRUE(cgroups::removeHierarchy(hierarchy).isSome());
+  ASSERT_SOME(cgroups::removeHierarchy(hierarchy));
 }
 
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_CheckHierarchy)
 {
-  EXPECT_TRUE(cgroups::checkHierarchy("/tmp-nonexist").isError());
+  EXPECT_ERROR(cgroups::checkHierarchy("/tmp-nonexist"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy("/tmp").isError());
+  EXPECT_ERROR(cgroups::checkHierarchy("/tmp"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy).isSome());
+  EXPECT_SOME(cgroups::checkHierarchy(hierarchy));
 
-  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy + "/").isSome());
+  EXPECT_SOME(cgroups::checkHierarchy(hierarchy + "/"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy + "/stu").isError());
+  EXPECT_ERROR(cgroups::checkHierarchy(hierarchy + "/stu"));
 }
 
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_CheckHierarchySubsystems)
 {
-  EXPECT_TRUE(cgroups::checkHierarchy("/tmp-nonexist", "cpu").isError());
+  EXPECT_ERROR(cgroups::checkHierarchy("/tmp-nonexist", "cpu"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy("/tmp", "cpu,memory").isError());
+  EXPECT_ERROR(cgroups::checkHierarchy("/tmp", "cpu,memory"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy("/tmp", "cpu").isError());
+  EXPECT_ERROR(cgroups::checkHierarchy("/tmp", "cpu"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy("/tmp", "invalid").isError());
+  EXPECT_ERROR(cgroups::checkHierarchy("/tmp", "invalid"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy, "cpu,memory").isSome());
+  EXPECT_SOME(cgroups::checkHierarchy(hierarchy, "cpu,memory"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy, "memory").isSome());
+  EXPECT_SOME(cgroups::checkHierarchy(hierarchy, "memory"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy, "invalid").isError());
+  EXPECT_ERROR(cgroups::checkHierarchy(hierarchy, "invalid"));
 
-  EXPECT_TRUE(cgroups::checkHierarchy(hierarchy + "/stu", "cpu").isError());
+  EXPECT_ERROR(cgroups::checkHierarchy(hierarchy + "/stu", "cpu"));
 }
 
 
 TEST_F(CgroupsSimpleTest, ROOT_CGROUPS_CreateRemoveCgroup)
 {
-  EXPECT_TRUE(cgroups::createCgroup("/tmp", "test").isError());
+  EXPECT_ERROR(cgroups::createCgroup("/tmp", "test"));
 
-  ASSERT_TRUE(cgroups::createHierarchy(hierarchy, "cpu,memory").isSome());
+  ASSERT_SOME(cgroups::createHierarchy(hierarchy, "cpu,memory"));
 
-  EXPECT_TRUE(cgroups::createCgroup(hierarchy, "test/1").isError());
+  EXPECT_ERROR(cgroups::createCgroup(hierarchy, "test/1"));
 
-  ASSERT_TRUE(cgroups::createCgroup(hierarchy, "test").isSome());
+  ASSERT_SOME(cgroups::createCgroup(hierarchy, "test"));
 
-  EXPECT_TRUE(cgroups::removeCgroup(hierarchy, "invalid").isError());
+  EXPECT_ERROR(cgroups::removeCgroup(hierarchy, "invalid"));
 
-  ASSERT_TRUE(cgroups::removeCgroup(hierarchy, "test").isSome());
+  ASSERT_SOME(cgroups::removeCgroup(hierarchy, "test"));
 
-  ASSERT_TRUE(cgroups::removeHierarchy(hierarchy).isSome());
+  ASSERT_SOME(cgroups::removeHierarchy(hierarchy));
 }
 
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_ReadControl)
 {
-  Try<std::string> result = std::string();
+  EXPECT_ERROR(cgroups::readControl(hierarchy, "/stu", "invalid"));
+
   std::string pid = stringify(::getpid());
 
-  result = cgroups::readControl(hierarchy, "/stu", "invalid");
-  EXPECT_TRUE(result.isError());
-
-  result = cgroups::readControl(hierarchy, "/", "tasks");
-  ASSERT_TRUE(result.isSome());
+  Try<std::string> result = cgroups::readControl(hierarchy, "/", "tasks");
+  ASSERT_SOME(result);
   EXPECT_TRUE(strings::contains(result.get(), pid));
 }
 
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_WriteControl)
 {
-  std::string pid = stringify(::getpid());
-
-  EXPECT_TRUE(cgroups::writeControl(hierarchy,
+  EXPECT_ERROR(cgroups::writeControl(hierarchy,
                                     "/prof",
                                     "invalid",
-                                    "invalid").isError());
+                                    "invalid"));
 
-  ASSERT_TRUE(cgroups::writeControl(hierarchy, "/prof", "tasks", pid).isSome());
+  std::string pid = stringify(::getpid());
+
+  ASSERT_SOME(cgroups::writeControl(hierarchy, "/prof", "tasks", pid));
 
   Try<std::set<pid_t> > tasks = cgroups::getTasks(hierarchy, "/prof");
-  ASSERT_TRUE(tasks.isSome());
+  ASSERT_SOME(tasks);
 
   std::set<pid_t> pids = tasks.get();
   EXPECT_NE(pids.find(::getpid()), pids.end());
 
-  ASSERT_TRUE(cgroups::writeControl(hierarchy, "/", "tasks", pid).isSome());
+  ASSERT_SOME(cgroups::writeControl(hierarchy, "/", "tasks", pid));
 }
 
 
 TEST_F(CgroupsTest, ROOT_CGROUPS_GetCgroups)
 {
   Try<std::vector<std::string> > cgroups = cgroups::getCgroups(hierarchy);
-  ASSERT_TRUE(cgroups.isSome());
+  ASSERT_SOME(cgroups);
 
   EXPECT_EQ(cgroups.get()[0], "/stu/under/senior");
   EXPECT_EQ(cgroups.get()[1], "/stu/under");
@@ -332,14 +290,14 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_GetCgroups)
   EXPECT_EQ(cgroups.get()[4], "/prof");
 
   cgroups = cgroups::getCgroups(hierarchy, "/stu");
-  ASSERT_TRUE(cgroups.isSome());
+  ASSERT_SOME(cgroups);
 
   EXPECT_EQ(cgroups.get()[0], "/stu/under/senior");
   EXPECT_EQ(cgroups.get()[1], "/stu/under");
   EXPECT_EQ(cgroups.get()[2], "/stu/grad");
 
   cgroups = cgroups::getCgroups(hierarchy, "/prof");
-  ASSERT_TRUE(cgroups.isSome());
+  ASSERT_SOME(cgroups);
 
   EXPECT_TRUE(cgroups.get().empty());
 }
@@ -348,7 +306,7 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_GetCgroups)
 TEST_F(CgroupsTest, ROOT_CGROUPS_GetTasks)
 {
   Try<std::set<pid_t> > tasks = cgroups::getTasks(hierarchy, "/");
-  ASSERT_TRUE(tasks.isSome());
+  ASSERT_SOME(tasks);
 
   std::set<pid_t> pids = tasks.get();
   EXPECT_NE(pids.find(1), pids.end());
@@ -359,17 +317,17 @@ TEST_F(CgroupsTest, ROOT_CGROUPS_GetTasks)
 TEST_F(CgroupsTest, ROOT_CGROUPS_ListenEvent)
 {
   // Disable oom killer.
-  ASSERT_TRUE(cgroups::writeControl(hierarchy,
+  ASSERT_SOME(cgroups::writeControl(hierarchy,
                                     "/prof",
                                     "memory.oom_control",
-                                    "1").isSome());
+                                    "1"));
 
   // Limit the memory usage of "/prof" to 64MB.
   size_t limit = 1024 * 1024 * 64;
-  ASSERT_TRUE(cgroups::writeControl(hierarchy,
+  ASSERT_SOME(cgroups::writeControl(hierarchy,
                                     "/prof",
                                     "memory.limit_in_bytes",
-                                    stringify(limit)).isSome());
+                                    stringify(limit)));
 
   // Listen on oom events for "/prof" cgroup.
   Future<uint64_t> future =
