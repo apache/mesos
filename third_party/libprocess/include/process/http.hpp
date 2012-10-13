@@ -73,12 +73,15 @@ struct Response
 
 struct OK : Response
 {
-  OK(const std::string& body = "") : Response(body)
+  OK(const std::string& body = "")
+    : Response(body)
   {
     status = "200 OK";
   }
 
-  OK(const JSON::Value& value, const Option<std::string>& jsonp) : Response()
+  OK(const JSON::Value& value,
+     const Option<std::string>& jsonp = Option<std::string>::none())
+    : Response()
   {
     status = "200 OK";
 
