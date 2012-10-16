@@ -199,8 +199,7 @@ inline Try<std::string> mktemp(const std::string& root = "/tmp")
     return result;
   } else {
     delete temp;
-    return Try<std::string>::error(
-        std::string("Cannot create temporary file: ") + strerror(errno));
+    return Try<std::string>::error(strerror(errno));
   }
 }
 
@@ -230,8 +229,8 @@ inline Try<Nothing> write(const std::string& path,
   Try<int> fd = os::open(path, O_WRONLY | O_CREAT | O_TRUNC,
                          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
   if (fd.isError()) {
-    return Try<Nothing>::error("Failed to open file " + path + " : " +
-        strerror(errno));
+    return Try<Nothing>::error(
+        "Failed to open file '" + path + "' : " + strerror(errno));
   }
 
   Try<Nothing> result = write(fd.get(), message);
@@ -324,8 +323,7 @@ inline Try<std::string> basename(const std::string& path)
   char* result = ::basename(::strcpy(temp, path.c_str()));
   if (result == NULL) {
     delete temp;
-    return Try<std::string>::error(
-        "Error getting basename of '" + path + "': " + strerror(errno));
+    return Try<std::string>::error(strerror(errno));
   }
 
   std::string s(result);
@@ -340,8 +338,7 @@ inline Try<std::string> dirname(const std::string& path)
   char* result = ::dirname(::strcpy(temp, path.c_str()));
   if (result == NULL) {
     delete temp;
-    return Try<std::string>::error(
-        "Error getting dirname of '" + path + "': " + strerror(errno));
+    return Try<std::string>::error(strerror(errno));
   }
 
   std::string s(result);
@@ -354,9 +351,7 @@ inline Try<std::string> realpath(const std::string& path)
 {
   char temp[PATH_MAX];
   if (::realpath(path.c_str(), temp) == NULL) {
-    return Try<std::string>::error(
-        "Failed to canonicalize '" + path + "' into an absolute path: "
-        + strerror(errno));
+    return Try<std::string>::error(strerror(errno));
   }
   return std::string(temp);
 }
@@ -401,7 +396,8 @@ inline Try<long> mtime(const std::string& path)
   struct stat s;
 
   if (::stat(path.c_str(), &s) < 0) {
-    return Try<long>::error(strerror(errno));
+    return Try<long>::error(
+        "Error invoking stat for '" + path + "': " + strerror(errno));
   }
 
   return s.st_mtime;
@@ -447,8 +443,7 @@ inline Try<std::string> mkdtemp(const std::string& root = "/tmp")
     return result;
   } else {
     delete temp;
-    return Try<std::string>::error(
-        std::string("Cannot create temporary directory: ") + strerror(errno));
+    return Try<std::string>::error(strerror(errno));
   }
 }
 
@@ -526,8 +521,7 @@ inline bool chown(const std::string& user, const std::string& path)
 inline bool chmod(const std::string& path, int mode)
 {
   if (::chmod(path.c_str(), mode) < 0) {
-    PLOG(ERROR) << "Failed to changed the mode of the path " << path
-                << " due to " << strerror(errno);
+    PLOG(ERROR) << "Failed to changed the mode of the path '" << path << "'";
     return false;
   }
 
@@ -538,7 +532,7 @@ inline bool chmod(const std::string& path, int mode)
 inline bool chdir(const std::string& directory)
 {
   if (::chdir(directory.c_str()) < 0) {
-    PLOG(ERROR) << "Failed to change directory, chdir";
+    PLOG(ERROR) << "Failed to change directory";
     return false;
   }
 
@@ -693,7 +687,8 @@ inline Try<double> usage(const std::string& fs = "/")
 {
   struct statvfs buf;
   if (statvfs(fs.c_str(), &buf) < 0) {
-    return Try<double>::error(strerror(errno));
+    return Try<double>::error(
+        "Error invoking statvfs of '" + fs + "': " + strerror(errno));
   }
   return (double) (buf.f_blocks - buf.f_bfree) / buf.f_blocks;
 }
@@ -804,8 +799,7 @@ inline Try<std::list<std::string> > glob(const std::string& pattern)
     if (status == GLOB_NOMATCH) {
       return result; // Empty list.
     } else {
-      return Try<std::list<std::string> >::error(
-          "Error globbing pattern '" + pattern + "':" + strerror(errno));
+      return Try<std::list<std::string> >::error(strerror(errno));
     }
   }
 
@@ -864,8 +858,7 @@ inline Try<UTSInfo> uname()
   struct utsname name;
 
   if (::uname(&name) < 0) {
-    return Try<UTSInfo>::error(
-        "Failed to get system information: " + std::string(strerror(errno)));
+    return Try<UTSInfo>::error(strerror(errno));
   }
 
   UTSInfo info;

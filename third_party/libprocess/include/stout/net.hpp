@@ -21,7 +21,7 @@
 // Network utilities.
 namespace net {
 
-// Returns the return code resulting from attempting to download the
+// Returns the HTTP response code resulting from attempting to download the
 // specified HTTP or FTP URL into a file at the specified path.
 inline Try<int> download(const std::string& url, const std::string& path)
 {
@@ -48,6 +48,10 @@ inline Try<int> download(const std::string& url, const std::string& path)
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
 
   FILE* file = fdopen(fd.get(), "w");
+  if (file == NULL) {
+    return Try<int>::error(
+        "Failed to open file handle of '" + path + "': " + strerror(errno));
+  }
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
 
   CURLcode curlErrorCode = curl_easy_perform(curl);
@@ -61,8 +65,9 @@ inline Try<int> download(const std::string& url, const std::string& path)
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
   curl_easy_cleanup(curl);
 
-  if (!fclose(file)) {
-    return Try<int>::error("Failed to close file handle");
+  if (fclose(file) != 0) {
+    return Try<int>::error(
+        "Failed to close file handle of '" + path + "': " + strerror(errno));
   }
 
   return Try<int>::some(code);

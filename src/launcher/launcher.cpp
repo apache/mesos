@@ -177,11 +177,13 @@ int ExecutorLauncher::run()
 // if requested.
 int ExecutorLauncher::fetchExecutors()
 {
-  cerr << "Fetching executors into " << workDirectory << endl;
+  cerr << "Fetching resources into " << workDirectory << endl;
 
   foreach(const CommandInfo::URI& uri, commandInfo.uris()) {
     string resource = uri.value();
     bool executable = uri.has_executable() && uri.executable();
+
+    cerr << "Fetching resource " << resource << endl;
 
     // Some checks to make sure using the URI value in shell commands
     // is safe. TODO(benh): These should be pushed into the scheduler
