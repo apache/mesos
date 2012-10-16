@@ -45,35 +45,35 @@ TEST_WITH_WORKDIR(LoggingTest, Toggle)
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
 
-  response = process::http::get(pid, "toggle?level=0");
+  response = process::http::get(pid, "toggle", "level=0");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(
       "Expecting 'duration=value' in query.\n",
       response);
 
-  response = process::http::get(pid, "toggle?duration=10secs");
+  response = process::http::get(pid, "toggle", "duration=10secs");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(
       "Expecting 'level=value' in query.\n",
       response);
 
-  response = process::http::get(pid, "toggle?duration=10secs");
+  response = process::http::get(pid, "toggle", "duration=10secs");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(
       "Expecting 'level=value' in query.\n",
       response);
 
-  response = process::http::get(pid, "toggle?level=-1&duration=10secs");
+  response = process::http::get(pid, "toggle", "level=-1&duration=10secs");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(
       "Invalid level '-1'.\n",
       response);
 
-  response = process::http::get(pid, "toggle?level=-1&duration=10secs");
+  response = process::http::get(pid, "toggle", "level=-1&duration=10secs");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(

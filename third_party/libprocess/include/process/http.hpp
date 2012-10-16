@@ -316,15 +316,13 @@ inline Try<std::string> decode(const std::string& s)
 
 // Sends a blocking HTTP GET request to the process with the given upid.
 // Returns the HTTP response from the process, read asynchronously.
-// The query is the string version of the path and arguments:
-// eg. browse.json?path=sandbox
 //
 // TODO(bmahler): Have the request sent asynchronously as well.
 // TODO(bmahler): For efficiency, this should properly use the ResponseDecoder
 // on the read stream, rather than parsing the full string response at the end.
 Future<Response> get(const PID<>& pid,
-                     const std::string& query = "",
-                     const std::string& body = "");
+                     const std::string& path = "",
+                     const std::string& query = "");
 
 
 // Status code reason strings, from the HTTP1.1 RFC:

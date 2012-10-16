@@ -3303,7 +3303,7 @@ Future<Response> decode(const string& buffer)
 } // namespace internal {
 
 
-Future<Response> get(const PID<>& pid, const string& query, const string& body)
+Future<Response> get(const PID<>& pid, const string& path, const string& query)
 {
   int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
@@ -3329,10 +3329,9 @@ Future<Response> get(const PID<>& pid, const string& query, const string& body)
 
   std::ostringstream out;
 
-  out << "GET /" << pid.id << "/" << query << " HTTP/1.1\r\n"
+  out << "GET /" << pid.id << "/" << path << "?" << query << " HTTP/1.1\r\n"
       << "Connection: close\r\n"
-      << "\r\n"
-      << body;
+      << "\r\n";
 
   // TODO(bmahler): Use benh's async write when it gets committed.
   const string& data = out.str();

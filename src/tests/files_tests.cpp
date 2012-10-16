@@ -86,14 +86,14 @@ TEST_WITH_WORKDIR(FilesTest, ReadTest)
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ("Expecting 'path=value' in query.\n", response);
 
-  response = process::http::get(pid, "read.json?path=none&offset=hello");
+  response = process::http::get(pid, "read.json", "path=none&offset=hello");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(
       "Failed to parse offset: Failed to convert 'hello' to number.\n",
       response);
 
-  response = process::http::get(pid, "read.json?path=none&length=hello");
+  response = process::http::get(pid, "read.json", "path=none&length=hello");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(
@@ -111,12 +111,12 @@ TEST_WITH_WORKDIR(FilesTest, ReadTest)
   expected.values["length"] = strlen("body");
   expected.values["data"] = "body";
 
-  response = process::http::get(pid, "read.json?path=/myname&offset=0");
+  response = process::http::get(pid, "read.json", "path=/myname&offset=0");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
-  response = process::http::get(pid, "read.json?path=myname&offset=0");
+  response = process::http::get(pid, "read.json", "path=myname&offset=0");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
@@ -124,7 +124,7 @@ TEST_WITH_WORKDIR(FilesTest, ReadTest)
   // Missing file.
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       NotFound().status,
-      process::http::get(pid, "read.json?path=missing"));
+      process::http::get(pid, "read.json", "path=missing"));
 }
 
 
@@ -151,34 +151,38 @@ TEST_WITH_WORKDIR(FilesTest, ResolveTest)
   expected.values["data"] = "three";
 
   Future<Response> response =
-    process::http::get(pid, "read.json?path=one/2/three&offset=0");
+    process::http::get(pid, "read.json", "path=one/2/three&offset=0");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
-  response = process::http::get(pid, "read.json?path=/one/2/three&offset=0");
+  response =
+    process::http::get(pid, "read.json", "path=/one/2/three&offset=0");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
-  response = process::http::get(pid, "read.json?path=two/three&offset=0");
+  response =
+    process::http::get(pid, "read.json", "path=two/three&offset=0");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
-  response = process::http::get(pid, "read.json?path=one/two/three&offset=0");
+  response =
+    process::http::get(pid, "read.json", "path=one/two/three&offset=0");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
   // Percent encoded '/' urls.
-  response = process::http::get(pid, "read.json?path=%2Fone%2F2%2Fthree&offset=0");
+  response =
+    process::http::get(pid, "read.json", "path=%2Fone%2F2%2Fthree&offset=0");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
-  response = process::http::get(pid,
-      "read.json?path=one%2Ftwo%2Fthree&offset=0");
+  response =
+    process::http::get(pid, "read.json", "path=one%2Ftwo%2Fthree&offset=0");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
@@ -186,18 +190,18 @@ TEST_WITH_WORKDIR(FilesTest, ResolveTest)
   // Reading dirs not allowed.
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       BadRequest().status,
-      process::http::get(pid, "read.json?path=one/2"));
+      process::http::get(pid, "read.json", "path=one/2"));
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       BadRequest().status,
-      process::http::get(pid, "read.json?path=one"));
+      process::http::get(pid, "read.json", "path=one"));
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       BadRequest().status,
-      process::http::get(pid, "read.json?path=one/"));
+      process::http::get(pid, "read.json", "path=one/"));
 
   // Breaking out of sandbox.
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       BadRequest().status,
-      process::http::get(pid, "read.json?path=two/../two"));
+      process::http::get(pid, "read.json", "path=two/../two"));
 }
 
 
@@ -225,23 +229,24 @@ TEST_WITH_WORKDIR(FilesTest, BrowseTest)
   ASSERT_EQ(0, stat("1/two", &s));
   expected.values.push_back(jsonFileInfo("one/two", s));
 
-  Future<Response> response = process::http::get(pid, "browse.json?path=one/");
+  Future<Response> response =
+      process::http::get(pid, "browse.json", "path=one/");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
-  response = process::http::get(pid, "browse.json?path=one%2F");
+  response = process::http::get(pid, "browse.json", "path=one%2F");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
-  response = process::http::get(pid, "browse.json?path=one");
+  response = process::http::get(pid, "browse.json", "path=one");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
 
   // Empty listing.
-  response = process::http::get(pid, "browse.json?path=one/2");
+  response = process::http::get(pid, "browse.json", "path=one/2");
 
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_BODY_WILL_EQ(stringify(JSON::Array()), response);
@@ -249,7 +254,7 @@ TEST_WITH_WORKDIR(FilesTest, BrowseTest)
   // Missing dir.
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       NotFound().status,
-      process::http::get(pid, "browse.json?path=missing"));
+      process::http::get(pid, "browse.json", "path=missing"));
 }
 
 
@@ -273,7 +278,7 @@ TEST_WITH_WORKDIR(FilesTest, DownloadTest)
   EXPECT_FUTURE_WILL_SUCCEED(files.attach("black.gif", "black.gif"));
 
   Future<Response> response =
-    process::http::get(pid, "download.json?path=binary");
+    process::http::get(pid, "download.json", "path=binary");
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_HEADER_WILL_EQ(
       "application/octet-stream",
@@ -281,7 +286,7 @@ TEST_WITH_WORKDIR(FilesTest, DownloadTest)
       response);
   EXPECT_RESPONSE_BODY_WILL_EQ("no file extension", response);
 
-  response = process::http::get(pid, "download.json?path=black.gif");
+  response = process::http::get(pid, "download.json", "path=black.gif");
   EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
   EXPECT_RESPONSE_HEADER_WILL_EQ("image/gif", "Content-Type", response);
   EXPECT_RESPONSE_BODY_WILL_EQ(data, response);
