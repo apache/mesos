@@ -1,6 +1,7 @@
 #ifndef __PROCESS_IO_HPP__
 #define __PROCESS_IO_HPP__
 
+#include <cstring> // For size_t.
 #include <string>
 
 #include <process/future.hpp>
@@ -12,11 +13,14 @@ namespace io {
 const short READ = 0x01;
 const short WRITE = 0x02;
 
+// Buffered read chunk size. Roughly 16 pages.
+const size_t BUFFERED_READ_SIZE = 16*4096;
+
+// TODO(benh): Add a version which takes multiple file descriptors.
 // Returns the events (a subset of the events specified) that can be
 // performed on the specified file descriptor without blocking.
 Future<short> poll(int fd, short events);
 
-// TODO(benh): Add a version which takes multiple file descriptors.
 
 // Performs a single non-blocking read by polling on the specified file
 // descriptor until any data can be be read. The future will become ready when
@@ -27,6 +31,7 @@ Future<short> poll(int fd, short events);
 // bytes read or zero on end-of-file (an error is indicated by failing the
 // future, thus only a 'size_t' is necessary rather than a 'ssize_t').
 Future<size_t> read(int fd, void* data, size_t size);
+
 
 // Performs a series of asynchronous reads, until EOF is reached.
 // NOTE: When using this, ensure the sender will close the connection

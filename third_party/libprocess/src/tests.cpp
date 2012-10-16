@@ -1351,6 +1351,42 @@ TEST(HTTP, encode)
 }
 
 
+TEST(Process, BufferedRead)
+{
+  // 128 Bytes.
+  std::string data =
+      "This data is much larger than BUFFERED_READ_SIZE, which means it will "
+      "trigger multiple buffered async reads as a result.........";
+  CHECK(data.size() == 128);
+
+  // Keep doubling the data size until we're guaranteed to trigger at least
+  // 3 buffered async reads.
+  while (data.length() < 3 * io::BUFFERED_READ_SIZE) {
+    data.append(data);
+  }
+
+  ASSERT_TRUE(os::write("file", data).isSome());
+
+  Try<int> fd = os::open("file", O_RDONLY);
+  ASSERT_TRUE(fd.isSome());
+
+  // Read from blocking fd.
+  Future<std::string> future = io::read(fd.get());
+  ASSERT_TRUE(future.await(Seconds(5.0)));
+  EXPECT_TRUE(future.isFailed());
+
+  // Read from non-blocking fd.
+  ASSERT_TRUE(os::nonblock(fd.get()).isSome());
+
+  future = io::read(fd.get());
+  ASSERT_TRUE(future.await(Seconds(5.0)));
+  EXPECT_TRUE(future.isReady());
+  EXPECT_EQ(data, future.get());
+
+  os::close(fd.get());
+}
+
+
 int main(int argc, char** argv)
 {
   // Initialize Google Mock/Test.

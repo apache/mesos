@@ -43,6 +43,8 @@
 #include <tr1/functional>
 #include <tr1/memory> // TODO(benh): Replace all shared_ptr with unique_ptr.
 
+#include <boost/shared_array.hpp>
+
 #include <process/clock.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -3206,14 +3208,15 @@ Future<size_t> read(int fd, void* data, size_t size)
 namespace internal {
 
 #if __cplusplus >= 201103L
-Future<string> _read(int fd, string* buffer, char* data, size_t length)
+Future<string> _read(int fd,
+                     const std::tr1::shared_ptr<string>& buffer,
+                     const boost::shared_array<char>& data,
+                     size_t length)
 {
-  return io::read(fd, data, length)
+  return io::read(fd, data.get(), length)
     .then([=] (size_t size) {
       if (size == 0) { // EOF.
         string result(*buffer);
-        delete buffer;
-        delete[] data;
         return Future<string>(result);
       }
       buffer->append(data, size);
@@ -3222,39 +3225,44 @@ Future<string> _read(int fd, string* buffer, char* data, size_t length)
 }
 #else
 // Forward declataion.
-Future<string> _read(int fd, string* buffer, char* data, size_t length);
+Future<string> _read(int fd,
+                     const std::tr1::shared_ptr<string>& buffer,
+                     const boost::shared_array<char>& data,
+                     size_t length);
 
 
 Future<string> __read(
     const size_t& size,
     // TODO(benh): Remove 'const &' after fixing libprocess.
     int fd,
-    string* buffer,
-    char* data,
+    const std::tr1::shared_ptr<string>& buffer,
+    const boost::shared_array<char>& data,
     size_t length)
 {
   if (size == 0) { // EOF.
     string result(*buffer);
-    delete buffer;
-    delete[] data;
     return Future<string>(result);
   }
 
-  buffer->append(data, size);
+  buffer->append(data.get(), size);
   return _read(fd, buffer, data, length);
 }
 
 
-Future<string> _read(int fd, string* buffer, char* data, size_t length)
+Future<string> _read(int fd,
+                     const std::tr1::shared_ptr<string>& buffer,
+                     const boost::shared_array<char>& data,
+                     size_t length)
 {
   std::tr1::function<Future<string>(const size_t&)> f =
     std::tr1::bind(__read, lambda::_1, fd, buffer, data, length);
 
-  return io::read(fd, data, length).then(f);
+  return io::read(fd, data.get(), length).then(f);
 }
 #endif
 
 } // namespace internal
+
 
 Future<string> read(int fd)
 {
@@ -3262,11 +3270,10 @@ Future<string> read(int fd)
 
   // TODO(benh): Wrap up this data as a struct, use 'Owner'.
   // TODO(bmahler): For efficiency, use a rope for the buffer.
-  string* buffer = new string();
-  size_t length = 1024;
-  char* data = new char[length];
+  std::tr1::shared_ptr<string> buffer(new string());
+  boost::shared_array<char> data(new char[BUFFERED_READ_SIZE]);
 
-  return internal::_read(fd, buffer, data, length);
+  return internal::_read(fd, buffer, data, BUFFERED_READ_SIZE);
 }
 
 

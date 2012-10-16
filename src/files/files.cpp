@@ -1,12 +1,18 @@
+#include <unistd.h>
+
 #include <sys/stat.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
 
+#include <boost/shared_array.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
+#include <process/io.hpp>
 #include <process/mime.hpp>
 #include <process/process.hpp>
 
@@ -56,18 +62,33 @@ protected:
   virtual void initialize();
 
 private:
-  // HTTP endpoints.
-  Future<Response> browse(const Request& request);
-  Future<Response> read(const Request& request);
-  Future<Response> download(const Request& request);
-  Future<Response> debug(const Request& request);
-
   // Resolves the virtual path to an actual path.
   // Returns the actual path if found.
   // Returns None if the file is not found.
   // Returns Error if we find the file but it cannot be resolved or it breaks
   // out of the chroot.
   Result<std::string> resolve(const string& path);
+
+  // HTTP endpoints.
+
+  // Returns a file listing for a directory.
+  // Requests have the following parameters:
+  //   path: The directory to browse. Required.
+  // The response will contain a list of JSON files and directories contained
+  // in the path (see files::jsonFileInfo for the format).
+  Future<Response> browse(const Request& request);
+
+  // Reads data from a file at a given offset and for a given length.
+  // See the jquery pailer for the expected behavior.
+  Future<Response> read(const Request& request);
+
+  // Returns the raw file contents for a given path.
+  // Requests have the following parameters:
+  //   path: The directory to browse. Required.
+  Future<Response> download(const Request& request);
+
+  // Returns the internal virtual path mapping.
+  Future<Response> debug(const Request& request);
 
   hashmap<string, string> paths;
 };
@@ -163,6 +184,23 @@ Future<Response> FilesProcess::browse(const Request& request)
 }
 
 
+// TODO(benh): Remove 'const &' from size after fixing libprocess.
+Future<Response> _read(int fd,
+                       const size_t& size,
+                       off_t offset,
+                       const boost::shared_array<char>& data,
+                       const Option<string>& jsonp) {
+  JSON::Object object;
+
+  object.values["offset"] = offset;
+  object.values["data"] = string(data.get(), size);
+
+  os::close(fd);
+
+  return OK(object, jsonp);
+}
+
+
 Future<Response> FilesProcess::read(const Request& request)
 {
   Option<string> path = request.query.get("path");
@@ -221,7 +259,7 @@ Future<Response> FilesProcess::read(const Request& request)
     string error = strings::format("Failed to open file at '%s': %s",
         resolvedPath.get(), strerror(errno)).get();
     LOG(WARNING) << error;
-    close(fd.get());
+    os::close(fd.get());
     return InternalServerError(error + ".\n");
   }
 
@@ -233,49 +271,47 @@ Future<Response> FilesProcess::read(const Request& request)
     length = size - offset;
   }
 
-  JSON::Object object;
+  // Cap the read length at 16 pages.
+  length = std::min(length, sysconf(_SC_PAGE_SIZE) * 16);
 
-  if (offset < size) {
-    // Seek to the offset we want to read from.
-    if (lseek(fd.get(), offset, SEEK_SET) == -1) {
-      string error = strings::format("Failed to seek file at '%s': %s",
-          resolvedPath.get(), strerror(errno)).get();
-      LOG(WARNING) << error;
-      close(fd.get());
-      return InternalServerError(error + ".\n");
-    }
+  if (offset >= size) {
+    os::close(fd.get());
 
-    // Read length bytes (or to EOF).
-    char* temp = new char[length];
-
-    // TODO(bmahler): Change this to use async process::read.
-    length = ::read(fd.get(), temp, length);
-
-    if (length == 0) {
-      object.values["offset"] = offset;
-      object.values["length"] = 0;
-      delete[] temp;
-    } else if (length == -1) {
-      string error = strings::format("Failed to read file at '%s': %s",
-          resolvedPath.get(), strerror(errno)).get();
-      LOG(WARNING) << error;
-      delete[] temp;
-      close(fd.get());
-      return InternalServerError(error + ".\n");
-    } else {
-      object.values["offset"] = offset;
-      object.values["length"] = length;
-      object.values["data"] = string(temp, length);
-      delete[] temp;
-    }
-  } else {
+    JSON::Object object;
     object.values["offset"] = size;
-    object.values["length"] = 0;
+    object.values["data"] = "";
+    return OK(object, request.query.get("jsonp"));
   }
 
-  close(fd.get());
+  // Seek to the offset we want to read from.
+  if (lseek(fd.get(), offset, SEEK_SET) == -1) {
+    string error = strings::format("Failed to seek file at '%s': %s",
+        resolvedPath.get(), strerror(errno)).get();
+    LOG(WARNING) << error;
+    os::close(fd.get());
+    return InternalServerError(error);
+  }
 
-  return OK(object, request.query.get("jsonp"));
+  Try<Nothing> nonblock = os::nonblock(fd.get());
+  if (nonblock.isError()) {
+    string error =
+        "Failed to set file descriptor nonblocking: " + nonblock.error();
+    LOG(WARNING) << error;
+    return InternalServerError(error);
+  }
+
+  // Read 'length' bytes (or to EOF).
+  boost::shared_array<char> data(new char[length]);
+
+  // TODO(bmahler): C++11 version when ready.
+  std::tr1::function<Future<Response>(const size_t&)> f =
+      std::tr1::bind(_read,
+                     fd.get(),
+                     std::tr1::placeholders::_1,
+                     offset,
+                     data,
+                     request.query.get("jsonp"));
+  return io::read(fd.get(), data.get(), static_cast<size_t>(length)).then(f);
 }
 
 

@@ -108,7 +108,6 @@ TEST_WITH_WORKDIR(FilesTest, ReadTest)
   // Read a valid file.
   JSON::Object expected;
   expected.values["offset"] = 0;
-  expected.values["length"] = strlen("body");
   expected.values["data"] = "body";
 
   response = process::http::get(pid, "read.json", "path=/myname&offset=0");
@@ -147,7 +146,6 @@ TEST_WITH_WORKDIR(FilesTest, ResolveTest)
   // Resolve 1/2/3 via each attached path.
   JSON::Object expected;
   expected.values["offset"] = 0;
-  expected.values["length"] = strlen("three");
   expected.values["data"] = "three";
 
   Future<Response> response =

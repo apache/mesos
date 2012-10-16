@@ -7,12 +7,12 @@
 // fields 'offset' and 'length' set for reading the data. The result
 // from of the function should be a "promise" like value which has a
 // 'success' and 'error' callback which each take a function. An
-// object with at least two fields defined ('offset' and 'length') is
-// expected on success. A third field, 'data' may be provided if
-// 'length' is greater than 0. If the offset requested is greater than
-// the available offset, the result should be an object with the
-// 'offset' field set to the available offset (i.e., the length of the
-// data) and the 'length' field set to 0.
+// object with at least two fields defined ('offset' and 'data') is
+// expected on success. The length of 'data' may be smaller than the
+// amount requested. If the offset requested is greater than the
+// available offset, the result should be an object with the 'offset'
+// field set to the available offset (i.e., the total length of the
+// data) with an empty 'data' field.
 
 // The plugin prepends, appends, and updates the "html" component of
 // the elements specified in the jQuery selector (e.g., doing
@@ -157,24 +157,22 @@
     var read = function(offset, length) {
       this_.read({'offset': offset, 'length': length})
         .success(function(data) {
-          if (data.length < length) {
+          if (data.data.length < length) {
               buffer += data.data;
-              read(offset + data.length, length - data.length);
-          } else if (data.length > 0) {
+              read(offset + data.data.length, length - data.data.length);
+          } else if (data.data.length > 0) {
             this_.indicate('(PAGED)');
             setTimeout(function() { this_.indicate(''); }, 1000);
 
             // Prepend buffer onto data.
             data.offset -= buffer.length;
             data.data = buffer + data.data;
-            data.length = data.data.length;
 
             // Truncate to the first newline (unless this is the beginning).
             if (data.offset != 0) {
               var index = data.data.indexOf('\n') + 1;
               data.offset += index;
               data.data = data.data.substring(index);
-              data.length -= index;
             }
 
             this_.start = data.offset;
@@ -223,18 +221,17 @@
           return;
         }
 
-        if (data.length > 0) {
+        if (data.data.length > 0) {
           // Truncate to the first newline if this is the first time
           // (and we aren't reading from the beginning of the log).
           if (this_.start == this_.end && data.offset != 0) {
             var index = data.data.indexOf('\n') + 1;
             data.offset += index;
             data.data = data.data.substring(index);
-            data.length -= index;
             this_.start = data.offset; // Adjust the actual start too!
           }
 
-          this_.end = data.offset + data.length;
+          this_.end = data.offset + data.data.length;
 
           this_.element.append(data.data);
 
@@ -254,7 +251,7 @@
         // log data at a time ... the right solution here might be to do
         // a request to determine the new ending offset and then request
         // the proper length.
-        if (data.length == this_.truncate_length) {
+        if (data.data.length == this_.truncate_length) {
           setTimeout(function() { this_.tail(); }, 0);
         } else {
           setTimeout(function() { this_.tail(); }, 1000);
