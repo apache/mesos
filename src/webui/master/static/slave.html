@@ -6,18 +6,18 @@
     <a href="#/slaves">Slaves</a> <span class="divider">/</span>
   </li>
   <li class="active">
-    <em>({{slave.id}})</em>
+    <em>{{state.hostname}}</em>
   </li>
 </ul>
 
-<div class="alert alert-error hide" id="missing-alert">
+<div class="alert alert-error hide" id="alert">
   <button class="close" data-dismiss="alert">×</button>
-  <strong>No slave by that ID could be found!</strong>
+  <strong>{{alert_message}}</strong>
 </div>
 
 <div class="modal hide fade" style="display: none;" id="no-log-dir-modal">
   <div class="modal-header">
-    <button class="close" data-dismiss="modal">×</button>
+    <button class="close" data-dismiss="modal">x</button>
     <h3>Logging to a file is not enabled!</h3>
   </div>
   <div class="modal-body">
@@ -31,20 +31,134 @@
   <div class="span3">
     <div class="well">
       <dl class="inline clearfix">
+        <dt>{{state.hostname}}</dt>
+      </dl>
+
+      <dl class="inline clearfix">
+        <dt>Cluster:</dt>
+        <dd>{{cluster}}</dd>
+        <dt>Master:</dt>
+        <dd>{{state.master_hostname}}</dd>
         <dt>Started:</dt>
         <dd>
           <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.start_time * 1000 | mesosDate}}" data-original-title="Started">
             {{state.start_time * 1000 | relativeDate}}
           </a>
         </dd>
+        <dt>Built:</dt>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.build_time * 1000 | mesosDate}}" data-original-title="Built">
+            {{state.build_time * 1000 | relativeDate}}
+          </a> by <i>{{state.build_user}}</i>
+        </dd>
         <dt>ID:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.id}}" data-original-title="ID">
-            {{state.id | truncateMesosID}}
+          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{slave_id}}" data-original-title="ID">
+            {{slave_id | truncateMesosID}}
           </a>
         </dd>
       </dl>
       <p><a href="" ng-click="log($event)">LOG</a></p>
+
+      <h2>Tasks</h2>
+      <table class="table table-condensed">
+        <tbody>
+          <tr>
+            <th>Staged</th>
+            <td>{{state.staged_tasks | number}}</td>
+          </tr>
+          <tr>
+            <th>Started</th>
+            <td>{{state.started_tasks | number}}</td>
+          </tr>
+          <tr>
+            <th>Finished</th>
+            <td>{{state.finished_tasks | number}}</td>
+          </tr>
+          <tr>
+            <th>Killed</th>
+            <td>{{state.killed_tasks | number}}</td>
+          </tr>
+          <tr>
+            <th>Failed</th>
+            <td>{{state.failed_tasks | number}}</td>
+          </tr>
+          <tr>
+            <th>Lost</th>
+            <td>{{state.lost_tasks | number}}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Resources</h2>
+      <table class="table table-condensed">
+        <tbody>
+          <tr>
+            <th>CPUs</th>
+            <td>{{state.resources.cpus | number}}</td>
+          </tr>
+          <tr>
+            <th>Memory</th>
+            <td>{{state.resources.mem / 1024 | number}} GB</td>
+          </tr>
+          <tr>
+            <th>Disk</th>
+            <td>{{state.resources.disk / 1024 | number}} GB</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
+
+  </div>
+  <div class="span9">
+    <h2>Frameworks</h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th ng-class="columnClass('frameworks', 'id')"
+              ng-click="selectColumn('frameworks', 'id')">
+            <a href="">ID</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'user')"
+              ng-click="selectColumn('frameworks', 'user')">
+            <a href="">User</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'name')"
+              ng-click="selectColumn('frameworks', 'name')">
+            <a href="">Name</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'num_tasks')"
+              ng-click="selectColumn('frameworks', 'num_tasks')">
+            <a href="">Active Tasks</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'cpus')"
+              ng-click="selectColumn('frameworks', 'cpus')">
+            <a href="">CPUs</a>
+          </th>
+          <th ng-class="columnClass('frameworks', 'mem')"
+              ng-click="selectColumn('frameworks', 'mem')">
+            <a href="">Mem</a>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="framework in _.values(slave.frameworks) | orderBy:tables['frameworks'].selected_column:tables['frameworks'].reverse">
+          <td>
+            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.id}}" data-original-title="ID">
+              {{framework.id | truncateMesosID}}
+            </a>
+          </td>
+          <td>{{framework.user}}</td>
+          <td>
+            <a href="{{'#/slaves/' + slave_id + '/frameworks/' + framework.id}}">
+              {{framework.name}}
+            </a>
+          </td>
+          <td>{{framework.num_tasks | number}}</td>
+          <td>{{framework.cpus | number}}</td>
+          <td>{{framework.mem / 1024 | number}} GB</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>

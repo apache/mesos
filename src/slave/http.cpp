@@ -23,6 +23,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
+#include <stout/net.hpp>
 #include <stout/numify.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
@@ -50,8 +51,8 @@ using std::string;
 using std::vector;
 
 
-// TODO(benh): Consider moving the modeling code some place else so
-// that it can be shared between slave/http.cpp and master/http.cpp.
+// TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
+// in becomes available).
 
 
 // Returns a JSON object modeled on a Resources.
@@ -108,6 +109,51 @@ JSON::Object model(const Attributes& attributes)
 }
 
 
+JSON::Object model(const CommandInfo& command)
+{
+  JSON::Object object;
+  object.values["value"] = command.value();
+
+  if (command.has_environment()) {
+    JSON::Object environment;
+    JSON::Array variables;
+    foreach(const Environment_Variable& variable,
+        command.environment().variables()) {
+      JSON::Object variableObject;
+      variableObject.values["name"] = variable.name();
+      variableObject.values["value"] = variable.value();
+      variables.values.push_back(variableObject);
+    }
+    environment.values["variables"] = variables;
+    object.values["environment"] = environment;
+  }
+
+  JSON::Array uris;
+  foreach(const CommandInfo_URI& uri, command.uris()) {
+    JSON::Object uriObject;
+    uriObject.values["value"] = uri.value();
+    uriObject.values["executable"] = uri.executable();
+
+    uris.values.push_back(uriObject);
+  }
+  object.values["uris"] = uris;
+
+  return object;
+}
+
+
+JSON::Object model(const ExecutorInfo& executorInfo)
+{
+  JSON::Object object;
+  object.values["executor_id"] = executorInfo.executor_id().value();
+  object.values["data"] = executorInfo.data();
+  object.values["framework_id"] = executorInfo.framework_id().value();
+  object.values["command"] = model(executorInfo.command());
+  object.values["resources"] = model(executorInfo.resources());
+  return object;
+}
+
+
 JSON::Object model(const Executor& executor)
 {
   JSON::Object object;
@@ -115,22 +161,40 @@ JSON::Object model(const Executor& executor)
   object.values["directory"] = executor.directory;
   object.values["resources"] = model(executor.resources);
 
-  JSON::Array array;
-
-  // TODO(benh): Send queued tasks also.
+  JSON::Array tasks;
   foreachvalue (Task* task, executor.launchedTasks) {
     JSON::Object object;
     object.values["id"] = task->task_id().value();
     object.values["name"] = task->name();
+    object.values["executor_id"] = task->executor_id().value();
     object.values["framework_id"] = task->framework_id().value();
     object.values["slave_id"] = task->slave_id().value();
     object.values["state"] = TaskState_Name(task->state());
     object.values["resources"] = model(task->resources());
 
-    array.values.push_back(object);
+    tasks.values.push_back(object);
   }
+  object.values["tasks"] = tasks;
 
-  object.values["tasks"] = array;
+  JSON::Array queued;
+  foreachvalue (const TaskInfo& task, executor.queuedTasks) {
+    JSON::Object object;
+    object.values["id"] = task.task_id().value();
+    object.values["name"] = task.name();
+    object.values["slave_id"] = task.slave_id().value();
+    object.values["resources"] = model(task.resources());
+    object.values["data"] = task.data();
+
+    if (task.has_command()) {
+      object.values["command"] = model(task.command());
+    }
+    if (task.has_executor()) {
+      object.values["executor_id"] = model(task.executor());
+    }
+
+    queued.values.push_back(object);
+  }
+  object.values["queued_tasks"] = queued;
 
   return object;
 }
@@ -214,12 +278,25 @@ Future<Response> state(
 
   JSON::Object object;
   object.values["build_date"] = build::DATE;
+  object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
   object.values["start_time"] = slave.startTime;
   object.values["id"] = slave.id.value();
   object.values["pid"] = string(slave.self());
+  object.values["hostname"] = slave.info.hostname();
   object.values["resources"] = model(slave.resources);
   object.values["attributes"] = model(slave.attributes);
+  object.values["staged_tasks"] = slave.stats.tasks[TASK_STAGING];
+  object.values["started_tasks"] = slave.stats.tasks[TASK_STARTING];
+  object.values["finished_tasks"] = slave.stats.tasks[TASK_FINISHED];
+  object.values["killed_tasks"] = slave.stats.tasks[TASK_KILLED];
+  object.values["failed_tasks"] = slave.stats.tasks[TASK_FAILED];
+  object.values["lost_tasks"] = slave.stats.tasks[TASK_LOST];
+
+  Try<string> masterHostname = net::getHostname(slave.master.ip);
+  if (masterHostname.isSome()) {
+    object.values["master_hostname"] = masterHostname.get();
+  }
 
   if (slave.flags.log_dir.isSome()) {
     object.values["log_dir"] = slave.flags.log_dir.get();

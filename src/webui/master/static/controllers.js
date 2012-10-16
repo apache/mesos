@@ -61,6 +61,21 @@ function selectColumn($scope) {
 }
 
 
+// Invokes the pailer for the specified host and path using the
+// specified window_title.
+function pailer(host, path, window_title) {
+  var url = 'http://' + host + '/files/read.json?path=' + path;
+  var pailer =
+    window.open('/static/pailer.html', url, 'width=580px, height=700px');
+
+  // Need to use window.onload instead of document.ready to make
+  // sure the title doesn't get overwritten.
+  pailer.onload = function() {
+    pailer.document.title = window_title + ' (' + host + ')';
+  }
+}
+
+
 // Update the outermost scope with the new state.
 function update($scope, $defer, data) {
   // Don't do anything if the data hasn't changed.
@@ -131,6 +146,7 @@ function update($scope, $defer, data) {
   });
 
   // Update the stats.
+  $scope.cluster = $scope.state.cluster;
   $scope.total_cpus = 0;
   $scope.total_mem = 0;
   $scope.used_cpus = 0;
@@ -207,6 +223,20 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
   // AngularJS expressions.
   $scope._ = _;
   $scope.stringify = JSON.stringify;
+  $scope.encodeURIComponent = encodeURIComponent;
+  $scope.basename = function(path) {
+    // This is only a basic version of basename that handles the cases we care
+    // about, rather than duplicating unix basename functionality perfectly.
+    if (path === '/') {
+      return path;  // Handle '/'.
+    }
+
+    // Strip a trailing '/' if present.
+    if (path.length > 0 && path.lastIndexOf('/') === (path.length - 1)) {
+      path = path.substr(0, path.length - 1);
+    }
+    return path.substr(path.lastIndexOf('/') + 1);
+  }
 
   // Initialize popovers and bind the function used to show a popover.
   Popovers.initialize();
@@ -281,15 +311,10 @@ function HomeCtrl($scope) {
     if (!$scope.state.log_dir) {
       $('#no-log-dir-modal').modal('show');
     } else {
-      var url = '/files/read.json?path=/master/log';
-      var pailer =
-        window.open('/static/pailer.html', url, 'width=580px, height=700px');
-
-      // Need to use window.onload instead of document.ready to make
-      // sure the title doesn't get overwritten.
-      pailer.onload = function() {
-        pailer.document.title = 'Mesos Master (' + location.host + ')';
-      }
+      pailer(
+          $scope.$location.host() + ':' + $scope.$location.port(),
+          '/master/log',
+          'Mesos Master');
     }
   }
 }
@@ -337,13 +362,15 @@ function FrameworkCtrl($scope, $routeParams) {
   var update = function() {
     if ($routeParams.id in $scope.completed_frameworks) {
       $scope.framework = $scope.completed_frameworks[$routeParams.id];
-      $('#terminated-alert').show();
+      $scope.alert_message = 'This framework has terminated!';
+      $('#alert').show();
       $('#framework').show();
     } else if ($routeParams.id in $scope.frameworks) {
       $scope.framework = $scope.frameworks[$routeParams.id];
       $('#framework').show();
     } else {
-      $('#missing-alert').show();
+      $scope.alert_message = 'No framework found with ID: ' + $routeParams.id;
+      $('#alert').show();
     }
   }
 
@@ -372,41 +399,147 @@ function SlavesCtrl($scope) {
 function SlaveCtrl($scope, $routeParams, $http) {
   setNavbarActiveTab('slaves');
 
-  var host = undefined;
-
-  $scope.log = function($event) {
-    if (!$scope.state.log_dir) {
-      $('#no-log-dir-modal').modal('show');
-    } else {
-      var url = 'http://' + host + '/files/read.json?path=/slave/log';
-      var pailer =
-        window.open('/static/pailer.html', url, 'width=580px, height=700px');
-
-     // Need to use window.onload instead of document.ready to make
-      // sure the title doesn't get overwritten.
-      pailer.onload = function() {
-        pailer.document.title = 'Mesos Slave (' + host + ')';
-      }
-    }
+  // The slave controller is reused for all slave subpages, so some of the route
+  // params may not be present, depending on which page is being routed.
+  $scope.slave_id = $routeParams.slave_id;
+  if ($routeParams.framework_id) {
+    $scope.framework_id = $routeParams.framework_id;
+  }
+  if ($routeParams.executor_id) {
+    $scope.executor_id = $routeParams.executor_id;
   }
 
+  $scope.tables = {};
+  $scope.tables['frameworks'] = new Table('id');
+  $scope.tables['executors'] = new Table('id');
+  $scope.tables['tasks'] = new Table('id');
+
+  $scope.columnClass = columnClass($scope);
+  $scope.selectColumn = selectColumn($scope);
+
   var update = function() {
-    if ($routeParams.id in $scope.slaves) {
-      var pid = $scope.slaves[$routeParams.id].pid;
+    if ($routeParams.slave_id in $scope.slaves) {
+      var pid = $scope.slaves[$routeParams.slave_id].pid;
       var id = pid.substring(0, pid.indexOf('@'));
-      host = pid.substring(pid.indexOf('@') + 1);
-      var url = 'http://' + host + '/' + id
-        + '/state.json?jsonp=JSON_CALLBACK';
+      var host = pid.substring(pid.indexOf('@') + 1);
+
+      $scope.log = function($event) {
+        if (!$scope.state.log_dir) {
+          $('#no-log-dir-modal').modal('show');
+        } else {
+          pailer(host, '/slave/log', 'Mesos Slave');
+        }
+      }
+
+      var url = 'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK';
       $http.jsonp(url)
         .success(function(data) {
           $scope.state = data;
-          $('#slave').show();
+
+          $scope.slave = {};
+          $scope.slave.frameworks = {};
+
+          $scope.slave.staging_tasks = 0;
+          $scope.slave.starting_tasks = 0;
+          $scope.slave.running_tasks = 0;
+
+          // Update the maps.
+          _.each($scope.state.frameworks, function(framework) {
+            $scope.slave.frameworks[framework.id] = framework;
+            var executors = {};
+            _.each(framework.executors, function(executor) {
+              executors[executor.id] = executor;
+            });
+            $scope.slave.frameworks[framework.id].executors = executors;
+          });
+
+          // Compute the framework stats.
+          _.each($scope.slave.frameworks, function(framework) {
+            framework.num_tasks = 0;
+            framework.cpus = 0;
+            framework.mem = 0;
+
+            _.each(framework.executors, function(executor) {
+              framework.num_tasks += _.size(executor.tasks);
+              framework.cpus += executor.resources.cpus;
+              framework.mem += executor.resources.mem;
+            });
+          });
+
+          // Look for the framework / executor if present in the request.
+          if ($scope.framework_id &&
+              !_.has($scope.slave.frameworks, $scope.framework_id)) {
+            $scope.alert_message = 'No framework found with ID: ' + $scope.framework_id;
+            $('#alert').show();
+          } else if ($scope.framework_id && $scope.executor_id &&
+              !_.has($scope.slave.frameworks[$scope.framework_id].executors, $scope.executor_id)) {
+            $scope.alert_message = 'No executor found with ID: ' + $scope.executor_id;
+            $('#alert').show();
+          } else {
+            // Set active framework / executor if present in the request.
+            if ($routeParams.framework_id) {
+              $scope.framework = $scope.slave.frameworks[$scope.framework_id];
+            }
+            if ($routeParams.executor_id) {
+              $scope.executor = $scope.framework.executors[$scope.executor_id];
+            }
+
+            $('#slave').show();
+          }
         })
         .error(function() {
           alert('unimplemented');
         });
     } else {
-      $('#missing-alert').show();
+      $scope.alert_message = 'No slave found with ID: ' + $routeParams.slave_id;
+      $('#alert').show();
+    }
+  }
+
+  if ($scope.state) {
+    update();
+  }
+
+  $(document).on('state_updated', update);
+  $scope.$on('$beforeRouteChange', function() {
+    $(document).off('state_updated', update);
+  });
+}
+
+
+function BrowseCtrl($scope, $routeParams, $http) {
+  setNavbarActiveTab('slaves');
+
+  var update = function() {
+    if ($routeParams.slave_id in $scope.slaves && $routeParams.path) {
+      $scope.slave_id = $routeParams.slave_id;
+      $scope.path = $routeParams.path;
+
+      var pid = $scope.slaves[$routeParams.slave_id].pid;
+      var id = pid.substring(0, pid.indexOf('@'));
+      var host = pid.substring(pid.indexOf('@') + 1);
+      var url = 'http://' + host + '/files/browse.json?jsonp=JSON_CALLBACK';
+
+      $scope.pail = function($event, path) {
+        pailer(host, path, decodeURIComponent(path));
+      }
+
+      $http.jsonp(url, {params: {path: $routeParams.path}})
+        .success(function(data) {
+          $scope.listing = data;
+          $('#listing').show();
+        })
+        .error(function() {
+          $scope.alert_message = 'Error browsing path: ' + $routeParams.path;
+          $('#alert').show();
+        });
+    } else {
+      if (!($routeParams.slave_id in $scope.slaves)) {
+        $scope.alert_message = 'No slave found with ID: ' + $routeParams.slave_id;
+      } else {
+        $scope.alert_message = 'Missing "path" request parameter.';
+      }
+      $('#alert').show();
     }
   }
 

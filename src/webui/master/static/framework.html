@@ -7,18 +7,12 @@
   </li>
   <li class="active">
     {{framework.name}}
-    <em>({{framework.id}})</em>
   </li>
 </ul>
 
-<div class="alert alert-error hide" id="terminated-alert">
+<div class="alert alert-error hide" id="alert">
   <button class="close" data-dismiss="alert">×</button>
-  <strong>This framework has terminated!</strong>
-</div>
-
-<div class="alert alert-error hide" id="missing-alert">
-  <button class="close" data-dismiss="alert">×</button>
-  <strong>No framework by that ID could be found!</strong>
+  <strong>{{alert_message}}</strong>
 </div>
 
 <div class="row hide" id="framework">
@@ -86,7 +80,7 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
-            <a href="http://{{slaves[task.slave_id].webui_hostname}}:{{slaves[task.slave_id].webui_port}}/">
+            <a href="#/slaves/{{task.slave_id}}">
               {{slaves[task.slave_id].hostname}}
             </a>
           </td>
@@ -122,7 +116,7 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
-            <a href="http://{{slaves[task.slave_id].webui_hostname}}:{{slaves[task.slave_id].webui_port}}/">
+            <a href="#/slaves/{{task.slave_id}}">
               {{slaves[task.slave_id].hostname}}
             </a>
           </td>

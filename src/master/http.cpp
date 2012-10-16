@@ -58,8 +58,8 @@ using std::map;
 using std::string;
 using std::vector;
 
-// TODO(benh): Consider moving the modeling code some place else so
-// that it can be shared between slave/http.cpp and master/http.cpp.
+// TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
+// it becomes available).
 
 
 // Returns a JSON object modeled on a Resources.
