@@ -1,0 +1,120 @@
+<ul class="breadcrumb">
+  <li>
+    <a href="#">Home</a>
+    <span class="divider">/</span>
+  </li>
+  <li>
+    <a href="#/slaves">Slaves</a>
+    <span class="divider">/</span>
+  </li>
+  <li>
+    <a href="#/slaves/{{slave_id}}">{{state.hostname}}</a>
+    <span class="divider">/</span>
+  </li>
+  <li class="active">
+    <em>{{framework.name}}</em>
+  </li>
+</ul>
+
+<div class="alert alert-error hide" id="alert">
+  <button class="close" data-dismiss="alert">×</button>
+  <strong>{{alert_message}}</strong>
+</div>
+
+<div class="row hide" id="slave">
+  <div class="span3">
+    <div class="well">
+      <dl class="inline clearfix">
+        <dt>{{framework.name}}</dt>
+      </dl>
+
+      <dl class="inline clearfix">
+        <dt>Cluster:</dt><dd>{{cluster}}</dd>
+        <dt>Master:</dt><dd>{{state.master_hostname}}</dd>
+        <dt>ID:</dt>
+        <dd>
+          <a href="" rel="popover" ng-click="popover($event, 'right')"
+             data-content="{{framework_id}}" data-original-title="ID">
+            {{framework_id | truncateMesosID}}
+          </a>
+        </dd>
+      </dl>
+
+      <dl class="inline clearfix">
+        <dt>Active Tasks:</dt>
+        <dd>{{framework.num_tasks | number}}</dd>
+      </dl>
+
+      <h2>Resources</h2>
+      <table class="table table-condensed">
+        <tbody>
+          <tr>
+            <th>CPUs</th>
+            <td>{{framework.cpus | number}}</td>
+          </tr>
+          <tr>
+            <th>Memory</th>
+            <td>{{framework.mem / 1024 | number}} GB</td>
+          </tr>
+          <tr>
+            <th>Disk</th>
+            <td>{{framework.disk / 1024 | number}} GB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="span9">
+    <h2>Executors</h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th ng-class="columnClass('executors', 'id')"
+              ng-click="selectColumn('executors', 'id')">
+            <a href="">ID</a>
+          </th>
+          <th ng-class="columnClass('executors', 'tasks.length')"
+              ng-click="selectColumn('executors', 'tasks.length')">
+            <a href="">Active Tasks</a>
+          </th>
+          <th ng-class="columnClass('executors', 'queued_tasks.length')"
+              ng-click="selectColumn('executors', 'queued_tasks.length')">
+            <a href="">Queued Tasks</a>
+          </th>
+          <th ng-class="columnClass('executors', 'resources.cpus')"
+              ng-click="selectColumn('executors', 'resources.cpus')">
+            <a href="">CPUs</a>
+          </th>
+          <th ng-class="columnClass('executors', 'resources.mem')"
+              ng-click="selectColumn('executors', 'resources.mem')">
+            <a href="">Mem</a>
+          </th>
+          <th>Sandbox</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr ng-repeat="executor in _.values(framework.executors) | orderBy:tables['executors'].selected_column:tables['executors'].reverse">
+          <td>
+            <a href="{{'#/slaves/' + slave_id + '/frameworks/' + framework.id + '/executors/' + executor.id}}">
+              {{executor.id}}
+            </a>
+          </td>
+          <td>{{executor.tasks.length | number}}</td>
+          <td>{{executor.queued_tasks.length | number}}</td>
+          <td>{{executor.resources.cpus | number}}</td>
+          <td>{{executor.resources.mem / 1024 | number}} GB</td>
+          <td>
+            <a href="{{'#/slaves/' + slave_id + '/browse?path=' + encodeURIComponent(
+                       '/slaves/' + slave_id + '/frameworks/' + framework_id +
+                       '/executors/' + executor.id)}}">
+              browse
+            </a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
