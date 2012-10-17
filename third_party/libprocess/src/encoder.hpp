@@ -10,6 +10,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/numify.hpp>
 
 
 namespace process {
@@ -146,10 +147,10 @@ public:
     // Add a Content-Length header if the response is of type "none"
     // or "body" and no Content-Length header has been supplied.
     if (response.type == http::Response::NONE &&
-        headers.contains("Content-Length")) {
+        !headers.contains("Content-Length")) {
       out << "Content-Length: 0\r\n";
     } else if (response.type == http::Response::BODY &&
-               headers.contains("Content-Length")) {
+               !headers.contains("Content-Length")) {
       out << "Content-Length: " << response.body.size() << "\r\n";
     }
 
@@ -158,7 +159,14 @@ public:
 
     // Add the body if necessary.
     if (response.type == http::Response::BODY) {
-      out.write(response.body.data(), response.body.size());
+      // If the Content-Length header was supplied, only write as much data
+      // as the length specifies.
+      Result<uint32_t> length = numify<uint32_t>(headers.get("Content-Length"));
+      if (length.isSome() && length.get() <= response.body.length()) {
+        out.write(response.body.data(), length.get());
+      } else {
+        out.write(response.body.data(), response.body.size());
+      }
     }
 
     return out.str();
