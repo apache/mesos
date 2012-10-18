@@ -1,10 +1,56 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <!--Including all elements specified at
+      https://docs.sonatype.org/display/Repository/Central+Sync+Requirements-->
   <modelVersion>4.0.0</modelVersion>
+  <groupId>org.apache.mesos</groupId>
   <artifactId>mesos</artifactId>
   <name>mesos</name>
-  <groupId>org.apache.mesos</groupId>
-  <version>@PACKAGE_VERSION@</version>
+  <version>@PACKAGE_VERSION@-incubating</version>
+  <description>The Apache Mesos Java API jar.</description>
+  <url>http://incubator.apache.org/mesos</url>
+  <scm>
+    <connection>scm:svn:https://svn.apache.org/repos/asf/incubator/mesos</connection>
+    <url>https://svn.apache.org/repos/asf/incubator/mesos</url>
+  </scm>
+  <!-- We inherit from the apache parent pom to use its repositories
+       but since we don't use Maven as the primary build system for
+       Mesos, we don't use the -Papache-profile flag -->
+  <parent>
+    <groupId>org.apache</groupId>
+    <artifactId>apache</artifactId>
+    <version>11</version>
+  </parent>
+  <mailingLists>
+    <mailingList>
+      <name>Mesos Dev List</name>
+      <subscribe>mesos-dev-subscribe@incubator.apache.org</subscribe>
+      <unsubscribe>mesos-dev-unsubscribe@incubator.apache.org</unsubscribe>
+      <post>mesos-dev@incubator.apache.org</post>
+      <archive>http://mail-archives.apache.org/mod_mbox/incubator-mesos-dev</archive>
+    </mailingList>
+  </mailingLists>
+  <developers>
+    <developer>
+      <id>benh</id>
+      <name>Benjamin Hindman</name>
+      <email>benh@apache.org</email>
+    </developer>
+    <developer>
+      <id>andyk</id>
+      <name>Andy Konwinski</name>
+      <email>andrew@apache.org</email>
+    </developer>
+    <developer>
+      <id>matei</id>
+      <name>Matei Zaharia</name>
+      <email>matei@apache.org</email>
+    </developer>
+    <developer>
+      <id>alig</id>
+      <name>Ali Ghodis</name>
+      <email>alig@apache.org</email>
+    </developer>
+  </developers>
   <dependencies>
     <dependency>
       <artifactId>protobuf-java</artifactId>
@@ -12,4 +58,138 @@
       <version>2.4.1</version>
     </dependency>
   </dependencies>
+  <build>
+    <sourceDirectory>${basedir}/src</sourceDirectory>
+    <resources>
+<!--
+      <resource>
+        <directory>${basedir}/..</directory>
+        <targetPath>${project.build.directory}</targetPath>
+        <includes>
+          <include>mesos-0.9.0.jar</include>
+        </includes>
+      </resource>
+-->
+      <resource>
+        <directory>${basedir}/classes</directory>
+        <!--<targetPath>${project.build.directory}</targetPath>-->
+      </resource>
+    </resources>
+    <plugins>
+      <!-- Skip compile:compile by re-binding it to a non-standard (made-up)
+           phase. -->
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-compile</id>
+            <phase>never</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Skip tests entirely -->
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+      <!-- Build the jar for from the classes that the make build system
+           compiled for us from source -->
+      <plugin>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <finalName>${project.name}-${project.version}</finalName>
+        </configuration>
+        <!-- Uncomment to skip packaging a jar ourselves,
+             and instead use the one built by make -->
+        <!-- Uses trickery found at http://stackoverflow.com/a/4853816 -->
+<!--
+        <executions>
+          <execution>
+            <id>default-jar</id>
+            <phase>never</phase>
+            <configuration>
+              <finalName>unwanted</finalName>
+              <classifier>unwanted</classifier>
+            </configuration>
+          </execution>
+        </executions>
+-->
+      </plugin>
+      <!-- Attach the prebuilt mesos jar to this build -->
+<!--
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>1.7</version>
+        <executions>
+          <execution>
+            <id>attach-artifacts</id>
+            <phase>package</phase>
+            <goals>
+              <goal>attach-artifact</goal>
+            </goals>
+            <configuration>
+              <artifacts>
+                <artifact>
+                  <file>${basedir}/../mesos-0.9.0.jar</file>
+                  <type>jar</type>
+                  <classifier>${project.classifier}</classifier>
+                </artifact>
+              </artifacts>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+-->
+      <!-- Build and attach javadoc -->
+      <plugin>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <configuration>
+          <sourcepath>src</sourcepath>
+          <subpackages>org.apache.mesos</subpackages>
+        </configuration>
+        <executions>
+          <execution>
+            <id>build-and-attach-javadocs</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Package up the Java source -->
+      <plugin>
+        <artifactId>maven-source-plugin</artifactId>
+        <configuration>
+          <excludeResources>true</excludeResources>
+        </configuration>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- We want to sign the artifact, the POM, and all attached artifacts -->
+      <plugin>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <configuration>
+          <passphrase>${gpg.passphrase}</passphrase>
+          <useAgent>${gpg.useagent}</useAgent>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>
