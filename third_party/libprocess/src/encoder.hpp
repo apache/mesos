@@ -9,6 +9,7 @@
 #include <process/process.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/gzip.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/numify.hpp>
 
@@ -140,6 +141,22 @@ public:
 
     headers["Date"] = date;
 
+    // Swap the body with a gzip compressed version, if no encoding has
+    // been specified.
+    std::string body = response.body;
+
+    if (response.type == http::Response::BODY &&
+        !headers.contains("Content-Encoding")) {
+      Try<std::string> compressed = gzip::compress(body);
+      if (compressed.isError()) {
+        LOG(WARNING) << "Failed to gzip response body: " << compressed.error();
+      } else {
+        body = compressed.get();
+        headers["Content-Length"] = stringify(body.length());
+        headers["Content-Encoding"] = "gzip";
+      }
+    }
+
     foreachpair (const std::string& key, const std::string& value, headers) {
       out << key << ": " << value << "\r\n";
     }
@@ -151,7 +168,7 @@ public:
       out << "Content-Length: 0\r\n";
     } else if (response.type == http::Response::BODY &&
                !headers.contains("Content-Length")) {
-      out << "Content-Length: " << response.body.size() << "\r\n";
+      out << "Content-Length: " << body.size() << "\r\n";
     }
 
     // Use a CRLF to mark end of headers.
@@ -162,10 +179,10 @@ public:
       // If the Content-Length header was supplied, only write as much data
       // as the length specifies.
       Result<uint32_t> length = numify<uint32_t>(headers.get("Content-Length"));
-      if (length.isSome() && length.get() <= response.body.length()) {
-        out.write(response.body.data(), length.get());
+      if (length.isSome() && length.get() <= body.length()) {
+        out.write(body.data(), length.get());
       } else {
-        out.write(response.body.data(), response.body.size());
+        out.write(body.data(), body.size());
       }
     }
 

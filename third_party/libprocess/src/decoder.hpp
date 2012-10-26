@@ -11,6 +11,7 @@
 #include <process/socket.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/gzip.hpp>
 #include <stout/try.hpp>
 
 
@@ -117,9 +118,20 @@ private:
     if (decoded.isError()) {
       return 1;
     }
+    decoder->request->query = http::query::parse(decoded.get());
 
-    decoder->query = decoded.get();
-    decoder->request->query = http::query::parse(decoder->query);
+    Option<std::string> encoding =
+      decoder->request->headers.get("Content-Encoding");
+    if (encoding.isSome() && encoding.get() == "gzip") {
+      Try<std::string> decompressed = gzip::decompress(decoder->request->body);
+      if (decompressed.isError()) {
+        return 1;
+      }
+      decoder->request->body = decompressed.get();
+      decoder->request->headers["Content-Length"] =
+        decoder->request->body.length();
+    }
+
     decoder->requests.push_back(decoder->request);
     decoder->request = NULL;
     return 0;
@@ -297,8 +309,20 @@ private:
     hashmap<uint16_t, std::string>::const_iterator it =
         http::statuses.find(decoder->parser.status_code);
     assert(it != http::statuses.end());
-
     decoder->response->status = it->second;
+
+    Option<std::string> encoding =
+      decoder->response->headers.get("Content-Encoding");
+    if (encoding.isSome() && encoding.get() == "gzip") {
+      Try<std::string> decompressed = gzip::decompress(decoder->response->body);
+      if (decompressed.isError()) {
+        return 1;
+      }
+      decoder->response->body = decompressed.get();
+      decoder->response->headers["Content-Length"] =
+        decoder->response->body.length();
+    }
+
     decoder->responses.push_back(decoder->response);
     decoder->response = NULL;
     return 0;
