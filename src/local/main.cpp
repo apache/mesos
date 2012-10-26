@@ -60,12 +60,6 @@ int main(int argc, char **argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  // TODO(benh): Add master and slave flags! This is impossible right
-  // now because both have 'webui_dir' and 'webui_port' that
-  // conflict. For now, all the flags will still get "validated" when
-  // we load them (i.e., in local::launch), they just won't be visible
-  // when you do '--help' (which is probably not a huge issue for
-  // mesos-local).
   flags::Flags<logging::Flags, local::Flags> flags;
 
   // The following flags are executable specific (e.g., since we only

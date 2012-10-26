@@ -61,11 +61,6 @@ public:
         "Location of the webui files/assets",
         MESOS_WEBUI_DIR);
 
-    add(&Flags::webui_port,
-        "webui_port",
-        "Web UI port (deprecated)",
-        8081);
-
     add(&Flags::hadoop_home,
         "hadoop_home",
         "Where to find Hadoop installed (for\n"
@@ -119,7 +114,6 @@ public:
   std::string work_dir;
   std::string launcher_dir;
   std::string webui_dir;
-  uint16_t webui_port;
   std::string hadoop_home; // TODO(benh): Make an Option.
   bool switch_user;
   std::string frameworks_home;  // TODO(benh): Make an Option.

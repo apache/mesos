@@ -156,8 +156,8 @@ message MasterInfo {
 message SlaveInfo {
   required string hostname = 1;
   // TODO(benh,andyk): Send bound ports, not just hostname.
-  required string webui_hostname = 2;
-  optional int32 webui_port = 4 [default = 8081];
+  required string webui_hostname = 2;             // Deprecated!
+  optional int32 webui_port = 4 [default = 8081]; // Deprecated!
   repeated Resource resources = 3;
   repeated Attribute attributes = 5;
   optional SlaveID id = 6;

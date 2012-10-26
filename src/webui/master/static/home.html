@@ -281,7 +281,7 @@
           </td>
           <td><a href="{{'#/framework/' + offer.framework_id}}">{{offer.framework_name}}</a></td>
           <td>
-            <a href="http://{{slaves[offer.slave_id].webui_hostname}}:{{slaves[offer.slave_id].webui_port}}/">
+            <a href="#/slaves/{{slaves[offer.slave_id].id}}">
               {{offer.hostname}}
             </a>
           </td>

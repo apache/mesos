@@ -34,7 +34,6 @@
 
 #include "master/allocator.hpp"
 #include "master/master.hpp"
-#include "master/webui.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::master;
@@ -126,10 +125,6 @@ int main(int argc, char** argv)
 
   CHECK(detector.isSome())
     << "Failed to create a master detector: " << detector.error();
-
-#ifdef MESOS_WEBUI
-  webui::start(master->self(), flags);
-#endif
 
   process::wait(master->self());
   delete master;

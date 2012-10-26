@@ -32,6 +32,6 @@ done
 @sbindir@/mesos-start-masters.sh && sleep 1 && @sbindir@/mesos-start-slaves.sh
 
 # TODO(benh): Check the health of the masters (and possibly slaves)
-# and print the masters webui address (or just the leading master).
+# and print the master's webui address (or just the leading master).
 
 echo "Everything's started!"

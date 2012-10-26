@@ -97,7 +97,7 @@ endif
 # convenience libraries (that is, libraries that do not get installed
 # but we can use as building blocks to vary compile flags as necessary
 # and then aggregate into final archives): libmesos_no_third_party.la
-# libbuild.la, liblog.la, libwebui.la, libjava.la.
+# libbuild.la, liblog.la, libjava.la.
 
 # First, let's define necessary protocol buffer files.
 
@@ -203,7 +203,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	master/frameworks_manager.hpp					\
 	master/hierarchical_allocator_process.hpp master/http.hpp	\
 	master/master.hpp master/slaves_manager.hpp master/sorter.hpp	\
-	master/webui.hpp messages/messages.hpp slave/constants.hpp	\
+	messages/messages.hpp slave/constants.hpp			\
 	slave/flags.hpp slave/gc.hpp slave/http.hpp			\
 	slave/isolation_module.hpp slave/isolation_module_factory.hpp	\
 	slave/cgroups_isolation_module.hpp				\
@@ -211,7 +211,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/paths.hpp slave/state.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
-	slave/webui.hpp tests/environment.hpp tests/script.hpp		\
+	tests/environment.hpp tests/script.hpp				\
 	tests/zookeeper_test.hpp tests/flags.hpp tests/utils.hpp	\
 	tests/filter.hpp                                                \
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
@@ -235,7 +235,7 @@ BUILD_FLAGS = $(echo $(MESOS_CPPFLAGS) $(CPPFLAGS) | sed 's/\"/\\\"/g') \
               $(echo $(AM_CFLAGS) $(CFLAGS) | sed 's/\"/\\\"/g') \
               $(echo $(AM_CXXFLAGS) $(CXXFLAGS) | sed 's/\"/\\\"/g')
 
-# TODO(benh): Provide other build flags such as WEBUI_FLAGS, etc.
+# TODO(benh): Provide other build flags.
 
 libbuild_la_CPPFLAGS += -DBUILD_FLAGS="\"$$BUILD_FLAGS\""
 
@@ -265,27 +265,6 @@ nodist_libstate_la_SOURCES = $(STATE_PROTOS)
 libstate_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
 
 libmesos_no_third_party_la_LIBADD += libstate.la
-
-
-# Convenience library for the webui to include Python specific flags.
-if WEBUI
-noinst_LTLIBRARIES += libwebui.la
-libwebui_la_SOURCES = master/webui.cpp slave/webui.cpp webui/webui.cpp
-libwebui_la_SOURCES += master/webui.hpp slave/webui.hpp webui/webui.hpp
-libwebui_la_CPPFLAGS = $(MESOS_CPPFLAGS) $(WEBUI_CPPFLAGS)
-libwebui_la_LIBADD = $(WEBUI_LDFLAGS)
-
-# Also define WEBUI_LIB to include the webui so when we build the
-# binaries (e.g., mesos-master, mesos-slave) the webui will get
-# included (we don't include it by default in either
-# libmesos_no_third_party.la or libmesos.la because that would force a
-# dependency on Python, but in the future we might want to support
-# this when we want a "local" run to include support for the webui).
-WEBUI_LIB = libwebui.la
-else
-WEBUI_LIB =
-endif
-
 
 # The final result!
 lib_LTLIBRARIES += libmesos.la
@@ -323,12 +302,12 @@ libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
 sbin_PROGRAMS += mesos-master
 mesos_master_SOURCES = master/main.cpp
 mesos_master_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_master_LDADD = $(WEBUI_LIB) libmesos.la
+mesos_master_LDADD = libmesos.la
 
 sbin_PROGRAMS += mesos-slave
 mesos_slave_SOURCES = slave/main.cpp
 mesos_slave_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_slave_LDADD = $(WEBUI_LIB) libmesos.la
+mesos_slave_LDADD = libmesos.la
 
 bin_PROGRAMS += mesos-local
 mesos_local_SOURCES = local/main.cpp
@@ -360,15 +339,6 @@ bin_PROGRAMS += mesos-mesos
 mesos_mesos_SOURCES = mesos/main.cpp
 mesos_mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_mesos_LDADD = libmesos.la
-
-
-# Need to distribute/install Python webui.
-nobase_dist_webui_DATA += webui/bottle-0.8.3/bottle.py	\
-  webui/common/webui_lib.py webui/master/framework.tpl	\
-  webui/master/index.tpl webui/master/webui.py		\
-  webui/slave/framework.tpl webui/slave/executor.tpl	\
-  webui/slave/index.tpl webui/slave/webui.py		\
-  webui/static/stylesheet.css
 
 # Need to distribute/install webui javascript.
 nobase_dist_webui_DATA += webui/master/static/controllers.js		\

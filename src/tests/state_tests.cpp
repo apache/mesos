@@ -55,13 +55,9 @@ using namespace process;
 void GetSetGet(State<ProtobufSerializer>* state)
 {
   Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
-
-  variable.await();
-
-  ASSERT_TRUE(variable.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(variable);
 
   Variable<Slaves> slaves1 = variable.get();
-
   EXPECT_TRUE(slaves1->infos().size() == 0);
 
   SlaveInfo info;
@@ -94,13 +90,9 @@ void GetSetGet(State<ProtobufSerializer>* state)
 void GetSetSetGet(State<ProtobufSerializer>* state)
 {
   Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
-
-  variable.await();
-
-  ASSERT_TRUE(variable.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(variable);
 
   Variable<Slaves> slaves1 = variable.get();
-
   EXPECT_TRUE(slaves1->infos().size() == 0);
 
   SlaveInfo info;
@@ -142,23 +134,15 @@ void GetSetSetGet(State<ProtobufSerializer>* state)
 void GetGetSetSetGet(State<ProtobufSerializer>* state)
 {
   Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
-
-  variable.await();
-
-  ASSERT_TRUE(variable.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(variable);
 
   Variable<Slaves> slaves1 = variable.get();
-
   EXPECT_TRUE(slaves1->infos().size() == 0);
 
   variable = state->get<Slaves>("slaves");
-
-  variable.await();
-
-  ASSERT_TRUE(variable.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(variable);
 
   Variable<Slaves> slaves2 = variable.get();
-
   EXPECT_TRUE(slaves2->infos().size() == 0);
 
   SlaveInfo info2;
@@ -181,17 +165,11 @@ void GetGetSetSetGet(State<ProtobufSerializer>* state)
   slaves1->add_infos()->MergeFrom(info1);
 
   result = state->set(slaves1);
-
-  result.await();
-
-  ASSERT_TRUE(result.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(result);
   EXPECT_TRUE(result.get().isNone());
 
   variable = state->get<Slaves>("slaves");
-
-  variable.await();
-
-  ASSERT_TRUE(variable.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(variable);
 
   slaves1 = variable.get();
 
@@ -204,13 +182,9 @@ void GetGetSetSetGet(State<ProtobufSerializer>* state)
 void Names(State<ProtobufSerializer>* state)
 {
   Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
-
-  variable.await();
-
-  ASSERT_TRUE(variable.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(variable);
 
   Variable<Slaves> slaves1 = variable.get();
-
   EXPECT_TRUE(slaves1->infos().size() == 0);
 
   SlaveInfo info;

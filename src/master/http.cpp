@@ -201,8 +201,6 @@ JSON::Object model(const Slave& slave)
   object.values["id"] = slave.id.value();
   object.values["pid"] = string(slave.pid);
   object.values["hostname"] = slave.info.hostname();
-  object.values["webui_hostname"] = slave.info.webui_hostname();
-  object.values["webui_port"] = slave.info.webui_port();
   object.values["registered_time"] = slave.registeredTime;
   object.values["resources"] = model(slave.info.resources());
   object.values["attributes"] = model(slave.info.attributes());

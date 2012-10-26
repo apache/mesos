@@ -37,9 +37,6 @@ int main(int argc, char** argv)
   // to advertise the port and ip option once, here).
   configurator.addOption<int>("port", 'p', "Port to listen on", 5050);
   configurator.addOption<string>("ip", "IP address to listen on");
-#ifdef MESOS_WEBUI
-  configurator.addOption<int>("webui_port", "Web UI port", 8080);
-#endif
   configurator.addOption<string>(
       "master",
       'm',

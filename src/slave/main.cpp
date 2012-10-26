@@ -34,7 +34,6 @@
 
 #include "slave/isolation_module_factory.hpp"
 #include "slave/slave.hpp"
-#include "slave/webui.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
@@ -140,10 +139,6 @@ int main(int argc, char** argv)
 
   CHECK(detector.isSome())
     << "Failed to create a master detector: " << detector.error();
-
-#ifdef MESOS_WEBUI
-  webui::start(slave->self(), flags);
-#endif
 
   process::wait(slave->self());
   delete slave;

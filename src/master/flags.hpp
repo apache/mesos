@@ -51,11 +51,6 @@ public:
         "Location of the webui files/assets",
         MESOS_WEBUI_DIR);
 
-    add(&Flags::webui_port,
-        "webui_port",
-        "Web UI port (deprecated)",
-        8080);
-
     add(&Flags::whitelist,
         "whitelist",
         "Path to a file with a list of slaves\n"
@@ -92,7 +87,6 @@ public:
   bool root_submissions;
   std::string slaves;
   std::string webui_dir;
-  uint16_t webui_port;
   std::string whitelist;
   std::string user_sorter;
   std::string framework_sorter;
