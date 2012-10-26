@@ -51,11 +51,29 @@ AC_ARG_ENABLE([install],
                              [install libprocess]),
               [AC_MSG_ERROR([libprocess can not currently be installed])])
 
+AC_ARG_WITH([zlib],
+            AS_HELP_STRING([--without-zlib],
+                           [disables zlib compression, which means the webui
+                            will be far less responsive; not recommended]),
+            [], [with_zlib=yes])
+
 # Checks for gcc toolchain (we rely on some atomic builtins for now).
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 
 # Check for pthreads (uses m4/acx_pthread.m4).
 ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
+
+# Check if we should/can build with libz.
+if test "x$with_zlib" = "xyes"; then
+  AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
+               [AC_MSG_ERROR([cannot find libz
+  -------------------------------------------------------------------
+  This means your webui would run very slowly because we cannot use
+  compression; you probably want to download and install zlib, but
+  you can get away without it by doing --without-zlib.
+  -------------------------------------------------------------------
+  ])])
+fi
 
 AC_OUTPUT
