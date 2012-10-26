@@ -187,12 +187,13 @@ inline Try<Nothing> touch(const std::string& path)
 }
 
 
-// Creates a temporary file under 'root' directory and returns its path.
-inline Try<std::string> mktemp(const std::string& root = "/tmp")
+// Creates a temporary file using the specified path template. The
+// template may be any path with _6_ `Xs' appended to it, for example
+// /tmp/temp.XXXXXX. The trailing `Xs' are replaced with a unique
+// alphanumeric combination.
+inline Try<std::string> mktemp(const std::string& path = "/tmp/XXXXXX")
 {
-  const std::string path = path::join(root, "XXXXXX");
   char* temp = new char[path.size() + 1];
-
   if (::mktemp(::strcpy(temp, path.c_str())) != NULL) {
     std::string result(temp);
     delete temp;
@@ -431,12 +432,13 @@ inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
   return Nothing();
 }
 
-// Creates a temporary directory under 'root' directory and returns its path.
-inline Try<std::string> mkdtemp(const std::string& root = "/tmp")
+// Creates a temporary directory using the specified path
+// template. The template may be any path with _6_ `Xs' appended to
+// it, for example /tmp/temp.XXXXXX. The trailing `Xs' are replaced
+// with a unique alphanumeric combination.
+inline Try<std::string> mkdtemp(const std::string& path = "/tmp/XXXXXX")
 {
-  const std::string path = path::join(root, "XXXXXX");
   char* temp = new char[path.size() + 1];
-
   if (::mkdtemp(::strcpy(temp, path.c_str())) != NULL) {
     std::string result(temp);
     delete temp;
