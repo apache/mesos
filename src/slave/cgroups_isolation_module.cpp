@@ -292,51 +292,6 @@ void CgroupsIsolationModule::launchExecutor(
                << ": " << create.error();
   }
 
-  // Copy the values of cpuset.cpus and cpuset.mems from the cgroups hierarchy
-  // root. This is necessary because the newly created cgroup does not have
-  // these two values set.
-  // TODO(jieyu): Think about other ways that do not rely on the values from the
-  // cgroups hierarchy root.
-  Try<std::string> rootCpusetCpus =
-    cgroups::readControl(hierarchy,
-                         "/",
-                         "cpuset.cpus");
-  if (rootCpusetCpus.isError()) {
-    LOG(FATAL) << "Failed to get cpuset.cpus in hierarchy root: "
-               << rootCpusetCpus.error();
-  }
-
-  Try<std::string> rootCpusetMems =
-    cgroups::readControl(hierarchy,
-                         "/",
-                         "cpuset.mems");
-  if (rootCpusetMems.isError()) {
-    LOG(FATAL) << "Failed to get cpuset.mems in hierarchy root: "
-               << rootCpusetMems.error();
-  }
-
-  Try<Nothing> setCpusetCpus =
-    cgroups::writeControl(hierarchy,
-                          getCgroupName(frameworkId, executorId),
-                          "cpuset.cpus",
-                          rootCpusetCpus.get());
-  if (setCpusetCpus.isError()) {
-    LOG(FATAL) << "Failed to write cpuset.cpus for executor "
-               << executorId << " of framework " << frameworkId
-               << ": " << setCpusetCpus.error();
-  }
-
-  Try<Nothing> setCpusetMems =
-    cgroups::writeControl(hierarchy,
-                          getCgroupName(frameworkId, executorId),
-                          "cpuset.mems",
-                          rootCpusetMems.get());
-  if (setCpusetMems.isError()) {
-    LOG(FATAL) << "Failed to write cpuset.mems for executor "
-               << executorId << " of framework " << frameworkId
-               << ": " << setCpusetMems.error();
-  }
-
   // Setup the initial resource constrains.
   resourcesChanged(frameworkId, executorId, resources);
 
@@ -738,14 +693,10 @@ std::string CgroupsIsolationModule::getCgroupName(
 
 bool CgroupsIsolationModule::isValidCgroupName(const std::string& name)
 {
-  std::string trimmedName = strings::trim(name, "/");
-  if (strings::startsWith(trimmedName, "mesos_cgroup_framework_") &&
-      strings::contains(trimmedName, "_executor_") &&
-      strings::contains(trimmedName, "_tag_")) {
-    return true;
-  } else {
-    return false;
-  }
+  return
+    strings::startsWith(name, "mesos_cgroup_framework_") &&
+    strings::contains(name, "_executor_") &&
+    strings::contains(name, "_tag_");
 }
 
 } // namespace mesos {
