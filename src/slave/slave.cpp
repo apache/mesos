@@ -538,9 +538,7 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
     }
   } else {
     // Launch an executor for this task.
-    const string& directory =
-        paths::createUniqueExecutorWorkDirectory(flags.work_dir, id,
-                                                 framework->id, executorId);
+    executor = framework->createExecutor(id, executorInfo);
 
     // NOTE: This constant "virtual path" format is shared with the webui.
     // TODO(bmahler): Pass this to the webui explicitly via the existing JSON.
@@ -550,14 +548,11 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
         framework->id.value(),
         executorId.value()).get();
 
-    files->attach(directory, attached)
-      .onAny(defer(self(), &Self::fileAttached, params::_1, directory));
-
-    LOG(INFO) << "Using '" << directory
-              << "' as work directory for executor '" << executorId
-              << "' of framework " << framework->id;
-
-    executor = framework->createExecutor(executorInfo, directory);
+    files->attach(executor->directory, attached)
+      .onAny(defer(self(),
+                   &Self::fileAttached,
+                   params::_1,
+                   executor->directory));
 
     // Queue task until the executor starts up.
     executor->queuedTasks[task.task_id()] = task;
@@ -568,7 +563,7 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
     dispatch(isolationModule,
              &IsolationModule::launchExecutor,
              framework->id, framework->info, executor->info,
-             directory, executor->resources);
+             executor->directory, executor->resources);
   }
 }
 

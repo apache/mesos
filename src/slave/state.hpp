@@ -42,18 +42,15 @@ struct SlaveState
 {
   struct FrameworkState
   {
+    // TODO(vinod): Keep track of the latest run.
     struct RunState
     {
-      RunState()
-        : latest(-1) {}
-
       struct ExecutorState
       {
         hashset<TaskID> tasks;
       };
 
-      hashmap<int, ExecutorState> runs;
-      int latest; // Latest run number.
+      hashmap<UUID, ExecutorState> runs;
     };
 
     hashmap<ExecutorID, RunState> executors;

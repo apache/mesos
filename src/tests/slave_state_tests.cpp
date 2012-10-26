@@ -20,6 +20,7 @@
 
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
+#include <stout/uuid.hpp>
 
 #include "messages/messages.hpp"
 
@@ -40,12 +41,12 @@ class SlaveStateFixture: public ::testing::Test
 {
 protected:
   SlaveStateFixture()
+    : uuid(UUID::random())
   {
     slaveId.set_value("slave1");
     frameworkId.set_value("framework1");
     executorId.set_value("executor1");
     taskId.set_value("task1");
-    run = 0;
 
     Try<string> path = os::mkdtemp();
     CHECK(path.isSome()) << "Failed to mkdtemp " << path.error();
@@ -61,22 +62,23 @@ protected:
   FrameworkID frameworkId;
   ExecutorID executorId;
   TaskID taskId;
-  int run;
+  UUID uuid;
   string rootDir;
 };
 
 
 TEST_F(SlaveStateFixture, CreateExecutorDirectory)
 {
-  const string& result = paths::createUniqueExecutorWorkDirectory(rootDir,
-                                                                  slaveId,
-                                                                  frameworkId,
-                                                                  executorId);
+  const string& result = paths::createExecutorDirectory(rootDir,
+                                                        slaveId,
+                                                        frameworkId,
+                                                        executorId,
+                                                        uuid);
 
   // Expected directory layout.
   string dir = rootDir + "/slaves/" + slaveId.value() + "/frameworks/"
                + frameworkId.value() + "/executors/" + executorId.value()
-               + "/runs/" + stringify(run);
+               + "/runs/" + uuid.toString();
 
   ASSERT_EQ(dir, result);
 }
@@ -96,28 +98,26 @@ TEST_F(SlaveStateFixture, format)
   ASSERT_EQ(dir, paths::getExecutorPath(rootDir, slaveId, frameworkId,
                                         executorId));
 
-  dir += "/runs/" + stringify(run);
+  dir += "/runs/" + uuid.toString();
   ASSERT_EQ(dir, paths::getExecutorRunPath(rootDir, slaveId, frameworkId,
-                                           executorId,run));
+                                           executorId, uuid));
 
   dir += "/tasks/" + taskId.value();
   ASSERT_EQ(dir, paths::getTaskPath(rootDir, slaveId, frameworkId, executorId,
-                                    run, taskId));
+                                    uuid, taskId));
 }
 
 
 TEST_F(SlaveStateFixture, parse)
 {
   // Create some layouts and check if parse works as expected.
-  const string& result = paths::createUniqueExecutorWorkDirectory(rootDir,
-                                                                  slaveId,
-                                                                  frameworkId,
-                                                                  executorId);
+  const string& executorDir = paths::createExecutorDirectory(
+      rootDir, slaveId, frameworkId, executorId, uuid);
 
   // Write framework pid file.
   const string& frameworkpidPath = paths::getFrameworkPIDPath(rootDir, slaveId,
                                                               frameworkId);
-  os::touch(frameworkpidPath);
+  ASSERT_SOME(os::touch(frameworkpidPath));
 
   // Write process pid files.
   const string& executorDir = result;
@@ -125,35 +125,35 @@ TEST_F(SlaveStateFixture, parse)
 
   const string& libpidPath = paths::getLibprocessPIDPath(rootDir, slaveId,
                                                          frameworkId, executorId,
-                                                         run);
+                                                         uuid);
 
   const string& forkedpidPath = paths::getForkedPIDPath(rootDir, slaveId,
                                                         frameworkId, executorId,
-                                                        run);
+                                                        uuid);
 
   const string& execedpidPath = paths::getExecedPIDPath(rootDir, slaveId,
                                                         frameworkId, executorId,
-                                                        run);
+                                                        uuid);
 
-  os::touch(libpidPath);
-  os::touch(forkedpidPath);
-  os::touch(execedpidPath);
+  ASSERT_SOME(os::touch(libpidPath));
+  ASSERT_SOME(os::touch(forkedpidPath));
+  ASSERT_SOME(os::touch(execedpidPath));
 
   // Write task and updates files.
   const string& taskDir = paths::getTaskPath(rootDir, slaveId, frameworkId,
-                                             executorId, run, taskId);
+                                             executorId, uuid, taskId);
 
   ASSERT_SOME(os::mkdir(taskDir));
 
   const string& infoPath = paths::getTaskInfoPath(rootDir, slaveId, frameworkId,
-                                                  executorId, run, taskId);
+                                                  executorId, uuid, taskId);
 
   const string& updatesPath = paths::getTaskUpdatesPath(rootDir, slaveId,
                                                         frameworkId, executorId,
-                                                        run, taskId);
+                                                        uuid, taskId);
 
-  os::touch(infoPath);
-  os::touch(updatesPath);
+  ASSERT_SOME(os::touch(infoPath));
+  ASSERT_SOME(os::touch(updatesPath));
 
   SlaveState state = parse(rootDir, slaveId);
 
@@ -161,7 +161,12 @@ TEST_F(SlaveStateFixture, parse)
   ASSERT_TRUE(state.frameworks[frameworkId].executors.contains(executorId));
   ASSERT_EQ(0, state.frameworks[frameworkId].executors[executorId].latest);
   ASSERT_TRUE(
-      state.frameworks[frameworkId].executors[executorId].runs[0].tasks.contains(taskId));
+      state
+      .frameworks[frameworkId]
+      .executors[executorId]
+      .runs[0]
+      .tasks
+      .contains(taskId));
 }
 
 

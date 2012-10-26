@@ -33,6 +33,7 @@
 #include "slave/gc.hpp"
 #include "slave/http.hpp"
 #include "slave/isolation_module.hpp"
+#include "slave/paths.hpp"
 #include "slave/state.hpp"
 
 #include "common/attributes.hpp"
@@ -220,12 +221,13 @@ struct Executor
 {
   Executor(const FrameworkID& _frameworkId,
            const ExecutorInfo& _info,
+           const UUID& _uuid,
            const std::string& _directory)
     : id(_info.executor_id()),
       info(_info),
       frameworkId(_frameworkId),
       directory(_directory),
-      uuid(UUID::random()),
+      uuid(_uuid),
       pid(UPID()),
       shutdown(false),
       resources(_info.resources()) {}
@@ -366,10 +368,21 @@ struct Framework
     return task.executor();
   }
 
-  Executor* createExecutor(const ExecutorInfo& executorInfo,
-                           const std::string& directory)
+  Executor* createExecutor(const SlaveID& slaveId,
+                           const ExecutorInfo& executorInfo)
   {
-    Executor* executor = new Executor(id, executorInfo, directory);
+    // We create a UUID for the new executor. The UUID uniquely identifies this
+    // new instance of the executor across executors sharing the same executorID
+    // that may have previously run. It also provides a means for the executor
+    // to have a unique directory.
+    UUID executorUUID = UUID::random();
+
+    // Create a directory for the executor.
+    const std::string& directory = paths::createExecutorDirectory(
+        flags.work_dir, slaveId, id, executorInfo.executor_id(), executorUUID);
+
+    Executor* executor =
+      new Executor(id, executorInfo, executorUUID, directory);
     CHECK(!executors.contains(executorInfo.executor_id()));
     executors[executorInfo.executor_id()] = executor;
     return executor;

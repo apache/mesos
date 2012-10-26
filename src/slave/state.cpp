@@ -65,23 +65,17 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
       }
 
       foreach (const string& path, runs.get()) {
-        Try<int> result = numify<int>(os::basename(path).get());
-        if (!result.isSome()) {
-          LOG(ERROR) << "Non-numeric run number in path " << path;
+        if (os::basename(path).get() == paths::EXECUTOR_LATEST_SYMLINK) {
+          // TODO(vinod): Store the latest UUID in the state.
           continue;
         }
 
-        int run = result.get();
-
-        // Update max run.
-        state.frameworks[frameworkId].executors[executorId].latest =
-            max(run,
-                state.frameworks[frameworkId].executors[executorId].latest);
+        const UUID& uuid = UUID::fromString(os::basename(path).get());
 
         // Find the tasks.
         Try<list<string> > tasks =
             os::glob(strings::format(paths::TASK_PATH, rootDir, slaveId,
-                                     frameworkId, executorId, stringify(run),
+                                     frameworkId, executorId, uuid.toString(),
                                      "*").get());
 
         if (tasks.isError()) {
@@ -93,7 +87,7 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
           TaskID taskId;
           taskId.set_value(os::basename(path).get());
 
-          state.frameworks[frameworkId].executors[executorId].runs[run].tasks
+          state.frameworks[frameworkId].executors[executorId].runs[uuid].tasks
             .insert(taskId);
         }
       }
