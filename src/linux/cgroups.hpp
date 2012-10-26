@@ -55,6 +55,12 @@ namespace cgroups {
 bool enabled();
 
 
+// Return the currently active hierarchies.
+// @return  A set of active hierarchy paths (e.g., '/cgroup').
+//          Error if unexpected happens.
+Try<std::set<std::string> > hierarchies();
+
+
 // Check whether all the given subsystems are enabled on the current machine.
 // @param   subsystems  Comma-separated subsystem names.
 // @return  True if all the given subsystems are enabled.

@@ -16,6 +16,25 @@ inline std::string join(const std::string& path1, const std::string& path2)
 }
 
 
+inline std::string join(
+    const std::string& path1,
+    const std::string& path2,
+    const std::string& path3)
+{
+  return join(path1, join(path2, path3));
+}
+
+
+inline std::string join(
+    const std::string& path1,
+    const std::string& path2,
+    const std::string& path3,
+    const std::string& path4)
+{
+  return join(path1, join(path2, join(path3, path4)));
+}
+
+
 inline std::string join(const std::vector<std::string>& paths)
 {
   if (paths.empty()) {

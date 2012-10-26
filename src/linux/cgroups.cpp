@@ -27,8 +27,12 @@
 #include <glog/logging.h>
 
 #include <fstream>
+#include <list>
 #include <map>
+#include <set>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -41,6 +45,7 @@
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
@@ -48,16 +53,23 @@
 #include "linux/fs.hpp"
 #include "linux/proc.hpp"
 
+// TODO(bmahler): Change all unnecessary Future<bool>'s to Future<Nothing>'s.
+
 using namespace process;
+
+// TODO(benh): Move linux/fs.hpp out of 'mesos- namespace.
 using namespace mesos::internal;
 
-namespace cgroups {
+using std::list;
+using std::map;
+using std::set;
+using std::string;
+using std::vector;
 
+namespace cgroups {
 namespace internal {
 
-
-// TODO(bmahler): Change all unnecessary Future<bool>'s to Future<Nothing>'s.
-// Snapshot a subsystem (modeled after a line in /proc/cgroups).
+// Snapshot of a subsystem (modeled after a line in /proc/cgroups).
 struct SubsystemInfo
 {
   SubsystemInfo()
@@ -65,7 +77,7 @@ struct SubsystemInfo
       cgroups(0),
       enabled(false) {}
 
-  SubsystemInfo(const std::string& _name,
+  SubsystemInfo(const string& _name,
                 int _hierarchy,
                 int _cgroups,
                 bool _enabled)
@@ -74,7 +86,7 @@ struct SubsystemInfo
       cgroups(_cgroups),
       enabled(_enabled) {}
 
-  std::string name; // Name of the subsystem.
+  string name;      // Name of the subsystem.
   int hierarchy;    // ID of the hierarchy the subsystem is attached to.
   int cgroups;      // Number of cgroups for the subsystem.
   bool enabled;     // Whether the subsystem is enabled or not.
@@ -85,25 +97,25 @@ struct SubsystemInfo
 // information from /proc/cgroups file. Each line in it describes a subsystem.
 // @return  A map from subsystem names to SubsystemInfo instances if succeeds.
 //          Error if any unexpected happens.
-static Try<std::map<std::string, SubsystemInfo> > subsystems()
+static Try<map<string, SubsystemInfo> > subsystems()
 {
   std::ifstream file("/proc/cgroups");
 
   if (!file.is_open()) {
-    return Try<std::map<std::string, SubsystemInfo> >::error(
+    return Try<map<string, SubsystemInfo> >::error(
         "Failed to open /proc/cgroups");
   }
 
-  std::map<std::string, SubsystemInfo> infos;
+  map<string, SubsystemInfo> infos;
 
   while (!file.eof()) {
-    std::string line;
+    string line;
     std::getline(file, line);
 
     if (file.fail()) {
       if (!file.eof()) {
         file.close();
-        return Try<std::map<std::string, SubsystemInfo> >::error(
+        return Try<map<string, SubsystemInfo> >::error(
             "Failed to read /proc/cgroups");
       }
     } else {
@@ -115,7 +127,7 @@ static Try<std::map<std::string, SubsystemInfo> > subsystems()
         continue;
       } else {
         // Parse line to get subsystem info.
-        std::string name;
+        string name;
         int hierarchy;
         int cgroups;
         bool enabled;
@@ -126,7 +138,7 @@ static Try<std::map<std::string, SubsystemInfo> > subsystems()
         // Check for any read/parse errors.
         if (ss.fail() && !ss.eof()) {
           file.close();
-          return Try<std::map<std::string, SubsystemInfo> >::error(
+          return Try<map<string, SubsystemInfo> >::error(
               "Failed to parse /proc/cgroups");
         }
 
@@ -153,8 +165,7 @@ static Try<std::map<std::string, SubsystemInfo> > subsystems()
 // @param   subsystems  Comma-separated subsystem names.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<Nothing> mount(const std::string& hierarchy,
-                          const std::string& subsystems)
+static Try<Nothing> mount(const string& hierarchy, const string& subsystems)
 {
   return fs::mount(subsystems, hierarchy, "cgroup", 0, subsystems.c_str());
 }
@@ -167,9 +178,52 @@ static Try<Nothing> mount(const std::string& hierarchy,
 // @param   hierarchy   Path to the hierarchy root.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<Nothing> unmount(const std::string& hierarchy)
+static Try<Nothing> unmount(const string& hierarchy)
 {
   return fs::unmount(hierarchy);
+}
+
+
+// Copies the value of 'cpuset.cpus' and 'cpuset.mems' from a parent
+// cgroup to a child cgroup so the child cgroup can actually run tasks
+// (otherwise it gets the error 'Device or resource busy').
+// @param   hierarchy      Path to hierarchy root.
+// @param   parentCgroup   Path to parent cgroup relative to the hierarchy root.
+// @param   childCgroup    Path to child cgroup relative to the hierarchy root.
+// @return  Some if the operation succeeds.
+//          Error if the operation fails.
+static Try<Nothing> cloneCpusetCpusMems(
+    const string& hierarchy,
+    const string& parentCgroup,
+    const string& childCgroup)
+{
+  Try<string> cpus = readControl(hierarchy, parentCgroup, "cpuset.cpus");
+  if (cpus.isError()) {
+    return Try<Nothing>::error(
+        "Failed to read cpuset.cpus: " + cpus.error());
+  }
+
+  Try<string> mems = readControl(hierarchy, parentCgroup, "cpuset.mems");
+  if (mems.isError()) {
+    return Try<Nothing>::error(
+        "Failed to read cpuset.mems: " + mems.error());
+  }
+
+  Try<Nothing> write =
+    writeControl(hierarchy, childCgroup, "cpuset.cpus", cpus.get());
+  if (write.isError()) {
+    return Try<Nothing>::error(
+        "Failed to write cpuset.cpus: " + write.error());
+  }
+
+  write =
+    writeControl(hierarchy, childCgroup, "cpuset.mems", mems.get());
+  if (write.isError()) {
+    return Try<Nothing>::error(
+        "Failed to write cpuset.mems: " + write.error());
+  }
+
+  return Nothing();
 }
 
 
@@ -184,20 +238,30 @@ static Try<Nothing> unmount(const std::string& hierarchy)
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<Nothing> createCgroup(const std::string& hierarchy,
-                                 const std::string& cgroup)
+static Try<Nothing> createCgroup(const string& hierarchy, const string& cgroup)
 {
-  std::string path = hierarchy + "/" + cgroup;
+  string path = path::join(hierarchy, cgroup);
 
   // Do NOT recursively create cgroups.
   Try<Nothing> mkdir = os::mkdir(path, false);
-
   if (mkdir.isError()) {
     return Try<Nothing>::error(
-        "Failed to create cgroup at " + path + ": " + mkdir.error());
+        "Failed to create cgroup at '" + path + "': " + mkdir.error());
   }
 
-  return mkdir;
+  // Now clone 'cpuset.cpus' and 'cpuset.mems' if the 'cpuset'
+  // subsystem is attached to the hierarchy.
+  if (checkHierarchy(hierarchy, "cpuset").isSome()) {
+    Try<string> parent = os::dirname(path::join("/", cgroup));
+    if (parent.isError()) {
+      return Try<Nothing>::error(
+          "Failed to determine parent cgroup of '" + cgroup + "': " +
+          parent.error());
+    }
+    return cloneCpusetCpusMems(hierarchy, parent.get(), cgroup);
+  }
+
+  return Nothing();
 }
 
 
@@ -211,10 +275,9 @@ static Try<Nothing> createCgroup(const std::string& hierarchy,
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<Nothing> removeCgroup(const std::string& hierarchy,
-                                 const std::string& cgroup)
+static Try<Nothing> removeCgroup(const string& hierarchy, const string& cgroup)
 {
-  std::string path = hierarchy + "/" + cgroup;
+  string path = path::join(hierarchy, cgroup);
 
   // Do NOT recursively remove cgroups.
   Try<Nothing> rmdir = os::rmdir(path, false);
@@ -236,18 +299,19 @@ static Try<Nothing> removeCgroup(const std::string& hierarchy,
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
 // @return  The value read from the control file.
-static Try<std::string> readControl(const std::string& hierarchy,
-                                    const std::string& cgroup,
-                                    const std::string& control)
+static Try<string> readControl(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& control)
 {
-  std::string path = hierarchy + "/" + cgroup + "/" + control;
+  string path = path::join(hierarchy, cgroup, control);
 
   // We do not use os::read here because it cannot correctly read proc or
   // cgroups control files (lseek will return error).
   std::ifstream file(path.c_str());
 
   if (!file.is_open()) {
-    return Try<std::string>::error("Failed to open file " + path);
+    return Try<string>::error("Failed to open file " + path);
   }
 
   std::ostringstream ss;
@@ -255,9 +319,9 @@ static Try<std::string> readControl(const std::string& hierarchy,
 
   if (file.fail()) {
     // TODO(jieyu): Make sure that the way we get errno here is portable.
-    std::string msg = strerror(errno);
+    string msg = strerror(errno);
     file.close();
-    return Try<std::string>::error(msg);
+    return Try<string>::error(msg);
   }
 
   file.close();
@@ -272,12 +336,13 @@ static Try<std::string> readControl(const std::string& hierarchy,
 // @param   value       Value to be written.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<Nothing> writeControl(const std::string& hierarchy,
-                                 const std::string& cgroup,
-                                 const std::string& control,
-                                 const std::string& value)
+static Try<Nothing> writeControl(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& control,
+    const string& value)
 {
-  std::string path = hierarchy + "/" + cgroup + "/" + control;
+  string path = path::join(hierarchy, cgroup, control);
   std::ofstream file(path.c_str());
 
   if (!file.is_open()) {
@@ -288,7 +353,7 @@ static Try<Nothing> writeControl(const std::string& hierarchy,
 
   if (file.fail()) {
     // TODO(jieyu): Make sure that the way we get errno here is portable.
-    std::string msg = strerror(errno);
+    string msg = strerror(errno);
     file.close();
     return Try<Nothing>::error(msg);
   }
@@ -306,23 +371,46 @@ bool enabled()
 }
 
 
-Try<bool> enabled(const std::string& subsystems)
+Try<set<string> > hierarchies()
 {
-  std::vector<std::string> names = strings::tokenize(subsystems, ",");
+  // Read currently mounted file systems from /proc/mounts.
+  Try<fs::MountTable> table = fs::MountTable::read("/proc/mounts");
+  if (table.isError()) {
+    return Try<set<string> >::error(table.error());
+  }
+
+  set<string> results;
+  foreach (const fs::MountTable::Entry& entry, table.get().entries) {
+    if (entry.type == "cgroup") {
+      Try<string> realpath = os::realpath(entry.dir);
+      if (realpath.isError()) {
+        return Try<set<string> >::error(realpath.error());
+      }
+      results.insert(realpath.get());
+    }
+  }
+
+  return results;
+}
+
+
+Try<bool> enabled(const string& subsystems)
+{
+  vector<string> names = strings::tokenize(subsystems, ",");
   if (names.empty()) {
     return Try<bool>::error("No subsystem is specified");
   }
 
-  Try<std::map<std::string, internal::SubsystemInfo> >
+  Try<map<string, internal::SubsystemInfo> >
     infosResult = internal::subsystems();
   if (infosResult.isError()) {
     return Try<bool>::error(infosResult.error());
   }
 
-  std::map<std::string, internal::SubsystemInfo> infos = infosResult.get();
+  map<string, internal::SubsystemInfo> infos = infosResult.get();
   bool disabled = false;  // Whether some subsystems are not enabled.
 
-  foreach (const std::string& name, names) {
+  foreach (const string& name, names) {
     if (infos.find(name) == infos.end()) {
       return Try<bool>::error("Subsystem " + name + " not found");
     }
@@ -337,23 +425,23 @@ Try<bool> enabled(const std::string& subsystems)
 }
 
 
-Try<bool> busy(const std::string& subsystems)
+Try<bool> busy(const string& subsystems)
 {
-  std::vector<std::string> names = strings::tokenize(subsystems, ",");
+  vector<string> names = strings::tokenize(subsystems, ",");
   if (names.empty()) {
     return Try<bool>::error("No subsystem is specified");
   }
 
-  Try<std::map<std::string, internal::SubsystemInfo> >
+  Try<map<string, internal::SubsystemInfo> >
     infosResult = internal::subsystems();
   if (infosResult.isError()) {
     return Try<bool>::error(infosResult.error());
   }
 
-  std::map<std::string, internal::SubsystemInfo> infos = infosResult.get();
+  map<string, internal::SubsystemInfo> infos = infosResult.get();
   bool busy = false;
 
-  foreach (const std::string& name, names) {
+  foreach (const string& name, names) {
     if (infos.find(name) == infos.end()) {
       return Try<bool>::error("Subsystem " + name + " not found");
     }
@@ -368,15 +456,14 @@ Try<bool> busy(const std::string& subsystems)
 }
 
 
-Try<std::set<std::string> > subsystems()
+Try<set<string> > subsystems()
 {
-  Try<std::map<std::string, internal::SubsystemInfo> >
-    infos = internal::subsystems();
+  Try<map<string, internal::SubsystemInfo> > infos = internal::subsystems();
   if (infos.isError()) {
-    return Try<std::set<std::string> >::error(infos.error());
+    return Try<set<string> >::error(infos.error());
   }
 
-  std::set<std::string> names;
+  set<string> names;
   foreachvalue (const internal::SubsystemInfo& info, infos.get()) {
     if (info.enabled) {
       names.insert(info.name);
@@ -387,27 +474,27 @@ Try<std::set<std::string> > subsystems()
 }
 
 
-Try<std::set<std::string> > subsystems(const std::string& hierarchy)
+Try<set<string> > subsystems(const string& hierarchy)
 {
   // We compare the canonicalized absolute paths.
-  Try<std::string> hierarchyAbsPath = os::realpath(hierarchy);
+  Try<string> hierarchyAbsPath = os::realpath(hierarchy);
   if (hierarchyAbsPath.isError()) {
-    return Try<std::set<std::string> >::error(hierarchyAbsPath.error());
+    return Try<set<string> >::error(hierarchyAbsPath.error());
   }
 
   // Read currently mounted file systems from /proc/mounts.
   Try<fs::MountTable> table = fs::MountTable::read("/proc/mounts");
   if (table.isError()) {
-    return Try<std::set<std::string> >::error(table.error());
+    return Try<set<string> >::error(table.error());
   }
 
   // Check if hierarchy is a mount point of type cgroup.
   Option<fs::MountTable::Entry> hierarchyEntry;
   foreach (const fs::MountTable::Entry& entry, table.get().entries) {
     if (entry.type == "cgroup") {
-      Try<std::string> dirAbsPath = os::realpath(entry.dir);
+      Try<string> dirAbsPath = os::realpath(entry.dir);
       if (dirAbsPath.isError()) {
-        return Try<std::set<std::string> >::error(dirAbsPath.error());
+        return Try<set<string> >::error(dirAbsPath.error());
       }
 
       // Seems that a directory can be mounted more than once. Previous mounts
@@ -420,20 +507,20 @@ Try<std::set<std::string> > subsystems(const std::string& hierarchy)
   }
 
   if (hierarchyEntry.isNone()) {
-    return Try<std::set<std::string> >::error(
+    return Try<set<string> >::error(
         hierarchy + " is not a mount point for cgroups");
   }
 
   // Get the intersection of the currently enabled subsystems and mount
   // options. Notice that mount options may contain somethings (e.g. rw) that
   // are not in the set of enabled subsystems.
-  Try<std::set<std::string> > names = subsystems();
+  Try<set<string> > names = subsystems();
   if (names.isError()) {
-    return Try<std::set<std::string> >::error(names.error());
+    return Try<set<string> >::error(names.error());
   }
 
-  std::set<std::string> result;
-  foreach (const std::string& name, names.get()) {
+  set<string> result;
+  foreach (const string& name, names.get()) {
     if (hierarchyEntry.get().hasOption(name)) {
       result.insert(name);
     }
@@ -443,8 +530,7 @@ Try<std::set<std::string> > subsystems(const std::string& hierarchy)
 }
 
 
-Try<Nothing> createHierarchy(const std::string& hierarchy,
-                             const std::string& subsystems)
+Try<Nothing> createHierarchy(const string& hierarchy, const string& subsystems)
 {
   if (os::exists(hierarchy)) {
     return Try<Nothing>::error(
@@ -464,7 +550,7 @@ Try<Nothing> createHierarchy(const std::string& hierarchy,
   if (busyResult.isError()) {
     return Try<Nothing>::error(busyResult.error());
   } else if (busyResult.get()) {
-    return Try<Nothing>::error("Some subsystems are currently being attached");
+    return Try<Nothing>::error("Some subsystems are currently busy");
   }
 
   // Create the directory for the hierarchy.
@@ -486,7 +572,7 @@ Try<Nothing> createHierarchy(const std::string& hierarchy,
 }
 
 
-Try<Nothing> removeHierarchy(const std::string& hierarchy)
+Try<Nothing> removeHierarchy(const string& hierarchy)
 {
   Try<Nothing> check = checkHierarchy(hierarchy);
   if (check.isError()) {
@@ -507,9 +593,9 @@ Try<Nothing> removeHierarchy(const std::string& hierarchy)
 }
 
 
-Try<Nothing> checkHierarchy(const std::string& hierarchy)
+Try<Nothing> checkHierarchy(const string& hierarchy)
 {
-  Try<std::set<std::string> > names = subsystems(hierarchy);
+  Try<set<string> > names = subsystems(hierarchy);
   if (names.isError()) {
     return Try<Nothing>::error(names.error());
   }
@@ -518,8 +604,7 @@ Try<Nothing> checkHierarchy(const std::string& hierarchy)
 }
 
 
-Try<Nothing> checkHierarchy(const std::string& hierarchy,
-                            const std::string& subsystems)
+Try<Nothing> checkHierarchy(const string& hierarchy, const string& subsystems)
 {
   // Check if subsystems are enabled in the system.
   Try<bool> enabledResult = enabled(subsystems);
@@ -529,13 +614,13 @@ Try<Nothing> checkHierarchy(const std::string& hierarchy,
     return Try<Nothing>::error("Some subsystems are not enabled");
   }
 
-  Try<std::set<std::string> > namesResult = cgroups::subsystems(hierarchy);
+  Try<set<string> > namesResult = cgroups::subsystems(hierarchy);
   if (namesResult.isError()) {
     return Try<Nothing>::error(namesResult.error());
   }
 
-  std::set<std::string> names = namesResult.get();
-  foreach (const std::string& name, strings::tokenize(subsystems, ",")) {
+  set<string> names = namesResult.get();
+  foreach (const string& name, strings::tokenize(subsystems, ",")) {
     if (names.find(name) == names.end()) {
       return Try<Nothing>::error(
           "Subsystem " + name + " is not found or enabled");
@@ -546,8 +631,7 @@ Try<Nothing> checkHierarchy(const std::string& hierarchy,
 }
 
 
-Try<Nothing> createCgroup(const std::string& hierarchy,
-                          const std::string& cgroup)
+Try<Nothing> createCgroup(const string& hierarchy, const string& cgroup)
 {
   Try<Nothing> check = checkHierarchy(hierarchy);
   if (check.isError()) {
@@ -558,15 +642,14 @@ Try<Nothing> createCgroup(const std::string& hierarchy,
 }
 
 
-Try<Nothing> removeCgroup(const std::string& hierarchy,
-                          const std::string& cgroup)
+Try<Nothing> removeCgroup(const string& hierarchy, const string& cgroup)
 {
   Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
     return check;
   }
 
-  Try<std::vector<std::string> > cgroups = getCgroups(hierarchy, cgroup);
+  Try<vector<string> > cgroups = getCgroups(hierarchy, cgroup);
   if (cgroups.isError()) {
     return Try<Nothing>::error(cgroups.error());
   }
@@ -579,15 +662,14 @@ Try<Nothing> removeCgroup(const std::string& hierarchy,
 }
 
 
-Try<Nothing> checkCgroup(const std::string& hierarchy,
-                         const std::string& cgroup)
+Try<Nothing> checkCgroup(const string& hierarchy, const string& cgroup)
 {
   Try<Nothing> check = checkHierarchy(hierarchy);
   if (check.isError()) {
     return check;
   }
 
-  std::string path = hierarchy + "/" + cgroup;
+  string path = path::join(hierarchy, cgroup);
   if (!os::exists(path)) {
     return Try<Nothing>::error("Cgroup " + cgroup + " is not valid");
   }
@@ -596,23 +678,25 @@ Try<Nothing> checkCgroup(const std::string& hierarchy,
 }
 
 
-Try<std::string> readControl(const std::string& hierarchy,
-                             const std::string& cgroup,
-                             const std::string& control)
+Try<string> readControl(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& control)
 {
   Try<Nothing> check = checkControl(hierarchy, cgroup, control);
   if (check.isError()) {
-    return Try<std::string>::error(check.error());
+    return Try<string>::error(check.error());
   }
 
   return internal::readControl(hierarchy, cgroup, control);
 }
 
 
-Try<Nothing> writeControl(const std::string& hierarchy,
-                          const std::string& cgroup,
-                          const std::string& control,
-                          const std::string& value)
+Try<Nothing> writeControl(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& control,
+    const string& value)
 {
   Try<Nothing> check = checkControl(hierarchy, cgroup, control);
   if (check.isError()) {
@@ -623,16 +707,17 @@ Try<Nothing> writeControl(const std::string& hierarchy,
 }
 
 
-Try<Nothing> checkControl(const std::string& hierarchy,
-                          const std::string& cgroup,
-                          const std::string& control)
+Try<Nothing> checkControl(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& control)
 {
   Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
     return check;
   }
 
-  std::string path = hierarchy + "/" + cgroup + "/" + control;
+  string path = path::join(hierarchy, cgroup, control);
   if (!os::exists(path)) {
     return Try<Nothing>::error("Control file " + path + " does not exist");
   }
@@ -641,34 +726,33 @@ Try<Nothing> checkControl(const std::string& hierarchy,
 }
 
 
-Try<std::vector<std::string> > getCgroups(const std::string& hierarchy,
-                                          const std::string& cgroup)
+Try<vector<string> > getCgroups(const string& hierarchy, const string& cgroup)
 {
   Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
-    return Try<std::vector<std::string> >::error(check.error());
+    return Try<vector<string> >::error(check.error());
   }
 
-  Try<std::string> hierarchyAbsPath = os::realpath(hierarchy);
+  Try<string> hierarchyAbsPath = os::realpath(hierarchy);
   if (hierarchyAbsPath.isError()) {
-    return Try<std::vector<std::string> >::error(hierarchyAbsPath.error());
+    return Try<vector<string> >::error(hierarchyAbsPath.error());
   }
 
-  Try<std::string> destAbsPath = os::realpath(hierarchy + "/" + cgroup);
+  Try<string> destAbsPath = os::realpath(path::join(hierarchy, cgroup));
   if (destAbsPath.isError()) {
-    return Try<std::vector<std::string> >::error(destAbsPath.error());
+    return Try<vector<string> >::error(destAbsPath.error());
   }
 
   char* paths[] = {const_cast<char*>(destAbsPath.get().c_str()), NULL};
 
   FTS* tree = fts_open(paths, FTS_NOCHDIR, NULL);
   if (tree == NULL) {
-    return Try<std::vector<std::string> >::error(
+    return Try<vector<string> >::error(
         "Failed to start file system walk: " +
-          std::string(strerror(errno)));
+          string(strerror(errno)));
   }
 
-  std::vector<std::string> cgroups;
+  vector<string> cgroups;
 
   FTSENT* node;
   while ((node = fts_read(tree)) != NULL) {
@@ -677,42 +761,43 @@ Try<std::vector<std::string> > getCgroups(const std::string& hierarchy,
     // itself is numbered 0. fts_info includes flags for the current node.
     // FTS_DP indicates a directory being visited in postorder.
     if (node->fts_level > 0 && node->fts_info & FTS_DP) {
-      cgroups.push_back(node->fts_path + hierarchyAbsPath.get().length());
+      string path =
+        strings::trim(node->fts_path + hierarchyAbsPath.get().length(), "/");
+      cgroups.push_back(path);
     }
   }
 
   if (errno != 0) {
-    return Try<std::vector<std::string> >::error(
+    return Try<vector<string> >::error(
         "Failed to read a node during the walk: " +
-          std::string(strerror(errno)));
+          string(strerror(errno)));
   }
 
   if (fts_close(tree) != 0) {
-    return Try<std::vector<std::string> >::error(
-        "Failed to stop a file system walk" +
-          std::string(strerror(errno)));
+    return Try<vector<string> >::error(
+        "Failed to stop a file system walk: " +
+          string(strerror(errno)));
   }
 
   return cgroups;
 }
 
 
-Try<std::set<pid_t> > getTasks(const std::string& hierarchy,
-                               const std::string& cgroup)
+Try<set<pid_t> > getTasks(const string& hierarchy, const string& cgroup)
 {
   Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
-    return Try<std::set<pid_t> >::error(check.error());
+    return Try<set<pid_t> >::error(check.error());
   }
 
   // Read from the control file.
-  Try<std::string> value = internal::readControl(hierarchy, cgroup, "tasks");
+  Try<string> value = internal::readControl(hierarchy, cgroup, "tasks");
   if (value.isError()) {
-    return Try<std::set<pid_t> >::error(value.error());
+    return Try<set<pid_t> >::error(value.error());
   }
 
   // Parse the value read from the control file.
-  std::set<pid_t> pids;
+  set<pid_t> pids;
   std::istringstream ss(value.get());
   ss >> std::dec;
   while (!ss.eof()) {
@@ -721,7 +806,7 @@ Try<std::set<pid_t> > getTasks(const std::string& hierarchy,
 
     if (ss.fail()) {
       if (!ss.eof()) {
-        return Try<std::set<pid_t> >::error("Parsing error");
+        return Try<set<pid_t> >::error("Parsing error");
       }
     } else {
       pids.insert(pid);
@@ -732,9 +817,7 @@ Try<std::set<pid_t> > getTasks(const std::string& hierarchy,
 }
 
 
-Try<Nothing> assignTask(const std::string& hierarchy,
-                        const std::string& cgroup,
-                        pid_t pid)
+Try<Nothing> assignTask(const string& hierarchy, const string& cgroup, pid_t pid)
 {
   Try<Nothing> check = checkCgroup(hierarchy, cgroup);
   if (check.isError()) {
@@ -807,20 +890,20 @@ static int eventfd(unsigned int initval, int flags)
 // @param   args        Control specific arguments.
 // @return  The eventfd if the operation succeeds.
 //          Error if the operation fails.
-static Try<int> openNotifier(const std::string& hierarchy,
-                             const std::string& cgroup,
-                             const std::string& control,
-                             const Option<std::string>& args =
-                               Option<std::string>::none())
+static Try<int> openNotifier(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& control,
+    const Option<string>& args = Option<string>::none())
 {
   int efd = internal::eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
   if (efd < 0) {
     return Try<int>::error(
-        "Create eventfd failed: " + std::string(strerror(errno)));
+        "Create eventfd failed: " + string(strerror(errno)));
   }
 
   // Open the control file.
-  std::string path = hierarchy + "/" + cgroup + "/" + control;
+  string path = path::join(hierarchy, cgroup, control);
   Try<int> cfd = os::open(path, O_RDWR);
   if (cfd.isError()) {
     os::close(efd);
@@ -863,10 +946,10 @@ static Try<Nothing> closeNotifier(int fd)
 class EventListener : public Process<EventListener>
 {
 public:
-  EventListener(const std::string& _hierarchy,
-                const std::string& _cgroup,
-                const std::string& _control,
-                const Option<std::string>& _args)
+  EventListener(const string& _hierarchy,
+                const string& _cgroup,
+                const string& _control,
+                const Option<string>& _args)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
       control(_control),
@@ -948,10 +1031,10 @@ private:
     terminate(self());
   }
 
-  std::string hierarchy;
-  std::string cgroup;
-  std::string control;
-  Option<std::string> args;
+  string hierarchy;
+  string cgroup;
+  string control;
+  Option<string> args;
   Promise<uint64_t> promise;
   Future<size_t> reading;
   Option<int> eventfd;  // The eventfd if opened.
@@ -961,10 +1044,11 @@ private:
 } // namespace internal {
 
 
-Future<uint64_t> listenEvent(const std::string& hierarchy,
-                             const std::string& cgroup,
-                             const std::string& control,
-                             const Option<std::string>& args)
+Future<uint64_t> listenEvent(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& control,
+    const Option<string>& args)
 {
   Try<Nothing> check = checkControl(hierarchy, cgroup, control);
   if (check.isError()) {
@@ -986,9 +1070,9 @@ namespace internal {
 class Freezer : public Process<Freezer>
 {
 public:
-  Freezer(const std::string& _hierarchy,
-          const std::string& _cgroup,
-          const std::string& _action,
+  Freezer(const string& _hierarchy,
+          const string& _cgroup,
+          const string& _action,
           const Duration& _interval)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
@@ -1059,7 +1143,7 @@ private:
   {
     LOG(INFO) << "Checking frozen status of cgroup '" << cgroup << "'";
 
-    Try<std::string> state =
+    Try<string> state =
       internal::readControl(hierarchy, cgroup, "freezer.state");
 
     if (state.isError()) {
@@ -1082,7 +1166,7 @@ private:
       // make sure that the freezer can finish.
       // TODO(jieyu): This code can be removed in the future as the newer
       // version of the kernel solves this problem (e.g. Linux-3.2.0).
-      Try<std::set<pid_t> > pids = getTasks(hierarchy, cgroup);
+      Try<set<pid_t> > pids = getTasks(hierarchy, cgroup);
       if (pids.isError()) {
         promise.fail(pids.error());
         terminate(self());
@@ -1133,7 +1217,7 @@ private:
   {
     LOG(INFO) << "Checking thaw status of cgroup '" << cgroup << "'";
 
-    Try<std::string> state =
+    Try<string> state =
       internal::readControl(hierarchy, cgroup, "freezer.state");
 
     if (state.isError()) {
@@ -1154,9 +1238,9 @@ private:
     }
   }
 
-  const std::string hierarchy;
-  const std::string cgroup;
-  const std::string action;
+  const string hierarchy;
+  const string cgroup;
+  const string action;
   const Duration interval;
   Promise<bool> promise;
 };
@@ -1165,9 +1249,10 @@ private:
 } // namespace internal {
 
 
-Future<bool> freezeCgroup(const std::string& hierarchy,
-                          const std::string& cgroup,
-                          const Duration& interval)
+Future<bool> freezeCgroup(
+    const string& hierarchy,
+    const string& cgroup,
+    const Duration& interval)
 {
   Try<Nothing> check = checkControl(hierarchy, cgroup, "freezer.state");
   if (check.isError()) {
@@ -1175,7 +1260,7 @@ Future<bool> freezeCgroup(const std::string& hierarchy,
   }
 
   // Check the current freezer state.
-  Try<std::string> state = internal::readControl(hierarchy,
+  Try<string> state = internal::readControl(hierarchy,
                                                  cgroup,
                                                  "freezer.state");
   if (state.isError()) {
@@ -1193,9 +1278,10 @@ Future<bool> freezeCgroup(const std::string& hierarchy,
 }
 
 
-Future<bool> thawCgroup(const std::string& hierarchy,
-                        const std::string& cgroup,
-                        const Duration& interval)
+Future<bool> thawCgroup(
+    const string& hierarchy,
+    const string& cgroup,
+    const Duration& interval)
 {
   Try<Nothing> check = checkControl(hierarchy, cgroup, "freezer.state");
   if (check.isError()) {
@@ -1203,7 +1289,7 @@ Future<bool> thawCgroup(const std::string& hierarchy,
   }
 
   // Check the current freezer state.
-  Try<std::string> state = internal::readControl(hierarchy,
+  Try<string> state = internal::readControl(hierarchy,
                                                  cgroup,
                                                  "freezer.state");
   if (state.isError()) {
@@ -1221,14 +1307,14 @@ Future<bool> thawCgroup(const std::string& hierarchy,
 }
 
 
-namespace internal{
+namespace internal {
 
 // The process used to wait for a cgroup to become empty (no task in it).
 class EmptyWatcher: public Process<EmptyWatcher>
 {
 public:
-  EmptyWatcher(const std::string& _hierarchy,
-               const std::string& _cgroup,
+  EmptyWatcher(const string& _hierarchy,
+               const string& _cgroup,
                const Duration& _interval)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
@@ -1258,9 +1344,7 @@ protected:
 private:
   void check()
   {
-    Try<std::string> state = internal::readControl(hierarchy,
-                                                   cgroup,
-                                                   "tasks");
+    Try<string> state = internal::readControl(hierarchy, cgroup, "tasks");
     if (state.isError()) {
       promise.fail(state.error());
       terminate(self());
@@ -1276,8 +1360,8 @@ private:
     }
   }
 
-  std::string hierarchy;
-  std::string cgroup;
+  string hierarchy;
+  string cgroup;
   const Duration interval;
   Promise<bool> promise;
 };
@@ -1287,8 +1371,8 @@ private:
 class TasksKiller : public Process<TasksKiller>
 {
 public:
-  TasksKiller(const std::string& _hierarchy,
-              const std::string& _cgroup,
+  TasksKiller(const string& _hierarchy,
+              const string& _cgroup,
               const Duration& _interval)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
@@ -1346,7 +1430,7 @@ private:
 
   Future<bool> kill()
   {
-    Try<std::set<pid_t> > tasks = getTasks(hierarchy, cgroup);
+    Try<set<pid_t> > tasks = getTasks(hierarchy, cgroup);
     if (tasks.isError()) {
       return Future<bool>::failed(tasks.error());
     } else {
@@ -1392,8 +1476,8 @@ private:
     terminate(self());
   }
 
-  std::string hierarchy;
-  std::string cgroup;
+  string hierarchy;
+  string cgroup;
   const Duration interval;
   Promise<bool> promise;
   Future<bool> finish;
@@ -1402,9 +1486,10 @@ private:
 } // namespace internal {
 
 
-Future<bool> killTasks(const std::string& hierarchy,
-                       const std::string& cgroup,
-                       const Duration& interval)
+Future<bool> killTasks(
+    const string& hierarchy,
+    const string& cgroup,
+    const Duration& interval)
 {
   Try<Nothing> freezerCheck = checkHierarchy(hierarchy, "freezer");
   if (freezerCheck.isError()) {
@@ -1430,8 +1515,8 @@ namespace internal {
 class Destroyer : public Process<Destroyer>
 {
 public:
-  Destroyer(const std::string& _hierarchy,
-            const std::vector<std::string>& _cgroups,
+  Destroyer(const string& _hierarchy,
+            const vector<string>& _cgroups,
             const Duration& _interval)
     : hierarchy(_hierarchy),
       cgroups(_cgroups),
@@ -1457,7 +1542,7 @@ protected:
 
     // Kill tasks in the given cgroups in parallel. Use collect mechanism to
     // wait until all kill processes finish.
-    foreach (const std::string& cgroup, cgroups) {
+    foreach (const string& cgroup, cgroups) {
       Future<bool> killer = killTasks(hierarchy, cgroup, interval);
       killers.push_back(killer);
     }
@@ -1475,7 +1560,7 @@ protected:
   }
 
 private:
-  void killed(const Future<std::list<bool> >& kill)
+  void killed(const Future<list<bool> >& kill)
   {
     if (kill.isReady()) {
       remove();
@@ -1489,7 +1574,7 @@ private:
 
   void remove()
   {
-    foreach (const std::string& cgroup, cgroups) {
+    foreach (const string& cgroup, cgroups) {
       Try<Nothing> remove = internal::removeCgroup(hierarchy, cgroup);
       if (remove.isError()) {
         promise.fail(remove.error());
@@ -1502,21 +1587,22 @@ private:
     terminate(self());
   }
 
-  std::string hierarchy;
-  std::vector<std::string> cgroups;
+  string hierarchy;
+  vector<string> cgroups;
   const Duration interval;
   Promise<bool> promise;
 
   // The killer processes used to atomically kill tasks in each cgroup.
-  std::list<Future<bool> > killers;
+  list<Future<bool> > killers;
 };
 
 } // namespace internal {
 
 
-Future<bool> destroyCgroup(const std::string& hierarchy,
-                           const std::string& cgroup,
-                           const Duration& interval)
+Future<bool> destroyCgroup(
+    const string& hierarchy,
+    const string& cgroup,
+    const Duration& interval)
 {
   Try<Nothing> cgroupCheck = checkCgroup(hierarchy, cgroup);
   if (cgroupCheck.isError()) {
@@ -1524,12 +1610,12 @@ Future<bool> destroyCgroup(const std::string& hierarchy,
   }
 
   // Construct the vector of cgroups to destroy.
-  Try<std::vector<std::string> > cgroups = getCgroups(hierarchy, cgroup);
+  Try<vector<string> > cgroups = getCgroups(hierarchy, cgroup);
   if (cgroups.isError()) {
     return Future<bool>::failed(cgroups.error());
   }
 
-  std::vector<std::string> toDestroy = cgroups.get();
+  vector<string> toDestroy = cgroups.get();
   if (cgroup != "/") {
     toDestroy.push_back(cgroup);
   }
