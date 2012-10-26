@@ -540,15 +540,7 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
     // Launch an executor for this task.
     executor = framework->createExecutor(id, executorInfo);
 
-    // NOTE: This constant "virtual path" format is shared with the webui.
-    // TODO(bmahler): Pass this to the webui explicitly via the existing JSON.
-    string attached = strings::format(
-        "/slaves/%s/frameworks/%s/executors/%s",
-        id.value(),
-        framework->id.value(),
-        executorId.value()).get();
-
-    files->attach(executor->directory, attached)
+    files->attach(executor->directory, executor->directory)
       .onAny(defer(self(),
                    &Self::fileAttached,
                    params::_1,
@@ -741,6 +733,12 @@ void Slave::statusUpdateAcknowledgement(const SlaveID& slaveId,
       // Cleanup if this framework has no executors running and no pending updates.
       if (framework->executors.size() == 0 && framework->updates.empty()) {
         frameworks.erase(framework->id);
+
+        completedFrameworks.push_back(*framework);
+        if (completedFrameworks.size() > MAX_COMPLETED_FRAMEWORKS) {
+          completedFrameworks.pop_front();
+        }
+
         delete framework;
       }
     }
@@ -1147,6 +1145,12 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
   // Cleanup if this framework has no executors running.
   if (framework->executors.size() == 0) {
     frameworks.erase(framework->id);
+
+    completedFrameworks.push_back(*framework);
+    if (completedFrameworks.size() > MAX_COMPLETED_FRAMEWORKS) {
+      completedFrameworks.pop_front();
+    }
+
     delete framework;
   }
 }

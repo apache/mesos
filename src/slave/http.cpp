@@ -154,47 +154,65 @@ JSON::Object model(const ExecutorInfo& executorInfo)
 }
 
 
+JSON::Object model(const Task& task)
+{
+  JSON::Object object;
+  object.values["id"] = task.task_id().value();
+  object.values["name"] = task.name();
+  object.values["executor_id"] = task.executor_id().value();
+  object.values["framework_id"] = task.framework_id().value();
+  object.values["slave_id"] = task.slave_id().value();
+  object.values["state"] = TaskState_Name(task.state());
+  object.values["resources"] = model(task.resources());
+  return object;
+}
+
+
+JSON::Object model(const TaskInfo& task)
+{
+  JSON::Object object;
+  object.values["id"] = task.task_id().value();
+  object.values["name"] = task.name();
+  object.values["slave_id"] = task.slave_id().value();
+  object.values["resources"] = model(task.resources());
+  object.values["data"] = task.data();
+
+  if (task.has_command()) {
+    object.values["command"] = model(task.command());
+  }
+  if (task.has_executor()) {
+    object.values["executor_id"] = model(task.executor());
+  }
+
+  return object;
+}
+
+
 JSON::Object model(const Executor& executor)
 {
   JSON::Object object;
   object.values["id"] = executor.id.value();
+  object.values["uuid"] = executor.uuid.toString();
   object.values["directory"] = executor.directory;
   object.values["resources"] = model(executor.resources);
 
   JSON::Array tasks;
   foreachvalue (Task* task, executor.launchedTasks) {
-    JSON::Object object;
-    object.values["id"] = task->task_id().value();
-    object.values["name"] = task->name();
-    object.values["executor_id"] = task->executor_id().value();
-    object.values["framework_id"] = task->framework_id().value();
-    object.values["slave_id"] = task->slave_id().value();
-    object.values["state"] = TaskState_Name(task->state());
-    object.values["resources"] = model(task->resources());
-
-    tasks.values.push_back(object);
+    tasks.values.push_back(model(*task));
   }
   object.values["tasks"] = tasks;
 
   JSON::Array queued;
   foreachvalue (const TaskInfo& task, executor.queuedTasks) {
-    JSON::Object object;
-    object.values["id"] = task.task_id().value();
-    object.values["name"] = task.name();
-    object.values["slave_id"] = task.slave_id().value();
-    object.values["resources"] = model(task.resources());
-    object.values["data"] = task.data();
-
-    if (task.has_command()) {
-      object.values["command"] = model(task.command());
-    }
-    if (task.has_executor()) {
-      object.values["executor_id"] = model(task.executor());
-    }
-
-    queued.values.push_back(object);
+    queued.values.push_back(model(task));
   }
   object.values["queued_tasks"] = queued;
+
+  JSON::Array completedTasks;
+  foreach (const Task& task, executor.completedTasks) {
+    completedTasks.values.push_back(model(task));
+  }
+  object.values["completed_tasks"] = completedTasks;
 
   return object;
 }
@@ -208,14 +226,17 @@ JSON::Object model(const Framework& framework)
   object.values["name"] = framework.info.name();
   object.values["user"] = framework.info.user();
 
-  JSON::Array array;
-
-  // Model all of the executors.
+  JSON::Array executors;
   foreachvalue (Executor* executor, framework.executors) {
-    array.values.push_back(model(*executor));
+    executors.values.push_back(model(*executor));
   }
+  object.values["executors"] = executors;
 
-  object.values["executors"] = array;
+  JSON::Array completedExecutors;
+  foreach (const Executor& executor, framework.completedExecutors) {
+    completedExecutors.values.push_back(model(executor));
+  }
+  object.values["completed_executors"] = completedExecutors;
 
   return object;
 }
@@ -302,14 +323,18 @@ Future<Response> state(
     object.values["log_dir"] = slave.flags.log_dir.get();
   }
 
-  JSON::Array array;
-
-  // Model all of the frameworks.
+  JSON::Array frameworks;
   foreachvalue (Framework* framework, slave.frameworks) {
-    array.values.push_back(model(*framework));
+    frameworks.values.push_back(model(*framework));
   }
+  object.values["frameworks"] = frameworks;
 
-  object.values["frameworks"] = array;
+  JSON::Array completedFrameworks;
+  foreach (const Framework& framework, slave.completedFrameworks) {
+    completedFrameworks.values.push_back(model(framework));
+  }
+  object.values["completed_frameworks"] = completedFrameworks;
+
   return OK(object, request.query.get("jsonp"));
 }
 

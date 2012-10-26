@@ -19,6 +19,9 @@
 #ifndef __SLAVE_HPP__
 #define __SLAVE_HPP__
 
+#include <list>
+#include <string>
+
 #include <process/http.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -193,6 +196,7 @@ private:
   Attributes attributes;
 
   hashmap<FrameworkID, Framework*> frameworks;
+  std::list<Framework> completedFrameworks;
 
   IsolationModule* isolationModule;
   Files* files;
@@ -216,7 +220,7 @@ private:
 };
 
 
-// Information describing an executor (goes away if executor crashes).
+// Information describing an executor.
 struct Executor
 {
   Executor(const FrameworkID& _frameworkId,
@@ -275,6 +279,12 @@ struct Executor
         resources -= resource;
       }
       launchedTasks.erase(taskId);
+
+      completedTasks.push_back(*task);
+      if (completedTasks.size() > MAX_COMPLETED_TASKS_PER_EXECUTOR) {
+        completedTasks.pop_front();
+      }
+
       delete task;
     }
   }
@@ -303,6 +313,8 @@ struct Executor
 
   hashmap<TaskID, TaskInfo> queuedTasks;
   hashmap<TaskID, Task*> launchedTasks;
+
+  std::list<Task> completedTasks;
 };
 
 
@@ -393,6 +405,12 @@ struct Framework
     if (executors.contains(executorId)) {
       Executor* executor = executors[executorId];
       executors.erase(executorId);
+
+      completedExecutors.push_back(*executor);
+      if (completedExecutors.size() > MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK) {
+        completedExecutors.pop_front();
+      }
+
       delete executor;
     }
   }
@@ -427,6 +445,9 @@ struct Framework
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
+
+  // Up to MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK completed executors.
+  std::list<Executor> completedExecutors;
 
   // Status updates keyed by uuid.
   hashmap<UUID, StatusUpdate> updates;

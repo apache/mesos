@@ -73,8 +73,39 @@
   </div>
 
   <div class="span9">
-    <h2>Tasks</h2>
+    <h2>Queued Tasks</h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th ng-class="columnClass('queued_tasks', 'id')"
+              ng-click="selectColumn('queued_tasks', 'id')">
+            <a href="">ID</a>
+          </th>
+          <th ng-class="columnClass('queued_tasks', 'name')"
+              ng-click="selectColumn('queued_tasks', 'name')">
+            <a href="">Name</a>
+          </th>
+          <th ng-class="columnClass('queued_tasks', 'resources.cpus')"
+              ng-click="selectColumn('queued_tasks', 'resources.cpus')">
+            <a href="">CPUs</a>
+          </th>
+          <th ng-class="columnClass('queued_tasks', 'resources.mem')"
+              ng-click="selectColumn('queued_tasks', 'resources.mem')">
+            <a href="">Mem</a>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="queued_task in _.values(executor.queued_tasks) | orderBy:tables['queued_tasks'].selected_column:tables['queued_tasks'].reverse">
+          <td>{{queued_task.id}}</td>
+          <td>{{queued_task.name}}</td>
+          <td>{{queued_task.resources.cpus | number}}</td>
+          <td>{{queued_task.resources.mem / 1024 | number}} GB</td>
+        </tr>
+      </tbody>
+    </table>
 
+    <h2>Tasks</h2>
     <table class="table table-striped table-bordered table-condensed">
       <thead>
         <tr>
@@ -109,9 +140,52 @@
           <td>{{task.resources.cpus | number}}</td>
           <td>{{task.resources.mem / 1024 | number}} GB</td>
           <td>
-            <a href="{{'#/slaves/' + slave_id + '/browse?path=' + encodeURIComponent(
-                       '/slaves/' + slave_id + '/frameworks/' + framework_id +
-                       '/executors/' + executor.id)}}">
+            <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
+                       encodeURIComponent(executor.directory)}}">
+              browse
+            </a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Completed Tasks</h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th ng-class="columnClass('completed_tasks', 'id')"
+              ng-click="selectColumn('completed_tasks', 'id')">
+            <a href="">ID</a>
+          </th>
+          <th ng-class="columnClass('completed_tasks', 'name')"
+              ng-click="selectColumn('completed_tasks', 'name')">
+            <a href="">Name</a>
+          </th>
+          <th ng-class="columnClass('completed_tasks', 'state')"
+              ng-click="selectColumn('completed_tasks', 'state')">
+            <a href="">State</a>
+          </th>
+          <th ng-class="columnClass('completed_tasks', 'resources.cpus')"
+              ng-click="selectColumn('completed_tasks', 'resources.cpus')">
+            <a href="">CPUs</a>
+          </th>
+          <th ng-class="columnClass('completed_tasks', 'resources.mem')"
+              ng-click="selectColumn('completed_tasks', 'resources.mem')">
+            <a href="">Mem</a>
+          </th>
+          <th>Executor Sandbox</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="completed_task in _.values(executor.completed_tasks) | orderBy:tables['completed_tasks'].selected_column:tables['completed_tasks'].reverse">
+          <td>{{completed_task.id}}</td>
+          <td>{{completed_task.name}}</td>
+          <td>{{completed_task.state}}</td>
+          <td>{{completed_task.resources.cpus | number}}</td>
+          <td>{{completed_task.resources.mem / 1024 | number}} GB</td>
+          <td>
+            <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
+                       encodeURIComponent(executor.directory)}}">
               browse
             </a>
           </td>

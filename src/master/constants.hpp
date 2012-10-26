@@ -51,11 +51,11 @@ const uint32_t MAX_SLAVE_PING_TIMEOUTS = 5;
 
 // Maximum number of completed frameworks to store in the cache.
 // TODO(thomasm): Make configurable.
-const uint32_t MAX_COMPLETED_FRAMEWORKS = 100;
+const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
 
 // Maximum number of completed tasks per framework to store in the
 // cache.  TODO(thomasm): Make configurable.
-const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK = 500;
+const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
 
 // Time interval to check for updated watchers list.
 const Duration WHITELIST_WATCH_INTERVAL = Seconds(5.0);

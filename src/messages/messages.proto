@@ -34,6 +34,10 @@ package mesos.internal;
 // way). Also, one performance reason why we don't do that now is
 // because storing whatever data is coupled with a TaskInfo
 // could be large and unnecessary.
+// TODO(bmahler): Add executor_uuid here, and send it to the master. This will
+// allow us to expose executor work directories for tasks in the webui when
+// looking from the master level. Currently only the slave knows which run the
+// task belongs to.
 message Task {
   required string name = 1;
   required TaskID task_id = 2;

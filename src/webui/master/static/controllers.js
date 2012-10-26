@@ -396,6 +396,8 @@ function SlavesCtrl($scope) {
 }
 
 
+// TODO(bmahler): Pull this apart into:
+// SlaveCtrl, SlaveFrameworkCtrl, SlaveExecutorCtrl.
 function SlaveCtrl($scope, $routeParams, $http) {
   setNavbarActiveTab('slaves');
 
@@ -411,8 +413,12 @@ function SlaveCtrl($scope, $routeParams, $http) {
 
   $scope.tables = {};
   $scope.tables['frameworks'] = new Table('id');
+  $scope.tables['completed_frameworks'] = new Table('id');
   $scope.tables['executors'] = new Table('id');
+  $scope.tables['completed_executors'] = new Table('id');
   $scope.tables['tasks'] = new Table('id');
+  $scope.tables['queued_tasks'] = new Table('id');
+  $scope.tables['completed_tasks'] = new Table('id');
 
   $scope.columnClass = columnClass($scope);
   $scope.selectColumn = selectColumn($scope);
@@ -438,19 +444,44 @@ function SlaveCtrl($scope, $routeParams, $http) {
 
           $scope.slave = {};
           $scope.slave.frameworks = {};
+          $scope.slave.completed_frameworks = {};
 
           $scope.slave.staging_tasks = 0;
           $scope.slave.starting_tasks = 0;
           $scope.slave.running_tasks = 0;
 
-          // Update the maps.
+          // Update the framework map.
           _.each($scope.state.frameworks, function(framework) {
             $scope.slave.frameworks[framework.id] = framework;
+
             var executors = {};
             _.each(framework.executors, function(executor) {
               executors[executor.id] = executor;
             });
             $scope.slave.frameworks[framework.id].executors = executors;
+
+            var completed_executors = {};
+            _.each(framework.completed_executors, function(executor) {
+              completed_executors[executor.id] = executor;
+            });
+            $scope.slave.frameworks[framework.id].completed_executors = completed_executors;
+          });
+
+          // Update the completed framework map.
+          _.each($scope.state.completed_frameworks, function(framework) {
+            $scope.slave.completed_frameworks[framework.id] = framework;
+
+            var executors = {};
+            _.each(framework.executors, function(executor) {
+              executors[executor.id] = executor;
+            });
+            $scope.slave.completed_frameworks[framework.id].executors = executors;
+
+            var completed_executors = {};
+            _.each(framework.completed_executors, function(executor) {
+              completed_executors[executor.id] = executor;
+            });
+            $scope.slave.completed_frameworks[framework.id].completed_executors = completed_executors;
           });
 
           // Compute the framework stats.
@@ -466,24 +497,47 @@ function SlaveCtrl($scope, $routeParams, $http) {
             });
           });
 
+          // Compute the completed framework stats.
+          _.each($scope.slave.completed_frameworks, function(framework) {
+            framework.num_tasks = 0;
+            framework.cpus = 0;
+            framework.mem = 0;
+
+            _.each(framework.executors, function(executor) {
+              framework.num_tasks += _.size(executor.tasks);
+              framework.cpus += executor.resources.cpus;
+              framework.mem += executor.resources.mem;
+            });
+          });
+
           // Look for the framework / executor if present in the request.
-          if ($scope.framework_id &&
-              !_.has($scope.slave.frameworks, $scope.framework_id)) {
-            $scope.alert_message = 'No framework found with ID: ' + $scope.framework_id;
-            $('#alert').show();
-          } else if ($scope.framework_id && $scope.executor_id &&
-              !_.has($scope.slave.frameworks[$scope.framework_id].executors, $scope.executor_id)) {
-            $scope.alert_message = 'No executor found with ID: ' + $scope.executor_id;
-            $('#alert').show();
-          } else {
-            // Set active framework / executor if present in the request.
-            if ($routeParams.framework_id) {
+          if ($scope.framework_id) {
+            // Look for the framework.
+            if (_.has($scope.slave.frameworks, $scope.framework_id)) {
               $scope.framework = $scope.slave.frameworks[$scope.framework_id];
-            }
-            if ($routeParams.executor_id) {
-              $scope.executor = $scope.framework.executors[$scope.executor_id];
+            } else if (_.has($scope.slave.completed_frameworks, $scope.framework_id)) {
+              $scope.framework = $scope.slave.completed_frameworks[$scope.framework_id];
+            } else {
+              $scope.alert_message = 'No framework found with ID: ' + $scope.framework_id;
+              $('#alert').show();
             }
 
+            if ($scope.framework && $scope.executor_id) {
+              // Look for the executor.
+              if (_.has($scope.framework.executors, $scope.executor_id)) {
+                $scope.executor = $scope.framework.executors[$scope.executor_id];
+              } else if (_.has($scope.framework.completed_executors, $scope.executor_id)) {
+                $scope.executor = $scope.framework.completed_executors[$scope.executor_id];
+              } else {
+                $scope.alert_message = 'No executor found with ID: ' + $scope.executor_id;
+                $('#alert').show();
+              }
+            }
+          }
+
+          if (!$scope.framework_id || $scope.framework) {
+            $('#slave').show();
+          } else if ($scope.framework && (!$scope.executor_id || $scope.executor)) {
             $('#slave').show();
           }
         })
@@ -524,6 +578,8 @@ function BrowseCtrl($scope, $routeParams, $http) {
         pailer(host, path, decodeURIComponent(path));
       }
 
+      // TODO(bmahler): Try to get the error code / body in the error callback.
+      // This wasn't working with the current version of angular.
       $http.jsonp(url, {params: {path: $routeParams.path}})
         .success(function(data) {
           $scope.listing = data;

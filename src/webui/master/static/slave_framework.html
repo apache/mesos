@@ -106,9 +106,40 @@
           <td>{{executor.resources.cpus | number}}</td>
           <td>{{executor.resources.mem / 1024 | number}} GB</td>
           <td>
-            <a href="{{'#/slaves/' + slave_id + '/browse?path=' + encodeURIComponent(
-                       '/slaves/' + slave_id + '/frameworks/' + framework_id +
-                       '/executors/' + executor.id)}}">
+            <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
+                       encodeURIComponent(executor.directory)}}">
+              browse
+            </a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Completed Executors</h2>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th ng-class="columnClass('completed_executors', 'id')"
+              ng-click="selectColumn('completed_executors', 'id')">
+            <a href="">ID</a>
+          </th>
+          <th ng-class="columnClass('completed_executors', 'sandbox')"
+              ng-click="selectColumn('completed_executors', 'sandbox')">
+            <a href="">Sandbox</a>
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr ng-repeat="completed_executor in _.values(framework.completed_executors) | orderBy:tables['completed_executors'].selected_column:tables['completed_executors'].reverse">
+          <td>
+            <a href="{{'#/slaves/' + slave_id + '/frameworks/' + framework.id + '/executors/' + completed_executor.id}}">
+              {{completed_executor.id}}
+            </a>
+          </td>
+          <td>
+            <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
+                       encodeURIComponent(completed_executor.directory)}}">
               browse
             </a>
           </td>

@@ -30,6 +30,15 @@ const Duration STATUS_UPDATE_RETRY_INTERVAL = Seconds(10.0);
 const Duration GC_DELAY = Weeks(1.0);
 const Duration DISK_WATCH_INTERVAL = Minutes(1.0);
 
+// Maximum number of completed frameworks to store in memory.
+const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
+
+// Maximum number of completed executors per framework to store in memory.
+const uint32_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK = 150;
+
+// Maximum number of completed tasks per executor to store in memeory.
+const uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR = 200;
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

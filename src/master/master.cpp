@@ -1722,7 +1722,6 @@ void Master::removeFramework(Framework* framework)
   framework->unregisteredTime = Clock::now();
 
   completedFrameworks.push_back(*framework);
-
   if (completedFrameworks.size() > MAX_COMPLETED_FRAMEWORKS) {
     completedFrameworks.pop_front();
   }

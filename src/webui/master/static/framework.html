@@ -80,7 +80,7 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
-            <a href="#/slaves/{{task.slave_id}}">
+            <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
               {{slaves[task.slave_id].hostname}}
             </a>
           </td>
@@ -116,7 +116,7 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
-            <a href="#/slaves/{{task.slave_id}}">
+            <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
               {{slaves[task.slave_id].hostname}}
             </a>
           </td>

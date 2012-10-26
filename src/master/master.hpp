@@ -19,6 +19,7 @@
 #ifndef __MASTER_HPP__
 #define __MASTER_HPP__
 
+#include <list>
 #include <string>
 #include <vector>
 
@@ -373,7 +374,7 @@ struct Slave
 };
 
 
-// An connected framework.
+// Information about a connected or completed framework.
 struct Framework
 {
   Framework(const FrameworkInfo& _info,
