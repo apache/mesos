@@ -211,7 +211,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/paths.hpp slave/state.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
-	slave/webui.hpp tests/external_test.hpp				\
+	slave/webui.hpp tests/environment.hpp tests/external_test.hpp	\
 	tests/zookeeper_test.hpp tests/utils.hpp			\
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
@@ -766,6 +766,7 @@ balloon_executor_LDADD = libmesos.la
 check_PROGRAMS += mesos-tests
 
 mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
+	              tests/environment.cpp				\
 	              tests/master_tests.cpp tests/state_tests.cpp	\
 	              tests/slave_state_tests.cpp			\
 	              tests/gc_tests.cpp				\
