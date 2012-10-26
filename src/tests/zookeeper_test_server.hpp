@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __TESTING_ZOO_KEEPER_SERVER_HPP__
-#define __TESTING_ZOO_KEEPER_SERVER_HPP__
+#ifndef __ZOOKEEPER_TEST_SERVER_HPP__
+#define __ZOOKEEPER_TEST_SERVER_HPP__
 
 #include <jni.h>
 
@@ -33,14 +33,15 @@ namespace mesos {
 namespace internal {
 namespace test {
 
-// An in-process ZooKeeper server that can be manipulated to control repeatable
-// client tests.  Sessions can be programmatically expired and network
-// partitions can be forced to simulate common failure modes.
-class ZooKeeperServer
+// An in-process ZooKeeper server that can be manipulated to control
+// repeatable client tests. Sessions can be programmatically expired
+// and network partitions can be forced to simulate common failure
+// modes.
+class ZooKeeperTestServer
 {
 public:
-  ZooKeeperServer(Jvm* jvm);
-  ~ZooKeeperServer();
+  ZooKeeperTestServer(Jvm* jvm);
+  ~ZooKeeperTestServer();
 
   // Gets a connection string that can be used to attach a ZooKeeper client to
   // this server.
@@ -111,4 +112,4 @@ private:
 } // namespace internal
 } // namespace mesos
 
-#endif // __TESTING_ZOO_KEEPER_SERVER_HPP__
+#endif // __ZOOKEEPER_TEST_SERVER_HPP__

@@ -113,7 +113,9 @@ protected:
   {
     // The master detector needs to be created after this process is
     // running so that the "master detected" message is not dropped.
-    detector = MasterDetector::create(url, self(), false, false);
+    // TODO(benh): Get access to flags so that we can decide whether
+    // or not to make ZooKeeper verbose.
+    detector = MasterDetector::create(url, self(), false);
     if (detector.isError()) {
       driver->abort();
       scheduler->error(driver, detector.error());

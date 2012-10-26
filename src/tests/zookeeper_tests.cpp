@@ -34,8 +34,8 @@
 
 #include "messages/messages.hpp"
 
-#include "tests/base_zookeeper_test.hpp"
 #include "tests/utils.hpp"
+#include "tests/zookeeper_test.hpp"
 
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/group.hpp"
@@ -49,26 +49,42 @@ using testing::_;
 using testing::Return;
 
 
-#define assertGet(zk, path, expected)				\
-  do {								\
-    std::string result;						\
-    ASSERT_EQ(ZOK, zk.get(path, false, &result, NULL));		\
-    ASSERT_EQ(expected, result);				\
-  } while (false)
+// Helper for invoking ZooKeeper::get(path, ...) in order to check the
+// data stored at a specified znode path.
+::testing::AssertionResult AssertZKGet(
+    const char* expectedExpr,
+    const char* zkExpr,
+    const char* pathExpr,
+    const std::string& expected,
+    ZooKeeper* zk,
+    const std::string& path)
+{
+  std::string result;
+  int code = zk->get(path, false, &result, NULL);
+  if (code == ZOK) {
+    if (expected == result) {
+      return ::testing::AssertionSuccess();
+    } else {
+      return ::testing::AssertionFailure()
+        << "Expected data at znode '" << pathExpr << "' "
+        << "to be '" << expected << "', but actually '" << result << "'";
+    }
+  } else {
+    return ::testing::AssertionFailure()
+      << "(" << zkExpr << ").get(" << pathExpr << ", ...): "
+      << zk->message(code);
+  }
+}
 
-
-#define assertNotSet(zk, path, value)		\
-  ASSERT_EQ(ZNOAUTH, zk.set(path, value, -1))
-
-
-class ZooKeeperTest : public BaseZooKeeperTest {};
+#define ASSERT_ZK_GET(expected, zk, path)               \
+  ASSERT_PRED_FORMAT3(AssertZKGet, expected, zk, path)
 
 
 TEST_F(ZooKeeperTest, Auth)
 {
-  BaseZooKeeperTest::TestWatcher watcher;
+  ZooKeeperTest::TestWatcher watcher;
 
-  ZooKeeper authenticatedZk(zks->connectString(), NO_TIMEOUT, &watcher);
+  ZooKeeper authenticatedZk(server->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
   authenticatedZk.authenticate("digest", "creator:creator");
   authenticatedZk.create("/test",
@@ -76,26 +92,26 @@ TEST_F(ZooKeeperTest, Auth)
                          zookeeper::EVERYONE_READ_CREATOR_ALL,
                          0,
                          NULL);
-  assertGet(authenticatedZk, "/test", "42");
+  ASSERT_ZK_GET("42", &authenticatedZk, "/test");
 
-  ZooKeeper unauthenticatedZk(zks->connectString(), NO_TIMEOUT, &watcher);
+  ZooKeeper unauthenticatedZk(server->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
-  assertGet(unauthenticatedZk, "/test", "42");
-  assertNotSet(unauthenticatedZk, "/test", "37");
+  ASSERT_ZK_GET("42", &unauthenticatedZk, "/test");
+  ASSERT_EQ(ZNOAUTH, unauthenticatedZk.set("/test", "", -1));
 
-  ZooKeeper nonOwnerZk(zks->connectString(), NO_TIMEOUT, &watcher);
+  ZooKeeper nonOwnerZk(server->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
   nonOwnerZk.authenticate("digest", "non-owner:non-owner");
-  assertGet(nonOwnerZk, "/test", "42");
-  assertNotSet(nonOwnerZk, "/test", "37");
+  ASSERT_ZK_GET("42", &nonOwnerZk, "/test");
+  ASSERT_EQ(ZNOAUTH, nonOwnerZk.set("/test", "", -1));
 }
 
 
 TEST_F(ZooKeeperTest, Create)
 {
-  BaseZooKeeperTest::TestWatcher watcher;
+  ZooKeeperTest::TestWatcher watcher;
 
-  ZooKeeper authenticatedZk(zks->connectString(), NO_TIMEOUT, &watcher);
+  ZooKeeper authenticatedZk(server->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
   authenticatedZk.authenticate("digest", "creator:creator");
   EXPECT_EQ(ZOK, authenticatedZk.create("/foo/bar",
@@ -109,9 +125,9 @@ TEST_F(ZooKeeperTest, Create)
                          zookeeper::EVERYONE_CREATE_AND_READ_CREATOR_ALL,
                          0,
                          NULL);
-  assertGet(authenticatedZk, "/foo/bar/baz", "43");
+  ASSERT_ZK_GET("43", &authenticatedZk, "/foo/bar/baz");
 
-  ZooKeeper nonOwnerZk(zks->connectString(), NO_TIMEOUT, &watcher);
+  ZooKeeper nonOwnerZk(server->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
   nonOwnerZk.authenticate("digest", "non-owner:non-owner");
   EXPECT_EQ(ZNOAUTH, nonOwnerZk.create("/foo/bar/baz",
@@ -126,7 +142,7 @@ TEST_F(ZooKeeperTest, Create)
                                    0,
                                    NULL,
                                    true));
-  assertGet(nonOwnerZk, "/foo/bar/baz/bam", "44");
+  ASSERT_ZK_GET("44", &nonOwnerZk, "/foo/bar/baz/bam");
 
   std::string result;
   EXPECT_EQ(ZOK, nonOwnerZk.create("/foo/bar/baz/",
@@ -171,7 +187,7 @@ TEST_F(ZooKeeperTest, MasterDetector)
   EXPECT_CALL(mock, newMasterDetected(mock.self()))
     .WillOnce(Trigger(&newMasterDetectedCall));
 
-  std::string master = "zk://" + zks->connectString() + "/mesos";
+  std::string master = "zk://" + server->connectString() + "/mesos";
 
   Try<MasterDetector*> detector =
     MasterDetector::create(master, mock.self(), true, true);
@@ -196,7 +212,7 @@ TEST_F(ZooKeeperTest, MasterDetectors)
   EXPECT_CALL(mock1, newMasterDetected(mock1.self()))
     .WillOnce(Trigger(&newMasterDetectedCall1));
 
-  std::string master = "zk://" + zks->connectString() + "/mesos";
+  std::string master = "zk://" + server->connectString() + "/mesos";
 
   Try<MasterDetector*> detector1 =
     MasterDetector::create(master, mock1.self(), true, true);
@@ -247,7 +263,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
   EXPECT_CALL(mock, newMasterDetected(mock.self()))
     .WillOnce(Trigger(&newMasterDetectedCall1));
 
-  std::string master = "zk://" + zks->connectString() + "/mesos";
+  std::string master = "zk://" + server->connectString() + "/mesos";
 
   Try<MasterDetector*> detector =
     MasterDetector::create(master, mock.self(), true, true);
@@ -260,7 +276,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
   EXPECT_CALL(mock, noMasterDetected())
     .WillOnce(Trigger(&noMasterDetectedCall));
 
-  zks->shutdownNetwork();
+  server->shutdownNetwork();
 
   Clock::advance(10.0); // TODO(benh): Get session timeout from detector.
 
@@ -270,7 +286,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
   EXPECT_CALL(mock, newMasterDetected(mock.self()))
     .WillOnce(Trigger(&newMasterDetectedCall2));
 
-  zks->startNetwork();
+  server->startNetwork();
 
   WAIT_FOR(newMasterDetectedCall2, Seconds(5.0));
 
@@ -285,7 +301,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
 
 TEST_F(ZooKeeperTest, Group)
 {
-  zookeeper::Group group(zks->connectString(), NO_TIMEOUT, "/test/");
+  zookeeper::Group group(server->connectString(), NO_TIMEOUT, "/test/");
 
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
@@ -319,16 +335,16 @@ TEST_F(ZooKeeperTest, Group)
 
 TEST_F(ZooKeeperTest, GroupJoinWithDisconnect)
 {
-  zookeeper::Group group(zks->connectString(), NO_TIMEOUT, "/test/");
+  zookeeper::Group group(server->connectString(), NO_TIMEOUT, "/test/");
 
-  zks->shutdownNetwork();
+  server->shutdownNetwork();
 
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
 
   EXPECT_TRUE(membership.isPending());
 
-  zks->startNetwork();
+  server->startNetwork();
 
   ASSERT_FUTURE_WILL_SUCCEED(membership);
 
@@ -343,7 +359,7 @@ TEST_F(ZooKeeperTest, GroupJoinWithDisconnect)
 
 TEST_F(ZooKeeperTest, GroupDataWithDisconnect)
 {
-  zookeeper::Group group(zks->connectString(), NO_TIMEOUT, "/test/");
+  zookeeper::Group group(server->connectString(), NO_TIMEOUT, "/test/");
 
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
@@ -357,13 +373,13 @@ TEST_F(ZooKeeperTest, GroupDataWithDisconnect)
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
-  zks->shutdownNetwork();
+  server->shutdownNetwork();
 
   process::Future<std::string> data = group.data(membership.get());
 
   EXPECT_TRUE(data.isPending());
 
-  zks->startNetwork();
+  server->startNetwork();
 
   EXPECT_FUTURE_WILL_EQ("hello world", data);
 }
@@ -371,7 +387,7 @@ TEST_F(ZooKeeperTest, GroupDataWithDisconnect)
 
 TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
 {
-  zookeeper::Group group(zks->connectString(), NO_TIMEOUT, "/test/");
+  zookeeper::Group group(server->connectString(), NO_TIMEOUT, "/test/");
 
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
@@ -389,13 +405,13 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
 
   EXPECT_FUTURE_WILL_EQ("hello world", data);
 
-  zks->shutdownNetwork();
+  server->shutdownNetwork();
 
   process::Future<bool> cancellation = group.cancel(membership.get());
 
   EXPECT_TRUE(cancellation.isPending());
 
-  zks->startNetwork();
+  server->startNetwork();
 
   EXPECT_FUTURE_WILL_EQ(true, cancellation);
 
@@ -411,7 +427,7 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
 
 TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
 {
-  zookeeper::Group group(zks->connectString(), NO_TIMEOUT, "/test/");
+  zookeeper::Group group(server->connectString(), NO_TIMEOUT, "/test/");
 
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
@@ -432,7 +448,7 @@ TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
 
   memberships = group.watch(memberships.get());
 
-  zks->expireSession(session.get().get());
+  server->expireSession(session.get().get());
 
   ASSERT_FUTURE_WILL_SUCCEED(memberships);
   EXPECT_EQ(0u, memberships.get().size());
@@ -444,8 +460,8 @@ TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
 
 TEST_F(ZooKeeperTest, MultipleGroups)
 {
-  zookeeper::Group group1(zks->connectString(), NO_TIMEOUT, "/test/");
-  zookeeper::Group group2(zks->connectString(), NO_TIMEOUT, "/test/");
+  zookeeper::Group group1(server->connectString(), NO_TIMEOUT, "/test/");
+  zookeeper::Group group2(server->connectString(), NO_TIMEOUT, "/test/");
 
   process::Future<zookeeper::Group::Membership> membership1 =
     group1.join("group 1");
@@ -488,7 +504,7 @@ TEST_F(ZooKeeperTest, MultipleGroups)
   ASSERT_FUTURE_WILL_SUCCEED(session1);
   ASSERT_SOME(session1.get());
 
-  zks->expireSession(session1.get().get());
+  server->expireSession(session1.get().get());
 
   ASSERT_FUTURE_WILL_EQ(false, cancelled);
 }
@@ -496,9 +512,9 @@ TEST_F(ZooKeeperTest, MultipleGroups)
 
 TEST_F(ZooKeeperTest, GroupPathWithRestrictivePerms)
 {
-  BaseZooKeeperTest::TestWatcher watcher;
+  ZooKeeperTest::TestWatcher watcher;
 
-  ZooKeeper authenticatedZk(zks->connectString(), NO_TIMEOUT, &watcher);
+  ZooKeeper authenticatedZk(server->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
   authenticatedZk.authenticate("digest", "creator:creator");
   authenticatedZk.create("/read-only",
@@ -506,31 +522,31 @@ TEST_F(ZooKeeperTest, GroupPathWithRestrictivePerms)
                          zookeeper::EVERYONE_READ_CREATOR_ALL,
                          0,
                          NULL);
-  assertGet(authenticatedZk, "/read-only", "42");
+  ASSERT_ZK_GET("42", &authenticatedZk, "/read-only");
   authenticatedZk.create("/read-only/writable",
                          "37",
                          ZOO_OPEN_ACL_UNSAFE,
                          0,
                          NULL);
-  assertGet(authenticatedZk, "/read-only/writable", "37");
+  ASSERT_ZK_GET("37", &authenticatedZk, "/read-only/writable");
 
   zookeeper::Authentication auth("digest", "non-creator:non-creator");
 
-  zookeeper::Group failedGroup1(zks->connectString(), NO_TIMEOUT,
+  zookeeper::Group failedGroup1(server->connectString(), NO_TIMEOUT,
                                 "/read-only/", auth);
   process::Future<zookeeper::Group::Membership> failedMembership1 =
     failedGroup1.join("fail");
 
   ASSERT_FUTURE_WILL_FAIL(failedMembership1);
 
-  zookeeper::Group failedGroup2(zks->connectString(), NO_TIMEOUT,
+  zookeeper::Group failedGroup2(server->connectString(), NO_TIMEOUT,
                                 "/read-only/new", auth);
   process::Future<zookeeper::Group::Membership> failedMembership2 =
     failedGroup2.join("fail");
 
   ASSERT_FUTURE_WILL_FAIL(failedMembership2);
 
-  zookeeper::Group successGroup(zks->connectString(), NO_TIMEOUT,
+  zookeeper::Group successGroup(server->connectString(), NO_TIMEOUT,
                                 "/read-only/writable/", auth);
   process::Future<zookeeper::Group::Membership> successMembership =
     successGroup.join("succeed");

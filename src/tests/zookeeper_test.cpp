@@ -18,33 +18,34 @@
 
 #include <signal.h>
 
-#include <queue>
-
-#include <glog/logging.h>
-
 #include <gtest/gtest.h>
+
+#include <queue>
 
 #include <tr1/functional>
 
+#include <stout/lambda.hpp>
+
 #include "common/lock.hpp"
+
+#include "logging/logging.hpp"
 
 #include "jvm/jvm.hpp"
 
-#include "tests/base_zookeeper_test.hpp"
 #include "tests/utils.hpp"
-#include "tests/zookeeper_server.hpp"
-
-using mesos::internal::test::mesosSourceDirectory;
-using std::tr1::bind;
-using std::tr1::function;
-
-namespace params = std::tr1::placeholders;
+#include "tests/zookeeper_test.hpp"
+#include "tests/zookeeper_test_server.hpp"
 
 namespace mesos {
 namespace internal {
 namespace test {
 
-const Milliseconds BaseZooKeeperTest::NO_TIMEOUT(5000);
+const Milliseconds ZooKeeperTest::NO_TIMEOUT(5000);
+
+// Note that we NEVER delete the Jvm instance because you can only
+// create one JVM since destructing a JVM has issues (see:
+// http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4712793).
+Jvm* ZooKeeperTest::jvm = NULL;
 
 
 static void silenceServerLogs(Jvm* jvm)
@@ -52,14 +53,18 @@ static void silenceServerLogs(Jvm* jvm)
   Jvm::Attach attach(jvm);
 
   Jvm::JClass loggerClass = Jvm::JClass::forName("org/apache/log4j/Logger");
-  jobject rootLogger = jvm->invokeStatic<jobject>(
-      jvm->findStaticMethod(loggerClass.method("getRootLogger")
-          .returns(loggerClass)));
+  jobject rootLogger =jvm->invokeStatic<jobject>(
+      jvm->findStaticMethod(loggerClass
+                            .method("getRootLogger")
+                            .returns(loggerClass)));
 
   Jvm::JClass levelClass = Jvm::JClass::forName("org/apache/log4j/Level");
-  jvm->invoke<void>(rootLogger,
-      jvm->findMethod(loggerClass.method("setLevel").parameter(levelClass)
-          .returns(jvm->voidClass)),
+  jvm->invoke<void>(
+      rootLogger,
+      jvm->findMethod(loggerClass
+                      .method("setLevel")
+                      .parameter(levelClass)
+                      .returns(jvm->voidClass)),
       jvm->getStaticField<jobject>(jvm->findStaticField(levelClass, "OFF")));
 }
 
@@ -71,49 +76,43 @@ static void silenceClientLogs()
 }
 
 
-void BaseZooKeeperTest::SetUpTestCase()
+void ZooKeeperTest::SetUpTestCase()
 {
-  static Jvm* singleton;
-  if (singleton == NULL) {
-    std::vector<std::string> opts;
-
+  if (jvm == NULL) {
     std::string zkHome = mesosBuildDirectory +
-        "/third_party/zookeeper-" ZOOKEEPER_VERSION;
-    std::string classpath = "-Djava.class.path=" +
-        zkHome + "/zookeeper-" ZOOKEEPER_VERSION ".jar:" +
-        zkHome + "/lib/log4j-1.2.15.jar";
-    LOG(INFO) << "Using classpath setup: " << classpath << std::endl;
-    opts.push_back(classpath);
-    singleton = new Jvm(opts);
+      "/third_party/zookeeper-" ZOOKEEPER_VERSION;
 
-    silenceServerLogs(singleton);
+    std::string classpath = "-Djava.class.path=" +
+      zkHome + "/zookeeper-" ZOOKEEPER_VERSION ".jar:" +
+      zkHome + "/lib/log4j-1.2.15.jar";
+
+    LOG(INFO) << "Using classpath setup: " << classpath << std::endl;
+
+    std::vector<std::string> opts;
+    opts.push_back(classpath);
+    jvm = new Jvm(opts);
+
+    silenceServerLogs(jvm);
     silenceClientLogs();
   }
-
-  // TODO(John Sirois): Introduce a mechanism to contribute classpath
-  // requirements to a singleton Jvm, then access the singleton here.
-  jvm = singleton;
 }
 
 
-void BaseZooKeeperTest::SetUp()
+void ZooKeeperTest::SetUp()
 {
-  zks = new ZooKeeperServer(jvm);
-  zks->startNetwork();
+  server = new ZooKeeperTestServer(jvm);
+  server->startNetwork();
 };
 
 
-void BaseZooKeeperTest::TearDown()
+void ZooKeeperTest::TearDown()
 {
-  zks->shutdownNetwork();
-  delete zks;
+  delete server;
+  server = NULL;
 };
 
 
-Jvm* BaseZooKeeperTest::jvm = NULL;
-
-
-BaseZooKeeperTest::TestWatcher::TestWatcher()
+ZooKeeperTest::TestWatcher::TestWatcher()
 {
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);
@@ -124,17 +123,18 @@ BaseZooKeeperTest::TestWatcher::TestWatcher()
 }
 
 
-BaseZooKeeperTest::TestWatcher::~TestWatcher()
+ZooKeeperTest::TestWatcher::~TestWatcher()
 {
   pthread_mutex_destroy(&mutex);
   pthread_cond_destroy(&cond);
 }
 
 
-void BaseZooKeeperTest::TestWatcher::process(ZooKeeper* zk,
-                                             int type,
-                                             int state,
-                                             const std::string& path)
+void ZooKeeperTest::TestWatcher::process(
+    ZooKeeper* zk,
+    int type,
+    int state,
+    const std::string& path)
 {
   Lock lock(&mutex);
   events.push(Event(type, state, path));
@@ -142,34 +142,36 @@ void BaseZooKeeperTest::TestWatcher::process(ZooKeeper* zk,
 }
 
 
-static bool isSessionState(const BaseZooKeeperTest::TestWatcher::Event& event,
-                           int state)
+static bool isSessionState(
+    const ZooKeeperTest::TestWatcher::Event& event,
+    int state)
 {
   return event.type == ZOO_SESSION_EVENT && event.state == state;
 }
 
 
-void BaseZooKeeperTest::TestWatcher::awaitSessionEvent(int state)
+void ZooKeeperTest::TestWatcher::awaitSessionEvent(int state)
 {
-  awaitEvent(bind(&isSessionState, params::_1, state));
+  awaitEvent(lambda::bind(&isSessionState, lambda::_1, state));
 }
 
 
-static bool isCreated(const BaseZooKeeperTest::TestWatcher::Event& event,
-                      const std::string& path)
+static bool isCreated(
+    const ZooKeeperTest::TestWatcher::Event& event,
+    const std::string& path)
 {
   return event.type == ZOO_CHILD_EVENT && event.path == path;
 }
 
 
-void BaseZooKeeperTest::TestWatcher::awaitCreated(const std::string& path)
+void ZooKeeperTest::TestWatcher::awaitCreated(const std::string& path)
 {
-  awaitEvent(bind(&isCreated, params::_1, path));
+  awaitEvent(lambda::bind(&isCreated, lambda::_1, path));
 }
 
 
-BaseZooKeeperTest::TestWatcher::Event
-BaseZooKeeperTest::TestWatcher::awaitEvent()
+ZooKeeperTest::TestWatcher::Event
+ZooKeeperTest::TestWatcher::awaitEvent()
 {
   Lock lock(&mutex);
   while (true) {
@@ -183,8 +185,9 @@ BaseZooKeeperTest::TestWatcher::awaitEvent()
 }
 
 
-BaseZooKeeperTest::TestWatcher::Event
-BaseZooKeeperTest::TestWatcher::awaitEvent(function<bool(Event)> matches)
+ZooKeeperTest::TestWatcher::Event
+ZooKeeperTest::TestWatcher::awaitEvent(
+    const std::tr1::function<bool(Event)>& matches)
 {
   while (true) {
     Event event = awaitEvent();

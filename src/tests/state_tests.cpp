@@ -40,7 +40,7 @@
 #include "state/zookeeper.hpp"
 
 #ifdef MESOS_HAS_JAVA
-#include "tests/base_zookeeper_test.hpp"
+#include "tests/zookeeper_test.hpp"
 #endif
 #include "tests/utils.hpp"
 
@@ -287,7 +287,7 @@ TEST_F(LevelDBStateTest, Names)
 
 
 #ifdef MESOS_HAS_JAVA
-class ZooKeeperStateTest : public mesos::internal::test::BaseZooKeeperTest
+class ZooKeeperStateTest : public mesos::internal::test::ZooKeeperTest
 {
 public:
   ZooKeeperStateTest()
@@ -296,9 +296,9 @@ public:
 protected:
   virtual void SetUp()
   {
-    BaseZooKeeperTest::SetUp();
+    ZooKeeperTest::SetUp();
     state = new ZooKeeperState<ProtobufSerializer>(
-        zks->connectString(),
+        server->connectString(),
         NO_TIMEOUT,
         "/state/");
   }
@@ -306,7 +306,7 @@ protected:
   virtual void TearDown()
   {
     delete state;
-    BaseZooKeeperTest::TearDown();
+    ZooKeeperTest::TearDown();
   }
 
   State<ProtobufSerializer>* state;

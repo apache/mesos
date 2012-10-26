@@ -23,7 +23,7 @@
 #include "master/allocator.hpp"
 #include "master/master.hpp"
 
-#include "tests/base_zookeeper_test.hpp"
+#include "tests/zookeeper_test.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -50,13 +50,8 @@ using testing::SaveArg;
 
 
 template <typename T = AllocatorProcess>
-class AllocatorZooKeeperTest : public BaseZooKeeperTest
+class AllocatorZooKeeperTest : public ZooKeeperTest
 {
-public:
-  static void SetUpTestCase() {
-    BaseZooKeeperTest::SetUpTestCase();
-  }
-
 protected:
   T allocator1;
   MockAllocator<T> allocator2;
@@ -104,11 +99,10 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   Master m(&this->allocator1, &files);
   PID<Master> master1 = process::spawn(&m);
 
-  string zk = "zk://" + this->zks->connectString() + "/znode";
+  string zk = "zk://" + this->server->connectString() + "/znode";
   Try<MasterDetector*> detector =
     MasterDetector::create(zk, master1, true, true);
-  CHECK(!detector.isError())
-    << "Failed to create a master detector: " << detector.error();
+  ASSERT_SOME(detector);
 
   MockExecutor exec;
 
@@ -129,10 +123,9 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
-  Try<MasterDetector*> slave_detector =
+  Try<MasterDetector*> slaveDetector =
     MasterDetector::create(zk, slave, false, true);
-  CHECK(!slave_detector.isError())
-    << "Failed to create a master detector: " << slave_detector.error();
+  ASSERT_SOME(slaveDetector);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO,zk);
@@ -188,8 +181,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   Try<MasterDetector*> detector2 =
     MasterDetector::create(zk, master2, true, true);
-  CHECK(!detector2.isError())
-    << "Failed to create a master detector: " << detector2.error();
+  ASSERT_SOME(detector2);
 
   WAIT_UNTIL(frameworkAddedTrigger);
 
@@ -211,11 +203,13 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   process::terminate(slave);
   process::wait(slave);
+  MasterDetector::destroy(slaveDetector.get());
 
   WAIT_UNTIL(slaveRemovedTrigger);
 
   process::terminate(master2);
   process::wait(master2);
+  MasterDetector::destroy(detector2.get());
 }
 
 
@@ -256,11 +250,10 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   Master m(&this->allocator1, &files);
   PID<Master> master1 = process::spawn(&m);
 
-  string zk = "zk://" + this->zks->connectString() + "/znode";
+  string zk = "zk://" + this->server->connectString() + "/znode";
   Try<MasterDetector*> detector =
     MasterDetector::create(zk, master1, true, true);
-  CHECK(!detector.isError())
-    << "Failed to create a master detector: " << detector.error();
+  ASSERT_SOME(detector);
 
   MockExecutor exec;
 
@@ -281,10 +274,9 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   Slave s(resources, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
-  Try<MasterDetector*> slave_detector =
+  Try<MasterDetector*> slaveDetector =
     MasterDetector::create(zk, slave, false, true);
-  CHECK(!slave_detector.isError())
-    << "Failed to create a master detector: " << slave_detector.error();
+  ASSERT_SOME(slaveDetector);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO,zk);
@@ -340,8 +332,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
 
   Try<MasterDetector*> detector2 =
     MasterDetector::create(zk, master2, true, true);
-  CHECK(!detector2.isError())
-    << "Failed to create a master detector: " << detector2.error();
+  ASSERT_SOME(detector2);
 
   WAIT_UNTIL(slaveAddedTrigger);
 
@@ -363,9 +354,11 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
 
   process::terminate(slave);
   process::wait(slave);
+  MasterDetector::destroy(slaveDetector.get());
 
   WAIT_UNTIL(slaveRemovedTrigger);
 
   process::terminate(master2);
   process::wait(master2);
+  MasterDetector::destroy(detector2.get());
 }

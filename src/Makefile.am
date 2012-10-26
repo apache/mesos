@@ -212,8 +212,8 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
 	slave/webui.hpp tests/external_test.hpp				\
-	tests/base_zookeeper_test.hpp tests/utils.hpp			\
-	tests/zookeeper_server.hpp zookeeper/authentication.hpp		\
+	tests/zookeeper_test.hpp tests/utils.hpp			\
+	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
 	zookeeper/zookeeper.hpp zookeeper/url.hpp
 
@@ -806,9 +806,8 @@ if OS_LINUX
 endif
 
 if HAS_JAVA
-  mesos_tests_SOURCES += tests/zookeeper_server.cpp		\
-                         tests/base_zookeeper_test.cpp		\
-                         tests/zookeeper_server_tests.cpp	\
+  mesos_tests_SOURCES += tests/zookeeper_test.cpp		\
+                         tests/zookeeper_test_server.cpp	\
                          tests/zookeeper_tests.cpp		\
                          tests/allocator_zookeeper_tests.cpp
   mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)

@@ -22,7 +22,7 @@ namespace internal {
 // Facilitates embedding a jvm and calling into it.
 //
 // TODO(John Sirois): Fix variadic methods.  Possibly a way to do this with
-// typelists, type concatenation and unwinding builder inheritance
+// typelists, type concatenation and unwinding builder inheritance.
 //
 // TODO(John Sirois): Support finding static methods.
 class Jvm
@@ -196,7 +196,7 @@ public:
     ~Attach();
 
   private:
-      Jvm* _jvm;
+    Jvm* _jvm;
   };
 
   friend class Attach;
