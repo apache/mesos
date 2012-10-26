@@ -1234,7 +1234,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   // Create a dummy whitelist, so that no resources will get allocated.
   string hosts = "dummy-slave";
   string path = "whitelist.txt";
-  CHECK (os::write(path, hosts).isSome()) << "Error writing whitelist";
+  ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
   Files files;
   flags::Flags<logging::Flags, master::Flags> flags;
@@ -1275,9 +1275,9 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   // Update the whitelist to include the slave, so that
   // the allocator will start making allocations.
   Try<string> hostname = os::hostname();
-  ASSERT_TRUE(hostname.isSome());
+  ASSERT_SOME(hostname);
   hosts = hostname.get() + "\n" + "dummy-slave";
-  CHECK (os::write(path, hosts).isSome()) << "Error writing whitelist";
+  ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
   // Give the WhitelistWatcher some time to notice that
   // the whitelist has changed.

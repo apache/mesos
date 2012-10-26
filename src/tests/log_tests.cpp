@@ -280,7 +280,7 @@ TEST(CoordinatorTest, Elect)
 
   {
     Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
@@ -319,7 +319,7 @@ TEST(CoordinatorTest, AppendRead)
 
   {
     Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
@@ -328,7 +328,7 @@ TEST(CoordinatorTest, AppendRead)
   {
     Result<uint64_t> result2 =
       coord.append("hello world", Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result2.isSome());
+    ASSERT_SOME(result2);
     position = result2.get();
     EXPECT_EQ(1u, position);
   }
@@ -369,7 +369,7 @@ TEST(CoordinatorTest, AppendReadError)
 
   {
     Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
@@ -378,7 +378,7 @@ TEST(CoordinatorTest, AppendReadError)
   {
     Result<uint64_t> result2 =
       coord.append("hello world", Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result2.isSome());
+    ASSERT_SOME(result2);
     position = result2.get();
     EXPECT_EQ(1u, position);
   }
@@ -448,7 +448,7 @@ TEST(CoordinatorTest, AppendNoQuorum)
 
   {
     Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
@@ -493,7 +493,7 @@ TEST(CoordinatorTest, Failover)
 
   {
     Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
@@ -502,7 +502,7 @@ TEST(CoordinatorTest, Failover)
   {
     Result<uint64_t> result =
       coord1.append("hello world", Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(1u, position);
   }
@@ -516,7 +516,7 @@ TEST(CoordinatorTest, Failover)
 
   {
     Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
@@ -556,7 +556,7 @@ TEST(CoordinatorTest, Demoted)
 
   {
     Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
@@ -565,7 +565,7 @@ TEST(CoordinatorTest, Demoted)
   {
     Result<uint64_t> result =
       coord1.append("hello world", Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(1u, position);
   }
@@ -579,7 +579,7 @@ TEST(CoordinatorTest, Demoted)
 
   {
     Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
@@ -593,7 +593,7 @@ TEST(CoordinatorTest, Demoted)
   {
     Result<uint64_t> result =
       coord2.append("hello hello", Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(2u, position);
   }
@@ -636,7 +636,7 @@ TEST(CoordinatorTest, Fill)
 
   {
     Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
@@ -645,7 +645,7 @@ TEST(CoordinatorTest, Fill)
   {
     Result<uint64_t> result =
       coord1.append("hello world", Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(1u, position);
   }
@@ -663,7 +663,7 @@ TEST(CoordinatorTest, Fill)
     Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
     ASSERT_TRUE(result.isNone());
     result = coord2.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
@@ -715,7 +715,7 @@ TEST(CoordinatorTest, NotLearnedFill)
 
   {
     Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
@@ -724,7 +724,7 @@ TEST(CoordinatorTest, NotLearnedFill)
   {
     Result<uint64_t> result =
       coord1.append("hello world", Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(1u, position);
   }
@@ -742,7 +742,7 @@ TEST(CoordinatorTest, NotLearnedFill)
     Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
     ASSERT_TRUE(result.isNone());
     result = coord2.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
@@ -785,14 +785,14 @@ TEST(CoordinatorTest, MultipleAppends)
 
   {
     Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
       coord.append(stringify(position), Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
@@ -844,14 +844,14 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
 
   {
     Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
       coord1.append(stringify(position), Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
@@ -868,7 +868,7 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
     Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
     ASSERT_TRUE(result.isNone());
     result = coord2.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(10u, result.get());
   }
 
@@ -912,20 +912,20 @@ TEST(CoordinatorTest, Truncate)
 
   {
     Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
       coord.append(stringify(position), Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
     Result<uint64_t> result = coord.truncate(7, Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
 
@@ -984,20 +984,20 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
 
   {
     Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
       coord1.append(stringify(position), Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
     Result<uint64_t> result = coord1.truncate(7, Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
 
@@ -1014,7 +1014,7 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
     Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
     ASSERT_TRUE(result.isNone());
     result = coord2.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
 
@@ -1067,20 +1067,20 @@ TEST(CoordinatorTest, TruncateLearnedFill)
 
   {
     Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
       coord1.append(stringify(position), Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
     Result<uint64_t> result = coord1.truncate(7, Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
 
@@ -1097,7 +1097,7 @@ TEST(CoordinatorTest, TruncateLearnedFill)
     Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
     ASSERT_TRUE(result.isNone());
     result = coord2.elect(Timeout(Seconds(2.0)));
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
 
@@ -1146,14 +1146,14 @@ TEST(LogTest, WriteRead)
   Result<Log::Position> position =
     writer.append("hello world", Timeout(Seconds(2.0)));
 
-  ASSERT_TRUE(position.isSome());
+  ASSERT_SOME(position);
 
   Log::Reader reader(&log);
 
   Result<std::list<Log::Entry> > entries =
     reader.read(position.get(), position.get(), Timeout(Seconds(2.0)));
 
-  ASSERT_TRUE(entries.isSome());
+  ASSERT_SOME(entries);
   ASSERT_EQ(1u, entries.get().size());
   EXPECT_EQ(position.get(), entries.get().front().position);
   EXPECT_EQ("hello world", entries.get().front().data);
@@ -1183,7 +1183,7 @@ TEST(LogTest, Position)
   Result<Log::Position> position =
     writer.append("hello world", Timeout(Seconds(2.0)));
 
-  ASSERT_TRUE(position.isSome());
+  ASSERT_SOME(position);
 
   ASSERT_EQ(position.get(), log.position(position.get().identity()));
 

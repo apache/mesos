@@ -39,6 +39,8 @@
 #include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/stringify.hpp>
+#include <stout/try.hpp>
 
 #include "common/type_utils.hpp"
 
@@ -667,160 +669,287 @@ private:
 
 
 template <typename T>
-std::string assertSomeError(const Option<T>& o)
+::testing::AssertionResult AssertSome(
+    const char* expr,
+    const Option<T>& actual)
 {
-  CHECK(!o.isSome());
-  return "Option is NONE";
-}
-
-
-template <typename T>
-std::string assertSomeError(const Try<T>& t)
-{
-  CHECK(!t.isSome());
-  return t.error();
-}
-
-
-template <typename T>
-std::string assertSomeError(const Result<T>& r)
-{
-  CHECK(!r.isSome());
-  if (r.isNone()) {
-    return "Result is NONE";
+  if (actual.isNone()) {
+    return ::testing::AssertionFailure()
+      << expr << " is NONE";
   }
-  return r.error();
+
+  return ::testing::AssertionSuccess();
 }
 
 
-#define ASSERT_SOME(s)                                    \
-  do {                                                    \
-    typeof(s) __s = (s);                                  \
-    ASSERT_TRUE(__s.isSome()) << assertSomeError(__s);    \
-  } while (false)
+template <typename T>
+::testing::AssertionResult AssertSome(
+    const char* expr,
+    const Try<T>& actual)
+{
+  if (actual.isError()) {
+    return ::testing::AssertionFailure()
+      << expr << ": " << actual.error();
+  }
+
+  return ::testing::AssertionSuccess();
+}
 
 
-#define EXPECT_SOME(s)                                    \
-  do {                                                    \
-    typeof(s) __s = (s);                                  \
-    EXPECT_TRUE(__s.isSome()) << assertSomeError(__s);    \
-  } while (false)
+template <typename T>
+::testing::AssertionResult AssertSome(
+    const char* expr,
+    const Result<T>& actual)
+{
+  if (actual.isNone()) {
+    return ::testing::AssertionFailure()
+      << expr << " is NONE";
+  } else if (actual.isError()) {
+    return ::testing::AssertionFailure()
+      << expr << ": " << actual.error();
+  }
+
+  return ::testing::AssertionSuccess();
+}
 
 
-#define ASSERT_SOME_EQ(expected, s)             \
-  do {                                          \
-    typeof(s) _s = (s);                         \
-    ASSERT_SOME(_s);                            \
-    ASSERT_EQ(expected, _s.get());              \
-  } while (false)
+template <typename T1, typename T2>
+::testing::AssertionResult AssertSomeEq(
+    const char* expectedExpr,
+    const char* actualExpr,
+    const T1& expected,
+    const T2& actual) // Duck typing!
+{
+  const ::testing::AssertionResult result = AssertSome(actualExpr, actual);
+
+  if (result) {
+    if (expected == actual.get()) {
+      return ::testing::AssertionSuccess();
+    } else {
+      return ::testing::AssertionFailure()
+        << "Value of: (" << actualExpr << ").get()\n"
+        << "  Actual: " << ::testing::PrintToString(actual.get()) << "\n"
+        << "Expected: " << expectedExpr << "\n"
+        << "Which is: " << ::testing::PrintToString(expected);
+    }
+  }
+
+  return result;
+}
 
 
-#define EXPECT_SOME_EQ(expected, s)             \
-  do {                                          \
-    typeof(s) _s = (s);                         \
-    ASSERT_SOME(_s);                            \
-    EXPECT_EQ(expected, _s.get());              \
-  } while (false)
+#define ASSERT_SOME(actual)                     \
+  ASSERT_PRED_FORMAT1(AssertSome, actual)
 
 
-#define ASSERT_SOME_TRUE(s)                     \
-  do {                                          \
-    typeof(s) _s = (s);                         \
-    ASSERT_SOME(_s);                            \
-    ASSERT_TRUE(_s.get());                      \
-  } while (false)
+#define EXPECT_SOME(actual)                     \
+  EXPECT_PRED_FORMAT1(AssertSome, actual)
 
 
-#define EXPECT_SOME_TRUE(s)                      \
-  do {                                           \
-    typeof(s) _s = (s);                          \
-    ASSERT_SOME(_s);                             \
-    EXPECT_TRUE(_s.get());                       \
-  } while (false)
+#define ASSERT_SOME_EQ(expected, actual)                \
+  ASSERT_PRED_FORMAT2(AssertSomeEq, expected, actual)
 
 
-#define ASSERT_ERROR(s)                         \
-  ASSERT_TRUE(s.isError())
+#define EXPECT_SOME_EQ(expected, actual)                \
+  EXPECT_PRED_FORMAT2(AssertSomeEq, expected, actual)
 
 
-#define EXPECT_ERROR(s)                         \
-  EXPECT_TRUE(s.isError())
+#define ASSERT_SOME_TRUE(actual)                        \
+  ASSERT_PRED_FORMAT2(AssertSomeEq, true, actual)
 
 
-#define ASSERT_FUTURE_WILL_SUCCEED(future)                      \
-  do {                                                          \
-    typeof(future) __future = (future);                         \
-    ASSERT_TRUE(__future.await());                              \
-    ASSERT_FALSE(__future.isDiscarded());                       \
-    ASSERT_FALSE(__future.isFailed()) << __future.failure();    \
-  } while (false)
+#define EXPECT_SOME_TRUE(actual)                        \
+  EXPECT_PRED_FORMAT2(AssertSomeEq, true, actual)
 
 
-#define EXPECT_FUTURE_WILL_SUCCEED(future)                      \
-  do {                                                          \
-    typeof(future) __future = (future);                         \
-    ASSERT_TRUE(__future.await());                              \
-    EXPECT_FALSE(__future.isDiscarded());                       \
-    EXPECT_FALSE(__future.isFailed()) << __future.failure();    \
-  } while (false)
+#define ASSERT_ERROR(actual)                    \
+  ASSERT_TRUE(actual.isError())
 
 
-#define ASSERT_FUTURE_WILL_FAIL(future)       \
-  do {                                        \
-    typeof(future) __future = (future);       \
-    ASSERT_TRUE(__future.await());            \
-    ASSERT_TRUE(__future.isFailed());         \
-  } while (false)
+#define EXPECT_ERROR(actual)                    \
+  EXPECT_TRUE(actual.isError())
 
 
-#define EXPECT_FUTURE_WILL_FAIL(future)       \
-  do {                                        \
-    typeof(future) __future = (future);       \
-    ASSERT_TRUE(__future.await());            \
-    EXPECT_TRUE(__future.isFailed());         \
-  } while (false)
+template <typename T>
+::testing::AssertionResult AssertFutureWillSucceed(
+    const char* expr,
+    const process::Future<T>& actual)
+{
+  if (!actual.await()) {
+    return ::testing::AssertionFailure()
+      << "Failed to wait for " << expr;
+  } else if (actual.isDiscarded()) {
+    return ::testing::AssertionFailure()
+      << expr << " was discarded";
+  } else if (actual.isFailed()) {
+    return ::testing::AssertionFailure()
+      << expr << ": " << actual.failure();
+  }
+
+  return ::testing::AssertionSuccess();
+}
 
 
-#define ASSERT_FUTURE_WILL_EQ(expected, future) \
-  do {                                          \
-    typeof(future) _future = (future);          \
-    ASSERT_FUTURE_WILL_SUCCEED(_future);        \
-    ASSERT_EQ(expected, _future.get());         \
-  } while (false)
+template <typename T>
+::testing::AssertionResult AssertFutureWillFail(
+    const char* expr,
+    const process::Future<T>& actual)
+{
+  if (!actual.await()) {
+    return ::testing::AssertionFailure()
+      << "Failed to wait for " << expr;
+  } else if (actual.isDiscarded()) {
+    return ::testing::AssertionFailure()
+      << expr << " was discarded";
+  } else if (actual.isReady()) {
+    return ::testing::AssertionFailure()
+      << expr << " is ready (" << ::testing::PrintToString(actual.get()) << ")";
+  }
+
+  return ::testing::AssertionSuccess();
+}
 
 
-#define EXPECT_FUTURE_WILL_EQ(expected, future) \
-  do {                                          \
-    typeof(future) _future = (future);          \
-    ASSERT_FUTURE_WILL_SUCCEED(_future);        \
-    EXPECT_EQ(expected, _future.get());         \
-  } while (false)
+template <typename T1, typename T2>
+::testing::AssertionResult AssertFutureWillEq(
+    const char* expectedExpr,
+    const char* actualExpr,
+    const T1& expected,
+    const process::Future<T2>& actual)
+{
+  const ::testing::AssertionResult result =
+    AssertFutureWillSucceed(actualExpr, actual);
+
+  if (result) {
+    if (expected == actual.get()) {
+      return ::testing::AssertionSuccess();
+    } else {
+      return ::testing::AssertionFailure()
+        << "Value of: (" << actualExpr << ").get()\n"
+        << "  Actual: " << ::testing::PrintToString(actual.get()) << "\n"
+        << "Expected: " << expectedExpr << "\n"
+        << "Which is: " << ::testing::PrintToString(expected);
+    }
+  }
+
+  return result;
+}
 
 
-#define EXPECT_RESPONSE_STATUS_WILL_EQ(expected, future)        \
-  do {                                                          \
-    typeof(future) _future = (future);                          \
-    ASSERT_FUTURE_WILL_SUCCEED(_future);                        \
-    const process::http::Response& response = _future.get();    \
-    EXPECT_EQ(expected, response.status);                       \
-  } while (false)
+#define ASSERT_FUTURE_WILL_SUCCEED(actual)              \
+  ASSERT_PRED_FORMAT1(AssertFutureWillSucceed, actual)
 
 
-#define EXPECT_RESPONSE_BODY_WILL_EQ(expected, future)           \
-  do {                                                           \
-    typeof(future) _future = (future);                           \
-    ASSERT_FUTURE_WILL_SUCCEED(_future);                         \
-    const process::http::Response& response = _future.get();     \
-    EXPECT_EQ(expected, response.body);                          \
-  } while (false);
+#define EXPECT_FUTURE_WILL_SUCCEED(actual)              \
+  EXPECT_PRED_FORMAT1(AssertFutureWillSucceed, actual)
 
 
-#define EXPECT_RESPONSE_HEADER_WILL_EQ(expected, header, future)        \
-  do {                                                                  \
-    typeof(future) _future = future;                                    \
-    ASSERT_FUTURE_WILL_SUCCEED(future);                                 \
-    EXPECT_TRUE(_future.get().headers.contains(header));                \
-    EXPECT_EQ(expected, _future.get().headers.find(header)->second);    \
-  } while (false);
+#define ASSERT_FUTURE_WILL_FAIL(actual)                 \
+  ASSERT_PRED_FORMAT1(AssertFutureWillFail, actual)
+
+
+#define EXPECT_FUTURE_WILL_FAIL(actual)                 \
+  EXPECT_PRED_FORMAT1(AssertFutureWillFail, actual)
+
+
+#define ASSERT_FUTURE_WILL_EQ(expected, actual)                 \
+  ASSERT_PRED_FORMAT2(AssertFutureWillEq, expected, actual)
+
+
+#define EXPECT_FUTURE_WILL_EQ(expected, actual)                 \
+  EXPECT_PRED_FORMAT2(AssertFutureWillEq, expected, actual)
+
+
+inline ::testing::AssertionResult AssertResponseStatusWillEq(
+    const char* expectedExpr,
+    const char* actualExpr,
+    const std::string& expected,
+    const process::Future<process::http::Response>& actual)
+{
+  const ::testing::AssertionResult result =
+    AssertFutureWillSucceed(actualExpr, actual);
+
+  if (result) {
+    if (expected == actual.get().status) {
+      return ::testing::AssertionSuccess();
+    } else {
+      return ::testing::AssertionFailure()
+        << "Value of: (" << actualExpr << ").get().status\n"
+        << "  Actual: " << ::testing::PrintToString(actual.get().status) << "\n"
+        << "Expected: " << expectedExpr << "\n"
+        << "Which is: " << ::testing::PrintToString(expected);
+    }
+  }
+
+  return result;
+}
+
+
+#define EXPECT_RESPONSE_STATUS_WILL_EQ(expected, actual)                \
+  EXPECT_PRED_FORMAT2(AssertResponseStatusWillEq, expected, actual)
+
+
+inline ::testing::AssertionResult AssertResponseBodyWillEq(
+    const char* expectedExpr,
+    const char* actualExpr,
+    const std::string& expected,
+    const process::Future<process::http::Response>& actual)
+{
+  const ::testing::AssertionResult result =
+    AssertFutureWillSucceed(actualExpr, actual);
+
+  if (result) {
+    if (expected == actual.get().body) {
+      return ::testing::AssertionSuccess();
+    } else {
+      return ::testing::AssertionFailure()
+        << "Value of: (" << actualExpr << ").get().body\n"
+        << "  Actual: " << ::testing::PrintToString(actual.get().body) << "\n"
+        << "Expected: " << expectedExpr << "\n"
+        << "Which is: " << ::testing::PrintToString(expected);
+    }
+  }
+
+  return result;
+}
+
+
+#define EXPECT_RESPONSE_BODY_WILL_EQ(expected, actual)           \
+  EXPECT_PRED_FORMAT2(AssertResponseBodyWillEq, expected, actual)
+
+
+inline ::testing::AssertionResult AssertResponseHeaderWillEq(
+    const char* expectedExpr,
+    const char* keyExpr,
+    const char* actualExpr,
+    const std::string& expected,
+    const std::string& key,
+    const process::Future<process::http::Response>& actual)
+{
+  const ::testing::AssertionResult result =
+    AssertFutureWillSucceed(actualExpr, actual);
+
+  if (result) {
+    const Option<std::string> value = actual.get().headers.get(key);
+    if (value.isNone()) {
+      return ::testing::AssertionFailure()
+        << "Response does not contain header '" << key << "'";
+    } else if (expected == value.get()) {
+      return ::testing::AssertionSuccess();
+    } else {
+      return ::testing::AssertionFailure()
+        << "Value of: (" << actualExpr << ").get().headers[" << keyExpr << "]\n"
+        << "  Actual: " << ::testing::PrintToString(value.get()) << "\n"
+        << "Expected: " << expectedExpr << "\n"
+        << "Which is: " << ::testing::PrintToString(expected);
+    }
+  }
+
+  return result;
+}
+
+
+#define EXPECT_RESPONSE_HEADER_WILL_EQ(expected, key, actual)        \
+  EXPECT_PRED_FORMAT3(AssertResponseHeaderWillEq, expected, key, actual)
 
 #endif // __TESTING_UTILS_HPP__

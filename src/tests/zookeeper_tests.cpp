@@ -176,7 +176,7 @@ TEST_F(ZooKeeperTest, MasterDetector)
   Try<MasterDetector*> detector =
     MasterDetector::create(master, mock.self(), true, true);
 
-  EXPECT_TRUE(detector.isSome()) << detector.error();
+  EXPECT_SOME(detector);
 
   WAIT_UNTIL(newMasterDetectedCall);
 
@@ -201,7 +201,7 @@ TEST_F(ZooKeeperTest, MasterDetectors)
   Try<MasterDetector*> detector1 =
     MasterDetector::create(master, mock1.self(), true, true);
 
-  EXPECT_TRUE(detector1.isSome()) << detector1.error();
+  EXPECT_SOME(detector1);
 
   WAIT_UNTIL(newMasterDetectedCall1);
 
@@ -215,7 +215,7 @@ TEST_F(ZooKeeperTest, MasterDetectors)
   Try<MasterDetector*> detector2 =
     MasterDetector::create(master, mock2.self(), true, true);
 
-  EXPECT_TRUE(detector2.isSome()) << detector2.error();
+  EXPECT_SOME(detector2);
 
   WAIT_UNTIL(newMasterDetectedCall2);
 
@@ -252,7 +252,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
   Try<MasterDetector*> detector =
     MasterDetector::create(master, mock.self(), true, true);
 
-  EXPECT_TRUE(detector.isSome()) << detector.error();
+  EXPECT_SOME(detector);
 
   WAIT_UNTIL(newMasterDetectedCall1);
 
@@ -428,7 +428,7 @@ TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
   process::Future<Option<int64_t> > session = group.session();
 
   ASSERT_FUTURE_WILL_SUCCEED(session);
-  ASSERT_TRUE(session.get().isSome());
+  ASSERT_SOME(session.get());
 
   memberships = group.watch(memberships.get());
 
@@ -486,7 +486,7 @@ TEST_F(ZooKeeperTest, MultipleGroups)
   process::Future<Option<int64_t> > session1 = group1.session();
 
   ASSERT_FUTURE_WILL_SUCCEED(session1);
-  ASSERT_TRUE(session1.get().isSome());
+  ASSERT_SOME(session1.get());
 
   zks->expireSession(session1.get().get());
 

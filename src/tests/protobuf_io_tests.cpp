@@ -27,6 +27,8 @@
 
 #include "messages/messages.hpp"
 
+#include "tests/utils.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 
@@ -38,13 +40,13 @@ TEST(ProtobufIOTest, Basic)
   Try<int> result = os::open(file, O_CREAT | O_WRONLY | O_SYNC,
                              S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
-  ASSERT_TRUE(result.isSome());
+  ASSERT_SOME(result);
   int fdw = result.get();
 
   result = os::open(file, O_CREAT | O_RDONLY,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
-  ASSERT_TRUE(result.isSome());
+  ASSERT_SOME(result);
   int fdr = result.get();
 
   const int writes = 10;
@@ -53,14 +55,14 @@ TEST(ProtobufIOTest, Basic)
     FrameworkID frameworkId;
     frameworkId.set_value(stringify(i));
     Try<bool> result = protobuf::write(fdw, frameworkId);
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_TRUE(result.get());
   }
 
   for (int i = 0; i < writes; i++) {
     FrameworkID frameworkId;
     Result<bool> result = protobuf::read(fdr, &frameworkId);
-    ASSERT_TRUE(result.isSome());
+    ASSERT_SOME(result);
     EXPECT_TRUE(result.get());
     EXPECT_EQ(frameworkId.value(), stringify(i));
   }

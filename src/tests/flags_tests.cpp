@@ -30,6 +30,8 @@
 
 #include "flags/flags.hpp"
 
+#include "tests/utils.hpp"
+
 using namespace flags;
 
 class TestFlags : public virtual FlagsBase
@@ -86,9 +88,9 @@ TEST(FlagsTest, Load)
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
   EXPECT_FALSE(flags.name3);
-  ASSERT_TRUE(flags.name4.isSome());
+  ASSERT_SOME(flags.name4);
   EXPECT_FALSE(flags.name4.get());
-  ASSERT_TRUE(flags.name5.isSome());
+  ASSERT_SOME(flags.name5);
   EXPECT_TRUE(flags.name5.get());
 }
 
@@ -123,7 +125,7 @@ TEST(FlagsTest, Add)
 
   flags.load(values);
 
-  ASSERT_TRUE(name6.isSome());
+  ASSERT_SOME(name6);
   EXPECT_EQ("ben folds", name6.get());
 
   EXPECT_FALSE(name7);
@@ -149,9 +151,9 @@ TEST(FlagsTest, Flags)
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
   EXPECT_FALSE(flags.name3);
-  ASSERT_TRUE(flags.name4.isSome());
+  ASSERT_SOME(flags.name4);
   EXPECT_FALSE(flags.name4.get());
-  ASSERT_TRUE(flags.name5.isSome());
+  ASSERT_SOME(flags.name5);
   EXPECT_TRUE(flags.name5.get());
 }
 
@@ -183,9 +185,9 @@ TEST(FlagsTest, Configurator)
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
   EXPECT_FALSE(flags.name3);
-  ASSERT_TRUE(flags.name4.isSome());
+  ASSERT_SOME(flags.name4);
   EXPECT_FALSE(flags.name4.get());
-  ASSERT_TRUE(flags.name5.isSome());
+  ASSERT_SOME(flags.name5);
   EXPECT_TRUE(flags.name5.get());
 }
 
@@ -216,6 +218,6 @@ TEST(FlagsTest, Duration)
 
   EXPECT_EQ(Minutes(2), name6);
 
-  ASSERT_TRUE(name7.isSome());
+  ASSERT_SOME(name7);
   EXPECT_EQ(Hours(3), name7.get());
 }

@@ -26,6 +26,8 @@
 
 #include "linux/proc.hpp"
 
+#include "tests/utils.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 
@@ -39,7 +41,7 @@ TEST(ProcTest, Pids)
 {
   Try<set<pid_t> > pids = proc::pids();
 
-  ASSERT_TRUE(pids.isSome());
+  ASSERT_SOME(pids);
   EXPECT_NE(0u, pids.get().size());
   EXPECT_EQ(1u, pids.get().count(getpid()));
   EXPECT_EQ(1u, pids.get().count(1));
@@ -50,7 +52,7 @@ TEST(ProcTest, SystemStatistics)
 {
   Try<SystemStatistics> statistics = proc::stat();
 
-  ASSERT_TRUE(statistics.isSome());
+  ASSERT_SOME(statistics);
   EXPECT_NE(0u, statistics.get().btime);
 }
 
@@ -59,7 +61,7 @@ TEST(ProcTest, ProcessStatistics)
 {
   Try<ProcessStatistics> statistics = proc::stat(getpid());
 
-  ASSERT_TRUE(statistics.isSome());
+  ASSERT_SOME(statistics);
   EXPECT_EQ(getpid(), statistics.get().pid);
   EXPECT_EQ(getppid(), statistics.get().ppid);
 }

@@ -89,7 +89,7 @@ TEST(MasterDetector, File)
 
   os::rm(path);
 
-  ASSERT_TRUE(detector2.isSome());
+  ASSERT_SOME(detector2);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);

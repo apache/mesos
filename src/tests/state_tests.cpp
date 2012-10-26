@@ -75,7 +75,7 @@ void GetSetGet(State<ProtobufSerializer>* state)
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  ASSERT_TRUE(result.get().isSome());
+  ASSERT_SOME(result.get());
 
   variable = state->get<Slaves>("slaves");
 
@@ -114,7 +114,7 @@ void GetSetSetGet(State<ProtobufSerializer>* state)
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  ASSERT_TRUE(result.get().isSome());
+  ASSERT_SOME(result.get());
 
   slaves1 = result.get().get();
 
@@ -123,7 +123,7 @@ void GetSetSetGet(State<ProtobufSerializer>* state)
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  ASSERT_TRUE(result.get().isSome());
+  ASSERT_SOME(result.get());
 
   variable = state->get<Slaves>("slaves");
 
@@ -172,7 +172,7 @@ void GetGetSetSetGet(State<ProtobufSerializer>* state)
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  ASSERT_TRUE(result.get().isSome());
+  ASSERT_SOME(result.get());
 
   SlaveInfo info1;
   info1.set_hostname("localhost1");
@@ -224,7 +224,7 @@ void Names(State<ProtobufSerializer>* state)
   result.await();
 
   ASSERT_TRUE(result.isReady());
-  EXPECT_TRUE(result.get().isSome());
+  EXPECT_SOME(result.get());
 
   Future<std::vector<std::string> > names = state->names();
 

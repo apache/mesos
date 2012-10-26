@@ -831,9 +831,9 @@ TEST_F(WhitelistFixture, WhitelistSlave)
 
   // Add some hosts to the white list.
   Try<string> hostname = os::hostname();
-  ASSERT_TRUE(hostname.isSome());
+  ASSERT_SOME(hostname);
   string hosts = hostname.get() + "\n" + "dummy-slave";
-  CHECK (os::write(path, hosts).isSome()) << "Error writing whitelist";
+  ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
   TestAllocatorProcess a;
   Files files;

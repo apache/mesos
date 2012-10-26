@@ -26,6 +26,8 @@
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
+#include "tests/utils.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -119,7 +121,7 @@ TEST_F(SlaveStateFixture, parse)
 
   // Write process pid files.
   const string& executorDir = result;
-  ASSERT_TRUE(os::mkdir(executorDir + "/pids").isSome());
+  ASSERT_SOME(os::mkdir(executorDir + "/pids"));
 
   const string& libpidPath = paths::getLibprocessPIDPath(rootDir, slaveId,
                                                          frameworkId, executorId,
@@ -141,7 +143,7 @@ TEST_F(SlaveStateFixture, parse)
   const string& taskDir = paths::getTaskPath(rootDir, slaveId, frameworkId,
                                              executorId, run, taskId);
 
-  ASSERT_TRUE(os::mkdir(taskDir).isSome());
+  ASSERT_SOME(os::mkdir(taskDir));
 
   const string& infoPath = paths::getTaskInfoPath(rootDir, slaveId, frameworkId,
                                                   executorId, run, taskId);

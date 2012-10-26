@@ -26,6 +26,8 @@
 
 #include "linux/fs.hpp"
 
+#include "tests/utils.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 
@@ -37,7 +39,7 @@ TEST(FsTest, MountTableRead)
 {
   Try<MountTable> table = MountTable::read(_PATH_MOUNTED);
 
-  ASSERT_TRUE(table.isSome());
+  ASSERT_SOME(table);
 
   Option<MountTable::Entry> root = Option<MountTable::Entry>::none();
   Option<MountTable::Entry> proc = Option<MountTable::Entry>::none();
@@ -49,8 +51,8 @@ TEST(FsTest, MountTableRead)
     }
   }
 
-  EXPECT_TRUE(root.isSome());
-  ASSERT_TRUE(proc.isSome());
+  EXPECT_SOME(root);
+  ASSERT_SOME(proc);
   EXPECT_EQ(proc.get().type, "proc");
 }
 
@@ -59,7 +61,7 @@ TEST(FsTest, MountTableHasOption)
 {
   Try<MountTable> table = MountTable::read(_PATH_MOUNTED);
 
-  ASSERT_TRUE(table.isSome());
+  ASSERT_SOME(table);
 
   Option<MountTable::Entry> proc = Option<MountTable::Entry>::none();
   foreach (const MountTable::Entry& entry, table.get().entries) {
@@ -68,7 +70,7 @@ TEST(FsTest, MountTableHasOption)
     }
   }
 
-  ASSERT_TRUE(proc.isSome());
+  ASSERT_SOME(proc);
   EXPECT_TRUE(proc.get().hasOption(MNTOPT_RW));
 }
 
@@ -77,7 +79,7 @@ TEST(FsTest, FileSystemTableRead)
 {
   Try<FileSystemTable> table = FileSystemTable::read();
 
-  ASSERT_TRUE(table.isSome());
+  ASSERT_SOME(table);
 
   // NOTE: We do not check for /proc because, it is not always present in
   // /etc/fstab.
@@ -88,5 +90,5 @@ TEST(FsTest, FileSystemTableRead)
     }
   }
 
-  EXPECT_TRUE(root.isSome());
+  EXPECT_SOME(root);
 }

@@ -24,13 +24,15 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#include "tests/utils.hpp"
+
 using namespace std;
 
 
 TEST(Stout, Duration)
 {
   Try<Duration> _3hrs = Duration::parse("3hrs");
-  ASSERT_TRUE(_3hrs.isSome());
+  ASSERT_SOME(_3hrs);
 
   EXPECT_EQ(Hours(3.0), _3hrs.get());
   EXPECT_EQ(Minutes(180.0), _3hrs.get());
@@ -49,7 +51,7 @@ TEST(Stout, Duration)
   EXPECT_NE(Minutes(59.0), Hours(1.0));
 
   Try<Duration> _3_5hrs = Duration::parse("3.5hrs");
-  ASSERT_TRUE(_3_5hrs.isSome());
+  ASSERT_SOME(_3_5hrs);
 
   EXPECT_EQ(Hours(3.5), _3_5hrs.get());
 }
@@ -58,21 +60,21 @@ TEST(Stout, Duration)
 TEST(StoutStringsTest, Format)
 {
   Try<std::string> result = strings::format("%s %s", "hello", "world");
-  ASSERT_TRUE(result.isSome());
+  ASSERT_SOME(result);
   EXPECT_EQ("hello world", result.get());
 
   result = strings::format("hello %d", 42);
-  ASSERT_TRUE(result.isSome());
+  ASSERT_SOME(result);
   EXPECT_EQ("hello 42", result.get());
 
   result = strings::format("hello %s", "fourty-two");
-  ASSERT_TRUE(result.isSome());
+  ASSERT_SOME(result);
   EXPECT_EQ("hello fourty-two", result.get());
 
   string hello = "hello";
 
   result = strings::format("%s %s", hello, "fourty-two");
-  ASSERT_TRUE(result.isSome());
+  ASSERT_SOME(result);
   EXPECT_EQ("hello fourty-two", result.get());
 }
 
@@ -356,20 +358,20 @@ TEST_F(StoutUtilsTest, nonblock)
   Try<bool> isNonBlock = false;
 
   isNonBlock = os::isNonblock(pipes[0]);
-  ASSERT_TRUE(isNonBlock.isSome());
+  ASSERT_SOME(isNonBlock);
   EXPECT_FALSE(isNonBlock.get());
 
-  ASSERT_TRUE(os::nonblock(pipes[0]).isSome());
+  ASSERT_SOME(os::nonblock(pipes[0]));
 
   isNonBlock = os::isNonblock(pipes[0]);
-  ASSERT_TRUE(isNonBlock.isSome());
+  ASSERT_SOME(isNonBlock);
   EXPECT_TRUE(isNonBlock.get());
 
   close(pipes[0]);
   close(pipes[1]);
 
-  EXPECT_TRUE(os::nonblock(pipes[0]).isError());
-  EXPECT_TRUE(os::nonblock(pipes[0]).isError());
+  EXPECT_ERROR(os::nonblock(pipes[0]));
+  EXPECT_ERROR(os::nonblock(pipes[0]));
 }
 
 
@@ -377,7 +379,7 @@ TEST_F(StoutUtilsTest, touch)
 {
   const std::string& testfile  = tmpdir + "/" + UUID::random().toString();
 
-  ASSERT_TRUE(os::touch(testfile).isSome());
+  ASSERT_SOME(os::touch(testfile));
   ASSERT_TRUE(os::exists(testfile));
 }
 
@@ -387,11 +389,11 @@ TEST_F(StoutUtilsTest, readWriteString)
   const std::string& testfile  = tmpdir + "/" + UUID::random().toString();
   const std::string& teststr = "test";
 
-  ASSERT_TRUE(os::write(testfile, teststr).isSome());
+  ASSERT_SOME(os::write(testfile, teststr));
 
   Result<std::string> readstr = os::read(testfile);
 
-  ASSERT_TRUE(readstr.isSome());
+  ASSERT_SOME(readstr);
   EXPECT_EQ(teststr, readstr.get());
 }
 
@@ -400,20 +402,20 @@ TEST_F(StoutUtilsTest, find)
 {
   const std::string& testdir  = tmpdir + "/" + UUID::random().toString();
   const std::string& subdir = testdir + "/test1";
-  ASSERT_TRUE(os::mkdir(subdir).isSome()); // Create the directories.
+  ASSERT_SOME(os::mkdir(subdir)); // Create the directories.
 
   // Now write some files.
   const std::string& file1 = testdir + "/file1.txt";
   const std::string& file2 = subdir + "/file2.txt";
   const std::string& file3 = subdir + "/file3.jpg";
 
-  ASSERT_TRUE(os::touch(file1).isSome());
-  ASSERT_TRUE(os::touch(file2).isSome());
-  ASSERT_TRUE(os::touch(file3).isSome());
+  ASSERT_SOME(os::touch(file1));
+  ASSERT_SOME(os::touch(file2));
+  ASSERT_SOME(os::touch(file3));
 
   // Find "*.txt" files.
   Try<std::list<std::string> > result = os::find(testdir, ".txt");
-  ASSERT_TRUE(result.isSome());
+  ASSERT_SOME(result);
 
   hashset<std::string> files;
   foreach (const std::string& file, result.get()) {
@@ -430,7 +432,7 @@ TEST_F(StoutUtilsTest, uname)
 {
   Try<os::UTSInfo> info = os::uname();
 
-  ASSERT_TRUE(info.isSome());
+  ASSERT_SOME(info);
 #ifdef __linux__
   EXPECT_EQ(info.get().sysname, "Linux");
 #endif
@@ -444,7 +446,7 @@ TEST_F(StoutUtilsTest, sysname)
 {
   Try<std::string> name = os::sysname();
 
-  ASSERT_TRUE(name.isSome());
+  ASSERT_SOME(name);
 #ifdef __linux__
   EXPECT_EQ(name.get(), "Linux");
 #endif
@@ -458,7 +460,7 @@ TEST_F(StoutUtilsTest, release)
 {
   Try<os::Release> info = os::release();
 
-  ASSERT_TRUE(info.isSome());
+  ASSERT_SOME(info);
 }
 
 

@@ -38,13 +38,13 @@ TEST(ValuesTest, ValidInput)
 {
   // Test parsing scalar type.
   Try<Value> result1 = parse("45.55");
-  ASSERT_TRUE(result1.isSome());
+  ASSERT_SOME(result1);
   ASSERT_EQ(Value::SCALAR, result1.get().type());
   EXPECT_EQ(45.55, result1.get().scalar().value());
 
   // Test parsing ranges type.
   Try<Value> result2 = parse("[10000-20000, 30000-50000]");
-  ASSERT_TRUE(result2.isSome());
+  ASSERT_SOME(result2);
   ASSERT_EQ(Value::RANGES, result2.get().type());
   EXPECT_EQ(2, result2.get().ranges().range_size());
   EXPECT_EQ(10000, result2.get().ranges().range(0).begin());
@@ -54,7 +54,7 @@ TEST(ValuesTest, ValidInput)
 
   // Test parsing set type.
   Try<Value> result3 = parse("{sda1, sda2}");
-  ASSERT_TRUE(result3.isSome());
+  ASSERT_SOME(result3);
   ASSERT_EQ(Value::SET, result3.get().type());
   ASSERT_EQ(2, result3.get().set().item_size());
   EXPECT_EQ("sda1", result3.get().set().item(0));
@@ -62,7 +62,7 @@ TEST(ValuesTest, ValidInput)
 
   // Test parsing text type.
   Try<Value> result4 = parse("123abc,s");
-  ASSERT_TRUE(result4.isSome());
+  ASSERT_SOME(result4);
   ASSERT_EQ(Value::TEXT, result4.get().type());
   ASSERT_EQ("123abc,s", result4.get().text().value());
 }
