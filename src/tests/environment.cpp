@@ -20,16 +20,33 @@
 
 #include <string>
 
+#include <process/clock.hpp>
+
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
 #include "configurator/configurator.hpp"
 
 #include "tests/environment.hpp"
+#include "tests/filter.hpp"
 
 namespace mesos {
 namespace internal {
 namespace tests {
+
+// A simple test event listener that makes sure to resume the clock
+// after each test even if the previous test had a partial result
+// (i.e., an ASSERT_* failed).
+class ClockTestEventListener : public ::testing::EmptyTestEventListener
+{
+public:
+  virtual void OnTestEnd(const ::testing::TestInfo&)
+  {
+    if (process::Clock::paused()) {
+      process::Clock::resume();
+    }
+  }
+};
 
 // Returns true if we should enable a test case or test with the given
 // name. For now, this ONLY disables test cases and tests in two
@@ -59,7 +76,7 @@ static bool enable(const std::string& name)
 // Setup special tests by updating the gtest filter (i.e., selectively
 // enable/disable tests based on certain "environmental" criteria,
 // such as whether or not the machine has 'cgroups' support).
-static void setupFilter()
+static void setupGtestFilter()
 {
   // First we split the current filter into positive and negative
   // components (which are separated by a '-').
@@ -106,12 +123,19 @@ void Environment::SetUp()
   // Clear any MESOS_ environment variables so they don't affect our tests.
   Configurator::clearMesosEnvironmentVars();
 
-  // Setup specific tests by updating the filter. We do this so that
-  // we can selectively run tests that require root or specific OS
-  // support (e.g., cgroups). Note that this should not effect any
+  // Setup specific tests by updating the gtest filter. We do this so
+  // that we can selectively run tests that require root or specific
+  // OS support (e.g., cgroups). Note that this should not effect any
   // other filters that have been put in place either on the command
   // line or via an environment variable.
-  setupFilter();
+  setupGtestFilter();
+
+  // Add our test event listeners.
+  ::testing::TestEventListeners& listeners =
+    ::testing::UnitTest::GetInstance()->listeners();
+
+  listeners.Append(new FilterTestEventListener());
+  listeners.Append(new ClockTestEventListener());
 }
 
 

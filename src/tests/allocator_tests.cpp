@@ -29,6 +29,7 @@
 
 #include "slave/process_based_isolation_module.hpp"
 
+#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -568,10 +569,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 
 TYPED_TEST(AllocatorTest, SchedulerFailover)
 {
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, Eq(UnregisterFrameworkMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(UnregisterFrameworkMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   EXPECT_CALL(this->allocator, initialize(_, _));
@@ -703,8 +701,6 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   process::terminate(master);
   process::wait(master);
-
-  process::filter(NULL);
 }
 
 

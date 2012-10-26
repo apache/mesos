@@ -37,14 +37,10 @@ namespace mesos {
 namespace internal {
 namespace log {
 
-using namespace process;
-
 class Coordinator
 {
 public:
-  Coordinator(int quorum,
-              Replica* replica,
-              Network* group);
+  Coordinator(int quorum, Replica* replica, Network* group);
 
   ~Coordinator();
 
@@ -52,43 +48,45 @@ public:
   // coordinator failed to achieve a quorum (e.g., due to timeout) but
   // can be retried. A some result returns the last committed log
   // position.
-  Result<uint64_t> elect(const Timeout& timeout);
+  Result<uint64_t> elect(const process::Timeout& timeout);
   Result<uint64_t> demote();
 
   // Returns the result of trying to append the specified bytes. A
   // result of none means the append failed (e.g., due to timeout),
   // but can be retried.
-  Result<uint64_t> append(const std::string& bytes, const Timeout& timeout);
+  Result<uint64_t> append(
+      const std::string& bytes,
+      const process::Timeout& timeout);
 
   // Returns the result of trying to truncate the log (from the
   // beginning to the specified position exclusive). A result of
   // none means the truncate failed (e.g., due to timeout), but can be
   // retried.
-  Result<uint64_t> truncate(uint64_t to, const Timeout& timeout);
+  Result<uint64_t> truncate(uint64_t to, const process::Timeout& timeout);
 
 private:
   // Helper that tries to achieve consensus of the specified action. A
   // result of none means the write failed (e.g., due to timeout), but
   // can be retried.
-  Result<uint64_t> write(const Action& action, const Timeout& timeout);
+  Result<uint64_t> write(const Action& action, const process::Timeout& timeout);
 
   // Helper that handles commiting an action (i.e., writing to the
   // local replica and then sending out learned messages).
   Result<uint64_t> commit(const Action& action);
 
   // Helper that tries to fill a position in the log.
-  Result<Action> fill(uint64_t position, const Timeout& timeout);
+  Result<Action> fill(uint64_t position, const process::Timeout& timeout);
 
   // Helper that uses the specified protocol to broadcast a request to
   // our group and return a set of futures.
   template <typename Req, typename Res>
-  std::set<Future<Res> > broadcast(
+  std::set<process::Future<Res> > broadcast(
       const Protocol<Req, Res>& protocol,
       const Req& req);
 
   // Helper like broadcast, but excludes our local replica.
   template <typename Req, typename Res>
-  std::set<Future<Res> > remotecast(
+  std::set<process::Future<Res> > remotecast(
       const Protocol<Req, Res>& protocol,
       const Req& req);
 

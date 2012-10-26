@@ -423,48 +423,6 @@ inline const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, in
 }
 
 
-// Definition of a mock Filter so that messages can act as triggers.
-class MockFilter : public process::Filter
-{
-public:
-  MockFilter()
-  {
-    EXPECT_CALL(*this, filter(testing::A<const process::MessageEvent&>()))
-      .WillRepeatedly(testing::Return(false));
-    EXPECT_CALL(*this, filter(testing::A<const process::DispatchEvent&>()))
-      .WillRepeatedly(testing::Return(false));
-    EXPECT_CALL(*this, filter(testing::A<const process::HttpEvent&>()))
-      .WillRepeatedly(testing::Return(false));
-    EXPECT_CALL(*this, filter(testing::A<const process::ExitedEvent&>()))
-      .WillRepeatedly(testing::Return(false));
-  }
-
-  MOCK_METHOD1(filter, bool(const process::MessageEvent&));
-  MOCK_METHOD1(filter, bool(const process::DispatchEvent&));
-  MOCK_METHOD1(filter, bool(const process::HttpEvent&));
-  MOCK_METHOD1(filter, bool(const process::ExitedEvent&));
-};
-
-
-// A message can be matched against in conjunction with the MockFilter
-// (see above) to perform specific actions based for messages.
-MATCHER_P3(MsgMatcher, name, from, to, "")
-{
-  const process::MessageEvent& event = ::std::tr1::get<0>(arg);
-  return (testing::Matcher<std::string>(name).Matches(event.message->name) &&
-          testing::Matcher<process::UPID>(from).Matches(event.message->from) &&
-          testing::Matcher<process::UPID>(to).Matches(event.message->to));
-}
-
-
-// This macro provides some syntactic sugar for matching messages
-// using the message matcher (see above) as well as the MockFilter
-// (see above). We should also add EXPECT_DISPATCH, EXPECT_HTTP, etc.
-#define EXPECT_MESSAGE(mockFilter, name, from, to)              \
-  EXPECT_CALL(mockFilter, filter(testing::A<const process::MessageEvent&>())) \
-    .With(MsgMatcher(name, from, to))
-
-
 ACTION_TEMPLATE(SaveArgField,
                 HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_2_VALUE_PARAMS(field, pointer))

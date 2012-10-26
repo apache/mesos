@@ -23,6 +23,7 @@
 #include "master/allocator.hpp"
 #include "master/master.hpp"
 
+#include "tests/filter.hpp"
 #include "tests/zookeeper_test.hpp"
 #include "tests/utils.hpp"
 
@@ -84,15 +85,12 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   EXPECT_CALL(this->allocator2, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  MockFilter filter;
-  process::filter(&filter);
-
   trigger shutdownMessageTrigger;
-  EXPECT_MESSAGE(filter, Eq(ShutdownMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _)
     .WillRepeatedly(DoAll(Trigger(&shutdownMessageTrigger),
 			  Return(true)));
 
-  EXPECT_MESSAGE(filter, Eq(ReregisterSlaveMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(ReregisterSlaveMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   Files files;
@@ -235,15 +233,12 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   EXPECT_CALL(this->allocator2, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  MockFilter filter;
-  process::filter(&filter);
-
   trigger shutdownMessageTrigger;
-  EXPECT_MESSAGE(filter, Eq(ShutdownMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _)
     .WillRepeatedly(DoAll(Trigger(&shutdownMessageTrigger),
 			  Return(true)));
 
-  EXPECT_MESSAGE(filter, Eq(ReregisterFrameworkMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(ReregisterFrameworkMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   Files files;

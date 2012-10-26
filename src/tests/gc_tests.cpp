@@ -41,6 +41,7 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
+#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -84,11 +85,6 @@ protected:
   {
     ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-    process::filter(&filter);
-
-    EXPECT_MESSAGE(filter, _, _, _)
-      .WillRepeatedly(Return(false));
-
     a = new TestAllocatorProcess();
     files = new Files();
     m = new Master(a, files);
@@ -106,7 +102,6 @@ protected:
     delete m;
     delete a;
     delete files;
-    process::filter(NULL);
 
     os::rmdir(flags.work_dir);
   }
@@ -149,7 +144,6 @@ protected:
   MockScheduler sched;
   SlaveRegisteredMessage registeredMsg;
   TaskStatus status;
-  MockFilter filter;
   PID<Master> master;
   PID<Slave> slave;
   static flags::Flags<logging::Flags, slave::Flags> flags;
@@ -169,7 +163,7 @@ TEST_F(GarbageCollectorTest, Restart)
   // Messages expectations.
   process::Message message;
   trigger slaveRegisteredMsg1, slaveRegisteredMsg2;
-  EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(
         SaveArgField<0>(&process::MessageEvent::message, &message),
         Trigger(&slaveRegisteredMsg1),
@@ -177,7 +171,7 @@ TEST_F(GarbageCollectorTest, Restart)
     .WillOnce(DoAll(Trigger(&slaveRegisteredMsg2), Return(false)));
 
   trigger lostSlaveMsg;
-  EXPECT_MESSAGE(filter, Eq(LostSlaveMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(LostSlaveMessage().GetTypeName()), _, _)
     .WillRepeatedly(DoAll(Trigger(&lostSlaveMsg), Return(false)));
 
   // Executor expectations.
@@ -262,7 +256,7 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
 {
   // Messages expectations.
   trigger exitedExecutorMsg;
-  EXPECT_MESSAGE(filter, Eq(ExitedExecutorMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(ExitedExecutorMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&exitedExecutorMsg), Return(false)));
 
   // Executor expectations.
@@ -340,7 +334,7 @@ TEST_F(GarbageCollectorTest, DiskUsage)
 {
   // Messages expectations.
   trigger exitedExecutorMsg;
-  EXPECT_MESSAGE(filter, Eq(ExitedExecutorMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(ExitedExecutorMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&exitedExecutorMsg), Return(false)));
 
   // Executor expectations.

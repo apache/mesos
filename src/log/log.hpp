@@ -122,7 +122,7 @@ public:
     // those positions are invalid, in which case returns an error.
     Result<std::list<Entry> > read(const Position& from,
                                    const Position& to,
-                                   const Timeout& timeout);
+                                   const process::Timeout& timeout);
 
     // Returns the beginning position of the log from the perspective
     // of the local replica (which may be out of date if the log has
@@ -153,13 +153,17 @@ public:
     // means the operation timed out, otherwise the new ending
     // position of the log is returned or an error. Upon error a new
     // Writer must be created.
-    Result<Position> append(const std::string& data, const Timeout& timeout);
+    Result<Position> append(
+        const std::string& data,
+        const process::Timeout& timeout);
 
     // Attempts to truncate the log up to but not including the
     // specificed position. A none result means the operation timed
     // out, otherwise the new ending position of the log is returned
     // or an error. Upon error a new Writer must be created.
-    Result<Position> truncate(const Position& to, const Timeout& timeout);
+    Result<Position> truncate(
+        const Position& to,
+        const process::Timeout& timeout);
 
   private:
     Option<std::string> error;
@@ -276,7 +280,7 @@ Log::Reader::~Reader() {}
 Result<std::list<Log::Entry> > Log::Reader::read(
     const Log::Position& from,
     const Log::Position& to,
-    const Timeout& timeout)
+    const process::Timeout& timeout)
 {
   process::Future<std::list<Action> > actions =
     replica->read(from.value, to.value);
@@ -341,7 +345,7 @@ Log::Writer::Writer(Log* log, const Duration& timeout, int retries)
     coordinator(log->quorum, log->replica, log->network)
 {
   do {
-    Result<uint64_t> result = coordinator.elect(Timeout(timeout));
+    Result<uint64_t> result = coordinator.elect(process::Timeout(timeout));
     if (result.isNone()) {
       retries--;
     } else if (result.isSome()) {
@@ -362,7 +366,7 @@ Log::Writer::~Writer()
 
 Result<Log::Position> Log::Writer::append(
     const std::string& data,
-    const Timeout& timeout)
+    const process::Timeout& timeout)
 {
   if (error.isSome()) {
     return Result<Log::Position>::error(error.get());
@@ -387,7 +391,7 @@ Result<Log::Position> Log::Writer::append(
 
 Result<Log::Position> Log::Writer::truncate(
     const Log::Position& to,
-    const Timeout& timeout)
+    const process::Timeout& timeout)
 {
   if (error.isSome()) {
     return Result<Log::Position>::error(error.get());

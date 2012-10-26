@@ -41,6 +41,7 @@
 
 #include "slave/slave.hpp"
 
+#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -664,12 +665,6 @@ TEST(MasterTest, MasterInfo)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
   TestAllocatorProcess a;
   Files files;
   Master m(&a, &files);
@@ -718,20 +713,12 @@ TEST(MasterTest, MasterInfo)
 
   process::terminate(master);
   process::wait(master);
-
-  process::filter(NULL);
 }
 
 
 TEST(MasterTest, MasterInfoOnReElection)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
   Files files;
@@ -770,7 +757,7 @@ TEST(MasterTest, MasterInfoOnReElection)
 
   process::Message message;
 
-  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
                     Return(false)));
 
@@ -798,8 +785,6 @@ TEST(MasterTest, MasterInfoOnReElection)
 
   process::terminate(master);
   process::wait(master);
-
-  process::filter(NULL);
 }
 
 
@@ -823,12 +808,6 @@ TEST_F(WhitelistFixture, WhitelistSlave)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
   // Add some hosts to the white list.
   Try<string> hostname = os::hostname();
   ASSERT_SOME(hostname);
@@ -844,7 +823,7 @@ TEST_F(WhitelistFixture, WhitelistSlave)
 
   trigger slaveRegisteredMsg;
 
-  EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&slaveRegisteredMsg), Return(false)));
 
   MockExecutor exec;
@@ -889,8 +868,6 @@ TEST_F(WhitelistFixture, WhitelistSlave)
 
   process::terminate(master);
   process::wait(master);
-
-  process::filter(NULL);
 }
 
 
@@ -912,12 +889,6 @@ public:
 TEST(MasterTest, MasterLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
   Files files;
@@ -956,7 +927,7 @@ TEST(MasterTest, MasterLost)
 
   process::Message message;
 
-  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
                     Return(false)));
 
@@ -978,8 +949,6 @@ TEST(MasterTest, MasterLost)
 
   process::terminate(master);
   process::wait(master);
-
-  process::filter(NULL);
 }
 
 // This fixture sets up expectations on the storage class

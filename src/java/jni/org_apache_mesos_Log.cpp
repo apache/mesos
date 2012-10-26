@@ -34,6 +34,8 @@
 using namespace mesos;
 using namespace mesos::internal::log;
 
+using namespace process;
+
 
 std::string identity(JNIEnv* env, jobject jposition)
 {

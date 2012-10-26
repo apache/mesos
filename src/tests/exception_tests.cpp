@@ -30,6 +30,7 @@
 #include "slave/process_based_isolation_module.hpp"
 #include "slave/slave.hpp"
 
+#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -61,12 +62,6 @@ TEST(ExceptionTest, DeactiveFrameworkOnAbort)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte,1 * Gigabyte,  false);
 
   MockScheduler sched;
@@ -86,7 +81,7 @@ TEST(ExceptionTest, DeactiveFrameworkOnAbort)
 
   trigger deactivateMsg;
 
-  EXPECT_MESSAGE(filter, Eq(DeactivateFrameworkMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(DeactivateFrameworkMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&deactivateMsg), Return(false)));
 
   driver.start();
@@ -99,8 +94,6 @@ TEST(ExceptionTest, DeactiveFrameworkOnAbort)
 
   driver.stop();
   local::shutdown();
-
-  process::filter(NULL);
 }
 
 
@@ -142,12 +135,6 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched;
@@ -184,14 +171,14 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   process::Message message;
   trigger rescindMsg, unregisterMsg;
 
-  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
                     Return(false)));
 
-  EXPECT_MESSAGE(filter, Eq(RescindResourceOfferMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(RescindResourceOfferMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&rescindMsg), Return(false)));
 
-  EXPECT_MESSAGE(filter, Eq(UnregisterFrameworkMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(UnregisterFrameworkMessage().GetTypeName()), _, _)
       .WillOnce(DoAll(Trigger(&unregisterMsg), Return(false)));
 
   driver.start();
@@ -215,6 +202,4 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   WAIT_UNTIL(unregisterMsg); //Ensures reception of RescindResourceOfferMessage.
 
   local::shutdown();
-
-  process::filter(NULL);
 }

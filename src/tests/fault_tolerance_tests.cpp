@@ -34,6 +34,7 @@
 #include "slave/process_based_isolation_module.hpp"
 #include "slave/slave.hpp"
 
+#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -132,21 +133,15 @@ TEST(FaultToleranceTest, SlavePartitioned)
 
   Clock::pause();
 
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
   uint32_t pings = 0;
 
   // Set these expectations up before we spawn the slave (in
   // local::launch) so that we don't miss the first PING.
-  EXPECT_MESSAGE(filter, Eq("PING"), _, _)
+  EXPECT_MESSAGE(Eq("PING"), _, _)
     .WillRepeatedly(DoAll(Increment(&pings),
                           Return(false)));
 
-  EXPECT_MESSAGE(filter, Eq("PONG"), _, _)
+  EXPECT_MESSAGE(Eq("PONG"), _, _)
     .WillRepeatedly(Return(true));
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
@@ -190,8 +185,6 @@ TEST(FaultToleranceTest, SlavePartitioned)
   driver.join();
 
   local::shutdown();
-
-  process::filter(NULL);
 
   Clock::resume();
 }
@@ -273,12 +266,6 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
 
   Clock::pause();
 
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched;
@@ -298,7 +285,7 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
   trigger frameworkRegisteredMsg;
 
   // Drop the first framework registered message, allow subsequent messages.
-  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&frameworkRegisteredMsg),
                     Return(true)))
     .WillRepeatedly(Return(false));
@@ -316,8 +303,6 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
 
   local::shutdown();
 
-  process::filter(NULL);
-
   Clock::resume();
 }
 
@@ -325,12 +310,6 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
 TEST(FaultToleranceTest, FrameworkReregister)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
@@ -353,7 +332,7 @@ TEST(FaultToleranceTest, FrameworkReregister)
 
   process::Message message;
 
-  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
                     Return(false)));
 
@@ -374,8 +353,6 @@ TEST(FaultToleranceTest, FrameworkReregister)
   driver.join();
 
   local::shutdown();
-
-  process::filter(NULL);
 }
 
 
@@ -388,12 +365,6 @@ TEST(FaultToleranceTest, FrameworkReregister)
 TEST(FaultToleranceTest, DISABLED_TaskLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
   Files files;
@@ -445,7 +416,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
 
   process::Message message;
 
-  EXPECT_MESSAGE(filter, Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
                     Return(false)));
 
@@ -483,8 +454,6 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
 
   process::terminate(master);
   process::wait(master);
-
-  process::filter(NULL);
 }
 
 
@@ -493,12 +462,6 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   Clock::pause();
-
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
   Files files;
@@ -555,7 +518,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
     .Times(1);
 
-  EXPECT_MESSAGE(filter, Eq(StatusUpdateMessage().GetTypeName()), _,
+  EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), _,
              Not(AnyOf(Eq(master), Eq(slave))))
     .WillOnce(DoAll(Trigger(&statusUpdateMsg), Return(true)))
     .RetiresOnSaturation();
@@ -622,8 +585,6 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   process::terminate(master);
   process::wait(master);
-
-  process::filter(NULL);
 
   Clock::resume();
 }
@@ -750,12 +711,6 @@ TEST(FaultToleranceTest, SchedulerExit)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
   TestAllocatorProcess a;
   Files files;
   Master m(&a, &files);
@@ -765,7 +720,7 @@ TEST(FaultToleranceTest, SchedulerExit)
   process::Message message;
 
   // Trigger on the second status update received.
-  EXPECT_MESSAGE(filter, Eq(StatusUpdateMessage().GetTypeName()), _, Eq(master))
+  EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), _, Eq(master))
     .WillOnce(Return(false))
     .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
                     Trigger(&statusUpdateMsg),Return(false)));
@@ -858,8 +813,6 @@ TEST(FaultToleranceTest, SchedulerExit)
 
   process::terminate(master);
   process::wait(master);
-
-  process::filter(NULL);
 }
 
 
@@ -869,16 +822,10 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
 
   Clock::pause();
 
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
   trigger slaveRegisteredMsg;
 
   // Drop the first slave registered message, allow subsequent messages.
-  EXPECT_MESSAGE(filter, Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&slaveRegisteredMsg), Return(true)))
     .WillRepeatedly(Return(false));
 
@@ -925,8 +872,6 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
   process::terminate(master);
   process::wait(master);
 
-  process::filter(NULL);
-
   Clock::resume();
 }
 
@@ -934,12 +879,6 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
 TEST(FaultToleranceTest, SlaveReregister)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
 
   TestAllocatorProcess a;
   Files files;
@@ -969,7 +908,7 @@ TEST(FaultToleranceTest, SlaveReregister)
 
   trigger slaveReRegisterMsg;
 
-  EXPECT_MESSAGE(filter, Eq(SlaveReregisteredMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(SlaveReregisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&slaveReRegisterMsg), Return(false)));
 
   driver.start();
@@ -994,6 +933,4 @@ TEST(FaultToleranceTest, SlaveReregister)
 
   process::terminate(master);
   process::wait(master);
-
-  process::filter(NULL);
 }

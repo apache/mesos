@@ -27,6 +27,8 @@
 #include "log/coordinator.hpp"
 #include "log/replica.hpp"
 
+using namespace process;
+
 using std::list;
 using std::pair;
 using std::set;

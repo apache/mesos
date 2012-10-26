@@ -21,8 +21,11 @@
 #include <set>
 #include <string>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/pid.hpp>
 #include <process/protobuf.hpp>
+#include <process/timeout.hpp>
 
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -35,6 +38,7 @@
 
 #include "messages/messages.hpp"
 
+#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -42,7 +46,10 @@ using namespace mesos::internal;
 using namespace mesos::internal::log;
 using namespace mesos::internal::tests;
 
-using namespace process;
+using process::Clock;
+using process::Future;
+using process::Timeout;
+using process::UPID;
 
 using testing::_;
 using testing::Eq;
@@ -686,13 +693,7 @@ TEST(CoordinatorTest, Fill)
 
 TEST(CoordinatorTest, NotLearnedFill)
 {
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
-  EXPECT_MESSAGE(filter, Eq(LearnedMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(LearnedMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   const std::string path1 = os::getcwd() + "/.log1";
@@ -760,8 +761,6 @@ TEST(CoordinatorTest, NotLearnedFill)
   os::rmdir(path1);
   os::rmdir(path2);
   os::rmdir(path3);
-
-  process::filter(NULL);
 }
 
 
@@ -815,13 +814,7 @@ TEST(CoordinatorTest, MultipleAppends)
 
 TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
 {
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
-  EXPECT_MESSAGE(filter, Eq(LearnedMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(LearnedMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   const std::string path1 = os::getcwd() + "/.log1";
@@ -887,8 +880,6 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
   os::rmdir(path1);
   os::rmdir(path2);
   os::rmdir(path3);
-
-  process::filter(NULL);
 }
 
 
@@ -955,13 +946,7 @@ TEST(CoordinatorTest, Truncate)
 
 TEST(CoordinatorTest, TruncateNotLearnedFill)
 {
-  MockFilter filter;
-  process::filter(&filter);
-
-  EXPECT_MESSAGE(filter, _, _, _)
-    .WillRepeatedly(Return(false));
-
-  EXPECT_MESSAGE(filter, Eq(LearnedMessage().GetTypeName()), _, _)
+  EXPECT_MESSAGE(Eq(LearnedMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   const std::string path1 = os::getcwd() + "/.log1";
@@ -1040,8 +1025,6 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
   os::rmdir(path1);
   os::rmdir(path2);
   os::rmdir(path3);
-
-  process::filter(NULL);
 }
 
 
