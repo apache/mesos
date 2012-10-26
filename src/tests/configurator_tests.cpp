@@ -36,7 +36,15 @@ using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
 
-TEST(ConfiguratorTest, Environment)
+class ConfiguratorTest : public TemporaryDirectoryTest
+{
+protected:
+  virtual void SetUp() { TemporaryDirectoryTest::SetUp(); }
+  virtual void TearDown() { TemporaryDirectoryTest::TearDown(); }
+};
+
+
+TEST_F(ConfiguratorTest, Environment)
 {
   setenv("MESOS_TEST", "working", true);
   Configurator conf;
@@ -47,7 +55,7 @@ TEST(ConfiguratorTest, Environment)
 }
 
 
-TEST(ConfiguratorTest, DefaultOptions)
+TEST_F(ConfiguratorTest, DefaultOptions)
 {
   const int ARGC = 5;
   char* argv[ARGC];
@@ -88,7 +96,7 @@ TEST(ConfiguratorTest, DefaultOptions)
 }
 
 
-TEST(ConfiguratorTest, CommandLine)
+TEST_F(ConfiguratorTest, CommandLine)
 {
   const int ARGC = 12;
   char* argv[ARGC];
@@ -128,7 +136,7 @@ TEST(ConfiguratorTest, CommandLine)
 
 
 // Check whether specifying just MESOS_CONF allows a config file to be loaded
-TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithConfDir)
+TEST_F(ConfiguratorTest, ConfigFileWithConfDir)
 {
   ASSERT_SOME(os::mkdir("conf2"));
   ASSERT_SOME(os::write("conf2/mesos.conf",
@@ -148,7 +156,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileWithConfDir)
 
 // Check that when we specify a conf directory on the command line,
 // we load values from the config file first and then the command line
-TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
+TEST_F(ConfiguratorTest, CommandLineConfFlag)
 {
   ASSERT_SOME(os::mkdir("bin"));
   ASSERT_SOME(os::mkdir("conf2"));
@@ -178,7 +186,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, CommandLineConfFlag)
 // environment variable, a config file element , and a config flag
 // are all present. Command line flags should have the highest priority,
 // second should be environment variables, and last should be the file.
-TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
+TEST_F(ConfiguratorTest, LoadingPriorities)
 {
   ASSERT_SOME(os::mkdir("bin"));
   ASSERT_SOME(os::mkdir("conf"));
@@ -218,7 +226,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, LoadingPriorities)
 
 
 // Check that spaces before and after the = signs in config files are ignored
-TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileSpacesIgnored)
+TEST_F(ConfiguratorTest, ConfigFileSpacesIgnored)
 {
   ASSERT_SOME(os::mkdir("conf"));
   ASSERT_SOME(os::write("conf/mesos.conf",
@@ -247,7 +255,7 @@ TEST_WITH_WORKDIR(ConfiguratorTest, ConfigFileSpacesIgnored)
 
 
 // Check that exceptions are thrown on invalid config file
-TEST_WITH_WORKDIR(ConfiguratorTest, MalformedConfigFile)
+TEST_F(ConfiguratorTest, MalformedConfigFile)
 {
   ASSERT_SOME(os::mkdir("conf"));
   ASSERT_SOME(os::write("conf/mesos.conf",

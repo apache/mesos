@@ -859,11 +859,6 @@ dist_check_SCRIPTS += $(EXTERNALSCRIPTS)
 
 TESTS += mesos-tests
 
-clean-check:
-	-rm -rf ../test_output
-
-PHONY_TARGETS += clean-check
-
-clean-local: clean-java clean-python clean-check
+clean-local: clean-java clean-python
 
 .PHONY: $(PHONY_TARGETS)

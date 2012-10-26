@@ -68,21 +68,22 @@ namespace tests {
 extern flags::Flags<logging::Flags, Flags> flags;
 
 
-// Create and clean up the work directory for a given test, and cd into it,
-// given the test's test case name and test name.
-// Test directories are placed in <mesosHome>/test_output/<testCase>/<testName>.
-void enterTestDirectory(const char* testCase, const char* testName);
+// Helper to create a temporary directory based on the current test
+// case name and test name (derived from TestInfo via
+// ::testing::UnitTest::GetInstance()->current_test_info()).
+Try<std::string> mkdtemp();
 
 
-// Macro for running a test in a work directory (using enterTestDirectory).
-// Used in a similar way to gtest's TEST macro (by adding a body in braces).
-#define TEST_WITH_WORKDIR(testCase, testName)   \
-  void runTestBody_##testCase##_##testName();   \
-  TEST(testCase, testName) {                    \
-    enterTestDirectory(#testCase, #testName);   \
-    runTestBody_##testCase##_##testName();      \
-  }                                             \
-  void runTestBody_##testCase##_##testName()
+// Test fixture for creating a temporary directory for each test.
+class TemporaryDirectoryTest : public ::testing::Test
+{
+protected:
+  virtual void SetUp();
+  virtual void TearDown();
+
+private:
+  std::string cwd;
+};
 
 
 // Macros to get/create (default) ExecutorInfos and FrameworkInfos.

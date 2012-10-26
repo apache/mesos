@@ -42,12 +42,36 @@ namespace external {
 
 void run(const char* testCase, const char* testName)
 {
-  // Adjust the test name to remove any 'DISABLED_' prefix (to make
-  // things easier to read). While this might seem alarming, if we are
+  // Adjust the test name to remove any 'DISABLED_' prefix (in order
+  // to lookup the test). While this might seem alarming, if we are
   // "running" a disabled test it must be the case that the test was
   // explicitly enabled (e.g., via 'gtest_filter').
   if (strings::startsWith(testName, "DISABLED_")) {
     testName += strlen("DISABLED_");
+  }
+
+  // Create a temporary directory for the test.
+  Try<string> directory = mkdtemp();
+
+  CHECK(directory.isSome())
+    << "Failed to create temporary directory: " << directory.error();
+
+  if (flags.verbose) {
+    std::cerr << "Using temporary directory '"
+              << directory.get() << "'" << std::endl;
+  }
+
+  // Determine the path for the script.
+  Try<string> script =
+    os::realpath(path::join(flags.source_dir,
+                            "src",
+                            "tests",
+                            "external",
+                            testCase,
+                            testName) + ".sh");
+
+  if (script.isError()) {
+    FAIL() << "Failed to locate script: " << script.error();
   }
 
   // Fork a process to change directory and run the test.
@@ -55,6 +79,7 @@ void run(const char* testCase, const char* testName)
   if ((pid = fork()) == -1) {
     FAIL() << "Failed to fork to launch external test";
   }
+
   if (pid) {
     // In parent process.
     int status;
@@ -63,30 +88,16 @@ void run(const char* testCase, const char* testName)
 
     if (WIFEXITED(status)) {
       if (WEXITSTATUS(status) != 0) {
-        FAIL()
-          << strings::join("/", testCase, testName)
-          << " exited with status " << WEXITSTATUS(status);
+        FAIL() << script.get() << " exited with status " << WEXITSTATUS(status);
       }
     } else {
-      FAIL()
-        << strings::join("/", testCase, testName)
-        << " terminated with signal '" << strsignal(WTERMSIG(status)) << "'";
+      FAIL() << script.get() << " terminated with signal '"
+             << strsignal(WTERMSIG(status)) << "'";
     }
   } else {
-    // Create a temporary directory for the test.
-    const string& path =
-      path::join("/tmp", strings::join("_", testCase, testName, "XXXXXX"));
-    Try<string> directory = os::mkdtemp(path);
-
-    if (directory.isError()) {
-      std::cerr << "Failed to create temporary directory at '"
-                << path << "':" << directory.error() << std::endl;
-      abort();
-    }
-
-    // Run the test out of the temporary directory we created.
+    // In child process, start by cd'ing into the temporary directory.
     if (!os::chdir(directory.get())) {
-      std::cerr << "Failed to chdir into '" << path << "'" << std::endl;
+      std::cerr << "Failed to chdir to '" << directory.get() << "'" << std::endl;
       abort();
     }
 
@@ -107,17 +118,9 @@ void run(const char* testCase, const char* testName)
     os::setenv("MESOS_LAUNCHER_DIR", path::join(flags.build_dir, "src"));
 
     // Now execute the script.
-    const string& script =
-      path::join(flags.source_dir,
-                 "src",
-                 "tests",
-                 "external",
-                 testCase,
-                 testName) + ".sh";
+    execl(script.get().c_str(), script.get().c_str(), (char*) NULL);
 
-    execl(script.c_str(), script.c_str(), (char*) NULL);
-
-    std::cerr << "Failed to execute '" << script << "': "
+    std::cerr << "Failed to execute '" << script.get() << "': "
               << strerror(errno) << std::endl;
     abort();
   }

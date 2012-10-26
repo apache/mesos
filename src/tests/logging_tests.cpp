@@ -34,7 +34,7 @@ using process::http::OK;
 using process::http::Response;
 
 
-TEST_WITH_WORKDIR(LoggingTest, Toggle)
+TEST(LoggingTest, Toggle)
 {
   process::PID<> pid;
   pid.id = "logging";

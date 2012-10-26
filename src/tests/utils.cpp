@@ -22,56 +22,72 @@
 
 #include <gtest/gtest.h>
 
+#include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 
 #include "tests/flags.hpp"
 #include "tests/utils.hpp"
 
 using std::string;
 
-namespace {
-
-// Check that a test name contains only letters, numbers and underscores, to
-// prevent messing with directories outside test_output in runExternalTest.
-bool isValidTestName(const char* name) {
-  for (const char* p = name; *p != 0; p++) {
-    if (!isalnum(*p) && *p != '_') {
-      return false;
-    }
-  }
-  return true;
-}
-
-} // namespace {
-
-
 namespace mesos {
 namespace internal {
 namespace tests {
 
+// Storage for our flags.
 flags::Flags<logging::Flags, Flags> flags;
 
 
-void enterTestDirectory(const char* testCase, const char* testName)
+Try<string> mkdtemp()
 {
-  // Remove DISABLED_ prefix from test name if this is a disabled test.
-  if (strncmp(testName, "DISABLED_", strlen("DISABLED_")) == 0)
+  const ::testing::TestInfo* const testInfo =
+    ::testing::UnitTest::GetInstance()->current_test_info();
+
+  const char* testCase = testInfo->test_case_name();
+  const char* testName = testInfo->name();
+
+  // Adjust the test name to remove any 'DISABLED_' prefix (to make
+  // things easier to read). While this might seem alarming, if we are
+  // "running" a disabled test it must be the case that the test was
+  // explicitly enabled (e.g., via 'gtest_filter').
+  if (strings::startsWith(testName, "DISABLED_")) {
     testName += strlen("DISABLED_");
-  // Check that the test name is valid
-  if (!isValidTestName(testCase) || !isValidTestName(testName)) {
-    FAIL() << "Invalid test name for external test (name should " 
-           << "only contain alphanumeric and underscore characters)";
   }
-  // Make the work directory for this test.
-  string workDir =
-    path::join(flags.build_dir, "test_output", testCase, testName);
-  string command = "rm -fr '" + workDir + "'";
-  ASSERT_EQ(0, system(command.c_str())) << "Command failed: " << command;
-  command = "mkdir -p '" + workDir + "'";
-  ASSERT_EQ(0, system(command.c_str())) << "Command failed: " << command;
-  // Change dir into it
-  if (chdir(workDir.c_str()) != 0)
-    FAIL() << "Could not chdir into " << workDir;
+
+  const string& path =
+    path::join("/tmp", strings::join("_", testCase, testName, "XXXXXX"));
+
+  return os::mkdtemp(path);
+}
+
+
+void TemporaryDirectoryTest::SetUp()
+{
+  // Save the current working directory.
+  cwd = os::getcwd();
+
+  // Create a temporary directory for the test.
+  Try<string> directory = mkdtemp();
+
+  CHECK(directory.isSome())
+    << "Failed to create temporary directory: " << directory.error();
+
+  if (flags.verbose) {
+    std::cerr << "Using temporary directory '"
+              << directory.get() << "'" << std::endl;
+  }
+
+  // Run the test out of the temporary directory we created.
+  PCHECK(os::chdir(directory.get()))
+    << "Failed to chdir into '" << directory.get() << "'";
+}
+
+
+void TemporaryDirectoryTest::TearDown()
+{
+  // Return to previous working directory.
+  PCHECK(os::chdir(cwd));
 }
 
 } // namespace tests {

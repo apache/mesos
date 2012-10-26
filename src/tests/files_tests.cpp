@@ -45,7 +45,15 @@ using process::http::Response;
 using std::string;
 
 
-TEST_WITH_WORKDIR(FilesTest, AttachTest)
+class FilesTest : public TemporaryDirectoryTest
+{
+protected:
+  virtual void SetUp() { TemporaryDirectoryTest::SetUp(); }
+  virtual void TearDown() { TemporaryDirectoryTest::TearDown(); }
+};
+
+
+TEST_F(FilesTest, AttachTest)
 {
   Files files;
   ASSERT_SOME(os::write("file", "body"));
@@ -63,7 +71,7 @@ TEST_WITH_WORKDIR(FilesTest, AttachTest)
 }
 
 
-TEST_WITH_WORKDIR(FilesTest, DetachTest)
+TEST_F(FilesTest, DetachTest)
 {
   Files files;
 
@@ -75,7 +83,7 @@ TEST_WITH_WORKDIR(FilesTest, DetachTest)
 }
 
 
-TEST_WITH_WORKDIR(FilesTest, ReadTest)
+TEST_F(FilesTest, ReadTest)
 {
   Files files;
   const process::PID<>& pid = files.pid();
@@ -127,7 +135,7 @@ TEST_WITH_WORKDIR(FilesTest, ReadTest)
 }
 
 
-TEST_WITH_WORKDIR(FilesTest, ResolveTest)
+TEST_F(FilesTest, ResolveTest)
 {
   Files files;
   const process::PID<>& pid = files.pid();
@@ -203,7 +211,7 @@ TEST_WITH_WORKDIR(FilesTest, ResolveTest)
 }
 
 
-TEST_WITH_WORKDIR(FilesTest, BrowseTest)
+TEST_F(FilesTest, BrowseTest)
 {
   Files files;
   const process::PID<>& pid = files.pid();
@@ -256,7 +264,7 @@ TEST_WITH_WORKDIR(FilesTest, BrowseTest)
 }
 
 
-TEST_WITH_WORKDIR(FilesTest, DownloadTest)
+TEST_F(FilesTest, DownloadTest)
 {
   Files files;
   const process::PID<>& pid = files.pid();
