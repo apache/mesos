@@ -92,8 +92,10 @@ void ZooKeeperTest::SetUpTestCase()
     opts.push_back(classpath);
     jvm = new Jvm(opts);
 
-    silenceServerLogs(jvm);
-    silenceClientLogs();
+    if (!flags.verbose) {
+      silenceServerLogs(jvm);
+      silenceClientLogs();
+    }
   }
 }
 
