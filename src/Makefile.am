@@ -212,6 +212,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
 	tests/environment.hpp tests/script.hpp				\
+	tests/assert.hpp                         			\
 	tests/zookeeper_test.hpp tests/flags.hpp tests/utils.hpp	\
 	tests/filter.hpp                                                \
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\

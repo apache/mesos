@@ -42,32 +42,46 @@ const std::string EXECUTOR_LATEST_SYMLINK = "latest";
 // Path layout templates.
 const std::string ROOT_PATH =
   "%s";
+
 const std::string SLAVEID_PATH =
   ROOT_PATH + "/slaves/slave.id";
+
 const std::string SLAVE_PATH =
   ROOT_PATH + "/slaves/%s";
+
 const std::string FRAMEWORK_PATH =
   SLAVE_PATH + "/frameworks/%s";
+
 const std::string FRAMEWORK_PID_PATH =
   FRAMEWORK_PATH + "/framework.pid";
+
 const std::string EXECUTOR_PATH =
   FRAMEWORK_PATH + "/executors/%s";
+
 const std::string EXECUTOR_RUN_PATH =
   EXECUTOR_PATH + "/runs/%s";
+
 const std::string EXECUTOR_LATEST_RUN_PATH =
   EXECUTOR_PATH + "/runs/" + EXECUTOR_LATEST_SYMLINK;
+
 const std::string PIDS_PATH =
   EXECUTOR_RUN_PATH + "/pids";
+
 const std::string LIBPROCESS_PID_PATH =
   PIDS_PATH + "/libprocess.pid";
+
 const std::string EXECED_PID_PATH =
   PIDS_PATH + "/execed.pid";
+
 const std::string FORKED_PID_PATH =
   PIDS_PATH + "/forked.pid";
+
 const std::string TASK_PATH =
   EXECUTOR_RUN_PATH + "/tasks/%s";
+
 const std::string TASK_INFO_PATH =
   TASK_PATH + "/info";
+
 const std::string TASK_UPDATES_PATH =
   TASK_PATH + "/updates";
 

@@ -26,7 +26,7 @@
 
 #include "linux/fs.hpp"
 
-#include "tests/utils.hpp"
+#include "tests/assert.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;

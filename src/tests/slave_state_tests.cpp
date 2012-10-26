@@ -69,11 +69,8 @@ protected:
 
 TEST_F(SlaveStateFixture, CreateExecutorDirectory)
 {
-  const string& result = paths::createExecutorDirectory(rootDir,
-                                                        slaveId,
-                                                        frameworkId,
-                                                        executorId,
-                                                        uuid);
+  const string& result = paths::createExecutorDirectory(
+      rootDir, slaveId, frameworkId, executorId, uuid);
 
   // Expected directory layout.
   string dir = rootDir + "/slaves/" + slaveId.value() + "/frameworks/"
@@ -120,7 +117,6 @@ TEST_F(SlaveStateFixture, parse)
   ASSERT_SOME(os::touch(frameworkpidPath));
 
   // Write process pid files.
-  const string& executorDir = result;
   ASSERT_SOME(os::mkdir(executorDir + "/pids"));
 
   const string& libpidPath = paths::getLibprocessPIDPath(rootDir, slaveId,
@@ -159,14 +155,19 @@ TEST_F(SlaveStateFixture, parse)
 
   ASSERT_TRUE(state.frameworks.contains(frameworkId));
   ASSERT_TRUE(state.frameworks[frameworkId].executors.contains(executorId));
-  ASSERT_EQ(0, state.frameworks[frameworkId].executors[executorId].latest);
   ASSERT_TRUE(
       state
       .frameworks[frameworkId]
       .executors[executorId]
-      .runs[0]
-      .tasks
-      .contains(taskId));
+      .runs
+      .contains(uuid));
+   ASSERT_TRUE(
+       state
+       .frameworks[frameworkId]
+       .executors[executorId]
+       .runs[uuid]
+       .tasks
+       .contains(taskId));
 }
 
 
