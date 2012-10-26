@@ -40,7 +40,7 @@
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::log;
-using namespace mesos::internal::test;
+using namespace mesos::internal::tests;
 
 using namespace process;
 

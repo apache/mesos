@@ -18,7 +18,7 @@
 
 #include <gtest/gtest.h>
 
-#include "tests/external_test.hpp"
+#include "tests/external.hpp"
 
 
 // Run a number of tests for the LXC isolation module.

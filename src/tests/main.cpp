@@ -27,14 +27,13 @@
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
 
-#include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 #include "tests/environment.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos::internal;
-using namespace mesos::internal::test;
+using namespace mesos::internal::tests;
 
 using std::cerr;
 using std::endl;
@@ -54,16 +53,7 @@ int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  flags::Flags<logging::Flags> flags;
-
-  // We log to stderr by default, but when running tests we'd prefer
-  // less junk to fly by, so force one to specify the verbosity.
-  bool verbose;
-
-  flags.add(&verbose,
-            "verbose",
-            "Log all severity levels to stderr",
-            false);
+  using mesos::internal::tests::flags; // Needed to disabmiguate.
 
   bool help;
   flags.add(&help,
@@ -94,7 +84,7 @@ int main(int argc, char** argv)
   process::initialize();
 
   // Be quiet by default!
-  if (!verbose) {
+  if (!flags.verbose) {
     flags.quiet = true;
   }
 
@@ -105,21 +95,10 @@ int main(int argc, char** argv)
   testing::InitGoogleTest(&argc, argv);
   testing::FLAGS_gtest_death_test_style = "threadsafe";
 
-  // Get the absolute path to the source (i.e., root) directory.
-  Try<string> path = os::realpath(SOURCE_DIR);
-  CHECK(path.isSome()) << "Error getting source directory " << path.error();
-  mesosSourceDirectory = path.get();
+  std::cout << "Source directory: " << flags.source_dir << std::endl;
+  std::cout << "Build directory: " << flags.build_dir << std::endl;
 
-  std::cout << "Source directory: " << mesosSourceDirectory << std::endl;
-
-  // Get absolute path to the build directory.
-  path = os::realpath(BUILD_DIR);
-  CHECK(path.isSome()) << "Error getting build directory " << path.error();
-  mesosBuildDirectory = path.get();
-
-  std::cout << "Build directory: " << mesosBuildDirectory << std::endl;
-
-  ::testing::AddGlobalTestEnvironment(new Environment());
+  testing::AddGlobalTestEnvironment(new Environment());
 
   return RUN_ALL_TESTS();
 }

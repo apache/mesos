@@ -32,7 +32,7 @@
 
 namespace mesos {
 namespace internal {
-namespace test {
+namespace tests {
 
 ZooKeeperTestServer::ZooKeeperTestServer(Jvm* _jvm)
   : jvm(_jvm),
@@ -220,7 +220,7 @@ void ZooKeeperTestServer::checkStarted() const
   CHECK(port > 0) << "Illegal state, must call startNetwork first!";
 }
 
-} // namespace test
-} // namespace internal
-} // namespace mesos
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
 

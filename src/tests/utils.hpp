@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __TESTING_UTILS_HPP__
-#define __TESTING_UTILS_HPP__
+#ifndef __TESTS_UTILS_HPP__
+#define __TESTS_UTILS_HPP__
 
 #include <unistd.h> // For usleep.
 
@@ -27,8 +27,6 @@
 #include <map>
 #include <string>
 
-#include <master/allocator.hpp>
-#include <master/master.hpp>
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
@@ -44,6 +42,9 @@
 
 #include "common/type_utils.hpp"
 
+#include "logging/logging.hpp"
+
+#include "master/allocator.hpp"
 #include "master/drf_sorter.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
@@ -53,51 +54,38 @@
 #include "slave/isolation_module.hpp"
 #include "slave/slave.hpp"
 
+#include "tests/flags.hpp"
+
+// TODO(benh): Kill these since they pollute everything that includes this file.
 using ::testing::_;
 using ::testing::Invoke;
 
 namespace mesos {
 namespace internal {
-namespace test {
+namespace tests {
 
-/**
- * The location of the Mesos source directory.  Used by tests to locate
- * various frameworks and binaries.  Initialized in main.cpp.
- */
-extern std::string mesosSourceDirectory;
+// Flags used to run the tests.
+extern flags::Flags<logging::Flags, Flags> flags;
 
 
-/**
- * The location of the Mesos build directory. Used by tests to locate
- * frameworks and binaries.  Initialized in main.cpp.
- */
-extern std::string mesosBuildDirectory;
-
-
-/**
- * Create and clean up the work directory for a given test, and cd into it,
- * given the test's test case name and test name.
- * Test directories are placed in <mesosHome>/test_output/<testCase>/<testName>.
- */
+// Create and clean up the work directory for a given test, and cd into it,
+// given the test's test case name and test name.
+// Test directories are placed in <mesosHome>/test_output/<testCase>/<testName>.
 void enterTestDirectory(const char* testCase, const char* testName);
 
 
-/**
- * Macro for running a test in a work directory (using enterTestDirectory).
- * Used in a similar way to gtest's TEST macro (by adding a body in braces).
- */
-#define TEST_WITH_WORKDIR(testCase, testName) \
-  void runTestBody_##testCase##_##testName(); \
-  TEST(testCase, testName) {                  \
-    enterTestDirectory(#testCase, #testName); \
-    runTestBody_##testCase##_##testName(); \
-  } \
-  void runTestBody_##testCase##_##testName() /* User code block follows */
+// Macro for running a test in a work directory (using enterTestDirectory).
+// Used in a similar way to gtest's TEST macro (by adding a body in braces).
+#define TEST_WITH_WORKDIR(testCase, testName)   \
+  void runTestBody_##testCase##_##testName();   \
+  TEST(testCase, testName) {                    \
+    enterTestDirectory(#testCase, #testName);   \
+    runTestBody_##testCase##_##testName();      \
+  }                                             \
+  void runTestBody_##testCase##_##testName()
 
 
-/**
- * Macros to get/create (default) ExecutorInfos and FrameworkInfos.
- */
+// Macros to get/create (default) ExecutorInfos and FrameworkInfos.
 #define DEFAULT_EXECUTOR_INFO                                           \
       ({ ExecutorInfo executor;                                         \
         executor.mutable_executor_id()->set_value("default");           \
@@ -122,9 +110,7 @@ void enterTestDirectory(const char* testCase, const char* testName);
       DEFAULT_EXECUTOR_INFO.executor_id()
 
 
-/**
- * Definition of a mock Scheduler to be used in tests with gmock.
- */
+// Definition of a mock Scheduler to be used in tests with gmock.
 class MockScheduler : public Scheduler
 {
 public:
@@ -226,9 +212,7 @@ ACTION(DeclineOffers)
 }
 
 
-/**
- * Definition of a mock Executor to be used in tests with gmock.
- */
+// Definition of a mock Executor to be used in tests with gmock.
 class MockExecutor : public Executor
 {
 public:
@@ -439,9 +423,7 @@ inline const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, in
 }
 
 
-/**
- * Definition of a mock Filter so that messages can act as triggers.
- */
+// Definition of a mock Filter so that messages can act as triggers.
 class MockFilter : public process::Filter
 {
 public:
@@ -464,10 +446,8 @@ public:
 };
 
 
-/**
- * A message can be matched against in conjunction with the MockFilter
- * (see above) to perform specific actions based for messages.
- */
+// A message can be matched against in conjunction with the MockFilter
+// (see above) to perform specific actions based for messages.
 MATCHER_P3(MsgMatcher, name, from, to, "")
 {
   const process::MessageEvent& event = ::std::tr1::get<0>(arg);
@@ -477,11 +457,9 @@ MATCHER_P3(MsgMatcher, name, from, to, "")
 }
 
 
-/**
- * This macro provides some syntactic sugar for matching messages
- * using the message matcher (see above) as well as the MockFilter
- * (see above). We should also add EXPECT_DISPATCH, EXPECT_HTTP, etc.
- */
+// This macro provides some syntactic sugar for matching messages
+// using the message matcher (see above) as well as the MockFilter
+// (see above). We should also add EXPECT_DISPATCH, EXPECT_HTTP, etc.
 #define EXPECT_MESSAGE(mockFilter, name, from, to)              \
   EXPECT_CALL(mockFilter, filter(testing::A<const process::MessageEvent&>())) \
     .With(MsgMatcher(name, from, to))
@@ -495,12 +473,10 @@ ACTION_TEMPLATE(SaveArgField,
 }
 
 
-/**
- * A trigger is an object that can be used to effectively block a test
- * from proceeding until some event has occured. A trigger can get set
- * using a gmock action (see below) and you can wait for a trigger to
- * occur using the WAIT_UNTIL macro below.
- */
+// A trigger is an object that can be used to effectively block a test
+// from proceeding until some event has occured. A trigger can get set
+// using a gmock action (see below) and you can wait for a trigger to
+// occur using the WAIT_UNTIL macro below.
 struct trigger
 {
   trigger() : value(false) {}
@@ -509,36 +485,28 @@ struct trigger
 };
 
 
-/**
- * Definition of the Trigger action to be used with gmock.
- */
+// Definition of the Trigger action to be used with gmock.
 ACTION_P(Trigger, trigger)
 {
   trigger->value = true;
 }
 
 
-/**
- * Definition of an 'increment' action to be used with gmock.
- */
+// Definition of an 'increment' action to be used with gmock.
 ACTION_P(Increment, variable)
 {
   *variable = *variable + 1;
 }
 
 
-/**
- * Definition of a 'decrement' action to be used with gmock.
- */
+// Definition of a 'decrement' action to be used with gmock.
 ACTION_P(Decrement, variable)
 {
   *variable = *variable - 1;
 }
 
 
-/**
- * Definition of the SendStatusUpdateFromTask action to be used with gmock.
- */
+// Definition of the SendStatusUpdateFromTask action to be used with gmock.
 ACTION_P(SendStatusUpdateFromTask, state)
 {
   TaskStatus status;
@@ -548,9 +516,7 @@ ACTION_P(SendStatusUpdateFromTask, state)
 }
 
 
-/**
- * Definition of the SendStatusUpdateFromTaskID action to be used with gmock.
- */
+// Definition of the SendStatusUpdateFromTaskID action to be used with gmock.
 ACTION_P(SendStatusUpdateFromTaskID, state)
 {
   TaskStatus status;
@@ -560,9 +526,7 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
 }
 
 
-/**
- * These macros can be used to wait until some expression evaluates to true.
- */
+// These macros can be used to wait until some expression evaluates to true.
 #define WAIT_FOR(expression, duration)                                  \
   do {                                                                  \
     unsigned int sleeps = 0;                                            \
@@ -663,7 +627,7 @@ private:
   process::PID<slave::Slave> slave;
 };
 
-} // namespace test {
+} // namespace tests {
 } // namespace internal {
 } // namespace mesos {
 
@@ -952,4 +916,4 @@ inline ::testing::AssertionResult AssertResponseHeaderWillEq(
 #define EXPECT_RESPONSE_HEADER_WILL_EQ(expected, key, actual)        \
   EXPECT_PRED_FORMAT3(AssertResponseHeaderWillEq, expected, key, actual)
 
-#endif // __TESTING_UTILS_HPP__
+#endif // __TESTS_UTILS_HPP__

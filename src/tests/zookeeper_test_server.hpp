@@ -31,7 +31,7 @@
 
 namespace mesos {
 namespace internal {
-namespace test {
+namespace tests {
 
 // An in-process ZooKeeper server that can be manipulated to control
 // repeatable client tests. Sessions can be programmatically expired
@@ -108,8 +108,8 @@ private:
   void checkStarted() const;
 };
 
-} // namespace test
-} // namespace internal
-} // namespace mesos
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __ZOOKEEPER_TEST_SERVER_HPP__

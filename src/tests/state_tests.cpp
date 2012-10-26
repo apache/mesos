@@ -39,15 +39,15 @@
 #include "state/state.hpp"
 #include "state/zookeeper.hpp"
 
+#include "tests/utils.hpp"
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper_test.hpp"
 #endif
-#include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::state;
-using namespace mesos::internal::test;
+using namespace mesos::internal::tests;
 
 using namespace process;
 
@@ -287,7 +287,7 @@ TEST_F(LevelDBStateTest, Names)
 
 
 #ifdef MESOS_HAS_JAVA
-class ZooKeeperStateTest : public mesos::internal::test::ZooKeeperTest
+class ZooKeeperStateTest : public ZooKeeperTest
 {
 public:
   ZooKeeperStateTest()

@@ -35,7 +35,7 @@
 
 namespace mesos {
 namespace internal {
-namespace test {
+namespace tests {
 
 // A fixture for tests that need to interact with a ZooKeeper server
 // ensemble. Tests can access the in process ZooKeeperTestServer via
@@ -104,8 +104,8 @@ private:
   static Jvm* jvm;
 };
 
-} // namespace test
-} // namespace internal
-} // namespace mesos
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __ZOOKEEPER_TEST_HPP__

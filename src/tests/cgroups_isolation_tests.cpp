@@ -18,7 +18,7 @@
 
 #include <gtest/gtest.h>
 
-#include "tests/external_test.hpp"
+#include "tests/external.hpp"
 
 // Run the balloon framework under cgroups isolation.
 TEST_EXTERNAL(CgroupsIsolation, ROOT_CGROUPS_BalloonFramework)

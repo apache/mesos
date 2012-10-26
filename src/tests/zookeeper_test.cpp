@@ -38,7 +38,7 @@
 
 namespace mesos {
 namespace internal {
-namespace test {
+namespace tests {
 
 const Milliseconds ZooKeeperTest::NO_TIMEOUT(5000);
 
@@ -79,7 +79,7 @@ static void silenceClientLogs()
 void ZooKeeperTest::SetUpTestCase()
 {
   if (jvm == NULL) {
-    std::string zkHome = mesosBuildDirectory +
+    std::string zkHome = flags.build_dir +
       "/third_party/zookeeper-" ZOOKEEPER_VERSION;
 
     std::string classpath = "-Djava.class.path=" +
@@ -197,7 +197,7 @@ ZooKeeperTest::TestWatcher::awaitEvent(
   }
 }
 
-} // namespace test
-} // namespace internal
-} // namespace mesos
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
 

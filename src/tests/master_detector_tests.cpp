@@ -39,7 +39,7 @@
 
 using namespace mesos;
 using namespace mesos::internal;
-using namespace mesos::internal::test;
+using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
 

@@ -211,8 +211,8 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/paths.hpp slave/state.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
-	slave/webui.hpp tests/environment.hpp tests/external_test.hpp	\
-	tests/zookeeper_test.hpp tests/utils.hpp			\
+	slave/webui.hpp tests/environment.hpp tests/external.hpp	\
+	tests/zookeeper_test.hpp tests/flags.hpp tests/utils.hpp	\
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
 	zookeeper/zookeeper.hpp zookeeper/url.hpp
@@ -774,8 +774,8 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
 	              tests/files_tests.cpp tests/flags_tests.cpp	\
 	              tests/log_tests.cpp tests/resources_tests.cpp	\
-	              tests/external_tests.cpp				\
-	              tests/sample_frameworks_tests.cpp			\
+	              tests/external.cpp				\
+	              tests/examples_tests.cpp				\
 	              tests/configurator_tests.cpp			\
 	              tests/multihashmap_tests.cpp			\
 	              tests/protobuf_io_tests.cpp			\

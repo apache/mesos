@@ -41,7 +41,7 @@
 #include "zookeeper/group.hpp"
 
 using namespace mesos::internal;
-using namespace mesos::internal::test;
+using namespace mesos::internal::tests;
 
 using process::Clock;
 

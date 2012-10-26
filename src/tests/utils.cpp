@@ -22,16 +22,12 @@
 
 #include <gtest/gtest.h>
 
+#include <stout/path.hpp>
+
+#include "tests/flags.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos::internal;
-
 using std::string;
-
-
-string test::mesosSourceDirectory;
-string test::mesosBuildDirectory;
-
 
 namespace {
 
@@ -46,18 +42,19 @@ bool isValidTestName(const char* name) {
   return true;
 }
 
-} // namespace
+} // namespace {
 
 
-/**
- * Create and clean up the work directory for a given test, and cd into it,
- * given the test's test case name and test name.
- * Test directories are placed in
- * <mesosBuildDir>/test_output/<testCase>/<testName>.
- */
-void test::enterTestDirectory(const char* testCase, const char* testName)
+namespace mesos {
+namespace internal {
+namespace tests {
+
+flags::Flags<logging::Flags, Flags> flags;
+
+
+void enterTestDirectory(const char* testCase, const char* testName)
 {
-  // Remove DISABLED_ prefix from test name if this is a disabled test
+  // Remove DISABLED_ prefix from test name if this is a disabled test.
   if (strncmp(testName, "DISABLED_", strlen("DISABLED_")) == 0)
     testName += strlen("DISABLED_");
   // Check that the test name is valid
@@ -65,9 +62,9 @@ void test::enterTestDirectory(const char* testCase, const char* testName)
     FAIL() << "Invalid test name for external test (name should " 
            << "only contain alphanumeric and underscore characters)";
   }
-  // Make the work directory for this test
-  string workDir = mesosBuildDirectory + "/test_output/" + testCase + "/"
-    + testName;
+  // Make the work directory for this test.
+  string workDir =
+    path::join(flags.build_dir, "test_output", testCase, testName);
   string command = "rm -fr '" + workDir + "'";
   ASSERT_EQ(0, system(command.c_str())) << "Command failed: " << command;
   command = "mkdir -p '" + workDir + "'";
@@ -76,3 +73,7 @@ void test::enterTestDirectory(const char* testCase, const char* testName)
   if (chdir(workDir.c_str()) != 0)
     FAIL() << "Could not chdir into " << workDir;
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

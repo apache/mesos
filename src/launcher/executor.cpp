@@ -63,7 +63,7 @@ static void waiter(pid_t pid, const TaskID& taskId, ExecutorDriver* driver)
 
   Try<string> message = WIFEXITED(status)
     ? strings::format("Command exited with status %d", WEXITSTATUS(status))
-    : strings::format("Command terminated with signal %s",
+    : strings::format("Command terminated with signal '%s'",
                       strsignal(WTERMSIG(status)));
 
   if (message.isSome()) {

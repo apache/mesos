@@ -18,8 +18,8 @@
 
 #include <gtest/gtest.h>
 
-#include "stout/os.hpp"
-#include "stout/strings.hpp"
+#include <stout/os.hpp>
+#include <stout/strings.hpp>
 
 #include "messages/messages.hpp"
 

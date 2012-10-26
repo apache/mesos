@@ -27,7 +27,7 @@
 #include "tests/utils.hpp"
 
 using namespace mesos::internal;
-using namespace mesos::internal::test;
+using namespace mesos::internal::tests;
 
 using process::http::BadRequest;
 using process::http::OK;
