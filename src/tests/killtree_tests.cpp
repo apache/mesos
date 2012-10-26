@@ -18,8 +18,7 @@
 
 #include <gtest/gtest.h>
 
-#include "tests/external.hpp"
+#include "tests/script.hpp"
 
 
-// Run a number of tests for the LXC isolation module.
-TEST_EXTERNAL(KillTree, KillTreeTest)
+TEST_SCRIPT(KillTreeTest, KillTree, "killtree_test.sh")

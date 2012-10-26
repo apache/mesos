@@ -18,18 +18,18 @@
 
 #include <gtest/gtest.h>
 
-#include "tests/external.hpp"
+#include "tests/script.hpp"
 
 
 // Run each of the sample frameworks in local mode.
-TEST_EXTERNAL(ExamplesTest, CppFramework)
-TEST_EXTERNAL(ExamplesTest, NoExecutorFramework)
+TEST_SCRIPT(ExamplesTest, TestFramework, "test_framework_test.sh")
+TEST_SCRIPT(ExamplesTest, NoExecutorFramework, "no_executor_framework_test.sh")
 
 #ifdef MESOS_HAS_JAVA
-  TEST_EXTERNAL(ExamplesTest, JavaFramework)
-  TEST_EXTERNAL(ExamplesTest, JavaExceptionFramework)
+TEST_SCRIPT(ExamplesTest, JavaFramework, "java_framework_test.sh")
+TEST_SCRIPT(ExamplesTest, JavaException, "java_exception_test.sh")
 #endif
 
 #ifdef MESOS_HAS_PYTHON
-  TEST_EXTERNAL(ExamplesTest, PythonFramework)
+TEST_SCRIPT(ExamplesTest, PythonFramework, "python_framework_test.sh")
 #endif

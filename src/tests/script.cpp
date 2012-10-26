@@ -17,12 +17,10 @@
  */
 
 #include <signal.h> // For strsignal.
-#include <stdio.h> // For freopen.
+#include <stdio.h>  // For freopen.
 #include <string.h> // For strlen, strerror.
 
 #include <sys/wait.h> // For wait (and associated macros).
-
-#include <gtest/gtest.h>
 
 #include <string>
 
@@ -30,7 +28,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
-#include "tests/external.hpp"
+#include "tests/script.hpp"
 #include "tests/utils.hpp"
 
 using std::string;
@@ -38,18 +36,9 @@ using std::string;
 namespace mesos {
 namespace internal {
 namespace tests {
-namespace external {
 
-void run(const char* testCase, const char* testName)
+void execute(const string& script)
 {
-  // Adjust the test name to remove any 'DISABLED_' prefix (in order
-  // to lookup the test). While this might seem alarming, if we are
-  // "running" a disabled test it must be the case that the test was
-  // explicitly enabled (e.g., via 'gtest_filter').
-  if (strings::startsWith(testName, "DISABLED_")) {
-    testName += strlen("DISABLED_");
-  }
-
   // Create a temporary directory for the test.
   Try<string> directory = mkdtemp();
 
@@ -62,22 +51,17 @@ void run(const char* testCase, const char* testName)
   }
 
   // Determine the path for the script.
-  Try<string> script =
-    os::realpath(path::join(flags.source_dir,
-                            "src",
-                            "tests",
-                            "external",
-                            testCase,
-                            testName) + ".sh");
+  Try<string> path =
+    os::realpath(path::join(flags.source_dir, "src", "tests", script));
 
-  if (script.isError()) {
-    FAIL() << "Failed to locate script: " << script.error();
+  if (path.isError()) {
+    FAIL() << "Failed to locate script: " << path.error();
   }
 
   // Fork a process to change directory and run the test.
   pid_t pid;
   if ((pid = fork()) == -1) {
-    FAIL() << "Failed to fork to launch external test";
+    FAIL() << "Failed to fork to launch script";
   }
 
   if (pid) {
@@ -88,14 +72,16 @@ void run(const char* testCase, const char* testName)
 
     if (WIFEXITED(status)) {
       if (WEXITSTATUS(status) != 0) {
-        FAIL() << script.get() << " exited with status " << WEXITSTATUS(status);
+        FAIL() << script << " exited with status " << WEXITSTATUS(status);
       }
     } else {
-      FAIL() << script.get() << " terminated with signal '"
+      FAIL() << script << " terminated with signal '"
              << strsignal(WTERMSIG(status)) << "'";
     }
   } else {
-    // In child process, start by cd'ing into the temporary directory.
+    // In child process, DO NOT USE GLOG!
+
+    // Start by cd'ing into the temporary directory.
     if (!os::chdir(directory.get())) {
       std::cerr << "Failed to chdir to '" << directory.get() << "'" << std::endl;
       abort();
@@ -118,15 +104,14 @@ void run(const char* testCase, const char* testName)
     os::setenv("MESOS_LAUNCHER_DIR", path::join(flags.build_dir, "src"));
 
     // Now execute the script.
-    execl(script.get().c_str(), script.get().c_str(), (char*) NULL);
+    execl(path.get().c_str(), path.get().c_str(), (char*) NULL);
 
-    std::cerr << "Failed to execute '" << script.get() << "': "
+    std::cerr << "Failed to execute '" << script << "': "
               << strerror(errno) << std::endl;
     abort();
   }
 }
 
-} // namespace external {
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

@@ -211,7 +211,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/paths.hpp slave/state.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
-	slave/webui.hpp tests/environment.hpp tests/external.hpp	\
+	slave/webui.hpp tests/environment.hpp tests/script.hpp		\
 	tests/zookeeper_test.hpp tests/flags.hpp tests/utils.hpp	\
 	tests/filter.hpp                                                \
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
@@ -775,12 +775,11 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp tests/filter.cpp  	\
 	              tests/fault_tolerance_tests.cpp			\
 	              tests/files_tests.cpp tests/flags_tests.cpp	\
 	              tests/log_tests.cpp tests/resources_tests.cpp	\
-	              tests/external.cpp				\
+	              tests/script.cpp					\
 	              tests/examples_tests.cpp				\
 	              tests/configurator_tests.cpp			\
 	              tests/multihashmap_tests.cpp			\
 	              tests/protobuf_io_tests.cpp			\
-	              tests/lxc_isolation_tests.cpp			\
 	              tests/stout_tests.cpp				\
 	              tests/zookeeper_url_tests.cpp			\
 	              tests/killtree_tests.cpp				\
@@ -842,20 +841,14 @@ EXTRA_DIST += examples/python/test_framework.py \
 	      examples/python/test_executor.py
 
 
-EXTERNALSCRIPTS =							\
-  tests/external/CgroupsIsolation/ROOT_CGROUPS_BalloonFramework.sh	\
-  tests/external/LxcIsolation/HoldMoreMemThanRequested.sh		\
-  tests/external/LxcIsolation/ScaleUpAndDown.sh				\
-  tests/external/LxcIsolation/TwoSeparateTasks.sh			\
-  tests/external/LxcIsolation/run_scheduled_memhog_test.sh		\
-  tests/external/SampleFrameworks/CppFramework.sh			\
-  tests/external/SampleFrameworks/NoExecutorFramework.sh		\
-  tests/external/SampleFrameworks/JavaExceptionFramework.sh		\
-  tests/external/SampleFrameworks/JavaFramework.sh			\
-  tests/external/SampleFrameworks/PythonFramework.sh			\
-  tests/external/KillTree/KillTreeTest.sh
-
-dist_check_SCRIPTS += $(EXTERNALSCRIPTS)
+dist_check_SCRIPTS +=				\
+  tests/balloon_framework_test.sh		\
+  tests/test_framework_test.sh			\
+  tests/no_executor_framework_test.sh		\
+  tests/java_exception_test.sh			\
+  tests/java_framework_test.sh			\
+  tests/python_framework_test.sh		\
+  tests/killtree_test.sh
 
 TESTS += mesos-tests
 
