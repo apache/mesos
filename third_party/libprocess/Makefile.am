@@ -71,6 +71,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/async.hpp	\
 	$(top_srcdir)/include/stout/foreach.hpp				\
 	$(top_srcdir)/include/stout/format.hpp				\
 	$(top_srcdir)/include/stout/fs.hpp				\
+	$(top_srcdir)/include/stout/gzip.hpp				\
 	$(top_srcdir)/include/stout/hashmap.hpp				\
 	$(top_srcdir)/include/stout/hashset.hpp				\
 	$(top_srcdir)/include/stout/json.hpp				\
