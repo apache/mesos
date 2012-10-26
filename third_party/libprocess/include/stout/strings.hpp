@@ -140,20 +140,30 @@ inline std::map<std::string, std::vector<std::string> > pairs(
 }
 
 
-// Returns a string which is the concatenation of the strings in
-// items, the separator is inserted between elements.
-inline std::string join(const std::vector<std::string>& items,
-                        const std::string& separator = "") {
-  if (items.empty()) {
-    return "";
-  }
+inline std::string join(const std::string& separator,
+                        const std::string& s1,
+                        const std::string& s2)
+{
+  return s1 + separator + s2;
+}
 
-  std::string result = items[0];
-  for (size_t i = 1; i < items.size(); ++i) {
-    result.append(separator);
-    result.append(items[i]);
-  }
-  return result;
+
+inline std::string join(const std::string& separator,
+                        const std::string& s1,
+                        const std::string& s2,
+                        const std::string& s3)
+{
+  return s1 + separator + s2 + separator + s3;
+}
+
+
+inline std::string join(const std::string& separator,
+                        const std::string& s1,
+                        const std::string& s2,
+                        const std::string& s4,
+                        const std::string& s3)
+{
+  return s1 + separator + s2 + separator + s3 + separator + s4;
 }
 
 
