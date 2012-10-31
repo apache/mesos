@@ -35,6 +35,7 @@ namespace cgroups {
 
 // Default number of retry attempts when trying to freeze a cgroup.
 const unsigned int FREEZE_RETRIES = 50;
+const unsigned int EMPTY_WATCHER_RETRIES = 50;
 
 
 // We use the following notations throughout the cgroups code. The notations

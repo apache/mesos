@@ -1070,9 +1070,9 @@ namespace internal {
 class Freezer : public Process<Freezer>
 {
 public:
-  Freezer(const std::string& _hierarchy,
-          const std::string& _cgroup,
-          const std::string& _action,
+  Freezer(const string& _hierarchy,
+          const string& _cgroup,
+          const string& _action,
           const Duration& _interval,
           unsigned int _retries = FREEZE_RETRIES)
     : hierarchy(_hierarchy),
@@ -1157,6 +1157,7 @@ private:
                 << attempt + 1 << " attempts.";
       promise.set(true);
       terminate(self());
+      return;
     } else if (strings::trim(state.get()) == "FREEZING") {
       // The freezer.state is in FREEZING state. This is because not all the
       // processes in the given cgroup can be frozen at the moment. The main
@@ -1197,13 +1198,14 @@ private:
       }
 
       if (attempt > retries) {
-        LOG(WARNING) << "Could not freeze cgroup '" << cgroup << "' within "
-                     << retries + 1 << " attempts";
+        LOG(WARNING) << "Unable to freeze cgroup '" << cgroup
+                     << "' within " << retries + 1 << " attempts";
         promise.set(false);
         terminate(self());
         return;
       }
 
+      // Retry the freezing operation.
       Try<Nothing> result =
         internal::writeControl(hierarchy, cgroup, "freezer.state", "FROZEN");
 
@@ -1256,8 +1258,8 @@ private:
 
 
 Future<bool> freezeCgroup(
-    const std::string& hierarchy,
-    const std::string& cgroup,
+    const string& hierarchy,
+    const string& cgroup,
     const Duration& interval,
     unsigned int retries)
 {
@@ -1322,14 +1324,20 @@ class EmptyWatcher: public Process<EmptyWatcher>
 public:
   EmptyWatcher(const string& _hierarchy,
                const string& _cgroup,
-               const Duration& _interval)
+               const Duration& _interval,
+               unsigned int _retries = EMPTY_WATCHER_RETRIES)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
-      interval(_interval) {}
+      interval(_interval),
+      retries(_retries) {}
 
   virtual ~EmptyWatcher() {}
 
   // Return a future indicating the state of the watcher.
+  // There are three outcomes:
+  //   1. true:  the cgroup became empty.
+  //   2. false: the cgroup did not become empty within the retry limit.
+  //   3. error: invalid arguments, or an unexpected error occured.
   Future<bool> future() { return promise.future(); }
 
 protected:
@@ -1349,7 +1357,7 @@ protected:
   }
 
 private:
-  void check()
+  void check(unsigned int attempt = 0)
   {
     Try<string> state = internal::readControl(hierarchy, cgroup, "tasks");
     if (state.isError()) {
@@ -1361,15 +1369,23 @@ private:
     if (strings::trim(state.get()).empty()) {
       promise.set(true);
       terminate(self());
+      return;
     } else {
+      if (attempt > retries) {
+        promise.set(false);
+        terminate(self());
+        return;
+      }
+
       // Re-check needed.
-      delay(interval, self(), &EmptyWatcher::check);
+      delay(interval, self(), &EmptyWatcher::check, attempt + 1);
     }
   }
 
-  string hierarchy;
-  string cgroup;
+  const string hierarchy;
+  const string cgroup;
   const Duration interval;
+  const unsigned int retries;
   Promise<bool> promise;
 };
 
@@ -1403,6 +1419,19 @@ protected:
       return;
     }
 
+    killTasks();
+  }
+
+  virtual void finalize()
+  {
+    // Cancel the chain of operations if the user discards the future.
+    if (promise.future().isDiscarded()) {
+      chain.discard();
+    }
+  }
+
+private:
+  void killTasks() {
     lambda::function<Future<bool>(const bool&)>
       funcFreeze = defer(self(), &Self::freeze);
     lambda::function<Future<bool>(const bool&)>
@@ -1412,43 +1441,22 @@ protected:
     lambda::function<Future<bool>(const bool&)>
       funcEmpty = defer(self(), &Self::empty);
 
-    finish = Future<bool>(true)
+    // Chain together the steps needed to kill the tasks. Note that we
+    // ignore he return values of freeze, kill, and thaw because,
+    // provided there are no errors, we'll just retry the chain as
+    // long as tasks still exist.
+    chain = Future<bool>(true)
       .then(funcFreeze)   // Freeze the cgroup.
       .then(funcKill)     // Send kill signals to all tasks in the cgroup.
       .then(funcThaw)     // Thaw the cgroup to let kill signals be received.
       .then(funcEmpty);   // Wait until no task is in the cgroup.
 
-    finish.onAny(defer(self(), &Self::finished, lambda::_1));
-  }
-
-  virtual void finalize()
-  {
-    // Cancel the operation if the user discards the future.
-    if (promise.future().isDiscarded()) {
-      finish.discard();
-    }
-  }
-
-private:
-  // TODO(bmahler): Temporary abort for failed freezes.
-  // TODO(bmahler): Remove this const when libprocess is fixed.
-  // This will be removed by another review in this review chain in favor
-  // of appropriate kill action against the cgroup.
-  Future<bool> checkFreeze(const bool& result)
-  {
-    CHECK(result == true)
-      << "Freezing failed for cgroup: " << cgroup
-      << " of hierarchy: " << hierarchy;
-    return result;
+    chain.onAny(defer(self(), &Self::finished, lambda::_1));
   }
 
   Future<bool> freeze()
   {
-    lambda::function<Future<bool>(const bool&)> checkFreeze =
-        defer(self(), &Self::checkFreeze, std::tr1::placeholders::_1);
-
-    return freezeCgroup(hierarchy, cgroup, interval)
-      .then(checkFreeze);
+    return freezeCgroup(hierarchy, cgroup, interval);
   }
 
   Future<bool> kill()
@@ -1476,34 +1484,32 @@ private:
   Future<bool> empty()
   {
     EmptyWatcher* watcher = new EmptyWatcher(hierarchy, cgroup, interval);
-    Future<bool> futureEmpty = watcher->future();
+    Future<bool> future = watcher->future();
     spawn(watcher, true);
-    return futureEmpty;
+    return future;
   }
 
-  void finished(const Future<bool>&)
+  void finished(const Future<bool>& empty)
   {
-    // The only place that 'finish' can be discarded is in the finalize
-    // function. Once the process has been terminated, we should not be able to
-    // see any function in this process being called because the dispatch will
-    // simply drop those messages. So, we should never see 'finish' in discarded
-    // state here.
-    CHECK(!finish.isPending() && !finish.isDiscarded());
-
-    if (finish.isFailed()) {
-      promise.fail(finish.failure());
-    } else {
+    CHECK(!empty.isPending() && !empty.isDiscarded());
+    if (empty.isFailed()) {
+      promise.fail(empty.failure());
+      terminate(self());
+    } else if (empty.get()) {
       promise.set(true);
+      terminate(self());
+    } else {
+      // The cgroup was not empty after the retry limit.
+      // We need to re-attempt the freeze/kill/thaw/watch chain.
+      killTasks();
     }
-
-    terminate(self());
   }
 
-  string hierarchy;
-  string cgroup;
+  const string hierarchy;
+  const string cgroup;
   const Duration interval;
   Promise<bool> promise;
-  Future<bool> finish;
+  Future<bool> chain; // Used to discard the "chain" of operations.
 };
 
 } // namespace internal {
