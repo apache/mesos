@@ -32,6 +32,7 @@
 #include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
+#include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -257,13 +258,15 @@ void CgroupsIsolationModule::initialize(
   CHECK(disable.isSome())
     << "Failed to disable OOM killer: " << disable.error();
 
-  // Configure resource subsystem mapping.
-  resourceSubsystemMap["cpus"] = "cpu";
-  resourceSubsystemMap["mem"] = "memory";
+  // Configure resource changed handlers. We only add handlers for
+  // resources that have the appropriate subsystem activated.
+  if (activatedSubsystems.contains("cpu")) {
+    handlers["cpus"] = &CgroupsIsolationModule::cpusChanged;
+  }
 
-  // Configure resource changed handlers.
-  resourceChangedHandlers["cpus"] = &CgroupsIsolationModule::cpusChanged;
-  resourceChangedHandlers["mem"] = &CgroupsIsolationModule::memChanged;
+  if (activatedSubsystems.contains("memory")) {
+    handlers["mem"] = &CgroupsIsolationModule::memChanged;
+  }
 
   initialized = true;
 }
@@ -347,8 +350,6 @@ void CgroupsIsolationModule::launchExecutor(
     LOG(INFO) << "Forked executor at = " << pid;
 
     // Store the pid of the leading process of the executor.
-    CgroupInfo* info = findCgroupInfo(frameworkId, executorId);
-    CHECK(info != NULL) << "Cannot find cgroup info";
     info->pid = pid;
 
     // Tell the slave this executor has started.
@@ -428,21 +429,11 @@ void CgroupsIsolationModule::resourcesChanged(
             << " with resources " << resources;
 
   // For each resource, invoke the corresponding handler.
-  for (Resources::const_iterator it = resources.begin();
-       it != resources.end(); ++it) {
-    const Resource& resource = *it;
-    const string& name = resource.name();
-
-    if (resourceChangedHandlers.contains(name)) {
-      // We only call the resource changed handler either if the resource does
-      // not depend on any subsystem, or the dependent subsystem is active.
-      if (!resourceSubsystemMap.contains(name) ||
-          activatedSubsystems.contains(resourceSubsystemMap[name])) {
-        Try<Nothing> result =
-          (this->*resourceChangedHandlers[name])(info, resources);
-        if (result.isError()) {
-          LOG(ERROR) << result.error();
-        }
+  foreach (const Resource& resource, resources) {
+    if (handlers.contains(resource.name())) {
+      Try<Nothing> result = (this->*handlers[resource.name()])(info, resource);
+      if (result.isError()) {
+        LOG(ERROR) << result.error();
       }
     }
   }
@@ -476,34 +467,29 @@ void CgroupsIsolationModule::processExited(pid_t pid, int status)
 
 Try<Nothing> CgroupsIsolationModule::cpusChanged(
     const CgroupInfo* info,
-    const Resources& resources)
+    const Resource& resource)
 {
-  Resource r;
-  r.set_name("cpus");
-  r.set_type(Value::SCALAR);
+  CHECK(resource.name() == "cpus");
 
-  Option<Resource> cpusResource = resources.get(r);
-  if (cpusResource.isNone()) {
-    LOG(WARNING) << "Resource cpus cannot be retrieved for executor "
-                 << info->executorId << " of framework " << info->frameworkId;
-  } else {
-    double cpus = cpusResource.get().scalar().value();
-    size_t cpuShares =
-      std::max((size_t)(CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
-
-    Try<Nothing> set =
-      cgroups::writeControl(hierarchy,
-                            info->name(),
-                            "cpu.shares",
-                            stringify(cpuShares));
-    if (set.isError()) {
-      return set;
-    }
-
-    LOG(INFO) << "Write cpu.shares = " << cpuShares
-              << " for executor " << info->executorId
-              << " of framework " << info->frameworkId;
+  if (resource.type() != Value::SCALAR) {
+    return Try<Nothing>::error("Expecting resource 'cpus' to be a scalar");
   }
+
+  double cpus = resource.scalar().value();
+  size_t cpuShares =
+    std::max((size_t)(CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
+
+  Try<Nothing> write = cgroups::writeControl(
+      hierarchy, info->name(), "cpu.shares", stringify(cpuShares));
+
+  if (write.isError()) {
+    return Try<Nothing>::error(
+        "Failed to update 'cpu.shares': " + write.error());
+  }
+
+  LOG(INFO) << "Updated 'cpu.shares' to " << cpuShares
+            << " for executor " << info->executorId
+            << " of framework " << info->frameworkId;
 
   return Nothing();
 }
@@ -511,34 +497,58 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
 
 Try<Nothing> CgroupsIsolationModule::memChanged(
     const CgroupInfo* info,
-    const Resources& resources)
+    const Resource& resource)
 {
-  Resource r;
-  r.set_name("mem");
-  r.set_type(Value::SCALAR);
+  CHECK(resource.name() == "mem");
 
-  Option<Resource> memResource = resources.get(r);
-  if (memResource.isNone()) {
-    LOG(WARNING) << "Resource mem cannot be retrieved for executor "
-                 << info->executorId << " of framework " << info->frameworkId;
-  } else {
-    double mem = memResource.get().scalar().value();
-    size_t limitInBytes =
-      std::max((size_t)mem, MIN_MEMORY_MB) * 1024LL * 1024LL;
+  if (resource.type() != Value::SCALAR) {
+    return Try<Nothing>::error("Expecting resource 'mem' to be a scalar");
+  }
 
-    Try<Nothing> set =
-      cgroups::writeControl(hierarchy,
-                            info->name(),
-                            "memory.limit_in_bytes",
-                            stringify(limitInBytes));
-    if (set.isError()) {
-      return set;
+  double mem = resource.scalar().value();
+  size_t limitInBytes =
+    std::max((size_t) mem, MIN_MEMORY_MB) * 1024LL * 1024LL;
+
+  // Determine which control to set. If this is the first time we're
+  // setting the limit, use 'memory.limit_in_bytes'. The "first time"
+  // is determined by checking whether or not we've forked a process
+  // in the cgroup yet (i.e., 'info->pid != -1'). If this is not the
+  // first time we're setting the limit AND we're decreasing the
+  // limit, use 'memory.soft_limit_in_bytes'. We do this because we
+  // might not be able to decrease 'memory.limit_in_bytes' if too much
+  // memory is being used. This is probably okay if the machine has
+  // available resources; TODO(benh): Introduce a MemoryWatcherProcess
+  // which monitors the descrepancy between usage and soft limit and
+  // introduces a "manual oom" if necessary.
+  string control = "memory.limit_in_bytes";
+
+  if (info->pid != -1) {
+    Try<string> read = cgroups::readControl(
+        hierarchy, info->name(), "memory.limit_in_bytes");
+    if (read.isError()) {
+      return Try<Nothing>::error(
+          "Failed to read 'memory.limit_in_bytes': " + read.error());
     }
 
-    LOG(INFO) << "Write memory.limit_in_bytes = " << limitInBytes
-              << " for executor " << info->executorId
-              << " of framework " << info->frameworkId;
+    Try<size_t> currentLimitInBytes = numify<size_t>(strings::trim(read.get()));
+    CHECK(currentLimitInBytes.isSome()) << currentLimitInBytes.error();
+
+    if (limitInBytes <= currentLimitInBytes.get()) {
+      control = "memory.soft_limit_in_bytes";
+    }
   }
+
+  Try<Nothing> write = cgroups::writeControl(
+      hierarchy, info->name(), control, stringify(limitInBytes));
+
+  if (write.isError()) {
+    return Try<Nothing>::error(
+        "Failed to update '" + control + "': " + write.error());
+  }
+
+  LOG(INFO) << "Updated '" << control << "' to " << limitInBytes
+            << " for executor " << info->executorId
+            << " of framework " << info->frameworkId;
 
   return Nothing();
 }
@@ -634,6 +644,12 @@ void CgroupsIsolationModule::oom(
     cgroups::readControl(hierarchy, info->name(), "memory.limit_in_bytes");
   if (read.isSome()) {
     LOG(INFO) << "MEMORY LIMIT: " << strings::trim(read.get()) << " bytes";
+  }
+
+  // Output 'memory.usage_in_bytes'.
+  read = cgroups::readControl(hierarchy, info->name(), "memory.usage_in_bytes");
+  if (read.isSome()) {
+    LOG(INFO) << "MEMORY USAGE: " << strings::trim(read.get()) << " bytes";
   }
 
   // Output 'memory.stat' of the cgroup to help with debugging.

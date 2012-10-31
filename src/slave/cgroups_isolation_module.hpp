@@ -98,7 +98,7 @@ private:
     // executor (which have the same frameworkId and executorId).
     std::string tag;
 
-    // PID of the leading process of the executor.
+    // PID of the forked process of the executor.
     pid_t pid;
 
     // Whether the executor has been killed.
@@ -115,7 +115,7 @@ private:
   // @return  Whether the operation successes.
   Try<Nothing> cpusChanged(
       const CgroupInfo* info,
-      const Resources& resources);
+      const Resource& resource);
 
   // The callback which will be invoked when "mem" resource has changed.
   // @param   frameworkId   The id of the given framework.
@@ -124,7 +124,7 @@ private:
   // @return  Whether the operation successes.
   Try<Nothing> memChanged(
       const CgroupInfo* info,
-      const Resources& resources);
+      const Resource& resource);
 
   // Start listening on OOM events. This function will create an eventfd and
   // start polling on it.
@@ -203,15 +203,11 @@ private:
   // The activated cgroups subsystems that can be used by the module.
   hashset<std::string> activatedSubsystems;
 
-  // The mapping between resource name and corresponding cgroups subsystem.
-  hashmap<std::string, std::string> resourceSubsystemMap;
-
-  // Mapping between resource name to the corresponding resource changed
-  // handler function.
+  // Handlers for each resource name, used for resource changes.
   hashmap<std::string,
           Try<Nothing>(CgroupsIsolationModule::*)(
               const CgroupInfo*,
-              const Resources&)> resourceChangedHandlers;
+              const Resource&)> handlers;
 };
 
 } // namespace mesos {
