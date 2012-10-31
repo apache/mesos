@@ -266,7 +266,7 @@ protected:
       send(master, message);
     }
 
-    delay(Seconds(1.0), self(), &SchedulerProcess::doReliableRegistration);
+    delay(Seconds(1.0), self(), &Self::doReliableRegistration);
   }
 
   void resourceOffers(const vector<Offer>& offers,
@@ -340,19 +340,30 @@ protected:
 
     scheduler->statusUpdate(driver, status);
 
-    // Send a status update acknowledgement ONLY if not aborted!
-    if (!aborted && pid) {
-      // Acknowledge the message (we do this last, after we invoked
-      // the scheduler, if we did at all, in case it causes a crash,
-      // since this way the message might get resent/routed after the
-      // scheduler comes back online).
-      StatusUpdateAcknowledgementMessage message;
-      message.mutable_framework_id()->MergeFrom(framework.id());
-      message.mutable_slave_id()->MergeFrom(update.slave_id());
-      message.mutable_task_id()->MergeFrom(status.task_id());
-      message.set_uuid(update.uuid());
-      send(pid, message);
+    // Acknowledge the status update.
+    // NOTE: We do a dispatch here instead of directly sending the ACK because,
+    // we want to avoid sending the ACK if the driver was aborted when we
+    // made the statusUpdate call. This works because, the 'abort' message will
+    // be enqueued before the ACK message is processed.
+    if (pid) {
+      dispatch(self(), &Self::statusUpdateAcknowledgement, update, pid);
     }
+  }
+
+  void statusUpdateAcknowledgement(const StatusUpdate& update, const UPID& pid)
+  {
+    if (aborted) {
+      VLOG(1) << "Not sending status update acknowledgment message because "
+              << "the driver is aborted!";
+      return;
+    }
+
+    StatusUpdateAcknowledgementMessage message;
+    message.mutable_framework_id()->MergeFrom(framework.id());
+    message.mutable_slave_id()->MergeFrom(update.slave_id());
+    message.mutable_task_id()->MergeFrom(update.status().task_id());
+    message.set_uuid(update.uuid());
+    send(pid, message);
   }
 
   void lostSlave(const SlaveID& slaveId)
