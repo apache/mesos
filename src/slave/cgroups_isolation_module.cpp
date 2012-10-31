@@ -30,7 +30,6 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 
-#include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/numify.hpp>
@@ -95,12 +94,14 @@ void CgroupsIsolationModule::initialize(
 
   // Make sure that cgroups is enabled by the kernel.
   if (!cgroups::enabled()) {
-    fatal("No cgroups support detected on this kernel");
+    std::cerr << "No cgroups support detected on this kernel" << std::endl;
+    abort();
   }
 
   // Make sure that we have root permissions.
   if (geteuid() != 0) {
-    fatal("The cgroups isolation module requires root permissions");
+    std::cerr << "Using cgroups requires root permissions" << std::endl;
+    abort();
   }
 
   // Configure cgroups hierarchy root path.
@@ -217,6 +218,19 @@ void CgroupsIsolationModule::initialize(
       << create.error();
   }
 
+  // Make sure this kernel supports creating nested cgroups.
+  Try<Nothing> create = cgroups::createCgroup(hierarchy, "mesos/test");
+  if (create.isError()) {
+    std::cerr << "Failed to create a nested \"test\" cgroup, your kernel "
+              << "might be too old to use the cgroups isolation module: "
+              << create.error() << std::endl;
+    abort();
+  }
+
+  Try<Nothing> remove = cgroups::removeCgroup(hierarchy, "mesos/test");
+  CHECK(remove.isSome())
+    << "Failed to remove the nested \"test\" cgroup:" << remove.error();
+
   // Try and put an _advisory_ file lock on the tasks' file of our
   // root cgroup to check and see if another slave is already running.
   Try<int> fd = os::open(path::join(hierarchy, "mesos", "tasks"), O_RDONLY);
@@ -224,10 +238,12 @@ void CgroupsIsolationModule::initialize(
   Try<Nothing> cloexec = os::cloexec(fd.get());
   CHECK(cloexec.isSome());
   if (flock(fd.get(), LOCK_EX | LOCK_NB) != 0) {
-    fatal("Another mesos-slave appears to already be running!");
+    std::cerr << "Another mesos-slave appears to be running!" << std::endl;
+    abort();
   }
 
-  // Cleanup any orphaned cgroups created in previous executions.
+  // Cleanup any orphaned cgroups created in previous executions (this
+  // should be safe because we've been able to acquire the file lock).
   Try<vector<string> > cgroups = cgroups::getCgroups(hierarchy, "mesos");
   CHECK(cgroups.isSome())
     << "Failed to get nested cgroups of \"mesos\": "
@@ -241,25 +257,14 @@ void CgroupsIsolationModule::initialize(
                    lambda::_1));
   }
 
-  // Make sure this kernel supports creating nested cgroups.
-  Try<Nothing> create = cgroups::createCgroup(hierarchy, "mesos/test");
-  if (create.isError()) {
-    fatal("Failed to create a nested \"test\" cgroup, your kernel "
-          "might be too old to use the cgroups isolation module"
-          ": %s", create.error().c_str()); // TODO(benh): Update fatal.
-  }
-
-  Try<Nothing> remove = cgroups::removeCgroup(hierarchy, "mesos/test");
-  CHECK(remove.isSome())
-    << "Failed to remove the nested \"test\" cgroup:" << remove.error();
-
   // Make sure the kernel supports OOM controls.
   Try<Nothing> check =
     cgroups::checkControl(hierarchy, "mesos", "memory.oom_control");
   if (check.isError()) {
-    fatal("Failed to find 'memory.oom_control', your kernel "
-          "might be too old to use the cgroups isolation module"
-          ": %s", check.error().c_str()); // TODO(benh): Update fatal.
+    std::cerr << "Failed to find 'memory.oom_control', your kernel "
+              << "might be too old to use the cgroups isolation module: "
+              << check.error() << std::endl;
+    abort();
   }
 
   // Disable the OOM killer so that we can capture 'memory.stat'.
