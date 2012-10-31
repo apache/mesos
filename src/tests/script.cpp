@@ -79,7 +79,7 @@ void execute(const string& script)
              << strsignal(WTERMSIG(status)) << "'";
     }
   } else {
-    // In child process, DO NOT USE GLOG!
+    // In child process. DO NOT USE GLOG!
 
     // Start by cd'ing into the temporary directory.
     if (!os::chdir(directory.get())) {

@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h> // For perror.
 #include <string.h>
 
 #include <map>
@@ -150,29 +151,33 @@ void ProcessBasedIsolationModule::launchExecutor(
     dispatch(slave, &Slave::executorStarted,
              frameworkId, executorId, pid);
   } else {
-    // In child process, make cleanup easier.
+    // In child process, we make cleanup easier by putting process
+    // into it's own session. DO NOT USE GLOG!
+    close(pipes[0]);
+
     // NOTE: We setsid() in a loop because setsid() might fail if another
     // process has the same process group id as the calling process.
-    close(pipes[0]);
     while ((pid = setsid()) == -1) {
-      PLOG(ERROR) << "Could not put executor in own session, "
-                  << "forking another process and retrying";
+      perror("Could not put executor in own session");
+
+      std::cerr << "Forking another process and retrying ..." << std::endl;
 
       if ((pid = fork()) == -1) {
-        LOG(ERROR) << "Failed to fork to launch executor";
-        exit(-1);
+        perror("Failed to fork to launch executor");
+        abort();
       }
 
       if (pid) {
         // In parent process.
         // It is ok to suicide here, though process reaper signals the exit,
         // because the process isolation module ignores unknown processes.
-        exit(-1);
+        exit(0);
       }
     }
 
     if (write(pipes[1], &pid, sizeof(pid)) != sizeof(pid)) {
-      PLOG(FATAL) << "Failed to write PID on pipe";
+      perror("Failed to write PID on pipe");
+      abort();
     }
 
     close(pipes[1]);
@@ -182,7 +187,8 @@ void ProcessBasedIsolationModule::launchExecutor(
                              executorInfo, directory);
 
     if (launcher->run() < 0) {
-      LOG(FATAL) << "Failed to launch executor";
+      std::cerr << "Failed to launch executor" << std::endl;
+      abort();
     }
   }
 }
@@ -217,7 +223,7 @@ void ProcessBasedIsolationModule::killExecutor(
     // TODO(vinod): Also (recursively) kill processes belonging to the
     // same session, but have a different process group id.
     if (killpg(pid, SIGKILL) == -1 && errno != ESRCH) {
-      LOG(ERROR) << "ERROR! Killing process group " << pid;
+      PLOG(WARNING) << "Failed to kill process group " << pid;
     }
 
     ProcessInfo* info = infos[frameworkId][executorId];
