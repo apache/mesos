@@ -39,6 +39,7 @@
 
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/group.hpp"
+#include "zookeeper/url.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
@@ -46,6 +47,7 @@ using namespace mesos::internal::tests;
 using process::Clock;
 
 using testing::_;
+using testing::AtMost;
 using testing::Return;
 
 
@@ -288,7 +290,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
 
   server->startNetwork();
 
-  WAIT_FOR(newMasterDetectedCall2, Seconds(5.0));
+  WAIT_FOR(newMasterDetectedCall2, Seconds(5.0)); // ZooKeeper needs extra time.
 
   MasterDetector::destroy(detector.get());
 
@@ -296,6 +298,67 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
   process::wait(mock);
 
   Clock::resume();
+}
+
+
+TEST_F(ZooKeeperTest, MasterDetectorExpireZKSession)
+{
+  // Simulate a leading master.
+  MockMasterDetectorListenerProcess leader;
+
+  trigger newMasterDetectedCall1, newMasterDetectedCall2;
+  EXPECT_CALL(leader, newMasterDetected(_))
+    .WillOnce(Trigger(&newMasterDetectedCall1))
+    .WillOnce(Trigger(&newMasterDetectedCall2));
+
+  EXPECT_CALL(leader, noMasterDetected())
+    .Times(0);
+
+  process::spawn(leader);
+
+  std::string znode = "zk://" + server->connectString() + "/mesos";
+
+  Try<zookeeper::URL> url = zookeeper::URL::parse(znode);
+  ASSERT_SOME(url);
+
+  // Leader's detector.
+  ZooKeeperMasterDetector leaderDetector(url.get(), leader.self(), true, true);
+
+  WAIT_UNTIL(newMasterDetectedCall1);
+
+  // Simulate a following master.
+  MockMasterDetectorListenerProcess follower;
+
+  trigger newMasterDetectedCall3;
+  EXPECT_CALL(follower, newMasterDetected(_))
+    .WillOnce(Trigger(&newMasterDetectedCall3))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(follower, noMasterDetected())
+    .Times(0);
+
+  process::spawn(follower);
+
+  // Follower's detector.
+  ZooKeeperMasterDetector followerDetector(
+      url.get(), follower.self(), true, true);
+
+  WAIT_UNTIL(newMasterDetectedCall3);
+
+  // Now expire the leader's zk session.
+  process::Future<int64_t> session = leaderDetector.session();
+  ASSERT_FUTURE_WILL_SUCCEED(session);
+
+  server->expireSession(session.get());
+
+  // Wait for session expiration and ensure we receive a newMasterDetected call.
+  WAIT_FOR(newMasterDetectedCall2, Seconds(5.0)); // ZooKeeper needs extra time.
+
+  process::terminate(follower);
+  process::wait(follower);
+
+  process::terminate(leader);
+  process::wait(leader);
 }
 
 

@@ -25,12 +25,19 @@
 #include <climits>
 #include <cstdlib>
 
+#include <process/future.hpp>
+#include <process/pid.hpp>
 #include <process/process.hpp>
 
 #include <stout/try.hpp>
 
+#include "zookeeper/url.hpp"
+
 namespace mesos {
 namespace internal {
+
+class ZooKeeperMasterDetectorProcess; // Forward declaration.
+
 
 /**
  * Implements functionality for:
@@ -104,8 +111,38 @@ private:
   const process::UPID master;
 };
 
+
+class ZooKeeperMasterDetector : public MasterDetector
+{
+public:
+  /**
+   * Uses ZooKeeper for both detecting masters and contending to be a
+   * master.
+   *
+   * @param url znode path of the master
+   * @param pid libprocess pid to send messages/updates to (and to
+   * use for contending to be a master)
+   * @param contend true if should contend to be master and false otherwise (not
+   * needed for slaves and frameworks)
+   * @param quiet verbosity logging level for underlying ZooKeeper library
+   */
+  ZooKeeperMasterDetector(const zookeeper::URL& url,
+                          const process::UPID& pid,
+                          bool contend,
+                          bool quiet);
+
+  virtual ~ZooKeeperMasterDetector();
+
+  /**
+   *  Returns the ZooKeeper session ID associated with this detector.
+   */
+  process::Future<int64_t> session();
+
+private:
+  ZooKeeperMasterDetectorProcess* process;
+};
+
 } // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_DETECTOR_HPP__
-

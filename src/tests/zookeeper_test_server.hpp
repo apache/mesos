@@ -54,7 +54,16 @@ public:
   // the first call and re-uses the port on subsequent calls.
   int startNetwork();
 
-  // Forces the server to expire the given session immediately.
+  // Forces the server to expire the given session.
+  // Note that there is a delay (~3s) for the corresponding client to receive
+  // a session expiration event notification from the ZooKeeper server.
+  // TODO(vinod): Fix this so that the notification is immediate.
+  // One possible solution is suggested at :
+  // http://wiki.apache.org/hadoop/ZooKeeper/FAQ#A4
+  // But according to,
+  // http://comments.gmane.org/gmane.comp.java.hadoop.zookeeper.user/4489
+  // the C binding for ZooKeeper does not yet support multiple
+  // clients with the same session id.
   void expireSession(int64_t sessionId);
 
 private:
