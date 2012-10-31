@@ -21,11 +21,15 @@
 
 #include <sys/types.h>
 
+#include <set>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 
+#include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
@@ -40,8 +44,12 @@
 
 #include "slave/cgroups_isolation_module.hpp"
 
-using namespace process;
+using process::defer;
+using process::Future;
 
+using std::set;
+using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -83,14 +91,14 @@ void CgroupsIsolationModule::initialize(
   local = _local;
   slave = _slave;
 
-  // Make sure that we have root permission.
-  if (os::user() != "root") {
-    LOG(FATAL) << "Cgroups isolation module needs root permission";
-  }
-
   // Make sure that cgroups is enabled by the kernel.
   if (!cgroups::enabled()) {
-    LOG(FATAL) << "Cgroups is not supported by the kernel";
+    fatal("No cgroups support detected on this kernel");
+  }
+
+  // Make sure that we have root permissions.
+  if (geteuid() != 0) {
+    fatal("The cgroups isolation module requires root permissions");
   }
 
   // Configure cgroups hierarchy root path.
@@ -99,25 +107,25 @@ void CgroupsIsolationModule::initialize(
   LOG(INFO) << "Using " << hierarchy << " as cgroups hierarchy root";
 
   // Configure required/optional subsystems.
-  hashset<std::string> requiredSubsystems;
-  hashset<std::string> optionalSubsystems;
+  hashset<string> requiredSubsystems;
+  hashset<string> optionalSubsystems;
 
   requiredSubsystems.insert("cpu");
-  requiredSubsystems.insert("cpuset");
   requiredSubsystems.insert("memory");
   requiredSubsystems.insert("freezer");
 
+  optionalSubsystems.insert("cpuset");
   optionalSubsystems.insert("blkio");
 
   // Probe cgroups subsystems.
-  hashset<std::string> enabledSubsystems;
-  hashset<std::string> busySubsystems;
+  hashset<string> enabledSubsystems;
+  hashset<string> busySubsystems;
 
-  Try<std::set<std::string> > enabled = cgroups::subsystems();
+  Try<set<string> > enabled = cgroups::subsystems();
   if (enabled.isError()) {
     LOG(FATAL) << "Failed to probe cgroups subsystems: " << enabled.error();
   } else {
-    foreach (const std::string& name, enabled.get()) {
+    foreach (const string& name, enabled.get()) {
       enabledSubsystems.insert(name);
 
       Try<bool> busy = cgroups::busy(name);
@@ -132,7 +140,7 @@ void CgroupsIsolationModule::initialize(
   }
 
   // Make sure that all the required subsystems are enabled by the kernel.
-  foreach (const std::string& name, requiredSubsystems) {
+  foreach (const string& name, requiredSubsystems) {
     if (!enabledSubsystems.contains(name)) {
       LOG(FATAL) << "Required subsystem " << name
                  << " is not enabled by the kernel";
@@ -150,17 +158,17 @@ void CgroupsIsolationModule::initialize(
       // remove the residue directory after a slave reboot.
       if (::rmdir(hierarchy.c_str()) < 0) {
         LOG(FATAL) << "Cannot create cgroups hierarchy root at " << hierarchy
-                   << ". Consider removing it.";
+                   << ". Consider removing it";
       }
     }
 
     // The comma-separated subsystem names which will be passed to
     // cgroups::createHierarchy to create the hierarchy root.
-    std::string subsystems;
+    string subsystems;
 
     // Make sure that all the required subsystems are not busy so that we can
     // activate them in the given cgroups hierarchy root.
-    foreach (const std::string& name, requiredSubsystems) {
+    foreach (const string& name, requiredSubsystems) {
       if (busySubsystems.contains(name)) {
         LOG(FATAL) << "Required subsystem " << name << " is busy";
       }
@@ -169,7 +177,7 @@ void CgroupsIsolationModule::initialize(
     }
 
     // Also activate those optional subsystems that are not busy.
-    foreach (const std::string& name, optionalSubsystems) {
+    foreach (const string& name, optionalSubsystems) {
       if (enabledSubsystems.contains(name) && !busySubsystems.contains(name)) {
         subsystems.append(name + ",");
       }
@@ -185,31 +193,35 @@ void CgroupsIsolationModule::initialize(
   }
 
   // Probe activated subsystems in the cgroups hierarchy root.
-  Try<std::set<std::string> > activated = cgroups::subsystems(hierarchy);
-  foreach (const std::string& name, activated.get()) {
+  Try<set<string> > activated = cgroups::subsystems(hierarchy);
+  foreach (const string& name, activated.get()) {
     activatedSubsystems.insert(name);
   }
 
   // Make sure that all the required subsystems are activated.
-  foreach (const std::string& name, requiredSubsystems) {
+  foreach (const string& name, requiredSubsystems) {
     if (!activatedSubsystems.contains(name)) {
       LOG(FATAL) << "Required subsystem " << name
                  << " is not activated in hierarchy " << hierarchy;
     }
   }
 
-  // Try to cleanup the cgroups in the cgroups hierarchy root that belong to
-  // this module (which are created in the previous executions).
-  Try<std::vector<std::string> > cgroups = cgroups::getCgroups(hierarchy);
-  if (cgroups.isError()) {
-    LOG(FATAL) << "Failed to peek cgroups in hierarchy " << hierarchy
-               << ": " << cgroups.error();
-  }
-
-  foreach (const std::string cgroup, cgroups.get()) {
-    if (isValidCgroupName(cgroup)) {
-      LOG(INFO) << "Removing stale cgroup " << cgroup
-                << " in hierarchy " << hierarchy;
+  // Create the root "mesos" cgroup and cleanup any orphaned cgroups
+  // that were created in previous executions.
+  if (cgroups::checkCgroup(hierarchy, "mesos").isError()) {
+    // No root cgroup exists, create it.
+    Try<Nothing> create = cgroups::createCgroup(hierarchy, "mesos");
+    CHECK(create.isSome())
+      << "Failed to create the \"mesos\" cgroup: "
+      << create.error();
+  } else {
+    // The root cgroup already exists, so cleanup any orphaned cgroups.
+    Try<vector<string> > cgroups = cgroups::getCgroups(hierarchy, "mesos");
+    CHECK(cgroups.isSome())
+      << "Failed to get nested cgroups of \"mesos\": "
+      << cgroups.error();
+    foreach (const string& cgroup, cgroups.get()) {
+      LOG(INFO) << "Removing orphaned cgroup '" << cgroup << "'";
       cgroups::destroyCgroup(hierarchy, cgroup)
         .onAny(defer(PID<CgroupsIsolationModule>(this),
                      &CgroupsIsolationModule::destroyWaited,
@@ -217,6 +229,33 @@ void CgroupsIsolationModule::initialize(
                      lambda::_1));
     }
   }
+
+  // Make sure this kernel supports creating nested cgroups.
+  Try<Nothing> create = cgroups::createCgroup(hierarchy, "mesos/test");
+  if (create.isError()) {
+    fatal("Failed to create a nested \"test\" cgroup, your kernel "
+          "might be too old to use the cgroups isolation module"
+          ": %s", create.error().c_str()); // TODO(benh): Update fatal.
+  }
+
+  Try<Nothing> remove = cgroups::removeCgroup(hierarchy, "mesos/test");
+  CHECK(remove.isSome())
+    << "Failed to remove the nested \"test\" cgroup:" << remove.error();
+
+
+  Try<Nothing> check =
+    cgroups::checkControl(hierarchy, "mesos", "memory.oom_control");
+  if (check.isError()) {
+    fatal("Failed to find 'memory.oom_control', your kernel "
+          "might be too old to use the cgroups isolation module"
+          ": %s", check.error().c_str()); // TODO(benh): Update fatal.
+  }
+
+  // Disable the OOM killer so that we can capture 'memory.stat'.
+  Try<Nothing> disable =
+    cgroups::writeControl(hierarchy, "mesos", "memory.oom_control", "1");
+  CHECK(disable.isSome())
+    << "Failed to disable OOM killer: " << disable.error();
 
   // Configure resource subsystem mapping.
   resourceSubsystemMap["cpus"] = "cpu";
@@ -234,7 +273,7 @@ void CgroupsIsolationModule::launchExecutor(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
-    const std::string& directory,
+    const string& directory,
     const Resources& resources)
 {
   CHECK(initialized) << "Cannot launch executors before initialization";
@@ -242,14 +281,14 @@ void CgroupsIsolationModule::launchExecutor(
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // Register the cgroup information.
-  registerCgroupInfo(frameworkId, executorId);
+  CgroupInfo* info = registerCgroupInfo(frameworkId, executorId);
 
   LOG(INFO) << "Launching " << executorId
             << " (" << executorInfo.command().value() << ")"
             << " in " << directory
             << " with resources " << resources
             << " for framework " << frameworkId
-            << " in cgroup " << getCgroupName(frameworkId, executorId);
+            << " in cgroup " << info->name();
 
   // First fetch the executor.
   launcher::ExecutorLauncher launcher(
@@ -284,8 +323,7 @@ void CgroupsIsolationModule::launchExecutor(
   }
 
   // Create a new cgroup for the executor.
-  Try<Nothing> create =
-    cgroups::createCgroup(hierarchy, getCgroupName(frameworkId, executorId));
+  Try<Nothing> create = cgroups::createCgroup(hierarchy, info->name());
   if (create.isError()) {
     LOG(FATAL) << "Failed to create cgroup for executor " << executorId
                << " of framework " << frameworkId
@@ -323,9 +361,7 @@ void CgroupsIsolationModule::launchExecutor(
     // In child process.
     // Put self into the newly created cgroup.
     Try<Nothing> assign =
-      cgroups::assignTask(hierarchy,
-                          getCgroupName(frameworkId, executorId),
-                          ::getpid());
+      cgroups::assignTask(hierarchy, info->name(), ::getpid());
     if (assign.isError()) {
       LOG(FATAL) << "Failed to assign for executor " << executorId
                  << " of framework " << frameworkId
@@ -362,10 +398,10 @@ void CgroupsIsolationModule::killExecutor(
   // wait for it to succeed as we don't want to block the isolation module.
   // Instead, we register a callback which will be invoked when its result is
   // ready.
-  cgroups::destroyCgroup(hierarchy, getCgroupName(frameworkId, executorId))
+  cgroups::destroyCgroup(hierarchy, info->name())
     .onAny(defer(PID<CgroupsIsolationModule>(this),
                  &CgroupsIsolationModule::destroyWaited,
-                 getCgroupName(frameworkId, executorId),
+                 info->name(),
                  lambda::_1));
 
   // We do not unregister the cgroup info here, instead, we ask the process
@@ -395,7 +431,7 @@ void CgroupsIsolationModule::resourcesChanged(
   for (Resources::const_iterator it = resources.begin();
        it != resources.end(); ++it) {
     const Resource& resource = *it;
-    const std::string& name = resource.name();
+    const string& name = resource.name();
 
     if (resourceChangedHandlers.contains(name)) {
       // We only call the resource changed handler either if the resource does
@@ -403,9 +439,7 @@ void CgroupsIsolationModule::resourcesChanged(
       if (!resourceSubsystemMap.contains(name) ||
           activatedSubsystems.contains(resourceSubsystemMap[name])) {
         Try<Nothing> result =
-          (this->*resourceChangedHandlers[name])(frameworkId,
-                                                 executorId,
-                                                 resources);
+          (this->*resourceChangedHandlers[name])(info, resources);
         if (result.isError()) {
           LOG(ERROR) << result.error();
         }
@@ -441,8 +475,7 @@ void CgroupsIsolationModule::processExited(pid_t pid, int status)
 
 
 Try<Nothing> CgroupsIsolationModule::cpusChanged(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
+    const CgroupInfo* info,
     const Resources& resources)
 {
   Resource r;
@@ -452,7 +485,7 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
   Option<Resource> cpusResource = resources.get(r);
   if (cpusResource.isNone()) {
     LOG(WARNING) << "Resource cpus cannot be retrieved for executor "
-                 << executorId << " of framework " << frameworkId;
+                 << info->executorId << " of framework " << info->frameworkId;
   } else {
     double cpus = cpusResource.get().scalar().value();
     size_t cpuShares =
@@ -460,7 +493,7 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
 
     Try<Nothing> set =
       cgroups::writeControl(hierarchy,
-                            getCgroupName(frameworkId, executorId),
+                            info->name(),
                             "cpu.shares",
                             stringify(cpuShares));
     if (set.isError()) {
@@ -468,8 +501,8 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
     }
 
     LOG(INFO) << "Write cpu.shares = " << cpuShares
-              << " for executor " << executorId
-              << " of framework " << frameworkId;
+              << " for executor " << info->executorId
+              << " of framework " << info->frameworkId;
   }
 
   return Nothing();
@@ -477,8 +510,7 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
 
 
 Try<Nothing> CgroupsIsolationModule::memChanged(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
+    const CgroupInfo* info,
     const Resources& resources)
 {
   Resource r;
@@ -488,7 +520,7 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
   Option<Resource> memResource = resources.get(r);
   if (memResource.isNone()) {
     LOG(WARNING) << "Resource mem cannot be retrieved for executor "
-                 << executorId << " of framework " << frameworkId;
+                 << info->executorId << " of framework " << info->frameworkId;
   } else {
     double mem = memResource.get().scalar().value();
     size_t limitInBytes =
@@ -496,7 +528,7 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
 
     Try<Nothing> set =
       cgroups::writeControl(hierarchy,
-                            getCgroupName(frameworkId, executorId),
+                            info->name(),
                             "memory.limit_in_bytes",
                             stringify(limitInBytes));
     if (set.isError()) {
@@ -504,8 +536,8 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
     }
 
     LOG(INFO) << "Write memory.limit_in_bytes = " << limitInBytes
-              << " for executor " << executorId
-              << " of framework " << frameworkId;
+              << " for executor " << info->executorId
+              << " of framework " << info->frameworkId;
   }
 
   return Nothing();
@@ -520,9 +552,7 @@ void CgroupsIsolationModule::oomListen(
   CHECK(info != NULL) << "Cgroup info is not registered";
 
   info->oomNotifier =
-    cgroups::listenEvent(hierarchy,
-                         getCgroupName(frameworkId, executorId),
-                         "memory.oom_control");
+    cgroups::listenEvent(hierarchy, info->name(), "memory.oom_control");
 
   // If the listening fails immediately, something very wrong happened.
   // Therefore, we report a fatal error here.
@@ -548,7 +578,7 @@ void CgroupsIsolationModule::oomListen(
 void CgroupsIsolationModule::oomWaited(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const std::string& tag,
+    const string& tag,
     const Future<uint64_t>& future)
 {
   LOG(INFO) << "OOM notifier is triggered for executor "
@@ -573,12 +603,8 @@ void CgroupsIsolationModule::oomWaited(
 void CgroupsIsolationModule::oom(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const std::string& tag)
+    const string& tag)
 {
-  LOG(INFO) << "OOM detected in executor " << executorId
-            << " of framework " << frameworkId
-            << " with tag " << tag;
-
   CgroupInfo* info = findCgroupInfo(frameworkId, executorId);
   if (info == NULL) {
     // It is likely that processExited is executed before this function (e.g.
@@ -599,6 +625,23 @@ void CgroupsIsolationModule::oom(
   // Therefore, we should not be able to reach this point.
   CHECK(!info->killed) << "OOM detected for a killed executor";
 
+  LOG(INFO) << "OOM detected for executor " << executorId
+            << " of framework " << frameworkId
+            << " with tag " << tag;
+
+  // Output 'memory.limit_in_bytes' of the cgroup to help with debugging.
+  Try<string> read =
+    cgroups::readControl(hierarchy, info->name(), "memory.limit_in_bytes");
+  if (read.isSome()) {
+    LOG(INFO) << "MEMORY LIMIT: " << strings::trim(read.get()) << " bytes";
+  }
+
+  // Output 'memory.stat' of the cgroup to help with debugging.
+  read = cgroups::readControl(hierarchy, info->name(), "memory.stat");
+  if (read.isSome()) {
+    LOG(INFO) << "MEMORY STATISTICS: \n" << read.get();
+  }
+
   // TODO(jieyu): Have a mechanism to use a different policy (e.g. freeze the
   // executor) when OOM happens.
   killExecutor(frameworkId, executorId);
@@ -606,7 +649,7 @@ void CgroupsIsolationModule::oom(
 
 
 void CgroupsIsolationModule::destroyWaited(
-    const std::string& cgroup,
+    const string& cgroup,
     const Future<bool>& future)
 {
   if (future.isReady()) {
@@ -673,30 +716,6 @@ CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::findCgroupInfo(
     }
   }
   return NULL;
-}
-
-
-std::string CgroupsIsolationModule::getCgroupName(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId)
-{
-  CgroupInfo* info = findCgroupInfo(frameworkId, executorId);
-  CHECK(info != NULL) << "Cgroup info is not registered";
-
-  std::ostringstream out;
-  out << "mesos_cgroup_framework_" << frameworkId
-      << "_executor_" << executorId
-      << "_tag_" << info->tag;
-  return out.str();
-}
-
-
-bool CgroupsIsolationModule::isValidCgroupName(const std::string& name)
-{
-  return
-    strings::startsWith(name, "mesos_cgroup_framework_") &&
-    strings::contains(name, "_executor_") &&
-    strings::contains(name, "_tag_");
 }
 
 } // namespace mesos {

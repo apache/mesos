@@ -19,6 +19,7 @@
 #ifndef __CGROUPS_ISOLATION_MODULE_HPP__
 #define __CGROUPS_ISOLATION_MODULE_HPP__
 
+#include <sstream>
 #include <string>
 
 #include <process/future.hpp>
@@ -27,6 +28,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
+#include <stout/path.hpp>
 
 #include "launcher/launcher.hpp"
 
@@ -48,22 +50,26 @@ public:
 
   virtual ~CgroupsIsolationModule();
 
-  virtual void initialize(const Flags& flags,
-                          bool local,
-                          const process::PID<Slave>& slave);
+  virtual void initialize(
+      const Flags& flags,
+      bool local,
+      const process::PID<Slave>& slave);
 
-  virtual void launchExecutor(const FrameworkID& frameworkId,
-                              const FrameworkInfo& frameworkInfo,
-                              const ExecutorInfo& executorInfo,
-                              const std::string& directory,
-                              const Resources& resources);
+  virtual void launchExecutor(
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Resources& resources);
 
-  virtual void killExecutor(const FrameworkID& frameworkId,
-                            const ExecutorID& executorId);
+  virtual void killExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
-  virtual void resourcesChanged(const FrameworkID& frameworkId,
-                                const ExecutorID& executorId,
-                                const Resources& resources);
+  virtual void resourcesChanged(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const Resources& resources);
 
   virtual void processExited(pid_t pid, int status);
 
@@ -75,6 +81,16 @@ private:
   // The cgroup information for each live executor.
   struct CgroupInfo
   {
+    // Returns the canonicalized name of the cgroup in the filesystem.
+    std::string name() const
+    {
+      std::ostringstream out;
+      out << "framework_" << frameworkId
+          << "_executor_" << executorId
+          << "_tag_" << tag;
+      return path::join("mesos", out.str());
+    }
+
     FrameworkID frameworkId;
     ExecutorID executorId;
 
@@ -97,61 +113,67 @@ private:
   // @param   executorId    The id of the given executor.
   // @param   resources     The handle for the resources.
   // @return  Whether the operation successes.
-  Try<Nothing> cpusChanged(const FrameworkID& frameworkId,
-                           const ExecutorID& executorId,
-                           const Resources& resources);
+  Try<Nothing> cpusChanged(
+      const CgroupInfo* info,
+      const Resources& resources);
 
   // The callback which will be invoked when "mem" resource has changed.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   // @param   resources     The handle for the resources.
   // @return  Whether the operation successes.
-  Try<Nothing> memChanged(const FrameworkID& frameworkId,
-                          const ExecutorID& executorId,
-                          const Resources& resources);
+  Try<Nothing> memChanged(
+      const CgroupInfo* info,
+      const Resources& resources);
 
   // Start listening on OOM events. This function will create an eventfd and
   // start polling on it.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
-  void oomListen(const FrameworkID& frameworkId,
-                 const ExecutorID& executorId);
+  void oomListen(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
   // This function is invoked when the polling on eventfd has a result.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   // @param   tag           The uuid tag.
-  void oomWaited(const FrameworkID& frameworkId,
-                 const ExecutorID& executorId,
-                 const std::string& tag,
-                 const process::Future<uint64_t>& future);
+  void oomWaited(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::string& tag,
+      const process::Future<uint64_t>& future);
 
   // This function is invoked when the OOM event happens.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   // @param   tag           The uuid tag.
-  void oom(const FrameworkID& frameworkId,
-           const ExecutorID& executorId,
-           const std::string& tag);
+  void oom(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::string& tag);
 
   // This callback is invoked when destroy cgroup has a result.
   // @param   cgroup        The cgroup that is being destroyed.
   // @param   future        The future describing the destroy process.
-  void destroyWaited(const std::string& cgroup,
-                     const process::Future<bool>& future);
+  void destroyWaited(
+      const std::string& cgroup,
+      const process::Future<bool>& future);
 
   // Register a cgroup in the isolation module.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   // @return  A pointer to the cgroup info registered.
-  CgroupInfo* registerCgroupInfo(const FrameworkID& frameworkId,
-                                 const ExecutorID& executorId);
+  CgroupInfo* registerCgroupInfo(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
   // Unregister a cgroup in the isolation module.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
-  void unregisterCgroupInfo(const FrameworkID& frameworkId,
-                            const ExecutorID& executorId);
+  void unregisterCgroupInfo(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
   // Find a registered cgroup by the PID of the leading process.
   // @param   pid           The PID of the leading process in the cgroup.
@@ -162,22 +184,9 @@ private:
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   // @return  A pointer to the cgroup info if found, NULL otherwise.
-  CgroupInfo* findCgroupInfo(const FrameworkID& frameworkId,
-                             const ExecutorID& executorId);
-
-  // Return the canonicalized name of the cgroup used by a given executor in a
-  // given framework.
-  // @param   frameworkId   The id of the given framework.
-  // @param   executorId    The id of the given executor.
-  // @return  The canonicalized name of the cgroup.
-  std::string getCgroupName(const FrameworkID& frameworkId,
-                            const ExecutorID& executorId);
-
-  // Return true if the given name is a valid cgroup name used by this isolation
-  // module.
-  // @param   name          The name to check.
-  // @return  True if the given name is valid cgroup name, False otherwise.
-  bool isValidCgroupName(const std::string& name);
+  CgroupInfo* findCgroupInfo(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
   Flags flags;
   bool local;
@@ -201,8 +210,7 @@ private:
   // handler function.
   hashmap<std::string,
           Try<Nothing>(CgroupsIsolationModule::*)(
-              const FrameworkID&,
-              const ExecutorID&,
+              const CgroupInfo*,
               const Resources&)> resourceChangedHandlers;
 };
 
