@@ -19,6 +19,7 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <sys/file.h> // For flock.
 #include <sys/types.h>
 
 #include <set>
@@ -207,28 +208,37 @@ void CgroupsIsolationModule::initialize(
     }
   }
 
-  // Create the root "mesos" cgroup and cleanup any orphaned cgroups
-  // that were created in previous executions.
+  // Create the root "mesos" cgroup if it doesn't exist.
   if (cgroups::checkCgroup(hierarchy, "mesos").isError()) {
     // No root cgroup exists, create it.
     Try<Nothing> create = cgroups::createCgroup(hierarchy, "mesos");
     CHECK(create.isSome())
       << "Failed to create the \"mesos\" cgroup: "
       << create.error();
-  } else {
-    // The root cgroup already exists, so cleanup any orphaned cgroups.
-    Try<vector<string> > cgroups = cgroups::getCgroups(hierarchy, "mesos");
-    CHECK(cgroups.isSome())
-      << "Failed to get nested cgroups of \"mesos\": "
-      << cgroups.error();
-    foreach (const string& cgroup, cgroups.get()) {
-      LOG(INFO) << "Removing orphaned cgroup '" << cgroup << "'";
-      cgroups::destroyCgroup(hierarchy, cgroup)
-        .onAny(defer(PID<CgroupsIsolationModule>(this),
-                     &CgroupsIsolationModule::destroyWaited,
-                     cgroup,
-                     lambda::_1));
-    }
+  }
+
+  // Try and put an _advisory_ file lock on the tasks' file of our
+  // root cgroup to check and see if another slave is already running.
+  Try<int> fd = os::open(path::join(hierarchy, "mesos", "tasks"), O_RDONLY);
+  CHECK(fd.isSome());
+  Try<Nothing> cloexec = os::cloexec(fd.get());
+  CHECK(cloexec.isSome());
+  if (flock(fd.get(), LOCK_EX | LOCK_NB) != 0) {
+    fatal("Another mesos-slave appears to already be running!");
+  }
+
+  // Cleanup any orphaned cgroups created in previous executions.
+  Try<vector<string> > cgroups = cgroups::getCgroups(hierarchy, "mesos");
+  CHECK(cgroups.isSome())
+    << "Failed to get nested cgroups of \"mesos\": "
+    << cgroups.error();
+  foreach (const string& cgroup, cgroups.get()) {
+    LOG(INFO) << "Removing orphaned cgroup '" << cgroup << "'";
+    cgroups::destroyCgroup(hierarchy, cgroup)
+      .onAny(defer(PID<CgroupsIsolationModule>(this),
+                   &CgroupsIsolationModule::destroyWaited,
+                   cgroup,
+                   lambda::_1));
   }
 
   // Make sure this kernel supports creating nested cgroups.
@@ -243,7 +253,7 @@ void CgroupsIsolationModule::initialize(
   CHECK(remove.isSome())
     << "Failed to remove the nested \"test\" cgroup:" << remove.error();
 
-
+  // Make sure the kernel supports OOM controls.
   Try<Nothing> check =
     cgroups::checkControl(hierarchy, "mesos", "memory.oom_control");
   if (check.isError()) {
