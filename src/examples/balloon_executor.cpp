@@ -63,7 +63,7 @@ static void balloon(size_t limit)
       abort();
     }
 
-    if (memset(buffer, 1, chunk) != 0) {
+    if (memset(buffer, 1, chunk) != buffer) {
       perror("Failed to fill memory, memset");
       abort();
     }

@@ -508,7 +508,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_ListenEvent)
       abort();
     }
 
-    if (memset(buffer, 1, limit) != 0) {
+    if (memset(buffer, 1, limit) != buffer) {
       perror("Failed to fill memory, memset");
       abort();
     }
