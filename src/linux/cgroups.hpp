@@ -33,6 +33,9 @@
 
 namespace cgroups {
 
+// Default number of retry attempts when trying to freeze a cgroup.
+const unsigned int FREEZE_RETRIES = 50;
+
 
 // We use the following notations throughout the cgroups code. The notations
 // here are derived from the kernel documentation. More details can be found in
@@ -269,11 +272,15 @@ process::Future<uint64_t> listenEvent(const std::string& hierarchy,
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   interval    The time interval between two state check
 //                      requests (default: 0.1 seconds).
-// @return  A future which will become ready when all processes are frozen.
+// @param   retries     Number of retry attempts before giving up. None
+//                      indicates infinite retries. (default: 50 attempts).
+// @return  A future which will become true when all processes are frozen, or
+//          false when all retries have occurred unsuccessfully.
 //          Error if some unexpected happens.
 process::Future<bool> freezeCgroup(const std::string& hierarchy,
                                    const std::string& cgroup,
-                                   const Duration& interval = Seconds(0.1));
+                                   const Duration& interval = Seconds(0.1),
+                                   const unsigned int retries = FREEZE_RETRIES);
 
 
 // Thaw the given cgroup. This is a revert operation of freezeCgroup. It will

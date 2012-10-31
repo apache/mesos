@@ -58,6 +58,8 @@ struct SystemStatistics
 
 
 // Snapshot of a process (modeled after /proc/[pid]/stat).
+// For more information, see:
+// http://www.kernel.org/doc/Documentation/filesystems/proc.txt
 struct ProcessStatistics
 {
   ProcessStatistics(

@@ -1070,14 +1070,16 @@ namespace internal {
 class Freezer : public Process<Freezer>
 {
 public:
-  Freezer(const string& _hierarchy,
-          const string& _cgroup,
-          const string& _action,
-          const Duration& _interval)
+  Freezer(const std::string& _hierarchy,
+          const std::string& _cgroup,
+          const std::string& _action,
+          const Duration& _interval,
+          unsigned int _retries = FREEZE_RETRIES)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
       action(_action),
-      interval(_interval) {}
+      interval(_interval),
+      retries(_retries) {}
 
   virtual ~Freezer() {}
 
@@ -1139,10 +1141,8 @@ private:
     }
   }
 
-  void watchFrozen()
+  void watchFrozen(unsigned int attempt = 0)
   {
-    LOG(INFO) << "Checking frozen status of cgroup '" << cgroup << "'";
-
     Try<string> state =
       internal::readControl(hierarchy, cgroup, "freezer.state");
 
@@ -1153,7 +1153,8 @@ private:
     }
 
     if (strings::trim(state.get()) == "FROZEN") {
-      LOG(INFO) << "Successfully froze cgroup '" << cgroup << "'";
+      LOG(INFO) << "Successfully froze cgroup '" << cgroup << "' after "
+                << attempt + 1 << " attempts.";
       promise.set(true);
       terminate(self());
     } else if (strings::trim(state.get()) == "FREEZING") {
@@ -1195,7 +1196,13 @@ private:
         }
       }
 
-      LOG(INFO) << "Retrying to freeze cgroup '" << cgroup << "'";
+      if (attempt > retries) {
+        LOG(WARNING) << "Could not freeze cgroup '" << cgroup << "' within "
+                     << retries + 1 << " attempts";
+        promise.set(false);
+        terminate(self());
+        return;
+      }
 
       Try<Nothing> result =
         internal::writeControl(hierarchy, cgroup, "freezer.state", "FROZEN");
@@ -1207,7 +1214,7 @@ private:
       }
 
       // Not done yet, keep watching (and possibly retrying).
-      delay(interval, self(), &Freezer::watchFrozen);
+      delay(interval, self(), &Freezer::watchFrozen, attempt + 1);
     } else {
       LOG(FATAL) << "Unexpected state: " << strings::trim(state.get());
     }
@@ -1215,8 +1222,6 @@ private:
 
   void watchThawed()
   {
-    LOG(INFO) << "Checking thaw status of cgroup '" << cgroup << "'";
-
     Try<string> state =
       internal::readControl(hierarchy, cgroup, "freezer.state");
 
@@ -1242,6 +1247,7 @@ private:
   const string cgroup;
   const string action;
   const Duration interval;
+  const unsigned int retries;
   Promise<bool> promise;
 };
 
@@ -1250,9 +1256,10 @@ private:
 
 
 Future<bool> freezeCgroup(
-    const string& hierarchy,
-    const string& cgroup,
-    const Duration& interval)
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Duration& interval,
+    unsigned int retries)
 {
   Try<Nothing> check = checkControl(hierarchy, cgroup, "freezer.state");
   if (check.isError()) {
@@ -1271,7 +1278,7 @@ Future<bool> freezeCgroup(
   }
 
   internal::Freezer* freezer =
-    new internal::Freezer(hierarchy, cgroup, "FREEZE", interval);
+    new internal::Freezer(hierarchy, cgroup, "FREEZE", interval, retries);
   Future<bool> future = freezer->future();
   spawn(freezer, true);
   return future;
@@ -1409,7 +1416,7 @@ protected:
       .then(funcFreeze)   // Freeze the cgroup.
       .then(funcKill)     // Send kill signals to all tasks in the cgroup.
       .then(funcThaw)     // Thaw the cgroup to let kill signals be received.
-      .then(funcEmpty);   // Wait until no task in the cgroup.
+      .then(funcEmpty);   // Wait until no task is in the cgroup.
 
     finish.onAny(defer(self(), &Self::finished, lambda::_1));
   }
@@ -1423,9 +1430,25 @@ protected:
   }
 
 private:
+  // TODO(bmahler): Temporary abort for failed freezes.
+  // TODO(bmahler): Remove this const when libprocess is fixed.
+  // This will be removed by another review in this review chain in favor
+  // of appropriate kill action against the cgroup.
+  Future<bool> checkFreeze(const bool& result)
+  {
+    CHECK(result == true)
+      << "Freezing failed for cgroup: " << cgroup
+      << " of hierarchy: " << hierarchy;
+    return result;
+  }
+
   Future<bool> freeze()
   {
-    return freezeCgroup(hierarchy, cgroup, interval);
+    lambda::function<Future<bool>(const bool&)> checkFreeze =
+        defer(self(), &Self::checkFreeze, std::tr1::placeholders::_1);
+
+    return freezeCgroup(hierarchy, cgroup, interval)
+      .then(checkFreeze);
   }
 
   Future<bool> kill()
