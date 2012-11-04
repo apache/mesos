@@ -8,7 +8,10 @@
 #include "zookeeper/zookeeper.hpp"
 
 
-// A watcher which dispatches events to a process.
+// A watcher which dispatches events to a process. Note that it is
+// only "safe" to reuse an instance across ZooKeeper instances after a
+// session expiration. TODO(benh): Add a 'reset/initialize' to the
+// Watcher so that a single instance can be reused.
 template <typename T>
 class ProcessWatcher : public Watcher
 {
@@ -25,17 +28,23 @@ public:
       if (state == ZOO_CONNECTED_STATE) {
         // Connected (initial or reconnect).
         process::dispatch(pid, &T::connected, reconnect);
+        // If this watcher gets reused then the next connected
+        // event shouldn't be perceived as a reconnect.
+        reconnect = false;
       } else if (state == ZOO_CONNECTING_STATE) {
         // The client library automatically reconnects, taking
         // into account failed servers in the connection string,
         // appropriately handling the "herd effect", etc.
-        reconnect = true;
         process::dispatch(pid, &T::reconnecting);
+        // TODO(benh): If this watcher gets reused then the next
+        // connected event will be perceived as a reconnect, but it
+        // should not.
+        reconnect = true;
       } else if (state == ZOO_EXPIRED_SESSION_STATE) {
+        process::dispatch(pid, &T::expired);
         // If this watcher gets reused then the next connected
         // event shouldn't be perceived as a reconnect.
         reconnect = false;
-        process::dispatch(pid, &T::expired);
       } else {
         LOG(FATAL) << "Unhandled ZooKeeper state (" << state << ")"
                    << " for ZOO_SESSION_EVENT";
