@@ -15,7 +15,7 @@ public:
   bool operator < (const Latch& that) const { return pid < that.pid; }
 
   void trigger();
-  bool await(double secs = 0);
+  bool await(double secs = -1.0);
 
 private:
   // Not copyable, not assignable.
