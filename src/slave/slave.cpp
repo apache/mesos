@@ -332,7 +332,15 @@ void Slave::finalize()
 
 void Slave::shutdown()
 {
-  LOG(INFO) << "Slave asked to shut down";
+  if (from != master) {
+    LOG(WARNING) << "Ignoring shutdown message from " << from
+                 << "because it is not from the registered master ("
+                 << master << ")";
+    return;
+  }
+
+  LOG(INFO) << "Slave asked to shut down by " << from;
+
   terminate(self());
 }
 
@@ -613,10 +621,17 @@ void Slave::killTask(const FrameworkID& frameworkId,
 // TODO(benh): Consider sending a boolean that specifies if the
 // shut down should be graceful or immediate. Likewise, consider
 // sending back a shut down acknowledgement, because otherwise you
-// couuld get into a state where a shut down was sent, dropped, and
+// could get into a state where a shut down was sent, dropped, and
 // therefore never processed.
 void Slave::shutdownFramework(const FrameworkID& frameworkId)
 {
+  if (from != master) {
+    LOG(WARNING) << "Ignoring shutdown framework message from " << from
+                 << "because it is not from the registered master ("
+                 << master << ")";
+    return;
+  }
+
   LOG(INFO) << "Asked to shut down framework " << frameworkId;
 
   Framework* framework = getFramework(frameworkId);
