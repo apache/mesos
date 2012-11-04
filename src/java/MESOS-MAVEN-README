@@ -1,0 +1,49 @@
+We use Apache Maven to build jars that that are part of a Mesos Maven artifact
+that can be uploaded directly to public Maven repositories like
+repository.apache.org and Maven Central.
+
+Mesos committers can deploy the Mesos jar to the Apache Maven repository
+(repository.apache.org) using the steps below. Once it is published there,
+it will be copied into Maven Central.
+
+We don't have to vote on the jars for a release once we have voted on the
+release itself. Use http://www.apache.org/dev/publishing-maven-artifacts.html
+as a guiding document when publishing new jars. Snapshots can also be published
+via repository.apache.org, though we haven't published any of those yet as of
+the time this README was written.
+
+To create and publish to a new Staging Repository in Nexus running at
+repository.apache.org:
+
+1) Make sure you have necessary credentials with Apache Nexus repository for
+   the Mesos group (org.apache.mesos).
+2) Setup your servers/credentials in ~/.m2/settings.xml
+3) Install gpg and setup your credentials for signing (signing is required
+   by Apache) - follow directions in the Apache webpage linked to above.
+4) To install the artifact locally: run `mvn install -f mesos.pom`, which will
+   ask you to enter your password for gpg signing 3-4 times (once per file
+   that is getting signed).
+5) To push the artifact to "staging repository" at repository.apache.org: run
+   `mvn deploy -f mesos.pom` from inside the src/java directory, which will
+   also ask you to enter your password for gpg signing 3-4 times (once per
+   file that is getting signed).
+
+If you get a 401 error when you try to deploy the artifacts, read through 
+http://www.sonatype.com/people/2010/11/what-to-do-when-nexus-returns-401/
+
+The above steps will create a temporary staging repository, the purpose of
+which is to allow you to look over what will actually get published as part of
+the artifact, and try it out before officially publishing it. It will be
+helpful to understand that Nexus (which is the software server that manages
+Maven repositories) provides and requires a three step process for publishing
+any artifact:
+
+1) Create a new temporary "open" staging repository. Open repositories do
+   not yet have a URL so they can't be used for testing until they are closed.
+   Repositories in this state can be "dropped" (i.e., deleted) via a button in
+   the Nexus web UI.
+2) "Close" the staging repository - a temporary URL is assigned which can be
+   used in Maven/Ivy/SBT to test the new artifact. Repositories in this state
+   can be "dropped" (deleted) via a button in the Nexus web UI.
+3) "Publish" the closed staging repository - I believe this is not easily
+   reversable (i.e. repositories in this state cannot simply be "dropped).
