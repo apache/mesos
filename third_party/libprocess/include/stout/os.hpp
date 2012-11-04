@@ -426,7 +426,7 @@ inline bool chmod(const std::string& path, int mode)
 
 inline bool chdir(const std::string& directory)
 {
-  if (chdir(directory.c_str()) < 0) {
+  if (::chdir(directory.c_str()) < 0) {
     PLOG(ERROR) << "Failed to change directory, chdir";
     return false;
   }
