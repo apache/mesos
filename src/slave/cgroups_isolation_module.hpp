@@ -92,16 +92,6 @@ private:
     process::Future<uint64_t> oomNotifier;
   };
 
-  // Main method executed after a fork() to create a Launcher for launching an
-  // executor's process. The Launcher will chdir() to the child's working
-  // directory, fetch the executor, set environment varibles, switch user, etc,
-  // and finally exec() the executor process.
-  launcher::ExecutorLauncher* createExecutorLauncher(
-      const FrameworkID& frameworkId,
-      const FrameworkInfo& frameworkInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory);
-
   // The callback which will be invoked when "cpus" resource has changed.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
