@@ -22,6 +22,12 @@
 
 #include <gtest/gtest.h>
 
+#include <process/process.hpp>
+
+#include <stout/try.hpp>
+
+#include "detector/detector.hpp"
+
 #include "tests/base_zookeeper_test.hpp"
 
 #include "zookeeper/authentication.hpp"
@@ -70,6 +76,98 @@ TEST_F(ZooKeeperTest, Auth)
   nonOwnerZk.authenticate("digest", "non-owner:non-owner");
   assertGet(&nonOwnerZk, "/test", "42");
   assertNotSet(&nonOwnerZk, "/test", "37");
+}
+
+
+class MockMasterDetectorListenerProcess
+  : public ProtobufProcess<MockMasterDetectorListenerProcess>
+{
+public:
+  MockMasterDetectorListenerProcess() {}
+  virtual ~MockMasterDetectorListenerProcess() {}
+
+  MOCK_METHOD1(newMasterDetected, void(const process::UPID&));
+  MOCK_METHOD0(noMasterDetected, void(void));
+
+protected:
+  virtual void initialize()
+  {
+    install<NewMasterDetectedMessage>(
+        &MockMasterDetectorListenerProcess::newMasterDetected,
+        &NewMasterDetectedMessage::pid);
+
+    install<NoMasterDetectedMessage>(
+        &MockMasterDetectorListenerProcess::noMasterDetected);
+  }
+};
+
+
+TEST_F(ZooKeeperTest, MasterDetector)
+{
+  MockMasterDetectorListenerProcess mock;
+  process::spawn(mock);
+
+  trigger newMasterDetectedCall;
+  EXPECT_CALL(mock, newMasterDetected(mock.self()))
+    .WillOnce(Trigger(&newMasterDetectedCall));
+
+  std::string master = "zk://" + zks->connectString() + "/mesos";
+
+  Try<MasterDetector*> detector =
+    MasterDetector::create(master, mock.self(), true, true);
+
+  EXPECT_TRUE(detector.isSome()) << detector.error();
+
+  WAIT_UNTIL(newMasterDetectedCall);
+
+  MasterDetector::destroy(detector.get());
+
+  process::terminate(mock);
+  process::wait(mock);
+}
+
+
+TEST_F(ZooKeeperTest, MasterDetectors)
+{
+  MockMasterDetectorListenerProcess mock1;
+  process::spawn(mock1);
+
+  trigger newMasterDetectedCall1;
+  EXPECT_CALL(mock1, newMasterDetected(mock1.self()))
+    .WillOnce(Trigger(&newMasterDetectedCall1));
+
+  std::string master = "zk://" + zks->connectString() + "/mesos";
+
+  Try<MasterDetector*> detector1 =
+    MasterDetector::create(master, mock1.self(), true, true);
+
+  EXPECT_TRUE(detector1.isSome()) << detector1.error();
+
+  WAIT_UNTIL(newMasterDetectedCall1);
+
+  MockMasterDetectorListenerProcess mock2;
+  process::spawn(mock2);
+
+  trigger newMasterDetectedCall2;
+  EXPECT_CALL(mock2, newMasterDetected(mock1.self())) // N.B. mock1
+    .WillOnce(Trigger(&newMasterDetectedCall2));
+
+  Try<MasterDetector*> detector2 =
+    MasterDetector::create(master, mock2.self(), true, true);
+
+  EXPECT_TRUE(detector2.isSome()) << detector2.error();
+
+  WAIT_UNTIL(newMasterDetectedCall2);
+
+  MasterDetector::destroy(detector1.get());
+
+  process::terminate(mock1);
+  process::wait(mock1);
+
+  MasterDetector::destroy(detector2.get());
+
+  process::terminate(mock2);
+  process::wait(mock2);
 }
 
 
