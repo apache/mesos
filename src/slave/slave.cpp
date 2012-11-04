@@ -336,7 +336,7 @@ void Slave::shutdown()
 {
   if (from != master) {
     LOG(WARNING) << "Ignoring shutdown message from " << from
-                 << "because it is not from the registered master ("
+                 << " because it is not from the registered master ("
                  << master << ")";
     return;
   }
