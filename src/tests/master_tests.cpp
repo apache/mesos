@@ -272,21 +272,6 @@ TEST(MasterTest, RecoverResources)
 
   MockExecutor exec;
 
-  trigger killTaskCall, shutdownCall;
-
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  EXPECT_CALL(exec, killTask(_, _))
-    .WillOnce(DoAll(Trigger(&killTaskCall),
-                    SendStatusUpdateFromTaskID(TASK_KILLED)));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(Trigger(&shutdownCall));
-
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
@@ -329,7 +314,8 @@ TEST(MasterTest, RecoverResources)
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillRepeatedly(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+    .WillRepeatedly(DoAll(SaveArg<1>(&status),
+			  Trigger(&statusUpdateCall)));
 
   driver.start();
 
@@ -352,11 +338,22 @@ TEST(MasterTest, RecoverResources)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
   driver.launchTasks(offers1[0].id(), tasks);
 
   WAIT_UNTIL(statusUpdateCall);
 
   EXPECT_EQ(TASK_RUNNING, status.state());
+
+  trigger killTaskCall;
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(DoAll(Trigger(&killTaskCall),
+                    SendStatusUpdateFromTaskID(TASK_KILLED)));
 
   driver.killTask(taskId);
 
@@ -372,7 +369,7 @@ TEST(MasterTest, RecoverResources)
 
   driver.declineOffer(offer.id());
 
-  // Now simulate a executorExited call to the slave.
+  // Now simulate an executorExited call to the slave.
   process::dispatch(slave,
                     &Slave::executorExited,
                     offer.framework_id(),
@@ -387,6 +384,11 @@ TEST(MasterTest, RecoverResources)
 
   driver.stop();
   driver.join();
+
+  // The mock executor might get a shutdown in this case when the
+  // slave exits (since the driver links with the slave).
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   process::terminate(slave);
   process::wait(slave);
