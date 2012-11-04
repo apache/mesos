@@ -314,6 +314,11 @@ int ExecutorLauncher::fetchExecutors()
 // Set up environment variables for launching a framework's executor.
 void ExecutorLauncher::setupEnvironment()
 {
+  // Set LIBPROCESS_PORT so that we bind to a random free port (since
+  // this might have been set via --port option). We do this before
+  // the environment variables below in case it is included.
+  os::setenv("LIBPROCESS_PORT", "0");
+
   // Set up the environment as specified in the ExecutorInfo.
   if (commandInfo.has_environment()) {
     foreach (const Environment::Variable& variable,
@@ -327,9 +332,6 @@ void ExecutorLauncher::setupEnvironment()
   os::setenv("MESOS_SLAVE_PID", slavePid);
   os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
   os::setenv("MESOS_EXECUTOR_ID", executorId.value());
-
-  // Set LIBPROCESS_PORT so that we bind to a random free port.
-  os::setenv("LIBPROCESS_PORT", "0");
 }
 
 
