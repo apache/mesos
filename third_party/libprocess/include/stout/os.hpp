@@ -194,7 +194,8 @@ inline Try<bool> write(const std::string& path,
   Try<int> fd = os::open(path, O_WRONLY | O_CREAT | O_TRUNC,
                          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
   if (fd.isError()) {
-    return Try<bool>::error("Failed to open file " + path);
+    return Try<bool>::error(
+        "Failed to open file '" + path + "' : " + strerror(errno));
   }
 
   Try<bool> result = write(fd.get(), message);
@@ -281,13 +282,21 @@ inline Try<bool> rm(const std::string& path)
 
 inline std::string basename(const std::string& path)
 {
-  return ::basename(const_cast<char*>(path.c_str()));
+  char* temp = new char[path.size() + 1];
+  char* result = ::basename(::strcpy(temp, path.c_str()));
+  std::string s(CHECK_NOTNULL(result));
+  delete temp;
+  return s;
 }
 
 
 inline std::string dirname(const std::string& path)
 {
-  return ::dirname(const_cast<char*>(path.c_str()));
+  char* temp = new char[path.size() + 1];
+  char* result = ::dirname(::strcpy(temp, path.c_str()));
+  std::string s(CHECK_NOTNULL(result));
+  delete temp;
+  return s;
 }
 
 
@@ -295,9 +304,7 @@ inline Try<std::string> realpath(const std::string& path)
 {
   char temp[PATH_MAX];
   if (::realpath(path.c_str(), temp) == NULL) {
-    // TODO(benh): Include strerror(errno).
-    return Try<std::string>::error(
-      "Failed to canonicalize " + path + " into an absolute path");
+    return Try<std::string>::error(strerror(errno));
   }
   return std::string(temp);
 }
@@ -322,7 +329,8 @@ inline Try<long> mtime(const std::string& path)
   struct stat s;
 
   if (::stat(path.c_str(), &s) < 0) {
-    return Try<long>::error(strerror(errno));
+    return Try<long>::error(
+        "Error invoking stat for '" + path + "': " + strerror(errno));
   }
 
   return s.st_mtime;
@@ -415,8 +423,7 @@ inline bool chown(const std::string& user, const std::string& path)
 inline bool chmod(const std::string& path, int mode)
 {
   if (::chmod(path.c_str(), mode) < 0) {
-    PLOG(ERROR) << "Failed to changed the mode of the path " << path
-                << " due to " << strerror(errno);
+    PLOG(ERROR) << "Failed to changed the mode of the path '" << path << "'";
     return false;
   }
 
@@ -427,7 +434,7 @@ inline bool chmod(const std::string& path, int mode)
 inline bool chdir(const std::string& directory)
 {
   if (::chdir(directory.c_str()) < 0) {
-    PLOG(ERROR) << "Failed to change directory, chdir";
+    PLOG(ERROR) << "Failed to change directory";
     return false;
   }
 
@@ -716,8 +723,7 @@ inline Try<UTSInfo> uname()
   struct utsname name;
 
   if (::uname(&name) < 0) {
-    return Try<UTSInfo>::error(
-        "Failed to get system information: " + std::string(strerror(errno)));
+    return Try<UTSInfo>::error(strerror(errno));
   }
 
   UTSInfo info;
