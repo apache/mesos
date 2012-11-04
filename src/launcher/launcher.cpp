@@ -82,13 +82,13 @@ int ExecutorLauncher::setup()
   // TODO(benh): Do this in the slave?
   if (shouldSwitchUser && !os::chown(user, workDirectory)) {
     VLOG(1) << "Failed to change ownership of framework's working directory "
-            << workDirectory.c_str() << " to user " << user.c_str();
+            << workDirectory << " to user " << user;
     return -1;
   }
 
   // Enter working directory.
   if (os::chdir(workDirectory) < 0) {
-    VLOG(1) << "chdir into framework working directory failed";
+    VLOG(1) << "Failed to chdir into framework working directory";
     return -1;
   }
 
@@ -99,7 +99,7 @@ int ExecutorLauncher::setup()
 
   // Go back to previous directory.
   if (os::chdir(cwd) < 0) {
-    VLOG(1) << "chdir into slave directory failed";
+    VLOG(1) << "Failed to chdir (back) into slave directory";
     return -1;
   }
 
@@ -110,8 +110,8 @@ int ExecutorLauncher::setup()
 int ExecutorLauncher::launch()
 {
   // Enter working directory.
-  if (chdir(workDirectory.c_str()) < 0) {
-    fatalerror("chdir into framework working directory failed");
+  if (os::chdir(workDirectory) < 0) {
+    fatalerror("Failed to chdir into framework working directory");
   }
 
   if (shouldSwitchUser) {
@@ -267,13 +267,13 @@ int ExecutorLauncher::fetchExecutors()
     }
 
     if (shouldSwitchUser && !os::chown(user, resource)) {
-      VLOG(1) << "chown failed";
+      VLOG(1) << "Failed to chown " << resource;
       return -1;
     }
 
     if (executable &&
         !os::chmod(resource, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
-      VLOG(1) << "chmod failed";
+      VLOG(1) << "Failed to chmod " << resource;
       return -1;
     }
 
