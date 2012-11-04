@@ -328,7 +328,12 @@ struct Framework
 
       executor.mutable_executor_id()->set_value(id);
 
-      // Now determine the path to the executor.
+      // Copy the CommandInfo to get the URIs and environment, but
+      // update it to invoke 'mesos-executor' (unless we couldn't
+      // resolve 'mesos-executor' via 'realpath', in which case just
+      // echo the error and exit).
+      executor.mutable_command()->MergeFrom(task.command());
+
       Try<std::string> path = os::realpath(
           path::join(flags.launcher_dir, "mesos-executor"));
 
