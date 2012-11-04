@@ -9,7 +9,7 @@ it will be copied into Maven Central.
 NOTE: Publishing artifacts to Maven as described below requires the Mesos Java
 classes to be built in src/java/classes. The easiest way to do this is to run
 make src/mesos-0.9.0.jar. Maven will actually build a new jar itself (as
-opposed to just including the jar that the make build system builds in src) at
+opposed to just including the jar that the Make build system builds in src) at
 src/java/target/mesos-0.9.0-incubating.jar. In addition, Maven will create a
 jar containing the Java source files (src/java/target/mesos-0.9.0-sources.jar)
 and the Javadoc (src/java/target/mesos-0.9.0-javadoc.jar), and all three of
