@@ -22,15 +22,15 @@
 #include <ios>
 #include <vector>
 
-#include <boost/lexical_cast.hpp>
-
 #include <process/delay.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 #include <process/timer.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/numify.hpp>
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 
 #include "detector/detector.hpp"
 
@@ -45,8 +45,6 @@
 
 using namespace mesos;
 using namespace mesos::internal;
-
-using boost::lexical_cast;
 
 using process::Process;
 using process::Timer;
@@ -477,9 +475,14 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
   string masterSeq;
   long min = LONG_MAX;
   foreach (const string& result, results) {
-    int i = lexical_cast<int>(result);
-    if (i < min) {
-      min = i;
+    Try<int> i = numify<int>(result);
+    if (i.isError()) {
+      LOG(WARNING) << "Unexpected znode at '" << url.path
+                   << "': " << i.error();
+      continue;
+    }
+    if (i.get() < min) {
+      min = i.get();
       masterSeq = result;
     }
   }
