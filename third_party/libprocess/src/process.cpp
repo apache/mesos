@@ -85,7 +85,6 @@ using std::deque;
 using std::find;
 using std::list;
 using std::map;
-using std::max;
 using std::ostream;
 using std::pair;
 using std::queue;
@@ -1242,7 +1241,7 @@ void initialize(const string& delegate)
   socket_manager = new SocketManager();
 
   // Setup processing threads.
-  long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+  long cpus = std::max(4L, sysconf(_SC_NPROCESSORS_ONLN));
 
   for (int i = 0; i < cpus; i++) {
     pthread_t thread; // For now, not saving handles on our threads.
