@@ -19,7 +19,7 @@
 #ifndef __SORTER_HPP__
 #define __SORTER_HPP__
 
-#include "master/master.hpp"
+#include <list>
 
 
 namespace mesos {
@@ -44,22 +44,18 @@ public:
   // Readds a client to the sort after deactivate.
   virtual void activate(const std::string& client) = 0;
 
-  // Removes a client from the sort, so it won't get
-  // allocated to.
+  // Removes a client from the sort, so it won't get allocated to.
   virtual void deactivate(const std::string& client) = 0;
 
-  // Specify that resources have been allocated to the
-  // given client.
+  // Specify that resources have been allocated to the given client.
   virtual void allocated(const std::string& client,
-			 const Resources& resources) = 0;
+                         const Resources& resources) = 0;
 
-  // Specify that resources have been unallocated from
-  // the given client.
+  // Specify that resources have been unallocated from the given client.
   virtual void unallocated(const std::string& client,
-			   const Resources& resources) = 0;
+                           const Resources& resources) = 0;
 
-  // Returns the resources that have been allocated to
-  // this client.
+  // Returns the resources that have been allocated to this client.
   virtual Resources allocation(const std::string& client) = 0;
 
   // Add resources to the total pool of resources this

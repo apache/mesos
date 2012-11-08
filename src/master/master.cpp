@@ -62,7 +62,7 @@ namespace master {
 
 class WhitelistWatcher : public Process<WhitelistWatcher> {
 public:
-  WhitelistWatcher(const string& _path, AllocatorProcess* _allocator)
+  WhitelistWatcher(const string& _path, Allocator* _allocator)
   : path(_path), allocator(_allocator) {}
 
 protected:
@@ -106,7 +106,7 @@ protected:
 
     // Send the whitelist to allocator, if necessary.
     if (whitelist != lastWhitelist) {
-      dispatch(allocator, &AllocatorProcess::updateWhitelist, whitelist);
+      allocator->updateWhitelist(whitelist);
     }
 
     // Check again.
@@ -116,7 +116,7 @@ protected:
 
 private:
   const string path;
-  AllocatorProcess* allocator;
+  Allocator* allocator;
   Option<hashset<string> > lastWhitelist;
 };
 
@@ -257,14 +257,14 @@ struct SlaveReregistrar
 };
 
 
-Master::Master(AllocatorProcess* _allocator, Files* _files)
+Master::Master(Allocator* _allocator, Files* _files)
   : ProcessBase("master"),
     flags(),
     allocator(_allocator),
     files(_files) {}
 
 
-Master::Master(AllocatorProcess* _allocator,
+Master::Master(Allocator* _allocator,
                Files* _files,
                const flags::Flags<logging::Flags, master::Flags>& _flags)
   : ProcessBase("master"),
@@ -322,9 +322,8 @@ void Master::initialize()
   slavesManager = new SlavesManager(flags, self());
   spawn(slavesManager);
 
-  // Spawn the allocator.
-  spawn(allocator);
-  dispatch(allocator, &AllocatorProcess::initialize, flags, self());
+  // Initialize the allocator.
+  allocator->initialize(flags, self());
 
   // Parse the white list
   whitelistWatcher = new WhitelistWatcher(flags.whitelist, allocator);
@@ -474,9 +473,6 @@ void Master::finalize()
   foreachvalue (Slave* slave, slaves) {
     send(slave->pid, ShutdownMessage());
   }
-
-  terminate(allocator);
-  wait(allocator);
 }
 
 
@@ -492,7 +488,7 @@ void Master::exited(const UPID& pid)
       framework->active = false;
 
       // Tell the allocator to stop allocating resources to this framework.
-      dispatch(allocator, &AllocatorProcess::frameworkDeactivated, framework->id);
+      allocator->frameworkDeactivated(framework->id);
 
       Seconds failoverTimeout(framework->info.failover_timeout());
 
@@ -506,10 +502,9 @@ void Master::exited(const UPID& pid)
 
       // Remove the framework's offers.
       foreach (Offer* offer, utils::copy(framework->offers)) {
-        dispatch(allocator, &AllocatorProcess::resourcesRecovered,
-                 offer->framework_id(),
-                 offer->slave_id(),
-                 Resources(offer->resources()));
+        allocator->resourcesRecovered(offer->framework_id(),
+                                      offer->slave_id(),
+                                      Resources(offer->resources()));
         removeOffer(offer);
       }
       return;
@@ -667,8 +662,9 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
       // replied to the offers but the driver might have dropped
       // those messages since it wasn't connected to the master.
       foreach (Offer* offer, utils::copy(framework->offers)) {
-        dispatch(allocator, &AllocatorProcess::resourcesRecovered,
-		 offer->framework_id(), offer->slave_id(), offer->resources());
+        allocator->resourcesRecovered(offer->framework_id(),
+                                      offer->slave_id(),
+                                      offer->resources());
         removeOffer(offer);
       }
 
@@ -763,7 +759,7 @@ void Master::deactivateFramework(const FrameworkID& frameworkId)
 void Master::resourceRequest(const FrameworkID& frameworkId,
                              const vector<Request>& requests)
 {
-  dispatch(allocator, &AllocatorProcess::resourcesRequested, frameworkId, requests);
+  allocator->resourcesRequested(frameworkId, requests);
 }
 
 
@@ -813,7 +809,7 @@ void Master::reviveOffers(const FrameworkID& frameworkId)
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
     LOG(INFO) << "Reviving offers for framework " << framework->id;
-    dispatch(allocator, &AllocatorProcess::offersRevived, framework->id);
+    allocator->offersRevived(framework->id);
   }
 }
 
@@ -1128,10 +1124,9 @@ void Master::exitedExecutor(const SlaveID& slaveId,
                 << " (" << slave->info.hostname() << ")"
                 << " exited with status " << status;
 
-      dispatch(allocator, &AllocatorProcess::resourcesRecovered,
-               frameworkId,
-               slaveId,
-               Resources(executor.resources()));
+      allocator->resourcesRecovered(frameworkId,
+                                    slaveId,
+                                    Resources(executor.resources()));
 
       // Remove executor from slave and framework.
       slave->removeExecutor(frameworkId, executorId);
@@ -1210,8 +1205,7 @@ void Master::offer(const FrameworkID& frameworkId,
                  << " has terminated or is inactive";
 
     foreachpair (const SlaveID& slaveId, const Resources& offered, resources) {
-      dispatch(allocator, &AllocatorProcess::resourcesRecovered,
-               frameworkId, slaveId, offered);
+      allocator->resourcesRecovered(frameworkId, slaveId, offered);
     }
     return;
   }
@@ -1226,8 +1220,7 @@ void Master::offer(const FrameworkID& frameworkId,
                    << frameworkId << " because slave " << slaveId
                    << " is not valid";
 
-      dispatch(allocator, &AllocatorProcess::resourcesRecovered,
-               frameworkId, slaveId, offered);
+      allocator->resourcesRecovered(frameworkId, slaveId, offered);
       continue;
     }
 
@@ -1527,11 +1520,10 @@ void Master::processTasks(Offer* offer,
 
   if (unusedResources.allocatable().size() > 0) {
     // Tell the allocator about the unused (e.g., refused) resources.
-    dispatch(allocator, &AllocatorProcess::resourcesUnused,
-	     offer->framework_id(),
-	     offer->slave_id(),
-	     unusedResources,
-	     filters);
+    allocator->resourcesUnused(offer->framework_id(),
+                               offer->slave_id(),
+                               unusedResources,
+                               filters);
   }
 
   removeOffer(offer);
@@ -1584,6 +1576,7 @@ Resources Master::launchTask(const TaskInfo& task,
 
   // Tell the slave to launch the task!
   LOG(INFO) << "Launching task " << task.task_id()
+            << " of framework " << framework->id
             << " with resources " << task.resources() << " on slave "
             << slave->id << " (" << slave->info.hostname() << ")";
 
@@ -1613,8 +1606,9 @@ void Master::addFramework(Framework* framework)
   message.mutable_master_info()->MergeFrom(info);
   send(framework->pid, message);
 
-  dispatch(allocator, &AllocatorProcess::frameworkAdded,
-           framework->id, framework->info, framework->resources);
+  allocator->frameworkAdded(framework->id,
+                            framework->info,
+                            framework->resources);
 }
 
 
@@ -1638,8 +1632,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   // Make sure we can get offers again.
   if (!framework->active) {
     framework->active = true;
-    dispatch(allocator, &AllocatorProcess::frameworkActivated,
-             framework->id, framework->info);
+    allocator->frameworkActivated(framework->id, framework->info);
   }
 
   framework->reregisteredTime = Clock::now();
@@ -1657,10 +1650,9 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   // these resources to this framework if it wants.
   // TODO(benh): Consider just reoffering these to
   foreach (Offer* offer, utils::copy(framework->offers)) {
-    dispatch(allocator, &AllocatorProcess::resourcesRecovered,
-             offer->framework_id(),
-             offer->slave_id(),
-             Resources(offer->resources()));
+    allocator->resourcesRecovered(offer->framework_id(),
+                                  offer->slave_id(),
+                                  Resources(offer->resources()));
     removeOffer(offer);
   }
 }
@@ -1670,7 +1662,7 @@ void Master::removeFramework(Framework* framework)
 {
   if (framework->active) {
     // Tell the allocator to stop allocating resources to this framework.
-    dispatch(allocator, &AllocatorProcess::frameworkDeactivated, framework->id);
+    allocator->frameworkDeactivated(framework->id);
   }
 
   // Tell slaves to shutdown the framework.
@@ -1691,10 +1683,9 @@ void Master::removeFramework(Framework* framework)
 
   // Remove the framework's offers (if they weren't removed before).
   foreach (Offer* offer, utils::copy(framework->offers)) {
-    dispatch(allocator, &AllocatorProcess::resourcesRecovered,
-             offer->framework_id(),
-             offer->slave_id(),
-             Resources(offer->resources()));
+    allocator->resourcesRecovered(offer->framework_id(),
+                                  offer->slave_id(),
+                                  Resources(offer->resources()));
     removeOffer(offer);
   }
 
@@ -1705,10 +1696,9 @@ void Master::removeFramework(Framework* framework)
       foreachpair (const ExecutorID& executorId,
                    const ExecutorInfo& executorInfo,
                    framework->executors[slaveId]) {
-        dispatch(allocator, &AllocatorProcess::resourcesRecovered,
-                 framework->id,
-                 slave->id,
-                 executorInfo.resources());
+        allocator->resourcesRecovered(framework->id,
+                                      slave->id,
+                                      executorInfo.resources());
         slave->removeExecutor(framework->id, executorId);
       }
     }
@@ -1728,7 +1718,7 @@ void Master::removeFramework(Framework* framework)
 
   // Delete it.
   frameworks.erase(framework->id);
-  dispatch(allocator, &AllocatorProcess::frameworkRemoved, framework->id);
+  allocator->frameworkRemoved(framework->id);
 
   delete framework;
 }
@@ -1767,8 +1757,9 @@ void Master::addSlave(Slave* slave, bool reregister)
   spawn(slave->observer);
 
   if (!reregister) {
-    dispatch(allocator, &AllocatorProcess::slaveAdded,
-             slave->id, slave->info, hashmap<FrameworkID, Resources>());
+    allocator->slaveAdded(slave->id,
+                          slave->info,
+                          hashmap<FrameworkID, Resources>());
   }
 }
 
@@ -1837,8 +1828,7 @@ void Master::readdSlave(Slave* slave,
     resources[task.framework_id()] += task.resources();
   }
 
-  dispatch(allocator, &AllocatorProcess::slaveAdded,
-           slave->id, slave->info, resources);
+  allocator->slaveAdded(slave->id, slave->info, resources);
 }
 
 
@@ -1912,7 +1902,7 @@ void Master::removeSlave(Slave* slave)
 
   // Delete it.
   slaves.erase(slave->id);
-  dispatch(allocator, &AllocatorProcess::slaveRemoved, slave->id);
+  allocator->slaveRemoved(slave->id);
   delete slave;
 }
 
@@ -1931,10 +1921,9 @@ void Master::removeTask(Task* task)
   slave->removeTask(task);
 
   // Tell the allocator about the recovered resources.
-  dispatch(allocator, &AllocatorProcess::resourcesRecovered,
-           task->framework_id(),
-           task->slave_id(),
-           Resources(task->resources()));
+  allocator->resourcesRecovered(task->framework_id(),
+                                task->slave_id(),
+                                Resources(task->resources()));
 
   delete task;
 }

@@ -56,20 +56,21 @@ namespace master {
 
 using namespace process; // Included to make code easier to read.
 
-// Some forward declarations.
-class AllocatorProcess;
+// Forward declarations.
+class Allocator;
 class SlavesManager;
-struct Framework;
-struct Slave;
 class SlaveObserver;
 class WhitelistWatcher;
+
+struct Framework;
+struct Slave;
 
 
 class Master : public ProtobufProcess<Master>
 {
 public:
-  Master(AllocatorProcess* allocator, Files* files);
-  Master(AllocatorProcess* allocator,
+  Master(Allocator* allocator, Files* files);
+  Master(Allocator* allocator,
          Files* files,
          const flags::Flags<logging::Flags, master::Flags>& flags);
 
@@ -208,7 +209,7 @@ private:
 
   bool elected;
 
-  AllocatorProcess* allocator;
+  Allocator* allocator;
   SlavesManager* slavesManager;
   WhitelistWatcher* whitelistWatcher;
   Files* files;

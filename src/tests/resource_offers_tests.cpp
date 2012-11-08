@@ -29,6 +29,8 @@
 
 #include "local/local.hpp"
 
+#include "master/allocator.hpp"
+#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"
@@ -39,6 +41,8 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+using mesos::internal::master::Allocator;
+using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -453,28 +457,27 @@ TEST(ResourceOffersTest, Request)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   MockScheduler sched;
-  MockAllocator<TestAllocatorProcess > allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _))
-    .WillOnce(Return());
+  MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
 
-  EXPECT_CALL(allocator, frameworkAdded(_, _, _))
-    .WillOnce(Return());
+  EXPECT_CALL(allocator, initialize(_, _));
 
-  EXPECT_CALL(allocator, frameworkDeactivated(_))
-    .WillRepeatedly(Return());
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
-  EXPECT_CALL(allocator, frameworkRemoved(_))
-    .WillRepeatedly(Return());
+  EXPECT_CALL(allocator, frameworkDeactivated(_));
+
+  EXPECT_CALL(allocator, frameworkRemoved(_));
 
   EXPECT_CALL(allocator, slaveAdded(_, _, _))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Test may finish before slave registers.
 
   EXPECT_CALL(allocator, slaveRemoved(_))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Test may finish before slave registers.
+
+  Allocator a(&allocator);
 
   PID<Master> master = local::launch(
-      1, 2, 1 * Gigabyte, 1 * Gigabyte, false, &allocator);
+      1, 2, 1 * Gigabyte, 1 * Gigabyte, false, &a);
 
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
@@ -494,7 +497,6 @@ TEST(ResourceOffersTest, Request)
   requestsSent.push_back(request);
 
   trigger resourcesRequestedCall;
-
   EXPECT_CALL(allocator, resourcesRequested(_, _))
     .WillOnce(DoAll(SaveArg<1>(&requestsReceived),
                     Trigger(&resourcesRequestedCall)));
@@ -518,7 +520,8 @@ TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);

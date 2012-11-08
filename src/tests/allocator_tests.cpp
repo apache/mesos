@@ -20,11 +20,15 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <process/clock.hpp>
+#include <process/pid.hpp>
+
 #include "configurator/configuration.hpp"
 
 #include "detector/detector.hpp"
 
 #include "master/allocator.hpp"
+#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
@@ -36,12 +40,14 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
-using mesos::internal::master::AllocatorProcess;
+using mesos::internal::master::Allocator;
+using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::ProcessBasedIsolationModule;
 using mesos::internal::slave::Slave;
 
+using process::Clock;
 using process::PID;
 
 using std::map;
@@ -91,55 +97,56 @@ TEST(AllocatorTest, DRFAllocatorProcess)
   frameworkInfo3.set_user("user1");
   FrameworkID frameworkId3;
 
-  MockAllocator<TestAllocatorProcess > a;
+  MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
 
-  EXPECT_CALL(a, initialize(_, _));
+  EXPECT_CALL(allocator, initialize(_, _));
 
-  EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo1), _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&a),
-		    SaveArg<0>(&frameworkId1)));
+  EXPECT_CALL(allocator, frameworkAdded(_, Eq(frameworkInfo1), _))
+    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
+                    SaveArg<0>(&frameworkId1)));
 
   trigger framework2Added;
-  EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo2), _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&a),
-		    SaveArg<0>(&frameworkId2),
-		    Trigger(&framework2Added)));
+  EXPECT_CALL(allocator, frameworkAdded(_, Eq(frameworkInfo2), _))
+    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
+                    SaveArg<0>(&frameworkId2),
+                    Trigger(&framework2Added)));
 
   trigger framework3Added;
-  EXPECT_CALL(a, frameworkAdded(_, Eq(frameworkInfo3), _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&a),
-		    SaveArg<0>(&frameworkId3),
-		    Trigger(&framework3Added)));
+  EXPECT_CALL(allocator, frameworkAdded(_, Eq(frameworkInfo3), _))
+    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
+                    SaveArg<0>(&frameworkId3),
+                    Trigger(&framework3Added)));
 
-  EXPECT_CALL(a, frameworkDeactivated(_))
+  EXPECT_CALL(allocator, frameworkDeactivated(_))
     .Times(3);
 
-  EXPECT_CALL(a, frameworkRemoved(Eq(ByRef(frameworkId1))));
+  EXPECT_CALL(allocator, frameworkRemoved(Eq(ByRef(frameworkId1))));
 
-  EXPECT_CALL(a, frameworkRemoved(Eq(ByRef(frameworkId2))));
+  EXPECT_CALL(allocator, frameworkRemoved(Eq(ByRef(frameworkId2))));
 
   trigger lastFrameworkRemoved;
-  EXPECT_CALL(a, frameworkRemoved(Eq(ByRef(frameworkId3))))
+  EXPECT_CALL(allocator, frameworkRemoved(Eq(ByRef(frameworkId3))))
     .WillOnce(Trigger(&lastFrameworkRemoved));
 
   SlaveID slaveId4;
-  EXPECT_CALL(a, slaveAdded(_, _, _))
+  EXPECT_CALL(allocator, slaveAdded(_, _, _))
     .WillOnce(DoDefault())
     .WillOnce(DoDefault())
     .WillOnce(DoDefault())
-    .WillOnce(DoAll(InvokeSlaveAdded(&a),
-		    SaveArg<0>(&slaveId4)));
+    .WillOnce(DoAll(InvokeSlaveAdded(&allocator),
+                    SaveArg<0>(&slaveId4)));
 
-  EXPECT_CALL(a, slaveRemoved(_))
+  EXPECT_CALL(allocator, slaveRemoved(_))
     .Times(3);
 
   trigger lastSlaveRemoved;
-  EXPECT_CALL(a, slaveRemoved(Eq(ByRef(slaveId4))))
+  EXPECT_CALL(allocator, slaveRemoved(Eq(ByRef(slaveId4))))
     .WillOnce(Trigger(&lastSlaveRemoved));
 
-  EXPECT_CALL(a, resourcesRecovered(_, _, _))
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(m);
@@ -160,7 +167,7 @@ TEST(AllocatorTest, DRFAllocatorProcess)
   trigger resourceOfferTrigger;
   EXPECT_CALL(sched1, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers1),
-		    Trigger(&resourceOfferTrigger)))
+                    Trigger(&resourceOfferTrigger)))
     .WillRepeatedly(Return());
 
   driver1.start();
@@ -178,9 +185,9 @@ TEST(AllocatorTest, DRFAllocatorProcess)
   trigger resourceOfferTrigger2, resourceOfferTrigger3;
   EXPECT_CALL(sched2, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers2),
-		    Trigger(&resourceOfferTrigger2)))
+                    Trigger(&resourceOfferTrigger2)))
     .WillOnce(DoAll(SaveArg<1>(&offers3),
-		    Trigger(&resourceOfferTrigger3)))
+                    Trigger(&resourceOfferTrigger3)))
     .WillRepeatedly(Return());
 
   driver2.start();
@@ -215,7 +222,7 @@ TEST(AllocatorTest, DRFAllocatorProcess)
   trigger resourceOfferTrigger4;
   EXPECT_CALL(sched3, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers4),
-		    Trigger(&resourceOfferTrigger4)));
+                    Trigger(&resourceOfferTrigger4)));
 
   driver3.start();
 
@@ -261,16 +268,16 @@ class AllocatorTest : public ::testing::Test
 protected:
   virtual void SetUp()
   {
-    process::spawn(allocator.real);
+    a = new Allocator(&allocator);
   }
 
   virtual void TearDown()
   {
-    process::terminate(allocator.real);
-    process::wait(allocator.real);
+    delete a;
   }
 
-  MockAllocator<T> allocator;
+  MockAllocatorProcess<T> allocator;
+  Allocator* a;
 };
 
 
@@ -301,7 +308,7 @@ TYPED_TEST(AllocatorTest, MockAllocator)
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
 
   Files files;
-  Master m(&this->allocator, &files);
+  Master m(this->a, &files);
   PID<Master> master = process::spawn(&m);
 
   ProcessBasedIsolationModule isolationModule;
@@ -323,7 +330,7 @@ TYPED_TEST(AllocatorTest, MockAllocator)
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers),
-		    Trigger(&resourceOffers)));
+                    Trigger(&resourceOffers)));
 
   driver.start();
 
@@ -369,8 +376,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   trigger resourcesUnusedTrigger;
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
     .WillOnce(DoAll(InvokeResourcesUnused(&this->allocator),
-		    Trigger(&resourcesUnusedTrigger),
-		    Return()))
+                    Trigger(&resourcesUnusedTrigger)))
     .WillRepeatedly(DoDefault());
 
   // Prevent any resources from being recovered by returning instead
@@ -380,7 +386,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
     .WillRepeatedly(Return());
 
   Files files;
-  Master m(&(this->allocator), &files);
+  Master m(this->a, &files);
   PID<Master> master = process::spawn(m);
 
   ProcessBasedIsolationModule isolationModule;
@@ -414,7 +420,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   trigger offered;
   EXPECT_CALL(sched2, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers),
-		    Trigger(&offered)))
+                    Trigger(&offered)))
     .WillRepeatedly(Return());
 
   driver2.start();
@@ -457,11 +463,11 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo1), _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator),
-		    SaveArg<0>(&frameworkId1)));
+                    SaveArg<0>(&frameworkId1)));
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo2), _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator),
-		    SaveArg<0>(&frameworkId2)));
+                    SaveArg<0>(&frameworkId2)));
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
     .Times(2);
@@ -469,8 +475,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   trigger frameworkRemoved, frameworkRemoved2;
   EXPECT_CALL(this->allocator, frameworkRemoved(Eq(ByRef(frameworkId1))))
     .WillOnce(DoAll(InvokeFrameworkRemoved(&this->allocator),
-		    Trigger(&frameworkRemoved),
-		    Return()));
+                    Trigger(&frameworkRemoved)));
 
   EXPECT_CALL(this->allocator, frameworkRemoved(Eq(ByRef(frameworkId2))))
     .WillOnce(Trigger(&frameworkRemoved2));
@@ -489,12 +494,12 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
     // that it doesn't get processed until we redispatch it after
     // the frameworkRemoved trigger.
     .WillOnce(DoAll(SaveArg<0>(&frameworkId),
-		    SaveArg<1>(&slaveId),
-		    SaveArg<2>(&savedResources)))
+                    SaveArg<1>(&slaveId),
+                    SaveArg<2>(&savedResources)))
     .WillRepeatedly(DoDefault());
 
   Files files;
-  Master m(&(this->allocator), &files);
+  Master m(this->a, &files);
   PID<Master> master = process::spawn(&m);
 
   ProcessBasedIsolationModule isolationModule;
@@ -516,7 +521,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers),
-		    Trigger(&offered)));
+                    Trigger(&offered)));
 
   driver.start();
 
@@ -532,8 +537,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   // Re-dispatch the resourcesRecovered call which we "caught"
   // earlier now that the framework has been removed, to test
   // that recovering resources from a removed framework works.
-  dispatch(this->allocator, &AllocatorProcess::resourcesRecovered,
-	   frameworkId, slaveId, savedResources);
+  this->a->resourcesRecovered(frameworkId, slaveId, savedResources);
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master);
@@ -544,7 +548,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   vector<Offer> offers2;
   EXPECT_CALL(sched2, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers2),
-		    Trigger(&offered2)));
+                    Trigger(&offered2)));
 
   driver2.start();
 
@@ -585,7 +589,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   trigger frameworkDeactivatedTrigger;
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
     .WillOnce(DoAll(InvokeFrameworkDeactivated(&this->allocator),
-		    Trigger(&frameworkDeactivatedTrigger)))
+                    Trigger(&frameworkDeactivatedTrigger)))
     .WillOnce(DoDefault());
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
@@ -604,7 +608,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
     .WillRepeatedly(InvokeUnusedWithFilters(&this->allocator, 0));
 
   Files files;
-  Master m(&this->allocator, &files);
+  Master m(this->a, &files);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
@@ -652,7 +656,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   trigger resourceOffersTrigger1;
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
     .WillOnce(DoAll(LaunchTasks(1, 1, 256),
-		    Trigger(&resourceOffersTrigger1)));
+                    Trigger(&resourceOffersTrigger1)));
 
   driver1.start();
 
@@ -730,7 +734,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
     .WillRepeatedly(DoDefault());
 
   Files files;
-  Master m(&this->allocator, &files);
+  Master m(this->a, &files);
   PID<Master> master = process::spawn(m);
 
   MockExecutor exec;
@@ -772,7 +776,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   trigger resourceOffersTrigger1;
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
     .WillOnce(DoAll(LaunchTasks(1, 2, 512),
-		    Trigger(&resourceOffersTrigger1)));
+                    Trigger(&resourceOffersTrigger1)));
 
   driver1.start();
 
@@ -787,12 +791,11 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
     .WillRepeatedly(DeclineOffers());
 
   // The first time sched2 gets an offer, framework 1 has a
-  // task running with 2 cpus and 512 mem, leaving 1 cpu and
-  // 512 mem.
+  // task running with 2 cpus and 512 mem, leaving 1 cpu and 512 mem.
   trigger resourceOffersTrigger2;
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(1, 512)))
     .WillOnce(DoAll(LaunchTasks(1, 1, 256),
-		    Trigger(&resourceOffersTrigger2)));
+                    Trigger(&resourceOffersTrigger2)));
 
   // After we kill framework 1, all of it's resources should
   // have been returned, but framework 2 should still have a
@@ -854,11 +857,11 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   trigger slaveRemovedTrigger1, slaveRemovedTrigger2;
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .WillOnce(DoAll(InvokeSlaveRemoved(&this->allocator),
-		    Trigger(&slaveRemovedTrigger1)))
+                    Trigger(&slaveRemovedTrigger1)))
     .WillOnce(Trigger(&slaveRemovedTrigger2));
 
   Files files;
-  Master m(&this->allocator, &files);
+  Master m(this->a, &files);
   PID<Master> master = process::spawn(m);
 
   MockExecutor exec;
@@ -868,7 +871,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   trigger launchTaskTrigger;
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
-		    Trigger(&launchTaskTrigger)));
+                    Trigger(&launchTaskTrigger)));
 
   EXPECT_CALL(exec, shutdown(_));
 
@@ -902,7 +905,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
     // Initially, all of slave1's resources are avaliable.
     EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 1024)))
       .WillOnce(DoAll(LaunchTasks(1, 2, 512),
-		      Trigger(&resourceOffersTrigger1)));
+                      Trigger(&resourceOffersTrigger1)));
 
     // Eventually after slave2 is launched, we should get
     // an offer that contains all of slave2's resources
@@ -982,7 +985,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
     .WillRepeatedly(DoDefault());
 
   Files files;
-  Master m(&this->allocator, &files);
+  Master m(this->a, &files);
   PID<Master> master = process::spawn(m);
 
   MockExecutor exec;
@@ -992,7 +995,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   trigger launchTaskTrigger;
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
-		    Trigger(&launchTaskTrigger)));
+                    Trigger(&launchTaskTrigger)));
 
   trigger shutdownTrigger;
   EXPECT_CALL(exec, shutdown(_))
@@ -1029,7 +1032,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
     // Initially, all of slave1's resources are avaliable.
     EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
       .WillOnce(DoAll(LaunchTasks(1, 2, 512),
-		      Trigger(&resourceOffersTrigger1)));
+                      Trigger(&resourceOffersTrigger1)));
 
     // After slave2 launches, all of its resources are
     // combined with the resources on slave1 that the
@@ -1109,7 +1112,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
     .WillRepeatedly(InvokeUnusedWithFilters(&this->allocator, 1));
 
   Files files;
-  Master m(&this->allocator, &files);
+  Master m(this->a, &files);
   PID<Master> master = process::spawn(m);
 
   MockExecutor exec;
@@ -1120,9 +1123,9 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   trigger launchTaskTrigger;
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(DoAll(SaveArg<0>(&execDriver),
-		    SaveArg<1>(&taskInfo),
-		    SendStatusUpdateFromTask(TASK_RUNNING),
-		    Trigger(&launchTaskTrigger)))
+                    SaveArg<1>(&taskInfo),
+                    SendStatusUpdateFromTask(TASK_RUNNING),
+                    Trigger(&launchTaskTrigger)))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   trigger shutdownTrigger;
@@ -1164,7 +1167,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
     // After the tasks are launched.
     EXPECT_CALL(sched1, resourceOffers(_, OfferEq(1, 512)))
       .WillOnce(DoAll(DeclineOffers(),
-		      Trigger(&resourceOffersTrigger1)));
+                      Trigger(&resourceOffersTrigger1)));
 
     // After the first task gets killed.
     EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 768)))
@@ -1220,9 +1223,9 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   trigger updateWhitelistTrigger1, updateWhitelistTrigger2;
   EXPECT_CALL(this->allocator, updateWhitelist(_))
     .WillOnce(DoAll(InvokeUpdateWhitelist(&this->allocator),
-		    Trigger(&updateWhitelistTrigger1)))
+                    Trigger(&updateWhitelistTrigger1)))
     .WillOnce(DoAll(InvokeUpdateWhitelist(&this->allocator),
-		    Trigger(&updateWhitelistTrigger2)));
+                    Trigger(&updateWhitelistTrigger2)));
 
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
@@ -1235,7 +1238,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   Files files;
   flags::Flags<logging::Flags, master::Flags> flags;
   flags.whitelist = "file://" + path; // TODO(benh): Put in /tmp.
-  Master m(&this->allocator, &files, flags);
+  Master m(this->a, &files, flags);
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;

@@ -152,7 +152,7 @@ noinst_LTLIBRARIES += libmesos_no_third_party.la
 nodist_libmesos_no_third_party_la_SOURCES = $(CXX_PROTOS) $(MESSAGES_PROTOS)
 
 libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
-	master/allocator.cpp master/drf_sorter.cpp			\
+	master/drf_sorter.cpp						\
 	master/frameworks_manager.cpp master/http.cpp master/master.cpp	\
 	master/slaves_manager.cpp slave/gc.cpp slave/state.cpp		\
 	slave/slave.cpp slave/http.cpp slave/isolation_module.cpp	\

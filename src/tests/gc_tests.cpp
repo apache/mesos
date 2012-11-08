@@ -35,6 +35,8 @@
 
 #include "local/local.hpp"
 
+#include "master/allocator.hpp"
+#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
@@ -48,6 +50,8 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+using mesos::internal::master::Allocator;
+using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -85,7 +89,7 @@ protected:
   {
     ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-    a = new TestAllocatorProcess();
+    a = new Allocator(&allocator);
     files = new Files();
     m = new Master(a, files);
     master = process::spawn(m);
@@ -133,7 +137,8 @@ protected:
     startSlave();
   }
 
-  TestAllocatorProcess* a;
+  Allocator* a;
+  HierarchicalDRFAllocatorProcess allocator;
   Master* m;
   TestingIsolationModule* isolationModule;
   Slave* s;

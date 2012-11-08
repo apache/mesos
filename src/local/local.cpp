@@ -33,6 +33,9 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
+#include "master/allocator.hpp"
+#include "master/drf_sorter.hpp"
+#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
@@ -40,7 +43,10 @@
 
 using namespace mesos::internal;
 
+using mesos::internal::master::Allocator;
 using mesos::internal::master::AllocatorProcess;
+using mesos::internal::master::DRFSorter;
+using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -60,19 +66,20 @@ namespace mesos {
 namespace internal {
 namespace local {
 
-static AllocatorProcess* allocator = NULL;
+static Allocator* allocator = NULL;
+static AllocatorProcess* allocatorProcess = NULL;
 static Master* master = NULL;
 static map<IsolationModule*, Slave*> slaves;
 static MasterDetector* detector = NULL;
 static Files* files = NULL;
 
-
-PID<Master> launch(int numSlaves,
-                   double cpus,
-                   uint64_t mem,
-                   uint64_t disk,
-                   bool quiet,
-                   AllocatorProcess* _allocator)
+PID<Master> launch(
+    int numSlaves,
+    double cpus,
+    uint64_t mem,
+    uint64_t disk,
+    bool quiet,
+    Allocator* _allocator)
 {
   Configuration configuration;
   configuration.set("slaves", "*");
@@ -87,8 +94,7 @@ PID<Master> launch(int numSlaves,
 }
 
 
-PID<Master> launch(const Configuration& configuration,
-                   AllocatorProcess* _allocator)
+PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
 {
   int numSlaves = configuration.get<int>("num_slaves", 1);
 
@@ -98,11 +104,13 @@ PID<Master> launch(const Configuration& configuration,
 
   if (_allocator == NULL) {
     // Create default allocator, save it for deleting later.
-    _allocator = allocator = AllocatorProcess::create("drf", "drf");
+    allocatorProcess = new HierarchicalDRFAllocatorProcess();
+    _allocator = allocator = new Allocator(allocatorProcess);
   } else {
     // TODO(benh): Figure out the behavior of allocator pointer and remove the
     // else block.
     allocator = NULL;
+    allocatorProcess = NULL;
   }
 
   files = new Files();
@@ -142,6 +150,7 @@ void shutdown()
     process::wait(master->self());
     delete master;
     delete allocator;
+    delete allocatorProcess;
     master = NULL;
 
     // TODO(benh): Ugh! Because the isolation module calls back into the

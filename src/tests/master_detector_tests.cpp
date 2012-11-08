@@ -31,6 +31,8 @@
 
 #include "detector/detector.hpp"
 
+#include "master/allocator.hpp"
+#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"
@@ -41,6 +43,8 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+using mesos::internal::master::Allocator;
+using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -57,7 +61,8 @@ TEST(MasterDetector, File)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);

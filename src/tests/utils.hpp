@@ -233,46 +233,57 @@ public:
 
 
 template <typename T = master::AllocatorProcess>
-class MockAllocator : public master::AllocatorProcess
+class MockAllocatorProcess : public master::AllocatorProcess
 {
 public:
-  MockAllocator() {
+  MockAllocatorProcess()
+  {
+    // Spawn the underlying allocator process.
+    process::spawn(real);
+
     ON_CALL(*this, initialize(_, _))
-      .WillByDefault(Invoke(&real, &T::initialize));
+      .WillByDefault(InvokeInitialize(this));
 
     ON_CALL(*this, frameworkAdded(_, _, _))
-      .WillByDefault(Invoke(&real, &T::frameworkAdded));
+      .WillByDefault(InvokeFrameworkAdded(this));
 
     ON_CALL(*this, frameworkRemoved(_))
-      .WillByDefault(Invoke(&real, &T::frameworkRemoved));
+      .WillByDefault(InvokeFrameworkRemoved(this));
 
     ON_CALL(*this, frameworkActivated(_, _))
-      .WillByDefault(Invoke(&real, &T::frameworkActivated));
+      .WillByDefault(InvokeFrameworkActivated(this));
 
     ON_CALL(*this, frameworkDeactivated(_))
-      .WillByDefault(Invoke(&real, &T::frameworkDeactivated));
+      .WillByDefault(InvokeFrameworkDeactivated(this));
 
     ON_CALL(*this, slaveAdded(_, _, _))
-      .WillByDefault(Invoke(&real, &T::slaveAdded));
+      .WillByDefault(InvokeSlaveAdded(this));
 
     ON_CALL(*this, slaveRemoved(_))
-      .WillByDefault(Invoke(&real, &T::slaveRemoved));
+      .WillByDefault(InvokeSlaveRemoved(this));
 
     ON_CALL(*this, updateWhitelist(_))
-      .WillByDefault(Invoke(&real, &T::updateWhitelist));
+      .WillByDefault(InvokeUpdateWhitelist(this));
 
     ON_CALL(*this, resourcesRequested(_, _))
-      .WillByDefault(Invoke(&real, &T::resourcesRequested));
+      .WillByDefault(InvokeResourcesRequested(this));
 
     ON_CALL(*this, resourcesUnused(_, _, _, _))
-      .WillByDefault(Invoke(&real, &T::resourcesUnused));
+      .WillByDefault(InvokeResourcesUnused(this));
 
     ON_CALL(*this, resourcesRecovered(_, _, _))
-      .WillByDefault(Invoke(&real, &T::resourcesRecovered));
+      .WillByDefault(InvokeResourcesRecovered(this));
 
     ON_CALL(*this, offersRevived(_))
-      .WillByDefault(Invoke(&real, &T::offersRevived));
+      .WillByDefault(InvokeOffersRevived(this));
   }
+
+  ~MockAllocatorProcess()
+  {
+    process::terminate(real);
+    process::wait(real);
+  }
+
   MOCK_METHOD2(initialize, void(const master::Flags&,
                                 const process::PID<master::Master>&));
   MOCK_METHOD3(frameworkAdded, void(const FrameworkID&,
@@ -292,7 +303,7 @@ public:
   MOCK_METHOD4(resourcesUnused, void(const FrameworkID&,
                                      const SlaveID&,
                                      const Resources&,
-				     const Option<Filters>& filters));
+                                     const Option<Filters>& filters));
   MOCK_METHOD3(resourcesRecovered, void(const FrameworkID&,
                                         const SlaveID&,
                                         const Resources&));
@@ -302,12 +313,8 @@ public:
 };
 
 
-class TestAllocatorProcess
-  : public master::HierarchicalAllocatorProcess<master::DRFSorter, master::DRFSorter>
-{};
-
-
-typedef ::testing::Types<master::HierarchicalAllocatorProcess<master::DRFSorter, master::DRFSorter> > AllocatorTypes;
+typedef ::testing::Types<master::HierarchicalDRFAllocatorProcess>
+AllocatorTypes;
 
 
 // The following actions make up for the fact that DoDefault
@@ -315,51 +322,104 @@ typedef ::testing::Types<master::HierarchicalAllocatorProcess<master::DRFSorter,
 // EXPECT_CALL(allocator, frameworkAdded(_, _, _))
 //   .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
 //                   Trigger(&frameworkAddedTrigger)));
+
+ACTION_P(InvokeInitialize, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::initialize,
+      arg0,
+      arg1);
+}
+
+
 ACTION_P(InvokeFrameworkAdded, allocator)
 {
-  allocator->real.frameworkAdded(arg0, arg1, arg2);
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::frameworkAdded,
+      arg0,
+      arg1,
+      arg2);
 }
 
 
 ACTION_P(InvokeFrameworkRemoved, allocator)
 {
-  allocator->real.frameworkRemoved(arg0);
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::frameworkRemoved, arg0);
 }
 
 
 ACTION_P(InvokeFrameworkActivated, allocator)
 {
-  allocator->real.frameworkActivated(arg0, arg1);
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::frameworkActivated,
+      arg0,
+      arg1);
 }
 
 
 ACTION_P(InvokeFrameworkDeactivated, allocator)
 {
-  allocator->real.frameworkDeactivated(arg0);
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::frameworkDeactivated,
+      arg0);
 }
 
 
 ACTION_P(InvokeSlaveAdded, allocator)
 {
-  allocator->real.slaveAdded(arg0, arg1, arg2);
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::slaveAdded,
+      arg0,
+      arg1,
+      arg2);
 }
 
 
 ACTION_P(InvokeSlaveRemoved, allocator)
 {
-  allocator->real.slaveRemoved(arg0);
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::slaveRemoved,
+      arg0);
 }
 
 
 ACTION_P(InvokeUpdateWhitelist, allocator)
 {
-  allocator->real.updateWhitelist(arg0);
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::updateWhitelist,
+      arg0);
 }
+
+
+ACTION_P(InvokeResourcesRequested, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::resourcesRequested,
+      arg0,
+      arg1);
+}
+
 
 
 ACTION_P(InvokeResourcesUnused, allocator)
 {
-  allocator->real.resourcesUnused(arg0, arg1, arg2, arg3);
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::resourcesUnused,
+      arg0,
+      arg1,
+      arg2,
+      arg3);
 }
 
 
@@ -367,7 +427,34 @@ ACTION_P2(InvokeUnusedWithFilters, allocator, timeout)
 {
   Filters filters;
   filters.set_refuse_seconds(timeout);
-  allocator->real.resourcesUnused(arg0, arg1, arg2, filters);
+
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::resourcesUnused,
+      arg0,
+      arg1,
+      arg2,
+      filters);
+}
+
+
+ACTION_P(InvokeResourcesRecovered, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::resourcesRecovered,
+      arg0,
+      arg1,
+      arg2);
+}
+
+
+ACTION_P(InvokeOffersRevived, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::AllocatorProcess::offersRevived,
+      arg0);
 }
 
 

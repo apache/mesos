@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include "logging/logging.hpp"
+
 #include "master/drf_sorter.hpp"
 
 using std::list;

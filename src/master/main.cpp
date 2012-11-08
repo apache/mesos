@@ -33,6 +33,8 @@
 #include "logging/logging.hpp"
 
 #include "master/allocator.hpp"
+#include "master/drf_sorter.hpp"
+#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 using namespace mesos::internal;
@@ -114,8 +116,9 @@ int main(int argc, char** argv)
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
 
-  AllocatorProcess* allocator = AllocatorProcess::create(flags.user_sorter,
-							 flags.framework_sorter);
+  AllocatorProcess* allocatorProcess = new HierarchicalDRFAllocatorProcess();
+  Allocator* allocator = new Allocator(allocatorProcess);
+
   Files files;
   Master* master = new Master(allocator, &files, flags);
   process::spawn(master);
@@ -129,6 +132,7 @@ int main(int argc, char** argv)
   process::wait(master->self());
   delete master;
   delete allocator;
+  delete allocatorProcess;
 
   MasterDetector::destroy(detector.get());
 

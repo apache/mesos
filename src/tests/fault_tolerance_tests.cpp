@@ -29,6 +29,8 @@
 
 #include "local/local.hpp"
 
+#include "master/allocator.hpp"
+#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/process_based_isolation_module.hpp"
@@ -41,6 +43,8 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+using mesos::internal::master::Allocator;
+using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::ProcessBasedIsolationModule;
@@ -69,7 +73,8 @@ TEST(FaultToleranceTest, SlaveLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -208,7 +213,8 @@ TEST(FaultToleranceTest, SchedulerFailover)
   trigger sched1RegisteredCall;
 
   EXPECT_CALL(sched1, registered(&driver1, _, _))
-    .WillOnce(DoAll(SaveArg<1>(&frameworkId), Trigger(&sched1RegisteredCall)));
+    .WillOnce(DoAll(SaveArg<1>(&frameworkId),
+                    Trigger(&sched1RegisteredCall)));
 
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillRepeatedly(Return());
@@ -366,7 +372,8 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -463,7 +470,8 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   Clock::pause();
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -520,7 +528,8 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), _,
              Not(AnyOf(Eq(master), Eq(slave))))
-    .WillOnce(DoAll(Trigger(&statusUpdateMsg), Return(true)))
+    .WillOnce(DoAll(Trigger(&statusUpdateMsg),
+                    Return(true)))
     .RetiresOnSaturation();
 
   driver1.start();
@@ -594,7 +603,8 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -637,7 +647,8 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&sched1StatusUpdateCall)));
+    .WillOnce(DoAll(SaveArg<1>(&status),
+                    Trigger(&sched1StatusUpdateCall)));
 
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(DoAll(SaveArg<1>(&offers),
@@ -711,7 +722,8 @@ TEST(FaultToleranceTest, SchedulerExit)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -763,7 +775,8 @@ TEST(FaultToleranceTest, SchedulerExit)
     .WillOnce(SaveArg<1>(&frameworkId));
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&schedStatusUpdateCall)));
+    .WillOnce(DoAll(SaveArg<1>(&status),
+                    Trigger(&schedStatusUpdateCall)));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(DoAll(SaveArg<1>(&offers),
@@ -834,10 +847,12 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
 
   // Drop the first slave registered message, allow subsequent messages.
   EXPECT_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg), Return(true)))
+    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg),
+                    Return(true)))
     .WillRepeatedly(Return(false));
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -888,7 +903,8 @@ TEST(FaultToleranceTest, SlaveReregister)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -917,7 +933,8 @@ TEST(FaultToleranceTest, SlaveReregister)
   trigger slaveReRegisterMsg;
 
   EXPECT_MESSAGE(Eq(SlaveReregisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&slaveReRegisterMsg), Return(false)));
+    .WillOnce(DoAll(Trigger(&slaveReRegisterMsg),
+                    Return(false)));
 
   driver.start();
 

@@ -32,8 +32,10 @@
 
 #include "flags/flags.hpp"
 
+#include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/frameworks_manager.hpp"
+#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include <process/dispatch.hpp>
@@ -48,9 +50,10 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+using mesos::internal::master::Allocator;
 using mesos::internal::master::FrameworksManager;
 using mesos::internal::master::FrameworksStorage;
-
+using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -75,7 +78,8 @@ TEST(MasterTest, TaskRunning)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -122,7 +126,8 @@ TEST(MasterTest, TaskRunning)
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+    .WillOnce(DoAll(SaveArg<1>(&status),
+                    Trigger(&statusUpdateCall)));
 
   driver.start();
 
@@ -169,7 +174,8 @@ TEST(MasterTest, KillTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -219,7 +225,8 @@ TEST(MasterTest, KillTask)
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+    .WillOnce(DoAll(SaveArg<1>(&status),
+                    Trigger(&statusUpdateCall)));
 
   driver.start();
 
@@ -267,7 +274,8 @@ TEST(MasterTest, StatusUpdateAck)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -364,7 +372,8 @@ TEST(MasterTest, RecoverResources)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -414,7 +423,7 @@ TEST(MasterTest, RecoverResources)
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillRepeatedly(DoAll(SaveArg<1>(&status),
-			  Trigger(&statusUpdateCall)));
+			                    Trigger(&statusUpdateCall)));
 
   driver.start();
 
@@ -506,7 +515,8 @@ TEST(MasterTest, FrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -564,7 +574,8 @@ TEST(MasterTest, FrameworkMessage)
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+    .WillOnce(DoAll(SaveArg<1>(&status),
+                    Trigger(&statusUpdateCall)));
 
   EXPECT_CALL(sched, frameworkMessage(&schedDriver, _, _, _))
     .WillOnce(DoAll(SaveArg<3>(&schedData),
@@ -627,7 +638,8 @@ TEST(MasterTest, MultipleExecutors)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -698,8 +710,10 @@ TEST(MasterTest, MultipleExecutors)
     .WillRepeatedly(Return());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status1), Trigger(&statusUpdateCall1)))
-    .WillOnce(DoAll(SaveArg<1>(&status2), Trigger(&statusUpdateCall2)));
+    .WillOnce(DoAll(SaveArg<1>(&status1),
+                    Trigger(&statusUpdateCall1)))
+    .WillOnce(DoAll(SaveArg<1>(&status2),
+                    Trigger(&statusUpdateCall2)));
 
   driver.start();
 
@@ -767,7 +781,8 @@ TEST(MasterTest, MasterInfo)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -822,7 +837,8 @@ TEST(MasterTest, MasterInfoOnReElection)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
@@ -852,7 +868,8 @@ TEST(MasterTest, MasterInfoOnReElection)
     .WillOnce(Trigger(&registeredCall));
 
   EXPECT_CALL(sched, reregistered(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&masterInfo),Trigger(&reregisteredCall)));
+    .WillOnce(DoAll(SaveArg<1>(&masterInfo),
+                    Trigger(&reregisteredCall)));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return());
@@ -916,7 +933,8 @@ TEST_F(WhitelistFixture, WhitelistSlave)
   string hosts = hostname.get() + "\n" + "dummy-slave";
   ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   flags::Flags<logging::Flags, master::Flags> flags;
   flags.whitelist = "file://" + path;
@@ -926,7 +944,8 @@ TEST_F(WhitelistFixture, WhitelistSlave)
   trigger slaveRegisteredMsg;
 
   EXPECT_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg), Return(false)));
+    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg),
+                    Return(false)));
 
   MockExecutor exec;
 
@@ -992,7 +1011,8 @@ TEST(MasterTest, MasterLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  TestAllocatorProcess a;
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);

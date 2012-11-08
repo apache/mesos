@@ -31,6 +31,7 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+using mesos::internal::master::Allocator;
 using mesos::internal::master::AllocatorProcess;
 using mesos::internal::master::Master;
 
@@ -42,10 +43,10 @@ using std::map;
 using std::string;
 using std::vector;
 
+using testing::_;
 using testing::DoAll;
 using testing::DoDefault;
 using testing::Eq;
-using testing::_;
 using testing::Return;
 using testing::SaveArg;
 
@@ -53,9 +54,28 @@ using testing::SaveArg;
 template <typename T = AllocatorProcess>
 class AllocatorZooKeeperTest : public ZooKeeperTest
 {
+public:
+  virtual void SetUp()
+  {
+    ZooKeeperTest::SetUp();
+
+    a1 = new Allocator(&allocator1);
+    a2 = new Allocator(&allocator2);
+  }
+
+  virtual void TearDown()
+  {
+    ZooKeeperTest::TearDown();
+
+    delete a1;
+    delete a2;
+  }
+
 protected:
   T allocator1;
-  MockAllocator<T> allocator2;
+  MockAllocatorProcess<T> allocator2;
+  Allocator* a1;
+  Allocator* a2;
 };
 
 
@@ -70,7 +90,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   trigger frameworkAddedTrigger;
   EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator2),
-		    Trigger(&frameworkAddedTrigger)));
+                    Trigger(&frameworkAddedTrigger)));
 
   EXPECT_CALL(this->allocator2, frameworkDeactivated(_));
 
@@ -88,13 +108,13 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   trigger shutdownMessageTrigger;
   EXPECT_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _)
     .WillRepeatedly(DoAll(Trigger(&shutdownMessageTrigger),
-			  Return(true)));
+			                    Return(true)));
 
   EXPECT_MESSAGE(Eq(ReregisterSlaveMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   Files files;
-  Master m(&this->allocator1, &files);
+  Master m(this->a1, &files);
   PID<Master> master1 = process::spawn(&m);
 
   string zk = "zk://" + this->server->connectString() + "/znode";
@@ -135,16 +155,16 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   trigger resourceOffersTrigger, resourceOffersTrigger2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(DoAll(SaveArg<1>(&offers),
-		    LaunchTasks(1, 1, 512),
+		                LaunchTasks(1, 1, 512),
                     Trigger(&resourceOffersTrigger)))
     .WillRepeatedly(DoAll(SaveArg<1>(&offers2),
-			  Trigger(&resourceOffersTrigger2)));
+			                    Trigger(&resourceOffersTrigger2)));
 
   TaskStatus status;
   trigger statusUpdateTrigger;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(DoAll(SaveArg<1>(&status),
-		    Trigger(&statusUpdateTrigger)));
+		                Trigger(&statusUpdateTrigger)));
 
   EXPECT_CALL(sched, disconnected(_))
     .WillRepeatedly(DoDefault());
@@ -174,7 +194,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   WAIT_UNTIL(shutdownMessageTrigger);
 
   Files files2;
-  Master m2(&(this->allocator2), &files2);
+  Master m2(this->a2, &files2);
   PID<Master> master2 = process::spawn(m2);
 
   Try<MasterDetector*> detector2 =
@@ -224,7 +244,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   trigger slaveAddedTrigger;
   EXPECT_CALL(this->allocator2, slaveAdded(_, _, _))
     .WillOnce(DoAll(InvokeSlaveAdded(&this->allocator2),
-		    Trigger(&slaveAddedTrigger)));
+                    Trigger(&slaveAddedTrigger)));
 
   trigger slaveRemovedTrigger;
   EXPECT_CALL(this->allocator2, slaveRemoved(_))
@@ -236,13 +256,13 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   trigger shutdownMessageTrigger;
   EXPECT_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _)
     .WillRepeatedly(DoAll(Trigger(&shutdownMessageTrigger),
-			  Return(true)));
+                          Return(true)));
 
   EXPECT_MESSAGE(Eq(ReregisterFrameworkMessage().GetTypeName()), _, _)
     .WillRepeatedly(Return(true));
 
   Files files;
-  Master m(&this->allocator1, &files);
+  Master m(this->a1, &files);
   PID<Master> master1 = process::spawn(&m);
 
   string zk = "zk://" + this->server->connectString() + "/znode";
@@ -283,16 +303,16 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   trigger resourceOffersTrigger, resourceOffersTrigger2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(DoAll(SaveArg<1>(&offers),
-		    LaunchTasks(1, 1, 512),
+                    LaunchTasks(1, 1, 512),
                     Trigger(&resourceOffersTrigger)))
     .WillRepeatedly(DoAll(SaveArg<1>(&offers2),
-			  Trigger(&resourceOffersTrigger2)));
+                          Trigger(&resourceOffersTrigger2)));
 
   TaskStatus status;
   trigger statusUpdateTrigger;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(DoAll(SaveArg<1>(&status),
-		    Trigger(&statusUpdateTrigger)));
+		                Trigger(&statusUpdateTrigger)));
 
   EXPECT_CALL(sched, disconnected(_))
     .WillRepeatedly(DoDefault());
@@ -322,7 +342,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   WAIT_UNTIL(shutdownMessageTrigger);
 
   Files files2;
-  Master m2(&(this->allocator2), &files2);
+  Master m2(this->a2, &files2);
   PID<Master> master2 = process::spawn(m2);
 
   Try<MasterDetector*> detector2 =

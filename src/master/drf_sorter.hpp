@@ -19,6 +19,13 @@
 #ifndef __DRF_SORTER_HPP__
 #define __DRF_SORTER_HPP__
 
+#include <set>
+#include <string>
+
+#include <stout/hashmap.hpp>
+
+#include "common/resources.hpp"
+
 #include "master/sorter.hpp"
 
 
@@ -58,10 +65,10 @@ public:
   virtual void deactivate(const std::string& name);
 
   virtual void allocated(const std::string& name,
-			 const Resources& resources);
+                         const Resources& resources);
 
   virtual void unallocated(const std::string& name,
-			   const Resources& resources);
+                           const Resources& resources);
 
   virtual Resources allocation(const std::string& name);
 

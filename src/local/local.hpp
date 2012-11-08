@@ -21,14 +21,21 @@
 
 #include <process/process.hpp>
 
-#include "configurator/configuration.hpp"
-
-#include "master/allocator.hpp"
-#include "master/master.hpp"
-
 namespace mesos {
 namespace internal {
+
+// Forward declarations.
+namespace master {
+
+class Allocator;
+class Master;
+
+} // namespace master {
+
+class Configuration;
+
 namespace local {
+
 
 // Launch a local cluster with a given number of slaves and given numbers
 // of CPUs and memory per slave. Additionally one can also toggle whether
@@ -38,12 +45,12 @@ process::PID<master::Master> launch(int numSlaves,
                                     uint64_t mem,
                                     uint64_t disk,
                                     bool quiet,
-                                    master::AllocatorProcess* _allocator = NULL);
+                                    master::Allocator* _allocator = NULL);
 
 
 // Launch a local cluster with a given configuration.
 process::PID<master::Master> launch(const Configuration& configuration,
-                                    master::AllocatorProcess* _allocator = NULL);
+                                    master::Allocator* _allocator = NULL);
 
 
 void shutdown();
