@@ -99,11 +99,11 @@
           </tr>
           <tr>
             <th>Memory</th>
-            <td>{{state.resources.mem / 1024 | number}} GB</td>
+            <td>{{state.resources.mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <th>Disk</th>
-            <td>{{state.resources.disk / 1024 | number}} GB</td>
+            <td>{{state.resources.disk * (1024 * 1024) | dataSize}}</td>
           </tr>
         </tbody>
       </table>
@@ -156,7 +156,7 @@
           </td>
           <td>{{framework.num_tasks | number}}</td>
           <td>{{framework.cpus | number}}</td>
-          <td>{{framework.mem / 1024 | number}} GB</td>
+          <td>{{framework.mem * (1024 * 1024) | dataSize}}</td>
         </tr>
       </tbody>
     </table>
@@ -206,7 +206,7 @@
           </td>
           <td>{{completed_framework.num_tasks | number}}</td>
           <td>{{completed_framework.cpus | number}}</td>
-          <td>{{completed_framework.mem / 1024 | number}} GB</td>
+          <td>{{completed_framework.mem * (1024 * 1024) | dataSize}}</td>
         </tr>
       </tbody>
     </table>

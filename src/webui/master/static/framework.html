@@ -46,7 +46,7 @@
         <dt>CPUs:</dt>
         <dd>{{framework.resources.cpus | number}}</dd>
         <dt>Mem:</dt>
-        <dd>{{framework.resources.mem / 1024 | number}} GB</dd>
+        <dd>{{framework.resources.mem * (1024 * 1024) | dataSize}}</dd>
       </dl>
     </div>
   </div>

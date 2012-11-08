@@ -61,11 +61,11 @@
           </tr>
           <tr>
             <th>Memory</th>
-            <td>{{executor.resources.mem / 1024 | number}} GB</td>
+            <td>{{executor.resources.mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <th>Disk</th>
-            <td>{{executor.resources.disk / 1024 | number}} GB</td>
+            <td>{{executor.resources.disk * (1024 * 1024) | dataSize}}</td>
           </tr>
         </tbody>
       </table>
@@ -100,7 +100,7 @@
           <td>{{queued_task.id}}</td>
           <td>{{queued_task.name}}</td>
           <td>{{queued_task.resources.cpus | number}}</td>
-          <td>{{queued_task.resources.mem / 1024 | number}} GB</td>
+          <td>{{queued_task.resources.mem * (1024 * 1024) | dataSize}}</td>
         </tr>
       </tbody>
     </table>
@@ -138,7 +138,7 @@
           <td>{{task.name}}</td>
           <td>{{task.state}}</td>
           <td>{{task.resources.cpus | number}}</td>
-          <td>{{task.resources.mem / 1024 | number}} GB</td>
+          <td>{{task.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>
             <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
                        encodeURIComponent(executor.directory)}}">
@@ -182,7 +182,7 @@
           <td>{{completed_task.name}}</td>
           <td>{{completed_task.state}}</td>
           <td>{{completed_task.resources.cpus | number}}</td>
-          <td>{{completed_task.resources.mem / 1024 | number}} GB</td>
+          <td>{{completed_task.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>
             <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
                        encodeURIComponent(executor.directory)}}">

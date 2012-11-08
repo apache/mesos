@@ -47,17 +47,18 @@ angular.module('mesos', []).
       }
     }
   })
-  // TODO(bmahler): Replace all mem / disk GB with this filter.
   .filter('dataSize', function() {
     return function(bytes) {
-      if (bytes < 1024) {
-        return bytes.toFixed() + "B";
+      if (bytes === null || bytes === undefined || isNaN(bytes)) {
+        return '';
+      } else if (bytes < 1024) {
+        return bytes.toFixed() + ' B';
       } else if (bytes < (1024 * 1024)) {
-        return (bytes / 1024).toFixed() + "K";
+        return (bytes / 1024).toFixed() + ' KB';
       } else if (bytes < (1024 * 1024 * 1024)) {
-        return (bytes / (1024 * 1024)).toFixed() + "M";
+        return (bytes / (1024 * 1024)).toFixed() + ' MB';
       } else {
-        return (bytes / (1024 * 1024 * 1024)).toFixed() + "G";
+        return (bytes / (1024 * 1024 * 1024)).toFixed() + ' GB';
       }
     }
   })

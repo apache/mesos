@@ -54,11 +54,11 @@
           </tr>
           <tr>
             <th>Memory</th>
-            <td>{{framework.mem / 1024 | number}} GB</td>
+            <td>{{framework.mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <th>Disk</th>
-            <td>{{framework.disk / 1024 | number}} GB</td>
+            <td>{{framework.disk * (1024 * 1024) | dataSize}}</td>
           </tr>
         </tbody>
       </table>
@@ -104,7 +104,7 @@
           <td>{{executor.tasks.length | number}}</td>
           <td>{{executor.queued_tasks.length | number}}</td>
           <td>{{executor.resources.cpus | number}}</td>
-          <td>{{executor.resources.mem / 1024 | number}} GB</td>
+          <td>{{executor.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>
             <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
                        encodeURIComponent(executor.directory)}}">

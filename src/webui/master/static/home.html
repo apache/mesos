@@ -98,22 +98,22 @@
           <tr>
             <th>Total</th>
             <td>{{total_cpus | number}}</td>
-            <td>{{total_mem / 1024 | number}} GB</td>
+            <td>{{total_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <th>Used</th>
             <td>{{used_cpus | number}}</td>
-            <td>{{used_mem / 1024 | number}} GB</td>
+            <td>{{used_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <th>Offered</th>
             <td>{{offered_cpus | number}}</td>
-            <td>{{offered_mem / 1024 | number}} GB</td>
+            <td>{{offered_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <th>Idle</th>
             <td>{{idle_cpus | number}}</td>
-            <td>{{idle_mem / 1024 | number}} GB</td>
+            <td>{{idle_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
         </tbody>
       </table>
@@ -178,7 +178,7 @@
           <td><a href="{{'#/frameworks/' + framework.id}}">{{framework.name}}</a></td>
           <td>{{framework.tasks.length}}</td>
           <td>{{framework.resources.cpus | number}}</td>
-          <td>{{framework.resources.mem / 1024 | number}} GB</td>
+          <td>{{framework.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{framework.max_share * 100 | number}}%</td>
           <td>
             <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
@@ -238,8 +238,8 @@
             {{slave.hostname}}
           </a>
         <td>{{slave.resources.cpus | number}}</td>
-        <td>{{slave.resources.mem / 1024 | number}} GB</td>
-        <td>{{slave.resources.disk / 1024 | number}} GB</td>
+        <td>{{slave.resources.mem * (1024 * 1024) | dataSize}}</td>
+        <td>{{slave.resources.disk * (1024 * 1024) | dataSize}}</td>
         <td>
           <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
             {{slave.registered_time * 1000 | relativeDate}}
@@ -286,7 +286,7 @@
             </a>
           </td>
           <td>{{offer.resources.cpus | number}}</td>
-          <td>{{offer.resources.mem / 1024 | number}} GB</td>
+          <td>{{offer.resources.mem * (1024 * 1024) | dataSize}}</td>
         </tr>
       </tbody>
     </table>
