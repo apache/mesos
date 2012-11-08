@@ -342,28 +342,41 @@ mesos_mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_mesos_LDADD = libmesos.la
 
 # Need to distribute/install webui javascript.
-nobase_dist_webui_DATA += webui/master/static/controllers.js		\
-  webui/master/static/app.js webui/master/static/dashboard.js		\
-  webui/master/static/popovers.js webui/master/static/jquery.pailer.js
+nobase_dist_webui_DATA +=						\
+  webui/master/static/controllers.js					\
+  webui/master/static/app.js						\
+  webui/master/static/dashboard.js					\
+  webui/master/static/popovers.js					\
+  webui/master/static/jquery.pailer.js
 
 # Need to distribute/install webui CSS.
-nobase_dist_webui_DATA += webui/master/static/graph.css	\
+nobase_dist_webui_DATA +=						\
+  webui/master/static/graph.css						\
   webui/master/static/mesos.css
 
 # Need to distribute/install webui HTML.
-nobase_dist_webui_DATA += webui/master/static/dashboard.html		\
+nobase_dist_webui_DATA +=						\
+  webui/master/static/browse.html					\
+  webui/master/static/dashboard.html					\
   webui/master/static/framework.html					\
-  webui/master/static/frameworks.html webui/master/static/home.html	\
-  webui/master/static/index.html webui/master/static/pailer.html	\
+  webui/master/static/frameworks.html					\
+  webui/master/static/home.html						\
+  webui/master/static/index.html					\
+  webui/master/static/pailer.html					\
+  webui/master/static/slave.html					\
+  webui/master/static/slave_executor.html				\
+  webui/master/static/slave_framework.html				\
   webui/master/static/slaves.html
 
 # Need to distribute/install webui images.
 nobase_dist_webui_DATA += webui/master/static/loading.gif
 
 # Need to distribute/install third_party javascript.
-nobase_dist_webui_DATA += webui/master/static/angular-1.0.0rc8.js	\
+nobase_dist_webui_DATA +=						\
+  webui/master/static/angular-1.0.0rc8.js				\
   webui/master/static/underscore-min.js					\
-  webui/master/static/cubism.v1.js webui/master/static/d3.v2.js		\
+  webui/master/static/cubism.v1.js					\
+  webui/master/static/d3.v2.js						\
   webui/master/static/relative-date.js
 
 # Need to distribute/install bootstrap.
