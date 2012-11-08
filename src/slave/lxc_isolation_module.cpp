@@ -320,11 +320,16 @@ void LxcIsolationModule::processExited(pid_t pid, int status)
     foreachvalue (ContainerInfo* info, infos[frameworkId]) {
       if (info->pid == pid) {
         LOG(INFO) << "Telling slave of lost executor "
-		  << info->executorId
+                  << info->executorId
                   << " of framework " << info->frameworkId;
 
-        dispatch(slave, &Slave::executorExited,
-                 info->frameworkId, info->executorId, status);
+        dispatch(slave,
+                 &Slave::executorTerminated,
+                 info->frameworkId,
+                 info->executorId,
+                 status,
+                 false,
+                 "Executor exited");
 
         // Try and cleanup after the executor.
         killExecutor(info->frameworkId, info->executorId);

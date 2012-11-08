@@ -466,10 +466,11 @@ void Slave::doReliableRegistration()
 }
 
 
-void Slave::runTask(const FrameworkInfo& frameworkInfo,
-                    const FrameworkID& frameworkId,
-                    const string& pid,
-                    const TaskInfo& task)
+void Slave::runTask(
+    const FrameworkInfo& frameworkInfo,
+    const FrameworkID& frameworkId,
+    const string& pid,
+    const TaskInfo& task)
 {
   LOG(INFO) << "Got assigned task " << task.task_id()
             << " for framework " << frameworkId;
@@ -559,8 +560,7 @@ void Slave::runTask(const FrameworkInfo& frameworkInfo,
 }
 
 
-void Slave::killTask(const FrameworkID& frameworkId,
-                     const TaskID& taskId)
+void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
 {
   LOG(INFO) << "Asked to kill task " << taskId
             << " of framework " << frameworkId;
@@ -663,10 +663,11 @@ void Slave::shutdownFramework(const FrameworkID& frameworkId)
 }
 
 
-void Slave::schedulerMessage(const SlaveID& slaveId,
-                             const FrameworkID& frameworkId,
-                             const ExecutorID& executorId,
-                             const string& data)
+void Slave::schedulerMessage(
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const string& data)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
@@ -703,8 +704,7 @@ void Slave::schedulerMessage(const SlaveID& slaveId,
 }
 
 
-void Slave::updateFramework(const FrameworkID& frameworkId,
-                            const string& pid)
+void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
@@ -715,10 +715,11 @@ void Slave::updateFramework(const FrameworkID& frameworkId,
 }
 
 
-void Slave::statusUpdateAcknowledgement(const SlaveID& slaveId,
-                                        const FrameworkID& frameworkId,
-                                        const TaskID& taskId,
-                                        const string& uuid)
+void Slave::statusUpdateAcknowledgement(
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const TaskID& taskId,
+    const string& uuid)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
@@ -745,8 +746,9 @@ void Slave::statusUpdateAcknowledgement(const SlaveID& slaveId,
 }
 
 
-void Slave::registerExecutor(const FrameworkID& frameworkId,
-                             const ExecutorID& executorId)
+void Slave::registerExecutor(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
 {
   LOG(INFO) << "Got registration for executor '" << executorId
             << "' of framework " << frameworkId;
@@ -878,10 +880,11 @@ void Slave::statusUpdate(const StatusUpdate& update)
 }
 
 
-void Slave::executorMessage(const SlaveID& slaveId,
-                            const FrameworkID& frameworkId,
-                            const ExecutorID& executorId,
-                            const string& data)
+void Slave::executorMessage(
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const string& data)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
@@ -964,69 +967,37 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
 
 // N.B. When the slave is running in "local" mode then the pid is
 // uninteresting (and possibly could cause bugs).
-void Slave::executorStarted(const FrameworkID& frameworkId,
-                            const ExecutorID& executorId,
-                            pid_t pid)
+void Slave::executorStarted(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    pid_t pid)
 {
 
 }
 
 
-StatusUpdate Slave::createStatusUpdate(const TaskID& taskId,
-                                       const ExecutorID& executorId,
-                                       const FrameworkID& frameworkId,
-                                       TaskState taskState,
-                                       const string& reason)
+void Slave::sendStatusUpdate(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const TaskID& taskId,
+    TaskState taskState,
+    const string& message)
 {
-  TaskStatus status;
-  status.mutable_task_id()->MergeFrom(taskId);
-  status.set_state(taskState);
-  status.set_message(reason);
+  const StatusUpdate& update = protobuf::createStatusUpdate(
+      frameworkId, id, taskId, taskState, message, executorId);
 
-  StatusUpdate update;
-  update.mutable_framework_id()->MergeFrom(frameworkId);
-  update.mutable_slave_id()->MergeFrom(id);
-  update.mutable_executor_id()->MergeFrom(executorId);
-  update.mutable_status()->MergeFrom(status);
-  update.set_timestamp(Clock::now());
-  update.set_uuid(UUID::random().toBytes());
-
-  return update;
-}
-
-
-// Called when an executor is exited.
-// Transitions a live task to TASK_LOST/TASK_FAILED and sends status update.
-void Slave::transitionLiveTask(const TaskID& taskId,
-                               const ExecutorID& executorId,
-                               const FrameworkID& frameworkId,
-                               bool isCommandExecutor,
-                               int status)
-{
-  StatusUpdate update;
-
-  if (isCommandExecutor) {
-    update = createStatusUpdate(taskId,
-                                executorId,
-                                frameworkId,
-                                TASK_FAILED,
-                                "Executor running the task's command failed");
-  } else {
-    update = createStatusUpdate(taskId,
-                                executorId,
-                                frameworkId,
-                                TASK_LOST,
-                                "Executor exited");
-  }
-
+  // Handle the status update as though it came from the executor.
   statusUpdate(update);
 }
 
 
-// Called by the isolation module when an executor process exits.
-void Slave::executorExited(const FrameworkID& frameworkId,
-                           const ExecutorID& executorId,
-                           int status)
+// Called by the isolation module when an executor process terminates.
+void Slave::executorTerminated(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    int status,
+    bool destroyed,
+    const string& message)
 {
   LOG(INFO) << "Executor '" << executorId
             << "' of framework " << frameworkId
@@ -1056,29 +1027,37 @@ void Slave::executorExited(const FrameworkID& frameworkId,
   bool isCommandExecutor = false;
 
   // Transition all live tasks to TASK_LOST/TASK_FAILED.
+  // If the isolation module destroyed the executor (e.g., due to OOM event)
+  // or if this is a command executor, we send TASK_FAILED status updates
+  // instead of TASK_LOST.
+
+  // Transition all live launched tasks.
   foreachvalue (Task* task, utils::copy(executor->launchedTasks)) {
     if (!protobuf::isTerminalState(task->state())) {
       isCommandExecutor = !task->has_executor_id();
 
-      transitionLiveTask(task->task_id(),
-                         executor->id,
-                         framework->id,
-                         isCommandExecutor,
-                         status);
+      if (destroyed || isCommandExecutor) {
+        sendStatusUpdate(
+            frameworkId, executorId, task->task_id(), TASK_FAILED, message);
+      } else {
+        sendStatusUpdate(
+            frameworkId, executorId, task->task_id(), TASK_LOST, message);
+      }
     }
   }
 
-  // Transition all queued tasks to TASK_LOST/TASK_FAILED.
+  // Transition all queued tasks.
   foreachvalue (const TaskInfo& task, utils::copy(executor->queuedTasks)) {
     isCommandExecutor = task.has_command();
 
-    transitionLiveTask(task.task_id(),
-                       executor->id,
-                       framework->id,
-                       isCommandExecutor,
-                       status);
+    if (destroyed || isCommandExecutor) {
+      sendStatusUpdate(
+          frameworkId, executorId, task.task_id(), TASK_FAILED, message);
+    } else {
+      sendStatusUpdate(
+          frameworkId, executorId, task.task_id(), TASK_LOST, message);
+    }
   }
-
 
   if (!isCommandExecutor) {
     ExitedExecutorMessage message;
@@ -1116,9 +1095,10 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
 }
 
 
-void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
-                                    const ExecutorID& executorId,
-                                    const UUID& uuid)
+void Slave::shutdownExecutorTimeout(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& uuid)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
@@ -1133,7 +1113,8 @@ void Slave::shutdownExecutorTimeout(const FrameworkID& frameworkId,
 
     dispatch(isolationModule,
              &IsolationModule::killExecutor,
-             framework->id, executor->id);
+             framework->id,
+             executor->id);
 
     // Schedule the executor directory to get garbage collected.
     gc.schedule(flags.gc_delay, executor->directory);

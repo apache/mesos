@@ -46,6 +46,7 @@ inline StatusUpdate createStatusUpdate(
     const SlaveID& slaveId,
     const TaskID& taskId,
     const TaskState& state,
+    const std::string& message,
     const ExecutorID& executorId = ExecutorID())
 {
   StatusUpdate update;
@@ -60,6 +61,8 @@ inline StatusUpdate createStatusUpdate(
   TaskStatus* status = update.mutable_status();
   status->mutable_task_id()->MergeFrom(taskId);
   status->set_state(state);
+  status->set_message(message);
+
   update.set_timestamp(::process::Clock::now());
   update.set_uuid(UUID::random().toBytes());
 

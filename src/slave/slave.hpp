@@ -82,53 +82,65 @@ public:
   void registered(const SlaveID& slaveId);
   void reregistered(const SlaveID& slaveId);
   void doReliableRegistration();
-  void runTask(const FrameworkInfo& frameworkInfo,
-               const FrameworkID& frameworkId,
-               const std::string& pid,
-               const TaskInfo& task);
-  void killTask(const FrameworkID& frameworkId,
-                const TaskID& taskId);
+
+  void runTask(
+      const FrameworkInfo& frameworkInfo,
+      const FrameworkID& frameworkId,
+      const std::string& pid,
+      const TaskInfo& task);
+
+  void killTask(const FrameworkID& frameworkId, const TaskID& taskId);
+
   void shutdownFramework(const FrameworkID& frameworkId);
-  void schedulerMessage(const SlaveID& slaveId,
-			const FrameworkID& frameworkId,
-			const ExecutorID& executorId,
-			const std::string& data);
-  void updateFramework(const FrameworkID& frameworkId,
-                       const std::string& pid);
-  void statusUpdateAcknowledgement(const SlaveID& slaveId,
-                                   const FrameworkID& frameworkId,
-                                   const TaskID& taskId,
-                                   const std::string& uuid);
-  void registerExecutor(const FrameworkID& frameworkId,
-                        const ExecutorID& executorId);
+
+  void schedulerMessage(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::string& data);
+
+  void updateFramework(const FrameworkID& frameworkId, const std::string& pid);
+
+  void statusUpdateAcknowledgement(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const TaskID& taskId,
+      const std::string& uuid);
+
+  void registerExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
+
   void statusUpdate(const StatusUpdate& update);
-  void executorMessage(const SlaveID& slaveId,
-                       const FrameworkID& frameworkId,
-                       const ExecutorID& executorId,
-                       const std::string& data);
+
+  void executorMessage(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::string& data);
+
   void ping(const UPID& from, const std::string& body);
 
   void statusUpdateTimeout(const FrameworkID& frameworkId, const UUID& uuid);
 
-  StatusUpdate createStatusUpdate(const TaskID& taskId,
-                                  const ExecutorID& executorId,
-                                  const FrameworkID& frameworkId,
-                                  TaskState taskState,
-                                  const std::string& message);
+  void sendStatusUpdate(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const TaskID& taskId,
+      TaskState taskState,
+      const std::string& message);
 
-  void executorStarted(const FrameworkID& frameworkId,
-                       const ExecutorID& executorId,
-                       pid_t pid);
+  void executorStarted(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      pid_t pid);
 
-  void executorExited(const FrameworkID& frameworkId,
-                      const ExecutorID& executorId,
-                      int status);
-
-  void transitionLiveTask(const TaskID& taskId,
-                          const ExecutorID& executorId,
-                          const FrameworkID& frameworkId,
-                          bool command_executor,
-                          int status);
+  void executorTerminated(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      int status,
+      bool destroyed,
+      const std::string& message);
 
   // NOTE: Pulled this to public to make it visible for testing.
   // Garbage collects the directories based on the current disk usage.

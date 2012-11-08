@@ -469,11 +469,16 @@ TEST(MasterTest, RecoverResources)
   driver.declineOffer(offer.id());
 
   // Now simulate an executorExited call to the slave.
-  process::dispatch(slave,
-                    &Slave::executorExited,
-                    offer.framework_id(),
-                    executorInfo.executor_id(),
-                    0);
+  // We need to explicitly send this message because we don't spawn
+  // a real executor process in this test.
+  process::dispatch(
+      slave,
+      &Slave::executorTerminated,
+      offer.framework_id(),
+      executorInfo.executor_id(),
+      0,
+      false,
+      "Killed executor");
 
   // Scheduler should get an offer for the complete slave resources.
   WAIT_UNTIL(resourceOffersCall3);

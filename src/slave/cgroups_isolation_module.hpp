@@ -101,8 +101,15 @@ private:
     // PID of the forked process of the executor.
     pid_t pid;
 
-    // Whether the executor has been killed.
-    bool killed;
+    bool killed; // True if "killing" has been initiated via 'killExecutor'.
+
+    // Indicates if this executor has been destroyed by the isolation
+    // module. NOTE: An executor may have terminated due to reasons
+    // other than destruction by the isolation module (e.g. killed by
+    // slave, exited, etc.).
+    bool destroyed;
+
+    std::string reason; // The reason behind the destruction.
 
     // Used to cancel the OOM listening.
     process::Future<uint64_t> oomNotifier;

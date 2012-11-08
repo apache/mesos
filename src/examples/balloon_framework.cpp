@@ -32,10 +32,12 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "examples/utils.hpp"
 
 using namespace mesos;
-
+using namespace mesos::internal;
 
 // The amount of memory in MB the executor itself takes.
 const static size_t EXECUTOR_MEMORY_MB = 64;
@@ -116,13 +118,18 @@ public:
   virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
     std::cout << "Task in state " << status.state() << std::endl;
+    if (status.has_message()) {
+      std::cout << "Reason: " << status.message() << std::endl;
+    }
 
-    if (status.state() == TASK_FINISHED) {
-      driver->stop();
-    } else if (status.state() == TASK_FAILED ||
-               status.state() == TASK_KILLED ||
-               status.state() == TASK_LOST) {
-      driver->abort();
+    if (protobuf::isTerminalState(status.state())) {
+      // NOTE: We expect TASK_FAILED here. The abort here ensures the shell
+      // script invoking this test, considers the test result as 'PASS'.
+      if (status.state() == TASK_FAILED) {
+        driver->abort();
+      } else {
+        driver->stop();
+      }
     }
   }
 

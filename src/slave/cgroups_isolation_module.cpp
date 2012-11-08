@@ -50,6 +50,7 @@ using process::Future;
 
 using std::set;
 using std::string;
+using std::ostringstream;
 using std::vector;
 
 namespace mesos {
@@ -332,10 +333,12 @@ void CgroupsIsolationModule::launchExecutor(
               << " of framework " << frameworkId;
 
     dispatch(slave,
-             &Slave::executorExited,
+             &Slave::executorTerminated,
              frameworkId,
              executorId,
-             -1); // TODO(benh): Determine "correct" status.
+             -1,  // TODO(benh): Determine "correct" status.
+             false,
+             "Error launching executor");
 
     return;
   }
@@ -462,14 +465,19 @@ void CgroupsIsolationModule::processExited(pid_t pid, int status)
     FrameworkID frameworkId = info->frameworkId;
     ExecutorID executorId = info->executorId;
 
-    LOG(INFO) << "Telling slave of lost executor " << executorId
+    LOG(INFO) << "Telling slave of terminated executor " << executorId
               << " of framework " << frameworkId;
 
+    // TODO(vinod): Consider sending this message when the cgroup is
+    // completely destroyed (i.e., inside destroyWaited()).
+    // The tricky bit is to get the exit 'status' of the executor process.
     dispatch(slave,
-             &Slave::executorExited,
-             frameworkId,
-             executorId,
-             status);
+             &Slave::executorTerminated,
+             info->frameworkId,
+             info->executorId,
+             status,
+             info->destroyed,
+             info->reason);
 
     if (!info->killed) {
       killExecutor(frameworkId, executorId);
@@ -635,46 +643,52 @@ void CgroupsIsolationModule::oom(
     // It is likely that processExited is executed before this function (e.g.
     // The kill and OOM events happen at the same time, and the process exit
     // event arrives first.) Therefore, we should not report a fatal error here.
-    LOG(INFO) << "OOM detected for an exited executor";
+    LOG(INFO) << "OOM detected for an already terminated executor";
     return;
   }
 
-  // To safely ignore the OOM event from the previous launch of the same
-  // executor (with the same frameworkId and executorId).
+  // We can also ignore an OOM event that we are late to process for a
+  // previous instance of an executor.
   if (tag != info->tag) {
-    LOG(INFO) << "OOM detected for the previous launch of the same executor";
+    LOG(INFO) << "OOM detected for a previous executor instance";
     return;
   }
 
   // If killed is set, the OOM notifier will be discarded in oomWaited.
   // Therefore, we should not be able to reach this point.
-  CHECK(!info->killed) << "OOM detected for a killed executor";
+  CHECK(!info->killed) << "OOM detected for an already killed executor";
 
   LOG(INFO) << "OOM detected for executor " << executorId
             << " of framework " << frameworkId
             << " with tag " << tag;
 
-  // Output 'memory.limit_in_bytes' of the cgroup to help with debugging.
+  // Construct a "reason" string to describe why the isolation module
+  // destroyed the executor's cgroup (in order to assist in debugging).
+  ostringstream reason;
+
   Try<string> read =
     cgroups::readControl(hierarchy, info->name(), "memory.limit_in_bytes");
   if (read.isSome()) {
-    LOG(INFO) << "MEMORY LIMIT: " << strings::trim(read.get()) << " bytes";
+    reason << "MEMORY LIMIT: " << strings::trim(read.get()) << " bytes\n";
   }
 
   // Output 'memory.usage_in_bytes'.
   read = cgroups::readControl(hierarchy, info->name(), "memory.usage_in_bytes");
   if (read.isSome()) {
-    LOG(INFO) << "MEMORY USAGE: " << strings::trim(read.get()) << " bytes";
+    reason << "MEMORY USAGE: " << strings::trim(read.get()) << " bytes\n";
   }
 
   // Output 'memory.stat' of the cgroup to help with debugging.
   read = cgroups::readControl(hierarchy, info->name(), "memory.stat");
   if (read.isSome()) {
-    LOG(INFO) << "MEMORY STATISTICS: \n" << read.get();
+    reason << "MEMORY STATISTICS: \n" << read.get() << "\n";
   }
 
-  // TODO(jieyu): Have a mechanism to use a different policy (e.g. freeze the
-  // executor) when OOM happens.
+  LOG(INFO) << strings::trim(reason.str()); // Trim the extra '\n' at the end.
+
+  info->destroyed = true;
+  info->reason = reason.str();
+
   killExecutor(frameworkId, executorId);
 }
 
@@ -702,6 +716,8 @@ CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::registerCgroupInfo(
   info->tag = UUID::random().toString();
   info->pid = -1;
   info->killed = false;
+  info->destroyed = false;
+  info->reason = "";
   infos[frameworkId][executorId] = info;
   return info;
 }

@@ -798,8 +798,16 @@ TEST(FaultToleranceTest, SchedulerExit)
   WAIT_UNTIL(shutdownCall);
 
   // Simulate a executorExited message from isolation module to the slave.
-  process::dispatch(slave, &Slave::executorExited,
-                    frameworkId, DEFAULT_EXECUTOR_ID, 0);
+  // We need to explicitly send this message because we don't spawn
+  // a real executor process in this test.
+  process::dispatch(
+      slave,
+      &Slave::executorTerminated,
+      frameworkId,
+      DEFAULT_EXECUTOR_ID,
+      0,
+      false,
+      "Killed executor");
 
   WAIT_UNTIL(statusUpdateMsg);
 
