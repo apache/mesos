@@ -117,11 +117,6 @@ AC_ARG_ENABLE([python],
                              [don't build Python bindings]),
               [], [enable_python=yes])
 
-AC_ARG_ENABLE([webui],
-              AS_HELP_STRING([--disable-webui],
-                             [don't build webui (requires Python 2.6)]),
-              [], [enable_webui=yes])
-
 AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--disable-optimize],
                              [don't try to compile with optimizations]),
@@ -360,38 +355,6 @@ if test "x$enable_python" = "xyes"; then
 fi
 
 AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
-
-
-# Configure webui as necessary if enabled (must be done *after* we
-# configure Python).
-if test "x$enable_webui" = "xyes"; then
-  # Make sure we have Python.
-  test "x$has_python" = "xyes" || \
-    AC_MSG_ERROR([webui requires --enable-python])
-
-  # The webui requires at least Python 2.6.
-  AM_PYTHON_CHECK_VERSION([$PYTHON], [2.6], [],
-                          [AC_MSG_ERROR([webui requires Python >= 2.6])])
-
-  # Determine the flags necessary for embedding Python.
-  WEBUI_CPPFLAGS=`$PYTHON -c \
-    'from distutils import sysconfig; \
-     print "-I" + sysconfig.get_config_var("INCLUDEPY")'`
-
-  WEBUI_LDFLAGS=`$PYTHON -c \
-    'from distutils import sysconfig; \
-     print sysconfig.get_config_var("LINKFORSHARED") + \
-     " -lpython" + sysconfig.get_config_var("VERSION")'`
-
-  AC_SUBST([WEBUI_CPPFLAGS])
-  AC_SUBST([WEBUI_LDFLAGS])
-
-  AC_DEFINE([MESOS_WEBUI])
-
-  webui=yes
-fi
-
-AM_CONDITIONAL([WEBUI], [test "x$webui" = "xyes"])
 
 
 # Check if we should try and enable optimizations.
