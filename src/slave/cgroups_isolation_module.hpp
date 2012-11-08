@@ -207,8 +207,8 @@ private:
   // The path to the cgroups hierarchy root.
   std::string hierarchy;
 
-  // The activated cgroups subsystems that can be used by the module.
-  hashset<std::string> activatedSubsystems;
+  // The cgroups subsystems being used.
+  hashset<std::string> subsystems;
 
   // Handlers for each resource name, used for resource changes.
   hashmap<std::string,

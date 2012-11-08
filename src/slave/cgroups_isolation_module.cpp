@@ -110,44 +110,27 @@ void CgroupsIsolationModule::initialize(
 
   LOG(INFO) << "Using " << hierarchy << " as cgroups hierarchy root";
 
-  // Configure required/optional subsystems.
-  hashset<string> requiredSubsystems;
-  hashset<string> optionalSubsystems;
-
-  requiredSubsystems.insert("cpu");
-  requiredSubsystems.insert("memory");
-  requiredSubsystems.insert("freezer");
-
-  optionalSubsystems.insert("cpuset");
-  optionalSubsystems.insert("blkio");
-
-  // Probe cgroups subsystems.
-  hashset<string> enabledSubsystems;
-  hashset<string> busySubsystems;
-
-  Try<set<string> > enabled = cgroups::subsystems();
-  if (enabled.isError()) {
-    LOG(FATAL) << "Failed to probe cgroups subsystems: " << enabled.error();
-  } else {
-    foreach (const string& name, enabled.get()) {
-      enabledSubsystems.insert(name);
-
-      Try<bool> busy = cgroups::busy(name);
-      if (busy.isError()) {
-        LOG(FATAL) << "Failed to probe cgroups subsystems: " << busy.error();
-      }
-
-      if (busy.get()) {
-        busySubsystems.insert(name);
-      }
-    }
+  // Determine desired subsystems.
+  foreach (const string& subsystem,
+           strings::tokenize(flags.cgroups_subsystems, ",")) {
+    // TODO(benh): Implement a 'sets::union' that takes a vector or
+    // set rather than looping here!
+    subsystems.insert(subsystem);
   }
 
-  // Make sure that all the required subsystems are enabled by the kernel.
-  foreach (const string& name, requiredSubsystems) {
-    if (!enabledSubsystems.contains(name)) {
-      LOG(FATAL) << "Required subsystem " << name
-                 << " is not enabled by the kernel";
+  // Regardless of whether or not it was destired, we require the
+  // 'freezer' subsystem in order to destroy a cgroup.
+  subsystems.insert("freezer");
+
+  // Make sure that all the desired subsystems are enabled.
+  foreach (const string& subsystem, subsystems) {
+    Try<bool> enabled = cgroups::enabled(subsystem);
+    if (enabled.isError()) {
+      LOG(FATAL) << "Failed to determine if cgroups subsystem '" << subsystem
+                 << "' is enabled by the kernel: " << enabled.error();
+    } else if (!enabled.get()) {
+      LOG(FATAL) << "Desired cgroups subsystem '" << subsystem
+                 << "' is not enabled by the kernel";
     }
   }
 
@@ -166,47 +149,41 @@ void CgroupsIsolationModule::initialize(
       }
     }
 
-    // The comma-separated subsystem names which will be passed to
-    // cgroups::createHierarchy to create the hierarchy root.
-    string subsystems;
-
-    // Make sure that all the required subsystems are not busy so that we can
-    // activate them in the given cgroups hierarchy root.
-    foreach (const string& name, requiredSubsystems) {
-      if (busySubsystems.contains(name)) {
-        LOG(FATAL) << "Required subsystem " << name << " is busy";
-      }
-
-      subsystems.append(name + ",");
-    }
-
-    // Also activate those optional subsystems that are not busy.
-    foreach (const string& name, optionalSubsystems) {
-      if (enabledSubsystems.contains(name) && !busySubsystems.contains(name)) {
-        subsystems.append(name + ",");
+    // Make sure that all the desired subsystems are not busy so that
+    // we can attach them in the given cgroups hierarchy root.
+    foreach (const string& subsystem, subsystems) {
+      Try<bool> busy = cgroups::busy(subsystem);
+      if (busy.isError()) {
+        LOG(FATAL) << "Failed to determine if cgroups subsystem '" << subsystem
+                   << "' is already being used by another hierarchy: "
+                   << busy.error();
+      } else if (busy.get()) {
+        LOG(FATAL) << "Required subsystem '" << subsystem
+                   << "' is already in use";
       }
     }
 
     // Create the cgroups hierarchy root.
     Try<Nothing> create =
-        cgroups::createHierarchy(hierarchy, strings::trim(subsystems, ","));
+      cgroups::createHierarchy(hierarchy, strings::join(",", subsystems));
     if (create.isError()) {
-      LOG(FATAL) << "Failed to create cgroups hierarchy root at " << hierarchy
-                 << ": " << create.error();
+      LOG(FATAL) << "Failed to create cgroups hierarchy root at "
+                 << hierarchy << ": " << create.error();
     }
   }
 
-  // Probe activated subsystems in the cgroups hierarchy root.
-  Try<set<string> > activated = cgroups::subsystems(hierarchy);
-  foreach (const string& name, activated.get()) {
-    activatedSubsystems.insert(name);
-  }
-
-  // Make sure that all the required subsystems are activated.
-  foreach (const string& name, requiredSubsystems) {
-    if (!activatedSubsystems.contains(name)) {
-      LOG(FATAL) << "Required subsystem " << name
-                 << " is not activated in hierarchy " << hierarchy;
+  // Make sure that all the desired subsystems are attached (we have
+  // to do this since we might just be reusing an already mounted
+  // hierarchy).
+  foreach (const string& subsystem, subsystems) {
+    Try<Nothing> check = cgroups::checkHierarchy(hierarchy, subsystem);
+    if (check.isError()) {
+      LOG(FATAL) << "Failed to determine if cgroups subsystem '" << subsystem
+                 << "' is attached to hierarchy " << hierarchy << ": "
+                 << check.error();
+    } else {
+      // TODO(benh): Update this code to actually check Try<bool> after
+      // checkHierarchy is replaced.
     }
   }
 
@@ -275,12 +252,12 @@ void CgroupsIsolationModule::initialize(
     << "Failed to disable OOM killer: " << disable.error();
 
   // Configure resource changed handlers. We only add handlers for
-  // resources that have the appropriate subsystem activated.
-  if (activatedSubsystems.contains("cpu")) {
+  // resources that have the appropriate subsystems attached.
+  if (subsystems.contains("cpu")) {
     handlers["cpus"] = &CgroupsIsolationModule::cpusChanged;
   }
 
-  if (activatedSubsystems.contains("memory")) {
+  if (subsystems.contains("memory")) {
     handlers["mem"] = &CgroupsIsolationModule::memChanged;
   }
 

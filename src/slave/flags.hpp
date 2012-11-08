@@ -106,6 +106,11 @@ public:
         "cgroups_hierarchy_root",
         "The path to the cgroups hierarchy root\n",
         "/cgroups");
+
+    add(&Flags::cgroups_subsystems,
+        "cgroups_subsystems",
+        "List of subsystems to enable (e.g., 'cpu,freezer')\n",
+        "cpu,memory,freezer");
 #endif
   }
 
@@ -122,6 +127,7 @@ public:
   Duration disk_watch_interval;
 #ifdef __linux__
   std::string cgroups_hierarchy_root;
+  std::string cgroups_subsystems;
 #endif
 };
 

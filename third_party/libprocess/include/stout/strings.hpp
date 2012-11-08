@@ -167,6 +167,19 @@ inline std::string join(const std::string& separator,
 }
 
 
+// Use duck-typing to join any iterable.
+template <typename Iterable>
+inline std::string join(const std::string& separator, const Iterable& i)
+{
+  std::string result;
+  typename Iterable::const_iterator iterator;
+  for (iterator = i.begin(); iterator != i.end(); ++iterator) {
+    result += separator + *iterator;
+  }
+  return result;
+}
+
+
 inline bool checkBracketsMatching(
     const std::string& s,
     const char openBracket,
