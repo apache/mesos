@@ -146,13 +146,18 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
   jobject jVERSION = env->GetStaticObjectField(
       clazz, env->GetStaticFieldID(clazz, "VERSION", "Ljava/lang/String;"));
 
-  const string& expected = construct<string>(env, jVERSION);
+  const string& jarVersion = construct<string>(env, jVERSION);
 
-  if (MESOS_VERSION != expected) {
+  const string jarMajorVersion = strings::split(jarVersion, ".")[0];
+  const string nativeMajorVersion = strings::split(MESOS_VERSION, ".")[0];
+
+  if (jarMajorVersion != nativeMajorVersion) {
     env->DeleteWeakGlobalRef(mesosClassLoader);
     mesosClassLoader = NULL;
     const string& error =
-      "Java expecting version " + expected + ", found version " + MESOS_VERSION;
+      "Mesos JAR version " + jarVersion +
+      " is not backwards compatible with Mesos native library version " +
+      MESOS_VERSION;
     clazz = env->FindClass("java/lang/UnsatisfiedLinkError");
     env->ThrowNew(clazz, error.c_str());
     return JNI_ERR;
