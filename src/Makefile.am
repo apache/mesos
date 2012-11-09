@@ -151,18 +151,36 @@ noinst_LTLIBRARIES += libmesos_no_third_party.la
 
 nodist_libmesos_no_third_party_la_SOURCES = $(CXX_PROTOS) $(MESSAGES_PROTOS)
 
-libmesos_no_third_party_la_SOURCES = sched/sched.cpp local/local.cpp	\
+libmesos_no_third_party_la_SOURCES =					\
+	sched/sched.cpp							\
+	local/local.cpp							\
+	master/constants.cpp						\
 	master/drf_sorter.cpp						\
-	master/frameworks_manager.cpp master/http.cpp master/master.cpp	\
-	master/slaves_manager.cpp slave/gc.cpp slave/state.cpp		\
-	slave/slave.cpp slave/http.cpp slave/isolation_module.cpp	\
-	slave/process_based_isolation_module.cpp slave/reaper.cpp	\
-	launcher/launcher.cpp exec/exec.cpp common/lock.cpp		\
-	detector/detector.cpp configurator/configurator.cpp		\
-	common/date_utils.cpp common/resources.cpp			\
-	common/attributes.cpp common/values.cpp files/files.cpp		\
-	logging/logging.cpp zookeeper/zookeeper.cpp			\
-	zookeeper/authentication.cpp zookeeper/group.cpp		\
+	master/frameworks_manager.cpp					\
+	master/http.cpp master/master.cpp				\
+	master/slaves_manager.cpp					\
+	slave/constants.cpp						\
+	slave/gc.cpp							\
+	slave/state.cpp							\
+	slave/slave.cpp							\
+	slave/http.cpp							\
+	slave/isolation_module.cpp					\
+	slave/process_based_isolation_module.cpp			\
+	slave/reaper.cpp						\
+	launcher/launcher.cpp						\
+	exec/exec.cpp							\
+	common/lock.cpp							\
+	detector/detector.cpp						\
+	configurator/configurator.cpp					\
+	common/date_utils.cpp						\
+	common/resources.cpp						\
+	common/attributes.cpp						\
+	common/values.cpp						\
+	files/files.cpp							\
+	logging/logging.cpp						\
+	zookeeper/zookeeper.cpp						\
+	zookeeper/authentication.cpp					\
+	zookeeper/group.cpp						\
 	messages/messages.proto
 
 pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\

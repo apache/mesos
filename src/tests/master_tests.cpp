@@ -170,6 +170,101 @@ TEST(MasterTest, TaskRunning)
 }
 
 
+TEST(MasterTest, ShutdownFrameworkWhileTaskRunning)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  TestAllocatorProcess a;
+  Files files;
+  Master m(&a, &files);
+  PID<Master> master = process::spawn(&m);
+
+  MockExecutor exec;
+
+  trigger shutdownCall;
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(Trigger(&shutdownCall));
+
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
+
+  flags::Flags<logging::Flags, slave::Flags> flags;
+  flags.executor_shutdown_grace_period = Seconds(0.0);
+  flags.resources = Option<string>::some("cpus:2;mem:1024");
+  Slave s(flags, true, &isolationModule, &files);
+  PID<Slave> slave = process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
+  vector<Offer> offers;
+  TaskStatus status;
+
+  trigger resourceOffersCall, statusUpdateCall, resourcesChangedCall;
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers),
+                    Trigger(&resourceOffersCall)))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOffersCall);
+
+  EXPECT_NE(0u, offers.size());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(isolationModule,
+              resourcesChanged(_, _, Resources(offers[0].resources())))
+    .WillOnce(Trigger(&resourcesChangedCall));
+
+  driver.launchTasks(offers[0].id(), tasks);
+
+  WAIT_UNTIL(statusUpdateCall);
+
+  EXPECT_EQ(TASK_RUNNING, status.state());
+
+  WAIT_UNTIL(resourcesChangedCall);
+
+  driver.stop();
+  driver.join();
+
+  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
+}
+
+
 TEST(MasterTest, KillTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);

@@ -361,8 +361,9 @@ Future<Response> state(
   {
     JSON::Array array;
 
-    foreach (const Framework& framework, master.completedFrameworks) {
-      array.values.push_back(model(framework));
+    foreach (const std::tr1::shared_ptr<Framework>& framework,
+             master.completedFrameworks) {
+      array.values.push_back(model(*framework));
     }
 
     object.values["completed_frameworks"] = array;

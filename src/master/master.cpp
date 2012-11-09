@@ -261,7 +261,8 @@ Master::Master(Allocator* _allocator, Files* _files)
   : ProcessBase("master"),
     flags(),
     allocator(_allocator),
-    files(_files) {}
+    files(_files),
+    completedFrameworks(MAX_COMPLETED_FRAMEWORKS) {}
 
 
 Master::Master(Allocator* _allocator,
@@ -270,7 +271,8 @@ Master::Master(Allocator* _allocator,
   : ProcessBase("master"),
     flags(_flags),
     allocator(_allocator),
-    files(_files) {}
+    files(_files),
+    completedFrameworks(MAX_COMPLETED_FRAMEWORKS) {}
 
 
 Master::~Master()
@@ -1711,16 +1713,12 @@ void Master::removeFramework(Framework* framework)
 
   framework->unregisteredTime = Clock::now();
 
-  completedFrameworks.push_back(*framework);
-  if (completedFrameworks.size() > MAX_COMPLETED_FRAMEWORKS) {
-    completedFrameworks.pop_front();
-  }
-
-  // Delete it.
+  // The completedFramework buffer now owns the framework pointer.
+  completedFrameworks.push_back(std::tr1::shared_ptr<Framework>(framework));
+  
+  // Remove it.
   frameworks.erase(framework->id);
   allocator->frameworkRemoved(framework->id);
-
-  delete framework;
 }
 
 

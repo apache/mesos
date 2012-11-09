@@ -233,8 +233,9 @@ JSON::Object model(const Framework& framework)
   object.values["executors"] = executors;
 
   JSON::Array completedExecutors;
-  foreach (const Executor& executor, framework.completedExecutors) {
-    completedExecutors.values.push_back(model(executor));
+  foreach (const std::tr1::shared_ptr<Executor>& executor,
+           framework.completedExecutors) {
+    completedExecutors.values.push_back(model(*executor));
   }
   object.values["completed_executors"] = completedExecutors;
 
@@ -330,8 +331,9 @@ Future<Response> state(
   object.values["frameworks"] = frameworks;
 
   JSON::Array completedFrameworks;
-  foreach (const Framework& framework, slave.completedFrameworks) {
-    completedFrameworks.values.push_back(model(framework));
+  foreach (const std::tr1::shared_ptr<Framework>& framework,
+           slave.completedFrameworks) {
+    completedFrameworks.values.push_back(model(*framework));
   }
   object.values["completed_frameworks"] = completedFrameworks;
 

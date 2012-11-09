@@ -19,25 +19,33 @@
 #ifndef __SLAVE_CONSTANTS_HPP__
 #define __SLAVE_CONSTANTS_HPP__
 
+#include <stdint.h>
+
 #include <stout/duration.hpp>
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5.0);
-const Duration STATUS_UPDATE_RETRY_INTERVAL = Seconds(10.0);
-const Duration GC_DELAY = Weeks(1.0);
-const Duration DISK_WATCH_INTERVAL = Minutes(1.0);
+// TODO(bmahler): It appears there may be a bug with gcc-4.1.2 in which these
+// duration constants were not being initialized when having static linkage.
+// This issue did not manifest in newer gcc's. Specifically, 4.2.1 was ok.
+// So we've moved these to have external linkage but perhaps in the future
+// we can revert this.
+
+extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+extern const Duration STATUS_UPDATE_RETRY_INTERVAL;
+extern const Duration GC_DELAY;
+extern const Duration DISK_WATCH_INTERVAL;
 
 // Maximum number of completed frameworks to store in memory.
-const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
+extern const uint32_t MAX_COMPLETED_FRAMEWORKS;
 
 // Maximum number of completed executors per framework to store in memory.
-const uint32_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK = 150;
+extern const uint32_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK;
 
 // Maximum number of completed tasks per executor to store in memeory.
-const uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR = 200;
+extern const uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR;
 
 } // namespace slave {
 } // namespace internal {
