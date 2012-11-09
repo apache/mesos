@@ -175,6 +175,7 @@ TEST(MasterTest, ShutdownFrameworkWhileTaskRunning)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
   Files files;
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
