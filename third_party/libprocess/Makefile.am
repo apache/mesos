@@ -67,6 +67,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/async.hpp	\
 	$(top_srcdir)/include/process/timer.hpp				\
 	$(top_srcdir)/include/stout/cache.hpp				\
 	$(top_srcdir)/include/stout/duration.hpp			\
+	$(top_srcdir)/include/stout/exit.hpp				\
 	$(top_srcdir)/include/stout/fatal.hpp				\
 	$(top_srcdir)/include/stout/foreach.hpp				\
 	$(top_srcdir)/include/stout/format.hpp				\
