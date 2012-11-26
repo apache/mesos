@@ -31,6 +31,7 @@
 using namespace mesos;
 using namespace mesos::internal;
 
+using proc::CPU;
 using proc::SystemStatistics;
 using proc::ProcessStatistics;
 
@@ -45,6 +46,15 @@ TEST(ProcTest, Pids)
   EXPECT_NE(0u, pids.get().size());
   EXPECT_EQ(1u, pids.get().count(getpid()));
   EXPECT_EQ(1u, pids.get().count(1));
+}
+
+
+TEST(ProcTest, Cpus)
+{
+  Try<std::list<CPU> > cpus = proc::cpus();
+
+  ASSERT_SOME(cpus);
+  EXPECT_LE(1u, cpus.get().size());
 }
 
 
