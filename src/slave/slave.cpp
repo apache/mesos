@@ -69,6 +69,7 @@ Slave::Slave(const Resources& _resources,
     flags(),
     local(_local),
     resources(_resources),
+    completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     isolationModule(_isolationModule),
     files(_files) {}
 
@@ -80,6 +81,7 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
   : ProcessBase(ID::generate("slave")),
     flags(_flags),
     local(_local),
+    completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     isolationModule(_isolationModule),
     files(_files)
 {
@@ -154,9 +156,6 @@ Slave::~Slave()
   // event and initiate a shut down itself.
 
   foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      delete executor;
-    }
     delete framework;
   }
 }
@@ -734,12 +733,9 @@ void Slave::statusUpdateAcknowledgement(
       if (framework->executors.size() == 0 && framework->updates.empty()) {
         frameworks.erase(framework->id);
 
-        completedFrameworks.push_back(*framework);
-        if (completedFrameworks.size() > MAX_COMPLETED_FRAMEWORKS) {
-          completedFrameworks.pop_front();
-        }
-
-        delete framework;
+        // Pass ownership of the framework pointer.
+        completedFrameworks.push_back(
+            std::tr1::shared_ptr<Framework>(framework));
       }
     }
   }
@@ -1126,12 +1122,8 @@ void Slave::shutdownExecutorTimeout(
   if (framework->executors.size() == 0) {
     frameworks.erase(framework->id);
 
-    completedFrameworks.push_back(*framework);
-    if (completedFrameworks.size() > MAX_COMPLETED_FRAMEWORKS) {
-      completedFrameworks.pop_front();
-    }
-
-    delete framework;
+    // Pass ownership of the framework pointer.
+    completedFrameworks.push_back(std::tr1::shared_ptr<Framework>(framework));
   }
 }
 

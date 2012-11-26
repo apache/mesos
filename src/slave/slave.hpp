@@ -22,6 +22,10 @@
 #include <list>
 #include <string>
 
+#include <tr1/functional>
+
+#include <boost/circular_buffer.hpp>
+
 #include <process/http.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -180,6 +184,9 @@ protected:
   void checkDiskUsage();
 
 private:
+  Slave(const Slave&);              // No copying.
+  Slave& operator = (const Slave&); // No assigning.
+
   // HTTP handlers, friends of the slave in order to access state,
   // they get invoked from within the slave so there is no need to
   // use synchronization mechanisms to protect state.
@@ -208,7 +215,7 @@ private:
   Attributes attributes;
 
   hashmap<FrameworkID, Framework*> frameworks;
-  std::list<Framework> completedFrameworks;
+  boost::circular_buffer<std::tr1::shared_ptr<Framework> > completedFrameworks;
 
   IsolationModule* isolationModule;
   Files* files;
@@ -246,7 +253,8 @@ struct Executor
       uuid(_uuid),
       pid(UPID()),
       shutdown(false),
-      resources(_info.resources()) {}
+      resources(_info.resources()),
+      completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR) {}
 
   ~Executor()
   {
@@ -293,9 +301,6 @@ struct Executor
       launchedTasks.erase(taskId);
 
       completedTasks.push_back(*task);
-      if (completedTasks.size() > MAX_COMPLETED_TASKS_PER_EXECUTOR) {
-        completedTasks.pop_front();
-      }
 
       delete task;
     }
@@ -326,7 +331,11 @@ struct Executor
   hashmap<TaskID, TaskInfo> queuedTasks;
   hashmap<TaskID, Task*> launchedTasks;
 
-  std::list<Task> completedTasks;
+  boost::circular_buffer<Task> completedTasks;
+
+private:
+  Executor(const Executor&);              // No copying.
+  Executor& operator = (const Executor&); // No assigning.
 };
 
 
@@ -340,9 +349,16 @@ struct Framework
     : id(_id),
       info(_info),
       pid(_pid),
-      flags(_flags) {}
+      flags(_flags),
+      completedExecutors(MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK) {}
 
-  ~Framework() {}
+  ~Framework()
+  {
+    // We own the non-completed executor pointers, so they need to be deleted.
+    foreachvalue (Executor* executor, executors) {
+      delete executor;
+    }
+  }
 
   // Returns an ExecutorInfo for a TaskInfo (possibly
   // constructing one if the task has a CommandInfo).
@@ -418,12 +434,8 @@ struct Framework
       Executor* executor = executors[executorId];
       executors.erase(executorId);
 
-      completedExecutors.push_back(*executor);
-      if (completedExecutors.size() > MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK) {
-        completedExecutors.pop_front();
-      }
-
-      delete executor;
+      // Pass ownership of the executor pointer.
+      completedExecutors.push_back(std::tr1::shared_ptr<Executor>(executor));
     }
   }
 
@@ -459,10 +471,14 @@ struct Framework
   hashmap<ExecutorID, Executor*> executors;
 
   // Up to MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK completed executors.
-  std::list<Executor> completedExecutors;
+  boost::circular_buffer<std::tr1::shared_ptr<Executor> > completedExecutors;
 
   // Status updates keyed by uuid.
   hashmap<UUID, StatusUpdate> updates;
+
+private:
+  Framework(const Framework&);              // No copying.
+  Framework& operator = (const Framework&); // No assigning.
 };
 
 } // namespace slave {

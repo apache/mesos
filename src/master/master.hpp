@@ -23,6 +23,10 @@
 #include <string>
 #include <vector>
 
+#include <tr1/functional>
+
+#include <boost/circular_buffer.hpp>
+
 #include <process/http.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -181,6 +185,9 @@ protected:
   SlaveID newSlaveId();
 
 private:
+  Master(const Master&);              // No copying.
+  Master& operator = (const Master&); // No assigning.
+
   friend struct SlaveRegistrar;
   friend struct SlaveReregistrar;
 
@@ -222,7 +229,7 @@ private:
   hashmap<SlaveID, Slave*> slaves;
   hashmap<OfferID, Offer*> offers;
 
-  std::list<Framework> completedFrameworks;
+  boost::circular_buffer<std::tr1::shared_ptr<Framework> > completedFrameworks;
 
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
@@ -366,12 +373,19 @@ struct Slave
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > executors;
 
   // Tasks running on this slave, indexed by FrameworkID x TaskID.
+  // TODO(bmahler): The task pointer ownership complexity arises from the fact
+  // that we own the pointer here, but it's shared with the Framework struct.
+  // We should find a way to eliminate this.
   hashmap<std::pair<FrameworkID, TaskID>, Task*> tasks;
 
   // Active offers on this slave.
   hashset<Offer*> offers;
 
   SlaveObserver* observer;
+
+private:
+  Slave(const Slave&);              // No copying.
+  Slave& operator = (const Slave&); // No assigning.
 };
 
 
@@ -387,7 +401,8 @@ struct Framework
       pid(_pid),
       active(true),
       registeredTime(time),
-      reregisteredTime(time) {}
+      reregisteredTime(time),
+      completedTasks(MAX_COMPLETED_TASKS_PER_FRAMEWORK) {}
 
   ~Framework() {}
 
@@ -412,11 +427,6 @@ struct Framework
     CHECK(tasks.contains(task->task_id()));
 
     completedTasks.push_back(*task);
-
-    if (completedTasks.size() > MAX_COMPLETED_TASKS_PER_FRAMEWORK) {
-      completedTasks.pop_front();
-    }
-
     tasks.erase(task->task_id());
     resources -= task->resources();
   }
@@ -479,13 +489,17 @@ struct Framework
 
   hashmap<TaskID, Task*> tasks;
 
-  std::list<Task> completedTasks;
+  boost::circular_buffer<Task> completedTasks;
 
   hashset<Offer*> offers; // Active offers for framework.
 
   Resources resources; // Total resources (tasks + offers + executors).
 
   hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo> > executors;
+
+private:
+  Framework(const Framework&);              // No copying.
+  Framework& operator = (const Framework&); // No assigning.
 };
 
 } // namespace master {
