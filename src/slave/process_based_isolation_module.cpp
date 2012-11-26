@@ -73,6 +73,7 @@ ProcessBasedIsolationModule::~ProcessBasedIsolationModule()
 
 void ProcessBasedIsolationModule::initialize(
     const Flags& _flags,
+    const Resources& _,
     bool _local,
     const PID<Slave>& _slave)
 {
