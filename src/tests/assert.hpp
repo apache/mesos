@@ -124,6 +124,14 @@ template <typename T1, typename T2>
   EXPECT_PRED_FORMAT2(AssertSomeEq, true, actual)
 
 
+#define ASSERT_SOME_FALSE(actual)                       \
+  ASSERT_PRED_FORMAT2(AssertSomeEq, false, actual)
+
+
+#define EXPECT_SOME_FALSE(actual)                       \
+  EXPECT_PRED_FORMAT2(AssertSomeEq, false, actual)
+
+
 #define ASSERT_ERROR(actual)                    \
   ASSERT_TRUE(actual.isError())
 

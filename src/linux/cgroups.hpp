@@ -94,46 +94,44 @@ Try<std::set<std::string> > subsystems();
 // whether a hierarchy is indeed a cgroups hierarchy root.
 // @param   hierarchy   Path to the hierarchy root.
 // @return  A set of attached subsystem names.
+//          Error otherwise, (e.g., hierarchy does not exist or is not mounted).
 Try<std::set<std::string> > subsystems(const std::string& hierarchy);
 
 
-// Create an empty hierarchy and attach the given subsystems to it. This
-// function will return error if the path to the hierarchy root already exists.
-// Also, the function will return error if a subsystem in the given subsystem
-// list has already been attached to another hierarchy. On success, the cgroups
-// virtual file system will be mounted with proper subsystems attached.
+// Mount a cgroups hierarchy and attach the given subsystems to
+// it. This function will return error if the path given for the
+// hierarchy already exists.  Also, the function will return error if
+// a subsystem in the given subsystem list has already been attached
+// to another hierarchy. On success, the cgroups virtual file system
+// will be mounted with the proper subsystems attached.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   subsystems  Comma-separated subsystem names.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<Nothing> createHierarchy(const std::string& hierarchy,
-                             const std::string& subsystems);
+Try<Nothing> mount(const std::string& hierarchy, const std::string& subsystems);
 
 
-// Remove a hierarchy and the directory associated with it. This function will
-// return error if the given hierarchy is not valid. Also, it will return error
-// if the given hierarchy has cgroups inside.
+// Unmount a hierarchy and remove the directory associated with
+// it. This function will return error if the given hierarchy is not
+// valid. Also, it will return error if the given hierarchy has
+// any cgroups.
 // @param   hierarchy   Path to the hierarchy root.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<Nothing> removeHierarchy(const std::string& hierarchy);
+Try<Nothing> unmount(const std::string& hierarchy);
 
 
-// Check whether a given directory is a hierarchy root for cgroups.
+// Returns true if the given hierarchy root is mounted as a cgroups
+// virtual file system with the specified subsystems attached.
 // @param   hierarchy   Path to the hierarchy root.
-// @return  Some if the given directory is a hierarchy root.
-//          Error if the check fails.
-Try<Nothing> checkHierarchy(const std::string& hierarchy);
-
-
-// Check whether a given directory is a hierarchy root for cgroups, and whether
-// it has proper subsystems attached.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   subsystems  Comma-separated subsystem names.
-// @return  Some if the check succeeds.
-//          Error if the check fails.
-Try<Nothing> checkHierarchy(const std::string& hierarchy,
-                            const std::string& subsystems);
+// @return  True if the given directory is a hierarchy root and all of the
+//          specified subsystems are attached.
+//          False if the directory is not a hierarchy (or doesn't exist)
+//          or some of the specified subsystems are not attached.
+//          Error if the operation fails.
+Try<bool> mounted(
+    const std::string& hierarchy,
+    const std::string& subsystems = "");
 
 
 // Create a cgroup under a given hierarchy. This function will return error if
@@ -144,8 +142,7 @@ Try<Nothing> checkHierarchy(const std::string& hierarchy,
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<Nothing> createCgroup(const std::string& hierarchy,
-                          const std::string& cgroup);
+Try<Nothing> create(const std::string& hierarchy, const std::string& cgroup);
 
 
 // Remove a cgroup under a given hierarchy. This function will return error if
@@ -155,18 +152,39 @@ Try<Nothing> createCgroup(const std::string& hierarchy,
 // given cgroup, the removal operation will also fail.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-Try<Nothing> removeCgroup(const std::string& hierarchy,
-                          const std::string& cgroup);
+Try<Nothing> remove(const std::string& hierarchy, const std::string& cgroup);
 
 
-// Check whether a given cgroup under a given hierarchy is valid. This function
-// will verify both the given hierarchy and the given cgroup.
+// Returns true if the given cgroup under a given hierarchy exists.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @return  Some if the check succeeds.
-//          Error if the check fails.
-Try<Nothing> checkCgroup(const std::string& hierarchy,
-                         const std::string& cgroup);
+// @return  True if the cgroup exists.
+//          False if the cgroup does not exist.
+//          Error if the operation fails (i.e., hierarchy is not mounted).
+Try<bool> exists(const std::string& hierarchy, const std::string& cgroup);
+
+
+// Return all the cgroups under the given cgroup of a given hierarchy. By
+// default, it returns all the cgroups under the given hierarchy. This function
+// will return error if the given hierarchy is not mounted or the cgroup does
+// not exist. We use a post-order walk here to ease the removal of cgroups.
+// @param   hierarchy   Path to the hierarchy root.
+// @return  A vector of cgroup names.
+Try<std::vector<std::string> > get(
+    const std::string& hierarchy,
+    const std::string& cgroup = "/");
+
+
+// Send the specified signal to all process in a cgroup.
+// @param   hierarchy   Path to the hierarchy root.
+// @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   signal      The signal to send to all tasks within the cgroup.
+// @return  Some on success.
+//          Error if some unexpected happens.
+Try<Nothing> kill(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    int signal);
 
 
 // Read a control file. Control files are used to monitor and control cgroups.
@@ -178,22 +196,24 @@ Try<Nothing> checkCgroup(const std::string& hierarchy,
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
 // @return  The value read from the control file.
-Try<std::string> readControl(const std::string& hierarchy,
-                             const std::string& cgroup,
-                             const std::string& control);
+Try<std::string> read(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const std::string& control);
 
 
-// Write a control file. Parameter checking is similar to readControl.
+// Write a control file. Parameter checking is similar to read.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
 // @param   value       Value to be written.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<Nothing> writeControl(const std::string& hierarchy,
-                          const std::string& cgroup,
-                          const std::string& control,
-                          const std::string& value);
+Try<Nothing> write(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const std::string& control,
+    const std::string& value);
 
 
 // Check whether a control file is valid under a given cgroup and a given
@@ -205,19 +225,10 @@ Try<Nothing> writeControl(const std::string& hierarchy,
 // @param   control     Name of the control file.
 // @return  Some if the check succeeds.
 //          Error if the check fails.
-Try<Nothing> checkControl(const std::string& hierarchy,
-                          const std::string& cgroup,
-                          const std::string& control);
-
-
-// Return all the cgroups under the given cgroup of a given hierarchy. By
-// default, it returns all the cgroups under the given hierarchy. This function
-// will return error if the given hierarchy is not valid.  We use a post-order
-// walk here to ease the removal of cgroups.
-// @param   hierarchy   Path to the hierarchy root.
-// @return  A vector of cgroup names.
-Try<std::vector<std::string> > getCgroups(const std::string& hierarchy,
-                                          const std::string& cgroup = "/");
+Try<bool> exists(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const std::string& control);
 
 
 // Return the set of process IDs in a given cgroup under a given hierarchy. It
@@ -225,8 +236,9 @@ Try<std::vector<std::string> > getCgroups(const std::string& hierarchy,
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  The set of process ids.
-Try<std::set<pid_t> > getTasks(const std::string& hierarchy,
-                               const std::string& cgroup);
+Try<std::set<pid_t> > tasks(
+    const std::string& hierarchy,
+    const std::string& cgroup);
 
 
 // Assign a given process specified by its pid to a given cgroup. This function
@@ -237,9 +249,10 @@ Try<std::set<pid_t> > getTasks(const std::string& hierarchy,
 // @param   pid         The pid of the given process.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<Nothing> assignTask(const std::string& hierarchy,
-                        const std::string& cgroup,
-                        pid_t pid);
+Try<Nothing> assign(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    pid_t pid);
 
 
 // Listen on an event notifier and return a future which will become ready when
@@ -252,11 +265,11 @@ Try<Nothing> assignTask(const std::string& hierarchy,
 // @param   args        Control specific arguments.
 // @return  A future which contains the value read from the file when ready.
 //          Error if some unexpected happens.
-process::Future<uint64_t> listenEvent(const std::string& hierarchy,
-                                      const std::string& cgroup,
-                                      const std::string& control,
-                                      const Option<std::string>& args =
-                                        Option<std::string>::none());
+process::Future<uint64_t> listen(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const std::string& control,
+    const Option<std::string>& args = Option<std::string>::none());
 
 
 // Freeze all the processes in a given cgroup. We try to use the freezer
@@ -278,10 +291,11 @@ process::Future<uint64_t> listenEvent(const std::string& hierarchy,
 // @return  A future which will become true when all processes are frozen, or
 //          false when all retries have occurred unsuccessfully.
 //          Error if some unexpected happens.
-process::Future<bool> freezeCgroup(const std::string& hierarchy,
-                                   const std::string& cgroup,
-                                   const Duration& interval = Seconds(0.1),
-                                   const unsigned int retries = FREEZE_RETRIES);
+process::Future<bool> freeze(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Duration& interval = Seconds(0.1),
+    const unsigned int retries = FREEZE_RETRIES);
 
 
 // Thaw the given cgroup. This is a revert operation of freezeCgroup. It will
@@ -294,28 +308,10 @@ process::Future<bool> freezeCgroup(const std::string& hierarchy,
 //                      requests (default: 0.1 seconds).
 // @return  A future which will become ready when all processes are thawed.
 //          Error if some unexpected happens.
-process::Future<bool> thawCgroup(const std::string& hierarchy,
-                                 const std::string& cgroup,
-                                 const Duration& interval = Seconds(0.1));
-
-
-// Atomically kill all tasks in a given cgroup. This function will return a
-// future which will become ready when the operation is successfully done. To
-// atomically kill all tasks in a cgroup, it freezes the cgroup, send SIGKILL
-// signal to all tasks in the cgroup, thaw the cgroup, and finally wait for the
-// tasks file to become empty.  The function will return future failure if error
-// occurs. For example, it will return future failure immediately if the given
-// hierarchy or the given cgroup is not valid, or the freezer subsystem is not
-// available or not properly attached to the given hierarchy.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   interval    The time interval between two state check
-//                      requests (default: 0.1 seconds).
-// @return  A future which will become ready when the operation is done.
-//          Error if some unexpected happens.
-process::Future<bool> killTasks(const std::string& hierarchy,
-                                const std::string& cgroup,
-                                const Duration& interval = Seconds(0.1));
+process::Future<bool> thaw(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Duration& interval = Seconds(0.1));
 
 
 // Destroy a cgroup under a given hierarchy. This function is different from
@@ -331,9 +327,10 @@ process::Future<bool> killTasks(const std::string& hierarchy,
 //                      requests (default: 0.1 seconds).
 // @return  A future which will become ready when the operation is done.
 //          Error if some unexpected happens.
-process::Future<bool> destroyCgroup(const std::string& hierarchy,
-                                    const std::string& cgroup = "/",
-                                    const Duration& interval = Seconds(0.1));
+process::Future<bool> destroy(
+    const std::string& hierarchy,
+    const std::string& cgroup = "/",
+    const Duration& interval = Seconds(0.1));
 
 } // namespace cgroups {
 
