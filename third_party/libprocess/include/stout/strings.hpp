@@ -8,6 +8,7 @@
 
 #include "foreach.hpp"
 #include "format.hpp"
+#include "stringify.hpp"
 
 namespace strings {
 
@@ -172,9 +173,12 @@ template <typename Iterable>
 inline std::string join(const std::string& separator, const Iterable& i)
 {
   std::string result;
-  typename Iterable::const_iterator iterator;
-  for (iterator = i.begin(); iterator != i.end(); ++iterator) {
-    result += separator + *iterator;
+  typename Iterable::const_iterator iterator = i.begin();
+  while (iterator != i.end()) {
+    result += stringify(*iterator);
+    if (++iterator != i.end()) {
+      result += separator;
+    }
   }
   return result;
 }

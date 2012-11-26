@@ -1,18 +1,25 @@
 #include <sys/types.h> // For pid_t.
 
 #include <fstream>
+#include <list>
 #include <set>
 #include <string>
+#include <vector>
 
+#include <stout/foreach.hpp>
 #include <stout/numify.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include "linux/proc.hpp"
 
 using std::ifstream;
+using std::list;
 using std::set;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -39,6 +46,73 @@ Try<set<pid_t> > pids()
 }
 
 
+Try<list<CPU> > cpus()
+{
+  list<CPU> results;
+
+  ifstream file("/proc/cpuinfo");
+
+  if (!file.is_open()) {
+    return Try<list<CPU> >::error("Failed to open /proc/cpuinfo");
+  }
+
+  // Placeholders as we parse the file.
+  Option<unsigned int> id;
+  Option<unsigned int> core;
+  Option<unsigned int> socket;
+
+  string line;
+  while (getline(file, line)) {
+    if (line.find("processor") == 0 ||
+        line.find("physical id") == 0 ||
+        line.find("core id") == 0) {
+      // Get out and parse the value.
+      vector<string> tokens = strings::tokenize(line, ": ");
+      CHECK(tokens.size() >= 2) << stringify(tokens);
+      Try<unsigned int> value = numify<unsigned int>(tokens.back());
+      if (value.isError()) {
+        return Try<list<CPU> >::error(value.error());
+      }
+
+      // Now save the value.
+      if (line.find("processor") == 0) {
+        if (id.isSome()) {
+          return Try<list<CPU> >::error("Unexpected format of /proc/cpuinfo");
+        }
+        id = value.get();
+      } else if (line.find("physical id") == 0) {
+        if (socket.isSome()) {
+          return Try<list<CPU> >::error("Unexpected format of /proc/cpuinfo");
+        }
+        socket = value.get();
+      } else if (line.find("core id") == 0) {
+        if (core.isSome()) {
+          return Try<list<CPU> >::error("Unexpected format of /proc/cpuinfo");
+        }
+        core = value.get();
+      }
+
+      // And finally create a CPU if we have enough information.
+      if (id.isSome() && core.isSome() && socket.isSome()) {
+        results.push_back(CPU(id.get(), core.get(), socket.get()));
+        id = Option<unsigned int>::none();
+        core = Option<unsigned int>::none();
+        socket = Option<unsigned int>::none();
+      }
+    }
+  }
+
+  if (file.fail() && !file.eof()) {
+    file.close();
+    return Try<list<CPU> >::error("Failed to read /proc/cpuinfo");
+  }
+
+  file.close();
+
+  return results;
+}
+
+
 Try<SystemStatistics> stat()
 {
   unsigned long long btime = 0;
@@ -49,21 +123,24 @@ Try<SystemStatistics> stat()
     return Try<SystemStatistics>::error("Failed to open /proc/stat");
   }
 
-  while (!file.eof()) {
-    string line;
-    getline(file, line);
-    if (file.fail() && !file.eof()) {
-      file.close();
-      return Try<SystemStatistics>::error("Failed to read /proc/stat");
-    } else if (line.find("btime ") == 0) {
+  string line;
+  while (getline(file, line)) {
+    if (line.find("btime ") == 0) {
       Try<unsigned long long> number =
         numify<unsigned long long>(line.substr(6));
       if (number.isSome()) {
         btime = number.get();
       } else {
-        return Try<SystemStatistics>::error(number.error());
+        return Try<SystemStatistics>::error(
+            "Failed to parse /proc/stat: " + number.error());
       }
+      break;
     }
+  }
+
+  if (file.fail() && !file.eof()) {
+    file.close();
+    return Try<SystemStatistics>::error("Failed to read /proc/stat");
   }
 
   file.close();

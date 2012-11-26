@@ -9,6 +9,7 @@
 #include <set>
 #include <sstream> // For 'std::ostringstream'.
 #include <string>
+#include <vector>
 
 
 template <typename T>
@@ -57,6 +58,23 @@ std::string stringify(const std::list<T>& list)
   while (iterator != list.end()) {
     out << stringify(*iterator);
     if (++iterator != list.end()) {
+      out << ", ";
+    }
+  }
+  out << " ]";
+  return out.str();
+}
+
+
+template <typename T>
+std::string stringify(const std::vector<T>& vector)
+{
+  std::ostringstream out;
+  out << "[ ";
+  typename std::vector<T>::const_iterator iterator = vector.begin();
+  while (iterator != vector.end()) {
+    out << stringify(*iterator);
+    if (++iterator != vector.end()) {
       out << ", ";
     }
   }

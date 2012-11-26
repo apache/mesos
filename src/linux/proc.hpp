@@ -21,6 +21,7 @@
 
 #include <sys/types.h> // For pid_t.
 
+#include <list>
 #include <set>
 #include <string>
 
@@ -31,6 +32,7 @@ namespace internal {
 namespace proc {
 
 // Forward declarations.
+struct CPU;
 struct SystemStatistics;
 struct ProcessStatistics;
 
@@ -38,11 +40,27 @@ struct ProcessStatistics;
 // Reads from /proc and returns a list of all running processes.
 Try<std::set<pid_t> > pids();
 
+// Reads from /proc/cpuinfo and returns a list of CPUs.
+Try<std::list<CPU> > cpus();
+
 // Returns the system statistics from /proc/stat.
 Try<SystemStatistics> stat();
 
 // Returns the process statistics from /proc/[pid]/stat.
 Try<ProcessStatistics> stat(pid_t pid);
+
+
+// Representation of a processor (really an execution unit since this
+// captures "hardware threads" as well) modeled after /proc/cpuinfo.
+struct CPU
+{
+  CPU(unsigned int _id, unsigned int _core, unsigned int _socket)
+    : id(_id), core(_core), socket(_socket) {}
+
+  const unsigned int id; // "processor"
+  const unsigned int core; // "core id"
+  const unsigned int socket; // "physical id"
+};
 
 
 // Snapshot of a system (modeled after /proc/stat).
