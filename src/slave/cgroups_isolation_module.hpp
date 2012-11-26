@@ -19,6 +19,7 @@
 #ifndef __CGROUPS_ISOLATION_MODULE_HPP__
 #define __CGROUPS_ISOLATION_MODULE_HPP__
 
+#include <map>
 #include <sstream>
 #include <string>
 
@@ -32,6 +33,8 @@
 
 #include "launcher/launcher.hpp"
 
+#include "linux/proc.hpp"
+
 #include "slave/flags.hpp"
 #include "slave/isolation_module.hpp"
 #include "slave/reaper.hpp"
@@ -40,6 +43,34 @@
 namespace mesos {
 namespace internal {
 namespace slave {
+
+// TODO(bmahler): Migrate this into it's own file, along with moving
+// all cgroups code inside of a 'cgroups' directory.
+class Cpuset
+{
+public:
+  // Grows this cpu set by the provided delta.
+  // @param   delta   Amount of cpus to grow by.
+  // @param   usage   Cpu usage, as allocated by the cgroups isolation module.
+  // @return  The new cpu allocations made by this Cpuset.
+  std::map<proc::CPU, double> grow(
+      double delta,
+      const std::map<proc::CPU, double>& usage);
+
+  // Shrinks this cpu set by the provided delta.
+  // @param   delta   Amount of cpus to shrink by.
+  // @return  The new cpu deallocations made by this Cpuset.
+  std::map<proc::CPU, double> shrink(double delta);
+
+  // @return The total cpu usage across all the cpus in this Cpuset.
+  double usage() const;
+
+  friend std::ostream& operator << (std::ostream& out, const Cpuset& cpuset);
+
+private:
+  std::map<proc::CPU, double> cpus; // CPU id -> % allocated.
+};
+
 
 class CgroupsIsolationModule
   : public IsolationModule,
@@ -52,6 +83,7 @@ public:
 
   virtual void initialize(
       const Flags& flags,
+      const Resources& resources,
       bool local,
       const process::PID<Slave>& slave);
 
@@ -81,6 +113,14 @@ private:
   // The cgroup information for each live executor.
   struct CgroupInfo
   {
+    ~CgroupInfo()
+    {
+      if (cpuset != NULL) {
+        delete cpuset;
+        cpuset = NULL;
+      }
+    }
+
     // Returns the canonicalized name of the cgroup in the filesystem.
     std::string name() const
     {
@@ -113,24 +153,34 @@ private:
 
     // Used to cancel the OOM listening.
     process::Future<uint64_t> oomNotifier;
+
+    // CPUs allocated if using 'cpuset' subsystem.
+    Cpuset* cpuset;
   };
 
   // The callback which will be invoked when "cpus" resource has changed.
-  // @param   frameworkId   The id of the given framework.
-  // @param   executorId    The id of the given executor.
+  // @param   info          The Cgroup information.
   // @param   resources     The handle for the resources.
-  // @return  Whether the operation successes.
+  // @return  Whether the operation succeeds.
   Try<Nothing> cpusChanged(
-      const CgroupInfo* info,
+      CgroupInfo* info,
+      const Resource& resource);
+
+  // The callback which will be invoked when "cpus" resource has changed.
+  // This is only invoked when we are using the cpuset subsystem.
+  // @param   info          The Cgroup information.
+  // @param   resources     The handle for the resources.
+  // @return  Whether the operation succeeds.
+  Try<Nothing> cpusetChanged(
+      CgroupInfo* info,
       const Resource& resource);
 
   // The callback which will be invoked when "mem" resource has changed.
-  // @param   frameworkId   The id of the given framework.
-  // @param   executorId    The id of the given executor.
+  // @param   info          The Cgroup information.
   // @param   resources     The handle for the resources.
-  // @return  Whether the operation successes.
+  // @return  Whether the operation succeeds.
   Try<Nothing> memChanged(
-      const CgroupInfo* info,
+      CgroupInfo* info,
       const Resource& resource);
 
   // Start listening on OOM events. This function will create an eventfd and
@@ -210,10 +260,13 @@ private:
   // The cgroups subsystems being used.
   hashset<std::string> subsystems;
 
+  // Allocated cpus (if using cpuset subsystem).
+  std::map<proc::CPU, double> cpus;
+
   // Handlers for each resource name, used for resource changes.
   hashmap<std::string,
           Try<Nothing>(CgroupsIsolationModule::*)(
-              const CgroupInfo*,
+              CgroupInfo*,
               const Resource&)> handlers;
 };
 

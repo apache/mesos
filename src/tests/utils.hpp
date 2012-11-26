@@ -40,6 +40,7 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include "common/resources.hpp"
 #include "common/type_utils.hpp"
 
 #include "logging/logging.hpp"
@@ -610,6 +611,7 @@ public:
   virtual ~TestingIsolationModule() {}
 
   virtual void initialize(const slave::Flags& flags,
+                          const Resources& resources,
                           bool local,
                           const process::PID<slave::Slave>& _slave)
   {

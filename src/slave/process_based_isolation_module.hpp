@@ -45,6 +45,7 @@ public:
   virtual ~ProcessBasedIsolationModule();
 
   virtual void initialize(const Flags& flags,
+                          const Resources& resources,
                           bool local,
                           const process::PID<Slave>& slave);
 

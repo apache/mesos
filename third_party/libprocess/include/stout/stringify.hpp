@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "hashmap.hpp"
 
 template <typename T>
 std::string stringify(T t)
@@ -90,9 +91,28 @@ std::string stringify(const std::map<K, V>& map)
   out << "{ ";
   typename std::map<K, V>::const_iterator iterator = map.begin();
   while (iterator != map.end()) {
-    out << stringify(*iterator.first);
+    out << stringify(iterator->first);
     out << ": ";
-    out << stringify(*iterator.second);
+    out << stringify(iterator->second);
+    if (++iterator != map.end()) {
+      out << ", ";
+    }
+  }
+  out << " }";
+  return out.str();
+}
+
+
+template <typename K, typename V>
+std::string stringify(const hashmap<K, V>& map)
+{
+  std::ostringstream out;
+  out << "{ ";
+  typename hashmap<K, V>::const_iterator iterator = map.begin();
+  while (iterator != map.end()) {
+    out << stringify(iterator->first);
+    out << ": ";
+    out << stringify(iterator->second);
     if (++iterator != map.end()) {
       out << ", ";
     }

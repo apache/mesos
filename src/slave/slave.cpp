@@ -196,7 +196,10 @@ void Slave::initialize()
   spawn(isolationModule);
   dispatch(isolationModule,
            &IsolationModule::initialize,
-           flags, local, self());
+           flags,
+           resources,
+           local,
+           self());
 
   // Start disk monitoring.
   // NOTE: We send a delayed message here instead of directly calling

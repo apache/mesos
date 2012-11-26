@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
+#include <math.h> // For floor.
 #include <signal.h>
 #include <unistd.h>
 
 #include <sys/file.h> // For flock.
 #include <sys/types.h>
 
+#include <algorithm>
 #include <set>
 #include <sstream>
 #include <string>
@@ -32,6 +34,7 @@
 
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
@@ -43,12 +46,15 @@
 #include "common/units.hpp"
 
 #include "linux/cgroups.hpp"
+#include "linux/proc.hpp"
 
 #include "slave/cgroups_isolation_module.hpp"
 
 using process::defer;
 using process::Future;
 
+using std::list;
+using std::map;
 using std::set;
 using std::string;
 using std::ostringstream;
@@ -61,6 +67,108 @@ namespace slave {
 const size_t CPU_SHARES_PER_CPU = 1024;
 const size_t MIN_CPU_SHARES = 10;
 const size_t MIN_MEMORY_MB = 32 * Megabyte;
+
+// This is an approximate double precision equality check.
+// It only considers up to 0.001 precision.
+// This is used so that we can enforce correct arithmetic on "millicpu" units.
+// TODO(bmahler): Banish this to hell when we expose individual cpus as a
+// resource to frameworks, so that we can enforce having no fractions.
+bool almostEqual(double d1, double d2) {
+  return (d1 <= (d2 + 0.001)) && (d1 >= (d2 - 0.001));
+}
+
+
+map<proc::CPU, double> Cpuset::grow(
+    double delta,
+    const map<proc::CPU, double>& usage)
+{
+  // The technique used here is to allocate as much as possible to
+  // each cpu that has availability, until we've allocated the delta.
+  // Note that we examine the cpus in the same order every time, which
+  // means we don't yet consider locality.
+  map<proc::CPU, double> allocation;
+  foreachpair (const proc::CPU& cpu, double used, usage) {
+    // Are we done allocating?
+    if (almostEqual(delta, 0.0)) {
+      break;
+    }
+
+    // Allocate as much as possible to this CPU.
+    if (!almostEqual(used, 1.0)) {
+      double free = 1.0 - used;
+      double allocated = std::min(delta, free);
+      allocation[cpu] = allocated;
+      delta -= allocated;
+      cpus[cpu] += allocated;
+    }
+  }
+
+  CHECK(almostEqual(delta, 0.0))
+    << "Failed to grow the cpuset by " << delta << " cpus\n"
+    << "  cpus: " << stringify(cpus) << "\n"
+    << "  usage: " << stringify(usage);
+
+  return allocation;
+}
+
+
+map<proc::CPU, double> Cpuset::shrink(double delta)
+{
+  // The technique used here is to free as much as possible from the
+  // least allocated cpu. This means we'll avoid fragmenting as we're
+  // constantly trying to remove cpus belonging to this Cpuset.
+  map<proc::CPU, double> deallocation;
+  while (!almostEqual(delta, 0.0)) {
+    // Find the CPU to which we have the least allocated.
+    Option<proc::CPU> least;
+    foreachpair (const proc::CPU& cpu, double used, cpus) {
+      if (least.isNone() || used <= cpus[least.get()]) {
+        least = cpu;
+      }
+    }
+
+    CHECK(least.isSome())
+      << "Failed to shrink the cpuset by " << delta << " cpus\n"
+      << "  cpus: " << stringify(cpus);
+
+    // Deallocate as much as possible from the least allocated CPU.
+    double used = cpus[least.get()];
+    double deallocated = std::min(used, delta);
+    deallocation[least.get()] = deallocated;
+    delta -= deallocated;
+    cpus[least.get()] -= deallocated;
+
+    // Ensure this Cpuset never contains unallocated CPUs.
+    if (almostEqual(cpus[least.get()], 0.0)) {
+      cpus.erase(least.get());
+    }
+  }
+
+  return deallocation;
+}
+
+
+double Cpuset::usage() const
+{
+  double total = 0.0;
+  foreachvalue (double used, cpus) {
+    total += used;
+  }
+  return total;
+}
+
+
+std::ostream& operator << (std::ostream& out, const Cpuset& cpuset)
+{
+  vector<unsigned int> cpus;
+  foreachpair (const proc::CPU& cpu, double used, cpuset.cpus) {
+    CHECK(!almostEqual(used, 0.0));
+    cpus.push_back(cpu.id);
+  }
+  std::sort(cpus.begin(), cpus.end());
+
+  return out << strings::join(",", cpus);
+}
 
 
 CgroupsIsolationModule::CgroupsIsolationModule()
@@ -87,6 +195,7 @@ CgroupsIsolationModule::~CgroupsIsolationModule()
 
 void CgroupsIsolationModule::initialize(
     const Flags& _flags,
+    const Resources& _resources,
     bool _local,
     const PID<Slave>& _slave)
 {
@@ -227,10 +336,79 @@ void CgroupsIsolationModule::initialize(
   CHECK(write.isSome())
     << "Failed to disable OOM killer: " << write.error();
 
+  if (subsystems.contains("cpu") && subsystems.contains("cpuset")) {
+    EXIT(1) << "The use of both 'cpu' and 'cpuset' subsystems is not allowed.\n"
+            << "Please use only one of:\n"
+            << "  cpu:    When willing to share cpus for higher efficiency.\n"
+            << "  cpuset: When cpu pinning is desired.";
+  }
+
   // Configure resource changed handlers. We only add handlers for
   // resources that have the appropriate subsystems attached.
   if (subsystems.contains("cpu")) {
     handlers["cpus"] = &CgroupsIsolationModule::cpusChanged;
+  }
+
+  if (subsystems.contains("cpuset")) {
+    // TODO(bmahler): Consider making a cgroups primitive helper to perform
+    // cgroups list format -> list of ints / strings conversion.
+    hashset<unsigned int> cgroupCpus;
+    Try<string> cpuset = cgroups::read(hierarchy, "mesos", "cpuset.cpus");
+    CHECK(cpuset.isSome())
+      << "Failed to read cpuset.cpus: " << cpuset.error();
+
+    // Parse from "0-2,7,12-14" to a set(0,1,2,7,12,13,14).
+    foreach (const string& range, strings::tokenize(cpuset.get(), ",")) {
+      if (strings::contains(range, "-")) {
+        // Case startId-endId (e.g. 0-2 in 0-2,7,12-14).
+        vector<string> startEnd = strings::split(range, "-");
+        CHECK(startEnd.size() == 2)
+          << "Failed to parse cpu range '" << range
+          << "' from cpuset.cpus '" << cpuset.get() << "'";
+
+        Try<unsigned int> start = numify<unsigned int>(startEnd[0]);
+        Try<unsigned int> end = numify<unsigned int>(startEnd[1]);
+        CHECK(start.isSome() && end.isSome())
+          << "Failed to parse cpu range '" << range
+          << "' from cpuset.cpus '" << cpuset.get() << "'";
+
+        for (unsigned int i = start.get(); i <= end.get(); i++) {
+          cgroupCpus.insert(i);
+        }
+      } else {
+        // Case id (e.g. 7 in 0-2,7,12-14).
+        Try<unsigned int> cpuId = numify<unsigned int>(range);
+        CHECK(cpuId.isSome())
+          << "Failed to parse cpu '" << range << "' from cpuset.cpus '"
+          << cpuset.get()  << "': " << cpuId.error();
+        cgroupCpus.insert(cpuId.get());
+      }
+    }
+
+    Value::Scalar none;
+    Value::Scalar cpusResource = _resources.get("cpus", none);
+    if (cpusResource.value() > cgroupCpus.size()) {
+      EXIT(1) << "You have specified " << cpusResource.value() << " cpus, but "
+              << "this is more than allowed by the cgroup cpuset.cpus: "
+              << cpuset.get();
+    }
+
+    // Initialize our cpu allocations.
+    Try<list<proc::CPU> > cpus = proc::cpus();
+    CHECK(cpus.isSome())
+      << "Failed to extract CPUs from /proc/cpuinfo: " << cpus.error();
+    foreach (const proc::CPU& cpu, cpus.get()) {
+      if (this->cpus.size() >= cpusResource.value()) {
+        break;
+      }
+
+      if (cgroupCpus.contains(cpu.id)) {
+        LOG(INFO) << "Initializing cpu allocation for " << cpu;
+        this->cpus[cpu] = 0.0;
+      }
+    }
+
+    handlers["cpus"] = &CgroupsIsolationModule::cpusetChanged;
   }
 
   if (subsystems.contains("memory")) {
@@ -441,7 +619,7 @@ void CgroupsIsolationModule::processExited(pid_t pid, int status)
 
 
 Try<Nothing> CgroupsIsolationModule::cpusChanged(
-    const CgroupInfo* info,
+    CgroupInfo* info,
     const Resource& resource)
 {
   CHECK(resource.name() == "cpus");
@@ -469,8 +647,50 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
 }
 
 
+Try<Nothing> CgroupsIsolationModule::cpusetChanged(
+    CgroupInfo* info,
+    const Resource& resource)
+{
+  CHECK_NOTNULL(info->cpuset);
+  CHECK(resource.name() == "cpus");
+
+  if (resource.type() != Value::SCALAR) {
+    return Try<Nothing>::error("Expecting resource 'cpus' to be a scalar");
+  }
+
+  double delta = resource.scalar().value() - info->cpuset->usage();
+
+  if (delta < 0) {
+    map<proc::CPU, double> deallocated = info->cpuset->shrink(fabs(delta));
+    foreachpair (const proc::CPU& cpu, double freed, deallocated) {
+      cpus[cpu] -= freed;
+      CHECK(cpus[cpu] > -0.001); // Check approximately >= 0.
+    }
+  } else {
+    map<proc::CPU, double> allocated = info->cpuset->grow(delta, cpus);
+    foreachpair (const proc::CPU& cpu, double used, allocated) {
+      cpus[cpu] += used;
+      CHECK(cpus[cpu] < 1.001); // Check approximately <= 1.
+    }
+  }
+
+  Try<Nothing> write = cgroups::write(
+      hierarchy, info->name(), "cpuset.cpus", stringify(*(info->cpuset)));
+  if (write.isError()) {
+    return Try<Nothing>::error(
+        "Failed to update 'cpuset.cpus': " + write.error());
+  }
+
+  LOG(INFO) << "Updated 'cpuset.cpus' to " << *(info->cpuset)
+            << " for executor " << info->executorId
+            << " of framework " << info->frameworkId;
+
+  return Nothing();
+}
+
+
 Try<Nothing> CgroupsIsolationModule::memChanged(
-    const CgroupInfo* info,
+    CgroupInfo* info,
     const Resource& resource)
 {
   CHECK(resource.name() == "mem");
@@ -668,6 +888,11 @@ CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::registerCgroupInfo(
   info->killed = false;
   info->destroyed = false;
   info->reason = "";
+  if (subsystems.contains("cpuset")) {
+    info->cpuset = new Cpuset();
+  } else {
+    info->cpuset = NULL;
+  }
   infos[frameworkId][executorId] = info;
   return info;
 }
