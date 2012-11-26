@@ -30,6 +30,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 
+#include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/numify.hpp>
@@ -95,14 +96,12 @@ void CgroupsIsolationModule::initialize(
 
   // Make sure that cgroups is enabled by the kernel.
   if (!cgroups::enabled()) {
-    std::cerr << "No cgroups support detected on this kernel" << std::endl;
-    abort();
+    EXIT(1) << "No cgroups support detected in this kernel";
   }
 
   // Make sure that we have root permissions.
   if (geteuid() != 0) {
-    std::cerr << "Using cgroups requires root permissions" << std::endl;
-    abort();
+    EXIT(1) << "Using cgroups requires root permissions";
   }
 
   // Configure cgroups hierarchy root path.
@@ -122,90 +121,69 @@ void CgroupsIsolationModule::initialize(
   // 'freezer' subsystem in order to destroy a cgroup.
   subsystems.insert("freezer");
 
-  // Make sure that all the desired subsystems are enabled.
-  foreach (const string& subsystem, subsystems) {
-    Try<bool> enabled = cgroups::enabled(subsystem);
-    if (enabled.isError()) {
-      LOG(FATAL) << "Failed to determine if cgroups subsystem '" << subsystem
-                 << "' is enabled by the kernel: " << enabled.error();
-    } else if (!enabled.get()) {
-      LOG(FATAL) << "Desired cgroups subsystem '" << subsystem
-                 << "' is not enabled by the kernel";
+  // Check if the hierarchy is already mounted, and if not, mount it.
+  Try<bool> mounted = cgroups::mounted(hierarchy);
+  if (mounted.isError()) {
+    LOG(FATAL) << "Failed to determine if " << hierarchy
+               << " is already mounted: " << mounted.error();
+  } else if (mounted.get()) {
+    // Make sure that all the desired subsystems are attached to the
+    // already mounted hierarchy.
+    Try<set<string> > attached = cgroups::subsystems(hierarchy);
+    if (attached.isError()) {
+      LOG(FATAL) << "Failed to determine the attached subsystems "
+                 << "for the cgroup hierarchy at " << hierarchy << ": "
+                 << attached.error();
     }
-  }
-
-  // Prepare the cgroups hierarchy root.
-  if (cgroups::checkHierarchy(hierarchy).isError()) {
-    // The given hierarchy is not a cgroups hierarchy root. We will try to
-    // create a cgroups hierarchy root there.
-    if (os::exists(hierarchy)) {
-      // The path specified by the given hierarchy already exists in the file
-      // system. We try to remove it if it is an empty directory. This will
-      // helps us better deal with slave reboots as we don't need to manually
-      // remove the residue directory after a slave reboot.
-      if (::rmdir(hierarchy.c_str()) < 0) {
-        LOG(FATAL) << "Cannot create cgroups hierarchy root at " << hierarchy
-                   << ". Consider removing it";
-      }
-    }
-
-    // Make sure that all the desired subsystems are not busy so that
-    // we can attach them in the given cgroups hierarchy root.
     foreach (const string& subsystem, subsystems) {
-      Try<bool> busy = cgroups::busy(subsystem);
-      if (busy.isError()) {
-        LOG(FATAL) << "Failed to determine if cgroups subsystem '" << subsystem
-                   << "' is already being used by another hierarchy: "
-                   << busy.error();
-      } else if (busy.get()) {
-        LOG(FATAL) << "Required subsystem '" << subsystem
-                   << "' is already in use";
+      if (attached.get().count(subsystem) == 0) {
+        EXIT(1) << "The cgroups hierarchy at " << hierarchy
+                << " can not be used because it does not have the '"
+                << subsystem << "' subsystem attached";
       }
     }
-
-    // Create the cgroups hierarchy root.
-    Try<Nothing> create =
-      cgroups::createHierarchy(hierarchy, strings::join(",", subsystems));
-    if (create.isError()) {
-      LOG(FATAL) << "Failed to create cgroups hierarchy root at "
-                 << hierarchy << ": " << create.error();
+  } else {
+    // Attempt to mount the hierarchy ourselves.
+    if (os::exists(hierarchy)) {
+      // The path specified by the given hierarchy already exists in
+      // the file system. We try to remove it if it is an empty
+      // directory. This will helps us better deal with slave restarts
+      // since we won't need to manually remove the directory.
+      Try<Nothing> rmdir = os::rmdir(hierarchy, false);
+      CHECK(rmdir.isSome())
+        << "Failed to mount cgroups hierarchy at " << hierarchy
+        << " because we could not remove existing directory: " << rmdir.error();
     }
-  }
 
-  // Make sure that all the desired subsystems are attached (we have
-  // to do this since we might just be reusing an already mounted
-  // hierarchy).
-  foreach (const string& subsystem, subsystems) {
-    Try<Nothing> check = cgroups::checkHierarchy(hierarchy, subsystem);
-    if (check.isError()) {
-      LOG(FATAL) << "Failed to determine if cgroups subsystem '" << subsystem
-                 << "' is attached to hierarchy " << hierarchy << ": "
-                 << check.error();
-    } else {
-      // TODO(benh): Update this code to actually check Try<bool> after
-      // checkHierarchy is replaced.
-    }
+    // Mount the cgroups hierarchy.
+    Try<Nothing> mount = cgroups::mount(
+        hierarchy, strings::join(",", subsystems));
+    CHECK(mount.isSome())
+      << "Failed to mount cgroups hierarchy at "
+      << hierarchy << ": " << mount.error();
   }
 
   // Create the root "mesos" cgroup if it doesn't exist.
-  if (cgroups::checkCgroup(hierarchy, "mesos").isError()) {
+  Try<bool> exists = cgroups::exists(hierarchy, "mesos");
+  CHECK(exists.isSome())
+    << "Failed to determine if the \"mesos\" cgroup already exists "
+    << "in the hierarchy at " << hierarchy << ": " << exists.error();
+  if (!exists.get()) {
     // No root cgroup exists, create it.
-    Try<Nothing> create = cgroups::createCgroup(hierarchy, "mesos");
+    Try<Nothing> create = cgroups::create(hierarchy, "mesos");
     CHECK(create.isSome())
-      << "Failed to create the \"mesos\" cgroup: "
-      << create.error();
+      << "Failed to create the \"mesos\" cgroup: " << create.error();
   }
 
   // Make sure this kernel supports creating nested cgroups.
-  Try<Nothing> create = cgroups::createCgroup(hierarchy, "mesos/test");
+  Try<Nothing> create = cgroups::create(hierarchy, "mesos/test");
   if (create.isError()) {
-    std::cerr << "Failed to create a nested \"test\" cgroup, your kernel "
-              << "might be too old to use the cgroups isolation module: "
-              << create.error() << std::endl;
-    abort();
+    EXIT(1) << "Failed to create a nested \"test\" cgroup. Your kernel "
+            << "might be too old to use the cgroups isolation module: "
+            << create.error();
   }
 
-  Try<Nothing> remove = cgroups::removeCgroup(hierarchy, "mesos/test");
+  Try<Nothing> remove = cgroups::remove(hierarchy, "mesos/test");
   CHECK(remove.isSome())
     << "Failed to remove the nested \"test\" cgroup:" << remove.error();
 
@@ -216,19 +194,17 @@ void CgroupsIsolationModule::initialize(
   Try<Nothing> cloexec = os::cloexec(fd.get());
   CHECK(cloexec.isSome());
   if (flock(fd.get(), LOCK_EX | LOCK_NB) != 0) {
-    std::cerr << "Another mesos-slave appears to be running!" << std::endl;
-    abort();
+    EXIT(1) << "Another mesos-slave appears to be running!";
   }
 
   // Cleanup any orphaned cgroups created in previous executions (this
   // should be safe because we've been able to acquire the file lock).
-  Try<vector<string> > cgroups = cgroups::getCgroups(hierarchy, "mesos");
+  Try<vector<string> > cgroups = cgroups::get(hierarchy, "mesos");
   CHECK(cgroups.isSome())
-    << "Failed to get nested cgroups of \"mesos\": "
-    << cgroups.error();
+    << "Failed to get nested cgroups of \"mesos\": " << cgroups.error();
   foreach (const string& cgroup, cgroups.get()) {
     LOG(INFO) << "Removing orphaned cgroup '" << cgroup << "'";
-    cgroups::destroyCgroup(hierarchy, cgroup)
+    cgroups::destroy(hierarchy, cgroup)
       .onAny(defer(PID<CgroupsIsolationModule>(this),
                    &CgroupsIsolationModule::destroyWaited,
                    cgroup,
@@ -236,20 +212,20 @@ void CgroupsIsolationModule::initialize(
   }
 
   // Make sure the kernel supports OOM controls.
-  Try<Nothing> check =
-    cgroups::checkControl(hierarchy, "mesos", "memory.oom_control");
-  if (check.isError()) {
-    std::cerr << "Failed to find 'memory.oom_control', your kernel "
-              << "might be too old to use the cgroups isolation module: "
-              << check.error() << std::endl;
-    abort();
+  exists = cgroups::exists(hierarchy, "mesos", "memory.oom_control");
+  CHECK(exists.isSome())
+    << "Failed to determine if 'memory.oom_control' control exists: "
+    << exists.error();
+  if (!exists.get()) {
+    EXIT(1) << "Failed to find 'memory.oom_control', your kernel "
+            << "might be too old to use the cgroups isolation module";
   }
 
   // Disable the OOM killer so that we can capture 'memory.stat'.
-  Try<Nothing> disable =
-    cgroups::writeControl(hierarchy, "mesos", "memory.oom_control", "1");
-  CHECK(disable.isSome())
-    << "Failed to disable OOM killer: " << disable.error();
+  Try<Nothing> write = cgroups::write(
+      hierarchy, "mesos", "memory.oom_control", "1");
+  CHECK(write.isSome())
+    << "Failed to disable OOM killer: " << write.error();
 
   // Configure resource changed handlers. We only add handlers for
   // resources that have the appropriate subsystems attached.
@@ -321,7 +297,7 @@ void CgroupsIsolationModule::launchExecutor(
   }
 
   // Create a new cgroup for the executor.
-  Try<Nothing> create = cgroups::createCgroup(hierarchy, info->name());
+  Try<Nothing> create = cgroups::create(hierarchy, info->name());
   if (create.isError()) {
     LOG(FATAL) << "Failed to create cgroup for executor " << executorId
                << " of framework " << frameworkId
@@ -356,8 +332,7 @@ void CgroupsIsolationModule::launchExecutor(
   } else {
     // In child process.
     // Put self into the newly created cgroup.
-    Try<Nothing> assign =
-      cgroups::assignTask(hierarchy, info->name(), ::getpid());
+    Try<Nothing> assign = cgroups::assign(hierarchy, info->name(), ::getpid());
     if (assign.isError()) {
       LOG(FATAL) << "Failed to assign for executor " << executorId
                  << " of framework " << frameworkId
@@ -394,7 +369,7 @@ void CgroupsIsolationModule::killExecutor(
   // wait for it to succeed as we don't want to block the isolation module.
   // Instead, we register a callback which will be invoked when its result is
   // ready.
-  cgroups::destroyCgroup(hierarchy, info->name())
+  cgroups::destroy(hierarchy, info->name())
     .onAny(defer(PID<CgroupsIsolationModule>(this),
                  &CgroupsIsolationModule::destroyWaited,
                  info->name(),
@@ -479,9 +454,8 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
   size_t cpuShares =
     std::max((size_t)(CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
 
-  Try<Nothing> write = cgroups::writeControl(
+  Try<Nothing> write = cgroups::write(
       hierarchy, info->name(), "cpu.shares", stringify(cpuShares));
-
   if (write.isError()) {
     return Try<Nothing>::error(
         "Failed to update 'cpu.shares': " + write.error());
@@ -523,7 +497,7 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
   string control = "memory.limit_in_bytes";
 
   if (info->pid != -1) {
-    Try<string> read = cgroups::readControl(
+    Try<string> read = cgroups::read(
         hierarchy, info->name(), "memory.limit_in_bytes");
     if (read.isError()) {
       return Try<Nothing>::error(
@@ -538,9 +512,8 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
     }
   }
 
-  Try<Nothing> write = cgroups::writeControl(
+  Try<Nothing> write = cgroups::write(
       hierarchy, info->name(), control, stringify(limitInBytes));
-
   if (write.isError()) {
     return Try<Nothing>::error(
         "Failed to update '" + control + "': " + write.error());
@@ -562,7 +535,7 @@ void CgroupsIsolationModule::oomListen(
   CHECK(info != NULL) << "Cgroup info is not registered";
 
   info->oomNotifier =
-    cgroups::listenEvent(hierarchy, info->name(), "memory.oom_control");
+    cgroups::listen(hierarchy, info->name(), "memory.oom_control");
 
   // If the listening fails immediately, something very wrong happened.
   // Therefore, we report a fatal error here.
@@ -643,20 +616,20 @@ void CgroupsIsolationModule::oom(
   // destroyed the executor's cgroup (in order to assist in debugging).
   ostringstream reason;
 
-  Try<string> read =
-    cgroups::readControl(hierarchy, info->name(), "memory.limit_in_bytes");
+  Try<string> read = cgroups::read(
+      hierarchy, info->name(), "memory.limit_in_bytes");
   if (read.isSome()) {
     reason << "MEMORY LIMIT: " << strings::trim(read.get()) << " bytes\n";
   }
 
   // Output 'memory.usage_in_bytes'.
-  read = cgroups::readControl(hierarchy, info->name(), "memory.usage_in_bytes");
+  read = cgroups::read(hierarchy, info->name(), "memory.usage_in_bytes");
   if (read.isSome()) {
     reason << "MEMORY USAGE: " << strings::trim(read.get()) << " bytes\n";
   }
 
   // Output 'memory.stat' of the cgroup to help with debugging.
-  read = cgroups::readControl(hierarchy, info->name(), "memory.stat");
+  read = cgroups::read(hierarchy, info->name(), "memory.stat");
   if (read.isSome()) {
     reason << "MEMORY STATISTICS: \n" << read.get() << "\n";
   }
