@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <mesos/mesos.hpp>
+
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
@@ -36,6 +38,8 @@
 
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
+
+using mesos::SlaveInfo;
 
 using std::cerr;
 using std::endl;
@@ -59,12 +63,12 @@ int main(int argc, char** argv)
 
   // The following flags are executable specific (e.g., since we only
   // have one instance of libprocess per execution, we only want to
-  // advertise the port and ip option once, here).
-  Option<uint16_t> port;
-  flags.add(&port, "port", "Port to listen on");
-
+  // advertise the IP and port option once, here).
   Option<string> ip;
   flags.add(&ip, "ip", "IP address to listen on");
+
+  uint16_t port;
+  flags.add(&port, "port", "Port to listen on", SlaveInfo().port());
 
   string isolation;
   flags.add(&isolation,
@@ -109,13 +113,11 @@ int main(int argc, char** argv)
   }
 
   // Initialize libprocess.
-  if (port.isSome()) {
-    os::setenv("LIBPROCESS_PORT", stringify(port.get()));
-  }
-
   if (ip.isSome()) {
     os::setenv("LIBPROCESS_IP", ip.get());
   }
+
+  os::setenv("LIBPROCESS_PORT", stringify(port));
 
   process::initialize();
 

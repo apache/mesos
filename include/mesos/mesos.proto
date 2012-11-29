@@ -156,7 +156,7 @@ message ExecutorInfo {
 message MasterInfo {
   required string id = 1;
   required uint32 ip = 2;
-  required uint32 port = 3;
+  required uint32 port = 3 [default = 5050];
 }
 
 
@@ -172,7 +172,7 @@ message MasterInfo {
  */
 message SlaveInfo {
   required string hostname = 1;
-  // TODO(benh,andyk): Send bound ports, not just hostname.
+  optional int32 port = 8 [default = 5051];
   required string webui_hostname = 2;             // Deprecated!
   optional int32 webui_port = 4 [default = 8081]; // Deprecated!
   repeated Resource resources = 3;

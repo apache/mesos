@@ -235,6 +235,7 @@ void Slave::initialize()
 
   // Initialize slave info.
   info.set_hostname(hostname);
+  info.set_port(self().port);
   info.set_webui_hostname(webui_hostname); // Deprecated!
   info.mutable_resources()->MergeFrom(resources);
   info.mutable_attributes()->MergeFrom(attributes);
