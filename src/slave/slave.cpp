@@ -355,7 +355,7 @@ void Slave::fileAttached(const Future<Nothing>& result, const string& path)
 {
   CHECK(!result.isDiscarded());
   if (result.isReady()) {
-    VLOG(1) << "Successfully attached file '" << path << "'";
+    LOG(INFO) << "Successfully attached file '" << path << "'";
   } else {
     LOG(ERROR) << "Failed to attach file '" << path << "': "
                << result.failure();
@@ -1149,8 +1149,6 @@ Duration Slave::age(double usage)
 
 void Slave::checkDiskUsage()
 {
-  VLOG(1) << "Checking disk usage";
-
   // TODO(vinod): We are making usage a Future, so that we can plug in
   // os::usage() into async.
   Future<Try<double> >(os::usage())

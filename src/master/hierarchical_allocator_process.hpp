@@ -539,9 +539,10 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesRecovered(
   if (allocatable.contains(slaveId)) {
     allocatable[slaveId] += resources;
 
-    VLOG(1) << "Recovered " << resources.allocatable()
-            << " on slave " << slaveId
-            << " from framework " << frameworkId;
+    LOG(INFO) << "Recovered " << resources.allocatable()
+              << " (total allocatable: " << allocatable[slaveId] << ")"
+              << " on slave " << slaveId
+              << " from framework " << frameworkId;
   }
 }
 

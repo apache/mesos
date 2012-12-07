@@ -282,8 +282,8 @@ struct Slave
       std::make_pair(task->framework_id(), task->task_id());
     CHECK(tasks.count(key) == 0);
     tasks[key] = task;
-    VLOG(1) << "Adding task with resources " << task->resources()
-            << " on slave " << id;
+    LOG(INFO) << "Adding task with resources " << task->resources()
+              << " on slave " << id;
     resourcesInUse += task->resources();
   }
 
@@ -293,8 +293,8 @@ struct Slave
       std::make_pair(task->framework_id(), task->task_id());
     CHECK(tasks.count(key) > 0);
     tasks.erase(key);
-    VLOG(1) << "Removing task with resources " << task->resources()
-            << " on slave " << id;
+    LOG(INFO) << "Removing task with resources " << task->resources()
+              << " on slave " << id;
     resourcesInUse -= task->resources();
   }
 
@@ -302,8 +302,8 @@ struct Slave
   {
     CHECK(!offers.contains(offer));
     offers.insert(offer);
-    VLOG(1) << "Adding offer with resources " << offer->resources()
-            << " on slave " << id;
+    LOG(INFO) << "Adding offer with resources " << offer->resources()
+              << " on slave " << id;
     resourcesOffered += offer->resources();
   }
 
@@ -311,8 +311,8 @@ struct Slave
   {
     CHECK(offers.contains(offer));
     offers.erase(offer);
-    VLOG(1) << "Removing offer with resources " << offer->resources()
-            << " on slave " << id;
+    LOG(INFO) << "Removing offer with resources " << offer->resources()
+              << " on slave " << id;
     resourcesOffered -= offer->resources();
   }
 
@@ -345,17 +345,6 @@ struct Slave
         executors.erase(frameworkId);
       }
     }
-  }
-
-  Resources resourcesFree()
-  {
-    Resources resources = info.resources() - (resourcesOffered + resourcesInUse);
-    VLOG(1) << "Calculating resources free on slave " << id << std::endl
-            << "    Resources: " << info.resources() << std::endl
-            << "    Resources Offered: " << resourcesOffered << std::endl
-            << "    Resources In Use: " << resourcesInUse << std::endl
-            << "    Resources Free: " << resources << std::endl;
-    return resources;
   }
 
   const SlaveID id;

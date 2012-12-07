@@ -604,7 +604,7 @@ protected:
       send(slave, message);
     } else {
       VLOG(1) << "Cannot send directly to slave " << slaveId
-	      << "; sending through master";
+              << "; sending through master";
 
       FrameworkToExecutorMessage message;
       message.mutable_slave_id()->MergeFrom(slaveId);

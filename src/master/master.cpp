@@ -528,7 +528,7 @@ void Master::fileAttached(const Future<Nothing>& result, const string& path)
 {
   CHECK(!result.isDiscarded());
   if (result.isReady()) {
-    VLOG(1) << "Successfully attached file '" << path << "'";
+    LOG(INFO) << "Successfully attached file '" << path << "'";
   } else {
     LOG(ERROR) << "Failed to attach file '" << path << "': "
                << result.failure();
@@ -1460,10 +1460,10 @@ void Master::processTasks(Offer* offer,
                           const vector<TaskInfo>& tasks,
                           const Filters& filters)
 {
-  VLOG(1) << "Processing reply for offer " << offer->id()
-          << " on slave " << slave->id
-          << " (" << slave->info.hostname() << ")"
-          << " for framework " << framework->id;
+  LOG(INFO) << "Processing reply for offer " << offer->id()
+            << " on slave " << slave->id
+            << " (" << slave->info.hostname() << ")"
+            << " for framework " << framework->id;
 
   Resources usedResources; // Accumulated resources used from this offer.
 

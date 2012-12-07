@@ -60,7 +60,7 @@ class ShutdownProcess : public Process<ShutdownProcess>
 protected:
   virtual void initialize()
   {
-    LOG(INFO) << "Scheduling shutdown of the executor";
+    VLOG(1) << "Scheduling shutdown of the executor";
     // TODO(benh): Pass the shutdown timeout with ExecutorRegistered
     // since it might have gotten configured on the command line.
     delay(slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD, self(), &Self::kill);
@@ -68,7 +68,7 @@ protected:
 
   void kill()
   {
-    LOG(INFO) << "Committing suicide by killing the process group";
+    VLOG(1) << "Committing suicide by killing the process group";
 
     // TODO(vinod): Invoke killtree without killing ourselves.
     // Kill the process group (including ourself).

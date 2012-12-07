@@ -120,10 +120,8 @@ void GarbageCollectorProcess::reset()
   Timer::cancel(timer); // Cancel the existing timer, if any.
   if (!paths.empty()) {
     Timeout removalTime = (*paths.begin()).first; // Get the first entry.
-    Duration d = removalTime.remaining();
 
-    VLOG(1) << "Scheduling GC removal event to fire after " << d;
-    timer = delay(d, self(), &Self::remove, removalTime);
+    timer = delay(removalTime.remaining(), self(), &Self::remove, removalTime);
   } else {
     timer = Timer(); // Reset the timer.
   }
@@ -144,7 +142,7 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
         LOG(WARNING) << "Failed to delete " << path << ": " << result.error();
         promise->fail(result.error());
       } else {
-        VLOG(1) << "Deleted " << path;
+        LOG(INFO) << "Deleted " << path;
         promise->set(result.get());
       }
       delete promise;
