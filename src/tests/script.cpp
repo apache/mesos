@@ -42,8 +42,7 @@ void execute(const string& script)
   // Create a temporary directory for the test.
   Try<string> directory = mkdtemp();
 
-  CHECK(directory.isSome())
-    << "Failed to create temporary directory: " << directory.error();
+  CHECK_SOME(directory) << "Failed to create temporary directory";
 
   if (flags.verbose) {
     std::cerr << "Using temporary directory '"

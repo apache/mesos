@@ -120,12 +120,10 @@ void ProcessBasedIsolationModule::launchExecutor(
 
   // Set the FD_CLOEXEC flags on these pipes
   Try<Nothing> cloexec = os::cloexec(pipes[0]);
-  CHECK(cloexec.isSome()) << "Error setting FD_CLOEXEC on pipe[0] "
-                          << cloexec.error();
+  CHECK_SOME(cloexec) << "Error setting FD_CLOEXEC on pipe[0]";
 
   cloexec = os::cloexec(pipes[1]);
-  CHECK(cloexec.isSome()) << "Error setting FD_CLOEXEC on pipe[1] "
-                          << cloexec.error();
+  CHECK_SOME(cloexec) << "Error setting FD_CLOEXEC on pipe[1]";
 
   pid_t pid;
   if ((pid = fork()) == -1) {

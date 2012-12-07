@@ -140,7 +140,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
         elected = false;
         return Result<uint64_t>::none();
       } else {
-        CHECK(result.isSome());
+        CHECK_SOME(result);
         CHECK(result.get().position() == position);
       }
     }
@@ -238,7 +238,7 @@ Result<uint64_t> Coordinator::write(
     } else if (result.isNone()) {
       return Result<uint64_t>::none();
     } else {
-      CHECK(result.isSome());
+      CHECK_SOME(result);
       return action.position();
     }
   }
@@ -291,7 +291,7 @@ Result<uint64_t> Coordinator::write(
           } else if (result.isNone()) {
             return Result<uint64_t>::none();
           } else {
-            CHECK(result.isSome());
+            CHECK_SOME(result);
             return action.position();
           }
         }
@@ -455,7 +455,7 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
           } else if (result.isNone()) {
             return Result<Action>::none();
           } else {
-            CHECK(result.isSome());
+            CHECK_SOME(result);
             return response.action();
           }
         } else if (response.action().has_performed() &&
@@ -487,7 +487,7 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
     } else if (result.isNone()) {
       return Result<Action>::none();
     } else {
-      CHECK(result.isSome());
+      CHECK_SOME(result);
       return action;
     }
   }

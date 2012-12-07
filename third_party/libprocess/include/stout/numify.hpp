@@ -1,8 +1,6 @@
 #ifndef __STOUT_NUMIFY_HPP__
 #define __STOUT_NUMIFY_HPP__
 
-#include <glog/logging.h>
-
 #include <string>
 
 #include <boost/lexical_cast.hpp>
@@ -20,7 +18,13 @@ Try<T> numify(const std::string& s)
   } catch (const boost::bad_lexical_cast&) {
     const Try<std::string>& message =
       strings::format("Failed to convert '%s' to number", s);
-    CHECK(message.isSome());
+
+    // TODO(bmahler): Kill this when strings::format no longer returns a Try.
+    if (!message.isSome()) {
+      std::cerr << "Failed to format string " << message.error() << std::endl;
+      abort();
+    }
+
     return Try<T>::error(message.get());
   }
 }

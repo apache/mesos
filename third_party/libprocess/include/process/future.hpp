@@ -9,6 +9,8 @@
 #include <queue>
 #include <set>
 
+#include <glog/logging.h>
+
 #include <tr1/functional>
 #include <tr1/memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 

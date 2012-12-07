@@ -35,6 +35,8 @@
 
 #include "log/replica.hpp"
 
+#include "logging/logging.hpp"
+
 #include "messages/log.hpp"
 
 using namespace process;
@@ -148,7 +150,7 @@ private:
     // return s;
 
     Try<string> s = strings::format("%.*d", 10, position);
-    CHECK(s.isSome());
+    CHECK_SOME(s);
     return s.get();
   }
 
@@ -165,7 +167,7 @@ private:
     // CHECK(success);
     // return position - 1; // Actual position is less 1 of stringified.
     Try<uint64_t> position = numify<uint64_t>(string(s.data(), s.size()));
-    CHECK(position.isSome());
+    CHECK_SOME(position);
     return position.get() - 1; // Actual position is less 1 of stringified.
   }
 
@@ -594,7 +596,7 @@ Result<Action> ReplicaProcess::read(uint64_t position)
     return Result<Action>::error(action.error());
   }
 
-  CHECK(action.isSome());
+  CHECK_SOME(action);
 
   return action.get();
 }
@@ -745,7 +747,7 @@ void ReplicaProcess::promise(const PromiseRequest& request)
         reply(response);
       }
     } else {
-      CHECK(result.isSome());
+      CHECK_SOME(result);
       Action action = result.get();
       CHECK(action.position() == request.position());
 
@@ -1006,7 +1008,7 @@ void ReplicaProcess::recover(const string& path)
 {
   Try<State> state = storage->recover(path);
 
-  CHECK(state.isSome()) << "Failed to recover the log: " << state.error();
+  CHECK_SOME(state) << "Failed to recover the log";
 
   // Pull out and save some of the state.
   coordinator = state.get().coordinator;

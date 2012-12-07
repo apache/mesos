@@ -26,9 +26,8 @@
 #include "configurator/configuration.hpp"
 #include "configurator/configurator.hpp"
 
+#include "logging/check_some.hpp"
 #include "logging/flags.hpp"
-
-#include "stout/try.hpp"
 
 namespace mesos {
 namespace internal {

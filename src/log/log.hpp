@@ -383,7 +383,7 @@ Result<Log::Position> Log::Writer::append(
     return Result<Log::Position>::none();
   }
 
-  CHECK(result.isSome());
+  CHECK_SOME(result);
 
   return Log::Position(result.get());
 }
@@ -408,7 +408,7 @@ Result<Log::Position> Log::Writer::truncate(
     return Result<Log::Position>::none();
   }
 
-  CHECK(result.isSome());
+  CHECK_SOME(result);
 
   return Log::Position(result.get());
 }

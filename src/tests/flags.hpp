@@ -25,6 +25,8 @@
 
 #include "flags/flags.hpp"
 
+#include "logging/logging.hpp"
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -46,14 +48,14 @@ public:
     // these were set via '-DSOURCE_DIR=...' and '-DBUILD_DIR=...' in
     // src/Makefile.am).
     Try<std::string> path = os::realpath(SOURCE_DIR);
-    CHECK(path.isSome()) << path.error();
+    CHECK_SOME(path);
     add(&Flags::source_dir,
         "source_dir",
         "Where to find the source directory",
         path.get());
 
     path = os::realpath(BUILD_DIR);
-    CHECK(path.isSome()) << path.error();
+    CHECK_SOME(path);
     add(&Flags::build_dir,
         "build_dir",
         "Where to find the build directory",

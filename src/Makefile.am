@@ -216,7 +216,8 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	flags/flag.hpp flags/flags.hpp flags/loader.hpp			\
 	flags/parse.hpp launcher/launcher.hpp linux/cgroups.hpp		\
 	linux/fs.hpp linux/proc.hpp local/flags.hpp local/local.hpp	\
-	logging/flags.hpp logging/logging.hpp master/allocator.hpp	\
+	logging/check_some.hpp logging/flags.hpp logging/logging.hpp	\
+	master/allocator.hpp						\
 	master/constants.hpp master/drf_sorter.hpp master/flags.hpp	\
 	master/frameworks_manager.hpp					\
 	master/hierarchical_allocator_process.hpp master/http.hpp	\

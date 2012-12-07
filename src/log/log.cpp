@@ -119,7 +119,7 @@ bool coordinate(Coordinator* coordinator,
         sleep(1);
       }
     } else {
-      CHECK(result.isSome());
+      CHECK_SOME(result);
       index = result.get();
       break;
     }
@@ -144,7 +144,7 @@ bool coordinate(Coordinator* coordinator,
           sleep(1);
         }
       } else {
-        CHECK(result.isSome());
+        CHECK_SOME(result);
         const list<pair<uint64_t, string> >& list = result.get();
         if (list.size() != 1) {
           index--;
@@ -187,7 +187,7 @@ bool coordinate(Coordinator* coordinator,
           continue;
         }
       } else {
-        CHECK(result.isSome());
+        CHECK_SOME(result);
         LOG(INFO) << "Truncated to " << to;
         sleep(1);
         attempt = 1;
@@ -207,7 +207,7 @@ bool coordinate(Coordinator* coordinator,
         sleep(1);
       }
     } else {
-      CHECK(result.isSome());
+      CHECK_SOME(result);
       LOG(INFO) << "Wrote " << value;
       sleep(1);
       writes--;

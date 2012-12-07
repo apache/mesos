@@ -117,8 +117,8 @@ int main(int argc, char** argv)
     to = end.get();
   }
 
-  CHECK(from.isSome());
-  CHECK(to.isSome());
+  CHECK_SOME(from);
+  CHECK_SOME(to);
 
   cerr << endl << "Attempting to read the log from "
        << from.get() << " to " << to.get() << endl << endl;

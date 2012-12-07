@@ -126,8 +126,7 @@ int main(int argc, char** argv)
   Try<MasterDetector*> detector =
     MasterDetector::create(zk, master->self(), true, flags.quiet);
 
-  CHECK(detector.isSome())
-    << "Failed to create a master detector: " << detector.error();
+  CHECK_SOME(detector) << "Failed to create a master detector";
 
   process::wait(master->self());
   delete master;

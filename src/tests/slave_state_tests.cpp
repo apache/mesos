@@ -49,7 +49,7 @@ protected:
     taskId.set_value("task1");
 
     Try<string> path = os::mkdtemp();
-    CHECK(path.isSome()) << "Failed to mkdtemp " << path.error();
+    CHECK_SOME(path) << "Failed to mkdtemp";
     rootDir = path.get();
   }
 

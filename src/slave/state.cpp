@@ -31,7 +31,7 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
       strings::format(paths::FRAMEWORK_PATH, rootDir, slaveId, "*").get());
 
   if (frameworks.isError()) {
-    LOG(ERROR) << "Error finding frameworks for slave " << frameworks.error();
+    LOG(ERROR) << "Failed to find frameworks for slave: " << frameworks.error();
     return state;
   }
 
@@ -45,7 +45,7 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
                                  frameworkId, "*").get());
 
     if (executors.isError()) {
-      LOG(ERROR) << "Error finding executors for framework "
+      LOG(ERROR) << "Failed to find executors for framework: "
                  << executors.error();
       continue;
     }
@@ -60,7 +60,7 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
                                    frameworkId, executorId, "*").get());
 
       if (runs.isError()) {
-        LOG(ERROR) << "Error finding runs for executor " << runs.error();
+        LOG(ERROR) << "Failed to find runs for executor: " << runs.error();
         continue;
       }
 
@@ -79,7 +79,7 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
                                      "*").get());
 
         if (tasks.isError()) {
-          LOG(WARNING) << "Error finding tasks " << tasks.error();
+          LOG(WARNING) << "Failed to find tasks: " << tasks.error();
           continue;
         }
 
@@ -105,9 +105,7 @@ void writeTask(Task* task, const string& taskDir)
 
   Try<Nothing> created = os::mkdir(taskDir);
 
-  CHECK(created.isSome())
-    << "Error creating task directory '" << taskDir
-    << "': " << created.error();
+  CHECK_SOME(created) << "Failed to create task directory '" << taskDir << "'";
 
   LOG(INFO) << "Writing task description for task "
             << task->task_id() << " to " << path;
@@ -126,16 +124,14 @@ void writeSlaveID(const string& rootDir, const SlaveID& slaveId)
 
   Try<Nothing> created = os::mkdir(os::dirname(path).get());
 
-  CHECK(created.isSome())
-    << "Error creating directory '" << os::dirname(path).get()
-    << "': " << created.error();
+  CHECK_SOME(created)
+    << "Failed to create directory '" << os::dirname(path).get() << "'";
 
   LOG(INFO) << "Writing slave id " << slaveId << " to " << path;
 
   Try<Nothing> result = os::write(path, stringify(slaveId));
 
-  CHECK(result.isSome())
-    << "Error writing slave id to disk " << strerror(errno);
+  CHECK_SOME(result) << "Failed to write slave id to disk";
 }
 
 
@@ -170,16 +166,14 @@ void writeFrameworkPID(const string& metaRootDir,
 
   Try<Nothing> created = os::mkdir(os::dirname(path).get());
 
-  CHECK(created.isSome())
-    << "Error creating directory '" << os::dirname(path).get()
-    << "': " << created.error();
+  CHECK_SOME(created)
+    << "Failed to create directory '" << os::dirname(path).get() << "'";
 
   LOG(INFO) << "Writing framework pid " << pid << " to " << path;
 
   Try<Nothing> result = os::write(path, pid);
 
-  CHECK(result.isSome())
-    << "Error writing framework pid to disk " << strerror(errno);
+  CHECK_SOME(result) << "Failed to write framework pid to disk";
 }
 
 

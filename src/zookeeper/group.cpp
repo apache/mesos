@@ -15,6 +15,8 @@
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 
+#include "logging/logging.hpp"
+
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/group.hpp"
 #include "zookeeper/watcher.hpp"
@@ -538,7 +540,7 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
   }
 
   Try<uint64_t> sequence = numify<uint64_t>(base.get());
-  CHECK(sequence.isSome()) << sequence.error();
+  CHECK_SOME(sequence);
 
   Promise<bool>* cancelled = new Promise<bool>();
   owned[sequence.get()] = cancelled;
@@ -554,7 +556,7 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
 
   Try<string> sequence = strings::format("%.*d", 10, membership.sequence);
 
-  CHECK(sequence.isSome()) << sequence.error();
+  CHECK_SOME(sequence);
 
   string path = znode + "/" + sequence.get();
 
@@ -597,7 +599,7 @@ Result<string> GroupProcess::doData(const Group::Membership& membership)
 
   Try<string> sequence = strings::format("%.*d", 10, membership.sequence);
 
-  CHECK(sequence.isSome()) << sequence.error();
+  CHECK_SOME(sequence);
 
   string path = znode + "/" + sequence.get();
 
@@ -704,7 +706,7 @@ bool GroupProcess::cache()
 
 void GroupProcess::update()
 {
-  CHECK(memberships.isSome());
+  CHECK_SOME(memberships);
   const size_t size = pending.watches.size();
   for (size_t i = 0; i < size; i++) {
     Watch* watch = pending.watches.front();
@@ -808,7 +810,7 @@ void GroupProcess::retry(const Duration& duration)
 
 void GroupProcess::abort()
 {
-  CHECK(error.isSome());
+  CHECK_SOME(error);
 
   fail(&pending.joins, error.get());
   fail(&pending.cancels, error.get());

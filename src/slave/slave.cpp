@@ -135,7 +135,7 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
         mem.get(),
         disk.get());
 
-    CHECK(defaults.isSome());
+    CHECK_SOME(defaults);
 
     resources = Resources::parse(defaults.get());
   } else {

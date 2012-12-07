@@ -229,8 +229,9 @@ inline std::string createExecutorDirectory(
     getExecutorRunPath(rootDir, slaveId, frameworkId, executorId, executorUUID);
 
   Try<Nothing> mkdir = os::mkdir(directory);
-  CHECK(mkdir.isSome()) << "Error creating executor directory '" << directory
-                        << "': " << mkdir.error();
+
+  CHECK_SOME(mkdir)
+    << "Failed to create executor directory '" << directory << "'";
   LOG(INFO) << "Created executor directory '" << directory << "'";
 
   // Remove the previous "latest" symlink.
@@ -240,9 +241,9 @@ inline std::string createExecutorDirectory(
 
   // Symlink the new executor directory to "latest".
   Try<Nothing> symlink = fs::symlink(directory, latest);
-  CHECK(symlink.isSome())
-    << "Error symlinking latest work directory '"
-    << directory << "': " << symlink.error();
+
+  CHECK_SOME(symlink)
+    << "Failed to symlink latest work directory '" << directory << "'";
 
   return directory;
 }

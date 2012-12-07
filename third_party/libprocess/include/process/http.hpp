@@ -304,7 +304,12 @@ inline Try<std::string> decode(const std::string& s)
     std::istringstream in(s.substr(i + 1, 2));
     unsigned long l;
     in >> std::hex >> l;
-    CHECK(l >= 0 && l <= UCHAR_MAX);
+    if (l > UCHAR_MAX) {
+      std::cerr << "Unexpected conversion from hex string: "
+                << s.substr(i + 1, 2) << " to unsigned long: "
+                << l << std::endl;
+      abort();
+    }
     out << static_cast<unsigned char>(l);
 
     i += 2;

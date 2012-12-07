@@ -164,7 +164,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
     return NULL;
   }
 
-  CHECK(entries.isSome());
+  CHECK_SOME(entries);
 
   // List entries = new ArrayList();
   clazz = env->FindClass("java/util/ArrayList");
@@ -315,7 +315,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
     return NULL;
   }
 
-  CHECK(position.isSome());
+  CHECK_SOME(position);
 
   jobject jposition = convert(env, position.get());
 
@@ -365,7 +365,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
     return NULL;
   }
 
-  CHECK(position.isSome());
+  CHECK_SOME(position);
 
   jobject jposition = convert(env, position.get());
 
