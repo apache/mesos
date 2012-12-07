@@ -393,9 +393,12 @@ nobase_dist_webui_DATA += webui/master/static/loading.gif
 # Need to distribute/install third_party javascript.
 nobase_dist_webui_DATA +=						\
   webui/master/static/angular-1.0.0rc8.js				\
-  webui/master/static/underscore-min.js					\
+  webui/master/static/angular-1.0.0rc8.min.js				\
+  webui/master/static/underscore-1.3.3.min.js				\
   webui/master/static/cubism.v1.js					\
+  webui/master/static/cubism.v1.min.js					\
   webui/master/static/d3.v2.js						\
+  webui/master/static/d3.v2.min.js					\
   webui/master/static/relative-date.js
 
 # Need to distribute/install bootstrap.
@@ -445,7 +448,8 @@ nobase_dist_webui_DATA +=							  \
   webui/master/static/bootstrap/js/bootstrap.min.js				  \
   webui/master/static/bootstrap/js/google-code-prettify/prettify.css		  \
   webui/master/static/bootstrap/js/google-code-prettify/prettify.js		  \
-  webui/master/static/bootstrap/js/jquery.js					  \
+  webui/master/static/bootstrap/js/jquery-1.7.1.js				  \
+  webui/master/static/bootstrap/js/jquery-1.7.1.min.js				  \
   webui/master/static/bootstrap/js/README.md
 
 
