@@ -59,20 +59,22 @@ hadoop-0.20.2-cdh3u3:
 
 
 clean-local:
+	if test "$(top_srcdir)" != "$(top_builddir)"; then \
+          -rm -f TUTORIAL.sh; \
+          -rm -f hadoop-0.20.2-cdh3u3.patch; \
+          -rm -f hadoop-0.20.2-cdh3u3_hadoop-env.sh.patch; \
+          -rm -f hadoop-0.20.2-cdh3u3_mesos.patch; \
+          -rm -f hadoop-0.20.205.0.patch; \
+          -rm -f hadoop-0.20.205.0_hadoop-env.sh.patch; \
+          -rm -f hadoop-0.20.205.0_mesos.patch; \
+          -rm -f mapred-site.xml.patch; \
+          -rm -f mesos-executor; \
+          -rm -rf mesos; \
+        fi
 	-rm -rf hadoop-0.20.2-cdh3u3
 	-rm -f hadoop-0.20.2-cdh3u3.tar.gz
 	-rm -rf hadoop-0.20.205.0
 	-rm -f hadoop-0.20.205.0.tar.gz
-	-rm -f TUTORIAL.sh
-	-rm -f hadoop-0.20.2-cdh3u3.patch
-	-rm -f hadoop-0.20.2-cdh3u3_hadoop-env.sh.patch
-	-rm -f hadoop-0.20.2-cdh3u3_mesos.patch
-	-rm -f hadoop-0.20.205.0.patch
-	-rm -f hadoop-0.20.205.0_hadoop-env.sh.patch
-	-rm -f hadoop-0.20.205.0_mesos.patch
-	-rm -f mapred-site.xml.patch
-	-rm -rf mesos
-	-rm -f mesos-executor
 
 
 .PHONY: hadoop-0.20.205.0 hadoop-0.20.2-cdh3u3
