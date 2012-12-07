@@ -281,7 +281,7 @@ int64_t ZooKeeperMasterDetectorProcess::session()
 void ZooKeeperMasterDetectorProcess::connected(bool reconnect)
 {
   if (!reconnect) {
-    LOG(INFO) << "Master detector connected to ZooKeeper ...";
+    LOG(INFO) << "Master detector (" << pid << ") connected to ZooKeeper ...";
 
     if (url.authentication.isSome()) {
       const std::string& scheme = url.authentication.get().scheme;
@@ -334,7 +334,7 @@ void ZooKeeperMasterDetectorProcess::connected(bool reconnect)
     // Now determine who the master is (it may be us).
     detectMaster();
   } else {
-    LOG(INFO) << "Master detector reconnected ...";
+    LOG(INFO) << "Master detector (" << pid << ")  reconnected ...";
 
     // Cancel and cleanup the reconnect timer (if necessary).
     if (timer.isSome()) {
@@ -372,7 +372,7 @@ void ZooKeeperMasterDetectorProcess::connected(bool reconnect)
 
 void ZooKeeperMasterDetectorProcess::reconnecting()
 {
-  LOG(INFO) << "Master detector lost connection to ZooKeeper, "
+  LOG(INFO) << "Master detector (" << pid << ")  lost connection to ZooKeeper, "
             << "attempting to reconnect ...";
 
   // ZooKeeper won't tell us of a session expiration until we
@@ -391,7 +391,7 @@ void ZooKeeperMasterDetectorProcess::reconnecting()
 
 void ZooKeeperMasterDetectorProcess::expired()
 {
-  LOG(WARNING) << "Master detector ZooKeeper session expired!";
+  LOG(WARNING) << "Master detector (" << pid << ")  ZooKeeper session expired!";
 
   // Cancel and cleanup the reconnect timer (if necessary).
   if (timer.isSome()) {
@@ -473,9 +473,9 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
     if (zk->retryable(code)) {
       // NOTE: We don't expect a ZNONODE here because 'url.path' is always
       // created in the connected() call. Despite that, we don't do a
-      // CHECK (code != ZNONODE) just to be safe incase the zk client library
+      // CHECK (code != ZNONODE) just to be safe in case the zk client library
       // does return the code unexpectedly.
-      LOG(ERROR) << "Master detector failed to get masters: "
+      LOG(ERROR) << "Master detector (" << pid << ")  failed to get masters: "
                  << zk->message(code);
       return; // Try again when we reconnect.
     } else {
@@ -483,7 +483,7 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
                  << zk->message(code);
     }
   } else {
-    LOG(INFO) << "Master detector found " << results.size()
+    LOG(INFO) << "Master detector (" << pid << ")  found " << results.size()
               << " registered masters";
   }
 
@@ -504,7 +504,7 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
 
   // No master present (lost or possibly hasn't come up yet).
   if (masterSeq.empty()) {
-    LOG(INFO) << "Master detector of " << pid << " couldn't find any masters";
+    LOG(INFO) << "Master detector (" << pid << ") couldn't find any masters";
     process::post(pid, NoMasterDetectedMessage());
   } else if (masterSeq != currentMasterSeq) {
     // Okay, let's fetch the master pid from ZooKeeper.
@@ -529,7 +529,8 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
       }
     } else {
       // Now let's parse what we fetched from ZooKeeper.
-      LOG(INFO) << "Master detector got new master pid: " << result;
+      LOG(INFO) << "Master detector (" << pid << ")  got new master pid: "
+                << result;
 
       UPID masterPid = result;
 

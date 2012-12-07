@@ -301,7 +301,9 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
 }
 
 
-TEST_F(ZooKeeperTest, MasterDetectorExpireZKSession)
+// Tests whether a leading master correctly detects a new master when its
+// ZooKeeper session is expired.
+TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
 {
   // Simulate a leading master.
   MockMasterDetectorListenerProcess leader;
@@ -341,7 +343,10 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireZKSession)
 
   // Follower's detector.
   ZooKeeperMasterDetector followerDetector(
-      url.get(), follower.self(), true, true);
+      url.get(),
+      follower.self(),
+      true,
+      true);
 
   WAIT_UNTIL(newMasterDetectedCall3);
 
@@ -359,6 +364,167 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireZKSession)
 
   process::terminate(leader);
   process::wait(leader);
+}
+
+
+// Tests whether a slave correctly DOES NOT disconnect from the master
+// when its ZooKeeper session is expired, but the master still stays the leader
+// when the slave re-connects with the ZooKeeper.
+TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
+{
+  // Simulate a leading master.
+  MockMasterDetectorListenerProcess master;
+
+  trigger newMasterDetectedCall1;
+  EXPECT_CALL(master, newMasterDetected(_))
+    .WillOnce(Trigger(&newMasterDetectedCall1));
+
+  EXPECT_CALL(master, noMasterDetected())
+    .Times(0);
+
+  process::spawn(master);
+
+  std::string znode = "zk://" + server->connectString() + "/mesos";
+
+  Try<zookeeper::URL> url = zookeeper::URL::parse(znode);
+  ASSERT_SOME(url);
+
+  // Leading master's detector.
+  ZooKeeperMasterDetector masterDetector(url.get(), master.self(), true, true);
+
+  WAIT_UNTIL(newMasterDetectedCall1);
+
+  // Simulate a slave.
+  MockMasterDetectorListenerProcess slave;
+
+  trigger newMasterDetectedCall2, newMasterDetectedCall3;
+  EXPECT_CALL(slave, newMasterDetected(_))
+    .Times(1)
+    .WillOnce(Trigger(&newMasterDetectedCall2));
+
+  EXPECT_CALL(slave, noMasterDetected())
+    .Times(0);
+
+  process::spawn(slave);
+
+  // Slave's master detector.
+  ZooKeeperMasterDetector slaveDetector(url.get(), slave.self(), false, true);
+
+  WAIT_UNTIL(newMasterDetectedCall2);
+
+  // Now expire the slave's zk session.
+  process::Future<int64_t> session = slaveDetector.session();
+  ASSERT_FUTURE_WILL_SUCCEED(session);
+
+  server->expireSession(session.get());
+
+  // Wait for enough time to ensure no NewMasterDetected message is sent.
+  sleep(4); // ZooKeeper needs extra time for session expiration.
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
+}
+
+
+// Tests whether a slave correctly detects the new master
+// when its ZooKeeper session is expired and a new master is elected before the
+// slave reconnects with ZooKeeper.
+TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
+{
+  // Simulate a leading master.
+  MockMasterDetectorListenerProcess master1;
+
+  trigger newMasterDetectedCall1;
+  EXPECT_CALL(master1, newMasterDetected(_))
+    .WillOnce(Trigger(&newMasterDetectedCall1));
+
+  EXPECT_CALL(master1, noMasterDetected())
+    .Times(0);
+
+  process::spawn(master1);
+
+  std::string znode = "zk://" + server->connectString() + "/mesos";
+
+  Try<zookeeper::URL> url = zookeeper::URL::parse(znode);
+  ASSERT_SOME(url);
+
+  // Leading master's detector.
+  ZooKeeperMasterDetector masterDetector1(
+      url.get(),
+      master1.self(),
+      true,
+      true);
+
+  WAIT_UNTIL(newMasterDetectedCall1);
+
+  // Simulate a non-leading master.
+  MockMasterDetectorListenerProcess master2;
+
+  trigger newMasterDetectedCall2;
+  EXPECT_CALL(master2, newMasterDetected(_))
+    .WillOnce(Trigger(&newMasterDetectedCall2))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(master2, noMasterDetected())
+    .Times(0);
+
+  process::spawn(master2);
+
+  // Non-leading master's detector.
+  ZooKeeperMasterDetector masterDetector2(
+      url.get(),
+      master2.self(),
+      true,
+      true);
+
+  WAIT_UNTIL(newMasterDetectedCall2);
+
+  // Simulate a slave.
+  MockMasterDetectorListenerProcess slave;
+
+  trigger newMasterDetectedCall3, newMasterDetectedCall4;
+  EXPECT_CALL(slave, newMasterDetected(_))
+    .Times(2)
+    .WillOnce(Trigger(&newMasterDetectedCall3))
+    .WillOnce(Trigger(&newMasterDetectedCall4));
+
+  EXPECT_CALL(slave, noMasterDetected())
+    .Times(AtMost(1));
+
+  process::spawn(slave);
+
+  // Slave's master detector.
+  ZooKeeperMasterDetector slaveDetector(url.get(), slave.self(), false, true);
+
+  WAIT_UNTIL(newMasterDetectedCall3);
+
+  // Now expire the slave's and leading master's zk sessions.
+  // NOTE: Here we assume that slave stays disconnected from the ZK when the
+  // leading master loses its session.
+  process::Future<int64_t> slaveSession = slaveDetector.session();
+  ASSERT_FUTURE_WILL_SUCCEED(slaveSession);
+
+  server->expireSession(slaveSession.get());
+
+  process::Future<int64_t> masterSession = masterDetector1.session();
+  ASSERT_FUTURE_WILL_SUCCEED(masterSession);
+
+  server->expireSession(masterSession.get());
+
+  // Wait for session expiration and ensure we receive a newMasterDetected call.
+  WAIT_FOR(newMasterDetectedCall4, Seconds(5.0)); // ZooKeeper needs extra time.
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master2);
+  process::wait(master2);
+
+  process::terminate(master1);
+  process::wait(master1);
 }
 
 
