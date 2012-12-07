@@ -108,4 +108,5 @@ setup(name = 'mesos',
       description = 'Mesos',
       package_dir = { '': 'src' },
       packages = ['.'],
+      install_requires = ['protobuf>=2.4.1'],
       ext_modules = [mesos_module])
