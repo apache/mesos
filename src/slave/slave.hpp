@@ -160,6 +160,8 @@ protected:
 
   void fileAttached(const Future<Nothing>& result, const std::string& path);
 
+  void detachFile(const Future<Nothing>& result, const std::string& path);
+
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
 

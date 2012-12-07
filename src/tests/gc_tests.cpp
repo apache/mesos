@@ -23,6 +23,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/http.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/os.hpp>
@@ -43,6 +44,7 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
+#include "tests/assert.hpp"
 #include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
@@ -303,6 +305,9 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
     isolationModule->directories[DEFAULT_EXECUTOR_ID];
 
   ASSERT_TRUE(os::exists(executorDir));
+  EXPECT_RESPONSE_STATUS_WILL_EQ(
+      process::http::OK().status,
+      process::http::get(files->pid(), "browse.json", "path=" + executorDir));
 
   Clock::pause();
 
@@ -335,6 +340,9 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
 
   // Executor's directory should be gc'ed by now.
   ASSERT_FALSE(os::exists(executorDir));
+  EXPECT_RESPONSE_STATUS_WILL_EQ(
+      process::http::NotFound().status,
+      process::http::get(files->pid(), "browse.json", "path=" + executorDir));
 
   Clock::resume();
 
@@ -389,6 +397,9 @@ TEST_F(GarbageCollectorTest, DiskUsage)
     isolationModule->directories[DEFAULT_EXECUTOR_ID];
 
   ASSERT_TRUE(os::exists(executorDir));
+  EXPECT_RESPONSE_STATUS_WILL_EQ(
+      process::http::OK().status,
+      process::http::get(files->pid(), "browse.json", "path=" + executorDir));
 
   Clock::pause();
 
@@ -424,6 +435,9 @@ TEST_F(GarbageCollectorTest, DiskUsage)
 
   // Executor's directory should be gc'ed by now.
   ASSERT_FALSE(os::exists(executorDir));
+  EXPECT_RESPONSE_STATUS_WILL_EQ(
+      process::http::NotFound().status,
+      process::http::get(files->pid(), "browse.json", "path=" + executorDir));
 
   Clock::resume();
 

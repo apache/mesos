@@ -363,6 +363,13 @@ void Slave::fileAttached(const Future<Nothing>& result, const string& path)
 }
 
 
+void Slave::detachFile(const Future<Nothing>& result, const std::string& path)
+{
+  CHECK(!result.isDiscarded());
+  files->detach(path);
+}
+
+
 void Slave::newMasterDetected(const UPID& pid)
 {
   LOG(INFO) << "New master detected at " << pid;
@@ -1069,7 +1076,8 @@ void Slave::executorTerminated(
   }
 
   // Schedule the executor directory to get garbage collected.
-  gc.schedule(flags.gc_delay, executor->directory);
+  gc.schedule(flags.gc_delay, executor->directory)
+    .onAny(defer(self(), &Self::detachFile, params::_1, executor->directory));
 
   framework->destroyExecutor(executor->id);
 }
@@ -1116,7 +1124,8 @@ void Slave::shutdownExecutorTimeout(
              executor->id);
 
     // Schedule the executor directory to get garbage collected.
-    gc.schedule(flags.gc_delay, executor->directory);
+    gc.schedule(flags.gc_delay, executor->directory)
+      .onAny(defer(self(), &Self::detachFile, params::_1, executor->directory));;
 
     framework->destroyExecutor(executor->id);
   }
