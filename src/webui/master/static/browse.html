@@ -69,7 +69,8 @@
             </a>
           </td>
           <td>
-            <a ui-if="file.mode[0] != 'd'" href="/files/download.json?path={{encodeURIComponent(file.path)}}">
+            <a ui-if="file.mode[0] != 'd'"
+               href="http://{{slave_host}}/files/download.json?path={{encodeURIComponent(file.path)}}">
               <button class="btn btn-mini" type="button">download</button>
             </a>
           </td>

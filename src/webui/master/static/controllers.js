@@ -574,6 +574,8 @@ function BrowseCtrl($scope, $routeParams, $http) {
       var host = pid.substring(pid.indexOf('@') + 1);
       var url = 'http://' + host + '/files/browse.json?jsonp=JSON_CALLBACK';
 
+      $scope.slave_host = host;
+
       $scope.pail = function($event, path) {
         pailer(host, path, decodeURIComponent(path));
       }
