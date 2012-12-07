@@ -196,6 +196,10 @@ AC_PROG_CC([gcc])
 ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
 
+# Check for libunwind, and link it in if present.
+AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
+
+
 # TODO(benh): Consider using AS_IF instead of just shell 'if'
 # statements for better autoconf style (the AS_IF macros also make
 # sure variable dependencies are handled appropriately).
@@ -255,6 +259,16 @@ __EOF__
   # Determine preprocessor flags for Java if not set.
   if test -z "$JAVA_CPPFLAGS"; then
     JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/$OS_NAME"
+
+    # For OSX, set JAVA_CPPFLAGS for 10.7 and above since the JAVA_HOME
+    # discovered during configure using 'java.home' does not include
+    # the JNI headers. This happens when users have not configured
+    # their jdk using the 'Java Preferences' application.
+    if test "$OS_NAME" = "darwin"; then
+      if test ! -z `sw_vers -productVersion | grep -E '10.7|10.8'`; then
+        JAVA_CPPFLAGS="-I/System/Library/Frameworks/JavaVM.framework/Headers"
+      fi
+    fi
   fi
 
   # Determine linker flags for Java if not set.
@@ -325,7 +339,14 @@ AM_CONDITIONAL([HAS_JAVA], [test "x$has_java" = "xyes"])
 
 # Perform necessary configuration for building with Python.
 if test "x$enable_python" = "xyes"; then
-  AM_PATH_PYTHON() # A fatal error will occur if no interpreter is found.
+  AM_PATH_PYTHON([2.6],,
+                 [AC_MSG_ERROR([mesos requires Python >= 2.6 to be installed
+  -------------------------------------------------------------------
+  If you already have Python 2.6 installed, please ensure you have
+  not set the PYTHON environment variable to point to an older
+  version of Python.
+  -------------------------------------------------------------------
+  ])])
 
   # Determine how the generated Python egg's will get named, used in
   # the Makefile to keep the targets from being rerun.
