@@ -52,6 +52,27 @@
 //    });
 
 (function($) {
+  // Helper for escaping html, based on _.escape from underscore.js.
+  function escapeHTML(string) {
+    if (string == null) {
+      return '';
+    }
+
+    var escapes = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;'
+    };
+    var regex = new RegExp('[' + Object.keys(escapes).join('') + ']', 'g');
+
+    return ('' + string).replace(regex, function (match) {
+      return escapes[match];
+    });
+  }
+
   function Pailer(read, element, indicator, page_size, truncate_length) {
     var this_ = this;
 
@@ -158,8 +179,8 @@
       this_.read({'offset': offset, 'length': length})
         .success(function(data) {
           if (data.data.length < length) {
-              buffer += data.data;
-              read(offset + data.data.length, length - data.data.length);
+            buffer += data.data;
+            read(offset + data.data.length, length - data.data.length);
           } else if (data.data.length > 0) {
             this_.indicate('(PAGED)');
             setTimeout(function() { this_.indicate(''); }, 1000);
@@ -180,7 +201,7 @@
             var scrollTop = this_.element.scrollTop();
             var scrollHeight = this_.element[0].scrollHeight;
 
-            this_.element.prepend(data.data);
+            this_.element.prepend(escapeHTML(data.data));
 
             scrollTop += this_.element[0].scrollHeight - scrollHeight;
             this_.element.scrollTop(scrollTop);
@@ -233,7 +254,7 @@
 
           this_.end = data.offset + data.data.length;
 
-          this_.element.append(data.data);
+          this_.element.append(escapeHTML(data.data));
 
           scrollTop += this_.element[0].scrollHeight - scrollHeight;
           this_.element.scrollTop(scrollTop);
