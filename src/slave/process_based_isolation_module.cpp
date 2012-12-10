@@ -110,7 +110,9 @@ void ProcessBasedIsolationModule::launchExecutor(
 
   // Use pipes to determine which child has successfully changed session.
   int pipes[2];
-  pipe(pipes);
+  if (pipe(pipes) < 0) {
+    PLOG(FATAL) << "Failed to create a pipe";
+  }
 
   // Set the FD_CLOEXEC flags on these pipes
   Try<bool> result = os::cloexec(pipes[0]);
