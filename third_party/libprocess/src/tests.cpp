@@ -228,6 +228,8 @@ TEST(Process, spawn)
 
   ASSERT_FALSE(!pid);
 
+  ASSERT_FALSE(wait(pid, 0));
+
   terminate(pid);
   wait(pid);
 }
