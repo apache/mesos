@@ -56,9 +56,13 @@ public:
 
   virtual ~ExecutorLauncher();
 
-  // Primary method to be called to run the user's executor.
-  // Create the work directory, fetch the executor, set up the environment,
-  // switch user, and exec() the user's executor.
+  // Initialize the working directory and fetch the executor.
+  virtual int setup();
+
+  // Launches the downloaded executor.
+  virtual int launch();
+
+  // Convenience function that calls setup() and then launch().
   virtual int run();
 
   // Set up environment variables for exec'ing a launcher_main.cpp
@@ -68,14 +72,10 @@ public:
   virtual void setupEnvironmentForLauncherMain();
 
 protected:
-  // Initialize executor's working director.
-  virtual void initializeWorkingDirectory();
-
   // Download the required files for the executor from the given set of URIs.
   // Optionally, it will set the executable file permissions for the files.
-  // This method is expected to place files in the current directory
-  // (which will be the workDirectory).
-  virtual void fetchExecutors();
+  // This method is expected to place files in the workDirectory.
+  virtual int fetchExecutors();
 
   // Set up environment variables for launching a framework's executor.
   virtual void setupEnvironment();
