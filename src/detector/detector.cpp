@@ -196,19 +196,10 @@ void MasterDetector::destroy(MasterDetector *detector)
 BasicMasterDetector::BasicMasterDetector(const UPID& _master)
   : master(_master)
 {
-  // Send a master token.
-  {
-    GotMasterTokenMessage message;
-    message.set_token("0");
-    process::post(master, message);
-  }
-
   // Elect the master.
-  {
-    NewMasterDetectedMessage message;
-    message.set_pid(master);
-    process::post(master, message);
-  }
+  NewMasterDetectedMessage message;
+  message.set_pid(master);
+  process::post(master, message);
 }
 
 
@@ -218,19 +209,10 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master,
   : master(_master)
 {
   if (elect) {
-    // Send a master token.
-    {
-      GotMasterTokenMessage message;
-      message.set_token("0");
-      process::post(master, message);
-    }
-
     // Elect the master.
-    {
-      NewMasterDetectedMessage message;
-      message.set_pid(master);
-      process::post(master, message);
-    }
+    NewMasterDetectedMessage message;
+    message.set_pid(master);
+    process::post(master, message);
   }
 
   // Tell the pid about the master.
@@ -246,19 +228,10 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master,
   : master(_master)
 {
   if (elect) {
-    // Send a master token.
-    {
-      GotMasterTokenMessage message;
-      message.set_token("0");
-      process::post(master, message);
-    }
-
     // Elect the master.
-    {
-      NewMasterDetectedMessage message;
-      message.set_pid(master);
-      process::post(master, message);
-    }
+    NewMasterDetectedMessage message;
+    message.set_pid(master);
+    process::post(master, message);
   }
 
   // Tell each pid about the master.
@@ -377,10 +350,6 @@ void ZooKeeperMasterDetectorProcess::connected(bool reconnect)
       }
 
       LOG(INFO) << "Created ephemeral/sequence:" << mySeq.get();
-
-      GotMasterTokenMessage message;
-      message.set_token(mySeq.get());
-      process::post(pid, message);
     }
 
     // Now determine who the master is (it may be us).
