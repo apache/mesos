@@ -33,7 +33,7 @@ import org.apache.mesos.MesosNativeLibrary;
  * variables can not be more than 1 MB (actually slightly less since
  * we store some bookkeeping information).
  */
-class ZooKeeperState implements State {
+public class ZooKeeperState implements State {
   static {
     MesosNativeLibrary.load();
   }
