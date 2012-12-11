@@ -49,17 +49,6 @@ And the specific environment variables that might be relevant are:
               linker flags for JDK
   PYTHON      which Python interpreter to use
 
-We've tailored a few scripts with the configure options and
-environment variables necessary for different environments:
-
-  ./configure.amazon-linux-64
-  ./configure.centos-5.4-64
-  ./configure.macosx
-  ./configure.ubuntu-hardy-64
-  ./configure.ubuntu-karmic-64
-  ./configure.ubuntu-lucid-64
-  ./configure.ubuntu-natty-64
-
 
 Java
 ====
