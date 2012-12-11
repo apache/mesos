@@ -359,6 +359,13 @@ protected:
       return;
     }
 
+    if (from != master) {
+      LOG(WARNING) << "Ignoring lost slave message from " << from
+                   << "because it is not from the registered master ("
+                   << master << ")";
+      return;
+    }
+
     VLOG(1) << "Lost slave " << slaveId;
 
     savedSlavePids.erase(slaveId);
