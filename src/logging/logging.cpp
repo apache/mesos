@@ -152,9 +152,9 @@ private:
 
 void initialize(const string& _argv0, const Flags& flags)
 {
-  static Once initialized;
+  static Once* initialized = new Once();
 
-  if (initialized.once()) {
+  if (initialized->once()) {
     return;
   }
 
@@ -189,7 +189,7 @@ void initialize(const string& _argv0, const Flags& flags)
   // exits (i.e., use a supervisor which re-spawns appropriately).
   spawn(new LoggingProcess(), true);
 
-  initialized.done();
+  initialized->done();
 }
 
 } // namespace logging {
