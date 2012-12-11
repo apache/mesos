@@ -33,6 +33,7 @@
 #include <stout/foreach.hpp>
 #include <stout/net.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 
 #include "launcher/launcher.hpp"
 
@@ -225,9 +226,17 @@ int ExecutorLauncher::fetchExecutors()
                || resource.find("ftp://") == 0
                || resource.find("ftps://") == 0) {
       string path = resource.substr(resource.find("://") + 3);
-      CHECK(path.find("/") != string::npos) << "Malformed URL (missing path)";
-      CHECK(path.size() > path.find("/") + 1) << "Malformed URL (missing path)";
-      path =  "./" + path.substr(path.find_last_of("/") + 1);
+      if (path.find("/") == string::npos) {
+        cerr << "Malformed URL (missing path)" << endl;
+        return -1;
+      }
+
+      if (path.size() <= path.find("/") + 1) {
+        cerr << "Malformed URL (missing path)" << endl;
+        return -1;
+      }
+
+      path =  path::join(".", path.substr(path.find_last_of("/") + 1));
       cout << "Downloading " << resource << " to " << path << endl;
       Try<int> code = net::download(resource, path);
       if (code.isError()) {
