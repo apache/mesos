@@ -122,13 +122,18 @@ public:
     std::cout << "Starting task " << task.task_id().value() << std::endl;
 
     if ((pid = fork()) == -1) {
-      PLOG(FATAL) << "Failed to fork to run " << task.command().value();
+      std::cerr << "Failed to fork to run '" << task.command().value() << "': "
+                << strerror(errno) << std::endl;
+      abort();
     }
 
     if (pid == 0) {
       // In child process, execute the command (via '/bin/sh -c command').
+      std::cout << "sh -c '" << task.command().value() << "'" << std::endl;
       execl("/bin/sh", "sh", "-c",
             task.command().value().c_str(), (char*) NULL);
+      std::cerr << "Failed to exec: " << strerror(errno) << std::endl;
+      abort();
     }
 
     // In parent process, fork a thread to wait for this process.
