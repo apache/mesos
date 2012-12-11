@@ -27,6 +27,9 @@
 #include <process/process.hpp>
 
 #include <stout/fatal.hpp>
+#include <stout/foreach.hpp>
+#include <stout/path.hpp>
+#include <stout/strings.hpp>
 
 #include "zookeeper/zookeeper.hpp"
 
@@ -504,9 +507,40 @@ int ZooKeeper::authenticate(const string& scheme, const string& credentials)
 
 
 int ZooKeeper::create(const string& path, const string& data,
-                      const ACL_vector& acl, int flags, string* result)
+                      const ACL_vector& acl, int flags, string* result,
+                      bool recursive)
 {
-  return impl->create(path, data, acl, flags, result).get();
+  if (!recursive) {
+    return impl->create(path, data, acl, flags, result).get();
+  }
+
+  // Do "recursive" create, i.e., ensure intermediate znodes exist.
+  string prefix = "/";
+  int code = ZOK;
+  foreach (const string& token, strings::split(path, "/")) {
+    prefix = path::join(prefix, token);
+
+    // Make sure we include 'flags' and 'data' for the final znode.
+    if (prefix == path || (prefix + "/") == path) {
+      code = impl->create(path, data, acl, flags, result).get();
+    } else {
+      code = impl->create(prefix, "", acl, 0, result).get();
+    }
+
+    // We fail all non-OK return codes except for:
+    // ZNODEEXISTS says the node in the znode path we are trying to
+    //   create already exists - this is what we wanted, so we
+    //   continue.
+    // ZNOAUTH says we can't write the node, but it doesn't tell us
+    //   whether the node already exists. We take the optimistic
+    //   approach and assume the node's parent doesn't allow us to
+    //   write an already existing node (but it exists).
+    if (code != ZOK && code != ZNODEEXISTS && code != ZNOAUTH) {
+      return code;
+    }
+  }
+
+  return code;
 }
 
 

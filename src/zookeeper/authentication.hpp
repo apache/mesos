@@ -24,6 +24,10 @@ struct Authentication
 // nodes - others are welcome to read.
 extern const ACL_vector EVERYONE_READ_CREATOR_ALL;
 
+// An ACL that allows others to create child nodes and read nodes, but
+// we're the the only authenticated user to mutate our nodes.
+extern const ACL_vector EVERYONE_CREATE_AND_READ_CREATOR_ALL;
+
 } // namespace zookeeper {
 
 #endif // __ZOOKEEPER_AUTHENTICATION_HPP__
