@@ -25,31 +25,46 @@ public class MesosNativeLibrary {
    * System.loadLibrary}).
    */
   public static void load() {
-    // Our JNI library will actually set 'loaded' to true once it is
-    // loaded, that way the library can get loaded by a user via
-    // 'System.load' in the event that they want to specify an
-    // absolute path and we won't try and reload the library ourselves
-    // (which would probably fail because 'java.library.path' might
-    // not be set).
-    if (!loaded) {
-      final String MESOS_NATIVE_LIBRARY = System.getenv("MESOS_NATIVE_LIBRARY");
-      if (MESOS_NATIVE_LIBRARY != null) {
-        try {
-          System.load(MESOS_NATIVE_LIBRARY);
-        } catch (UnsatisfiedLinkError error) {
-          System.err.println("Failed to load native Mesos library at " +
-                             MESOS_NATIVE_LIBRARY);
-          throw error;
-        }
-      } else {
-        try {
-          System.loadLibrary("mesos");
-        } catch (UnsatisfiedLinkError error) {
-          System.err.println("Failed to load native Mesos library from " +
-                             System.getProperty("java.library.path"));
-          throw error;
+    // In some circumstances, such as when sandboxed class loaders are used,
+    // the current thread's context class loader will not be able to see
+    // MesosNativeLibrary (even when executing this code!).
+    // We therefore, temporarily swap the thread's context class loader with
+    // the class loader that loaded this class, for the duration of the native
+    // library load.
+    ClassLoader contextClassLoader =
+        Thread.currentThread().getContextClassLoader();
+    Thread.currentThread().setContextClassLoader(
+        MesosNativeLibrary.class.getClassLoader());
+
+    try {
+      // Our JNI library will actually set 'loaded' to true once it is
+      // loaded, that way the library can get loaded by a user via
+      // 'System.load' in the event that they want to specify an
+      // absolute path and we won't try and reload the library ourselves
+      // (which would probably fail because 'java.library.path' might
+      // not be set).
+      if (!loaded) {
+        final String MESOS_NATIVE_LIBRARY = System.getenv("MESOS_NATIVE_LIBRARY");
+        if (MESOS_NATIVE_LIBRARY != null) {
+          try {
+            System.load(MESOS_NATIVE_LIBRARY);
+          } catch (UnsatisfiedLinkError error) {
+            System.err.println("Failed to load native Mesos library at " +
+                MESOS_NATIVE_LIBRARY);
+            throw error;
+          }
+        } else {
+          try {
+            System.loadLibrary("mesos");
+          } catch (UnsatisfiedLinkError error) {
+            System.err.println("Failed to load native Mesos library from " +
+                System.getProperty("java.library.path"));
+            throw error;
+          }
         }
       }
+    } finally {
+      Thread.currentThread().setContextClassLoader(contextClassLoader);
     }
   }
 

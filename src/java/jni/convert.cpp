@@ -94,6 +94,7 @@ jclass FindMesosClass(JNIEnv* env, const char* className)
                                               strClassName);
 
   if (env->ExceptionCheck()) {
+    env->ExceptionDescribe();
     fprintf(stderr, "ERROR: unable to load class '%s' from %p\n",
             className, mesosClassLoader);
     return NULL;
