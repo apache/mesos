@@ -61,18 +61,8 @@
   <build>
     <sourceDirectory>${basedir}/src</sourceDirectory>
     <resources>
-<!--
-      <resource>
-        <directory>${basedir}/..</directory>
-        <targetPath>${project.build.directory}</targetPath>
-        <includes>
-          <include>mesos-0.9.0.jar</include>
-        </includes>
-      </resource>
--->
       <resource>
         <directory>${basedir}/classes</directory>
-        <!--<targetPath>${project.build.directory}</targetPath>-->
       </resource>
     </resources>
     <plugins>
@@ -94,55 +84,14 @@
           <skip>true</skip>
         </configuration>
       </plugin>
-      <!-- Build the jar for from the classes that the make build system
+      <!-- Build the jar from the classes that the Make build system
            compiled for us from source -->
       <plugin>
         <artifactId>maven-jar-plugin</artifactId>
         <configuration>
           <finalName>${project.name}-${project.version}</finalName>
         </configuration>
-        <!-- Uncomment to skip packaging a jar ourselves,
-             and instead use the one built by make -->
-        <!-- Uses trickery found at http://stackoverflow.com/a/4853816 -->
-<!--
-        <executions>
-          <execution>
-            <id>default-jar</id>
-            <phase>never</phase>
-            <configuration>
-              <finalName>unwanted</finalName>
-              <classifier>unwanted</classifier>
-            </configuration>
-          </execution>
-        </executions>
--->
       </plugin>
-      <!-- Attach the prebuilt mesos jar to this build -->
-<!--
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>1.7</version>
-        <executions>
-          <execution>
-            <id>attach-artifacts</id>
-            <phase>package</phase>
-            <goals>
-              <goal>attach-artifact</goal>
-            </goals>
-            <configuration>
-              <artifacts>
-                <artifact>
-                  <file>${basedir}/../mesos-0.9.0.jar</file>
-                  <type>jar</type>
-                  <classifier>${project.classifier}</classifier>
-                </artifact>
-              </artifacts>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
--->
       <!-- Build and attach javadoc -->
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
