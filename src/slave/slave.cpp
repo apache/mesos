@@ -136,8 +136,10 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
       }
     }
 
-    Try<string> defaults =
-      strings::format("cpus:%d;mem:%d", cpus.get(), mem.get());
+    Try<string> defaults = strings::format(
+        "cpus:%d;mem:%d;ports:[31000-32000]",
+        cpus.get(),
+        mem.get());
 
     CHECK(defaults.isSome());
 
