@@ -28,10 +28,8 @@ inline Try<int> download(const std::string& url, const std::string& path)
 #ifndef HAVE_LIBCURL
   return Try<int>::error("Downloading via HTTP/FTP is not supported");
 #else
-  Try<int> fd = os::open(path, O_CREAT | O_WRONLY,
-                         S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
-
-  CHECK(!fd.isNone());
+  Try<int> fd = os::open(
+      path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
     return Try<int>::error(fd.error());
