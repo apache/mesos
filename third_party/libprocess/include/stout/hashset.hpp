@@ -17,6 +17,10 @@ template <typename Elem>
 class hashset : public boost::unordered_set<Elem>
 {
 public:
+  // An explicit default constructor is needed so
+  // 'const hashset<T> map;' is not an error.
+  hashset() {}
+
   // Checks whether this map contains a binding for a key.
   bool contains(const Elem& elem) const
   {
