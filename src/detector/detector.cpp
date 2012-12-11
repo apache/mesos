@@ -49,6 +49,7 @@ using namespace mesos::internal;
 using process::Process;
 using process::Timer;
 using process::UPID;
+using process::wait; // Necessary on some OS's to disambiguate.
 
 using std::pair;
 using std::string;
