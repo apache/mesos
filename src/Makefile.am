@@ -28,6 +28,7 @@ DISTRIBUTE = third_party/distribute-$(DISTRIBUTE_VERSION)
 PROTOBUF = third_party/protobuf-$(PROTOBUF_VERSION)
 GLOG = third_party/glog-$(GLOG_VERSION)
 GMOCK = third_party/gmock-$(GMOCK_VERSION)
+GPERFTOOLS = third_party/gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
 LEVELDB = third_party/leveldb
 ZOOKEEPER = third_party/zookeeper-$(ZOOKEEPER_VERSION)/src/c
@@ -305,6 +306,7 @@ libmesos_la_LIBADD = libmesos_no_third_party.la
 # possible.)
 libmesos_la_LIBADD += ../$(PROTOBUF)/src/libprotobuf.la
 libmesos_la_LIBADD += ../$(GLOG)/libglog.la
+libmesos_la_LIBADD += ../$(GPERFTOOLS)/libprofiler.la
 
 # We need to directly include the leveldb library in order to avoid
 # the installed libmesos.la file to include leveldb in

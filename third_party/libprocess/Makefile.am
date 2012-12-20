@@ -12,6 +12,7 @@ include third_party/versions.am
 BOOST = third_party/boost-$(BOOST_VERSION)
 GLOG = third_party/glog-$(GLOG_VERSION)
 GMOCK = third_party/gmock-$(GMOCK_VERSION)
+GPERFTOOLS = third_party/gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
 RY_HTTP_PARSER = third_party/ry-http-parser-$(RY_HTTP_PARSER_VERSION)
 LIBEV = third_party/libev-$(LIBEV_VERSION)
@@ -31,7 +32,7 @@ libprocess_la_SOURCES = src/process.cpp src/pid.cpp src/latch.cpp	\
 libprocess_la_CPPFLAGS = -I$(srcdir)/include -I$(BOOST) -I$(GLOG)/src	\
 	-I$(RY_HTTP_PARSER) -I$(LIBEV) $(AM_CPPFLAGS)
 
-libprocess_la_LIBADD = $(GLOG)/libglog.la				\
+libprocess_la_LIBADD = $(GLOG)/libglog.la $(GPERFTOOLS)/libprofiler.la	\
 	third_party/libry_http_parser.la $(LIBEV)/libev.la
 
 
