@@ -356,9 +356,12 @@ void CgroupsIsolationModule::initialize(
     Try<string> cpuset = cgroups::read(hierarchy, "mesos", "cpuset.cpus");
     CHECK(cpuset.isSome())
       << "Failed to read cpuset.cpus: " << cpuset.error();
+    cpuset = strings::trim(cpuset.get());
 
     // Parse from "0-2,7,12-14" to a set(0,1,2,7,12,13,14).
-    foreach (const string& range, strings::tokenize(cpuset.get(), ",")) {
+    foreach (string range, strings::tokenize(cpuset.get(), ",")) {
+      range = strings::trim(range);
+
       if (strings::contains(range, "-")) {
         // Case startId-endId (e.g. 0-2 in 0-2,7,12-14).
         vector<string> startEnd = strings::split(range, "-");
@@ -366,8 +369,10 @@ void CgroupsIsolationModule::initialize(
           << "Failed to parse cpu range '" << range
           << "' from cpuset.cpus '" << cpuset.get() << "'";
 
-        Try<unsigned int> start = numify<unsigned int>(startEnd[0]);
-        Try<unsigned int> end = numify<unsigned int>(startEnd[1]);
+        Try<unsigned int> start =
+          numify<unsigned int>(strings::trim(startEnd[0]));
+        Try<unsigned int> end =
+          numify<unsigned int>(strings::trim(startEnd[1]));
         CHECK(start.isSome() && end.isSome())
           << "Failed to parse cpu range '" << range
           << "' from cpuset.cpus '" << cpuset.get() << "'";
