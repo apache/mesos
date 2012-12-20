@@ -17,6 +17,7 @@
  */
 
 #include <map>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -66,7 +67,8 @@ TEST(CgroupsCpusetTest, OneCPUOneCpuset)
   Cpuset cpuset;
 
   map<proc::CPU, double> usage;
-  usage[proc::CPU(0,0,0)] = 0.0;
+  // NOTE: Using the [] operator here led to a warning with gcc 4.4.3.
+  usage.insert(std::make_pair(proc::CPU(0, 0, 0), 0.0));
 
   // Saturate the CPU.
   GROW_USAGE(0.2, cpuset, usage);
@@ -97,7 +99,8 @@ TEST(CgroupsCpusetTest, OneCPUManyCpusets)
   Cpuset cpuset1, cpuset2, cpuset3;
 
   map<proc::CPU, double> usage;
-  usage[proc::CPU(0,0,0)] = 0.0;
+  // NOTE: Using the [] operator here led to a warning with gcc 4.4.3.
+  usage.insert(std::make_pair(proc::CPU(0, 0, 0), 0.0));
 
   // Saturate the CPU.
   GROW_USAGE(0.2, cpuset1, usage);
@@ -136,9 +139,10 @@ TEST(CgroupsCpusetTest, ManyCPUOneCpuset)
   Cpuset cpuset;
 
   map<proc::CPU, double> usage;
-  usage[proc::CPU(0,0,0)] = 0.0;
-  usage[proc::CPU(1,0,0)] = 0.0;
-  usage[proc::CPU(2,0,0)] = 0.0;
+  // NOTE: Using the [] operator here led to a warning with gcc 4.4.3.
+  usage.insert(std::make_pair(proc::CPU(0, 0, 0), 0.0));
+  usage.insert(std::make_pair(proc::CPU(1, 0, 0), 0.0));
+  usage.insert(std::make_pair(proc::CPU(2, 0, 0), 0.0));
 
   // Saturate the first CPU.
   GROW_USAGE(0.2, cpuset, usage);
@@ -190,9 +194,10 @@ TEST(CgroupsCpusetTest, ManyCPUManyCpusets)
   Cpuset cpuset1, cpuset2, cpuset3;
 
   map<proc::CPU, double> usage;
-  usage[proc::CPU(0,0,0)] = 0.0;
-  usage[proc::CPU(1,0,0)] = 0.0;
-  usage[proc::CPU(2,0,0)] = 0.0;
+  // NOTE: Using the [] operator here led to a warning with gcc 4.4.3.
+  usage.insert(std::make_pair(proc::CPU(0, 0, 0), 0.0));
+  usage.insert(std::make_pair(proc::CPU(1, 0, 0), 0.0));
+  usage.insert(std::make_pair(proc::CPU(2, 0, 0), 0.0));
 
   // Saturate the first CPU.
   GROW_USAGE(0.2, cpuset1, usage);
@@ -258,10 +263,11 @@ TEST(CgroupsCpusetTest, IntegerAllocations)
   Cpuset cpuset1, cpuset2, cpuset3;
 
   map<proc::CPU, double> usage;
-  usage[proc::CPU(0,0,0)] = 0.0;
-  usage[proc::CPU(1,0,0)] = 0.0;
-  usage[proc::CPU(2,0,0)] = 0.0;
-  usage[proc::CPU(3,0,0)] = 0.0;
+  // NOTE: Using the [] operator here led to a warning with gcc 4.4.3.
+  usage.insert(std::make_pair(proc::CPU(0, 0, 0), 0.0));
+  usage.insert(std::make_pair(proc::CPU(1, 0, 0), 0.0));
+  usage.insert(std::make_pair(proc::CPU(2, 0, 0), 0.0));
+  usage.insert(std::make_pair(proc::CPU(3, 0, 0), 0.0));
 
   // Saturate the CPUs.
   GROW_USAGE(1.0, cpuset1, usage);

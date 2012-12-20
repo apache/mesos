@@ -57,32 +57,35 @@ struct CPU
   CPU(unsigned int _id, unsigned int _core, unsigned int _socket)
     : id(_id), core(_core), socket(_socket) {}
 
-  bool operator == (const CPU& that) const
-  {
-    return (id == that.id) && (core == that.core) && (socket == that.socket);
-  }
-
-  bool operator < (const CPU& that) const
-  {
-    // Sort by (socket, core, id).
-    if (socket != that.socket) {
-      return socket < that.socket;
-    }
-
-    // On the same socket.
-    if (core != that.core) {
-      return core < that.core;
-    }
-
-    // On the same core.
-    return id < that.id;
-  }
-
   // These are non-const because we need the default assignment operator.
   unsigned int id; // "processor"
   unsigned int core; // "core id"
   unsigned int socket; // "physical id"
 };
+
+
+inline bool operator == (const CPU& lhs, const CPU& rhs)
+{
+  return (lhs.id == rhs.id) && (lhs.core == rhs.core) &&
+    (lhs.socket == rhs.socket);
+}
+
+
+inline bool operator < (const CPU& lhs, const CPU& rhs)
+{
+  // Sort by (socket, core, id).
+  if (lhs.socket != rhs.socket) {
+    return lhs.socket < rhs.socket;
+  }
+
+  // On the same socket.
+  if (lhs.core != rhs.core) {
+    return lhs.core < rhs.core;
+  }
+
+  // On the same core.
+  return lhs.id < rhs.id;
+}
 
 
 inline std::ostream& operator << (std::ostream& out, const CPU& cpu)
