@@ -1333,10 +1333,11 @@ TEST(Process, async)
 
 TEST(HTTP, encode)
 {
-  std::string unencoded = "a$&+,/:;=?@ \"<>#%{}|\\^~[]`\x19\x80\xFF\x00";
+  std::string unencoded = "a$&+,/:;=?@ \"<>#%{}|\\^~[]`\x19\x80\xFF";
+  unencoded += std::string("\x00", 1); // Add a null byte to the end.
   std::string encoded = http::encode(unencoded);
 
-  EXPECT_EQ("a%24%26%2B%2C%2F%3A$3B%3D%3F%40%20%22%3C%3E%32"
+  EXPECT_EQ("a%24%26%2B%2C%2F%3A%3B%3D%3F%40%20%22%3C%3E%23"
             "%25%7B%7D%7C%5C%5E%7E%5B%5D%60%19%80%FF%00",
             encoded);
 

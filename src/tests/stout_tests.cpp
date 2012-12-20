@@ -627,6 +627,15 @@ TEST(StoutMultihashmapTest, Foreach)
 }
 
 
+TEST(StoutJsonTest, BinaryData)
+{
+  JSON::String s(string("\"\\/\b\f\n\r\t\x00\x19 !#[]\x7F\xFF", 17));
+
+  EXPECT_EQ("\"\\\"\\\\\\/\\b\\f\\n\\r\\t\\u0000\\u0019 !#[]\\u007F\\u00FF\"",
+            stringify(s));
+}
+
+
 #ifdef HAVE_LIBZ
 TEST(StoutCompressionTest, Gzip)
 {

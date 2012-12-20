@@ -264,12 +264,16 @@ inline std::string encode(const std::string& s)
       case '[':
       case ']':
       case '`':
-        out << '%' << std::setfill('0') << std::setw(2) << std::hex << c;
+        // NOTE: The cast to unsigned int is needed.
+        out << '%' << std::setfill('0') << std::setw(2) << std::hex
+            << std::uppercase << (unsigned int) c;
         break;
       default:
         // ASCII control characters and non-ASCII characters.
+        // NOTE: The cast to unsigned int is needed.
         if (c < 0x20 || c > 0x7F) {
-          out << '%' << std::setfill('0') << std::setw(2) << std::hex << c;
+          out << '%' << std::setfill('0') << std::setw(2) << std::hex
+              << std::uppercase << (unsigned int) c;
         } else {
           out << c;
         }
