@@ -77,7 +77,8 @@ Try<list<CPU> > cpus()
       // Now save the value.
       if (line.find("processor") == 0) {
         if (id.isSome()) {
-          return Try<list<CPU> >::error("Unexpected format of /proc/cpuinfo");
+          // The physical id and core id are not present in this case.
+          results.push_back(CPU(id.get(), 0, 0));
         }
         id = value.get();
       } else if (line.find("physical id") == 0) {
@@ -92,7 +93,7 @@ Try<list<CPU> > cpus()
         core = value.get();
       }
 
-      // And finally create a CPU if we have enough information.
+      // And finally create a CPU if we have all the information.
       if (id.isSome() && core.isSome() && socket.isSome()) {
         results.push_back(CPU(id.get(), core.get(), socket.get()));
         id = Option<unsigned int>::none();
@@ -100,6 +101,12 @@ Try<list<CPU> > cpus()
         socket = Option<unsigned int>::none();
       }
     }
+  }
+
+  // Add the last processor if the physical id and core id were not present.
+  if (id.isSome()) {
+    // The physical id and core id are not present.
+    results.push_back(CPU(id.get(), 0, 0));
   }
 
   if (file.fail() && !file.eof()) {
