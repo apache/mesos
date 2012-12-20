@@ -208,9 +208,10 @@ void ProxyExecutor::frameworkMessage(ExecutorDriver* driver,
 
   res = PyObject_CallMethod(impl->pythonExecutor,
                             (char*) "frameworkMessage",
-                            (char*) "Os",
+                            (char*) "Os#",
                             impl,
-                            data.c_str());
+                            data.data(),
+                            data.length());
   if (res == NULL) {
     cerr << "Failed to call executor's frameworkMessage" << endl;
     goto cleanup;
@@ -250,9 +251,10 @@ void ProxyExecutor::error(ExecutorDriver* driver, const string& message)
   InterpreterLock lock;
   PyObject* res = PyObject_CallMethod(impl->pythonExecutor,
                                       (char*) "error",
-                                      (char*) "Os",
+                                      (char*) "Os#",
                                       impl,
-                                      message.c_str());
+                                      message.data(),
+                                      message.length());
   if (res == NULL) {
     cerr << "Failed to call executor's error" << endl;
     goto cleanup;

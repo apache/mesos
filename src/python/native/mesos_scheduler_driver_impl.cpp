@@ -18,6 +18,8 @@
 
 #include <Python.h>
 
+#include <string>
+
 #include "mesos_scheduler_driver_impl.hpp"
 #include "module.hpp"
 #include "proxy_scheduler.hpp"
@@ -490,24 +492,31 @@ PyObject* MesosSchedulerDriverImpl_sendFrameworkMessage(
     return NULL;
   }
 
-
   PyObject* slaveIdObj = NULL;
   PyObject* executorIdObj = NULL;
   SlaveID slaveId;
   ExecutorID executorId;
   const char* data;
-  if (!PyArg_ParseTuple(args, "OOs", &executorIdObj, &slaveIdObj, &data)) {
+  int length;
+
+  if (!PyArg_ParseTuple(
+      args, "OOs#", &executorIdObj, &slaveIdObj, &data, &length)) {
     return NULL;
   }
+
   if (!readPythonProtobuf(executorIdObj, &executorId)) {
     PyErr_Format(PyExc_Exception, "Could not deserialize Python ExecutorID");
     return NULL;
   }
+
   if (!readPythonProtobuf(slaveIdObj, &slaveId)) {
     PyErr_Format(PyExc_Exception, "Could not deserialize Python SlaveID");
     return NULL;
   }
-  Status status = self->driver->sendFrameworkMessage(executorId, slaveId, data);
+
+  Status status = self->driver->sendFrameworkMessage(
+      executorId, slaveId, string(data, length));
+
   return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 

@@ -18,6 +18,8 @@
 
 #include <Python.h>
 
+#include <string>
+
 #include "mesos_executor_driver_impl.hpp"
 #include "module.hpp"
 #include "proxy_executor.hpp"
@@ -317,11 +319,12 @@ PyObject* MesosExecutorDriverImpl_sendFrameworkMessage(
   }
 
   const char* data;
-  if (!PyArg_ParseTuple(args, "s", &data)) {
+  int length;
+  if (!PyArg_ParseTuple(args, "s#", &data, &length)) {
     return NULL;
   }
 
-  Status status = self->driver->sendFrameworkMessage(data);
+  Status status = self->driver->sendFrameworkMessage(string(data, length));
   return PyInt_FromLong(status); // Sets an exception if creating the int fails
 }
 

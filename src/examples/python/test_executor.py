@@ -32,6 +32,7 @@ class MyExecutor(mesos.Executor):
       update = mesos_pb2.TaskStatus()
       update.task_id.value = task.task_id.value
       update.state = mesos_pb2.TASK_RUNNING
+      update.data = 'data with a \0 byte'
       driver.sendStatusUpdate(update)
 
       time.sleep(1)
@@ -40,10 +41,16 @@ class MyExecutor(mesos.Executor):
       update = mesos_pb2.TaskStatus()
       update.task_id.value = task.task_id.value
       update.state = mesos_pb2.TASK_FINISHED
+      update.data = 'data with a \0 byte'
       driver.sendStatusUpdate(update)
       print "Sent status update"
+
     thread = threading.Thread(target=run_task)
     thread.start()
+
+  def frameworkMessage(self, driver, message):
+    # Send it back to the scheduler.
+    driver.sendFrameworkMessage(message)
 
 if __name__ == "__main__":
   print "Starting executor"

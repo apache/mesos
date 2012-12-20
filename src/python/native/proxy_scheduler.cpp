@@ -262,11 +262,12 @@ void ProxyScheduler::frameworkMessage(SchedulerDriver* driver,
 
   res = PyObject_CallMethod(impl->pythonScheduler,
                             (char*) "frameworkMessage",
-                            (char*) "OOOs",
+                            (char*) "OOOs#",
                             impl,
                             eid,
                             sid,
-                            data.c_str());
+                            data.data(),
+                            data.length());
   if (res == NULL) {
     cerr << "Failed to call scheduler's frameworkMessage" << endl;
     goto cleanup;
@@ -361,9 +362,10 @@ void ProxyScheduler::error(SchedulerDriver* driver, const string& message)
   InterpreterLock lock;
   PyObject* res = PyObject_CallMethod(impl->pythonScheduler,
                                       (char*) "error",
-                                      (char*) "Os",
+                                      (char*) "Os#",
                                       impl,
-                                      message.c_str());
+                                      message.data(),
+                                      message.length());
   if (res == NULL) {
     cerr << "Failed to call scheduler's error" << endl;
     goto cleanup;
