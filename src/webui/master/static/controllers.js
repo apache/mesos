@@ -76,6 +76,30 @@ function pailer(host, path, window_title) {
 }
 
 
+function updateInterval(num_slaves) {
+  // TODO(bmahler): Increasing the update interval for large clusters
+  // is done purely to mitigate webui performance issues. Ideally we can
+  // keep a consistently fast rate for updating statistical information.
+  // For the full system state updates, it may make sense to break
+  // it up using pagination and/or splitting the endpoint.
+  if (num_slaves < 10) {
+    return 3000;
+  } else if (num_slaves < 50) {
+    return 4000;
+  } else if (num_slaves < 100) {
+    return 5000;
+  } else if (num_slaves < 500) {
+    return 10000;
+  } else if (num_slaves < 1000) {
+    return 20000;
+  } else if (num_slaves < 5000) {
+    return 30000;
+  } else {
+    return 60000;
+  }
+}
+
+
 // Update the outermost scope with the new state.
 function update($scope, $defer, data) {
   // Don't do anything if the data hasn't changed.
@@ -252,7 +276,7 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
               {transformResponse: function(data) { return data; }})
       .success(function(data) {
         if (update($scope, $defer, data)) {
-          $scope.delay = 2000;
+          $scope.delay = updateInterval(_.size($scope.slaves));
           $defer(poll, $scope.delay);
         }
       })
