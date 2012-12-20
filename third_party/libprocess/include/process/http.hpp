@@ -93,6 +93,11 @@ struct OK : Response
     status = "200 OK";
   }
 
+  OK(const char* body) : Response(std::string(body))
+  {
+    status = "200 OK";
+  }
+
   OK(const std::string& body) : Response(body)
   {
     status = "200 OK";

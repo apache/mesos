@@ -30,7 +30,7 @@ libprocess_la_SOURCES = src/process.cpp src/pid.cpp src/latch.cpp	\
 	src/encoder.hpp src/gate.hpp src/synchronized.hpp
 
 libprocess_la_CPPFLAGS = -I$(srcdir)/include -I$(BOOST) -I$(GLOG)/src	\
-	-I$(RY_HTTP_PARSER) -I$(LIBEV) $(AM_CPPFLAGS)
+	-I$(GPERFTOOLS)/src -I$(RY_HTTP_PARSER) -I$(LIBEV) $(AM_CPPFLAGS)
 
 libprocess_la_LIBADD = $(GLOG)/libglog.la $(GPERFTOOLS)/libprofiler.la	\
 	third_party/libry_http_parser.la $(LIBEV)/libev.la
@@ -59,6 +59,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/async.hpp	\
 	$(top_srcdir)/include/process/pid.hpp				\
 	$(top_srcdir)/include/process/preprocessor.hpp			\
 	$(top_srcdir)/include/process/process.hpp			\
+	$(top_srcdir)/include/process/profiler.hpp			\
 	$(top_srcdir)/include/process/protobuf.hpp			\
 	$(top_srcdir)/include/process/run.hpp				\
 	$(top_srcdir)/include/process/socket.hpp			\
