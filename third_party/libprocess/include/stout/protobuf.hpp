@@ -2,6 +2,7 @@
 #define __STOUT_PROTOBUF_HPP__
 
 #include <errno.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include <sys/types.h>
@@ -95,12 +96,14 @@ inline Result<bool> read(int fd, google::protobuf::Message* message)
   if (length == 0) {
     return Result<bool>::none();
   } else if (length == -1) {
+    // TODO(bmahler): Handle EINTR by retrying.
     // Save the error, reset the file offset, and return the error.
     std::string error = strerror(errno);
     error = error + " (" + __FILE__ + ":" + stringify(__LINE__) + ")";
     lseek(fd, offset, SEEK_SET);
     return Result<bool>::error(error);
   } else if (length != sizeof(size)) {
+    // TODO(bmahler): Handle partial reads with a read loop.
     return false;
   }
 
@@ -122,13 +125,15 @@ inline Result<bool> read(int fd, google::protobuf::Message* message)
     delete[] temp;
     return Result<bool>::none();
   } else if (length == -1) {
+    // TODO(bmahler): Handle EINTR by retrying.
     // Save the error, reset the file offset, and return the error.
     std::string error = strerror(errno);
     error = error + " (" + __FILE__ + ":" + stringify(__LINE__) + ")";
     lseek(fd, offset, SEEK_SET);
     delete[] temp;
     return Result<bool>::error(error);
-  } else if (length != size) {
+  } else if (length != static_cast<ssize_t>(size)) {
+    // TODO(bmahler): Handle partial reads with a read loop.
     delete[] temp;
     return false;
   }

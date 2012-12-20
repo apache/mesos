@@ -211,11 +211,12 @@ inline Try<Nothing> write(int fd, const std::string& message)
   ssize_t length = ::write(fd, message.data(), message.length());
 
   if (length == -1) {
+    // TODO(bmahler): Handle EINTR by retrying.
     return Try<Nothing>::error(strerror(errno));
   }
 
   CHECK(length > 0);
-  // TODO(benh): Handle a non-blocking fd?
+  // TODO(bmahler): Handle partial writes with a write loop.
   CHECK(static_cast<size_t>(length) == message.length());
 
   return Nothing();
@@ -274,9 +275,11 @@ inline Result<std::string> read(int fd)
   if (length == 0) {
     return Result<std::string>::none();
   } else if (length == -1) {
+    // TODO(bmahler): Handle EINTR by retrying.
     // Save the error, reset the file offset, and return the error.
     return Result<std::string>::error(strerror(errno));
   } else if (length != size) {
+    // TODO(bmahler): Handle partial reads with a read loop.
     return Result<std::string>::error("Couldn't read the entire file");
   }
 
