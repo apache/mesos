@@ -30,18 +30,18 @@ import java.util.concurrent.Future;
  * fetched. Varying implementations of state provide varying
  * replicated guarantees.
  *
- * Note that the semantics of 'get' and 'set' provide atomicity. That
- * is, you can not set a variable that has changed since you did the
- * last get. That is, if a set succeeds then no other writes have been
- * performed on the variable since your get.
+ * Note that the semantics of 'fetch' and 'store' provide
+ * atomicity. That is, you can not store a variable that has changed
+ * since you did the last fetch. That is, if a store succeeds then no
+ * other writes have been performed on the variable since your fetch.
  *
  * Example:
  *
  *   State state = new ZooKeeperState();
- *   Future<Variable> variable = state.get("machines");
+ *   Future<Variable> variable = state.fetch("machines");
  *   Variable machines = variable.get();
  *   machines = machines.mutate(...);
- *   variable = state.set(machines);
+ *   variable = state.store(machines);
  *   machines = variable.get();
  */
 public interface State {
@@ -49,14 +49,20 @@ public interface State {
    * Returns an immutable "variable" representing the current value
    * from the state associated with the specified name.
    */
-  Future<Variable> get(String name);
+  Future<Variable> fetch(String name);
 
   /**
    * Returns an immutable "variable" representing the current value in
    * the state if updating the specified variable in the state was
    * successful, otherwise returns null.
    */
-  Future<Variable> set(Variable variable);
+  Future<Variable> store(Variable variable);
+
+  /**
+   * Returns true if successfully expunged the variable from the state
+   * or false if the variable did not exist or was no longer valid.
+   */
+  Future<Boolean> expunge(Variable variable);
 
   /**
    * Returns an iterator of variable names in the state.

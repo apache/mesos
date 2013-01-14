@@ -14,8 +14,7 @@
 
 #include "messages/state.hpp"
 
-#include "state/serializer.hpp"
-#include "state/state.hpp"
+#include "state/storage.hpp"
 
 // Forward declarations.
 namespace leveldb { class DB; }
@@ -26,46 +25,44 @@ namespace internal {
 namespace state {
 
 // More forward declarations.
-class LevelDBStateProcess;
+class LevelDBStorageProcess;
 
 
-template <typename Serializer = StringSerializer>
-class LevelDBState : public State<Serializer>
+class LevelDBStorage : public Storage
 {
 public:
-  LevelDBState(const std::string& path);
-  virtual ~LevelDBState();
+  LevelDBStorage(const std::string& path);
+  virtual ~LevelDBStorage();
 
-  // State implementation.
+  // Storage implementation.
+  virtual process::Future<Option<Entry> > get(const std::string& name);
+  virtual process::Future<bool> set(const Entry& entry, const UUID& uuid);
+  virtual process::Future<bool> expunge(const Entry& entry);
   virtual process::Future<std::vector<std::string> > names();
 
-protected:
-  // More State implementation.
-  virtual process::Future<Option<Entry> > fetch(const std::string& name);
-  virtual process::Future<bool> swap(const Entry& entry, const UUID& uuid);
-
 private:
-  LevelDBStateProcess* process;
+  LevelDBStorageProcess* process;
 };
 
 
-class LevelDBStateProcess : public process::Process<LevelDBStateProcess>
+class LevelDBStorageProcess : public process::Process<LevelDBStorageProcess>
 {
 public:
-  LevelDBStateProcess(const std::string& path);
-  virtual ~LevelDBStateProcess();
+  LevelDBStorageProcess(const std::string& path);
+  virtual ~LevelDBStorageProcess();
 
   virtual void initialize();
 
-  // State implementation.
+  // Storage implementation.
+  process::Future<Option<Entry> > get(const std::string& name);
+  process::Future<bool> set(const Entry& entry, const UUID& uuid);
+  process::Future<bool> expunge(const Entry& entry);
   process::Future<std::vector<std::string> > names();
-  process::Future<Option<Entry> > fetch(const std::string& name);
-  process::Future<bool> swap(const Entry& entry, const UUID& uuid);
 
 private:
   // Helpers for interacting with leveldb.
-  Try<Option<Entry> > get(const std::string& name);
-  Try<bool> put(const Entry& entry);
+  Try<Option<Entry> > read(const std::string& name);
+  Try<bool> write(const Entry& entry);
 
   const std::string path;
   leveldb::DB* db;
@@ -74,16 +71,14 @@ private:
 };
 
 
-template <typename Serializer>
-LevelDBState<Serializer>::LevelDBState(const std::string& path)
+inline LevelDBStorage::LevelDBStorage(const std::string& path)
 {
-  process = new LevelDBStateProcess(path);
+  process = new LevelDBStorageProcess(path);
   process::spawn(process);
 }
 
 
-template <typename Serializer>
-LevelDBState<Serializer>::~LevelDBState()
+inline LevelDBStorage::~LevelDBStorage()
 {
   process::terminate(process);
   process::wait(process);
@@ -91,27 +86,31 @@ LevelDBState<Serializer>::~LevelDBState()
 }
 
 
-template <typename Serializer>
-process::Future<std::vector<std::string> > LevelDBState<Serializer>::names()
-{
-  return process::dispatch(process, &LevelDBStateProcess::names);
-}
-
-
-template <typename Serializer>
-process::Future<Option<Entry> > LevelDBState<Serializer>::fetch(
+inline process::Future<Option<Entry> > LevelDBStorage::get(
     const std::string& name)
 {
-  return process::dispatch(process, &LevelDBStateProcess::fetch, name);
+  return process::dispatch(process, &LevelDBStorageProcess::get, name);
 }
 
 
-template <typename Serializer>
-process::Future<bool> LevelDBState<Serializer>::swap(
+inline process::Future<bool> LevelDBStorage::set(
     const Entry& entry,
     const UUID& uuid)
 {
-  return process::dispatch(process, &LevelDBStateProcess::swap, entry, uuid);
+  return process::dispatch(process, &LevelDBStorageProcess::set, entry, uuid);
+}
+
+
+inline process::Future<bool> LevelDBStorage::expunge(
+    const Entry& entry)
+{
+  return process::dispatch(process, &LevelDBStorageProcess::expunge, entry);
+}
+
+
+inline process::Future<std::vector<std::string> > LevelDBStorage::names()
+{
+  return process::dispatch(process, &LevelDBStorageProcess::names);
 }
 
 } // namespace state {

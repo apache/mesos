@@ -24,16 +24,15 @@
 
 #include <process/future.hpp>
 
+#include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
-#include "logging/logging.hpp"
-
 #include "messages/state.hpp"
 
-#include "state/serializer.hpp"
+#include "state/storage.hpp"
 
 namespace mesos {
 namespace internal {
@@ -46,186 +45,152 @@ namespace state {
 // fetched. Varying implementations of state provide varying
 // replicated guarantees.
 //
-// Note that the semantics of 'get' and 'set' provide atomicity. That
-// is, you can not set a variable that has changed since you did the
-// last get. That is, if a set succeeds then no other writes have been
-// performed on the variable since your get.
-
+// Note that the semantics of 'fetch' and 'store' provide
+// atomicity. That is, you can not store a variable that has changed
+// since you did the last fetch. That is, if a store succeeds then no
+// other writes have been performed on the variable since your fetch.
+//
 // Example:
-
-//   State<ProtobufSerializer>* state = new ZooKeeperState<ProtobufSerializer>();
-//   Future<Variable<Slaves> > variable = state->get<Slaves>("slaves");
-//   Variable<Slaves> slaves = variable.get();
-//   slaves->add_infos()->MergeFrom(info);
-//   Future<bool> set = state->set(&slaves);
+//
+//   Storage* storage = new ZooKeeperStorage();
+//   State* state = new State(storage);
+//   Future<Variable> variable = state->fetch("slaves");
+//   std::string value = update(variable.value());
+//   variable = variable.mutate(value);
+//   state->store(variable);
 
 // Forward declarations.
-template <typename Serializer>
 class State;
-class ZooKeeperStateProcess;
 
 
-template <typename T>
+// Wrapper around a state "entry" to force immutability.
 class Variable
 {
 public:
-  T* operator -> ()
+  std::string value() const
   {
-    return &t;
+    return entry.value();
+  }
+
+  Variable mutate(const std::string& value) const
+  {
+    Variable variable(*this);
+    variable.entry.set_value(value);
+    return variable;
   }
 
 private:
-  template <typename Serializer>
   friend class State; // Creates and manages variables.
 
-  Variable(const Entry& _entry, const T& _t)
-    : entry(_entry), t(_t)
+  Variable(const Entry& _entry)
+    : entry(_entry)
   {}
 
-  Entry entry; // Not const so Variable is copyable.
-  T t;
+  Entry entry; // Not const to keep Variable assignable.
 };
 
 
-template <typename Serializer = StringSerializer>
 class State
 {
 public:
-  State() {}
+  State(Storage* _storage) : storage(_storage) {}
   virtual ~State() {}
 
   // Returns a variable from the state, creating a new one if one
   // previously did not exist (or an error if one occurs).
-  template <typename T>
-  process::Future<Variable<T> > get(const std::string& name);
+  process::Future<Variable> fetch(const std::string& name);
 
-  // Returns true if the variable was successfully set in the state,
-  // otherwise false if the version of the variable was no longer
-  // valid (or an error if one occurs).
-  template <typename T>
-  process::Future<Option<Variable<T> > > set(const Variable<T>& variable);
+  // Returns the variable specified if it was successfully stored in
+  // the state, otherwise returns none if the version of the variable
+  // was no longer valid, or an error if one occurs.
+  process::Future<Option<Variable> > store(const Variable& variable);
+
+  // Returns true if successfully expunged the variable from the state.
+  process::Future<bool> expunge(const Variable& variable);
 
   // Returns the collection of variable names in the state.
-  virtual process::Future<std::vector<std::string> > names() = 0;
-
-protected:
-  // Fetch and swap state entries, factored out to allow State
-  // implementations to be agnostic of Variable which is templated.
-  virtual process::Future<Option<Entry> > fetch(const std::string& name) = 0;
-  virtual process::Future<bool> swap(const Entry& entry, const UUID& uuid) = 0;
+  process::Future<std::vector<std::string> > names();
 
 private:
   // Helpers to handle future results from fetch and swap. We make
   // these static members of State for friend access to Variable's
   // constructor.
-  template <typename T>
-  static process::Future<Variable<T> > _get(
+  static process::Future<Variable> _fetch(
       const std::string& name,
       const Option<Entry>& option);
 
-  template <typename T>
-  static process::Future<Option<Variable<T> > > _set(
+  static process::Future<Option<Variable> > _store(
       const Entry& entry,
-      const T& t,
       const bool& b); // TODO(benh): Remove 'const &' after fixing libprocess.
+
+  Storage* storage;
 };
 
 
-template <typename Serializer>
-template <typename T>
-process::Future<Variable<T> > State<Serializer>::_get(
+inline process::Future<Variable> State::fetch(const std::string& name)
+{
+  return storage->get(name)
+    .then(lambda::bind(&State::_fetch, name, lambda::_1));
+}
+
+
+inline process::Future<Variable> State::_fetch(
     const std::string& name,
     const Option<Entry>& option)
 {
   if (option.isSome()) {
-    const Entry& entry = option.get();
-
-    Try<T> t = Serializer::template deserialize<T>(entry.value());
-
-    if (t.isError()) {
-      return process::Future<Variable<T> >::failed(t.error());
-    }
-
-    return Variable<T>(entry, t.get());
+    return Variable(option.get());
   }
 
-  // Otherwise, construct a Variable out of a new Entry with a default
-  // value for T (and a random UUID to start).
-  T t;
-
-  Try<std::string> value = Serializer::template serialize<T>(t);
-
-  if (value.isError()) {
-    return process::Future<Variable<T> >::failed(value.error());
-  }
-
+  // Otherwise, construct a Variable with a new Entry (with a random
+  // UUID and no value to start).
   Entry entry;
   entry.set_name(name);
   entry.set_uuid(UUID::random().toBytes());
-  entry.set_value(value.get());
 
-  return Variable<T>(entry, t);
+  return Variable(entry);
 }
 
 
-template <typename Serializer>
-template <typename T>
-process::Future<Option<Variable<T> > > State<Serializer>::_set(
+inline process::Future<Option<Variable> > State::store(const Variable& variable)
+{
+  // Note that we try and swap an entry even if the value didn't change!
+  UUID uuid = UUID::fromBytes(variable.entry.uuid());
+
+  // Create a new entry to replace the existing entry provided the
+  // UUID matches.
+  Entry entry;
+  entry.set_name(variable.entry.name());
+  entry.set_uuid(UUID::random().toBytes());
+  entry.set_value(variable.entry.value());
+
+  return storage->set(entry, uuid)
+    .then(lambda::bind(&State::_store, entry, lambda::_1));
+}
+
+
+inline process::Future<Option<Variable > > State::_store(
     const Entry& entry,
-    const T& t,
     const bool& b) // TODO(benh): Remove 'const &' after fixing libprocess.
 {
   if (b) {
-    return Option<Variable<T> >::some(Variable<T>(entry, t));
+    return Option<Variable>::some(Variable(entry));
   }
 
   return None();
 }
 
 
-template <typename Serializer>
-template <typename T>
-process::Future<Variable<T> > State<Serializer>::get(const std::string& name)
+inline process::Future<bool> State::expunge(const Variable& variable)
 {
-  return fetch(name)
-    .then(std::tr1::bind(&State<Serializer>::template _get<T>,
-                         name,
-                         std::tr1::placeholders::_1));
+  return storage->expunge(variable.entry);
 }
 
 
-template <typename Serializer>
-template <typename T>
-process::Future<Option<Variable<T> > > State<Serializer>::set(
-      const Variable<T>& variable)
+inline process::Future<std::vector<std::string> > State::names()
 {
-  Try<std::string> value = Serializer::template serialize<T>(variable.t);
-
-  if (value.isError()) {
-    return process::Future<Option<Variable<T> > >::failed(value.error());
-  }
-
-  // Note that we try and swap an entry even if the value didn't change!
-  UUID uuid = UUID::fromBytes(variable.entry.uuid());
-
-  // Create a new entry that should be replace the existing entry
-  // provided the UUID matches.
-  Entry entry;
-  entry.set_name(variable.entry.name());
-  entry.set_uuid(UUID::random().toBytes());
-  entry.set_value(value.get());
-
-  std::tr1::function<
-  process::Future<Option<Variable<T> > >(const bool&)> _set =
-    std::tr1::bind(&State<Serializer>::template _set<T>,
-                   entry,
-                   variable.t,
-                   std::tr1::placeholders::_1);
-
-  return swap(entry, uuid).then(_set);
+  return storage->names();
 }
-
-
 
 } // namespace state {
 } // namespace internal {

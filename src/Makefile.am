@@ -129,6 +129,10 @@ STATE_PROTOS = messages/state.pb.cc messages/state.pb.h
 BUILT_SOURCES += $(STATE_PROTOS)
 CLEANFILES += $(STATE_PROTOS)
 
+REGISTRY_PROTOS = master/registry.pb.cc master/registry.pb.h
+
+BUILT_SOURCES += $(REGISTRY_PROTOS)
+CLEANFILES += $(REGISTRY_PROTOS)
 
 # Targets for generating protocol buffer code.
 %.pb.cc %.pb.h: $(top_srcdir)/include/mesos/%.proto
@@ -153,7 +157,10 @@ $(PYTHON_PROTOS): $(MESOS_PROTO)
 # libraries themselves.
 noinst_LTLIBRARIES += libmesos_no_third_party.la
 
-nodist_libmesos_no_third_party_la_SOURCES = $(CXX_PROTOS) $(MESSAGES_PROTOS)
+nodist_libmesos_no_third_party_la_SOURCES = 	\
+  $(CXX_PROTOS) 				\
+  $(MESSAGES_PROTOS) 				\
+  $(REGISTRY_PROTOS)
 
 libmesos_no_third_party_la_SOURCES =					\
 	sched/sched.cpp							\
@@ -162,6 +169,8 @@ libmesos_no_third_party_la_SOURCES =					\
 	master/drf_sorter.cpp						\
 	master/http.cpp							\
 	master/master.cpp						\
+	master/registry.hpp						\
+	master/registry.proto                                           \
 	slave/constants.cpp						\
 	slave/gc.cpp							\
 	slave/monitor.cpp						\
@@ -278,8 +287,13 @@ libmesos_no_third_party_la_LIBADD += liblog.la
 # include the leveldb headers.
 noinst_LTLIBRARIES += libstate.la
 libstate_la_SOURCES = state/leveldb.cpp state/zookeeper.cpp
-libstate_la_SOURCES += state/leveldb.hpp state/serializer.hpp	\
-  state/state.hpp state/zookeeper.hpp messages/state.hpp	\
+libstate_la_SOURCES += 			\
+  state/leveldb.hpp			\
+  state/protobuf.hpp			\
+  state/state.hpp 			\
+  state/storage.hpp 			\
+  state/zookeeper.hpp 			\
+  messages/state.hpp			\
   messages/state.proto
 nodist_libstate_la_SOURCES = $(STATE_PROTOS)
 libstate_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)

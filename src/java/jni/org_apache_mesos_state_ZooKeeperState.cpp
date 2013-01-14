@@ -48,10 +48,15 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
 
   string znode = construct<string>(env, jznode);
 
-   // Create the C++ State and initialize the __state variable.
-  State<>* state = new ZooKeeperState<>(servers, timeout, znode);
+   // Create the C++ Storage and State instances and initialize the
+   // __storage and __state variables.
+  Storage* storage = new ZooKeeperStorage(servers, timeout, znode);
+  State* state = new State(storage);
 
   clazz = env->GetObjectClass(thiz);
+
+  jfieldID __storage = env->GetFieldID(clazz, "__storage", "J");
+  env->SetLongField(thiz, __storage, (jlong) storage);
 
   jfieldID __state = env->GetFieldID(clazz, "__state", "J");
   env->SetLongField(thiz, __state, (jlong) state);
@@ -87,7 +92,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
   string znode = construct<string>(env, jznode);
 
   // Create the C++ State.
-  State<>* state = NULL;
+  Storage* storage = NULL;
   if (jscheme != NULL && jcredentials != NULL) {
     string scheme = construct<string>(env, jscheme);
 
@@ -100,15 +105,20 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
 
     zookeeper::Authentication authentication(scheme, credentials);
 
-    state = new ZooKeeperState<>(servers, timeout, znode, authentication);
+    storage = new ZooKeeperStorage(servers, timeout, znode, authentication);
   } else {
-    state = new ZooKeeperState<>(servers, timeout, znode);
+    storage = new ZooKeeperStorage(servers, timeout, znode);
   }
 
-  CHECK(state != NULL);
+  CHECK(storage != NULL);
 
-  // Initialize the __state variable.
+  State* state = new State(storage);
+
+  // Initialize the __storage and __state variables.
   clazz = env->GetObjectClass(thiz);
+
+  jfieldID __storage = env->GetFieldID(clazz, "__storage", "J");
+  env->SetLongField(thiz, __storage, (jlong) storage);
 
   jfieldID __state = env->GetFieldID(clazz, "__state", "J");
   env->SetLongField(thiz, __state, (jlong) state);
@@ -127,18 +137,24 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_finalize
 
   jfieldID __state = env->GetFieldID(clazz, "__state", "J");
 
-  State<>* state = (State<>*) env->GetLongField(thiz, __state);
+  State* state = (State*) env->GetLongField(thiz, __state);
 
   delete state;
+
+  jfieldID __storage = env->GetFieldID(clazz, "__storage", "J");
+
+  Storage* storage = (Storage*) env->GetLongField(thiz, __storage);
+
+  delete storage;
 }
 
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __get
+ * Method:    __fetch
  * Signature: (Ljava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get
+JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1fetch
   (JNIEnv* env, jobject thiz, jstring jname)
 {
   string name = construct<string>(env, jname);
@@ -147,10 +163,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get
 
   jfieldID __state = env->GetFieldID(clazz, "__state", "J");
 
-  State<>* state = (State<>*) env->GetLongField(thiz, __state);
+  State* state = (State*) env->GetLongField(thiz, __state);
 
-  Future<Variable<string> >* future =
-    new Future<Variable<string> >(state->get<string>(name));
+  Future<Variable>* future = new Future<Variable>(state->fetch(name));
 
   return (jlong) future;
 }
@@ -158,13 +173,13 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __get_cancel
+ * Method:    __fetch_cancel
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1cancel
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1fetch_1cancel
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+  Future<Variable>* future = (Future<Variable>*) jfuture;
 
   if (!future->isDiscarded()) {
     future->discard();
@@ -177,13 +192,13 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1c
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __get_is_cancelled
+ * Method:    __fetch_is_cancelled
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1is_1cancelled
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1fetch_1is_1cancelled
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+  Future<Variable>* future = (Future<Variable>*) jfuture;
 
   return (jboolean) future->isDiscarded();
 }
@@ -191,13 +206,13 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1i
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __get_is_done
+ * Method:    __fetch_is_done
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1is_1done
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1fetch_1is_1done
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+  Future<Variable>* future = (Future<Variable>*) jfuture;
 
   return (jboolean) !future->isPending();
 }
@@ -205,13 +220,13 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1i
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __get_get
+ * Method:    __fetch_get
  * Signature: (J)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1get
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1fetch_1get
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+  Future<Variable>* future = (Future<Variable>*) jfuture;
 
   future->await();
 
@@ -227,7 +242,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1ge
 
   CHECK(future->isReady());
 
-  Variable<string>* variable = new Variable<string>(future->get());
+  Variable* variable = new Variable(future->get());
 
   // Variable variable = new Variable();
   jclass clazz = env->FindClass("org/apache/mesos/state/Variable");
@@ -244,13 +259,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1ge
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __get_get_timeout
+ * Method:    __fetch_get_timeout
  * Signature: (JJLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1get_1timeout
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1fetch_1get_1timeout
   (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
 {
-  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+  Future<Variable>* future = (Future<Variable>*) jfuture;
 
   jclass clazz = env->GetObjectClass(junit);
 
@@ -273,7 +288,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1ge
     }
 
     CHECK(future->isReady());
-    Variable<string>* variable = new Variable<string>(future->get());
+    Variable* variable = new Variable(future->get());
 
     // Variable variable = new Variable();
     clazz = env->FindClass("org/apache/mesos/state/Variable");
@@ -296,13 +311,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1ge
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __get_finalize
+ * Method:    __fetch_finalize
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1finalize
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1fetch_1finalize
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Variable<string> >* future = (Future<Variable<string> >*) jfuture;
+  Future<Variable>* future = (Future<Variable>*) jfuture;
 
   delete future;
 }
@@ -310,27 +325,26 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1get_1final
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __set
+ * Method:    __store
  * Signature: (Lorg/apache/mesos/state/Variable;)J
  */
-JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set
+JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1store
   (JNIEnv* env, jobject thiz, jobject jvariable)
 {
   jclass clazz = env->GetObjectClass(jvariable);
 
   jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
 
-  Variable<string>* variable = (Variable<string>*)
-    env->GetLongField(jvariable, __variable);
+  Variable* variable = (Variable*) env->GetLongField(jvariable, __variable);
 
   clazz = env->GetObjectClass(thiz);
 
   jfieldID __state = env->GetFieldID(clazz, "__state", "J");
 
-  State<>* state = (State<>*) env->GetLongField(thiz, __state);
+  State* state = (State*) env->GetLongField(thiz, __state);
 
-  Future<Option<Variable<string> > >* future =
-    new Future<Option<Variable<string> > >(state->set(*variable));
+  Future<Option<Variable> >* future =
+    new Future<Option<Variable> >(state->store(*variable));
 
   return (jlong) future;
 }
@@ -338,14 +352,13 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __set_cancel
+ * Method:    __store_cancel
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1cancel
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1store_1cancel
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Option<Variable<string> > >* future =
-    (Future<Option<Variable<string> > >*) jfuture;
+  Future<Option<Variable> >* future = (Future<Option<Variable> >*) jfuture;
 
   if (!future->isDiscarded()) {
     future->discard();
@@ -358,14 +371,13 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1c
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __set_is_cancelled
+ * Method:    __store_is_cancelled
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1is_1cancelled
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1store_1is_1cancelled
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Option<Variable<string> > >* future =
-    (Future<Option<Variable<string> > >*) jfuture;
+  Future<Option<Variable> >* future = (Future<Option<Variable> >*) jfuture;
 
   return (jboolean) future->isDiscarded();
 }
@@ -373,14 +385,13 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1i
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __set_is_done
+ * Method:    __store_is_done
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1is_1done
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1store_1is_1done
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Option<Variable<string> > >* future =
-    (Future<Option<Variable<string> > >*) jfuture;
+  Future<Option<Variable> >* future = (Future<Option<Variable> >*) jfuture;
 
   return (jboolean) !future->isPending();
 }
@@ -388,14 +399,13 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1i
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __set_get
+ * Method:    __store_get
  * Signature: (J)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1get
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1store_1get
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Option<Variable<string> > >* future =
-    (Future<Option<Variable<string> > >*) jfuture;
+  Future<Option<Variable> >* future = (Future<Option<Variable> >*) jfuture;
 
   future->await();
 
@@ -412,7 +422,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
   CHECK(future->isReady());
 
   if (future->get().isSome()) {
-    Variable<string>* variable = new Variable<string>(future->get().get());
+    Variable* variable = new Variable(future->get().get());
 
     // Variable variable = new Variable();
     jclass clazz = env->FindClass("org/apache/mesos/state/Variable");
@@ -432,14 +442,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __set_get_timeout
+ * Method:    __store_get_timeout
  * Signature: (JJLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1get_1timeout
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1store_1get_1timeout
   (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
 {
-  Future<Option<Variable<string> > >* future =
-    (Future<Option<Variable<string> > >*) jfuture;
+  Future<Option<Variable> >* future = (Future<Option<Variable> >*) jfuture;
 
   jclass clazz = env->GetObjectClass(junit);
 
@@ -464,7 +473,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
     CHECK(future->isReady());
 
     if (future->get().isSome()) {
-      Variable<string>* variable = new Variable<string>(future->get().get());
+      Variable* variable = new Variable(future->get().get());
 
       // Variable variable = new Variable();
       clazz = env->FindClass("org/apache/mesos/state/Variable");
@@ -490,14 +499,186 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1ge
 
 /*
  * Class:     org_apache_mesos_state_ZooKeeperState
- * Method:    __set_finalize
+ * Method:    __store_finalize
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1set_1finalize
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1store_1finalize
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Option<Variable<string> > >* future =
-    (Future<Option<Variable<string> > >*) jfuture;
+  Future<Option<Variable> >* future = (Future<Option<Variable> >*) jfuture;
+
+  delete future;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __expunge
+ * Signature: (Lorg/apache/mesos/state/Variable;)J
+ */
+JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1expunge
+  (JNIEnv* env, jobject thiz, jobject jvariable)
+{
+  jclass clazz = env->GetObjectClass(jvariable);
+
+  jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
+
+  Variable* variable = (Variable*) env->GetLongField(jvariable, __variable);
+
+  clazz = env->GetObjectClass(thiz);
+
+  jfieldID __state = env->GetFieldID(clazz, "__state", "J");
+
+  State* state = (State*) env->GetLongField(thiz, __state);
+
+  Future<bool>* future = new Future<bool>(state->expunge(*variable));
+
+  return (jlong) future;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __expunge_cancel
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1expunge_1cancel
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<bool>* future = (Future<bool>*) jfuture;
+
+  if (!future->isDiscarded()) {
+    future->discard();
+    return (jboolean) future->isDiscarded();
+  }
+
+  return (jboolean) true;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __expunge_is_cancelled
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1expunge_1is_1cancelled
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<bool>* future = (Future<bool>*) jfuture;
+
+  return (jboolean) future->isDiscarded();
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __expunge_is_done
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1expunge_1is_1done
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<bool>* future = (Future<bool>*) jfuture;
+
+  return (jboolean) !future->isPending();
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __expunge_get
+ * Signature: (J)Ljava/lang/Boolean;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1expunge_1get
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<bool>* future = (Future<bool>*) jfuture;
+
+  future->await();
+
+  if (future->isFailed()) {
+    jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
+    env->ThrowNew(clazz, future->failure().c_str());
+    return NULL;
+  } else if (future->isDiscarded()) {
+    jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
+    env->ThrowNew(clazz, "Future was discarded");
+    return NULL;
+  }
+
+  CHECK(future->isReady());
+
+  if (future->get()) {
+    jclass clazz = env->FindClass("java/lang/Boolean");
+    jfieldID TRUE = env->GetStaticFieldID(clazz, "TRUE", "Ljava/lang/Boolean;");
+    return env->GetStaticObjectField(clazz, TRUE);
+  }
+
+  jclass clazz = env->FindClass("java/lang/Boolean");
+  jfieldID FALSE = env->GetStaticFieldID(clazz, "FALSE", "Ljava/lang/Boolean;");
+  return env->GetStaticObjectField(clazz, FALSE);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __expunge_get_timeout
+ * Signature: (JJLjava/util/concurrent/TimeUnit;)Ljava/lang/Boolean;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1expunge_1get_1timeout
+  (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
+{
+  Future<bool>* future = (Future<bool>*) jfuture;
+
+  jclass clazz = env->GetObjectClass(junit);
+
+  // long seconds = unit.toSeconds(time);
+  jmethodID toSeconds = env->GetMethodID(clazz, "toSeconds", "(J)J");
+
+  jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
+
+  Seconds seconds(jseconds);
+
+  if (future->await(seconds)) {
+    if (future->isFailed()) {
+      clazz = env->FindClass("java/util/concurrent/ExecutionException");
+      env->ThrowNew(clazz, future->failure().c_str());
+      return NULL;
+    } else if (future->isDiscarded()) {
+      clazz = env->FindClass("java/util/concurrent/CancellationException");
+      env->ThrowNew(clazz, "Future was discarded");
+      return NULL;
+    }
+
+    CHECK(future->isReady());
+
+    if (future->get()) {
+      jclass clazz = env->FindClass("java/lang/Boolean");
+      jfieldID TRUE = env->GetStaticFieldID(clazz, "TRUE", "Ljava/lang/Boolean;");
+      return env->GetStaticObjectField(clazz, TRUE);
+    }
+
+    jclass clazz = env->FindClass("java/lang/Boolean");
+    jfieldID FALSE = env->GetStaticFieldID(clazz, "FALSE", "Ljava/lang/Boolean;");
+    return env->GetStaticObjectField(clazz, FALSE);
+  }
+
+  clazz = env->FindClass("java/util/concurrent/TimeoutException");
+  env->ThrowNew(clazz, "Failed to wait for future within timeout");
+
+  return NULL;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_ZooKeeperState
+ * Method:    __expunge_finalize
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1expunge_1finalize
+  (JNIEnv* env, jobject thiz, jlong jfuture)
+{
+  Future<bool>* future = (Future<bool>*) jfuture;
 
   delete future;
 }
@@ -515,9 +696,10 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1names
 
   jfieldID __state = env->GetFieldID(clazz, "__state", "J");
 
-  State<>* state = (State<>*) env->GetLongField(thiz, __state);
+  State* state = (State*) env->GetLongField(thiz, __state);
 
-  Future<vector<string> >* future = new Future<vector<string> >(state->names());
+  Future<vector<string> >* future =
+    new Future<vector<string> >(state->names());
 
   return (jlong) future;
 }

@@ -17,8 +17,7 @@
 
 #include "messages/state.hpp"
 
-#include "state/serializer.hpp"
-#include "state/state.hpp"
+#include "state/storage.hpp"
 
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/watcher.hpp"
@@ -29,51 +28,49 @@ namespace internal {
 namespace state {
 
 // Forward declarations.
-class ZooKeeperStateProcess;
+class ZooKeeperStorageProcess;
 
 
-template <typename Serializer = StringSerializer>
-class ZooKeeperState : public State<Serializer>
+class ZooKeeperStorage : public Storage
 {
 public:
   // TODO(benh): Just take a zookeeper::URL.
-  ZooKeeperState(
+  ZooKeeperStorage(
       const std::string& servers,
       const Duration& timeout,
       const std::string& znode,
       const Option<zookeeper::Authentication>& auth =
       Option<zookeeper::Authentication>());
-  virtual ~ZooKeeperState();
+  virtual ~ZooKeeperStorage();
 
-  // State implementation.
+  // Storage implementation.
+  virtual process::Future<Option<Entry> > get(const std::string& name);
+  virtual process::Future<bool> set(const Entry& entry, const UUID& uuid);
+  virtual process::Future<bool> expunge(const Entry& entry);
   virtual process::Future<std::vector<std::string> > names();
 
-protected:
-  // More State implementation.
-  virtual process::Future<Option<Entry> > fetch(const std::string& name);
-  virtual process::Future<bool> swap(const Entry& entry, const UUID& uuid);
-
 private:
-  ZooKeeperStateProcess* process;
+  ZooKeeperStorageProcess* process;
 };
 
 
-class ZooKeeperStateProcess : public process::Process<ZooKeeperStateProcess>
+class ZooKeeperStorageProcess : public process::Process<ZooKeeperStorageProcess>
 {
 public:
-  ZooKeeperStateProcess(
+  ZooKeeperStorageProcess(
       const std::string& servers,
       const Duration& timeout,
       const std::string& znode,
       const Option<zookeeper::Authentication>& auth);
-  virtual ~ZooKeeperStateProcess();
+  virtual ~ZooKeeperStorageProcess();
 
   virtual void initialize();
 
-  // State implementation.
+  // Storage implementation.
+  process::Future<Option<Entry> > get(const std::string& name);
+  process::Future<bool> set(const Entry& entry, const UUID& uuid);
+  virtual process::Future<bool> expunge(const Entry& entry);
   process::Future<std::vector<std::string> > names();
-  process::Future<Option<Entry> > fetch(const std::string& name);
-  process::Future<bool> swap(const Entry& entry, const UUID& uuid);
 
   // ZooKeeper events.
   void connected(bool reconnect);
@@ -86,8 +83,9 @@ public:
 private:
   // Helpers for getting the names, fetching, and swapping.
   Result<std::vector<std::string> > doNames();
-  Result<Option<Entry> > doFetch(const std::string& name);
-  Result<bool> doSwap(const Entry& entry, const UUID& uuid);
+  Result<Option<Entry> > doGet(const std::string& name);
+  Result<bool> doSet(const Entry& entry, const UUID& uuid);
+  Result<bool> doExpunge(const Entry& entry);
 
   const std::string servers;
   const Duration timeout;
@@ -111,20 +109,28 @@ private:
     process::Promise<std::vector<std::string> > promise;
   };
 
-  struct Fetch
+  struct Get
   {
-    Fetch(const std::string& _name)
+    Get(const std::string& _name)
       : name(_name) {}
     std::string name;
     process::Promise<Option<Entry> > promise;
   };
 
-  struct Swap
+  struct Set
   {
-    Swap(const Entry& _entry, const UUID& _uuid)
+    Set(const Entry& _entry, const UUID& _uuid)
       : entry(_entry), uuid(_uuid) {}
     Entry entry;
     UUID uuid;
+    process::Promise<bool> promise;
+  };
+
+  struct Expunge
+  {
+    Expunge(const Entry& _entry)
+      : entry(_entry) {}
+    Entry entry;
     process::Promise<bool> promise;
   };
 
@@ -132,28 +138,27 @@ private:
   // be "invoked" (C++11 lambdas would help).
   struct {
     std::queue<Names*> names;
-    std::queue<Fetch*> fetches;
-    std::queue<Swap*> swaps;
+    std::queue<Get*> gets;
+    std::queue<Set*> sets;
+    std::queue<Expunge*> expunges;
   } pending;
 
   Option<std::string> error;
 };
 
 
-template <typename Serializer>
-ZooKeeperState<Serializer>::ZooKeeperState(
+inline ZooKeeperStorage::ZooKeeperStorage(
     const std::string& servers,
     const Duration& timeout,
     const std::string& znode,
     const Option<zookeeper::Authentication>& auth)
 {
-  process = new ZooKeeperStateProcess(servers, timeout, znode, auth);
+  process = new ZooKeeperStorageProcess(servers, timeout, znode, auth);
   process::spawn(process);
 }
 
 
-template <typename Serializer>
-ZooKeeperState<Serializer>::~ZooKeeperState()
+inline ZooKeeperStorage::~ZooKeeperStorage()
 {
   process::terminate(process);
   process::wait(process);
@@ -161,27 +166,31 @@ ZooKeeperState<Serializer>::~ZooKeeperState()
 }
 
 
-template <typename Serializer>
-process::Future<std::vector<std::string> > ZooKeeperState<Serializer>::names()
-{
-  return process::dispatch(process, &ZooKeeperStateProcess::names);
-}
-
-
-template <typename Serializer>
-process::Future<Option<Entry> > ZooKeeperState<Serializer>::fetch(
+inline process::Future<Option<Entry> > ZooKeeperStorage::get(
     const std::string& name)
 {
-  return process::dispatch(process, &ZooKeeperStateProcess::fetch, name);
+  return process::dispatch(process, &ZooKeeperStorageProcess::get, name);
 }
 
 
-template <typename Serializer>
-process::Future<bool> ZooKeeperState<Serializer>::swap(
+inline process::Future<bool> ZooKeeperStorage::set(
     const Entry& entry,
     const UUID& uuid)
 {
-  return process::dispatch(process, &ZooKeeperStateProcess::swap, entry, uuid);
+  return process::dispatch(process, &ZooKeeperStorageProcess::set, entry, uuid);
+}
+
+
+inline process::Future<bool> ZooKeeperStorage::expunge(
+    const Entry& entry)
+{
+  return process::dispatch(process, &ZooKeeperStorageProcess::expunge, entry);
+}
+
+
+inline process::Future<std::vector<std::string> > ZooKeeperStorage::names()
+{
+  return process::dispatch(process, &ZooKeeperStorageProcess::names);
 }
 
 } // namespace state {

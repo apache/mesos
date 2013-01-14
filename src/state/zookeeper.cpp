@@ -1,5 +1,7 @@
 #include <google/protobuf/message.h>
 
+#include <google/protobuf/io/zero_copy_stream_impl.h> // For ArrayInputStream.
+
 #include <queue>
 #include <string>
 #include <vector>
@@ -21,7 +23,7 @@
 
 #include "messages/state.hpp"
 
-#include "state/state.hpp"
+#include "state/storage.hpp"
 #include "state/zookeeper.hpp"
 
 #include "zookeeper/authentication.hpp"
@@ -53,7 +55,7 @@ void fail(queue<T*>* queue, const string& message)
 }
 
 
-ZooKeeperStateProcess::ZooKeeperStateProcess(
+ZooKeeperStorageProcess::ZooKeeperStorageProcess(
     const string& _servers,
     const Duration& _timeout,
     const string& _znode,
@@ -71,27 +73,27 @@ ZooKeeperStateProcess::ZooKeeperStateProcess(
 {}
 
 
-ZooKeeperStateProcess::~ZooKeeperStateProcess()
+ZooKeeperStorageProcess::~ZooKeeperStorageProcess()
 {
-  fail(&pending.names, "No longer managing state");
-  fail(&pending.fetches, "No longer managing state");
-  fail(&pending.swaps, "No longer managing state");
+  fail(&pending.names, "No longer managing storage");
+  fail(&pending.gets, "No longer managing storage");
+  fail(&pending.sets, "No longer managing storage");
 
   delete zk;
   delete watcher;
 }
 
 
-void ZooKeeperStateProcess::initialize()
+void ZooKeeperStorageProcess::initialize()
 {
   // Doing initialization here allows to avoid the race between
   // instantiating the ZooKeeper instance and being spawned ourself.
-  watcher = new ProcessWatcher<ZooKeeperStateProcess>(self());
+  watcher = new ProcessWatcher<ZooKeeperStorageProcess>(self());
   zk = new ZooKeeper(servers, timeout, watcher);
 }
 
 
-Future<vector<string> > ZooKeeperStateProcess::names()
+Future<vector<string> > ZooKeeperStorageProcess::names()
 {
   if (error.isSome()) {
     return Future<vector<string> >::failed(error.get());
@@ -115,22 +117,22 @@ Future<vector<string> > ZooKeeperStateProcess::names()
 }
 
 
-Future<Option<Entry> > ZooKeeperStateProcess::fetch(const string& name)
+Future<Option<Entry> > ZooKeeperStorageProcess::get(const string& name)
 {
   if (error.isSome()) {
     return Future<Option<Entry> >::failed(error.get());
   } else if (state != CONNECTED) {
-    Fetch* fetch = new Fetch(name);
-    pending.fetches.push(fetch);
-    return fetch->promise.future();
+    Get* get = new Get(name);
+    pending.gets.push(get);
+    return get->promise.future();
   }
 
-  Result<Option<Entry> > result = doFetch(name);
+  Result<Option<Entry> > result = doGet(name);
 
   if (result.isNone()) { // Try again later.
-    Fetch* fetch = new Fetch(name);
-    pending.fetches.push(fetch);
-    return fetch->promise.future();
+    Get* get = new Get(name);
+    pending.gets.push(get);
+    return get->promise.future();
   } else if (result.isError()) {
     return Future<Option<Entry> >::failed(result.error());
   }
@@ -139,22 +141,22 @@ Future<Option<Entry> > ZooKeeperStateProcess::fetch(const string& name)
 }
 
 
-Future<bool> ZooKeeperStateProcess::swap(const Entry& entry, const UUID& uuid)
+Future<bool> ZooKeeperStorageProcess::set(const Entry& entry, const UUID& uuid)
 {
   if (error.isSome()) {
     return Future<bool>::failed(error.get());
   } else if (state != CONNECTED) {
-    Swap* swap = new Swap(entry, uuid);
-    pending.swaps.push(swap);
-    return swap->promise.future();
+    Set* set = new Set(entry, uuid);
+    pending.sets.push(set);
+    return set->promise.future();
   }
 
-  Result<bool> result = doSwap(entry, uuid);
+  Result<bool> result = doSet(entry, uuid);
 
   if (result.isNone()) { // Try again later.
-    Swap* swap = new Swap(entry, uuid);
-    pending.swaps.push(swap);
-    return swap->promise.future();
+    Set* set = new Set(entry, uuid);
+    pending.sets.push(set);
+    return set->promise.future();
   } else if (result.isError()) {
     return Future<bool>::failed(result.error());
   }
@@ -163,7 +165,31 @@ Future<bool> ZooKeeperStateProcess::swap(const Entry& entry, const UUID& uuid)
 }
 
 
-void ZooKeeperStateProcess::connected(bool reconnect)
+Future<bool> ZooKeeperStorageProcess::expunge(const Entry& entry)
+{
+  if (error.isSome()) {
+    return Future<bool>::failed(error.get());
+  } else if (state != CONNECTED) {
+    Expunge* expunge = new Expunge(entry);
+    pending.expunges.push(expunge);
+    return expunge->promise.future();
+  }
+
+  Result<bool> result = doExpunge(entry);
+
+  if (result.isNone()) { // Try again later.
+    Expunge* expunge = new Expunge(entry);
+    pending.expunges.push(expunge);
+    return expunge->promise.future();
+  } else if (result.isError()) {
+    return Future<bool>::failed(result.error());
+  }
+
+  return result.get();
+}
+
+
+void ZooKeeperStorageProcess::connected(bool reconnect)
 {
   if (!reconnect) {
     // Authenticate if necessary (and we are connected for the first
@@ -196,43 +222,43 @@ void ZooKeeperStateProcess::connected(bool reconnect)
     delete names;
   }
 
-  while (!pending.fetches.empty()) {
-    Fetch* fetch = pending.fetches.front();
-    Result<Option<Entry> > result = doFetch(fetch->name);
+  while (!pending.gets.empty()) {
+    Get* get = pending.gets.front();
+    Result<Option<Entry> > result = doGet(get->name);
     if (result.isNone()) {
       return; // Try again later.
     } else if (result.isError()) {
-      fetch->promise.fail(result.error());
+      get->promise.fail(result.error());
     } else {
-      fetch->promise.set(result.get());
+      get->promise.set(result.get());
     }
-    pending.fetches.pop();
-    delete fetch;
+    pending.gets.pop();
+    delete get;
   }
 
-  while (!pending.swaps.empty()) {
-    Swap* swap = pending.swaps.front();
-    Result<bool> result = doSwap(swap->entry, swap->uuid);
+  while (!pending.sets.empty()) {
+    Set* set = pending.sets.front();
+    Result<bool> result = doSet(set->entry, set->uuid);
     if (result.isNone()) {
       return; // Try again later.
     } else if (result.isError()) {
-      swap->promise.fail(result.error());
+      set->promise.fail(result.error());
     } else {
-      swap->promise.set(result.get());
+      set->promise.set(result.get());
     }
-    pending.swaps.pop();
-    delete swap;
+    pending.sets.pop();
+    delete set;
   }
 }
 
 
-void ZooKeeperStateProcess::reconnecting()
+void ZooKeeperStorageProcess::reconnecting()
 {
   state = CONNECTING;
 }
 
 
-void ZooKeeperStateProcess::expired()
+void ZooKeeperStorageProcess::expired()
 {
   state = DISCONNECTED;
 
@@ -243,25 +269,25 @@ void ZooKeeperStateProcess::expired()
 }
 
 
-void ZooKeeperStateProcess::updated(const string& path)
+void ZooKeeperStorageProcess::updated(const string& path)
 {
   LOG(FATAL) << "Unexpected ZooKeeper event";
 }
 
 
-void ZooKeeperStateProcess::created(const string& path)
+void ZooKeeperStorageProcess::created(const string& path)
 {
   LOG(FATAL) << "Unexpected ZooKeeper event";
 }
 
 
-void ZooKeeperStateProcess::deleted(const string& path)
+void ZooKeeperStorageProcess::deleted(const string& path)
 {
   LOG(FATAL) << "Unexpected ZooKeeper event";
 }
 
 
-Result<vector<string> > ZooKeeperStateProcess::doNames()
+Result<vector<string> > ZooKeeperStorageProcess::doNames()
 {
   // Get all children to determine current memberships.
   vector<string> results;
@@ -284,7 +310,7 @@ Result<vector<string> > ZooKeeperStateProcess::doNames()
 }
 
 
-Result<Option<Entry> > ZooKeeperStateProcess::doFetch(const string& name)
+Result<Option<Entry> > ZooKeeperStorageProcess::doGet(const string& name)
 {
   CHECK(error.isNone()) << ": " << error.get();
   CHECK(state == CONNECTED);
@@ -317,7 +343,7 @@ Result<Option<Entry> > ZooKeeperStateProcess::doFetch(const string& name)
 }
 
 
-Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
+Result<bool> ZooKeeperStorageProcess::doSet(const Entry& entry, const UUID& uuid)
 {
   CHECK(error.isNone()) << ": " << error.get();
   CHECK(state == CONNECTED);
@@ -397,7 +423,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
     return false;
   }
 
-  // Okay, do a set, we get atomic swap by requiring 'stat.version'.
+  // Okay, do the set, we get atomicity by requiring 'stat.version'.
   code = zk->set(znode + "/" + entry.name(), data, stat.version);
 
   if (code == ZBADVERSION) {
@@ -408,6 +434,57 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
   } else if (code != ZOK) {
     return Error(
         "Failed to set '" + znode + "/" + entry.name() +
+        "' in ZooKeeper: " + zk->message(code));
+  }
+
+  return true;
+}
+
+
+Result<bool> ZooKeeperStorageProcess::doExpunge(const Entry& entry)
+{
+  CHECK(error.isNone()) << ": " << error.get();
+  CHECK(state == CONNECTED);
+
+  string result;
+  Stat stat;
+
+  int code = zk->get(znode + "/" + entry.name(), false, &result, &stat);
+
+  if (code == ZNONODE) {
+    return false;
+  } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
+    CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
+    return None(); // Try again later.
+  } else if (code != ZOK) {
+    return Error(
+        "Failed to get '" + znode + "/" + entry.name() +
+        "' in ZooKeeper: " + zk->message(code));
+  }
+
+  google::protobuf::io::ArrayInputStream stream(result.data(), result.size());
+
+  Entry current;
+
+  if (!current.ParseFromZeroCopyStream(&stream)) {
+    return Error("Failed to deserialize Entry");
+  }
+
+  if (UUID::fromBytes(current.uuid()) != UUID::fromBytes(entry.uuid())) {
+    return false;
+  }
+
+  // Okay, do the remove, we get atomicity by requiring 'stat.version'.
+  code = zk->remove(znode + "/" + entry.name(), stat.version);
+
+  if (code == ZBADVERSION) {
+    return false;
+  } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
+    CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
+    return None(); // Try again later.
+  } else if (code != ZOK) {
+    return Error(
+        "Failed to remove '" + znode + "/" + entry.name() +
         "' in ZooKeeper: " + zk->message(code));
   }
 

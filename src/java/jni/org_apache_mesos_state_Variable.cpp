@@ -20,13 +20,13 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_mesos_state_Variable_value
 
   jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
 
-  Variable<std::string>* variable =
-    (Variable<std::string>*) env->GetLongField(thiz, __variable);
+  Variable* variable = (Variable*) env->GetLongField(thiz, __variable);
+
+  const std::string& value = variable->value();
 
   // byte[] value = ..;
-  jbyteArray jvalue = env->NewByteArray((*variable)->size());
-  env->SetByteArrayRegion(
-      jvalue, 0, (*variable)->size(), (jbyte*) (*variable)->data());
+  jbyteArray jvalue = env->NewByteArray(value.size());
+  env->SetByteArrayRegion(jvalue, 0, value.size(), (jbyte*) value.data());
 
   return jvalue;
 }
@@ -44,15 +44,14 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_Variable_mutate
 
   jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
 
-  // Create a copy of the old variable to support the immutable Java API.
-  Variable<std::string>* variable = new Variable<std::string>(
-      *((Variable<std::string>*) env->GetLongField(thiz, __variable)));
+  Variable* variable = (Variable*) env->GetLongField(thiz, __variable);
 
   jbyte* value = env->GetByteArrayElements(jvalue, NULL);
   jsize length = env->GetArrayLength(jvalue);
 
-  // Update the value of the new copy.
-  (*variable)->assign((const char*) value, length);
+  // Mutate the variable and save a copy of the result.
+  variable =
+    new Variable(variable->mutate(std::string((const char*) value, length)));
 
   env->ReleaseByteArrayElements(jvalue, value, 0);
 
@@ -80,8 +79,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_Variable_finalize
 
   jfieldID __variable = env->GetFieldID(clazz, "__variable", "J");
 
-  Variable<std::string>* variable =
-    (Variable<std::string>*) env->GetLongField(thiz, __variable);
+  Variable* variable = (Variable*) env->GetLongField(thiz, __variable);
 
   delete variable;
 }

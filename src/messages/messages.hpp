@@ -19,6 +19,46 @@
 #ifndef __MESSAGES_HPP__
 #define __MESSAGES_HPP__
 
+#include <google/protobuf/message.h>
+
+#include <google/protobuf/io/zero_copy_stream_impl.h> // For ArrayInputStream.
+
+#include <string>
+
+#include <stout/try.hpp>
+
 #include "messages/messages.pb.h"
+
+namespace messages {
+
+template <typename T>
+Try<T> deserialize(const std::string& value)
+{
+  T t;
+  (void) static_cast<google::protobuf::Message*>(&t);
+
+  google::protobuf::io::ArrayInputStream stream(value.data(), value.size());
+  if (!t.ParseFromZeroCopyStream(&stream)) {
+    return Try<T>::error(
+        "Failed to deserialize " + t.GetDescriptor()->full_name());
+  }
+  return t;
+}
+
+
+template <typename T>
+Try<std::string> serialize(const T& t)
+{
+  (void) static_cast<const google::protobuf::Message*>(&t);
+
+  std::string value;
+  if (!t.SerializeToString(&value)) {
+    return Try<std::string>::error(
+        "Failed to serialize " + t.GetDescriptor()->full_name());
+  }
+  return value;
+}
+
+} // namespace messages {
 
 #endif // __MESSAGES_HPP__

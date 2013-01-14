@@ -32,7 +32,7 @@ import java.util.concurrent.FutureTask;
  */
 public class InMemoryState implements State {
   @Override
-  public Future<Variable> get(String name) {
+  public Future<Variable> fetch(String name) {
     Entry entry = entries.get(name); // Is null if doesn't exist.
 
     if (entry == null) {
@@ -40,17 +40,21 @@ public class InMemoryState implements State {
       entry.name = name;
       entry.uuid = UUID.randomUUID();
       entry.value = new byte[0];
-      entries.put(name, entry);
-      entry = entries.putIfAbsent(name, entry);
+
+      // We use 'putIfAbsent' because multiple threads might be
+      // attempting to fetch a "new" variable at the same time.
+      if (entries.putIfAbsent(name, entry) != null) {
+        return fetch(name);
+      }
     }
 
-    assert entry != null; // ConcurrentMap.putIfAbsent should not return null.
+    assert entry != null;
 
     return futureFrom((Variable) new InMemoryVariable(entry));
   }
 
   @Override
-  public Future<Variable> set(Variable v) {
+  public Future<Variable> store(Variable v) {
     InMemoryVariable variable = (InMemoryVariable) v;
 
     Entry entry = new Entry();
@@ -63,6 +67,13 @@ public class InMemoryState implements State {
     }
 
     return futureFrom((Variable) null);
+  }
+
+  @Override
+  public Future<Boolean> expunge(Variable v) {
+    InMemoryVariable variable = (InMemoryVariable) v;
+
+    return futureFrom(entries.remove(variable.entry.name, variable.entry));
   }
 
   @Override

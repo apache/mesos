@@ -2,6 +2,8 @@
 
 #include <google/protobuf/message.h>
 
+#include <google/protobuf/io/zero_copy_stream_impl.h> // For ArrayInputStream.
+
 #include <string>
 #include <vector>
 
@@ -20,7 +22,7 @@
 #include "messages/state.hpp"
 
 #include "state/leveldb.hpp"
-#include "state/state.hpp"
+#include "state/storage.hpp"
 
 using namespace process;
 
@@ -31,17 +33,17 @@ namespace mesos {
 namespace internal {
 namespace state {
 
-LevelDBStateProcess::LevelDBStateProcess(const string& _path)
+LevelDBStorageProcess::LevelDBStorageProcess(const string& _path)
   : path(_path), db(NULL) {}
 
 
-LevelDBStateProcess::~LevelDBStateProcess()
+LevelDBStorageProcess::~LevelDBStorageProcess()
 {
-  delete db; // Might be null if open failed in LevelDBStateProcess::initialize.
+  delete db; // NULL if open failed in LevelDBStorageProcess::initialize.
 }
 
 
-void LevelDBStateProcess::initialize()
+void LevelDBStorageProcess::initialize()
 {
   leveldb::Options options;
   options.create_if_missing = true;
@@ -58,7 +60,7 @@ void LevelDBStateProcess::initialize()
 }
 
 
-Future<vector<string> > LevelDBStateProcess::names()
+Future<vector<string> > LevelDBStorageProcess::names()
 {
   if (error.isSome()) {
     return Future<vector<string> >::failed(error.get());
@@ -81,13 +83,13 @@ Future<vector<string> > LevelDBStateProcess::names()
 }
 
 
-Future<Option<Entry> > LevelDBStateProcess::fetch(const string& name)
+Future<Option<Entry> > LevelDBStorageProcess::get(const string& name)
 {
   if (error.isSome()) {
     return Future<Option<Entry> >::failed(error.get());
   }
 
-  Try<Option<Entry> > option = get(name);
+  Try<Option<Entry> > option = read(name);
 
   if (option.isError()) {
     return Future<Option<Entry> >::failed(option.error());
@@ -97,16 +99,16 @@ Future<Option<Entry> > LevelDBStateProcess::fetch(const string& name)
 }
 
 
-Future<bool> LevelDBStateProcess::swap(const Entry& entry, const UUID& uuid)
+Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
 {
   if (error.isSome()) {
     return Future<bool>::failed(error.get());
   }
 
-  // We do a fetch first to make sure the version has not changed. This
+  // We do a read first to make sure the version has not changed. This
   // could be optimized in the future, for now it will probably hit
   // the cache anyway.
-  Try<Option<Entry> > option = get(entry.name());
+  Try<Option<Entry> > option = read(entry.name());
 
   if (option.isError()) {
     return Future<bool>::failed(option.error());
@@ -118,11 +120,11 @@ Future<bool> LevelDBStateProcess::swap(const Entry& entry, const UUID& uuid)
     }
   }
 
-  // Note that there is no need to do the DB::Get and DB::Put
-  // "atomically" because only one db can be opened at a time, so
-  // there can not be any writes that occur concurrently.
+  // Note that the read (i.e., DB::Get) and the write (i.e., DB::Put)
+  // are inherently "atomic" because only one db can be opened at a
+  // time, so there can not be any writes that occur concurrently.
 
-  Try<bool> result = put(entry);
+  Try<bool> result = write(entry);
 
   if (result.isError()) {
     return Future<bool>::failed(result.error());
@@ -132,7 +134,48 @@ Future<bool> LevelDBStateProcess::swap(const Entry& entry, const UUID& uuid)
 }
 
 
-Try<Option<Entry> > LevelDBStateProcess::get(const string& name)
+Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
+{
+  if (error.isSome()) {
+    return Future<bool>::failed(error.get());
+  }
+
+  // We do a read first to make sure the version has not changed. This
+  // could be optimized in the future, for now it will probably hit
+  // the cache anyway.
+  Try<Option<Entry> > option = read(entry.name());
+
+  if (option.isError()) {
+    return Future<bool>::failed(option.error());
+  }
+
+  if (option.get().isNone()) {
+    return false;
+  }
+
+  if (UUID::fromBytes(option.get().get().uuid()) !=
+      UUID::fromBytes(entry.uuid())) {
+    return false;
+  }
+
+  // Note that the read (i.e., DB::Get) and DB::Delete are inherently
+  // "atomic" because only one db can be opened at a time, so there
+  // can not be any writes that occur concurrently.
+
+  leveldb::WriteOptions options;
+  options.sync = true;
+
+  leveldb::Status status = db->Delete(options, entry.name());
+
+  if (!status.ok()) {
+    return Future<bool>::failed(status.ToString());
+  }
+
+  return true;
+}
+
+
+Try<Option<Entry> > LevelDBStorageProcess::read(const string& name)
 {
   CHECK(error.isNone());
 
@@ -160,7 +203,7 @@ Try<Option<Entry> > LevelDBStateProcess::get(const string& name)
 }
 
 
-Try<bool> LevelDBStateProcess::put(const Entry& entry)
+Try<bool> LevelDBStorageProcess::write(const Entry& entry)
 {
   CHECK(error.isNone());
 

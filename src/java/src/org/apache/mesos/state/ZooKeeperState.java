@@ -73,86 +73,125 @@ public class ZooKeeperState implements State {
   }
 
   @Override
-  public Future<Variable> get(final String name) {
-    final long future = __get(name); // Asynchronously start the operation.
+  public Future<Variable> fetch(final String name) {
+    final long future = __fetch(name); // Asynchronously start the operation.
     return new Future<Variable>() {
       @Override
       public boolean cancel(boolean mayInterruptIfRunning) {
         if (mayInterruptIfRunning) {
-          return __get_cancel(future);
+          return __fetch_cancel(future);
         }
         return false; // Should not interrupt and already running (or finished).
       }
 
       @Override
       public boolean isCancelled() {
-        return __get_is_cancelled(future);
+        return __fetch_is_cancelled(future);
       }
 
       @Override
       public boolean isDone() {
-        return __get_is_done(future);
+        return __fetch_is_done(future);
       }
 
       @Override
       public Variable get() throws InterruptedException, ExecutionException {
-        return __get_get(future);
+        return __fetch_get(future);
       }
 
       @Override
       public Variable get(long timeout, TimeUnit unit)
         throws InterruptedException, ExecutionException, TimeoutException {
-        return __get_get_timeout(future, timeout, unit);
+        return __fetch_get_timeout(future, timeout, unit);
       }
 
       @Override
       protected void finalize() {
-        __get_finalize(future);
+        __fetch_finalize(future);
       }
     };
   }
 
   @Override
-  public Future<Variable> set(Variable variable) {
-    final long future = __set(variable); // Asynchronously start the operation.
+  public Future<Variable> store(Variable variable) {
+    final long future = __store(variable); // Asynchronously start the operation.
     return new Future<Variable>() {
       @Override
       public boolean cancel(boolean mayInterruptIfRunning) {
         if (mayInterruptIfRunning) {
-          return __set_cancel(future);
+          return __store_cancel(future);
         }
         return false; // Should not interrupt and already running (or finished).
       }
 
       @Override
       public boolean isCancelled() {
-        return __set_is_cancelled(future);
+        return __store_is_cancelled(future);
       }
 
       @Override
       public boolean isDone() {
-        return __set_is_done(future);
+        return __store_is_done(future);
       }
 
       @Override
       public Variable get() throws InterruptedException, ExecutionException {
-        return __set_get(future);
+        return __store_get(future);
       }
 
       @Override
       public Variable get(long timeout, TimeUnit unit)
         throws InterruptedException, ExecutionException, TimeoutException {
-        return __set_get_timeout(future, timeout, unit);
+        return __store_get_timeout(future, timeout, unit);
       }
 
       @Override
       protected void finalize() {
-        __set_finalize(future);
+        __store_finalize(future);
       }
     };
   }
 
   @Override
+  public Future<Boolean> expunge(Variable variable) {
+    final long future = __expunge(variable); // Asynchronously start the operation.
+    return new Future<Boolean>() {
+      @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        if (mayInterruptIfRunning) {
+          return __expunge_cancel(future);
+        }
+        return false; // Should not interrupt and already running (or finished).
+      }
+
+      @Override
+      public boolean isCancelled() {
+        return __expunge_is_cancelled(future);
+      }
+
+      @Override
+      public boolean isDone() {
+        return __expunge_is_done(future);
+      }
+
+      @Override
+      public Boolean get() throws InterruptedException, ExecutionException {
+        return __expunge_get(future);
+      }
+
+      @Override
+      public Boolean get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+        return __expunge_get_timeout(future, timeout, unit);
+      }
+
+      @Override
+      protected void finalize() {
+        __expunge_finalize(future);
+      }
+    };
+  }
+
   public Future<Iterator<String>> names() {
     final long future = __names(); // Asynchronously start the operation.
     return new Future<Iterator<String>>() {
@@ -206,24 +245,33 @@ public class ZooKeeperState implements State {
 
   protected native void finalize();
 
-  // Native implementations of get, set, and names.
-  private native long __get(String name);
-  private native boolean __get_cancel(long future);
-  private native boolean __get_is_cancelled(long future);
-  private native boolean __get_is_done(long future);
-  private native Variable __get_get(long future);
-  private native Variable __get_get_timeout(
+  // Native implementations of 'fetch', 'store', 'expunge', and 'names'.
+  private native long __fetch(String name);
+  private native boolean __fetch_cancel(long future);
+  private native boolean __fetch_is_cancelled(long future);
+  private native boolean __fetch_is_done(long future);
+  private native Variable __fetch_get(long future);
+  private native Variable __fetch_get_timeout(
       long future, long timeout, TimeUnit unit);
-  private native void __get_finalize(long future);
+  private native void __fetch_finalize(long future);
 
-  private native long __set(Variable variable);
-  private native boolean __set_cancel(long future);
-  private native boolean __set_is_cancelled(long future);
-  private native boolean __set_is_done(long future);
-  private native Variable __set_get(long future);
-  private native Variable __set_get_timeout(
+  private native long __store(Variable variable);
+  private native boolean __store_cancel(long future);
+  private native boolean __store_is_cancelled(long future);
+  private native boolean __store_is_done(long future);
+  private native Variable __store_get(long future);
+  private native Variable __store_get_timeout(
       long future, long timeout, TimeUnit unit);
-  private native void __set_finalize(long future);
+  private native void __store_finalize(long future);
+
+  private native long __expunge(Variable variable);
+  private native boolean __expunge_cancel(long future);
+  private native boolean __expunge_is_cancelled(long future);
+  private native boolean __expunge_is_done(long future);
+  private native Boolean __expunge_get(long future);
+  private native Boolean __expunge_get_timeout(
+      long future, long timeout, TimeUnit unit);
+  private native void __expunge_finalize(long future);
 
   private native long __names();
   private native boolean __names_cancel(long future);
@@ -234,5 +282,6 @@ public class ZooKeeperState implements State {
       long future, long timeout, TimeUnit unit);
   private native void __names_finalize(long future);
 
+  private long __storage;
   private long __state;
 };
