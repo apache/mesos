@@ -83,12 +83,12 @@ struct _CheckSome
       expression(_expression),
       error(_error)
   {
-    out << "CHECK_SOME(" << expression << ") failed: ";
+    out << "CHECK_SOME(" << expression << "): ";
   }
 
   ~_CheckSome()
   {
-    out << ": " << error;
+    out << error;
     google::LogMessageFatal(file.c_str(), line).stream() << out.str();
   }
 
