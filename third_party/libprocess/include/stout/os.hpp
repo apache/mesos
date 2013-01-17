@@ -501,25 +501,45 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
 }
 
 
+inline int system(const std::string& command)
+{
+  return ::system(command.c_str());
+}
+
+
 // TODO(bmahler): Clean these bool functions to return Try<Nothing>.
 // Changes the specified path's user and group ownership to that of
 // the specified user..
-inline bool chown(const std::string& user, const std::string& path)
+inline Try<Nothing> chown(
+    const std::string& user,
+    const std::string& path,
+    bool recursive = true)
 {
   passwd* passwd;
   if ((passwd = ::getpwnam(user.c_str())) == NULL) {
-    PLOG(ERROR) << "Failed to get user information for '"
-                << user << "', getpwnam";
-    return false;
+    return Try<Nothing>::error(
+        "Failed to get user information for '" + user + "', getpwnam: "
+        + strerror(errno));
   }
 
-  if (::chown(path.c_str(), passwd->pw_uid, passwd->pw_gid) < 0) {
-    PLOG(ERROR) << "Failed to change user and group ownership of '"
-                << path << "', chown";
-    return false;
+  if (recursive) {
+    // TODO(bmahler): Consider walking the file tree instead. We would need
+    // to be careful to not miss dotfiles.
+    std::string command = "chown -R " + stringify(passwd->pw_uid) + ':' +
+        stringify(passwd->pw_gid) + " '" + path + "'";
+
+    int code = os::system(command);
+    if (code != 0) {
+      return Try<Nothing>::error(
+          "Failed to execute '" + command + "', exit code: " + stringify(code));
+    }
+  } else {
+    if (::chown(path.c_str(), passwd->pw_uid, passwd->pw_gid) < 0) {
+      return Try<Nothing>::error(strerror(errno));
+    }
   }
 
-  return true;
+  return Nothing();
 }
 
 
@@ -815,12 +835,6 @@ inline Try<std::list<std::string> > glob(const std::string& pattern)
   globfree(&g); // Best-effort free of dynamically allocated memory.
 
   return result;
-}
-
-
-inline int system(const std::string& command)
-{
-  return ::system(command.c_str());
 }
 
 

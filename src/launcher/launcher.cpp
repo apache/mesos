@@ -32,6 +32,7 @@
 #include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
 #include <stout/net.hpp>
+#include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
@@ -82,15 +83,20 @@ int ExecutorLauncher::setup()
   const string& cwd = os::getcwd();
 
   // TODO(benh): Do this in the slave?
-  if (shouldSwitchUser && !os::chown(user, workDirectory)) {
-    cerr << "Failed to change ownership of framework's working directory "
-         << workDirectory << " to user " << user << endl;
-    return -1;
+  if (shouldSwitchUser) {
+    Try<Nothing> chown = os::chown(user, workDirectory);
+
+    if (chown.isError()) {
+      cerr << "Failed to change ownership of the executor work directory "
+           << workDirectory << " to user " << user << ": " << chown.error()
+           << endl;
+      return -1;
+    }
   }
 
   // Enter working directory.
   if (os::chdir(workDirectory) < 0) {
-    cerr << "Failed to chdir into framework working directory" << endl;
+    cerr << "Failed to chdir into executor work directory" << endl;
     return -1;
   }
 
@@ -113,7 +119,7 @@ int ExecutorLauncher::launch()
 {
   // Enter working directory.
   if (os::chdir(workDirectory) < 0) {
-    fatalerror("Failed to chdir into framework working directory");
+    fatalerror("Failed to chdir into the executor work directory");
   }
 
   if (shouldSwitchUser) {
@@ -276,7 +282,7 @@ int ExecutorLauncher::fetchExecutors()
 
       // Copy the resource to the current working directory.
       ostringstream command;
-      command << "cp " << resource << " .";
+      command << "cp '" << resource << "' .";
       cout << "Copying resource from " << resource << " to .";
 
       int ret = os::system(command.str());
@@ -294,9 +300,14 @@ int ExecutorLauncher::fetchExecutors()
       resource = path::join(".", base.get());
     }
 
-    if (shouldSwitchUser && !os::chown(user, resource)) {
-      cerr << "Failed to chown " << resource << endl;
-      return -1;
+    if (shouldSwitchUser) {
+      Try<Nothing> chown = os::chown(user, resource);
+
+      if (chown.isError()) {
+        cerr << "Failed to chown " << resource << " to user " << user << ": "
+             << chown.error() << endl;
+        return -1;
+      }
     }
 
     if (executable &&
@@ -325,6 +336,19 @@ int ExecutorLauncher::fetchExecutors()
       }
     }
   }
+
+  // Recursively chown the work directory, since extraction may have occurred.
+  if (shouldSwitchUser) {
+    Try<Nothing> chown = os::chown(user, ".");
+
+    if (chown.isError()) {
+      cerr << "Failed to recursively chown the work directory "
+           << workDirectory << " to user " << user << ": " << chown.error()
+           << endl;
+      return -1;
+    }
+  }
+
   return 0;
 }
 
