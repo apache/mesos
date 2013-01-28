@@ -13,7 +13,7 @@ CANDIDATE=${2}
 
 echo "${GREEN}Releasing mesos-${VERSION} candidate ${CANDIDATE}${NORMAL}"
 
-read -p "Hit any key to continue ... "
+read -p "Hit enter to continue ... "
 
 make distcheck || \
   { echo "${RED}Failed to check the distribution${NORMAL}"; exit 1; }
