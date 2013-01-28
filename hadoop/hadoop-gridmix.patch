@@ -1,0 +1,17 @@
+diff --git a/src/contrib/gridmix/src/java/org/apache/hadoop/mapred/gridmix/Gridmix.java b/src/contrib/gridmix/src/java/org/apache/hadoop/mapred/gridmix/Gridmix.java
+index a5ba0f5..cc8a606 100644
+--- a/src/contrib/gridmix/src/java/org/apache/hadoop/mapred/gridmix/Gridmix.java
++++ b/src/contrib/gridmix/src/java/org/apache/hadoop/mapred/gridmix/Gridmix.java
+@@ -609,3 +609,2 @@
+     }
+   }
+
+-  private <T> String getEnumValues(Enum<? extends T>[] e) {
++  private String getEnumValues(Enum<?>[] e) {
+     StringBuilder sb = new StringBuilder();
+     String sep = "";
+-    for (Enum<? extends T> v : e) {
++    for (Enum<?> v : e) {
+       sb.append(sep);
+       sb.append(v.name());
+       sep = "|";

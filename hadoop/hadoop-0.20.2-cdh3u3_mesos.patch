@@ -20,3 +20,19 @@ index e41c132..593aecd 100644
      </subant>
       <available file="${build.contrib.dir}/testsfailed" property="testsfailed"/>
       <fail if="testsfailed">Tests failed!</fail>
+diff --git a/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java b/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java
+index 545c3c7..f6950be 100644
+--- a/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java
++++ b/src/contrib/mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java
+@@ -257,6 +257,11 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
+     taskScheduler.refresh();
+   }
+
++  @Override
++  public synchronized void checkJobSubmission(JobInProgress job) throws IOException {
++    taskScheduler.checkJobSubmission(job);
++  }
++
+   // Mesos Scheduler methods.
+   @Override
+   public synchronized void registered(

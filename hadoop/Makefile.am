@@ -14,17 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-EXTRA_DIST = TUTORIAL.sh hadoop-0.20.2-cdh3u3.patch			\
+EXTRA_DIST = TUTORIAL.sh hadoop-gridmix.patch				\
   hadoop-0.20.2-cdh3u3_hadoop-env.sh.patch				\
-  hadoop-0.20.2-cdh3u3_mesos.patch hadoop-0.20.205.0.patch		\
+  hadoop-0.20.2-cdh3u3_mesos.patch hadoop-7698-1.patch			\
   hadoop-0.20.205.0_hadoop-env.sh.patch hadoop-0.20.205.0_mesos.patch	\
   mapred-site.xml.patch mesos-executor mesos/build.xml			\
   mesos/ivy/libraries.properties mesos/ivy.xml				\
-  mesos/src/java/org/apache/hadoop/mapred/FrameworkExecutor.java	\
-  mesos/src/java/org/apache/hadoop/mapred/FrameworkScheduler.java	\
-  mesos/src/java/org/apache/hadoop/mapred/HadoopFrameworkMessage.java	\
-  mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java		\
-  mesos/src/java/org/apache/hadoop/mapred/MesosTaskTrackerInstrumentation.java
+  mesos/src/java/org/apache/hadoop/mapred/MesosExecutor.java		\
+  mesos/src/java/org/apache/hadoop/mapred/MesosScheduler.java
 
 # Defines some targets to run the Hadoop tutorial using a specified
 # distribution. At some point we might want to do this automagically
@@ -34,7 +31,8 @@ EXTRA_DIST = TUTORIAL.sh hadoop-0.20.2-cdh3u3.patch			\
 hadoop-0.20.205.0:
 	if test "$(top_srcdir)" != "$(top_builddir)"; then \
           cp -p $(srcdir)/TUTORIAL.sh .; \
-          cp -p $(srcdir)/hadoop-0.20.205.0.patch .; \
+          cp -p $(srcdir)/hadoop-gridmix.patch .; \
+          cp -p $(srcdir)/hadoop-7698-1.patch .; \
           cp -p $(srcdir)/hadoop-0.20.205.0_hadoop-env.sh.patch .; \
           cp -p $(srcdir)/hadoop-0.20.205.0_mesos.patch .; \
           cp -p $(srcdir)/mapred-site.xml.patch .; \
@@ -47,7 +45,7 @@ hadoop-0.20.205.0:
 hadoop-0.20.2-cdh3u3:
 	if test "$(top_srcdir)" != "$(top_builddir)"; then \
           cp -p $(srcdir)/TUTORIAL.sh .; \
-          cp -p $(srcdir)/hadoop-0.20.2-cdh3u3.patch .; \
+          cp -p $(srcdir)/hadoop-gridmix.patch .; \
           cp -p $(srcdir)/hadoop-0.20.2-cdh3u3_hadoop-env.sh.patch .; \
           cp -p $(srcdir)/hadoop-0.20.2-cdh3u3_mesos.patch .; \
           cp -p $(srcdir)/mapred-site.xml.patch .; \
@@ -61,10 +59,10 @@ hadoop-0.20.2-cdh3u3:
 clean-local:
 	if test "$(top_srcdir)" != "$(top_builddir)"; then \
           -rm -f TUTORIAL.sh; \
-          -rm -f hadoop-0.20.2-cdh3u3.patch; \
+          -rm -f hadoop-gridmix.patch; \
+          -rm -f hadoop-7698-1.patch; \
           -rm -f hadoop-0.20.2-cdh3u3_hadoop-env.sh.patch; \
           -rm -f hadoop-0.20.2-cdh3u3_mesos.patch; \
-          -rm -f hadoop-0.20.205.0.patch; \
           -rm -f hadoop-0.20.205.0_hadoop-env.sh.patch; \
           -rm -f hadoop-0.20.205.0_mesos.patch; \
           -rm -f mapred-site.xml.patch; \

@@ -2,7 +2,7 @@ diff --git a/conf/mapred-site.xml b/conf/mapred-site.xml
 index 970c8fe..f9f272d 100644
 --- a/conf/mapred-site.xml
 +++ b/conf/mapred-site.xml
-@@ -4,5 +4,16 @@
+@@ -4,5 +4,48 @@
  <!-- Put site-specific property overrides in this file. -->
  
  <configuration>
@@ -16,7 +16,39 @@ index 970c8fe..f9f272d 100644
 +    <value>org.apache.hadoop.mapred.MesosScheduler</value>
 +  </property>
 +  <property>
++    <name>mapred.mesos.taskScheduler</name>
++    <value>org.apache.hadoop.mapred.JobQueueTaskScheduler</value>
++  </property>
++  <property>
 +    <name>mapred.mesos.master</name>
 +    <value>local</value>
++  </property>
++#
++# Make sure to uncomment the 'mapred.mesos.executor' property,
++# when running the Hadoop JobTracker on a real Mesos cluster.
++# NOTE: You need to MANUALLY upload the Mesos executor bundle
++# to the location that is set as the value of this property.
++#  <property>
++#    <name>mapred.mesos.executor</name>
++#    <value>hdfs://hdfs.name.node:port/hadoop.zip</value>
++#  </property>
++#
++# The properties below indicate the amount of resources
++# that are allocated to a Hadoop slot (i.e., map/reduce task) by Mesos.
++  <property>
++    <name>mapred.mesos.slot.cpus</name>
++    <value>0.2</value>
++  </property>
++  <property>
++    <name>mapred.mesos.slot.disk</name>
++    <!-- The value is in MB. -->
++    <value>1024</value>
++  </property>
++  <property>
++    <name>mapred.mesos.slot.mem</name>
++    <!-- Note that this is the total memory required for
++         JVM overhead (256 MB) and the heap (-Xmx) of the task.
++         The value is in MB. -->
++    <value>512</value>
 +  </property>
  </configuration>

@@ -3,7 +3,7 @@
 # Determine the Hadoop distribution to use.
 if test -z "${1}"; then
     distribution="0.20.205.0"
-    url="http://apache.cs.utah.edu/hadoop/common/hadoop-0.20.205.0"
+    url="http://archive.apache.org/dist/hadoop/core/hadoop-0.20.205.0"
 elif test "${1}" = "0.20.2-cdh3u3"; then
     distribution="0.20.2-cdh3u3"
     url="http://archive.cloudera.com/cdh/3"
@@ -41,7 +41,8 @@ test -f ../support/colors.sh && . ../support/colors.sh
 
 # Make sure we have all the necessary files/directories we need.
 resources="TUTORIAL.sh \
-  ${hadoop}.patch \
+  hadoop-gridmix.patch \
+  hadoop-7698-1.patch \
   ${hadoop}_hadoop-env.sh.patch \
   ${hadoop}_mesos.patch \
   mapred-site.xml.patch \
@@ -151,21 +152,21 @@ echo
 cd ${hadoop} || fail "cd ${hadoop}"
 
 
-# Apply the Hadoop patch.
+# Apply the GridMix patch.
 cat <<__EOF__
 
-To run Hadoop on Mesos we need to apply a rather minor patch. The
-patch makes a small number of modifications in Hadoop. (Note that the
-changes to Hadoop have been committed in revisions r1033804 and
-r987589 so at some point we won't need to apply any patch at all.)
+To run Hadoop on Mesos under Java 7 we need to apply a rather minor patch
+to GridMix, a contribution in Hadoop. See 'NOTES' file for more info.
 We'll apply the patch with:
 
-  $ patch -p1 <../${hadoop}.patch
+  $ patch -p1 <../hadoop-gridmix.patch
 
 __EOF__
 
 # Check and see if the patch has already been applied.
-grep extraData src/mapred/org/apache/hadoop/mapred/Task.java >/dev/null
+grep 'private String getEnumValues' \
+  src/contrib/gridmix/src/java/org/apache/hadoop/mapred/gridmix/Gridmix.java \
+  >/dev/null
 
 if test ${?} == "0"; then
     cat <<__EOF__
@@ -177,9 +178,38 @@ __EOF__
 else
     read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
     echo
-    patch -p1 <../${hadoop}.patch || fail "patch -p1 <../${hadoop}.patch"
+    patch -p1 <../hadoop-gridmix.patch || \
+      fail "patch -p1 <../hadoop-gridmix.patch"
 fi
 
+# Apply the 'jsvc' patch for hadoop-0.20.205.0.
+if test ${distribution} = "0.20.205.0"; then
+  cat <<__EOF__
+
+To build Mesos executor bundle, we need to apply a patch for
+'jsvc' target that is broken in build.xml. We apply the patch with:
+
+  $ patch -p1 <../hadoop-7698-1.patch
+
+__EOF__
+
+  # Check and see if the patch has already been applied.
+  grep 'os-name' build.xml >/dev/null
+
+  if test ${?} == "0"; then
+      cat <<__EOF__
+
+  ${RED}It looks like you've already applied the patch, so we'll skip
+  applying it now.${NORMAL}
+
+__EOF__
+  else
+      read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
+      echo
+      patch -p1 <../hadoop-7698-1.patch || \
+        fail "patch -p1 <../hadoop-7698-1.patch"
+  fi
+fi
 
 # Copy over the Mesos contrib component (and mesos-executor) and apply
 # the patch to build the contrib.
@@ -368,15 +398,16 @@ cat <<__EOF__
 ${GREEN}Build success!${NORMAL} Now let's run something!
 
 First we need to configure Hadoop appropriately by modifying
-conf/mapred-site.xml (as is always required when running Hadoop). In
-order to run Hadoop on Mesos we need to set at least these three
-properties:
+conf/mapred-site.xml (as is always required when running Hadoop).
+In order to run Hadoop on Mesos we need to set at least these four properties:
 
   mapred.job.tracker
 
   mapred.jobtracker.taskScheduler
 
   mapred.mesos.master
+
+  mapred.mesos.executor
 
 The 'mapred.job.tracker' property should be set to the host:port where
 you want to launch the JobTracker (e.g., localhost:54321).
@@ -390,9 +421,16 @@ order to bring up a Mesos "cluster" within the process. To connect to
 a remote master simply use the URL used to connect the slave to the
 master (e.g., localhost:5050).
 
+The 'mapred.mesos.executor' property must be set to the location
+of Mesos executor bundle so that Mesos slaves can download
+and run the executor.
+NOTE: You need to MANUALLY upload the Mesos executor bundle to
+the above location.
+
+
 We've got a prepared patch for conf/mapred-site.xml that makes the
-changes necessary to get everything running. We can apply that patch
-like so:
+changes necessary to get everything running with a local Mesos cluster.
+We can apply that patch like so:
 
   $ patch -p1 <../mapred-site.xml.patch
 
@@ -467,6 +505,52 @@ if test ${REPLY} == "Y" -o ${REPLY} == "y"; then
         fail "patch -p1 <../${hadoop}_hadoop-env.sh.patch"
 fi
 
+# Build Mesos executor package that Mesos slaves can download and execute.
+# TODO(vinod): Create a new ant target in build.xml that does this for us.
+# NOTE: We specifically set the version when calling ant, to ensure we know
+# the resulting directory name.
+cat <<__EOF__
+
+Okay, let's try building Mesos executor package:
+
+  $ ant -Dversion=${distribution} bin-package
+  $ cd build/${hadoop}
+  $ cp ${LIBRARY} lib/native/${PLATFORM}
+  $ rm -rf cloudera # Only for cdh3
+  $ cd ..
+  $ mv ${hadoop} hadoop
+  $ tar -cjf hadoop.tar.gz hadoop
+  $ cd ..
+
+__EOF__
+
+read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
+echo
+
+ant -Dversion=${distribution} bin-package || \
+  fail "ant -Dversion=${distribution} bin-package"
+
+cd build/${hadoop} || fail "cd build/${hadoop}"
+
+# Copy the Mesos native library.
+mkdir -p lib/native/${PLATFORM} || fail "mkdir -p lib/native/${PLATFORM}"
+cp ${LIBRARY} lib/native/${PLATFORM} || \
+  fail "cp ${LIBRARY} lib/native/${PLATFORM}"
+
+# Delete cloudera patches (only present in cdh3 versions of Hadoop)
+# to save space (62MB).
+rm -rf cloudera || fail "rm -rf cloudera"
+
+cd .. || fail "cd .."
+
+# We re-name the directory to 'hadoop' so that the Mesos executor
+# can be agnostic to the Hadoop version.
+mv ${hadoop} hadoop || fail "mv ${hadoop} hadoop"
+
+# Create the bundle.
+tar -cjf hadoop.tar.gz hadoop || fail "tar -cjf hadoop.tar.gz hadoop"
+
+cd .. || fail "cd.."
 
 # Start JobTracker.
 cat <<__EOF__
@@ -480,6 +564,10 @@ __EOF__
 read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
 echo
 
+# Fake the resources for this local slave, because the default resources
+# (esp. memory on MacOSX) offered by the slave might not be enough to
+# launch TaskTrackers.
+export MESOS_RESOURCES="cpus:16;mem:16384;disk:307200;ports:[31000-32000]"
 ./bin/hadoop jobtracker 1>/dev/null 2>&1 &
 
 jobtracker_pid=${!}
@@ -546,9 +634,18 @@ cat <<__EOF__
   $ ant
   $ patch -p1 <../mapred-site.xml.patch
   $ patch -p1 <../${hadoop}_hadoop-env.sh.patch
+  $ ant -Dversion=${distribution} bin-package
+  $ cd build/${hadoop}
+  $ cp ${LIBRARY} lib/native/${PLATFORM}
+  $ rm -rf cloudera
+  $ cd ..
+  $ mv ${hadoop} hadoop
+  $ tar -cjf hadoop.tar.gz hadoop
+  $ cd ..
 
-Remember you'll need to change ${hadoop}/conf/mapred-site.xml to
-connect to a Mesos cluster (the patch just uses 'local').
+Remember you'll need to make some changes to
+${hadoop}/conf/mapred-site.xml to run Hadoop on a
+real Mesos cluster:
 
 We hope you found this was helpful!
 
