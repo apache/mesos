@@ -25,12 +25,13 @@ leveldb = os.path.join('third_party', 'leveldb')
 zookeeper = os.path.join('third_party', 'zookeeper-3.3.4', 'src', 'c')
 libprocess = os.path.join('third_party', 'libprocess')
 
-# Even though a statically compiled libprocess should include libev,
-# before installation this isn't the case, so while a libtool managed
-# build will correctly pull in libev when building the final result,
-# we need to explicitely include libev here (or more precisely, down
-# where we actually include libev.a).
+# Even though a statically compiled libprocess should include libev and
+# gperftools, before installation this isn't the case, so while a libtool
+# managed build will correctly pull in these libraries when building the
+# final result, we need to explicitly include them here
+# (or more precisely, down where we actually include libev.a and libprofiler.a).
 libev = os.path.join(libprocess, 'third_party', 'libev-3.8')
+gperftools = os.path.join(libprocess, 'third_party', 'gperftools-2.0')
 
 # We need to execute from the same directory as this script.
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
@@ -75,6 +76,7 @@ EXTRA_OBJECTS = [
   os.path.join(abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a'),
   os.path.join(abs_top_builddir, libprocess, '.libs', 'libprocess.a'),
   os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),
+  os.path.join(abs_top_builddir, gperftools, '.libs', 'libprofiler.a'),
 ]
 
 EXTRA_LINK_ARGS = []

@@ -71,7 +71,7 @@ $(GLOG)/libglog.la: $(GLOG)-stamp
 $(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
 
 $(GPERFTOOLS)/libprofiler.la: $(GPERFTOOLS)-stamp
-	cd $(GPERFTOOLS) && ./configure  $(CONFIGURE_ARGS) && \
+	cd $(GPERFTOOLS) && ./configure $(CONFIGURE_ARGS) && \
 	  $(MAKE) $(AM_MAKEFLAGS)
 
 $(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp

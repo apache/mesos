@@ -37,7 +37,6 @@ BOTO = boto-$(BOTO_VERSION)
 DISTRIBUTE = distribute-$(DISTRIBUTE_VERSION)
 GLOG = glog-$(GLOG_VERSION)
 GMOCK = gmock-$(GMOCK_VERSION)
-GPERFTOOLS = gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
 LEVELDB = leveldb
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
@@ -45,11 +44,11 @@ ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 
 
 EXTRA_DIST = $(BOOST).tar.gz $(BOTO).zip $(DISTRIBUTE).tar.gz	\
-	$(GLOG).tar.gz $(GMOCK).tar.gz $(GPERFTOOLS).tar.gz	\
-	$(LEVELDB).tar.gz $(PROTOBUF).tar.gz $(ZOOKEEPER).tar.gz
+	$(GLOG).tar.gz $(GMOCK).tar.gz $(LEVELDB).tar.gz	\
+	$(PROTOBUF).tar.gz $(ZOOKEEPER).tar.gz
 
 CLEAN_EXTRACTED = $(BOOST) $(BOTO) $(DISTRIBUTE) $(GLOG) $(GMOCK)	\
-	$(GPERFTOOLS) $(LEVELDB) $(PROTOBUF) $(ZOOKEEPER)
+	$(LEVELDB) $(PROTOBUF) $(ZOOKEEPER)
 
 
 # Convenience library for gmock/gtest.
@@ -87,10 +86,6 @@ $(GLOG)/libglog.la: $(GLOG)-stamp
 
 $(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
 
-$(GPERFTOOLS)/libprofiler.la: $(GPERFTOOLS)-stamp
-	cd $(GPERFTOOLS) && ./configure  $(CONFIGURE_ARGS) && \
-	  $(MAKE) $(AM_MAKEFLAGS)
-
 $(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 
 # TODO(charles): Figure out PIC options in our configure.ac or create
@@ -111,7 +106,6 @@ $(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
           $(MAKE) $(AM_MAKEFLAGS)
 
 THIRD_PARTY_LIBS = $(BOOST)-stamp $(GLOG)/libglog.la		\
-	$(GPERFTOOLS)/libprofiler.la				\
 	$(LEVELDB)/libleveldb.a $(PROTOBUF)/src/libprotobuf.la	\
 	$(PROTOBUF)/src/protoc
 
