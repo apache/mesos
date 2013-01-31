@@ -80,18 +80,15 @@ inline Try<Nothing> write(
 }
 
 
-// Read the next protobuf from the file by first reading the "size"
+// Read the next protobuf of type T from the file by first reading the "size"
 // followed by the contents (as written by 'write' above).
-inline Result<bool> read(int fd, google::protobuf::Message* message)
+template <typename T>
+inline Result<T> read(int fd)
 {
-  CHECK_NOTNULL(message);
-
-  message->Clear();
-
   // Save the offset so we can re-adjust if something goes wrong.
   off_t offset = lseek(fd, 0, SEEK_CUR);
   if (offset == -1) {
-    return Result<bool>::error(
+    return Result<T>::error(
         "Failed to lseek to SEEK_CUR: " + std::string(strerror(errno)));
   }
 
@@ -99,10 +96,9 @@ inline Result<bool> read(int fd, google::protobuf::Message* message)
   Result<std::string> result = os::read(fd, sizeof(size));
 
   if (result.isNone()) {
-    return Result<bool>::none(); // No more protobufs to read.
+    return Result<T>::none(); // No more protobufs to read.
   } else if (result.isError()) {
-    return Result<bool>::error(
-        "Failed to read protobuf size: " + result.error());
+    return Result<T>::error("Failed to read protobuf size: " + result.error());
   }
 
   // Parse the size from the bytes.
@@ -116,39 +112,39 @@ inline Result<bool> read(int fd, google::protobuf::Message* message)
   if (result.isNone()) {
     // Hit EOF unexpectedly. Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
-    return Result<bool>::error(
+    return Result<T>::error(
         "Failed to read protobuf of size " + stringify(size) + " bytes: "
         "hit EOF unexpectedly, possible corruption");
   } else if (result.isError()) {
     // Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
-    return Result<bool>::error("Failed to read protobuf: " + result.error());
+    return Result<T>::error("Failed to read protobuf: " + result.error());
   }
 
   // Parse the protobuf from the string.
+  T message;
   google::protobuf::io::ArrayInputStream stream(
       result.get().data(), result.get().size());
-  bool parsed = message->ParseFromZeroCopyStream(&stream);
+  bool parsed = message.ParseFromZeroCopyStream(&stream);
 
   if (!parsed) {
     // Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
     // NOTE: It appears that ParseFromZeroCopyStream will keep
     // errno intact on failure, but this may change.
-    return Result<bool>::error(
+    return Result<T>::error(
         "Failed to ParseFromZeroCopyStream, possible strerror: " +
         std::string(strerror(errno)));
   }
 
-  return true;
+  return message;
 }
 
 
 // A wrapper function that wraps the above read() with
 // open and closing the file.
-inline Result<bool> read(
-    const std::string& path,
-    google::protobuf::Message* message)
+template <typename T>
+inline Result<T> read(const std::string& path)
 {
   Try<int> fd = os::open(
       path, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
@@ -157,7 +153,7 @@ inline Result<bool> read(
     return Result<bool>::error("Failed to open file " + path);
   }
 
-  Result<bool> result = read(fd.get(), message);
+  Result<T> result = read<T>(fd.get());
 
   // NOTE: We ignore the return value of close(). This is because users calling
   // this function are interested in the return value of read(). Also an

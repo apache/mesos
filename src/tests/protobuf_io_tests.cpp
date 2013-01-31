@@ -58,17 +58,15 @@ TEST(ProtobufIOTest, Basic)
     ASSERT_SOME(result);
   }
 
-  Result<bool> read = Result<bool>::none();
+  Result<FrameworkID> read = Result<FrameworkID>::none();
   size_t reads = 0;
   while (true) {
-    FrameworkID frameworkId;
-    read = protobuf::read(fdr, &frameworkId);
+    read = protobuf::read<FrameworkID>(fdr);
     if (!read.isSome()) {
       break;
     }
 
-    EXPECT_TRUE(read.get());
-    EXPECT_EQ(frameworkId.value(), stringify(reads++));
+    EXPECT_EQ(read.get().value(), stringify(reads++));
   }
 
   // Ensure we've hit the end of the file without reading a partial protobuf.
