@@ -291,7 +291,7 @@ TEST(Process, dispatch)
   future = dispatch(pid, &DispatchProcess::func1, true);
 
   EXPECT_TRUE(future.get());
-  
+
   future = dispatch(pid, &DispatchProcess::func2, true);
 
   EXPECT_TRUE(future.get());
@@ -366,7 +366,7 @@ TEST(Process, defer1)
     EXPECT_TRUE(future.get());
   }
 
-  // only take const &!
+  // Only take const &!
 
   terminate(pid);
   wait(pid);
@@ -598,46 +598,6 @@ TEST(Process, delegate)
   terminate(delegatee, false);
   wait(delegatee);
 }
-
-
-// class TerminateProcess : public Process<TerminateProcess>
-// {
-// public:
-//   TerminateProcess(Latch* _latch) : latch(_latch) {}
-
-// protected:
-//   virtual void operator () ()
-//   {
-//     latch->await();
-//     receive();
-//     EXPECT_EQ(TERMINATE, name());
-//   }
-
-// private:
-//   Latch* latch;
-// };
-
-
-// TEST(Process, terminate)
-// {
-//   ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-//   Latch latch;
-
-//   TerminateProcess process(&latch);
-
-//   spawn(&process);
-
-//   post(process.self(), "one");
-//   post(process.self(), "two");
-//   post(process.self(), "three");
-
-//   terminate(process.self());
-
-//   latch.trigger();
-  
-//   wait(process.self());
-// }
 
 
 class TimeoutProcess : public Process<TimeoutProcess>
@@ -898,37 +858,6 @@ TEST(Process, settle)
 }
 
 
-// #define ENUMERATE1(item) item##1
-// #define ENUMERATE2(item) ENUMERATE1(item), item##2
-// #define ENUMERATE3(item) ENUMERATE2(item), item##3
-// #define ENUMERATE4(item) ENUMERATE3(item), item##4
-// #define ENUMERATE5(item) ENUMERATE4(item), item##5
-// #define ENUMERATE6(item) ENUMERATE5(item), item##6
-// #define ENUMERATE(item, n) ENUMERATE##n(item)
-
-// #define GenerateVoidDispatch(n)                                         \
-//   template <typename T,                                                 \
-//             ENUM(typename P, n),                                        \
-//             ENUM(typename A, n)>                                        \
-//   void dispatch(const PID<T>& pid,                                      \
-//                 void (T::*method)(ENUM(P, n)),                          \
-//                 ENUM(A, a, n))                                          \
-//   {                                                                     \
-//     std::tr1::function<void(T*)> thunk =                                \
-//       std::tr1::bind(method, std::tr1::placeholders::_1, ENUM(a, 5));   \
-//                                                                         \
-//     std::tr1::function<void(ProcessBase*)>* dispatcher =                \
-//       new std::tr1::function<void(ProcessBase*)>(                       \
-//           std::tr1::bind(&internal::vdispatcher<T>,                     \
-//                          std::tr1::placeholders::_1,                    \
-//                          thunk));                                       \
-//                                                                         \
-//     internal::dispatch(pid, dispatcher);                                \
-// }
-
-// }
-
-
 TEST(Process, pid)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
@@ -936,9 +865,6 @@ TEST(Process, pid)
   TimeoutProcess process;
 
   PID<TimeoutProcess> pid = process;
-
-//   foo(process, &TimeoutProcess::timeout);
-  //  dispatch(process, &TimeoutProcess::timeout);
 }
 
 
@@ -983,7 +909,7 @@ TEST(Process, listener)
 
   dispatch(PID<Listener1>(process), &Listener1::event1);
   dispatch(PID<Listener2>(process), &Listener2::event2);
-  
+
   terminate(process, false);
   wait(process);
 }
