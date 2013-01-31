@@ -99,7 +99,12 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/async.hpp	\
 # Tests.
 check_PROGRAMS = tests
 
-tests_SOURCES = src/tests/tests.cpp src/tests/statistics_tests.cpp
+tests_SOURCES = src/tests/http_tests.cpp				\
+	src/tests/io_tests.cpp						\
+	src/tests/main.cpp						\
+	src/tests/process_tests.cpp					\
+	src/tests/statistics_tests.cpp
+
 tests_CPPFLAGS = -I$(top_srcdir)/src -I$(GTEST)/include			\
 	-I$(GMOCK)/include $(libprocess_la_CPPFLAGS)
 tests_LDADD = third_party/libgmock.la libprocess.la
