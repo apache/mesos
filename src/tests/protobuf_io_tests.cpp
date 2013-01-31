@@ -49,23 +49,31 @@ TEST(ProtobufIOTest, Basic)
   ASSERT_SOME(result);
   int fdr = result.get();
 
-  const int writes = 10;
+  const size_t writes = 10;
 
-  for (int i = 0; i < writes; i++) {
+  for (size_t i = 0; i < writes; i++) {
     FrameworkID frameworkId;
     frameworkId.set_value(stringify(i));
-    Try<bool> result = protobuf::write(fdw, frameworkId);
+    Try<Nothing> result = protobuf::write(fdw, frameworkId);
     ASSERT_SOME(result);
-    EXPECT_TRUE(result.get());
   }
 
-  for (int i = 0; i < writes; i++) {
+  Result<bool> read = Result<bool>::none();
+  size_t reads = 0;
+  while (true) {
     FrameworkID frameworkId;
-    Result<bool> result = protobuf::read(fdr, &frameworkId);
-    ASSERT_SOME(result);
-    EXPECT_TRUE(result.get());
-    EXPECT_EQ(frameworkId.value(), stringify(i));
+    read = protobuf::read(fdr, &frameworkId);
+    if (!read.isSome()) {
+      break;
+    }
+
+    EXPECT_TRUE(read.get());
+    EXPECT_EQ(frameworkId.value(), stringify(reads++));
   }
+
+  // Ensure we've hit the end of the file without reading a partial protobuf.
+  ASSERT_TRUE(read.isNone());
+  ASSERT_EQ(writes, reads);
 
   os::close(fdw);
   os::close(fdr);

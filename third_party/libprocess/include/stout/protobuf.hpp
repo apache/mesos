@@ -24,45 +24,52 @@
 namespace protobuf {
 
 // Write out the given protobuf to the specified file descriptor by
-// first writing out the length of the protobuf followed by the
-// contents.
-inline Try<bool> write(int fd, const google::protobuf::Message& message)
+// first writing out the length of the protobuf followed by the contents.
+// NOTE: On error, this may have written partial data to the file.
+inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 {
   if (!message.IsInitialized()) {
-    LOG(ERROR) << "Failed to write protocol buffer to file, "
-               << "protocol buffer is not initialized!";
-    return false;
+    return Try<Nothing>::error("protocol buffer is not initialized");
   }
 
+  // First write the size of the protobuf.
   uint32_t size = message.ByteSize();
+  std::string bytes = std::string((char*) &size, sizeof(size));
 
-  ssize_t length = ::write(fd, (void*) &size, sizeof(size));
-
-  if (length == -1) {
-    std::string error = strerror(errno);
-    error = error + " (" + __FILE__ + ":" + stringify(__LINE__) + ")";
-    return Try<bool>::error(error);
+  Try<Nothing> result = os::write(fd, bytes);
+  if (result.isError()) {
+    return Try<Nothing>::error(
+        "Failed to write protobuf size: " + result.error());
   }
 
-  CHECK(length != 0);
-  CHECK(length == sizeof(size)); // TODO(benh): Handle a non-blocking fd?
+  // NOTE: It appears that SerializeToFileDescriptor will keep
+  // errno intact on failure, but this may change.
+  if (!message.SerializeToFileDescriptor(fd)) {
+    return Try<Nothing>::error(
+        "Failed to SerializeToFileDescriptor, possible strerror: " +
+        std::string(strerror(errno)));
+  }
 
-  return message.SerializeToFileDescriptor(fd);
+  return Nothing();
 }
 
 
-// A wrapper function that wraps the above write() with
-// open and closing the file.
-inline Try<bool> write(const std::string& path,
-                       const google::protobuf::Message& message)
+// A wrapper function that wraps the above write with open and closing the file.
+inline Try<Nothing> write(
+    const std::string& path,
+    const google::protobuf::Message& message)
 {
-  Try<int> fd = os::open(path, O_WRONLY | O_CREAT | O_TRUNC,
-                         S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  Try<int> fd = os::open(
+      path,
+      O_WRONLY | O_CREAT | O_TRUNC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
   if (fd.isError()) {
-    return Try<bool>::error("Failed to open file " + path);
+    return Try<Nothing>::error(
+        "Failed to open file " + path + ": " + fd.error());
   }
 
-  Try<bool> result = write(fd.get(), message);
+  Try<Nothing> result = write(fd.get(), message);
 
   // NOTE: We ignore the return value of close(). This is because users calling
   // this function are interested in the return value of write(). Also an
@@ -77,78 +84,60 @@ inline Try<bool> write(const std::string& path,
 // followed by the contents (as written by 'write' above).
 inline Result<bool> read(int fd, google::protobuf::Message* message)
 {
-  CHECK(message != NULL);
+  CHECK_NOTNULL(message);
 
   message->Clear();
 
   // Save the offset so we can re-adjust if something goes wrong.
   off_t offset = lseek(fd, 0, SEEK_CUR);
-
-  if (offset < 0) {
-    std::string error = strerror(errno);
-    error = error + " (" + __FILE__ + ":" + stringify(__LINE__) + ")";
-    return Result<bool>::error(error);
+  if (offset == -1) {
+    return Result<bool>::error(
+        "Failed to lseek to SEEK_CUR: " + std::string(strerror(errno)));
   }
 
   uint32_t size;
-  ssize_t length = ::read(fd, (void*) &size, sizeof(size));
+  Result<std::string> result = os::read(fd, sizeof(size));
 
-  if (length == 0) {
-    return Result<bool>::none();
-  } else if (length == -1) {
-    // TODO(bmahler): Handle EINTR by retrying.
-    // Save the error, reset the file offset, and return the error.
-    std::string error = strerror(errno);
-    error = error + " (" + __FILE__ + ":" + stringify(__LINE__) + ")";
-    lseek(fd, offset, SEEK_SET);
-    return Result<bool>::error(error);
-  } else if (length != sizeof(size)) {
-    // TODO(bmahler): Handle partial reads with a read loop.
-    return false;
+  if (result.isNone()) {
+    return Result<bool>::none(); // No more protobufs to read.
+  } else if (result.isError()) {
+    return Result<bool>::error(
+        "Failed to read protobuf size: " + result.error());
   }
 
-  // TODO(benh): Use a different format for writing a protobuf to disk
-  // so that we don't need to have broken heuristics like this!
-  if (size > 10 * 1024 * 1024) { // 10 MB
-    // Save the error, reset the file offset, and return the error.
-    std::string error = "Size > 10 MB, possible corruption detected";
-    error = error + " (" + __FILE__ + ":" + stringify(__LINE__) + ")";
+  // Parse the size from the bytes.
+  memcpy((void*) &size, (void*) result.get().data(), sizeof(size));
+
+  // NOTE: Instead of specifically checking for corruption in 'size', we simply
+  // try to read 'size' bytes. If we hit EOF early, it is an indication of
+  // corruption.
+  result = os::read(fd, size);
+
+  if (result.isNone()) {
+    // Hit EOF unexpectedly. Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
-    return Result<bool>::error(error);;
+    return Result<bool>::error(
+        "Failed to read protobuf of size " + stringify(size) + " bytes: "
+        "hit EOF unexpectedly, possible corruption");
+  } else if (result.isError()) {
+    // Restore the offset to before the size read.
+    lseek(fd, offset, SEEK_SET);
+    return Result<bool>::error("Failed to read protobuf: " + result.error());
   }
 
-  char* temp = new char[size];
-
-  length = ::read(fd, temp, size);
-
-  if (length == 0) {
-    delete[] temp;
-    return Result<bool>::none();
-  } else if (length == -1) {
-    // TODO(bmahler): Handle EINTR by retrying.
-    // Save the error, reset the file offset, and return the error.
-    std::string error = strerror(errno);
-    error = error + " (" + __FILE__ + ":" + stringify(__LINE__) + ")";
-    lseek(fd, offset, SEEK_SET);
-    delete[] temp;
-    return Result<bool>::error(error);
-  } else if (length != static_cast<ssize_t>(size)) {
-    // TODO(bmahler): Handle partial reads with a read loop.
-    delete[] temp;
-    return false;
-  }
-
-  google::protobuf::io::ArrayInputStream stream(temp, length);
+  // Parse the protobuf from the string.
+  google::protobuf::io::ArrayInputStream stream(
+      result.get().data(), result.get().size());
   bool parsed = message->ParseFromZeroCopyStream(&stream);
 
-  delete[] temp;
-
   if (!parsed) {
-    // Save the error, reset the file offset, and return the error.
-    std::string error = "Failed to parse protobuf";
-    error = error + " (" + __FILE__ + ":" + stringify(__LINE__) + ")";
+    // Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
-    return Result<bool>::error(error);;
+    // NOTE: It appears that ParseFromZeroCopyStream will keep
+    // errno intact on failure, but this may change.
+    return Result<bool>::error(
+        "Failed to ParseFromZeroCopyStream, possible strerror: " +
+        std::string(strerror(errno)));
   }
 
   return true;
@@ -157,11 +146,12 @@ inline Result<bool> read(int fd, google::protobuf::Message* message)
 
 // A wrapper function that wraps the above read() with
 // open and closing the file.
-inline Result<bool> read(const std::string& path,
-                         google::protobuf::Message* message)
+inline Result<bool> read(
+    const std::string& path,
+    google::protobuf::Message* message)
 {
-  Try<int> fd = os::open(path, O_RDONLY,
-                         S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  Try<int> fd = os::open(
+      path, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
     return Result<bool>::error("Failed to open file " + path);

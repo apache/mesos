@@ -110,7 +110,7 @@ void writeTask(Task* task, const string& taskDir)
   LOG(INFO) << "Writing task description for task "
             << task->task_id() << " to " << path;
 
-  Try<bool> result = protobuf::write(path, *task);
+  Try<Nothing> result = protobuf::write(path, *task);
 
   if (result.isError()) {
     LOG(FATAL) << "Failed to write task description to disk " << result.error();
