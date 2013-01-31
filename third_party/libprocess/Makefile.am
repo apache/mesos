@@ -109,4 +109,6 @@ tests_CPPFLAGS = -I$(top_srcdir)/src -I$(GTEST)/include			\
 	-I$(GMOCK)/include $(libprocess_la_CPPFLAGS)
 tests_LDADD = third_party/libgmock.la libprocess.la
 
+TESTS = tests
+
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
