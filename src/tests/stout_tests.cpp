@@ -395,7 +395,7 @@ TEST_F(StoutUtilsTest, readWriteString)
 
   ASSERT_SOME(os::write(testfile, teststr));
 
-  Result<std::string> readstr = os::read(testfile);
+  Try<std::string> readstr = os::read(testfile);
 
   ASSERT_SOME(readstr);
   EXPECT_EQ(teststr, readstr.get());

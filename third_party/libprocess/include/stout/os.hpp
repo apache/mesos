@@ -208,16 +208,22 @@ inline Try<std::string> mktemp(const std::string& path = "/tmp/XXXXXX")
 // Write out the string to the file at the current fd position.
 inline Try<Nothing> write(int fd, const std::string& message)
 {
-  ssize_t length = ::write(fd, message.data(), message.length());
+  size_t offset = 0;
 
-  if (length == -1) {
-    // TODO(bmahler): Handle EINTR by retrying.
-    return Try<Nothing>::error(strerror(errno));
+  while (offset < message.length()) {
+    ssize_t length =
+      ::write(fd, message.data() + offset, message.length() - offset);
+
+    if (length < 0) {
+      // TODO(benh): Handle a non-blocking fd? (EAGAIN, EWOULDBLOCK)
+      if (errno == EINTR) {
+        continue;
+      }
+      return Try<Nothing>::error(strerror(errno));
+    }
+
+    offset += length;
   }
-
-  CHECK(length > 0);
-  // TODO(bmahler): Handle partial writes with a write loop.
-  CHECK(static_cast<size_t>(length) == message.length());
 
   return Nothing();
 }
@@ -246,61 +252,93 @@ inline Try<Nothing> write(const std::string& path,
 }
 
 
-// Read the contents of the file from its current offset
-// and return it as a string.
-// TODO(bmahler): Change this to a Try<std::string> since none()
-// is equivalent to an empty string.
-inline Result<std::string> read(int fd)
+// Reads 'size' bytes from a file from its current offset.
+// If EOF is encountered before reading size bytes, then the offset
+// is restored and none is returned.
+inline Result<std::string> read(int fd, size_t size)
 {
-  // Get the size of the file.
-  off_t offset = lseek(fd, 0, SEEK_CUR);
-  if (offset == -1) {
-    return Result<std::string>::error("Error seeking to SEEK_CUR");
+  // Save the current offset.
+  off_t current = lseek(fd, 0, SEEK_CUR);
+  if (current == -1) {
+    return Result<std::string>::error(
+        "Failed to lseek to SEEK_CUR: " + std::string(strerror(errno)));
   }
 
-  off_t size = lseek(fd, 0, SEEK_END);
-  if (size == -1) {
-      return Result<std::string>::error("Error seeking to SEEK_END");
-  }
-
-  if (lseek(fd, offset, SEEK_SET) == -1) {
-    return Result<std::string>::error("Error seeking to SEEK_SET");
-  }
-
-  // Allocate memory.
   char* buffer = new char[size];
+  size_t offset = 0;
 
-  ssize_t length = ::read(fd, buffer, size);
+  while (offset < size) {
+    ssize_t length = ::read(fd, buffer + offset, size - offset);
 
-  if (length == 0) {
-    return Result<std::string>::none();
-  } else if (length == -1) {
-    // TODO(bmahler): Handle EINTR by retrying.
-    // Save the error, reset the file offset, and return the error.
-    return Result<std::string>::error(strerror(errno));
-  } else if (length != size) {
-    // TODO(bmahler): Handle partial reads with a read loop.
-    return Result<std::string>::error("Couldn't read the entire file");
+    if (length < 0) {
+      // TODO(bmahler): Handle a non-blocking fd? (EAGAIN, EWOULDBLOCK)
+      if (errno == EINTR) {
+        continue;
+      }
+      // Attempt to restore the original offset.
+      lseek(fd, current, SEEK_SET);
+      return Result<std::string>::error(strerror(errno));
+    } else if (length == 0) {
+      // Reached EOF before expected! Restore the offset.
+      lseek(fd, current, SEEK_SET);
+      return Result<std::string>::none();
+    }
+
+    offset += length;
   }
 
-  std::string result(buffer, size);
+  return std::string(buffer, size);
+}
 
-  return result;
+
+// Returns the contents of the file starting from its current offset.
+// If an error occurs, this will attempt to recover the file offset.
+inline Try<std::string> read(int fd)
+{
+  // Save the current offset.
+  off_t current = lseek(fd, 0, SEEK_CUR);
+  if (current == -1) {
+    return Try<std::string>::error(
+        "Failed to lseek to SEEK_CUR: " + std::string(strerror(errno)));
+  }
+
+  // Get the size of the file from the offset.
+  off_t size = lseek(fd, current, SEEK_END);
+  if (size == -1) {
+    return Try<std::string>::error(
+        "Failed to lseek to SEEK_END: " + std::string(strerror(errno)));
+  }
+
+  // Restore the offset.
+  if (lseek(fd, current, SEEK_SET) == -1) {
+    return Try<std::string>::error(
+        "Failed to lseek with SEEK_SET: " + std::string(strerror(errno)));
+  }
+
+  Result<std::string> result = read(fd, size);
+  if (result.isNone()) {
+    // Hit EOF before reading size bytes.
+    return Try<std::string>::error("The file size was modified while reading");
+  } else if (result.isError()) {
+    return Try<std::string>::error(result.error());
+  }
+
+  return result.get();
 }
 
 
 // A wrapper function that wraps the above read() with
 // open and closing the file.
-inline Result<std::string> read(const std::string& path)
+inline Try<std::string> read(const std::string& path)
 {
   Try<int> fd = os::open(path, O_RDONLY,
                          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
-    return Result<std::string>::error("Failed to open file " + path);
+    return Try<std::string>::error("Failed to open file " + path);
   }
 
-  Result<std::string> result = read(fd.get());
+  Try<std::string> result = read(fd.get());
 
   // NOTE: We ignore the return value of close(). This is because users calling
   // this function are interested in the return value of read(). Also an

@@ -85,18 +85,18 @@ protected:
 
       // TODO(vinod): Ensure this read is atomic w.r.t external
       // writes/updates to this file.
-      Result<string> result = os::read(path.substr(strlen("file://")));
-      if (result.isError()) {
-        LOG(ERROR) << "Error reading whitelist file "
-                   << result.error() << ". Retrying";
+      Try<string> read = os::read(path.substr(strlen("file://")));
+      if (read.isError()) {
+        LOG(ERROR) << "Error reading whitelist file: " << read.error() << ". "
+                   << "Retrying";
         whitelist = lastWhitelist;
-      } else if (result.isNone()) {
-        LOG(WARNING) << "Empty whitelist file "
-                     << path << ". No offers will be made!";
+      } else if (read.get().empty()) {
+        LOG(WARNING) << "Empty whitelist file " << path << ". "
+                     << "No offers will be made!";
         whitelist = Option<hashset<string> >::some(hashset<string>());
       } else {
         hashset<string> hostnames;
-        vector<string> lines = strings::tokenize(result.get(), "\n");
+        vector<string> lines = strings::tokenize(read.get(), "\n");
         foreach (const string& hostname, lines) {
           hostnames.insert(hostname);
         }

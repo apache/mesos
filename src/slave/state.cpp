@@ -139,19 +139,19 @@ SlaveID readSlaveID(const string& rootDir)
 {
   const string& path = paths::getSlaveIDPath(rootDir);
 
-  Result<string> result = os::read(path);
+  Try<string> read = os::read(path);
 
   SlaveID slaveId;
 
-  if (!result.isSome()) {
-    LOG(WARNING) << "Cannot read slave id from " << path << " because "
-                 << result.isError() ? result.error() : "empty";
+  if (!read.isSome()) {
+    LOG(WARNING) << "Cannot read slave id from " << path << ": "
+                 << read.error();
     return slaveId;
   }
 
-  LOG(INFO) << "Read slave id " << result.get() << " from " << path;
+  LOG(INFO) << "Read slave id " << read.get() << " from " << path;
 
-  slaveId.set_value(result.get());
+  slaveId.set_value(read.get());
   return slaveId;
 }
 
@@ -184,17 +184,17 @@ process::UPID readFrameworkPID(const string& metaRootDir,
   const string& path = paths::getFrameworkPIDPath(metaRootDir, slaveId,
                                                   frameworkId);
 
-  Result<string> result = os::read(path);
+  Try<string> read = os::read(path);
 
-  if (!result.isSome()) {
-    LOG(WARNING) << "Cannot read framework pid from " << path << " because "
-                 << result.isError() ? result.error() : "empty";
+  if (!read.isSome()) {
+    LOG(WARNING) << "Cannot read framework pid from " << path << ": "
+                 << read.error();
     return process::UPID();
   }
 
-  LOG(INFO) << "Read framework pid " << result.get() << " from " << path;
+  LOG(INFO) << "Read framework pid " << read.get() << " from " << path;
 
-  return process::UPID(result.get());
+  return process::UPID(read.get());
 }
 
 } // namespace state {
