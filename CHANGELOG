@@ -1,0 +1,16 @@
+Mesos 0.12.0
+  -[LIBPROCESS] Added google perftools.
+
+
+Mesos 0.11.0
+  -TODO: Fill in.
+
+
+Mesos 0.10.0 (released TBD)
+  This is a bugfix release.
+
+  -[BUILD] Removed OS specific configure files.
+
+
+Mesos 0.9.0 (released 2012-05-08)
+  First incubator release for Mesos in Apache (fifth release candidate).
