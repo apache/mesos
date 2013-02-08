@@ -66,7 +66,7 @@ inline Try<Nothing> write(
 
   if (fd.isError()) {
     return Try<Nothing>::error(
-        "Failed to open file " + path + ": " + fd.error());
+        "Failed to open file '" + path + "': " + fd.error());
   }
 
   Try<Nothing> result = write(fd.get(), message);
@@ -150,7 +150,8 @@ inline Result<T> read(const std::string& path)
       path, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
-    return Result<bool>::error("Failed to open file " + path);
+    return Result<T>::error(
+        "Failed to open file '" + path + "': " + fd.error());
   }
 
   Result<T> result = read<T>(fd.get());
