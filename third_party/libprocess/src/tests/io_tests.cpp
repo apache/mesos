@@ -110,7 +110,8 @@ TEST(IO, Read)
 }
 
 
-TEST(IO, BufferedRead)
+// Disabled this test for time being, due to MESOS-326.
+TEST(IO, DISABLED_BufferedRead)
 {
   // 128 Bytes.
   std::string data =
