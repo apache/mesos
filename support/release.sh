@@ -56,4 +56,12 @@ echo "${GREEN}Now let's make the artifacts world readable ...${NORMAL}"
   { echo "${RED}Failed to change permissions of artifacts${NORMAL}";
     exit 1; }
 
+echo "${GREEN}Finally, we'll create an SVN tag/branch ...${NORMAL}"
+
+MESSAGE="Tag for release-${VERSION}-incubating-RC${CANDIDATE}."
+
+git svn branch -n --tag -m ${MESSAGE} \
+  release-${VERSION}-incubating-RC${CANDIDATE} || \
+  { echo "${RED}Failed to create SVN tag/branch${NORMAL}"; exit 1; }
+
 exit 0
