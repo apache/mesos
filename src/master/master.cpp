@@ -1434,6 +1434,12 @@ struct ExecutorInfoChecker : TaskInfoVisitor
       Framework* framework,
       Slave* slave)
   {
+    if (task.has_executor() == task.has_command()) {
+      return TaskInfoError::some(
+          "Task should have at least one (but not both) of CommandInfo or"
+          " ExecutorInfo present");
+    }
+
     if (task.has_executor()) {
       if (slave->hasExecutor(framework->id, task.executor().executor_id())) {
         const ExecutorInfo& executorInfo =
