@@ -150,9 +150,9 @@ AC_ARG_WITH([included-zookeeper],
 
 AC_ARG_VAR([JAVA_HOME], [location of Java Development Kit (JDK)])
 
-AC_ARG_VAR([JAVA_CPPFLAGS], [preprocessor flags for JDK])
+AC_ARG_VAR([JAVA_CPPFLAGS], [preprocessor flags for JNI])
 
-AC_ARG_VAR([JAVA_LDFLAGS], [linker flags for JDK])
+AC_ARG_VAR([JAVA_LDFLAGS], [linker flags for JNI])
 
 AC_ARG_VAR([PYTHON], [which Python interpreter to use])
 
@@ -209,6 +209,35 @@ AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
 # statements for better autoconf style (the AS_IF macros also make
 # sure variable dependencies are handled appropriately).
 
+# A helper for checking whether we can compile and link using JNI with
+# the current JAVA_CPPFLAGS and JAVA_LDFLAGS.
+# TRY_LINK_JNI([ACTION-SUCCESS], [ACTION-FAILURE])
+AC_DEFUN([TRY_LINK_JNI], [
+  cat <<__EOF__ >conftest.cpp [
+#include <jni.h>
+int main(int argc, char** argv)
+{
+  JNIEnv* env;
+  JavaVM* jvm;
+  JavaVMInitArgs vmArgs;
+  return JNI_CreateJavaVM(&jvm, (void**) &env, &vmArgs);
+}]
+__EOF__
+
+  # Try to compile and link via libtool (the one we generate).
+  ./libtool --tag=CXX --mode=link $CXX -Wall -Werror $JAVA_CPPFLAGS \
+    -o conftest conftest.cpp $JAVA_LDFLAGS >&5
+
+  if test $? != 0; then
+    rm -f conftest # Cleanup after ourselves.
+    $2 # Expand failure action.
+  else
+    rm -f conftest # Cleanup after ourselves.
+    $1 # Expand success action.
+  fi
+])
+
+
 # Perform necessary configuration for building with Java.
 if test "x$enable_java" = "xyes"; then
   # First let's try and determine JAVA_HOME if it hasn't been set. We
@@ -261,21 +290,6 @@ __EOF__
     fi
   fi
 
-  # Determine preprocessor flags for Java if not set.
-  if test -z "$JAVA_CPPFLAGS"; then
-    JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/$OS_NAME"
-
-    # For OSX, set JAVA_CPPFLAGS for 10.7 and above since the JAVA_HOME
-    # discovered during configure using 'java.home' does not include
-    # the JNI headers. This happens when users have not configured
-    # their jdk using the 'Java Preferences' application.
-    if test "$OS_NAME" = "darwin"; then
-      if test ! -z `sw_vers -productVersion | grep -E '10.7|10.8'`; then
-        JAVA_CPPFLAGS="-I/System/Library/Frameworks/JavaVM.framework/Headers"
-      fi
-    fi
-  fi
-
   # Determine linker flags for Java if not set.
   if test -z "$JAVA_LDFLAGS"; then
     if test "$OS_NAME" = "darwin"; then
@@ -298,31 +312,32 @@ __EOF__
 (bad JAVA_HOME or missing support for your architecture?)])
   fi
 
-  # Now check that we can build against the JDK (using libtool).
-  AC_MSG_CHECKING([whether or not we can build using the JDK])
-  cat <<__EOF__ >conftest.cpp [
-#include <jni.h>
-int main(int argc, char** argv)
-{
-  JNIEnv* env;
-  JavaVM* jvm;
-  JavaVMInitArgs vmArgs;
-  return JNI_CreateJavaVM(&jvm, (void**) &env, &vmArgs);
-}]
-__EOF__
-
-  # Try to compile and link via libtool (the one we generate).
-  ./libtool --tag=CXX --mode=link \
-    $CXX $JAVA_CPPFLAGS -o conftest conftest.cpp $JAVA_LDFLAGS >&5
-
-  if test $? != 0; then
-    AC_MSG_ERROR([failed to build against JDK (using libtool)])
+  # Now try and build with JNI, looping through possible compiler
+  # flags as necessary (provided JAVA_CPPFLAGS was not set).
+  AC_MSG_CHECKING([whether or not we can build with JNI])
+  if test -z "$JAVA_CPPFLAGS"; then
+    if test "$OS_NAME" = "darwin"; then
+      while true; do # Loop until sucessful (via break) or exhausted options.
+        m4_foreach([java_cppflags],
+                   [["-I$JAVA_HOME/include -I$JAVA_HOME/include/$OS_NAME"],
+                    ["-I/System/Library/Frameworks/JavaVM.framework/Headers"]],
+                   [JAVA_CPPFLAGS=java_cppflags
+                    TRY_LINK_JNI([break])])
+        AC_MSG_ERROR([failed to build with JNI]) # Exhausted options.
+      done
+    else
+      while true; do # Loop until sucessful (via break) or exhausted options.
+        m4_foreach([java_cppflags],
+                   [["-I$JAVA_HOME/include -I$JAVA_HOME/include/$OS_NAME"]],
+                   [JAVA_CPPFLAGS=java_cppflags
+                    TRY_LINK_JNI([break])])
+        AC_MSG_ERROR([failed to build with JNI]) # Exhausted options.
+      done
+    fi
   else
-    AC_MSG_RESULT([yes])
+    TRY_LINK_JNI([], [AC_MSG_ERROR([failed to build with JNI])])
   fi
-
-  # Cleanup after ourselves.
-  rm -f conftest
+  AC_MSG_RESULT([yes])
 
   AC_CONFIG_FILES([src/examples/java/test-exception-framework],
                   [chmod +x src/examples/java/test-exception-framework])
