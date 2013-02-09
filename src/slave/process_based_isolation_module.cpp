@@ -147,8 +147,7 @@ void ProcessBasedIsolationModule::launchExecutor(
     infos[frameworkId][executorId]->pid = pid;
 
     // Tell the slave this executor has started.
-    dispatch(slave, &Slave::executorStarted,
-             frameworkId, executorId, pid);
+    dispatch(slave, &Slave::executorStarted, frameworkId, executorId, pid);
   } else {
     // In child process, we make cleanup easier by putting process
     // into it's own session. DO NOT USE GLOG!
@@ -181,9 +180,8 @@ void ProcessBasedIsolationModule::launchExecutor(
 
     close(pipes[1]);
 
-    ExecutorLauncher* launcher =
-      createExecutorLauncher(frameworkId, frameworkInfo,
-                             executorInfo, directory);
+    ExecutorLauncher* launcher = createExecutorLauncher(
+      frameworkId, frameworkInfo, executorInfo, directory);
 
     if (launcher->run() < 0) {
       std::cerr << "Failed to launch executor" << std::endl;

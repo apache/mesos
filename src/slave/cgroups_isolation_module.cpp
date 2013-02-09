@@ -226,7 +226,7 @@ void CgroupsIsolationModule::initialize(
     subsystems.insert(subsystem);
   }
 
-  // Regardless of whether or not it was destired, we require the
+  // Regardless of whether or not it was desired, we require the
   // 'freezer' subsystem in order to destroy a cgroup.
   subsystems.insert("freezer");
 
@@ -445,40 +445,6 @@ void CgroupsIsolationModule::launchExecutor(
             << " for framework " << frameworkId
             << " in cgroup " << info->name();
 
-  // First fetch the executor.
-  launcher::ExecutorLauncher launcher(
-      frameworkId,
-      executorInfo.executor_id(),
-      executorInfo.command(),
-      frameworkInfo.user(),
-      directory,
-      slave,
-      flags.frameworks_home,
-      flags.hadoop_home,
-      !local,
-      flags.switch_user,
-      "");
-
-  if (launcher.setup() < 0) {
-    LOG(ERROR) << "Error setting up executor " << executorId
-               << " for framework " << frameworkId;
-
-    unregisterCgroupInfo(frameworkId, executorId);
-
-    LOG(INFO) << "Telling slave of lost executor " << executorId
-              << " of framework " << frameworkId;
-
-    dispatch(slave,
-             &Slave::executorTerminated,
-             frameworkId,
-             executorId,
-             -1,  // TODO(benh): Determine "correct" status.
-             false,
-             "Error launching executor");
-
-    return;
-  }
-
   // Create a new cgroup for the executor.
   Try<Nothing> create = cgroups::create(hierarchy, info->name());
   if (create.isError()) {
@@ -514,7 +480,33 @@ void CgroupsIsolationModule::launchExecutor(
              pid);
   } else {
     // In child process.
+
+    launcher::ExecutorLauncher launcher(
+        frameworkId,
+        executorInfo.executor_id(),
+        executorInfo.command(),
+        frameworkInfo.user(),
+        directory,
+        slave,
+        flags.frameworks_home,
+        flags.hadoop_home,
+        !local,
+        flags.switch_user,
+        "");
+
+    // First fetch the executor.
+    if (launcher.setup() < 0) {
+      EXIT(1) << "Error setting up executor " << executorId
+              << " for framework " << frameworkId;
+    }
+
     // Put self into the newly created cgroup.
+    // Note that the memory used for setting up the executor
+    // (launcher.setup()) is charged to the slave's cgroup and
+    // not to the executor's cgroup. When we assign the executor
+    // to the its own cgroup, below, its memory charge will start
+    // at 0. For more details, refer to
+    // http://www.kernel.org/doc/Documentation/cgroups/memory.txt
     Try<Nothing> assign = cgroups::assign(hierarchy, info->name(), ::getpid());
     if (assign.isError()) {
       LOG(FATAL) << "Failed to assign for executor " << executorId
