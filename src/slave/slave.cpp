@@ -842,6 +842,29 @@ void Slave::statusUpdate(const StatusUpdate& update)
 
   Framework* framework = getFramework(update.framework_id());
   if (framework != NULL) {
+    // Send message and record the status for possible resending.
+    // TODO(vinod): Revisit the strategy of always sending a status update
+    // upstream, when we have persistent state at the master and slave.
+    StatusUpdateMessage message;
+    message.mutable_update()->MergeFrom(update);
+    message.set_pid(self());
+    send(master, message);
+
+    UUID uuid = UUID::fromBytes(update.uuid());
+
+    // Send us a message to try and resend after some delay.
+    delay(STATUS_UPDATE_RETRY_INTERVAL,
+          self(),
+          &Slave::statusUpdateTimeout,
+          framework->id,
+          uuid);
+
+    framework->updates[uuid] = update;
+
+    stats.tasks[status.state()]++;
+
+    stats.validStatusUpdates++;
+
     Executor* executor = framework->getExecutor(status.task_id());
     if (executor != NULL) {
       executor->updateTaskState(status.task_id(), status.state());
@@ -852,27 +875,10 @@ void Slave::statusUpdate(const StatusUpdate& update)
 
         dispatch(isolationModule,
                  &IsolationModule::resourcesChanged,
-                 framework->id, executor->id, executor->resources);
+                 framework->id,
+                 executor->id,
+                 executor->resources);
       }
-
-      // Send message and record the status for possible resending.
-      StatusUpdateMessage message;
-      message.mutable_update()->MergeFrom(update);
-      message.set_pid(self());
-      send(master, message);
-
-      UUID uuid = UUID::fromBytes(update.uuid());
-
-      // Send us a message to try and resend after some delay.
-      delay(STATUS_UPDATE_RETRY_INTERVAL,
-            self(), &Slave::statusUpdateTimeout,
-            framework->id, uuid);
-
-      framework->updates[uuid] = update;
-
-      stats.tasks[status.state()]++;
-
-      stats.validStatusUpdates++;
     } else {
       LOG(WARNING) << "Status update error: couldn't lookup "
                    << "executor for framework " << update.framework_id();

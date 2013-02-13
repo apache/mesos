@@ -25,6 +25,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "detector/detector.hpp"
 
 #include "local/local.hpp"
@@ -596,6 +598,110 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   process::wait(master);
 
   Clock::resume();
+}
+
+
+TEST(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
+  Files files;
+  Master m(&a, &files);
+  PID<Master> master = process::spawn(&m);
+
+  MockExecutor exec;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  trigger shutdownCall;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(Trigger(&shutdownCall));
+
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
+
+  Resources resources = Resources::parse("cpus:2;mem:1024");
+
+  Slave s(resources, true, &isolationModule, &files);
+  PID<Slave> slave = process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  vector<Offer> offers;
+  trigger resourceOffersCall;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers),
+                    Trigger(&resourceOffersCall)))
+    .WillRepeatedly(Return());
+
+  TaskStatus status;
+  trigger statusUpdateCall1, statusUpdateCall2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(Trigger(&statusUpdateCall1))  // TASK_RUNNING of task1.
+    .WillOnce(DoAll(SaveArg<1>(&status),    // TASK_RUNNING of task2.
+                    Trigger(&statusUpdateCall2)));
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOffersCall);
+
+  EXPECT_NE(0u, offers.size());
+  Offer offer = offers[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(offer.resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  driver.launchTasks(offer.id(), tasks);
+
+  // Wait until TASK_RUNNING of task1 is received.
+  WAIT_UNTIL(statusUpdateCall1);
+
+  // Simulate the slave receiving status update from an unknown (e.g. exited)
+  // executor of the given framework.
+  TaskID taskId;
+  taskId.set_value("task2");
+
+  StatusUpdate statusUpdate = protobuf::createStatusUpdate(
+      frameworkId, offer.slave_id(), taskId, TASK_RUNNING, "Dummy update");
+
+  process::dispatch(slave, &Slave::statusUpdate, statusUpdate);
+
+  // Ensure that the scheduler receives task2's update.
+  WAIT_UNTIL(statusUpdateCall2);
+  EXPECT_EQ(taskId, status.task_id());
+  EXPECT_EQ(TASK_RUNNING, status.state());
+
+  driver.stop();
+  driver.join();
+
+  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
 }
 
 
