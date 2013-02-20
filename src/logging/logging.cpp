@@ -30,7 +30,7 @@
 #include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
-#include <stout/format.hpp>
+#include <stout/exit.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -159,9 +159,8 @@ void initialize(const string& _argv0, const Flags& flags)
   if (flags.log_dir.isSome()) {
     Try<Nothing> mkdir = os::mkdir(flags.log_dir.get());
     if (mkdir.isError()) {
-      std::cerr << "Could not initialize logging: Failed to create directory "
-                << flags.log_dir.get() << ": " << mkdir.error() << std::endl;
-      exit(1);
+      EXIT(1) << "Could not initialize logging: Failed to create directory "
+              << flags.log_dir.get() << ": " << mkdir.error();
     }
     FLAGS_log_dir = flags.log_dir.get();
   }
@@ -193,22 +192,19 @@ Try<string> getLogFile(google::LogSeverity severity)
     return Try<string>::error("The 'log_dir' option was not specified");
   }
 
-  string suffix;
-  switch (severity) {
-    case google::INFO:    suffix = ".INFO";    break;
-    case google::WARNING: suffix = ".WARNING"; break;
-    case google::ERROR:   suffix = ".ERROR";   break;
-    default:
-      return Try<string>::error(
-          strings::format("Unknown log severity: %d", severity).get());
-  }
-
   Try<string> basename = os::basename(argv0);
   if (basename.isError()) {
     return basename;
   }
 
-  return path::join(FLAGS_log_dir, basename.get()) + suffix;
+  if (severity < 0 || google::NUM_SEVERITIES <= severity) {
+    return Try<string>::error(
+        "Unknown log severity: " + stringify(severity));
+  }
+
+  string suffix(google::GetLogSeverityName(severity));
+
+  return path::join(FLAGS_log_dir, basename.get()) + "." + suffix;
 }
 
 } // namespace logging {
