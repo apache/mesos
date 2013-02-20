@@ -69,6 +69,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/async.hpp	\
 	$(top_srcdir)/include/process/timer.hpp				\
 	$(top_srcdir)/include/stout/cache.hpp				\
 	$(top_srcdir)/include/stout/duration.hpp			\
+	$(top_srcdir)/include/stout/error.hpp				\
 	$(top_srcdir)/include/stout/exit.hpp				\
 	$(top_srcdir)/include/stout/fatal.hpp				\
 	$(top_srcdir)/include/stout/foreach.hpp				\
@@ -81,6 +82,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/async.hpp	\
 	$(top_srcdir)/include/stout/lambda.hpp				\
 	$(top_srcdir)/include/stout/multihashmap.hpp			\
 	$(top_srcdir)/include/stout/net.hpp				\
+	$(top_srcdir)/include/stout/none.hpp				\
 	$(top_srcdir)/include/stout/nothing.hpp				\
 	$(top_srcdir)/include/stout/numify.hpp				\
 	$(top_srcdir)/include/stout/option.hpp				\

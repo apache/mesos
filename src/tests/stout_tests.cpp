@@ -7,6 +7,7 @@
 
 #include <stout/cache.hpp>
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
 #include <stout/format.hpp>
@@ -16,6 +17,7 @@
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/multihashmap.hpp>
+#include <stout/none.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -31,6 +33,102 @@
 #include "tests/utils.hpp"
 
 using namespace std;
+
+
+Error error1()
+{
+  return Error("Failed to ...");
+}
+
+
+Try<string> error2()
+{
+  return Error("Failed to ...");
+}
+
+
+Try<string> error3(const Try<string>& t)
+{
+  return t;
+}
+
+
+Result<string> error4()
+{
+  return Error("Failed to ...");
+}
+
+
+Result<string> error5(const Result<string>& r)
+{
+  return r;
+}
+
+
+TEST(Stout, Error)
+{
+  Try<string> t = error1();
+  EXPECT_TRUE(t.isError());
+  t = error2();
+  EXPECT_TRUE(t.isError());
+  t = error3(error1());
+  EXPECT_TRUE(t.isError());
+
+  Result<string> r = error1();
+  EXPECT_TRUE(r.isError());
+  r = error4();
+  EXPECT_TRUE(r.isError());
+  r = error5(error1());
+  EXPECT_TRUE(r.isError());
+}
+
+
+None none1()
+{
+  return None();
+}
+
+
+Option<string> none2()
+{
+  return None();
+}
+
+
+Option<string> none3(const Option<string>& o)
+{
+  return o;
+}
+
+
+Result<string> none4()
+{
+  return None();
+}
+
+
+Result<string> none5(const Result<string>& r)
+{
+  return r;
+}
+
+
+TEST(Stout, None)
+{
+  Option<string> o = none1();
+  EXPECT_TRUE(o.isNone());
+  o = none2();
+  EXPECT_TRUE(o.isNone());
+  o = none3(none1());
+  EXPECT_TRUE(o.isNone());
+
+  Result<string> r = none1();
+  EXPECT_TRUE(r.isNone());
+  r = none4();
+  EXPECT_TRUE(r.isNone());
+  r = none5(none1());
+  EXPECT_TRUE(r.isNone());
+}
 
 
 TEST(Stout, Duration)
