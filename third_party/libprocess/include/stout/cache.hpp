@@ -9,6 +9,7 @@
 #include <tr1/functional>
 #include <tr1/unordered_map>
 
+#include "none.hpp"
 #include "option.hpp"
 
 // Forward declaration.
@@ -54,7 +55,7 @@ public:
       return (*i).second.first;
     }
 
-    return Option<Value>::none();
+    return None();
   }
 
 private:

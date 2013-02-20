@@ -8,6 +8,7 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -97,9 +98,9 @@ Try<list<CPU> > cpus()
       // And finally create a CPU if we have all the information.
       if (id.isSome() && core.isSome() && socket.isSome()) {
         results.push_back(CPU(id.get(), core.get(), socket.get()));
-        id = Option<unsigned int>::none();
-        core = Option<unsigned int>::none();
-        socket = Option<unsigned int>::none();
+        id = None();
+        core = None();
+        socket = None();
       }
     }
   }

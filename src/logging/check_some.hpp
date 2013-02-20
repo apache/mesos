@@ -25,6 +25,7 @@
 
 #include <glog/logging.h> // Includes LOG(*), PLOG(*), CHECK, etc.
 
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
@@ -45,7 +46,7 @@ Option<std::string> _check(const Option<T>& o)
   if (o.isNone()) {
     return Option<std::string>::some("is NONE");
   }
-  return Option<std::string>::none();
+  return None();
 }
 
 
@@ -55,7 +56,7 @@ Option<std::string> _check(const Try<T>& t)
   if (t.isError()) {
     return t.error();
   }
-  return Option<std::string>::none();
+  return None();
 }
 
 
@@ -67,7 +68,7 @@ Option<std::string> _check(const Result<T>& r)
   } else if (r.isNone()) {
     return Option<std::string>::some("is NONE");
   }
-  return Option<std::string>::none();
+  return None();
 }
 
 

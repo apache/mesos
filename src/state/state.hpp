@@ -24,6 +24,7 @@
 
 #include <process/future.hpp>
 
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
@@ -178,7 +179,7 @@ process::Future<Option<Variable<T> > > State<Serializer>::_set(
     return Option<Variable<T> >::some(Variable<T>(entry, t));
   }
 
-  return Option<Variable<T> >::none();
+  return None();
 }
 
 

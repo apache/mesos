@@ -11,6 +11,7 @@
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 
 namespace process {
@@ -22,7 +23,7 @@ namespace process {
 template <typename T>
 Future<std::list<T> > collect(
     std::list<Future<T> >& futures,
-    const Option<Timeout>& timeout = Option<Timeout>::none());
+    const Option<Timeout>& timeout = None());
 
 
 namespace internal {

@@ -6,6 +6,7 @@
 
 #include "hashset.hpp"
 #include "foreach.hpp"
+#include "none.hpp"
 #include "option.hpp"
 
 
@@ -46,7 +47,7 @@ public:
         const_iterator;
     const_iterator it = boost::unordered_map<Key, Value>::find(key);
     if (it == boost::unordered_map<Key, Value>::end()) {
-      return Option<Value>::none();
+      return None();
     }
     return it->second;
   }

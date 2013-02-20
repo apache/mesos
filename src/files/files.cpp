@@ -19,6 +19,7 @@
 #include <stout/error.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
+#include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -428,13 +429,13 @@ Result<string> FilesProcess::resolve(const string& path)
     } else if (suffix != "") {
       // Request is assuming attached path is a directory, but it is
       // not! Rather than 'Bad Request', treat this as 'Not Found'.
-      return Result<string>::none();
+      return None();
     }
 
     return path;
   }
 
-  return Result<string>::none();
+  return None();
 }
 
 

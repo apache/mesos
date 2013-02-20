@@ -6,6 +6,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include "error.hpp"
+#include "none.hpp"
 #include "option.hpp"
 #include "result.hpp"
 #include "try.hpp"
@@ -33,7 +34,7 @@ Result<T> numify(const Option<std::string>& s)
     }
   }
 
-  return Result<T>::none();
+  return None();
 }
 
 #endif // __STOUT_NUMIFY_HPP__

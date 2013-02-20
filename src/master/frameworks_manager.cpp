@@ -21,6 +21,7 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 
 #include "master/frameworks_manager.hpp"
 
@@ -95,7 +96,7 @@ Result<bool> FrameworksManager::add(const FrameworkID& id,
     return result.get();
   }
 
-  infos[id] = std::make_pair(info, Option<double>::none());
+  infos[id] = std::make_pair(info, None());
 
   return true;
 }
@@ -134,7 +135,7 @@ Result<bool> FrameworksManager::resurrect(const FrameworkID& id)
   }
 
   if (infos.count(id) > 0) {
-    infos[id].second = Option<double>::none();
+    infos[id].second = None();
 
     return true;
   }
@@ -218,7 +219,7 @@ bool FrameworksManager::cache()
     }
 
     foreachpair (const FrameworkID& id, const FrameworkInfo& info, result.get().get()) {
-      infos[id] = std::make_pair(info, Option<double>::none());
+      infos[id] = std::make_pair(info, None());
     }
 
     cached = true;

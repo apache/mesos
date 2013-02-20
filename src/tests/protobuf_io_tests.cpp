@@ -20,8 +20,10 @@
 
 #include <gmock/gmock.h>
 
+#include <stout/none.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/result.hpp>
 
 #include "common/type_utils.hpp"
 
@@ -58,7 +60,7 @@ TEST(ProtobufIOTest, Basic)
     ASSERT_SOME(result);
   }
 
-  Result<FrameworkID> read = Result<FrameworkID>::none();
+  Result<FrameworkID> read = None();
   size_t reads = 0;
   while (true) {
     read = protobuf::read<FrameworkID>(fdr);

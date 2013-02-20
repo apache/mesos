@@ -10,6 +10,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
+#include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/result.hpp>
@@ -371,7 +372,7 @@ Future<Option<int64_t> > GroupProcess::session()
     promise.fail(error.get());
     return promise.future();
   } else if (state != CONNECTED) {
-    return Option<int64_t>::none();
+    return None();
   }
 
   return Option<int64_t>::some(zk->getSessionId());
@@ -442,7 +443,7 @@ void GroupProcess::reconnecting()
 void GroupProcess::expired()
 {
   // Invalidate the cache.
-  memberships = Option<set<Group::Membership> >::none();
+  memberships = None();
 
   // Set all owned memberships as cancelled.
   foreachpair (uint64_t sequence, Promise<bool>* cancelled, utils::copy(owned)) {
@@ -510,7 +511,7 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
 
   if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<Group::Membership>::none();
+    return None();
   } else if (code != ZOK) {
     return Error(
         "Failed to create ephemeral node at '" + znode +
@@ -519,7 +520,7 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
 
   // Invalidate the cache (it will/should get immediately populated
   // via the 'updated' callback of our ZooKeeper watcher).
-  memberships = Option<set<Group::Membership> >::none();
+  memberships = None();
 
   // Save the sequence number but only grab the basename. Example:
   // "/path/to/znode/0000000131" => "0000000131".
@@ -556,7 +557,7 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
 
   if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<bool>::none();
+    return None();
   } else if (code != ZOK) {
     return Error(
         "Failed to remove ephemeral node '" + path +
@@ -565,7 +566,7 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
 
   // Invalidate the cache (it will/should get immediately populated
   // via the 'updated' callback of our ZooKeeper watcher).
-  memberships = Option<set<Group::Membership> >::none();
+  memberships = None();
 
   // Let anyone waiting know the membership has been cancelled.
   CHECK(owned.count(membership.id()) == 1);
@@ -598,7 +599,7 @@ Result<string> GroupProcess::doData(const Group::Membership& membership)
 
   if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<string>::none();
+    return None();
   } else if (code != ZOK) {
     return Error(
         "Failed to get data for ephemeral node '" + path +
@@ -612,7 +613,7 @@ Result<string> GroupProcess::doData(const Group::Membership& membership)
 bool GroupProcess::cache()
 {
   // Invalidate first (if it's not already).
-  memberships = Option<set<Group::Membership> >::none();
+  memberships = None();
 
   // Get all children to determine current memberships.
   vector<string> results;

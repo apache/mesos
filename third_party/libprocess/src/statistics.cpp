@@ -17,6 +17,7 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
+#include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
@@ -177,8 +178,8 @@ Future<Response> StatisticsProcess::series(const Request& request)
     return BadRequest("Expected 'name=val' in query.");
   }
 
-  Option<Seconds> start = Option<Seconds>::none();
-  Option<Seconds> stop = Option<Seconds>::none();
+  Option<Seconds> start = None();
+  Option<Seconds> stop = None();
 
   if (request.query.get("start").isSome()) {
     Try<double> result = numify<double>(request.query.get("start").get());

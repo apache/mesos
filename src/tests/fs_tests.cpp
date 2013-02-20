@@ -21,6 +21,7 @@
 #include <gmock/gmock.h>
 
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -41,8 +42,8 @@ TEST(FsTest, MountTableRead)
 
   ASSERT_SOME(table);
 
-  Option<MountTable::Entry> root = Option<MountTable::Entry>::none();
-  Option<MountTable::Entry> proc = Option<MountTable::Entry>::none();
+  Option<MountTable::Entry> root = None();
+  Option<MountTable::Entry> proc = None();
   foreach (const MountTable::Entry& entry, table.get().entries) {
     if (entry.dir == "/") {
       root = entry;
@@ -63,7 +64,7 @@ TEST(FsTest, MountTableHasOption)
 
   ASSERT_SOME(table);
 
-  Option<MountTable::Entry> proc = Option<MountTable::Entry>::none();
+  Option<MountTable::Entry> proc = None();
   foreach (const MountTable::Entry& entry, table.get().entries) {
     if (entry.dir == "/proc") {
       proc = entry;
@@ -83,7 +84,7 @@ TEST(FsTest, FileSystemTableRead)
 
   // NOTE: We do not check for /proc because, it is not always present in
   // /etc/fstab.
-  Option<FileSystemTable::Entry> root = Option<FileSystemTable::Entry>::none();
+  Option<FileSystemTable::Entry> root = None();
   foreach (const FileSystemTable::Entry& entry, table.get().entries) {
     if (entry.file == "/") {
       root = entry;

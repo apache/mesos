@@ -6,6 +6,7 @@
 #include "process/future.hpp"
 
 #include <stout/duration.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 
 #include "zookeeper/authentication.hpp"
@@ -84,7 +85,7 @@ public:
   Group(const std::string& servers,
         const Duration& timeout,
         const std::string& znode,
-        const Option<Authentication>& auth = Option<Authentication>::none());
+        const Option<Authentication>& auth = None());
   ~Group();
 
   // Returns the result of trying to join a "group" in ZooKeeper. If

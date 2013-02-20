@@ -23,6 +23,7 @@
 #include <string>
 
 #include <stout/duration.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 
 #include "configurator/configuration.hpp"
@@ -80,8 +81,8 @@ TEST(FlagsTest, Load)
   values["name1"] = Option<std::string>::some("billy joel");
   values["name2"] = Option<std::string>::some("43");
   values["name3"] = Option<std::string>::some("false");
-  values["no-name4"] = Option<std::string>::none();
-  values["name5"] = Option<std::string>::none();
+  values["no-name4"] = None();
+  values["name5"] = None();
 
   flags.load(values);
 
@@ -121,7 +122,7 @@ TEST(FlagsTest, Add)
   std::map<std::string, Option<std::string> > values;
 
   values["name6"] = Option<std::string>::some("ben folds");
-  values["no-name7"] = Option<std::string>::none();
+  values["no-name7"] = None();
 
   flags.load(values);
 
@@ -143,8 +144,8 @@ TEST(FlagsTest, Flags)
   values["name1"] = Option<std::string>::some("billy joel");
   values["name2"] = Option<std::string>::some("43");
   values["name3"] = Option<std::string>::some("false");
-  values["no-name4"] = Option<std::string>::none();
-  values["name5"] = Option<std::string>::none();
+  values["no-name4"] = None();
+  values["name5"] = None();
 
   flags.load(values);
 

@@ -15,6 +15,7 @@
 #include <stout/error.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
@@ -104,8 +105,7 @@ struct OK : Response
     status = "200 OK";
   }
 
-  OK(const JSON::Value& value,
-     const Option<std::string>& jsonp = Option<std::string>::none())
+  OK(const JSON::Value& value, const Option<std::string>& jsonp = None())
   {
     type = BODY;
 

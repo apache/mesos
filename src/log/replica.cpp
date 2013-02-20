@@ -29,6 +29,7 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/numify.hpp>
 #include <stout/stopwatch.hpp>
@@ -585,9 +586,9 @@ Result<Action> ReplicaProcess::read(uint64_t position)
   if (position < begin) {
     return Error("Attempted to read truncated position");
   } else if (end < position) {
-    return Result<Action>::none(); // These semantics are assumed above!
+    return None(); // These semantics are assumed above!
   } else if (holes.count(position) > 0) {
-    return Result<Action>::none();
+    return None();
   }
 
   // Must exist in storage ...

@@ -27,6 +27,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/strings.hpp>
 
@@ -105,7 +106,7 @@ public:
       return boost::lexical_cast<T>(it->second);
     }
 
-    return Option<T>::none();
+    return None();
   }
 
   template <typename T>

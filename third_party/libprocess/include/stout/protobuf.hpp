@@ -18,6 +18,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include "error.hpp"
+#include "none.hpp"
 #include "os.hpp"
 #include "result.hpp"
 #include "try.hpp"
@@ -90,7 +91,7 @@ inline Result<T> read(int fd)
   Result<std::string> result = os::read(fd, sizeof(size));
 
   if (result.isNone()) {
-    return Result<T>::none(); // No more protobufs to read.
+    return None(); // No more protobufs to read.
   } else if (result.isError()) {
     return Error("Failed to read size: " + result.error());
   }

@@ -4,6 +4,7 @@
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 
 namespace process {
@@ -23,8 +24,8 @@ public:
   // Returns the time series of a statistic.
   process::Future<std::map<Seconds, double> > get(
       const std::string& name,
-      const Option<Seconds>& start = Option<Seconds>::none(),
-      const Option<Seconds>& stop = Option<Seconds>::none());
+      const Option<Seconds>& start = None(),
+      const Option<Seconds>& stop = None());
 
   // Sets the current value of a statistic.
   void set(const std::string& name, double value);

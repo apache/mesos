@@ -10,6 +10,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
@@ -269,7 +270,7 @@ Result<vector<string> > ZooKeeperStateProcess::doNames()
 
   if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<vector<string> >::none(); // Try again later.
+    return None(); // Try again later.
   } else if (code != ZOK) {
     return Error(
         "Failed to get children of '" + znode +
@@ -297,7 +298,7 @@ Result<Option<Entry> > ZooKeeperStateProcess::doFetch(const string& name)
     return Option<Entry>::none();
   } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<Option<Entry> >::none(); // Try again later.
+    return None(); // Try again later.
   } else if (code != ZOK) {
     return Error(
         "Failed to get '" + znode + "/" + name +
@@ -353,7 +354,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
 
       if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
         CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-        return Result<bool>::none(); // Try again later.
+        return None(); // Try again later.
       } else if (code != ZOK && code != ZNODEEXISTS) {
         return Error(
             "Failed to create '" + prefix +
@@ -367,7 +368,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
       return false; // Lost a race with someone else.
     } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
       CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-      return Result<bool>::none(); // Try again later.
+      return None(); // Try again later.
     } else if (code != ZOK) {
       return Error(
           "Failed to create '" + znode + "/" + entry.name() +
@@ -377,7 +378,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
     return true;
   } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<bool>::none(); // Try again later.
+    return None(); // Try again later.
   } else if (code != ZOK) {
     return Error(
         "Failed to get '" + znode + "/" + entry.name() +
@@ -403,7 +404,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
     return false;
   } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
-    return Result<bool>::none(); // Try again later.
+    return None(); // Try again later.
   } else if (code != ZOK) {
     return Error(
         "Failed to set '" + znode + "/" + entry.name() +

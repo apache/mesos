@@ -24,6 +24,7 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 
 #include "log/coordinator.hpp"
 #include "log/replica.hpp"
@@ -68,7 +69,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
   Future<uint64_t> promise = replica->promised();
 
   if (!promise.await(timeout.remaining())) {
-    return Result<uint64_t>::none();
+    return None();
   } else if (promise.isFailed()) {
     return Error(promise.failure());
   }
@@ -92,7 +93,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
       CHECK(future.get().isReady());
       const PromiseResponse& response = future.get().get();
       if (!response.okay()) {
-        return Result<uint64_t>::none(); // Lost an election, but can retry.
+        return None(); // Lost an election, but can retry.
       } else if (response.okay()) {
         CHECK(response.has_position());
         index = std::max(index, response.position());
@@ -124,7 +125,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
 
     if (!positions.await(timeout.remaining())) {
       elected = false;
-      return Result<uint64_t>::none();
+      return None();
     } else if (positions.isFailed()) {
       elected = false;
       return Error(positions.failure());
@@ -139,7 +140,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
         return Error(result.error());
       } else if (result.isNone()) {
         elected = false;
-        return Result<uint64_t>::none();
+        return None();
       } else {
         CHECK_SOME(result);
         CHECK(result.get().position() == position);
@@ -152,7 +153,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
 
   // Timed out ...
   LOG(INFO) << "Coordinator timed out while trying to get elected";
-  return Result<uint64_t>::none();
+  return None();
 }
 
 
@@ -237,7 +238,7 @@ Result<uint64_t> Coordinator::write(
     if (result.isError()) {
       return Error(result.error());
     } else if (result.isNone()) {
-      return Result<uint64_t>::none();
+      return None();
     } else {
       CHECK_SOME(result);
       return action.position();
@@ -290,7 +291,7 @@ Result<uint64_t> Coordinator::write(
           if (result.isError()) {
             return Error(result.error());
           } else if (result.isNone()) {
-            return Result<uint64_t>::none();
+            return None();
           } else {
             CHECK_SOME(result);
             return action.position();
@@ -306,7 +307,7 @@ Result<uint64_t> Coordinator::write(
             << Action::Type_Name(action.type())
             << " action at position " << action.position();
   discard(futures);
-  return Result<uint64_t>::none();
+  return None();
 }
 
 
@@ -454,7 +455,7 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
           if (result.isError()) {
             return Error(result.error());
           } else if (result.isNone()) {
-            return Result<Action>::none();
+            return None();
           } else {
             CHECK_SOME(result);
             return response.action();
@@ -486,7 +487,7 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
     if (result.isError()) {
       return Error(result.error());
     } else if (result.isNone()) {
-      return Result<Action>::none();
+      return None();
     } else {
       CHECK_SOME(result);
       return action;
@@ -496,7 +497,7 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
   // Timed out ...
   LOG(INFO) << "Coordinator timed out attempting to fill position "
             << position << " in the log";
-  return Result<Action>::none();
+  return None();
 }
 
 

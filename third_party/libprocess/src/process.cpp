@@ -1436,7 +1436,7 @@ HttpProxy::~HttpProxy()
   if (pipe.isSome()) {
     close(pipe.get());
   }
-  pipe = Option<int>::none();
+  pipe = None();
 
   while (!items.empty()) {
     Item* item = items.front();
@@ -1663,7 +1663,7 @@ void HttpProxy::stream(const Future<short>& poll, bool persist)
 
   if (finished) {
     close(pipe.get());
-    pipe = Option<int>::none();
+    pipe = None();
     next();
   }
 }

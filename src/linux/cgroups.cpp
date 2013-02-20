@@ -44,6 +44,7 @@
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -397,7 +398,7 @@ static Option<string> verify(
     }
   }
 
-  return Option<string>::none();
+  return None();
 }
 
 
@@ -932,7 +933,7 @@ static Try<int> registerNotifier(
     const string& hierarchy,
     const string& cgroup,
     const string& control,
-    const Option<string>& args = Option<string>::none())
+    const Option<string>& args = None())
 {
   int efd = internal::eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
   if (efd < 0) {

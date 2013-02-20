@@ -10,6 +10,7 @@
 #include <process/process.hpp>
 
 #include <stout/error.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
@@ -142,7 +143,7 @@ Try<Option<Entry> > LevelDBStateProcess::get(const string& name)
   leveldb::Status status = db->Get(options, name, &value);
 
   if (status.IsNotFound()) {
-    return Option<Entry>::none();
+    return None();
   } else if (!status.ok()) {
     return Error(status.ToString());
   }

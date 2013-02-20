@@ -43,6 +43,14 @@ public:
   {
     return S<Result<T> >(Result<T>::none());
   }
+
+  // Give the compiler some more help to disambiguate the above cast
+  // operators from Result<Option<T>>.
+  template <typename T>
+  operator Result<Option<T> > () const
+  {
+    return Result<Option<T> >::none();
+  }
 };
 
 #endif // __STOUT_NONE_HPP__

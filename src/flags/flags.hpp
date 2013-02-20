@@ -42,12 +42,11 @@
 // ...
 //
 // map<string, Option<string> > values;
-// values["no-debug"] = Option<string>::none(); // --no-debug
-// values["debug"] = Option<string>::none(); // --debug
-// values["debug"] = Option<string>::some("true"); // --debug=true
-// values["debug"] = Option<string>::some("false"); // --debug=false
-// values["name"] = Option<string>::some("frank"); // --name=frank
-// values["name"] = Option<string>::none(); // --name=true
+// values["no-debug"] = None();                       // --no-debug
+// values["debug"] = None();                          // --debug
+// values["debug"] = Option<string>::some("true");    // --debug=true
+// values["debug"] = Option<string>::some("false");   // --debug=false
+// values["name"] = Option<string>::some("frank");    // --name=frank
 //
 // MyFlags flags;
 // flags.load(values);

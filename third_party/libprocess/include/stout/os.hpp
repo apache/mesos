@@ -32,6 +32,7 @@
 
 #include "error.hpp"
 #include "foreach.hpp"
+#include "none.hpp"
 #include "nothing.hpp"
 #include "path.hpp"
 #include "result.hpp"
@@ -278,7 +279,7 @@ inline Result<std::string> read(int fd, size_t size)
     } else if (length == 0) {
       // Reached EOF before expected! Restore the offset.
       lseek(fd, current, SEEK_SET);
-      return Result<std::string>::none();
+      return None();
     }
 
     offset += length;

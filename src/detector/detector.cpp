@@ -31,6 +31,7 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -337,7 +338,7 @@ void ZooKeeperMasterDetectorProcess::connected(bool reconnect)
     // Cancel and cleanup the reconnect timer (if necessary).
     if (timer.isSome()) {
       Timer::cancel(timer.get());
-      timer = Option<Timer>::none();
+      timer = None();
     }
 
     // If we decided to expire the session, make sure we delete the
@@ -394,7 +395,7 @@ void ZooKeeperMasterDetectorProcess::expired()
   // Cancel and cleanup the reconnect timer (if necessary).
   if (timer.isSome()) {
     Timer::cancel(timer.get());
-    timer = Option<Timer>::none();
+    timer = None();
   }
 
   delete CHECK_NOTNULL(zk);
@@ -433,7 +434,7 @@ void ZooKeeperMasterDetectorProcess::timedout(const int64_t& sessionId)
   if (timer.isSome() && zk->getSessionId() == sessionId) {
     LOG(WARNING) << "Timed out waiting to reconnect to ZooKeeper "
                  << "(sessionId=" << std::hex << sessionId << ")";
-    timer = Option<Timer>::none();
+    timer = None();
     expire = true;
 
     // We only send a NoMasterDetectedMessage if we are a

@@ -28,6 +28,7 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
@@ -200,8 +201,7 @@ public:
       const std::string& servers,
       const Duration& timeout,
       const std::string& znode,
-      const Option<zookeeper::Authentication>& auth
-        = Option<zookeeper::Authentication>::none())
+      const Option<zookeeper::Authentication>& auth = None())
   {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -287,7 +287,7 @@ Result<std::list<Log::Entry> > Log::Reader::read(
     replica->read(from.value, to.value);
 
   if (!actions.await(timeout.remaining())) {
-    return Result<std::list<Log::Entry> >::none();
+    return None();
   } else if (actions.isFailed()) {
     return Error(actions.failure());
   }
@@ -340,7 +340,7 @@ Log::Position Log::Reader::ending()
 
 
 Log::Writer::Writer(Log* log, const Duration& timeout, int retries)
-  : error(Option<std::string>::none()),
+  : error(None()),
     coordinator(log->quorum, log->replica, log->network)
 {
   do {
@@ -379,7 +379,7 @@ Result<Log::Position> Log::Writer::append(
     error = result.error();
     return Error(error.get());
   } else if (result.isNone()) {
-    return Result<Log::Position>::none();
+    return None();
   }
 
   CHECK_SOME(result);
@@ -404,7 +404,7 @@ Result<Log::Position> Log::Writer::truncate(
     error = result.error();
     return Error(error.get());
   } else if (result.isNone()) {
-    return Result<Log::Position>::none();
+    return None();
   }
 
   CHECK_SOME(result);

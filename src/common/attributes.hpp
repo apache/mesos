@@ -25,6 +25,7 @@
 #include <mesos/mesos.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 
 #include "common/values.hpp"
@@ -137,7 +138,7 @@ public:
       }
     }
 
-    return Option<Attribute>::none();
+    return None();
   }
 
   template <typename T>
