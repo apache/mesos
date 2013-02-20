@@ -41,6 +41,7 @@
 #include <process/process.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
@@ -92,16 +93,17 @@ struct SubsystemInfo
 
 
 // Return information about subsystems on the current machine. We get
-// information from /proc/cgroups file. Each line in it describes a subsystem.
-// @return  A map from subsystem names to SubsystemInfo instances if succeeds.
-//          Error if any unexpected happens.
+// information from /proc/cgroups file. Each line in it describes a
+// subsystem.
+// @return A map from subsystem names to SubsystemInfo instances if
+//         succeeds.  Error if anything unexpected happens.
 static Try<map<string, SubsystemInfo> > subsystems()
 {
+  // TODO(benh): Use os::read to get better error information.
   std::ifstream file("/proc/cgroups");
 
   if (!file.is_open()) {
-    return Try<map<string, SubsystemInfo> >::error(
-        "Failed to open /proc/cgroups");
+    return Error("Failed to open /proc/cgroups");
   }
 
   map<string, SubsystemInfo> infos;
@@ -113,8 +115,7 @@ static Try<map<string, SubsystemInfo> > subsystems()
     if (file.fail()) {
       if (!file.eof()) {
         file.close();
-        return Try<map<string, SubsystemInfo> >::error(
-            "Failed to read /proc/cgroups");
+        return Error("Failed to read /proc/cgroups");
       }
     } else {
       if (line.empty()) {
@@ -136,8 +137,7 @@ static Try<map<string, SubsystemInfo> > subsystems()
         // Check for any read/parse errors.
         if (ss.fail() && !ss.eof()) {
           file.close();
-          return Try<map<string, SubsystemInfo> >::error(
-              "Failed to parse /proc/cgroups");
+          return Error("Failed to parse /proc/cgroups");
         }
 
         infos[name] = SubsystemInfo(name, hierarchy, cgroups, enabled);
@@ -150,15 +150,17 @@ static Try<map<string, SubsystemInfo> > subsystems()
 }
 
 
-// Mount a cgroups virtual file system (with proper subsystems attached) to a
-// given directory (hierarchy root). The cgroups virtual file system is the
-// interface exposed by the kernel to control cgroups. Each directory created
-// inside the hierarchy root is a cgroup. Therefore, cgroups are organized in a
-// tree like structure. User can specify what subsystems to be attached to the
-// hierarchy root so that these subsystems can be controlled through normal file
-// system APIs. A subsystem can only be attached to one hierarchy. This function
-// assumes the given hierarchy is an empty directory and the given subsystems
-// are enabled in the current platform.
+// Mount a cgroups virtual file system (with proper subsystems
+// attached) to a given directory (hierarchy root). The cgroups
+// virtual file system is the interface exposed by the kernel to
+// control cgroups. Each directory created inside the hierarchy root
+// is a cgroup. Therefore, cgroups are organized in a tree like
+// structure. User can specify what subsystems to be attached to the
+// hierarchy root so that these subsystems can be controlled through
+// normal file system APIs. A subsystem can only be attached to one
+// hierarchy. This function assumes the given hierarchy is an empty
+// directory and the given subsystems are enabled in the current
+// platform.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   subsystems  Comma-separated subsystem names.
 // @return  Some if the operation succeeds.
@@ -185,9 +187,9 @@ static Try<Nothing> unmount(const string& hierarchy)
 // Copies the value of 'cpuset.cpus' and 'cpuset.mems' from a parent
 // cgroup to a child cgroup so the child cgroup can actually run tasks
 // (otherwise it gets the error 'Device or resource busy').
-// @param   hierarchy      Path to hierarchy root.
-// @param   parentCgroup   Path to parent cgroup relative to the hierarchy root.
-// @param   childCgroup    Path to child cgroup relative to the hierarchy root.
+// @param   hierarchy     Path to hierarchy root.
+// @param   parentCgroup  Path to parent cgroup relative to the hierarchy root.
+// @param   childCgroup   Path to child cgroup relative to the hierarchy root.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
 static Try<Nothing> cloneCpusetCpusMems(
@@ -197,41 +199,37 @@ static Try<Nothing> cloneCpusetCpusMems(
 {
   Try<string> cpus = cgroups::read(hierarchy, parentCgroup, "cpuset.cpus");
   if (cpus.isError()) {
-    return Try<Nothing>::error(
-        "Failed to read control 'cpuset.cpus': " + cpus.error());
+    return Error("Failed to read control 'cpuset.cpus': " + cpus.error());
   }
 
   Try<string> mems = cgroups::read(hierarchy, parentCgroup, "cpuset.mems");
   if (mems.isError()) {
-    return Try<Nothing>::error(
-        "Failed to read control 'cpuset.mems': " + mems.error());
+    return Error("Failed to read control 'cpuset.mems': " + mems.error());
   }
 
-  Try<Nothing> write = cgroups::write(
-      hierarchy, childCgroup, "cpuset.cpus", cpus.get());
+  Try<Nothing> write =
+    cgroups::write(hierarchy, childCgroup, "cpuset.cpus", cpus.get());
   if (write.isError()) {
-    return Try<Nothing>::error(
-        "Failed to write control 'cpuset.cpus': " + write.error());
+    return Error("Failed to write control 'cpuset.cpus': " + write.error());
   }
 
-  write = cgroups::write(
-      hierarchy, childCgroup, "cpuset.mems", mems.get());
+  write = cgroups::write(hierarchy, childCgroup, "cpuset.mems", mems.get());
   if (write.isError()) {
-    return Try<Nothing>::error(
-        "Failed to write control 'cpuset.mems': " + write.error());
+    return Error("Failed to write control 'cpuset.mems': " + write.error());
   }
 
   return Nothing();
 }
 
 
-// Create a cgroup in a given hierarchy. To create a cgroup, one just need to
-// create a directory in the cgroups virtual file system. The given cgroup is a
-// relative path to the given hierarchy. This function assumes the given
-// hierarchy is valid and is currently mounted with a cgroup virtual file
-// system. The function also assumes the given cgroup is valid. This function
-// will not create directories recursively, which means it will return error if
-// any of the parent cgroups does not exist.
+// Create a cgroup in a given hierarchy. To create a cgroup, one just
+// need to create a directory in the cgroups virtual file system. The
+// given cgroup is a relative path to the given hierarchy. This
+// function assumes the given hierarchy is valid and is currently
+// mounted with a cgroup virtual file system. The function also
+// assumes the given cgroup is valid. This function will not create
+// directories recursively, which means it will return error if any of
+// the parent cgroups do not exist.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  Some if the operation succeeds.
@@ -241,21 +239,21 @@ static Try<Nothing> create(const string& hierarchy, const string& cgroup)
   string path = path::join(hierarchy, cgroup);
   Try<Nothing> mkdir = os::mkdir(path, false); // Do NOT create recursively.
   if (mkdir.isError()) {
-    return Try<Nothing>::error(
-        "Failed to create directory at " + path + ": " + mkdir.error());
+    return Error(
+        "Failed to create directory '" + path + "': " + mkdir.error());
   }
 
   // Now clone 'cpuset.cpus' and 'cpuset.mems' if the 'cpuset'
   // subsystem is attached to the hierarchy.
   Try<set<string> > attached = cgroups::subsystems(hierarchy);
   if (attached.isError()) {
-    return Try<Nothing>::error(
-        "Failed to determine if hierarchy has the 'cpuset' "
-        "subsystem attached: " + attached.error());
+    return Error(
+        "Failed to determine if hierarchy '" + hierarchy +
+        "' has the 'cpuset' subsystem attached: " + attached.error());
   } else if (attached.get().count("cpuset") > 0) {
     Try<string> parent = os::dirname(path::join("/", cgroup));
     if (parent.isError()) {
-      return Try<Nothing>::error(
+      return Error(
           "Failed to determine parent cgroup of " + cgroup +
           ": " + parent.error());
     }
@@ -266,12 +264,13 @@ static Try<Nothing> create(const string& hierarchy, const string& cgroup)
 }
 
 
-// Remove a cgroup in a given hierarchy. To remove a cgroup, one needs to remove
-// the corresponding directory in the cgroups virtual file system. A cgroup
-// cannot be removed if it has processes or sub-cgroups inside. This function
-// does nothing but tries to remove the corresponding directory of the given
-// cgroup. It will return error if the remove operation fails because it has
-// either processes or sub-cgroups inside.
+// Remove a cgroup in a given hierarchy. To remove a cgroup, one needs
+// to remove the corresponding directory in the cgroups virtual file
+// system. A cgroup cannot be removed if it has processes or
+// sub-cgroups inside. This function does nothing but tries to remove
+// the corresponding directory of the given cgroup. It will return
+// error if the remove operation fails because it has either processes
+// or sub-cgroups inside.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  Some if the operation succeeds.
@@ -284,18 +283,19 @@ static Try<Nothing> remove(const string& hierarchy, const string& cgroup)
   Try<Nothing> rmdir = os::rmdir(path, false);
 
   if (rmdir.isError()) {
-    return Try<Nothing>::error(
-        "Failed to remove cgroup at " + path + ": " + rmdir.error());
+    return Error(
+        "Failed to remove cgroup '" + path + "': " + rmdir.error());
   }
 
   return rmdir;
 }
 
 
-// Read a control file. Control files are the gateway to monitor and control
-// cgroups. This function assumes the cgroups virtual file systems are properly
-// mounted on the given hierarchy, and the given cgroup has been already created
-// properly. The given control file name should also be valid.
+// Read a control file. Control files are the gateway to monitor and
+// control cgroups. This function assumes the cgroups virtual file
+// systems are properly mounted on the given hierarchy, and the given
+// cgroup has been already created properly. The given control file
+// name should also be valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
@@ -307,22 +307,22 @@ static Try<string> read(
 {
   string path = path::join(hierarchy, cgroup, control);
 
-  // We do not use os::read here because it cannot correctly read proc or
-  // cgroups control files (lseek will return error).
+  // TODO(benh): Use os::read. Note that we do not use os::read
+  // currently because it cannot correctly read /proc or cgroups
+  // control files since lseek (in os::read) will return error.
   std::ifstream file(path.c_str());
 
   if (!file.is_open()) {
-    return Try<string>::error("Failed to open file " + path);
+    return Error("Failed to open file " + path);
   }
 
   std::ostringstream ss;
   ss << file.rdbuf();
 
   if (file.fail()) {
-    // TODO(jieyu): Make sure that the way we get errno here is portable.
-    string msg = strerror(errno);
+    ErrnoError error; // TODO(jieyu): Does std::ifstream actually set errno?
     file.close();
-    return Try<string>::error(msg);
+    return error;
   }
 
   file.close();
@@ -347,16 +347,15 @@ static Try<Nothing> write(
   std::ofstream file(path.c_str());
 
   if (!file.is_open()) {
-    return Try<Nothing>::error("Failed to open file " + path);
+    return Error("Failed to open file " + path);
   }
 
   file << value << std::endl;
 
   if (file.fail()) {
-    // TODO(jieyu): Make sure that the way we get errno here is portable.
-    string msg = strerror(errno);
+    ErrnoError error; // TODO(jieyu): Does std::ifstream actually set errno?
     file.close();
-    return Try<Nothing>::error(msg);
+    return error;
   }
 
   file.close();
@@ -376,15 +375,17 @@ static Option<string> verify(
   Try<bool> mounted = cgroups::mounted(hierarchy);
   if (mounted.isError()) {
     return Option<string>::some(
-        "Failed to determine if the hierarchy at " + hierarchy +
-        " is mounted: " + mounted.error());
+        "Failed to determine if the hierarchy at '" + hierarchy +
+        "' is mounted: " + mounted.error());
   } else if (!mounted.get()) {
-    return Option<string>::some(hierarchy + " is not mounted");
+    return Option<string>::some(
+        "'" + hierarchy + "' is not a valid hierarchy");
   }
 
   if (cgroup != "") {
     if (!os::exists(path::join(hierarchy, cgroup))) {
-      return Option<string>::some(cgroup + " does not exist");
+      return Option<string>::some(
+          "'" + cgroup + "' is not a valid cgroup");
     }
   }
 
@@ -392,7 +393,7 @@ static Option<string> verify(
     CHECK(cgroup != "");
     if (!os::exists(path::join(hierarchy, cgroup, control))) {
       return Option<string>::some(
-          "'" + control + "' does not exist (is subsystem attached?)");
+          "'" + control + "' is not a valid control (is subsystem attached?)");
     }
   }
 
@@ -411,7 +412,7 @@ Try<set<string> > hierarchies()
   // Read currently mounted file systems from /proc/mounts.
   Try<fs::MountTable> table = fs::MountTable::read("/proc/mounts");
   if (table.isError()) {
-    return Try<set<string> >::error(table.error());
+    return Error(table.error());
   }
 
   set<string> results;
@@ -419,7 +420,7 @@ Try<set<string> > hierarchies()
     if (entry.type == "cgroup") {
       Try<string> realpath = os::realpath(entry.dir);
       if (realpath.isError()) {
-        return Try<set<string> >::error(
+        return Error(
             "Failed to determine canonical path of " + entry.dir +
             ": " + realpath.error());
       }
@@ -436,7 +437,7 @@ Try<bool> enabled(const string& subsystems)
   Try<map<string, internal::SubsystemInfo> > infosResult =
     internal::subsystems();
   if (infosResult.isError()) {
-    return Try<bool>::error(infosResult.error());
+    return Error(infosResult.error());
   }
 
   map<string, internal::SubsystemInfo> infos = infosResult.get();
@@ -444,7 +445,7 @@ Try<bool> enabled(const string& subsystems)
 
   foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
     if (infos.find(subsystem) == infos.end()) {
-      return Try<bool>::error("'" + subsystem + "' not found");
+      return Error("'" + subsystem + "' not found");
     }
     if (!infos[subsystem].enabled) {
       // Here, we don't return false immediately because we want to return
@@ -462,7 +463,7 @@ Try<bool> busy(const string& subsystems)
   Try<map<string, internal::SubsystemInfo> > infosResult =
     internal::subsystems();
   if (infosResult.isError()) {
-    return Try<bool>::error(infosResult.error());
+    return Error(infosResult.error());
   }
 
   map<string, internal::SubsystemInfo> infos = infosResult.get();
@@ -470,7 +471,7 @@ Try<bool> busy(const string& subsystems)
 
   foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
     if (infos.find(subsystem) == infos.end()) {
-      return Try<bool>::error("'" + subsystem + "' not found");
+      return Error("'" + subsystem + "' not found");
     }
     if (infos[subsystem].hierarchy != 0) {
       // Here, we don't return false immediately because we want to return
@@ -487,7 +488,7 @@ Try<set<string> > subsystems()
 {
   Try<map<string, internal::SubsystemInfo> > infos = internal::subsystems();
   if (infos.isError()) {
-    return Try<set<string> >::error(infos.error());
+    return Error(infos.error());
   }
 
   set<string> names;
@@ -506,16 +507,15 @@ Try<set<string> > subsystems(const string& hierarchy)
   // We compare the canonicalized absolute paths.
   Try<string> hierarchyAbsPath = os::realpath(hierarchy);
   if (hierarchyAbsPath.isError()) {
-    return Try<set<string> >::error(
-        "Failed to determine canonical path of " + hierarchy +
-        ": " + hierarchyAbsPath.error());
+    return Error(
+        "Failed to determine canonical path of '" + hierarchy +
+        "': " + hierarchyAbsPath.error());
   }
 
   // Read currently mounted file systems from /proc/mounts.
   Try<fs::MountTable> table = fs::MountTable::read("/proc/mounts");
   if (table.isError()) {
-    return Try<set<string> >::error(
-        "Failed to read mount table: " + table.error());
+    return Error("Failed to read mount table: " + table.error());
   }
 
   // Check if hierarchy is a mount point of type cgroup.
@@ -524,9 +524,9 @@ Try<set<string> > subsystems(const string& hierarchy)
     if (entry.type == "cgroup") {
       Try<string> dirAbsPath = os::realpath(entry.dir);
       if (dirAbsPath.isError()) {
-        return Try<set<string> >::error(
-        "Failed to determine canonical path of " + entry.dir +
-        ": " + dirAbsPath.error());
+        return Error(
+            "Failed to determine canonical path of '" + entry.dir +
+            "': " + dirAbsPath.error());
       }
 
       // Seems that a directory can be mounted more than once. Previous mounts
@@ -539,8 +539,7 @@ Try<set<string> > subsystems(const string& hierarchy)
   }
 
   if (hierarchyEntry.isNone()) {
-    return Try<set<string> >::error(
-        hierarchy + " is not a mount point for cgroups");
+    return Error("'" + hierarchy + "' is not a valid hierarchy");
   }
 
   // Get the intersection of the currently enabled subsystems and mount
@@ -548,7 +547,7 @@ Try<set<string> > subsystems(const string& hierarchy)
   // are not in the set of enabled subsystems.
   Try<set<string> > names = subsystems();
   if (names.isError()) {
-    return Try<set<string> >::error(names.error());
+    return Error(names.error());
   }
 
   set<string> result;
@@ -565,25 +564,23 @@ Try<set<string> > subsystems(const string& hierarchy)
 Try<Nothing> mount(const string& hierarchy, const string& subsystems)
 {
   if (os::exists(hierarchy)) {
-    return Try<Nothing>::error(
-        hierarchy + " already exists in the file system");
+    return Error("'" + hierarchy + "' already exists in the file system");
   }
 
   // Make sure all subsystems are enabled and not busy.
   foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
     Try<bool> result = enabled(subsystem);
     if (result.isError()) {
-      return Try<Nothing>::error(result.error());
+      return Error(result.error());
     } else if (!result.get()) {
-      return Try<Nothing>::error(
-          "'" + subsystem + "' is not enabled by the kernel");
+      return Error("'" + subsystem + "' is not enabled by the kernel");
     }
 
     result = busy(subsystem);
     if (result.isError()) {
-      return Try<Nothing>::error(result.error());
+      return Error(result.error());
     } else if (result.get()) {
-      return Try<Nothing>::error(
+      return Error(
           "'" + subsystem + "' is already attached to another hierarchy");
     }
   }
@@ -591,8 +588,8 @@ Try<Nothing> mount(const string& hierarchy, const string& subsystems)
   // Create the directory for the hierarchy.
   Try<Nothing> mkdir = os::mkdir(hierarchy);
   if (mkdir.isError()) {
-    return Try<Nothing>::error(
-        "Failed to mkdir " + hierarchy + ": " + mkdir.error());
+    return Error(
+        "Failed to create directory '" + hierarchy + "': " + mkdir.error());
   }
 
   // Mount the virtual file system (attach subsystems).
@@ -611,7 +608,7 @@ Try<Nothing> unmount(const string& hierarchy)
 {
   Option<string> error = verify(hierarchy);
   if (error.isSome()) {
-    return Try<Nothing>::error(error.get());
+    return Error(error.get());
   }
 
   Try<Nothing> unmount = internal::unmount(hierarchy);
@@ -621,8 +618,8 @@ Try<Nothing> unmount(const string& hierarchy)
 
   Try<Nothing> rmdir = os::rmdir(hierarchy);
   if (rmdir.isError()) {
-    return Try<Nothing>::error(
-        "Failed to remove directory at " + hierarchy + ": " + rmdir.error());
+    return Error(
+        "Failed to remove directory '" + hierarchy + "': " + rmdir.error());
   }
 
   return Nothing();
@@ -638,14 +635,14 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
   // We compare canonicalized absolute paths.
   Try<string> realpath = os::realpath(hierarchy);
   if (realpath.isError()) {
-    return Try<bool>::error(
-        "Failed to determine canonical path of " + hierarchy +
-        ": " + realpath.error());
+    return Error(
+        "Failed to determine canonical path of '" + hierarchy +
+        "': " + realpath.error());
   }
 
   Try<set<string> > hierarchies = cgroups::hierarchies();
   if (hierarchies.isError()) {
-    return Try<bool>::error(
+    return Error(
         "Failed to get mounted hierarchies: " + hierarchies.error());
   }
 
@@ -656,9 +653,9 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
   // Now make sure all the specified subsytems are attached.
   Try<set<string> > attached = cgroups::subsystems(hierarchy);
   if (attached.isError()) {
-    return Try<bool>::error(
-        "Failed to get subsystems attached to hierarchy " +
-        hierarchy + ": " + attached.error());
+    return Error(
+        "Failed to get subsystems attached to hierarchy '" +
+        hierarchy + "': " + attached.error());
   }
 
   foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
@@ -675,7 +672,7 @@ Try<Nothing> create(const string& hierarchy, const string& cgroup)
 {
   Option<string> error = verify(hierarchy);
   if (error.isSome()) {
-    return Try<Nothing>::error(error.get());
+    return Error(error.get());
   }
 
   return internal::create(hierarchy, cgroup);
@@ -686,17 +683,16 @@ Try<Nothing> remove(const string& hierarchy, const string& cgroup)
 {
   Option<string> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
-    return Try<Nothing>::error(error.get());
+    return Error(error.get());
   }
 
   Try<vector<string> > cgroups = cgroups::get(hierarchy, cgroup);
   if (cgroups.isError()) {
-    return Try<Nothing>::error(
-        "Failed to get nested cgroups: " + cgroups.error());
+    return Error("Failed to get nested cgroups: " + cgroups.error());
   }
 
   if (!cgroups.get().empty()) {
-    return Try<Nothing>::error("Nested cgroups exist");
+    return Error("Nested cgroups exist");
   }
 
   return internal::remove(hierarchy, cgroup);
@@ -707,7 +703,7 @@ Try<bool> exists(const string& hierarchy, const string& cgroup)
 {
   Option<string> error = verify(hierarchy);
   if (error.isSome()) {
-    return Try<bool>::error(error.get());
+    return Error(error.get());
   }
 
   return os::exists(path::join(hierarchy, cgroup));
@@ -718,30 +714,28 @@ Try<vector<string> > get(const string& hierarchy, const string& cgroup)
 {
   Option<string> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
-    return Try<vector<string> >::error(error.get());
+    return Error(error.get());
   }
 
   Try<string> hierarchyAbsPath = os::realpath(hierarchy);
   if (hierarchyAbsPath.isError()) {
-    return Try<vector<string> >::error(
-        "Failed to determine canonical path of " + hierarchy +
-        ": " + hierarchyAbsPath.error());
+    return Error(
+        "Failed to determine canonical path of '" + hierarchy +
+        "': " + hierarchyAbsPath.error());
   }
 
   Try<string> destAbsPath = os::realpath(path::join(hierarchy, cgroup));
   if (destAbsPath.isError()) {
-    return Try<vector<string> >::error(
-        "Failed to determine canonical path of " +
-        path::join(hierarchy, cgroup) + ": " + destAbsPath.error());
+    return Error(
+        "Failed to determine canonical path of '" +
+        path::join(hierarchy, cgroup) + "': " + destAbsPath.error());
   }
 
   char* paths[] = { const_cast<char*>(destAbsPath.get().c_str()), NULL };
 
   FTS* tree = fts_open(paths, FTS_NOCHDIR, NULL);
   if (tree == NULL) {
-    return Try<vector<string> >::error(
-        "Failed to start file system walk: " +
-          string(strerror(errno)));
+    return ErrnoError("Failed to start traversing file system");
   }
 
   vector<string> cgroups;
@@ -760,13 +754,11 @@ Try<vector<string> > get(const string& hierarchy, const string& cgroup)
   }
 
   if (errno != 0) {
-    return Try<vector<string> >::error(
-        "Failed to read a node during the walk: " + string(strerror(errno)));
+    return ErrnoError("Failed to read a node while traversing file system");
   }
 
   if (fts_close(tree) != 0) {
-    return Try<vector<string> >::error(
-        "Failed to stop a file system walk: " + string(strerror(errno)));
+    return ErrnoError("Failed to stop traversing file system");
   }
 
   return cgroups;
@@ -780,20 +772,19 @@ Try<Nothing> kill(
 {
   Option<string> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
-    return Try<Nothing>::error(error.get());
+    return Error(error.get());
   }
 
   Try<set<pid_t> > pids = tasks(hierarchy, cgroup);
   if (pids.isError()) {
-    return Try<Nothing>::error(
-        "Failed to get tasks of cgroup: " + pids.error());
+    return Error("Failed to get tasks of cgroup: " + pids.error());
   }
 
   foreach (pid_t pid, pids.get()) {
     if (::kill(pid, signal) == -1) {
-      return Try<Nothing>::error(
-          "Failed to send " + string(strsignal(signal)) + " to process " +
-          stringify(pid) + ": " + strerror(errno));
+      return ErrnoError(
+          "Failed to send " + string(strsignal(signal)) +
+          " to process " + stringify(pid));
     }
   }
 
@@ -808,7 +799,7 @@ Try<string> read(
 {
   Option<string> error = verify(hierarchy, cgroup, control);
   if (error.isSome()) {
-    return Try<string>::error(error.get());
+    return Error(error.get());
   }
 
   return internal::read(hierarchy, cgroup, control);
@@ -823,7 +814,7 @@ Try<Nothing> write(
 {
   Option<string> error = verify(hierarchy, cgroup, control);
   if (error.isSome()) {
-    return Try<Nothing>::error(error.get());
+    return Error(error.get());
   }
 
   return internal::write(hierarchy, cgroup, control, value);
@@ -837,7 +828,7 @@ Try<bool> exists(
 {
   Option<string> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
-    return Try<bool>::error(error.get());
+    return Error(error.get());
   }
 
   return os::exists(path::join(hierarchy, cgroup, control));
@@ -848,8 +839,7 @@ Try<set<pid_t> > tasks(const string& hierarchy, const string& cgroup)
 {
   Try<string> value = cgroups::read(hierarchy, cgroup, "tasks");
   if (value.isError()) {
-    return Try<set<pid_t> >::error(
-        "Failed to read cgroups control 'tasks': " + value.error());
+    return Error("Failed to read cgroups control 'tasks': " + value.error());
   }
 
   // Parse the value read from the control file.
@@ -862,7 +852,7 @@ Try<set<pid_t> > tasks(const string& hierarchy, const string& cgroup)
 
     if (ss.fail()) {
       if (!ss.eof()) {
-        return Try<set<pid_t> >::error("Parsing error");
+        return Error("Failed to parse '" + value.get() + "'");
       }
     } else {
       pids.insert(pid);
@@ -946,8 +936,7 @@ static Try<int> registerNotifier(
 {
   int efd = internal::eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
   if (efd < 0) {
-    return Try<int>::error(
-        "Failed to create an eventfd: " + string(strerror(errno)));
+    return ErrnoError("Failed to create an eventfd");
   }
 
   // Open the control file.
@@ -955,7 +944,7 @@ static Try<int> registerNotifier(
   Try<int> cfd = os::open(path, O_RDWR);
   if (cfd.isError()) {
     os::close(efd);
-    return Try<int>::error("Failed to open " + path + ": " + cfd.error());
+    return Error("Failed to open '" + path + "': " + cfd.error());
   }
 
   // Write the event control file (cgroup.event_control).
@@ -969,7 +958,7 @@ static Try<int> registerNotifier(
   if (write.isError()) {
     os::close(efd);
     os::close(cfd.get());
-    return Try<int>::error(
+    return Error(
         "Failed to write control 'cgroup.event_control': " + write.error());
   }
 
@@ -1607,7 +1596,7 @@ private:
       Try<Nothing> remove = internal::remove(hierarchy, cgroup);
       if (remove.isError()) {
         promise.fail(
-            "Failed to remove cgroup " + cgroup + ": " + remove.error());
+            "Failed to remove cgroup '" + cgroup + "': " + remove.error());
         terminate(self());
         return;
       }

@@ -19,6 +19,7 @@
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 
 #include "master/frameworks_manager.hpp"
@@ -43,8 +44,7 @@ FrameworksManager::FrameworksManager(FrameworksStorage* _storage)
 Result<map<FrameworkID, FrameworkInfo> > FrameworksManager::list()
 {
   if (!cache()) {
-    return Result<map<FrameworkID, FrameworkInfo> >
-      ::error("Error caching framework infos.");
+    return Error("Error caching framework infos");
   }
 
   map<FrameworkID, FrameworkInfo> result;
@@ -69,7 +69,7 @@ Result<bool> FrameworksManager::add(const FrameworkID& id,
   // Note: For Case 2, storage layer is expected to over-write info of duplicate
   // framework id.
   //  if (!cache()) {
-  //      return Result<bool>::error("Error caching framework infos.");
+  //      return Error("Error caching framework infos");
   //    }
   //
   //  if (infos.count(id) > 0) {
@@ -105,12 +105,12 @@ Future<Result<bool> > FrameworksManager::remove(const FrameworkID& id,
                                                 const Duration& timeout)
 {
   if (!cache()) {
-    return Result<bool>::error("Error caching framework infos.");
+    return Error("Error caching framework infos");
   }
 
   if (infos.count(id) == 0) {
     LOG(INFO) << "Can't remove non-existent Framework: " << id;
-    return Result<bool>::error("Error removing non-existing framework.");
+    return Error("Framework does not exist");
   }
 
   LOG(INFO) << "Expiring framework " << id << " in " << timeout;
@@ -130,7 +130,7 @@ Future<Result<bool> > FrameworksManager::remove(const FrameworkID& id,
 Result<bool> FrameworksManager::resurrect(const FrameworkID& id)
 {
   if (!cache()) {
-    return Result<bool>::error("Error caching framework infos.");
+    return Error("Error caching framework infos");
   }
 
   if (infos.count(id) > 0) {
@@ -147,7 +147,7 @@ Result<bool> FrameworksManager::resurrect(const FrameworkID& id)
 Result<bool> FrameworksManager::exists(const FrameworkID& id)
 {
   if (!cache()) {
-    return Result<bool>::error("Error caching framework infos.");
+    return Error("Error caching framework infos");
   }
 
   return Result<bool>::some(infos.count(id) > 0);

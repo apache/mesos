@@ -22,6 +22,7 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <stout/error.hpp>
 #include <stout/os.hpp>
 
 #include "detector/detector.hpp"
@@ -1441,12 +1442,9 @@ TEST(FrameworksManagerTest, CacheFailure)
   MockFrameworksStorage storage;
   process::spawn(storage);
 
-  Result<map<FrameworkID, FrameworkInfo> > errMsg =
-    Result<map<FrameworkID, FrameworkInfo> >::error("Fake Caching Error.");
-
   EXPECT_CALL(storage, list())
     .Times(2)
-    .WillRepeatedly(Return(errMsg));
+    .WillRepeatedly(Return(Error("Fake Caching Error")));
 
   EXPECT_CALL(storage, add(_, _))
     .WillOnce(Return(Result<bool>::some(true)));
@@ -1463,7 +1461,7 @@ TEST(FrameworksManagerTest, CacheFailure)
 
   ASSERT_TRUE(future1.await(Seconds(2.0)));
   ASSERT_TRUE(future1.get().isError());
-  EXPECT_EQ(future1.get().error(), "Error caching framework infos.");
+  EXPECT_EQ(future1.get().error(), "Error caching framework infos");
 
   // Add framework should function normally despite caching failure.
   FrameworkID id;
@@ -1486,7 +1484,7 @@ TEST(FrameworksManagerTest, CacheFailure)
 
   ASSERT_TRUE(future3.await(Seconds(2.0)));
   ASSERT_TRUE(future3.get().isError());
-  EXPECT_EQ(future3.get().error(), "Error caching framework infos.");
+  EXPECT_EQ(future3.get().error(), "Error caching framework infos");
 
   process::terminate(manager);
   process::wait(manager);

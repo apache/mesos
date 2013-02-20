@@ -27,6 +27,7 @@
 #include <process/dispatch.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
 #include <stout/numify.hpp>
@@ -221,7 +222,7 @@ Try<State> LevelDBStorage::recover(const string& path)
 
   if (!status.ok()) {
     // TODO(benh): Consider trying to repair the DB.
-    return Try<State>::error(status.ToString());
+    return Error(status.ToString());
   }
 
   LOG(INFO) << "Opened db in " << stopwatch.elapsed();
@@ -268,7 +269,7 @@ Try<State> LevelDBStorage::recover(const string& path)
     Record record;
 
     if (!record.ParseFromZeroCopyStream(&stream)) {
-      return Try<State>::error("Failed to deserialize record");
+      return Error("Failed to deserialize record");
     }
 
     switch (record.type()) {
@@ -297,7 +298,7 @@ Try<State> LevelDBStorage::recover(const string& path)
       }
 
       default: {
-        return Try<State>::error("Bad record");
+        return Error("Bad record");
       }
     }
 
@@ -339,13 +340,13 @@ Try<Nothing> LevelDBStorage::persist(const Promise& promise)
   string value;
 
   if (!record.SerializeToString(&value)) {
-    return Try<Nothing>::error("Failed to serialize record");
+    return Error("Failed to serialize record");
   }
 
   leveldb::Status status = db->Put(options, encode(0, false), value);
 
   if (!status.ok()) {
-    return Try<Nothing>::error(status.ToString());
+    return Error(status.ToString());
   }
 
   LOG(INFO) << "Persisting promise (" << value.size()
@@ -367,7 +368,7 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
   string value;
 
   if (!record.SerializeToString(&value)) {
-    return Try<Nothing>::error("Failed to serialize record");
+    return Error("Failed to serialize record");
   }
 
   leveldb::WriteOptions options;
@@ -376,7 +377,7 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
   leveldb::Status status = db->Put(options, encode(action.position()), value);
 
   if (!status.ok()) {
-    return Try<Nothing>::error(status.ToString());
+    return Error(status.ToString());
   }
 
   LOG(INFO) << "Persisting action (" << value.size()
@@ -449,7 +450,7 @@ Try<Action> LevelDBStorage::read(uint64_t position)
   leveldb::Status status = db->Get(options, encode(position), &value);
 
   if (!status.ok()) {
-    return Try<Action>::error(status.ToString());
+    return Error(status.ToString());
   }
 
   google::protobuf::io::ArrayInputStream stream(value.data(), value.size());
@@ -457,11 +458,11 @@ Try<Action> LevelDBStorage::read(uint64_t position)
   Record record;
 
   if (!record.ParseFromZeroCopyStream(&stream)) {
-    return Try<Action>::error("Failed to deserialize record");
+    return Error("Failed to deserialize record");
   }
 
   if (record.type() != Record::ACTION) {
-    return Try<Action>::error("Bad record");
+    return Error("Bad record");
   }
 
   LOG(INFO) << "Reading position from leveldb took " << stopwatch.elapsed();
@@ -582,7 +583,7 @@ ReplicaProcess::~ReplicaProcess()
 Result<Action> ReplicaProcess::read(uint64_t position)
 {
   if (position < begin) {
-    return Result<Action>::error("Attempted to read truncated position");
+    return Error("Attempted to read truncated position");
   } else if (end < position) {
     return Result<Action>::none(); // These semantics are assumed above!
   } else if (holes.count(position) > 0) {
@@ -593,7 +594,7 @@ Result<Action> ReplicaProcess::read(uint64_t position)
   Try<Action> action = storage->read(position);
 
   if (action.isError()) {
-    return Result<Action>::error(action.error());
+    return Error(action.error());
   }
 
   CHECK_SOME(action);

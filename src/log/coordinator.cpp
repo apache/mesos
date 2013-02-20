@@ -22,6 +22,7 @@
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 
 #include "log/coordinator.hpp"
@@ -60,7 +61,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
 
   if (elected) {
     // TODO(benh): No-op instead of error?
-    return Result<uint64_t>::error("Coordinator already elected");
+    return Error("Coordinator already elected");
   }
 
   // Get the highest known promise from our local replica.
@@ -69,7 +70,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
   if (!promise.await(timeout.remaining())) {
     return Result<uint64_t>::none();
   } else if (promise.isFailed()) {
-    return Result<uint64_t>::error(promise.failure());
+    return Error(promise.failure());
   }
 
   CHECK(promise.isReady()) << "Not expecting a discarded future!";
@@ -126,7 +127,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
       return Result<uint64_t>::none();
     } else if (positions.isFailed()) {
       elected = false;
-      return Result<uint64_t>::error(positions.failure());
+      return Error(positions.failure());
     }
 
     CHECK(positions.isReady()) << "Not expecting a discarded future!";
@@ -135,7 +136,7 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
       Result<Action> result = fill(position, timeout);
       if (result.isError()) {
         elected = false;
-        return Result<uint64_t>::error(result.error());
+        return Error(result.error());
       } else if (result.isNone()) {
         elected = false;
         return Result<uint64_t>::none();
@@ -167,7 +168,7 @@ Result<uint64_t> Coordinator::append(
     const Timeout& timeout)
 {
   if (!elected) {
-    return Result<uint64_t>::error("Coordinator not elected");
+    return Error("Coordinator not elected");
   }
 
   Action action;
@@ -194,7 +195,7 @@ Result<uint64_t> Coordinator::truncate(
     const Timeout& timeout)
 {
   if (!elected) {
-    return Result<uint64_t>::error("Coordinator not elected");
+    return Error("Coordinator not elected");
   }
 
   Action action;
@@ -234,7 +235,7 @@ Result<uint64_t> Coordinator::write(
   if (quorum == 1) {
     Result<uint64_t> result = commit(action);
     if (result.isError()) {
-      return Result<uint64_t>::error(result.error());
+      return Error(result.error());
     } else if (result.isNone()) {
       return Result<uint64_t>::none();
     } else {
@@ -279,7 +280,7 @@ Result<uint64_t> Coordinator::write(
       CHECK(response.position() == request.position());
       if (!response.okay()) {
         elected = false;
-        return Result<uint64_t>::error("Coordinator demoted");
+        return Error("Coordinator demoted");
       } else if (response.okay()) {
         if (++okays >= (quorum - 1)) { // N.B. Using (quorum - 1) here!
           // Got enough remote okays, discard the remaining futures
@@ -287,7 +288,7 @@ Result<uint64_t> Coordinator::write(
           discard(futures);
           Result<uint64_t> result = commit(action);
           if (result.isError()) {
-            return Result<uint64_t>::error(result.error());
+            return Error(result.error());
           } else if (result.isNone()) {
             return Result<uint64_t>::none();
           } else {
@@ -355,7 +356,7 @@ Result<uint64_t> Coordinator::commit(const Action& action)
   future.await(); // TODO(benh): Don't wait forever, see comment above.
 
   if (future.isFailed()) {
-    return Result<uint64_t>::error(future.failure());
+    return Error(future.failure());
   }
 
   CHECK(future.isReady()) << "Not expecting a discarded future!";
@@ -366,7 +367,7 @@ Result<uint64_t> Coordinator::commit(const Action& action)
 
   if (!response.okay()) {
     elected = false;
-    return Result<uint64_t>::error("Coordinator demoted");
+    return Error("Coordinator demoted");
   }
 
   // Commit successful, send a learned message to the network
@@ -413,7 +414,7 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
       CHECK(response.id() == request.id());
       if (!response.okay()) {
         elected = false;
-        return Result<Action>::error("Coordinator demoted");
+        return Error("Coordinator demoted");
       } else if (response.okay()) {
         responses.push_back(response);
         if (responses.size() >= quorum) {
@@ -451,7 +452,7 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
           // truncated. Fun!
           Result<uint64_t> result = commit(response.action());
           if (result.isError()) {
-            return Result<Action>::error(result.error());
+            return Error(result.error());
           } else if (result.isNone()) {
             return Result<Action>::none();
           } else {
@@ -483,7 +484,7 @@ Result<Action> Coordinator::fill(uint64_t position, const Timeout& timeout)
     Result<uint64_t> result = write(action, timeout);
 
     if (result.isError()) {
-      return Result<Action>::error(result.error());
+      return Error(result.error());
     } else if (result.isNone()) {
       return Result<Action>::none();
     } else {

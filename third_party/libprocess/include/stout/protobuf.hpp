@@ -17,6 +17,7 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include "error.hpp"
 #include "os.hpp"
 #include "result.hpp"
 #include "try.hpp"
@@ -29,7 +30,7 @@ namespace protobuf {
 inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 {
   if (!message.IsInitialized()) {
-    return Try<Nothing>::error("protocol buffer is not initialized");
+    return Error("Uninitialized protocol buffer");
   }
 
   // First write the size of the protobuf.
@@ -38,16 +39,11 @@ inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 
   Try<Nothing> result = os::write(fd, bytes);
   if (result.isError()) {
-    return Try<Nothing>::error(
-        "Failed to write protobuf size: " + result.error());
+    return Error("Failed to write size: " + result.error());
   }
 
-  // NOTE: It appears that SerializeToFileDescriptor will keep
-  // errno intact on failure, but this may change.
   if (!message.SerializeToFileDescriptor(fd)) {
-    return Try<Nothing>::error(
-        "Failed to SerializeToFileDescriptor, possible strerror: " +
-        std::string(strerror(errno)));
+    return Error("Failed to write/serialize message");
   }
 
   return Nothing();
@@ -65,8 +61,7 @@ inline Try<Nothing> write(
       S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
-    return Try<Nothing>::error(
-        "Failed to open file '" + path + "': " + fd.error());
+    return Error("Failed to open file '" + path + "': " + fd.error());
   }
 
   Try<Nothing> result = write(fd.get(), message);
@@ -88,8 +83,7 @@ inline Result<T> read(int fd)
   // Save the offset so we can re-adjust if something goes wrong.
   off_t offset = lseek(fd, 0, SEEK_CUR);
   if (offset == -1) {
-    return Result<T>::error(
-        "Failed to lseek to SEEK_CUR: " + std::string(strerror(errno)));
+    return ErrnoError("Failed to lseek to SEEK_CUR");
   }
 
   uint32_t size;
@@ -98,7 +92,7 @@ inline Result<T> read(int fd)
   if (result.isNone()) {
     return Result<T>::none(); // No more protobufs to read.
   } else if (result.isError()) {
-    return Result<T>::error("Failed to read protobuf size: " + result.error());
+    return Error("Failed to read size: " + result.error());
   }
 
   // Parse the size from the bytes.
@@ -112,29 +106,24 @@ inline Result<T> read(int fd)
   if (result.isNone()) {
     // Hit EOF unexpectedly. Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
-    return Result<T>::error(
-        "Failed to read protobuf of size " + stringify(size) + " bytes: "
+    return Error(
+        "Failed to read message of size " + stringify(size) + " bytes: "
         "hit EOF unexpectedly, possible corruption");
   } else if (result.isError()) {
     // Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
-    return Result<T>::error("Failed to read protobuf: " + result.error());
+    return Error("Failed to read message: " + result.error());
   }
 
   // Parse the protobuf from the string.
   T message;
   google::protobuf::io::ArrayInputStream stream(
       result.get().data(), result.get().size());
-  bool parsed = message.ParseFromZeroCopyStream(&stream);
 
-  if (!parsed) {
+  if (!message.ParseFromZeroCopyStream(&stream)) {
     // Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
-    // NOTE: It appears that ParseFromZeroCopyStream will keep
-    // errno intact on failure, but this may change.
-    return Result<T>::error(
-        "Failed to ParseFromZeroCopyStream, possible strerror: " +
-        std::string(strerror(errno)));
+    return Error("Failed to deserialize message");
   }
 
   return message;
@@ -150,8 +139,7 @@ inline Result<T> read(const std::string& path)
       path, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
-    return Result<T>::error(
-        "Failed to open file '" + path + "': " + fd.error());
+    return Error("Failed to open file '" + path + "': " + fd.error());
   }
 
   Result<T> result = read<T>(fd.get());

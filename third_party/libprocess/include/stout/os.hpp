@@ -13,7 +13,6 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #include <glog/logging.h>
@@ -31,6 +30,7 @@
 #include <sstream>
 #include <string>
 
+#include "error.hpp"
 #include "foreach.hpp"
 #include "nothing.hpp"
 #include "path.hpp"
@@ -98,7 +98,7 @@ inline Try<bool> access(const std::string& path, int how)
     if (errno == EACCES) {
       return false;
     } else {
-      return Try<bool>::error(strerror(errno));
+      return ErrnoError();
     }
   }
   return true;
@@ -110,17 +110,17 @@ inline Try<int> open(const std::string& path, int oflag, mode_t mode = 0)
   int fd = ::open(path.c_str(), oflag, mode);
 
   if (fd < 0) {
-    return Try<int>::error(strerror(errno));
+    return ErrnoError();
   }
 
-  return Try<int>::some(fd);
+  return fd;
 }
 
 
 inline Try<Nothing> close(int fd)
 {
   if (::close(fd) != 0) {
-    return Try<Nothing>::error(strerror(errno));
+    return ErrnoError();
   }
 
   return Nothing();
@@ -132,11 +132,11 @@ inline Try<Nothing> cloexec(int fd)
   int flags = ::fcntl(fd, F_GETFD);
 
   if (flags == -1) {
-    return Try<Nothing>::error(strerror(errno));
+    return ErrnoError();
   }
 
   if (::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
-    return Try<Nothing>::error(strerror(errno));;
+    return ErrnoError();
   }
 
   return Nothing();
@@ -148,11 +148,11 @@ inline Try<Nothing> nonblock(int fd)
   int flags = ::fcntl(fd, F_GETFL);
 
   if (flags == -1) {
-    return Try<Nothing>::error(strerror(errno));
+    return ErrnoError();
   }
 
   if (::fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-    return Try<Nothing>::error(strerror(errno));
+    return ErrnoError();
   }
 
   return Nothing();
@@ -164,7 +164,7 @@ inline Try<bool> isNonblock(int fd)
   int flags = ::fcntl(fd, F_GETFL);
 
   if (flags == -1) {
-    return Try<bool>::error(strerror(errno));
+    return ErrnoError();
   }
 
   return (flags & O_NONBLOCK) != 0;
@@ -174,10 +174,10 @@ inline Try<bool> isNonblock(int fd)
 inline Try<Nothing> touch(const std::string& path)
 {
   Try<int> fd =
-      open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+    open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
-    return Try<Nothing>::error("Failed to open file " + path);
+    return Error("Failed to open file '" + path + "'");
   }
 
   // TODO(benh): Is opening/closing sufficient to have the same
@@ -200,7 +200,7 @@ inline Try<std::string> mktemp(const std::string& path = "/tmp/XXXXXX")
     return result;
   } else {
     delete temp;
-    return Try<std::string>::error(strerror(errno));
+    return ErrnoError();
   }
 }
 
@@ -219,7 +219,7 @@ inline Try<Nothing> write(int fd, const std::string& message)
       if (errno == EINTR) {
         continue;
       }
-      return Try<Nothing>::error(strerror(errno));
+      return ErrnoError();
     }
 
     offset += length;
@@ -231,14 +231,12 @@ inline Try<Nothing> write(int fd, const std::string& message)
 
 // A wrapper function that wraps the above write() with
 // open and closing the file.
-inline Try<Nothing> write(const std::string& path,
-                          const std::string& message)
+inline Try<Nothing> write(const std::string& path, const std::string& message)
 {
   Try<int> fd = os::open(path, O_WRONLY | O_CREAT | O_TRUNC,
                          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
   if (fd.isError()) {
-    return Try<Nothing>::error(
-        "Failed to open file '" + path + "' : " + strerror(errno));
+    return ErrnoError("Failed to open file '" + path + "'");
   }
 
   Try<Nothing> result = write(fd.get(), message);
@@ -260,8 +258,7 @@ inline Result<std::string> read(int fd, size_t size)
   // Save the current offset.
   off_t current = lseek(fd, 0, SEEK_CUR);
   if (current == -1) {
-    return Result<std::string>::error(
-        "Failed to lseek to SEEK_CUR: " + std::string(strerror(errno)));
+    return ErrnoError("Failed to lseek to SEEK_CUR");
   }
 
   char* buffer = new char[size];
@@ -277,7 +274,7 @@ inline Result<std::string> read(int fd, size_t size)
       }
       // Attempt to restore the original offset.
       lseek(fd, current, SEEK_SET);
-      return Result<std::string>::error(strerror(errno));
+      return ErrnoError();
     } else if (length == 0) {
       // Reached EOF before expected! Restore the offset.
       lseek(fd, current, SEEK_SET);
@@ -298,29 +295,26 @@ inline Try<std::string> read(int fd)
   // Save the current offset.
   off_t current = lseek(fd, 0, SEEK_CUR);
   if (current == -1) {
-    return Try<std::string>::error(
-        "Failed to lseek to SEEK_CUR: " + std::string(strerror(errno)));
+    return ErrnoError("Failed to lseek to SEEK_CUR");
   }
 
   // Get the size of the file from the offset.
   off_t size = lseek(fd, current, SEEK_END);
   if (size == -1) {
-    return Try<std::string>::error(
-        "Failed to lseek to SEEK_END: " + std::string(strerror(errno)));
+    return ErrnoError("Failed to lseek to SEEK_END");
   }
 
   // Restore the offset.
   if (lseek(fd, current, SEEK_SET) == -1) {
-    return Try<std::string>::error(
-        "Failed to lseek with SEEK_SET: " + std::string(strerror(errno)));
+    return ErrnoError("Failed to lseek with SEEK_SET");
   }
 
   Result<std::string> result = read(fd, size);
   if (result.isNone()) {
     // Hit EOF before reading size bytes.
-    return Try<std::string>::error("The file size was modified while reading");
+    return Error("The file size was modified while reading");
   } else if (result.isError()) {
-    return Try<std::string>::error(result.error());
+    return Error(result.error());
   }
 
   return result.get();
@@ -331,11 +325,11 @@ inline Try<std::string> read(int fd)
 // open and closing the file.
 inline Try<std::string> read(const std::string& path)
 {
-  Try<int> fd = os::open(path, O_RDONLY,
-                         S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  Try<int> fd =
+    os::open(path, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
-    return Try<std::string>::error("Failed to open file " + path);
+    return Error("Failed to open file '" + path + "'");
   }
 
   Try<std::string> result = read(fd.get());
@@ -352,7 +346,7 @@ inline Try<std::string> read(const std::string& path)
 inline Try<Nothing> rm(const std::string& path)
 {
   if (::remove(path.c_str()) != 0) {
-    return Try<Nothing>::error(strerror(errno));
+    return ErrnoError();
   }
 
   return Nothing();
@@ -365,7 +359,7 @@ inline Try<std::string> basename(const std::string& path)
   char* result = ::basename(::strcpy(temp, path.c_str()));
   if (result == NULL) {
     delete temp;
-    return Try<std::string>::error(strerror(errno));
+    return ErrnoError();
   }
 
   std::string s(result);
@@ -380,7 +374,7 @@ inline Try<std::string> dirname(const std::string& path)
   char* result = ::dirname(::strcpy(temp, path.c_str()));
   if (result == NULL) {
     delete temp;
-    return Try<std::string>::error(strerror(errno));
+    return ErrnoError();
   }
 
   std::string s(result);
@@ -393,7 +387,7 @@ inline Try<std::string> realpath(const std::string& path)
 {
   char temp[PATH_MAX];
   if (::realpath(path.c_str(), temp) == NULL) {
-    return Try<std::string>::error(strerror(errno));
+    return ErrnoError();
   }
   return std::string(temp);
 }
@@ -438,8 +432,7 @@ inline Try<long> mtime(const std::string& path)
   struct stat s;
 
   if (::stat(path.c_str(), &s) < 0) {
-    return Try<long>::error(
-        "Error invoking stat for '" + path + "': " + strerror(errno));
+    return ErrnoError("Error invoking stat for '" + path + "'");
   }
 
   return s.st_mtime;
@@ -450,7 +443,7 @@ inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
 {
   if (!recursive) {
     if (::mkdir(directory.c_str(), 0755) < 0) {
-      return Try<Nothing>::error(strerror(errno));
+      return ErrnoError();
     }
   } else {
     std::vector<std::string> tokens = strings::tokenize(directory, "/");
@@ -464,7 +457,7 @@ inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
     foreach (const std::string& token, tokens) {
       path += token;
       if (::mkdir(path.c_str(), 0755) < 0 && errno != EEXIST) {
-        return Try<Nothing>::error(strerror(errno));
+        return ErrnoError();
       }
       path += "/";
     }
@@ -486,7 +479,7 @@ inline Try<std::string> mkdtemp(const std::string& path = "/tmp/XXXXXX")
     return result;
   } else {
     delete temp;
-    return Try<std::string>::error(strerror(errno));
+    return ErrnoError();
   }
 }
 
@@ -497,14 +490,14 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
 {
   if (!recursive) {
     if (::rmdir(directory.c_str()) < 0) {
-      return Try<Nothing>::error(strerror(errno));
+      return ErrnoError();
     }
   } else {
     char* paths[] = {const_cast<char*>(directory.c_str()), NULL};
 
     FTS* tree = fts_open(paths, FTS_NOCHDIR, NULL);
     if (tree == NULL) {
-      return Try<Nothing>::error(strerror(errno));
+      return ErrnoError();
     }
 
     FTSENT* node;
@@ -512,13 +505,13 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
       switch (node->fts_info) {
         case FTS_DP:
           if (::rmdir(node->fts_path) < 0 && errno != ENOENT) {
-            return Try<Nothing>::error(strerror(errno));
+            return ErrnoError();
           }
           break;
         case FTS_F:
         case FTS_SL:
           if (::unlink(node->fts_path) < 0 && errno != ENOENT) {
-            return Try<Nothing>::error(strerror(errno));
+            return ErrnoError();
           }
           break;
         default:
@@ -527,11 +520,11 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
     }
 
     if (errno != 0) {
-      return Try<Nothing>::error(strerror(errno));
+      return ErrnoError();
     }
 
     if (fts_close(tree) < 0) {
-      return Try<Nothing>::error(strerror(errno));
+      return ErrnoError();
     }
   }
 
@@ -555,25 +548,24 @@ inline Try<Nothing> chown(
 {
   passwd* passwd;
   if ((passwd = ::getpwnam(user.c_str())) == NULL) {
-    return Try<Nothing>::error(
-        "Failed to get user information for '" + user + "', getpwnam: "
-        + strerror(errno));
+    return ErrnoError("Failed to get user information for '" + user + "'");
   }
 
   if (recursive) {
     // TODO(bmahler): Consider walking the file tree instead. We would need
     // to be careful to not miss dotfiles.
     std::string command = "chown -R " + stringify(passwd->pw_uid) + ':' +
-        stringify(passwd->pw_gid) + " '" + path + "'";
+      stringify(passwd->pw_gid) + " '" + path + "'";
 
-    int code = os::system(command);
-    if (code != 0) {
-      return Try<Nothing>::error(
-          "Failed to execute '" + command + "', exit code: " + stringify(code));
+    int status = os::system(command);
+    if (status != 0) {
+      return ErrnoError(
+          "Failed to execute '" + command +
+          "' (exit status: " + stringify(status) + ")");
     }
   } else {
     if (::chown(path.c_str(), passwd->pw_uid, passwd->pw_gid) < 0) {
-      return Try<Nothing>::error(strerror(errno));
+      return ErrnoError();
     }
   }
 
@@ -719,8 +711,7 @@ inline Try<std::list<std::string> > find(
   std::list<std::string> results;
 
   if (!isdir(directory)) {
-    return Try<std::list<std::string> >::error(
-        "Directory " + directory + " doesn't exist!");
+    return Error("'" + directory + "' is not a directory");
   }
 
   foreach (const std::string& entry, ls(directory)) {
@@ -749,9 +740,8 @@ inline Try<std::list<std::string> > find(
 inline Try<double> usage(const std::string& fs = "/")
 {
   struct statvfs buf;
-  if (statvfs(fs.c_str(), &buf) < 0) {
-    return Try<double>::error(
-        "Error invoking statvfs of '" + fs + "': " + strerror(errno));
+  if (::statvfs(fs.c_str(), &buf) < 0) {
+    return ErrnoError("Error invoking statvfs of '" + fs + "'");
   }
   return (double) (buf.f_blocks - buf.f_bfree) / buf.f_blocks;
 }
@@ -773,7 +763,7 @@ inline Try<std::string> hostname()
   char host[512];
 
   if (gethostname(host, sizeof(host)) < 0) {
-    return Try<std::string>::error(strerror(errno));
+    return ErrnoError();
   }
 
   // Allocate temporary buffer for gethostbyname2_r.
@@ -794,7 +784,7 @@ inline Try<std::string> hostname()
 
   if (result != 0 || hep == NULL) {
     delete[] temp;
-    return Try<std::string>::error(hstrerror(herrno));
+    return Error(hstrerror(herrno));
   }
 
   std::string hostname = hep->h_name;
@@ -816,13 +806,13 @@ inline Try<int> shell(std::ostream* os, const std::string& fmt, ...)
   va_end(args);
 
   if (cmdline.isError()) {
-    return Try<int>::error(cmdline.error());
+    return Error(cmdline.error());
   }
 
   FILE* file;
 
   if ((file = popen(cmdline.get().c_str(), "r")) == NULL) {
-    return Try<int>::error("Failed to run '" + cmdline.get() + "'");
+    return Error("Failed to run '" + cmdline.get() + "'");
   }
 
   char line[1024];
@@ -835,15 +825,14 @@ inline Try<int> shell(std::ostream* os, const std::string& fmt, ...)
   }
 
   if (ferror(file) != 0) {
-    const std::string& error =
-      "Error reading output of '" + cmdline.get() + "': " + strerror(errno);
+    ErrnoError error("Error reading output of '" + cmdline.get() + "'");
     pclose(file); // Ignoring result since we already have an error.
-    return Try<int>::error(error);
+    return error;
   }
 
   int status;
   if ((status = pclose(file)) == -1) {
-    return Try<int>::error("Failed to get status of '" + cmdline.get() + "'");
+    return Error("Failed to get status of '" + cmdline.get() + "'");
   }
 
   return status;
@@ -862,7 +851,7 @@ inline Try<std::list<std::string> > glob(const std::string& pattern)
     if (status == GLOB_NOMATCH) {
       return result; // Empty list.
     } else {
-      return Try<std::list<std::string> >::error(strerror(errno));
+      return ErrnoError();
     }
   }
 
@@ -889,11 +878,11 @@ inline Try<uint64_t> memory()
 #ifdef __linux__
   struct sysinfo info;
   if (sysinfo(&info) != 0) {
-    return Try<uint64_t>::error(strerror(errno));
+    return ErrnoError();
   }
   return info.totalram;
 #else
-  return Try<uint64_t>::error("Cannot determine the size of main memory");
+  return Error("Cannot determine the size of main memory");
 #endif
 }
 
@@ -915,7 +904,7 @@ inline Try<UTSInfo> uname()
   struct utsname name;
 
   if (::uname(&name) < 0) {
-    return Try<UTSInfo>::error(strerror(errno));
+    return ErrnoError();
   }
 
   UTSInfo info;
@@ -933,7 +922,7 @@ inline Try<std::string> sysname()
 {
   Try<UTSInfo> info = uname();
   if (info.isError()) {
-    return Try<std::string>::error(info.error());
+    return Error(info.error());
   }
 
   return info.get().sysname;
@@ -954,19 +943,21 @@ inline Try<Release> release()
 {
   Try<UTSInfo> info = uname();
   if (info.isError()) {
-    return Try<Release>::error(info.error());
+    return Error(info.error());
   }
 
   Release r;
-  if (::sscanf(info.get().release.c_str(), "%d.%d.%d",
-               &r.version, &r.major, &r.minor) != 3) {
-    return Try<Release>::error(
-        "Parsing release number error: " + info.get().release);
+  if (::sscanf(
+          info.get().release.c_str(),
+          "%d.%d.%d",
+          &r.version,
+          &r.major,
+          &r.minor) != 3) {
+    return Error("Failed to parse: " + info.get().release);
   }
 
   return r;
 }
-
 
 } // namespace os {
 

@@ -30,6 +30,7 @@
 #include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
@@ -189,17 +190,16 @@ void initialize(const string& _argv0, const Flags& flags)
 Try<string> getLogFile(google::LogSeverity severity)
 {
   if (FLAGS_log_dir.empty()) {
-    return Try<string>::error("The 'log_dir' option was not specified");
+    return Error("The 'log_dir' option was not specified");
   }
 
   Try<string> basename = os::basename(argv0);
   if (basename.isError()) {
-    return basename;
+    return Error(basename.error());
   }
 
   if (severity < 0 || google::NUM_SEVERITIES <= severity) {
-    return Try<string>::error(
-        "Unknown log severity: " + stringify(severity));
+    return Error("Unknown log severity: " + stringify(severity));
   }
 
   string suffix(google::GetLogSeverityName(severity));

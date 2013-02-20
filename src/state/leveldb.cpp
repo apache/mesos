@@ -9,6 +9,7 @@
 #include <process/future.hpp>
 #include <process/process.hpp>
 
+#include <stout/error.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
@@ -143,7 +144,7 @@ Try<Option<Entry> > LevelDBStateProcess::get(const string& name)
   if (status.IsNotFound()) {
     return Option<Entry>::none();
   } else if (!status.ok()) {
-    return Try<Option<Entry> >::error(status.ToString());
+    return Error(status.ToString());
   }
 
   google::protobuf::io::ArrayInputStream stream(value.data(), value.size());
@@ -151,7 +152,7 @@ Try<Option<Entry> > LevelDBStateProcess::get(const string& name)
   Entry entry;
 
   if (!entry.ParseFromZeroCopyStream(&stream)) {
-    return Try<Option<Entry> >::error("Failed to deserialize Entry");
+    return Error("Failed to deserialize Entry");
   }
 
   return Option<Entry>::some(entry);
@@ -168,13 +169,13 @@ Try<bool> LevelDBStateProcess::put(const Entry& entry)
   string value;
 
   if (!entry.SerializeToString(&value)) {
-    return Try<bool>::error("Failed to serialize Entry");
+    return Error("Failed to serialize Entry");
   }
 
   leveldb::Status status = db->Put(options, entry.name(), value);
 
   if (!status.ok()) {
-    return Try<bool>::error(status.ToString());
+    return Error(status.ToString());
   }
 
   return true;

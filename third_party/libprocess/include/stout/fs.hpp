@@ -1,14 +1,13 @@
 #ifndef __STOUT_FS_HPP__
 #define __STOUT_FS_HPP__
 
-#include <errno.h>
-#include <unistd.h>
+#include <unistd.h> // For symlink.
 
 #include <sys/statvfs.h>
 
-#include <cstring>
 #include <string>
 
+#include "error.hpp"
 #include "nothing.hpp"
 #include "try.hpp"
 
@@ -18,9 +17,8 @@ namespace fs {
 inline Try<uint64_t> available(const std::string& path = "/")
 {
   struct statvfs buf;
-
   if (::statvfs(path.c_str(), &buf) < 0) {
-    return Try<uint64_t>::error(strerror(errno));
+    return ErrnoError();
   }
   return buf.f_bavail * buf.f_frsize;
 }
@@ -31,7 +29,7 @@ inline Try<Nothing> symlink(
     const std::string& link)
 {
   if (::symlink(original.c_str(), link.c_str()) < 0) {
-    return Try<Nothing>::error(strerror(errno));
+    return ErrnoError();
   }
   return Nothing();
 }

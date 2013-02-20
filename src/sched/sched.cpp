@@ -39,6 +39,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/fatal.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/os.hpp>
@@ -103,7 +104,7 @@ public:
       connected(false),
       aborted(false),
       // TODO(benh): Add Try().
-      detector(Try<MasterDetector*>::error("uninitialized"))
+      detector(Error("uninitialized"))
   {}
 
   virtual ~SchedulerProcess() {}

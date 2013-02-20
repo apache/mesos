@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "error.hpp"
 #include "os.hpp"
 #include "try.hpp"
 
@@ -26,13 +27,13 @@ namespace net {
 inline Try<int> download(const std::string& url, const std::string& path)
 {
 #ifndef HAVE_LIBCURL
-  return Try<int>::error("Downloading via HTTP/FTP is not supported");
+  return Error("libcurl is not available");
 #else
   Try<int> fd = os::open(
       path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
-    return Try<int>::error(fd.error());
+    return Error(fd.error());
   }
 
   curl_global_init(CURL_GLOBAL_ALL);
@@ -41,7 +42,7 @@ inline Try<int> download(const std::string& url, const std::string& path)
   if (curl == NULL) {
     curl_easy_cleanup(curl);
     os::close(fd.get());
-    return Try<int>::error("Failed to initialize libcurl");
+    return Error("Failed to initialize libcurl");
   }
 
   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -49,8 +50,7 @@ inline Try<int> download(const std::string& url, const std::string& path)
 
   FILE* file = fdopen(fd.get(), "w");
   if (file == NULL) {
-    return Try<int>::error(
-        "Failed to open file handle of '" + path + "': " + strerror(errno));
+    return ErrnoError("Failed to open file handle of '" + path + "'");
   }
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
 
@@ -58,7 +58,7 @@ inline Try<int> download(const std::string& url, const std::string& path)
   if (curlErrorCode != 0) {
     curl_easy_cleanup(curl);
     fclose(file);
-    return Try<int>::error(curl_easy_strerror(curlErrorCode));
+    return Error(curl_easy_strerror(curlErrorCode));
   }
 
   long code;
@@ -66,8 +66,7 @@ inline Try<int> download(const std::string& url, const std::string& path)
   curl_easy_cleanup(curl);
 
   if (fclose(file) != 0) {
-    return Try<int>::error(
-        "Failed to close file handle of '" + path + "': " + strerror(errno));
+    return ErrnoError("Failed to close file handle of '" + path + "'");
   }
 
   return Try<int>::some(code);
@@ -92,7 +91,7 @@ inline Try<std::string> getHostname(uint32_t ip)
       NULL,
       0,
       0) != 0) {
-    return Try<std::string>::error(strerror(errno));
+    return ErrnoError();
   }
 
   return std::string(hostname);

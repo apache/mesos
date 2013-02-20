@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 
+#include "error.hpp"
 #include "numify.hpp"
 #include "try.hpp"
 
@@ -27,7 +28,7 @@ public:
       Try<double> value = numify<double>(s.substr(0, index));
 
       if (value.isError()) {
-        return Try<Duration>::error(value.error());
+        return Error(value.error());
       }
 
       const std::string& unit = s.substr(index);
@@ -49,10 +50,10 @@ public:
       } else if (unit == "weeks") {
         return Duration(value.get(), WEEKS);
       } else {
-        return Try<Duration>::error("Unknown duration unit '" + unit + "'");
+        return Error("Unknown duration unit '" + unit + "'");
       }
     }
-    return Try<Duration>::error("Invalid duration '" + s + "'");
+    return Error("Invalid duration '" + s + "'");
   }
 
   Duration() : value(0.0) {}

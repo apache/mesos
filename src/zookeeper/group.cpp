@@ -9,6 +9,7 @@
 #include <process/process.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/result.hpp>
@@ -388,11 +389,7 @@ void GroupProcess::connected(bool reconnect)
       int code = zk->authenticate(auth.get().scheme, auth.get().credentials);
 
       if (code != ZOK) { // TODO(benh): Authentication retries?
-        Try<string> message = strings::format(
-            "Failed to authenticate with ZooKeeper: %s", zk->message(code));
-        error = message.isSome()
-          ? message.get()
-          : "Failed to authenticate with ZooKeeper";
+        error = "Failed to authenticate with ZooKeeper: " + zk->message(code);
         abort(); // Cancels everything pending.
         return;
       }
@@ -423,12 +420,8 @@ void GroupProcess::connected(bool reconnect)
       CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
       return; // Try again later.
     } else if (code != ZOK && code != ZNODEEXISTS && code != ZNOAUTH) {
-      Try<string> message = strings::format(
-          "Failed to create '%s' in ZooKeeper: %s",
-          znode, zk->message(code));
-      error = message.isSome()
-        ? message.get()
-        : "Failed to create znode in ZooKeeper";
+      error =
+        "Failed to create '" + znode + "' in ZooKeeper: " + zk->message(code);
       abort(); // Cancels everything pending.
       return;
     }
@@ -519,12 +512,9 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
     return Result<Group::Membership>::none();
   } else if (code != ZOK) {
-    Try<string> message = strings::format(
-        "Failed to create ephemeral node at '%s' in ZooKeeper: %s",
-        znode, zk->message(code));
-    return Result<Group::Membership>::error(
-        message.isSome() ? message.get()
-        : "Failed to create ephemeral node in ZooKeeper");
+    return Error(
+        "Failed to create ephemeral node at '" + znode +
+        "' in ZooKeeper: " + zk->message(code));
   }
 
   // Invalidate the cache (it will/should get immediately populated
@@ -533,13 +523,12 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
 
   // Save the sequence number but only grab the basename. Example:
   // "/path/to/znode/0000000131" => "0000000131".
-  Try<string> base = os::basename(result);
-  if (base.isError()) {
-    return Result<Group::Membership>::error(
-        "Failed to get the sequence number: " + base.error());
+  Try<string> basename = os::basename(result);
+  if (basename.isError()) {
+    return Error("Failed to get the sequence number: " + basename.error());
   }
 
-  Try<uint64_t> sequence = numify<uint64_t>(base.get());
+  Try<uint64_t> sequence = numify<uint64_t>(basename.get());
   CHECK_SOME(sequence);
 
   Promise<bool>* cancelled = new Promise<bool>();
@@ -569,12 +558,9 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
     return Result<bool>::none();
   } else if (code != ZOK) {
-    Try<string> message = strings::format(
-        "Failed to remove ephemeral node '%s' in ZooKeeper: %s",
-        path, zk->message(code));
-    return Result<bool>::error(
-        message.isSome() ? message.get()
-        : "Failed to remove ephemeral node in ZooKeeper");
+    return Error(
+        "Failed to remove ephemeral node '" + path +
+        "' in ZooKeeper: " + zk->message(code));
   }
 
   // Invalidate the cache (it will/should get immediately populated
@@ -614,12 +600,9 @@ Result<string> GroupProcess::doData(const Group::Membership& membership)
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
     return Result<string>::none();
   } else if (code != ZOK) {
-    Try<string> message = strings::format(
-        "Failed to get data for ephemeral node '%s' in ZooKeeper: %s",
-        path, zk->message(code));
-    return Result<string>::error(
-        message.isSome() ? message.get()
-        : "Failed to get data for ephemeral node in ZooKeeper");
+    return Error(
+        "Failed to get data for ephemeral node '" + path +
+        "' in ZooKeeper: " + zk->message(code));
   }
 
   return result;
@@ -640,12 +623,9 @@ bool GroupProcess::cache()
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
     return false;
   } else if (code != ZOK) {
-    Try<string> message = strings::format(
-        "Non-retryable error attempting to get children of '%s'"
-        " in ZooKeeper: %s", znode, zk->message(code));
-    error = message.isSome()
-      ? message.get()
-      : "Non-retryable error attempting to get children in ZooKeeper";
+    error =
+      "Non-retryable error attempting to get children of '" + znode + "'"
+      " in ZooKeeper: " + zk->message(code);
     abort(); // Cancels everything pending.
     return false;
   }

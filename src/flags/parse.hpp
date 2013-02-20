@@ -7,6 +7,7 @@
 #include <tr1/functional>
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/try.hpp>
 
 namespace flags {
@@ -18,7 +19,7 @@ Try<T> parse(const std::string& value)
   std::istringstream in(value);
   in >> t;
   if (!in.good() && !in.eof()) {
-    return Try<T>::error("Could not parse into required type");
+    return Error("Failed to convert into required type");
   }
   return t;
 }
@@ -39,7 +40,7 @@ inline Try<bool> parse(const std::string& value)
   } else if (value == "false" || value == "0") {
     return false;
   }
-  return Try<bool>::error("Expecting a boolean (e.g., true or false)");
+  return Error("Expecting a boolean (e.g., true or false)");
 }
 
 

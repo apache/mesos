@@ -22,6 +22,8 @@
 
 #include <linux/limits.h>
 
+#include <stout/error.hpp>
+
 #include "common/lock.hpp"
 
 #include "linux/fs.hpp"
@@ -51,7 +53,7 @@ Try<MountTable> MountTable::read(const std::string& path)
 
   FILE* file = ::setmntent(path.c_str(), "r");
   if (file == NULL) {
-    return Try<MountTable>::error("Failed to open " + path);
+    return Error("Failed to open '" + path + "'");
   }
 
   while (true) {
@@ -59,8 +61,8 @@ Try<MountTable> MountTable::read(const std::string& path)
     // Reentrant version exists.
     struct mntent mntentBuffer;
     char strBuffer[PATH_MAX];
-    struct mntent* mntent = ::getmntent_r(file, &mntentBuffer, strBuffer,
-                                          sizeof(strBuffer));
+    struct mntent* mntent =
+      ::getmntent_r(file, &mntentBuffer, strBuffer, sizeof(strBuffer));
     if (mntent == NULL) {
       // NULL means the end of enties.
       break;
@@ -118,23 +120,24 @@ Try<FileSystemTable> FileSystemTable::read()
 
     // Open file _PATH_FSTAB (/etc/fstab).
     if (::setfsent() == 0) {
-      return Try<FileSystemTable>::error("Failed to open file system table");
+      return Error("Failed to open file system table");
     }
 
     while (true) {
       struct fstab* fstab = ::getfsent();
       if (fstab == NULL) {
-        // NULL means the end of enties.
-        break;
+        break; // NULL means the end of enties.
       }
 
-      FileSystemTable::Entry entry(fstab->fs_spec,
-                                   fstab->fs_file,
-                                   fstab->fs_vfstype,
-                                   fstab->fs_mntops,
-                                   fstab->fs_type,
-                                   fstab->fs_freq,
-                                   fstab->fs_passno);
+      FileSystemTable::Entry entry(
+          fstab->fs_spec,
+          fstab->fs_file,
+          fstab->fs_vfstype,
+          fstab->fs_mntops,
+          fstab->fs_type,
+          fstab->fs_freq,
+          fstab->fs_passno);
+
       table.entries.push_back(entry);
     }
 
@@ -156,8 +159,7 @@ Try<Nothing> mount(const std::string& source,
   //           const char *filesystemtype, unsigned long mountflags,
   //           const void *data);
   if (::mount(source.c_str(), target.c_str(), type.c_str(), flags, data) < 0) {
-    return Try<Nothing>::error(
-        "Failed to mount " + source + " at " + target + ": " + strerror(errno));
+    return ErrnoError("Failed to mount '" + source + "' at '" + target + "'");
   }
 
   return Nothing();
@@ -169,8 +171,7 @@ Try<Nothing> unmount(const std::string& target, int flags)
   // The prototype of function 'umount2' on Linux is as follows:
   // int umount2(const char *target, int flags);
   if (::umount2(target.c_str(), flags) < 0) {
-    return Try<Nothing>::error(
-        "Failed to unmount " + target + ": " + strerror(errno));
+    return ErrnoError("Failed to unmount '" + target + "'");
   }
 
   return Nothing();

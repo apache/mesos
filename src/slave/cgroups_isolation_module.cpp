@@ -32,6 +32,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 
+#include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
@@ -47,6 +48,8 @@
 
 #include "linux/cgroups.hpp"
 #include "linux/proc.hpp"
+
+#include "logging/check_some.hpp"
 
 #include "slave/cgroups_isolation_module.hpp"
 
@@ -259,49 +262,46 @@ void CgroupsIsolationModule::initialize(
       // directory. This will helps us better deal with slave restarts
       // since we won't need to manually remove the directory.
       Try<Nothing> rmdir = os::rmdir(hierarchy, false);
-      CHECK(rmdir.isSome())
-        << "Failed to mount cgroups hierarchy at " << hierarchy
-        << " because we could not remove existing directory: " << rmdir.error();
+      CHECK_SOME(rmdir)
+        << "Failed to mount cgroups hierarchy at '" << hierarchy
+        << "' because we could not remove existing directory";
     }
 
     // Mount the cgroups hierarchy.
     Try<Nothing> mount = cgroups::mount(
         hierarchy, strings::join(",", subsystems));
-    CHECK(mount.isSome())
-      << "Failed to mount cgroups hierarchy at "
-      << hierarchy << ": " << mount.error();
+    CHECK_SOME(mount)
+      << "Failed to mount cgroups hierarchy at '" << hierarchy << "'";
   }
 
   // Create the root "mesos" cgroup if it doesn't exist.
   Try<bool> exists = cgroups::exists(hierarchy, "mesos");
-  CHECK(exists.isSome())
-    << "Failed to determine if the \"mesos\" cgroup already exists "
-    << "in the hierarchy at " << hierarchy << ": " << exists.error();
+  CHECK_SOME(exists)
+    << "Failed to determine if the 'mesos' cgroup already exists "
+    << "in the hierarchy at '" << hierarchy << "'";
   if (!exists.get()) {
     // No root cgroup exists, create it.
     Try<Nothing> create = cgroups::create(hierarchy, "mesos");
-    CHECK(create.isSome())
-      << "Failed to create the \"mesos\" cgroup: " << create.error();
+    CHECK_SOME(create) << "Failed to create the 'mesos' cgroup";
   }
 
   // Make sure this kernel supports creating nested cgroups.
   Try<Nothing> create = cgroups::create(hierarchy, "mesos/test");
   if (create.isError()) {
-    EXIT(1) << "Failed to create a nested \"test\" cgroup. Your kernel "
+    EXIT(1) << "Failed to create a nested 'test' cgroup. Your kernel "
             << "might be too old to use the cgroups isolation module: "
             << create.error();
   }
 
   Try<Nothing> remove = cgroups::remove(hierarchy, "mesos/test");
-  CHECK(remove.isSome())
-    << "Failed to remove the nested \"test\" cgroup:" << remove.error();
+  CHECK_SOME(remove) << "Failed to remove the nested 'test' cgroup";
 
   // Try and put an _advisory_ file lock on the tasks' file of our
   // root cgroup to check and see if another slave is already running.
   Try<int> fd = os::open(path::join(hierarchy, "mesos", "tasks"), O_RDONLY);
-  CHECK(fd.isSome());
+  CHECK_SOME(fd);
   Try<Nothing> cloexec = os::cloexec(fd.get());
-  CHECK(cloexec.isSome());
+  CHECK_SOME(cloexec);
   if (flock(fd.get(), LOCK_EX | LOCK_NB) != 0) {
     EXIT(1) << "Another mesos-slave appears to be running!";
   }
@@ -309,8 +309,7 @@ void CgroupsIsolationModule::initialize(
   // Cleanup any orphaned cgroups created in previous executions (this
   // should be safe because we've been able to acquire the file lock).
   Try<vector<string> > cgroups = cgroups::get(hierarchy, "mesos");
-  CHECK(cgroups.isSome())
-    << "Failed to get nested cgroups of \"mesos\": " << cgroups.error();
+  CHECK_SOME(cgroups) << "Failed to get nested cgroups of 'mesos'";
   foreach (const string& cgroup, cgroups.get()) {
     LOG(INFO) << "Removing orphaned cgroup '" << cgroup << "'";
     cgroups::destroy(hierarchy, cgroup)
@@ -322,9 +321,8 @@ void CgroupsIsolationModule::initialize(
 
   // Make sure the kernel supports OOM controls.
   exists = cgroups::exists(hierarchy, "mesos", "memory.oom_control");
-  CHECK(exists.isSome())
-    << "Failed to determine if 'memory.oom_control' control exists: "
-    << exists.error();
+  CHECK_SOME(exists)
+    << "Failed to determine if 'memory.oom_control' control exists";
   if (!exists.get()) {
     EXIT(1) << "Failed to find 'memory.oom_control', your kernel "
             << "might be too old to use the cgroups isolation module";
@@ -333,8 +331,7 @@ void CgroupsIsolationModule::initialize(
   // Disable the OOM killer so that we can capture 'memory.stat'.
   Try<Nothing> write = cgroups::write(
       hierarchy, "mesos", "memory.oom_control", "1");
-  CHECK(write.isSome())
-    << "Failed to disable OOM killer: " << write.error();
+  CHECK_SOME(write) << "Failed to disable OOM killer";
 
   if (subsystems.contains("cpu") && subsystems.contains("cpuset")) {
     EXIT(1) << "The use of both 'cpu' and 'cpuset' subsystems is not allowed.\n"
@@ -354,8 +351,7 @@ void CgroupsIsolationModule::initialize(
     // cgroups list format -> list of ints / strings conversion.
     hashset<unsigned int> cgroupCpus;
     Try<string> cpuset = cgroups::read(hierarchy, "mesos", "cpuset.cpus");
-    CHECK(cpuset.isSome())
-      << "Failed to read cpuset.cpus: " << cpuset.error();
+    CHECK_SOME(cpuset) << "Failed to read cpuset.cpus";
     cpuset = strings::trim(cpuset.get());
 
     // Parse from "0-2,7,12-14" to a set(0,1,2,7,12,13,14).
@@ -383,9 +379,9 @@ void CgroupsIsolationModule::initialize(
       } else {
         // Case id (e.g. 7 in 0-2,7,12-14).
         Try<unsigned int> cpuId = numify<unsigned int>(range);
-        CHECK(cpuId.isSome())
+        CHECK_SOME(cpuId)
           << "Failed to parse cpu '" << range << "' from cpuset.cpus '"
-          << cpuset.get()  << "': " << cpuId.error();
+          << cpuset.get()  << "'";
         cgroupCpus.insert(cpuId.get());
       }
     }
@@ -400,8 +396,7 @@ void CgroupsIsolationModule::initialize(
 
     // Initialize our cpu allocations.
     Try<list<proc::CPU> > cpus = proc::cpus();
-    CHECK(cpus.isSome())
-      << "Failed to extract CPUs from /proc/cpuinfo: " << cpus.error();
+    CHECK_SOME(cpus) << "Failed to extract CPUs from /proc/cpuinfo";
     foreach (const proc::CPU& cpu, cpus.get()) {
       if (this->cpus.size() >= cpusResource.value()) {
         break;
@@ -622,7 +617,7 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
   CHECK(resource.name() == "cpus");
 
   if (resource.type() != Value::SCALAR) {
-    return Try<Nothing>::error("Expecting resource 'cpus' to be a scalar");
+    return Error("Expecting resource 'cpus' to be a scalar");
   }
 
   double cpus = resource.scalar().value();
@@ -632,8 +627,7 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
   Try<Nothing> write = cgroups::write(
       hierarchy, info->name(), "cpu.shares", stringify(cpuShares));
   if (write.isError()) {
-    return Try<Nothing>::error(
-        "Failed to update 'cpu.shares': " + write.error());
+    return Error("Failed to update 'cpu.shares': " + write.error());
   }
 
   LOG(INFO) << "Updated 'cpu.shares' to " << cpuShares
@@ -652,7 +646,7 @@ Try<Nothing> CgroupsIsolationModule::cpusetChanged(
   CHECK(resource.name() == "cpus");
 
   if (resource.type() != Value::SCALAR) {
-    return Try<Nothing>::error("Expecting resource 'cpus' to be a scalar");
+    return Error("Expecting resource 'cpus' to be a scalar");
   }
 
   double delta = resource.scalar().value() - info->cpuset->usage();
@@ -674,8 +668,7 @@ Try<Nothing> CgroupsIsolationModule::cpusetChanged(
   Try<Nothing> write = cgroups::write(
       hierarchy, info->name(), "cpuset.cpus", stringify(*(info->cpuset)));
   if (write.isError()) {
-    return Try<Nothing>::error(
-        "Failed to update 'cpuset.cpus': " + write.error());
+    return Error("Failed to update 'cpuset.cpus': " + write.error());
   }
 
   LOG(INFO) << "Updated 'cpuset.cpus' to " << *(info->cpuset)
@@ -693,7 +686,7 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
   CHECK(resource.name() == "mem");
 
   if (resource.type() != Value::SCALAR) {
-    return Try<Nothing>::error("Expecting resource 'mem' to be a scalar");
+    return Error("Expecting resource 'mem' to be a scalar");
   }
 
   double mem = resource.scalar().value();
@@ -717,12 +710,12 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
     Try<string> read = cgroups::read(
         hierarchy, info->name(), "memory.limit_in_bytes");
     if (read.isError()) {
-      return Try<Nothing>::error(
+      return Error(
           "Failed to read 'memory.limit_in_bytes': " + read.error());
     }
 
     Try<size_t> currentLimitInBytes = numify<size_t>(strings::trim(read.get()));
-    CHECK(currentLimitInBytes.isSome()) << currentLimitInBytes.error();
+    CHECK_SOME(currentLimitInBytes);
 
     if (limitInBytes <= currentLimitInBytes.get()) {
       control = "memory.soft_limit_in_bytes";
@@ -732,8 +725,7 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
   Try<Nothing> write = cgroups::write(
       hierarchy, info->name(), control, stringify(limitInBytes));
   if (write.isError()) {
-    return Try<Nothing>::error(
-        "Failed to update '" + control + "': " + write.error());
+    return Error("Failed to update '" + control + "': " + write.error());
   }
 
   LOG(INFO) << "Updated '" << control << "' to " << limitInBytes

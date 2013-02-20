@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include <stout/error.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -39,7 +40,7 @@ struct ProtobufSerializer
 
     google::protobuf::io::ArrayInputStream stream(value.data(), value.size());
     if (!t.ParseFromZeroCopyStream(&stream)) {
-      return Try<T>::error(
+      return Error(
           "Failed to deserialize " + t.GetDescriptor()->full_name());
     }
     return t;
@@ -52,7 +53,7 @@ struct ProtobufSerializer
     // type information (and compatibility) when we deserialize.
     std::string value;
     if (!t.SerializeToString(&value)) {
-      return Try<std::string>::error(
+      return Error(
           "Failed to serialize " + t.GetDescriptor()->full_name());
     }
     return value;

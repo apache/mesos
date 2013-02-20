@@ -1,6 +1,9 @@
 #ifndef __STOUT_ERROR_HPP__
 #define __STOUT_ERROR_HPP__
 
+#include <errno.h>
+#include <string.h> // For strerror.
+
 #include <string>
 
 #include "result.hpp"
@@ -53,6 +56,17 @@ public:
   }
 
   const std::string message;
+};
+
+
+class ErrnoError : public Error
+{
+public:
+  ErrnoError()
+    : Error(std::string(strerror(errno))) {}
+
+  ErrnoError(const std::string& message)
+    : Error(message + ": " + std::string(strerror(errno))) {}
 };
 
 #endif // __STOUT_ERROR_HPP__

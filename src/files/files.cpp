@@ -16,6 +16,7 @@
 #include <process/mime.hpp>
 #include <process/process.hpp>
 
+#include <stout/error.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 #include <stout/numify.hpp>
@@ -409,16 +410,21 @@ Result<string> FilesProcess::resolve(const string& path)
     if (os::isdir(path)) {
       path = path::join(path, suffix);
 
-      // Canonicalize the absolute path and make sure the result is
-      // accessible.
-      Try<string> result = os::realpath(path);
-      if (result.isError()) {
-        return Result<string>::error("Cannot resolve path");
-      } else if (!strings::startsWith(result.get(), paths[prefix])) {
-        return Result<string>::error("Resolved path is inaccessible");
+      // Canonicalize the absolute path.
+      Try<string> realpath = os::realpath(path);
+      if (realpath.isError()) {
+        return Error(
+            "Failed to determine canonical path of '" + path +
+            "': " + realpath.error());
       }
 
-      path = result.get();
+      // Make sure the canonicalized absolute path is accessible
+      // (i.e., not outside the "chroot").
+      if (!strings::startsWith(realpath.get(), paths[prefix])) {
+        return Error("'" + path + "' is inaccessible");
+      }
+
+      path = realpath.get();
     } else if (suffix != "") {
       // Request is assuming attached path is a directory, but it is
       // not! Rather than 'Bad Request', treat this as 'Not Found'.

@@ -29,6 +29,7 @@
 #include <process/protobuf.hpp>
 #include <process/timer.hpp>
 
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
@@ -126,15 +127,15 @@ Try<MasterDetector*> MasterDetector::create(const string& master,
     if (contend) {
       return new BasicMasterDetector(pid);
     } else {
-      return Try<MasterDetector*>::error("Cannot detect master");
+      return Error("Cannot detect master");
     }
   } else if (master.find("zk://") == 0) {
     Try<zookeeper::URL> url = zookeeper::URL::parse(master);
     if (url.isError()) {
-      return Try<MasterDetector*>::error(url.error());
+      return Error(url.error());
     }
     if (url.get().path == "/") {
-      return Try<MasterDetector*>::error(
+      return Error(
           "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
     }
     return new ZooKeeperMasterDetector(url.get(), pid, contend, quiet);
@@ -142,8 +143,7 @@ Try<MasterDetector*> MasterDetector::create(const string& master,
     const std::string& path = master.substr(7);
     std::ifstream file(path.c_str());
     if (!file.is_open()) {
-      return Try<MasterDetector*>::error(
-          "Failed to open file at '" + path + "'");
+      return Error("Failed to open file at '" + path + "'");
     }
 
     std::string line;
@@ -151,8 +151,7 @@ Try<MasterDetector*> MasterDetector::create(const string& master,
 
     if (!file) {
       file.close();
-      return Try<MasterDetector*>::error(
-          "Failed to read from file at '" + path + "'");
+      return Error("Failed to read from file at '" + path + "'");
     }
 
     file.close();
@@ -166,8 +165,7 @@ Try<MasterDetector*> MasterDetector::create(const string& master,
     : process::UPID("master@" + master);
 
   if (!masterPid) {
-    return Try<MasterDetector*>::error(
-        "Cannot parse '" + std::string(masterPid) + "'");
+    return Error("Cannot parse '" + std::string(masterPid) + "'");
   }
 
   return new BasicMasterDetector(masterPid, pid);

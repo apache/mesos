@@ -23,6 +23,7 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/strings.hpp>
 
@@ -40,7 +41,8 @@ namespace mesos {
 namespace internal {
 namespace values {
 
-Try<Value> parse(const std::string& text) {
+Try<Value> parse(const std::string& text)
+{
   Value value;
 
   // Remove any spaces from the text.
@@ -52,16 +54,14 @@ Try<Value> parse(const std::string& text) {
   }
 
   if (temp.length() == 0) {
-    return Try<Value>::error(
-      "Error parsing value, expecting non-empty string");
+    return Error("Expecting non-empty string");
   }
 
   // TODO(ynie): Find a better way to check brackets.
   if (!strings::checkBracketsMatching(temp, '{', '}') ||
       !strings::checkBracketsMatching(temp, '[', ']') ||
       !strings::checkBracketsMatching(temp, '(', ')')) {
-    return Try<Value>::error(
-      "Error parsing value, brackets doesn't match");
+    return Error("Mismatched brackets");
   }
 
   size_t index = temp.find('[');
@@ -70,8 +70,7 @@ Try<Value> parse(const std::string& text) {
     Value::Ranges ranges;
     const vector<string>& tokens = strings::tokenize(temp, "[]-,\n");
     if (tokens.size() % 2 != 0) {
-      return Try<Value>::error("Error parsing value: " + text +
-                               ", expect one or more \"ranges \"");
+      return Error("Expecting one or more \"ranges\"");
     } else {
       for (size_t i = 0; i < tokens.size(); i += 2) {
         Value::Range *range = ranges.add_range();
@@ -81,15 +80,14 @@ Try<Value> parse(const std::string& text) {
           range->set_begin(boost::lexical_cast<uint64_t>((tokens[j++])));
           range->set_end(boost::lexical_cast<uint64_t>(tokens[j++]));
         } catch (const boost::bad_lexical_cast&) {
-          return Try<Value>::error(
-            "Error parsing value " + text +
-            ", expecting non-negative integers in '" + tokens[j - 1] + "'");
+          return Error(
+              "Expecting non-negative integers in '" + tokens[j - 1] + "'");
         }
       }
 
       value.set_type(Value::RANGES);
       value.mutable_ranges()->MergeFrom(ranges);
-      return Try<Value>::some(value);
+      return value;
     }
   } else if (index == string::npos) {
     size_t index = temp.find('{');
@@ -103,7 +101,7 @@ Try<Value> parse(const std::string& text) {
 
       value.set_type(Value::SET);
       value.mutable_set()->MergeFrom(set);
-      return Try<Value>::some(value);
+      return value;
     } else if (index == string::npos) {
       try {
         Value::Scalar scalar;
@@ -111,23 +109,21 @@ Try<Value> parse(const std::string& text) {
         // This is a Scalar.
         value.set_type(Value::SCALAR);
         value.mutable_scalar()->MergeFrom(scalar);
-        return Try<Value>::some(value);
+        return value;
       } catch (const boost::bad_lexical_cast&) {
         // This is a Text.
         Value::Text text;
         text.set_value(temp);
         value.set_type(Value::TEXT);
         value.mutable_text()->MergeFrom(text);
-        return Try<Value>::some(value);
+        return value;
       }
     } else {
-      return Try<Value>::error(
-        "Error parsing value " + text + ", bad '{' found");
+      return Error("Unexpected '{' found");
     }
   }
 
-  return Try<Value>::error(
-    "Error parsing value " + text + ", bad '[' found");
+  return Error("Unexpected '[' found");
 }
 
 } // namespace values {

@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include <stout/error.hpp>
 #include <stout/option.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -75,7 +76,7 @@ inline Try<URL> URL::parse(const std::string& url)
   size_t index = s.find_first_of("zk://");
 
   if (index != 0) {
-    return Try<URL>::error("Expecting 'zk://' at the beginning of the URL");
+    return Error("Expecting 'zk://' at the beginning of the URL");
   }
 
   s = s.substr(5);

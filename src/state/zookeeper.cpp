@@ -9,6 +9,7 @@
 #include <process/process.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
@@ -172,11 +173,7 @@ void ZooKeeperStateProcess::connected(bool reconnect)
       int code = zk->authenticate(auth.get().scheme, auth.get().credentials);
 
       if (code != ZOK) { // TODO(benh): Authentication retries?
-        Try<string> message = strings::format(
-            "Failed to authenticate with ZooKeeper: %s", zk->message(code));
-        error = message.isSome()
-          ? message.get()
-          : "Failed to authenticate with ZooKeeper";
+        error = "Failed to authenticate with ZooKeeper: " + zk->message(code);
         return;
       }
     }
@@ -274,7 +271,7 @@ Result<vector<string> > ZooKeeperStateProcess::doNames()
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
     return Result<vector<string> >::none(); // Try again later.
   } else if (code != ZOK) {
-    return Result<vector<string> >::error(
+    return Error(
         "Failed to get children of '" + znode +
         "' in ZooKeeper: " + zk->message(code));
   }
@@ -302,7 +299,7 @@ Result<Option<Entry> > ZooKeeperStateProcess::doFetch(const string& name)
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
     return Result<Option<Entry> >::none(); // Try again later.
   } else if (code != ZOK) {
-    return Result<Option<Entry> >::error(
+    return Error(
         "Failed to get '" + znode + "/" + name +
         "' in ZooKeeper: " + zk->message(code));
   }
@@ -312,7 +309,7 @@ Result<Option<Entry> > ZooKeeperStateProcess::doFetch(const string& name)
   Entry entry;
 
   if (!entry.ParseFromZeroCopyStream(&stream)) {
-    return Result<Option<Entry> >::error("Failed to deserialize Entry");
+    return Error("Failed to deserialize Entry");
   }
 
   return Option<Entry>::some(entry);
@@ -328,12 +325,12 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
   string data;
 
   if (!entry.SerializeToString(&data)) {
-    return Result<bool>::error("Failed to serialize Entry");
+    return Error("Failed to serialize Entry");
   }
 
   if (data.size() > 1024 * 1024) { // 1 MB
-    // TODO(benh): Implement compression.
-    return Result<bool>::error("Serialized data is too big (> 1 MB)");
+    // TODO(benh): Use stout/gzip.hpp for compression.
+    return Error("Serialized data is too big (> 1 MB)");
   }
 
   string result;
@@ -358,7 +355,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
         CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
         return Result<bool>::none(); // Try again later.
       } else if (code != ZOK && code != ZNODEEXISTS) {
-        return Result<bool>::error(
+        return Error(
             "Failed to create '" + prefix +
             "' in ZooKeeper: " + zk->message(code));
       }
@@ -372,7 +369,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
       CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
       return Result<bool>::none(); // Try again later.
     } else if (code != ZOK) {
-      return Result<bool>::error(
+      return Error(
           "Failed to create '" + znode + "/" + entry.name() +
           "' in ZooKeeper: " + zk->message(code));
     }
@@ -382,7 +379,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
     return Result<bool>::none(); // Try again later.
   } else if (code != ZOK) {
-    return Result<bool>::error(
+    return Error(
         "Failed to get '" + znode + "/" + entry.name() +
         "' in ZooKeeper: " + zk->message(code));
   }
@@ -392,7 +389,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
   Entry current;
 
   if (!current.ParseFromZeroCopyStream(&stream)) {
-    return Result<bool>::error("Failed to deserialize Entry");
+    return Error("Failed to deserialize Entry");
   }
 
   if (UUID::fromBytes(current.uuid()) != uuid) {
@@ -408,7 +405,7 @@ Result<bool> ZooKeeperStateProcess::doSwap(const Entry& entry, const UUID& uuid)
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
     return Result<bool>::none(); // Try again later.
   } else if (code != ZOK) {
-    return Result<bool>::error(
+    return Error(
         "Failed to set '" + znode + "/" + entry.name() +
         "' in ZooKeeper: " + zk->message(code));
   }

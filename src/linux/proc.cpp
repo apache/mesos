@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
@@ -41,7 +42,7 @@ Try<set<pid_t> > pids()
   if (!pids.empty()) {
     return pids;
   } else {
-    return Try<set<pid_t> >::error("Failed to determine pids from /proc");
+    return Error("Failed to determine pids from /proc");
   }
 }
 
@@ -53,7 +54,7 @@ Try<list<CPU> > cpus()
   ifstream file("/proc/cpuinfo");
 
   if (!file.is_open()) {
-    return Try<list<CPU> >::error("Failed to open /proc/cpuinfo");
+    return Error("Failed to open /proc/cpuinfo");
   }
 
   // Placeholders as we parse the file.
@@ -71,7 +72,7 @@ Try<list<CPU> > cpus()
       CHECK(tokens.size() >= 2) << stringify(tokens);
       Try<unsigned int> value = numify<unsigned int>(tokens.back());
       if (value.isError()) {
-        return Try<list<CPU> >::error(value.error());
+        return Error(value.error());
       }
 
       // Now save the value.
@@ -83,12 +84,12 @@ Try<list<CPU> > cpus()
         id = value.get();
       } else if (line.find("physical id") == 0) {
         if (socket.isSome()) {
-          return Try<list<CPU> >::error("Unexpected format of /proc/cpuinfo");
+          return Error("Unexpected format of /proc/cpuinfo");
         }
         socket = value.get();
       } else if (line.find("core id") == 0) {
         if (core.isSome()) {
-          return Try<list<CPU> >::error("Unexpected format of /proc/cpuinfo");
+          return Error("Unexpected format of /proc/cpuinfo");
         }
         core = value.get();
       }
@@ -111,7 +112,7 @@ Try<list<CPU> > cpus()
 
   if (file.fail() && !file.eof()) {
     file.close();
-    return Try<list<CPU> >::error("Failed to read /proc/cpuinfo");
+    return Error("Failed to read /proc/cpuinfo");
   }
 
   file.close();
@@ -127,7 +128,7 @@ Try<SystemStatistics> stat()
   ifstream file("/proc/stat");
 
   if (!file.is_open()) {
-    return Try<SystemStatistics>::error("Failed to open /proc/stat");
+    return Error("Failed to open /proc/stat");
   }
 
   string line;
@@ -138,8 +139,7 @@ Try<SystemStatistics> stat()
       if (number.isSome()) {
         btime = number.get();
       } else {
-        return Try<SystemStatistics>::error(
-            "Failed to parse /proc/stat: " + number.error());
+        return Error("Failed to parse /proc/stat: " + number.error());
       }
       break;
     }
@@ -147,7 +147,7 @@ Try<SystemStatistics> stat()
 
   if (file.fail() && !file.eof()) {
     file.close();
-    return Try<SystemStatistics>::error("Failed to read /proc/stat");
+    return Error("Failed to read /proc/stat");
   }
 
   file.close();
@@ -163,7 +163,7 @@ Try<ProcessStatistics> stat(pid_t pid)
   ifstream file(path.c_str());
 
   if (!file.is_open()) {
-    return Try<ProcessStatistics>::error("Failed to open " + path);
+    return Error("Failed to open '" + path + "'");
   }
 
   std::string comm;
@@ -223,7 +223,7 @@ Try<ProcessStatistics> stat(pid_t pid)
   // Check for any read/parse errors.
   if (file.fail() && !file.eof()) {
     file.close();
-    return Try<ProcessStatistics>::error("Failed to read/parse " + path);
+    return Error("Failed to read/parse '" + path + "'");
   }
 
   file.close();

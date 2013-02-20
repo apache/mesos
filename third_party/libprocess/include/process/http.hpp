@@ -12,6 +12,7 @@
 #include <process/future.hpp>
 #include <process/pid.hpp>
 
+#include <stout/error.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
@@ -305,7 +306,7 @@ inline Try<std::string> decode(const std::string& s)
 
     // We now expect two more characters: % HEXDIG HEXDIG
     if (i + 2 >= s.length() || !isxdigit(s[i+1]) || !isxdigit(s[i+2])) {
-      return Try<std::string>::error(
+      return Error(
           "Malformed % escape in '" + s + "': '" + s.substr(i, 3) + "'");
     }
 

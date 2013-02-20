@@ -502,7 +502,7 @@ TEST_F(StoutUtilsTest, readWriteString)
 
 TEST_F(StoutUtilsTest, find)
 {
-  const std::string& testdir  = tmpdir + "/" + UUID::random().toString();
+  const std::string& testdir = tmpdir + "/" + UUID::random().toString();
   const std::string& subdir = testdir + "/test1";
   ASSERT_SOME(os::mkdir(subdir)); // Create the directories.
 

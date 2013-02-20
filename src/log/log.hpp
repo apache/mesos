@@ -26,6 +26,7 @@
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
@@ -288,7 +289,7 @@ Result<std::list<Log::Entry> > Log::Reader::read(
   if (!actions.await(timeout.remaining())) {
     return Result<std::list<Log::Entry> >::none();
   } else if (actions.isFailed()) {
-    return Result<std::list<Log::Entry> >::error(actions.failure());
+    return Error(actions.failure());
   }
 
   CHECK(actions.isReady()) << "Not expecting discarded future!";
@@ -302,11 +303,9 @@ Result<std::list<Log::Entry> > Log::Reader::read(
     if (!action.has_performed() ||
         !action.has_learned() ||
         !action.learned()) {
-      return Result<std::list<Log::Entry> >::error(
-          "Bad read range (includes pending entries)");
+      return Error("Bad read range (includes pending entries)");
     } else if (position++ != action.position()) {
-      return Result<std::list<Log::Entry> >::error(
-          "Bad read range (includes missing entries)");
+      return Error("Bad read range (includes missing entries)");
     }
 
     // And only return appends.
@@ -369,7 +368,7 @@ Result<Log::Position> Log::Writer::append(
     const process::Timeout& timeout)
 {
   if (error.isSome()) {
-    return Result<Log::Position>::error(error.get());
+    return Error(error.get());
   }
 
   LOG(INFO) << "Attempting to append " << data.size() << " bytes to the log";
@@ -378,7 +377,7 @@ Result<Log::Position> Log::Writer::append(
 
   if (result.isError()) {
     error = result.error();
-    return Result<Log::Position>::error(error.get());
+    return Error(error.get());
   } else if (result.isNone()) {
     return Result<Log::Position>::none();
   }
@@ -394,7 +393,7 @@ Result<Log::Position> Log::Writer::truncate(
     const process::Timeout& timeout)
 {
   if (error.isSome()) {
-    return Result<Log::Position>::error(error.get());
+    return Error(error.get());
   }
 
   LOG(INFO) << "Attempting to truncate the log to " << to.value;
@@ -403,7 +402,7 @@ Result<Log::Position> Log::Writer::truncate(
 
   if (result.isError()) {
     error = result.error();
-    return Result<Log::Position>::error(error.get());
+    return Error(error.get());
   } else if (result.isNone()) {
     return Result<Log::Position>::none();
   }

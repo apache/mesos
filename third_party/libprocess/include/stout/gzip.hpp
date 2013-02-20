@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "error.hpp"
 #include "try.hpp"
 
 // Compression utilities.
@@ -32,13 +33,12 @@ inline Try<std::string> compress(
 #endif
 {
 #ifndef HAVE_LIBZ
-  return Try<std::string>::error(
-      "Failed to compress because libz is not available");
+  return Error("libz is not available");
 #else
   // Verify the level is within range.
   if (!(level == Z_DEFAULT_COMPRESSION ||
       (level >= Z_NO_COMPRESSION && level <= Z_BEST_COMPRESSION))) {
-    return Try<std::string>::error("Invalid compression level: " + level);
+    return Error("Invalid compression level: " + level);
   }
 
   z_stream_s stream;
@@ -58,8 +58,7 @@ inline Try<std::string> compress(
       Z_DEFAULT_STRATEGY);
 
   if (code != Z_OK) {
-    return Try<std::string>::error(
-        "Error initializing zlib: " + std::string(stream.msg));
+    return Error("Failed to initialize zlib: " + std::string(stream.msg));
   }
 
   // Build up the compressed result.
@@ -71,9 +70,9 @@ inline Try<std::string> compress(
     code = deflate(&stream, stream.avail_in > 0 ? Z_NO_FLUSH : Z_FINISH);
 
     if (code != Z_OK && code != Z_STREAM_END) {
-      std::string error(stream.msg);
+      Error error(std::string(stream.msg));
       deflateEnd(&stream);
-      return Try<std::string>::error("Error during compression: " + error);
+      return error;
     }
 
     // Consume output and reset the buffer.
@@ -86,8 +85,7 @@ inline Try<std::string> compress(
 
   code = deflateEnd(&stream);
   if (code != Z_OK) {
-    return Try<std::string>::error(
-        "Error cleaning up zlib: " + std::string(stream.msg));
+    return Error("Failed to clean up zlib: " + std::string(stream.msg));
   }
   return result;
 #endif // HAVE_LIBZ
@@ -98,8 +96,7 @@ inline Try<std::string> compress(
 inline Try<std::string> decompress(const std::string& compressed)
 {
 #ifndef HAVE_LIBZ
-  return Try<std::string>::error(
-      "Failed to decompress because libz is not available");
+  return Error("libz is not available");
 #else
   z_stream_s stream;
   stream.next_in =
@@ -114,8 +111,7 @@ inline Try<std::string> decompress(const std::string& compressed)
       MAX_WBITS + 16); // Zlib magic for gzip compression / decompression.
 
   if (code != Z_OK) {
-    return Try<std::string>::error(
-        "Error initializing zlib: " + std::string(stream.msg));
+    return Error("Failed to initialize zlib: " + std::string(stream.msg));
   }
 
   // Build up the decompressed result.
@@ -127,9 +123,9 @@ inline Try<std::string> decompress(const std::string& compressed)
     code = inflate(&stream, stream.avail_in > 0 ? Z_NO_FLUSH : Z_FINISH);
 
     if (code != Z_OK && code != Z_STREAM_END) {
-      std::string error(stream.msg);
+      Error error(std::string(stream.msg));
       inflateEnd(&stream);
-      return Try<std::string>::error("Error during decompression: " + error);
+      return error;
     }
 
     // Consume output and reset the buffer.
@@ -142,8 +138,7 @@ inline Try<std::string> decompress(const std::string& compressed)
 
   code = inflateEnd(&stream);
   if (code != Z_OK) {
-    return Try<std::string>::error(
-        "Error cleaning up zlib: " + std::string(stream.msg));
+    return Error("Failed to clean up zlib: " + std::string(stream.msg));
   }
   return result;
 #endif // HAVE_LIBZ

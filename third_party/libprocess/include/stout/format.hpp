@@ -8,6 +8,7 @@
 
 #include <tr1/type_traits> // For 'is_pod'.
 
+#include "error.hpp"
 #include "try.hpp"
 #include "stringify.hpp"
 
@@ -288,8 +289,7 @@ inline Try<std::string> format(const std::string& fmt, va_list args)
   char* temp;
   if (vasprintf(&temp, fmt.c_str(), args) == -1) {
     // Note that temp is undefined, so we do not need to call free.
-    return Try<std::string>::error(
-        "Failed to format '" + fmt + "' (possibly out of memory)");
+    return Error("Failed to format '" + fmt + "' (possibly out of memory)");
   }
   std::string result(temp);
   free(temp);
