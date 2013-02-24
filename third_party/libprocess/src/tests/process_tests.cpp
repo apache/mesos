@@ -24,6 +24,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/os.hpp>
+#include <stout/stringify.hpp>
 
 #include "encoder.hpp"
 
@@ -373,42 +374,29 @@ TEST(Process, defer1)
 }
 
 
-template <typename T>
-void set(T* t1, const T& t2)
-{
-  *t1 = t2;
-}
-
-
 class DeferProcess : public Process<DeferProcess>
 {
 public:
-  DeferProcess(volatile bool* _bool1, volatile bool* _bool2)
-    : bool1(_bool1), bool2(_bool2) {}
-
-protected:
-  virtual void initialize()
+  Future<std::string> func1(const Future<int>& f)
   {
-    deferred<void(bool)> set1 =
-      defer(std::tr1::function<void(bool)>(
-                std::tr1::bind(&set<volatile bool>,
-                               bool1,
-                               std::tr1::placeholders::_1)));
+    return f.then(defer(self(), &Self::_func1, std::tr1::placeholders::_1));
+  }
 
-    set1(true);
-
-    deferred<void(bool)> set2 =
-      defer(std::tr1::function<void(bool)>(
-                std::tr1::bind(&set<volatile bool>,
-                               bool2,
-                               std::tr1::placeholders::_1)));
-
-    set2(true);
+  Future<std::string> func2(const Future<int>& f)
+  {
+    return f.then(defer(self(), &Self::_func2));
   }
 
 private:
-  volatile bool* bool1;
-  volatile bool* bool2;
+  Future<std::string> _func1(int i)
+  {
+    return stringify(i);
+  }
+
+  Future<std::string> _func2()
+  {
+    return std::string("42");
+  }
 };
 
 
@@ -416,21 +404,42 @@ TEST(Process, defer2)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  volatile bool bool1 = false;
-  volatile bool bool2 = false;
-
-  DeferProcess process(&bool1, &bool2);
+  DeferProcess process;
 
   PID<DeferProcess> pid = spawn(process);
 
-  while (!bool1);
-  while (!bool2);
+  Future<std::string> f = dispatch(pid, &DeferProcess::func1, 41);
+
+  f.await();
+
+  ASSERT_TRUE(f.isReady());
+  EXPECT_EQ("41", f.get());
+
+  f = dispatch(pid, &DeferProcess::func2, 41);
+
+  f.await();
+
+  ASSERT_TRUE(f.isReady());
+  EXPECT_EQ("42", f.get());
 
   terminate(pid);
   wait(pid);
+}
 
-  bool1 = false;
-  bool2 = false;
+
+template <typename T>
+void set(T* t1, const T& t2)
+{
+  *t1 = t2;
+}
+
+
+TEST(Process, defer3)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  volatile bool bool1 = false;
+  volatile bool bool2 = false;
 
   deferred<void(bool)> set1 =
     defer(std::tr1::function<void(bool)>(

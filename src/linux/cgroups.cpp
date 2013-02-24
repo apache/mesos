@@ -1443,7 +1443,7 @@ protected:
   {
     // Stop when no one cares.
     promise.future().onDiscarded(lambda::bind(
-          static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
+          static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
     CHECK(interval >= Seconds(0));
 
@@ -1460,24 +1460,14 @@ protected:
 
 private:
   void killTasks() {
-    lambda::function<Future<bool>(const bool&)>
-      funcFreeze = defer(self(), &Self::freeze);
-    lambda::function<Future<Nothing>(const bool&)>
-      funcKill = defer(self(), &Self::kill);
-    lambda::function<Future<bool>(const Nothing&)>
-      funcThaw = defer(self(), &Self::thaw);
-    lambda::function<Future<bool>(const bool&)>
-      funcEmpty = defer(self(), &Self::empty);
-
     // Chain together the steps needed to kill the tasks. Note that we
-    // ignore he return values of freeze, kill, and thaw because,
+    // ignore the return values of freeze, kill, and thaw because,
     // provided there are no errors, we'll just retry the chain as
     // long as tasks still exist.
-    chain = Future<bool>(true)
-      .then(funcFreeze)   // Freeze the cgroup.
-      .then(funcKill)     // Send kill signals to all tasks in the cgroup.
-      .then(funcThaw)     // Thaw the cgroup to let kill signals be received.
-      .then(funcEmpty);   // Wait until no task is in the cgroup.
+    chain = freeze()                      // Freeze the cgroup.
+      .then(defer(self(), &Self::kill))   // Send kill signals to all tasks.
+      .then(defer(self(), &Self::thaw))   // Thaw cgroup to deliver signals.
+      .then(defer(self(), &Self::empty)); // Wait until cgroup is empty.
 
     chain.onAny(defer(self(), &Self::finished, lambda::_1));
   }
@@ -1554,7 +1544,7 @@ protected:
   {
     // Stop when no one cares.
     promise.future().onDiscarded(lambda::bind(
-          static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
+          static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
     CHECK(interval >= Seconds(0));
 

@@ -15,11 +15,16 @@
 #include <tr1/memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 
 #include <process/latch.hpp>
+#include <process/pid.hpp>
+#include <process/preprocessor.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/option.hpp>
 
 namespace process {
+
+// Forward declaration (instead of include to break circular dependency).
+template <typename _F> struct _Defer;
 
 namespace internal {
 
@@ -101,6 +106,12 @@ public:
   // and associates the result of the callback with the future that is
   // returned to the caller (which may be of a different type).
   template <typename X>
+  Future<X> then(const std::tr1::function<Future<X>(const T&)>& f) const;
+
+  template <typename X>
+  Future<X> then(const std::tr1::function<X(const T&)>& f) const;
+
+  template <typename X>
   Future<X> then(
       const std::tr1::_Bind<
       Future<X>(*(std::tr1::_Placeholder<1>))(const T&)>& b) const;
@@ -110,11 +121,57 @@ public:
       const std::tr1::_Bind<
       X(*(std::tr1::_Placeholder<1>))(const T&)>& b) const;
 
-  template <typename X>
-  Future<X> then(const std::tr1::function<Future<X>(const T&)>& f) const;
+  template <typename X, typename U>
+  Future<X> then(const _Defer<Future<X>(*(PID<U>, X(U::*)(void)))
+                 (const PID<U>&, X(U::*)(void))>& d) const
+  {
+    return then(std::tr1::function<Future<X>(const T&)>(d));
+  }
 
-  template <typename X>
-  Future<X> then(const std::tr1::function<X(const T&)>& f) const;
+#define TEMPLATE(Z, N, DATA)                                            \
+  template <typename X,                                                 \
+            typename U,                                                 \
+            ENUM_PARAMS(N, typename P),                                 \
+            ENUM_PARAMS(N, typename A)>                                 \
+  Future<X> then(                                                       \
+      const _Defer<Future<X>(*(PID<U>,                                  \
+                               X(U::*)(ENUM_PARAMS(N, P)),              \
+                               ENUM_PARAMS(N, A)))                      \
+      (const PID<U>&,                                                   \
+       X(U::*)(ENUM_PARAMS(N, P)),                                      \
+       ENUM_PARAMS(N, P))>& d) const                                    \
+  {                                                                     \
+    return then(std::tr1::function<Future<X>(const T&)>(d));            \
+  }
+
+  REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
+#undef TEMPLATE
+
+  template <typename X, typename U>
+  Future<X> then(const _Defer<Future<X>(*(PID<U>, Future<X>(U::*)(void)))
+                 (const PID<U>&, Future<X>(U::*)(void))>& d) const
+  {
+    return then(std::tr1::function<Future<X>(const T&)>(d));
+  }
+
+#define TEMPLATE(Z, N, DATA)                                            \
+  template <typename X,                                                 \
+            typename U,                                                 \
+            ENUM_PARAMS(N, typename P),                                 \
+            ENUM_PARAMS(N, typename A)>                                 \
+  Future<X> then(                                                       \
+      const _Defer<Future<X>(*(PID<U>,                                  \
+                               Future<X>(U::*)(ENUM_PARAMS(N, P)),      \
+                               ENUM_PARAMS(N, A)))                      \
+      (const PID<U>&,                                                   \
+       Future<X>(U::*)(ENUM_PARAMS(N, P)),                              \
+       ENUM_PARAMS(N, P))>& d) const                                    \
+  {                                                                     \
+    return then(std::tr1::function<Future<X>(const T&)>(d));            \
+  }
+
+  REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
+#undef TEMPLATE
 
 #if __cplusplus >= 201103L
   template <typename F>
@@ -670,11 +727,11 @@ namespace internal {
 
 template <typename T, typename X>
 void thenf(const std::tr1::shared_ptr<Promise<X> >& promise,
-           const std::tr1::function<Future<X>(const T&)>& callback,
+           const std::tr1::function<Future<X>(const T&)>& f,
            const Future<T>& future)
 {
   if (future.isReady()) {
-    promise->associate(callback(future.get()));
+    promise->associate(f(future.get()));
   } else if (future.isFailed()) {
     promise->fail(future.failure());
   } else if (future.isDiscarded()) {
@@ -685,11 +742,11 @@ void thenf(const std::tr1::shared_ptr<Promise<X> >& promise,
 
 template <typename T, typename X>
 void then(const std::tr1::shared_ptr<Promise<X> >& promise,
-          const std::tr1::function<X(const T&)>& callback,
+          const std::tr1::function<X(const T&)>& f,
           const Future<T>& future)
 {
   if (future.isReady()) {
-    promise->set(callback(future.get()));
+    promise->set(f(future.get()));
   } else if (future.isFailed()) {
     promise->fail(future.failure());
   } else if (future.isDiscarded()) {
@@ -764,12 +821,12 @@ Future<X> Future<T>::then(
 {
   std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
 
-  std::tr1::function<Future<X>(const T&)> callback = b;
+  std::tr1::function<Future<X>(const T&)> f = b;
 
   std::tr1::function<void(const Future<T>&)> thenf =
     std::tr1::bind(&internal::thenf<T, X>,
                    promise,
-                   callback,
+                   f,
                    std::tr1::placeholders::_1);
 
   onAny(thenf);
@@ -796,12 +853,12 @@ Future<X> Future<T>::then(
 {
   std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
 
-  std::tr1::function<X(const T&)> callback = b;
+  std::tr1::function<X(const T&)> f = b;
 
   std::tr1::function<void(const Future<T>&)> then =
     std::tr1::bind(&internal::then<T, X>,
                    promise,
-                   callback,
+                   f,
                    std::tr1::placeholders::_1);
 
   onAny(then);
