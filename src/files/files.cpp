@@ -305,15 +305,13 @@ Future<Response> FilesProcess::read(const Request& request)
   // Read 'length' bytes (or to EOF).
   boost::shared_array<char> data(new char[length]);
 
-  // TODO(bmahler): C++11 version when ready.
-  std::tr1::function<Future<Response>(const size_t&)> f =
-      std::tr1::bind(_read,
-                     fd.get(),
-                     std::tr1::placeholders::_1,
-                     offset,
-                     data,
-                     request.query.get("jsonp"));
-  return io::read(fd.get(), data.get(), static_cast<size_t>(length)).then(f);
+  return io::read(fd.get(), data.get(), static_cast<size_t>(length))
+    .then(std::tr1::bind(_read,
+                         fd.get(),
+                         std::tr1::placeholders::_1,
+                         offset,
+                         data,
+                         request.query.get("jsonp")));
 }
 
 

@@ -3111,7 +3111,7 @@ namespace io {
 namespace internal {
 
 void read(int fd,
-          void *data,
+          void* data,
           size_t size,
           const std::tr1::shared_ptr<Promise<size_t> >& promise,
           const Future<short>& future)
@@ -3258,10 +3258,8 @@ Future<string> _read(int fd,
                      const boost::shared_array<char>& data,
                      size_t length)
 {
-  std::tr1::function<Future<string>(const size_t&)> f =
-    std::tr1::bind(__read, lambda::_1, fd, buffer, data, length);
-
-  return io::read(fd, data.get(), length).then(f);
+  return io::read(fd, data.get(), length)
+    .then(lambda::bind(&__read, lambda::_1, fd, buffer, data, length));
 }
 #endif
 
@@ -3368,10 +3366,8 @@ Future<Response> get(const PID<>& pid, const string& path, const string& query)
   }
 
   // Decode once the async read completes.
-  std::tr1::function<Future<Response>(const string&)> decode =
-    std::tr1::bind(internal::decode, lambda::_1);
-
-  return io::read(s).then(decode);
+  return io::read(s)
+    .then(lambda::bind(&internal::decode, lambda::_1));
 }
 
 }  // namespace http {

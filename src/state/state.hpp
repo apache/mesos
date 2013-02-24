@@ -187,13 +187,10 @@ template <typename Serializer>
 template <typename T>
 process::Future<Variable<T> > State<Serializer>::get(const std::string& name)
 {
-  std::tr1::function<
-  process::Future<Variable<T> >(const Option<Entry>&)> _get =
-    std::tr1::bind(&State<Serializer>::template _get<T>,
-                   name,
-                   std::tr1::placeholders::_1);
-
-  return fetch(name).then(_get);
+  return fetch(name)
+    .then(std::tr1::bind(&State<Serializer>::template _get<T>,
+                         name,
+                         std::tr1::placeholders::_1));
 }
 
 

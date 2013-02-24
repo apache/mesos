@@ -111,16 +111,48 @@ public:
   template <typename X>
   Future<X> then(const std::tr1::function<X(const T&)>& f) const;
 
+  // Helpers for the compiler to be able to forward std::tr1::bind results.
   template <typename X>
-  Future<X> then(
-      const std::tr1::_Bind<
-      Future<X>(*(std::tr1::_Placeholder<1>))(const T&)>& b) const;
+  Future<X> then(const std::tr1::_Bind<X(*(void))(void)>& b) const
+  {
+    return then(std::tr1::function<X(const T&)>(b));
+  }
+
+#define TEMPLATE(Z, N, DATA)                                            \
+  template <typename X,                                                 \
+            ENUM_PARAMS(N, typename P),                                 \
+            ENUM_PARAMS(N, typename A)>                                 \
+  Future<X> then(                                                       \
+      const std::tr1::_Bind<X(*(ENUM_PARAMS(N, A)))                     \
+      (ENUM_PARAMS(N, P))>& b) const                                    \
+  {                                                                     \
+    return then(std::tr1::function<X(const T&)>(b));                    \
+  }
+
+  REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
+#undef TEMPLATE
 
   template <typename X>
-  Future<X> then(
-      const std::tr1::_Bind<
-      X(*(std::tr1::_Placeholder<1>))(const T&)>& b) const;
+  Future<X> then(const std::tr1::_Bind<Future<X>(*(void))(void)>& b) const
+  {
+    return then(std::tr1::function<Future<X>(const T&)>(b));
+  }
 
+#define TEMPLATE(Z, N, DATA)                                            \
+  template <typename X,                                                 \
+            ENUM_PARAMS(N, typename P),                                 \
+            ENUM_PARAMS(N, typename A)>                                 \
+  Future<X> then(                                                       \
+      const std::tr1::_Bind<Future<X>(*(ENUM_PARAMS(N, A)))             \
+      (ENUM_PARAMS(N, P))>& b) const                                    \
+  {                                                                     \
+    return then(std::tr1::function<Future<X>(const T&)>(b));            \
+  }
+
+  REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
+#undef TEMPLATE
+
+  // Helpers for the compiler to be able to forward 'defer' results.
   template <typename X, typename U>
   Future<X> then(const _Defer<Future<X>(*(PID<U>, X(U::*)(void)))
                  (const PID<U>&, X(U::*)(void))>& d) const
@@ -173,6 +205,7 @@ public:
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
 
+  // C++11 implementation (covers all functors).
 #if __cplusplus >= 201103L
   template <typename F>
   auto then(F f) const
@@ -790,70 +823,6 @@ template <typename X>
 Future<X> Future<T>::then(const std::tr1::function<X(const T&)>& f) const
 {
   std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
-
-  std::tr1::function<void(const Future<T>&)> then =
-    std::tr1::bind(&internal::then<T, X>,
-                   promise,
-                   f,
-                   std::tr1::placeholders::_1);
-
-  onAny(then);
-
-  // Propagate discarding up the chain (note that we bind with a copy
-  // of this future since 'this' might no longer be valid but other
-  // references might still exist.
-  // TODO(benh): Need to pass 'future' as a weak_ptr so that we can
-  // avoid reference counting cycles!
-  std::tr1::function<void(void)> discard =
-    std::tr1::bind(&Future<T>::discard, *this);
-
-  promise->future().onDiscarded(discard);
-
-  return promise->future();
-}
-
-
-template <typename T>
-template <typename X>
-Future<X> Future<T>::then(
-    const std::tr1::_Bind<
-    Future<X>(*(std::tr1::_Placeholder<1>))(const T&)>& b) const
-{
-  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
-
-  std::tr1::function<Future<X>(const T&)> f = b;
-
-  std::tr1::function<void(const Future<T>&)> thenf =
-    std::tr1::bind(&internal::thenf<T, X>,
-                   promise,
-                   f,
-                   std::tr1::placeholders::_1);
-
-  onAny(thenf);
-
-  // Propagate discarding up the chain (note that we bind with a copy
-  // of this future since 'this' might no longer be valid but other
-  // references might still exist.
-  // TODO(benh): Need to pass 'future' as a weak_ptr so that we can
-  // avoid reference counting cycles!
-  std::tr1::function<void(void)> discard =
-    std::tr1::bind(&Future<T>::discard, *this);
-
-  promise->future().onDiscarded(discard);
-
-  return promise->future();
-}
-
-
-template <typename T>
-template <typename X>
-Future<X> Future<T>::then(
-    const std::tr1::_Bind<
-    X(*(std::tr1::_Placeholder<1>))(const T&)>& b) const
-{
-  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
-
-  std::tr1::function<X(const T&)> f = b;
 
   std::tr1::function<void(const Future<T>&)> then =
     std::tr1::bind(&internal::then<T, X>,
