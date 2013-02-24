@@ -42,7 +42,7 @@ private:
 
 
 // Provides an abstraction that can take a standard function object
-// and convert it to a 'deferred'. Each converted function object will
+// and convert it to a 'Deferred'. Each converted function object will
 // get invoked serially with respect to one another.
 class Executor
 {
@@ -80,10 +80,10 @@ private:
 
 public:
   // We provide wrappers for all standard function objects.
-  deferred<void(void)> defer(
+  Deferred<void(void)> defer(
       const std::tr1::function<void(void)>& f)
   {
-    return deferred<void(void)>(
+    return Deferred<void(void)>(
         std::tr1::bind(
             &Executor::dispatcher,
             process.self(), f));
@@ -91,10 +91,10 @@ public:
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename A)>                                 \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f)             \
   {                                                                     \
-    return deferred<void(ENUM_PARAMS(N, A))>(                           \
+    return Deferred<void(ENUM_PARAMS(N, A))>(                           \
         std::tr1::bind(                                                 \
             &Executor::CAT(dispatcher, N)<ENUM_PARAMS(N, A)>,           \
             process.self(), f,                                          \
@@ -108,7 +108,7 @@ public:
   // information from one result to another, so we must explicilty
   // define wrappers for all std::tr1::bind results. First we start
   // with the non-member std::tr1::bind results.
-  deferred<void(void)> defer(
+  Deferred<void(void)> defer(
       const std::tr1::_Bind<void(*(void))(void)>& b)
   {
     return defer(std::tr1::function<void(void)>(b));
@@ -116,7 +116,7 @@ public:
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename A)>                                 \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::_Bind<                                            \
       void(*(ENUM_PARAMS(N, _)))                                        \
       (ENUM_PARAMS(N, A))>& b)                                          \
@@ -138,7 +138,7 @@ public:
   // 8. Const member, value.
 #define TEMPLATE(Z, N, DATA)                                            \
   template <typename T ENUM_TRAILING_PARAMS(N, typename A)>             \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::_Bind<std::tr1::_Mem_fn<                          \
       void(T::*)(ENUM_PARAMS(N, A))>                                    \
       (T* ENUM_TRAILING_PARAMS(N, _))>& b)                              \
@@ -147,7 +147,7 @@ public:
   }                                                                     \
                                                                         \
   template <typename T ENUM_TRAILING_PARAMS(N, typename A)>             \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::_Bind<std::tr1::_Mem_fn<                          \
       void(T::*)(ENUM_PARAMS(N, A)) const>                              \
       (T* ENUM_TRAILING_PARAMS(N, _))>& b)                              \
@@ -156,7 +156,7 @@ public:
   }                                                                     \
                                                                         \
   template <typename T ENUM_TRAILING_PARAMS(N, typename A)>             \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::_Bind<std::tr1::_Mem_fn<                          \
       void(T::*)(ENUM_PARAMS(N, A)) const>                              \
       (const T* ENUM_TRAILING_PARAMS(N, _))>& b)                        \
@@ -165,7 +165,7 @@ public:
   }                                                                     \
                                                                         \
   template <typename T ENUM_TRAILING_PARAMS(N, typename A)>             \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::_Bind<std::tr1::_Mem_fn<                          \
       void(T::*)(ENUM_PARAMS(N, A))>                                    \
       (std::tr1::reference_wrapper<T> ENUM_TRAILING_PARAMS(N, _))>& b)  \
@@ -174,7 +174,7 @@ public:
   }                                                                     \
                                                                         \
   template <typename T ENUM_TRAILING_PARAMS(N, typename A)>             \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::_Bind<std::tr1::_Mem_fn<                          \
       void(T::*)(ENUM_PARAMS(N, A)) const>                              \
       (std::tr1::reference_wrapper<T> ENUM_TRAILING_PARAMS(N, _))>& b)  \
@@ -183,7 +183,7 @@ public:
   }                                                                     \
                                                                         \
   template <typename T ENUM_TRAILING_PARAMS(N, typename A)>             \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::_Bind<std::tr1::_Mem_fn<                          \
       void(T::*)(ENUM_PARAMS(N, A)) const>                              \
       (std::tr1::reference_wrapper<const T> ENUM_TRAILING_PARAMS(N, _))>& b) \
@@ -192,7 +192,7 @@ public:
   }                                                                     \
                                                                         \
   template <typename T ENUM_TRAILING_PARAMS(N, typename A)>             \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::_Bind<std::tr1::_Mem_fn<                          \
       void(T::*)(ENUM_PARAMS(N, A))>                                    \
       (T ENUM_TRAILING_PARAMS(N, _))>& b)                               \
@@ -201,7 +201,7 @@ public:
   }                                                                     \
                                                                         \
   template <typename T ENUM_TRAILING_PARAMS(N, typename A)>             \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::_Bind<std::tr1::_Mem_fn<                          \
       void(T::*)(ENUM_PARAMS(N, A)) const>                              \
       (T ENUM_TRAILING_PARAMS(N, _))>& b)                               \

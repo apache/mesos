@@ -12,7 +12,7 @@ namespace process {
 
 // The defer mechanism is very similar to the dispatch mechanism (see
 // dispatch.hpp), however, rather than scheduling the method to get
-// invoked, the defer mechanism returns a 'deferred' object that when
+// invoked, the defer mechanism returns a 'Deferred' object that when
 // invoked does the underlying dispatch. Similar to dispatch, we
 // provide the C++11 variadic template definitions first, and then use
 // Boost preprocessor macros to provide the actual definitions.
@@ -21,14 +21,14 @@ namespace process {
 // First, definitions of defer for methods returning void:
 //
 // template <typename T, typename ...P>
-// deferred<void(void)> void defer(const PID<T>& pid,
+// Deferred<void(void)> void defer(const PID<T>& pid,
 //                                 void (T::*method)(P...),
 //                                 P... p)
 // {
 //   void (*dispatch)(const PID<T>&, void (T::*)(P...), P...) =
 //     &process::template dispatch<T, P...>;
 
-//   return deferred<void(void)>(
+//   return Deferred<void(void)>(
 //       std::tr1::bind(dispatch, pid, method, std::forward<P>(p)...));
 // }
 
@@ -118,14 +118,14 @@ defer(const Process<T>* process, void (T::*method)(void))
 // Next, definitions of defer for methods returning future:
 //
 // template <typename R, typename T, typename ...P>
-// deferred<Future<R>(void)> void defer(const PID<T>& pid,
+// Deferred<Future<R>(void)> void defer(const PID<T>& pid,
 //                                      Future<R> (T::*method)(P...),
 //                                      P... p)
 // {
 //   Future<R> (*dispatch)(const PID<T>&, Future<R> (T::*)(P...), P...) =
 //     &process::template dispatch<R, T, P...>;
 //
-//   return deferred<Future<R>(void)>(
+//   return Deferred<Future<R>(void)>(
 //       std::tr1::bind(dispatch, pid, method, std::forward<P>(p)...));
 // }
 
@@ -218,14 +218,14 @@ defer(const Process<T>* process, Future<R> (T::*method)(void))
 // Next, definitions of defer for methods returning a value:
 //
 // template <typename R, typename T, typename ...P>
-// deferred<Future<R>(void)> void defer(const PID<T>& pid,
+// Deferred<Future<R>(void)> void defer(const PID<T>& pid,
 //                                      R (T::*method)(P...),
 //                                      P... p)
 // {
 //   Future<R> (*dispatch)(const PID<T>&, R (T::*)(P...), P...) =
 //     &process::template dispatch<R, T, P...>;
 //
-//   return deferred<Future<R>(void)>(
+//   return Deferred<Future<R>(void)>(
 //       std::tr1::bind(dispatch, pid, method, std::forward<P>(p)...));
 // }
 
@@ -380,7 +380,7 @@ inline void dispatcher(
 
 
 // Now we define defer calls for functions and bind statements.
-inline deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
+inline Deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
 {
   if (__process__ != NULL) {
     // In C++11:
@@ -400,7 +400,7 @@ inline deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename A)>                                 \
-  deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f)             \
   {                                                                     \
     if (__process__ != NULL) {                                          \
@@ -415,7 +415,7 @@ inline deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
   }                                                                     \
                                                                         \
   template <typename R, ENUM_PARAMS(N, typename A)>                     \
-  deferred<Future<R>(ENUM_PARAMS(N, A))> defer(                         \
+  Deferred<Future<R>(ENUM_PARAMS(N, A))> defer(                         \
       const std::tr1::function<Future<R>(ENUM_PARAMS(N, A))>& f)        \
   {                                                                     \
     if (__process__ != NULL) {                                          \

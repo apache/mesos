@@ -325,7 +325,7 @@ TEST(Process, defer1)
   ASSERT_FALSE(!pid);
 
   {
-    deferred<void(void)> func0 =
+    Deferred<void(void)> func0 =
       defer(pid, &DispatchProcess::func0);
     func0();
   }
@@ -333,35 +333,35 @@ TEST(Process, defer1)
   Future<bool> future;
 
   {
-    deferred<Future<bool>(void)> func1 =
+    Deferred<Future<bool>(void)> func1 =
       defer(pid, &DispatchProcess::func1, true);
     future = func1();
     EXPECT_TRUE(future.get());
   }
 
   {
-    deferred<Future<bool>(void)> func2 =
+    Deferred<Future<bool>(void)> func2 =
       defer(pid, &DispatchProcess::func2, true);
     future = func2();
     EXPECT_TRUE(future.get());
   }
 
   {
-    deferred<Future<bool>(void)> func4 =
+    Deferred<Future<bool>(void)> func4 =
       defer(pid, &DispatchProcess::func4, true, 42);
     future = func4();
     EXPECT_TRUE(future.get());
   }
 
   {
-    deferred<Future<bool>(bool)> func4 =
+    Deferred<Future<bool>(bool)> func4 =
       defer(pid, &DispatchProcess::func4, std::tr1::placeholders::_1, 42);
     future = func4(false);
     EXPECT_FALSE(future.get());
   }
 
   {
-    deferred<Future<bool>(int)> func4 =
+    Deferred<Future<bool>(int)> func4 =
       defer(pid, &DispatchProcess::func4, true, std::tr1::placeholders::_1);
     future = func4(42);
     EXPECT_TRUE(future.get());
@@ -441,7 +441,7 @@ TEST(Process, defer3)
   volatile bool bool1 = false;
   volatile bool bool2 = false;
 
-  deferred<void(bool)> set1 =
+  Deferred<void(bool)> set1 =
     defer(std::tr1::function<void(bool)>(
               std::tr1::bind(&set<volatile bool>,
                              &bool1,
@@ -449,7 +449,7 @@ TEST(Process, defer3)
 
   set1(true);
 
-  deferred<void(bool)> set2 =
+  Deferred<void(bool)> set2 =
     defer(std::tr1::function<void(bool)>(
               std::tr1::bind(&set<volatile bool>,
                              &bool2,
@@ -949,14 +949,14 @@ TEST(Process, executor)
 
   Executor executor;
 
-  deferred<void(int)> event1 =
+  Deferred<void(int)> event1 =
     executor.defer(std::tr1::bind(&EventReceiver::event1,
                                   &receiver,
                                   std::tr1::placeholders::_1));
 
   event1(42);
 
-  deferred<void(const std::string&)> event2 =
+  Deferred<void(const std::string&)> event2 =
     executor.defer(std::tr1::bind(&EventReceiver::event2,
                                   &receiver,
                                   std::tr1::placeholders::_1));

@@ -19,7 +19,7 @@ template <typename _F> struct _Defer;
 // context such as an Executor or a ProcessBase (enforced because only
 // an executor or the 'defer' routines are allowed to create them).
 template <typename F>
-struct deferred : std::tr1::function<F>
+struct Deferred : std::tr1::function<F>
 {
 private:
   // Only an Executor and the 'defer' routines can create these.
@@ -27,32 +27,32 @@ private:
 
   template <typename _F> friend struct _Defer;
 
-  friend deferred<void(void)> defer(const std::tr1::function<void(void)>& f);
+  friend Deferred<void(void)> defer(const std::tr1::function<void(void)>& f);
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename A)>                                 \
-  friend deferred<void(ENUM_PARAMS(N, A))> defer(                       \
+  friend Deferred<void(ENUM_PARAMS(N, A))> defer(                       \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f);
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
 
-  deferred(const std::tr1::function<F>& f) : std::tr1::function<F>(f) {}
+  Deferred(const std::tr1::function<F>& f) : std::tr1::function<F>(f) {}
 };
 
 
 // The result of invoking the 'defer' routines is actually an internal
 // type, effectively just a wrapper around the result of invoking
 // 'std::tr1::bind'. However, we want the result of bind to be
-// castable to a 'deferred' but we don't want anyone to be able to
-// create a 'deferred' so we use a level-of-indirection via this type.
+// castable to a 'Deferred' but we don't want anyone to be able to
+// create a 'Deferred' so we use a level-of-indirection via this type.
 template <typename F>
 struct _Defer : std::tr1::_Bind<F>
 {
   template <typename _F>
-  operator deferred<_F> ()
+  operator Deferred<_F> ()
   {
-    return deferred<_F>(std::tr1::function<_F>(*this));
+    return Deferred<_F>(std::tr1::function<_F>(*this));
   }
 
 private:
