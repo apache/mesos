@@ -23,6 +23,7 @@
 
 #include <map>
 
+#include <process/clock.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
@@ -31,6 +32,10 @@
 
 #include "common/type_utils.hpp"
 #include "common/process_utils.hpp"
+
+#ifdef __linux__
+#include "linux/proc.hpp"
+#endif
 
 #include "slave/flags.hpp"
 #include "slave/process_based_isolation_module.hpp"
@@ -270,8 +275,44 @@ Future<ResourceStatistics> ProcessBasedIsolationModule::usage(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
+  if (!infos.contains(frameworkId) ||
+      !infos[frameworkId].contains(executorId)) {
+    return Future<ResourceStatistics>::failed("Unknown executor");
+  }
+
+  ProcessInfo* info = infos[frameworkId][executorId];
+
   ResourceStatistics result;
-  // TODO(bmahler): Compute resource usage.
+
+  result.set_timestamp(Clock::now());
+
+#ifdef __linux__
+  // Get the page size, used for memory accounting.
+  // NOTE: This is more portable than using getpagesize().
+  long pageSize = sysconf(_SC_PAGESIZE);
+
+  // Get the number of clock ticks, used for cpu accounting.
+  long ticks = sysconf(_SC_CLK_TCK);
+
+  Try<proc::ProcessStatistics> stat = proc::stat(info->pid);
+
+  if (stat.isSome() && pageSize > 0) {
+    result.set_memory_rss(stat.get().rss * pageSize);
+  }
+
+  if (stat.isSome() && ticks > 0) {
+    result.set_cpu_user_time((double) stat.get().utime / (double) ticks);
+    result.set_cpu_system_time((double) stat.get().stime / (double) ticks);
+  }
+#elif defined __APPLE__
+  // TODO(bmahler): Using mach interfaces is messy and subject to change,
+  // but I'm unable to find another method to do it on OSX.
+  // See here for a clean example:
+  // http://stackoverflow.com/questions/1543157/
+  // how-can-i-find-out-how-much-memory-my-c-app-is-using-on-the-mac
+  // NOTE: Need to confirm that root is not needed for child processes.
+#endif
+
   return result;
 }
 
