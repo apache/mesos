@@ -21,6 +21,10 @@
 #include <stdio.h> // For perror.
 #include <string.h>
 
+#ifdef __APPLE__
+#include <libproc.h> // For proc_pidinfo.
+#endif
+
 #include <map>
 
 #include <process/clock.hpp>
@@ -305,12 +309,26 @@ Future<ResourceStatistics> ProcessBasedIsolationModule::usage(
     result.set_cpu_system_time((double) stat.get().stime / (double) ticks);
   }
 #elif defined __APPLE__
-  // TODO(bmahler): Using mach interfaces is messy and subject to change,
-  // but I'm unable to find another method to do it on OSX.
-  // See here for a clean example:
-  // http://stackoverflow.com/questions/1543157/
-  // how-can-i-find-out-how-much-memory-my-c-app-is-using-on-the-mac
-  // NOTE: Need to confirm that root is not needed for child processes.
+  // NOTE: There are several pitfalls to using proc_pidinfo().
+  // In particular:
+  //   -This will not work for many root processes.
+  //   -This may not work for processes owned by other users.
+  //   -However, this always works for processes owned by the same user.
+  // This beats using task_for_pid(), which only works for the same pid.
+  // For further discussion around these issues,
+  // see: http://code.google.com/p/psutil/issues/detail?id=297
+  struct proc_taskinfo task;
+  int size = proc_pidinfo(info->pid, PROC_PIDTASKINFO, 0, &task, sizeof(task));
+
+  if (size == sizeof(task)) {
+    result.set_memory_rss(task.pti_resident_size);
+
+    // NOTE: CPU Times are in nanoseconds, but this is not documented!
+    result.set_cpu_user_time(Nanoseconds(task.pti_total_user).secs());
+    result.set_cpu_system_time(Nanoseconds(task.pti_total_system).secs());
+  } else {
+    LOG(WARNING) << "Failed to get proc_pidinfo: " << size;
+  }
 #endif
 
   return result;
