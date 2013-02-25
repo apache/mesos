@@ -180,6 +180,7 @@ int main(int argc, char** argv)
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_command()->set_value(uri);
+  executor.set_name("Test Executor (C++)");
 
   TestScheduler scheduler(executor);
 

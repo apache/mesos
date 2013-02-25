@@ -130,6 +130,11 @@ message ExecutorInfo {
   optional FrameworkID framework_id = 8; // TODO(benh): Make this required.
   required CommandInfo command = 7;
   repeated Resource resources = 5;
+
+  // Note that name is exposed alongside the resource usage of the
+  // executor via JSON on the slave. This allows users to import
+  // usage information into a time series database for monitoring.
+  optional string name = 9;
   optional bytes data = 4;
 }
 

@@ -31,7 +31,10 @@
   <div class="span3">
     <div class="well">
       <dl class="inline clearfix">
-        <dt>{{executor_id}}</dt>
+        <dt>Executor ID:</dt>
+        <dd>{{executor_id}}</dd>
+        <dt>Executor Name:</dt>
+        <dd>{{executor.name}}</dd>
       </dl>
 
       <dl class="inline clearfix">
@@ -39,7 +42,7 @@
         <dd>{{cluster}}</dd>
         <dt>Master:</dt>
         <dd>{{state.master_hostname}}</dd>
-        <dt>ID:</dt>
+        <dt>Framework ID:</dt>
         <dd>
           <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{framework_id}}" data-original-title="ID">
             {{framework_id | truncateMesosID}}

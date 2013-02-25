@@ -381,6 +381,7 @@ struct Framework
       }
 
       executor.mutable_executor_id()->set_value(id);
+      executor.set_name("Command Executor");
 
       // Copy the CommandInfo to get the URIs and environment, but
       // update it to invoke 'mesos-executor' (unless we couldn't

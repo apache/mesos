@@ -74,6 +74,10 @@
               ng-click="selectColumn('executors', 'id')">
             <a href="">ID</a>
           </th>
+          <th ng-class="columnClass('executors', 'name')"
+              ng-click="selectColumn('executors', 'name')">
+            <a href="">Name</a>
+          </th>
           <th ng-class="columnClass('executors', 'tasks.length')"
               ng-click="selectColumn('executors', 'tasks.length')">
             <a href="">Active Tasks</a>
@@ -101,6 +105,7 @@
               {{executor.id}}
             </a>
           </td>
+          <td>{{executor.name}}</td>
           <td>{{executor.tasks.length | number}}</td>
           <td>{{executor.queued_tasks.length | number}}</td>
           <td>{{executor.resources.cpus | number}}</td>
@@ -123,6 +128,10 @@
               ng-click="selectColumn('completed_executors', 'id')">
             <a href="">ID</a>
           </th>
+          <th ng-class="columnClass('completed_executors', 'name')"
+              ng-click="selectColumn('completed_executors', 'name')">
+            <a href="">Name</a>
+          </th>
           <th ng-class="columnClass('completed_executors', 'sandbox')"
               ng-click="selectColumn('completed_executors', 'sandbox')">
             <a href="">Sandbox</a>
@@ -137,6 +146,7 @@
               {{completed_executor.id}}
             </a>
           </td>
+          <td>{{completed_executor.name}}</td>
           <td>
             <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
                        encodeURIComponent(completed_executor.directory)}}">

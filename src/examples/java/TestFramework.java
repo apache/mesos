@@ -70,17 +70,11 @@ public class TestFramework {
             .addResources(Resource.newBuilder()
                           .setName("cpus")
                           .setType(Value.Type.SCALAR)
-                          .setScalar(Value.Scalar.newBuilder()
-                                     .setValue(1)
-                                     .build())
-                          .build())
+                          .setScalar(Value.Scalar.newBuilder().setValue(1)))
             .addResources(Resource.newBuilder()
                           .setName("mem")
                           .setType(Value.Type.SCALAR)
-                          .setScalar(Value.Scalar.newBuilder()
-                                     .setValue(128)
-                                     .build())
-                          .build())
+                          .setScalar(Value.Scalar.newBuilder().setValue(128)))
             .setExecutor(executor)
             .build();
           tasks.add(task);
@@ -145,8 +139,9 @@ public class TestFramework {
     String uri = new File("./test-executor").getCanonicalPath();
 
     ExecutorInfo executor = ExecutorInfo.newBuilder()
-      .setExecutorId(ExecutorID.newBuilder().setValue("default").build())
-      .setCommand(CommandInfo.newBuilder().setValue(uri).build())
+      .setExecutorId(ExecutorID.newBuilder().setValue("default"))
+      .setCommand(CommandInfo.newBuilder().setValue(uri))
+      .setName("Test Executor (Java)")
       .build();
 
     FrameworkInfo framework = FrameworkInfo.newBuilder()

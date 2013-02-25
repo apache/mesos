@@ -122,6 +122,7 @@ if __name__ == "__main__":
   executor = mesos_pb2.ExecutorInfo()
   executor.executor_id.value = "default"
   executor.command.value = os.path.abspath("./test-executor")
+  executor.name = "Test Executor (Python)"
 
   framework = mesos_pb2.FrameworkInfo()
   framework.user = "" # Have Mesos fill in the current user.
