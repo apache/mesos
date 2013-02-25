@@ -17,9 +17,10 @@ TEST(Statistics, set)
 {
   Statistics statistics(Seconds(60*60*24));
 
-  statistics.set("statistic", 3.14);
+  statistics.set("test", "statistic", 3.14);
 
-  Future<map<Seconds, double> > values = statistics.get("statistic");
+  Future<map<Seconds, double> > values =
+    statistics.get("test", "statistic");
 
   values.await();
 
@@ -36,9 +37,10 @@ TEST(Statistics, truncate)
 
   Statistics statistics(Seconds(60*60*24));
 
-  statistics.set("statistic", 3.14);
+  statistics.set("test", "statistic", 3.14);
 
-  Future<map<Seconds, double> > values = statistics.get("statistic");
+  Future<map<Seconds, double> > values =
+    statistics.get("test", "statistic");
 
   values.await();
 
@@ -49,9 +51,9 @@ TEST(Statistics, truncate)
 
   Clock::advance((60*60*24) + 1);
 
-  statistics.increment("statistic");
+  statistics.increment("test", "statistic");
 
-  values = statistics.get("statistic");
+  values = statistics.get("test", "statistic");
 
   values.await();
 

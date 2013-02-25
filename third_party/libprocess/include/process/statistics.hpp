@@ -1,6 +1,7 @@
 #ifndef __PROCESS_STATISTICS_HPP__
 #define __PROCESS_STATISTICS_HPP__
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
@@ -17,8 +18,8 @@ class StatisticsProcess;
 // Libprocess statistics handle.
 // To be used from anywhere to manage statistics.
 //
-// Ex: process::statistics->increment("num_requests");
-//     process::statistics->set("num_workers", 5);
+// Ex: process::statistics->increment("http", "num_requests");
+//     process::statistics->set("http", "response_size", response.size());
 //
 // Statistics are exposed via JSON for external visibility.
 extern Statistics* statistics;
@@ -35,20 +36,26 @@ public:
 
   // Returns the time series of a statistic.
   process::Future<std::map<Seconds, double> > get(
+      const std::string& context,
       const std::string& name,
       const Option<Seconds>& start = None(),
       const Option<Seconds>& stop = None());
 
-  // Sets the current value of a statistic.
-  void set(const std::string& name, double value);
+  // Sets the current value of a statistic at the current clock time
+  // or at a specified time.
+  void set(
+      const std::string& context,
+      const std::string& name,
+      double value,
+      const Seconds& time = Seconds(Clock::now()));
 
   // Increments the current value of a statistic. If no statistic was
   // previously present, an initial value of 0.0 is used.
-  void increment(const std::string& name);
+  void increment(const std::string& context, const std::string& name);
 
   // Decrements the current value of a statistic. If no statistic was
   // previously present, an initial value of 0.0 is used.
-  void decrement(const std::string& name);
+  void decrement(const std::string& context, const std::string& name);
 
 private:
   StatisticsProcess* process;

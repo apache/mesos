@@ -2,8 +2,11 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
+#include <list>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <process/clock.hpp>
@@ -26,6 +29,7 @@
 using namespace process;
 using namespace process::http;
 
+using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -41,19 +45,26 @@ class StatisticsProcess : public Process<StatisticsProcess>
 public:
   StatisticsProcess(const Duration& _window)
     : ProcessBase("statistics"),
-      window(_window)
-  {}
+      window(_window) {}
 
   virtual ~StatisticsProcess() {}
 
   // Statistics implementation.
   map<Seconds, double> get(
+      const string& context,
       const string& name,
       const Option<Seconds>& start,
       const Option<Seconds>& stop);
-  void set(const string& name, double value);
-  void increment(const string& name);
-  void decrement(const string& name);
+
+  void set(
+      const string& context,
+      const string& name,
+      double value,
+      const Seconds& time);
+
+  void increment(const string& context, const string& name);
+
+  void decrement(const string& context, const string& name);
 
 protected:
   virtual void initialize()
@@ -65,7 +76,7 @@ protected:
 private:
   // Removes values for the specified statistic that occured outside
   // the time series window.
-  void truncate(const string& name);
+  void truncate(const string& context, const string& name);
 
   // Returns the a snapshot of all statistics in JSON.
   Future<Response> snapshot(const Request& request);
@@ -77,20 +88,22 @@ private:
 
   // We use a map instead of a hashmap to store the values because
   // that way we can retrieve a series in sorted order efficiently.
-  hashmap<string, map<Seconds, double> > statistics;
+  hashmap<string, hashmap<string, map<Seconds, double> > > statistics;
 };
 
 
 map<Seconds, double> StatisticsProcess::get(
+    const string& context,
     const string& name,
     const Option<Seconds>& start,
     const Option<Seconds>& stop)
 {
-  if (!statistics.contains(name)) {
+  if (!statistics.contains(context) || !statistics[context].contains(name)) {
     return map<Seconds, double>();
   }
 
-  const std::map<Seconds, double>& values = statistics.find(name)->second;
+  const std::map<Seconds, double>& values =
+    statistics[context].find(name)->second;
 
   map<Seconds, double>::const_iterator lower =
     values.lower_bound(start.isSome() ? start.get() : Seconds(0.0));
@@ -102,57 +115,57 @@ map<Seconds, double> StatisticsProcess::get(
 }
 
 
-void StatisticsProcess::set(const string& name, double value)
+void StatisticsProcess::set(
+    const string& context,
+    const string& name,
+    double value,
+    const Seconds& time)
 {
-  statistics[name][Seconds(Clock::now())] = value;
-  truncate(name);
+  // Update the raw value.
+  statistics[context][name][time] = value;
+  truncate(context, name);
 }
 
 
-void StatisticsProcess::increment(const string& name)
+void StatisticsProcess::increment(const string& context, const string& name)
 {
-  if (statistics[name].size() > 0) {
-    double d = statistics[name].rbegin()->second;
-    statistics[name][Seconds(Clock::now())] = d + 1.0;
-  } else {
-    statistics[name][Seconds(Clock::now())] = 1.0;
+  double value = 0.0;
+  if (!statistics[context][name].empty()) {
+    value = statistics[context][name].rbegin()->second;
   }
-
-  truncate(name);
+  set(context, name, value + 1.0, Seconds(Clock::now()));
 }
 
 
-void StatisticsProcess::decrement(const string& name)
+void StatisticsProcess::decrement(const string& context, const string& name)
 {
-  if (statistics[name].size() > 0) {
-    double d = statistics[name].rbegin()->second;
-    statistics[name][Seconds(Clock::now())] = d - 1.0;
-  } else {
-    statistics[name][Seconds(Clock::now())] = -1.0;
+  double value = 0.0;
+  if (!statistics[context][name].empty()) {
+    value = statistics[context][name].rbegin()->second;
   }
-
-  truncate(name);
+  set(context, name, value - 1.0, Seconds(Clock::now()));
 }
 
 
-void StatisticsProcess::truncate(const string& name)
+void StatisticsProcess::truncate(const string& context, const string& name)
 {
-  CHECK(statistics.contains(name));
-  CHECK(statistics[name].size() > 0);
+  CHECK(statistics.contains(context));
+  CHECK(statistics[context].contains(name));
+  CHECK(statistics[context][name].size() > 0);
 
-  // Always keep at least value for a statistic.
-  if (statistics[name].size() == 1) {
+  // Always keep at least one value for a statistic.
+  if (statistics[context][name].size() == 1) {
     return;
   }
 
-  map<Seconds, double>::iterator start = statistics[name].begin();
+  map<Seconds, double>::iterator start = statistics[context][name].begin();
 
   while ((Clock::now() - start->first.secs()) > window.secs()) {
-    statistics[name].erase(start);
-    if (statistics[name].size() == 1) {
+    statistics[context][name].erase(start);
+    if (statistics[context][name].size() == 1) {
       break;
     }
-    ++start;
+    start = statistics[context][name].begin();
   }
 }
 
@@ -161,13 +174,16 @@ Future<Response> StatisticsProcess::snapshot(const Request& request)
 {
   JSON::Array array;
 
-  foreachkey (const string& name, statistics) {
-    CHECK(statistics[name].size() > 0);
-    JSON::Object object;
-    object.values["name"] = name;
-    object.values["time"] = statistics[name].rbegin()->first.secs();
-    object.values["value"] = statistics[name].rbegin()->second;
-    array.values.push_back(object);
+  foreachkey (const string& context, statistics) {
+    foreachkey (const string& name, statistics[context]) {
+      CHECK(statistics[context][name].size() > 0);
+      JSON::Object object;
+      object.values["context"] = context;
+      object.values["name"] = name;
+      object.values["time"] = statistics[context][name].rbegin()->first.secs();
+      object.values["value"] = statistics[context][name].rbegin()->second;
+      array.values.push_back(object);
+    }
   }
 
   return OK(array, request.query.get("jsonp"));
@@ -176,10 +192,13 @@ Future<Response> StatisticsProcess::snapshot(const Request& request)
 
 Future<Response> StatisticsProcess::series(const Request& request)
 {
+  Option<string> context = request.query.get("context");
   Option<string> name = request.query.get("name");
 
-  if (!name.isSome()) {
-    return BadRequest("Expected 'name=val' in query.");
+  if (!context.isSome()) {
+    return BadRequest("Expected 'context=val' in query.\n");
+  } else if (!name.isSome()) {
+    return BadRequest("Expected 'name=val' in query.\n");
   }
 
   Option<Seconds> start = None();
@@ -203,7 +222,7 @@ Future<Response> StatisticsProcess::series(const Request& request)
 
   JSON::Array array;
 
-  map<Seconds, double> values = get(name.get(), start, stop);
+  map<Seconds, double> values = get(context.get(), name.get(), start, stop);
 
   foreachpair (const Seconds& s, double value, values) {
     JSON::Object object;
@@ -231,29 +250,34 @@ Statistics::~Statistics()
 
 
 Future<map<Seconds, double> > Statistics::get(
+    const string& context,
     const string& name,
     const Option<Seconds>& start,
     const Option<Seconds>& stop)
 {
-  return dispatch(process, &StatisticsProcess::get, name, start, stop);
+  return dispatch(process, &StatisticsProcess::get, context, name, start, stop);
 }
 
 
-void Statistics::set(const string& name, double value)
+void Statistics::set(
+    const string& context,
+    const string& name,
+    double value,
+    const Seconds& time)
 {
-  dispatch(process, &StatisticsProcess::set, name, value);
+  dispatch(process, &StatisticsProcess::set, context, name, value, time);
 }
 
 
-void Statistics::increment(const string& name)
+void Statistics::increment(const string& context, const string& name)
 {
-  dispatch(process, &StatisticsProcess::increment, name);
+  dispatch(process, &StatisticsProcess::increment, context, name);
 }
 
 
-void Statistics::decrement(const string& name)
+void Statistics::decrement(const string& context, const string& name)
 {
-  dispatch(process, &StatisticsProcess::decrement, name);
+  dispatch(process, &StatisticsProcess::decrement, context, name);
 }
 
 } // namespace process {
