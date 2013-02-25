@@ -30,11 +30,15 @@ libprocess_la_SOURCES = src/process.cpp src/pid.cpp src/latch.cpp	\
 	src/encoder.hpp src/gate.hpp src/synchronized.hpp
 
 libprocess_la_CPPFLAGS = -I$(srcdir)/include -I$(BOOST) -I$(GLOG)/src	\
-	-I$(GPERFTOOLS)/src -I$(RY_HTTP_PARSER) -I$(LIBEV) $(AM_CPPFLAGS)
+	-I$(RY_HTTP_PARSER) -I$(LIBEV) $(AM_CPPFLAGS)
 
-libprocess_la_LIBADD = $(GLOG)/libglog.la $(GPERFTOOLS)/libprofiler.la	\
+libprocess_la_LIBADD = $(GLOG)/libglog.la				\
 	third_party/libry_http_parser.la $(LIBEV)/libev.la
 
+if HAS_GPERFTOOLS
+libprocess_la_CPPFLAGS += -I$(GPERFTOOLS)/src
+libprocess_la_LIBADD += $(GPERFTOOLS)/libprofiler.la
+endif
 
 # Headers.
 libprocess_la_SOURCES += $(top_srcdir)/include/process/async.hpp	\

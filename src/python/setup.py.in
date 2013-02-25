@@ -76,8 +76,15 @@ EXTRA_OBJECTS = [
   os.path.join(abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a'),
   os.path.join(abs_top_builddir, libprocess, '.libs', 'libprocess.a'),
   os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),
-  os.path.join(abs_top_builddir, gperftools, '.libs', 'libprofiler.a'),
 ]
+
+# For gperftools, we need to check for the presence of libprofiler.a, since
+# it is possible to disable perftools inside libprocess.
+libprofiler = os.path.join(
+    abs_top_builddir, gperftools, '.libs', 'libprofiler.a')
+
+if os.path.exists(libprofiler):
+  EXTRA_OBJECTS.append(libprofiler)
 
 EXTRA_LINK_ARGS = []
 
