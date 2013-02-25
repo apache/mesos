@@ -56,6 +56,7 @@ class TestScheduler(mesos.Scheduler):
         task.slave_id.value = offer.slave_id.value
         task.name = "task %d" % tid
         task.executor.MergeFrom(self.executor)
+        task.executor.source = "task_%d" % tid
 
         cpus = task.resources.add()
         cpus.name = "cpus"

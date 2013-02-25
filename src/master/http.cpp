@@ -117,7 +117,7 @@ JSON::Object model(const Attributes& attributes)
 
 
 // Returns a JSON object modeled on a Task.
-// TODO(bmahler): Expose the executor name.
+// TODO(bmahler): Expose the executor name / source.
 JSON::Object model(const Task& task)
 {
   JSON::Object object;

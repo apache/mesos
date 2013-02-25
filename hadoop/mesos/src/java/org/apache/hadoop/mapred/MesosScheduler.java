@@ -519,6 +519,8 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
                   .newBuilder()
                   .setExecutorId(ExecutorID.newBuilder().setValue(
                       "executor_" + taskId.getValue()))
+                  .setName("Hadoop TaskTracker")
+                  .setSource(taskId.getValue())
                   .addResources(
                       Resource
                           .newBuilder()

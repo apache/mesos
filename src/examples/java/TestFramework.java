@@ -75,7 +75,8 @@ public class TestFramework {
                           .setName("mem")
                           .setType(Value.Type.SCALAR)
                           .setScalar(Value.Scalar.newBuilder().setValue(128)))
-            .setExecutor(executor)
+            .setExecutor(ExecutorInfo.newBuilder(executor)
+                         .setSource("task_" + taskId.getValue()))
             .build();
           tasks.add(task);
         }

@@ -194,6 +194,7 @@ JSON::Object model(const Executor& executor)
   JSON::Object object;
   object.values["id"] = executor.id.value();
   object.values["name"] = executor.info.name();
+  object.values["source"] = executor.info.source();
   object.values["uuid"] = executor.uuid.toString();
   object.values["directory"] = executor.directory;
   object.values["resources"] = model(executor.resources);
