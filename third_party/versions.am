@@ -17,9 +17,9 @@
 # This automake utility file is included from third_party/Makefile.am
 # and src/Makefile.am, so we can update the version numbers of
 # third_party packages in exactly one place. For now, however, we
-# still need to update version numbers in src/setup.py.in too!
+# still need to update version numbers in src/python/setup.py.in too!
 
-BOOST_VERSION = 1.51.0
+BOOST_VERSION = 1.53.0
 BOTO_VERSION = 2.0b2
 DISTRIBUTE_VERSION = 0.6.26
 GLOG_VERSION = 0.3.1
