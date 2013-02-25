@@ -375,7 +375,7 @@ public:
     promise.future().onDiscarded(
         std::tr1::bind(terminate, process::ProcessBase::self(), true));
 
-    send(pid, req);
+    ProtobufProcess<ReqResProcess<Req, Res> >::send(pid, req);
 
     return promise.future();
   }
