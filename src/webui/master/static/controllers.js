@@ -420,26 +420,190 @@ function SlavesCtrl($scope) {
 }
 
 
-// TODO(bmahler): Pull this apart into:
-// SlaveCtrl, SlaveFrameworkCtrl, SlaveExecutorCtrl.
-function SlaveCtrl($scope, $routeParams, $http) {
+function SlaveCtrl($scope, $routeParams, $http, $q) {
   setNavbarActiveTab('slaves');
 
-  // The slave controller is reused for all slave subpages, so some of the route
-  // params may not be present, depending on which page is being routed.
   $scope.slave_id = $routeParams.slave_id;
-  if ($routeParams.framework_id) {
-    $scope.framework_id = $routeParams.framework_id;
-  }
-  if ($routeParams.executor_id) {
-    $scope.executor_id = $routeParams.executor_id;
-  }
 
   $scope.tables = {};
   $scope.tables['frameworks'] = new Table('id');
   $scope.tables['completed_frameworks'] = new Table('id');
+
+  $scope.columnClass = columnClass($scope);
+  $scope.selectColumn = selectColumn($scope);
+
+  var update = function() {
+    if (!($routeParams.slave_id in $scope.slaves)) {
+      $scope.alert_message = 'No slave found with ID: ' + $routeParams.slave_id;
+      $('#alert').show();
+      return;
+    }
+
+    var pid = $scope.slaves[$routeParams.slave_id].pid;
+    var id = pid.substring(0, pid.indexOf('@'));
+    var host = pid.substring(pid.indexOf('@') + 1);
+
+    $scope.log = function($event) {
+      if (!$scope.state.log_dir) {
+        $('#no-log-dir-modal').modal('show');
+      } else {
+        pailer(host, '/slave/log', 'Mesos Slave');
+      }
+    }
+
+    var usageRequest = $http.jsonp(
+        'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
+
+    var stateRequest = $http.jsonp(
+        'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK');
+
+    $q.all([usageRequest, stateRequest]).then(function (responses) {
+      $scope.monitor = responses[0].data;
+      $scope.state = responses[1].data;
+
+      $scope.slave = {};
+      $scope.slave.frameworks = {};
+      $scope.slave.completed_frameworks = {};
+
+      $scope.slave.staging_tasks = 0;
+      $scope.slave.starting_tasks = 0;
+      $scope.slave.running_tasks = 0;
+
+      // Update the framework map.
+      _.each($scope.state.frameworks, function(framework) {
+        $scope.slave.frameworks[framework.id] = framework;
+      });
+
+      // Update the completed framework map.
+      _.each($scope.state.completed_frameworks, function(framework) {
+        $scope.slave.completed_frameworks[framework.id] = framework;
+      });
+
+      // Compute the framework stats.
+      _.each(_.values($scope.state.frameworks).concat(_.values($scope.state.completed_frameworks)),
+          function(framework) {
+            framework.num_tasks = 0;
+            framework.cpus = 0;
+            framework.mem = 0;
+
+            _.each(framework.executors, function(executor) {
+              framework.num_tasks += _.size(executor.tasks);
+              framework.cpus += executor.resources.cpus;
+              framework.mem += executor.resources.mem;
+            });
+      });
+
+      $('#slave').show();
+    },
+    function (reason) {
+      $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+      $('#alert').show();
+    });
+  }
+
+  if ($scope.state) {
+    update();
+  }
+
+  $(document).on('state_updated', update);
+  $scope.$on('$beforeRouteChange', function() {
+    $(document).off('state_updated', update);
+  });
+}
+
+
+function SlaveFrameworkCtrl($scope, $routeParams, $http, $q) {
+  setNavbarActiveTab('slaves');
+
+  $scope.slave_id = $routeParams.slave_id;
+  $scope.framework_id = $routeParams.framework_id;
+
+  $scope.tables = {};
   $scope.tables['executors'] = new Table('id');
   $scope.tables['completed_executors'] = new Table('id');
+
+  $scope.columnClass = columnClass($scope);
+  $scope.selectColumn = selectColumn($scope);
+
+  var update = function() {
+    if (!($routeParams.slave_id in $scope.slaves)) {
+      $scope.alert_message = 'No slave found with ID: ' + $routeParams.slave_id;
+      $('#alert').show();
+      return;
+    }
+
+    var pid = $scope.slaves[$routeParams.slave_id].pid;
+    var id = pid.substring(0, pid.indexOf('@'));
+    var host = pid.substring(pid.indexOf('@') + 1);
+
+    var usageRequest = $http.jsonp(
+        'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
+
+    var stateRequest = $http.jsonp(
+        'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK');
+
+    $q.all([usageRequest, stateRequest]).then(function (responses) {
+      $scope.monitor = responses[0].data;
+      $scope.state = responses[1].data;
+
+      $scope.slave = {};
+
+      // Find the framework; it's either active or completed.
+      $scope.framework = _.find($scope.state.frameworks.concat($scope.state.completed_frameworks),
+          function(framework) {
+            return $scope.framework_id === framework.id;
+          });
+
+      if (!$scope.framework) {
+        $scope.alert_message = 'No framework found with ID: ' + $routeParams.framework_id;
+        $('#alert').show();
+        return;
+      }
+
+      // Construct maps of the executors.
+      $scope.framework.executors = _.object(
+          _.pluck($scope.framework.executors, 'id'), $scope.framework.executors);
+      $scope.framework.completed_executors = _.object(
+          _.pluck($scope.framework.completed_executors, 'id'), $scope.framework.completed_executors);
+
+      // Compute the framework stats.
+      $scope.framework.num_tasks = 0;
+      $scope.framework.cpus = 0;
+      $scope.framework.mem = 0;
+
+      _.each($scope.framework.executors, function(executor) {
+        $scope.framework.num_tasks += _.size(executor.tasks);
+        $scope.framework.cpus += executor.resources.cpus;
+        $scope.framework.mem += executor.resources.mem;
+      });
+
+      $('#slave').show();
+    },
+    function (reason) {
+      $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+      $('#alert').show();
+    });
+  }
+
+  if ($scope.state) {
+    update();
+  }
+
+  $(document).on('state_updated', update);
+  $scope.$on('$beforeRouteChange', function() {
+    $(document).off('state_updated', update);
+  });
+}
+
+
+function SlaveExecutorCtrl($scope, $routeParams, $http, $q) {
+  setNavbarActiveTab('slaves');
+
+  $scope.slave_id = $routeParams.slave_id;
+  $scope.framework_id = $routeParams.framework_id;
+  $scope.executor_id = $routeParams.executor_id;
+
+  $scope.tables = {};
   $scope.tables['tasks'] = new Table('id');
   $scope.tables['queued_tasks'] = new Table('id');
   $scope.tables['completed_tasks'] = new Table('id');
@@ -448,130 +612,58 @@ function SlaveCtrl($scope, $routeParams, $http) {
   $scope.selectColumn = selectColumn($scope);
 
   var update = function() {
-    if ($routeParams.slave_id in $scope.slaves) {
-      var pid = $scope.slaves[$routeParams.slave_id].pid;
-      var id = pid.substring(0, pid.indexOf('@'));
-      var host = pid.substring(pid.indexOf('@') + 1);
-
-      $scope.log = function($event) {
-        if (!$scope.state.log_dir) {
-          $('#no-log-dir-modal').modal('show');
-        } else {
-          pailer(host, '/slave/log', 'Mesos Slave');
-        }
-      }
-
-      var url = 'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK';
-      $http.jsonp(url)
-        .success(function(data) {
-          $scope.state = data;
-
-          $scope.slave = {};
-          $scope.slave.frameworks = {};
-          $scope.slave.completed_frameworks = {};
-
-          $scope.slave.staging_tasks = 0;
-          $scope.slave.starting_tasks = 0;
-          $scope.slave.running_tasks = 0;
-
-          // Update the framework map.
-          _.each($scope.state.frameworks, function(framework) {
-            $scope.slave.frameworks[framework.id] = framework;
-
-            var executors = {};
-            _.each(framework.executors, function(executor) {
-              executors[executor.id] = executor;
-            });
-            $scope.slave.frameworks[framework.id].executors = executors;
-
-            var completed_executors = {};
-            _.each(framework.completed_executors, function(executor) {
-              completed_executors[executor.id] = executor;
-            });
-            $scope.slave.frameworks[framework.id].completed_executors = completed_executors;
-          });
-
-          // Update the completed framework map.
-          _.each($scope.state.completed_frameworks, function(framework) {
-            $scope.slave.completed_frameworks[framework.id] = framework;
-
-            var executors = {};
-            _.each(framework.executors, function(executor) {
-              executors[executor.id] = executor;
-            });
-            $scope.slave.completed_frameworks[framework.id].executors = executors;
-
-            var completed_executors = {};
-            _.each(framework.completed_executors, function(executor) {
-              completed_executors[executor.id] = executor;
-            });
-            $scope.slave.completed_frameworks[framework.id].completed_executors = completed_executors;
-          });
-
-          // Compute the framework stats.
-          _.each($scope.slave.frameworks, function(framework) {
-            framework.num_tasks = 0;
-            framework.cpus = 0;
-            framework.mem = 0;
-
-            _.each(framework.executors, function(executor) {
-              framework.num_tasks += _.size(executor.tasks);
-              framework.cpus += executor.resources.cpus;
-              framework.mem += executor.resources.mem;
-            });
-          });
-
-          // Compute the completed framework stats.
-          _.each($scope.slave.completed_frameworks, function(framework) {
-            framework.num_tasks = 0;
-            framework.cpus = 0;
-            framework.mem = 0;
-
-            _.each(framework.executors, function(executor) {
-              framework.num_tasks += _.size(executor.tasks);
-              framework.cpus += executor.resources.cpus;
-              framework.mem += executor.resources.mem;
-            });
-          });
-
-          // Look for the framework / executor if present in the request.
-          if ($scope.framework_id) {
-            // Look for the framework.
-            if (_.has($scope.slave.frameworks, $scope.framework_id)) {
-              $scope.framework = $scope.slave.frameworks[$scope.framework_id];
-            } else if (_.has($scope.slave.completed_frameworks, $scope.framework_id)) {
-              $scope.framework = $scope.slave.completed_frameworks[$scope.framework_id];
-            } else {
-              $scope.alert_message = 'No framework found with ID: ' + $scope.framework_id;
-              $('#alert').show();
-            }
-
-            if ($scope.framework && $scope.executor_id) {
-              // Look for the executor.
-              if (_.has($scope.framework.executors, $scope.executor_id)) {
-                $scope.executor = $scope.framework.executors[$scope.executor_id];
-              } else if (_.has($scope.framework.completed_executors, $scope.executor_id)) {
-                $scope.executor = $scope.framework.completed_executors[$scope.executor_id];
-              } else {
-                $scope.alert_message = 'No executor found with ID: ' + $scope.executor_id;
-                $('#alert').show();
-              }
-            }
-          }
-
-          if (!$scope.framework_id || $scope.framework) {
-            $('#slave').show();
-          } else if ($scope.framework && (!$scope.executor_id || $scope.executor)) {
-            $('#slave').show();
-          }
-        })
-        .error(function() {
-          alert('unimplemented');
-        });
-    } else {
+    if (!($routeParams.slave_id in $scope.slaves)) {
       $scope.alert_message = 'No slave found with ID: ' + $routeParams.slave_id;
       $('#alert').show();
+      return;
     }
+
+    var pid = $scope.slaves[$routeParams.slave_id].pid;
+    var id = pid.substring(0, pid.indexOf('@'));
+    var host = pid.substring(pid.indexOf('@') + 1);
+
+    var usageRequest = $http.jsonp(
+        'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
+
+    var stateRequest = $http.jsonp(
+        'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK');
+
+    $q.all([usageRequest, stateRequest]).then(function (responses) {
+      $scope.monitor = responses[0].data;
+      $scope.state = responses[1].data;
+
+      $scope.slave = {};
+
+      // Find the framework; it's either active or completed.
+      $scope.framework = _.find($scope.state.frameworks.concat($scope.state.completed_frameworks),
+          function(framework) {
+            return $scope.framework_id === framework.id;
+          });
+
+      if (!$scope.framework) {
+        $scope.alert_message = 'No framework found with ID: ' + $routeParams.framework_id;
+        $('#alert').show();
+        return;
+      }
+
+      // Look for the executor; it's either active or completed.
+      $scope.executor = _.find($scope.framework.executors.concat($scope.framework.completed_executors),
+          function(executor) {
+            return $scope.executor_id === executor.id;
+          });
+
+      if (!$scope.executor) {
+        $scope.alert_message = 'No executor found with ID: ' + $routeParams.executor_id;
+        $('#alert').show();
+        return;
+      }
+
+      $('#slave').show();
+    },
+    function (reason) {
+      $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+      $('#alert').show();
+    });
   }
 
   if ($scope.state) {

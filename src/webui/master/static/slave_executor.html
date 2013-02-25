@@ -60,12 +60,16 @@
       <h2>Resources</h2>
       <table class="table table-condensed">
         <tbody>
+          <th>
+            <td></td>
+            <td>Allocated</td>
+          </th>
           <tr>
             <th>CPUs</th>
             <td>{{executor.resources.cpus | number}}</td>
           </tr>
           <tr>
-            <th>Memory</th>
+            <th>Mem</th>
             <td>{{executor.resources.mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
@@ -128,11 +132,11 @@
           </th>
           <th ng-class="columnClass('tasks', 'resources.cpus')"
               ng-click="selectColumn('tasks', 'resources.cpus')">
-            <a href="">CPUs</a>
+            <a href="">CPUs (allocated)</a>
           </th>
           <th ng-class="columnClass('tasks', 'resources.mem')"
               ng-click="selectColumn('tasks', 'resources.mem')">
-            <a href="">Mem</a>
+            <a href="">Mem (allocated)</a>
           </th>
           <th>Executor Sandbox</th>
         </tr>
@@ -172,11 +176,11 @@
           </th>
           <th ng-class="columnClass('completed_tasks', 'resources.cpus')"
               ng-click="selectColumn('completed_tasks', 'resources.cpus')">
-            <a href="">CPUs</a>
+            <a href="">CPUs (allocated)</a>
           </th>
           <th ng-class="columnClass('completed_tasks', 'resources.mem')"
               ng-click="selectColumn('completed_tasks', 'resources.mem')">
-            <a href="">Mem</a>
+            <a href="">Mem (allocated)</a>
           </th>
           <th>Executor Sandbox</th>
         </tr>

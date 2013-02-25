@@ -12,8 +12,8 @@ angular.module('mesos', []).
       .when('/frameworks/:id', {template: 'static/framework.html', controller: FrameworkCtrl})
       .when('/slaves', {template: 'static/slaves.html', controller: SlavesCtrl})
       .when('/slaves/:slave_id', {template: 'static/slave.html', controller: SlaveCtrl})
-      .when('/slaves/:slave_id/frameworks/:framework_id', {template: 'static/slave_framework.html', controller: SlaveCtrl})
-      .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id', {template: 'static/slave_executor.html', controller: SlaveCtrl})
+      .when('/slaves/:slave_id/frameworks/:framework_id', {template: 'static/slave_framework.html', controller: SlaveFrameworkCtrl})
+      .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id', {template: 'static/slave_executor.html', controller: SlaveExecutorCtrl})
       .when('/slaves/:slave_id/browse', {template: 'static/browse.html', controller: BrowseCtrl})
       .otherwise({redirectTo: '/'});
   }])
