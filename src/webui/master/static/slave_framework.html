@@ -92,11 +92,11 @@
           </th>
           <th ng-class="columnClass('executors', 'resources.cpus')"
               ng-click="selectColumn('executors', 'resources.cpus')">
-            <a href="">CPUs</a>
+            <a href="">CPUs (Used / Allocated)</a>
           </th>
           <th ng-class="columnClass('executors', 'resources.mem')"
               ng-click="selectColumn('executors', 'resources.mem')">
-            <a href="">Mem</a>
+            <a href="">Mem (Used / Allocated)</a>
           </th>
           <th>Sandbox</th>
         </tr>
@@ -113,8 +113,10 @@
           <td>{{executor.source}}</td>
           <td>{{executor.tasks.length | number}}</td>
           <td>{{executor.queued_tasks.length | number}}</td>
-          <td>{{executor.resources.cpus | number}}</td>
-          <td>{{executor.resources.mem * (1024 * 1024) | dataSize}}</td>
+          <td>{{monitor[framework_id][executor.id].resource_usage.cpu_usage | number}} /
+              {{executor.resources.cpus | number}}</td>
+          <td>{{monitor[framework_id][executor.id].resource_usage.memory_rss | dataSize}} /
+              {{executor.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>
             <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
                        encodeURIComponent(executor.directory)}}">

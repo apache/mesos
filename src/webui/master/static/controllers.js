@@ -543,7 +543,7 @@ function SlaveFrameworkCtrl($scope, $routeParams, $http, $q) {
         'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK');
 
     $q.all([usageRequest, stateRequest]).then(function (responses) {
-      $scope.monitor = responses[0].data;
+      var monitor = responses[0].data;
       $scope.state = responses[1].data;
 
       $scope.slave = {};
@@ -575,6 +575,14 @@ function SlaveFrameworkCtrl($scope, $routeParams, $http, $q) {
         $scope.framework.num_tasks += _.size(executor.tasks);
         $scope.framework.cpus += executor.resources.cpus;
         $scope.framework.mem += executor.resources.mem;
+      });
+
+      // Index the monitoring data.
+      $scope.monitor = {};
+
+      _.each(monitor, function(executor) {
+        $scope.monitor[executor.framework_id] = {};
+        $scope.monitor[executor.framework_id][executor.executor_id] = executor;
       });
 
       $('#slave').show();
@@ -629,7 +637,7 @@ function SlaveExecutorCtrl($scope, $routeParams, $http, $q) {
         'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK');
 
     $q.all([usageRequest, stateRequest]).then(function (responses) {
-      $scope.monitor = responses[0].data;
+      var monitor = responses[0].data;
       $scope.state = responses[1].data;
 
       $scope.slave = {};
@@ -657,6 +665,14 @@ function SlaveExecutorCtrl($scope, $routeParams, $http, $q) {
         $('#alert').show();
         return;
       }
+
+      // Index the monitoring data.
+      $scope.monitor = {};
+
+      _.each(monitor, function(executor) {
+        $scope.monitor[executor.framework_id] = {};
+        $scope.monitor[executor.framework_id][executor.executor_id] = executor;
+      });
 
       $('#slave').show();
     },

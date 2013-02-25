@@ -61,15 +61,17 @@
       <table class="table table-condensed">
         <tbody>
           <th>
-            <td></td>
+            <td>Used</td>
             <td>Allocated</td>
           </th>
           <tr>
             <th>CPUs</th>
+            <td>{{monitor[framework.id][executor.id].resource_usage.cpu_usage | number}}</td>
             <td>{{executor.resources.cpus | number}}</td>
           </tr>
           <tr>
             <th>Mem</th>
+            <td>{{monitor[framework.id][executor.id].resource_usage.memory_rss | dataSize}}</td>
             <td>{{executor.resources.mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
