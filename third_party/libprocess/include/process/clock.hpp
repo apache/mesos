@@ -6,6 +6,7 @@ namespace process {
 // Forward declarations.
 class ProcessBase;
 
+// TODO(bmahler): Update this to be Duration aware.
 class Clock
 {
 public:

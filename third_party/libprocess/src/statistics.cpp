@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <process/clock.hpp>
+#include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
@@ -20,6 +21,7 @@
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
@@ -39,6 +41,25 @@ namespace process {
 
 // This is initialized by process::initialize().
 Statistics* statistics = NULL;
+
+// TODO(bmahler): Move time series related logic into this struct.
+// TODO(bmahler): Investigate using google's btree implementation.
+// This provides better insertion and lookup performance for large
+// containers. This _should_ also provide significant memory
+// savings, especially since:
+//   1. Our insertion order will mostly be in sorted order.
+//   2. Our keys (Seconds) have efficient comparison operators.
+// See: http://code.google.com/p/cpp-btree/
+//      http://code.google.com/p/cpp-btree/wiki/UsageInstructions
+struct TimeSeries
+{
+  TimeSeries() : values(), archived(false) {}
+
+  // We use a map instead of a hashmap to store the values because
+  // that way we can retrieve a series in sorted order efficiently.
+  map<Seconds, double> values;
+  bool archived;
+};
 
 
 class StatisticsProcess : public Process<StatisticsProcess>
@@ -68,6 +89,8 @@ public:
       double value,
       const Seconds& time);
 
+  void archive(const string& context, const string& name);
+
   void increment(const string& context, const string& name);
 
   void decrement(const string& context, const string& name);
@@ -77,12 +100,25 @@ protected:
   {
     route("/snapshot.json", &StatisticsProcess::snapshot);
     route("/series.json", &StatisticsProcess::series);
+
+    // Schedule the first truncation.
+    delay(STATISTICS_TRUNCATION_INTERVAL, self(), &StatisticsProcess::truncate);
   }
 
 private:
-  // Removes values for the specified statistic that occured outside
+  // Removes values for the specified statistic that occurred outside
   // the time series window.
-  void truncate(const string& context, const string& name);
+  // NOTE: We always ensure there is at least 1 value left for a statistic,
+  // unless it is archived!
+  // Returns true iff the time series is empty.
+  bool truncate(const string& context, const string& name);
+
+  // Removes values for all statistics that occurred outside the time
+  // series window.
+  // NOTE: Runs perpetually based on the STATISTICS_TRUNCATION_INTERVAL.
+  // NOTE: We always ensure there is at least 1 value left for a statistic,
+  // unless it is archived.
+  void truncate();
 
   // Returns the a snapshot of all statistics in JSON.
   Future<Response> snapshot(const Request& request);
@@ -92,10 +128,8 @@ private:
 
   const Duration window;
 
-  // We use a map instead of a hashmap to store the values because
-  // that way we can retrieve a series in sorted order efficiently.
-  // This maps from {context: {name: {time: value} } }.
-  hashmap<string, hashmap<string, map<Seconds, double> > > statistics;
+  // This maps from {context: {name: TimeSeries } }.
+  hashmap<string, hashmap<string, TimeSeries> > statistics;
 
   // Each statistic can have many meters.
   // This maps from {context: {name: [meters] } }.
@@ -141,7 +175,7 @@ map<Seconds, double> StatisticsProcess::get(
   }
 
   const std::map<Seconds, double>& values =
-    statistics[context].find(name)->second;
+    statistics[context].find(name)->second.values;
 
   map<Seconds, double>::const_iterator lower =
     values.lower_bound(start.isSome() ? start.get() : Seconds(0.0));
@@ -159,16 +193,19 @@ void StatisticsProcess::set(
     double value,
     const Seconds& time)
 {
-  // Update the raw value.
-  statistics[context][name][time] = value;
+  statistics[context][name].values[time] = value; // Update the raw value.
+  statistics[context][name].archived = false;     // Unarchive.
+
   truncate(context, name);
 
   // Update the metered values, if necessary.
   if (meters.contains(context) && meters[context].contains(name)) {
     foreach (Owned<meters::Meter>& meter, meters[context][name]) {
       const Option<double>& update = meter->update(time, value);
+      statistics[context][meter->name].archived = false; // Unarchive.
+
       if (update.isSome()) {
-        statistics[context][meter->name][time] = update.get();
+        statistics[context][meter->name].values[time] = update.get();
         truncate(context, meter->name);
       }
     }
@@ -176,11 +213,26 @@ void StatisticsProcess::set(
 }
 
 
+void StatisticsProcess::archive(const string& context, const string& name)
+{
+  // Exclude the statistic from the snapshot.
+  statistics[context][name].archived = true;
+
+  // Remove any meters as well.
+  if (meters.contains(context) && meters[context].contains(name)) {
+    foreach (const Owned<meters::Meter>& meter, meters[context][name]) {
+      statistics[context][meter->name].archived = true;
+    }
+    meters[context].erase(name);
+  }
+}
+
+
 void StatisticsProcess::increment(const string& context, const string& name)
 {
   double value = 0.0;
-  if (!statistics[context][name].empty()) {
-    value = statistics[context][name].rbegin()->second;
+  if (!statistics[context][name].values.empty()) {
+    value = statistics[context][name].values.rbegin()->second;
   }
   set(context, name, value + 1.0, Seconds(Clock::now()));
 }
@@ -189,33 +241,63 @@ void StatisticsProcess::increment(const string& context, const string& name)
 void StatisticsProcess::decrement(const string& context, const string& name)
 {
   double value = 0.0;
-  if (!statistics[context][name].empty()) {
-    value = statistics[context][name].rbegin()->second;
+  if (!statistics[context][name].values.empty()) {
+    value = statistics[context][name].values.rbegin()->second;
   }
   set(context, name, value - 1.0, Seconds(Clock::now()));
 }
 
 
-void StatisticsProcess::truncate(const string& context, const string& name)
+bool StatisticsProcess::truncate(const string& context, const string& name)
 {
   CHECK(statistics.contains(context));
   CHECK(statistics[context].contains(name));
-  CHECK(statistics[context][name].size() > 0);
 
-  // Always keep at least one value for a statistic.
-  if (statistics[context][name].size() == 1) {
-    return;
+  if (statistics[context][name].values.empty()) {
+    return true; // No truncation is needed, the time series is already empty.
   }
 
-  map<Seconds, double>::iterator start = statistics[context][name].begin();
+  map<Seconds, double>::iterator start =
+    statistics[context][name].values.begin();
 
   while ((Clock::now() - start->first.secs()) > window.secs()) {
-    statistics[context][name].erase(start);
-    if (statistics[context][name].size() == 1) {
+    // Always keep at least one value for a statistic, unless it's archived!
+    if (statistics[context][name].values.size() == 1) {
+      if (statistics[context][name].archived) {
+        statistics[context][name].values.clear();
+      }
       break;
     }
-    start = statistics[context][name].begin();
+
+    statistics[context][name].values.erase(start);
+    start = statistics[context][name].values.begin();
   }
+
+  return statistics[context][name].values.empty();
+}
+
+
+void StatisticsProcess::truncate()
+{
+  hashmap<string, hashset<string> > empties;
+
+  foreachkey (const string& context, statistics) {
+    foreachkey (const string& name, statistics[context]) {
+      // Keep track of the emptied timeseries.
+      if (truncate(context, name)) {
+        empties[context].insert(name);
+      }
+    }
+  }
+
+  // Remove the empty timeseries.
+  foreachkey (const string& context, empties) {
+    foreach (const string& name, empties[context]) {
+      statistics[context].erase(name);
+    }
+  }
+
+  delay(STATISTICS_TRUNCATION_INTERVAL, self(), &StatisticsProcess::truncate);
 }
 
 
@@ -225,12 +307,20 @@ Future<Response> StatisticsProcess::snapshot(const Request& request)
 
   foreachkey (const string& context, statistics) {
     foreachkey (const string& name, statistics[context]) {
-      CHECK(statistics[context][name].size() > 0);
+      // Exclude archived time series.
+      if (statistics[context][name].archived) {
+        continue;
+      }
+
+      CHECK(statistics[context][name].values.size() > 0);
+
       JSON::Object object;
       object.values["context"] = context;
       object.values["name"] = name;
-      object.values["time"] = statistics[context][name].rbegin()->first.secs();
-      object.values["value"] = statistics[context][name].rbegin()->second;
+      object.values["time"] =
+        statistics[context][name].values.rbegin()->first.secs();
+      object.values["value"] =
+        statistics[context][name].values.rbegin()->second;
       array.values.push_back(object);
     }
   }
@@ -325,6 +415,12 @@ void Statistics::set(
     const Seconds& time)
 {
   dispatch(process, &StatisticsProcess::set, context, name, value, time);
+}
+
+
+void Statistics::archive(const string& context, const string& name)
+{
+  dispatch(process, &StatisticsProcess::archive, context, name);
 }
 
 

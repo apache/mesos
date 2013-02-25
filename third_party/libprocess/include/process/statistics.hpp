@@ -31,13 +31,19 @@ namespace meters {
 // Statistics are exposed via JSON for external visibility.
 extern Statistics* statistics;
 
+const Duration STATISTICS_TRUNCATION_INTERVAL = Minutes(5.0);
 
 // Provides an in-memory time series of statistics over some window
 // (values are truncated outside of the window, but no limit is
 // currently placed on the number of values within a window).
-// TODO(bmahler): We need to consider truncation when we have
-// statistics that are ephemeral. They stop being updated and therefore
-// never get truncated when the window passes.
+//
+// TODO(bmahler): Time series granularity should be coarsened over
+// time. This means, for high-frequency statistics, we keep a lot of
+// recent data points (fine granularity), and keep fewer older data
+// points (coarse granularity). The tunable bit here could be the
+// total number of data points to keep around, which informs how
+// often to delete older data points, while still keeping a window
+// worth of data.
 class Statistics
 {
 public:
@@ -68,6 +74,14 @@ public:
       const std::string& name,
       double value,
       const Seconds& time = Seconds(Clock::now()));
+
+  // Archives the provided statistic time series, and any meters associated
+  // with it. This means three things:
+  //   1. The statistic will no longer be part of the snapshot.
+  //   2. However, the time series will be retained until the window expiration.
+  //   3. All meters associated with this statistic will be removed, both
+  //      (1) and (2) will apply to the metered time series as well.
+  void archive(const std::string& context, const std::string& name);
 
   // Increments the current value of a statistic. If no statistic was
   // previously present, an initial value of 0.0 is used.
