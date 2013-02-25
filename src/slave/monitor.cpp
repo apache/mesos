@@ -145,6 +145,14 @@ Future<Nothing> ResourceMonitorProcess::unwatch(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
+  const string& prefix =
+    strings::join("/", frameworkId.value(), executorId.value(), "");
+
+  // In case we've already noticed the executor was terminated,
+  // we need to archive the statistics first.
+  process::statistics->archive("monitor", prefix + MEMORY_RSS);
+  process::statistics->archive("monitor", prefix + CPU_TIME);
+
   if (!watches.contains(frameworkId) ||
       !watches[frameworkId].contains(executorId)) {
     return Future<Nothing>::failed("Not watched");
