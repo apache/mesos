@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// Python.h must be included before standard headers.
+// See: http://docs.python.org/2/c-api/intro.html#include-files
 #include <Python.h>
 
 #include <string>

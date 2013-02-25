@@ -19,6 +19,8 @@
 #ifndef PROXY_SCHEDULER_HPP
 #define PROXY_SCHEDULER_HPP
 
+// Python.h must be included before standard headers.
+// See: http://docs.python.org/2/c-api/intro.html#include-files
 #include <Python.h>
 
 #include <string>
