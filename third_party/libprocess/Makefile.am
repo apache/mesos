@@ -87,6 +87,7 @@ libprocess_la_SOURCES += $(top_srcdir)/include/process/async.hpp	\
 	$(top_srcdir)/include/stout/numify.hpp				\
 	$(top_srcdir)/include/stout/option.hpp				\
 	$(top_srcdir)/include/stout/os.hpp				\
+	$(top_srcdir)/include/stout/owned.hpp				\
 	$(top_srcdir)/include/stout/path.hpp				\
 	$(top_srcdir)/include/stout/protobuf.hpp			\
 	$(top_srcdir)/include/stout/result.hpp				\

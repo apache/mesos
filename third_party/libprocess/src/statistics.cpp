@@ -16,6 +16,7 @@
 #include <process/process.hpp>
 #include <process/statistics.hpp>
 
+#include <stout/error.hpp>
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
@@ -56,6 +57,11 @@ public:
       const Option<Seconds>& start,
       const Option<Seconds>& stop);
 
+  Try<Nothing> meter(
+      const string& context,
+      const string& name,
+      const Owned<meters::Meter>& meter);
+
   void set(
       const string& context,
       const string& name,
@@ -88,8 +94,40 @@ private:
 
   // We use a map instead of a hashmap to store the values because
   // that way we can retrieve a series in sorted order efficiently.
+  // This maps from {context: {name: {time: value} } }.
   hashmap<string, hashmap<string, map<Seconds, double> > > statistics;
+
+  // Each statistic can have many meters.
+  // This maps from {context: {name: [meters] } }.
+  hashmap<string, hashmap<string, list<Owned<meters::Meter> > > > meters;
 };
+
+
+Try<Nothing> StatisticsProcess::meter(
+    const string& context,
+    const string& name,
+    const Owned<meters::Meter>& meter)
+{
+  if (meter->name == name) {
+    return Error("Meter name must not match the statistic name");
+  }
+
+  // Check for a duplicate meter.
+  foreachkey (const string& context, meters) {
+    foreachkey (const string& name, meters[context]) {
+      foreach (Owned<meters::Meter>& existing, meters[context][name]) {
+        if (meter->name == existing->name) {
+          return Error("Meter name matched existing meter name");
+        }
+      }
+    }
+  }
+
+  // Add the meter.
+  meters[context][name].push_back(meter);
+
+  return Nothing();
+}
 
 
 map<Seconds, double> StatisticsProcess::get(
@@ -124,6 +162,17 @@ void StatisticsProcess::set(
   // Update the raw value.
   statistics[context][name][time] = value;
   truncate(context, name);
+
+  // Update the metered values, if necessary.
+  if (meters.contains(context) && meters[context].contains(name)) {
+    foreach (Owned<meters::Meter>& meter, meters[context][name]) {
+      const Option<double>& update = meter->update(time, value);
+      if (update.isSome()) {
+        statistics[context][meter->name][time] = update.get();
+        truncate(context, meter->name);
+      }
+    }
+  }
 }
 
 
@@ -209,7 +258,7 @@ Future<Response> StatisticsProcess::series(const Request& request)
     if (result.isError()) {
       return BadRequest("Failed to parse start: " + result.error());
     }
-    start = Option<Seconds>::some(Seconds(result.get()));
+    start = Seconds(result.get());
   }
 
   if (request.query.get("stop").isSome()) {
@@ -217,7 +266,7 @@ Future<Response> StatisticsProcess::series(const Request& request)
     if (result.isError()) {
       return BadRequest("Failed to parse stop: " + result.error());
     }
-    stop = Option<Seconds>::some(Seconds(result.get()));
+    stop = Seconds(result.get());
   }
 
   JSON::Array array;
@@ -256,6 +305,16 @@ Future<map<Seconds, double> > Statistics::get(
     const Option<Seconds>& stop)
 {
   return dispatch(process, &StatisticsProcess::get, context, name, start, stop);
+}
+
+
+Future<Try<Nothing> > Statistics::meter(
+    const string& context,
+    const string& name,
+    Owned<meters::Meter> meter)
+{
+
+  return dispatch(process, &StatisticsProcess::meter, context, name, meter);
 }
 
 
