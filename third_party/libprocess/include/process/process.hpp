@@ -184,7 +184,8 @@ private:
          BLOCKED,
 	 FINISHED } state;
 
-  // Mutex protecting internals. TODO(benh): Replace with a spinlock.
+  // Mutex protecting internals.
+  // TODO(benh): Consider replacing with a spinlock, on multi-core systems.
   pthread_mutex_t m;
   void lock() { pthread_mutex_lock(&m); }
   void unlock() { pthread_mutex_unlock(&m); }

@@ -59,6 +59,7 @@
 #include <process/process.hpp>
 #include <process/profiler.hpp>
 #include <process/socket.hpp>
+#include <process/statistics.hpp>
 #include <process/thread.hpp>
 #include <process/timer.hpp>
 
@@ -1393,6 +1394,12 @@ void initialize(const string& delegate)
 
   // Create the global profiler.
   spawn(new Profiler(), true);
+
+  // Create the global statistics.
+  // TODO(bmahler): Investigate memory implications of this window
+  // size. We may also want to provide a maximum memory size rather than
+  // time window. Or, offload older data to disk, etc.
+  process::statistics = new Statistics(Weeks(2));
 
   // Initialize the mime types.
   mime::initialize();

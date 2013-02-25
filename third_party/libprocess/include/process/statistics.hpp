@@ -10,7 +10,19 @@
 namespace process {
 
 // Forward declarations.
+class Statistics;
 class StatisticsProcess;
+
+
+// Libprocess statistics handle.
+// To be used from anywhere to manage statistics.
+//
+// Ex: process::statistics->increment("num_requests");
+//     process::statistics->set("num_workers", 5);
+//
+// Statistics are exposed via JSON for external visibility.
+extern Statistics* statistics;
+
 
 // Provides an in-memory time series of statistics over some window
 // (values are truncated outside of the window, but no limit is
@@ -18,7 +30,7 @@ class StatisticsProcess;
 class Statistics
 {
 public:
-  Statistics(const Seconds& window);
+  Statistics(const Duration& window);
   ~Statistics();
 
   // Returns the time series of a statistic.
@@ -41,6 +53,9 @@ public:
 private:
   StatisticsProcess* process;
 };
+
+// Global statistics instance provided by libprocess.
+extern Statistics* _statistics;
 
 } // namespace process {
 

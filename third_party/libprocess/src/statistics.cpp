@@ -32,10 +32,14 @@ using std::vector;
 
 namespace process {
 
+// This is initialized by process::initialize().
+Statistics* statistics = NULL;
+
+
 class StatisticsProcess : public Process<StatisticsProcess>
 {
 public:
-  StatisticsProcess(const Seconds& _window)
+  StatisticsProcess(const Duration& _window)
     : ProcessBase("statistics"),
       window(_window)
   {}
@@ -54,8 +58,8 @@ public:
 protected:
   virtual void initialize()
   {
-    route("snapshot.json", &StatisticsProcess::snapshot);
-    route("series.json", &StatisticsProcess::series);
+    route("/snapshot.json", &StatisticsProcess::snapshot);
+    route("/series.json", &StatisticsProcess::series);
   }
 
 private:
@@ -69,7 +73,7 @@ private:
   // Returns the time series of a statistic in JSON.
   Future<Response> series(const Request& request);
 
-  const Seconds window;
+  const Duration window;
 
   // We use a map instead of a hashmap to store the values because
   // that way we can retrieve a series in sorted order efficiently.
@@ -212,7 +216,7 @@ Future<Response> StatisticsProcess::series(const Request& request)
 }
 
 
-Statistics::Statistics(const Seconds& window)
+Statistics::Statistics(const Duration& window)
 {
   process = new StatisticsProcess(window);
   spawn(process);
