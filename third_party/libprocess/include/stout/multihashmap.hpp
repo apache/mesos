@@ -29,7 +29,7 @@ public:
 template <typename K, typename V>
 void multihashmap<K, V>::put(const K& key, const V& value)
 {
-  insert(std::pair<K, V>(key, value));
+  boost::unordered_multimap<K, V>::insert(std::pair<K, V>(key, value));
 }
 
 
@@ -41,7 +41,7 @@ hashset<V> multihashmap<K, V>::get(const K& key) const
   std::pair<typename boost::unordered_multimap<K, V>::const_iterator,
     typename boost::unordered_multimap<K, V>::const_iterator> range;
 
-  range = equal_range(key);
+  range = boost::unordered_multimap<K, V>::equal_range(key);
 
   typename boost::unordered_multimap<K, V>::const_iterator i;
   for (i = range.first; i != range.second; ++i) {
@@ -55,7 +55,7 @@ hashset<V> multihashmap<K, V>::get(const K& key) const
 template <typename K, typename V>
 bool multihashmap<K, V>::remove(const K& key)
 {
-  return erase(key) > 0;
+  return boost::unordered_multimap<K, V>::erase(key) > 0;
 }
 
 
@@ -63,9 +63,11 @@ template <typename K, typename V>
 bool multihashmap<K, V>::remove(const K& key, const V& value)
 {
   typename boost::unordered_multimap<K, V>::iterator i;
-  for (i = find(key); i != boost::unordered_multimap<K, V>::end(); ++i) {
+  for (i = boost::unordered_multimap<K, V>::find(key);
+       i != boost::unordered_multimap<K, V>::end();
+       ++i) {
     if ((*i).second == value) {
-      erase(i);
+      boost::unordered_multimap<K, V>::erase(i);
       return true;
     }
   }
@@ -85,7 +87,9 @@ template <typename K, typename V>
 bool multihashmap<K, V>::contains(const K& key, const V& value) const
 {
   typename boost::unordered_multimap<K, V>::const_iterator i;
-  for (i = find(key); i != boost::unordered_multimap<K, V>::end(); ++i) {
+  for (i = boost::unordered_multimap<K, V>::find(key);
+       i != boost::unordered_multimap<K, V>::end();
+       ++i) {
     if ((*i).second == value) {
       return true;
     }
