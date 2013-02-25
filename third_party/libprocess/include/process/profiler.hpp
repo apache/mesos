@@ -12,6 +12,7 @@
 #include <process/process.hpp>
 
 #include <stout/format.hpp>
+#include <stout/os.hpp>
 
 namespace process {
 
@@ -37,6 +38,13 @@ private:
   // Starts the profiler. There are no request parameters.
   Future<http::Response> start(const http::Request& request)
   {
+    if (os::getenv("LIBPROCESS_ENABLE_PROFILER", false) != "1") {
+      return http::BadRequest(
+          "The profiler is not enabled. To enable the profiler, libprocess "
+          "must be started with LIBPROCESS_ENABLE_PROFILER=1 in the "
+          "environment.\n");
+    }
+
     if (started) {
       return http::BadRequest("Profiler already started.\n");
     }
