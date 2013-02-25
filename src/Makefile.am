@@ -395,7 +395,8 @@ nobase_dist_webui_DATA += webui/master/static/loading.gif
 nobase_dist_webui_DATA +=						\
   webui/master/static/angular-1.0.0rc8.js				\
   webui/master/static/angular-1.0.0rc8.min.js				\
-  webui/master/static/underscore-1.3.3.min.js				\
+  webui/master/static/underscore-1.4.3.js				\
+  webui/master/static/underscore-1.4.3.min.js				\
   webui/master/static/cubism.v1.js					\
   webui/master/static/cubism.v1.min.js					\
   webui/master/static/d3.v2.js						\
