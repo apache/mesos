@@ -70,9 +70,12 @@ $(GLOG)/libglog.la: $(GLOG)-stamp
 
 $(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
 
-$(GPERFTOOLS)/libprofiler.la: $(GPERFTOOLS)-stamp
-	cd $(GPERFTOOLS) && ./configure $(CONFIGURE_ARGS) && \
+$(GPERFTOOLS)/libprofiler.la: $(GPERFTOOLS)-build-stamp
+
+$(GPERFTOOLS)-build-stamp: $(GPERFTOOLS)-stamp
+	cd $(GPERFTOOLS) && ./configure  $(CONFIGURE_ARGS) && \
 	  $(MAKE) $(AM_MAKEFLAGS)
+	touch $@
 
 $(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 
