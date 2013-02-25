@@ -40,6 +40,7 @@
 #include "slave/gc.hpp"
 #include "slave/http.hpp"
 #include "slave/isolation_module.hpp"
+#include "slave/monitor.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
@@ -236,6 +237,7 @@ private:
   bool connected; // Flag to indicate if slave is registered.
 
   GarbageCollector gc;
+  ResourceMonitor monitor;
 
   state::SlaveState state;
 };

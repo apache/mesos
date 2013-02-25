@@ -51,11 +51,20 @@ public:
   ~Statistics();
 
   // Returns the time series of a statistic.
-  process::Future<std::map<Seconds, double> > get(
+  process::Future<std::map<Seconds, double> > timeseries(
       const std::string& context,
       const std::string& name,
       const Option<Seconds>& start = None(),
       const Option<Seconds>& stop = None());
+
+  // Returns the latest value of a statistic.
+  process::Future<Option<double> > get(
+      const std::string& context,
+      const std::string& name);
+
+  // Returns the latest values of all statistics in the context.
+  process::Future<std::map<std::string, double> > get(
+      const std::string& context);
 
   // Adds a meter for the statistic with the provided context and name.
   //   get(context, meter->name) will return the metered time series.

@@ -161,6 +161,7 @@ libmesos_no_third_party_la_SOURCES =					\
 	master/slaves_manager.cpp					\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
+	slave/monitor.cpp						\
 	slave/state.cpp							\
 	slave/slave.cpp							\
 	slave/http.cpp							\
@@ -223,7 +224,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	master/hierarchical_allocator_process.hpp master/http.hpp	\
 	master/master.hpp master/slaves_manager.hpp master/sorter.hpp	\
 	messages/messages.hpp slave/constants.hpp			\
-	slave/flags.hpp slave/gc.hpp slave/http.hpp			\
+	slave/flags.hpp slave/gc.hpp slave/monitor.hpp slave/http.hpp	\
 	slave/isolation_module.hpp slave/isolation_module_factory.hpp	\
 	slave/cgroups_isolation_module.hpp				\
 	slave/lxc_isolation_module.hpp					\

@@ -29,6 +29,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/fs.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -71,7 +72,8 @@ Slave::Slave(const Resources& _resources,
     resources(_resources),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     isolationModule(_isolationModule),
-    files(_files) {}
+    files(_files),
+    monitor(isolationModule) {}
 
 
 Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
@@ -83,7 +85,8 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
     local(_local),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     isolationModule(_isolationModule),
-    files(_files)
+    files(_files),
+    monitor(isolationModule)
 {
   if (flags.resources.isNone()) {
     // TODO(benh): Move this computation into Flags as the "default".
@@ -977,6 +980,12 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
 }
 
 
+void _watch(
+    const Future<Nothing>& watch,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId);
+
+
 // N.B. When the slave is running in "local" mode then the pid is
 // uninteresting (and possibly could cause bugs).
 void Slave::executorStarted(
@@ -984,7 +993,43 @@ void Slave::executorStarted(
     const ExecutorID& executorId,
     pid_t pid)
 {
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(WARNING) << "Framework " << frameworkId
+                 << " for executor '" << executorId
+                 << "' is no longer valid";
+    return;
+  }
 
+  Executor* executor = framework->getExecutor(executorId);
+  if (executor == NULL) {
+    LOG(WARNING) << "Invalid executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " has started";
+    return;
+  }
+
+  monitor.watch(
+      frameworkId,
+      executorId,
+      executor->info,
+      flags.resource_monitoring_interval)
+    .onAny(lambda::bind(_watch, lambda::_1, frameworkId, executorId));
+}
+
+
+void _watch(
+    const Future<Nothing>& watch,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  CHECK(!watch.isDiscarded());
+
+  if (!watch.isReady()) {
+    LOG(ERROR) << "Failed to watch executor " << executorId
+               << " of framework " << frameworkId
+               << ": " << watch.failure();
+  }
 }
 
 
@@ -1003,6 +1048,12 @@ void Slave::sendStatusUpdate(
 }
 
 
+void _unwatch(
+    const Future<Nothing>& watch,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId);
+
+
 // Called by the isolation module when an executor process terminates.
 void Slave::executorTerminated(
     const FrameworkID& frameworkId,
@@ -1019,6 +1070,10 @@ void Slave::executorTerminated(
             << (WIFEXITED(status)
                 ? stringify(WEXITSTATUS(status))
                 : strsignal(WTERMSIG(status)));
+
+  // Stop monitoring this executor.
+  monitor.unwatch(frameworkId, executorId)
+      .onAny(lambda::bind(_unwatch, lambda::_1, frameworkId, executorId));
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
@@ -1086,6 +1141,21 @@ void Slave::executorTerminated(
     .onAny(defer(self(), &Self::detachFile, params::_1, executor->directory));
 
   framework->destroyExecutor(executor->id);
+}
+
+
+void _unwatch(
+    const Future<Nothing>& unwatch,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  CHECK(!unwatch.isDiscarded());
+
+  if (!unwatch.isReady()) {
+    LOG(ERROR) << "Failed to unwatch executor " << executorId
+               << " of framework " << frameworkId
+               << ": " << unwatch.failure();
+  }
 }
 
 

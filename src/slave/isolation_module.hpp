@@ -23,7 +23,10 @@
 
 #include <mesos/mesos.hpp>
 
+#include <process/future.hpp>
 #include <process/process.hpp>
+
+#include <stout/hashmap.hpp>
 
 #include "common/resources.hpp"
 
@@ -36,7 +39,6 @@ namespace slave {
 // Forward declaration.
 class Slave;
 
-
 class IsolationModule : public process::Process<IsolationModule>
 {
 public:
@@ -46,29 +48,39 @@ public:
   virtual ~IsolationModule() {}
 
   // Called during slave initialization.
-  virtual void initialize(const Flags& flags,
-                          const Resources& resources,
-                          bool local,
-                          const process::PID<Slave>& slave) = 0;
+  virtual void initialize(
+      const Flags& flags,
+      const Resources& resources,
+      bool local,
+      const process::PID<Slave>& slave) = 0;
 
   // Called by the slave to launch an executor for a given framework.
-  virtual void launchExecutor(const FrameworkID& frameworkId,
-                              const FrameworkInfo& frameworkInfo,
-                              const ExecutorInfo& executorInfo,
-                              const std::string& directory,
-                              const Resources& resources) = 0;
+  virtual void launchExecutor(
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Resources& resources) = 0;
 
   // Terminate a framework's executor, if it is still running.
   // The executor is expected to be gone after this method exits.
-  virtual void killExecutor(const FrameworkID& frameworkId,
-                            const ExecutorID& executorId) = 0;
+  virtual void killExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId) = 0;
 
   // Update the resource limits for a given framework. This method will
   // be called only after an executor for the framework is started.
-  virtual void resourcesChanged(const FrameworkID& frameworkId,
-                                const ExecutorID& executorId,
-                                const Resources& resources) = 0;
+  virtual void resourcesChanged(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const Resources& resources) = 0;
+
+  // Returns the resource usage for the isolation module.
+  virtual process::Future<ResourceStatistics> usage(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId) = 0;
 };
+
 
 } // namespace slave {
 } // namespace internal {

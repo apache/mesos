@@ -32,6 +32,10 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// Default interval for resource monitoring.
+const Duration RESOURCE_MONITORING_INTERVAL = Seconds(5);
+
+
 class Flags : public virtual flags::FlagsBase
 {
 public:
@@ -92,7 +96,7 @@ public:
         "Maximum amount of time to wait before cleaning up\n"
         "executor directories (e.g., 3days, 2weeks, etc).\n"
         "Note that this delay may be shorter depending on\n"
-        "the available disk usage.",
+        "the available disk usage",
         GC_DELAY);
 
     add(&Flags::disk_watch_interval,
@@ -100,6 +104,12 @@ public:
         "Periodic time interval (e.g., 10secs, 2mins, etc)\n"
         "to check the disk usage",
         DISK_WATCH_INTERVAL);
+
+    add(&Flags::resource_monitoring_interval,
+        "resource_monitoring_interval",
+        "Periodic time interval for monitoring executor\n"
+        "resource usage (e.g., 10secs, 1min, etc)",
+        RESOURCE_MONITORING_INTERVAL);
 
 #ifdef __linux__
     add(&Flags::cgroups_hierarchy_root,
@@ -125,6 +135,7 @@ public:
   Duration executor_shutdown_grace_period;
   Duration gc_delay;
   Duration disk_watch_interval;
+  Duration resource_monitoring_interval;
 #ifdef __linux__
   std::string cgroups_hierarchy_root;
   std::string cgroups_subsystems;

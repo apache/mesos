@@ -247,6 +247,56 @@ message Resource {
 }
 
 
+/*
+ * A snapshot of resource usage statistics.
+ */
+message ResourceStatistics {
+  required double timestamp = 1; // Snapshot time, in seconds since the Epoch.
+
+  // CPU Usage Information:
+  // A percentage based cpu usage rate since the last snapshot.
+  // This is akin to what the 'top' program shows.
+  optional double cpu_usage = 2;
+  // Total CPU time spent in user mode, and kernel mode.
+  optional double cpu_user_time = 3;   // In seconds.
+  optional double cpu_system_time = 4; // In seconds.
+
+  // Memory Usage Information:
+  optional uint64 memory_rss = 5; // Resident Set Size (in bytes).
+
+  // TODO(bmahler): Add disk usage.
+  // TODO(bmahler): Add network usage?
+}
+
+
+/**
+ * Describes a snapshot of the resource usage for an executor.
+ *
+ * TODO(bmahler): Note that we want to be sending this information
+ * to the master, and subsequently to the relevant scheduler. So
+ * this proto is designed to be easy for the scheduler to use, this
+ * is why we provide the slave id, executor info / task info.
+ */
+message ResourceUsage {
+  required SlaveID slave_id = 1;
+  required FrameworkID framework_id = 2;
+
+  // Resource usage is for an executor. For tasks launched with
+  // an explicit executor, the executor id is provided. For tasks
+  // launched without an executor, our internal executor will be
+  // used. In this case, we provide the task id here instead, in
+  // order to make this message easier for schedulers to work with.
+
+  optional ExecutorID executor_id = 3; // If present, this executor was
+  optional string executor_name = 4;   // explicitly specified.
+
+  optional TaskID task_id = 5; // If present, the task did not have an executor.
+
+  // If missing, the isolation module cannot provide resource usage.
+  optional ResourceStatistics statistics = 6;
+}
+
+
 /**
  * Describes a request for resources that can be used by a framework
  * to proactively influence the allocator.  If 'slave_id' is provided
@@ -300,13 +350,13 @@ message TaskInfo {
  * another task).
  */
 enum TaskState {
-  TASK_STAGING = 6; // Initial state. Framework status updates should not use.
+  TASK_STAGING = 6;  // Initial state. Framework status updates should not use.
   TASK_STARTING = 0;
   TASK_RUNNING = 1;
   TASK_FINISHED = 2; // TERMINAL.
-  TASK_FAILED = 3; // TERMINAL.
-  TASK_KILLED = 4; // TERMINAL.
-  TASK_LOST = 5; // TERMINAL.
+  TASK_FAILED = 3;   // TERMINAL.
+  TASK_KILLED = 4;   // TERMINAL.
+  TASK_LOST = 5;     // TERMINAL.
 }
 
 

@@ -72,11 +72,15 @@ public:
   virtual ~StatisticsProcess() {}
 
   // Statistics implementation.
-  map<Seconds, double> get(
+  map<Seconds, double> timeseries(
       const string& context,
       const string& name,
       const Option<Seconds>& start,
       const Option<Seconds>& stop);
+
+  Option<double> get(const string& context, const string& name);
+
+  map<string, double> get(const string& context);
 
   Try<Nothing> meter(
       const string& context,
@@ -115,7 +119,7 @@ private:
 
   // Removes values for all statistics that occurred outside the time
   // series window.
-  // NOTE: Runs perpetually based on the STATISTICS_TRUNCATION_INTERVAL.
+  // NOTE: Runs periodically every STATISTICS_TRUNCATION_INTERVAL.
   // NOTE: We always ensure there is at least 1 value left for a statistic,
   // unless it is archived.
   void truncate();
@@ -164,7 +168,7 @@ Try<Nothing> StatisticsProcess::meter(
 }
 
 
-map<Seconds, double> StatisticsProcess::get(
+map<Seconds, double> StatisticsProcess::timeseries(
     const string& context,
     const string& name,
     const Option<Seconds>& start,
@@ -184,6 +188,38 @@ map<Seconds, double> StatisticsProcess::get(
     values.upper_bound(stop.isSome() ? stop.get() : Seconds(DBL_MAX));
 
   return map<Seconds, double>(lower, upper);
+}
+
+
+Option<double> StatisticsProcess::get(const string& context, const string& name)
+{
+  if (!statistics.contains(context) ||
+      !statistics[context].contains(name) ||
+      statistics[context][name].values.empty()) {
+    return Option<double>::none();
+  } else {
+    return statistics[context][name].values.rbegin()->second;
+  }
+}
+
+
+map<string, double> StatisticsProcess::get(const string& context)
+{
+  map<string, double> results;
+
+  if (!statistics.contains(context)) {
+    return results;
+  }
+
+  foreachkey (const string& name, statistics[context]) {
+    const map<Seconds, double>& values = statistics[context][name].values;
+
+    if (!values.empty()) {
+      results[name] = values.rbegin()->second;
+    }
+  }
+
+  return results;
 }
 
 
@@ -361,7 +397,8 @@ Future<Response> StatisticsProcess::series(const Request& request)
 
   JSON::Array array;
 
-  map<Seconds, double> values = get(context.get(), name.get(), start, stop);
+  const map<Seconds, double>& values =
+    timeseries(context.get(), name.get(), start, stop);
 
   foreachpair (const Seconds& s, double value, values) {
     JSON::Object object;
@@ -388,13 +425,28 @@ Statistics::~Statistics()
 }
 
 
-Future<map<Seconds, double> > Statistics::get(
+Future<map<Seconds, double> > Statistics::timeseries(
     const string& context,
     const string& name,
     const Option<Seconds>& start,
     const Option<Seconds>& stop)
 {
-  return dispatch(process, &StatisticsProcess::get, context, name, start, stop);
+  return dispatch(
+      process, &StatisticsProcess::timeseries, context, name, start, stop);
+}
+
+
+Future<Option<double> > Statistics::get(
+    const string& context,
+    const string& name)
+{
+  return dispatch(process, &StatisticsProcess::get, context, name);
+}
+
+
+Future<map<string, double> > Statistics::get(const string& context)
+{
+  return dispatch(process, &StatisticsProcess::get, context);
 }
 
 

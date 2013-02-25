@@ -61,6 +61,7 @@
 // TODO(benh): Kill these since they pollute everything that includes this file.
 using ::testing::_;
 using ::testing::Invoke;
+using ::testing::Return;
 
 namespace mesos {
 namespace internal {
@@ -606,6 +607,10 @@ public:
   {
     EXPECT_CALL(*this, resourcesChanged(testing::_, testing::_, testing::_))
       .Times(testing::AnyNumber());
+
+    ResourceStatistics empty;
+    EXPECT_CALL(*this, usage(testing::_, testing::_))
+      .WillRepeatedly(Return(empty));
   }
 
   virtual ~TestingIsolationModule() {}
@@ -667,6 +672,12 @@ public:
   MOCK_METHOD3(resourcesChanged, void(const FrameworkID&,
                                       const ExecutorID&,
                                       const Resources&));
+
+  MOCK_METHOD2(
+      usage,
+      process::Future<ResourceStatistics>(
+          const FrameworkID&,
+          const ExecutorID&));
 
   std::map<ExecutorID, std::string> directories;
 

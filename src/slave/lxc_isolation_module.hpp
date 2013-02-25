@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+#include <process/future.hpp>
+
 #include <stout/hashmap.hpp>
 
 #include "slave/isolation_module.hpp"
@@ -40,23 +42,31 @@ public:
 
   virtual ~LxcIsolationModule();
 
-  virtual void initialize(const Flags& flags,
-                          const Resources& resources,
-                          bool local,
-                          const process::PID<Slave>& slave);
+  virtual void initialize(
+      const Flags& flags,
+      const Resources& resources,
+      bool local,
+      const process::PID<Slave>& slave);
 
-  virtual void launchExecutor(const FrameworkID& frameworkId,
-                              const FrameworkInfo& frameworkInfo,
-                              const ExecutorInfo& executorInfo,
-                              const std::string& directory,
-                              const Resources& resources);
+  virtual void launchExecutor(
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Resources& resources);
 
-  virtual void killExecutor(const FrameworkID& frameworkId,
-                            const ExecutorID& executorId);
+  virtual void killExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
-  virtual void resourcesChanged(const FrameworkID& frameworkId,
-                                const ExecutorID& executorId,
-                                const Resources& resources);
+  virtual void resourcesChanged(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const Resources& resources);
+
+  virtual process::Future<ResourceStatistics> usage(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
   virtual void processExited(pid_t pid, int status);
 
@@ -67,9 +77,10 @@ private:
 
   // Attempt to set a resource limit of a container for a given
   // control group property (e.g. cpu.shares).
-  bool setControlGroupValue(const std::string& container,
-                            const std::string& property,
-                            int64_t value);
+  bool setControlGroupValue(
+      const std::string& container,
+      const std::string& property,
+      int64_t value);
 
   std::vector<std::string> getControlGroupOptions(const Resources& resources);
 

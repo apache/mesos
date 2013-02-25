@@ -580,6 +580,16 @@ void CgroupsIsolationModule::resourcesChanged(
 }
 
 
+Future<ResourceStatistics> CgroupsIsolationModule::usage(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  ResourceStatistics result;
+  // TODO(bmahler): Compute resource usage.
+  return result;
+}
+
+
 void CgroupsIsolationModule::processExited(pid_t pid, int status)
 {
   CgroupInfo* info = findCgroupInfo(pid);

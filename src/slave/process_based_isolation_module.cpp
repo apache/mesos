@@ -266,6 +266,16 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
 }
 
 
+Future<ResourceStatistics> ProcessBasedIsolationModule::usage(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  ResourceStatistics result;
+  // TODO(bmahler): Compute resource usage.
+  return result;
+}
+
+
 void ProcessBasedIsolationModule::processExited(pid_t pid, int status)
 {
   foreachkey (const FrameworkID& frameworkId, infos) {

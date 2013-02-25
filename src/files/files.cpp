@@ -19,6 +19,7 @@
 #include <stout/error.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
+#include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
@@ -306,12 +307,13 @@ Future<Response> FilesProcess::read(const Request& request)
   boost::shared_array<char> data(new char[length]);
 
   return io::read(fd.get(), data.get(), static_cast<size_t>(length))
-    .then(std::tr1::bind(_read,
-                         fd.get(),
-                         std::tr1::placeholders::_1,
-                         offset,
-                         data,
-                         request.query.get("jsonp")));
+    .then(lambda::bind(
+        _read,
+        fd.get(),
+        lambda::_1,
+        offset,
+        data,
+        request.query.get("jsonp")));
 }
 
 

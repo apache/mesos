@@ -24,7 +24,8 @@ TEST(Statistics, set)
   Seconds now(Clock::now());
   statistics.set("test", "statistic", 4.0, now);
 
-  Future<map<Seconds, double> > values = statistics.get("test", "statistic");
+  Future<map<Seconds, double> > values =
+    statistics.timeseries("test", "statistic");
 
   values.await();
 
@@ -47,7 +48,8 @@ TEST(Statistics, truncate)
 
   statistics.set("test", "statistic", 3.0);
 
-  Future<map<Seconds, double> > values = statistics.get("test", "statistic");
+  Future<map<Seconds, double> > values =
+    statistics.timeseries("test", "statistic");
 
   values.await();
 
@@ -60,7 +62,7 @@ TEST(Statistics, truncate)
 
   statistics.increment("test", "statistic");
 
-  values = statistics.get("test", "statistic");
+  values = statistics.timeseries("test", "statistic");
 
   values.await();
 
@@ -91,7 +93,8 @@ TEST(Statistics, meter) {
   statistics.set("test", "statistic", 4.0, Seconds(now.secs() + 2.0));
 
   // Check the raw statistic values.
-  Future<map<Seconds, double> > values = statistics.get("test", "statistic");
+  Future<map<Seconds, double> > values =
+    statistics.timeseries("test", "statistic");
 
   values.await();
 
@@ -106,7 +109,7 @@ TEST(Statistics, meter) {
   EXPECT_EQ(4.0, values.get()[Seconds(now.secs() + 2.0)]);
 
   // Now check the metered values.
-  values = statistics.get("test", "metered");
+  values = statistics.timeseries("test", "metered");
 
   values.await();
 
@@ -149,14 +152,15 @@ TEST(Statistics, archive)
 
   // TODO(bmahler): Wait for JSON parsing to verify number 1.
 
-  // Ensure the raw timeseries is present.
-  Future<map<Seconds, double> > values = statistics.get("test", "statistic");
+  // Ensure the raw time series is present.
+  Future<map<Seconds, double> > values =
+    statistics.timeseries("test", "statistic");
   values.await();
   ASSERT_TRUE(values.isReady());
   EXPECT_FALSE(values.get().empty());
 
   // Ensure the metered timeseries is present.
-  values = statistics.get("test", "metered");
+  values = statistics.timeseries("test", "metered");
   values.await();
   ASSERT_TRUE(values.isReady());
   EXPECT_FALSE(values.get().empty());
@@ -165,13 +169,13 @@ TEST(Statistics, archive)
   Clock::advance(STATISTICS_TRUNCATION_INTERVAL.secs() + 1);
 
   // Ensure the raw statistics are gone.
-  values = statistics.get("test", "statistic");
+  values = statistics.timeseries("test", "statistic");
   values.await();
   ASSERT_TRUE(values.isReady());
   EXPECT_TRUE(values.get().empty());
 
   // Ensure the metered statistics are gone.
-  values = statistics.get("test", "metered");
+  values = statistics.timeseries("test", "metered");
   values.await();
   ASSERT_TRUE(values.isReady());
   EXPECT_TRUE(values.get().empty());
@@ -179,7 +183,7 @@ TEST(Statistics, archive)
   // Reactivate the statistic, and make sure the meter is still missing.
   statistics.set("test", "statistic", 1.0, now);
 
-  values = statistics.get("test", "metered");
+  values = statistics.timeseries("test", "metered");
   values.await();
   ASSERT_TRUE(values.isReady());
   EXPECT_TRUE(values.get().empty());

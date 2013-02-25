@@ -103,6 +103,10 @@ public:
       const ExecutorID& executorId,
       const Resources& resources);
 
+  virtual process::Future<ResourceStatistics> usage(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
+
   virtual void processExited(pid_t pid, int status);
 
 private:

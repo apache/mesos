@@ -68,6 +68,8 @@ class ExecutorProcess;
  * returns). This is intended for convenience so that an executor
  * doesn't need to store a pointer to the driver itself.
  */
+// TODO(bmahler): Consider adding a usage() callback here, that provides
+// information to the executor about it's ResourceUsage.
 class Executor
 {
 public:
