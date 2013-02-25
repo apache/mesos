@@ -1642,4 +1642,41 @@ Future<bool> destroy(
   return future;
 }
 
+
+Try<hashmap<string, uint64_t> > stat(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& file)
+{
+  Try<std::string> contents = cgroups::read(hierarchy, cgroup, file);
+
+  if (contents.isError()) {
+    return Error(contents.error());
+  }
+
+  hashmap<string, uint64_t> result;
+
+  foreach (const string& line, strings::split(contents.get(), "\n")) {
+    // Skip empty lines.
+    if (strings::trim(line).empty()) {
+      continue;
+    }
+
+    string name;
+    uint64_t value;
+
+    // Expected line format: "%s %llu".
+    std::istringstream stream(line);
+    stream >> name >> value;
+
+    if (stream.fail()) {
+      return Error("Unexpected line format in " + file + ": " + line);
+    }
+
+    result[name] = value;
+  }
+
+  return result;
+}
+
 } // namespace cgroups {

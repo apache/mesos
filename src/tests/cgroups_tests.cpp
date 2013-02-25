@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +35,7 @@
 
 #include <gmock/gmock.h>
 
+#include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -426,6 +428,24 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
     std::cerr << "Reach an unreachable statement!" << std::endl;
     abort();
   }
+}
+
+TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Stat)
+{
+  EXPECT_ERROR(cgroups::stat(hierarchy, "mesos_test", "invalid"));
+
+  Try<hashmap<std::string, uint64_t> > result =
+    cgroups::stat(hierarchy, "/", "cpuacct.stat");
+  ASSERT_SOME(result);
+  EXPECT_TRUE(result.get().contains("user"));
+  EXPECT_TRUE(result.get().contains("system"));
+  EXPECT_GT(result.get()["user"], 0llu);
+  EXPECT_GT(result.get()["system"], 0llu);
+
+  result = cgroups::stat(hierarchy, "/", "memory.stat");
+  ASSERT_SOME(result);
+  EXPECT_TRUE(result.get().contains("rss"));
+  EXPECT_GT(result.get()["rss"], 0llu);
 }
 
 

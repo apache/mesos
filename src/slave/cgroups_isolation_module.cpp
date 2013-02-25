@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include <process/clock.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 
@@ -232,6 +233,9 @@ void CgroupsIsolationModule::initialize(
   // Regardless of whether or not it was desired, we require the
   // 'freezer' subsystem in order to destroy a cgroup.
   subsystems.insert("freezer");
+
+  // We require the 'cpuacct' subsystem to perform resource monitoring.
+  subsystems.insert("cpuacct");
 
   // Check if the hierarchy is already mounted, and if not, mount it.
   Try<bool> mounted = cgroups::mounted(hierarchy);
@@ -585,7 +589,36 @@ Future<ResourceStatistics> CgroupsIsolationModule::usage(
     const ExecutorID& executorId)
 {
   ResourceStatistics result;
-  // TODO(bmahler): Compute resource usage.
+
+  // Get the number of clock ticks, used for cpu accounting.
+  long ticks = sysconf(_SC_CLK_TCK);
+
+  PCHECK(ticks > 0) << "Failed to get sysconf(_SC_CLK_TCK)";
+
+  if (!infos.contains(frameworkId) ||
+      !infos[frameworkId].contains(executorId)) {
+    return Future<ResourceStatistics>::failed("Unknown executor");
+  }
+
+  CgroupInfo* info = infos[frameworkId][executorId];
+
+  result.set_timestamp(Clock::now());
+
+  Try<hashmap<string, uint64_t> > stat =
+    cgroups::stat(hierarchy, info->name(), "cpuacct.stat");
+
+  if (stat.isSome() && ticks > 0 &&
+      stat.get().contains("user") && stat.get().contains("system")) {
+    result.set_cpu_user_time((double) stat.get()["user"] / (double) ticks);
+    result.set_cpu_system_time((double) stat.get()["system"] / (double) ticks);
+  }
+
+  stat = cgroups::stat(hierarchy, info->name(), "memory.stat");
+
+  if (stat.isSome() && stat.get().contains("rss")) {
+    result.set_memory_rss(stat.get()["rss"]);
+  }
+
   return result;
 }
 

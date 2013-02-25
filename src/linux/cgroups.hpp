@@ -19,6 +19,8 @@
 #ifndef __CGROUPS_HPP__
 #define __CGROUPS_HPP__
 
+#include <stdint.h>
+
 #include <set>
 #include <string>
 #include <vector>
@@ -28,6 +30,7 @@
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -331,6 +334,20 @@ process::Future<bool> destroy(
     const std::string& hierarchy,
     const std::string& cgroup = "/",
     const Duration& interval = Seconds(0.1));
+
+
+// Returns the stat information from the given file.
+// @param   hierarchy   Path to the hierarchy root.
+// @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   file        The stat file to read from. (Ex: "memory.stat").
+// @return  The stat information parsed from the file.
+//          Error if reading or parsing fails.
+// TODO(bmahler): Consider namespacing stat for each subsystem (e.g.
+// cgroups::memory::stat and cgroups::cpuacct::stat).
+Try<hashmap<std::string, uint64_t> > stat(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const std::string& file);
 
 } // namespace cgroups {
 
