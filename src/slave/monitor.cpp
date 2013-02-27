@@ -205,11 +205,13 @@ void ResourceMonitorProcess::_collect(
 
   if (statistics.isReady()) {
     // Publish the data to the statistics module.
+    VLOG(1) << "Publishing resource usage for executor '" << executorId
+            << "' of framework '" << frameworkId << "'";
     publish(frameworkId, executorId, statistics.get());
   } else {
     LOG(WARNING)
-      << "Failed to collect resources for executor " << executorId
-      << " of framework " << frameworkId << ": " << statistics.failure();
+      << "Failed to collect resource usage for executor '" << executorId
+      << "' of framework '" << frameworkId << "': " << statistics.failure();
   }
 
   // Schedule the next collection.

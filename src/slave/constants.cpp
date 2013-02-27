@@ -26,6 +26,7 @@ const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5.0);
 const Duration STATUS_UPDATE_RETRY_INTERVAL = Seconds(10.0);
 const Duration GC_DELAY = Weeks(1.0);
 const Duration DISK_WATCH_INTERVAL = Minutes(1.0);
+const Duration RESOURCE_MONITORING_INTERVAL = Seconds(5);
 const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
 const uint32_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK = 150;
 const uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR = 200;

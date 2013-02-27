@@ -37,6 +37,7 @@ extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL;
 extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
+extern const Duration RESOURCE_MONITORING_INTERVAL;
 
 // Maximum number of completed frameworks to store in memory.
 extern const uint32_t MAX_COMPLETED_FRAMEWORKS;

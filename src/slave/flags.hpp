@@ -32,9 +32,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// Default interval for resource monitoring.
-const Duration RESOURCE_MONITORING_INTERVAL = Seconds(5);
-
 
 class Flags : public virtual flags::FlagsBase
 {
