@@ -580,9 +580,23 @@ function SlaveFrameworkCtrl($scope, $routeParams, $http, $q) {
       // Index the monitoring data.
       $scope.monitor = {};
 
+      $scope.framework.resource_usage = {};
+      $scope.framework.resource_usage["cpu_time"] = 0.0;
+      $scope.framework.resource_usage["cpu_usage"] = 0.0;
+      $scope.framework.resource_usage["memory_rss"] = 0.0;
+
       _.each(monitor, function(executor) {
-        $scope.monitor[executor.framework_id] = {};
+        if (!$scope.monitor[executor.framework_id]) {
+          $scope.monitor[executor.framework_id] = {};
+        }
         $scope.monitor[executor.framework_id][executor.executor_id] = executor;
+
+        $scope.framework.resource_usage["cpu_time"] +=
+          executor.resource_usage.cpu_time;
+        $scope.framework.resource_usage["cpu_usage"] +=
+          executor.resource_usage.cpu_usage;
+        $scope.framework.resource_usage["memory_rss"] +=
+          executor.resource_usage.memory_rss;
       });
 
       $('#slave').show();
@@ -670,7 +684,9 @@ function SlaveExecutorCtrl($scope, $routeParams, $http, $q) {
       $scope.monitor = {};
 
       _.each(monitor, function(executor) {
-        $scope.monitor[executor.framework_id] = {};
+        if (!$scope.monitor[executor.framework_id]) {
+          $scope.monitor[executor.framework_id] = {};
+        }
         $scope.monitor[executor.framework_id][executor.executor_id] = executor;
       });
 

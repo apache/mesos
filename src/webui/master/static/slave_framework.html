@@ -48,16 +48,23 @@
       <h2>Resources</h2>
       <table class="table table-condensed">
         <tbody>
+          <th>
+            <td>Used</td>
+            <td>Allocated</td>
+          </th>
           <tr>
             <th>CPUs</th>
+            <td>{{framework.resource_usage.cpu_usage | number}}</td>
             <td>{{framework.cpus | number}}</td>
           </tr>
           <tr>
             <th>Memory</th>
+            <td>{{framework.resource_usage.memory_rss | dataSize}}</td>
             <td>{{framework.mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <th>Disk</th>
+            <td></td>
             <td>{{framework.disk * (1024 * 1024) | dataSize}}</td>
           </tr>
         </tbody>
