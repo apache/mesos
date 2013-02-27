@@ -23,11 +23,14 @@
 
 #include "master/master.hpp"
 
+#include "tests/assert.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::master;
 
 using std::ostringstream;
+using std::pair;
 using std::string;
 
 
@@ -56,6 +59,31 @@ TEST(ResourcesTest, Parsing)
   r2 += disks;
 
   EXPECT_EQ(r1, r2);
+}
+
+
+TEST(ResourcesTest, Resources)
+{
+  Resources r = Resources::parse("cpus:45.55;"
+                                 "mem:1024.0;"
+                                 "ports:[10000-20000, 30000-50000];"
+                                 "disk:512.4");
+
+  EXPECT_SOME_EQ(45.55, r.cpus());
+  EXPECT_SOME_EQ(1024.0, r.mem());
+  EXPECT_SOME_EQ(512.4, r.disk());
+
+  EXPECT_SOME(r.ports());
+  ostringstream ports;
+  ports << r.ports().get();
+
+  EXPECT_EQ("[10000-20000, 30000-50000]", ports.str());
+
+  r = Resources::parse("cpus:45.55;disk:512.4");
+  EXPECT_SOME_EQ(45.55, r.cpus());
+  EXPECT_SOME_EQ(512.4, r.disk());
+  EXPECT_TRUE(r.mem().isNone());
+  EXPECT_TRUE(r.ports().isNone());
 }
 
 

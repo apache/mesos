@@ -21,6 +21,8 @@
 
 #include <iterator>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -272,6 +274,13 @@ public:
   template <typename T>
   T get(const std::string& name, const T& t) const;
 
+  // Helpers to get known resource types.
+  // TODO(vinod): Fix this when we make these types as first class protobufs.
+  Option<double> cpus();
+  Option<double> mem();
+  Option<double> disk();
+  Option<Value::Ranges> ports(); // TODO(vinod): Provide a Ranges abstraction.
+
   typedef google::protobuf::RepeatedPtrField<Resource>::iterator
   iterator;
 
@@ -411,6 +420,54 @@ inline Value::Set Resources::get(
   }
 
   return set;
+}
+
+
+inline Option<double> Resources::cpus()
+{
+  foreach (const Resource& resource, resources) {
+    if (resource.name() == "cpus" &&
+        resource.type() == Value::SCALAR) {
+      return resource.scalar().value();
+    }
+  }
+  return Option<double>::none();
+}
+
+
+inline Option<double> Resources::mem()
+{
+  foreach (const Resource& resource, resources) {
+    if (resource.name() == "mem" &&
+        resource.type() == Value::SCALAR) {
+      return resource.scalar().value();
+    }
+  }
+  return Option<double>::none();
+}
+
+
+inline Option<double> Resources::disk()
+{
+  foreach (const Resource& resource, resources) {
+    if (resource.name() == "disk" &&
+        resource.type() == Value::SCALAR) {
+      return resource.scalar().value();
+    }
+  }
+  return Option<double>::none();
+}
+
+
+inline Option<Value::Ranges> Resources::ports()
+{
+  foreach (const Resource& resource, resources) {
+    if (resource.name() == "ports" &&
+        resource.type() == Value::RANGES) {
+      return resource.ranges();
+    }
+  }
+  return Option<Value::Ranges>::none();
 }
 
 
