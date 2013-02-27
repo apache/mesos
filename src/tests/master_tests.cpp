@@ -75,7 +75,11 @@ using testing::Return;
 using testing::SaveArg;
 
 
-TEST(MasterTest, TaskRunning)
+class MasterTest : public MesosTest
+{};
+
+
+TEST_F(MasterTest, TaskRunning)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -103,9 +107,7 @@ TEST(MasterTest, TaskRunning)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -171,7 +173,7 @@ TEST(MasterTest, TaskRunning)
 }
 
 
-TEST(MasterTest, ShutdownFrameworkWhileTaskRunning)
+TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -199,10 +201,8 @@ TEST(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   TestingIsolationModule isolationModule(execs);
 
-  flags::Flags<logging::Flags, slave::Flags> flags;
-  flags.executor_shutdown_grace_period = Seconds(0.0);
-  flags.resources = Option<string>::some("cpus:2;mem:1024");
-  Slave s(flags, true, &isolationModule, &files);
+  slaveFlags.executor_shutdown_grace_period = Seconds(0.0);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -267,7 +267,7 @@ TEST(MasterTest, ShutdownFrameworkWhileTaskRunning)
 }
 
 
-TEST(MasterTest, KillTask)
+TEST_F(MasterTest, KillTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -298,9 +298,7 @@ TEST(MasterTest, KillTask)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -367,7 +365,7 @@ TEST(MasterTest, KillTask)
 }
 
 
-TEST(MasterTest, StatusUpdateAck)
+TEST_F(MasterTest, StatusUpdateAck)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -400,9 +398,7 @@ TEST(MasterTest, StatusUpdateAck)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -465,7 +461,7 @@ TEST(MasterTest, StatusUpdateAck)
 }
 
 
-TEST(MasterTest, RecoverResources)
+TEST_F(MasterTest, RecoverResources)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -482,10 +478,9 @@ TEST(MasterTest, RecoverResources)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources slaveResources = Resources::parse(
-      "cpus:2;mem:1024;ports:[1-10, 20-30]");
+  setSlaveResources("cpus:2;mem:1024;ports:[1-10, 20-30]");
 
-  Slave s(slaveResources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -590,6 +585,8 @@ TEST(MasterTest, RecoverResources)
   WAIT_UNTIL(resourceOffersCall3);
 
   EXPECT_NE(0u, offers3.size());
+
+  Resources slaveResources = Resources::parse(slaveFlags.resources.get());
   EXPECT_EQ(slaveResources, offers3[0].resources());
 
   driver.stop();
@@ -608,7 +605,7 @@ TEST(MasterTest, RecoverResources)
 }
 
 
-TEST(MasterTest, FrameworkMessage)
+TEST_F(MasterTest, FrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -643,9 +640,7 @@ TEST(MasterTest, FrameworkMessage)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -731,7 +726,7 @@ TEST(MasterTest, FrameworkMessage)
 }
 
 
-TEST(MasterTest, MultipleExecutors)
+TEST_F(MasterTest, MultipleExecutors)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -783,9 +778,7 @@ TEST(MasterTest, MultipleExecutors)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -874,7 +867,7 @@ TEST(MasterTest, MultipleExecutors)
 }
 
 
-TEST(MasterTest, MasterInfo)
+TEST_F(MasterTest, MasterInfo)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -891,9 +884,7 @@ TEST(MasterTest, MasterInfo)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -930,7 +921,7 @@ TEST(MasterTest, MasterInfo)
 }
 
 
-TEST(MasterTest, MasterInfoOnReElection)
+TEST_F(MasterTest, MasterInfoOnReElection)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -947,9 +938,7 @@ TEST(MasterTest, MasterInfoOnReElection)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -1004,23 +993,22 @@ TEST(MasterTest, MasterInfoOnReElection)
 }
 
 
-class WhitelistFixture : public ::testing::Test
+class WhitelistTest : public MasterTest
 {
 protected:
-  WhitelistFixture()
+  WhitelistTest()
     : path("whitelist.txt")
   {}
 
-  virtual ~WhitelistFixture()
+  virtual ~WhitelistTest()
   {
     os::rm(path);
   }
-
   const string path;
 };
 
 
-TEST_F(WhitelistFixture, WhitelistSlave)
+TEST_F(WhitelistTest, WhitelistSlave)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1033,9 +1021,9 @@ TEST_F(WhitelistFixture, WhitelistSlave)
   HierarchicalDRFAllocatorProcess allocator;
   Allocator a(&allocator);
   Files files;
-  flags::Flags<logging::Flags, master::Flags> flags;
-  flags.whitelist = "file://" + path;
-  Master m(&a, &files, flags);
+  flags::Flags<logging::Flags, master::Flags> masterFlags;
+  masterFlags.whitelist = "file://" + path;
+  Master m(&a, &files, masterFlags);
   PID<Master> master = process::spawn(&m);
 
   trigger slaveRegisteredMsg;
@@ -1051,9 +1039,7 @@ TEST_F(WhitelistFixture, WhitelistSlave)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -1104,7 +1090,7 @@ public:
 };
 
 
-TEST(MasterTest, MasterLost)
+TEST_F(MasterTest, MasterLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1121,9 +1107,7 @@ TEST(MasterTest, MasterLost)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

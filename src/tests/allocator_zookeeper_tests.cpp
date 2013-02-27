@@ -137,8 +137,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
   TestingIsolationModule isolationModule(execs);
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(this->slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   Try<MasterDetector*> slaveDetector =
@@ -285,8 +284,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
   TestingIsolationModule isolationModule(execs);
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(this->slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   Try<MasterDetector*> slaveDetector =

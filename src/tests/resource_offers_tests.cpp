@@ -516,7 +516,11 @@ TEST(ResourceOffersTest, Request)
 }
 
 
-TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
+class MultipleExecutorsTest : public MesosTest
+{};
+
+
+TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -544,9 +548,7 @@ TEST(ResourceOffersTest, TasksExecutorInfoDiffers)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(this->slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

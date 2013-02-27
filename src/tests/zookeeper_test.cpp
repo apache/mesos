@@ -102,6 +102,7 @@ void ZooKeeperTest::SetUpTestCase()
 
 void ZooKeeperTest::SetUp()
 {
+  MesosTest::SetUp();
   server = new ZooKeeperTestServer(jvm);
   server->startNetwork();
 };
@@ -109,6 +110,7 @@ void ZooKeeperTest::SetUp()
 
 void ZooKeeperTest::TearDown()
 {
+  MesosTest::TearDown();
   delete server;
   server = NULL;
 };

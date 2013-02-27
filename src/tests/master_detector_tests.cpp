@@ -57,7 +57,12 @@ using std::vector;
 
 using testing::_;
 
-TEST(MasterDetector, File)
+
+class MasterDetectorTest : public MesosTest
+{};
+
+
+TEST_F(MasterDetectorTest, File)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -71,9 +76,7 @@ TEST(MasterDetector, File)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   // Write "master" to a file and use the "file://" mechanism to

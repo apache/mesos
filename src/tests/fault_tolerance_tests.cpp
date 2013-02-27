@@ -71,7 +71,11 @@ using testing::Return;
 using testing::SaveArg;
 
 
-TEST(FaultToleranceTest, SlaveLost)
+class FaultToleranceTest : public MesosTest
+{};
+
+
+TEST_F(FaultToleranceTest, SlaveLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -83,9 +87,7 @@ TEST(FaultToleranceTest, SlaveLost)
 
   ProcessBasedIsolationModule isolationModule;
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -134,7 +136,7 @@ TEST(FaultToleranceTest, SlaveLost)
 }
 
 
-TEST(FaultToleranceTest, SlavePartitioned)
+TEST_F(FaultToleranceTest, SlavePartitioned)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -197,7 +199,7 @@ TEST(FaultToleranceTest, SlavePartitioned)
 }
 
 
-TEST(FaultToleranceTest, SchedulerFailover)
+TEST_F(FaultToleranceTest, SchedulerFailover)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -268,7 +270,7 @@ TEST(FaultToleranceTest, SchedulerFailover)
 }
 
 
-TEST(FaultToleranceTest, FrameworkReliableRegistration)
+TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -315,7 +317,7 @@ TEST(FaultToleranceTest, FrameworkReliableRegistration)
 }
 
 
-TEST(FaultToleranceTest, FrameworkReregister)
+TEST_F(FaultToleranceTest, FrameworkReregister)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -370,7 +372,7 @@ TEST(FaultToleranceTest, FrameworkReregister)
 // but since dispatch (which is used by launchTasks()) uses
 // a different queue than post, it might so happen that the latter
 // message is dequeued before the former, thus breaking the test.
-TEST(FaultToleranceTest, DISABLED_TaskLost)
+TEST_F(FaultToleranceTest, DISABLED_TaskLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -395,9 +397,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -466,7 +466,7 @@ TEST(FaultToleranceTest, DISABLED_TaskLost)
 }
 
 
-TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
+TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -496,9 +496,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -601,7 +599,7 @@ TEST(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 }
 
 
-TEST(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
+TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -627,9 +625,7 @@ TEST(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -705,7 +701,7 @@ TEST(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 }
 
 
-TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
+TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -733,9 +729,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -824,7 +818,7 @@ TEST(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 }
 
 
-TEST(FaultToleranceTest, SchedulerExit)
+TEST_F(FaultToleranceTest, SchedulerExit)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -860,9 +854,7 @@ TEST(FaultToleranceTest, SchedulerExit)
 
   TestingIsolationModule isolationModule(execs);
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -943,7 +935,7 @@ TEST(FaultToleranceTest, SchedulerExit)
 }
 
 
-TEST(FaultToleranceTest, SlaveReliableRegistration)
+TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -965,9 +957,7 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
 
   ProcessBasedIsolationModule isolationModule;
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -1005,7 +995,7 @@ TEST(FaultToleranceTest, SlaveReliableRegistration)
 }
 
 
-TEST(FaultToleranceTest, SlaveReregister)
+TEST_F(FaultToleranceTest, SlaveReregister)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1017,9 +1007,7 @@ TEST(FaultToleranceTest, SlaveReregister)
 
   ProcessBasedIsolationModule isolationModule;
 
-  Resources resources = Resources::parse("cpus:2;mem:1024");
-
-  Slave s(resources, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

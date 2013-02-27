@@ -38,9 +38,6 @@ using namespace mesos::internal::tests;
 
 class ConfiguratorTest : public TemporaryDirectoryTest
 {
-protected:
-  virtual void SetUp() { TemporaryDirectoryTest::SetUp(); }
-  virtual void TearDown() { TemporaryDirectoryTest::TearDown(); }
 };
 
 

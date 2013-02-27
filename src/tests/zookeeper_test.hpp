@@ -31,6 +31,7 @@
 
 #include "jvm/jvm.hpp"
 
+#include "tests/utils.hpp"
 #include "tests/zookeeper_test_server.hpp"
 
 namespace mesos {
@@ -42,7 +43,7 @@ namespace tests {
 // the variable 'server'. This test fixture ensures the server is
 // started before each test and shutdown after it so that each test is
 // presented with a ZooKeeper ensemble with no data or watches.
-class ZooKeeperTest : public ::testing::Test
+class ZooKeeperTest : public MesosTest
 {
 public:
   // A watcher that is useful to install in a ZooKeeper client for

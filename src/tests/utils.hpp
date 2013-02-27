@@ -37,6 +37,7 @@
 #include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
@@ -86,6 +87,48 @@ protected:
 
 private:
   std::string cwd;
+};
+
+
+// Test fixture to setup mesos configuration for tests.
+// This fixture creates a new temporary working directory for each test and
+// deletes it when a test finishes. It also supports setting slave resources.
+// TODO(vinod): Make this fixture more generic to provide a basic set of
+// setup abstractions for tests.
+class MesosTest : public ::testing::Test
+{
+protected:
+  virtual void SetUp()
+  {
+    // Create a temporary directory for the test.
+    Try<std::string> directory = mkdtemp();
+
+    CHECK(directory.isSome())
+      << "Failed to create temporary directory: " << directory.error();
+
+    slaveFlags.work_dir = directory.get();
+
+    slaveFlags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+    // For locating killtree.sh.
+    os::setenv("MESOS_SOURCE_DIR",tests::flags.source_dir);
+
+    setSlaveResources("cpus:2;mem:1024");
+  }
+
+  virtual void TearDown()
+  {
+    os::rmdir(slaveFlags.work_dir);
+
+    os::unsetenv("MESOS_SOURCE_DIR");
+  }
+
+  void setSlaveResources(const std::string& resources)
+  {
+    slaveFlags.resources = Option<std::string>::some(resources);
+  }
+
+  flags::Flags<logging::Flags, slave::Flags> slaveFlags;
 };
 
 
