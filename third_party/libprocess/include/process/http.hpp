@@ -335,9 +335,10 @@ inline Try<std::string> decode(const std::string& s)
 // TODO(bmahler): Have the request sent asynchronously as well.
 // TODO(bmahler): For efficiency, this should properly use the ResponseDecoder
 // on the read stream, rather than parsing the full string response at the end.
-Future<Response> get(const PID<>& pid,
-                     const std::string& path = "",
-                     const std::string& query = "");
+Future<Response> get(
+    const UPID& upid,
+    const std::string& path = "",
+    const std::string& query = "");
 
 
 // Status code reason strings, from the HTTP1.1 RFC:

@@ -3319,7 +3319,7 @@ Future<Response> decode(const string& buffer)
 } // namespace internal {
 
 
-Future<Response> get(const PID<>& pid, const string& path, const string& query)
+Future<Response> get(const UPID& upid, const string& path, const string& query)
 {
   int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
@@ -3336,8 +3336,8 @@ Future<Response> get(const PID<>& pid, const string& path, const string& query)
   sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
-  addr.sin_port = htons(pid.port);
-  addr.sin_addr.s_addr = pid.ip;
+  addr.sin_port = htons(upid.port);
+  addr.sin_addr.s_addr = upid.ip;
 
   if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
     return Future<Response>::failed(strerror(errno));
@@ -3345,7 +3345,7 @@ Future<Response> get(const PID<>& pid, const string& path, const string& query)
 
   std::ostringstream out;
 
-  out << "GET /" << pid.id << "/" << path << "?" << query << " HTTP/1.1\r\n"
+  out << "GET /" << upid.id << "/" << path << "?" << query << " HTTP/1.1\r\n"
       << "Connection: close\r\n"
       << "\r\n";
 

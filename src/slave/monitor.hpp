@@ -21,6 +21,8 @@
 
 #include <string>
 
+#include <mesos/mesos.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
@@ -34,6 +36,7 @@ namespace internal {
 namespace slave {
 
 // Forward declarations.
+class IsolationModule;
 class ResourceMonitorProcess;
 
 

@@ -28,7 +28,6 @@
 
 #include <process/future.hpp>
 #include <process/http.hpp>
-#include <process/pid.hpp>
 
 #include <stout/format.hpp>
 #include <stout/json.hpp>
@@ -62,10 +61,6 @@ public:
 
   // Removes the specified name.
   void detach(const std::string& name);
-
-  // Returns the pid for the FilesProcess.
-  // NOTE: This has been made visible for testing.
-  process::PID<> pid();
 
 private:
   FilesProcess* process;

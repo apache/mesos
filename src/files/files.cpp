@@ -465,11 +465,5 @@ void Files::detach(const string& name)
   dispatch(process, &FilesProcess::detach, name);
 }
 
-
-PID<> Files::pid()
-{
-  return process->self();
-}
-
 } // namespace internal {
 } // namespace mesos {
