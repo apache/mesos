@@ -190,6 +190,20 @@ TEST(StoutStringsTest, Remove)
 }
 
 
+TEST(StoutStringsTest, Replace)
+{
+  EXPECT_EQ("hello*", strings::replace("hello/", "/", "*"));
+  EXPECT_EQ("*hello", strings::replace("/hello", "/", "*"));
+  EXPECT_EQ("*hello*world*", strings::replace("/hello/world/", "/", "*"));
+  EXPECT_EQ("*", strings::replace("/", "/", "*"));
+  EXPECT_EQ("hello world", strings::replace("hello world", "/", "*"));
+  EXPECT_EQ("***1***2***3***", strings::replace("/1/2/3/", "/", "***"));
+  EXPECT_EQ("123", strings::replace("/1/2/3/", "/", ""));
+  EXPECT_EQ("/1/2/3**", strings::replace("***1***2***3**", "***", "/"));
+  EXPECT_EQ("/1/2/3/", strings::replace("/1/2/3/", "", "*"));
+}
+
+
 TEST(StoutStringsTest, Trim)
 {
   EXPECT_EQ("", strings::trim("", " "));

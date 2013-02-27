@@ -60,6 +60,27 @@ inline std::string trim(
 }
 
 
+// Replaces all the occurrences of the 'from' string with the 'to' string.
+inline std::string replace(
+    const std::string& s,
+    const std::string& from,
+    const std::string& to)
+{
+  std::string result = s;
+  size_t index = 0;
+
+  if (from.empty()) {
+    return result;
+  }
+
+  while ((index = result.find(from, index)) != std::string::npos) {
+    result.replace(index, from.length(), to);
+    index += to.length();
+  }
+  return result;
+}
+
+
 // Tokenizes the string using the delimiters.
 // Empty tokens will not be included in the result.
 inline std::vector<std::string> tokenize(
