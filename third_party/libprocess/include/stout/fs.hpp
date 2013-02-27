@@ -14,6 +14,7 @@
 // TODO(bmahler): Migrate the appropriate 'os' namespace funtions here.
 namespace fs {
 
+// Returns the total available disk size in bytes.
 inline Try<uint64_t> available(const std::string& path = "/")
 {
   struct statvfs buf;
@@ -21,6 +22,17 @@ inline Try<uint64_t> available(const std::string& path = "/")
     return ErrnoError();
   }
   return buf.f_bavail * buf.f_frsize;
+}
+
+
+// Returns relative disk usage of the file system mounted at the given path.
+inline Try<double> usage(const std::string& fs = "/")
+{
+  struct statvfs buf;
+  if (statvfs(fs.c_str(), &buf) < 0) {
+    return ErrnoError("Error invoking statvfs of '" + fs + "'");
+  }
+  return (double) (buf.f_blocks - buf.f_bfree) / buf.f_blocks;
 }
 
 

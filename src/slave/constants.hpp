@@ -48,6 +48,18 @@ extern const uint32_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK;
 // Maximum number of completed tasks per executor to store in memeory.
 extern const uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR;
 
+// Default cpus offered by the slave.
+extern const double DEFAULT_CPUS;
+
+// Default memory offered by the slave.
+extern const double DEFAULT_MEM; // In MB.
+
+// Default disk space offered by the slave.
+extern const double DEFAULT_DISK; // In MB.
+
+// Default ports range offered by the slave.
+extern const std::string DEFAULT_PORTS;
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

@@ -17,6 +17,10 @@
 
 #include <glog/logging.h>
 
+#ifdef __linux__
+#include <linux/version.h>
+#endif
+
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #ifdef __linux__
@@ -737,17 +741,6 @@ inline Try<std::list<std::string> > find(
 }
 
 
-// Returns relative disk usage of the file system mounted at the given path.
-inline Try<double> usage(const std::string& fs = "/")
-{
-  struct statvfs buf;
-  if (::statvfs(fs.c_str(), &buf) < 0) {
-    return ErrnoError("Error invoking statvfs of '" + fs + "'");
-  }
-  return (double) (buf.f_blocks - buf.f_bfree) / buf.f_blocks;
-}
-
-
 inline std::string user()
 {
   passwd* passwd;
@@ -881,7 +874,11 @@ inline Try<uint64_t> memory()
   if (sysinfo(&info) != 0) {
     return ErrnoError();
   }
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 23)
+  return info.totalram * info.mem_unit;
+# else
   return info.totalram;
+# endif
 #else
   return Error("Cannot determine the size of main memory");
 #endif

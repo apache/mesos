@@ -58,7 +58,7 @@ using testing::Return;
 using testing::SaveArg;
 
 
-TEST(ExceptionTest, DeactiveFrameworkOnAbort)
+TEST(ExceptionTest, DeactivateFrameworkOnAbort)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 

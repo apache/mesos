@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <sstream>
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -34,6 +35,7 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/numify.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/utils.hpp>
@@ -88,62 +90,83 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
     files(_files),
     monitor(isolationModule)
 {
-  if (flags.resources.isNone()) {
-    // TODO(benh): Move this computation into Flags as the "default".
-    Try<long> cpus = os::cpus();
-    Try<uint64_t> mem = os::memory();
-    Try<uint64_t> disk = fs::available();
+  // TODO(benh): Move this computation into Flags as the "default".
 
-    if (!cpus.isSome()) {
+  resources = Resources::parse(
+      flags.resources.isSome() ? flags.resources.get() : "");
+
+  double cpus;
+  if (resources.cpus().isSome()) {
+    cpus = resources.cpus().get();
+  } else {
+    Try<long> cpus_ = os::cpus();
+    if (!cpus_.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the number of cpus to use,"
-                   << " defaulting to 1";
-      cpus = Try<long>::some(1);
+                   << " defaulting to " << DEFAULT_CPUS;
+      cpus = DEFAULT_CPUS;
+    } else {
+      cpus = cpus_.get();
     }
+  }
 
-    if (!mem.isSome()) {
+  double mem; // in MB.
+  if (resources.mem().isSome()) {
+    mem = resources.mem().get();
+  } else {
+    Try<uint64_t> mem_ = os::memory(); // in bytes.
+    if (!mem_.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the size of main memory,"
-                   << " defaulting to 1024 MB";
-      mem = Try<uint64_t>::some(1024);
+                   << " defaulting to " << DEFAULT_MEM << " MB";
+      mem = DEFAULT_MEM;
     } else {
       // Convert to MB.
-      mem = mem.get() / 1048576;
+      mem = mem_.get() / 1048576;
 
       // Leave 1 GB free if we have more than 1 GB, otherwise, use all!
       // TODO(benh): Have better default scheme (e.g., % of mem not
       // greater than 1 GB?)
-      if (mem.get() > 1024) {
-        mem = Try<uint64_t>::some(mem.get() - 1024);
+      if (mem > 1024) {
+        mem = mem - 1024;
       }
     }
+  }
 
-    if (!disk.isSome()) {
+  double disk; // in MB.
+  if (resources.disk().isSome()) {
+    disk = resources.disk().get();
+  } else {
+    Try<uint64_t> disk_ = fs::available(); // in bytes.
+    if (!disk_.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the free disk space,"
-                   << " defaulting to 10 GB";
-      disk = Try<uint64_t>::some(1024 * 10);
+                   << " defaulting to " << DEFAULT_DISK  << " MB";
+      disk = DEFAULT_DISK;
     } else {
       // Convert to MB.
-      disk = disk.get() / 1048576;
+      disk = disk_.get() / 1048576;
 
       // Leave 5 GB free if we have more than 10 GB, otherwise, use all!
       // TODO(benh): Have better default scheme (e.g., % of disk not
       // greater than 10 GB?)
-      if (disk.get() > 1024 * 10) {
-        disk = Try<uint64_t>::some(disk.get() - (1024 * 5));
+      if (disk > 1024 * 10) {
+        disk = disk - (1024 * 5);
       }
     }
-
-    Try<string> defaults = strings::format(
-        "cpus:%d;mem:%d;ports:[31000-32000];disk:%d",
-        cpus.get(),
-        mem.get(),
-        disk.get());
-
-    CHECK_SOME(defaults);
-
-    resources = Resources::parse(defaults.get());
-  } else {
-    resources = Resources::parse(flags.resources.get());
   }
+
+  std::string ports;
+  if (resources.ports().isSome()) {
+    // TODO(vinod): Validate the ports range.
+    ports = stringify(resources.ports().get());
+  } else {
+    ports = DEFAULT_PORTS;
+  }
+
+  Try<string> defaults = strings::format(
+      "cpus:%f;mem:%f;ports:%s;disk:%f", cpus, mem, ports, disk);
+
+  CHECK_SOME(defaults);
+
+  resources = Resources::parse(defaults.get());
 
   if (flags.attributes.isSome()) {
     attributes = Attributes::parse(flags.attributes.get());
@@ -1226,8 +1249,8 @@ Duration Slave::age(double usage)
 void Slave::checkDiskUsage()
 {
   // TODO(vinod): We are making usage a Future, so that we can plug in
-  // os::usage() into async.
-  Future<Try<double> >(os::usage())
+  // fs::usage() into async.
+  Future<Try<double> >(fs::usage())
     .onAny(defer(self(), &Slave::_checkDiskUsage, params::_1));
 }
 

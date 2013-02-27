@@ -426,8 +426,7 @@ inline Value::Set Resources::get(
 inline Option<double> Resources::cpus()
 {
   foreach (const Resource& resource, resources) {
-    if (resource.name() == "cpus" &&
-        resource.type() == Value::SCALAR) {
+    if (resource.name() == "cpus" && resource.type() == Value::SCALAR) {
       return resource.scalar().value();
     }
   }
