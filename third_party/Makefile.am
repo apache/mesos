@@ -57,7 +57,7 @@ CLEAN_EXTRACTED =	\
 # This is where the magic happens: we use stamp files as dependencies
 # which cause the packages to get extracted as necessary. We also
 # apply any patches as appropriate.
-%-stamp:: %.tar.gz
+%-stamp: %.tar.gz
 	gzip -d -c $^ | tar xf -
 	test ! -e $(srcdir)/$*.patch || patch -d $* -p1 <$(srcdir)/$*.patch
 	touch $@
@@ -89,24 +89,25 @@ $(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
 	cd $(ZOOKEEPER)/src/c && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 
-THIRD_PARTY_LIBS =			\
+# Dependencies for all-local.
+ALL_LOCAL =				\
   $(LEVELDB)/libleveldb.a		\
   $(PROTOBUF)/src/libprotobuf.la	\
   $(PROTOBUF)/src/protoc
 
 if HAS_PYTHON
-  THIRD_PARTY_LIBS += $(DISTRIBUTE_EGG)
+  ALL_LOCAL += $(DISTRIBUTE_EGG)
 endif
 
 if WITH_INCLUDED_ZOOKEEPER
-  THIRD_PARTY_LIBS += $(ZOOKEEPER)/src/c/libzookeeper_mt.la
+  ALL_LOCAL += $(ZOOKEEPER)/src/c/libzookeeper_mt.la
 else
   # Now matter what we need to extract ZooKeeper so that we can run
   # 'make check' (some of our tests need the ZooKeeper JAR).
-  THIRD_PARTY_LIBS += $(ZOOKEEPER)-stamp
+  ALL_LOCAL += $(ZOOKEEPER)-stamp
 endif
 
-all-local: $(THIRD_PARTY_LIBS)
+all-local: $(ALL_LOCAL)
 
 clean-local:
 	rm -r -f $(CLEAN_EXTRACTED)

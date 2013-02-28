@@ -31,10 +31,12 @@
 #include <mesos/scheduler.hpp>
 
 #include <process/future.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/process.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/gtest.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -56,7 +58,6 @@
 #include "slave/isolation_module.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/assert.hpp"
 #include "tests/flags.hpp"
 
 // TODO(benh): Kill these since they pollute everything that includes this file.

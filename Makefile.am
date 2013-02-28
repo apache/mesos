@@ -47,4 +47,12 @@ PHONY_TARGETS += maven-install
 endif
 
 
+# Using LT_OUTPUT in configure.ac creates config.lt that doesn't get
+# cleaned up by distclean-libtool. See this bug patch (which doesn't
+# appear to be in all versions of libtool.m4):
+# http://lists.gnu.org/archive/html/automake-commit/2008-11/msg00015.html.
+distclean-local:
+	-rm -f config.lt
+
+
 .PHONY: $(PHONY_TARGETS)

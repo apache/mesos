@@ -7,9 +7,10 @@
 #include <sstream>
 #include <string>
 
-// Exit takes an exit code and provides a stream for output prior to exiting.
-// This is like LOG(FATAL) or CHECK, except that it does _not_ print a stack
-// trace because we don't want to freak out the user.
+// Exit takes an exit code and provides a stream for output prior to
+// exiting. This is like glog's LOG(FATAL) or CHECK, except that it
+// does _not_ print a stack trace because we don't want to freak out
+// the user.
 //
 // Ex: EXIT(1) << "Cgroups are not present in this system.";
 #define EXIT __Exit().stream

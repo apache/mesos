@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include <gmock/gmock.h>
 
 #include <cstdlib> // For rand.
@@ -11,6 +13,7 @@
 #include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
 #include <stout/format.hpp>
+#include <stout/gtest.hpp>
 #include <stout/gzip.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -27,10 +30,6 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
-
-#include "tests/utils.hpp"
-
-#include "tests/utils.hpp"
 
 using namespace std;
 
@@ -789,3 +788,12 @@ TEST(StoutCompressionTest, Gzip)
   ASSERT_EQ(s, decompressed.get());
 }
 #endif // HAVE_LIBZ
+
+
+int main(int argc, char** argv)
+{
+  // Initialize Google Mock/Test.
+  testing::InitGoogleMock(&argc, argv);
+
+  return RUN_ALL_TESTS();
+}

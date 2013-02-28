@@ -6,6 +6,8 @@
 # packages may be special cases; this Makefile is responsible for
 # passing any special make or configure flags that might be required.
 
+SUBDIRS = stout
+
 BUILT_SOURCES = # Initialized to enable using +=.
 
 # We need to add '--srcdir=.' needed because 'make distcheck' adds
@@ -14,6 +16,7 @@ CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 
 include versions.am
 
+STOUT = stout
 BOOST = boost-$(BOOST_VERSION)
 GLOG = glog-$(GLOG_VERSION)
 GMOCK = gmock-$(GMOCK_VERSION)
@@ -21,6 +24,7 @@ GPERFTOOLS = gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
 RY_HTTP_PARSER = ry-http-parser-$(RY_HTTP_PARSER_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
+
 
 EXTRA_DIST =			\
   $(BOOST).tar.gz		\
@@ -43,7 +47,7 @@ CLEAN_EXTRACTED =	\
 # This is where the magic happens: we use stamp files as dependencies
 # which cause the packages to get extracted as necessary. We also
 # apply any patches as appropriate.
-%-stamp:: %.tar.gz
+%-stamp: %.tar.gz
 	gzip -d -c $^ | tar xf -
 	test ! -e $(srcdir)/$*.patch || patch -d $* -p1 <$(srcdir)/$*.patch
 	touch $@
@@ -97,16 +101,33 @@ $(LIBEV)/libev.la: $(LIBEV)-stamp
 	cd $(LIBEV) && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 
-THIRD_PARTY_LIBS =		\
+
+# Tests for stout.
+check_PROGRAMS = stout-tests
+stout_tests_SOURCES = $(STOUT)/tests/tests.cpp
+stout_tests_CPPFLAGS =				\
+  -I$(srcdir)/$(STOUT)/include			\
+  -I$(BOOST)					\
+  -I$(GLOG)/src					\
+  -I$(GTEST)/include				\
+  -I$(GMOCK)/include				\
+  $(AM_CPPFLAGS)
+stout_tests_LDADD = libgmock.la $(GLOG)/libglog.la
+
+TESTS = stout-tests
+
+# Dependencies for all-local.
+ALL_LOCAL =			\
+  $(STOUT)/Makefile 		\
   $(BOOST)-stamp		\
   $(GLOG)/libglog.la		\
   $(LIBEV)/libev.la
 
 if HAS_GPERFTOOLS
-THIRD_PARTY_LIBS += $(GPERFTOOLS)/libprofiler.la
+ ALL_LOCAL += $(GPERFTOOLS)/libprofiler.la
 endif
 
-all-local: $(THIRD_PARTY_LIBS)
+all-local: $(ALL_LOCAL)
 
 clean-local:
 	rm -r -f $(CLEAN_EXTRACTED)

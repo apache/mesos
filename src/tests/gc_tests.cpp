@@ -28,6 +28,7 @@
 #include <process/process.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/gtest.hpp>
 #include <stout/os.hpp>
 
 #include "common/resources.hpp"
@@ -46,7 +47,6 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/assert.hpp"
 #include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
@@ -61,7 +61,6 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
 using process::Clock;
-using process::Future;
 using process::PID;
 
 using std::string;

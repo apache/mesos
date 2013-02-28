@@ -43,6 +43,8 @@ AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS=""])
 CONFIGURE_ARGS="$ac_configure_args"
 AC_SUBST(CONFIGURE_ARGS)
 
+AC_CONFIG_SUBDIRS([third_party/stout])
+
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([third_party/Makefile])
 
@@ -74,7 +76,7 @@ if test "x$with_zlib" = "xyes"; then
   AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
                [AC_MSG_ERROR([cannot find libz
   -------------------------------------------------------------------
-  This means your webui would run very slowly because we cannot use
+  This means HTTP responses will be slower because we cannot use
   compression; you probably want to download and install zlib, but
   you can get away without it by doing --without-zlib.
   -------------------------------------------------------------------

@@ -21,13 +21,13 @@
 #include <gmock/gmock.h>
 
 #include <stout/foreach.hpp>
+#include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
 #include "linux/fs.hpp"
 
-#include "tests/assert.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;

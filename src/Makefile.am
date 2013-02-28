@@ -29,6 +29,7 @@ PROTOBUF = third_party/protobuf-$(PROTOBUF_VERSION)
 LEVELDB = third_party/leveldb
 ZOOKEEPER = third_party/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 LIBPROCESS = third_party/libprocess
+STOUT = $(LIBPROCESS)/third_party/stout
 BOOST = $(LIBPROCESS)/third_party/boost-$(BOOST_VERSION)
 GLOG = $(LIBPROCESS)/third_party/glog-$(GLOG_VERSION)
 GMOCK = $(LIBPROCESS)/third_party/gmock-$(GMOCK_VERSION)
@@ -84,6 +85,7 @@ MESOS_CPPFLAGS += -DMESOS_WEBUI_DIR=\"$(webuidir)/webui\"
 MESOS_CPPFLAGS += -DMESOS_LIBEXECDIR=\"$(pkglibexecdir)\"
 MESOS_CPPFLAGS += -I$(top_srcdir)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
+MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
 MESOS_CPPFLAGS += -I../include
 MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
@@ -234,7 +236,6 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
 	tests/environment.hpp tests/script.hpp				\
-	tests/assert.hpp                         			\
 	tests/zookeeper_test.hpp tests/flags.hpp tests/utils.hpp	\
 	tests/filter.hpp                                                \
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
@@ -793,7 +794,6 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp tests/filter.cpp  	\
 	              tests/configurator_tests.cpp			\
 	              tests/multihashmap_tests.cpp			\
 	              tests/protobuf_io_tests.cpp			\
-	              tests/stout_tests.cpp				\
 	              tests/zookeeper_url_tests.cpp			\
 	              tests/killtree_tests.cpp				\
 	              tests/exception_tests.cpp				\
