@@ -21,9 +21,9 @@
 
 #include <gtest/gtest.h>
 
-#include "master/master.hpp"
+#include <stout/gtest.hpp>
 
-#include "tests/assert.hpp"
+#include "master/master.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
