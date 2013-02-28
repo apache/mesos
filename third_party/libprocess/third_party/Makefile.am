@@ -6,7 +6,7 @@
 # packages may be special cases; this Makefile is responsible for
 # passing any special make or configure flags that might be required.
 
-BUILT_SOURCES =
+BUILT_SOURCES = # Initialized to enable using +=.
 
 # We need to add '--srcdir=.' needed because 'make distcheck' adds
 #  '--srcdir=...' when configuring.
@@ -22,13 +22,31 @@ GTEST = $(GMOCK)/gtest
 RY_HTTP_PARSER = ry-http-parser-$(RY_HTTP_PARSER_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
 
+EXTRA_DIST =			\
+  $(BOOST).tar.gz		\
+  $(GLOG).tar.gz		\
+  $(GMOCK).tar.gz		\
+  $(GPERFTOOLS).tar.gz		\
+  $(RY_HTTP_PARSER).tar.gz	\
+  $(LIBEV).tar.gz		\
+  libev-3.8.patch
 
-EXTRA_DIST = $(BOOST).tar.gz $(GLOG).tar.gz $(GMOCK).tar.gz		\
-	$(GPERFTOOLS).tar.gz $(RY_HTTP_PARSER).tar.gz $(LIBEV).tar.gz	\
-	libev-3.8.patch
+CLEAN_EXTRACTED =	\
+  $(BOOST)		\
+  $(GLOG)		\
+  $(GMOCK)		\
+  $(GPERFTOOLS)		\
+  $(RY_HTTP_PARSER)	\
+  $(LIBEV)
 
-CLEAN_EXTRACTED = $(BOOST) $(GLOG) $(GMOCK) $(GPERFTOOLS)		\
-	$(RY_HTTP_PARSER) $(LIBEV)
+
+# This is where the magic happens: we use stamp files as dependencies
+# which cause the packages to get extracted as necessary. We also
+# apply any patches as appropriate.
+%-stamp:: %.tar.gz
+	gzip -d -c $^ | tar xf -
+	test ! -e $(srcdir)/$*.patch || patch -d $* -p1 <$(srcdir)/$*.patch
+	touch $@
 
 
 # Convenience library for Ryan Dahl's HTTP parser.
@@ -43,23 +61,19 @@ BUILT_SOURCES += $(nodist_libry_http_parser_la_SOURCES)
 
 # Convenience library for gmock/gtest.
 check_LTLIBRARIES = libgmock.la
-nodist_libgmock_la_SOURCES = $(GTEST)/src/gtest-all.cc \
-                             $(GMOCK)/src/gmock-all.cc
-libgmock_la_CPPFLAGS = -I$(GTEST)/include -I$(GTEST) \
-                       -I$(GMOCK)/include -I$(GMOCK)
+nodist_libgmock_la_SOURCES =		\
+  $(GTEST)/src/gtest-all.cc		\
+  $(GMOCK)/src/gmock-all.cc
+libgmock_la_CPPFLAGS =			\
+  -I$(GTEST)/include -I$(GTEST)		\
+  -I$(GMOCK)/include -I$(GMOCK)
 
 # We list the sources in BUILT_SOURCES to make sure that the package
 # gets unarchived first.
 BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
 
-
-# This is where the magic happens: we use stamp files as dependencies
-# which cause the packages to get extracted as necessary. We also
-# apply any patches as appropriate.
-%-stamp:: %.tar.gz
-	gzip -d -c $^ | tar xf -
-	test ! -e $(srcdir)/$*.patch || patch -d $* -p1 <$(srcdir)/$*.patch
-	touch $@
+$(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
+$(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 
 
 $(BOOST)/boost: $(BOOST)-stamp
@@ -67,8 +81,6 @@ $(BOOST)/boost: $(BOOST)-stamp
 $(GLOG)/libglog.la: $(GLOG)-stamp
 	cd $(GLOG) && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
-
-$(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
 
 if HAS_GPERFTOOLS
 $(GPERFTOOLS)/libprofiler.la: $(GPERFTOOLS)-build-stamp
@@ -79,16 +91,16 @@ $(GPERFTOOLS)-build-stamp: $(GPERFTOOLS)-stamp
 	touch $@
 endif
 
-$(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
-
 $(RY_HTTP_PARSER)/http_parser.c: $(RY_HTTP_PARSER)-stamp
 
 $(LIBEV)/libev.la: $(LIBEV)-stamp
 	cd $(LIBEV) && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 
-THIRD_PARTY_LIBS = $(BOOST)-stamp $(GLOG)/libglog.la	\
-	$(LIBEV)/libev.la
+THIRD_PARTY_LIBS =		\
+  $(BOOST)-stamp		\
+  $(GLOG)/libglog.la		\
+  $(LIBEV)/libev.la
 
 if HAS_GPERFTOOLS
 THIRD_PARTY_LIBS += $(GPERFTOOLS)/libprofiler.la

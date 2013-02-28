@@ -20,18 +20,20 @@
 AUTOMAKE_OPTIONS = subdir-objects
 
 include ../third_party/versions.am
+include ../third_party/libprocess/third_party/versions.am
 
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
-BOOST = third_party/boost-$(BOOST_VERSION)
 DISTRIBUTE = third_party/distribute-$(DISTRIBUTE_VERSION)
 PROTOBUF = third_party/protobuf-$(PROTOBUF_VERSION)
-GLOG = third_party/glog-$(GLOG_VERSION)
-GMOCK = third_party/gmock-$(GMOCK_VERSION)
-GTEST = $(GMOCK)/gtest
 LEVELDB = third_party/leveldb
 ZOOKEEPER = third_party/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 LIBPROCESS = third_party/libprocess
+BOOST = $(LIBPROCESS)/third_party/boost-$(BOOST_VERSION)
+GLOG = $(LIBPROCESS)/third_party/glog-$(GLOG_VERSION)
+GMOCK = $(LIBPROCESS)/third_party/gmock-$(GMOCK_VERSION)
+GTEST = $(GMOCK)/gtest
+
 
 # Unfortunatley, 'pkglibexecdir' and 'pkglocalstatedir' are not set
 # before automake 1.11, so we need to set them manually (until we in
@@ -241,7 +243,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 
 libmesos_no_third_party_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
-libmesos_no_third_party_la_LIBADD = # Initialized to allow += below.
+libmesos_no_third_party_la_LIBADD = # Initialized to enable using +=.
 
 # Convenience library that *always* gets rebuilt to ensure accurate info.
 noinst_LTLIBRARIES += libbuild.la
@@ -806,7 +808,7 @@ mesos_tests_CPPFLAGS += -DBUILD_DIR=\"$(abs_top_builddir)\"
 mesos_tests_CPPFLAGS += -I../$(GTEST)/include
 mesos_tests_CPPFLAGS += -I../$(GMOCK)/include
 
-mesos_tests_LDADD = ../third_party/libgmock.la libmesos.la
+mesos_tests_LDADD = ../$(LIBPROCESS)/third_party/libgmock.la libmesos.la
 
 mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 

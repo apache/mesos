@@ -22,7 +22,7 @@
 # packages may be special cases; this Makefile is responsible for
 # passing any special make or configure flags that might be required.
 
-BUILT_SOURCES =
+BUILT_SOURCES = # Initialized to enable using +=.
 
 SUBDIRS = libprocess
 
@@ -32,45 +32,36 @@ CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 
 include versions.am
 
-BOOST = boost-$(BOOST_VERSION)
 BOTO = boto-$(BOTO_VERSION)
 DISTRIBUTE = distribute-$(DISTRIBUTE_VERSION)
-GLOG = glog-$(GLOG_VERSION)
-GMOCK = gmock-$(GMOCK_VERSION)
-GTEST = $(GMOCK)/gtest
 LEVELDB = leveldb
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 
 
-EXTRA_DIST = $(BOOST).tar.gz $(BOTO).zip $(DISTRIBUTE).tar.gz	\
-	$(GLOG).tar.gz $(GMOCK).tar.gz $(LEVELDB).tar.gz	\
-	$(PROTOBUF).tar.gz $(ZOOKEEPER).tar.gz
+EXTRA_DIST =		\
+  $(BOTO).zip		\
+  $(DISTRIBUTE).tar.gz	\
+  $(LEVELDB).tar.gz	\
+  $(PROTOBUF).tar.gz	\
+  $(ZOOKEEPER).tar.gz
 
-CLEAN_EXTRACTED = $(BOOST) $(BOTO) $(DISTRIBUTE) $(GLOG) $(GMOCK)	\
-	$(LEVELDB) $(PROTOBUF) $(ZOOKEEPER)
-
-
-# Convenience library for gmock/gtest.
-check_LTLIBRARIES = libgmock.la
-nodist_libgmock_la_SOURCES = $(GTEST)/src/gtest-all.cc \
-                             $(GMOCK)/src/gmock-all.cc
-libgmock_la_CPPFLAGS = -I$(GTEST)/include -I$(GTEST) \
-                       -I$(GMOCK)/include -I$(GMOCK)
-
-# We list the gmock/gtest sources in BUILT_SOURCES to make sure that
-# the gmock package gets unarchived first.
-BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
+CLEAN_EXTRACTED =	\
+  $(BOTO)		\
+  $(DISTRIBUTE)		\
+  $(LEVELDB)		\
+  $(PROTOBUF)		\
+  $(ZOOKEEPER)
 
 
 # This is where the magic happens: we use stamp files as dependencies
-# which cause the packages to get extracted as necessary.
+# which cause the packages to get extracted as necessary. We also
+# apply any patches as appropriate.
 %-stamp:: %.tar.gz
 	gzip -d -c $^ | tar xf -
+	test ! -e $(srcdir)/$*.patch || patch -d $* -p1 <$(srcdir)/$*.patch
 	touch $@
 
-
-$(BOOST)/boost: $(BOOST)-stamp
 
 if HAS_PYTHON
 DISTRIBUTE_EGG = \
@@ -80,13 +71,6 @@ $(DISTRIBUTE_EGG): $(DISTRIBUTE)-stamp
 	cd $(DISTRIBUTE) && $(PYTHON) setup.py bdist_egg
 endif
 
-$(GLOG)/libglog.la: $(GLOG)-stamp
-	cd $(GLOG) && ./configure $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS)
-
-$(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
-
-$(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 
 # TODO(charles): Figure out PIC options in our configure.ac or create
 # a configure.ac for leveldb.
@@ -105,9 +89,10 @@ $(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
 	cd $(ZOOKEEPER)/src/c && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 
-THIRD_PARTY_LIBS = $(BOOST)-stamp $(GLOG)/libglog.la		\
-	$(LEVELDB)/libleveldb.a $(PROTOBUF)/src/libprotobuf.la	\
-	$(PROTOBUF)/src/protoc
+THIRD_PARTY_LIBS =			\
+  $(LEVELDB)/libleveldb.a		\
+  $(PROTOBUF)/src/libprotobuf.la	\
+  $(PROTOBUF)/src/protoc
 
 if HAS_PYTHON
   THIRD_PARTY_LIBS += $(DISTRIBUTE_EGG)
