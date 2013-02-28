@@ -16,10 +16,10 @@
 
 #include <process/latch.hpp>
 #include <process/pid.hpp>
-#include <process/preprocessor.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/option.hpp>
+#include <stout/preprocessor.hpp>
 
 namespace process {
 

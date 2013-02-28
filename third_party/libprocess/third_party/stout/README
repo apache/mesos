@@ -9,6 +9,7 @@ following third party libraries:
 
   - Boost
   - Google's glog (this dependency will be removed in the future).
+  - Google's protobuf.
   - Google's gmock/gtest.
 
 

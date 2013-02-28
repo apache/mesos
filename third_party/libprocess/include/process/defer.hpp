@@ -6,7 +6,8 @@
 #include <process/deferred.hpp>
 #include <process/dispatch.hpp>
 #include <process/executor.hpp>
-#include <process/preprocessor.hpp>
+
+#include <stout/preprocessor.hpp>
 
 namespace process {
 

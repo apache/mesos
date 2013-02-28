@@ -4,8 +4,9 @@
 #include <process/deferred.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
-#include <process/preprocessor.hpp>
 #include <process/thread.hpp>
+
+#include <stout/preprocessor.hpp>
 
 namespace process {
 

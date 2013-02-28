@@ -5,7 +5,8 @@
 
 #include <process/future.hpp>
 #include <process/pid.hpp>
-#include <process/preprocessor.hpp>
+
+#include <stout/preprocessor.hpp>
 
 namespace process {
 

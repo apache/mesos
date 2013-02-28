@@ -79,7 +79,6 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/mime.hpp			\
   $(top_srcdir)/include/process/once.hpp			\
   $(top_srcdir)/include/process/pid.hpp				\
-  $(top_srcdir)/include/process/preprocessor.hpp		\
   $(top_srcdir)/include/process/process.hpp			\
   $(top_srcdir)/include/process/profiler.hpp			\
   $(top_srcdir)/include/process/protobuf.hpp			\
