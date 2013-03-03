@@ -5,7 +5,7 @@ You can build the ported version of Hadoop using `make hadoop`. It gets placed i
 To run Hadoop on Mesos, follow these steps:
 <ol>
 <li> Run `make hadoop` to build Hadoop 0.20.205.0 with Mesos support, or `TUTORIAL.sh` to patch and build your own Hadoop version.</li>
-<li> Set up [[Hadoop's configuration|http://www.michael-noll.com/tutorials/running-hadoop-on-ubuntu-linux-single-node-cluster/]] as you would usually do with a new install of Hadoop, following the [[instructions on the Hadoop website|http://hadoop.apache.org/common/docs/r0.20.2/index.html]] (at the very least, you need to set <code>JAVA_HOME</code> in Hadoop's <code>conf/hadoop-env.sh</code> and set <code>mapred.job.tracker</code> in <code>conf/mapred-site.xml</code>).</li>
+<li> Set up [Hadoop's configuration](http://www.michael-noll.com/tutorials/running-hadoop-on-ubuntu-linux-single-node-cluster) as you would usually do with a new install of Hadoop, following the [instructions on the Hadoop website](http://hadoop.apache.org/common/docs/r0.20.2/index.html) (at the very least, you need to set <code>JAVA_HOME</code> in Hadoop's <code>conf/hadoop-env.sh</code> and set <code>mapred.job.tracker</code> in <code>conf/mapred-site.xml</code>).</li>
 </li>
 <li> Add the following parameters to Hadoop's <code>conf/mapred-site.xml</code>:
 <pre>

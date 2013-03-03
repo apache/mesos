@@ -5,7 +5,7 @@ The ported version of Hadoop is included in the Mesos project under `frameworks/
 To run Hadoop on Mesos, follow these steps:
 <ol>
 <li> Build Hadoop using <code>ant</code>.</li>
-<li> Set up [[Hadoop's configuration|http://www.michael-noll.com/tutorials/running-hadoop-on-ubuntu-linux-single-node-cluster/]] as you would usually do with a new install of Hadoop, following the [[instructions on the Hadoop website|http://hadoop.apache.org/common/docs/r0.20.2/index.html]] (at the very least, you need to set <code>JAVA_HOME</code> in Hadoop's <code>conf/hadoop-env.sh</code> and set <code>mapred.job.tracker</code> in <code>conf/mapred-site.xml</code>).</li>
+<li> Set up [Hadoop's configuration](http://www.michael-noll.com/tutorials/running-hadoop-on-ubuntu-linux-single-node-cluster) as you would usually do with a new install of Hadoop, following the [instructions on the Hadoop website](http://hadoop.apache.org/common/docs/r0.20.2/index.html) (at the very least, you need to set <code>JAVA_HOME</code> in Hadoop's <code>conf/hadoop-env.sh</code> and set <code>mapred.job.tracker</code> in <code>conf/mapred-site.xml</code>).</li>
 </li>
 <li> Add the following parameters to Hadoop's <code>conf/mapred-site.xml</code>:
 <pre>

@@ -17,7 +17,7 @@ The following options are commonly configured for both the master and slave:
 
 |_. Parameter         |_. Description|
 |@webui_port@     | Port to bind to for user-viewable web UI. |
-|@log_dir@             | Directory to place logs into, including [[event history]] logs. It is recommended to use a local disk for each node. |
+|@log_dir@             | Directory to place logs into, including "event history":Event-history.md logs. It is recommended to use a local disk for each node. |
 |@quiet@                | Disable logging to standard error. |
 |@conf@                | Specifies a config directory to use instead of the default one. |
 
@@ -27,13 +27,13 @@ The following options are commonly configured for the slave:
 |@master@                     | Master URL to connect to. |
 |@resources@                 | A semicolon separated set of _key:value_ pairs, e.g. <code>cpus:1;mem:1024</code> |
 |@work_dir@         | Directory for slaves to place framework's output files in. It is recommended to use a local disk for each slave. |
-|@isolation@            | Isolation module to use for isolating tasks. The default is @process@, which performs no isolation other than running each framework as its user, but @lxc@ can be used on systems that support Linux Containers. See [[using Linux containers]] for details. |
+|@isolation@            | Isolation module to use for isolating tasks. The default is @process@, which performs no isolation other than running each framework as its user, but @lxc@ can be used on systems that support Linux Containers. See "using Linux containers":Using-Linux-Containers.textile for details. |
 |@hadoop_home@ | Location of Hadoop, if you wish to use the Hadoop Distributed File System for distributing framework binaries across the cluster. |
 
 The following options are commonly configured for the master:
 
 |_. Parameter         |_. Description|
-|@url@                     | A ZooKeeper URL can be specified when [[using ZooKeeper]]. |
+|@url@                     | A ZooKeeper URL can be specified when "using ZooKeeper":Using-ZooKeeper.textile. |
 |@port@                 | Port to bind to for communication between master and slaves. |
-|@allocator@           | Which pluggable [[allocation module]] to use. Currently there is only one, @simple@, that performs fair sharing between frameworks. |
+|@allocator@           | Which pluggable "allocation module":Allocation-module.textile to use. Currently there is only one, @simple@, that performs fair sharing between frameworks. |
 |@ip@                      | Which IP address to bind to (to make the master bind to a desired network interface if it does not do so by default). |

@@ -9,7 +9,7 @@
 
 # Details
 
-This 90-day plan aims to bolster the Mesos community. It addresses "Growing a development community and promoting adoption" in the [[Mesos Roadmap]].
+This 90-day plan aims to bolster the Mesos community. It addresses "Growing a development community and promoting adoption" in the [Mesos Roadmap](Mesos-Roadmap.md).
 
 Start: March 1st, 2013. End: May 30, 2013.
 

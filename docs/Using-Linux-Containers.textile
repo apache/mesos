@@ -4,7 +4,7 @@ Mesos can use Linux Containers to isolate frameworks running on Linux nodes, ens
 * Install the Linux container userspace tools (e.g., on Ubuntu, @apt-get install lxc@) and ensure that you are running a version of the kernel with containers enabled using @lxc-checkconfig@. In particular, for memory isolation, this should report that the memory subsystem is enabled.
 * Mount the Linux container virtual filesystem, for example by creating the directory @/cgroup@ and using @mount -t cgroup cgroup /cgroup@. ("This guide":http://lxc.teegra.net/ is a good tutorial on Linux containers).
 * Make sure that you are running @mesos-slave@ as root so that it can use the container tools.
-* Pass the argument @--isolation=lxc@ to @mesos-slave@ (or set @isolation@ to @lxc@ in the [[config file|Configuration]]).
+* Pass the argument @--isolation=lxc@ to @mesos-slave@.
 
 The Linux container isolation module will perform some sanity checks upon launching to make sure that it can use containers, and will then attempt to use them for frameworks. The containers will be named @mesos.slave-X.framework-Y@, where X and Y are the slave and framework IDs.
 

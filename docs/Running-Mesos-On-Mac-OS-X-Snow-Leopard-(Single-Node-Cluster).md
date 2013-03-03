@@ -298,5 +298,5 @@ drwxr-xr-x   - billz supergroup          0 2011-07-19 15:35 /user/billz/output
 * mesos-dev@incubator.apache.org
 
 ## Want to contribute?
-* Check out the [[Mesos Developers Guide]]
+* Check out the [Mesos Developers Guide](Mesos-developers-guide.md)
 * [Submit a Bug](https://issues.apache.org/jira/browse/MESOS)

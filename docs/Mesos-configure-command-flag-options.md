@@ -6,4 +6,4 @@ The configure script itself accepts the following arguments to enable various op
 * `--with-webui`: Enable the Mesos web UI (which requires Python 2.6). Recommended.
 * `--with-java-home=DIR`: Enable Java application/framework support with a given installation of Java. Required for Hadoop and Spark.
 * `--with-java-headers=DIR`: Find Java header files (necessary for newer versions of OS X Snow Leopard).
-* `--with-included-zookeeper` or `--with-zookeeper=DIR`: Enable master fault-tolerance using an existing ZooKeeper installation or the version of ZooKeeper bundled with Mesos. For details, see [[using ZooKeeper]].
+* `--with-included-zookeeper` or `--with-zookeeper=DIR`: Enable master fault-tolerance using an existing ZooKeeper installation or the version of ZooKeeper bundled with Mesos. For details, see [using ZooKeeper](Using-ZooKeeper.textile).

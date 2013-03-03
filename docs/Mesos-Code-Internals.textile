@@ -2,8 +2,8 @@ h1. Mesos Code Internals
 
 h2. Top-level directories in the Mesos distribution
 
-* ec2 - scripts for launching a Mesos cluster on EC2. See the wiki page on [[EC2-Scripts]]
-* frameworks - Included Mesos Frameworks. See the READMEs in each one. See the [[App/Framework development guide]] for a crash course in how Mesos Frameworks get resources from the Mesos master.
+* ec2 - scripts for launching a Mesos cluster on EC2. See the wiki page on "EC2-Scripts":EC2-Scripts.textile
+* frameworks - Included Mesos Frameworks. See the READMEs in each one. See the "App/Framework development guide":App-Framework-development-guide.textile for a crash course in how Mesos Frameworks get resources from the Mesos master.
 * include - Contains headers that contain the interfaces that Mesos users need in order to interact with Mesos (e.g. the Mesos Framework API)
 * src - Contains the entire Mesos source tree. See below for more details about the directories inside of @src@.
 * third_party - Contains necessary open source third party software that Mesos leverages for things such as logging, etc.

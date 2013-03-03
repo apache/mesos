@@ -45,7 +45,7 @@ To get running with Mesos version 0.9.0-incubating, our most recently release:
 1. [Download Mesos 0.9.0-incubating](http://www.apache.org/dyn/closer.cgi/incubator/mesos/mesos-0.9.0-incubating/)
 1. Run configure (there are a few different helper scripts that wrap the `configure` script called configure.<type-of-os>)
     1. In OS X: run `./configure.macosx`. If you're running Mountain Lion, you may need to follow the instructions [here](https://issues.apache.org/jira/browse/MESOS-261?focusedCommentId=13447058&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-13447058) and [here](https://issues.apache.org/jira/browse/MESOS-285).
-    1. In Linux, you can probably just run `./configure --with-webui --with-included-zookeeper`. These flags are what we recommend; advanced users may want to exclude these flags or use others, see [[Mesos Configure Command Flag Options]].
+    1. In Linux, you can probably just run `./configure --with-webui --with-included-zookeeper`. These flags are what we recommend; advanced users may want to exclude these flags or use others, see [Mesos Command-Line Flags](Configuration.textile).
 1. run `make`
 
 ### NOTES:
@@ -82,29 +82,28 @@ After you have done this, you can also set up a small Mesos cluster and run a jo
 
 To run Mesos on more than one machine, you have multiple options:
 
-* To launch a cluster on a private cluster that you own, use Mesos's [[deploy scripts]]
-* To launch a cluster on Amazon EC2, you can use the Mesos [[EC2 scripts]]
+* To launch a cluster on a private cluster that you own, use Mesos's [deploy scripts](Deploy-Scripts.textile)
+* To launch a cluster on Amazon EC2, you can use the Mesos [EC2 scripts](EC2-Scripts.textile)
 
 # Where to Go From Here
 
-* [[Mesos architecture]] -- an overview of Mesos concepts.
-* [[Mesos Developers guide]] -- resources for developers contributing to Mesos. Style guides, tips for working with SVN/git, and more!
-* [[App/Framework development guide]] -- learn how to build applications on top of Mesos.
-* [[Configuring Mesos|Configuration]] -- a guide to the various settings that can be passed to Mesos daemons.
+* [Mesos Architecture](Mesos-Architecture.md) -- an overview of Mesos concepts.
+* [Mesos Developers Guide](Mesos-developers-guide.md) -- resources for developers contributing to Mesos. Style guides, tips for working with SVN/git, and more!
+* [App/Framework Development Guide](App-Framework-development-guide.textile) -- learn how to build applications on top of Mesos.
+* [Mesos Command-Line Flags](Configuration.textile) -- a guide to the various flags that can be set.
 * Mesos system feature guides:
-    * [[Deploy scripts]] for launching a Mesos cluster on a set of machines.
-    * [[EC2 scripts]] for launching a Mesos cluster on Amazon EC2.
-    * [[Logging and Debugging]] -- viewing Mesos and framework logs.
-    * [[Using ZooKeeper]] for master fault-tolerance.
-    * [[Using Linux Containers]] for resource isolation on slaves.
+    * [Deploy Scripts](Deploy-Scripts.textile) for launching a Mesos cluster on a set of machines.
+    * [EC2 scripts](EC2-Scripts.textile) for launching a Mesos cluster on Amazon EC2.
+    * [Logging and Debugging](Logging-and-Debugging.textile) -- viewing Mesos and framework logs.
+    * [Using ZooKeeper](Using-ZooKeeper.textile) for master fault-tolerance.
+    * [Using Linux Containers](Using-Linux-Containers.textile) for resouce isolation on slaves.
 * Guide to running existing frameworks:
-    * [[Running Spark on Mesos|https://github.com/mesos/spark/wiki]]
-    * [[Using the Mesos Submit tool]]
-    * [[Using Mesos with Hypertable on EC2|http://code.google.com/p/hypertable/wiki/Mesos]] (external link) - Hypertable is a distributed database platform.
-    * [[Running Hadoop on Mesos]]
-    * [[Running a web application farm on Mesos]]
-    * [[Running Torque or MPI on Mesos]]
-* [[Powered-by|Powered-by Mesos]] -- Projects that are using Mesos!
-* [[Mesos code internals overview|Mesos Code Internals]] -- an overview of the codebase and internal organization.
-* [[Mesos development roadmap|Mesos Roadmap]]
-* [[The official Mesos website|http://mesosproject.org]]
+    * [Running Spark on Mesos](https://github.com/mesos/spark/wiki)
+    * [Using the Mesos Submit tool](Using-the-mesos-submit-tool.md)
+    * [Using Mesos with Hypertable on EC2](http://code.google.com/p/hypertable/wiki/Mesos) - Hypertable is a distributed database platform.
+    * [Running Hadoop on Mesos](Running-Hadoop-on-Mesos.md)
+    * [Running a web application farm on Mesos](Running-a-web-application-farm-on-mesos.textile)
+    * [Running Torque or MPI on Mesos](Running-torque-or-mpi-on-mesos.md)
+* [Powered-by Mesos](Powered-by-Mesos.md) -- Projects that are using Mesos!
+* [Mesos Code Internals](Mesos-Code-Internals.textile) -- an overview of the codebase and internal organization.
+* [Mesos Development Roadmap](Mesos-Roadmap.md)

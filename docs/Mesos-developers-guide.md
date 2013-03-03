@@ -1,7 +1,7 @@
 **This page is up to date as of 2011, Nov 23**
 
 ## How to contribute code
-1. Check out the code from the Apache repository either via Git or SVN, get it to build on your machine (instructions on at the wiki [[Home]], we don't currently support building on Windows)
+1. Check out the code from the Apache repository either via Git or SVN, get it to build on your machine (instructions on at the wiki [Home](Home.md), we don't currently support building on Windows)
     2. If you encounter a bug while building, report it (see below for instructions)
     2. Right now, all active development happens against "trunk" (we aren't yet, as of 2011/11/23, using SVN branches or tags).
 
@@ -19,7 +19,7 @@
 1. Create one or more test cases to exercise the bug or the feature (the Mesos team uses [test-driven development](http://en.wikipedia.org/wiki/Test-driven_development)), before you start coding, make sure these test cases all fail.
 
 1. Make your changes to the code (using whatever IDE/editor you choose) to actually fix the bug or implement the feature.
-    2. Before beginning, please read the [[Mesos C++ Style Guide]]
+    2. Before beginning, please read the [Mesos C++ Style Guide](Mesos-c++-style-guide.md)
     2. Most of your changes will probably be to files inside of &lt;BASE_MESOS_DIR&gt;/src
     2. To build, we recommend that you don't build inside of the src directory. We recommend you do the following:
         3. From inside of the root Mesos directory: `mkdir build && cd build`
@@ -66,5 +66,4 @@
 * A code review request should be created for every JIRA that involves a change to the codebase
 
 ## Style Guides
-* [[Mesos C++ Style Guide]]
-* [[Mesos Python Style Guide]]
+* [Mesos C++ Style Guide](Mesos-c++-style-guide.md)

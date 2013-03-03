@@ -5,7 +5,7 @@ The Mesos development roadmap can roughly be separated into 3 main areas:
 1. Mesos Application development
 
 ## 1. Growing a development community and promoting adoption
-1. Migrate into Apache Incubator (see the [[incubator proposal|http://wiki.apache.org/incubator/MesosProposal]])
+1. Migrate into Apache Incubator (see the [incubator proposal](http://wiki.apache.org/incubator/MesosProposal))
     1. Migrate issues from github issues into JIRA
 1. Documentation management and organization
 
@@ -18,7 +18,7 @@ The Mesos development roadmap can roughly be separated into 3 main areas:
 1. Migrate to ProtocolBuffers as the serialization format (under development at Twitter)
 1. User authentication
 1. Mesos application debugging support
-    1. More advanced User Interface and [[Event History]] (i.e. logging) - See [[issue #143|https://github.com/mesos/mesos/issuesearch?state=open&q=event#issue/143]] for more details.
+    1. More advanced User Interface and [Event History](Event-history.md) (i.e. logging) - See [issue #143](https://github.com/mesos/mesos/issuesearch?state=open&q=event#issue/143) for more details.
 1. Testing infrastructure, and more tests!
 
 ## 3. Mesos applications
@@ -27,7 +27,7 @@ This category of future work is probably the most important! Technically speakin
 
 ### 3.1 Applications providing cluster OS functionality (e.g. storage, synchronization, naming...)
 
-The core of Mesos has been designed using the same philosophy behind traditional [[Microkernel operating systems|http://en.wikipedia.org/wiki/Microkernel]]. This means that the core of Mesos (the kernel, if you will) provides a minimal set of low-level abstractions for cluster resources (see [[Mesos Architecture]] for an introduction to the resource offer abstraction). This, in turn means that higher level abstractions (analogous to the filesystem, memory sharing, etc. in traditional operating systems, as well as some abstractions that have no analog in traditional single node operating systems such as DNS).
+The core of Mesos has been designed using the same philosophy behind traditional [Microkernel operating systems](http://en.wikipedia.org/wiki/Microkernel). This means that the core of Mesos (the kernel, if you will) provides a minimal set of low-level abstractions for cluster resources (see [Mesos Architecture](Mesos-Architecture.md) for an introduction to the resource offer abstraction). This, in turn means that higher level abstractions (analogous to the filesystem, memory sharing, etc. in traditional operating systems, as well as some abstractions that have no analog in traditional single node operating systems such as DNS).
 
 those which are primarily intended to be used by other applications (as opposed to being used by human users). They can be seen as operating system modules that implement functionality in the form of services.
 
