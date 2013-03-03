@@ -1,0 +1,39 @@
+The Mesos master and slave can take a variety of configuration options through command-line arguments, environment variables, or a config file. A list of the available options can be seen by running @mesos-master --help@ or @mesos-slave --help@. Each option can be set in three ways:
+* By passing it to the binary using @--option_name=value@.
+* By setting the environment variable @MESOS_OPTION_NAME@ (the option name with a @MESOS_@ prefix added to it).
+* By adding a line in the @mesos.conf@ file located in @MESOS_HOME/conf@, where @MESOS_HOME@ is the directory in which Mesos is located.
+
+Configuration values are searched for first on the command line, then in the environment, and then in the config file.
+
+In addition, it is possible to tell the binaries to use a different configuration directory from the default, in order to run multiple Mesos configurations from the same install directories. This is done by passing the @--conf=DIR@ option to the binary. The directory passed should contain a file called @mesos.conf@. A config directory is used instead of passing a file directly because, in the future, there may be multiple config files in the same directory (e.g. a separate one for the allocation module).
+
+h1. Common Options
+
+The following list may not match the version of mesos you are running, as the configuration flags evolve from time to time in the code. 
+
+<div style="font-size:1.5em"><b>The definitive source for which flags your version of Mesos supports can be found by running the binary with the flag <code>--help</code>, for example <code>bin/mesos-master --help</code>.</b></div>
+
+The following options are commonly configured for both the master and slave:
+
+|_. Parameter         |_. Description|
+|@webui_port@     | Port to bind to for user-viewable web UI. |
+|@log_dir@             | Directory to place logs into, including [[event history]] logs. It is recommended to use a local disk for each node. |
+|@quiet@                | Disable logging to standard error. |
+|@conf@                | Specifies a config directory to use instead of the default one. |
+
+The following options are commonly configured for the slave:
+
+|_. Parameter         |_. Description|
+|@master@                     | Master URL to connect to. |
+|@resources@                 | A semicolon separated set of _key:value_ pairs, e.g. <code>cpus:1;mem:1024</code> |
+|@work_dir@         | Directory for slaves to place framework's output files in. It is recommended to use a local disk for each slave. |
+|@isolation@            | Isolation module to use for isolating tasks. The default is @process@, which performs no isolation other than running each framework as its user, but @lxc@ can be used on systems that support Linux Containers. See [[using Linux containers]] for details. |
+|@hadoop_home@ | Location of Hadoop, if you wish to use the Hadoop Distributed File System for distributing framework binaries across the cluster. |
+
+The following options are commonly configured for the master:
+
+|_. Parameter         |_. Description|
+|@url@                     | A ZooKeeper URL can be specified when [[using ZooKeeper]]. |
+|@port@                 | Port to bind to for communication between master and slaves. |
+|@allocator@           | Which pluggable [[allocation module]] to use. Currently there is only one, @simple@, that performs fair sharing between frameworks. |
+|@ip@                      | Which IP address to bind to (to make the master bind to a desired network interface if it does not do so by default). |

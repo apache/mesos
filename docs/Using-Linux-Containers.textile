@@ -1,0 +1,19 @@
+"Linux Containers":http://lxc.sourceforge.net/ are a new feature of the Linux kernel (available since version 2.6.29) that enable resource and access isolation between process groups. One can launch a process in a container and control the CPU, memory, network, etc usage of the process and all its descendants, as well as limit the container's access to the file system or even give it a separate file system similar to @chroot@. Containers thus act as lightweight virtual machines (without the overhead of running a separate kernel for each container), similar to Solaris Zones.
+
+Mesos can use Linux Containers to isolate frameworks running on Linux nodes, ensuring that applications cannot use more CPU time, memory, etc than requested. You can use this feature through the following steps:
+* Install the Linux container userspace tools (e.g., on Ubuntu, @apt-get install lxc@) and ensure that you are running a version of the kernel with containers enabled using @lxc-checkconfig@. In particular, for memory isolation, this should report that the memory subsystem is enabled.
+* Mount the Linux container virtual filesystem, for example by creating the directory @/cgroup@ and using @mount -t cgroup cgroup /cgroup@. ("This guide":http://lxc.teegra.net/ is a good tutorial on Linux containers).
+* Make sure that you are running @mesos-slave@ as root so that it can use the container tools.
+* Pass the argument @--isolation=lxc@ to @mesos-slave@ (or set @isolation@ to @lxc@ in the [[config file|Configuration]]).
+
+The Linux container isolation module will perform some sanity checks upon launching to make sure that it can use containers, and will then attempt to use them for frameworks. The containers will be named @mesos.slave-X.framework-Y@, where X and Y are the slave and framework IDs.
+
+The current implementation enforces CPU and memory share limits on containers. CPUs are shared in a weighted manner between frameworks (so that if some frameworks aren't using their shares, their CPUs can do useful work for other frameworks). Memory is controlled by placing a limit on the RSS of each framework. Note that when a framework's memory share goes down (e.g. because tasks finish), the isolation module also tries to scale down its RSS by swapping out memory. If this is unsuccessful, the framework's executor is killed.
+
+h1. Unit Tests
+
+There are unit tests for the Linux Container isolation module. They are executed by default on any Linux-based operating system. You must be running @make check@ as root (since they actually invoke container commands!) or they'll fail. It is probably most convenient to run these tests in a VM.
+
+h1. Limitations and Roadmap
+
+The current Linux container isolation support in Mesos is limited to only CPU and memory, and is rather aggressive about scaling down frameworks' memory size when they finish tasks. In the future, we plan to extend the support to cover other resources that can be isolated by containers (e.g. network and disk I/O bandwidth), and to make memory management more lenient (so that a framework can temporarily stay over its share if there is enough free memory in the system, and has more time to "scale down").
