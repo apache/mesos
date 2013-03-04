@@ -56,7 +56,6 @@ class TestScheduler(mesos.Scheduler):
         task.slave_id.value = offer.slave_id.value
         task.name = "task %d" % tid
         task.executor.MergeFrom(self.executor)
-        task.executor.source = "task_%d" % tid
 
         cpus = task.resources.add()
         cpus.name = "cpus"
@@ -124,6 +123,7 @@ if __name__ == "__main__":
   executor.executor_id.value = "default"
   executor.command.value = os.path.abspath("./test-executor")
   executor.name = "Test Executor (Python)"
+  executor.source = "python_test"
 
   framework = mesos_pb2.FrameworkInfo()
   framework.user = "" # Have Mesos fill in the current user.

@@ -242,9 +242,16 @@ inline bool operator == (const CommandInfo& left, const CommandInfo& right)
 inline bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
 {
   return left.executor_id() == right.executor_id() &&
+    left.has_framework_id() == right.has_framework_id() &&
+    (!left.has_framework_id() ||
+    (left.framework_id() == right.framework_id())) &&
     left.command() == right.command() &&
     internal::Resources(left.resources()) ==
     internal::Resources(right.resources()) &&
+    left.has_name() == right.has_name() &&
+    (!left.has_name() || (left.name() == right.name())) &&
+    left.has_source() == right.has_source() &&
+    (!left.has_source() || (left.source() == right.source())) &&
     left.has_data() == right.has_data() &&
     (!left.has_data() || (left.data() == right.data()));
 }

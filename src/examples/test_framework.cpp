@@ -103,7 +103,6 @@ public:
         task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
         task.mutable_executor()->MergeFrom(executor);
-        task.mutable_executor()->set_source("task_" + stringify(taskId));
 
         Resource* resource;
 
@@ -183,6 +182,7 @@ int main(int argc, char** argv)
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_command()->set_value(uri);
   executor.set_name("Test Executor (C++)");
+  executor.set_source("cpp_test");
 
   TestScheduler scheduler(executor);
 

@@ -75,8 +75,7 @@ public class TestFramework {
                           .setName("mem")
                           .setType(Value.Type.SCALAR)
                           .setScalar(Value.Scalar.newBuilder().setValue(128)))
-            .setExecutor(ExecutorInfo.newBuilder(executor)
-                         .setSource("task_" + taskId.getValue()))
+            .setExecutor(ExecutorInfo.newBuilder(executor))
             .build();
           tasks.add(task);
         }
@@ -143,6 +142,7 @@ public class TestFramework {
       .setExecutorId(ExecutorID.newBuilder().setValue("default"))
       .setCommand(CommandInfo.newBuilder().setValue(uri))
       .setName("Test Executor (Java)")
+      .setSource("java_test")
       .build();
 
     FrameworkInfo framework = FrameworkInfo.newBuilder()
