@@ -357,6 +357,7 @@ void Slave::finalize()
   }
 
   // Stop the isolation module.
+  // TODO(vinod): Wait until all the executors have terminated.
   terminate(isolationModule);
   wait(isolationModule);
 }
@@ -829,7 +830,9 @@ void Slave::registerExecutor(
     // RunTaskMessages.
     dispatch(isolationModule,
              &IsolationModule::resourcesChanged,
-             framework->id, executor->id, executor->resources);
+             framework->id,
+             executor->id,
+             executor->resources);
 
     // Tell executor it's registered and give it any queued tasks.
     ExecutorRegisteredMessage message;
@@ -1164,6 +1167,14 @@ void Slave::executorTerminated(
     .onAny(defer(self(), &Self::detachFile, params::_1, executor->directory));
 
   framework->destroyExecutor(executor->id);
+
+  // Cleanup if this framework has no executors running.
+  if (framework->executors.size() == 0) {
+    frameworks.erase(framework->id);
+
+    // Pass ownership of the framework pointer.
+    completedFrameworks.push_back(std::tr1::shared_ptr<Framework>(framework));
+  }
 }
 
 
@@ -1197,7 +1208,9 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
   delay(flags.executor_shutdown_grace_period,
         self(),
         &Slave::shutdownExecutorTimeout,
-        framework->id, executor->id, executor->uuid);
+        framework->id,
+        executor->id,
+        executor->uuid);
 }
 
 
@@ -1221,20 +1234,6 @@ void Slave::shutdownExecutorTimeout(
              &IsolationModule::killExecutor,
              framework->id,
              executor->id);
-
-    // Schedule the executor directory to get garbage collected.
-    gc.schedule(flags.gc_delay, executor->directory)
-      .onAny(defer(self(), &Self::detachFile, params::_1, executor->directory));;
-
-    framework->destroyExecutor(executor->id);
-  }
-
-  // Cleanup if this framework has no executors running.
-  if (framework->executors.size() == 0) {
-    frameworks.erase(framework->id);
-
-    // Pass ownership of the framework pointer.
-    completedFrameworks.push_back(std::tr1::shared_ptr<Framework>(framework));
   }
 }
 

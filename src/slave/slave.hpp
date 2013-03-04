@@ -218,6 +218,8 @@ private:
   Attributes attributes;
 
   hashmap<FrameworkID, Framework*> frameworks;
+
+  // TODO(bmahler): Use the Owned abstraction.
   boost::circular_buffer<std::tr1::shared_ptr<Framework> > completedFrameworks;
 
   IsolationModule* isolationModule;

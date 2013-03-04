@@ -38,6 +38,7 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
+#include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -177,7 +178,8 @@ std::ostream& operator << (std::ostream& out, const Cpuset& cpuset)
 
 CgroupsIsolationModule::CgroupsIsolationModule()
   : ProcessBase(ID::generate("cgroups-isolation-module")),
-    initialized(false)
+    initialized(false),
+    lockFile(None())
 {
   // Spawn the reaper, note that it might send us a message before we
   // actually get spawned ourselves, but that's okay, the message will
@@ -302,23 +304,27 @@ void CgroupsIsolationModule::initialize(
 
   // Try and put an _advisory_ file lock on the tasks' file of our
   // root cgroup to check and see if another slave is already running.
-  Try<int> fd = os::open(path::join(hierarchy, "mesos", "tasks"), O_RDONLY);
-  CHECK_SOME(fd);
-  Try<Nothing> cloexec = os::cloexec(fd.get());
+  Try<int> open = os::open(path::join(hierarchy, "mesos", "tasks"), O_RDONLY);
+  CHECK_SOME(open);
+
+  lockFile = open.get();
+  Try<Nothing> cloexec = os::cloexec(lockFile.get());
   CHECK_SOME(cloexec);
-  if (flock(fd.get(), LOCK_EX | LOCK_NB) != 0) {
+  if (flock(lockFile.get(), LOCK_EX | LOCK_NB) != 0) {
     EXIT(1) << "Another mesos-slave appears to be running!";
   }
 
   // Cleanup any orphaned cgroups created in previous executions (this
   // should be safe because we've been able to acquire the file lock).
+  // TODO(vinod): Wait for all the orphaned cgroups to be destroyed
+  // before moving on with the rest of the initialization.
   Try<vector<string> > cgroups = cgroups::get(hierarchy, "mesos");
   CHECK_SOME(cgroups) << "Failed to get nested cgroups of 'mesos'";
   foreach (const string& cgroup, cgroups.get()) {
     LOG(INFO) << "Removing orphaned cgroup '" << cgroup << "'";
     cgroups::destroy(hierarchy, cgroup)
       .onAny(defer(PID<CgroupsIsolationModule>(this),
-                   &CgroupsIsolationModule::destroyWaited,
+                   &CgroupsIsolationModule::_destroy,
                    cgroup,
                    lambda::_1));
   }
@@ -420,6 +426,17 @@ void CgroupsIsolationModule::initialize(
   }
 
   initialized = true;
+}
+
+
+void CgroupsIsolationModule::finalize()
+{
+  // Unlock the advisory file.
+  CHECK_SOME(lockFile) << "Uninitialized file descriptor!";
+  if (flock(lockFile.get(), LOCK_UN) != 0) {
+    PLOG(FATAL)
+      << "Failed to unlock '" << path::join(hierarchy, "mesos", "tasks");
+  }
 }
 
 
@@ -539,19 +556,17 @@ void CgroupsIsolationModule::killExecutor(
     info->oomNotifier.discard();
   }
 
+  info->killed = true;
+
   // Destroy the cgroup that is associated with the executor. Here, we don't
   // wait for it to succeed as we don't want to block the isolation module.
   // Instead, we register a callback which will be invoked when its result is
   // ready.
   cgroups::destroy(hierarchy, info->name())
     .onAny(defer(PID<CgroupsIsolationModule>(this),
-                 &CgroupsIsolationModule::destroyWaited,
-                 info->name(),
+                 &CgroupsIsolationModule::_killExecutor,
+                 info,
                  lambda::_1));
-
-  // We do not unregister the cgroup info here, instead, we ask the process
-  // exit handler to unregister the cgroup info.
-  info->killed = true;
 }
 
 
@@ -630,25 +645,16 @@ void CgroupsIsolationModule::processExited(pid_t pid, int status)
     FrameworkID frameworkId = info->frameworkId;
     ExecutorID executorId = info->executorId;
 
-    LOG(INFO) << "Telling slave of terminated executor " << executorId
-              << " of framework " << frameworkId;
+    LOG(INFO) << "Executor " << executorId
+              << " of framework " << frameworkId
+              << " terminated with status " << status;
 
-    // TODO(vinod): Consider sending this message when the cgroup is
-    // completely destroyed (i.e., inside destroyWaited()).
-    // The tricky bit is to get the exit 'status' of the executor process.
-    dispatch(slave,
-             &Slave::executorTerminated,
-             info->frameworkId,
-             info->executorId,
-             status,
-             info->destroyed,
-             info->reason);
+    // Set the exit status, so that '_killExecutor()' can send it to the slave.
+    info->status = status;
 
     if (!info->killed) {
       killExecutor(frameworkId, executorId);
     }
-
-    unregisterCgroupInfo(frameworkId, executorId);
   }
 }
 
@@ -895,14 +901,54 @@ void CgroupsIsolationModule::oom(
 }
 
 
-void CgroupsIsolationModule::destroyWaited(
+void CgroupsIsolationModule::_destroy(
     const string& cgroup,
     const Future<bool>& future)
 {
+  CHECK(initialized) << "Cannot destroy cgroups before initialization";
+
   if (future.isReady()) {
-    LOG(INFO) << "Successfully destroyed the cgroup " << cgroup;
+    LOG(INFO) << "Successfully destroyed cgroup " << cgroup;
   } else {
-    LOG(FATAL) << "Failed to destroy the cgroup " << cgroup
+    LOG(FATAL) << "Failed to destroy cgroup " << cgroup
+               << ": " << future.failure();
+  }
+}
+
+
+void CgroupsIsolationModule::_killExecutor(
+    CgroupInfo* info,
+    const Future<bool>& future)
+{
+  CHECK(initialized) << "Cannot kill executors before initialization";
+
+  CHECK_NOTNULL(info);
+
+  if (future.isReady()) {
+    LOG(INFO) << "Successfully destroyed cgroup " << info->name();
+
+    CHECK(info->killed)
+      << "Unexpectedly alive executor " << info->executorId
+      << " of framework " << info->frameworkId;
+
+    // NOTE: The exit status of the executor might not be set if this
+    // function is called before 'processTerminated()' is called.
+    // TODO(vinod): When reaper returns a future instead of issuing a callback,
+    // wait for that future to be ready and grab the exit status.
+    dispatch(slave,
+             &Slave::executorTerminated,
+             info->frameworkId,
+             info->executorId,
+             info->status,
+             info->destroyed,
+             info->reason);
+
+    // We make a copy here because 'info' will be deleted when we unregister.
+    unregisterCgroupInfo(
+        utils::copy(info->frameworkId),
+        utils::copy(info->executorId));
+  } else {
+    LOG(FATAL) << "Failed to destroy cgroup " << info->name()
                << ": " << future.failure();
   }
 }
@@ -919,6 +965,7 @@ CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::registerCgroupInfo(
   info->pid = -1;
   info->killed = false;
   info->destroyed = false;
+  info->status = -1;
   info->reason = "";
   if (subsystems.contains("cpuset")) {
     info->cpuset = new Cpuset();

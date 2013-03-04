@@ -9,11 +9,44 @@ source ${MESOS_SOURCE_DIR}/support/atexit.sh
 # TODO(benh): Look for an existing hierarchy first.
 HIERARCHY=/cgroup
 
-# Check if the hierarchy exists, if it doesn't we want to make sure we
-# remove it if we create it.
+# Check if the hierarchy exists. If it doesn't, we want to make sure we
+# remove it, since we will create it.
+unmount=false
 if [[ ! -d ${HIERARCHY} ]]; then
-    atexit "(rmdir ${HIERARCHY}/mesos; unmount ${HIERARCHY}; rmdir ${HIERARCHY})"
+  unmount=true
 fi
+
+MASTER_PID=
+SLAVE_PID=
+
+# This function ensures that we first kill the slave (if present) and
+# then cleanup the cgroups. This is necessary because a running slave
+# holds an advisory lock that disallows cleaning up cgroups.
+# This function is not pure, but depends on state from the environment
+# (e.g. ${SLAVE_PID}) because we do not all possible values about when we
+# register with 'atexit'.
+function cleanup() {
+  # Make sure we kill the master on exit.
+  if [[ ! -z ${MASTER_PID} ]]; then
+    kill ${MASTER_PID}
+  fi
+
+  # Make sure we kill the slave on exit.
+  if [[ ! -z ${SLAVE_PID} ]]; then
+    kill ${SLAVE_PID}
+  fi
+
+  # Make sure we cleanup any cgroups we created on exiting.
+  find ${HIERARCHY}/mesos/* -depth -type d | xargs -r rmdir
+
+  # Make sure we cleanup the hierarchy, if we created it.
+  # NOTE: We do a sleep here, to ensure the hierarchy is not busy.
+  if ${unmount}; then
+   rmdir ${HIERARCHY}/mesos; sleep 1; umount ${HIERARCHY}; rmdir ${HIERARCHY}
+  fi
+}
+
+atexit cleanup
 
 # Launch master.
 ${MESOS_BUILD_DIR}/src/mesos-master --port=5432 &
@@ -29,8 +62,6 @@ if [[ ${STATUS} -ne 0 ]]; then
   exit 2
 fi
 
-# Make sure we kill the master on exit.
-atexit "kill ${MASTER_PID}"
 
 # Launch slave.
 ${MESOS_BUILD_DIR}/src/mesos-slave \
@@ -49,12 +80,6 @@ if [[ ${STATUS} -ne 0 ]]; then
   echo "${RED}Slave crashed; failing test${NORMAL}"
   exit 2
 fi
-
-# Make sure we kill the slave on exit.
-atexit "kill ${SLAVE_PID}"
-
-# Make sure we cleanup any cgroups we created on exiting.
-atexit "find ${HIERARCHY}/mesos/* -depth -type d | xargs -r rmdir"
 
 # The main event!
 ${MESOS_BUILD_DIR}/src/balloon-framework localhost:5432 1024

@@ -87,6 +87,8 @@ public:
       bool local,
       const process::PID<Slave>& slave);
 
+  virtual void finalize();
+
   virtual void launchExecutor(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
@@ -155,6 +157,8 @@ private:
 
     std::string reason; // The reason behind the destruction.
 
+    int status; // Exit status of the executor.
+
     // Used to cancel the OOM listening.
     process::Future<uint64_t> oomNotifier;
 
@@ -215,9 +219,17 @@ private:
       const std::string& tag);
 
   // This callback is invoked when destroy cgroup has a result.
+  // @param   info        The information of cgroup that is being destroyed.
+  // @param   future      The future describing the destroy process.
+  void _killExecutor(
+      CgroupInfo* info,
+      const process::Future<bool>& future);
+
+  // This callback is invoked when destroying orphaned cgroups from the
+  // previous slave execution.
   // @param   cgroup        The cgroup that is being destroyed.
   // @param   future        The future describing the destroy process.
-  void destroyWaited(
+  void _destroy(
       const std::string& cgroup,
       const process::Future<bool>& future);
 
@@ -254,6 +266,10 @@ private:
   process::PID<Slave> slave;
   bool initialized;
   Reaper* reaper;
+
+  // File descriptor to 'mesos/tasks' file in the cgroup on which we place
+  // an advisory lock.
+  Option<int> lockFile;
 
   // The cgroup information for each live executor.
   hashmap<FrameworkID, hashmap<ExecutorID, CgroupInfo*> > infos;
