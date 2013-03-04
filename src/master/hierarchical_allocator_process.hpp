@@ -594,7 +594,7 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate()
 
   allocate(slaves.keys());
 
-  LOG(INFO) << "Performed allocation for " << slaves.size() << " slaves in "
+  VLOG(1) << "Performed allocation for " << slaves.size() << " slaves in "
             << stopwatch.elapsed();
 }
 
@@ -614,8 +614,8 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
 
   allocate(slaveIds);
 
-  LOG(INFO) << "Performed allocation for slave " << slaveId << " in "
-            << stopwatch.elapsed();
+  VLOG(1) << "Performed allocation for slave " << slaveId << " in "
+          << stopwatch.elapsed();
 }
 
 
