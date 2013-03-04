@@ -275,6 +275,7 @@ Future<Response> stats(
   object.values["lost_tasks"] = master.stats.tasks[TASK_LOST];
   object.values["valid_status_updates"] = master.stats.validStatusUpdates;
   object.values["invalid_status_updates"] = master.stats.invalidStatusUpdates;
+  object.values["outstanding_offers"] = master.offers.size();
 
   // Get total and used (note, not offered) resources in order to
   // compute capacity of scalar resources.
