@@ -478,7 +478,7 @@ TEST_F(MasterTest, RecoverResources)
 
   TestingIsolationModule isolationModule(execs);
 
-  setSlaveResources("cpus:2;mem:1024;ports:[1-10, 20-30]");
+  setSlaveResources("cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
 
   Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -569,17 +569,9 @@ TEST_F(MasterTest, RecoverResources)
 
   driver.declineOffer(offer.id());
 
-  // Now simulate an executorExited call to the slave.
-  // We need to explicitly send this message because we don't spawn
-  // a real executor process in this test.
-  process::dispatch(
-      slave,
-      &Slave::executorTerminated,
-      offer.framework_id(),
-      executorInfo.executor_id(),
-      0,
-      false,
-      "Killed executor");
+  // Kill the executor.
+  isolationModule.killExecutor(
+      offer.framework_id(), executorInfo.executor_id());
 
   // Scheduler should get an offer for the complete slave resources.
   WAIT_UNTIL(resourceOffersCall3);

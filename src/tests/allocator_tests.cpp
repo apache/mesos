@@ -154,8 +154,10 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   Master m(&a, &files);
   PID<Master> master = process::spawn(m);
 
-  ProcessBasedIsolationModule isolationModule;
+  map<ExecutorID, Executor*> execs;
+  TestingIsolationModule isolationModule(execs);
 
+  setSlaveResources("cpus:2;mem:1024;disk:0");
   Slave s(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave1 = process::spawn(s);
 
@@ -197,7 +199,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 
   WAIT_UNTIL(framework2Added);
 
-  setSlaveResources("cpus:1;mem:512");
+  setSlaveResources("cpus:1;mem:512;disk:0");
   Slave s2(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave2 = process::spawn(s2);
 
@@ -207,7 +209,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 
   EXPECT_THAT(offers2, OfferEq(1, 512));
 
-  setSlaveResources("cpus:3;mem:2048");
+  setSlaveResources("cpus:3;mem:2048;disk:0");
   Slave s3(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave3 = process::spawn(s3);
   BasicMasterDetector detector3(master, slave3, true);
@@ -231,7 +233,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 
   WAIT_UNTIL(framework3Added);
 
-  setSlaveResources("cpus:4;mem:4096");
+  setSlaveResources("cpus:4;mem:4096;disk:0");
   Slave s4(slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave4 = process::spawn(s4);
   BasicMasterDetector detector4(master, slave4, true);
@@ -316,7 +318,11 @@ TYPED_TEST(AllocatorTest, MockAllocator)
   Master m(this->a, &files);
   PID<Master> master = process::spawn(&m);
 
-  ProcessBasedIsolationModule isolationModule;
+  MockExecutor exec;
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
 
   Slave s(this->slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -393,7 +399,16 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   Master m(this->a, &files);
   PID<Master> master = process::spawn(m);
 
-  ProcessBasedIsolationModule isolationModule;
+  MockExecutor exec;
+  trigger shutdownCall;
+
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(Trigger(&shutdownCall));
+
+  map<ExecutorID, Executor*> execs;
+  execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+  TestingIsolationModule isolationModule(execs);
 
   Slave s(this->slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave1 = process::spawn(s);
@@ -437,6 +452,8 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   driver2.stop();
 
   WAIT_UNTIL(frameworkRemovedTrigger);
+
+  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
 
   process::terminate(slave1);
   process::wait(slave1);
@@ -506,7 +523,9 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   Master m(this->a, &files);
   PID<Master> master = process::spawn(&m);
 
-  ProcessBasedIsolationModule isolationModule;
+  map<ExecutorID, Executor*> execs;
+
+  TestingIsolationModule isolationModule(execs);
 
   Slave s(this->slaveFlags, true, &isolationModule, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -930,7 +949,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   WAIT_UNTIL(slaveRemovedTrigger1);
 
-  ProcessBasedIsolationModule isolationModule2;
+  TestingIsolationModule isolationModule2(execs);
 
   this->setSlaveResources("cpus:3;mem:256");
   Slave s2(this->slaveFlags, true, &isolationModule2, &files);
@@ -1244,7 +1263,6 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
-
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 

@@ -200,13 +200,15 @@ double DRFSorter::calculateShare(const string& name)
     if (resource.type() == Value::SCALAR) {
       double total = resource.scalar().value();
 
-      if (total > 0) {
-	Value::Scalar none;
-	const Value::Scalar& scalar = allocations[name].get(resource.name(), none);
-	share = std::max(share, scalar.value() / total);
-      }
+    if (total > 0) {
+      Value::Scalar none;
+      const Value::Scalar& scalar =
+        allocations[name].get(resource.name(), none);
+
+      share = std::max(share, scalar.value() / total);
     }
   }
+}
 
   return share;
 }

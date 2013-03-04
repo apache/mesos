@@ -317,17 +317,6 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
   // Kill the executor and inform the slave.
   isolationModule->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
 
-  // We need to explicitly send this message because we don't spawn
-  // a real executor process in this test.
-  process::dispatch(
-      slave,
-      &Slave::executorTerminated,
-      frameworkId,
-      DEFAULT_EXECUTOR_ID,
-      0,
-      false,
-      "Killed executor");
-
   // In order to make sure the slave has scheduled the executor
   // directory to get garbage collected we need to wait until the
   // slave has sent the ExecutorExited message. TODO(benh): We really
@@ -410,17 +399,6 @@ TEST_F(GarbageCollectorTest, DiskUsage)
 
   // Kill the executor and inform the slave.
   isolationModule->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
-
-  // We need to explicitly send this message because we don't spawn
-  // a real executor process in this test.
-  process::dispatch(
-      slave,
-      &Slave::executorTerminated,
-      frameworkId,
-      DEFAULT_EXECUTOR_ID,
-      0,
-      false,
-      "Killed executor");
 
   // In order to make sure the slave has scheduled the executor
   // directory to get garbage collected we need to wait until the

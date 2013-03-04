@@ -114,7 +114,7 @@ protected:
     // For locating killtree.sh.
     os::setenv("MESOS_SOURCE_DIR",tests::flags.source_dir);
 
-    setSlaveResources("cpus:2;mem:1024");
+    setSlaveResources("cpus:2;mem:1024;disk:1024;ports:[31000-32000]");
   }
 
   virtual void TearDown()
@@ -693,6 +693,14 @@ public:
       os::unsetenv("MESOS_SLAVE_PID");
       os::unsetenv("MESOS_FRAMEWORK_ID");
       os::unsetenv("MESOS_EXECUTOR_ID");
+
+      process::dispatch(
+          slave,
+          &slave::Slave::executorStarted,
+          frameworkId,
+          executorInfo.executor_id(),
+          -1);
+
     } else {
       FAIL() << "Cannot launch executor";
     }
@@ -707,6 +715,15 @@ public:
       driver->join();
       delete driver;
       drivers.erase(executorId);
+
+      process::dispatch(
+          slave,
+          &slave::Slave::executorTerminated,
+          frameworkId,
+          executorId,
+          0,
+          false,
+          "Killed executor");
     } else {
       FAIL() << "Cannot kill executor";
     }
