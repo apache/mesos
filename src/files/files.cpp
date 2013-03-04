@@ -116,19 +116,16 @@ Future<Nothing> FilesProcess::attach(const string& path, const string& name)
   Try<string> result = os::realpath(path);
 
   if (result.isError()) {
-    LOG(ERROR) << "Error attaching path '" << path << "': " << result.error();
-    return Future<Nothing>::failed(result.error());
+    return Future<Nothing>::failed(
+        "Failed to get realpath of '" + path + "': " + result.error());
   }
 
   // Make sure we have permissions to read the file/dir.
   Try<bool> access = os::access(result.get(), R_OK);
 
-  if (access.isError()) {
-    LOG(WARNING) << "Error attaching path '" << path << "': " << access.error();
-    return Future<Nothing>::failed(access.error());
-  } else if (!access.get()) {
-    LOG(WARNING) << "Do not have read permission to attach path: " << path;
-    return Future<Nothing>::failed(access.error());
+  if (access.isError() || !access.get()) {
+    return Future<Nothing>::failed("Failed to access '" + path + "': " +
+        (access.isError() ? access.error() : "Access denied"));
   }
 
   // To simplify the read/browse logic, strip any trailing / from the name.
