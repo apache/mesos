@@ -430,7 +430,17 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
   }
 }
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Stat)
+
+class CgroupsAnyHierarchyWithCpuAcctMemoryTest
+  : public CgroupsAnyHierarchyTest
+{
+public:
+  CgroupsAnyHierarchyWithCpuAcctMemoryTest()
+    : CgroupsAnyHierarchyTest("cpuacct,memory") {}
+};
+
+
+TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_Stat)
 {
   EXPECT_ERROR(cgroups::stat(hierarchy, "mesos_test", "invalid"));
 
