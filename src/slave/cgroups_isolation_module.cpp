@@ -33,6 +33,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
@@ -873,23 +874,38 @@ void CgroupsIsolationModule::oom(
   // Construct a "reason" string to describe why the isolation module
   // destroyed the executor's cgroup (in order to assist in debugging).
   ostringstream reason;
+  reason << "Memory limit exceeded: ";
 
   Try<string> read = cgroups::read(
       hierarchy, info->name(), "memory.limit_in_bytes");
   if (read.isSome()) {
-    reason << "MEMORY LIMIT: " << strings::trim(read.get()) << " bytes\n";
+    Try<uint64_t> bytes = numify<uint64_t>(strings::trim(read.get()));
+    if (bytes.isError()) {
+      LOG(ERROR)
+        << "Failed to numify 'memory.limit_in_bytes': " << bytes.error();
+      reason << "Requested: " << strings::trim(read.get()) << " bytes ";
+    } else {
+      reason << "Requested: " << Bytes(bytes.get()) << " ";
+    }
   }
 
   // Output 'memory.usage_in_bytes'.
   read = cgroups::read(hierarchy, info->name(), "memory.usage_in_bytes");
   if (read.isSome()) {
-    reason << "MEMORY USAGE: " << strings::trim(read.get()) << " bytes\n";
+    Try<uint64_t> bytes = numify<uint64_t>(strings::trim(read.get()));
+    if (bytes.isError()) {
+      LOG(ERROR)
+        << "Failed to numify 'memory.usage_in_bytes': " << bytes.error();
+      reason << "Used: " << strings::trim(read.get()) << " bytes\n";
+    } else {
+      reason << "Used: " << Bytes(bytes.get()) << "\n";
+    }
   }
 
   // Output 'memory.stat' of the cgroup to help with debugging.
   read = cgroups::read(hierarchy, info->name(), "memory.stat");
   if (read.isSome()) {
-    reason << "MEMORY STATISTICS: \n" << read.get() << "\n";
+    reason << "\nMEMORY STATISTICS: \n" << read.get() << "\n";
   }
 
   LOG(INFO) << strings::trim(reason.str()); // Trim the extra '\n' at the end.
