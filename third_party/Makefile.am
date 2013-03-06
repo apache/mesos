@@ -35,7 +35,6 @@ include versions.am
 BOTO = boto-$(BOTO_VERSION)
 DISTRIBUTE = distribute-$(DISTRIBUTE_VERSION)
 LEVELDB = leveldb
-PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 
 
@@ -43,14 +42,12 @@ EXTRA_DIST =		\
   $(BOTO).zip		\
   $(DISTRIBUTE).tar.gz	\
   $(LEVELDB).tar.gz	\
-  $(PROTOBUF).tar.gz	\
   $(ZOOKEEPER).tar.gz
 
 CLEAN_EXTRACTED =	\
   $(BOTO)		\
   $(DISTRIBUTE)		\
   $(LEVELDB)		\
-  $(PROTOBUF)		\
   $(ZOOKEEPER)
 
 
@@ -78,22 +75,12 @@ $(LEVELDB)/libleveldb.a: $(LEVELDB)-stamp
 	cd $(LEVELDB) && \
           $(MAKE) $(AM_MAKEFLAGS) CC="$(CXX)" OPT="$(CXXFLAGS) -fPIC"
 
-$(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
-
-$(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
-	cd $(PROTOBUF) && ./configure $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS)
-	touch $@
-
 $(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
 	cd $(ZOOKEEPER)/src/c && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 
 # Dependencies for all-local.
-ALL_LOCAL =				\
-  $(LEVELDB)/libleveldb.a		\
-  $(PROTOBUF)/src/libprotobuf.la	\
-  $(PROTOBUF)/src/protoc
+ALL_LOCAL = $(LEVELDB)/libleveldb.a
 
 if HAS_PYTHON
   ALL_LOCAL += $(DISTRIBUTE_EGG)

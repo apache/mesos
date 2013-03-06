@@ -25,7 +25,6 @@ include ../third_party/libprocess/third_party/versions.am
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
 DISTRIBUTE = third_party/distribute-$(DISTRIBUTE_VERSION)
-PROTOBUF = third_party/protobuf-$(PROTOBUF_VERSION)
 LEVELDB = third_party/leveldb
 ZOOKEEPER = third_party/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 LIBPROCESS = third_party/libprocess
@@ -34,6 +33,7 @@ BOOST = $(LIBPROCESS)/third_party/boost-$(BOOST_VERSION)
 GLOG = $(LIBPROCESS)/third_party/glog-$(GLOG_VERSION)
 GMOCK = $(LIBPROCESS)/third_party/gmock-$(GMOCK_VERSION)
 GTEST = $(GMOCK)/gtest
+PROTOBUF = $(LIBPROCESS)/third_party/protobuf-$(PROTOBUF_VERSION)
 
 
 # Unfortunatley, 'pkglibexecdir' and 'pkglocalstatedir' are not set
