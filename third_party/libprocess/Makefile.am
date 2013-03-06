@@ -94,6 +94,7 @@ check_PROGRAMS = tests
 
 tests_SOURCES =							\
   src/tests/decoder_tests.cpp					\
+  src/tests/encoder_tests.cpp					\
   src/tests/http_tests.cpp					\
   src/tests/io_tests.cpp					\
   src/tests/main.cpp						\
