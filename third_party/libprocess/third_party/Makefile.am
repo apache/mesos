@@ -24,6 +24,7 @@ GPERFTOOLS = gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
 RY_HTTP_PARSER = ry-http-parser-$(RY_HTTP_PARSER_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
+PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 
 
 EXTRA_DIST =			\
@@ -31,17 +32,19 @@ EXTRA_DIST =			\
   $(GLOG).tar.gz		\
   $(GMOCK).tar.gz		\
   $(GPERFTOOLS).tar.gz		\
-  $(RY_HTTP_PARSER).tar.gz	\
   $(LIBEV).tar.gz		\
-  libev-3.8.patch
+  libev-3.8.patch		\
+  $(PROTOBUF).tar.gz		\
+  $(RY_HTTP_PARSER).tar.gz
 
 CLEAN_EXTRACTED =	\
   $(BOOST)		\
   $(GLOG)		\
   $(GMOCK)		\
   $(GPERFTOOLS)		\
-  $(RY_HTTP_PARSER)	\
-  $(LIBEV)
+  $(LIBEV)		\
+  $(PROTOBUF)		\
+  $(RY_HTTP_PARSER)
 
 
 # This is where the magic happens: we use stamp files as dependencies
@@ -95,11 +98,18 @@ $(GPERFTOOLS)-build-stamp: $(GPERFTOOLS)-stamp
 	touch $@
 endif
 
-$(RY_HTTP_PARSER)/http_parser.c: $(RY_HTTP_PARSER)-stamp
-
 $(LIBEV)/libev.la: $(LIBEV)-stamp
 	cd $(LIBEV) && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
+
+$(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
+
+$(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
+	cd $(PROTOBUF) && ./configure $(CONFIGURE_ARGS) && \
+          $(MAKE) $(AM_MAKEFLAGS)
+	touch $@
+
+$(RY_HTTP_PARSER)/http_parser.c: $(RY_HTTP_PARSER)-stamp
 
 
 # Tests for stout.
@@ -111,17 +121,23 @@ stout_tests_CPPFLAGS =				\
   -I$(GLOG)/src					\
   -I$(GTEST)/include				\
   -I$(GMOCK)/include				\
+  -I$(PROTOBUF)/src				\
   $(AM_CPPFLAGS)
-stout_tests_LDADD = libgmock.la $(GLOG)/libglog.la
+stout_tests_LDADD =			\
+  libgmock.la				\
+  $(GLOG)/libglog.la			\
+  $(PROTOBUF)/src/libprotobuf.la
 
 TESTS = stout-tests
 
 # Dependencies for all-local.
-ALL_LOCAL =			\
-  $(STOUT)/Makefile 		\
-  $(BOOST)-stamp		\
-  $(GLOG)/libglog.la		\
-  $(LIBEV)/libev.la
+ALL_LOCAL =				\
+  $(STOUT)/Makefile			\
+  $(BOOST)-stamp			\
+  $(GLOG)/libglog.la			\
+  $(LIBEV)/libev.la			\
+  $(PROTOBUF)/src/libprotobuf.la	\
+  $(PROTOBUF)/src/protoc
 
 if HAS_GPERFTOOLS
  ALL_LOCAL += $(GPERFTOOLS)/libprofiler.la

@@ -42,8 +42,8 @@ libprocess_la_CPPFLAGS =		\
   -I$(srcdir)/$(STOUT)/include		\
   -I$(BOOST)				\
   -I$(GLOG)/src				\
-  -I$(RY_HTTP_PARSER)			\
   -I$(LIBEV)				\
+  -I$(RY_HTTP_PARSER)			\
   $(AM_CPPFLAGS)
 
 libprocess_la_LIBADD =			\
