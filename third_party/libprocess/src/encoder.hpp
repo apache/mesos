@@ -3,6 +3,7 @@
 
 #include <ev.h>
 
+#include <map>
 #include <sstream>
 
 #include <process/http.hpp>
@@ -15,6 +16,8 @@
 
 
 namespace process {
+
+const uint32_t GZIP_MINIMUM_BODY_LENGTH = 1024;
 
 typedef void (*Sender)(struct ev_loop*, ev_io*, int);
 
@@ -115,10 +118,14 @@ private:
 class HttpResponseEncoder : public DataEncoder
 {
 public:
-  HttpResponseEncoder(const http::Response& response)
-    : DataEncoder(encode(response)) {}
+  HttpResponseEncoder(
+      const http::Response& response,
+      const http::Request& request)
+    : DataEncoder(encode(response, request)) {}
 
-  static std::string encode(const http::Response& response)
+  static std::string encode(
+      const http::Response& response,
+      const http::Request& request)
   {
     std::ostringstream out;
 
@@ -141,12 +148,13 @@ public:
 
     headers["Date"] = date;
 
-    // Swap the body with a gzip compressed version, if no encoding has
-    // been specified.
+    // Should we compress this response?
     std::string body = response.body;
 
     if (response.type == http::Response::BODY &&
-        !headers.contains("Content-Encoding")) {
+        response.body.length() >= GZIP_MINIMUM_BODY_LENGTH &&
+        !headers.contains("Content-Encoding") &&
+        request.accepts("gzip")) {
       Try<std::string> compressed = gzip::compress(body);
       if (compressed.isError()) {
         LOG(WARNING) << "Failed to gzip response body: " << compressed.error();
