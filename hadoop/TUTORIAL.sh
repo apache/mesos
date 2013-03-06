@@ -4,9 +4,15 @@
 if test -z "${1}"; then
     distribution="0.20.205.0"
     url="http://archive.apache.org/dist/hadoop/core/hadoop-0.20.205.0"
+    bundle="hadoop-0.20.205.0.tar.gz"
 elif test "${1}" = "0.20.2-cdh3u3"; then
     distribution="0.20.2-cdh3u3"
     url="http://archive.cloudera.com/cdh/3"
+    bundle="hadoop-0.20.2-cdh3u3.tar.gz"
+elif test "${1}" = "2.0.0-mr1-cdh4.1.2"; then
+    distribution="2.0.0-mr1-cdh4.1.2"
+    url="http://archive.cloudera.com/cdh4/cdh/4"
+    bundle="mr1-2.0.0-mr1-cdh4.1.2.tar.gz"
 fi
 
 hadoop="hadoop-${distribution}"
@@ -18,18 +24,50 @@ jobtracker_pid=
 trap 'test ! -z ${jobtracker_pid} && kill ${jobtracker_pid}; echo; exit 1' 2
 
 
-# Utility function for failing the tutorial with a helpful message.
-function fail() {
-    cat <<__EOF__
+# A helper function to run one or more commands.
+# If any command fails, the tutorial exits with a helpful message.
+function run() {
+  for command in "${@}"; do
+      eval ${command}
 
-${RED}Oh no! We failed to run '${1}'. If you need help try emailing:
+      if test "$?" != 0; then
+          cat <<__EOF__
+
+${RED}Oh no! We failed to run '${command}'. If you need help try emailing:
 
   mesos-dev@incubator.apache.org
 
 (Remember to include as much debug information as possible.)${NORMAL}
 
 __EOF__
-    exit 1
+          exit 1
+      fi
+  done
+}
+
+
+# A helper function to execute a step of the tutorial (i.e., one or
+# more commands). Prints the command(s) out before they are run and
+# waits for the user to confirm. In addition, the commands are
+# appended to the summary.
+summary=""
+function execute() {
+  echo
+  for command in "${@}"; do
+      echo "  $ ${command}"
+  done
+  echo
+
+  read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
+  echo
+
+  for command in "${@}"; do
+      run "${command}"
+
+      # Append to the summary.
+      summary="${summary}
+$ ${command}"
+  done
 }
 
 
@@ -42,12 +80,15 @@ test -f ../support/colors.sh && . ../support/colors.sh
 # Make sure we have all the necessary files/directories we need.
 resources="TUTORIAL.sh \
   hadoop-gridmix.patch \
-  hadoop-7698-1.patch \
   ${hadoop}_hadoop-env.sh.patch \
   ${hadoop}_mesos.patch \
   mapred-site.xml.patch \
   mesos \
   mesos-executor"
+
+if test ${distribution} = "0.20.205.0"; then
+    resources="${resources} hadoop-7698-1.patch"
+fi
 
 for resource in `echo ${resources}`; do
     if test ! -e ${resource}; then
@@ -93,21 +134,17 @@ fi
 
 
 # Download Hadoop.
-if test ! -e ${hadoop}.tar.gz; then
+if test ! -e ${bundle}; then
     cat <<__EOF__
 
-We'll try and grab ${hadoop} for you now via:
-
-  $ wget ${url}/${hadoop}.tar.gz
+We'll try and grab ${hadoop} from ${url}/${bundle} for you now.
 
 __EOF__
-    read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
-    echo
-    wget ${url}/${hadoop}.tar.gz || fail "wget ${url}/${hadoop}.tar.gz"
+    execute "wget ${url}/${bundle}"
 else
     cat <<__EOF__
 
-${RED}It looks like you've already downloaded ${hadoop}.tar.gz, so
+${RED}It looks like you've already downloaded ${bundle}, so
 we'll skip that step.${NORMAL}
 
 __EOF__
@@ -118,18 +155,14 @@ fi
 if test ! -d ${hadoop}; then
     cat <<__EOF__
 
-Let's start by extracting ${hadoop}.tar.gz:
-
-  $ tar zxvf ${hadoop}.tar.gz
+Let's start by extracting ${bundle}.
 
 __EOF__
-    read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
-    echo
-    tar zxvf ${hadoop}.tar.gz || fail "tar zxvf ${hadoop}.tar.gz"
+    execute "tar zxf ${bundle}"
 else
     cat <<__EOF__
 
-${RED}It looks like you've already extracted ${hadoop}.tar.gz, so
+${RED}It looks like you've already extracted ${bundle}, so
 we'll skip that step.${NORMAL}
 
 __EOF__
@@ -142,24 +175,17 @@ cat <<__EOF__
 Okay, now let's change into the ${hadoop} directory in order to apply
 some patches, copy in the Mesos specific code, and build everything.
 
-  $ cd ${hadoop}
-
 __EOF__
 
-read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
-echo
-
-cd ${hadoop} || fail "cd ${hadoop}"
+execute "cd ${hadoop}"
 
 
 # Apply the GridMix patch.
 cat <<__EOF__
 
 To run Hadoop on Mesos under Java 7 we need to apply a rather minor patch
-to GridMix, a contribution in Hadoop. See 'NOTES' file for more info.
-We'll apply the patch with:
-
-  $ patch -p1 <../hadoop-gridmix.patch
+(hadoop-gridmix.patch) to GridMix, a contribution in Hadoop. See 'NOTES'
+file for more info.
 
 __EOF__
 
@@ -176,10 +202,7 @@ applying it now.${NORMAL}
 
 __EOF__
 else
-    read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
-    echo
-    patch -p1 <../hadoop-gridmix.patch || \
-      fail "patch -p1 <../hadoop-gridmix.patch"
+    execute "patch -p1 <../hadoop-gridmix.patch"
 fi
 
 # Apply the 'jsvc' patch for hadoop-0.20.205.0.
@@ -187,9 +210,7 @@ if test ${distribution} = "0.20.205.0"; then
   cat <<__EOF__
 
 To build Mesos executor bundle, we need to apply a patch for
-'jsvc' target that is broken in build.xml. We apply the patch with:
-
-  $ patch -p1 <../hadoop-7698-1.patch
+'jsvc' target (hadoop-7698-1.patch) that is broken in build.xml.
 
 __EOF__
 
@@ -204,30 +225,31 @@ __EOF__
 
 __EOF__
   else
-      read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
-      echo
-      patch -p1 <../hadoop-7698-1.patch || \
-        fail "patch -p1 <../hadoop-7698-1.patch"
+      execute "patch -p1 <../hadoop-7698-1.patch"
   fi
 fi
 
-# Copy over the Mesos contrib component (and mesos-executor) and apply
-# the patch to build the contrib.
+# Copy over the Mesos contrib components (and mesos-executor).
 cat <<__EOF__
 
-Now we'll copy over the Mesos contrib components. In addition, we'll
-need to edit ivy/libraries.properties and src/contrib/build.xml to
-hook the Mesos contrib componenet into the build. We've included a
-patch to do that for you:
-
-  $ cp -r ../mesos src/contrib
-  $ cp -p ../mesos-executor bin
-  $ patch -p1 <../${hadoop}_mesos.patch
+Now, we'll copy over the Mesos contrib components.
 
 __EOF__
 
-cp -r ../mesos src/contrib || fail "cp -r ../mesos src/contrib"
-cp -p ../mesos-executor bin || fail "cp -p ../mesos-executor bin"
+execute "cp -r ../mesos src/contrib" \
+  "cp -p ../mesos-executor bin"
+
+
+# Apply the patch to build the contrib.
+cat <<__EOF__
+
+In addition, we will need to edit ivy/libraries.properties and
+src/contrib/build.xml to hook the Mesos contrib component into the
+build. We've included a patch (${hadoop}_mesos.patch) to do that for
+you.
+
+__EOF__
+
 
 # Check and see if the patch has already been applied.
 grep mesos src/contrib/build.xml >/dev/null
@@ -240,10 +262,7 @@ applying it now.${NORMAL}
 
 __EOF__
 else
-    read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
-    echo
-    patch -p1 <../${hadoop}_mesos.patch || \
-        fail "patch -p1 <../${hadoop}_mesos.patch"
+    execute "patch -p1 <../${hadoop}_mesos.patch"
 fi
 
 
@@ -327,12 +346,11 @@ public class PlatformName {
 }
 __EOF__
 
-${JAVA_HOME}/bin/javac PlatformName.java || \
-  fail "${JAVA_HOME}/bin/javac PlatformName.java"
+run "${JAVA_HOME}/bin/javac PlatformName.java"
 
 PLATFORM=`${JAVA_HOME}/bin/java -Xmx32m PlatformName | sed -e "s/ /_/g"`
 
-rm PlatformName.*
+run "rm PlatformName.*"
 
 
 # Copy over libraries.
@@ -344,62 +362,34 @@ cat <<__EOF__
 Now we'll copy over the necessary libraries we need from the build
 directory.
 
-  $ cp ${PROTOBUF_JAR} lib
-  $ cp ${MESOS_JAR} lib
-  $ mkdir -p lib/native/${PLATFORM}
-  $ cp ${LIBRARY} lib/native/${PLATFORM}
-
 __EOF__
 
-cp ${PROTOBUF_JAR} lib || fail "cp ${PROTOBUF_JAR} lib"
-cp ${MESOS_JAR} lib || fail "cp ${MESOS_JAR} lib"
-mkdir -p lib/native/${PLATFORM} || fail "mkdir -p lib/native/${PLATFORM}"
-cp ${LIBRARY} lib/native/${PLATFORM} || \
-    fail "cp ${LIBRARY} lib/native/${PLATFORM}"
+execute "cp ${PROTOBUF_JAR} lib" \
+  "cp ${MESOS_JAR} lib" \
+  "mkdir -p lib/native/${PLATFORM}" \
+  "cp ${LIBRARY} lib/native/${PLATFORM}"
 
 if test ${distribution} = "0.20.205.0"; then
     cat <<__EOF__
 
-The Apache distribution requires that we also copy some libraries to
-multiple places. :/
-
-  $ cp ${PROTOBUF_JAR} share/hadoop/lib
-  $ cp ${MESOS_JAR} share/hadoop/lib
-  $ cp ${LIBRARY} lib
+The Apache Hadoop distribution requires that we also copy some
+libraries to multiple places. :/
 
 __EOF__
 
-    cp ${PROTOBUF_JAR} share/hadoop/lib || \
-        fail "cp ${PROTOBUF_JAR} share/hadoop/lib"
-    cp ${MESOS_JAR} share/hadoop/lib || \
-        fail "cp ${MESOS_JAR} share/hadoop/lib"
-    cp ${LIBRARY} lib || fail "cp ${LIBRARY} lib"
+    execute "cp ${PROTOBUF_JAR} share/hadoop/lib" \
+      "cp ${MESOS_JAR} share/hadoop/lib" \
+      "cp ${LIBRARY} lib"
 fi
-
-
-# Build with ant.
-cat <<__EOF__
-
-Okay, let's try building Hadoop and the Mesos contrib classes:
-
-  $ ant
-
-__EOF__
-
-read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
-echo
-
-ant || fail "ant"
 
 
 # Apply conf/mapred-site.xml patch.
 cat <<__EOF__
 
-${GREEN}Build success!${NORMAL} Now let's run something!
-
 First we need to configure Hadoop appropriately by modifying
 conf/mapred-site.xml (as is always required when running Hadoop).
-In order to run Hadoop on Mesos we need to set at least these four properties:
+In order to run Hadoop on Mesos we need to set at least these four
+properties:
 
   mapred.job.tracker
 
@@ -428,11 +418,9 @@ NOTE: You need to MANUALLY upload the Mesos executor bundle to
 the above location.
 
 
-We've got a prepared patch for conf/mapred-site.xml that makes the
-changes necessary to get everything running with a local Mesos cluster.
-We can apply that patch like so:
-
-  $ patch -p1 <../mapred-site.xml.patch
+We've got a prepared patch (mapred-site.xml.patch) for
+conf/mapred-site.xml that makes the changes necessary
+to get everything running with a local Mesos cluster.
 
 __EOF__
 
@@ -459,8 +447,7 @@ read -e -p "${BRIGHT}Patch conf/mapred-site.xml?${NORMAL} [${DEFAULT}] "
 echo
 test -z ${REPLY} && REPLY=${DEFAULT}
 if test ${REPLY} == "Y" -o ${REPLY} == "y"; then
-    patch -p1 <../mapred-site.xml.patch || \
-        fail "patch -p1 <../mapred-site.xml.patch"
+    execute "patch -p1 <../mapred-site.xml.patch"
 fi
 
 
@@ -470,11 +457,9 @@ cat <<__EOF__
 
 Most users will need to set JAVA_HOME in conf/hadoop-env.sh, but we'll
 also need to set MESOS_NATIVE_LIBRARY and update the HADOOP_CLASSPATH
-to include the Mesos contrib classfiles. We've prepared a patch for
-conf/hadoop-env.sh that makes the necessary changes. We can apply that
-patch like so:
-
-  $ patch -p1 <../${hadoop}_hadoop-env.sh.patch
+to include the Mesos contrib classfiles. We've prepared a patch
+(${hadoop}_hadoop-env.sh.patch) for conf/hadoop-env.sh that makes the
+necessary changes.
 
 __EOF__
 
@@ -501,62 +486,79 @@ read -e -p "${BRIGHT}Patch conf/hadoop-env.sh?${NORMAL} [${DEFAULT}] "
 echo
 test -z ${REPLY} && REPLY=${DEFAULT}
 if test ${REPLY} == "Y" -o ${REPLY} == "y"; then
-    patch -p1 <../${hadoop}_hadoop-env.sh.patch || \
-        fail "patch -p1 <../${hadoop}_hadoop-env.sh.patch"
+    execute "patch -p1 <../${hadoop}_hadoop-env.sh.patch"
 fi
 
-# Build Mesos executor package that Mesos slaves can download and execute.
-# TODO(vinod): Create a new ant target in build.xml that does this for us.
+# Build Hadoop and Mesos executor package that Mesos slaves can download
+# and execute.
+# TODO(vinod): Create a new ant target in build.xml that builds the executor.
 # NOTE: We specifically set the version when calling ant, to ensure we know
 # the resulting directory name.
 cat <<__EOF__
 
-Okay, let's try building Mesos executor package:
-
-  $ ant -Dversion=${distribution} bin-package
-  $ cd build/${hadoop}
-  $ cp ${LIBRARY} lib/native/${PLATFORM}
-  $ rm -rf cloudera # Only for cdh3
-  $ cd ..
-  $ mv ${hadoop} hadoop
-  $ tar -cjf hadoop.tar.gz hadoop
-  $ cd ..
+Okay, let's try building Hadoop.
 
 __EOF__
 
 read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
 echo
 
-ant -Dversion=${distribution} bin-package || \
-  fail "ant -Dversion=${distribution} bin-package"
+if test ${distribution} = "2.0.0-mr1-cdh4.1.2"; then
+  cat <<__EOF__
 
-cd build/${hadoop} || fail "cd build/${hadoop}"
+  We need to chmod +x install-sh scripts to compile
+  C++ components needed by the 'bin-package' target in CDH4.
+  We also need to specifically set the 'reactor.repo' property.
+
+__EOF__
+  execute "find . -name "*install-sh*" | xargs chmod +x" \
+    "ant -Dreactor.repo=file://$HOME/.m2/repository \
+-Dversion=${distribution} -Dcompile.c++=true compile bin-package"
+else
+  execute "ant -Dversion=${distribution} compile bin-package"
+fi
+
+cat <<__EOF__
+
+To build the Mesos executor package, we first copy the
+necessary Mesos libraries.
+
+__EOF__
 
 # Copy the Mesos native library.
-mkdir -p lib/native/${PLATFORM} || fail "mkdir -p lib/native/${PLATFORM}"
-cp ${LIBRARY} lib/native/${PLATFORM} || \
-  fail "cp ${LIBRARY} lib/native/${PLATFORM}"
+execute "cd build/${hadoop}" \
+  "mkdir -p lib/native/${PLATFORM}" \
+  "cp ${LIBRARY} lib/native/${PLATFORM}"
 
-# Delete cloudera patches (only present in cdh3 versions of Hadoop)
-# to save space (62MB).
-rm -rf cloudera || fail "rm -rf cloudera"
+if test ${distribution} != "0.20.205.0"; then
+  cat <<__EOF__
 
-cd .. || fail "cd .."
+  We will remove Cloudera patches from the Mesos executor package
+  to save space (~62MB).
+
+__EOF__
+  execute "rm -rf cloudera"
+fi
+
+  cat <<__EOF__
+
+  Finally, we will build the Mesos executor package as follows:
+
+__EOF__
 
 # We re-name the directory to 'hadoop' so that the Mesos executor
 # can be agnostic to the Hadoop version.
-mv ${hadoop} hadoop || fail "mv ${hadoop} hadoop"
-
-# Create the bundle.
-tar -cjf hadoop.tar.gz hadoop || fail "tar -cjf hadoop.tar.gz hadoop"
-
-cd .. || fail "cd.."
+execute "cd .." \
+  "mv ${hadoop} hadoop" \
+  "tar -cjf hadoop.tar.gz hadoop"
 
 # Start JobTracker.
 cat <<__EOF__
 
-Let's go ahead and try and start the JobTracker via:
+${GREEN}Build success!${NORMAL} Now let's run something!
 
+Let's go ahead and try and start the JobTracker via:
+  $ cd ..
   $ ./bin/hadoop jobtracker
 
 __EOF__
@@ -564,9 +566,13 @@ __EOF__
 read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
 echo
 
+
 # Fake the resources for this local slave, because the default resources
 # (esp. memory on MacOSX) offered by the slave might not be enough to
 # launch TaskTrackers.
+# TODO(vinod): Pipe these commands through 'execute()' so that they
+# can be appended to the summary.
+cd ..
 export MESOS_RESOURCES="cpus:16;mem:16384;disk:307200;ports:[31000-32000]"
 ./bin/hadoop jobtracker 1>/dev/null 2>&1 &
 
@@ -608,40 +614,7 @@ if test ${?} == "0"; then
 ${GREEN}Success!${NORMAL} We'll kill the JobTracker and exit.
 
 Summary:
-
-  $ wget ${url}/${hadoop}.tar.gz
-  $ tar zxvf ${hadoop}.tar.gz
-  $ cd ${hadoop}
-  $ patch -p1 <../${hadoop}.patch
-  $ cp -r ../mesos src/contrib
-  $ cp -p ../mesos-executor bin
-  $ patch -p1 <../${hadoop}_mesos.patch
-  $ cp ${PROTOBUF_JAR} lib
-  $ cp ${MESOS_JAR} lib
-  $ mkdir -p lib/native/${PLATFORM}
-  $ cp ${LIBRARY} lib/native/${PLATFORM}
-__EOF__
-
-if test ${distribution} = "0.20.205.0"; then
-    cat <<__EOF__
-  $ cp ${PROTOBUF_JAR} share/hadoop/lib
-  $ cp ${MESOS_JAR} share/hadoop/lib
-  $ cp ${LIBRARY} lib
-__EOF__
-fi
-
-cat <<__EOF__
-  $ ant
-  $ patch -p1 <../mapred-site.xml.patch
-  $ patch -p1 <../${hadoop}_hadoop-env.sh.patch
-  $ ant -Dversion=${distribution} bin-package
-  $ cd build/${hadoop}
-  $ cp ${LIBRARY} lib/native/${PLATFORM}
-  $ rm -rf cloudera
-  $ cd ..
-  $ mv ${hadoop} hadoop
-  $ tar -cjf hadoop.tar.gz hadoop
-  $ cd ..
+${summary}
 
 Remember you'll need to make some changes to
 ${hadoop}/conf/mapred-site.xml to run Hadoop on a
