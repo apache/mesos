@@ -5,6 +5,7 @@ ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
 
 EXTRA_DIST =					\
+  include/stout/bytes.hpp			\
   include/stout/cache.hpp			\
   include/stout/duration.hpp			\
   include/stout/error.hpp			\
