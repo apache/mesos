@@ -27,6 +27,10 @@ namespace http {
 struct Request
 {
   // TODO(benh): Add major/minor version.
+  // TODO(bmahler): Header names are not case sensitive! Either make these
+  // case-insensitive, or add a variable for each header in HTTP 1.0/1.1 (like
+  // we've done here with keepAlive).
+  // Tracked by: https://issues.apache.org/jira/browse/MESOS-328.
   hashmap<std::string, std::string> headers;
   std::string method;
   std::string path;
@@ -124,7 +128,9 @@ struct Response
   // "pipe" for streaming a response. Distinguish between the cases
   // using 'type' below.
   //
-  // BODY: Uses 'body' as the body of the response.
+  // BODY: Uses 'body' as the body of the response. These may be
+  // encoded using gzip for efficiency, if 'Content-Encoding' is not
+  // already specified.
   //
   // PATH: Attempts to perform a 'sendfile' operation on the file
   // found at 'path'.

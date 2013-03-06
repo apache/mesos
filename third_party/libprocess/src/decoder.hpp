@@ -306,16 +306,22 @@ private:
   static int on_message_complete(http_parser* p)
   {
     ResponseDecoder* decoder = (ResponseDecoder*) p->data;
-    hashmap<uint16_t, std::string>::const_iterator it =
-        http::statuses.find(decoder->parser.status_code);
-    assert(it != http::statuses.end());
-    decoder->response->status = it->second;
 
+    // Get the response status string.
+    if (http::statuses.contains(decoder->parser.status_code)) {
+      decoder->response->status = http::statuses[decoder->parser.status_code];
+    } else {
+      decoder->failure = true;
+      return 1;
+    }
+
+    // We can only provide the gzip encoding.
     Option<std::string> encoding =
       decoder->response->headers.get("Content-Encoding");
     if (encoding.isSome() && encoding.get() == "gzip") {
       Try<std::string> decompressed = gzip::decompress(decoder->response->body);
       if (decompressed.isError()) {
+        decoder->failure = true;
         return 1;
       }
       decoder->response->body = decompressed.get();

@@ -3361,6 +3361,7 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
 
   std::ostringstream out;
 
+  // TODO(bmahler): Add the Host header for HTTP 1.1.
   out << "GET /" << upid.id << "/" << path << "?" << query << " HTTP/1.1\r\n"
       << "Connection: close\r\n"
       << "\r\n";
