@@ -132,20 +132,20 @@ CLEANFILES += $(STATE_PROTOS)
 
 # Targets for generating protocol buffer code.
 %.pb.cc %.pb.h: $(top_srcdir)/include/mesos/%.proto
-	@$(MKDIR_P) $(@D)
-	@$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
 %.pb.cc %.pb.h: %.proto
-	@$(MKDIR_P) $(@D)
-	@$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
 $(JAVA_PROTOS): $(MESOS_PROTO)
-	@$(MKDIR_P)  $(@D)
-	@$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+	$(MKDIR_P)  $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
 $(PYTHON_PROTOS): $(MESOS_PROTO)
-	@$(MKDIR_P) $(@D)
-	@$(PROTOC) $(PROTOCFLAGS) --python_out=python/src $^
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --python_out=python/src $^
 
 # We even use a convenience library for most of Mesos so that we can
 # exclude third party libraries so setuptools/distribute can build a
@@ -522,27 +522,27 @@ PROTOBUF_JAR = ../protobuf-$(PROTOBUF_VERSION).jar
 # TODO(charles): Move into third_party/Makefile.am.
 $(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
 	@echo "Building protobuf-$(PROTOBUF_VERSION).jar ..."
-	@$(MKDIR_P) ../$(PROTOBUF)/java/src/main/java
-	@$(PROTOC) --java_out=../$(PROTOBUF)/java/src/main/java \
+	$(MKDIR_P) ../$(PROTOBUF)/java/src/main/java
+	$(PROTOC) --java_out=../$(PROTOBUF)/java/src/main/java \
           -I../$(PROTOBUF)/src \
           ../$(PROTOBUF)/src/google/protobuf/descriptor.proto
-	@$(JAVA_HOME)/bin/javac \
+	$(JAVA_HOME)/bin/javac \
           -d ../$(PROTOBUF)/java/src/main/java \
           ../$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java \
           ../$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java
-	@$(JAVA_HOME)/bin/jar cf $@ -C ../$(PROTOBUF)/java/src/main/java com
+	$(JAVA_HOME)/bin/jar cf $@ -C ../$(PROTOBUF)/java/src/main/java com
 
 CLEANFILES += $(PROTOBUF_JAR)
 
 
 $(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) $(PROTOBUF_JAR)
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
-	@rm -rf java/classes/org/apache/mesos
-	@$(MKDIR_P) java/classes/org/apache/mesos
-	@$(JAVA_HOME)/bin/javac \
+	-rm -rf java/classes/org/apache/mesos
+	$(MKDIR_P) java/classes/org/apache/mesos
+	$(JAVA_HOME)/bin/javac \
           -cp $(PROTOBUF_JAR) \
           -d java/classes $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED)
-	@$(JAVA_HOME)/bin/jar cf $@ -C java/classes org
+	$(JAVA_HOME)/bin/jar cf $@ -C java/classes org
 
 CLEANFILES += $(MESOS_JAR)
 
@@ -550,9 +550,9 @@ CLEANFILES += $(MESOS_JAR)
 MESOS_SOURCES_JAR = ../src/mesos-$(PACKAGE_VERSION)-sources.jar
 
 $(MESOS_SOURCES_JAR): $(MESOS_JAR_SOURCE)
-	@rm -f $(MESOS_SOURCES_JAR)
-	@$(JAVA_HOME)/bin/jar cf $@ -C $(srcdir)/java/src org
-	@$(JAVA_HOME)/bin/jar uf $@ -C java/generated org
+	-rm -f $(MESOS_SOURCES_JAR)
+	$(JAVA_HOME)/bin/jar cf $@ -C $(srcdir)/java/src org
+	$(JAVA_HOME)/bin/jar uf $@ -C java/generated org
 
 CLEANFILES += $(MESOS_SOURCES_JAR)
 
@@ -609,35 +609,35 @@ BUILT_SOURCES += java/jni/org_apache_mesos_MesosSchedulerDriver.h	\
 
 
 java/jni/org_apache_mesos_MesosSchedulerDriver.h: $(MESOS_JAR)
-	@$(JAVA_HOME)/bin/javah -d java/jni -classpath	\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath	\
           $(PROTOBUF_JAR):java/classes			\
           org.apache.mesos.MesosSchedulerDriver
 
 java/jni/org_apache_mesos_MesosExecutorDriver.h: $(MESOS_JAR)
-	@$(JAVA_HOME)/bin/javah -d java/jni -classpath	\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath	\
           $(PROTOBUF_JAR):java/classes			\
           org.apache.mesos.MesosExecutorDriver
 
 java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
-	@$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.Log
 
 java/jni/org_apache_mesos_state_Variable.h: $(MESOS_JAR)
-	@$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.state.Variable
 
 java/jni/org_apache_mesos_state_ZooKeeperState.h: $(MESOS_JAR)
-	@$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.state.ZooKeeperState
 
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
-	@$(MKDIR_P) examples/java
-	@$(JAVA_HOME)/bin/javac -cp					\
+	$(MKDIR_P) examples/java
+	$(JAVA_HOME)/bin/javac -cp					\
           $(PROTOBUF_JAR):$(MESOS_JAR):$(srcdir)/examples/java		\
           -sourcepath $(srcdir)/examples/java -d examples/java	        \
           $(srcdir)/examples/java/*.java
-	@$(JAVA_HOME)/bin/jar cf $@ -C examples/java .
+	$(JAVA_HOME)/bin/jar cf $@ -C examples/java .
 
 CLEANFILES += $(EXAMPLES_JAR)
 
@@ -684,7 +684,7 @@ PROTOBUF_EGG = ../$(PROTOBUF)/python/dist/protobuf-$(PROTOBUF_EGG_SUFFIX)
 
 $(PROTOBUF_EGG):
 	@echo "Building protobuf Python egg ..."
-	@cd ../$(PROTOBUF)/python && \
+	cd ../$(PROTOBUF)/python && \
 	  PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) setup.py bdist_egg
 
 CLEANFILES += $(PROTOBUF_EGG)
