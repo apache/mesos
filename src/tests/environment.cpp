@@ -106,9 +106,9 @@ static void setupGtestFilter()
       const std::string& testCaseName = testInfo->test_case_name();
       const std::string& testName = testInfo->name();
       if (!enable(testCaseName)) {
-        negative.append(":" + testCaseName + ".*");
+        negative.append(testCaseName + ".*:");
       } else if (!enable(testName)) {
-        negative.append(":" + testCaseName + "." + testName);
+        negative.append(testCaseName + "." + testName + ":");
       }
     }
   }
