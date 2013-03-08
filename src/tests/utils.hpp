@@ -46,6 +46,10 @@
 #include "common/resources.hpp"
 #include "common/type_utils.hpp"
 
+#ifdef __linux__
+#include "linux/cgroups.hpp"
+#endif
+
 #include "logging/logging.hpp"
 
 #include "master/allocator.hpp"
@@ -75,7 +79,10 @@ extern flags::Flags<logging::Flags, Flags> flags;
 
 #ifdef __linux__
 // Cgroups hierarchy used by the cgroups related tests.
-const static std::string TEST_HIERARCHY = "/tmp/mesos_test_cgroup";
+const static std::string TEST_CGROUPS_HIERARCHY = "/tmp/mesos_test_cgroup";
+
+// Name of the root cgroup used by the cgroups related tests.
+const static std::string TEST_CGROUPS_ROOT = "mesos_test";
 #endif
 
 
@@ -114,8 +121,11 @@ protected:
       << "Failed to create temporary directory: " << directory.error();
 
     slaveFlags.work_dir = directory.get();
-
     slaveFlags.launcher_dir = path::join(tests::flags.build_dir, "src");
+#ifdef __linux__
+    slaveFlags.cgroups_hierarchy = TEST_CGROUPS_HIERARCHY;
+    slaveFlags.cgroups_root = TEST_CGROUPS_ROOT;
+#endif
 
     // For locating killtree.sh.
     os::setenv("MESOS_SOURCE_DIR",tests::flags.source_dir);
@@ -137,6 +147,158 @@ protected:
 
   flags::Flags<logging::Flags, slave::Flags> slaveFlags;
 };
+
+
+#ifdef __linux__
+class CgroupsTest : public MesosTest
+{
+protected:
+  static void SetUpTestCase()
+  {
+    // Clean up the testing hierarchy, in case it wasn't cleaned up
+    // properly from previous tests.
+    TearDownTestCase();
+  }
+
+  static void TearDownTestCase()
+  {
+    // Remove the testing hierarchy.
+    Try<bool> mounted = cgroups::mounted(TEST_CGROUPS_HIERARCHY);
+    ASSERT_SOME(mounted);
+    if (mounted.get()) {
+      // Remove all cgroups.
+      Try<std::vector<std::string> > cgroups =
+        cgroups::get(TEST_CGROUPS_HIERARCHY);
+
+      ASSERT_SOME(cgroups);
+      foreach (const std::string& cgroup, cgroups.get()) {
+        ASSERT_FUTURE_WILL_SUCCEED(
+            cgroups::destroy(TEST_CGROUPS_HIERARCHY, cgroup));
+      }
+
+      // Remove the hierarchy.
+      ASSERT_SOME(cgroups::unmount(TEST_CGROUPS_HIERARCHY));
+
+      // Remove the directory if still exists.
+      if (os::exists(TEST_CGROUPS_HIERARCHY)) {
+        os::rmdir(TEST_CGROUPS_HIERARCHY);
+      }
+    }
+  }
+};
+
+
+// A fixture which is used to name tests that expect NO hierarchy to
+// exist in order to test the ability to create a hierarchy (since
+// most likely existing hierarchies will have all or most subsystems
+// attached rendering our ability to create a hierarchy fruitless).
+class CgroupsNoHierarchyTest : public CgroupsTest
+{
+protected:
+  static void SetUpTestCase()
+  {
+    CgroupsTest::SetUpTestCase();
+
+    Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+    ASSERT_SOME(hierarchies);
+    if (!hierarchies.get().empty()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any cgroups tests that require mounting\n"
+        << "hierarchies because you have the following hierarchies mounted:\n"
+        << strings::trim(stringify(hierarchies.get()), " {},") << "\n"
+        << "You can either unmount those hierarchies, or disable\n"
+        << "this test case (i.e., --gtest_filter=-CgroupsNoHierarchyTest.*).\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+};
+
+
+// A fixture that assumes ANY hierarchy is acceptable for use provided
+// it has the subsystems attached that were specified in the
+// constructor. If no hierarchy could be found that has all the
+// required subsystems then we attempt to create a new hierarchy.
+class CgroupsAnyHierarchyTest : public CgroupsTest
+{
+public:
+  CgroupsAnyHierarchyTest(const std::string& _subsystems = "cpu")
+    : subsystems(_subsystems) {}
+
+protected:
+  virtual void SetUp()
+  {
+    Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+    ASSERT_SOME(hierarchies);
+    foreach (const std::string& candidate, hierarchies.get()) {
+      if (subsystems.empty()) {
+        hierarchy = candidate;
+        break;
+      }
+
+      // Check and see if this candidate meets our subsystem requirements.
+      Try<bool> mounted = cgroups::mounted(candidate, subsystems);
+      ASSERT_SOME(mounted);
+      if (mounted.get()) {
+        hierarchy = candidate;
+        break;
+      }
+    }
+
+    if (hierarchy.empty()) {
+      // Try to mount a hierarchy for testing.
+      ASSERT_SOME(cgroups::mount(TEST_CGROUPS_HIERARCHY, subsystems))
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any cgroups tests that require\n"
+        << "a hierarchy with subsystems '" << subsystems << "'\n"
+        << "because we failed to find an existing hierarchy\n"
+        << "or create a new one. You can either remove all existing\n"
+        << "hierarchies, or disable this test case\n"
+        << "(i.e., --gtest_filter=-"
+        << ::testing::UnitTest::GetInstance()
+             ->current_test_info()
+             ->test_case_name() << ".*).\n"
+        << "-------------------------------------------------------------";
+
+      hierarchy = TEST_CGROUPS_HIERARCHY;
+    }
+
+    // Create a cgroup (removing first if necessary) for the tests to use.
+    Try<bool> exists = cgroups::exists(hierarchy, TEST_CGROUPS_ROOT);
+    ASSERT_SOME(exists);
+    if (exists.get()) {
+      ASSERT_FUTURE_WILL_SUCCEED(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT))
+        << "-------------------------------------------------------------\n"
+        << "We failed to destroy our \"testing\" cgroup (most likely left\n"
+        << "around from a previously failing test). This is a pretty\n"
+        << "serious error, please report a bug!\n"
+        << "-------------------------------------------------------------";
+    }
+
+    ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+  }
+
+  virtual void TearDown()
+  {
+    // Remove all *our* cgroups.
+    Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy);
+    ASSERT_SOME(cgroups);
+    foreach (const std::string& cgroup, cgroups.get()) {
+      if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
+        ASSERT_FUTURE_WILL_SUCCEED(cgroups::destroy(hierarchy, cgroup));
+      }
+    }
+
+    // And destroy TEST_CGROUPS_HIERARCHY in the event it is needed
+    // to be created.
+    CgroupsTest::TearDownTestCase();
+  }
+
+  const std::string subsystems; // Subsystems required to run tests.
+  std::string hierarchy; // Path to the hierarchy being used.
+};
+#endif
 
 
 // Macros to get/create (default) ExecutorInfos and FrameworkInfos.

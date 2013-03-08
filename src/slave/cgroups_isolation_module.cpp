@@ -221,7 +221,7 @@ void CgroupsIsolationModule::initialize(
   }
 
   // Configure cgroups hierarchy root path.
-  hierarchy = flags.cgroups_hierarchy_root;
+  hierarchy = flags.cgroups_hierarchy;
 
   LOG(INFO) << "Using " << hierarchy << " as cgroups hierarchy root";
 
@@ -269,43 +269,56 @@ void CgroupsIsolationModule::initialize(
       // directory. This will helps us better deal with slave restarts
       // since we won't need to manually remove the directory.
       Try<Nothing> rmdir = os::rmdir(hierarchy, false);
-      CHECK_SOME(rmdir)
-        << "Failed to mount cgroups hierarchy at '" << hierarchy
-        << "' because we could not remove existing directory";
+      if (rmdir.isError()) {
+        EXIT(1) << "Failed to mount cgroups hierarchy at '" << hierarchy
+                << "' because we could not remove existing directory"
+                << ": " << rmdir.error();
+      }
     }
 
     // Mount the cgroups hierarchy.
     Try<Nothing> mount = cgroups::mount(
         hierarchy, strings::join(",", subsystems));
-    CHECK_SOME(mount)
-      << "Failed to mount cgroups hierarchy at '" << hierarchy << "'";
+
+    if (mount.isError()) {
+      EXIT(1) << "Failed to mount cgroups hierarchy at '" << hierarchy
+              << "': " << mount.error();
+    }
   }
 
-  // Create the root "mesos" cgroup if it doesn't exist.
-  Try<bool> exists = cgroups::exists(hierarchy, "mesos");
+  // Create the root cgroup if it doesn't exist.
+  Try<bool> exists = cgroups::exists(hierarchy, flags.cgroups_root);
   CHECK_SOME(exists)
-    << "Failed to determine if the 'mesos' cgroup already exists "
-    << "in the hierarchy at '" << hierarchy << "'";
+    << "Failed to determine if '"<< flags.cgroups_root << "' cgroup "
+    << "already exists in the hierarchy at '" << hierarchy << "'";
+
   if (!exists.get()) {
     // No root cgroup exists, create it.
-    Try<Nothing> create = cgroups::create(hierarchy, "mesos");
-    CHECK_SOME(create) << "Failed to create the 'mesos' cgroup";
+    Try<Nothing> create = cgroups::create(hierarchy, flags.cgroups_root);
+    CHECK_SOME(create)
+      << "Failed to create the '" << flags.cgroups_root << "' cgroup";
   }
 
   // Make sure this kernel supports creating nested cgroups.
-  Try<Nothing> create = cgroups::create(hierarchy, "mesos/test");
+  Try<Nothing> create =
+    cgroups::create(hierarchy, path::join(flags.cgroups_root, "test"));
+
   if (create.isError()) {
     EXIT(1) << "Failed to create a nested 'test' cgroup. Your kernel "
             << "might be too old to use the cgroups isolation module: "
             << create.error();
   }
 
-  Try<Nothing> remove = cgroups::remove(hierarchy, "mesos/test");
+  Try<Nothing> remove =
+    cgroups::remove(hierarchy, path::join(flags.cgroups_root, "test"));
+
   CHECK_SOME(remove) << "Failed to remove the nested 'test' cgroup";
 
   // Try and put an _advisory_ file lock on the tasks' file of our
   // root cgroup to check and see if another slave is already running.
-  Try<int> open = os::open(path::join(hierarchy, "mesos", "tasks"), O_RDONLY);
+  Try<int> open =
+    os::open(path::join(hierarchy, flags.cgroups_root, "tasks"), O_RDONLY);
+
   CHECK_SOME(open);
 
   lockFile = open.get();
@@ -319,8 +332,12 @@ void CgroupsIsolationModule::initialize(
   // should be safe because we've been able to acquire the file lock).
   // TODO(vinod): Wait for all the orphaned cgroups to be destroyed
   // before moving on with the rest of the initialization.
-  Try<vector<string> > cgroups = cgroups::get(hierarchy, "mesos");
-  CHECK_SOME(cgroups) << "Failed to get nested cgroups of 'mesos'";
+  Try<vector<string> > cgroups =
+    cgroups::get(hierarchy, flags.cgroups_root);
+
+  CHECK_SOME(cgroups)
+    << "Failed to get nested cgroups of '" << flags.cgroups_root << "'";
+
   foreach (const string& cgroup, cgroups.get()) {
     LOG(INFO) << "Removing orphaned cgroup '" << cgroup << "'";
     cgroups::destroy(hierarchy, cgroup)
@@ -331,9 +348,12 @@ void CgroupsIsolationModule::initialize(
   }
 
   // Make sure the kernel supports OOM controls.
-  exists = cgroups::exists(hierarchy, "mesos", "memory.oom_control");
+  exists =
+    cgroups::exists(hierarchy, flags.cgroups_root, "memory.oom_control");
+
   CHECK_SOME(exists)
     << "Failed to determine if 'memory.oom_control' control exists";
+
   if (!exists.get()) {
     EXIT(1) << "Failed to find 'memory.oom_control', your kernel "
             << "might be too old to use the cgroups isolation module";
@@ -341,7 +361,8 @@ void CgroupsIsolationModule::initialize(
 
   // Disable the OOM killer so that we can capture 'memory.stat'.
   Try<Nothing> write = cgroups::write(
-      hierarchy, "mesos", "memory.oom_control", "1");
+      hierarchy, flags.cgroups_root, "memory.oom_control", "1");
+
   CHECK_SOME(write) << "Failed to disable OOM killer";
 
   if (subsystems.contains("cpu") && subsystems.contains("cpuset")) {
@@ -361,7 +382,9 @@ void CgroupsIsolationModule::initialize(
     // TODO(bmahler): Consider making a cgroups primitive helper to perform
     // cgroups list format -> list of ints / strings conversion.
     hashset<unsigned int> cgroupCpus;
-    Try<string> cpuset = cgroups::read(hierarchy, "mesos", "cpuset.cpus");
+    Try<string> cpuset =
+      cgroups::read(hierarchy, flags.cgroups_root, "cpuset.cpus");
+
     CHECK_SOME(cpuset) << "Failed to read cpuset.cpus";
     cpuset = strings::trim(cpuset.get());
 
@@ -436,12 +459,15 @@ void CgroupsIsolationModule::finalize()
   CHECK_SOME(lockFile) << "Uninitialized file descriptor!";
   if (flock(lockFile.get(), LOCK_UN) != 0) {
     PLOG(FATAL)
-      << "Failed to unlock '" << path::join(hierarchy, "mesos", "tasks");
+      << "Failed to unlock advisory lock file '"
+      << path::join(hierarchy, flags.cgroups_root, "tasks") << "'";
   }
 
   Try<Nothing> close = os::close(lockFile.get());
   if (close.isError()) {
-    LOG(ERROR) << "Failed to close advisory lock file: " << close.error();
+    LOG(ERROR) << "Failed to close advisory lock file '"
+               << path::join(hierarchy, flags.cgroups_root, "tasks")
+               << "': " << close.error();
   }
 }
 

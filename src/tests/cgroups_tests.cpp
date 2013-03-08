@@ -51,150 +51,6 @@ using namespace mesos::internal::tests;
 using namespace process;
 
 
-class CgroupsTest : public ::testing::Test
-{
-protected:
-  static void SetUpTestCase()
-  {
-    TearDownTestCase();
-  }
-
-  static void TearDownTestCase()
-  {
-    // Remove the testing hierarchy.
-    Try<bool> mounted = cgroups::mounted(TEST_HIERARCHY);
-    ASSERT_SOME(mounted);
-    if (mounted.get()) {
-      // Remove all cgroups.
-      Try<std::vector<std::string> > cgroups = cgroups::get(TEST_HIERARCHY);
-      ASSERT_SOME(cgroups);
-      foreach (const std::string& cgroup, cgroups.get()) {
-        ASSERT_SOME(cgroups::remove(TEST_HIERARCHY, cgroup));
-      }
-
-      // Remove the hierarchy.
-      ASSERT_SOME(cgroups::unmount(TEST_HIERARCHY));
-
-      // Remove the directory if still exists.
-      if (os::exists(TEST_HIERARCHY)) {
-        os::rmdir(TEST_HIERARCHY);
-      }
-    }
-  }
-};
-
-
-// A fixture which is used to name tests that expect NO hierarchy to
-// exist in order to test the ability to create a hierarchy (since
-// most likely existing hierarchies will have all or most subsystems
-// attached rendering our ability to create a hierarchy fruitless).
-class CgroupsNoHierarchyTest : public CgroupsTest
-{
-protected:
-  static void SetUpTestCase()
-  {
-    CgroupsTest::SetUpTestCase();
-
-    Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
-    ASSERT_SOME(hierarchies);
-    if (!hierarchies.get().empty()) {
-      std::cerr
-        << "-------------------------------------------------------------\n"
-        << "We cannot run any cgroups tests that require mounting\n"
-        << "hierarchies because you have the following hierarchies mounted:\n"
-        << strings::trim(stringify(hierarchies.get()), " {},") << "\n"
-        << "You can either unmount those hierarchies, or disable\n"
-        << "this test case (i.e., --gtest_filter=-CgroupsNoHierarchyTest.*).\n"
-        << "-------------------------------------------------------------"
-        << std::endl;
-    }
-  }
-};
-
-
-// A fixture that assumes ANY hierarchy is acceptable for use provided
-// it has the subsystems attached that were specified in the
-// constructor. If no hierarchy could be found that has all the
-// required subsystems then we attempt to create a new hierarchy.
-class CgroupsAnyHierarchyTest : public CgroupsTest
-{
-public:
-  CgroupsAnyHierarchyTest(const std::string& _subsystems = "cpu")
-    : subsystems(_subsystems) {}
-
-protected:
-  virtual void SetUp()
-  {
-    Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
-    ASSERT_SOME(hierarchies);
-    foreach (const std::string& candidate, hierarchies.get()) {
-      if (subsystems.empty()) {
-        hierarchy = candidate;
-        break;
-      }
-
-      // Check and see if this candidate meets our subsystem requirements.
-      Try<bool> mounted = cgroups::mounted(candidate, subsystems);
-      ASSERT_SOME(mounted);
-      if (mounted.get()) {
-        hierarchy = candidate;
-        break;
-      }
-    }
-
-    if (hierarchy.empty()) {
-      // Try to mount a hierarchy for testing.
-      ASSERT_SOME(cgroups::mount(TEST_HIERARCHY, subsystems))
-        << "-------------------------------------------------------------\n"
-        << "We cannot run any cgroups tests that require\n"
-        << "a hierarchy with subsystems '" << subsystems << "'\n"
-        << "because we failed to find an existing hierarchy\n"
-        << "or create a new one. You can either remove all existing\n"
-        << "hierarchies, or disable this test case\n"
-        << "(i.e., --gtest_filter=-"
-        << ::testing::UnitTest::GetInstance()
-             ->current_test_info()
-             ->test_case_name() << ".*).\n"
-        << "-------------------------------------------------------------";
-
-      hierarchy = TEST_HIERARCHY;
-    }
-
-    // Create a cgroup (removing first if necessary) for the tests to use.
-    Try<bool> exists = cgroups::exists(hierarchy, "mesos_test");
-    ASSERT_SOME(exists);
-    if (exists.get()) {
-      ASSERT_FUTURE_WILL_SUCCEED(cgroups::destroy(hierarchy, "mesos_test"))
-        << "-------------------------------------------------------------\n"
-        << "We failed to destroy our \"testing\" cgroup (most likely left\n"
-        << "around from a previously failing test). This is a pretty\n"
-        << "serious error, please report a bug!\n"
-        << "-------------------------------------------------------------";
-    }
-
-    ASSERT_SOME(cgroups::create(hierarchy, "mesos_test"));
-  }
-
-  virtual void TearDown()
-  {
-    // Remove all *our* cgroups.
-    Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy);
-    ASSERT_SOME(cgroups);
-    foreach (const std::string& cgroup, cgroups.get()) {
-      if (strings::startsWith(cgroup, "mesos_test")) {
-        ASSERT_SOME(cgroups::remove(hierarchy, cgroup));
-      }
-    }
-
-    // And destroy TEST_HIERARCHY in the event it is needed to be created.
-    CgroupsTest::TearDownTestCase();
-  }
-
-  const std::string subsystems; // Subsystems required to run tests.
-  std::string hierarchy; // Path to the hierarchy being used.
-};
-
-
 class CgroupsAnyHierarchyWithCpuMemoryTest
   : public CgroupsAnyHierarchyTest
 {
@@ -282,11 +138,11 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
 TEST_F(CgroupsNoHierarchyTest, ROOT_CGROUPS_MountUnmountHierarchy)
 {
   EXPECT_ERROR(cgroups::mount("/tmp", "cpu"));
-  EXPECT_ERROR(cgroups::mount(TEST_HIERARCHY, "invalid"));
-  ASSERT_SOME(cgroups::mount(TEST_HIERARCHY, "cpu,memory"));
-  EXPECT_ERROR(cgroups::mount(TEST_HIERARCHY, "cpuset"));
+  EXPECT_ERROR(cgroups::mount(TEST_CGROUPS_HIERARCHY, "invalid"));
+  ASSERT_SOME(cgroups::mount(TEST_CGROUPS_HIERARCHY, "cpu,memory"));
+  EXPECT_ERROR(cgroups::mount(TEST_CGROUPS_HIERARCHY, "cpuset"));
   EXPECT_ERROR(cgroups::unmount("/tmp"));
-  ASSERT_SOME(cgroups::unmount(TEST_HIERARCHY));
+  ASSERT_SOME(cgroups::unmount(TEST_CGROUPS_HIERARCHY));
 }
 
 
@@ -333,7 +189,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
 
   EXPECT_EQ(cgroups.get()[0], "mesos_test2");
   EXPECT_EQ(cgroups.get()[1], "mesos_test1");
-  EXPECT_EQ(cgroups.get()[2], "mesos_test");
+  EXPECT_EQ(cgroups.get()[2], TEST_CGROUPS_ROOT);
 
   ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test1"));
   ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test2"));
@@ -342,7 +198,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
 {
-  ASSERT_SOME(cgroups::create(hierarchy, "mesos_test/1"))
+  ASSERT_SOME(cgroups::create(hierarchy, path::join(TEST_CGROUPS_ROOT, "1")))
     << "-------------------------------------------------------------\n"
     << "We cannot run this test because it appears you do not have\n"
     << "a modern enough version of the Linux kernel. You won't be\n"
@@ -350,17 +206,19 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
     << "disable this test.\n"
     << "-------------------------------------------------------------";
 
-  ASSERT_SOME(cgroups::create(hierarchy, "mesos_test/2"));
+  ASSERT_SOME(cgroups::create(hierarchy, path::join(TEST_CGROUPS_ROOT, "2")));
 
-  Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy, "mesos_test");
+  Try<std::vector<std::string> > cgroups =
+    cgroups::get(hierarchy, TEST_CGROUPS_ROOT);
+
   ASSERT_SOME(cgroups);
   ASSERT_EQ(2u, cgroups.get().size());
 
-  EXPECT_EQ(cgroups.get()[0], "mesos_test/2");
-  EXPECT_EQ(cgroups.get()[1], "mesos_test/1");
+  EXPECT_EQ(cgroups.get()[0], path::join(TEST_CGROUPS_ROOT, "2"));
+  EXPECT_EQ(cgroups.get()[1], path::join(TEST_CGROUPS_ROOT, "1"));
 
-  ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test/1"));
-  ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test/2"));
+  ASSERT_SOME(cgroups::remove(hierarchy, path::join(TEST_CGROUPS_ROOT, "1")));
+  ASSERT_SOME(cgroups::remove(hierarchy, path::join(TEST_CGROUPS_ROOT, "2")));
 }
 
 
@@ -375,7 +233,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Tasks)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Read)
 {
-  EXPECT_ERROR(cgroups::read(hierarchy, "mesos_test", "invalid"));
+  EXPECT_ERROR(cgroups::read(hierarchy, TEST_CGROUPS_ROOT, "invalid"));
 
   std::string pid = stringify(::getpid());
 
@@ -387,17 +245,18 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Read)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
 {
-  EXPECT_ERROR(cgroups::write(hierarchy, "mesos_test", "invalid", "invalid"));
+  EXPECT_ERROR(
+      cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "invalid", "invalid"));
 
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
   if (pid) {
     // In parent process.
-    ASSERT_SOME(cgroups::write(
-                    hierarchy, "mesos_test", "tasks", stringify(pid)));
+    ASSERT_SOME(
+        cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "tasks", stringify(pid)));
 
-    Try<std::set<pid_t> > pids = cgroups::tasks(hierarchy, "mesos_test");
+    Try<std::set<pid_t> > pids = cgroups::tasks(hierarchy, TEST_CGROUPS_ROOT);
     ASSERT_SOME(pids);
 
     EXPECT_NE(0u, pids.get().count(pid));
@@ -432,7 +291,7 @@ public:
 
 TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_Stat)
 {
-  EXPECT_ERROR(cgroups::stat(hierarchy, "mesos_test", "invalid"));
+  EXPECT_ERROR(cgroups::stat(hierarchy, TEST_CGROUPS_ROOT, "invalid"));
 
   Try<hashmap<std::string, uint64_t> > result =
     cgroups::stat(hierarchy, "/", "cpuacct.stat");
@@ -451,7 +310,8 @@ TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_Stat)
 
 TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
 {
-  ASSERT_SOME(cgroups::exists(hierarchy, "mesos_test", "memory.oom_control"))
+  ASSERT_SOME(
+      cgroups::exists(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control"))
     << "-------------------------------------------------------------\n"
     << "We cannot run this test because it appears you do not have\n"
     << "a modern enough version of the Linux kernel. You won't be\n"
@@ -460,30 +320,27 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
     << "-------------------------------------------------------------";
 
   // Disable oom killer.
-  ASSERT_SOME(cgroups::write(
-                  hierarchy,
-                  "mesos_test",
-                  "memory.oom_control",
-                  "1"));
+  ASSERT_SOME(
+      cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control", "1"));
 
-  // Limit the memory usage of "mesos_test" to 64MB.
+  // Limit the memory usage of the test cgroup to 64MB.
   size_t limit = 1024 * 1024 * 64;
   ASSERT_SOME(cgroups::write(
                   hierarchy,
-                  "mesos_test",
+                  TEST_CGROUPS_ROOT,
                   "memory.limit_in_bytes",
                   stringify(limit)));
 
-  // Listen on oom events for "mesos_test" cgroup.
+  // Listen on oom events for test cgroup.
   Future<uint64_t> future = cgroups::listen(
-      hierarchy, "mesos_test", "memory.oom_control");
+      hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control");
   ASSERT_FALSE(future.isFailed());
 
   // Test the cancellation.
   future.discard();
 
   // Test the normal operation below.
-  future = cgroups::listen(hierarchy, "mesos_test", "memory.oom_control");
+  future = cgroups::listen(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control");
   ASSERT_FALSE(future.isFailed());
 
   pid_t pid = ::fork();
@@ -505,8 +362,10 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
     EXPECT_EQ(SIGKILL, WTERMSIG(status));
   } else {
     // In child process. We try to trigger an oom here.
-    // Put self into the "mesos_test" cgroup.
-    Try<Nothing> assign = cgroups::assign(hierarchy, "mesos_test", ::getpid());
+    // Put self into the test cgroup.
+    Try<Nothing> assign =
+      cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid());
+
     if (assign.isError()) {
       std::cerr << "Failed to assign cgroup: " << assign.error() << std::endl;
       abort();
@@ -557,14 +416,14 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
     ASSERT_LT(0, ::read(pipes[0], &dummy, sizeof(dummy)));
     ::close(pipes[0]);
 
-    // Freeze the "mesos_test" cgroup.
-    Future<bool> freeze = cgroups::freeze(hierarchy, "mesos_test");
+    // Freeze the test cgroup.
+    Future<bool> freeze = cgroups::freeze(hierarchy, TEST_CGROUPS_ROOT);
     freeze.await(Seconds(5.0));
     ASSERT_TRUE(freeze.isReady());
     EXPECT_EQ(true, freeze.get());
 
-    // Thaw the "mesos_test" cgroup.
-    Future<bool> thaw = cgroups::thaw(hierarchy, "mesos_test");
+    // Thaw the test cgroup.
+    Future<bool> thaw = cgroups::thaw(hierarchy, TEST_CGROUPS_ROOT);
     thaw.await(Seconds(5.0));
     ASSERT_TRUE(thaw.isReady());
     EXPECT_EQ(true, thaw.get());
@@ -581,8 +440,10 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
     // In child process.
     ::close(pipes[0]);
 
-    // Put self into the "mesos_test" cgroup.
-    Try<Nothing> assign = cgroups::assign(hierarchy, "mesos_test", ::getpid());
+    // Put self into the test cgroup.
+    Try<Nothing> assign =
+      cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid());
+
     if (assign.isError()) {
       std::cerr << "Failed to assign cgroup: " << assign.error() << std::endl;
       abort();
@@ -625,7 +486,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Kill)
     ASSERT_LT(0, ::read(pipes[0], &dummy, sizeof(dummy)));
     ::close(pipes[0]);
 
-    Try<Nothing> kill = cgroups::kill(hierarchy, "mesos_test", SIGKILL);
+    Try<Nothing> kill = cgroups::kill(hierarchy, TEST_CGROUPS_ROOT, SIGKILL);
     EXPECT_SOME(kill);
 
     int status;
@@ -640,8 +501,10 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Kill)
     ::fork();
     ::fork();
 
-    // Put self into "mesos_test" cgroup.
-    Try<Nothing> assign = cgroups::assign(hierarchy, "mesos_test", ::getpid());
+    // Put self into the test cgroup.
+    Try<Nothing> assign =
+      cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid());
+
     if (assign.isError()) {
       std::cerr << "Failed to assign cgroup: " << assign.error() << std::endl;
       abort();
@@ -686,7 +549,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Destroy)
     ASSERT_LT(0, ::read(pipes[0], &dummy, sizeof(dummy)));
     ::close(pipes[0]);
 
-    Future<bool> future = cgroups::destroy(hierarchy, "mesos_test");
+    Future<bool> future = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
     future.await(Seconds(5.0));
     ASSERT_TRUE(future.isReady());
     EXPECT_TRUE(future.get());
@@ -703,8 +566,10 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Destroy)
     ::fork();
     ::fork();
 
-    // Put self into "mesos_test" cgroup.
-    Try<Nothing> assign = cgroups::assign(hierarchy, "mesos_test", ::getpid());
+    // Put self into the test cgroup.
+    Try<Nothing> assign =
+      cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid());
+
     if (assign.isError()) {
       std::cerr << "Failed to assign cgroup: " << assign.error() << std::endl;
       abort();

@@ -109,10 +109,15 @@ public:
         RESOURCE_MONITORING_INTERVAL);
 
 #ifdef __linux__
-    add(&Flags::cgroups_hierarchy_root,
-        "cgroups_hierarchy_root",
+    add(&Flags::cgroups_hierarchy,
+        "cgroups_hierarchy",
         "The path to the cgroups hierarchy root\n",
         "/cgroup");
+
+    add(&Flags::cgroups_root,
+        "cgroups_root",
+        "Name of the root cgroup\n",
+        "mesos");
 
     add(&Flags::cgroups_subsystems,
         "cgroups_subsystems",
@@ -134,7 +139,8 @@ public:
   Duration disk_watch_interval;
   Duration resource_monitoring_interval;
 #ifdef __linux__
-  std::string cgroups_hierarchy_root;
+  std::string cgroups_hierarchy;
+  std::string cgroups_root;
   std::string cgroups_subsystems;
 #endif
 };
