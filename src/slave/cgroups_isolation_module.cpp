@@ -438,6 +438,11 @@ void CgroupsIsolationModule::finalize()
     PLOG(FATAL)
       << "Failed to unlock '" << path::join(hierarchy, "mesos", "tasks");
   }
+
+  Try<Nothing> close = os::close(lockFile.get());
+  if (close.isError()) {
+    LOG(ERROR) << "Failed to close advisory lock file: " << close.error();
+  }
 }
 
 

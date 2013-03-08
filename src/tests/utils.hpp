@@ -73,6 +73,12 @@ namespace tests {
 extern flags::Flags<logging::Flags, Flags> flags;
 
 
+#ifdef __linux__
+// Cgroups hierarchy used by the cgroups related tests.
+const static std::string TEST_HIERARCHY = "/tmp/mesos_test_cgroup";
+#endif
+
+
 // Helper to create a temporary directory based on the current test
 // case name and test name (derived from TestInfo via
 // ::testing::UnitTest::GetInstance()->current_test_info()).

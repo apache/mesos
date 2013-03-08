@@ -1250,7 +1250,8 @@ private:
       // Not done yet, keep watching (and possibly retrying).
       delay(interval, self(), &Freezer::watchFrozen, attempt + 1);
     } else {
-      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get());
+      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get())
+                 << " of cgroup " << path::join(hierarchy, cgroup);
     }
   }
 
@@ -1272,7 +1273,8 @@ private:
       // Not done yet, keep watching.
       delay(interval, self(), &Freezer::watchThawed);
     } else {
-      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get());
+      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get())
+                 << " of cgroup " << path::join(hierarchy, cgroup);
     }
   }
 

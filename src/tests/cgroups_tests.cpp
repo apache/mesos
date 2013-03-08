@@ -46,9 +46,9 @@
 
 #include "tests/utils.hpp"
 
-using namespace process;
+using namespace mesos::internal::tests;
 
-const static std::string HIERARCHY = "/tmp/mesos_cgroups_testing_hierarchy";
+using namespace process;
 
 
 class CgroupsTest : public ::testing::Test
@@ -62,22 +62,22 @@ protected:
   static void TearDownTestCase()
   {
     // Remove the testing hierarchy.
-    Try<bool> mounted = cgroups::mounted(HIERARCHY);
+    Try<bool> mounted = cgroups::mounted(TEST_HIERARCHY);
     ASSERT_SOME(mounted);
     if (mounted.get()) {
       // Remove all cgroups.
-      Try<std::vector<std::string> > cgroups = cgroups::get(HIERARCHY);
+      Try<std::vector<std::string> > cgroups = cgroups::get(TEST_HIERARCHY);
       ASSERT_SOME(cgroups);
       foreach (const std::string& cgroup, cgroups.get()) {
-        ASSERT_SOME(cgroups::remove(HIERARCHY, cgroup));
+        ASSERT_SOME(cgroups::remove(TEST_HIERARCHY, cgroup));
       }
 
       // Remove the hierarchy.
-      ASSERT_SOME(cgroups::unmount(HIERARCHY));
+      ASSERT_SOME(cgroups::unmount(TEST_HIERARCHY));
 
       // Remove the directory if still exists.
-      if (os::exists(HIERARCHY)) {
-        os::rmdir(HIERARCHY);
+      if (os::exists(TEST_HIERARCHY)) {
+        os::rmdir(TEST_HIERARCHY);
       }
     }
   }
@@ -123,16 +123,6 @@ public:
     : subsystems(_subsystems) {}
 
 protected:
-  static void SetUpTestCase()
-  {
-    CgroupsTest::SetUpTestCase();
-  }
-
-  static void TearDownTestCase()
-  {
-    CgroupsTest::TearDownTestCase();
-  }
-
   virtual void SetUp()
   {
     Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
@@ -154,7 +144,7 @@ protected:
 
     if (hierarchy.empty()) {
       // Try to mount a hierarchy for testing.
-      ASSERT_SOME(cgroups::mount(HIERARCHY, subsystems))
+      ASSERT_SOME(cgroups::mount(TEST_HIERARCHY, subsystems))
         << "-------------------------------------------------------------\n"
         << "We cannot run any cgroups tests that require\n"
         << "a hierarchy with subsystems '" << subsystems << "'\n"
@@ -167,7 +157,7 @@ protected:
              ->test_case_name() << ".*).\n"
         << "-------------------------------------------------------------";
 
-      hierarchy = HIERARCHY;
+      hierarchy = TEST_HIERARCHY;
     }
 
     // Create a cgroup (removing first if necessary) for the tests to use.
@@ -196,7 +186,7 @@ protected:
       }
     }
 
-    // And destroy HIERARCHY in the event it needed to be created.
+    // And destroy TEST_HIERARCHY in the event it is needed to be created.
     CgroupsTest::TearDownTestCase();
   }
 
@@ -292,11 +282,11 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
 TEST_F(CgroupsNoHierarchyTest, ROOT_CGROUPS_MountUnmountHierarchy)
 {
   EXPECT_ERROR(cgroups::mount("/tmp", "cpu"));
-  EXPECT_ERROR(cgroups::mount(HIERARCHY, "invalid"));
-  ASSERT_SOME(cgroups::mount(HIERARCHY, "cpu,memory"));
-  EXPECT_ERROR(cgroups::mount(HIERARCHY, "cpuset"));
+  EXPECT_ERROR(cgroups::mount(TEST_HIERARCHY, "invalid"));
+  ASSERT_SOME(cgroups::mount(TEST_HIERARCHY, "cpu,memory"));
+  EXPECT_ERROR(cgroups::mount(TEST_HIERARCHY, "cpuset"));
   EXPECT_ERROR(cgroups::unmount("/tmp"));
-  ASSERT_SOME(cgroups::unmount(HIERARCHY));
+  ASSERT_SOME(cgroups::unmount(TEST_HIERARCHY));
 }
 
 
