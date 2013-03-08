@@ -375,17 +375,20 @@ struct Framework
     if (task.has_command()) {
       ExecutorInfo executor;
 
-      // Prepare an executor id which includes information on the
+      // Command executors share the same id as the task.
+      executor.mutable_executor_id()->set_value(task.task_id().value());
+
+      // Prepare an executor name which includes information on the
       // command being launched.
-      std::string id = "Task " + task.task_id().value() + " (";
+      std::string name =
+        "(Task: " + task.task_id().value() + ") " + "(Command: sh -c '";
       if (task.command().value().length() > 15) {
-        id += task.command().value().substr(0, 12) + "...)";
+        name += task.command().value().substr(0, 12) + "...')";
       } else {
-        id += task.command().value() + ")";
+        name += task.command().value() + "')";
       }
 
-      executor.mutable_executor_id()->set_value(id);
-      executor.set_name("Command Executor");
+      executor.set_name("Command Executor " + name);
       executor.set_source(task.task_id().value());
 
       // Copy the CommandInfo to get the URIs and environment, but
