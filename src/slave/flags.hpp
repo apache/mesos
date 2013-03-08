@@ -112,7 +112,7 @@ public:
     add(&Flags::cgroups_hierarchy_root,
         "cgroups_hierarchy_root",
         "The path to the cgroups hierarchy root\n",
-        "/cgroups");
+        "/cgroup");
 
     add(&Flags::cgroups_subsystems,
         "cgroups_subsystems",
