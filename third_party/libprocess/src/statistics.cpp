@@ -346,20 +346,18 @@ Future<Response> StatisticsProcess::snapshot(const Request& request)
 
   foreachkey (const string& context, statistics) {
     foreachkey (const string& name, statistics[context]) {
-      // Exclude archived time series.
-      if (statistics[context][name].archived) {
+      // Exclude archived and empty time series.
+      if (statistics[context][name].archived ||
+          statistics[context][name].values.empty()) {
         continue;
       }
 
       // Skip statistics that don't match the query, if present.
       if (queryContext.isSome() && queryContext.get() != context) {
         continue;
-      }
-      if (queryName.isSome() && queryName.get() != name) {
+      } else if (queryName.isSome() && queryName.get() != name) {
         continue;
       }
-
-      CHECK(statistics[context][name].values.size() > 0);
 
       JSON::Object object;
       object.values["context"] = context;
