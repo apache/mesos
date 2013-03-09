@@ -77,6 +77,8 @@ TEST(MonitorTest, WatchUnwatch)
   std::map<ExecutorID, Executor*> execs;
   TestingIsolationModule isolationModule(execs);
 
+  process::spawn(isolationModule);
+
   EXPECT_CALL(isolationModule, usage(frameworkId, executorId))
     .WillRepeatedly(Return(statistics));
 
