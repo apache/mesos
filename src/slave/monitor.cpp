@@ -179,13 +179,13 @@ void ResourceMonitorProcess::collect(
     return;
   }
 
-  isolation->usage(frameworkId, executorId).onAny(
-      defer(self(),
-            &Self::_collect,
-            lambda::_1,
-            frameworkId,
-            executorId,
-            interval));
+  dispatch(isolation, &IsolationModule::usage, frameworkId, executorId)
+    .onAny(defer(self(),
+                 &Self::_collect,
+                 lambda::_1,
+                 frameworkId,
+                 executorId,
+                 interval));
 }
 
 
