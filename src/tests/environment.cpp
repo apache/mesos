@@ -48,6 +48,7 @@ public:
   }
 };
 
+
 // Returns true if we should enable a test case or test with the given
 // name. For now, this ONLY disables test cases and tests in two
 // circumstances:
@@ -73,10 +74,13 @@ static bool enable(const std::string& name)
 }
 
 
-// Setup special tests by updating the gtest filter (i.e., selectively
-// enable/disable tests based on certain "environmental" criteria,
-// such as whether or not the machine has 'cgroups' support).
-static void setupGtestFilter()
+// We use the constructor to setup specific tests by updating the
+// gtest filter. We do this so that we can selectively run tests that
+// require root or specific OS support (e.g., cgroups). Note that this
+// should not effect any other filters that have been put in place
+// either on the command line or via an environment variable.
+// N.B. This MUST be done _before_ invoking RUN_ALL_TESTS.
+Environment::Environment()
 {
   // First we split the current filter into positive and negative
   // components (which are separated by a '-').
@@ -122,13 +126,6 @@ void Environment::SetUp()
 {
   // Clear any MESOS_ environment variables so they don't affect our tests.
   Configurator::clearMesosEnvironmentVars();
-
-  // Setup specific tests by updating the gtest filter. We do this so
-  // that we can selectively run tests that require root or specific
-  // OS support (e.g., cgroups). Note that this should not effect any
-  // other filters that have been put in place either on the command
-  // line or via an environment variable.
-  setupGtestFilter();
 
   // Add our test event listeners.
   ::testing::TestEventListeners& listeners =

@@ -28,6 +28,7 @@ namespace tests {
 // Used to set up our particular test environment.
 class Environment : public ::testing::Environment {
 public:
+  Environment();
   virtual void SetUp();
   virtual void TearDown();
 };
