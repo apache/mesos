@@ -45,6 +45,7 @@
 #include "slave/state.hpp"
 
 #include "common/attributes.hpp"
+#include "common/protobuf_utils.hpp"
 #include "common/resources.hpp"
 #include "common/type_utils.hpp"
 
@@ -127,7 +128,7 @@ public:
   // despite not knowing about the framework/executor.
   void forwardUpdate(const StatusUpdate& update, Executor* executor = NULL);
 
-  // This callback is called when the status update manager finishes
+  // This is called when the status update manager finishes
   // handling the update. If the handling is successful, an acknowledgment
   // is sent to the executor.
   void _forwardUpdate(
@@ -291,17 +292,8 @@ struct Executor
     // maybe we shouldn't make this a fatal error.
     CHECK(!launchedTasks.contains(task.task_id()));
 
-    Task *t = new Task();
-    t->mutable_framework_id()->MergeFrom(frameworkId);
-    t->set_state(TASK_STAGING);
-    t->set_name(task.name());
-    t->mutable_task_id()->MergeFrom(task.task_id());
-    t->mutable_slave_id()->MergeFrom(task.slave_id());
-    t->mutable_resources()->MergeFrom(task.resources());
-
-    if (!task.has_command()) {
-      t->mutable_executor_id()->MergeFrom(id);
-    }
+    Task* t =
+        new Task(protobuf::createTask(task, TASK_STAGING, id, frameworkId));
 
     launchedTasks[task.task_id()] = t;
     resources += task.resources();

@@ -106,6 +106,16 @@ int main(int argc, char** argv)
     exit(1);
   }
 
+  // Checkpointing is not implemented because Lxc based isolation is
+  // being deprecated.
+  if (isolation == "lxc" && flags.checkpoint) {
+    cerr
+      << "Checkpointing is not supported with Lxc based isolation." << endl
+      << "Please disable checkpointing or use process/cgroups based isolation."
+      << endl;
+  }
+
+
   // Initialize libprocess.
   if (port.isSome()) {
     os::setenv("LIBPROCESS_PORT", stringify(port.get()));

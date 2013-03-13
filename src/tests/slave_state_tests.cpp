@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
@@ -127,13 +128,8 @@ TEST_F(SlaveStateFixture, parse)
                                                         frameworkId, executorId,
                                                         uuid);
 
-  const string& execedpidPath = paths::getExecedPIDPath(rootDir, slaveId,
-                                                        frameworkId, executorId,
-                                                        uuid);
-
   ASSERT_SOME(os::touch(libpidPath));
   ASSERT_SOME(os::touch(forkedpidPath));
-  ASSERT_SOME(os::touch(execedpidPath));
 
   // Write task and updates files.
   const string& taskDir = paths::getTaskPath(rootDir, slaveId, frameworkId,
@@ -171,20 +167,26 @@ TEST_F(SlaveStateFixture, parse)
 }
 
 
-TEST_F(SlaveStateFixture, CheckpointSlaveID)
+TEST_F(SlaveStateFixture, CheckpointProtobuf)
 {
-  writeSlaveID(rootDir, slaveId);
+  // Checkpoint slave id.
+  const string& path = paths::getSlaveIDPath(paths::getMetaRootDir(rootDir));
 
-  ASSERT_EQ(slaveId, readSlaveID(rootDir));
+  state::checkpoint(path, slaveId);
+
+  ASSERT_SOME_EQ(slaveId, ::protobuf::read<SlaveID>(path));
 }
 
 
-TEST_F(SlaveStateFixture, CheckpointFrameworkPID)
+TEST_F(SlaveStateFixture, CheckpointString)
 {
-  process::UPID upid("random");
-  writeFrameworkPID(rootDir, slaveId, frameworkId, upid);
+  // Checkpoint a test string.
+  const string expected = "test";
+  const string path = path::join(rootDir, "test-path");
 
-  ASSERT_EQ(upid, readFrameworkPID(rootDir, slaveId, frameworkId));
+  state::checkpoint(path, expected);
+
+  ASSERT_SOME_EQ(expected, os::read(path));
 }
 
 } // namespace state {

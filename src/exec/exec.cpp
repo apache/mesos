@@ -17,6 +17,9 @@
  */
 
 #include <signal.h>
+#include <unistd.h>
+
+#include <sys/types.h>
 
 #include <iostream>
 #include <string>
@@ -31,6 +34,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/fatal.hpp>
+#include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/lock.hpp"
@@ -134,7 +138,8 @@ public:
 protected:
   virtual void initialize()
   {
-    VLOG(1) << "Executor started at: " << self();
+    VLOG(1) << "Executor started at: " << self()
+            << " with pid " << getpid();
 
     link(slave);
 

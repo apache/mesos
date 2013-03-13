@@ -477,9 +477,14 @@ void CgroupsIsolationModule::launchExecutor(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
-    const Resources& resources)
+    const Resources& resources,
+    bool checkpoint,
+    const Option<string>& path)
 {
   CHECK(initialized) << "Cannot launch executors before initialization";
+
+  CHECK(!(checkpoint && path.isNone()))
+    << "Asked to checkpoint forked pid without providing a path";
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
@@ -546,6 +551,18 @@ void CgroupsIsolationModule::launchExecutor(
     if (launcher.setup() < 0) {
       EXIT(1) << "Error setting up executor " << executorId
               << " for framework " << frameworkId;
+    }
+
+
+    // Checkpoint the forked pid, if necessary.
+    // The checkpointing must be done in the forked process, because
+    // the slave process can die immediately after the isolation
+    // module forks but before it would have a chance to write the
+    // pid to disk. That would result in an orphaned executor process
+    // unknown to the slave when doing recovery.
+    if (checkpoint) {
+      std::cerr << "Checkpointing forked pid " << getpid() << std::endl;
+      state::checkpoint(path.get(), stringify(getpid()));
     }
 
     // Put self into the newly created cgroup.

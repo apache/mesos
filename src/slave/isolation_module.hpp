@@ -55,12 +55,16 @@ public:
       const process::PID<Slave>& slave) = 0;
 
   // Called by the slave to launch an executor for a given framework.
+  // If 'checkpoint' is true, the isolation module is expected to
+  // checkpoint the executor pid to the 'path'.
   virtual void launchExecutor(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
-      const Resources& resources) = 0;
+      const Resources& resources,
+      bool checkpoint,
+      const Option<std::string>& path) = 0;
 
   // Terminate a framework's executor, if it is still running.
   // The executor is expected to be gone after this method exits.

@@ -56,14 +56,14 @@ TEST(ProtobufIOTest, Basic)
   for (size_t i = 0; i < writes; i++) {
     FrameworkID frameworkId;
     frameworkId.set_value(stringify(i));
-    Try<Nothing> result = protobuf::write(fdw, frameworkId);
+    Try<Nothing> result = ::protobuf::write(fdw, frameworkId);
     ASSERT_SOME(result);
   }
 
   Result<FrameworkID> read = None();
   size_t reads = 0;
   while (true) {
-    read = protobuf::read<FrameworkID>(fdr);
+    read = ::protobuf::read<FrameworkID>(fdr);
     if (!read.isSome()) {
       break;
     }

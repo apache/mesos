@@ -99,9 +99,14 @@ void ProcessBasedIsolationModule::launchExecutor(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
-    const Resources& resources)
+    const Resources& resources,
+    bool checkpoint,
+    const Option<string>& path)
 {
   CHECK(initialized) << "Cannot launch executors before initialization!";
+
+  CHECK(!(checkpoint && path.isNone()))
+    << "Asked to checkpoint forked pid without providing a path";
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
@@ -189,8 +194,19 @@ void ProcessBasedIsolationModule::launchExecutor(
 
     close(pipes[1]);
 
+    // Checkpoint the forked pid, if necessary.
+    // The checkpointing must be done in the forked process, because
+    // the slave process can die immediately after the isolation
+    // module forks but before it would have a chance to write the
+    // pid to disk. That would result in an orphaned executor process
+    // unknown to the slave when doing recovery.
+    if (checkpoint) {
+      std::cerr << "Checkpointing forked pid " << getpid() << std::endl;
+      state::checkpoint(path.get(), stringify(getpid()));
+    }
+
     ExecutorLauncher* launcher = createExecutorLauncher(
-      frameworkId, frameworkInfo, executorInfo, directory);
+        frameworkId, frameworkInfo, executorInfo, directory);
 
     if (launcher->run() < 0) {
       std::cerr << "Failed to launch executor" << std::endl;
@@ -261,17 +277,18 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
     const ExecutorInfo& executorInfo,
     const string& directory)
 {
-  return new ExecutorLauncher(frameworkId,
-                              executorInfo.executor_id(),
-                              executorInfo.command(),
-                              frameworkInfo.user(),
-                              directory,
-                              slave,
-                              flags.frameworks_home,
-                              flags.hadoop_home,
-                              !local,
-                              flags.switch_user,
-                              "");
+  return new ExecutorLauncher(
+      frameworkId,
+      executorInfo.executor_id(),
+      executorInfo.command(),
+      frameworkInfo.user(),
+      directory,
+      slave,
+      flags.frameworks_home,
+      flags.hadoop_home,
+      !local,
+      flags.switch_user,
+      "");
 }
 
 

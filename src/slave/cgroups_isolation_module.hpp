@@ -94,7 +94,9 @@ public:
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
-      const Resources& resources);
+      const Resources& resources,
+      bool checkpoint,
+      const Option<std::string>& path);
 
   virtual void killExecutor(
       const FrameworkID& frameworkId,

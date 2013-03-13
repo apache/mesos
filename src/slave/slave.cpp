@@ -435,8 +435,16 @@ void Slave::registered(const SlaveID& slaveId)
 
   connected = true;
 
-  // Schedule all old slave directories to get garbage
-  // collected. TODO(benh): It's unclear if we really need/want to
+  if (flags.checkpoint) {
+    // Checkpoint slave id.
+    const string& path = paths::getSlaveIDPath(
+        paths::getMetaRootDir(flags.work_dir));
+
+    state::checkpoint(path, slaveId);
+  }
+
+  // Schedule all old slave directories to get garbage collected.
+  // TODO(benh): It's unclear if we really need/want to
   // wait until the slave is registered to do this.
   const string& directory = path::join(flags.work_dir, "slaves");
 
@@ -522,14 +530,40 @@ void Slave::runTask(
   LOG(INFO) << "Got assigned task " << task.task_id()
             << " for framework " << frameworkId;
 
+  if (frameworkInfo.checkpoint() && !flags.checkpoint) {
+     LOG(WARNING) << "Asked to checkpoint framework " << frameworkId
+                  << " but the checkpointing is disabled on the slave!"
+                  << " Please start the slave with '--checkpoint' flag";
+
+     const StatusUpdate& update = protobuf::createStatusUpdate(
+         frameworkId,
+         id,
+         task.task_id(),
+         TASK_LOST,
+         "Could not launch the task because the framework expects checkpointing"
+         ", but checkpointing is disabled on the slave");
+
+     statusUpdate(update);
+     return;
+  }
+
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
     framework = new Framework(frameworkId, frameworkInfo, pid, flags);
     frameworks[frameworkId] = framework;
+
+    if (frameworkInfo.checkpoint()) {
+      // Checkpoint the framework pid.
+      const string& path = paths::getFrameworkPIDPath(
+          paths::getMetaRootDir(flags.work_dir),
+          id,
+          frameworkId);
+
+      state::checkpoint(path, framework->pid);
+    }
   }
 
   const ExecutorInfo& executorInfo = framework->getExecutorInfo(task);
-
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // Either send the task to an executor or start a new executor
@@ -552,8 +586,43 @@ void Slave::runTask(
       LOG(INFO) << "Queuing task '" << task.task_id()
                 << "' for executor " << executorId
                 << " of framework '" << frameworkId;
+
+      if (frameworkInfo.checkpoint()) {
+        // Checkpoint the task.
+        // TODO(vinod): Consider moving these 3 statements into
+        // a helper function, since its used 3 times in this function!
+        const string& path = paths::getTaskInfoPath(
+            paths::getMetaRootDir(flags.work_dir),
+            id,
+            executor->frameworkId,
+            executor->id,
+            executor->uuid,
+            task.task_id());
+
+        const Task& t = protobuf::createTask(
+            task, TASK_STAGING, executor->id, executor->frameworkId);
+
+        state::checkpoint(path, t);
+      }
+
       executor->queuedTasks[task.task_id()] = task;
     } else {
+      if (frameworkInfo.checkpoint()) {
+        // Checkpoint the task.
+        const string& path = paths::getTaskInfoPath(
+            paths::getMetaRootDir(flags.work_dir),
+            id,
+            executor->frameworkId,
+            executor->id,
+            executor->uuid,
+            task.task_id());
+
+        const Task& t = protobuf::createTask(
+            task, TASK_STAGING, executor->id, executor->frameworkId);
+
+        state::checkpoint(path, t);
+      }
+
       // Add the task and send it to the executor.
       executor->addTask(task);
 
@@ -589,19 +658,45 @@ void Slave::runTask(
                    params::_1,
                    executor->directory));
 
+    // Check to see if we need to checkpoint this executor and the task.
+    Option<string> pidPath;
+    if (frameworkInfo.checkpoint()) {
+      // Get the path for isolation module to checkpoint the forked pid.
+      pidPath = paths::getForkedPIDPath(
+          paths::getMetaRootDir(flags.work_dir),
+          id,
+          framework->id,
+          executor->id,
+          executor->uuid);
+
+      // Checkpoint the task.
+      const string& path = paths::getTaskInfoPath(
+          paths::getMetaRootDir(flags.work_dir),
+          id,
+          executor->frameworkId,
+          executor->id,
+          executor->uuid,
+          task.task_id());
+
+      const Task& t = protobuf::createTask(
+          task, TASK_STAGING, executor->id, executor->frameworkId);
+
+      state::checkpoint(path, t);
+    }
+
     // Queue task until the executor starts up.
     executor->queuedTasks[task.task_id()] = task;
 
     // Tell the isolation module to launch the executor.
-    // TODO(benh): Make the isolation module a process so that it
-    // can block while trying to launch the executor.
     dispatch(isolationModule,
              &IsolationModule::launchExecutor,
              framework->id,
              framework->info,
              executor->info,
              executor->directory,
-             executor->resources);
+             executor->resources,
+             frameworkInfo.checkpoint(),
+             pidPath);
   }
 }
 
@@ -830,6 +925,21 @@ void Slave::registerExecutor(
   } else {
     // Save the pid for the executor.
     executor->pid = from;
+
+    if (framework->info.checkpoint()) {
+      // TODO(vinod): This checkpointing should be done asynchronously as it is
+      // in the fast path of the slave!
+
+      // Checkpoint the libprocess pid.
+      string path = paths::getLibprocessPIDPath(
+          paths::getMetaRootDir(flags.work_dir),
+          id,
+          executor->frameworkId,
+          executor->id,
+          executor->uuid);
+
+      state::checkpoint(path, executor->pid);
+    }
 
     // First account for the tasks we're about to start.
     foreachvalue (const TaskInfo& task, executor->queuedTasks) {

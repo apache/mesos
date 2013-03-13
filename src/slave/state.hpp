@@ -66,33 +66,13 @@ struct SlaveState
 // the slave state.
 SlaveState parse(const std::string& rootDir, const SlaveID& slaveId);
 
+// Helper function to checkpoint a string message to disk.
+void checkpoint(const std::string& path, const std::string& message);
 
-// TODO(vinod): Re-evaluate the need for these helpers (or genericize them)
-// after StatusUpdateManager is integrated.
-
-// Writes the task information to "taskDir + '/task'".
-void writeTask(Task* task, const std::string& taskDir);
-
-
-// Writes slaveId to the file path returned by getSlaveIDPath(metaRootDir).
-void writeSlaveID(const std::string& metaRootDir, const SlaveID& slaveId);
-
-
-// Reads slaveId from the file path returned by getSlaveIDPath().
-SlaveID readSlaveID(const std::string& metaRootDir);
-
-
-// Writes frameworkPID from the path returned by getFrameworkPIDPath().
-void writeFrameworkPID(const std::string& metaRootDir,
-                       const SlaveID& slaveId,
-                       const FrameworkID& frameworkId,
-                       const std::string& pid);
-
-
-// Reads frameworkPID from the path returned by getFrameworkPIDPath().
-process::UPID readFrameworkPID(const std::string& metaRootDir,
-                               const SlaveID& slaveId,
-                               const FrameworkID& frameworkId);
+// Helper function to checkpoint a protobuf message to disk.
+void checkpoint(
+    const std::string& path,
+    const google::protobuf::Message& message);
 
 } // namespace state {
 } // namespace slave {

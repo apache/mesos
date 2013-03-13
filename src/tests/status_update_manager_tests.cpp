@@ -26,10 +26,11 @@
 
 #include <process/pid.hpp>
 
+#include <stout/none.hpp>
+#include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
-#include <stout/os.hpp>
 
 #include "detector/detector.hpp"
 
@@ -77,6 +78,7 @@ class StatusUpdateManagerTest: public ::testing::Test
 protected:
   static void SetUpTestCase()
   {
+    flags.checkpoint = true;
     flags.work_dir = "/tmp/mesos-tests";
     os::rmdir(flags.work_dir);
   }
@@ -220,9 +222,9 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
   int updates = 0;
   int acks = 0;
   string uuid;
-  Result<StatusUpdateRecord> record = Result<StatusUpdateRecord>::none();
+  Result<StatusUpdateRecord> record = None();
   while (true) {
-    record = protobuf::read<StatusUpdateRecord>(fd.get());
+    record = ::protobuf::read<StatusUpdateRecord>(fd.get());
 
     if (!record.isSome()) {
       break;

@@ -761,7 +761,9 @@ public:
                               const FrameworkInfo& frameworkInfo,
                               const ExecutorInfo& executorInfo,
                               const std::string& directory,
-                              const Resources& resources)
+                              const Resources& resources,
+                              bool checkpoint,
+                              const Option<std::string>& path)
   {
     if (executors.count(executorInfo.executor_id()) > 0) {
       Executor* executor = executors[executorInfo.executor_id()];

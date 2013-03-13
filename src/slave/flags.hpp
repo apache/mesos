@@ -93,7 +93,7 @@ public:
         "Maximum amount of time to wait before cleaning up\n"
         "executor directories (e.g., 3days, 2weeks, etc).\n"
         "Note that this delay may be shorter depending on\n"
-        "the available disk usage",
+        "the available disk usage.",
         GC_DELAY);
 
     add(&Flags::disk_watch_interval,
@@ -107,6 +107,14 @@ public:
         "Periodic time interval for monitoring executor\n"
         "resource usage (e.g., 10secs, 1min, etc)",
         RESOURCE_MONITORING_INTERVAL);
+
+    add(&Flags::checkpoint,
+        "checkpoint",
+        "Whether to checkpoint slave and frameworks information\n"
+        "to disk. This enables a restarted slave to recover\n"
+        "status updates and reconnect with (--recover=reconnect) or\n"
+        "kill (--recover=kill) old executors",
+        false);
 
 #ifdef __linux__
     add(&Flags::cgroups_hierarchy,
@@ -138,6 +146,7 @@ public:
   Duration gc_delay;
   Duration disk_watch_interval;
   Duration resource_monitoring_interval;
+  bool checkpoint;
 #ifdef __linux__
   std::string cgroups_hierarchy;
   std::string cgroups_root;

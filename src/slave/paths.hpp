@@ -45,7 +45,6 @@ const std::string EXECUTOR_LATEST_SYMLINK = "latest";
 const std::string SLAVEID_FILE = "slave.id";
 const std::string FRAMEWORK_PID_FILE = "framework.pid";
 const std::string LIBPROCESS_PID_FILE = "libprocess.pid";
-const std::string EXECED_PID_FILE = "execed.pid";
 const std::string FORKED_PID_FILE = "forked.pid";
 const std::string TASK_INFO_FILE = "info";
 const std::string TASK_UPDATES_FILE = "updates";
@@ -63,7 +62,6 @@ const std::string EXECUTOR_LATEST_RUN_PATH =
   EXECUTOR_PATH + "/runs/" + EXECUTOR_LATEST_SYMLINK;
 const std::string PIDS_PATH = EXECUTOR_RUN_PATH + "/pids";
 const std::string LIBPROCESS_PID_PATH = PIDS_PATH + "/" + LIBPROCESS_PID_FILE;
-const std::string EXECED_PID_PATH = PIDS_PATH + "/" + EXECED_PID_FILE;
 const std::string FORKED_PID_PATH = PIDS_PATH + "/" + FORKED_PID_FILE;
 const std::string TASK_PATH = EXECUTOR_RUN_PATH + "/tasks/%s";
 const std::string TASK_INFO_PATH = TASK_PATH + "/" + TASK_INFO_FILE;
@@ -162,23 +160,6 @@ inline std::string getLibprocessPIDPath(
 {
   return strings::format(
       LIBPROCESS_PID_PATH,
-      rootDir,
-      slaveId,
-      frameworkId,
-      executorId,
-      executorUUID.toString()).get();
-}
-
-
-inline std::string getExecedPIDPath(
-    const std::string& rootDir,
-    const SlaveID& slaveId,
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
-    const UUID& executorUUID)
-{
-  return strings::format(
-      EXECED_PID_PATH,
       rootDir,
       slaveId,
       frameworkId,

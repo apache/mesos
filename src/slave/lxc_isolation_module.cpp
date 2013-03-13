@@ -23,6 +23,7 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
+#include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -113,9 +114,13 @@ void LxcIsolationModule::launchExecutor(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
-    const Resources& resources)
+    const Resources& resources,
+    bool checkpoint,
+    const Option<string>& path)
 {
   CHECK(initialized) << "Cannot launch executors before initialization!";
+
+  CHECK(checkpoint);
 
   const ExecutorID& executorId = executorInfo.executor_id();
 

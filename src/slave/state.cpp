@@ -97,104 +97,32 @@ SlaveState parse(const string& rootDir, const SlaveID& slaveId)
 }
 
 
-// Helper functions for check-pointing slave data.
-
-void writeTask(Task* task, const string& taskDir)
+// Helper to checkpoint string to disk, with necessary error checking.
+void checkpoint(const std::string& path, const std::string& message)
 {
-  const string& path = taskDir + "/task";
-
-  Try<Nothing> created = os::mkdir(taskDir);
-
-  CHECK_SOME(created) << "Failed to create task directory '" << taskDir << "'";
-
-  LOG(INFO) << "Writing task description for task "
-            << task->task_id() << " to " << path;
-
-  Try<Nothing> result = protobuf::write(path, *task);
-
-  if (result.isError()) {
-    LOG(FATAL) << "Failed to write task description to disk " << result.error();
-  }
-}
-
-
-void writeSlaveID(const string& rootDir, const SlaveID& slaveId)
-{
-  const string& path = paths::getSlaveIDPath(rootDir);
-
-  Try<Nothing> created = os::mkdir(os::dirname(path).get());
-
-  CHECK_SOME(created)
+  // Create the base directory.
+  CHECK_SOME(os::mkdir(os::dirname(path).get()))
     << "Failed to create directory '" << os::dirname(path).get() << "'";
 
-  LOG(INFO) << "Writing slave id " << slaveId << " to " << path;
-
-  Try<Nothing> result = os::write(path, stringify(slaveId));
-
-  CHECK_SOME(result) << "Failed to write slave id to disk";
+  // Now checkpoint the message to disk.
+  CHECK_SOME(os::write(path, message))
+    << "Failed to checkpoint " << message << " to '" << path << "'";
 }
 
 
-SlaveID readSlaveID(const string& rootDir)
+// Helper to checkpoint protobuf to disk, with necessary error checking.
+void checkpoint(
+    const std::string& path,
+    const google::protobuf::Message& message)
 {
-  const string& path = paths::getSlaveIDPath(rootDir);
-
-  Try<string> read = os::read(path);
-
-  SlaveID slaveId;
-
-  if (!read.isSome()) {
-    LOG(WARNING) << "Cannot read slave id from " << path << ": "
-                 << read.error();
-    return slaveId;
-  }
-
-  LOG(INFO) << "Read slave id " << read.get() << " from " << path;
-
-  slaveId.set_value(read.get());
-  return slaveId;
-}
-
-
-void writeFrameworkPID(const string& metaRootDir,
-                       const SlaveID& slaveId,
-                       const FrameworkID& frameworkId,
-                       const string& pid)
-{
-  const string& path = paths::getFrameworkPIDPath(metaRootDir, slaveId,
-                                                  frameworkId);
-
-  Try<Nothing> created = os::mkdir(os::dirname(path).get());
-
-  CHECK_SOME(created)
+  // Create the base directory.
+  CHECK_SOME(os::mkdir(os::dirname(path).get()))
     << "Failed to create directory '" << os::dirname(path).get() << "'";
 
-  LOG(INFO) << "Writing framework pid " << pid << " to " << path;
-
-  Try<Nothing> result = os::write(path, pid);
-
-  CHECK_SOME(result) << "Failed to write framework pid to disk";
-}
-
-
-process::UPID readFrameworkPID(const string& metaRootDir,
-                               const SlaveID& slaveId,
-                               const FrameworkID& frameworkId)
-{
-  const string& path = paths::getFrameworkPIDPath(metaRootDir, slaveId,
-                                                  frameworkId);
-
-  Try<string> read = os::read(path);
-
-  if (!read.isSome()) {
-    LOG(WARNING) << "Cannot read framework pid from " << path << ": "
-                 << read.error();
-    return process::UPID();
-  }
-
-  LOG(INFO) << "Read framework pid " << read.get() << " from " << path;
-
-  return process::UPID(read.get());
+  // Now checkpoint the protobuf to disk.
+  CHECK_SOME(protobuf::write(path, message))
+    << "Failed to checkpoint " << message.DebugString()
+    << " to '" << path << "'";
 }
 
 } // namespace state {
