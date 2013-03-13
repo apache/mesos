@@ -250,6 +250,17 @@ struct StatusUpdateStream
     return terminated_;
   }
 
+  // Delete the task meta directory.
+  // TODO(vinod): Archive it.
+  void cleanup() {
+    if (path.isSome()) {
+      LOG(INFO) << "Deleting the meta directory for task " << taskId
+                << " of framework " << frameworkId;
+
+      os::rmdir(os::basename(path.get()).get());
+    }
+  }
+
   // TODO(vinod): Explore semantics to make 'timeout' and 'pending' private.
   Option<Timeout> timeout; // Timeout for resending status update.
   std::queue<StatusUpdate> pending;
