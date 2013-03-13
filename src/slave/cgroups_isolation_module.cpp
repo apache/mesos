@@ -38,8 +38,10 @@
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
+#include <stout/nothing.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -55,6 +57,7 @@
 #include "logging/check_some.hpp"
 
 #include "slave/cgroups_isolation_module.hpp"
+#include "slave/state.hpp"
 
 using process::defer;
 using process::Future;
@@ -70,9 +73,15 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+using state::SlaveState;
+using state::FrameworkState;
+using state::ExecutorState;
+using state::RunState;
+
 const size_t CPU_SHARES_PER_CPU = 1024;
 const size_t MIN_CPU_SHARES = 10;
 const size_t MIN_MEMORY_MB = 32 * Megabyte;
+
 
 // This is an approximate double precision equality check.
 // It only considers up to 0.001 precision.
@@ -328,25 +337,6 @@ void CgroupsIsolationModule::initialize(
     EXIT(1) << "Another mesos-slave appears to be running!";
   }
 
-  // Cleanup any orphaned cgroups created in previous executions (this
-  // should be safe because we've been able to acquire the file lock).
-  // TODO(vinod): Wait for all the orphaned cgroups to be destroyed
-  // before moving on with the rest of the initialization.
-  Try<vector<string> > cgroups =
-    cgroups::get(hierarchy, flags.cgroups_root);
-
-  CHECK_SOME(cgroups)
-    << "Failed to get nested cgroups of '" << flags.cgroups_root << "'";
-
-  foreach (const string& cgroup, cgroups.get()) {
-    LOG(INFO) << "Removing orphaned cgroup '" << cgroup << "'";
-    cgroups::destroy(hierarchy, cgroup)
-      .onAny(defer(PID<CgroupsIsolationModule>(this),
-                   &CgroupsIsolationModule::_destroy,
-                   cgroup,
-                   lambda::_1));
-  }
-
   // Make sure the kernel supports OOM controls.
   exists =
     cgroups::exists(hierarchy, flags.cgroups_root, "memory.oom_control");
@@ -473,23 +463,26 @@ void CgroupsIsolationModule::finalize()
 
 
 void CgroupsIsolationModule::launchExecutor(
+    const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
+    const UUID& uuid,
     const string& directory,
     const Resources& resources,
-    bool checkpoint,
     const Option<string>& path)
 {
   CHECK(initialized) << "Cannot launch executors before initialization";
 
+  bool checkpoint = frameworkInfo.checkpoint();
   CHECK(!(checkpoint && path.isNone()))
     << "Asked to checkpoint forked pid without providing a path";
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // Register the cgroup information.
-  CgroupInfo* info = registerCgroupInfo(frameworkId, executorId, flags);
+  CgroupInfo* info =
+    registerCgroupInfo(frameworkId, executorId, uuid, None(), flags);
 
   LOG(INFO) << "Launching " << executorId
             << " (" << executorInfo.command().value() << ")"
@@ -535,6 +528,7 @@ void CgroupsIsolationModule::launchExecutor(
     // In child process.
 
     launcher::ExecutorLauncher launcher(
+        slaveId,
         frameworkId,
         executorInfo.executor_id(),
         executorInfo.command(),
@@ -545,7 +539,8 @@ void CgroupsIsolationModule::launchExecutor(
         flags.hadoop_home,
         !local,
         flags.switch_user,
-        "");
+        "",
+        frameworkInfo.checkpoint());
 
     // First fetch the executor.
     if (launcher.setup() < 0) {
@@ -660,8 +655,9 @@ Future<ResourceStatistics> CgroupsIsolationModule::usage(
   PCHECK(ticks > 0) << "Failed to get sysconf(_SC_CLK_TCK)";
 
   if (!infos.contains(frameworkId) ||
-      !infos[frameworkId].contains(executorId)) {
-    return Future<ResourceStatistics>::failed("Unknown executor");
+      !infos[frameworkId].contains(executorId) ||
+      infos[frameworkId][executorId]->killed) {
+    return Future<ResourceStatistics>::failed("Unknown/killed executor");
   }
 
   CgroupInfo* info = infos[frameworkId][executorId];
@@ -684,6 +680,78 @@ Future<ResourceStatistics> CgroupsIsolationModule::usage(
   }
 
   return result;
+}
+
+
+Future<Nothing> CgroupsIsolationModule::recover(
+    const Option<SlaveState>& state)
+{
+  LOG(INFO) << "Recovering isolation module";
+
+  hashset<std::string> cgroups; // Recovered cgroups.
+
+  if (state.isSome()) {
+    foreachvalue (const FrameworkState& framework, state.get().frameworks) {
+      foreachvalue (const ExecutorState& executor, framework.executors) {
+        LOG(INFO) << "Recovering executor '" << executor.id
+                  << "' of framework " << framework.id;
+
+        if (executor.info.isNone()) {
+          LOG(WARNING) << "Skipping recovery of executor '" << executor.id
+                       << "' of framework " << framework.id
+                       << " because its info cannot be recovered";
+          continue;
+        }
+
+        if (executor.latest.isNone()) {
+          LOG(WARNING) << "Skipping recovery of executor '" << executor.id
+                       << "' of framework " << framework.id
+                       << " because its latest run cannot be recovered";
+          continue;
+        }
+
+        // We are only interested in the latest run of the executor!
+        const UUID& uuid = executor.latest.get();
+        CHECK(executor.runs.contains(uuid));
+        const RunState& run = executor.runs.get(uuid).get();
+
+        // TODO(vinod): Currently, we assume that the cgroups
+        // information (e.g., hierarchy, root) used while recovering
+        // is same as the one that was used by the previous slave
+        // while checkpointing. Instead, we should checkpoint the
+        // cgroups information.
+        CgroupInfo* info = registerCgroupInfo(
+            framework.id, executor.id, uuid, run.forkedPid, flags);
+
+        cgroups.insert(info->name());
+
+        // Add the pid to the reaper to monitor exit status.
+        if (run.forkedPid.isSome()) {
+          dispatch(reaper, &Reaper::monitor, run.forkedPid.get());
+        }
+      }
+    }
+  }
+
+  // Cleanup any orphaned cgroups that are not going to be recovered (this
+  // should be safe because we've been able to acquire the file lock).
+  Try<vector<string> > orphans = cgroups::get(hierarchy, flags.cgroups_root);
+  if (orphans.isError()) {
+    return Future<Nothing>::failed(orphans.error());
+  }
+
+  foreach (const string& orphan, orphans.get()) {
+    if (!cgroups.contains(orphan)) {
+      LOG(INFO) << "Removing orphaned cgroup '" << orphan << "'";
+      cgroups::destroy(hierarchy, orphan)
+        .onAny(defer(PID<CgroupsIsolationModule>(this),
+               &CgroupsIsolationModule::_destroy,
+               orphan,
+               lambda::_1));
+    }
+  }
+
+  return Nothing();
 }
 
 
@@ -794,8 +862,8 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
   // Determine which control to set. If this is the first time we're
   // setting the limit, use 'memory.limit_in_bytes'. The "first time"
   // is determined by checking whether or not we've forked a process
-  // in the cgroup yet (i.e., 'info->pid != -1'). If this is not the
-  // first time we're setting the limit AND we're decreasing the
+  // in the cgroup yet (i.e., 'info->pid.isSome()'). If this is not
+  // the first time we're setting the limit AND we're decreasing the
   // limit, use 'memory.soft_limit_in_bytes'. We do this because we
   // might not be able to decrease 'memory.limit_in_bytes' if too much
   // memory is being used. This is probably okay if the machine has
@@ -804,7 +872,7 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
   // introduces a "manual oom" if necessary.
   string control = "memory.limit_in_bytes";
 
-  if (info->pid != -1) {
+  if (info->pid.isSome()) {
     Try<string> read = cgroups::read(
         hierarchy, info->name(), "memory.limit_in_bytes");
     if (read.isError()) {
@@ -855,12 +923,13 @@ void CgroupsIsolationModule::oomListen(
   LOG(INFO) << "Started listening for OOM events for executor " << executorId
             << " of framework " << frameworkId;
 
+  CHECK_SOME(info->uuid);
   info->oomNotifier.onAny(
       defer(PID<CgroupsIsolationModule>(this),
             &CgroupsIsolationModule::oomWaited,
             frameworkId,
             executorId,
-            info->tag,
+            info->uuid.get(),
             lambda::_1));
 }
 
@@ -868,24 +937,24 @@ void CgroupsIsolationModule::oomListen(
 void CgroupsIsolationModule::oomWaited(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const string& tag,
+    const UUID& uuid,
     const Future<uint64_t>& future)
 {
   LOG(INFO) << "OOM notifier is triggered for executor "
             << executorId << " of framework " << frameworkId
-            << " with tag " << tag;
+            << " with uuid " << uuid;
 
   if (future.isDiscarded()) {
     LOG(INFO) << "Discarded OOM notifier for executor "
               << executorId << " of framework " << frameworkId
-              << " with tag " << tag;
+              << " with uuid " << uuid;
   } else if (future.isFailed()) {
     LOG(ERROR) << "Listening on OOM events failed for executor "
                << executorId << " of framework " << frameworkId
-               << " with tag " << tag << ": " << future.failure();
+               << " with uuid " << uuid << ": " << future.failure();
   } else {
     // Out-of-memory event happened, call the handler.
-    oom(frameworkId, executorId, tag);
+    oom(frameworkId, executorId, uuid);
   }
 }
 
@@ -893,7 +962,7 @@ void CgroupsIsolationModule::oomWaited(
 void CgroupsIsolationModule::oom(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const string& tag)
+    const UUID& uuid)
 {
   CgroupInfo* info = findCgroupInfo(frameworkId, executorId);
   if (info == NULL) {
@@ -906,7 +975,8 @@ void CgroupsIsolationModule::oom(
 
   // We can also ignore an OOM event that we are late to process for a
   // previous instance of an executor.
-  if (tag != info->tag) {
+  CHECK_SOME(info->uuid);
+  if (uuid != info->uuid.get()) {
     LOG(INFO) << "OOM detected for a previous executor instance";
     return;
   }
@@ -917,7 +987,7 @@ void CgroupsIsolationModule::oom(
 
   LOG(INFO) << "OOM detected for executor " << executorId
             << " of framework " << frameworkId
-            << " with tag " << tag;
+            << " with uuid " << uuid;
 
   // Construct a "reason" string to describe why the isolation module
   // destroyed the executor's cgroup (in order to assist in debugging).
@@ -1021,13 +1091,15 @@ void CgroupsIsolationModule::_killExecutor(
 CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::registerCgroupInfo(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
+    const UUID& uuid,
+    const Option<pid_t>& pid,
     const Flags& flags)
 {
-  CgroupInfo* info = new CgroupInfo;
+  CgroupInfo* info = new CgroupInfo();
   info->frameworkId = frameworkId;
   info->executorId = executorId;
-  info->tag = UUID::random().toString();
-  info->pid = -1;
+  info->uuid = uuid;
+  info->pid = pid;
   info->killed = false;
   info->destroyed = false;
   info->status = -1;
@@ -1064,7 +1136,7 @@ CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::findCgroupInfo(
 {
   foreachkey (const FrameworkID& frameworkId, infos) {
     foreachvalue (CgroupInfo* info, infos[frameworkId]) {
-      if (info->pid == pid) {
+      if (info->pid.isSome() && info->pid.get() == pid) {
         return info;
       }
     }

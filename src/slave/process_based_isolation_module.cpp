@@ -32,7 +32,10 @@
 #include <process/id.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/type_utils.hpp"
 #include "common/process_utils.hpp"
@@ -43,20 +46,25 @@
 
 #include "slave/flags.hpp"
 #include "slave/process_based_isolation_module.hpp"
-
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
+#include "slave/state.hpp"
 
 using namespace process;
-
-using launcher::ExecutorLauncher;
 
 using std::map;
 using std::string;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
+namespace mesos {
+namespace internal {
+namespace slave {
+
+using launcher::ExecutorLauncher;
+
+using state::SlaveState;
+using state::FrameworkState;
+using state::ExecutorState;
+using state::RunState;
 
 ProcessBasedIsolationModule::ProcessBasedIsolationModule()
   : ProcessBase(ID::generate("process-isolation-module")),
@@ -95,16 +103,18 @@ void ProcessBasedIsolationModule::initialize(
 
 
 void ProcessBasedIsolationModule::launchExecutor(
+    const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
+    const UUID& _,
     const string& directory,
     const Resources& resources,
-    bool checkpoint,
     const Option<string>& path)
 {
   CHECK(initialized) << "Cannot launch executors before initialization!";
 
+  bool checkpoint = frameworkInfo.checkpoint();
   CHECK(!(checkpoint && path.isNone()))
     << "Asked to checkpoint forked pid without providing a path";
 
@@ -116,13 +126,7 @@ void ProcessBasedIsolationModule::launchExecutor(
             << " with resources " << resources
             << "' for framework " << frameworkId;
 
-  // Store the working directory, so that in the future we can use it
-  // to retrieve the os pid when calling killtree on the executor.
-  ProcessInfo* info = new ProcessInfo();
-  info->frameworkId = frameworkId;
-  info->executorId = executorId;
-  info->directory = directory;
-  info->pid = -1; // Initialize this variable to handle corner cases.
+  ProcessInfo* info = new ProcessInfo(frameworkId, executorId);
 
   infos[frameworkId][executorId] = info;
 
@@ -157,7 +161,7 @@ void ProcessBasedIsolationModule::launchExecutor(
     // In parent process.
     LOG(INFO) << "Forked executor at " << pid;
 
-    // Record the pid (should also be the pgis since we setsid below).
+    // Record the pid (should also be the pgid since we setsid below).
     infos[frameworkId][executorId]->pid = pid;
 
     // Tell the slave this executor has started.
@@ -206,7 +210,7 @@ void ProcessBasedIsolationModule::launchExecutor(
     }
 
     ExecutorLauncher* launcher = createExecutorLauncher(
-        frameworkId, frameworkInfo, executorInfo, directory);
+        slaveId, frameworkId, frameworkInfo, executorInfo, directory);
 
     if (launcher->run() < 0) {
       std::cerr << "Failed to launch executor" << std::endl;
@@ -224,19 +228,21 @@ void ProcessBasedIsolationModule::killExecutor(
     const ExecutorID& executorId)
 {
   CHECK(initialized) << "Cannot kill executors before initialization!";
+
   if (!infos.contains(frameworkId) ||
-      !infos[frameworkId].contains(executorId)) {
-    LOG(ERROR) << "ERROR! Asked to kill an unknown executor! " << executorId;
+      !infos[frameworkId].contains(executorId) ||
+      infos[frameworkId][executorId]->killed) {
+    LOG(ERROR) << "Asked to kill an unknown/killed executor! " << executorId;
     return;
   }
 
-  pid_t pid = infos[frameworkId][executorId]->pid;
+  const Option<pid_t>& pid = infos[frameworkId][executorId]->pid;
 
-  if (pid != -1) {
+  if (pid.isSome()) {
     // TODO(vinod): Call killtree on the pid of the actual executor process
     // that is running the tasks (stored in the local storage by the
     // executor module).
-    utils::process::killtree(pid, SIGKILL, true, true, true);
+    utils::process::killtree(pid.get(), SIGKILL, true, true, true);
 
     // Also kill all processes that belong to the process group of the executor.
     // This is valuable in situations where the top level executor process
@@ -245,19 +251,11 @@ void ProcessBasedIsolationModule::killExecutor(
     // same as its pid (which is expected to be the case with setsid()).
     // TODO(vinod): Also (recursively) kill processes belonging to the
     // same session, but have a different process group id.
-    if (killpg(pid, SIGKILL) == -1 && errno != ESRCH) {
-      PLOG(WARNING) << "Failed to kill process group " << pid;
+    if (killpg(pid.get(), SIGKILL) == -1 && errno != ESRCH) {
+      PLOG(WARNING) << "Failed to kill process group " << pid.get();
     }
 
-    ProcessInfo* info = infos[frameworkId][executorId];
-
-    if (infos[frameworkId].size() == 1) {
-      infos.erase(frameworkId);
-    } else {
-      infos[frameworkId].erase(executorId);
-    }
-
-    delete info;
+    infos[frameworkId][executorId]->killed = true;
   }
 }
 
@@ -273,12 +271,14 @@ void ProcessBasedIsolationModule::resourcesChanged(
 
 
 ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
+    const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const string& directory)
 {
   return new ExecutorLauncher(
+      slaveId,
       frameworkId,
       executorInfo.executor_id(),
       executorInfo.command(),
@@ -289,7 +289,57 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
       flags.hadoop_home,
       !local,
       flags.switch_user,
-      "");
+      "",
+      frameworkInfo.checkpoint());
+}
+
+
+Future<Nothing> ProcessBasedIsolationModule::recover(
+    const Option<SlaveState>& state)
+{
+  LOG(INFO) << "Recovering isolation module";
+
+  if (state.isNone()) {
+    return Nothing();
+  }
+
+  foreachvalue (const FrameworkState& framework, state.get().frameworks) {
+    foreachvalue (const ExecutorState& executor, framework.executors) {
+      LOG(INFO) << "Recovering executor '" << executor.id
+                << "' of framework " << framework.id;
+
+      if (executor.info.isNone()) {
+        LOG(WARNING) << "Skipping recovery of executor '" << executor.id
+                     << "' of framework " << framework.id
+                     << " because its info cannot be recovered";
+        continue;
+      }
+
+      if (executor.latest.isNone()) {
+        LOG(WARNING) << "Skipping recovery of executor '" << executor.id
+                     << "' of framework " << framework.id
+                     << " because its latest run cannot be recovered";
+        continue;
+      }
+
+      // We are only interested in the latest run of the executor!
+      const UUID& uuid = executor.latest.get();
+      CHECK(executor.runs.contains(uuid));
+      const RunState& run  = executor.runs.get(uuid).get();
+
+      ProcessInfo* info =
+        new ProcessInfo(framework.id, executor.id, run.forkedPid);
+
+      infos[framework.id][executor.id] = info;
+
+      // Add the pid to the reaper to monitor exit status.
+      if (run.forkedPid.isSome()) {
+        dispatch(reaper, &Reaper::monitor, run.forkedPid.get());
+      }
+    }
+  }
+
+  return Nothing();
 }
 
 
@@ -298,8 +348,9 @@ Future<ResourceStatistics> ProcessBasedIsolationModule::usage(
     const ExecutorID& executorId)
 {
   if (!infos.contains(frameworkId) ||
-      !infos[frameworkId].contains(executorId)) {
-    return Future<ResourceStatistics>::failed("Unknown executor");
+      !infos[frameworkId].contains(executorId) ||
+      infos[frameworkId][executorId]->killed) {
+    return Future<ResourceStatistics>::failed("Unknown/killed executor");
   }
 
   ProcessInfo* info = infos[frameworkId][executorId];
@@ -316,7 +367,8 @@ Future<ResourceStatistics> ProcessBasedIsolationModule::usage(
   // Get the number of clock ticks, used for cpu accounting.
   long ticks = sysconf(_SC_CLK_TCK);
 
-  Try<proc::ProcessStatistics> stat = proc::stat(info->pid);
+  CHECK_SOME(info->pid);
+  Try<proc::ProcessStatistics> stat = proc::stat(info->pid.get());
 
   if (stat.isSome() && pageSize > 0) {
     result.set_memory_rss(stat.get().rss * pageSize);
@@ -336,7 +388,8 @@ Future<ResourceStatistics> ProcessBasedIsolationModule::usage(
   // For further discussion around these issues,
   // see: http://code.google.com/p/psutil/issues/detail?id=297
   struct proc_taskinfo task;
-  int size = proc_pidinfo(info->pid, PROC_PIDTASKINFO, 0, &task, sizeof(task));
+  int size =
+    proc_pidinfo(info->pid.get(), PROC_PIDTASKINFO, 0, &task, sizeof(task));
 
   if (size == sizeof(task)) {
     result.set_memory_rss(task.pti_resident_size);
@@ -356,9 +409,10 @@ Future<ResourceStatistics> ProcessBasedIsolationModule::usage(
 void ProcessBasedIsolationModule::processExited(pid_t pid, int status)
 {
   foreachkey (const FrameworkID& frameworkId, infos) {
-    foreachpair (
-        const ExecutorID& executorId, ProcessInfo* info, infos[frameworkId]) {
-      if (info->pid == pid) {
+    foreachkey (const ExecutorID& executorId, infos[frameworkId]) {
+      ProcessInfo* info = infos[frameworkId][executorId];
+
+      if (info->pid.isSome() && info->pid.get() == pid) {
         LOG(INFO) << "Telling slave of lost executor " << executorId
                   << " of framework " << frameworkId;
 
@@ -370,10 +424,25 @@ void ProcessBasedIsolationModule::processExited(pid_t pid, int status)
                  false,
                  "Executor exited");
 
-        // Try and cleanup after the executor.
-        killExecutor(frameworkId, executorId);
+        if (!info->killed) {
+          // Try and cleanup after the executor.
+          killExecutor(frameworkId, executorId);
+        }
+
+        if (infos[frameworkId].size() == 1) {
+          infos.erase(frameworkId);
+        } else {
+          infos[frameworkId].erase(executorId);
+        }
+        delete info;
+
         return;
       }
     }
   }
 }
+
+
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {

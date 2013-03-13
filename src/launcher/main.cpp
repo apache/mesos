@@ -31,6 +31,9 @@ int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+  SlaveID slaveId;
+  slaveId.set_value(os::getenv("MESOS_SLAVE_ID"));
+
   FrameworkID frameworkId;
   frameworkId.set_value(os::getenv("MESOS_FRAMEWORK_ID"));
 
@@ -55,6 +58,7 @@ int main(int argc, char** argv)
   }
 
   return mesos::internal::launcher::ExecutorLauncher(
+      slaveId,
       frameworkId,
       executorId,
       commandInfo,
@@ -65,6 +69,7 @@ int main(int argc, char** argv)
       os::getenv("MESOS_HADOOP_HOME"),
       os::getenv("MESOS_REDIRECT_IO") == "1",
       os::getenv("MESOS_SWITCH_USER") == "1",
-      os::getenv("MESOS_CONTAINER", false))
+      os::getenv("MESOS_CONTAINER", false),
+      os::getenv("MESOS_CHECKPOINT") == "1")
     .run();
 }

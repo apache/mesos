@@ -25,6 +25,9 @@
 #include <process/future.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/nothing.hpp>
+#include <stout/option.hpp>
+#include <stout/uuid.hpp>
 
 #include "slave/isolation_module.hpp"
 #include "slave/reaper.hpp"
@@ -33,6 +36,11 @@
 namespace mesos {
 namespace internal {
 namespace slave {
+namespace state {
+
+class SlaveState; // Forward declaration.
+
+} // namespace state {
 
 class LxcIsolationModule
   : public IsolationModule, public ProcessExitedListener
@@ -49,12 +57,13 @@ public:
       const process::PID<Slave>& slave);
 
   virtual void launchExecutor(
+      const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
+      const UUID& uuid,
       const std::string& directory,
       const Resources& resources,
-      bool checkpoint,
       const Option<std::string>& path);
 
   virtual void killExecutor(
@@ -69,6 +78,9 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
+
+  virtual process::Future<Nothing> recover(
+      const Option<state::SlaveState>& state);
 
   virtual void processExited(pid_t pid, int status);
 
@@ -92,7 +104,7 @@ private:
     FrameworkID frameworkId;
     ExecutorID executorId;
     std::string container; // Name of Linux container used for this framework.
-    pid_t pid; // PID of lxc-execute command running the executor.
+    Option<pid_t> pid; // PID of lxc-execute command running the executor.
   };
 
   // TODO(benh): Make variables const by passing them via constructor.

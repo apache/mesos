@@ -42,6 +42,7 @@ namespace launcher {
 class ExecutorLauncher {
 public:
   ExecutorLauncher(
+      const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const CommandInfo& commandInfo,
@@ -52,7 +53,8 @@ public:
       const std::string& hadoopHome,
       bool redirectIO,
       bool shouldSwitchUser,
-      const std::string& container);
+      const std::string& container,
+      bool checkpoint);
 
   virtual ~ExecutorLauncher();
 
@@ -84,6 +86,7 @@ protected:
   virtual void switchUser();
 
 protected:
+  SlaveID slaveId;
   FrameworkID frameworkId;
   ExecutorID executorId;
   CommandInfo commandInfo;
@@ -95,6 +98,7 @@ protected:
   bool redirectIO;   // Whether to redirect stdout and stderr to files.
   bool shouldSwitchUser; // Whether to setuid to framework's user.
   std::string container;
+  bool checkpoint; // Whether the framework enabled checkpointing.
 };
 
 } // namespace launcher {

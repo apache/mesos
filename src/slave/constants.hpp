@@ -34,6 +34,7 @@ namespace slave {
 // we can revert this.
 
 extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+extern const Duration EXECUTOR_REREGISTER_TIMEOUT;
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL;
 extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;

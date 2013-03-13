@@ -32,7 +32,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-
 class Flags : public virtual flags::FlagsBase
 {
 public:

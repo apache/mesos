@@ -19,6 +19,8 @@
 #ifndef __CGROUPS_ISOLATION_MODULE_HPP__
 #define __CGROUPS_ISOLATION_MODULE_HPP__
 
+#include <unistd.h>
+
 #include <map>
 #include <sstream>
 #include <string>
@@ -29,7 +31,10 @@
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
+#include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/path.hpp>
+#include <stout/uuid.hpp>
 
 #include "launcher/launcher.hpp"
 
@@ -43,6 +48,12 @@
 namespace mesos {
 namespace internal {
 namespace slave {
+namespace state {
+
+class State; // Forward declaration.
+
+} // namespace state {
+
 
 // TODO(bmahler): Migrate this into it's own file, along with moving
 // all cgroups code inside of a 'cgroups' directory.
@@ -90,12 +101,13 @@ public:
   virtual void finalize();
 
   virtual void launchExecutor(
+      const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
+      const UUID& uuid,
       const std::string& directory,
       const Resources& resources,
-      bool checkpoint,
       const Option<std::string>& path);
 
   virtual void killExecutor(
@@ -110,6 +122,9 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
+
+  virtual process::Future<Nothing> recover(
+      const Option<state::SlaveState>& state);
 
   virtual void processExited(pid_t pid, int status);
 
@@ -132,22 +147,23 @@ private:
     // Returns the canonicalized name of the cgroup in the filesystem.
     std::string name() const
     {
+      CHECK_SOME(uuid);
       std::ostringstream out;
       out << "framework_" << frameworkId
           << "_executor_" << executorId
-          << "_tag_" << tag;
+          << "_tag_" << uuid.get();
       return path::join(flags.cgroups_root, out.str());
     }
 
     FrameworkID frameworkId;
     ExecutorID executorId;
 
-    // The UUID tag to distinguish between different launches of the same
+    // The UUID to distinguish between different launches of the same
     // executor (which have the same frameworkId and executorId).
-    std::string tag;
+    Option<UUID> uuid;
 
     // PID of the forked process of the executor.
-    pid_t pid;
+    Option<pid_t> pid;
 
     bool killed; // True if "killing" has been initiated via 'killExecutor'.
 
@@ -206,21 +222,21 @@ private:
   // This function is invoked when the polling on eventfd has a result.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
-  // @param   tag           The uuid tag.
+  // @param   uuid          The uuid of the given executor.
   void oomWaited(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const std::string& tag,
+      const UUID& uuid,
       const process::Future<uint64_t>& future);
 
   // This function is invoked when the OOM event happens.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
-  // @param   tag           The uuid tag.
+  // @param   uuid          The uuid of the given executor.
   void oom(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const std::string& tag);
+      const UUID& uuid);
 
   // This callback is invoked when destroy cgroup has a result.
   // @param   info        The information of cgroup that is being destroyed.
@@ -240,11 +256,15 @@ private:
   // Register a cgroup in the isolation module.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
+  // @param   uuid          The uuid of the given executor run.
+  // @param   pid           The executor pid.
   // @param   flags         The slave flags.
   // @return  A pointer to the cgroup info registered.
   CgroupInfo* registerCgroupInfo(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
+      const UUID& uuid,
+      const Option<pid_t>& pid,
       const Flags& flags);
 
   // Unregister a cgroup in the isolation module.

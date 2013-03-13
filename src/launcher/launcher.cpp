@@ -49,6 +49,7 @@ namespace internal {
 namespace launcher {
 
 ExecutorLauncher::ExecutorLauncher(
+    const SlaveID& _slaveId,
     const FrameworkID& _frameworkId,
     const ExecutorID& _executorId,
     const CommandInfo& _commandInfo,
@@ -59,8 +60,10 @@ ExecutorLauncher::ExecutorLauncher(
     const string& _hadoopHome,
     bool _redirectIO,
     bool _shouldSwitchUser,
-    const string& _container)
-  : frameworkId(_frameworkId),
+    const string& _container,
+    bool _checkpoint)
+  : slaveId(_slaveId),
+    frameworkId(_frameworkId),
     executorId(_executorId),
     commandInfo(_commandInfo),
     user(_user),
@@ -70,7 +73,8 @@ ExecutorLauncher::ExecutorLauncher(
     hadoopHome(_hadoopHome),
     redirectIO(_redirectIO),
     shouldSwitchUser(_shouldSwitchUser),
-    container(_container) {}
+    container(_container),
+    checkpoint (_checkpoint) {}
 
 
 ExecutorLauncher::~ExecutorLauncher() {}
@@ -372,8 +376,10 @@ void ExecutorLauncher::setupEnvironment()
   // Set Mesos environment variables for slave ID, framework ID, etc.
   os::setenv("MESOS_DIRECTORY", workDirectory);
   os::setenv("MESOS_SLAVE_PID", slavePid);
+  os::setenv("MESOS_SLAVE_ID", slaveId.value());
   os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
   os::setenv("MESOS_EXECUTOR_ID", executorId.value());
+  os::setenv("MESOS_CHECKPOINT", checkpoint ? "1" : "0");
 }
 
 
@@ -405,6 +411,7 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
   }
 
   os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
+  os::setenv("MESOS_SLAVE_ID", slaveId.value());
   os::setenv("MESOS_COMMAND", commandInfo.value());
   os::setenv("MESOS_EXECUTOR_URIS", uris);
   os::setenv("MESOS_USER", user);

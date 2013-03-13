@@ -21,6 +21,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include <tr1/functional>
 
@@ -112,6 +113,12 @@ public:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
+  void reregisterExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::vector<TaskInfo>& tasks,
+      const std::vector<StatusUpdate>& updates);
+
   void executorMessage(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
@@ -193,6 +200,9 @@ protected:
       const ExecutorID& executorId,
       const UUID& uuid);
 
+  // Cleans up all un-reregistered executors during recovery.
+  void reregisterExecutorTimeout();
+
   // This function returns the max age of executor/slave directories allowed,
   // given a disk usage. This value could be used to tune gc.
   Duration age(double usage);
@@ -208,6 +218,11 @@ protected:
 
   // This is called when recovery finishes.
   void _recover(const Future<Nothing>& future);
+
+  // Recovers executors by reconnecting/killing as necessary.
+  Future<Nothing> recoverExecutors(
+      const state::SlaveState& state,
+      bool reconnect);
 
 private:
   Slave(const Slave&);              // No copying.
@@ -269,7 +284,9 @@ private:
 
   // Flag to indicate if recovery, including reconciling (i.e., reconnect/kill)
   // with executors is finished.
-  Future<Nothing> recovered;
+  Promise<Nothing> recovered;
+
+  bool halting; // Flag to indicate if the slave is shutting down.
 };
 
 

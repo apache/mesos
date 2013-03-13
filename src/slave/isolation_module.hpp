@@ -19,6 +19,8 @@
 #ifndef __ISOLATION_MODULE_HPP__
 #define __ISOLATION_MODULE_HPP__
 
+#include <unistd.h>
+
 #include <string>
 
 #include <mesos/mesos.hpp>
@@ -27,6 +29,9 @@
 #include <process/process.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/nothing.hpp>
+#include <stout/option.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/resources.hpp"
 
@@ -35,9 +40,15 @@
 namespace mesos {
 namespace internal {
 namespace slave {
+namespace state {
+
+class SlaveState; // Forward declaration.
+
+} // namespace state {
 
 // Forward declaration.
 class Slave;
+
 
 class IsolationModule : public process::Process<IsolationModule>
 {
@@ -58,12 +69,13 @@ public:
   // If 'checkpoint' is true, the isolation module is expected to
   // checkpoint the executor pid to the 'path'.
   virtual void launchExecutor(
+      const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
+      const UUID& uuid,
       const std::string& directory,
       const Resources& resources,
-      bool checkpoint,
       const Option<std::string>& path) = 0;
 
   // Terminate a framework's executor, if it is still running.
@@ -83,6 +95,10 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId) = 0;
+
+  // Recover executors.
+  virtual process::Future<Nothing> recover(
+      const Option<state::SlaveState>& state) = 0;
 };
 
 

@@ -25,7 +25,9 @@
 
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/option.hpp>
 #include <stout/path.hpp>
 
 #include "common/type_utils.hpp"
@@ -35,14 +37,9 @@
 
 #include "slave/flags.hpp"
 #include "slave/lxc_isolation_module.hpp"
-
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
+#include "slave/state.hpp"
 
 using namespace process;
-
-using launcher::ExecutorLauncher;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -51,14 +48,17 @@ using std::max;
 using std::string;
 using std::vector;
 
+namespace mesos {
+namespace internal {
+namespace slave {
 
-namespace {
+using launcher::ExecutorLauncher;
+
+using state::SlaveState;
 
 const int32_t CPU_SHARES_PER_CPU = 1024;
 const int32_t MIN_CPU_SHARES = 10;
 const int64_t MIN_MEMORY_MB = 128 * Megabyte;
-
-} // namespace {
 
 
 LxcIsolationModule::LxcIsolationModule()
@@ -110,17 +110,18 @@ void LxcIsolationModule::initialize(
 
 
 void LxcIsolationModule::launchExecutor(
+    const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
+    const UUID& _,
     const string& directory,
     const Resources& resources,
-    bool checkpoint,
     const Option<string>& path)
 {
   CHECK(initialized) << "Cannot launch executors before initialization!";
 
-  CHECK(checkpoint);
+  CHECK(frameworkInfo.checkpoint());
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
@@ -141,7 +142,7 @@ void LxcIsolationModule::launchExecutor(
   info->frameworkId = frameworkId;
   info->executorId = executorId;
   info->container = container;
-  info->pid = -1;
+  info->pid = None();
 
   infos[frameworkId][executorId] = info;
 
@@ -161,8 +162,7 @@ void LxcIsolationModule::launchExecutor(
     info->pid = pid;
 
     // Tell the slave this executor has started.
-    dispatch(slave, &Slave::executorStarted,
-             frameworkId, executorId, pid);
+    dispatch(slave, &Slave::executorStarted, frameworkId, executorId, pid);
   } else {
     // Close unnecessary file descriptors. Note that we are assuming
     // stdin, stdout, and stderr can ONLY be found at the POSIX
@@ -182,18 +182,20 @@ void LxcIsolationModule::launchExecutor(
       }
     }
 
-    ExecutorLauncher* launcher =
-      new ExecutorLauncher(frameworkId,
-			   executorId,
-			   executorInfo.command(),
-			   frameworkInfo.user(),
-                           directory,
-			   slave,
-			   flags.frameworks_home,
-			   flags.hadoop_home,
-			   !local,
-			   flags.switch_user,
-			   container);
+    ExecutorLauncher* launcher = new ExecutorLauncher(
+        slaveId,
+        frameworkId,
+        executorId,
+        executorInfo.command(),
+        frameworkInfo.user(),
+        directory,
+        slave,
+        flags.frameworks_home,
+        flags.hadoop_home,
+        !local,
+        flags.switch_user,
+        container,
+        frameworkInfo.checkpoint());
 
     launcher->setupEnvironmentForLauncherMain();
 
@@ -330,11 +332,18 @@ Future<ResourceStatistics> LxcIsolationModule::usage(
 }
 
 
+Future<Nothing> LxcIsolationModule::recover(const Option<SlaveState>& state)
+{
+  LOG(FATAL) << "Recovery not supported";
+  return Nothing();
+}
+
+
 void LxcIsolationModule::processExited(pid_t pid, int status)
 {
   foreachkey (const FrameworkID& frameworkId, infos) {
     foreachvalue (ContainerInfo* info, infos[frameworkId]) {
-      if (info->pid == pid) {
+      if (info->pid.isSome() && info->pid.get() == pid) {
         LOG(INFO) << "Telling slave of lost executor "
                   << info->executorId
                   << " of framework " << info->frameworkId;
@@ -410,3 +419,7 @@ vector<string> LxcIsolationModule::getControlGroupOptions(
 
   return options;
 }
+
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {

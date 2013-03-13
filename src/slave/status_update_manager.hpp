@@ -89,7 +89,7 @@ public:
       const std::string& uuid);
 
   // Recover status updates.
-  process::Future<Nothing> recover(
+  process::Future<Try<Nothing> > recover(
       const std::string& rootDir,
       const state::SlaveState& state);
 
@@ -222,10 +222,14 @@ struct StatusUpdateStream
 
   // Replays the stream by sequentially handling an update and its
   // corresponding ACK, if present.
-  void replay(
+  Try<Nothing> replay(
       const std::vector<StatusUpdate>& updates,
       const hashset<std::string>& acks)
   {
+    if (error.isSome()) {
+      return Error(error.get());
+    }
+
     LOG(INFO) << "Replaying status update stream for task " << taskId;
 
     foreach (const StatusUpdate& update, updates) {
@@ -237,6 +241,8 @@ struct StatusUpdateStream
         _handle(update, StatusUpdateRecord::ACK);
       }
     }
+
+    return Nothing();
   }
 
   // Whether a terminal ACK has been received.

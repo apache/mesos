@@ -37,11 +37,13 @@
 
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/resources.hpp"
 #include "common/type_utils.hpp"
@@ -65,6 +67,7 @@
 #include "slave/isolation_module.hpp"
 #include "slave/reaper.hpp"
 #include "slave/slave.hpp"
+#include "slave/state.hpp"
 
 #include "tests/flags.hpp"
 
@@ -770,25 +773,31 @@ public:
     ResourceStatistics empty;
     EXPECT_CALL(*this, usage(testing::_, testing::_))
       .WillRepeatedly(Return(empty));
+
+    EXPECT_CALL(*this, recover(testing::_))
+      .WillRepeatedly(Return(Nothing()));
   }
 
   virtual ~TestingIsolationModule() {}
 
-  virtual void initialize(const slave::Flags& flags,
-                          const Resources& resources,
-                          bool local,
-                          const process::PID<slave::Slave>& _slave)
+  virtual void initialize(
+      const slave::Flags& flags,
+      const Resources& resources,
+      bool local,
+      const process::PID<slave::Slave>& _slave)
   {
     slave = _slave;
   }
 
-  virtual void launchExecutor(const FrameworkID& frameworkId,
-                              const FrameworkInfo& frameworkInfo,
-                              const ExecutorInfo& executorInfo,
-                              const std::string& directory,
-                              const Resources& resources,
-                              bool checkpoint,
-                              const Option<std::string>& path)
+  virtual void launchExecutor(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const UUID& uuid,
+      const std::string& directory,
+      const Resources& resources,
+      const Option<std::string>& path)
   {
     if (executors.count(executorInfo.executor_id()) > 0) {
       Executor* executor = executors[executorInfo.executor_id()];
@@ -800,16 +809,20 @@ public:
       os::setenv("MESOS_LOCAL", "1");
       os::setenv("MESOS_DIRECTORY", directory);
       os::setenv("MESOS_SLAVE_PID", slave);
+      os::setenv("MESOS_SLAVE_ID", slaveId.value());
       os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
       os::setenv("MESOS_EXECUTOR_ID", executorInfo.executor_id().value());
+      os::setenv("MESOS_CHECKPOINT", frameworkInfo.checkpoint() ? "1" : "0");
 
       driver->start();
 
       os::unsetenv("MESOS_LOCAL");
       os::unsetenv("MESOS_DIRECTORY");
       os::unsetenv("MESOS_SLAVE_PID");
+      os::unsetenv("MESOS_SLAVE_ID");
       os::unsetenv("MESOS_FRAMEWORK_ID");
       os::unsetenv("MESOS_EXECUTOR_ID");
+      os::unsetenv("MESOS_CHECKPOINT");
 
       process::dispatch(
           slave,
@@ -823,8 +836,9 @@ public:
     }
   }
 
-  virtual void killExecutor(const FrameworkID& frameworkId,
-                            const ExecutorID& executorId)
+  virtual void killExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId)
   {
     if (drivers.count(executorId) > 0) {
       MesosExecutorDriver* driver = drivers[executorId];
@@ -856,6 +870,10 @@ public:
       process::Future<ResourceStatistics>(
           const FrameworkID&,
           const ExecutorID&));
+
+  MOCK_METHOD1(
+      recover,
+      process::Future<Nothing>(const Option<slave::state::SlaveState>&));
 
   std::map<ExecutorID, std::string> directories;
 

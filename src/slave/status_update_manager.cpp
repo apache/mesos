@@ -69,7 +69,7 @@ public:
       const FrameworkID& frameworkId,
       const string& uuid);
 
-  Nothing recover(const string& rootDir, const SlaveState& state);
+  Try<Nothing> recover(const string& rootDir, const SlaveState& state);
 
   void newMasterDetected(const UPID& pid);
 
@@ -146,7 +146,7 @@ void StatusUpdateManagerProcess::newMasterDetected(const UPID& pid)
 }
 
 
-Nothing StatusUpdateManagerProcess::recover(
+Try<Nothing> StatusUpdateManagerProcess::recover(
     const string& rootDir,
     const SlaveState& state)
 {
@@ -154,30 +154,57 @@ Nothing StatusUpdateManagerProcess::recover(
 
   foreachvalue (const FrameworkState& framework, state.frameworks) {
     foreachvalue (const ExecutorState& executor, framework.executors) {
-      // We are only interested in the latest run of the executor!
-      CHECK_SOME(executor.latest);
-      const UUID& uuid = executor.latest.get();
+      LOG(INFO) << "Recovering executor '" << executor.id
+                << "' of framework " << framework.id;
 
+      if (executor.info.isNone()) {
+        LOG(WARNING) << "Skipping recovering updates of"
+                     << " executor '" << executor.id
+                     << "' of framework " << framework.id
+                     << " because its info cannot be recovered";
+        continue;
+      }
+
+      if (executor.latest.isNone()) {
+        LOG(WARNING) << "Skipping recovering updates of"
+                     << " executor '" << executor.id
+                     << "' of framework " << framework.id
+                     << " because its latest run cannot be recovered";
+        continue;
+      }
+
+      // We are only interested in the latest run of the executor!
+      const UUID& uuid = executor.latest.get();
       CHECK(executor.runs.contains(uuid));
       const RunState& run  = executor.runs.get(uuid).get();
+
       foreachvalue (const TaskState& task, run.tasks) {
+        // No updates were ever received for this task!
+        // This means either:
+        // 1) the executor never received this task or
+        // 2) executor launched it but the slave died before it got any updates.
+        if (task.updates.empty()) {
+          LOG(WARNING) << "No updates found for task " << task.id
+                       << " of framework " << framework.id;
+          continue;
+        }
+
+        // Create a new status update stream.
         const string& path = paths::getTaskUpdatesPath(
-            rootDir,
-            state.id,
-            framework.id,
-            executor.id,
-            uuid,
-            task.id);
+            rootDir, state.id, framework.id, executor.id, uuid, task.id);
 
         // Create a new status update stream.
         StatusUpdateStream* stream = createStatusUpdateStream(
-            task.id,
-            framework.id,
-            true,
-            path);
+            task.id, framework.id, true, path);
 
         // Replay the stream.
-        stream->replay(task.updates, task.acks);
+        Try<Nothing> replay = stream->replay(task.updates, task.acks);
+        if (replay.isError()) {
+          return Error(
+              "Failed to replay status updates for task " + stringify(task.id) +
+              " of framework " + stringify(framework.id) +
+              ": " + replay.error());
+        }
 
         // At the end of the replay, the stream is either terminated or
         // contains only unacknowledged, if any, pending updates.
@@ -186,7 +213,8 @@ Nothing StatusUpdateManagerProcess::recover(
         } else {
           // If a stream has pending updates after the replay,
           // send the first pending update
-          const Option<StatusUpdate>& next = stream->next();
+          const Result<StatusUpdate>& next = stream->next();
+          CHECK(!next.isError());
           if (next.isSome()) {
             stream->timeout = forward(next.get());
           }
@@ -468,7 +496,7 @@ Future<Try<Nothing> > StatusUpdateManager::acknowledgement(
 }
 
 
-Future<Nothing> StatusUpdateManager::recover(
+Future<Try<Nothing> > StatusUpdateManager::recover(
     const string& rootDir,
     const SlaveState& state)
 {

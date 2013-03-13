@@ -271,11 +271,30 @@ message ExecutorRegisteredMessage {
 }
 
 
+message ExecutorReregisteredMessage {
+  required SlaveID slave_id = 1;
+  required SlaveInfo slave_info = 2;
+}
+
+
 message ExitedExecutorMessage {
   required SlaveID slave_id = 1;
   required FrameworkID framework_id = 2;
   required ExecutorID executor_id = 3;
   required int32 status = 4;
+}
+
+
+message ReconnectExecutorMessage {
+  required SlaveID slave_id = 1;
+}
+
+
+message ReregisterExecutorMessage {
+  required ExecutorID executor_id = 1;
+  required FrameworkID framework_id = 2;
+  repeated TaskInfo tasks = 3;
+  repeated StatusUpdate updates = 4;
 }
 
 

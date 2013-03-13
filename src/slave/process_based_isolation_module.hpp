@@ -26,6 +26,9 @@
 #include <process/future.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/nothing.hpp>
+#include <stout/option.hpp>
+#include <stout/uuid.hpp>
 
 #include "launcher/launcher.hpp"
 
@@ -37,6 +40,12 @@
 namespace mesos {
 namespace internal {
 namespace slave {
+namespace state {
+
+class State; // Forward declaration.
+
+} // namespace state {
+
 
 class ProcessBasedIsolationModule
   : public IsolationModule, public ProcessExitedListener
@@ -53,12 +62,13 @@ public:
       const process::PID<Slave>& slave);
 
   virtual void launchExecutor(
+      const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
+      const UUID& uuid,
       const std::string& directory,
       const Resources& resources,
-      bool checkpoint,
       const Option<std::string>& path);
 
   virtual void killExecutor(
@@ -74,6 +84,9 @@ public:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
+  virtual process::Future<Nothing> recover(
+      const Option<state::SlaveState>& state);
+
   virtual void processExited(pid_t pid, int status);
 
 protected:
@@ -85,6 +98,7 @@ protected:
   // default launching behavior should override createLauncher() and return
   // their own Launcher object (including possibly a subclass of Launcher).
   virtual launcher::ExecutorLauncher* createExecutorLauncher(
+      const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
@@ -97,10 +111,19 @@ private:
 
   struct ProcessInfo
   {
+    ProcessInfo(const FrameworkID& _frameworkId,
+                const ExecutorID& _executorId,
+                const Option<pid_t>& _pid = None(),
+                bool _killed = false)
+      : frameworkId(_frameworkId),
+        executorId(_executorId),
+        pid(_pid),
+        killed(_killed) {}
+
     FrameworkID frameworkId;
     ExecutorID executorId;
-    pid_t pid; // PID of the forked executor process.
-    std::string directory; // Working directory of the executor.
+    Option<pid_t> pid; // PID of the forked executor process.
+    bool killed; // True if "killing" has been initiated via 'killExecutor'.
   };
 
   // TODO(benh): Make variables const by passing them via constructor.

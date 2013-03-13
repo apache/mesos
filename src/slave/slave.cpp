@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include <vector>
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -55,6 +56,7 @@
 namespace params = std::tr1::placeholders;
 
 using std::string;
+using std::vector;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -65,6 +67,8 @@ using std::tr1::bind;
 namespace mesos {
 namespace internal {
 namespace slave {
+
+using namespace state;
 
 Slave::Slave(const Resources& _resources,
              bool _local,
@@ -258,6 +262,8 @@ void Slave::initialize()
 
   connected = false;
 
+  halting = false;
+
   // Install protobuf handlers.
   install<NewMasterDetectedMessage>(
       &Slave::newMasterDetected,
@@ -314,6 +320,13 @@ void Slave::initialize()
       &RegisterExecutorMessage::framework_id,
       &RegisterExecutorMessage::executor_id);
 
+  install<ReregisterExecutorMessage>(
+      &Slave::reregisterExecutor,
+      &ReregisterExecutorMessage::framework_id,
+      &ReregisterExecutorMessage::executor_id,
+      &ReregisterExecutorMessage::tasks,
+      &ReregisterExecutorMessage::updates);
+
   install<StatusUpdateMessage>(
       &Slave::statusUpdate,
       &StatusUpdateMessage::update);
@@ -347,13 +360,27 @@ void Slave::initialize()
   }
 
   // Check that the recover flag is valid.
-  if (flags.recover != "reconnect" && flags.recover != "kill") {
-    EXIT(1) << "Unknown option for recover flag " << flags.recover
+  if (flags.recover != "reconnect" && flags.recover != "cleanup") {
+    EXIT(1) << "Unknown option for 'recover' flag " << flags.recover
             << ". Please run the slave with '--help' to see the valid options";
   }
 
   // Start recovery.
-  recovered = recover(flags.recover == "reconnect", flags.safe);
+  recover(flags.recover == "reconnect", flags.safe)
+   .onAny(defer(self(), &Slave::_recover, params::_1));
+}
+
+
+void Slave::_recover(const Future<Nothing>& future)
+{
+  if (!future.isReady()) {
+    LOG(FATAL) << "Recovery failure: " << future.failure();
+  }
+
+  LOG(INFO) << "Finished recovery";
+
+  // Signal recovery.
+  recovered.set(Nothing());
 }
 
 
@@ -370,7 +397,12 @@ void Slave::finalize()
     // immediately). Of course, this still isn't sufficient
     // because those status updates might get lost and we won't
     // resend them unless we build that into the system.
-    shutdownFramework(frameworkId);
+    // NOTE: We shut down the framework if either
+    // 1: The slave is asked to shutdown (halting = true) or
+    // 2: The framework has disabled checkpointing.
+    if (halting || !frameworks[frameworkId]->info.checkpoint()) {
+      shutdownFramework(frameworkId);
+    }
   }
 
   // Stop the isolation module.
@@ -392,7 +424,10 @@ void Slave::finalize()
 
 void Slave::shutdown()
 {
-  if (from != master) {
+  // Allow shutdown message only if
+  // 1) Its a message received from the registered master or
+  // 2) If its called locally (e.g tests)
+  if (from && from != master) {
     LOG(WARNING) << "Ignoring shutdown message from " << from
                  << " because it is not from the registered master ("
                  << master << ")";
@@ -400,6 +435,8 @@ void Slave::shutdown()
   }
 
   LOG(INFO) << "Slave asked to shut down by " << from;
+
+  halting = true;
 
   terminate(self());
 }
@@ -434,7 +471,16 @@ void Slave::newMasterDetected(const UPID& pid)
   connected = false;
 
   // Do registration after recovery is complete.
-  recovered.onAny(defer(self(), &Self::doReliableRegistration, params::_1));
+  // NOTE: Slave only registers with master when it is in "reconnect" mode.
+  // This ensures that master doesn't offer resources of a slave in "cleanup"
+  // mode.
+  if (flags.recover == "reconnect") {
+    recovered.future()
+      .onReady(defer(self(), &Self::doReliableRegistration, params::_1));
+  } else {
+    LOG(INFO)
+      << "Skipping registration because slave is started in 'cleanup' mode";
+  }
 
   // Inform the status updates manager about the new master.
   statusUpdateManager->newMasterDetected(master);
@@ -756,12 +802,13 @@ void Slave::runTask(
     // Tell the isolation module to launch the executor.
     dispatch(isolationModule,
              &IsolationModule::launchExecutor,
+             info.id(),
              framework->id,
              framework->info,
              executor->info,
+             executor->uuid,
              executor->directory,
              executor->resources,
-             frameworkInfo.checkpoint(),
              pidPath);
   }
 }
@@ -950,7 +997,13 @@ void Slave::_statusUpdateAcknowledgement(
     return;
   }
 
-  // TODO(vinod): Garbage collect the task meta directory.
+  // If this slave is in 'recover=cleanup' mode, exit after all executors
+  // have exited.
+  if (flags.recover == "cleanup" && frameworks.empty()) {
+    LOG(INFO) << "Slave is shutting down because it was started in cleanup "
+              << " recovery mode and all updates have been acknowledged!";
+    shutdown();
+  }
 }
 
 
@@ -1049,6 +1102,90 @@ void Slave::registerExecutor(
     executor->queuedTasks.clear();
   }
 }
+
+
+void Slave::reregisterExecutor(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const vector<TaskInfo>& tasks,
+    const vector<StatusUpdate>& updates)
+{
+  LOG(INFO) << "Re-registering executor " << executorId
+            << " of framework " << frameworkId;
+
+  CHECK(frameworks.contains(frameworkId));
+  Framework* framework = frameworks[frameworkId];
+
+  CHECK(framework->executors.contains(executorId));
+  Executor* executor = framework->executors[executorId];
+
+  executor->pid = from; // Update the pid, to signal re-registration.
+
+  // Send re-registration message to the executor.
+  ExecutorReregisteredMessage message;
+  message.mutable_slave_id()->MergeFrom(info.id());
+  message.mutable_slave_info()->MergeFrom(info);
+  send(executor->pid, message);
+
+  // Handle all the pending updates.
+  // NOTE: The status update manager might have already checkpointed some
+  // of these pending updates (for e.g: if the slave died right after it
+  // checkpointed the update but before it could send the ACK to the executor).
+  // This is ok because, the status update manager simply re-ACKs the executor.
+  foreach (const StatusUpdate& update, updates) {
+    statusUpdate(update); // This also updates the isolation module's resources!
+  }
+
+  // Now, if there is any task still in STAGING state and not in 'tasks' known
+  // to the executor, the slave must have died before the executor received
+  // the task! Relaunch it!
+  hashmap<TaskID, TaskInfo> launched;
+  foreach (const TaskInfo& task, tasks) {
+    launched[task.task_id()] = task;
+  }
+
+  foreachvalue (Task* task, executor->launchedTasks) {
+    if (task->state() == TASK_STAGING && !launched.contains(task->task_id())) {
+      LOG (INFO) << "Relaunching STAGED task " << task->task_id()
+                 << " of executor " << task->executor_id();
+
+      RunTaskMessage message;
+      message.mutable_framework_id()->MergeFrom(framework->id);
+      message.mutable_framework()->MergeFrom(framework->info);
+      message.set_pid(framework->pid);
+      message.mutable_task()->MergeFrom(launched[task->task_id()]);
+      send(executor->pid, message);
+    }
+  }
+}
+
+
+
+void Slave::reregisterExecutorTimeout()
+{
+  LOG(INFO) << "Cleaning up un-reregistered executors";
+
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      // If we are here, the executor must have been hung and
+      // not exited! This is because, if the executor properly
+      // exited, it should have already been identified by the
+      // isolation module (via reaper) and cleaned up!
+      if (!executor->pid) {
+        LOG(INFO) << "Shutting down un-reregistered executor " << executor->id
+                  << " of framework " << framework->id;
+
+        // TODO(vinod): Call shutdownExecutor() when it supports
+        // immediate shutdown of the executor.
+        shutdownExecutorTimeout(framework->id, executor->id, executor->uuid);
+      }
+    }
+  }
+
+  // Signal the end of recovery.
+  recovered.set(Nothing());
+}
+
 
 // This can be called in two ways:
 // 1) When a status update from the executor is received.
@@ -1172,6 +1309,8 @@ void Slave::_forwardUpdate(
     message.mutable_framework_id()->MergeFrom(update.framework_id());
     message.mutable_slave_id()->MergeFrom(update.slave_id());
     message.mutable_task_id()->MergeFrom(update.status().task_id());
+    message.set_uuid(update.uuid());
+
     send(pid.get(), message);
   }
 }
@@ -1526,27 +1665,171 @@ Future<Nothing> Slave::recover(bool reconnect, bool safe)
   // very first time this slave was started with checkpointing
   // enabled.
   if (!os::exists(metaDir)) {
-    return Nothing();
+    // NOTE: We recover the isolation module here to cleanup any old
+    // executors (e.g: orphaned cgroups).
+    return dispatch(isolationModule, &IsolationModule::recover, None());
   }
 
+  // TODO(vinod): Check for version and slaveinfo compatibility.
+
   // First, recover the slave state.
-  Result<state::SlaveState> state = state::recover(metaDir, safe);
+  Result<SlaveState> state = state::recover(metaDir, safe);
   if (state.isError()) {
     EXIT(1) << "Failed to recover slave state: " << state.error();
   }
 
-  // The state is none if the slave is not recovering in safe mode
-  // and the previous slave died before creating "latest" symlink.
-  if (state.isNone()) {
-    return Nothing();
+  if (state.isNone() || state.get().info.isNone()) {
+    // We are here if the slave died before checkpointing its info.
+    // NOTE: We recover the isolation module here to cleanup any old
+    // executors (e.g: orphaned cgroups).
+    return dispatch(isolationModule, &IsolationModule::recover, None());
   }
 
-  // Now, recover the status update manager.
-  return statusUpdateManager->recover(metaDir, state.get());
+  info = state.get().info.get(); // Recover the slave info.
 
-  // TODO(vinod):
-  // Recover isolation module.
-  // Reconcile with executors.
+  // Recover the status update manager, then the isolation module and
+  // then the executors.
+  return statusUpdateManager->recover(metaDir, state.get())
+           .then(defer(isolationModule,
+                       &IsolationModule::recover,
+                       state.get()))
+           .then(defer(self(),
+                       &Self::recoverExecutors,
+                       state.get(),
+                       reconnect));
+}
+
+
+Future<Nothing> Slave::recoverExecutors(
+    const SlaveState& state,
+    bool reconnect)
+{
+  LOG(INFO) << "Recovering executors";
+
+  foreachvalue (const FrameworkState& framework_, state.frameworks) {
+    foreachvalue (const ExecutorState& executor_, framework_.executors) {
+      LOG(INFO) << "Recovering executor '" << executor_.id
+                << "' of framework " << framework_.id;
+
+      if (executor_.info.isNone()) {
+        LOG(WARNING) << "Skipping recovery of executor '" << executor_.id
+                     << "' of framework " << framework_.id
+                     << " because its info cannot be recovered";
+        continue;
+      }
+
+      if (executor_.latest.isNone()) {
+        LOG(WARNING) << "Skipping recovery of executor '" << executor_.id
+                     << "' of framework " << framework_.id
+                     << " because its latest run cannot be recovered";
+        continue;
+      }
+
+      // We are only interested in the latest run of the executor!
+      const UUID& uuid = executor_.latest.get();
+      CHECK(executor_.runs.contains(uuid));
+      const RunState& run  = executor_.runs.get(uuid).get();
+
+      // Create framework, if necessary.
+      Framework* framework = getFramework(framework_.id);
+      if (framework == NULL) {
+        CHECK_SOME(framework_.info);
+        CHECK_SOME(framework_.pid);
+
+        framework = new Framework(
+            framework_.id, framework_.info.get(), framework_.pid.get(), flags);
+
+        frameworks[framework_.id] = framework;
+      }
+
+      // Create executor.
+      const string& directory = paths::getExecutorRunPath(
+          flags.work_dir, info.id(), framework_.id, executor_.id, uuid);
+
+      Executor* executor =
+          new Executor(framework_.id, executor_.info.get(), uuid, directory);
+
+      // Recover the tasks.
+      foreachvalue (const TaskState& task, run.tasks) {
+        if (task.info.isNone()) {
+          LOG(WARNING) << "Skipping recovery of task " << task.id
+                       << " because its info cannot be recovered";
+          continue;
+        }
+
+        executor->launchedTasks[task.id] = new Task(task.info.get());
+
+        // NOTE: Since some tasks might have been terminated when the slave
+        // was down, the executor resources we capture here is an upper-bound.
+        // The actual resources needed (for live tasks) by the isolation module
+        // will be calculated when the executor re-registers.
+        executor->resources += task.info.get().resources();
+
+        // Read updates to get the latest state of the task.
+        foreach (const StatusUpdate& update, task.updates) {
+          executor->updateTaskState(task.id, update.status().state());
+
+          // Remove the task if it terminated.
+          if (protobuf::isTerminalState(update.status().state())) {
+            executor->removeTask(task.id);
+            break;
+          }
+        }
+      }
+
+      // Add the executor to the framework.
+      framework->executors[executor_.id] = executor;
+
+      files->attach(executor->directory, executor->directory)
+        .onAny(defer(self(),
+                     &Self::fileAttached,
+                     params::_1,
+                     executor->directory));
+
+      // Reconnect with executor, if possible.
+      if (reconnect && run.libprocessPid.isSome()) {
+        CHECK_SOME(run.forkedPid);
+
+        LOG(INFO) << "Sending reconnect request to executor " << executor_.id
+                  << " of framework " << framework_.id
+                  << " at " << run.libprocessPid.get();
+
+        ReconnectExecutorMessage message;
+        message.mutable_slave_id()->MergeFrom(info.id());
+        send(run.libprocessPid.get(), message);
+      } else if (run.libprocessPid.isSome()) {
+        // Cleanup executors.
+        LOG(INFO) << "Sending shutdown to executor " << executor_.id
+                  << " of framework " << framework_.id
+                  << " at " << run.libprocessPid.get();
+
+        executor->pid = run.libprocessPid.get();
+        shutdownExecutor(framework, executor);
+      }
+
+      // Beging monitoring the executor.
+      monitor.watch(
+          framework_.id,
+          executor_.id,
+          executor_.info.get(),
+          flags.resource_monitoring_interval)
+        .onAny(lambda::bind(_watch, lambda::_1, framework_.id, executor_.id));
+    }
+  }
+
+  if (reconnect) {
+    // Cleanup unregistered executors after a delay.
+    delay(EXECUTOR_REREGISTER_TIMEOUT,
+          self(),
+          &Slave::reregisterExecutorTimeout);
+
+    // We set 'recovered' flag inside reregisterExecutorTimeout(),
+    // so that when the slave re-registers with master it can
+    // correctly inform the master about the launched tasks.
+    return recovered.future();
+  }
+
+  return Nothing();
 }
 
 } // namespace slave {

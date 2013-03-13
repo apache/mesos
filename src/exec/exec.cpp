@@ -33,11 +33,17 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/fatal.hpp>
+#include <stout/numify.hpp>
+#include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/lock.hpp"
+#include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 
 #include "logging/logging.hpp"
@@ -45,9 +51,11 @@
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/state.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::slave;
 
 using namespace process;
 
@@ -92,19 +100,24 @@ public:
   ExecutorProcess(const UPID& _slave,
                   MesosExecutorDriver* _driver,
                   Executor* _executor,
+                  const SlaveID& _slaveId,
                   const FrameworkID& _frameworkId,
                   const ExecutorID& _executorId,
                   bool _local,
-                  const std::string& _directory)
+                  const string& _directory,
+                  bool _checkpoint)
     : ProcessBase(ID::generate("executor")),
       slave(_slave),
       driver(_driver),
       executor(_executor),
+      slaveId(_slaveId),
       frameworkId(_frameworkId),
       executorId(_executorId),
+      connected(false),
       local(_local),
       aborted(false),
-      directory(_directory)
+      directory(_directory),
+      checkpoint(_checkpoint)
   {
     install<ExecutorRegisteredMessage>(
         &ExecutorProcess::registered,
@@ -114,6 +127,15 @@ public:
         &ExecutorRegisteredMessage::slave_id,
         &ExecutorRegisteredMessage::slave_info);
 
+    install<ExecutorReregisteredMessage>(
+        &ExecutorProcess::reregistered,
+        &ExecutorReregisteredMessage::slave_id,
+        &ExecutorReregisteredMessage::slave_info);
+
+    install<ReconnectExecutorMessage>(
+        &ExecutorProcess::reconnect,
+        &ReconnectExecutorMessage::slave_id);
+
     install<RunTaskMessage>(
         &ExecutorProcess::runTask,
         &RunTaskMessage::task);
@@ -121,6 +143,13 @@ public:
     install<KillTaskMessage>(
         &ExecutorProcess::killTask,
         &KillTaskMessage::task_id);
+
+    install<StatusUpdateAcknowledgementMessage>(
+        &ExecutorProcess::statusUpdateAcknowledgement,
+        &StatusUpdateAcknowledgementMessage::slave_id,
+        &StatusUpdateAcknowledgementMessage::framework_id,
+        &StatusUpdateAcknowledgementMessage::task_id,
+        &StatusUpdateAcknowledgementMessage::uuid);
 
     install<FrameworkToExecutorMessage>(
         &ExecutorProcess::frameworkMessage,
@@ -164,8 +193,53 @@ protected:
 
     VLOG(1) << "Executor registered on slave " << slaveId;
 
-    this->slaveId = slaveId;
+    connected = true;
     executor->registered(driver, executorInfo, frameworkInfo, slaveInfo);
+  }
+
+  void reregistered(const SlaveID& slaveId, const SlaveInfo& slaveInfo)
+  {
+    if (aborted) {
+      VLOG(1) << "Ignoring re-registered message from slave " << slaveId
+              << " because the driver is aborted!";
+      return;
+    }
+
+    VLOG(1) << "Executor re-registered on slave " << slaveId;
+
+    executor->reregistered(driver, slaveInfo);
+  }
+
+  void reconnect(const SlaveID& slaveId)
+  {
+    if (aborted) {
+      VLOG(1) << "Ignoring reconnect message from slave " << slaveId
+              << " because the driver is aborted!";
+      return;
+    }
+
+    VLOG(1) << "Received reconnect request from slave " << slaveId;
+
+    // Update the slave link.
+    slave = from;
+    link(slave);
+
+    // Re-register with slave.
+    ReregisterExecutorMessage message;
+    message.mutable_executor_id()->MergeFrom(executorId);
+    message.mutable_framework_id()->MergeFrom(frameworkId);
+
+    // Send all unacknowledged updates.
+    foreachvalue (const StatusUpdate& update, updates) {
+      message.add_updates()->MergeFrom(update);
+    }
+
+    // Send all unacknowledged tasks.
+    foreachvalue (const TaskInfo& task, tasks) {
+      message.add_tasks()->MergeFrom(task);
+    }
+
+    send(slave, message);
   }
 
   void runTask(const TaskInfo& task)
@@ -175,6 +249,11 @@ protected:
               << " because the driver is aborted!";
       return;
     }
+
+    CHECK(!tasks.contains(task.task_id()))
+      << "Unexpected duplicate task " << task.task_id();
+
+    tasks[task.task_id()] = task;
 
     VLOG(1) << "Executor asked to run task '" << task.task_id() << "'";
 
@@ -192,6 +271,29 @@ protected:
     VLOG(1) << "Executor asked to kill task '" << taskId << "'";
 
     executor->killTask(driver, taskId);
+  }
+
+  void statusUpdateAcknowledgement(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const TaskID& taskId,
+      const string& uuid)
+  {
+    if (aborted) {
+      VLOG(1) << "Ignoring ACK for status update of task " << taskId
+              << " of framework " << frameworkId
+              <<" because the driver is aborted!";
+      return;
+    }
+
+    VLOG(1) << "Executor received ACK for status update of task " << taskId
+            << " of framework " << frameworkId;
+
+    // Remove the corresponding update.
+    updates.erase(uuid);
+
+    // Remove the corresponding task.
+    tasks.erase(taskId);
   }
 
   void frameworkMessage(const SlaveID& slaveId,
@@ -225,6 +327,7 @@ protected:
 
     // TODO(benh): Any need to invoke driver.stop?
     executor->shutdown(driver);
+    aborted = true; // To make sure not to accept any new messages.
 
     if (local) {
       terminate(this);
@@ -244,7 +347,16 @@ protected:
       return;
     }
 
-    VLOG(1) << "Slave exited, trying to shutdown";
+    // If the framework has checkpointing enabled and the executor has
+    // successfully registered with the slave, the slave can reconnect with
+    // this executor when it comes back up and performs recovery!
+    if (checkpoint && connected) {
+      VLOG(1) << "Slave exited, but framework has checkpointing enabled. "
+              << "Waiting to reconnect with slave " << slaveId;
+      return;
+    }
+
+    VLOG(1) << "Slave exited ... shutting down";
 
     if (!local) {
       // Start the Shutdown Process.
@@ -253,6 +365,7 @@ protected:
 
     // TODO: Pass an argument to shutdown to tell it this is abnormal?
     executor->shutdown(driver);
+    aborted = true; // To make sure not to accept any new messages.
 
     // This is a pretty bad state ... no slave is left. Rather
     // than exit lets kill our process group (which includes
@@ -266,12 +379,12 @@ protected:
 
   void sendStatusUpdate(const TaskStatus& status)
   {
-    VLOG(1) << "Executor sending status update for task "
-            << status.task_id() << " in state " << status.state();
+    VLOG(1) << "Executor sending status update for task " << status.task_id()
+            << " in state " << status.state();
 
     if (status.state() == TASK_STAGING) {
       VLOG(1) << "Executor is not allowed to send "
-              << "TASK_STAGING status updates. Aborting!";
+              << "TASK_STAGING status update. Aborting!";
 
       driver->abort();
 
@@ -288,6 +401,9 @@ protected:
     update->mutable_status()->MergeFrom(status);
     update->set_timestamp(Clock::now());
     update->set_uuid(UUID::random().toBytes());
+
+    // Capture the status update.
+    updates[update->uuid()] = *update;
 
     send(slave, message);
   }
@@ -308,12 +424,22 @@ private:
   UPID slave;
   MesosExecutorDriver* driver;
   Executor* executor;
+  SlaveID slaveId;
   FrameworkID frameworkId;
   ExecutorID executorId;
-  SlaveID slaveId;
+  bool connected; // Registered with the slave.
   bool local;
   bool aborted;
-  const std::string directory;
+  const string directory;
+  bool checkpoint;
+
+  hashmap<string, StatusUpdate> updates; // Unacknowledged updates.
+
+  // We store tasks that have not been acknowledged
+  // (via status updates) by the slave. This ensures that, during
+  // recovery, the slave relaunches only those tasks that have
+  // never reached this executor.
+  hashmap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
 };
 
 } // namespace internal {
@@ -373,67 +499,68 @@ Status MesosExecutorDriver::start()
   bool local;
 
   UPID slave;
+  SlaveID slaveId;
   FrameworkID frameworkId;
   ExecutorID executorId;
-  std::string workDirectory;
+  string workDirectory;
+  bool checkpoint;
 
-  char* value;
+  string value;
   std::istringstream iss;
 
-  /* Check if this is local (for example, for testing). */
-  value = getenv("MESOS_LOCAL");
+  // Check if this is local (for example, for testing).
+  value = os::getenv("MESOS_LOCAL", false);
 
-  if (value != NULL) {
+  if (!value.empty()) {
     local = true;
   } else {
     local = false;
   }
 
-  /* Get slave PID from environment. */
-  value = getenv("MESOS_SLAVE_PID");
-
-  if (value == NULL) {
-    fatal("expecting MESOS_SLAVE_PID in environment");
-  }
-
+  // Get slave PID from environment.
+  value = os::getenv("MESOS_SLAVE_PID");
   slave = UPID(value);
-
   if (!slave) {
     fatal("cannot parse MESOS_SLAVE_PID");
   }
 
-  /* Get framework ID from environment. */
-  value = getenv("MESOS_FRAMEWORK_ID");
+  // Get slave ID from environment.
+  value = os::getenv("MESOS_SLAVE_ID");
+  slaveId.set_value(value);
 
-  if (value == NULL) {
-    fatal("expecting MESOS_FRAMEWORK_ID in environment");
-  }
-
+  // Get framework ID from environment.
+  value = os::getenv("MESOS_FRAMEWORK_ID");
   frameworkId.set_value(value);
 
-  /* Get executor ID from environment. */
-  value = getenv("MESOS_EXECUTOR_ID");
-
-  if (value == NULL) {
-    fatal("expecting MESOS_EXECUTOR_ID in environment");
-  }
-
+  // Get executor ID from environment.
+  value = os::getenv("MESOS_EXECUTOR_ID");
   executorId.set_value(value);
 
-  /* Get working directory from environment */
-  value = getenv("MESOS_DIRECTORY");
-
-  if (value == NULL) {
-    fatal("expecting MESOS_DIRECTORY in environment");
-  }
-
+  // Get working directory from environment.
+  value = os::getenv("MESOS_DIRECTORY");
   workDirectory = value;
+
+  // Get checkpointing status from environment.
+  value = os::getenv("MESOS_CHECKPOINT", false);
+
+  if (!value.empty()) {
+    checkpoint = value == "1";
+  } else {
+    checkpoint = false;
+  }
 
   CHECK(process == NULL);
 
-  process =
-    new ExecutorProcess(slave, this, executor, frameworkId,
-                        executorId, local, workDirectory);
+  process = new ExecutorProcess(
+      slave,
+      this,
+      executor,
+      slaveId,
+      frameworkId,
+      executorId,
+      local,
+      workDirectory,
+      checkpoint);
 
   spawn(process);
 
