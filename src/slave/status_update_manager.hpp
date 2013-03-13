@@ -66,9 +66,8 @@ public:
   void initialize(const PID<Slave>& slave);
 
   // Enqueues the status update to reliably send the update to the master.
-  // If 'path' is provided, the update is also checkpointed to the given path.
-  // @return A future indicating whether the update is handled
-  //         successfully (e.g. checkpointed).
+  // If 'checkpoint' is true, the update is also checkpointed to the given path.
+  // @return Whether the update is handled successfully (e.g. checkpointed).
   process::Future<Try<Nothing> > update(
       const StatusUpdate& update,
       bool checkpoint,
@@ -76,8 +75,7 @@ public:
 
   // Receives the ACK from the scheduler and checkpoints it to disk if
   // necessary. Also, sends the next pending status update, if any.
-  // @return A future of indicating whether the acknowledgement
-  //         is handled successfully (e.g. checkpointed).
+  // @return Whether ACK is handled successfully (e.g. checkpointed).
   process::Future<Try<Nothing> > acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,

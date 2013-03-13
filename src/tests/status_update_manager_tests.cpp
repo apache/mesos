@@ -39,9 +39,9 @@
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/paths.hpp"
 #include "slave/process_based_isolation_module.hpp"
 #include "slave/slave.hpp"
-#include "slave/paths.hpp"
 
 #include "messages/messages.hpp"
 

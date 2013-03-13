@@ -45,7 +45,7 @@ extern const uint32_t MAX_COMPLETED_FRAMEWORKS;
 // Maximum number of completed executors per framework to store in memory.
 extern const uint32_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK;
 
-// Maximum number of completed tasks per executor to store in memeory.
+// Maximum number of completed tasks per executor to store in memory.
 extern const uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR;
 
 // Default cpus offered by the slave.

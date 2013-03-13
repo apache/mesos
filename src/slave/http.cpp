@@ -306,7 +306,7 @@ Future<Response> state(
   object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
   object.values["start_time"] = slave.startTime;
-  object.values["id"] = slave.id.value();
+  object.values["id"] = slave.info.id().value();
   object.values["pid"] = string(slave.self());
   object.values["hostname"] = slave.info.hostname();
   object.values["resources"] = model(slave.resources);

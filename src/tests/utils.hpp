@@ -249,6 +249,23 @@ private:
       DEFAULT_EXECUTOR_INFO.executor_id()
 
 
+inline TaskInfo createTask(
+    const Offer& offer,
+    const std::string& command,
+    const std::string& name = "test-task",
+    const std::string& id = UUID::random().toString())
+{
+  TaskInfo task;
+  task.set_name(name);
+  task.mutable_task_id()->set_value(id);
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(offer.resources());
+  task.mutable_command()->set_value(command);
+
+  return task;
+}
+
+
 // Definition of a mock Scheduler to be used in tests with gmock.
 class MockScheduler : public Scheduler
 {

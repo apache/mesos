@@ -29,6 +29,7 @@
 #include <process/id.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/exit.hpp>
 #include <stout/fs.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
@@ -257,6 +258,9 @@ void Slave::initialize()
 
   connected = false;
 
+  // If recovery is not enabled, set this flag to true to make forward progress.
+  recovered = flags.recover.isNone();
+
   // Install protobuf handlers.
   install<NewMasterDetectedMessage>(
       &Slave::newMasterDetected,
@@ -343,6 +347,18 @@ void Slave::initialize()
       files->attach(log.get(), "/slave/log")
         .onAny(defer(self(), &Self::fileAttached, params::_1, log.get()));
     }
+  }
+
+  // Check that the recover flag is valid.
+  if (flags.recover.isSome() &&
+      (flags.recover.get() != "reconnect" && flags.recover.get() != "kill")) {
+    EXIT(1) << "Unknown option for recover flag " << flags.recover.get()
+            << ".\nPlease run the slave with '--help' to see the valid options";
+  }
+
+  // Start recovery.
+  if (flags.recover.isSome()) {
+   recover(flags.recover.get() == "reconnect", flags.safe);
   }
 }
 
@@ -431,16 +447,18 @@ void Slave::noMasterDetected()
 void Slave::registered(const SlaveID& slaveId)
 {
   LOG(INFO) << "Registered with master; given slave ID " << slaveId;
-  id = slaveId;
-
+  info.mutable_id()->CopyFrom(slaveId); // Store the slave id.
   connected = true;
 
   if (flags.checkpoint) {
-    // Checkpoint slave id.
-    const string& path = paths::getSlaveIDPath(
-        paths::getMetaRootDir(flags.work_dir));
+    // Create the slave meta directory.
+    paths::createSlaveDirectory(paths::getMetaRootDir(flags.work_dir), slaveId);
 
-    state::checkpoint(path, slaveId);
+    // Checkpoint slave info.
+    const string& path = paths::getSlaveInfoPath(
+        paths::getMetaRootDir(flags.work_dir), slaveId);
+
+    CHECK_SOME(state::checkpoint(path, info));
   }
 
   // Schedule all old slave directories to get garbage collected.
@@ -452,7 +470,7 @@ void Slave::registered(const SlaveID& slaveId)
     const string& path = path::join(directory, file);
 
     // Check that this path is a directory but not our directory!
-    if (os::isdir(path) && file != id.value()) {
+    if (os::isdir(path) && file != info.id().value()) {
 
       Try<long> time = os::mtime(path);
 
@@ -475,7 +493,7 @@ void Slave::reregistered(const SlaveID& slaveId)
 {
   LOG(INFO) << "Re-registered with master";
 
-  if (!(id == slaveId)) {
+  if (!(info.id() == slaveId)) {
     LOG(FATAL) << "Slave re-registered but got wrong ID";
   }
   connected = true;
@@ -488,39 +506,54 @@ void Slave::doReliableRegistration()
     return;
   }
 
-  if (id == "") {
-    // Slave started before master.
-    // (Vinod): Is the above comment true?
-    RegisterSlaveMessage message;
-    message.mutable_slave()->MergeFrom(info);
-    send(master, message);
+  if (!recovered) {
+    LOG(INFO)<< "Skipping registration because recovery is in progress";
   } else {
-    // Re-registering, so send tasks running.
-    ReregisterSlaveMessage message;
-    message.mutable_slave_id()->MergeFrom(id);
-    message.mutable_slave()->MergeFrom(info);
+    if (info.id() == "") {
+      // Slave started before master.
+      // (Vinod): Is the above comment true?
+      RegisterSlaveMessage message;
+      message.mutable_slave()->MergeFrom(info);
+      send(master, message);
+    } else {
+      // Re-registering, so send tasks running.
+      ReregisterSlaveMessage message;
+      message.mutable_slave_id()->MergeFrom(info.id());
+      message.mutable_slave()->MergeFrom(info);
 
-    foreachvalue (Framework* framework, frameworks) {
-      foreachvalue (Executor* executor, framework->executors) {
-        // TODO(benh): Kill this once framework_id is required on ExecutorInfo.
-        ExecutorInfo* executorInfo = message.add_executor_infos();
-        executorInfo->MergeFrom(executor->info);
-        executorInfo->mutable_framework_id()->MergeFrom(framework->id);
-        foreachvalue (Task* task, executor->launchedTasks) {
-          // TODO(benh): Also need to send queued tasks here ...
-          message.add_tasks()->MergeFrom(*task);
+      foreachvalue (Framework* framework, frameworks) {
+        foreachvalue (Executor* executor, framework->executors) {
+          // TODO(benh): Kill this once framework_id is required
+          // on ExecutorInfo.
+          ExecutorInfo* executorInfo = message.add_executor_infos();
+          executorInfo->MergeFrom(executor->info);
+          executorInfo->mutable_framework_id()->MergeFrom(framework->id);
+
+          // Add launched tasks.
+          foreachvalue (Task* task, executor->launchedTasks) {
+            message.add_tasks()->CopyFrom(*task);
+          }
+
+          // Add queued tasks.
+          foreachvalue (const TaskInfo& task, executor->queuedTasks) {
+            const Task& t = protobuf::createTask(
+                task, TASK_STAGING, executor->id, framework->id);
+
+            message.add_tasks()->CopyFrom(t);
+          }
         }
       }
+      send(master, message);
     }
-
-    send(master, message);
   }
 
-  // Re-try registration if necessary.
+  // Retry registration if necessary.
   delay(Seconds(1.0), self(), &Slave::doReliableRegistration);
 }
 
 
+// TODO(vinod): Instead of crashing the slave on checkpoint errors,
+// send TASK_LOST to the framework.
 void Slave::runTask(
     const FrameworkInfo& frameworkInfo,
     const FrameworkID& frameworkId,
@@ -537,7 +570,7 @@ void Slave::runTask(
 
      const StatusUpdate& update = protobuf::createStatusUpdate(
          frameworkId,
-         id,
+         info.id(),
          task.task_id(),
          TASK_LOST,
          "Could not launch the task because the framework expects checkpointing"
@@ -553,13 +586,21 @@ void Slave::runTask(
     frameworks[frameworkId] = framework;
 
     if (frameworkInfo.checkpoint()) {
-      // Checkpoint the framework pid.
-      const string& path = paths::getFrameworkPIDPath(
+      // Checkpoint the framework info.
+      string path = paths::getFrameworkInfoPath(
           paths::getMetaRootDir(flags.work_dir),
-          id,
+          info.id(),
           frameworkId);
 
-      state::checkpoint(path, framework->pid);
+      CHECK_SOME(state::checkpoint(path, frameworkInfo));
+
+      // Checkpoint the framework pid.
+      path = paths::getFrameworkPidPath(
+          paths::getMetaRootDir(flags.work_dir),
+          info.id(),
+          frameworkId);
+
+      CHECK_SOME(state::checkpoint(path, framework->pid));
     }
   }
 
@@ -578,7 +619,11 @@ void Slave::runTask(
                    << "' which is being shut down";
 
       const StatusUpdate& update = protobuf::createStatusUpdate(
-          frameworkId, id, task.task_id(), TASK_LOST, "Executor shutting down");
+          frameworkId,
+          info.id(),
+          task.task_id(),
+          TASK_LOST,
+          "Executor shutting down");
 
       statusUpdate(update);
     } else if (!executor->pid) {
@@ -593,7 +638,7 @@ void Slave::runTask(
         // a helper function, since its used 3 times in this function!
         const string& path = paths::getTaskInfoPath(
             paths::getMetaRootDir(flags.work_dir),
-            id,
+            info.id(),
             executor->frameworkId,
             executor->id,
             executor->uuid,
@@ -602,7 +647,7 @@ void Slave::runTask(
         const Task& t = protobuf::createTask(
             task, TASK_STAGING, executor->id, executor->frameworkId);
 
-        state::checkpoint(path, t);
+        CHECK_SOME(state::checkpoint(path, t));
       }
 
       executor->queuedTasks[task.task_id()] = task;
@@ -611,7 +656,7 @@ void Slave::runTask(
         // Checkpoint the task.
         const string& path = paths::getTaskInfoPath(
             paths::getMetaRootDir(flags.work_dir),
-            id,
+            info.id(),
             executor->frameworkId,
             executor->id,
             executor->uuid,
@@ -620,7 +665,7 @@ void Slave::runTask(
         const Task& t = protobuf::createTask(
             task, TASK_STAGING, executor->id, executor->frameworkId);
 
-        state::checkpoint(path, t);
+        CHECK_SOME(state::checkpoint(path, t));
       }
 
       // Add the task and send it to the executor.
@@ -650,7 +695,7 @@ void Slave::runTask(
     }
   } else {
     // Launch an executor for this task.
-    executor = framework->createExecutor(id, executorInfo);
+    executor = framework->createExecutor(info.id(), executorInfo);
 
     files->attach(executor->directory, executor->directory)
       .onAny(defer(self(),
@@ -661,18 +706,28 @@ void Slave::runTask(
     // Check to see if we need to checkpoint this executor and the task.
     Option<string> pidPath;
     if (frameworkInfo.checkpoint()) {
-      // Get the path for isolation module to checkpoint the forked pid.
-      pidPath = paths::getForkedPIDPath(
+      // Checkpoint the executor info.
+      string path = paths::getExecutorInfoPath(
           paths::getMetaRootDir(flags.work_dir),
-          id,
+          info.id(),
+          executor->frameworkId,
+          executor->id);
+
+      CHECK_SOME(state::checkpoint(path, executor->info));
+
+      // Create the meta executor directory.
+      // NOTE: This creates the 'latest' symlink in the meta directory.
+      paths::createExecutorDirectory(
+          paths::getMetaRootDir(flags.work_dir),
+          info.id(),
           framework->id,
           executor->id,
           executor->uuid);
 
       // Checkpoint the task.
-      const string& path = paths::getTaskInfoPath(
+      path = paths::getTaskInfoPath(
           paths::getMetaRootDir(flags.work_dir),
-          id,
+          info.id(),
           executor->frameworkId,
           executor->id,
           executor->uuid,
@@ -681,7 +736,15 @@ void Slave::runTask(
       const Task& t = protobuf::createTask(
           task, TASK_STAGING, executor->id, executor->frameworkId);
 
-      state::checkpoint(path, t);
+      CHECK_SOME(state::checkpoint(path, t));
+
+      // Get the path for isolation module to checkpoint the forked pid.
+      pidPath = paths::getForkedPidPath(
+          paths::getMetaRootDir(flags.work_dir),
+          info.id(),
+          framework->id,
+          executor->id,
+          executor->uuid);
     }
 
     // Queue task until the executor starts up.
@@ -713,7 +776,7 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
                  << " because no such framework is running";
 
     const StatusUpdate& update = protobuf::createStatusUpdate(
-        frameworkId, id, taskId, TASK_LOST, "Cannot find framework");
+        frameworkId, info.id(), taskId, TASK_LOST, "Cannot find framework");
 
     statusUpdate(update);
     return;
@@ -728,7 +791,7 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
                  << " because no corresponding executor is running";
 
     const StatusUpdate& update = protobuf::createStatusUpdate(
-        frameworkId, id, taskId, TASK_LOST, "Cannot find executor");
+        frameworkId, info.id(), taskId, TASK_LOST, "Cannot find executor");
 
     statusUpdate(update);
   } else if (!executor->pid) {
@@ -736,7 +799,7 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
 
     const StatusUpdate& update = protobuf::createStatusUpdate(
         frameworkId,
-        id,
+        info.id(),
         taskId,
         TASK_KILLED,
         "Unregistered executor",
@@ -931,14 +994,14 @@ void Slave::registerExecutor(
       // in the fast path of the slave!
 
       // Checkpoint the libprocess pid.
-      string path = paths::getLibprocessPIDPath(
+      string path = paths::getLibprocessPidPath(
           paths::getMetaRootDir(flags.work_dir),
-          id,
+          info.id(),
           executor->frameworkId,
           executor->id,
           executor->uuid);
 
-      state::checkpoint(path, executor->pid);
+      CHECK_SOME(state::checkpoint(path, executor->pid));
     }
 
     // First account for the tasks we're about to start.
@@ -963,7 +1026,7 @@ void Slave::registerExecutor(
     message.mutable_executor_info()->MergeFrom(executor->info);
     message.mutable_framework_id()->MergeFrom(framework->id);
     message.mutable_framework_info()->MergeFrom(framework->info);
-    message.mutable_slave_id()->MergeFrom(id);
+    message.mutable_slave_id()->MergeFrom(info.id());
     message.mutable_slave_info()->MergeFrom(info);
     send(executor->pid, message);
 
@@ -991,7 +1054,7 @@ void Slave::statusUpdate(const StatusUpdate& update)
 {
   const TaskStatus& status = update.status();
 
-  LOG(INFO) << "Handling status update" << update;
+  LOG(INFO) << "Handling status update " << update;
 
   Framework* framework = getFramework(update.framework_id());
   Executor* executor = NULL;
@@ -1063,7 +1126,7 @@ void Slave::forwardUpdate(const StatusUpdate& update, Executor* executor)
       // Get the path to store the updates.
       path = paths::getTaskUpdatesPath(
           paths::getMetaRootDir(flags.work_dir),
-          id,
+          info.id(),
           frameworkId,
           executor->id,
           executor->uuid,
@@ -1279,10 +1342,20 @@ void Slave::executorTerminated(
       isCommandExecutor = !task->has_executor_id();
       if (destroyed || isCommandExecutor) {
         update = protobuf::createStatusUpdate(
-            frameworkId, id, task->task_id(), TASK_FAILED, message, executorId);
+            frameworkId,
+            info.id(),
+            task->task_id(),
+            TASK_FAILED,
+            message,
+            executorId);
       } else {
         update = protobuf::createStatusUpdate(
-            frameworkId, id, task->task_id(), TASK_LOST, message, executorId);
+            frameworkId,
+            info.id(),
+            task->task_id(),
+            TASK_LOST,
+            message,
+            executorId);
       }
       statusUpdate(update); // Handle the status update.
     }
@@ -1294,17 +1367,27 @@ void Slave::executorTerminated(
 
     if (destroyed || isCommandExecutor) {
       update = protobuf::createStatusUpdate(
-          frameworkId, id, task.task_id(), TASK_FAILED, message, executorId);
+          frameworkId,
+          info.id(),
+          task.task_id(),
+          TASK_FAILED,
+          message,
+          executorId);
     } else {
       update = protobuf::createStatusUpdate(
-          frameworkId, id, task.task_id(), TASK_LOST, message, executorId);
+          frameworkId,
+          info.id(),
+          task.task_id(),
+          TASK_LOST,
+          message,
+          executorId);
     }
     statusUpdate(update); // Handle the status update.
   }
 
   if (!isCommandExecutor) {
     ExitedExecutorMessage message;
-    message.mutable_slave_id()->MergeFrom(id);
+    message.mutable_slave_id()->MergeFrom(info.id());
     message.mutable_framework_id()->MergeFrom(frameworkId);
     message.mutable_executor_id()->MergeFrom(executorId);
     message.set_status(status);
@@ -1429,6 +1512,24 @@ void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
     }
   }
   delay(flags.disk_watch_interval, self(), &Slave::checkDiskUsage);
+}
+
+
+// TODO(vinod): Make recovery asynchronous.
+void Slave::recover(bool reconnect, bool safe)
+{
+  // First, recover the state.
+  Result<state::SlaveState> state =
+    state::recover(paths::getMetaRootDir(flags.work_dir), safe);
+
+  if (state.isError()) {
+    EXIT(1) << "Failed to recover slave state: " << state.error();
+  }
+
+  // TODO(vinod):
+  // Recover status update manager.
+  // Recover isolation module.
+  // Reconcile with executors.
 }
 
 } // namespace slave {

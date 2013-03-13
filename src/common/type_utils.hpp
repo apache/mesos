@@ -297,6 +297,19 @@ inline std::size_t hash_value(const ExecutorID& executorId)
 
 namespace internal {
 
+inline bool operator == (const Task& left, const Task& right)
+{
+  return left.name() == right.name() &&
+    left.task_id() == right.task_id() &&
+    left.framework_id() == right.framework_id() &&
+    left.slave_id() == right.slave_id() &&
+    left.state() == right.state() &&
+    Resources(left.resources()) == Resources(right.resources()) &&
+    left.has_executor_id() == right.has_executor_id() &&
+    (!left.has_executor_id() || (left.executor_id() == right.executor_id()));
+}
+
+
 inline std::ostream& operator << (
     std::ostream& stream,
     const StatusUpdate& update)

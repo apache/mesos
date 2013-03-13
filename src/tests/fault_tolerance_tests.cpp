@@ -43,6 +43,7 @@
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::protobuf;
 using namespace mesos::internal::tests;
 
 using mesos::internal::master::Allocator;
@@ -678,7 +679,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   TaskID taskId;
   taskId.set_value("task2");
 
-  StatusUpdate statusUpdate = protobuf::createStatusUpdate(
+  StatusUpdate statusUpdate = createStatusUpdate(
       frameworkId, offer.slave_id(), taskId, TASK_RUNNING, "Dummy update");
 
   process::dispatch(slave, &Slave::statusUpdate, statusUpdate);

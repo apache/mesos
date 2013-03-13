@@ -19,11 +19,19 @@
 #ifndef __SLAVE_STATE_HPP__
 #define __SLAVE_STATE_HPP__
 
-#include "stout/foreach.hpp"
-#include "stout/hashmap.hpp"
-#include "stout/hashset.hpp"
-#include "stout/strings.hpp"
-#include "stout/utils.hpp"
+#include <unistd.h>
+
+#include <vector>
+
+#include <process/pid.hpp>
+
+#include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
+#include <stout/protobuf.hpp>
+#include <stout/strings.hpp>
+#include <stout/utils.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/type_utils.hpp"
 
@@ -36,43 +44,115 @@ namespace internal {
 namespace slave {
 namespace state {
 
-// SlaveState stores the information about the frameworks, executors and
-// tasks running on this slave.
+// Forward declarations.
+struct SlaveState;
+struct FrameworkState;
+struct ExecutorState;
+struct RunState;
+struct TaskState;
+
+// Each of the structs below (recursively) recover the checkpointed
+// state. If the 'safe' flag is set, any errors encountered while
+// recovering a state are considered fatal and hence the recovery is
+// short-circuited and returns an error. There might be orphaned
+// executors that need to be manually cleaned up. If 'safe' flag is
+// not set, any errors encountered are considered  non-fatal and the
+// recovery continues by recovering as much of the state as possible.
+
 struct SlaveState
 {
-  struct FrameworkState
-  {
-    // TODO(vinod): Keep track of the latest run.
-    struct RunState
-    {
-      struct ExecutorState
-      {
-        hashset<TaskID> tasks;
-      };
+  static Try<SlaveState> recover(
+      const std::string& rootDir,
+      const SlaveID& slaveId,
+      bool safe);
 
-      hashmap<UUID, ExecutorState> runs;
-    };
-
-    hashmap<ExecutorID, RunState> executors;
-  };
-
-  SlaveID slaveId;
-  std::string slaveMetaDir;
+  SlaveID id;
+  Option<SlaveInfo> info;
   hashmap<FrameworkID, FrameworkState> frameworks;
 };
 
 
-// Parses the slave's work directory rooted at 'rootDir' and re-builds the
-// the slave state.
-SlaveState parse(const std::string& rootDir, const SlaveID& slaveId);
+struct FrameworkState
+{
+  static Try<FrameworkState> recover(
+      const std::string& rootDir,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      bool safe);
 
-// Helper function to checkpoint a string message to disk.
-void checkpoint(const std::string& path, const std::string& message);
+  FrameworkID id;
+  Option<FrameworkInfo> info;
+  Option<process::UPID> pid;
+  hashmap<ExecutorID, ExecutorState> executors;
+};
 
-// Helper function to checkpoint a protobuf message to disk.
-void checkpoint(
+
+struct ExecutorState
+{
+  static Try<ExecutorState> recover(
+      const std::string& rootDir,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      bool safe);
+
+  ExecutorID id;
+  Option<ExecutorInfo> info;
+  Option<UUID> latest;
+  hashmap<UUID, RunState> runs;
+};
+
+
+struct RunState
+{
+  static Try<RunState> recover(
+      const std::string& rootDir,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const UUID& uuid,
+      bool safe);
+
+  Option<UUID> id;
+  hashmap<TaskID, TaskState> tasks;
+  Option<pid_t> forkedPid;
+  Option<process::UPID> libprocessPid;
+};
+
+
+struct TaskState
+{
+  static Try<TaskState> recover(
+      const std::string& rootDir,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const UUID& uuid,
+      const TaskID& taskId,
+      bool safe);
+
+  TaskID id;
+  Option<Task> info;
+  std::vector<StatusUpdate> updates;
+  hashset<std::string> acks;
+};
+
+
+// This function performs recovery from the state stored at 'rootDir'.
+Result<SlaveState> recover(const std::string& rootDir, bool safe);
+
+
+// Thin wrappers to checkpoint data to disk and perform the
+// necessary error checking.
+
+// Checkpoints a protobuf at the given path.
+Try<Nothing> checkpoint(
     const std::string& path,
     const google::protobuf::Message& message);
+
+
+// Checkpoints a string at the given path.
+Try<Nothing> checkpoint(const std::string& path, const std::string& message);
 
 } // namespace state {
 } // namespace slave {

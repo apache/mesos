@@ -200,6 +200,13 @@ protected:
   // Checks the current disk usage and schedules for gc as necessary.
   void checkDiskUsage();
 
+  // Reads the checkpointed data from a previous run and recovers state.
+  // If 'reconnect' is true, the slave attempts to reconnect to any old
+  // live executors. Otherwise, the slave attempts to shutdown/kill them.
+  // If 'safe' is true, any ambiguous errors during recovery are considered
+  // fatal and recovery fails.
+  void recover(bool reconnect, bool safe);
+
 private:
   Slave(const Slave&);              // No copying.
   Slave& operator = (const Slave&); // No assigning.
@@ -223,7 +230,6 @@ private:
 
   bool local;
 
-  SlaveID id;
   SlaveInfo info;
 
   UPID master;
@@ -258,6 +264,10 @@ private:
   state::SlaveState state;
 
   StatusUpdateManager* statusUpdateManager;
+
+  // Flag to indicate if recovery, including reconciling (i.e., reconnect/kill)
+  // with executors is finished.
+  bool recovered;
 };
 
 

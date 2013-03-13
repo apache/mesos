@@ -215,6 +215,7 @@ void ProcessBasedIsolationModule::launchExecutor(
   }
 }
 
+
 // NOTE: This function can be called by the isolation module itself or
 // by the slave if it doesn't hear about an executor exit after it sends
 // a shutdown message.

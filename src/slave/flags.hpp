@@ -116,6 +116,25 @@ public:
         "kill (--recover=kill) old executors",
         false);
 
+    add(&Flags::recover,
+        "recover",
+        "Whether to recover status updates and reconnect with old executors.\n"
+        "Valid values for 'recover' are\n"
+        "reconnect: Reconnect with any old live executors.\n"
+        "kill: Kill any old live executors (e.g. incompatible slave upgrade).\n"
+        "NOTE: "
+        "1) This flag is only meaningful if the previous run(s) of the\n"
+        "   slave had checkpointing enabled.\n"
+        "2) If this flag is not enabled, no recovery is performed. Any old"
+        "   live executors should be manually killed.");
+
+    add(&Flags::safe,
+        "safe",
+        "Whether to ignore (safe=false) any ambiguous errors during recovery.\n"
+        "An ambiguous error is one where it is impossible to differentiate\n"
+        "between a safe error that can be ignored and an unsafe error that cannot be.",
+        true);
+
 #ifdef __linux__
     add(&Flags::cgroups_hierarchy,
         "cgroups_hierarchy",
@@ -147,6 +166,8 @@ public:
   Duration disk_watch_interval;
   Duration resource_monitoring_interval;
   bool checkpoint;
+  Option<std::string> recover;
+  bool safe;
 #ifdef __linux__
   std::string cgroups_hierarchy;
   std::string cgroups_root;

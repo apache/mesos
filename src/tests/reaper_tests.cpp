@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <signal.h>
 #include <unistd.h>
 
 #include <gtest/gtest.h>

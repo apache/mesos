@@ -25,6 +25,7 @@
 #include <stout/format.hpp>
 #include <stout/fs.hpp>
 #include <stout/nothing.hpp>
+#include <stout/os.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
@@ -37,29 +38,35 @@ namespace internal {
 namespace slave {
 namespace paths {
 
-const std::string EXECUTOR_LATEST_SYMLINK = "latest";
+const std::string LATEST_SYMLINK = "latest";
 
 // Helper functions to generate paths.
 
 // File names.
-const std::string SLAVEID_FILE = "slave.id";
+const std::string SLAVE_INFO_FILE = "slave.info";
 const std::string FRAMEWORK_PID_FILE = "framework.pid";
+const std::string FRAMEWORK_INFO_FILE = "framework.info";
 const std::string LIBPROCESS_PID_FILE = "libprocess.pid";
+const std::string EXECUTOR_INFO_FILE = "executor.info";
 const std::string FORKED_PID_FILE = "forked.pid";
-const std::string TASK_INFO_FILE = "info";
-const std::string TASK_UPDATES_FILE = "updates";
+const std::string TASK_INFO_FILE = "task.info";
+const std::string TASK_UPDATES_FILE = "task.updates";
 
 // Path layout templates.
 const std::string ROOT_PATH = "%s";
-const std::string SLAVEID_PATH = ROOT_PATH + "/slaves/" + SLAVEID_FILE;
+const std::string LATEST_SLAVE_PATH = ROOT_PATH + "/slaves/" + LATEST_SYMLINK;
 const std::string SLAVE_PATH = ROOT_PATH + "/slaves/%s";
+const std::string SLAVE_INFO_PATH = SLAVE_PATH + "/" + SLAVE_INFO_FILE;
 const std::string FRAMEWORK_PATH = SLAVE_PATH + "/frameworks/%s";
 const std::string FRAMEWORK_PID_PATH =
     FRAMEWORK_PATH + "/" + FRAMEWORK_PID_FILE;
+const std::string FRAMEWORK_INFO_PATH =
+    FRAMEWORK_PATH + "/" + FRAMEWORK_INFO_FILE;
 const std::string EXECUTOR_PATH = FRAMEWORK_PATH + "/executors/%s";
+const std::string EXECUTOR_INFO_PATH = EXECUTOR_PATH + "/" + EXECUTOR_INFO_FILE;
 const std::string EXECUTOR_RUN_PATH = EXECUTOR_PATH + "/runs/%s";
 const std::string EXECUTOR_LATEST_RUN_PATH =
-  EXECUTOR_PATH + "/runs/" + EXECUTOR_LATEST_SYMLINK;
+  EXECUTOR_PATH + "/runs/" + LATEST_SYMLINK;
 const std::string PIDS_PATH = EXECUTOR_RUN_PATH + "/pids";
 const std::string LIBPROCESS_PID_PATH = PIDS_PATH + "/" + LIBPROCESS_PID_FILE;
 const std::string FORKED_PID_PATH = PIDS_PATH + "/" + FORKED_PID_FILE;
@@ -74,9 +81,17 @@ inline std::string getMetaRootDir(const std::string rootDir)
 }
 
 
-inline std::string getSlaveIDPath(const std::string& rootDir)
+inline std::string getLatestSlavePath(const std::string& rootDir)
 {
-  return strings::format(SLAVEID_PATH, rootDir).get();
+  return strings::format(LATEST_SLAVE_PATH, rootDir).get();
+}
+
+
+inline std::string getSlaveInfoPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId)
+{
+  return strings::format(SLAVE_INFO_PATH, rootDir, slaveId).get();
 }
 
 
@@ -98,13 +113,23 @@ inline std::string getFrameworkPath(
 }
 
 
-inline std::string getFrameworkPIDPath(
+inline std::string getFrameworkPidPath(
     const std::string& rootDir,
     const SlaveID& slaveId,
     const FrameworkID& frameworkId)
 {
   return strings::format(
       FRAMEWORK_PID_PATH, rootDir, slaveId, frameworkId).get();
+}
+
+
+inline std::string getFrameworkInfoPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId)
+{
+  return strings::format(
+      FRAMEWORK_INFO_PATH, rootDir, slaveId, frameworkId).get();
 }
 
 
@@ -116,6 +141,17 @@ inline std::string getExecutorPath(
 {
   return strings::format(
       EXECUTOR_PATH, rootDir, slaveId, frameworkId, executorId).get();
+}
+
+
+inline std::string getExecutorInfoPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  return strings::format(
+      EXECUTOR_INFO_PATH, rootDir, slaveId, frameworkId, executorId).get();
 }
 
 
@@ -151,7 +187,7 @@ inline std::string getExecutorLatestRunPath(
 }
 
 
-inline std::string getLibprocessPIDPath(
+inline std::string getLibprocessPidPath(
     const std::string& rootDir,
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
@@ -168,7 +204,7 @@ inline std::string getLibprocessPIDPath(
 }
 
 
-inline std::string getForkedPIDPath(
+inline std::string getForkedPidPath(
     const std::string& rootDir,
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
@@ -256,6 +292,7 @@ inline std::string createExecutorDirectory(
 
   CHECK_SOME(mkdir)
     << "Failed to create executor directory '" << directory << "'";
+
   LOG(INFO) << "Created executor directory '" << directory << "'";
 
   // Remove the previous "latest" symlink.
@@ -263,14 +300,48 @@ inline std::string createExecutorDirectory(
     getExecutorLatestRunPath(rootDir, slaveId, frameworkId, executorId);
 
   if (os::exists(latest)) {
-    CHECK_SOME(os::rm(latest)) << "Failed to remove latest symlink " << latest;
+    CHECK_SOME(os::rm(latest))
+      << "Failed to remove latest symlink '" << latest << "'";
   }
 
   // Symlink the new executor directory to "latest".
   Try<Nothing> symlink = fs::symlink(directory, latest);
 
   CHECK_SOME(symlink)
-    << "Failed to symlink latest work directory '" << directory << "'";
+    << "Failed to symlink directory '" << directory
+    << "' to '" << latest << "'";
+
+  return directory;
+}
+
+
+inline std::string createSlaveDirectory(
+    const std::string& rootDir,
+    const SlaveID& slaveId)
+{
+  std::string directory = getSlavePath(rootDir, slaveId);
+
+  Try<Nothing> mkdir = os::mkdir(directory);
+
+  CHECK_SOME(mkdir)
+    << "Failed to create slave directory '" << directory << "'";
+
+  LOG(INFO) << "Created slave directory '" << directory << "'";
+
+  // Remove the previous "latest" symlink.
+  std::string latest = getLatestSlavePath(rootDir);
+
+  if (os::exists(latest)) {
+    CHECK_SOME(os::rm(latest))
+      << "Failed to remove latest symlink '" << latest << "'";
+  }
+
+  // Symlink the new slave directory to "latest".
+  Try<Nothing> symlink = fs::symlink(directory, latest);
+
+  CHECK_SOME(symlink)
+    << "Failed to symlink directory '" << directory
+    << "' to '" << latest << "'";
 
   return directory;
 }

@@ -1,11 +1,17 @@
+#include <unistd.h>
+
 #include <glog/logging.h>
 
-#include "stout/foreach.hpp"
-#include "stout/format.hpp"
-#include "stout/numify.hpp"
-#include "stout/os.hpp"
-#include "stout/protobuf.hpp"
-#include "stout/try.hpp"
+#include <process/pid.hpp>
+
+#include <stout/error.hpp>
+#include <stout/foreach.hpp>
+#include <stout/format.hpp>
+#include <stout/none.hpp>
+#include <stout/numify.hpp>
+#include <stout/os.hpp>
+#include <stout/protobuf.hpp>
+#include <stout/try.hpp>
 
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
@@ -19,110 +25,511 @@ using std::list;
 using std::string;
 using std::max;
 
-SlaveState parse(const string& rootDir, const SlaveID& slaveId)
+
+Result<SlaveState> recover(const string& rootDir, bool safe)
+{
+  LOG(INFO) << "Recovering state from " << rootDir;
+
+  const std::string& latest = paths::getLatestSlavePath(rootDir);
+
+  // Check if the "latest" symlink to a slave directory exists.
+  if (!os::exists(latest)) {
+    string message = "Failed to find the latest slave from '" + rootDir + "'";
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return None();
+    }
+  }
+
+  // Get the latest slave id.
+  Try<string> directory = os::realpath(latest);
+  if (directory.isError()) {
+    return Error("Failed to find latest slave: " + directory.error());
+  }
+
+  SlaveID slaveId;
+  slaveId.set_value(os::basename(directory.get()).get());
+
+  Try<SlaveState> state = SlaveState::recover(rootDir, slaveId, safe);
+  if (state.isError()) {
+    return Error(state.error());
+  }
+
+  return state.get();
+}
+
+
+Try<SlaveState> SlaveState::recover(
+    const string& rootDir,
+    const SlaveID& slaveId,
+    bool safe)
 {
   SlaveState state;
+  state.id = slaveId;
 
-  const string& slaveDir = paths::getSlavePath(rootDir, slaveId);
-  state.slaveMetaDir = slaveDir;
+  // Read the slave info.
+  const string& path = paths::getSlaveInfoPath(rootDir, slaveId);
+  const Result<SlaveInfo>& slaveInfo = ::protobuf::read<SlaveInfo>(path);
+
+  if (!slaveInfo.isSome()) {
+    const string& message = "Failed to read slave info from '" + path + "': " +
+                            (slaveInfo.isError() ? slaveInfo.error() : " none");
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return state;
+    }
+  }
+
+  state.info = slaveInfo.get();
 
   // Find the frameworks.
-  Try<list<string> > frameworks = os::glob(
+  const Try<list<string> >& frameworks = os::glob(
       strings::format(paths::FRAMEWORK_PATH, rootDir, slaveId, "*").get());
 
   if (frameworks.isError()) {
-    LOG(ERROR) << "Failed to find frameworks for slave: " << frameworks.error();
-    return state;
+    return Error("Failed to find frameworks for slave " + slaveId.value() +
+                 ": " + frameworks.error());
   }
 
+  // Recover each of the frameworks.
   foreach (const string& path, frameworks.get()) {
     FrameworkID frameworkId;
     frameworkId.set_value(os::basename(path).get());
 
-    // Find the executors.
-    Try<list<string> > executors =
-        os::glob(strings::format(paths::EXECUTOR_PATH, rootDir, slaveId,
-                                 frameworkId, "*").get());
+    const Try<FrameworkState>& framework =
+      FrameworkState::recover(rootDir, slaveId, frameworkId, safe);
 
-    if (executors.isError()) {
-      LOG(ERROR) << "Failed to find executors for framework: "
-                 << executors.error();
-      continue;
+    if (framework.isError()) {
+      return Error("Failed to recover framework " + frameworkId.value() +
+                   ": " + framework.error());
     }
 
-    foreach (const string& path, executors.get()) {
-      ExecutorID executorId;
-      executorId.set_value(os::basename(path).get());
+    state.frameworks[frameworkId] = framework.get();
+  }
 
-      // Find the runs.
-      Try<list<string> > runs =
-          os::glob(strings::format(paths::EXECUTOR_RUN_PATH, rootDir, slaveId,
-                                   frameworkId, executorId, "*").get());
+  return state;
+}
 
-      if (runs.isError()) {
-        LOG(ERROR) << "Failed to find runs for executor: " << runs.error();
-        continue;
+
+Try<FrameworkState> FrameworkState::recover(
+    const string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    bool safe)
+{
+  FrameworkState state;
+  state.id = frameworkId;
+  string message;
+
+  // Read the framework info.
+  string path = paths::getFrameworkInfoPath(rootDir, slaveId, frameworkId);
+  const Result<FrameworkInfo>& frameworkInfo =
+    ::protobuf::read<FrameworkInfo>(path);
+
+  if (!frameworkInfo.isSome()) {
+    message = "Failed to read framework info from '" + path + "': " +
+              (frameworkInfo.isError() ? frameworkInfo.error() : " none");
+
+      if (safe) {
+        return Error(message);
+      } else {
+        LOG(WARNING) << message;
+        return state;
       }
+    }
 
-      foreach (const string& path, runs.get()) {
-        if (os::basename(path).get() == paths::EXECUTOR_LATEST_SYMLINK) {
-          // TODO(vinod): Store the latest UUID in the state.
-          continue;
-        }
+  state.info = frameworkInfo.get();
 
-        const UUID& uuid = UUID::fromString(os::basename(path).get());
+  // Read the framework pid.
+  path = paths::getFrameworkPidPath(rootDir, slaveId, frameworkId);
+  const Try<string>& pid = os::read(path);
 
-        // Find the tasks.
-        Try<list<string> > tasks =
-            os::glob(strings::format(paths::TASK_PATH, rootDir, slaveId,
-                                     frameworkId, executorId, uuid.toString(),
-                                     "*").get());
+  if (pid.isError()) {
+    message =
+      "Failed to read framework pid from '" + path + "': " + pid.error();
 
-        if (tasks.isError()) {
-          LOG(WARNING) << "Failed to find tasks: " << tasks.error();
-          continue;
-        }
-
-        foreach (const string& path, tasks.get()) {
-          TaskID taskId;
-          taskId.set_value(os::basename(path).get());
-
-          state.frameworks[frameworkId].executors[executorId].runs[uuid].tasks
-            .insert(taskId);
-        }
-      }
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return state;
     }
   }
+
+  state.pid = process::UPID(pid.get());
+
+  // Find the executors.
+  const Try<list<string> >& executors = os::glob(strings::format(
+      paths::EXECUTOR_PATH, rootDir, slaveId, frameworkId, "*").get());
+
+  if (executors.isError()) {
+    return Error(
+        "Failed to find executors for framework " + frameworkId.value() +
+        ": " + executors.error());
+  }
+
+   // Recover the executors.
+  foreach (const string& path, executors.get()) {
+    ExecutorID executorId;
+    executorId.set_value(os::basename(path).get());
+
+    const Try<ExecutorState>& executor =
+      ExecutorState::recover(rootDir, slaveId, frameworkId, executorId, safe);
+
+    if (executor.isError()) {
+      return Error("Failed to recover executor " + executorId.value() +
+                   ": " + executor.error());
+    }
+
+    state.executors[executorId] = executor.get();
+  }
+
+  return state;
+}
+
+
+Try<ExecutorState> ExecutorState::recover(
+    const string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    bool safe)
+{
+  ExecutorState state;
+  state.id = executorId;
+  string message;
+
+  // Read the executor info.
+  const string& path =
+    paths::getExecutorInfoPath(rootDir, slaveId, frameworkId, executorId);
+
+  const Result<ExecutorInfo>& executorInfo =
+    ::protobuf::read<ExecutorInfo>(path);
+
+  if (!executorInfo.isSome()) {
+    message =
+      "Failed to read executor info from '" + path +
+      "': " + (executorInfo.isError() ? executorInfo.error() : " none");
+
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return state;
+    }
+  }
+
+  state.info = executorInfo.get();
+
+  // Find the runs.
+  const Try<list<string> >& runs = os::glob(strings::format(
+      paths::EXECUTOR_RUN_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      "*").get());
+
+  if (runs.isError()) {
+    return Error("Failed to find runs for executor '" + executorId.value() +
+                 "': " + runs.error());
+  }
+
+  // Recover the runs.
+  foreach (const string& path, runs.get()) {
+    if (os::basename(path).get() == paths::LATEST_SYMLINK) {
+      const Try<string>& latest = os::realpath(path);
+      if (latest.isError()) {
+        return Error(
+            "Failed to find latest run of executor '" + executorId.value() +
+            "': " + latest.error());
+      }
+
+      // Store the UUID of the latest executor run.
+      state.latest = UUID::fromString(os::basename(latest.get()).get());
+    } else {
+      const UUID& uuid = UUID::fromString(os::basename(path).get());
+
+      const Try<RunState>& run = RunState::recover(
+          rootDir, slaveId, frameworkId, executorId, uuid, safe);
+
+      if (run.isError()) {
+       return Error("Failed to recover run " + uuid.toString() +
+                    " of executor '" + executorId.value() +
+                    "': " + run.error());
+      }
+
+      state.runs[uuid] = run.get();
+    }
+  }
+
+  // Make sure we can find the latest executor.
+  if (state.latest.isNone()) {
+    message =
+      "Failed to find the latest run of executor '" + executorId.value() + "'";
+
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return state;
+    }
+  }
+
+  return state;
+}
+
+
+Try<RunState> RunState::recover(
+    const string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& uuid,
+    bool safe)
+{
+  RunState state;
+  state.id = uuid;
+  string message;
+
+  // Find the tasks.
+  const Try<list<string> >& tasks = os::glob(strings::format(
+      paths::TASK_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      uuid.toString(),
+      "*").get());
+
+  if (tasks.isError()) {
+    return Error("Failed to find tasks for executor run " + uuid.toString() +
+                 ": " + tasks.error());
+  }
+
+  // Recover tasks.
+  foreach (const string& path, tasks.get()) {
+    TaskID taskId;
+    taskId.set_value(os::basename(path).get());
+
+    const Try<TaskState>& task = TaskState::recover(
+        rootDir, slaveId, frameworkId, executorId, uuid, taskId, safe);
+
+    if (task.isError()) {
+      return Error(
+          "Failed to recover task " + taskId.value() + ": " + task.error());
+    }
+
+    state.tasks[taskId] = task.get();
+  }
+
+  // Read the forked pid.
+  string path = paths::getForkedPidPath(
+      rootDir, slaveId, frameworkId, executorId, uuid);
+
+  Try<string> pid = os::read(path);
+
+  if (pid.isError()) {
+    message = "Failed to read executor's forked pid from '" + path +
+              "': " + pid.error();
+
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return state;
+    }
+  }
+
+  Try<pid_t> forkedPid = numify<pid_t>(pid.get());
+  if (forkedPid.isError()) {
+    return Error("Failed to parse forked pid " + pid.get() +
+                 ": " + forkedPid.error());
+  }
+
+  state.forkedPid = forkedPid.get();
+
+  // Read the libprocess pid.
+  path = paths::getLibprocessPidPath(
+      rootDir, slaveId, frameworkId, executorId, uuid);
+
+  pid = os::read(path);
+
+  if (pid.isError()) {
+    message = "Failed to read executor's libprocess pid from '" + path +
+              "': " + pid.error();
+
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return state;
+    }
+  }
+
+  state.libprocessPid = process::UPID(pid.get());
+
+  return state;
+}
+
+
+Try<TaskState> TaskState::recover(
+    const string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& uuid,
+    const TaskID& taskId,
+    bool safe)
+{
+  TaskState state;
+  state.id = taskId;
+  string message;
+
+  // Read the task info.
+  string path = paths::getTaskInfoPath(
+      rootDir, slaveId, frameworkId, executorId, uuid, taskId);
+
+  const Result<Task>& task = ::protobuf::read<Task>(path);
+
+  if (!task.isSome()) {
+    message = "Failed to read task info from '" + path +
+              "': " + (task.isError() ? task.error() : " none");
+
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return state;
+    }
+  }
+
+  state.info = task.get();
+
+  // Read the status updates.
+  path = paths::getTaskUpdatesPath(
+      rootDir, slaveId, frameworkId, executorId, uuid, taskId);
+
+  // Open the status updates file for reading and writing (for truncating).
+  const Try<int>& fd = os::open(path, O_RDWR);
+
+  if (fd.isError()) {
+    message = "Failed to open status updates file '" + path +
+              "': " + fd.error();
+
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return state;
+    }
+  }
+
+  // Now, read the updates.
+  Result<StatusUpdateRecord> record = None();
+  while (true) {
+    record = ::protobuf::read<StatusUpdateRecord>(fd.get());
+
+    if (!record.isSome()) {
+      break;
+    }
+
+    if (record.get().type() == StatusUpdateRecord::UPDATE) {
+      state.updates.push_back(record.get().update());
+    } else {
+      state.acks.insert(record.get().uuid());
+    }
+  }
+
+  // After reading a non-corrupted updates file, 'record' should be 'none'.
+  if (record.isError()) {
+    message = "Failed to read status updates file  '" + path +
+              "': " + record.error();
+
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+
+      // Truncate the file to contain only valid updates.
+      if (ftruncate(fd.get(), lseek(fd.get(), 0, SEEK_CUR)) != 0) {
+        return ErrnoError(
+            "Failed to truncate status updates file '" + path + "'");
+      }
+
+      return state;
+    }
+  }
+
+  // Close the updates file.
+  const Try<Nothing>& close = os::close(fd.get());
+
+  if (close.isError()) {
+    message = "Failed to close status updates file '" + path +
+              "': " + close.error();
+
+    if (safe) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      return state;
+    }
+  }
+
   return state;
 }
 
 
 // Helper to checkpoint string to disk, with necessary error checking.
-void checkpoint(const std::string& path, const std::string& message)
+Try<Nothing> checkpoint(
+    const string& path,
+    const google::protobuf::Message& message)
 {
-  // Create the base directory.
-  CHECK_SOME(os::mkdir(os::dirname(path).get()))
-    << "Failed to create directory '" << os::dirname(path).get() << "'";
+  LOG(INFO) << "Checkpointing protobuf " << message.GetDescriptor()->name()
+            << " to '" << path << "'";
 
-  // Now checkpoint the message to disk.
-  CHECK_SOME(os::write(path, message))
-    << "Failed to checkpoint " << message << " to '" << path << "'";
+  // Create the base directory.
+  Try<Nothing> result = os::mkdir(os::dirname(path).get());
+  if (result.isError()) {
+    return Error("Failed to create directory '" + os::dirname(path).get() +
+                 "': " + result.error());
+  }
+
+  // Now checkpoint the protobuf to disk.
+  result = ::protobuf::write(path, message);
+  if (result.isError()) {
+    return Error("Failed to checkpoint \n" + message.DebugString() +
+                 "\n to '" + path + "': " + result.error());
+  }
+
+  return Nothing();
 }
 
 
 // Helper to checkpoint protobuf to disk, with necessary error checking.
-void checkpoint(
-    const std::string& path,
-    const google::protobuf::Message& message)
+Try<Nothing> checkpoint(const std::string& path, const std::string& message)
 {
-  // Create the base directory.
-  CHECK_SOME(os::mkdir(os::dirname(path).get()))
-    << "Failed to create directory '" << os::dirname(path).get() << "'";
+  LOG(INFO) << "Checkpointing string '" << message << "' to '" << path << "'";
 
-  // Now checkpoint the protobuf to disk.
-  CHECK_SOME(protobuf::write(path, message))
-    << "Failed to checkpoint " << message.DebugString()
-    << " to '" << path << "'";
+  // Create the base directory.
+  Try<Nothing> result = os::mkdir(os::dirname(path).get());
+  if (result.isError()) {
+    return Error("Failed to create directory '" + os::dirname(path).get() +
+                 "': " + result.error());
+  }
+
+  // Now checkpoint the message to disk.
+  result = os::write(path, message);
+  if (result.isError()) {
+    return Error("Failed to checkpoint '" + message + "' to '" + path +
+                 "': " + result.error());
+  }
+
+  return Nothing();
 }
 
 } // namespace state {
