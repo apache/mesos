@@ -30,6 +30,7 @@ EXTRA_DIST =					\
   include/stout/owned.hpp			\
   include/stout/path.hpp			\
   include/stout/preprocessor.hpp		\
+  include/stout/proc.hpp			\
   include/stout/protobuf.hpp			\
   include/stout/result.hpp			\
   include/stout/stopwatch.hpp			\

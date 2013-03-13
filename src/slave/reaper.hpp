@@ -19,10 +19,13 @@
 #ifndef __REAPER_HPP__
 #define __REAPER_HPP__
 
+#include <list>
 #include <set>
 
 #include <process/process.hpp>
 
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
@@ -35,21 +38,36 @@ public:
 };
 
 
+// TODO(vinod): Refactor the Reaper into 2 components:
+// 1) Reaps the status of child processes.
+// 2) Checks the exit status of requested processes.
+// Also, use Futures instead of callbacks to notify process exits.
 class Reaper : public process::Process<Reaper>
 {
 public:
   Reaper();
   virtual ~Reaper();
 
-  void addProcessExitedListener(const process::PID<ProcessExitedListener>&);
+  void addListener(const process::PID<ProcessExitedListener>&);
+
+  // Monitor the given process and notify the listener if it terminates.
+  // NOTE: A notification is only sent if the calling process:
+  // 1) is the parent of 'pid' or
+  // 2) has the same real/effective UID as that of 'pid' or
+  // 3) is run as a privileged user.
+  Try<Nothing> monitor(pid_t pid);
 
 protected:
   virtual void initialize();
 
   void reap();
 
+  // TOOD(vinod): Make 'status' an option.
+  void notify(pid_t pid, int status);
+
 private:
-  std::set<process::PID<ProcessExitedListener> > listeners;
+  std::list<process::PID<ProcessExitedListener> > listeners;
+  std::set<pid_t> pids;
 };
 
 

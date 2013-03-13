@@ -359,7 +359,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
-  if (pid) {
+  if (pid > 0) {
     // In parent process.
     ASSERT_SOME(
         cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "tasks", stringify(pid)));
@@ -454,7 +454,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
-  if (pid) {
+  if (pid > 0) {
     // In parent process.
     future.await(Seconds(5.0));
 
@@ -516,7 +516,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
-  if (pid) {
+  if (pid > 0) {
     // In parent process.
     ::close(pipes[1]);
 
@@ -583,7 +583,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Kill)
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
-  if (pid) {
+  if (pid > 0) {
     // In parent process.
     ::close(pipes[1]);
 
@@ -646,7 +646,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Destroy)
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
-  if (pid) {
+  if (pid > 0) {
     // In parent process.
     ::close(pipes[1]);
 

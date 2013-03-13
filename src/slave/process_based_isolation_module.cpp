@@ -67,7 +67,7 @@ ProcessBasedIsolationModule::ProcessBasedIsolationModule()
   // just get dropped.
   reaper = new Reaper();
   spawn(reaper);
-  dispatch(reaper, &Reaper::addProcessExitedListener, this);
+  dispatch(reaper, &Reaper::addListener, this);
 }
 
 
@@ -144,7 +144,7 @@ void ProcessBasedIsolationModule::launchExecutor(
     PLOG(FATAL) << "Failed to fork to launch new executor";
   }
 
-  if (pid) {
+  if (pid > 0) {
     close(pipes[1]);
 
     // Get the child's pid via the pipe.
@@ -179,7 +179,7 @@ void ProcessBasedIsolationModule::launchExecutor(
         abort();
       }
 
-      if (pid) {
+      if (pid > 0) {
         // In parent process.
         // It is ok to suicide here, though process reaper signals the exit,
         // because the process isolation module ignores unknown processes.

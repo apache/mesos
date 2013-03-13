@@ -126,7 +126,7 @@ void SolarisProjectIsolationModule::Communicator::launchProjd(
   if ((pid = fork()) == -1)
     PLOG(FATAL) << "Failed to fork to launch projd";
 
-  if (pid) {
+  if (pid > 0) {
     // In parent process
     LOG(INFO) << "Started projd, OS pid = " << pid;
   } else {

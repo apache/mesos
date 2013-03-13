@@ -187,7 +187,7 @@ CgroupsIsolationModule::CgroupsIsolationModule()
   // just get dropped.
   reaper = new Reaper();
   spawn(reaper);
-  dispatch(reaper, &Reaper::addProcessExitedListener, this);
+  dispatch(reaper, &Reaper::addListener, this);
 }
 
 
@@ -518,7 +518,7 @@ void CgroupsIsolationModule::launchExecutor(
     LOG(FATAL) << "Failed to fork to launch new executor";
   }
 
-  if (pid) {
+  if (pid > 0) {
     // In parent process.
     LOG(INFO) << "Forked executor at = " << pid;
 

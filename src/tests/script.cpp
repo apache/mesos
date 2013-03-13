@@ -63,7 +63,7 @@ void execute(const string& script)
     FAIL() << "Failed to fork to launch script";
   }
 
-  if (pid) {
+  if (pid > 0) {
     // In parent process.
     int status;
     while (wait(&status) != pid || WIFSTOPPED(status));

@@ -22,6 +22,9 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/dispatch.hpp>
+#include <process/future.hpp>
+
 #include <stout/error.hpp>
 #include <stout/os.hpp>
 

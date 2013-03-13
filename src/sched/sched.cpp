@@ -346,7 +346,7 @@ protected:
     // we want to avoid sending the ACK if the driver was aborted when we
     // made the statusUpdate call. This works because, the 'abort' message will
     // be enqueued before the ACK message is processed.
-    if (pid) {
+    if (pid > 0) {
       dispatch(self(), &Self::statusUpdateAcknowledgement, update, pid);
     }
   }

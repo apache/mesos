@@ -1,3 +1,8 @@
+#include <errno.h>
+#include <signal.h>
+
+#include <glog/logging.h>
+
 #include <sys/types.h> // For pid_t.
 
 #include <fstream>

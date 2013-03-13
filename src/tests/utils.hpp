@@ -63,6 +63,7 @@
 #include "slave/cgroups_isolation_module.hpp"
 #endif
 #include "slave/isolation_module.hpp"
+#include "slave/reaper.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/flags.hpp"
@@ -365,6 +366,13 @@ public:
   MOCK_METHOD2(frameworkMessage, void(ExecutorDriver*, const std::string&));
   MOCK_METHOD1(shutdown, void(ExecutorDriver*));
   MOCK_METHOD2(error, void(ExecutorDriver*, const std::string&));
+};
+
+
+class MockProcessListener : public slave::ProcessExitedListener
+{
+public:
+  MOCK_METHOD2(processExited, void(pid_t, int));
 };
 
 

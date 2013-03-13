@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __PROC_HPP__
-#define __PROC_HPP__
+#ifndef __LINUX_PROC_HPP__
+#define __LINUX_PROC_HPP__
 
 #include <sys/types.h> // For pid_t.
 
@@ -48,7 +48,6 @@ Try<SystemStatistics> stat();
 
 // Returns the process statistics from /proc/[pid]/stat.
 Try<ProcessStatistics> stat(pid_t pid);
-
 
 // Representation of a processor (really an execution unit since this
 // captures "hardware threads" as well) modeled after /proc/cpuinfo.
@@ -227,4 +226,4 @@ struct ProcessStatistics
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __PROC_HPP__
+#endif // __LINUX_PROC_HPP__
