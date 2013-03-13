@@ -37,13 +37,17 @@
 
 #include "detector/detector.hpp"
 
+#ifdef __linux__
 #include "linux/cgroups.hpp"
+#endif
 
 #include "master/allocator.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
+#ifdef __linux__
 #include "slave/cgroups_isolation_module.hpp"
+#endif
 #include "slave/paths.hpp"
 #include "slave/process_based_isolation_module.hpp"
 #include "slave/reaper.hpp"
@@ -67,7 +71,9 @@ using mesos::internal::master::Allocator;
 using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
+#ifdef __linux__
 using mesos::internal::slave::CgroupsIsolationModule;
+#endif
 using mesos::internal::slave::ProcessBasedIsolationModule;
 
 using std::map;
