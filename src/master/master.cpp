@@ -169,8 +169,11 @@ protected:
 
   void deactivate()
   {
-    dispatch(master, &Master::deactivatedSlaveHostnamePort,
-             slaveInfo.hostname(), slave.port);
+    dispatch(
+        master,
+        &Master::deactivatedSlaveHostnamePort,
+        slaveInfo.hostname(),
+        slave.port);
   }
 
 private:
@@ -509,15 +512,6 @@ void Master::exited(const UPID& pid)
                                       Resources(offer->resources()));
         removeOffer(offer);
       }
-      return;
-    }
-  }
-
-  foreachvalue (Slave* slave, slaves) {
-    if (slave->pid == pid) {
-      LOG(INFO) << "Slave " << slave->id << "(" << slave->info.hostname()
-                << ") disconnected";
-      removeSlave(slave);
       return;
     }
   }
@@ -1854,7 +1848,11 @@ void Master::removeSlave(Slave* slave)
       StatusUpdateMessage message;
       StatusUpdate* update = message.mutable_update();
       update->mutable_framework_id()->MergeFrom(task->framework_id());
-      update->mutable_executor_id()->MergeFrom(task->executor_id());
+
+      if (task->has_executor_id()) {
+        update->mutable_executor_id()->MergeFrom(task->executor_id());
+      }
+
       update->mutable_slave_id()->MergeFrom(task->slave_id());
       TaskStatus* status = update->mutable_status();
       status->mutable_task_id()->MergeFrom(task->task_id());

@@ -48,6 +48,13 @@ namespace internal {
 namespace slave {
 
 // Forward declarations.
+
+namespace state {
+
+class SlaveState;
+
+}
+
 class StatusUpdateManagerProcess;
 struct StatusUpdateStream;
 
@@ -81,6 +88,11 @@ public:
       const FrameworkID& frameworkId,
       const std::string& uuid);
 
+  // Recover status updates.
+  process::Future<Nothing> recover(
+      const std::string& rootDir,
+      const state::SlaveState& state);
+
   // TODO(vinod): Remove this hack once the new leader detector code is merged.
   void newMasterDetected(const UPID& pid);
 
@@ -103,21 +115,28 @@ struct StatusUpdateStream
 {
   StatusUpdateStream(const TaskID& _taskId,
                      const FrameworkID& _frameworkId,
-                     const Option<std::string>& _path,
-                     int oflag = O_CREAT | O_RDWR)
-    : taskId(_taskId), frameworkId(_frameworkId), path(_path), error(None())
+                     bool _checkpoint,
+                     const Option<std::string>& _path)
+    : taskId(_taskId),
+      frameworkId(_frameworkId),
+      checkpoint(_checkpoint),
+      terminated_(false),
+      path(_path),
+      error(None())
   {
     if (path.isSome()) {
       // Create the base updates directory, if it doesn't exist.
-      Try<Nothing> mkdir = os::mkdir(os::dirname(path.get()).get());
-      if (mkdir.isError()) {
+      Try<Nothing> directory = os::mkdir(os::dirname(path.get()).get());
+      if (directory.isError()) {
         error = "Failed to create " + os::dirname(path.get()).get();
         return;
       }
 
       // Open the updates file.
       Try<int> result = os::open(
-          path.get(), oflag | O_SYNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+          path.get(),
+          O_CREAT | O_WRONLY | O_APPEND | O_SYNC,
+          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
       if(result.isError()) {
         error = "Failed to open '" + path.get() + "' for status updates";
@@ -201,6 +220,30 @@ struct StatusUpdateStream
     return None();
   }
 
+  // Replays the stream by sequentially handling an update and its
+  // corresponding ACK, if present.
+  void replay(
+      const std::vector<StatusUpdate>& updates,
+      const hashset<std::string>& acks)
+  {
+    LOG(INFO) << "Replaying status update stream for task " << taskId;
+
+    foreach (const StatusUpdate& update, updates) {
+      // Handle the update.
+      _handle(update, StatusUpdateRecord::UPDATE);
+
+      // Check if the update has an ACK too.
+      if (acks.contains(update.uuid())) {
+        _handle(update, StatusUpdateRecord::ACK);
+      }
+    }
+  }
+
+  // Whether a terminal ACK has been received.
+  bool terminated() const {
+    return terminated_;
+  }
+
   // TODO(vinod): Explore semantics to make 'timeout' and 'pending' private.
   Option<Timeout> timeout; // Timeout for resending status update.
   std::queue<StatusUpdate> pending;
@@ -218,10 +261,8 @@ private:
   {
     CHECK(error.isNone());
 
-    LOG(INFO) << "Handling " << type << " for status update " << update;
-
     // Checkpoint the update if necessary.
-    if (path.isSome()) {
+    if (checkpoint) {
       LOG(INFO) << "Checkpointing " << type << " for status update " << update;
 
       CHECK_SOME(fd);
@@ -243,6 +284,18 @@ private:
       }
     }
 
+    // Now actually handle the update.
+    _handle(update, type);
+
+    return Nothing();
+  }
+
+  void _handle(const StatusUpdate& update, const StatusUpdateRecord::Type& type)
+  {
+    CHECK(error.isNone());
+
+    LOG(INFO) << "Handling " << type << " for status update " << update;
+
     if (type == StatusUpdateRecord::UPDATE) {
       // Record this update.
       received.insert(update.uuid());
@@ -255,13 +308,18 @@ private:
 
       // Remove the corresponding update from the pending queue.
       pending.pop();
-    }
 
-    return Nothing();
+      if (!terminated_) {
+        terminated_ = protobuf::isTerminalState(update.status().state());
+      }
+    }
   }
 
   const TaskID taskId;
   const FrameworkID frameworkId;
+
+  bool checkpoint;
+  bool terminated_;
 
   hashset<std::string> received;
   hashset<std::string> acknowledged;

@@ -30,16 +30,23 @@
 
 #include "slave/constants.hpp"
 #include "slave/slave.hpp"
+#include "slave/state.hpp"
 #include "slave/status_update_manager.hpp"
 
 using std::string;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
-
 namespace mesos {
 namespace internal {
 namespace slave {
+
+using state::SlaveState;
+using state::FrameworkState;
+using state::ExecutorState;
+using state::RunState;
+using state::TaskState;
+
 
 class StatusUpdateManagerProcess
   : public ProtobufProcess<StatusUpdateManagerProcess>
@@ -47,6 +54,8 @@ class StatusUpdateManagerProcess
 public:
   StatusUpdateManagerProcess() {}
   virtual ~StatusUpdateManagerProcess();
+
+  // StatusUpdateManager implementation.
 
   void initialize(const PID<Slave>& slave);
 
@@ -59,6 +68,8 @@ public:
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const string& uuid);
+
+  Nothing recover(const string& rootDir, const SlaveState& state);
 
   void newMasterDetected(const UPID& pid);
 
@@ -81,6 +92,7 @@ private:
   StatusUpdateStream* createStatusUpdateStream(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
+      bool checkpoint,
       const Option<std::string>& path);
 
   StatusUpdateStream* getStatusUpdateStream(
@@ -118,6 +130,72 @@ void StatusUpdateManagerProcess::newMasterDetected(const UPID& pid)
 {
   LOG(INFO) << "New master detected at " << pid;
   master = pid;
+
+  // Retry any pending status updates.
+  // This is useful when the updates were pending because there was
+  // no master elected (e.g., during recovery).
+  foreachkey (const FrameworkID& frameworkId, streams) {
+    foreachvalue (StatusUpdateStream* stream, streams[frameworkId]) {
+      if (!stream->pending.empty()) {
+        const StatusUpdate& update = stream->pending.front();
+        LOG(WARNING) << "Resending status update " << update;
+        stream->timeout = forward(update);
+      }
+    }
+  }
+}
+
+
+Nothing StatusUpdateManagerProcess::recover(
+    const string& rootDir,
+    const SlaveState& state)
+{
+  LOG(INFO) << "Recovering status update manager";
+
+  foreachvalue (const FrameworkState& framework, state.frameworks) {
+    foreachvalue (const ExecutorState& executor, framework.executors) {
+      // We are only interested in the latest run of the executor!
+      CHECK_SOME(executor.latest);
+      const UUID& uuid = executor.latest.get();
+
+      CHECK(executor.runs.contains(uuid));
+      const RunState& run  = executor.runs.get(uuid).get();
+      foreachvalue (const TaskState& task, run.tasks) {
+        const string& path = paths::getTaskUpdatesPath(
+            rootDir,
+            state.id,
+            framework.id,
+            executor.id,
+            uuid,
+            task.id);
+
+        // Create a new status update stream.
+        StatusUpdateStream* stream = createStatusUpdateStream(
+            task.id,
+            framework.id,
+            true,
+            path);
+
+        // Replay the stream.
+        stream->replay(task.updates, task.acks);
+
+        // At the end of the replay, the stream is either terminated or
+        // contains only unacknowledged, if any, pending updates.
+        if (stream->terminated()) {
+          cleanupStatusUpdateStream(task.id, framework.id);
+        } else {
+          // If a stream has pending updates after the replay,
+          // send the first pending update
+          const Option<StatusUpdate>& next = stream->next();
+          if (next.isSome()) {
+            stream->timeout = forward(next.get());
+          }
+        }
+      }
+    }
+  }
+
+  return Nothing();
 }
 
 
@@ -150,7 +228,7 @@ Try<Nothing> StatusUpdateManagerProcess::update(
   // Create/Get the status update stream for this task.
   StatusUpdateStream* stream = getStatusUpdateStream(taskId, frameworkId);
   if (stream == NULL) {
-    stream = createStatusUpdateStream(taskId, frameworkId, path);
+    stream = createStatusUpdateStream(taskId, frameworkId, checkpoint, path);
   }
 
   // Handle the status update.
@@ -178,14 +256,19 @@ Try<Nothing> StatusUpdateManagerProcess::update(
 
 Timeout StatusUpdateManagerProcess::forward(const StatusUpdate& update)
 {
-  LOG(INFO) << "Forwarding status update " << update
-            << " to the master at " << master;
+  if (master) {
+    LOG(INFO) << "Forwarding status update " << update
+              << " to the master at " << master;
 
-  StatusUpdateMessage message;
-  message.mutable_update()->MergeFrom(update);
-  message.set_pid(slave); // The ACK will be first received by the slave.
+    StatusUpdateMessage message;
+    message.mutable_update()->MergeFrom(update);
+    message.set_pid(slave); // The ACK will be first received by the slave.
 
-  send(master, message);
+    send(master, message);
+  } else {
+    LOG(WARNING) << "Not forwarding status update " << update
+                 << " because no master is elected yet";
+  }
 
   // Send a message to self to resend after some delay if no ACK is received.
   return delay(STATUS_UPDATE_RETRY_INTERVAL,
@@ -245,7 +328,7 @@ Try<Nothing> StatusUpdateManagerProcess::acknowledgement(
     return Error(next.error());
   }
 
-  if (protobuf::isTerminalState(update.get().status().state())) {
+  if (stream->terminated()) {
     if (next.isSome()) {
       LOG(WARNING) << "Acknowledged a terminal"
                    << " status update " << update.get()
@@ -285,13 +368,14 @@ void StatusUpdateManagerProcess::timeout()
 StatusUpdateStream* StatusUpdateManagerProcess::createStatusUpdateStream(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
+    bool checkpoint,
     const Option<string>& path)
 {
   LOG(INFO) << "Creating StatusUpdate stream for task " << taskId
             << " of framework " << frameworkId;
 
   StatusUpdateStream* stream =
-    new StatusUpdateStream(taskId, frameworkId, path);
+    new StatusUpdateStream(taskId, frameworkId, checkpoint, path);
 
   streams[frameworkId][taskId] = stream;
   return stream;
@@ -381,6 +465,15 @@ Future<Try<Nothing> > StatusUpdateManager::acknowledgement(
       taskId,
       frameworkId,
       uuid);
+}
+
+
+Future<Nothing> StatusUpdateManager::recover(
+    const string& rootDir,
+    const SlaveState& state)
+{
+  return dispatch(
+      process, &StatusUpdateManagerProcess::recover, rootDir, state);
 }
 
 

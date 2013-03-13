@@ -258,9 +258,6 @@ void Slave::initialize()
 
   connected = false;
 
-  // If recovery is not enabled, set this flag to true to make forward progress.
-  recovered = flags.recover.isNone();
-
   // Install protobuf handlers.
   install<NewMasterDetectedMessage>(
       &Slave::newMasterDetected,
@@ -350,16 +347,13 @@ void Slave::initialize()
   }
 
   // Check that the recover flag is valid.
-  if (flags.recover.isSome() &&
-      (flags.recover.get() != "reconnect" && flags.recover.get() != "kill")) {
-    EXIT(1) << "Unknown option for recover flag " << flags.recover.get()
-            << ".\nPlease run the slave with '--help' to see the valid options";
+  if (flags.recover != "reconnect" && flags.recover != "kill") {
+    EXIT(1) << "Unknown option for recover flag " << flags.recover
+            << ". Please run the slave with '--help' to see the valid options";
   }
 
   // Start recovery.
-  if (flags.recover.isSome()) {
-   recover(flags.recover.get() == "reconnect", flags.safe);
-  }
+  recovered = recover(flags.recover == "reconnect", flags.safe);
 }
 
 
@@ -376,7 +370,6 @@ void Slave::finalize()
     // immediately). Of course, this still isn't sufficient
     // because those status updates might get lost and we won't
     // resend them unless we build that into the system.
-    // TODO(vinod): Kill this shutdown when slave recovery is in place.
     shutdownFramework(frameworkId);
   }
 
@@ -384,6 +377,16 @@ void Slave::finalize()
   // TODO(vinod): Wait until all the executors have terminated.
   terminate(isolationModule);
   wait(isolationModule);
+
+  // We send an unregister message to the master here, so that it can
+  // remove the slave. This is important because lot of our tests terminate()
+  // the slave and expect the master to remove the slave as a consequence.
+  // But since the master no longer removes the slave when a slave exits, we
+  // send an UnregisterSlaveMessage to master so that it removes the slave.
+  // This is OK because, finalize() is only ever going to be called in tests!
+  UnregisterSlaveMessage message;
+  message.mutable_slave_id()->CopyFrom(info.id());
+  send(master, message);
 }
 
 
@@ -429,7 +432,9 @@ void Slave::newMasterDetected(const UPID& pid)
   link(master);
 
   connected = false;
-  doReliableRegistration();
+
+  // Do registration after recovery is complete.
+  recovered.onAny(defer(self(), &Self::doReliableRegistration, params::_1));
 
   // Inform the status updates manager about the new master.
   statusUpdateManager->newMasterDetected(master);
@@ -500,55 +505,53 @@ void Slave::reregistered(const SlaveID& slaveId)
 }
 
 
-void Slave::doReliableRegistration()
+void Slave::doReliableRegistration(const Future<Nothing>& future)
 {
+  CHECK(future.isReady());
+
   if (connected || !master) {
     return;
   }
 
-  if (!recovered) {
-    LOG(INFO)<< "Skipping registration because recovery is in progress";
+  if (info.id() == "") {
+    // Slave started before master.
+    // (Vinod): Is the above comment true?
+    RegisterSlaveMessage message;
+    message.mutable_slave()->MergeFrom(info);
+    send(master, message);
   } else {
-    if (info.id() == "") {
-      // Slave started before master.
-      // (Vinod): Is the above comment true?
-      RegisterSlaveMessage message;
-      message.mutable_slave()->MergeFrom(info);
-      send(master, message);
-    } else {
-      // Re-registering, so send tasks running.
-      ReregisterSlaveMessage message;
-      message.mutable_slave_id()->MergeFrom(info.id());
-      message.mutable_slave()->MergeFrom(info);
+    // Re-registering, so send tasks running.
+    ReregisterSlaveMessage message;
+    message.mutable_slave_id()->MergeFrom(info.id());
+    message.mutable_slave()->MergeFrom(info);
 
-      foreachvalue (Framework* framework, frameworks) {
-        foreachvalue (Executor* executor, framework->executors) {
-          // TODO(benh): Kill this once framework_id is required
-          // on ExecutorInfo.
-          ExecutorInfo* executorInfo = message.add_executor_infos();
-          executorInfo->MergeFrom(executor->info);
-          executorInfo->mutable_framework_id()->MergeFrom(framework->id);
+    foreachvalue (Framework* framework, frameworks){
+      foreachvalue (Executor* executor, framework->executors) {
+        // TODO(benh): Kill this once framework_id is required
+        // on ExecutorInfo.
+        ExecutorInfo* executorInfo = message.add_executor_infos();
+        executorInfo->MergeFrom(executor->info);
+        executorInfo->mutable_framework_id()->MergeFrom(framework->id);
 
-          // Add launched tasks.
-          foreachvalue (Task* task, executor->launchedTasks) {
-            message.add_tasks()->CopyFrom(*task);
-          }
+        // Add launched tasks.
+        foreachvalue (Task* task, executor->launchedTasks) {
+          message.add_tasks()->CopyFrom(*task);
+        }
 
-          // Add queued tasks.
-          foreachvalue (const TaskInfo& task, executor->queuedTasks) {
-            const Task& t = protobuf::createTask(
-                task, TASK_STAGING, executor->id, framework->id);
+        // Add queued tasks.
+        foreachvalue (const TaskInfo& task, executor->queuedTasks) {
+          const Task& t = protobuf::createTask(
+              task, TASK_STAGING, executor->id, framework->id);
 
-            message.add_tasks()->CopyFrom(t);
-          }
+          message.add_tasks()->CopyFrom(t);
         }
       }
-      send(master, message);
     }
+    send(master, message);
   }
 
   // Retry registration if necessary.
-  delay(Seconds(1.0), self(), &Slave::doReliableRegistration);
+  delay(Seconds(1.0), self(), &Slave::doReliableRegistration, future);
 }
 
 
@@ -1515,19 +1518,33 @@ void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
 }
 
 
-// TODO(vinod): Make recovery asynchronous.
-void Slave::recover(bool reconnect, bool safe)
+Future<Nothing> Slave::recover(bool reconnect, bool safe)
 {
-  // First, recover the state.
-  Result<state::SlaveState> state =
-    state::recover(paths::getMetaRootDir(flags.work_dir), safe);
+  const string& metaDir = paths::getMetaRootDir(flags.work_dir);
 
+  // We consider the absence of 'metaDir' to mean that this is the
+  // very first time this slave was started with checkpointing
+  // enabled.
+  if (!os::exists(metaDir)) {
+    return Nothing();
+  }
+
+  // First, recover the slave state.
+  Result<state::SlaveState> state = state::recover(metaDir, safe);
   if (state.isError()) {
     EXIT(1) << "Failed to recover slave state: " << state.error();
   }
 
+  // The state is none if the slave is not recovering in safe mode
+  // and the previous slave died before creating "latest" symlink.
+  if (state.isNone()) {
+    return Nothing();
+  }
+
+  // Now, recover the status update manager.
+  return statusUpdateManager->recover(metaDir, state.get());
+
   // TODO(vinod):
-  // Recover status update manager.
   // Recover isolation module.
   // Reconcile with executors.
 }

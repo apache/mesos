@@ -88,7 +88,7 @@ public:
   void masterDetectionFailure();
   void registered(const SlaveID& slaveId);
   void reregistered(const SlaveID& slaveId);
-  void doReliableRegistration();
+  void doReliableRegistration(const Future<Nothing>& future);
 
   void runTask(
       const FrameworkInfo& frameworkInfo,
@@ -203,9 +203,11 @@ protected:
   // Reads the checkpointed data from a previous run and recovers state.
   // If 'reconnect' is true, the slave attempts to reconnect to any old
   // live executors. Otherwise, the slave attempts to shutdown/kill them.
-  // If 'safe' is true, any ambiguous errors during recovery are considered
-  // fatal and recovery fails.
-  void recover(bool reconnect, bool safe);
+  // If 'safe' is true, any recovery errors are considered fatal.
+  Future<Nothing> recover(bool reconnect, bool safe);
+
+  // This is called when recovery finishes.
+  void _recover(const Future<Nothing>& future);
 
 private:
   Slave(const Slave&);              // No copying.
@@ -267,7 +269,7 @@ private:
 
   // Flag to indicate if recovery, including reconciling (i.e., reconnect/kill)
   // with executors is finished.
-  bool recovered;
+  Future<Nothing> recovered;
 };
 
 

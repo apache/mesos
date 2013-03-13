@@ -27,6 +27,7 @@
 
 #include <process/dispatch.hpp>
 
+#include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
@@ -125,12 +126,12 @@ class SlaveRecoveryTest : public ::testing::Test
 protected:
   static void SetUpTestCase()
   {
-    // Enable checkpointing on the slave.
-    flags.checkpoint = true;
-
     // Enable checkpointing for the framework.
     frameworkInfo = DEFAULT_FRAMEWORK_INFO;
     frameworkInfo.set_checkpoint(true);
+
+    // Enable checkpointing on the slave.
+    flags.checkpoint = true;
 
     // TODO(vinod): Do this for all the tests!
     flags.launcher_dir = path::join(tests::flags.build_dir, "src");
@@ -143,6 +144,12 @@ protected:
     Try<string> workDir = os::mkdtemp();
     CHECK_SOME(workDir) << "Failed to mkdtemp";
     flags.work_dir = workDir.get();
+
+    // Always, drop the unregisterSlaveMessage sent by a slave when
+    // its terminated. This will stop the master from removing the slave,
+    // which is what we expect to happen in the real world when a slave exits.
+    EXPECT_MESSAGE(Eq(UnregisterSlaveMessage().GetTypeName()), _, _)
+      .WillRepeatedly(Return(true));
 
     a = new Allocator(&allocator);
     m = new Master(a, &files);
@@ -163,8 +170,12 @@ protected:
     os::rmdir(flags.work_dir);
   }
 
-  void startSlave()
+  void startSlave(const Option<string>& recover = None())
   {
+    if (recover.isSome()) {
+      flags.recover = recover.get(); // Enable recovery.
+    }
+
     isolationModule = new ProcessBasedIsolationModule();
     s = new Slave(flags, true, isolationModule, &files);
     slave = process::spawn(s);
@@ -203,17 +214,17 @@ FrameworkInfo SlaveRecoveryTest::frameworkInfo;
 flags::Flags<logging::Flags, slave::Flags> SlaveRecoveryTest::flags;
 
 
-// Enable checkpointing on the slave and ensure state::recover works.
-TEST_F(SlaveRecoveryTest, StateRecover)
+// Enable checkpointing on the slave and ensure SlaveState::recover works.
+TEST_F(SlaveRecoveryTest, RecoverSlaveState)
 {
   // Message expectations.
   process::Message message;
   trigger registerFrameworkMsg;
   EXPECT_MESSAGE(Eq(RegisterFrameworkMessage().GetTypeName()), _, _)
-  .WillOnce(DoAll(
-      SaveArgField<0>(&process::MessageEvent::message, &message),
-      Trigger(&registerFrameworkMsg),
-      Return(false)));
+    .WillOnce(DoAll(
+        SaveArgField<0>(&process::MessageEvent::message, &message),
+        Trigger(&registerFrameworkMsg),
+        Return(false)));
 
   process::Message message2;
   trigger registerExecutorMsg;
@@ -226,18 +237,18 @@ TEST_F(SlaveRecoveryTest, StateRecover)
   process::Message message3;
   trigger statusUpdateMsg;
   EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), Eq(master), _)
-  .WillOnce(DoAll(
-      SaveArgField<0>(&process::MessageEvent::message, &message3),
-      Trigger(&statusUpdateMsg),
-      Return(false)));
+    .WillOnce(DoAll(
+        SaveArgField<0>(&process::MessageEvent::message, &message3),
+        Trigger(&statusUpdateMsg),
+        Return(false)));
 
   process::Message message4;
   trigger statusUpdateAckMsg;
   EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()), _, _)
-  .WillOnce(DoAll(
-      SaveArgField<0>(&process::MessageEvent::message, &message4),
-      Trigger(&statusUpdateAckMsg),
-      Return(false)));
+    .WillOnce(DoAll(
+        SaveArgField<0>(&process::MessageEvent::message, &message4),
+        Trigger(&statusUpdateAckMsg),
+        Return(false)));
 
   // Scheduler expectations.
   FrameworkID frameworkId;
@@ -376,3 +387,66 @@ TEST_F(SlaveRecoveryTest, StateRecover)
   driver.stop();
   driver.join();
 }
+
+
+// A slave is started with checkpointing enabled (recovery disabled).
+// The slave is killed before the ACK for a status update is received.
+// The slave is then restarted with recovery enabled.
+// Ensure that SUM is properly recovered and re-sends the un-acked update.
+TEST_F(SlaveRecoveryTest, RecoverStatusUpdateManager)
+{
+  // Message expectations.
+  trigger statusUpdateAckMsg;
+  EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(Trigger(&statusUpdateAckMsg),
+                    Return(true))) // Drop the first ACK message.
+    .WillRepeatedly(Return(false));
+
+  // Scheduler expectations.
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  trigger resourceOffersCall;
+  vector<Offer> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers),
+                    Trigger(&resourceOffersCall)))
+    .WillRepeatedly(Return());
+
+  TaskStatus status;
+  trigger statusUpdateCall;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(Return())
+    .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
+                    Trigger(&statusUpdateCall)));
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master);
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOffersCall);
+
+  EXPECT_NE(0u, offers.size());
+
+  TaskInfo task = createTask(offers[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+  driver.launchTasks(offers[0].id(), tasks);
+
+  // Capture the ack.
+  WAIT_UNTIL(statusUpdateAckMsg);
+
+  stopSlave();
+
+  // Restart the slave with recovery enabled.
+  startSlave(Option<string>::some("reconnect"));
+
+  WAIT_UNTIL(statusUpdateCall);
+
+  ASSERT_EQ(TASK_RUNNING, status.state());
+
+  driver.stop();
+  driver.join();
+}
+
