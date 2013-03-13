@@ -60,6 +60,7 @@ namespace slave {
 using namespace process;
 
 // Some forward declarations.
+class StatusUpdateManager;
 struct Executor;
 struct Framework;
 
@@ -106,17 +107,9 @@ public:
 
   void updateFramework(const FrameworkID& frameworkId, const std::string& pid);
 
-  void statusUpdateAcknowledgement(
-      const SlaveID& slaveId,
-      const FrameworkID& frameworkId,
-      const TaskID& taskId,
-      const std::string& uuid);
-
   void registerExecutor(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
-
-  void statusUpdate(const StatusUpdate& update);
 
   void executorMessage(
       const SlaveID& slaveId,
@@ -126,14 +119,33 @@ public:
 
   void ping(const UPID& from, const std::string& body);
 
-  void statusUpdateTimeout(const FrameworkID& frameworkId, const UUID& uuid);
+  // Handles the status update.
+  void statusUpdate(const StatusUpdate& update);
 
-  void sendStatusUpdate(
+  // Forwards the update to the status update manager.
+  // NOTE: Executor could 'NULL' when we want to forward the update
+  // despite not knowing about the framework/executor.
+  void forwardUpdate(const StatusUpdate& update, Executor* executor = NULL);
+
+  // This callback is called when the status update manager finishes
+  // handling the update. If the handling is successful, an acknowledgment
+  // is sent to the executor.
+  void _forwardUpdate(
+      const Future<Try<Nothing> >& future,
+      const StatusUpdate& update,
+      const Option<UPID>& pid);
+
+  void statusUpdateAcknowledgement(
+      const SlaveID& slaveId,
       const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
       const TaskID& taskId,
-      TaskState taskState,
-      const std::string& message);
+      const std::string& uuid);
+
+  void _statusUpdateAcknowledgement(
+      const Future<Try<Nothing> >& future,
+      const TaskID& taskId,
+      const FrameworkID& frameworkId,
+      const std::string& uuid);
 
   void executorStarted(
       const FrameworkID& frameworkId,
@@ -175,9 +187,10 @@ protected:
 
   // Handle the second phase of shutting down an executor for those
   // executors that have not properly shutdown within a timeout.
-  void shutdownExecutorTimeout(const FrameworkID& frameworkId,
-                               const ExecutorID& executorId,
-                               const UUID& uuid);
+  void shutdownExecutorTimeout(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const UUID& uuid);
 
   // This function returns the max age of executor/slave directories allowed,
   // given a disk usage. This value could be used to tune gc.
@@ -242,6 +255,8 @@ private:
   ResourceMonitor monitor;
 
   state::SlaveState state;
+
+  StatusUpdateManager* statusUpdateManager;
 };
 
 
@@ -467,7 +482,6 @@ struct Framework
         return executor;
       }
     }
-
     return NULL;
   }
 

@@ -781,10 +781,11 @@ balloon_executor_LDADD = libmesos.la
 
 check_PROGRAMS += mesos-tests
 
-mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp tests/filter.cpp  	\
+mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp tests/filter.cpp	\
 	              tests/environment.cpp				\
 	              tests/master_tests.cpp tests/state_tests.cpp	\
 	              tests/slave_state_tests.cpp			\
+	              tests/status_update_manager_tests.cpp		\
 	              tests/gc_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\

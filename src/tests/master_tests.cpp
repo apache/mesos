@@ -377,11 +377,6 @@ TEST_F(MasterTest, StatusUpdateAck)
 
   MockExecutor exec;
 
-  trigger statusUpdateAckMsg;
-  EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&statusUpdateAckMsg),
-                    Return(false)));
-
   trigger shutdownCall;
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -402,6 +397,14 @@ TEST_F(MasterTest, StatusUpdateAck)
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
+
+  trigger statusUpdateAckMsg;
+  EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()),
+                 _,
+                 Eq(slave))
+    .WillOnce(DoAll(Trigger(&statusUpdateAckMsg),
+                    Return(false)));
+
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
@@ -445,7 +448,7 @@ TEST_F(MasterTest, StatusUpdateAck)
 
   EXPECT_EQ(TASK_RUNNING, status.state());
 
-  // Ensure we get a status update ACK.
+  // Ensure the slave gets a status update ACK.
   WAIT_UNTIL(statusUpdateAckMsg);
 
   driver.stop();

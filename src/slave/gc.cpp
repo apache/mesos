@@ -196,7 +196,7 @@ Future<Nothing> GarbageCollector::schedule(
 
 void GarbageCollector::prune(const Duration& d)
 {
-  return dispatch(process, &GarbageCollectorProcess::prune, d);
+  dispatch(process, &GarbageCollectorProcess::prune, d);
 }
 
 } // namespace mesos {

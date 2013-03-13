@@ -91,12 +91,17 @@ message ExecutorID {
  * performing failover). The amount of time that the master will wait
  * for the scheduler to failover before removing the framework is
  * specified by failover_timeout.
+ * If checkpoint is set, framework pid, executor pids and status updates
+ * are checkpointed to disk.
+ * Checkpointing allows a restarted slave to reconnect with old executors
+ * and recover status updates, at the cost of disk I/O.
  */
 message FrameworkInfo {
   required string user = 1;
   required string name = 2;
   optional FrameworkID id = 3;
   optional double failover_timeout = 4 [default = 0.0];
+  optional bool checkpoint = 5 [default = false];
 }
 
 

@@ -49,6 +49,7 @@
 #include "slave/flags.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
+#include "slave/status_update_manager.hpp"
 
 namespace params = std::tr1::placeholders;
 
@@ -75,7 +76,8 @@ Slave::Slave(const Resources& _resources,
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     isolationModule(_isolationModule),
     files(_files),
-    monitor(isolationModule) {}
+    monitor(isolationModule),
+    statusUpdateManager(new StatusUpdateManager()) {}
 
 
 Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
@@ -88,7 +90,8 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     isolationModule(_isolationModule),
     files(_files),
-    monitor(isolationModule)
+    monitor(isolationModule),
+    statusUpdateManager(new StatusUpdateManager())
 {
   // TODO(benh): Move this computation into Flags as the "default".
 
@@ -184,6 +187,8 @@ Slave::~Slave()
   foreachvalue (Framework* framework, frameworks) {
     delete framework;
   }
+
+  delete statusUpdateManager;
 }
 
 
@@ -226,6 +231,8 @@ void Slave::initialize()
            resources,
            local,
            self());
+
+  statusUpdateManager->initialize(self());
 
   // Start disk monitoring.
   // NOTE: We send a delayed message here instead of directly calling
@@ -353,6 +360,7 @@ void Slave::finalize()
     // immediately). Of course, this still isn't sufficient
     // because those status updates might get lost and we won't
     // resend them unless we build that into the system.
+    // TODO(vinod): Kill this shutdown when slave recovery is in place.
     shutdownFramework(frameworkId);
   }
 
@@ -406,6 +414,9 @@ void Slave::newMasterDetected(const UPID& pid)
 
   connected = false;
   doReliableRegistration();
+
+  // Inform the status updates manager about the new master.
+  statusUpdateManager->newMasterDetected(master);
 }
 
 
@@ -532,16 +543,10 @@ void Slave::runTask(
                    << " with executor '" << executorId
                    << "' which is being shut down";
 
-      StatusUpdateMessage message;
-      StatusUpdate* update = message.mutable_update();
-      update->mutable_framework_id()->MergeFrom(frameworkId);
-      update->mutable_slave_id()->MergeFrom(id);
-      TaskStatus* status = update->mutable_status();
-      status->mutable_task_id()->MergeFrom(task.task_id());
-      status->set_state(TASK_LOST);
-      update->set_timestamp(Clock::now());
-      update->set_uuid(UUID::random().toBytes());
-      send(master, message);
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          frameworkId, id, task.task_id(), TASK_LOST, "Executor shutting down");
+
+      statusUpdate(update);
     } else if (!executor->pid) {
       // Queue task until the executor starts up.
       LOG(INFO) << "Queuing task '" << task.task_id()
@@ -559,7 +564,9 @@ void Slave::runTask(
       // the resources before the executor acts on its RunTaskMessage.
       dispatch(isolationModule,
                &IsolationModule::resourcesChanged,
-               framework->id, executor->id, executor->resources);
+               framework->id,
+               executor->id,
+               executor->resources);
 
       LOG(INFO) << "Sending task '" << task.task_id()
                 << "' to executor '" << executorId
@@ -585,13 +592,16 @@ void Slave::runTask(
     // Queue task until the executor starts up.
     executor->queuedTasks[task.task_id()] = task;
 
-    // Tell the isolation module to launch the executor. (TODO(benh):
-    // Make the isolation module a process so that it can block while
-    // trying to launch the executor.)
+    // Tell the isolation module to launch the executor.
+    // TODO(benh): Make the isolation module a process so that it
+    // can block while trying to launch the executor.
     dispatch(isolationModule,
              &IsolationModule::launchExecutor,
-             framework->id, framework->info, executor->info,
-             executor->directory, executor->resources);
+             framework->id,
+             framework->info,
+             executor->info,
+             executor->directory,
+             executor->resources);
   }
 }
 
@@ -607,20 +617,12 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
                  << " of framework " << frameworkId
                  << " because no such framework is running";
 
-    StatusUpdateMessage message;
-    StatusUpdate* update = message.mutable_update();
-    update->mutable_framework_id()->MergeFrom(frameworkId);
-    update->mutable_slave_id()->MergeFrom(id);
-    TaskStatus* status = update->mutable_status();
-    status->mutable_task_id()->MergeFrom(taskId);
-    status->set_state(TASK_LOST);
-    update->set_timestamp(Clock::now());
-    update->set_uuid(UUID::random().toBytes());
-    send(master, message);
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+        frameworkId, id, taskId, TASK_LOST, "Cannot find framework");
 
+    statusUpdate(update);
     return;
   }
-
 
   // Tell the executor to kill the task if it is up and
   // running, otherwise, consider the task lost.
@@ -628,38 +630,24 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
   if (executor == NULL) {
     LOG(WARNING) << "WARNING! Cannot kill task " << taskId
                  << " of framework " << frameworkId
-                 << " because no such task is running";
+                 << " because no corresponding executor is running";
 
-    StatusUpdateMessage message;
-    StatusUpdate* update = message.mutable_update();
-    update->mutable_framework_id()->MergeFrom(framework->id);
-    update->mutable_slave_id()->MergeFrom(id);
-    TaskStatus* status = update->mutable_status();
-    status->mutable_task_id()->MergeFrom(taskId);
-    status->set_state(TASK_LOST);
-    update->set_timestamp(Clock::now());
-    update->set_uuid(UUID::random().toBytes());
-    send(master, message);
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+        frameworkId, id, taskId, TASK_LOST, "Cannot find executor");
+
+    statusUpdate(update);
   } else if (!executor->pid) {
-    // Remove the task.
-    executor->removeTask(taskId);
+    // We are here, if the executor hasn't registered with the slave yet.
 
-    // Tell the isolation module to update the resources.
-    dispatch(isolationModule,
-             &IsolationModule::resourcesChanged,
-             framework->id, executor->id, executor->resources);
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+        frameworkId,
+        id,
+        taskId,
+        TASK_KILLED,
+        "Unregistered executor",
+        executor->id);
 
-    StatusUpdateMessage message;
-    StatusUpdate* update = message.mutable_update();
-    update->mutable_framework_id()->MergeFrom(framework->id);
-    update->mutable_executor_id()->MergeFrom(executor->id);
-    update->mutable_slave_id()->MergeFrom(id);
-    TaskStatus* status = update->mutable_status();
-    status->mutable_task_id()->MergeFrom(taskId);
-    status->set_state(TASK_KILLED);
-    update->set_timestamp(Clock::now());
-    update->set_uuid(UUID::random().toBytes());
-    send(master, message);
+    statusUpdate(update);
   } else {
     // Otherwise, send a message to the executor and wait for
     // it to send us a status update.
@@ -678,24 +666,33 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
 // therefore never processed.
 void Slave::shutdownFramework(const FrameworkID& frameworkId)
 {
-  if (from != master) {
+  // Allow shutdownFramework() only if
+  // its called directly (e.g. Slave::finalize()) or
+  // its a message from the currently registered master.
+  if (from && from != master) {
     LOG(WARNING) << "Ignoring shutdown framework message from " << from
-                 << "because it is not from the registered master ("
+                 << " because it is not from the registered master ("
                  << master << ")";
     return;
   }
 
-  LOG(INFO) << "Asked to shut down framework " << frameworkId;
+  LOG(INFO) << "Asked to shut down framework " << frameworkId
+            << " by " << from;
 
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
     LOG(INFO) << "Shutting down framework " << framework->id;
 
     // Shut down all executors of this framework.
+    // Note that the framework and its corresponding executors are removed from
+    // the frameworks map by shutdownExecutorTimeout() or executorTerminated().
     foreachvalue (Executor* executor, framework->executors) {
       shutdownExecutor(framework, executor);
     }
   }
+
+  // Close all status update streams for this framework.
+  statusUpdateManager->cleanup(frameworkId);
 }
 
 
@@ -757,25 +754,42 @@ void Slave::statusUpdateAcknowledgement(
     const TaskID& taskId,
     const string& uuid)
 {
-  Framework* framework = getFramework(frameworkId);
-  if (framework != NULL) {
-    if (framework->updates.contains(UUID::fromBytes(uuid))) {
-      LOG(INFO) << "Got acknowledgement of status update"
-                << " for task " << taskId
-                << " of framework " << frameworkId;
+  LOG(INFO) << "Got acknowledgement of status update"
+            << " for task " << taskId
+            << " of framework " << frameworkId;
 
-      framework->updates.erase(UUID::fromBytes(uuid));
+  statusUpdateManager->acknowledgement(taskId, frameworkId, uuid)
+    .onAny(defer(self(),
+                 &Slave::_statusUpdateAcknowledgement,
+                 params::_1,
+                 taskId,
+                 frameworkId,
+                 uuid));
+}
 
-      // Cleanup if this framework has no executors running and no pending updates.
-      if (framework->executors.size() == 0 && framework->updates.empty()) {
-        frameworks.erase(framework->id);
 
-        // Pass ownership of the framework pointer.
-        completedFrameworks.push_back(
-            std::tr1::shared_ptr<Framework>(framework));
-      }
-    }
+void Slave::_statusUpdateAcknowledgement(
+    const Future<Try<Nothing> >& future,
+    const TaskID& taskId,
+    const FrameworkID& frameworkId,
+    const string& uuid)
+{
+  if (!future.isReady()) {
+    LOG(FATAL) << "Failed to handle status update acknowledgement " << uuid
+               << " for task " << taskId
+               << " of framework " << frameworkId
+               << (future.isFailed() ? future.failure() : "future discarded");
   }
+
+  if (future.get().isError()) {
+    LOG(ERROR) << "Failed to handle the status update acknowledgement " << uuid
+        << " for task " << taskId
+        << " of framework " << frameworkId
+        << future.get().error();
+    return;
+  }
+
+  // TODO(vinod): Garbage collect the task meta directory.
 }
 
 
@@ -860,41 +874,21 @@ void Slave::registerExecutor(
   }
 }
 
-
+// This can be called in two ways:
+// 1) When a status update from the executor is received.
+// 2) When slave generates task updates (e.g LOST/KILLED/FAILED).
 void Slave::statusUpdate(const StatusUpdate& update)
 {
   const TaskStatus& status = update.status();
 
-  LOG(INFO) << "Status update: task " << status.task_id()
-            << " of framework " << update.framework_id()
-            << " is now in state " << status.state();
+  LOG(INFO) << "Handling status update" << update;
 
   Framework* framework = getFramework(update.framework_id());
+  Executor* executor = NULL;
+
   if (framework != NULL) {
-    // Send message and record the status for possible resending.
-    // TODO(vinod): Revisit the strategy of always sending a status update
-    // upstream, when we have persistent state at the master and slave.
-    StatusUpdateMessage message;
-    message.mutable_update()->MergeFrom(update);
-    message.set_pid(self());
-    send(master, message);
+    executor = framework->getExecutor(status.task_id());
 
-    UUID uuid = UUID::fromBytes(update.uuid());
-
-    // Send us a message to try and resend after some delay.
-    delay(STATUS_UPDATE_RETRY_INTERVAL,
-          self(),
-          &Slave::statusUpdateTimeout,
-          framework->id,
-          uuid);
-
-    framework->updates[uuid] = update;
-
-    stats.tasks[status.state()]++;
-
-    stats.validStatusUpdates++;
-
-    Executor* executor = framework->getExecutor(status.task_id());
     if (executor != NULL) {
       executor->updateTaskState(status.task_id(), status.state());
 
@@ -902,21 +896,107 @@ void Slave::statusUpdate(const StatusUpdate& update)
       if (protobuf::isTerminalState(status.state())) {
         executor->removeTask(status.task_id());
 
-        dispatch(isolationModule,
-                 &IsolationModule::resourcesChanged,
-                 framework->id,
-                 executor->id,
-                 executor->resources);
+        dispatch(
+            isolationModule,
+            &IsolationModule::resourcesChanged,
+            framework->id,
+            executor->id,
+            executor->resources);
       }
     } else {
-      LOG(WARNING) << "Status update error: couldn't lookup "
-                   << "executor for framework " << update.framework_id();
+      LOG(WARNING) << "Could not find executor for task " << status.task_id()
+                   << " of framework " << update.framework_id();
+
       stats.invalidStatusUpdates++;
     }
   } else {
-    LOG(WARNING) << "Status update error: couldn't lookup "
-                 << "framework " << update.framework_id();
+    LOG(WARNING) << "Could not find framework " << update.framework_id()
+                 << " for task " << status.task_id();
+
     stats.invalidStatusUpdates++;
+  }
+
+  // Forward the update to the status update manager.
+  // NOTE: We forward the update even if the framework/executor is unknown
+  // because currently there is no persistent state in the master.
+  // The lack of persistence might lead frameworks to use out-of-band means
+  // to figure out the task state mismatch and use status updates to reconcile.
+  // We need to revisit this issue once master has persistent state.
+  forwardUpdate(update, executor);
+}
+
+
+void Slave::forwardUpdate(const StatusUpdate& update, Executor* executor)
+{
+  LOG(INFO) << "Forwarding status update " << update
+            << " to the status update manager";
+
+  const FrameworkID& frameworkId = update.framework_id();
+  const TaskID& taskId = update.status().task_id();
+
+  Option<UPID> pid;
+  Option<string> path;
+  bool checkpoint = false;
+
+  if (executor != NULL) {
+    // Get the executor pid.
+    if (executor->pid) {
+      pid = executor->pid;
+    }
+
+    // Check whether we need to do checkpointing.
+    Framework* framework = getFramework(frameworkId);
+    CHECK_NOTNULL(framework);
+    checkpoint = framework->info.checkpoint();
+
+    if (checkpoint) {
+      // Get the path to store the updates.
+      path = paths::getTaskUpdatesPath(
+          paths::getMetaRootDir(flags.work_dir),
+          id,
+          frameworkId,
+          executor->id,
+          executor->uuid,
+          taskId);
+    }
+  }
+
+  stats.tasks[update.status().state()]++;
+  stats.validStatusUpdates++;
+
+  statusUpdateManager->update(update, checkpoint, path)
+    .onAny(defer(self(), &Slave::_forwardUpdate, params::_1, update, pid));;
+}
+
+
+void Slave::_forwardUpdate(
+    const Future<Try<Nothing> >& future,
+    const StatusUpdate& update,
+    const Option<UPID>& pid)
+{
+  if (!future.isReady()) {
+    LOG(FATAL) << "Failed to handle status update " << update
+               << (future.isFailed() ? future.failure() : "future discarded");
+    return;
+  }
+
+  if (future.get().isError()) {
+    LOG(ERROR)
+      << "Failed to handle the status update " << update
+      << ": " << future.get().error();
+    return;
+  }
+
+  // Status update manager successfully handled the status update.
+  // Acknowledge the executor, if necessary.
+  if (pid.isSome()) {
+    LOG(INFO) << "Sending ACK for status update " << update
+              << " to executor " << pid.get();
+    StatusUpdateAcknowledgementMessage message;
+    message.mutable_framework_id()->MergeFrom(update.framework_id());
+    message.mutable_slave_id()->MergeFrom(update.slave_id());
+    message.mutable_task_id()->MergeFrom(update.status().task_id());
+    send(pid.get(), message);
   }
 }
 
@@ -953,34 +1033,6 @@ void Slave::executorMessage(
 void Slave::ping(const UPID& from, const string& body)
 {
   send(from, "PONG");
-}
-
-
-void Slave::statusUpdateTimeout(
-    const FrameworkID& frameworkId,
-    const UUID& uuid)
-{
-  // Check and see if we still need to send this update.
-  Framework* framework = getFramework(frameworkId);
-  if (framework != NULL) {
-    if (framework->updates.contains(uuid)) {
-      const StatusUpdate& update = framework->updates[uuid];
-
-      LOG(INFO) << "Resending status update"
-                << " for task " << update.status().task_id()
-                << " of framework " << update.framework_id();
-
-      StatusUpdateMessage message;
-      message.mutable_update()->MergeFrom(update);
-      message.set_pid(self());
-      send(master, message);
-
-      // Send us a message to try and resend after some delay.
-      delay(STATUS_UPDATE_RETRY_INTERVAL,
-            self(), &Slave::statusUpdateTimeout,
-            framework->id, uuid);
-    }
-  }
 }
 
 
@@ -1059,21 +1111,6 @@ void _watch(
 }
 
 
-void Slave::sendStatusUpdate(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
-    const TaskID& taskId,
-    TaskState taskState,
-    const string& message)
-{
-  const StatusUpdate& update = protobuf::createStatusUpdate(
-      frameworkId, id, taskId, taskState, message, executorId);
-
-  // Handle the status update as though it came from the executor.
-  statusUpdate(update);
-}
-
-
 void _unwatch(
     const Future<Nothing>& watch,
     const FrameworkID& frameworkId,
@@ -1124,18 +1161,20 @@ void Slave::executorTerminated(
   // or if this is a command executor, we send TASK_FAILED status updates
   // instead of TASK_LOST.
 
+  StatusUpdate update;
+
   // Transition all live launched tasks.
   foreachvalue (Task* task, utils::copy(executor->launchedTasks)) {
     if (!protobuf::isTerminalState(task->state())) {
       isCommandExecutor = !task->has_executor_id();
-
       if (destroyed || isCommandExecutor) {
-        sendStatusUpdate(
-            frameworkId, executorId, task->task_id(), TASK_FAILED, message);
+        update = protobuf::createStatusUpdate(
+            frameworkId, id, task->task_id(), TASK_FAILED, message, executorId);
       } else {
-        sendStatusUpdate(
-            frameworkId, executorId, task->task_id(), TASK_LOST, message);
+        update = protobuf::createStatusUpdate(
+            frameworkId, id, task->task_id(), TASK_LOST, message, executorId);
       }
+      statusUpdate(update); // Handle the status update.
     }
   }
 
@@ -1144,12 +1183,13 @@ void Slave::executorTerminated(
     isCommandExecutor = task.has_command();
 
     if (destroyed || isCommandExecutor) {
-      sendStatusUpdate(
-          frameworkId, executorId, task.task_id(), TASK_FAILED, message);
+      update = protobuf::createStatusUpdate(
+          frameworkId, id, task.task_id(), TASK_FAILED, message, executorId);
     } else {
-      sendStatusUpdate(
-          frameworkId, executorId, task.task_id(), TASK_LOST, message);
+      update = protobuf::createStatusUpdate(
+          frameworkId, id, task.task_id(), TASK_LOST, message, executorId);
     }
+    statusUpdate(update); // Handle the status update.
   }
 
   if (!isCommandExecutor) {
@@ -1169,7 +1209,7 @@ void Slave::executorTerminated(
   framework->destroyExecutor(executor->id);
 
   // Cleanup if this framework has no executors running.
-  if (framework->executors.size() == 0) {
+  if (framework->executors.empty()) {
     frameworks.erase(framework->id);
 
     // Pass ownership of the framework pointer.
@@ -1257,7 +1297,8 @@ void Slave::checkDiskUsage()
 void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
 {
   if (!usage.isReady()) {
-    LOG(WARNING) << "Error getting disk usage";
+    LOG(ERROR) << "Failed to get disk usage: "
+               << (usage.isFailed() ? usage.failure() : "future discarded");
   } else {
     Try<double> result = usage.get();
 

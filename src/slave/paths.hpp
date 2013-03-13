@@ -39,53 +39,42 @@ namespace paths {
 
 const std::string EXECUTOR_LATEST_SYMLINK = "latest";
 
+// Helper functions to generate paths.
+
+// File names.
+const std::string SLAVEID_FILE = "slave.id";
+const std::string FRAMEWORK_PID_FILE = "framework.pid";
+const std::string LIBPROCESS_PID_FILE = "libprocess.pid";
+const std::string EXECED_PID_FILE = "execed.pid";
+const std::string FORKED_PID_FILE = "forked.pid";
+const std::string TASK_INFO_FILE = "info";
+const std::string TASK_UPDATES_FILE = "updates";
+
 // Path layout templates.
-const std::string ROOT_PATH =
-  "%s";
-
-const std::string SLAVEID_PATH =
-  ROOT_PATH + "/slaves/slave.id";
-
-const std::string SLAVE_PATH =
-  ROOT_PATH + "/slaves/%s";
-
-const std::string FRAMEWORK_PATH =
-  SLAVE_PATH + "/frameworks/%s";
-
+const std::string ROOT_PATH = "%s";
+const std::string SLAVEID_PATH = ROOT_PATH + "/slaves/" + SLAVEID_FILE;
+const std::string SLAVE_PATH = ROOT_PATH + "/slaves/%s";
+const std::string FRAMEWORK_PATH = SLAVE_PATH + "/frameworks/%s";
 const std::string FRAMEWORK_PID_PATH =
-  FRAMEWORK_PATH + "/framework.pid";
-
-const std::string EXECUTOR_PATH =
-  FRAMEWORK_PATH + "/executors/%s";
-
-const std::string EXECUTOR_RUN_PATH =
-  EXECUTOR_PATH + "/runs/%s";
-
+    FRAMEWORK_PATH + "/" + FRAMEWORK_PID_FILE;
+const std::string EXECUTOR_PATH = FRAMEWORK_PATH + "/executors/%s";
+const std::string EXECUTOR_RUN_PATH = EXECUTOR_PATH + "/runs/%s";
 const std::string EXECUTOR_LATEST_RUN_PATH =
   EXECUTOR_PATH + "/runs/" + EXECUTOR_LATEST_SYMLINK;
+const std::string PIDS_PATH = EXECUTOR_RUN_PATH + "/pids";
+const std::string LIBPROCESS_PID_PATH = PIDS_PATH + "/" + LIBPROCESS_PID_FILE;
+const std::string EXECED_PID_PATH = PIDS_PATH + "/" + EXECED_PID_FILE;
+const std::string FORKED_PID_PATH = PIDS_PATH + "/" + FORKED_PID_FILE;
+const std::string TASK_PATH = EXECUTOR_RUN_PATH + "/tasks/%s";
+const std::string TASK_INFO_PATH = TASK_PATH + "/" + TASK_INFO_FILE;
+const std::string TASK_UPDATES_PATH = TASK_PATH + "/" + TASK_UPDATES_FILE;
 
-const std::string PIDS_PATH =
-  EXECUTOR_RUN_PATH + "/pids";
 
-const std::string LIBPROCESS_PID_PATH =
-  PIDS_PATH + "/libprocess.pid";
+inline std::string getMetaRootDir(const std::string rootDir)
+{
+  return path::join(rootDir, "meta");
+}
 
-const std::string EXECED_PID_PATH =
-  PIDS_PATH + "/execed.pid";
-
-const std::string FORKED_PID_PATH =
-  PIDS_PATH + "/forked.pid";
-
-const std::string TASK_PATH =
-  EXECUTOR_RUN_PATH + "/tasks/%s";
-
-const std::string TASK_INFO_PATH =
-  TASK_PATH + "/info";
-
-const std::string TASK_UPDATES_PATH =
-  TASK_PATH + "/updates";
-
-// Helper functions to generate paths.
 
 inline std::string getSlaveIDPath(const std::string& rootDir)
 {
@@ -93,128 +82,182 @@ inline std::string getSlaveIDPath(const std::string& rootDir)
 }
 
 
-inline std::string getSlavePath(const std::string& rootDir,
-                                const SlaveID& slaveId)
+inline std::string getSlavePath(
+    const std::string& rootDir,
+    const SlaveID& slaveId)
 {
   return strings::format(SLAVE_PATH, rootDir, slaveId).get();
 }
 
 
-inline std::string getFrameworkPath(const std::string& rootDir,
-                                    const SlaveID& slaveId,
-                                    const FrameworkID& frameworkId)
+inline std::string getFrameworkPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId)
 {
-  return strings::format(FRAMEWORK_PATH, rootDir, slaveId,
-                         frameworkId).get();
+  return strings::format(
+      FRAMEWORK_PATH, rootDir, slaveId, frameworkId).get();
 }
 
 
-inline std::string getFrameworkPIDPath(const std::string& rootDir,
-                                       const SlaveID& slaveId,
-                                       const FrameworkID& frameworkId)
+inline std::string getFrameworkPIDPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId)
 {
-  return strings::format(FRAMEWORK_PID_PATH, rootDir, slaveId,
-                              frameworkId).get();
+  return strings::format(
+      FRAMEWORK_PID_PATH, rootDir, slaveId, frameworkId).get();
 }
 
 
-inline std::string getExecutorPath(const std::string& rootDir,
-                                   const SlaveID& slaveId,
-                                   const FrameworkID& frameworkId,
-                                   const ExecutorID& executorId)
+inline std::string getExecutorPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
 {
-  return strings::format(EXECUTOR_PATH, rootDir, slaveId, frameworkId,
-                         executorId).get();
+  return strings::format(
+      EXECUTOR_PATH, rootDir, slaveId, frameworkId, executorId).get();
 }
 
 
-inline std::string getExecutorRunPath(const std::string& rootDir,
-                                      const SlaveID& slaveId,
-                                      const FrameworkID& frameworkId,
-                                      const ExecutorID& executorId,
-                                      const UUID& executorUUID)
+inline std::string getExecutorRunPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& executorUUID)
 {
-  return strings::format(EXECUTOR_RUN_PATH, rootDir, slaveId, frameworkId,
-                         executorId, executorUUID.toString()).get();
+  return strings::format(
+      EXECUTOR_RUN_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      executorUUID.toString()).get();
 }
 
 
-inline std::string getExecutorLatestRunPath(const std::string& rootDir,
-                                            const SlaveID& slaveId,
-                                            const FrameworkID& frameworkId,
-                                            const ExecutorID& executorId)
+inline std::string getExecutorLatestRunPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
 {
-  return strings::format(EXECUTOR_LATEST_RUN_PATH, rootDir, slaveId,
-                         frameworkId, executorId).get();
+  return strings::format(
+      EXECUTOR_LATEST_RUN_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId).get();
 }
 
 
-inline std::string getLibprocessPIDPath(const std::string& rootDir,
-                                        const SlaveID& slaveId,
-                                        const FrameworkID& frameworkId,
-                                        const ExecutorID& executorId,
-                                        const UUID& executorUUID)
+inline std::string getLibprocessPIDPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& executorUUID)
 {
-  return strings::format(LIBPROCESS_PID_PATH, rootDir, slaveId, frameworkId,
-                         executorId, executorUUID.toString()).get();
+  return strings::format(
+      LIBPROCESS_PID_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      executorUUID.toString()).get();
 }
 
 
-inline std::string getExecedPIDPath(const std::string& rootDir,
-                                    const SlaveID& slaveId,
-                                    const FrameworkID& frameworkId,
-                                    const ExecutorID& executorId,
-                                    const UUID& executorUUID)
+inline std::string getExecedPIDPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& executorUUID)
 {
-  return strings::format(EXECED_PID_PATH, rootDir, slaveId, frameworkId,
-                         executorId, executorUUID.toString()).get();
+  return strings::format(
+      EXECED_PID_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      executorUUID.toString()).get();
 }
 
 
-inline std::string getForkedPIDPath(const std::string& rootDir,
-                                    const SlaveID& slaveId,
-                                    const FrameworkID& frameworkId,
-                                    const ExecutorID& executorId,
-                                    const UUID& executorUUID)
+inline std::string getForkedPIDPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& executorUUID)
 {
-  return strings::format(FORKED_PID_PATH, rootDir, slaveId, frameworkId,
-                         executorId, executorUUID.toString()).get();
+  return strings::format(
+      FORKED_PID_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      executorUUID.toString()).get();
 }
 
 
-inline std::string getTaskPath(const std::string& rootDir,
-                               const SlaveID& slaveId,
-                               const FrameworkID& frameworkId,
-                               const ExecutorID& executorId,
-                               const UUID& executorUUID,
-                               const TaskID& taskId)
+inline std::string getTaskPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& executorUUID,
+    const TaskID& taskId)
 {
-  return strings::format(TASK_PATH, rootDir, slaveId, frameworkId, executorId,
-                         executorUUID.toString(), taskId).get();
+  return strings::format(
+      TASK_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      executorUUID.toString(),
+      taskId).get();
 }
 
 
-inline std::string getTaskInfoPath(const std::string& rootDir,
-                                   const SlaveID& slaveId,
-                                   const FrameworkID& frameworkId,
-                                   const ExecutorID& executorId,
-                                   const UUID& executorUUID,
-                                   const TaskID& taskId)
+inline std::string getTaskInfoPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& executorUUID,
+    const TaskID& taskId)
 {
-  return strings::format(TASK_INFO_PATH, rootDir, slaveId, frameworkId,
-                         executorId, executorUUID.toString(), taskId).get();
+  return strings::format(
+      TASK_INFO_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      executorUUID.toString(),
+      taskId).get();
 }
 
 
-inline std::string getTaskUpdatesPath(const std::string& rootDir,
-                                      const SlaveID& slaveId,
-                                      const FrameworkID& frameworkId,
-                                      const ExecutorID& executorId,
-                                      const UUID& executorUUID,
-                                      const TaskID& taskId)
+inline std::string getTaskUpdatesPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& executorUUID,
+    const TaskID& taskId)
 {
-  return strings::format(TASK_UPDATES_PATH, rootDir, slaveId, frameworkId,
-                         executorId, executorUUID.toString(), taskId).get();
+  return strings::format(
+      TASK_UPDATES_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      executorUUID.toString(),
+      taskId).get();
 }
 
 
@@ -237,7 +280,10 @@ inline std::string createExecutorDirectory(
   // Remove the previous "latest" symlink.
   std::string latest =
     getExecutorLatestRunPath(rootDir, slaveId, frameworkId, executorId);
-  os::rm(latest);
+
+  if (os::exists(latest)) {
+    CHECK_SOME(os::rm(latest)) << "Failed to remove latest symlink " << latest;
+  }
 
   // Symlink the new executor directory to "latest".
   Try<Nothing> symlink = fs::symlink(directory, latest);
@@ -247,7 +293,6 @@ inline std::string createExecutorDirectory(
 
   return directory;
 }
-
 
 } // namespace paths {
 } // namespace slave {

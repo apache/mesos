@@ -35,6 +35,7 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
