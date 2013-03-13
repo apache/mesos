@@ -25,6 +25,7 @@
 
 #include <boost/functional/hash.hpp>
 
+#include "common/attributes.hpp"
 #include "common/resources.hpp"
 
 #include "messages/messages.hpp"
@@ -77,6 +78,12 @@ inline std::ostream& operator << (std::ostream& stream, const TaskState& state)
 inline std::ostream& operator << (std::ostream& stream, const TaskInfo& task)
 {
   return stream << task.DebugString();
+}
+
+
+inline std::ostream& operator << (std::ostream& stream, const SlaveInfo& slave)
+{
+  return stream << slave.DebugString();
 }
 
 
@@ -252,6 +259,21 @@ inline bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
     (!left.has_source() || (left.source() == right.source())) &&
     left.has_data() == right.has_data() &&
     (!left.has_data() || (left.data() == right.data()));
+}
+
+
+inline bool operator == (const SlaveInfo& left, const SlaveInfo& right)
+{
+  return left.hostname() == right.hostname() &&
+    left.webui_hostname() == right.webui_hostname() &&
+    internal::Resources(left.resources()) ==
+    internal::Resources(right.resources()) &&
+    internal::Attributes(left.attributes()) ==
+    internal::Attributes(right.attributes()) &&
+    left.has_webui_port() == right.has_webui_port() &&
+    (!left.has_webui_port() || (left.webui_port() == right.webui_port())) &&
+    left.has_id() == right.has_id() &&
+    (!left.has_id() || (left.id() == right.id()));
 }
 
 

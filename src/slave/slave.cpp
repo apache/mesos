@@ -996,14 +996,6 @@ void Slave::_statusUpdateAcknowledgement(
         << future.get().error();
     return;
   }
-
-  // If this slave is in 'recover=cleanup' mode, exit after all executors
-  // have exited.
-  if (flags.recover == "cleanup" && frameworks.empty()) {
-    LOG(INFO) << "Slave is shutting down because it was started in cleanup "
-              << " recovery mode and all updates have been acknowledged!";
-    shutdown();
-  }
 }
 
 
@@ -1550,6 +1542,51 @@ void Slave::executorTerminated(
     // Pass ownership of the framework pointer.
     completedFrameworks.push_back(std::tr1::shared_ptr<Framework>(framework));
   }
+
+  // If this slave is in 'recover=cleanup' mode, exit after all executors
+  // have exited.
+  // TODO(vinod): Ensure all status updates have been acknowledged.
+  if (flags.recover == "cleanup" && frameworks.size() == 0) {
+    cleanup();
+  }
+}
+
+
+void Slave::cleanup()
+{
+  CHECK(flags.recover == "cleanup");
+
+  LOG(INFO) << "Slave is shutting down because it is started with "
+            << " --recover==cleanup and all executors have terminated!";
+
+  string archiveDir = paths::getArchiveDir(flags.work_dir);
+  string metaDir = paths::getMetaRootDir(flags.work_dir);
+
+  // Archive and delete the meta directory, to allow incompatible upgrades.
+  LOG(INFO) << "Archiving and deleting the meta directory '" << metaDir
+            << "' to allow incompatible upgrade!";
+
+  // Create the archive directory, if it doesn't exist.
+  Try<Nothing> result = os::mkdir(archiveDir);
+  if (result.isSome()) {
+    result = os::tar(
+        metaDir, path::join(archiveDir, info.id().value() + ".tar.gz"));
+
+    if (result.isError()) {
+      LOG(ERROR) << "Failed to archive meta directory '" << archiveDir
+                 << "': " << result.error();
+    }
+  } else {
+    LOG(ERROR) << "Failed to create archive directory '" << archiveDir
+               << ": " << result.error();
+  }
+
+  result = os::rmdir(metaDir);
+  if (result.isError()) {
+    LOG(ERROR) << "Failed to delete meta directory '" << metaDir << "'";
+  }
+
+  shutdown();
 }
 
 
@@ -1661,16 +1698,14 @@ Future<Nothing> Slave::recover(bool reconnect, bool safe)
 {
   const string& metaDir = paths::getMetaRootDir(flags.work_dir);
 
-  // We consider the absence of 'metaDir' to mean that this is the
-  // very first time this slave was started with checkpointing
-  // enabled.
+  // We consider the absence of 'metaDir' to mean that this is either
+  // the first time this slave was started with checkpointing enabled
+  // or this slave was started after an upgrade (--recover=cleanup).
   if (!os::exists(metaDir)) {
     // NOTE: We recover the isolation module here to cleanup any old
     // executors (e.g: orphaned cgroups).
     return dispatch(isolationModule, &IsolationModule::recover, None());
   }
-
-  // TODO(vinod): Check for version and slaveinfo compatibility.
 
   // First, recover the slave state.
   Result<SlaveState> state = state::recover(metaDir, safe);
@@ -1683,6 +1718,23 @@ Future<Nothing> Slave::recover(bool reconnect, bool safe)
     // NOTE: We recover the isolation module here to cleanup any old
     // executors (e.g: orphaned cgroups).
     return dispatch(isolationModule, &IsolationModule::recover, None());
+  }
+
+  // Check for SlaveInfo compatibility.
+  // TODO(vinod): Also check for version compatibility.
+  // NOTE: We set the 'id' field in 'info' from the recovered state,
+  // as a hack to compare the info created from options/flags with
+  // the recovered info.
+  info.mutable_id()->CopyFrom(state.get().id);
+  if (reconnect && !(info == state.get().info.get())) {
+    EXIT(1)
+      << "Incompatible slave info detected.\n"
+      << "Old slave info:\n" << state.get().info.get() << "\n"
+      << "New slave info:\n" << info << "\n"
+      << "To properly upgrade the slave do as follows:\n"
+      << "Step 1: Start the slave (old slave info) with --recover=cleanup.\n"
+      << "Step 2: Wait till the slave kills all executors and shuts down.\n"
+      << "Step 3: Start the upgraded slave (new slave info).\n";
   }
 
   info = state.get().info.get(); // Recover the slave info.

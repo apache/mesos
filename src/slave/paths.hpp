@@ -81,6 +81,12 @@ inline std::string getMetaRootDir(const std::string rootDir)
 }
 
 
+inline std::string getArchiveDir(const std::string rootDir)
+{
+  return path::join(rootDir, "archive");
+}
+
+
 inline std::string getLatestSlavePath(const std::string& rootDir)
 {
   return strings::format(LATEST_SLAVE_PATH, rootDir).get();

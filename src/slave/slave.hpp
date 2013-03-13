@@ -224,6 +224,10 @@ protected:
       const state::SlaveState& state,
       bool reconnect);
 
+  // Called when the slave is started in 'cleanup' recovery mode and
+  // all the executors have terminated.
+  void cleanup();
+
 private:
   Slave(const Slave&);              // No copying.
   Slave& operator = (const Slave&); // No assigning.
