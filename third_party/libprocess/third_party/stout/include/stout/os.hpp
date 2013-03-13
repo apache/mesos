@@ -420,11 +420,22 @@ inline bool isfile(const std::string& path)
 }
 
 
+inline bool islink(const std::string& path)
+{
+  struct stat s;
+
+  if (::lstat(path.c_str(), &s) < 0) {
+    return false;
+  }
+  return S_ISLNK(s.st_mode);
+}
+
+
 inline bool exists(const std::string& path)
 {
   struct stat s;
 
-  if (::stat(path.c_str(), &s) < 0) {
+  if (::lstat(path.c_str(), &s) < 0) {
     return false;
   }
   return true;
@@ -436,7 +447,7 @@ inline Try<long> mtime(const std::string& path)
 {
   struct stat s;
 
-  if (::stat(path.c_str(), &s) < 0) {
+  if (::lstat(path.c_str(), &s) < 0) {
     return ErrnoError("Error invoking stat for '" + path + "'");
   }
 
@@ -707,6 +718,7 @@ inline std::list<std::string> ls(const std::string& directory)
 // searching the given directory. A match is successful if the pattern is a
 // substring of the file name.
 // NOTE: Directory path should not end with '/'.
+// NOTE: Symbolic links are not followed.
 // TODO(vinod): Support regular expressions for pattern.
 // TODO(vinod): Consider using ftw or a non-recursive approach.
 inline Try<std::list<std::string> > find(
@@ -722,7 +734,7 @@ inline Try<std::list<std::string> > find(
   foreach (const std::string& entry, ls(directory)) {
     std::string path = path::join(directory, entry);
     // If it's a directory, recurse.
-    if (isdir(path)) {
+    if (isdir(path) && !islink(path)) {
       Try<std::list<std::string> > matches = find(path, pattern);
       if (matches.isError()) {
         return matches;
