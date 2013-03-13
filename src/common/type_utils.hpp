@@ -34,52 +34,49 @@
 
 namespace mesos {
 
-inline std::ostream& operator << (std::ostream& stream, const FrameworkID& frameworkId)
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const FrameworkID& frameworkId)
 {
-  stream << frameworkId.value();
-  return stream;
+  return stream << frameworkId.value();
 }
 
 
 inline std::ostream& operator << (std::ostream& stream, const OfferID& offerId)
 {
-  stream << offerId.value();
-  return stream;
+  return stream << offerId.value();
 }
 
 
 inline std::ostream& operator << (std::ostream& stream, const SlaveID& slaveId)
 {
-  stream << slaveId.value();
-  return stream;
+  return stream << slaveId.value();
 }
 
 
 inline std::ostream& operator << (std::ostream& stream, const TaskID& taskId)
 {
-  stream << taskId.value();
-  return stream;
+  return stream << taskId.value();
 }
 
 
-inline std::ostream& operator << (std::ostream& stream, const ExecutorID& executorId)
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const ExecutorID& executorId)
 {
-  stream << executorId.value();
-  return stream;
+  return stream << executorId.value();
 }
 
 
 inline std::ostream& operator << (std::ostream& stream, const TaskState& state)
 {
-  stream << TaskState_descriptor()->FindValueByNumber(state)->name();
-  return stream;
+  return stream << TaskState_descriptor()->FindValueByNumber(state)->name();
 }
 
 
 inline std::ostream& operator << (std::ostream& stream, const TaskInfo& task)
 {
-  stream << task.DebugString();
-  return stream;
+  return stream << task.DebugString();
 }
 
 
@@ -205,8 +202,9 @@ inline bool operator == (const Environment& left, const Environment& right)
 }
 
 
-inline bool operator == (const CommandInfo::URI& left,
-                         const CommandInfo::URI& right)
+inline bool operator == (
+    const CommandInfo::URI& left,
+    const CommandInfo::URI& right)
 {
   return left.has_executable() == right.has_executable() &&
     (!left.has_executable() || (left.executable() == right.executable())) &&
@@ -299,10 +297,23 @@ inline std::size_t hash_value(const ExecutorID& executorId)
 
 namespace internal {
 
-inline std::ostream& operator << (std::ostream& stream, const Task* task)
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const StatusUpdate& update)
 {
-  stream << "task " << task->framework_id() << ":" << task->task_id();
-  return stream;
+  return stream
+    << update.status().state()
+    << " from task " << update.status().task_id()
+    << " of framework " << update.framework_id();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const StatusUpdateRecord::Type& type)
+{
+  return stream
+    << StatusUpdateRecord::Type_descriptor()->FindValueByNumber(type)->name();
 }
 
 }} // namespace mesos { namespace internal {

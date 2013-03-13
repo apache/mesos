@@ -69,6 +69,12 @@ public:
     return Seconds(seconds > 0 ? seconds : 0);
   }
 
+  // Returns true if the timeout expired.
+  bool expired() const
+  {
+    return (timeout - Clock::now()) <= 0;
+  }
+
 private:
   double timeout;
 };

@@ -132,6 +132,10 @@ PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
     // TODO(benh): Create a local isolation module?
     ProcessBasedIsolationModule* isolationModule =
       new ProcessBasedIsolationModule();
+
+    // Use a different work directory for each slave.
+    flags.work_dir = path::join(flags.work_dir, stringify(i));
+
     Slave* slave = new Slave(flags, true, isolationModule, files);
     slaves[isolationModule] = slave;
     pids.push_back(process::spawn(slave));

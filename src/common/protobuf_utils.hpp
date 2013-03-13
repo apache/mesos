@@ -22,6 +22,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/none.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/type_utils.hpp"
@@ -46,25 +47,24 @@ inline StatusUpdate createStatusUpdate(
     const SlaveID& slaveId,
     const TaskID& taskId,
     const TaskState& state,
-    const std::string& message,
-    const ExecutorID& executorId = ExecutorID())
+    const std::string& message = "",
+    const Option<ExecutorID>& executorId = None())
 {
   StatusUpdate update;
 
+  update.set_timestamp(process::Clock::now());
+  update.set_uuid(UUID::random().toBytes());
   update.mutable_framework_id()->MergeFrom(frameworkId);
+  update.mutable_slave_id()->MergeFrom(slaveId);
 
-  if (!(executorId == "")) {
-    update.mutable_executor_id()->MergeFrom(executorId);
+  if (executorId.isSome()) {
+    update.mutable_executor_id()->MergeFrom(executorId.get());
   }
 
-  update.mutable_slave_id()->MergeFrom(slaveId);
   TaskStatus* status = update.mutable_status();
   status->mutable_task_id()->MergeFrom(taskId);
   status->set_state(state);
   status->set_message(message);
-
-  update.set_timestamp(::process::Clock::now());
-  update.set_uuid(UUID::random().toBytes());
 
   return update;
 }

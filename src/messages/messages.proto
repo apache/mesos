@@ -59,6 +59,20 @@ message StatusUpdate {
 }
 
 
+// This message encapsulates how we checkpoint a status update to disk.
+// NOTE: If type == UPDATE, the 'update' field is required.
+// NOTE: If type == ACK, the 'uuid' field is required.
+message StatusUpdateRecord {
+  enum Type {
+    UPDATE = 0;
+    ACK = 1;
+  }
+  required Type type = 1;
+  optional StatusUpdate update = 2;
+  optional bytes uuid = 3;
+}
+
+
 message Slaves
 {
   repeated SlaveInfo infos = 1;

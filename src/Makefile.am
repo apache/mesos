@@ -161,7 +161,8 @@ libmesos_no_third_party_la_SOURCES =					\
 	master/constants.cpp						\
 	master/drf_sorter.cpp						\
 	master/frameworks_manager.cpp					\
-	master/http.cpp master/master.cpp				\
+	master/http.cpp							\
+	master/master.cpp						\
 	master/slaves_manager.cpp					\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
@@ -172,6 +173,7 @@ libmesos_no_third_party_la_SOURCES =					\
 	slave/isolation_module.cpp					\
 	slave/process_based_isolation_module.cpp			\
 	slave/reaper.cpp						\
+	slave/status_update_manager.cpp					\
 	launcher/launcher.cpp						\
 	exec/exec.cpp							\
 	common/lock.cpp							\
@@ -233,6 +235,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/cgroups_isolation_module.hpp				\
 	slave/lxc_isolation_module.hpp					\
 	slave/paths.hpp slave/state.hpp					\
+	slave/status_update_manager.hpp					\
 	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
 	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
 	tests/environment.hpp tests/script.hpp				\
