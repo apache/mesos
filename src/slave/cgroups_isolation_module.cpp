@@ -484,7 +484,7 @@ void CgroupsIsolationModule::launchExecutor(
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // Register the cgroup information.
-  CgroupInfo* info = registerCgroupInfo(frameworkId, executorId);
+  CgroupInfo* info = registerCgroupInfo(frameworkId, executorId, flags);
 
   LOG(INFO) << "Launching " << executorId
             << " (" << executorInfo.command().value() << ")"
@@ -1003,7 +1003,8 @@ void CgroupsIsolationModule::_killExecutor(
 
 CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::registerCgroupInfo(
     const FrameworkID& frameworkId,
-    const ExecutorID& executorId)
+    const ExecutorID& executorId,
+    const Flags& flags)
 {
   CgroupInfo* info = new CgroupInfo;
   info->frameworkId = frameworkId;
@@ -1014,6 +1015,7 @@ CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::registerCgroupInfo(
   info->destroyed = false;
   info->status = -1;
   info->reason = "";
+  info->flags = flags;
   if (subsystems.contains("cpuset")) {
     info->cpuset = new Cpuset();
   } else {

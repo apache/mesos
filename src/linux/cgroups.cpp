@@ -43,6 +43,7 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
@@ -430,6 +431,34 @@ Try<set<string> > hierarchies()
   }
 
   return results;
+}
+
+
+Result<std::string> hierarchy(const std::string& subsystems)
+{
+  Result<std::string> hierarchy = None();
+  Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+  if (hierarchies.isError()) {
+    return Error(hierarchies.error());
+  }
+
+  foreach (const std::string& candidate, hierarchies.get()) {
+    if (subsystems.empty()) {
+      hierarchy = candidate;
+      break;
+    }
+
+    // Check and see if this candidate meets our subsystem requirements.
+    Try<bool> mounted = cgroups::mounted(candidate, subsystems);
+    if (mounted.isError()) {
+      return Error(mounted.error());
+    } else if (mounted.get()) {
+      hierarchy = candidate;
+      break;
+    }
+  }
+
+  return hierarchy;
 }
 
 
@@ -1616,11 +1645,6 @@ Future<bool> destroy(
     const string& cgroup,
     const Duration& interval)
 {
-  Option<string> error = verify(hierarchy, cgroup, "freezer.state");
-  if (error.isSome()) {
-    return Future<bool>::failed(error.get());
-  }
-
   if (interval < Seconds(0)) {
     return Future<bool>::failed("Interval should be non-negative");
   }
@@ -1632,16 +1656,83 @@ Future<bool> destroy(
         "Failed to get nested cgroups: " + cgroups.error());
   }
 
-  vector<string> toDestroy = cgroups.get();
+  vector<string> candidates = cgroups.get();
   if (cgroup != "/") {
-    toDestroy.push_back(cgroup);
+    candidates.push_back(cgroup);
   }
 
-  internal::Destroyer* destroyer =
-    new internal::Destroyer(hierarchy, toDestroy, interval);
-  Future<bool> future = destroyer->future();
-  spawn(destroyer, true);
-  return future;
+  if (candidates.empty()) {
+    return true;
+  }
+
+  // If the freezer subsystem is available, destroy the cgroups.
+  Option<string> error = verify(hierarchy, cgroup, "freezer.state");
+  if (error.isNone()) {
+    internal::Destroyer* destroyer =
+      new internal::Destroyer(hierarchy, candidates, interval);
+    Future<bool> future = destroyer->future();
+    spawn(destroyer, true);
+    return future;
+  } else {
+    // Otherwise, attempt to remove the cgroups in bottom-up fashion.
+    foreach (const std::string& cgroup, candidates) {
+      Try<Nothing> remove = cgroups::remove(hierarchy, cgroup);
+      if (remove.isError()) {
+        return Future<bool>::failed(remove.error());
+      }
+    }
+  }
+
+  return true;
+}
+
+
+// Forward declaration.
+Future<bool> _cleanup(const string& hierarchy);
+
+
+Future<bool> cleanup(const string& hierarchy)
+{
+  Try<bool> mounted = cgroups::mounted(hierarchy);
+  if (mounted.isError()) {
+    return Future<bool>::failed(mounted.error());
+  }
+
+  if (mounted.get()) {
+    // Destroy all cgroups and then cleanup.
+    return destroy(hierarchy)
+      .then(lambda::bind(_cleanup, hierarchy));
+  } else {
+    // Remove the directory if it still exists.
+    if (os::exists(hierarchy)) {
+      Try<Nothing> rmdir = os::rmdir(hierarchy);
+      if (rmdir.isError()) {
+        return Future<bool>::failed(rmdir.error());
+      }
+    }
+  }
+
+  return true;
+}
+
+
+Future<bool> _cleanup(const string& hierarchy)
+{
+  // Remove the hierarchy.
+  Try<Nothing> unmount = cgroups::unmount(hierarchy);
+  if (unmount.isError()) {
+    return Future<bool>::failed(unmount.error());
+  }
+
+  // Remove the directory if it still exists.
+  if (os::exists(hierarchy)) {
+    Try<Nothing> rmdir = os::rmdir(hierarchy);
+    if (rmdir.isError()) {
+      return Future<bool>::failed(rmdir.error());
+    }
+  }
+
+  return true;
 }
 
 

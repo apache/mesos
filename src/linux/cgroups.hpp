@@ -68,6 +68,18 @@ bool enabled();
 Try<std::set<std::string> > hierarchies();
 
 
+// Get an already mounted hierarchy that has 'subsystems' attached.
+// This function will return an error if we are unable to find the
+// hierarchies or if we are unable to find if the subsystems are
+// mounted at a given hierarchy.
+// @param subsystems Comma-separated subsystem names.
+// @return Path to the hierarchy root, if a hierarchy with all the
+//         given subsystems mounted exists.
+//         None, if no such hierarchy exists.
+//         Error, if the operation fails.
+Result<std::string> hierarchy(const std::string& subsystems);
+
+
 // Check whether all the given subsystems are enabled on the current machine.
 // @param   subsystems  Comma-separated subsystem names.
 // @return  True if all the given subsystems are enabled.
@@ -81,7 +93,7 @@ Try<bool> enabled(const std::string& subsystems);
 // @param   subsystems  Comma-separated subsystem names.
 // @return  True if any of the given subsystems is being attached.
 //          False if non of the given subsystems is being attached.
-//          Error if some unexpected happens.
+//          Error if something unexpected happens.
 Try<bool> busy(const std::string& subsystems);
 
 
@@ -183,7 +195,7 @@ Try<std::vector<std::string> > get(
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   signal      The signal to send to all tasks within the cgroup.
 // @return  Some on success.
-//          Error if some unexpected happens.
+//          Error if something unexpected happens.
 Try<Nothing> kill(
     const std::string& hierarchy,
     const std::string& cgroup,
@@ -267,7 +279,7 @@ Try<Nothing> assign(
 // @param   control     Name of the control file.
 // @param   args        Control specific arguments.
 // @return  A future which contains the value read from the file when ready.
-//          Error if some unexpected happens.
+//          Error if something unexpected happens.
 process::Future<uint64_t> listen(
     const std::string& hierarchy,
     const std::string& cgroup,
@@ -293,7 +305,7 @@ process::Future<uint64_t> listen(
 //                      indicates infinite retries. (default: 50 attempts).
 // @return  A future which will become true when all processes are frozen, or
 //          false when all retries have occurred unsuccessfully.
-//          Error if some unexpected happens.
+//          Error if something unexpected happens.
 process::Future<bool> freeze(
     const std::string& hierarchy,
     const std::string& cgroup,
@@ -310,30 +322,42 @@ process::Future<bool> freeze(
 // @param   interval    The time interval between two state check
 //                      requests (default: 0.1 seconds).
 // @return  A future which will become ready when all processes are thawed.
-//          Error if some unexpected happens.
+//          Error if something unexpected happens.
 process::Future<bool> thaw(
     const std::string& hierarchy,
     const std::string& cgroup,
     const Duration& interval = Seconds(0.1));
 
 
-// Destroy a cgroup under a given hierarchy. This function is different from
-// removeCgroup in that it tries to kill all tasks in the given cgroup so that
-// this cgroup can be removed. It will also recursively remove sub-cgroups if
-// exist. The given cgroup itself will also be destroyed. However, if the given
-// cgroup is the root cgroup, it will not be destroyed (cannot destroy a root
-// cgroup). The function returns a future indicating the state of the destroy
-// process. The future will become ready when the destroy operation finishes.
-// @param   hierarchy   Path to the hierarchy root.
+// Destroy a cgroup under a given hierarchy. It will also recursively
+// destroy any sub-cgroups. If the freezer subsystem is attached to
+// the hierarchy, we attempt to kill all tasks in a given cgroup,
+// before removing it. Otherwise, we just attempt to remove the
+// cgroup. This function will return an error if the given hierarchy
+// or the given cgroup does not exist or if we failed to destroy any
+// of the cgroups.
+// NOTE: If cgroup is "/" (default), all cgroups under the
+// hierarchy are destroyed.
+// TODO(vinod): Add support for killing tasks when freezer subsystem
+// is not present.
+// @param   hierarchy Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   interval    The time interval between two state check
 //                      requests (default: 0.1 seconds).
 // @return  A future which will become ready when the operation is done.
-//          Error if some unexpected happens.
+//          Error if something unexpected happens.
 process::Future<bool> destroy(
     const std::string& hierarchy,
     const std::string& cgroup = "/",
     const Duration& interval = Seconds(0.1));
+
+
+// Cleanup the hierarchy, by first destroying all the underlying
+// cgroups, unmounting the hierarchy and deleting the mount point.
+// @param   hierarchy Path to the hierarchy root.
+// @return  A future which will become ready when the operation is done.
+//          Error if something unexpected happens.
+process::Future<bool> cleanup(const std::string& hierarchy);
 
 
 // Returns the stat information from the given file.

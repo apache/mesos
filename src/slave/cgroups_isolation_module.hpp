@@ -134,7 +134,7 @@ private:
       out << "framework_" << frameworkId
           << "_executor_" << executorId
           << "_tag_" << tag;
-      return path::join("mesos", out.str());
+      return path::join(flags.cgroups_root, out.str());
     }
 
     FrameworkID frameworkId;
@@ -158,6 +158,8 @@ private:
     std::string reason; // The reason behind the destruction.
 
     int status; // Exit status of the executor.
+
+    Flags flags; // Slave flags.
 
     // Used to cancel the OOM listening.
     process::Future<uint64_t> oomNotifier;
@@ -236,10 +238,12 @@ private:
   // Register a cgroup in the isolation module.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
+  // @param   flags         The slave flags.
   // @return  A pointer to the cgroup info registered.
   CgroupInfo* registerCgroupInfo(
       const FrameworkID& frameworkId,
-      const ExecutorID& executorId);
+      const ExecutorID& executorId,
+      const Flags& flags);
 
   // Unregister a cgroup in the isolation module.
   // @param   frameworkId   The id of the given framework.
