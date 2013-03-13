@@ -416,9 +416,11 @@ void Slave::finalize()
   // But since the master no longer removes the slave when a slave exits, we
   // send an UnregisterSlaveMessage to master so that it removes the slave.
   // This is OK because, finalize() is only ever going to be called in tests!
-  UnregisterSlaveMessage message;
-  message.mutable_slave_id()->CopyFrom(info.id());
-  send(master, message);
+  if (master && info.has_id()) {
+    UnregisterSlaveMessage message;
+    message.mutable_slave_id()->CopyFrom(info.id());
+    send(master, message);
+  }
 }
 
 
