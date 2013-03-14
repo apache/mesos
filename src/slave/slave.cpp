@@ -225,6 +225,7 @@ void Slave::initialize()
   info.set_webui_hostname(webui_hostname); // Deprecated!
   info.mutable_resources()->MergeFrom(resources);
   info.mutable_attributes()->MergeFrom(attributes);
+  info.set_checkpoint(flags.checkpoint);
 
   // Spawn and initialize the isolation module.
   // TODO(benh): Seems like the isolation module should really be
@@ -409,18 +410,6 @@ void Slave::finalize()
   // TODO(vinod): Wait until all the executors have terminated.
   terminate(isolationModule);
   wait(isolationModule);
-
-  // We send an unregister message to the master here, so that it can
-  // remove the slave. This is important because lot of our tests terminate()
-  // the slave and expect the master to remove the slave as a consequence.
-  // But since the master no longer removes the slave when a slave exits, we
-  // send an UnregisterSlaveMessage to master so that it removes the slave.
-  // This is OK because, finalize() is only ever going to be called in tests!
-  if (master && info.has_id()) {
-    UnregisterSlaveMessage message;
-    message.mutable_slave_id()->CopyFrom(info.id());
-    send(master, message);
-  }
 }
 
 

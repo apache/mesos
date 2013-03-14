@@ -153,13 +153,6 @@ public:
 
     ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-    // Always, drop the unregisterSlaveMessage sent by a slave when
-    // it is terminated. This will stop the master from removing the
-    // slave, which is what we expect to happen in the real world
-    // when a slave exits.
-    EXPECT_MESSAGE(Eq(UnregisterSlaveMessage().GetTypeName()), _, _)
-      .WillRepeatedly(Return(true));
-
     a = new Allocator(&allocator);
     m = new Master(a, &files);
     master = process::spawn(m);
@@ -174,10 +167,6 @@ public:
 
   virtual void TearDown()
   {
-    // Wait for the executor to exit.
-    EXPECT_MESSAGE(Eq(UnregisterSlaveMessage().GetTypeName()), _, _)
-      .WillRepeatedly(Return(true));
-
     stopSlave(true);
 
     process::terminate(master);

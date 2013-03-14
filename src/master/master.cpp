@@ -515,6 +515,24 @@ void Master::exited(const UPID& pid)
       return;
     }
   }
+
+  foreachvalue (Slave* slave, slaves) {
+    if (slave->pid == pid) {
+      LOG(INFO) << "Slave " << slave->id << "(" << slave->info.hostname()
+                << ") disconnected";
+
+      // Remove the slave, if it is not checkpointing.
+      // TODO(vinod): Even if a slave is checkpointing, transition all
+      // tasks of frameworks that have disabled checkpointing.
+      if (!slave->info.checkpoint()) {
+        LOG(INFO) << "Removing disconnected slave " << slave->id
+                  << "(" << slave->info.hostname() << ") "
+                  << "because it is not checkpointing!";
+        removeSlave(slave);
+        return;
+      }
+    }
+  }
 }
 
 

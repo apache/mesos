@@ -273,7 +273,9 @@ inline bool operator == (const SlaveInfo& left, const SlaveInfo& right)
     left.has_webui_port() == right.has_webui_port() &&
     (!left.has_webui_port() || (left.webui_port() == right.webui_port())) &&
     left.has_id() == right.has_id() &&
-    (!left.has_id() || (left.id() == right.id()));
+    (!left.has_id() || (left.id() == right.id())) &&
+    left.has_checkpoint() == right.has_checkpoint() &&
+    (!left.has_checkpoint() || (left.checkpoint() == right.checkpoint()));
 }
 
 
