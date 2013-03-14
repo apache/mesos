@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# We unset the DYLD_LIBRARY_PATH environment variable because the
+# dynamic linker on OSX 10.8 complains if this path is set when
+# running setuid or setgid programs, e.g., /bin/ps used in this
+# script.
+unset DYLD_LIBRARY_PATH
+
 PID=
 SIGNAL="TERM"
 KILLGROUPS=0
@@ -189,7 +195,9 @@ killtree() {
 	# First get the process session id.
         MYPSID=$(ps axo pid,sess | awk '{ if ($1 == '${MYPID}') print $2 }')
 
-	if [[ ! -z ${MYPSID} ]]; then
+	# We check for session id not being "0", because on OSX 10.8
+	# the session id of all processes as reported by 'ps' is "0"!
+	if [[ ${MYPSID} -ne "0" && ! -z ${MYPSID} ]]; then
             # Now get all members.
             SESSPIDS=$(ps axo sess,pid \
                 | awk '{ if ($1 == "'${MYPSID}'") print $2 }')
