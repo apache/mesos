@@ -182,7 +182,7 @@ private:
          READY,
 	 RUNNING,
          BLOCKED,
-	 FINISHED } state;
+	 TERMINATED } state;
 
   // Mutex protecting internals.
   // TODO(benh): Consider replacing with a spinlock, on multi-core systems.

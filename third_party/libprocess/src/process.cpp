@@ -2443,14 +2443,14 @@ void ProcessManager::cleanup(ProcessBase* process)
       __sync_synchronize();
     }
 
+    deque<Event*> events;
+
     process->lock();
     {
-      // Free any pending events.
-      while (!process->events.empty()) {
-        Event* event = process->events.front();
-        process->events.pop_front();
-        delete event;
-      }
+      // Grab any pending events but defer deleting them until after
+      // we release the process' lock (for an explanation, see below).
+      events = process->events;
+      process->events.clear();
 
       processes.erase(process->pid.id);
  
@@ -2463,9 +2463,22 @@ void ProcessManager::cleanup(ProcessBase* process)
       }
 
       CHECK(process->refs == 0);
-      process->state = ProcessBase::FINISHED;
+      process->state = ProcessBase::TERMINATED;
     }
     process->unlock();
+
+    // We defer deleting the events until after we release the
+    // process' lock because the process of deleting might cause
+    // another event to get enqueued for this process resulting in a
+    // deadlock (e.g., deleting an event causes a future to get
+    // deleted which has discarded callbacks which defer/dispatch to
+    // the process we're cleaning up which attemps to enqueue which
+    // blocks on the lock).
+    while (!events.empty()) {
+      Event* event = events.front();
+      events.pop_front();
+      delete event;
+    }
 
     // Note that we don't remove the process from the clock during
     // cleanup, but rather the clock is reset for a process when it is
@@ -2567,7 +2580,7 @@ bool ProcessManager::wait(const UPID& pid)
   synchronized (processes) {
     if (processes.count(pid.id) > 0) {
       process = processes[pid.id];
-      CHECK(process->state != ProcessBase::FINISHED);
+      CHECK(process->state != ProcessBase::TERMINATED);
 
       // Check and see if a gate already exists.
       if (gates.find(process) == gates.end()) {
@@ -2841,7 +2854,7 @@ void ProcessBase::enqueue(Event* event, bool inject)
 
   lock();
   {
-    if (state != FINISHED) {
+    if (state != TERMINATED) {
       if (!inject) {
         events.push_back(event);
       } else {
