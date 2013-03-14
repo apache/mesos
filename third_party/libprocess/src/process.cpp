@@ -2434,7 +2434,7 @@ void ProcessManager::cleanup(ProcessBase* process)
 
   // Possible gate non-libprocess threads are waiting at.
   Gate* gate = NULL;
- 
+
   // Remove process.
   synchronized (processes) {
     // Wait for all process references to get cleaned up.
@@ -2443,14 +2443,19 @@ void ProcessManager::cleanup(ProcessBase* process)
       __sync_synchronize();
     }
 
-    deque<Event*> events;
-
     process->lock();
     {
-      // Grab any pending events but defer deleting them until after
-      // we release the process' lock (for an explanation, see below).
-      events = process->events;
-      process->events.clear();
+      // Set the terminating state so that while we are deleting any
+      // pending events we don't attempt to enqueue anything more to
+      // this process (or invoke the filter for that matter).
+      process->state = ProcessBase::TERMINATING;
+
+      // Delete any pending events.
+      while (!process->events.empty()) {
+        Event* event = process->events.front();
+        process->events.pop_front();
+        delete event;
+      }
 
       processes.erase(process->pid.id);
  
@@ -2467,26 +2472,13 @@ void ProcessManager::cleanup(ProcessBase* process)
     }
     process->unlock();
 
-    // We defer deleting the events until after we release the
-    // process' lock because the process of deleting might cause
-    // another event to get enqueued for this process resulting in a
-    // deadlock (e.g., deleting an event causes a future to get
-    // deleted which has discarded callbacks which defer/dispatch to
-    // the process we're cleaning up which attemps to enqueue which
-    // blocks on the lock).
-    while (!events.empty()) {
-      Event* event = events.front();
-      events.pop_front();
-      delete event;
-    }
-
     // Note that we don't remove the process from the clock during
     // cleanup, but rather the clock is reset for a process when it is
     // created (see ProcessBase::ProcessBase). We do this so that
     // SocketManager::exited can access the current time of the
-    // process to "order" exited events. It might make sense to
-    // consider storing the time of the process as a field of the
-    // class instead.
+    // process to "order" exited events. TODO(benh): It might make
+    // sense to consider storing the time of the process as a field of
+    // the class instead.
 
     // Now we tell the socket manager about this process exiting so
     // that it can create exited events for linked processes. We
@@ -2497,9 +2489,10 @@ void ProcessManager::cleanup(ProcessBase* process)
     // removed the process above) thus causing an exited event, which
     // could cause the process to get deleted (e.g., the garbage
     // collector might link _after_ the process has already been
-    // removed, thus getting an exited event but we don't want that
-    // exited event to fire until after we have used the process in
-    // SocketManager::exited.
+    // removed from processes thus getting an exited event but we
+    // don't want that exited event to fire and actually delete the
+    // process until after we have used the process in
+    // SocketManager::exited).
     socket_manager->exited(process);
   }
 
@@ -2774,7 +2767,11 @@ ProcessBase::ProcessBase(const string& id)
 
   state = ProcessBase::BOTTOM;
 
-  pthread_mutex_init(&m, NULL);
+  pthread_mutexattr_t attr;
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&m, &attr);
+  pthread_mutexattr_destroy(&attr);
 
   refs = 0;
 
@@ -2806,54 +2803,54 @@ void ProcessBase::enqueue(Event* event, bool inject)
 {
   CHECK(event != NULL);
 
-  // TODO(benh): Put filter inside lock statement below so that we can
-  // guarantee the order of the messages seen by a filter are the same
-  // as the order of messages seen by the process. Right now two
-  // different threads might execute the filter code and then enqueue
-  // the messages in non-deterministic orderings (i.e., there are two
-  // "atomic" blocks, the filter code here and the enqueue code
-  // below).
-  synchronized (filterer) {
-    if (filterer != NULL) {
-      bool filter = false;
-      struct FilterVisitor : EventVisitor
-      {
-        FilterVisitor(bool* _filter) : filter(_filter) {}
-
-        virtual void visit(const MessageEvent& event)
-        {
-          *filter = filterer->filter(event);
-        }
-
-        virtual void visit(const DispatchEvent& event)
-        {
-          *filter = filterer->filter(event);
-        }
-
-        virtual void visit(const HttpEvent& event)
-        {
-          *filter = filterer->filter(event);
-        }
-
-        virtual void visit(const ExitedEvent& event)
-        {
-          *filter = filterer->filter(event);
-        }
-
-        bool* filter;
-      } visitor(&filter);
-
-      event->visit(&visitor);
-
-      if (filter) {
-        delete event;
-        return;
-      }
-    }
-  }
-
   lock();
   {
+    if (state == TERMINATING) {
+      delete event;
+      unlock();
+      return;
+    }
+
+    synchronized (filterer) {
+      if (filterer != NULL) {
+        bool filter = false;
+        struct FilterVisitor : EventVisitor
+        {
+          FilterVisitor(bool* _filter) : filter(_filter) {}
+
+          virtual void visit(const MessageEvent& event)
+          {
+            *filter = filterer->filter(event);
+          }
+
+          virtual void visit(const DispatchEvent& event)
+          {
+            *filter = filterer->filter(event);
+          }
+
+          virtual void visit(const HttpEvent& event)
+          {
+            *filter = filterer->filter(event);
+          }
+
+          virtual void visit(const ExitedEvent& event)
+          {
+            *filter = filterer->filter(event);
+          }
+
+          bool* filter;
+        } visitor(&filter);
+
+        event->visit(&visitor);
+
+        if (filter) {
+          delete event;
+          unlock();
+          return;
+        }
+      }
+    }
+
     if (state != TERMINATED) {
       if (!inject) {
         events.push_back(event);

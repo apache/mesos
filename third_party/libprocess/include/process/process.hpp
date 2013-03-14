@@ -182,6 +182,7 @@ private:
          READY,
 	 RUNNING,
          BLOCKED,
+         TERMINATING,
 	 TERMINATED } state;
 
   // Mutex protecting internals.
