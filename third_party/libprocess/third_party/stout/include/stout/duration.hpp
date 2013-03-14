@@ -56,89 +56,97 @@ public:
     return Error("Invalid duration '" + s + "'");
   }
 
-  Duration() : value(0.0) {}
+  Duration() : seconds(0.0) {}
 
-  double ns()    const { return value; }
-  double us()    const { return value / MICROSECONDS; }
-  double ms()    const { return value / MILLISECONDS; }
-  double secs()  const { return value / SECONDS; }
-  double mins()  const { return value / MINUTES; }
-  double hrs()   const { return value / HOURS; }
-  double days()  const { return value / DAYS; }
-  double weeks() const { return value / WEEKS; }
+  double ns() const    { return seconds / NANOSECONDS; }
+  double us() const    { return seconds / MICROSECONDS; }
+  double ms() const    { return seconds / MILLISECONDS; }
+  double secs() const  { return seconds / SECONDS; }
+  double mins() const  { return seconds / MINUTES; }
+  double hrs() const   { return seconds / HOURS; }
+  double days() const  { return seconds / DAYS; }
+  double weeks() const { return seconds / WEEKS; }
 
-  bool operator <  (const Duration& that) const { return value <  that.value; }
-  bool operator <= (const Duration& that) const { return value <= that.value; }
-  bool operator >  (const Duration& that) const { return value >  that.value; }
-  bool operator >= (const Duration& that) const { return value >= that.value; }
-  bool operator == (const Duration& that) const { return value == that.value; }
-  bool operator != (const Duration& that) const { return value != that.value; }
+  bool operator <  (const Duration& d) const { return seconds <  d.seconds; }
+  bool operator <= (const Duration& d) const { return seconds <= d.seconds; }
+  bool operator >  (const Duration& d) const { return seconds >  d.seconds; }
+  bool operator >= (const Duration& d) const { return seconds >= d.seconds; }
+  bool operator == (const Duration& d) const { return seconds == d.seconds; }
+  bool operator != (const Duration& d) const { return seconds != d.seconds; }
 
   // TODO(vinod): Overload arithmetic operators.
 
 protected:
-  static const uint64_t NANOSECONDS  =    1;
-  static const uint64_t MICROSECONDS = 1000 * NANOSECONDS;
-  static const uint64_t MILLISECONDS = 1000 * MICROSECONDS;
-  static const uint64_t SECONDS      = 1000 * MILLISECONDS;
-  static const uint64_t MINUTES      =   60 * SECONDS;
-  static const uint64_t HOURS        =   60 * MINUTES;
-  static const uint64_t DAYS         =   24 * HOURS;
-  static const uint64_t WEEKS        =    7 * DAYS;
+  static const double NANOSECONDS =  0.000000001;
+  static const double MICROSECONDS = 0.000001;
+  static const double MILLISECONDS = 0.001;
+  static const uint64_t SECONDS    = 1;
+  static const uint64_t MINUTES    = 60 * SECONDS;
+  static const uint64_t HOURS      = 60 * MINUTES;
+  static const uint64_t DAYS       = 24 * HOURS;
+  static const uint64_t WEEKS      = 7 * DAYS;
 
-  Duration(double _value, uint64_t _unit) : value(_value * _unit) {}
+  Duration(double value, double unit)
+    : seconds(value * unit) {}
 
 private:
-  double value;
+  double seconds;
 };
 
 
 class Nanoseconds : public Duration
 {
 public:
-  explicit Nanoseconds(double value) : Duration(value, NANOSECONDS) {}
+  explicit Nanoseconds(double nanoseconds)
+    : Duration(nanoseconds, NANOSECONDS) {}
 };
 
 
 class Microseconds : public Duration
 {
 public:
-  explicit Microseconds(double value) : Duration(value, MICROSECONDS) {}
+  explicit Microseconds(double microseconds)
+    : Duration(microseconds, MICROSECONDS) {}
 };
 
 
 class Milliseconds : public Duration
 {
 public:
-  explicit Milliseconds(double value) : Duration(value, MILLISECONDS) {}
+  explicit Milliseconds(double milliseconds)
+    : Duration(milliseconds, MILLISECONDS) {}
 };
 
 
 class Seconds : public Duration
 {
 public:
-  explicit Seconds(double value) : Duration(value, SECONDS) {}
+  explicit Seconds(double seconds)
+    : Duration(seconds, SECONDS) {}
 };
 
 
 class Minutes : public Duration
 {
 public:
-  explicit Minutes(double value) : Duration(value, MINUTES) {}
+  explicit Minutes(double minutes)
+    : Duration(minutes, MINUTES) {}
 };
 
 
 class Hours : public Duration
 {
 public:
-  explicit Hours(double value) : Duration(value, HOURS) {}
+  explicit Hours(double hours)
+    : Duration(hours, HOURS) {}
 };
 
 
 class Days : public Duration
 {
 public:
-  explicit Days(double value) : Duration(value, DAYS) {}
+  explicit Days(double days)
+    : Duration(days, DAYS) {}
 };
 
 
