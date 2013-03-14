@@ -954,6 +954,14 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
     LOG(INFO) << "Updating framework " << frameworkId
               << " pid to " <<pid;
     framework->pid = pid;
+
+    // Checkpoint the framework pid.
+    const string& path = paths::getFrameworkPidPath(
+        paths::getMetaRootDir(flags.work_dir),
+        info.id(),
+        frameworkId);
+
+    CHECK_SOME(state::checkpoint(path, framework->pid));
   }
 }
 

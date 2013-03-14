@@ -434,6 +434,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
         Trigger(&registerExecutorMsg),
         Return(false)));
 
+  trigger updateFrameworkMsg;
+  EXPECT_MESSAGE(Eq(UpdateFrameworkMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(Trigger(&updateFrameworkMsg),
+                    Return(false)));
+
   trigger statusUpdateAckMsg;
   EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(Trigger(&statusUpdateAckMsg),
@@ -483,6 +488,9 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 
   // Restart the slave.
   this->startSlave();
+
+  // Wait for updated framework pid.
+  WAIT_UNTIL(updateFrameworkMsg);
 
   WAIT_UNTIL(statusUpdateCall);
 

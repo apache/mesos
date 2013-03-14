@@ -956,7 +956,8 @@ void Master::reregisterSlave(const SlaveID& slaveId,
     if (slave != NULL) {
       // NOTE: This handles the case where a slave tries to
       // re-register with an existing master (e.g. because of a
-      // spurious zookeeper session expiration).
+      // spurious Zookeeper session expiration or after the slave
+      // recovers after a restart).
       // For now, we assume this slave is not nefarious (eventually
       // this will be handled by orthogonal security measures like key
       // based authentication).
@@ -968,8 +969,12 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       SlaveReregisteredMessage message;
       message.mutable_slave_id()->MergeFrom(slave->id);
       reply(message);
+
+      // Update the slave pid and relink to it.
+      slave->pid = from;
+      link(slave->pid);
     } else {
-      Slave* slave = new Slave(slaveInfo, slaveId, from, Clock::now());
+      slave = new Slave(slaveInfo, slaveId, from, Clock::now());
 
       LOG(INFO) << "Attempting to re-register slave " << slave->id << " at "
                 << slave->pid << " (" << slave->info.hostname() << ")";
@@ -991,6 +996,21 @@ void Master::reregisterSlave(const SlaveID& slaveId,
 //                      << " because not in allocated set of slaves!";
 //         reply(ShutdownMessage());
 //       }
+    }
+
+    // Send the latest framework pids to the slave.
+    CHECK_NOTNULL(slave);
+    hashset<UPID> pids;
+    foreach (const Task& task, tasks) {
+      Framework* framework = getFramework(task.framework_id());
+      if (framework != NULL && !pids.contains(framework->pid)) {
+        UpdateFrameworkMessage message;
+        message.mutable_framework_id()->MergeFrom(framework->id);
+        message.set_pid(framework->pid);
+        send(slave->pid, message);
+
+        pids.insert(framework->pid);
+      }
     }
   }
 }
@@ -1803,16 +1823,11 @@ void Master::readdSlave(Slave* slave,
     // Try and add the task to the framework too, but since the
     // framework might not yet be connected we won't be able to
     // add them. However, when the framework connects later we
-    // will add them then. We also tell this slave the current
-    // framework pid for this task. Again, we do the same thing
+    // will add them then. Again, we do the same thing
     // if a framework currently isn't registered.
     Framework* framework = getFramework(task.framework_id());
     if (framework != NULL) {
       framework->addTask(t);
-      UpdateFrameworkMessage message;
-      message.mutable_framework_id()->MergeFrom(framework->id);
-      message.set_pid(framework->pid);
-      send(slave->pid, message);
     } else {
       // TODO(benh): We should really put a timeout on how long we
       // keep tasks running on a slave that never have frameworks
