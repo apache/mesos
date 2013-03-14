@@ -53,38 +53,37 @@ public:
 };
 
 
-// Returns true if we should enable the provided test. For now, this
-// ONLY disables test cases and tests in three circumstances:
-//   (1) The test case, test, or type parameter contains the string
-//       'ROOT' but the test is being run via a non-root user.
-//   (2) The test case, test, or type parameter contains the string
-//       'CGROUPS' but cgroups are not supported on this machine.
-//   (3) The test case, test, or type parameter contains the string
-//       'CgroupsIsolationModule', but is being run via a non-root
-//       user, or cgroups are not supported on this machine.
+// Returns true if we should enable the provided test. Similar to how
+// tests can be disabled using the 'DISABLED_' prefix on a test case
+// name or test name, we use 'ROOT_' and 'CGROUPS_' prefixes to only
+// enable tests based on whether or not the current user is root or
+// cgroups support is detected. Both 'ROOT_' and 'CGROUPS_' can be
+// composed in any order, but must come after 'DISABLED_'. In
+// addition, we disable tests that attempt to use the
+// CgroupsIsolationModule type parameter if the current user is not
+// root or cgroups is not supported.
 // TODO(benh): Provide a generic way to enable/disable tests by
 // registering "filter" functions.
 static bool enable(const ::testing::TestInfo& test)
 {
-  // We check (1), (2), and (3) from above against the test case
-  // name, the test name, and the type parameter (when present).
+  // First check the test case name and test name.
   list<string> names;
   names.push_back(test.test_case_name());
   names.push_back(test.name());
-  if (test.type_param() != NULL) {
-    names.push_back(test.type_param());
-  }
 
   foreach (const string& name, names) {
-    if (strings::contains(name, "ROOT") && os::user() != "root") {
+    if (strings::contains(name, "ROOT_") && os::user() != "root") {
       return false;
     }
 
-    if (strings::contains(name, "CGROUPS") && !os::exists("/proc/cgroups")) {
+    if (strings::contains(name, "CGROUPS_") && !os::exists("/proc/cgroups")) {
       return false;
     }
+  }
 
-    if (strings::contains(name, "CgroupsIsolationModule") &&
+  // Now check the type parameter.
+  if (test.type_param() != NULL) {
+    if (string(test.type_param()) == "CgroupsIsolationModule" &&
         (os::user() != "root" || !os::exists("/proc/cgroups"))) {
       return false;
     }
@@ -129,6 +128,7 @@ Environment::Environment()
       const ::testing::TestInfo* testInfo = testCase->GetTestInfo(j);
 
       if (!enable(*testCase->GetTestInfo(j))) {
+        // Append 'TestCase.TestName:'.
         negative.append(testInfo->test_case_name());
         negative.append(".");
         negative.append(testInfo->name());
