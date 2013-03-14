@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include <list>
 #include <string>
 
 #include <process/clock.hpp>
@@ -29,6 +30,9 @@
 
 #include "tests/environment.hpp"
 #include "tests/filter.hpp"
+
+using std::list;
+using std::string;
 
 namespace mesos {
 namespace internal {
@@ -49,25 +53,41 @@ public:
 };
 
 
-// Returns true if we should enable a test case or test with the given
-// name. For now, this ONLY disables test cases and tests in two
-// circumstances:
-//   (1) The test case or test contains the string 'ROOT' but the test
-//       is being run via a non-root user.
-//   (2) The test case or test contains the string 'CGROUPS' but
-//       cgroups are not supported on this machine.
+// Returns true if we should enable the provided test. For now, this
+// ONLY disables test cases and tests in three circumstances:
+//   (1) The test case, test, or type parameter contains the string
+//       'ROOT' but the test is being run via a non-root user.
+//   (2) The test case, test, or type parameter contains the string
+//       'CGROUPS' but cgroups are not supported on this machine.
+//   (3) The test case, test, or type parameter contains the string
+//       'CgroupsIsolationModule', but is being run via a non-root
+//       user, or cgroups are not supported on this machine.
 // TODO(benh): Provide a generic way to enable/disable tests by
-// registering "filter" functions (also, make these functions take
-// ::testing::TestCase and ::testing::TestInfo instead of just a
-// "name").
-static bool enable(const std::string& name)
+// registering "filter" functions.
+static bool enable(const ::testing::TestInfo& test)
 {
-  if (strings::contains(name, "ROOT") && os::user() != "root") {
-    return false;
+  // We check (1), (2), and (3) from above against the test case
+  // name, the test name, and the type parameter (when present).
+  list<string> names;
+  names.push_back(test.test_case_name());
+  names.push_back(test.name());
+  if (test.type_param() != NULL) {
+    names.push_back(test.type_param());
   }
 
-  if (strings::contains(name, "CGROUPS") && !os::exists("/proc/cgroups")) {
-    return false;
+  foreach (const string& name, names) {
+    if (strings::contains(name, "ROOT") && os::user() != "root") {
+      return false;
+    }
+
+    if (strings::contains(name, "CGROUPS") && !os::exists("/proc/cgroups")) {
+      return false;
+    }
+
+    if (strings::contains(name, "CgroupsIsolationModule") &&
+        (os::user() != "root" || !os::exists("/proc/cgroups"))) {
+      return false;
+    }
   }
 
   return true;
@@ -84,12 +104,12 @@ Environment::Environment()
 {
   // First we split the current filter into positive and negative
   // components (which are separated by a '-').
-  const std::string& filter = ::testing::GTEST_FLAG(filter);
-  std::string positive;
-  std::string negative;
+  const string& filter = ::testing::GTEST_FLAG(filter);
+  string positive;
+  string negative;
 
   size_t dash = filter.find('-');
-  if (dash != std::string::npos) {
+  if (dash != string::npos) {
     positive = filter.substr(0, dash);
     negative = filter.substr(dash + 1);
   } else {
@@ -107,12 +127,12 @@ Environment::Environment()
     const ::testing::TestCase* testCase = unitTest->GetTestCase(i);
     for (int j = 0; j < testCase->total_test_count(); j++) {
       const ::testing::TestInfo* testInfo = testCase->GetTestInfo(j);
-      const std::string& testCaseName = testInfo->test_case_name();
-      const std::string& testName = testInfo->name();
-      if (!enable(testCaseName)) {
-        negative.append(testCaseName + ".*:");
-      } else if (!enable(testName)) {
-        negative.append(testCaseName + "." + testName + ":");
+
+      if (!enable(*testCase->GetTestInfo(j))) {
+        negative.append(testInfo->test_case_name());
+        negative.append(".");
+        negative.append(testInfo->name());
+        negative.append(":");
       }
     }
   }
