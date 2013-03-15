@@ -543,10 +543,7 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);

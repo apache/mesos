@@ -133,10 +133,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownTrigger));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
   Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
@@ -280,10 +277,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownTrigger));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
   Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 

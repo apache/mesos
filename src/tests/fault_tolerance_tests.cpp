@@ -393,10 +393,7 @@ TEST_F(FaultToleranceTest, DISABLED_TaskLost)
   EXPECT_CALL(exec, shutdown(_))
     .Times(0);
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -492,10 +489,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -621,10 +615,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -725,10 +716,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -850,10 +838,7 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);

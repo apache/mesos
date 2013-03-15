@@ -105,10 +105,7 @@ TEST_F(MasterTest, TaskRunning)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -199,10 +196,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   slaveFlags.executor_shutdown_grace_period = Seconds(0.0);
   Slave s(slaveFlags, true, &isolator, &files);
@@ -296,10 +290,7 @@ TEST_F(MasterTest, KillTask)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -391,10 +382,7 @@ TEST_F(MasterTest, StatusUpdateAck)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -479,10 +467,7 @@ TEST_F(MasterTest, RecoverResources)
 
   MockExecutor exec;
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   setSlaveResources("cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
 
@@ -633,10 +618,7 @@ TEST_F(MasterTest, FrameworkMessage)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -877,10 +859,7 @@ TEST_F(MasterTest, MasterInfo)
 
   MockExecutor exec;
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -931,10 +910,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
 
   MockExecutor exec;
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -1032,10 +1008,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
 
   MockExecutor exec;
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -1100,10 +1073,7 @@ TEST_F(MasterTest, MasterLost)
 
   MockExecutor exec;
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);

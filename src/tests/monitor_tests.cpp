@@ -74,8 +74,7 @@ TEST(MonitorTest, WatchUnwatch)
   statistics.set_cpu_system_time(1);
   statistics.set_memory_rss(1024);
 
-  std::map<ExecutorID, Executor*> execs;
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator;
 
   process::spawn(isolator);
 

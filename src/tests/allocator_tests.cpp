@@ -154,8 +154,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   Master m(&a, &files);
   PID<Master> master = process::spawn(m);
 
-  map<ExecutorID, Executor*> execs;
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator;
 
   setSlaveResources("cpus:2;mem:1024;disk:0");
   Slave s(slaveFlags, true, &isolator, &files);
@@ -319,10 +318,8 @@ TYPED_TEST(AllocatorTest, MockAllocator)
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -405,10 +402,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave1 = process::spawn(s);
@@ -523,9 +517,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   Master m(this->a, &files);
   PID<Master> master = process::spawn(&m);
 
-  map<ExecutorID, Executor*> execs;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator;
 
   Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -642,10 +634,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   EXPECT_CALL(exec, shutdown(_));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   EXPECT_CALL(isolator, resourcesChanged(_, _, _));
 
@@ -772,10 +761,8 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
     .WillOnce(DoDefault())
     .WillOnce(Trigger(&shutdownTrigger));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
-  TestingIsolator isolator(execs);
   EXPECT_CALL(isolator, resourcesChanged(_, _, _))
     .Times(2);
 
@@ -896,10 +883,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   EXPECT_CALL(exec, shutdown(_));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   EXPECT_CALL(isolator, resourcesChanged(_, _, _));
 
@@ -949,7 +933,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   WAIT_UNTIL(slaveRemovedTrigger1);
 
-  TestingIsolator isolator2(execs);
+  TestingIsolator isolator2(DEFAULT_EXECUTOR_ID, &exec);
 
   this->setSlaveResources("cpus:3;mem:256");
   Slave s2(this->slaveFlags, true, &isolator2, &files);
@@ -1022,10 +1006,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownTrigger));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   EXPECT_CALL(isolator, resourcesChanged(_, _, _));
 
@@ -1153,10 +1134,8 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownTrigger));
 
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
-  TestingIsolator isolator(execs);
   EXPECT_CALL(isolator, resourcesChanged(_, _, _))
     .Times(2);
 
@@ -1263,10 +1242,8 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   PID<Master> master = process::spawn(&m);
 
   MockExecutor exec;
-  map<ExecutorID, Executor*> execs;
-  execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolator isolator(execs);
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);

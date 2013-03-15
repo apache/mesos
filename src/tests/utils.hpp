@@ -764,18 +764,21 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
 class TestingIsolator : public slave::Isolator
 {
 public:
+  TestingIsolator()
+  {
+    setup();
+  }
+
   TestingIsolator(const std::map<ExecutorID, Executor*>& _executors)
     : executors(_executors)
   {
-    EXPECT_CALL(*this, resourcesChanged(testing::_, testing::_, testing::_))
-      .Times(testing::AnyNumber());
+    setup();
+  }
 
-    ResourceStatistics empty;
-    EXPECT_CALL(*this, usage(testing::_, testing::_))
-      .WillRepeatedly(Return(empty));
-
-    EXPECT_CALL(*this, recover(testing::_))
-      .WillRepeatedly(Return(Nothing()));
+  TestingIsolator(const ExecutorID& executorId, Executor* executor)
+  {
+    executors[executorId] = executor;
+    setup();
   }
 
   virtual ~TestingIsolator() {}
@@ -878,6 +881,19 @@ public:
   std::map<ExecutorID, std::string> directories;
 
 private:
+  // Helper to setup default expectations.
+  void setup()
+  {
+    EXPECT_CALL(*this, resourcesChanged(testing::_, testing::_, testing::_))
+      .Times(testing::AnyNumber());
+
+    EXPECT_CALL(*this, usage(testing::_, testing::_))
+      .WillRepeatedly(Return(ResourceStatistics()));
+
+    EXPECT_CALL(*this, recover(testing::_))
+      .WillRepeatedly(Return(Nothing()));
+  }
+
   std::map<ExecutorID, Executor*> executors;
   std::map<ExecutorID, MesosExecutorDriver*> drivers;
   process::PID<slave::Slave> slave;
