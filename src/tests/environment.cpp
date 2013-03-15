@@ -83,7 +83,8 @@ static bool enable(const ::testing::TestInfo& test)
 
   // Now check the type parameter.
   if (test.type_param() != NULL) {
-    if (string(test.type_param()) == "CgroupsIsolationModule" &&
+    const string& type = test.type_param();
+    if (strings::contains(type, "CgroupsIsolationModule") &&
         (os::user() != "root" || !os::exists("/proc/cgroups"))) {
       return false;
     }
