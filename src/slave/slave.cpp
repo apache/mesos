@@ -85,7 +85,7 @@ Slave::Slave(const Resources& _resources,
     statusUpdateManager(new StatusUpdateManager()) {}
 
 
-Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
+Slave::Slave(const slave::Flags& _flags,
              bool _local,
              Isolator* _isolator,
              Files* _files)

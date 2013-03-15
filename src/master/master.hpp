@@ -76,7 +76,7 @@ public:
   Master(Allocator* allocator, Files* files);
   Master(Allocator* allocator,
          Files* files,
-         const flags::Flags<logging::Flags, master::Flags>& flags);
+         const Flags& flags);
 
   virtual ~Master();
 
@@ -214,7 +214,7 @@ private:
       const Master& master,
       const process::http::Request& request);
 
-  const flags::Flags<logging::Flags, master::Flags> flags;
+  const Flags flags;
 
   UPID leader; // Current leading master.
 

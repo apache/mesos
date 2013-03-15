@@ -150,7 +150,7 @@ protected:
     slaveFlags.resources = Option<std::string>::some(resources);
   }
 
-  flags::Flags<logging::Flags, slave::Flags> slaveFlags;
+  slave::Flags slaveFlags;
   const std::string hierarchy;
 };
 

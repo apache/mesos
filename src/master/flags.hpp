@@ -25,11 +25,13 @@
 
 #include "flags/flags.hpp"
 
+#include "logging/flags.hpp"
+
 namespace mesos {
 namespace internal {
 namespace master {
 
-class Flags : public virtual flags::FlagsBase
+class Flags : public logging::Flags
 {
 public:
   Flags()

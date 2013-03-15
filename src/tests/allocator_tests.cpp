@@ -1257,7 +1257,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
   Files files;
-  flags::Flags<logging::Flags, master::Flags> masterFlags;
+  master::Flags masterFlags;
   masterFlags.whitelist = "file://" + path; // TODO(benh): Put in /tmp.
   Master m(this->a, &files, masterFlags);
   PID<Master> master = process::spawn(&m);

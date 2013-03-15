@@ -150,11 +150,11 @@ protected:
   TaskStatus status;
   PID<Master> master;
   PID<Slave> slave;
-  static flags::Flags<logging::Flags, slave::Flags> flags;
+  static slave::Flags flags;
 };
 
 // Initialize static members here.
-flags::Flags<logging::Flags, slave::Flags> StatusUpdateManagerTest::flags;
+slave::Flags StatusUpdateManagerTest::flags;
 
 
 TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)

@@ -1019,7 +1019,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
   HierarchicalDRFAllocatorProcess allocator;
   Allocator a(&allocator);
   Files files;
-  flags::Flags<logging::Flags, master::Flags> masterFlags;
+  master::Flags masterFlags;
   masterFlags.whitelist = "file://" + path;
   Master m(&a, &files, masterFlags);
   PID<Master> master = process::spawn(&m);

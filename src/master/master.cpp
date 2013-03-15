@@ -268,9 +268,7 @@ Master::Master(Allocator* _allocator, Files* _files)
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS) {}
 
 
-Master::Master(Allocator* _allocator,
-               Files* _files,
-               const flags::Flags<logging::Flags, master::Flags>& _flags)
+Master::Master(Allocator* _allocator, Files* _files, const Flags& _flags)
   : ProcessBase("master"),
     flags(_flags),
     allocator(_allocator),

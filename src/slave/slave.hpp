@@ -75,7 +75,7 @@ public:
         Isolator* isolator,
         Files* files);
 
-  Slave(const flags::Flags<logging::Flags, slave::Flags>& flags,
+  Slave(const Flags& flags,
         bool local,
         Isolator *isolator,
         Files* files);
@@ -247,7 +247,7 @@ private:
       const Slave& slave,
       const process::http::Request& request);
 
-  const flags::Flags<logging::Flags, slave::Flags> flags;
+  const Flags flags;
 
   bool local;
 

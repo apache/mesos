@@ -58,7 +58,7 @@ int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  flags::Flags<logging::Flags, master::Flags> flags;
+  master::Flags flags;
 
   // The following flags are executable specific (e.g., since we only
   // have one instance of libprocess per execution, we only want to
