@@ -154,6 +154,10 @@ protected:
   // reschedule offers that were assigned to this framework.
   void removeFramework(Framework* framework);
 
+  // Remove a framework from the slave, i.e., kill all of its tasks,
+  // remove its offers and reallocate its resources.
+  void removeFramework(Slave* slave, Framework* framework);
+
   // Add a slave.
   void addSlave(Slave* slave, bool reregister = false);
 

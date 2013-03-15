@@ -501,35 +501,67 @@ void Master::exited(const UPID& pid)
                 << failoverTimeout << " to failover";
 
       // Delay dispatching a message to ourselves for the timeout.
-      delay(failoverTimeout, self(),
-            &Master::frameworkFailoverTimeout,
-            framework->id, framework->reregisteredTime);
+    delay(failoverTimeout,
+          self(),
+          &Master::frameworkFailoverTimeout,
+          framework->id,
+          framework->reregisteredTime);
 
       // Remove the framework's offers.
       foreach (Offer* offer, utils::copy(framework->offers)) {
-        allocator->resourcesRecovered(offer->framework_id(),
-                                      offer->slave_id(),
-                                      Resources(offer->resources()));
+        allocator->resourcesRecovered(
+            offer->framework_id(),
+            offer->slave_id(),
+            Resources(offer->resources()));
+
         removeOffer(offer);
       }
       return;
     }
   }
 
+  // The semantics when a slave gets disconnected are as follows:
+  // 1) If the slave is not checkpointing, the slave is immediately
+  //    removed and all tasks running on it are transitioned to LOST.
+  //    No resources are recovered, because the slave is removed.
+  // 2) If the slave is checkpointing, the frameworks running on it
+  //    fall into one of the 2 cases:
+  //    2.1) Framework is checkpointing: No immediate action is taken.
+  //         The slave is given a chance to reconnect until the slave
+  //         observer times out (75s) and removes the slave (Case 1).
+  //    2.2) Framework is not-checkpointing: The slave is not removed
+  //         but the framework is removed from the slave's structs,
+  //         its tasks transitioned to LOST and resources recovered.
   foreachvalue (Slave* slave, slaves) {
     if (slave->pid == pid) {
       LOG(INFO) << "Slave " << slave->id << "(" << slave->info.hostname()
                 << ") disconnected";
 
       // Remove the slave, if it is not checkpointing.
-      // TODO(vinod): Even if a slave is checkpointing, transition all
-      // tasks of frameworks that have disabled checkpointing.
       if (!slave->info.checkpoint()) {
         LOG(INFO) << "Removing disconnected slave " << slave->id
                   << "(" << slave->info.hostname() << ") "
                   << "because it is not checkpointing!";
         removeSlave(slave);
         return;
+      } else {
+        // If a slave is checkpointing, remove frameworks from this
+        // slave that have disabled checkpointing.
+        hashset<FrameworkID> ids;
+        foreachvalue (Task* task, utils::copy(slave->tasks)) {
+          if (!ids.contains(task->framework_id())) {
+            ids.insert(task->framework_id());
+            Framework* framework = getFramework(task->framework_id());
+            if (framework != NULL && !framework->info.checkpoint()) {
+              LOG(INFO) << "Removing framework " << task->framework_id()
+                        << " from disconnected slave " << slave->id
+                        << "(" << slave->info.hostname() << ") "
+                        << "because it is not checkpointing!";
+
+              removeFramework(slave, framework);
+            }
+          }
+        }
       }
     }
   }
@@ -1760,6 +1792,68 @@ void Master::removeFramework(Framework* framework)
 }
 
 
+void Master::removeFramework(Slave* slave, Framework* framework)
+{
+  CHECK_NOTNULL(slave);
+  CHECK_NOTNULL(framework);
+
+  // Remove pointers to framework's tasks in slaves, and send status updates.
+  foreachvalue (Task* task, utils::copy(framework->tasks)) {
+    // A framework might not actually exist because the master failed
+    // over and the framework hasn't reconnected yet. For more info
+    // please see the comments in 'removeFramework(Framework*)'.
+    StatusUpdateMessage message;
+    StatusUpdate* update = message.mutable_update();
+    update->mutable_framework_id()->MergeFrom(task->framework_id());
+
+    if (task->has_executor_id()) {
+      update->mutable_executor_id()->MergeFrom(task->executor_id());
+    }
+
+    update->mutable_slave_id()->MergeFrom(task->slave_id());
+    TaskStatus* status = update->mutable_status();
+    status->mutable_task_id()->MergeFrom(task->task_id());
+    status->set_state(TASK_LOST);
+    status->set_message("Slave " + slave->info.hostname() + " disconnected");
+    update->set_timestamp(Clock::now());
+    update->set_uuid(UUID::random().toBytes());
+    send(framework->pid, message);
+
+    // Remove the task from slave and framework.
+    removeTask(task);
+  }
+
+  // Remove and rescind offers from this slave given to this framework.
+  foreach (Offer* offer, utils::copy(slave->offers)) {
+    if (framework->offers.contains(offer)) {
+      allocator->resourcesRecovered(
+          offer->framework_id(),
+          offer->slave_id(),
+          Resources(offer->resources()));
+
+      // Remove the offer from slave and framework.
+      removeOffer(offer, true); // Rescind.
+    }
+  }
+
+  // Remove the framework's executors from the slave and framework
+  // for proper resource accounting.
+  if (slave->executors.contains(framework->id)) {
+    foreachkey (const ExecutorID& executorId,
+                utils::copy(slave->executors[framework->id])) {
+
+      allocator->resourcesRecovered(
+          framework->id,
+          slave->id,
+          slave->executors[framework->id][executorId].resources());
+
+      framework->removeExecutor(slave->id, executorId);
+      slave->removeExecutor(framework->id, executorId);
+    }
+  }
+}
+
+
 void Master::addSlave(Slave* slave, bool reregister)
 {
   CHECK(slave != NULL);
@@ -1869,6 +1963,7 @@ void Master::removeSlave(Slave* slave)
   // Remove pointers to slave's tasks in frameworks, and send status updates
   foreachvalue (Task* task, utils::copy(slave->tasks)) {
     Framework* framework = getFramework(task->framework_id());
+
     // A framework might not actually exist because the master failed
     // over and the framework hasn't reconnected. This can be a tricky
     // situation for frameworks that want to have high-availability,
@@ -1956,9 +2051,8 @@ void Master::removeTask(Task* task)
   slave->removeTask(task);
 
   // Tell the allocator about the recovered resources.
-  allocator->resourcesRecovered(task->framework_id(),
-                                task->slave_id(),
-                                Resources(task->resources()));
+  allocator->resourcesRecovered(
+      task->framework_id(), task->slave_id(), Resources(task->resources()));
 
   delete task;
 }

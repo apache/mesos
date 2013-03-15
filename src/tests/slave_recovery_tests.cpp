@@ -141,10 +141,6 @@ public:
   static void SetUpTestCase()
   {
     IsolationTest<T>::SetUpTestCase();
-
-    // Enable checkpointing for the framework.
-    frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-    frameworkInfo.set_checkpoint(true);
   }
 
   virtual void SetUp()
@@ -183,12 +179,17 @@ protected:
     isolationModule = new T();
     s = new Slave(this->slaveFlags, true, isolationModule, &files);
     slave = process::spawn(s);
-
     detector = new BasicMasterDetector(master, slave, true);
+
+    running = true;
   }
 
   void stopSlave(bool shutdown = false)
   {
+    if (!running) {
+      return;
+    }
+
     delete detector;
 
     if (shutdown) {
@@ -198,8 +199,9 @@ protected:
     }
     process::wait(slave);
     delete s;
-
     delete isolationModule;
+
+    running = false;
   }
 
   HierarchicalDRFAllocatorProcess allocator;
@@ -209,16 +211,10 @@ protected:
   Slave* s;
   Files files;
   BasicMasterDetector* detector;
-  MockScheduler sched;
-  TaskStatus status;
   PID<Master> master;
   PID<Slave> slave;
-  static FrameworkInfo frameworkInfo;
+  bool running; // Is the slave running?
 };
-
-// Initialize static members here.
-template <typename T>
-FrameworkInfo SlaveRecoveryTest<T>::frameworkInfo;
 
 
 #ifdef __linux__
@@ -269,21 +265,27 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
         Return(false)));
 
   // Scheduler expectations.
+  MockScheduler sched;
   FrameworkID frameworkId;
-  EXPECT_CALL(this->sched, registered(_, _, _))
+  EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
   trigger resourceOffersCall;
   vector<Offer> offers;
-  EXPECT_CALL(this->sched, resourceOffers(_, _))
+  EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers),
                     Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
-  EXPECT_CALL(this->sched, statusUpdate(_, _))
+  EXPECT_CALL(sched, statusUpdate(_, _))
     .WillRepeatedly(Return());
 
-  MesosSchedulerDriver driver(&this->sched, this->frameworkInfo, this->master);
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
 
   driver.start();
 
@@ -435,25 +437,31 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
     .WillRepeatedly(Return(false));
 
   // Scheduler expectations.
+  MockScheduler sched;
   FrameworkID frameworkId;
-  EXPECT_CALL(this->sched, registered(_, _, _))
+  EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
   trigger resourceOffersCall;
   vector<Offer> offers;
-  EXPECT_CALL(this->sched, resourceOffers(_, _))
+  EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers),
                     Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
   TaskStatus status;
   trigger statusUpdateCall;
-  EXPECT_CALL(this->sched, statusUpdate(_, _))
+  EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(Return())
     .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
                     Trigger(&statusUpdateCall)));
 
-  MesosSchedulerDriver driver(&this->sched, this->frameworkInfo, this->master);
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
 
   driver.start();
 
@@ -514,23 +522,29 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
       Return(false)));
 
   // Scheduler expectations.
+  MockScheduler sched;
   FrameworkID frameworkId;
-  EXPECT_CALL(this->sched, registered(_, _, _));
+  EXPECT_CALL(sched, registered(_, _, _));
 
   trigger resourceOffersCall;
   vector<Offer> offers;
-  EXPECT_CALL(this->sched, resourceOffers(_, _))
+  EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
   TaskStatus status;
   trigger statusUpdateCall;
-  EXPECT_CALL(this->sched, statusUpdate(_, _))
+  EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
                     Trigger(&statusUpdateCall)))
     .WillRepeatedly(Return());
 
-  MesosSchedulerDriver driver(&this->sched, this->frameworkInfo, this->master);
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
 
   driver.start();
 
@@ -590,23 +604,29 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
         Return(true))); // Drop the executor registration message.
 
   // Scheduler expectations.
+  MockScheduler sched;
   FrameworkID frameworkId;
-  EXPECT_CALL(this->sched, registered(_, _, _));
+  EXPECT_CALL(sched, registered(_, _, _));
 
   trigger resourceOffersCall;
   vector<Offer> offers;
-  EXPECT_CALL(this->sched, resourceOffers(_, _))
+  EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
   TaskStatus status;
   trigger statusUpdateCall;
-  EXPECT_CALL(this->sched, statusUpdate(_, _))
+  EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
                     Trigger(&statusUpdateCall)))
     .WillRepeatedly(Return());
 
-  MesosSchedulerDriver driver(&this->sched, this->frameworkInfo, this->master);
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
 
   driver.start();
 
@@ -655,23 +675,29 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
         Return(false)));
 
   // Scheduler expectations.
+  MockScheduler sched;
   FrameworkID frameworkId;
-  EXPECT_CALL(this->sched, registered(_, _, _));
+  EXPECT_CALL(sched, registered(_, _, _));
 
   trigger resourceOffersCall;
   vector<Offer> offers;
-  EXPECT_CALL(this->sched, resourceOffers(_, _))
+  EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
   TaskStatus status;
   trigger statusUpdateCall1, statusUpdateCall2;
-  EXPECT_CALL(this->sched, statusUpdate(_, _))
+  EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(Trigger(&statusUpdateCall1))
     .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
                     Trigger(&statusUpdateCall2)));
 
-  MesosSchedulerDriver driver(&this->sched, this->frameworkInfo, this->master);
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
 
   driver.start();
 
@@ -716,23 +742,29 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 {
   // Scheduler expectations.
+  MockScheduler sched;
   FrameworkID frameworkId;
-  EXPECT_CALL(this->sched, registered(_, _, _));
+  EXPECT_CALL(sched, registered(_, _, _));
 
   trigger resourceOffersCall;
   vector<Offer> offers;
-  EXPECT_CALL(this->sched, resourceOffers(_, _))
+  EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)))
     .WillRepeatedly(Return());
 
   TaskStatus status;
   trigger statusUpdateCall1, statusUpdateCall2;
-  EXPECT_CALL(this->sched, statusUpdate(_, _))
+  EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(Trigger(&statusUpdateCall1))
     .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
                     Trigger(&statusUpdateCall2)));
 
-  MesosSchedulerDriver driver(&this->sched, this->frameworkInfo, this->master);
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
 
   driver.start();
 
@@ -745,7 +777,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   tasks.push_back(task); // Long-running task.
   driver.launchTasks(offers[0].id(), tasks);
 
-  // Stop the slave before the executor is registered.
+  // Wait for TASK_RUNNING update.
   WAIT_UNTIL(statusUpdateCall1);
 
   sleep(1); // Give enough time for the ACK to be checkpointed.
@@ -759,6 +791,60 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   // Scheduler should receive the TASK_FAILED update.
   WAIT_UNTIL(statusUpdateCall2);
   ASSERT_EQ(TASK_FAILED, status.state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test checks whether a non-checkpointing framework is
+// properly removed, when a checkpointing slave is disconnected.
+TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
+{
+  // Scheduler expectations.
+  MockScheduler sched;
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  trigger resourceOffersCall;
+  vector<Offer> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)))
+    .WillRepeatedly(Return());
+
+  TaskStatus status;
+  trigger statusUpdateCall1, statusUpdateCall2;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(Trigger(&statusUpdateCall1))
+    .WillOnce(DoAll(SaveArg<1>(&status), // Update after slave exited.
+                    Trigger(&statusUpdateCall2)));
+
+  // Disable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(false);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOffersCall);
+
+  EXPECT_NE(0u, offers.size());
+
+  TaskInfo task = createTask(offers[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+  driver.launchTasks(offers[0].id(), tasks);
+
+  // Wait for TASK_RUNNING update.
+  WAIT_UNTIL(statusUpdateCall1);
+
+  this->stopSlave();
+
+  // Scheduler should receive the TASK_LOST update.
+  WAIT_UNTIL(statusUpdateCall2);
+  ASSERT_EQ(TASK_LOST, status.state());
 
   driver.stop();
   driver.join();
