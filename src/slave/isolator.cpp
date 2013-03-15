@@ -16,16 +16,38 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
+#include "isolator.hpp"
+#include "process_isolator.hpp"
+#ifdef __linux__
+#include "cgroups_isolator.hpp"
+#endif
 
-#include "tests/external.hpp"
+
+namespace mesos {
+namespace internal {
+namespace slave {
+
+Isolator* Isolator::create(const std::string &type)
+{
+  if (type == "process") {
+    return new ProcessIsolator();
+#ifdef __linux__
+  } else if (type == "cgroups") {
+    return new CgroupsIsolator();
+#endif
+  }
+
+  return NULL;
+}
 
 
-// Run a number of tests for the LXC isolation module.
-// These tests are disabled by default since they require alltests to be run
-// with sudo for Linux Container commands to be usable (and of course, they
-// also require a Linux version with LXC support).
-// You can enable them using ./alltests --gtest_also_run_disabled_tests.
-TEST_EXTERNAL(LxcIsolation, DISABLED_TwoSeparateTasks)
-TEST_EXTERNAL(LxcIsolation, DISABLED_ScaleUpAndDown)
-TEST_EXTERNAL(LxcIsolation, DISABLED_HoldMoreMemThanRequested)
+void Isolator::destroy(Isolator* isolator)
+{
+  if (isolator != NULL) {
+    delete isolator;
+  }
+}
+
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {

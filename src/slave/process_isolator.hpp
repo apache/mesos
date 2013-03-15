@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __PROCESS_BASED_ISOLATION_MODULE_HPP__
-#define __PROCESS_BASED_ISOLATION_MODULE_HPP__
+#ifndef __PROCESS_ISOLATOR_HPP__
+#define __PROCESS_ISOLATOR_HPP__
 
 #include <string>
 
@@ -33,7 +33,7 @@
 #include "launcher/launcher.hpp"
 
 #include "slave/flags.hpp"
-#include "slave/isolation_module.hpp"
+#include "slave/isolator.hpp"
 #include "slave/reaper.hpp"
 #include "slave/slave.hpp"
 
@@ -47,13 +47,12 @@ class State; // Forward declaration.
 } // namespace state {
 
 
-class ProcessBasedIsolationModule
-  : public IsolationModule, public ProcessExitedListener
+class ProcessIsolator : public Isolator, public ProcessExitedListener
 {
 public:
-  ProcessBasedIsolationModule();
+  ProcessIsolator();
 
-  virtual ~ProcessBasedIsolationModule();
+  virtual ~ProcessIsolator();
 
   virtual void initialize(
       const Flags& flags,
@@ -94,7 +93,7 @@ protected:
   // an executor's process. The Launcher will chdir() to the child's working
   // directory, fetch the executor, set environment varibles,
   // switch user, etc, and finally exec() the executor process.
-  // Subclasses of ProcessBasedIsolationModule that wish to override the
+  // Subclasses of ProcessIsolator that wish to override the
   // default launching behavior should override createLauncher() and return
   // their own Launcher object (including possibly a subclass of Launcher).
   virtual launcher::ExecutorLauncher* createExecutorLauncher(
@@ -106,8 +105,8 @@ protected:
 
 private:
   // No copying, no assigning.
-  ProcessBasedIsolationModule(const ProcessBasedIsolationModule&);
-  ProcessBasedIsolationModule& operator = (const ProcessBasedIsolationModule&);
+  ProcessIsolator(const ProcessIsolator&);
+  ProcessIsolator& operator = (const ProcessIsolator&);
 
   struct ProcessInfo
   {
@@ -139,4 +138,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __PROCESS_BASED_ISOLATION_MODULE_HPP__
+#endif // __PROCESS_ISOLATOR_HPP__

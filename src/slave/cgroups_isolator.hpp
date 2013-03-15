@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __CGROUPS_ISOLATION_MODULE_HPP__
-#define __CGROUPS_ISOLATION_MODULE_HPP__
+#ifndef __CGROUPS_ISOLATOR_HPP__
+#define __CGROUPS_ISOLATOR_HPP__
 
 #include <unistd.h>
 
@@ -41,7 +41,7 @@
 #include "linux/proc.hpp"
 
 #include "slave/flags.hpp"
-#include "slave/isolation_module.hpp"
+#include "slave/isolator.hpp"
 #include "slave/reaper.hpp"
 #include "slave/slave.hpp"
 
@@ -62,7 +62,7 @@ class Cpuset
 public:
   // Grows this cpu set by the provided delta.
   // @param   delta   Amount of cpus to grow by.
-  // @param   usage   Cpu usage, as allocated by the cgroups isolation module.
+  // @param   usage   Cpu usage, as allocated by the cgroups isolator.
   // @return  The new cpu allocations made by this Cpuset.
   std::map<proc::CPU, double> grow(
       double delta,
@@ -83,14 +83,12 @@ private:
 };
 
 
-class CgroupsIsolationModule
-  : public IsolationModule,
-    public ProcessExitedListener
+class CgroupsIsolator : public Isolator, public ProcessExitedListener
 {
 public:
-  CgroupsIsolationModule();
+  CgroupsIsolator();
 
-  virtual ~CgroupsIsolationModule();
+  virtual ~CgroupsIsolator();
 
   virtual void initialize(
       const Flags& flags,
@@ -130,8 +128,8 @@ public:
 
 private:
   // No copying, no assigning.
-  CgroupsIsolationModule(const CgroupsIsolationModule&);
-  CgroupsIsolationModule& operator = (const CgroupsIsolationModule&);
+  CgroupsIsolator(const CgroupsIsolator&);
+  CgroupsIsolator& operator = (const CgroupsIsolator&);
 
   // The cgroup information for each live executor.
   struct CgroupInfo
@@ -167,9 +165,9 @@ private:
 
     bool killed; // True if "killing" has been initiated via 'killExecutor'.
 
-    // Indicates if this executor has been destroyed by the isolation
-    // module. NOTE: An executor may have terminated due to reasons
-    // other than destruction by the isolation module (e.g. killed by
+    // Indicates if this executor has been destroyed by the isolator.
+    // NOTE: An executor may have terminated due to reasons
+    // other than destruction by the isolator (e.g. killed by
     // slave, exited, etc.).
     bool destroyed;
 
@@ -253,7 +251,7 @@ private:
       const std::string& cgroup,
       const process::Future<bool>& future);
 
-  // Register a cgroup in the isolation module.
+  // Register a cgroup in the isolator.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   // @param   uuid          The uuid of the given executor run.
@@ -267,7 +265,7 @@ private:
       const Option<pid_t>& pid,
       const Flags& flags);
 
-  // Unregister a cgroup in the isolation module.
+  // Unregister a cgroup in the isolator.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   void unregisterCgroupInfo(
@@ -311,7 +309,7 @@ private:
 
   // Handlers for each resource name, used for resource changes.
   hashmap<std::string,
-          Try<Nothing>(CgroupsIsolationModule::*)(
+          Try<Nothing>(CgroupsIsolator::*)(
               CgroupInfo*,
               const Resource&)> handlers;
 };
@@ -320,4 +318,4 @@ private:
 } // namespace internal {
 } // namespace slave {
 
-#endif // __CGROUPS_ISOLATION_MODULE_HPP__
+#endif // __CGROUPS_ISOLATOR_HPP__

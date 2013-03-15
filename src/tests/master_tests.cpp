@@ -108,9 +108,9 @@ TEST_F(MasterTest, TaskRunning)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -151,7 +151,7 @@ TEST_F(MasterTest, TaskRunning)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  EXPECT_CALL(isolationModule,
+  EXPECT_CALL(isolator,
               resourcesChanged(_, _, Resources(offers[0].resources())))
     .WillOnce(Trigger(&resourcesChangedCall));
 
@@ -202,10 +202,10 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
   slaveFlags.executor_shutdown_grace_period = Seconds(0.0);
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -245,7 +245,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  EXPECT_CALL(isolationModule,
+  EXPECT_CALL(isolator,
               resourcesChanged(_, _, Resources(offers[0].resources())))
     .WillOnce(Trigger(&resourcesChangedCall));
 
@@ -299,9 +299,9 @@ TEST_F(MasterTest, KillTask)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -394,9 +394,9 @@ TEST_F(MasterTest, StatusUpdateAck)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -482,11 +482,11 @@ TEST_F(MasterTest, RecoverResources)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
   setSlaveResources("cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -576,7 +576,7 @@ TEST_F(MasterTest, RecoverResources)
   driver.declineOffer(offer.id());
 
   // Kill the executor.
-  isolationModule.killExecutor(
+  isolator.killExecutor(
       offer.framework_id(), executorInfo.executor_id());
 
   // Scheduler should get an offer for the complete slave resources.
@@ -636,9 +636,9 @@ TEST_F(MasterTest, FrameworkMessage)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -774,9 +774,9 @@ TEST_F(MasterTest, MultipleExecutors)
   execs[executorId1] = &exec1;
   execs[executorId2] = &exec2;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -880,9 +880,9 @@ TEST_F(MasterTest, MasterInfo)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -934,9 +934,9 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -1035,9 +1035,9 @@ TEST_F(WhitelistTest, WhitelistSlave)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -1103,9 +1103,9 @@ TEST_F(MasterTest, MasterLost)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

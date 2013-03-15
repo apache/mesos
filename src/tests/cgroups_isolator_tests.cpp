@@ -26,7 +26,7 @@
 
 #include "linux/proc.hpp"
 
-#include "slave/cgroups_isolation_module.hpp"
+#include "slave/cgroups_isolator.hpp"
 
 #include "tests/script.hpp"
 
@@ -36,8 +36,8 @@ using namespace mesos::internal::slave;
 
 using std::map;
 
-// Run the balloon framework under the cgroups isolation module.
-TEST_SCRIPT(CgroupsIsolationTest,
+// Run the balloon framework under the cgroups isolator.
+TEST_SCRIPT(CgroupsIsolatorTest,
             ROOT_CGROUPS_BalloonFramework,
             "balloon_framework_test.sh")
 

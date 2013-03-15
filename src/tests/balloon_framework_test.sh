@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# This script runs the balloon framework on a cluster using cgroups
-# isolation module and checks that the framework returns a status of 1.
+# This script runs the balloon framework on a cluster using the cgroups
+# isolator and checks that the framework returns a status of 1.
 
 source ${MESOS_SOURCE_DIR}/support/colors.sh
 source ${MESOS_SOURCE_DIR}/support/atexit.sh

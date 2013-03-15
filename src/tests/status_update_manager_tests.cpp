@@ -40,7 +40,7 @@
 
 #include "slave/constants.hpp"
 #include "slave/paths.hpp"
-#include "slave/process_based_isolation_module.hpp"
+#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
 #include "messages/messages.hpp"
@@ -93,9 +93,9 @@ protected:
 
     execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-    isolationModule = new TestingIsolationModule(execs);
+    isolator = new TestingIsolator(execs);
 
-    s = new Slave(flags, true, isolationModule, &files);
+    s = new Slave(flags, true, isolator, &files);
     slave = process::spawn(s);
 
     detector = new BasicMasterDetector(master, slave, true);
@@ -112,7 +112,7 @@ protected:
     process::wait(slave);
     delete s;
 
-    delete isolationModule;
+    delete isolator;
     process::terminate(master);
     process::wait(master);
     delete m;
@@ -139,7 +139,7 @@ protected:
   HierarchicalDRFAllocatorProcess allocator;
   Allocator *a;
   Master* m;
-  TestingIsolationModule* isolationModule;
+  TestingIsolator* isolator;
   Slave* s;
   Files files;
   BasicMasterDetector* detector;

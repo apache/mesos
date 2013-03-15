@@ -37,7 +37,7 @@ namespace launcher {
 // 3) Environment variables are set by setupEnvironment().
 // 4) We switch to the framework's user in switchUser().
 //
-// Isolation modules that wish to override the default behaviour can subclass
+// Isolators that wish to override the default behaviour can subclass
 // Launcher and override some of the methods to perform extra actions.
 class ExecutorLauncher {
 public:
@@ -53,7 +53,6 @@ public:
       const std::string& hadoopHome,
       bool redirectIO,
       bool shouldSwitchUser,
-      const std::string& container,
       bool checkpoint);
 
   virtual ~ExecutorLauncher();
@@ -68,9 +67,8 @@ public:
   virtual int run();
 
   // Set up environment variables for exec'ing a launcher_main.cpp
-  // (mesos-launcher binary) process. This is used by isolation modules that
-  // cannot exec the user's executor directly, such as the LXC isolation
-  // module, which must run lxc-execute and have it run the launcher.
+  // (mesos-launcher binary) process. This is used by isolators that
+  // cannot exec the user's executor directly.
   virtual void setupEnvironmentForLauncherMain();
 
 protected:
@@ -97,7 +95,6 @@ protected:
   std::string hadoopHome;
   bool redirectIO;   // Whether to redirect stdout and stderr to files.
   bool shouldSwitchUser; // Whether to setuid to framework's user.
-  std::string container;
   bool checkpoint; // Whether the framework enabled checkpointing.
 };
 

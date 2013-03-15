@@ -45,7 +45,7 @@
 #endif
 
 #include "slave/flags.hpp"
-#include "slave/process_based_isolation_module.hpp"
+#include "slave/process_isolator.hpp"
 #include "slave/state.hpp"
 
 using namespace process;
@@ -66,8 +66,8 @@ using state::FrameworkState;
 using state::ExecutorState;
 using state::RunState;
 
-ProcessBasedIsolationModule::ProcessBasedIsolationModule()
-  : ProcessBase(ID::generate("process-isolation-module")),
+ProcessIsolator::ProcessIsolator()
+  : ProcessBase(ID::generate("process-isolator")),
     initialized(false)
 {
   // Spawn the reaper, note that it might send us a message before we
@@ -79,7 +79,7 @@ ProcessBasedIsolationModule::ProcessBasedIsolationModule()
 }
 
 
-ProcessBasedIsolationModule::~ProcessBasedIsolationModule()
+ProcessIsolator::~ProcessIsolator()
 {
   CHECK(reaper != NULL);
   terminate(reaper);
@@ -88,7 +88,7 @@ ProcessBasedIsolationModule::~ProcessBasedIsolationModule()
 }
 
 
-void ProcessBasedIsolationModule::initialize(
+void ProcessIsolator::initialize(
     const Flags& _flags,
     const Resources& _,
     bool _local,
@@ -102,7 +102,7 @@ void ProcessBasedIsolationModule::initialize(
 }
 
 
-void ProcessBasedIsolationModule::launchExecutor(
+void ProcessIsolator::launchExecutor(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
@@ -186,7 +186,7 @@ void ProcessBasedIsolationModule::launchExecutor(
       if (pid > 0) {
         // In parent process.
         // It is ok to suicide here, though process reaper signals the exit,
-        // because the process isolation module ignores unknown processes.
+        // because the process isolator ignores unknown processes.
         exit(0);
       }
     }
@@ -198,12 +198,12 @@ void ProcessBasedIsolationModule::launchExecutor(
 
     close(pipes[1]);
 
-    // Checkpoint the forked pid, if necessary.
-    // The checkpointing must be done in the forked process, because
-    // the slave process can die immediately after the isolation
-    // module forks but before it would have a chance to write the
-    // pid to disk. That would result in an orphaned executor process
-    // unknown to the slave when doing recovery.
+    // Checkpoint the forked pid, if necessary. The checkpointing must
+    // be done in the forked process, because the slave process can
+    // die immediately after the isolator forks but before it would
+    // have a chance to write the pid to disk. That would result in an
+    // orphaned executor process unknown to the slave when doing
+    // recovery.
     if (checkpoint) {
       std::cerr << "Checkpointing forked pid " << getpid() << std::endl;
       state::checkpoint(path.get(), stringify(getpid()));
@@ -219,11 +219,10 @@ void ProcessBasedIsolationModule::launchExecutor(
   }
 }
 
-
-// NOTE: This function can be called by the isolation module itself or
-// by the slave if it doesn't hear about an executor exit after it sends
-// a shutdown message.
-void ProcessBasedIsolationModule::killExecutor(
+// NOTE: This function can be called by the isolator itself or by the
+// slave if it doesn't hear about an executor exit after it sends a
+// shutdown message.
+void ProcessIsolator::killExecutor(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
@@ -260,7 +259,7 @@ void ProcessBasedIsolationModule::killExecutor(
 }
 
 
-void ProcessBasedIsolationModule::resourcesChanged(
+void ProcessIsolator::resourcesChanged(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const Resources& resources)
@@ -270,7 +269,7 @@ void ProcessBasedIsolationModule::resourcesChanged(
 }
 
 
-ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
+ExecutorLauncher* ProcessIsolator::createExecutorLauncher(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
@@ -289,15 +288,14 @@ ExecutorLauncher* ProcessBasedIsolationModule::createExecutorLauncher(
       flags.hadoop_home,
       !local,
       flags.switch_user,
-      "",
       frameworkInfo.checkpoint());
 }
 
 
-Future<Nothing> ProcessBasedIsolationModule::recover(
+Future<Nothing> ProcessIsolator::recover(
     const Option<SlaveState>& state)
 {
-  LOG(INFO) << "Recovering isolation module";
+  LOG(INFO) << "Recovering isolator";
 
   if (state.isNone()) {
     return Nothing();
@@ -343,7 +341,7 @@ Future<Nothing> ProcessBasedIsolationModule::recover(
 }
 
 
-Future<ResourceStatistics> ProcessBasedIsolationModule::usage(
+Future<ResourceStatistics> ProcessIsolator::usage(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
@@ -406,7 +404,7 @@ Future<ResourceStatistics> ProcessBasedIsolationModule::usage(
 }
 
 
-void ProcessBasedIsolationModule::processExited(pid_t pid, int status)
+void ProcessIsolator::processExited(pid_t pid, int status)
 {
   foreachkey (const FrameworkID& frameworkId, infos) {
     foreachkey (const ExecutorID& executorId, infos[frameworkId]) {

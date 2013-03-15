@@ -35,7 +35,7 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "slave/process_based_isolation_module.hpp"
+#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/filter.hpp"
@@ -50,7 +50,7 @@ using mesos::internal::master::Allocator;
 using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::ProcessBasedIsolationModule;
+using mesos::internal::slave::ProcessIsolator;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::STATUS_UPDATE_RETRY_INTERVAL;
 
@@ -86,9 +86,9 @@ TEST_F(FaultToleranceTest, SlaveLost)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  ProcessBasedIsolationModule isolationModule;
+  ProcessIsolator isolator;
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -396,9 +396,9 @@ TEST_F(FaultToleranceTest, DISABLED_TaskLost)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -495,9 +495,9 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -624,9 +624,9 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -728,9 +728,9 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -853,9 +853,9 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -909,7 +909,7 @@ TEST_F(FaultToleranceTest, SchedulerExit)
 
   WAIT_UNTIL(shutdownCall);
 
-  // Simulate a executorExited message from isolation module to the slave.
+  // Simulate an executorExited message from isolator to the slave.
   // We need to explicitly send this message because we don't spawn
   // a real executor process in this test.
   process::dispatch(
@@ -956,9 +956,9 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  ProcessBasedIsolationModule isolationModule;
+  ProcessIsolator isolator;
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -1006,9 +1006,9 @@ TEST_F(FaultToleranceTest, SlaveReregister)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  ProcessBasedIsolationModule isolationModule;
+  ProcessIsolator isolator;
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

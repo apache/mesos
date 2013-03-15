@@ -113,11 +113,12 @@ public:
     assert(limit.isSome());
     size_t balloonLimit = limit.get();
 
-    // Artificially increase the memory usage gradually. The balloonLimit
-    // specifies the upper limit. The balloonLimit can be larger than the amount
-    // of memory allocated to this executor. In that case, the isolation module
-    // (e.g. cgroups) should be able to detect that and the task should not be
-    // able to reach TASK_FINISHED state.
+    // Artificially increase the memory usage gradually. The
+    // balloonLimit specifies the upper limit. The balloonLimit can be
+    // larger than the amount of memory allocated to this executor. In
+    // that case, the isolator (e.g. cgroups) should be able to detect
+    // that and the task should not be able to reach TASK_FINISHED
+    // state.
     balloon(balloonLimit);
 
     std::cout << "Finishing task " << task.task_id().value() << std::endl;

@@ -32,7 +32,7 @@
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
 
-#include "slave/isolation_module.hpp"
+#include "slave/isolator.hpp"
 #include "slave/monitor.hpp"
 
 using namespace process;
@@ -69,8 +69,8 @@ Future<http::Response> _usage(
 class ResourceMonitorProcess : public Process<ResourceMonitorProcess>
 {
 public:
-  ResourceMonitorProcess(IsolationModule* _isolation)
-    : ProcessBase("monitor"), isolation(_isolation) {}
+  ResourceMonitorProcess(Isolator* _isolator)
+    : ProcessBase("monitor"), isolator(_isolator) {}
 
   virtual ~ResourceMonitorProcess() {}
 
@@ -105,7 +105,7 @@ private:
   // Returns the usage information. Requests have no parameters.
   Future<http::Response> usage(const http::Request& request);
 
-  IsolationModule* isolation;
+  Isolator* isolator;
 
   // The executor info is stored for each watched executor.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > watches;
@@ -179,7 +179,7 @@ void ResourceMonitorProcess::collect(
     return;
   }
 
-  dispatch(isolation, &IsolationModule::usage, frameworkId, executorId)
+  dispatch(isolator, &Isolator::usage, frameworkId, executorId)
     .onAny(defer(self(),
                  &Self::_collect,
                  lambda::_1,
@@ -220,7 +220,7 @@ void ResourceMonitorProcess::_collect(
 
 
 // TODO(bmahler): With slave recovery, executor uuid's will be exposed
-// to the isolation module. This means that we will be able to publish
+// to the isolator. This means that we will be able to publish
 // statistics per executor run, rather than across all runs.
 void publish(
     const FrameworkID& frameworkId,
@@ -309,9 +309,9 @@ Future<http::Response> _usage(
 }
 
 
-ResourceMonitor::ResourceMonitor(IsolationModule* isolation)
+ResourceMonitor::ResourceMonitor(Isolator* isolator)
 {
-  process = new ResourceMonitorProcess(isolation);
+  process = new ResourceMonitorProcess(isolator);
   spawn(process);
 }
 

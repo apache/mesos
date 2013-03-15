@@ -546,9 +546,9 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(this->slaveFlags, true, &isolationModule, &files);
+  Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);

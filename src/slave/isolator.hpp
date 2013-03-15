@@ -16,22 +16,26 @@
  * limitations under the License.
  */
 
-#ifndef __LXC_ISOLATION_MODULE_HPP__
-#define __LXC_ISOLATION_MODULE_HPP__
+#ifndef __ISOLATOR_HPP__
+#define __ISOLATOR_HPP__
+
+#include <unistd.h>
 
 #include <string>
-#include <vector>
+
+#include <mesos/mesos.hpp>
 
 #include <process/future.hpp>
+#include <process/process.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/uuid.hpp>
 
-#include "slave/isolation_module.hpp"
-#include "slave/reaper.hpp"
-#include "slave/slave.hpp"
+#include "common/resources.hpp"
+
+#include "slave/flags.hpp"
 
 namespace mesos {
 namespace internal {
@@ -42,20 +46,28 @@ class SlaveState; // Forward declaration.
 
 } // namespace state {
 
-class LxcIsolationModule
-  : public IsolationModule, public ProcessExitedListener
+// Forward declaration.
+class Slave;
+
+
+class Isolator : public process::Process<Isolator>
 {
 public:
-  LxcIsolationModule();
+  static Isolator* create(const std::string& type);
+  static void destroy(Isolator* isolator);
 
-  virtual ~LxcIsolationModule();
+  virtual ~Isolator() {}
 
+  // Called during slave initialization.
   virtual void initialize(
       const Flags& flags,
       const Resources& resources,
       bool local,
-      const process::PID<Slave>& slave);
+      const process::PID<Slave>& slave) = 0;
 
+  // Called by the slave to launch an executor for a given framework.
+  // If 'checkpoint' is true, the isolator is expected to checkpoint
+  // the executor pid to the 'path'.
   virtual void launchExecutor(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
@@ -64,60 +76,34 @@ public:
       const UUID& uuid,
       const std::string& directory,
       const Resources& resources,
-      const Option<std::string>& path);
+      const Option<std::string>& path) = 0;
 
+  // Terminate a framework's executor, if it is still running.
+  // The executor is expected to be gone after this method exits.
   virtual void killExecutor(
       const FrameworkID& frameworkId,
-      const ExecutorID& executorId);
+      const ExecutorID& executorId) = 0;
 
+  // Update the resource limits for a given framework. This method will
+  // be called only after an executor for the framework is started.
   virtual void resourcesChanged(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const Resources& resources);
+      const Resources& resources) = 0;
 
+  // Returns the resource usage for the isolator.
   virtual process::Future<ResourceStatistics> usage(
       const FrameworkID& frameworkId,
-      const ExecutorID& executorId);
+      const ExecutorID& executorId) = 0;
 
+  // Recover executors.
   virtual process::Future<Nothing> recover(
-      const Option<state::SlaveState>& state);
-
-  virtual void processExited(pid_t pid, int status);
-
-private:
-  // No copying, no assigning.
-  LxcIsolationModule(const LxcIsolationModule&);
-  LxcIsolationModule& operator = (const LxcIsolationModule&);
-
-  // Attempt to set a resource limit of a container for a given
-  // control group property (e.g. cpu.shares).
-  bool setControlGroupValue(
-      const std::string& container,
-      const std::string& property,
-      int64_t value);
-
-  std::vector<std::string> getControlGroupOptions(const Resources& resources);
-
-  // Per-framework information object maintained in info hashmap.
-  struct ContainerInfo
-  {
-    FrameworkID frameworkId;
-    ExecutorID executorId;
-    std::string container; // Name of Linux container used for this framework.
-    Option<pid_t> pid; // PID of lxc-execute command running the executor.
-  };
-
-  // TODO(benh): Make variables const by passing them via constructor.
-  Flags flags;
-  bool local;
-  process::PID<Slave> slave;
-  bool initialized;
-  Reaper* reaper;
-  hashmap<FrameworkID, hashmap<ExecutorID, ContainerInfo*> > infos;
+      const Option<state::SlaveState>& state) = 0;
 };
+
 
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __LXC_ISOLATION_MODULE_HPP__
+#endif // __ISOLATOR_HPP__

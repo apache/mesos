@@ -59,9 +59,9 @@ public:
 // enable tests based on whether or not the current user is root or
 // cgroups support is detected. Both 'ROOT_' and 'CGROUPS_' can be
 // composed in any order, but must come after 'DISABLED_'. In
-// addition, we disable tests that attempt to use the
-// CgroupsIsolationModule type parameter if the current user is not
-// root or cgroups is not supported.
+// addition, we disable tests that attempt to use the CgroupsIsolator
+// type parameter if the current user is not root or cgroups is not
+// supported.
 // TODO(benh): Provide a generic way to enable/disable tests by
 // registering "filter" functions.
 static bool enable(const ::testing::TestInfo& test)
@@ -84,7 +84,7 @@ static bool enable(const ::testing::TestInfo& test)
   // Now check the type parameter.
   if (test.type_param() != NULL) {
     const string& type = test.type_param();
-    if (strings::contains(type, "CgroupsIsolationModule") &&
+    if (strings::contains(type, "CgroupsIsolator") &&
         (os::user() != "root" || !os::exists("/proc/cgroups"))) {
       return false;
     }

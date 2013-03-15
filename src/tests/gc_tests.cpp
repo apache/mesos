@@ -115,9 +115,9 @@ protected:
 
   void startSlave()
   {
-    isolationModule = new TestingIsolationModule(execs);
+    isolator = new TestingIsolator(execs);
 
-    s = new Slave(flags, true, isolationModule, files);
+    s = new Slave(flags, true, isolator, files);
     slave = process::spawn(s);
 
     detector = new BasicMasterDetector(master, slave, true);
@@ -131,7 +131,7 @@ protected:
     process::wait(slave);
     delete s;
 
-    delete isolationModule;
+    delete isolator;
   }
 
   void restartSlave()
@@ -143,7 +143,7 @@ protected:
   Allocator* a;
   HierarchicalDRFAllocatorProcess allocator;
   Master* m;
-  TestingIsolationModule* isolationModule;
+  TestingIsolator* isolator;
   Slave* s;
   Files* files;
   BasicMasterDetector* detector;
@@ -303,7 +303,7 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
   EXPECT_EQ(TASK_RUNNING, status.state());
 
   const std::string& executorDir =
-    isolationModule->directories[DEFAULT_EXECUTOR_ID];
+    isolator->directories[DEFAULT_EXECUTOR_ID];
 
   process::UPID filesUpid("files", process::ip(), process::port());
 
@@ -315,7 +315,7 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
   Clock::pause();
 
   // Kill the executor and inform the slave.
-  isolationModule->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
+  isolator->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
 
   // In order to make sure the slave has scheduled the executor
   // directory to get garbage collected we need to wait until the
@@ -386,7 +386,7 @@ TEST_F(GarbageCollectorTest, DiskUsage)
   EXPECT_EQ(TASK_RUNNING, status.state());
 
   const std::string& executorDir =
-    isolationModule->directories[DEFAULT_EXECUTOR_ID];
+    isolator->directories[DEFAULT_EXECUTOR_ID];
 
   process::UPID filesUpid("files", process::ip(), process::port());
 
@@ -398,7 +398,7 @@ TEST_F(GarbageCollectorTest, DiskUsage)
   Clock::pause();
 
   // Kill the executor and inform the slave.
-  isolationModule->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
+  isolator->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
 
   // In order to make sure the slave has scheduled the executor
   // directory to get garbage collected we need to wait until the

@@ -27,7 +27,7 @@
 
 #include "master/master.hpp"
 
-#include "slave/process_based_isolation_module.hpp"
+#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/filter.hpp"

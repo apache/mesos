@@ -136,8 +136,8 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
-  Slave s(this->slaveFlags, true, &isolationModule, &files);
+  TestingIsolator isolator(execs);
+  Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   Try<MasterDetector*> slaveDetector =
@@ -176,7 +176,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   Resources launchedResources = Resources::parse("cpus:1;mem:512");
   trigger resourcesChangedTrigger;
-  EXPECT_CALL(isolationModule,
+  EXPECT_CALL(isolator,
               resourcesChanged(_, _, Resources(launchedResources)))
     .WillOnce(Trigger(&resourcesChangedTrigger));
 
@@ -283,8 +283,8 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
-  Slave s(this->slaveFlags, true, &isolationModule, &files);
+  TestingIsolator isolator(execs);
+  Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   Try<MasterDetector*> slaveDetector =
@@ -323,7 +323,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
 
   Resources launchedResources = Resources::parse("cpus:1;mem:512");
   trigger resourcesChangedTrigger;
-  EXPECT_CALL(isolationModule,
+  EXPECT_CALL(isolator,
               resourcesChanged(_, _, Resources(launchedResources)))
     .WillOnce(Trigger(&resourcesChangedTrigger));
 

@@ -46,10 +46,10 @@
 #include "master/master.hpp"
 
 #ifdef __linux__
-#include "slave/cgroups_isolation_module.hpp"
+#include "slave/cgroups_isolator.hpp"
 #endif
 #include "slave/paths.hpp"
-#include "slave/process_based_isolation_module.hpp"
+#include "slave/process_isolator.hpp"
 #include "slave/reaper.hpp"
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
@@ -72,9 +72,9 @@ using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 #ifdef __linux__
-using mesos::internal::slave::CgroupsIsolationModule;
+using mesos::internal::slave::CgroupsIsolator;
 #endif
-using mesos::internal::slave::ProcessBasedIsolationModule;
+using mesos::internal::slave::ProcessIsolator;
 
 using std::map;
 using std::string;
@@ -135,17 +135,17 @@ TEST_F(SlaveStateTest, CheckpointString)
 
 
 template <typename T>
-class SlaveRecoveryTest : public IsolationTest<T>
+class SlaveRecoveryTest : public IsolatorTest<T>
 {
 public:
   static void SetUpTestCase()
   {
-    IsolationTest<T>::SetUpTestCase();
+    IsolatorTest<T>::SetUpTestCase();
   }
 
   virtual void SetUp()
   {
-    IsolationTest<T>::SetUp();
+    IsolatorTest<T>::SetUp();
 
     ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -170,14 +170,14 @@ public:
     delete m;
     delete a;
 
-    IsolationTest<T>::TearDown();
+    IsolatorTest<T>::TearDown();
   }
 
 protected:
   void startSlave()
   {
-    isolationModule = new T();
-    s = new Slave(this->slaveFlags, true, isolationModule, &files);
+    isolator = new T();
+    s = new Slave(this->slaveFlags, true, isolator, &files);
     slave = process::spawn(s);
     detector = new BasicMasterDetector(master, slave, true);
 
@@ -199,7 +199,7 @@ protected:
     }
     process::wait(slave);
     delete s;
-    delete isolationModule;
+    delete isolator;
 
     running = false;
   }
@@ -207,7 +207,7 @@ protected:
   HierarchicalDRFAllocatorProcess allocator;
   Allocator *a;
   Master* m;
-  IsolationModule* isolationModule;
+  Isolator* isolator;
   Slave* s;
   Files files;
   BasicMasterDetector* detector;
@@ -218,14 +218,13 @@ protected:
 
 
 #ifdef __linux__
-typedef ::testing::Types<ProcessBasedIsolationModule, CgroupsIsolationModule>
-IsolationTypes;
+typedef ::testing::Types<ProcessIsolator, CgroupsIsolator> IsolatorTypes;
 #else
-typedef ::testing::Types<ProcessBasedIsolationModule> IsolationTypes;
+typedef ::testing::Types<ProcessIsolator> IsolatorTypes;
 #endif
 
 
-TYPED_TEST_CASE(SlaveRecoveryTest, IsolationTypes);
+TYPED_TEST_CASE(SlaveRecoveryTest, IsolatorTypes);
 
 
 // Enable checkpointing on the slave and ensure recovery works.

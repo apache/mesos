@@ -40,7 +40,7 @@
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
 #include "slave/http.hpp"
-#include "slave/isolation_module.hpp"
+#include "slave/isolator.hpp"
 #include "slave/monitor.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
@@ -72,12 +72,12 @@ class Slave : public ProtobufProcess<Slave>
 public:
   Slave(const Resources& resources,
         bool local,
-        IsolationModule* isolationModule,
+        Isolator* isolator,
         Files* files);
 
   Slave(const flags::Flags<logging::Flags, slave::Flags>& flags,
         bool local,
-        IsolationModule *isolationModule,
+        Isolator *isolator,
         Files* files);
 
   virtual ~Slave();
@@ -189,7 +189,7 @@ protected:
   // Shut down an executor. This is a two phase process. First, an
   // executor receives a shut down message (shut down phase), then
   // after a configurable timeout the slave actually forces a kill
-  // (kill phase, via the isolation module) if the executor has not
+  // (kill phase, via the isolator) if the executor has not
   // exited.
   void shutdownExecutor(Framework* framework, Executor* executor);
 
@@ -263,7 +263,7 @@ private:
   // TODO(bmahler): Use the Owned abstraction.
   boost::circular_buffer<std::tr1::shared_ptr<Framework> > completedFrameworks;
 
-  IsolationModule* isolationModule;
+  Isolator* isolator;
   Files* files;
 
   // Statistics (initialized in Slave::initialize).

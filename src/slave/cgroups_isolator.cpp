@@ -56,7 +56,7 @@
 
 #include "logging/check_some.hpp"
 
-#include "slave/cgroups_isolation_module.hpp"
+#include "slave/cgroups_isolator.hpp"
 #include "slave/state.hpp"
 
 using process::defer;
@@ -186,8 +186,8 @@ std::ostream& operator << (std::ostream& out, const Cpuset& cpuset)
 }
 
 
-CgroupsIsolationModule::CgroupsIsolationModule()
-  : ProcessBase(ID::generate("cgroups-isolation-module")),
+CgroupsIsolator::CgroupsIsolator()
+  : ProcessBase(ID::generate("cgroups-isolator")),
     initialized(false),
     lockFile(None())
 {
@@ -200,7 +200,7 @@ CgroupsIsolationModule::CgroupsIsolationModule()
 }
 
 
-CgroupsIsolationModule::~CgroupsIsolationModule()
+CgroupsIsolator::~CgroupsIsolator()
 {
   CHECK(reaper != NULL);
   terminate(reaper);
@@ -209,7 +209,7 @@ CgroupsIsolationModule::~CgroupsIsolationModule()
 }
 
 
-void CgroupsIsolationModule::initialize(
+void CgroupsIsolator::initialize(
     const Flags& _flags,
     const Resources& _resources,
     bool _local,
@@ -314,7 +314,7 @@ void CgroupsIsolationModule::initialize(
 
   if (create.isError()) {
     EXIT(1) << "Failed to create a nested 'test' cgroup. Your kernel "
-            << "might be too old to use the cgroups isolation module: "
+            << "might be too old to use the cgroups isolator: "
             << create.error();
   }
 
@@ -338,15 +338,15 @@ void CgroupsIsolationModule::initialize(
   }
 
   // Make sure the kernel supports OOM controls.
-  exists =
-    cgroups::exists(hierarchy, flags.cgroups_root, "memory.oom_control");
+  exists = cgroups::exists(
+      hierarchy, flags.cgroups_root, "memory.oom_control");
 
   CHECK_SOME(exists)
     << "Failed to determine if 'memory.oom_control' control exists";
 
   if (!exists.get()) {
     EXIT(1) << "Failed to find 'memory.oom_control', your kernel "
-            << "might be too old to use the cgroups isolation module";
+            << "might be too old to use the cgroups isolator";
   }
 
   // Disable the OOM killer so that we can capture 'memory.stat'.
@@ -365,7 +365,7 @@ void CgroupsIsolationModule::initialize(
   // Configure resource changed handlers. We only add handlers for
   // resources that have the appropriate subsystems attached.
   if (subsystems.contains("cpu")) {
-    handlers["cpus"] = &CgroupsIsolationModule::cpusChanged;
+    handlers["cpus"] = &CgroupsIsolator::cpusChanged;
   }
 
   if (subsystems.contains("cpuset")) {
@@ -432,18 +432,18 @@ void CgroupsIsolationModule::initialize(
       }
     }
 
-    handlers["cpus"] = &CgroupsIsolationModule::cpusetChanged;
+    handlers["cpus"] = &CgroupsIsolator::cpusetChanged;
   }
 
   if (subsystems.contains("memory")) {
-    handlers["mem"] = &CgroupsIsolationModule::memChanged;
+    handlers["mem"] = &CgroupsIsolator::memChanged;
   }
 
   initialized = true;
 }
 
 
-void CgroupsIsolationModule::finalize()
+void CgroupsIsolator::finalize()
 {
   // Unlock the advisory file.
   CHECK_SOME(lockFile) << "Uninitialized file descriptor!";
@@ -462,7 +462,7 @@ void CgroupsIsolationModule::finalize()
 }
 
 
-void CgroupsIsolationModule::launchExecutor(
+void CgroupsIsolator::launchExecutor(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
@@ -539,7 +539,6 @@ void CgroupsIsolationModule::launchExecutor(
         flags.hadoop_home,
         !local,
         flags.switch_user,
-        "",
         frameworkInfo.checkpoint());
 
     // First fetch the executor.
@@ -549,12 +548,12 @@ void CgroupsIsolationModule::launchExecutor(
     }
 
 
-    // Checkpoint the forked pid, if necessary.
-    // The checkpointing must be done in the forked process, because
-    // the slave process can die immediately after the isolation
-    // module forks but before it would have a chance to write the
-    // pid to disk. That would result in an orphaned executor process
-    // unknown to the slave when doing recovery.
+    // Checkpoint the forked pid, if necessary. The checkpointing must
+    // be done in the forked process, because the slave process can
+    // die immediately after the isolator forks but before it would
+    // have a chance to write the pid to disk. That would result in an
+    // orphaned executor process unknown to the slave when doing
+    // recovery.
     if (checkpoint) {
       std::cerr << "Checkpointing forked pid " << getpid() << std::endl;
       state::checkpoint(path.get(), stringify(getpid()));
@@ -580,7 +579,7 @@ void CgroupsIsolationModule::launchExecutor(
 }
 
 
-void CgroupsIsolationModule::killExecutor(
+void CgroupsIsolator::killExecutor(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
@@ -602,19 +601,19 @@ void CgroupsIsolationModule::killExecutor(
 
   info->killed = true;
 
-  // Destroy the cgroup that is associated with the executor. Here, we don't
-  // wait for it to succeed as we don't want to block the isolation module.
-  // Instead, we register a callback which will be invoked when its result is
-  // ready.
+  // Destroy the cgroup that is associated with the executor. Here, we
+  // don't wait for it to succeed as we don't want to block the
+  // isolator. Instead, we register a callback which will be invoked
+  // when its result is ready.
   cgroups::destroy(hierarchy, info->name())
-    .onAny(defer(PID<CgroupsIsolationModule>(this),
-                 &CgroupsIsolationModule::_killExecutor,
+    .onAny(defer(PID<CgroupsIsolator>(this),
+                 &CgroupsIsolator::_killExecutor,
                  info,
                  lambda::_1));
 }
 
 
-void CgroupsIsolationModule::resourcesChanged(
+void CgroupsIsolator::resourcesChanged(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const Resources& resources)
@@ -643,7 +642,7 @@ void CgroupsIsolationModule::resourcesChanged(
 }
 
 
-Future<ResourceStatistics> CgroupsIsolationModule::usage(
+Future<ResourceStatistics> CgroupsIsolator::usage(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
@@ -683,10 +682,10 @@ Future<ResourceStatistics> CgroupsIsolationModule::usage(
 }
 
 
-Future<Nothing> CgroupsIsolationModule::recover(
+Future<Nothing> CgroupsIsolator::recover(
     const Option<SlaveState>& state)
 {
-  LOG(INFO) << "Recovering isolation module";
+  LOG(INFO) << "Recovering isolator";
 
   hashset<std::string> cgroups; // Recovered cgroups.
 
@@ -744,8 +743,8 @@ Future<Nothing> CgroupsIsolationModule::recover(
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup '" << orphan << "'";
       cgroups::destroy(hierarchy, orphan)
-        .onAny(defer(PID<CgroupsIsolationModule>(this),
-               &CgroupsIsolationModule::_destroy,
+        .onAny(defer(PID<CgroupsIsolator>(this),
+               &CgroupsIsolator::_destroy,
                orphan,
                lambda::_1));
     }
@@ -755,7 +754,7 @@ Future<Nothing> CgroupsIsolationModule::recover(
 }
 
 
-void CgroupsIsolationModule::processExited(pid_t pid, int status)
+void CgroupsIsolator::processExited(pid_t pid, int status)
 {
   CgroupInfo* info = findCgroupInfo(pid);
   if (info != NULL) {
@@ -776,7 +775,7 @@ void CgroupsIsolationModule::processExited(pid_t pid, int status)
 }
 
 
-Try<Nothing> CgroupsIsolationModule::cpusChanged(
+Try<Nothing> CgroupsIsolator::cpusChanged(
     CgroupInfo* info,
     const Resource& resource)
 {
@@ -804,7 +803,7 @@ Try<Nothing> CgroupsIsolationModule::cpusChanged(
 }
 
 
-Try<Nothing> CgroupsIsolationModule::cpusetChanged(
+Try<Nothing> CgroupsIsolator::cpusetChanged(
     CgroupInfo* info,
     const Resource& resource)
 {
@@ -845,7 +844,7 @@ Try<Nothing> CgroupsIsolationModule::cpusetChanged(
 }
 
 
-Try<Nothing> CgroupsIsolationModule::memChanged(
+Try<Nothing> CgroupsIsolator::memChanged(
     CgroupInfo* info,
     const Resource& resource)
 {
@@ -902,7 +901,7 @@ Try<Nothing> CgroupsIsolationModule::memChanged(
 }
 
 
-void CgroupsIsolationModule::oomListen(
+void CgroupsIsolator::oomListen(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
@@ -925,8 +924,8 @@ void CgroupsIsolationModule::oomListen(
 
   CHECK_SOME(info->uuid);
   info->oomNotifier.onAny(
-      defer(PID<CgroupsIsolationModule>(this),
-            &CgroupsIsolationModule::oomWaited,
+      defer(PID<CgroupsIsolator>(this),
+            &CgroupsIsolator::oomWaited,
             frameworkId,
             executorId,
             info->uuid.get(),
@@ -934,7 +933,7 @@ void CgroupsIsolationModule::oomListen(
 }
 
 
-void CgroupsIsolationModule::oomWaited(
+void CgroupsIsolator::oomWaited(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const UUID& uuid,
@@ -959,7 +958,7 @@ void CgroupsIsolationModule::oomWaited(
 }
 
 
-void CgroupsIsolationModule::oom(
+void CgroupsIsolator::oom(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const UUID& uuid)
@@ -989,7 +988,7 @@ void CgroupsIsolationModule::oom(
             << " of framework " << frameworkId
             << " with uuid " << uuid;
 
-  // Construct a "reason" string to describe why the isolation module
+  // Construct a "reason" string to describe why the isolator
   // destroyed the executor's cgroup (in order to assist in debugging).
   ostringstream reason;
   reason << "Memory limit exceeded: ";
@@ -1035,7 +1034,7 @@ void CgroupsIsolationModule::oom(
 }
 
 
-void CgroupsIsolationModule::_destroy(
+void CgroupsIsolator::_destroy(
     const string& cgroup,
     const Future<bool>& future)
 {
@@ -1050,7 +1049,7 @@ void CgroupsIsolationModule::_destroy(
 }
 
 
-void CgroupsIsolationModule::_killExecutor(
+void CgroupsIsolator::_killExecutor(
     CgroupInfo* info,
     const Future<bool>& future)
 {
@@ -1088,7 +1087,7 @@ void CgroupsIsolationModule::_killExecutor(
 }
 
 
-CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::registerCgroupInfo(
+CgroupsIsolator::CgroupInfo* CgroupsIsolator::registerCgroupInfo(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const UUID& uuid,
@@ -1115,7 +1114,7 @@ CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::registerCgroupInfo(
 }
 
 
-void CgroupsIsolationModule::unregisterCgroupInfo(
+void CgroupsIsolator::unregisterCgroupInfo(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
@@ -1131,7 +1130,7 @@ void CgroupsIsolationModule::unregisterCgroupInfo(
 }
 
 
-CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::findCgroupInfo(
+CgroupsIsolator::CgroupInfo* CgroupsIsolator::findCgroupInfo(
     pid_t pid)
 {
   foreachkey (const FrameworkID& frameworkId, infos) {
@@ -1145,7 +1144,7 @@ CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::findCgroupInfo(
 }
 
 
-CgroupsIsolationModule::CgroupInfo* CgroupsIsolationModule::findCgroupInfo(
+CgroupsIsolator::CgroupInfo* CgroupsIsolator::findCgroupInfo(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {

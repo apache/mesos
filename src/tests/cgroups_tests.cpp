@@ -310,8 +310,8 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
     << "-------------------------------------------------------------\n"
     << "We cannot run this test because it appears you do not have\n"
     << "a modern enough version of the Linux kernel. You won't be\n"
-    << "able to use the cgroups isolation module, but feel free to\n"
-    << "disable this test.\n"
+    << "able to use the cgroups isolator, but feel free to disable\n"
+    << "this test.\n"
     << "-------------------------------------------------------------";
 
   ASSERT_SOME(cgroups::create(hierarchy, path::join(TEST_CGROUPS_ROOT, "2")));
@@ -423,8 +423,8 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
     << "-------------------------------------------------------------\n"
     << "We cannot run this test because it appears you do not have\n"
     << "a modern enough version of the Linux kernel. You won't be\n"
-    << "able to use the cgroups isolation module, but feel free to\n"
-    << "disable this test.\n"
+    << "able to use the cgroups isolator, but feel free to disable\n"
+    << "this test.\n"
     << "-------------------------------------------------------------";
 
   // Disable oom killer.

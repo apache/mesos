@@ -36,7 +36,7 @@ namespace internal {
 namespace slave {
 
 // Forward declarations.
-class IsolationModule;
+class Isolator;
 class ResourceMonitorProcess;
 
 
@@ -46,15 +46,15 @@ class ResourceMonitorProcess;
 // TODO(bmahler): Forward usage information to the master.
 // TODO(bmahler): Consider pulling out the resource collection into
 // a Collector abstraction. The monitor can then become a true
-// monitoring abstraction, allowing isolation modules to subscribe
+// monitoring abstraction, allowing isolators to subscribe
 // to resource usage events. (e.g. get a future for the executor
 // hitting 75% memory consumption, the future would become ready
-// when this occurs, and the isolation module can discard the future
+// when this occurs, and the isolator can discard the future
 // when no longer interested).
 class ResourceMonitor
 {
 public:
-  ResourceMonitor(IsolationModule* isolation);
+  ResourceMonitor(Isolator* isolator);
   ~ResourceMonitor();
 
   // Starts monitoring resources for the given executor.

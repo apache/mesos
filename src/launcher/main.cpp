@@ -69,7 +69,6 @@ int main(int argc, char** argv)
       os::getenv("MESOS_HADOOP_HOME"),
       os::getenv("MESOS_REDIRECT_IO") == "1",
       os::getenv("MESOS_SWITCH_USER") == "1",
-      os::getenv("MESOS_CONTAINER", false),
       os::getenv("MESOS_CHECKPOINT") == "1")
     .run();
 }

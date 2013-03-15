@@ -38,7 +38,7 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "slave/process_based_isolation_module.hpp"
+#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
 using namespace mesos::internal;
@@ -50,8 +50,8 @@ using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
-using mesos::internal::slave::IsolationModule;
-using mesos::internal::slave::ProcessBasedIsolationModule;
+using mesos::internal::slave::Isolator;
+using mesos::internal::slave::ProcessIsolator;
 
 using process::PID;
 using process::UPID;
@@ -69,7 +69,7 @@ namespace local {
 static Allocator* allocator = NULL;
 static AllocatorProcess* allocatorProcess = NULL;
 static Master* master = NULL;
-static map<IsolationModule*, Slave*> slaves;
+static map<Isolator*, Slave*> slaves;
 static MasterDetector* detector = NULL;
 static Files* files = NULL;
 
@@ -129,15 +129,14 @@ PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
   flags.load(configuration.getMap());
 
   for (int i = 0; i < numSlaves; i++) {
-    // TODO(benh): Create a local isolation module?
-    ProcessBasedIsolationModule* isolationModule =
-      new ProcessBasedIsolationModule();
+    // TODO(benh): Create a local isolator?
+    ProcessIsolator* isolator = new ProcessIsolator();
 
     // Use a different work directory for each slave.
     flags.work_dir = path::join(flags.work_dir, stringify(i));
 
-    Slave* slave = new Slave(flags, true, isolationModule, files);
-    slaves[isolationModule] = slave;
+    Slave* slave = new Slave(flags, true, isolator, files);
+    slaves[isolator] = slave;
     pids.push_back(process::spawn(slave));
   }
 
@@ -157,16 +156,16 @@ void shutdown()
     delete allocatorProcess;
     master = NULL;
 
-    // TODO(benh): Ugh! Because the isolation module calls back into the
-    // slave (not the best design) we can't delete the slave until we
-    // have deleted the isolation module. But since the slave calls into
-    // the isolation module, we can't delete the isolation module until
-    // we have stopped the slave.
+    // TODO(benh): Ugh! Because the isolator calls back into the slave
+    // (not the best design) we can't delete the slave until we have
+    // deleted the isolator. But since the slave calls into the
+    // isolator, we can't delete the isolator until we have stopped
+    // the slave.
 
-    foreachpair (IsolationModule* isolationModule, Slave* slave, slaves) {
+    foreachpair (Isolator* isolator, Slave* slave, slaves) {
       process::terminate(slave->self());
       process::wait(slave->self());
-      delete isolationModule;
+      delete isolator;
       delete slave;
     }
 

@@ -72,30 +72,30 @@ using namespace state;
 
 Slave::Slave(const Resources& _resources,
              bool _local,
-             IsolationModule* _isolationModule,
+             Isolator* _isolator,
              Files* _files)
   : ProcessBase(ID::generate("slave")),
     flags(),
     local(_local),
     resources(_resources),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
-    isolationModule(_isolationModule),
+    isolator(_isolator),
     files(_files),
-    monitor(isolationModule),
+    monitor(_isolator),
     statusUpdateManager(new StatusUpdateManager()) {}
 
 
 Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
              bool _local,
-             IsolationModule* _isolationModule,
+             Isolator* _isolator,
              Files* _files)
   : ProcessBase(ID::generate("slave")),
     flags(_flags),
     local(_local),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
-    isolationModule(_isolationModule),
+    isolator(_isolator),
     files(_files),
-    monitor(isolationModule),
+    monitor(_isolator),
     statusUpdateManager(new StatusUpdateManager())
 {
   // TODO(benh): Move this computation into Flags as the "default".
@@ -227,16 +227,11 @@ void Slave::initialize()
   info.mutable_attributes()->MergeFrom(attributes);
   info.set_checkpoint(flags.checkpoint);
 
-  // Spawn and initialize the isolation module.
-  // TODO(benh): Seems like the isolation module should really be
+  // Spawn and initialize the isolator.
+  // TODO(benh): Seems like the isolator should really be
   // spawned before being passed to the slave.
-  spawn(isolationModule);
-  dispatch(isolationModule,
-           &IsolationModule::initialize,
-           flags,
-           resources,
-           local,
-           self());
+  spawn(isolator);
+  dispatch(isolator, &Isolator::initialize, flags, resources, local, self());
 
   statusUpdateManager->initialize(self());
 
@@ -406,10 +401,10 @@ void Slave::finalize()
     }
   }
 
-  // Stop the isolation module.
+  // Stop the isolator.
   // TODO(vinod): Wait until all the executors have terminated.
-  terminate(isolationModule);
-  wait(isolationModule);
+  terminate(isolator);
+  wait(isolator);
 }
 
 
@@ -714,10 +709,10 @@ void Slave::runTask(
       stats.tasks[TASK_STAGING]++;
 
       // Update the resources.
-      // TODO(Charles Reiss): The isolation module is not guaranteed to update
+      // TODO(Charles Reiss): The isolator is not guaranteed to update
       // the resources before the executor acts on its RunTaskMessage.
-      dispatch(isolationModule,
-               &IsolationModule::resourcesChanged,
+      dispatch(isolator,
+               &Isolator::resourcesChanged,
                framework->id,
                executor->id,
                executor->resources);
@@ -778,7 +773,7 @@ void Slave::runTask(
 
       CHECK_SOME(state::checkpoint(path, t));
 
-      // Get the path for isolation module to checkpoint the forked pid.
+      // Get the path for isolator to checkpoint the forked pid.
       pidPath = paths::getForkedPidPath(
           paths::getMetaRootDir(flags.work_dir),
           info.id(),
@@ -790,9 +785,11 @@ void Slave::runTask(
     // Queue task until the executor starts up.
     executor->queuedTasks[task.task_id()] = task;
 
-    // Tell the isolation module to launch the executor.
-    dispatch(isolationModule,
-             &IsolationModule::launchExecutor,
+    // Tell the isolator to launch the executor. (TODO(benh): Make the
+    // isolator a process so that it can block while trying to launch
+    // the executor.)
+    dispatch(isolator,
+             &Isolator::launchExecutor,
              info.id(),
              framework->id,
              framework->info,
@@ -837,7 +834,6 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
     statusUpdate(update);
   } else if (!executor->pid) {
     // We are here, if the executor hasn't registered with the slave yet.
-
     const StatusUpdate& update = protobuf::createStatusUpdate(
         frameworkId,
         info.id(),
@@ -1062,8 +1058,8 @@ void Slave::registerExecutor(
     // TODO(Charles Reiss): We don't actually have a guarantee that this will
     // be delivered or (where necessary) acted on before the executor gets its
     // RunTaskMessages.
-    dispatch(isolationModule,
-             &IsolationModule::resourcesChanged,
+    dispatch(isolator,
+             &Isolator::resourcesChanged,
              framework->id,
              executor->id,
              executor->resources);
@@ -1124,7 +1120,7 @@ void Slave::reregisterExecutor(
   // checkpointed the update but before it could send the ACK to the executor).
   // This is ok because, the status update manager simply re-ACKs the executor.
   foreach (const StatusUpdate& update, updates) {
-    statusUpdate(update); // This also updates the isolation module's resources!
+    statusUpdate(update); // This also updates the executor's resources!
   }
 
   // Now, if there is any task still in STAGING state and not in 'tasks' known
@@ -1158,10 +1154,10 @@ void Slave::reregisterExecutorTimeout()
 
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
-      // If we are here, the executor must have been hung and
-      // not exited! This is because, if the executor properly
-      // exited, it should have already been identified by the
-      // isolation module (via reaper) and cleaned up!
+      // If we are here, the executor must have been hung and not
+      // exited! This is because, if the executor properly exited, it
+      // should have already been identified by the isolator (via
+      // reaper) and cleaned up!
       if (!executor->pid) {
         LOG(INFO) << "Shutting down un-reregistered executor " << executor->id
                   << " of framework " << framework->id;
@@ -1200,12 +1196,12 @@ void Slave::statusUpdate(const StatusUpdate& update)
       if (protobuf::isTerminalState(status.state())) {
         executor->removeTask(status.task_id());
 
-        dispatch(
-            isolationModule,
-            &IsolationModule::resourcesChanged,
-            framework->id,
-            executor->id,
-            executor->resources);
+        // Tell the isolator to update the resources.
+        dispatch(isolator,
+                 &Isolator::resourcesChanged,
+                 framework->id,
+                 executor->id,
+                 executor->resources);
       }
     } else {
       LOG(WARNING) << "Could not find executor for task " << status.task_id()
@@ -1423,7 +1419,7 @@ void _unwatch(
     const ExecutorID& executorId);
 
 
-// Called by the isolation module when an executor process terminates.
+// Called by the isolator when an executor process terminates.
 void Slave::executorTerminated(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
@@ -1463,7 +1459,7 @@ void Slave::executorTerminated(
   bool isCommandExecutor = false;
 
   // Transition all live tasks to TASK_LOST/TASK_FAILED.
-  // If the isolation module destroyed the executor (e.g., due to OOM event)
+  // If the isolator destroyed the executor (e.g., due to OOM event)
   // or if this is a command executor, we send TASK_FAILED status updates
   // instead of TASK_LOST.
 
@@ -1641,10 +1637,7 @@ void Slave::shutdownExecutorTimeout(
     LOG(INFO) << "Killing executor '" << executor->id
               << "' of framework " << framework->id;
 
-    dispatch(isolationModule,
-             &IsolationModule::killExecutor,
-             framework->id,
-             executor->id);
+    dispatch(isolator, &Isolator::killExecutor, framework->id, executor->id);
   }
 }
 
@@ -1701,9 +1694,9 @@ Future<Nothing> Slave::recover(bool reconnect, bool safe)
   // the first time this slave was started with checkpointing enabled
   // or this slave was started after an upgrade (--recover=cleanup).
   if (!os::exists(metaDir)) {
-    // NOTE: We recover the isolation module here to cleanup any old
-    // executors (e.g: orphaned cgroups).
-    return dispatch(isolationModule, &IsolationModule::recover, None());
+    // NOTE: We recover the isolator here to cleanup any old executors
+    // (e.g: orphaned cgroups).
+    return dispatch(isolator, &Isolator::recover, None());
   }
 
   // First, recover the slave state.
@@ -1714,9 +1707,9 @@ Future<Nothing> Slave::recover(bool reconnect, bool safe)
 
   if (state.isNone() || state.get().info.isNone()) {
     // We are here if the slave died before checkpointing its info.
-    // NOTE: We recover the isolation module here to cleanup any old
-    // executors (e.g: orphaned cgroups).
-    return dispatch(isolationModule, &IsolationModule::recover, None());
+    // NOTE: We recover the isolator here to cleanup any old executors
+    // (e.g: orphaned cgroups).
+    return dispatch(isolator, &Isolator::recover, None());
   }
 
   // Check for SlaveInfo compatibility.
@@ -1738,12 +1731,10 @@ Future<Nothing> Slave::recover(bool reconnect, bool safe)
 
   info = state.get().info.get(); // Recover the slave info.
 
-  // Recover the status update manager, then the isolation module and
+  // Recover the status update manager, then the isolator and
   // then the executors.
   return statusUpdateManager->recover(metaDir, state.get())
-           .then(defer(isolationModule,
-                       &IsolationModule::recover,
-                       state.get()))
+           .then(defer(isolator, &Isolator::recover, state.get()))
            .then(defer(self(),
                        &Self::recoverExecutors,
                        state.get(),
@@ -1812,7 +1803,7 @@ Future<Nothing> Slave::recoverExecutors(
 
         // NOTE: Since some tasks might have been terminated when the slave
         // was down, the executor resources we capture here is an upper-bound.
-        // The actual resources needed (for live tasks) by the isolation module
+        // The actual resources needed (for live tasks) by the isolator
         // will be calculated when the executor re-registers.
         executor->resources += task.info.get().resources();
 

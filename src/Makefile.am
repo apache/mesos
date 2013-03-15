@@ -170,8 +170,8 @@ libmesos_no_third_party_la_SOURCES =					\
 	slave/state.cpp							\
 	slave/slave.cpp							\
 	slave/http.cpp							\
-	slave/isolation_module.cpp					\
-	slave/process_based_isolation_module.cpp			\
+	slave/isolator.cpp						\
+	slave/process_isolator.cpp					\
 	slave/reaper.cpp						\
 	slave/status_update_manager.cpp					\
 	launcher/launcher.cpp						\
@@ -197,20 +197,16 @@ pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\
 nodist_pkginclude_HEADERS = ../include/mesos/mesos.hpp mesos.pb.h
 
 if OS_LINUX
-  libmesos_no_third_party_la_SOURCES += slave/cgroups_isolation_module.cpp
-  libmesos_no_third_party_la_SOURCES += slave/lxc_isolation_module.cpp
+  libmesos_no_third_party_la_SOURCES += slave/cgroups_isolator.cpp
   libmesos_no_third_party_la_SOURCES += linux/cgroups.cpp
   libmesos_no_third_party_la_SOURCES += linux/fs.cpp
   libmesos_no_third_party_la_SOURCES += linux/proc.cpp
 else
-  EXTRA_DIST += slave/cgroups_isolation_module.cpp
-  EXTRA_DIST += slave/lxc_isolation_module.cpp
+  EXTRA_DIST += slave/cgroups_isolator.cpp
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
   EXTRA_DIST += linux/proc.cpp
 endif
-
-EXTRA_DIST += slave/solaris_project_isolation_module.cpp
 
 libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
@@ -231,13 +227,13 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	master/master.hpp master/slaves_manager.hpp master/sorter.hpp	\
 	messages/messages.hpp slave/constants.hpp			\
 	slave/flags.hpp slave/gc.hpp slave/monitor.hpp slave/http.hpp	\
-	slave/isolation_module.hpp slave/isolation_module_factory.hpp	\
-	slave/cgroups_isolation_module.hpp				\
-	slave/lxc_isolation_module.hpp					\
+	slave/isolator.hpp						\
+	slave/cgroups_isolator.hpp					\
 	slave/paths.hpp slave/state.hpp					\
 	slave/status_update_manager.hpp					\
-	slave/process_based_isolation_module.hpp slave/reaper.hpp	\
-	slave/slave.hpp slave/solaris_project_isolation_module.hpp	\
+	slave/process_isolator.hpp					\
+        slave/reaper.hpp						\
+	slave/slave.hpp							\
 	tests/environment.hpp tests/script.hpp				\
 	tests/zookeeper_test.hpp tests/flags.hpp tests/utils.hpp	\
 	tests/filter.hpp                                                \
@@ -355,12 +351,6 @@ bin_PROGRAMS += mesos-log
 mesos_log_SOURCES = log/main.cpp
 mesos_log_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_log_LDADD = libmesos.la
-
-# TODO(benh): Support Solaris.
-# bin_PROGRAMS += mesos-projd
-# mesos_projd_SOURCES = slave/projd.cpp
-# mesos_projd_CPPFLAGS = $(MESOS_CPPFLAGS)
-# mesos_projd_LDADD = libmesos.la
 
 bin_PROGRAMS += mesos-mesos
 mesos_mesos_SOURCES = mesos/main.cpp
@@ -819,7 +809,7 @@ mesos_tests_LDADD = ../$(LIBPROCESS)/third_party/libgmock.la libmesos.la
 mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 
 if OS_LINUX
-  mesos_tests_SOURCES += tests/cgroups_isolation_tests.cpp
+  mesos_tests_SOURCES += tests/cgroups_isolator_tests.cpp
   mesos_tests_SOURCES += tests/cgroups_tests.cpp
   mesos_tests_SOURCES += tests/fs_tests.cpp
   mesos_tests_SOURCES += tests/proc_tests.cpp

@@ -32,7 +32,6 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "slave/isolation_module_factory.hpp"
 #include "slave/slave.hpp"
 
 using namespace mesos::internal;
@@ -68,7 +67,10 @@ int main(int argc, char** argv)
   flags.add(&ip, "ip", "IP address to listen on");
 
   string isolation;
-  flags.add(&isolation, "isolation", "Isolation module", "process");
+  flags.add(&isolation,
+            "isolation",
+            "Isolation mechanism, may be one of: process, cgroups",
+            "process");
 
   Option<string> master;
   flags.add(&master,
@@ -106,16 +108,6 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  // Checkpointing is not implemented because Lxc based isolation is
-  // being deprecated.
-  if (isolation == "lxc" && flags.checkpoint) {
-    cerr
-      << "Checkpointing is not supported with Lxc based isolation." << endl
-      << "Please disable checkpointing or use process/cgroups based isolation."
-      << endl;
-  }
-
-
   // Initialize libprocess.
   if (port.isSome()) {
     os::setenv("LIBPROCESS_PORT", stringify(port.get()));
@@ -129,10 +121,10 @@ int main(int argc, char** argv)
 
   logging::initialize(argv[0], flags);
 
-  LOG(INFO) << "Creating \"" << isolation << "\" isolation module";
+  LOG(INFO) << "Creating \"" << isolation << "\" isolator";
 
-  IsolationModule* isolationModule = IsolationModule::create(isolation);
-  if (isolationModule == NULL) {
+  Isolator* isolator = Isolator::create(isolation);
+  if (isolator == NULL) {
     cerr << "Unrecognized isolation type: " << isolation << endl;
     exit(1);
   }
@@ -141,7 +133,7 @@ int main(int argc, char** argv)
   LOG(INFO) << "Starting Mesos slave";
 
   Files files;
-  Slave* slave = new Slave(flags, false, isolationModule, &files);
+  Slave* slave = new Slave(flags, false, isolator, &files);
   process::spawn(slave);
 
   Try<MasterDetector*> detector =
@@ -153,7 +145,7 @@ int main(int argc, char** argv)
   delete slave;
 
   MasterDetector::destroy(detector.get());
-  IsolationModule::destroy(isolationModule);
+  Isolator::destroy(isolator);
 
   return 0;
 }

@@ -60,7 +60,6 @@ ExecutorLauncher::ExecutorLauncher(
     const string& _hadoopHome,
     bool _redirectIO,
     bool _shouldSwitchUser,
-    const string& _container,
     bool _checkpoint)
   : slaveId(_slaveId),
     frameworkId(_frameworkId),
@@ -73,7 +72,6 @@ ExecutorLauncher::ExecutorLauncher(
     hadoopHome(_hadoopHome),
     redirectIO(_redirectIO),
     shouldSwitchUser(_shouldSwitchUser),
-    container(_container),
     checkpoint (_checkpoint) {}
 
 
@@ -81,7 +79,7 @@ ExecutorLauncher::~ExecutorLauncher() {}
 
 
 // NOTE: We avoid fatalerror()s in this function because, we don't
-// want to kill the slave (in the case of cgroups isolation module).
+// want to kill the slave (in the case of cgroups isolator).
 int ExecutorLauncher::setup()
 {
   const string& cwd = os::getcwd();
@@ -143,25 +141,6 @@ int ExecutorLauncher::launch()
   setupEnvironment();
 
   const string& command = commandInfo.value();
-
-  // TODO(benh): Clean up this gross special cased LXC garbage!!!!
-  if (container != "") {
-    // If we are running with a container than we need to fork an
-    // extra time so that we can correctly cleanup the container when
-    // the executor exits.
-    pid_t pid;
-    if ((pid = fork()) == -1) {
-      fatalerror("Failed to fork to run '%s'", command.c_str());
-    }
-
-    if (pid != 0) {
-      // In parent process, wait for the child to finish.
-      int status;
-      wait(&status);
-      os::system("lxc-stop -n " + container);
-      return status;
-    }
-  }
 
   // Execute the command (via '/bin/sh -c command').
   execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
@@ -420,7 +399,6 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
   os::setenv("MESOS_HADOOP_HOME", hadoopHome);
   os::setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0");
   os::setenv("MESOS_SWITCH_USER", shouldSwitchUser ? "1" : "0");
-  os::setenv("MESOS_CONTAINER", container);
 }
 
 } // namespace launcher {

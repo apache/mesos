@@ -53,8 +53,8 @@ using std::string;
 // TODO(bmahler): Add additional tests:
 //   1. Check that the data has been published to statistics.
 //   2. Check that metering is occurring on subsequent resource data.
-//   3. Add tests for process based isolation usage.
-//   4. Add tests for cgroups based isolation usage.
+//   3. Add tests for process isolator usage.
+//   4. Add tests for cgroups isolator usage.
 TEST(MonitorTest, WatchUnwatch)
 {
   FrameworkID frameworkId;
@@ -75,15 +75,15 @@ TEST(MonitorTest, WatchUnwatch)
   statistics.set_memory_rss(1024);
 
   std::map<ExecutorID, Executor*> execs;
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  process::spawn(isolationModule);
+  process::spawn(isolator);
 
-  EXPECT_CALL(isolationModule, usage(frameworkId, executorId))
+  EXPECT_CALL(isolator, usage(frameworkId, executorId))
     .WillRepeatedly(Return(statistics));
 
   // Monitor the executor.
-  slave::ResourceMonitor monitor(&isolationModule);
+  slave::ResourceMonitor monitor(&isolator);
   monitor.watch(
       frameworkId,
       executorId,
@@ -125,7 +125,7 @@ TEST(MonitorTest, WatchUnwatch)
           statistics.memory_rss()).get(),
       response);
 
-  // Ensure the monitor stops polling the isolation module.
+  // Ensure the monitor stops polling the isolator.
   monitor.unwatch(frameworkId, executorId);
 
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL.secs());

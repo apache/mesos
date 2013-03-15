@@ -62,9 +62,9 @@
 #include "messages/messages.hpp"
 
 #ifdef __linux__
-#include "slave/cgroups_isolation_module.hpp"
+#include "slave/cgroups_isolator.hpp"
 #endif
-#include "slave/isolation_module.hpp"
+#include "slave/isolator.hpp"
 #include "slave/reaper.hpp"
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
@@ -85,7 +85,7 @@ extern flags::Flags<logging::Flags, Flags> flags;
 
 
 #ifdef __linux__
-using slave::CgroupsIsolationModule;
+using slave::CgroupsIsolator;
 
 // Cgroups hierarchy used by the cgroups related tests.
 const static std::string TEST_CGROUPS_HIERARCHY = "/tmp/mesos_test_cgroup";
@@ -156,13 +156,13 @@ protected:
 
 
 template <typename T>
-class IsolationTest : public MesosTest
+class IsolatorTest : public MesosTest
 {};
 
 
 #ifdef __linux__
 template <>
-class IsolationTest<CgroupsIsolationModule> : public MesosTest
+class IsolatorTest<CgroupsIsolator> : public MesosTest
 {
 public:
   static void SetUpTestCase()
@@ -761,10 +761,10 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
   WAIT_FOR(expression, Seconds(2.0))
 
 
-class TestingIsolationModule : public slave::IsolationModule
+class TestingIsolator : public slave::Isolator
 {
 public:
-  TestingIsolationModule(const std::map<ExecutorID, Executor*>& _executors)
+  TestingIsolator(const std::map<ExecutorID, Executor*>& _executors)
     : executors(_executors)
   {
     EXPECT_CALL(*this, resourcesChanged(testing::_, testing::_, testing::_))
@@ -778,7 +778,7 @@ public:
       .WillRepeatedly(Return(Nothing()));
   }
 
-  virtual ~TestingIsolationModule() {}
+  virtual ~TestingIsolator() {}
 
   virtual void initialize(
       const slave::Flags& flags,

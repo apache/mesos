@@ -74,9 +74,9 @@ TEST_F(MasterDetectorTest, File)
 
   map<ExecutorID, Executor*> execs;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   // Write "master" to a file and use the "file://" mechanism to

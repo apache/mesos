@@ -31,7 +31,7 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "slave/process_based_isolation_module.hpp"
+#include "slave/process_isolator.hpp"
 
 #include "tests/filter.hpp"
 #include "tests/utils.hpp"
@@ -44,7 +44,7 @@ using mesos::internal::master::Allocator;
 using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::ProcessBasedIsolationModule;
+using mesos::internal::slave::ProcessIsolator;
 using mesos::internal::slave::Slave;
 
 using process::Clock;
@@ -155,10 +155,10 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   PID<Master> master = process::spawn(m);
 
   map<ExecutorID, Executor*> execs;
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
   setSlaveResources("cpus:2;mem:1024;disk:0");
-  Slave s(slaveFlags, true, &isolationModule, &files);
+  Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave1 = process::spawn(s);
 
   BasicMasterDetector detector(master, slave1, true);
@@ -200,7 +200,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   WAIT_UNTIL(framework2Added);
 
   setSlaveResources("cpus:1;mem:512;disk:0");
-  Slave s2(slaveFlags, true, &isolationModule, &files);
+  Slave s2(slaveFlags, true, &isolator, &files);
   PID<Slave> slave2 = process::spawn(s2);
 
   BasicMasterDetector detector2(master, slave2, true);
@@ -210,7 +210,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   EXPECT_THAT(offers2, OfferEq(1, 512));
 
   setSlaveResources("cpus:3;mem:2048;disk:0");
-  Slave s3(slaveFlags, true, &isolationModule, &files);
+  Slave s3(slaveFlags, true, &isolator, &files);
   PID<Slave> slave3 = process::spawn(s3);
   BasicMasterDetector detector3(master, slave3, true);
 
@@ -234,7 +234,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   WAIT_UNTIL(framework3Added);
 
   setSlaveResources("cpus:4;mem:4096;disk:0");
-  Slave s4(slaveFlags, true, &isolationModule, &files);
+  Slave s4(slaveFlags, true, &isolator, &files);
   PID<Slave> slave4 = process::spawn(s4);
   BasicMasterDetector detector4(master, slave4, true);
 
@@ -322,9 +322,9 @@ TYPED_TEST(AllocatorTest, MockAllocator)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(this->slaveFlags, true, &isolationModule, &files);
+  Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -408,9 +408,9 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(this->slaveFlags, true, &isolationModule, &files);
+  Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave1 = process::spawn(s);
   BasicMasterDetector(master, slave1, true);
 
@@ -525,9 +525,9 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 
   map<ExecutorID, Executor*> execs;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(this->slaveFlags, true, &isolationModule, &files);
+  Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
@@ -645,12 +645,12 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  EXPECT_CALL(isolationModule, resourcesChanged(_, _, _));
+  EXPECT_CALL(isolator, resourcesChanged(_, _, _));
 
   this->setSlaveResources("cpus:3;mem:1024");
-  Slave s(this->slaveFlags, true, &isolationModule, &files);
+  Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
   BasicMasterDetector detector(master, slave, true);
 
@@ -775,12 +775,12 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
-  EXPECT_CALL(isolationModule, resourcesChanged(_, _, _))
+  TestingIsolator isolator(execs);
+  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
     .Times(2);
 
   this->setSlaveResources("cpus:3;mem:1024");
-  Slave s1(this->slaveFlags, true, &isolationModule, &files);
+  Slave s1(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave1 = process::spawn(s1);
   BasicMasterDetector detector1(master, slave1, true);
 
@@ -899,11 +899,11 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  EXPECT_CALL(isolationModule, resourcesChanged(_, _, _));
+  EXPECT_CALL(isolator, resourcesChanged(_, _, _));
 
-  Slave s1(this->slaveFlags, true, &isolationModule, &files);
+  Slave s1(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave1 = process::spawn(s1);
   BasicMasterDetector detector1(master, slave1, true);
 
@@ -949,10 +949,10 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   WAIT_UNTIL(slaveRemovedTrigger1);
 
-  TestingIsolationModule isolationModule2(execs);
+  TestingIsolator isolator2(execs);
 
   this->setSlaveResources("cpus:3;mem:256");
-  Slave s2(this->slaveFlags, true, &isolationModule2, &files);
+  Slave s2(this->slaveFlags, true, &isolator2, &files);
   PID<Slave> slave2 = process::spawn(s2);
   BasicMasterDetector detector2(master, slave2, true);
 
@@ -1025,12 +1025,12 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  EXPECT_CALL(isolationModule, resourcesChanged(_, _, _));
+  EXPECT_CALL(isolator, resourcesChanged(_, _, _));
 
   this->setSlaveResources("cpus:3;mem:1024");
-  Slave s1(this->slaveFlags, true, &isolationModule, &files);
+  Slave s1(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave1 = process::spawn(s1);
   BasicMasterDetector detector1(master, slave1, true);
 
@@ -1075,7 +1075,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   WAIT_UNTIL(launchTaskTrigger);
 
   this->setSlaveResources("cpus:4;mem:2048");
-  Slave s2(this->slaveFlags, true, &isolationModule, &files);
+  Slave s2(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave2 = process::spawn(s2);
   BasicMasterDetector detector2(master, slave2, true);
 
@@ -1156,12 +1156,12 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
-  EXPECT_CALL(isolationModule, resourcesChanged(_, _, _))
+  TestingIsolator isolator(execs);
+  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
     .Times(2);
 
   this->setSlaveResources("cpus:3;mem:1024");
-  Slave s1(this->slaveFlags, true, &isolationModule, &files);
+  Slave s1(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave1 = process::spawn(s1);
   BasicMasterDetector detector1(master, slave1, true);
 
@@ -1266,9 +1266,9 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   map<ExecutorID, Executor*> execs;
   execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-  TestingIsolationModule isolationModule(execs);
+  TestingIsolator isolator(execs);
 
-  Slave s(this->slaveFlags, true, &isolationModule, &files);
+  Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   BasicMasterDetector detector(master, slave, true);
