@@ -195,8 +195,6 @@ void ResourceMonitorProcess::_collect(
     const ExecutorID& executorId,
     const Duration& interval)
 {
-  CHECK(!statistics.isDiscarded());
-
   // Has the executor been unwatched?
   if (!watches.contains(frameworkId) ||
       !watches[frameworkId].contains(executorId)) {
@@ -209,9 +207,12 @@ void ResourceMonitorProcess::_collect(
             << "' of framework '" << frameworkId << "'";
     publish(frameworkId, executorId, statistics.get());
   } else {
+    // Note that the isolator might have been terminated and pending
+    // dispatches deleted, causing the future to get discarded.
     LOG(WARNING)
       << "Failed to collect resource usage for executor '" << executorId
-      << "' of framework '" << frameworkId << "': " << statistics.failure();
+      << "' of framework '" << frameworkId << "': "
+      << statistics.isFailed() ? statistics.failure() : "Future discarded";
   }
 
   // Schedule the next collection.
