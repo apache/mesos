@@ -102,23 +102,28 @@ static bool enable(const ::testing::TestInfo& test)
 // N.B. This MUST be done _before_ invoking RUN_ALL_TESTS.
 Environment::Environment()
 {
-  // First we split the current filter into positive and negative
-  // components (which are separated by a '-').
+  // First we split the current filter into enabled and disabled tests
+  // (which are separated by a '-').
   const string& filter = ::testing::GTEST_FLAG(filter);
-  string positive;
-  string negative;
+  string enabled;
+  string disabled;
 
   size_t dash = filter.find('-');
   if (dash != string::npos) {
-    positive = filter.substr(0, dash);
-    negative = filter.substr(dash + 1);
+    enabled = filter.substr(0, dash);
+    disabled = filter.substr(dash + 1);
   } else {
-    positive = filter;
+    enabled = filter;
   }
 
   // Use universal filter if not specified.
-  if (positive.empty()) {
-    positive = "*";
+  if (enabled.empty()) {
+    enabled = "*";
+  }
+
+  // Ensure disabled tests end with ":" separator before we add more.
+  if (!disabled.empty() && !strings::endsWith(disabled, ":")) {
+    disabled += ":";
   }
 
   // Construct the filter string to handle system or platform specific tests.
@@ -130,16 +135,16 @@ Environment::Environment()
 
       if (!enable(*testCase->GetTestInfo(j))) {
         // Append 'TestCase.TestName:'.
-        negative.append(testInfo->test_case_name());
-        negative.append(".");
-        negative.append(testInfo->name());
-        negative.append(":");
+        disabled.append(testInfo->test_case_name());
+        disabled.append(".");
+        disabled.append(testInfo->name());
+        disabled.append(":");
       }
     }
   }
 
   // Now update the gtest flag.
-  ::testing::GTEST_FLAG(filter) = positive + "-" + negative;
+  ::testing::GTEST_FLAG(filter) = enabled + "-" + disabled;
 }
 
 
