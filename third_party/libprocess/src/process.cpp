@@ -2393,6 +2393,46 @@ void ProcessManager::resume(ProcessBase* process)
     if (!blocked) {
       CHECK(event != NULL);
 
+      // Determine if we should filter this event.
+      synchronized (filterer) {
+        if (filterer != NULL) {
+          bool filter = false;
+          struct FilterVisitor : EventVisitor
+          {
+            FilterVisitor(bool* _filter) : filter(_filter) {}
+
+            virtual void visit(const MessageEvent& event)
+            {
+              *filter = filterer->filter(event);
+            }
+
+            virtual void visit(const DispatchEvent& event)
+            {
+              *filter = filterer->filter(event);
+            }
+
+            virtual void visit(const HttpEvent& event)
+            {
+              *filter = filterer->filter(event);
+            }
+
+            virtual void visit(const ExitedEvent& event)
+            {
+              *filter = filterer->filter(event);
+            }
+
+            bool* filter;
+          } visitor(&filter);
+
+          event->visit(&visitor);
+
+          if (filter) {
+            delete event;
+            continue; // Try and execute the next event.
+          }
+        }
+      }
+
       // Determine if we should terminate.
       terminate = event->is<TerminateEvent>();
 
@@ -2429,8 +2469,32 @@ void ProcessManager::cleanup(ProcessBase* process)
 {
   VLOG(2) << "Cleaning up " << process->pid;
 
-  // Processes that were waiting on exiting process.
-  list<ProcessBase*> resumable;
+  // First, set the terminating state so no more events will get
+  // enqueued and delete al the pending events. We want to delete the
+  // events before we hold the processes lock because deleting an
+  // event could cause code outside libprocess to get executed which
+  // might cause a deadlock with the processes lock. Likewise,
+  // deleting the events now rather than later has the nice property
+  // of making sure that any events that might have gotten enqueued on
+  // the process we are cleaning up will get dropped (since it's
+  // terminating) and eliminates the potential of enqueueing them on
+  // another process that gets spawned with the same PID.
+  deque<Event*> events;
+
+  process->lock();
+  {
+    process->state = ProcessBase::TERMINATING;
+    events = process->events;
+    process->events.clear();
+  }
+  process->unlock();
+
+  // Delete pending events.
+  while (!events.empty()) {
+    Event* event = events.front();
+    events.pop_front();
+    delete event;
+  }
 
   // Possible gate non-libprocess threads are waiting at.
   Gate* gate = NULL;
@@ -2445,17 +2509,7 @@ void ProcessManager::cleanup(ProcessBase* process)
 
     process->lock();
     {
-      // Set the terminating state so that while we are deleting any
-      // pending events we don't attempt to enqueue anything more to
-      // this process (or invoke the filter for that matter).
-      process->state = ProcessBase::TERMINATING;
-
-      // Delete any pending events.
-      while (!process->events.empty()) {
-        Event* event = process->events.front();
-        process->events.pop_front();
-        delete event;
-      }
+      CHECK(process->events.empty());
 
       processes.erase(process->pid.id);
  
@@ -2805,53 +2859,7 @@ void ProcessBase::enqueue(Event* event, bool inject)
 
   lock();
   {
-    if (state == TERMINATING) {
-      delete event;
-      unlock();
-      return;
-    }
-
-    synchronized (filterer) {
-      if (filterer != NULL) {
-        bool filter = false;
-        struct FilterVisitor : EventVisitor
-        {
-          FilterVisitor(bool* _filter) : filter(_filter) {}
-
-          virtual void visit(const MessageEvent& event)
-          {
-            *filter = filterer->filter(event);
-          }
-
-          virtual void visit(const DispatchEvent& event)
-          {
-            *filter = filterer->filter(event);
-          }
-
-          virtual void visit(const HttpEvent& event)
-          {
-            *filter = filterer->filter(event);
-          }
-
-          virtual void visit(const ExitedEvent& event)
-          {
-            *filter = filterer->filter(event);
-          }
-
-          bool* filter;
-        } visitor(&filter);
-
-        event->visit(&visitor);
-
-        if (filter) {
-          delete event;
-          unlock();
-          return;
-        }
-      }
-    }
-
-    if (state != TERMINATED) {
+    if (state != TERMINATING && state != TERMINATED) {
       if (!inject) {
         events.push_back(event);
       } else {
