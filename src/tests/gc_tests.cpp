@@ -74,22 +74,13 @@ using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
 
-class GarbageCollectorTest : public ::testing::Test
+class GarbageCollectorTest : public MesosTest
 {
 protected:
-  static void SetUpTestCase()
-  {
-    flags.work_dir = "/tmp/mesos-tests";
-    flags.resources = Option<string>::some("cpus:2;mem:1024");
-
-    Resources resources = Resources::parse(flags.resources.get());
-    Value::Scalar none;
-    cpus = resources.get("cpus", none).value();
-    mem = resources.get("mem", none).value();
-  }
-
   virtual void SetUp()
   {
+    MesosTest::SetUp();
+
     ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
     a = new Allocator(&allocator);
@@ -98,6 +89,11 @@ protected:
     master = process::spawn(m);
 
     execs[DEFAULT_EXECUTOR_ID] = &exec;
+
+    Resources resources = Resources::parse(slaveFlags.resources.get());
+    Value::Scalar none;
+    cpus = resources.get("cpus", none).value();
+    mem = resources.get("mem", none).value();
   }
 
   virtual void TearDown()
@@ -110,14 +106,14 @@ protected:
     delete a;
     delete files;
 
-    os::rmdir(flags.work_dir);
+    MesosTest::TearDown();
   }
 
   void startSlave()
   {
     isolator = new TestingIsolator(execs);
 
-    s = new Slave(flags, true, isolator, files);
+    s = new Slave(slaveFlags, true, isolator, files);
     slave = process::spawn(s);
 
     detector = new BasicMasterDetector(master, slave, true);
@@ -154,16 +150,9 @@ protected:
   TaskStatus status;
   PID<Master> master;
   PID<Slave> slave;
-  static slave::Flags flags;
-  static double cpus;
-  static double mem;
+  double cpus;
+  double mem;
 };
-
-
-// Initialize static members here.
-slave::Flags GarbageCollectorTest::flags;
-double GarbageCollectorTest::cpus;
-double GarbageCollectorTest::mem;
 
 
 TEST_F(GarbageCollectorTest, Restart)
@@ -227,7 +216,9 @@ TEST_F(GarbageCollectorTest, Restart)
   // Make sure directory exists. Need to do this AFTER getting a
   // status update for a task because the directory won't get created
   // until the SlaveRegisteredMessage has been received.
-  const std::string& slaveDir = flags.work_dir + "/slaves/" + slaveId.value();
+  const std::string& slaveDir =
+    slaveFlags.work_dir + "/slaves/" + slaveId.value();
+
   ASSERT_TRUE(os::exists(slaveDir));
 
   Clock::pause();
@@ -246,7 +237,7 @@ TEST_F(GarbageCollectorTest, Restart)
 
   sleep(1);
 
-  Clock::advance(flags.gc_delay.secs());
+  Clock::advance(slaveFlags.gc_delay.secs());
 
   Clock::settle();
 
@@ -326,7 +317,7 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
 
   sleep(1);
 
-  Clock::advance(flags.gc_delay.secs());
+  Clock::advance(slaveFlags.gc_delay.secs());
 
   Clock::settle();
 

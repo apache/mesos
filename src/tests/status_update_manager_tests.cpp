@@ -73,18 +73,13 @@ using testing::Return;
 using testing::SaveArg;
 
 
-class StatusUpdateManagerTest: public ::testing::Test
+class StatusUpdateManagerTest: public MesosTest
 {
 protected:
-  static void SetUpTestCase()
-  {
-    flags.checkpoint = true;
-    flags.work_dir = "/tmp/mesos-tests";
-    os::rmdir(flags.work_dir);
-  }
-
   virtual void SetUp()
   {
+    MesosTest::SetUp();
+
     ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
     a = new Allocator(&allocator);
@@ -95,7 +90,9 @@ protected:
 
     isolator = new TestingIsolator(execs);
 
-    s = new Slave(flags, true, isolator, &files);
+    slaveFlags.checkpoint = true;
+
+    s = new Slave(slaveFlags, true, isolator, &files);
     slave = process::spawn(s);
 
     detector = new BasicMasterDetector(master, slave, true);
@@ -118,7 +115,7 @@ protected:
     delete m;
     delete a;
 
-    os::rmdir(flags.work_dir);
+    MesosTest::TearDown();
   }
 
   vector<TaskInfo> createTasks(const Offer& offer)
@@ -150,11 +147,7 @@ protected:
   TaskStatus status;
   PID<Master> master;
   PID<Slave> slave;
-  static slave::Flags flags;
 };
-
-// Initialize static members here.
-slave::Flags StatusUpdateManagerTest::flags;
 
 
 TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
@@ -212,7 +205,7 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 
   // Ensure that both the status update and its acknowledgement
   // are correctly checkpointed.
-  Try<list<string> > found = os::find(flags.work_dir, TASK_UPDATES_FILE);
+  Try<list<string> > found = os::find(slaveFlags.work_dir, TASK_UPDATES_FILE);
   ASSERT_SOME(found);
   ASSERT_EQ(1u, found.get().size());
 

@@ -278,8 +278,8 @@ protected:
 
   virtual void TearDown()
   {
-    MesosTest::TearDown();
     delete a;
+    MesosTest::TearDown();
   }
 
   MockAllocatorProcess<T> allocator;

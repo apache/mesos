@@ -110,9 +110,9 @@ void ZooKeeperTest::SetUp()
 
 void ZooKeeperTest::TearDown()
 {
-  MesosTest::TearDown();
   delete server;
   server = NULL;
+  MesosTest::TearDown();
 };
 
 
