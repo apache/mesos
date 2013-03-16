@@ -439,7 +439,8 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   trigger newMasterDetectedCall1;
   EXPECT_CALL(master1, newMasterDetected(_))
-    .WillOnce(Trigger(&newMasterDetectedCall1));
+    .WillOnce(Trigger(&newMasterDetectedCall1))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(master1, noMasterDetected())
     .Times(0);
@@ -487,7 +488,6 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   trigger newMasterDetectedCall3, newMasterDetectedCall4;
   EXPECT_CALL(slave, newMasterDetected(_))
-    .Times(2)
     .WillOnce(Trigger(&newMasterDetectedCall3))
     .WillOnce(Trigger(&newMasterDetectedCall4));
 
