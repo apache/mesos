@@ -798,11 +798,10 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
 // This test checks whether a non-checkpointing framework is
 // properly removed, when a checkpointing slave is disconnected.
-TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
+TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 {
   // Scheduler expectations.
   MockScheduler sched;
-  FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _));
 
   trigger resourceOffersCall;
@@ -844,6 +843,68 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   // Scheduler should receive the TASK_LOST update.
   WAIT_UNTIL(statusUpdateCall2);
   ASSERT_EQ(TASK_LOST, status.state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test ensures that no checkpointing happens for a
+// framework that has disabled checkpointing.
+TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
+{
+  // Scheduler expectations.
+  MockScheduler sched;
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  trigger resourceOffersCall;
+  vector<Offer> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)))
+    .WillRepeatedly(Return());
+
+  TaskStatus status;
+  trigger statusUpdateCall1, statusUpdateCall2;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(Trigger(&statusUpdateCall1))
+    .WillRepeatedly(Return());
+
+  // Disable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(false);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+
+  driver.start();
+
+  WAIT_UNTIL(resourceOffersCall);
+
+  EXPECT_NE(0u, offers.size());
+
+  TaskInfo task = createTask(offers[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+  driver.launchTasks(offers[0].id(), tasks);
+
+  // Wait for TASK_RUNNING update.
+  WAIT_UNTIL(statusUpdateCall1);
+
+  // Simulate a 'UpdateFrameworkMessage' to ensure framework pid is
+  // not being checkpointed.
+  process::dispatch(this->slave, &Slave::updateFramework, frameworkId, "");
+
+  sleep(1); // Give some time for the slave to act on the dispatch.
+
+  // Ensure that the framework info is not being checkpointed.
+  const string& path = paths::getFrameworkPath(
+      paths::getMetaRootDir(this->slaveFlags.work_dir),
+      task.slave_id(),
+      frameworkId);
+
+  ASSERT_FALSE(os::exists(path));
 
   driver.stop();
   driver.join();

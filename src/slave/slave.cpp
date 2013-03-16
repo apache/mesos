@@ -958,13 +958,15 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
               << " pid to " <<pid;
     framework->pid = pid;
 
-    // Checkpoint the framework pid.
-    const string& path = paths::getFrameworkPidPath(
-        paths::getMetaRootDir(flags.work_dir),
-        info.id(),
-        frameworkId);
+    if (framework->info.checkpoint()) {
+      // Checkpoint the framework pid.
+      const string& path = paths::getFrameworkPidPath(
+          paths::getMetaRootDir(flags.work_dir),
+          info.id(),
+          frameworkId);
 
-    CHECK_SOME(state::checkpoint(path, framework->pid));
+      CHECK_SOME(state::checkpoint(path, framework->pid));
+    }
   }
 }
 
