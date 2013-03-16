@@ -1106,6 +1106,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
             status.state() == TASK_FAILED ||
             status.state() == TASK_KILLED ||
             status.state() == TASK_LOST) {
+
           removeTask(task);
         }
 
@@ -1955,9 +1956,15 @@ void Master::readdSlave(Slave* slave,
 }
 
 
-// Lose all of a slave's tasks and delete the slave object
+// Lose all of a slave's tasks and delete the slave object.
 void Master::removeSlave(Slave* slave)
 {
+  CHECK_NOTNULL(slave);
+
+  // We do this first, to make sure any of the resources recovered
+  // below (e.g., removeTask()) are ignored by the allocator.
+  allocator->slaveRemoved(slave->id);
+
   // Remove pointers to slave's tasks in frameworks, and send status updates
   foreachvalue (Task* task, utils::copy(slave->tasks)) {
     Framework* framework = getFramework(task->framework_id());
@@ -2030,13 +2037,14 @@ void Master::removeSlave(Slave* slave)
 
   // Delete it.
   slaves.erase(slave->id);
-  allocator->slaveRemoved(slave->id);
   delete slave;
 }
 
 
 void Master::removeTask(Task* task)
 {
+  CHECK_NOTNULL(task);
+
   // Remove from framework.
   Framework* framework = getFramework(task->framework_id());
   if (framework != NULL) { // A framework might not be re-connected yet.

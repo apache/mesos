@@ -820,12 +820,6 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   trigger statusUpdateMsg;
   process::Message message;
 
-  // Trigger on the second status update received.
-  EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), _, Eq(master))
-    .WillOnce(Return(false))
-    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
-                    Trigger(&statusUpdateMsg),Return(false)));
-
   MockExecutor exec;
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -893,25 +887,6 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   driver.join();
 
   WAIT_UNTIL(shutdownCall);
-
-  // Simulate an executorExited message from isolator to the slave.
-  // We need to explicitly send this message because we don't spawn
-  // a real executor process in this test.
-  process::dispatch(
-      slave,
-      &Slave::executorTerminated,
-      frameworkId,
-      DEFAULT_EXECUTOR_ID,
-      0,
-      false,
-      "Killed executor");
-
-  WAIT_UNTIL(statusUpdateMsg);
-
-  StatusUpdateMessage statusUpdate;
-  statusUpdate.ParseFromString(message.body);
-
-  EXPECT_EQ(TASK_LOST, statusUpdate.update().status().state());
 
   process::terminate(slave);
   process::wait(slave);

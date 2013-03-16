@@ -637,6 +637,22 @@ void Slave::runTask(
 
       CHECK_SOME(state::checkpoint(path, framework->pid));
     }
+  } else {
+    if (framework->shutdown) {
+      LOG(WARNING) << "WARNING! Asked to run task '" << task.task_id()
+                   << "' for framework " << frameworkId
+                   << " which is being shut down";
+
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          frameworkId,
+          info.id(),
+          task.task_id(),
+          TASK_LOST,
+          "Framework shutting down");
+
+      statusUpdate(update);
+      return;
+    }
   }
 
   const ExecutorInfo& executorInfo = framework->getExecutorInfo(task);
@@ -877,6 +893,8 @@ void Slave::shutdownFramework(const FrameworkID& frameworkId)
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
     LOG(INFO) << "Shutting down framework " << framework->id;
+
+    framework->shutdown = true;
 
     // Shut down all executors of this framework.
     // Note that the framework and its corresponding executors are removed from
@@ -1462,18 +1480,48 @@ void Slave::executorTerminated(
   // If the isolator destroyed the executor (e.g., due to OOM event)
   // or if this is a command executor, we send TASK_FAILED status updates
   // instead of TASK_LOST.
+  // NOTE: We don't send updates if the framework is shutting down,
+  // because we don't want the status update manager to keep retrying
+  // these updates for the lack for ACKs from the scheduler. Also,
+  // the status update manager should have already cleaned up all the
+  // status update streams for a framework that is shutting down.
+  if (!framework->shutdown) {
+    StatusUpdate update;
 
-  StatusUpdate update;
+    // Transition all live launched tasks.
+    foreachvalue (Task* task, utils::copy(executor->launchedTasks)) {
+      if (!protobuf::isTerminalState(task->state())) {
+        isCommandExecutor = !task->has_executor_id();
+        if (destroyed || isCommandExecutor) {
+          update = protobuf::createStatusUpdate(
+              frameworkId,
+              info.id(),
+              task->task_id(),
+              TASK_FAILED,
+              message,
+              executorId);
+        } else {
+          update = protobuf::createStatusUpdate(
+              frameworkId,
+              info.id(),
+              task->task_id(),
+              TASK_LOST,
+              message,
+              executorId);
+        }
+        statusUpdate(update); // Handle the status update.
+      }
+    }
 
-  // Transition all live launched tasks.
-  foreachvalue (Task* task, utils::copy(executor->launchedTasks)) {
-    if (!protobuf::isTerminalState(task->state())) {
-      isCommandExecutor = !task->has_executor_id();
+    // Transition all queued tasks.
+    foreachvalue (const TaskInfo& task, utils::copy(executor->queuedTasks)) {
+      isCommandExecutor = task.has_command();
+
       if (destroyed || isCommandExecutor) {
         update = protobuf::createStatusUpdate(
             frameworkId,
             info.id(),
-            task->task_id(),
+            task.task_id(),
             TASK_FAILED,
             message,
             executorId);
@@ -1481,37 +1529,13 @@ void Slave::executorTerminated(
         update = protobuf::createStatusUpdate(
             frameworkId,
             info.id(),
-            task->task_id(),
+            task.task_id(),
             TASK_LOST,
             message,
             executorId);
       }
       statusUpdate(update); // Handle the status update.
     }
-  }
-
-  // Transition all queued tasks.
-  foreachvalue (const TaskInfo& task, utils::copy(executor->queuedTasks)) {
-    isCommandExecutor = task.has_command();
-
-    if (destroyed || isCommandExecutor) {
-      update = protobuf::createStatusUpdate(
-          frameworkId,
-          info.id(),
-          task.task_id(),
-          TASK_FAILED,
-          message,
-          executorId);
-    } else {
-      update = protobuf::createStatusUpdate(
-          frameworkId,
-          info.id(),
-          task.task_id(),
-          TASK_LOST,
-          message,
-          executorId);
-    }
-    statusUpdate(update); // Handle the status update.
   }
 
   if (!isCommandExecutor) {
@@ -1605,11 +1629,11 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
   LOG(INFO) << "Shutting down executor '" << executor->id
             << "' of framework " << framework->id;
 
+  executor->shutdown = true;
+
   // If the executor hasn't yet registered, this message
   // will be dropped to the floor!
   send(executor->pid, ShutdownExecutorMessage());
-
-  executor->shutdown = true;
 
   // Prepare for sending a kill if the executor doesn't comply.
   delay(flags.executor_shutdown_grace_period,

@@ -396,6 +396,7 @@ struct Framework
       info(_info),
       pid(_pid),
       flags(_flags),
+      shutdown(false),
       completedExecutors(MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK) {}
 
   ~Framework()
@@ -516,6 +517,8 @@ struct Framework
   UPID pid;
 
   const Flags flags;
+
+  bool shutdown; // Indicates if framework is being shut down.
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
