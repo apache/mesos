@@ -72,13 +72,6 @@ public:
       .WillRepeatedly(testing::Return(false));
     EXPECT_CALL(*this, filter(testing::A<const process::ExitedEvent&>()))
       .WillRepeatedly(testing::Return(false));
-
-    process::filter(this);
-  }
-
-  virtual ~TestsFilter()
-  {
-    process::filter(NULL);
   }
 
   MOCK_METHOD1(filter, bool(const process::MessageEvent&));
@@ -94,7 +87,12 @@ inline TestsFilter* filter()
     return TestsFilter::instance;
   }
 
-  return TestsFilter::instance = new TestsFilter();
+  TestsFilter::instance = new TestsFilter();
+
+  // Set the filter in libprocess.
+  process::filter(TestsFilter::instance);
+
+  return TestsFilter::instance;
 }
 
 
@@ -104,6 +102,8 @@ public:
   virtual void OnTestEnd(const ::testing::TestInfo&)
   {
     if (TestsFilter::instance != NULL) {
+      // Remove the filter in libprocess _before_ deleting.
+      process::filter(NULL);
       delete TestsFilter::instance;
       TestsFilter::instance = NULL;
     }
