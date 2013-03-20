@@ -324,9 +324,7 @@ protected:
       return;
     }
 
-    VLOG(1) << "Status update: task " << status.task_id()
-            << " of framework " << update.framework_id()
-            << " is now in state " << status.state();
+    VLOG(1) << "Received status update " << update << " from " << pid;
 
     CHECK(framework.id() == update.framework_id());
 
@@ -358,6 +356,8 @@ protected:
               << "the driver is aborted!";
       return;
     }
+
+    VLOG(1) << "Sending ACK for status update " << update << " to " << pid;
 
     StatusUpdateAcknowledgementMessage message;
     message.mutable_framework_id()->MergeFrom(framework.id());
