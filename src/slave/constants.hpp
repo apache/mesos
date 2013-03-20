@@ -33,6 +33,7 @@ namespace slave {
 // So we've moved these to have external linkage but perhaps in the future
 // we can revert this.
 
+extern const Duration EXECUTOR_REGISTRATION_TIMEOUT;
 extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 extern const Duration EXECUTOR_REREGISTER_TIMEOUT;
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL;

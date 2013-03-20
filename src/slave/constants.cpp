@@ -22,6 +22,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+const Duration EXECUTOR_REGISTRATION_TIMEOUT = Minutes(1.0);
 const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5.0);
 const Duration EXECUTOR_REREGISTER_TIMEOUT = Seconds(2.0);
 const Duration STATUS_UPDATE_RETRY_INTERVAL = Seconds(10.0);

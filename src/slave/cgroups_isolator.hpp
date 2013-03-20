@@ -163,7 +163,7 @@ private:
     // PID of the forked process of the executor.
     Option<pid_t> pid;
 
-    bool killed; // True if "killing" has been initiated via 'killExecutor'.
+    bool killed; // True if "killing" has been initiated via 'killExecutor()'.
 
     // Indicates if this executor has been destroyed by the isolator.
     // NOTE: An executor may have terminated due to reasons
@@ -171,7 +171,7 @@ private:
     // slave, exited, etc.).
     bool destroyed;
 
-    std::string reason; // The reason behind the destruction.
+    std::string message; // The reason behind the destruction.
 
     int status; // Exit status of the executor.
 

@@ -420,7 +420,7 @@ void ProcessIsolator::processExited(pid_t pid, int status)
                  executorId,
                  status,
                  false,
-                 "Executor exited");
+                 "Executor terminated");
 
         if (!info->killed) {
           // Try and cleanup after the executor.

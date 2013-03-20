@@ -83,6 +83,13 @@ public:
         "Directory prepended to relative executor URIs",
         "");
 
+    add(&Flags::executor_registration_timeout,
+        "executor_registration_timeout",
+        "Amount of time to wait for an executor\n"
+        "to register with the slave before considering it hung and\n"
+        "shutting it down (e.g., 60secs, 3mins, etc)",
+        EXECUTOR_REGISTRATION_TIMEOUT);
+
     add(&Flags::executor_shutdown_grace_period,
         "executor_shutdown_grace_period",
         "Amount of time to wait for an executor\n"
@@ -163,6 +170,7 @@ public:
   std::string hadoop_home; // TODO(benh): Make an Option.
   bool switch_user;
   std::string frameworks_home;  // TODO(benh): Make an Option.
+  Duration executor_registration_timeout;
   Duration executor_shutdown_grace_period;
   Duration gc_delay;
   Duration disk_watch_interval;

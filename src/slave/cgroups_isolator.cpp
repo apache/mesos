@@ -988,10 +988,10 @@ void CgroupsIsolator::oom(
             << " of framework " << frameworkId
             << " with uuid " << uuid;
 
-  // Construct a "reason" string to describe why the isolator
+  // Construct a "message" string to describe why the isolator
   // destroyed the executor's cgroup (in order to assist in debugging).
-  ostringstream reason;
-  reason << "Memory limit exceeded: ";
+  ostringstream message;
+  message << "Memory limit exceeded: ";
 
   Try<string> read = cgroups::read(
       hierarchy, info->name(), "memory.limit_in_bytes");
@@ -1000,9 +1000,9 @@ void CgroupsIsolator::oom(
     if (bytes.isError()) {
       LOG(ERROR)
         << "Failed to numify 'memory.limit_in_bytes': " << bytes.error();
-      reason << "Requested: " << strings::trim(read.get()) << " bytes ";
+      message << "Requested: " << strings::trim(read.get()) << " bytes ";
     } else {
-      reason << "Requested: " << Bytes(bytes.get()) << " ";
+      message << "Requested: " << Bytes(bytes.get()) << " ";
     }
   }
 
@@ -1013,22 +1013,22 @@ void CgroupsIsolator::oom(
     if (bytes.isError()) {
       LOG(ERROR)
         << "Failed to numify 'memory.usage_in_bytes': " << bytes.error();
-      reason << "Used: " << strings::trim(read.get()) << " bytes\n";
+      message << "Used: " << strings::trim(read.get()) << " bytes\n";
     } else {
-      reason << "Used: " << Bytes(bytes.get()) << "\n";
+      message << "Used: " << Bytes(bytes.get()) << "\n";
     }
   }
 
   // Output 'memory.stat' of the cgroup to help with debugging.
   read = cgroups::read(hierarchy, info->name(), "memory.stat");
   if (read.isSome()) {
-    reason << "\nMEMORY STATISTICS: \n" << read.get() << "\n";
+    message << "\nMEMORY STATISTICS: \n" << read.get() << "\n";
   }
 
-  LOG(INFO) << strings::trim(reason.str()); // Trim the extra '\n' at the end.
+  LOG(INFO) << strings::trim(message.str()); // Trim the extra '\n' at the end.
 
   info->destroyed = true;
-  info->reason = reason.str();
+  info->message = message.str();
 
   killExecutor(frameworkId, executorId);
 }
@@ -1074,7 +1074,7 @@ void CgroupsIsolator::_killExecutor(
              info->executorId,
              info->status,
              info->destroyed,
-             info->reason);
+             info->message);
 
     // We make a copy here because 'info' will be deleted when we unregister.
     unregisterCgroupInfo(
@@ -1102,7 +1102,7 @@ CgroupsIsolator::CgroupInfo* CgroupsIsolator::registerCgroupInfo(
   info->killed = false;
   info->destroyed = false;
   info->status = -1;
-  info->reason = "";
+  info->message = "";
   info->flags = flags;
   if (subsystems.contains("cpuset")) {
     info->cpuset = new Cpuset();

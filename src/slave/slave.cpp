@@ -48,6 +48,7 @@
 
 #include "logging/logging.hpp"
 
+#include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
@@ -801,6 +802,16 @@ void Slave::runTask(
     // Queue task until the executor starts up.
     executor->queuedTasks[task.task_id()] = task;
 
+    // Make sure the executor registers within the given timeout.
+    // NOTE: We send this message before dispatching the launchExecutor to
+    // the isolator, to make writing tests easier.
+    delay(flags.executor_registration_timeout,
+          self(),
+          &Slave::registerExecutorTimeout,
+          framework->id,
+          executor->id,
+          executor->uuid);
+
     // Tell the isolator to launch the executor. (TODO(benh): Make the
     // isolator a process so that it can block while trying to launch
     // the executor.)
@@ -1002,6 +1013,7 @@ void Slave::_statusUpdateAcknowledgement(
                << " for task " << taskId
                << " of framework " << frameworkId
                << (future.isFailed() ? future.failure() : "future discarded");
+    return;
   }
 
   if (future.get().isError()) {
@@ -1557,6 +1569,8 @@ void Slave::executorTerminated(
   framework->destroyExecutor(executor->id);
 
   // Cleanup if this framework has no executors running.
+  // TODO(vinod): If the framework is not being shutdown, remove
+  // it after all its pending status updates are acknowledged.
   if (framework->executors.empty()) {
     frameworks.erase(framework->id);
 
@@ -1654,15 +1668,78 @@ void Slave::shutdownExecutorTimeout(
 {
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
+    LOG(INFO) << "Framework " << frameworkId
+              << " seems to have exited. Ignoring shutdown timeout"
+              << " for executor '" << executorId << "'";
     return;
   }
 
   Executor* executor = framework->getExecutor(executorId);
-  // Make sure this timeout is valid.
-  if (executor != NULL && executor->uuid == uuid) {
-    LOG(INFO) << "Killing executor '" << executor->id
-              << "' of framework " << framework->id;
+  if (executor == NULL) {
+    LOG(INFO) << "Executor '" << executorId
+              << "' of framework " << frameworkId
+              << " seems to have exited. Ignoring its shutdown timeout";
+    return;
+  }
 
+  // Make sure this timeout is valid.
+  if (executor->uuid != uuid ) {
+      LOG(INFO) << "A new executor '" << executorId
+                << "' of framework " << frameworkId
+                << " with run " << executor->uuid
+                << " seems to be active. Ignoring the shutdown timeout"
+                << " for the old executor run " << uuid;
+      return;
+  }
+
+  LOG(INFO) << "Killing executor '" << executor->id
+            << "' of framework " << framework->id;
+
+  dispatch(isolator, &Isolator::killExecutor, framework->id, executor->id);
+}
+
+
+void Slave::registerExecutorTimeout(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& uuid)
+{
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(INFO) << "Framework " << frameworkId
+              << " seems to have exited. Ignoring shutdown timeout"
+              << " for executor '" << executorId << "'";
+    return;
+  }
+
+  Executor* executor = framework->getExecutor(executorId);
+  if (executor == NULL) {
+    LOG(INFO) << "Executor '" << executorId
+              << "' of framework " << frameworkId
+              << " seems to have exited. Ignoring its shutdown timeout";
+    return;
+  }
+
+  // Make sure this timeout is valid.
+  if (executor->uuid != uuid ) {
+      LOG(INFO) << "A new executor '" << executorId
+                << "' of framework " << frameworkId
+                << " with run " << executor->uuid
+                << " seems to be active. Ignoring the shutdown timeout"
+                << " for the old executor run " << uuid;
+      return;
+  }
+
+  // Shutdown the executor if it has not registered yet.
+  if (!executor->pid) {
+    LOG(INFO) << "Shutting down executor " << executor->id
+              << " of framework " << framework->id
+              << " because it did not register within "
+              << flags.executor_registration_timeout;
+
+    executor->shutdown = true;
+
+    // Immediately kill the executor.
     dispatch(isolator, &Isolator::killExecutor, framework->id, executor->id);
   }
 }

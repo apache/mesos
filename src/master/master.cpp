@@ -63,7 +63,9 @@ namespace master {
 class WhitelistWatcher : public Process<WhitelistWatcher> {
 public:
   WhitelistWatcher(const string& _path, Allocator* _allocator)
-  : path(_path), allocator(_allocator) {}
+  : ProcessBase(ID::generate("whitelist")),
+    path(_path),
+    allocator(_allocator) {}
 
 protected:
   virtual void initialize()

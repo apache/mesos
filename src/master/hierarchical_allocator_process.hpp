@@ -20,6 +20,7 @@
 #define __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
 
 #include <process/delay.hpp>
+#include <process/id.hpp>
 #include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
@@ -203,7 +204,8 @@ public:
 
 template <class UserSorter, class FrameworkSorter>
 HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::HierarchicalAllocatorProcess()
-  : initialized(false) {}
+  : ProcessBase(ID::generate("hierarchical-allocator")),
+    initialized(false) {}
 
 
 template <class UserSorter, class FrameworkSorter>

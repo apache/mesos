@@ -200,6 +200,12 @@ protected:
       const ExecutorID& executorId,
       const UUID& uuid);
 
+  // Shuts down the executor if it did not register yet.
+  void registerExecutorTimeout(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const UUID& uuid);
+
   // Cleans up all un-reregistered executors during recovery.
   void reregisterExecutorTimeout();
 
