@@ -494,7 +494,7 @@ Try<Nothing> checkpoint(
     const string& path,
     const google::protobuf::Message& message)
 {
-  std::cerr << "Checkpointing " << message.GetDescriptor()->name()
+  std::cout << "Checkpointing " << message.GetDescriptor()->name()
             << " to '" << path << "'" << std::endl;
 
   // Create the base directory.
@@ -517,7 +517,8 @@ Try<Nothing> checkpoint(
 
 Try<Nothing> checkpoint(const std::string& path, const std::string& message)
 {
-  std::cerr << "Checkpointing '" << message << "' to " << path << std::endl;
+  std::cout << "Checkpointing '" << message << "' to '" << path << "'"
+            << std::endl;
 
   // Create the base directory.
   Try<Nothing> result = os::mkdir(os::dirname(path).get());

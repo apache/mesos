@@ -543,8 +543,8 @@ void CgroupsIsolator::launchExecutor(
 
     // First fetch the executor.
     if (launcher.setup() < 0) {
-      EXIT(1) << "Error setting up executor " << executorId
-              << " for framework " << frameworkId;
+      EXIT(1) << "Failed to setup executor '" << executorId
+              << "' for framework " << frameworkId;
     }
 
 
@@ -555,7 +555,7 @@ void CgroupsIsolator::launchExecutor(
     // orphaned executor process unknown to the slave when doing
     // recovery.
     if (checkpoint) {
-      std::cerr << "Checkpointing forked pid " << getpid() << std::endl;
+      std::cout << "Checkpointing forked pid " << getpid() << std::endl;
       state::checkpoint(path.get(), stringify(getpid()));
     }
 
@@ -568,9 +568,10 @@ void CgroupsIsolator::launchExecutor(
     // http://www.kernel.org/doc/Documentation/cgroups/memory.txt
     Try<Nothing> assign = cgroups::assign(hierarchy, info->name(), ::getpid());
     if (assign.isError()) {
-      LOG(FATAL) << "Failed to assign for executor " << executorId
-                 << " of framework " << frameworkId
-                 << ": " << assign.error();
+      EXIT(1) << "Failed to assign executor '" << executorId
+              << "' of framework " << frameworkId
+              << " to its own cgroup '" << paths::join(hierarchy, info->name())
+              << "' : " << assign.error();
     }
 
     // Now launch the executor (this function should not return).

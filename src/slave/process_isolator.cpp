@@ -176,7 +176,7 @@ void ProcessIsolator::launchExecutor(
     while ((pid = setsid()) == -1) {
       perror("Could not put executor in own session");
 
-      std::cerr << "Forking another process and retrying ..." << std::endl;
+      std::cout << "Forking another process and retrying ..." << std::endl;
 
       if ((pid = fork()) == -1) {
         perror("Failed to fork to launch executor");
@@ -205,7 +205,7 @@ void ProcessIsolator::launchExecutor(
     // orphaned executor process unknown to the slave when doing
     // recovery.
     if (checkpoint) {
-      std::cerr << "Checkpointing forked pid " << getpid() << std::endl;
+      std::cout << "Checkpointing forked pid " << getpid() << std::endl;
       state::checkpoint(path.get(), stringify(getpid()));
     }
 
