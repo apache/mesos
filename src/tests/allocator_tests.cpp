@@ -1144,7 +1144,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   EXPECT_CALL(isolator, resourcesChanged(_, _, _))
-    .Times(2);
+    .WillRepeatedly(DoDefault());
 
   this->setSlaveResources("cpus:3;mem:1024");
   Slave s1(this->slaveFlags, true, &isolator, &files);
