@@ -45,6 +45,7 @@
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
@@ -570,7 +571,7 @@ void CgroupsIsolator::launchExecutor(
     if (assign.isError()) {
       EXIT(1) << "Failed to assign executor '" << executorId
               << "' of framework " << frameworkId
-              << " to its own cgroup '" << paths::join(hierarchy, info->name())
+              << " to its own cgroup '" << path::join(hierarchy, info->name())
               << "' : " << assign.error();
     }
 
