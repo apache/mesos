@@ -114,7 +114,21 @@ $(RY_HTTP_PARSER)/http_parser.c: $(RY_HTTP_PARSER)-stamp
 
 # Tests for stout.
 check_PROGRAMS = stout-tests
-stout_tests_SOURCES = $(STOUT)/tests/tests.cpp
+
+stout_tests_SOURCES =				\
+  $(STOUT)/tests/bytes_tests.cpp		\
+  $(STOUT)/tests/duration_tests.cpp		\
+  $(STOUT)/tests/error_tests.cpp		\
+  $(STOUT)/tests/gzip_tests.cpp			\
+  $(STOUT)/tests/hashset_tests.cpp		\
+  $(STOUT)/tests/json_tests.cpp			\
+  $(STOUT)/tests/main.cpp			\
+  $(STOUT)/tests/multihashmap_tests.cpp		\
+  $(STOUT)/tests/none_tests.cpp			\
+  $(STOUT)/tests/os_tests.cpp			\
+  $(STOUT)/tests/strings_tests.cpp		\
+  $(STOUT)/tests/uuid_tests.cpp
+
 stout_tests_CPPFLAGS =				\
   -I$(srcdir)/$(STOUT)/include			\
   -I$(BOOST)					\
@@ -123,6 +137,7 @@ stout_tests_CPPFLAGS =				\
   -I$(GMOCK)/include				\
   -I$(PROTOBUF)/src				\
   $(AM_CPPFLAGS)
+
 stout_tests_LDADD =			\
   libgmock.la				\
   $(GLOG)/libglog.la			\
