@@ -39,4 +39,15 @@ EXTRA_DIST =					\
   include/stout/try.hpp				\
   include/stout/utils.hpp			\
   include/stout/uuid.hpp			\
-  tests/tests.cpp
+  tests/bytes_tests.cpp				\
+  tests/duration_tests.cpp			\
+  tests/error_tests.cpp				\
+  tests/gzip_tests.cpp				\
+  tests/hashset_tests.cpp			\
+  tests/json_tests.cpp				\
+  tests/main.cpp				\
+  tests/multihashmap_tests.cpp			\
+  tests/none_tests.cpp				\
+  tests/os_tests.cpp				\
+  tests/strings_tests.cpp			\
+  tests/uuid_tests.cpp
