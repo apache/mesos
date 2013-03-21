@@ -55,6 +55,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AtMost;
 using testing::ByRef;
 using testing::DoAll;
 using testing::DoDefault;
@@ -397,8 +398,14 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   PID<Master> master = process::spawn(m);
 
   MockExecutor exec;
-  trigger shutdownCall;
 
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .Times(AtMost(1));
+
+  trigger shutdownCall;
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(Trigger(&shutdownCall));
 
