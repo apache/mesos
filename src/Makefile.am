@@ -788,7 +788,6 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp tests/filter.cpp	\
 	              tests/script.cpp					\
 	              tests/examples_tests.cpp				\
 	              tests/configurator_tests.cpp			\
-	              tests/multihashmap_tests.cpp			\
 	              tests/protobuf_io_tests.cpp			\
 	              tests/zookeeper_url_tests.cpp			\
 	              tests/killtree_tests.cpp				\

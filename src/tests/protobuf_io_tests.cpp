@@ -35,6 +35,7 @@ using namespace mesos;
 using namespace mesos::internal;
 
 
+// TODO(bmahler): Move this file into stout.
 TEST(ProtobufIOTest, Basic)
 {
   const std::string file = ".protobuf_io_test_basic";
