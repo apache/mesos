@@ -443,7 +443,7 @@ Try<TaskState> TaskState::recover(
     if (record.get().type() == StatusUpdateRecord::UPDATE) {
       state.updates.push_back(record.get().update());
     } else {
-      state.acks.insert(record.get().uuid());
+      state.acks.insert(UUID::fromBytes(record.get().uuid()));
     }
   }
 

@@ -27,6 +27,7 @@
 #include "stout/hashset.hpp"
 #include "stout/protobuf.hpp"
 #include "stout/utils.hpp"
+#include "stout/uuid.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/slave.hpp"
@@ -67,7 +68,7 @@ public:
   Try<Nothing> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
-      const string& uuid);
+      const UUID& uuid);
 
   Try<Nothing> recover(const string& rootDir, const SlaveState& state);
 
@@ -308,7 +309,7 @@ Timeout StatusUpdateManagerProcess::forward(const StatusUpdate& update)
 Try<Nothing> StatusUpdateManagerProcess::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
-    const string& uuid)
+    const UUID& uuid)
 {
   LOG(INFO) << "Received status update acknowledgement"
             << " for task " << taskId
@@ -488,7 +489,7 @@ Future<Try<Nothing> > StatusUpdateManager::update(
 Future<Try<Nothing> > StatusUpdateManager::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
-    const std::string& uuid)
+    const UUID& uuid)
 {
   return dispatch(
       process,

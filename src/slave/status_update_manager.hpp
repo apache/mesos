@@ -86,7 +86,7 @@ public:
   process::Future<Try<Nothing> > acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
-      const std::string& uuid);
+      const UUID& uuid);
 
   // Recover status updates.
   process::Future<Try<Nothing> > recover(
@@ -169,7 +169,7 @@ struct StatusUpdateStream
     // Check that this status update has not already been acknowledged.
     // This could happen in the rare case when the slave received the ACK
     // from the framework, died, but slave's ACK to the executor never made it!
-    if (acknowledged.contains(update.uuid())) {
+    if (acknowledged.contains(UUID::fromBytes(update.uuid()))) {
       LOG(WARNING) << "Ignoring status update " << update
                    << " that has already been acknowledged by the framework!";
       return Nothing();
@@ -178,7 +178,7 @@ struct StatusUpdateStream
     // Check that this update hasn't already been received.
     // This could happen if the slave receives a status update from an executor,
     // then crashes after it writes it to disk but before it sends an ack.
-    if (received.contains(update.uuid())) {
+    if (received.contains(UUID::fromBytes(update.uuid()))) {
       LOG(WARNING) << "Ignoring duplicate status update " << update;
       return Nothing();
     }
@@ -190,16 +190,16 @@ struct StatusUpdateStream
   Try<Nothing> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
-      const std::string& uuid,
+      const UUID& uuid,
       const StatusUpdate& update)
   {
     if (error.isSome()) {
       return Error(error.get());
     }
 
-    CHECK(uuid.compare(update.uuid()) == 0)
+    CHECK(uuid == UUID::fromBytes(update.uuid()))
       << "Unexpected UUID mismatch! (received " << uuid
-      << ", expecting " << update.uuid()
+      << ", expecting " << UUID::fromBytes(update.uuid()).toString()
       << ") for update " << stringify(update);
 
     // Handle the ACK, checkpointing if necessary.
@@ -224,7 +224,7 @@ struct StatusUpdateStream
   // corresponding ACK, if present.
   Try<Nothing> replay(
       const std::vector<StatusUpdate>& updates,
-      const hashset<std::string>& acks)
+      const hashset<UUID>& acks)
   {
     if (error.isSome()) {
       return Error(error.get());
@@ -237,7 +237,7 @@ struct StatusUpdateStream
       _handle(update, StatusUpdateRecord::UPDATE);
 
       // Check if the update has an ACK too.
-      if (acks.contains(update.uuid())) {
+      if (acks.contains(UUID::fromBytes(update.uuid()))) {
         _handle(update, StatusUpdateRecord::ACK);
       }
     }
@@ -315,13 +315,13 @@ private:
 
     if (type == StatusUpdateRecord::UPDATE) {
       // Record this update.
-      received.insert(update.uuid());
+      received.insert(UUID::fromBytes(update.uuid()));
 
       // Add it to the pending updates queue.
       pending.push(update);
     } else {
       // Record this ACK.
-      acknowledged.insert(update.uuid());
+      acknowledged.insert(UUID::fromBytes(update.uuid()));
 
       // Remove the corresponding update from the pending queue.
       pending.pop();
@@ -338,8 +338,8 @@ private:
   bool checkpoint;
   bool terminated_;
 
-  hashset<std::string> received;
-  hashset<std::string> acknowledged;
+  hashset<UUID> received;
+  hashset<UUID> acknowledged;
 
   const Option<std::string> path; // File path of the update stream.
   Option<int> fd; // File descriptor to the update stream.

@@ -134,7 +134,7 @@ struct TaskState
   TaskID id;
   Option<Task> info;
   std::vector<StatusUpdate> updates;
-  hashset<std::string> acks;
+  hashset<UUID> acks;
 };
 
 

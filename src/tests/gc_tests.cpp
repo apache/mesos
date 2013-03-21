@@ -398,12 +398,12 @@ TEST_F(GarbageCollectorTest, DiskUsage)
   // message back to itself.
   WAIT_UNTIL(exitedExecutorMsg);
 
+  sleep(1); // Wait for slave to schedule for gc.
+
   // Simulate a disk full message to the slave.
   process::dispatch(slave, &Slave::_checkDiskUsage, Try<double>::some(1));
 
-  // TODO(vinod): As above, we need to wait until GarbageCollectorProcess has
-  // dispatched remove message back to itself.
-  sleep(1);
+  sleep(1); // Wait for gc to act.
 
   Clock::settle();
 

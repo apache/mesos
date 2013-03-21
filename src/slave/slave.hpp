@@ -32,6 +32,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/multihashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
@@ -153,7 +154,7 @@ public:
       const Future<Try<Nothing> >& future,
       const TaskID& taskId,
       const FrameworkID& frameworkId,
-      const std::string& uuid);
+      const UUID& uuid);
 
   void executorStarted(
       const FrameworkID& frameworkId,
@@ -229,6 +230,12 @@ protected:
   Future<Nothing> recoverExecutors(
       const state::SlaveState& state,
       bool reconnect);
+
+  // Called when an executor terminates or a status update
+  // acknowledgement is handled by the status update manager.
+  // This potentially removes the executor and framework and
+  // schedules them for garbage collection.
+  void cleanup(Framework* framework, Executor* executor);
 
   // Called when the slave is started in 'cleanup' recovery mode and
   // all the executors have terminated.
@@ -314,6 +321,7 @@ struct Executor
       uuid(_uuid),
       pid(UPID()),
       shutdown(false),
+      terminated(false),
       resources(_info.resources()),
       completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR) {}
 
@@ -378,10 +386,17 @@ struct Executor
 
   bool shutdown; // Indicates if executor is being shut down.
 
+  // Indicates if the executor has terminated. We need this
+  // because a terminated executor might still have pending
+  // status updates that are not yet acknowledged.
+  bool terminated;
+
   Resources resources; // Currently consumed resources.
 
   hashmap<TaskID, TaskInfo> queuedTasks;
   hashmap<TaskID, Task*> launchedTasks;
+
+  multihashmap<TaskID, UUID> updates; // Pending updates.
 
   boost::circular_buffer<Task> completedTasks;
 
@@ -510,7 +525,8 @@ struct Framework
   {
     foreachvalue (Executor* executor, executors) {
       if (executor->queuedTasks.contains(taskId) ||
-          executor->launchedTasks.contains(taskId)) {
+          executor->launchedTasks.contains(taskId) ||
+          executor->updates.contains(taskId)) {
         return executor;
       }
     }
@@ -531,10 +547,6 @@ struct Framework
 
   // Up to MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK completed executors.
   boost::circular_buffer<std::tr1::shared_ptr<Executor> > completedExecutors;
-
-  // Status updates keyed by uuid.
-  hashmap<UUID, StatusUpdate> updates;
-
 private:
   Framework(const Framework&);              // No copying.
   Framework& operator = (const Framework&); // No assigning.

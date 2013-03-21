@@ -31,6 +31,7 @@
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/process_utils.hpp"
 #include "common/protobuf_utils.hpp"
@@ -402,7 +403,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
                 .executors[executorId]
                 .runs[uuid.get()]
                 .tasks[task.task_id()]
-                .acks.contains(ack.uuid()));
+                .acks.contains(UUID::fromBytes(ack.uuid())));
 
   // Shut down the executor.
   process::post(libprocessPid, ShutdownExecutorMessage());

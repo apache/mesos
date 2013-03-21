@@ -992,13 +992,14 @@ void Slave::statusUpdateAcknowledgement(
             << " for task " << taskId
             << " of framework " << frameworkId;
 
-  statusUpdateManager->acknowledgement(taskId, frameworkId, uuid)
+  statusUpdateManager->acknowledgement(
+      taskId, frameworkId, UUID::fromBytes(uuid))
     .onAny(defer(self(),
                  &Slave::_statusUpdateAcknowledgement,
                  params::_1,
                  taskId,
                  frameworkId,
-                 uuid));
+                 UUID::fromBytes(uuid)));
 }
 
 
@@ -1006,10 +1007,10 @@ void Slave::_statusUpdateAcknowledgement(
     const Future<Try<Nothing> >& future,
     const TaskID& taskId,
     const FrameworkID& frameworkId,
-    const string& uuid)
+    const UUID& uuid)
 {
   if (!future.isReady()) {
-    LOG(FATAL) << "Failed to handle status update acknowledgement " << uuid
+    LOG(FATAL) << "Failed to handle status update acknowledgement"
                << " for task " << taskId
                << " of framework " << frameworkId
                << (future.isFailed() ? future.failure() : "future discarded");
@@ -1017,12 +1018,36 @@ void Slave::_statusUpdateAcknowledgement(
   }
 
   if (future.get().isError()) {
-    LOG(ERROR) << "Failed to handle the status update acknowledgement " << uuid
-        << " for task " << taskId
-        << " of framework " << frameworkId
-        << future.get().error();
+    LOG(ERROR) << "Failed to handle the status update acknowledgement"
+               << " for task " << taskId
+               << " of framework " << frameworkId
+               << future.get().error();
     return;
   }
+
+  LOG(INFO) << "Status update manager successfully handled status update"
+            << " acknowledgement for task " << taskId
+            << " of framework " << frameworkId;
+
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(ERROR) << "Status update acknowledgement for task " << taskId
+               << " of unknown framework " << frameworkId;
+    return;
+  }
+
+  // Find the executor that has this update.
+  Executor* executor = framework->getExecutor(taskId);
+  if (executor == NULL) {
+    LOG(ERROR) << "Status update acknowledgement for task " << taskId
+               << " of unknown executor";
+    return;
+  }
+
+  executor->updates.remove(taskId, uuid);
+
+  // Cleanup the executor and framework, if possible.
+  cleanup(framework, executor);
 }
 
 
@@ -1147,12 +1172,15 @@ void Slave::reregisterExecutor(
   send(executor->pid, message);
 
   // Handle all the pending updates.
-  // NOTE: The status update manager might have already checkpointed some
-  // of these pending updates (for e.g: if the slave died right after it
-  // checkpointed the update but before it could send the ACK to the executor).
-  // This is ok because, the status update manager simply re-ACKs the executor.
   foreach (const StatusUpdate& update, updates) {
-    statusUpdate(update); // This also updates the executor's resources!
+    // The status update manager might have already checkpointed some
+    // of these pending updates (for e.g: if the slave died right
+    // after it checkpointed the update but before it could send the
+    // ACK to the executor). If so, we can just ignore those updates.
+    if (!executor->updates.contains(
+        update.status().task_id(), UUID::fromBytes(update.uuid()))) {
+      statusUpdate(update); // This also updates the executor's resources!
+    }
   }
 
   // Now, if there is any task still in STAGING state and not in 'tasks' known
@@ -1223,6 +1251,7 @@ void Slave::statusUpdate(const StatusUpdate& update)
 
     if (executor != NULL) {
       executor->updateTaskState(status.task_id(), status.state());
+      executor->updates.put(status.task_id(), UUID::fromBytes(update.uuid()));
 
       // Handle the task appropriately if it's terminated.
       if (protobuf::isTerminalState(status.state())) {
@@ -1488,6 +1517,8 @@ void Slave::executorTerminated(
     return;
   }
 
+  executor->terminated = true;
+
   bool isCommandExecutor = false;
 
   // Transition all live tasks to TASK_LOST/TASK_FAILED.
@@ -1562,11 +1593,29 @@ void Slave::executorTerminated(
     send(master, message);
   }
 
-  // Schedule the executor directory to get garbage collected.
-  gc.schedule(flags.gc_delay, executor->directory)
-    .onAny(defer(self(), &Self::detachFile, params::_1, executor->directory));
+  // Cleanup the executor and framework, if possible.
+  cleanup(framework, executor);
+}
 
-  framework->destroyExecutor(executor->id);
+
+void Slave::cleanup(Framework* framework, Executor* executor)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(executor);
+
+  // Cleanup this executor if it has terminated and either has no
+  // pending updates or the framework is shutting down. We don't
+  // care for pending updates when framework is shutting down
+  // because the framework cannot ACK them.
+  if (executor->terminated &&
+      (executor->updates.empty() || framework->shutdown)) {
+
+    // Schedule the executor directory to get garbage collected.
+    gc.schedule(flags.gc_delay, executor->directory)
+      .onAny(defer(self(), &Self::detachFile, params::_1, executor->directory));
+
+    framework->destroyExecutor(executor->id);
+  }
 
   // Cleanup if this framework has no executors running.
   // TODO(vinod): If the framework is not being shutdown, remove
@@ -1578,9 +1627,8 @@ void Slave::executorTerminated(
     completedFrameworks.push_back(std::tr1::shared_ptr<Framework>(framework));
   }
 
-  // If this slave is in 'recover=cleanup' mode, exit after all executors
-  // have exited.
-  // TODO(vinod): Ensure all status updates have been acknowledged.
+  // If this slave is in 'recover=cleanup' mode, exit after all
+  // executors have been removed.
   if (flags.recover == "cleanup" && frameworks.size() == 0) {
     cleanup();
   }
@@ -1913,10 +1961,17 @@ Future<Nothing> Slave::recoverExecutors(
         // Read updates to get the latest state of the task.
         foreach (const StatusUpdate& update, task.updates) {
           executor->updateTaskState(task.id, update.status().state());
+          executor->updates.put(task.id, UUID::fromBytes(update.uuid()));
 
-          // Remove the task if it terminated.
+          // Remove the task if it received a terminal update.
           if (protobuf::isTerminalState(update.status().state())) {
             executor->removeTask(task.id);
+
+            // If the terminal update has been acknowledged, remove
+            // it from pending tasks.
+            if (task.acks.contains(UUID::fromBytes(update.uuid()))) {
+              executor->updates.remove(task.id, UUID::fromBytes(update.uuid()));
+            }
             break;
           }
         }
