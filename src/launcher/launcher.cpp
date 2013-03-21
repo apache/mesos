@@ -183,13 +183,13 @@ int ExecutorLauncher::run()
 // if requested.
 int ExecutorLauncher::fetchExecutors()
 {
-  cerr << "Fetching resources into " << workDirectory << endl;
+  cout << "Fetching resources into '" << workDirectory << "'" << endl;
 
   foreach(const CommandInfo::URI& uri, commandInfo.uris()) {
     string resource = uri.value();
     bool executable = uri.has_executable() && uri.executable();
 
-    cerr << "Fetching resource " << resource << endl;
+    cout << "Fetching resource '" << resource << "'" << endl;
 
     // Some checks to make sure using the URI value in shell commands
     // is safe. TODO(benh): These should be pushed into the scheduler
@@ -228,7 +228,7 @@ int ExecutorLauncher::fetchExecutors()
       ostringstream command;
       command << hadoopScript << " fs -copyToLocal '" << resource
               << "' '" << localFile << "'";
-      cout << "Downloading resource from " << resource << endl;
+      cout << "Downloading resource from '" << resource << "'" << endl;
       cout << "HDFS command: " << command.str() << endl;
 
       int ret = os::system(command.str());
@@ -253,7 +253,7 @@ int ExecutorLauncher::fetchExecutors()
       }
 
       path =  path::join(".", path.substr(path.find_last_of("/") + 1));
-      cout << "Downloading " << resource << " to " << path << endl;
+      cout << "Downloading '" << resource << "' to '" << path << "'" << endl;
       Try<int> code = net::download(resource, path);
       if (code.isError()) {
         cerr << "Error downloading resource: " << code.error().c_str() << endl;
@@ -270,7 +270,7 @@ int ExecutorLauncher::fetchExecutors()
         if (frameworksHome != "") {
           resource = path::join(frameworksHome, resource);
           cout << "Prepended configuration option frameworks_home to resource "
-               << "path, making it: " << resource << endl;
+               << "path, making it: '" << resource << "'" << endl;
         } else {
           cerr << "A relative path was passed for the resource, but "
                << "the configuration option frameworks_home is not set. "
@@ -283,11 +283,12 @@ int ExecutorLauncher::fetchExecutors()
       // Copy the resource to the current working directory.
       ostringstream command;
       command << "cp '" << resource << "' .";
-      cout << "Copying resource from " << resource << " to .";
+      cout << "Copying resource from '" << resource << "' to ." << endl;
 
-      int ret = os::system(command.str());
-      if (ret != 0) {
-        cerr << "Failed to copy " << resource << ": Exit code " << ret << endl;
+      int status = os::system(command.str());
+      if (status != 0) {
+        cerr << "Failed to copy '" << resource
+             << "' : Exit status " << status << endl;
         return -1;
       }
 
@@ -304,7 +305,7 @@ int ExecutorLauncher::fetchExecutors()
       Try<Nothing> chown = os::chown(user, resource);
 
       if (chown.isError()) {
-        cerr << "Failed to chown " << resource << " to user " << user << ": "
+        cerr << "Failed to chown '" << resource << "' to user " << user << ": "
              << chown.error() << endl;
         return -1;
       }
@@ -312,7 +313,7 @@ int ExecutorLauncher::fetchExecutors()
 
     if (executable &&
         !os::chmod(resource, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
-      cerr << "Failed to chmod " << resource << endl;
+      cerr << "Failed to chmod '" << resource << "'" << endl;
       return -1;
     }
 

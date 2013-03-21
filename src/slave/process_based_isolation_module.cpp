@@ -167,7 +167,7 @@ void ProcessBasedIsolationModule::launchExecutor(
     while ((pid = setsid()) == -1) {
       perror("Could not put executor in own session");
 
-      std::cerr << "Forking another process and retrying ..." << std::endl;
+      std::cout << "Forking another process and retrying ..." << std::endl;
 
       if ((pid = fork()) == -1) {
         perror("Failed to fork to launch executor");
