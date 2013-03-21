@@ -52,9 +52,9 @@ AC_ARG_ENABLE([install],
               [AC_MSG_ERROR([libprocess can not currently be installed])])
 
 AC_ARG_ENABLE([perftools],
-              AS_HELP_STRING([--disable-perftools],
-                             [disable google perftools]),
-              [], [gperftools=yes])
+              AS_HELP_STRING([--enable-perftools],
+                             [enable google perftools]),
+              [gperftools=yes])
 
 AC_ARG_WITH([zlib],
             AS_HELP_STRING([--without-zlib],
