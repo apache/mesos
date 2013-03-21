@@ -81,7 +81,7 @@ public:
   /**
    * Invoked once the executor driver has been able to successfully
    * connect with Mesos. In particular, a scheduler can pass some
-   * data to it's executors through the FrameworkInfo.ExecutorInfo's
+   * data to its executors through the FrameworkInfo.ExecutorInfo's
    * data field.
    */
   virtual void registered(ExecutorDriver* driver,
@@ -125,11 +125,11 @@ public:
    * executor. These messages are best effort; do not expect a
    * framework message to be retransmitted in any reliable fashion.
    */
-    virtual void frameworkMessage(ExecutorDriver* driver,
+  virtual void frameworkMessage(ExecutorDriver* driver,
                                   const std::string& data) = 0;
 
   /**
-   * Invoked when the executor should terminate all of it's currently
+   * Invoked when the executor should terminate all of its currently
    * running tasks. Note that after a Mesos has determined that an
    * executor has terminated any tasks that the executor did not send
    * terminal status updates for (e.g., TASK_KILLED, TASK_FINISHED,
