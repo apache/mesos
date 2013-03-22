@@ -202,14 +202,21 @@ inline Try<Nothing> touch(const std::string& path)
 inline Try<std::string> mktemp(const std::string& path = "/tmp/XXXXXX")
 {
   char* temp = new char[path.size() + 1];
-  if (::mktemp(::strcpy(temp, path.c_str())) != NULL) {
-    std::string result(temp);
-    delete temp;
-    return result;
-  } else {
+  int fd = ::mkstemp(::strcpy(temp, path.c_str()));
+
+  if (fd < 0) {
     delete temp;
     return ErrnoError();
   }
+
+  // We ignore the return value of close(). This is because users
+  // calling this function are interested in the return value of
+  // mkstemp(). Also an unsuccessful close() doesn't affect the file.
+  os::close(fd);
+
+  std::string result(temp);
+  delete temp;
+  return result;
 }
 
 
@@ -249,9 +256,9 @@ inline Try<Nothing> write(const std::string& path, const std::string& message)
 
   Try<Nothing> result = write(fd.get(), message);
 
-  // NOTE: We ignore the return value of close(). This is because users calling
-  // this function are interested in the return value of write(). Also an
-  // unsuccessful close() doesn't affect the write.
+  // We ignore the return value of close(). This is because users
+  // calling this function are interested in the return value of
+  // mkstemp(). Also an unsuccessful close() doesn't affect the write.
   os::close(fd.get());
 
   return result;
@@ -661,6 +668,7 @@ inline std::string getcwd()
 }
 
 
+// TODO(bmahler): Wrap with a Try.
 inline std::list<std::string> ls(const std::string& directory)
 {
   std::list<std::string> result;
