@@ -74,23 +74,29 @@ void TemporaryDirectoryTest::SetUp()
   // Create a temporary directory for the test.
   Try<string> directory = mkdtemp();
 
-  CHECK_SOME(directory) << "Failed to create mkdtemp";
+  ASSERT_SOME(directory) << "Failed to mkdtemp";
+
+  sandbox = directory.get();
 
   if (flags.verbose) {
-    std::cerr << "Using temporary directory '"
-              << directory.get() << "'" << std::endl;
+    std::cout << "Using temporary directory '"
+              << sandbox.get() << "'" << std::endl;
   }
 
   // Run the test out of the temporary directory we created.
-  PCHECK(os::chdir(directory.get()))
-    << "Failed to chdir into '" << directory.get() << "'";
+  ASSERT_TRUE(os::chdir(sandbox.get()))
+    << "Failed to chdir into '" << sandbox.get() << "'";
 }
 
 
 void TemporaryDirectoryTest::TearDown()
 {
-  // Return to previous working directory.
-  PCHECK(os::chdir(cwd));
+  // Return to previous working directory and cleanup the sandbox.
+  ASSERT_TRUE(os::chdir(cwd));
+
+  if (sandbox.isSome()) {
+    ASSERT_SOME(os::rmdir(sandbox.get()));
+  }
 }
 
 } // namespace tests {

@@ -110,6 +110,7 @@ protected:
 
 private:
   std::string cwd;
+  Option<std::string> sandbox;
 };
 
 
