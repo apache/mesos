@@ -3240,12 +3240,14 @@ Future<size_t> read(int fd, void* data, size_t size)
     return promise->future();
   }
 
-  Future<short> future = poll(fd, process::io::READ).onAny(
-      lambda::bind(&internal::read, fd, data, size, promise, lambda::_1));
-
-  // Also cancel the polling if promise->future() is discarded.
-  promise->future().onDiscarded(
-      lambda::bind(&Future<short>::discard, future));
+  // Because the file descriptor is non-blocking, we call read()
+  // immediately. The read may in turn call poll if needed, avoiding
+  // unnecessary polling. We also observed that for some combination
+  // of libev and Linux kernel versions, the poll would block for
+  // non-deterministically long periods of time. This may be fixed in
+  // a newer version of libev (we use 3.8 at the time of writing this
+  // comment).
+  internal::read(fd, data, size, promise, io::READ);
 
   return promise->future();
 }

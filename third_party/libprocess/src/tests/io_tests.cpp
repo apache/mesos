@@ -3,13 +3,17 @@
 #include <string>
 
 #include <process/future.hpp>
+#include <process/gtest.hpp>
 #include <process/io.hpp>
 
+#include <stout/gtest.hpp>
 #include <stout/os.hpp>
 
 #include "encoder.hpp"
 
 using namespace process;
+
+using std::string;
 
 
 TEST(IO, Poll)
@@ -27,8 +31,7 @@ TEST(IO, Poll)
 
   future.await();
 
-  ASSERT_TRUE(future.isReady());
-  EXPECT_EQ(io::READ, future.get());
+  EXPECT_FUTURE_WILL_EQ(io::READ, future);
 
   close(pipes[0]);
   close(pipes[1]);
@@ -41,42 +44,33 @@ TEST(IO, Read)
 
   int pipes[2];
   char data[3];
-  Future<size_t> future;
 
   // Create a blocking pipe.
   ASSERT_NE(-1, ::pipe(pipes));
 
   // Test on a blocking file descriptor.
-  future = io::read(pipes[0], data, 3);
-  future.await(Seconds(1.0));
-  EXPECT_TRUE(future.isFailed());
+  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0], data, 3));
 
   close(pipes[0]);
   close(pipes[1]);
 
   // Test on a closed file descriptor.
-  future = io::read(pipes[0], data, 3);
-  future.await(Seconds(1.0));
-  EXPECT_TRUE(future.isFailed());
+  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0], data, 3));
 
   // Create a nonblocking pipe.
   ASSERT_NE(-1, ::pipe(pipes));
-  ASSERT_TRUE(os::nonblock(pipes[0]).isSome());
-  ASSERT_TRUE(os::nonblock(pipes[1]).isSome());
+  ASSERT_SOME(os::nonblock(pipes[0]));
+  ASSERT_SOME(os::nonblock(pipes[1]));
 
   // Test reading nothing.
-  future = io::read(pipes[0], data, 0);
-  future.await(Seconds(1.0));
-  EXPECT_TRUE(future.isFailed());
+  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0], data, 0));
 
   // Test successful read.
-  future = io::read(pipes[0], data, 3);
+  Future<size_t> future = io::read(pipes[0], data, 3);
   ASSERT_FALSE(future.isReady());
 
   ASSERT_EQ(2, write(pipes[1], "hi", 2));
-  future.await(Seconds(1.0));
-  ASSERT_TRUE(future.isReady());
-  ASSERT_EQ(2, future.get());
+  ASSERT_FUTURE_WILL_EQ(2u, future);
   EXPECT_EQ('h', data[0]);
   EXPECT_EQ('i', data[1]);
 
@@ -88,10 +82,7 @@ TEST(IO, Read)
 
   ASSERT_EQ(3, write(pipes[1], "omg", 3));
 
-  future = io::read(pipes[0], data, 3);
-  future.await(Seconds(1.0));
-  ASSERT_TRUE(future.isReady());
-  ASSERT_EQ(3, future.get());
+  ASSERT_FUTURE_WILL_EQ(3u, io::read(pipes[0], data, 3));
   EXPECT_EQ('o', data[0]);
   EXPECT_EQ('m', data[1]);
   EXPECT_EQ('g', data[2]);
@@ -102,22 +93,19 @@ TEST(IO, Read)
 
   close(pipes[1]);
 
-  future.await(Seconds(1.0));
-  ASSERT_TRUE(future.isReady());
-  EXPECT_EQ(0, future.get());
+  ASSERT_FUTURE_WILL_EQ(0u, future);
 
   close(pipes[0]);
 }
 
 
-// Disabled this test for time being, due to MESOS-326.
-TEST(IO, DISABLED_BufferedRead)
+TEST(IO, BufferedRead)
 {
   // 128 Bytes.
-  std::string data =
+  string data =
       "This data is much larger than BUFFERED_READ_SIZE, which means it will "
       "trigger multiple buffered async reads as a result.........";
-  CHECK(data.size() == 128);
+  ASSERT_EQ(128u, data.size());
 
   // Keep doubling the data size until we're guaranteed to trigger at least
   // 3 buffered async reads.
@@ -125,23 +113,51 @@ TEST(IO, DISABLED_BufferedRead)
     data.append(data);
   }
 
-  ASSERT_TRUE(os::write("file", data).isSome());
+  // First read from a file.
+  ASSERT_SOME(os::write("file", data));
 
   Try<int> fd = os::open("file", O_RDONLY);
-  ASSERT_TRUE(fd.isSome());
+  ASSERT_SOME(fd);
 
   // Read from blocking fd.
-  Future<std::string> future = io::read(fd.get());
-  ASSERT_TRUE(future.await(Seconds(5.0)));
-  EXPECT_TRUE(future.isFailed());
+  EXPECT_FUTURE_WILL_FAIL(io::read(fd.get()));
 
   // Read from non-blocking fd.
   ASSERT_TRUE(os::nonblock(fd.get()).isSome());
-
-  future = io::read(fd.get());
-  ASSERT_TRUE(future.await(Seconds(5.0)));
-  EXPECT_TRUE(future.isReady());
-  EXPECT_EQ(data, future.get());
+  EXPECT_FUTURE_WILL_EQ(data, io::read(fd.get()));
 
   os::close(fd.get());
+
+  // Now read from pipes.
+  int pipes[2];
+
+  // Create a blocking pipe.
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  // Test on a blocking pipe.
+  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0]));
+
+  close(pipes[0]);
+  close(pipes[1]);
+
+  // Test on a closed pipe.
+  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0]));
+
+  // Create a nonblocking pipe for reading.
+  ASSERT_NE(-1, ::pipe(pipes));
+  ASSERT_SOME(os::nonblock(pipes[0]));
+
+  // Test a successful read from the pipe.
+  Future<string> future = io::read(pipes[0]);
+
+  // At first, the future will not be ready until we write to and
+  // close the pipe.
+  ASSERT_FALSE(future.isReady());
+
+  ASSERT_SOME(os::write(pipes[1], data));
+  close(pipes[1]);
+
+  EXPECT_FUTURE_WILL_EQ(data, future);
+
+  close(pipes[0]);
 }
