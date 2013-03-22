@@ -51,6 +51,26 @@ template <typename T>
 }
 
 
+template <typename T>
+::testing::AssertionResult AssertFutureWillDiscard(
+    const char* expr,
+    const process::Future<T>& actual)
+{
+  if (!actual.await()) {
+    return ::testing::AssertionFailure()
+      << "Failed to wait for " << expr;
+  } else if (actual.isFailed()) {
+    return ::testing::AssertionFailure()
+      << expr << ": " << actual.failure();
+  } else if (actual.isReady()) {
+    return ::testing::AssertionFailure()
+      << expr << " is ready (" << ::testing::PrintToString(actual.get()) << ")";
+  }
+
+  return ::testing::AssertionSuccess();
+}
+
+
 template <typename T1, typename T2>
 ::testing::AssertionResult AssertFutureWillEq(
     const char* expectedExpr,
@@ -91,6 +111,14 @@ template <typename T1, typename T2>
 
 #define EXPECT_FUTURE_WILL_FAIL(actual)                 \
   EXPECT_PRED_FORMAT1(AssertFutureWillFail, actual)
+
+
+#define ASSERT_FUTURE_WILL_DISCARD(actual)              \
+  ASSERT_PRED_FORMAT1(AssertFutureWillDiscard, actual)
+
+
+#define EXPECT_FUTURE_WILL_DISCARD(actual)              \
+  EXPECT_PRED_FORMAT1(AssertFutureWillDiscard, actual)
 
 
 #define ASSERT_FUTURE_WILL_EQ(expected, actual)                 \

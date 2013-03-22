@@ -11,19 +11,13 @@ class Timeout
 {
 public:
   Timeout()
-  {
-    timeout = Clock::now();
-  }
+    : timeout(Clock::now()) {}
 
   Timeout(const Duration& duration)
-  {
-    timeout = Clock::now() + duration.secs();
-  }
+    : timeout(Clock::now() + duration.secs()) {}
 
   Timeout(const Timeout& that)
-  {
-    timeout = that.timeout;
-  }
+    : timeout(that.timeout) {}
 
   Timeout& operator = (const Timeout& that)
   {
@@ -42,12 +36,12 @@ public:
 
   bool operator == (const Timeout& that) const
   {
-      return timeout == that.timeout;
+    return timeout == that.timeout;
   }
 
   bool operator < (const Timeout& that) const
   {
-      return timeout < that.timeout;
+    return timeout < that.timeout;
   }
 
   bool operator <= (const Timeout& that) const

@@ -552,7 +552,7 @@ bool Future<T>::discard()
 
   // Invoke all callbacks associated with this future being
   // DISCARDED. We don't need a lock because the state is now in
-  // DISCARDED so there should not be any concurrent modications.
+  // DISCARDED so there should not be any concurrent modifications.
   if (result) {
     while (!onDiscardedCallbacks->empty()) {
       // TODO(*): Invoke callbacks in another execution context.
