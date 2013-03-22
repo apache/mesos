@@ -3411,7 +3411,8 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
 
   // Decode once the async read completes.
   return io::read(s)
-    .then(lambda::bind(&internal::decode, lambda::_1));
+    .then(lambda::bind(&internal::decode, lambda::_1))
+    .onAny(lambda::bind(&os::close, s));
 }
 
 }  // namespace http {
