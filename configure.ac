@@ -43,13 +43,13 @@ LT_INIT
 LT_LANG([C++])
 LT_OUTPUT
 
-# The default CFLAGS/CXXFLAGS from autoconf when using gcc is usually
-# "-g -O2". These really slow down compiling our tests, so we turn
-# them off and enable them (where desired) directly in the
+# The default CFLAGS/CXXFLAGS from autoconf when using gcc usually
+# includes "-O2". These really slow down compiling our tests, so we
+# turn them off and enable them (where desired) directly in the
 # Makefile. Note that this should not have an impact on users setting
 # CFLAGS/CXXFLAGS directly at configure time, or when running make.
-AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"], [CFLAGS=""])
-AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS=""])
+AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"], [CFLAGS="-g"])
+AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS="-g"])
 
 # Save the configure arguments so we can pass them to any third_party
 # libraries that we might run configure on (see
