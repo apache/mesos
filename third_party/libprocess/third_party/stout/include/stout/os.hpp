@@ -23,6 +23,9 @@
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 #ifdef __linux__
 #include <sys/sysinfo.h>
 #endif
@@ -891,7 +894,12 @@ inline Try<std::list<std::string> > glob(const std::string& pattern)
 // Returns the total number of cpus (cores).
 inline Try<long> cpus()
 {
-  return sysconf(_SC_NPROCESSORS_ONLN);
+  long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+
+  if (cpus < 0) {
+    return ErrnoError();
+  }
+  return cpus;
 }
 
 
@@ -908,6 +916,19 @@ inline Try<uint64_t> memory()
 # else
   return info.totalram;
 # endif
+#elif defined __APPLE__
+  const size_t NAME_SIZE = 2;
+  int name[NAME_SIZE];
+  name[0] = CTL_HW;
+  name[1] = HW_MEMSIZE;
+
+  int64_t memory;
+  size_t length = sizeof(memory);
+
+  if (sysctl(name, NAME_SIZE, &memory, &length, NULL, 0) < 0) {
+    return ErrnoError("Failed to get sysctl of HW_MEMSIZE");
+  }
+  return memory;
 #else
   return Error("Cannot determine the size of main memory");
 #endif
