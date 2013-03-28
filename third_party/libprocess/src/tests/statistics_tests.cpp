@@ -4,6 +4,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/gtest.hpp>
 #include <process/statistics.hpp>
 
 #include <stout/duration.hpp>
@@ -27,9 +28,8 @@ TEST(Statistics, set)
   Future<map<Seconds, double> > values =
     statistics.timeseries("test", "statistic");
 
-  values.await();
+  ASSERT_FUTURE_WILL_SUCCEED(values);
 
-  ASSERT_TRUE(values.isReady());
   EXPECT_EQ(2, values.get().size());
 
   EXPECT_GE(Clock::now(), values.get().begin()->first.secs());
@@ -51,22 +51,21 @@ TEST(Statistics, truncate)
   Future<map<Seconds, double> > values =
     statistics.timeseries("test", "statistic");
 
-  values.await();
+  ASSERT_FUTURE_WILL_SUCCEED(values);
 
-  ASSERT_TRUE(values.isReady());
   EXPECT_EQ(1, values.get().size());
   EXPECT_GE(Clock::now(), values.get().begin()->first.secs());
   EXPECT_DOUBLE_EQ(3.0, values.get().begin()->second);
 
-  Clock::advance((60*60*24) + 1);
+  Clock::advance(Days(1).secs() + 1);
+  Clock::settle();
 
   statistics.increment("test", "statistic");
 
   values = statistics.timeseries("test", "statistic");
 
-  values.await();
+  ASSERT_FUTURE_WILL_SUCCEED(values);
 
-  ASSERT_TRUE(values.isReady());
   EXPECT_EQ(1, values.get().size());
   EXPECT_GE(Clock::now(), values.get().begin()->first.secs());
   EXPECT_DOUBLE_EQ(4.0, values.get().begin()->second);
@@ -82,9 +81,8 @@ TEST(Statistics, meter) {
   Future<Try<Nothing> > meter =
     statistics.meter("test", "statistic", new meters::TimeRate("metered"));
 
-  meter.await();
+  ASSERT_FUTURE_WILL_SUCCEED(meter);
 
-  ASSERT_TRUE(meter.isReady());
   ASSERT_TRUE(meter.get().isSome());
 
   Seconds now(Clock::now());
@@ -96,9 +94,8 @@ TEST(Statistics, meter) {
   Future<map<Seconds, double> > values =
     statistics.timeseries("test", "statistic");
 
-  values.await();
+  ASSERT_FUTURE_WILL_SUCCEED(values);
 
-  ASSERT_TRUE(values.isReady());
   EXPECT_EQ(3, values.get().size());
   EXPECT_EQ(1, values.get().count(now));
   EXPECT_EQ(1, values.get().count(Seconds(now.secs() + 1.0)));
@@ -111,9 +108,8 @@ TEST(Statistics, meter) {
   // Now check the metered values.
   values = statistics.timeseries("test", "metered");
 
-  values.await();
+  ASSERT_FUTURE_WILL_SUCCEED(values);
 
-  ASSERT_TRUE(values.isReady());
   EXPECT_EQ(2, values.get().size());
   EXPECT_EQ(1, values.get().count(Seconds(now.secs() + 1.0)));
   EXPECT_EQ(1, values.get().count(Seconds(now.secs() + 2.0)));
@@ -135,9 +131,8 @@ TEST(Statistics, archive)
   Future<Try<Nothing> > meter =
     statistics.meter("test", "statistic", new meters::TimeRate("metered"));
 
-  meter.await();
+  ASSERT_FUTURE_WILL_SUCCEED(meter);
 
-  ASSERT_TRUE(meter.isReady());
   ASSERT_TRUE(meter.get().isSome());
 
   Seconds now(Clock::now());
@@ -155,37 +150,33 @@ TEST(Statistics, archive)
   // Ensure the raw time series is present.
   Future<map<Seconds, double> > values =
     statistics.timeseries("test", "statistic");
-  values.await();
-  ASSERT_TRUE(values.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(values);
   EXPECT_FALSE(values.get().empty());
 
   // Ensure the metered timeseries is present.
   values = statistics.timeseries("test", "metered");
-  values.await();
-  ASSERT_TRUE(values.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(values);
   EXPECT_FALSE(values.get().empty());
 
   // Expire the window and ensure the statistics were removed.
-  Clock::advance(STATISTICS_TRUNCATION_INTERVAL.secs() + 1);
+  Clock::advance(STATISTICS_TRUNCATION_INTERVAL.secs());
+  Clock::settle();
 
   // Ensure the raw statistics are gone.
   values = statistics.timeseries("test", "statistic");
-  values.await();
-  ASSERT_TRUE(values.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(values);
   EXPECT_TRUE(values.get().empty());
 
   // Ensure the metered statistics are gone.
   values = statistics.timeseries("test", "metered");
-  values.await();
-  ASSERT_TRUE(values.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(values);
   EXPECT_TRUE(values.get().empty());
 
   // Reactivate the statistic, and make sure the meter is still missing.
   statistics.set("test", "statistic", 1.0, now);
 
   values = statistics.timeseries("test", "metered");
-  values.await();
-  ASSERT_TRUE(values.isReady());
+  ASSERT_FUTURE_WILL_SUCCEED(values);
   EXPECT_TRUE(values.get().empty());
 
   Clock::resume();
