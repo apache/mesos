@@ -25,6 +25,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/os.hpp>
 
@@ -923,6 +924,9 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   // Ensure that the slave times out and kills the executor.
   Clock::advance(slaveFlags.executor_registration_timeout.secs());
   Clock::settle();
+
+  // Wait for the executor to terminate.
+  usleep((useconds_t) Milliseconds(10).us());
 
   // Ensure that the reaper reaps the executor.
   Clock::advance(1.0);
