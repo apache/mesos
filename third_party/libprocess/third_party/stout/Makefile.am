@@ -21,6 +21,7 @@ EXTRA_DIST =					\
   include/stout/json.hpp			\
   include/stout/lambda.hpp			\
   include/stout/multihashmap.hpp		\
+  include/stout/multimap.hpp			\
   include/stout/net.hpp				\
   include/stout/none.hpp			\
   include/stout/nothing.hpp			\
@@ -46,7 +47,7 @@ EXTRA_DIST =					\
   tests/hashset_tests.cpp			\
   tests/json_tests.cpp				\
   tests/main.cpp				\
-  tests/multihashmap_tests.cpp			\
+  tests/multimap_tests.cpp			\
   tests/none_tests.cpp				\
   tests/os_tests.cpp				\
   tests/strings_tests.cpp			\

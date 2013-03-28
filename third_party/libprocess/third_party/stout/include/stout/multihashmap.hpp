@@ -8,11 +8,11 @@
 #include "hashset.hpp"
 
 
-// Implementation of a hash multimap via Boost's
-// 'unordered_multimap'. The rationale for creating this is that the
-// std::multimap implementation is painful to use (requires lots of
-// iterator garbage, as well as the use of 'equal_range' which makes
-// for cluttered code).
+// Implementation of a hash multimap via Boost's 'unordered_multimap'
+// but with a better interface. The rationale for creating this is
+// that the std::multimap interface is painful to use (requires lots
+// of iterator garbage, as well as the use of 'equal_range' which
+// makes for cluttered code).
 template <typename K, typename V>
 class multihashmap : public boost::unordered_multimap<K, V>
 {
@@ -45,7 +45,7 @@ hashset<V> multihashmap<K, V>::get(const K& key) const
 
   typename boost::unordered_multimap<K, V>::const_iterator i;
   for (i = range.first; i != range.second; ++i) {
-    values.insert((*i).second);
+    values.insert(i->second);
   }
 
   return values;
@@ -62,11 +62,14 @@ bool multihashmap<K, V>::remove(const K& key)
 template <typename K, typename V>
 bool multihashmap<K, V>::remove(const K& key, const V& value)
 {
+  std::pair<typename boost::unordered_multimap<K, V>::iterator,
+    typename boost::unordered_multimap<K, V>::iterator> range;
+
+  range = boost::unordered_multimap<K, V>::equal_range(key);
+
   typename boost::unordered_multimap<K, V>::iterator i;
-  for (i = boost::unordered_multimap<K, V>::find(key);
-       i != boost::unordered_multimap<K, V>::end();
-       ++i) {
-    if ((*i).second == value) {
+  for (i = range.first; i != range.second; ++i) {
+    if (i->second == value) {
       boost::unordered_multimap<K, V>::erase(i);
       return true;
     }
@@ -86,16 +89,8 @@ bool multihashmap<K, V>::contains(const K& key) const
 template <typename K, typename V>
 bool multihashmap<K, V>::contains(const K& key, const V& value) const
 {
-  typename boost::unordered_multimap<K, V>::const_iterator i;
-  for (i = boost::unordered_multimap<K, V>::find(key);
-       i != boost::unordered_multimap<K, V>::end();
-       ++i) {
-    if ((*i).second == value) {
-      return true;
-    }
-  }
-
-  return false;
+  const hashset<V>& values = get(key);
+  return values.count(value) > 0;
 }
 
 #endif // __STOUT_MULTIHASHMAP_HPP__

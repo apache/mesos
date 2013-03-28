@@ -2,18 +2,29 @@
 
 #include <gtest/gtest.h>
 
-#include <gmock/gmock.h>
-
 #include <string>
 
+#include <stout/multimap.hpp>
 #include <stout/multihashmap.hpp>
 
 using std::string;
 
+template <typename T>
+class MultimapTest : public ::testing::Test {};
 
-TEST(MultihashmapTest, Put)
+typedef ::testing::Types<
+  Multimap<string, uint16_t>, multihashmap<string, uint16_t> > MultimapTypes;
+
+// Causes all TYPED_TEST(MultimapTest, ...) to be run for each of the
+// specified multimap types.
+TYPED_TEST_CASE(MultimapTest, MultimapTypes);
+
+
+TYPED_TEST(MultimapTest, Put)
 {
-  multihashmap<string, uint16_t> map;
+  typedef TypeParam Map;
+
+  Map map;
 
   map.put("foo", 1024);
   ASSERT_EQ(1u, map.get("foo").size());
@@ -33,9 +44,11 @@ TEST(MultihashmapTest, Put)
 }
 
 
-TEST(MultihashmapTest, Remove)
+TYPED_TEST(MultimapTest, Remove)
 {
-  multihashmap<string, uint16_t> map;
+  typedef TypeParam Map;
+
+  Map map;
 
   map.put("foo", 1024);
   map.remove("foo", 1024);
@@ -55,9 +68,11 @@ TEST(MultihashmapTest, Remove)
 }
 
 
-TEST(MultihashmapTest, Size)
+TYPED_TEST(MultimapTest, Size)
 {
-  multihashmap<string, uint16_t> map;
+  typedef TypeParam Map;
+
+  Map map;
 
   map.put("foo", 1024);
   map.put("foo", 1025);
@@ -75,9 +90,11 @@ TEST(MultihashmapTest, Size)
 }
 
 
-TEST(MultihashmapTest, Iterator)
+TYPED_TEST(MultimapTest, Iterator)
 {
-  multihashmap<string, uint16_t> map;
+  typedef TypeParam Map;
+
+  Map map;
 
   map.put("foo", 1024);
   map.put("foo", 1025);
@@ -85,7 +102,7 @@ TEST(MultihashmapTest, Iterator)
   ASSERT_TRUE(map.contains("foo", 1024));
   ASSERT_TRUE(map.contains("foo", 1025));
 
-  multihashmap<string, uint16_t>::iterator i = map.begin();
+  typename Map::iterator i = map.begin();
 
   ASSERT_TRUE(i != map.end());
 
@@ -103,9 +120,11 @@ TEST(MultihashmapTest, Iterator)
 }
 
 
-TEST(MultihashmapTest, Foreach)
+TYPED_TEST(MultimapTest, Foreach)
 {
-  multihashmap<string, uint16_t> map;
+  typedef TypeParam Map;
+
+  Map map;
 
   map.put("foo", 1024);
   map.put("bar", 1025);
@@ -120,7 +139,7 @@ TEST(MultihashmapTest, Foreach)
     } else if (key == "bar") {
       ASSERT_EQ(1025, value);
     } else {
-      FAIL() << "Unexpected key/value in multihashmap";
+      FAIL() << "Unexpected key/value in multimap";
     }
   }
 }
