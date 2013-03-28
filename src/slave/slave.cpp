@@ -509,19 +509,7 @@ void Slave::registered(const SlaveID& slaveId)
 
     // Check that this path is a directory but not our directory!
     if (os::isdir(path) && file != info.id().value()) {
-
-      Try<long> time = os::mtime(path);
-
-      if (time.isSome()) {
-        // Schedule the directory to be removed after some remaining
-        // delta of the delay and last modification time.
-        Seconds delta(flags.gc_delay.secs() - (Clock::now() - time.get()));
-        gc.schedule(delta, path);
-      } else {
-        LOG(WARNING) << "Failed to get the modification time of "
-                     << path << ": " << time.error();
-        gc.schedule(flags.gc_delay, path);
-      }
+      gc.schedule(flags.gc_delay, path);
     }
   }
 }
