@@ -519,7 +519,7 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
       //    code (detectMaster()) will be re-tried.
       // 2) If this is due to no masters present (i.e., code == ZNONODE),
       //    updated() will be called and the detectMaster() will be re-tried.
-      if (zk->retryable(code)) {
+      if (zk->retryable(code) || code == ZNONODE) {
         LOG(ERROR) << "Master detector failed to fetch new master pid: "
                    << zk->message(code);
       } else {
