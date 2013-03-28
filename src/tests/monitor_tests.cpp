@@ -91,9 +91,7 @@ TEST(MonitorTest, WatchUnwatch)
 
   process::Clock::pause();
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL.secs());
-
-  // Allow the monitor to handle the usage future becoming ready.
-  sleep(1);
+  process::Clock::settle();
 
   process::UPID upid("monitor", process::ip(), process::port());
 
@@ -128,6 +126,7 @@ TEST(MonitorTest, WatchUnwatch)
   monitor.unwatch(frameworkId, executorId);
 
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL.secs());
+  process::Clock::settle();
 
   response = process::http::get(upid, "usage.json");
 
