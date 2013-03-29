@@ -5,11 +5,38 @@
 
 #include <string>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 
 #include <stout/option.hpp>
 
+namespace process {
+
+// A simple test event listener that makes sure to resume the clock
+// after each test even if the previous test had a partial result
+// (i.e., an ASSERT_* failed).
+class ClockTestEventListener : public ::testing::EmptyTestEventListener
+{
+public:
+  // Returns the singleton instance of the listener.
+  static ClockTestEventListener* instance()
+  {
+    static ClockTestEventListener* listener = new ClockTestEventListener();
+    return listener;
+  }
+
+  virtual void OnTestEnd(const ::testing::TestInfo&)
+  {
+    if (process::Clock::paused()) {
+      process::Clock::resume();
+    }
+  }
+private:
+  ClockTestEventListener() {}
+};
+
+} // namespace process {
 
 template <typename T>
 ::testing::AssertionResult AssertFutureWillSucceed(

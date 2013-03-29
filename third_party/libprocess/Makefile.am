@@ -27,14 +27,14 @@ LIBEV = third_party/libev-$(LIBEV_VERSION)
 noinst_LTLIBRARIES = libprocess.la
 
 libprocess_la_SOURCES =		\
-  src/process.cpp		\
-  src/pid.cpp			\
-  src/latch.cpp			\
-  src/statistics.cpp		\
   src/config.hpp		\
   src/decoder.hpp		\
   src/encoder.hpp		\
   src/gate.hpp			\
+  src/latch.cpp			\
+  src/pid.cpp			\
+  src/process.cpp		\
+  src/statistics.cpp		\
   src/synchronized.hpp
 
 libprocess_la_CPPFLAGS =		\
@@ -70,6 +70,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/filter.hpp			\
   $(top_srcdir)/include/process/future.hpp			\
   $(top_srcdir)/include/process/gc.hpp				\
+  $(top_srcdir)/include/process/gmock.hpp			\
   $(top_srcdir)/include/process/gtest.hpp			\
   $(top_srcdir)/include/process/http.hpp			\
   $(top_srcdir)/include/process/id.hpp				\

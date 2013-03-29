@@ -18,6 +18,7 @@
 #include <process/filter.hpp>
 #include <process/future.hpp>
 #include <process/gc.hpp>
+#include <process/gmock.hpp>
 #include <process/process.hpp>
 #include <process/run.hpp>
 #include <process/thread.hpp>
@@ -488,6 +489,36 @@ TEST(Process, handlers)
   ASSERT_FALSE(!pid);
 
   post(pid, "func");
+
+  terminate(pid, false);
+  wait(pid);
+}
+
+
+// Tests EXPECT_MESSAGE and in particular that an event can get
+// dropped before being processed.
+TEST(Process, expect)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  HandlersProcess process;
+
+  EXPECT_CALL(process, func(_, _))
+    .Times(0);
+
+  PID<HandlersProcess> pid = spawn(&process);
+
+  ASSERT_FALSE(!pid);
+
+  volatile bool func = false;
+
+  EXPECT_MESSAGE("func", _, _)
+    .WillOnce(DoAll(Assign(&func, true),
+                    Return(true)));
+
+  post(pid, "func");
+
+  while (!func);
 
   terminate(pid, false);
   wait(pid);
