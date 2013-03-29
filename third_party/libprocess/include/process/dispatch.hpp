@@ -1,6 +1,8 @@
 #ifndef __PROCESS_DISPATCH_HPP__
 #define __PROCESS_DISPATCH_HPP__
 
+#include <string>
+
 #include <tr1/functional>
 #include <tr1/memory> // TODO(benh): Replace all shared_ptr with unique_ptr.
 
@@ -49,7 +51,8 @@ namespace internal {
 // will probably change in the future to unique_ptr (or a variant).
 void dispatch(
     const UPID& pid,
-    const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& f);
+    const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& f,
+    const std::string& method = std::string());
 
 // For each return type (void, future, value) there is a dispatcher
 // function which should complete the picture. Given the process
@@ -96,6 +99,15 @@ void rdispatcher(
   promise->set((*thunk)(t));
 }
 
+
+// Canonicalizes a pointer to a member function (i.e., method) into a
+// bytes representation for comparison (e.g., in tests).
+template <typename Method>
+std::string canonicalize(Method method)
+{
+  return std::string(reinterpret_cast<const char*>(&method), sizeof(method));
+}
+
 } // namespace internal {
 
 
@@ -125,7 +137,7 @@ void rdispatcher(
 //                          std::tr1::placeholders::_1,
 //                          thunk)));
 //
-//   internal::dispatch(pid, dispatcher);
+//   internal::dispatch(pid, dispatcher, internal::canonicalize(method));
 // }
 
 template <typename T>
@@ -143,7 +155,7 @@ void dispatch(
                          std::tr1::placeholders::_1,
                          thunk)));
 
-  internal::dispatch(pid, dispatcher);
+  internal::dispatch(pid, dispatcher, internal::canonicalize(method));
 }
 
 template <typename T>
@@ -183,7 +195,7 @@ void dispatch(
                            std::tr1::placeholders::_1,                  \
                            thunk)));                                    \
                                                                         \
-    internal::dispatch(pid, dispatcher);                                \
+    internal::dispatch(pid, dispatcher, internal::canonicalize(method)); \
   }                                                                     \
                                                                         \
   template <typename T,                                                 \
@@ -235,7 +247,7 @@ void dispatch(
 //                          std::tr1::placeholders::_1,
 //                          thunk, promise)));
 //
-//   internal::dispatch(pid, dispatcher);
+//   internal::dispatch(pid, dispatcher, internal::canonicalize(method));
 //
 //   return future;
 // }
@@ -258,7 +270,7 @@ Future<R> dispatch(
                          std::tr1::placeholders::_1,
                          thunk, promise)));
 
-  internal::dispatch(pid, dispatcher);
+  internal::dispatch(pid, dispatcher, internal::canonicalize(method));
 
   return future;
 }
@@ -304,7 +316,7 @@ Future<R> dispatch(
                            std::tr1::placeholders::_1,                  \
                            thunk, promise)));                           \
                                                                         \
-    internal::dispatch(pid, dispatcher);                                \
+    internal::dispatch(pid, dispatcher, internal::canonicalize(method)); \
                                                                         \
     return future;                                                      \
   }                                                                     \
@@ -360,7 +372,7 @@ Future<R> dispatch(
 //                          std::tr1::placeholders::_1,
 //                          thunk, promise)));
 //
-//   internal::dispatch(pid, dispatcher);
+//   internal::dispatch(pid, dispatcher, internal::canonicalize(method));
 //
 //   return future;
 // }
@@ -383,7 +395,7 @@ Future<R> dispatch(
                          std::tr1::placeholders::_1,
                          thunk, promise)));
 
-  internal::dispatch(pid, dispatcher);
+  internal::dispatch(pid, dispatcher, internal::canonicalize(method));
 
   return future;
 }
@@ -429,7 +441,7 @@ Future<R> dispatch(
                            std::tr1::placeholders::_1,                  \
                            thunk, promise)));                           \
                                                                         \
-    internal::dispatch(pid, dispatcher);                                \
+    internal::dispatch(pid, dispatcher, internal::canonicalize(method)); \
                                                                         \
     return future;                                                      \
   }                                                                     \

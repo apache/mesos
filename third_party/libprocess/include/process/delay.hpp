@@ -32,7 +32,10 @@ Timer delay(const Duration& duration,
                          thunk)));
 
   std::tr1::function<void(void)> dispatch =
-    std::tr1::bind(internal::dispatch, pid, dispatcher);
+    std::tr1::bind(internal::dispatch,
+                   pid,
+                   dispatcher,
+                   internal::canonicalize(method));
 
   return Timer::create(duration, dispatch);
 }
@@ -78,7 +81,10 @@ Timer delay(const Duration& duration,
                            thunk)));                                    \
                                                                         \
     std::tr1::function<void(void)> dispatch =                           \
-      std::tr1::bind(internal::dispatch, pid, dispatcher);              \
+      std::tr1::bind(internal::dispatch,                                \
+                     pid,                                               \
+                     dispatcher,                                        \
+                     internal::canonicalize(method));                   \
                                                                         \
     return Timer::create(duration, dispatch);                           \
   }                                                                     \

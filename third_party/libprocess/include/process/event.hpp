@@ -123,15 +123,32 @@ private:
 struct DispatchEvent : Event
 {
   DispatchEvent(
-      const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& _f)
-    : f(_f) {}
+      const UPID& _pid,
+      const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& _f,
+      const std::string& _method)
+    : pid(_pid),
+      f(_f),
+      method(_method)
+  {}
 
   virtual void visit(EventVisitor* visitor) const
   {
     visitor->visit(*this);
   }
 
+  // PID receiving the dispatch.
+  const UPID pid;
+
+  // Function to get invoked as a result of this dispatch event.
   const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > f;
+
+  // Canonical "byte" representation of a pointer to a member function
+  // (i.e., method) encapsulated in the above function (or empty if
+  // not applicable). Note that we use a byte representation because a
+  // pointer to a member function is not actually a pointer, but
+  // instead a POD.
+  // TODO(benh): Perform canonicalization lazily.
+  const std::string method;
 
 private:
   // Not copyable, not assignable.

@@ -3421,11 +3421,13 @@ namespace internal {
 
 void dispatch(
     const UPID& pid,
-    const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& f)
+    const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& f,
+    const string& method)
 {
   process::initialize();
 
-  process_manager->deliver(pid, new DispatchEvent(f), __process__);
+  DispatchEvent* event = new DispatchEvent(pid, f, method);
+  process_manager->deliver(pid, event, __process__);
 }
 
 } // namespace internal {

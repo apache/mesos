@@ -520,6 +520,16 @@ TEST(Process, expect)
 
   while (!func);
 
+  func = false;
+
+  EXPECT_DISPATCH(pid, &HandlersProcess::func)
+    .WillOnce(DoAll(Assign(&func, true),
+                    Return(true)));
+
+  dispatch(pid, &HandlersProcess::func, pid, "");
+
+  while (!func);
+
   terminate(pid, false);
   wait(pid);
 }

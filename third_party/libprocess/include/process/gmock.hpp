@@ -5,29 +5,45 @@
 
 #include <tr1/tuple>
 
+#include <process/dispatch.hpp>
 #include <process/event.hpp>
 #include <process/filter.hpp>
 #include <process/pid.hpp>
 
 #include <stout/exit.hpp>
 
-// This macro provides a mechanism for matching libprocess
-// messages. TODO(benh): Also add EXPECT_DISPATCH, EXPECT_HTTP, etc.
+
 #define EXPECT_MESSAGE(name, from, to)                                  \
   EXPECT_CALL(*process::FilterTestEventListener::instance()->install(), \
               filter(testing::A<const process::MessageEvent&>()))       \
     .With(process::MessageMatcher(name, from, to))
 
+
+#define EXPECT_DISPATCH(pid, method)                                    \
+  EXPECT_CALL(*process::FilterTestEventListener::instance()->install(), \
+              filter(testing::A<const process::DispatchEvent&>()))      \
+    .With(process::DispatchMatcher(pid, method))
+
+
 namespace process {
 
-// A gtest matcher used by EXPECT_MESSAGE for matching a libprocess
-// MessageEvent.
+// Used by EXPECT_MESSAGE for matching a MessageEvent.
 MATCHER_P3(MessageMatcher, name, from, to, "")
 {
   const MessageEvent& event = ::std::tr1::get<0>(arg);
   return (testing::Matcher<std::string>(name).Matches(event.message->name) &&
           testing::Matcher<UPID>(from).Matches(event.message->from) &&
           testing::Matcher<UPID>(to).Matches(event.message->to));
+}
+
+
+// Used by EXPECT_DISPATCH for matching a DispatchEvent.
+MATCHER_P2(DispatchMatcher, pid, method, "")
+{
+  const DispatchEvent& event = ::std::tr1::get<0>(arg);
+  return (testing::Matcher<UPID>(pid).Matches(event.pid) &&
+          testing::Matcher<std::string>(internal::canonicalize(method))
+          .Matches(event.method));
 }
 
 
