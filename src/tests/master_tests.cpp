@@ -24,6 +24,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
@@ -43,14 +44,10 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include <process/dispatch.hpp>
-#include <process/future.hpp>
-
 #include "slave/constants.hpp"
 #include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;

@@ -21,6 +21,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/gmock.hpp>
+
 #include "detector/detector.hpp"
 
 #include "local/local.hpp"
@@ -30,7 +32,6 @@
 #include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;

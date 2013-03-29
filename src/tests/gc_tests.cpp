@@ -23,6 +23,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
@@ -47,7 +48,6 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;

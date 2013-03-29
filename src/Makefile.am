@@ -236,7 +236,6 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/slave.hpp							\
 	tests/environment.hpp tests/script.hpp				\
 	tests/zookeeper_test.hpp tests/flags.hpp tests/utils.hpp	\
-	tests/filter.hpp                                                \
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
 	zookeeper/zookeeper.hpp zookeeper/url.hpp
@@ -771,7 +770,7 @@ balloon_executor_LDADD = libmesos.la
 
 check_PROGRAMS += mesos-tests
 
-mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp tests/filter.cpp	\
+mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/environment.cpp				\
 	              tests/master_tests.cpp tests/state_tests.cpp	\
 	              tests/paths_tests.cpp				\

@@ -23,6 +23,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/pid.hpp>
 #include <process/protobuf.hpp>
 #include <process/timeout.hpp>
@@ -38,7 +39,6 @@
 
 #include "messages/messages.hpp"
 
-#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;

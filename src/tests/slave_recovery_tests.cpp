@@ -26,6 +26,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <process/dispatch.hpp>
+#include <process/gmock.hpp>
 
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
@@ -58,7 +59,6 @@
 
 #include "messages/messages.hpp"
 
-#include "tests/filter.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;

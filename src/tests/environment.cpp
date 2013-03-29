@@ -21,7 +21,8 @@
 #include <list>
 #include <string>
 
-#include <process/clock.hpp>
+#include <process/gmock.hpp>
+#include <process/gtest.hpp>
 
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
@@ -29,7 +30,6 @@
 #include "configurator/configurator.hpp"
 
 #include "tests/environment.hpp"
-#include "tests/filter.hpp"
 
 using std::list;
 using std::string;
@@ -37,21 +37,6 @@ using std::string;
 namespace mesos {
 namespace internal {
 namespace tests {
-
-// A simple test event listener that makes sure to resume the clock
-// after each test even if the previous test had a partial result
-// (i.e., an ASSERT_* failed).
-class ClockTestEventListener : public ::testing::EmptyTestEventListener
-{
-public:
-  virtual void OnTestEnd(const ::testing::TestInfo&)
-  {
-    if (process::Clock::paused()) {
-      process::Clock::resume();
-    }
-  }
-};
-
 
 // Returns true if we should enable the provided test. Similar to how
 // tests can be disabled using the 'DISABLED_' prefix on a test case
@@ -157,8 +142,8 @@ void Environment::SetUp()
   ::testing::TestEventListeners& listeners =
     ::testing::UnitTest::GetInstance()->listeners();
 
-  listeners.Append(new FilterTestEventListener());
-  listeners.Append(new ClockTestEventListener());
+  listeners.Append(process::FilterTestEventListener::instance());
+  listeners.Append(process::ClockTestEventListener::instance());
 }
 
 

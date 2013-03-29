@@ -18,12 +18,13 @@
 
 #include <gmock/gmock.h>
 
+#include <process/gmock.hpp>
+
 #include "detector/detector.hpp"
 
 #include "master/allocator.hpp"
 #include "master/master.hpp"
 
-#include "tests/filter.hpp"
 #include "tests/zookeeper_test.hpp"
 #include "tests/utils.hpp"
 
