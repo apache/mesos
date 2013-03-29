@@ -46,39 +46,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-
-class GarbageCollectorProcess : public Process<GarbageCollectorProcess>
-{
-public:
-  virtual ~GarbageCollectorProcess();
-
-  // GarbageCollector implementation.
-  Future<Nothing> schedule(const Duration& d, const string& path);
-
-  void prune(const Duration& d);
-
-private:
-  void remove(const Timeout& removalTime);
-
-  struct PathInfo
-  {
-    PathInfo(const string& _path, Promise<Nothing>* _promise)
-      : path(_path), promise(_promise) {}
-
-    string path;
-    Promise<Nothing>* promise;
-  };
-
-  // Store all the paths that needed to be deleted after a given timeout.
-  // NOTE: We are using std::map here instead of hashmap, because we
-  // need the keys of the map (deletion time) to be sorted in ascending order.
-  map<Timeout, vector<PathInfo> > paths;
-
-  void reset();
-  Timer timer;
-};
-
-
 GarbageCollectorProcess::~GarbageCollectorProcess()
 {
   foreachvalue (const vector<PathInfo>& infos, paths) {

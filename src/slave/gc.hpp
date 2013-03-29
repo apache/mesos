@@ -19,9 +19,13 @@
 #ifndef __SLAVE_GC_HPP__
 #define __SLAVE_GC_HPP__
 
+#include <map>
 #include <string>
+#include <vector>
 
 #include <process/future.hpp>
+#include <process/timeout.hpp>
+#include <process/timer.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/nothing.hpp>
@@ -48,17 +52,57 @@ public:
   ~GarbageCollector();
 
   // Schedules the specified path for removal after the specified
-  // duration of time has elapsed.
-  // The future will become ready when the path has been removed.
-  // If the directory did not exist, or an error occurred, the future will fail.
-  process::Future<Nothing> schedule(const Duration& d, const std::string& path);
+  // duration of time has elapsed. The future will become ready when
+  // the path has been removed. If the directory did not exist, or an
+  // error occurred, the future will fail.
+  process::Future<Nothing> schedule(
+      const Duration& d,
+      const std::string& path);
 
-  // Deletes all the directories, whose scheduled garbage collection time
-  // is within the next 'd' duration of time.
+  // Deletes all the directories, whose scheduled garbage collection
+  // time is within the next 'd' duration of time.
   void prune(const Duration& d);
 
 private:
   GarbageCollectorProcess* process;
+};
+
+
+class GarbageCollectorProcess :
+    public process::Process<GarbageCollectorProcess>
+{
+public:
+  virtual ~GarbageCollectorProcess();
+
+  // GarbageCollector implementation.
+  process::Future<Nothing> schedule(
+      const Duration& d,
+      const std::string& path);
+
+  void prune(const Duration& d);
+
+private:
+  void remove(const process::Timeout& removalTime);
+
+  struct PathInfo
+  {
+    PathInfo(
+        const std::string& _path,
+        process::Promise<Nothing>* _promise)
+      : path(_path), promise(_promise) {}
+
+    std::string path;
+    process::Promise<Nothing>* promise;
+  };
+
+  // Store all the paths that needed to be deleted after a given timeout.
+  // NOTE: We are using std::map here instead of hashmap, because we
+  // need the keys of the map (deletion time) to be sorted in
+  // ascending order.
+  std::map<process::Timeout, std::vector<PathInfo> > paths;
+
+  void reset();
+  process::Timer timer;
 };
 
 } // namespace mesos {

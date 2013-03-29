@@ -46,6 +46,7 @@
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
+#include "slave/gc.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/utils.hpp"
@@ -58,6 +59,7 @@ using mesos::internal::master::Allocator;
 using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;
 
 using process::Clock;
@@ -159,17 +161,18 @@ TEST_F(GarbageCollectorTest, Restart)
 {
   // Messages expectations.
   process::Message message;
-  trigger slaveRegisteredMsg1, slaveRegisteredMsg2;
+  trigger slaveRegisteredMsg;
   EXPECT_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
     .WillOnce(DoAll(
         SaveArgField<0>(&process::MessageEvent::message, &message),
-        Trigger(&slaveRegisteredMsg1),
+        Trigger(&slaveRegisteredMsg),
         Return(false)))
-    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg2), Return(false)));
+    .WillOnce(Return(false));
 
   trigger lostSlaveMsg;
   EXPECT_MESSAGE(Eq(LostSlaveMessage().GetTypeName()), _, _)
-    .WillRepeatedly(DoAll(Trigger(&lostSlaveMsg), Return(false)));
+    .WillOnce(DoAll(Trigger(&lostSlaveMsg),
+                    Return(false)));
 
   // Executor expectations.
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -199,7 +202,7 @@ TEST_F(GarbageCollectorTest, Restart)
 
   startSlave();
 
-  WAIT_UNTIL(slaveRegisteredMsg1);
+  WAIT_UNTIL(slaveRegisteredMsg);
 
   // Capture the slave id.
   registeredMsg.ParseFromString(message.body);
@@ -227,15 +230,16 @@ TEST_F(GarbageCollectorTest, Restart)
 
   WAIT_UNTIL(lostSlaveMsg);
 
+  trigger scheduleDispatch;
+  EXPECT_DISPATCH(_, &GarbageCollectorProcess::schedule)
+    .WillOnce(DoAll(Trigger(&scheduleDispatch),
+                    Return(false)));
+
   startSlave();
 
-  // In order to make sure the slave has scheduled some directories to
-  // get garbaged collected we need to wait until the slave has been
-  // registered. TODO(benh): We really need to wait until the
-  // GarbageCollectorProcess has dispatched a message back to itself.
-  WAIT_UNTIL(slaveRegisteredMsg2);
+  WAIT_UNTIL(scheduleDispatch);
 
-  sleep(1);
+  Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
   Clock::advance(slaveFlags.gc_delay.secs());
 
@@ -253,11 +257,6 @@ TEST_F(GarbageCollectorTest, Restart)
 
 TEST_F(GarbageCollectorTest, ExitedExecutor)
 {
-  // Messages expectations.
-  trigger exitedExecutorMsg;
-  EXPECT_MESSAGE(Eq(ExitedExecutorMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&exitedExecutorMsg), Return(false)));
-
   // Executor expectations.
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillRepeatedly(Return());
@@ -305,17 +304,17 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
 
   Clock::pause();
 
+  trigger scheduleDispatch;
+  EXPECT_DISPATCH(_, &GarbageCollectorProcess::schedule)
+    .WillOnce(DoAll(Trigger(&scheduleDispatch),
+                    Return(false)));
+
   // Kill the executor and inform the slave.
   isolator->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
 
-  // In order to make sure the slave has scheduled the executor
-  // directory to get garbage collected we need to wait until the
-  // slave has sent the ExecutorExited message. TODO(benh): We really
-  // need to wait until the GarbageCollectorProcess has dispatched a
-  // message back to itself.
-  WAIT_UNTIL(exitedExecutorMsg);
+  WAIT_UNTIL(scheduleDispatch);
 
-  sleep(1);
+  Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
   Clock::advance(slaveFlags.gc_delay.secs());
 
@@ -339,7 +338,8 @@ TEST_F(GarbageCollectorTest, DiskUsage)
   // Messages expectations.
   trigger exitedExecutorMsg;
   EXPECT_MESSAGE(Eq(ExitedExecutorMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&exitedExecutorMsg), Return(false)));
+    .WillOnce(DoAll(Trigger(&exitedExecutorMsg),
+                    Return(false)));
 
   // Executor expectations.
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -388,22 +388,27 @@ TEST_F(GarbageCollectorTest, DiskUsage)
 
   Clock::pause();
 
+  trigger scheduleDispatch;
+  EXPECT_DISPATCH(_, &GarbageCollectorProcess::schedule)
+    .WillOnce(DoAll(Trigger(&scheduleDispatch),
+                    Return(false)));
+
   // Kill the executor and inform the slave.
   isolator->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
 
-  // In order to make sure the slave has scheduled the executor
-  // directory to get garbage collected we need to wait until the
-  // slave has sent the ExecutorExited message. TODO(benh): We really
-  // need to wait until the GarbageCollectorProcess has dispatched a
-  // message back to itself.
-  WAIT_UNTIL(exitedExecutorMsg);
+  WAIT_UNTIL(scheduleDispatch);
 
-  sleep(1); // Wait for slave to schedule for gc.
+  Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
+
+  trigger _checkDiskUsageDispatch;
+  EXPECT_DISPATCH(_, &Slave::_checkDiskUsage)
+    .WillOnce(DoAll(Trigger(&_checkDiskUsageDispatch),
+                    Return(false)));
 
   // Simulate a disk full message to the slave.
   process::dispatch(slave, &Slave::_checkDiskUsage, Try<double>::some(1));
 
-  sleep(1); // Wait for gc to act.
+  WAIT_UNTIL(_checkDiskUsageDispatch);
 
   Clock::settle();
 

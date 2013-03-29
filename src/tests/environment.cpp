@@ -130,13 +130,6 @@ Environment::Environment()
 
   // Now update the gtest flag.
   ::testing::GTEST_FLAG(filter) = enabled + "-" + disabled;
-}
-
-
-void Environment::SetUp()
-{
-  // Clear any MESOS_ environment variables so they don't affect our tests.
-  Configurator::clearMesosEnvironmentVars();
 
   // Add our test event listeners.
   ::testing::TestEventListeners& listeners =
@@ -144,6 +137,13 @@ void Environment::SetUp()
 
   listeners.Append(process::FilterTestEventListener::instance());
   listeners.Append(process::ClockTestEventListener::instance());
+}
+
+
+void Environment::SetUp()
+{
+  // Clear any MESOS_ environment variables so they don't affect our tests.
+  Configurator::clearMesosEnvironmentVars();
 }
 
 
