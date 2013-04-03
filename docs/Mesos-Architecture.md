@@ -1,6 +1,6 @@
 <p align="center"><img src="/images/architecture3.jpg" height="300px"></p>
 
-The above figure shows the main components of Mesos.  Mesos consists of a <i>master</i> daemons that manages <i>slave</i> daemons running on each cluster node, and <i>mesos applications</i> (also called <i>frameworks</i>) that run <i>tasks</i> on these slaves. 
+The above figure shows the main components of Mesos.  Mesos consists of a <i>master</i> daemon that manages <i>slave</i> daemons running on each cluster node, and <i>mesos applications</i> (also called <i>frameworks</i>) that run <i>tasks</i> on these slaves.
 
 The master enables fine-grained sharing of resources (cpu, ram, ...) across applications by making them <i>resource offers</i>. Each resource offer contains a list of &lt;slave ID, resource1: amount1, resource2, amount2, ...&gt;.  The master decides <i>how many</i> resources to offer to each framework according to a given organizational policy, such as fair sharing, or strict priority. To support a diverse set of policies, the master employs a modular architecture that makes it easy to add new allocation modules via a plugin mechanism.
 

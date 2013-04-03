@@ -45,7 +45,7 @@ To get running with Mesos version 0.9.0-incubating, our most recently release:
 1. [Download Mesos 0.9.0-incubating](http://www.apache.org/dyn/closer.cgi/incubator/mesos/mesos-0.9.0-incubating/)
 1. Run configure (there are a few different helper scripts that wrap the `configure` script called configure.<type-of-os>)
     1. In OS X: run `./configure.macosx`. If you're running Mountain Lion, you may need to follow the instructions [here](https://issues.apache.org/jira/browse/MESOS-261?focusedCommentId=13447058&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-13447058) and [here](https://issues.apache.org/jira/browse/MESOS-285).
-    1. In Linux, you can probably just run `./configure --with-webui --with-included-zookeeper`. These flags are what we recommend; advanced users may want to exclude these flags or use others, see [Mesos Command-Line Flags](Configuration.textile).
+    1. In Linux, you can probably just run `./configure`, which includes the web UI and included Zookeeper.  Advanced users may want to exclude these options or include other options, see [Mesos Command-Line Flags](Configuration.textile).
 1. run `make`
 
 ### NOTES:
@@ -96,7 +96,7 @@ To run Mesos on more than one machine, you have multiple options:
     * [EC2 scripts](EC2-Scripts.textile) for launching a Mesos cluster on Amazon EC2.
     * [Logging and Debugging](Logging-and-Debugging.textile) -- viewing Mesos and framework logs.
     * [Using ZooKeeper](Using-ZooKeeper.textile) for master fault-tolerance.
-    * [Using Linux Containers](Using-Linux-Containers.textile) for resouce isolation on slaves.
+    * [Using Linux Containers](Using-Linux-Containers.textile) for resource isolation on slaves.
 * Guide to running existing frameworks:
     * [Running Spark on Mesos](https://github.com/mesos/spark/wiki)
     * [Using the Mesos Submit tool](Using-the-mesos-submit-tool.md)
