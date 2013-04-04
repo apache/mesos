@@ -512,25 +512,17 @@ TEST(Process, expect)
 
   ASSERT_FALSE(!pid);
 
-  volatile bool func = false;
-
-  EXPECT_MESSAGE("func", _, _)
-    .WillOnce(DoAll(Assign(&func, true),
-                    Return(true)));
+  Future<Message> message = DROP_MESSAGE("func", _, _);
 
   post(pid, "func");
 
-  while (!func);
+  EXPECT_FUTURE_WILL_SUCCEED(message);
 
-  func = false;
-
-  EXPECT_DISPATCH(pid, &HandlersProcess::func)
-    .WillOnce(DoAll(Assign(&func, true),
-                    Return(true)));
+  Future<Nothing> func = DROP_DISPATCH(pid, &HandlersProcess::func);
 
   dispatch(pid, &HandlersProcess::func, pid, "");
 
-  while (!func);
+  EXPECT_FUTURE_WILL_SUCCEED(func);
 
   terminate(pid, false);
   wait(pid);
