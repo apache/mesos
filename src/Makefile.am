@@ -160,7 +160,6 @@ libmesos_no_third_party_la_SOURCES =					\
 	local/local.cpp							\
 	master/constants.cpp						\
 	master/drf_sorter.cpp						\
-	master/frameworks_manager.cpp					\
 	master/http.cpp							\
 	master/master.cpp						\
 	master/slaves_manager.cpp					\
@@ -222,7 +221,6 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	logging/check_some.hpp logging/flags.hpp logging/logging.hpp	\
 	master/allocator.hpp						\
 	master/constants.hpp master/drf_sorter.hpp master/flags.hpp	\
-	master/frameworks_manager.hpp					\
 	master/hierarchical_allocator_process.hpp master/http.hpp	\
 	master/master.hpp master/slaves_manager.hpp master/sorter.hpp	\
 	messages/messages.hpp slave/constants.hpp			\
