@@ -46,12 +46,7 @@ using process::http::Response;
 using std::string;
 
 
-class FilesTest : public TemporaryDirectoryTest
-{
-protected:
-  virtual void SetUp() { TemporaryDirectoryTest::SetUp(); }
-  virtual void TearDown() { TemporaryDirectoryTest::TearDown(); }
-};
+class FilesTest : public TemporaryDirectoryTest {};
 
 
 TEST_F(FilesTest, AttachTest)
