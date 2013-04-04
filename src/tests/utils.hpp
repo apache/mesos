@@ -127,7 +127,7 @@ protected:
     slaveFlags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
     // For locating killtree.sh.
-    os::setenv("MESOS_SOURCE_DIR",tests::flags.source_dir);
+    os::setenv("MESOS_SOURCE_DIR", tests::flags.source_dir);
 
     setSlaveResources("cpus:2;mem:1024;disk:1024;ports:[31000-32000]");
   }
