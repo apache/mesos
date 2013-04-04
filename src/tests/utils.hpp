@@ -31,6 +31,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/process.hpp>
@@ -798,6 +799,35 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
 
 #define AWAIT_UNTIL(future)                     \
   AWAIT_FOR(future, Seconds(2))
+
+
+#define FUTURE_PROTOBUF(message, from, to)              \
+  FutureProtobuf(message, from, to)
+
+
+// Forward declaration.
+template <typename T>
+process::Future<T> _FutureProtobuf(const process::Message& message);
+
+
+template <typename T, typename From, typename To>
+process::Future<T> FutureProtobuf(T t, From from, To to)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &t; (void) m; }
+
+  return process::FutureMessage(testing::Eq(t.GetTypeName()), from, to)
+    .then(lambda::bind(&_FutureProtobuf<T>, lambda::_1));
+}
+
+
+template <typename T>
+process::Future<T> _FutureProtobuf(const process::Message& message)
+{
+  T t;
+  t.ParseFromString(message.body);
+  return t;
+}
 
 } // namespace tests {
 } // namespace internal {

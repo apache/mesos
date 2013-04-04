@@ -352,12 +352,8 @@ TEST_F(MasterTest, StatusUpdateAck)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  Future<Nothing> acknowledgement;
-  EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()),
-                 _,
-                 Eq(slave.get()))
-    .WillOnce(DoAll(FutureSatisfy(&acknowledgement),
-                    Return(false)));
+  Future<StatusUpdateAcknowledgementMessage> acknowledgement =
+    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, Eq(slave.get()));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -755,10 +751,8 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   tasks.push_back(task);
 
   // Drop the registration message from the executor to the slave.
-  Future<Nothing> registerExecutor;
-  EXPECT_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(FutureSatisfy(&registerExecutor),
-                    Return(true)));
+  Future<process::Message> registerExecutor =
+    DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
@@ -771,11 +765,8 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
     .WillOnce(FutureArg<1>(&status));
 
   // Ensure that the slave times out and kills the executor.
-  Future<Nothing> killExecutor;
-  EXPECT_DISPATCH(_, &Isolator::killExecutor)
-    .WillOnce(DoAll(FutureSatisfy(&killExecutor),
-                    Return(false)))
-    .WillRepeatedly(Return(false)); // TODO(benh): Why is this needed?
+  Future<Nothing> killExecutor =
+    FUTURE_DISPATCH(_, &Isolator::killExecutor);
 
   Clock::advance(cluster.slaves.flags.executor_registration_timeout.secs());
 
@@ -853,10 +844,8 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return()); // Ignore offers.
 
-  Future<process::Message> message;
-  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(FutureArgField<0>(&process::MessageEvent::message, &message),
-                    Return(false)));
+  Future<process::Message> message =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
 
   driver.start();
 
@@ -957,10 +946,8 @@ TEST_F(MasterTest, MasterLost)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return()); // Ignore offers.
 
-  Future<process::Message> message;
-  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(FutureArgField<0>(&process::MessageEvent::message, &message),
-                    Return(false)));
+  Future<process::Message> message =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
 
   driver.start();
 
