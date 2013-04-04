@@ -145,7 +145,6 @@ protected:
   }
 
   slave::Flags slaveFlags;
-  const std::string hierarchy;
 };
 
 
