@@ -234,6 +234,8 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	slave/slave.hpp							\
 	tests/environment.hpp tests/script.hpp				\
 	tests/zookeeper_test.hpp tests/flags.hpp tests/utils.hpp	\
+	tests/cluster.hpp						\
+	tests/isolator.hpp						\
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
 	zookeeper/zookeeper.hpp zookeeper/url.hpp

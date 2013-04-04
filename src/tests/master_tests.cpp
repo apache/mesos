@@ -38,23 +38,20 @@
 
 #include "flags/flags.hpp"
 
-#include "master/allocator.hpp"
 #include "master/flags.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
+#include "tests/cluster.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
-using mesos::internal::master::Allocator;
-using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Isolator;
@@ -76,30 +73,25 @@ using testing::Eq;
 using testing::Return;
 
 
-class MasterTest : public MesosTest {};
+class MasterTest : public MesosClusterTest {};
 
 
 TEST_F(MasterTest, TaskRunning)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
   MockExecutor exec;
 
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -155,11 +147,7 @@ TEST_F(MasterTest, TaskRunning)
 
   AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
@@ -167,24 +155,20 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
   MockExecutor exec;
 
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
-  slaveFlags.executor_shutdown_grace_period = Seconds(0.0);
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  slave::Flags flags = cluster.slaves.flags;
+  flags.executor_shutdown_grace_period = Seconds(0);
+  Try<PID<Slave> > slave = cluster.slaves.start(flags, &isolator);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -240,11 +224,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
@@ -252,23 +232,16 @@ TEST_F(MasterTest, KillTask)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
   MockExecutor exec;
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -331,11 +304,7 @@ TEST_F(MasterTest, KillTask)
 
   AWAIT_UNTIL(shutdown); // To ensure can deallocate MockExecutor.
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown();
 }
 
 
@@ -343,23 +312,16 @@ TEST_F(MasterTest, StatusUpdateAck)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
   MockExecutor exec;
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -393,7 +355,7 @@ TEST_F(MasterTest, StatusUpdateAck)
   Future<Nothing> acknowledgement;
   EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()),
                  _,
-                 Eq(slave))
+                 Eq(slave.get()))
     .WillOnce(DoAll(FutureSatisfy(&acknowledgement),
                     Return(false)));
 
@@ -418,11 +380,7 @@ TEST_F(MasterTest, StatusUpdateAck)
 
   AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown();
 }
 
 
@@ -430,25 +388,21 @@ TEST_F(MasterTest, RecoverResources)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
   MockExecutor exec;
 
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
-  setSlaveResources("cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  slave::Flags flags = cluster.slaves.flags;
+  flags.resources =
+    Option<string>("cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
+  Try<PID<Slave> > slave = cluster.slaves.start(flags, &isolator);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -538,8 +492,7 @@ TEST_F(MasterTest, RecoverResources)
 
   AWAIT_UNTIL(offers);
   EXPECT_NE(0u, offers.get().size());
-
-  Resources slaveResources = Resources::parse(slaveFlags.resources.get());
+  Resources slaveResources = Resources::parse(flags.resources.get());
   EXPECT_EQ(slaveResources, offers.get()[0].resources());
 
   driver.stop();
@@ -550,11 +503,7 @@ TEST_F(MasterTest, RecoverResources)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
@@ -562,26 +511,16 @@ TEST_F(MasterTest, FrameworkMessage)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
   MockExecutor exec;
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
-
-  // Launch the first (i.e., failing) scheduler and wait until the
-  // first status update message is sent to it (drop the message).
+  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver schedDriver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver schedDriver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&schedDriver, _, _))
     .Times(1);
@@ -650,11 +589,7 @@ TEST_F(MasterTest, FrameworkMessage)
 
   AWAIT_UNTIL(shutdown); // To ensure can deallocate MockExecutor.
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown();
 }
 
 
@@ -662,11 +597,8 @@ TEST_F(MasterTest, MultipleExecutors)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
   ExecutorID executorId1;
   executorId1.set_value("executor-1");
@@ -683,13 +615,11 @@ TEST_F(MasterTest, MultipleExecutors)
 
   TestingIsolator isolator(execs);
 
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -777,11 +707,7 @@ TEST_F(MasterTest, MultipleExecutors)
   AWAIT_UNTIL(shutdown1); // To ensure can deallocate MockExecutor.
   AWAIT_UNTIL(shutdown2); // To ensure can deallocate MockExecutor.
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
@@ -789,21 +715,16 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
   ProcessIsolator isolator;
 
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -856,7 +777,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
                     Return(false)))
     .WillRepeatedly(Return(false)); // TODO(benh): Why is this needed?
 
-  Clock::advance(slaveFlags.executor_registration_timeout.secs());
+  Clock::advance(cluster.slaves.flags.executor_registration_timeout.secs());
 
   AWAIT_UNTIL(killExecutor);
 
@@ -876,11 +797,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
@@ -888,21 +805,14 @@ TEST_F(MasterTest, MasterInfo)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
-  TestingIsolator isolator;
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = cluster.slaves.start();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   Future<MasterInfo> masterInfo;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -914,17 +824,13 @@ TEST_F(MasterTest, MasterInfo)
   driver.start();
 
   AWAIT_UNTIL(masterInfo);
-  EXPECT_EQ(master.port, masterInfo.get().port());
-  EXPECT_EQ(master.ip, masterInfo.get().ip());
+  EXPECT_EQ(master.get().port, masterInfo.get().port());
+  EXPECT_EQ(master.get().ip, masterInfo.get().ip());
 
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown();
 }
 
 
@@ -932,21 +838,14 @@ TEST_F(MasterTest, MasterInfoOnReElection)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
-  TestingIsolator isolator;
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = cluster.slaves.start();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -966,7 +865,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   // Simulate a spurious newMasterDetected event (e.g., due to ZooKeeper
   // expiration) at the scheduler.
   NewMasterDetectedMessage newMasterDetectedMsg;
-  newMasterDetectedMsg.set_pid(master);
+  newMasterDetectedMsg.set_pid(master.get());
 
   Future<MasterInfo> masterInfo;
   EXPECT_CALL(sched, reregistered(&driver, _))
@@ -975,17 +874,13 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   process::post(message.get().to, newMasterDetectedMsg);
 
   AWAIT_UNTIL(masterInfo);
-  EXPECT_EQ(master.port, masterInfo.get().port());
-  EXPECT_EQ(master.ip, masterInfo.get().ip());
+  EXPECT_EQ(master.get().port, masterInfo.get().port());
+  EXPECT_EQ(master.get().ip, masterInfo.get().ip());
 
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown();
 }
 
 
@@ -1014,23 +909,16 @@ TEST_F(WhitelistTest, WhitelistSlave)
   string hosts = hostname.get() + "\n" + "dummy-slave";
   ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  master::Flags masterFlags;
-  masterFlags.whitelist = "file://" + path;
-  Master m(&a, &files, masterFlags);
-  PID<Master> master = process::spawn(&m);
+  master::Flags flags = cluster.masters.flags;
+  flags.whitelist = "file://" + path;
+  Try<PID<Master> > master = cluster.masters.start(flags);
+  ASSERT_SOME(master);
 
-  TestingIsolator isolator;
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = cluster.slaves.start();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -1046,11 +934,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown();
 }
 
 
@@ -1058,21 +942,14 @@ TEST_F(MasterTest, MasterLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
-  TestingIsolator isolator;
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = cluster.slaves.start();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -1094,17 +971,12 @@ TEST_F(MasterTest, MasterLost)
     .WillOnce(FutureSatisfy(&disconnected));
 
   // Simulate a spurious noMasterDetected event at the scheduler.
-  NoMasterDetectedMessage noMasterDetectedMsg;
-  process::post(message.get().to, noMasterDetectedMsg);
+  process::post(message.get().to, NoMasterDetectedMessage());
 
   AWAIT_UNTIL(disconnected);
 
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  cluster.shutdown();
 }

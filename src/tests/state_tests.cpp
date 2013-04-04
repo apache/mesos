@@ -47,7 +47,6 @@
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::state;
-using namespace mesos::internal::tests;
 
 using namespace process;
 
@@ -261,7 +260,7 @@ TEST_F(LevelDBStateTest, Names)
 
 
 #ifdef MESOS_HAS_JAVA
-class ZooKeeperStateTest : public ZooKeeperTest
+class ZooKeeperStateTest : public tests::ZooKeeperTest
 {
 public:
   ZooKeeperStateTest()
