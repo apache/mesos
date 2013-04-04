@@ -19,11 +19,13 @@
 #include <process/future.hpp>
 #include <process/gc.hpp>
 #include <process/gmock.hpp>
+#include <process/gtest.hpp>
 #include <process/process.hpp>
 #include <process/run.hpp>
 #include <process/thread.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
@@ -529,6 +531,38 @@ TEST(Process, expect)
   dispatch(pid, &HandlersProcess::func, pid, "");
 
   while (!func);
+
+  terminate(pid, false);
+  wait(pid);
+}
+
+
+// Tests the FutureArg<N> action.
+TEST(Process, action)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  HandlersProcess process;
+
+  PID<HandlersProcess> pid = spawn(&process);
+
+  ASSERT_FALSE(!pid);
+
+  Future<std::string> future1;
+  Future<Nothing> future2;
+  EXPECT_CALL(process, func(_, _))
+    .WillOnce(FutureArg<1>(&future1))
+    .WillOnce(FutureSatisfy(&future2));
+
+  dispatch(pid, &HandlersProcess::func, pid, "hello world");
+
+  EXPECT_FUTURE_WILL_EQ("hello world", future1);
+
+  EXPECT_TRUE(future2.isPending());
+
+  dispatch(pid, &HandlersProcess::func, pid, "hello world");
+
+  EXPECT_FUTURE_WILL_SUCCEED(future2);
 
   terminate(pid, false);
   wait(pid);

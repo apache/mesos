@@ -11,6 +11,7 @@
 #include <process/pid.hpp>
 
 #include <stout/exit.hpp>
+#include <stout/nothing.hpp>
 
 
 #define EXPECT_MESSAGE(name, from, to)                                  \
@@ -23,6 +24,82 @@
   EXPECT_CALL(*process::FilterTestEventListener::instance()->install(), \
               filter(testing::A<const process::DispatchEvent&>()))      \
     .With(process::DispatchMatcher(pid, method))
+
+
+ACTION_TEMPLATE(PromiseArg,
+                HAS_1_TEMPLATE_PARAMS(int, k),
+                AND_1_VALUE_PARAMS(promise))
+{
+  // TODO(benh): Use a shared_ptr for promise to defend against this
+  // action getting invoked more than once (e.g., used via
+  // WillRepeatedly). We won't be able to set it a second time but at
+  // least we won't get a segmentation fault. We could also consider
+  // warning users if they attempted to set it more than once.
+  promise->set(std::tr1::get<k>(args));
+  delete promise;
+}
+
+
+template <int index, typename T>
+PromiseArgActionP<index, process::Promise<T>*> FutureArg(
+    process::Future<T>* future)
+{
+  process::Promise<T>* promise = new process::Promise<T>();
+  *future = promise->future();
+  return PromiseArg<index>(promise);
+}
+
+
+ACTION_TEMPLATE(PromiseArgField,
+                HAS_1_TEMPLATE_PARAMS(int, k),
+                AND_2_VALUE_PARAMS(field, promise))
+{
+  // TODO(benh): Use a shared_ptr for promise to defend against this
+  // action getting invoked more than once (e.g., used via
+  // WillRepeatedly). We won't be able to set it a second time but at
+  // least we won't get a segmentation fault. We could also consider
+  // warning users if they attempted to set it more than once.
+  promise->set(*(std::tr1::get<k>(args).*field));
+  delete promise;
+}
+
+
+template <int index, typename Field, typename T>
+PromiseArgFieldActionP2<index, Field, process::Promise<T>*> FutureArgField(
+    Field field,
+    process::Future<T>* future)
+{
+  process::Promise<T>* promise = new process::Promise<T>();
+  *future = promise->future();
+  return PromiseArgField<index>(field, promise);
+}
+
+
+ACTION_P2(PromiseSatisfy, promise, value)
+{
+  promise->set(value);
+  delete promise;
+}
+
+
+template <typename T>
+PromiseSatisfyActionP2<process::Promise<T>*, T> FutureSatisfy(
+    process::Future<T>* future,
+    T t)
+{
+  process::Promise<T>* promise = new process::Promise<T>();
+  *future = promise->future();
+  return PromiseSatisfy(promise, t);
+}
+
+
+inline PromiseSatisfyActionP2<process::Promise<Nothing>*, Nothing>
+FutureSatisfy(process::Future<Nothing>* future)
+{
+  process::Promise<Nothing>* promise = new process::Promise<Nothing>();
+  *future = promise->future();
+  return PromiseSatisfy(promise, Nothing());
+}
 
 
 namespace process {
