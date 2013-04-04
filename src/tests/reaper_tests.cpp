@@ -34,6 +34,7 @@ using namespace mesos::internal;
 using namespace mesos::internal::slave;
 using namespace mesos::internal::tests;
 
+using testing::_;
 using testing::DoDefault;
 
 

@@ -71,11 +71,6 @@
 
 #include "tests/flags.hpp"
 
-// TODO(benh): Kill these since they pollute everything that includes this file.
-using ::testing::_;
-using ::testing::Invoke;
-using ::testing::Return;
-
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -403,6 +398,8 @@ public:
   {
     // Spawn the underlying allocator process.
     process::spawn(real);
+
+    using ::testing::_;
 
     ON_CALL(*this, initialize(_, _))
       .WillByDefault(InvokeInitialize(this));
@@ -887,10 +884,10 @@ private:
       .Times(testing::AnyNumber());
 
     EXPECT_CALL(*this, usage(testing::_, testing::_))
-      .WillRepeatedly(Return(ResourceStatistics()));
+      .WillRepeatedly(testing::Return(ResourceStatistics()));
 
     EXPECT_CALL(*this, recover(testing::_))
-      .WillRepeatedly(Return(Nothing()));
+      .WillRepeatedly(testing::Return(Nothing()));
   }
 
   std::map<ExecutorID, Executor*> executors;

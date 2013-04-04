@@ -49,6 +49,8 @@ using process::http::Response;
 
 using std::string;
 
+using testing::Return;
+
 
 // TODO(bmahler): Add additional tests:
 //   1. Check that the data has been published to statistics.
