@@ -85,8 +85,6 @@ extern flags::Flags<logging::Flags, Flags> flags;
 
 
 #ifdef __linux__
-using slave::CgroupsIsolator;
-
 // Cgroups hierarchy used by the cgroups related tests.
 const static std::string TEST_CGROUPS_HIERARCHY = "/tmp/mesos_test_cgroup";
 
@@ -163,7 +161,7 @@ class IsolatorTest : public MesosTest
 
 #ifdef __linux__
 template <>
-class IsolatorTest<CgroupsIsolator> : public MesosTest
+class IsolatorTest<slave::CgroupsIsolator> : public MesosTest
 {
 public:
   static void SetUpTestCase()
