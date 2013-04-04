@@ -756,6 +756,14 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
   WAIT_FOR(expression, Seconds(2.0))
 
 
+#define AWAIT_FOR(future, duration)             \
+  ASSERT_TRUE(future.await(duration))
+
+
+#define AWAIT_UNTIL(future)                     \
+  AWAIT_FOR(future, Seconds(2))
+
+
 class TestingIsolator : public slave::Isolator
 {
 public:

@@ -57,6 +57,7 @@ using mesos::internal::master::Allocator;
 using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::Isolator;
 using mesos::internal::slave::ProcessIsolator;
 using mesos::internal::slave::Slave;
 
@@ -73,11 +74,9 @@ using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
 using testing::Return;
-using testing::SaveArg;
 
 
-class MasterTest : public MesosTest
-{};
+class MasterTest : public MesosTest {};
 
 
 TEST_F(MasterTest, TaskRunning)
@@ -92,17 +91,6 @@ TEST_F(MasterTest, TaskRunning)
 
   MockExecutor exec;
 
-  trigger shutdownCall;
-
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(Trigger(&shutdownCall));
-
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
@@ -113,55 +101,59 @@ TEST_F(MasterTest, TaskRunning)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  vector<Offer> offers;
-  TaskStatus status;
-
-  trigger resourceOffersCall, statusUpdateCall, resourcesChangedCall;
-
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status),
-                    Trigger(&statusUpdateCall)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
-
-  EXPECT_NE(0u, offers.size());
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<Nothing> resourcesChanged;
   EXPECT_CALL(isolator,
-              resourcesChanged(_, _, Resources(offers[0].resources())))
-    .WillOnce(Trigger(&resourcesChangedCall));
+              resourcesChanged(_, _, Resources(offers.get()[0].resources())))
+    .WillOnce(FutureSatisfy(&resourcesChanged));
 
-  driver.launchTasks(offers[0].id(), tasks);
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
 
-  WAIT_UNTIL(statusUpdateCall);
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  WAIT_UNTIL(resourcesChangedCall);
+  AWAIT_UNTIL(resourcesChanged);
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
 
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
 
   process::terminate(slave);
   process::wait(slave);
@@ -183,17 +175,6 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   MockExecutor exec;
 
-  trigger shutdownCall;
-
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(Trigger(&shutdownCall));
-
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   slaveFlags.executor_shutdown_grace_period = Seconds(0.0);
@@ -205,54 +186,59 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  vector<Offer> offers;
-  TaskStatus status;
-
-  trigger resourceOffersCall, statusUpdateCall, resourcesChangedCall;
-
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
-
-  EXPECT_NE(0u, offers.size());
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<Nothing> resourcesChanged;
   EXPECT_CALL(isolator,
-              resourcesChanged(_, _, Resources(offers[0].resources())))
-    .WillOnce(Trigger(&resourcesChangedCall));
+              resourcesChanged(_, _, Resources(offers.get()[0].resources())))
+    .WillOnce(FutureSatisfy(&resourcesChanged));
 
-  driver.launchTasks(offers[0].id(), tasks);
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
 
-  WAIT_UNTIL(statusUpdateCall);
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  WAIT_UNTIL(resourcesChangedCall);
+  AWAIT_UNTIL(resourcesChanged);
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
 
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
 
   process::terminate(slave);
   process::wait(slave);
@@ -274,20 +260,6 @@ TEST_F(MasterTest, KillTask)
 
   MockExecutor exec;
 
-  trigger killTaskCall, shutdownCall;
-
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  EXPECT_CALL(exec, killTask(_, _))
-    .WillOnce(Trigger(&killTaskCall));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(Trigger(&shutdownCall));
-
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
@@ -298,28 +270,18 @@ TEST_F(MasterTest, KillTask)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  vector<Offer> offers;
-  TaskStatus status;
-
-  trigger resourceOffersCall, statusUpdateCall;
-
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status),
-                    Trigger(&statusUpdateCall)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
-
-  EXPECT_NE(0u, offers.size());
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   TaskID taskId;
   taskId.set_value("1");
@@ -327,27 +289,47 @@ TEST_F(MasterTest, KillTask)
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->MergeFrom(taskId);
-  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  driver.launchTasks(offers[0].id(), tasks);
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
 
-  WAIT_UNTIL(statusUpdateCall);
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
 
   driver.killTask(taskId);
 
-  WAIT_UNTIL(killTaskCall);
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_KILLED, status.get().state());
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
 
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(shutdownCall); // To ensure can deallocate MockExecutor.
+  AWAIT_UNTIL(shutdown); // To ensure can deallocate MockExecutor.
 
   process::terminate(slave);
   process::wait(slave);
@@ -369,17 +351,6 @@ TEST_F(MasterTest, StatusUpdateAck)
 
   MockExecutor exec;
 
-  trigger shutdownCall;
-
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(Trigger(&shutdownCall));
-
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
@@ -387,63 +358,65 @@ TEST_F(MasterTest, StatusUpdateAck)
 
   BasicMasterDetector detector(master, slave, true);
 
-  trigger statusUpdateAckMsg;
-  EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()),
-                 _,
-                 Eq(slave))
-    .WillOnce(DoAll(Trigger(&statusUpdateAckMsg),
-                    Return(false)));
-
-
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
-
-  vector<Offer> offers;
-  TaskStatus status;
-
-  trigger resourceOffersCall, statusUpdateCall;
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status),
-                    Trigger(&statusUpdateCall)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
-
-  EXPECT_NE(0u, offers.size());
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  driver.launchTasks(offers[0].id(), tasks);
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
 
-  WAIT_UNTIL(statusUpdateCall);
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  Future<Nothing> acknowledgement;
+  EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()),
+                 _,
+                 Eq(slave))
+    .WillOnce(DoAll(FutureSatisfy(&acknowledgement),
+                    Return(false)));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Ensure the slave gets a status update ACK.
-  WAIT_UNTIL(statusUpdateAckMsg);
+  AWAIT_UNTIL(acknowledgement);
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
 
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
 
   process::terminate(slave);
   process::wait(slave);
@@ -474,53 +447,37 @@ TEST_F(MasterTest, RecoverResources)
 
   BasicMasterDetector detector(master, slave, true);
 
-  ExecutorInfo executorInfo;
-  executorInfo.MergeFrom(DEFAULT_EXECUTOR_INFO);
-
-  Resources executorResources = Resources::parse(
-      "cpus:0.3;mem:200;ports:[5-8, 23-25]");
-  executorInfo.mutable_resources()->MergeFrom(executorResources);
-
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
-
-  vector<Offer> offers1, offers2, offers3;
-  TaskStatus status;
-
-  trigger resourceOffersCall1, resourceOffersCall2, resourceOffersCall3;
-  trigger statusUpdateCall;
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers1),
-                    Trigger(&resourceOffersCall1)))
-    .WillOnce(DoAll(SaveArg<1>(&offers2),
-                    Trigger(&resourceOffersCall2)))
-    .WillOnce(DoAll(SaveArg<1>(&offers3),
-                    Trigger(&resourceOffersCall3)))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillRepeatedly(DoAll(SaveArg<1>(&status),
-			                    Trigger(&statusUpdateCall)));
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall1);
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers1.size());
+  ExecutorInfo executorInfo;
+  executorInfo.MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  Resources executorResources =
+    Resources::parse("cpus:0.3;mem:200;ports:[5-8, 23-25]");
+  executorInfo.mutable_resources()->MergeFrom(executorResources);
 
   TaskID taskId;
   taskId.set_value("1");
 
-  Resources taskResources = offers1[0].resources() - executorResources;
+  Resources taskResources = offers.get()[0].resources() - executorResources;
 
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->MergeFrom(taskId);
-  task.mutable_slave_id()->MergeFrom(offers1[0].slave_id());
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task.mutable_resources()->MergeFrom(taskResources);
   task.mutable_executor()->MergeFrom(executorInfo);
 
@@ -533,48 +490,63 @@ TEST_F(MasterTest, RecoverResources)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  driver.launchTasks(offers1[0].id(), tasks);
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
 
-  WAIT_UNTIL(statusUpdateCall);
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  trigger killTaskCall;
   EXPECT_CALL(exec, killTask(_, _))
-    .WillOnce(DoAll(Trigger(&killTaskCall),
-                    SendStatusUpdateFromTaskID(TASK_KILLED)));
+    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  // Scheduler should get an offer for killed task's resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.killTask(taskId);
 
-  WAIT_UNTIL(killTaskCall);
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_KILLED, status.get().state());
 
-  // Scheduler should get an offer for task resources.
-  WAIT_UNTIL(resourceOffersCall2);
+  driver.reviveOffers(); // Don't wait till the next allocation.
 
-  EXPECT_NE(0u, offers2.size());
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  Offer offer = offers2[0];
+  Offer offer = offers.get()[0];
   EXPECT_EQ(taskResources, offer.resources());
 
   driver.declineOffer(offer.id());
 
-  // Kill the executor.
-  isolator.killExecutor(
-      offer.framework_id(), executorInfo.executor_id());
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
 
-  // Scheduler should get an offer for the complete slave resources.
-  WAIT_UNTIL(resourceOffersCall3);
+  // Now kill the executor, scheduler should get an offer it's resources.
+  // TODO(benh): WTF? Why aren't we dispatching?
+  isolator.killExecutor(offer.framework_id(), executorInfo.executor_id());
 
-  EXPECT_NE(0u, offers3.size());
+  // TODO(benh): We can't do driver.reviveOffers() because we need to
+  // wait for the killed executors resources to get aggregated! We
+  // should wait for the allocator to recover the resources first. See
+  // the allocator tests for inspiration.
+
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   Resources slaveResources = Resources::parse(slaveFlags.resources.get());
-  EXPECT_EQ(slaveResources, offers3[0].resources());
+  EXPECT_EQ(slaveResources, offers.get()[0].resources());
 
   driver.stop();
   driver.join();
 
-  // The mock executor might get a shutdown in this case when the
-  // slave exits (since the driver links with the slave).
+  // Terminating the slave might cause the mock executor to get a
+  // shutdown since the executor driver "links" the slave.
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
@@ -598,24 +570,6 @@ TEST_F(MasterTest, FrameworkMessage)
 
   MockExecutor exec;
 
-  ExecutorDriver* execDriver;
-  string execData;
-
-  trigger execFrameworkMessageCall, shutdownCall;
-
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .WillOnce(SaveArg<0>(&execDriver));
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  EXPECT_CALL(exec, frameworkMessage(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&execData),
-                    Trigger(&execFrameworkMessageCall)));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(Trigger(&shutdownCall));
-
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
@@ -629,72 +583,72 @@ TEST_F(MasterTest, FrameworkMessage)
   MockScheduler sched;
   MesosSchedulerDriver schedDriver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  vector<Offer> offers;
-  TaskStatus status;
-  string schedData;
-
-  trigger resourceOffersCall, statusUpdateCall, schedFrameworkMessageCall;
-
   EXPECT_CALL(sched, registered(&schedDriver, _, _))
     .Times(1);
 
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&schedDriver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status),
-                    Trigger(&statusUpdateCall)));
-
-  EXPECT_CALL(sched, frameworkMessage(&schedDriver, _, _, _))
-    .WillOnce(DoAll(SaveArg<3>(&schedData),
-                    Trigger(&schedFrameworkMessageCall)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   schedDriver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
-
-  EXPECT_NE(0u, offers.size());
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  schedDriver.launchTasks(offers[0].id(), tasks);
+  Future<ExecutorDriver*> execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(FutureArg<0>(&execDriver));
 
-  WAIT_UNTIL(statusUpdateCall);
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
+    .WillOnce(FutureArg<1>(&status));
 
-  string hello = "hello";
+  schedDriver.launchTasks(offers.get()[0].id(), tasks);
 
-  schedDriver.sendFrameworkMessage(DEFAULT_EXECUTOR_ID,
-                                   offers[0].slave_id(),
-                                   hello);
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  WAIT_UNTIL(execFrameworkMessageCall);
+  Future<string> execData;
+  EXPECT_CALL(exec, frameworkMessage(_, _))
+    .WillOnce(FutureArg<1>(&execData));
 
-  EXPECT_EQ(hello, execData);
+  schedDriver.sendFrameworkMessage(
+      DEFAULT_EXECUTOR_ID, offers.get()[0].slave_id(), "hello");
 
-  string reply = "reply";
+  AWAIT_UNTIL(execData);
+  EXPECT_EQ("hello", execData.get());
 
-  execDriver->sendFrameworkMessage(reply);
+  Future<string> schedData;
+  EXPECT_CALL(sched, frameworkMessage(&schedDriver, _, _, _))
+    .WillOnce(FutureArg<3>(&schedData));
 
-  WAIT_UNTIL(schedFrameworkMessageCall);
+  execDriver.get()->sendFrameworkMessage("world");
 
-  EXPECT_EQ(reply, schedData);
+  AWAIT_UNTIL(schedData);
+  EXPECT_EQ("world", schedData.get());
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
 
   schedDriver.stop();
   schedDriver.join();
 
-  WAIT_UNTIL(shutdownCall); // To ensure can deallocate MockExecutor.
+  AWAIT_UNTIL(shutdown); // To ensure can deallocate MockExecutor.
 
   process::terminate(slave);
   process::wait(slave);
@@ -714,41 +668,14 @@ TEST_F(MasterTest, MultipleExecutors)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  MockExecutor exec1;
-  TaskInfo exec1Task;
-  trigger exec1LaunchTaskCall, exec1ShutdownCall;
-
-  EXPECT_CALL(exec1, registered(_, _, _, _))
-    .Times(1);
-
-  EXPECT_CALL(exec1, launchTask(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&exec1Task),
-                    Trigger(&exec1LaunchTaskCall),
-                    SendStatusUpdateFromTask(TASK_RUNNING)));
-
-  EXPECT_CALL(exec1, shutdown(_))
-    .WillOnce(Trigger(&exec1ShutdownCall));
-
-  MockExecutor exec2;
-  TaskInfo exec2Task;
-  trigger exec2LaunchTaskCall, exec2ShutdownCall;
-
-  EXPECT_CALL(exec2, registered(_, _, _, _))
-    .Times(1);
-
-  EXPECT_CALL(exec2, launchTask(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&exec2Task),
-                    Trigger(&exec2LaunchTaskCall),
-                    SendStatusUpdateFromTask(TASK_RUNNING)));
-
-  EXPECT_CALL(exec2, shutdown(_))
-    .WillOnce(Trigger(&exec2ShutdownCall));
-
   ExecutorID executorId1;
   executorId1.set_value("executor-1");
 
   ExecutorID executorId2;
   executorId2.set_value("executor-2");
+
+  MockExecutor exec1;
+  MockExecutor exec2;
 
   map<ExecutorID, Executor*> execs;
   execs[executorId1] = &exec1;
@@ -764,30 +691,18 @@ TEST_F(MasterTest, MultipleExecutors)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  vector<Offer> offers;
-  TaskStatus status1, status2;
-
-  trigger resourceOffersCall, statusUpdateCall1, statusUpdateCall2;
-
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status1),
-                    Trigger(&statusUpdateCall1)))
-    .WillOnce(DoAll(SaveArg<1>(&status2),
-                    Trigger(&statusUpdateCall2)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
-
-  ASSERT_NE(0u, offers.size());
+  AWAIT_UNTIL(offers);
+  ASSERT_NE(0u, offers.get().size());
 
   ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
   executor1 = CREATE_EXECUTOR_INFO(executorId1, "exit 1");
@@ -795,7 +710,7 @@ TEST_F(MasterTest, MultipleExecutors)
   TaskInfo task1;
   task1.set_name("");
   task1.mutable_task_id()->set_value("1");
-  task1.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
   task1.mutable_executor()->MergeFrom(executor1);
 
@@ -805,7 +720,7 @@ TEST_F(MasterTest, MultipleExecutors)
   TaskInfo task2;
   task2.set_name("");
   task2.mutable_task_id()->set_value("2");
-  task2.mutable_slave_id()->MergeFrom(offers[0].slave_id());
+  task2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task2.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
   task2.mutable_executor()->MergeFrom(executor2);
 
@@ -813,29 +728,54 @@ TEST_F(MasterTest, MultipleExecutors)
   tasks.push_back(task1);
   tasks.push_back(task2);
 
-  driver.launchTasks(offers[0].id(), tasks);
+  EXPECT_CALL(exec1, registered(_, _, _, _))
+    .Times(1);
 
-  WAIT_UNTIL(statusUpdateCall1);
+  Future<TaskInfo> exec1Task;
+  EXPECT_CALL(exec1, launchTask(_, _))
+    .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
+                    FutureArg<1>(&exec1Task)));
 
-  EXPECT_EQ(TASK_RUNNING, status1.state());
+  EXPECT_CALL(exec2, registered(_, _, _, _))
+    .Times(1);
 
-  WAIT_UNTIL(statusUpdateCall2);
+  Future<TaskInfo> exec2Task;
+  EXPECT_CALL(exec2, launchTask(_, _))
+    .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
+                    FutureArg<1>(&exec2Task)));
 
-  EXPECT_EQ(TASK_RUNNING, status2.state());
+  Future<TaskStatus> status1, status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
 
-  WAIT_UNTIL(exec1LaunchTaskCall);
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
-  EXPECT_EQ(task1.task_id(), exec1Task.task_id());
+  AWAIT_UNTIL(exec1Task);
+  EXPECT_EQ(task1.task_id(), exec1Task.get().task_id());
 
-  WAIT_UNTIL(exec2LaunchTaskCall);
+  AWAIT_UNTIL(exec2Task);
+  EXPECT_EQ(task2.task_id(), exec2Task.get().task_id());
 
-  EXPECT_EQ(task2.task_id(), exec2Task.task_id());
+  AWAIT_UNTIL(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_UNTIL(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  Future<Nothing> shutdown1;
+  EXPECT_CALL(exec1, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown1));
+
+  Future<Nothing> shutdown2;
+  EXPECT_CALL(exec2, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown2));
 
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(exec1ShutdownCall); // To ensure can deallocate MockExecutor.
-  WAIT_UNTIL(exec2ShutdownCall); // To ensure can deallocate MockExecutor.
+  AWAIT_UNTIL(shutdown1); // To ensure can deallocate MockExecutor.
+  AWAIT_UNTIL(shutdown2); // To ensure can deallocate MockExecutor.
 
   process::terminate(slave);
   process::wait(slave);
@@ -855,12 +795,6 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  // Drop the registration message from the executor to the slave.
-  trigger registerExecutorMsg;
-  EXPECT_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&registerExecutorMsg),
-                    Return(true)));
-
   ProcessIsolator isolator;
 
   Slave s(slaveFlags, true, &isolator, &files);
@@ -871,35 +805,25 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  vector<Offer> offers;
-  TaskStatus status;
-
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  trigger resourceOffersCall;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  trigger statusUpdateCall;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status),
-                    Trigger(&statusUpdateCall)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
-
-  EXPECT_NE(0u, offers.size());
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   // Launch a task with the command executor.
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
 
   CommandInfo command;
   command.set_value("sleep 10");
@@ -909,27 +833,43 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  driver.launchTasks(offers[0].id(), tasks);
+  // Drop the registration message from the executor to the slave.
+  Future<Nothing> registerExecutor;
+  EXPECT_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _)
+    .WillOnce(DoAll(FutureSatisfy(&registerExecutor),
+                    Return(true)));
 
-  WAIT_UNTIL(registerExecutorMsg);
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_UNTIL(registerExecutor);
 
   Clock::pause();
 
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
   // Ensure that the slave times out and kills the executor.
+  Future<Nothing> killExecutor;
+  EXPECT_DISPATCH(_, &Isolator::killExecutor)
+    .WillOnce(DoAll(FutureSatisfy(&killExecutor),
+                    Return(false)))
+    .WillRepeatedly(Return(false)); // TODO(benh): Why is this needed?
+
   Clock::advance(slaveFlags.executor_registration_timeout.secs());
-  Clock::settle();
 
-  // Wait for the executor to terminate.
-  usleep((useconds_t) Milliseconds(10).us());
+  AWAIT_UNTIL(killExecutor);
 
-  // Ensure that the reaper reaps the executor.
-  Clock::advance(1.0);
-  Clock::settle();
+  Clock::settle(); // Wait for ProcessIsolator::killExecutor to complete.
 
-  WAIT_UNTIL(statusUpdateCall);
+  // Now advance time until the reaper reaps the executor.
+  while (status.isPending()) {
+    Clock::advance(1.0);
+    Clock::settle();
+  }
 
-  // This signals that the command executor has exited.
-  ASSERT_EQ(TASK_FAILED, status.state());
+  AWAIT_UNTIL(status);
+  ASSERT_EQ(TASK_FAILED, status.get().state());
 
   Clock::resume();
 
@@ -954,9 +894,7 @@ TEST_F(MasterTest, MasterInfo)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  MockExecutor exec;
-
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  TestingIsolator isolator;
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -966,23 +904,18 @@ TEST_F(MasterTest, MasterInfo)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  MasterInfo masterInfo;
-
-  trigger registeredCall;
-
+  Future<MasterInfo> masterInfo;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(DoAll(SaveArg<2>(&masterInfo),
-                    Trigger(&registeredCall)));
+    .WillOnce(FutureArg<2>(&masterInfo));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore offers.
 
   driver.start();
 
-  WAIT_UNTIL(registeredCall);
-
-  EXPECT_EQ(master.port, masterInfo.port());
-  EXPECT_EQ(master.ip, masterInfo.ip());
+  AWAIT_UNTIL(masterInfo);
+  EXPECT_EQ(master.port, masterInfo.get().port());
+  EXPECT_EQ(master.ip, masterInfo.get().ip());
 
   driver.stop();
   driver.join();
@@ -1005,9 +938,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  MockExecutor exec;
-
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  TestingIsolator isolator;
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -1017,41 +948,35 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  MasterInfo masterInfo;
-
-  trigger registeredCall, reregisteredCall;
-
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(Trigger(&registeredCall));
-
-  EXPECT_CALL(sched, reregistered(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&masterInfo),
-                    Trigger(&reregisteredCall)));
+    .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore offers.
 
-  process::Message message;
-
+  Future<process::Message> message;
   EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
+    .WillOnce(DoAll(FutureArgField<0>(&process::MessageEvent::message, &message),
                     Return(false)));
 
   driver.start();
 
-  WAIT_UNTIL(registeredCall);
+  AWAIT_UNTIL(message);
 
   // Simulate a spurious newMasterDetected event (e.g., due to ZooKeeper
   // expiration) at the scheduler.
   NewMasterDetectedMessage newMasterDetectedMsg;
   newMasterDetectedMsg.set_pid(master);
 
-  process::post(message.to, newMasterDetectedMsg);
+  Future<MasterInfo> masterInfo;
+  EXPECT_CALL(sched, reregistered(&driver, _))
+    .WillOnce(FutureArg<1>(&masterInfo));
 
-  WAIT_UNTIL(reregisteredCall);
+  process::post(message.get().to, newMasterDetectedMsg);
 
-  EXPECT_EQ(master.port, masterInfo.port());
-  EXPECT_EQ(master.ip, masterInfo.ip());
+  AWAIT_UNTIL(masterInfo);
+  EXPECT_EQ(master.port, masterInfo.get().port());
+  EXPECT_EQ(master.ip, masterInfo.get().ip());
 
   driver.stop();
   driver.join();
@@ -1097,15 +1022,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
   Master m(&a, &files, masterFlags);
   PID<Master> master = process::spawn(&m);
 
-  trigger slaveRegisteredMsg;
-
-  EXPECT_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&slaveRegisteredMsg),
-                    Return(false)));
-
-  MockExecutor exec;
-
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  TestingIsolator isolator;
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -1115,22 +1032,16 @@ TEST_F(WhitelistTest, WhitelistSlave)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  MasterInfo masterInfo;
-
-  trigger registeredCall, reregisteredCall;
-
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(Trigger(&registeredCall));
+    .Times(1);
 
-  trigger resourceOffersCall;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(Trigger(&resourceOffersCall));
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
 
-  WAIT_UNTIL(slaveRegisteredMsg);
-
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_UNTIL(offers); // Implies the slave has registered.
 
   driver.stop();
   driver.join();
@@ -1153,9 +1064,7 @@ TEST_F(MasterTest, MasterLost)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  MockExecutor exec;
-
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  TestingIsolator isolator;
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -1165,34 +1074,30 @@ TEST_F(MasterTest, MasterLost)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  MasterInfo masterInfo;
-
-  trigger registeredCall, disconnectedCall;
-
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(Trigger(&registeredCall));
-
-  EXPECT_CALL(sched, disconnected(&driver))
-    .WillOnce(Trigger(&disconnectedCall));
+    .Times(1);
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore offers.
 
-  process::Message message;
-
+  Future<process::Message> message;
   EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
+    .WillOnce(DoAll(FutureArgField<0>(&process::MessageEvent::message, &message),
                     Return(false)));
 
   driver.start();
 
-  WAIT_UNTIL(registeredCall);
+  AWAIT_UNTIL(message);
+
+  Future<Nothing> disconnected;
+  EXPECT_CALL(sched, disconnected(&driver))
+    .WillOnce(FutureSatisfy(&disconnected));
 
   // Simulate a spurious noMasterDetected event at the scheduler.
   NoMasterDetectedMessage noMasterDetectedMsg;
-  process::post(message.to, noMasterDetectedMsg);
+  process::post(message.get().to, noMasterDetectedMsg);
 
-  WAIT_UNTIL(disconnectedCall);
+  AWAIT_UNTIL(disconnected);
 
   driver.stop();
   driver.join();
