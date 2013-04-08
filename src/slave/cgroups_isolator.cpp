@@ -34,6 +34,7 @@
 #include <process/dispatch.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
@@ -79,8 +80,13 @@ using state::FrameworkState;
 using state::ExecutorState;
 using state::RunState;
 
+// CPU subsystem constants.
 const size_t CPU_SHARES_PER_CPU = 1024;
 const size_t MIN_CPU_SHARES = 10;
+const Duration CPU_CFS_PERIOD = Milliseconds(100.0); // Linux default.
+const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1.0);
+
+// Memory subsystem constants.
 const size_t MIN_MEMORY_MB = 32 * Megabyte;
 
 
@@ -252,6 +258,7 @@ void CgroupsIsolator::initialize(
 
   // Check if the hierarchy is already mounted, and if not, mount it.
   Try<bool> mounted = cgroups::mounted(hierarchy);
+
   if (mounted.isError()) {
     LOG(FATAL) << "Failed to determine if " << hierarchy
                << " is already mounted: " << mounted.error();
@@ -259,6 +266,7 @@ void CgroupsIsolator::initialize(
     // Make sure that all the desired subsystems are attached to the
     // already mounted hierarchy.
     Try<set<string> > attached = cgroups::subsystems(hierarchy);
+
     if (attached.isError()) {
       LOG(FATAL) << "Failed to determine the attached subsystems "
                  << "for the cgroup hierarchy at " << hierarchy << ": "
@@ -394,6 +402,7 @@ void CgroupsIsolator::initialize(
           numify<unsigned int>(strings::trim(startEnd[0]));
         Try<unsigned int> end =
           numify<unsigned int>(strings::trim(startEnd[1]));
+
         CHECK(start.isSome() && end.isSome())
           << "Failed to parse cpu range '" << range
           << "' from cpuset.cpus '" << cpuset.get() << "'";
@@ -404,9 +413,11 @@ void CgroupsIsolator::initialize(
       } else {
         // Case id (e.g. 7 in 0-2,7,12-14).
         Try<unsigned int> cpuId = numify<unsigned int>(range);
+
         CHECK_SOME(cpuId)
           << "Failed to parse cpu '" << range << "' from cpuset.cpus '"
           << cpuset.get()  << "'";
+
         cgroupCpus.insert(cpuId.get());
       }
     }
@@ -421,7 +432,9 @@ void CgroupsIsolator::initialize(
 
     // Initialize our cpu allocations.
     Try<list<proc::CPU> > cpus = proc::cpus();
+
     CHECK_SOME(cpus) << "Failed to extract CPUs from /proc/cpuinfo";
+
     foreach (const proc::CPU& cpu, cpus.get()) {
       if (this->cpus.size() >= cpusResource.value()) {
         break;
@@ -438,6 +451,30 @@ void CgroupsIsolator::initialize(
 
   if (subsystems.contains("memory")) {
     handlers["mem"] = &CgroupsIsolator::memChanged;
+  }
+
+  // Add handlers for optional subsystem features.
+  if (flags.cgroups_enable_cfs) {
+    // Verify dependent subsystem is present and kernel supports CFS controls.
+    if (!subsystems.contains("cpu")) {
+      EXIT(1) << "The 'cfs' cgroups feature flag is dependent on the 'cpu' "
+              << "subsystem.\n"
+              << "Please enable the cpu subsystem to use the cfs feature.";
+    }
+
+    exists = cgroups::exists(hierarchy, flags.cgroups_root, "cpu.cfs_quota_us");
+
+    CHECK_SOME(exists)
+      << "Failed to determine if 'cpu.cfs_quota_us' control exists";
+
+    if (!exists.get()) {
+      EXIT(1) << "Failed to find 'cpu.cfs_quota_us'. Your kernel "
+              << "might be too old to use the CFS cgroups feature";
+    }
+
+    // Make "cfsChanged" the cpu resource handler.
+    // TODO(tdmackey): Allow multiple handlers per resource.
+    handlers["cpus"] = &CgroupsIsolator::cfsChanged;
   }
 
   initialized = true;
@@ -494,6 +531,7 @@ void CgroupsIsolator::launchExecutor(
 
   // Create a new cgroup for the executor.
   Try<Nothing> create = cgroups::create(hierarchy, info->name());
+
   if (create.isError()) {
     LOG(FATAL) << "Failed to create cgroup for executor " << executorId
                << " of framework " << frameworkId
@@ -568,6 +606,7 @@ void CgroupsIsolator::launchExecutor(
     // at 0. For more details, refer to
     // http://www.kernel.org/doc/Documentation/cgroups/memory.txt
     Try<Nothing> assign = cgroups::assign(hierarchy, info->name(), ::getpid());
+
     if (assign.isError()) {
       EXIT(1) << "Failed to assign executor '" << executorId
               << "' of framework " << frameworkId
@@ -636,6 +675,7 @@ void CgroupsIsolator::resourcesChanged(
   foreach (const Resource& resource, resources) {
     if (handlers.contains(resource.name())) {
       Try<Nothing> result = (this->*handlers[resource.name()])(info, resource);
+
       if (result.isError()) {
         LOG(ERROR) << result.error();
       }
@@ -788,16 +828,17 @@ Try<Nothing> CgroupsIsolator::cpusChanged(
   }
 
   double cpus = resource.scalar().value();
-  size_t cpuShares =
-    std::max((size_t)(CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
+  size_t shares =
+    std::max((size_t) (CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
 
   Try<Nothing> write = cgroups::write(
-      hierarchy, info->name(), "cpu.shares", stringify(cpuShares));
+      hierarchy, info->name(), "cpu.shares", stringify(shares));
+
   if (write.isError()) {
     return Error("Failed to update 'cpu.shares': " + write.error());
   }
 
-  LOG(INFO) << "Updated 'cpu.shares' to " << cpuShares
+  LOG(INFO) << "Updated 'cpu.shares' to " << shares
             << " for executor " << info->executorId
             << " of framework " << info->frameworkId;
 
@@ -811,10 +852,7 @@ Try<Nothing> CgroupsIsolator::cpusetChanged(
 {
   CHECK_NOTNULL(info->cpuset);
   CHECK(resource.name() == "cpus");
-
-  if (resource.type() != Value::SCALAR) {
-    return Error("Expecting resource 'cpus' to be a scalar");
-  }
+  CHECK(resource.type() == Value::SCALAR);
 
   double delta = resource.scalar().value() - info->cpuset->usage();
 
@@ -834,6 +872,7 @@ Try<Nothing> CgroupsIsolator::cpusetChanged(
 
   Try<Nothing> write = cgroups::write(
       hierarchy, info->name(), "cpuset.cpus", stringify(*(info->cpuset)));
+
   if (write.isError()) {
     return Error("Failed to update 'cpuset.cpus': " + write.error());
   }
@@ -841,6 +880,44 @@ Try<Nothing> CgroupsIsolator::cpusetChanged(
   LOG(INFO) << "Updated 'cpuset.cpus' to " << *(info->cpuset)
             << " for executor " << info->executorId
             << " of framework " << info->frameworkId;
+
+  return Nothing();
+}
+
+
+Try<Nothing> CgroupsIsolator::cfsChanged(
+    CgroupInfo* info,
+    const Resource& resource)
+{
+  CHECK(resource.name() == "cpus");
+  CHECK(resource.type() == Value::SCALAR);
+
+  Try<Nothing> write = cgroups::write(
+      hierarchy, info->name(), "cpu.cfs_period_us", stringify(CPU_CFS_PERIOD.us()));
+
+  if (write.isError()) {
+    return Error("Failed to update 'cpu.cfs_period_us': " + write.error());
+  }
+
+  double cpus = resource.scalar().value();
+  size_t quota =
+    std::max(CPU_CFS_PERIOD.us() * cpus, MIN_CPU_CFS_QUOTA.us());
+
+  write = cgroups::write(
+      hierarchy, info->name(), "cpu.cfs_quota_us", stringify(quota));
+
+  if (write.isError()) {
+    return Error("Failed to update 'cpu.cfs_quota_us': " + write.error());
+  }
+
+  LOG(INFO) << "Updated 'cpu.cfs_period_us' to " << CPU_CFS_PERIOD.us()
+            << " and 'cpu.cfs_quota_us' to " << quota
+            << " for executor " << info->executorId
+            << " of framework " << info->frameworkId;
+
+  // Set cpu.shares as well.
+  // TODO(tdmackey): Allow multiple handlers per resource.
+  cpusChanged(info, resource);
 
   return Nothing();
 }
@@ -869,7 +946,7 @@ Try<Nothing> CgroupsIsolator::memChanged(
   // might not be able to decrease 'memory.limit_in_bytes' if too much
   // memory is being used. This is probably okay if the machine has
   // available resources; TODO(benh): Introduce a MemoryWatcherProcess
-  // which monitors the descrepancy between usage and soft limit and
+  // which monitors the discrepancy between usage and soft limit and
   // introduces a "manual oom" if necessary.
   string control = "memory.limit_in_bytes";
 
@@ -891,6 +968,7 @@ Try<Nothing> CgroupsIsolator::memChanged(
 
   Try<Nothing> write = cgroups::write(
       hierarchy, info->name(), control, stringify(limitInBytes));
+
   if (write.isError()) {
     return Error("Failed to update '" + control + "': " + write.error());
   }

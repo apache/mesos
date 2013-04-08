@@ -82,7 +82,7 @@ bool multihashmap<K, V>::remove(const K& key, const V& value)
 template <typename K, typename V>
 bool multihashmap<K, V>::contains(const K& key) const
 {
-  return count(key) > 0;
+  return multihashmap<K, V>::count(key) > 0;
 }
 
 

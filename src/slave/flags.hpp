@@ -159,6 +159,12 @@ public:
         "cgroups_subsystems",
         "List of subsystems to enable (e.g., 'cpu,freezer')\n",
         "cpu,memory,freezer");
+
+    add(&Flags::cgroups_enable_cfs,
+        "cgroups_enable_cfs",
+        "Cgroups feature flag to enable hard limits on CPU resources\n"
+        "via the CFS bandwidth limiting subfeature.\n",
+        false);
 #endif
   }
 
@@ -182,6 +188,7 @@ public:
   std::string cgroups_hierarchy;
   std::string cgroups_root;
   std::string cgroups_subsystems;
+  bool cgroups_enable_cfs;
 #endif
 };
 

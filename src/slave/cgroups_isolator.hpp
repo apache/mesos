@@ -201,6 +201,15 @@ private:
       CgroupInfo* info,
       const Resource& resource);
 
+  // The callback which will be invoked when "cpus" resource has changed,
+  // and the cfs cgroups feature flag is enabled..
+  // @param   info          The Cgroup information.
+  // @param   resources     The handle for the resources.
+  // @return  Whether the operation succeeds.
+  Try<Nothing> cfsChanged(
+      CgroupInfo* info,
+      const Resource& resource);
+
   // The callback which will be invoked when "mem" resource has changed.
   // @param   info          The Cgroup information.
   // @param   resources     The handle for the resources.
