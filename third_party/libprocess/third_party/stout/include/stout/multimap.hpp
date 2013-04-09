@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <list>
 #include <map>
+#include <set>
 #include <utility>
 
 // Implementation of a multimap via std::multimap but with a better
@@ -17,6 +18,7 @@ class Multimap : public std::multimap<K, V>
 public:
   void put(const K& key, const V& value);
   std::list<V> get(const K& key) const;
+  std::set<K> keys() const;
   bool remove(const K& key);
   bool remove(const K& key, const V& value);
   bool contains(const K& key) const;
@@ -47,6 +49,17 @@ std::list<V> Multimap<K, V>::get(const K& key) const
   }
 
   return values;
+}
+
+
+template <typename K, typename V>
+std::set<K> Multimap<K, V>::keys() const
+{
+  std::set<K> keys;
+  foreachkey (const K& key, *this) {
+    keys.insert(key);
+  }
+  return keys;
 }
 
 

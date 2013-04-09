@@ -2,12 +2,14 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
 #include <string>
 
 #include <stout/foreach.hpp>
 #include <stout/multimap.hpp>
 #include <stout/multihashmap.hpp>
 
+using std::set;
 using std::string;
 
 template <typename T>
@@ -88,6 +90,26 @@ TYPED_TEST(MultimapTest, Size)
   ASSERT_TRUE(map.contains("bar", 1024));
   ASSERT_TRUE(map.contains("bar", 1025));
   ASSERT_EQ(4u, map.size());
+}
+
+
+TYPED_TEST(MultimapTest, Keys)
+{
+  typedef TypeParam Map;
+
+  Map map;
+
+  map.put("foo", 1024);
+  map.put("foo", 1024);
+  map.put("foo", 1024);
+  map.put("foo", 1025);
+  map.put("bar", 1);
+
+  set<string> keys = map.keys();
+
+  ASSERT_EQ(2, keys.size());
+  ASSERT_EQ(1, keys.count("foo"));
+  ASSERT_EQ(1, keys.count("bar"));
 }
 
 

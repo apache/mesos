@@ -3,6 +3,7 @@
 
 #include <algorithm> // For find.
 #include <list>
+#include <set>
 #include <utility>
 
 #include <boost/unordered_map.hpp>
@@ -19,6 +20,7 @@ class multihashmap : public boost::unordered_multimap<K, V>
 public:
   void put(const K& key, const V& value);
   std::list<V> get(const K& key) const;
+  std::set<K> keys() const;
   bool remove(const K& key);
   bool remove(const K& key, const V& value);
   bool contains(const K& key) const;
@@ -49,6 +51,17 @@ std::list<V> multihashmap<K, V>::get(const K& key) const
   }
 
   return values;
+}
+
+
+template <typename K, typename V>
+std::set<K> multihashmap<K, V>::keys() const
+{
+  std::set<K> keys;
+  foreachkey (const K& key, *this) {
+    keys.insert(key);
+  }
+  return keys;
 }
 
 
