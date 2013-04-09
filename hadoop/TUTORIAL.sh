@@ -550,7 +550,7 @@ __EOF__
 # can be agnostic to the Hadoop version.
 execute "cd .." \
   "mv ${hadoop} hadoop" \
-  "tar -cjf hadoop.tar.gz hadoop"
+  "tar -czf hadoop.tar.gz hadoop"
 
 # Start JobTracker.
 cat <<__EOF__

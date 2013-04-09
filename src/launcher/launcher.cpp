@@ -300,10 +300,18 @@ int ExecutorLauncher::fetchExecutors()
       return -1;
     }
 
-    // Extract any .tgz, tar.gz, or zip files.
+    // Extract any .tgz, tar.gz, tar.bz2 or zip files.
     if (strings::endsWith(resource, ".tgz") ||
         strings::endsWith(resource, ".tar.gz")) {
-      string command = "tar xzf '" + resource + "'";
+      string command = "tar zxf '" + resource + "'";
+      cout << "Extracting resource: " + command << endl;
+      int code = os::system(command);
+      if (code != 0) {
+        cerr << "Failed to extract resource: tar exit code " << code << endl;
+        return -1;
+      }
+    } else if (strings::endsWith(resource, ".tar.bz2")) {
+      string command = "tar jxf '" + resource + "'";
       cout << "Extracting resource: " + command << endl;
       int code = os::system(command);
       if (code != 0) {
