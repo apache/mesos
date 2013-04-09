@@ -801,8 +801,30 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
   AWAIT_FOR(future, Seconds(2))
 
 
+// TODO(vinod): Combine this with ASSERT_FUTURE_WILL_SUCCEED
+// inside libprocess gtest.hpp.
+#define AWAIT_FOR_READY(future, duration)         \
+  ASSERT_TRUE(future.await(duration));            \
+  ASSERT_TRUE(future.isReady())                   \
+
+
+// TODO(vinod): Combine this with ASSERT_FUTURE_WILL_SUCCEED
+// inside libprocess gtest.hpp.
+#define AWAIT_READY(future)                     \
+  ASSERT_TRUE(future.await(Seconds(2)));        \
+  ASSERT_TRUE(future.isReady())                 \
+
+
 #define FUTURE_PROTOBUF(message, from, to)              \
   FutureProtobuf(message, from, to)
+
+
+#define DROP_PROTOBUF(message, from, to)              \
+  FutureProtobuf(message, from, to, true)
+
+
+#define DROP_PROTOBUFS(message, from, to)              \
+  DropProtobufs(message, from, to)
 
 
 // Forward declaration.
@@ -811,12 +833,12 @@ process::Future<T> _FutureProtobuf(const process::Message& message);
 
 
 template <typename T, typename From, typename To>
-process::Future<T> FutureProtobuf(T t, From from, To to)
+process::Future<T> FutureProtobuf(T t, From from, To to, bool drop = false)
 {
   // Help debugging by adding some "type constraints".
   { google::protobuf::Message* m = &t; (void) m; }
 
-  return process::FutureMessage(testing::Eq(t.GetTypeName()), from, to)
+  return process::FutureMessage(testing::Eq(t.GetTypeName()), from, to, drop)
     .then(lambda::bind(&_FutureProtobuf<T>, lambda::_1));
 }
 
@@ -827,6 +849,16 @@ process::Future<T> _FutureProtobuf(const process::Message& message)
   T t;
   t.ParseFromString(message.body);
   return t;
+}
+
+
+template <typename T, typename From, typename To>
+void DropProtobufs(T t, From from, To to)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &t; (void) m; }
+
+  process::DropMessages(testing::Eq(t.GetTypeName()), from, to, true);
 }
 
 } // namespace tests {
