@@ -22,6 +22,7 @@
 #include <gtest/gtest.h>
 
 #include <process/dispatch.hpp>
+#include <process/gmock.hpp>
 
 #include <stout/exit.hpp>
 
@@ -34,10 +35,13 @@ using namespace mesos::internal;
 using namespace mesos::internal::slave;
 using namespace mesos::internal::tests;
 
+using process::Future;
+
 using testing::_;
 using testing::DoDefault;
 
 
+// This test checks that the Reaper can monitor a non-child process.
 TEST(ReaperTest, NonChildProcess)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
@@ -71,7 +75,7 @@ TEST(ReaperTest, NonChildProcess)
       // Still in child process.
       exit(0);
     } else {
-      // In grandchild process.
+      // In grand child process.
 
       // Ensure the parent process exits before we write the pid.
       while (getppid() != 1);
@@ -90,13 +94,6 @@ TEST(ReaperTest, NonChildProcess)
 
   MockProcessListener listener;
 
-  trigger exitCall;
-  EXPECT_CALL(listener, processExited(_,_))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(listener, processExited(pid, _))
-    .WillOnce(Trigger(&exitCall));
-
   // Spawn the listener.
   spawn(listener);
 
@@ -104,22 +101,41 @@ TEST(ReaperTest, NonChildProcess)
   Reaper reaper;
   spawn(reaper);
 
+  // Ignore the exit of the child process.
+  EXPECT_CALL(listener, processExited(_,_))
+    .WillRepeatedly(DoDefault());
+
   dispatch(reaper, &Reaper::addListener, listener.self());
 
-  // Add the pid to the reaper.
+  // Ask the reaper to monitor the grand child process.
   dispatch(reaper, &Reaper::monitor, pid);
+
+  // Catch the exit of the grand child process.
+  Future<Nothing> processExited;
+  EXPECT_CALL(listener, processExited(pid, _))
+    .WillOnce(FutureSatisfy(&processExited));
 
   // Now kill the grand child.
   // NOTE: We send a SIGKILL here because sometimes the grand child process
   // seems to be in a hung state and not responding to SIGTERM/SIGINT.
   EXPECT_EQ(0, kill(pid, SIGKILL));
 
+  Clock::pause();
+
+  // Now advance time until the reaper reaps the executor.
+  while (processExited.isPending()) {
+    Clock::advance(1.0);
+    Clock::settle();
+  }
+
   // Ensure the reaper notifies of the terminated process.
-  WAIT_UNTIL(exitCall);
+  AWAIT_READY(processExited);
 
   terminate(reaper);
   wait(reaper);
 
   terminate(listener);
   wait(listener);
+
+  Clock::resume();
 }
