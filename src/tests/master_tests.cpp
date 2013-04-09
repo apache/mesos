@@ -780,7 +780,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
     Clock::settle();
   }
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
 
   Clock::resume();
