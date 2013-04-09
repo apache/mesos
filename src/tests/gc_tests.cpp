@@ -59,10 +59,12 @@ using mesos::internal::master::Allocator;
 using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::GarbageCollector;
 using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;
 
 using process::Clock;
+using process::Future;
 using process::PID;
 
 using std::string;
@@ -76,7 +78,175 @@ using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
 
-class GarbageCollectorTest : public MesosTest
+
+class GarbageCollectorTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(GarbageCollectorTest, Schedule)
+{
+  GarbageCollector gc;
+
+  // Make some temporary files to gc.
+  const string& file1 = "file1";
+  const string& file2 = "file2";
+  const string& file3 = "file3";
+
+  ASSERT_SOME(os::touch(file1));
+  ASSERT_SOME(os::touch(file2));
+  ASSERT_SOME(os::touch(file3));
+
+  ASSERT_TRUE(os::exists(file1));
+  ASSERT_TRUE(os::exists(file2));
+  ASSERT_TRUE(os::exists(file3));
+
+  Clock::pause();
+
+  Future<Nothing> scheduleDispatch1 =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+  Future<Nothing> scheduleDispatch2 =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+  Future<Nothing> scheduleDispatch3 =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+
+  // Schedule the gc operations.
+  Future<Nothing> schedule1 = gc.schedule(Seconds(10), file1);
+  Future<Nothing> schedule2 = gc.schedule(Seconds(10), file2);
+  Future<Nothing> schedule3 = gc.schedule(Seconds(15), file3);
+
+  // Ensure the dispatches are completed before advancing the clock.
+  AWAIT_UNTIL(scheduleDispatch1);
+  AWAIT_UNTIL(scheduleDispatch2);
+  AWAIT_UNTIL(scheduleDispatch3);
+  Clock::settle();
+
+  // Advance the clock to trigger the GC of file1 and file2.
+  Clock::advance(Seconds(10).secs());
+  Clock::settle();
+
+  ASSERT_FUTURE_WILL_SUCCEED(schedule1);
+  ASSERT_FUTURE_WILL_SUCCEED(schedule2);
+  ASSERT_TRUE(schedule3.isPending());
+
+  EXPECT_FALSE(os::exists(file1));
+  EXPECT_FALSE(os::exists(file2));
+  EXPECT_TRUE(os::exists(file3));
+
+  // Trigger the GC of file3.
+  Clock::advance(Seconds(5).secs());
+  Clock::settle();
+
+  ASSERT_FUTURE_WILL_SUCCEED(schedule3);
+
+  EXPECT_FALSE(os::exists(file3));
+
+  Clock::resume();
+}
+
+
+TEST_F(GarbageCollectorTest, Unschedule)
+{
+  GarbageCollector gc;
+
+  // Attempt to unschedule a file that is not scheduled.
+  ASSERT_FUTURE_WILL_EQ(false, gc.unschedule("bogus"));
+
+  // Make some temporary files to gc.
+  const string& file1 = "file1";
+  const string& file2 = "file2";
+  const string& file3 = "file3";
+
+  ASSERT_SOME(os::touch(file1));
+  ASSERT_SOME(os::touch(file2));
+  ASSERT_SOME(os::touch(file3));
+
+  ASSERT_TRUE(os::exists(file1));
+  ASSERT_TRUE(os::exists(file2));
+  ASSERT_TRUE(os::exists(file3));
+
+  Clock::pause();
+
+  // Schedule the gc operations.
+  Future<Nothing> schedule1 = gc.schedule(Seconds(10), file1);
+  Future<Nothing> schedule2 = gc.schedule(Seconds(10), file2);
+  Future<Nothing> schedule3 = gc.schedule(Seconds(10), file3);
+
+  // Unschedule each operation.
+  ASSERT_FUTURE_WILL_EQ(true, gc.unschedule(file2));
+  ASSERT_FUTURE_WILL_EQ(true, gc.unschedule(file3));
+  ASSERT_FUTURE_WILL_EQ(true, gc.unschedule(file1));
+
+  // Advance the clock to ensure nothing was GCed.
+  Clock::advance(Seconds(10).secs());
+  Clock::settle();
+
+  // The unscheduling will have discarded the GC futures.
+  ASSERT_FUTURE_WILL_DISCARD(schedule1);
+  ASSERT_FUTURE_WILL_DISCARD(schedule2);
+  ASSERT_FUTURE_WILL_DISCARD(schedule3);
+
+  EXPECT_TRUE(os::exists(file1));
+  EXPECT_TRUE(os::exists(file2));
+  EXPECT_TRUE(os::exists(file3));
+
+  Clock::resume();
+}
+
+
+TEST_F(GarbageCollectorTest, Prune)
+{
+  GarbageCollector gc;
+
+  // Make some temporary files to prune.
+  const string& file1 = "file1";
+  const string& file2 = "file2";
+  const string& file3 = "file3";
+  const string& file4 = "file4";
+
+  ASSERT_SOME(os::touch(file1));
+  ASSERT_SOME(os::touch(file2));
+  ASSERT_SOME(os::touch(file3));
+  ASSERT_SOME(os::touch(file4));
+
+  ASSERT_TRUE(os::exists(file1));
+  ASSERT_TRUE(os::exists(file2));
+  ASSERT_TRUE(os::exists(file3));
+  ASSERT_TRUE(os::exists(file4));
+
+  Clock::pause();
+
+  Future<Nothing> schedule1 = gc.schedule(Seconds(10), file1);
+  Future<Nothing> schedule2 = gc.schedule(Seconds(10), file2);
+  Future<Nothing> schedule3 = gc.schedule(Seconds(15), file3);
+  Future<Nothing> schedule4 = gc.schedule(Seconds(15), file4);
+
+  ASSERT_FUTURE_WILL_EQ(true, gc.unschedule(file3));
+  ASSERT_FUTURE_WILL_DISCARD(schedule3);
+
+  // Prune file1 and file2.
+  gc.prune(Seconds(10));
+
+  ASSERT_FUTURE_WILL_SUCCEED(schedule1);
+  ASSERT_FUTURE_WILL_SUCCEED(schedule2);
+  ASSERT_TRUE(schedule4.isPending());
+
+  // Both file1 and file2 will have been removed.
+  EXPECT_FALSE(os::exists(file1));
+  EXPECT_FALSE(os::exists(file2));
+  EXPECT_TRUE(os::exists(file3));
+  EXPECT_TRUE(os::exists(file4));
+
+  // Prune file4.
+  gc.prune(Seconds(15));
+
+  ASSERT_FUTURE_WILL_SUCCEED(schedule4);
+
+  EXPECT_FALSE(os::exists(file4));
+
+  Clock::resume();
+}
+
+
+class GarbageCollectorIntegrationTest : public MesosTest
 {
 protected:
   virtual void SetUp()
@@ -157,7 +327,7 @@ protected:
 };
 
 
-TEST_F(GarbageCollectorTest, Restart)
+TEST_F(GarbageCollectorIntegrationTest, Restart)
 {
   // Messages expectations.
   process::Message message;
@@ -255,7 +425,7 @@ TEST_F(GarbageCollectorTest, Restart)
 }
 
 
-TEST_F(GarbageCollectorTest, ExitedExecutor)
+TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 {
   // Executor expectations.
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -333,7 +503,7 @@ TEST_F(GarbageCollectorTest, ExitedExecutor)
 }
 
 
-TEST_F(GarbageCollectorTest, DiskUsage)
+TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 {
   // Messages expectations.
   trigger exitedExecutorMsg;

@@ -16,17 +16,11 @@
  * limitations under the License.
  */
 
-#include <map>
-#include <string>
-#include <vector>
+#include <list>
 
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
-#include <process/future.hpp>
-#include <process/process.hpp>
-#include <process/timeout.hpp>
 
-#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 
@@ -38,21 +32,19 @@ using namespace process;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
+using std::list;
 using std::map;
 using std::string;
-using std::vector;
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
+
 GarbageCollectorProcess::~GarbageCollectorProcess()
 {
-  foreachvalue (const vector<PathInfo>& infos, paths) {
-    foreach (const PathInfo& info, infos) {
-      info.promise->future().discard();
-      delete info.promise;
-    }
+  foreachvalue (const PathInfo& info, paths) {
+    info.promise->future().discard();
   }
 }
 
@@ -61,13 +53,20 @@ Future<Nothing> GarbageCollectorProcess::schedule(
     const Duration& d,
     const string& path)
 {
-  LOG(INFO) << "Scheduling " << path << " for removal";
+  LOG(INFO) << "Scheduling '" << path << "' for removal";
 
-  Promise<Nothing>* promise = new Promise<Nothing>();
+  // If there's an existing schedule for this path, we must remove
+  // it here in order to reschedule.
+  if (timeouts.contains(path)) {
+    CHECK(unschedule(path));
+  }
+
+  Owned<Promise<Nothing> > promise(new Promise<Nothing>());
 
   Timeout removalTime(d);
 
-  paths[removalTime].push_back(PathInfo(path, promise));
+  timeouts[path] = removalTime;
+  paths.put(removalTime, PathInfo(path, promise));
 
   // If the timer is not yet initialized or the timeout is sooner than
   // the currently active timer, update it.
@@ -77,6 +76,36 @@ Future<Nothing> GarbageCollectorProcess::schedule(
   }
 
   return promise->future();
+}
+
+
+bool GarbageCollectorProcess::unschedule(const string& path)
+{
+  LOG(INFO) << "Unscheduling '" << path << "' for removal";
+
+  if (!timeouts.contains(path)) {
+    return false;
+  }
+
+  Timeout timeout = timeouts[path]; // Make a copy, as we erase() below.
+  CHECK(paths.contains(timeout));
+
+  // Locate the path.
+  foreach (const PathInfo& info, paths.get(timeout)) {
+    if (info.path == path) {
+      // Discard the future.
+      info.promise->future().discard();
+
+      // Clean up the maps.
+      CHECK(paths.remove(timeout, info));
+      CHECK(timeouts.erase(path) > 0);
+
+      return true;
+    }
+  }
+
+  LOG(FATAL) << "Inconsistent state across 'paths' and 'timeouts'";
+  return false;
 }
 
 
@@ -97,29 +126,34 @@ void GarbageCollectorProcess::reset()
 
 void GarbageCollectorProcess::remove(const Timeout& removalTime)
 {
+  // TODO(bmahler): Other dispatches can block waiting for a removal
+  // operation. To fix this, the removal operation can be done
+  // asynchronously in another thread.
   if (paths.count(removalTime) > 0) {
-    foreach (const PathInfo& info, paths[removalTime]) {
-      const string& path = info.path;
-      Promise<Nothing>* promise = info.promise;
+    foreach (const PathInfo& info, paths.get(removalTime)) {
+      LOG(INFO) << "Deleting " << info.path;
 
-      LOG(INFO) << "Deleting " << path;
+      Try<Nothing> rmdir = os::rmdir(info.path);
 
-      Try<Nothing> result = os::rmdir(path);
-      if (result.isError()) {
-        LOG(WARNING) << "Failed to delete " << path << ": " << result.error();
-        promise->fail(result.error());
+      if (rmdir.isError()) {
+        LOG(WARNING) << "Failed to delete '" << info.path << "': "
+                     << rmdir.error();
+        info.promise->fail(rmdir.error());
       } else {
-        LOG(INFO) << "Deleted " << path;
-        promise->set(result.get());
+        LOG(INFO) << "Deleted '" << info.path << "'";
+        info.promise->set(rmdir.get());
       }
-      delete promise;
+
+      timeouts.erase(info.path);
     }
-    paths.erase(removalTime);
+
+    paths.remove(removalTime);
   } else {
-    // This might happen if the directory(s) has already been removed
-    // (e.g: by prune())
-    LOG(WARNING) << "Ignoring gc event at " << removalTime.remaining()
-                 << " as the corresponding directories are already removed";
+    // This occurs when either:
+    //   1. The path(s) has already been removed (e.g. by prune()).
+    //   2. All paths under the removal time were unscheduled.
+    LOG(INFO) << "Ignoring gc event at " << removalTime.remaining()
+              << " as the paths were already removed, or were unscheduled";
   }
 
   reset(); // Schedule the timer for next event.
@@ -128,7 +162,7 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
 
 void GarbageCollectorProcess::prune(const Duration& d)
 {
-  foreachkey (const Timeout& removalTime, paths) {
+  foreach (const Timeout& removalTime, paths.keys()) {
     if (removalTime.remaining() <= d) {
       LOG(INFO) << "Pruning directories with remaining removal time "
                 << removalTime.remaining();
@@ -158,6 +192,12 @@ Future<Nothing> GarbageCollector::schedule(
     const string& path)
 {
   return dispatch(process, &GarbageCollectorProcess::schedule, d, path);
+}
+
+
+Future<bool> GarbageCollector::unschedule(const string& path)
+{
+  return dispatch(process, &GarbageCollectorProcess::unschedule, path);
 }
 
 

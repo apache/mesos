@@ -893,15 +893,18 @@ Try<Nothing> CgroupsIsolator::cfsChanged(
   CHECK(resource.type() == Value::SCALAR);
 
   Try<Nothing> write = cgroups::write(
-      hierarchy, info->name(), "cpu.cfs_period_us", stringify(CPU_CFS_PERIOD.us()));
+      hierarchy,
+      info->name(),
+      "cpu.cfs_period_us",
+      stringify(CPU_CFS_PERIOD.us()));
 
   if (write.isError()) {
     return Error("Failed to update 'cpu.cfs_period_us': " + write.error());
   }
 
   double cpus = resource.scalar().value();
-  size_t quota =
-    std::max(CPU_CFS_PERIOD.us() * cpus, MIN_CPU_CFS_QUOTA.us());
+  size_t quota = static_cast<size_t>(
+    std::max(CPU_CFS_PERIOD.us() * cpus, MIN_CPU_CFS_QUOTA.us()));
 
   write = cgroups::write(
       hierarchy, info->name(), "cpu.cfs_quota_us", stringify(quota));
