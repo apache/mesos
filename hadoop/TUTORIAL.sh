@@ -519,7 +519,7 @@ Okay, let's try building Mesos executor package:
   $ rm -rf cloudera # Only for cdh3
   $ cd ..
   $ mv ${hadoop} hadoop
-  $ tar -cjf hadoop.tar.gz hadoop
+  $ tar -czf hadoop.tar.gz hadoop
   $ cd ..
 
 __EOF__
@@ -548,7 +548,7 @@ cd .. || fail "cd .."
 mv ${hadoop} hadoop || fail "mv ${hadoop} hadoop"
 
 # Create the bundle.
-tar -cjf hadoop.tar.gz hadoop || fail "tar -cjf hadoop.tar.gz hadoop"
+tar -czf hadoop.tar.gz hadoop || fail "tar -czf hadoop.tar.gz hadoop"
 
 cd .. || fail "cd.."
 
