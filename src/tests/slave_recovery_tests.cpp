@@ -89,24 +89,7 @@ using testing::Return;
 using testing::SaveArg;
 
 
-class SlaveStateTest : public ::testing::Test
-{
-public:
-  SlaveStateTest()
-  {
-    Try<string> path = os::mkdtemp();
-    CHECK_SOME(path) << "Failed to mkdtemp";
-    rootDir = path.get();
-  }
-
-  virtual ~SlaveStateTest()
-  {
-     os::rmdir(rootDir);
-  }
-
-protected:
-  string rootDir;
-};
+class SlaveStateTest : public TemporaryDirectoryTest {};
 
 
 TEST_F(SlaveStateTest, CheckpointProtobuf)
@@ -115,10 +98,10 @@ TEST_F(SlaveStateTest, CheckpointProtobuf)
   SlaveID expected;
   expected.set_value("slave1");
 
-  const string& path = path::join(rootDir, "slave.id");
-  state::checkpoint(path, expected);
+  const string& file = "slave.id";
+  state::checkpoint(file, expected);
 
-  const Result<SlaveID>& actual = ::protobuf::read<SlaveID>(path);
+  const Result<SlaveID>& actual = ::protobuf::read<SlaveID>(file);
   ASSERT_SOME(actual);
 
   ASSERT_SOME_EQ(expected, actual);
@@ -129,10 +112,10 @@ TEST_F(SlaveStateTest, CheckpointString)
 {
   // Checkpoint a test string.
   const string expected = "test";
-  const string path = path::join(rootDir, "test-path");
-  state::checkpoint(path, expected);
+  const string file = "test-file";
+  state::checkpoint(file, expected);
 
-  ASSERT_SOME_EQ(expected, os::read(path));
+  ASSERT_SOME_EQ(expected, os::read(file));
 }
 
 
@@ -233,37 +216,8 @@ TYPED_TEST_CASE(SlaveRecoveryTest, IsolatorTypes);
 TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 {
   // Message expectations.
-  process::Message message;
-  trigger registerFrameworkMsg;
-  EXPECT_MESSAGE(Eq(RegisterFrameworkMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(
-        SaveArgField<0>(&process::MessageEvent::message, &message),
-        Trigger(&registerFrameworkMsg),
-        Return(false)));
-
-  process::Message message2;
-  trigger registerExecutorMsg;
-  EXPECT_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(
-        SaveArgField<0>(&process::MessageEvent::message, &message2),
-        Trigger(&registerExecutorMsg),
-        Return(false)));
-
-  process::Message message3;
-  trigger statusUpdateMsg;
-  EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), Eq(this->master), _)
-    .WillOnce(DoAll(
-        SaveArgField<0>(&process::MessageEvent::message, &message3),
-        Trigger(&statusUpdateMsg),
-        Return(false)));
-
-  process::Message message4;
-  trigger statusUpdateAckMsg;
-  EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(
-        SaveArgField<0>(&process::MessageEvent::message, &message4),
-        Trigger(&statusUpdateAckMsg),
-        Return(false)));
+  Future<Message> registerFramework =
+    FUTURE_MESSAGE(Eq(RegisterFrameworkMessage().GetTypeName()), _, _);
 
   // Scheduler expectations.
   MockScheduler sched;
@@ -271,15 +225,10 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -291,41 +240,50 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   driver.start();
 
   // Capture the framework pid.
-  WAIT_UNTIL(registerFrameworkMsg);
-  UPID frameworkPid = message.from;
+  AWAIT_READY(registerFramework);
+  UPID frameworkPid = registerFramework.get().from;
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers.size());
+  SlaveID slaveId = offers.get()[0].slave_id();
 
-  SlaveID slaveId = offers[0].slave_id();
-
-  TaskInfo task = createTask(offers[0], "sleep 1000");
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
-  driver.launchTasks(offers[0].id(), tasks);
+
+  // Scheduler expectations.
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
+
+  // Message expectations.
+  Future<Message> registerExecutorMessage =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  Future<StatusUpdateMessage> update =
+    FUTURE_PROTOBUF(StatusUpdateMessage(), Eq(this->master), _);
+
+  Future<StatusUpdateAcknowledgementMessage> ack =
+    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+
+  Future<Nothing> _ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
   // Capture the executor pids.
-  WAIT_UNTIL(registerExecutorMsg);
+  AWAIT_READY(registerExecutorMessage);
   RegisterExecutorMessage registerExecutor;
-  registerExecutor.ParseFromString(message2.body);
-
+  registerExecutor.ParseFromString(registerExecutorMessage.get().body);
   ExecutorID executorId = registerExecutor.executor_id();
-  UPID libprocessPid = message2.from;
+  UPID libprocessPid = registerExecutorMessage.get().from;
 
   // Capture the update.
-  WAIT_UNTIL(statusUpdateMsg);
-  StatusUpdateMessage update;
-  update.ParseFromString(message3.body);
+  AWAIT_READY(update);
+  EXPECT_EQ(TASK_RUNNING, update.get().update().status().state());
 
-  EXPECT_EQ(TASK_RUNNING, update.update().status().state());
-
-  // Capture the ACK.
-  WAIT_UNTIL(statusUpdateAckMsg);
-  StatusUpdateAcknowledgementMessage ack;
-  ack.ParseFromString(message4.body);
-
-  sleep(1); // Wait for the ACK to be checkpointed.
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(_ack);
 
   // Recover the state.
   Result<state::SlaveState> recover =
@@ -334,6 +292,9 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   ASSERT_SOME(recover);
 
   state::SlaveState state = recover.get();
+
+  // Check slave id.
+  ASSERT_EQ(slaveId, state.id);
 
   // Check framework id and pid.
   ASSERT_TRUE(state.frameworks.contains(frameworkId));
@@ -390,7 +351,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
         .updates.size());
 
   ASSERT_EQ(
-      update.update().uuid(),
+      update.get().update().uuid(),
       state
         .frameworks[frameworkId]
         .executors[executorId]
@@ -403,7 +364,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
                 .executors[executorId]
                 .runs[uuid.get()]
                 .tasks[task.task_id()]
-                .acks.contains(UUID::fromBytes(ack.uuid())));
+                .acks.contains(UUID::fromBytes(ack.get().uuid())));
 
   // Shut down the executor.
   process::post(libprocessPid, ShutdownExecutorMessage());
@@ -417,45 +378,15 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 // When the slave comes back up it resends the unacknowledged update.
 TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 {
-  // Message expectations.
-  process::Message message;
-  trigger registerExecutorMsg;
-  EXPECT_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(
-        SaveArgField<0>(&process::MessageEvent::message, &message),
-        Trigger(&registerExecutorMsg),
-        Return(false)));
-
-  trigger statusUpdateMsg;
-  EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), _, _)
-  .WillOnce(DoAll(Trigger(&statusUpdateMsg),
-                  Return(true))) // Drop the first update from the executor.
-  .WillRepeatedly(Return(false));
-
-  trigger updateFrameworkMsg;
-  EXPECT_MESSAGE(Eq(UpdateFrameworkMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&updateFrameworkMsg),
-                    Return(false)));
-
   // Scheduler expectations.
   MockScheduler sched;
-  FrameworkID frameworkId;
-  EXPECT_CALL(sched, registered(_, _, _))
-    .WillOnce(SaveArg<1>(&frameworkId));
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  TaskStatus status;
-  trigger statusUpdateCall;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
-                    Trigger(&statusUpdateCall)))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -466,33 +397,42 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers.size());
-
-  TaskInfo task = createTask(offers[0], "sleep 1000");
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
-  driver.launchTasks(offers[0].id(), tasks);
+
+  // Message expectations.
+  Future<Message> registerExecutor =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  // Drop the first update from the executor.
+  Future<StatusUpdateMessage> update =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, _);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
   // Capture the executor pid.
-  WAIT_UNTIL(registerExecutorMsg);
-  UPID executorPid = message.from;
+  AWAIT_READY(registerExecutor);
+  UPID executorPid = registerExecutor.get().from;
 
-  // Wait for the update.
-  WAIT_UNTIL(statusUpdateMsg);
+  // Wait for the status update drop.
+  AWAIT_READY(update);
 
   this->stopSlave();
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   // Restart the slave.
   this->startSlave();
 
-  // Wait for updated framework pid.
-  WAIT_UNTIL(updateFrameworkMsg);
-
-  WAIT_UNTIL(statusUpdateCall);
-
-  ASSERT_EQ(TASK_RUNNING, status.state());
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status.get().state());
 
   // Shut down the executor.
   process::post(executorPid, ShutdownExecutorMessage());
@@ -507,38 +447,14 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 // sure the executor re-registers and the slave properly sends the update.
 TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 {
-  // Message expectations.
-  trigger statusUpdateMsg;
-  EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), _, _)
-  .WillOnce(DoAll(Trigger(&statusUpdateMsg),
-                  Return(true))) // Drop the first update from the executor.
-  .WillRepeatedly(Return(false));
-
-  process::Message message;
-  trigger reregisterExecutorMessage;
-  EXPECT_MESSAGE(Eq(ReregisterExecutorMessage().GetTypeName()), _, _)
-  .WillOnce(DoAll(
-      SaveArgField<0>(&process::MessageEvent::message, &message),
-      Trigger(&reregisterExecutorMessage),
-      Return(false)));
-
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  TaskStatus status;
-  trigger statusUpdateCall;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
-                    Trigger(&statusUpdateCall)))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -549,28 +465,41 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers.size());
-
-  TaskInfo task = createTask(offers[0], "sleep 1000");
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
-  driver.launchTasks(offers[0].id(), tasks);
+
+  // Drop the first update from the executor.
+  Future<StatusUpdateMessage> statusUpdate =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, _);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
   // Stop the slave before the status update is received.
-  WAIT_UNTIL(statusUpdateMsg);
+  AWAIT_READY(statusUpdate);
+
   this->stopSlave();
+
+  Future<Message> reregisterExecutorMessage =
+    FUTURE_MESSAGE(Eq(ReregisterExecutorMessage().GetTypeName()), _, _);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   // Restart the slave.
   this->startSlave();
 
   // Ensure the executor re-registers.
-  WAIT_UNTIL(reregisterExecutorMessage);
-  UPID executorPid = message.from;
+  AWAIT_READY(reregisterExecutorMessage);
+  UPID executorPid = reregisterExecutorMessage.get().from;
 
   ReregisterExecutorMessage reregister;
-  reregister.ParseFromString(message.body);
+  reregister.ParseFromString(reregisterExecutorMessage.get().body);
 
   // Executor should inform about the unacknowledged update.
   ASSERT_EQ(1, reregister.updates_size());
@@ -579,8 +508,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   ASSERT_EQ(TASK_RUNNING, update.status().state());
 
   // Scheduler should receive the recovered update.
-  WAIT_UNTIL(statusUpdateCall);
-  ASSERT_EQ(TASK_RUNNING, status.state());
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status.get().state());
 
   // Shut down the executor.
   process::post(executorPid, ShutdownExecutorMessage());
@@ -591,36 +520,18 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
 
 // The slave is stopped before the (command) executor is registered.
-// When it comes back up with recovery=reconnect, make sure the task is
-// properly transitioned to FAILED.
+// When it comes back up with recovery=reconnect, make sure the
+// executor is killed and the task is transitioned to FAILED.
 TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 {
-  // Message Expectations.
-  process::Message message;
-  trigger registerExecutorMsg;
-  EXPECT_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(
-        SaveArgField<0>(&process::MessageEvent::message, &message),
-        Trigger(&registerExecutorMsg),
-        Return(true))); // Drop the executor registration message.
-
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  TaskStatus status;
-  trigger statusUpdateCall;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
-                    Trigger(&statusUpdateCall)))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -631,29 +542,55 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers.size());
-
-  TaskInfo task = createTask(offers[0], "sleep 1000");
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
-  driver.launchTasks(offers[0].id(), tasks);
+
+  // Drop the executor registration message.
+  Future<Message> registerExecutor =
+    DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
   // Stop the slave before the executor is registered.
-  WAIT_UNTIL(registerExecutorMsg);
-  UPID executorPid = message.from;
+  AWAIT_READY(registerExecutor);
+  UPID executorPid = registerExecutor.get().from;
+
   this->stopSlave();
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  Future<Nothing> recoverExecutors =
+      FUTURE_DISPATCH(_, &Slave::recoverExecutors);
 
   // Restart the slave.
   this->startSlave();
 
-  // Scheduler should receive the TASK_FAILED update.
-  WAIT_UNTIL(statusUpdateCall);
-  ASSERT_EQ(TASK_FAILED, status.state());
+  Clock::pause();
 
-  // Shut down the executor.
-  process::post(executorPid, ShutdownExecutorMessage());
+  AWAIT_READY(recoverExecutors);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT.secs());
+
+  // Now advance time until the reaper reaps the executor.
+  while (status.isPending()) {
+    Clock::advance(1.0);
+    Clock::settle();
+  }
+
+  // Scheduler should receive the TASK_FAILED update.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_FAILED, status.get().state());
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -666,32 +603,14 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 // sure the task is properly transitioned to FAILED.
 TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 {
-  // Message Expectations.
-  process::Message message;
-  trigger registerExecutorMsg;
-  EXPECT_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(
-        SaveArgField<0>(&process::MessageEvent::message, &message),
-        Trigger(&registerExecutorMsg),
-        Return(false)));
-
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  TaskStatus status;
-  trigger statusUpdateCall1, statusUpdateCall2;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(Trigger(&statusUpdateCall1))
-    .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
-                    Trigger(&statusUpdateCall2)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -702,35 +621,62 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers.size());
-
-  TaskInfo task = createTask(offers[0], "sleep 1000");
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
-  driver.launchTasks(offers[0].id(), tasks);
+
+  Future<Message> registerExecutor =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  EXPECT_CALL(sched, statusUpdate(_, _));
+
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
   // Capture the executor pid.
-  WAIT_UNTIL(registerExecutorMsg);
-  UPID executorPid = message.from;
+  AWAIT_READY(registerExecutor);
+  UPID executorPid = registerExecutor.get().from;
 
-  // Wait for TASK_RUNNING update.
-  WAIT_UNTIL(statusUpdateCall1);
-
-  sleep(1); // Give enough time for the ACK to be checkpointed.
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack);
 
   this->stopSlave();
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
 
   // Now shut down the executor, when the slave is down.
   process::post(executorPid, ShutdownExecutorMessage());
 
+  Future<Nothing> recoverExecutors =
+      FUTURE_DISPATCH(_, &Slave::recoverExecutors);
+
   // Restart the slave.
   this->startSlave();
 
+  Clock::pause();
+
+  AWAIT_READY(recoverExecutors);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT.secs());
+
+  // Now advance time until the reaper reaps the executor.
+  while (status.isPending()) {
+    Clock::advance(1.0);
+    Clock::settle();
+  }
+
   // Scheduler should receive the TASK_FAILED update.
-  WAIT_UNTIL(statusUpdateCall2);
-  ASSERT_EQ(TASK_FAILED, status.state());
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_FAILED, status.get().state());
 
   driver.stop();
   driver.join();
@@ -746,19 +692,10 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  TaskStatus status;
-  trigger statusUpdateCall1, statusUpdateCall2;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(Trigger(&statusUpdateCall1))
-    .WillOnce(DoAll(SaveArg<1>(&status), // This is the update after recovery.
-                    Trigger(&statusUpdateCall2)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -769,29 +706,46 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers.size());
-
-  TaskInfo task = createTask(offers[0], "sleep 1000");
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
-  driver.launchTasks(offers[0].id(), tasks);
 
-  // Wait for TASK_RUNNING update.
-  WAIT_UNTIL(statusUpdateCall1);
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
-  sleep(1); // Give enough time for the ACK to be checkpointed.
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack);
 
   this->stopSlave();
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
 
   // Restart the slave in 'cleanup' recovery mode.
   this->slaveFlags.recover = "cleanup";
   this->startSlave();
 
+  Clock::pause();
+
+  // Now advance time until the reaper reaps the executor.
+  while (status.isPending()) {
+    Clock::advance(1.0);
+    Clock::settle();
+  }
+
   // Scheduler should receive the TASK_FAILED update.
-  WAIT_UNTIL(statusUpdateCall2);
-  ASSERT_EQ(TASK_FAILED, status.state());
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_FAILED, status.get().state());
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -806,19 +760,10 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  TaskStatus status;
-  trigger statusUpdateCall1, statusUpdateCall2;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(Trigger(&statusUpdateCall1))
-    .WillOnce(DoAll(SaveArg<1>(&status), // Update after slave exited.
-                    Trigger(&statusUpdateCall2)));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Disable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -829,23 +774,31 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers.size());
-
-  TaskInfo task = createTask(offers[0], "sleep 1000");
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task.
-  driver.launchTasks(offers[0].id(), tasks);
+  tasks.push_back(task); // Long-running task
+
+  Future<Nothing> update;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureSatisfy(&update));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
   // Wait for TASK_RUNNING update.
-  WAIT_UNTIL(statusUpdateCall1);
+  AWAIT_READY(update);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
 
   this->stopSlave();
 
   // Scheduler should receive the TASK_LOST update.
-  WAIT_UNTIL(statusUpdateCall2);
-  ASSERT_EQ(TASK_LOST, status.state());
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_LOST, status.get().state());
 
   driver.stop();
   driver.join();
@@ -862,18 +815,10 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  TaskStatus status;
-  trigger statusUpdateCall;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(Trigger(&statusUpdateCall))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Disable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -884,23 +829,34 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers.size());
-
-  TaskInfo task = createTask(offers[0], "sleep 1000");
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task.
-  driver.launchTasks(offers[0].id(), tasks);
+  tasks.push_back(task); // Long-running task
+
+  Future<Nothing> update;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureSatisfy(&update))
+    .WillRepeatedly(Return());        // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
   // Wait for TASK_RUNNING update.
-  WAIT_UNTIL(statusUpdateCall);
+  AWAIT_READY(update);
+
+  Clock::pause();
+
+  Future<Nothing> updateFramework = FUTURE_DISPATCH(_, &Slave::updateFramework);
 
   // Simulate a 'UpdateFrameworkMessage' to ensure framework pid is
   // not being checkpointed.
   process::dispatch(this->slave, &Slave::updateFramework, frameworkId, "");
 
-  sleep(1); // Give some time for the slave to act on the dispatch.
+  AWAIT_READY(updateFramework);
+
+  Clock::settle(); // Wait for the slave to act on the dispatch.
 
   // Ensure that the framework info is not being checkpointed.
   const string& path = paths::getFrameworkPath(
@@ -909,6 +865,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
       frameworkId);
 
   ASSERT_FALSE(os::exists(path));
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -921,38 +879,13 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 // (scheduler, master, executor).
 TYPED_TEST(SlaveRecoveryTest, KillTask)
 {
-  // Message expectations.
-  trigger statusUpdateMsg;
-  EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), _, _)
-  .WillOnce(DoAll(Trigger(&statusUpdateMsg),
-                  Return(true))) // Drop the first update from the executor.
-  .WillRepeatedly(Return(false));
-
-  trigger reregisterSlaveMsg;
-  EXPECT_MESSAGE(Eq(ReregisterSlaveMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&reregisterSlaveMsg),
-                    Return(false)));
-
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
 
-  trigger resourceOffersCall1, resourceOffersCall2;
-  vector<Offer> offers1, offers2;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers1),
-                    Trigger(&resourceOffersCall1)))
-    .WillOnce(DoAll(SaveArg<1>(&offers2),
-                    Trigger(&resourceOffersCall2)))
-    .WillRepeatedly(Return());
-
-  TaskStatus status1, status2;
-  trigger statusUpdateCall1, statusUpdateCall2;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&status1), // TASK_RUNNING update.
-                    Trigger(&statusUpdateCall1)))
-    .WillOnce(DoAll(SaveArg<1>(&status2), // TASK_FAILED update.
-                    Trigger(&statusUpdateCall2)));
+    .WillOnce(FutureArg<1>(&offers1));
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -963,40 +896,75 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall1);
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  EXPECT_NE(0u, offers1.size());
-
-  TaskInfo task = createTask(offers1[0], "sleep 1000");
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task.
-  driver.launchTasks(offers1[0].id(), tasks);
+  tasks.push_back(task); // Long-running task
 
-  // Wait for TASK_RUNNING update.
-  WAIT_UNTIL(statusUpdateMsg);
+  EXPECT_CALL(sched, statusUpdate(_, _));
+
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers1.get()[0].id(), tasks);
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack);
 
   // Restart the slave.
   this->stopSlave();
+
+  Future<Nothing> recoverExecutors =
+    FUTURE_DISPATCH(_, &Slave::recoverExecutors);
+
+  Future<ReregisterSlaveMessage> reregisterSlave =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
   this->startSlave();
 
-  // Wait for the slave to re-register.
-  WAIT_UNTIL(reregisterSlaveMsg);
+  Clock::pause();
 
-  // Wait for retried TASK_RUNNING update.
-  WAIT_UNTIL(statusUpdateCall1);
-  ASSERT_EQ(TASK_RUNNING, status1.state());
+  AWAIT_READY(recoverExecutors);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT.secs());
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(reregisterSlave);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());        // Ignore subsequent updates.
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   // Kill the task.
   driver.killTask(task.task_id());
 
   // Wait for TASK_FAILED update.
-  WAIT_UNTIL(statusUpdateCall2);
-  ASSERT_EQ(TASK_FAILED, status2.state());
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_FAILED, status.get().state());
+
+  // Advance the clock until the allocator allocates
+  // the recovered resources.
+  while (offers2.isPending()) {
+    Clock::advance(1.0);
+    Clock::settle();
+  }
 
   // Make sure all slave resources are reoffered.
-  WAIT_UNTIL(resourceOffersCall2);
-  ASSERT_EQ(
-      Resources(offers1[0].resources()), Resources(offers2[0].resources()));
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
