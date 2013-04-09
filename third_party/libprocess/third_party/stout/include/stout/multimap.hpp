@@ -1,9 +1,9 @@
 #ifndef __STOUT_MULTIMAP_HPP__
 #define __STOUT_MULTIMAP_HPP__
 
+#include <algorithm>
+#include <list>
 #include <map>
-#include <set>
-
 #include <utility>
 
 // Implementation of a multimap via std::multimap but with a better
@@ -16,7 +16,7 @@ class Multimap : public std::multimap<K, V>
 {
 public:
   void put(const K& key, const V& value);
-  std::set<V> get(const K& key) const;
+  std::list<V> get(const K& key) const;
   bool remove(const K& key);
   bool remove(const K& key, const V& value);
   bool contains(const K& key) const;
@@ -32,9 +32,9 @@ void Multimap<K, V>::put(const K& key, const V& value)
 
 
 template <typename K, typename V>
-std::set<V> Multimap<K, V>::get(const K& key) const
+std::list<V> Multimap<K, V>::get(const K& key) const
 {
-  std::set<V> values; // Values to return.
+  std::list<V> values; // Values to return.
 
   std::pair<typename std::multimap<K, V>::const_iterator,
     typename std::multimap<K, V>::const_iterator> range;
@@ -43,7 +43,7 @@ std::set<V> Multimap<K, V>::get(const K& key) const
 
   typename std::multimap<K, V>::const_iterator i;
   for (i = range.first; i != range.second; ++i) {
-    values.insert(i->second);
+    values.push_back(i->second);
   }
 
   return values;
@@ -87,8 +87,8 @@ bool Multimap<K, V>::contains(const K& key) const
 template <typename K, typename V>
 bool Multimap<K, V>::contains(const K& key, const V& value) const
 {
-  const std::set<V>& values = get(key);
-  return values.count(value) > 0;
+  const std::list<V>& values = get(key);
+  return std::find(values.begin(), values.end(), value) != values.end();
 }
 
 #endif // __STOUT_MULTIMAP_HPP__

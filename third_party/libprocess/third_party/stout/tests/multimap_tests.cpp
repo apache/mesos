@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include <stout/foreach.hpp>
 #include <stout/multimap.hpp>
 #include <stout/multihashmap.hpp>
 
