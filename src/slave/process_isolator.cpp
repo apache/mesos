@@ -26,6 +26,7 @@
 #endif
 
 #include <map>
+#include <set>
 
 #include <process/clock.hpp>
 #include <process/dispatch.hpp>
@@ -51,6 +52,7 @@
 using namespace process;
 
 using std::map;
+using std::set;
 using std::string;
 
 using process::wait; // Necessary on some OS's to disambiguate.
@@ -361,22 +363,59 @@ Future<ResourceStatistics> ProcessIsolator::usage(
   // Get the page size, used for memory accounting.
   // NOTE: This is more portable than using getpagesize().
   long pageSize = sysconf(_SC_PAGESIZE);
+  PCHECK(pageSize > 0) << "Failed to get sysconf(_SC_PAGESIZE)";
 
   // Get the number of clock ticks, used for cpu accounting.
   long ticks = sysconf(_SC_CLK_TCK);
+  PCHECK(ticks > 0) << "Failed to get sysconf(_SC_CLK_TCK)";
 
   CHECK_SOME(info->pid);
-  Try<proc::ProcessStatistics> stat = proc::stat(info->pid.get());
 
-  if (stat.isSome() && pageSize > 0) {
-    result.set_memory_rss(stat.get().rss * pageSize);
+  // Get the parent process usage statistics.
+  Try<proc::ProcessStatus> status = proc::status(info->pid.get());
+
+  if (status.isError()) {
+    return Future<ResourceStatistics>::failed(status.error());
   }
 
-  if (stat.isSome() && ticks > 0) {
-    result.set_cpu_user_time((double) stat.get().utime / (double) ticks);
-    result.set_cpu_system_time((double) stat.get().stime / (double) ticks);
+  result.set_memory_rss(status.get().rss * pageSize);
+  result.set_cpu_user_time((double) status.get().utime / (double) ticks);
+  result.set_cpu_system_time((double) status.get().stime / (double) ticks);
+
+  // Now aggregate all descendant process usage statistics.
+  Try<set<pid_t> > children = proc::children(info->pid.get(), true);
+
+  if (children.isError()) {
+    return Future<ResourceStatistics>::failed(
+        "Failed to get children of " + stringify(info->pid.get()) + ": " +
+        children.error());
+  }
+
+  // Aggregate the usage of all child processes.
+  foreach (pid_t child, children.get()) {
+    status = proc::status(child);
+
+    if (status.isError()) {
+      LOG(WARNING) << "Failed to get status of descendant process " << child
+                   << " of parent " << info->pid.get() << ": "
+                   << status.error();
+      continue;
+    }
+
+    result.set_memory_rss(
+        result.memory_rss() +
+        status.get().rss * pageSize);
+
+    result.set_cpu_user_time(
+        result.cpu_user_time() +
+        (double) status.get().utime / (double) ticks);
+
+    result.set_cpu_system_time(
+        result.cpu_system_time() +
+        (double) status.get().stime / (double) ticks);
   }
 #elif defined __APPLE__
+  // TODO(bmahler): Aggregate the usage of all child processes.
   // NOTE: There are several pitfalls to using proc_pidinfo().
   // In particular:
   //   -This will not work for many root processes.
@@ -385,19 +424,22 @@ Future<ResourceStatistics> ProcessIsolator::usage(
   // This beats using task_for_pid(), which only works for the same pid.
   // For further discussion around these issues,
   // see: http://code.google.com/p/psutil/issues/detail?id=297
-  struct proc_taskinfo task;
+  CHECK_SOME(info->pid);
+
+  proc_taskinfo task;
   int size =
     proc_pidinfo(info->pid.get(), PROC_PIDTASKINFO, 0, &task, sizeof(task));
 
-  if (size == sizeof(task)) {
-    result.set_memory_rss(task.pti_resident_size);
-
-    // NOTE: CPU Times are in nanoseconds, but this is not documented!
-    result.set_cpu_user_time(Nanoseconds(task.pti_total_user).secs());
-    result.set_cpu_system_time(Nanoseconds(task.pti_total_system).secs());
-  } else {
-    LOG(WARNING) << "Failed to get proc_pidinfo: " << size;
+  if (size != sizeof(task)) {
+    return Future<ResourceStatistics>::failed(
+        "Failed to get proc_pidinfo: " + stringify(size));
   }
+
+  result.set_memory_rss(task.pti_resident_size);
+
+  // NOTE: CPU Times are in nanoseconds, but this is not documented!
+  result.set_cpu_user_time(Nanoseconds(task.pti_total_user).secs());
+  result.set_cpu_system_time(Nanoseconds(task.pti_total_system).secs());
 #endif
 
   return result;
