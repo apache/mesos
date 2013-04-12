@@ -7,6 +7,7 @@
 
 #include <fstream>
 #include <list>
+#include <queue>
 #include <set>
 #include <string>
 #include <vector>
@@ -24,6 +25,7 @@
 
 using std::ifstream;
 using std::list;
+using std::queue;
 using std::set;
 using std::string;
 using std::vector;
@@ -50,6 +52,46 @@ Try<set<pid_t> > pids()
   } else {
     return Error("Failed to determine pids from /proc");
   }
+}
+
+
+Try<set<pid_t> > children(pid_t pid, bool recursive)
+{
+  const Try<set<pid_t> >& pids = proc::pids();
+  if (pids.isError()) {
+    return Error(pids.error());
+  }
+
+  // Stat all the processes.
+  list<ProcessStatus> processes;
+  foreach (pid_t _pid, pids.get()) {
+    const Try<ProcessStatus>& process = status(_pid);
+    if (process.isSome()) {
+      processes.push_back(process.get());
+    }
+  }
+
+  // Perform a breadth first search for descendants.
+  set<pid_t> descendants;
+  queue<pid_t> parents;
+  parents.push(pid);
+
+  do {
+    pid_t parent = parents.front();
+    parents.pop();
+
+    // Search for children of parent.
+    foreach (const ProcessStatus& process, processes) {
+      if (process.ppid == parent) {
+        // Have we seen this child yet?
+        if (descendants.insert(process.pid).second) {
+          parents.push(process.pid);
+        }
+      }
+    }
+  } while (recursive && !parents.empty());
+
+  return descendants;
 }
 
 
@@ -127,7 +169,7 @@ Try<list<CPU> > cpus()
 }
 
 
-Try<SystemStatistics> stat()
+Try<SystemStatus> status()
 {
   unsigned long long btime = 0;
 
@@ -158,11 +200,11 @@ Try<SystemStatistics> stat()
 
   file.close();
 
-  return SystemStatistics(btime);
+  return SystemStatus(btime);
 }
 
 
-Try<ProcessStatistics> stat(pid_t pid)
+Try<ProcessStatus> status(pid_t pid)
 {
   string path = "/proc/" + stringify(pid) + "/stat";
 
@@ -234,12 +276,12 @@ Try<ProcessStatistics> stat(pid_t pid)
 
   file.close();
 
-  return ProcessStatistics(pid, comm, state, ppid, pgrp, session, tty_nr,
-                           tpgid, flags, minflt, cminflt, majflt, cmajflt,
-                           utime, stime, cutime, cstime, priority, nice,
-                           num_threads, itrealvalue, starttime, vsize, rss,
-                           rsslim, startcode, endcode, startstack, kstkeip,
-                           signal, blocked, sigcatch, wchan, nswap, cnswap);
+  return ProcessStatus(pid, comm, state, ppid, pgrp, session, tty_nr,
+                       tpgid, flags, minflt, cminflt, majflt, cmajflt,
+                       utime, stime, cutime, cstime, priority, nice,
+                       num_threads, itrealvalue, starttime, vsize, rss,
+                       rsslim, startcode, endcode, startstack, kstkeip,
+                       signal, blocked, sigcatch, wchan, nswap, cnswap);
 }
 
 } // namespace proc {

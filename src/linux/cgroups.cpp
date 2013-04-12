@@ -1237,15 +1237,15 @@ private:
       // possible to add new processes into this cgroup or remove processes from
       // this cgroup when freezer.state is in FREEZING state.
       foreach (pid_t pid, pids.get()) {
-        Try<proc::ProcessStatistics> stat = proc::stat(pid);
-        if (stat.isError()) {
-          promise.fail("Failed to get process statistics: " + stat.error());
+        Try<proc::ProcessStatus> status = proc::status(pid);
+        if (status.isError()) {
+          promise.fail("Failed to get process statistics: " + status.error());
           terminate(self());
           return;
         }
 
         // Check whether the process is in stopped/traced state.
-        if (stat.get().state == 'T') {
+        if (status.get().state == 'T') {
           // Send a SIGCONT signal to the process.
           if (::kill(pid, SIGCONT) == -1) {
             promise.fail(

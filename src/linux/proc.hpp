@@ -33,21 +33,25 @@ namespace proc {
 
 // Forward declarations.
 struct CPU;
-struct SystemStatistics;
-struct ProcessStatistics;
+struct SystemStatus;
+struct ProcessStatus;
 
 
 // Reads from /proc and returns a list of all running processes.
 Try<std::set<pid_t> > pids();
 
+// Returns all child processes of the pid, including all descendants
+// if recursive.
+Try<std::set<pid_t> > children(pid_t pid, bool recursive = true);
+
 // Reads from /proc/cpuinfo and returns a list of CPUs.
 Try<std::list<CPU> > cpus();
 
 // Returns the system statistics from /proc/stat.
-Try<SystemStatistics> stat();
+Try<SystemStatus> status();
 
 // Returns the process statistics from /proc/[pid]/stat.
-Try<ProcessStatistics> stat(pid_t pid);
+Try<ProcessStatus> status(pid_t pid);
 
 // Representation of a processor (really an execution unit since this
 // captures "hardware threads" as well) modeled after /proc/cpuinfo.
@@ -96,9 +100,9 @@ inline std::ostream& operator << (std::ostream& out, const CPU& cpu)
 
 
 // Snapshot of a system (modeled after /proc/stat).
-struct SystemStatistics
+struct SystemStatus
 {
-  SystemStatistics(unsigned long long _btime)
+  SystemStatus(unsigned long long _btime)
     : btime(_btime)
   {}
 
@@ -110,9 +114,9 @@ struct SystemStatistics
 // Snapshot of a process (modeled after /proc/[pid]/stat).
 // For more information, see:
 // http://www.kernel.org/doc/Documentation/filesystems/proc.txt
-struct ProcessStatistics
+struct ProcessStatus
 {
-  ProcessStatistics(
+  ProcessStatus(
       pid_t _pid,
       const std::string& _comm,
       char _state,
