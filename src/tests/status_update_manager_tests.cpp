@@ -18,14 +18,17 @@
 
 #include <gmock/gmock.h>
 
-#include <map>
+#include <list>
+#include <string>
 #include <vector>
 
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
-#include <process/pid.hpp>
+#include <process/clock.hpp>
+#include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/pid.hpp>
 
 #include <stout/none.hpp>
 #include <stout/os.hpp>
@@ -33,15 +36,10 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
-#include "detector/detector.hpp"
-
-#include "master/allocator.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/paths.hpp"
-#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
 #include "messages/messages.hpp"
@@ -53,159 +51,101 @@ using namespace mesos::internal;
 using namespace mesos::internal::tests;
 using namespace mesos::internal::slave::paths;
 
-using namespace process;
-
-using mesos::internal::master::Allocator;
-using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using process::Clock;
+using process::Future;
+using process::PID;
+
 using std::list;
-using std::map;
 using std::string;
 using std::vector;
 
 using testing::_;
-using testing::DoAll;
-using testing::Eq;
 using testing::Return;
-using testing::SaveArg;
 
 
-class StatusUpdateManagerTest: public MesosTest
+// TODO(benh): Move this into utils, make more generic, and use in
+// other tests.
+vector<TaskInfo> createTasks(const Offer& offer)
 {
-protected:
-  virtual void SetUp()
-  {
-    MesosTest::SetUp();
+  TaskInfo task;
+  task.set_name("test-task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(offer.resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-    ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
 
-    a = new Allocator(&allocator);
-    m = new Master(a, &files);
-    master = process::spawn(m);
+  return tasks;
+}
 
-    execs[DEFAULT_EXECUTOR_ID] = &exec;
 
-    isolator = new TestingIsolator(execs);
-
-    slaveFlags.checkpoint = true;
-
-    s = new Slave(slaveFlags, true, isolator, &files);
-    slave = process::spawn(s);
-
-    detector = new BasicMasterDetector(master, slave, true);
-
-    frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-    frameworkInfo.set_checkpoint(true); // Enable checkpointing.
-  }
-
-  virtual void TearDown()
-  {
-    delete detector;
-
-    process::terminate(slave);
-    process::wait(slave);
-    delete s;
-
-    delete isolator;
-    process::terminate(master);
-    process::wait(master);
-    delete m;
-    delete a;
-
-    MesosTest::TearDown();
-  }
-
-  vector<TaskInfo> createTasks(const Offer& offer)
-  {
-    TaskInfo task;
-    task.set_name("test-task");
-    task.mutable_task_id()->set_value("1");
-    task.mutable_slave_id()->MergeFrom(offer.slave_id());
-    task.mutable_resources()->MergeFrom(offer.resources());
-    task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
-
-    vector<TaskInfo> tasks;
-    tasks.push_back(task);
-
-    return tasks;
-  }
-
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator *a;
-  Master* m;
-  TestingIsolator* isolator;
-  Slave* s;
-  Files files;
-  BasicMasterDetector* detector;
-  FrameworkInfo frameworkInfo;
-  MockExecutor exec;
-  map<ExecutorID, Executor*> execs;
-  MockScheduler sched;
-  TaskStatus status;
-  PID<Master> master;
-  PID<Slave> slave;
-};
+class StatusUpdateManagerTest: public MesosClusterTest {};
 
 
 TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 {
-  // Message expectations.
-  trigger statusUpdateAckMsg;
-  EXPECT_MESSAGE(Eq(StatusUpdateAcknowledgementMessage().GetTypeName()),
-                 _,
-                 slave)
-    .WillRepeatedly(DoAll(Trigger(&statusUpdateAckMsg), Return(false)));
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  // Executor expectations.
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .WillRepeatedly(Return());
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+  MockExecutor exec;
 
-  trigger shutdownCall;
-  EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(Trigger(&shutdownCall));
+  slave::Flags flags = cluster.slaves.flags;
+  flags.checkpoint = true;
+  Try<PID<Slave> > slave = cluster.slaves.start(
+      flags, DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
 
-  // Scheduler expectations.
+  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true); // Enable checkpointing.
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  trigger statusUpdateCall;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)))
-    .WillRepeatedly(Return());
-
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master);
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_NE(0u, offers.size());
-  driver.launchTasks(offers[0].id(), createTasks(offers[0]));
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
 
-  WAIT_UNTIL(statusUpdateCall);
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
 
-  // Check if the status update was properly checkpointed.
-  WAIT_UNTIL(statusUpdateAckMsg);
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdateAcknowledgement);
 
-  sleep(1); // To make sure the status updates manager acted on the ACK.
+  driver.launchTasks(offers.get()[0].id(), createTasks(offers.get()[0]));
 
-  // Ensure that both the status update and its acknowledgement
-  // are correctly checkpointed.
-  Try<list<string> > found = os::find(slaveFlags.work_dir, TASK_UPDATES_FILE);
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  AWAIT_UNTIL(_statusUpdateAcknowledgement);
+
+  // Ensure that both the status update and its acknowledgement are
+  // correctly checkpointed.
+  Try<list<string> > found = os::find(flags.work_dir, TASK_UPDATES_FILE);
   ASSERT_SOME(found);
   ASSERT_EQ(1u, found.get().size());
 
@@ -218,8 +158,8 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
   Result<StatusUpdateRecord> record = None();
   while (true) {
     record = ::protobuf::read<StatusUpdateRecord>(fd.get());
-
-    if (!record.isSome()) {
+    ASSERT_FALSE(record.isError());
+    if (record.isNone()) { // Reached EOF.
       break;
     }
 
@@ -233,76 +173,94 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
     }
   }
 
-  ASSERT_TRUE(record.isNone());
   ASSERT_EQ(1, updates);
   ASSERT_EQ(1, acks);
+
+  close(fd.get());
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(FutureSatisfy(&shutdown));
 
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+
+  cluster.shutdown();
 }
 
 
 TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 {
-  // Message expectations.
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  // Drop the first status update message.
-  trigger statusUpdateMsgDrop;
-  EXPECT_MESSAGE(Eq(StatusUpdateMessage().GetTypeName()), master, _)
-    .WillOnce(DoAll(Trigger(&statusUpdateMsgDrop), Return(true)))
-    .WillRepeatedly(Return(false));
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
-  // Executor expectations.
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .WillRepeatedly(Return());
+  MockExecutor exec;
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+  slave::Flags flags = cluster.slaves.flags;
+  flags.checkpoint = true;
+  Try<PID<Slave> > slave = cluster.slaves.start(
+      flags, DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
 
-  trigger shutdownCall;
-  EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(Trigger(&shutdownCall));
+  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
-  // Scheduler expectations.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers), Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
-
-  trigger statusUpdateCall;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)))
-    .WillRepeatedly(Return());
-
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master);
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    DROP_PROTOBUF(StatusUpdateMessage(), master.get(), _);
 
   Clock::pause();
 
-  EXPECT_NE(0u, offers.size());
-  driver.launchTasks(offers[0].id(), createTasks(offers[0]));
+  driver.launchTasks(offers.get()[0].id(), createTasks(offers.get()[0]));
 
-  WAIT_UNTIL(statusUpdateMsgDrop);
+  AWAIT_UNTIL(statusUpdateMessage);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
 
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL.secs());
 
-  WAIT_UNTIL(statusUpdateCall);
+  AWAIT_UNTIL(status);
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   Clock::resume();
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(FutureSatisfy(&shutdown));
 
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+
+  cluster.shutdown();
 }
