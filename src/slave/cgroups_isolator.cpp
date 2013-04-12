@@ -708,15 +708,28 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
   Try<hashmap<string, uint64_t> > stat =
     cgroups::stat(hierarchy, info->name(), "cpuacct.stat");
 
-  if (stat.isSome() && ticks > 0 &&
-      stat.get().contains("user") && stat.get().contains("system")) {
+  if (stat.isError()) {
+    return Future<ResourceStatistics>::failed(
+        "Failed to read cpuacct.stat: " + stat.error());
+  }
+
+  // TODO(bmahler): Add namespacing to cgroups to enforce the expected
+  // structure, e.g., cgroups::cpuacct::stat.
+  if (stat.get().contains("user") && stat.get().contains("system")) {
     result.set_cpu_user_time((double) stat.get()["user"] / (double) ticks);
     result.set_cpu_system_time((double) stat.get()["system"] / (double) ticks);
   }
 
   stat = cgroups::stat(hierarchy, info->name(), "memory.stat");
 
-  if (stat.isSome() && stat.get().contains("rss")) {
+  if (stat.isError()) {
+    return Future<ResourceStatistics>::failed(
+        "Failed to read memory.stat: " + stat.error());
+  }
+
+  // TODO(bmahler): Add namespacing to cgroups to enforce the expected
+  // structure, e.g, cgroups::memory::stat.
+  if (stat.get().contains("rss")) {
     result.set_memory_rss(stat.get()["rss"]);
   }
 
