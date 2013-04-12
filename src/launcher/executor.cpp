@@ -17,6 +17,7 @@
  */
 
 #include <signal.h>
+#include <stdio.h>
 
 #include <sys/wait.h>
 
@@ -25,8 +26,10 @@
 
 #include <mesos/executor.hpp>
 
+#include <stout/os.hpp>
 #include <stout/strings.hpp>
 
+#include "common/process_utils.hpp"
 #include "common/thread.hpp"
 
 #include "logging/logging.hpp"
@@ -121,6 +124,30 @@ public:
 
     std::cout << "Starting task " << task.task_id().value() << std::endl;
 
+    // Use pipes to determine which child has successfully changed
+    // session. This is needed as the setsid call can fail from other
+    // processes having the same group id.
+    int pipes[2];
+    if (pipe(pipes) < 0) {
+      perror("Failed to create a pipe");
+      abort();
+    }
+
+    // Set the FD_CLOEXEC flags on these pipes
+    Try<Nothing> cloexec = os::cloexec(pipes[0]);
+    if (cloexec.isError()) {
+      std::cerr << "Failed to cloexec(pipe[0]): " << cloexec.error()
+                << std::endl;
+      abort();
+    }
+
+    cloexec = os::cloexec(pipes[1]);
+    if (cloexec.isError()) {
+      std::cerr << "Failed to cloexec(pipe[1]): " << cloexec.error()
+                << std::endl;
+      abort();
+    }
+
     if ((pid = fork()) == -1) {
       std::cerr << "Failed to fork to run '" << task.command().value() << "': "
                 << strerror(errno) << std::endl;
@@ -128,13 +155,57 @@ public:
     }
 
     if (pid == 0) {
-      // In child process, execute the command (via '/bin/sh -c command').
+      // In child process, we make cleanup easier by putting process
+      // into it's own session.
+      close(pipes[0]);
+
+      // NOTE: We setsid() in a loop because setsid() might fail if another
+      // process has the same process group id as the calling process.
+      while ((pid = setsid()) == -1) {
+        perror("Could not put command in its own session, setsid");
+
+        std::cout << "Forking another process and retrying" << std::endl;
+
+        if ((pid = fork()) == -1) {
+          perror("Failed to fork to launch command");
+          abort();
+        }
+
+        if (pid > 0) {
+          // In parent process. It is ok to suicide here, because
+          // we're not watching this process.
+          exit(0);
+        }
+      }
+
+      if (write(pipes[1], &pid, sizeof(pid)) != sizeof(pid)) {
+        perror("Failed to write PID on pipe");
+        abort();
+      }
+
+      close(pipes[1]);
+
+      // The child has successfully setsid, now run the command.
       std::cout << "sh -c '" << task.command().value() << "'" << std::endl;
       execl("/bin/sh", "sh", "-c",
             task.command().value().c_str(), (char*) NULL);
-      std::cerr << "Failed to exec: " << strerror(errno) << std::endl;
+      perror("Failed to exec");
       abort();
     }
+
+    // In parent process.
+    close(pipes[1]);
+
+    // Get the child's pid via the pipe.
+    if (read(pipes[0], &pid, sizeof(pid)) == -1) {
+      std::cerr << "Failed to get child PID from pipe, read: "
+                << strerror(errno) << std::endl;
+      abort();
+    }
+
+    close(pipes[0]);
+
+    std::cout << "Forked command at " << pid << std::endl;
 
     // In parent process, fork a thread to wait for this process.
     thread::start(std::tr1::bind(&waiter, pid, task.task_id(), driver));
@@ -151,7 +222,7 @@ public:
   {
     // TODO(benh): Do kill escalation (i.e., after n seconds, kill -9).
     if (pid > 0) {
-      kill(pid, SIGTERM);
+      utils::process::killtree(pid, SIGTERM, true, true, true);
     }
   }
 
@@ -161,7 +232,7 @@ public:
   {
     // TODO(benh): Do kill escalation (i.e., after n seconds, kill -9).
     if (pid > 0) {
-      kill(pid, SIGTERM);
+      utils::process::killtree(pid, SIGTERM, true, true, true);
     }
   }
 

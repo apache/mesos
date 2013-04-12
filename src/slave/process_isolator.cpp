@@ -176,7 +176,7 @@ void ProcessIsolator::launchExecutor(
     // NOTE: We setsid() in a loop because setsid() might fail if another
     // process has the same process group id as the calling process.
     while ((pid = setsid()) == -1) {
-      perror("Could not put executor in own session");
+      perror("Could not put executor in its own session");
 
       std::cout << "Forking another process and retrying ..." << std::endl;
 
