@@ -31,8 +31,6 @@
 
 #include "detector/detector.hpp"
 
-#include "master/allocator.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"
@@ -43,14 +41,12 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
-using mesos::internal::master::Allocator;
-using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using process::Future;
 using process::PID;
-using process::UPID;
 
 using std::map;
 using std::vector;
@@ -58,68 +54,52 @@ using std::vector;
 using testing::_;
 
 
-class MasterDetectorTest : public MesosTest
-{};
+class MasterDetectorTest : public MesosClusterTest {};
 
 
 TEST_F(MasterDetectorTest, File)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
-  map<ExecutorID, Executor*> execs;
-
-  TestingIsolator isolator(execs);
-
-  Slave s(slaveFlags, true, &isolator, &files);
+  TestingIsolator isolator;
+  Slave s(cluster.slaves.flags, true, &isolator, &cluster.files);
   PID<Slave> slave = process::spawn(&s);
 
   // Write "master" to a file and use the "file://" mechanism to
-  // create a master detector for the slave. Still requires a master
-  // detector for the master first. TODO(benh): We should really make
-  // a utility for creating temporary files/directories.
+  // create a master detector for the slave.
+  Try<std::string> path = os::mktemp();
+  ASSERT_SOME(path);
+  ASSERT_SOME(os::write(path.get(), master.get()));
 
-  BasicMasterDetector detector1(master, vector<UPID>(), true);
+  Try<MasterDetector*> detector =
+    MasterDetector::create("file://" + path.get(), slave, false, true);
 
-  std::string path = "/tmp/mesos-tests_" + UUID::random().toString();
-  std::ofstream file(path.c_str());
-  ASSERT_TRUE(file.is_open());
-  file << master << std::endl;
-  file.close();
+  os::rm(path.get());
 
-  Try<MasterDetector*> detector2 =
-    MasterDetector::create("file://" + path, slave, false, true);
-
-  os::rm(path);
-
-  ASSERT_SOME(detector2);
+  ASSERT_SOME(detector);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
-
-  trigger resourceOffersCall;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(Trigger(&resourceOffersCall));
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_UNTIL(offers);
 
   driver.stop();
   driver.join();
 
+  cluster.shutdown();
+
   process::terminate(slave);
   process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
 }
