@@ -830,7 +830,7 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
 
 // Forward declaration.
 template <typename T>
-process::Future<T> _FutureProtobuf(const process::Message& message);
+T _FutureProtobuf(const process::Message& message);
 
 
 template <typename T, typename From, typename To>
@@ -845,7 +845,7 @@ process::Future<T> FutureProtobuf(T t, From from, To to, bool drop = false)
 
 
 template <typename T>
-process::Future<T> _FutureProtobuf(const process::Message& message)
+T _FutureProtobuf(const process::Message& message)
 {
   T t;
   t.ParseFromString(message.body);
