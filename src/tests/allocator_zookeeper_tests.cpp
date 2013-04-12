@@ -18,7 +18,9 @@
 
 #include <gmock/gmock.h>
 
+#include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/message.hpp>
 
 #include "detector/detector.hpp"
 
@@ -38,6 +40,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using process::Future;
 using process::PID;
 
 using std::map;
@@ -45,6 +48,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AtMost;
 using testing::DoAll;
 using testing::DoDefault;
 using testing::Eq;
@@ -90,38 +94,6 @@ TYPED_TEST_CASE(AllocatorZooKeeperTest, AllocatorTypes);
 // accounted for correctly.
 TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 {
-  EXPECT_CALL(this->allocator2, initialize(_, _));
-
-  trigger frameworkAddedCall;
-  EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator2),
-                    Trigger(&frameworkAddedCall)));
-
-  EXPECT_CALL(this->allocator2, frameworkDeactivated(_));
-
-  EXPECT_CALL(this->allocator2, frameworkRemoved(_));
-
-  EXPECT_CALL(this->allocator2, slaveAdded(_, _, _));
-
-  trigger slaveRemovedCall;
-  EXPECT_CALL(this->allocator2, slaveRemoved(_))
-    .WillOnce(Trigger(&slaveRemovedCall));
-
-  EXPECT_CALL(this->allocator2, resourcesRecovered(_, _, _))
-    .WillRepeatedly(DoDefault());
-
-  // Stop the failing master from telling the slave to shut down when
-  // it is killed.
-  trigger shutdownMsg;
-  EXPECT_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _)
-    .WillRepeatedly(DoAll(Trigger(&shutdownMsg),
-			  Return(true)));
-
-  // Stop the slave from reregistering with the new master until the
-  // framework has reregistered.
-  EXPECT_MESSAGE(Eq(ReregisterSlaveMessage().GetTypeName()), _, _)
-    .WillRepeatedly(Return(true));
-
   Files files;
   Master m(this->a1, &files);
   PID<Master> master1 = process::spawn(&m);
@@ -132,18 +104,8 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   ASSERT_SOME(detector);
 
   MockExecutor exec;
-
-  EXPECT_CALL(exec, registered(_, _, _, _));
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  trigger shutdownCall;
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(Trigger(&shutdownCall));
-
-  // By default, slaves in tests have cpus=2, mem=1024.
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  // By default, slaves in tests have cpus=2, mem=1024.
   Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
@@ -154,90 +116,128 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO,zk);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(2);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
-  vector<Offer> offers, offers2;
-  trigger resourceOffersCall, resourceOffersCall2;
+  Future<vector<Offer> > resourceOffers1;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-		    LaunchTasks(1, 1, 512),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(DoAll(SaveArg<1>(&offers2),
-			  Trigger(&resourceOffersCall2)));
+    .WillOnce(DoAll(LaunchTasks(1, 1, 500),
+                    FutureArg<1>(&resourceOffers1)))
+    .WillRepeatedly(DeclineOffers());
 
-  TaskStatus status;
-  trigger statusUpdateCall;
+  Future<TaskStatus> statusUpdate;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status),
-		    Trigger(&statusUpdateCall)));
+    .WillOnce(FutureArg<1>(&statusUpdate));
 
   EXPECT_CALL(sched, disconnected(_))
     .WillRepeatedly(DoDefault());
 
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, disconnected(_))
+    .WillRepeatedly(DoDefault());
+
+  Future<Nothing> resourcesChanged;
+  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
+    .WillOnce(FutureSatisfy(&resourcesChanged));
+
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_UNTIL(resourceOffers1);
 
   // The framework will be offered all of the resources on the slave,
   // since it is the only framework running.
-  EXPECT_THAT(offers, OfferEq(2, 1024));
+  EXPECT_THAT(resourceOffers1.get(), OfferEq(2, 1024));
 
-  Resources launchedResources = Resources::parse("cpus:1;mem:512");
-  trigger resourcesChangedCall;
-  EXPECT_CALL(isolator,
-              resourcesChanged(_, _, Resources(launchedResources)))
-    .WillOnce(Trigger(&resourcesChangedCall));
+  AWAIT_UNTIL(statusUpdate);
 
-  WAIT_UNTIL(statusUpdateCall);
+  EXPECT_EQ(TASK_RUNNING, statusUpdate.get().state());
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  // Ensures that the task has been fully launched before we kill the
+  // first master.
+  AWAIT_UNTIL(resourcesChanged);
 
-  WAIT_UNTIL(resourcesChangedCall);
+  // Stop the failing master from telling the slave to shut down when
+  // it is killed.
+  Future<process::Message> shutdownMsg =
+    DROP_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _);
+
+  // Stop the slave from reregistering with the new master until the
+  // framework has reregistered.
+  DROP_MESSAGES(Eq(ReregisterSlaveMessage().GetTypeName()), _, _);
 
   process::terminate(master1);
   process::wait(master1);
   MasterDetector::destroy(detector.get());
 
-  WAIT_UNTIL(shutdownMsg);
+  AWAIT_UNTIL(shutdownMsg);
 
   Files files2;
   Master m2(this->a2, &files2);
+
+  EXPECT_CALL(this->allocator2, initialize(_, _));
+
   PID<Master> master2 = process::spawn(m2);
+
+  Future<Nothing> frameworkAdded;
+  EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _))
+    .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator2),
+                    FutureSatisfy(&frameworkAdded)));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Try<MasterDetector*> detector2 =
     MasterDetector::create(zk, master2, true, true);
   ASSERT_SOME(detector2);
 
-  WAIT_UNTIL(frameworkAddedCall);
+  AWAIT_UNTIL(frameworkAdded);
 
-  // This ensures that even if the allocator made multiple allocations
-  // before the master was killed, we wait until the first allocation
-  // after the slave reregisters with the new master before checking
-  // that the allocation is correct.
-  resourceOffersCall2.value = false;
+  EXPECT_CALL(this->allocator2, slaveAdded(_, _, _));
+
+  Future<vector<Offer> > resourceOffers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&resourceOffers2));
 
   // We kill the filter so that ReregisterSlaveMessages can get
   // to the master now that the framework has been added, ensuring
   // that the slave reregisters after the framework.
   process::filter(NULL);
 
-  WAIT_UNTIL(resourceOffersCall2);
+  AWAIT_UNTIL(resourceOffers2);
 
   // Since the task is still running on the slave, the framework
   // should only be offered the resources not being used by the task.
-  EXPECT_THAT(offers2, OfferEq(1, 512));
+  EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
+
+  // Shut everything down.
+  EXPECT_CALL(this->allocator2, resourcesRecovered(_, _, _))
+    .WillRepeatedly(DoDefault());
+
+  EXPECT_CALL(this->allocator2, frameworkDeactivated(_));
+
+  Future<Nothing> frameworkRemoved;
+  EXPECT_CALL(this->allocator2, frameworkRemoved(_))
+    .WillOnce(FutureSatisfy(&frameworkRemoved));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+  AWAIT_UNTIL(frameworkRemoved);
+
+  Future<Nothing> slaveRemoved;
+  EXPECT_CALL(this->allocator2, slaveRemoved(_))
+    .WillOnce(FutureSatisfy(&slaveRemoved));
 
   process::terminate(slave);
   process::wait(slave);
   MasterDetector::destroy(slaveDetector.get());
 
-  WAIT_UNTIL(slaveRemovedCall);
+  AWAIT_UNTIL(slaveRemoved);
 
   process::terminate(master2);
   process::wait(master2);
@@ -247,42 +247,10 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
 // Checks that in the event of a master failure and the election of a
 // new master, if a slave reregisters before a framework that has
-// resources on it reregisters, all used and unused resources are
+// resources on reregisters, all used and unused resources are
 // accounted for correctly.
-TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
+TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 {
-  EXPECT_CALL(this->allocator2, initialize(_, _));
-
-  EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _));
-
-  EXPECT_CALL(this->allocator2, frameworkDeactivated(_));
-
-  EXPECT_CALL(this->allocator2, frameworkRemoved(_));
-
-  trigger slaveAddedCall;
-  EXPECT_CALL(this->allocator2, slaveAdded(_, _, _))
-    .WillOnce(DoAll(InvokeSlaveAdded(&this->allocator2),
-                    Trigger(&slaveAddedCall)));
-
-  trigger slaveRemovedCall;
-  EXPECT_CALL(this->allocator2, slaveRemoved(_))
-    .WillOnce(Trigger(&slaveRemovedCall));
-
-  EXPECT_CALL(this->allocator2, resourcesRecovered(_, _, _))
-    .WillRepeatedly(DoDefault());
-
-  // Stop the failing master from telling the slave to shut down when
-  // it is killed.
-  trigger shutdownMsg;
-  EXPECT_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _)
-    .WillRepeatedly(DoAll(Trigger(&shutdownMsg),
-                          Return(true)));
-
-  // Stop the framework from reregistering with the new master until
-  // the slave has reregistered.
-  EXPECT_MESSAGE(Eq(ReregisterFrameworkMessage().GetTypeName()), _, _)
-    .WillRepeatedly(Return(true));
-
   Files files;
   Master m(this->a1, &files);
   PID<Master> master1 = process::spawn(&m);
@@ -293,18 +261,8 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   ASSERT_SOME(detector);
 
   MockExecutor exec;
-
-  EXPECT_CALL(exec, registered(_, _, _, _));
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  trigger shutdownCall;
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(Trigger(&shutdownCall));
-
-  // By default, slaves in tests have cpus=2, mem=1024.
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  // By default, slaves in tests have cpus=2, mem=1024.
   Slave s(this->slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
@@ -315,90 +273,128 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregisterFirst)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO,zk);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(2);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
-  vector<Offer> offers, offers2;
-  trigger resourceOffersCall, resourceOffersCall2;
+  Future<vector<Offer> > resourceOffers1;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    LaunchTasks(1, 1, 512),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(DoAll(SaveArg<1>(&offers2),
-                          Trigger(&resourceOffersCall2)));
+    .WillOnce(DoAll(LaunchTasks(1, 1, 500),
+                    FutureArg<1>(&resourceOffers1)))
+    .WillRepeatedly(DeclineOffers());
 
-  TaskStatus status;
-  trigger statusUpdateCall;
+  Future<TaskStatus> statusUpdate;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status),
-		                Trigger(&statusUpdateCall)));
+    .WillOnce(FutureArg<1>(&statusUpdate));
 
   EXPECT_CALL(sched, disconnected(_))
     .WillRepeatedly(DoDefault());
 
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, disconnected(_))
+    .WillRepeatedly(DoDefault());
+
+  Future<Nothing> resourcesChanged;
+  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
+    .WillOnce(FutureSatisfy(&resourcesChanged));
+
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_UNTIL(resourceOffers1);
 
   // The framework will be offered all of the resources on the slave,
   // since it is the only framework running.
-  EXPECT_THAT(offers, OfferEq(2, 1024));
+  EXPECT_THAT(resourceOffers1.get(), OfferEq(2, 1024));
 
-  Resources launchedResources = Resources::parse("cpus:1;mem:512");
-  trigger resourcesChangedCall;
-  EXPECT_CALL(isolator,
-              resourcesChanged(_, _, Resources(launchedResources)))
-    .WillOnce(Trigger(&resourcesChangedCall));
+  AWAIT_UNTIL(statusUpdate);
 
-  WAIT_UNTIL(statusUpdateCall);
+  EXPECT_EQ(TASK_RUNNING, statusUpdate.get().state());
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  // Ensures that the task has been fully launched before we kill the
+  // first master.
+  AWAIT_UNTIL(resourcesChanged);
 
-  WAIT_UNTIL(resourcesChangedCall);
+  // Stop the failing master from telling the slave to shut down when
+  // it is killed.
+  Future<process::Message> shutdownMsg =
+    DROP_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _);
+
+  // Stop the framework from reregistering with the new master until the
+  // slave has reregistered.
+  DROP_MESSAGES(Eq(ReregisterFrameworkMessage().GetTypeName()), _, _);
 
   process::terminate(master1);
   process::wait(master1);
   MasterDetector::destroy(detector.get());
 
-  WAIT_UNTIL(shutdownMsg);
+  AWAIT_UNTIL(shutdownMsg);
 
   Files files2;
   Master m2(this->a2, &files2);
+
+  EXPECT_CALL(this->allocator2, initialize(_, _));
+
   PID<Master> master2 = process::spawn(m2);
+
+  Future<Nothing> slaveAdded;
+  EXPECT_CALL(this->allocator2, slaveAdded(_, _, _))
+    .WillOnce(DoAll(InvokeSlaveAdded(&this->allocator2),
+                    FutureSatisfy(&slaveAdded)));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Try<MasterDetector*> detector2 =
     MasterDetector::create(zk, master2, true, true);
   ASSERT_SOME(detector2);
 
-  WAIT_UNTIL(slaveAddedCall);
+  AWAIT_UNTIL(slaveAdded);
 
-  // This ensures that even if the allocator made multiple allocations
-  // before the master was killed, we wait until the first allocation
-  // after the framework reregisters with the new master before
-  // checking that the allocation is correct.
-  resourceOffersCall2.value = false;
+  EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _));
+
+  Future<vector<Offer> > resourceOffers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&resourceOffers2));
 
   // We kill the filter so that ReregisterFrameworkMessages can get
-  // to the master now that the slave has been added, ensuring
+  // to the master now that the framework has been added, ensuring
   // that the framework reregisters after the slave.
   process::filter(NULL);
 
-  WAIT_UNTIL(resourceOffersCall2);
+  AWAIT_UNTIL(resourceOffers2);
 
   // Since the task is still running on the slave, the framework
   // should only be offered the resources not being used by the task.
-  EXPECT_THAT(offers2, OfferEq(1, 512));
+  EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
+
+  // Shut everything down.
+  EXPECT_CALL(this->allocator2, resourcesRecovered(_, _, _))
+    .WillRepeatedly(DoDefault());
+
+  EXPECT_CALL(this->allocator2, frameworkDeactivated(_));
+
+  Future<Nothing> frameworkRemoved;
+  EXPECT_CALL(this->allocator2, frameworkRemoved(_))
+    .WillOnce(FutureSatisfy(&frameworkRemoved));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
 
-  WAIT_UNTIL(shutdownCall); // Ensures MockExecutor can be deallocated.
+  AWAIT_UNTIL(frameworkRemoved);
+
+  Future<Nothing> slaveRemoved;
+  EXPECT_CALL(this->allocator2, slaveRemoved(_))
+    .WillOnce(FutureSatisfy(&slaveRemoved));
 
   process::terminate(slave);
   process::wait(slave);
   MasterDetector::destroy(slaveDetector.get());
 
-  WAIT_UNTIL(slaveRemovedCall);
+  AWAIT_UNTIL(slaveRemoved);
 
   process::terminate(master2);
   process::wait(master2);
