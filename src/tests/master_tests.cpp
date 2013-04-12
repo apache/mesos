@@ -17,31 +17,30 @@
  */
 
 #include <unistd.h>
+
 #include <gmock/gmock.h>
+
+#include <map>
+#include <string>
+#include <vector>
 
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
-#include <process/dispatch.hpp>
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/pid.hpp>
 
-#include <stout/duration.hpp>
-#include <stout/error.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
-
-#include "detector/detector.hpp"
-
-#include "local/local.hpp"
-
-#include "logging/flags.hpp"
-
-#include "flags/flags.hpp"
+#include <stout/try.hpp>
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/flags.hpp"
 #include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
@@ -62,8 +61,8 @@ using process::Clock;
 using process::Future;
 using process::PID;
 
-using std::string;
 using std::map;
+using std::string;
 using std::vector;
 
 using testing::_;
