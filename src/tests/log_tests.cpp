@@ -693,8 +693,7 @@ TEST(CoordinatorTest, Fill)
 
 TEST(CoordinatorTest, NotLearnedFill)
 {
-  EXPECT_MESSAGE(Eq(LearnedMessage().GetTypeName()), _, _)
-    .WillRepeatedly(Return(true));
+  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, _);
 
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
@@ -814,8 +813,7 @@ TEST(CoordinatorTest, MultipleAppends)
 
 TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
 {
-  EXPECT_MESSAGE(Eq(LearnedMessage().GetTypeName()), _, _)
-    .WillRepeatedly(Return(true));
+  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, _);
 
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
@@ -946,8 +944,7 @@ TEST(CoordinatorTest, Truncate)
 
 TEST(CoordinatorTest, TruncateNotLearnedFill)
 {
-  EXPECT_MESSAGE(Eq(LearnedMessage().GetTypeName()), _, _)
-    .WillRepeatedly(Return(true));
+  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, _);
 
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
