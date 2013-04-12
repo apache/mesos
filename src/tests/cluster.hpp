@@ -73,6 +73,8 @@ public:
     // Start and manage a new master.
     Try<process::PID<master::Master> > start();
     Try<process::PID<master::Master> > start(const master::Flags& flags);
+    Try<process::PID<master::Master> > start(
+        master::AllocatorProcess* allocatorProcess);
 
     // Stops and cleans up a master at the specified PID.
     Try<Nothing> stop(const process::PID<master::Master>& pid);
@@ -257,6 +259,33 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 }
 
 
+inline Try<process::PID<master::Master> > Cluster::Masters::start(
+    master::AllocatorProcess* allocatorProcess)
+{
+  // Disallow multiple masters when not using ZooKeeper.
+  if (!masters.empty() && url.isNone()) {
+    return Error("Can not start multiple masters when not using ZooKeeper");
+  }
+
+  Master master;
+  master.allocatorProcess = NULL;
+  master.allocator = new master::Allocator(allocatorProcess);
+  master.master = new master::Master(master.allocator, &cluster->files, flags);
+
+  process::PID<master::Master> pid = process::spawn(master.master);
+
+  if (url.isSome()) {
+    master.detector = new ZooKeeperMasterDetector(url.get(), pid, true, true);
+  } else {
+    master.detector = new BasicMasterDetector(pid);
+  }
+
+  masters[pid] = master;
+
+  return pid;
+}
+
+
 inline Try<Nothing> Cluster::Masters::stop(
     const process::PID<master::Master>& pid)
 {
@@ -271,7 +300,10 @@ inline Try<Nothing> Cluster::Masters::stop(
   delete master.master;
 
   delete master.allocator; // Terminates and waits for the allocator process.
-  delete master.allocatorProcess;
+
+  if (master.allocatorProcess != NULL) {
+    delete master.allocatorProcess;
+  }
 
   delete master.detector;
 
