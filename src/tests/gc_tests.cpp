@@ -30,6 +30,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
+#include <stout/nothing.hpp>
 #include <stout/os.hpp>
 
 #include "common/resources.hpp"
@@ -40,13 +41,12 @@
 
 #include "local/local.hpp"
 
-#include "master/allocator.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
+#include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/utils.hpp"
@@ -55,8 +55,6 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
-using mesos::internal::master::Allocator;
-using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::GarbageCollector;
@@ -73,14 +71,9 @@ using std::vector;
 
 using testing::_;
 using testing::AtMost;
-using testing::DoAll;
-using testing::Eq;
 using testing::Return;
-using testing::SaveArg;
-
 
 class GarbageCollectorTest : public TemporaryDirectoryTest {};
-
 
 TEST_F(GarbageCollectorTest, Schedule)
 {
@@ -246,172 +239,94 @@ TEST_F(GarbageCollectorTest, Prune)
 }
 
 
-class GarbageCollectorIntegrationTest : public MesosTest
-{
-protected:
-  virtual void SetUp()
-  {
-    MesosTest::SetUp();
-
-    ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-    a = new Allocator(&allocator);
-    files = new Files();
-    m = new Master(a, files);
-    master = process::spawn(m);
-
-    execs[DEFAULT_EXECUTOR_ID] = &exec;
-
-    Resources resources = Resources::parse(slaveFlags.resources.get());
-    Value::Scalar none;
-    cpus = resources.get("cpus", none).value();
-    mem = resources.get("mem", none).value();
-  }
-
-  virtual void TearDown()
-  {
-    stopSlave();
-
-    process::terminate(master);
-    process::wait(master);
-    delete m;
-    delete a;
-    delete files;
-
-    MesosTest::TearDown();
-  }
-
-  void startSlave()
-  {
-    isolator = new TestingIsolator(execs);
-
-    s = new Slave(slaveFlags, true, isolator, files);
-    slave = process::spawn(s);
-
-    detector = new BasicMasterDetector(master, slave, true);
-  }
-
-  void stopSlave()
-  {
-    delete detector;
-
-    process::terminate(slave);
-    process::wait(slave);
-    delete s;
-
-    delete isolator;
-  }
-
-  void restartSlave()
-  {
-    stopSlave();
-    startSlave();
-  }
-
-  Allocator* a;
-  HierarchicalDRFAllocatorProcess allocator;
-  Master* m;
-  TestingIsolator* isolator;
-  Slave* s;
-  Files* files;
-  BasicMasterDetector* detector;
-  MockExecutor exec, exec1;
-  map<ExecutorID, Executor*> execs;
-  MockScheduler sched;
-  SlaveRegisteredMessage registeredMsg;
-  TaskStatus status;
-  PID<Master> master;
-  PID<Slave> slave;
-  double cpus;
-  double mem;
-};
-
+class GarbageCollectorIntegrationTest : public MesosClusterTest {};
 
 TEST_F(GarbageCollectorIntegrationTest, Restart)
 {
-  // Messages expectations.
-  process::Message message;
-  trigger slaveRegisteredMsg;
-  EXPECT_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(
-        SaveArgField<0>(&process::MessageEvent::message, &message),
-        Trigger(&slaveRegisteredMsg),
-        Return(false)))
-    .WillOnce(Return(false));
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  trigger lostSlaveMsg;
-  EXPECT_MESSAGE(Eq(LostSlaveMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&lostSlaveMsg),
-                    Return(false)));
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
-  // Executor expectations.
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .WillRepeatedly(Return());
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+  MockExecutor exec;
 
-  EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(Return());
+  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
 
-  // Scheduler expectations.
+  AWAIT_UNTIL(slaveRegisteredMessage);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
 
+  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  double cpus = resources.get("cpus", Value::Scalar()).value();
+  double mem = resources.get("mem", Value::Scalar()).value();
+
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(1, cpus, mem))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  trigger statusUpdateCall;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)))
-    .WillRepeatedly(Return()); // Ignore remaining updates (e.g., TASK_LOST).
-
-  EXPECT_CALL(sched, slaveLost(_, _))
+  EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
-  startSlave();
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  WAIT_UNTIL(slaveRegisteredMsg);
-
-  // Capture the slave id.
-  registeredMsg.ParseFromString(message.body);
-  SlaveID slaveId = registeredMsg.slave_id();
-
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
 
   driver.start();
 
-  WAIT_UNTIL(statusUpdateCall);
-
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Make sure directory exists. Need to do this AFTER getting a
   // status update for a task because the directory won't get created
-  // until the SlaveRegisteredMessage has been received.
-  const std::string& slaveDir =
-    slaveFlags.work_dir + "/slaves/" + slaveId.value();
+  // until the task is launched. We get the slave ID from the
+  // SlaveRegisteredMessage.
+  const std::string& slaveDir = slave::paths::getSlavePath(
+      cluster.slaves.flags.work_dir,
+      slaveRegisteredMessage.get().slave_id());
 
   ASSERT_TRUE(os::exists(slaveDir));
 
   Clock::pause();
 
-  stopSlave();
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
 
-  WAIT_UNTIL(lostSlaveMsg);
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
 
-  trigger scheduleDispatch;
-  EXPECT_DISPATCH(_, &GarbageCollectorProcess::schedule)
-    .WillOnce(DoAll(Trigger(&scheduleDispatch),
-                    Return(false)));
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(_, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
 
-  startSlave();
+  cluster.slaves.stop(slave.get());
 
-  WAIT_UNTIL(scheduleDispatch);
+  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+
+  AWAIT_UNTIL(slaveLost);
+
+  Future<Nothing> schedule =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+
+  slave = cluster.slaves.start();
+  ASSERT_SOME(slave);
+
+  AWAIT_UNTIL(schedule);
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
-  Clock::advance(slaveFlags.gc_delay.secs());
+  Clock::advance(cluster.slaves.flags.gc_delay.secs());
 
   Clock::settle();
 
@@ -422,71 +337,85 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
 
   driver.stop();
   driver.join();
+
+  cluster.shutdown();
 }
 
 
 TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 {
-  // Executor expectations.
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .WillRepeatedly(Return());
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
-  EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(Return());
+  MockExecutor exec;
 
-  // Scheduler expectations.
-  FrameworkID frameworkId;
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+
+  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
-    .WillOnce(SaveArg<1>(&frameworkId));
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  double cpus = resources.get("cpus", Value::Scalar()).value();
+  double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(1, cpus, mem))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  trigger statusUpdateCall;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)))
-    .WillOnce(Return()) // Ignore the TASK_LOST update.
-    .WillRepeatedly(Trigger(&statusUpdateCall));
-
-  startSlave();
-
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+    .WillOnce(FutureArg<1>(&status));
 
   driver.start();
 
-  WAIT_UNTIL(statusUpdateCall);
+  AWAIT_UNTIL(frameworkId);
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  const std::string& executorDir =
-    isolator->directories[DEFAULT_EXECUTOR_ID];
-
-  process::UPID filesUpid("files", process::ip(), process::port());
+  const std::string& executorDir = isolator.directories[DEFAULT_EXECUTOR_ID];
 
   ASSERT_TRUE(os::exists(executorDir));
+
+  process::UPID files("files", process::ip(), process::port());
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       process::http::OK().status,
-      process::http::get(filesUpid, "browse.json", "path=" + executorDir));
+      process::http::get(files, "browse.json", "path=" + executorDir));
 
   Clock::pause();
 
-  trigger scheduleDispatch;
-  EXPECT_DISPATCH(_, &GarbageCollectorProcess::schedule)
-    .WillOnce(DoAll(Trigger(&scheduleDispatch),
-                    Return(false)));
+  // Kiling the executor will cause the slave to schedule its
+  // directory to get garbage collected.
+  Future<Nothing> schedule =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
 
   // Kill the executor and inform the slave.
-  isolator->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
+  // TODO(benh): WTF? Why aren't we dispatching?
+  isolator.killExecutor(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
-  WAIT_UNTIL(scheduleDispatch);
+  AWAIT_UNTIL(schedule);
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
-  Clock::advance(slaveFlags.gc_delay.secs());
+  Clock::advance(cluster.slaves.flags.gc_delay.secs());
 
   Clock::settle();
 
@@ -494,102 +423,110 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   ASSERT_FALSE(os::exists(executorDir));
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       process::http::NotFound().status,
-      process::http::get(filesUpid, "browse.json", "path=" + executorDir));
+      process::http::get(files, "browse.json", "path=" + executorDir));
 
   Clock::resume();
 
   driver.stop();
   driver.join();
+
+  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
 TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 {
-  // Messages expectations.
-  trigger exitedExecutorMsg;
-  EXPECT_MESSAGE(Eq(ExitedExecutorMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&exitedExecutorMsg),
-                    Return(false)));
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  // Executor expectations.
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .WillRepeatedly(Return());
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+  MockExecutor exec;
 
-  EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(Return());
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
-  // Scheduler expectations.
-  FrameworkID frameworkId;
+  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
-    .WillOnce(SaveArg<1>(&frameworkId));
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  double cpus = resources.get("cpus", Value::Scalar()).value();
+  double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(1, cpus, mem))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  trigger statusUpdateCall;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(DoAll(SaveArg<1>(&status), Trigger(&statusUpdateCall)))
-    .WillOnce(Return()) // Ignore the TASK_LOST update.
-    .WillRepeatedly(Trigger(&statusUpdateCall));
-
-  startSlave();
-
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+    .WillOnce(FutureArg<1>(&status));
 
   driver.start();
 
-  WAIT_UNTIL(statusUpdateCall);
+  AWAIT_UNTIL(frameworkId);
 
-  EXPECT_EQ(TASK_RUNNING, status.state());
+  AWAIT_UNTIL(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  const std::string& executorDir =
-    isolator->directories[DEFAULT_EXECUTOR_ID];
-
-  process::UPID filesUpid("files", process::ip(), process::port());
+  const std::string& executorDir = isolator.directories[DEFAULT_EXECUTOR_ID];
 
   ASSERT_TRUE(os::exists(executorDir));
+
+  process::UPID files("files", process::ip(), process::port());
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       process::http::OK().status,
-      process::http::get(filesUpid, "browse.json", "path=" + executorDir));
+      process::http::get(files, "browse.json", "path=" + executorDir));
 
   Clock::pause();
 
-  trigger scheduleDispatch;
-  EXPECT_DISPATCH(_, &GarbageCollectorProcess::schedule)
-    .WillOnce(DoAll(Trigger(&scheduleDispatch),
-                    Return(false)));
+  // Kiling the executor will cause the slave to schedule its
+  // directory to get garbage collected.
+  Future<Nothing> schedule =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
 
   // Kill the executor and inform the slave.
-  isolator->killExecutor(frameworkId, DEFAULT_EXECUTOR_ID);
+  // TODO(benh): WTF? Why aren't we dispatching?
+  isolator.killExecutor(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
-  WAIT_UNTIL(scheduleDispatch);
+  AWAIT_UNTIL(schedule);
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
-  trigger _checkDiskUsageDispatch;
-  EXPECT_DISPATCH(_, &Slave::_checkDiskUsage)
-    .WillOnce(DoAll(Trigger(&_checkDiskUsageDispatch),
-                    Return(false)));
+  Future<Nothing> _checkDiskUsage =
+    FUTURE_DISPATCH(_, &Slave::_checkDiskUsage);
 
   // Simulate a disk full message to the slave.
-  process::dispatch(slave, &Slave::_checkDiskUsage, Try<double>::some(1));
+  process::dispatch(slave.get(), &Slave::_checkDiskUsage, Try<double>::some(1));
 
-  WAIT_UNTIL(_checkDiskUsageDispatch);
+  AWAIT_UNTIL(_checkDiskUsage);
 
-  Clock::settle();
+  Clock::settle(); // Wait for Slave::_checkDiskUsage to complete.
 
   // Executor's directory should be gc'ed by now.
   ASSERT_FALSE(os::exists(executorDir));
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       process::http::NotFound().status,
-      process::http::get(filesUpid, "browse.json", "path=" + executorDir));
+      process::http::get(files, "browse.json", "path=" + executorDir));
 
   Clock::resume();
 
   driver.stop();
   driver.join();
+
+  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
