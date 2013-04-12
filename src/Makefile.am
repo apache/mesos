@@ -781,6 +781,7 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
 	              tests/files_tests.cpp tests/flags_tests.cpp	\
+	              tests/isolator_tests.cpp				\
 	              tests/log_tests.cpp				\
 	              tests/monitor_tests.cpp				\
 	              tests/resources_tests.cpp				\

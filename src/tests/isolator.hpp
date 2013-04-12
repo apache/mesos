@@ -29,6 +29,9 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#include "mesos/executor.hpp"
+#include "mesos/mesos.hpp"
+
 #include "slave/isolator.hpp"
 
 namespace mesos {
