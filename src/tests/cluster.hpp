@@ -72,7 +72,13 @@ public:
 
     // Start and manage a new master.
     Try<process::PID<master::Master> > start();
+
+    // Start and manage a new master using the specified flags.
     Try<process::PID<master::Master> > start(const master::Flags& flags);
+
+    // Start and manage a new master injecting the specified allocator
+    // process. The allocator process is expected to outlive the
+    // launched master (i.e., until it is stopped via Masters::stop).
     Try<process::PID<master::Master> > start(
         master::AllocatorProcess* allocatorProcess);
 
@@ -124,10 +130,30 @@ public:
 
     // Start and manage a new slave.
     Try<process::PID<slave::Slave> > start();
+
+    // Start and manage a new slave using the specified flags.
     Try<process::PID<slave::Slave> > start(const slave::Flags& flags);
+
+    // Start and manage a new slave with a testing isolator that uses
+    // the specified executor for the specified ID. The executor is
+    // expected to outlive the launched slave (i.e., until it is
+    // stopped via Slaves::stop).
     Try<process::PID<slave::Slave> > start(
         const ExecutorID& executorId,
         Executor* executor);
+
+    // Start and manage a new slave using the specified flags with a
+    // testing isolator that uses the specified executor for the
+    // specified ID. The executor is expected to outlive the launched
+    // slave (i.e., until it is stopped via Slaves::stop).
+    Try<process::PID<slave::Slave> > start(
+        const slave::Flags& flags,
+        const ExecutorID& executorId,
+        Executor* executor);
+
+    // Start and manage a new slave injecting the specified isolator.
+    // The isolator is expected to outlive the launched slave (i.e.,
+    // until it is stopped via Slaves::stop).
     Try<process::PID<slave::Slave> > start(slave::Isolator* isolator);
     Try<process::PID<slave::Slave> > start(
         const slave::Flags& flags,
@@ -401,6 +427,15 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
 
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
+    const ExecutorID& executorId,
+    Executor* executor)
+{
+  return start(flags, executorId, executor);
+}
+
+
+inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
+    const slave::Flags& flags,
     const ExecutorID& executorId,
     Executor* executor)
 {
