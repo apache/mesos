@@ -42,6 +42,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using process::Future;
 using process::PID;
 
 using std::string;
@@ -69,10 +70,9 @@ TEST(ExceptionTest, DeactivateFrameworkOnAbort)
 
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  trigger schedRegisteredCall;
-
+  Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(Trigger(&schedRegisteredCall));
+    .WillOnce(FutureSatisfy(&registered));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return());
@@ -80,18 +80,16 @@ TEST(ExceptionTest, DeactivateFrameworkOnAbort)
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
 
-  trigger deactivateMsg;
-
-  EXPECT_MESSAGE(Eq(DeactivateFrameworkMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&deactivateMsg), Return(false)));
-
   driver.start();
 
-  WAIT_UNTIL(schedRegisteredCall);
+  AWAIT_UNTIL(registered);
+
+  Future<DeactivateFrameworkMessage> deactivateFrameworkMessage =
+    FUTURE_PROTOBUF(DeactivateFrameworkMessage(), _, _);
 
   ASSERT_EQ(DRIVER_ABORTED, driver.abort());
 
-  WAIT_UNTIL(deactivateMsg);
+  AWAIT_UNTIL(deactivateFrameworkMessage);
 
   driver.stop();
   local::shutdown();
@@ -108,20 +106,19 @@ TEST(ExceptionTest, DisallowSchedulerActionsOnAbort)
 
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  trigger schedRegisteredCall;
-
+  Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(Trigger(&schedRegisteredCall));
+    .WillOnce(FutureSatisfy(&registered));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return());
 
-  EXPECT_CALL(sched, offerRescinded(&driver, _))
-    .Times(AtMost(1));
-
   driver.start();
 
-  WAIT_UNTIL(schedRegisteredCall);
+  AWAIT_UNTIL(registered);
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(AtMost(1));
 
   ASSERT_EQ(DRIVER_ABORTED, driver.abort());
 
@@ -145,13 +142,18 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  trigger resourceOffersCall;
-  vector<Offer> offers;
-
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
+    .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());
+
+  Future<process::Message> message =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  driver.start();
+
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   // None of these callbacks should be invoked.
   EXPECT_CALL(sched, offerRescinded(&driver, _))
@@ -169,38 +171,26 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   EXPECT_CALL(sched, error(&driver, _))
       .Times(0);
 
-  process::Message message;
-  trigger rescindMsg, unregisterMsg;
-
-  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
-                    Return(false)));
-
-  EXPECT_MESSAGE(Eq(RescindResourceOfferMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(Trigger(&rescindMsg), Return(false)));
-
-  EXPECT_MESSAGE(Eq(UnregisterFrameworkMessage().GetTypeName()), _, _)
-      .WillOnce(DoAll(Trigger(&unregisterMsg), Return(false)));
-
-  driver.start();
-
-  WAIT_UNTIL(resourceOffersCall);
-  EXPECT_NE(0u, offers.size());
-
-
   ASSERT_EQ(DRIVER_ABORTED, driver.abort());
+
+  Future<RescindResourceOfferMessage> rescindMsg =
+    FUTURE_PROTOBUF(RescindResourceOfferMessage(), _, _);
 
   // Simulate a message from master to the scheduler.
   RescindResourceOfferMessage rescindMessage;
-  rescindMessage.mutable_offer_id()->MergeFrom(offers[0].id());
+  rescindMessage.mutable_offer_id()->MergeFrom(offers.get()[0].id());
 
-  process::post(message.to, rescindMessage);
+  process::post(message.get().to, rescindMessage);
 
-  WAIT_UNTIL(rescindMsg);
+  AWAIT_UNTIL(rescindMsg);
+
+  Future<UnregisterFrameworkMessage> unregisterMsg =
+    FUTURE_PROTOBUF(UnregisterFrameworkMessage(), _, _);
 
   driver.stop();
 
-  WAIT_UNTIL(unregisterMsg); //Ensures reception of RescindResourceOfferMessage.
+  //Ensures reception of RescindResourceOfferMessage.
+  AWAIT_UNTIL(unregisterMsg);
 
   local::shutdown();
 }
