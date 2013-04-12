@@ -28,6 +28,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/strings.hpp>
+#include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
 #include "detector/detector.hpp"
@@ -45,6 +46,7 @@ using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
 using process::Clock;
+using process::Future;
 
 using testing::_;
 using testing::AtMost;
@@ -185,18 +187,18 @@ TEST_F(ZooKeeperTest, MasterDetector)
   MockMasterDetectorListenerProcess mock;
   process::spawn(mock);
 
-  trigger newMasterDetectedCall;
+  Future<Nothing> newMasterDetected;
   EXPECT_CALL(mock, newMasterDetected(mock.self()))
-    .WillOnce(Trigger(&newMasterDetectedCall));
+    .WillOnce(FutureSatisfy(&newMasterDetected));
 
   std::string master = "zk://" + server->connectString() + "/mesos";
 
   Try<MasterDetector*> detector =
     MasterDetector::create(master, mock.self(), true, true);
 
-  EXPECT_SOME(detector);
+  ASSERT_SOME(detector);
 
-  WAIT_UNTIL(newMasterDetectedCall);
+  AWAIT_UNTIL(newMasterDetected);
 
   MasterDetector::destroy(detector.get());
 
@@ -210,32 +212,32 @@ TEST_F(ZooKeeperTest, MasterDetectors)
   MockMasterDetectorListenerProcess mock1;
   process::spawn(mock1);
 
-  trigger newMasterDetectedCall1;
+  Future<Nothing> newMasterDetected1;
   EXPECT_CALL(mock1, newMasterDetected(mock1.self()))
-    .WillOnce(Trigger(&newMasterDetectedCall1));
+    .WillOnce(FutureSatisfy(&newMasterDetected1));
 
   std::string master = "zk://" + server->connectString() + "/mesos";
 
   Try<MasterDetector*> detector1 =
     MasterDetector::create(master, mock1.self(), true, true);
 
-  EXPECT_SOME(detector1);
+  ASSERT_SOME(detector1);
 
-  WAIT_UNTIL(newMasterDetectedCall1);
+  AWAIT_UNTIL(newMasterDetected1);
 
   MockMasterDetectorListenerProcess mock2;
   process::spawn(mock2);
 
-  trigger newMasterDetectedCall2;
+  Future<Nothing> newMasterDetected2;
   EXPECT_CALL(mock2, newMasterDetected(mock1.self())) // N.B. mock1
-    .WillOnce(Trigger(&newMasterDetectedCall2));
+    .WillOnce(FutureSatisfy(&newMasterDetected2));
 
   Try<MasterDetector*> detector2 =
     MasterDetector::create(master, mock2.self(), true, true);
 
-  EXPECT_SOME(detector2);
+  ASSERT_SOME(detector2);
 
-  WAIT_UNTIL(newMasterDetectedCall2);
+  AWAIT_UNTIL(newMasterDetected2);
 
   // Destroying detector1 (below) might cause another election so we
   // need to set up expectations appropriately.
@@ -261,36 +263,36 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
   MockMasterDetectorListenerProcess mock;
   process::spawn(mock);
 
-  trigger newMasterDetectedCall1;
+  Future<Nothing> newMasterDetected1;
   EXPECT_CALL(mock, newMasterDetected(mock.self()))
-    .WillOnce(Trigger(&newMasterDetectedCall1));
+    .WillOnce(FutureSatisfy(&newMasterDetected1));
 
   std::string master = "zk://" + server->connectString() + "/mesos";
 
   Try<MasterDetector*> detector =
     MasterDetector::create(master, mock.self(), true, true);
 
-  EXPECT_SOME(detector);
+  ASSERT_SOME(detector);
 
-  WAIT_UNTIL(newMasterDetectedCall1);
+  AWAIT_UNTIL(newMasterDetected1);
 
-  trigger noMasterDetectedCall;
+  Future<Nothing> noMasterDetected;
   EXPECT_CALL(mock, noMasterDetected())
-    .WillOnce(Trigger(&noMasterDetectedCall));
+    .WillOnce(FutureSatisfy(&noMasterDetected));
 
   server->shutdownNetwork();
 
   Clock::advance(10.0); // TODO(benh): Get session timeout from detector.
 
-  WAIT_UNTIL(noMasterDetectedCall);
+  AWAIT_UNTIL(noMasterDetected);
 
-  trigger newMasterDetectedCall2;
+  Future<Nothing> newMasterDetected2;
   EXPECT_CALL(mock, newMasterDetected(mock.self()))
-    .WillOnce(Trigger(&newMasterDetectedCall2));
+    .WillOnce(FutureSatisfy(&newMasterDetected2));
 
   server->startNetwork();
 
-  WAIT_FOR(newMasterDetectedCall2, Seconds(5.0)); // ZooKeeper needs extra time.
+  AWAIT_FOR(newMasterDetected2, Seconds(5)); // ZooKeeper needs extra time.
 
   MasterDetector::destroy(detector.get());
 
@@ -308,10 +310,10 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
   // Simulate a leading master.
   MockMasterDetectorListenerProcess leader;
 
-  trigger newMasterDetectedCall1, newMasterDetectedCall2;
+  Future<Nothing> newMasterDetected1, newMasterDetected2;
   EXPECT_CALL(leader, newMasterDetected(_))
-    .WillOnce(Trigger(&newMasterDetectedCall1))
-    .WillOnce(Trigger(&newMasterDetectedCall2));
+    .WillOnce(FutureSatisfy(&newMasterDetected1))
+    .WillOnce(FutureSatisfy(&newMasterDetected2));
 
   EXPECT_CALL(leader, noMasterDetected())
     .Times(0);
@@ -324,16 +326,17 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
   ASSERT_SOME(url);
 
   // Leader's detector.
-  ZooKeeperMasterDetector leaderDetector(url.get(), leader.self(), true, true);
+  ZooKeeperMasterDetector leaderDetector(
+      url.get(), leader.self(), true, true);
 
-  WAIT_UNTIL(newMasterDetectedCall1);
+  AWAIT_UNTIL(newMasterDetected1);
 
   // Simulate a following master.
   MockMasterDetectorListenerProcess follower;
 
-  trigger newMasterDetectedCall3;
+  Future<Nothing> newMasterDetected3;
   EXPECT_CALL(follower, newMasterDetected(_))
-    .WillOnce(Trigger(&newMasterDetectedCall3))
+    .WillOnce(FutureSatisfy(&newMasterDetected3))
     .WillRepeatedly(Return());
 
   EXPECT_CALL(follower, noMasterDetected())
@@ -348,7 +351,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
       true,
       true);
 
-  WAIT_UNTIL(newMasterDetectedCall3);
+  AWAIT_UNTIL(newMasterDetected3);
 
   // Now expire the leader's zk session.
   process::Future<int64_t> session = leaderDetector.session();
@@ -356,8 +359,9 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
 
   server->expireSession(session.get());
 
-  // Wait for session expiration and ensure we receive a newMasterDetected call.
-  WAIT_FOR(newMasterDetectedCall2, Seconds(5.0)); // ZooKeeper needs extra time.
+  // Wait for session expiration and ensure we receive a
+  // NewMasterDetected message.
+  AWAIT_FOR(newMasterDetected2, Seconds(5)); // ZooKeeper needs extra time.
 
   process::terminate(follower);
   process::wait(follower);
@@ -375,9 +379,9 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
   // Simulate a leading master.
   MockMasterDetectorListenerProcess master;
 
-  trigger newMasterDetectedCall1;
+  Future<Nothing> newMasterDetected1;
   EXPECT_CALL(master, newMasterDetected(_))
-    .WillOnce(Trigger(&newMasterDetectedCall1));
+    .WillOnce(FutureSatisfy(&newMasterDetected1));
 
   EXPECT_CALL(master, noMasterDetected())
     .Times(0);
@@ -390,17 +394,18 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
   ASSERT_SOME(url);
 
   // Leading master's detector.
-  ZooKeeperMasterDetector masterDetector(url.get(), master.self(), true, true);
+  ZooKeeperMasterDetector masterDetector(
+      url.get(), master.self(), true, true);
 
-  WAIT_UNTIL(newMasterDetectedCall1);
+  AWAIT_UNTIL(newMasterDetected1);
 
   // Simulate a slave.
   MockMasterDetectorListenerProcess slave;
 
-  trigger newMasterDetectedCall2, newMasterDetectedCall3;
+  Future<Nothing> newMasterDetected2, newMasterDetected3;
   EXPECT_CALL(slave, newMasterDetected(_))
     .Times(1)
-    .WillOnce(Trigger(&newMasterDetectedCall2));
+    .WillOnce(FutureSatisfy(&newMasterDetected2));
 
   EXPECT_CALL(slave, noMasterDetected())
     .Times(0);
@@ -408,9 +413,10 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
   process::spawn(slave);
 
   // Slave's master detector.
-  ZooKeeperMasterDetector slaveDetector(url.get(), slave.self(), false, true);
+  ZooKeeperMasterDetector slaveDetector(
+      url.get(), slave.self(), false, true);
 
-  WAIT_UNTIL(newMasterDetectedCall2);
+  AWAIT_UNTIL(newMasterDetected2);
 
   // Now expire the slave's zk session.
   process::Future<int64_t> session = slaveDetector.session();
@@ -437,9 +443,9 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
   // Simulate a leading master.
   MockMasterDetectorListenerProcess master1;
 
-  trigger newMasterDetectedCall1;
+  Future<Nothing> newMasterDetected1;
   EXPECT_CALL(master1, newMasterDetected(_))
-    .WillOnce(Trigger(&newMasterDetectedCall1))
+    .WillOnce(FutureSatisfy(&newMasterDetected1))
     .WillRepeatedly(Return());
 
   EXPECT_CALL(master1, noMasterDetected())
@@ -454,19 +460,16 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   // Leading master's detector.
   ZooKeeperMasterDetector masterDetector1(
-      url.get(),
-      master1.self(),
-      true,
-      true);
+      url.get(), master1.self(), true, true);
 
-  WAIT_UNTIL(newMasterDetectedCall1);
+  AWAIT_UNTIL(newMasterDetected1);
 
   // Simulate a non-leading master.
   MockMasterDetectorListenerProcess master2;
 
-  trigger newMasterDetectedCall2;
+  Future<Nothing> newMasterDetected2;
   EXPECT_CALL(master2, newMasterDetected(_))
-    .WillOnce(Trigger(&newMasterDetectedCall2))
+    .WillOnce(FutureSatisfy(&newMasterDetected2))
     .WillRepeatedly(Return());
 
   EXPECT_CALL(master2, noMasterDetected())
@@ -476,20 +479,17 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   // Non-leading master's detector.
   ZooKeeperMasterDetector masterDetector2(
-      url.get(),
-      master2.self(),
-      true,
-      true);
+      url.get(), master2.self(), true, true);
 
-  WAIT_UNTIL(newMasterDetectedCall2);
+  AWAIT_UNTIL(newMasterDetected2);
 
   // Simulate a slave.
   MockMasterDetectorListenerProcess slave;
 
-  trigger newMasterDetectedCall3, newMasterDetectedCall4;
+  Future<Nothing> newMasterDetected3, newMasterDetected4;
   EXPECT_CALL(slave, newMasterDetected(_))
-    .WillOnce(Trigger(&newMasterDetectedCall3))
-    .WillOnce(Trigger(&newMasterDetectedCall4));
+    .WillOnce(FutureSatisfy(&newMasterDetected3))
+    .WillOnce(FutureSatisfy(&newMasterDetected4));
 
   EXPECT_CALL(slave, noMasterDetected())
     .Times(AtMost(1));
@@ -497,9 +497,10 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
   process::spawn(slave);
 
   // Slave's master detector.
-  ZooKeeperMasterDetector slaveDetector(url.get(), slave.self(), false, true);
+  ZooKeeperMasterDetector slaveDetector(
+      url.get(), slave.self(), false, true);
 
-  WAIT_UNTIL(newMasterDetectedCall3);
+  AWAIT_UNTIL(newMasterDetected3);
 
   // Now expire the slave's and leading master's zk sessions.
   // NOTE: Here we assume that slave stays disconnected from the ZK when the
@@ -514,8 +515,9 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   server->expireSession(masterSession.get());
 
-  // Wait for session expiration and ensure we receive a newMasterDetected call.
-  WAIT_FOR(newMasterDetectedCall4, Seconds(5.0)); // ZooKeeper needs extra time.
+  // Wait for session expiration and ensure we receive a
+  // NewMasterDetected message.
+  AWAIT_FOR(newMasterDetected4, Seconds(5)); // ZooKeeper needs extra time.
 
   process::terminate(slave);
   process::wait(slave);
