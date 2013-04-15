@@ -37,6 +37,7 @@
 #include <sstream>
 #include <string>
 
+#include "duration.hpp"
 #include "error.hpp"
 #include "foreach.hpp"
 #include "none.hpp"
@@ -853,6 +854,26 @@ inline Try<int> shell(std::ostream* os, const std::string& fmt, ...)
   }
 
   return status;
+}
+
+
+// Suspends execution for the given duration.
+inline Try<Nothing> sleep(const Duration& duration)
+{
+  timespec remaining;
+  remaining.tv_sec = static_cast<long>(duration.secs());
+  Duration nanos = Seconds(duration.secs() - remaining.tv_sec);
+  remaining.tv_nsec = static_cast<long>(nanos.ns());
+
+  while (nanosleep(&remaining, &remaining) == -1) {
+    if (errno == EINTR) {
+      continue;
+    } else {
+      return ErrnoError();
+    }
+  }
+
+  return Nothing();
 }
 
 

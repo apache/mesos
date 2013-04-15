@@ -9,6 +9,7 @@
 #include <stout/gtest.hpp>
 #include <stout/hashset.hpp>
 #include <stout/os.hpp>
+#include <stout/stopwatch.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
@@ -194,3 +195,14 @@ TEST_F(OsTest, release)
   ASSERT_SOME(info);
 }
 
+
+TEST_F(OsTest, sleep)
+{
+  Duration duration = Milliseconds(10);
+  Stopwatch stopwatch;
+  stopwatch.start();
+  ASSERT_SOME(os::sleep(duration));
+  ASSERT_LE(duration, stopwatch.elapsed());
+
+  ASSERT_ERROR(os::sleep(Milliseconds(-10)));
+}
