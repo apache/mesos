@@ -66,51 +66,6 @@ Future<http::Response> _usage(
     const map<string, double>& statistics,
     const Option<string>& jsonp);
 
-class ResourceMonitorProcess : public Process<ResourceMonitorProcess>
-{
-public:
-  ResourceMonitorProcess(Isolator* _isolator)
-    : ProcessBase("monitor"), isolator(_isolator) {}
-
-  virtual ~ResourceMonitorProcess() {}
-
-  Future<Nothing> watch(
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const ExecutorInfo& executorInfo,
-      const Duration& interval);
-
-  Future<Nothing> unwatch(
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId);
-
-protected:
-  virtual void initialize()
-  {
-    route("/usage.json", &ResourceMonitorProcess::usage);
-  }
-
-private:
-  void collect(
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const Duration& interval);
-
-  void _collect(
-      const Future<ResourceStatistics>& statistics,
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const Duration& interval);
-
-  // Returns the usage information. Requests have no parameters.
-  Future<http::Response> usage(const http::Request& request);
-
-  Isolator* isolator;
-
-  // The executor info is stored for each watched executor.
-  hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > watches;
-};
-
 
 Future<Nothing> ResourceMonitorProcess::watch(
     const FrameworkID& frameworkId,

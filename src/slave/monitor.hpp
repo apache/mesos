@@ -26,6 +26,7 @@
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
@@ -73,6 +74,53 @@ public:
 
 private:
   ResourceMonitorProcess* process;
+};
+
+
+class ResourceMonitorProcess : public process::Process<ResourceMonitorProcess>
+{
+public:
+  ResourceMonitorProcess(Isolator* _isolator)
+    : ProcessBase("monitor"), isolator(_isolator) {}
+
+  virtual ~ResourceMonitorProcess() {}
+
+  process::Future<Nothing> watch(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ExecutorInfo& executorInfo,
+      const Duration& interval);
+
+  process::Future<Nothing> unwatch(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
+
+protected:
+  virtual void initialize()
+  {
+    route("/usage.json", &ResourceMonitorProcess::usage);
+  }
+
+private:
+  void collect(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const Duration& interval);
+
+  void _collect(
+      const process::Future<ResourceStatistics>& statistics,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const Duration& interval);
+
+  // Returns the usage information. Requests have no parameters.
+  process::Future<process::http::Response> usage(
+      const process::http::Request& request);
+
+  Isolator* isolator;
+
+  // The executor info is stored for each watched executor.
+  hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > watches;
 };
 
 } // namespace slave {

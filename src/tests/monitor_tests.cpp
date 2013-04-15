@@ -25,6 +25,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
@@ -49,14 +50,13 @@ using process::http::Response;
 
 using std::string;
 
+using testing::_;
 using testing::Return;
 
 
 // TODO(bmahler): Add additional tests:
 //   1. Check that the data has been published to statistics.
 //   2. Check that metering is occurring on subsequent resource data.
-//   3. Add tests for process isolator usage.
-//   4. Add tests for cgroups isolator usage.
 TEST(MonitorTest, WatchUnwatch)
 {
   FrameworkID frameworkId;
@@ -83,13 +83,19 @@ TEST(MonitorTest, WatchUnwatch)
   EXPECT_CALL(isolator, usage(frameworkId, executorId))
     .WillRepeatedly(Return(statistics));
 
-  // Monitor the executor.
   slave::ResourceMonitor monitor(&isolator);
+
+  // Monitor the executor.
+  Future<Nothing> watch =
+    FUTURE_DISPATCH(_, &slave::ResourceMonitorProcess::watch);
+
   monitor.watch(
       frameworkId,
       executorId,
       executorInfo,
       slave::RESOURCE_MONITORING_INTERVAL);
+
+  AWAIT_READY(watch);
 
   process::Clock::pause();
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL.secs());
@@ -125,7 +131,12 @@ TEST(MonitorTest, WatchUnwatch)
       response);
 
   // Ensure the monitor stops polling the isolator.
+  Future<Nothing> unwatch =
+    FUTURE_DISPATCH(_, &slave::ResourceMonitorProcess::unwatch);
+
   monitor.unwatch(frameworkId, executorId);
+
+  AWAIT_READY(unwatch);
 
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL.secs());
   process::Clock::settle();
