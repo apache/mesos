@@ -575,16 +575,20 @@ __EOF__
 # We re-name the directory to 'hadoop' so that the Mesos executor
 # can be agnostic to the Hadoop version.
 execute "cd .." \
-  "mv ${hadoop} hadoop" \
-  "tar czf hadoop.tar.gz hadoop"
+  "mv ${hadoop} ${hadoop}-mesos" \
+  "tar czf ${hadoop}-mesos.tar.gz ${hadoop}-mesos/"
 
 # Start JobTracker.
 cat <<__EOF__
 
-${GREEN}Build success!${NORMAL} Now let's run something!
+${GREEN}Build success!${NORMAL}
 
-Let's go ahead and try and start the JobTracker via:
-  $ cd ..
+The Mesos distribution is now built in '${hadoop}-mesos'
+
+Now let's run something!
+
+We'll try and start the JobTracker from the Mesos distribution path via:
+  $ cd ${hadoop}-mesos
   $ ./bin/hadoop jobtracker
 
 __EOF__
@@ -598,7 +602,7 @@ echo
 # launch TaskTrackers.
 # TODO(vinod): Pipe these commands through 'execute()' so that they
 # can be appended to the summary.
-cd ..
+cd ${hadoop}-mesos
 export MESOS_RESOURCES="cpus:16;mem:16384;disk:307200;ports:[31000-32000]"
 ./bin/hadoop jobtracker 1>/dev/null 2>&1 &
 
@@ -614,14 +618,13 @@ echo -n "Waiting 5 seconds for it to start."
 
 for i in 1 2 3 4 5; do sleep 1 && echo -n " ."; done
 
-
 # Now let's run an example.
 cat <<__EOF__
 
 Alright, now let's run the "wordcount" example via:
 
   $ ./bin/hadoop jar hadoop-examples-${distribution}.jar wordcount \
-  src/contrib/mesos/src/java/org/apache/hadoop/mapred out
+  ${MESOS_BUILD_DIR}/src/mesos out
 
 __EOF__
 
@@ -631,7 +634,7 @@ echo
 rm -rf out # TODO(benh): Ask about removing this first.
 
 ./bin/hadoop jar hadoop-examples-${distribution}.jar wordcount \
-    src/contrib/mesos/src/java/org/apache/hadoop/mapred out
+    ${MESOS_BUILD_DIR}/src/mesos out
 
 
 if test ${?} == "0"; then

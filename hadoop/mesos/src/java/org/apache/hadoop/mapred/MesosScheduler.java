@@ -493,7 +493,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
           String uri = conf.get("mapred.mesos.executor");
           commandInfo = CommandInfo.newBuilder()
               .setEnvironment(envBuilder)
-              .setValue("cd hadoop && ./bin/mesos-executor")
+              .setValue("cd hadoop-* && ./bin/mesos-executor")
               .addUris(CommandInfo.URI.newBuilder().setValue(uri)).build();
         }
 
