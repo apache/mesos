@@ -2729,7 +2729,7 @@ void ProcessManager::settle()
 {
   bool done = true;
   do {
-    usleep(10000);
+    os::sleep(Milliseconds(10));
     done = true;
     // Hopefully this is the only place we acquire both these locks.
     synchronized (runq) {

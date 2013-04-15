@@ -101,4 +101,13 @@ fi
 
 AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
 
+# Added for clock_gettime() call in stout/stopwatch.hpp.
+case "${target_os}" in
+  linux*)
+    LIBS="$LIBS -lrt"
+    ;;
+  *)
+    ;;
+esac
+
 AC_OUTPUT

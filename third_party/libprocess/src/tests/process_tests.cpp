@@ -892,14 +892,14 @@ public:
 
   virtual void initialize()
   {
-    usleep(10000);
+    os::sleep(Milliseconds(10));
     delay(Seconds(0), self(), &SettleProcess::afterDelay);
   }
 
   void afterDelay()
   {
     dispatch(self(), &SettleProcess::afterDispatch);
-    usleep(10000);
+    os::sleep(Milliseconds(10));
     TimeoutProcess timeoutProcess;
     spawn(timeoutProcess);
     terminate(timeoutProcess);
@@ -908,7 +908,7 @@ public:
 
   void afterDispatch()
   {
-    usleep(10000);
+    os::sleep(Milliseconds(10));
     calledDispatch = true;
   }
 
