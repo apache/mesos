@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <sys/mman.h>
 
@@ -30,7 +29,9 @@
 
 #include <mesos/executor.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/numify.hpp>
+#include <stout/os.hpp>
 
 using namespace mesos;
 
@@ -69,7 +70,7 @@ static void balloon(size_t limit)
     }
 
     // Try not to increase the memory footprint too fast.
-    sleep(1);
+    os::sleep(Seconds(1));
   }
 }
 

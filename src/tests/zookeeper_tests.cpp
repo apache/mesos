@@ -27,6 +27,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
@@ -425,7 +426,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
   server->expireSession(session.get());
 
   // Wait for enough time to ensure no NewMasterDetected message is sent.
-  sleep(4); // ZooKeeper needs extra time for session expiration.
+  os::sleep(Seconds(4)); // ZooKeeper needs extra time for session expiration.
 
   process::terminate(slave);
   process::wait(slave);

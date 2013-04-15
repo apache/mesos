@@ -19,7 +19,9 @@
 #include <iostream>
 #include <climits>
 #include <cstdio>
-#include <unistd.h>
+
+#include <stout/duration.hpp>
+#include <stout/os.hpp>
 
 using std::cout;
 using std::cin;
@@ -38,7 +40,7 @@ void processinfo()
 void dummywait()
 {
   while(getchar() == EOF) {
-    sleep(INT_MAX);
+    os::sleep(Seconds(INT_MAX));
   }
 
   cout << "Error: Shouldn't come here" << endl;

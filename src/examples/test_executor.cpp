@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-#include <unistd.h>
-
 #include <iostream>
 
 #include <mesos/executor.hpp>
+
+#include <stout/duration.hpp>
+#include <stout/os.hpp>
 
 using namespace mesos;
 
@@ -60,7 +61,7 @@ public:
 
     driver->sendStatusUpdate(status);
 
-    sleep(1);
+    os::sleep(Seconds(1));
 
     cout << "Finishing task " << task.task_id().value() << endl;
 

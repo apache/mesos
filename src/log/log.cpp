@@ -35,8 +35,6 @@
 // out ways of bringing new replicas online that seem to check the
 // consistency of the other replicas.
 
-#include <unistd.h>
-
 #include <list>
 #include <map>
 #include <set>
@@ -49,8 +47,10 @@
 #include <process/process.hpp>
 #include <process/run.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
+#include <stout/os.hpp>
 #include <stout/result.hpp>
 
 #include "zookeeper/zookeeper.hpp"
@@ -116,7 +116,7 @@ bool coordinate(Coordinator* coordinator,
         restart();
       } else {
         attempt++;
-        sleep(1);
+        os::sleep(Seconds(1));
       }
     } else {
       CHECK_SOME(result);
@@ -141,7 +141,7 @@ bool coordinate(Coordinator* coordinator,
           restart();
         } else {
           attempt++;
-          sleep(1);
+          os::sleep(Seconds(1));
         }
       } else {
         CHECK_SOME(result);
@@ -183,13 +183,13 @@ bool coordinate(Coordinator* coordinator,
           restart();
         } else {
           attempt++;
-          sleep(1);
+          os::sleep(Seconds(1));
           continue;
         }
       } else {
         CHECK_SOME(result);
         LOG(INFO) << "Truncated to " << to;
-        sleep(1);
+        os::sleep(Seconds(1));
         attempt = 1;
       }
     }
@@ -204,12 +204,12 @@ bool coordinate(Coordinator* coordinator,
         restart();
       } else {
         attempt++;
-        sleep(1);
+        os::sleep(Seconds(1));
       }
     } else {
       CHECK_SOME(result);
       LOG(INFO) << "Wrote " << value;
-      sleep(1);
+      os::sleep(Seconds(1));
       writes--;
       value++;
       attempt = 1;

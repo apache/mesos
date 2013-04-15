@@ -17,7 +17,6 @@
  */
 
 #include <signal.h>
-#include <unistd.h>
 
 #include <sys/types.h>
 
@@ -33,6 +32,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/fatal.hpp>
@@ -88,7 +88,7 @@ protected:
 
     // The signal might not get delivered immediately, so sleep for a
     // few seconds. Worst case scenario, exit abnormally.
-    sleep(5);
+    os::sleep(Seconds(5));
     exit(-1);
   }
 };

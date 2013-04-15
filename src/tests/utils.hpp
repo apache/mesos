@@ -779,7 +779,7 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
       if (expression) {                                                 \
         break;                                                          \
       }                                                                 \
-      usleep(10);                                                       \
+      os::sleep(Microseconds(10));                                      \
       sleeps++;                                                         \
       if (Microseconds(10 * sleeps) >= duration) {                      \
         FAIL() << "Waited too long for '" #expression "'";              \

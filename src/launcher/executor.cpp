@@ -26,6 +26,7 @@
 
 #include <mesos/executor.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
@@ -77,7 +78,7 @@ static void waiter(pid_t pid, const TaskID& taskId, ExecutorDriver* driver)
 
   // A hack for now ... but we need to wait until for the status
   // update to get sent to the slave before we shut ourselves down.
-  sleep(1);
+  os::sleep(Seconds(1));
   driver->stop();
 }
 

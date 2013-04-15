@@ -18,7 +18,6 @@
 
 #include <pthread.h>
 #include <stdlib.h> // For random.
-#include <unistd.h> // For sleep.
 
 #include <cstdlib>
 #include <iostream>
@@ -26,6 +25,9 @@
 #include <tr1/functional>
 
 #include <mesos/executor.hpp>
+
+#include <stout/duration.hpp>
+#include <stout/os.hpp>
 
 using namespace mesos;
 
@@ -36,7 +38,7 @@ using std::string;
 
 void run(ExecutorDriver* driver, const TaskInfo& task)
 {
-  sleep(random() % 10);
+  os::sleep(Seconds(random() % 10));
 
   TaskStatus status;
   status.mutable_task_id()->MergeFrom(task.task_id());
