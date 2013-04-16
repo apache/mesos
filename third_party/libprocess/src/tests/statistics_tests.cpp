@@ -57,7 +57,7 @@ TEST(Statistics, truncate)
   EXPECT_GE(Clock::now(), values.get().begin()->first.secs());
   EXPECT_DOUBLE_EQ(3.0, values.get().begin()->second);
 
-  Clock::advance(Days(1).secs() + 1);
+  Clock::advance(Days(1) + Seconds(1));
   Clock::settle();
 
   statistics.increment("test", "statistic");
@@ -159,7 +159,7 @@ TEST(Statistics, archive)
   EXPECT_FALSE(values.get().empty());
 
   // Expire the window and ensure the statistics were removed.
-  Clock::advance(STATISTICS_TRUNCATION_INTERVAL.secs());
+  Clock::advance(STATISTICS_TRUNCATION_INTERVAL);
   Clock::settle();
 
   // Ensure the raw statistics are gone.

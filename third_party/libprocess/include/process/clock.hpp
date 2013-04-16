@@ -1,6 +1,8 @@
 #ifndef __PROCESS_CLOCK_HPP__
 #define __PROCESS_CLOCK_HPP__
 
+#include <stout/duration.hpp>
+
 namespace process {
 
 // Forward declarations.
@@ -15,10 +17,10 @@ public:
   static void pause();
   static bool paused();
   static void resume();
-  static void advance(double secs);
-  static void advance(ProcessBase* process, double secs);
-  static void update(double secs);
-  static void update(ProcessBase* process, double secs);
+  static void advance(const Duration& duration);
+  static void advance(ProcessBase* process, const Duration& duration);
+  static void update(const Duration& duration);
+  static void update(ProcessBase* process, const Duration& duration);
   static void order(ProcessBase* from, ProcessBase* to);
   static void settle();
 };

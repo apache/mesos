@@ -698,9 +698,9 @@ TEST(Process, delay)
 
   spawn(process);
 
-  delay(Seconds(5.0), process.self(), &TimeoutProcess::timeout);
+  delay(Seconds(5), process.self(), &TimeoutProcess::timeout);
 
-  Clock::advance(5.0);
+  Clock::advance(Seconds(5));
 
   while (!timeoutCalled);
 
@@ -741,7 +741,7 @@ TEST(Process, order)
 
   double seconds = 1.0;
 
-  Clock::advance(1.0);
+  Clock::advance(Seconds(1));
 
   EXPECT_EQ(now, Clock::now(&process1));
 
