@@ -303,16 +303,28 @@ int ExecutorLauncher::fetchExecutors()
     // Extract any .tgz, tar.gz, tar.bz2 or zip files.
     if (strings::endsWith(resource, ".tgz") ||
         strings::endsWith(resource, ".tar.gz")) {
-      string command = "tar zxf '" + resource + "'";
-      cout << "Extracting resource: " + command << endl;
+      string command = "tar xzf '" + resource + "'";
+      cout << "Extracting resource: " << command << endl;
       int code = os::system(command);
       if (code != 0) {
         cerr << "Failed to extract resource: tar exit code " << code << endl;
         return -1;
       }
-    } else if (strings::endsWith(resource, ".tar.bz2")) {
-      string command = "tar jxf '" + resource + "'";
-      cout << "Extracting resource: " + command << endl;
+    } else if (strings::endsWith(resource, ".tbz2") ||
+               strings::endsWith(resource, ".tar.bz2")) {
+      string command = "tar xjf '" + resource + "'";
+      cout << "Extracting resource: " << command << endl;
+      int code = os::system(command);
+      if (code != 0) {
+        cerr << "Failed to extract resource: tar exit code " << code << endl;
+        return -1;
+      }
+    } else if (strings::endsWith(resource, ".txz") ||
+               strings::endsWith(resource, ".tar.xz")) {
+      // If you want to use XZ on Mac OS, you can try the packages here:
+      // http://macpkg.sourceforge.net/
+      string command = "tar xJf '" + resource + "'";
+      cout << "Extracting resource: " << command << endl;
       int code = os::system(command);
       if (code != 0) {
         cerr << "Failed to extract resource: tar exit code " << code << endl;
@@ -320,7 +332,7 @@ int ExecutorLauncher::fetchExecutors()
       }
     } else if (strings::endsWith(resource, ".zip")) {
       string command = "unzip '" + resource + "'";
-      cout << "Extracting resource: " + command << endl;
+      cout << "Extracting resource: " << command << endl;
       int code = os::system(command);
       if (code != 0) {
         cerr << "Failed to extract resource: unzip exit code " << code << endl;
