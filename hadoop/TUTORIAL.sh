@@ -94,6 +94,10 @@ if test ${distribution} = "0.20.205.0"; then
     resources="${resources} hadoop-7698-1.patch"
 fi
 
+if test ${distribution} = "2.0.0-mr1-cdh4.1.2" -o ${distribution} = "2.0.0-mr1-cdh4.2.0"; then
+    resources="${resources} HadoopPipes.cc.patch"
+fi
+
 for resource in `echo ${resources}`; do
     if test ! -e ${resource}; then
         cat <<__EOF__
@@ -111,7 +115,7 @@ __EOF__
     fi
 done
 
-# Make sure we have all the programs we need.
+# Make sure we have all the build tools we need.
 programs="mvn \
   ant"
 
@@ -120,7 +124,7 @@ for program in `echo ${programs}`; do
     if test "$?" != 0; then
         cat <<__EOF__
 
-${RED}We seem to be missing ${program} from the path.  Please install
+${RED}We seem to be missing ${program} from PATH.  Please install
 ${program} and re-run this tutorial.  If you still have troubles, please report
 this to:
 
@@ -513,6 +517,41 @@ echo
 test -z ${REPLY} && REPLY=${DEFAULT}
 if test ${REPLY} == "Y" -o ${REPLY} == "y"; then
     execute "patch -p1 <../${hadoop}_hadoop-env.sh.patch"
+fi
+
+if test ${distribution} = "2.0.0-mr1-cdh4.1.2" -o ${distribution} = "2.0.0-mr1-cdh4.2.0"; then
+    # Apply HadoopPipes.cc patch.
+    cat <<__EOF__
+
+    This version of Hadoop needs to be patched to build on GCC 4.7 and newer compilers.
+
+__EOF__
+
+    read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
+    echo
+
+    patch --dry-run --silent --force -p1 \
+	<../HadoopPipes.cc.patch 1>/dev/null 2>&1
+
+    if test ${?} == "1"; then
+	cat <<__EOF__
+
+    ${RED}It looks like conf/hadoop-env.sh has been modified. You'll need
+    to copy that to something else and restore the file to it's original
+    contents before we'll be able to apply this patch.${NORMAL}
+
+__EOF__
+	DEFAULT="N"
+    else
+	DEFAULT="Y"
+    fi
+
+    read -e -p "${BRIGHT}Patch src/c++/pipes/impl/HadoopPipes.cc?${NORMAL} [${DEFAULT}] "
+    echo
+    test -z ${REPLY} && REPLY=${DEFAULT}
+    if test ${REPLY} == "Y" -o ${REPLY} == "y"; then
+	execute "patch -p1 <../HadoopPipes.cc.patch"
+    fi
 fi
 
 # Build Hadoop and Mesos executor package that Mesos slaves can download

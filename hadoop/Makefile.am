@@ -23,6 +23,7 @@ EXTRA_DIST = TUTORIAL.sh hadoop-gridmix.patch				\
   hadoop-2.0.0-mr1-cdh4.2.0_mesos.patch					\
   hadoop-7698-1.patch							\
   hadoop-0.20.205.0_hadoop-env.sh.patch hadoop-0.20.205.0_mesos.patch	\
+  HadoopPipes.cc.patch                                                  \
   mapred-site.xml.patch mesos-executor mesos/build.xml			\
   mesos/ivy/libraries.properties mesos/ivy.xml				\
   mesos/src/java/org/apache/hadoop/mapred/MesosExecutor.java		\
@@ -67,6 +68,7 @@ hadoop-2.0.0-mr1-cdh4.1.2:
           cp -p $(srcdir)/hadoop-2.0.0-mr1-cdh4.1.2_hadoop-env.sh.patch .; \
           cp -p $(srcdir)/hadoop-2.0.0-mr1-cdh4.1.2_mesos.patch .; \
           cp -p $(srcdir)/mapred-site.xml.patch .; \
+          cp -p $(srcdir)/HadoopPipes.cc.patch .; \
           cp -rp $(srcdir)/mesos .; \
           cp -p $(srcdir)/mesos-executor .; \
         fi
@@ -80,6 +82,7 @@ hadoop-2.0.0-mr1-cdh4.2.0:
           cp -p $(srcdir)/hadoop-2.0.0-mr1-cdh4.2.0_hadoop-env.sh.patch .; \
           cp -p $(srcdir)/hadoop-2.0.0-mr1-cdh4.2.0_mesos.patch .; \
           cp -p $(srcdir)/mapred-site.xml.patch .; \
+          cp -p $(srcdir)/HadoopPipes.cc.patch .; \
           cp -rp $(srcdir)/mesos .; \
           cp -p $(srcdir)/mesos-executor .; \
         fi
