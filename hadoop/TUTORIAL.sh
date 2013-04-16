@@ -13,6 +13,10 @@ elif test "${1}" = "2.0.0-mr1-cdh4.1.2"; then
     distribution="2.0.0-mr1-cdh4.1.2"
     url="http://archive.cloudera.com/cdh4/cdh/4"
     bundle="mr1-2.0.0-mr1-cdh4.1.2.tar.gz"
+elif test "${1}" = "2.0.0-mr1-cdh4.2.0"; then
+    distribution="2.0.0-mr1-cdh4.2.0"
+    url="http://archive.cloudera.com/cdh4/cdh/4"
+    bundle="mr1-2.0.0-mr1-cdh4.2.0.tar.gz"
 fi
 
 hadoop="hadoop-${distribution}"
@@ -503,7 +507,7 @@ __EOF__
 read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
 echo
 
-if test ${distribution} = "2.0.0-mr1-cdh4.1.2"; then
+if test ${distribution} = "2.0.0-mr1-cdh4.1.2" -o ${distribution} = "2.0.0-mr1-cdh4.2.0"; then
   cat <<__EOF__
 
   We need to chmod +x install-sh scripts to compile
@@ -540,7 +544,7 @@ __EOF__
   execute "rm -rf cloudera"
 fi
 
-  cat <<__EOF__
+cat <<__EOF__
 
   Finally, we will build the Mesos executor package as follows:
 
@@ -550,7 +554,7 @@ __EOF__
 # can be agnostic to the Hadoop version.
 execute "cd .." \
   "mv ${hadoop} hadoop" \
-  "tar -czf hadoop.tar.gz hadoop"
+  "tar czf hadoop.tar.gz hadoop"
 
 # Start JobTracker.
 cat <<__EOF__
