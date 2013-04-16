@@ -74,7 +74,17 @@ public:
   bool operator == (const Duration& d) const { return seconds == d.seconds; }
   bool operator != (const Duration& d) const { return seconds != d.seconds; }
 
-  // TODO(vinod): Overload arithmetic operators.
+  Duration& operator += (const Duration& that)
+  {
+    seconds += that.seconds;
+    return *this;
+  }
+
+  Duration& operator -= (const Duration& that)
+  {
+    seconds -= that.seconds;
+    return *this;
+  }
 
 protected:
   static const double NANOSECONDS =  0.000000001;
@@ -166,7 +176,7 @@ inline std::ostream& operator << (
   long precision = stream.precision();
 
   stream.setf(std::ios::fixed, std::ios::floatfield);
-  stream.precision(2);
+  stream.precision(std::numeric_limits<double>::digits10);
 
   if (duration < Microseconds(1)) {
     stream << duration.ns() << "ns";
@@ -192,6 +202,20 @@ inline std::ostream& operator << (
   stream.precision(precision);
 
   return stream;
+}
+
+inline Duration operator + (const Duration& lhs, const Duration& rhs)
+{
+  Duration sum = lhs;
+  sum += rhs;
+  return sum;
+}
+
+inline Duration operator - (const Duration& lhs, const Duration& rhs)
+{
+  Duration diff = lhs;
+  diff -= rhs;
+  return diff;
 }
 
 #endif // __STOUT_DURATION_HPP__
