@@ -98,7 +98,7 @@ TEST(MonitorTest, WatchUnwatch)
   AWAIT_READY(watch);
 
   process::Clock::pause();
-  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL.secs());
+  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
   process::Clock::settle();
 
   process::UPID upid("monitor", process::ip(), process::port());
@@ -138,7 +138,7 @@ TEST(MonitorTest, WatchUnwatch)
 
   AWAIT_READY(unwatch);
 
-  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL.secs());
+  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
   process::Clock::settle();
 
   response = process::http::get(upid, "usage.json");

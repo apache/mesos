@@ -1249,7 +1249,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   // Give the allocator some time to confirm that it doesn't
   // make an allocation.
   Clock::pause();
-  Clock::advance(1);
+  Clock::advance(Seconds(1));
   Clock::settle();
 
   EXPECT_FALSE(resourceOffers.isReady());
@@ -1267,7 +1267,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   // Give the WhitelistWatcher some time to notice that
   // the whitelist has changed.
   while (resourceOffers.isPending()) {
-    Clock::advance(1);
+    Clock::advance(Seconds(1));
     Clock::settle();
   }
   Clock::resume();

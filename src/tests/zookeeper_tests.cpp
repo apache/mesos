@@ -283,7 +283,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
 
   server->shutdownNetwork();
 
-  Clock::advance(10.0); // TODO(benh): Get session timeout from detector.
+  Clock::advance(Seconds(10)); // TODO(benh): Get session timeout from detector.
 
   AWAIT_UNTIL(noMasterDetected);
 

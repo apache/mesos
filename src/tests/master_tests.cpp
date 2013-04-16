@@ -767,7 +767,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   Future<Nothing> killExecutor =
     FUTURE_DISPATCH(_, &Isolator::killExecutor);
 
-  Clock::advance(cluster.slaves.flags.executor_registration_timeout.secs());
+  Clock::advance(cluster.slaves.flags.executor_registration_timeout);
 
   AWAIT_UNTIL(killExecutor);
 
@@ -775,7 +775,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(1.0);
+    Clock::advance(Seconds(1));
     Clock::settle();
   }
 

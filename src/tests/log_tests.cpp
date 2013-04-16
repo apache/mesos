@@ -72,7 +72,7 @@ TEST(ReplicaTest, Promise)
 
   future = protocol::promise(replica.pid(), request);
 
-  future.await(Seconds(2.0));
+  future.await(Seconds(2));
   ASSERT_TRUE(future.isReady());
 
   response = future.get();
@@ -86,7 +86,7 @@ TEST(ReplicaTest, Promise)
 
   future = protocol::promise(replica.pid(), request);
 
-  future.await(Seconds(2.0));
+  future.await(Seconds(2));
   ASSERT_TRUE(future.isReady());
 
   response = future.get();
@@ -99,7 +99,7 @@ TEST(ReplicaTest, Promise)
 
   future = protocol::promise(replica.pid(), request);
 
-  future.await(Seconds(2.0));
+  future.await(Seconds(2));
   ASSERT_TRUE(future.isReady());
 
   response = future.get();
@@ -129,7 +129,7 @@ TEST(ReplicaTest, Append)
   Future<PromiseResponse> future1 =
     protocol::promise(replica.pid(), request1);
 
-  future1.await(Seconds(2.0));
+  future1.await(Seconds(2));
   ASSERT_TRUE(future1.isReady());
 
   PromiseResponse response1 = future1.get();
@@ -148,7 +148,7 @@ TEST(ReplicaTest, Append)
   Future<WriteResponse> future2 =
     protocol::write(replica.pid(), request2);
 
-  future2.await(Seconds(2.0));
+  future2.await(Seconds(2));
   ASSERT_TRUE(future2.isReady());
 
   WriteResponse response2 = future2.get();
@@ -157,7 +157,7 @@ TEST(ReplicaTest, Append)
   EXPECT_EQ(1u, response2.position());
 
   Future<std::list<Action> > actions = replica.read(1, 1);
-  ASSERT_TRUE(actions.await(Seconds(2.0)));
+  ASSERT_TRUE(actions.await(Seconds(2)));
   ASSERT_TRUE(actions.isReady());
   ASSERT_EQ(1u, actions.get().size());
 
@@ -194,7 +194,7 @@ TEST(ReplicaTest, Recover)
   Future<PromiseResponse> future1 =
     protocol::promise(replica1.pid(), request1);
 
-  future1.await(Seconds(2.0));
+  future1.await(Seconds(2));
   ASSERT_TRUE(future1.isReady());
 
   PromiseResponse response1 = future1.get();
@@ -213,7 +213,7 @@ TEST(ReplicaTest, Recover)
   Future<WriteResponse> future2 =
     protocol::write(replica1.pid(), request2);
 
-  future2.await(Seconds(2.0));
+  future2.await(Seconds(2));
   ASSERT_TRUE(future2.isReady());
 
   WriteResponse response2 = future2.get();
@@ -222,7 +222,7 @@ TEST(ReplicaTest, Recover)
   EXPECT_EQ(1u, response2.position());
 
   Future<std::list<Action> > actions1 = replica1.read(1, 1);
-  ASSERT_TRUE(actions1.await(Seconds(2.0)));
+  ASSERT_TRUE(actions1.await(Seconds(2)));
   ASSERT_TRUE(actions1.isReady());
   ASSERT_EQ(1u, actions1.get().size());
 
@@ -244,7 +244,7 @@ TEST(ReplicaTest, Recover)
   Replica replica2(path);
 
   Future<std::list<Action> > actions2 = replica2.read(1, 1);
-  ASSERT_TRUE(actions2.await(Seconds(2.0)));
+  ASSERT_TRUE(actions2.await(Seconds(2)));
   ASSERT_TRUE(actions2.isReady());
   ASSERT_EQ(1u, actions2.get().size());
 
@@ -286,14 +286,14 @@ TEST(CoordinatorTest, Elect)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   {
     Future<std::list<Action> > actions = replica1.read(0, 0);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(0u, actions.get().front().position());
@@ -325,7 +325,7 @@ TEST(CoordinatorTest, AppendRead)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
@@ -334,7 +334,7 @@ TEST(CoordinatorTest, AppendRead)
 
   {
     Result<uint64_t> result2 =
-      coord.append("hello world", Timeout(Seconds(2.0)));
+      coord.append("hello world", Timeout(Seconds(2)));
     ASSERT_SOME(result2);
     position = result2.get();
     EXPECT_EQ(1u, position);
@@ -342,7 +342,7 @@ TEST(CoordinatorTest, AppendRead)
 
   {
     Future<std::list<Action> > actions = replica1.read(position, position);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -375,7 +375,7 @@ TEST(CoordinatorTest, AppendReadError)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
@@ -384,7 +384,7 @@ TEST(CoordinatorTest, AppendReadError)
 
   {
     Result<uint64_t> result2 =
-      coord.append("hello world", Timeout(Seconds(2.0)));
+      coord.append("hello world", Timeout(Seconds(2)));
     ASSERT_SOME(result2);
     position = result2.get();
     EXPECT_EQ(1u, position);
@@ -393,7 +393,7 @@ TEST(CoordinatorTest, AppendReadError)
   {
     position += 1;
     Future<std::list<Action> > actions = replica1.read(position, position);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isFailed());
     EXPECT_EQ("Bad read range (past end of log)", actions.failure());
   }
@@ -420,9 +420,9 @@ TEST(CoordinatorTest, ElectNoQuorum)
   Clock::pause();
 
   // Create a timeout here so that we can advance time.
-  Timeout timeout(Seconds(2.0));
+  Timeout timeout(Seconds(2));
 
-  Clock::advance(2.0);
+  Clock::advance(Seconds(2));
 
   {
     Result<uint64_t> result = coord.elect(timeout);
@@ -454,7 +454,7 @@ TEST(CoordinatorTest, AppendNoQuorum)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
@@ -464,9 +464,9 @@ TEST(CoordinatorTest, AppendNoQuorum)
   Clock::pause();
 
   // Create a timeout here so that we can advance time.
-  Timeout timeout(Seconds(2.0));
+  Timeout timeout(Seconds(2));
 
-  Clock::advance(2.0);
+  Clock::advance(Seconds(2));
 
   {
     Result<uint64_t> result = coord.append("hello world", timeout);
@@ -499,7 +499,7 @@ TEST(CoordinatorTest, Failover)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
@@ -508,7 +508,7 @@ TEST(CoordinatorTest, Failover)
 
   {
     Result<uint64_t> result =
-      coord1.append("hello world", Timeout(Seconds(2.0)));
+      coord1.append("hello world", Timeout(Seconds(2)));
     ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(1u, position);
@@ -522,14 +522,14 @@ TEST(CoordinatorTest, Failover)
   Coordinator coord2(2, &replica2, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
     Future<std::list<Action> > actions = replica2.read(position, position);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -562,7 +562,7 @@ TEST(CoordinatorTest, Demoted)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
@@ -571,7 +571,7 @@ TEST(CoordinatorTest, Demoted)
 
   {
     Result<uint64_t> result =
-      coord1.append("hello world", Timeout(Seconds(2.0)));
+      coord1.append("hello world", Timeout(Seconds(2)));
     ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(1u, position);
@@ -585,21 +585,21 @@ TEST(CoordinatorTest, Demoted)
   Coordinator coord2(2, &replica2, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
     Result<uint64_t> result =
-      coord1.append("hello moto", Timeout(Seconds(2.0)));
+      coord1.append("hello moto", Timeout(Seconds(2)));
     ASSERT_TRUE(result.isError());
     EXPECT_EQ("Coordinator demoted", result.error());
   }
 
   {
     Result<uint64_t> result =
-      coord2.append("hello hello", Timeout(Seconds(2.0)));
+      coord2.append("hello hello", Timeout(Seconds(2)));
     ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(2u, position);
@@ -607,7 +607,7 @@ TEST(CoordinatorTest, Demoted)
 
   {
     Future<std::list<Action> > actions = replica2.read(position, position);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -642,7 +642,7 @@ TEST(CoordinatorTest, Fill)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
@@ -651,7 +651,7 @@ TEST(CoordinatorTest, Fill)
 
   {
     Result<uint64_t> result =
-      coord1.append("hello world", Timeout(Seconds(2.0)));
+      coord1.append("hello world", Timeout(Seconds(2)));
     ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(1u, position);
@@ -667,16 +667,16 @@ TEST(CoordinatorTest, Fill)
   Coordinator coord2(2, &replica3, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout(Seconds(2.0)));
+    result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
     Future<std::list<Action> > actions = replica3.read(position, position);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -714,7 +714,7 @@ TEST(CoordinatorTest, NotLearnedFill)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
@@ -723,7 +723,7 @@ TEST(CoordinatorTest, NotLearnedFill)
 
   {
     Result<uint64_t> result =
-      coord1.append("hello world", Timeout(Seconds(2.0)));
+      coord1.append("hello world", Timeout(Seconds(2)));
     ASSERT_SOME(result);
     position = result.get();
     EXPECT_EQ(1u, position);
@@ -739,16 +739,16 @@ TEST(CoordinatorTest, NotLearnedFill)
   Coordinator coord2(2, &replica3, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout(Seconds(2.0)));
+    result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
     Future<std::list<Action> > actions = replica3.read(position, position);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -782,21 +782,21 @@ TEST(CoordinatorTest, MultipleAppends)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord.append(stringify(position), Timeout(Seconds(2.0)));
+      coord.append(stringify(position), Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
     Future<std::list<Action> > actions = replica1.read(1, 10);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(10u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -834,14 +834,14 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord1.append(stringify(position), Timeout(Seconds(2.0)));
+      coord1.append(stringify(position), Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
@@ -856,16 +856,16 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
   Coordinator coord2(2, &replica3, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout(Seconds(2.0)));
+    result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(10u, result.get());
   }
 
   {
     Future<std::list<Action> > actions = replica3.read(1, 10);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(10u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -900,34 +900,34 @@ TEST(CoordinatorTest, Truncate)
   Coordinator coord(2, &replica1, &network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord.append(stringify(position), Timeout(Seconds(2.0)));
+      coord.append(stringify(position), Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
-    Result<uint64_t> result = coord.truncate(7, Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord.truncate(7, Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
 
   {
     Future<std::list<Action> > actions = replica1.read(6, 10);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isFailed());
     EXPECT_EQ("Bad read range (truncated position)", actions.failure());
   }
 
   {
     Future<std::list<Action> > actions = replica1.read(7, 10);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(4u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -965,20 +965,20 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord1.append(stringify(position), Timeout(Seconds(2.0)));
+      coord1.append(stringify(position), Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
-    Result<uint64_t> result = coord1.truncate(7, Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord1.truncate(7, Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
@@ -993,23 +993,23 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
   Coordinator coord2(2, &replica3, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout(Seconds(2.0)));
+    result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
 
   {
     Future<std::list<Action> > actions = replica3.read(6, 10);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isFailed());
     EXPECT_EQ("Bad read range (truncated position)", actions.failure());
   }
 
   {
     Future<std::list<Action> > actions = replica3.read(7, 10);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(4u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -1046,20 +1046,20 @@ TEST(CoordinatorTest, TruncateLearnedFill)
   Coordinator coord1(2, &replica1, &network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord1.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(0u, result.get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
     Result<uint64_t> result =
-      coord1.append(stringify(position), Timeout(Seconds(2.0)));
+      coord1.append(stringify(position), Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(position, result.get());
   }
 
   {
-    Result<uint64_t> result = coord1.truncate(7, Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord1.truncate(7, Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
@@ -1074,23 +1074,23 @@ TEST(CoordinatorTest, TruncateLearnedFill)
   Coordinator coord2(2, &replica3, &network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2.0)));
+    Result<uint64_t> result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout(Seconds(2.0)));
+    result = coord2.elect(Timeout(Seconds(2)));
     ASSERT_SOME(result);
     EXPECT_EQ(11u, result.get());
   }
 
   {
     Future<std::list<Action> > actions = replica3.read(6, 10);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isFailed());
     EXPECT_EQ("Bad read range (truncated position)", actions.failure());
   }
 
   {
     Future<std::list<Action> > actions = replica3.read(7, 10);
-    ASSERT_TRUE(actions.await(Seconds(2.0)));
+    ASSERT_TRUE(actions.await(Seconds(2)));
     ASSERT_TRUE(actions.isReady());
     EXPECT_EQ(4u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -1121,17 +1121,17 @@ TEST(LogTest, WriteRead)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, Seconds(2.0));
+  Log::Writer writer(&log, Seconds(2));
 
   Result<Log::Position> position =
-    writer.append("hello world", Timeout(Seconds(2.0)));
+    writer.append("hello world", Timeout(Seconds(2)));
 
   ASSERT_SOME(position);
 
   Log::Reader reader(&log);
 
   Result<std::list<Log::Entry> > entries =
-    reader.read(position.get(), position.get(), Timeout(Seconds(2.0)));
+    reader.read(position.get(), position.get(), Timeout(Seconds(2)));
 
   ASSERT_SOME(entries);
   ASSERT_EQ(1u, entries.get().size());
@@ -1158,10 +1158,10 @@ TEST(LogTest, Position)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, Seconds(2.0));
+  Log::Writer writer(&log, Seconds(2));
 
   Result<Log::Position> position =
-    writer.append("hello world", Timeout(Seconds(2.0)));
+    writer.append("hello world", Timeout(Seconds(2)));
 
   ASSERT_SOME(position);
 

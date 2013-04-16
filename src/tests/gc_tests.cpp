@@ -113,7 +113,7 @@ TEST_F(GarbageCollectorTest, Schedule)
   Clock::settle();
 
   // Advance the clock to trigger the GC of file1 and file2.
-  Clock::advance(Seconds(10).secs());
+  Clock::advance(Seconds(10));
   Clock::settle();
 
   ASSERT_FUTURE_WILL_SUCCEED(schedule1);
@@ -125,7 +125,7 @@ TEST_F(GarbageCollectorTest, Schedule)
   EXPECT_TRUE(os::exists(file3));
 
   // Trigger the GC of file3.
-  Clock::advance(Seconds(5).secs());
+  Clock::advance(Seconds(5));
   Clock::settle();
 
   ASSERT_FUTURE_WILL_SUCCEED(schedule3);
@@ -169,7 +169,7 @@ TEST_F(GarbageCollectorTest, Unschedule)
   ASSERT_FUTURE_WILL_EQ(true, gc.unschedule(file1));
 
   // Advance the clock to ensure nothing was GCed.
-  Clock::advance(Seconds(10).secs());
+  Clock::advance(Seconds(10));
   Clock::settle();
 
   // The unscheduling will have discarded the GC futures.
@@ -326,7 +326,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
-  Clock::advance(cluster.slaves.flags.gc_delay.secs());
+  Clock::advance(cluster.slaves.flags.gc_delay);
 
   Clock::settle();
 
@@ -415,7 +415,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
-  Clock::advance(cluster.slaves.flags.gc_delay.secs());
+  Clock::advance(cluster.slaves.flags.gc_delay);
 
   Clock::settle();
 

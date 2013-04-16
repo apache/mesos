@@ -124,7 +124,7 @@ TEST(ReaperTest, NonChildProcess)
 
   // Now advance time until the reaper reaps the executor.
   while (processExited.isPending()) {
-    Clock::advance(1.0);
+    Clock::advance(Seconds(1));
     Clock::settle();
   }
 

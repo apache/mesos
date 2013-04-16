@@ -245,7 +245,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status));
 
-  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL.secs());
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL);
 
   AWAIT_UNTIL(status);
 

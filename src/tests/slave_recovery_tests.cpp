@@ -578,11 +578,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT.secs());
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(1.0);
+    Clock::advance(Seconds(1));
     Clock::settle();
   }
 
@@ -666,11 +666,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT.secs());
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(1.0);
+    Clock::advance(Seconds(1));
     Clock::settle();
   }
 
@@ -737,7 +737,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(1.0);
+    Clock::advance(Seconds(1));
     Clock::settle();
   }
 
@@ -930,7 +930,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT.secs());
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
 
   // Wait for the slave to re-register.
   AWAIT_READY(reregisterSlave);
@@ -955,7 +955,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   // Advance the clock until the allocator allocates
   // the recovered resources.
   while (offers2.isPending()) {
-    Clock::advance(1.0);
+    Clock::advance(Seconds(1));
     Clock::settle();
   }
 

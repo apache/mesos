@@ -185,10 +185,10 @@ TEST_F(FaultToleranceTest, SlavePartitioned)
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT.secs());
+    Clock::advance(master::SLAVE_PING_TIMEOUT);
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT.secs());
+  Clock::advance(master::SLAVE_PING_TIMEOUT);
 
   AWAIT_READY(slaveLost);
 
@@ -296,7 +296,8 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
   AWAIT_READY(frameworkRegisteredMessage);
 
-  Clock::advance(1.0); // TODO(benh): Pull out constant from SchedulerProcess.
+  // TODO(benh): Pull out constant from SchedulerProcess.
+  Clock::advance(Seconds(1));
 
   AWAIT_READY(registered); // Ensures registered message is received.
 
@@ -548,7 +549,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(sched2, statusUpdate(&driver2, _))
     .WillOnce(FutureSatisfy(&statusUpdate));
 
-  Clock::advance(STATUS_UPDATE_RETRY_INTERVAL.secs());
+  Clock::advance(STATUS_UPDATE_RETRY_INTERVAL);
 
   AWAIT_READY(statusUpdate);
 
@@ -895,7 +896,7 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  Clock::advance(1.0); // TODO(benh): Pull out constant from Slave.
+  Clock::advance(Seconds(1)); // TODO(benh): Pull out constant from Slave.
 
   AWAIT_READY(resourceOffers);
 
