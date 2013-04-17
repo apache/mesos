@@ -38,6 +38,10 @@
 
 #include "launcher/launcher.hpp"
 
+#include "slave/flags.hpp"
+#include "slave/paths.hpp"
+#include "slave/state.hpp"
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -52,9 +56,11 @@ ExecutorLauncher::ExecutorLauncher(
     const SlaveID& _slaveId,
     const FrameworkID& _frameworkId,
     const ExecutorID& _executorId,
+    const UUID& _uuid,
     const CommandInfo& _commandInfo,
     const string& _user,
     const string& _workDirectory,
+    const string& _slaveDirectory,
     const string& _slavePid,
     const string& _frameworksHome,
     const string& _hadoopHome,
@@ -64,9 +70,11 @@ ExecutorLauncher::ExecutorLauncher(
   : slaveId(_slaveId),
     frameworkId(_frameworkId),
     executorId(_executorId),
+    uuid(_uuid),
     commandInfo(_commandInfo),
     user(_user),
     workDirectory(_workDirectory),
+    slaveDirectory(_slaveDirectory),
     slavePid(_slavePid),
     frameworksHome(_frameworksHome),
     hadoopHome(_hadoopHome),
@@ -82,6 +90,23 @@ ExecutorLauncher::~ExecutorLauncher() {}
 // want to kill the slave (in the case of cgroups isolator).
 int ExecutorLauncher::setup()
 {
+  // Checkpoint the forked pid, if necessary. The checkpointing must
+  // be done in the forked process (cgroups isolator) or execed
+  // launcher process (process isolator), because the slave process
+  // can die immediately after the isolator forks but before it would
+  // have a chance to write the pid to disk. That would result in an
+  // orphaned executor process unknown to the recovering slave.
+  if (checkpoint) {
+    const string& path = slave::paths::getForkedPidPath(
+        slave::paths::getMetaRootDir(slaveDirectory),
+        slaveId,
+        frameworkId,
+        executorId,
+        uuid);
+    cout << "Checkpointing forked pid " << getpid() << endl;
+    slave::state::checkpoint(path, stringify(getpid()));
+  }
+
   const string& cwd = os::getcwd();
 
   // TODO(benh): Do this in the slave?
@@ -379,6 +404,7 @@ void ExecutorLauncher::setupEnvironment()
   os::setenv("MESOS_SLAVE_ID", slaveId.value());
   os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
   os::setenv("MESOS_EXECUTOR_ID", executorId.value());
+  os::setenv("MESOS_EXECUTOR_UUID", uuid.toString());
   os::setenv("MESOS_CHECKPOINT", checkpoint ? "1" : "0");
 }
 
@@ -416,6 +442,7 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
   os::setenv("MESOS_EXECUTOR_URIS", uris);
   os::setenv("MESOS_USER", user);
   os::setenv("MESOS_WORK_DIRECTORY", workDirectory);
+  os::setenv("MESOS_SLAVE_DIRECTORY", slaveDirectory);
   os::setenv("MESOS_SLAVE_PID", slavePid);
   os::setenv("MESOS_HADOOP_HOME", hadoopHome);
   os::setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0");

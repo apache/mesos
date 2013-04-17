@@ -81,21 +81,6 @@ public:
 
   virtual void processExited(pid_t pid, int status);
 
-protected:
-  // Main method executed after a fork() to create a Launcher for launching
-  // an executor's process. The Launcher will chdir() to the child's working
-  // directory, fetch the executor, set environment varibles,
-  // switch user, etc, and finally exec() the executor process.
-  // Subclasses of ProcessIsolator that wish to override the
-  // default launching behavior should override createLauncher() and return
-  // their own Launcher object (including possibly a subclass of Launcher).
-  virtual launcher::ExecutorLauncher* createExecutorLauncher(
-      const SlaveID& slaveId,
-      const FrameworkID& frameworkId,
-      const FrameworkInfo& frameworkInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory);
-
 private:
   // No copying, no assigning.
   ProcessIsolator(const ProcessIsolator&);

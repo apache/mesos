@@ -32,6 +32,7 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
+#include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -140,6 +141,30 @@ void ProcessIsolator::launchExecutor(
   cloexec = os::cloexec(pipes[1]);
   CHECK_SOME(cloexec) << "Error setting FD_CLOEXEC on pipe[1]";
 
+  // Create the ExecutorLauncher instance before the fork for the
+  // child process to use. TODO(benh): Consider actually setting up
+  // this slaves environment for launching mesos-launcher so that we
+  // don't run the risk of
+  // ExecutorLauncher::setupEnvironmentForLauncherMain having some
+  // fork issues. Alternatively, we could imagine refactoring
+  // ExecutorLauncher::setupEnvironmentForLauncherMain to carefully
+  // only use fork "safe" functions.
+  ExecutorLauncher launcher(
+      slaveId,
+      frameworkId,
+      executorInfo.executor_id(),
+      uuid,
+      executorInfo.command(),
+      frameworkInfo.user(),
+      directory,
+      flags.work_dir,
+      slave,
+      flags.frameworks_home,
+      flags.hadoop_home,
+      !local,
+      flags.switch_user,
+      frameworkInfo.checkpoint());
+
   pid_t pid;
   if ((pid = fork()) == -1) {
     PLOG(FATAL) << "Failed to fork to launch new executor";
@@ -195,31 +220,31 @@ void ProcessIsolator::launchExecutor(
 
     close(pipes[1]);
 
-    // Checkpoint the forked pid, if necessary. The checkpointing must
-    // be done in the forked process, because the slave process can
-    // die immediately after the isolator forks but before it would
-    // have a chance to write the pid to disk. That would result in an
-    // orphaned executor process unknown to the slave when doing
-    // recovery.
-    if (frameworkInfo.checkpoint()) {
-      const string& path = paths::getForkedPidPath(
-          paths::getMetaRootDir(flags.work_dir),
-          slaveId,
-          frameworkId,
-          executorId,
-          uuid);
+    launcher.setupEnvironmentForLauncherMain();
 
-      std::cout << "Checkpointing forked pid " << getpid() << std::endl;
-      state::checkpoint(path, stringify(getpid()));
+    const char** args = (const char**) new char*[2];
+
+    // Determine path for mesos-launcher.
+    Try<string> realpath = os::realpath(
+        path::join(flags.launcher_dir, "mesos-launcher"));
+
+    if (realpath.isError()) {
+      EXIT(1) << "Failed to determine the canonical path "
+              << "for the mesos-launcher: " << realpath.error();
     }
 
-    ExecutorLauncher* launcher = createExecutorLauncher(
-        slaveId, frameworkId, frameworkInfo, executorInfo, directory);
+    // Grab a copy of the path so that we can reliably use 'c_str()'.
+    const string& path = realpath.get();
 
-    if (launcher->run() < 0) {
-      std::cerr << "Failed to launch executor" << std::endl;
-      abort();
-    }
+    args[0] = path.c_str();
+    args[1] = NULL;
+
+    // Execute the mesos-launcher!
+    execvp(args[0], (char* const*) args);
+
+    // If we get here, the execvp call failed.
+    perror("Failed to execvp the mesos-launcher");
+    abort();
   }
 }
 
@@ -270,29 +295,6 @@ void ProcessIsolator::resourcesChanged(
 {
   CHECK(initialized) << "Cannot do resourcesChanged before initialization!";
   // Do nothing; subclasses may override this.
-}
-
-
-ExecutorLauncher* ProcessIsolator::createExecutorLauncher(
-    const SlaveID& slaveId,
-    const FrameworkID& frameworkId,
-    const FrameworkInfo& frameworkInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory)
-{
-  return new ExecutorLauncher(
-      slaveId,
-      frameworkId,
-      executorInfo.executor_id(),
-      executorInfo.command(),
-      frameworkInfo.user(),
-      directory,
-      slave,
-      flags.frameworks_home,
-      flags.hadoop_home,
-      !local,
-      flags.switch_user,
-      frameworkInfo.checkpoint());
 }
 
 

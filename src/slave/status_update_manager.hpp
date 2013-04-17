@@ -45,6 +45,8 @@
 
 #include "messages/messages.hpp"
 
+#include "slave/flags.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {

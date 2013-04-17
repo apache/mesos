@@ -23,6 +23,10 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/uuid.hpp>
+
+#include "slave/flags.hpp"
+
 namespace mesos {
 namespace internal {
 namespace launcher {
@@ -45,9 +49,11 @@ public:
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
+      const UUID& uuid,
       const CommandInfo& commandInfo,
       const std::string& user,
       const std::string& workDirectory,
+      const std::string& slaveWorkDirectory,
       const std::string& slavePid,
       const std::string& frameworksHome,
       const std::string& hadoopHome,
@@ -84,18 +90,20 @@ protected:
   virtual void switchUser();
 
 protected:
-  SlaveID slaveId;
-  FrameworkID frameworkId;
-  ExecutorID executorId;
-  CommandInfo commandInfo;
-  std::string user;
-  std::string workDirectory; // Directory in which the framework should run.
-  std::string slavePid;
-  std::string frameworksHome;
-  std::string hadoopHome;
-  bool redirectIO;   // Whether to redirect stdout and stderr to files.
-  bool shouldSwitchUser; // Whether to setuid to framework's user.
-  bool checkpoint; // Whether the framework enabled checkpointing.
+  const SlaveID slaveId;
+  const FrameworkID frameworkId;
+  const ExecutorID executorId;
+  const UUID uuid;
+  const CommandInfo commandInfo;
+  const std::string user;
+  const std::string workDirectory;
+  const std::string slaveDirectory;
+  const std::string slavePid;
+  const std::string frameworksHome;
+  const std::string hadoopHome;
+  const bool redirectIO;   // Whether to redirect stdout and stderr to files.
+  const bool shouldSwitchUser; // Whether to setuid to framework's user.
+  const bool checkpoint; // Whether the framework enabled checkpointing.
 };
 
 } // namespace launcher {

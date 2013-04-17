@@ -565,9 +565,11 @@ void CgroupsIsolator::launchExecutor(
         slaveId,
         frameworkId,
         executorInfo.executor_id(),
+        uuid,
         executorInfo.command(),
         frameworkInfo.user(),
         directory,
+        flags.work_dir,
         slave,
         flags.frameworks_home,
         flags.hadoop_home,
@@ -579,25 +581,6 @@ void CgroupsIsolator::launchExecutor(
     if (launcher.setup() < 0) {
       EXIT(1) << "Failed to setup executor '" << executorId
               << "' for framework " << frameworkId;
-    }
-
-
-    // Checkpoint the forked pid, if necessary. The checkpointing must
-    // be done in the forked process, because the slave process can
-    // die immediately after the isolator forks but before it would
-    // have a chance to write the pid to disk. That would result in an
-    // orphaned executor process unknown to the slave when doing
-    // recovery.
-    if (frameworkInfo.checkpoint()) {
-      const string& path = paths::getForkedPidPath(
-          paths::getMetaRootDir(flags.work_dir),
-          slaveId,
-          frameworkId,
-          executorId,
-          uuid);
-
-      std::cout << "Checkpointing forked pid " << getpid() << std::endl;
-      state::checkpoint(path, stringify(getpid()));
     }
 
     // Put self into the newly created cgroup.

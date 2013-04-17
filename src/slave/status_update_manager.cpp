@@ -30,6 +30,7 @@
 #include "stout/uuid.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/flags.hpp"
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
 #include "slave/status_update_manager.hpp"
