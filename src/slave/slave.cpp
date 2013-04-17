@@ -597,6 +597,7 @@ void Slave::runTask(
   LOG(INFO) << "Got assigned task " << task.task_id()
             << " for framework " << frameworkId;
 
+  // TODO(vinod): Do this check in the master instead.
   if (frameworkInfo.checkpoint() && !flags.checkpoint) {
      LOG(WARNING) << "Asked to checkpoint framework " << frameworkId
                   << " but the checkpointing is disabled on the slave!"
@@ -627,19 +628,12 @@ void Slave::runTask(
         framework->state == Framework::TERMINATING)
     << framework->state;
 
+  // We don't send a status update here because a terminating
+  // framework cannot send acknowledgements.
   if (framework->state == Framework::TERMINATING) {
-    LOG(WARNING) << "Asked to run task '" << task.task_id()
-                 << "' for framework " << frameworkId
-                 << " which is terminating";
-
-    const StatusUpdate& update = protobuf::createStatusUpdate(
-        frameworkId,
-        info.id(),
-        task.task_id(),
-        TASK_LOST,
-        "Framework terminating");
-
-    statusUpdate(update);
+    LOG(WARNING) << "Ignoring run task " << task.task_id()
+                 << " of framework " << frameworkId
+                 << " because the framework is terminating";
     return;
   }
 
@@ -764,14 +758,9 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    LOG(WARNING) << "Cannot kill task " << taskId
+    LOG(WARNING) << "Ignoring kill task " << taskId
                  << " of framework " << frameworkId
                  << " because no such framework is running";
-
-    const StatusUpdate& update = protobuf::createStatusUpdate(
-        frameworkId, info.id(), taskId, TASK_LOST, "Cannot find framework");
-
-    statusUpdate(update);
     return;
   }
 
@@ -788,14 +777,14 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
     return;
   }
 
-  // Tell the executor to kill the task if it is up and
-  // running, otherwise, consider the task lost.
   Executor* executor = framework->getExecutor(taskId);
   if (executor == NULL) {
     LOG(WARNING) << "Cannot kill task " << taskId
                  << " of framework " << frameworkId
                  << " because no corresponding executor is running";
 
+    // We send a TASK_LOST update because this task might have never
+    // been launched on this slave!
     const StatusUpdate& update = protobuf::createStatusUpdate(
         frameworkId, info.id(), taskId, TASK_LOST, "Cannot find executor");
 
@@ -1048,7 +1037,7 @@ void Slave::_statusUpdateAcknowledgement(
   if (!future.isReady()) {
     LOG(FATAL) << "Failed to handle status update acknowledgement"
                << " for task " << taskId
-               << " of framework " << frameworkId
+               << " of framework " << frameworkId << ": "
                << (future.isFailed() ? future.failure() : "future discarded");
     return;
   }
@@ -1057,7 +1046,7 @@ void Slave::_statusUpdateAcknowledgement(
     LOG(ERROR) << "Failed to handle the status update acknowledgement"
                << " for task " << taskId
                << " of framework " << frameworkId
-               << future.get().error();
+               << ": " << future.get().error();
     return;
   }
 
@@ -1370,69 +1359,82 @@ void Slave::statusUpdate(const StatusUpdate& update)
 {
   const TaskStatus& status = update.status();
 
-  Option<UPID> pid;
-  Option<ExecutorID> executorId;
-  Option<UUID> uuid;
-  bool checkpoint = false;
-
-  Executor* executor = NULL;
   Framework* framework = getFramework(update.framework_id());
   if (framework == NULL) {
-    LOG(WARNING) << "Could not find the framework for status update " << update;
+    LOG(WARNING) << "Ignoring status update " << update
+                 << " for unknown framework " << update.framework_id();
     stats.invalidStatusUpdates++;
-  } else if (framework->state == Framework::TERMINATING) {
-    LOG(WARNING) << "Received status update " << update
-                 << "for terminating framework " << framework->id;
-    stats.invalidStatusUpdates++;
-  } else {
-    executor = framework->getExecutor(status.task_id());
-    if (executor == NULL) {
-      LOG(WARNING) << "Could not find the executor for status "
-                   << "status update " << update;
-
-      stats.invalidStatusUpdates++;
-    } else if (executor->state == Executor::REGISTERING) {
-      LOG(WARNING) << "Received status update " << update
-                   << " from unregistered executor!";
-      stats.invalidStatusUpdates++;
-    } else {
-      LOG(INFO) << "Handling status update " << update;
-
-      executor->updateTaskState(status.task_id(), status.state());
-      executor->updates.put(status.task_id(), UUID::fromBytes(update.uuid()));
-
-      // Handle the task appropriately if it's terminated.
-      if (protobuf::isTerminalState(status.state())) {
-        executor->removeTask(status.task_id());
-
-        // Tell the isolator to update the resources.
-        dispatch(isolator,
-            &Isolator::resourcesChanged,
-            framework->id,
-            executor->id,
-            executor->resources);
-      }
-
-      if (executor->state == Executor::RUNNING) {
-        pid = executor->pid;
-      }
-      checkpoint = executor->checkpoint;
-      executorId = executor->id;
-      uuid = executor->uuid;
-    }
+    return;
   }
 
-  // NOTE: We forward the update even if the framework/executor is
-  // unknown because currently there is no persistent state in the
-  // master. The lack of persistence might lead frameworks to use
-  // out-of-band means to figure out the task state mismatch and use
-  // status updates to reconcile. We need to revisit this issue once
-  // master has persistent state.
-  statusUpdateManager->update(update, checkpoint, info.id(), executorId, uuid)
-    .onAny(defer(self(), &Slave::_statusUpdate, params::_1, update, pid));
+  CHECK(framework->state == Framework::RUNNING ||
+        framework->state == Framework::TERMINATING)
+    << framework->state;
+
+  // We don't send update when a framework is terminating because
+  // it cannot send acknowledgements.
+  if (framework->state == Framework::TERMINATING) {
+    LOG(WARNING) << "Ignoring status update " << update
+                 << " for terminating framework " << framework->id;
+    stats.invalidStatusUpdates++;
+    return;
+  }
+
+  Executor* executor = framework->getExecutor(status.task_id());
+  if (executor == NULL) {
+    LOG(WARNING)  << "Could not find the executor for "
+                  << "status update " << update;
+    stats.invalidStatusUpdates++;
+
+    statusUpdateManager->update(update, info.id())
+      .onAny(defer(self(), &Slave::_statusUpdate, params::_1, update, None()));
+
+    return;
+  }
+
+  CHECK(executor->state == Executor::REGISTERING ||
+        executor->state == Executor::RUNNING ||
+        executor->state == Executor::TERMINATING ||
+        executor->state == Executor::TERMINATED)
+    << executor->state;
+
+  LOG(INFO) << "Handling status update " << update;
 
   stats.tasks[update.status().state()]++;
   stats.validStatusUpdates++;
+
+  executor->updateTaskState(status.task_id(), status.state());
+  executor->updates.put(status.task_id(), UUID::fromBytes(update.uuid()));
+
+  // Handle the task appropriately if it's terminated.
+  if (protobuf::isTerminalState(status.state())) {
+    executor->removeTask(status.task_id());
+
+    // Tell the isolator to update the resources.
+    dispatch(isolator,
+             &Isolator::resourcesChanged,
+             framework->id,
+             executor->id,
+             executor->resources);
+  }
+
+  if (executor->checkpoint) {
+    // Ask the status update manager to checkpoint and reliably send the update.
+    statusUpdateManager->update(update, info.id(), executor->id, executor->uuid)
+      .onAny(defer(self(),
+                   &Slave::_statusUpdate,
+                   params::_1,
+                   update,
+                   executor->pid));
+  } else {
+    // Ask the status update manager to just retry the update.
+    statusUpdateManager->update(update, info.id())
+      .onAny(defer(self(),
+                   &Slave::_statusUpdate,
+                   params::_1,
+                   update,
+                   executor->pid));
+  }
 }
 
 

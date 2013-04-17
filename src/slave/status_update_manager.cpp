@@ -64,10 +64,13 @@ public:
 
   Try<Nothing> update(
       const StatusUpdate& update,
-      bool checkpoint,
       const SlaveID& slaveId,
-      const Option<ExecutorID>& executorId,
-      const Option<UUID>& uuid);
+      const ExecutorID& executorId,
+      const UUID& uuid);
+
+  Try<Nothing> update(
+      const StatusUpdate& update,
+      const SlaveID& slaveId);
 
   Try<Nothing> acknowledgement(
       const TaskID& taskId,
@@ -81,6 +84,14 @@ public:
   void cleanup(const FrameworkID& frameworkId);
 
 private:
+  // Helper function to handle update.
+  Try<Nothing> _update(
+      const StatusUpdate& update,
+      const SlaveID& slaveId,
+      bool checkpoint,
+      const Option<ExecutorID>& executorId,
+      const Option<UUID>& uuid);
+
   // Status update timeout.
   void timeout();
 
@@ -215,7 +226,7 @@ Try<Nothing> StatusUpdateManagerProcess::recover(
 
         // At the end of the replay, the stream is either terminated or
         // contains only unacknowledged, if any, pending updates.
-        if (stream->terminated()) {
+        if (stream->terminated) {
           cleanupStatusUpdateStream(task.id, framework.id);
         } else {
           // If a stream has pending updates after the replay,
@@ -248,15 +259,34 @@ void StatusUpdateManagerProcess::cleanup(const FrameworkID& frameworkId)
 
 Try<Nothing> StatusUpdateManagerProcess::update(
     const StatusUpdate& update,
-    bool checkpoint,
     const SlaveID& slaveId,
+    const ExecutorID& executorId,
+    const UUID& uuid)
+{
+  return _update(update, slaveId, true, executorId, uuid);
+}
+
+
+Try<Nothing> StatusUpdateManagerProcess::update(
+    const StatusUpdate& update,
+    const SlaveID& slaveId)
+{
+  return _update(update, slaveId, false, None(), None());
+}
+
+
+Try<Nothing> StatusUpdateManagerProcess::_update(
+    const StatusUpdate& update,
+    const SlaveID& slaveId,
+    bool checkpoint,
     const Option<ExecutorID>& executorId,
     const Option<UUID>& uuid)
 {
   const TaskID& taskId = update.status().task_id();
   const FrameworkID& frameworkId = update.framework_id();
 
-  LOG(INFO) << "Received status update " << update;
+  LOG(INFO) << "Received status update " << update
+            << " with checkpoint=" << stringify(checkpoint);
 
   // Write the status update to disk and enqueue it to send it to the master.
   // Create/Get the status update stream for this task.
@@ -264,6 +294,15 @@ Try<Nothing> StatusUpdateManagerProcess::update(
   if (stream == NULL) {
     stream = createStatusUpdateStream(
         taskId, frameworkId, slaveId, checkpoint, executorId, uuid);
+  }
+
+  // Verify that we didn't get a non-checkpointable update for a
+  // stream that is checkpointable, and vice-versa.
+  if (stream->checkpoint != checkpoint) {
+    return Error(
+        "Mismatched checkpoint value for status update " + stringify(update) +
+        " (expected checkpoint=" + stringify(stream->checkpoint) +
+        " actual checkpoint=" + stringify(checkpoint) + ")");
   }
 
   // Handle the status update.
@@ -363,7 +402,7 @@ Try<Nothing> StatusUpdateManagerProcess::acknowledgement(
     return Error(next.error());
   }
 
-  if (stream->terminated()) {
+  if (stream->terminated) {
     if (next.isSome()) {
       LOG(WARNING) << "Acknowledged a terminal"
                    << " status update " << update.get()
@@ -488,19 +527,29 @@ void StatusUpdateManager::initialize(
 
 Future<Try<Nothing> > StatusUpdateManager::update(
     const StatusUpdate& update,
-    bool checkpoint,
     const SlaveID& slaveId,
-    const Option<ExecutorID>& executorId,
-    const Option<UUID>& uuid)
+    const ExecutorID& executorId,
+    const UUID& uuid)
 {
   return dispatch(
       process,
       &StatusUpdateManagerProcess::update,
       update,
-      checkpoint,
       slaveId,
       executorId,
       uuid);
+}
+
+
+Future<Try<Nothing> > StatusUpdateManager::update(
+    const StatusUpdate& update,
+    const SlaveID& slaveId)
+{
+  return dispatch(
+      process,
+      &StatusUpdateManagerProcess::update,
+      update,
+      slaveId);
 }
 
 

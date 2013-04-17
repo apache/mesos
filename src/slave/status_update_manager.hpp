@@ -62,7 +62,7 @@ struct StatusUpdateStream;
 
 
 // StatusUpdateManager is responsible for
-// 1) Reliably sending status updates to the master (and hence, the scheduler).
+// 1) Reliably sending status updates to the master.
 // 2) Checkpointing the update to disk (optional).
 // 3) Sending ACKs to the executor (optional).
 // 4) Receiving ACKs from the scheduler.
@@ -76,18 +76,30 @@ public:
       const Flags& flags,
       const PID<Slave>& slave);
 
-  // Enqueues the status update to reliably send the update to the master.
-  // If 'checkpoint' is true, the update is also checkpointed.
-  // @return Whether the update is handled successfully (e.g. checkpointed).
+  // TODO(vinod): Come up with better names/signatures for the
+  // checkpointing and non-checkpointing 'update()' functions.
+  // Currently, it is not obvious that one version of 'update()'
+  // does checkpointing while the other doesn't.
+
+  // Checkpoints the status update and reliably sends the
+  // update to the master (and hence the scheduler).
+  // @return Whether the update is handled successfully
+  // (e.g. checkpointed).
   process::Future<Try<Nothing> > update(
       const StatusUpdate& update,
-      bool checkpoint,
       const SlaveID& slaveId,
-      const Option<ExecutorID>& executorId,
-      const Option<UUID>& uuid);
+      const ExecutorID& executorId,
+      const UUID& uuid);
 
-  // Receives the ACK from the scheduler and checkpoints it to disk if
-  // necessary. Also, sends the next pending status update, if any.
+  // Retries the update to the master (as long as the slave is
+  // alive), but does not checkpoint the update.
+  // @return Whether the update is handled successfully.
+  process::Future<Try<Nothing> > update(
+      const StatusUpdate& update,
+      const SlaveID& slaveId);
+
+  // Checkpoints the status update to disk if necessary.
+  // Also, sends the next pending status update, if any.
   // @return Whether ACK is handled successfully (e.g. checkpointed).
   process::Future<Try<Nothing> > acknowledgement(
       const TaskID& taskId,
@@ -124,16 +136,14 @@ struct StatusUpdateStream
                      const SlaveID& _slaveId,
                      const Flags& _flags,
                      bool _checkpoint,
-                     const Option<ExecutorID>& _executorId,
-                     const Option<UUID>& _uuid)
-    : taskId(_taskId),
+                     const Option<ExecutorID>& executorId,
+                     const Option<UUID>& uuid)
+    : checkpoint(_checkpoint),
+      terminated(false),
+      taskId(_taskId),
       frameworkId(_frameworkId),
       slaveId(_slaveId),
       flags(_flags),
-      checkpoint(_checkpoint),
-      terminated_(false),
-      executorId(_executorId),
-      uuid(_uuid),
       error(None())
   {
     if (checkpoint) {
@@ -269,11 +279,6 @@ struct StatusUpdateStream
     return Nothing();
   }
 
-  // Whether a terminal ACK has been received.
-  bool terminated() const {
-    return terminated_;
-  }
-
   // Delete the task meta directory.
   // TODO(vinod): Archive it.
   void cleanup() {
@@ -285,7 +290,9 @@ struct StatusUpdateStream
     }
   }
 
-  // TODO(vinod): Explore semantics to make 'timeout' and 'pending' private.
+  // TODO(vinod): Explore semantics to make these private.
+  const bool checkpoint;
+  bool terminated;
   Option<Timeout> timeout; // Timeout for resending status update.
   std::queue<StatusUpdate> pending;
 
@@ -350,8 +357,8 @@ private:
       // Remove the corresponding update from the pending queue.
       pending.pop();
 
-      if (!terminated_) {
-        terminated_ = protobuf::isTerminalState(update.status().state());
+      if (!terminated) {
+        terminated = protobuf::isTerminalState(update.status().state());
       }
     }
   }
@@ -362,14 +369,8 @@ private:
 
   const Flags flags;
 
-  bool checkpoint;
-  bool terminated_;
-
   hashset<UUID> received;
   hashset<UUID> acknowledged;
-
-  const Option<ExecutorID> executorId;
-  const Option<UUID> uuid;
 
   Option<std::string> path; // File path of the update stream.
   Option<int> fd; // File descriptor to the update stream.
