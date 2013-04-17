@@ -507,14 +507,9 @@ void CgroupsIsolator::launchExecutor(
     const ExecutorInfo& executorInfo,
     const UUID& uuid,
     const string& directory,
-    const Resources& resources,
-    const Option<string>& path)
+    const Resources& resources)
 {
   CHECK(initialized) << "Cannot launch executors before initialization";
-
-  bool checkpoint = frameworkInfo.checkpoint();
-  CHECK(!(checkpoint && path.isNone()))
-    << "Asked to checkpoint forked pid without providing a path";
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
@@ -593,9 +588,16 @@ void CgroupsIsolator::launchExecutor(
     // have a chance to write the pid to disk. That would result in an
     // orphaned executor process unknown to the slave when doing
     // recovery.
-    if (checkpoint) {
+    if (frameworkInfo.checkpoint()) {
+      const string& path = paths::getForkedPidPath(
+          paths::getMetaRootDir(flags.work_dir),
+          slaveId,
+          frameworkId,
+          executorId,
+          uuid);
+
       std::cout << "Checkpointing forked pid " << getpid() << std::endl;
-      state::checkpoint(path.get(), stringify(getpid()));
+      state::checkpoint(path, stringify(getpid()));
     }
 
     // Put self into the newly created cgroup.

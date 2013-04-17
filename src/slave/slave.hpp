@@ -181,6 +181,9 @@ protected:
   virtual void finalize();
   virtual void exited(const UPID& pid);
 
+  // This is called when recovery finishes.
+  void _initialize(const Future<Nothing>& future);
+
   void fileAttached(const Future<Nothing>& result, const std::string& path);
 
   void detachFile(const Future<Nothing>& result, const std::string& path);
@@ -223,14 +226,10 @@ protected:
   // live executors. Otherwise, the slave attempts to shutdown/kill them.
   // If 'safe' is true, any recovery errors are considered fatal.
   Future<Nothing> recover(bool reconnect, bool safe);
+  Future<Nothing> _recover(const state::SlaveState& state, bool reconnect);
 
-  // This is called when recovery finishes.
-  void _recover(const Future<Nothing>& future);
-
-  // Recovers executors by reconnecting/killing as necessary.
-  Future<Nothing> recoverExecutors(
-      const state::SlaveState& state,
-      bool reconnect);
+  // Helper to recover a framework from the specified state.
+  void recover(const state::FrameworkState& state, bool reconnect);
 
   // Called when an executor terminates or a status update
   // acknowledgement is handled by the status update manager.
@@ -310,20 +309,46 @@ private:
 // Information describing an executor.
 struct Executor
 {
-  Executor(const FrameworkID& _frameworkId,
+  Executor(const SlaveID& _slaveId,
+           const FrameworkID& _frameworkId,
            const ExecutorInfo& _info,
            const UUID& _uuid,
-           const std::string& _directory)
-    : id(_info.executor_id()),
+           const std::string& _directory,
+           const Flags& _flags,
+           bool _checkpoint)
+    : state(REGISTERING), // TODO(benh): Skipping INITIALIZING for now.
+      slaveId(_slaveId),
+      id(_info.executor_id()),
       info(_info),
       frameworkId(_frameworkId),
-      directory(_directory),
       uuid(_uuid),
+      directory(_directory),
+      flags(_flags),
+      checkpoint(_checkpoint),
       pid(UPID()),
-      shutdown(false),
-      terminated(false),
       resources(_info.resources()),
-      completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR) {}
+      completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
+  {
+    if (checkpoint) {
+      // Checkpoint the executor info.
+      const std::string& path = paths::getExecutorInfoPath(
+          paths::getMetaRootDir(flags.work_dir),
+          slaveId,
+          frameworkId,
+          id);
+
+      CHECK_SOME(state::checkpoint(path, info));
+
+      // Create the meta executor directory.
+      // NOTE: This creates the 'latest' symlink in the meta directory.
+      paths::createExecutorDirectory(
+          paths::getMetaRootDir(flags.work_dir),
+          slaveId,
+          frameworkId,
+          id,
+          uuid);
+    }
+  }
 
   ~Executor()
   {
@@ -339,8 +364,8 @@ struct Executor
     // maybe we shouldn't make this a fatal error.
     CHECK(!launchedTasks.contains(task.task_id()));
 
-    Task* t =
-        new Task(protobuf::createTask(task, TASK_STAGING, id, frameworkId));
+    Task* t = new Task(
+        protobuf::createTask(task, TASK_STAGING, id, frameworkId));
 
     launchedTasks[task.task_id()] = t;
     resources += task.resources();
@@ -366,6 +391,59 @@ struct Executor
     }
   }
 
+  void checkpointTask(const TaskInfo& task)
+  {
+    if (checkpoint) {
+      const std::string& path = paths::getTaskInfoPath(
+          paths::getMetaRootDir(flags.work_dir),
+          slaveId,
+          frameworkId,
+          id,
+          uuid,
+          task.task_id());
+
+      const Task& t = protobuf::createTask(
+          task, TASK_STAGING, id, frameworkId);
+
+      CHECK_SOME(state::checkpoint(path, t));
+    }
+  }
+
+  void recoverTask(const state::TaskState& state)
+  {
+    if (state.info.isNone()) {
+      LOG(WARNING) << "Skipping recovery of task " << state.id
+                   << " because its info cannot be recovered";
+      return;
+    }
+
+    launchedTasks[state.id] = new Task(state.info.get());
+
+    // NOTE: Since some tasks might have been terminated when the
+    // slave was down, the executor resources we capture here is an
+    // upper-bound. The actual resources needed (for live tasks) by
+    // the isolator will be calculated when the executor re-registers.
+    resources += state.info.get().resources();
+
+    // Read updates to get the latest state of the task.
+    foreach (const StatusUpdate& update, state.updates) {
+      updateTaskState(state.id, update.status().state());
+      updates.put(state.id, UUID::fromBytes(update.uuid()));
+
+      // Remove the task if it received a terminal update.
+      if (protobuf::isTerminalState(update.status().state())) {
+        removeTask(state.id);
+
+        // If the terminal update has been acknowledged, remove it
+        // from pending tasks.
+        if (state.acks.contains(UUID::fromBytes(update.uuid()))) {
+          updates.remove(state.id, UUID::fromBytes(update.uuid()));
+        }
+        break;
+      }
+    }
+  }
+
   void updateTaskState(const TaskID& taskId, TaskState state)
   {
     if (launchedTasks.contains(taskId)) {
@@ -373,23 +451,30 @@ struct Executor
     }
   }
 
+  enum {
+    INITIALIZING,
+    REGISTERING,
+    RUNNING,
+    TERMINATING,
+    TERMINATED,
+  } state;
+
+  const SlaveID slaveId;
+
   const ExecutorID id;
   const ExecutorInfo info;
 
   const FrameworkID frameworkId;
 
-  const std::string directory;
-
   const UUID uuid; // Distinguishes executor instances with same ExecutorID.
 
+  const std::string directory;
+
+  const Flags flags;
+
+  const bool checkpoint;
+
   UPID pid;
-
-  bool shutdown; // Indicates if executor is being shut down.
-
-  // Indicates if the executor has terminated. We need this
-  // because a terminated executor might still have pending
-  // status updates that are not yet acknowledged.
-  bool terminated;
 
   Resources resources; // Currently consumed resources.
 
@@ -409,16 +494,37 @@ private:
 // Information about a framework.
 struct Framework
 {
-  Framework(const FrameworkID& _id,
+  Framework(const SlaveID& _slaveId,
+            const FrameworkID& _id,
             const FrameworkInfo& _info,
             const UPID& _pid,
             const Flags& _flags)
-    : id(_id),
+    : state(RUNNING), // TODO(benh): Skipping INITIALIZING for now.
+      slaveId(_slaveId),
+      id(_id),
       info(_info),
       pid(_pid),
       flags(_flags),
-      shutdown(false),
-      completedExecutors(MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK) {}
+      completedExecutors(MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK)
+  {
+    if (info.checkpoint()) {
+      // Checkpoint the framework info.
+      std::string path = paths::getFrameworkInfoPath(
+          paths::getMetaRootDir(flags.work_dir),
+          slaveId,
+          id);
+
+      CHECK_SOME(state::checkpoint(path, info));
+
+      // Checkpoint the framework pid.
+      path = paths::getFrameworkPidPath(
+          paths::getMetaRootDir(flags.work_dir),
+          slaveId,
+          id);
+
+      CHECK_SOME(state::checkpoint(path, pid));
+    }
+  }
 
   ~Framework()
   {
@@ -481,21 +587,28 @@ struct Framework
     return task.executor();
   }
 
-  Executor* createExecutor(const SlaveID& slaveId,
-                           const ExecutorInfo& executorInfo)
+  Executor* createExecutor(const ExecutorInfo& executorInfo)
   {
-    // We create a UUID for the new executor. The UUID uniquely identifies this
-    // new instance of the executor across executors sharing the same executorID
-    // that may have previously run. It also provides a means for the executor
-    // to have a unique directory.
-    UUID executorUUID = UUID::random();
+    // We create a UUID for the new executor. The UUID uniquely
+    // identifies this new instance of the executor across executors
+    // sharing the same executorID that may have previously run. It
+    // also provides a means for the executor to have a unique
+    // directory.
+    UUID uuid = UUID::random();
 
     // Create a directory for the executor.
     const std::string& directory = paths::createExecutorDirectory(
-        flags.work_dir, slaveId, id, executorInfo.executor_id(), executorUUID);
+        flags.work_dir, slaveId, id, executorInfo.executor_id(), uuid);
 
-    Executor* executor =
-      new Executor(id, executorInfo, executorUUID, directory);
+    Executor* executor = new Executor(
+        slaveId,
+        id,
+        executorInfo,
+        uuid,
+        directory,
+        flags,
+        info.checkpoint());
+
     CHECK(!executors.contains(executorInfo.executor_id()));
     executors[executorInfo.executor_id()] = executor;
     return executor;
@@ -533,6 +646,70 @@ struct Framework
     return NULL;
   }
 
+  Executor* recoverExecutor(const state::ExecutorState& state)
+  {
+    LOG(INFO) << "Recovering executor '" << state.id
+              << "' of framework " << id;
+
+    if (state.info.isNone()) {
+      LOG(WARNING) << "Skipping recovery of executor '" << state.id
+                   << "' of framework " << id
+                   << " because its info cannot be recovered";
+      return NULL;
+    }
+
+    if (state.latest.isNone()) {
+      LOG(WARNING) << "Skipping recovery of executor '" << state.id
+                   << "' of framework " << id
+                   << " because its latest run cannot be recovered";
+      return NULL;
+    }
+
+    // We are only interested in the latest run of the executor!
+    const UUID& uuid = state.latest.get();
+
+    // Create executor.
+    const std::string& directory = paths::getExecutorRunPath(
+        flags.work_dir, slaveId, id, state.id, uuid);
+
+    Executor* executor = new Executor(
+        slaveId,
+        id,
+        state.info.get(),
+        uuid,
+        directory,
+        flags,
+        info.checkpoint());
+
+    CHECK(state.runs.contains(uuid));
+    const state::RunState& run = state.runs.get(uuid).get();
+
+    // Recover the libprocess PID if possible.
+    if (run.libprocessPid.isSome()) {
+      CHECK_SOME(run.forkedPid); // TODO(vinod): Why this check?
+      executor->pid = run.libprocessPid.get();
+    }
+
+    // And finally recover all the executor's tasks.
+    foreachvalue (const state::TaskState& taskState, run.tasks) {
+      executor->recoverTask(taskState);
+    }
+
+    // Add the executor to the framework.
+    executors[executor->id] = executor;
+
+    return executor;
+  }
+
+  enum {
+    INITIALIZING,
+    RUNNING,
+    TERMINATING,
+    TERMINATED,
+  } state;
+
+  const SlaveID slaveId;
+
   const FrameworkID id;
   const FrameworkInfo info;
 
@@ -540,7 +717,7 @@ struct Framework
 
   const Flags flags;
 
-  bool shutdown; // Indicates if framework is being shut down.
+  std::vector<TaskInfo> pending; // Pending tasks (used while INITIALIZING).
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;

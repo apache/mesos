@@ -105,8 +105,7 @@ public:
       const ExecutorInfo& executorInfo,
       const UUID& uuid,
       const std::string& directory,
-      const Resources& resources,
-      const Option<std::string>& path);
+      const Resources& resources);
 
   virtual void killExecutor(
       const FrameworkID& frameworkId,

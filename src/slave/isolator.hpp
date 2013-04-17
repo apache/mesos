@@ -69,14 +69,13 @@ public:
   // If 'checkpoint' is true, the isolator is expected to checkpoint
   // the executor pid to the 'path'.
   virtual void launchExecutor(
-      const SlaveID& slaveId,
+      const SlaveID& slaveId, // TODO(vinod): Why not pass this to initialize?
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const UUID& uuid,
       const std::string& directory,
-      const Resources& resources,
-      const Option<std::string>& path) = 0;
+      const Resources& resources) = 0;
 
   // Terminate a framework's executor, if it is still running.
   // The executor is expected to be gone after this method exits.
