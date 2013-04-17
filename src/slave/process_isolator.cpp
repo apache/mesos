@@ -455,8 +455,8 @@ void ProcessIsolator::processExited(pid_t pid, int status)
       ProcessInfo* info = infos[frameworkId][executorId];
 
       if (info->pid.isSome() && info->pid.get() == pid) {
-        LOG(INFO) << "Telling slave of lost executor " << executorId
-                  << " of framework " << frameworkId;
+        LOG(INFO) << "Telling slave of terminated executor '" << executorId
+                  << "' of framework " << frameworkId;
 
         dispatch(slave,
                  &Slave::executorTerminated,

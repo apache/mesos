@@ -228,15 +228,11 @@ protected:
   // Helper to recover a framework from the specified state.
   void recoverFramework(const state::FrameworkState& state, bool reconnect);
 
-  // Called when an executor terminates or a status update
-  // acknowledgement is handled by the status update manager.
-  // This potentially removes the executor and framework and
-  // schedules them for garbage collection.
-  void cleanup(Framework* framework, Executor* executor);
+  // Removes and garbage collects the executor.
+  void remove(Framework* framework, Executor* executor);
 
-  // Called when the slave is started in 'cleanup' recovery mode and
-  // all the executors have terminated.
-  void cleanup();
+  // Removes and garbage collects the framework.
+  void remove(Framework* framework);
 
 private:
   Slave(const Slave&);              // No copying.
@@ -289,6 +285,9 @@ private:
 
   double startTime;
 
+  // TODO(Vinod): Add 'state' to slave instead of capturing the
+  // semantics of waiting for registration ('connecting') and
+  // shutting down ('halting') in boolean variables.
   bool connected; // Flag to indicate if slave is registered.
 
   GarbageCollector gc;

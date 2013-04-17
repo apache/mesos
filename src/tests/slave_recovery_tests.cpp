@@ -1073,3 +1073,93 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   driver.stop();
   driver.join();
 }
+
+
+// The slave is asked to shutdown. When it comes back up, it should
+// register as a new slave.
+TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
+{
+  // Scheduler expectations.
+  MockScheduler sched;
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(Return());       // Ignore the offer when slave is shutting down.
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+
+  EXPECT_NE(0u, offers1.get().size());
+
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+
+  Future<Nothing> statusUpdate1;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureSatisfy(&statusUpdate1))
+    .WillOnce(Return());  // Ignore TASK_FAILED update.
+
+  Future<Message> registerExecutor =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers1.get()[0].id(), tasks);
+
+  // Capture the executor pid.
+  AWAIT_READY(registerExecutor);
+  UPID executorPid = registerExecutor.get().from;
+
+  AWAIT_READY(statusUpdate1); // Wait for TASK_RUNNING update.
+
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  // We shut down the executor here so that a shutting down slave
+  // does not spend too much time waiting for the executor to exit.
+  process::post(executorPid, ShutdownExecutorMessage());
+
+  Clock::pause();
+
+  // Now advance time until the reaper reaps the executor.
+  while (executorTerminated.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_READY(executorTerminated);
+
+  Clock::resume();
+
+  // Shut down the slave.
+  this->stopSlave(true);
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  // Now restart the slave.
+  this->startSlave();
+
+  // Ensure that the slave registered with a new id.
+  AWAIT_UNTIL(offers2);
+
+  EXPECT_NE(0u, offers2.get().size());
+
+  // Ensure the slave id is different.
+  ASSERT_NE(
+      offers1.get()[0].slave_id().value(), offers2.get()[0].slave_id().value());
+
+  driver.stop();
+  driver.join();
+}

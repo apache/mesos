@@ -36,15 +36,10 @@ Result<SlaveState> recover(const string& rootDir, bool safe)
 
   // Check if the "latest" symlink to a slave directory exists.
   if (!os::exists(latest)) {
-    string message = "Failed to find the latest slave from '" + rootDir + "'";
-    if (safe) {
-      return Error(message);
-    } else {
-      // The slave likely died before it registered and had a chance
-      // to create the "latest" symlink.
-      LOG(WARNING) << message;
-      return None();
-    }
+    // The slave was asked to shutdown or died before it registered
+    // and had a chance to create the "latest" symlink.
+    LOG(INFO) << "Failed to find the latest slave from '" << rootDir << "'";
+    return None();
   }
 
   // Get the latest slave id.
