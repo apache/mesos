@@ -51,6 +51,7 @@
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
+#include "slave/isolator.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
@@ -64,6 +65,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::GarbageCollector;
 using mesos::internal::slave::GarbageCollectorProcess;
+using mesos::internal::slave::Isolator;
 using mesos::internal::slave::Slave;
 
 using process::Clock;
@@ -629,6 +631,131 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   EXPECT_RESPONSE_STATUS_WILL_EQ(
       process::http::NotFound().status,
       process::http::get(files, "browse.json", "path=" + executorDir));
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+}
+
+
+// This test verifies that the launch of new executor will result in
+// an unschedule of the framework and executor work directories
+// created by an old executor (with the same id).
+TEST_F(GarbageCollectorIntegrationTest, Unschedule)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegistered =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  MockExecutor exec;
+
+  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+
+  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegistered);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  double cpus = resources.get("cpus", Value::Scalar()).value();
+  double mem = resources.get("mem", Value::Scalar()).value();
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(1, cpus, mem));
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(status);
+
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // TODO(benh/vinod): Would've been great to match the dispatch
+  // against arguments here.
+  // NOTE: Since Google Mock selects the last matching expectation
+  // that is still active, the order of (un)schedule expectations
+  // below are the reverse of the actual (un)schedule call order.
+
+  // Schedule framework work directory.
+  Future<Nothing> scheduleFrameworkWork =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+
+  // Schedule top level executor work directory.
+  Future<Nothing> scheduleExecutorWork =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+
+  // Schedule executor run work directory.
+  Future<Nothing> scheduleExecutorRunWork =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+
+  // Unschedule top level executor work directory.
+  Future<Nothing> unscheduleExecutorWork =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::unschedule);
+
+  // Unschedule framework work directory.
+  Future<Nothing> unscheduleFrameworkWork =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::unschedule);
+
+  // Launch the next run of the executor on the receipt of next offer.
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(1, cpus, mem));
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());            // Ignore subsequent updates.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(Return());
+
+  Clock::pause();
+
+  // Kill the first executor.
+  process::dispatch(
+      isolator,
+      &Isolator::killExecutor,
+      frameworkId.get(),
+      DEFAULT_EXECUTOR_ID);
+
+  AWAIT_READY(scheduleExecutorRunWork);
+  AWAIT_READY(scheduleExecutorWork);
+  AWAIT_READY(scheduleFrameworkWork);
+
+  // Speedup the allocator.
+  while (unscheduleFrameworkWork.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_READY(unscheduleFrameworkWork);
+  AWAIT_READY(unscheduleExecutorWork);
 
   Clock::resume();
 

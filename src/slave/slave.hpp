@@ -32,6 +32,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/owned.hpp>
@@ -98,6 +99,15 @@ public:
       const FrameworkID& frameworkId,
       const std::string& pid,
       const TaskInfo& task);
+
+  void _runTask(
+      const Future<bool>& future,
+      const FrameworkInfo& frameworkInfo,
+      const FrameworkID& frameworkId,
+      const std::string& pid,
+      const TaskInfo& task);
+
+  Future<bool> unschedule(const std::string& path);
 
   void killTask(const FrameworkID& frameworkId, const TaskID& taskId);
 
@@ -197,10 +207,14 @@ protected:
 
   void fileAttached(const Future<Nothing>& result, const std::string& path);
 
-  void detachFile(const Future<Nothing>& result, const std::string& path);
+  Nothing detachFile(const std::string& path);
 
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
+
+  // Returns an ExecutorInfo for a TaskInfo (possibly
+  // constructing one if the task has a CommandInfo).
+  ExecutorInfo getExecutorInfo(const TaskInfo& task);
 
   // Handle the second phase of shutting down an executor for those
   // executors that have not properly shutdown within a timeout.
@@ -376,9 +390,6 @@ struct Framework
 
   ~Framework();
 
-  // Returns an ExecutorInfo for a TaskInfo (possibly
-  // constructing one if the task has a CommandInfo).
-  ExecutorInfo getExecutorInfo(const TaskInfo& task);
   Executor* createExecutor(const ExecutorInfo& executorInfo);
   void destroyExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const ExecutorID& executorId);
@@ -400,7 +411,7 @@ struct Framework
 
   UPID pid;
 
-  std::vector<TaskInfo> pending; // Pending tasks (used while INITIALIZING).
+  hashset<ExecutorID> pending; // Executors with pending tasks.
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;

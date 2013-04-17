@@ -384,7 +384,8 @@ void Slave::initialize()
 void Slave::_initialize(const Future<Nothing>& future)
 {
   if (!future.isReady()) {
-    LOG(FATAL) << "Recovery failure: " << future.failure();
+    LOG(FATAL) << "Recovery failure: "
+               << (future.isFailed() ? future.failure() : "future discarded");
   }
 
   LOG(INFO) << "Finished recovery";
@@ -516,10 +517,11 @@ void Slave::fileAttached(const Future<Nothing>& result, const string& path)
 }
 
 
-void Slave::detachFile(const Future<Nothing>& result, const string& path)
+// TODO(vinod/bmahler): Get rid of this helper.
+Nothing Slave::detachFile(const string& path)
 {
-  CHECK(!result.isDiscarded());
   files->detach(path);
+  return Nothing();
 }
 
 
@@ -698,6 +700,14 @@ void Slave::doReliableRegistration()
 }
 
 
+// Helper to unschedule the path.
+// TODO(vinod): Can we avoid this helper?
+Future<bool> Slave::unschedule(const string& path)
+{
+  return gc.unschedule(path);
+}
+
+
 // TODO(vinod): Instead of crashing the slave on checkpoint errors,
 // send TASK_LOST to the framework.
 void Slave::runTask(
@@ -709,10 +719,102 @@ void Slave::runTask(
   LOG(INFO) << "Got assigned task " << task.task_id()
             << " for framework " << frameworkId;
 
+  Future<bool> unschedule = true;
+
+  Executor* executor = NULL;
+  ExecutorID executorId = getExecutorInfo(task).executor_id();
+
+  Framework* framework = getFramework(frameworkId);
+  // If we are about to create a new framework, unschedule the work
+  // and meta directories from getting gc'ed.
+  if (framework == NULL) {
+    // Framework work directory.
+    string path = paths::getFrameworkPath(
+        flags.work_dir, info.id(), frameworkId);
+
+    if (os::exists(path)) {
+      unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
+    }
+
+    // Framework meta directory.
+    path = paths::getFrameworkPath(metaDir, info.id(), frameworkId);
+    if (os::exists(path)) {
+      unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
+    }
+  } else {
+    // We add the corresponding executor to 'pending' to ensure the
+    // framework and top level executor directories are not scheduled
+    // for deletion before '_runTask()' is called.
+    framework->pending.insert(executorId);
+
+    executor = framework->getExecutor(executorId);
+  }
+
+  // If we are about to create a new executor, unschedule the top
+  // level work and meta directories from getting gc'ed.
+  if (executor == NULL) {
+    // Executor work directory.
+    string path = paths::getExecutorPath(
+        flags.work_dir, info.id(), frameworkId, executorId);
+
+    if (os::exists(path)) {
+      unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
+    }
+
+    // Executor meta directory.
+    path = paths::getExecutorPath(
+        metaDir, info.id(), frameworkId, executorId);
+
+    if (os::exists(path)) {
+      unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
+    }
+  }
+
+  // Run the task after the unschedules are done.
+  unschedule.onAny(
+      defer(self(),
+            &Self::_runTask,
+            params::_1,
+            frameworkInfo,
+            frameworkId,
+            pid,
+            task));
+}
+
+
+void Slave::_runTask(
+    const Future<bool>& future,
+    const FrameworkInfo& frameworkInfo,
+    const FrameworkID& frameworkId,
+    const string& pid,
+    const TaskInfo& task)
+{
+  LOG(INFO) << "Launching task " << task.task_id()
+            << " for framework " << frameworkId;
+
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to unschedule directories scheduled for gc: "
+               << (future.isFailed() ? future.failure() : "future discarded");
+
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+        frameworkId,
+        info.id(),
+        task.task_id(),
+        TASK_LOST,
+        "Could not launch the task because we failed to unschedule directories"
+        " scheduled for gc");
+
+    statusUpdate(update);
+    return;
+  }
+
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)
     << state;
 
+  // This could happen if the runTask message was intended for the
+  // old slave, but the new (restarted) slave received it because
+  // it has the same pid.
   if (state != RUNNING) {
     LOG(WARNING) << "Cannot run task " << task.task_id()
                  << " of framework " << frameworkId
@@ -768,7 +870,7 @@ void Slave::runTask(
     return;
   }
 
-  const ExecutorInfo& executorInfo = framework->getExecutorInfo(task);
+  const ExecutorInfo& executorInfo = getExecutorInfo(task);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // Either send the task to an executor or start a new executor
@@ -1783,6 +1885,59 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
 }
 
 
+ExecutorInfo Slave::getExecutorInfo(const TaskInfo& task)
+{
+  CHECK(task.has_executor() != task.has_command());
+
+  if (task.has_command()) {
+    ExecutorInfo executor;
+
+    // Command executors share the same id as the task.
+    executor.mutable_executor_id()->set_value(task.task_id().value());
+
+    // Prepare an executor name which includes information on the
+    // command being launched.
+    string name =
+      "(Task: " + task.task_id().value() + ") " + "(Command: sh -c '";
+
+    if (task.command().value().length() > 15) {
+      name += task.command().value().substr(0, 12) + "...')";
+    } else {
+      name += task.command().value() + "')";
+    }
+
+    executor.set_name("Command Executor " + name);
+    executor.set_source(task.task_id().value());
+
+    // Copy the CommandInfo to get the URIs and environment, but
+    // update it to invoke 'mesos-executor' (unless we couldn't
+    // resolve 'mesos-executor' via 'realpath', in which case just
+    // echo the error and exit).
+    executor.mutable_command()->MergeFrom(task.command());
+
+    Try<string> path = os::realpath(
+        path::join(flags.launcher_dir, "mesos-executor"));
+
+    if (path.isSome()) {
+      executor.mutable_command()->set_value(path.get());
+    } else {
+      executor.mutable_command()->set_value(
+          "echo '" + path.error() + "'; exit 1");
+    }
+
+    // TODO(benh): Set some resources for the executor so that a task
+    // doesn't end up getting killed because the amount of resources
+    // of the executor went over those allocated. Note that this might
+    // mean that the number of resources on the machine will actually
+    // be slightly oversubscribed, so we'll need to reevaluate with
+    // respect to resources that can't be oversubscribed.
+    return executor;
+  }
+
+  return task.executor();
+}
+
+
 void _watch(
     const Future<Nothing>& watch,
     const FrameworkID& frameworkId,
@@ -2010,8 +2165,8 @@ void Slave::remove(Framework* framework, Executor* executor)
   CHECK_NOTNULL(framework);
   CHECK_NOTNULL(executor);
 
-  LOG(INFO) << "Cleaning up executor '" << executor->id << "'"
-            << " of framework " << framework->id;
+  LOG(INFO) << "Cleaning up executor '" << executor->id
+            << "' of framework " << framework->id;
 
   CHECK(framework->state == Framework::RUNNING ||
         framework->state == Framework::TERMINATING);
@@ -2024,23 +2179,40 @@ void Slave::remove(Framework* framework, Executor* executor)
         (executor->updates.empty() ||
          framework->state == Framework::TERMINATING));
 
+  // TODO(vinod): Move the responsibility of gc'ing to the
+  // Executor struct.
+
   // Schedule the executor run work directory to get garbage collected.
-  // TODO(vinod): Also schedule the top level executor work directory.
-  gc.schedule(flags.gc_delay, executor->directory).onAny(
-      defer(self(), &Self::detachFile, params::_1, executor->directory));
+  const string& path = paths::getExecutorRunPath(
+      flags.work_dir, info.id(), framework->id, executor->id, executor->uuid);
+
+  gc.schedule(flags.gc_delay, path)
+    .then(defer(self(), &Self::detachFile, path));
+
+  // Schedule the top level executor work directory, only if the
+  // framework doesn't have any 'pending' tasks for this executor.
+  if (!framework->pending.contains(executor->id)) {
+    const string& path = paths::getExecutorPath(
+        flags.work_dir, info.id(), framework->id, executor->id);
+
+    gc.schedule(flags.gc_delay, path);
+  }
 
   if (executor->checkpoint) {
     // Schedule the executor run meta directory to get garbage collected.
-    // TODO(vinod): Also schedule the top level executor meta directory.
-    const string& executorMetaDir = paths::getExecutorRunPath(
-        metaDir,
-        info.id(),
-        framework->id,
-        executor->id,
-        executor->uuid);
+    const string& path = paths::getExecutorRunPath(
+        metaDir, info.id(), framework->id, executor->id, executor->uuid);
 
-    gc.schedule(flags.gc_delay, executorMetaDir).onAny(
-        defer(self(), &Self::detachFile, params::_1, executorMetaDir));
+    gc.schedule(flags.gc_delay, path);
+
+    // Schedule the top level executor meta directory, only if the
+    // framework doesn't have any 'pending' tasks for this executor.
+    if (!framework->pending.contains(executor->id)) {
+      const string& path = paths::getExecutorPath(
+          metaDir, info.id(), framework->id, executor->id);
+
+      gc.schedule(flags.gc_delay, path);
+    }
   }
 
   framework->destroyExecutor(executor->id);
@@ -2056,7 +2228,7 @@ void Slave::remove(Framework* framework)
 {
   CHECK_NOTNULL(framework);
 
-  LOG(INFO) << "Cleaning up framework " << framework->id;
+  LOG(INFO)<< "Cleaning up framework " << framework->id;
 
   CHECK(framework->state == Framework::RUNNING ||
         framework->state == Framework::TERMINATING);
@@ -2066,24 +2238,24 @@ void Slave::remove(Framework* framework)
   // Close all status update streams for this framework.
   statusUpdateManager->cleanup(framework->id);
 
-  // Schedule the framework work directory to get garbage collected.
-  const string& frameworkDir = paths::getFrameworkPath(
-      flags.work_dir,
-      info.id(),
-      framework->id);
 
-  gc.schedule(flags.gc_delay, frameworkDir).onAny(
-      defer(self(), &Self::detachFile, params::_1, frameworkDir));
+  // Schedule the framework work and meta directories for garbage
+  // collection, only if it has no pending tasks.
+  // TODO(vinod): Move the responsibility of gc'ing to the
+  // Framework struct.
+  if (framework->pending.empty()) {
+    const string& path = paths::getFrameworkPath(
+        flags.work_dir, info.id(), framework->id);
 
-  if (framework->info.checkpoint()) {
-    // Schedule the framework meta directory to get garbage collected.
-    const string& frameworkMetaDir = paths::getFrameworkPath(
-        metaDir,
-        info.id(),
-        framework->id);
+    gc.schedule(flags.gc_delay, path);
 
-    gc.schedule(flags.gc_delay, frameworkMetaDir).onAny(
-        defer(self(), &Self::detachFile, params::_1, frameworkMetaDir));
+    if (framework->info.checkpoint()) {
+      // Schedule the framework meta directory to get garbage collected.
+      const string& path = paths::getFrameworkPath(
+          metaDir, info.id(), framework->id);
+
+      gc.schedule(flags.gc_delay, path);
+    }
   }
 
   frameworks.erase(framework->id);
@@ -2099,7 +2271,7 @@ void Slave::remove(Framework* framework)
     // and shutdownExecutor() could return Futures and a slave could
     // shutdown when all the Futures are satisfied (e.g., collect()).
     if (state == TERMINATING ||
-        (flags.recover == "cleanup" && !recovered.future().isPending()) ) {
+        (flags.recover == "cleanup" && !recovered.future().isPending())) {
       terminate(self());
     }
   }
@@ -2522,59 +2694,6 @@ Framework::~Framework()
 }
 
 
-ExecutorInfo Framework::getExecutorInfo(const TaskInfo& task)
-{
-  CHECK(task.has_executor() != task.has_command());
-
-  if (task.has_command()) {
-    ExecutorInfo executor;
-
-    // Command executors share the same id as the task.
-    executor.mutable_executor_id()->set_value(task.task_id().value());
-
-    // Prepare an executor name which includes information on the
-    // command being launched.
-    string name =
-      "(Task: " + task.task_id().value() + ") " + "(Command: sh -c '";
-
-    if (task.command().value().length() > 15) {
-      name += task.command().value().substr(0, 12) + "...')";
-    } else {
-      name += task.command().value() + "')";
-    }
-
-    executor.set_name("Command Executor " + name);
-    executor.set_source(task.task_id().value());
-
-    // Copy the CommandInfo to get the URIs and environment, but
-    // update it to invoke 'mesos-executor' (unless we couldn't
-    // resolve 'mesos-executor' via 'realpath', in which case just
-    // echo the error and exit).
-    executor.mutable_command()->MergeFrom(task.command());
-
-    Try<string> path = os::realpath(
-        path::join(slave->flags.launcher_dir, "mesos-executor"));
-
-    if (path.isSome()) {
-      executor.mutable_command()->set_value(path.get());
-    } else {
-      executor.mutable_command()->set_value(
-          "echo '" + path.error() + "'; exit 1");
-    }
-
-    // TODO(benh): Set some resources for the executor so that a task
-    // doesn't end up getting killed because the amount of resources
-    // of the executor went over those allocated. Note that this might
-    // mean that the number of resources on the machine will actually
-    // be slightly oversubscribed, so we'll need to reevaluate with
-    // respect to resources that can't be oversubscribed.
-    return executor;
-  }
-
-  return task.executor();
-}
-
-
 Executor* Framework::createExecutor(const ExecutorInfo& executorInfo)
 {
   // We create a UUID for the new executor. The UUID uniquely
@@ -2648,11 +2767,11 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
                  << "' of framework " << id
                  << " because its latest run cannot be recovered";
 
-    // GC the executor work directory.
+    // GC the top level executor work directory.
     slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
         slave->flags.work_dir, slave->info.id(), id, state.id));
 
-    // GC the executor meta directory.
+    // GC the top level executor meta directory.
     slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
         slave->metaDir, slave->info.id(), id, state.id));
 
@@ -2665,13 +2784,17 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
   foreachvalue (const RunState& run, state.runs) {
     CHECK_SOME(run.id);
     if (uuid != run.id.get()) {
-      // GC the run's work directory.
+      // GC the executor run's work directory.
       slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
           slave->flags.work_dir, slave->info.id(), id, state.id, run.id.get()));
 
-      // GC the run's meta directory.
+      // GC the executor run's meta directory.
       slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
           slave->metaDir, slave->info.id(), id, state.id, run.id.get()));
+
+      // NOTE: We don't schedule the top level executor work and meta
+      // directories for GC here, because they will be scheduled when
+      // the latest executor run terminates.
     }
   }
 
