@@ -1915,9 +1915,7 @@ void Slave::executorTerminated(
       monitor.unwatch(frameworkId, executorId)
         .onAny(lambda::bind(_unwatch, lambda::_1, frameworkId, executorId));
 
-      // TODO(vinod): If there are no pending tasks or if the framework
-      // is terminating, this variable will not be properly set.
-      bool isCommandExecutor = false;
+      Option<bool> isCommandExecutor;
 
       // Transition all live tasks to TASK_LOST/TASK_FAILED.
       // If the isolator destroyed the executor (e.g., due to OOM event)
@@ -1934,56 +1932,53 @@ void Slave::executorTerminated(
         // Transition all live launched tasks.
         foreachvalue (Task* task, utils::copy(executor->launchedTasks)) {
           if (!protobuf::isTerminalState(task->state())) {
+            mesos::TaskState status;
             isCommandExecutor = !task->has_executor_id();
-            if (destroyed || isCommandExecutor) {
-              update = protobuf::createStatusUpdate(
-                  frameworkId,
-                  info.id(),
-                  task->task_id(),
-                  TASK_FAILED,
-                  message,
-                  executorId);
+            if (destroyed || isCommandExecutor.get()) {
+              status = TASK_FAILED;
             } else {
-              update = protobuf::createStatusUpdate(
-                  frameworkId,
-                  info.id(),
-                  task->task_id(),
-                  TASK_LOST,
-                  message,
-                  executorId);
+              status = TASK_LOST;
             }
-            statusUpdate(update); // Handle the status update.
+            statusUpdate(protobuf::createStatusUpdate(
+                frameworkId,
+                info.id(),
+                task->task_id(),
+                status,
+                message,
+                executorId));
           }
         }
 
         // Transition all queued tasks.
         foreachvalue (const TaskInfo& task,
                       utils::copy(executor->queuedTasks)) {
-
+          mesos::TaskState status;
           isCommandExecutor = task.has_command();
-
-          if (destroyed || isCommandExecutor) {
-            update = protobuf::createStatusUpdate(
-                frameworkId,
-                info.id(),
-                task.task_id(),
-                TASK_FAILED,
-                message,
-                executorId);
+          if (destroyed || isCommandExecutor.get()) {
+            status = TASK_FAILED;
           } else {
-            update = protobuf::createStatusUpdate(
-                frameworkId,
-                info.id(),
-                task.task_id(),
-                TASK_LOST,
-                message,
-                executorId);
+            status = TASK_LOST;
           }
-          statusUpdate(update); // Handle the status update.
+          statusUpdate(protobuf::createStatusUpdate(
+              frameworkId,
+              info.id(),
+              task.task_id(),
+              status,
+              message,
+              executorId));
         }
       }
 
-      if (!isCommandExecutor) {
+      // If we weren't able to figure out whether this executor is a
+      // command executor above (e.g., no pending tasks), we deduce
+      // it from the ExecutorInfo. This is a hack for now.
+      if (isCommandExecutor.isNone()) {
+        isCommandExecutor = strings::contains(
+            executor->info.command().value(),
+            path::join(flags.launcher_dir, "mesos-executor"));
+      }
+
+      if (!isCommandExecutor.get()) {
         ExitedExecutorMessage message;
         message.mutable_slave_id()->MergeFrom(info.id());
         message.mutable_framework_id()->MergeFrom(frameworkId);
