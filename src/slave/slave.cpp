@@ -597,8 +597,8 @@ void Slave::runTask(
          info.id(),
          task.task_id(),
          TASK_LOST,
-         "Could not launch the task because the framework expects checkpointing"
-         ", but checkpointing is disabled on the slave");
+         "Could not launch the task because the framework expects "
+         "checkpointing, but checkpointing is disabled on the slave");
 
      statusUpdate(update);
      return;
@@ -1207,8 +1207,8 @@ void Slave::reregisterExecutorTimeout()
       // should have already been identified by the isolator (via
       // reaper) and cleaned up!
       if (!executor->pid) {
-        LOG(INFO) << "Shutting down un-reregistered executor " << executor->id
-                  << " of framework " << framework->id;
+        LOG(INFO) << "Shutting down un-reregistered executor "
+                  << executor->id << " of framework " << framework->id;
 
         // TODO(vinod): Call shutdownExecutor() when it supports
         // immediate shutdown of the executor.
@@ -1612,7 +1612,7 @@ void Slave::cleanup(Framework* framework, Executor* executor)
     frameworks.erase(framework->id);
 
     // Pass ownership of the framework pointer.
-    completedFrameworks.push_back(std::tr1::shared_ptr<Framework>(framework));
+    completedFrameworks.push_back(Owned<Framework>(framework));
   }
 
   // If this slave is in 'recover=cleanup' mode, exit after all

@@ -34,6 +34,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/os.hpp>
+#include <stout/owned.hpp>
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
 
@@ -273,8 +274,7 @@ private:
 
   hashmap<FrameworkID, Framework*> frameworks;
 
-  // TODO(bmahler): Use the Owned abstraction.
-  boost::circular_buffer<std::tr1::shared_ptr<Framework> > completedFrameworks;
+  boost::circular_buffer<Owned<Framework> > completedFrameworks;
 
   Isolator* isolator;
   Files* files;
@@ -508,7 +508,7 @@ struct Framework
       executors.erase(executorId);
 
       // Pass ownership of the executor pointer.
-      completedExecutors.push_back(std::tr1::shared_ptr<Executor>(executor));
+      completedExecutors.push_back(Owned<Executor>(executor));
     }
   }
 
@@ -546,7 +546,7 @@ struct Framework
   hashmap<ExecutorID, Executor*> executors;
 
   // Up to MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK completed executors.
-  boost::circular_buffer<std::tr1::shared_ptr<Executor> > completedExecutors;
+  boost::circular_buffer<Owned<Executor> > completedExecutors;
 private:
   Framework(const Framework&);              // No copying.
   Framework& operator = (const Framework&); // No assigning.
