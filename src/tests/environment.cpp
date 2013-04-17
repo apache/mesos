@@ -29,6 +29,10 @@
 
 #include "configurator/configurator.hpp"
 
+#ifdef __linux__
+#include "linux/cgroups.hpp"
+#endif
+
 #include "tests/environment.hpp"
 
 using std::list;
@@ -40,13 +44,17 @@ namespace tests {
 
 // Returns true if we should enable the provided test. Similar to how
 // tests can be disabled using the 'DISABLED_' prefix on a test case
-// name or test name, we use 'ROOT_' and 'CGROUPS_' prefixes to only
-// enable tests based on whether or not the current user is root or
-// cgroups support is detected. Both 'ROOT_' and 'CGROUPS_' can be
-// composed in any order, but must come after 'DISABLED_'. In
-// addition, we disable tests that attempt to use the CgroupsIsolator
-// type parameter if the current user is not root or cgroups is not
-// supported.
+// name or test name, we use:
+//
+//   'ROOT_' : Disable test if current user isn't root.
+//   'CGROUPS_' : Disable test if cgroups support isn't present.
+//   'NOHIERARCHY_' : Disable test if there is already a cgroups
+//       hierarchy mounted.
+//
+// These flags can be composed in any order, but must come after
+// 'DISABLED_'. In addition, we disable tests that attempt to use the
+// CgroupsIsolator type parameter if the current user is not root or
+// cgroups is not supported.
 // TODO(benh): Provide a generic way to enable/disable tests by
 // registering "filter" functions.
 static bool enable(const ::testing::TestInfo& test)
@@ -64,6 +72,26 @@ static bool enable(const ::testing::TestInfo& test)
     if (strings::contains(name, "CGROUPS_") && !os::exists("/proc/cgroups")) {
       return false;
     }
+
+#ifdef __linux__
+    if (strings::contains(name, "NOHIERARCHY_")) {
+      Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+      CHECK(hierarchies.isSome());
+      if (!hierarchies.get().empty()) {
+        std::cerr
+          << "-------------------------------------------------------------\n"
+          << "We cannot run any cgroups tests that require mounting\n"
+          << "hierarchies because you have the following hierarchies mounted:\n"
+          << strings::trim(stringify(hierarchies.get()), " {},") << "\n"
+          << "You can either unmount those hierarchies, or disable\n"
+          << "this test case (i.e., --gtest_filter=-CgroupsNoHierarchyTest.*).\n"
+          << "-------------------------------------------------------------"
+          << std::endl;
+
+        return false;
+      }
+    }
+#endif
   }
 
   // Now check the type parameter.

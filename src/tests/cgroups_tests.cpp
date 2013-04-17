@@ -243,7 +243,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
 }
 
 
-TEST_F(CgroupsNoHierarchyTest, ROOT_CGROUPS_MountUnmountHierarchy)
+TEST_F(CgroupsNoHierarchyTest, ROOT_CGROUPS_NOHIERARCHY_MountUnmountHierarchy)
 {
   EXPECT_ERROR(cgroups::mount("/tmp", "cpu"));
   EXPECT_ERROR(cgroups::mount(TEST_CGROUPS_HIERARCHY, "invalid"));
