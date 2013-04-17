@@ -309,147 +309,21 @@ private:
 // Information describing an executor.
 struct Executor
 {
-  Executor(const SlaveID& _slaveId,
-           const FrameworkID& _frameworkId,
-           const ExecutorInfo& _info,
-           const UUID& _uuid,
-           const std::string& _directory,
-           const Flags& _flags,
-           bool _checkpoint)
-    : state(REGISTERING), // TODO(benh): Skipping INITIALIZING for now.
-      slaveId(_slaveId),
-      id(_info.executor_id()),
-      info(_info),
-      frameworkId(_frameworkId),
-      uuid(_uuid),
-      directory(_directory),
-      flags(_flags),
-      checkpoint(_checkpoint),
-      pid(UPID()),
-      resources(_info.resources()),
-      completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
-  {
-    if (checkpoint) {
-      // Checkpoint the executor info.
-      const std::string& path = paths::getExecutorInfoPath(
-          paths::getMetaRootDir(flags.work_dir),
-          slaveId,
-          frameworkId,
-          id);
+  Executor(
+      const SlaveID& _slaveId,
+      const FrameworkID& _frameworkId,
+      const ExecutorInfo& _info,
+      const UUID& _uuid,
+      const std::string& _directory,
+      const Flags& _flags,
+      bool _checkpoint);
+  ~Executor();
 
-      CHECK_SOME(state::checkpoint(path, info));
-
-      // Create the meta executor directory.
-      // NOTE: This creates the 'latest' symlink in the meta directory.
-      paths::createExecutorDirectory(
-          paths::getMetaRootDir(flags.work_dir),
-          slaveId,
-          frameworkId,
-          id,
-          uuid);
-    }
-  }
-
-  ~Executor()
-  {
-    // Delete the tasks.
-    foreachvalue (Task* task, launchedTasks) {
-      delete task;
-    }
-  }
-
-  Task* addTask(const TaskInfo& task)
-  {
-    // The master should enforce unique task IDs, but just in case
-    // maybe we shouldn't make this a fatal error.
-    CHECK(!launchedTasks.contains(task.task_id()));
-
-    Task* t = new Task(
-        protobuf::createTask(task, TASK_STAGING, id, frameworkId));
-
-    launchedTasks[task.task_id()] = t;
-    resources += task.resources();
-    return t;
-  }
-
-  void removeTask(const TaskID& taskId)
-  {
-    // Remove the task if it's queued.
-    queuedTasks.erase(taskId);
-
-    // Update the resources if it's been launched.
-    if (launchedTasks.contains(taskId)) {
-      Task* task = launchedTasks[taskId];
-      foreach (const Resource& resource, task->resources()) {
-        resources -= resource;
-      }
-      launchedTasks.erase(taskId);
-
-      completedTasks.push_back(*task);
-
-      delete task;
-    }
-  }
-
-  void checkpointTask(const TaskInfo& task)
-  {
-    if (checkpoint) {
-      const std::string& path = paths::getTaskInfoPath(
-          paths::getMetaRootDir(flags.work_dir),
-          slaveId,
-          frameworkId,
-          id,
-          uuid,
-          task.task_id());
-
-      const Task& t = protobuf::createTask(
-          task, TASK_STAGING, id, frameworkId);
-
-      CHECK_SOME(state::checkpoint(path, t));
-    }
-  }
-
-  void recoverTask(const state::TaskState& state)
-  {
-    if (state.info.isNone()) {
-      LOG(WARNING) << "Skipping recovery of task " << state.id
-                   << " because its info cannot be recovered";
-      return;
-    }
-
-    launchedTasks[state.id] = new Task(state.info.get());
-
-    // NOTE: Since some tasks might have been terminated when the
-    // slave was down, the executor resources we capture here is an
-    // upper-bound. The actual resources needed (for live tasks) by
-    // the isolator will be calculated when the executor re-registers.
-    resources += state.info.get().resources();
-
-    // Read updates to get the latest state of the task.
-    foreach (const StatusUpdate& update, state.updates) {
-      updateTaskState(state.id, update.status().state());
-      updates.put(state.id, UUID::fromBytes(update.uuid()));
-
-      // Remove the task if it received a terminal update.
-      if (protobuf::isTerminalState(update.status().state())) {
-        removeTask(state.id);
-
-        // If the terminal update has been acknowledged, remove it
-        // from pending tasks.
-        if (state.acks.contains(UUID::fromBytes(update.uuid()))) {
-          updates.remove(state.id, UUID::fromBytes(update.uuid()));
-        }
-        break;
-      }
-    }
-  }
-
-  void updateTaskState(const TaskID& taskId, TaskState state)
-  {
-    if (launchedTasks.contains(taskId)) {
-      launchedTasks[taskId]->set_state(state);
-    }
-  }
+  Task* addTask(const TaskInfo& task);
+  void removeTask(const TaskID& taskId);
+  void checkpointTask(const TaskInfo& task);
+  void recoverTask(const state::TaskState& state);
+  void updateTaskState(const TaskID& taskId, TaskState state);
 
   enum {
     INITIALIZING,
@@ -494,212 +368,23 @@ private:
 // Information about a framework.
 struct Framework
 {
-  Framework(const SlaveID& _slaveId,
-            const FrameworkID& _id,
-            const FrameworkInfo& _info,
-            const UPID& _pid,
-            const Flags& _flags)
-    : state(RUNNING), // TODO(benh): Skipping INITIALIZING for now.
-      slaveId(_slaveId),
-      id(_id),
-      info(_info),
-      pid(_pid),
-      flags(_flags),
-      completedExecutors(MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK)
-  {
-    if (info.checkpoint()) {
-      // Checkpoint the framework info.
-      std::string path = paths::getFrameworkInfoPath(
-          paths::getMetaRootDir(flags.work_dir),
-          slaveId,
-          id);
+  Framework(
+      const SlaveID& _slaveId,
+      const FrameworkID& _id,
+      const FrameworkInfo& _info,
+      const UPID& _pid,
+      const Flags& _flags);
 
-      CHECK_SOME(state::checkpoint(path, info));
-
-      // Checkpoint the framework pid.
-      path = paths::getFrameworkPidPath(
-          paths::getMetaRootDir(flags.work_dir),
-          slaveId,
-          id);
-
-      CHECK_SOME(state::checkpoint(path, pid));
-    }
-  }
-
-  ~Framework()
-  {
-    // We own the non-completed executor pointers, so they need to be deleted.
-    foreachvalue (Executor* executor, executors) {
-      delete executor;
-    }
-  }
+  ~Framework();
 
   // Returns an ExecutorInfo for a TaskInfo (possibly
   // constructing one if the task has a CommandInfo).
-  ExecutorInfo getExecutorInfo(const TaskInfo& task)
-  {
-    CHECK(task.has_executor() != task.has_command());
-
-    if (task.has_command()) {
-      ExecutorInfo executor;
-
-      // Command executors share the same id as the task.
-      executor.mutable_executor_id()->set_value(task.task_id().value());
-
-      // Prepare an executor name which includes information on the
-      // command being launched.
-      std::string name =
-        "(Task: " + task.task_id().value() + ") " + "(Command: sh -c '";
-      if (task.command().value().length() > 15) {
-        name += task.command().value().substr(0, 12) + "...')";
-      } else {
-        name += task.command().value() + "')";
-      }
-
-      executor.set_name("Command Executor " + name);
-      executor.set_source(task.task_id().value());
-
-      // Copy the CommandInfo to get the URIs and environment, but
-      // update it to invoke 'mesos-executor' (unless we couldn't
-      // resolve 'mesos-executor' via 'realpath', in which case just
-      // echo the error and exit).
-      executor.mutable_command()->MergeFrom(task.command());
-
-      Try<std::string> path = os::realpath(
-          path::join(flags.launcher_dir, "mesos-executor"));
-
-      if (path.isSome()) {
-        executor.mutable_command()->set_value(path.get());
-      } else {
-        executor.mutable_command()->set_value(
-            "echo '" + path.error() + "'; exit 1");
-      }
-
-      // TODO(benh): Set some resources for the executor so that a task
-      // doesn't end up getting killed because the amount of resources of
-      // the executor went over those allocated. Note that this might mean
-      // that the number of resources on the machine will actually be
-      // slightly oversubscribed, so we'll need to reevaluate with respect
-      // to resources that can't be oversubscribed.
-      return executor;
-    }
-
-    return task.executor();
-  }
-
-  Executor* createExecutor(const ExecutorInfo& executorInfo)
-  {
-    // We create a UUID for the new executor. The UUID uniquely
-    // identifies this new instance of the executor across executors
-    // sharing the same executorID that may have previously run. It
-    // also provides a means for the executor to have a unique
-    // directory.
-    UUID uuid = UUID::random();
-
-    // Create a directory for the executor.
-    const std::string& directory = paths::createExecutorDirectory(
-        flags.work_dir, slaveId, id, executorInfo.executor_id(), uuid);
-
-    Executor* executor = new Executor(
-        slaveId,
-        id,
-        executorInfo,
-        uuid,
-        directory,
-        flags,
-        info.checkpoint());
-
-    CHECK(!executors.contains(executorInfo.executor_id()));
-    executors[executorInfo.executor_id()] = executor;
-    return executor;
-  }
-
-  void destroyExecutor(const ExecutorID& executorId)
-  {
-    if (executors.contains(executorId)) {
-      Executor* executor = executors[executorId];
-      executors.erase(executorId);
-
-      // Pass ownership of the executor pointer.
-      completedExecutors.push_back(Owned<Executor>(executor));
-    }
-  }
-
-  Executor* getExecutor(const ExecutorID& executorId)
-  {
-    if (executors.contains(executorId)) {
-      return executors[executorId];
-    }
-
-    return NULL;
-  }
-
-  Executor* getExecutor(const TaskID& taskId)
-  {
-    foreachvalue (Executor* executor, executors) {
-      if (executor->queuedTasks.contains(taskId) ||
-          executor->launchedTasks.contains(taskId) ||
-          executor->updates.contains(taskId)) {
-        return executor;
-      }
-    }
-    return NULL;
-  }
-
-  Executor* recoverExecutor(const state::ExecutorState& state)
-  {
-    LOG(INFO) << "Recovering executor '" << state.id
-              << "' of framework " << id;
-
-    if (state.info.isNone()) {
-      LOG(WARNING) << "Skipping recovery of executor '" << state.id
-                   << "' of framework " << id
-                   << " because its info cannot be recovered";
-      return NULL;
-    }
-
-    if (state.latest.isNone()) {
-      LOG(WARNING) << "Skipping recovery of executor '" << state.id
-                   << "' of framework " << id
-                   << " because its latest run cannot be recovered";
-      return NULL;
-    }
-
-    // We are only interested in the latest run of the executor!
-    const UUID& uuid = state.latest.get();
-
-    // Create executor.
-    const std::string& directory = paths::getExecutorRunPath(
-        flags.work_dir, slaveId, id, state.id, uuid);
-
-    Executor* executor = new Executor(
-        slaveId,
-        id,
-        state.info.get(),
-        uuid,
-        directory,
-        flags,
-        info.checkpoint());
-
-    CHECK(state.runs.contains(uuid));
-    const state::RunState& run = state.runs.get(uuid).get();
-
-    // Recover the libprocess PID if possible.
-    if (run.libprocessPid.isSome()) {
-      CHECK_SOME(run.forkedPid); // TODO(vinod): Why this check?
-      executor->pid = run.libprocessPid.get();
-    }
-
-    // And finally recover all the executor's tasks.
-    foreachvalue (const state::TaskState& taskState, run.tasks) {
-      executor->recoverTask(taskState);
-    }
-
-    // Add the executor to the framework.
-    executors[executor->id] = executor;
-
-    return executor;
-  }
+  ExecutorInfo getExecutorInfo(const TaskInfo& task);
+  Executor* createExecutor(const ExecutorInfo& executorInfo);
+  void destroyExecutor(const ExecutorID& executorId);
+  Executor* getExecutor(const ExecutorID& executorId);
+  Executor* getExecutor(const TaskID& taskId);
+  Executor* recoverExecutor(const state::ExecutorState& state);
 
   enum {
     INITIALIZING,
