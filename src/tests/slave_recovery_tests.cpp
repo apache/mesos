@@ -566,15 +566,14 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  Future<Nothing> recoverExecutors =
-      FUTURE_DISPATCH(_, &Slave::recoverExecutors);
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave.
   this->startSlave();
 
   Clock::pause();
 
-  AWAIT_READY(recoverExecutors);
+  AWAIT_READY(recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -654,15 +653,14 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   // Now shut down the executor, when the slave is down.
   process::post(executorPid, ShutdownExecutorMessage());
 
-  Future<Nothing> recoverExecutors =
-      FUTURE_DISPATCH(_, &Slave::recoverExecutors);
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave.
   this->startSlave();
 
   Clock::pause();
 
-  AWAIT_READY(recoverExecutors);
+  AWAIT_READY(recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -916,8 +914,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   // Restart the slave.
   this->stopSlave();
 
-  Future<Nothing> recoverExecutors =
-    FUTURE_DISPATCH(_, &Slave::recoverExecutors);
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
@@ -926,7 +923,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Clock::pause();
 
-  AWAIT_READY(recoverExecutors);
+  AWAIT_READY(recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 

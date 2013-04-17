@@ -69,7 +69,7 @@ public:
   // If 'checkpoint' is true, the isolator is expected to checkpoint
   // the executor pid to the 'path'.
   virtual void launchExecutor(
-      const SlaveID& slaveId, // TODO(vinod): Why not pass this to initialize?
+      const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,

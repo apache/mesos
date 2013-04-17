@@ -58,12 +58,16 @@ public:
 
   // StatusUpdateManager implementation.
 
-  void initialize(const PID<Slave>& slave);
+  void initialize(
+      const Flags& flags,
+      const PID<Slave>& slave);
 
   Try<Nothing> update(
       const StatusUpdate& update,
       bool checkpoint,
-      const Option<std::string>& path);
+      const SlaveID& slaveId,
+      const Option<ExecutorID>& executorId,
+      const Option<UUID>& uuid);
 
   Try<Nothing> acknowledgement(
       const TaskID& taskId,
@@ -93,8 +97,10 @@ private:
   StatusUpdateStream* createStatusUpdateStream(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
       bool checkpoint,
-      const Option<std::string>& path);
+      const Option<ExecutorID>& executorId,
+      const Option<UUID>& uuid);
 
   StatusUpdateStream* getStatusUpdateStream(
       const TaskID& taskId,
@@ -105,6 +111,7 @@ private:
       const FrameworkID& frameworkId);
 
   UPID master;
+  Flags flags;
   PID<Slave> slave;
   hashmap<FrameworkID, hashmap<TaskID, StatusUpdateStream*> > streams;
 };
@@ -121,8 +128,11 @@ StatusUpdateManagerProcess::~StatusUpdateManagerProcess()
 }
 
 
-void StatusUpdateManagerProcess::initialize(const process::PID<Slave>& _slave)
+void StatusUpdateManagerProcess::initialize(
+    const Flags& _flags,
+    const PID<Slave>& _slave)
 {
+  flags = _flags;
   slave = _slave;
 }
 
@@ -191,12 +201,8 @@ Try<Nothing> StatusUpdateManagerProcess::recover(
         }
 
         // Create a new status update stream.
-        const string& path = paths::getTaskUpdatesPath(
-            rootDir, state.id, framework.id, executor.id, uuid, task.id);
-
-        // Create a new status update stream.
         StatusUpdateStream* stream = createStatusUpdateStream(
-            task.id, framework.id, true, path);
+            task.id, framework.id, state.id, true, executor.id, uuid);
 
         // Replay the stream.
         Try<Nothing> replay = stream->replay(task.updates, task.acks);
@@ -243,11 +249,10 @@ void StatusUpdateManagerProcess::cleanup(const FrameworkID& frameworkId)
 Try<Nothing> StatusUpdateManagerProcess::update(
     const StatusUpdate& update,
     bool checkpoint,
-    const Option<string>& path)
+    const SlaveID& slaveId,
+    const Option<ExecutorID>& executorId,
+    const Option<UUID>& uuid)
 {
-  CHECK(!checkpoint || path.isSome())
-    << "Asked to checkpoint update " << update << " without providing a path";
-
   const TaskID& taskId = update.status().task_id();
   const FrameworkID& frameworkId = update.framework_id();
 
@@ -257,7 +262,8 @@ Try<Nothing> StatusUpdateManagerProcess::update(
   // Create/Get the status update stream for this task.
   StatusUpdateStream* stream = getStatusUpdateStream(taskId, frameworkId);
   if (stream == NULL) {
-    stream = createStatusUpdateStream(taskId, frameworkId, checkpoint, path);
+    stream = createStatusUpdateStream(
+        taskId, frameworkId, slaveId, checkpoint, executorId, uuid);
   }
 
   // Handle the status update.
@@ -397,14 +403,16 @@ void StatusUpdateManagerProcess::timeout()
 StatusUpdateStream* StatusUpdateManagerProcess::createStatusUpdateStream(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
+    const SlaveID& slaveId,
     bool checkpoint,
-    const Option<string>& path)
+    const Option<ExecutorID>& executorId,
+    const Option<UUID>& uuid)
 {
   LOG(INFO) << "Creating StatusUpdate stream for task " << taskId
             << " of framework " << frameworkId;
 
-  StatusUpdateStream* stream =
-    new StatusUpdateStream(taskId, frameworkId, checkpoint, path);
+  StatusUpdateStream* stream = new StatusUpdateStream(
+      taskId, frameworkId, slaveId, flags, checkpoint, executorId, uuid);
 
   streams[frameworkId][taskId] = stream;
   return stream;
@@ -470,19 +478,29 @@ StatusUpdateManager::~StatusUpdateManager()
 }
 
 
-void StatusUpdateManager::initialize(const PID<Slave>& slave)
+void StatusUpdateManager::initialize(
+    const Flags& flags,
+    const PID<Slave>& slave)
 {
-  dispatch(process, &StatusUpdateManagerProcess::initialize, slave);
+  dispatch(process, &StatusUpdateManagerProcess::initialize, flags, slave);
 }
 
 
 Future<Try<Nothing> > StatusUpdateManager::update(
     const StatusUpdate& update,
     bool checkpoint,
-    const Option<std::string>& path)
+    const SlaveID& slaveId,
+    const Option<ExecutorID>& executorId,
+    const Option<UUID>& uuid)
 {
   return dispatch(
-      process, &StatusUpdateManagerProcess::update, update, checkpoint, path);
+      process,
+      &StatusUpdateManagerProcess::update,
+      update,
+      checkpoint,
+      slaveId,
+      executorId,
+      uuid);
 }
 
 

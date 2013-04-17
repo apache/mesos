@@ -41,6 +41,8 @@
 
 #include "common/type_utils.hpp"
 
+#include "logging/logging.hpp"
+
 #include "messages/messages.hpp"
 
 namespace mesos {
@@ -70,15 +72,19 @@ public:
   StatusUpdateManager();
   virtual ~StatusUpdateManager();
 
-  void initialize(const PID<Slave>& slave);
+  void initialize(
+      const Flags& flags,
+      const PID<Slave>& slave);
 
   // Enqueues the status update to reliably send the update to the master.
-  // If 'checkpoint' is true, the update is also checkpointed to the given path.
+  // If 'checkpoint' is true, the update is also checkpointed.
   // @return Whether the update is handled successfully (e.g. checkpointed).
   process::Future<Try<Nothing> > update(
       const StatusUpdate& update,
       bool checkpoint,
-      const Option<std::string>& path);
+      const SlaveID& slaveId,
+      const Option<ExecutorID>& executorId,
+      const Option<UUID>& uuid);
 
   // Receives the ACK from the scheduler and checkpoints it to disk if
   // necessary. Also, sends the next pending status update, if any.
@@ -115,16 +121,33 @@ struct StatusUpdateStream
 {
   StatusUpdateStream(const TaskID& _taskId,
                      const FrameworkID& _frameworkId,
+                     const SlaveID& _slaveId,
+                     const Flags& _flags,
                      bool _checkpoint,
-                     const Option<std::string>& _path)
+                     const Option<ExecutorID>& _executorId,
+                     const Option<UUID>& _uuid)
     : taskId(_taskId),
       frameworkId(_frameworkId),
+      slaveId(_slaveId),
+      flags(_flags),
       checkpoint(_checkpoint),
       terminated_(false),
-      path(_path),
+      executorId(_executorId),
+      uuid(_uuid),
       error(None())
   {
-    if (path.isSome()) {
+    if (checkpoint) {
+      CHECK_SOME(executorId);
+      CHECK_SOME(uuid);
+
+      path = paths::getTaskUpdatesPath(
+          paths::getMetaRootDir(flags.work_dir),
+          slaveId,
+          frameworkId,
+          executorId.get(),
+          uuid.get(),
+          taskId);
+
       // Create the base updates directory, if it doesn't exist.
       Try<Nothing> directory = os::mkdir(os::dirname(path.get()).get());
       if (directory.isError()) {
@@ -154,6 +177,7 @@ struct StatusUpdateStream
     if (fd.isSome()) {
       Try<Nothing> close = os::close(fd.get());
       if (close.isError()) {
+        CHECK_SOME(path);
         LOG(ERROR) << "Failed to close file '" << path.get() << "': "
                    << close.error();
       }
@@ -334,6 +358,9 @@ private:
 
   const TaskID taskId;
   const FrameworkID frameworkId;
+  const SlaveID slaveId;
+
+  const Flags flags;
 
   bool checkpoint;
   bool terminated_;
@@ -341,7 +368,10 @@ private:
   hashset<UUID> received;
   hashset<UUID> acknowledged;
 
-  const Option<std::string> path; // File path of the update stream.
+  const Option<ExecutorID> executorId;
+  const Option<UUID> uuid;
+
+  Option<std::string> path; // File path of the update stream.
   Option<int> fd; // File descriptor to the update stream.
 
   Option<std::string> error; // Potential non-retryable error.

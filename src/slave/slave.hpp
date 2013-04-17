@@ -132,15 +132,10 @@ public:
   // Handles the status update.
   void statusUpdate(const StatusUpdate& update);
 
-  // Forwards the update to the status update manager.
-  // NOTE: Executor could 'NULL' when we want to forward the update
-  // despite not knowing about the framework/executor.
-  void forwardUpdate(const StatusUpdate& update, Executor* executor = NULL);
-
   // This is called when the status update manager finishes
-  // handling the update. If the handling is successful, an acknowledgment
-  // is sent to the executor.
-  void _forwardUpdate(
+  // handling the update. If the handling is successful, an
+  // acknowledgment is sent to the executor.
+  void _statusUpdate(
       const Future<Try<Nothing> >& future,
       const StatusUpdate& update,
       const Option<UPID>& pid);
@@ -229,7 +224,7 @@ protected:
   Future<Nothing> _recover(const state::SlaveState& state, bool reconnect);
 
   // Helper to recover a framework from the specified state.
-  void recover(const state::FrameworkState& state, bool reconnect);
+  void recoverFramework(const state::FrameworkState& state, bool reconnect);
 
   // Called when an executor terminates or a status update
   // acknowledgement is handled by the status update manager.
@@ -325,12 +320,11 @@ struct Executor
   void recoverTask(const state::TaskState& state);
   void updateTaskState(const TaskID& taskId, TaskState state);
 
-  enum {
-    INITIALIZING,
-    REGISTERING,
-    RUNNING,
-    TERMINATING,
-    TERMINATED,
+  enum State {
+    REGISTERING,  // Executor is launched but not (re-)registered yet.
+    RUNNING,      // Executor has (re-)registered.
+    TERMINATING,  // Executor is being shutdown/killed.
+    TERMINATED,   // Executor has terminated but there might be pending updates.
   } state;
 
   const SlaveID slaveId;
@@ -386,11 +380,9 @@ struct Framework
   Executor* getExecutor(const TaskID& taskId);
   Executor* recoverExecutor(const state::ExecutorState& state);
 
-  enum {
-    INITIALIZING,
-    RUNNING,
-    TERMINATING,
-    TERMINATED,
+  enum State {
+    RUNNING,      // First state of a newly created framework.
+    TERMINATING,  // Framework is shutting down in the cluster.
   } state;
 
   const SlaveID slaveId;
