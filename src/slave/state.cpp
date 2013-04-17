@@ -40,6 +40,8 @@ Result<SlaveState> recover(const string& rootDir, bool safe)
     if (safe) {
       return Error(message);
     } else {
+      // The slave likely died before it registered and had a chance
+      // to create the "latest" symlink.
       LOG(WARNING) << message;
       return None();
     }

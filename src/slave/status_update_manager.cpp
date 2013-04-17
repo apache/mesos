@@ -495,9 +495,6 @@ void StatusUpdateManagerProcess::cleanupStatusUpdateStream(
     streams.erase(frameworkId);
   }
 
-  // Delete the task meta directory.
-  stream->cleanup();
-
   delete stream;
 }
 

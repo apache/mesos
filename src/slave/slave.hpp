@@ -164,12 +164,21 @@ public:
       bool destroyed,
       const std::string& message);
 
-  // NOTE: Pulled this to public to make it visible for testing.
+  // NOTE: Pulled these to public to make it visible for testing.
+  // TODO(vinod): Make tests friends to this class instead.
+
   // Garbage collects the directories based on the current disk usage.
   // TODO(vinod): Instead of making this function public, we need to
   // mock both GarbageCollector (and pass it through slave's constructor)
   // and os calls.
   void _checkDiskUsage(const Future<Try<double> >& capacity);
+
+  // Shut down an executor. This is a two phase process. First, an
+  // executor receives a shut down message (shut down phase), then
+  // after a configurable timeout the slave actually forces a kill
+  // (kill phase, via the isolator) if the executor has not
+  // exited.
+  void shutdownExecutor(Framework* framework, Executor* executor);
 
 protected:
   virtual void initialize();
@@ -185,13 +194,6 @@ protected:
 
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
-
-  // Shut down an executor. This is a two phase process. First, an
-  // executor receives a shut down message (shut down phase), then
-  // after a configurable timeout the slave actually forces a kill
-  // (kill phase, via the isolator) if the executor has not
-  // exited.
-  void shutdownExecutor(Framework* framework, Executor* executor);
 
   // Handle the second phase of shutting down an executor for those
   // executors that have not properly shutdown within a timeout.
@@ -255,6 +257,9 @@ private:
       const Slave& slave,
       const process::http::Request& request);
 
+  friend class Framework;
+  friend class Executor;
+
   const Flags flags;
 
   bool local;
@@ -298,6 +303,9 @@ private:
   Promise<Nothing> recovered;
 
   bool halting; // Flag to indicate if the slave is shutting down.
+
+  // Root meta directory containing checkpointed data.
+  const std::string metaDir;
 };
 
 
@@ -305,13 +313,13 @@ private:
 struct Executor
 {
   Executor(
-      const SlaveID& _slaveId,
-      const FrameworkID& _frameworkId,
-      const ExecutorInfo& _info,
-      const UUID& _uuid,
-      const std::string& _directory,
-      const Flags& _flags,
-      bool _checkpoint);
+      Slave* slave,
+      const FrameworkID& frameworkId,
+      const ExecutorInfo& info,
+      const UUID& uuid,
+      const std::string& directory,
+      bool checkpoint);
+
   ~Executor();
 
   Task* addTask(const TaskInfo& task);
@@ -327,7 +335,10 @@ struct Executor
     TERMINATED,   // Executor has terminated but there might be pending updates.
   } state;
 
-  const SlaveID slaveId;
+  // We store the pointer to 'Slave' to get access to its methods
+  // variables. One could imagine 'Executor' as being an inner class
+  // of the 'Slave' class.
+  Slave* slave;
 
   const ExecutorID id;
   const ExecutorInfo info;
@@ -337,8 +348,6 @@ struct Executor
   const UUID uuid; // Distinguishes executor instances with same ExecutorID.
 
   const std::string directory;
-
-  const Flags flags;
 
   const bool checkpoint;
 
@@ -363,11 +372,10 @@ private:
 struct Framework
 {
   Framework(
-      const SlaveID& _slaveId,
-      const FrameworkID& _id,
-      const FrameworkInfo& _info,
-      const UPID& _pid,
-      const Flags& _flags);
+      Slave* slave,
+      const FrameworkID& id,
+      const FrameworkInfo& info,
+      const UPID& pid);
 
   ~Framework();
 
@@ -385,14 +393,15 @@ struct Framework
     TERMINATING,  // Framework is shutting down in the cluster.
   } state;
 
-  const SlaveID slaveId;
+  // We store the pointer to 'Slave' to get access to its methods
+  // variables. One could imagine 'Framework' as being an inner class
+  // of the 'Slave' class.
+  Slave* slave;
 
   const FrameworkID id;
   const FrameworkInfo info;
 
   UPID pid;
-
-  const Flags flags;
 
   std::vector<TaskInfo> pending; // Pending tasks (used while INITIALIZING).
 

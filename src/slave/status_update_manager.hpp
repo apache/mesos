@@ -279,17 +279,6 @@ struct StatusUpdateStream
     return Nothing();
   }
 
-  // Delete the task meta directory.
-  // TODO(vinod): Archive it.
-  void cleanup() {
-    if (path.isSome()) {
-      LOG(INFO) << "Deleting the meta directory for task " << taskId
-                << " of framework " << frameworkId;
-
-      os::rmdir(os::basename(path.get()).get());
-    }
-  }
-
   // TODO(vinod): Explore semantics to make these private.
   const bool checkpoint;
   bool terminated;

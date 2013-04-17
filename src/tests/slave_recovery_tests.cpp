@@ -966,3 +966,110 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   driver.stop();
   driver.join();
 }
+
+
+// When the slave is down we remove the "latest" symlink in the
+// executor's run directory, to simulate a situation where the slave
+// cannot recover the executor and hence schedules it for gc.
+TYPED_TEST(SlaveRecoveryTest, GCExecutor)
+{
+  // Scheduler expectations.
+  MockScheduler sched;
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task
+
+  // Capture the slave and framework ids.
+  SlaveID slaveId = offers.get()[0].slave_id();
+  FrameworkID frameworkId = offers.get()[0].framework_id();
+
+  Future<Message> registerExecutorMessage =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  Future<Nothing> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureSatisfy(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Capture the executor id and pid.
+  AWAIT_READY(registerExecutorMessage);
+  RegisterExecutorMessage registerExecutor;
+  registerExecutor.ParseFromString(registerExecutorMessage.get().body);
+  ExecutorID executorId = registerExecutor.executor_id();
+  UPID executorPid = registerExecutorMessage.get().from;
+
+  // Wait for TASK_RUNNING update.
+  AWAIT_READY(status);
+
+  this->stopSlave();
+
+  // Now shut down the executor, when the slave is down.
+  process::post(executorPid, ShutdownExecutorMessage());
+
+  // Remove the symlink "latest" in the executor directory
+  // to simulate a non-recoverable executor.
+  ASSERT_SOME(os::rm(paths::getExecutorLatestRunPath(
+      paths::getMetaRootDir(this->slaveFlags.work_dir),
+      slaveId,
+      frameworkId,
+      executorId)));
+
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  Future<ReregisterSlaveMessage> reregisterSlave =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // Restart the slave.
+  this->startSlave();
+
+  Clock::pause();
+
+  AWAIT_READY(recover);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+
+  Clock::settle();
+
+  AWAIT_READY(reregisterSlave);
+
+  Clock::advance(this->slaveFlags.gc_delay);
+
+  Clock::settle();
+
+  // Executor's work and meta directories should be gc'ed by now.
+  ASSERT_FALSE(os::exists(paths::getExecutorPath(
+      this->slaveFlags.work_dir, slaveId, frameworkId, executorId)));
+
+  ASSERT_FALSE(os::exists(paths::getExecutorPath(
+      paths::getMetaRootDir(this->slaveFlags.work_dir),
+      slaveId,
+      frameworkId,
+      executorId)));
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}

@@ -21,7 +21,9 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <list>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include <process/defer.hpp>
@@ -56,6 +58,7 @@
 
 namespace params = std::tr1::placeholders;
 
+using std::list;
 using std::string;
 using std::vector;
 
@@ -83,7 +86,8 @@ Slave::Slave(const Resources& _resources,
     isolator(_isolator),
     files(_files),
     monitor(_isolator),
-    statusUpdateManager(new StatusUpdateManager()) {}
+    statusUpdateManager(new StatusUpdateManager()),
+    metaDir(paths::getMetaRootDir(flags.work_dir)) {}
 
 
 Slave::Slave(const slave::Flags& _flags,
@@ -97,7 +101,8 @@ Slave::Slave(const slave::Flags& _flags,
     isolator(_isolator),
     files(_files),
     monitor(_isolator),
-    statusUpdateManager(new StatusUpdateManager())
+    statusUpdateManager(new StatusUpdateManager()),
+    metaDir(paths::getMetaRootDir(flags.work_dir))
 {
   // TODO(benh): Move this computation into Flags as the "default".
 
@@ -386,6 +391,36 @@ void Slave::_initialize(const Future<Nothing>& future)
 
   LOG(INFO) << "Finished recovery";
 
+  // Schedule all old slave directories for garbage collection.
+  // TODO(vinod): Do this as part of recovery. This needs a fix
+  // in the recovery code, to recover all slaves instead of only
+  // the latest slave.
+  const string& directory = path::join(flags.work_dir, "slaves");
+  foreach (const string& entry, os::ls(directory)) {
+    const string& path = path::join(directory, entry);
+    // Ignore non-directory entries.
+    if (!os::isdir(path)) {
+      continue;
+    }
+
+    // We garbage collect a directory if either the slave has not
+    // recovered its id (hence going to get a new id when it
+    // registers with the master) or if it is an old work directory.
+    SlaveID slaveId;
+    slaveId.set_value(entry);
+    if (!info.has_id() || !(slaveId == info.id())) {
+      LOG(INFO) << "Garbage collecting old slave " << slaveId;
+
+      // GC the slave work directory.
+      gc.schedule(flags.gc_delay, path);
+
+      if (os::exists(paths::getSlavePath(metaDir, slaveId))) {
+        // GC the slave meta directory.
+        gc.schedule(flags.gc_delay, paths::getSlavePath(metaDir, slaveId));
+      }
+    }
+  }
+
   // Signal recovery.
   recovered.set(Nothing());
 }
@@ -508,20 +543,6 @@ void Slave::registered(const SlaveID& slaveId)
 
     CHECK_SOME(state::checkpoint(path, info));
   }
-
-  // Schedule all old slave directories to get garbage collected.
-  // TODO(benh): It's unclear if we really need/want to
-  // wait until the slave is registered to do this.
-  const string& directory = path::join(flags.work_dir, "slaves");
-
-  foreach (const string& file, os::ls(directory)) {
-    const string& path = path::join(directory, file);
-
-    // Check that this path is a directory but not our directory!
-    if (os::isdir(path) && file != info.id().value()) {
-      gc.schedule(flags.gc_delay, path);
-    }
-  }
 }
 
 
@@ -617,8 +638,7 @@ void Slave::runTask(
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    framework = new Framework(
-        info.id(), frameworkId, frameworkInfo, pid, flags);
+    framework = new Framework(this, frameworkId, frameworkInfo, pid);
     frameworks[frameworkId] = framework;
   }
 
@@ -1777,17 +1797,46 @@ void Slave::cleanup(Framework* framework, Executor* executor)
       (executor->updates.empty() ||
        framework->state == Framework::TERMINATING)) {
 
-    // Schedule the executor directory to get garbage collected.
+    // Schedule the executor run work directory to get garbage collected.
+    // TODO(vinod): Also schedule the top level executor work directory.
     gc.schedule(flags.gc_delay, executor->directory)
       .onAny(defer(self(), &Self::detachFile, params::_1, executor->directory));
+
+    if (executor->checkpoint) {
+      // Schedule the executor run meta directory to get garbage collected.
+      // TODO(vinod): Also schedule the top level executor meta directory.
+      const string& executorMetaDir = paths::getExecutorRunPath(
+          metaDir,
+          info.id(),
+          framework->id,
+          executor->id,
+          executor->uuid);
+
+      gc.schedule(flags.gc_delay, executorMetaDir)
+        .onAny(defer(self(), &Self::detachFile, params::_1, executorMetaDir));
+    }
 
     framework->destroyExecutor(executor->id);
   }
 
   // Cleanup if this framework has no executors running.
-  // TODO(vinod): If the framework is not being shutdown, remove
-  // it after all its pending status updates are acknowledged.
   if (framework->executors.empty()) {
+    // Schedule the framework work directory to get garbage collected.
+    const string& frameworkDir =
+      paths::getFrameworkPath(flags.work_dir, info.id(), framework->id);
+
+    gc.schedule(flags.gc_delay, frameworkDir)
+      .onAny(defer(self(), &Self::detachFile, params::_1, frameworkDir));
+
+    if (framework->info.checkpoint()) {
+      // Schedule the framework meta directory to get garbage collected.
+      const string& frameworkMetaDir = paths::getFrameworkPath(
+          metaDir, info.id(), framework->id);
+
+      gc.schedule(flags.gc_delay, frameworkMetaDir)
+        .onAny(defer(self(), &Self::detachFile, params::_1, frameworkMetaDir));
+    }
+
     frameworks.erase(framework->id);
 
     // Pass ownership of the framework pointer.
@@ -2082,8 +2131,8 @@ Future<Nothing> Slave::recover(bool reconnect, bool safe)
   // the first time this slave was started with checkpointing enabled
   // or this slave was started after an upgrade (--recover=cleanup).
   if (!os::exists(metaDir)) {
-    // NOTE: We recover the isolator here to cleanup any old executors
-    // (e.g: orphaned cgroups).
+    // NOTE: We recover the isolator here to cleanup any old
+    // executors (e.g: orphaned cgroups).
     return dispatch(isolator, &Isolator::recover, None());
   }
 
@@ -2095,8 +2144,8 @@ Future<Nothing> Slave::recover(bool reconnect, bool safe)
 
   if (state.isNone() || state.get().info.isNone()) {
     // We are here if the slave died before checkpointing its info.
-    // NOTE: We recover the isolator here to cleanup any old executors
-    // (e.g: orphaned cgroups).
+    // NOTE: We recover the isolator here to cleanup any old
+    // executors (e.g: orphaned cgroups).
     return dispatch(isolator, &Isolator::recover, None());
   }
 
@@ -2152,13 +2201,19 @@ Future<Nothing> Slave::_recover(const SlaveState& state, bool reconnect)
 void Slave::recoverFramework(const FrameworkState& state, bool reconnect)
 {
   if (state.executors.empty()) {
-    // TODO(vinod): Garbage collect this framework.
+    // GC the framework work directory.
+    gc.schedule(flags.gc_delay,
+                paths::getFrameworkPath(flags.work_dir, info.id(), state.id));
+
+    // GC the framework meta directory.
+    gc.schedule(flags.gc_delay,
+                paths::getFrameworkPath(metaDir, info.id(), state.id));
     return;
   }
 
   CHECK(!frameworks.contains(state.id));
   Framework* framework = new Framework(
-      info.id(), state.id, state.info.get(), state.pid.get(), flags);
+      this, state.id, state.info.get(), state.pid.get());
 
   frameworks[framework->id] = framework;
 
@@ -2168,7 +2223,6 @@ void Slave::recoverFramework(const FrameworkState& state, bool reconnect)
 
     // Continue to next executor if this one couldn't be recovered.
     if (executor == NULL) {
-      // TODO(vinod): Garbage collect this executor.
       continue;
     }
 
@@ -2224,32 +2278,30 @@ void Slave::recoverFramework(const FrameworkState& state, bool reconnect)
 
 
 Framework::Framework(
-    const SlaveID& _slaveId,
+    Slave* _slave,
     const FrameworkID& _id,
     const FrameworkInfo& _info,
-    const UPID& _pid,
-    const Flags& _flags)
+    const UPID& _pid)
   : state(RUNNING), // TODO(benh): Skipping INITIALIZING for now.
-    slaveId(_slaveId),
+    slave(_slave),
     id(_id),
     info(_info),
     pid(_pid),
-    flags(_flags),
     completedExecutors(MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK)
 {
   if (info.checkpoint()) {
     // Checkpoint the framework info.
     string path = paths::getFrameworkInfoPath(
-        paths::getMetaRootDir(flags.work_dir),
-        slaveId,
+        paths::getMetaRootDir(slave->flags.work_dir),
+        slave->info.id(),
         id);
 
     CHECK_SOME(state::checkpoint(path, info));
 
     // Checkpoint the framework pid.
     path = paths::getFrameworkPidPath(
-        paths::getMetaRootDir(flags.work_dir),
-        slaveId,
+        paths::getMetaRootDir(slave->flags.work_dir),
+        slave->info.id(),
         id);
 
     CHECK_SOME(state::checkpoint(path, pid));
@@ -2280,6 +2332,7 @@ ExecutorInfo Framework::getExecutorInfo(const TaskInfo& task)
     // command being launched.
     string name =
       "(Task: " + task.task_id().value() + ") " + "(Command: sh -c '";
+
     if (task.command().value().length() > 15) {
       name += task.command().value().substr(0, 12) + "...')";
     } else {
@@ -2296,7 +2349,7 @@ ExecutorInfo Framework::getExecutorInfo(const TaskInfo& task)
     executor.mutable_command()->MergeFrom(task.command());
 
     Try<string> path = os::realpath(
-        path::join(flags.launcher_dir, "mesos-executor"));
+        path::join(slave->flags.launcher_dir, "mesos-executor"));
 
     if (path.isSome()) {
       executor.mutable_command()->set_value(path.get());
@@ -2329,10 +2382,10 @@ Executor* Framework::createExecutor(const ExecutorInfo& executorInfo)
 
   // Create a directory for the executor.
   const string& directory = paths::createExecutorDirectory(
-      flags.work_dir, slaveId, id, executorInfo.executor_id(), uuid);
+      slave->flags.work_dir, slave->info.id(), id, executorInfo.executor_id(), uuid);
 
   Executor* executor = new Executor(
-      slaveId, id, executorInfo, uuid, directory, flags, info.checkpoint());
+      slave, id, executorInfo, uuid, directory, info.checkpoint());
 
   CHECK(!executors.contains(executorInfo.executor_id()));
   executors[executorInfo.executor_id()] = executor;
@@ -2380,30 +2433,48 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
   LOG(INFO) << "Recovering executor '" << state.id
             << "' of framework " << id;
 
-  if (state.info.isNone()) {
-    LOG(WARNING) << "Skipping recovery of executor '" << state.id
-                 << "' of framework " << id
-                 << " because its info cannot be recovered";
-    return NULL;
-  }
+  CHECK_NOTNULL(slave);
 
-  if (state.latest.isNone()) {
+  if (state.runs.empty() || state.latest.isNone()) {
     LOG(WARNING) << "Skipping recovery of executor '" << state.id
                  << "' of framework " << id
                  << " because its latest run cannot be recovered";
+
+    // GC the executor work directory.
+    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
+        slave->flags.work_dir, slave->info.id(), id, state.id));
+
+    // GC the executor meta directory.
+    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
+        slave->metaDir, slave->info.id(), id, state.id));
+
     return NULL;
   }
 
   // We are only interested in the latest run of the executor!
-  // TODO(vinod): Garbage collect older runs.
+  // So, we GC all the old runs.
   const UUID& uuid = state.latest.get();
+  foreachvalue (const RunState& run, state.runs) {
+    CHECK_SOME(run.id);
+    if (uuid != run.id.get()) {
+      // GC the run's work directory.
+      slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
+          slave->flags.work_dir, slave->info.id(), id, state.id, run.id.get()));
+
+      // GC the run's meta directory.
+      slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
+          slave->metaDir, slave->info.id(), id, state.id, run.id.get()));
+    }
+  }
+
+  CHECK_NOTNULL(slave);
 
   // Create executor.
   const string& directory = paths::getExecutorRunPath(
-      flags.work_dir, slaveId, id, state.id, uuid);
+      slave->flags.work_dir, slave->info.id(), id, state.id, uuid);
 
   Executor* executor = new Executor(
-      slaveId, id, state.info.get(), uuid, directory, flags, info.checkpoint());
+      slave, id, state.info.get(), uuid, directory, info.checkpoint());
 
   CHECK(state.runs.contains(uuid));
   const RunState& run = state.runs.get(uuid).get();
@@ -2432,31 +2503,31 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
 
 
 Executor::Executor(
-    const SlaveID& _slaveId,
+    Slave* _slave,
     const FrameworkID& _frameworkId,
     const ExecutorInfo& _info,
     const UUID& _uuid,
     const string& _directory,
-    const Flags& _flags,
     bool _checkpoint)
   : state(REGISTERING), // TODO(benh): Skipping INITIALIZING for now.
-    slaveId(_slaveId),
+    slave(_slave),
     id(_info.executor_id()),
     info(_info),
     frameworkId(_frameworkId),
     uuid(_uuid),
     directory(_directory),
-    flags(_flags),
     checkpoint(_checkpoint),
     pid(UPID()),
     resources(_info.resources()),
     completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
 {
   if (checkpoint) {
+    CHECK_NOTNULL(slave);
+
     // Checkpoint the executor info.
     const string& path = paths::getExecutorInfoPath(
-        paths::getMetaRootDir(flags.work_dir),
-        slaveId,
+        paths::getMetaRootDir(slave->flags.work_dir),
+        slave->info.id(),
         frameworkId,
         id);
 
@@ -2465,8 +2536,8 @@ Executor::Executor(
     // Create the meta executor directory.
     // NOTE: This creates the 'latest' symlink in the meta directory.
     paths::createExecutorDirectory(
-        paths::getMetaRootDir(flags.work_dir),
-        slaveId,
+        paths::getMetaRootDir(slave->flags.work_dir),
+        slave->info.id(),
         frameworkId,
         id,
         uuid);
@@ -2521,9 +2592,11 @@ void Executor::removeTask(const TaskID& taskId)
 void Executor::checkpointTask(const TaskInfo& task)
 {
   if (checkpoint) {
+    CHECK_NOTNULL(slave);
+
     const string& path = paths::getTaskInfoPath(
-        paths::getMetaRootDir(flags.work_dir),
-        slaveId,
+        paths::getMetaRootDir(slave->flags.work_dir),
+        slave->info.id(),
         frameworkId,
         id,
         uuid,

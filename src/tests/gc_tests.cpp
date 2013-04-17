@@ -18,6 +18,11 @@
 
 #include <gmock/gmock.h>
 
+#include <list>
+#include <map>
+#include <string>
+#include <vector>
+
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
@@ -65,13 +70,15 @@ using process::Clock;
 using process::Future;
 using process::PID;
 
-using std::string;
+using std::list;
 using std::map;
+using std::string;
 using std::vector;
 
 using testing::_;
 using testing::AtMost;
 using testing::Return;
+using testing::SaveArg;
 
 class GarbageCollectorTest : public TemporaryDirectoryTest {};
 
@@ -241,6 +248,7 @@ TEST_F(GarbageCollectorTest, Prune)
 
 class GarbageCollectorIntegrationTest : public MesosClusterTest {};
 
+
 TEST_F(GarbageCollectorIntegrationTest, Restart)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
@@ -339,6 +347,105 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   driver.join();
 
   cluster.shutdown();
+}
+
+
+TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  MockExecutor exec;
+
+  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  // Scheduler expectations.
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  double cpus = resources.get("cpus", Value::Scalar()).value();
+  double mem = resources.get("mem", Value::Scalar()).value();
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(1, cpus, mem))
+    .WillRepeatedly(Return());
+
+  // Executor expectations.
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());      // Ignore subsequent updates.
+
+  driver.start();
+
+  AWAIT_READY(status);
+
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
+
+  // Shutdown the framework.
+  driver.stop();
+  driver.join();
+
+  Clock::pause();
+
+  AWAIT_READY(shutdown);
+
+  Clock::settle(); // Wait for Slave::shutdownExecutor to complete.
+
+  Future<Nothing> schedule =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+
+  // Advance clock to kill executor via isolator.
+  Clock::advance(cluster.slaves.flags.executor_shutdown_grace_period);
+
+  Clock::settle();
+
+  AWAIT_READY(schedule);
+
+  Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
+
+  Clock::advance(cluster.slaves.flags.gc_delay);
+
+  Clock::settle();
+
+  // Framework's directory should be gc'ed by now.
+  const string& frameworkDir = slave::paths::getFrameworkPath(
+      cluster.slaves.flags.work_dir, slaveId, frameworkId);
+
+  ASSERT_FALSE(os::exists(frameworkDir));
+
+  process::UPID filesUpid("files", process::ip(), process::port());
+  EXPECT_RESPONSE_STATUS_WILL_EQ(
+      process::http::NotFound().status,
+      process::http::get(filesUpid, "browse.json", "path=" + frameworkDir));
+
+  Clock::resume();
+
+  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
