@@ -91,7 +91,7 @@ public:
   void masterDetectionFailure();
   void registered(const SlaveID& slaveId);
   void reregistered(const SlaveID& slaveId);
-  void doReliableRegistration(const Future<Nothing>& future);
+  void doReliableRegistration();
 
   void runTask(
       const FrameworkInfo& frameworkInfo,
@@ -179,6 +179,13 @@ public:
   // (kill phase, via the isolator) if the executor has not
   // exited.
   void shutdownExecutor(Framework* framework, Executor* executor);
+
+  enum State {
+    RECOVERING,   // Slave is doing recovery.
+    DISCONNECTED, // Slave is not connected to the master.
+    RUNNING,      // Slave has (re-)registered.
+    TERMINATING,  // Slave is shutting down.
+  } state;
 
 protected:
   virtual void initialize();
@@ -285,23 +292,14 @@ private:
 
   double startTime;
 
-  // TODO(Vinod): Add 'state' to slave instead of capturing the
-  // semantics of waiting for registration ('connecting') and
-  // shutting down ('halting') in boolean variables.
-  bool connected; // Flag to indicate if slave is registered.
-
   GarbageCollector gc;
   ResourceMonitor monitor;
-
-  state::SlaveState state;
 
   StatusUpdateManager* statusUpdateManager;
 
   // Flag to indicate if recovery, including reconciling (i.e., reconnect/kill)
   // with executors is finished.
   Promise<Nothing> recovered;
-
-  bool halting; // Flag to indicate if the slave is shutting down.
 
   // Root meta directory containing checkpointed data.
   const std::string metaDir;

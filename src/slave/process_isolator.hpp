@@ -40,12 +40,6 @@
 namespace mesos {
 namespace internal {
 namespace slave {
-namespace state {
-
-class State; // Forward declaration.
-
-} // namespace state {
-
 
 class ProcessIsolator : public Isolator, public ProcessExitedListener
 {

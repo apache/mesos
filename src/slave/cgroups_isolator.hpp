@@ -48,12 +48,6 @@
 namespace mesos {
 namespace internal {
 namespace slave {
-namespace state {
-
-class State; // Forward declaration.
-
-} // namespace state {
-
 
 // TODO(bmahler): Migrate this into it's own file, along with moving
 // all cgroups code inside of a 'cgroups' directory.
