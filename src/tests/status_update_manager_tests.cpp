@@ -65,7 +65,7 @@ using std::vector;
 
 using testing::_;
 using testing::Return;
-
+using testing::SaveArg;
 
 // TODO(benh): Move this into utils, make more generic, and use in
 // other tests.
@@ -250,6 +250,129 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   AWAIT_UNTIL(status);
 
   EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  Clock::resume();
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(FutureSatisfy(&shutdown));
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+
+  cluster.shutdown();
+}
+
+
+// This test verifies that status update manager ignores
+// duplicate ACK for an earlier update when it is waiting
+// for an ACK for a later update. This could happen when the
+// duplicate ACK is for a retried update.
+TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
+
+  MockExecutor exec;
+
+  slave::Flags flags = cluster.slaves.flags;
+  flags.checkpoint = true;
+  Try<PID<Slave> > slave = cluster.slaves.start(
+      flags, DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true); // Enable checkpointing.
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_UNTIL(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+      .WillOnce(SaveArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // Drop the first update, so that status update manager
+  // resends the update.
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    DROP_PROTOBUF(StatusUpdateMessage(), master.get(), _);
+
+  Clock::pause();
+
+  driver.launchTasks(offers.get()[0].id(), createTasks(offers.get()[0]));
+
+  AWAIT_UNTIL(statusUpdateMessage);
+  StatusUpdate update = statusUpdateMessage.get().update();
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  // This is the ACK for the retried update.
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL);
+
+  AWAIT_UNTIL(status);
+
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  AWAIT_READY(ack);
+
+  // Now send TASK_FINISHED update so that the status update manager
+  // is waiting for its ACK, which it never gets because we drop the
+  // update.
+  DROP_PROTOBUFS(StatusUpdateMessage(), master.get(), _);
+
+  Future<Nothing> update2 = FUTURE_DISPATCH(_, &Slave::_statusUpdate);
+
+  TaskStatus status2 = status.get();
+  status2.set_state(TASK_FINISHED);
+
+  execDriver->sendStatusUpdate(status2);
+
+  AWAIT_READY(update2);
+
+  // This is to catch the duplicate ack for TASK_RUNNING.
+  Future<Nothing> duplicateAck =
+      FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  // Now send a duplicate ACK for the TASK_RUNNING update.
+  process::dispatch(
+      slave.get(),
+      &Slave::statusUpdateAcknowledgement,
+      update.slave_id(),
+      frameworkId,
+      update.status().task_id(),
+      update.uuid());
+
+  // TODO(vinod): It would've been great to introspect the first
+  // argument of '_statusUpdateAcknowledement()' and ensure that
+  // it is 'false'. All we do now is wait for the slave to not crash
+  // due to CHECK failure in status update manager.
+  AWAIT_READY(duplicateAck);
 
   Clock::resume();
 

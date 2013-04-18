@@ -73,7 +73,7 @@ public:
       const StatusUpdate& update,
       const SlaveID& slaveId);
 
-  Try<Nothing> acknowledgement(
+  Try<bool> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const UUID& uuid);
@@ -352,12 +352,12 @@ Timeout StatusUpdateManagerProcess::forward(const StatusUpdate& update)
 }
 
 
-Try<Nothing> StatusUpdateManagerProcess::acknowledgement(
+Try<bool> StatusUpdateManagerProcess::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const UUID& uuid)
 {
-  LOG(INFO) << "Received status update acknowledgement"
+  LOG(INFO) << "Received status update acknowledgement " << uuid
             << " for task " << taskId
             << " of framework " << frameworkId;
 
@@ -380,17 +380,17 @@ Try<Nothing> StatusUpdateManagerProcess::acknowledgement(
   // This might happen if we retried a status update and got back
   // acknowledgments for both the original and the retried update.
   if (update.isNone()) {
-    LOG(WARNING) << "Ignoring unexpected status update acknowledgment"
+    LOG(WARNING) << "Ignoring duplicate status update acknowledgment " << uuid
                  << " for task " << taskId
                  << " of framework " << frameworkId;
-    return Nothing();
+    return false;
   }
 
   // Handle the acknowledgement.
-  Try<Nothing> result =
+  Try<bool> result =
     stream->acknowledgement(taskId, frameworkId, uuid, update.get());
 
-  if (result.isError()) {
+  if (result.isError() || !result.get()) {
     return result;
   }
 
@@ -415,14 +415,13 @@ Try<Nothing> StatusUpdateManagerProcess::acknowledgement(
     stream->timeout = forward(next.get());
   }
 
-  return Nothing();
+  return true;
 }
 
 
 // TODO(vinod): There should be a limit on the retries.
 void StatusUpdateManagerProcess::timeout()
 {
-  LOG(INFO) << "Checking for unacknowledged status updates";
   // Check and see if we should resend any status updates.
   foreachkey (const FrameworkID& frameworkId, streams) {
     foreachvalue (StatusUpdateStream* stream, streams[frameworkId]) {
@@ -551,7 +550,7 @@ Future<Try<Nothing> > StatusUpdateManager::update(
 }
 
 
-Future<Try<Nothing> > StatusUpdateManager::acknowledgement(
+Future<Try<bool> > StatusUpdateManager::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const UUID& uuid)

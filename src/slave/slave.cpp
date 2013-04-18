@@ -1320,7 +1320,7 @@ void Slave::statusUpdateAcknowledgement(
 
 
 void Slave::_statusUpdateAcknowledgement(
-    const Future<Try<Nothing> >& future,
+    const Future<Try<bool> >& future,
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const UUID& uuid)
@@ -1339,6 +1339,12 @@ void Slave::_statusUpdateAcknowledgement(
                << " of framework " << frameworkId
                << ": " << future.get().error();
     return;
+  }
+
+  if (!future.get().get()) {
+    LOG(WARNING) << "Ignoring status update acknowledgement"
+                 << " for task " << taskId
+                 << " of framework " << frameworkId;
   }
 
   LOG(INFO) << "Status update manager successfully handled status update"
@@ -2033,7 +2039,7 @@ void Slave::executorTerminated(
   LOG(INFO) << "Executor '" << executorId
             << "' of framework " << frameworkId
             << (WIFEXITED(status)
-                ? " has exited with status "
+                ? " has exited with status '"
                 : " has terminated with signal '")
             << (WIFEXITED(status)
                 ? stringify(WEXITSTATUS(status))

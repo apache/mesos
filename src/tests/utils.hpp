@@ -859,7 +859,7 @@ void DropProtobufs(T t, From from, To to)
   // Help debugging by adding some "type constraints".
   { google::protobuf::Message* m = &t; (void) m; }
 
-  process::DropMessages(testing::Eq(t.GetTypeName()), from, to, true);
+  process::DropMessages(testing::Eq(t.GetTypeName()), from, to);
 }
 
 } // namespace tests {

@@ -102,8 +102,10 @@ public:
 
   // Checkpoints the status update to disk if necessary.
   // Also, sends the next pending status update, if any.
-  // @return Whether ACK is handled successfully (e.g. checkpointed).
-  process::Future<Try<Nothing> > acknowledgement(
+  // @return True if the ACK is handled successfully (e.g., checkpointed).
+  //         False if the ACK was ignored because it was a duplicate.
+  //         Error if there are any errors (e.g., checkpointing).
+  process::Future<Try<bool> > acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const UUID& uuid);
@@ -223,7 +225,7 @@ struct StatusUpdateStream
     return handle(update, StatusUpdateRecord::UPDATE);
   }
 
-  Try<Nothing> acknowledgement(
+  Try<bool> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const UUID& uuid,
@@ -233,13 +235,25 @@ struct StatusUpdateStream
       return Error(error.get());
     }
 
+    if (acknowledged.contains(uuid)) {
+      LOG(WARNING) << "Ignoring duplicate status update acknowledgment " << uuid
+                   << " for task " << taskId
+                   << " of framework " << frameworkId;;
+      return false;
+    }
+
     CHECK(uuid == UUID::fromBytes(update.uuid()))
       << "Unexpected UUID mismatch! (received " << uuid
       << ", expecting " << UUID::fromBytes(update.uuid()).toString()
       << ") for update " << stringify(update);
 
     // Handle the ACK, checkpointing if necessary.
-    return handle(update, StatusUpdateRecord::ACK);
+    Try<Nothing> result = handle(update, StatusUpdateRecord::ACK);
+    if (result.isError()) {
+      return Error(result.error());
+    }
+
+    return true;
   }
 
   // Returns the next update (or none, if empty) in the queue.

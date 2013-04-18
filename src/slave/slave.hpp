@@ -157,7 +157,7 @@ public:
       const std::string& uuid);
 
   void _statusUpdateAcknowledgement(
-      const Future<Try<Nothing> >& future,
+      const Future<Try<bool> >& future,
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const UUID& uuid);
