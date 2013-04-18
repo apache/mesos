@@ -82,6 +82,12 @@ public:
     Try<process::PID<master::Master> > start(
         master::AllocatorProcess* allocatorProcess);
 
+    // Start and manage a new master using the specified flags
+    // and injecting the allocator process as above.
+    Try<process::PID<master::Master> > start(
+        master::AllocatorProcess* allocatorProcess,
+        const master::Flags& flags);
+
     // Stops and cleans up a master at the specified PID.
     Try<Nothing> stop(const process::PID<master::Master>& pid);
 
@@ -287,6 +293,14 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     master::AllocatorProcess* allocatorProcess)
+{
+  return Cluster::Masters::start(allocatorProcess, flags);
+}
+
+
+inline Try<process::PID<master::Master> > Cluster::Masters::start(
+  master::AllocatorProcess* allocatorProcess,
+  const master::Flags& flags)
 {
   // Disallow multiple masters when not using ZooKeeper.
   if (!masters.empty() && url.isNone()) {

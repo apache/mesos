@@ -30,6 +30,8 @@
 #include "tests/zookeeper_test.hpp"
 #include "tests/utils.hpp"
 
+#include "zookeeper/url.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
@@ -94,29 +96,29 @@ TYPED_TEST_CASE(AllocatorZooKeeperTest, AllocatorTypes);
 // accounted for correctly.
 TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 {
-  Files files;
-  Master m(this->a1, &files);
-  PID<Master> master1 = process::spawn(&m);
-
   string zk = "zk://" + this->server->connectString() + "/znode";
-  Try<MasterDetector*> detector =
-    MasterDetector::create(zk, master1, true, true);
-  ASSERT_SOME(detector);
+  Try<zookeeper::URL> url = zookeeper::URL::parse(zk);
+  ASSERT_SOME(url);
+
+  Cluster cluster(Option<zookeeper::URL>(url.get()));
+
+  Try<PID<Master> > master = cluster.masters.start(&this->allocator1);
+  ASSERT_SOME(master);
 
   MockExecutor exec;
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  // By default, slaves in tests have cpus=2, mem=1024.
-  Slave s(this->slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
+  slave::Flags flags = cluster.slaves.flags;
+  flags.resources = Option<string>("cpus:2;mem:1024");
 
-  Try<MasterDetector*> slaveDetector =
-    MasterDetector::create(zk, slave, false, true);
-  ASSERT_SOME(slaveDetector);
+  Try<PID<Slave> > slave = cluster.slaves.start(flags, &isolator);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO,zk);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, zk);
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
 
   Future<vector<Offer> > resourceOffers1;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -139,25 +141,30 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   EXPECT_CALL(exec, disconnected(_))
     .WillRepeatedly(DoDefault());
 
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(DoDefault());
+
   Future<Nothing> resourcesChanged;
   EXPECT_CALL(isolator, resourcesChanged(_, _, _))
     .WillOnce(FutureSatisfy(&resourcesChanged));
 
   driver.start();
 
-  AWAIT_UNTIL(resourceOffers1);
+  AWAIT_READY(registered);
+
+  AWAIT_READY(resourceOffers1);
 
   // The framework will be offered all of the resources on the slave,
   // since it is the only framework running.
   EXPECT_THAT(resourceOffers1.get(), OfferEq(2, 1024));
 
-  AWAIT_UNTIL(statusUpdate);
+  AWAIT_READY(statusUpdate);
 
   EXPECT_EQ(TASK_RUNNING, statusUpdate.get().state());
 
   // Ensures that the task has been fully launched before we kill the
   // first master.
-  AWAIT_UNTIL(resourcesChanged);
+  AWAIT_READY(resourcesChanged);
 
   // Stop the failing master from telling the slave to shut down when
   // it is killed.
@@ -168,18 +175,14 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   // framework has reregistered.
   DROP_MESSAGES(Eq(ReregisterSlaveMessage().GetTypeName()), _, _);
 
-  process::terminate(master1);
-  process::wait(master1);
-  MasterDetector::destroy(detector.get());
+  cluster.masters.shutdown();
 
-  AWAIT_UNTIL(shutdownMsg);
-
-  Files files2;
-  Master m2(this->a2, &files2);
+  AWAIT_READY(shutdownMsg);
 
   EXPECT_CALL(this->allocator2, initialize(_, _));
 
-  PID<Master> master2 = process::spawn(m2);
+  Try<PID<Master> > master2 = cluster.masters.start(&this->allocator2);
+  ASSERT_SOME(master2);
 
   Future<Nothing> frameworkAdded;
   EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _))
@@ -188,11 +191,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Try<MasterDetector*> detector2 =
-    MasterDetector::create(zk, master2, true, true);
-  ASSERT_SOME(detector2);
-
-  AWAIT_UNTIL(frameworkAdded);
+  AWAIT_READY(frameworkAdded);
 
   EXPECT_CALL(this->allocator2, slaveAdded(_, _, _));
 
@@ -205,7 +204,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   // that the slave reregisters after the framework.
   process::filter(NULL);
 
-  AWAIT_UNTIL(resourceOffers2);
+  AWAIT_READY(resourceOffers2);
 
   // Since the task is still running on the slave, the framework
   // should only be offered the resources not being used by the task.
@@ -227,21 +226,12 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(frameworkRemoved);
+  AWAIT_READY(frameworkRemoved);
 
-  Future<Nothing> slaveRemoved;
   EXPECT_CALL(this->allocator2, slaveRemoved(_))
-    .WillOnce(FutureSatisfy(&slaveRemoved));
+    .Times(AtMost(1));
 
-  process::terminate(slave);
-  process::wait(slave);
-  MasterDetector::destroy(slaveDetector.get());
-
-  AWAIT_UNTIL(slaveRemoved);
-
-  process::terminate(master2);
-  process::wait(master2);
-  MasterDetector::destroy(detector2.get());
+  cluster.shutdown();
 }
 
 
@@ -251,29 +241,29 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 // accounted for correctly.
 TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 {
-  Files files;
-  Master m(this->a1, &files);
-  PID<Master> master1 = process::spawn(&m);
-
   string zk = "zk://" + this->server->connectString() + "/znode";
-  Try<MasterDetector*> detector =
-    MasterDetector::create(zk, master1, true, true);
-  ASSERT_SOME(detector);
+  Try<zookeeper::URL> url = zookeeper::URL::parse(zk);
+  ASSERT_SOME(url);
+
+  Cluster cluster(Option<zookeeper::URL>(url.get()));
+
+  Try<PID<Master> > master = cluster.masters.start(&this->allocator1);
+  ASSERT_SOME(master);
 
   MockExecutor exec;
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  // By default, slaves in tests have cpus=2, mem=1024.
-  Slave s(this->slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
+  slave::Flags flags = cluster.slaves.flags;
+  flags.resources = Option<string>("cpus:2;mem:1024");
 
-  Try<MasterDetector*> slaveDetector =
-    MasterDetector::create(zk, slave, false, true);
-  ASSERT_SOME(slaveDetector);
+  Try<PID<Slave> > slave = cluster.slaves.start(flags, &isolator);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO,zk);
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
 
   Future<vector<Offer> > resourceOffers1;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -296,25 +286,30 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   EXPECT_CALL(exec, disconnected(_))
     .WillRepeatedly(DoDefault());
 
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(DoDefault());
+
   Future<Nothing> resourcesChanged;
   EXPECT_CALL(isolator, resourcesChanged(_, _, _))
     .WillOnce(FutureSatisfy(&resourcesChanged));
 
   driver.start();
 
-  AWAIT_UNTIL(resourceOffers1);
+  AWAIT_READY(registered);
+
+  AWAIT_READY(resourceOffers1);
 
   // The framework will be offered all of the resources on the slave,
   // since it is the only framework running.
   EXPECT_THAT(resourceOffers1.get(), OfferEq(2, 1024));
 
-  AWAIT_UNTIL(statusUpdate);
+  AWAIT_READY(statusUpdate);
 
   EXPECT_EQ(TASK_RUNNING, statusUpdate.get().state());
 
   // Ensures that the task has been fully launched before we kill the
   // first master.
-  AWAIT_UNTIL(resourcesChanged);
+  AWAIT_READY(resourcesChanged);
 
   // Stop the failing master from telling the slave to shut down when
   // it is killed.
@@ -325,18 +320,14 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   // slave has reregistered.
   DROP_MESSAGES(Eq(ReregisterFrameworkMessage().GetTypeName()), _, _);
 
-  process::terminate(master1);
-  process::wait(master1);
-  MasterDetector::destroy(detector.get());
+  cluster.masters.shutdown();
 
-  AWAIT_UNTIL(shutdownMsg);
-
-  Files files2;
-  Master m2(this->a2, &files2);
+  AWAIT_READY(shutdownMsg);
 
   EXPECT_CALL(this->allocator2, initialize(_, _));
 
-  PID<Master> master2 = process::spawn(m2);
+  Try<PID<Master> > master2 = cluster.masters.start(&this->allocator2);
+  ASSERT_SOME(master2);
 
   Future<Nothing> slaveAdded;
   EXPECT_CALL(this->allocator2, slaveAdded(_, _, _))
@@ -345,11 +336,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Try<MasterDetector*> detector2 =
-    MasterDetector::create(zk, master2, true, true);
-  ASSERT_SOME(detector2);
-
-  AWAIT_UNTIL(slaveAdded);
+  AWAIT_READY(slaveAdded);
 
   EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _));
 
@@ -362,7 +349,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   // that the framework reregisters after the slave.
   process::filter(NULL);
 
-  AWAIT_UNTIL(resourceOffers2);
+  AWAIT_READY(resourceOffers2);
 
   // Since the task is still running on the slave, the framework
   // should only be offered the resources not being used by the task.
@@ -384,19 +371,10 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(frameworkRemoved);
+  AWAIT_READY(frameworkRemoved);
 
-  Future<Nothing> slaveRemoved;
   EXPECT_CALL(this->allocator2, slaveRemoved(_))
-    .WillOnce(FutureSatisfy(&slaveRemoved));
+    .Times(AtMost(1));
 
-  process::terminate(slave);
-  process::wait(slave);
-  MasterDetector::destroy(slaveDetector.get());
-
-  AWAIT_UNTIL(slaveRemoved);
-
-  process::terminate(master2);
-  process::wait(master2);
-  MasterDetector::destroy(detector2.get());
+  cluster.shutdown();
 }
