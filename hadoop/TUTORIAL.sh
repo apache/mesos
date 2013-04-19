@@ -111,6 +111,28 @@ __EOF__
     fi
 done
 
+# Make sure we have all the programs we need.
+programs="mvn \
+  ant"
+
+for program in `echo ${programs}`; do
+    which ${program} > /dev/null
+    if test "$?" != 0; then
+        cat <<__EOF__
+
+${RED}We seem to be missing ${program} from the path.  Please install
+${program} and re-run this tutorial.  If you still have troubles, please report
+this to:
+
+  mesos-dev@incubator.apache.org
+
+(Remember to include as much debug information as possible.)${NORMAL}
+
+__EOF__
+        exit 1
+    fi
+done
+
 
 # Start the tutorial!
 cat <<__EOF__
