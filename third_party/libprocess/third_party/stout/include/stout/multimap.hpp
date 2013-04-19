@@ -93,7 +93,7 @@ bool Multimap<K, V>::remove(const K& key, const V& value)
 template <typename K, typename V>
 bool Multimap<K, V>::contains(const K& key) const
 {
-  return count(key) > 0;
+  return std::multimap<K, V>::count(key) > 0;
 }
 
 
