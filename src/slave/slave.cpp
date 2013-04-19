@@ -831,24 +831,6 @@ void Slave::_runTask(
     return;
   }
 
-  // TODO(vinod): Do this check in the master instead.
-  if (frameworkInfo.checkpoint() && !flags.checkpoint) {
-     LOG(WARNING) << "Asked to checkpoint framework " << frameworkId
-                  << " but the checkpointing is disabled on the slave!"
-                  << " Please start the slave with '--checkpoint' flag";
-
-     const StatusUpdate& update = protobuf::createStatusUpdate(
-         frameworkId,
-         info.id(),
-         task.task_id(),
-         TASK_LOST,
-         "Could not launch the task because the framework expects "
-         "checkpointing, but checkpointing is disabled on the slave");
-
-     statusUpdate(update);
-     return;
-  }
-
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
     framework = new Framework(this, frameworkId, frameworkInfo, pid);

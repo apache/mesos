@@ -1522,6 +1522,28 @@ struct ExecutorInfoChecker : TaskInfoVisitor
 };
 
 
+// Checks that a task that asks for checkpointing is not being
+// launched on a slave that has not enabled checkpointing.
+// TODO(vinod): Consider not offering resources for non-checkpointing
+// slaves to frameworks that need checkpointing.
+struct CheckpointChecker : TaskInfoVisitor
+{
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
+      Offer* offer,
+      Framework* framework,
+      Slave* slave)
+  {
+    if (framework->info.checkpoint() && !slave->info.checkpoint()) {
+      return TaskInfoError::some(
+          "Task asked to be checkpointed but the slave "
+          "has checkpointing disabled");
+    }
+    return TaskInfoError::none();
+  }
+};
+
+
 // Process a resource offer reply (for a non-cancelled offer) by
 // launching the desired tasks (if the offer contains a valid set of
 // tasks) and reporting used resources to the allocator.
@@ -1544,6 +1566,7 @@ void Master::processTasks(Offer* offer,
   visitors.push_back(new UniqueTaskIDChecker());
   visitors.push_back(new ResourceUsageChecker());
   visitors.push_back(new ExecutorInfoChecker());
+  visitors.push_back(new CheckpointChecker());
 
   // Loop through each task and check it's validity.
   foreach (const TaskInfo& task, tasks) {
