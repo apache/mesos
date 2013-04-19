@@ -390,7 +390,7 @@ struct Framework
 
   ~Framework();
 
-  Executor* createExecutor(const ExecutorInfo& executorInfo);
+  Executor* launchExecutor(const ExecutorInfo& executorInfo);
   void destroyExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const TaskID& taskId);
@@ -411,7 +411,7 @@ struct Framework
 
   UPID pid;
 
-  hashset<ExecutorID> pending; // Executors with pending tasks.
+  multihashmap<ExecutorID, TaskID> pending; // Executors with pending tasks.
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;

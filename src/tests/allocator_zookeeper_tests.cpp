@@ -144,10 +144,6 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   EXPECT_CALL(exec, shutdown(_))
     .WillRepeatedly(DoDefault());
 
-  Future<Nothing> resourcesChanged;
-  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
-    .WillOnce(FutureSatisfy(&resourcesChanged));
-
   driver.start();
 
   AWAIT_READY(registered);
@@ -161,10 +157,6 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   AWAIT_READY(statusUpdate);
 
   EXPECT_EQ(TASK_RUNNING, statusUpdate.get().state());
-
-  // Ensures that the task has been fully launched before we kill the
-  // first master.
-  AWAIT_READY(resourcesChanged);
 
   // Stop the failing master from telling the slave to shut down when
   // it is killed.
@@ -289,10 +281,6 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   EXPECT_CALL(exec, shutdown(_))
     .WillRepeatedly(DoDefault());
 
-  Future<Nothing> resourcesChanged;
-  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
-    .WillOnce(FutureSatisfy(&resourcesChanged));
-
   driver.start();
 
   AWAIT_READY(registered);
@@ -306,10 +294,6 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   AWAIT_READY(statusUpdate);
 
   EXPECT_EQ(TASK_RUNNING, statusUpdate.get().state());
-
-  // Ensures that the task has been fully launched before we kill the
-  // first master.
-  AWAIT_READY(resourcesChanged);
 
   // Stop the failing master from telling the slave to shut down when
   // it is killed.
