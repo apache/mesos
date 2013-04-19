@@ -2,13 +2,12 @@ diff --git a/conf/hadoop-env.sh b/conf/hadoop-env.sh
 index ada5bef..76aaf48 100644
 --- a/conf/hadoop-env.sh
 +++ b/conf/hadoop-env.sh
-@@ -9,7 +9,9 @@
+@@ -9,7 +9,8 @@
  # export JAVA_HOME=/usr/lib/j2sdk1.6-sun
  
  # Extra Java CLASSPATH elements.  Optional.
 -# export HADOOP_CLASSPATH="<extra_entries>:$HADOOP_CLASSPATH"
-+MESOS_CLASSPATH=${HADOOP_HOME}/build/contrib/mesos/hadoop-mesos-2.0.0-mr1-cdh4.1.2.jar
-+MESOS_CLASSPATH=${HADOOP_HOME}/contrib/mesos/hadoop-mesos-2.0.0-mr1-cdh4.1.2.jar:${MESOS_CLASSPATH}
++MESOS_CLASSPATH=${HADOOP_HOME}/contrib/mesos/hadoop-mesos-2.0.0-mr1-cdh4.1.2.jar:${HADOOP_HOME}/build/contrib/mesos/hadoop-mesos-2.0.0-mr1-cdh4.1.2.jar
 +export HADOOP_CLASSPATH=${MESOS_CLASSPATH}:${HADOOP_CLASSPATH}
 
  # The maximum amount of heap to use, in MB. Default is 1000.
