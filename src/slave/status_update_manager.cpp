@@ -380,7 +380,7 @@ Try<bool> StatusUpdateManagerProcess::acknowledgement(
   // This might happen if we retried a status update and got back
   // acknowledgments for both the original and the retried update.
   if (update.isNone()) {
-    LOG(WARNING) << "Ignoring duplicate status update acknowledgment " << uuid
+    LOG(WARNING) << "Ignoring unexpected status update acknowledgment " << uuid
                  << " for task " << taskId
                  << " of framework " << frameworkId;
     return false;

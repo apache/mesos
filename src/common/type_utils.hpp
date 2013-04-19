@@ -19,11 +19,13 @@
 #ifndef __TYPE_UTILS_HPP__
 #define __TYPE_UTILS_HPP__
 
+#include <boost/functional/hash.hpp>
+
 #include <google/protobuf/descriptor.h>
 
 #include <mesos/mesos.hpp>
 
-#include <boost/functional/hash.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/attributes.hpp"
 #include "common/resources.hpp"
@@ -340,7 +342,8 @@ inline std::ostream& operator << (
 {
   return stream
     << update.status().state()
-    << " from task " << update.status().task_id()
+    << " (UUID: " << UUID::fromBytes(update.uuid())
+    << ") for task " << update.status().task_id()
     << " of framework " << update.framework_id();
 }
 

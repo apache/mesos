@@ -237,15 +237,20 @@ struct StatusUpdateStream
 
     if (acknowledged.contains(uuid)) {
       LOG(WARNING) << "Ignoring duplicate status update acknowledgment " << uuid
-                   << " for task " << taskId
-                   << " of framework " << frameworkId;;
+                   << " for update " << update;
       return false;
     }
 
-    CHECK(uuid == UUID::fromBytes(update.uuid()))
-      << "Unexpected UUID mismatch! (received " << uuid
-      << ", expecting " << UUID::fromBytes(update.uuid()).toString()
-      << ") for update " << stringify(update);
+    // This might happen if we retried a status update and got back
+    // acknowledgments for both the original and the retried update.
+    if (uuid != UUID::fromBytes(update.uuid())) {
+      LOG(WARNING)
+        << "Ignoring unexpected status update acknowledgement "
+        << "(received " << uuid
+        << ", expecting " << UUID::fromBytes(update.uuid())
+        << ") for update " << update;
+      return false;
+    }
 
     // Handle the ACK, checkpointing if necessary.
     Try<Nothing> result = handle(update, StatusUpdateRecord::ACK);
@@ -346,8 +351,6 @@ private:
   void _handle(const StatusUpdate& update, const StatusUpdateRecord::Type& type)
   {
     CHECK(error.isNone());
-
-    LOG(INFO) << "Handling " << type << " for status update " << update;
 
     if (type == StatusUpdateRecord::UPDATE) {
       // Record this update.

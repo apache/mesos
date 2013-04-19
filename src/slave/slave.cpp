@@ -1289,7 +1289,7 @@ void Slave::statusUpdateAcknowledgement(
     const TaskID& taskId,
     const string& uuid)
 {
-  LOG(INFO) << "Got acknowledgement of status update"
+  LOG(INFO) << "Got status update acknowledgement " << UUID::fromBytes(uuid)
             << " for task " << taskId
             << " of framework " << frameworkId;
 
@@ -1311,7 +1311,7 @@ void Slave::_statusUpdateAcknowledgement(
     const UUID& uuid)
 {
   if (!future.isReady()) {
-    LOG(FATAL) << "Failed to handle status update acknowledgement"
+    LOG(FATAL) << "Failed to handle status update acknowledgement " << uuid
                << " for task " << taskId
                << " of framework " << frameworkId << ": "
                << (future.isFailed() ? future.failure() : "future discarded");
@@ -1319,7 +1319,7 @@ void Slave::_statusUpdateAcknowledgement(
   }
 
   if (future.get().isError()) {
-    LOG(ERROR) << "Failed to handle the status update acknowledgement"
+    LOG(ERROR) << "Failed to handle the status update acknowledgement " << uuid
                << " for task " << taskId
                << " of framework " << frameworkId
                << ": " << future.get().error();
@@ -1327,13 +1327,14 @@ void Slave::_statusUpdateAcknowledgement(
   }
 
   if (!future.get().get()) {
-    LOG(WARNING) << "Ignoring status update acknowledgement"
+    LOG(WARNING) << "Ignoring status update acknowledgement " << uuid
                  << " for task " << taskId
                  << " of framework " << frameworkId;
   }
 
   LOG(INFO) << "Status update manager successfully handled status update"
-            << " acknowledgement for task " << taskId
+            << " acknowledgement " << uuid
+            << " for task " << taskId
             << " of framework " << frameworkId;
 
   CHECK(state == RECOVERING || state == DISCONNECTED ||
@@ -1342,7 +1343,8 @@ void Slave::_statusUpdateAcknowledgement(
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    LOG(ERROR) << "Status update acknowledgement for task " << taskId
+    LOG(ERROR) << "Status update acknowledgement " << uuid
+               << " for task " << taskId
                << " of unknown framework " << frameworkId;
     return;
   }
@@ -1354,7 +1356,8 @@ void Slave::_statusUpdateAcknowledgement(
   // Find the executor that has this update.
   Executor* executor = framework->getExecutor(taskId);
   if (executor == NULL) {
-    LOG(ERROR) << "Status update acknowledgement for task " << taskId
+    LOG(ERROR) << "Status update acknowledgement " << uuid
+              << " for task " << taskId
                << " of unknown executor";
     return;
   }
@@ -1780,10 +1783,13 @@ void Slave::_statusUpdate(
     return;
   }
 
+  LOG(INFO) << "Status update manager successfully handled status update "
+            << update;
+
   // Status update manager successfully handled the status update.
   // Acknowledge the executor, if necessary.
   if (pid.isSome()) {
-    LOG(INFO) << "Sending ACK for status update " << update
+    LOG(INFO) << "Sending acknowledgement for status update " << update
               << " to executor " << pid.get();
     StatusUpdateAcknowledgementMessage message;
     message.mutable_framework_id()->MergeFrom(update.framework_id());

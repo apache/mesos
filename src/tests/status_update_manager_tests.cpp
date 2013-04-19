@@ -120,7 +120,7 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -138,10 +138,10 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 
   driver.launchTasks(offers.get()[0].id(), createTasks(offers.get()[0]));
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_UNTIL(_statusUpdateAcknowledgement);
+  AWAIT_READY(_statusUpdateAcknowledgement);
 
   // Ensure that both the status update and its acknowledgement are
   // correctly checkpointed.
@@ -185,7 +185,7 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   cluster.shutdown();
 }
@@ -223,7 +223,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -239,7 +239,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 
   driver.launchTasks(offers.get()[0].id(), createTasks(offers.get()[0]));
 
-  AWAIT_UNTIL(statusUpdateMessage);
+  AWAIT_READY(statusUpdateMessage);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -247,7 +247,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
 
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
@@ -260,7 +260,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   cluster.shutdown();
 }
@@ -303,7 +303,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   ExecutorDriver* execDriver;
@@ -322,7 +322,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 
   driver.launchTasks(offers.get()[0].id(), createTasks(offers.get()[0]));
 
-  AWAIT_UNTIL(statusUpdateMessage);
+  AWAIT_READY(statusUpdateMessage);
   StatusUpdate update = statusUpdateMessage.get().update();
 
   Future<TaskStatus> status;
@@ -335,7 +335,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
 
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
@@ -370,8 +370,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 
   // TODO(vinod): It would've been great to introspect the first
   // argument of '_statusUpdateAcknowledement()' and ensure that
-  // it is 'false'. All we do now is wait for the slave to not crash
-  // due to CHECK failure in status update manager.
+  // it is 'false'.
   AWAIT_READY(duplicateAck);
 
   Clock::resume();
@@ -383,7 +382,104 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
+
+  cluster.shutdown();
+}
+
+
+// This test verifies that status update manager ignores
+// unexpected ACK for an earlier update when it is waiting
+// for an ACK for another update. We do this by dropping ACKs
+// for the original update and sending a random ACK to the slave.
+TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
+
+  MockExecutor exec;
+
+  slave::Flags flags = cluster.slaves.flags;
+  flags.checkpoint = true;
+  Try<PID<Slave> > slave = cluster.slaves.start(
+      flags, DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true); // Enable checkpointing.
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+      .WillOnce(SaveArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    FUTURE_PROTOBUF(StatusUpdateMessage(), master.get(), _);
+
+  // Drop the ACKs, so that status update manager
+  // retries the update.
+  DROP_PROTOBUFS(StatusUpdateAcknowledgementMessage(), _, _);
+
+  driver.launchTasks(offers.get()[0].id(), createTasks(offers.get()[0]));
+
+  AWAIT_READY(statusUpdateMessage);
+  StatusUpdate update = statusUpdateMessage.get().update();
+
+  AWAIT_READY(status);
+
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  Future<Nothing> unexpectedAck =
+      FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  // Now send an ACK with a random UUID.
+  process::dispatch(
+      slave.get(),
+      &Slave::statusUpdateAcknowledgement,
+      update.slave_id(),
+      frameworkId,
+      update.status().task_id(),
+      UUID::random().toBytes());
+
+  // TODO(vinod): It would've been great to introspect the first
+  // argument of '_statusUpdateAcknowledement()' and ensure that
+  // it is 'false'.
+  AWAIT_READY(unexpectedAck);
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(FutureSatisfy(&shutdown));
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   cluster.shutdown();
 }
