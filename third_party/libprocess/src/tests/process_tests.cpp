@@ -920,17 +920,14 @@ TEST(Process, settle)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  // Try 100 times to hit a race.
-  for (int i = 0; i < 100; ++i) {
-    Clock::pause();
-    SettleProcess process;
-    spawn(process);
-    Clock::settle();
-    ASSERT_TRUE(process.calledDispatch);
-    terminate(process);
-    wait(process);
-    Clock::resume();
-  }
+  Clock::pause();
+  SettleProcess process;
+  spawn(process);
+  Clock::settle();
+  ASSERT_TRUE(process.calledDispatch);
+  terminate(process);
+  wait(process);
+  Clock::resume();
 }
 
 
