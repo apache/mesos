@@ -6,7 +6,7 @@ index ada5bef..76aaf48 100644
  # export JAVA_HOME=/usr/lib/j2sdk1.5-sun
  
  # Extra Java CLASSPATH elements.  Optional.
--# export HADOOP_CLASSPATH="<extra_entries>:$HADOOP_CLASSPATH"
+-# export HADOOP_CLASSPATH=
 +MESOS_CLASSPATH=${HADOOP_HOME}/contrib/mesos/hadoop-mesos-0.20.205.0.jar:${HADOOP_HOME}/build/contrib/mesos/hadoop-mesos-0.20.205.0.jar
 +export HADOOP_CLASSPATH=${MESOS_CLASSPATH}:${HADOOP_CLASSPATH}
  
