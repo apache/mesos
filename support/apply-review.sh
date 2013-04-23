@@ -14,7 +14,7 @@ test ${#} -eq 1 || \
 REVIEW=${1}
 
 REVIEW_URL="https://reviews.apache.org/r/${REVIEW}"
-DIFF_URL="${REVIEW_URL}/diff/raw/"
+DIFF_URL="${REVIEW_URL}/diff/1/raw/"
 
 atexit "rm -f ${REVIEW}.patch"
 

@@ -224,11 +224,14 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
     // Let the underlying task scheduler do the actual task scheduling.
     List<Task> tasks = taskScheduler.assignTasks(taskTracker);
 
-    // Keep track of which TaskTracker contains which tasks.
-    for (Task task : tasks) {
-      LOG.info("Assigning task : " + task.getTaskID()
-          + " to tracker " + tracker);
-      mesosTrackers.get(tracker).hadoopTasks.add(task.getTaskID());
+    // The Hadoop Fair Scheduler is known to return null.
+    if (tasks != null) {
+      // Keep track of which TaskTracker contains which tasks.
+      for (Task task : tasks) {
+        LOG.info("Assigning task : " + task.getTaskID() + " to tracker "
+            + tracker);
+        mesosTrackers.get(tracker).hadoopTasks.add(task.getTaskID());
+      }
     }
 
     return tasks;
