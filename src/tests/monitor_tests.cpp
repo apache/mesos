@@ -41,6 +41,7 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+using process::Clock;
 using process::Future;
 
 using process::http::BadRequest;
@@ -75,6 +76,7 @@ TEST(MonitorTest, WatchUnwatch)
   statistics.set_cpu_user_time(5);
   statistics.set_cpu_system_time(1);
   statistics.set_memory_rss(1024);
+  statistics.set_timestamp(Clock::now());
 
   TestingIsolator isolator;
 
