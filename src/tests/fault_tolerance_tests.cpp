@@ -249,11 +249,15 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
   EXPECT_CALL(sched1, offerRescinded(&driver1, _))
     .Times(AtMost(1));
 
-  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"));
+  Future<Nothing> sched1Error;
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
+    .WillOnce(FutureSatisfy(&sched1Error));
 
   driver2.start();
 
   AWAIT_READY(sched2Registered);
+
+  AWAIT_READY(sched1Error);
 
   EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
   EXPECT_EQ(DRIVER_STOPPED, driver2.join());
