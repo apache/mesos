@@ -192,7 +192,7 @@ TYPED_TEST(IsolatorTest, Usage)
 
   driver.killTask(task.task_id());
 
-  AWAIT_READY_FOR(status2, Seconds(5));
+  AWAIT_READY(status2);
 
   // TODO(bmahler): The command executor is buggy in that it does not
   // send TASK_KILLED for a non-zero exit code due to a kill.

@@ -293,7 +293,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
 
   server->startNetwork();
 
-  AWAIT_READY_FOR(newMasterDetected2, Seconds(5)); // ZooKeeper needs time.
+  AWAIT_READY(newMasterDetected2);
 
   MasterDetector::destroy(detector.get());
 
@@ -362,7 +362,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
 
   // Wait for session expiration and ensure we receive a
   // NewMasterDetected message.
-  AWAIT_READY_FOR(newMasterDetected2, Seconds(5)); // ZooKeeper needs time.
+  AWAIT_READY(newMasterDetected2);
 
   process::terminate(follower);
   process::wait(follower);
@@ -518,7 +518,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   // Wait for session expiration and ensure we receive a
   // NewMasterDetected message.
-  AWAIT_READY_FOR(newMasterDetected4, Seconds(5)); // ZooKeeper needs time.
+  AWAIT_READY(newMasterDetected4);
 
   process::terminate(slave);
   process::wait(slave);
@@ -682,7 +682,7 @@ TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
 
   server->expireSession(session.get().get());
 
-  AWAIT_READY_FOR(memberships, Seconds(5)); // ZooKeeper needs time.
+  AWAIT_READY(memberships);
   EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
@@ -769,19 +769,19 @@ TEST_F(ZooKeeperTest, GroupPathWithRestrictivePerms)
   process::Future<zookeeper::Group::Membership> failedMembership1 =
     failedGroup1.join("fail");
 
-  AWAIT_FAILED_FOR(failedMembership1, Seconds(5)); // ZooKeeper needs time.
+  AWAIT_FAILED(failedMembership1);
 
   zookeeper::Group failedGroup2(server->connectString(), NO_TIMEOUT,
                                 "/read-only/new", auth);
   process::Future<zookeeper::Group::Membership> failedMembership2 =
     failedGroup2.join("fail");
 
-  AWAIT_FAILED_FOR(failedMembership2, Seconds(5)); // ZooKeeper needs time.
+  AWAIT_FAILED(failedMembership2);
 
   zookeeper::Group successGroup(server->connectString(), NO_TIMEOUT,
                                 "/read-only/writable/", auth);
   process::Future<zookeeper::Group::Membership> successMembership =
     successGroup.join("succeed");
 
-  AWAIT_READY_FOR(successMembership, Seconds(5)); // ZooKeeper needs time.
+  AWAIT_READY(successMembership);
 }
