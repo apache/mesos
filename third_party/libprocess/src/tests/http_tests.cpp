@@ -8,8 +8,13 @@
 #include <string>
 
 #include <process/future.hpp>
+#include <process/gmock.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
+#include <process/io.hpp>
 
+#include <stout/gtest.hpp>
+#include <stout/nothing.hpp>
 #include <stout/os.hpp>
 
 #include "encoder.hpp"
@@ -68,14 +73,12 @@ TEST(HTTP, Endpoints)
   EXPECT_CALL(process, body(_))
     .WillOnce(Return(http::OK()));
 
-  ASSERT_EQ(data.size(), write(s, data.data(), data.size()));
+   ASSERT_SOME(os::write(s, data));
 
   std::string response = "HTTP/1.1 200 OK";
 
   char temp[response.size()];
-
-  ASSERT_LT(0, read(s, temp, response.size()));
-
+  ASSERT_LT(0, ::read(s, temp, response.size()));
   ASSERT_EQ(response, std::string(temp, response.size()));
 
   ASSERT_EQ(0, close(s));
@@ -88,21 +91,19 @@ TEST(HTTP, Endpoints)
   ok.type = http::Response::PIPE;
   ok.pipe = pipes[0];
 
-  volatile bool pipeCalled = false;
-
+  Future<Nothing> pipe;
   EXPECT_CALL(process, pipe(_))
-    .WillOnce(DoAll(Assign(&pipeCalled, true),
+    .WillOnce(DoAll(FutureSatisfy(&pipe),
                     Return(ok)));
 
   Future<http::Response> future = http::get(process.self(), "pipe");
 
-  while (!pipeCalled);
+  AWAIT_READY(pipe);
 
-  ASSERT_TRUE(os::write(pipes[1], "Hello World\n").isSome());
-  ASSERT_TRUE(os::close(pipes[1]).isSome());
+  ASSERT_SOME(os::write(pipes[1], "Hello World\n"));
+  ASSERT_SOME(os::close(pipes[1]));
 
-  future.await(Seconds(1.0));
-  ASSERT_TRUE(future.isReady());
+  AWAIT_READY(future);
   ASSERT_EQ(http::statuses[200], future.get().status);
   ASSERT_EQ("chunked", future.get().headers["Transfer-Encoding"]);
   ASSERT_EQ("Hello World\n", future.get().body);
@@ -116,18 +117,17 @@ TEST(HTTP, Encode)
 {
   std::string unencoded = "a$&+,/:;=?@ \"<>#%{}|\\^~[]`\x19\x80\xFF";
   unencoded += std::string("\x00", 1); // Add a null byte to the end.
+
   std::string encoded = http::encode(unencoded);
 
   EXPECT_EQ("a%24%26%2B%2C%2F%3A%3B%3D%3F%40%20%22%3C%3E%23"
             "%25%7B%7D%7C%5C%5E%7E%5B%5D%60%19%80%FF%00",
             encoded);
 
-  Try<std::string> decoded = http::decode(encoded);
-  EXPECT_TRUE(decoded.isSome()) << decoded.error();
-  EXPECT_EQ(unencoded, decoded.get());
+  EXPECT_SOME_EQ(unencoded, http::decode(encoded));
 
-  EXPECT_TRUE(http::decode("%").isError());
-  EXPECT_TRUE(http::decode("%1").isError());
-  EXPECT_TRUE(http::decode("%;1").isError());
-  EXPECT_TRUE(http::decode("%1;").isError());
+  EXPECT_ERROR(http::decode("%"));
+  EXPECT_ERROR(http::decode("%1"));
+  EXPECT_ERROR(http::decode("%;1"));
+  EXPECT_ERROR(http::decode("%1;"));
 }
