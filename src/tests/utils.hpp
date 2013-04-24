@@ -518,7 +518,7 @@ AllocatorTypes;
 // cannot be used inside a DoAll, for example:
 // EXPECT_CALL(allocator, frameworkAdded(_, _, _))
 //   .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
-//                   Trigger(&frameworkAddedTrigger)));
+//                   FutureSatisfy(&frameworkAdded)));
 
 ACTION_P(InvokeInitialize, allocator)
 {
@@ -709,47 +709,6 @@ inline const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, in
 }
 
 
-ACTION_TEMPLATE(SaveArgField,
-                HAS_1_TEMPLATE_PARAMS(int, k),
-                AND_2_VALUE_PARAMS(field, pointer))
-{
-  *pointer = *(::std::tr1::get<k>(args).*field);
-}
-
-
-// A trigger is an object that can be used to effectively block a test
-// from proceeding until some event has occured. A trigger can get set
-// using a gmock action (see below) and you can wait for a trigger to
-// occur using the WAIT_UNTIL macro below.
-struct trigger
-{
-  trigger() : value(false) {}
-  operator bool () const { return value; }
-  bool value;
-};
-
-
-// Definition of the Trigger action to be used with gmock.
-ACTION_P(Trigger, trigger)
-{
-  trigger->value = true;
-}
-
-
-// Definition of an 'increment' action to be used with gmock.
-ACTION_P(Increment, variable)
-{
-  *variable = *variable + 1;
-}
-
-
-// Definition of a 'decrement' action to be used with gmock.
-ACTION_P(Decrement, variable)
-{
-  *variable = *variable - 1;
-}
-
-
 // Definition of the SendStatusUpdateFromTask action to be used with gmock.
 ACTION_P(SendStatusUpdateFromTask, state)
 {
@@ -768,30 +727,6 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
   status.set_state(state);
   arg0->sendStatusUpdate(status);
 }
-
-
-// These macros can be used to wait until some expression evaluates to true.
-#define WAIT_FOR(expression, duration)                                  \
-  do {                                                                  \
-    unsigned int sleeps = 0;                                            \
-    do {                                                                \
-      __sync_synchronize();                                             \
-      if (expression) {                                                 \
-        break;                                                          \
-      }                                                                 \
-      os::sleep(Microseconds(10));                                      \
-      sleeps++;                                                         \
-      if (Microseconds(10 * sleeps) >= duration) {                      \
-        FAIL() << "Waited too long for '" #expression "'";              \
-        ::exit(-1); /* TODO(benh): Figure out how not to exit! */       \
-        break;                                                          \
-      }                                                                 \
-    } while (true);                                                     \
-  } while (false)
-
-
-#define WAIT_UNTIL(expression)                  \
-  WAIT_FOR(expression, Seconds(2.0))
 
 
 #define AWAIT_FOR(future, duration)             \
