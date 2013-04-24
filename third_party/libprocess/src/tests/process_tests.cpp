@@ -516,13 +516,13 @@ TEST(Process, expect)
 
   post(pid, "func");
 
-  EXPECT_FUTURE_WILL_SUCCEED(message);
+  AWAIT_EXPECT_READY(message);
 
   Future<Nothing> func = DROP_DISPATCH(pid, &HandlersProcess::func);
 
   dispatch(pid, &HandlersProcess::func, pid, "");
 
-  EXPECT_FUTURE_WILL_SUCCEED(func);
+  AWAIT_EXPECT_READY(func);
 
   terminate(pid, false);
   wait(pid);
@@ -548,13 +548,13 @@ TEST(Process, action)
 
   dispatch(pid, &HandlersProcess::func, pid, "hello world");
 
-  EXPECT_FUTURE_WILL_EQ("hello world", future1);
+  AWAIT_EXPECT_EQ("hello world", future1);
 
   EXPECT_TRUE(future2.isPending());
 
   dispatch(pid, &HandlersProcess::func, pid, "hello world");
 
-  EXPECT_FUTURE_WILL_SUCCEED(future2);
+  AWAIT_EXPECT_READY(future2);
 
   terminate(pid, false);
   wait(pid);

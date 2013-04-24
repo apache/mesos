@@ -28,7 +28,7 @@ TEST(Statistics, set)
   Future<map<Seconds, double> > values =
     statistics.timeseries("test", "statistic");
 
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
 
   EXPECT_EQ(2, values.get().size());
 
@@ -51,7 +51,7 @@ TEST(Statistics, truncate)
   Future<map<Seconds, double> > values =
     statistics.timeseries("test", "statistic");
 
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
 
   EXPECT_EQ(1, values.get().size());
   EXPECT_GE(Clock::now(), values.get().begin()->first.secs());
@@ -64,7 +64,7 @@ TEST(Statistics, truncate)
 
   values = statistics.timeseries("test", "statistic");
 
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
 
   EXPECT_EQ(1, values.get().size());
   EXPECT_GE(Clock::now(), values.get().begin()->first.secs());
@@ -81,7 +81,7 @@ TEST(Statistics, meter) {
   Future<Try<Nothing> > meter =
     statistics.meter("test", "statistic", new meters::TimeRate("metered"));
 
-  ASSERT_FUTURE_WILL_SUCCEED(meter);
+  AWAIT_ASSERT_READY(meter);
 
   ASSERT_TRUE(meter.get().isSome());
 
@@ -94,7 +94,7 @@ TEST(Statistics, meter) {
   Future<map<Seconds, double> > values =
     statistics.timeseries("test", "statistic");
 
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
 
   EXPECT_EQ(3, values.get().size());
   EXPECT_EQ(1, values.get().count(now));
@@ -108,7 +108,7 @@ TEST(Statistics, meter) {
   // Now check the metered values.
   values = statistics.timeseries("test", "metered");
 
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
 
   EXPECT_EQ(2, values.get().size());
   EXPECT_EQ(1, values.get().count(Seconds(now.secs() + 1.0)));
@@ -131,7 +131,7 @@ TEST(Statistics, archive)
   Future<Try<Nothing> > meter =
     statistics.meter("test", "statistic", new meters::TimeRate("metered"));
 
-  ASSERT_FUTURE_WILL_SUCCEED(meter);
+  AWAIT_ASSERT_READY(meter);
 
   ASSERT_TRUE(meter.get().isSome());
 
@@ -150,12 +150,12 @@ TEST(Statistics, archive)
   // Ensure the raw time series is present.
   Future<map<Seconds, double> > values =
     statistics.timeseries("test", "statistic");
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
   EXPECT_FALSE(values.get().empty());
 
   // Ensure the metered timeseries is present.
   values = statistics.timeseries("test", "metered");
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
   EXPECT_FALSE(values.get().empty());
 
   // Expire the window and ensure the statistics were removed.
@@ -164,19 +164,19 @@ TEST(Statistics, archive)
 
   // Ensure the raw statistics are gone.
   values = statistics.timeseries("test", "statistic");
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
   EXPECT_TRUE(values.get().empty());
 
   // Ensure the metered statistics are gone.
   values = statistics.timeseries("test", "metered");
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
   EXPECT_TRUE(values.get().empty());
 
   // Reactivate the statistic, and make sure the meter is still missing.
   statistics.set("test", "statistic", 1.0, now);
 
   values = statistics.timeseries("test", "metered");
-  ASSERT_FUTURE_WILL_SUCCEED(values);
+  AWAIT_ASSERT_READY(values);
   EXPECT_TRUE(values.get().empty());
 
   Clock::resume();

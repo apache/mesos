@@ -9,6 +9,7 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 
 namespace process {
@@ -39,13 +40,15 @@ private:
 } // namespace process {
 
 template <typename T>
-::testing::AssertionResult AssertFutureWillSucceed(
+::testing::AssertionResult AwaitAssertReady(
     const char* expr,
-    const process::Future<T>& actual)
+    const char*, // Unused string representation of 'duration'.
+    const process::Future<T>& actual,
+    const Duration& duration)
 {
-  if (!actual.await()) {
+  if (!actual.await(duration)) {
     return ::testing::AssertionFailure()
-      << "Failed to wait for " << expr;
+      << "Failed to wait " << duration << " for " << expr;
   } else if (actual.isDiscarded()) {
     return ::testing::AssertionFailure()
       << expr << " was discarded";
@@ -59,13 +62,15 @@ template <typename T>
 
 
 template <typename T>
-::testing::AssertionResult AssertFutureWillFail(
+::testing::AssertionResult AwaitAssertFailed(
     const char* expr,
-    const process::Future<T>& actual)
+    const char*, // Unused string representation of 'duration'.
+    const process::Future<T>& actual,
+    const Duration& duration)
 {
-  if (!actual.await()) {
+  if (!actual.await(duration)) {
     return ::testing::AssertionFailure()
-      << "Failed to wait for " << expr;
+      << "Failed to wait " << duration << " for " << expr;
   } else if (actual.isDiscarded()) {
     return ::testing::AssertionFailure()
       << expr << " was discarded";
@@ -79,13 +84,15 @@ template <typename T>
 
 
 template <typename T>
-::testing::AssertionResult AssertFutureWillDiscard(
+::testing::AssertionResult AwaitAssertDiscarded(
     const char* expr,
-    const process::Future<T>& actual)
+    const char*, // Unused string representation of 'duration'.
+    const process::Future<T>& actual,
+    const Duration& duration)
 {
-  if (!actual.await()) {
+  if (!actual.await(duration)) {
     return ::testing::AssertionFailure()
-      << "Failed to wait for " << expr;
+      << "Failed to wait " << duration << " for " << expr;
   } else if (actual.isFailed()) {
     return ::testing::AssertionFailure()
       << expr << ": " << actual.failure();
@@ -99,14 +106,16 @@ template <typename T>
 
 
 template <typename T1, typename T2>
-::testing::AssertionResult AssertFutureWillEq(
+::testing::AssertionResult AwaitAssertEq(
     const char* expectedExpr,
     const char* actualExpr,
+    const char* durationExpr,
     const T1& expected,
-    const process::Future<T2>& actual)
+    const process::Future<T2>& actual,
+    const Duration& duration)
 {
   const ::testing::AssertionResult result =
-    AssertFutureWillSucceed(actualExpr, actual);
+    AwaitAssertReady(actualExpr, durationExpr, actual, duration);
 
   if (result) {
     if (expected == actual.get()) {
@@ -124,46 +133,108 @@ template <typename T1, typename T2>
 }
 
 
-#define ASSERT_FUTURE_WILL_SUCCEED(actual)              \
-  ASSERT_PRED_FORMAT1(AssertFutureWillSucceed, actual)
+#define AWAIT_ASSERT_READY_FOR(actual, duration)                \
+  ASSERT_PRED_FORMAT2(AwaitAssertReady, actual, duration)
 
 
-#define EXPECT_FUTURE_WILL_SUCCEED(actual)              \
-  EXPECT_PRED_FORMAT1(AssertFutureWillSucceed, actual)
+#define AWAIT_ASSERT_READY(actual)              \
+  AWAIT_ASSERT_READY_FOR(actual, Seconds(2))
 
 
-#define ASSERT_FUTURE_WILL_FAIL(actual)                 \
-  ASSERT_PRED_FORMAT1(AssertFutureWillFail, actual)
+#define AWAIT_READY_FOR(actual, duration)       \
+  AWAIT_ASSERT_READY_FOR(actual, duration)
 
 
-#define EXPECT_FUTURE_WILL_FAIL(actual)                 \
-  EXPECT_PRED_FORMAT1(AssertFutureWillFail, actual)
+#define AWAIT_READY(actual)                     \
+  AWAIT_ASSERT_READY(actual)
 
 
-#define ASSERT_FUTURE_WILL_DISCARD(actual)              \
-  ASSERT_PRED_FORMAT1(AssertFutureWillDiscard, actual)
+#define AWAIT_EXPECT_READY_FOR(actual, duration)                \
+  EXPECT_PRED_FORMAT2(AwaitAssertReady, actual, duration)
 
 
-#define EXPECT_FUTURE_WILL_DISCARD(actual)              \
-  EXPECT_PRED_FORMAT1(AssertFutureWillDiscard, actual)
+#define AWAIT_EXPECT_READY(actual)              \
+  AWAIT_EXPECT_READY_FOR(actual, Seconds(2))
 
 
-#define ASSERT_FUTURE_WILL_EQ(expected, actual)                 \
-  ASSERT_PRED_FORMAT2(AssertFutureWillEq, expected, actual)
+#define AWAIT_ASSERT_FAILED_FOR(actual, duration)               \
+  ASSERT_PRED_FORMAT2(AwaitAssertFailed, actual, duration)
 
 
-#define EXPECT_FUTURE_WILL_EQ(expected, actual)                 \
-  EXPECT_PRED_FORMAT2(AssertFutureWillEq, expected, actual)
+#define AWAIT_ASSERT_FAILED(actual)             \
+  AWAIT_ASSERT_FAILED_FOR(actual, Seconds(2))
 
 
-inline ::testing::AssertionResult AssertResponseStatusWillEq(
+#define AWAIT_FAILED_FOR(actual, duration)       \
+  AWAIT_ASSERT_FAILED_FOR(actual, duration)
+
+
+#define AWAIT_FAILED(actual)                    \
+  AWAIT_ASSERT_FAILED(actual)
+
+
+#define AWAIT_EXPECT_FAILED_FOR(actual, duration)               \
+  EXPECT_PRED_FORMAT2(AwaitAssertFailed, actual, duration)
+
+
+#define AWAIT_EXPECT_FAILED(actual)             \
+  AWAIT_EXPECT_FAILED_FOR(actual, Seconds(2))
+
+
+#define AWAIT_ASSERT_DISCARDED_FOR(actual, duration)            \
+  ASSERT_PRED_FORMAT2(AwaitAssertDiscarded, actual, duration)
+
+
+#define AWAIT_ASSERT_DISCARDED(actual)                  \
+  AWAIT_ASSERT_DISCARDED_FOR(actual, Seconds(2))
+
+
+#define AWAIT_DISCARDED_FOR(actual, duration)       \
+  AWAIT_ASSERT_DISCARDED_FOR(actual, duration)
+
+
+#define AWAIT_DISCARDED(actual)                 \
+  AWAIT_ASSERT_DISCARDED(actual)
+
+
+#define AWAIT_EXPECT_DISCARDED_FOR(actual, duration)            \
+  EXPECT_PRED_FORMAT2(AwaitAssertDiscarded, actual, duration)
+
+
+#define AWAIT_EXPECT_DISCARDED(actual)                  \
+  AWAIT_EXPECT_DISCARDED_FOR(actual, Seconds(2))
+
+
+#define AWAIT_ASSERT_EQ_FOR(expected, actual, duration)                 \
+  ASSERT_PRED_FORMAT3(AwaitAssertEq, expected, actual, duration)
+
+
+#define AWAIT_ASSERT_EQ(expected, actual)       \
+  AWAIT_ASSERT_EQ_FOR(expected, actual, Seconds(2))
+
+
+#define AWAIT_EQ(expected, actual)              \
+  AWAIT_ASSERT_EQ(expected, actual)
+
+
+#define AWAIT_EXPECT_EQ_FOR(expected, actual, duration)                 \
+  EXPECT_PRED_FORMAT3(AwaitAssertEq, expected, actual, duration)
+
+
+#define AWAIT_EXPECT_EQ(expected, actual)               \
+  AWAIT_EXPECT_EQ_FOR(expected, actual, Seconds(2))
+
+
+inline ::testing::AssertionResult AwaitAssertResponseStatusEq(
     const char* expectedExpr,
     const char* actualExpr,
+    const char* durationExpr,
     const std::string& expected,
-    const process::Future<process::http::Response>& actual)
+    const process::Future<process::http::Response>& actual,
+    const Duration& duration)
 {
   const ::testing::AssertionResult result =
-    AssertFutureWillSucceed(actualExpr, actual);
+    AwaitAssertReady(actualExpr, durationExpr, actual, duration);
 
   if (result) {
     if (expected == actual.get().status) {
@@ -181,18 +252,24 @@ inline ::testing::AssertionResult AssertResponseStatusWillEq(
 }
 
 
-#define EXPECT_RESPONSE_STATUS_WILL_EQ(expected, actual)                \
-  EXPECT_PRED_FORMAT2(AssertResponseStatusWillEq, expected, actual)
+#define AWAIT_EXPECT_RESPONSE_STATUS_EQ_FOR(expected, actual, duration) \
+  EXPECT_PRED_FORMAT3(AwaitAssertResponseStatusEq, expected, actual, duration)
 
 
-inline ::testing::AssertionResult AssertResponseBodyWillEq(
+#define AWAIT_EXPECT_RESPONSE_STATUS_EQ(expected, actual)               \
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ_FOR(expected, actual, Seconds(2))
+
+
+inline ::testing::AssertionResult AwaitAssertResponseBodyEq(
     const char* expectedExpr,
     const char* actualExpr,
+    const char* durationExpr,
     const std::string& expected,
-    const process::Future<process::http::Response>& actual)
+    const process::Future<process::http::Response>& actual,
+    const Duration& duration)
 {
   const ::testing::AssertionResult result =
-    AssertFutureWillSucceed(actualExpr, actual);
+    AwaitAssertReady(actualExpr, durationExpr, actual, duration);
 
   if (result) {
     if (expected == actual.get().body) {
@@ -210,20 +287,26 @@ inline ::testing::AssertionResult AssertResponseBodyWillEq(
 }
 
 
-#define EXPECT_RESPONSE_BODY_WILL_EQ(expected, actual)           \
-  EXPECT_PRED_FORMAT2(AssertResponseBodyWillEq, expected, actual)
+#define AWAIT_EXPECT_RESPONSE_BODY_EQ_FOR(expected, actual, duration)   \
+  EXPECT_PRED_FORMAT3(AwaitAssertResponseBodyEq, expected, actual, duration)
 
 
-inline ::testing::AssertionResult AssertResponseHeaderWillEq(
+#define AWAIT_EXPECT_RESPONSE_BODY_EQ(expected, actual)                 \
+  AWAIT_EXPECT_RESPONSE_BODY_EQ_FOR(expected, actual, Seconds(2))
+
+
+inline ::testing::AssertionResult AwaitAssertResponseHeaderEq(
     const char* expectedExpr,
     const char* keyExpr,
     const char* actualExpr,
+    const char* durationExpr,
     const std::string& expected,
     const std::string& key,
-    const process::Future<process::http::Response>& actual)
+    const process::Future<process::http::Response>& actual,
+    const Duration& duration)
 {
   const ::testing::AssertionResult result =
-    AssertFutureWillSucceed(actualExpr, actual);
+    AwaitAssertReady(actualExpr, durationExpr, actual, duration);
 
   if (result) {
     const Option<std::string> value = actual.get().headers.get(key);
@@ -245,7 +328,11 @@ inline ::testing::AssertionResult AssertResponseHeaderWillEq(
 }
 
 
-#define EXPECT_RESPONSE_HEADER_WILL_EQ(expected, key, actual)        \
-  EXPECT_PRED_FORMAT3(AssertResponseHeaderWillEq, expected, key, actual)
+#define AWAIT_EXPECT_RESPONSE_HEADER_EQ_FOR(expected, key, actual, duration) \
+  EXPECT_PRED_FORMAT4(AwaitAssertResponseHeaderEq, expected, key, actual, duration)
+
+
+#define AWAIT_EXPECT_RESPONSE_HEADER_EQ(expected, key, actual)          \
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ_FOR(expected, key, actual, Seconds(2))
 
 #endif // __PROCESS_GTEST_HPP__

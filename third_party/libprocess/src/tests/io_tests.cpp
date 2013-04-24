@@ -29,9 +29,7 @@ TEST(IO, Poll)
 
   ASSERT_EQ(3, write(pipes[1], "hi", 3));
 
-  future.await();
-
-  EXPECT_FUTURE_WILL_EQ(io::READ, future);
+  AWAIT_EXPECT_EQ(io::READ, future);
 
   close(pipes[0]);
   close(pipes[1]);
@@ -49,13 +47,13 @@ TEST(IO, Read)
   ASSERT_NE(-1, ::pipe(pipes));
 
   // Test on a blocking file descriptor.
-  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0], data, 3));
+  AWAIT_EXPECT_FAILED(io::read(pipes[0], data, 3));
 
   close(pipes[0]);
   close(pipes[1]);
 
   // Test on a closed file descriptor.
-  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0], data, 3));
+  AWAIT_EXPECT_FAILED(io::read(pipes[0], data, 3));
 
   // Create a nonblocking pipe.
   ASSERT_NE(-1, ::pipe(pipes));
@@ -63,14 +61,15 @@ TEST(IO, Read)
   ASSERT_SOME(os::nonblock(pipes[1]));
 
   // Test reading nothing.
-  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0], data, 0));
+  AWAIT_EXPECT_FAILED(io::read(pipes[0], data, 0));
 
   // Test successful read.
   Future<size_t> future = io::read(pipes[0], data, 3);
   ASSERT_FALSE(future.isReady());
 
   ASSERT_EQ(2, write(pipes[1], "hi", 2));
-  ASSERT_FUTURE_WILL_EQ(2u, future);
+
+  AWAIT_ASSERT_EQ(2u, future);
   EXPECT_EQ('h', data[0]);
   EXPECT_EQ('i', data[1]);
 
@@ -82,7 +81,7 @@ TEST(IO, Read)
 
   ASSERT_EQ(3, write(pipes[1], "omg", 3));
 
-  ASSERT_FUTURE_WILL_EQ(3u, io::read(pipes[0], data, 3));
+  AWAIT_ASSERT_EQ(3u, io::read(pipes[0], data, 3));
   EXPECT_EQ('o', data[0]);
   EXPECT_EQ('m', data[1]);
   EXPECT_EQ('g', data[2]);
@@ -93,7 +92,7 @@ TEST(IO, Read)
 
   close(pipes[1]);
 
-  ASSERT_FUTURE_WILL_EQ(0u, future);
+  AWAIT_ASSERT_EQ(0u, future);
 
   close(pipes[0]);
 }
@@ -120,11 +119,11 @@ TEST(IO, BufferedRead)
   ASSERT_SOME(fd);
 
   // Read from blocking fd.
-  EXPECT_FUTURE_WILL_FAIL(io::read(fd.get()));
+  AWAIT_EXPECT_FAILED(io::read(fd.get()));
 
   // Read from non-blocking fd.
   ASSERT_TRUE(os::nonblock(fd.get()).isSome());
-  EXPECT_FUTURE_WILL_EQ(data, io::read(fd.get()));
+  AWAIT_EXPECT_EQ(data, io::read(fd.get()));
 
   os::close(fd.get());
 
@@ -135,13 +134,13 @@ TEST(IO, BufferedRead)
   ASSERT_NE(-1, ::pipe(pipes));
 
   // Test on a blocking pipe.
-  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0]));
+  AWAIT_EXPECT_FAILED(io::read(pipes[0]));
 
   close(pipes[0]);
   close(pipes[1]);
 
   // Test on a closed pipe.
-  EXPECT_FUTURE_WILL_FAIL(io::read(pipes[0]));
+  AWAIT_EXPECT_FAILED(io::read(pipes[0]));
 
   // Create a nonblocking pipe for reading.
   ASSERT_NE(-1, ::pipe(pipes));
@@ -157,7 +156,7 @@ TEST(IO, BufferedRead)
   ASSERT_SOME(os::write(pipes[1], data));
   close(pipes[1]);
 
-  EXPECT_FUTURE_WILL_EQ(data, future);
+  AWAIT_EXPECT_EQ(data, future);
 
   close(pipes[0]);
 }
