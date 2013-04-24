@@ -116,17 +116,17 @@ TEST_F(GarbageCollectorTest, Schedule)
   Future<Nothing> schedule3 = gc.schedule(Seconds(15), file3);
 
   // Ensure the dispatches are completed before advancing the clock.
-  AWAIT_UNTIL(scheduleDispatch1);
-  AWAIT_UNTIL(scheduleDispatch2);
-  AWAIT_UNTIL(scheduleDispatch3);
+  AWAIT_READY(scheduleDispatch1);
+  AWAIT_READY(scheduleDispatch2);
+  AWAIT_READY(scheduleDispatch3);
   Clock::settle();
 
   // Advance the clock to trigger the GC of file1 and file2.
   Clock::advance(Seconds(10));
   Clock::settle();
 
-  ASSERT_FUTURE_WILL_SUCCEED(schedule1);
-  ASSERT_FUTURE_WILL_SUCCEED(schedule2);
+  AWAIT_READY(schedule1);
+  AWAIT_READY(schedule2);
   ASSERT_TRUE(schedule3.isPending());
 
   EXPECT_FALSE(os::exists(file1));
@@ -137,7 +137,7 @@ TEST_F(GarbageCollectorTest, Schedule)
   Clock::advance(Seconds(5));
   Clock::settle();
 
-  ASSERT_FUTURE_WILL_SUCCEED(schedule3);
+  AWAIT_READY(schedule3);
 
   EXPECT_FALSE(os::exists(file3));
 
@@ -150,7 +150,7 @@ TEST_F(GarbageCollectorTest, Unschedule)
   GarbageCollector gc;
 
   // Attempt to unschedule a file that is not scheduled.
-  ASSERT_FUTURE_WILL_EQ(false, gc.unschedule("bogus"));
+  AWAIT_ASSERT_EQ(false, gc.unschedule("bogus"));
 
   // Make some temporary files to gc.
   const string& file1 = "file1";
@@ -173,18 +173,18 @@ TEST_F(GarbageCollectorTest, Unschedule)
   Future<Nothing> schedule3 = gc.schedule(Seconds(10), file3);
 
   // Unschedule each operation.
-  ASSERT_FUTURE_WILL_EQ(true, gc.unschedule(file2));
-  ASSERT_FUTURE_WILL_EQ(true, gc.unschedule(file3));
-  ASSERT_FUTURE_WILL_EQ(true, gc.unschedule(file1));
+  AWAIT_ASSERT_EQ(true, gc.unschedule(file2));
+  AWAIT_ASSERT_EQ(true, gc.unschedule(file3));
+  AWAIT_ASSERT_EQ(true, gc.unschedule(file1));
 
   // Advance the clock to ensure nothing was GCed.
   Clock::advance(Seconds(10));
   Clock::settle();
 
   // The unscheduling will have discarded the GC futures.
-  ASSERT_FUTURE_WILL_DISCARD(schedule1);
-  ASSERT_FUTURE_WILL_DISCARD(schedule2);
-  ASSERT_FUTURE_WILL_DISCARD(schedule3);
+  AWAIT_DISCARDED(schedule1);
+  AWAIT_DISCARDED(schedule2);
+  AWAIT_DISCARDED(schedule3);
 
   EXPECT_TRUE(os::exists(file1));
   EXPECT_TRUE(os::exists(file2));
@@ -221,14 +221,14 @@ TEST_F(GarbageCollectorTest, Prune)
   Future<Nothing> schedule3 = gc.schedule(Seconds(15), file3);
   Future<Nothing> schedule4 = gc.schedule(Seconds(15), file4);
 
-  ASSERT_FUTURE_WILL_EQ(true, gc.unschedule(file3));
-  ASSERT_FUTURE_WILL_DISCARD(schedule3);
+  AWAIT_ASSERT_EQ(true, gc.unschedule(file3));
+  AWAIT_DISCARDED(schedule3);
 
   // Prune file1 and file2.
   gc.prune(Seconds(10));
 
-  ASSERT_FUTURE_WILL_SUCCEED(schedule1);
-  ASSERT_FUTURE_WILL_SUCCEED(schedule2);
+  AWAIT_READY(schedule1);
+  AWAIT_READY(schedule2);
   ASSERT_TRUE(schedule4.isPending());
 
   // Both file1 and file2 will have been removed.
@@ -240,7 +240,7 @@ TEST_F(GarbageCollectorTest, Prune)
   // Prune file4.
   gc.prune(Seconds(15));
 
-  ASSERT_FUTURE_WILL_SUCCEED(schedule4);
+  AWAIT_READY(schedule4);
 
   EXPECT_FALSE(os::exists(file4));
 
@@ -266,7 +266,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
   ASSERT_SOME(slave);
 
-  AWAIT_UNTIL(slaveRegisteredMessage);
+  AWAIT_READY(slaveRegisteredMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
@@ -294,7 +294,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
 
   driver.start();
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Make sure directory exists. Need to do this AFTER getting a
@@ -322,9 +322,9 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
 
   cluster.slaves.stop(slave.get());
 
-  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  AWAIT_UNTIL(slaveLost);
+  AWAIT_READY(slaveLost);
 
   Future<Nothing> schedule =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
@@ -332,7 +332,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   slave = cluster.slaves.start();
   ASSERT_SOME(slave);
 
-  AWAIT_UNTIL(schedule);
+  AWAIT_READY(schedule);
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
@@ -492,9 +492,9 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
   driver.start();
 
-  AWAIT_UNTIL(frameworkId);
+  AWAIT_READY(frameworkId);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   const std::string& executorDir = isolator.directories[DEFAULT_EXECUTOR_ID];
@@ -502,7 +502,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   ASSERT_TRUE(os::exists(executorDir));
 
   process::UPID files("files", process::ip(), process::port());
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::OK().status,
       process::http::get(files, "browse.json", "path=" + executorDir));
 
@@ -520,7 +520,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   // TODO(benh): WTF? Why aren't we dispatching?
   isolator.killExecutor(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
-  AWAIT_UNTIL(schedule);
+  AWAIT_READY(schedule);
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
@@ -530,7 +530,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
   // Executor's directory should be gc'ed by now.
   ASSERT_FALSE(os::exists(executorDir));
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
       process::http::get(files, "browse.json", "path=" + executorDir));
 
@@ -584,9 +584,9 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 
   driver.start();
 
-  AWAIT_UNTIL(frameworkId);
+  AWAIT_READY(frameworkId);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   const std::string& executorDir = isolator.directories[DEFAULT_EXECUTOR_ID];
@@ -594,7 +594,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   ASSERT_TRUE(os::exists(executorDir));
 
   process::UPID files("files", process::ip(), process::port());
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::OK().status,
       process::http::get(files, "browse.json", "path=" + executorDir));
 
@@ -612,7 +612,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   // TODO(benh): WTF? Why aren't we dispatching?
   isolator.killExecutor(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
-  AWAIT_UNTIL(schedule);
+  AWAIT_READY(schedule);
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
@@ -622,13 +622,13 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   // Simulate a disk full message to the slave.
   process::dispatch(slave.get(), &Slave::_checkDiskUsage, Try<double>::some(1));
 
-  AWAIT_UNTIL(_checkDiskUsage);
+  AWAIT_READY(_checkDiskUsage);
 
   Clock::settle(); // Wait for Slave::_checkDiskUsage to complete.
 
   // Executor's directory should be gc'ed by now.
   ASSERT_FALSE(os::exists(executorDir));
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
       process::http::get(files, "browse.json", "path=" + executorDir));
 

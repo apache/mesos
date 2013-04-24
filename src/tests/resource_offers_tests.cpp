@@ -70,7 +70,7 @@ TEST(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
   EXPECT_GE(10u, offers.get().size());
 
@@ -104,7 +104,7 @@ TEST(ResourceOffersTest, TaskUsesNoResources)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
@@ -122,7 +122,7 @@ TEST(ResourceOffersTest, TaskUsesNoResources)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
   EXPECT_TRUE(status.get().has_message());
@@ -154,7 +154,7 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
@@ -177,7 +177,7 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
   EXPECT_TRUE(status.get().has_message());
@@ -209,7 +209,7 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
@@ -232,7 +232,7 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
 
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
@@ -264,7 +264,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
 
   driver1.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   driver1.stop();
@@ -281,7 +281,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
 
   driver2.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
 
   driver2.stop();
   driver2.join();
@@ -308,7 +308,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 
   driver1.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   vector<TaskInfo> tasks; // Use nothing!
@@ -325,7 +325,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 
   driver2.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
 
   // Stop first framework before second so no offers are sent.
   driver1.stop();
@@ -357,7 +357,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
   driver1.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
@@ -385,7 +385,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
   driver1.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
   EXPECT_TRUE(status.get().has_message());
@@ -403,7 +403,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
   driver2.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
 
   driver1.stop();
   driver1.join();
@@ -448,7 +448,7 @@ TEST(ResourceOffersTest, Request)
 
   driver.start();
 
-  AWAIT_UNTIL(registered);
+  AWAIT_READY(registered);
 
   vector<Request> sent;
   Request request;
@@ -461,7 +461,7 @@ TEST(ResourceOffersTest, Request)
 
   driver.requestResources(sent);
 
-  AWAIT_UNTIL(received);
+  AWAIT_READY(received);
   EXPECT_EQ(sent.size(), received.get().size());
   EXPECT_NE(0u, received.get().size());
   EXPECT_EQ(request.slave_id(), received.get()[0].slave_id());
@@ -507,7 +507,7 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   ExecutorInfo executor;
@@ -548,10 +548,10 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(task);
+  AWAIT_READY(task);
   EXPECT_EQ(task1.task_id(), task.get().task_id());
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(task2.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
   EXPECT_TRUE(status.get().has_message());
@@ -566,7 +566,7 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(shutdown); // To ensure can deallocate MockExecutor.
+  AWAIT_READY(shutdown); // To ensure can deallocate MockExecutor.
 
   cluster.shutdown();
 }

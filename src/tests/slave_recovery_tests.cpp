@@ -1152,7 +1152,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   this->startSlave();
 
   // Ensure that the slave registered with a new id.
-  AWAIT_UNTIL(offers2);
+  AWAIT_READY(offers2);
 
   EXPECT_NE(0u, offers2.get().size());
 

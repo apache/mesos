@@ -374,11 +374,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
     .WillOnce(LaunchTasks(1, 1, 512))
     .WillRepeatedly(DeclineOffers());
 
-  // We don't wait for the task to be launched, since we only care
-  // that the offer is accepted, so we don't wait for the executor
-  // to recieve messages, but it may get them anyways.
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(AtMost(1));
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   Future<Nothing> launchTask;
   EXPECT_CALL(exec, launchTask(_, _))

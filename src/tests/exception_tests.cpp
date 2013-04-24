@@ -82,14 +82,14 @@ TEST(ExceptionTest, DeactivateFrameworkOnAbort)
 
   driver.start();
 
-  AWAIT_UNTIL(registered);
+  AWAIT_READY(registered);
 
   Future<DeactivateFrameworkMessage> deactivateFrameworkMessage =
     FUTURE_PROTOBUF(DeactivateFrameworkMessage(), _, _);
 
   ASSERT_EQ(DRIVER_ABORTED, driver.abort());
 
-  AWAIT_UNTIL(deactivateFrameworkMessage);
+  AWAIT_READY(deactivateFrameworkMessage);
 
   driver.stop();
   local::shutdown();
@@ -115,7 +115,7 @@ TEST(ExceptionTest, DisallowSchedulerActionsOnAbort)
 
   driver.start();
 
-  AWAIT_UNTIL(registered);
+  AWAIT_READY(registered);
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
@@ -152,7 +152,7 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   // None of these callbacks should be invoked.
@@ -182,7 +182,7 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 
   process::post(message.get().to, rescindMessage);
 
-  AWAIT_UNTIL(rescindMsg);
+  AWAIT_READY(rescindMsg);
 
   Future<UnregisterFrameworkMessage> unregisterMsg =
     FUTURE_PROTOBUF(UnregisterFrameworkMessage(), _, _);
@@ -190,7 +190,7 @@ TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   driver.stop();
 
   //Ensures reception of RescindResourceOfferMessage.
-  AWAIT_UNTIL(unregisterMsg);
+  AWAIT_READY(unregisterMsg);
 
   local::shutdown();
 }

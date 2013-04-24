@@ -199,7 +199,7 @@ TEST_F(ZooKeeperTest, MasterDetector)
 
   ASSERT_SOME(detector);
 
-  AWAIT_UNTIL(newMasterDetected);
+  AWAIT_READY(newMasterDetected);
 
   MasterDetector::destroy(detector.get());
 
@@ -224,7 +224,7 @@ TEST_F(ZooKeeperTest, MasterDetectors)
 
   ASSERT_SOME(detector1);
 
-  AWAIT_UNTIL(newMasterDetected1);
+  AWAIT_READY(newMasterDetected1);
 
   MockMasterDetectorListenerProcess mock2;
   process::spawn(mock2);
@@ -238,7 +238,7 @@ TEST_F(ZooKeeperTest, MasterDetectors)
 
   ASSERT_SOME(detector2);
 
-  AWAIT_UNTIL(newMasterDetected2);
+  AWAIT_READY(newMasterDetected2);
 
   // Destroying detector1 (below) might cause another election so we
   // need to set up expectations appropriately.
@@ -275,7 +275,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
 
   ASSERT_SOME(detector);
 
-  AWAIT_UNTIL(newMasterDetected1);
+  AWAIT_READY(newMasterDetected1);
 
   Future<Nothing> noMasterDetected;
   EXPECT_CALL(mock, noMasterDetected())
@@ -285,7 +285,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
 
   Clock::advance(Seconds(10)); // TODO(benh): Get session timeout from detector.
 
-  AWAIT_UNTIL(noMasterDetected);
+  AWAIT_READY(noMasterDetected);
 
   Future<Nothing> newMasterDetected2;
   EXPECT_CALL(mock, newMasterDetected(mock.self()))
@@ -293,7 +293,7 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
 
   server->startNetwork();
 
-  AWAIT_FOR(newMasterDetected2, Seconds(5)); // ZooKeeper needs extra time.
+  AWAIT_READY_FOR(newMasterDetected2, Seconds(5)); // ZooKeeper needs time.
 
   MasterDetector::destroy(detector.get());
 
@@ -330,7 +330,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
   ZooKeeperMasterDetector leaderDetector(
       url.get(), leader.self(), true, true);
 
-  AWAIT_UNTIL(newMasterDetected1);
+  AWAIT_READY(newMasterDetected1);
 
   // Simulate a following master.
   MockMasterDetectorListenerProcess follower;
@@ -352,17 +352,17 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
       true,
       true);
 
-  AWAIT_UNTIL(newMasterDetected3);
+  AWAIT_READY(newMasterDetected3);
 
   // Now expire the leader's zk session.
   process::Future<int64_t> session = leaderDetector.session();
-  ASSERT_FUTURE_WILL_SUCCEED(session);
+  AWAIT_READY(session);
 
   server->expireSession(session.get());
 
   // Wait for session expiration and ensure we receive a
   // NewMasterDetected message.
-  AWAIT_FOR(newMasterDetected2, Seconds(5)); // ZooKeeper needs extra time.
+  AWAIT_READY_FOR(newMasterDetected2, Seconds(5)); // ZooKeeper needs time.
 
   process::terminate(follower);
   process::wait(follower);
@@ -398,7 +398,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
   ZooKeeperMasterDetector masterDetector(
       url.get(), master.self(), true, true);
 
-  AWAIT_UNTIL(newMasterDetected1);
+  AWAIT_READY(newMasterDetected1);
 
   // Simulate a slave.
   MockMasterDetectorListenerProcess slave;
@@ -417,11 +417,11 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
   ZooKeeperMasterDetector slaveDetector(
       url.get(), slave.self(), false, true);
 
-  AWAIT_UNTIL(newMasterDetected2);
+  AWAIT_READY(newMasterDetected2);
 
   // Now expire the slave's zk session.
   process::Future<int64_t> session = slaveDetector.session();
-  ASSERT_FUTURE_WILL_SUCCEED(session);
+  AWAIT_READY(session);
 
   server->expireSession(session.get());
 
@@ -463,7 +463,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
   ZooKeeperMasterDetector masterDetector1(
       url.get(), master1.self(), true, true);
 
-  AWAIT_UNTIL(newMasterDetected1);
+  AWAIT_READY(newMasterDetected1);
 
   // Simulate a non-leading master.
   MockMasterDetectorListenerProcess master2;
@@ -482,7 +482,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
   ZooKeeperMasterDetector masterDetector2(
       url.get(), master2.self(), true, true);
 
-  AWAIT_UNTIL(newMasterDetected2);
+  AWAIT_READY(newMasterDetected2);
 
   // Simulate a slave.
   MockMasterDetectorListenerProcess slave;
@@ -501,24 +501,24 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
   ZooKeeperMasterDetector slaveDetector(
       url.get(), slave.self(), false, true);
 
-  AWAIT_UNTIL(newMasterDetected3);
+  AWAIT_READY(newMasterDetected3);
 
   // Now expire the slave's and leading master's zk sessions.
   // NOTE: Here we assume that slave stays disconnected from the ZK when the
   // leading master loses its session.
   process::Future<int64_t> slaveSession = slaveDetector.session();
-  ASSERT_FUTURE_WILL_SUCCEED(slaveSession);
+  AWAIT_READY(slaveSession);
 
   server->expireSession(slaveSession.get());
 
   process::Future<int64_t> masterSession = masterDetector1.session();
-  ASSERT_FUTURE_WILL_SUCCEED(masterSession);
+  AWAIT_READY(masterSession);
 
   server->expireSession(masterSession.get());
 
   // Wait for session expiration and ensure we receive a
   // NewMasterDetected message.
-  AWAIT_FOR(newMasterDetected4, Seconds(5)); // ZooKeeper needs extra time.
+  AWAIT_READY_FOR(newMasterDetected4, Seconds(5)); // ZooKeeper needs time.
 
   process::terminate(slave);
   process::wait(slave);
@@ -538,26 +538,26 @@ TEST_F(ZooKeeperTest, Group)
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
 
-  ASSERT_FUTURE_WILL_SUCCEED(membership);
+  AWAIT_READY(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships);
+  AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   process::Future<std::string> data = group.data(membership.get());
 
-  EXPECT_FUTURE_WILL_EQ("hello world", data);
+  AWAIT_EXPECT_EQ("hello world", data);
 
   process::Future<bool> cancellation = group.cancel(membership.get());
 
-  EXPECT_FUTURE_WILL_EQ(true, cancellation);
+  AWAIT_EXPECT_EQ(true, cancellation);
 
   memberships = group.watch(memberships.get());
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships);
+  AWAIT_READY(memberships);
   EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
@@ -578,12 +578,12 @@ TEST_F(ZooKeeperTest, GroupJoinWithDisconnect)
 
   server->startNetwork();
 
-  ASSERT_FUTURE_WILL_SUCCEED(membership);
+  AWAIT_READY(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships);
+  AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 }
@@ -596,12 +596,12 @@ TEST_F(ZooKeeperTest, GroupDataWithDisconnect)
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
 
-  ASSERT_FUTURE_WILL_SUCCEED(membership);
+  AWAIT_READY(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships);
+  AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
@@ -613,7 +613,7 @@ TEST_F(ZooKeeperTest, GroupDataWithDisconnect)
 
   server->startNetwork();
 
-  EXPECT_FUTURE_WILL_EQ("hello world", data);
+  AWAIT_EXPECT_EQ("hello world", data);
 }
 
 
@@ -624,18 +624,18 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
 
-  ASSERT_FUTURE_WILL_SUCCEED(membership);
+  AWAIT_READY(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships);
+  AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   process::Future<std::string> data = group.data(membership.get());
 
-  EXPECT_FUTURE_WILL_EQ("hello world", data);
+  AWAIT_EXPECT_EQ("hello world", data);
 
   server->shutdownNetwork();
 
@@ -645,11 +645,11 @@ TEST_F(ZooKeeperTest, GroupCancelWithDisconnect)
 
   server->startNetwork();
 
-  EXPECT_FUTURE_WILL_EQ(true, cancellation);
+  AWAIT_EXPECT_EQ(true, cancellation);
 
   memberships = group.watch(memberships.get());
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships);
+  AWAIT_READY(memberships);
   EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
@@ -664,25 +664,25 @@ TEST_F(ZooKeeperTest, GroupWatchWithSessionExpiration)
   process::Future<zookeeper::Group::Membership> membership =
     group.join("hello world");
 
-  ASSERT_FUTURE_WILL_SUCCEED(membership);
+  AWAIT_READY(membership);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships =
     group.watch();
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships);
+  AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
   process::Future<Option<int64_t> > session = group.session();
 
-  ASSERT_FUTURE_WILL_SUCCEED(session);
+  AWAIT_READY(session);
   ASSERT_SOME(session.get());
 
   memberships = group.watch(memberships.get());
 
   server->expireSession(session.get().get());
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships);
+  AWAIT_READY_FOR(memberships, Seconds(5)); // ZooKeeper needs time.
   EXPECT_EQ(0u, memberships.get().size());
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
@@ -698,17 +698,17 @@ TEST_F(ZooKeeperTest, MultipleGroups)
   process::Future<zookeeper::Group::Membership> membership1 =
     group1.join("group 1");
 
-  ASSERT_FUTURE_WILL_SUCCEED(membership1);
+  AWAIT_READY(membership1);
 
   process::Future<zookeeper::Group::Membership> membership2 =
     group2.join("group 2");
 
-  ASSERT_FUTURE_WILL_SUCCEED(membership2);
+  AWAIT_READY(membership2);
 
   process::Future<std::set<zookeeper::Group::Membership> > memberships1 =
     group1.watch();
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships1);
+  AWAIT_READY(memberships1);
   EXPECT_EQ(2u, memberships1.get().size());
   EXPECT_EQ(1u, memberships1.get().count(membership1.get()));
   EXPECT_EQ(1u, memberships1.get().count(membership2.get()));
@@ -716,7 +716,7 @@ TEST_F(ZooKeeperTest, MultipleGroups)
   process::Future<std::set<zookeeper::Group::Membership> > memberships2 =
     group2.watch();
 
-  ASSERT_FUTURE_WILL_SUCCEED(memberships2);
+  AWAIT_READY(memberships2);
   EXPECT_EQ(2u, memberships2.get().size());
   EXPECT_EQ(1u, memberships2.get().count(membership1.get()));
   EXPECT_EQ(1u, memberships2.get().count(membership2.get()));
@@ -733,12 +733,12 @@ TEST_F(ZooKeeperTest, MultipleGroups)
 
   process::Future<Option<int64_t> > session1 = group1.session();
 
-  ASSERT_FUTURE_WILL_SUCCEED(session1);
+  AWAIT_READY(session1);
   ASSERT_SOME(session1.get());
 
   server->expireSession(session1.get().get());
 
-  ASSERT_FUTURE_WILL_EQ(false, cancelled);
+  AWAIT_ASSERT_EQ(false, cancelled);
 }
 
 
@@ -769,19 +769,19 @@ TEST_F(ZooKeeperTest, GroupPathWithRestrictivePerms)
   process::Future<zookeeper::Group::Membership> failedMembership1 =
     failedGroup1.join("fail");
 
-  ASSERT_FUTURE_WILL_FAIL(failedMembership1);
+  AWAIT_FAILED_FOR(failedMembership1, Seconds(5)); // ZooKeeper needs time.
 
   zookeeper::Group failedGroup2(server->connectString(), NO_TIMEOUT,
                                 "/read-only/new", auth);
   process::Future<zookeeper::Group::Membership> failedMembership2 =
     failedGroup2.join("fail");
 
-  ASSERT_FUTURE_WILL_FAIL(failedMembership2);
+  AWAIT_FAILED_FOR(failedMembership2, Seconds(5)); // ZooKeeper needs time.
 
   zookeeper::Group successGroup(server->connectString(), NO_TIMEOUT,
                                 "/read-only/writable/", auth);
   process::Future<zookeeper::Group::Membership> successMembership =
     successGroup.join("succeed");
 
-  ASSERT_FUTURE_WILL_SUCCEED(successMembership);
+  AWAIT_READY_FOR(successMembership, Seconds(5)); // ZooKeeper needs time.
 }

@@ -55,15 +55,15 @@ TEST_F(FilesTest, AttachTest)
   ASSERT_SOME(os::write("file", "body"));
   ASSERT_SOME(os::mkdir("dir"));
 
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "myname"));   // Valid file.
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("dir", "mydir"));     // Valid dir.
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "myname"));   // Re-attach.
-  EXPECT_FUTURE_WILL_FAIL(files.attach("missing", "somename")); // Missing file.
+  AWAIT_EXPECT_READY(files.attach("file", "myname"));       // Valid file.
+  AWAIT_EXPECT_READY(files.attach("dir", "mydir"));         // Valid dir.
+  AWAIT_EXPECT_READY(files.attach("file", "myname"));       // Re-attach.
+  AWAIT_EXPECT_FAILED(files.attach("missing", "somename")); // Missing file.
 
   ASSERT_SOME(os::write("file2", "body"));
 
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("file2", "myname"));  // Overwrite.
-  EXPECT_FUTURE_WILL_FAIL(files.attach("$@", "foo"));           // Bad path.
+  AWAIT_EXPECT_READY(files.attach("file2", "myname"));  // Overwrite.
+  AWAIT_EXPECT_FAILED(files.attach("$@", "foo"));       // Bad path.
 }
 
 
@@ -72,7 +72,7 @@ TEST_F(FilesTest, DetachTest)
   Files files;
 
   ASSERT_SOME(os::write("file", "body"));
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "myname"));
+  AWAIT_EXPECT_READY(files.attach("file", "myname"));
 
   files.detach("myname");
   files.detach("myname");
@@ -87,27 +87,29 @@ TEST_F(FilesTest, ReadTest)
   Future<Response> response =
     process::http::get(upid, "read.json");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ("Expecting 'path=value' in query.\n", response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(
+      "Expecting 'path=value' in query.\n",
+      response);
 
   response = process::http::get(upid, "read.json", "path=none&offset=hello");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(
       "Failed to parse offset: Failed to convert 'hello' to number.\n",
       response);
 
   response = process::http::get(upid, "read.json", "path=none&length=hello");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(BadRequest().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(
       "Failed to parse length: Failed to convert 'hello' to number.\n",
       response);
 
   // Now write a file.
   ASSERT_SOME(os::write("file", "body"));
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "/myname"));
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("file", "myname"));
+  AWAIT_EXPECT_READY(files.attach("file", "/myname"));
+  AWAIT_EXPECT_READY(files.attach("file", "myname"));
 
   // Read a valid file.
   JSON::Object expected;
@@ -116,16 +118,16 @@ TEST_F(FilesTest, ReadTest)
 
   response = process::http::get(upid, "read.json", "path=/myname&offset=0");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   response = process::http::get(upid, "read.json", "path=myname&offset=0");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   // Missing file.
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       NotFound().status,
       process::http::get(upid, "read.json", "path=missing"));
 }
@@ -142,10 +144,10 @@ TEST_F(FilesTest, ResolveTest)
   ASSERT_SOME(os::write("1/2/three", "three"));
 
   // Attach some paths.
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("1", "one"));
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("1", "/one/"));
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("1/2", "two"));
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("1/2", "one/two"));
+  AWAIT_EXPECT_READY(files.attach("1", "one"));
+  AWAIT_EXPECT_READY(files.attach("1", "/one/"));
+  AWAIT_EXPECT_READY(files.attach("1/2", "two"));
+  AWAIT_EXPECT_READY(files.attach("1/2", "one/two"));
 
   // Resolve 1/2/3 via each attached path.
   JSON::Object expected;
@@ -155,53 +157,53 @@ TEST_F(FilesTest, ResolveTest)
   Future<Response> response =
     process::http::get(upid, "read.json", "path=one/2/three&offset=0");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   response =
     process::http::get(upid, "read.json", "path=/one/2/three&offset=0");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   response =
     process::http::get(upid, "read.json", "path=two/three&offset=0");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   response =
     process::http::get(upid, "read.json", "path=one/two/three&offset=0");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   // Percent encoded '/' urls.
   response =
     process::http::get(upid, "read.json", "path=%2Fone%2F2%2Fthree&offset=0");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   response =
     process::http::get(upid, "read.json", "path=one%2Ftwo%2Fthree&offset=0");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   // Reading dirs not allowed.
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       BadRequest().status,
       process::http::get(upid, "read.json", "path=one/2"));
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       BadRequest().status,
       process::http::get(upid, "read.json", "path=one"));
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       BadRequest().status,
       process::http::get(upid, "read.json", "path=one/"));
 
   // Breaking out of sandbox.
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       BadRequest().status,
       process::http::get(upid, "read.json", "path=two/../two"));
 }
@@ -217,7 +219,7 @@ TEST_F(FilesTest, BrowseTest)
   ASSERT_SOME(os::write("1/two", "two"));
   ASSERT_SOME(os::write("1/three", "three"));
 
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("1", "one"));
+  AWAIT_EXPECT_READY(files.attach("1", "one"));
 
   // Get the listing.
   struct stat s;
@@ -234,27 +236,27 @@ TEST_F(FilesTest, BrowseTest)
   Future<Response> response =
       process::http::get(upid, "browse.json", "path=one/");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   response = process::http::get(upid, "browse.json", "path=one%2F");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   response = process::http::get(upid, "browse.json", "path=one");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(expected), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   // Empty listing.
   response = process::http::get(upid, "browse.json", "path=one/2");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(stringify(JSON::Array()), response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Array()), response);
 
   // Missing dir.
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       NotFound().status,
       process::http::get(upid, "browse.json", "path=missing"));
 }
@@ -276,20 +278,20 @@ TEST_F(FilesTest, DownloadTest)
 
   ASSERT_SOME(os::write("binary", "no file extension"));
   ASSERT_SOME(os::write("black.gif", data));
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("binary", "binary"));
-  EXPECT_FUTURE_WILL_SUCCEED(files.attach("black.gif", "black.gif"));
+  AWAIT_EXPECT_READY(files.attach("binary", "binary"));
+  AWAIT_EXPECT_READY(files.attach("black.gif", "black.gif"));
 
   Future<Response> response =
     process::http::get(upid, "download.json", "path=binary");
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_HEADER_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
       "application/octet-stream",
       "Content-Type",
       response);
-  EXPECT_RESPONSE_BODY_WILL_EQ("no file extension", response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ("no file extension", response);
 
   response = process::http::get(upid, "download.json", "path=black.gif");
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_HEADER_WILL_EQ("image/gif", "Content-Type", response);
-  EXPECT_RESPONSE_BODY_WILL_EQ(data, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("image/gif", "Content-Type", response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(data, response);
 }

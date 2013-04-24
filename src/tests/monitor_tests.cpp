@@ -105,14 +105,14 @@ TEST(MonitorTest, WatchUnwatch)
 
   Future<Response> response = process::http::get(upid, "usage.json");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_HEADER_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
       "application/json",
       "Content-Type",
       response);
 
   // TODO(bmahler): Verify metering directly through statistics.
-  EXPECT_RESPONSE_BODY_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(
       strings::format(
           "[{"
               "\"executor_id\":\"executor\","
@@ -143,10 +143,10 @@ TEST(MonitorTest, WatchUnwatch)
 
   response = process::http::get(upid, "usage.json");
 
-  EXPECT_RESPONSE_STATUS_WILL_EQ(OK().status, response);
-  EXPECT_RESPONSE_HEADER_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
       "application/json",
       "Content-Type",
       response);
-  EXPECT_RESPONSE_BODY_WILL_EQ("[]", response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ("[]", response);
 }

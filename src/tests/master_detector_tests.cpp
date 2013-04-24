@@ -93,7 +93,7 @@ TEST_F(MasterDetectorTest, File)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
 
   driver.stop();
   driver.join();

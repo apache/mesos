@@ -200,12 +200,12 @@ public:
   {
     // Clean up the testing hierarchy, in case it wasn't cleaned up
     // properly from previous tests.
-    ASSERT_FUTURE_WILL_SUCCEED(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
+    AWAIT_READY(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
   }
 
   static void TearDownTestCase()
   {
-    ASSERT_FUTURE_WILL_SUCCEED(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
+    AWAIT_READY(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
   }
 
 protected:
@@ -345,11 +345,11 @@ ACTION_P3(LaunchTasks, tasks, cpus, mem)
     for (int j = 0; j < offer.resources_size(); j++) {
       const Resource& resource = offer.resources(j);
       if (resource.name() == "cpus" &&
-	        resource.type() == Value::SCALAR) {
-	      offeredCpus = resource.scalar().value();
+          resource.type() == Value::SCALAR) {
+        offeredCpus = resource.scalar().value();
       } else if (resource.name() == "mem" &&
-		             resource.type() == Value::SCALAR) {
-	      offeredMem = resource.scalar().value();
+                 resource.type() == Value::SCALAR) {
+        offeredMem = resource.scalar().value();
       }
     }
 
@@ -727,28 +727,6 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
   status.set_state(state);
   arg0->sendStatusUpdate(status);
 }
-
-
-#define AWAIT_FOR(future, duration)             \
-  ASSERT_TRUE(future.await(duration))
-
-
-#define AWAIT_UNTIL(future)                     \
-  AWAIT_FOR(future, Seconds(2))
-
-
-// TODO(vinod): Combine this with ASSERT_FUTURE_WILL_SUCCEED
-// inside libprocess gtest.hpp.
-#define AWAIT_FOR_READY(future, duration)         \
-  ASSERT_TRUE(future.await(duration));            \
-  ASSERT_TRUE(future.isReady())                   \
-
-
-// TODO(vinod): Combine this with ASSERT_FUTURE_WILL_SUCCEED
-// inside libprocess gtest.hpp.
-#define AWAIT_READY(future)                     \
-  ASSERT_TRUE(future.await(Seconds(2)));        \
-  ASSERT_TRUE(future.isReady())                 \
 
 
 #define FUTURE_PROTOBUF(message, from, to)              \

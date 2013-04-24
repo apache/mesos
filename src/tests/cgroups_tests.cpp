@@ -58,12 +58,12 @@ public:
   {
     // Clean up the testing hierarchy, in case it wasn't cleaned up
     // properly from previous tests.
-    ASSERT_FUTURE_WILL_SUCCEED(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
+    AWAIT_READY(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
   }
 
   static void TearDownTestCase()
   {
-    ASSERT_FUTURE_WILL_SUCCEED(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
+    AWAIT_READY(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
   }
 };
 
@@ -135,7 +135,7 @@ protected:
     Try<bool> exists = cgroups::exists(hierarchy, TEST_CGROUPS_ROOT);
     ASSERT_SOME(exists);
     if (exists.get()) {
-     ASSERT_FUTURE_WILL_SUCCEED(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+     AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
     }
     ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
   }
@@ -146,12 +146,12 @@ protected:
     Try<bool> exists = cgroups::exists(hierarchy, TEST_CGROUPS_ROOT);
     ASSERT_SOME(exists);
     if (exists.get()) {
-     ASSERT_FUTURE_WILL_SUCCEED(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+     AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
     }
 
     // And cleanup TEST_CGROUPS_HIERARCHY in the event it is needed
     // to be created.
-    ASSERT_FUTURE_WILL_SUCCEED(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
+    AWAIT_READY(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
   }
 
   const std::string subsystems; // Subsystems required to run tests.

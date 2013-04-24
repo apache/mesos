@@ -102,7 +102,7 @@ TEST_F(MasterTest, TaskRunning)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
@@ -132,10 +132,10 @@ TEST_F(MasterTest, TaskRunning)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_UNTIL(resourcesChanged);
+  AWAIT_READY(resourcesChanged);
 
   Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
@@ -144,7 +144,7 @@ TEST_F(MasterTest, TaskRunning)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
@@ -179,7 +179,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
@@ -209,10 +209,10 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_UNTIL(resourcesChanged);
+  AWAIT_READY(resourcesChanged);
 
   Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
@@ -221,7 +221,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
@@ -252,7 +252,7 @@ TEST_F(MasterTest, KillTask)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   TaskID taskId;
@@ -280,7 +280,7 @@ TEST_F(MasterTest, KillTask)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   EXPECT_CALL(exec, killTask(_, _))
@@ -291,7 +291,7 @@ TEST_F(MasterTest, KillTask)
 
   driver.killTask(taskId);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status.get().state());
 
   Future<Nothing> shutdown;
@@ -301,7 +301,7 @@ TEST_F(MasterTest, KillTask)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(shutdown); // To ensure can deallocate MockExecutor.
+  AWAIT_READY(shutdown); // To ensure can deallocate MockExecutor.
 
   cluster.shutdown();
 }
@@ -332,7 +332,7 @@ TEST_F(MasterTest, StatusUpdateAck)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
@@ -360,11 +360,11 @@ TEST_F(MasterTest, StatusUpdateAck)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Ensure the slave gets a status update ACK.
-  AWAIT_UNTIL(acknowledgement);
+  AWAIT_READY(acknowledgement);
 
   Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
@@ -373,7 +373,7 @@ TEST_F(MasterTest, StatusUpdateAck)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(shutdown); // Ensures MockExecutor can be deallocated.
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   cluster.shutdown();
 }
@@ -408,7 +408,7 @@ TEST_F(MasterTest, RecoverResources)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   ExecutorInfo executorInfo;
@@ -445,7 +445,7 @@ TEST_F(MasterTest, RecoverResources)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   EXPECT_CALL(exec, killTask(_, _))
@@ -460,12 +460,12 @@ TEST_F(MasterTest, RecoverResources)
 
   driver.killTask(taskId);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status.get().state());
 
   driver.reviveOffers(); // Don't wait till the next allocation.
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   Offer offer = offers.get()[0];
@@ -485,7 +485,7 @@ TEST_F(MasterTest, RecoverResources)
   // should wait for the allocator to recover the resources first. See
   // the allocator tests for inspiration.
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
   Resources slaveResources = Resources::parse(flags.resources.get());
   EXPECT_EQ(slaveResources, offers.get()[0].resources());
@@ -527,7 +527,7 @@ TEST_F(MasterTest, FrameworkMessage)
 
   schedDriver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task;
@@ -553,7 +553,7 @@ TEST_F(MasterTest, FrameworkMessage)
 
   schedDriver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status);
+  AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   Future<string> execData;
@@ -563,7 +563,7 @@ TEST_F(MasterTest, FrameworkMessage)
   schedDriver.sendFrameworkMessage(
       DEFAULT_EXECUTOR_ID, offers.get()[0].slave_id(), "hello");
 
-  AWAIT_UNTIL(execData);
+  AWAIT_READY(execData);
   EXPECT_EQ("hello", execData.get());
 
   Future<string> schedData;
@@ -572,7 +572,7 @@ TEST_F(MasterTest, FrameworkMessage)
 
   execDriver.get()->sendFrameworkMessage("world");
 
-  AWAIT_UNTIL(schedData);
+  AWAIT_READY(schedData);
   EXPECT_EQ("world", schedData.get());
 
   Future<Nothing> shutdown;
@@ -582,7 +582,7 @@ TEST_F(MasterTest, FrameworkMessage)
   schedDriver.stop();
   schedDriver.join();
 
-  AWAIT_UNTIL(shutdown); // To ensure can deallocate MockExecutor.
+  AWAIT_READY(shutdown); // To ensure can deallocate MockExecutor.
 
   cluster.shutdown();
 }
@@ -626,7 +626,7 @@ TEST_F(MasterTest, MultipleExecutors)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   ASSERT_NE(0u, offers.get().size());
 
   ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
@@ -676,16 +676,16 @@ TEST_F(MasterTest, MultipleExecutors)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(exec1Task);
+  AWAIT_READY(exec1Task);
   EXPECT_EQ(task1.task_id(), exec1Task.get().task_id());
 
-  AWAIT_UNTIL(exec2Task);
+  AWAIT_READY(exec2Task);
   EXPECT_EQ(task2.task_id(), exec2Task.get().task_id());
 
-  AWAIT_UNTIL(status1);
+  AWAIT_READY(status1);
   EXPECT_EQ(TASK_RUNNING, status1.get().state());
 
-  AWAIT_UNTIL(status2);
+  AWAIT_READY(status2);
   EXPECT_EQ(TASK_RUNNING, status2.get().state());
 
   Future<Nothing> shutdown1;
@@ -699,8 +699,8 @@ TEST_F(MasterTest, MultipleExecutors)
   driver.stop();
   driver.join();
 
-  AWAIT_UNTIL(shutdown1); // To ensure can deallocate MockExecutor.
-  AWAIT_UNTIL(shutdown2); // To ensure can deallocate MockExecutor.
+  AWAIT_READY(shutdown1); // To ensure can deallocate MockExecutor.
+  AWAIT_READY(shutdown2); // To ensure can deallocate MockExecutor.
 
   cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
@@ -731,7 +731,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
 
   driver.start();
 
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
   // Launch a task with the command executor.
@@ -755,7 +755,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(registerExecutor);
+  AWAIT_READY(registerExecutor);
 
   Clock::pause();
 
@@ -769,7 +769,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
 
   Clock::advance(cluster.slaves.flags.executor_registration_timeout);
 
-  AWAIT_UNTIL(killExecutor);
+  AWAIT_READY(killExecutor);
 
   Clock::settle(); // Wait for ProcessIsolator::killExecutor to complete.
 
@@ -813,7 +813,7 @@ TEST_F(MasterTest, MasterInfo)
 
   driver.start();
 
-  AWAIT_UNTIL(masterInfo);
+  AWAIT_READY(masterInfo);
   EXPECT_EQ(master.get().port, masterInfo.get().port());
   EXPECT_EQ(master.get().ip, masterInfo.get().ip());
 
@@ -848,7 +848,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
 
   driver.start();
 
-  AWAIT_UNTIL(message);
+  AWAIT_READY(message);
 
   // Simulate a spurious newMasterDetected event (e.g., due to ZooKeeper
   // expiration) at the scheduler.
@@ -861,7 +861,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
 
   process::post(message.get().to, newMasterDetectedMsg);
 
-  AWAIT_UNTIL(masterInfo);
+  AWAIT_READY(masterInfo);
   EXPECT_EQ(master.get().port, masterInfo.get().port());
   EXPECT_EQ(master.get().ip, masterInfo.get().ip());
 
@@ -917,7 +917,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
 
   driver.start();
 
-  AWAIT_UNTIL(offers); // Implies the slave has registered.
+  AWAIT_READY(offers); // Implies the slave has registered.
 
   driver.stop();
   driver.join();
@@ -950,7 +950,7 @@ TEST_F(MasterTest, MasterLost)
 
   driver.start();
 
-  AWAIT_UNTIL(message);
+  AWAIT_READY(message);
 
   Future<Nothing> disconnected;
   EXPECT_CALL(sched, disconnected(&driver))
@@ -959,7 +959,7 @@ TEST_F(MasterTest, MasterLost)
   // Simulate a spurious noMasterDetected event at the scheduler.
   process::post(message.get().to, NoMasterDetectedMessage());
 
-  AWAIT_UNTIL(disconnected);
+  AWAIT_READY(disconnected);
 
   driver.stop();
   driver.join();
