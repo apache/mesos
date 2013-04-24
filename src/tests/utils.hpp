@@ -248,7 +248,7 @@ protected:
     Try<bool> exists = cgroups::exists(hierarchy, TEST_CGROUPS_ROOT);
     ASSERT_SOME(exists);
     if (exists.get()) {
-     ASSERT_FUTURE_WILL_SUCCEED(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+     AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
     }
   }
 

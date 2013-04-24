@@ -119,8 +119,8 @@ TYPED_TEST(IsolatorTest, Usage)
 
   driver.start();
 
-  AWAIT_UNTIL(frameworkId);
-  AWAIT_UNTIL(offers);
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(offers);
 
   EXPECT_NE(0u, offers.get().size());
 
@@ -150,7 +150,7 @@ TYPED_TEST(IsolatorTest, Usage)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_UNTIL(status1);
+  AWAIT_READY(status1);
 
   EXPECT_EQ(TASK_RUNNING, status1.get().state());
 
@@ -170,7 +170,7 @@ TYPED_TEST(IsolatorTest, Usage)
     const Future<ResourceStatistics>& usage =
       isolator.usage(frameworkId.get(), executorId);
 
-    ASSERT_FUTURE_WILL_SUCCEED(usage);
+    AWAIT_READY(usage);
 
     statistics = usage.get();
 
@@ -192,7 +192,7 @@ TYPED_TEST(IsolatorTest, Usage)
 
   driver.killTask(task.task_id());
 
-  AWAIT_FOR(status2, Seconds(5));
+  AWAIT_READY_FOR(status2, Seconds(5));
 
   // TODO(bmahler): The command executor is buggy in that it does not
   // send TASK_KILLED for a non-zero exit code due to a kill.

@@ -441,7 +441,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
   ASSERT_FALSE(os::exists(frameworkDir));
 
   process::UPID filesUpid("files", process::ip(), process::port());
-  EXPECT_RESPONSE_STATUS_WILL_EQ(
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
       process::http::get(filesUpid, "browse.json", "path=" + frameworkDir));
 

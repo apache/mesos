@@ -412,7 +412,7 @@ TEST(CoordinatorTest, ElectNoQuorum)
   // Create a timeout here so that we can advance time.
   Timeout timeout(Seconds(5));
 
-  Clock::advance(5.0);
+  Clock::advance(Seconds(5));
 
   {
     Result<uint64_t> result = coord.elect(timeout);
@@ -456,7 +456,7 @@ TEST(CoordinatorTest, AppendNoQuorum)
   // Create a timeout here so that we can advance time.
   Timeout timeout(Seconds(5));
 
-  Clock::advance(5.0);
+  Clock::advance(Seconds(5));
 
   {
     Result<uint64_t> result = coord.append("hello world", timeout);
