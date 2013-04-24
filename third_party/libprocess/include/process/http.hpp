@@ -138,7 +138,7 @@ struct Response
   // PIPE: Splices data from 'pipe' using 'Transfer-Encoding=chunked'.
   // Note that the read end of the pipe will be closed by libprocess
   // either after the write end has been closed or if the socket the
-  // data is being spliced to has been closed (i.e., no body is
+  // data is being spliced to has been closed (i.e., nobody is
   // listening any longer). This can cause writes to the pipe to
   // generate a SIGPIPE (which will terminate your program unless you
   // explicitly ignore them or handle them).
