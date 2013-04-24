@@ -34,8 +34,6 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "slave/process_isolator.hpp"
-
 #include "tests/cluster.hpp"
 #include "tests/utils.hpp"
 
@@ -47,7 +45,6 @@ using mesos::internal::master::Allocator;
 using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::ProcessIsolator;
 using mesos::internal::slave::Slave;
 
 using process::Clock;

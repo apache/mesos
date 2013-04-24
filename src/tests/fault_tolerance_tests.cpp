@@ -38,7 +38,6 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/utils.hpp"
@@ -52,7 +51,6 @@ using mesos::internal::master::Allocator;
 using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::ProcessIsolator;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::STATUS_UPDATE_RETRY_INTERVAL;
 
@@ -91,7 +89,7 @@ TEST_F(FaultToleranceTest, SlaveLost)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  ProcessIsolator isolator;
+  TestingIsolator isolator;
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
