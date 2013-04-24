@@ -357,13 +357,7 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
 }
 
 
-// TOOD(vinod): Disabling this test for now because
-// of the following race condition breaking this test:
-// We do a driver.launchTasks() after post(noMasterDetected)
-// but since dispatch (which is used by launchTasks()) uses
-// a different queue than post, it might so happen that the latter
-// message is dequeued before the former, thus breaking the test.
-TEST_F(FaultToleranceTest, DISABLED_TaskLost)
+TEST_F(FaultToleranceTest, TaskLost)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -373,17 +367,7 @@ TEST_F(FaultToleranceTest, DISABLED_TaskLost)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  MockExecutor exec;
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(0);
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .Times(0);
-
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(0);
-
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  TestingIsolator isolator;
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -392,56 +376,51 @@ TEST_F(FaultToleranceTest, DISABLED_TaskLost)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
-  vector<Offer> offers;
-  trigger statusUpdateCall, resourceOffersCall;
-  TaskStatus status;
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&offers),
-                    Trigger(&resourceOffersCall)))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  EXPECT_CALL(sched, offerRescinded(&driver, _))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(DoAll(SaveArg<1>(&status),
-                    Trigger(&statusUpdateCall)));
-
-  process::Message message;
-
-  EXPECT_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _)
-    .WillOnce(DoAll(SaveArgField<0>(&process::MessageEvent::message, &message),
-                    Return(false)));
+  Future<process::Message> message =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
 
   driver.start();
 
-  WAIT_UNTIL(resourceOffersCall);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  AWAIT_READY(message);
+
+  Future<Nothing> disconnected;
+  EXPECT_CALL(sched, disconnected(&driver))
+    .WillOnce(FutureSatisfy(&disconnected));
 
   // Simulate a spurious noMasterDetected event at the scheduler.
-  NoMasterDetectedMessage noMasterDetectedMsg;
-  process::post(message.to, noMasterDetectedMsg);
+  process::post(message.get().to, NoMasterDetectedMessage());
 
-  EXPECT_NE(0u, offers.size());
+  AWAIT_READY(disconnected);
 
   TaskInfo task;
   task.set_name("test task");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers[0].resources());
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  driver.launchTasks(offers[0].id(), tasks);
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
 
-  WAIT_UNTIL(statusUpdateCall);
+  driver.launchTasks(offers.get()[0].id(), tasks);
 
-  EXPECT_EQ(status.state(), TASK_LOST);
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_LOST, status.get().state());
 
   driver.stop();
   driver.join();
@@ -788,10 +767,8 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  trigger statusUpdateMsg;
-  process::Message message;
-
   MockExecutor exec;
+
   TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
 
   Slave s(slaveFlags, true, &isolator, &files);
@@ -802,9 +779,7 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
 
-  FrameworkID frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(SaveArg<1>(&frameworkId));
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -815,6 +790,8 @@ TEST_F(FaultToleranceTest, SchedulerExit)
 
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
+
+  AWAIT_READY(offers);
 
   TaskInfo task;
   task.set_name("");
@@ -869,11 +846,11 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  ProcessIsolator isolator;
+  TestingIsolator isolator;
 
   // Drop the first slave registered message, allow subsequent messages.
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage
-    = DROP_PROTOBUF(SlaveRegisteredMessage(), _, _);
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    DROP_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -882,8 +859,6 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
-
-  trigger resourceOffersCall;
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -923,7 +898,7 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
   Master m(&a, &files);
   PID<Master> master = process::spawn(&m);
 
-  ProcessIsolator isolator;
+  TestingIsolator isolator;
 
   Slave s(slaveFlags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
@@ -945,7 +920,7 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
   AWAIT_READY(resourceOffers);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Simulate a spurious newMasterDetected event (e.g., due to ZooKeeper
   // expiration) at the slave.
