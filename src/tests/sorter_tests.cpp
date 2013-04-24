@@ -33,15 +33,16 @@ using std::string;
 
 void checkSorter(Sorter& sorter, uint32_t count, ...)
 {
-  va_list elements;
-  va_start(elements, count);
+  va_list args;
+  va_start(args, count);
   list<string> ordering = sorter.sort();
   EXPECT_EQ(ordering.size(), count);
 
   foreach (const string& actual, ordering) {
-    const char* expected = va_arg(elements, char*);
+    const char* expected = va_arg(args, char*);
     EXPECT_EQ(actual, expected);
   }
+  va_end(args);
 }
 
 
