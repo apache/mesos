@@ -310,12 +310,12 @@ public:
 
   void link(ProcessBase* process, const UPID& to);
 
-  PID<HttpProxy> proxy(int s);
+  PID<HttpProxy> proxy(const Socket& socket);
 
-  void send(Encoder* encoder, int s, bool persist);
+  void send(Encoder* encoder, bool persist);
   void send(const Response& response,
             const Request& request,
-            int s);
+            const Socket& socket);
   void send(Message* message);
 
   Encoder* next(int s);
@@ -1560,12 +1560,14 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
 
         // TODO(benh): Consider a way to have the socket manager turn
         // on TCP_CORK for both sends and then turn it off.
-        Encoder* encoder = new HttpResponseEncoder(response, request);
-        socket_manager->send(encoder, socket, true);
+        socket_manager->send(
+            new HttpResponseEncoder(socket, response, request),
+            true);
 
         // Note the file descriptor gets closed by FileEncoder.
-        encoder = new FileEncoder(fd, s.st_size);
-        socket_manager->send(encoder, socket, request.keepAlive);
+        socket_manager->send(
+            new FileEncoder(socket, fd, s.st_size),
+            request.keepAlive);
       }
     }
   } else if (response.type == Response::PIPE) {
@@ -1588,8 +1590,9 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
 
     VLOG(1) << "Starting \"chunked\" streaming";
 
-    Encoder* encoder = new HttpResponseEncoder(response, request);
-    socket_manager->send(encoder, socket, true);
+    socket_manager->send(
+        new HttpResponseEncoder(socket, response, request),
+        true);
 
     pipe = response.pipe;
 
@@ -1649,9 +1652,8 @@ void HttpProxy::stream(const Future<short>& poll, const Request& request)
         // We always persist the connection when we're not finished
         // streaming.
         socket_manager->send(
-          new DataEncoder(out.str()),
-          socket,
-          finished ? request.keepAlive : true);
+            new DataEncoder(socket, out.str()),
+            finished ? request.keepAlive : true);
       }
     }
   } else if (poll.isFailed()) {
@@ -1724,28 +1726,26 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
         LOG(FATAL) << "Failed to link, cloexec: " << cloexec.error();
       }
 
-      Socket socket = Socket(s);
-
-      sockets[s] = socket;
+      sockets[s] = Socket(s);
       nodes[s] = node;
 
       persists[node] = s;
 
+      // Allocate and initialize the decoder and watcher (we really
+      // only "receive" on this socket so that we can react when it
+      // gets closed and generate appropriate lost events).
+      DataDecoder* decoder = new DataDecoder(sockets[s]);
+
+      ev_io* watcher = new ev_io();
+      watcher->data = decoder;
+
+      // Try and connect to the node using this socket.
       sockaddr_in addr;
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = PF_INET;
       addr.sin_port = htons(to.port);
       addr.sin_addr.s_addr = to.ip;
 
-      // Allocate and initialize the decoder and watcher (we really
-      // only "receive" on this socket so that we can react when it
-      // gets closed and generate appropriate lost events).
-      DataDecoder* decoder = new DataDecoder(socket);
-
-      ev_io* watcher = new ev_io();
-      watcher->data = decoder;
-
-      // Try and connect to the node using this socket.
       if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
         if (errno != EINPROGRESS) {
           PLOG(FATAL) << "Failed to link, connect";
@@ -1771,7 +1771,7 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
 }
 
 
-PID<HttpProxy> SocketManager::proxy(int s)
+PID<HttpProxy> SocketManager::proxy(const Socket& socket)
 {
   HttpProxy* proxy = NULL;
 
@@ -1779,12 +1779,12 @@ PID<HttpProxy> SocketManager::proxy(int s)
     // This socket might have been asked to get closed (e.g., remote
     // side hang up) while a process is attempting to handle an HTTP
     // request. Thus, if there is no more socket, return an empty PID.
-    if (sockets.count(s) > 0) {
-      if (proxies.count(s) > 0) {
-        return proxies[s]->self();
+    if (sockets.count(socket) > 0) {
+      if (proxies.count(socket) > 0) {
+        return proxies[socket]->self();
       } else {
-        proxy = new HttpProxy(sockets[s]);
-        proxies[s] = proxy;
+        proxy = new HttpProxy(sockets[socket]);
+        proxies[socket] = proxy;
       }
     }
   }
@@ -1803,29 +1803,29 @@ PID<HttpProxy> SocketManager::proxy(int s)
 }
 
 
-void SocketManager::send(Encoder* encoder, int s, bool persist)
+void SocketManager::send(Encoder* encoder, bool persist)
 {
   CHECK(encoder != NULL);
 
   synchronized (this) {
-    if (sockets.count(s) > 0) {
+    if (sockets.count(encoder->socket()) > 0) {
       // Update whether or not this socket should get disposed after
       // there is no more data to send.
       if (!persist) {
-        dispose.insert(s);
+        dispose.insert(encoder->socket());
       }
 
-      if (outgoing.count(s) > 0) {
-        outgoing[s].push(encoder);
+      if (outgoing.count(encoder->socket()) > 0) {
+        outgoing[encoder->socket()].push(encoder);
       } else {
         // Initialize the outgoing queue.
-        outgoing[s];
+        outgoing[encoder->socket()];
 
         // Allocate and initialize the watcher.
         ev_io* watcher = new ev_io();
         watcher->data = encoder;
 
-        ev_io_init(watcher, encoder->sender(), s, EV_WRITE);
+        ev_io_init(watcher, encoder->sender(), encoder->socket(), EV_WRITE);
 
         synchronized (watchers) {
           watchers->push(watcher);
@@ -1844,7 +1844,7 @@ void SocketManager::send(Encoder* encoder, int s, bool persist)
 void SocketManager::send(
     const Response& response,
     const Request& request,
-    int s)
+    const Socket& socket)
 {
   bool persist = request.keepAlive;
 
@@ -1856,15 +1856,13 @@ void SocketManager::send(
     }
   }
 
-  send(new HttpResponseEncoder(response, request), s, persist);
+  send(new HttpResponseEncoder(socket, response, request), persist);
 }
 
 
 void SocketManager::send(Message* message)
 {
   CHECK(message != NULL);
-
-  DataEncoder* encoder = new MessageEncoder(message);
 
   Node node(message->to.ip, message->to.port);
 
@@ -1874,7 +1872,8 @@ void SocketManager::send(Message* message)
     bool temp = temps.count(node) > 0;
     if (persist || temp) {
       int s = persist ? persists[node] : temps[node];
-      send(encoder, s, persist);
+      CHECK(sockets.count(s) > 0);
+      send(new MessageEncoder(sockets[s], message), persist);
     } else {
       // No peristant or temporary socket to the node currently
       // exists, so we create a temporary one.
@@ -1903,16 +1902,16 @@ void SocketManager::send(Message* message)
       // Initialize the outgoing queue.
       outgoing[s];
 
+      // Allocate and initialize the watcher.
+      ev_io* watcher = new ev_io();
+      watcher->data = new MessageEncoder(sockets[s], message);
+
       // Try and connect to the node using this socket.
       sockaddr_in addr;
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = PF_INET;
       addr.sin_port = htons(message->to.port);
       addr.sin_addr.s_addr = message->to.ip;
-
-      // Allocate and initialize the watcher.
-      ev_io* watcher = new ev_io();
-      watcher->data = encoder;
 
       if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
         if (errno != EINPROGRESS) {
@@ -3153,9 +3152,9 @@ void read(int fd,
     return;
   }
 
-  // Since promise->future() will be discarded before future is discarded, we
-  // should never see a discarded future here because of the check in the
-  // beginning of this function.
+  // Since promise->future() will be discarded before future is
+  // discarded, we should never see a discarded future here because of
+  // the check in the beginning of this function.
   CHECK(!future.isDiscarded());
 
   if (future.isFailed()) {
@@ -3218,7 +3217,7 @@ Future<size_t> read(int fd, void* data, size_t size)
   Try<bool> nonblock = os::isNonblock(fd);
   if (nonblock.isError()) {
     // The file descriptor is not valid (e.g. fd has been closed).
-    promise->fail(strerror(errno));
+    promise->fail(string("Failed to check O_NONBLOCK") + strerror(errno));
     return promise->future();
   } else if (!nonblock.get()) {
     // The fd is not opened with O_NONBLOCK set.
@@ -3254,8 +3253,7 @@ Future<string> _read(int fd,
   return io::read(fd, data.get(), length)
     .then([=] (size_t size) {
       if (size == 0) { // EOF.
-        string result(*buffer);
-        return Future<string>(result);
+        return string(*buffer);
       }
       buffer->append(data, size);
       return _read(fd, buffer, data, length);
@@ -3278,11 +3276,11 @@ Future<string> __read(
     size_t length)
 {
   if (size == 0) { // EOF.
-    string result(*buffer);
-    return Future<string>(result);
+    return string(*buffer);
   }
 
   buffer->append(data.get(), size);
+
   return _read(fd, buffer, data, length);
 }
 
@@ -3367,7 +3365,8 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
   addr.sin_addr.s_addr = upid.ip;
 
   if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
-    return Future<Response>::failed(strerror(errno));
+    return Future<Response>::failed(
+        string("Failed to connect: ") + strerror(errno));
   }
 
   std::ostringstream out;
@@ -3388,7 +3387,8 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
       if (errno == EINTR) {
         continue;
       }
-      return Future<Response>::failed(strerror(errno));
+      return Future<Response>::failed(
+          string("Failed to write: ") + strerror(errno));
     }
 
     remaining -= n;

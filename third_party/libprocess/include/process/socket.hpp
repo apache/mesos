@@ -15,7 +15,7 @@ public:
   Socket()
     : refs(new int(1)), s(-1) {}
 
-  Socket(int _s)
+  explicit Socket(int _s)
     : refs(new int(1)), s(_s) {}
 
   ~Socket()
@@ -62,7 +62,10 @@ private:
     if (__sync_sub_and_fetch(refs, 1) == 0) {
       delete refs;
       if (s >= 0) {
-        close(s);
+        if (close(s) != 0) {
+          perror("Failed to close socket");
+          abort();
+        }
       }
     }
   }

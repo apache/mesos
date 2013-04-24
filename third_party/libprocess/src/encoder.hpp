@@ -28,16 +28,26 @@ extern void send_file(struct ev_loop*, ev_io*, int);
 class Encoder
 {
 public:
+  Encoder(const Socket& _s) : s(_s) {}
   virtual ~Encoder() {}
+
   virtual Sender sender() = 0;
+
+  Socket socket() const
+  {
+    return s;
+  }
+
+private:
+  const Socket s; // The socket this encoder is associated with.
 };
 
 
 class DataEncoder : public Encoder
 {
 public:
-  DataEncoder(const std::string& _data)
-    : data(_data), index(0) {}
+  DataEncoder(const Socket& s, const std::string& _data)
+    : Encoder(s), data(_data), index(0) {}
 
   virtual ~DataEncoder() {}
 
@@ -75,8 +85,8 @@ private:
 class MessageEncoder : public DataEncoder
 {
 public:
-  MessageEncoder(Message* _message)
-    : DataEncoder(encode(_message)), message(_message) {}
+  MessageEncoder(const Socket& s, Message* _message)
+    : DataEncoder(s, encode(_message)), message(_message) {}
 
   virtual ~MessageEncoder()
   {
@@ -119,9 +129,10 @@ class HttpResponseEncoder : public DataEncoder
 {
 public:
   HttpResponseEncoder(
+      const Socket& s,
       const http::Response& response,
       const http::Request& request)
-    : DataEncoder(encode(response, request)) {}
+    : DataEncoder(s, encode(response, request)) {}
 
   static std::string encode(
       const http::Response& response,
@@ -202,8 +213,8 @@ public:
 class FileEncoder : public Encoder
 {
 public:
-  FileEncoder(int _fd, size_t _size)
-    : fd(_fd), size(_size), index(0) {}
+  FileEncoder(const Socket& s, int _fd, size_t _size)
+    : Encoder(s), fd(_fd), size(_size), index(0) {}
 
   virtual ~FileEncoder()
   {
