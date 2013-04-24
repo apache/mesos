@@ -54,7 +54,7 @@ template <typename T>
       << expr << " was discarded";
   } else if (actual.isFailed()) {
     return ::testing::AssertionFailure()
-      << expr << ": " << actual.failure();
+      << "(" << expr << ").failure(): " << actual.failure();
   }
 
   return ::testing::AssertionSuccess();
@@ -95,7 +95,7 @@ template <typename T>
       << "Failed to wait " << duration << " for " << expr;
   } else if (actual.isFailed()) {
     return ::testing::AssertionFailure()
-      << expr << ": " << actual.failure();
+      << "(" << expr << ").failure(): " << actual.failure();
   } else if (actual.isReady()) {
     return ::testing::AssertionFailure()
       << expr << " is ready (" << ::testing::PrintToString(actual.get()) << ")";
