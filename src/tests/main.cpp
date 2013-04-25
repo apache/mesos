@@ -29,9 +29,10 @@
 
 #include "logging/logging.hpp"
 
+#include "messages/messages.hpp" // For GOOGLE_PROTOBUF_VERIFY_VERSION.
+
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
-#include "tests/utils.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::tests;

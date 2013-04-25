@@ -29,7 +29,6 @@
 
 #include <stout/duration.hpp>
 
-#include "tests/utils.hpp"
 #include "tests/zookeeper_test_server.hpp"
 
 namespace mesos {
@@ -72,7 +71,7 @@ inline ::testing::AssertionResult AssertZKGet(
 // the variable 'server'. This test fixture ensures the server is
 // started before each test and shutdown after it so that each test is
 // presented with a ZooKeeper ensemble with no data or watches.
-class ZooKeeperTest : public MesosTest
+class ZooKeeperTest : public ::testing::Test
 {
 public:
   // A watcher that is useful to install in a ZooKeeper client for
@@ -116,17 +115,18 @@ public:
     pthread_cond_t cond;
   };
 
-  ZooKeeperTest() : server(new ZooKeeperTestServer()) {}
-  virtual ~ZooKeeperTest() { delete server; }
-
   static void SetUpTestCase();
 
 protected:
+  ZooKeeperTest() : server(new ZooKeeperTestServer()) {}
+  virtual ~ZooKeeperTest() { delete server; }
+
   virtual void SetUp();
 
   // A very long session timeout that simulates no timeout for test cases.
   static const Duration NO_TIMEOUT;
 
+  // TODO(benh): Share the same ZooKeeperTestServer across all tests?
   ZooKeeperTestServer* server;
 };
 

@@ -30,7 +30,7 @@
 
 #include "slave/slave.hpp"
 
-#include "tests/utils.hpp"
+#include "tests/mesos.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -409,16 +409,18 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 // unique task IDs and aggregate resource usage.
 
 
-TEST(ResourceOffersTest, Request)
-{
-  Cluster cluster;
+// TODO(benh): Eliminate this class once we replace tests above to use
+// MesosTest/Cluster instead of local::launch.
+class ResourceOffersMesosTest : public MesosTest {};
 
+TEST_F(ResourceOffersMesosTest, Request)
+{
   MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _))
     .Times(1);
 
-  Try<PID<Master> > master = cluster.masters.start(&allocator);
+  Try<PID<Master> > master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -460,21 +462,21 @@ TEST(ResourceOffersTest, Request)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
-class MultipleExecutorsTest : public MesosClusterTest {};
+class MultipleExecutorsTest : public MesosTest {};
 
 
 TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -551,5 +553,5 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
 
   AWAIT_READY(shutdown); // To ensure can deallocate MockExecutor.
 
-  cluster.shutdown();
+  Shutdown();
 }

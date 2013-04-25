@@ -44,7 +44,7 @@
 
 #include "messages/messages.hpp"
 
-#include "tests/utils.hpp"
+#include "tests/mesos.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -85,20 +85,20 @@ vector<TaskInfo> createTasks(const Offer& offer)
 }
 
 
-class StatusUpdateManagerTest: public MesosClusterTest {};
+class StatusUpdateManagerTest: public MesosTest {};
 
 
 TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  slave::Flags flags = cluster.slaves.flags;
+  slave::Flags flags = CreateSlaveFlags();
   flags.checkpoint = true;
-  Try<PID<Slave> > slave = cluster.slaves.start(
-      flags, DEFAULT_EXECUTOR_ID, &exec);
+
+  Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
@@ -185,21 +185,21 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
 TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  slave::Flags flags = cluster.slaves.flags;
+  slave::Flags flags = CreateSlaveFlags();
   flags.checkpoint = true;
-  Try<PID<Slave> > slave = cluster.slaves.start(
-      flags, DEFAULT_EXECUTOR_ID, &exec);
+
+  Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
@@ -258,7 +258,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
@@ -268,15 +268,15 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 // duplicate ACK is for a retried update.
 TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  slave::Flags flags = cluster.slaves.flags;
+  slave::Flags flags = CreateSlaveFlags();
   flags.checkpoint = true;
-  Try<PID<Slave> > slave = cluster.slaves.start(
-      flags, DEFAULT_EXECUTOR_ID, &exec);
+
+  Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
@@ -378,7 +378,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
@@ -388,15 +388,15 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 // for the original update and sending a random ACK to the slave.
 TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  slave::Flags flags = cluster.slaves.flags;
+  slave::Flags flags = CreateSlaveFlags();
   flags.checkpoint = true;
-  Try<PID<Slave> > slave = cluster.slaves.start(
-      flags, DEFAULT_EXECUTOR_ID, &exec);
+
+  Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
@@ -473,5 +473,5 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  cluster.shutdown();
+  Shutdown();
 }

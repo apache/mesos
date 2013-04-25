@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 
+#include <stout/gtest.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>

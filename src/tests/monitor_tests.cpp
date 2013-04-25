@@ -20,22 +20,19 @@
 
 #include <gmock/gmock.h>
 
-#include <mesos/executor.hpp>
 #include <mesos/mesos.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
-#include <process/gmock.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
-#include <stout/duration.hpp>
-
 #include "slave/constants.hpp"
 #include "slave/monitor.hpp"
 
-#include "tests/utils.hpp"
+#include "tests/isolator.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;

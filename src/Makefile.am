@@ -233,6 +233,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	tests/zookeeper.hpp tests/flags.hpp tests/utils.hpp		\
 	tests/cluster.hpp						\
 	tests/isolator.hpp						\
+	tests/mesos.hpp							\
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
 	zookeeper/zookeeper.hpp zookeeper/url.hpp
@@ -780,6 +781,7 @@ check_PROGRAMS += mesos-tests
 mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/environment.cpp				\
 	              tests/flags.cpp					\
+	              tests/mesos.cpp					\
 	              tests/master_tests.cpp tests/state_tests.cpp	\
 	              tests/paths_tests.cpp				\
 	              tests/reaper_tests.cpp				\

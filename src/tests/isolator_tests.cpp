@@ -32,9 +32,6 @@
 
 #include "detector/detector.hpp"
 
-#include "master/allocator.hpp"
-#include "master/flags.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/flags.hpp"
@@ -44,7 +41,7 @@
 #include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/utils.hpp"
+#include "tests/mesos.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -52,8 +49,6 @@ using namespace mesos::internal::tests;
 
 using namespace process;
 
-using mesos::internal::master::Allocator;
-using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 #ifdef __linux__
@@ -80,6 +75,7 @@ typedef ::testing::Types<ProcessIsolator> IsolatorTypes;
 
 TYPED_TEST_CASE(IsolatorTest, IsolatorTypes);
 
+
 // TODO(bmahler): This test is disabled on OSX, until proc::children
 // is implemented for OSX.
 #ifdef __APPLE__
@@ -88,20 +84,18 @@ TYPED_TEST(IsolatorTest, DISABLED_Usage)
 TYPED_TEST(IsolatorTest, Usage)
 #endif
 {
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
 
   TypeParam isolator;
-  Slave s(this->slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
 
-  BasicMasterDetector detector(master, slave, true);
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -111,11 +105,6 @@ TYPED_TEST(IsolatorTest, Usage)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  Future<TaskStatus> status1, status2;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status1))
-    .WillOnce(FutureArg<1>(&status2));
 
   driver.start();
 
@@ -130,7 +119,7 @@ TYPED_TEST(IsolatorTest, Usage)
   task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
 
-  const std::string& file = path::join(this->slaveFlags.work_dir, "ready");
+  const std::string& file = path::join(flags.work_dir, "ready");
 
   // This task induces user/system load in a child process by
   // running top in a child process for ten seconds.
@@ -148,11 +137,15 @@ TYPED_TEST(IsolatorTest, Usage)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_READY(status1);
+  AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Wait for the task to begin inducing cpu time.
   while (!os::exists(file));
@@ -167,8 +160,12 @@ TYPED_TEST(IsolatorTest, Usage)
   ResourceStatistics statistics;
   Duration waited = Duration::zero();
   do {
-    const Future<ResourceStatistics>& usage =
-      isolator.usage(frameworkId.get(), executorId);
+    Future<ResourceStatistics> usage =
+      process::dispatch(
+          (Isolator*) &isolator, // TODO(benh): Fix after reaper changes.
+          &Isolator::usage,
+          frameworkId.get(),
+          executorId);
 
     AWAIT_READY(usage);
 
@@ -182,27 +179,26 @@ TYPED_TEST(IsolatorTest, Usage)
     }
 
     os::sleep(Milliseconds(100));
-    waited = waited + Milliseconds(100);
+    waited += Milliseconds(100);
   } while (waited < Seconds(10));
 
   EXPECT_GE(statistics.memory_rss(), 1024u);
   EXPECT_GE(statistics.cpu_user_time(), 0.125);
   EXPECT_GE(statistics.cpu_system_time(), 0.125);
 
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
   driver.killTask(task.task_id());
 
-  AWAIT_READY(status2);
+  AWAIT_READY(status);
 
   // TODO(bmahler): The command executor is buggy in that it does not
   // send TASK_KILLED for a non-zero exit code due to a kill.
-  EXPECT_EQ(TASK_FAILED, status2.get().state());
+  EXPECT_EQ(TASK_FAILED, status.get().state());
 
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  this->Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }

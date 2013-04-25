@@ -30,6 +30,7 @@
 #include "common/resources.hpp"
 
 #include "master/allocator.hpp"
+#include "master/drf_sorter.hpp"
 #include "master/master.hpp"
 #include "master/sorter.hpp"
 
@@ -38,7 +39,6 @@ namespace internal {
 namespace master {
 
 // Forward declarations.
-class DRFSorter;
 class Filter;
 
 

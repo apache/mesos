@@ -35,6 +35,9 @@
 
 #include <gmock/gmock.h>
 
+#include <process/gtest.hpp>
+
+#include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -44,7 +47,7 @@
 
 #include "linux/cgroups.hpp"
 
-#include "tests/utils.hpp"
+#include "tests/mesos.hpp" // For TEST_CGROUPS_(HIERARCHY|ROOT).
 
 using namespace mesos::internal::tests;
 

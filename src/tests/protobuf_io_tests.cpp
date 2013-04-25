@@ -20,6 +20,7 @@
 
 #include <gmock/gmock.h>
 
+#include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
@@ -28,8 +29,6 @@
 #include "common/type_utils.hpp"
 
 #include "messages/messages.hpp"
-
-#include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;

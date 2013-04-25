@@ -28,9 +28,11 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include "logging/logging.hpp"
+
 #include "tests/environment.hpp"
+#include "tests/flags.hpp"
 #include "tests/script.hpp"
-#include "tests/utils.hpp"
 
 using std::string;
 

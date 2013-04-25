@@ -22,15 +22,14 @@
 #include <process/gmock.hpp>
 #include <process/message.hpp>
 
-#include "detector/detector.hpp"
+#include <stout/option.hpp>
+#include <stout/try.hpp>
 
 #include "master/allocator.hpp"
 #include "master/master.hpp"
 
-#include "tests/utils.hpp"
+#include "tests/mesos.hpp"
 #include "tests/zookeeper.hpp"
-
-#include "zookeeper/url.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -45,7 +44,6 @@ using mesos::internal::slave::Slave;
 using process::Future;
 using process::PID;
 
-using std::map;
 using std::string;
 using std::vector;
 
@@ -53,18 +51,47 @@ using testing::_;
 using testing::AtMost;
 using testing::DoAll;
 using testing::DoDefault;
-using testing::Eq;
-using testing::Return;
-using testing::SaveArg;
 
 
 template <typename T = AllocatorProcess>
-class AllocatorZooKeeperTest : public ZooKeeperTest
+class AllocatorZooKeeperTest : public MesosTest
 {
+public:
+  static void SetUpTestCase()
+  {
+    // Make sure the JVM is created.
+    ZooKeeperTest::SetUpTestCase();
+
+    // Launch the ZooKeeper test server.
+    server = new ZooKeeperTestServer();
+    server->startNetwork();
+
+    Try<zookeeper::URL> parse = zookeeper::URL::parse(
+        "zk://" + server->connectString() + "/znode");
+    ASSERT_SOME(parse);
+
+    url = parse.get();
+  }
+
+  static void TearDownTestCase()
+  {
+    delete server;
+    server = NULL;
+  }
+
 protected:
-  T allocator1;
-  MockAllocatorProcess<T> allocator2;
+  AllocatorZooKeeperTest() : MesosTest(url) {}
+
+  static ZooKeeperTestServer* server;
+  static Option<zookeeper::URL> url;
 };
+
+
+template <typename T>
+ZooKeeperTestServer* AllocatorZooKeeperTest<T>::server = NULL;
+
+template <typename T>
+Option<zookeeper::URL> AllocatorZooKeeperTest<T>::url;
 
 
 // Runs TYPED_TEST(AllocatorZooKeeperTest, ...) on all AllocatorTypes.
@@ -77,25 +104,22 @@ TYPED_TEST_CASE(AllocatorZooKeeperTest, AllocatorTypes);
 // accounted for correctly.
 TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 {
-  string zk = "zk://" + this->server->connectString() + "/znode";
-  Try<zookeeper::URL> url = zookeeper::URL::parse(zk);
-  ASSERT_SOME(url);
+  TypeParam allocator1;
 
-  Cluster cluster(url.get());
-
-  Try<PID<Master> > master = cluster.masters.start(&this->allocator1);
+  Try<PID<Master> > master = this->StartMaster(&allocator1);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags = cluster.slaves.flags;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:2;mem:1024");
 
-  Try<PID<Slave> > slave = cluster.slaves.start(flags, &isolator);
+  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, zk);
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, stringify(this->url.get()));
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -141,32 +165,34 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   // Stop the failing master from telling the slave to shut down when
   // it is killed.
-  Future<process::Message> shutdownMsg =
-    DROP_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _);
+  Future<ShutdownMessage> shutdownMessage =
+    DROP_PROTOBUF(ShutdownMessage(), _, _);
 
   // Stop the slave from reregistering with the new master until the
   // framework has reregistered.
-  DROP_MESSAGES(Eq(ReregisterSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(ReregisterSlaveMessage(), _, _);
 
-  cluster.masters.shutdown();
+  this->ShutdownMasters();
 
-  AWAIT_READY(shutdownMsg);
+  AWAIT_READY(shutdownMessage);
 
-  EXPECT_CALL(this->allocator2, initialize(_, _));
+  MockAllocatorProcess<TypeParam> allocator2;
 
-  Try<PID<Master> > master2 = cluster.masters.start(&this->allocator2);
+  EXPECT_CALL(allocator2, initialize(_, _));
+
+  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
   ASSERT_SOME(master2);
 
   Future<Nothing> frameworkAdded;
-  EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator2),
+  EXPECT_CALL(allocator2, frameworkAdded(_, _, _))
+    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator2),
                     FutureSatisfy(&frameworkAdded)));
 
   EXPECT_CALL(sched, reregistered(&driver, _));
 
   AWAIT_READY(frameworkAdded);
 
-  EXPECT_CALL(this->allocator2, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator2, slaveAdded(_, _, _));
 
   Future<vector<Offer> > resourceOffers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -184,13 +210,13 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator2, resourcesRecovered(_, _, _))
+  EXPECT_CALL(allocator2, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator2, frameworkDeactivated(_));
+  EXPECT_CALL(allocator2, frameworkDeactivated(_));
 
   Future<Nothing> frameworkRemoved;
-  EXPECT_CALL(this->allocator2, frameworkRemoved(_))
+  EXPECT_CALL(allocator2, frameworkRemoved(_))
     .WillOnce(FutureSatisfy(&frameworkRemoved));
 
   EXPECT_CALL(exec, shutdown(_))
@@ -201,10 +227,10 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   AWAIT_READY(frameworkRemoved);
 
-  EXPECT_CALL(this->allocator2, slaveRemoved(_))
+  EXPECT_CALL(allocator2, slaveRemoved(_))
     .Times(AtMost(1));
 
-  cluster.shutdown();
+  this->Shutdown();
 }
 
 
@@ -214,25 +240,22 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 // accounted for correctly.
 TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 {
-  string zk = "zk://" + this->server->connectString() + "/znode";
-  Try<zookeeper::URL> url = zookeeper::URL::parse(zk);
-  ASSERT_SOME(url);
+  TypeParam allocator1;
 
-  Cluster cluster(url.get());
-
-  Try<PID<Master> > master = cluster.masters.start(&this->allocator1);
+  Try<PID<Master> > master = this->StartMaster(&allocator1);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags = cluster.slaves.flags;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:2;mem:1024");
 
-  Try<PID<Slave> > slave = cluster.slaves.start(flags, &isolator);
+  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO,zk);
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, stringify(this->url.get()));
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -278,32 +301,34 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 
   // Stop the failing master from telling the slave to shut down when
   // it is killed.
-  Future<process::Message> shutdownMsg =
-    DROP_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _);
+  Future<ShutdownMessage> shutdownMessage =
+    DROP_PROTOBUF(ShutdownMessage(), _, _);
 
   // Stop the framework from reregistering with the new master until the
   // slave has reregistered.
-  DROP_MESSAGES(Eq(ReregisterFrameworkMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(ReregisterFrameworkMessage(), _, _);
 
-  cluster.masters.shutdown();
+  this->ShutdownMasters();
 
-  AWAIT_READY(shutdownMsg);
+  AWAIT_READY(shutdownMessage);
 
-  EXPECT_CALL(this->allocator2, initialize(_, _));
+  MockAllocatorProcess<TypeParam> allocator2;
 
-  Try<PID<Master> > master2 = cluster.masters.start(&this->allocator2);
+  EXPECT_CALL(allocator2, initialize(_, _));
+
+  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
   ASSERT_SOME(master2);
 
   Future<Nothing> slaveAdded;
-  EXPECT_CALL(this->allocator2, slaveAdded(_, _, _))
-    .WillOnce(DoAll(InvokeSlaveAdded(&this->allocator2),
+  EXPECT_CALL(allocator2, slaveAdded(_, _, _))
+    .WillOnce(DoAll(InvokeSlaveAdded(&allocator2),
                     FutureSatisfy(&slaveAdded)));
 
   EXPECT_CALL(sched, reregistered(&driver, _));
 
   AWAIT_READY(slaveAdded);
 
-  EXPECT_CALL(this->allocator2, frameworkAdded(_, _, _));
+  EXPECT_CALL(allocator2, frameworkAdded(_, _, _));
 
   Future<vector<Offer> > resourceOffers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -321,13 +346,13 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator2, resourcesRecovered(_, _, _))
+  EXPECT_CALL(allocator2, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator2, frameworkDeactivated(_));
+  EXPECT_CALL(allocator2, frameworkDeactivated(_));
 
   Future<Nothing> frameworkRemoved;
-  EXPECT_CALL(this->allocator2, frameworkRemoved(_))
+  EXPECT_CALL(allocator2, frameworkRemoved(_))
     .WillOnce(FutureSatisfy(&frameworkRemoved));
 
   EXPECT_CALL(exec, shutdown(_))
@@ -338,8 +363,8 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 
   AWAIT_READY(frameworkRemoved);
 
-  EXPECT_CALL(this->allocator2, slaveRemoved(_))
+  EXPECT_CALL(allocator2, slaveRemoved(_))
     .Times(AtMost(1));
 
-  cluster.shutdown();
+  this->Shutdown();
 }

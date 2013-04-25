@@ -18,17 +18,13 @@
 
 #include <gtest/gtest.h>
 
-#include <fstream>
-
-#include <boost/lexical_cast.hpp>
+#include <stout/gtest.hpp>
+#include <stout/os.hpp>
 
 #include "configurator/configurator.hpp"
 
 #include "tests/utils.hpp"
 
-using boost::lexical_cast;
-
-using std::ofstream;
 using std::string;
 
 using namespace mesos;
@@ -36,9 +32,7 @@ using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
 
-class ConfiguratorTest : public TemporaryDirectoryTest
-{
-};
+class ConfiguratorTest : public TemporaryDirectoryTest {};
 
 
 TEST_F(ConfiguratorTest, Environment)

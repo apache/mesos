@@ -26,6 +26,7 @@
 #include <process/future.hpp>
 #include <process/pid.hpp>
 
+#include <stout/os.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
@@ -33,6 +34,8 @@
 #include "mesos/mesos.hpp"
 
 #include "slave/isolator.hpp"
+
+#include "tests/mesos.hpp" // For MockExecutor.
 
 namespace mesos {
 namespace internal {
@@ -55,6 +58,12 @@ public:
   TestingIsolator(const ExecutorID& executorId, Executor* executor)
   {
     executors[executorId] = executor;
+    setup();
+  }
+
+  TestingIsolator(MockExecutor* executor)
+  {
+    executors[executor->id] = executor;
     setup();
   }
 

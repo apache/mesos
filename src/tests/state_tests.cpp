@@ -25,8 +25,10 @@
 #include <mesos/mesos.hpp>
 
 #include <process/future.hpp>
+#include <process/gtest.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/gtest.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 
@@ -39,7 +41,6 @@
 #include "state/state.hpp"
 #include "state/zookeeper.hpp"
 
-#include "tests/utils.hpp"
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"
 #endif

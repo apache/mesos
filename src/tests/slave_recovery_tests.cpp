@@ -44,8 +44,6 @@
 #include "linux/cgroups.hpp"
 #endif
 
-#include "master/allocator.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #ifdef __linux__
@@ -59,6 +57,7 @@
 
 #include "messages/messages.hpp"
 
+#include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -69,8 +68,6 @@ using namespace mesos::internal::utils::process;
 
 using namespace process;
 
-using mesos::internal::master::Allocator;
-using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 #ifdef __linux__
@@ -83,7 +80,6 @@ using std::string;
 using std::vector;
 
 using testing::_;
-using testing::DoAll;
 using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
@@ -123,80 +119,17 @@ template <typename T>
 class SlaveRecoveryTest : public IsolatorTest<T>
 {
 public:
-  static void SetUpTestCase()
+  virtual slave::Flags CreateSlaveFlags()
   {
-    IsolatorTest<T>::SetUpTestCase();
+    slave::Flags flags = IsolatorTest<T>::CreateSlaveFlags();
+
+    // Setup recovery slave flags.
+    flags.checkpoint = true;
+    flags.recover = "reconnect";
+    flags.safe = false;
+
+    return flags;
   }
-
-  virtual void SetUp()
-  {
-    IsolatorTest<T>::SetUp();
-
-    a = new Allocator(&allocator);
-    m = new Master(a, &files);
-    master = process::spawn(m);
-
-    // Reset recovery slaveFlags.
-    this->slaveFlags.checkpoint = true;
-    this->slaveFlags.recover = "reconnect";
-    this->slaveFlags.safe = false;
-
-    startSlave();
-  }
-
-  virtual void TearDown()
-  {
-    stopSlave(true);
-
-    process::terminate(master);
-    process::wait(master);
-    delete m;
-    delete a;
-
-    IsolatorTest<T>::TearDown();
-  }
-
-protected:
-  void startSlave()
-  {
-    isolator = new T();
-    s = new Slave(this->slaveFlags, true, isolator, &files);
-    slave = process::spawn(s);
-    detector = new BasicMasterDetector(master, slave, true);
-
-    running = true;
-  }
-
-  void stopSlave(bool shutdown = false)
-  {
-    if (!running) {
-      return;
-    }
-
-    delete detector;
-
-    if (shutdown) {
-      process::dispatch(slave, &Slave::shutdown);
-    } else {
-      process::terminate(slave);
-    }
-    process::wait(slave);
-    delete s;
-    delete isolator;
-
-    running = false;
-  }
-
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator *a;
-  Master* m;
-  Isolator* isolator;
-  Slave* s;
-  Files files;
-  BasicMasterDetector* detector;
-  PID<Master> master;
-  PID<Slave> slave;
-  bool running; // Is the slave running?
 };
 
 
@@ -206,13 +139,22 @@ typedef ::testing::Types<ProcessIsolator, CgroupsIsolator> IsolatorTypes;
 typedef ::testing::Types<ProcessIsolator> IsolatorTypes;
 #endif
 
-
 TYPED_TEST_CASE(SlaveRecoveryTest, IsolatorTypes);
 
 
 // Enable checkpointing on the slave and ensure recovery works.
 TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  ASSERT_SOME(slave);
+
   // Message expectations.
   Future<Message> registerFramework =
     FUTURE_MESSAGE(Eq(RegisterFrameworkMessage().GetTypeName()), _, _);
@@ -233,7 +175,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -259,7 +201,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
   Future<StatusUpdateMessage> update =
-    FUTURE_PROTOBUF(StatusUpdateMessage(), Eq(this->master), _);
+    FUTURE_PROTOBUF(StatusUpdateMessage(), Eq(master.get()), _);
 
   Future<StatusUpdateAcknowledgementMessage> ack =
     FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
@@ -284,8 +226,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   AWAIT_READY(_ack);
 
   // Recover the state.
-  Result<state::SlaveState> recover =
-    state::recover(paths::getMetaRootDir(this->slaveFlags.work_dir), true);
+  Result<state::SlaveState> recover = state::recover(
+      paths::getMetaRootDir(flags.work_dir), true);
 
   ASSERT_SOME(recover);
 
@@ -369,6 +311,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -376,6 +320,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 // When the slave comes back up it resends the unacknowledged update.
 TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
 
@@ -391,7 +345,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -419,15 +373,18 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   // Wait for the status update drop.
   AWAIT_READY(update);
 
-  this->stopSlave();
+  this->Stop(slave.get());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  // Restart the slave.
-  this->startSlave();
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
 
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status.get().state());
@@ -437,6 +394,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -445,6 +404,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 // sure the executor re-registers and the slave properly sends the update.
 TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
@@ -459,7 +428,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -479,7 +448,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   // Stop the slave before the status update is received.
   AWAIT_READY(statusUpdate);
 
-  this->stopSlave();
+  this->Stop(slave.get());
 
   Future<Message> reregisterExecutorMessage =
     FUTURE_MESSAGE(Eq(ReregisterExecutorMessage().GetTypeName()), _, _);
@@ -489,8 +458,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  // Restart the slave.
-  this->startSlave();
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
 
   // Ensure the executor re-registers.
   AWAIT_READY(reregisterExecutorMessage);
@@ -514,6 +486,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -522,6 +496,16 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 // executor is killed and the task is transitioned to FAILED.
 TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
@@ -536,7 +520,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -557,7 +541,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   AWAIT_READY(registerExecutor);
   UPID executorPid = registerExecutor.get().from;
 
-  this->stopSlave();
+  this->Stop(slave.get());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -566,8 +550,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  // Restart the slave.
-  this->startSlave();
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
 
   Clock::pause();
 
@@ -591,6 +578,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -600,6 +589,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 // sure the task is properly transitioned to FAILED.
 TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
@@ -614,7 +613,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -642,7 +641,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(ack);
 
-  this->stopSlave();
+  this->Stop(slave.get());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -653,8 +652,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  // Restart the slave.
-  this->startSlave();
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
 
   Clock::pause();
 
@@ -676,6 +678,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -684,6 +688,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 // executor, and transitions the task to FAILED.
 TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
@@ -698,7 +712,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -719,15 +733,19 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(ack);
 
-  this->stopSlave();
+  this->Stop(slave.get());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status));
 
-  // Restart the slave in 'cleanup' recovery mode.
-  this->slaveFlags.recover = "cleanup";
-  this->startSlave();
+  // Restart the slave in 'cleanup' recovery mode with a new isolator.
+  TypeParam isolator2;
+
+  flags.recover = "cleanup";
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
 
   Clock::pause();
 
@@ -745,6 +763,8 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -752,6 +772,14 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 // properly removed, when a checkpointing slave is disconnected.
 TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator;
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
@@ -766,7 +794,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(false);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -790,7 +818,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status));
 
-  this->stopSlave();
+  this->Stop(slave.get());
 
   // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(status);
@@ -798,6 +826,8 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -805,6 +835,16 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 // framework that has disabled checkpointing.
 TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
   FrameworkID frameworkId;
@@ -821,7 +861,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(false);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -844,11 +884,12 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   Clock::pause();
 
-  Future<Nothing> updateFramework = FUTURE_DISPATCH(_, &Slave::updateFramework);
+  Future<Nothing> updateFramework =
+    FUTURE_DISPATCH(_, &Slave::updateFramework);
 
   // Simulate a 'UpdateFrameworkMessage' to ensure framework pid is
   // not being checkpointed.
-  process::dispatch(this->slave, &Slave::updateFramework, frameworkId, "");
+  process::dispatch(slave.get(), &Slave::updateFramework, frameworkId, "");
 
   AWAIT_READY(updateFramework);
 
@@ -856,7 +897,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   // Ensure that the framework info is not being checkpointed.
   const string& path = paths::getFrameworkPath(
-      paths::getMetaRootDir(this->slaveFlags.work_dir),
+      paths::getMetaRootDir(flags.work_dir),
       task.slave_id(),
       frameworkId);
 
@@ -866,6 +907,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -875,6 +918,16 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 // (scheduler, master, executor).
 TYPED_TEST(SlaveRecoveryTest, KillTask)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
@@ -888,7 +941,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -909,15 +962,18 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(ack);
 
-  // Restart the slave.
-  this->stopSlave();
+  this->Stop(slave.get());
 
   Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
-  this->startSlave();
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
 
   Clock::pause();
 
@@ -963,6 +1019,8 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -971,6 +1029,16 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 // cannot recover the executor and hence schedules it for gc.
 TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
@@ -985,7 +1053,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -1020,7 +1088,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   // Wait for TASK_RUNNING update.
   AWAIT_READY(status);
 
-  this->stopSlave();
+  this->Stop(slave.get());
 
   // Now shut down the executor, when the slave is down.
   process::post(executorPid, ShutdownExecutorMessage());
@@ -1028,7 +1096,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   // Remove the symlink "latest" in the executor directory
   // to simulate a non-recoverable executor.
   ASSERT_SOME(os::rm(paths::getExecutorLatestRunPath(
-      paths::getMetaRootDir(this->slaveFlags.work_dir),
+      paths::getMetaRootDir(flags.work_dir),
       slaveId,
       frameworkId,
       executorId)));
@@ -1038,8 +1106,11 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
-  // Restart the slave.
-  this->startSlave();
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
 
   Clock::pause();
 
@@ -1053,16 +1124,16 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   AWAIT_READY(reregisterSlave);
 
-  Clock::advance(this->slaveFlags.gc_delay);
+  Clock::advance(flags.gc_delay);
 
   Clock::settle();
 
   // Executor's work and meta directories should be gc'ed by now.
   ASSERT_FALSE(os::exists(paths::getExecutorPath(
-      this->slaveFlags.work_dir, slaveId, frameworkId, executorId)));
+      flags.work_dir, slaveId, frameworkId, executorId)));
 
   ASSERT_FALSE(os::exists(paths::getExecutorPath(
-      paths::getMetaRootDir(this->slaveFlags.work_dir),
+      paths::getMetaRootDir(flags.work_dir),
       slaveId,
       frameworkId,
       executorId)));
@@ -1071,6 +1142,8 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
 
@@ -1078,6 +1151,16 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 // register as a new slave.
 TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 {
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
   // Scheduler expectations.
   MockScheduler sched;
   EXPECT_CALL(sched, registered(_, _, _));
@@ -1092,7 +1175,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, this->master);
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -1139,16 +1222,18 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   Clock::resume();
 
-  // Shut down the slave.
-  this->stopSlave(true);
+  this->Stop(slave.get(), true); // Send a "shut down".
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  // Now restart the slave.
-  this->startSlave();
+  // Now restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
 
   // Ensure that the slave registered with a new id.
   AWAIT_READY(offers2);
@@ -1161,4 +1246,6 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   driver.stop();
   driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }

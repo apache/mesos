@@ -19,15 +19,14 @@
 #include <gmock/gmock.h>
 
 #include <process/future.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
+#include <process/process.hpp>
 
 #include "logging/logging.hpp"
 
-#include "tests/utils.hpp"
-
 using namespace mesos::internal;
-using namespace mesos::internal::tests;
 
 using process::http::BadRequest;
 using process::http::OK;

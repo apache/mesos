@@ -23,10 +23,11 @@
 #include <string>
 
 #include <process/future.hpp>
+#include <process/gtest.hpp>
 
+#include <stout/gtest.hpp>
 #include <stout/option.hpp>
 
-#include "tests/utils.hpp"
 #include "tests/zookeeper.hpp"
 
 #include "zookeeper/authentication.hpp"

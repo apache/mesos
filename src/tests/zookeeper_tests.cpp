@@ -24,7 +24,8 @@
 
 #include <stout/strings.hpp>
 
-#include "tests/utils.hpp"
+#include "zookeeper/authentication.hpp"
+
 #include "tests/zookeeper.hpp"
 
 using namespace mesos::internal;

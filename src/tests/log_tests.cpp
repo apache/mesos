@@ -24,10 +24,12 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/gtest.hpp>
 #include <process/pid.hpp>
 #include <process/protobuf.hpp>
 #include <process/timeout.hpp>
 
+#include <stout/gtest.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 
@@ -39,12 +41,9 @@
 
 #include "messages/messages.hpp"
 
-#include "tests/utils.hpp"
-
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::log;
-using namespace mesos::internal::tests;
 
 using process::Clock;
 using process::Future;

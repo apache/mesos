@@ -23,6 +23,7 @@
 #include <string>
 
 #include <stout/duration.hpp>
+#include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 
@@ -30,8 +31,6 @@
 #include "configurator/configurator.hpp"
 
 #include "flags/flags.hpp"
-
-#include "tests/utils.hpp"
 
 using namespace flags;
 

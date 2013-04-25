@@ -43,9 +43,8 @@
 
 #include "slave/flags.hpp"
 #include "slave/isolator.hpp"
+#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
-
-#include "tests/isolator.hpp" // For TestingIsolator.
 
 #include "zookeeper/url.hpp"
 
@@ -56,7 +55,6 @@ namespace tests {
 class Cluster
 {
 public:
-  // TODO(benh): Take flags and make const in Masters and Slaves.
   Cluster(const Option<zookeeper::URL>& url = None())
     : masters(this, url),
       slaves(this, &masters) {}
@@ -70,23 +68,17 @@ public:
 
     void shutdown();
 
-    // Start and manage a new master.
-    Try<process::PID<master::Master> > start();
-
     // Start and manage a new master using the specified flags.
-    Try<process::PID<master::Master> > start(const master::Flags& flags);
+    Try<process::PID<master::Master> > start(
+        const master::Flags& flags = master::Flags());
 
     // Start and manage a new master injecting the specified allocator
-    // process. The allocator process is expected to outlive the
-    // launched master (i.e., until it is stopped via Masters::stop).
-    Try<process::PID<master::Master> > start(
-        master::AllocatorProcess* allocatorProcess);
-
-    // Start and manage a new master using the specified flags
-    // and injecting the allocator process as above.
+    // process and using the specified flags. The allocator process is
+    // expected to outlive the launched master (i.e., until it is
+    // stopped via Masters::stop).
     Try<process::PID<master::Master> > start(
         master::AllocatorProcess* allocatorProcess,
-        const master::Flags& flags);
+        const master::Flags& flags = master::Flags());
 
     // Stops and cleans up a master at the specified PID.
     Try<Nothing> stop(const process::PID<master::Master>& pid);
@@ -94,10 +86,7 @@ public:
     // Returns a new master detector for this instance of masters.
     Owned<MasterDetector> detector(
         const process::PID<slave::Slave>& pid,
-        bool quiet);
-
-    // "Default" flags used for creating masters.
-    master::Flags flags;
+        const slave::Flags& flags);
 
   private:
     // Not copyable, not assignable.
@@ -107,6 +96,7 @@ public:
     Cluster* cluster; // Enclosing class.
     Option<zookeeper::URL> url;
 
+    // Encapsulates a single master's dependencies.
     struct Master
     {
       Master()
@@ -134,42 +124,24 @@ public:
     // Stop and clean up all slaves.
     void shutdown();
 
-    // Start and manage a new slave.
-    Try<process::PID<slave::Slave> > start();
-
-    // Start and manage a new slave using the specified flags.
-    Try<process::PID<slave::Slave> > start(const slave::Flags& flags);
-
-    // Start and manage a new slave with a testing isolator that uses
-    // the specified executor for the specified ID. The executor is
-    // expected to outlive the launched slave (i.e., until it is
-    // stopped via Slaves::stop).
+    // Start and manage a new slave with a process isolator using the
+    // specified flags.
     Try<process::PID<slave::Slave> > start(
-        const ExecutorID& executorId,
-        Executor* executor);
-
-    // Start and manage a new slave using the specified flags with a
-    // testing isolator that uses the specified executor for the
-    // specified ID. The executor is expected to outlive the launched
-    // slave (i.e., until it is stopped via Slaves::stop).
-    Try<process::PID<slave::Slave> > start(
-        const slave::Flags& flags,
-        const ExecutorID& executorId,
-        Executor* executor);
+        const slave::Flags& flags = slave::Flags());
 
     // Start and manage a new slave injecting the specified isolator.
     // The isolator is expected to outlive the launched slave (i.e.,
     // until it is stopped via Slaves::stop).
-    Try<process::PID<slave::Slave> > start(slave::Isolator* isolator);
     Try<process::PID<slave::Slave> > start(
-        const slave::Flags& flags,
-        slave::Isolator* isolator);
+        slave::Isolator* isolator,
+        const slave::Flags& flags = slave::Flags());
 
-    // Stops and cleans up a slave at the specified PID.
-    Try<Nothing> stop(const process::PID<slave::Slave>& pid);
-
-    // "Default" flags used for creating slaves.
-    slave::Flags flags;
+    // Stops and cleans up a slave at the specified PID. If 'shutdown'
+    // is true than the slave is sent a shutdown message instead of
+    // being terminated.
+    Try<Nothing> stop(
+        const process::PID<slave::Slave>& pid,
+        bool shutdown = false);
 
   private:
     // Not copyable, not assignable.
@@ -179,15 +151,16 @@ public:
     Cluster* cluster; // Enclosing class.
     Masters* masters; // Used to create MasterDetector instances.
 
+    // Encapsulates a single slave's dependencies.
     struct Slave
     {
       Slave()
-        : slave(NULL),
-          isolator(NULL),
+        : isolator(NULL),
+          slave(NULL),
           detector(NULL) {}
 
-      slave::Slave* slave;
       slave::Isolator* isolator;
+      slave::Slave* slave;
       Owned<MasterDetector> detector;
     };
 
@@ -238,32 +211,6 @@ inline void Cluster::Masters::shutdown()
 }
 
 
-inline Try<process::PID<master::Master> > Cluster::Masters::start()
-{
-  // Disallow multiple masters when not using ZooKeeper.
-  if (!masters.empty() && url.isNone()) {
-    return Error("Can not start multiple masters when not using ZooKeeper");
-  }
-
-  Master master;
-  master.allocatorProcess = new master::HierarchicalDRFAllocatorProcess();
-  master.allocator = new master::Allocator(master.allocatorProcess);
-  master.master = new master::Master(master.allocator, &cluster->files, flags);
-
-  process::PID<master::Master> pid = process::spawn(master.master);
-
-  if (url.isSome()) {
-    master.detector = new ZooKeeperMasterDetector(url.get(), pid, true, true);
-  } else {
-    master.detector = new BasicMasterDetector(pid);
-  }
-
-  masters[pid] = master;
-
-  return pid;
-}
-
-
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const master::Flags& flags)
 {
@@ -273,6 +220,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   }
 
   Master master;
+
   master.allocatorProcess = new master::HierarchicalDRFAllocatorProcess();
   master.allocator = new master::Allocator(master.allocatorProcess);
   master.master = new master::Master(master.allocator, &cluster->files, flags);
@@ -288,13 +236,6 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   masters[pid] = master;
 
   return pid;
-}
-
-
-inline Try<process::PID<master::Master> > Cluster::Masters::start(
-    master::AllocatorProcess* allocatorProcess)
-{
-  return Cluster::Masters::start(allocatorProcess, flags);
 }
 
 
@@ -339,11 +280,8 @@ inline Try<Nothing> Cluster::Masters::stop(
   process::wait(master.master);
   delete master.master;
 
-  delete master.allocator; // Terminates and waits for the allocator process.
-
-  if (master.allocatorProcess != NULL) {
-    delete master.allocatorProcess;
-  }
+  delete master.allocator; // Terminates and waits for allocator process.
+  delete master.allocatorProcess; // May be NULL.
 
   delete master.detector;
 
@@ -355,10 +293,10 @@ inline Try<Nothing> Cluster::Masters::stop(
 
 inline Owned<MasterDetector> Cluster::Masters::detector(
     const process::PID<slave::Slave>& pid,
-    bool quiet)
+    const slave::Flags& flags)
 {
   if (url.isSome()) {
-    return new ZooKeeperMasterDetector(url.get(), pid, false, quiet);
+    return new ZooKeeperMasterDetector(url.get(), pid, false, flags.quiet);
   }
 
   CHECK(masters.size() == 1);
@@ -387,52 +325,22 @@ inline void Cluster::Slaves::shutdown()
 }
 
 
-inline Try<process::PID<slave::Slave> > Cluster::Slaves::start()
-{
-  // TODO(benh): Check that we dont have another slave already running
-  // with flags that conflict (e.g., work_dir).
-
-  Slave slave;
-
-  slave.isolator = new TestingIsolator();
-
-  process::spawn(slave.isolator);
-
-  // TODO(benh): Create a work directory for each slave.
-
-  slave.slave = new slave::Slave(flags, true, slave.isolator, &cluster->files);
-
-  process::PID<slave::Slave> pid = process::spawn(slave.slave);
-
-  // Get a detector for the master(s).
-  slave.detector = masters->detector(pid, flags.quiet);
-
-  slaves[pid] = slave;
-
-  return pid;
-}
-
-
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
     const slave::Flags& flags)
 {
-  // TODO(benh): Check that we dont have another slave already running
-  // with flags that conflict (e.g., work_dir).
+  // TODO(benh): Create a work directory if using the default.
 
   Slave slave;
 
-  slave.isolator = new TestingIsolator();
-
+  // Create a new process isolator for this slave.
+  slave.isolator = new slave::ProcessIsolator();
   process::spawn(slave.isolator);
 
-  // TODO(benh): Create a work directory for each slave.
-
   slave.slave = new slave::Slave(flags, true, slave.isolator, &cluster->files);
-
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 
   // Get a detector for the master(s).
-  slave.detector = masters->detector(pid, flags.quiet);
+  slave.detector = masters->detector(pid, flags);
 
   slaves[pid] = slave;
 
@@ -441,82 +349,18 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
 
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    const ExecutorID& executorId,
-    Executor* executor)
+    slave::Isolator* isolator,
+    const slave::Flags& flags)
 {
-  return start(flags, executorId, executor);
-}
-
-
-inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    const slave::Flags& flags,
-    const ExecutorID& executorId,
-    Executor* executor)
-{
-  // TODO(benh): Check that we dont have another slave already running
-  // with flags that conflict (e.g., work_dir).
+  // TODO(benh): Create a work directory if using the default.
 
   Slave slave;
-
-  slave.isolator = new TestingIsolator(executorId, executor);
-
-  process::spawn(slave.isolator);
-
-  // TODO(benh): Create a work directory for each slave.
-
-  slave.slave = new slave::Slave(flags, true, slave.isolator, &cluster->files);
-
-  process::PID<slave::Slave> pid = process::spawn(slave.slave);
-
-  // Get a detector for the master(s).
-  slave.detector = masters->detector(pid, flags.quiet);
-
-  slaves[pid] = slave;
-
-  return pid;
-}
-
-
-inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    slave::Isolator* isolator)
-{
-  // TODO(benh): Check that we dont have another slave already running
-  // with flags that conflict (e.g., work_dir).
-
-  Slave slave;
-
-  // TODO(benh): Create a work directory for each slave.
 
   slave.slave = new slave::Slave(flags, true, isolator, &cluster->files);
-
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 
   // Get a detector for the master(s).
-  slave.detector = masters->detector(pid, flags.quiet);
-
-  slaves[pid] = slave;
-
-  return pid;
-}
-
-
-inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    const slave::Flags& flags,
-    slave::Isolator* isolator)
-{
-  // TODO(benh): Check that we dont have another slave already running
-  // with flags that conflict (e.g., work_dir).
-
-  Slave slave;
-
-  // TODO(benh): Create a work directory for each slave.
-
-  slave.slave = new slave::Slave(flags, true, isolator, &cluster->files);
-
-  process::PID<slave::Slave> pid = process::spawn(slave.slave);
-
-  // Get a detector for the master(s).
-  slave.detector = masters->detector(pid, flags.quiet);
+  slave.detector = masters->detector(pid, flags);
 
   slaves[pid] = slave;
 
@@ -525,7 +369,8 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
 
 inline Try<Nothing> Cluster::Slaves::stop(
-    const process::PID<slave::Slave>& pid)
+    const process::PID<slave::Slave>& pid,
+    bool shutdown)
 {
   if (slaves.count(pid) == 0) {
     return Error("No slave found to stop");
@@ -533,17 +378,15 @@ inline Try<Nothing> Cluster::Slaves::stop(
 
   Slave slave = slaves[pid];
 
-  process::terminate(slave.slave);
+  if (shutdown) {
+    process::dispatch(slave.slave, &slave::Slave::shutdown);
+  } else {
+    process::terminate(slave.slave);
+  }
   process::wait(slave.slave);
   delete slave.slave;
 
-  if (slave.isolator != NULL) {
-    // TODO(benh): Terminate and wait for the isolator once the slave
-    // is no longer doing so.
-    // process::terminate(slave.isolator);
-    // process::wait(slave.isolator);
-    delete slave.isolator;
-  }
+  delete slave.isolator; // May be NULL.
 
   slaves.erase(pid);
 

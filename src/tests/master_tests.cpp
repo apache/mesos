@@ -44,8 +44,8 @@
 #include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/cluster.hpp"
-#include "tests/utils.hpp"
+#include "tests/isolator.hpp"
+#include "tests/mesos.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -72,19 +72,18 @@ using testing::Eq;
 using testing::Return;
 
 
-class MasterTest : public MesosClusterTest {};
+class MasterTest : public MesosTest {};
 
 
 TEST_F(MasterTest, TaskRunning)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-
-  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  Try<PID<Slave> > slave = StartSlave(&isolator);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -144,22 +143,22 @@ TEST_F(MasterTest, TaskRunning)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
 TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-
-  slave::Flags flags = cluster.slaves.flags;
+  slave::Flags flags = CreateSlaveFlags();
   flags.executor_shutdown_grace_period = Seconds(0);
-  Try<PID<Slave> > slave = cluster.slaves.start(flags, &isolator);
+
+  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -219,18 +218,18 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
 TEST_F(MasterTest, KillTask)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -297,18 +296,18 @@ TEST_F(MasterTest, KillTask)
 
   AWAIT_READY(shutdown); // To ensure can deallocate MockExecutor.
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
 TEST_F(MasterTest, StatusUpdateAck)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -367,23 +366,23 @@ TEST_F(MasterTest, StatusUpdateAck)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
 TEST_F(MasterTest, RecoverResources)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(
+      "cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
 
-  slave::Flags flags = cluster.slaves.flags;
-  flags.resources =
-    Option<string>("cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
-  Try<PID<Slave> > slave = cluster.slaves.start(flags, &isolator);
+  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -488,18 +487,18 @@ TEST_F(MasterTest, RecoverResources)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
 TEST_F(MasterTest, FrameworkMessage)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -572,13 +571,13 @@ TEST_F(MasterTest, FrameworkMessage)
 
   AWAIT_READY(shutdown); // To ensure can deallocate MockExecutor.
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
 TEST_F(MasterTest, MultipleExecutors)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   ExecutorID executorId1;
@@ -587,8 +586,8 @@ TEST_F(MasterTest, MultipleExecutors)
   ExecutorID executorId2;
   executorId2.set_value("executor-2");
 
-  MockExecutor exec1;
-  MockExecutor exec2;
+  MockExecutor exec1(executorId1);
+  MockExecutor exec2(executorId2);
 
   map<ExecutorID, Executor*> execs;
   execs[executorId1] = &exec1;
@@ -596,7 +595,7 @@ TEST_F(MasterTest, MultipleExecutors)
 
   TestingIsolator isolator(execs);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  Try<PID<Slave> > slave = StartSlave(&isolator);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -688,18 +687,21 @@ TEST_F(MasterTest, MultipleExecutors)
   AWAIT_READY(shutdown1); // To ensure can deallocate MockExecutor.
   AWAIT_READY(shutdown2); // To ensure can deallocate MockExecutor.
 
-  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
 TEST_F(MasterTest, ShutdownUnregisteredExecutor)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   ProcessIsolator isolator;
 
-  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  // Need flags for 'executor_registration_timeout'.
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = StartSlave(&isolator);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -751,7 +753,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   Future<Nothing> killExecutor =
     FUTURE_DISPATCH(_, &Isolator::killExecutor);
 
-  Clock::advance(cluster.slaves.flags.executor_registration_timeout);
+  Clock::advance(flags.executor_registration_timeout);
 
   AWAIT_READY(killExecutor);
 
@@ -771,16 +773,16 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   driver.stop();
   driver.join();
 
-  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
 TEST_F(MasterTest, MasterInfo)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = cluster.slaves.start();
+  Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -802,16 +804,16 @@ TEST_F(MasterTest, MasterInfo)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
 TEST_F(MasterTest, MasterInfoOnReElection)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = cluster.slaves.start();
+  Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -854,7 +856,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
@@ -878,15 +880,17 @@ TEST_F(WhitelistTest, WhitelistSlave)
   // Add some hosts to the white list.
   Try<string> hostname = os::hostname();
   ASSERT_SOME(hostname);
+
   string hosts = hostname.get() + "\n" + "dummy-slave";
   ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
-  master::Flags flags = cluster.masters.flags;
+  master::Flags flags = CreateMasterFlags();
   flags.whitelist = "file://" + path;
-  Try<PID<Master> > master = cluster.masters.start(flags);
+
+  Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = cluster.slaves.start();
+  Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -906,16 +910,16 @@ TEST_F(WhitelistTest, WhitelistSlave)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
 TEST_F(MasterTest, MasterLost)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = cluster.slaves.start();
+  Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -946,5 +950,5 @@ TEST_F(MasterTest, MasterLost)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 }

@@ -48,7 +48,8 @@
 
 #include "slave/slave.hpp"
 
-#include "tests/utils.hpp"
+#include "tests/isolator.hpp"
+#include "tests/mesos.hpp"
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"
 #endif
@@ -75,16 +76,20 @@ using testing::AtMost;
 using testing::Return;
 
 
-class MasterDetectorTest : public MesosClusterTest {};
+class MasterDetectorTest : public MesosTest {};
 
 
 TEST_F(MasterDetectorTest, File)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
+  Files files;
   TestingIsolator isolator;
-  Slave s(cluster.slaves.flags, true, &isolator, &cluster.files);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Slave s(flags, true, &isolator, &files);
   PID<Slave> slave = process::spawn(&s);
 
   // Write "master" to a file and use the "file://" mechanism to
@@ -92,7 +97,7 @@ TEST_F(MasterDetectorTest, File)
   // detector for the master first.
   BasicMasterDetector detector1(master.get(), vector<UPID>(), true);
 
-  const string& path = path::join(cluster.slaves.flags.work_dir, "master");
+  const string& path = path::join(flags.work_dir, "master");
   ASSERT_SOME(os::write(path, stringify(master.get())));
 
   Try<MasterDetector*> detector =
@@ -119,7 +124,7 @@ TEST_F(MasterDetectorTest, File)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 
   process::terminate(slave);
   process::wait(slave);

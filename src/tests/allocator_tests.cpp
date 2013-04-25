@@ -34,8 +34,8 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "tests/cluster.hpp"
-#include "tests/utils.hpp"
+#include "tests/isolator.hpp"
+#include "tests/mesos.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -66,7 +66,7 @@ using testing::Return;
 using testing::SaveArg;
 
 
-class DRFAllocatorTest : public MesosClusterTest {};
+class DRFAllocatorTest : public MesosTest {};
 
 
 // Checks that the DRF allocator implements the DRF algorithm
@@ -82,16 +82,15 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 
   EXPECT_CALL(allocator, initialize(_, _));
 
-  Try<PID<Master> > master = cluster.masters.start(&allocator);
+  Try<PID<Master> > master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
-  TestingIsolator isolator1;
-  slave::Flags flags1 = cluster.slaves.flags;
+  slave::Flags flags1 = CreateSlaveFlags();
   flags1.resources = Option<string>("cpus:2;mem:1024;disk:0");
 
   EXPECT_CALL(allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave1 = cluster.slaves.start(flags1, &isolator1);
+  Try<PID<Slave> > slave1 = StartSlave(flags1);
   ASSERT_SOME(slave1);
   // Total cluster resources now cpus=2, mem=1024.
 
@@ -135,8 +134,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 
   AWAIT_READY(frameworkAdded2);
 
-  TestingIsolator isolator2;
-  slave::Flags flags2 = cluster.slaves.flags;
+  slave::Flags flags2 = CreateSlaveFlags();
   flags2.resources = Option<string>("cpus:1;mem:512;disk:0");
 
   EXPECT_CALL(allocator, slaveAdded(_, _, _));
@@ -145,7 +143,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   EXPECT_CALL(sched2, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2));
 
-  Try<PID<Slave> > slave2 = cluster.slaves.start(flags2, &isolator2);
+  Try<PID<Slave> > slave2 = StartSlave(flags2);
   ASSERT_SOME(slave2);
   // Total cluster resources now cpus=3, mem=1536.
   // framework1 share = 0.66
@@ -159,8 +157,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   // framework1 share =  0.66
   // framework2 share = 0.33
 
-  TestingIsolator isolator3;
-  slave::Flags flags3 = cluster.slaves.flags;
+  slave::Flags flags3 = CreateSlaveFlags();
   flags3.resources = Option<string>("cpus:3;mem:2048;disk:0");
 
   EXPECT_CALL(allocator, slaveAdded(_, _, _));
@@ -169,7 +166,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   EXPECT_CALL(sched2, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers3));
 
-  Try<PID<Slave> > slave3 = cluster.slaves.start(flags3, &isolator3);
+  Try<PID<Slave> > slave3 = StartSlave(flags3);
   ASSERT_SOME(slave3);
   // Total cluster resources now cpus=6, mem=3584.
   // framework1 share = 0.33
@@ -200,8 +197,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 
   AWAIT_READY(frameworkAdded3);
 
-  TestingIsolator isolator4;
-  slave::Flags flags4 = cluster.slaves.flags;
+  slave::Flags flags4 = CreateSlaveFlags();
   flags4.resources = Option<string>("cpus:4;mem:4096;disk:0");
 
   EXPECT_CALL(allocator, slaveAdded(_, _, _));
@@ -210,7 +206,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   EXPECT_CALL(sched3, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers4));
 
-  Try<PID<Slave> > slave4 = cluster.slaves.start(flags4, &isolator4);
+  Try<PID<Slave> > slave4 = StartSlave(flags4);
   ASSERT_SOME(slave4);
   // Total cluster resources now cpus=10, mem=7680.
   // framework1 share = 0.2
@@ -240,17 +236,17 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   driver2.stop();
   driver3.stop();
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
 template <typename T>
-class AllocatorTest : public MesosClusterTest
+class AllocatorTest : public MesosTest
 {
 protected:
   virtual void SetUp()
   {
-    MesosClusterTest::SetUp();
+    MesosTest::SetUp();
     a = new Allocator(&allocator);
   }
 
@@ -258,7 +254,7 @@ protected:
   virtual void TearDown()
   {
     delete a;
-    MesosClusterTest::TearDown();
+    MesosTest::TearDown();
   }
 
   MockAllocatorProcess<T> allocator;
@@ -277,17 +273,15 @@ TYPED_TEST(AllocatorTest, MockAllocator)
 {
   EXPECT_CALL(this->allocator, initialize(_, _));
 
-  Try<PID<Master> > master = this->cluster.masters.start(&this->allocator);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags = this->cluster.slaves.flags;
+  slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:2;mem:1024;disk:0");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->cluster.slaves.start(flags, &isolator);
+  Try<PID<Slave> > slave = this->StartSlave(flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -327,11 +321,11 @@ TYPED_TEST(AllocatorTest, MockAllocator)
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .WillOnce(FutureSatisfy(&slaveRemoved));
 
-  this->cluster.slaves.shutdown();
+  this->ShutdownSlaves();
 
   AWAIT_READY(slaveRemoved);
 
-  this->cluster.masters.shutdown();
+  this->ShutdownMasters();
 }
 
 
@@ -342,17 +336,17 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
 {
   EXPECT_CALL(this->allocator, initialize(_, _));
 
-  Try<PID<Master> > master = this->cluster.masters.start(&this->allocator);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags1 = this->cluster.slaves.flags;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Option<string>("cpus:2;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave1 = this->cluster.slaves.start(flags1, &isolator);
+  Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
 
   MockScheduler sched1;
@@ -431,7 +425,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
 
-  this->cluster.shutdown();
+  this->Shutdown();
 }
 
 
@@ -442,16 +436,15 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 {
   EXPECT_CALL(this->allocator, initialize(_, _));
 
-  Try<PID<Master> > master = this->cluster.masters.start(&this->allocator);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
 
-  TestingIsolator isolator;
-  slave::Flags flags1 = this->cluster.slaves.flags;
+  slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Option<string>("cpus:2;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave1 = this->cluster.slaves.start(flags1, &isolator);
+  Try<PID<Slave> > slave1 = this->StartSlave(flags1);
   ASSERT_SOME(slave1);
 
   FrameworkInfo frameworkInfo1;
@@ -553,7 +546,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
 
-  this->cluster.shutdown();
+  this->Shutdown();
 }
 
 
@@ -564,17 +557,18 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 {
   EXPECT_CALL(this->allocator, initialize(_, _));
 
-  Try<PID<Master> > master = this->cluster.masters.start(&this->allocator);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags = this->cluster.slaves.flags;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:3;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->cluster.slaves.start(flags, &isolator);
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo1;
@@ -680,7 +674,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
 
-  this->cluster.shutdown();
+  this->Shutdown();
 }
 
 
@@ -690,12 +684,12 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 {
   EXPECT_CALL(this->allocator, initialize(_, _));
 
-  master::Flags masterFlags = this->cluster.masters.flags;
+  master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Duration::parse("50ms").get();
-  Try<PID<Master> > master = this->cluster.masters.start(&this->allocator, masterFlags);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(2);
 
@@ -707,8 +701,9 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(2));
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags = this->cluster.slaves.flags;
+  TestingIsolator isolator(&exec);
+
+  slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:3;mem:1024");
 
   EXPECT_CALL(isolator, resourcesChanged(_, _, _))
@@ -716,7 +711,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->cluster.slaves.start(flags, &isolator);
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
@@ -809,7 +804,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
 
-  this->cluster.shutdown();
+  this->Shutdown();
 }
 
 
@@ -821,17 +816,18 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 {
   EXPECT_CALL(this->allocator, initialize(_, _));
 
-  Try<PID<Master> > master = this->cluster.masters.start(&this->allocator);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags1 = this->cluster.slaves.flags;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Option<string>("cpus:2;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave1 = this->cluster.slaves.start(flags1, &isolator);
+  Try<PID<Slave> > slave1 = this->StartSlave(&isolator, flags1);
   ASSERT_SOME(slave1);
 
   MockScheduler sched1;
@@ -887,15 +883,15 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   EXPECT_CALL(sched1, slaveLost(_, _));
 
-  this->cluster.slaves.shutdown();
+  this->ShutdownSlaves();
 
   AWAIT_READY(slaveRemoved1);
 
   AWAIT_READY(shutdownCall);
 
-  MockExecutor exec2;
-  TestingIsolator isolator2(DEFAULT_EXECUTOR_ID, &exec2);
-  slave::Flags flags2 = this->cluster.slaves.flags;
+  MockExecutor exec2(DEFAULT_EXECUTOR_ID);
+
+  slave::Flags flags2 = this->CreateSlaveFlags();
   flags2.resources = Option<string>("cpus:3;mem:256");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
@@ -907,7 +903,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 256)))
     .WillOnce(FutureArg<1>(&resourceOffers2));
 
-  Try<PID<Slave> > slave2 = this->cluster.slaves.start(flags2, &isolator2);
+  Try<PID<Slave> > slave2 = this->StartSlave(&exec2, flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(resourceOffers2);
@@ -935,7 +931,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
 
-  this->cluster.shutdown();
+  this->Shutdown();
 }
 
 
@@ -946,19 +942,20 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
 {
   EXPECT_CALL(this->allocator, initialize(_, _));
 
-  master::Flags masterFlags = this->cluster.masters.flags;
+  master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Duration::parse("50ms").get();
-  Try<PID<Master> > master = this->cluster.masters.start(&this->allocator, masterFlags);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags1 = this->cluster.slaves.flags;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Option<string>("cpus:3;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave1 = this->cluster.slaves.start(flags1, &isolator);
+  Try<PID<Slave> > slave1 = this->StartSlave(&isolator, flags1);
   ASSERT_SOME(slave1);
 
   MockScheduler sched1;
@@ -1004,7 +1001,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
 
   AWAIT_READY(launchTask);
 
-  slave::Flags flags2 = this->cluster.slaves.flags;
+  slave::Flags flags2 = this->CreateSlaveFlags();
   flags2.resources = Option<string>("cpus:4;mem:2048");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
@@ -1016,7 +1013,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(5, 2560)))
     .WillOnce(FutureSatisfy(&resourceOffers2));
 
-  Try<PID<Slave> > slave2 = this->cluster.slaves.start(flags2, &isolator);
+  Try<PID<Slave> > slave2 = this->StartSlave(flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(resourceOffers2);
@@ -1042,7 +1039,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(2));
 
-  this->cluster.shutdown();
+  this->Shutdown();
 }
 
 
@@ -1052,19 +1049,20 @@ TYPED_TEST(AllocatorTest, TaskFinished)
 {
   EXPECT_CALL(this->allocator, initialize(_, _));
 
-  master::Flags masterFlags = this->cluster.masters.flags;
+  master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Duration::parse("50ms").get();
-  Try<PID<Master> > master = this->cluster.masters.start(&this->allocator, masterFlags);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags = this->cluster.slaves.flags;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:3;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->cluster.slaves.start(flags, &isolator);
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
@@ -1156,7 +1154,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
 
-  this->cluster.shutdown();
+  this->Shutdown();
 }
 
 
@@ -1170,7 +1168,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   string path = "whitelist.txt";
   ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
-  master::Flags masterFlags = this->cluster.masters.flags;
+  master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.whitelist = "file://" + path; // TODO(benh): Put in /tmp.
 
   EXPECT_CALL(this->allocator, initialize(_, _));
@@ -1180,17 +1178,15 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
     .WillOnce(DoAll(InvokeUpdateWhitelist(&this->allocator),
                     FutureSatisfy(&updateWhitelist1)));
 
-  Try<PID<Master> > master = this->cluster.masters.start(&this->allocator, masterFlags);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-  slave::Flags flags = this->cluster.slaves.flags;
+  slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:2;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->cluster.slaves.start(flags, &isolator);
+  Try<PID<Slave> > slave = this->StartSlave(flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1256,7 +1252,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
 
-  this->cluster.shutdown();
+  this->Shutdown();
 
   os::rm(path);
 }

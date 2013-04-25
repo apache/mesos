@@ -108,6 +108,15 @@ inline Try<URL> URL::parse(const std::string& url)
   }
 }
 
+inline std::ostream& operator << (std::ostream& stream, const URL& url)
+{
+  stream << "zk://";
+  if (url.authentication.isSome()) {
+    stream << url.authentication.get() << "@";
+  }
+  return stream << url.servers << url.path;
+}
+
 } // namespace zookeeper {
 
 #endif // __ZOOKEEPER_URL_HPP__

@@ -38,26 +38,21 @@
 
 #include "common/protobuf_utils.hpp"
 
-#include "detector/detector.hpp"
-
 #include "local/local.hpp"
 
-#include "master/allocator.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/isolator.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/utils.hpp"
+#include "tests/isolator.hpp"
+#include "tests/mesos.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::protobuf;
 using namespace mesos::internal::tests;
 
-using mesos::internal::master::Allocator;
-using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Isolator;
@@ -92,21 +87,14 @@ class FaultToleranceTest : public MesosTest {};
 // its offer(s) is rescinded.
 TEST_F(FaultToleranceTest, SlaveLost)
 {
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
-  TestingIsolator isolator;
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -128,7 +116,7 @@ TEST_F(FaultToleranceTest, SlaveLost)
   EXPECT_CALL(sched, slaveLost(&driver, offers.get()[0].slave_id()))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  process::terminate(slave);
+  ShutdownSlaves();
 
   AWAIT_READY(offerRescinded);
   AWAIT_READY(slaveLost);
@@ -136,10 +124,7 @@ TEST_F(FaultToleranceTest, SlaveLost)
   driver.stop();
   driver.join();
 
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  Shutdown();
 }
 
 
@@ -206,9 +191,6 @@ TEST_F(FaultToleranceTest, PartitionedSlave)
 }
 
 
-// TODO(bmahler): Remove this when all the tests are refactored.
-class FaultToleranceClusterTest : public MesosClusterTest {};
-
 // The purpose of this test is to ensure that when slaves are removed
 // from the master, and then attempt to re-register, we deny the
 // re-registration by sending a ShutdownMessage to the slave.
@@ -218,9 +200,9 @@ class FaultToleranceClusterTest : public MesosClusterTest {};
 // re-register with its running tasks. We've already notified
 // frameworks that these tasks were LOST, so we have to have the slave
 // slave shut down.
-TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
+TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   // Allow the master to PING the slave, but drop all PONG messages
@@ -230,8 +212,9 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
   Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
   DROP_MESSAGES(Eq("PONG"), _, _);
 
-  MockExecutor exec;
-  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -355,7 +338,7 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
@@ -367,9 +350,9 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
 // the slave may attempt to send updates if it was unaware that the
 // master deactivated it. We've already notified frameworks that these
 // tasks were LOST, so we have to have the slave shut down.
-TEST_F(FaultToleranceClusterTest, PartitionedSlaveStatusUpdates)
+TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   // Allow the master to PING the slave, but drop all PONG messages
@@ -382,8 +365,9 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveStatusUpdates)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  MockExecutor exec;
-  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -466,7 +450,7 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveStatusUpdates)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
@@ -479,9 +463,9 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveStatusUpdates)
 // it was unaware that the master deactivated it. We've already
 // notified frameworks that the tasks under the executors were LOST,
 // so we have to have the slave shut down.
-TEST_F(FaultToleranceClusterTest, PartitionedSlaveExitedExecutor)
+TEST_F(FaultToleranceTest, PartitionedSlaveExitedExecutor)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   // Allow the master to PING the slave, but drop all PONG messages
@@ -491,10 +475,10 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveExitedExecutor)
   Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
   DROP_MESSAGES(Eq("PONG"), _, _);
 
-  MockExecutor exec;
-  TestingIsolator* isolator = new TestingIsolator(DEFAULT_EXECUTOR_ID, &exec);
-  process::spawn(isolator);
-  Try<PID<Slave> > slave = cluster.slaves.start(isolator);
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  Try<PID<Slave> > slave = StartSlave(&isolator);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -602,21 +586,15 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveExitedExecutor)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
-
-  // TODO(benh): Terminate and wait for the isolator once the slave
-  // is no longer doing so.
-  // process::terminate(isolator);
-  // process::wait(isolator);
-  delete isolator;
+  Shutdown();
 }
 
 
 // This test ensures that a framework connecting with a
 // failed over master gets a re-registered callback.
-TEST_F(FaultToleranceClusterTest, MasterFailover)
+TEST_F(FaultToleranceTest, MasterFailover)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -632,9 +610,11 @@ TEST_F(FaultToleranceClusterTest, MasterFailover)
   AWAIT_READY(frameworkRegisteredMessage);
 
   // Simulate failed over master by restarting the master.
-  ASSERT_SOME(cluster.masters.stop(master.get()));
-  master = cluster.masters.start();
+  Stop(master.get());
+  master = StartMaster();
   ASSERT_SOME(master);
+
+  EXPECT_CALL(sched, disconnected(&driver));
 
   Future<Nothing> reregistered;
   EXPECT_CALL(sched, reregistered(&driver, _))
@@ -652,7 +632,7 @@ TEST_F(FaultToleranceClusterTest, MasterFailover)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
@@ -818,21 +798,14 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
 
 TEST_F(FaultToleranceTest, TaskLost)
 {
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
-  TestingIsolator isolator;
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -882,11 +855,7 @@ TEST_F(FaultToleranceTest, TaskLost)
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  Shutdown();
 }
 
 
@@ -896,23 +865,17 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 {
   Clock::pause();
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
 
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -948,7 +911,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   // Drop the first status update message
   // between master and the scheduler.
   Future<StatusUpdateMessage> statusUpdateMessage =
-    DROP_PROTOBUF(StatusUpdateMessage(), _, Not(AnyOf(Eq(master), Eq(slave))));
+    DROP_PROTOBUF(StatusUpdateMessage(), _, Not(AnyOf(Eq(master.get()), Eq(slave.get()))));
 
   driver1.launchTasks(offers.get()[0].id(), tasks);
 
@@ -964,7 +927,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId);
 
-  MesosSchedulerDriver driver2(&sched2, framework2, master);
+  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
 
   Future<Nothing> registered2;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
@@ -999,11 +962,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  Shutdown();
 
   Clock::resume();
 }
@@ -1011,22 +970,16 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
 TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 {
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -1078,7 +1031,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   StatusUpdate statusUpdate2 = createStatusUpdate(
       frameworkId, offer.slave_id(), taskId, TASK_RUNNING, "Dummy update");
 
-  process::dispatch(slave, &Slave::statusUpdate, statusUpdate2);
+  process::dispatch(slave.get(), &Slave::statusUpdate, statusUpdate2);
 
   // Ensure that the scheduler receives task2's update.
   AWAIT_READY(status);
@@ -1094,32 +1047,22 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  Shutdown();
 }
 
 
 TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 {
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
-  MockExecutor exec;
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -1167,7 +1110,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId);
 
-  MesosSchedulerDriver driver2(&sched2, framework2, master);
+  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
 
   Future<Nothing> registered;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
@@ -1199,34 +1142,23 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  Shutdown();
 }
 
 
 // This test checks that a scheduler exit shuts down the executor.
 TEST_F(FaultToleranceTest, SchedulerExit)
 {
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1275,11 +1207,7 @@ TEST_F(FaultToleranceTest, SchedulerExit)
 
   AWAIT_READY(shutdown);
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  Shutdown();
 }
 
 
@@ -1287,25 +1215,18 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 {
   Clock::pause();
 
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
-
-  TestingIsolator isolator;
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
   // Drop the first slave registered message, allow subsequent messages.
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     DROP_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1325,11 +1246,7 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  Shutdown();
 
   Clock::resume();
 }
@@ -1337,21 +1254,14 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
 TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
 {
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
-  TestingIsolator isolator;
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1371,44 +1281,32 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
   // expiration) at the slave.
 
   NewMasterDetectedMessage message;
-  message.set_pid(master);
+  message.set_pid(master.get());
 
-  process::post(slave, message);
+  process::post(slave.get(), message);
 
   AWAIT_READY(slaveReregisteredMessage);
 
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  Shutdown();
 }
 
 
 // This test verifies that the master sends TASK_LOST updates
 // for tasks in the master absent from the re-registered slave.
 // We do this by dropping RunTaskMessage from master to the slave.
-// TODO(vinod): Use 'Cluster' abstraction.
 TEST_F(FaultToleranceTest, ConsolidateTasksOnSlaveReregistration)
 {
-  HierarchicalDRFAllocatorProcess allocator;
-  Allocator a(&allocator);
-  Files files;
-  Master m(&a, &files);
-  PID<Master> master = process::spawn(&m);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
-  TestingIsolator isolator;
-
-  Slave s(slaveFlags, true, &isolator, &files);
-  PID<Slave> slave = process::spawn(&s);
-
-  BasicMasterDetector detector(master, slave, true);
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1435,14 +1333,15 @@ TEST_F(FaultToleranceTest, ConsolidateTasksOnSlaveReregistration)
 
   // We now launch a task and drop the corresponding RunTaskMessage on
   // the slave, to ensure that only the master knows about this task.
-  Future<RunTaskMessage> runTaskMessage = DROP_PROTOBUF(RunTaskMessage(), _, _);
+  Future<RunTaskMessage> runTaskMessage =
+    DROP_PROTOBUF(RunTaskMessage(), _, _);
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(runTaskMessage);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1452,9 +1351,9 @@ TEST_F(FaultToleranceTest, ConsolidateTasksOnSlaveReregistration)
   // expiration) at the slave to force re-registration.
 
   NewMasterDetectedMessage message;
-  message.set_pid(master);
+  message.set_pid(master.get());
 
-  process::post(slave, message);
+  process::post(slave.get(), message);
 
   AWAIT_READY(slaveReregisteredMessage);
 
@@ -1466,9 +1365,5 @@ TEST_F(FaultToleranceTest, ConsolidateTasksOnSlaveReregistration)
   driver.stop();
   driver.join();
 
-  process::terminate(slave);
-  process::wait(slave);
-
-  process::terminate(master);
-  process::wait(master);
+  Shutdown();
 }

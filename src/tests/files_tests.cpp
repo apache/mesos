@@ -21,10 +21,12 @@
 #include <gmock/gmock.h>
 
 #include <process/future.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <stout/gtest.hpp>
 #include <stout/json.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>

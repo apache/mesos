@@ -55,6 +55,8 @@
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
+#include "tests/isolator.hpp"
+#include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -248,20 +250,24 @@ TEST_F(GarbageCollectorTest, Prune)
 }
 
 
-class GarbageCollectorIntegrationTest : public MesosClusterTest {};
+class GarbageCollectorIntegrationTest : public MesosTest {};
 
 
 TEST_F(GarbageCollectorIntegrationTest, Restart)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  // Need to create our own flags because we want to reuse them when
+  // we (re)start the slave below.
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -272,7 +278,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
 
-  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  Resources resources = Resources::parse(flags.resources.get());
   double cpus = resources.get("cpus", Value::Scalar()).value();
   double mem = resources.get("mem", Value::Scalar()).value();
 
@@ -300,7 +306,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   // until the task is launched. We get the slave ID from the
   // SlaveRegisteredMessage.
   const std::string& slaveDir = slave::paths::getSlavePath(
-      cluster.slaves.flags.work_dir,
+      flags.work_dir,
       slaveRegisteredMessage.get().slave_id());
 
   ASSERT_TRUE(os::exists(slaveDir));
@@ -318,7 +324,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   EXPECT_CALL(sched, slaveLost(_, _))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  cluster.slaves.stop(slave.get());
+  Stop(slave.get());
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
@@ -327,14 +333,14 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   Future<Nothing> schedule =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
-  slave = cluster.slaves.start();
+  slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(schedule);
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
-  Clock::advance(cluster.slaves.flags.gc_delay);
+  Clock::advance(flags.gc_delay);
 
   Clock::settle();
 
@@ -346,21 +352,23 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   driver.stop();
   driver.join();
 
-  cluster.shutdown();
+  Shutdown();
 }
 
 
 TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -374,7 +382,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  Resources resources = Resources::parse(flags.resources.get());
   double cpus = resources.get("cpus", Value::Scalar()).value();
   double mem = resources.get("mem", Value::Scalar()).value();
 
@@ -418,7 +426,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
   // Advance clock to kill executor via isolator.
-  Clock::advance(cluster.slaves.flags.executor_shutdown_grace_period);
+  Clock::advance(flags.executor_shutdown_grace_period);
 
   Clock::settle();
 
@@ -426,13 +434,13 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
-  Clock::advance(cluster.slaves.flags.gc_delay);
+  Clock::advance(flags.gc_delay);
 
   Clock::settle();
 
   // Framework's directory should be gc'ed by now.
   const string& frameworkDir = slave::paths::getFrameworkPath(
-      cluster.slaves.flags.work_dir, slaveId, frameworkId);
+      flags.work_dir, slaveId, frameworkId);
 
   ASSERT_FALSE(os::exists(frameworkDir));
 
@@ -443,20 +451,22 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
 
   Clock::resume();
 
-  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
 TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  TestingIsolator isolator(&exec);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = StartSlave(&isolator);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -466,7 +476,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  Resources resources = Resources::parse(flags.resources.get());
   double cpus = resources.get("cpus", Value::Scalar()).value();
   double mem = resources.get("mem", Value::Scalar()).value();
 
@@ -518,7 +528,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
-  Clock::advance(cluster.slaves.flags.gc_delay);
+  Clock::advance(flags.gc_delay);
 
   Clock::settle();
 
@@ -533,20 +543,22 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   driver.stop();
   driver.join();
 
-  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
 TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  TestingIsolator isolator(&exec);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -556,7 +568,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  Resources resources = Resources::parse(flags.resources.get());
   double cpus = resources.get("cpus", Value::Scalar()).value();
   double mem = resources.get("mem", Value::Scalar()).value();
 
@@ -632,7 +644,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   driver.stop();
   driver.join();
 
-  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
 
 
@@ -641,17 +653,19 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 // created by an old executor (with the same id).
 TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 {
-  Try<PID<Master> > master = cluster.masters.start();
+  Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegistered =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  MockExecutor exec;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  TestingIsolator isolator(DEFAULT_EXECUTOR_ID, &exec);
+  TestingIsolator isolator(&exec);
 
-  Try<PID<Slave> > slave = cluster.slaves.start(&isolator);
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegistered);
@@ -663,7 +677,7 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Resources resources = Resources::parse(cluster.slaves.flags.resources.get());
+  Resources resources = Resources::parse(flags.resources.get());
   double cpus = resources.get("cpus", Value::Scalar()).value();
   double mem = resources.get("mem", Value::Scalar()).value();
 
@@ -755,5 +769,5 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   driver.stop();
   driver.join();
 
-  cluster.shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }

@@ -29,8 +29,6 @@
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
-#include "tests/utils.hpp"
-
 namespace mesos {
 namespace internal {
 namespace slave {

@@ -21,24 +21,29 @@
 
 #include <gtest/gtest.h>
 
+#include <process/clock.hpp>
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
-
-#include <stout/exit.hpp>
+#include <process/gtest.hpp>
 
 #include "slave/reaper.hpp"
-
-#include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
 
+using process::Clock;
 using process::Future;
 
 using testing::_;
 using testing::DoDefault;
+
+
+class MockProcessListener : public ProcessExitedListener
+{
+public:
+  MOCK_METHOD2(processExited, void(pid_t, int));
+};
 
 
 // This test checks that the Reaper can monitor a non-child process.

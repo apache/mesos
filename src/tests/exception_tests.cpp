@@ -22,25 +22,20 @@
 #include <mesos/scheduler.hpp>
 
 #include <process/gmock.hpp>
-
-#include "detector/detector.hpp"
+#include <process/pid.hpp>
+#include <process/process.hpp>
 
 #include "local/local.hpp"
 
 #include "master/master.hpp"
 
-#include "slave/process_isolator.hpp"
-#include "slave/slave.hpp"
-
-#include "tests/utils.hpp"
+#include "tests/mesos.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
-
-using mesos::internal::slave::Slave;
 
 using process::Future;
 using process::PID;
@@ -50,14 +45,9 @@ using std::map;
 using std::vector;
 
 using testing::_;
-using testing::AnyOf;
 using testing::AtMost;
-using testing::DoAll;
-using testing::ElementsAre;
 using testing::Eq;
-using testing::Not;
 using testing::Return;
-using testing::SaveArg;
 
 
 TEST(ExceptionTest, DeactivateFrameworkOnAbort)
