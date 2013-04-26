@@ -943,3 +943,91 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
   process::terminate(master);
   process::wait(master);
 }
+
+
+// This test verifies that the master sends TASK_LOST updates
+// for tasks in the master absent from the re-registered slave.
+// We do this by dropping RunTaskMessage from master to the slave.
+// TODO(vinod): Use 'Cluster' abstraction.
+TEST_F(FaultToleranceTest, ConsolidateTasksOnSlaveReregistration)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  HierarchicalDRFAllocatorProcess allocator;
+  Allocator a(&allocator);
+  Files files;
+  Master m(&a, &files);
+  PID<Master> master = process::spawn(&m);
+
+  TestingIsolator isolator;
+
+  Slave s(slaveFlags, true, &isolator, &files);
+  PID<Slave> slave = process::spawn(&s);
+
+  BasicMasterDetector detector(master, slave, true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("test task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  // We now launch a task and drop the corresponding RunTaskMessage on
+  // the slave, to ensure that only the master knows about this task.
+  Future<RunTaskMessage> runTaskMessage = DROP_PROTOBUF(RunTaskMessage(), _, _);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(runTaskMessage);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  // Simulate a spurious newMasterDetected event (e.g., due to ZooKeeper
+  // expiration) at the slave to force re-registration.
+
+  NewMasterDetectedMessage message;
+  message.set_pid(master);
+
+  process::post(slave, message);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  AWAIT_READY(status);
+
+  ASSERT_EQ(task.task_id(), status.get().task_id());
+  ASSERT_EQ(TASK_LOST, status.get().state());
+
+  driver.stop();
+  driver.join();
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  process::terminate(master);
+  process::wait(master);
+}

@@ -286,7 +286,8 @@ struct Slave
       std::make_pair(task->framework_id(), task->task_id());
     CHECK(tasks.count(key) == 0);
     tasks[key] = task;
-    LOG(INFO) << "Adding task with resources " << task->resources()
+    LOG(INFO) << "Adding task " << task->task_id()
+              << " with resources " << task->resources()
               << " on slave " << id;
     resourcesInUse += task->resources();
   }
@@ -297,7 +298,8 @@ struct Slave
       std::make_pair(task->framework_id(), task->task_id());
     CHECK(tasks.count(key) > 0);
     tasks.erase(key);
-    LOG(INFO) << "Removing task with resources " << task->resources()
+    LOG(INFO) << "Removing task " << task->task_id()
+              << " with resources " << task->resources()
               << " on slave " << id;
     resourcesInUse -= task->resources();
   }
@@ -306,8 +308,9 @@ struct Slave
   {
     CHECK(!offers.contains(offer));
     offers.insert(offer);
-    LOG(INFO) << "Adding offer with resources " << offer->resources()
-              << " on slave " << id;
+    VLOG(1) << "Adding offer " << offer->id()
+            << " with resources " << offer->resources()
+            << " on slave " << id;
     resourcesOffered += offer->resources();
   }
 
@@ -315,8 +318,9 @@ struct Slave
   {
     CHECK(offers.contains(offer));
     offers.erase(offer);
-    LOG(INFO) << "Removing offer with resources " << offer->resources()
-              << " on slave " << id;
+    VLOG(1) << "Removing offer " << offer->id()
+            << " with resources " << offer->resources()
+            << " on slave " << id;
     resourcesOffered -= offer->resources();
   }
 

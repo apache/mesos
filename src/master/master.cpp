@@ -26,6 +26,7 @@
 #include <process/id.hpp>
 #include <process/run.hpp>
 
+#include <stout/multihashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/utils.hpp>
@@ -33,6 +34,7 @@
 
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "flags/flags.hpp"
 
@@ -1011,10 +1013,54 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       // For now, we assume this slave is not nefarious (eventually
       // this will be handled by orthogonal security measures like key
       // based authentication).
-
       LOG(WARNING) << "Slave at " << from << " (" << slave->info.hostname()
                    << ") is being allowed to re-register with an already"
                    << " in use id (" << slaveId << ")";
+
+      // Consolidate tasks between master and the slave.
+      // Fist, look for the tasks present in the slave but not present
+      // in the master.
+      multihashmap<FrameworkID, TaskID> slaveTasks;
+      foreach (const Task& task, tasks) {
+        if (!slave->tasks.contains(
+            std::make_pair(task.framework_id(), task.task_id()))) {
+          // This might happen if a terminal status update for this task
+          // came before the slave re-registered message.
+          // TODO(vinod): Consider sending a KillTaskMessage.
+          // TODO(vinod): Export a statistic for these tasks.
+          LOG(WARNING) << "Slave " << slaveId << " attempted to re-register"
+                       << " with unknown task " << task.task_id()
+                       << " of framework " << task.framework_id();
+        }
+        slaveTasks.put(task.framework_id(), task.task_id());
+      }
+
+      // Send TASK_LOST updates for tasks present in the master but
+      // missing from the slave. This could happen if the task was
+      // dropped by the slave (e.g., slave exited before getting the
+      // task or the task was launched while slave was in recovery).
+      foreachvalue (Task* task, utils::copy(slave->tasks)) {
+        if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
+          LOG(WARNING) << "Sending TASK_LOST for task " << task->task_id()
+                       << " of framework " << task->framework_id()
+                       << " unknown to the slave " << slaveId;
+
+          Framework* framework = getFramework(task->framework_id());
+          if (framework != NULL) {
+            const StatusUpdate& update = protobuf::createStatusUpdate(
+                task->framework_id(),
+                slaveId,
+                task->task_id(),
+                TASK_LOST,
+                "Task was not received by the slave");
+
+            StatusUpdateMessage message;
+            message.mutable_update()->CopyFrom(update);
+            send(framework->pid, message);
+          }
+          removeTask(task);
+        }
+      }
 
       SlaveReregisteredMessage message;
       message.mutable_slave_id()->MergeFrom(slave->id);
@@ -1024,6 +1070,8 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       slave->pid = from;
       link(slave->pid);
     } else {
+      // NOTE: This handles the case when the slave tries to
+      // re-register with a failed over master.
       slave = new Slave(slaveInfo, slaveId, from, Clock::now());
 
       LOG(INFO) << "Attempting to re-register slave " << slave->id << " at "
@@ -1553,6 +1601,10 @@ void Master::processTasks(Offer* offer,
                           const vector<TaskInfo>& tasks,
                           const Filters& filters)
 {
+  CHECK_NOTNULL(offer);
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
   LOG(INFO) << "Processing reply for offer " << offer->id()
             << " on slave " << slave->id
             << " (" << slave->info.hostname() << ")"
@@ -1586,17 +1638,18 @@ void Master::processTasks(Offer* offer,
       usedResources += launchTask(task, framework, slave);
     } else {
       // Error validating task, send a failed status update.
-      LOG(WARNING) << "Error validating task " << task.task_id()
+      LOG(WARNING) << "Failed to validate task " << task.task_id()
                    << " : " << error.get();
+
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          framework->id,
+          slave->id,
+          task.task_id(),
+          TASK_LOST,
+          error.get());
+
       StatusUpdateMessage message;
-      StatusUpdate* update = message.mutable_update();
-      update->mutable_framework_id()->MergeFrom(framework->id);
-      TaskStatus* status = update->mutable_status();
-      status->mutable_task_id()->MergeFrom(task.task_id());
-      status->set_state(TASK_LOST);
-      status->set_message(error.get());
-      update->set_timestamp(Clock::now());
-      update->set_uuid(UUID::random().toBytes());
+      message.mutable_update()->CopyFrom(update);
       send(framework->pid, message);
     }
   }
@@ -1771,7 +1824,7 @@ void Master::removeFramework(Framework* framework)
   // Remove pointers to the framework's tasks in slaves.
   foreachvalue (Task* task, utils::copy(framework->tasks)) {
     Slave* slave = getSlave(task->slave_id());
-    // Since we only find out about tasks when the slave reregisters,
+    // Since we only find out about tasks when the slave re-registers,
     // it must be the case that the slave exists!
     CHECK(slave != NULL);
     removeTask(task);
@@ -2078,7 +2131,7 @@ void Master::removeTask(Task* task)
 
   // Remove from slave.
   Slave* slave = getSlave(task->slave_id());
-  CHECK(slave != NULL);
+  CHECK_NOTNULL(slave);
   slave->removeTask(task);
 
   // Tell the allocator about the recovered resources.

@@ -979,7 +979,8 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
