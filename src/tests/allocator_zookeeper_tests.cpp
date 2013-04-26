@@ -100,7 +100,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   Try<zookeeper::URL> url = zookeeper::URL::parse(zk);
   ASSERT_SOME(url);
 
-  Cluster cluster(Option<zookeeper::URL>(url.get()));
+  Cluster cluster(url.get());
 
   Try<PID<Master> > master = cluster.masters.start(&this->allocator1);
   ASSERT_SOME(master);
@@ -237,7 +237,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   Try<zookeeper::URL> url = zookeeper::URL::parse(zk);
   ASSERT_SOME(url);
 
-  Cluster cluster(Option<zookeeper::URL>(url.get()));
+  Cluster cluster(url.get());
 
   Try<PID<Master> > master = cluster.masters.start(&this->allocator1);
   ASSERT_SOME(master);
