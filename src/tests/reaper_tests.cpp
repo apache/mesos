@@ -44,8 +44,6 @@ using testing::DoDefault;
 // This test checks that the Reaper can monitor a non-child process.
 TEST(ReaperTest, NonChildProcess)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   // Use pipes to determine the pid of the grand child process.
   int pipes[2];
   ASSERT_NE(-1, pipe(pipes));

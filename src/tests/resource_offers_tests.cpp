@@ -53,8 +53,6 @@ using testing::Return;
 
 TEST(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(10, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched;
@@ -87,8 +85,6 @@ TEST(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
 
 TEST(ResourceOffersTest, TaskUsesNoResources)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched;
@@ -137,8 +133,6 @@ TEST(ResourceOffersTest, TaskUsesNoResources)
 
 TEST(ResourceOffersTest, TaskUsesInvalidResources)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched;
@@ -192,8 +186,6 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
 
 TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched;
@@ -248,7 +240,6 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 
 TEST(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
@@ -292,8 +283,6 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
 
 TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched1;
@@ -340,8 +329,6 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 
 TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched1;
@@ -424,8 +411,6 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
 TEST(ResourceOffersTest, Request)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Cluster cluster;
 
   MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
@@ -484,8 +469,6 @@ class MultipleExecutorsTest : public MesosClusterTest {};
 
 TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 

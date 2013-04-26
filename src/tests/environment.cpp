@@ -24,6 +24,7 @@
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 
+#include <stout/exit.hpp>
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
@@ -172,6 +173,10 @@ void Environment::SetUp()
 {
   // Clear any MESOS_ environment variables so they don't affect our tests.
   Configurator::clearMesosEnvironmentVars();
+
+  if (!GTEST_IS_THREADSAFE) {
+    EXIT(1) << "Testing environment is not thread safe, bailing!";
+  }
 }
 
 

@@ -92,8 +92,6 @@ class FaultToleranceTest : public MesosTest {};
 // its offer(s) is rescinded.
 TEST_F(FaultToleranceTest, SlaveLost)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HierarchicalDRFAllocatorProcess allocator;
   Allocator a(&allocator);
   Files files;
@@ -149,8 +147,6 @@ TEST_F(FaultToleranceTest, SlaveLost)
 // message for a partioned slave.
 TEST_F(FaultToleranceTest, PartitionedSlave)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Clock::pause();
 
   // Set these expectations up before we spawn the slave (in
@@ -662,8 +658,6 @@ TEST_F(FaultToleranceClusterTest, MasterFailover)
 
 TEST_F(FaultToleranceTest, SchedulerFailover)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   // Launch the first (i.e., failing) scheduler and wait until
@@ -732,8 +726,6 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
 
 TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Clock::pause();
 
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
@@ -775,8 +767,6 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
 TEST_F(FaultToleranceTest, FrameworkReregister)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched;
@@ -828,8 +818,6 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
 
 TEST_F(FaultToleranceTest, TaskLost)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HierarchicalDRFAllocatorProcess allocator;
   Allocator a(&allocator);
   Files files;
@@ -906,8 +894,6 @@ TEST_F(FaultToleranceTest, TaskLost)
 // retried status update.
 TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Clock::pause();
 
   HierarchicalDRFAllocatorProcess allocator;
@@ -1025,8 +1011,6 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
 TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HierarchicalDRFAllocatorProcess allocator;
   Allocator a(&allocator);
   Files files;
@@ -1120,8 +1104,6 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 
 TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HierarchicalDRFAllocatorProcess allocator;
   Allocator a(&allocator);
   Files files;
@@ -1228,8 +1210,6 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 // This test checks that a scheduler exit shuts down the executor.
 TEST_F(FaultToleranceTest, SchedulerExit)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HierarchicalDRFAllocatorProcess allocator;
   Allocator a(&allocator);
   Files files;
@@ -1305,8 +1285,6 @@ TEST_F(FaultToleranceTest, SchedulerExit)
 
 TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Clock::pause();
 
   HierarchicalDRFAllocatorProcess allocator;
@@ -1359,8 +1337,6 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
 TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HierarchicalDRFAllocatorProcess allocator;
   Allocator a(&allocator);
   Files files;
@@ -1418,8 +1394,6 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
 // TODO(vinod): Use 'Cluster' abstraction.
 TEST_F(FaultToleranceTest, ConsolidateTasksOnSlaveReregistration)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HierarchicalDRFAllocatorProcess allocator;
   Allocator a(&allocator);
   Files files;

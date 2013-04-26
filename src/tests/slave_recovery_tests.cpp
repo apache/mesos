@@ -132,8 +132,6 @@ public:
   {
     IsolatorTest<T>::SetUp();
 
-    ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
     a = new Allocator(&allocator);
     m = new Master(a, &files);
     master = process::spawn(m);

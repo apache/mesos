@@ -90,8 +90,6 @@ class StatusUpdateManagerTest: public MesosClusterTest {};
 
 TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -193,8 +191,6 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 
 TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -272,8 +268,6 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 // duplicate ACK is for a retried update.
 TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -394,8 +388,6 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 // for the original update and sending a random ACK to the slave.
 TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 

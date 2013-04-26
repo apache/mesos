@@ -65,8 +65,6 @@ class MasterDetectorTest : public MesosClusterTest {};
 
 TEST_F(MasterDetectorTest, File)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 

@@ -77,8 +77,6 @@ class MasterTest : public MesosClusterTest {};
 
 TEST_F(MasterTest, TaskRunning)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -152,8 +150,6 @@ TEST_F(MasterTest, TaskRunning)
 
 TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -229,8 +225,6 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
 TEST_F(MasterTest, KillTask)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -309,8 +303,6 @@ TEST_F(MasterTest, KillTask)
 
 TEST_F(MasterTest, StatusUpdateAck)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -381,8 +373,6 @@ TEST_F(MasterTest, StatusUpdateAck)
 
 TEST_F(MasterTest, RecoverResources)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -504,8 +494,6 @@ TEST_F(MasterTest, RecoverResources)
 
 TEST_F(MasterTest, FrameworkMessage)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -590,8 +578,6 @@ TEST_F(MasterTest, FrameworkMessage)
 
 TEST_F(MasterTest, MultipleExecutors)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -708,8 +694,6 @@ TEST_F(MasterTest, MultipleExecutors)
 
 TEST_F(MasterTest, ShutdownUnregisteredExecutor)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -793,8 +777,6 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
 
 TEST_F(MasterTest, MasterInfo)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -826,8 +808,6 @@ TEST_F(MasterTest, MasterInfo)
 
 TEST_F(MasterTest, MasterInfoOnReElection)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -895,8 +875,6 @@ protected:
 
 TEST_F(WhitelistTest, WhitelistSlave)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   // Add some hosts to the white list.
   Try<string> hostname = os::hostname();
   ASSERT_SOME(hostname);
@@ -934,8 +912,6 @@ TEST_F(WhitelistTest, WhitelistSlave)
 
 TEST_F(MasterTest, MasterLost)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 

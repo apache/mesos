@@ -62,8 +62,6 @@ using testing::SaveArg;
 
 TEST(ExceptionTest, DeactivateFrameworkOnAbort)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte,1 * Gigabyte,  false);
 
   MockScheduler sched;
@@ -98,8 +96,6 @@ TEST(ExceptionTest, DeactivateFrameworkOnAbort)
 
 TEST(ExceptionTest, DisallowSchedulerActionsOnAbort)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched;
@@ -131,8 +127,6 @@ TEST(ExceptionTest, DisallowSchedulerActionsOnAbort)
 
 TEST(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
 
   MockScheduler sched;

@@ -253,8 +253,6 @@ class GarbageCollectorIntegrationTest : public MesosClusterTest {};
 
 TEST_F(GarbageCollectorIntegrationTest, Restart)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -354,8 +352,6 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
 
 TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -453,8 +449,6 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
 
 TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -545,8 +539,6 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
 TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
@@ -649,8 +641,6 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 // created by an old executor (with the same id).
 TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
