@@ -332,8 +332,7 @@ Try<Nothing> StatusUpdateManagerProcess::_update(
 Timeout StatusUpdateManagerProcess::forward(const StatusUpdate& update)
 {
   if (master) {
-    LOG(INFO) << "Forwarding status update " << update
-              << " to the master at " << master;
+    LOG(INFO) << "Forwarding status update " << update << " to " << master;
 
     StatusUpdateMessage message;
     message.mutable_update()->MergeFrom(update);

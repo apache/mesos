@@ -280,13 +280,15 @@ protected:
       const string& uuid)
   {
     if (aborted) {
-      VLOG(1) << "Ignoring ACK for status update of task " << taskId
+      VLOG(1) << "Ignoring status update acknowledgement " << uuid
+              << " for task " << taskId
               << " of framework " << frameworkId
-              <<" because the driver is aborted!";
+              << " because the driver is aborted!";
       return;
     }
 
-    VLOG(1) << "Executor received ACK for status update of task " << taskId
+    VLOG(1) << "Executor received status update acknowledgement " << uuid
+            << " for task " << taskId
             << " of framework " << frameworkId;
 
     // Remove the corresponding update.
@@ -379,9 +381,6 @@ protected:
 
   void sendStatusUpdate(const TaskStatus& status)
   {
-    VLOG(1) << "Executor sending status update for task " << status.task_id()
-            << " in state " << status.state();
-
     if (status.state() == TASK_STAGING) {
       VLOG(1) << "Executor is not allowed to send "
               << "TASK_STAGING status update. Aborting!";
@@ -401,6 +400,8 @@ protected:
     update->mutable_status()->MergeFrom(status);
     update->set_timestamp(Clock::now());
     update->set_uuid(UUID::random().toBytes());
+
+    VLOG(1) << "Executor sending status update " << *update;
 
     // Capture the status update.
     updates[update->uuid()] = *update;

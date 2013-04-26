@@ -1289,10 +1289,6 @@ void Slave::statusUpdateAcknowledgement(
     const TaskID& taskId,
     const string& uuid)
 {
-  LOG(INFO) << "Got status update acknowledgement " << UUID::fromBytes(uuid)
-            << " for task " << taskId
-            << " of framework " << frameworkId;
-
   statusUpdateManager->acknowledgement(
       taskId, frameworkId, UUID::fromBytes(uuid))
     .onAny(defer(self(),
@@ -1327,15 +1323,14 @@ void Slave::_statusUpdateAcknowledgement(
   }
 
   if (!future.get().get()) {
-    LOG(WARNING) << "Ignoring status update acknowledgement " << uuid
-                 << " for task " << taskId
-                 << " of framework " << frameworkId;
+    // The status update manager ignored the acknowledgement (e.g., duplicate).
+    return;
   }
 
-  LOG(INFO) << "Status update manager successfully handled status update"
-            << " acknowledgement " << uuid
-            << " for task " << taskId
-            << " of framework " << frameworkId;
+  VLOG(1) << "Status update manager successfully handled status update"
+          << " acknowledgement " << uuid
+          << " for task " << taskId
+          << " of framework " << frameworkId;
 
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)
@@ -1726,7 +1721,7 @@ void Slave::statusUpdate(const StatusUpdate& update)
         executor->state == Executor::TERMINATED)
     << executor->state;
 
-  LOG(INFO) << "Handling status update " << update;
+  VLOG(1) << "Handling status update " << update;
 
   stats.tasks[update.status().state()]++;
   stats.validStatusUpdates++;
@@ -1783,14 +1778,14 @@ void Slave::_statusUpdate(
     return;
   }
 
-  LOG(INFO) << "Status update manager successfully handled status update "
-            << update;
+  VLOG(1) << "Status update manager successfully handled status update "
+          << update;
 
   // Status update manager successfully handled the status update.
   // Acknowledge the executor, if necessary.
   if (pid.isSome()) {
     LOG(INFO) << "Sending acknowledgement for status update " << update
-              << " to executor " << pid.get();
+              << " to " << pid.get();
     StatusUpdateAcknowledgementMessage message;
     message.mutable_framework_id()->MergeFrom(update.framework_id());
     message.mutable_slave_id()->MergeFrom(update.slave_id());
@@ -2390,7 +2385,7 @@ void Slave::registerExecutorTimeout(
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
     LOG(INFO) << "Framework " << frameworkId
-              << " seems to have exited. Ignoring shutdown timeout"
+              << " seems to have exited. Ignoring registration timeout"
               << " for executor '" << executorId << "'";
     return;
   }
@@ -2410,7 +2405,7 @@ void Slave::registerExecutorTimeout(
   if (executor == NULL) {
     LOG(INFO) << "Executor '" << executorId
               << "' of framework " << frameworkId
-              << " seems to have exited. Ignoring its shutdown timeout";
+              << " seems to have exited. Ignoring its registration timeout";
     return;
   }
 
@@ -2418,7 +2413,7 @@ void Slave::registerExecutorTimeout(
     LOG(INFO) << "A new executor '" << executorId
               << "' of framework " << frameworkId
               << " with run " << executor->uuid
-              << " seems to be active. Ignoring the shutdown timeout"
+              << " seems to be active. Ignoring the registration timeout"
               << " for the old executor run " << uuid;
     return;
   }
