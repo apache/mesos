@@ -92,7 +92,10 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
     // TODO(benh): Move this computation into Flags as the "default".
     Try<long> cpus = os::cpus();
     Try<uint64_t> mem = os::memory();
-    Try<uint64_t> disk = fs::available();
+
+    // NOTE: We calculate disk availability of the file system on
+    // which the slave work directory is mounted.
+    Try<uint64_t> disk = fs::available(flags.work_dir);
 
     if (!cpus.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the number of cpus to use,"
@@ -1215,7 +1218,9 @@ void Slave::checkDiskUsage()
 {
   // TODO(vinod): We are making usage a Future, so that we can plug in
   // os::usage() into async.
-  Future<Try<double> >(os::usage())
+  // NOTE: We calculate disk availability of the file system on
+  // which the slave work directory is mounted.
+  Future<Try<double> >(os::usage(flags.work_dir))
     .onAny(defer(self(), &Slave::_checkDiskUsage, params::_1));
 }
 
