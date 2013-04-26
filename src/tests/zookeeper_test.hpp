@@ -38,6 +38,37 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+// Helper for invoking ZooKeeper::get(path, ...) in order to check the
+// data stored at a specified znode path.
+inline ::testing::AssertionResult AssertZKGet(
+    const char* expectedExpr,
+    const char* zkExpr,
+    const char* pathExpr,
+    const std::string& expected,
+    ZooKeeper* zk,
+    const std::string& path)
+{
+  std::string result;
+  int code = zk->get(path, false, &result, NULL);
+  if (code == ZOK) {
+    if (expected == result) {
+      return ::testing::AssertionSuccess();
+    } else {
+      return ::testing::AssertionFailure()
+        << "Expected data at znode '" << pathExpr << "' "
+        << "to be '" << expected << "', but actually '" << result << "'";
+    }
+  } else {
+    return ::testing::AssertionFailure()
+      << "(" << zkExpr << ").get(" << pathExpr << ", ...): "
+      << zk->message(code);
+  }
+}
+
+#define ASSERT_ZK_GET(expected, zk, path)                               \
+  ASSERT_PRED_FORMAT3(mesos::internal::tests::AssertZKGet, expected, zk, path)
+
+
 // A fixture for tests that need to interact with a ZooKeeper server
 // ensemble. Tests can access the in process ZooKeeperTestServer via
 // the variable 'server'. This test fixture ensures the server is

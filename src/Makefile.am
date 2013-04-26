@@ -775,6 +775,7 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/slave_recovery_tests.cpp			\
 	              tests/status_update_manager_tests.cpp		\
 	              tests/gc_tests.cpp				\
+	              tests/group_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
 	              tests/files_tests.cpp tests/flags_tests.cpp	\
