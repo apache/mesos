@@ -13,10 +13,10 @@ elif test "${1}" = "2.0.0-mr1-cdh4.1.2"; then
     distribution="2.0.0-mr1-cdh4.1.2"
     url="http://archive.cloudera.com/cdh4/cdh/4"
     bundle="mr1-2.0.0-mr1-cdh4.1.2.tar.gz"
-elif test "${1}" = "2.0.0-mr1-cdh4.2.0"; then
-    distribution="2.0.0-mr1-cdh4.2.0"
+elif test "${1}" = "2.0.0-mr1-cdh4.2.1"; then
+    distribution="2.0.0-mr1-cdh4.2.1"
     url="http://archive.cloudera.com/cdh4/cdh/4"
-    bundle="mr1-2.0.0-mr1-cdh4.2.0.tar.gz"
+    bundle="mr1-2.0.0-mr1-cdh4.2.1.tar.gz"
 fi
 
 hadoop="hadoop-${distribution}"
@@ -94,7 +94,7 @@ if test ${distribution} = "0.20.205.0"; then
     resources="${resources} hadoop-7698-1.patch"
 fi
 
-if test ${distribution} = "2.0.0-mr1-cdh4.1.2" -o ${distribution} = "2.0.0-mr1-cdh4.2.0"; then
+if test ${distribution} = "2.0.0-mr1-cdh4.1.2" -o ${distribution} = "2.0.0-mr1-cdh4.2.1"; then
     resources="${resources} HadoopPipes.cc.patch"
 fi
 
@@ -519,7 +519,7 @@ if test ${REPLY} == "Y" -o ${REPLY} == "y"; then
     execute "patch -p1 <../${hadoop}_hadoop-env.sh.patch"
 fi
 
-if test ${distribution} = "2.0.0-mr1-cdh4.1.2" -o ${distribution} = "2.0.0-mr1-cdh4.2.0"; then
+if test ${distribution} = "2.0.0-mr1-cdh4.1.2" -o ${distribution} = "2.0.0-mr1-cdh4.2.1"; then
     # Apply HadoopPipes.cc patch.
     cat <<__EOF__
 
@@ -568,7 +568,7 @@ __EOF__
 read -e -p "${BRIGHT}Hit enter to continue.${NORMAL} "
 echo
 
-if test ${distribution} = "2.0.0-mr1-cdh4.1.2" -o ${distribution} = "2.0.0-mr1-cdh4.2.0"; then
+if test ${distribution} = "2.0.0-mr1-cdh4.1.2" -o ${distribution} = "2.0.0-mr1-cdh4.2.1"; then
   cat <<__EOF__
 
   We need to chmod +x install-sh scripts to compile

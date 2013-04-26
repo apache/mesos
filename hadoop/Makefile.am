@@ -19,8 +19,8 @@ EXTRA_DIST = TUTORIAL.sh hadoop-gridmix.patch				\
   hadoop-0.20.2-cdh3u3_mesos.patch					\
   hadoop-2.0.0-mr1-cdh4.1.2_hadoop-env.sh.patch				\
   hadoop-2.0.0-mr1-cdh4.1.2_mesos.patch					\
-  hadoop-2.0.0-mr1-cdh4.2.0_hadoop-env.sh.patch				\
-  hadoop-2.0.0-mr1-cdh4.2.0_mesos.patch					\
+  hadoop-2.0.0-mr1-cdh4.2.1_hadoop-env.sh.patch				\
+  hadoop-2.0.0-mr1-cdh4.2.1_mesos.patch					\
   hadoop-7698-1.patch							\
   hadoop-0.20.205.0_hadoop-env.sh.patch hadoop-0.20.205.0_mesos.patch	\
   HadoopPipes.cc.patch                                                  \
@@ -75,19 +75,19 @@ hadoop-2.0.0-mr1-cdh4.1.2:
 	rm -rf hadoop-2.0.0-mr1-cdh4.1.2
 	@TMOUT=1 JAVA_HOME=$(JAVA_HOME) ./TUTORIAL.sh 2.0.0-mr1-cdh4.1.2
 
-hadoop-2.0.0-mr1-cdh4.2.0:
+hadoop-2.0.0-mr1-cdh4.2.1:
 	if test "$(top_srcdir)" != "$(top_builddir)"; then \
           cp -p $(srcdir)/TUTORIAL.sh .; \
           cp -p $(srcdir)/hadoop-gridmix.patch .; \
-          cp -p $(srcdir)/hadoop-2.0.0-mr1-cdh4.2.0_hadoop-env.sh.patch .; \
-          cp -p $(srcdir)/hadoop-2.0.0-mr1-cdh4.2.0_mesos.patch .; \
+          cp -p $(srcdir)/hadoop-2.0.0-mr1-cdh4.2.1_hadoop-env.sh.patch .; \
+          cp -p $(srcdir)/hadoop-2.0.0-mr1-cdh4.2.1_mesos.patch .; \
           cp -p $(srcdir)/mapred-site.xml.patch .; \
           cp -p $(srcdir)/HadoopPipes.cc.patch .; \
           cp -rp $(srcdir)/mesos .; \
           cp -p $(srcdir)/mesos-executor .; \
         fi
-	rm -rf hadoop-2.0.0-mr1-cdh4.2.0
-	@TMOUT=1 JAVA_HOME=$(JAVA_HOME) ./TUTORIAL.sh 2.0.0-mr1-cdh4.2.0
+	rm -rf hadoop-2.0.0-mr1-cdh4.2.1
+	@TMOUT=1 JAVA_HOME=$(JAVA_HOME) ./TUTORIAL.sh 2.0.0-mr1-cdh4.2.1
 
 
 clean-local:
@@ -99,8 +99,8 @@ clean-local:
           rm -f hadoop-0.20.2-cdh3u3_mesos.patch; \
           rm -f hadoop-2.0.0-mr1-cdh4.1.2_hadoop-env.sh.patch; \
           rm -f hadoop-2.0.0-mr1-cdh4.1.2_mesos.patch; \
-          rm -f hadoop-2.0.0-mr1-cdh4.2.0_hadoop-env.sh.patch; \
-          rm -f hadoop-2.0.0-mr1-cdh4.2.0_mesos.patch; \
+          rm -f hadoop-2.0.0-mr1-cdh4.2.1_hadoop-env.sh.patch; \
+          rm -f hadoop-2.0.0-mr1-cdh4.2.1_mesos.patch; \
           rm -f hadoop-0.20.205.0_hadoop-env.sh.patch; \
           rm -f hadoop-0.20.205.0_mesos.patch; \
           rm -f mapred-site.xml.patch; \
@@ -111,10 +111,10 @@ clean-local:
 	rm -f hadoop-0.20.2-cdh3u3.tar.gz
 	rm -rf hadoop-2.0.0-mr1-cdh4.1.2
 	rm -f mr1-2.0.0-mr1-cdh4.1.2.tar.gz
-	rm -rf hadoop-2.0.0-mr1-cdh4.2.0
-	rm -f mr1-2.0.0-mr1-cdh4.2.0.tar.gz
+	rm -rf hadoop-2.0.0-mr1-cdh4.2.1
+	rm -f mr1-2.0.0-mr1-cdh4.2.1.tar.gz
 	rm -rf hadoop-0.20.205.0
 	rm -f hadoop-0.20.205.0.tar.gz
 
 
-.PHONY: hadoop-0.20.205.0 hadoop-0.20.2-cdh3u3 hadoop-2.0.0-mr1-cdh4.1.2 hadoop-2.0.0-mr1-cdh4.2.0
+.PHONY: hadoop-0.20.205.0 hadoop-0.20.2-cdh3u3 hadoop-2.0.0-mr1-cdh4.1.2 hadoop-2.0.0-mr1-cdh4.2.1

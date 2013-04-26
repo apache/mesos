@@ -1,5 +1,5 @@
---- hadoop-2.0.0-mr1-cdh4.2.0/src/c++/pipes/impl/HadoopPipes.cc.old	2013-04-16 20:18:22.681061322 +0000
-+++ hadoop-2.0.0-mr1-cdh4.2.0/src/c++/pipes/impl/HadoopPipes.cc	2013-04-16 20:18:44.005060961 +0000
+--- hadoop-2.0.0-mr1-cdh4.2.1/src/c++/pipes/impl/HadoopPipes.cc.old	2013-04-16 20:18:22.681061322 +0000
++++ hadoop-2.0.0-mr1-cdh4.2.1/src/c++/pipes/impl/HadoopPipes.cc	2013-04-16 20:18:44.005060961 +0000
 @@ -34,6 +34,7 @@
  #include <pthread.h>
  #include <iostream>
