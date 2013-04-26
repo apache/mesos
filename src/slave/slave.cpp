@@ -151,7 +151,9 @@ Slave::Slave(const slave::Flags& _flags,
   if (resources.disk().isSome()) {
     disk = resources.disk().get();
   } else {
-    Try<uint64_t> disk_ = fs::available(); // in bytes.
+    // NOTE: We calculate disk availability of the file system on
+    // which the slave work directory is mounted.
+    Try<uint64_t> disk_ = fs::available(flags.work_dir); // in bytes.
     if (!disk_.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the free disk space,"
                    << " defaulting to " << DEFAULT_DISK  << " MB";
@@ -2459,7 +2461,9 @@ void Slave::checkDiskUsage()
 {
   // TODO(vinod): We are making usage a Future, so that we can plug in
   // fs::usage() into async.
-  Future<Try<double> >(fs::usage())
+  // NOTE: We calculate disk usage of the file system on which the
+  // slave work directory is mounted.
+  Future<Try<double> >(fs::usage(flags.work_dir))
     .onAny(defer(self(), &Slave::_checkDiskUsage, params::_1));
 }
 

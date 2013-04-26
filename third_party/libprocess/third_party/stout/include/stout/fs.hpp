@@ -25,12 +25,13 @@ inline Try<uint64_t> available(const std::string& path = "/")
 }
 
 
-// Returns relative disk usage of the file system mounted at the given path.
-inline Try<double> usage(const std::string& fs = "/")
+// Returns relative disk usage of the file system that the given path
+// is mounted at.
+inline Try<double> usage(const std::string& path = "/")
 {
   struct statvfs buf;
-  if (statvfs(fs.c_str(), &buf) < 0) {
-    return ErrnoError("Error invoking statvfs of '" + fs + "'");
+  if (statvfs(path.c_str(), &buf) < 0) {
+    return ErrnoError("Error invoking statvfs on '" + path + "'");
   }
   return (double) (buf.f_blocks - buf.f_bfree) / buf.f_blocks;
 }
