@@ -71,7 +71,17 @@ public:
   bool operator == (const Bytes& that) const { return value == that.value; }
   bool operator != (const Bytes& that) const { return value != that.value; }
 
-  // TODO(bmahler): Overload arithmetic operators..
+  Bytes& operator += (const Bytes& that)
+  {
+    value += that.value;
+    return *this;
+  }
+
+  Bytes& operator -= (const Bytes& that)
+  {
+    value -= that.value;
+    return *this;
+  }
 
 protected:
   static const uint64_t BYTES = 1;
@@ -129,6 +139,22 @@ inline std::ostream& operator << (std::ostream& stream, const Bytes& bytes)
   } else {
     return stream << bytes.terabytes() << "TB";
   }
+}
+
+
+inline Bytes operator + (const Bytes& lhs, const Bytes& rhs)
+{
+  Bytes sum = lhs;
+  sum += rhs;
+  return sum;
+}
+
+
+inline Bytes operator - (const Bytes& lhs, const Bytes& rhs)
+{
+  Bytes diff = lhs;
+  diff -= rhs;
+  return diff;
 }
 
 #endif // __STOUT_BYTES_HPP__

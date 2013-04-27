@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "bytes.hpp"
 #include "error.hpp"
 #include "nothing.hpp"
 #include "try.hpp"
@@ -15,13 +16,13 @@
 namespace fs {
 
 // Returns the total available disk size in bytes.
-inline Try<uint64_t> available(const std::string& path = "/")
+inline Try<Bytes> available(const std::string& path = "/")
 {
   struct statvfs buf;
   if (::statvfs(path.c_str(), &buf) < 0) {
     return ErrnoError();
   }
-  return buf.f_bavail * buf.f_frsize;
+  return Bytes(buf.f_bavail * buf.f_frsize);
 }
 
 

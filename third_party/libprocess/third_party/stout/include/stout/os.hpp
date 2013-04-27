@@ -38,6 +38,7 @@
 #include <sstream>
 #include <string>
 
+#include "bytes.hpp"
 #include "duration.hpp"
 #include "error.hpp"
 #include "foreach.hpp"
@@ -933,8 +934,8 @@ inline Try<long> cpus()
 }
 
 
-// Returns the total size of main memory in bytes.
-inline Try<uint64_t> memory()
+// Returns the total size of main memory.
+inline Try<Bytes> memory()
 {
 #ifdef __linux__
   struct sysinfo info;
@@ -942,9 +943,9 @@ inline Try<uint64_t> memory()
     return ErrnoError();
   }
 # if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 23)
-  return info.totalram * info.mem_unit;
+  return Bytes(info.totalram * info.mem_unit);
 # else
-  return info.totalram;
+  return Bytes(info.totalram);
 # endif
 #elif defined __APPLE__
   const size_t NAME_SIZE = 2;
@@ -958,7 +959,7 @@ inline Try<uint64_t> memory()
   if (sysctl(name, NAME_SIZE, &memory, &length, NULL, 0) < 0) {
     return ErrnoError("Failed to get sysctl of HW_MEMSIZE");
   }
-  return memory;
+  return Bytes(memory);
 #else
   return Error("Cannot determine the size of main memory");
 #endif
