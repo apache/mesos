@@ -79,10 +79,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-// Flags used to run the tests.
-extern flags::Flags<logging::Flags, Flags> flags;
-
-
 #ifdef __linux__
 // Cgroups hierarchy used by the cgroups related tests.
 const static std::string TEST_CGROUPS_HIERARCHY = "/tmp/mesos_test_cgroup";

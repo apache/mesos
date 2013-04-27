@@ -35,10 +35,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-// Storage for our flags.
-flags::Flags<logging::Flags, Flags> flags;
-
-
 Try<string> mkdtemp()
 {
   const ::testing::TestInfo* const testInfo =

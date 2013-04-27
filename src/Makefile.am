@@ -769,6 +769,7 @@ check_PROGRAMS += mesos-tests
 
 mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/environment.cpp				\
+	              tests/flags.cpp					\
 	              tests/master_tests.cpp tests/state_tests.cpp	\
 	              tests/paths_tests.cpp				\
 	              tests/reaper_tests.cpp				\

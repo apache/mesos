@@ -31,7 +31,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class Flags : public virtual flags::FlagsBase
+class Flags : public logging::Flags
 {
 public:
   Flags()
@@ -66,6 +66,9 @@ public:
   std::string source_dir;
   std::string build_dir;
 };
+
+// Global flags for running the tests.
+extern Flags flags;
 
 } // namespace tests {
 } // namespace internal {
