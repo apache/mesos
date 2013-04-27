@@ -26,6 +26,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
@@ -277,8 +278,8 @@ public:
   // Helpers to get known resource types.
   // TODO(vinod): Fix this when we make these types as first class protobufs.
   Option<double> cpus();
-  Option<double> mem();
-  Option<double> disk();
+  Option<Bytes> mem();
+  Option<Bytes> disk();
   Option<Value::Ranges> ports(); // TODO(vinod): Provide a Ranges abstraction.
 
   typedef google::protobuf::RepeatedPtrField<Resource>::iterator
@@ -430,31 +431,31 @@ inline Option<double> Resources::cpus()
       return resource.scalar().value();
     }
   }
-  return Option<double>::none();
+  return None();
 }
 
 
-inline Option<double> Resources::mem()
+inline Option<Bytes> Resources::mem()
 {
   foreach (const Resource& resource, resources) {
     if (resource.name() == "mem" &&
         resource.type() == Value::SCALAR) {
-      return resource.scalar().value();
+      return Megabytes(static_cast<uint64_t>(resource.scalar().value()));
     }
   }
-  return Option<double>::none();
+  return None();
 }
 
 
-inline Option<double> Resources::disk()
+inline Option<Bytes> Resources::disk()
 {
   foreach (const Resource& resource, resources) {
     if (resource.name() == "disk" &&
         resource.type() == Value::SCALAR) {
-      return resource.scalar().value();
+      return Megabytes(static_cast<uint64_t>(resource.scalar().value()));
     }
   }
-  return Option<double>::none();
+  return None();
 }
 
 
@@ -466,7 +467,7 @@ inline Option<Value::Ranges> Resources::ports()
       return resource.ranges();
     }
   }
-  return Option<Value::Ranges>::none();
+  return None();
 }
 
 

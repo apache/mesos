@@ -31,6 +31,7 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/exit.hpp>
 #include <stout/fs.hpp>
@@ -125,48 +126,46 @@ Slave::Slave(const slave::Flags& _flags,
     }
   }
 
-  double mem; // in MB.
+  Bytes mem;
   if (resources.mem().isSome()) {
     mem = resources.mem().get();
   } else {
-    Try<uint64_t> mem_ = os::memory(); // in bytes.
+    Try<Bytes> mem_ = os::memory();
     if (!mem_.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the size of main memory,"
-                   << " defaulting to " << DEFAULT_MEM << " MB";
+                   << " defaulting to " << DEFAULT_MEM;
       mem = DEFAULT_MEM;
     } else {
-      // Convert to MB.
-      mem = mem_.get() / 1048576;
+      mem = mem_.get();
 
       // Leave 1 GB free if we have more than 1 GB, otherwise, use all!
       // TODO(benh): Have better default scheme (e.g., % of mem not
       // greater than 1 GB?)
-      if (mem > 1024) {
-        mem = mem - 1024;
+      if (mem > Gigabytes(1)) {
+        mem = mem - Gigabytes(1);
       }
     }
   }
 
-  double disk; // in MB.
+  Bytes disk;
   if (resources.disk().isSome()) {
     disk = resources.disk().get();
   } else {
     // NOTE: We calculate disk availability of the file system on
     // which the slave work directory is mounted.
-    Try<uint64_t> disk_ = fs::available(flags.work_dir); // in bytes.
+    Try<Bytes> disk_ = fs::available(flags.work_dir);
     if (!disk_.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the free disk space,"
-                   << " defaulting to " << DEFAULT_DISK  << " MB";
+                   << " defaulting to " << DEFAULT_DISK;
       disk = DEFAULT_DISK;
     } else {
-      // Convert to MB.
-      disk = disk_.get() / 1048576;
+      disk = disk_.get();
 
       // Leave 5 GB free if we have more than 10 GB, otherwise, use all!
       // TODO(benh): Have better default scheme (e.g., % of disk not
       // greater than 10 GB?)
-      if (disk > 1024 * 10) {
-        disk = disk - (1024 * 5);
+      if (disk > Gigabytes(10)) {
+        disk = disk - Gigabytes(5);
       }
     }
   }
@@ -180,7 +179,11 @@ Slave::Slave(const slave::Flags& _flags,
   }
 
   Try<string> defaults = strings::format(
-      "cpus:%f;mem:%f;ports:%s;disk:%f", cpus, mem, ports, disk);
+      "cpus:%f;mem:%lu;ports:%s;disk:%lu",
+      cpus,
+      mem.megabytes(),
+      ports,
+      disk.megabytes());
 
   CHECK_SOME(defaults);
 
@@ -2474,12 +2477,12 @@ void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
     LOG(ERROR) << "Failed to get disk usage: "
                << (usage.isFailed() ? usage.failure() : "future discarded");
   } else {
-    Try<double> result = usage.get();
+    const Try<double>& result = usage.get();
 
     if (result.isSome()) {
       double use = result.get();
 
-      LOG(INFO) << "Current disk usage " << std::setiosflags(std::ios::fixed)
+      LOG(INFO) << "Current usage " << std::setiosflags(std::ios::fixed)
                 << std::setprecision(2) << 100 * use << "%."
                 << " Max allowed age: " << age(use);
 

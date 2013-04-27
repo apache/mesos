@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 
 namespace mesos {
@@ -54,10 +55,10 @@ extern const uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR;
 extern const double DEFAULT_CPUS;
 
 // Default memory offered by the slave.
-extern const double DEFAULT_MEM; // In MB.
+extern const Bytes DEFAULT_MEM;
 
 // Default disk space offered by the slave.
-extern const double DEFAULT_DISK; // In MB.
+extern const Bytes DEFAULT_DISK;
 
 // Default ports range offered by the slave.
 extern const std::string DEFAULT_PORTS;

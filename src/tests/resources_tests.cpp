@@ -21,6 +21,7 @@
 
 #include <gtest/gtest.h>
 
+#include <stout/bytes.hpp>
 #include <stout/gtest.hpp>
 
 #include "master/master.hpp"
@@ -65,13 +66,13 @@ TEST(ResourcesTest, Parsing)
 TEST(ResourcesTest, Resources)
 {
   Resources r = Resources::parse("cpus:45.55;"
-                                 "mem:1024.0;"
+                                 "mem:1024;"
                                  "ports:[10000-20000, 30000-50000];"
-                                 "disk:512.4");
+                                 "disk:512");
 
   EXPECT_SOME_EQ(45.55, r.cpus());
-  EXPECT_SOME_EQ(1024.0, r.mem());
-  EXPECT_SOME_EQ(512.4, r.disk());
+  EXPECT_SOME_EQ(Megabytes(1024), r.mem());
+  EXPECT_SOME_EQ(Megabytes(512), r.disk());
 
   EXPECT_SOME(r.ports());
   ostringstream ports;
@@ -79,9 +80,9 @@ TEST(ResourcesTest, Resources)
 
   EXPECT_EQ("[10000-20000, 30000-50000]", ports.str());
 
-  r = Resources::parse("cpus:45.55;disk:512.4");
+  r = Resources::parse("cpus:45.55;disk:512");
   EXPECT_SOME_EQ(45.55, r.cpus());
-  EXPECT_SOME_EQ(512.4, r.disk());
+  EXPECT_SOME_EQ(Megabytes(512), r.disk());
   EXPECT_TRUE(r.mem().isNone());
   EXPECT_TRUE(r.ports().isNone());
 }

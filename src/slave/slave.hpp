@@ -31,6 +31,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/multihashmap.hpp>
@@ -181,7 +182,7 @@ public:
   // TODO(vinod): Instead of making this function public, we need to
   // mock both GarbageCollector (and pass it through slave's constructor)
   // and os calls.
-  void _checkDiskUsage(const Future<Try<double> >& capacity);
+  void _checkDiskUsage(const Future<Try<double> >& usage);
 
   // Shut down an executor. This is a two phase process. First, an
   // executor receives a shut down message (shut down phase), then

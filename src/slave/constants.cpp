@@ -33,8 +33,8 @@ const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
 const uint32_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK = 150;
 const uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR = 200;
 const double DEFAULT_CPUS = 1;
-const double DEFAULT_MEM = 1024; // In MB.
-const double DEFAULT_DISK = 10240; // In MB.
+const Bytes DEFAULT_MEM = Gigabytes(1);
+const Bytes DEFAULT_DISK = Gigabytes(10);
 const std::string DEFAULT_PORTS = "[31000-32000]";
 
 } // namespace slave {
