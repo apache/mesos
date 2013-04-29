@@ -30,6 +30,7 @@
 #include "logging/logging.hpp"
 
 #include "tests/environment.hpp"
+#include "tests/flags.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos::internal;
@@ -98,7 +99,11 @@ int main(int argc, char** argv)
   std::cout << "Source directory: " << flags.source_dir << std::endl;
   std::cout << "Build directory: " << flags.build_dir << std::endl;
 
-  testing::AddGlobalTestEnvironment(new Environment());
+  // Instantiate our environment. Note that it will be managed by
+  // gtest after we add it via testing::AddGlobalTestEnvironment.
+  environment = new Environment();
+
+  testing::AddGlobalTestEnvironment(environment);
 
   return RUN_ALL_TESTS();
 }

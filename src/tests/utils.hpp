@@ -72,6 +72,7 @@
 #include "slave/state.hpp"
 
 #include "tests/cluster.hpp"
+#include "tests/environment.hpp"
 #include "tests/flags.hpp"
 #include "tests/isolator.hpp"
 
@@ -86,12 +87,6 @@ const static std::string TEST_CGROUPS_HIERARCHY = "/tmp/mesos_test_cgroup";
 // Name of the root cgroup used by the cgroups related tests.
 const static std::string TEST_CGROUPS_ROOT = "mesos_test";
 #endif
-
-
-// Helper to create a temporary directory based on the current test
-// case name and test name (derived from TestInfo via
-// ::testing::UnitTest::GetInstance()->current_test_info()).
-Try<std::string> mkdtemp();
 
 
 // Test fixture for creating a temporary directory for each test.
@@ -118,7 +113,7 @@ protected:
   virtual void SetUp()
   {
     // Create a temporary directory for the test.
-    Try<std::string> directory = mkdtemp();
+    Try<std::string> directory = environment->mkdtemp();
 
     CHECK(directory.isSome())
       << "Failed to create temporary directory: " << directory.error();
@@ -154,7 +149,7 @@ protected:
   virtual void SetUp()
   {
     // Create a temporary directory for the test.
-    Try<std::string> directory = mkdtemp();
+    Try<std::string> directory = environment->mkdtemp();
 
     CHECK(directory.isSome())
       << "Failed to create temporary directory: " << directory.error();

@@ -28,6 +28,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include "tests/environment.hpp"
 #include "tests/script.hpp"
 #include "tests/utils.hpp"
 
@@ -40,7 +41,7 @@ namespace tests {
 void execute(const string& script)
 {
   // Create a temporary directory for the test.
-  Try<string> directory = mkdtemp();
+  Try<string> directory = environment->mkdtemp();
 
   CHECK_SOME(directory) << "Failed to create temporary directory";
 

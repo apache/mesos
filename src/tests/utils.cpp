@@ -26,6 +26,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include "tests/environment.hpp"
 #include "tests/flags.hpp"
 #include "tests/utils.hpp"
 
@@ -35,40 +36,13 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-Try<string> mkdtemp()
-{
-  const ::testing::TestInfo* const testInfo =
-    ::testing::UnitTest::GetInstance()->current_test_info();
-
-  // We replace any slashes present in the test names (e.g. TYPED_TEST),
-  // to make sure the temporary directory resides under '/tmp/'.
-  const string& testCase =
-    strings::replace(testInfo->test_case_name(), "/", "_");
-
-  string testName = strings::replace(testInfo->name(), "/", "_");
-
-  // Adjust the test name to remove any 'DISABLED_' prefix (to make
-  // things easier to read). While this might seem alarming, if we are
-  // "running" a disabled test it must be the case that the test was
-  // explicitly enabled (e.g., via 'gtest_filter').
-  if (strings::startsWith(testName, "DISABLED_")) {
-    testName = strings::remove(testName, "DISABLED_", strings::PREFIX);
-  }
-
-  const string& path =
-    path::join("/tmp", strings::join("_", testCase, testName, "XXXXXX"));
-
-  return os::mkdtemp(path);
-}
-
-
 void TemporaryDirectoryTest::SetUp()
 {
   // Save the current working directory.
   cwd = os::getcwd();
 
   // Create a temporary directory for the test.
-  Try<string> directory = mkdtemp();
+  Try<string> directory = environment->mkdtemp();
 
   ASSERT_SOME(directory) << "Failed to mkdtemp";
 

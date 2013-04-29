@@ -24,6 +24,7 @@
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 
+#include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
@@ -35,6 +36,7 @@
 #endif
 
 #include "tests/environment.hpp"
+#include "tests/flags.hpp"
 
 using std::list;
 using std::string;
@@ -42,6 +44,10 @@ using std::string;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+// Storage for the global environment instance.
+Environment* environment;
+
 
 // Returns true if we should enable the provided test. Similar to how
 // tests can be disabled using the 'DISABLED_' prefix on a test case
@@ -169,6 +175,18 @@ Environment::Environment()
 }
 
 
+Environment::~Environment()
+{
+  foreach (const string& directory, directories) {
+    Try<Nothing> rmdir = os::rmdir(directory);
+    if (rmdir.isError()) {
+      LOG(ERROR) << "Failed to remove '" << directory
+                 << "': " << rmdir.error();
+    }
+  }
+}
+
+
 void Environment::SetUp()
 {
   // Clear any MESOS_ environment variables so they don't affect our tests.
@@ -177,10 +195,47 @@ void Environment::SetUp()
   if (!GTEST_IS_THREADSAFE) {
     EXIT(1) << "Testing environment is not thread safe, bailing!";
   }
+
+  // For locating killtree.sh.
+  os::setenv("MESOS_SOURCE_DIR", tests::flags.source_dir);
 }
 
 
-void Environment::TearDown() {}
+void Environment::TearDown()
+{
+  os::unsetenv("MESOS_SOURCE_DIR");
+}
+
+
+Try<string> Environment::mkdtemp()
+{
+  const ::testing::TestInfo* const testInfo =
+    ::testing::UnitTest::GetInstance()->current_test_info();
+
+  if (testInfo == NULL) {
+    return Error("Failed to determine the current test information");
+  }
+
+  // We replace any slashes present in the test names (e.g. TYPED_TEST),
+  // to make sure the temporary directory resides under '/tmp/'.
+  const string& testCase =
+    strings::replace(testInfo->test_case_name(), "/", "_");
+
+  string testName = strings::replace(testInfo->name(), "/", "_");
+
+  // Adjust the test name to remove any 'DISABLED_' prefix (to make
+  // things easier to read). While this might seem alarming, if we are
+  // "running" a disabled test it must be the case that the test was
+  // explicitly enabled (e.g., via 'gtest_filter').
+  if (strings::startsWith(testName, "DISABLED_")) {
+    testName = strings::remove(testName, "DISABLED_", strings::PREFIX);
+  }
+
+  const string& path =
+    path::join("/tmp", strings::join("_", testCase, testName, "XXXXXX"));
+
+  return os::mkdtemp(path);
+}
 
 } // namespace tests {
 } // namespace internal {

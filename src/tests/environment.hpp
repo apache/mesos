@@ -21,17 +21,39 @@
 
 #include <gtest/gtest.h>
 
+#include <list>
+#include <string>
+
+#include <stout/try.hpp>
+
 namespace mesos {
 namespace internal {
 namespace tests {
 
-// Used to set up our particular test environment.
+// Used to set up and manage the test environment.
 class Environment : public ::testing::Environment {
 public:
   Environment();
+  virtual ~Environment();
+
   virtual void SetUp();
   virtual void TearDown();
+
+  // Helper to create a temporary directory based on the current test
+  // case name and test name (derived from TestInfo via
+  // ::testing::UnitTest::GetInstance()->current_test_info()). Note
+  // that the directory will automagically get removed when the
+  // environment instance gets destructed.
+  Try<std::string> mkdtemp();
+
+private:
+  // Temporary directories that we created and need to remove.
+  std::list<std::string> directories;
 };
+
+
+// Global environment instance.
+extern Environment* environment;
 
 } // namespace tests {
 } // namespace internal {
