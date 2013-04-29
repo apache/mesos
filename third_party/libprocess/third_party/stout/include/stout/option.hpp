@@ -67,6 +67,8 @@ public:
 
   T get() const { assert(state == SOME); return *t; }
 
+  T get(const T& _t) const { return state == NONE ? _t : *t; }
+
 private:
   enum State {
     SOME,
