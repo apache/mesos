@@ -346,13 +346,6 @@ void Master::initialize()
       &StatusUpdateMessage::update,
       &StatusUpdateMessage::pid);
 
-  install<ExecutorToFrameworkMessage>(
-      &Master::executorMessage,
-      &ExecutorToFrameworkMessage::slave_id,
-      &ExecutorToFrameworkMessage::framework_id,
-      &ExecutorToFrameworkMessage::executor_id,
-      &ExecutorToFrameworkMessage::data);
-
   install<ExitedExecutorMessage>(
       &Master::exitedExecutor,
       &ExitedExecutorMessage::slave_id,
@@ -1049,92 +1042,68 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 {
   const TaskStatus& status = update.status();
 
-  LOG(INFO) << "Status update from " << from
+  // NOTE: We cannot use 'from' here to identify the slave as this is
+  // now sent by the StatusUpdateManagerProcess. Only 'pid' can
+  // be used to identify the slave.
+  LOG(INFO) << "Status update from " << pid
             << ": task " << status.task_id()
             << " of framework " << update.framework_id()
             << " is now in state " << status.state();
 
   Slave* slave = getSlave(update.slave_id());
-  if (slave != NULL) {
-    Framework* framework = getFramework(update.framework_id());
-    if (framework != NULL) {
-      // Pass on the (transformed) status update to the framework.
-      StatusUpdateMessage message;
-      message.mutable_update()->MergeFrom(update);
-      message.set_pid(pid);
-      send(framework->pid, message);
-
-      // Lookup the task and see if we need to update anything locally.
-      Task* task = slave->getTask(update.framework_id(), status.task_id());
-      if (task != NULL) {
-        task->set_state(status.state());
-
-        // Handle the task appropriately if it's terminated.
-        if (status.state() == TASK_FINISHED ||
-            status.state() == TASK_FAILED ||
-            status.state() == TASK_KILLED ||
-            status.state() == TASK_LOST) {
-
-          removeTask(task);
-        }
-
-        stats.tasks[status.state()]++;
-
-        stats.validStatusUpdates++;
-      } else {
-        LOG(WARNING) << "Status update from " << from << " ("
-                     << slave->info.hostname() << "): error, couldn't lookup "
-                     << "task " << status.task_id();
-        stats.invalidStatusUpdates++;
-      }
+  if (slave == NULL) {
+    if (deactivatedSlaves.contains(pid)) {
+      // If the slave is deactivated, we have already informed
+      // frameworks that its tasks were LOST, so the slave should
+      // shut down.
+      LOG(WARNING) << "Ignoring status update from deactivated slave " << pid
+                   << " with id " << update.slave_id() << " ; asking slave "
+                   << " to shutdown";
+      send(pid, ShutdownMessage());
     } else {
-      LOG(WARNING) << "Status update from " << from << " ("
-                   << slave->info.hostname() << "): error, couldn't lookup "
-                   << "framework " << update.framework_id();
-      stats.invalidStatusUpdates++;
+      LOG(WARNING) << "Ignoring status update from unknown slave " << pid
+                   << " with id " << update.slave_id();
     }
-  } else {
-    LOG(WARNING) << "Status update from " << from
-                 << ": error, couldn't lookup slave "
-                 << update.slave_id();
     stats.invalidStatusUpdates++;
+    return;
   }
-}
 
+  CHECK(!deactivatedSlaves.contains(pid));
 
-void Master::executorMessage(const SlaveID& slaveId,
-                             const FrameworkID& frameworkId,
-                             const ExecutorID& executorId,
-                             const string& data)
-{
-  Slave* slave = getSlave(slaveId);
-  if (slave != NULL) {
-    Framework* framework = getFramework(frameworkId);
-    if (framework != NULL) {
-      LOG(INFO) << "Sending framework message from slave " << slaveId << " ("
-                << slave->info.hostname() << ")"
-                << " to framework " << frameworkId;
-      ExecutorToFrameworkMessage message;
-      message.mutable_slave_id()->MergeFrom(slaveId);
-      message.mutable_framework_id()->MergeFrom(frameworkId);
-      message.mutable_executor_id()->MergeFrom(executorId);
-      message.set_data(data);
-      send(framework->pid, message);
-
-      stats.validFrameworkMessages++;
-    } else {
-      LOG(WARNING) << "Cannot send framework message from slave "
-                   << slaveId << " (" << slave->info.hostname()
-                   << ") to framework " << frameworkId
-                   << " because framework does not exist";
-      stats.invalidFrameworkMessages++;
-    }
-  } else {
-    LOG(WARNING) << "Cannot send framework message from slave "
-                 << slaveId << " to framework " << frameworkId
-                 << " because slave does not exist";
-    stats.invalidFrameworkMessages++;
+  Framework* framework = getFramework(update.framework_id());
+  if (framework == NULL) {
+    LOG(WARNING) << "Ignoring status update from " << pid << " ("
+                 << slave->info.hostname() << "): error, couldn't lookup "
+                 << "framework " << update.framework_id();
+    stats.invalidStatusUpdates++;
+    return;
   }
+
+  // Pass on the (transformed) status update to the framework.
+  StatusUpdateMessage message;
+  message.mutable_update()->MergeFrom(update);
+  message.set_pid(pid);
+  send(framework->pid, message);
+
+  // Lookup the task and see if we need to update anything locally.
+  Task* task = slave->getTask(update.framework_id(), status.task_id());
+  if (task == NULL) {
+    LOG(WARNING) << "Status update from " << pid << " ("
+                 << slave->info.hostname() << "): error, couldn't lookup "
+                 << "task " << status.task_id();
+    stats.invalidStatusUpdates++;
+    return;
+  }
+
+  task->set_state(status.state());
+
+  // Handle the task appropriately if it's terminated.
+  if (protobuf::isTerminalState(status.state())) {
+    removeTask(task);
+  }
+
+  stats.tasks[status.state()]++;
+  stats.validStatusUpdates++;
 }
 
 
@@ -1146,41 +1115,55 @@ void Master::exitedExecutor(const SlaveID& slaveId,
   // Only update master's internal data structures here for properly accounting.
   // The TASK_LOST updates are handled by the slave.
   Slave* slave = getSlave(slaveId);
-  if (slave != NULL) {
-    // Tell the allocator about the recovered resources.
-    if (slave->hasExecutor(frameworkId, executorId)) {
-      ExecutorInfo executor = slave->executors[frameworkId][executorId];
-
-      LOG(INFO) << "Executor " << executorId
-                << " of framework " << frameworkId
-                << " on slave " << slaveId
-                << " (" << slave->info.hostname() << ")"
-                << " exited with status " << status;
-
-      allocator->resourcesRecovered(frameworkId,
-                                    slaveId,
-                                    Resources(executor.resources()));
-
-      // Remove executor from slave and framework.
-      slave->removeExecutor(frameworkId, executorId);
+  if (slave == NULL) {
+    if (deactivatedSlaves.contains(from)) {
+      // If the slave is deactivated, we have already informed
+      // frameworks that its tasks were LOST, so the slave should
+      // shut down.
+      LOG(WARNING) << "Ignoring exited executor '" << executorId
+                   << "' of framework " << frameworkId
+                   << " on deactivated slave " << slaveId
+                   << " ; asking slave to shutdown";
+      reply(ShutdownMessage());
     } else {
-      LOG(WARNING) << "Ignoring unknown exited executor "
-                   << executorId << " on slave " << slaveId
-                   << " (" << slave->info.hostname() << ")";
+      LOG(WARNING) << "Ignoring exited executor '" << executorId
+                   << "' of framework " << frameworkId
+                   << " on unknown slave " << slaveId;
     }
+    return;
+  }
 
-    Framework* framework = getFramework(frameworkId);
-    if (framework != NULL) {
-      framework->removeExecutor(slave->id, executorId);
+  CHECK(!deactivatedSlaves.contains(from));
 
-      // TODO(benh): Send the framework it's executor's exit status?
-      // Or maybe at least have something like
-      // Scheduler::executorLost?
-    }
-  } else {
-    LOG(INFO) << "Ignoring unknown exited executor " << executorId
+  // Tell the allocator about the recovered resources.
+  if (slave->hasExecutor(frameworkId, executorId)) {
+    ExecutorInfo executor = slave->executors[frameworkId][executorId];
+
+    LOG(INFO) << "Executor " << executorId
               << " of framework " << frameworkId
-              << " on unknown slave " << slaveId;
+              << " on slave " << slaveId
+              << " (" << slave->info.hostname() << ")"
+              << " exited with status " << status;
+
+    allocator->resourcesRecovered(frameworkId,
+        slaveId,
+        Resources(executor.resources()));
+
+    // Remove executor from slave and framework.
+    slave->removeExecutor(frameworkId, executorId);
+  } else {
+    LOG(WARNING) << "Ignoring unknown exited executor "
+                 << executorId << " on slave " << slaveId
+                 << " (" << slave->info.hostname() << ")";
+  }
+
+  Framework* framework = getFramework(frameworkId);
+  if (framework != NULL) {
+    framework->removeExecutor(slave->id, executorId);
+
+    // TODO(benh): Send the framework its executor's exit status?
+    // Or maybe at least have something like
+    // Scheduler::executorLost?
   }
 }
 

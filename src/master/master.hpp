@@ -107,10 +107,6 @@ public:
                        const std::vector<Task>& tasks);
   void unregisterSlave(const SlaveID& slaveId);
   void statusUpdate(const StatusUpdate& update, const UPID& pid);
-  void executorMessage(const SlaveID& slaveId,
-                       const FrameworkID& frameworkId,
-                       const ExecutorID& executorId,
-                       const std::string& data);
   void exitedExecutor(const SlaveID& slaveId,
                       const FrameworkID& frameworkId,
                       const ExecutorID& executorId,

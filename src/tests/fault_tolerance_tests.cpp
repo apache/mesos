@@ -25,12 +25,16 @@
 #include <vector>
 
 #include <mesos/executor.hpp>
+#include <mesos/mesos.hpp>
 #include <mesos/scheduler.hpp>
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
+
+#include <stout/stringify.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -42,6 +46,7 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
+#include "slave/isolator.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/utils.hpp"
@@ -55,6 +60,7 @@ using mesos::internal::master::Allocator;
 using mesos::internal::master::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::Isolator;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::STATUS_UPDATE_RETRY_INTERVAL;
 
@@ -62,6 +68,7 @@ using process::Clock;
 using process::Future;
 using process::Message;
 using process::PID;
+using process::UPID;
 
 using std::string;
 using std::map;
@@ -220,10 +227,6 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
   Try<PID<Master> > master = cluster.masters.start();
   ASSERT_SOME(master);
 
-  MockExecutor exec;
-  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
-  ASSERT_SOME(slave);
-
   // Allow the master to PING the slave, but drop all PONG messages
   // from the slave. Note that we don't match on the master / slave
   // PIDs because it's actually the SlaveObserver Process that sends
@@ -231,7 +234,9 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
   Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
   DROP_MESSAGES(Eq("PONG"), _, _);
 
-  BasicMasterDetector detector(master.get(), slave.get(), true);
+  MockExecutor exec;
+  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
@@ -287,7 +292,7 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
 
   // Drop the first shutdown message from the master (simulated
   // partition), allow the second shutdown message to pass when
-  // the slave re-registers,
+  // the slave re-registers.
   Future<ShutdownMessage> shutdownSlave =
     DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
 
@@ -312,6 +317,7 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
     Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::settle();
   }
 
   Clock::advance(master::SLAVE_PING_TIMEOUT);
@@ -354,6 +360,259 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
   driver.join();
 
   cluster.shutdown();
+}
+
+
+// The purpose of this test is to ensure that when slaves are removed
+// from the master, and then attempt to send status updates, we send
+// a ShutdownMessage to the slave. Why? Because during a network
+// partition, the master will remove a partitioned slave, thus sending
+// its tasks to LOST. At this point, when the partition is removed,
+// the slave may attempt to send updates if it was unaware that the
+// master deactivated it. We've already notified frameworks that these
+// tasks were LOST, so we have to have the slave shut down.
+TEST_F(FaultToleranceClusterTest, PartitionedSlaveStatusUpdates)
+{
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
+
+  // Allow the master to PING the slave, but drop all PONG messages
+  // from the slave. Note that we don't match on the master / slave
+  // PIDs because it's actually the SlaveObserver Process that sends
+  // the pings.
+  Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+  DROP_MESSAGES(Eq("PONG"), _, _);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  MockExecutor exec;
+  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return());
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  // Drop the first shutdown message from the master (simulated
+  // partition), allow the second shutdown message to pass when
+  // the slave sends an update.
+  Future<ShutdownMessage> shutdownSlave =
+    DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillRepeatedly(Return());
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  Clock::pause();
+
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  uint32_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+     break;
+    }
+    ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::settle();
+  }
+
+  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::settle();
+
+  // Wait for the master to attempt to shut down the slave.
+  AWAIT_READY(shutdownSlave);
+
+  // The master will notify the framework that the slave was lost.
+  AWAIT_READY(slaveLost);
+
+  shutdownSlave = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+
+  // At this point, the slave still thinks it's registered, so we
+  // simulate a status update coming from the slave.
+  StatusUpdateMessage statusUpdate;
+  statusUpdate.set_pid(stringify(slave.get()));
+  statusUpdate.mutable_update()->mutable_framework_id()->set_value(
+      frameworkId.get().value());
+  statusUpdate.mutable_update()->mutable_executor_id()->set_value("executor");
+  statusUpdate.mutable_update()->mutable_slave_id()->set_value(slaveId.value());
+  statusUpdate.mutable_update()->mutable_status()->mutable_task_id()->set_value(
+      "task_id");
+  statusUpdate.mutable_update()->mutable_status()->set_state(TASK_RUNNING);
+  statusUpdate.mutable_update()->set_timestamp(Clock::now());
+  statusUpdate.mutable_update()->set_uuid(stringify(UUID::random()));
+  process::post(master.get(), statusUpdate);
+
+  // The master should shutdown the slave upon receiving the update.
+  AWAIT_READY(shutdownSlave);
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  cluster.shutdown();
+}
+
+
+// The purpose of this test is to ensure that when slaves are removed
+// from the master, and then attempt to send exited executor messages,
+// we send a ShutdownMessage to the slave. Why? Because during a
+// network partition, the master will remove a partitioned slave, thus
+// sending its tasks to LOST. At this point, when the partition is
+// removed, the slave may attempt to send exited executor messages if
+// it was unaware that the master deactivated it. We've already
+// notified frameworks that the tasks under the executors were LOST,
+// so we have to have the slave shut down.
+TEST_F(FaultToleranceClusterTest, PartitionedSlaveExitedExecutor)
+{
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
+
+  // Allow the master to PING the slave, but drop all PONG messages
+  // from the slave. Note that we don't match on the master / slave
+  // PIDs because it's actually the SlaveObserver Process that sends
+  // the pings.
+  Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+  DROP_MESSAGES(Eq("PONG"), _, _);
+
+  MockExecutor exec;
+  TestingIsolator* isolator = new TestingIsolator(DEFAULT_EXECUTOR_ID, &exec);
+  process::spawn(isolator);
+  Try<PID<Slave> > slave = cluster.slaves.start(isolator);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));\
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers.get().size());
+
+  // Launch a task. This allows us to have the slave send an
+  // ExitedExecutorMessage.
+  TaskID taskId;
+  taskId.set_value("1");
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->MergeFrom(taskId);
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  task.mutable_executor()->mutable_command()->set_value("sleep 60");
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  // Set up the expectations for launching the task.
+  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // Drop all the status updates from the slave, so that we can
+  // ensure the ExitedExecutorMessage is what triggers the slave
+  // shutdown.
+  DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get());
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Drop the first shutdown message from the master (simulated
+  // partition) and allow the second shutdown message to pass when
+  // triggered by the ExitedExecutorMessage.
+  Future<ShutdownMessage> shutdownSlave =
+    DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
+
+  Future<TaskStatus> lostStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&lostStatus));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  Clock::pause();
+
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  uint32_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+     break;
+    }
+    ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::settle();
+  }
+
+  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::settle();
+
+  // The master will have notified the framework of the lost task.
+  AWAIT_READY(lostStatus);
+  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+
+  // Wait for the master to attempt to shut down the slave.
+  AWAIT_READY(shutdownSlave);
+
+  // The master will notify the framework that the slave was lost.
+  AWAIT_READY(slaveLost);
+
+  shutdownSlave = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+
+  // Induce an ExitedExecutorMessage from the slave.
+  dispatch(isolator,
+           &Isolator::killExecutor,
+           frameworkId.get(),
+           DEFAULT_EXECUTOR_INFO.executor_id());
+
+  // Upon receiving the message, the master will shutdown the slave.
+  AWAIT_READY(shutdownSlave);
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  cluster.shutdown();
+
+  // TODO(benh): Terminate and wait for the isolator once the slave
+  // is no longer doing so.
+  // process::terminate(isolator);
+  // process::wait(isolator);
+  delete isolator;
 }
 
 
