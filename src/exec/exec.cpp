@@ -280,19 +280,19 @@ protected:
       const string& uuid)
   {
     if (aborted) {
-      VLOG(1) << "Ignoring status update acknowledgement " << uuid
-              << " for task " << taskId
+      VLOG(1) << "Ignoring status update acknowledgement "
+              << UUID::fromBytes(uuid) << " for task " << taskId
               << " of framework " << frameworkId
               << " because the driver is aborted!";
       return;
     }
 
-    VLOG(1) << "Executor received status update acknowledgement " << uuid
-            << " for task " << taskId
+    VLOG(1) << "Executor received status update acknowledgement "
+            << UUID::fromBytes(uuid) << " for task " << taskId
             << " of framework " << frameworkId;
 
     // Remove the corresponding update.
-    updates.erase(uuid);
+    updates.erase(UUID::fromBytes(uuid));
 
     // Remove the corresponding task.
     tasks.erase(taskId);
@@ -404,7 +404,7 @@ protected:
     VLOG(1) << "Executor sending status update " << *update;
 
     // Capture the status update.
-    updates[update->uuid()] = *update;
+    updates[UUID::fromBytes(update->uuid())] = *update;
 
     send(slave, message);
   }
@@ -434,7 +434,7 @@ private:
   const string directory;
   bool checkpoint;
 
-  hashmap<string, StatusUpdate> updates; // Unacknowledged updates.
+  hashmap<UUID, StatusUpdate> updates; // Unacknowledged updates.
 
   // We store tasks that have not been acknowledged
   // (via status updates) by the slave. This ensures that, during
