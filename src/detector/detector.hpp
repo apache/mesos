@@ -28,16 +28,22 @@
 #include <process/future.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
+#include <process/timer.hpp>
 
 #include <stout/try.hpp>
 
+#include "zookeeper/authentication.hpp"
 #include "zookeeper/url.hpp"
+#include "zookeeper/zookeeper.hpp"
+
+class Watcher;
+class ZooKeeper;
 
 namespace mesos {
 namespace internal {
 
-class ZooKeeperMasterDetectorProcess; // Forward declaration.
-
+// Forward declarations.
+class ZooKeeperMasterDetectorProcess;
 
 /**
  * Implements functionality for:
@@ -138,8 +144,64 @@ public:
    */
   process::Future<int64_t> session();
 
-private:
+  // Visible for testing.
   ZooKeeperMasterDetectorProcess* process;
+};
+
+
+// TODO(benh): Make this value configurable via flags and verify that
+// it is always LESS THAN the slave heartbeat timeout.
+extern const Duration ZOOKEEPER_SESSION_TIMEOUT;
+
+
+class ZooKeeperMasterDetectorProcess
+  : public process::Process<ZooKeeperMasterDetectorProcess>
+{
+public:
+  ZooKeeperMasterDetectorProcess(
+    const zookeeper::URL& url,
+    const process::UPID& pid,
+    bool contend,
+    bool quiet);
+
+  virtual ~ZooKeeperMasterDetectorProcess();
+
+  virtual void initialize();
+
+  // ZooKeeperMasterDetector implementation.
+  int64_t session();
+
+  // ZooKeeper events.
+  void connected(bool reconnect);
+  void reconnecting();
+  void expired();
+  void updated(const std::string& path);
+  void created(const std::string& path);
+  void deleted(const std::string& path);
+
+private:
+  // Handles reconnecting "timeouts" by prematurely expiring a session
+  // (only used for contending instances). TODO(benh): Remove 'const
+  // &' after fixing libprocess.
+  void timedout(const int64_t& sessionId);
+
+  // Attempts to detect a master.
+  void detectMaster();
+
+  const zookeeper::URL url;
+  const ACL_vector acl;
+
+  const process::UPID pid;
+  bool contend;
+
+  Watcher* watcher;
+  ZooKeeper* zk;
+
+  bool expire;
+  Option<process::Timer> timer;
+
+  std::string currentMasterSeq;
+  process::UPID currentMasterPID;
 };
 
 } // namespace internal {

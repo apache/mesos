@@ -60,60 +60,8 @@ using std::vector;
 namespace mesos {
 namespace internal {
 
-// TODO(benh): Make this value configurable via flags and verify that
-// it is always LESS THAN the slave heartbeat timeout.
-const Seconds ZOOKEEPER_SESSION_TIMEOUT(10.0);
 
-
-class ZooKeeperMasterDetectorProcess
-  : public Process<ZooKeeperMasterDetectorProcess>
-{
-public:
-  ZooKeeperMasterDetectorProcess(
-    const zookeeper::URL& url,
-    const UPID& pid,
-    bool contend,
-    bool quiet);
-
-  virtual ~ZooKeeperMasterDetectorProcess();
-
-  virtual void initialize();
-
-  // ZooKeeperMasterDetector implementation.
-  int64_t session();
-
-  // ZooKeeper events.
-  void connected(bool reconnect);
-  void reconnecting();
-  void expired();
-  void updated(const string& path);
-  void created(const string& path);
-  void deleted(const string& path);
-
-private:
-  // Handles reconnecting "timeouts" by prematurely expiring a session
-  // (only used for contending instances). TODO(benh): Remove 'const
-  // &' after fixing libprocess.
-  void timedout(const int64_t& sessionId);
-
-  // Attempts to detect a master.
-  void detectMaster();
-
-  const zookeeper::URL url;
-  const ACL_vector acl;
-
-  const UPID pid;
-  bool contend;
-
-  Watcher* watcher;
-  ZooKeeper* zk;
-
-  bool expire;
-  Option<Timer> timer;
-
-  string currentMasterSeq;
-  UPID currentMasterPID;
-};
+const Duration ZOOKEEPER_SESSION_TIMEOUT = Seconds(10);
 
 
 MasterDetector::~MasterDetector() {}
@@ -246,7 +194,10 @@ ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
     contend(_contend),
     watcher(NULL),
     zk(NULL),
-    expire(false)
+    expire(false),
+    timer(),
+    currentMasterSeq(),
+    currentMasterPID()
 {
   // Set verbosity level for underlying ZooKeeper library logging.
   // TODO(benh): Put this in the C++ API.
@@ -438,24 +389,19 @@ void ZooKeeperMasterDetectorProcess::timedout(const int64_t& sessionId)
     expire = true;
 
     // We only send a NoMasterDetectedMessage if we are a
-    // contending detector AND ALSO the current leader.
-    // This is because:
-    // 1) If we are a non-contending detector (e.g. slave), a zk session
+    // contending detector. This is because:
+    //    If we are a non-contending detector (e.g. slave), a zk session
     //    expiration doesn't necessarily mean a new leader (master) is elected
     //    (e.g. the slave is partitioned from the zk server). If the leading
     //    master stays the same (i.e., no leader election), then the
     //    slave should still accept a ShutDownMessage from the master.
     //    If a new master does get elected, the slave would know about it
     //    because it would do a leader detection after it connects/re-connects.
-    // 2) If we are a contender but not the leader (e.g. non-leading master),
-    //    sending a NoMasterDetectedMessage() is bad because, a partitioned
-    //    non-leading master would never know about the leading master that
-    //    stays the same (i.e., no leader election) even after it is
-    //    connected/reconnected with the ZooKeeper. This is because, the
-    //    the master detection code (detectMaster()) will not send a
-    //    NewMasterDetectedMessage to the non-leading master as there is no
-    //    change in the currentMasterSeq.
-    if (contend && currentMasterPID == pid) {
+    if (contend) {
+      // TODO(bmahler): We always want to clear the sequence number
+      // prior to sending NoMasterDetectedMessage. It might be prudent
+      // to use a helper function to enforce this.
+      currentMasterSeq = "";  // Clear the master sequence number.
       process::post(pid, NoMasterDetectedMessage());
     }
   }
@@ -504,6 +450,7 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
   // No master present (lost or possibly hasn't come up yet).
   if (masterSeq.empty()) {
     LOG(INFO) << "Master detector (" << pid << ") couldn't find any masters";
+    currentMasterSeq = "";  // Clear the master sequence number.
     process::post(pid, NoMasterDetectedMessage());
   } else if (masterSeq != currentMasterSeq) {
     // Okay, let's fetch the master pid from ZooKeeper.
@@ -538,6 +485,7 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
         // might have failed because of DNS, and whoever is using the
         // detector might sit "unconnected" indefinitely!
         LOG(ERROR) << "Failed to parse new master pid!";
+        currentMasterSeq = "";  // Clear the master sequence number.
         process::post(pid, NoMasterDetectedMessage());
       } else {
         currentMasterSeq = masterSeq;

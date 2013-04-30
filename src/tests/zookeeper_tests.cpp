@@ -304,6 +304,130 @@ TEST_F(ZooKeeperTest, MasterDetectorShutdownNetwork)
 }
 
 
+// Tests that a detector sends a NoMasterDetectedMessage when we
+// reach our ZooKeeper session timeout. This is to enforce that we
+// manually expire the session when we don't get reconnected within
+// the ZOOKEEPER_SESSION_TIMEOUT.
+TEST_F(ZooKeeperTest, MasterDetectorTimedoutSession)
+{
+  Try<zookeeper::URL> url =
+    zookeeper::URL::parse("zk://" + server->connectString() + "/mesos");
+  ASSERT_SOME(url);
+
+  // First we bring up three master detector listeners:
+  //   1. A leading contender.
+  //   2. A non-leading contender.
+  //   3. A non-contender.
+
+  // 1. Simulate a leading contender.
+  MockMasterDetectorListenerProcess leader;
+
+  Future<Nothing> newMasterDetected;
+  EXPECT_CALL(leader, newMasterDetected(_))
+    .WillOnce(FutureSatisfy(&newMasterDetected));
+
+  process::spawn(leader);
+
+  ZooKeeperMasterDetector leaderDetector(
+      url.get(), leader.self(), true, true);
+
+  AWAIT_READY(newMasterDetected);
+
+  // 2. Simulate a non-leading contender.
+  MockMasterDetectorListenerProcess follower;
+
+  EXPECT_CALL(follower, newMasterDetected(_))
+    .WillOnce(FutureSatisfy(&newMasterDetected));
+
+  process::spawn(follower);
+
+  ZooKeeperMasterDetector followerDetector(
+      url.get(), follower.self(), true, true);
+
+  AWAIT_READY(newMasterDetected);
+
+  // 3. Simulate a non-contender.
+  MockMasterDetectorListenerProcess nonContender;
+
+  EXPECT_CALL(nonContender, newMasterDetected(_))
+    .WillOnce(FutureSatisfy(&newMasterDetected));
+
+  process::spawn(nonContender);
+
+  ZooKeeperMasterDetector nonContenderDetector(
+      url.get(), nonContender.self(), false, true);
+
+  AWAIT_READY(newMasterDetected);
+
+  // Now we want to induce lost connections on each of the
+  // master detectors.
+  // Induce a reconnection on the leader.
+  Future<Nothing> leaderReconnecting = FUTURE_DISPATCH(
+      leaderDetector.process->self(),
+      &ZooKeeperMasterDetectorProcess::reconnecting);
+
+  dispatch(leaderDetector.process,
+           &ZooKeeperMasterDetectorProcess::reconnecting);
+
+  AWAIT_READY(leaderReconnecting);
+
+  // Induce a reconnection on the follower.
+  Future<Nothing> followerReconnecting = FUTURE_DISPATCH(
+      followerDetector.process->self(),
+      &ZooKeeperMasterDetectorProcess::reconnecting);
+
+  dispatch(followerDetector.process,
+           &ZooKeeperMasterDetectorProcess::reconnecting);
+
+  AWAIT_READY(followerReconnecting);
+
+  // Induce a reconnection on the non-contender.
+  Future<Nothing> nonContenderReconnecting = FUTURE_DISPATCH(
+      nonContenderDetector.process->self(),
+      &ZooKeeperMasterDetectorProcess::reconnecting);
+
+  dispatch(nonContenderDetector.process,
+           &ZooKeeperMasterDetectorProcess::reconnecting);
+
+  AWAIT_READY(nonContenderReconnecting);
+
+  // Now induce the reconnection timeout.
+  Future<Nothing> leaderNoMasterDetected;
+  EXPECT_CALL(leader, noMasterDetected())
+    .WillOnce(FutureSatisfy(&leaderNoMasterDetected));
+
+  Future<Nothing> followerNoMasterDetected;
+  EXPECT_CALL(follower, noMasterDetected())
+    .WillOnce(FutureSatisfy(&followerNoMasterDetected));
+
+  // TODO(bmahler): This will be uncommented by the fix for:
+  // https://issues.apache.org/jira/browse/MESOS-305
+  //  Future<Nothing> nonContenderNoMasterDetected;
+  //  EXPECT_CALL(nonContender, noMasterDetected())
+  //    .WillOnce(FutureSatisfy(&nonContenderNoMasterDetected));
+
+  Clock::pause();
+  Clock::advance(ZOOKEEPER_SESSION_TIMEOUT);
+  Clock::settle();
+
+  AWAIT_READY(leaderNoMasterDetected);
+  AWAIT_READY(followerNoMasterDetected);
+
+  // TODO(bmahler): This will be uncommented by the fix for:
+  // https://issues.apache.org/jira/browse/MESOS-305
+  // AWAIT_READY(nonContenderNoMasterDetected);
+
+  process::terminate(leader);
+  process::wait(leader);
+
+  process::terminate(follower);
+  process::wait(follower);
+
+  process::terminate(nonContender);
+  process::wait(nonContender);
+}
+
+
 // Tests whether a leading master correctly detects a new master when its
 // ZooKeeper session is expired.
 TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
@@ -327,8 +451,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireMasterZKSession)
   ASSERT_SOME(url);
 
   // Leader's detector.
-  ZooKeeperMasterDetector leaderDetector(
-      url.get(), leader.self(), true, true);
+  ZooKeeperMasterDetector leaderDetector(url.get(), leader.self(), true, true);
 
   AWAIT_READY(newMasterDetected1);
 
@@ -395,8 +518,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
   ASSERT_SOME(url);
 
   // Leading master's detector.
-  ZooKeeperMasterDetector masterDetector(
-      url.get(), master.self(), true, true);
+  ZooKeeperMasterDetector masterDetector(url.get(), master.self(), true, true);
 
   AWAIT_READY(newMasterDetected1);
 
@@ -414,8 +536,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
   process::spawn(slave);
 
   // Slave's master detector.
-  ZooKeeperMasterDetector slaveDetector(
-      url.get(), slave.self(), false, true);
+  ZooKeeperMasterDetector slaveDetector(url.get(), slave.self(), false, true);
 
   AWAIT_READY(newMasterDetected2);
 
@@ -498,8 +619,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
   process::spawn(slave);
 
   // Slave's master detector.
-  ZooKeeperMasterDetector slaveDetector(
-      url.get(), slave.self(), false, true);
+  ZooKeeperMasterDetector slaveDetector(url.get(), slave.self(), false, true);
 
   AWAIT_READY(newMasterDetected3);
 
