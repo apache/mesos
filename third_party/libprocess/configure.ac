@@ -102,12 +102,17 @@ fi
 AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
 
 # Added for clock_gettime() call in stout/stopwatch.hpp.
+# We also only want to use stout/proc.hpp on linux.
 case "${target_os}" in
   linux*)
     LIBS="$LIBS -lrt"
+    OS_NAME=linux
     ;;
   *)
     ;;
 esac
+
+# Used for conditionally including source files.
+AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 
 AC_OUTPUT

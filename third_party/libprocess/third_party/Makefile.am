@@ -129,6 +129,10 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/strings_tests.cpp		\
   $(STOUT)/tests/uuid_tests.cpp
 
+if OS_LINUX
+  stout_tests_SOURCES += $(STOUT)/tests/proc_tests.cpp
+endif
+
 stout_tests_CPPFLAGS =				\
   -I$(srcdir)/$(STOUT)/include			\
   -I$(BOOST)					\
