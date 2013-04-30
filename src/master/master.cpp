@@ -44,7 +44,6 @@
 #include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
-#include "master/slaves_manager.hpp"
 
 namespace params = std::tr1::placeholders;
 
@@ -190,80 +189,6 @@ private:
 };
 
 
-// Performs slave registration asynchronously. There are two means of
-// doing this, one first tries to add this slave to the slaves
-// manager, while the other one simply tells the master to add the
-// slave.
-struct SlaveRegistrar
-{
-  static bool run(Slave* slave, const PID<Master>& master)
-  {
-    // TODO(benh): Do a reverse lookup to ensure IP maps to
-    // hostname, or check credentials of this slave.
-    dispatch(master, &Master::addSlave, slave, false);
-    return true;
-  }
-
-  static bool run(Slave* slave,
-                  const PID<Master>& master,
-                  const PID<SlavesManager>& slavesManager)
-  {
-    Future<bool> added = dispatch(slavesManager, &SlavesManager::add,
-                                  slave->info.hostname(), slave->pid.port);
-    added.await();
-    if (!added.isReady() || !added.get()) {
-      LOG(WARNING) << "Could not register slave on "<< slave->info.hostname()
-                   << " because failed to add it to the slaves maanger";
-      // TODO(benh): This could be because our acknowledgement to the
-      // slave was dropped, so they retried, and now we should
-      // probably send another acknowledgement.
-      delete slave;
-      return false;
-    }
-
-    return run(slave, master);
-  }
-};
-
-
-// Performs slave re-registration asynchronously as above.
-struct SlaveReregistrar
-{
-  static bool run(Slave* slave,
-                  const vector<ExecutorInfo>& executorInfos,
-                  const vector<Task>& tasks,
-                  const PID<Master>& master)
-  {
-    // TODO(benh): Do a reverse lookup to ensure IP maps to
-    // hostname, or check credentials of this slave.
-    dispatch(master, &Master::readdSlave, slave, executorInfos, tasks);
-    return true;
-  }
-
-  static bool run(Slave* slave,
-                  const vector<ExecutorInfo>& executorInfos,
-                  const vector<Task>& tasks,
-                  const PID<Master>& master,
-                  const PID<SlavesManager>& slavesManager)
-  {
-    Future<bool> added = dispatch(slavesManager, &SlavesManager::add,
-                                  slave->info.hostname(), slave->pid.port);
-    added.await();
-    if (!added.isReady() || !added.get()) {
-      LOG(WARNING) << "Could not register slave on " << slave->info.hostname()
-                   << " because failed to add it to the slaves manager";
-      // TODO(benh): This could be because our acknowledgement to the
-      // slave was dropped, so they retried, and now we should
-      // probably send another acknowledgement.
-      delete slave;
-      return false;
-    }
-
-    return run(slave, executorInfos, tasks, master);
-  }
-};
-
-
 Master::Master(Allocator* _allocator, Files* _files)
   : ProcessBase("master"),
     flags(),
@@ -294,11 +219,6 @@ Master::~Master()
 
   CHECK(offers.size() == 0);
 
-  terminate(slavesManager);
-  wait(slavesManager);
-
-  delete slavesManager;
-
   terminate(whitelistWatcher);
   wait(whitelistWatcher);
 
@@ -324,10 +244,6 @@ void Master::initialize()
   info.set_port(self().port);
 
   LOG(INFO) << "Master ID: " << info.id();
-
-  // Setup slave manager.
-  slavesManager = new SlavesManager(flags, self());
-  spawn(slavesManager);
 
   // Initialize the allocator.
   allocator->initialize(flags, self());

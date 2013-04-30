@@ -62,7 +62,6 @@ using namespace process; // Included to make code easier to read.
 
 // Forward declarations.
 class Allocator;
-class SlavesManager;
 class SlaveObserver;
 class WhitelistWatcher;
 
@@ -221,7 +220,6 @@ private:
   bool elected;
 
   Allocator* allocator;
-  SlavesManager* slavesManager;
   WhitelistWatcher* whitelistWatcher;
   Files* files;
 
