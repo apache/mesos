@@ -186,7 +186,7 @@ function update($scope, $defer, data) {
   $scope.lost_tasks = $scope.state.lost_tasks;
 
   $scope.activated_slaves = $scope.state.activated_slaves;
-  $scope.connected_slaves = $scope.state.connected_slaves;
+  $scope.deactivated_slaves = $scope.state.deactivated_slaves;
 
   _.each($scope.slaves, function(slave) {
     $scope.total_cpus += slave.resources.cpus;

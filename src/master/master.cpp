@@ -172,8 +172,7 @@ protected:
 
   void deactivate()
   {
-    dispatch(
-        master, &Master::deactivateSlave, slaveInfo.hostname(), slave.port);
+    dispatch(master, &Master::deactivateSlave, slaveId);
   }
 
 private:
@@ -460,18 +459,18 @@ void Master::exited(const UPID& pid)
         removeSlave(slave);
         return;
       } else {
-        // If a slave is checkpointing, remove frameworks from this
-        // slave that have disabled checkpointing.
+        // If a slave is checkpointing, remove all non-checkpointing
+        // frameworks from the slave.
         hashset<FrameworkID> ids;
         foreachvalue (Task* task, utils::copy(slave->tasks)) {
           if (!ids.contains(task->framework_id())) {
             ids.insert(task->framework_id());
             Framework* framework = getFramework(task->framework_id());
             if (framework != NULL && !framework->info.checkpoint()) {
-              LOG(INFO) << "Removing framework " << task->framework_id()
+              LOG(INFO) << "Removing non-checkpointing framework "
+                        << task->framework_id()
                         << " from disconnected slave " << slave->id
-                        << "(" << slave->info.hostname() << ") "
-                        << "because it is not checkpointing!";
+                        << "(" << slave->info.hostname() << ")";
 
               removeFramework(slave, framework);
             }
@@ -915,13 +914,13 @@ void Master::reregisterSlave(const SlaveID& slaveId,
   if (slaveId == "") {
     LOG(ERROR) << "Slave " << from << " re-registered without an id!";
     reply(ShutdownMessage());
-  } else if (deactivatedSlavePIDs.contains(slaveInfo.hostname(), from.port)) {
+  } else if (deactivatedSlaves.contains(from)) {
     // We disallow deactivated slaves from re-registering. This is
     // to ensure that when a master deactivates a slave that was
     // partitioned, we don't allow the slave to re-register, as we've
     // already informed frameworks that the tasks were lost.
-    LOG(ERROR) << "Slave " << from
-               << " attempted to re-register after deactivation";
+    LOG(ERROR) << "Slave " << slaveId << " at " << from
+               << "attempted to re-register after deactivation";
     reply(ShutdownMessage());
   } else {
     Slave* slave = getSlave(slaveId);
@@ -1186,24 +1185,23 @@ void Master::exitedExecutor(const SlaveID& slaveId,
 }
 
 
-void Master::deactivateSlave(const string& hostname, uint16_t port)
+void Master::deactivateSlave(const SlaveID& slaveId)
 {
-  if (slavePIDs.contains(hostname, port)) {
-    // Look for a connected slave and remove it.
-    foreachvalue (Slave* slave, slaves) {
-      if (slave->info.hostname() == hostname && slave->pid.port == port) {
-        LOG(WARNING) << "Removing slave " << slave->id << " at "
-                     << hostname << ":" << port
-                     << " because it has been deactivated";
-        send(slave->pid, ShutdownMessage());
-        removeSlave(slave);
-        break;
-      }
-    }
-
-    LOG(INFO) << "Master now considering a slave at "
-	            << hostname << ":" << port << " as inactive";
+  if (!slaves.contains(slaveId)) {
+    // Possible when the SlaveObserver dispatched to deactivate a slave,
+    // but exited() was already called for this slave.
+    LOG(WARNING) << "Unable to deactivate unknown slave " << slaveId;
+    return;
   }
+
+  Slave* slave = slaves[slaveId];
+  CHECK_NOTNULL(slave);
+
+  LOG(WARNING) << "Removing slave " << slave->id << " at " << slave->pid
+               << " because it has been deactivated";
+
+  send(slave->pid, ShutdownMessage());
+  removeSlave(slave);
 }
 
 
@@ -1848,8 +1846,7 @@ void Master::addSlave(Slave* slave, bool reregister)
             << " at " << slave->info.hostname()
             << " with " << slave->info.resources();
 
-  slavePIDs.put(slave->info.hostname(), slave->pid.port);
-  deactivatedSlavePIDs.remove(slave->info.hostname(), slave->pid.port);
+  deactivatedSlaves.erase(slave->pid);
   slaves[slave->id] = slave;
 
   link(slave->pid);
@@ -2024,9 +2021,8 @@ void Master::removeSlave(Slave* slave)
 
   // TODO(benh): unlink(slave->pid);
 
-  // Delete it.
-  slavePIDs.remove(slave->info.hostname(), slave->pid.port);
-  deactivatedSlavePIDs.put(slave->info.hostname(), slave->pid.port);
+  // Mark the slave as deactivated.
+  deactivatedSlaves.insert(slave->pid);
   slaves.erase(slave->id);
   delete slave;
 }

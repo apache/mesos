@@ -115,7 +115,7 @@ public:
                       const FrameworkID& frameworkId,
                       const ExecutorID& executorId,
                       int32_t status);
-  void deactivateSlave(const std::string& hostname, uint16_t port);
+  void deactivateSlave(const SlaveID& slaveId);
   void frameworkFailoverTimeout(const FrameworkID& frameworkId,
                                 double reregisteredTime);
 
@@ -225,9 +225,9 @@ private:
   MasterInfo info;
 
   hashmap<FrameworkID, Framework*> frameworks;
+
   hashmap<SlaveID, Slave*> slaves;
-  multihashmap<std::string, uint16_t> slavePIDs;
-  multihashmap<std::string, uint16_t> deactivatedSlavePIDs;
+  hashset<UPID> deactivatedSlaves;
 
   hashmap<OfferID, Offer*> offers;
 
