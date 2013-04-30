@@ -265,7 +265,8 @@ Future<Response> stats(
   object.values["elected"] = master.elected; // Note: using int not bool.
   object.values["total_schedulers"] = master.frameworks.size();
   object.values["active_schedulers"] = master.getActiveFrameworks().size();
-  object.values["activated_slaves"] = master.slaveHostnamePorts.size();
+  object.values["activated_slaves"] = master.slavePIDs.size();
+  object.values["deactivated_slaves"] = master.deactivatedSlavePIDs.size();
   object.values["connected_slaves"] = master.slaves.size();
   object.values["staged_tasks"] = master.stats.tasks[TASK_STAGING];
   object.values["started_tasks"] = master.stats.tasks[TASK_STARTING];
@@ -317,7 +318,8 @@ Future<Response> state(
   object.values["start_time"] = master.startTime;
   object.values["id"] = master.info.id();
   object.values["pid"] = string(master.self());
-  object.values["activated_slaves"] = master.slaveHostnamePorts.size();
+  object.values["activated_slaves"] = master.slavePIDs.size();
+  object.values["deactivated_slaves"] = master.deactivatedSlavePIDs.size();
   object.values["connected_slaves"] = master.slaves.size();
   object.values["staged_tasks"] = master.stats.tasks[TASK_STAGING];
   object.values["started_tasks"] = master.stats.tasks[TASK_STARTING];

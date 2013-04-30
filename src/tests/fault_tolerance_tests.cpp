@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <unistd.h>
+
 #include <gmock/gmock.h>
 
 #include <map>
@@ -27,6 +29,8 @@
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/process.hpp>
+#include <process/protobuf.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -136,7 +140,7 @@ TEST_F(FaultToleranceTest, SlaveLost)
 
 // This test checks that a scheduler gets a slave lost
 // message for a partioned slave.
-TEST_F(FaultToleranceTest, SlavePartitioned)
+TEST_F(FaultToleranceTest, PartitionedSlave)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -176,7 +180,7 @@ TEST_F(FaultToleranceTest, SlavePartitioned)
 
   // Now advance through the PINGs.
   uint32_t pings = 0;
-  while(true) {
+  while (true) {
     AWAIT_READY(ping);
     pings++;
     if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
@@ -196,6 +200,160 @@ TEST_F(FaultToleranceTest, SlavePartitioned)
   local::shutdown();
 
   Clock::resume();
+}
+
+
+// TODO(bmahler): Remove this when all the tests are refactored.
+class FaultToleranceClusterTest : public MesosClusterTest {};
+
+// The purpose of this test is to ensure that when slaves are removed
+// from the master, and then attempt to re-register, we deny the
+// re-registration by sending a ShutdownMessage to the slave.
+// Why? Because during a network partition, the master will remove a
+// partitioned slave, thus sending its tasks to LOST. At this point,
+// when the partition is removed, the slave will attempt to
+// re-register with its running tasks. We've already notified
+// frameworks that these tasks were LOST, so we have to have the slave
+// slave shut down.
+TEST_F(FaultToleranceClusterTest, PartitionedSlaveReregistration)
+{
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
+
+  MockExecutor exec;
+  Try<PID<Slave> > slave = cluster.slaves.start(DEFAULT_EXECUTOR_ID, &exec);
+  ASSERT_SOME(slave);
+
+  // Allow the master to PING the slave, but drop all PONG messages
+  // from the slave. Note that we don't match on the master / slave
+  // PIDs because it's actually the SlaveObserver Process that sends
+  // the pings.
+  Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+  DROP_MESSAGES(Eq("PONG"), _, _);
+
+  BasicMasterDetector detector(master.get(), slave.get(), true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers.get().size());
+
+  // Launch a task. This is to ensure the task is killed by the slave,
+  // during shutdown.
+  TaskID taskId;
+  taskId.set_value("1");
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->MergeFrom(taskId);
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  task.mutable_executor()->mutable_command()->set_value("sleep 60");
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  // Set up the expectations for launching the task.
+  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> runningStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&runningStatus));
+
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave.get(), &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
+
+  // Wait for the slave to have handled the acknowledgment prior
+  // to pausing the clock.
+  AWAIT_READY(statusUpdateAck);
+
+  // Drop the first shutdown message from the master (simulated
+  // partition), allow the second shutdown message to pass when
+  // the slave re-registers,
+  Future<ShutdownMessage> shutdownSlave =
+    DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
+
+  Future<TaskStatus> lostStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&lostStatus));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  Clock::pause();
+
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  uint32_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+     break;
+    }
+    ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+    Clock::advance(master::SLAVE_PING_TIMEOUT);
+  }
+
+  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::settle();
+
+  // The master will have notified the framework of the lost task.
+  AWAIT_READY(lostStatus);
+  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+
+  // Wait for the master to attempt to shut down the slave.
+  AWAIT_READY(shutdownSlave);
+
+  // The master will notify the framework that the slave was lost.
+  AWAIT_READY(slaveLost);
+
+  // We now complete the partition on the slave side as well. This
+  // is done by simulating a NoMasterDetectedMessage which would
+  // normally occur during a network partition.
+  process::post(slave.get(), NoMasterDetectedMessage());
+
+  Future<Nothing> shutdownExecutor;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdownExecutor));
+
+  shutdownSlave = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+
+  // Have the slave re-register with the master.
+  NewMasterDetectedMessage newMasterDetectedMessage;
+  newMasterDetectedMessage.set_pid(master.get());
+  process::post(slave.get(), newMasterDetectedMessage);
+
+  // Upon re-registration, the master will shutdown the slave.
+  // The slave will then shut down the executor.
+  AWAIT_READY(shutdownSlave);
+  AWAIT_READY(shutdownExecutor);
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  cluster.shutdown();
 }
 
 

@@ -400,11 +400,9 @@ TEST_F(ZooKeeperTest, MasterDetectorTimedoutSession)
   EXPECT_CALL(follower, noMasterDetected())
     .WillOnce(FutureSatisfy(&followerNoMasterDetected));
 
-  // TODO(bmahler): This will be uncommented by the fix for:
-  // https://issues.apache.org/jira/browse/MESOS-305
-  //  Future<Nothing> nonContenderNoMasterDetected;
-  //  EXPECT_CALL(nonContender, noMasterDetected())
-  //    .WillOnce(FutureSatisfy(&nonContenderNoMasterDetected));
+  Future<Nothing> nonContenderNoMasterDetected;
+  EXPECT_CALL(nonContender, noMasterDetected())
+    .WillOnce(FutureSatisfy(&nonContenderNoMasterDetected));
 
   Clock::pause();
   Clock::advance(ZOOKEEPER_SESSION_TIMEOUT);
@@ -412,10 +410,7 @@ TEST_F(ZooKeeperTest, MasterDetectorTimedoutSession)
 
   AWAIT_READY(leaderNoMasterDetected);
   AWAIT_READY(followerNoMasterDetected);
-
-  // TODO(bmahler): This will be uncommented by the fix for:
-  // https://issues.apache.org/jira/browse/MESOS-305
-  // AWAIT_READY(nonContenderNoMasterDetected);
+  AWAIT_READY(nonContenderNoMasterDetected);
 
   process::terminate(leader);
   process::wait(leader);

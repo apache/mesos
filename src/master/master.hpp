@@ -115,8 +115,7 @@ public:
                       const FrameworkID& frameworkId,
                       const ExecutorID& executorId,
                       int32_t status);
-  void activatedSlaveHostnamePort(const std::string& hostname, uint16_t port);
-  void deactivatedSlaveHostnamePort(const std::string& hostname, uint16_t port);
+  void deactivateSlave(const std::string& hostname, uint16_t port);
   void frameworkFailoverTimeout(const FrameworkID& frameworkId,
                                 double reregisteredTime);
 
@@ -225,10 +224,11 @@ private:
 
   MasterInfo info;
 
-  multihashmap<std::string, uint16_t> slaveHostnamePorts;
-
   hashmap<FrameworkID, Framework*> frameworks;
   hashmap<SlaveID, Slave*> slaves;
+  multihashmap<std::string, uint16_t> slavePIDs;
+  multihashmap<std::string, uint16_t> deactivatedSlavePIDs;
+
   hashmap<OfferID, Offer*> offers;
 
   boost::circular_buffer<std::tr1::shared_ptr<Framework> > completedFrameworks;

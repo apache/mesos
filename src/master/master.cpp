@@ -173,10 +173,7 @@ protected:
   void deactivate()
   {
     dispatch(
-        master,
-        &Master::deactivatedSlaveHostnamePort,
-        slaveInfo.hostname(),
-        slave.port);
+        master, &Master::deactivateSlave, slaveInfo.hostname(), slave.port);
   }
 
 private:
@@ -888,7 +885,6 @@ void Master::registerSlave(const SlaveInfo& slaveInfo)
 
   // TODO(benh): We assume all slaves can register for now.
   CHECK(flags.slaves == "*");
-  activatedSlaveHostnamePort(slave->info.hostname(), slave->pid.port);
   addSlave(slave);
 
 //   // Checks if this slave, or if all slaves, can be accepted.
@@ -917,7 +913,15 @@ void Master::reregisterSlave(const SlaveID& slaveId,
   }
 
   if (slaveId == "") {
-    LOG(ERROR) << "Slave re-registered without an id!";
+    LOG(ERROR) << "Slave " << from << " re-registered without an id!";
+    reply(ShutdownMessage());
+  } else if (deactivatedSlavePIDs.contains(slaveInfo.hostname(), from.port)) {
+    // We disallow deactivated slaves from re-registering. This is
+    // to ensure that when a master deactivates a slave that was
+    // partitioned, we don't allow the slave to re-register, as we've
+    // already informed frameworks that the tasks were lost.
+    LOG(ERROR) << "Slave " << from
+               << " attempted to re-register after deactivation";
     reply(ShutdownMessage());
   } else {
     Slave* slave = getSlave(slaveId);
@@ -995,7 +999,6 @@ void Master::reregisterSlave(const SlaveID& slaveId,
 
       // TODO(benh): We assume all slaves can register for now.
       CHECK(flags.slaves == "*");
-      activatedSlaveHostnamePort(slave->info.hostname(), slave->pid.port);
       readdSlave(slave, executorInfos, tasks);
 
 //       // Checks if this slave, or if all slaves, can be accepted.
@@ -1183,18 +1186,9 @@ void Master::exitedExecutor(const SlaveID& slaveId,
 }
 
 
-void Master::activatedSlaveHostnamePort(const string& hostname, uint16_t port)
+void Master::deactivateSlave(const string& hostname, uint16_t port)
 {
-  LOG(INFO) << "Master now considering a slave at "
-            << hostname << ":" << port << " as active";
-  slaveHostnamePorts.put(hostname, port);
-}
-
-
-void Master::deactivatedSlaveHostnamePort(const string& hostname,
-                                          uint16_t port)
-{
-  if (slaveHostnamePorts.contains(hostname, port)) {
+  if (slavePIDs.contains(hostname, port)) {
     // Look for a connected slave and remove it.
     foreachvalue (Slave* slave, slaves) {
       if (slave->info.hostname() == hostname && slave->pid.port == port) {
@@ -1209,7 +1203,6 @@ void Master::deactivatedSlaveHostnamePort(const string& hostname,
 
     LOG(INFO) << "Master now considering a slave at "
 	            << hostname << ":" << port << " as inactive";
-    slaveHostnamePorts.remove(hostname, port);
   }
 }
 
@@ -1855,6 +1848,8 @@ void Master::addSlave(Slave* slave, bool reregister)
             << " at " << slave->info.hostname()
             << " with " << slave->info.resources();
 
+  slavePIDs.put(slave->info.hostname(), slave->pid.port);
+  deactivatedSlavePIDs.remove(slave->info.hostname(), slave->pid.port);
   slaves[slave->id] = slave;
 
   link(slave->pid);
@@ -2030,6 +2025,8 @@ void Master::removeSlave(Slave* slave)
   // TODO(benh): unlink(slave->pid);
 
   // Delete it.
+  slavePIDs.remove(slave->info.hostname(), slave->pid.port);
+  deactivatedSlavePIDs.put(slave->info.hostname(), slave->pid.port);
   slaves.erase(slave->id);
   delete slave;
 }

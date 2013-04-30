@@ -388,22 +388,11 @@ void ZooKeeperMasterDetectorProcess::timedout(const int64_t& sessionId)
     timer = None();
     expire = true;
 
-    // We only send a NoMasterDetectedMessage if we are a
-    // contending detector. This is because:
-    //    If we are a non-contending detector (e.g. slave), a zk session
-    //    expiration doesn't necessarily mean a new leader (master) is elected
-    //    (e.g. the slave is partitioned from the zk server). If the leading
-    //    master stays the same (i.e., no leader election), then the
-    //    slave should still accept a ShutDownMessage from the master.
-    //    If a new master does get elected, the slave would know about it
-    //    because it would do a leader detection after it connects/re-connects.
-    if (contend) {
-      // TODO(bmahler): We always want to clear the sequence number
-      // prior to sending NoMasterDetectedMessage. It might be prudent
-      // to use a helper function to enforce this.
-      currentMasterSeq = "";  // Clear the master sequence number.
-      process::post(pid, NoMasterDetectedMessage());
-    }
+    // TODO(bmahler): We always want to clear the sequence number
+    // prior to sending NoMasterDetectedMessage. It might be prudent
+    // to use a helper function to enforce this.
+    currentMasterSeq = "";  // Clear the master sequence number.
+    process::post(pid, NoMasterDetectedMessage());
   }
 }
 

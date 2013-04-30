@@ -26,7 +26,11 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/pid.hpp>
+
+#include <stout/gtest.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include "detector/detector.hpp"
@@ -47,8 +51,10 @@ using mesos::internal::slave::Slave;
 
 using process::Future;
 using process::PID;
+using process::UPID;
 
 using std::map;
+using std::string;
 using std::vector;
 
 using testing::_;
@@ -69,15 +75,17 @@ TEST_F(MasterDetectorTest, File)
   PID<Slave> slave = process::spawn(&s);
 
   // Write "master" to a file and use the "file://" mechanism to
-  // create a master detector for the slave.
-  Try<std::string> path = os::mktemp();
-  ASSERT_SOME(path);
-  ASSERT_SOME(os::write(path.get(), master.get()));
+  // create a master detector for the slave. Still requires a master
+  // detector for the master first.
+  BasicMasterDetector detector1(master.get(), vector<UPID>(), true);
+
+  const string& path = path::join(cluster.slaves.flags.work_dir, "master");
+  ASSERT_SOME(os::write(path, stringify(master.get())));
 
   Try<MasterDetector*> detector =
-    MasterDetector::create("file://" + path.get(), slave, false, true);
+    MasterDetector::create("file://" + path, slave, false, true);
 
-  os::rm(path.get());
+  EXPECT_SOME(os::rm(path));
 
   ASSERT_SOME(detector);
 
