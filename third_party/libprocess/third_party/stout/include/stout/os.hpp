@@ -10,6 +10,7 @@
 #include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1034,6 +1035,22 @@ inline Try<Release> release()
   }
 
   return r;
+}
+
+
+inline Try<bool> alive(pid_t pid)
+{
+  CHECK(pid > 0);
+
+  if (::kill(pid, 0) == 0) {
+    return true;
+  }
+
+  if (errno == ESRCH) {
+    return false;
+  }
+
+  return Try<bool>::error(strerror(errno));
 }
 
 } // namespace os {

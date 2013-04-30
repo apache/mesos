@@ -50,5 +50,6 @@ EXTRA_DIST =					\
   tests/multimap_tests.cpp			\
   tests/none_tests.cpp				\
   tests/os_tests.cpp				\
+  tests/proc_tests.cpp				\
   tests/strings_tests.cpp			\
   tests/uuid_tests.cpp
