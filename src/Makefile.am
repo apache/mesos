@@ -198,12 +198,10 @@ if OS_LINUX
   libmesos_no_third_party_la_SOURCES += slave/cgroups_isolator.cpp
   libmesos_no_third_party_la_SOURCES += linux/cgroups.cpp
   libmesos_no_third_party_la_SOURCES += linux/fs.cpp
-  libmesos_no_third_party_la_SOURCES += linux/proc.cpp
 else
   EXTRA_DIST += slave/cgroups_isolator.cpp
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
-  EXTRA_DIST += linux/proc.cpp
 endif
 
 libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
@@ -216,7 +214,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	detector/detector.hpp examples/utils.hpp files/files.hpp	\
 	flags/flag.hpp flags/flags.hpp flags/loader.hpp			\
 	flags/parse.hpp launcher/launcher.hpp linux/cgroups.hpp		\
-	linux/fs.hpp linux/proc.hpp local/flags.hpp local/local.hpp	\
+	linux/fs.hpp local/flags.hpp local/local.hpp			\
 	logging/check_some.hpp logging/flags.hpp logging/logging.hpp	\
 	master/allocator.hpp						\
 	master/constants.hpp master/drf_sorter.hpp master/flags.hpp	\
@@ -810,7 +808,6 @@ if OS_LINUX
   mesos_tests_SOURCES += tests/cgroups_isolator_tests.cpp
   mesos_tests_SOURCES += tests/cgroups_tests.cpp
   mesos_tests_SOURCES += tests/fs_tests.cpp
-  mesos_tests_SOURCES += tests/proc_tests.cpp
 endif
 
 if HAS_JAVA

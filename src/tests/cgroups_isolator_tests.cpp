@@ -22,9 +22,8 @@
 #include <gtest/gtest.h>
 
 #include <stout/foreach.hpp>
+#include <stout/proc.hpp>
 #include <stout/stringify.hpp>
-
-#include "linux/proc.hpp"
 
 #include "slave/cgroups_isolator.hpp"
 

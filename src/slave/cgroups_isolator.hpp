@@ -34,11 +34,10 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
+#include <stout/proc.hpp>
 #include <stout/uuid.hpp>
 
 #include "launcher/launcher.hpp"
-
-#include "linux/proc.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/isolator.hpp"

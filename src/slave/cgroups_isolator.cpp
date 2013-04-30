@@ -47,6 +47,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/proc.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
@@ -54,7 +55,6 @@
 #include "common/units.hpp"
 
 #include "linux/cgroups.hpp"
-#include "linux/proc.hpp"
 
 #include "logging/check_some.hpp"
 

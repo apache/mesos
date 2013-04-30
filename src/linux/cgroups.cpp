@@ -49,12 +49,12 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/proc.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
 #include "linux/cgroups.hpp"
 #include "linux/fs.hpp"
-#include "linux/proc.hpp"
 
 using namespace process;
 

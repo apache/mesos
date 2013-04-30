@@ -27,7 +27,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
-#include <stout/proc.hpp>
+#include <stout/os.hpp>
 #include <stout/try.hpp>
 
 #include <stout/utils.hpp>
@@ -60,7 +60,7 @@ Try<Nothing> Reaper::monitor(pid_t pid)
 {
   // Check to see if the current process has sufficient privileges to
   // monitor the liveness of this pid.
-  Try<bool> alive = proc::alive(pid);
+  Try<bool> alive = os::alive(pid);
   if (alive.isError()) {
     return Error("Failed to monitor process " + stringify(pid) +
                   ": " + alive.error());
@@ -89,7 +89,7 @@ void Reaper::reap()
 {
   // Check whether any monitored process has exited.
   foreach (pid_t pid, utils::copy(pids)) {
-    Try<bool> alive = proc::alive(pid);
+    Try<bool> alive = os::alive(pid);
     CHECK_SOME(alive);
 
     if (!alive.get()) { // The process has terminated.

@@ -37,14 +37,13 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#ifdef __linux__
+#include "stout/proc.hpp"
+#endif
 #include <stout/uuid.hpp>
 
 #include "common/type_utils.hpp"
 #include "common/process_utils.hpp"
-
-#ifdef __linux__
-#include "linux/proc.hpp"
-#endif
 
 #include "slave/flags.hpp"
 #include "slave/process_isolator.hpp"
