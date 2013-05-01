@@ -23,6 +23,7 @@
 #include <pwd.h>
 
 #include <iostream>
+#include <map>
 #include <sstream>
 
 #include <sys/stat.h>
@@ -45,6 +46,7 @@
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::map;
 using std::ostringstream;
 using std::string;
 
@@ -382,33 +384,6 @@ int ExecutorLauncher::fetchExecutors()
 }
 
 
-// Set up environment variables for launching a framework's executor.
-void ExecutorLauncher::setupEnvironment()
-{
-  // Set LIBPROCESS_PORT so that we bind to a random free port (since
-  // this might have been set via --port option). We do this before
-  // the environment variables below in case it is included.
-  os::setenv("LIBPROCESS_PORT", "0");
-
-  // Set up the environment as specified in the ExecutorInfo.
-  if (commandInfo.has_environment()) {
-    foreach (const Environment::Variable& variable,
-             commandInfo.environment().variables()) {
-      os::setenv(variable.name(), variable.value());
-    }
-  }
-
-  // Set Mesos environment variables for slave ID, framework ID, etc.
-  os::setenv("MESOS_DIRECTORY", workDirectory);
-  os::setenv("MESOS_SLAVE_PID", slavePid);
-  os::setenv("MESOS_SLAVE_ID", slaveId.value());
-  os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
-  os::setenv("MESOS_EXECUTOR_ID", executorId.value());
-  os::setenv("MESOS_EXECUTOR_UUID", uuid.toString());
-  os::setenv("MESOS_CHECKPOINT", checkpoint ? "1" : "0");
-}
-
-
 void ExecutorLauncher::switchUser()
 {
   if (!os::su(user)) {
@@ -418,12 +393,51 @@ void ExecutorLauncher::switchUser()
 }
 
 
-void ExecutorLauncher::setupEnvironmentForLauncherMain()
+// Set up environment variables for launching a framework's executor.
+void ExecutorLauncher::setupEnvironment()
 {
-  setupEnvironment();
+  foreachpair (const string& key, const string& value, getEnvironment()) {
+    os::setenv(key, value);
+  }
+}
 
-  // Set up Mesos environment variables that launcher/main.cpp will
-  // pass as arguments to an ExecutorLauncher there.
+
+map<string, string> ExecutorLauncher::getEnvironment()
+{
+  map<string, string> env;
+
+  // Set LIBPROCESS_PORT so that we bind to a random free port (since
+  // this might have been set via --port option). We do this before
+  // the environment variables below in case it is included.
+  env["LIBPROCESS_PORT"] = "0";
+
+  // Set up the environment as specified in the ExecutorInfo.
+  if (commandInfo.has_environment()) {
+    foreach (const Environment::Variable& variable,
+             commandInfo.environment().variables()) {
+      env[variable.name()] = variable.value();
+    }
+  }
+
+  // Set Mesos environment variables for slave ID, framework ID, etc.
+  env["MESOS_DIRECTORY"] = workDirectory;
+  env["MESOS_SLAVE_PID"] = slavePid;
+  env["MESOS_SLAVE_ID"] = slaveId.value();
+  env["MESOS_FRAMEWORK_ID"] = frameworkId.value();
+  env["MESOS_EXECUTOR_ID"] = executorId.value();
+  env["MESOS_EXECUTOR_UUID"] = uuid.toString();
+  env["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
+
+  return env;
+}
+
+
+// Get Mesos environment variables that launcher/main.cpp will
+// pass as arguments to an ExecutorLauncher there.
+map<string, string> ExecutorLauncher::getLauncherEnvironment()
+{
+  map<string, string> env = getEnvironment();
+
   string uris = "";
   foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
    uris += uri.value() + "+" +
@@ -436,17 +450,15 @@ void ExecutorLauncher::setupEnvironmentForLauncherMain()
     uris = strings::trim(uris);
   }
 
-  os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
-  os::setenv("MESOS_SLAVE_ID", slaveId.value());
-  os::setenv("MESOS_COMMAND", commandInfo.value());
-  os::setenv("MESOS_EXECUTOR_URIS", uris);
-  os::setenv("MESOS_USER", user);
-  os::setenv("MESOS_WORK_DIRECTORY", workDirectory);
-  os::setenv("MESOS_SLAVE_DIRECTORY", slaveDirectory);
-  os::setenv("MESOS_SLAVE_PID", slavePid);
-  os::setenv("MESOS_HADOOP_HOME", hadoopHome);
-  os::setenv("MESOS_REDIRECT_IO", redirectIO ? "1" : "0");
-  os::setenv("MESOS_SWITCH_USER", shouldSwitchUser ? "1" : "0");
+  env["MESOS_EXECUTOR_URIS"] = uris;
+  env["MESOS_COMMAND"] = commandInfo.value();
+  env["MESOS_USER"] = user;
+  env["MESOS_SLAVE_DIRECTORY"] = slaveDirectory;
+  env["MESOS_HADOOP_HOME"] = hadoopHome;
+  env["MESOS_REDIRECT_IO"] = redirectIO ? "1" : "0";
+  env["MESOS_SWITCH_USER"] = shouldSwitchUser ? "1" : "0";
+
+  return env;
 }
 
 } // namespace launcher {

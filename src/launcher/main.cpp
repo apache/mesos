@@ -64,7 +64,7 @@ int main(int argc, char** argv)
       UUID::fromString(os::getenv("MESOS_EXECUTOR_UUID")),
       commandInfo,
       os::getenv("MESOS_USER"),
-      os::getenv("MESOS_WORK_DIRECTORY"),
+      os::getenv("MESOS_DIRECTORY"),
       os::getenv("MESOS_SLAVE_DIRECTORY"),
       os::getenv("MESOS_SLAVE_PID"),
       os::getenv("MESOS_FRAMEWORKS_HOME", false),

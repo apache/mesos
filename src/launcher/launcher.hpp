@@ -19,6 +19,7 @@
 #ifndef __LAUNCHER_HPP__
 #define __LAUNCHER_HPP__
 
+#include <map>
 #include <string>
 
 #include <mesos/mesos.hpp>
@@ -72,10 +73,11 @@ public:
   // Convenience function that calls setup() and then launch().
   virtual int run();
 
-  // Set up environment variables for exec'ing a launcher_main.cpp
-  // (mesos-launcher binary) process. This is used by isolators that
-  // cannot exec the user's executor directly.
-  virtual void setupEnvironmentForLauncherMain();
+  // Return a map of environment variables for exec'ing a
+  // launch_main.cpp (mesos-launcher binary) process. This is used
+  // by isolators that cannot exec the user's executor directly
+  // (e.g., due to potential deadlocks in forked process).
+  virtual std::map<std::string, std::string> getLauncherEnvironment();
 
 protected:
   // Download the required files for the executor from the given set of URIs.
@@ -83,7 +85,12 @@ protected:
   // This method is expected to place files in the workDirectory.
   virtual int fetchExecutors();
 
-  // Set up environment variables for launching a framework's executor.
+  // Return a map of environment variables for launching a
+  // framework's executor.
+  virtual std::map<std::string, std::string> getEnvironment();
+
+  // Set up environment variables for launching a
+  // framework's executor.
   virtual void setupEnvironment();
 
   // Switch to a framework's user in preparation for exec()'ing its executor.

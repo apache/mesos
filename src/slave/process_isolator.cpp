@@ -141,13 +141,7 @@ void ProcessIsolator::launchExecutor(
   CHECK_SOME(cloexec) << "Error setting FD_CLOEXEC on pipe[1]";
 
   // Create the ExecutorLauncher instance before the fork for the
-  // child process to use. TODO(benh): Consider actually setting up
-  // this slaves environment for launching mesos-launcher so that we
-  // don't run the risk of
-  // ExecutorLauncher::setupEnvironmentForLauncherMain having some
-  // fork issues. Alternatively, we could imagine refactoring
-  // ExecutorLauncher::setupEnvironmentForLauncherMain to carefully
-  // only use fork "safe" functions.
+  // child process to use.
   ExecutorLauncher launcher(
       slaveId,
       frameworkId,
@@ -163,6 +157,11 @@ void ProcessIsolator::launchExecutor(
       !local,
       flags.switch_user,
       frameworkInfo.checkpoint());
+
+  // We get the environment map for launching mesos-launcher before
+  // the fork, because we have seen deadlock issues with ostringstream
+  // in the forked process before it calls exec.
+  map<string, string> env = launcher.getLauncherEnvironment();
 
   pid_t pid;
   if ((pid = fork()) == -1) {
@@ -219,7 +218,10 @@ void ProcessIsolator::launchExecutor(
 
     close(pipes[1]);
 
-    launcher.setupEnvironmentForLauncherMain();
+    // Setup the environment for launcher.
+    foreachpair (const string& key, const string& value, env) {
+      os::setenv(key, value);
+    }
 
     const char** args = (const char**) new char*[2];
 
