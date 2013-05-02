@@ -284,7 +284,7 @@ protected:
       return;
     }
 
-    VLOG(1) << "Received " << offers.size() << " offers";
+    VLOG(2) << "Received " << offers.size() << " offers";
 
     CHECK(offers.size() == pids.size());
 
@@ -294,10 +294,10 @@ protected:
       UPID pid(pids[i]);
       // Check if parse failed (e.g., due to DNS).
       if (pid != UPID()) {
-        VLOG(2) << "Saving PID '" << pids[i] << "'";
+        VLOG(3) << "Saving PID '" << pids[i] << "'";
         savedOffers[offers[i].id()][offers[i].slave_id()] = pid;
       } else {
-        VLOG(2) << "Failed to parse PID '" << pids[i] << "'";
+        VLOG(1) << "Failed to parse PID '" << pids[i] << "'";
       }
     }
 
@@ -329,7 +329,7 @@ protected:
       return;
     }
 
-    VLOG(1) << "Received status update " << update << " from " << pid;
+    VLOG(2) << "Received status update " << update << " from " << pid;
 
     CHECK(framework.id() == update.framework_id());
 
@@ -362,7 +362,7 @@ protected:
       return;
     }
 
-    VLOG(1) << "Sending ACK for status update " << update << " to " << pid;
+    VLOG(2) << "Sending ACK for status update " << update << " to " << pid;
 
     StatusUpdateAcknowledgementMessage message;
     message.mutable_framework_id()->MergeFrom(framework.id());
@@ -403,7 +403,7 @@ protected:
       return;
     }
 
-    VLOG(1) << "Received framework message";
+    VLOG(2) << "Received framework message";
 
     scheduler->frameworkMessage(driver, executorId, slaveId, data);
   }
@@ -589,7 +589,7 @@ protected:
      return;
     }
 
-    VLOG(1) << "Asked to send framework message to slave "
+    VLOG(2) << "Asked to send framework message to slave "
             << slaveId;
 
     // TODO(benh): After a scheduler has re-registered it won't have
