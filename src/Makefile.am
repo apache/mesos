@@ -552,14 +552,24 @@ CLEANFILES += $(MESOS_SOURCES_JAR)
 # main libmesos.so.
 noinst_LTLIBRARIES += libjava.la
 
-libjava_la_SOURCES = java/jni/convert.cpp java/jni/construct.cpp	\
+libjava_la_SOURCES =							\
+	java/jni/convert.cpp						\
+	java/jni/convert.hpp						\
+	java/jni/construct.cpp						\
+	java/jni/construct.hpp						\
 	java/jni/org_apache_mesos_Log.cpp				\
 	java/jni/org_apache_mesos_MesosSchedulerDriver.cpp		\
 	java/jni/org_apache_mesos_MesosExecutorDriver.cpp		\
 	java/jni/org_apache_mesos_state_Variable.cpp			\
-	java/jni/org_apache_mesos_state_ZooKeeperState.cpp jvm/jvm.cpp
-
-libjava_la_SOURCES += java/jni/convert.hpp java/jni/construct.hpp jvm/jvm.hpp
+	java/jni/org_apache_mesos_state_ZooKeeperState.cpp		\
+	jvm/jvm.cpp							\
+	jvm/jvm.hpp							\
+	jvm/java/io.hpp							\
+	jvm/java/lang.hpp						\
+	jvm/java/net.hpp						\
+	jvm/org/apache/log4j.cpp					\
+	jvm/org/apache/log4j.hpp					\
+	jvm/org/apache/zookeeper.hpp
 
 libjava_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libjava_la_CPPFLAGS += $(JAVA_CPPFLAGS)

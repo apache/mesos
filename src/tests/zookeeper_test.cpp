@@ -24,13 +24,16 @@
 
 #include <tr1/functional>
 
+#include <jvm/jvm.hpp>
+
+#include <jvm/org/apache/log4j.hpp>
+#include <jvm/org/apache/log4j.hpp>
+
 #include <stout/lambda.hpp>
 
 #include "common/lock.hpp"
 
 #include "logging/logging.hpp"
-
-#include "jvm/jvm.hpp"
 
 #include "tests/utils.hpp"
 #include "tests/zookeeper_test.hpp"
@@ -40,45 +43,12 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-const Milliseconds ZooKeeperTest::NO_TIMEOUT(5000);
-
-// Note that we NEVER delete the Jvm instance because you can only
-// create one JVM since destructing a JVM has issues (see:
-// http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4712793).
-Jvm* ZooKeeperTest::jvm = NULL;
-
-
-static void silenceServerLogs(Jvm* jvm)
-{
-  Jvm::Attach attach(jvm);
-
-  Jvm::JClass loggerClass = Jvm::JClass::forName("org/apache/log4j/Logger");
-  jobject rootLogger =jvm->invokeStatic<jobject>(
-      jvm->findStaticMethod(loggerClass
-                            .method("getRootLogger")
-                            .returns(loggerClass)));
-
-  Jvm::JClass levelClass = Jvm::JClass::forName("org/apache/log4j/Level");
-  jvm->invoke<void>(
-      rootLogger,
-      jvm->findMethod(loggerClass
-                      .method("setLevel")
-                      .parameter(levelClass)
-                      .returns(jvm->voidClass)),
-      jvm->getStaticField<jobject>(jvm->findStaticField(levelClass, "OFF")));
-}
-
-
-static void silenceClientLogs()
-{
-  // TODO(jsirois): Put this in the C++ API.
-  zoo_set_debug_level(ZOO_LOG_LEVEL_ERROR);
-}
+const Duration ZooKeeperTest::NO_TIMEOUT = Milliseconds(5000);
 
 
 void ZooKeeperTest::SetUpTestCase()
 {
-  if (jvm == NULL) {
+  if (!Jvm::created()) {
     std::string zkHome = flags.build_dir +
       "/third_party/zookeeper-" ZOOKEEPER_VERSION;
 
@@ -88,13 +58,19 @@ void ZooKeeperTest::SetUpTestCase()
 
     LOG(INFO) << "Using classpath setup: " << classpath << std::endl;
 
-    std::vector<std::string> opts;
-    opts.push_back(classpath);
-    jvm = new Jvm(opts);
+    std::vector<std::string> options;
+    options.push_back(classpath);
+    Try<Jvm*> jvm = Jvm::create(options);
+    CHECK_SOME(jvm);
 
     if (!flags.verbose) {
-      silenceServerLogs(jvm);
-      silenceClientLogs();
+      // Silence server logs.
+      org::apache::log4j::Logger::getRootLogger()
+        .setLevel(org::apache::log4j::Level::OFF);
+
+      // Silence client logs.
+      // TODO(jsirois): Create C++ ZooKeeper::setLevel.
+      zoo_set_debug_level(ZOO_LOG_LEVEL_ERROR);
     }
   }
 }
@@ -102,18 +78,8 @@ void ZooKeeperTest::SetUpTestCase()
 
 void ZooKeeperTest::SetUp()
 {
-  MesosTest::SetUp();
-  server = new ZooKeeperTestServer(jvm);
   server->startNetwork();
-};
-
-
-void ZooKeeperTest::TearDown()
-{
-  delete server;
-  server = NULL;
-  MesosTest::TearDown();
-};
+}
 
 
 ZooKeeperTest::TestWatcher::TestWatcher()

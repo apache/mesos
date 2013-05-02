@@ -19,13 +19,13 @@
 #ifndef __ZOOKEEPER_TEST_SERVER_HPP__
 #define __ZOOKEEPER_TEST_SERVER_HPP__
 
-#include <jni.h>
+#include <string>
 
 #include <glog/logging.h>
 
-#include <stout/os.hpp>
+#include <jvm/org/apache/zookeeper.hpp>
 
-#include "jvm/jvm.hpp"
+#include <stout/os.hpp>
 
 #include "zookeeper/zookeeper.hpp"
 
@@ -40,7 +40,7 @@ namespace tests {
 class ZooKeeperTestServer
 {
 public:
-  ZooKeeperTestServer(Jvm* jvm);
+  ZooKeeperTestServer();
   ~ZooKeeperTestServer();
 
   // Gets a connection string that can be used to attach a ZooKeeper client to
@@ -67,54 +67,11 @@ public:
   void expireSession(int64_t sessionId);
 
 private:
-  // TODO(John Sirois): factor out TemporaryDirectory + createTempDir() to utils
-  struct TemporaryDirectory
-  {
-    Jvm* jvm;
-    const std::string path;
-    const jobject file;
-
-    TemporaryDirectory(Jvm* _jvm,
-                       const std::string& _path,
-                       const jobject _file) : jvm(_jvm),
-                                              path(_path),
-                                              file(_file) {}
-
-    ~TemporaryDirectory()
-    {
-      jvm->deleteGlobalRef(file);
-      Try<Nothing> rmdir = os::rmdir(path);
-      if (rmdir.isError()) {
-        LOG(WARNING) << "Failed to delete temp dir '"
-                     << path << "': " << rmdir.error();
-      }
-    }
-  };
-
-  Jvm* jvm;
-
-  Jvm::JConstructor* fileConstructor;
-  jobject snapLog;
-  jobject dataTreeBuilder;
-  jobject zooKeeperServer;
-  Jvm::JMethod* getClientPort;
-  Jvm::JMethod* closeSession;
-
-  Jvm::JConstructor* inetSocketAddressConstructor;
-  jobject inetSocketAddress;
-  Jvm::JConstructor* cnxnFactoryConstructor;
-  jobject connectionFactory;
-  Jvm::JMethod* startup;
-  Jvm::JMethod* isAlive;
-  Jvm::JMethod* shutdown;
+  org::apache::zookeeper::server::ZooKeeperServer* zooKeeperServer;
+  org::apache::zookeeper::server::NIOServerCnxn::Factory* connectionFactory;
 
   int port;
   bool started;
-  const TemporaryDirectory* dataDir;
-  const TemporaryDirectory* snapDir;
-
-  const TemporaryDirectory* createTempDir();
-  void checkStarted() const;
 };
 
 } // namespace tests {

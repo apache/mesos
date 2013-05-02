@@ -16,130 +16,48 @@
  * limitations under the License.
  */
 
-#include <jni.h>
-#include <stdarg.h>
+#include <jvm/jvm.hpp>
 
-#include <glog/logging.h>
+#include <jvm/java/io.hpp>
+#include <jvm/java/net.hpp>
 
-#include <sstream>
-#include <vector>
+#include <jvm/org/apache/zookeeper.hpp>
 
-#include <stout/uuid.hpp>
+#include <stout/os.hpp>
 
-#include "jvm/jvm.hpp"
+#include "logging/logging.hpp"
 
 #include "tests/zookeeper_test_server.hpp"
+
+using org::apache::zookeeper::persistence::FileTxnSnapLog;
+
+using org::apache::zookeeper::server::NIOServerCnxn;
+using org::apache::zookeeper::server::ZooKeeperServer;
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
-ZooKeeperTestServer::ZooKeeperTestServer(Jvm* _jvm)
-  : jvm(_jvm),
+ZooKeeperTestServer::ZooKeeperTestServer()
+  : zooKeeperServer(NULL),
+    connectionFactory(NULL),
     port(0),
     started(false)
 {
-  Jvm::Attach attach(jvm);
+  // Create temporary directories for the FileTxnSnapLog.
+  Try<std::string> directory = os::mkdtemp();
+  CHECK_SOME(directory);
+  java::io::File dataDir(directory.get());
+  dataDir.deleteOnExit();
 
-  Jvm::JClass fileClass = Jvm::JClass::forName("java/io/File");
-  fileConstructor = new Jvm::JConstructor(
-      jvm->findConstructor(
-          fileClass
-          .constructor()
-          .parameter(jvm->stringClass)));
+  directory = os::mkdtemp();
+  CHECK_SOME(directory);
+  java::io::File snapDir(directory.get());
+  snapDir.deleteOnExit();
 
-  Jvm::JClass inetSocketAddressClass =
-      Jvm::JClass::forName("java/net/InetSocketAddress");
-  inetSocketAddressConstructor = new Jvm::JConstructor(
-      jvm->findConstructor(
-          inetSocketAddressClass
-          .constructor()
-          .parameter(jvm->intClass)));
-
-  Jvm::JClass cnxnFactoryClass =
-      Jvm::JClass::forName("org/apache/zookeeper/server/NIOServerCnxn$Factory");
-  cnxnFactoryConstructor = new Jvm::JConstructor(
-      jvm->findConstructor(
-          cnxnFactoryClass
-          .constructor()
-          .parameter(inetSocketAddressClass)));
-
-  Jvm::JClass zkServerClass =
-      Jvm::JClass::forName("org/apache/zookeeper/server/ZooKeeperServer");
-  startup = new Jvm::JMethod(
-      jvm->findMethod(
-          cnxnFactoryClass
-          .method("startup")
-          .parameter(zkServerClass)
-          .returns(jvm->voidClass)));
-
-  isAlive = new Jvm::JMethod(
-      jvm->findMethod(
-          cnxnFactoryClass
-          .method("isAlive")
-          .returns(jvm->booleanClass)));
-
-  shutdown = new Jvm::JMethod(
-      jvm->findMethod(
-          cnxnFactoryClass
-          .method("shutdown")
-          .returns(jvm->voidClass)));
-
-  dataDir = createTempDir();
-  snapDir = createTempDir();
-  Jvm::JClass snapLogClass =
-    Jvm::JClass::forName(
-        "org/apache/zookeeper/server/"
-        "persistence/FileTxnSnapLog");
-
-  snapLog = jvm->newGlobalRef(
-      jvm->invoke(
-          jvm->findConstructor(snapLogClass
-                               .constructor()
-                               .parameter(fileClass)
-                               .parameter(fileClass)),
-          dataDir->file,
-          snapDir->file));
-
-  dataTreeBuilder = jvm->newGlobalRef(
-      jvm->invoke(
-          jvm->findConstructor(
-              Jvm::JClass::forName(
-                  "org/apache/zookeeper/server/"
-                  "ZooKeeperServer$BasicDataTreeBuilder").constructor())));
-
-  Jvm::JClass dataTreeBuilderClass(
-      Jvm::JClass::forName("org/apache/zookeeper/server/"
-                           "ZooKeeperServer$DataTreeBuilder"));
-
-  zooKeeperServer = jvm->newGlobalRef(
-      jvm->invoke(
-          jvm->findConstructor(zkServerClass
-                               .constructor()
-                               .parameter(snapLogClass)
-                               .parameter(dataTreeBuilderClass)),
-          snapLog,
-          dataTreeBuilder));
-
-  getClientPort = new Jvm::JMethod(
-      jvm->findMethod(zkServerClass
-                      .method("getClientPort")
-                      .returns(jvm->intClass)));
-
-  closeSession = new Jvm::JMethod(
-      jvm->findMethod(zkServerClass
-                      .method("closeSession")
-                      .parameter(jvm->longClass)
-                      .returns(jvm->voidClass)));
-}
-
-
-const ZooKeeperTestServer::TemporaryDirectory* ZooKeeperTestServer::createTempDir()
-{
-  std::string tmpdir = "/tmp/zks-" + UUID::random().toString();
-  jobject file =
-    jvm->newGlobalRef(jvm->invoke(*fileConstructor, jvm->string(tmpdir)));
-  return new TemporaryDirectory(jvm, tmpdir, file);
+  zooKeeperServer = new ZooKeeperServer(
+      FileTxnSnapLog(dataDir, snapDir),
+      ZooKeeperServer::BasicDataTreeBuilder());
 }
 
 
@@ -147,51 +65,30 @@ ZooKeeperTestServer::~ZooKeeperTestServer()
 {
   shutdownNetwork();
 
-  Jvm::Attach attach(jvm);
-
-  jvm->deleteGlobalRefSafe(inetSocketAddress);
-  jvm->deleteGlobalRefSafe(connectionFactory);
-  jvm->deleteGlobalRefSafe(snapLog);
-  jvm->deleteGlobalRefSafe(dataTreeBuilder);
-  jvm->deleteGlobalRefSafe(zooKeeperServer);
-
-  delete fileConstructor;
-  delete getClientPort;
-  delete closeSession;
-
-  delete inetSocketAddressConstructor;
-  delete cnxnFactoryConstructor;
-
-  delete startup;
-  delete isAlive;
-  delete shutdown;
-
-  delete dataDir;
-  delete snapDir;
+  delete zooKeeperServer;
+  delete connectionFactory;
 }
 
 
 void ZooKeeperTestServer::expireSession(int64_t sessionId)
 {
-  Jvm::Attach attach(jvm);
-
-  jvm->invoke<void>(zooKeeperServer, *closeSession, sessionId);
+  zooKeeperServer->closeSession(sessionId);
 }
 
 
 std::string ZooKeeperTestServer::connectString() const
 {
-  checkStarted();
+  CHECK(port > 0) << "Illegal state, must call startNetwork first!";
   return "127.0.0.1:" + stringify(port);
 }
 
 
 void ZooKeeperTestServer::shutdownNetwork()
 {
-  Jvm::Attach attach(jvm);
-
-  if (started && jvm->invoke<bool>(connectionFactory, *isAlive)) {
-    jvm->invoke<void>(connectionFactory, *shutdown);
+  if (started && connectionFactory->isAlive()) {
+    connectionFactory->shutdown();
+    delete connectionFactory;
+    connectionFactory = NULL;
     LOG(INFO) << "Shutdown ZooKeeperTestServer on port " << port << std::endl;
   }
 }
@@ -199,28 +96,24 @@ void ZooKeeperTestServer::shutdownNetwork()
 
 int ZooKeeperTestServer::startNetwork()
 {
-  Jvm::Attach attach(jvm);
+  connectionFactory = new NIOServerCnxn::Factory(
+      java::net::InetSocketAddress(port));
 
-  inetSocketAddress =
-      jvm->newGlobalRef(jvm->invoke(*inetSocketAddressConstructor, port));
-  connectionFactory =
-      jvm->newGlobalRef(
-          jvm->invoke(*cnxnFactoryConstructor, inetSocketAddress));
+  connectionFactory->startup(*zooKeeperServer);
 
-  jvm->invoke<void>(connectionFactory, *startup, zooKeeperServer);
-  port = jvm->invoke<int>(zooKeeperServer, *getClientPort);
+  if (port == 0) {
+    // We save the ephemeral port so if/when we restart the network
+    // the clients will reconnect to the same server. Note that this
+    // might not actually be kosher because it's possible that another
+    // process could bind to our ephemeral port after we unbind.
+    port = zooKeeperServer->getClientPort();
+  }
+
   LOG(INFO) << "Started ZooKeeperTestServer on port " << port;
   started = true;
   return port;
 }
 
-
-void ZooKeeperTestServer::checkStarted() const
-{
-  CHECK(port > 0) << "Illegal state, must call startNetwork first!";
-}
-
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
-

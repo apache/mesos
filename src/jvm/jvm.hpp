@@ -3,9 +3,12 @@
 
 #include <jni.h>
 
-#include <glog/logging.h>
-
+#include <string>
 #include <vector>
+
+#include <stout/error.hpp>
+#include <stout/try.hpp>
+
 
 // Some compilers give us warnings about 'dereferencing type-punned
 // pointer will break strict-aliasing rules' when we cast our JNIEnv**
@@ -16,118 +19,149 @@ inline void** JNIENV_CAST(JNIEnv** env)
 }
 
 
-namespace mesos {
-namespace internal {
+struct JNI
+{
+  enum Version
+  {
+    v_1_1 = JNI_VERSION_1_1,
+    v_1_2 = JNI_VERSION_1_2,
+    v_1_4 = JNI_VERSION_1_4,
+    v_1_6 = JNI_VERSION_1_6
+  };
+};
 
-// Facilitates embedding a jvm and calling into it.
-//
-// TODO(John Sirois): Fix variadic methods.  Possibly a way to do this with
-// typelists, type concatenation and unwinding builder inheritance.
-//
-// TODO(John Sirois): Support finding static methods.
+// Facilitates embedding a JVM and calling into it.
 class Jvm
 {
 public:
   // Forward declarations.
   class ConstructorFinder;
   class MethodFinder;
-  class JConstructor;
+  class Constructor;
   class MethodSignature;
-  class JMethod;
+  class Method;
 
-  // An opaque class descriptor that can be used to find constructors, methods
-  // and fields.
-  class JClass
+  // Starts a new embedded JVM with the given -D options. Each option
+  // supplied should be of the standard form: '-Dproperty=value'.
+  // Returns the singleton Jvm instance or an error if the JVM had
+  // already been created. Note that you can only create one JVM
+  // instance per process since destructing a JVM has issues, see:
+  // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4712793.  In
+  // addition, most JVM's use signals and couldn't possibly play
+  // nicely with one another.
+  // TODO(benh): Add a 'create' which just takes an already
+  // constructed JavaVM. This will be useful for when a JVM is calling
+  // into native code versus native code embedding a JVM.
+  // TODO(John Sirois): Consider elevating classpath as a top-level
+  // JVM configuration parameter since it will likely always need to
+  // be specified. Ditto for and non '-X' options.
+  static Try<Jvm*> create(
+      const std::vector<std::string>& options = std::vector<std::string>(),
+      JNI::Version version = JNI::v_1_6,
+      bool exceptions = false);
+
+  // Returns true if the JVM has already been created.
+  static bool created();
+
+  // Returns the singleton JVM instance, creating it with no options
+  // and a default version if necessary.
+  static Jvm* get();
+
+  // An opaque class descriptor that can be used to find constructors,
+  // methods and fields.
+  class Class
   {
   public:
-    // A factory for new java reference type class descriptors given the native
-    // name.  To obtain class descriptors for native types, use the fields in
-    // Jvm.
-    static const JClass forName(const std::string& nativeName);
+    // A factory for new Java reference type class descriptors given
+    // the fully-qualified class name (e.g., 'java/io/File'). To
+    // obtain class descriptors for native types (int, short, etc),
+    // use the fields in Jvm.
+    static const Class named(const std::string& name);
 
-    JClass(const JClass& other);
+    Class(const Class& that);
 
     // Returns the class of an array of the current class.
-    const JClass arrayOf() const;
+    const Class arrayOf() const;
 
-    // Creates a builder that can be used to locate a constructor of this
-    // class with Jvm::findConstructor.
+    // Creates a builder that can be used to locate a constructor of
+    // this class with Jvm::findConstructor.
     ConstructorFinder constructor() const;
 
-    // Creates a builder that can be used to locate an instance method of this
-    // class with Jvm::findMethod.
+    // Creates a builder that can be used to locate an instance method
+    // of this class with Jvm::findMethod.
     MethodFinder method(const std::string& name) const;
 
   private:
     friend class Jvm;
 
-    JClass(const std::string& nativeName,
-           bool isNative = true);
+    Class(const std::string& name, bool native = true);
 
     std::string signature() const;
 
-    std::string nativeName;
-    bool isNative;
+    std::string name;
+    bool native;
   };
 
 
-  // A builder that is used to specify a constructor by specifying its parameter
-  // list with zero or more calls to ConstructorFinder::parameter.
+  // A builder that is used to specify a constructor by specifying its
+  // parameter list with zero or more calls to
+  // ConstructorFinder::parameter.
   class ConstructorFinder
   {
   public:
     // Adds a parameter to the constructor parameter list.
-    ConstructorFinder& parameter(const JClass& type);
+    ConstructorFinder& parameter(const Class& clazz);
 
   private:
-    friend class JClass;
+    friend class Class;
     friend class Jvm;
 
-    ConstructorFinder(const JClass& type);
+    ConstructorFinder(const Class& clazz);
 
-    const JClass type;
-    std::vector<JClass> parameters;
+    const Class clazz;
+    std::vector<Class> parameters;
   };
 
 
-  // An opaque constructor descriptor that can be used to create new instances
-  // of a class using Jvm::invokeConstructor.
-  class JConstructor
+  // An opaque constructor descriptor that can be used to create new
+  // instances of a class using Jvm::invokeConstructor.
+  class Constructor
   {
   public:
-    JConstructor(const JConstructor& other);
+    Constructor(const Constructor& that);
 
   private:
     friend class Jvm;
 
-    JConstructor(const JClass& clazz, const jmethodID id);
+    Constructor(const Class& clazz, const jmethodID id);
 
-    const JClass clazz;
+    const Class clazz;
     const jmethodID id;
   };
 
 
-  // A builder that is used to specify an instance method by specifying its
-  // parameter list with zero or more calls to MethodFinder::parameter and a
-  // final call to MethodFinder::returns to get an opaque specification of the
-  // method for use with Jvm::findMethod.
+  // A builder that is used to specify an instance method by
+  // specifying its parameter list with zero or more calls to
+  // MethodFinder::parameter and a final call to MethodFinder::returns
+  // to get an opaque specification of the method for use with
+  // Jvm::findMethod.
   class MethodFinder
   {
   public:
     // Adds a parameter to the method parameter list.
-    MethodFinder& parameter(const JClass& type);
+    MethodFinder& parameter(const Class& type);
 
     // Terminates description of a method by specifying its return type.
-    MethodSignature returns(const JClass& type) const;
+    MethodSignature returns(const Class& type) const;
 
   private:
-    friend class JClass;
+    friend class Class;
 
-    MethodFinder(const JClass& clazz, const std::string& name);
+    MethodFinder(const Class& clazz, const std::string& name);
 
-    const JClass clazz;
+    const Class clazz;
     const std::string name;
-    std::vector<JClass> parameters;
+    std::vector<Class> parameters;
   };
 
 
@@ -135,153 +169,237 @@ public:
   class MethodSignature
   {
   public:
-    MethodSignature(const MethodSignature& other);
+    MethodSignature(const MethodSignature& that);
 
   private:
     friend class Jvm;
     friend class MethodFinder;
 
-    MethodSignature(const JClass& clazz,
+    MethodSignature(const Class& clazz,
                     const std::string& name,
-                    const JClass& returnType,
-                    const std::vector<JClass>& parameters);
+                    const Class& returnType,
+                    const std::vector<Class>& parameters);
 
-    const JClass clazz;
+    const Class clazz;
     const std::string name;
-    const JClass returnType;
-    std::vector<JClass> parameters;
+    const Class returnType;
+    std::vector<Class> parameters;
   };
 
 
   // An opaque method descriptor that can be used to invoke instance methods
   // using Jvm::invokeMethod.
-  class JMethod
+  class Method
   {
   public:
-    JMethod(const JMethod& other);
+    Method(const Method& that);
 
   private:
     friend class Jvm;
     friend class MethodSignature;
 
-    JMethod(const JClass& clazz, const jmethodID id);
+    Method(const Class& clazz, const jmethodID id);
 
-    const JClass clazz;
+    const Class clazz;
     const jmethodID id;
   };
 
 
   // An opaque field descriptor that can be used to access fields using
   // methods like Jvm::getStaticField.
-  class JField
+  class Field
   {
   public:
-    JField(const JField& other);
+    Field(const Field& that);
 
   private:
     friend class Jvm;
 
-    JField(const JClass& clazz, const jfieldID id);
+    Field(const Class& clazz, const jfieldID id);
 
-    const JClass clazz;
+    const Class clazz;
     const jfieldID id;
   };
 
 
-  // RAII container for c++/jvm thread binding management.
-  class Attach
+  // Base class for all JVM objects. This object "stores" the
+  // underlying global reference and performs the appropriate
+  // operations across copies and assignments.
+  class Object
   {
   public:
-    Attach(Jvm* jvm, bool daemon = true);
-    ~Attach();
+    Object() : object(NULL) {}
+
+    Object(jobject _object)
+      : object(Jvm::get()->newGlobalRef(_object)) {}
+
+    Object(const Object& that)
+    {
+      object = Jvm::get()->newGlobalRef(that.object);
+    }
+
+    ~Object()
+    {
+      if (object != NULL) {
+        Jvm::get()->deleteGlobalRef(object);
+      }
+    }
+
+    Object& operator = (const Object& that)
+    {
+      if (object != NULL) {
+        Jvm::get()->deleteGlobalRef(object);
+      }
+      object = Jvm::get()->newGlobalRef(that.object);
+      return *this;
+    }
+
+    operator jobject () const
+    {
+      return object;
+    }
+
+  protected:
+    friend class Jvm; // For manipulating object.
+
+    jobject object;
+  };
+
+  // Helper for providing access to static variables in a class. You
+  // can use this to delay the variable lookup until it's actually
+  // accessed in order to keep the JVM from getting constructed too
+  // early. See Level in jvm/org/apache/log4j.hpp for an example.
+  // TODO(benh): Make this work for instance variables too (i.e.,
+  // StaticVariable -> Variable).
+  // TODO(benh): Provide template specialization for primitive
+  // types (e.g., StaticVariable<int>, StaticVariable<short>,
+  // StaticVariable<std::string>).
+  template <typename T, const char* name>
+  class StaticVariable
+  {
+  public:
+    StaticVariable(const Class& _clazz)
+      : clazz(_clazz)
+    {
+      // Check that T extends Object.
+      { T* t = NULL; Object* o = t; (void) o; }
+    }
+
+    operator T () const
+    {
+      // Note that we actually look up the field lazily (upon first
+      // invocation operator) so that we don't possibly create the JVM
+      // too early.
+      static Field field = Jvm::get()->findStaticField(clazz, name);
+      T t;
+      t.object = Jvm::get()->getStaticField<jobject>(field);
+      return t;
+    }
 
   private:
-    Jvm* _jvm;
+    const Class clazz;
   };
 
-  friend class Attach;
-
-  enum JNIVersion
+  // Each thread that wants to interact with the JVM needs a JNI
+  // environment which must be obtained by "attaching" to the JVM. We
+  // use the following RAII class to provide the environment and also
+  // make sure a thread is attached and properly detached. Note that
+  // nested constructions are no-ops and use the same environment (and
+  // without detaching too early).
+  // TODO(benh): Support putting a 'Jvm::Env' into a thread-local
+  // variable so we can "attach" to the JVM once.
+  class Env
   {
-    v_1_1 = JNI_VERSION_1_1,
-    v_1_2 = JNI_VERSION_1_2,
-    v_1_4 = JNI_VERSION_1_4,
-    v_1_6 = JNI_VERSION_1_6
+  public:
+    Env(bool daemon = true);
+    ~Env();
+
+    JNIEnv* operator -> () const { return env; }
+
+    operator JNIEnv* () const { return env; }
+
+  private:
+    JNIEnv* env;
+    bool detach; // A nested use of Env should not detach the thread.
   };
 
-  // Starts a new embedded jvm with the given -D options.  Each option supplied
-  // should be of the standard form: '-Dproperty=value'.
-  //
-  // TODO(John Sirois): Consider elevating classpath as a top level jvm
-  // configuration parameter since it will likely always need to be specified.
-  // Ditto for and non -X java option.
-  Jvm(const std::vector<std::string>& options,
-      JNIVersion jniVersion = Jvm::v_1_6);
-  ~Jvm();
+  friend class Env;
 
-  const JClass voidClass;
-  const JClass booleanClass;
-  const JClass byteClass;
-  const JClass charClass;
-  const JClass shortClass;
-  const JClass intClass;
-  const JClass longClass;
-  const JClass floatClass;
-  const JClass doubleClass;
-  const JClass stringClass;
+  const Class voidClass;
+  const Class booleanClass;
+  const Class byteClass;
+  const Class charClass;
+  const Class shortClass;
+  const Class intClass;
+  const Class longClass;
+  const Class floatClass;
+  const Class doubleClass;
+  const Class stringClass;
 
-  jobject string(const std::string& str);
+  jstring string(const std::string& s);
 
-  JConstructor findConstructor(const ConstructorFinder& constructor);
-  JMethod findMethod(const MethodSignature& signature);
-  JMethod findStaticMethod(const MethodSignature& signature);
-  JField findStaticField(const JClass& clazz, const std::string& name);
+  Constructor findConstructor(const ConstructorFinder& finder);
+  Method findMethod(const MethodSignature& signature);
+  Method findStaticMethod(const MethodSignature& signature);
+  Field findStaticField(const Class& clazz, const std::string& name);
 
-  jobject invoke(const JConstructor& ctor, ...);
+  // TODO(John Sirois): Add "type checking" to variadic method
+  // calls. Possibly a way to do this with typelists, type
+  // concatenation and unwinding builder inheritance.
+
+  jobject invoke(const Constructor& ctor, ...);
 
   template <typename T>
-  T invoke(const jobject receiver, const JMethod& method, ...);
+  T invoke(const jobject receiver, const Method& method, ...);
 
   template <typename T>
-  T invokeStatic(const JMethod& method, ...);
+  T invokeStatic(const Method& method, ...);
 
   template <typename T>
-  T getStaticField(const JField& field);
+  T getStaticField(const Field& field);
 
-  jobject newGlobalRef(const jobject object);
-  void deleteGlobalRef(const jobject object);
-  void deleteGlobalRefSafe(const jobject object);
+  // Checks the exception state of an environment.
+  void check(JNIEnv* env);
 
 private:
-  jclass findClass(const JClass& clazz);
+  friend class Object; // For creating global references.
 
-  jmethodID findMethod(const Jvm::JClass& clazz,
+  Jvm(JavaVM* jvm, JNI::Version version, bool exceptions);
+  ~Jvm();
+
+private:
+  jobject newGlobalRef(const jobject object);
+  void deleteGlobalRef(const jobject object);
+
+  jclass findClass(const Class& clazz);
+
+  jmethodID findMethod(const Jvm::Class& clazz,
                        const std::string& name,
-                       const Jvm::JClass& returnType,
-                       const std::vector<Jvm::JClass> argTypes,
+                       const Jvm::Class& returnType,
+                       const std::vector<Jvm::Class>& argTypes,
                        bool isStatic);
 
   template <typename T>
   T invokeV(const jobject receiver, const jmethodID id, va_list args);
 
   template <typename T>
-  T invokeStaticV(const JClass& receiver, const jmethodID id, va_list args);
+  T invokeStaticV(const Class& receiver, const jmethodID id, va_list args);
 
-  void attachDaemon();
-  void attach();
-  void detach();
+  // Singleton instance.
+  static Jvm* instance;
 
   JavaVM* jvm;
-  JNIEnv* env;
+  const JNI::Version version;
+  const bool exceptions;
 };
 
 
 template <>
-void Jvm::invoke<void>(const jobject receiver, const JMethod& method, ...);
+void Jvm::invoke<void>(const jobject receiver, const Method& method, ...);
 
 
 template <typename T>
-T Jvm::invoke(const jobject receiver, const JMethod& method, ...)
+T Jvm::invoke(const jobject receiver, const Method& method, ...)
 {
   va_list args;
   va_start(args, method);
@@ -292,11 +410,11 @@ T Jvm::invoke(const jobject receiver, const JMethod& method, ...)
 
 
 template <>
-void Jvm::invokeStatic<void>(const JMethod& method, ...);
+void Jvm::invokeStatic<void>(const Method& method, ...);
 
 
 template <typename T>
-T Jvm::invokeStatic(const JMethod& method, ...)
+T Jvm::invokeStatic(const Method& method, ...)
 {
   va_list args;
   va_start(args, method);
@@ -304,8 +422,5 @@ T Jvm::invokeStatic(const JMethod& method, ...)
   va_end(args);
   return result;
 }
-
-} // namespace internal
-} // namespace mesos
 
 #endif // __JVM_HPP__

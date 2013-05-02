@@ -29,8 +29,6 @@
 
 #include <stout/duration.hpp>
 
-#include "jvm/jvm.hpp"
-
 #include "tests/utils.hpp"
 #include "tests/zookeeper_test_server.hpp"
 
@@ -82,7 +80,6 @@ public:
   class TestWatcher : public Watcher
   {
   public:
-
     // Encapsulates all the state of a ZooKeeper watcher event.
     struct Event {
       Event(int _type, int _state, const std::string& _path)
@@ -119,21 +116,18 @@ public:
     pthread_cond_t cond;
   };
 
-  ZooKeeperTest() : server(NULL) {}
+  ZooKeeperTest() : server(new ZooKeeperTestServer()) {}
+  virtual ~ZooKeeperTest() { delete server; }
 
   static void SetUpTestCase();
 
 protected:
   virtual void SetUp();
-  virtual void TearDown();
 
   // A very long session timeout that simulates no timeout for test cases.
-  static const Milliseconds NO_TIMEOUT;
+  static const Duration NO_TIMEOUT;
 
   ZooKeeperTestServer* server;
-
-private:
-  static Jvm* jvm;
 };
 
 } // namespace tests {
