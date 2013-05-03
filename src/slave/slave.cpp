@@ -1056,10 +1056,30 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
 
   switch (executor->state) {
     case Executor::REGISTERING: {
-      LOG(WARNING) << "Removing queued task " << taskId
-                   << " of framework " << frameworkId
-                   << " because the executor '" << executor->id
-                   << "' hasn't registered yet";
+      if (executor->queuedTasks.contains(taskId)) {
+        // We remove the task here so that if this executor registers at
+        // a later point in time it won't be sent this task.
+        LOG(WARNING) << "Removing queued task " << taskId
+                     << " from executor '" << executor->id
+                     << "' of framework " << frameworkId
+                     << " because the executor hasn't registered yet";
+        executor->queuedTasks.erase(taskId);
+
+        if (executor->queuedTasks.empty()) {
+          CHECK(executor->launchedTasks.empty()) << executor;
+          // This executor no longer has any running tasks, so kill it.
+          LOG(WARNING) << "Killing the unregistered executor '" << executor->id
+                       << "' of framework " << framework->id
+                       << " because it has no tasks";
+          dispatch(
+              isolator, &Isolator::killExecutor, framework->id, executor->id);
+        }
+      } else {
+        LOG(WARNING) << "Cannot kill task " << taskId
+                     << " of framework " << frameworkId
+                     << " because the executor '" << executor->id
+                     << "' hasn't registered yet";
+      }
 
       // NOTE: Sending a TASK_KILLED update removes the task from
       // Executor::queuedTasks, so that if the executor registers at
