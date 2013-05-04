@@ -14,3 +14,16 @@ Mesos 0.10.0 (released TBD)
 
 Mesos 0.9.0 (released 2012-05-08)
   First incubator release for Mesos in Apache (fifth release candidate).
+
+** Dependency upgrade
+    * [MESOS-174] - Upgrade protobuf dependency to version 2.4.1
+
+** New Feature
+    * [MESOS-146] - EC2 scripts should find the latest AMI from a known URL
+
+** Question
+    * [MESOS-258] - mesos-master / mesos-slave => error: [Errno 32] Broken pipe
+    * [MESOS-311] - ClassNotFoundException when deploying hadoop on mesos
+
+** Wish
+    * [MESOS-117] - Release!
