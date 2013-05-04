@@ -42,6 +42,9 @@ extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
 extern const Duration RESOURCE_MONITORING_INTERVAL;
 
+// Minimum free disk capacity enforced by the garbage collector.
+extern const double GC_DISK_HEADROOM;
+
 // Maximum number of completed frameworks to store in memory.
 extern const uint32_t MAX_COMPLETED_FRAMEWORKS;
 

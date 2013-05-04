@@ -620,7 +620,10 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
     FUTURE_DISPATCH(_, &Slave::_checkDiskUsage);
 
   // Simulate a disk full message to the slave.
-  process::dispatch(slave.get(), &Slave::_checkDiskUsage, Try<double>::some(1));
+  process::dispatch(
+      slave.get(),
+      &Slave::_checkDiskUsage,
+      Try<double>::some(1.0 - slave::GC_DISK_HEADROOM));
 
   AWAIT_READY(_checkDiskUsage);
 

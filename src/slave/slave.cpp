@@ -2456,7 +2456,8 @@ void Slave::registerExecutorTimeout(
 // TODO(vinod): Figure out a way to express this function via cmd line.
 Duration Slave::age(double usage)
 {
- return Weeks(flags.gc_delay.weeks() * (1.0 - usage));
+ return Weeks(
+     flags.gc_delay.weeks() * std::max(0.0, (1.0 - GC_DISK_HEADROOM - usage)));
 }
 
 
