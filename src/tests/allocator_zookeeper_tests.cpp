@@ -61,28 +61,9 @@ using testing::SaveArg;
 template <typename T = AllocatorProcess>
 class AllocatorZooKeeperTest : public ZooKeeperTest
 {
-public:
-  virtual void SetUp()
-  {
-    ZooKeeperTest::SetUp();
-
-    a1 = new Allocator(&allocator1);
-    a2 = new Allocator(&allocator2);
-  }
-
-  virtual void TearDown()
-  {
-    ZooKeeperTest::TearDown();
-
-    delete a1;
-    delete a2;
-  }
-
 protected:
   T allocator1;
   MockAllocatorProcess<T> allocator2;
-  Allocator* a1;
-  Allocator* a2;
 };
 
 
