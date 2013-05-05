@@ -25,7 +25,7 @@
 #include <stout/strings.hpp>
 
 #include "tests/utils.hpp"
-#include "tests/zookeeper_test.hpp"
+#include "tests/zookeeper.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::tests;

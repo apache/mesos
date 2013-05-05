@@ -27,8 +27,8 @@
 #include "master/allocator.hpp"
 #include "master/master.hpp"
 
-#include "tests/zookeeper_test.hpp"
 #include "tests/utils.hpp"
+#include "tests/zookeeper.hpp"
 
 #include "zookeeper/url.hpp"
 

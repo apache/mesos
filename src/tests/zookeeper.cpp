@@ -36,7 +36,7 @@
 #include "logging/logging.hpp"
 
 #include "tests/utils.hpp"
-#include "tests/zookeeper_test.hpp"
+#include "tests/zookeeper.hpp"
 #include "tests/zookeeper_test_server.hpp"
 
 namespace mesos {

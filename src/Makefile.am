@@ -230,7 +230,7 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
         slave/reaper.hpp						\
 	slave/slave.hpp							\
 	tests/environment.hpp tests/script.hpp				\
-	tests/zookeeper_test.hpp tests/flags.hpp tests/utils.hpp	\
+	tests/zookeeper.hpp tests/flags.hpp tests/utils.hpp		\
 	tests/cluster.hpp						\
 	tests/isolator.hpp						\
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
@@ -823,7 +823,7 @@ if OS_LINUX
 endif
 
 if HAS_JAVA
-  mesos_tests_SOURCES += tests/zookeeper_test.cpp		\
+  mesos_tests_SOURCES += tests/zookeeper.cpp			\
                          tests/zookeeper_test_server.cpp	\
                          tests/zookeeper_tests.cpp		\
                          tests/allocator_zookeeper_tests.cpp

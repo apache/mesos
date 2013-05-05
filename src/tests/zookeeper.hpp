@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __ZOOKEEPER_TEST_HPP__
-#define __ZOOKEEPER_TEST_HPP__
+#ifndef __TESTS_ZOOKEEPER_HPP__
+#define __TESTS_ZOOKEEPER_HPP__
 
 #include <pthread.h>
 

@@ -27,7 +27,7 @@
 #include <stout/option.hpp>
 
 #include "tests/utils.hpp"
-#include "tests/zookeeper_test.hpp"
+#include "tests/zookeeper.hpp"
 
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/group.hpp"

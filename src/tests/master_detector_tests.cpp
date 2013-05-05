@@ -50,7 +50,7 @@
 
 #include "tests/utils.hpp"
 #ifdef MESOS_HAS_JAVA
-#include "tests/zookeeper_test.hpp"
+#include "tests/zookeeper.hpp"
 #endif
 
 using namespace mesos;
