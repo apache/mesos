@@ -15,9 +15,9 @@
 # http://www.reviewboard.org/docs/manual/dev/users/tools/post-review/
 #
 # $ cd /path/to/mesos
-# $ [ do some work on your branch off of trunk, make commit(s) ]
+# $ [ do some work on your branch off of master, make commit(s) ]
 # $ ./support/post-reviews.py --server=https://reviews.apache.org \
-#   --tracking-branch=origin/trunk --target-groups=mesos --open
+#   --tracking-branch=origin/master --target-groups=mesos --open
 #
 # NOTE: post-reviews is currently specific to Mesos development,
 # but can easily be adapted for other projects.
@@ -57,9 +57,9 @@ def execute(command, ignore_errors=False):
 # TODO(benh): Make sure this is a git repository, apologize if not.
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
-repository = 'git://git.apache.org/mesos.git'
+repository = 'https://git-wip-us.apache.org/repos/asf/incubator-mesos.git'
 
-parent_branch = 'trunk'
+parent_branch = 'master'
 
 branch_ref = execute(['git', 'symbolic-ref', 'HEAD']).strip()
 branch = branch_ref.replace('refs/heads/', '', 1)
@@ -97,7 +97,7 @@ for line in log.split('\n'):
     shas.append(sha)
 
 
-previous = 'trunk'
+previous = 'master'
 for i in range(len(shas)):
     sha = shas[i]
 
