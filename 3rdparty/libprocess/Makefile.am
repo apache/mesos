@@ -77,6 +77,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/id.hpp				\
   $(top_srcdir)/include/process/io.hpp				\
   $(top_srcdir)/include/process/latch.hpp			\
+  $(top_srcdir)/include/process/limiter.hpp			\
   $(top_srcdir)/include/process/logging.hpp			\
   $(top_srcdir)/include/process/message.hpp			\
   $(top_srcdir)/include/process/mime.hpp			\
