@@ -673,21 +673,21 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
-  ResourceStatistics result;
-
-  // Get the number of clock ticks, used for cpu accounting.
-  long ticks = sysconf(_SC_CLK_TCK);
-
-  PCHECK(ticks > 0) << "Failed to get sysconf(_SC_CLK_TCK)";
-
   if (!infos.contains(frameworkId) ||
       !infos[frameworkId].contains(executorId) ||
       infos[frameworkId][executorId]->killed) {
-    return Future<ResourceStatistics>::failed("Unknown/killed executor");
+    return Future<ResourceStatistics>::failed("Unknown or killed executor");
   }
 
-  CgroupInfo* info = infos[frameworkId][executorId];
+  // Get the number of clock ticks, used for cpu accounting.
+  static long ticks = sysconf(_SC_CLK_TCK);
 
+  PCHECK(ticks > 0) << "Failed to get sysconf(_SC_CLK_TCK)";
+
+  CgroupInfo* info = infos[frameworkId][executorId];
+  CHECK_NOTNULL(info);
+
+  ResourceStatistics result;
   result.set_timestamp(Clock::now());
 
   Try<hashmap<string, uint64_t> > stat =

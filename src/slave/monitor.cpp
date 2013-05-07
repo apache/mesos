@@ -167,7 +167,7 @@ void ResourceMonitorProcess::_collect(
     LOG(WARNING)
       << "Failed to collect resource usage for executor '" << executorId
       << "' of framework '" << frameworkId << "': "
-      << statistics.isFailed() ? statistics.failure() : "Future discarded";
+      << (statistics.isFailed() ? statistics.failure() : "Future discarded");
   }
 
   // Schedule the next collection.
