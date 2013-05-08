@@ -151,8 +151,8 @@ string argv0;
 
 void handler(int signal)
 {
-  std::cerr << "Received signal '" << strsignal(signal)
-            << "', escalating to SIGABRT" << std::endl;
+  LOG(WARNING) << "Received signal '" << strsignal(signal)
+               << "', escalating to SIGABRT";
   raise(SIGABRT);
 }
 
@@ -207,7 +207,7 @@ void initialize(
     // of its lovely information.
     struct sigaction action;
     action.sa_handler = handler;
-    // Block all additional signals while in the handler.
+    // Do not block additional signals while in the handler.
     sigemptyset(&action.sa_mask);
     action.sa_flags = 0;
     if (sigaction(SIGPIPE, &action, NULL) < 0) {
