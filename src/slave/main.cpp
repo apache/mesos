@@ -119,7 +119,7 @@ int main(int argc, char** argv)
 
   process::initialize();
 
-  logging::initialize(argv[0], flags);
+  logging::initialize(argv[0], flags, true); // Catch signals.
 
   LOG(INFO) << "Creating \"" << isolation << "\" isolator";
 

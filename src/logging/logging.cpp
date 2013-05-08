@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+#include <signal.h> // For sigaction(), sigemptyset().
+#include <string.h> // For strsignal().
+
 #include <glog/logging.h>
 
 #include <map>
@@ -146,7 +149,18 @@ private:
 string argv0;
 
 
-void initialize(const string& _argv0, const Flags& flags)
+void handler(int signal)
+{
+  std::cerr << "Received signal '" << strsignal(signal)
+            << "', escalating to SIGABRT" << std::endl;
+  raise(SIGABRT);
+}
+
+
+void initialize(
+    const string& _argv0,
+    const Flags& flags,
+    bool installFailureSignalHandler)
 {
   static Once* initialized = new Once();
 
@@ -182,6 +196,24 @@ void initialize(const string& _argv0, const Flags& flags)
   // TODO(benh): Make sure this always succeeds and never actually
   // exits (i.e., use a supervisor which re-spawns appropriately).
   spawn(new LoggingProcess(), true);
+
+  if (installFailureSignalHandler) {
+    // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
+    // by default.
+    google::InstallFailureSignalHandler();
+
+    // Set up the SIGPIPE signal handler to escalate to SIGABRT
+    // in order to have the glog handler catch it and print all
+    // of its lovely information.
+    struct sigaction action;
+    action.sa_handler = handler;
+    // Block all additional signals while in the handler.
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    if (sigaction(SIGPIPE, &action, NULL) < 0) {
+      PLOG(FATAL) << "Failed to set sigaction";
+    }
+  }
 
   initialized->done();
 }

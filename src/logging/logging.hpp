@@ -33,7 +33,10 @@ namespace mesos {
 namespace internal {
 namespace logging {
 
-void initialize(const std::string& argv0, const Flags& flags);
+void initialize(
+    const std::string& argv0,
+    const Flags& flags,
+    bool installFailureSignalHandler = false);
 
 
 // Returns the log file for the provided severity level.

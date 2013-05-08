@@ -111,7 +111,7 @@ int main(int argc, char** argv)
 
   process::initialize("master");
 
-  logging::initialize(argv[0], flags);
+  logging::initialize(argv[0], flags, true); // Catch signals.
 
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
