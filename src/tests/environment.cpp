@@ -35,6 +35,8 @@
 #include "linux/cgroups.hpp"
 #endif
 
+#include "logging/logging.hpp"
+
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
 
@@ -83,15 +85,14 @@ static bool enable(const ::testing::TestInfo& test)
 #ifdef __linux__
     if (strings::contains(name, "NOHIERARCHY_")) {
       Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
-      CHECK(hierarchies.isSome());
+      CHECK_SOME(hierarchies);
       if (!hierarchies.get().empty()) {
         std::cerr
           << "-------------------------------------------------------------\n"
           << "We cannot run any cgroups tests that require mounting\n"
           << "hierarchies because you have the following hierarchies mounted:\n"
           << strings::trim(stringify(hierarchies.get()), " {},") << "\n"
-          << "You can either unmount those hierarchies, or disable\n"
-          << "this test case (i.e., --gtest_filter=-CgroupsNoHierarchyTest.*).\n"
+          << "We'll disable the CgroupsNoHierarchyTest test fixture for now.\n"
           << "-------------------------------------------------------------"
           << std::endl;
 

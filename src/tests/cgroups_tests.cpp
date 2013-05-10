@@ -84,17 +84,14 @@ public:
 
     Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
-    if (!hierarchies.get().empty()) {
-      std::cerr
-        << "-------------------------------------------------------------\n"
-        << "We cannot run any cgroups tests that require mounting\n"
-        << "hierarchies because you have the following hierarchies mounted:\n"
-        << strings::trim(stringify(hierarchies.get()), " {},") << "\n"
-        << "You can either unmount those hierarchies, or disable\n"
-        << "this test case (i.e., --gtest_filter=-CgroupsNoHierarchyTest.*).\n"
-        << "-------------------------------------------------------------"
-        << std::endl;
-    }
+    ASSERT_TRUE(hierarchies.get().empty())
+      << "-------------------------------------------------------------\n"
+      << "We cannot run any cgroups tests that require mounting\n"
+      << "hierarchies because you have the following hierarchies mounted:\n"
+      << strings::trim(stringify(hierarchies.get()), " {},") << "\n"
+      << "You can either unmount those hierarchies, or disable\n"
+      << "this test case (i.e., --gtest_filter=-CgroupsNoHierarchyTest.*).\n"
+      << "-------------------------------------------------------------";
   }
 };
 
