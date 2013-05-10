@@ -50,7 +50,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
 
   // This is the memory overhead for a jvm process. This needs to be added
   // to a jvm process's resource requirement, in addition to its heap size.
-  private static final int JVM_MEM_OVERHEAD = 256; // 256 MB.
+  private static final double JVM_MEM_OVERHEAD_PERCENT_DEFAULT = 0.1; // 10%.
 
   // TODO(vinod): Consider parsing the slot memory from the configuration jvm
   // heap options (e.g: mapred.child.java.opts).
@@ -62,12 +62,10 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
   // 1 GB of disk space.
   private static final double SLOT_CPUS_DEFAULT = 0.2; // 0.2 cores.
   private static final int SLOT_DISK_DEFAULT = 1024; // 1 GB.
-  private static final int SLOT_JVM_HEAP_DEFAULT = 256; // MB.
+  private static final int SLOT_JVM_HEAP_DEFAULT = 256; // 256MB.
 
   private static final double TASKTRACKER_CPUS = 1.0; // 1 core.
-  private static final int TASKTRACKER_JVM_HEAP = 1024; // 1 GB.
-  private static final int TASKTRACKER_MEM =
-    TASKTRACKER_JVM_HEAP + JVM_MEM_OVERHEAD;
+  private static final int TASKTRACKER_MEM_DEFAULT = 1024; // 1 GB.
 
   // The default behavior in Hadoop is to use 4 slots per TaskTracker:
   private static final int MAP_SLOTS_DEFAULT = 2;
@@ -445,14 +443,21 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
             (float) SLOT_CPUS_DEFAULT);
         double slotDisk = conf.getInt("mapred.mesos.slot.disk",
             SLOT_DISK_DEFAULT);
-        double slotMem = conf.getInt("mapred.mesos.slot.mem",
-            SLOT_JVM_HEAP_DEFAULT + JVM_MEM_OVERHEAD);
-        double slotJVMHeap = slotMem - JVM_MEM_OVERHEAD;
+
+        int slotMem = conf.getInt("mapred.mesos.slot.mem",
+            SLOT_JVM_HEAP_DEFAULT);
+        long slotJVMHeap = Math.round((double)slotMem -
+            (JVM_MEM_OVERHEAD_PERCENT_DEFAULT * slotMem));
+
+        int tasktrackerMem = conf.getInt("mapred.mesos.tasktracker.mem",
+              TASKTRACKER_MEM_DEFAULT);
+        long tasktrackerJVMHeap = Math.round((double)tasktrackerMem -
+            (JVM_MEM_OVERHEAD_PERCENT_DEFAULT * tasktrackerMem));
 
         // Minimum resource requirements for the container (TaskTracker + map/red
         // tasks).
         double containerCpus = TASKTRACKER_CPUS;
-        double containerMem = TASKTRACKER_MEM;
+        double containerMem = tasktrackerMem;
         double containerDisk = 0;
 
         // Determine how many slots we can allocate.
@@ -557,7 +562,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
           .addVariables(
               Protos.Environment.Variable.newBuilder()
               .setName("HADOOP_HEAPSIZE")
-              .setValue("" + TASKTRACKER_JVM_HEAP))
+              .setValue("" + tasktrackerJVMHeap))
           .addVariables(
               Protos.Environment.Variable.newBuilder()
               .setName("mapred.tasktracker.map.tasks.maximum")
@@ -663,7 +668,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
                 .setName("mem")
                 .setType(Value.Type.SCALAR)
                 .setScalar(Value.Scalar.newBuilder().setValue(
-                    (TASKTRACKER_MEM)))).setCommand(commandInfo))
+                    (tasktrackerMem)))).setCommand(commandInfo))
                     .build();
 
         driver.launchTasks(offer.getId(), Arrays.asList(info));

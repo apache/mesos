@@ -37,7 +37,7 @@ index 970c8fe..f9f272d 100644
 +# that are allocated to a Hadoop slot (i.e., map/reduce task) by Mesos.
 +  <property>
 +    <name>mapred.mesos.slot.cpus</name>
-+    <value>0.2</value>
++    <value>1</value>
 +  </property>
 +  <property>
 +    <name>mapred.mesos.slot.disk</name>
@@ -47,8 +47,8 @@ index 970c8fe..f9f272d 100644
 +  <property>
 +    <name>mapred.mesos.slot.mem</name>
 +    <!-- Note that this is the total memory required for
-+         JVM overhead (256 MB) and the heap (-Xmx) of the task.
++         JVM overhead (10% of this value) and the heap (-Xmx) of the task.
 +         The value is in MB. -->
-+    <value>512</value>
++    <value>1024</value>
 +  </property>
  </configuration>
