@@ -658,7 +658,7 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     // N.B. Need to add the framwwork _after_ we add it's tasks
     // (above) so that we can properly determine the resources it's
     // currently using!
-    addFramework(framework);
+    addFramework(framework, true);
   }
 
   CHECK(frameworks.count(frameworkInfo.id()) > 0);
@@ -913,7 +913,7 @@ void Master::reregisterSlave(const SlaveID& slaveId,
     // partitioned, we don't allow the slave to re-register, as we've
     // already informed frameworks that the tasks were lost.
     LOG(ERROR) << "Slave " << slaveId << " at " << from
-               << "attempted to re-register after deactivation";
+               << " attempted to re-register after deactivation";
     reply(ShutdownMessage());
   } else {
     Slave* slave = getSlave(slaveId);
@@ -1632,7 +1632,7 @@ Resources Master::launchTask(const TaskInfo& task,
 }
 
 
-void Master::addFramework(Framework* framework)
+void Master::addFramework(Framework* framework, bool reregister)
 {
   CHECK(frameworks.count(framework->id) == 0);
 
@@ -1640,14 +1640,20 @@ void Master::addFramework(Framework* framework)
 
   link(framework->pid);
 
-  FrameworkRegisteredMessage message;
-  message.mutable_framework_id()->MergeFrom(framework->id);
-  message.mutable_master_info()->MergeFrom(info);
-  send(framework->pid, message);
+  if (reregister) {
+    FrameworkReregisteredMessage message;
+    message.mutable_framework_id()->MergeFrom(framework->id);
+    message.mutable_master_info()->MergeFrom(info);
+    send(framework->pid, message);
+  } else {
+    FrameworkRegisteredMessage message;
+    message.mutable_framework_id()->MergeFrom(framework->id);
+    message.mutable_master_info()->MergeFrom(info);
+    send(framework->pid, message);
+  }
 
-  allocator->frameworkAdded(framework->id,
-                            framework->info,
-                            framework->resources);
+  allocator->frameworkAdded(
+      framework->id, framework->info, framework->resources);
 }
 
 

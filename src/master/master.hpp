@@ -138,7 +138,7 @@ protected:
                     const Filters& filters);
 
   // Add a framework.
-  void addFramework(Framework* framework);
+  void addFramework(Framework* framework, bool reregister = false);
 
   // Replace the scheduler for a framework with a new process ID, in
   // the event of a scheduler failover.

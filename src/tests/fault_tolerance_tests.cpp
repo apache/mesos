@@ -616,6 +616,50 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveExitedExecutor)
 }
 
 
+// This test ensures that a framework connecting with a
+// failed over master gets a re-registered callback.
+TEST_F(FaultToleranceClusterTest, MasterFailover)
+{
+  Try<PID<Master> > master = cluster.masters.start();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  Future<process::Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+
+  // Simulate failed over master by restarting the master.
+  ASSERT_SOME(cluster.masters.stop(master.get()));
+  master = cluster.masters.start();
+  ASSERT_SOME(master);
+
+  Future<Nothing> reregistered;
+  EXPECT_CALL(sched, reregistered(&driver, _))
+    .WillOnce(FutureSatisfy(&reregistered));
+
+  // Simulate a new master detected message to the scheduler.
+  NewMasterDetectedMessage newMasterDetectedMsg;
+  newMasterDetectedMsg.set_pid(master.get());
+
+  process::post(frameworkRegisteredMessage.get().to, newMasterDetectedMsg);
+
+  // Framework should get a re-register callback.
+  AWAIT_READY(reregistered);
+
+  driver.stop();
+  driver.join();
+
+  cluster.shutdown();
+}
+
+
 TEST_F(FaultToleranceTest, SchedulerFailover)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
