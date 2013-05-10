@@ -825,9 +825,14 @@ Try<Nothing> kill(
 
   foreach (pid_t pid, pids.get()) {
     if (::kill(pid, signal) == -1) {
-      return ErrnoError(
-          "Failed to send " + string(strsignal(signal)) +
-          " to process " + stringify(pid));
+      // If errno is set to ESRCH, it means that either a) this process already
+      // terminated, or b) it's in a 'zombie' state and we can't signal it
+      // anyway.  In either case, ignore the error.
+      if (errno != ESRCH) {
+        return ErrnoError(
+            "Failed to send " + string(strsignal(signal)) +
+            " to process " + stringify(pid));
+      }
     }
   }
 
@@ -1505,15 +1510,21 @@ protected:
   }
 
 private:
+  // The sequence of operations to kill a cgroup is as follows:
+  // SIGSTOP -> SIGKILL -> empty -> freeze -> SIGKILL -> thaw -> empty
+  // This process is repeated until the cgroup becomes empty.
   void killTasks() {
     // Chain together the steps needed to kill the tasks. Note that we
     // ignore the return values of freeze, kill, and thaw because,
     // provided there are no errors, we'll just retry the chain as
     // long as tasks still exist.
-    chain = freeze()                      // Freeze the cgroup.
-      .then(defer(self(), &Self::kill))   // Send kill signals to all tasks.
-      .then(defer(self(), &Self::thaw))   // Thaw cgroup to deliver signals.
-      .then(defer(self(), &Self::empty)); // Wait until cgroup is empty.
+    chain = kill(SIGSTOP)                        // Send stop signal to all tasks.
+      .then(defer(self(), &Self::kill, SIGKILL)) // Now send kill signal.
+      .then(defer(self(), &Self::empty))         // Wait until cgroup is empty.
+      .then(defer(self(), &Self::freeze))        // Freeze cgroug.
+      .then(defer(self(), &Self::kill, SIGKILL)) // Send kill signal to any remaining tasks.
+      .then(defer(self(), &Self::thaw))          // Thaw cgroup to deliver signals.
+      .then(defer(self(), &Self::empty));        // Wait until cgroup is empty.
 
     chain.onAny(defer(self(), &Self::finished, lambda::_1));
   }
@@ -1523,9 +1534,9 @@ private:
     return cgroups::freeze(hierarchy, cgroup, interval);
   }
 
-  Future<Nothing> kill()
+  Future<Nothing> kill(const int signal)
   {
-    Try<Nothing> kill = cgroups::kill(hierarchy, cgroup, SIGKILL);
+    Try<Nothing> kill = cgroups::kill(hierarchy, cgroup, signal);
     if (kill.isError()) {
       return Future<Nothing>::failed(kill.error());
     }
