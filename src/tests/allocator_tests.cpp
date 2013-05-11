@@ -34,7 +34,6 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "tests/isolator.hpp"
 #include "tests/mesos.hpp"
 
 using namespace mesos;
@@ -561,14 +560,13 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
 
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:3;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo1;
@@ -595,9 +593,6 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
     .WillOnce(DoAll(LaunchTasks(1, 1, 256),
                     FutureArg<1>(&offers1)))
     .WillRepeatedly(DeclineOffers());
-
-  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
-    .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -701,17 +696,12 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(2));
 
-  TestingIsolator isolator(&exec);
-
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:3;mem:1024");
 
-  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
-    .WillRepeatedly(DoDefault());
-
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
@@ -820,14 +810,13 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
 
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Option<string>("cpus:2;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave1 = this->StartSlave(&isolator, flags1);
+  Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
 
   MockScheduler sched1;
@@ -854,9 +843,6 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
                     FutureSatisfy(&launchTask)));
-
-  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
-    .WillRepeatedly(DoDefault());
 
   driver1.start();
 
@@ -948,14 +934,13 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
 
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Option<string>("cpus:3;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave1 = this->StartSlave(&isolator, flags1);
+  Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
 
   MockScheduler sched1;
@@ -991,9 +976,6 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
                     FutureSatisfy(&launchTask)));
-
-  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
-    .WillRepeatedly(DoDefault());
 
   driver1.start();
 
@@ -1055,14 +1037,13 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
 
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:3;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
@@ -1106,9 +1087,6 @@ TYPED_TEST(AllocatorTest, TaskFinished)
                     SendStatusUpdateFromTask(TASK_RUNNING),
                     FutureSatisfy(&launchTask)))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  EXPECT_CALL(isolator, resourcesChanged(_, _, _))
-    .WillRepeatedly(DoDefault());
 
   driver1.start();
 
