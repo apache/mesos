@@ -685,7 +685,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(this->allocator, initialize(_, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
-  masterFlags.allocation_interval = Duration::parse("50ms").get();
+  masterFlags.allocation_interval = Milliseconds(50);
   Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
@@ -943,7 +943,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   EXPECT_CALL(this->allocator, initialize(_, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
-  masterFlags.allocation_interval = Duration::parse("50ms").get();
+  masterFlags.allocation_interval = Milliseconds(50);
   Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
@@ -1050,7 +1050,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   EXPECT_CALL(this->allocator, initialize(_, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
-  masterFlags.allocation_interval = Duration::parse("50ms").get();
+  masterFlags.allocation_interval = Milliseconds(50);
   Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
