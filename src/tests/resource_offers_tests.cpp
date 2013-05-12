@@ -23,8 +23,6 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
-#include "local/local.hpp"
-
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
@@ -51,12 +49,24 @@ using testing::AtMost;
 using testing::Return;
 
 
-TEST(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
+class ResourceOffersTest : public MesosTest {};
+
+
+TEST_F(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
 {
-  PID<Master> master = local::launch(10, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start 10 slaves.
+  for (int i = 0; i < 10; i++) {
+    slave::Flags flags = CreateSlaveFlags();
+    flags.resources = Option<std::string>("cpus:2;mem:1024");
+    Try<PID<Slave> > slave = StartSlave(flags);
+    ASSERT_SOME(slave);
+  }
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -79,16 +89,20 @@ TEST(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
   driver.stop();
   driver.join();
 
-  local::shutdown();
+  Shutdown();
 }
 
 
-TEST(ResourceOffersTest, TaskUsesNoResources)
+TEST_F(ResourceOffersTest, TaskUsesNoResources)
 {
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -127,16 +141,20 @@ TEST(ResourceOffersTest, TaskUsesNoResources)
   driver.stop();
   driver.join();
 
-  local::shutdown();
+  Shutdown();
 }
 
 
-TEST(ResourceOffersTest, TaskUsesInvalidResources)
+TEST_F(ResourceOffersTest, TaskUsesInvalidResources)
 {
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -180,16 +198,20 @@ TEST(ResourceOffersTest, TaskUsesInvalidResources)
   driver.stop();
   driver.join();
 
-  local::shutdown();
+  Shutdown();
 }
 
 
-TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
+TEST_F(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 {
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -234,17 +256,20 @@ TEST(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
   driver.stop();
   driver.join();
 
-  local::shutdown();
+  Shutdown();
 }
 
 
-TEST(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
+TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
 {
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
 
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .Times(1);
@@ -262,7 +287,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   driver1.join();
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
@@ -277,16 +302,20 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   driver2.stop();
   driver2.join();
 
-  local::shutdown();
+  Shutdown();
 }
 
 
-TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
+TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
 {
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .Times(1);
@@ -304,7 +333,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   driver1.launchTasks(offers.get()[0].id(), tasks);
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
@@ -323,16 +352,20 @@ TEST(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   driver2.stop();
   driver2.join();
 
-  local::shutdown();
+  Shutdown();
 }
 
 
-TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
+TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 {
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .Times(1);
@@ -379,7 +412,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   EXPECT_EQ("Task uses invalid resources", status.get().message());
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
@@ -398,7 +431,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   driver2.stop();
   driver2.join();
 
-  local::shutdown();
+  Shutdown();
 }
 
 // TODO(benh): Add tests for checking correct slave IDs.
@@ -409,11 +442,7 @@ TEST(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 // unique task IDs and aggregate resource usage.
 
 
-// TODO(benh): Eliminate this class once we replace tests above to use
-// MesosTest/Cluster instead of local::launch.
-class ResourceOffersMesosTest : public MesosTest {};
-
-TEST_F(ResourceOffersMesosTest, Request)
+TEST_F(ResourceOffersTest, Request)
 {
   MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
 

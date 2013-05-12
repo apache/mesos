@@ -38,8 +38,6 @@
 
 #include "common/protobuf_utils.hpp"
 
-#include "local/local.hpp"
-
 #include "master/master.hpp"
 
 #include "slave/isolator.hpp"
@@ -134,17 +132,21 @@ TEST_F(FaultToleranceTest, PartitionedSlave)
 {
   Clock::pause();
 
-  // Set these expectations up before we spawn the slave (in
-  // local::launch) so that we don't miss the first PING.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Set these expectations up before we spawn the slave so that we
+  // don't miss the first PING.
   Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
 
   // Drop all the PONGs to simulate slave partition.
   DROP_MESSAGES(Eq("PONG"), _, _);
 
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -185,7 +187,7 @@ TEST_F(FaultToleranceTest, PartitionedSlave)
   driver.stop();
   driver.join();
 
-  local::shutdown();
+  Shutdown();
 
   Clock::resume();
 }
@@ -638,14 +640,18 @@ TEST_F(FaultToleranceTest, MasterFailover)
 
 TEST_F(FaultToleranceTest, SchedulerFailover)
 {
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   // Launch the first (i.e., failing) scheduler and wait until
   // registered gets called to launch the second (i.e., failover)
   // scheduler.
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -668,7 +674,7 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
   framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId.get());
 
-  MesosSchedulerDriver driver2(&sched2, framework2, master);
+  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
 
   Future<Nothing> sched2Registered;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
@@ -700,7 +706,7 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
   EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
   EXPECT_EQ(DRIVER_STOPPED, driver1.join());
 
-  local::shutdown();
+  Shutdown();
 }
 
 
@@ -708,10 +714,14 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 {
   Clock::pause();
 
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -739,7 +749,7 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
   driver.stop();
   driver.join();
 
-  local::shutdown();
+  Shutdown();
 
   Clock::resume();
 }
@@ -747,10 +757,14 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
 TEST_F(FaultToleranceTest, FrameworkReregister)
 {
-  PID<Master> master = local::launch(1, 2, 1 * Gigabyte, 1 * Gigabyte, false);
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master);
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -781,7 +795,7 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   // Simulate a spurious newMasterDetected event (e.g., due to ZooKeeper
   // expiration) at the scheduler.
   NewMasterDetectedMessage newMasterDetectedMsg;
-  newMasterDetectedMsg.set_pid(master);
+  newMasterDetectedMsg.set_pid(master.get());
 
   process::post(message.get().to, newMasterDetectedMsg);
 
@@ -792,7 +806,7 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   driver.stop();
   driver.join();
 
-  local::shutdown();
+  Shutdown();
 }
 
 
