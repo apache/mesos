@@ -73,26 +73,6 @@ static map<Isolator*, Slave*> slaves;
 static MasterDetector* detector = NULL;
 static Files* files = NULL;
 
-PID<Master> launch(
-    int numSlaves,
-    double cpus,
-    uint64_t mem,
-    uint64_t disk,
-    bool quiet,
-    Allocator* _allocator)
-{
-  Configuration configuration;
-  configuration.set("slaves", "*");
-  configuration.set("num_slaves", numSlaves);
-  configuration.set("quiet", quiet);
-
-  stringstream out;
-  out << "cpus:" << cpus << ";" << "mem:" << mem << ";" << "disk:" << disk;
-  configuration.set("resources", out.str());
-
-  return launch(configuration, _allocator);
-}
-
 
 PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
 {

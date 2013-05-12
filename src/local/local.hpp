@@ -36,21 +36,10 @@ class Configuration;
 
 namespace local {
 
-
-// Launch a local cluster with a given number of slaves and given numbers
-// of CPUs and memory per slave. Additionally one can also toggle whether
-// to initialize Google Logging and whether to log quietly.
-process::PID<master::Master> launch(int numSlaves,
-                                    double cpus,
-                                    uint64_t mem,
-                                    uint64_t disk,
-                                    bool quiet,
-                                    master::Allocator* _allocator = NULL);
-
-
 // Launch a local cluster with a given configuration.
-process::PID<master::Master> launch(const Configuration& configuration,
-                                    master::Allocator* _allocator = NULL);
+process::PID<master::Master> launch(
+    const Configuration& configuration,
+    master::Allocator* _allocator = NULL);
 
 
 void shutdown();
