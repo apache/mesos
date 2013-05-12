@@ -155,12 +155,15 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
-  // Message expectations.
-  Future<Message> registerFramework =
-    FUTURE_MESSAGE(Eq(RegisterFrameworkMessage().GetTypeName()), _, _);
-
-  // Scheduler expectations.
   MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
@@ -170,18 +173,14 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());      // Ignore subsequent offers.
 
-  // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
-  frameworkInfo.set_checkpoint(true);
-
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  Future<Message> registerFrameworkMessage =
+    FUTURE_MESSAGE(Eq(RegisterFrameworkMessage().GetTypeName()), _, _);
 
   driver.start();
 
   // Capture the framework pid.
-  AWAIT_READY(registerFramework);
-  UPID frameworkPid = registerFramework.get().from;
+  AWAIT_READY(registerFrameworkMessage);
+  UPID frameworkPid = registerFrameworkMessage.get().from;
 
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
@@ -330,15 +329,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
-
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -346,6 +337,13 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   driver.start();
 
@@ -414,14 +412,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -429,6 +420,13 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   driver.start();
 
@@ -506,14 +504,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -521,6 +512,13 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   driver.start();
 
@@ -599,14 +597,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -614,6 +605,13 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   driver.start();
 
@@ -698,14 +696,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -713,6 +704,13 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   driver.start();
 
@@ -780,14 +778,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   Try<PID<Slave> > slave = this->StartSlave(&isolator);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   // Disable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -795,6 +786,13 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   frameworkInfo.set_checkpoint(false);
 
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   driver.start();
 
@@ -845,8 +843,15 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
+
+  // Disable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(false);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
@@ -855,13 +860,6 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());      // Ignore subsequent offers.
-
-  // Disable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
-  frameworkInfo.set_checkpoint(false);
-
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
 
   driver.start();
 
@@ -928,13 +926,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers1;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1));
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -942,6 +934,12 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1));
 
   driver.start();
 
@@ -1039,14 +1037,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -1054,6 +1045,13 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -1161,14 +1159,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler expectations.
   MockScheduler sched;
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers1;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1))
-    .WillOnce(Return());       // Ignore the offer when slave is shutting down.
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo;
@@ -1176,6 +1167,13 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(Return());       // Ignore the offer when slave is shutting down.
 
   driver.start();
 
