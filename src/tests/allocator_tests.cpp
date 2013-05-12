@@ -50,18 +50,14 @@ using process::Clock;
 using process::Future;
 using process::PID;
 
-using std::map;
 using std::string;
 using std::vector;
 
 using testing::_;
 using testing::AtMost;
-using testing::ByRef;
 using testing::DoAll;
 using testing::DoDefault;
 using testing::Eq;
-using testing::InSequence;
-using testing::Return;
 using testing::SaveArg;
 
 
@@ -96,6 +92,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   FrameworkInfo frameworkInfo1;
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
+
   MockScheduler sched1;
   MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
 
@@ -228,12 +225,17 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   EXPECT_CALL(allocator, frameworkRemoved(_))
     .Times(AtMost(3));
 
+  driver1.stop();
+  driver1.join();
+
+  driver2.stop();
+  driver2.join();
+
+  driver3.stop();
+  driver3.join();
+
   EXPECT_CALL(allocator, slaveRemoved(_))
     .Times(AtMost(4));
-
-  driver1.stop();
-  driver2.stop();
-  driver3.stop();
 
   Shutdown();
 }
@@ -290,41 +292,33 @@ TYPED_TEST(AllocatorTest, MockAllocator)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers));
+  // The framework should be offered all of the resources on the slave
+  // since it is the only framework in the cluster.
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 1024)))
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   driver.start();
 
-  AWAIT_READY(offers);
-
-  // The framework should be offered all of the resources on the slave
-  // since it is the only framework in the cluster.
-  EXPECT_THAT(offers.get(), OfferEq(2, 1024));
+  AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
-
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  Future<Nothing> frameworkRemoved;
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .Times(AtMost(1));
+
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
+    .Times(AtMost(1));
 
   driver.stop();
+  driver.join();
 
-  AWAIT_READY(frameworkRemoved);
-
-  Future<Nothing> slaveRemoved;
   EXPECT_CALL(this->allocator, slaveRemoved(_))
-    .WillOnce(FutureSatisfy(&slaveRemoved));
+    .Times(AtMost(1));
 
-  this->ShutdownSlaves();
-
-  AWAIT_READY(slaveRemoved);
-
-  this->ShutdownMasters();
+  this->Shutdown();
 }
 
 
@@ -353,19 +347,25 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
-  Future<Nothing> resourcesUnused;
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillOnce(DoAll(InvokeResourcesUnused(&this->allocator),
-                    FutureSatisfy(&resourcesUnused)));
-
   EXPECT_CALL(sched1, registered(_, _, _));
+
+  // We decline offers that we aren't expecting so that the resources
+  // get aggregated. Note that we need to do this _first_ and
+  // _separate_ from the expectation below so that this expectation is
+  // checked last and matches all possible offers.
+  EXPECT_CALL(sched1, resourceOffers(_, _))
+    .WillRepeatedly(DeclineOffers());
 
   // The first offer will contain all of the slave's resources, since
   // this is the only framework running so far. Launch a task that
   // uses less than that to leave some resources unused.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 1024)))
-    .WillOnce(LaunchTasks(1, 1, 512))
-    .WillRepeatedly(DeclineOffers());
+    .WillOnce(LaunchTasks(1, 1, 512));
+
+  Future<Nothing> resourcesUnused;
+  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
+    .WillOnce(DoAll(InvokeResourcesUnused(&this->allocator),
+                    FutureSatisfy(&resourcesUnused)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -375,51 +375,55 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
 
   driver1.start();
 
-  AWAIT_READY(resourcesUnused);
-
   AWAIT_READY(launchTask);
 
-  FrameworkInfo info2;
-  info2.set_user("user2");
-  info2.set_name("framework2");
+  // We need to wait until the allocator knows about the unused
+  // resources to start the second framework so that we get the
+  // expected offer.
+  AWAIT_READY(resourcesUnused);
+
+  FrameworkInfo frameworkInfo2;
+  frameworkInfo2.set_user("user2");
+  frameworkInfo2.set_name("framework2");
+
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, info2, master.get());
+  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched2, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers));
+  // We should expect that framework2 gets offered all of the
+  // resources on the slave not being used by the launched task.
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched2, resourceOffers(_, OfferEq(1, 512)))
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   driver2.start();
 
-  AWAIT_READY(offers);
-
-  // framework2 will be offered all of the resources on the slave not
-  // being used by the task that was launched.
-  EXPECT_THAT(offers.get(), OfferEq(1, 512));
+  AWAIT_READY(resourceOffers);
 
   // Shut everything down.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
-    .Times(2);
+    .Times(AtMost(2));
 
-  Future<Nothing> frameworkRemoved;
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
-    .WillOnce(DoDefault())
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
+    .Times(AtMost(2));
 
+  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
+    .WillOnce(FutureSatisfy(&shutdown));
 
   driver1.stop();
-  driver2.stop();
+  driver1.join();
 
-  AWAIT_READY(frameworkRemoved);
+  driver2.stop();
+  driver2.join();
+
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
@@ -449,28 +453,31 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   FrameworkInfo frameworkInfo1;
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_name("framework1");
+
   MockScheduler sched1;
   MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
 
-  FrameworkID frameworkId1;
   EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo1), _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator),
-                    SaveArg<0>(&frameworkId1)));
+    .WillOnce(InvokeFrameworkAdded(&this->allocator));
 
-  EXPECT_CALL(sched1, registered(_, _, _));
+  FrameworkID frameworkId1;
+  EXPECT_CALL(sched1, registered(_, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId1));
 
-  Future<vector<Offer> > offers1;
-  EXPECT_CALL(sched1, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1));
+  // All of the slave's resources should be offered to start.
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 1024)))
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   driver1.start();
 
-  AWAIT_READY(offers1);
+  AWAIT_READY(resourceOffers);
 
-  // framework1 will be offered all of the slave's resources, since
-  // it is the only framework running right now.
-  EXPECT_THAT(offers1.get(), OfferEq(2, 1024));
-
+  // TODO(benh): I don't see why we want to "catch" (i.e., block) this
+  // resourcesRecovered call. It seems like we want this one to
+  // properly be executed and later we want to _inject_ a
+  // resourcesRecovered to simulate the code in Master::offer after a
+  // framework has terminated or is inactive.
   FrameworkID frameworkId;
   SlaveID slaveId;
   Resources savedResources;
@@ -502,45 +509,44 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   // that recovering resources from a removed framework works.
   this->a->resourcesRecovered(frameworkId, slaveId, savedResources);
 
+  // TODO(benh): Seems like we should wait for the above
+  // resourcesRecovered to be executed.
+
   FrameworkInfo frameworkInfo2;
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_name("framework2");
+
   MockScheduler sched2;
   MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
 
-  FrameworkID frameworkId2;
   EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo2), _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&this->allocator),
-                    SaveArg<0>(&frameworkId2)));
+    .WillOnce(InvokeFrameworkAdded(&this->allocator));
 
-  EXPECT_CALL(sched2, registered(_, _, _));
+  FrameworkID frameworkId2;
+  EXPECT_CALL(sched2, registered(_, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId2));
 
-  Future<vector<Offer> > offers2;
-  EXPECT_CALL(sched2, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers2));
+  // All of the slave's resources should be offered since no other
+  // frameworks should be running.
+  EXPECT_CALL(sched2, resourceOffers(_, OfferEq(2, 1024)))
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   driver2.start();
 
-  AWAIT_READY(offers2);
-
-  // framework2 will be offered all of the slave's resources, since
-  // it is the only framework running right now.
-  EXPECT_THAT(offers2.get(), OfferEq(2, 1024));
+  AWAIT_READY(resourceOffers);
 
   // Shut everything down.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .Times(AtMost(1));
 
-  Future<Nothing> frameworkRemoved2;
   EXPECT_CALL(this->allocator, frameworkRemoved(Eq(frameworkId2)))
-    .WillOnce(FutureSatisfy(&frameworkRemoved2));
+    .Times(AtMost(1));
 
   driver2.stop();
   driver2.join();
-
-  AWAIT_READY(frameworkRemoved2);
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
@@ -573,26 +579,32 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_failover_timeout(.1);
+
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
   MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
-  // We don't filter the unused resources to make sure that
-  // they get offered to the framework as soon as it fails over.
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillOnce(InvokeUnusedWithFilters(&this->allocator, 0));
-
   FrameworkID frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers1;
+  // We decline offers that we aren't expecting so that the resources
+  // get aggregated. Note that we need to do this _first_ and
+  // _separate_ from the expectation below so that this expectation is
+  // checked last and matches all possible offers.
   EXPECT_CALL(sched1, resourceOffers(_, _))
-    .WillOnce(DoAll(LaunchTasks(1, 1, 256),
-                    FutureArg<1>(&offers1)))
     .WillRepeatedly(DeclineOffers());
+
+  // Initially, all of slave1's resources are avaliable.
+  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
+    .WillOnce(LaunchTasks(1, 1, 256));
+
+  // We don't filter the unused resources to make sure that
+  // they get offered to the framework as soon as it fails over.
+  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
+    .WillOnce(InvokeUnusedWithFilters(&this->allocator, 0));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -602,11 +614,6 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   driver1.start();
 
-  AWAIT_READY(offers1);
-
-  // Initially, all cluster resources are avaliable.
-  EXPECT_THAT(offers1.get(), OfferEq(3, 1024));
-
   // Ensures that the task has been completely launched
   // before we have the framework fail over.
   AWAIT_READY(launchTask);
@@ -614,7 +621,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   // When we shut down the first framework, we don't want it to tell
   // the master it's shutting down so that the master will wait to see
   // if it fails over.
-  DROP_MESSAGES(Eq(UnregisterFrameworkMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(UnregisterFrameworkMessage(), _, _);
 
   Future<Nothing> frameworkDeactivated;
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -625,13 +632,14 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   AWAIT_READY(frameworkDeactivated);
 
-  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
-  framework2 = DEFAULT_FRAMEWORK_INFO;
-  framework2.mutable_id()->MergeFrom(frameworkId);
+  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo2.mutable_id()->MergeFrom(frameworkId);
+
   // Now launch the second (i.e., failover) scheduler using the
   // framework id recorded from the first scheduler.
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
+  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
 
   EXPECT_CALL(this->allocator, frameworkActivated(_, _));
 
@@ -640,31 +648,32 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   // Even though the scheduler failed over, the 1 cpu, 512 mem
   // task that it launched earlier should still be running, so
   // only 2 cpus and 768 mem are available.
-  Future<Nothing> resourceOffers2;
+  Future<Nothing> resourceOffers;
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(2, 768)))
-    .WillOnce(FutureSatisfy(&resourceOffers2));
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   driver2.start();
 
-  AWAIT_READY(resourceOffers2);
+  AWAIT_READY(resourceOffers);
 
   // Shut everything down.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
-
-  Future<Nothing> frameworkRemoved;
-  EXPECT_CALL(this->allocator, frameworkRemoved(_))
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
-
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
     .Times(AtMost(1));
+
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .Times(AtMost(1));
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
 
   driver2.stop();
   driver2.join();
 
-  AWAIT_READY(frameworkRemoved);
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
@@ -684,17 +693,9 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
+  // TODO(benh): We use this executor for two frameworks in this test
+  // which works but is brittle and harder to reason about.
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(2);
-
-  Future<Nothing> launchTask;
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(FutureSatisfy(&launchTask))
-    .WillOnce(DoDefault());
-
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(2));
 
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:3;mem:1024");
@@ -709,87 +710,110 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
+  EXPECT_CALL(sched1, registered(_, _, _));
+
+  // We decline offers that we aren't expecting so that the resources
+  // get aggregated. Note that we need to do this _first_ and
+  // _separate_ from the expectation below so that this expectation is
+  // checked last and matches all possible offers.
+  EXPECT_CALL(sched1, resourceOffers(_, _))
+    .WillRepeatedly(DeclineOffers());
+
+  // The first time the framework is offered resources, all of the
+  // cluster's resources should be avaliable.
+  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
+    .WillOnce(LaunchTasks(1, 2, 512));
+
+  // The framework does not use all the resources.
   Future<Nothing> resourcesUnused;
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
     .WillOnce(DoAll(InvokeResourcesUnused(&this->allocator),
                     FutureSatisfy(&resourcesUnused)));
 
-  EXPECT_CALL(sched1, registered(_, _, _));
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
-  EXPECT_CALL(sched1, resourceOffers(_, _))
-    .WillRepeatedly(DeclineOffers());
-
-  // The first time the framework is offered resources,
-  // all of the cluster's resources should be avaliable.
-  Future<Nothing> resourcesOffers1;
-  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(DoAll(LaunchTasks(1, 2, 512),
-                    FutureSatisfy(&resourcesOffers1)));
+  Future<Nothing> launchTask;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(FutureSatisfy(&launchTask));
 
   driver1.start();
-
-  AWAIT_READY(resourcesOffers1);
-
-  AWAIT_READY(resourcesUnused);
 
   // Ensures that framework 1's task is completely launched
   // before we kill the framework to test if its resources
   // are recovered correctly.
   AWAIT_READY(launchTask);
 
+  // We need to wait until the allocator knows about the unused
+  // resources to start the second framework so that we get the
+  // expected offer.
+  AWAIT_READY(resourcesUnused);
+
   MockScheduler sched2;
   MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
-
   EXPECT_CALL(sched2, registered(_, _, _));
 
+  // We decline offers that we aren't expecting so that the resources
+  // get aggregated. Note that we need to do this _first_ and
+  // _separate_ from the expectation below so that this expectation is
+  // checked last and matches all possible offers.
   EXPECT_CALL(sched2, resourceOffers(_, _))
     .WillRepeatedly(DeclineOffers());
 
-  // The first time sched2 gets an offer, framework 1 has a
-  // task running with 2 cpus and 512 mem, leaving 1 cpu and 512 mem.
-  Future<Nothing> resourceOffers2;
+  // The first time sched2 gets an offer, framework 1 has a task
+  // running with 2 cpus and 512 mem, leaving 1 cpu and 512 mem.
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(1, 512)))
-    .WillOnce(DoAll(LaunchTasks(1, 1, 256),
-                    FutureSatisfy(&resourceOffers2)));
+    .WillOnce(LaunchTasks(1, 1, 256));
+
+  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(FutureSatisfy(&launchTask));
 
   driver2.start();
 
-  AWAIT_READY(resourceOffers2);
+  AWAIT_READY(launchTask);
 
+  // Shut everything down but check that framework 2 gets the
+  // resources from framework 1 after it is shutdown.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .Times(AtMost(2)); // Once for each framework.
 
-  EXPECT_CALL(this->allocator, frameworkRemoved(_));
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .Times(AtMost(2)); // Once for each framework.
 
-  // After we kill framework 1, all of it's resources should
+  // After we stop framework 1, all of it's resources should
   // have been returned, but framework 2 should still have a
   // task with 1 cpu and 256 mem, leaving 2 cpus and 768 mem.
-  Future<Nothing> resourceOffers3;
+  Future<Nothing> resourceOffers;
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(2, 768)))
-    .WillOnce(FutureSatisfy(&resourceOffers3));
+    .WillOnce(FutureSatisfy(&resourceOffers));
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
 
   driver1.stop();
   driver1.join();
 
-  AWAIT_READY(resourceOffers3);
+  AWAIT_READY(resourceOffers);
 
-  // Shut everything down.
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
-  Future<Nothing> frameworkRemoved;
-  EXPECT_CALL(this->allocator, frameworkRemoved(_))
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
 
   driver2.stop();
   driver2.join();
 
-  AWAIT_READY(frameworkRemoved);
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
@@ -819,23 +843,18 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
 
-  MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  // Initially, all of slave1's resources are available.
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 1024)))
+    .WillOnce(LaunchTasks(1, 2, 512));
+
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
-
-  EXPECT_CALL(sched1, registered(_, _, _));
-
-  EXPECT_CALL(sched1, statusUpdate(_, _))
-    .WillRepeatedly(DoDefault());
-
-  Future<vector<Offer> > resourceOffers1;
-  // Initially, all of slave1's resources are avaliable.
-  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 1024)))
-    .WillOnce(DoAll(LaunchTasks(1, 2, 512),
-                    FutureArg<1>(&resourceOffers1)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -844,11 +863,10 @@ TYPED_TEST(AllocatorTest, SlaveLost)
     .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
                     FutureSatisfy(&launchTask)));
 
-  driver1.start();
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(DoDefault());
 
-  AWAIT_READY(resourceOffers1);
-
-  EXPECT_THAT(resourceOffers1.get(), OfferEq(2, 1024));
+  driver.start();
 
   // Ensures the task is completely launched before we
   // kill the slave, to test that the task's resources
@@ -858,22 +876,22 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
 
-  Future<Nothing> slaveRemoved1;
+  Future<Nothing> slaveRemoved;
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .WillOnce(DoAll(InvokeSlaveRemoved(&this->allocator),
-                    FutureSatisfy(&slaveRemoved1)));
+                    FutureSatisfy(&slaveRemoved)));
 
-  Future<Nothing> shutdownCall;
+  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdownCall));
+    .WillOnce(FutureSatisfy(&shutdown));
 
-  EXPECT_CALL(sched1, slaveLost(_, _));
+  EXPECT_CALL(sched, slaveLost(_, _));
 
   this->ShutdownSlaves();
 
-  AWAIT_READY(slaveRemoved1);
+  AWAIT_READY(slaveRemoved);
 
-  AWAIT_READY(shutdownCall);
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   MockExecutor exec2(DEFAULT_EXECUTOR_ID);
 
@@ -885,34 +903,32 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   // Eventually after slave2 is launched, we should get
   // an offer that contains all of slave2's resources
   // and none of slave1's resources.
-  Future<vector<Offer> > resourceOffers2;
-  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 256)))
-    .WillOnce(FutureArg<1>(&resourceOffers2));
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 256)))
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   Try<PID<Slave> > slave2 = this->StartSlave(&exec2, flags2);
   ASSERT_SOME(slave2);
 
-  AWAIT_READY(resourceOffers2);
-
-  EXPECT_THAT(resourceOffers2.get(), OfferEq(3, 256));
+  AWAIT_READY(resourceOffers);
 
   // Shut everything down.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
-
-  Future<Nothing> frameworkRemoved;
-  EXPECT_CALL(this->allocator, frameworkRemoved(_))
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
-
-  EXPECT_CALL(exec2, shutdown(_))
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
     .Times(AtMost(1));
 
-  driver1.stop();
-  driver1.join();
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .Times(AtMost(1));
 
-  AWAIT_READY(frameworkRemoved);
+  EXPECT_CALL(exec2, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
@@ -943,32 +959,31 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
 
-  MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  // We decline offers that we aren't expecting so that the resources
+  // get aggregated. Note that we need to do this _first_ and
+  // _separate_ from the expectation below so that this expectation is
+  // checked last and matches all possible offers.
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillRepeatedly(DeclineOffers());
+
+  // Initially, all of slave1's resources are avaliable.
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 1024)))
+    .WillOnce(LaunchTasks(1, 2, 512));
 
   // We filter the first time so that the unused resources
   // on slave1 from the task launch won't get reoffered
   // immediately and will get combined with slave2's
   // resources for a single offer.
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillOnce(InvokeUnusedWithFilters(&this->allocator, .1))
+    .WillOnce(InvokeUnusedWithFilters(&this->allocator, 0.1))
     .WillRepeatedly(InvokeUnusedWithFilters(&this->allocator, 0));
-
-  EXPECT_CALL(sched1, registered(_, _, _));
-
-  EXPECT_CALL(sched1, statusUpdate(_, _))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(sched1, resourceOffers(_, _))
-    .WillRepeatedly(DeclineOffers());
-
-  // Initially, all of slave1's resources are avaliable.
-  Future<Nothing> resourceOffers1;
-  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(DoAll(LaunchTasks(1, 2, 512),
-                    FutureSatisfy(&resourceOffers1)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -977,9 +992,10 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
     .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
                     FutureSatisfy(&launchTask)));
 
-  driver1.start();
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(DoDefault());
 
-  AWAIT_READY(resourceOffers1);
+  driver.start();
 
   AWAIT_READY(launchTask);
 
@@ -988,35 +1004,35 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  // After slave2 launches, all of its resources are
-  // combined with the resources on slave1 that the
-  // task isn't using.
-  Future<Nothing> resourceOffers2;
-  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(5, 2560)))
-    .WillOnce(FutureSatisfy(&resourceOffers2));
+  // After slave2 launches, all of its resources are combined with the
+  // resources on slave1 that the task isn't using.
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(5, 2560)))
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   Try<PID<Slave> > slave2 = this->StartSlave(flags2);
   ASSERT_SOME(slave2);
 
-  AWAIT_READY(resourceOffers2);
+  AWAIT_READY(resourceOffers);
 
   // Shut everything down.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
-
-  Future<Nothing> frameworkRemoved;
-  EXPECT_CALL(this->allocator, frameworkRemoved(_))
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
-
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
     .Times(AtMost(1));
 
-  driver1.stop();
-  driver1.join();
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .Times(AtMost(1));
 
-  AWAIT_READY(frameworkRemoved);
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(2));
@@ -1046,35 +1062,32 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
-  // We don't filter because we want to see the unused resources
-  // from the task launch get reoffered to us.
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillRepeatedly(InvokeUnusedWithFilters(&this->allocator, 0));
+  EXPECT_CALL(sched, registered(_, _, _));
 
-  EXPECT_CALL(sched1, registered(_, _, _));
-
-  EXPECT_CALL(sched1, statusUpdate(_, _))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(sched1, resourceOffers(_, _))
+  // We decline offers that we aren't expecting so that the resources
+  // get aggregated. Note that we need to do this _first_ and
+  // _separate_ from the expectation below so that this expectation is
+  // checked last and matches all possible offers.
+  EXPECT_CALL(sched, resourceOffers(_, _))
     .WillRepeatedly(DeclineOffers());
 
   // Initially, all of the slave's resources.
-  Future<Nothing> resourceOffers1;
-  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(DoAll(LaunchTasks(2, 1, 256),
-                    FutureSatisfy(&resourceOffers1)));
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 1024)))
+    .WillOnce(LaunchTasks(2, 1, 256));
 
-  // After the tasks are launched.
-  Future<Nothing> resourceOffers2;
-  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(1, 512)))
-    .WillOnce(DoAll(DeclineOffers(),
-                    FutureSatisfy(&resourceOffers2)));
+  // Some resources will be unused and we need to make sure that we
+  // don't send the TASK_FINISHED status update below until after the
+  // allocator knows about the unused resources so that it can
+  // aggregate them with the resources from the finished task.
+  Future<Nothing> resourcesUnused;
+  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
+    .WillRepeatedly(DoAll(InvokeResourcesUnused(&this->allocator),
+                          FutureSatisfy(&resourcesUnused)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1088,13 +1101,14 @@ TYPED_TEST(AllocatorTest, TaskFinished)
                     FutureSatisfy(&launchTask)))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  driver1.start();
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(DoDefault());
 
-  AWAIT_READY(resourceOffers1);
+  driver.start();
 
   AWAIT_READY(launchTask);
 
-  AWAIT_READY(resourceOffers2);
+  AWAIT_READY(resourcesUnused);
 
   TaskStatus status;
   status.mutable_task_id()->MergeFrom(taskInfo.task_id());
@@ -1103,31 +1117,32 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
 
   // After the first task gets killed.
-  Future<Nothing> resourceOffers3;
-  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 768)))
-    .WillOnce(FutureSatisfy(&resourceOffers3));
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 768)))
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   execDriver->sendStatusUpdate(status);
 
-  AWAIT_READY(resourceOffers3);
+  AWAIT_READY(resourceOffers);
 
   // Shut everything down.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
-
-  Future<Nothing> frameworkRemoved;
-  EXPECT_CALL(this->allocator, frameworkRemoved(_))
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
-
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
     .Times(AtMost(1));
 
-  driver1.stop();
-  driver1.join();
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .Times(AtMost(1));
 
-  AWAIT_READY(frameworkRemoved);
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
@@ -1216,16 +1231,14 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, frameworkDeactivated(_));
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .Times(AtMost(1));
 
-  Future<Nothing> frameworkRemoved;
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(frameworkRemoved);
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
