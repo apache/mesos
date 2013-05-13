@@ -16,6 +16,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
+import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.CommandInfo;
@@ -271,6 +272,33 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
     LOG.info("Re-registered with master " + masterInfo);
   }
 
+  // For some reason, pendingMaps() and pendingReduces() doesn't return the
+  // actual number we're looking for (presumably for some legacy
+  // backward-compat reasons).  Below is the algorithm that is used to
+  // calculate the pending tasks within the Hadoop JobTracker sources (see
+  // 'printTaskSummary' in src/org/apache/hadoop/mapred/jobdetails_jsp.java).
+  private int getPendingTasks(TaskInProgress[] tasks) {
+    int totalTasks = tasks.length;
+    int runningTasks = 0;
+    int finishedTasks = 0;
+    int killedTasks = 0;
+    for (int i = 0; i < totalTasks; ++i) {
+      TaskInProgress task = tasks[i];
+      if (task == null) {
+	continue;
+      }
+      if (task.isComplete()) {
+        finishedTasks += 1;
+      } else if (task.isRunning()) {
+        runningTasks += 1;
+      } else if (task.wasKilled()) {
+        killedTasks += 1;
+      }
+    }
+    int pendingTasks = totalTasks - runningTasks - killedTasks - finishedTasks;
+    return pendingTasks;
+  }
+
   // This method uses explicit synchronization in order to avoid deadlocks when
   // accessing the JobTracker.
   @Override
@@ -292,8 +320,10 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
       int pendingMaps = 0;
       int pendingReduces = 0;
       for (JobInProgress progress : jobsInProgress) {
-        pendingMaps += progress.pendingMaps();
-        pendingReduces += progress.pendingReduces();
+        // JobStatus.pendingMaps/Reduces may return the wrong value on
+        // occasion.  This seems to be safer.
+        pendingMaps += getPendingTasks(progress.getTasks(TaskType.MAP));
+        pendingReduces += getPendingTasks(progress.getTasks(TaskType.REDUCE));
       }
 
       // Mark active (heartbeated) TaskTrackers and compute idle slots.
