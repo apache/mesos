@@ -305,8 +305,8 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
   public void resourceOffers(SchedulerDriver schedulerDriver,
       List<Offer> offers) {
     // Before synchronizing, we pull all needed information from the JobTracker.
-    final HttpHost jobTrackerAddress = new HttpHost(jobTracker.getHostname(),
-        jobTracker.getTrackerPort());
+    final HttpHost jobTrackerAddress =
+      new HttpHost(jobTracker.getHostname(), jobTracker.getTrackerPort());
 
     final Collection<TaskTrackerStatus> taskTrackers = jobTracker.taskTrackers();
 
@@ -329,7 +329,15 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
       // Mark active (heartbeated) TaskTrackers and compute idle slots.
       int idleMapSlots = 0;
       int idleReduceSlots = 0;
+      int unhealthyTrackers = 0;
+
       for (TaskTrackerStatus status : taskTrackers) {
+        if (!status.getHealthStatus().isNodeHealthy()) {
+          // Skip this node if it's unhealthy.
+          ++unhealthyTrackers;
+          continue;
+        }
+
         HttpHost host = new HttpHost(status.getHost(), status.getHttpPort());
         if (mesosTrackers.containsKey(host)) {
           mesosTrackers.get(host).active = true;
@@ -354,17 +362,18 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
       int neededReduceSlots = Math.max(0, pendingReduces - idleReduceSlots);
 
       LOG.info(join("\n", Arrays.asList(
-          "JobTracker Status",
-          "      Pending Map Tasks: " + pendingMaps,
-          "   Pending Reduce Tasks: " + pendingReduces,
-          "         Idle Map Slots: " + idleMapSlots,
-          "      Idle Reduce Slots: " + idleReduceSlots,
-          "     Inactive Map Slots: " + inactiveMapSlots
-                                      + " (launched but no hearbeat yet)",
-          "  Inactive Reduce Slots: " + inactiveReduceSlots
-                                      + " (launched but no hearbeat yet)",
-          "       Needed Map Slots: " + neededMapSlots,
-          "    Needed Reduce Slots: " + neededReduceSlots)));
+              "JobTracker Status",
+              "      Pending Map Tasks: " + pendingMaps,
+              "   Pending Reduce Tasks: " + pendingReduces,
+              "         Idle Map Slots: " + idleMapSlots,
+              "      Idle Reduce Slots: " + idleReduceSlots,
+              "     Inactive Map Slots: " + inactiveMapSlots
+              + " (launched but no hearbeat yet)",
+              "  Inactive Reduce Slots: " + inactiveReduceSlots
+              + " (launched but no hearbeat yet)",
+              "       Needed Map Slots: " + neededMapSlots,
+              "    Needed Reduce Slots: " + neededReduceSlots,
+              "     Unhealthy Trackers: " + unhealthyTrackers)));
 
       // Launch TaskTrackers to satisfy the slot requirements.
       // TODO(bmahler): Consider slotting intelligently.
