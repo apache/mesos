@@ -53,6 +53,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/killtree.hpp>
 #ifdef __linux__
 #include <stout/os/linux.hpp>
 #endif

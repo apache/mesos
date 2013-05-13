@@ -34,6 +34,7 @@ EXTRA_DIST =					\
   include/stout/numify.hpp			\
   include/stout/option.hpp			\
   include/stout/os.hpp				\
+  include/stout/os/killtree.hpp			\
   include/stout/os/linux.hpp			\
   include/stout/os/ls.hpp			\
   include/stout/os/osx.hpp			\
