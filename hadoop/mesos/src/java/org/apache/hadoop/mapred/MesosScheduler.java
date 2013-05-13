@@ -65,7 +65,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
   private static final double TASKTRACKER_CPUS = 1.0; // 1 core.
   private static final int TASKTRACKER_JVM_HEAP = 1024; // 1 GB.
   private static final int TASKTRACKER_MEM =
-      TASKTRACKER_JVM_HEAP + JVM_MEM_OVERHEAD;
+    TASKTRACKER_JVM_HEAP + JVM_MEM_OVERHEAD;
 
   // The default behavior in Hadoop is to use 4 slots per TaskTracker:
   private static final int MAP_SLOTS_DEFAULT = 2;
@@ -78,7 +78,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
   // Used for tracking the slots of each TaskTracker and the corresponding
   // Mesos TaskID.
   private Map<HttpHost, MesosTracker> mesosTrackers =
-      new HashMap<HttpHost, MesosTracker>();
+    new HashMap<HttpHost, MesosTracker>();
 
   private JobInProgressListener jobListener = new JobInProgressListener() {
     @Override
@@ -97,8 +97,9 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         JobInProgress job = event.getJobInProgress();
 
         // If the job is complete, kill all the corresponding idle TaskTrackers.
-        if (!job.isComplete())
+        if (!job.isComplete()) {
           return;
+        }
 
         LOG.info("Completed job : " + job.getJobID());
 
@@ -111,10 +112,12 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         completed.addAll(job.reportTasksInProgress(false, true));
 
         for (TaskInProgress task : completed) {
-          for (TaskStatus status : task.getTaskStatuses()) {
-            LOG.info("Removing completed task : " + status.getTaskID()
-                + " of tracker " + status.getTaskTracker());
+          // Check that this task actually belongs to this job
+          if (task.getJob().getJobID() != job.getJobID()) {
+            continue;
+          }
 
+          for (TaskStatus status : task.getTaskStatuses()) {
             // Make a copy to iterate over keys and delete values.
             Set<HttpHost> trackers = new HashSet<HttpHost>(
                 mesosTrackers.keySet());
@@ -129,12 +132,15 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
                 continue;
               }
 
-              mesosTracker.hadoopTasks.remove(status.getTaskID());
+              LOG.info("Removing completed task : " + status.getTaskID()
+                  + " of tracker " + status.getTaskTracker());
 
-              // If this TaskTracker doesn't have any running tasks, kill it.
-              if (mesosTracker.hadoopTasks.isEmpty()) {
-                LOG.info("Killing Mesos task: " + mesosTracker.taskId
-                    + " on host " + mesosTracker.host);
+              mesosTracker.hadoopJobs.remove(job.getJobID());
+
+              // If the TaskTracker doesn't have any running tasks, kill it.
+              if (mesosTracker.hadoopJobs.isEmpty()) {
+                LOG.info("Killing Mesos task: " + mesosTracker.taskId + " on host "
+                    + mesosTracker.host);
 
                 driver.killTask(mesosTracker.taskId);
                 mesosTrackers.remove(tracker);
@@ -157,7 +163,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
 
     try {
       taskScheduler =
-          (TaskScheduler) Class.forName(taskTrackerClass).newInstance();
+        (TaskScheduler) Class.forName(taskTrackerClass).newInstance();
       taskScheduler.setConf(conf);
       taskScheduler.setTaskTrackerManager(taskTrackerManager);
     } catch (ClassNotFoundException e) {
@@ -181,10 +187,10 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
 
     try {
       FrameworkInfo frameworkInfo = FrameworkInfo
-          .newBuilder()
-          .setUser("")
-          .setName("Hadoop: (RPC port: " + jobTracker.port + ","
-                   + " WebUI port: " + jobTracker.infoPort + ")").build();
+        .newBuilder()
+        .setUser("")
+        .setName("Hadoop: (RPC port: " + jobTracker.port + ","
+            + " WebUI port: " + jobTracker.infoPort + ")").build();
 
       driver = new MesosSchedulerDriver(this, frameworkInfo, master);
       driver.start();
@@ -212,7 +218,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
 
   @Override
   public synchronized List<Task> assignTasks(TaskTracker taskTracker)
-      throws IOException {
+    throws IOException {
     HttpHost tracker = new HttpHost(taskTracker.getStatus().getHost(),
         taskTracker.getStatus().getHttpPort());
 
@@ -229,9 +235,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
     if (tasks != null) {
       // Keep track of which TaskTracker contains which tasks.
       for (Task task : tasks) {
-        LOG.info("Assigning task : " + task.getTaskID() + " to tracker "
-            + tracker);
-        mesosTrackers.get(tracker).hadoopTasks.add(task.getTaskID());
+        mesosTrackers.get(tracker).hadoopJobs.add(task.getJobID());
       }
     }
 
@@ -286,7 +290,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
     for (int i = 0; i < totalTasks; ++i) {
       TaskInProgress task = tasks[i];
       if (task == null) {
-	continue;
+        continue;
       }
       if (task.isComplete()) {
         finishedTasks += 1;
@@ -571,9 +575,9 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         if (master.equals("local")) {
           try {
             commandInfo = CommandInfo.newBuilder()
-                .setEnvironment(envBuilder)
-                .setValue(new File("bin/mesos-executor").getCanonicalPath())
-                .build();
+              .setEnvironment(envBuilder)
+              .setValue(new File("bin/mesos-executor").getCanonicalPath())
+              .build();
           } catch (IOException e) {
             LOG.fatal("Failed to find Mesos executor ", e);
             System.exit(1);
@@ -581,73 +585,73 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         } else {
           String uri = conf.get("mapred.mesos.executor");
           commandInfo = CommandInfo.newBuilder()
-              .setEnvironment(envBuilder)
-              .setValue("cd hadoop-* && ./bin/mesos-executor")
-              .addUris(CommandInfo.URI.newBuilder().setValue(uri)).build();
+            .setEnvironment(envBuilder)
+            .setValue("cd hadoop-* && ./bin/mesos-executor")
+            .addUris(CommandInfo.URI.newBuilder().setValue(uri)).build();
         }
 
         TaskInfo info = TaskInfo
-            .newBuilder()
-            .setName(taskId.getValue())
-            .setTaskId(taskId)
-            .setSlaveId(offer.getSlaveId())
-            .addResources(
+          .newBuilder()
+          .setName(taskId.getValue())
+          .setTaskId(taskId)
+          .setSlaveId(offer.getSlaveId())
+          .addResources(
+              Resource
+              .newBuilder()
+              .setName("cpus")
+              .setType(Value.Type.SCALAR)
+              .setScalar(Value.Scalar.newBuilder().setValue(
+                  (mapSlots + reduceSlots) * slotCpus)))
+          .addResources(
+              Resource
+              .newBuilder()
+              .setName("mem")
+              .setType(Value.Type.SCALAR)
+              .setScalar(Value.Scalar.newBuilder().setValue(
+                  (mapSlots + reduceSlots) * slotMem)))
+          .addResources(
+              Resource
+              .newBuilder()
+              .setName("disk")
+              .setType(Value.Type.SCALAR)
+              .setScalar(Value.Scalar.newBuilder().setValue(
+                  (mapSlots + reduceSlots) * slotDisk)))
+          .addResources(
+              Resource
+              .newBuilder()
+              .setName("ports")
+              .setType(Value.Type.RANGES)
+              .setRanges(
+                Value.Ranges
+                .newBuilder()
+                .addRange(Value.Range.newBuilder()
+                  .setBegin(httpAddress.getPort())
+                  .setEnd(httpAddress.getPort()))
+                .addRange(Value.Range.newBuilder()
+                  .setBegin(reportAddress.getPort())
+                  .setEnd(reportAddress.getPort()))))
+          .setExecutor(
+              ExecutorInfo
+              .newBuilder()
+              .setExecutorId(ExecutorID.newBuilder().setValue(
+                  "executor_" + taskId.getValue()))
+              .setName("Hadoop TaskTracker")
+              .setSource(taskId.getValue())
+              .addResources(
                 Resource
-                    .newBuilder()
-                    .setName("cpus")
-                    .setType(Value.Type.SCALAR)
-                    .setScalar(Value.Scalar.newBuilder().setValue(
-                        (mapSlots + reduceSlots) * slotCpus)))
-            .addResources(
+                .newBuilder()
+                .setName("cpus")
+                .setType(Value.Type.SCALAR)
+                .setScalar(Value.Scalar.newBuilder().setValue(
+                    (TASKTRACKER_CPUS))))
+              .addResources(
                 Resource
-                    .newBuilder()
-                    .setName("mem")
-                    .setType(Value.Type.SCALAR)
-                    .setScalar(Value.Scalar.newBuilder().setValue(
-                        (mapSlots + reduceSlots) * slotMem)))
-            .addResources(
-                Resource
-                    .newBuilder()
-                    .setName("disk")
-                    .setType(Value.Type.SCALAR)
-                    .setScalar(Value.Scalar.newBuilder().setValue(
-                        (mapSlots + reduceSlots) * slotDisk)))
-            .addResources(
-                Resource
-                    .newBuilder()
-                    .setName("ports")
-                    .setType(Value.Type.RANGES)
-                    .setRanges(
-                        Value.Ranges
-                            .newBuilder()
-                            .addRange(Value.Range.newBuilder()
-                                .setBegin(httpAddress.getPort())
-                                .setEnd(httpAddress.getPort()))
-                            .addRange(Value.Range.newBuilder()
-                                .setBegin(reportAddress.getPort())
-                                .setEnd(reportAddress.getPort()))))
-            .setExecutor(
-                ExecutorInfo
-                    .newBuilder()
-                    .setExecutorId(ExecutorID.newBuilder().setValue(
-                        "executor_" + taskId.getValue()))
-                    .setName("Hadoop TaskTracker")
-                    .setSource(taskId.getValue())
-                    .addResources(
-                        Resource
-                            .newBuilder()
-                            .setName("cpus")
-                            .setType(Value.Type.SCALAR)
-                            .setScalar(Value.Scalar.newBuilder().setValue(
-                                (TASKTRACKER_CPUS))))
-                    .addResources(
-                        Resource
-                            .newBuilder()
-                            .setName("mem")
-                            .setType(Value.Type.SCALAR)
-                            .setScalar(Value.Scalar.newBuilder().setValue(
-                                (TASKTRACKER_MEM)))).setCommand(commandInfo))
-            .build();
+                .newBuilder()
+                .setName("mem")
+                .setType(Value.Type.SCALAR)
+                .setScalar(Value.Scalar.newBuilder().setValue(
+                    (TASKTRACKER_MEM)))).setCommand(commandInfo))
+                    .build();
 
         driver.launchTasks(offer.getId(), Arrays.asList(info));
 
@@ -748,8 +752,8 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
     public long reduceSlots;
     public boolean active = false; // Set once tracked by the JobTracker.
 
-    // Tracks Hadoop tasks running on the tracker.
-    public Set<TaskAttemptID> hadoopTasks = new HashSet<TaskAttemptID>();
+    // Tracks Hadoop job tasks running on the tracker.
+    public Set<JobID> hadoopJobs = new HashSet<JobID>();
 
     public MesosTracker(HttpHost host, TaskID taskId, long mapSlots,
         long reduceSlots) {
