@@ -75,14 +75,7 @@ typedef ::testing::Types<ProcessIsolator> IsolatorTypes;
 
 TYPED_TEST_CASE(IsolatorTest, IsolatorTypes);
 
-
-// TODO(bmahler): This test is disabled on OSX, until proc::children
-// is implemented for OSX.
-#ifdef __APPLE__
-TYPED_TEST(IsolatorTest, DISABLED_Usage)
-#else
 TYPED_TEST(IsolatorTest, Usage)
-#endif
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);

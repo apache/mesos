@@ -21,10 +21,6 @@
 #include <stdio.h> // For perror.
 #include <string.h>
 
-#ifdef __APPLE__
-#include <libproc.h> // For proc_pidinfo.
-#endif
-
 #include <map>
 #include <set>
 
@@ -38,9 +34,6 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
-#ifdef __linux__
-#include "stout/proc.hpp"
-#endif
 #include <stout/uuid.hpp>
 
 #include "common/type_utils.hpp"
@@ -373,49 +366,38 @@ Future<ResourceStatistics> ProcessIsolator::usage(
   }
 
   ProcessInfo* info = infos[frameworkId][executorId];
+  CHECK_NOTNULL(info);
 
   ResourceStatistics result;
 
   result.set_timestamp(Clock::now().secs());
 
   // Set the resource allocations.
-  Option<Bytes> mem = info->resources.mem();
+  const Option<Bytes>& mem = info->resources.mem();
   if (mem.isSome()) {
     result.set_mem_limit_bytes(mem.get().bytes());
   }
 
-  Option<double> cpus = info->resources.cpus();
+  const Option<double>& cpus = info->resources.cpus();
   if (cpus.isSome()) {
     result.set_cpus_limit(cpus.get());
   }
 
-#ifdef __linux__
-  // Get the page size, used for memory accounting.
-  // NOTE: This is more portable than using getpagesize().
-  long pageSize = sysconf(_SC_PAGESIZE);
-  PCHECK(pageSize > 0) << "Failed to get sysconf(_SC_PAGESIZE)";
-
-  // Get the number of clock ticks, used for cpu accounting.
-  long ticks = sysconf(_SC_CLK_TCK);
-  PCHECK(ticks > 0) << "Failed to get sysconf(_SC_CLK_TCK)";
-
   CHECK_SOME(info->pid);
 
-  // Get the parent process usage statistics.
-  Try<proc::ProcessStatus> status = proc::status(info->pid.get());
+  Try<os::Process> process = os::process(info->pid.get());
 
-  if (status.isError()) {
-    return Future<ResourceStatistics>::failed(status.error());
+  if (process.isError()) {
+    return Future<ResourceStatistics>::failed(process.error());
   }
 
-  result.set_mem_rss_bytes(status.get().rss * pageSize);
-  result.set_cpus_user_time_secs(
-      (double) status.get().utime / (double) ticks);
-  result.set_cpus_system_time_secs(
-      (double) status.get().stime / (double) ticks);
+  result.set_timestamp(Clock::now().secs());
+  result.set_mem_rss_bytes(process.get().rss.bytes());
+  result.set_cpus_user_time_secs(process.get().utime.secs());
+  result.set_cpus_system_time_secs(process.get().stime.secs());
 
   // Now aggregate all descendant process usage statistics.
-  Try<set<pid_t> > children = proc::children(info->pid.get(), true);
+  const Try<set<pid_t> >& children = os::children(info->pid.get(), true);
 
   if (children.isError()) {
     return Future<ResourceStatistics>::failed(
@@ -425,53 +407,22 @@ Future<ResourceStatistics> ProcessIsolator::usage(
 
   // Aggregate the usage of all child processes.
   foreach (pid_t child, children.get()) {
-    status = proc::status(child);
+    process = os::process(child);
 
-    if (status.isError()) {
+    if (process.isError()) {
       LOG(WARNING) << "Failed to get status of descendant process " << child
                    << " of parent " << info->pid.get() << ": "
-                   << status.error();
+                   << process.error();
       continue;
     }
 
     result.set_mem_rss_bytes(
-        result.mem_rss_bytes() + status.get().rss * pageSize);
-
+        result.mem_rss_bytes() + process.get().rss.bytes());
     result.set_cpus_user_time_secs(
-        result.cpus_user_time_secs() +
-        (double) status.get().utime / (double) ticks);
-
+        result.cpus_user_time_secs() + process.get().utime.secs());
     result.set_cpus_system_time_secs(
-        result.cpus_system_time_secs() +
-        (double) status.get().stime / (double) ticks);
+        result.cpus_system_time_secs() + process.get().stime.secs());
   }
-#elif defined __APPLE__
-  // TODO(bmahler): Aggregate the usage of all child processes.
-  // NOTE: There are several pitfalls to using proc_pidinfo().
-  // In particular:
-  //   -This will not work for many root processes.
-  //   -This may not work for processes owned by other users.
-  //   -However, this always works for processes owned by the same user.
-  // This beats using task_for_pid(), which only works for the same pid.
-  // For further discussion around these issues,
-  // see: http://code.google.com/p/psutil/issues/detail?id=297
-  CHECK_SOME(info->pid);
-
-  proc_taskinfo task;
-  int size =
-    proc_pidinfo(info->pid.get(), PROC_PIDTASKINFO, 0, &task, sizeof(task));
-
-  if (size != sizeof(task)) {
-    return Future<ResourceStatistics>::failed(
-        "Failed to get proc_pidinfo: " + stringify(size));
-  }
-
-  result.set_mem_rss_bytes(task.pti_resident_size);
-
-  // NOTE: CPU Times are in nanoseconds, but this is not documented!
-  result.set_cpus_user_time_secs(Nanoseconds(task.pti_total_user).secs());
-  result.set_cpus_system_time_secs(Nanoseconds(task.pti_total_system).secs());
-#endif
 
   return result;
 }

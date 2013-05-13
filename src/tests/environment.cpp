@@ -108,6 +108,17 @@ static bool enable(const ::testing::TestInfo& test)
         (os::user() != "root" || !os::exists("/proc/cgroups"))) {
       return false;
     }
+#ifdef __APPLE__
+    if (strings::contains(test.test_case_name(), "IsolatorTest") &&
+        strings::contains(test.name(), "Usage") &&
+        strings::contains(type, "ProcessIsolator") &&
+        os::user() != "root") {
+      // We can't run the Isolator resource usage test when we're not
+      // the root user on OSX because proc_pidinfo() only returns
+      // memory and CPU usage reliably when running as root.
+      return false;
+    }
+#endif
   }
 
   return true;
