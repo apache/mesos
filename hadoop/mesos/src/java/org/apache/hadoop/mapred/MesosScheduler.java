@@ -10,6 +10,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.apache.commons.httpclient.HttpHost;
 import org.apache.commons.logging.Log;
@@ -70,6 +72,10 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
   // The default behavior in Hadoop is to use 4 slots per TaskTracker:
   private static final int MAP_SLOTS_DEFAULT = 2;
   private static final int REDUCE_SLOTS_DEFAULT = 2;
+
+  // The amount of time to wait for task trackers to launch before
+  // giving up.
+  private static final long LAUNCH_TIMEOUT_MS = 300000; // 5 minutes
 
   // Count of the launched trackers for TaskID generation.
   private long launchedTrackers = 0;
@@ -143,6 +149,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
                     + mesosTracker.host);
 
                 driver.killTask(mesosTracker.taskId);
+		tracker.timer.cancel();
                 mesosTrackers.remove(tracker);
               }
             }
@@ -276,6 +283,11 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
     LOG.info("Re-registered with master " + masterInfo);
   }
 
+  public synchronized void killTracker(MesosTracker tracker) {
+    driver.killTask(tracker.taskId);
+    mesosTrackers.remove(tracker.host);
+  }
+
   // For some reason, pendingMaps() and pendingReduces() doesn't return the
   // values we expect. We observed negative values, which may be related to
   // https://issues.apache.org/jira/browse/MAPREDUCE-1238. Below is the
@@ -346,6 +358,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         HttpHost host = new HttpHost(status.getHost(), status.getHttpPort());
         if (mesosTrackers.containsKey(host)) {
           mesosTrackers.get(host).active = true;
+          mesosTrackers.get(host).timer.cancel();
           idleMapSlots += status.getAvailableMapSlots();
           idleReduceSlots += status.getAvailableReduceSlots();
         }
@@ -507,7 +520,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
 
         // Add this tracker to Mesos tasks.
         mesosTrackers.put(httpAddress, new MesosTracker(httpAddress, taskId,
-            mapSlots, reduceSlots));
+              mapSlots, reduceSlots, this));
 
         // Create the environment depending on whether the executor is going to be
         // run locally.
@@ -697,6 +710,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         for (HttpHost tracker : trackers) {
           if (mesosTrackers.get(tracker).taskId.equals(taskStatus.getTaskId())) {
             LOG.info("Removing terminated TaskTracker: " + tracker);
+	    tracker.timer.cancel();
             mesosTrackers.remove(tracker);
           }
         }
@@ -746,21 +760,40 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
    * Used to track the our launched TaskTrackers.
    */
   private class MesosTracker {
-    public HttpHost host;
+    public volatile HttpHost host;
     public TaskID taskId;
     public long mapSlots;
     public long reduceSlots;
-    public boolean active = false; // Set once tracked by the JobTracker.
+    public volatile boolean active = false; // Set once tracked by the JobTracker.
+    public Timer timer;
+    public volatile MesosScheduler scheduler;
 
     // Tracks Hadoop job tasks running on the tracker.
     public Set<JobID> hadoopJobs = new HashSet<JobID>();
 
     public MesosTracker(HttpHost host, TaskID taskId, long mapSlots,
-        long reduceSlots) {
+        long reduceSlots, MesosScheduler scheduler) {
       this.host = host;
       this.taskId = taskId;
       this.mapSlots = mapSlots;
       this.reduceSlots = reduceSlots;
+      this.scheduler = scheduler;
+
+      this.timer = new Timer();
+      timer.schedule(new TimerTask() {
+        @Override
+        public void run() {
+          synchronized (MesosTracker.this.scheduler) {
+            // If the tracker activated while we were awaiting to acquire the
+            // lock, return.
+            if (MesosTracker.this.active) return;
+
+            LOG.warn("Tracker " + MesosTracker.this.host + " failed to launch within " +
+              LAUNCH_TIMEOUT_MS / 1000 + " seconds, killing it");
+            MesosTracker.this.scheduler.killTracker(MesosTracker.this);
+          }
+        }
+      }, LAUNCH_TIMEOUT_MS);
     }
   }
 }
