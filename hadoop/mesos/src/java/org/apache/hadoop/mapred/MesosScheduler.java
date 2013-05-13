@@ -359,8 +359,8 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
       }
 
       // Compute how many slots we need to allocate.
-      int neededMapSlots = Math.max(0, pendingMaps - idleMapSlots);
-      int neededReduceSlots = Math.max(0, pendingReduces - idleReduceSlots);
+      int neededMapSlots = Math.max(0, pendingMaps - (idleMapSlots + inactiveMapSlots));
+      int neededReduceSlots = Math.max(0, pendingReduces - (idleReduceSlots + inactiveReduceSlots));
 
       LOG.info(join("\n", Arrays.asList(
               "JobTracker Status",
@@ -413,10 +413,16 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
           }
         }
 
-        int mapSlots = conf.getInt("mapred.tasktracker.map.tasks.maximum",
+        int mapSlotsMax = conf.getInt("mapred.tasktracker.map.tasks.maximum",
             MAP_SLOTS_DEFAULT);
-        int reduceSlots = conf.getInt("mapred.tasktracker.reduce.tasks.maximum",
-            REDUCE_SLOTS_DEFAULT);
+        int reduceSlotsMax =
+          conf.getInt("mapred.tasktracker.reduce.tasks.maximum",
+              REDUCE_SLOTS_DEFAULT);
+
+        // What's the minimum number of map and reduce slots we should try to
+        // launch?
+        long mapSlots = 0;
+        long reduceSlots = 0;
 
         double slotCpus = conf.getFloat("mapred.mesos.slot.cpus",
             (float) SLOT_CPUS_DEFAULT);
@@ -426,28 +432,63 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
             SLOT_JVM_HEAP_DEFAULT + JVM_MEM_OVERHEAD);
         double slotJVMHeap = slotMem - JVM_MEM_OVERHEAD;
 
-        // Total resource requirements for the container (TaskTracker + map/red
+        // Minimum resource requirements for the container (TaskTracker + map/red
         // tasks).
-        double containerCpus = (mapSlots + reduceSlots) * slotCpus
-            + TASKTRACKER_CPUS;
-        double containerMem = (mapSlots + reduceSlots) * slotMem
-            + TASKTRACKER_MEM;
-        double containerDisk = (mapSlots + reduceSlots) * slotDisk;
+        double containerCpus = TASKTRACKER_CPUS;
+        double containerMem = TASKTRACKER_MEM;
+        double containerDisk = 0;
 
-        if (containerCpus > cpus || containerMem > mem || containerDisk > disk
-            || ports.size() < 2) {
+        // Determine how many slots we can allocate.
+        int slots = mapSlotsMax + reduceSlotsMax;
+        slots = (int)Math.min(slots, (cpus - containerCpus) / slotCpus);
+        slots = (int)Math.min(slots, (mem - containerMem) / slotMem);
+        slots = (int)Math.min(slots, (disk - containerDisk) / slotDisk);
+
+        // Is this offer too small for even the minimum slots?
+        if (slots < 1 || ports.size() < 2) {
           LOG.info(join("\n", Arrays.asList(
-              "Declining offer with insufficient resources for a TaskTracker: ",
-              "  cpus: offered " + cpus + " needed " + containerCpus,
-              "  mem : offered " + mem + " needed " + containerMem,
-              "  disk: offered " + disk + " needed " + containerDisk,
-              "  ports: " + (ports.size() < 2
-                            ? " less than 2 offered"
-                            : " at least 2 (sufficient)"),
-              offer.getResourcesList().toString())));
+                  "Declining offer with insufficient resources for a TaskTracker: ",
+                  "  cpus: offered " + cpus + " needed " + containerCpus,
+                  "  mem : offered " + mem + " needed " + containerMem,
+                  "  disk: offered " + disk + " needed " + containerDisk,
+                  "  ports: " + (ports.size() < 2
+                    ? " less than 2 offered"
+                    : " at least 2 (sufficient)"),
+                  offer.getResourcesList().toString())));
 
           driver.declineOffer(offer.getId());
           continue;
+        }
+
+        // Is the number of slots we need sufficiently small? If so, we can
+        // allocate exactly the number we need.
+        if (slots >= neededMapSlots + neededReduceSlots && neededMapSlots <
+            mapSlotsMax && neededReduceSlots < reduceSlotsMax) {
+          mapSlots = neededMapSlots;
+          reduceSlots = neededReduceSlots;
+        } else {
+          // Allocate slots fairly for this resource offer.
+          double mapFactor = (double)neededMapSlots / (neededMapSlots + neededReduceSlots);
+          double reduceFactor = (double)neededReduceSlots / (neededMapSlots + neededReduceSlots);
+          // To avoid map/reduce slot starvation, don't allow more than 50%
+          // spread between map/reduce slots when we need both mappers and
+          // reducers.
+          if (neededMapSlots > 0 && neededReduceSlots > 0) {
+            if (mapFactor < 0.25) {
+              mapFactor = 0.25;
+            } else if (mapFactor > 0.75) {
+              mapFactor = 0.75;
+            }
+            if (reduceFactor < 0.25) {
+              reduceFactor = 0.25;
+            } else if (reduceFactor > 0.75) {
+              reduceFactor = 0.75;
+            }
+          }
+          mapSlots = Math.min(Math.min((long)(mapFactor * slots), mapSlotsMax), neededMapSlots);
+          // The remaining slots are allocated for reduces.
+          slots -= mapSlots;
+          reduceSlots = Math.min(Math.min(slots, reduceSlotsMax), neededReduceSlots);
         }
 
         Integer[] portArray = ports.toArray(new Integer[2]);
@@ -455,10 +496,10 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         HttpHost reportAddress = new HttpHost(offer.getHostname(), portArray[1]);
 
         TaskID taskId = TaskID.newBuilder()
-            .setValue("Task_Tracker_" + launchedTrackers++).build();
+          .setValue("Task_Tracker_" + launchedTrackers++).build();
 
         LOG.info("Launching task " + taskId.getValue() + " on "
-            + httpAddress.toString());
+            + httpAddress.toString() + " with mapSlots=" + mapSlots + " reduceSlots=" + reduceSlots);
 
         // Add this tracker to Mesos tasks.
         mesosTrackers.put(httpAddress, new MesosTracker(httpAddress, taskId,
@@ -469,37 +510,45 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         // TODO(vinod): Do not pass the mapred config options as environment
         // variables.
         Protos.Environment.Builder envBuilder = Protos.Environment
-            .newBuilder()
-            .addVariables(
-                Protos.Environment.Variable
-                    .newBuilder()
-                    .setName("mapred.job.tracker")
-                    .setValue(jobTrackerAddress.getHostName() + ':'
-                        + jobTrackerAddress.getPort()))
-            .addVariables(
-                Protos.Environment.Variable
-                    .newBuilder()
-                    .setName("mapred.task.tracker.http.address")
-                    .setValue(
-                        httpAddress.getHostName() + ':' + httpAddress.getPort()))
-            .addVariables(
-                Protos.Environment.Variable
-                    .newBuilder()
-                    .setName("mapred.task.tracker.report.address")
-                    .setValue(reportAddress.getHostName() + ':'
-                        + reportAddress.getPort()))
-            .addVariables(
-                Protos.Environment.Variable.newBuilder()
-                    .setName("mapred.map.child.java.opts")
-                    .setValue("-Xmx" + slotJVMHeap + "m"))
-            .addVariables(
-                Protos.Environment.Variable.newBuilder()
-                    .setName("mapred.reduce.child.java.opts")
-                    .setValue("-Xmx" + slotJVMHeap + "m"))
-            .addVariables(
-                Protos.Environment.Variable.newBuilder()
-                    .setName("HADOOP_HEAPSIZE")
-                    .setValue("" + TASKTRACKER_JVM_HEAP));
+          .newBuilder()
+          .addVariables(
+              Protos.Environment.Variable
+              .newBuilder()
+              .setName("mapred.job.tracker")
+              .setValue(jobTrackerAddress.getHostName() + ':'
+                + jobTrackerAddress.getPort()))
+          .addVariables(
+              Protos.Environment.Variable
+              .newBuilder()
+              .setName("mapred.task.tracker.http.address")
+              .setValue(
+                httpAddress.getHostName() + ':' + httpAddress.getPort()))
+          .addVariables(
+              Protos.Environment.Variable
+              .newBuilder()
+              .setName("mapred.task.tracker.report.address")
+              .setValue(reportAddress.getHostName() + ':'
+                + reportAddress.getPort()))
+          .addVariables(
+              Protos.Environment.Variable.newBuilder()
+              .setName("mapred.map.child.java.opts")
+              .setValue("-Xmx" + slotJVMHeap + "m"))
+          .addVariables(
+              Protos.Environment.Variable.newBuilder()
+              .setName("mapred.reduce.child.java.opts")
+              .setValue("-Xmx" + slotJVMHeap + "m"))
+          .addVariables(
+              Protos.Environment.Variable.newBuilder()
+              .setName("HADOOP_HEAPSIZE")
+              .setValue("" + TASKTRACKER_JVM_HEAP))
+          .addVariables(
+              Protos.Environment.Variable.newBuilder()
+              .setName("mapred.tasktracker.map.tasks.maximum")
+              .setValue("" + mapSlots))
+          .addVariables(
+              Protos.Environment.Variable.newBuilder()
+              .setName("mapred.tasktracker.reduce.tasks.maximum")
+              .setValue("" + reduceSlots));
 
         // Set java specific environment, appropriately.
         Map<String, String> env = System.getenv();
@@ -695,15 +744,15 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
   private class MesosTracker {
     public HttpHost host;
     public TaskID taskId;
-    public int mapSlots;
-    public int reduceSlots;
+    public long mapSlots;
+    public long reduceSlots;
     public boolean active = false; // Set once tracked by the JobTracker.
 
     // Tracks Hadoop tasks running on the tracker.
     public Set<TaskAttemptID> hadoopTasks = new HashSet<TaskAttemptID>();
 
-    public MesosTracker(HttpHost host, TaskID taskId, int mapSlots,
-        int reduceSlots) {
+    public MesosTracker(HttpHost host, TaskID taskId, long mapSlots,
+        long reduceSlots) {
       this.host = host;
       this.taskId = taskId;
       this.mapSlots = mapSlots;
