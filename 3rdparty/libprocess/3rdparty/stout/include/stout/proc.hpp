@@ -1,21 +1,3 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #ifndef __PROC_HPP__
 #define __PROC_HPP__
 
@@ -36,14 +18,15 @@
 #include <string>
 #include <vector>
 
-#include "error.hpp"
-#include "foreach.hpp"
-#include "none.hpp"
-#include "numify.hpp"
-#include "option.hpp"
-#include "os.hpp"
-#include "strings.hpp"
-#include "try.hpp"
+#include <stout/error.hpp>
+#include <stout/foreach.hpp>
+#include <stout/none.hpp>
+#include <stout/numify.hpp>
+#include <stout/option.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
+
+#include <stout/os/ls.hpp>
 
 namespace proc {
 
@@ -127,11 +110,11 @@ struct ProcessStatus
   const pid_t pid;
   const std::string comm;
   const char state;
-  const int ppid;
-  const int pgrp;
-  const int session;
+  const pid_t ppid;
+  const pid_t pgrp;
+  const pid_t session;
   const int tty_nr;
-  const int tpgid;
+  const pid_t tpgid;
   const unsigned int flags;
   const unsigned long minflt;
   const unsigned long cminflt;
@@ -264,48 +247,6 @@ inline Try<std::set<pid_t> > pids()
 }
 
 
-// Returns all child processes of the pid, including all descendants
-// if recursive.
-inline Try<std::set<pid_t> > children(pid_t pid, bool recursive = true)
-{
-  const Try<std::set<pid_t> >& pids = proc::pids();
-  if (pids.isError()) {
-    return Error(pids.error());
-  }
-
-  // Stat all the processes.
-  std::list<ProcessStatus> processes;
-  foreach (pid_t _pid, pids.get()) {
-    const Try<ProcessStatus>& process = status(_pid);
-    if (process.isSome()) {
-      processes.push_back(process.get());
-    }
-  }
-
-  // Perform a breadth first search for descendants.
-  std::set<pid_t> descendants;
-  std::queue<pid_t> parents;
-  parents.push(pid);
-
-  do {
-    pid_t parent = parents.front();
-    parents.pop();
-
-    // Search for children of parent.
-    foreach (const ProcessStatus& process, processes) {
-      if (process.ppid == parent) {
-        // Have we seen this child yet?
-        if (descendants.insert(process.pid).second) {
-          parents.push(process.pid);
-        }
-      }
-    }
-  } while (recursive && !parents.empty());
-
-  return descendants;
-}
-
-
 // Snapshot of a system (modeled after /proc/stat).
 struct SystemStatus
 {
@@ -422,7 +363,12 @@ inline Try<std::list<CPU> > cpus()
         line.find("core id") == 0) {
       // Get out and parse the value.
       std::vector<std::string> tokens = strings::tokenize(line, ": ");
-      CHECK(tokens.size() >= 2) << stringify(tokens);
+
+      if (tokens.size() < 2) {
+        return Error("Unexpected format in /proc/cpuinfo: " +
+                     stringify(tokens));
+      }
+
       Try<unsigned int> value = numify<unsigned int>(tokens.back());
       if (value.isError()) {
         return Error(value.error());
@@ -437,12 +383,12 @@ inline Try<std::list<CPU> > cpus()
         id = value.get();
       } else if (line.find("physical id") == 0) {
         if (socket.isSome()) {
-          return Error("Unexpected format of /proc/cpuinfo");
+          return Error("Unexpected format in /proc/cpuinfo");
         }
         socket = value.get();
       } else if (line.find("core id") == 0) {
         if (core.isSome()) {
-          return Error("Unexpected format of /proc/cpuinfo");
+          return Error("Unexpected format in /proc/cpuinfo");
         }
         core = value.get();
       }

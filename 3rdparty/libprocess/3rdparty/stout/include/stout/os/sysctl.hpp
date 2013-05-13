@@ -58,7 +58,9 @@ struct sysctl
   ~sysctl();
 
   // Get system information as an integer.
-  Try<int> integer() const;
+private: struct Integer; // Forward declaration.
+public:
+  Integer integer() const;
 
   // Get system information as a string.
   Try<std::string> string() const;
@@ -77,6 +79,17 @@ public:
   Table table(const Option<size_t>& length = None()) const;
 
 private:
+  struct Integer
+  {
+    Integer(int _levels, int* _name);
+
+    template <typename T>
+    operator Try<T> ();
+
+    const int levels;
+    int* name;
+  };
+
   struct Table
   {
     Table(int _levels, int* _name, const Option<size_t>& _length);
@@ -94,14 +107,14 @@ private:
 };
 
 
-sysctl::sysctl(int level1)
+inline sysctl::sysctl(int level1)
   : levels(1), name(new int[levels])
 {
   name[0] = level1;
 }
 
 
-sysctl::sysctl(int level1, int level2)
+inline sysctl::sysctl(int level1, int level2)
   : levels(2), name(new int[levels])
 {
   name[0] = level1;
@@ -109,7 +122,7 @@ sysctl::sysctl(int level1, int level2)
 }
 
 
-sysctl::sysctl(int level1, int level2, int level3)
+inline sysctl::sysctl(int level1, int level2, int level3)
   : levels(3), name(new int[levels])
 {
   name[0] = level1;
@@ -118,7 +131,7 @@ sysctl::sysctl(int level1, int level2, int level3)
 }
 
 
-sysctl::sysctl(int level1, int level2, int level3, int level4)
+inline sysctl::sysctl(int level1, int level2, int level3, int level4)
   : levels(4), name(new int[levels])
 {
   name[0] = level1;
@@ -128,7 +141,7 @@ sysctl::sysctl(int level1, int level2, int level3, int level4)
 }
 
 
-sysctl::sysctl(int level1, int level2, int level3, int level4, int level5)
+inline sysctl::sysctl(int level1, int level2, int level3, int level4, int level5)
   : levels(5), name(new int[levels])
 {
   name[0] = level1;
@@ -139,20 +152,15 @@ sysctl::sysctl(int level1, int level2, int level3, int level4, int level5)
 }
 
 
-sysctl::~sysctl()
+inline sysctl::~sysctl()
 {
   delete[] name;
 }
 
 
-inline Try<int> sysctl::integer() const
+inline sysctl::Integer sysctl::integer() const
 {
-  int i;
-  size_t size = sizeof(i);
-  if (::sysctl(name, levels, &i, &size, NULL, 0) == -1) {
-    return ErrnoError();
-  }
-  return i;
+  return Integer(levels, name);
 }
 
 
@@ -186,6 +194,26 @@ inline Try<std::string> sysctl::string() const
 inline sysctl::Table sysctl::table(const Option<size_t>& length) const
 {
   return Table(levels, name, length);
+}
+
+
+inline sysctl::Integer::Integer(
+    int _levels,
+    int* _name)
+  : levels(_levels),
+    name(_name)
+{}
+
+
+template <typename T>
+sysctl::Integer::operator Try<T> ()
+{
+  T i;
+  size_t size = sizeof(i);
+  if (::sysctl(name, levels, &i, &size, NULL, 0) == -1) {
+    return ErrnoError();
+  }
+  return i;
 }
 
 

@@ -12,7 +12,8 @@
 #include "nothing.hpp"
 #include "try.hpp"
 
-// TODO(bmahler): Migrate the appropriate 'os' namespace funtions here.
+// TODO(bmahler): Merge available() and usage() into df() that returns
+// a struct, and move this back into os.hpp.
 namespace fs {
 
 // Returns the total available disk size in bytes.

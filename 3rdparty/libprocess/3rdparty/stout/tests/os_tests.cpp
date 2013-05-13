@@ -3,8 +3,11 @@
 #include <gmock/gmock.h>
 
 #include <cstdlib> // For rand.
+#include <list>
+#include <set>
 #include <string>
 
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashset.hpp>
@@ -17,6 +20,8 @@
 #include <stout/os/sysctl.hpp>
 #endif
 
+using std::list;
+using std::set;
 using std::string;
 
 
@@ -247,3 +252,154 @@ TEST_F(OsTest, sysctl)
   EXPECT_EQ(1, pids.count(getpid()));
 }
 #endif // __APPLE__
+
+
+TEST_F(OsTest, pids)
+{
+  Try<set<pid_t> > pids = os::pids();
+
+  ASSERT_SOME(pids);
+  EXPECT_NE(0u, pids.get().size());
+  EXPECT_EQ(1u, pids.get().count(getpid()));
+  EXPECT_EQ(1u, pids.get().count(1));
+}
+
+
+TEST_F(OsTest, children)
+{
+  Try<set<pid_t> > children = os::children(getpid());
+
+  ASSERT_SOME(children);
+  EXPECT_EQ(0u, children.get().size());
+
+  // Use pipes to determine the pids of the child and grandchild.
+  int childPipes[2];
+  int grandchildPipes[2];
+  ASSERT_NE(-1, pipe(childPipes));
+  ASSERT_NE(-1, pipe(grandchildPipes));
+
+  pid_t child;
+  pid_t grandchild;
+  pid_t pid = fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid > 0) {
+    // In parent process.
+    close(childPipes[1]);
+    close(grandchildPipes[1]);
+
+    // Get the pids via the pipes.
+    ASSERT_NE(-1, read(childPipes[0], &child, sizeof(child)));
+    ASSERT_NE(-1, read(grandchildPipes[0], &grandchild, sizeof(grandchild)));
+
+    close(childPipes[0]);
+    close(grandchildPipes[0]);
+  } else {
+    // In child process.
+    close(childPipes[0]);
+    close(grandchildPipes[0]);
+
+    // Double fork!
+    if ((pid = fork()) == -1) {
+      perror("Failed to fork a grand child process");
+      abort();
+    }
+
+    if (pid > 0) {
+      // Still in child process.
+      pid = getpid();
+      if (write(childPipes[1], &pid, sizeof(pid)) != sizeof(pid)) {
+        perror("Failed to write PID on pipe");
+        abort();
+      }
+
+      close(childPipes[1]);
+
+      while (true); // Keep waiting until we get a signal.
+    } else {
+      // In grandchild process.
+      pid = getpid();
+      if (write(grandchildPipes[1], &pid, sizeof(pid)) != sizeof(pid)) {
+        perror("Failed to write PID on pipe");
+        abort();
+      }
+
+      close(grandchildPipes[1]);
+
+      while (true); // Keep waiting until we get a signal.
+    }
+  }
+
+  // Ensure the non-recursive children does not include the
+  // grandchild.
+  children = os::children(getpid(), false);
+
+  ASSERT_SOME(children);
+  EXPECT_EQ(1u, children.get().size());
+  EXPECT_EQ(1u, children.get().count(child));
+
+  children = os::children(getpid());
+
+  ASSERT_SOME(children);
+  EXPECT_EQ(2u, children.get().size());
+  EXPECT_EQ(1u, children.get().count(child));
+  EXPECT_EQ(1u, children.get().count(grandchild));
+
+  // Cleanup by killing the descendant processes.
+  EXPECT_EQ(0, kill(grandchild, SIGKILL)) << strerror(errno);
+  EXPECT_EQ(0, kill(child, SIGKILL)) << strerror(errno);
+
+  // We have to reap the child for running the tests in repetition.
+  ASSERT_EQ(child, waitpid(child, NULL, 0)) << strerror(errno);
+}
+
+
+TEST_F(OsTest, process)
+{
+  Try<os::Process> status = os::process(getpid());
+
+  ASSERT_SOME(status);
+  EXPECT_EQ(getpid(), status.get().pid);
+  EXPECT_EQ(getppid(), status.get().parent);
+  EXPECT_EQ(getsid(getpid()), status.get().session);
+  EXPECT_GT(status.get().rss, 0);
+
+  // NOTE: On Linux /proc is a bit slow to update the CPU times,
+  // hence we allow 0 in this test.
+  EXPECT_GE(status.get().utime, Nanoseconds(0));
+  EXPECT_GE(status.get().stime, Nanoseconds(0));
+
+  EXPECT_FALSE(status.get().command.empty());
+}
+
+
+TEST_F(OsTest, processes)
+{
+  Try<list<os::Process> > processes = os::processes();
+
+  ASSERT_SOME(processes);
+  ASSERT_GT(processes.get().size(), 2);
+
+  // Look for ourselves in the table.
+  bool found = false;
+  foreach (const os::Process& process, processes.get()) {
+    if (process.pid == getpid()) {
+      found = true;
+      EXPECT_EQ(getpid(), process.pid);
+      EXPECT_EQ(getppid(), process.parent);
+      EXPECT_EQ(getsid(getpid()), process.session);
+      EXPECT_GT(process.rss, 0);
+
+      // NOTE: On linux /proc is a bit slow to update the cpu times,
+      // hence we allow 0 in this test.
+      EXPECT_GE(process.utime, Nanoseconds(0));
+      EXPECT_GE(process.stime, Nanoseconds(0));
+
+      EXPECT_FALSE(process.command.empty());
+
+      break;
+    }
+  }
+
+  EXPECT_TRUE(found);
+}

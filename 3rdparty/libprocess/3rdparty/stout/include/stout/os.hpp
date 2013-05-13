@@ -41,16 +41,24 @@
 #include <sstream>
 #include <string>
 
-#include "bytes.hpp"
-#include "duration.hpp"
-#include "error.hpp"
-#include "foreach.hpp"
-#include "none.hpp"
-#include "nothing.hpp"
-#include "path.hpp"
-#include "result.hpp"
-#include "strings.hpp"
-#include "try.hpp"
+#include <stout/bytes.hpp>
+#include <stout/duration.hpp>
+#include <stout/error.hpp>
+#include <stout/foreach.hpp>
+#include <stout/none.hpp>
+#include <stout/nothing.hpp>
+#include <stout/path.hpp>
+#include <stout/result.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
+
+#ifdef __linux__
+#include <stout/os/linux.hpp>
+#endif
+#include <stout/os/ls.hpp>
+#ifdef __APPLE__
+#include <stout/os/osx.hpp>
+#endif
 
 #ifdef __APPLE__
 // Assigning the result pointer to ret silences an unused var warning.
@@ -694,63 +702,6 @@ inline std::string getcwd()
 }
 
 
-// TODO(bmahler): Wrap with a Try.
-inline std::list<std::string> ls(const std::string& directory)
-{
-  std::list<std::string> result;
-
-  DIR* dir = opendir(directory.c_str());
-
-  if (dir == NULL) {
-    return std::list<std::string>();
-  }
-
-  // Calculate the size for a "directory entry".
-  long name_max = fpathconf(dirfd(dir), _PC_NAME_MAX);
-
-  // If we don't get a valid size, check NAME_MAX, but fall back on
-  // 255 in the worst case ... Danger, Will Robinson!
-  if (name_max == -1) {
-    name_max = (NAME_MAX > 255) ? NAME_MAX : 255;
-  }
-
-  size_t name_end =
-    (size_t) offsetof(dirent, d_name) + name_max + 1;
-
-  size_t size = (name_end > sizeof(dirent)
-    ? name_end
-    : sizeof(dirent));
-
-  dirent* temp = (dirent*) malloc(size);
-
-  if (temp == NULL) {
-    free(temp);
-    closedir(dir);
-    return std::list<std::string>();
-  }
-
-  struct dirent* entry;
-
-  int error;
-
-  while ((error = readdir_r(dir, temp, &entry)) == 0 && entry != NULL) {
-    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-      continue;
-    }
-    result.push_back(entry->d_name);
-  }
-
-  free(temp);
-  closedir(dir);
-
-  if (error != 0) {
-    return std::list<std::string>();
-  }
-
-  return result;
-}
-
-
 // Return the list of file paths that match the given pattern by recursively
 // searching the given directory. A match is successful if the pattern is a
 // substring of the file name.
@@ -971,18 +922,13 @@ inline Try<Bytes> memory()
   return Bytes(info.totalram);
 # endif
 #elif defined __APPLE__
-  const size_t NAME_SIZE = 2;
-  int name[NAME_SIZE];
-  name[0] = CTL_HW;
-  name[1] = HW_MEMSIZE;
+  const Try<int64_t>& memory =
+    os::sysctl(CTL_HW, HW_MEMSIZE).integer();
 
-  int64_t memory;
-  size_t length = sizeof(memory);
-
-  if (sysctl(name, NAME_SIZE, &memory, &length, NULL, 0) < 0) {
-    return ErrnoError("Failed to get sysctl of HW_MEMSIZE");
+  if (memory.isError()) {
+    return Error(memory.error());
   }
-  return Bytes(memory);
+  return Bytes(memory.get());
 #else
   return Error("Cannot determine the size of main memory");
 #endif
@@ -1059,6 +1005,61 @@ inline Try<Release> release()
   }
 
   return r;
+}
+
+
+inline Try<std::list<Process> > processes()
+{
+  const Try<std::set<pid_t> >& pids = os::pids();
+
+  if (pids.isError()) {
+    return Error(pids.error());
+  }
+
+  std::list<Process> result;
+  foreach (pid_t pid, pids.get()) {
+    const Try<Process>& process = os::process(pid);
+
+    // Ignore any processes that disappear.
+    if (process.isError()) {
+      continue;
+    }
+
+    result.push_back(process.get());
+  }
+  return result;
+}
+
+
+inline Try<std::set<pid_t> > children(pid_t pid, bool recursive = true)
+{
+  const Try<std::list<Process> >& processes = os::processes();
+
+  if (processes.isError()) {
+    return Error(processes.error());
+  }
+
+  // Perform a breadth first search for descendants.
+  std::set<pid_t> descendants;
+  std::queue<pid_t> parents;
+  parents.push(pid);
+
+  do {
+    pid_t parent = parents.front();
+    parents.pop();
+
+    // Search for children of parent.
+    foreach (const Process& process, processes.get()) {
+      if (process.parent == parent) {
+        // Have we seen this child yet?
+        if (descendants.insert(process.pid).second) {
+          parents.push(process.pid);
+        }
+      }
+    }
+  } while (recursive && !parents.empty());
+
+  return descendants;
 }
 
 
