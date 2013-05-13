@@ -57,7 +57,7 @@ def execute(command, ignore_errors=False):
 # TODO(benh): Make sure this is a git repository, apologize if not.
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
-repository = 'https://git-wip-us.apache.org/repos/asf/incubator-mesos.git'
+repository = 'git://git.apache.org/incubator-mesos.git'
 
 parent_branch = 'master'
 
