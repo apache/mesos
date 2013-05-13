@@ -855,11 +855,17 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   NewMasterDetectedMessage newMasterDetectedMsg;
   newMasterDetectedMsg.set_pid(master.get());
 
+  Future<Nothing> disconnected;
+  EXPECT_CALL(sched, disconnected(&driver))
+    .WillOnce(FutureSatisfy(&disconnected));
+
   Future<MasterInfo> masterInfo;
   EXPECT_CALL(sched, reregistered(&driver, _))
     .WillOnce(FutureArg<1>(&masterInfo));
 
   process::post(message.get().to, newMasterDetectedMsg);
+
+  AWAIT_READY(disconnected);
 
   AWAIT_READY(masterInfo);
   EXPECT_EQ(master.get().port, masterInfo.get().port());

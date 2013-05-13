@@ -184,6 +184,12 @@ protected:
     master = pid;
     link(master);
 
+    // If master failed over, inform the scheduler about the
+    // disconnection.
+    if (connected) {
+      scheduler->disconnected(driver);
+    }
+
     connected = false;
     doReliableRegistration();
   }
@@ -192,12 +198,16 @@ protected:
   {
     VLOG(1) << "No master detected, waiting for another master";
 
+    // Inform the scheduler about the disconnection if the driver
+    // was previously registered with the master.
+    if (connected) {
+      scheduler->disconnected(driver);
+    }
+
     // In this case, we don't actually invoke Scheduler::error
     // since we might get reconnected to a master imminently.
     connected = false;
     master = UPID();
-
-    scheduler->disconnected(driver);
   }
 
   void registered(const FrameworkID& frameworkId, const MasterInfo& masterInfo)

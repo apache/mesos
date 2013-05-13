@@ -753,6 +753,10 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   AWAIT_READY(message); // Framework registered message, to get the pid.
   AWAIT_READY(registered); // Framework registered call.
 
+  Future<Nothing> disconnected;
+  EXPECT_CALL(sched, disconnected(&driver))
+    .WillOnce(FutureSatisfy(&disconnected));
+
   Future<Nothing> reregistered;
   EXPECT_CALL(sched, reregistered(&driver, _))
     .WillOnce(FutureSatisfy(&reregistered));
@@ -766,6 +770,8 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   newMasterDetectedMsg.set_pid(master);
 
   process::post(message.get().to, newMasterDetectedMsg);
+
+  AWAIT_READY(disconnected);
 
   AWAIT_READY(reregistered);
 
