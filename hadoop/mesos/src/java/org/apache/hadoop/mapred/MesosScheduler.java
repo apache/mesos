@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.Iterator;
 
 import org.apache.commons.httpclient.HttpHost;
 import org.apache.commons.logging.Log;
@@ -404,7 +405,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         double cpus = -1.0;
         double mem = -1.0;
         double disk = -1.0;
-        Set<Integer> ports = new HashSet<Integer>(2);
+        Set<Integer> ports = new HashSet<Integer>();
 
         // Pull out the cpus, memory, disk, and 2 ports from the offer.
         for (Resource resource : offer.getResourcesList()) {
@@ -420,10 +421,16 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
           } else if (resource.getName().equals("ports")
               && resource.getType() == Value.Type.RANGES) {
             for (Value.Range range : resource.getRanges().getRangeList()) {
-              if (ports.size() < 2)
-                ports.add((int) range.getBegin());
-              if (ports.size() < 2)
-                ports.add((int) range.getEnd());
+              Integer begin = (int)range.getBegin();
+              Integer end = (int)range.getEnd();
+              if (end < begin) {
+                LOG.warn("Ignoring invalid port range: begin=" + begin + " end=" + end);
+                continue;
+              }
+              while (begin <= end && ports.size() < 2) {
+                ports.add(begin);
+                begin += 1;
+              }
             }
           }
         }
@@ -513,9 +520,30 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
           reduceSlots = Math.min(Math.min(slots, reduceSlotsMax), neededReduceSlots);
         }
 
-        Integer[] portArray = ports.toArray(new Integer[2]);
-        HttpHost httpAddress = new HttpHost(offer.getHostname(), portArray[0]);
-        HttpHost reportAddress = new HttpHost(offer.getHostname(), portArray[1]);
+        Iterator<Integer> portIter = ports.iterator();
+        HttpHost httpAddress = new HttpHost(offer.getHostname(), portIter.next());
+        HttpHost reportAddress = new HttpHost(offer.getHostname(), portIter.next());
+
+          // Check that this tracker is not already launched.  This problem was
+          // observed on a few occasions, but not reliably.  The main symptom was
+          // that entries in `mesosTrackers` were being lost, and task trackers
+          // would be 'lost' mysteriously (probably because the ports were in
+          // use).  This problem has since gone away with a rewrite of the port
+          // selection code, but the check + logging is left here.
+          // TODO(brenden): Diagnose this to determine root cause.
+
+        if (mesosTrackers.containsKey(httpAddress)) {
+          LOG.info(join("\n", Arrays.asList(
+                  "Declining offer because host/port combination is in use: ",
+                  "  cpus: offered " + cpus + " needed " + containerCpus,
+                  "  mem : offered " + mem + " needed " + containerMem,
+                  "  disk: offered " + disk + " needed " + containerDisk,
+                  "  ports: " + ports,
+                  offer.getResourcesList().toString())));
+
+          driver.declineOffer(offer.getId());
+          continue;
+        }
 
         TaskID taskId = TaskID.newBuilder()
           .setValue("Task_Tracker_" + launchedTrackers++).build();
