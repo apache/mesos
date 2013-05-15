@@ -158,7 +158,7 @@ public:
     if (pid == 0) {
       // In child process, we make cleanup easier by putting process
       // into it's own session.
-      close(pipes[0]);
+      os::close(pipes[0]);
 
       // NOTE: We setsid() in a loop because setsid() might fail if another
       // process has the same process group id as the calling process.
@@ -184,7 +184,7 @@ public:
         abort();
       }
 
-      close(pipes[1]);
+      os::close(pipes[1]);
 
       // The child has successfully setsid, now run the command.
       std::cout << "sh -c '" << task.command().value() << "'" << std::endl;
@@ -195,7 +195,7 @@ public:
     }
 
     // In parent process.
-    close(pipes[1]);
+    os::close(pipes[1]);
 
     // Get the child's pid via the pipe.
     if (read(pipes[0], &pid, sizeof(pid)) == -1) {
@@ -204,7 +204,7 @@ public:
       abort();
     }
 
-    close(pipes[0]);
+    os::close(pipes[0]);
 
     std::cout << "Forked command at " << pid << std::endl;
 

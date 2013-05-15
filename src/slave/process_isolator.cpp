@@ -169,14 +169,14 @@ void ProcessIsolator::launchExecutor(
   }
 
   if (pid > 0) {
-    close(pipes[1]);
+    os::close(pipes[1]);
 
     // Get the child's pid via the pipe.
     if (read(pipes[0], &pid, sizeof(pid)) == -1) {
       PLOG(FATAL) << "Failed to get child PID from pipe";
     }
 
-    close(pipes[0]);
+    os::close(pipes[0]);
 
     // In parent process.
     LOG(INFO) << "Forked executor at " << pid;
@@ -189,7 +189,7 @@ void ProcessIsolator::launchExecutor(
   } else {
     // In child process, we make cleanup easier by putting process
     // into it's own session. DO NOT USE GLOG!
-    close(pipes[0]);
+    os::close(pipes[0]);
 
     // NOTE: We setsid() in a loop because setsid() might fail if another
     // process has the same process group id as the calling process.
@@ -216,7 +216,7 @@ void ProcessIsolator::launchExecutor(
       abort();
     }
 
-    close(pipes[1]);
+    os::close(pipes[1]);
 
     // Setup the environment for launcher.
     foreachpair (const string& key, const string& value, env) {
