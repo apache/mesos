@@ -20,6 +20,8 @@
 #include <stdexcept>
 #include <iostream>
 
+#include <stout/os.hpp>
+
 typedef enum Protocol { TCP = SOCK_STREAM, UDP = SOCK_DGRAM } Protocol;
 
 using std::runtime_error;
@@ -155,7 +157,7 @@ public:
 	 fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0))
 	throw runtime_error(string("ioctl/fcntl: ") += strerror(errno));
   }
-  ~SocketProcess() { ::close(s); }
+  ~SocketProcess() { os::close(s); }
 };
 
 

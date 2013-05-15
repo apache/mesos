@@ -4,6 +4,12 @@
 #include <assert.h>
 #include <unistd.h> // For close.
 
+#include <iostream>
+
+#include <stout/nothing.hpp>
+#include <stout/os.hpp>
+#include <stout/try.hpp>
+
 // An abstraction around a socket (file descriptor) that provides
 // reference counting such that the socket is only closed (and thus,
 // has the possiblity of being reused) after there are no more
@@ -62,8 +68,9 @@ private:
     if (__sync_sub_and_fetch(refs, 1) == 0) {
       delete refs;
       if (s >= 0) {
-        if (close(s) != 0) {
-          perror("Failed to close socket");
+        Try<Nothing> close = os::close(s);
+        if (close.isError()) {
+          std::cerr << "Failed to close socket: " << close.error() << std::endl;
           abort();
         }
       }

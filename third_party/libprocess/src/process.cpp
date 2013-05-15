@@ -1097,7 +1097,7 @@ void accept(struct ev_loop* loop, ev_io* watcher, int revents)
   if (nonblock.isError()) {
     LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, nonblock: "
                                 << nonblock.error();
-    close(s);
+    os::close(s);
     return;
   }
 
@@ -1105,7 +1105,7 @@ void accept(struct ev_loop* loop, ev_io* watcher, int revents)
   if (cloexec.isError()) {
     LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, cloexec: "
                                 << cloexec.error();
-    close(s);
+    os::close(s);
     return;
   }
 
@@ -1114,7 +1114,7 @@ void accept(struct ev_loop* loop, ev_io* watcher, int revents)
   if (setsockopt(s, SOL_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
     const char* error = strerror(errno);
     VLOG(1) << "Failed to turn off the Nagle algorithm: " << error;
-    close(s);
+    os::close(s);
   } else {
     // Inform the socket manager for proper bookkeeping.
     const Socket& socket = socket_manager->accepted(s);
@@ -1437,7 +1437,7 @@ HttpProxy::~HttpProxy()
   // Need to make sure response producers know not to continue to
   // create a response (streaming or otherwise).
   if (pipe.isSome()) {
-    close(pipe.get());
+    os::close(pipe.get());
   }
   pipe = None();
 
@@ -1451,7 +1451,7 @@ HttpProxy::~HttpProxy()
     if (item->future->isReady()) {
       const Response& response = item->future->get();
       if (response.type == Response::PIPE) {
-        close(response.pipe);
+        os::close(response.pipe);
       }
     }
 
@@ -1667,7 +1667,7 @@ void HttpProxy::stream(const Future<short>& poll, const Request& request)
   }
 
   if (finished) {
-    close(pipe.get());
+    os::close(pipe.get());
     pipe = None();
     next();
   }

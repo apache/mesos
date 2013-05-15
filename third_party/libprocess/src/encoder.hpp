@@ -13,7 +13,7 @@
 #include <stout/gzip.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/numify.hpp>
-
+#include <stout/os.hpp>
 
 namespace process {
 
@@ -218,7 +218,7 @@ public:
 
   virtual ~FileEncoder()
   {
-    close(fd);
+    os::close(fd);
   }
 
   virtual Sender sender()

@@ -14,6 +14,8 @@
 
 #include <arpa/inet.h>
 
+#include <stout/os.hpp>
+
 #include "net.hpp"
 
 #include "http-parser/http_parser.h"
@@ -145,7 +147,7 @@ protected:
 
       if (fstat(fd, &fd_stat) < 0) {
 	send(HTTP_500, strlen(HTTP_500));
-	close(fd);
+	os::close(fd);
 	return;
       }
 
@@ -184,7 +186,7 @@ protected:
 
       //cout << ht_id() << ": running " << this << " connection (4)" << endl;
 
-      close(fd);
+      os::close(fd);
 
       break;
     }
