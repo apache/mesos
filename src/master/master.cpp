@@ -1752,7 +1752,7 @@ void Master::removeFramework(Framework* framework)
 
   // The completedFramework buffer now owns the framework pointer.
   completedFrameworks.push_back(std::tr1::shared_ptr<Framework>(framework));
-  
+
   // Remove it.
   frameworks.erase(framework->id);
   allocator->frameworkRemoved(framework->id);
@@ -1765,29 +1765,32 @@ void Master::removeFramework(Slave* slave, Framework* framework)
   CHECK_NOTNULL(framework);
 
   // Remove pointers to framework's tasks in slaves, and send status updates.
-  foreachvalue (Task* task, utils::copy(framework->tasks)) {
-    // A framework might not actually exist because the master failed
-    // over and the framework hasn't reconnected yet. For more info
-    // please see the comments in 'removeFramework(Framework*)'.
-    StatusUpdateMessage message;
-    StatusUpdate* update = message.mutable_update();
-    update->mutable_framework_id()->MergeFrom(task->framework_id());
+  foreachvalue (Task* task, utils::copy(slave->tasks)) {
+    // Remove tasks that belong to this framework.
+    if (task->framework_id() == framework->id) {
+      // A framework might not actually exist because the master failed
+      // over and the framework hasn't reconnected yet. For more info
+      // please see the comments in 'removeFramework(Framework*)'.
+      StatusUpdateMessage message;
+      StatusUpdate* update = message.mutable_update();
+      update->mutable_framework_id()->MergeFrom(task->framework_id());
 
-    if (task->has_executor_id()) {
-      update->mutable_executor_id()->MergeFrom(task->executor_id());
+      if (task->has_executor_id()) {
+        update->mutable_executor_id()->MergeFrom(task->executor_id());
+      }
+
+      update->mutable_slave_id()->MergeFrom(task->slave_id());
+      TaskStatus* status = update->mutable_status();
+      status->mutable_task_id()->MergeFrom(task->task_id());
+      status->set_state(TASK_LOST);
+      status->set_message("Slave " + slave->info.hostname() + " disconnected");
+      update->set_timestamp(Clock::now());
+      update->set_uuid(UUID::random().toBytes());
+      send(framework->pid, message);
+
+      // Remove the task from slave and framework.
+      removeTask(task);
     }
-
-    update->mutable_slave_id()->MergeFrom(task->slave_id());
-    TaskStatus* status = update->mutable_status();
-    status->mutable_task_id()->MergeFrom(task->task_id());
-    status->set_state(TASK_LOST);
-    status->set_message("Slave " + slave->info.hostname() + " disconnected");
-    update->set_timestamp(Clock::now());
-    update->set_uuid(UUID::random().toBytes());
-    send(framework->pid, message);
-
-    // Remove the task from slave and framework.
-    removeTask(task);
   }
 
   // Remove and rescind offers from this slave given to this framework.
