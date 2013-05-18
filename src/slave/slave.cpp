@@ -703,6 +703,11 @@ void Slave::doReliableRegistration()
 
           message.add_tasks()->CopyFrom(t);
         }
+
+        // Add terminated tasks.
+        foreachvalue (Task* task, executor->terminatedTasks) {
+          message.add_tasks()->CopyFrom(*task);
+        }
       }
     }
     send(master, message);

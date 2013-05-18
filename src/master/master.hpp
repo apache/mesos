@@ -127,11 +127,18 @@ protected:
   // Process a launch tasks request (for a non-cancelled offer) by
   // launching the desired tasks (if the offer contains a valid set of
   // tasks) and reporting any unused resources to the allocator.
-  void processTasks(Offer* offer,
-                    Framework* framework,
-                    Slave* slave,
-                    const std::vector<TaskInfo>& tasks,
-                    const Filters& filters);
+  void processTasks(
+      Offer* offer,
+      Framework* framework,
+      Slave* slave,
+      const std::vector<TaskInfo>& tasks,
+      const Filters& filters);
+
+  // Reconciles a re-registering slave's tasks and sends TASK_LOST
+  // updates for tasks known to the master but unknown to the slave.
+  void reconcileTasks(
+      Slave* slave,
+      const std::vector<Task>& tasks);
 
   // Add a framework.
   void addFramework(Framework* framework, bool reregister = false);

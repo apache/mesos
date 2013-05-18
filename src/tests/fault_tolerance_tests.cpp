@@ -1378,7 +1378,7 @@ TEST_F(FaultToleranceTest, SlaveReregisterTerminatedExecutor)
 // This test verifies that the master sends TASK_LOST updates
 // for tasks in the master absent from the re-registered slave.
 // We do this by dropping RunTaskMessage from master to the slave.
-TEST_F(FaultToleranceTest, ConsolidateTasksOnSlaveReregistration)
+TEST_F(FaultToleranceTest, ReconcileLostTasks)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -1442,6 +1442,97 @@ TEST_F(FaultToleranceTest, ConsolidateTasksOnSlaveReregistration)
 
   ASSERT_EQ(task.task_id(), status.get().task_id());
   ASSERT_EQ(TASK_LOST, status.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that when the slave re-registers, the master
+// does not send TASK_LOST update for a task that has reached terminal
+// state but is waiting for an acknowledgement.
+TEST_F(FaultToleranceTest, ReconcileIncompleteTasks)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("test task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  // Send a terminal update right away.
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
+
+  // Drop the status update from slave to the master, so that
+  // the slave has a pending terminal update when it re-registers.
+  DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
+
+  Future<Nothing> _statusUpdate = FUTURE_DISPATCH(_, &Slave::_statusUpdate);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  Clock::pause();
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(_statusUpdate);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Simulate a spurious newMasterDetected event (e.g., due to ZooKeeper
+  // expiration) at the slave to force re-registration.
+  NewMasterDetectedMessage message;
+  message.set_pid(master.get());
+
+  process::post(slave.get(), message);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // The master should not send a TASK_LOST after the slave
+  // re-registers. We check this by advancing the clock so that
+  // the only update the scheduler receives is the retried
+  // TASK_FINISHED update.
+  Clock::advance(STATUS_UPDATE_RETRY_INTERVAL);
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_FINISHED, status.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
