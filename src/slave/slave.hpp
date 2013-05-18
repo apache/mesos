@@ -376,8 +376,6 @@ struct Executor
   hashmap<TaskID, Task*> terminatedTasks; // Terminated but pending updates.
   boost::circular_buffer<Task> completedTasks; // Terminated and updates acked.
 
-  multihashmap<TaskID, UUID> updates; // Pending updates.
-
 private:
   Executor(const Executor&);              // No copying.
   Executor& operator = (const Executor&); // No assigning.

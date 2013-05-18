@@ -945,50 +945,8 @@ void Master::reregisterSlave(const SlaveID& slaveId,
                    << ") is being allowed to re-register with an already"
                    << " in use id (" << slaveId << ")";
 
-      // Consolidate tasks between master and the slave.
-      // Fist, look for the tasks present in the slave but not present
-      // in the master.
-      multihashmap<FrameworkID, TaskID> slaveTasks;
-      foreach (const Task& task, tasks) {
-        if (!slave->tasks.contains(
-            std::make_pair(task.framework_id(), task.task_id()))) {
-          // This might happen if a terminal status update for this task
-          // came before the slave re-registered message.
-          // TODO(vinod): Consider sending a KillTaskMessage.
-          // TODO(vinod): Export a statistic for these tasks.
-          LOG(WARNING) << "Slave " << slaveId << " attempted to re-register"
-                       << " with unknown task " << task.task_id()
-                       << " of framework " << task.framework_id();
-        }
-        slaveTasks.put(task.framework_id(), task.task_id());
-      }
-
-      // Send TASK_LOST updates for tasks present in the master but
-      // missing from the slave. This could happen if the task was
-      // dropped by the slave (e.g., slave exited before getting the
-      // task or the task was launched while slave was in recovery).
-      foreachvalue (Task* task, utils::copy(slave->tasks)) {
-        if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
-          LOG(WARNING) << "Sending TASK_LOST for task " << task->task_id()
-                       << " of framework " << task->framework_id()
-                       << " unknown to the slave " << slaveId;
-
-          Framework* framework = getFramework(task->framework_id());
-          if (framework != NULL) {
-            const StatusUpdate& update = protobuf::createStatusUpdate(
-                task->framework_id(),
-                slaveId,
-                task->task_id(),
-                TASK_LOST,
-                "Task was not received by the slave");
-
-            StatusUpdateMessage message;
-            message.mutable_update()->CopyFrom(update);
-            send(framework->pid, message);
-          }
-          removeTask(task);
-        }
-      }
+      // Reconcile tasks between master and the slave.
+      reconcileTasks(slave, tasks);
 
       SlaveReregisteredMessage message;
       message.mutable_slave_id()->MergeFrom(slave->id);
@@ -1648,6 +1606,46 @@ Resources Master::launchTask(const TaskInfo& task,
 }
 
 
+void Master::reconcileTasks(Slave* slave, const vector<Task>& tasks)
+{
+  CHECK_NOTNULL(slave);
+
+  // We convert the 'tasks' into a map for easier lookup below.
+  // TODO(vinod): Check if the tasks are known to the master.
+  multihashmap<FrameworkID, TaskID> slaveTasks;
+  foreach (const Task& task, tasks) {
+    slaveTasks.put(task.framework_id(), task.task_id());
+  }
+
+  // Send TASK_LOST updates for tasks present in the master but
+  // missing from the slave. This could happen if the task was
+  // dropped by the slave (e.g., slave exited before getting the
+  // task or the task was launched while slave was in recovery).
+  foreachvalue (Task* task, utils::copy(slave->tasks)) {
+    if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
+      LOG(WARNING) << "Sending TASK_LOST for task " << task->task_id()
+                   << " of framework " << task->framework_id()
+                   << " unknown to the slave " << slave->id;
+
+      Framework* framework = getFramework(task->framework_id());
+      if (framework != NULL) {
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+            task->framework_id(),
+            slave->id,
+            task->task_id(),
+            TASK_LOST,
+            "Task was not received by the slave");
+
+        StatusUpdateMessage message;
+        message.mutable_update()->CopyFrom(update);
+        send(framework->pid, message);
+      }
+      removeTask(task);
+    }
+  }
+}
+
+
 void Master::addFramework(Framework* framework, bool reregister)
 {
   CHECK(frameworks.count(framework->id) == 0);
@@ -1920,6 +1918,11 @@ void Master::readdSlave(Slave* slave,
   }
 
   foreach (const Task& task, tasks) {
+    // Ignore tasks that have reached terminal state.
+    if (protobuf::isTerminalState(task.state())) {
+      continue;
+    }
+
     Task* t = new Task(task);
 
     // Add the task to the slave.
