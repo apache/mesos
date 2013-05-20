@@ -69,6 +69,15 @@ AC_ARG_WITH([zlib],
                             will be far less responsive; not recommended]),
             [], [with_zlib=yes])
 
+# Do some OS specific setup.
+case "${target_os}" in
+  linux*)
+    LIBS="$LIBS -lrt" # For clock_gettime() in stout/stopwatch.hpp.
+    OS_NAME=linux # Used below for OS_LINUX.
+    ;;
+  *)
+    ;;
+esac
 
 # Checks for gcc toolchain (we rely on some atomic builtins for now).
 AC_PROG_CXX([g++])
@@ -101,18 +110,8 @@ fi
 
 AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
 
-# Added for clock_gettime() call in stout/stopwatch.hpp.
-# We also only want to use stout/proc.hpp on linux.
-case "${target_os}" in
-  linux*)
-    LIBS="$LIBS -lrt"
-    OS_NAME=linux
-    ;;
-  *)
-    ;;
-esac
-
-# Used for conditionally including source files.
+# Used for conditionally building source files (e.g., only want to
+# build stout/tests/proc_tests.cpp on Linux).
 AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 
 AC_OUTPUT
