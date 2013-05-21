@@ -1,0 +1,11 @@
+diff -rupN libev-4.15/ev.h libev-4.15-patched/ev.h
+--- libev-4.15/ev.h	2013-03-01 03:05:29.000000000 -0800
++++ libev-4.15-patched/ev.h	2013-05-20 16:01:47.000000000 -0700
+@@ -121,7 +121,7 @@ EV_CPP(extern "C" {)
+ # ifdef _WIN32
+ #  define EV_CHILD_ENABLE 0
+ # else
+-#  define EV_CHILD_ENABLE EV_FEATURE_WATCHERS
++#  define EV_CHILD_ENABLE 0
+ #endif
+ #endif

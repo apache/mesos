@@ -33,7 +33,7 @@ EXTRA_DIST =			\
   $(GMOCK).tar.gz		\
   $(GPERFTOOLS).tar.gz		\
   $(LIBEV).tar.gz		\
-  libev-3.8.patch		\
+  $(LIBEV).patch		\
   $(PROTOBUF).tar.gz		\
   $(RY_HTTP_PARSER).tar.gz
 

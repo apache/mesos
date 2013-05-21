@@ -1,8 +1,6 @@
 #ifndef __ENCODER_HPP__
 #define __ENCODER_HPP__
 
-#include <ev.h>
-
 #include <map>
 #include <sstream>
 
@@ -14,6 +12,12 @@
 #include <stout/hashmap.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
+
+// NOTE: We forward declare "ev_loop" and "ev_io" here because,
+// on OSX, including "ev.h" causes conflict with "EV_ERROR" declared
+// in "/usr/include/sys/event.h".
+struct ev_loop;
+struct ev_io;
 
 namespace process {
 
