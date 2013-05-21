@@ -11,6 +11,11 @@ EXTRA_DIST =					\
   include/stout/error.hpp			\
   include/stout/exit.hpp			\
   include/stout/fatal.hpp			\
+  include/stout/flags.hpp			\
+  include/stout/flags/flag.hpp			\
+  include/stout/flags/flags.hpp			\
+  include/stout/flags/loader.hpp		\
+  include/stout/flags/parse.hpp			\
   include/stout/foreach.hpp			\
   include/stout/format.hpp			\
   include/stout/fs.hpp				\
@@ -43,6 +48,7 @@ EXTRA_DIST =					\
   tests/bytes_tests.cpp				\
   tests/duration_tests.cpp			\
   tests/error_tests.cpp				\
+  tests/flags_tests.cpp				\
   tests/gzip_tests.cpp				\
   tests/hashset_tests.cpp			\
   tests/json_tests.cpp				\

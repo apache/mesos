@@ -1,6 +1,9 @@
 #ifndef __STOUT_OS_HPP__
 #define __STOUT_OS_HPP__
 
+#ifdef __APPLE__
+#include <crt_externs.h> // For _NSGetEnviron().
+#endif
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -55,7 +58,26 @@
   ({ (void)ret; *(result) = gethostbyname2(name, af); 0; })
 #endif // __APPLE__
 
+// Need to declare 'environ' pointer for non OS X platforms.
+#ifndef __APPLE__
+extern char** environ;
+#endif
+
 namespace os {
+
+inline char** environ()
+{
+  // Accessing the list of environment variables is platform-specific.
+  // On OS X, the 'environ' symbol isn't visible to shared libraries,
+  // so we must use the _NSGetEnviron() function (see 'man environ' on
+  // OS X). On other platforms, it's fine to access 'environ' from
+  // shared libraries.
+#ifdef __APPLE__
+  return *_NSGetEnviron();
+#endif
+  return ::environ;
+}
+
 
 // Checks if the specified key is in the environment variables.
 inline bool hasenv(const std::string& key)
