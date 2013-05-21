@@ -30,7 +30,7 @@ libprocess = os.path.join('third_party', 'libprocess')
 # include them here (or more precisely, down where we actually include
 # libev.a and libprofiler.a).
 glog = os.path.join(libprocess, 'third_party', 'glog-0.3.1')
-libev = os.path.join(libprocess, 'third_party', 'libev-3.8')
+libev = os.path.join(libprocess, 'third_party', 'libev-4.15')
 gperftools = os.path.join(libprocess, 'third_party', 'gperftools-2.0')
 protobuf = os.path.join(libprocess, 'third_party', 'protobuf-2.4.1')
 
