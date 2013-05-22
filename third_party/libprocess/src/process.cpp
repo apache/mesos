@@ -2545,15 +2545,20 @@ void ProcessManager::cleanup(ProcessBase* process)
     // process until after we have used the process in
     // SocketManager::exited).
     socket_manager->exited(process);
-  }
 
-  // ***************************************************************
-  // At this point we can no longer dereference the process since it
-  // might already be deallocated (e.g., by the garbage collector).
-  // ***************************************************************
+    // ***************************************************************
+    // At this point we can no longer dereference the process since it
+    // might already be deallocated (e.g., by the garbage collector).
+    // ***************************************************************
 
-  if (gate != NULL) {
-    gate->open();
+    // Note that we need to open the gate while synchronized on
+    // processes because otherwise we might _open_ the gate before
+    // another thread _approaches_ the gate causing that thread to
+    // wait on _arrival_ to the gate forever (see
+    // ProcessManager::wait).
+    if (gate != NULL) {
+      gate->open();
+    }
   }
 }
 
