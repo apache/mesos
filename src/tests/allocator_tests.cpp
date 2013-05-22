@@ -666,14 +666,11 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
     .Times(AtMost(1));
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver2.stop();
   driver2.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
@@ -796,24 +793,19 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(2, 768)))
     .WillOnce(FutureSatisfy(&resourceOffers));
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver1.stop();
   driver1.join();
 
   AWAIT_READY(resourceOffers);
 
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
-
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver2.stop();
   driver2.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
@@ -881,19 +873,14 @@ TYPED_TEST(AllocatorTest, SlaveLost)
     .WillOnce(DoAll(InvokeSlaveRemoved(&this->allocator),
                     FutureSatisfy(&slaveRemoved)));
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   EXPECT_CALL(sched, slaveLost(_, _));
 
   this->ShutdownSlaves();
 
   AWAIT_READY(slaveRemoved);
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
-
-  MockExecutor exec2(DEFAULT_EXECUTOR_ID);
 
   slave::Flags flags2 = this->CreateSlaveFlags();
   flags2.resources = Option<string>("cpus:3;mem:256");
@@ -907,7 +894,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 256)))
     .WillOnce(FutureSatisfy(&resourceOffers));
 
-  Try<PID<Slave> > slave2 = this->StartSlave(&exec2, flags2);
+  Try<PID<Slave> > slave2 = this->StartSlave(flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(resourceOffers);
@@ -922,13 +909,8 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
     .Times(AtMost(1));
 
-  EXPECT_CALL(exec2, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
-
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));
@@ -1025,14 +1007,11 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
     .Times(AtMost(1));
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(2));
@@ -1135,14 +1114,11 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
     .Times(AtMost(1));
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   EXPECT_CALL(this->allocator, slaveRemoved(_))
     .Times(AtMost(1));

@@ -121,47 +121,28 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, stringify(this->url.get()));
 
-  Future<Nothing> registered;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureSatisfy(&registered));
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer> > resourceOffers1;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(LaunchTasks(1, 1, 500),
-                    FutureArg<1>(&resourceOffers1)))
+  // The framework should be offered all of the resources on the slave
+  // since it is the only framework running.
+  EXPECT_CALL(sched, resourceOffers(&driver, OfferEq(2, 1024)))
+    .WillOnce(LaunchTasks(1, 1, 500))
     .WillRepeatedly(DeclineOffers());
-
-  Future<TaskStatus> statusUpdate;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusUpdate));
-
-  EXPECT_CALL(sched, disconnected(_))
-    .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  EXPECT_CALL(exec, disconnected(_))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(DoDefault());
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
 
   driver.start();
 
-  AWAIT_READY(registered);
+  AWAIT_READY(status);
 
-  AWAIT_READY(resourceOffers1);
-
-  // The framework will be offered all of the resources on the slave,
-  // since it is the only framework running.
-  EXPECT_THAT(resourceOffers1.get(), OfferEq(2, 1024));
-
-  AWAIT_READY(statusUpdate);
-
-  EXPECT_EQ(TASK_RUNNING, statusUpdate.get().state());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Stop the failing master from telling the slave to shut down when
   // it is killed.
@@ -171,6 +152,16 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   // Stop the slave from reregistering with the new master until the
   // framework has reregistered.
   DROP_PROTOBUFS(ReregisterSlaveMessage(), _, _);
+
+  // Shutting down the masters will cause the scheduler to get
+  // disconnected.
+  EXPECT_CALL(sched, disconnected(_));
+
+  // Shutting down the masters will also cause the slave to shutdown
+  // frameworks that are not checkpointing, thus causing the executor
+  // to get shutdown.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   this->ShutdownMasters();
 
@@ -213,19 +204,14 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   EXPECT_CALL(allocator2, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(allocator2, frameworkDeactivated(_));
+  EXPECT_CALL(allocator2, frameworkDeactivated(_))
+    .Times(AtMost(1));
 
-  Future<Nothing> frameworkRemoved;
   EXPECT_CALL(allocator2, frameworkRemoved(_))
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
-
-  EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(frameworkRemoved);
 
   EXPECT_CALL(allocator2, slaveRemoved(_))
     .Times(AtMost(1));
@@ -257,47 +243,28 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, stringify(this->url.get()));
 
-  Future<Nothing> registered;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureSatisfy(&registered));
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer> > resourceOffers1;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DoAll(LaunchTasks(1, 1, 500),
-                    FutureArg<1>(&resourceOffers1)))
+  // The framework should be offered all of the resources on the slave
+  // since it is the only framework running.
+  EXPECT_CALL(sched, resourceOffers(&driver, OfferEq(2, 1024)))
+    .WillOnce(LaunchTasks(1, 1, 500))
     .WillRepeatedly(DeclineOffers());
-
-  Future<TaskStatus> statusUpdate;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusUpdate));
-
-  EXPECT_CALL(sched, disconnected(_))
-    .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  EXPECT_CALL(exec, disconnected(_))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(DoDefault());
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
 
   driver.start();
 
-  AWAIT_READY(registered);
+  AWAIT_READY(status);
 
-  AWAIT_READY(resourceOffers1);
-
-  // The framework will be offered all of the resources on the slave,
-  // since it is the only framework running.
-  EXPECT_THAT(resourceOffers1.get(), OfferEq(2, 1024));
-
-  AWAIT_READY(statusUpdate);
-
-  EXPECT_EQ(TASK_RUNNING, statusUpdate.get().state());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Stop the failing master from telling the slave to shut down when
   // it is killed.
@@ -307,6 +274,16 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   // Stop the framework from reregistering with the new master until the
   // slave has reregistered.
   DROP_PROTOBUFS(ReregisterFrameworkMessage(), _, _);
+
+  // Shutting down the masters will cause the scheduler to get
+  // disconnected.
+  EXPECT_CALL(sched, disconnected(_));
+
+  // Shutting down the masters will also cause the slave to shutdown
+  // frameworks that are not checkpointing, thus causing the executor
+  // to get shutdown.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   this->ShutdownMasters();
 
@@ -349,19 +326,14 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   EXPECT_CALL(allocator2, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(allocator2, frameworkDeactivated(_));
+  EXPECT_CALL(allocator2, frameworkDeactivated(_))
+    .Times(AtMost(1));
 
-  Future<Nothing> frameworkRemoved;
   EXPECT_CALL(allocator2, frameworkRemoved(_))
-    .WillOnce(FutureSatisfy(&frameworkRemoved));
-
-  EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(frameworkRemoved);
 
   EXPECT_CALL(allocator2, slaveRemoved(_))
     .Times(AtMost(1));

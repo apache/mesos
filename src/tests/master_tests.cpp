@@ -134,14 +134,11 @@ TEST_F(MasterTest, TaskRunning)
 
   AWAIT_READY(resourcesChanged);
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
@@ -209,14 +206,11 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   AWAIT_READY(resourcesChanged);
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
@@ -287,14 +281,11 @@ TEST_F(MasterTest, KillTask)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status.get().state());
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // To ensure can deallocate MockExecutor.
 
   Shutdown();
 }
@@ -357,14 +348,11 @@ TEST_F(MasterTest, StatusUpdateAck)
   // Ensure the slave gets a status update ACK.
   AWAIT_READY(acknowledgement);
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown();
 }
@@ -465,6 +453,9 @@ TEST_F(MasterTest, RecoverResources)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   // Now kill the executor, scheduler should get an offer it's resources.
   // TODO(benh): WTF? Why aren't we dispatching?
   isolator.killExecutor(offer.framework_id(), executorInfo.executor_id());
@@ -481,11 +472,6 @@ TEST_F(MasterTest, RecoverResources)
 
   driver.stop();
   driver.join();
-
-  // Terminating the slave might cause the mock executor to get a
-  // shutdown since the executor driver "links" the slave.
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
@@ -562,14 +548,11 @@ TEST_F(MasterTest, FrameworkMessage)
   AWAIT_READY(schedData);
   EXPECT_EQ("world", schedData.get());
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   schedDriver.stop();
   schedDriver.join();
-
-  AWAIT_READY(shutdown); // To ensure can deallocate MockExecutor.
 
   Shutdown();
 }
@@ -673,19 +656,14 @@ TEST_F(MasterTest, MultipleExecutors)
   AWAIT_READY(status2);
   EXPECT_EQ(TASK_RUNNING, status2.get().state());
 
-  Future<Nothing> shutdown1;
   EXPECT_CALL(exec1, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown1));
+    .Times(AtMost(1));
 
-  Future<Nothing> shutdown2;
   EXPECT_CALL(exec2, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown2));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown1); // To ensure can deallocate MockExecutor.
-  AWAIT_READY(shutdown2); // To ensure can deallocate MockExecutor.
 
   Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }

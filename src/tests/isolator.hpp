@@ -67,7 +67,15 @@ public:
     setup();
   }
 
-  virtual ~TestingIsolator() {}
+  virtual ~TestingIsolator()
+  {
+    foreachvalue (MesosExecutorDriver* driver, drivers) {
+      driver->stop();
+      driver->join();
+      delete driver;
+    }
+    drivers.clear();
+  }
 
   virtual void initialize(
       const slave::Flags& flags,

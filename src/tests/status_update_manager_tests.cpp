@@ -64,6 +64,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AtMost;
 using testing::Return;
 using testing::SaveArg;
 
@@ -176,14 +177,11 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 
   close(fd.get());
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown();
 }
@@ -249,14 +247,11 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 
   Clock::resume();
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown();
 }
@@ -369,14 +364,11 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 
   Clock::resume();
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown();
 }
@@ -464,14 +456,11 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
   // it is 'false'.
   AWAIT_READY(unexpectedAck);
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown();
 }

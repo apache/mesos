@@ -573,14 +573,11 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
             " with same ExecutorID is not compatible)",
             status.get().message());
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // To ensure can deallocate MockExecutor.
 
   Shutdown();
 }

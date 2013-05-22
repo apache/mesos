@@ -274,7 +274,7 @@ TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
   // Drop the first shutdown message from the master (simulated
   // partition), allow the second shutdown message to pass when
   // the slave re-registers.
-  Future<ShutdownMessage> shutdownSlave =
+  Future<ShutdownMessage> shutdownMessage =
     DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
 
   Future<TaskStatus> lostStatus;
@@ -309,7 +309,7 @@ TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
   EXPECT_EQ(TASK_LOST, lostStatus.get().state());
 
   // Wait for the master to attempt to shut down the slave.
-  AWAIT_READY(shutdownSlave);
+  AWAIT_READY(shutdownMessage);
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
@@ -319,11 +319,11 @@ TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
   // normally occur during a network partition.
   process::post(slave.get(), NoMasterDetectedMessage());
 
-  Future<Nothing> shutdownExecutor;
+  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdownExecutor));
+    .WillOnce(FutureSatisfy(&shutdown));
 
-  shutdownSlave = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
 
   // Have the slave re-register with the master.
   NewMasterDetectedMessage newMasterDetectedMessage;
@@ -332,8 +332,8 @@ TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
 
   // Upon re-registration, the master will shutdown the slave.
   // The slave will then shut down the executor.
-  AWAIT_READY(shutdownSlave);
-  AWAIT_READY(shutdownExecutor);
+  AWAIT_READY(shutdownMessage);
+  AWAIT_READY(shutdown);
 
   Clock::resume();
 
@@ -392,7 +392,7 @@ TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
   // Drop the first shutdown message from the master (simulated
   // partition), allow the second shutdown message to pass when
   // the slave sends an update.
-  Future<ShutdownMessage> shutdownSlave =
+  Future<ShutdownMessage> shutdownMessage =
     DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
@@ -422,12 +422,12 @@ TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
   Clock::settle();
 
   // Wait for the master to attempt to shut down the slave.
-  AWAIT_READY(shutdownSlave);
+  AWAIT_READY(shutdownMessage);
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
 
-  shutdownSlave = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
 
   // At this point, the slave still thinks it's registered, so we
   // simulate a status update coming from the slave.
@@ -445,7 +445,7 @@ TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
   process::post(master.get(), statusUpdate);
 
   // The master should shutdown the slave upon receiving the update.
-  AWAIT_READY(shutdownSlave);
+  AWAIT_READY(shutdownMessage);
 
   Clock::resume();
 
@@ -519,6 +519,7 @@ TEST_F(FaultToleranceTest, PartitionedSlaveExitedExecutor)
 
   // Set up the expectations for launching the task.
   EXPECT_CALL(exec, registered(_, _, _, _));
+
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
@@ -532,7 +533,7 @@ TEST_F(FaultToleranceTest, PartitionedSlaveExitedExecutor)
   // Drop the first shutdown message from the master (simulated
   // partition) and allow the second shutdown message to pass when
   // triggered by the ExitedExecutorMessage.
-  Future<ShutdownMessage> shutdownSlave =
+  Future<ShutdownMessage> shutdownMessage =
     DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
 
   Future<TaskStatus> lostStatus;
@@ -567,12 +568,12 @@ TEST_F(FaultToleranceTest, PartitionedSlaveExitedExecutor)
   EXPECT_EQ(TASK_LOST, lostStatus.get().state());
 
   // Wait for the master to attempt to shut down the slave.
-  AWAIT_READY(shutdownSlave);
+  AWAIT_READY(shutdownMessage);
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
 
-  shutdownSlave = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
 
   // Induce an ExitedExecutorMessage from the slave.
   dispatch(isolator,
@@ -581,7 +582,7 @@ TEST_F(FaultToleranceTest, PartitionedSlaveExitedExecutor)
            DEFAULT_EXECUTOR_INFO.executor_id());
 
   // Upon receiving the message, the master will shutdown the slave.
-  AWAIT_READY(shutdownSlave);
+  AWAIT_READY(shutdownMessage);
 
   Clock::resume();
 
@@ -964,17 +965,14 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   AWAIT_READY(statusUpdate);
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver1.stop();
   driver2.stop();
 
   driver1.join();
   driver2.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown();
 
@@ -1052,14 +1050,11 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   EXPECT_EQ(taskId, status.get().task_id());
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown();
 }
@@ -1144,17 +1139,14 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   AWAIT_READY(frameworkMessage);
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver1.stop();
   driver2.stop();
 
   driver1.join();
   driver2.join();
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   Shutdown();
 }
@@ -1212,14 +1204,11 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  AWAIT_READY(shutdown);
 
   Shutdown();
 }

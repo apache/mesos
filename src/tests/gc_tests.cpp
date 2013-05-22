@@ -313,9 +313,8 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
 
   Clock::pause();
 
-  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+    .Times(AtMost(1));
 
   EXPECT_CALL(sched, statusUpdate(_, _))
     .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
@@ -325,8 +324,6 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
     .WillOnce(FutureSatisfy(&slaveLost));
 
   Stop(slave.get());
-
-  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
 
   AWAIT_READY(slaveLost);
 
@@ -727,20 +724,21 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   Future<Nothing> unscheduleFrameworkWork =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::unschedule);
 
-  // Launch the next run of the executor on the receipt of next offer.
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem));
+  // We ask the isolator to kill the exector below.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillRepeatedly(Return());            // Ignore subsequent updates.
+    .Times(AtMost(2)); // Once for a TASK_LOST then once for TASK_RUNNING.
+
+  // We use the killed executor/tasks resources to run another task.
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(1, cpus, mem));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .WillRepeatedly(Return());
 
   Clock::pause();
 
