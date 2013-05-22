@@ -1,3 +1,21 @@
+Release Notes - Mesos - Version 0.11.0
+--------------------------------------
+** Brainstorming
+    * [MESOS-357] - participate in GSoC 2013
+    * [MESOS-358] - do not participate in the GSoC 2013
+
+** Bug
+    * [MESOS-260] - Implement a duration abstraction
+    * [MESOS-364] - cgroup tests fail on Ubuntu
+    * [MESOS-386] - AllocatorTest/0.TaskFinished has incomplete expectations.
+    * [MESOS-388] - Latest update breaks building on OSX
+    * [MESOS-404] - FilesTest.BrowseTest is flaky
+    * [MESOS-413] - AllocatorTest/0.TaskFinished test has bad expectations.
+
+** Task
+    * [MESOS-389] - Add OSX slave to the Jenkins build.
+
+
 Release Notes - Mesos - Version 0.10.0
 --------------------------------------
 ** Sub-task
