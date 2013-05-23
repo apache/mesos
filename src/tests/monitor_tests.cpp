@@ -29,6 +29,8 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <stout/nothing.hpp>
+
 #include "slave/constants.hpp"
 #include "slave/monitor.hpp"
 
@@ -49,6 +51,7 @@ using process::http::Response;
 using std::string;
 
 using testing::_;
+using testing::DoAll;
 using testing::Return;
 
 
@@ -79,14 +82,17 @@ TEST(MonitorTest, WatchUnwatch)
 
   process::spawn(isolator);
 
+  Future<Nothing> usage;
   EXPECT_CALL(isolator, usage(frameworkId, executorId))
-    .WillRepeatedly(Return(statistics));
+    .WillOnce(DoAll(FutureSatisfy(&usage),
+                    Return(statistics)));
 
   slave::ResourceMonitor monitor(&isolator);
 
-  // Monitor the executor.
-  Future<Nothing> watch =
-    FUTURE_DISPATCH(_, &slave::ResourceMonitorProcess::watch);
+  // We pause the clock first in order to make sure that we can
+  // advance time below to force the 'delay' in
+  // ResourceMonitorProcess::watch to execute.
+  process::Clock::pause();
 
   monitor.watch(
       frameworkId,
@@ -94,10 +100,16 @@ TEST(MonitorTest, WatchUnwatch)
       executorInfo,
       slave::RESOURCE_MONITORING_INTERVAL);
 
-  AWAIT_READY(watch);
+  // Now wait for ResouorceMonitorProcess::watch to finish so we can
+  // advance time to cause collection to begin.
+  process::Clock::settle();
 
-  process::Clock::pause();
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
+  process::Clock::settle();
+
+  AWAIT_READY(usage);
+
+  // Wait until the isolator has finished returning the statistics.
   process::Clock::settle();
 
   process::UPID upid("monitor", process::ip(), process::port());
@@ -130,12 +142,14 @@ TEST(MonitorTest, WatchUnwatch)
       response);
 
   // Ensure the monitor stops polling the isolator.
-  Future<Nothing> unwatch =
-    FUTURE_DISPATCH(_, &slave::ResourceMonitorProcess::unwatch);
-
   monitor.unwatch(frameworkId, executorId);
 
-  AWAIT_READY(unwatch);
+  // Wait until ResourceMonitorProcess::unwatch has completed.
+  process::Clock::settle();
+
+  // This time, Isolator::usage should not get called.
+  EXPECT_CALL(isolator, usage(frameworkId, executorId))
+    .Times(0);
 
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
   process::Clock::settle();
