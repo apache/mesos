@@ -602,7 +602,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
 
         // Remove the task from the map.
         for (HttpHost tracker : trackers) {
-          if (mesosTrackers.get(tracker).taskId == taskStatus.getTaskId()) {
+          if (mesosTrackers.get(tracker).taskId.equals(taskStatus.getTaskId())) {
             LOG.info("Removing terminated TaskTracker: " + tracker);
             mesosTrackers.remove(tracker);
           }
