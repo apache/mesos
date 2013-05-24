@@ -82,12 +82,12 @@ TEST_F(ZooKeeperTest, Create)
   ZooKeeper nonOwnerZk(server->connectString(), NO_TIMEOUT, &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
   nonOwnerZk.authenticate("digest", "non-owner:non-owner");
-  EXPECT_EQ(ZNOAUTH, nonOwnerZk.create("/foo/bar/baz",
-                                       "",
-                                       zookeeper::EVERYONE_READ_CREATOR_ALL,
-                                       0,
-                                       NULL,
-                                       true));
+  EXPECT_EQ(ZNODEEXISTS, nonOwnerZk.create("/foo/bar/baz",
+                                           "",
+                                           zookeeper::EVERYONE_READ_CREATOR_ALL,
+                                           0,
+                                           NULL,
+                                           true));
   EXPECT_EQ(ZOK, nonOwnerZk.create("/foo/bar/baz/bam",
                                    "44",
                                    zookeeper::EVERYONE_READ_CREATOR_ALL,
