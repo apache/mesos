@@ -184,7 +184,7 @@ public:
 	     const ACL_vector &acl,
 	     int flags,
 	     std::string *result,
-             bool recursive = false);
+	     bool recursive = false);
 
   /**
    * \brief delete a node in zookeeper synchronously.
