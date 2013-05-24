@@ -29,7 +29,7 @@ echo "${GREEN}Now let's sign the distribution ...${NORMAL}"
 gpg --armor --output ${TARBALL}.asc --detach-sig ${TARBALL} || \
   { echo "${RED}Failed to sign the distribution${NORMAL}"; exit 1; }
 
-echo "${GREEN}And let's create an MD5 ...${NORMAL}"
+echo "${GREEN}And let's create a MD5 checksum...${NORMAL}"
 
 # Create MD5 checksum.
 gpg --print-md MD5 ${TARBALL} > ${TARBALL}.md5 || \
@@ -56,12 +56,17 @@ echo "${GREEN}Now let's make the artifacts world readable ...${NORMAL}"
   { echo "${RED}Failed to change permissions of artifacts${NORMAL}";
     exit 1; }
 
-echo "${GREEN}Finally, we'll create an SVN tag/branch ...${NORMAL}"
+echo "${GREEN}Now we'll create a git tag ...${NORMAL}"
 
 MESSAGE="Tag for release-${VERSION}-incubating-RC${CANDIDATE}."
+TAG="release-${VERSION}-incubating-RC${CANDIDATE}"
+git tag -m "${MESSAGE}" ${TAG} || \
+  { echo "${RED}Failed to create git tag${NORMAL}"; exit 1; }
 
-git svn branch -n --tag -m ${MESSAGE} \
-  release-${VERSION}-incubating-RC${CANDIDATE} || \
-  { echo "${RED}Failed to create SVN tag/branch${NORMAL}"; exit 1; }
+echo "${GREEN}Finally, we'll push the git tag to the repository...${NORMAL}"
+
+REPOSITORY="https://git-wip-us.apache.org/repos/asf/incubator-mesos.git"
+git push ${REPOSITORY} ${TAG} || \
+  { echo "${RED}Failed to push git tag to the repo${NORMAL}"; exit 1; }
 
 exit 0
