@@ -60,7 +60,7 @@ echo "${GREEN}Now we'll create a git tag ...${NORMAL}"
 
 MESSAGE="Tag for release-${VERSION}-incubating-RC${CANDIDATE}."
 TAG="release-${VERSION}-incubating-RC${CANDIDATE}"
-git tag -m ${MESSAGE} ${TAG} || \
+git tag -m "${MESSAGE}" ${TAG} || \
   { echo "${RED}Failed to create git tag${NORMAL}"; exit 1; }
 
 echo "${GREEN}Finally, we'll push the git tag to the repository...${NORMAL}"
