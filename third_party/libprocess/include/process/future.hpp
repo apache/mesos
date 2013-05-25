@@ -79,7 +79,7 @@ public:
   bool discard();
 
   // Waits for this future to become ready, discarded, or failed.
-  bool await(const Duration& duration = Seconds(-1.0)) const;
+  bool await(const Duration& duration = Seconds(-1)) const;
 
   // Return the value associated with this future, waits indefinitely
   // until a value gets associated or until the future is discarded.

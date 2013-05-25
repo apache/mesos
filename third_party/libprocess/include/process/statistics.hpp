@@ -3,6 +3,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/time.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
@@ -31,7 +32,7 @@ namespace meters {
 // Statistics are exposed via JSON for external visibility.
 extern Statistics* statistics;
 
-const Duration STATISTICS_TRUNCATION_INTERVAL = Minutes(5.0);
+const Duration STATISTICS_TRUNCATION_INTERVAL = Minutes(5);
 
 // Provides an in-memory time series of statistics over some window
 // (values are truncated outside of the window, but no limit is
@@ -51,11 +52,11 @@ public:
   ~Statistics();
 
   // Returns the time series of a statistic.
-  process::Future<std::map<Seconds, double> > timeseries(
+  process::Future<std::map<Time, double> > timeseries(
       const std::string& context,
       const std::string& name,
-      const Option<Seconds>& start = None(),
-      const Option<Seconds>& stop = None());
+      const Option<Time>& start = None(),
+      const Option<Time>& stop = None());
 
   // Returns the latest value of a statistic.
   process::Future<Option<double> > get(
@@ -82,7 +83,7 @@ public:
       const std::string& context,
       const std::string& name,
       double value,
-      const Seconds& time = Seconds(Clock::now()));
+      const Time& time = Clock::now());
 
   // Archives the provided statistic time series, and any meters associated
   // with it. This means three things:
@@ -120,7 +121,7 @@ public:
 
   // Updates the meter with another input value.
   // Returns the new metered value, or none if no metered value can be produced.
-  virtual Option<double> update(const Seconds& time, double value) = 0;
+  virtual Option<double> update(const Time& time, double value) = 0;
 
   const std::string name;
 };
@@ -131,14 +132,16 @@ public:
 class TimeRate : public Meter
 {
 public:
-  TimeRate(const std::string& name) : Meter(name), time(-1), value(0) {}
+  TimeRate(const std::string& name)
+    : Meter(name), time(None()), value(0) {}
+
   virtual ~TimeRate() {}
 
-  virtual Option<double> update(const Seconds& _time, double _value)
+  virtual Option<double> update(const Time& _time, double _value)
   {
     Option<double> rate;
-    if (time.secs() > 0) {
-      rate = (_value - value) / (_time.secs() - time.secs());
+    if (time.isSome()) {
+      rate = (_value - value) / (_time - time.get()).secs();
     }
 
     time = _time;
@@ -147,7 +150,7 @@ public:
   }
 
 private:
-  Seconds time;
+  Option<Time> time;
   double value;
 };
 

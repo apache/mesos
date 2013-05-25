@@ -61,6 +61,7 @@
 #include <process/socket.hpp>
 #include <process/statistics.hpp>
 #include <process/thread.hpp>
+#include <process/time.hpp>
 #include <process/timer.hpp>
 
 #include <stout/duration.hpp>
@@ -98,13 +99,6 @@ using std::stack;
 using std::string;
 using std::stringstream;
 using std::vector;
-
-std::ostream& doublePrecision(std::ostream& os)
-{
-  return os << std::fixed
-            << std::setprecision(std::numeric_limits<double>::digits10);
-}
-
 
 // Represents a remote "node" (encapsulates IP address and port).
 class Node
@@ -453,8 +447,8 @@ static synchronizable(watchers) = SYNCHRONIZED_INITIALIZER;
 // We store the timers in a map of lists indexed by the timeout of the
 // timer so that we can have two timers that have the same timeout. We
 // exploit that the map is SORTED!
-static map<double, list<Timer> >* timeouts =
-  new map<double, list<Timer> >();
+static map<Time, list<Timer> >* timeouts =
+  new map<Time, list<Timer> >();
 static synchronizable(timeouts) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
 
 // For supporting Clock::settle(), true if timers have been removed
@@ -490,23 +484,29 @@ ThreadLocal<Executor>* _executor_ = new ThreadLocal<Executor>();
 // likely change.
 namespace clock {
 
-map<ProcessBase*, double>* currents = new map<ProcessBase*, double>();
+map<ProcessBase*, Time>* currents = new map<ProcessBase*, Time>();
 
-double initial = 0;
-double current = 0;
+Time initial = Time::EPOCH;
+Time current = Time::EPOCH;
 
 bool paused = false;
 
 } // namespace clock {
 
 
-double Clock::now()
+Time Time::EPOCH = Time(Duration::zero());
+
+
+Time Time::MAX = Time(Duration::max());
+
+
+Time Clock::now()
 {
   return now(__process__);
 }
 
 
-double Clock::now(ProcessBase* process)
+Time Clock::now(ProcessBase* process)
 {
   synchronized (timeouts) {
     if (Clock::paused()) {
@@ -515,15 +515,24 @@ double Clock::now(ProcessBase* process)
           return (*clock::currents)[process];
         } else {
           return (*clock::currents)[process] = clock::initial;
-
         }
       } else {
         return clock::current;
       }
     }
   }
-    
-  return ev_time(); // TODO(benh): Versus ev_now()?
+
+  // TODO(benh): Versus ev_now()?
+  double d = ev_time();
+  Try<Time> time = Time::create(d);
+
+  // TODO(xujyan): Move CHECK_SOME to libprocess and add CHECK_SOME
+  // here.
+  if (time.isError()) {
+    LOG(FATAL) << "Failed to create a Time from " << d << ": "
+               << time.error();
+  }
+  return time.get();
 }
 
 
@@ -535,7 +544,7 @@ void Clock::pause()
     if (!clock::paused) {
       clock::initial = clock::current = now();
       clock::paused = true;
-      VLOG(2) << "Clock paused at " << doublePrecision << clock::initial;
+      VLOG(2) << "Clock paused at " << clock::initial;
     }
   }
 
@@ -557,7 +566,7 @@ void Clock::resume()
 
   synchronized (timeouts) {
     if (clock::paused) {
-      VLOG(2) << "Clock resumed at " << doublePrecision << clock::current;
+      VLOG(2) << "Clock resumed at " << clock::current;
       clock::paused = false;
       clock::currents->clear();
       update_timer = true;
@@ -571,9 +580,8 @@ void Clock::advance(const Duration& duration)
 {
   synchronized (timeouts) {
     if (clock::paused) {
-      clock::current += duration.secs();
-      VLOG(2) << "Clock advanced ("  << duration << ") to "
-              << doublePrecision << clock::current;
+      clock::current += duration;
+      VLOG(2) << "Clock advanced ("  << duration << ") to " << clock::current;
       if (!update_timer) {
         update_timer = true;
         ev_async_send(loop, &async_watcher);
@@ -587,23 +595,23 @@ void Clock::advance(ProcessBase* process, const Duration& duration)
 {
   synchronized (timeouts) {
     if (clock::paused) {
-      double current = now(process);
-      current += duration.secs();
+      Time current = now(process);
+      current += duration;
       (*clock::currents)[process] = current;
       VLOG(2) << "Clock of " << process->self() << " advanced (" << duration
-              << ") to " << doublePrecision << current;
+              << ") to " << current;
     }
   }
 }
 
 
-void Clock::update(const Duration& duration)
+void Clock::update(const Time& time)
 {
   synchronized (timeouts) {
     if (clock::paused) {
-      if (clock::current < duration.secs()) {
-        clock::current = duration.secs();
-        VLOG(2) << "Clock updated to " << doublePrecision << clock::current;
+      if (clock::current < time) {
+        clock::current = Time(time);
+        VLOG(2) << "Clock updated to " << clock::current;
         if (!update_timer) {
           update_timer = true;
           ev_async_send(loop, &async_watcher);
@@ -614,14 +622,13 @@ void Clock::update(const Duration& duration)
 }
 
 
-void Clock::update(ProcessBase* process, const Duration& duration)
+void Clock::update(ProcessBase* process, const Time& time)
 {
   synchronized (timeouts) {
     if (clock::paused) {
-      double current = now(process);
-      if (current < duration.secs()) {
-        VLOG(2) << "Clock of " << process->self() << " updated to " << duration;
-        (*clock::currents)[process] = duration.secs();
+      if (now(process) < time) {
+        VLOG(2) << "Clock of " << process->self() << " updated to " << time;
+        (*clock::currents)[process] = Time(time);
       }
     }
   }
@@ -630,7 +637,7 @@ void Clock::update(ProcessBase* process, const Duration& duration)
 
 void Clock::order(ProcessBase* from, ProcessBase* to)
 {
-  update(to, Seconds(now(from)));
+  update(to, now(from));
 }
 
 
@@ -726,7 +733,7 @@ void handle_async(struct ev_loop* loop, ev_async* _, int revents)
     if (update_timer) {
       if (!timeouts->empty()) {
 	// Determine when the next timer should fire.
-	timeouts_watcher.repeat = timeouts->begin()->first - Clock::now();
+	timeouts_watcher.repeat = (timeouts->begin()->first - Clock::now()).secs();
 
         if (timeouts_watcher.repeat <= 0) {
 	  // Feed the event now!
@@ -756,17 +763,16 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
   list<Timer> timedout;
 
   synchronized (timeouts) {
-    double now = Clock::now();
+    Time now = Clock::now();
 
-    VLOG(3) << "Handling timeouts up to " << doublePrecision << now;
+    VLOG(3) << "Handling timeouts up to " << now;
 
-    double timeout;
-    foreachkey (timeout, *timeouts) {
+    foreachkey (const Time& timeout, *timeouts) {
       if (timeout > now) {
         break;
       }
 
-      VLOG(3) << "Have timeout(s) at " << doublePrecision << timeout;
+      VLOG(3) << "Have timeout(s) at " << timeout;
 
       // Record that we have pending timers to execute so the
       // Clock::settle() operation can wait until we're done.
@@ -786,7 +792,8 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
     // Update the timer as necessary.
     if (!timeouts->empty()) {
       // Determine when the next timer should fire.
-      timeouts_watcher.repeat = timeouts->begin()->first - Clock::now();
+      timeouts_watcher.repeat =
+        (timeouts->begin()->first - Clock::now()).secs();
 
       if (timeouts_watcher.repeat <= 0) {
         // Feed the event now!
@@ -821,7 +828,7 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
   if (Clock::paused()) {
     foreach (const Timer& timer, timedout) {
       if (ProcessReference process = process_manager->use(timer.creator())) {
-        Clock::update(process, Seconds(timer.timeout().value()));
+        Clock::update(process, timer.timeout().time());
       }
     }
   }
@@ -2112,7 +2119,7 @@ void SocketManager::exited(ProcessBase* process)
 
   // Likewise, we need to save the current time of the process so we
   // can update the clocks of linked processes as appropriate.
-  const double secs = Clock::now(process);
+  const Time time = Clock::now(process);
 
   synchronized (this) {
     // Iterate through the links, removing any links the process might
@@ -2125,7 +2132,7 @@ void SocketManager::exited(ProcessBase* process)
           CHECK(linker != process) << "Process linked with itself";
           synchronized (timeouts) {
             if (Clock::paused()) {
-              Clock::update(linker, Seconds(secs));
+              Clock::update(linker, time);
             }
           }
           linker->enqueue(new ExitedEvent(linkee));
@@ -2287,7 +2294,7 @@ bool ProcessManager::deliver(
         if (sender != NULL) {
           Clock::order(sender, receiver);
         } else {
-          Clock::update(receiver, Seconds(Clock::now()));
+          Clock::update(receiver, Clock::now());
         }
       }
     }
@@ -2350,8 +2357,7 @@ void ProcessManager::resume(ProcessBase* process)
 {
   __process__ = process;
 
-  VLOG(2) << "Resuming " << process->pid << " at " << doublePrecision
-          << Clock::now();
+  VLOG(2) << "Resuming " << process->pid << " at " << Clock::now();
 
   bool terminate = false;
   bool blocked = false;
@@ -2584,7 +2590,7 @@ void ProcessManager::terminate(
           if (sender != NULL) {
             Clock::order(sender, process);
           } else {
-            Clock::update(process, Seconds(Clock::now()));
+            Clock::update(process, Clock::now());
           }
         }
       }
@@ -2756,26 +2762,27 @@ Timer Timer::create(
 {
   static uint64_t id = 1; // Start at 1 since Timer() instances start with 0.
 
-  Timeout timeout(duration); // Assumes Clock::now() does Clock::now(__process__).
+  // Assumes Clock::now() does Clock::now(__process__).
+  Timeout timeout = Timeout::in(duration);
 
   UPID pid = __process__ != NULL ? __process__->self() : UPID();
 
   Timer timer(__sync_fetch_and_add(&id, 1), timeout, pid, thunk);
 
-  VLOG(3) << "Created a timer for " << doublePrecision << timeout.value();
+  VLOG(3) << "Created a timer for " << timeout.time();
 
   // Add the timer.
   synchronized (timeouts) {
     if (timeouts->size() == 0 ||
-        timer.timeout().value() < timeouts->begin()->first) {
+        timer.timeout().time() < timeouts->begin()->first) {
       // Need to interrupt the loop to update/set timer repeat.
-      (*timeouts)[timer.timeout().value()].push_back(timer);
+      (*timeouts)[timer.timeout().time()].push_back(timer);
       update_timer = true;
       ev_async_send(loop, &async_watcher);
     } else {
       // Timer repeat is adequate, just add the timeout.
       CHECK(timeouts->size() >= 1);
-      (*timeouts)[timer.timeout().value()].push_back(timer);
+      (*timeouts)[timer.timeout().time()].push_back(timer);
     }
   }
 
@@ -2792,11 +2799,12 @@ bool Timer::cancel(const Timer& timer)
     // timeout.
     // TODO(benh): If two timers are created with the same timeout,
     // this will erase *both*. Fix this!
-    if (timeouts->count(timer.timeout().value()) > 0) {
+    Time time = timer.timeout().time();
+    if (timeouts->count(time) > 0) {
       canceled = true;
-      (*timeouts)[timer.timeout().value()].remove(timer);
-      if ((*timeouts)[timer.timeout().value()].empty()) {
-        timeouts->erase(timer.timeout().value());
+      (*timeouts)[time].remove(timer);
+      if ((*timeouts)[time].empty()) {
+        timeouts->erase(time);
       }
     }
   }
@@ -2832,7 +2840,7 @@ ProcessBase::ProcessBase(const string& id)
         if (__process__ != NULL) {
           Clock::order(__process__, this);
         } else {
-          Clock::update(this, Seconds(Clock::now()));
+          Clock::update(this, Clock::now());
         }
       }
     }
@@ -3028,7 +3036,7 @@ UPID spawn(ProcessBase* process, bool manage)
           if (__process__ != NULL) {
             Clock::order(__process__, process);
           } else {
-            Clock::update(process, Seconds(Clock::now()));
+            Clock::update(process, Clock::now());
           }
         }
       }

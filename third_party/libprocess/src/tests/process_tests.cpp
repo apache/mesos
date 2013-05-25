@@ -23,6 +23,7 @@
 #include <process/process.hpp>
 #include <process/run.hpp>
 #include <process/thread.hpp>
+#include <process/time.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/nothing.hpp>
@@ -737,9 +738,9 @@ TEST(Process, order)
 
   spawn(process1);
 
-  double now = Clock::now(&process1);
+  Time now = Clock::now(&process1);
 
-  double seconds = 1.0;
+  Seconds seconds(1);
 
   Clock::advance(Seconds(1));
 

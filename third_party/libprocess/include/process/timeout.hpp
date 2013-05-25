@@ -3,21 +3,28 @@
 
 #include <process/process.hpp>
 
+#include <process/time.hpp>
+
 #include <stout/duration.hpp>
+
 
 namespace process {
 
 class Timeout
 {
 public:
-  Timeout()
-    : timeout(Clock::now()) {}
+  Timeout() : timeout(Clock::now()) {}
 
-  Timeout(const Duration& duration)
-    : timeout(Clock::now() + duration.secs()) {}
+  Timeout(const Time& time) : timeout(time) {}
 
-  Timeout(const Timeout& that)
-    : timeout(that.timeout) {}
+  Timeout(const Timeout& that) : timeout(that.timeout) {}
+
+  // Constructs a Timeout instance from a Time that is the 'duration'
+  // from now.
+  static Timeout in(const Duration& duration)
+  {
+    return Timeout(Clock::now() + duration);
+  }
 
   Timeout& operator = (const Timeout& that)
   {
@@ -30,7 +37,7 @@ public:
 
   Timeout& operator = (const Duration& duration)
   {
-    timeout = Clock::now() + duration.secs();
+    timeout = Clock::now() + duration;
     return *this;
   }
 
@@ -49,9 +56,8 @@ public:
     return timeout <= that.timeout;
   }
 
-  // Returns the value of the timeout as the number of seconds elapsed
-  // since the epoch.
-  double value() const
+  // Returns the value of the timeout as a Time object.
+  Time time() const
   {
     return timeout;
   }
@@ -59,18 +65,18 @@ public:
   // Returns the amount of time remaining.
   Duration remaining() const
   {
-    double seconds = timeout - Clock::now();
-    return Seconds(seconds > 0 ? seconds : 0);
+    Duration remaining = timeout - Clock::now();
+    return remaining > Duration::zero() ? remaining : Duration::zero();
   }
 
   // Returns true if the timeout expired.
   bool expired() const
   {
-    return (timeout - Clock::now()) <= 0;
+    return timeout <= Clock::now();
   }
 
 private:
-  double timeout;
+  Time timeout;
 };
 
 }  // namespace process {

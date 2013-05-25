@@ -314,9 +314,9 @@ void terminate(const ProcessBase* process, bool inject = true);
  * @param PID id of the process
  * @param secs max time to wait, 0 implies wait for ever
  */
-bool wait(const UPID& pid, const Duration& duration = Seconds(-1.0));
-bool wait(const ProcessBase& process, const Duration& duration = Seconds(-1.0));
-bool wait(const ProcessBase* process, const Duration& duration = Seconds(-1.0));
+bool wait(const UPID& pid, const Duration& duration = Seconds(-1));
+bool wait(const ProcessBase& process, const Duration& duration = Seconds(-1));
+bool wait(const ProcessBase* process, const Duration& duration = Seconds(-1));
 
 
 /**

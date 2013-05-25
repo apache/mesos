@@ -1,5 +1,3 @@
-#include <float.h> // For DBL_MAX.
-
 #include <glog/logging.h>
 
 #include <algorithm>
@@ -16,6 +14,7 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 #include <process/statistics.hpp>
+#include <process/time.hpp>
 
 #include <stout/error.hpp>
 #include <stout/duration.hpp>
@@ -57,7 +56,7 @@ struct TimeSeries
 
   // We use a map instead of a hashmap to store the values because
   // that way we can retrieve a series in sorted order efficiently.
-  map<Seconds, double> values;
+  map<Time, double> values;
   bool archived;
 };
 
@@ -72,11 +71,11 @@ public:
   virtual ~StatisticsProcess() {}
 
   // Statistics implementation.
-  map<Seconds, double> timeseries(
+  map<Time, double> timeseries(
       const string& context,
       const string& name,
-      const Option<Seconds>& start,
-      const Option<Seconds>& stop);
+      const Option<Time>& start,
+      const Option<Time>& stop);
 
   Option<double> get(const string& context, const string& name);
 
@@ -91,7 +90,7 @@ public:
       const string& context,
       const string& name,
       double value,
-      const Seconds& time);
+      const Time& time);
 
   void archive(const string& context, const string& name);
 
@@ -168,26 +167,26 @@ Try<Nothing> StatisticsProcess::meter(
 }
 
 
-map<Seconds, double> StatisticsProcess::timeseries(
+map<Time, double> StatisticsProcess::timeseries(
     const string& context,
     const string& name,
-    const Option<Seconds>& start,
-    const Option<Seconds>& stop)
+    const Option<Time>& start,
+    const Option<Time>& stop)
 {
   if (!statistics.contains(context) || !statistics[context].contains(name)) {
-    return map<Seconds, double>();
+    return map<Time, double>();
   }
 
-  const std::map<Seconds, double>& values =
+  const std::map<Time, double>& values =
     statistics[context].find(name)->second.values;
 
-  map<Seconds, double>::const_iterator lower =
-    values.lower_bound(start.isSome() ? start.get() : Seconds(0.0));
+  map<Time, double>::const_iterator lower = values.lower_bound(start.isSome()
+      ? start.get() : Time::EPOCH);
 
-  map<Seconds, double>::const_iterator upper =
-    values.upper_bound(stop.isSome() ? stop.get() : Seconds(DBL_MAX));
+  map<Time, double>::const_iterator upper = values.upper_bound(stop.isSome()
+      ? stop.get() : Time::MAX);
 
-  return map<Seconds, double>(lower, upper);
+  return map<Time, double>(lower, upper);
 }
 
 
@@ -212,7 +211,7 @@ map<string, double> StatisticsProcess::get(const string& context)
   }
 
   foreachkey (const string& name, statistics[context]) {
-    const map<Seconds, double>& values = statistics[context][name].values;
+    const map<Time, double>& values = statistics[context][name].values;
 
     if (!values.empty()) {
       results[name] = values.rbegin()->second;
@@ -227,7 +226,7 @@ void StatisticsProcess::set(
     const string& context,
     const string& name,
     double value,
-    const Seconds& time)
+    const Time& time)
 {
   statistics[context][name].values[time] = value; // Update the raw value.
   statistics[context][name].archived = false;     // Unarchive.
@@ -270,7 +269,7 @@ void StatisticsProcess::increment(const string& context, const string& name)
   if (!statistics[context][name].values.empty()) {
     value = statistics[context][name].values.rbegin()->second;
   }
-  set(context, name, value + 1.0, Seconds(Clock::now()));
+  set(context, name, value + 1.0, Clock::now());
 }
 
 
@@ -280,7 +279,7 @@ void StatisticsProcess::decrement(const string& context, const string& name)
   if (!statistics[context][name].values.empty()) {
     value = statistics[context][name].values.rbegin()->second;
   }
-  set(context, name, value - 1.0, Seconds(Clock::now()));
+  set(context, name, value - 1.0, Clock::now());
 }
 
 
@@ -293,10 +292,10 @@ bool StatisticsProcess::truncate(const string& context, const string& name)
     return true; // No truncation is needed, the time series is already empty.
   }
 
-  map<Seconds, double>::iterator start =
+  map<Time, double>::iterator start =
     statistics[context][name].values.begin();
 
-  while ((Clock::now() - start->first.secs()) > window.secs()) {
+  while ((Clock::now() - start->first) > window) {
     // Always keep at least one value for a statistic, unless it's archived!
     if (statistics[context][name].values.size() == 1) {
       if (statistics[context][name].archived) {
@@ -385,31 +384,41 @@ Future<Response> StatisticsProcess::series(const Request& request)
     return BadRequest("Expected 'name=val' in query.\n");
   }
 
-  Option<Seconds> start = None();
-  Option<Seconds> stop = None();
+  Option<Time> start = None();
+  Option<Time> stop = None();
 
   if (request.query.get("start").isSome()) {
     Try<double> result = numify<double>(request.query.get("start").get());
     if (result.isError()) {
-      return BadRequest("Failed to parse start: " + result.error());
+      return BadRequest("Failed to parse 'start': " + result.error());
     }
-    start = Seconds(result.get());
+
+    Try<Time> start_ = Time::create(result.get());
+    if (start_.isError()) {
+      return BadRequest("Failed to parse 'start': " + start_.error());
+    }
+    start = start_.get();
   }
 
   if (request.query.get("stop").isSome()) {
     Try<double> result = numify<double>(request.query.get("stop").get());
     if (result.isError()) {
-      return BadRequest("Failed to parse stop: " + result.error());
+      return BadRequest("Failed to parse 'stop': " + result.error());
     }
-    stop = Seconds(result.get());
+
+    Try<Time> stop_ = Time::create(result.get());
+    if (stop_.isError()) {
+      return BadRequest("Failed to parse 'stop': " + stop_.error());
+    }
+    stop = stop_.get();
   }
 
   JSON::Array array;
 
-  const map<Seconds, double>& values =
+  const map<Time, double>& values =
     timeseries(context.get(), name.get(), start, stop);
 
-  foreachpair (const Seconds& s, double value, values) {
+  foreachpair (const Time& s, double value, values) {
     JSON::Object object;
     object.values["time"] = s.secs();
     object.values["value"] = value;
@@ -434,11 +443,11 @@ Statistics::~Statistics()
 }
 
 
-Future<map<Seconds, double> > Statistics::timeseries(
+Future<map<Time, double> > Statistics::timeseries(
     const string& context,
     const string& name,
-    const Option<Seconds>& start,
-    const Option<Seconds>& stop)
+    const Option<Time>& start,
+    const Option<Time>& stop)
 {
   return dispatch(
       process, &StatisticsProcess::timeseries, context, name, start, stop);
@@ -473,7 +482,7 @@ void Statistics::set(
     const string& context,
     const string& name,
     double value,
-    const Seconds& time)
+    const Time& time)
 {
   dispatch(process, &StatisticsProcess::set, context, name, value, time);
 }
