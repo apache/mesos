@@ -2,6 +2,7 @@
 #define __STOUT_DURATION_HPP__
 
 #include <ctype.h> // For 'isdigit'.
+#include <limits.h> // For 'LLONG_(MAX|MIN)'
 
 #include <iomanip>
 #include <iostream>
@@ -10,7 +11,6 @@
 #include "error.hpp"
 #include "numify.hpp"
 #include "try.hpp"
-
 
 class Duration
 {
@@ -56,114 +56,191 @@ public:
     return Error("Invalid duration '" + s + "'");
   }
 
-  Duration() : seconds(0.0) {}
+  static Try<Duration> create(double seconds);
 
-  double ns() const    { return seconds / NANOSECONDS; }
-  double us() const    { return seconds / MICROSECONDS; }
-  double ms() const    { return seconds / MILLISECONDS; }
-  double secs() const  { return seconds / SECONDS; }
-  double mins() const  { return seconds / MINUTES; }
-  double hrs() const   { return seconds / HOURS; }
-  double days() const  { return seconds / DAYS; }
-  double weeks() const { return seconds / WEEKS; }
+  Duration() : nanos(0) {}
 
-  bool operator <  (const Duration& d) const { return seconds <  d.seconds; }
-  bool operator <= (const Duration& d) const { return seconds <= d.seconds; }
-  bool operator >  (const Duration& d) const { return seconds >  d.seconds; }
-  bool operator >= (const Duration& d) const { return seconds >= d.seconds; }
-  bool operator == (const Duration& d) const { return seconds == d.seconds; }
-  bool operator != (const Duration& d) const { return seconds != d.seconds; }
+  int64_t ns() const   { return nanos; }
+  double us() const    { return static_cast<double>(nanos) / MICROSECONDS; }
+  double ms() const    { return static_cast<double>(nanos) / MILLISECONDS; }
+  double secs() const  { return static_cast<double>(nanos) / SECONDS; }
+  double mins() const  { return static_cast<double>(nanos) / MINUTES; }
+  double hrs() const   { return static_cast<double>(nanos) / HOURS; }
+  double days() const  { return static_cast<double>(nanos) / DAYS; }
+  double weeks() const { return static_cast<double>(nanos) / WEEKS; }
+
+  bool operator <  (const Duration& d) const { return nanos <  d.nanos; }
+  bool operator <= (const Duration& d) const { return nanos <= d.nanos; }
+  bool operator >  (const Duration& d) const { return nanos >  d.nanos; }
+  bool operator >= (const Duration& d) const { return nanos >= d.nanos; }
+  bool operator == (const Duration& d) const { return nanos == d.nanos; }
+  bool operator != (const Duration& d) const { return nanos != d.nanos; }
 
   Duration& operator += (const Duration& that)
   {
-    seconds += that.seconds;
+    nanos += that.nanos;
     return *this;
   }
 
   Duration& operator -= (const Duration& that)
   {
-    seconds -= that.seconds;
+    nanos -= that.nanos;
     return *this;
   }
 
-protected:
-  static const double NANOSECONDS =  0.000000001;
-  static const double MICROSECONDS = 0.000001;
-  static const double MILLISECONDS = 0.001;
-  static const uint64_t SECONDS    = 1;
-  static const uint64_t MINUTES    = 60 * SECONDS;
-  static const uint64_t HOURS      = 60 * MINUTES;
-  static const uint64_t DAYS       = 24 * HOURS;
-  static const uint64_t WEEKS      = 7 * DAYS;
+  Duration& operator *= (double multiplier)
+  {
+    nanos = static_cast<int64_t>(nanos * multiplier);
+    return *this;
+  }
 
-  Duration(double value, double unit)
-    : seconds(value * unit) {}
+  Duration& operator /= (double divisor)
+  {
+    nanos = static_cast<int64_t>(nanos / divisor);
+    return *this;
+  }
+
+  Duration operator + (const Duration& that) const
+  {
+    Duration sum = *this;
+    sum += that;
+    return sum;
+  }
+
+  Duration operator - (const Duration& that) const
+  {
+    Duration diff = *this;
+    diff -= that;
+    return diff;
+  }
+
+  Duration operator * (double multiplier) const
+  {
+    Duration product = *this;
+    product *= multiplier;
+    return product;
+  }
+
+  Duration operator / (double divisor) const
+  {
+    Duration quotient = *this;
+    quotient /= divisor;
+    return quotient;
+  }
+
+  // TODO(xujyan): Use constexpr for the following variables after
+  // switching to C++11.
+  // A constant holding the maximum value a Duration can have.
+  static Duration max();
+  // A constant holding the minimum (negative) value a Duration can
+  // have.
+  static Duration min();
+  // A constant holding a Duration of a "zero" value.
+  static Duration zero() { return Duration(); }
+
+protected:
+  static const int64_t NANOSECONDS  = 1;
+  static const int64_t MICROSECONDS = 1000 * NANOSECONDS;
+  static const int64_t MILLISECONDS = 1000 * MICROSECONDS;
+  static const int64_t SECONDS      = 1000 * MILLISECONDS;
+  static const int64_t MINUTES      = 60 * SECONDS;
+  static const int64_t HOURS        = 60 * MINUTES;
+  static const int64_t DAYS         = 24 * HOURS;
+  static const int64_t WEEKS        = 7 * DAYS;
+
+  // For the Seconds, Minutes, Hours, Days & Weeks constructor.
+  Duration(int32_t value, int64_t unit)
+    : nanos(value * unit) {}
+
+  // For the Nanoseconds, Microseconds, Milliseconds constructor.
+  Duration(int64_t value, int64_t unit)
+    : nanos(value * unit) {}
 
 private:
-  double seconds;
+  // Used only by "parse".
+  Duration(double value, int64_t unit)
+    : nanos(static_cast<int64_t>(value * unit)) {}
+
+  int64_t nanos;
 };
 
 
 class Nanoseconds : public Duration
 {
 public:
-  explicit Nanoseconds(double nanoseconds)
+  explicit Nanoseconds(int64_t nanoseconds)
     : Duration(nanoseconds, NANOSECONDS) {}
+
+  Nanoseconds(const Duration& d) : Duration(d) {}
 };
 
 
 class Microseconds : public Duration
 {
 public:
-  explicit Microseconds(double microseconds)
+  explicit Microseconds(int64_t microseconds)
     : Duration(microseconds, MICROSECONDS) {}
+
+  Microseconds(const Duration& d) : Duration(d) {}
 };
 
 
 class Milliseconds : public Duration
 {
 public:
-  explicit Milliseconds(double milliseconds)
+  explicit Milliseconds(int64_t milliseconds)
     : Duration(milliseconds, MILLISECONDS) {}
+
+  Milliseconds(const Duration& d) : Duration(d) {}
 };
 
 
 class Seconds : public Duration
 {
 public:
-  explicit Seconds(double seconds)
+  explicit Seconds(int64_t seconds)
     : Duration(seconds, SECONDS) {}
+
+  Seconds(const Duration& d) : Duration(d) {}
 };
 
 
 class Minutes : public Duration
 {
 public:
-  explicit Minutes(double minutes)
+  explicit Minutes(int32_t minutes)
     : Duration(minutes, MINUTES) {}
+
+  Minutes(const Duration& d) : Duration(d) {}
 };
 
 
 class Hours : public Duration
 {
 public:
-  explicit Hours(double hours)
+  explicit Hours(int32_t hours)
     : Duration(hours, HOURS) {}
+
+  Hours(const Duration& d) : Duration(d) {}
 };
 
 
 class Days : public Duration
 {
 public:
-  explicit Days(double days)
+  explicit Days(int32_t days)
     : Duration(days, DAYS) {}
+
+  Days(const Duration& d) : Duration(d) {}
 };
 
 
 class Weeks : public Duration
 {
 public:
-  explicit Weeks(double value) : Duration(value, WEEKS) {}
+  explicit Weeks(int32_t value) : Duration(value, WEEKS) {}
+
+  Weeks(const Duration& d) : Duration(d) {}
 };
 
 
@@ -171,11 +248,9 @@ inline std::ostream& operator << (
     std::ostream& stream,
     const Duration& duration)
 {
-  // Fix the number digits after the decimal point.
-  std::ios_base::fmtflags flags = stream.flags();
   long precision = stream.precision();
 
-  stream.setf(std::ios::fixed, std::ios::floatfield);
+  // Output the duration in full double precision.
   stream.precision(std::numeric_limits<double>::digits10);
 
   if (duration < Microseconds(1)) {
@@ -197,25 +272,26 @@ inline std::ostream& operator << (
   }
 
   // Return the stream to original formatting state.
-  stream.unsetf(std::ios::floatfield);
-  stream.setf(flags);
   stream.precision(precision);
 
   return stream;
 }
 
-inline Duration operator + (const Duration& lhs, const Duration& rhs)
+
+inline Try<Duration> Duration::create(double seconds)
 {
-  Duration sum = lhs;
-  sum += rhs;
-  return sum;
+  if (seconds * SECONDS > LLONG_MAX) {
+    return Error("Argument larger than the maximum number of seconds that "
+                 "a Duration can represent due to int64_t's size limit.");
+  }
+
+  return Nanoseconds(static_cast<int64_t>(seconds * SECONDS));
 }
 
-inline Duration operator - (const Duration& lhs, const Duration& rhs)
-{
-  Duration diff = lhs;
-  diff -= rhs;
-  return diff;
-}
+
+inline Duration Duration::max() { return Nanoseconds(LLONG_MAX); }
+
+
+inline Duration Duration::min() { return Nanoseconds(LLONG_MIN); }
 
 #endif // __STOUT_DURATION_HPP__

@@ -864,8 +864,8 @@ inline Try<Nothing> sleep(const Duration& duration)
 {
   timespec remaining;
   remaining.tv_sec = static_cast<long>(duration.secs());
-  Duration nanos = Seconds(duration.secs() - remaining.tv_sec);
-  remaining.tv_nsec = static_cast<long>(nanos.ns());
+  remaining.tv_nsec =
+    static_cast<long>((duration - Seconds(remaining.tv_sec)).ns());
 
   while (nanosleep(&remaining, &remaining) == -1) {
     if (errno == EINTR) {
