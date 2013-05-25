@@ -305,7 +305,7 @@ private:
     uint64_t invalidFrameworkMessages;
   } stats;
 
-  double startTime;
+  Time startTime;
 
   GarbageCollector gc;
   ResourceMonitor monitor;

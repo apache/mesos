@@ -165,7 +165,7 @@ TYPED_TEST(IsolatorTest, Usage)
   // TODO(bmahler): Also induce rss memory consumption, by re-using
   // the balloon framework.
   ResourceStatistics statistics;
-  Duration waited = Seconds(0);
+  Duration waited = Duration::zero();
   do {
     const Future<ResourceStatistics>& usage =
       isolator.usage(frameworkId.get(), executorId);
@@ -181,9 +181,8 @@ TYPED_TEST(IsolatorTest, Usage)
       break;
     }
 
-    const Duration& sleep = Milliseconds(100);
-    usleep((useconds_t) sleep.us());
-    waited = Seconds(waited.secs() + sleep.secs());
+    os::sleep(Milliseconds(100));
+    waited = waited + Milliseconds(100);
   } while (waited < Seconds(10));
 
   EXPECT_GE(statistics.memory_rss(), 1024u);

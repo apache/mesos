@@ -279,7 +279,7 @@ Future<Response> stats(
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   JSON::Object object;
-  object.values["uptime"] = Clock::now() - slave.startTime;
+  object.values["uptime"] = (Clock::now() - slave.startTime).secs();
   object.values["total_frameworks"] = slave.frameworks.size();
   object.values["staged_tasks"] = slave.stats.tasks[TASK_STAGING];
   object.values["started_tasks"] = slave.stats.tasks[TASK_STARTING];
@@ -304,7 +304,7 @@ Future<Response> state(
   object.values["build_date"] = build::DATE;
   object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
-  object.values["start_time"] = slave.startTime;
+  object.values["start_time"] = slave.startTime.secs();
   object.values["id"] = slave.info.id().value();
   object.values["pid"] = string(slave.self());
   object.values["hostname"] = slave.info.hostname();

@@ -344,7 +344,7 @@ Log::Writer::Writer(Log* log, const Duration& timeout, int retries)
     coordinator(log->quorum, log->replica, log->network)
 {
   do {
-    Result<uint64_t> result = coordinator.elect(process::Timeout(timeout));
+    Result<uint64_t> result = coordinator.elect(process::Timeout::in(timeout));
     if (result.isNone()) {
       retries--;
     } else if (result.isSome()) {

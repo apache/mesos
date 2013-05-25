@@ -362,7 +362,7 @@ Future<ResourceStatistics> ProcessIsolator::usage(
 
   ResourceStatistics result;
 
-  result.set_timestamp(Clock::now());
+  result.set_timestamp(Clock::now().secs());
 
 #ifdef __linux__
   // Get the page size, used for memory accounting.

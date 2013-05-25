@@ -29,11 +29,11 @@ const uint32_t MIN_CPUS = 1;
 const uint32_t MIN_MEM = 32 * Megabyte;
 const uint32_t MAX_CPUS = 1000 * 1000;
 const uint32_t MAX_MEM = 1024 * 1024 * Megabyte;
-const Duration SLAVE_PING_TIMEOUT = Seconds(15.0);
+const Duration SLAVE_PING_TIMEOUT = Seconds(15);
 const uint32_t MAX_SLAVE_PING_TIMEOUTS = 5;
 const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
 const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
-const Duration WHITELIST_WATCH_INTERVAL = Seconds(5.0);
+const Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
 
 } // namespace mesos {
 } // namespace internal {

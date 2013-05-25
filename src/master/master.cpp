@@ -402,13 +402,28 @@ void Master::exited(const UPID& pid)
       // Tell the allocator to stop allocating resources to this framework.
       allocator->frameworkDeactivated(framework->id);
 
-      Seconds failoverTimeout(framework->info.failover_timeout());
+      // Set 'failoverTimeout' to the default and update only if the
+      // input is valid.
+      Try<Duration> failoverTimeout_ =
+        Duration::create(FrameworkInfo().failover_timeout());
+      CHECK_SOME(failoverTimeout_);
+      Duration failoverTimeout = failoverTimeout_.get();
+
+      failoverTimeout_ =
+        Duration::create(framework->info.failover_timeout());
+      if (failoverTimeout_.isSome()) {
+        failoverTimeout = failoverTimeout_.get();
+      } else {
+        LOG(WARNING) << "Using the default value for 'failover_timeout' because"
+                     << "the input value is invalid: "
+                     << failoverTimeout_.error();
+      }
 
       LOG(INFO) << "Giving framework " << framework->id << " "
                 << failoverTimeout << " to failover";
 
       // Delay dispatching a message to ourselves for the timeout.
-    delay(failoverTimeout,
+      delay(failoverTimeout,
           self(),
           &Master::frameworkFailoverTimeout,
           framework->id,
@@ -748,7 +763,7 @@ void Master::launchTasks(const FrameworkID& frameworkId,
         status->mutable_task_id()->MergeFrom(task.task_id());
         status->set_state(TASK_LOST);
         status->set_message("Task launched with invalid offer");
-        update->set_timestamp(Clock::now());
+        update->set_timestamp(Clock::now().secs());
         update->set_uuid(UUID::random().toBytes());
         send(framework->pid, message);
       }
@@ -806,7 +821,7 @@ void Master::killTask(const FrameworkID& frameworkId,
       status->mutable_task_id()->MergeFrom(taskId);
       status->set_state(TASK_LOST);
       status->set_message("Task not found");
-      update->set_timestamp(Clock::now());
+      update->set_timestamp(Clock::now().secs());
       update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
     }
@@ -1189,7 +1204,7 @@ void Master::deactivateSlave(const SlaveID& slaveId)
 
 
 void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,
-                                      double reregisteredTime)
+                                      const Time& reregisteredTime)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL && !framework->active &&
@@ -1790,7 +1805,7 @@ void Master::removeFramework(Slave* slave, Framework* framework)
       status->mutable_task_id()->MergeFrom(task->task_id());
       status->set_state(TASK_LOST);
       status->set_message("Slave " + slave->info.hostname() + " disconnected");
-      update->set_timestamp(Clock::now());
+      update->set_timestamp(Clock::now().secs());
       update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
 
@@ -1969,7 +1984,7 @@ void Master::removeSlave(Slave* slave)
       status->mutable_task_id()->MergeFrom(task->task_id());
       status->set_state(TASK_LOST);
       status->set_message("Slave " + slave->info.hostname() + " removed");
-      update->set_timestamp(Clock::now());
+      update->set_timestamp(Clock::now().secs());
       update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
     }

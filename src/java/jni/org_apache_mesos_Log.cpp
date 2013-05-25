@@ -152,7 +152,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
   Result<std::list<Log::Entry> > entries =
-    reader->read(from, to, Timeout(Seconds(jseconds)));
+    reader->read(from, to, Timeout::in(Seconds(jseconds)));
 
   if (entries.isError()) {
     clazz = env->FindClass("org/apache/mesos/Log$OperationFailedException");
@@ -301,7 +301,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
   Result<Log::Position> position =
-    writer->append(data, Timeout(Seconds(jseconds)));
+    writer->append(data, Timeout::in(Seconds(jseconds)));
 
   env->ReleaseByteArrayElements(jdata, temp, 0);
 
@@ -353,7 +353,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
   Result<Log::Position> position =
-    writer->truncate(to, Timeout(Seconds(jseconds)));
+    writer->truncate(to, Timeout::in(Seconds(jseconds)));
 
   if (position.isError()) {
     clazz = env->FindClass("org/apache/mesos/Log$WriterFailedException");

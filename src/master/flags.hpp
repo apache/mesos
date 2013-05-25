@@ -78,7 +78,7 @@ public:
         "allocation_interval",
         "Amount of time to wait between performing\n"
         " (batch) allocations (e.g., 500ms, 1sec, etc)",
-        Seconds(1.0));
+        Seconds(1));
 
     add(&Flags::cluster,
         "cluster",

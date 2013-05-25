@@ -456,7 +456,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
 
   if (pid > 0) {
     // In parent process.
-    future.await(Seconds(5.0));
+    future.await(Seconds(5));
 
     EXPECT_TRUE(future.isReady());
 
@@ -526,13 +526,13 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
 
     // Freeze the test cgroup.
     Future<bool> freeze = cgroups::freeze(hierarchy, TEST_CGROUPS_ROOT);
-    freeze.await(Seconds(5.0));
+    freeze.await(Seconds(5));
     ASSERT_TRUE(freeze.isReady());
     EXPECT_EQ(true, freeze.get());
 
     // Thaw the test cgroup.
     Future<bool> thaw = cgroups::thaw(hierarchy, TEST_CGROUPS_ROOT);
-    thaw.await(Seconds(5.0));
+    thaw.await(Seconds(5));
     ASSERT_TRUE(thaw.isReady());
     EXPECT_EQ(true, thaw.get());
 
@@ -658,7 +658,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Destroy)
     ::close(pipes[0]);
 
     Future<bool> future = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
-    future.await(Seconds(5.0));
+    future.await(Seconds(5));
     ASSERT_TRUE(future.isReady());
     EXPECT_TRUE(future.get());
 

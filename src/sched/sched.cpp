@@ -277,7 +277,7 @@ protected:
       send(master, message);
     }
 
-    delay(Seconds(1.0), self(), &Self::doReliableRegistration);
+    delay(Seconds(1), self(), &Self::doReliableRegistration);
   }
 
   void resourceOffers(const vector<Offer>& offers,
@@ -519,7 +519,7 @@ protected:
         status->mutable_task_id()->MergeFrom(task.task_id());
         status->set_state(TASK_LOST);
         status->set_message("Master Disconnected");
-        update.set_timestamp(Clock::now());
+        update.set_timestamp(Clock::now().secs());
         update.set_uuid(UUID::random().toBytes());
 
         statusUpdate(update, UPID());
@@ -538,7 +538,7 @@ protected:
         status->set_state(TASK_LOST);
         status->set_message(
             "TaskInfo must have either an 'executor' or a 'command'");
-        update.set_timestamp(Clock::now());
+        update.set_timestamp(Clock::now().secs());
         update.set_uuid(UUID::random().toBytes());
 
         statusUpdate(update, UPID());

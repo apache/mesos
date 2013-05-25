@@ -458,7 +458,7 @@ TEST_F(FaultToleranceClusterTest, PartitionedSlaveStatusUpdates)
   statusUpdate.mutable_update()->mutable_status()->mutable_task_id()->set_value(
       "task_id");
   statusUpdate.mutable_update()->mutable_status()->set_state(TASK_RUNNING);
-  statusUpdate.mutable_update()->set_timestamp(Clock::now());
+  statusUpdate.mutable_update()->set_timestamp(Clock::now().secs());
   statusUpdate.mutable_update()->set_uuid(stringify(UUID::random()));
   process::post(master.get(), statusUpdate);
 

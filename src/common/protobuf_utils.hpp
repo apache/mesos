@@ -52,7 +52,7 @@ inline StatusUpdate createStatusUpdate(
 {
   StatusUpdate update;
 
-  update.set_timestamp(process::Clock::now());
+  update.set_timestamp(process::Clock::now().secs());
   update.set_uuid(UUID::random().toBytes());
   update.mutable_framework_id()->MergeFrom(frameworkId);
   update.mutable_slave_id()->MergeFrom(slaveId);

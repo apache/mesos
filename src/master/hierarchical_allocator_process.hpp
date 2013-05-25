@@ -489,18 +489,35 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesUnused(
   allocatable[slaveId] += resources;
 
   // Create a refused resources filter.
-  Seconds seconds(filters.isSome()
-                  ? filters.get().refuse_seconds()
-                  : Filters().refuse_seconds());
+  Try<Duration> seconds_ = Duration::create(Filters().refuse_seconds());
+  CHECK_SOME(seconds_);
+  Duration seconds = seconds_.get();
 
-  if (seconds != Seconds(0)) {
+  // Update the value of 'seconds' if the input isSome() and is
+  // valid.
+  if (filters.isSome()) {
+    seconds_ = Duration::create(filters.get().refuse_seconds());
+    if (seconds_.isError()) {
+      LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
+                   << "the refused resources filter because the input value is "
+                   << "invalid: " << seconds_.error();
+    } else if (seconds_.get() < Duration::zero()) {
+      LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
+                   << "the refused resources filter because the input value is "
+                   << "negative";
+    } else {
+      seconds = seconds_.get();
+    }
+  }
+
+  if (seconds != Duration::zero()) {
     LOG(INFO) << "Framework " << frameworkId
               << " filtered slave " << slaveId
               << " for " << seconds;
 
     // Create a new filter and delay it's expiration.
     mesos::internal::master::Filter* filter =
-      new RefusedFilter(slaveId, resources, Timeout(seconds));
+      new RefusedFilter(slaveId, resources, Timeout::in(seconds));
 
     this->filters.put(frameworkId, filter);
 

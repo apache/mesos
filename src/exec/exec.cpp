@@ -398,7 +398,7 @@ protected:
     update->mutable_executor_id()->MergeFrom(executorId);
     update->mutable_slave_id()->MergeFrom(slaveId);
     update->mutable_status()->MergeFrom(status);
-    update->set_timestamp(Clock::now());
+    update->set_timestamp(Clock::now().secs());
     update->set_uuid(UUID::random().toBytes());
 
     VLOG(1) << "Executor sending status update " << *update;

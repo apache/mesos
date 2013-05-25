@@ -113,7 +113,7 @@ public:
                       int32_t status);
   void deactivateSlave(const SlaveID& slaveId);
   void frameworkFailoverTimeout(const FrameworkID& frameworkId,
-                                double reregisteredTime);
+                                const Time& reregisteredTime);
 
   void offer(const FrameworkID& framework,
              const hashmap<SlaveID, Resources>& resources);
@@ -242,7 +242,7 @@ private:
     uint64_t invalidFrameworkMessages;
   } stats;
 
-  double startTime; // Start time used to calculate uptime.
+  Time startTime; // Start time used to calculate uptime.
 };
 
 
@@ -252,7 +252,7 @@ struct Slave
   Slave(const SlaveInfo& _info,
         const SlaveID& _id,
         const UPID& _pid,
-        double time)
+        const Time& time)
     : id(_id),
       info(_info),
       pid(_pid),
@@ -354,8 +354,8 @@ struct Slave
 
   UPID pid;
 
-  double registeredTime;
-  double lastHeartbeat;
+  Time registeredTime;
+  Time lastHeartbeat;
 
   Resources resourcesOffered; // Resources offered.
   Resources resourcesInUse;   // Resources used by tasks and executors.
@@ -386,7 +386,7 @@ struct Framework
   Framework(const FrameworkInfo& _info,
             const FrameworkID& _id,
             const UPID& _pid,
-            double time)
+            const Time& time)
     : id(_id),
       info(_info),
       pid(_pid),
@@ -474,9 +474,9 @@ struct Framework
   UPID pid;
 
   bool active; // Turns false when framework is being removed.
-  double registeredTime;
-  double reregisteredTime;
-  double unregisteredTime;
+  Time registeredTime;
+  Time reregisteredTime;
+  Time unregisteredTime;
 
   hashmap<TaskID, Task*> tasks;
 

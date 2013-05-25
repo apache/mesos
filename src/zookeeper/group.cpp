@@ -39,7 +39,7 @@ using std::vector;
 namespace zookeeper {
 
 // Time to wait after retryable errors.
-const Duration RETRY_INTERVAL = Seconds(2.0);
+const Duration RETRY_INTERVAL = Seconds(2);
 
 
 class GroupProcess : public Process<GroupProcess>
@@ -780,7 +780,8 @@ void GroupProcess::retry(const Duration& duration)
   } else if (error.isNone() && state == CONNECTED) {
     bool synced = sync(); // Might get another retryable error.
     if (!synced && error.isNone()) {
-      Seconds seconds(std::min(duration.secs() * 2.0, 60.0)); // Backoff.
+      // Backoff.
+      Seconds seconds = std::min(duration * 2, Duration(Seconds(60)));
       delay(seconds, self(), &GroupProcess::retry, seconds);
     } else {
       retrying = false;

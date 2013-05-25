@@ -309,7 +309,7 @@ process::Future<uint64_t> listen(
 process::Future<bool> freeze(
     const std::string& hierarchy,
     const std::string& cgroup,
-    const Duration& interval = Seconds(0.1),
+    const Duration& interval = Milliseconds(100),
     const unsigned int retries = FREEZE_RETRIES);
 
 
@@ -326,7 +326,7 @@ process::Future<bool> freeze(
 process::Future<bool> thaw(
     const std::string& hierarchy,
     const std::string& cgroup,
-    const Duration& interval = Seconds(0.1));
+    const Duration& interval = Milliseconds(100));
 
 
 // Destroy a cgroup under a given hierarchy. It will also recursively
@@ -349,7 +349,7 @@ process::Future<bool> thaw(
 process::Future<bool> destroy(
     const std::string& hierarchy,
     const std::string& cgroup = "/",
-    const Duration& interval = Seconds(0.1));
+    const Duration& interval = Milliseconds(100));
 
 
 // Cleanup the hierarchy, by first destroying all the underlying

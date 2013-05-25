@@ -76,7 +76,7 @@ TEST(MonitorTest, WatchUnwatch)
   statistics.set_cpu_user_time(5);
   statistics.set_cpu_system_time(1);
   statistics.set_memory_rss(1024);
-  statistics.set_timestamp(Clock::now());
+  statistics.set_timestamp(Clock::now().secs());
 
   TestingIsolator isolator;
 

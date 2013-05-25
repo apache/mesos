@@ -701,7 +701,7 @@ void Slave::doReliableRegistration()
   }
 
   // Retry registration if necessary.
-  delay(Seconds(1.0), self(), &Slave::doReliableRegistration);
+  delay(Seconds(1), self(), &Slave::doReliableRegistration);
 }
 
 
@@ -2456,8 +2456,7 @@ void Slave::registerExecutorTimeout(
 // TODO(vinod): Figure out a way to express this function via cmd line.
 Duration Slave::age(double usage)
 {
- return Weeks(
-     flags.gc_delay.weeks() * std::max(0.0, (1.0 - GC_DISK_HEADROOM - usage)));
+  return flags.gc_delay * std::max(0.0, (1.0 - GC_DISK_HEADROOM - usage));
 }
 
 
@@ -2491,7 +2490,7 @@ void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
       // the next 'gc_delay - age'. Since a directory is always
       // scheduled for deletion 'gc_delay' into the future, only directories
       // that are at least 'age' old are deleted.
-      gc.prune(Weeks(flags.gc_delay.weeks() - age(use).weeks()));
+      gc.prune(flags.gc_delay - age(use));
     } else {
       LOG(WARNING) << "Unable to get disk usage: " << result.error();
     }

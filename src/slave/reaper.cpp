@@ -118,7 +118,7 @@ void Reaper::reap()
       pids.erase(pid);
     }
   }
-  delay(Seconds(1.0), self(), &Reaper::reap); // Reap forever!
+  delay(Seconds(1), self(), &Reaper::reap); // Reap forever!
 }
 
 } // namespace slave {

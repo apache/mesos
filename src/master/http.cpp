@@ -151,14 +151,14 @@ JSON::Object model(const Framework& framework)
   object.values["id"] = framework.id.value();
   object.values["name"] = framework.info.name();
   object.values["user"] = framework.info.user();
-  object.values["registered_time"] = framework.registeredTime;
-  object.values["unregistered_time"] = framework.unregisteredTime;
+  object.values["registered_time"] = framework.registeredTime.secs();
+  object.values["unregistered_time"] = framework.unregisteredTime.secs();
   object.values["active"] = framework.active;
   object.values["resources"] = model(framework.resources);
 
   // TODO(benh): Consider making reregisteredTime an Option.
   if (framework.registeredTime != framework.reregisteredTime) {
-    object.values["reregistered_time"] = framework.reregisteredTime;
+    object.values["reregistered_time"] = framework.reregisteredTime.secs();
   }
 
   // Model all of the tasks associated with a framework.
@@ -202,7 +202,7 @@ JSON::Object model(const Slave& slave)
   object.values["id"] = slave.id.value();
   object.values["pid"] = string(slave.pid);
   object.values["hostname"] = slave.info.hostname();
-  object.values["registered_time"] = slave.registeredTime;
+  object.values["registered_time"] = slave.registeredTime.secs();
   object.values["resources"] = model(slave.info.resources());
   object.values["attributes"] = model(slave.info.attributes());
   return object;
@@ -261,7 +261,7 @@ Future<Response> stats(
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
   JSON::Object object;
-  object.values["uptime"] = Clock::now() - master.startTime;
+  object.values["uptime"] = (Clock::now() - master.startTime).secs();
   object.values["elected"] = master.elected; // Note: using int not bool.
   object.values["total_schedulers"] = master.frameworks.size();
   object.values["active_schedulers"] = master.getActiveFrameworks().size();
@@ -314,7 +314,7 @@ Future<Response> state(
   object.values["build_date"] = build::DATE;
   object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
-  object.values["start_time"] = master.startTime;
+  object.values["start_time"] = master.startTime.secs();
   object.values["id"] = master.info.id();
   object.values["pid"] = string(master.self());
   object.values["activated_slaves"] = master.slaves.size();

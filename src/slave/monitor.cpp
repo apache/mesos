@@ -183,7 +183,14 @@ void publish(
     const ExecutorID& executorId,
     const ResourceStatistics& statistics)
 {
-  Seconds time(statistics.timestamp());
+  Try<Time> time_ = Time::create(statistics.timestamp());
+  if (time_.isError()) {
+    LOG(ERROR) << "Not publishing the statistics because we cannot create a "
+               << "Duration from its timestamp: " << time_.error();
+    return;
+  }
+
+  Time time = time_.get();
 
   const string& prefix =
     strings::join("/", frameworkId.value(), executorId.value(), "");

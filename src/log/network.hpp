@@ -281,7 +281,7 @@ inline void ZooKeeperNetwork::watched(
     futures.push_back(group->data(membership));
   }
 
-  process::collect(futures, process::Timeout(Seconds(5.0)))
+  process::collect(futures, process::Timeout::in(Seconds(5)))
     .onAny(executor.defer(lambda::bind(&This::collected, this, lambda::_1)));
 }
 

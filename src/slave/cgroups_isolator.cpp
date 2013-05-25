@@ -83,8 +83,8 @@ using state::RunState;
 // CPU subsystem constants.
 const size_t CPU_SHARES_PER_CPU = 1024;
 const size_t MIN_CPU_SHARES = 10;
-const Duration CPU_CFS_PERIOD = Milliseconds(100.0); // Linux default.
-const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1.0);
+const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
+const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
 
 // Memory subsystem constants.
 const size_t MIN_MEMORY_MB = 32 * Megabyte;
@@ -688,7 +688,7 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
   CHECK_NOTNULL(info);
 
   ResourceStatistics result;
-  result.set_timestamp(Clock::now());
+  result.set_timestamp(Clock::now().secs());
 
   Try<hashmap<string, uint64_t> > stat =
     cgroups::stat(hierarchy, info->name(), "cpuacct.stat");
