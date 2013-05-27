@@ -35,18 +35,18 @@ LT_OUTPUT
 AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"], [CFLAGS="-g"])
 AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS="-g"])
 
-# Save the configure arguments so we can pass them to any third_party
+# Save the configure arguments so we can pass them to any third-party
 # libraries that we might run configure on (see
-# third_party/Makefile.am). One downside of our strategy for shipping
-# and building third_party libraries is that we can't expose options
-# from nested third_party configure scripts.
+# 3rdparty/Makefile.am). One downside of our strategy for shipping
+# and building third-party libraries is that we can't expose options
+# from nested third-party configure scripts.
 CONFIGURE_ARGS="$ac_configure_args"
 AC_SUBST(CONFIGURE_ARGS)
 
-AC_CONFIG_SUBDIRS([third_party/stout])
+AC_CONFIG_SUBDIRS([3rdparty/stout])
 
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_FILES([third_party/Makefile])
+AC_CONFIG_FILES([3rdparty/Makefile])
 
 AC_ARG_ENABLE([install],
               AS_HELP_STRING([--enable-install],

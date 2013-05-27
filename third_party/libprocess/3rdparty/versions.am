@@ -1,4 +1,4 @@
-# This automake utility file is included from third_party/Makefile.am
+# This automake utility file is included from 3rdparty/Makefile.am
 # and src/Makefile.am, so we can update the version numbers of
 # third_party packages in exactly one place.
 

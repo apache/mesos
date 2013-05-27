@@ -1,4 +1,4 @@
-# This Makefile is for building third_party packages from
+# This Makefile is for building third-party packages from
 # tarballs. For autotools-based packages, we configure each of the
 # packages to build static PIC binaries which we can safely link into
 # a shared libmesos, and build it in-place without installing it (even
