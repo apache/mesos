@@ -802,7 +802,6 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/slave_recovery_tests.cpp			\
 	              tests/status_update_manager_tests.cpp		\
 	              tests/gc_tests.cpp				\
-	              tests/group_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
 	              tests/files_tests.cpp tests/flags_tests.cpp	\
@@ -842,6 +841,7 @@ if HAS_JAVA
   mesos_tests_SOURCES += tests/zookeeper.cpp			\
                          tests/zookeeper_test_server.cpp	\
                          tests/zookeeper_tests.cpp		\
+                         tests/group_tests.cpp			\
                          tests/allocator_zookeeper_tests.cpp
   mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)
   mesos_tests_CPPFLAGS += -DZOOKEEPER_VERSION=\"$(ZOOKEEPER_VERSION)\"
