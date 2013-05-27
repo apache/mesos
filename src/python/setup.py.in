@@ -19,9 +19,9 @@ abs_top_builddir = '@abs_top_builddir@'
 src_python_dist = os.path.join('src', 'python', 'dist')
 src_python_native = os.path.join('src', 'python', 'native')
 
-leveldb = os.path.join('third_party', 'leveldb')
-zookeeper = os.path.join('third_party', 'zookeeper-3.3.4', 'src', 'c')
-libprocess = os.path.join('third_party', 'libprocess')
+leveldb = os.path.join('3rdparty', 'leveldb')
+zookeeper = os.path.join('3rdparty', 'zookeeper-3.3.4', 'src', 'c')
+libprocess = os.path.join('3rdparty', 'libprocess')
 
 # Even though a statically compiled libprocess should include glog,
 # libev, gperftools, and protobuf before installation this isn't the
@@ -29,10 +29,10 @@ libprocess = os.path.join('third_party', 'libprocess')
 # libraries when building the final result, we need to explicitly
 # include them here (or more precisely, down where we actually include
 # libev.a and libprofiler.a).
-glog = os.path.join(libprocess, 'third_party', 'glog-0.3.1')
-libev = os.path.join(libprocess, 'third_party', 'libev-4.15')
-gperftools = os.path.join(libprocess, 'third_party', 'gperftools-2.0')
-protobuf = os.path.join(libprocess, 'third_party', 'protobuf-2.4.1')
+glog = os.path.join(libprocess, '3rdparty', 'glog-0.3.1')
+libev = os.path.join(libprocess, '3rdparty', 'libev-4.15')
+gperftools = os.path.join(libprocess, '3rdparty', 'gperftools-2.0')
+protobuf = os.path.join(libprocess, '3rdparty', 'protobuf-2.4.1')
 
 # We need to execute from the same directory as this script.
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
@@ -70,7 +70,7 @@ INCLUDE_DIRS = [
 LIBRARY_DIRS = []
 
 EXTRA_OBJECTS = [
-  os.path.join(abs_top_builddir, 'src', '.libs', 'libmesos_no_third_party.a'),
+  os.path.join(abs_top_builddir, 'src', '.libs', 'libmesos_no_3rdparty.a'),
   os.path.join(abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a'),
   os.path.join(abs_top_builddir, leveldb, 'libleveldb.a'),
   os.path.join(abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a'),

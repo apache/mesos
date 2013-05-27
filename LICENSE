@@ -211,8 +211,8 @@ subcomponents is subject to the terms and conditions of the following
 licenses.
 
 ======================================================================
-For the Boost header files (third_party/boost-1.37.0.tar.gz and
-third_party/libprocess/third_party/boost-1.37.0.tar.gz):
+For the Boost header files
+(3rdparty/libprocess/3rdparty/boost-1.37.0.tar.gz):
 ======================================================================
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -241,7 +241,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ======================================================================
-For boto (third_party/boto-2.0b2.zip):
+For boto (3rdparty/boto-2.0b2.zip):
 ======================================================================
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -265,7 +265,7 @@ IN THE SOFTWARE.
 
 
 ======================================================================
-For distribute-0.6.26 (third_party/distribute-0.6.26.tar.gz):
+For distribute-0.6.26 (3rdparty/distribute-0.6.26.tar.gz):
 ======================================================================
 
 PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
@@ -319,8 +319,7 @@ Agreement.
 
 
 ======================================================================
-For glog-0.3.1 (third_party/glog-0.3.1.tar.gz and
-third_party/libprocess/third_party/glog-0.3.1.tar.gz):
+For glog-0.3.1 (3rdparty/libprocess/3rdparty/glog-0.3.1.tar.gz):
 ======================================================================
 
 Copyright (c) 2008, Google Inc.
@@ -391,8 +390,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ======================================================================
-For gmock-1.6.0 (third_party/gmock-1.6.0.tar.gz and
-third_party/libprocess/third_party/gmock-1.6.0.tar.gz):
+For gmock-1.6.0 (3rdparty/libprocess/3rdparty/gmock-1.6.0.tar.gz):
 ======================================================================
 
 Copyright 2008, Google Inc.
@@ -426,7 +424,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ======================================================================
-For leveldb (third_party/leveldb.tar.gz):
+For leveldb (3rdparty/leveldb.tar.gz):
 ======================================================================
 
 Copyright (c) 2011 The LevelDB Authors. All rights reserved.
@@ -459,7 +457,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ======================================================================
-For protobuf-2.3.0 (third_party/protobuf-2.3.0.tar.gz):
+For protobuf-2.3.0
+(3rdparty/libprocess/3rdparty/protobuf-2.3.0.tar.gz):
 ======================================================================
 
 Copyright 2008, Google Inc.
@@ -498,7 +497,7 @@ support library is itself covered by the above license.
 
 
 ======================================================================
-For libev-3.8 (third_party/libprocess/third_party/libev.tar.gz):
+For libev-3.8 (3rdparty/libprocess/3rdparty/libev.tar.gz):
 ======================================================================
 
 All files in libev are Copyright (C)2007,2008,2009 Marc Alexander Lehmann.
@@ -541,7 +540,7 @@ file under either the BSD or the GPL.
 
 ======================================================================
 For http-parser
-(third_party/libprocess/third_party/ry-http-parser-1c3624a.tar.gz):
+(3rdparty/libprocess/3rdparty/ry-http-parser-1c3624a.tar.gz):
 ======================================================================
 
 Copyright 2009,2010 Ryan Dahl <ry@tinyclouds.org>

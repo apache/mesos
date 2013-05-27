@@ -14,9 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-# This automake utility file is included from third_party/Makefile.am
+# This automake utility file is included from 3rdparty/Makefile.am
 # and src/Makefile.am, so we can update the version numbers of
-# third_party packages in exactly one place. For now, however, we
+# third-party packages in exactly one place. For now, however, we
 # still need to update version numbers in src/python/setup.py.in too!
 
 BOTO_VERSION = 2.0b2

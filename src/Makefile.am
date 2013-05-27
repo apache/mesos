@@ -19,21 +19,21 @@
 # master/http.cpp and slave/http.cpp.
 AUTOMAKE_OPTIONS = subdir-objects
 
-include ../third_party/versions.am
-include ../third_party/libprocess/third_party/versions.am
+include ../3rdparty/versions.am
+include ../3rdparty/libprocess/3rdparty/versions.am
 
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
-DISTRIBUTE = third_party/distribute-$(DISTRIBUTE_VERSION)
-LEVELDB = third_party/leveldb
-ZOOKEEPER = third_party/zookeeper-$(ZOOKEEPER_VERSION)/src/c
-LIBPROCESS = third_party/libprocess
-STOUT = $(LIBPROCESS)/third_party/stout
-BOOST = $(LIBPROCESS)/third_party/boost-$(BOOST_VERSION)
-GLOG = $(LIBPROCESS)/third_party/glog-$(GLOG_VERSION)
-GMOCK = $(LIBPROCESS)/third_party/gmock-$(GMOCK_VERSION)
+DISTRIBUTE = 3rdparty/distribute-$(DISTRIBUTE_VERSION)
+LEVELDB = 3rdparty/leveldb
+ZOOKEEPER = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/src/c
+LIBPROCESS = 3rdparty/libprocess
+STOUT = $(LIBPROCESS)/3rdparty/stout
+BOOST = $(LIBPROCESS)/3rdparty/boost-$(BOOST_VERSION)
+GLOG = $(LIBPROCESS)/3rdparty/glog-$(GLOG_VERSION)
+GMOCK = $(LIBPROCESS)/3rdparty/gmock-$(GMOCK_VERSION)
 GTEST = $(GMOCK)/gtest
-PROTOBUF = $(LIBPROCESS)/third_party/protobuf-$(PROTOBUF_VERSION)
+PROTOBUF = $(LIBPROCESS)/3rdparty/protobuf-$(PROTOBUF_VERSION)
 
 
 # Unfortunatley, 'pkglibexecdir' and 'pkglocalstatedir' are not set
@@ -100,7 +100,7 @@ endif
 # README: we build the Mesos library out of a collection of
 # convenience libraries (that is, libraries that do not get installed
 # but we can use as building blocks to vary compile flags as necessary
-# and then aggregate into final archives): libmesos_no_third_party.la
+# and then aggregate into final archives): libmesos_no_3rdparty.la
 # libbuild.la, liblog.la, libjava.la.
 
 # First, let's define necessary protocol buffer files.
@@ -155,14 +155,14 @@ $(PYTHON_PROTOS): $(MESOS_PROTO)
 # exclude third party libraries so setuptools/distribute can build a
 # self-contained Python library and statically link in the third party
 # libraries themselves.
-noinst_LTLIBRARIES += libmesos_no_third_party.la
+noinst_LTLIBRARIES += libmesos_no_3rdparty.la
 
-nodist_libmesos_no_third_party_la_SOURCES = 	\
+nodist_libmesos_no_3rdparty_la_SOURCES = 	\
   $(CXX_PROTOS) 				\
   $(MESSAGES_PROTOS) 				\
   $(REGISTRY_PROTOS)
 
-libmesos_no_third_party_la_SOURCES =					\
+libmesos_no_3rdparty_la_SOURCES =					\
 	sched/sched.cpp							\
 	local/local.cpp							\
 	master/constants.cpp						\
@@ -203,16 +203,16 @@ pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\
 nodist_pkginclude_HEADERS = ../include/mesos/mesos.hpp mesos.pb.h
 
 if OS_LINUX
-  libmesos_no_third_party_la_SOURCES += slave/cgroups_isolator.cpp
-  libmesos_no_third_party_la_SOURCES += linux/cgroups.cpp
-  libmesos_no_third_party_la_SOURCES += linux/fs.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/cgroups_isolator.cpp
+  libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
+  libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
 else
   EXTRA_DIST += slave/cgroups_isolator.cpp
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
 endif
 
-libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
+libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
 	common/protobuf_utils.hpp					\
 	common/lock.hpp common/resources.hpp common/process_utils.hpp	\
@@ -244,9 +244,9 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
 	zookeeper/zookeeper.hpp zookeeper/url.hpp
 
-libmesos_no_third_party_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libmesos_no_3rdparty_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
-libmesos_no_third_party_la_LIBADD = # Initialized to enable using +=.
+libmesos_no_3rdparty_la_LIBADD = # Initialized to enable using +=.
 
 # Convenience library that *always* gets rebuilt to ensure accurate info.
 noinst_LTLIBRARIES += libbuild.la
@@ -265,7 +265,7 @@ BUILD_FLAGS = $(echo $(MESOS_CPPFLAGS) $(CPPFLAGS) | sed 's/\"/\\\"/g') \
 
 libbuild_la_CPPFLAGS += -DBUILD_FLAGS="\"$$BUILD_FLAGS\""
 
-libmesos_no_third_party_la_LIBADD += libbuild.la
+libmesos_no_3rdparty_la_LIBADD += libbuild.la
 
 
 # Convenience library for building the replicated log in order to
@@ -277,7 +277,7 @@ liblog_la_SOURCES += log/coordinator.hpp log/replica.hpp log/log.hpp	\
 nodist_liblog_la_SOURCES = $(LOG_PROTOS)
 liblog_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
 
-libmesos_no_third_party_la_LIBADD += liblog.la
+libmesos_no_3rdparty_la_LIBADD += liblog.la
 
 
 # Convenience library for building "state" abstraction in order to
@@ -295,7 +295,7 @@ libstate_la_SOURCES += 			\
 nodist_libstate_la_SOURCES = $(STATE_PROTOS)
 libstate_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
 
-libmesos_no_third_party_la_LIBADD += libstate.la
+libmesos_no_3rdparty_la_LIBADD += libstate.la
 
 # The final result!
 lib_LTLIBRARIES += libmesos.la
@@ -309,7 +309,7 @@ libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 libmesos_la_LIBTOOLFLAGS = --tag=CXX
 
 # Add the convenience library.
-libmesos_la_LIBADD = libmesos_no_third_party.la
+libmesos_la_LIBADD = libmesos_no_3rdparty.la
 
 # For non-convenience libraries we need to link them in to make the shared
 # library each time. (Currently, we don't support platforms where this is not
@@ -319,7 +319,7 @@ libmesos_la_LIBADD += ../$(GLOG)/libglog.la
 
 # We need to directly include the leveldb library in order to avoid
 # the installed libmesos.la file to include leveldb in
-# 'dependency_libs' (via '-L../third_party/leveldb -lleveldb').
+# 'dependency_libs' (via '-L../3rdparty/leveldb -lleveldb').
 libmesos_la_LIBADD += ../$(LEVELDB)/libleveldb.a
 
 if WITH_INCLUDED_ZOOKEEPER
@@ -395,7 +395,7 @@ nobase_dist_webui_DATA +=						\
 # Need to distribute/install webui images.
 nobase_dist_webui_DATA += webui/master/static/loading.gif
 
-# Need to distribute/install third_party javascript.
+# Need to distribute/install third-party javascript.
 nobase_dist_webui_DATA +=						\
   webui/master/static/angular-1.0.0rc8.js				\
   webui/master/static/angular-1.0.0rc8.min.js				\
@@ -520,7 +520,7 @@ if HAS_JAVA
 # Protocol buffers JAR.
 PROTOBUF_JAR = ../protobuf-$(PROTOBUF_VERSION).jar
 
-# TODO(charles): Move into third_party/Makefile.am.
+# TODO(charles): Move into 3rdparty/Makefile.am.
 $(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
 	@echo "Building protobuf-$(PROTOBUF_VERSION).jar ..."
 	$(MKDIR_P) ../$(PROTOBUF)/java/src/main/java
@@ -591,7 +591,7 @@ libjava_la_DEPENDENCIES = $(MESOS_PROTO)
 
 libjava_la_LIBADD = $(JAVA_LDFLAGS)
 
-# We don't add libjava.la to libmesos_no_third_party.la so we don't
+# We don't add libjava.la to libmesos_no_3rdparty.la so we don't
 # include the JNI bindings in the Python egg (but we might want to
 # reconsider this in the future). We also need to add the JAVA_LDFLAGS
 # to libmesos.la so on Linux we set the rpath for libmesos.so.
@@ -700,8 +700,8 @@ $(PROTOBUF_EGG):
 
 CLEANFILES += $(PROTOBUF_EGG)
 
-# This builds a Python egg against libmesos_no_third_party.a that is
-# self-contained. It currently depends on the libraries in third_party
+# This builds a Python egg against libmesos_no_3rdparty.a that is
+# self-contained. It currently depends on the libraries in 3rdparty
 # being built as .a's. (If this is changed, the setup.py will need to
 # be edited).
 
@@ -718,7 +718,7 @@ CLEANFILES += $(PROTOBUF_EGG)
 MESOS_EGG = python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
 $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
-              $(PYTHON_PROTOS) libmesos_no_third_party.la	\
+              $(PYTHON_PROTOS) libmesos_no_3rdparty.la	\
               $(PROTOBUF_EGG)
 	@echo "Building Mesos Python egg ..."
 	@if test "$(top_srcdir)" != "$(top_builddir)"; then \
@@ -823,7 +823,7 @@ mesos_tests_CPPFLAGS += -DBUILD_DIR=\"$(abs_top_builddir)\"
 mesos_tests_CPPFLAGS += -I../$(GTEST)/include
 mesos_tests_CPPFLAGS += -I../$(GMOCK)/include
 
-mesos_tests_LDADD = ../$(LIBPROCESS)/third_party/libgmock.la libmesos.la
+mesos_tests_LDADD = ../$(LIBPROCESS)/3rdparty/libgmock.la libmesos.la
 
 mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 

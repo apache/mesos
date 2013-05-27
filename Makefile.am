@@ -18,7 +18,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = . third_party src ec2 hadoop
+SUBDIRS = . 3rdparty src ec2 hadoop
 
 EXTRA_DIST =
 

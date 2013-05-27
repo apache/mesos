@@ -50,7 +50,7 @@ void ZooKeeperTest::SetUpTestCase()
 {
   if (!Jvm::created()) {
     std::string zkHome = flags.build_dir +
-      "/third_party/zookeeper-" ZOOKEEPER_VERSION;
+      "/3rdparty/zookeeper-" ZOOKEEPER_VERSION;
 
     std::string classpath = "-Djava.class.path=" +
       zkHome + "/zookeeper-" ZOOKEEPER_VERSION ".jar:" +
