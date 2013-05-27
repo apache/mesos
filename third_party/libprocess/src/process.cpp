@@ -55,6 +55,7 @@
 #include <process/gc.hpp>
 #include <process/id.hpp>
 #include <process/io.hpp>
+#include <process/logging.hpp>
 #include <process/mime.hpp>
 #include <process/process.hpp>
 #include <process/profiler.hpp>
@@ -1392,10 +1393,17 @@ void initialize(const string& delegate)
   // 'spawn' below for the garbage collector.
   initializing = false;
 
-  // Create global garbage collector.
+  // TODO(benh): Make sure creating the garbage collector, logging
+  // process, and profiler always succeeds and use supervisors to make
+  // sure that none terminate.
+
+  // Create global garbage collector process.
   gc = spawn(new GarbageCollector());
 
-  // Create the global profiler.
+  // Create the global logging process.
+  spawn(new Logging(), true);
+
+  // Create the global profiler process.
   spawn(new Profiler(), true);
 
   // Create the global statistics.
