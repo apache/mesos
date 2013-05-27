@@ -21,9 +21,8 @@
 
 #include <string>
 
+#include <stout/flags.hpp>
 #include <stout/option.hpp>
-
-#include "flags/flags.hpp"
 
 namespace mesos {
 namespace internal {

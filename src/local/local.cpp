@@ -25,9 +25,6 @@
 
 #include "local.hpp"
 
-#include "configurator/configuration.hpp"
-#include "configurator/configurator.hpp"
-
 #include "detector/detector.hpp"
 
 #include "logging/flags.hpp"
@@ -74,10 +71,8 @@ static MasterDetector* detector = NULL;
 static Files* files = NULL;
 
 
-PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
+PID<Master> launch(const Flags& flags, Allocator* _allocator)
 {
-  int numSlaves = configuration.get<int>("num_slaves", 1);
-
   if (master != NULL) {
     LOG(FATAL) << "Can only launch one local cluster at a time (for now)";
   }
@@ -97,7 +92,11 @@ PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
 
   {
     master::Flags flags;
-    flags.load(configuration.getMap());
+    Try<Nothing> load = flags.load("MESOS_", true); // Allow unknown flags.
+    if (load.isError()) {
+      EXIT(1) << "Failed to start a local cluster while loading "
+              << "master flags from the environment: " << load.error();
+    }
     master = new Master(_allocator, files, flags);
   }
 
@@ -105,12 +104,16 @@ PID<Master> launch(const Configuration& configuration, Allocator* _allocator)
 
   vector<UPID> pids;
 
-  slave::Flags flags;
-  flags.load(configuration.getMap());
-
-  for (int i = 0; i < numSlaves; i++) {
+  for (int i = 0; i < flags.num_slaves; i++) {
     // TODO(benh): Create a local isolator?
     ProcessIsolator* isolator = new ProcessIsolator();
+
+    slave::Flags flags;
+    Try<Nothing> load = flags.load("MESOS_", true); // Allow unknown flags.
+    if (load.isError()) {
+      EXIT(1) << "Failed to start a local cluster while loading "
+              << "slave flags from the environment: " << load.error();
+    }
 
     // Use a different work directory for each slave.
     flags.work_dir = path::join(flags.work_dir, stringify(i));

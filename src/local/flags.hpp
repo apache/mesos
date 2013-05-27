@@ -19,13 +19,15 @@
 #ifndef __LOCAL_FLAGS_HPP__
 #define __LOCAL_FLAGS_HPP__
 
-#include "flags/flags.hpp"
+#include <stout/flags.hpp>
+
+#include "logging/flags.hpp"
 
 namespace mesos {
 namespace internal {
 namespace local {
 
-class Flags : public virtual flags::FlagsBase
+class Flags : public logging::Flags
 {
 public:
   Flags()

@@ -26,8 +26,6 @@
 #include <process/gmock.hpp>
 #include <process/pid.hpp>
 
-#include "configurator/configuration.hpp"
-
 #include "detector/detector.hpp"
 
 #include "master/allocator.hpp"

@@ -40,20 +40,15 @@
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
-#include <stout/fatal.hpp>
+#include <stout/flags.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/uuid.hpp>
-
-#include "configurator/configuration.hpp"
-#include "configurator/configurator.hpp"
 
 #include "common/lock.hpp"
 #include "common/type_utils.hpp"
 
 #include "detector/detector.hpp"
-
-#include "flags/flags.hpp"
 
 #include "local/local.hpp"
 
@@ -676,34 +671,25 @@ MesosSchedulerDriver::MesosSchedulerDriver(
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  // Load the configuration. For now, we just load all key/value pairs
-  // from the environment (and possibly a file if specified) but don't
-  // actually do any validation on them (since we don't register any
-  // options). Any "validation" necessary will be done when we load
-  // the configuration into flags (i.e., below when we initialize
-  // logging or inside of local::launch).
-  Configurator configurator;
-  Configuration configuration;
-  try {
-    configuration = configurator.load();
-  } catch (ConfigurationException& e) {
+  // Load any flags from the environment (we use local::Flags in the
+  // event we run in 'local' mode, since it inherits
+  // logging::Flags). In the future, just as the TODO in
+  // local/main.cpp discusses, we'll probably want a way to load
+  // master::Flags and slave::Flags as well. For now, we need to allow
+  // unknown flags in the event there are flags for the master/slave
+  // in the environment.
+  local::Flags flags;
+
+  Try<Nothing> load = flags.load("MESOS_", true); // Allow unknown flags.
+
+  if (load.isError()) {
     status = DRIVER_ABORTED;
-    string message = string("Configuration error: ") + e.what();
-    scheduler->error(this, message);
+    scheduler->error(this, load.error());
     return;
   }
 
-  flags::Flags<logging::Flags> flags;
-
-  flags.load(configuration.getMap());
-
   // Initialize libprocess.
   process::initialize();
-
-  // TODO(benh): Consider eliminating 'localquiet' so that we don't
-  // have to have weird semantics when the 'quiet' option is set to
-  // false but 'localquiet' is being used.
-  configuration.set("quiet", master == "localquiet");
 
   // TODO(benh): Replace whitespace in framework.name() with '_'?
   logging::initialize(framework.name(), flags);
@@ -729,8 +715,8 @@ MesosSchedulerDriver::MesosSchedulerDriver(
 
   // Launch a local cluster if necessary.
   Option<UPID> pid;
-  if (master == "local" || master == "localquiet") {
-    pid = local::launch(configuration);
+  if (master == "local") {
+    pid = local::launch(flags);
   }
 
   CHECK(process == NULL);

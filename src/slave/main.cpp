@@ -18,20 +18,16 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/flags.hpp>
+#include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include "common/build.hpp"
 
-#include "configurator/configuration.hpp"
-#include "configurator/configurator.hpp"
-
 #include "detector/detector.hpp"
 
-#include "flags/flags.hpp"
-
-#include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 #include "slave/slave.hpp"
@@ -46,12 +42,12 @@ using std::endl;
 using std::string;
 
 
-void usage(const char* argv0, const Configurator& configurator)
+void usage(const char* argv0, const flags::FlagsBase& flags)
 {
   cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
        << endl
        << "Supported options:" << endl
-       << configurator.getUsage();
+       << flags.usage();
 }
 
 
@@ -90,20 +86,16 @@ int main(int argc, char** argv)
             "Prints this help message",
             false);
 
-  Configurator configurator(flags);
-  Configuration configuration;
-  try {
-    configuration = configurator.load(argc, argv);
-  } catch (ConfigurationException& e) {
-    cerr << "Configuration error: " << e.what() << endl;
-    usage(argv[0], configurator);
+  Try<Nothing> load = flags.load("MESOS_", argc, argv);
+
+  if (load.isError()) {
+    cerr << load.error() << endl;
+    usage(argv[0], flags);
     exit(1);
   }
 
-  flags.load(configuration.getMap());
-
   if (help) {
-    usage(argv[0], configurator);
+    usage(argv[0], flags);
     exit(1);
   }
 

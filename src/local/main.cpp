@@ -22,8 +22,6 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
-#include "configurator/configurator.hpp"
-
 #include "detector/detector.hpp"
 
 #include "local/flags.hpp"
@@ -45,14 +43,14 @@ using std::endl;
 using std::string;
 
 
-void usage(const char* argv0, const Configurator& configurator)
+void usage(const char* argv0, const flags::FlagsBase& flags)
 {
   cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
        << endl
-       << "Launches a cluster within a single OS process."
+       << "Launches an in-memory cluster within a single process."
        << endl
        << "Supported options:" << endl
-       << configurator.getUsage();
+       << flags.usage();
 }
 
 
@@ -60,7 +58,11 @@ int main(int argc, char **argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  flags::Flags<logging::Flags, local::Flags> flags;
+  // TODO(benh): Inherit from both slave::Flags and master::Flags in
+  // order to pass those flags on to the master. Alternatively, add a
+  // way to load flags and ignore unknowns in order to load
+  // master::flags, then slave::Flags, then local::Flags.
+  local::Flags flags;
 
   // The following flags are executable specific (e.g., since we only
   // have one instance of libprocess per execution, we only want to
@@ -77,20 +79,18 @@ int main(int argc, char **argv)
             "Prints this help message",
             false);
 
-  Configurator configurator(flags);
-  Configuration configuration;
-  try {
-    configuration = configurator.load(argc, argv);
-  } catch (ConfigurationException& e) {
-    cerr << "Configuration error: " << e.what() << endl;
-    usage(argv[0], configurator);
+  // Load flags from environment and command line but allow unknown
+  // flags since we might have some master/slave flags as well.
+  Try<Nothing> load = flags.load("MESOS_", argc, argv, true);
+
+  if (load.isError()) {
+    cerr << load.error() << endl;
+    usage(argv[0], flags);
     exit(1);
   }
 
-  flags.load(configuration.getMap());
-
   if (help) {
-    usage(argv[0], configurator);
+    usage(argv[0], flags);
     exit(1);
   }
 
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 
   logging::initialize(argv[0], flags);
 
-  process::wait(local::launch(configuration));
+  process::wait(local::launch(flags));
 
   return 0;
 }

@@ -185,7 +185,6 @@ libmesos_no_third_party_la_SOURCES =					\
 	exec/exec.cpp							\
 	common/lock.cpp							\
 	detector/detector.cpp						\
-	configurator/configurator.cpp					\
 	common/date_utils.cpp						\
 	common/resources.cpp						\
 	common/attributes.cpp						\
@@ -218,11 +217,9 @@ libmesos_no_third_party_la_SOURCES += common/attributes.hpp		\
 	common/protobuf_utils.hpp					\
 	common/lock.hpp common/resources.hpp common/process_utils.hpp	\
 	common/type_utils.hpp common/thread.hpp common/units.hpp	\
-	common/values.hpp configurator/configuration.hpp		\
-	configurator/configurator.hpp configurator/option.hpp		\
+	common/values.hpp						\
 	detector/detector.hpp examples/utils.hpp files/files.hpp	\
-	flags/flag.hpp flags/flags.hpp flags/loader.hpp			\
-	flags/parse.hpp launcher/launcher.hpp linux/cgroups.hpp		\
+	launcher/launcher.hpp linux/cgroups.hpp				\
 	linux/fs.hpp local/flags.hpp local/local.hpp			\
 	logging/check_some.hpp logging/flags.hpp logging/logging.hpp	\
 	master/allocator.hpp						\
@@ -804,14 +801,13 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/gc_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\
-	              tests/files_tests.cpp tests/flags_tests.cpp	\
+	              tests/files_tests.cpp				\
 	              tests/isolator_tests.cpp				\
 	              tests/log_tests.cpp				\
 	              tests/monitor_tests.cpp				\
 	              tests/resources_tests.cpp				\
 	              tests/script.cpp					\
 	              tests/examples_tests.cpp				\
-	              tests/configurator_tests.cpp			\
 	              tests/protobuf_io_tests.cpp			\
 	              tests/zookeeper_url_tests.cpp			\
 	              tests/killtree_tests.cpp				\

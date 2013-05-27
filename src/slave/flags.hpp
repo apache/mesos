@@ -22,9 +22,8 @@
 #include <string>
 
 #include <stout/duration.hpp>
+#include <stout/flags.hpp>
 #include <stout/option.hpp>
-
-#include "flags/flags.hpp"
 
 #include "logging/flags.hpp"
 

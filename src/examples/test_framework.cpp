@@ -154,7 +154,10 @@ public:
                             const SlaveID& slaveID,
                             int status) {}
 
-  virtual void error(SchedulerDriver* driver, const string& message) {}
+  virtual void error(SchedulerDriver* driver, const string& message)
+  {
+    cout << message << endl;
+  }
 
 private:
   const ExecutorInfo executor;

@@ -21,9 +21,8 @@
 
 #include <string>
 
+#include <stout/flags.hpp>
 #include <stout/os.hpp>
-
-#include "flags/flags.hpp"
 
 #include "logging/logging.hpp"
 

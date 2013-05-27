@@ -29,8 +29,6 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
-#include "configurator/configurator.hpp"
-
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif
@@ -191,7 +189,18 @@ Environment::~Environment()
 void Environment::SetUp()
 {
   // Clear any MESOS_ environment variables so they don't affect our tests.
-  Configurator::clearMesosEnvironmentVars();
+  char** environ = os::environ();
+  for (int i = 0; environ[i] != NULL; i++) {
+    std::string variable = environ[i];
+    if (variable.find("MESOS_") == 0) {
+      string key;
+      size_t eq = variable.find_first_of("=");
+      if (eq == string::npos) {
+        continue; // Not expecting a missing '=', but ignore anyway.
+      }
+      os::unsetenv(variable.substr(strlen("MESOS_"), eq - strlen("MESOS_")));
+    }
+  }
 
   if (!GTEST_IS_THREADSAFE) {
     EXIT(1) << "Testing environment is not thread safe, bailing!";

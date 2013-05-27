@@ -21,6 +21,8 @@
 
 #include <process/process.hpp>
 
+#include "local/flags.hpp"
+
 namespace mesos {
 namespace internal {
 
@@ -36,9 +38,9 @@ class Configuration;
 
 namespace local {
 
-// Launch a local cluster with a given configuration.
+// Launch a local cluster with the given flags.
 process::PID<master::Master> launch(
-    const Configuration& configuration,
+    const Flags& flags,
     master::Allocator* _allocator = NULL);
 
 
