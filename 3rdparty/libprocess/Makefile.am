@@ -87,7 +87,6 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/run.hpp				\
   $(top_srcdir)/include/process/socket.hpp			\
   $(top_srcdir)/include/process/statistics.hpp			\
-  $(top_srcdir)/include/process/thread.hpp			\
   $(top_srcdir)/include/process/time.hpp			\
   $(top_srcdir)/include/process/timeout.hpp			\
   $(top_srcdir)/include/process/timer.hpp

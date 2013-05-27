@@ -61,7 +61,6 @@
 #include <process/profiler.hpp>
 #include <process/socket.hpp>
 #include <process/statistics.hpp>
-#include <process/thread.hpp>
 #include <process/time.hpp>
 #include <process/timer.hpp>
 
@@ -71,6 +70,7 @@
 #include <stout/net.hpp>
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
+#include <stout/thread.hpp>
 
 #include "config.hpp"
 #include "decoder.hpp"

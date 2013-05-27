@@ -128,6 +128,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/none_tests.cpp			\
   $(STOUT)/tests/os_tests.cpp			\
   $(STOUT)/tests/strings_tests.cpp		\
+  $(STOUT)/tests/thread_tests.cpp		\
   $(STOUT)/tests/uuid_tests.cpp
 
 if OS_LINUX

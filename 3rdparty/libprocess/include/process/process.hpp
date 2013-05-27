@@ -16,9 +16,9 @@
 #include <process/message.hpp>
 #include <process/mime.hpp>
 #include <process/pid.hpp>
-#include <process/thread.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/thread.hpp>
 
 namespace process {
 
