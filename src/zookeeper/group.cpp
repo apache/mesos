@@ -8,6 +8,7 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
+#include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/none.hpp>

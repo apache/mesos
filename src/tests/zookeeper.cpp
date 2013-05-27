@@ -29,6 +29,7 @@
 #include <jvm/org/apache/log4j.hpp>
 #include <jvm/org/apache/log4j.hpp>
 
+#include <stout/check.hpp>
 #include <stout/lambda.hpp>
 
 #include "common/lock.hpp"

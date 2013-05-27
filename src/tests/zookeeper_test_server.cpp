@@ -23,6 +23,7 @@
 
 #include <jvm/org/apache/zookeeper.hpp>
 
+#include <stout/check.hpp>
 #include <stout/os.hpp>
 
 #include "logging/logging.hpp"

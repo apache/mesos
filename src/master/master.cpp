@@ -26,6 +26,7 @@
 #include <process/id.hpp>
 #include <process/run.hpp>
 
+#include <stout/check.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>

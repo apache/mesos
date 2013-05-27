@@ -25,14 +25,13 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
+#include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
 #include <stout/utils.hpp>
-
-#include "logging/check_some.hpp"
 
 #include "slave/reaper.hpp"
 

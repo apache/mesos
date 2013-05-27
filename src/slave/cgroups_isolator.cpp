@@ -34,6 +34,7 @@
 #include <process/dispatch.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
@@ -55,8 +56,6 @@
 #include "common/units.hpp"
 
 #include "linux/cgroups.hpp"
-
-#include "logging/check_some.hpp"
 
 #include "slave/cgroups_isolator.hpp"
 #include "slave/state.hpp"

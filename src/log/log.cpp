@@ -47,6 +47,7 @@
 #include <process/process.hpp>
 #include <process/run.hpp>
 
+#include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/fatal.hpp>
 #include <stout/foreach.hpp>

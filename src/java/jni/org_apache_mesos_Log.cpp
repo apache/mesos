@@ -20,6 +20,7 @@
 
 #include <process/timeout.hpp>
 
+#include <stout/check.hpp>
 #include <stout/duration.hpp>
 
 #include "log/log.hpp"

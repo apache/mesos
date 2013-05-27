@@ -1,3 +1,4 @@
+#include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/result.hpp>
@@ -5,8 +6,6 @@
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif
-
-#include "logging/logging.hpp"
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"

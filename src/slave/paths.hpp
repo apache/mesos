@@ -21,6 +21,7 @@
 
 #include <list>
 
+#include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/format.hpp>
 #include <stout/fs.hpp>

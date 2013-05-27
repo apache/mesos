@@ -23,6 +23,7 @@
 #include <process/id.hpp>
 #include <process/timeout.hpp>
 
+#include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/stopwatch.hpp>

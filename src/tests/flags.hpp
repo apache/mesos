@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include <stout/check.hpp>
 #include <stout/flags.hpp>
 #include <stout/os.hpp>
 

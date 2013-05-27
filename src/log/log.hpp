@@ -26,6 +26,7 @@
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>

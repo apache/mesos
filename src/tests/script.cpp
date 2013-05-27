@@ -24,11 +24,10 @@
 
 #include <string>
 
+#include <stout/check.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
-
-#include "logging/logging.hpp"
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"

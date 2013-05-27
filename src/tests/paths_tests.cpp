@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include <stout/check.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>

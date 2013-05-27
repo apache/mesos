@@ -22,6 +22,7 @@
 
 #include <process/process.hpp>
 
+#include <stout/check.hpp>
 #include <stout/flags.hpp>
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>

@@ -20,14 +20,15 @@
 #include <process/process.hpp>
 #include <process/timer.hpp>
 
-#include "common/protobuf_utils.hpp"
+#include <stout/check.hpp>
+#include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
+#include <stout/protobuf.hpp>
+#include <stout/utils.hpp>
+#include <stout/uuid.hpp>
 
-#include "stout/foreach.hpp"
-#include "stout/hashmap.hpp"
-#include "stout/hashset.hpp"
-#include "stout/protobuf.hpp"
-#include "stout/utils.hpp"
-#include "stout/uuid.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"

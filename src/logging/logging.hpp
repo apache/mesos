@@ -23,7 +23,6 @@
 
 #include <glog/logging.h> // Includes LOG(*), PLOG(*), CHECK, etc.
 
-#include "logging/check_some.hpp"
 #include "logging/flags.hpp"
 
 namespace mesos {

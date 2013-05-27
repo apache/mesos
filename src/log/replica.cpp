@@ -27,6 +27,7 @@
 #include <process/dispatch.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>

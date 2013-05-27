@@ -18,6 +18,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/check.hpp>
 #include <stout/flags.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>

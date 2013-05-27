@@ -32,6 +32,7 @@
 #include <process/id.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/exit.hpp>
 #include <stout/fs.hpp>

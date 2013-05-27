@@ -221,7 +221,7 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	detector/detector.hpp examples/utils.hpp files/files.hpp	\
 	launcher/launcher.hpp linux/cgroups.hpp				\
 	linux/fs.hpp local/flags.hpp local/local.hpp			\
-	logging/check_some.hpp logging/flags.hpp logging/logging.hpp	\
+	logging/flags.hpp logging/logging.hpp				\
 	master/allocator.hpp						\
 	master/constants.hpp master/drf_sorter.hpp master/flags.hpp	\
 	master/hierarchical_allocator_process.hpp master/http.hpp	\

@@ -32,6 +32,7 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
+#include <stout/check.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>

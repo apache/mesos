@@ -21,6 +21,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 
+#include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
