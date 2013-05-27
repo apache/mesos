@@ -7,6 +7,7 @@ AUTOMAKE_OPTIONS = foreign
 EXTRA_DIST =					\
   include/stout/bytes.hpp			\
   include/stout/cache.hpp			\
+  include/stout/check.hpp			\
   include/stout/duration.hpp			\
   include/stout/error.hpp			\
   include/stout/exit.hpp			\
