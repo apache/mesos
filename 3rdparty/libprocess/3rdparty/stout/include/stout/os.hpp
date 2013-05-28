@@ -74,8 +74,9 @@ inline char** environ()
   // shared libraries.
 #ifdef __APPLE__
   return *_NSGetEnviron();
-#endif
+#else
   return ::environ;
+#endif
 }
 
 
