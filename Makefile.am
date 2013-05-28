@@ -31,8 +31,8 @@ all-recursive: src/python/setup.py src/java/mesos.pom
 
 
 # Standard stuff.
-EXTRA_DIST += bootstrap LICENSE NOTICE README support/atexit.sh	\
-  support/colors.sh
+EXTRA_DIST += bootstrap DISCLAIMER LICENSE NOTICE README	\
+  support/atexit.sh support/colors.sh
 
 
 # Extra configure scripts.
