@@ -610,13 +610,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1expunge
 
   if (future->get()) {
     jclass clazz = env->FindClass("java/lang/Boolean");
-    jfieldID TRUE = env->GetStaticFieldID(clazz, "TRUE", "Ljava/lang/Boolean;");
-    return env->GetStaticObjectField(clazz, TRUE);
+    return env->GetStaticObjectField(
+        clazz, env->GetStaticFieldID(clazz, "TRUE", "Ljava/lang/Boolean;"));
   }
 
   jclass clazz = env->FindClass("java/lang/Boolean");
-  jfieldID FALSE = env->GetStaticFieldID(clazz, "FALSE", "Ljava/lang/Boolean;");
-  return env->GetStaticObjectField(clazz, FALSE);
+  return env->GetStaticObjectField(
+      clazz, env->GetStaticFieldID(clazz, "FALSE", "Ljava/lang/Boolean;"));
 }
 
 
@@ -654,13 +654,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_ZooKeeperState__1_1expunge
 
     if (future->get()) {
       jclass clazz = env->FindClass("java/lang/Boolean");
-      jfieldID TRUE = env->GetStaticFieldID(clazz, "TRUE", "Ljava/lang/Boolean;");
-      return env->GetStaticObjectField(clazz, TRUE);
+      return env->GetStaticObjectField(
+          clazz, env->GetStaticFieldID(clazz, "TRUE", "Ljava/lang/Boolean;"));
     }
 
     jclass clazz = env->FindClass("java/lang/Boolean");
-    jfieldID FALSE = env->GetStaticFieldID(clazz, "FALSE", "Ljava/lang/Boolean;");
-    return env->GetStaticObjectField(clazz, FALSE);
+    return env->GetStaticObjectField(
+        clazz, env->GetStaticFieldID(clazz, "FALSE", "Ljava/lang/Boolean;"));
   }
 
   clazz = env->FindClass("java/util/concurrent/TimeoutException");
