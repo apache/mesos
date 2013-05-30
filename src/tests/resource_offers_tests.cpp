@@ -34,7 +34,8 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
-using mesos::internal::master::HierarchicalDRFAllocatorProcess;
+using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
+
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;

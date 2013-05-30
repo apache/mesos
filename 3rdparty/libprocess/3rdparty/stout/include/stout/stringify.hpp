@@ -103,6 +103,23 @@ std::string stringify(const std::map<K, V>& map)
 }
 
 
+template <typename T>
+std::string stringify(const hashset<T>& set)
+{
+  std::ostringstream out;
+  out << "{ ";
+  typename hashset<T>::const_iterator iterator = set.begin();
+  while (iterator != set.end()) {
+    out << stringify(*iterator);
+    if (++iterator != set.end()) {
+      out << ", ";
+    }
+  }
+  out << " }";
+  return out.str();
+}
+
+
 template <typename K, typename V>
 std::string stringify(const hashmap<K, V>& map)
 {

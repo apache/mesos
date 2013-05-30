@@ -77,7 +77,7 @@ public:
     // expected to outlive the launched master (i.e., until it is
     // stopped via Masters::stop).
     Try<process::PID<master::Master> > start(
-        master::AllocatorProcess* allocatorProcess,
+        master::allocator::AllocatorProcess* allocatorProcess,
         const master::Flags& flags = master::Flags());
 
     // Stops and cleans up a master at the specified PID.
@@ -106,8 +106,8 @@ public:
           detector(NULL) {}
 
       master::Master* master;
-      master::Allocator* allocator;
-      master::AllocatorProcess* allocatorProcess;
+      master::allocator::Allocator* allocator;
+      master::allocator::AllocatorProcess* allocatorProcess;
       MasterDetector* detector;
     };
 
@@ -221,8 +221,8 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
   Master master;
 
-  master.allocatorProcess = new master::HierarchicalDRFAllocatorProcess();
-  master.allocator = new master::Allocator(master.allocatorProcess);
+  master.allocatorProcess = new master::allocator::HierarchicalDRFAllocatorProcess();
+  master.allocator = new master::allocator::Allocator(master.allocatorProcess);
   master.master = new master::Master(master.allocator, &cluster->files, flags);
 
   process::PID<master::Master> pid = process::spawn(master.master);
@@ -240,7 +240,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
-  master::AllocatorProcess* allocatorProcess,
+  master::allocator::AllocatorProcess* allocatorProcess,
   const master::Flags& flags)
 {
   // Disallow multiple masters when not using ZooKeeper.
@@ -250,7 +250,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
   Master master;
   master.allocatorProcess = NULL;
-  master.allocator = new master::Allocator(allocatorProcess);
+  master.allocator = new master::allocator::Allocator(allocatorProcess);
   master.master = new master::Master(master.allocator, &cluster->files, flags);
 
   process::PID<master::Master> pid = process::spawn(master.master);

@@ -38,8 +38,9 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
-using mesos::internal::master::Allocator;
-using mesos::internal::master::HierarchicalDRFAllocatorProcess;
+using mesos::internal::master::allocator::Allocator;
+using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
+
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -693,6 +694,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
   slave::Flags flags = this->CreateSlaveFlags();
+
   flags.resources = Option<string>("cpus:3;mem:1024");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));

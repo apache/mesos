@@ -27,6 +27,7 @@
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/stringify.hpp>
 
 #include "common/resources.hpp"
 
@@ -38,6 +39,7 @@
 namespace mesos {
 namespace internal {
 namespace master {
+namespace allocator {
 
 // Forward declarations.
 class Filter;
@@ -50,6 +52,68 @@ class HierarchicalAllocatorProcess;
 
 typedef HierarchicalAllocatorProcess<DRFSorter, DRFSorter>
 HierarchicalDRFAllocatorProcess;
+
+
+struct Slave
+{
+  Slave() {}
+
+  Slave(const SlaveInfo& _info)
+    : available(_info.resources()),
+      whitelisted(false),
+      info(_info) {}
+
+  Resources resources() const { return info.resources(); }
+
+  std::string hostname() const { return info.hostname(); }
+
+  // Returns true iff this slave is whitelisted and has sufficient
+  // free resources to allocate.
+  bool allocatable() const
+  {
+    // TODO(benh): For now, only make offers when there is some cpu
+    // and memory left. This is an artifact of the original code that
+    // only offered when there was at least 1 cpu "unit" available,
+    // and without doing this a framework might get offered resources
+    // with only memory available (which it obviously will decline)
+    // and then end up waiting the default Filters::refuse_seconds
+    // (unless the framework set it to something different).
+
+    Value::Scalar none;
+    Value::Scalar cpus = available.get("cpus", none);
+    Value::Scalar mem = available.get("mem", none);
+
+    return (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) &&
+      whitelisted;
+  }
+
+  // Contains all of the resources currently free on this slave.
+  Resources available;
+
+  // Indicates if the resources on this slave should be offered to
+  // frameworks.
+  bool whitelisted;
+
+private:
+  SlaveInfo info;
+};
+
+
+struct Framework
+{
+  Framework() {}
+
+  Framework(const FrameworkInfo& _info)
+    : info(_info) {}
+
+  std::string user() const { return info.user(); }
+
+  // Filters that have been added by this framework.
+  hashset<Filter*> filters;
+
+private:
+  FrameworkInfo info;
+};
 
 
 // Implements the basic allocator algorithm - first pick a user by
@@ -147,21 +211,15 @@ protected:
   Flags flags;
   PID<Master> master;
 
-  // Maps FrameworkIDs to user names.
-  hashmap<FrameworkID, std::string> users;
+  // Contains all frameworks.
+  hashmap<FrameworkID, Framework> frameworks;
 
   // Maps user names to the Sorter object which contains
   // all of that user's frameworks.
   hashmap<std::string, FrameworkSorter*> sorters;
 
-  // Maps slaves to their allocatable resources.
-  hashmap<SlaveID, Resources> allocatable;
-
   // Contains all active slaves.
-  hashmap<SlaveID, SlaveInfo> slaves;
-
-  // Filters that have been added by frameworks.
-  multihashmap<FrameworkID, Filter*> filters;
+  hashmap<SlaveID, Slave> slaves;
 
   // Slaves to send offers for.
   Option<hashset<std::string> > whitelist;
@@ -250,7 +308,7 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkAdded(
 {
   CHECK(initialized);
 
-  std::string user = frameworkInfo.user();
+  const std::string& user = frameworkInfo.user();
   if (!userSorter->contains(user)) {
     userSorter->add(user);
     sorters[user] = new FrameworkSorter();
@@ -264,7 +322,7 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkAdded(
   sorters[user]->add(used);
   sorters[user]->allocated(frameworkId.value(), used);
 
-  users[frameworkId] = frameworkInfo.user();
+  frameworks[frameworkId] = Framework(frameworkInfo);
 
   LOG(INFO) << "Added framework " << frameworkId;
 
@@ -279,7 +337,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkRemoved(
 {
   CHECK(initialized);
 
-  std::string user = users[frameworkId];
+  CHECK(frameworks.contains(frameworkId));
+  const std::string& user = frameworks[frameworkId].user();
+
   // Might not be in 'sorters[user]' because it was previously
   // deactivated and never re-added.
   if (sorters[user]->contains(frameworkId.value())) {
@@ -289,7 +349,11 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkRemoved(
     sorters[user]->remove(frameworkId.value());
   }
 
-  users.erase(frameworkId);
+  // Do not delete the filters contained in this
+  // framework's 'filters' hashset yet, see comments in
+  // HierarchicalAllocatorProcess::offersRevived and
+  // HierarchicalAllocatorProcess::expire.
+  frameworks.erase(frameworkId);
 
   // If this user doesn't have any more active frameworks, remove it.
   if (sorters[user]->count() == 0) {
@@ -299,16 +363,6 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkRemoved(
 
     userSorter->remove(user);
   }
-
-  foreach (Filter* filter, filters.get(frameworkId)) {
-    filters.remove(frameworkId, filter);
-
-    // Do not delete the filter, see comments in
-    // HierarchicalAllocatorProcess::offersRevived and
-    // HierarchicalAllocatorProcess::expire.
-  }
-
-  filters.remove(frameworkId);
 
   LOG(INFO) << "Removed framework " << frameworkId;
 }
@@ -322,7 +376,7 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkActivated(
 {
   CHECK(initialized);
 
-  std::string user = frameworkInfo.user();
+  const std::string& user = frameworkInfo.user();
   sorters[user]->activate(frameworkId.value());
 
   LOG(INFO) << "Activated framework " << frameworkId;
@@ -338,7 +392,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkDeactivated(
 {
   CHECK(initialized);
 
-  std::string user = users[frameworkId];
+  CHECK(frameworks.contains(frameworkId));
+  const std::string& user = frameworks[frameworkId].user();
+
   sorters[user]->deactivate(frameworkId.value());
 
   // Note that the Sorter *does not* remove the resources allocated
@@ -347,15 +403,11 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkDeactivated(
   // of the resources that it is using. We might be able to collapse
   // the added/removed and activated/deactivated in the future.
 
-  foreach (Filter* filter, filters.get(frameworkId)) {
-    filters.remove(frameworkId, filter);
-
-    // Do not delete the filter, see comments in
-    // HierarchicalAllocatorProcess::offersRevived and
-    // HierarchicalAllocatorProcess::expire.
-  }
-
-  filters.remove(frameworkId);
+  // Do not delete the filters contained in this
+  // framework's 'filters' hashset yet, see comments in
+  // HierarchicalAllocatorProcess::offersRevived and
+  // HierarchicalAllocatorProcess::expire.
+  frameworks[frameworkId].filters.clear();
 
   LOG(INFO) << "Deactivated framework " << frameworkId;
 }
@@ -372,7 +424,8 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveAdded(
 
   CHECK(!slaves.contains(slaveId));
 
-  slaves[slaveId] = slaveInfo;
+  slaves[slaveId] = Slave(slaveInfo);
+  slaves[slaveId].whitelisted = isWhitelisted(slaveId);
 
   userSorter->add(slaveInfo.resources());
 
@@ -381,8 +434,8 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveAdded(
   foreachpair (const FrameworkID& frameworkId,
                const Resources& resources,
                used) {
-    if (users.contains(frameworkId)) {
-      const std::string& user = users[frameworkId];
+    if (frameworks.contains(frameworkId)) {
+      const std::string& user = frameworks[frameworkId].user();
       sorters[user]->add(resources);
       sorters[user]->allocated(frameworkId.value(), resources);
       userSorter->allocated(user, resources);
@@ -391,13 +444,15 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveAdded(
     unused -= resources; // Only want to allocate resources that are not used!
   }
 
-  allocatable[slaveId] = unused;
+  slaves[slaveId].available = unused;
 
   LOG(INFO) << "Added slave " << slaveId << " (" << slaveInfo.hostname()
             << ") with " << slaveInfo.resources() << " (and " << unused
             << " available)";
 
-  allocate(slaveId);
+  if (slaves[slaveId].allocatable()) {
+    allocate(slaveId);
+  }
 }
 
 
@@ -413,8 +468,6 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveRemoved(
   userSorter->remove(slaves[slaveId].resources());
 
   slaves.erase(slaveId);
-
-  allocatable.erase(slaveId);
 
   // Note that we DO NOT actually delete any filters associated with
   // this slave, that will occur when the delayed
@@ -435,9 +488,10 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::updateWhitelist(
   whitelist = _whitelist;
 
   if (whitelist.isSome()) {
-    LOG(INFO) << "Updated slave white list:";
-    foreach (const std::string& hostname, whitelist.get()) {
-      LOG(INFO) << "\t" << hostname;
+    LOG(INFO) << "Updated slave white list: " << stringify(whitelist.get());
+
+    foreachkey (const SlaveID& slaveId, slaves) {
+      slaves[slaveId].whitelisted = isWhitelisted(slaveId);
     }
   }
 }
@@ -478,16 +532,16 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesUnused(
   // because resourcesUnused is only called as the
   // result of a valid task launch by an active
   // framework that doesn't use the entire offer.
-  CHECK(users.contains(frameworkId));
+  CHECK(frameworks.contains(frameworkId));
 
-  std::string user = users[frameworkId];
+  const std::string& user = frameworks[frameworkId].user();
   sorters[user]->unallocated(frameworkId.value(), resources);
   sorters[user]->remove(resources);
   userSorter->unallocated(user, resources);
 
   // Update resources allocatable on slave.
-  CHECK(allocatable.contains(slaveId));
-  allocatable[slaveId] += resources;
+  CHECK(slaves.contains(slaveId));
+  slaves[slaveId].available += resources;
 
   // Create a refused resources filter.
   Try<Duration> seconds_ = Duration::create(Filters().refuse_seconds());
@@ -517,10 +571,10 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesUnused(
               << " for " << seconds;
 
     // Create a new filter and delay it's expiration.
-    mesos::internal::master::Filter* filter =
+    Filter* filter =
       new RefusedFilter(slaveId, resources, Timeout::in(seconds));
 
-    this->filters.put(frameworkId, filter);
+    frameworks[frameworkId].filters.insert(filter);
 
     delay(seconds, self(), &Self::expire, frameworkId, filter);
   }
@@ -545,9 +599,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesRecovered(
   // Master::offer before we received AllocatorProcess::frameworkRemoved
   // or AllocatorProcess::frameworkDeactivated, in which case we will
   // have already recovered all of its resources).
-  if (users.contains(frameworkId) &&
-      sorters[users[frameworkId]]->contains(frameworkId.value())) {
-    std::string user = users[frameworkId];
+  if (frameworks.contains(frameworkId) &&
+      sorters[frameworks[frameworkId].user()]->contains(frameworkId.value())) {
+    const std::string& user = frameworks[frameworkId].user();
     sorters[user]->unallocated(frameworkId.value(), resources);
     sorters[user]->remove(resources);
     userSorter->unallocated(user, resources);
@@ -556,12 +610,12 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesRecovered(
   // Update resources allocatable on slave (if slave still exists,
   // which it might not in the event that we dispatched Master::offer
   // before we received Allocator::slaveRemoved).
-  if (allocatable.contains(slaveId)) {
-    allocatable[slaveId] += resources;
+  if (slaves.contains(slaveId)) {
+    slaves[slaveId].available += resources;
 
     LOG(INFO) << "Recovered " << resources.allocatable()
-              << " (total allocatable: " << allocatable[slaveId] << ")"
-              << " on slave " << slaveId
+              << " (total allocatable: " << slaves[slaveId].available
+              << ") on slave " << slaveId
               << " from framework " << frameworkId;
   }
 }
@@ -574,18 +628,14 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::offersRevived(
 {
   CHECK(initialized);
 
-  foreach (Filter* filter, filters.get(frameworkId)) {
-    filters.remove(frameworkId, filter);
+  frameworks[frameworkId].filters.clear();
 
-    // We delete each actual Filter when
-    // HierarchicalAllocatorProcess::expire gets invoked. If we delete the
-    // Filter here it's possible that the same Filter (i.e., same
-    // address) could get reused and HierarchicalAllocatorProcess::expire
-    // would expire that filter too soon. Note that this only works
-    // right now because ALL Filter types "expire".
-  }
-
-  filters.remove(frameworkId);
+  // We delete each actual Filter when
+  // HierarchicalAllocatorProcess::expire gets invoked. If we delete the
+  // Filter here it's possible that the same Filter (i.e., same
+  // address) could get reused and HierarchicalAllocatorProcess::expire
+  // would expire that filter too soon. Note that this only works
+  // right now because ALL Filter types "expire".
 
   LOG(INFO) << "Removed filters for framework " << frameworkId;
 
@@ -651,38 +701,7 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
     return;
   }
 
-  // Get out only "available" resources (i.e., resources that are
-  // allocatable and above a certain threshold, see below).
-  hashmap<SlaveID, Resources> available;
-  foreachpair (const SlaveID& slaveId, Resources resources, allocatable) {
-    if (!slaveIds.contains(slaveId)) {
-      continue;
-    }
-
-    if (isWhitelisted(slaveId)) {
-      resources = resources.allocatable(); // Make sure they're allocatable.
-
-      // TODO(benh): For now, only make offers when there is some cpu
-      // and memory left. This is an artifact of the original code that
-      // only offered when there was at least 1 cpu "unit" available,
-      // and without doing this a framework might get offered resources
-      // with only memory available (which it obviously will decline)
-      // and then end up waiting the default Filters::refuse_seconds
-      // (unless the framework set it to something different).
-
-      Value::Scalar none;
-      Value::Scalar cpus = resources.get("cpus", none);
-      Value::Scalar mem = resources.get("mem", none);
-
-      if (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) {
-        VLOG(1) << "Found available resources: " << resources
-                << " on slave " << slaveId;
-        available[slaveId] = resources;
-      }
-    }
-  }
-
-  if (available.size() == 0) {
+  if (slaveIds.empty()) {
     VLOG(1) << "No resources available to allocate!";
     return;
   }
@@ -694,9 +713,13 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
 
       Resources allocatedResources;
       hashmap<SlaveID, Resources> offerable;
-      foreachpair (const SlaveID& slaveId,
-                   const Resources& resources,
-                   available) {
+      foreach (const SlaveID& slaveId, slaveIds) {
+        if (!slaves[slaveId].allocatable()) {
+          continue;
+        }
+
+        Resources resources = slaves[slaveId].available;
+
         // Check whether or not this framework filters this slave.
         bool filtered = isFiltered(frameworkId, slaveId, resources);
 
@@ -708,16 +731,12 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
           offerable[slaveId] = resources;
 
           // Update framework and slave resources.
-          allocatable[slaveId] -= resources;
+          slaves[slaveId].available -= resources;
           allocatedResources += resources;
         }
       }
 
-      if (offerable.size() > 0) {
-        foreachkey (const SlaveID& slaveId, offerable) {
-          available.erase(slaveId);
-        }
-
+      if (!offerable.empty()) {
         sorters[user]->add(allocatedResources);
         sorters[user]->allocated(frameworkIdValue, allocatedResources);
         userSorter->allocated(user, allocatedResources);
@@ -740,9 +759,11 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::expire(
   // HierarchicalAllocatorProcess::offersRevived) but not yet deleted (to
   // keep the address from getting reused possibly causing premature
   // expiration).
-  if (users.contains(frameworkId) && filters.contains(frameworkId, filter)) {
-    filters.remove(frameworkId, filter);
+  if (frameworks.contains(frameworkId) &&
+      frameworks[frameworkId].filters.contains(filter)) {
+    frameworks[frameworkId].filters.erase(filter);
   }
+
   delete filter;
 }
 
@@ -769,7 +790,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::isFiltered(
     const Resources& resources)
 {
   bool filtered = false;
-  foreach (Filter* filter, filters.get(frameworkId)) {
+
+  CHECK(frameworks.contains(frameworkId));
+  foreach (Filter* filter, frameworks[frameworkId].filters) {
     if (filter->filter(slaveId, resources)) {
       VLOG(1) << "Filtered " << resources
               << " on slave " << slaveId
@@ -781,6 +804,7 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::isFiltered(
   return filtered;
 }
 
+} // namespace allocator {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

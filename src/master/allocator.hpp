@@ -42,6 +42,7 @@ namespace master {
 
 class Master; // Forward declaration.
 
+namespace allocator {
 
 // Basic model of an allocator: resources are allocated to a framework
 // in the form of offers. A framework can refuse some resources in
@@ -338,6 +339,7 @@ inline void Allocator::offersRevived(
       frameworkId);
 }
 
+} // namespace allocator {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

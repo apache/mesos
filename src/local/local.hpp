@@ -29,8 +29,13 @@ namespace internal {
 // Forward declarations.
 namespace master {
 
-class Allocator;
 class Master;
+
+namespace allocator {
+
+class Allocator;
+
+} // namespace allocator {
 
 } // namespace master {
 
@@ -41,8 +46,7 @@ namespace local {
 // Launch a local cluster with the given flags.
 process::PID<master::Master> launch(
     const Flags& flags,
-    master::Allocator* _allocator = NULL);
-
+    master::allocator::Allocator* _allocator = NULL);
 
 void shutdown();
 

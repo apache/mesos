@@ -82,7 +82,7 @@ protected:
 
   // Starts a master with the specified allocator process and flags.
   virtual Try<process::PID<master::Master> > StartMaster(
-      master::AllocatorProcess* allocator,
+      master::allocator::AllocatorProcess* allocator,
       const Option<master::Flags>& flags = None());
 
   // Starts a slave with the specified flags.
@@ -321,8 +321,8 @@ public:
 };
 
 
-template <typename T = master::AllocatorProcess>
-class MockAllocatorProcess : public master::AllocatorProcess
+template <typename T = master::allocator::AllocatorProcess>
+class MockAllocatorProcess : public master::allocator::AllocatorProcess
 {
 public:
   MockAllocatorProcess()
@@ -404,7 +404,7 @@ public:
 };
 
 
-typedef ::testing::Types<master::HierarchicalDRFAllocatorProcess>
+typedef ::testing::Types<master::allocator::HierarchicalDRFAllocatorProcess>
 AllocatorTypes;
 
 
@@ -418,7 +418,7 @@ ACTION_P(InvokeInitialize, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::initialize,
+      &master::allocator::AllocatorProcess::initialize,
       arg0,
       arg1);
 }
@@ -428,7 +428,7 @@ ACTION_P(InvokeFrameworkAdded, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::frameworkAdded,
+      &master::allocator::AllocatorProcess::frameworkAdded,
       arg0,
       arg1,
       arg2);
@@ -439,7 +439,7 @@ ACTION_P(InvokeFrameworkRemoved, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::frameworkRemoved, arg0);
+      &master::allocator::AllocatorProcess::frameworkRemoved, arg0);
 }
 
 
@@ -447,7 +447,7 @@ ACTION_P(InvokeFrameworkActivated, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::frameworkActivated,
+      &master::allocator::AllocatorProcess::frameworkActivated,
       arg0,
       arg1);
 }
@@ -457,7 +457,7 @@ ACTION_P(InvokeFrameworkDeactivated, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::frameworkDeactivated,
+      &master::allocator::AllocatorProcess::frameworkDeactivated,
       arg0);
 }
 
@@ -466,7 +466,7 @@ ACTION_P(InvokeSlaveAdded, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::slaveAdded,
+      &master::allocator::AllocatorProcess::slaveAdded,
       arg0,
       arg1,
       arg2);
@@ -477,7 +477,7 @@ ACTION_P(InvokeSlaveRemoved, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::slaveRemoved,
+      &master::allocator::AllocatorProcess::slaveRemoved,
       arg0);
 }
 
@@ -486,7 +486,7 @@ ACTION_P(InvokeUpdateWhitelist, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::updateWhitelist,
+      &master::allocator::AllocatorProcess::updateWhitelist,
       arg0);
 }
 
@@ -495,7 +495,7 @@ ACTION_P(InvokeResourcesRequested, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::resourcesRequested,
+      &master::allocator::AllocatorProcess::resourcesRequested,
       arg0,
       arg1);
 }
@@ -506,7 +506,7 @@ ACTION_P(InvokeResourcesUnused, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::resourcesUnused,
+      &master::allocator::AllocatorProcess::resourcesUnused,
       arg0,
       arg1,
       arg2,
@@ -521,7 +521,7 @@ ACTION_P2(InvokeUnusedWithFilters, allocator, timeout)
 
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::resourcesUnused,
+      &master::allocator::AllocatorProcess::resourcesUnused,
       arg0,
       arg1,
       arg2,
@@ -533,7 +533,7 @@ ACTION_P(InvokeResourcesRecovered, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::resourcesRecovered,
+      &master::allocator::AllocatorProcess::resourcesRecovered,
       arg0,
       arg1,
       arg2);
@@ -544,7 +544,7 @@ ACTION_P(InvokeOffersRevived, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::AllocatorProcess::offersRevived,
+      &master::allocator::AllocatorProcess::offersRevived,
       arg0);
 }
 

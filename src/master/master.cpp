@@ -60,6 +60,8 @@ namespace mesos {
 namespace internal {
 namespace master {
 
+using allocator::Allocator;
+
 class WhitelistWatcher : public Process<WhitelistWatcher> {
 public:
   WhitelistWatcher(const string& _path, Allocator* _allocator)

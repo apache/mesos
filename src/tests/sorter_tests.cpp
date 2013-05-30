@@ -25,8 +25,8 @@
 
 using namespace mesos::internal;
 
-using mesos::internal::master::Sorter;
-using mesos::internal::master::DRFSorter;
+using mesos::internal::master::allocator::Sorter;
+using mesos::internal::master::allocator::DRFSorter;
 
 using std::list;
 using std::string;

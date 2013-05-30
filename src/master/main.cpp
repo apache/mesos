@@ -114,8 +114,10 @@ int main(int argc, char** argv)
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos master";
 
-  AllocatorProcess* allocatorProcess = new HierarchicalDRFAllocatorProcess();
-  Allocator* allocator = new Allocator(allocatorProcess);
+  allocator::AllocatorProcess* allocatorProcess =
+    new allocator::HierarchicalDRFAllocatorProcess();
+  allocator::Allocator* allocator =
+    new allocator::Allocator(allocatorProcess);
 
   Files files;
   Master* master = new Master(allocator, &files, flags);
