@@ -118,12 +118,17 @@ Try<std::set<std::string> > subsystems(const std::string& hierarchy);
 // hierarchy already exists.  Also, the function will return error if
 // a subsystem in the given subsystem list has already been attached
 // to another hierarchy. On success, the cgroups virtual file system
-// will be mounted with the proper subsystems attached.
+// will be mounted with the proper subsystems attached. On failure,
+// mount will be retried the specified number of times.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   subsystems  Comma-separated subsystem names.
+// @param   retry       Number of times to retry mount.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<Nothing> mount(const std::string& hierarchy, const std::string& subsystems);
+Try<Nothing> mount(
+    const std::string& hierarchy,
+    const std::string& subsystems,
+    int retry = 0);
 
 
 // Unmount a hierarchy and remove the directory associated with

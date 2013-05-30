@@ -112,8 +112,10 @@ protected:
     Result<std::string> hierarchy_ = cgroups::hierarchy(subsystems);
     ASSERT_FALSE(hierarchy_.isError());
     if (hierarchy_.isNone()) {
-      // Try to mount a hierarchy for testing.
-      ASSERT_SOME(cgroups::mount(TEST_CGROUPS_HIERARCHY, subsystems))
+      // Try to mount a hierarchy for testing, retrying as necessary since the
+      // previous unmount might not have taken effect yet due to a bug in
+      // Ubuntu 12.04.
+      ASSERT_SOME(cgroups::mount(TEST_CGROUPS_HIERARCHY, subsystems, 10))
         << "-------------------------------------------------------------\n"
         << "We cannot run any cgroups tests that require\n"
         << "a hierarchy with subsystems '" << subsystems << "'\n"
@@ -247,7 +249,11 @@ TEST_F(CgroupsNoHierarchyTest, ROOT_CGROUPS_NOHIERARCHY_MountUnmountHierarchy)
 {
   EXPECT_ERROR(cgroups::mount("/tmp", "cpu"));
   EXPECT_ERROR(cgroups::mount(TEST_CGROUPS_HIERARCHY, "invalid"));
-  ASSERT_SOME(cgroups::mount(TEST_CGROUPS_HIERARCHY, "cpu,memory"));
+
+  // Try to mount a valid hierarchy, retrying as necessary since the
+  // previous unmount might not have taken effect yet due to a bug in
+  // Ubuntu 12.04.
+  ASSERT_SOME(cgroups::mount(TEST_CGROUPS_HIERARCHY, "cpu,memory", 10));
   EXPECT_ERROR(cgroups::mount(TEST_CGROUPS_HIERARCHY, "cpuset"));
   EXPECT_ERROR(cgroups::unmount("/tmp"));
   ASSERT_SOME(cgroups::unmount(TEST_CGROUPS_HIERARCHY));

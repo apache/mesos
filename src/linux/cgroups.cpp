@@ -169,7 +169,45 @@ static Try<map<string, SubsystemInfo> > subsystems()
 //          Error if the operation fails.
 static Try<Nothing> mount(const string& hierarchy, const string& subsystems)
 {
-  return fs::mount(subsystems, hierarchy, "cgroup", 0, subsystems.c_str());
+  if (os::exists(hierarchy)) {
+    return Error("'" + hierarchy + "' already exists in the file system");
+  }
+
+  // Make sure all subsystems are enabled and not busy.
+  foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
+    Try<bool> result = enabled(subsystem);
+    if (result.isError()) {
+      return Error(result.error());
+    } else if (!result.get()) {
+      return Error("'" + subsystem + "' is not enabled by the kernel");
+    }
+
+    result = busy(subsystem);
+    if (result.isError()) {
+      return Error(result.error());
+    } else if (result.get()) {
+      return Error(
+          "'" + subsystem + "' is already attached to another hierarchy");
+    }
+  }
+
+  // Create the directory for the hierarchy.
+  Try<Nothing> mkdir = os::mkdir(hierarchy);
+  if (mkdir.isError()) {
+    return Error(
+        "Failed to create directory '" + hierarchy + "': " + mkdir.error());
+  }
+
+  // Mount the virtual file system (attach subsystems).
+  Try<Nothing> result =
+    fs::mount(subsystems, hierarchy, "cgroup", 0, subsystems.c_str());
+  if (result.isError()) {
+    // Do a best effort rmdir of hierarchy (ignoring success or failure).
+    os::rmdir(hierarchy);
+    return result;
+  }
+
+  return Nothing();
 }
 
 
@@ -591,46 +629,21 @@ Try<set<string> > subsystems(const string& hierarchy)
 }
 
 
-Try<Nothing> mount(const string& hierarchy, const string& subsystems)
+Try<Nothing> mount(const string& hierarchy, const string& subsystems, int retry)
 {
-  if (os::exists(hierarchy)) {
-    return Error("'" + hierarchy + "' already exists in the file system");
+  Try<Nothing> mounted = internal::mount(hierarchy, subsystems);
+
+  // TODO(tmarshall) The retry option was added as a fix for a kernel
+  // bug in Ubuntu 12.04 that resulted in cgroups not being entirely
+  // cleaned up even once they have been completely unmounted from the
+  // file system. We should reevaluate this in the future, and
+  // hopefully remove it once the bug is no longer an issue.
+  if (mounted.isError() && retry > 0) {
+    os::sleep(Milliseconds(100));
+    return cgroups::mount(hierarchy, subsystems, retry - 1);
   }
 
-  // Make sure all subsystems are enabled and not busy.
-  foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
-    Try<bool> result = enabled(subsystem);
-    if (result.isError()) {
-      return Error(result.error());
-    } else if (!result.get()) {
-      return Error("'" + subsystem + "' is not enabled by the kernel");
-    }
-
-    result = busy(subsystem);
-    if (result.isError()) {
-      return Error(result.error());
-    } else if (result.get()) {
-      return Error(
-          "'" + subsystem + "' is already attached to another hierarchy");
-    }
-  }
-
-  // Create the directory for the hierarchy.
-  Try<Nothing> mkdir = os::mkdir(hierarchy);
-  if (mkdir.isError()) {
-    return Error(
-        "Failed to create directory '" + hierarchy + "': " + mkdir.error());
-  }
-
-  // Mount the virtual file system (attach subsystems).
-  Try<Nothing> result = internal::mount(hierarchy, subsystems);
-  if (result.isError()) {
-    // Do a best effort rmdir of hierarchy (ignoring success or failure).
-    os::rmdir(hierarchy);
-    return result;
-  }
-
-  return Nothing();
+  return mounted;
 }
 
 
