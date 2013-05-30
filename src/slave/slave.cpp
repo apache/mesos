@@ -679,6 +679,12 @@ void Slave::doReliableRegistration()
 
     foreachvalue (Framework* framework, frameworks){
       foreachvalue (Executor* executor, framework->executors) {
+        // Ignore terminated executors because they do not consume
+        // any resources.
+        if (executor->state == Executor::TERMINATED) {
+          continue;
+        }
+
         // TODO(benh): Kill this once framework_id is required
         // on ExecutorInfo.
         ExecutorInfo* executorInfo = message.add_executor_infos();
