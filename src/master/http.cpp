@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/mesos.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
 #include <stout/net.hpp>
@@ -225,9 +227,10 @@ Future<Response> vars(
   std::ostringstream out;
 
   out <<
-    "build_date " << build::DATE << "\n" <<
-    "build_user " << build::USER << "\n" <<
-    "build_flags " << build::FLAGS << "\n";
+    "version: " << MESOS_VERSION << "\n" <<
+    "build_date: " << build::DATE << "\n" <<
+    "build_user: " << build::USER << "\n" <<
+    "build_flags: " << build::FLAGS << "\n";
 
   // TODO(benh): Output flags.
   return OK(out.str(), request.query.get("jsonp"));
@@ -311,6 +314,7 @@ Future<Response> state(
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
   JSON::Object object;
+  object.values["version"] = MESOS_VERSION;
   object.values["build_date"] = build::DATE;
   object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
