@@ -335,10 +335,14 @@ struct Executor
   ~Executor();
 
   Task* addTask(const TaskInfo& task);
-  void removeTask(const TaskID& taskId);
+  void terminateTask(const TaskID& taskId, const mesos::TaskState& state);
+  void completeTask(const TaskID& taskId);
   void checkpointTask(const TaskInfo& task);
   void recoverTask(const state::TaskState& state);
   void updateTaskState(const TaskID& taskId, TaskState state);
+
+  // Returns true if there are any queued/launched/terminated tasks.
+  bool incompleteTasks();
 
   enum State {
     REGISTERING,  // Executor is launched but not (re-)registered yet.
@@ -367,12 +371,12 @@ struct Executor
 
   Resources resources; // Currently consumed resources.
 
-  hashmap<TaskID, TaskInfo> queuedTasks;
-  hashmap<TaskID, Task*> launchedTasks;
+  hashmap<TaskID, TaskInfo> queuedTasks; // Not yet launched.
+  hashmap<TaskID, Task*> launchedTasks;  // Running.
+  hashmap<TaskID, Task*> terminatedTasks; // Terminated but pending updates.
+  boost::circular_buffer<Task> completedTasks; // Terminated and updates acked.
 
   multihashmap<TaskID, UUID> updates; // Pending updates.
-
-  boost::circular_buffer<Task> completedTasks;
 
 private:
   Executor(const Executor&);              // No copying.
