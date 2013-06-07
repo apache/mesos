@@ -212,7 +212,7 @@ licenses.
 
 ======================================================================
 For the Boost header files
-(3rdparty/libprocess/3rdparty/boost-1.37.0.tar.gz):
+(3rdparty/libprocess/3rdparty/boost-1.53.0.tar.gz):
 ======================================================================
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -457,8 +457,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ======================================================================
-For protobuf-2.3.0
-(3rdparty/libprocess/3rdparty/protobuf-2.3.0.tar.gz):
+For protobuf-2.4.1
+(3rdparty/libprocess/3rdparty/protobuf-2.4.1.tar.gz):
 ======================================================================
 
 Copyright 2008, Google Inc.
@@ -497,10 +497,11 @@ support library is itself covered by the above license.
 
 
 ======================================================================
-For libev-3.8 (3rdparty/libprocess/3rdparty/libev.tar.gz):
+For libev-4.15 (3rdparty/libprocess/3rdparty/libev.tar.gz):
 ======================================================================
 
-All files in libev are Copyright (C)2007,2008,2009 Marc Alexander Lehmann.
+All files in libev are
+Copyright (c)2007,2008,2009,2010,2011,2012 Marc Alexander Lehmann.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
