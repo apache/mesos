@@ -263,15 +263,18 @@ message ResourceStatistics {
   required double timestamp = 1; // Snapshot time, in seconds since the Epoch.
 
   // CPU Usage Information:
-  // A percentage based cpu usage rate since the last snapshot.
-  // This is akin to what the 'top' program shows.
-  optional double cpu_usage = 2;
   // Total CPU time spent in user mode, and kernel mode.
-  optional double cpu_user_time = 3;   // In seconds.
-  optional double cpu_system_time = 4; // In seconds.
+  optional double cpus_user_time_secs = 2;
+  optional double cpus_system_time_secs = 3;
+
+  // Number of CPUs allocated.
+  required double cpus_limit = 4;
 
   // Memory Usage Information:
-  optional uint64 memory_rss = 5; // Resident Set Size (in bytes).
+  optional uint64 mem_rss_bytes = 5; // Resident Set Size.
+
+  // Amount of memory resources allocated.
+  optional uint64 mem_limit_bytes = 6;
 
   // TODO(bmahler): Add disk usage.
   // TODO(bmahler): Add network usage?

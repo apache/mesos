@@ -296,6 +296,19 @@ void ProcessIsolator::resourcesChanged(
     const Resources& resources)
 {
   CHECK(initialized) << "Cannot do resourcesChanged before initialization!";
+
+  if (!infos.contains(frameworkId) ||
+      !infos[frameworkId].contains(executorId) ||
+      infos[frameworkId][executorId]->killed) {
+    LOG(INFO) << "Asked to update resources for an unknown/killed executor '"
+              << executorId << "' of framework " << frameworkId;
+    return;
+  }
+
+  ProcessInfo* info = CHECK_NOTNULL(infos[frameworkId][executorId]);
+
+  info->resources = resources;
+
   // Do nothing; subclasses may override this.
 }
 
@@ -365,6 +378,17 @@ Future<ResourceStatistics> ProcessIsolator::usage(
 
   result.set_timestamp(Clock::now().secs());
 
+  // Set the resource allocations.
+  Option<Bytes> mem = info->resources.mem();
+  if (mem.isSome()) {
+    result.set_mem_limit_bytes(mem.get().bytes());
+  }
+
+  Option<double> cpus = info->resources.cpus();
+  if (cpus.isSome()) {
+    result.set_cpus_limit(cpus.get());
+  }
+
 #ifdef __linux__
   // Get the page size, used for memory accounting.
   // NOTE: This is more portable than using getpagesize().
@@ -384,9 +408,11 @@ Future<ResourceStatistics> ProcessIsolator::usage(
     return Future<ResourceStatistics>::failed(status.error());
   }
 
-  result.set_memory_rss(status.get().rss * pageSize);
-  result.set_cpu_user_time((double) status.get().utime / (double) ticks);
-  result.set_cpu_system_time((double) status.get().stime / (double) ticks);
+  result.set_mem_rss_bytes(status.get().rss * pageSize);
+  result.set_cpus_user_time_secs(
+      (double) status.get().utime / (double) ticks);
+  result.set_cpus_system_time_secs(
+      (double) status.get().stime / (double) ticks);
 
   // Now aggregate all descendant process usage statistics.
   Try<set<pid_t> > children = proc::children(info->pid.get(), true);
@@ -408,16 +434,15 @@ Future<ResourceStatistics> ProcessIsolator::usage(
       continue;
     }
 
-    result.set_memory_rss(
-        result.memory_rss() +
-        status.get().rss * pageSize);
+    result.set_mem_rss_bytes(
+        result.mem_rss_bytes() + status.get().rss * pageSize);
 
-    result.set_cpu_user_time(
-        result.cpu_user_time() +
+    result.set_cpus_user_time_secs(
+        result.cpus_user_time_secs() +
         (double) status.get().utime / (double) ticks);
 
-    result.set_cpu_system_time(
-        result.cpu_system_time() +
+    result.set_cpus_system_time_secs(
+        result.cpus_system_time_secs() +
         (double) status.get().stime / (double) ticks);
   }
 #elif defined __APPLE__
@@ -441,11 +466,11 @@ Future<ResourceStatistics> ProcessIsolator::usage(
         "Failed to get proc_pidinfo: " + stringify(size));
   }
 
-  result.set_memory_rss(task.pti_resident_size);
+  result.set_mem_rss_bytes(task.pti_resident_size);
 
   // NOTE: CPU Times are in nanoseconds, but this is not documented!
-  result.set_cpu_user_time(Nanoseconds(task.pti_total_user).secs());
-  result.set_cpu_system_time(Nanoseconds(task.pti_total_system).secs());
+  result.set_cpus_user_time_secs(Nanoseconds(task.pti_total_user).secs());
+  result.set_cpus_system_time_secs(Nanoseconds(task.pti_total_system).secs());
 #endif
 
   return result;

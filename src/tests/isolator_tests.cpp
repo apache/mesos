@@ -119,6 +119,12 @@ TYPED_TEST(IsolatorTest, Usage)
   task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
 
+  Resources resources(offers.get()[0].resources());
+  Option<Bytes> mem = resources.mem();
+  ASSERT_SOME(mem);
+  Option<double> cpus = resources.cpus();
+  ASSERT_SOME(cpus);
+
   const std::string& file = path::join(flags.work_dir, "ready");
 
   // This task induces user/system load in a child process by
@@ -172,9 +178,9 @@ TYPED_TEST(IsolatorTest, Usage)
     statistics = usage.get();
 
     // If we meet our usage expectations, we're done!
-    if (statistics.memory_rss() >= 1024u &&
-        statistics.cpu_user_time() >= 0.125 &&
-        statistics.cpu_system_time() >= 0.125) {
+    if (statistics.cpus_user_time_secs() >= 0.125 &&
+        statistics.cpus_system_time_secs() >= 0.125 &&
+        statistics.mem_rss_bytes() >= 1024u) {
       break;
     }
 
@@ -182,9 +188,12 @@ TYPED_TEST(IsolatorTest, Usage)
     waited += Milliseconds(100);
   } while (waited < Seconds(10));
 
-  EXPECT_GE(statistics.memory_rss(), 1024u);
-  EXPECT_GE(statistics.cpu_user_time(), 0.125);
-  EXPECT_GE(statistics.cpu_system_time(), 0.125);
+
+  EXPECT_GE(statistics.cpus_user_time_secs(), 0.125);
+  EXPECT_GE(statistics.cpus_system_time_secs(), 0.125);
+  EXPECT_EQ(statistics.cpus_limit(), cpus.get());
+  EXPECT_GE(statistics.mem_rss_bytes(), 1024u);
+  EXPECT_EQ(statistics.mem_limit_bytes(), mem.get().bytes());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));

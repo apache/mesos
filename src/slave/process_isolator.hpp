@@ -101,6 +101,7 @@ private:
     ExecutorID executorId;
     Option<pid_t> pid; // PID of the forked executor process.
     bool killed; // True if "killing" has been initiated via 'killExecutor'.
+    Resources resources; // Resources allocated to the process tree.
   };
 
   // TODO(benh): Make variables const by passing them via constructor.

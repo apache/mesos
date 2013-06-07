@@ -44,6 +44,10 @@ class ResourceMonitorProcess;
 // Provides resource monitoring for executors. Resource usage time
 // series are stored using the Statistics module. Usage information
 // is also exported via a JSON endpoint.
+// TODO(bmahler): Once the deprecated usage.json endpoint is removed,
+// clean this up!! It will be possible to drive collection directly
+// via the http endpoints, and the isolator can return all
+// information in one request.
 // TODO(bmahler): Forward usage information to the master.
 // TODO(bmahler): Consider pulling out the resource collection into
 // a Collector abstraction. The monitor can then become a true
@@ -98,6 +102,7 @@ public:
 protected:
   virtual void initialize()
   {
+    route("/statistics.json", &ResourceMonitorProcess::statisticsJSON);
     route("/usage.json", &ResourceMonitorProcess::usage);
   }
 
@@ -113,6 +118,11 @@ private:
       const ExecutorID& executorId,
       const Duration& interval);
 
+  // Returns the monitoring statistics. Requests have no parameters.
+  process::Future<process::http::Response> statisticsJSON(
+      const process::http::Request& request);
+
+  // TODO(bmahler): Deprecated.
   // Returns the usage information. Requests have no parameters.
   process::Future<process::http::Response> usage(
       const process::http::Request& request);

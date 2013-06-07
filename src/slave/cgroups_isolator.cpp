@@ -651,6 +651,8 @@ void CgroupsIsolator::resourcesChanged(
     return;
   }
 
+  info->resources = resources;
+
   LOG(INFO) << "Changing cgroup controls for executor " << executorId
             << " of framework " << frameworkId
             << " with resources " << resources;
@@ -689,6 +691,17 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
   ResourceStatistics result;
   result.set_timestamp(Clock::now().secs());
 
+  // Set the resource allocations.
+  Option<Bytes> mem = info->resources.mem();
+  if (mem.isSome()) {
+    result.set_mem_limit_bytes(mem.get().bytes());
+  }
+
+  Option<double> cpus = info->resources.cpus();
+  if (cpus.isSome()) {
+    result.set_cpus_limit(cpus.get());
+  }
+
   Try<hashmap<string, uint64_t> > stat =
     cgroups::stat(hierarchy, info->name(), "cpuacct.stat");
 
@@ -700,8 +713,10 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
   // TODO(bmahler): Add namespacing to cgroups to enforce the expected
   // structure, e.g., cgroups::cpuacct::stat.
   if (stat.get().contains("user") && stat.get().contains("system")) {
-    result.set_cpu_user_time((double) stat.get()["user"] / (double) ticks);
-    result.set_cpu_system_time((double) stat.get()["system"] / (double) ticks);
+    result.set_cpus_user_time_secs(
+        (double) stat.get()["user"] / (double) ticks);
+    result.set_cpus_system_time_secs(
+        (double) stat.get()["system"] / (double) ticks);
   }
 
   stat = cgroups::stat(hierarchy, info->name(), "memory.stat");
@@ -714,7 +729,7 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
   // TODO(bmahler): Add namespacing to cgroups to enforce the expected
   // structure, e.g, cgroups::memory::stat.
   if (stat.get().contains("rss")) {
-    result.set_memory_rss(stat.get()["rss"]);
+    result.set_mem_rss_bytes(stat.get()["rss"]);
   }
 
   return result;
