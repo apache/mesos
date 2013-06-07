@@ -72,21 +72,34 @@ TEST(MonitorTest, WatchUnwatch)
   executorInfo.set_name("name");
   executorInfo.set_source("source");
 
+  ResourceStatistics initialStatistics;
+  initialStatistics.set_cpus_user_time_secs(0);
+  initialStatistics.set_cpus_system_time_secs(0);
+  initialStatistics.set_cpus_limit(1.0);
+  initialStatistics.set_mem_rss_bytes(0);
+  initialStatistics.set_mem_limit_bytes(2048);
+  initialStatistics.set_timestamp(Clock::now().secs());
+
   ResourceStatistics statistics;
-  statistics.set_cpu_user_time(5);
-  statistics.set_cpu_system_time(1);
-  statistics.set_memory_rss(1024);
-  statistics.set_timestamp(Clock::now().secs());
+  statistics.set_cpus_user_time_secs(4);
+  statistics.set_cpus_system_time_secs(1);
+  statistics.set_cpus_limit(1.0);
+  statistics.set_mem_rss_bytes(1024);
+  statistics.set_mem_limit_bytes(2048);
+  statistics.set_timestamp(
+      initialStatistics.timestamp() +
+      slave::RESOURCE_MONITORING_INTERVAL.secs());
 
   TestingIsolator isolator;
 
   process::spawn(isolator);
 
-  Future<Nothing> usage;
+  Future<Nothing> usage1, usage2;
   EXPECT_CALL(isolator, usage(frameworkId, executorId))
-    .WillOnce(DoAll(FutureSatisfy(&usage),
+    .WillOnce(DoAll(FutureSatisfy(&usage1),
+                    Return(initialStatistics)))
+    .WillOnce(DoAll(FutureSatisfy(&usage2),
                     Return(statistics)));
-
   slave::ResourceMonitor monitor(&isolator);
 
   // We pause the clock first in order to make sure that we can
@@ -107,7 +120,16 @@ TEST(MonitorTest, WatchUnwatch)
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
   process::Clock::settle();
 
-  AWAIT_READY(usage);
+  AWAIT_READY(usage1);
+
+  // Wait until the isolator has finished returning the statistics.
+  process::Clock::settle();
+
+  // The second collection will populate the cpus_usage.
+  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
+  process::Clock::settle();
+
+  AWAIT_READY(usage2);
 
   // Wait until the isolator has finished returning the statistics.
   process::Clock::settle();
@@ -136,9 +158,42 @@ TEST(MonitorTest, WatchUnwatch)
               "},"
               "\"source\":\"source\""
           "}]",
-          statistics.cpu_user_time() + statistics.cpu_system_time(),
-          statistics.cpu_usage(),
-          statistics.memory_rss()).get(),
+          statistics.cpus_system_time_secs() + statistics.cpus_user_time_secs(),
+          (statistics.cpus_system_time_secs() +
+           statistics.cpus_user_time_secs()) /
+               slave::RESOURCE_MONITORING_INTERVAL.secs(),
+          statistics.mem_rss_bytes()).get(),
+      response);
+
+  response = process::http::get(upid, "statistics.json");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
+      "application/json",
+      "Content-Type",
+      response);
+
+  // TODO(bmahler): Verify metering directly through statistics.
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(
+      strings::format(
+          "[{"
+              "\"executor_id\":\"executor\","
+              "\"executor_name\":\"name\","
+              "\"framework_id\":\"framework\","
+              "\"source\":\"source\","
+              "\"statistics\":{"
+                  "\"cpus_limit\":%g,"
+                  "\"cpus_system_time_secs\":%g,"
+                  "\"cpus_user_time_secs\":%g,"
+                  "\"mem_limit_bytes\":%lu,"
+                  "\"mem_rss_bytes\":%lu"
+              "}"
+          "}]",
+          statistics.cpus_limit(),
+          statistics.cpus_system_time_secs(),
+          statistics.cpus_user_time_secs(),
+          statistics.mem_limit_bytes(),
+          statistics.mem_rss_bytes()).get(),
       response);
 
   // Ensure the monitor stops polling the isolator.

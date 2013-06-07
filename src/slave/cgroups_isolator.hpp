@@ -169,6 +169,8 @@ private:
 
     Flags flags; // Slave flags.
 
+    Resources resources; // Resources allocated to the cgroup.
+
     // Used to cancel the OOM listening.
     process::Future<uint64_t> oomNotifier;
 

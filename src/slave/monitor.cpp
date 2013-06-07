@@ -37,6 +37,8 @@
 
 using namespace process;
 
+using process::statistics;
+
 using std::map;
 using std::string;
 
@@ -49,7 +51,15 @@ using process::wait; // Necessary on some OS's to disambiguate.
 // Resource statistics constants.
 // These match the names in the ResourceStatistics protobuf.
 // TODO(bmahler): Later, when we have a richer monitoring story,
-// we will want to publish these outisde of this file.
+// we will want to publish these outside of this file.
+const std::string CPUS_TIME_SECS        = "cpus_time_secs";
+const std::string CPUS_USER_TIME_SECS   = "cpus_user_time_secs";
+const std::string CPUS_SYSTEM_TIME_SECS = "cpus_system_time_secs";
+const std::string CPUS_LIMIT            = "cpus_limit";
+const std::string MEM_RSS_BYTES         = "mem_rss_bytes";
+const std::string MEM_LIMIT_BYTES       = "mem_limit_bytes";
+
+// TODO(bmahler): Deprecated statistical names, these will be removed!
 const std::string CPU_TIME   = "cpu_time";
 const std::string CPU_USAGE  = "cpu_usage";
 const std::string MEMORY_RSS = "memory_rss";
@@ -61,11 +71,15 @@ void publish(
     const ExecutorID& executorId,
     const ResourceStatistics& statistics);
 
-Future<http::Response> _usage(
+Future<http::Response> _statisticsJSON(
     const hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> >& executors,
     const map<string, double>& statistics,
     const Option<string>& jsonp);
 
+Future<http::Response> _usage(
+    const hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> >& executors,
+    const map<string, double>& statistics,
+    const Option<string>& jsonp);
 
 Future<Nothing> ResourceMonitorProcess::watch(
     const FrameworkID& frameworkId,
@@ -84,9 +98,9 @@ Future<Nothing> ResourceMonitorProcess::watch(
   const string& prefix =
     strings::join("/", frameworkId.value(), executorId.value(), "");
 
-  process::statistics->meter(
+  ::statistics->meter(
       "monitor",
-      prefix + CPU_TIME,
+      prefix + CPUS_TIME_SECS,
       new meters::TimeRate(prefix + CPU_USAGE));
 
   // Schedule the resource collection.
@@ -105,8 +119,13 @@ Future<Nothing> ResourceMonitorProcess::unwatch(
 
   // In case we've already noticed the executor was terminated,
   // we need to archive the statistics first.
-  process::statistics->archive("monitor", prefix + MEMORY_RSS);
-  process::statistics->archive("monitor", prefix + CPU_TIME);
+  // No need to archive CPUS_USAGE as it is implicitly archived along
+  // with CPUS_TIME_SECS.
+  ::statistics->archive("monitor", prefix + CPUS_USER_TIME_SECS);
+  ::statistics->archive("monitor", prefix + CPUS_SYSTEM_TIME_SECS);
+  ::statistics->archive("monitor", prefix + CPUS_LIMIT);
+  ::statistics->archive("monitor", prefix + MEM_RSS_BYTES);
+  ::statistics->archive("monitor", prefix + MEM_LIMIT_BYTES);
 
   if (!watches.contains(frameworkId) ||
       !watches[frameworkId].contains(executorId)) {
@@ -195,20 +214,114 @@ void publish(
   const string& prefix =
     strings::join("/", frameworkId.value(), executorId.value(), "");
 
-  // Publish memory statistic.
-  process::statistics->set(
+  // Publish cpu usage statistics.
+  ::statistics->set(
       "monitor",
-      prefix + MEMORY_RSS,
-      statistics.memory_rss(),
+      prefix + CPUS_USER_TIME_SECS,
+      statistics.cpus_user_time_secs(),
+      time);
+  ::statistics->set(
+      "monitor",
+      prefix + CPUS_SYSTEM_TIME_SECS,
+      statistics.cpus_system_time_secs(),
+      time);
+  ::statistics->set(
+      "monitor",
+      prefix + CPUS_LIMIT,
+      statistics.cpus_limit(),
+      time);
+  // The applied meter from watch() will publish the cpu usage.
+  ::statistics->set(
+      "monitor",
+      prefix + CPUS_TIME_SECS,
+      statistics.cpus_user_time_secs() + statistics.cpus_system_time_secs(),
       time);
 
-  // Publish cpu usage statistics. The applied meter from watch()
-  // will publish the cpu usage percentage.
-  process::statistics->set(
+  // Publish memory statistics.
+  ::statistics->set(
       "monitor",
-      prefix + CPU_TIME,
-      statistics.cpu_user_time() + statistics.cpu_system_time(),
+      prefix + MEM_RSS_BYTES,
+      statistics.mem_rss_bytes(),
       time);
+  ::statistics->set(
+      "monitor",
+      prefix + MEM_LIMIT_BYTES,
+      statistics.mem_limit_bytes(),
+      time);
+}
+
+
+Future<http::Response> ResourceMonitorProcess::statisticsJSON(
+    const http::Request& request)
+{
+  lambda::function<Future<http::Response>(const map<string, double>&)>
+    _statisticsJSON = lambda::bind(
+      slave::_statisticsJSON,
+      watches,
+      lambda::_1,
+      request.query.get("jsonp"));
+
+  return ::statistics->get("monitor").then(_statisticsJSON);
+}
+
+
+Future<http::Response> _statisticsJSON(
+    const hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> >& watches,
+    const map<string, double>& statistics,
+    const Option<string>& jsonp)
+{
+  JSON::Array result;
+
+  foreachkey (const FrameworkID& frameworkId, watches) {
+    foreachkey (const ExecutorID& executorId, watches.get(frameworkId).get()) {
+      const ExecutorInfo& info =
+        watches.get(frameworkId).get().get(executorId).get();
+      const string& prefix =
+        strings::join("/", frameworkId.value(), executorId.value(), "");
+
+      // Export zero values by default.
+      JSON::Object usage;
+      usage.values[CPUS_USER_TIME_SECS] = 0;
+      usage.values[CPUS_SYSTEM_TIME_SECS] = 0;
+      usage.values[CPUS_LIMIT] = 0;
+      usage.values[MEM_RSS_BYTES] = 0;
+      usage.values[MEM_LIMIT_BYTES] = 0;
+
+      // Set the cpu usage data if present.
+      if (statistics.count(prefix + CPUS_USER_TIME_SECS) > 0) {
+        usage.values[CPUS_USER_TIME_SECS] =
+          statistics.find(prefix + CPUS_USER_TIME_SECS)->second;
+      }
+      if (statistics.count(prefix + CPUS_SYSTEM_TIME_SECS) > 0) {
+        usage.values[CPUS_SYSTEM_TIME_SECS] =
+          statistics.find(prefix + CPUS_SYSTEM_TIME_SECS)->second;
+      }
+      if (statistics.count(prefix + CPUS_LIMIT) > 0) {
+        usage.values[CPUS_LIMIT] = statistics.find(prefix + CPUS_LIMIT)->second;
+      }
+
+      // Set the memory usage data if present.
+      if (statistics.count(prefix + MEM_RSS_BYTES) > 0) {
+        usage.values[MEM_RSS_BYTES] =
+          statistics.find(prefix + MEM_RSS_BYTES)->second;
+      }
+      if (statistics.count(prefix + MEM_LIMIT_BYTES) > 0) {
+        usage.values[MEM_LIMIT_BYTES] =
+          statistics.find(prefix + MEM_LIMIT_BYTES)->second;
+      }
+
+      JSON::Object entry;
+      entry.values["framework_id"] = frameworkId.value();
+      entry.values["executor_id"] = executorId.value();
+      entry.values["executor_name"] = info.name();
+      entry.values["source"] = info.source();
+      entry.values["statistics"] = usage;
+
+      result.values.push_back(entry);
+    }
+  }
+
+  return http::OK(result, jsonp);
 }
 
 
@@ -222,7 +335,7 @@ Future<http::Response> ResourceMonitorProcess::usage(
       lambda::_1,
       request.query.get("jsonp"));
 
-  return process::statistics->get("monitor").then(_usage);
+  return ::statistics->get("monitor").then(_usage);
 }
 
 
@@ -250,11 +363,13 @@ Future<http::Response> _usage(
       if (statistics.count(prefix + CPU_USAGE) > 0) {
         usage.values[CPU_USAGE] = statistics.find(prefix + CPU_USAGE)->second;
       }
-      if (statistics.count(prefix + CPU_TIME) > 0) {
-        usage.values[CPU_TIME] = statistics.find(prefix + CPU_TIME)->second;
+      if (statistics.count(prefix + CPUS_TIME_SECS) > 0) {
+        usage.values[CPU_TIME] =
+          statistics.find(prefix + CPUS_TIME_SECS)->second;
       }
-      if (statistics.count(prefix + MEMORY_RSS) > 0) {
-        usage.values[MEMORY_RSS] = statistics.find(prefix + MEMORY_RSS)->second;
+      if (statistics.count(prefix + MEM_RSS_BYTES) > 0) {
+        usage.values[MEMORY_RSS] =
+          statistics.find(prefix + MEM_RSS_BYTES)->second;
       }
 
       JSON::Object entry;
