@@ -18,6 +18,7 @@
 #include <process/pid.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/option.hpp>
 #include <stout/thread.hpp>
 
 namespace process {
@@ -126,18 +127,13 @@ protected:
   // Setup a handler for an HTTP request.
   bool route(
       const std::string& name,
-      const HttpRequestHandler& handler)
-  {
-    if (name.find('/') != 0) {
-      return false;
-    }
-    handlers.http[name.substr(1)] = handler;
-    return true;
-  }
+      const Option<std::string>& help,
+      const HttpRequestHandler& handler);
 
   template <typename T>
   bool route(
       const std::string& name,
+      const Option<std::string>& help,
       Future<http::Response> (T::*method)(const http::Request&))
   {
     // Note that we use dynamic_cast here so a process can use
@@ -146,7 +142,7 @@ protected:
     HttpRequestHandler handler =
       std::tr1::bind(method, dynamic_cast<T*>(this),
                      std::tr1::placeholders::_1);
-    return route(name, handler);
+    return route(name, help, handler);
   }
 
   // Provide the static asset(s) at the specified _absolute_ path for

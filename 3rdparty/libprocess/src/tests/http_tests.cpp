@@ -14,6 +14,7 @@
 #include <process/io.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 
@@ -32,8 +33,8 @@ class HttpProcess : public Process<HttpProcess>
 public:
   HttpProcess()
   {
-    route("/body", &HttpProcess::body);
-    route("/pipe", &HttpProcess::pipe);
+    route("/body", None(), &HttpProcess::body);
+    route("/pipe", None(), &HttpProcess::pipe);
   }
 
   MOCK_METHOD1(body, Future<http::Response>(const http::Request&));

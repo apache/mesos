@@ -30,11 +30,14 @@ public:
 protected:
   virtual void initialize()
   {
-    route("/start", &Profiler::start);
-    route("/stop", &Profiler::stop);
+    route("/start", START_HELP, &Profiler::start);
+    route("/stop", STOP_HELP, &Profiler::stop);
   }
 
 private:
+  static const std::string START_HELP;
+  static const std::string STOP_HELP;
+
   // HTTP endpoints.
 
   // Starts the profiler. There are no request parameters.

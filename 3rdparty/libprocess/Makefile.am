@@ -72,6 +72,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/gc.hpp				\
   $(top_srcdir)/include/process/gmock.hpp			\
   $(top_srcdir)/include/process/gtest.hpp			\
+  $(top_srcdir)/include/process/help.hpp			\
   $(top_srcdir)/include/process/http.hpp			\
   $(top_srcdir)/include/process/id.hpp				\
   $(top_srcdir)/include/process/io.hpp				\

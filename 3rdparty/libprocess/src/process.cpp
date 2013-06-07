@@ -53,6 +53,7 @@
 #include <process/filter.hpp>
 #include <process/future.hpp>
 #include <process/gc.hpp>
+#include <process/help.hpp>
 #include <process/id.hpp>
 #include <process/io.hpp>
 #include <process/logging.hpp>
@@ -411,6 +412,56 @@ private:
 };
 
 
+// Help strings.
+const string Logging::TOGGLE_HELP = HELP(
+    TLDR(
+        "Sets the logging verbosity level for a specified duration."),
+    USAGE(
+        "/logging/toggle?level=VALUE&duration=VALUE"),
+    DESCRIPTION(
+        "The libprocess library uses [glog][glog] for logging. The library",
+        "only uses verbose logging which means nothing will be output unless",
+        "the verbosity level is set (by default it's 0, libprocess uses"
+        "levels 1, 2, and 3).",
+        "",
+        "**NOTE:** If your application uses glog this will also affect",
+        "your verbose logging.",
+        "",
+        "Required query parameters:",
+        "",
+        ">        level=VALUE          Verbosity level (e.g., 1, 2, 3)",
+        ">        duration=VALUE       Duration to keep verbosity level",
+        ">                             toggled (e.g., 10secs, 15mins, etc.)"),
+    REFERENCES(
+        "[glog]: https://code.google.com/p/google-glog"));
+
+
+const string Profiler::START_HELP = HELP(
+    TLDR(
+        "Starts profiling ..."),
+    USAGE(
+        "/profiler/start..."),
+    DESCRIPTION(
+        "...",
+        "",
+        "Query parameters:",
+        "",
+        ">        param=VALUE          Some description here"));
+
+
+const string Profiler::STOP_HELP = HELP(
+    TLDR(
+        "Stops profiling ..."),
+    USAGE(
+        "/profiler/stop..."),
+    DESCRIPTION(
+        "...",
+        "",
+        "Query parameters:",
+        "",
+        ">        param=VALUE          Some description here"));
+
+
 // Unique id that can be assigned to each process.
 static uint32_t __id__ = 0;
 
@@ -471,6 +522,9 @@ static synchronizable(filterer) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
 
 // Global garbage collector.
 PID<GarbageCollector> gc;
+
+// Global help.
+PID<Help> help;
 
 // Per thread process pointer.
 ThreadLocal<ProcessBase>* _process_ = new ThreadLocal<ProcessBase>();
@@ -1399,6 +1453,9 @@ void initialize(const string& delegate)
 
   // Create global garbage collector process.
   gc = spawn(new GarbageCollector());
+
+  // Create global help process.
+  help = spawn(new Help(), true);
 
   // Create the global logging process.
   spawn(new Logging(), true);
@@ -3034,6 +3091,21 @@ UPID ProcessBase::link(const UPID& to)
 
   return to;
 }
+
+
+bool ProcessBase::route(
+    const string& name,
+    const Option<string>& help_,
+    const HttpRequestHandler& handler)
+{
+  if (name.find('/') != 0) {
+    return false;
+  }
+  handlers.http[name.substr(1)] = handler;
+  dispatch(help, &Help::add, pid.id, name, help_);
+  return true;
+}
+
 
 
 UPID spawn(ProcessBase* process, bool manage)

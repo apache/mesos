@@ -36,7 +36,7 @@ public:
 protected:
   virtual void initialize()
   {
-    route("/toggle", &This::toggle);
+    route("/toggle", TOGGLE_HELP, &This::toggle);
   }
 
 private:
@@ -100,6 +100,8 @@ private:
       set(original);
     }
   }
+
+  static const std::string TOGGLE_HELP;
 
   Timeout timeout;
 
