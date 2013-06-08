@@ -45,7 +45,6 @@
 
 #include "master/constants.hpp"
 #include "master/flags.hpp"
-#include "master/http.hpp"
 
 #include "messages/messages.hpp"
 
@@ -191,30 +190,38 @@ protected:
   SlaveID newSlaveId();
 
 private:
+  // Inner class used to namespace HTTP route handlers (see
+  // master/http.cpp for implementations).
+  class Http
+  {
+  public:
+    Http(const Master& _master) : master(_master) {}
+
+    // /master/vars
+    process::Future<process::http::Response> vars(
+        const process::http::Request& request);
+
+    // /master/redirect
+    process::Future<process::http::Response> redirect(
+        const process::http::Request& request);
+
+    // /master/stats.json
+    process::Future<process::http::Response> stats(
+        const process::http::Request& request);
+
+    // /master/state.json
+    process::Future<process::http::Response> state(
+        const process::http::Request& request);
+
+  private:
+    const Master& master;
+  } http;
+
   Master(const Master&);              // No copying.
   Master& operator = (const Master&); // No assigning.
 
   friend struct SlaveRegistrar;
   friend struct SlaveReregistrar;
-
-  // HTTP handlers, friends of the master in order to access state,
-  // they get invoked from within the master so there is no need to
-  // use synchronization mechanisms to protect state.
-  friend Future<process::http::Response> http::vars(
-      const Master& master,
-      const process::http::Request& request);
-
-  friend Future<process::http::Response> http::redirect(
-      const Master& master,
-      const process::http::Request& request);
-
-  friend Future<process::http::Response> http::json::stats(
-      const Master& master,
-      const process::http::Request& request);
-
-  friend Future<process::http::Response> http::json::state(
-      const Master& master,
-      const process::http::Request& request);
 
   const Flags flags;
 

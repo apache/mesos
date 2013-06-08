@@ -43,7 +43,6 @@
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
-#include "slave/http.hpp"
 #include "slave/isolator.hpp"
 #include "slave/monitor.hpp"
 #include "slave/paths.hpp"
@@ -252,26 +251,34 @@ protected:
   void remove(Framework* framework);
 
 private:
-  Slave(const Slave&);              // No copying.
-  Slave& operator = (const Slave&); // No assigning.
+  // Inner class used to namespace HTTP route handlers (see
+  // slave/http.cpp for implementations).
+  class Http
+  {
+  public:
+    Http(const Slave& _slave) : slave(_slave) {}
 
-  // HTTP handlers, friends of the slave in order to access state,
-  // they get invoked from within the slave so there is no need to
-  // use synchronization mechanisms to protect state.
-  friend Future<process::http::Response> http::vars(
-      const Slave& slave,
+    // /slave/vars
+    process::Future<process::http::Response> vars(
       const process::http::Request& request);
 
-  friend Future<process::http::Response> http::json::stats(
-      const Slave& slave,
+    // /slave/stats.json
+    process::Future<process::http::Response> stats(
       const process::http::Request& request);
 
-  friend Future<process::http::Response> http::json::state(
-      const Slave& slave,
+    // /slave/state.json
+    process::Future<process::http::Response> state(
       const process::http::Request& request);
+
+  private:
+    const Slave& slave;
+  } http;
 
   friend class Framework;
   friend class Executor;
+
+  Slave(const Slave&);              // No copying.
+  Slave& operator = (const Slave&); // No assigning.
 
   const Flags flags;
 

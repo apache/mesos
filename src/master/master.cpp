@@ -188,6 +188,7 @@ private:
 
 Master::Master(Allocator* _allocator, Files* _files)
   : ProcessBase("master"),
+    http(*this),
     flags(),
     allocator(_allocator),
     files(_files),
@@ -196,6 +197,7 @@ Master::Master(Allocator* _allocator, Files* _files)
 
 Master::Master(Allocator* _allocator, Files* _files, const Flags& _flags)
   : ProcessBase("master"),
+    http(*this),
     flags(_flags),
     allocator(_allocator),
     files(_files),
@@ -354,11 +356,11 @@ void Master::initialize()
       &ExitedExecutorMessage::executor_id,
       &ExitedExecutorMessage::status);
 
-  // Setup HTTP request handlers.
-  route("/redirect", bind(&http::redirect, cref(*this), params::_1));
-  route("/vars", bind(&http::vars, cref(*this), params::_1));
-  route("/stats.json", bind(&http::json::stats, cref(*this), params::_1));
-  route("/state.json", bind(&http::json::state, cref(*this), params::_1));
+  // Setup HTTP routes.
+  route("/redirect", bind(&Http::redirect, http, params::_1));
+  route("/vars", bind(&Http::vars, http, params::_1));
+  route("/stats.json", bind(&Http::stats, http, params::_1));
+  route("/state.json", bind(&Http::state, http, params::_1));
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the

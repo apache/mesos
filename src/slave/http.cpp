@@ -52,10 +52,8 @@ using std::map;
 using std::string;
 using std::vector;
 
-
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
 // in becomes available).
-
 
 // Returns a JSON object modeled on a Resources.
 JSON::Object model(const Resources& resources)
@@ -247,11 +245,7 @@ JSON::Object model(const Framework& framework)
 }
 
 
-namespace http {
-
-Future<Response> vars(
-    const Slave& slave,
-    const Request& request)
+Future<Response> Slave::Http::vars(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
@@ -273,11 +267,7 @@ Future<Response> vars(
 }
 
 
-namespace json {
-
-Future<Response> stats(
-    const Slave& slave,
-    const Request& request)
+Future<Response> Slave::Http::stats(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
@@ -297,9 +287,7 @@ Future<Response> stats(
 }
 
 
-Future<Response> state(
-    const Slave& slave,
-    const Request& request)
+Future<Response> Slave::Http::state(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
@@ -345,8 +333,6 @@ Future<Response> state(
   return OK(object, request.query.get("jsonp"));
 }
 
-} // namespace json {
-} // namespace http {
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

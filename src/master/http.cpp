@@ -39,7 +39,6 @@
 
 #include "logging/logging.hpp"
 
-#include "master/http.hpp"
 #include "master/master.hpp"
 
 namespace mesos {
@@ -62,7 +61,6 @@ using std::vector;
 
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
 // it becomes available).
-
 
 // Returns a JSON object modeled on a Resources.
 JSON::Object model(const Resources& resources)
@@ -211,11 +209,7 @@ JSON::Object model(const Slave& slave)
 }
 
 
-namespace http {
-
-Future<Response> vars(
-    const Master& master,
-    const Request& request)
+Future<Response> Master::Http::vars(const Request& request)
 {
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
@@ -236,9 +230,7 @@ Future<Response> vars(
   return OK(out.str(), request.query.get("jsonp"));
 }
 
-Future<Response> redirect(
-    const Master& master,
-    const Request& request)
+Future<Response> Master::Http::redirect(const Request& request)
 {
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
@@ -255,11 +247,7 @@ Future<Response> redirect(
 }
 
 
-namespace json {
-
-Future<Response> stats(
-    const Master& master,
-    const Request& request)
+Future<Response> Master::Http::stats(const Request& request)
 {
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
@@ -307,9 +295,7 @@ Future<Response> stats(
 }
 
 
-Future<Response> state(
-    const Master& master,
-    const Request& request)
+Future<Response> Master::Http::state(const Request& request)
 {
   VLOG(1) << "HTTP request for '" << request.path << "'";
 
@@ -378,8 +364,6 @@ Future<Response> state(
   return OK(object, request.query.get("jsonp"));
 }
 
-} // namespace json {
-} // namespace http {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

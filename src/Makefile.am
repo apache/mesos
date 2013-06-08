@@ -223,10 +223,10 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	logging/flags.hpp logging/logging.hpp				\
 	master/allocator.hpp						\
 	master/constants.hpp master/drf_sorter.hpp master/flags.hpp	\
-	master/hierarchical_allocator_process.hpp master/http.hpp	\
+	master/hierarchical_allocator_process.hpp			\
 	master/master.hpp master/sorter.hpp				\
 	messages/messages.hpp slave/constants.hpp			\
-	slave/flags.hpp slave/gc.hpp slave/monitor.hpp slave/http.hpp	\
+	slave/flags.hpp slave/gc.hpp slave/monitor.hpp			\
 	slave/isolator.hpp						\
 	slave/cgroups_isolator.hpp					\
 	slave/paths.hpp slave/state.hpp					\

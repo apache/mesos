@@ -82,6 +82,7 @@ Slave::Slave(const slave::Flags& _flags,
              Files* _files)
   : ProcessBase(ID::generate("slave")),
     state(RECOVERING),
+    http(*this),
     flags(_flags),
     local(_local),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
@@ -352,10 +353,10 @@ void Slave::initialize()
   // Install the ping message handler.
   install("PING", &Slave::ping);
 
-  // Setup some HTTP routes.
-  route("/vars", bind(&http::vars, cref(*this), params::_1));
-  route("/stats.json", bind(&http::json::stats, cref(*this), params::_1));
-  route("/state.json", bind(&http::json::state, cref(*this), params::_1));
+  // Setup HTTP routes.
+  route("/vars", bind(&Http::vars, http, params::_1));
+  route("/stats.json", bind(&Http::stats, http, params::_1));
+  route("/state.json", bind(&Http::state, http, params::_1));
 
   if (flags.log_dir.isSome()) {
     Try<string> log = logging::getLogFile(google::INFO);
