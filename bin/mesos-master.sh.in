@@ -19,6 +19,8 @@
 # This is a wrapper for running mesos-master before it is installed
 # that first sets up environment variables as appropriate.
 
-. @abs_top_builddir@/bin/mesos-build-env.sh
+MESOS_WEBUI_DIR=@abs_top_srcdir@/src/webui
+
+export MESOS_WEBUI_DIR
 
 exec @abs_top_builddir@/src/mesos-master "${@}"

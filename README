@@ -77,12 +77,12 @@ directory if any).
 Running Mesos before Installing
 ===============================
 
-After running 'make' but before running 'make install' you can run any
-of the binaries but certain environment variables must be set up first
-(see [build]/bin/mesos-build-env.sh.in). It's advisable to run the
-binaries by using the wrapper scripts provided in [build]/bin. Note
-that these scripts also have a GDB variant that starts the binaries in
-GDB when you want to debug.
+After running 'make' but before running 'make install' we've provided
+scripts for running mesos-master, mesos-slave, mesos-local, and
+mesos-tests that first set some environment variables (see
+[build]/bin/mesos-*.sh). Note that these scripts also have a GDB
+variant ([build]/bin/gdb-mesos-*.sh) that starts the binaries in GDB
+when you want to debug.
 
 
 Examples and Tests

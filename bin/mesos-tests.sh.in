@@ -16,9 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a wrapper for running mesos-master before it is installed
+# This is a wrapper for running mesos-tests from the build directory
 # that first sets up environment variables as appropriate.
 
-. @abs_top_builddir@/bin/mesos-build-env.sh
+MESOS_WEBUI_DIR=@abs_top_srcdir@/src/webui
+MESOS_LAUNCHER_DIR=@abs_top_builddir@/src
+
+export MESOS_WEBUI_DIR
+export MESOS_LAUNCHER_DIR
 
 exec @abs_top_builddir@/src/mesos-tests "${@}"
