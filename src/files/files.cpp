@@ -104,10 +104,10 @@ FilesProcess::FilesProcess()
 
 void FilesProcess::initialize()
 {
-  route("/browse.json", &FilesProcess::browse);
-  route("/read.json", &FilesProcess::read);
-  route("/download.json", &FilesProcess::download);
-  route("/debug.json", &FilesProcess::debug);
+  route("/browse.json", None(), &FilesProcess::browse);
+  route("/read.json", None(), &FilesProcess::read);
+  route("/download.json", None(), &FilesProcess::download);
+  route("/debug.json", None(), &FilesProcess::debug);
 }
 
 

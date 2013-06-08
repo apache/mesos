@@ -28,6 +28,7 @@
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 #include "common/type_utils.hpp"
@@ -102,8 +103,8 @@ public:
 protected:
   virtual void initialize()
   {
-    route("/statistics.json", &ResourceMonitorProcess::statisticsJSON);
-    route("/usage.json", &ResourceMonitorProcess::usage);
+    route("/statistics.json", None(), &ResourceMonitorProcess::statisticsJSON);
+    route("/usage.json", None(), &ResourceMonitorProcess::usage);
   }
 
 private:
