@@ -5,9 +5,11 @@ Release Notes - Mesos - Version 0.12.0
 * This release also includes a new and improved Hadoop framework. The new port doesn't require patching Hadoop (i.e., it's a self contained Hadoop contrib) and lets you use existing schedulers (e.g., the fair scheduler or capacity scheduler)! The tradeoff, however, is that it doesn't take as much advantage of the fine-grained nature of a Mesos task (i.e., there is no longer a 1-1 mapping between a Mesos task and a map/reduce task).
 
 ** Sub-task
+    * [MESOS-214] - Report resources being used by executors
     * [MESOS-419] - Old slave directories should not be garbage collected based on file modification time
 
 ** Bug
+    * [MESOS-107] - Scheduler library should not acknowledge a status update if the driver has been aborted.
     * [MESOS-152] - Slave should forward status updates for unknown tasks
     * [MESOS-285] - configure.macosx checks for version "10.7" but should check for 10.7 or greater
     * [MESOS-307] - Web UI file download links are broken.
@@ -18,6 +20,7 @@ Release Notes - Mesos - Version 0.12.0
     * [MESOS-340] - Gperftools target always rebuilds.
     * [MESOS-374] - HTTP GET requests to /statistics/snapshot.json crash the slave
     * [MESOS-422] - Master leader election should be more robust to stale ephemeral nodes
+    * [MESOS-486] - TaskInfo should include a 'source' in order to enable getting resource monitoring statistics.
 
 ** Improvement
     * [MESOS-293] - Make clean deletes checked in files.
