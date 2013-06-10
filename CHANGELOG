@@ -1,3 +1,115 @@
+Release Notes - Mesos - Version 0.13.0
+--------------------------------------
+* The primary feature in this release is "Slave Recovery". This enables a slave to reconnect
+  with old running executors after it restarts (e.g., after an upgrade).
+* This release also includes a major refactor of the internal testing infrastructure.
+* There are also several bug fixes and stability improvements (esp. around ZooKeeper).
+
+** Bug
+    * [MESOS-77] - ExceptionTest.AbortOnFrameworkError sometimes hangs if Mesos built without optimizations
+    * [MESOS-201] - CppFramework test occasionally fails
+    * [MESOS-217] - LOST tasks are incorrectly reconciled between mesos and framework
+    * [MESOS-232] - Unit test CoordinatorTest.Elect triggers non-deterministic assertion failure in libprocess.
+    * [MESOS-276] - SIGSEV with current trunk and OpenJDK 7u3
+    * [MESOS-277] - Java test framework test is flaky
+    * [MESOS-289] - Zookeeper tests are flaky
+    * [MESOS-301] - Coordinator test is flaky
+    * [MESOS-318] - os::memory does not consider sysinfo.mem_unit
+    * [MESOS-321] - libprocess http::encode fails test
+    * [MESOS-344] - --disable-java still uses java headers during make check
+    * [MESOS-353] - ZooKeepet state test GetSetGet hung
+    * [MESOS-362] - Inconsistent slave maps in the master.
+    * [MESOS-365] - Slave should reject tasks before registering with the master.
+    * [MESOS-366] - Master check failure during load tests.
+    * [MESOS-368] - HTTP.Endpoints test is flaky.
+    * [MESOS-369] - Mesos tests spitting out error messages.
+    * [MESOS-379] - Zookeeper MasterDetectorExpireSlaveZKSessionNewMaster test is flaky
+    * [MESOS-385] - MasterTest.TaskRunning flaky on Jenkins.
+    * [MESOS-392] - FaultTolerance SchedulerExit test hangs
+    * [MESOS-393] - Forking at an unlucky time on OS X can cause the C++ library to deadlock.
+    * [MESOS-394] - Don't do ExecutorLauncher in forked process but exec first instead.
+    * [MESOS-395] - FaultToleranceTest.SchedulerFailoverFrameworkMessage test is flaky.
+    * [MESOS-399] - MonitorTest.WatchUnwatch failed.
+    * [MESOS-400] - Example Java framework test is flaky
+    * [MESOS-401] - SlaveRecoveryTest/0.RecoverTerminatedExecutor is flaky on OSX.
+    * [MESOS-402] - CoordinatorTest.TruncateNotLearnedFill test is flaky
+    * [MESOS-403] - CoordinatorTest.TruncateLearnedFill test is flaky
+    * [MESOS-405] - SlaveRecoveryTest/1.ReconnectExecutor crashes.
+    * [MESOS-406] - Google mock throws a segfault when invoked by TestFilter
+    * [MESOS-407] - Google test filter processing is incorrect for the empty string.
+    * [MESOS-408] - FaultToleranceTest.SlavePartitioned is flaky
+    * [MESOS-412] - MasterTest.ShutdownUnregisteredExecutor flaky
+    * [MESOS-423] - A slave asked to shutdown should not re-register with a new slave id
+    * [MESOS-424] - CgroupsIsolatorTest.BalloonFramework runs forever
+    * [MESOS-436] - FaultToleranceTest.SchedulerFailover test is flaky
+    * [MESOS-437] - ResourceOffersTest.ResourceOfferWithMultipleSlaves is flaky
+    * [MESOS-440] - Allow for headroom in the GC algorithm.
+    * [MESOS-441] - AllocatorZooKeeperTest/0.FrameworkReregistersFirst is flaky
+    * [MESOS-446] - Master should shutdown slaves that were deactivated
+    * [MESOS-447] - Master should send TASK_LOST updates for unknown tasks when slave reregisters
+    * [MESOS-453] - AllocatorZookeeper tests are using /tmp/mesos work directory
+    * [MESOS-454] - ResourceOffers tests are using /tmp/mesos working directory
+    * [MESOS-462] - Resource usage collection failure messages have '1' as the failure message.
+    * [MESOS-466] - Master should always send a re-registered message to framework when the scheduler driver sends a re-register
+    * [MESOS-467] - AllocatorTest.FrameworkExited is flaky
+    * [MESOS-469] - Scheduler driver should call disconnected on master failover
+    * [MESOS-474] - Mesos 0.10.0: make check fails on Ubuntu 12.04LTS 
+    * [MESOS-476] - Upgrade libev to 4.15
+    * [MESOS-481] -  Slave needs to only inform the master about non-terminal executors, for proper resource accounting
+    * [MESOS-482] - Status update manager should not cleanup the stream when there are pending updates, even though it received an ACK for a terminal update
+    * [MESOS-484] - Latest ZooKeeperState.cpp doesn't compile on Mountain Lion
+
+** Improvement
+    * [MESOS-46] - Refactor MasterTest to use fixture
+    * [MESOS-134] - Add Python documentation
+    * [MESOS-140] - Unrecognized command line args should fail the process
+    * [MESOS-242] - Add more tests to Dominant Share Allocator
+    * [MESOS-305] - Inform the frameworks / slaves about a master failover
+    * [MESOS-409] - Master detector code should stat nodes before attempting to create
+    * [MESOS-472] - Separate ResourceStatistics::cpu_time into ResourceStatistics::cpu_user_time and ResourceStatistics::cpu_system_time.
+    * [MESOS-493] - Expose version information in http endpoints
+
+** New Feature
+    * [MESOS-110] - Mesos deploys should not restart tasks
+    * [MESOS-169] - Ability to for tests to catch in-flight messages that are dispatched
+
+
+Release Notes - Mesos - Version 0.12.0
+--------------------------------------
+* This release includes bug fixes and stability improvements.
+* The primary feature in this release is executor resource consumption monitoring. Slaves now monitor resource consumption of running executors and expose it over JSON and through the webui.
+* This release also includes a new and improved Hadoop framework. The new port doesn't require patching Hadoop (i.e., it's a self contained Hadoop contrib) and lets you use existing schedulers (e.g., the fair scheduler or capacity scheduler)! The tradeoff, however, is that it doesn't take as much advantage of the fine-grained nature of a Mesos task (i.e., there is no longer a 1-1 mapping between a Mesos task and a map/reduce task).
+
+** Sub-task
+    * [MESOS-214] - Report resources being used by executors
+    * [MESOS-419] - Old slave directories should not be garbage collected based on file modification time
+
+** Bug
+    * [MESOS-107] - Scheduler library should not acknowledge a status update if the driver has been aborted.
+    * [MESOS-152] - Slave should forward status updates for unknown tasks
+    * [MESOS-285] - configure.macosx checks for version "10.7" but should check for 10.7 or greater
+    * [MESOS-307] - Web UI file download links are broken.
+    * [MESOS-317] - python mesos core bindings rejects framework messages with null bytes
+    * [MESOS-319] - Fix buggy read / write calls.
+    * [MESOS-325] - make clean is broken
+    * [MESOS-332] - Executor launcher fetches resources as slave user, instead of executor user.
+    * [MESOS-340] - Gperftools target always rebuilds.
+    * [MESOS-374] - HTTP GET requests to /statistics/snapshot.json crash the slave
+    * [MESOS-422] - Master leader election should be more robust to stale ephemeral nodes
+    * [MESOS-486] - TaskInfo should include a 'source' in order to enable getting resource monitoring statistics.
+
+** Improvement
+    * [MESOS-293] - Make clean deletes checked in files.
+
+** New Feature
+    * [MESOS-99] - display slave resource usage information in the slave webui
+
+** Task
+    * [MESOS-274] - Unicode / Binary files over http endpoints.
+    * [MESOS-324] - Monitor executor resource usage.
+    * [MESOS-331] - Add --disable-perftools to configure.
+
+
 Release Notes - Mesos - Version 0.11.0
 --------------------------------------
 ** Brainstorming
@@ -6,14 +118,27 @@ Release Notes - Mesos - Version 0.11.0
 
 ** Bug
     * [MESOS-260] - Implement a duration abstraction
+    * [MESOS-261] - bootstrap fails when automake version >= 1.12
+    * [MESOS-263] - Complete the new webui (slave, framework, executor pages)
+    * [MESOS-264] - Make fails on the latest ubuntu
+    * [MESOS-270] - Log viewing broken on mesos-local runs
     * [MESOS-364] - cgroup tests fail on Ubuntu
     * [MESOS-386] - AllocatorTest/0.TaskFinished has incomplete expectations.
     * [MESOS-388] - Latest update breaks building on OSX
     * [MESOS-404] - FilesTest.BrowseTest is flaky
     * [MESOS-413] - AllocatorTest/0.TaskFinished test has bad expectations.
 
+** Improvement
+    * [MESOS-252] - Web UI Improvements
+    * [MESOS-253] - Enable -Wall -Werror on the build
+    * [MESOS-254] - Improve mesos slave's garbage collection
+    * [MESOS-259] - Expose slave attributes in slave endpoint & sortable tables
+
 ** Task
+    * [MESOS-275] - HTTP endpoint for file download.
+    * [MESOS-279] - Impose a limit on HTTP Response size
     * [MESOS-389] - Add OSX slave to the Jenkins build.
+    * [MESOS-491] - Add mesos-0.11.0-incubating jar to maven central
 
 
 Release Notes - Mesos - Version 0.10.0
@@ -34,7 +159,6 @@ Release Notes - Mesos - Version 0.10.0
     * [MESOS-83] - Filters should be removed when more resources are available than rejected offer had
     * [MESOS-145] - mesos executor holds on to fd spawned by slave after slave death, preventing slave from restarting
     * [MESOS-148] - Building of included Hadoop broken
-    * [MESOS-152] - Slave should forward status updates for unknown tasks
     * [MESOS-164] - Crash on Mac OS X due to dlopen not being thread-safe
     * [MESOS-183] - Included MPI Framework Fails to Start
     * [MESOS-187] - Mesos should not pass an invalid task to a slave
@@ -53,16 +177,11 @@ Release Notes - Mesos - Version 0.10.0
     * [MESOS-248] - Python quit unexpectedly while using mesos plugin
     * [MESOS-251] - DRF allocator doesn't expire filter correctly
     * [MESOS-257] - Master doesn't recover resources when executor exits
-    * [MESOS-261] - bootstrap fails when automake version >= 1.12
-    * [MESOS-262] - Slave should not charge the resources required for launching a executor against the executor 
-    * [MESOS-263] - Complete the new webui (slave, framework, executor pages)
-    * [MESOS-264] - Make fails on the latest ubuntu
+    * [MESOS-262] - Slave should not charge the resources required for launching a executor against the executor
     * [MESOS-266] - When the master removes a slave, a shutdown should be sent.
-    * [MESOS-268] - Slave should force kill executors when it is shutting down 
-    * [MESOS-270] - Log viewing broken on mesos-local runs
+    * [MESOS-268] - Slave should force kill executors when it is shutting down
     * [MESOS-278] - Master Fails to Connect to Zookeeper
     * [MESOS-284] - Short-term fix for fire-walling slave shutdown and lost slave messages from the 'wrong' master
-    * [MESOS-285] - configure.macosx checks for version "10.7" but should check for 10.7 or greater
     * [MESOS-286] - AllocatorTest is flaky
     * [MESOS-288] - Latest trunk does not finish make check
     * [MESOS-290] - Jobtracker can't get TaskTrackerInfo when the JobTracker log file is deleted
@@ -70,18 +189,11 @@ Release Notes - Mesos - Version 0.10.0
     * [MESOS-302] - Scheduler driver shouldn't send an ACK if the driver is aborted while sending stats update
     * [MESOS-303] - mesos slave crashes during framework termination
     * [MESOS-306] - Mesos-master frequently crashes
-    * [MESOS-307] - Web UI file download links are broken.
     * [MESOS-310] - cgroups isolation module should not block on fetching executors
-    * [MESOS-317] - python mesos core bindings rejects framework messages with null bytes
-    * [MESOS-319] - Fix buggy read / write calls.
-    * [MESOS-321] - libprocess http::encode fails test
-    * [MESOS-325] - make clean is broken
-    * [MESOS-332] - Executor launcher fetches resources as slave user, instead of executor user. 
     * [MESOS-339] - Release script is expecting enter, not any key
-    * [MESOS-340] - Gperftools target always rebuilds.
-    * [MESOS-381] - Problem building on Ubuntu 12.04 LTE
     * [MESOS-382] - FaultToleranceTest.FrameworkReliableRegistration test is flaky.
     * [MESOS-383] - AllocatorTest/0.FrameworkExited test is broken
+    * [MESOS-464] - mesos 0.10.0 fails to build on ubutu 13.04
 
 ** Improvement
     * [MESOS-8] - Maintain a history of executed frameworks/tasks and show it on the web UI
@@ -90,20 +202,14 @@ Release Notes - Mesos - Version 0.10.0
     * [MESOS-149] - Garbage collection on slaves
     * [MESOS-171] - Make CommandInfo 'uri' field be repeated, possibly making a URI embedded message to describe whether or not we should 'chmod +x' the resulting resource.
     * [MESOS-180] - Update the Hadoop patch to list protobuf-2.4.1 as a dependency so Maven pulls it down.
-    * [MESOS-193] - Create a single-page javascript interface to replace the existing webui 
+    * [MESOS-193] - Create a single-page javascript interface to replace the existing webui
     * [MESOS-194] - Make killtree more verbose.
-    * [MESOS-252] - Web UI Improvements
-    * [MESOS-253] - Enable -Wall -Werror on the build
-    * [MESOS-254] - Improve mesos slave's garbage collection
     * [MESOS-255] - Expose files through HTTP endpoints.
     * [MESOS-256] - Introduce a cluster name into the Web UI
-    * [MESOS-259] - Expose slave attributes in slave endpoint & sortable tables
     * [MESOS-272] - Create a 'fs' namespace and migrate as appropriate from our 'os' namespace.
-    * [MESOS-293] - Make clean deletes checked in files.
 
 ** New Feature
     * [MESOS-86] - Expose master url to the scheduler
-    * [MESOS-99] - display slave resource usage information in the slave webui
     * [MESOS-158] - Make ExecutorInfo more rich
     * [MESOS-185] - Provide a master stat indicating number of outstanding resource offers
     * [MESOS-207] - A new isolation module on Linux that uses Linux control groups (cgroups) directly.
@@ -118,12 +224,7 @@ Release Notes - Mesos - Version 0.10.0
     * [MESOS-69] - Migrate to Apache wiki and de-activate github wiki
     * [MESOS-80] - Add a page or section to the wiki defining project coding standards
     * [MESOS-133] - Make Mesos clean of most GCC warnings
-    * [MESOS-274] - Unicode / Binary files over http endpoints.
-    * [MESOS-275] - HTTP endpoint for file download.
-    * [MESOS-279] - Impose a limit on HTTP Response size
-    * [MESOS-283] - Use cpp implementations for python protobufs.
-    * [MESOS-324] - Monitor executor resource usage.
-    * [MESOS-331] - Add --disable-perftools to configure.
+    * [MESOS-398] - Add mesos-0.10.0-incubating jar to maven central
 
 
 Release Notes - Mesos - Version 0.9.0
