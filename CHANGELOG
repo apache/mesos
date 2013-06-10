@@ -1,3 +1,79 @@
+Release Notes - Mesos - Version 0.13.0
+--------------------------------------
+* The primary feature in this release is "Slave Recovery". This enables a slave to reconnect
+  with old running executors after it restarts (e.g., after an upgrade).
+* This release also includes a major refactor of the internal testing infrastructure.
+* There are also several bug fixes and stability improvements (esp. around ZooKeeper).
+
+** Bug
+    * [MESOS-77] - ExceptionTest.AbortOnFrameworkError sometimes hangs if Mesos built without optimizations
+    * [MESOS-201] - CppFramework test occasionally fails
+    * [MESOS-217] - LOST tasks are incorrectly reconciled between mesos and framework
+    * [MESOS-232] - Unit test CoordinatorTest.Elect triggers non-deterministic assertion failure in libprocess.
+    * [MESOS-276] - SIGSEV with current trunk and OpenJDK 7u3
+    * [MESOS-277] - Java test framework test is flaky
+    * [MESOS-289] - Zookeeper tests are flaky
+    * [MESOS-301] - Coordinator test is flaky
+    * [MESOS-318] - os::memory does not consider sysinfo.mem_unit
+    * [MESOS-321] - libprocess http::encode fails test
+    * [MESOS-344] - --disable-java still uses java headers during make check
+    * [MESOS-353] - ZooKeepet state test GetSetGet hung
+    * [MESOS-362] - Inconsistent slave maps in the master.
+    * [MESOS-365] - Slave should reject tasks before registering with the master.
+    * [MESOS-366] - Master check failure during load tests.
+    * [MESOS-368] - HTTP.Endpoints test is flaky.
+    * [MESOS-369] - Mesos tests spitting out error messages.
+    * [MESOS-379] - Zookeeper MasterDetectorExpireSlaveZKSessionNewMaster test is flaky
+    * [MESOS-385] - MasterTest.TaskRunning flaky on Jenkins.
+    * [MESOS-392] - FaultTolerance SchedulerExit test hangs
+    * [MESOS-393] - Forking at an unlucky time on OS X can cause the C++ library to deadlock.
+    * [MESOS-394] - Don't do ExecutorLauncher in forked process but exec first instead.
+    * [MESOS-395] - FaultToleranceTest.SchedulerFailoverFrameworkMessage test is flaky.
+    * [MESOS-399] - MonitorTest.WatchUnwatch failed.
+    * [MESOS-400] - Example Java framework test is flaky
+    * [MESOS-401] - SlaveRecoveryTest/0.RecoverTerminatedExecutor is flaky on OSX.
+    * [MESOS-402] - CoordinatorTest.TruncateNotLearnedFill test is flaky
+    * [MESOS-403] - CoordinatorTest.TruncateLearnedFill test is flaky
+    * [MESOS-405] - SlaveRecoveryTest/1.ReconnectExecutor crashes.
+    * [MESOS-406] - Google mock throws a segfault when invoked by TestFilter
+    * [MESOS-407] - Google test filter processing is incorrect for the empty string.
+    * [MESOS-408] - FaultToleranceTest.SlavePartitioned is flaky
+    * [MESOS-412] - MasterTest.ShutdownUnregisteredExecutor flaky
+    * [MESOS-423] - A slave asked to shutdown should not re-register with a new slave id
+    * [MESOS-424] - CgroupsIsolatorTest.BalloonFramework runs forever
+    * [MESOS-436] - FaultToleranceTest.SchedulerFailover test is flaky
+    * [MESOS-437] - ResourceOffersTest.ResourceOfferWithMultipleSlaves is flaky
+    * [MESOS-440] - Allow for headroom in the GC algorithm.
+    * [MESOS-441] - AllocatorZooKeeperTest/0.FrameworkReregistersFirst is flaky
+    * [MESOS-446] - Master should shutdown slaves that were deactivated
+    * [MESOS-447] - Master should send TASK_LOST updates for unknown tasks when slave reregisters
+    * [MESOS-453] - AllocatorZookeeper tests are using /tmp/mesos work directory
+    * [MESOS-454] - ResourceOffers tests are using /tmp/mesos working directory
+    * [MESOS-462] - Resource usage collection failure messages have '1' as the failure message.
+    * [MESOS-466] - Master should always send a re-registered message to framework when the scheduler driver sends a re-register
+    * [MESOS-467] - AllocatorTest.FrameworkExited is flaky
+    * [MESOS-469] - Scheduler driver should call disconnected on master failover
+    * [MESOS-474] - Mesos 0.10.0: make check fails on Ubuntu 12.04LTS 
+    * [MESOS-476] - Upgrade libev to 4.15
+    * [MESOS-481] -  Slave needs to only inform the master about non-terminal executors, for proper resource accounting
+    * [MESOS-482] - Status update manager should not cleanup the stream when there are pending updates, even though it received an ACK for a terminal update
+    * [MESOS-484] - Latest ZooKeeperState.cpp doesn't compile on Mountain Lion
+
+** Improvement
+    * [MESOS-46] - Refactor MasterTest to use fixture
+    * [MESOS-134] - Add Python documentation
+    * [MESOS-140] - Unrecognized command line args should fail the process
+    * [MESOS-242] - Add more tests to Dominant Share Allocator
+    * [MESOS-305] - Inform the frameworks / slaves about a master failover
+    * [MESOS-409] - Master detector code should stat nodes before attempting to create
+    * [MESOS-472] - Separate ResourceStatistics::cpu_time into ResourceStatistics::cpu_user_time and ResourceStatistics::cpu_system_time.
+    * [MESOS-493] - Expose version information in http endpoints
+
+** New Feature
+    * [MESOS-110] - Mesos deploys should not restart tasks
+    * [MESOS-169] - Ability to for tests to catch in-flight messages that are dispatched
+
+
 Release Notes - Mesos - Version 0.12.0
 --------------------------------------
 * This release includes bug fixes and stability improvements.
