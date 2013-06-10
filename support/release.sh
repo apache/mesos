@@ -58,8 +58,8 @@ echo "${GREEN}Now let's make the artifacts world readable ...${NORMAL}"
 
 echo "${GREEN}Now we'll create a git tag ...${NORMAL}"
 
-MESSAGE="Tag for release-${VERSION}-incubating-RC${CANDIDATE}."
-TAG="release-${VERSION}-incubating-RC${CANDIDATE}"
+MESSAGE="Tag for ${VERSION}-rc${CANDIDATE}."
+TAG="${VERSION}-rc${CANDIDATE}"
 git tag -m "${MESSAGE}" ${TAG} || \
   { echo "${RED}Failed to create git tag${NORMAL}"; exit 1; }
 
