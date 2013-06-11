@@ -58,6 +58,7 @@ Release Notes - Mesos - Version 0.13.0
     * [MESOS-481] -  Slave needs to only inform the master about non-terminal executors, for proper resource accounting
     * [MESOS-482] - Status update manager should not cleanup the stream when there are pending updates, even though it received an ACK for a terminal update
     * [MESOS-484] - Latest ZooKeeperState.cpp doesn't compile on Mountain Lion
+    * [MESOS-502] - Slave crashes when handling duplicate terminal updates
 
 ** Improvement
     * [MESOS-46] - Refactor MasterTest to use fixture
