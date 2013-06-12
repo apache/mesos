@@ -49,7 +49,8 @@ inline Try<Process> process(pid_t pid)
                  Bytes(status.get().rss * pageSize),
                  Duration::create(status.get().utime / (double) ticks).get(),
                  Duration::create(status.get().stime / (double) ticks).get(),
-                 status.get().comm);
+                 status.get().comm,
+                 status.get().state == 'Z');
 }
 
 

@@ -52,7 +52,8 @@ inline Try<Process> process(pid_t pid)
                    Bytes(0),
                    Nanoseconds(-1),
                    Nanoseconds(-1),
-                   process.kp_proc.p_comm);
+                   process.kp_proc.p_comm,
+                   process.kp_proc.p_stat & SZOMB);
   } else {
     return Process(process.kp_proc.p_pid,
                    process.kp_eproc.e_ppid,
@@ -61,7 +62,8 @@ inline Try<Process> process(pid_t pid)
                    Bytes(task.pti_resident_size),
                    Nanoseconds(task.pti_total_user),
                    Nanoseconds(task.pti_total_system),
-                   process.kp_proc.p_comm);
+                   process.kp_proc.p_comm,
+                   process.kp_proc.p_stat & SZOMB);
   }
 }
 

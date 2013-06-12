@@ -1111,17 +1111,27 @@ inline Try<std::set<pid_t> > pids(Option<pid_t> group, Option<pid_t> session)
 
 inline Try<bool> alive(pid_t pid)
 {
-  CHECK(pid > 0);
-
-  if (::kill(pid, 0) == 0) {
-    return true;
+  if (pid <= 0) {
+    return Error("Invalid pid");
   }
 
-  if (errno == ESRCH) {
-    return false;
+  const Try<os::Process>& process = os::process(pid);
+
+  // When we can't get the process information, fall back
+  // to using kill.
+  if (process.isError()) {
+    if (::kill(pid, 0) == 0) {
+      return true;
+    }
+
+    if (errno == ESRCH) {
+      return false;
+    }
+
+    return Try<bool>::error(strerror(errno));
   }
 
-  return Try<bool>::error(strerror(errno));
+  return !process.get().zombie;
 }
 
 } // namespace os {

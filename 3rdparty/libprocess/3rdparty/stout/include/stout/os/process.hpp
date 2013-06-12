@@ -19,7 +19,8 @@ struct Process
           const Bytes& _rss,
           const Duration& _utime,
           const Duration& _stime,
-          const std::string& _command)
+          const std::string& _command,
+          bool _zombie)
     : pid(_pid),
       parent(_parent),
       group(_group),
@@ -27,7 +28,8 @@ struct Process
       rss(_rss),
       utime(_utime),
       stime(_stime),
-      command(_command) {}
+      command(_command),
+      zombie(_zombie) {}
 
   const pid_t pid;
   const pid_t parent;
@@ -37,6 +39,7 @@ struct Process
   const Duration utime;
   const Duration stime;
   const std::string command;
+  const bool zombie;
 
   // TODO(bmahler): Add additional data as needed.
 
