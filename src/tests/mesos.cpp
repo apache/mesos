@@ -149,17 +149,8 @@ void MesosTest::ShutdownSlaves()
 }
 
 
-void MesosTest::SetUp()
-{
-  // For locating killtree.sh.
-  os::setenv("MESOS_SOURCE_DIR", tests::flags.source_dir);
-}
-
-
 void MesosTest::TearDown()
 {
-  os::unsetenv("MESOS_SOURCE_DIR");
-
   // TODO(benh): Fail the test if shutdown hasn't been called?
   Shutdown();
 }

@@ -30,7 +30,6 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
-#include "common/process_utils.hpp"
 #include "common/thread.hpp"
 
 #include "logging/logging.hpp"
@@ -223,7 +222,7 @@ public:
   {
     // TODO(benh): Do kill escalation (i.e., after n seconds, kill -9).
     if (pid > 0) {
-      utils::process::killtree(pid, SIGTERM, true, true, true);
+      os::killtree(pid, SIGTERM, true, true, &std::cerr);
     }
   }
 
@@ -233,7 +232,7 @@ public:
   {
     // TODO(benh): Do kill escalation (i.e., after n seconds, kill -9).
     if (pid > 0) {
-      utils::process::killtree(pid, SIGTERM, true, true, true);
+      os::killtree(pid, SIGTERM, true, true, &std::cerr);
     }
   }
 

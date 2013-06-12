@@ -214,7 +214,7 @@ endif
 libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
 	common/protobuf_utils.hpp					\
-	common/lock.hpp common/resources.hpp common/process_utils.hpp	\
+	common/lock.hpp common/resources.hpp				\
 	common/type_utils.hpp common/thread.hpp common/units.hpp	\
 	common/values.hpp						\
 	detector/detector.hpp examples/utils.hpp files/files.hpp	\
@@ -456,10 +456,6 @@ nobase_dist_webui_DATA +=							  \
   webui/master/static/bootstrap/js/jquery-1.7.1.js				  \
   webui/master/static/bootstrap/js/jquery-1.7.1.min.js				  \
   webui/master/static/bootstrap/js/README.md
-
-
-# And need to install the killtree script.
-dist_pkglibexec_SCRIPTS += scripts/killtree.sh
 
 
 # And the deploy related stuff.
@@ -804,7 +800,6 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/examples_tests.cpp				\
 	              tests/protobuf_io_tests.cpp			\
 	              tests/zookeeper_url_tests.cpp			\
-	              tests/killtree_tests.cpp				\
 	              tests/exception_tests.cpp				\
 	              tests/attributes_tests.cpp			\
 	              tests/master_detector_tests.cpp			\
@@ -869,8 +864,7 @@ dist_check_SCRIPTS +=				\
   tests/no_executor_framework_test.sh		\
   tests/java_exception_test.sh			\
   tests/java_framework_test.sh			\
-  tests/python_framework_test.sh		\
-  tests/killtree_test.sh
+  tests/python_framework_test.sh
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.

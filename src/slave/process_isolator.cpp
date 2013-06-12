@@ -37,7 +37,6 @@
 #include <stout/uuid.hpp>
 
 #include "common/type_utils.hpp"
-#include "common/process_utils.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/process_isolator.hpp"
@@ -265,7 +264,7 @@ void ProcessIsolator::killExecutor(
     // TODO(vinod): Call killtree on the pid of the actual executor process
     // that is running the tasks (stored in the local storage by the
     // executor module).
-    utils::process::killtree(pid.get(), SIGKILL, true, true, true);
+    os::killtree(pid.get(), SIGKILL, true, true, &LOG(INFO));
 
     // Also kill all processes that belong to the process group of the executor.
     // This is valuable in situations where the top level executor process

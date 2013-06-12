@@ -37,7 +37,6 @@ public:
   virtual ~Environment();
 
   virtual void SetUp();
-  virtual void TearDown();
 
   // Helper to create a temporary directory based on the current test
   // case name and test name (derived from TestInfo via

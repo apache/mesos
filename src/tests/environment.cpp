@@ -217,15 +217,6 @@ void Environment::SetUp()
   if (!GTEST_IS_THREADSAFE) {
     EXIT(1) << "Testing environment is not thread safe, bailing!";
   }
-
-  // For locating killtree.sh.
-  os::setenv("MESOS_SOURCE_DIR", tests::flags.source_dir);
-}
-
-
-void Environment::TearDown()
-{
-  os::unsetenv("MESOS_SOURCE_DIR");
 }
 
 

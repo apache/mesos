@@ -31,10 +31,10 @@
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
 
-#include "common/process_utils.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/resources.hpp"
 
@@ -64,7 +64,6 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
 using namespace mesos::internal::tests;
-using namespace mesos::internal::utils::process;
 
 using namespace process;
 

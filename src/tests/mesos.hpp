@@ -67,7 +67,6 @@ class MesosTest : public ::testing::Test
 protected:
   MesosTest(const Option<zookeeper::URL>& url = None());
 
-  virtual void SetUp();
   virtual void TearDown();
 
   // Returns the flags used to create masters.
