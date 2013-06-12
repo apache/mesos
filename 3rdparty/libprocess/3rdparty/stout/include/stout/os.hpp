@@ -47,6 +47,7 @@
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
@@ -1060,6 +1061,51 @@ inline Try<std::set<pid_t> > children(pid_t pid, bool recursive = true)
   } while (recursive && !parents.empty());
 
   return descendants;
+}
+
+
+// Overload of os::pids for filtering by groups and sessions.
+// A group / session id of 0 will fitler on the group / session ID
+// of the calling process.
+inline Try<std::set<pid_t> > pids(Option<pid_t> group, Option<pid_t> session)
+{
+  if (group.isNone() && session.isNone()) {
+    return os::pids();
+  } else if (group.isSome() && group.get() < 0) {
+    return Error("Invalid group");
+  } else if (session.isSome() && session.get() < 0) {
+    return Error("Invalid session");
+  }
+
+  const Try<std::list<Process> >& processes = os::processes();
+
+  if (processes.isError()) {
+    return Error(processes.error());
+  }
+
+  // Obtain the calling process group / session ID when 0 is provided.
+  if (group.isSome() && group.get() == 0) {
+    group = getpgid(0);
+  }
+  if (session.isSome() && session.get() == 0) {
+    session = getsid(0);
+  }
+
+  std::set<pid_t> result;
+  foreach (const Process& process, processes.get()) {
+    // Group AND Session (intersection).
+    if (group.isSome() && session.isSome()) {
+      if (group.get() == process.group && session.get() == process.session) {
+        result.insert(process.pid);
+      }
+    } else if (group.isSome() && group.get() == process.group) {
+      result.insert(process.pid);
+    } else if (session.isSome() && session.get() == process.session) {
+      result.insert(process.pid);
+    }
+  }
+
+  return result;
 }
 
 

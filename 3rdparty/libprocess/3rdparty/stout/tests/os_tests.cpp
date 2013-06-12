@@ -40,7 +40,7 @@ class OsTest : public ::testing::Test
 protected:
   virtual void SetUp()
   {
-    Try<string> mkdtemp = os::mkdtemp();
+    const Try<string>& mkdtemp = os::mkdtemp();
     ASSERT_SOME(mkdtemp);
     tmpdir = mkdtemp.get();
   }
@@ -171,7 +171,7 @@ TEST_F(OsTest, find)
 
 TEST_F(OsTest, uname)
 {
-  Try<os::UTSInfo> info = os::uname();
+  const Try<os::UTSInfo>& info = os::uname();
 
   ASSERT_SOME(info);
 #ifdef __linux__
@@ -185,7 +185,7 @@ TEST_F(OsTest, uname)
 
 TEST_F(OsTest, sysname)
 {
-  Try<string> name = os::sysname();
+  const Try<string>& name = os::sysname();
 
   ASSERT_SOME(name);
 #ifdef __linux__
@@ -199,7 +199,7 @@ TEST_F(OsTest, sysname)
 
 TEST_F(OsTest, release)
 {
-  Try<os::Release> info = os::release();
+  const Try<os::Release>& info = os::release();
 
   ASSERT_SOME(info);
 }
@@ -257,11 +257,24 @@ TEST_F(OsTest, sysctl)
 TEST_F(OsTest, pids)
 {
   Try<set<pid_t> > pids = os::pids();
-
   ASSERT_SOME(pids);
   EXPECT_NE(0u, pids.get().size());
   EXPECT_EQ(1u, pids.get().count(getpid()));
   EXPECT_EQ(1u, pids.get().count(1));
+
+  pids = os::pids(getpgid(0), None());
+  EXPECT_SOME(pids);
+  EXPECT_GE(pids.get().size(), 1u);
+  EXPECT_EQ(1u, pids.get().count(getpid()));
+
+  EXPECT_ERROR(os::pids(-1, None()));
+
+  pids = os::pids(None(), getsid(0));
+  EXPECT_SOME(pids);
+  EXPECT_GE(pids.get().size(), 1u);
+  EXPECT_EQ(1u, pids.get().count(getpid()));
+
+  EXPECT_ERROR(os::pids(None(), -1));
 }
 
 
@@ -356,7 +369,7 @@ TEST_F(OsTest, children)
 
 TEST_F(OsTest, process)
 {
-  Try<os::Process> status = os::process(getpid());
+  const Try<os::Process>& status = os::process(getpid());
 
   ASSERT_SOME(status);
   EXPECT_EQ(getpid(), status.get().pid);
@@ -375,7 +388,7 @@ TEST_F(OsTest, process)
 
 TEST_F(OsTest, processes)
 {
-  Try<list<os::Process> > processes = os::processes();
+  const Try<list<os::Process> >& processes = os::processes();
 
   ASSERT_SOME(processes);
   ASSERT_GT(processes.get().size(), 2);
