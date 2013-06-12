@@ -440,8 +440,9 @@ function SlaveCtrl($scope, $routeParams, $http, $q) {
     }
 
     var pid = $scope.slaves[$routeParams.slave_id].pid;
+    var hostname = $scope.slaves[$routeParams.slave_id].hostname;
     var id = pid.substring(0, pid.indexOf('@'));
-    var host = pid.substring(pid.indexOf('@') + 1);
+    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1)
 
     $scope.log = function($event) {
       if (!$scope.state.log_dir) {
@@ -533,8 +534,9 @@ function SlaveFrameworkCtrl($scope, $routeParams, $http, $q) {
     }
 
     var pid = $scope.slaves[$routeParams.slave_id].pid;
+    var hostname = $scope.slaves[$routeParams.slave_id].hostname;
     var id = pid.substring(0, pid.indexOf('@'));
-    var host = pid.substring(pid.indexOf('@') + 1);
+    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1)
 
     var usageRequest = $http.jsonp(
         'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
@@ -641,8 +643,9 @@ function SlaveExecutorCtrl($scope, $routeParams, $http, $q) {
     }
 
     var pid = $scope.slaves[$routeParams.slave_id].pid;
+    var hostname = $scope.slaves[$routeParams.slave_id].hostname;
     var id = pid.substring(0, pid.indexOf('@'));
-    var host = pid.substring(pid.indexOf('@') + 1);
+    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1)
 
     var usageRequest = $http.jsonp(
         'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
@@ -718,8 +721,9 @@ function BrowseCtrl($scope, $routeParams, $http) {
       $scope.path = $routeParams.path;
 
       var pid = $scope.slaves[$routeParams.slave_id].pid;
+      var hostname = $scope.slaves[$routeParams.slave_id].hostname;
       var id = pid.substring(0, pid.indexOf('@'));
-      var host = pid.substring(pid.indexOf('@') + 1);
+      var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1)
       var url = 'http://' + host + '/files/browse.json?jsonp=JSON_CALLBACK';
 
       $scope.slave_host = host;
