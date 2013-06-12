@@ -210,6 +210,21 @@ function update($scope, $defer, data) {
       }
 
       framework.max_share = Math.max(framework.cpus_share, framework.mem_share);
+
+      // If the executor ID is empty, this is a command executor with an
+      // internal executor ID generated from the task ID.
+      // TODO(brenden): Remove this once
+      // https://issues.apache.org/jira/browse/MESOS-527 is fixed.
+      _.each(framework.tasks, function(task) {
+        if (!task.executor_id) {
+          task.executor_id = task.id;
+        }
+      });
+      _.each(framework.completed_tasks, function(task) {
+        if (!task.executor_id) {
+          task.executor_id = task.id;
+        }
+      });
   });
 
   _.each($scope.offers, function(offer) {
