@@ -136,6 +136,12 @@ Environment::Environment()
   // First we split the current filter into enabled and disabled tests
   // (which are separated by a '-').
   const string& filter = ::testing::GTEST_FLAG(filter);
+
+  // An empty filter indicates no tests should be run.
+  if (filter.empty()) {
+    return;
+  }
+
   string enabled;
   string disabled;
 
