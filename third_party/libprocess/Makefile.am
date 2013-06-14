@@ -116,6 +116,11 @@ tests_CPPFLAGS = -I$(top_srcdir)/src -I$(GTEST)/include			\
 	-I$(GMOCK)/include $(libprocess_la_CPPFLAGS)
 tests_LDADD = third_party/libgmock.la libprocess.la
 
-TESTS = tests
+# We use a check-local target for now to avoid the parallel test
+# runner that ships with newer versions of autotools.
+# See the following discussion for the workaround:
+# http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
+check-local: tests
+	./tests
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
