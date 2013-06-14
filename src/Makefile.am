@@ -66,7 +66,6 @@ check_PROGRAMS =
 dist_check_SCRIPTS =
 check_SCRIPTS =
 BUILT_SOURCES =
-TESTS =
 CLEANFILES =
 EXTRA_DIST =
 PHONY_TARGETS =
@@ -861,7 +860,12 @@ dist_check_SCRIPTS +=				\
   tests/python_framework_test.sh		\
   tests/killtree_test.sh
 
-TESTS += mesos-tests
+# We use a check-local target for now to avoid the parallel test
+# runner that ships with newer versions of autotools.
+# See the following discussion for the workaround:
+# http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
+check-local: mesos-tests
+	./mesos-tests
 
 clean-local: clean-java clean-python
 
