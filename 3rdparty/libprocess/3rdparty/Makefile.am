@@ -149,7 +149,12 @@ stout_tests_LDADD =			\
   $(GLOG)/libglog.la			\
   $(PROTOBUF)/src/libprotobuf.la
 
-TESTS = stout-tests
+# We use a check-local target for now to avoid the parallel test
+# runner that ships with newer versions of autotools.
+# See the following discussion for the workaround:
+# http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
+check-local: stout-tests
+	./stout-tests
 
 # Dependencies for all-local.
 ALL_LOCAL =				\
