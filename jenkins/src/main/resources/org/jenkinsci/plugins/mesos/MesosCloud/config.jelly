@@ -1,0 +1,12 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
+    <f:entry title="${%Mesos Master [hostname:port]}" help="help-master.html">
+        <f:textbox field="master" />
+    </f:entry>
+
+    <f:entry title="${%Description}">
+        <f:textbox field="description" />
+    </f:entry>
+
+    <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="master"/>
+</j:jelly>

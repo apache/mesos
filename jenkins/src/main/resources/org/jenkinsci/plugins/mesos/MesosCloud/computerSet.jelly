@@ -1,0 +1,12 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <j:if test="${it.hasPermission(it.PROVISION)}">
+    <tr>
+      <td />
+      <td colspan="${monitors.size()+1}">
+        <f:form action="${rootURL}/cloud/${it.name}/provision" method="post" name="provision">
+          <input type="submit" class="mesos-provision-button" value="${%Provision via Mesos}" />
+        </f:form>
+      </td>
+    </tr>
+  </j:if>
+</j:jelly>

@@ -1,0 +1,7 @@
+<!--
+  This view is used to render the installed plugins page.
+-->
+<div>
+  This plugin can be used to connect Jenkins master to a Mesos cluster
+  and dynamically launch Jenkins slaves based on the work load.
+</div>

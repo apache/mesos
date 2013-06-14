@@ -1,0 +1,33 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" >
+  <table width="100%">
+
+    <f:entry title="Description" field="description">
+      <f:textbox />
+    </f:entry>
+
+    <f:entry title="Label" field="label">
+      <f:textbox />
+    </f:entry>
+
+    <f:advanced>
+
+      <f:entry title="Idle Termination Time (min)" field="idleTerminationMinutes">
+        <f:textbox default="30" />
+      </f:entry>
+
+      <f:entry title="Number of Jenkins Executors Per Mesos Task" field="numExecutors">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry title="Executor Mem (MB)" field="executorMem">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry title="Slave JVM Max Heap (MB)" field="slaveJarMem">
+        <f:textbox/>
+      </f:entry>
+
+    </f:advanced>
+
+  </table>
+</j:jelly>

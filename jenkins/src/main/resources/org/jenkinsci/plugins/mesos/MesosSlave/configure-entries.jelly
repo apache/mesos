@@ -1,0 +1,29 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
+        <f:entry title="${%Mesos Cluster ID}" field="mesosClusterID">
+          <f:readOnlyTextbox />
+        </f:entry>
+
+        <f:entry title="${%Description}" >
+          <f:textbox field="description" />
+        </f:entry>
+
+        <f:entry title="${%# of executors}" field="numExecutors">
+          <f:textbox />
+        </f:entry>
+
+        <f:entry title="${%Labels}" field="labelString">
+          <f:textbox />
+        </f:entry>
+
+        <f:entry title="${%Idle termination time}" field="idleTerminationMinutes">
+            <f:textbox />
+        </f:entry>
+
+       <f:entry title="${%Terminate After Limited Builds}" description="${%Number of builds to allow before terminate the slave; use 0 for NEVER.}">
+
+       <f:textbox default="0" field="limitedBuildCount"/>
+
+   </f:entry>
+
+</j:jelly>
