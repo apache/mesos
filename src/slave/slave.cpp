@@ -119,8 +119,9 @@ Slave::Slave(const slave::Flags& _flags,
   } else {
     Try<long> cpus_ = os::cpus();
     if (!cpus_.isSome()) {
-      LOG(WARNING) << "Failed to auto-detect the number of cpus to use,"
-                   << " defaulting to " << DEFAULT_CPUS;
+      LOG(WARNING) << "Failed to auto-detect the number of cpus to use: '"
+                   << cpus_.error()
+                   << "' ; defaulting to " << DEFAULT_CPUS;
       cpus = DEFAULT_CPUS;
     } else {
       cpus = cpus_.get();
@@ -133,8 +134,9 @@ Slave::Slave(const slave::Flags& _flags,
   } else {
     Try<Bytes> mem_ = os::memory();
     if (!mem_.isSome()) {
-      LOG(WARNING) << "Failed to auto-detect the size of main memory,"
-                   << " defaulting to " << DEFAULT_MEM;
+      LOG(WARNING) << "Failed to auto-detect the size of main memory: '"
+                   << mem_.error()
+                   << "' ; defaulting to " << DEFAULT_MEM;
       mem = DEFAULT_MEM;
     } else {
       mem = mem_.get();
@@ -156,8 +158,9 @@ Slave::Slave(const slave::Flags& _flags,
     // which the slave work directory is mounted.
     Try<Bytes> disk_ = fs::available(flags.work_dir);
     if (!disk_.isSome()) {
-      LOG(WARNING) << "Failed to auto-detect the free disk space,"
-                   << " defaulting to " << DEFAULT_DISK;
+      LOG(WARNING) << "Failed to auto-detect the free disk space: '"
+                   << disk_.error()
+                   << "' ; defaulting to " << DEFAULT_DISK;
       disk = DEFAULT_DISK;
     } else {
       disk = disk_.get();
@@ -2027,7 +2030,7 @@ void _watch(
   if (!watch.isReady()) {
     LOG(ERROR) << "Failed to watch executor " << executorId
                << " of framework " << frameworkId
-               << ": " << watch.isFailed() ? watch.failure() : "discarded";
+               << ": " << (watch.isFailed() ? watch.failure() : "discarded");
   }
 }
 
