@@ -468,20 +468,15 @@ nodist_sbin_SCRIPTS += deploy/mesos-daemon.sh			\
   deploy/mesos-start-slaves.sh deploy/mesos-stop-cluster.sh	\
   deploy/mesos-stop-masters.sh deploy/mesos-stop-slaves.sh
 
-nobase_pkglocalstate_DATA += deploy/mesos-deploy-env.sh.template
+nobase_pkglocalstate_DATA += deploy/mesos-deploy-env.sh.template \
+                             deploy/mesos-master-env.sh.template \
+                             deploy/mesos-slave-env.sh.template
 
 # Need to explicitly add this because by default DATA files are not
 # included in distributions.
-EXTRA_DIST += deploy/mesos-deploy-env.sh.template
-
-
-# And the configuration file.
-nobase_pkglocalstate_DATA += conf/mesos.conf.template
-
-# Need to explicitly add this because by default DATA files are not
-# included in distributions.
-EXTRA_DIST += conf/mesos.conf.template
-
+EXTRA_DIST += deploy/mesos-deploy-env.sh.template \
+              deploy/mesos-master-env.sh.template \
+              deploy/mesos-slave-env.sh.template
 
 # Java related files are listed outside if HAS_JAVA so we can add them
 # to EXTRA_DIST unconditionally.

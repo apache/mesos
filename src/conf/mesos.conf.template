@@ -1,6 +1,0 @@
-# This file is used to set configuration options for the Mesos master and slave,
-# one per line, in the form of key = value pairs. For a list of available
-# options, please refer to the Mesos documentation, or run mesos-master and
-# mesos-slave with --help.
-
-
