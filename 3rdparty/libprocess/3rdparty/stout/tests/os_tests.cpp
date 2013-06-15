@@ -13,6 +13,10 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#ifdef __APPLE__
+#include <stout/os/sysctl.hpp>
+#endif
+
 using std::string;
 
 
@@ -206,3 +210,40 @@ TEST_F(OsTest, sleep)
 
   ASSERT_ERROR(os::sleep(Milliseconds(-10)));
 }
+
+
+#ifdef __APPLE__
+TEST_F(OsTest, sysctl)
+{
+  Try<os::UTSInfo> uname = os::uname();
+
+  ASSERT_SOME(uname);
+
+  Try<string> release = os::sysctl(CTL_KERN, KERN_OSRELEASE).string();
+
+  ASSERT_SOME(release);
+  EXPECT_EQ(uname.get().release, release.get());
+
+  Try<string> type = os::sysctl(CTL_KERN, KERN_OSTYPE).string();
+
+  ASSERT_SOME(type);
+  EXPECT_EQ(uname.get().sysname, type.get());
+
+  Try<int> maxproc = os::sysctl(CTL_KERN, KERN_MAXPROC).integer();
+
+  ASSERT_SOME(maxproc);
+
+  Try<std::vector<kinfo_proc> > processes =
+    os::sysctl(CTL_KERN, KERN_PROC, KERN_PROC_ALL).table(maxproc.get());
+
+  ASSERT_SOME(processes);
+
+  std::set<pid_t> pids;
+
+  foreach (const kinfo_proc& process, processes.get()) {
+    pids.insert(process.kp_proc.p_pid);
+  }
+
+  EXPECT_EQ(1, pids.count(getpid()));
+}
+#endif // __APPLE__

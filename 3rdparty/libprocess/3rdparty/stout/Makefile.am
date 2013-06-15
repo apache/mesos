@@ -34,6 +34,7 @@ EXTRA_DIST =					\
   include/stout/numify.hpp			\
   include/stout/option.hpp			\
   include/stout/os.hpp				\
+  include/stout/os/sysctl.hpp			\
   include/stout/owned.hpp			\
   include/stout/path.hpp			\
   include/stout/preprocessor.hpp		\
