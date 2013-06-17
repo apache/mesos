@@ -51,6 +51,14 @@ LT_OUTPUT
 AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"], [CFLAGS="-g"])
 AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS="-g"])
 
+# Boost 1.53.0 won't compile with GCC 4.8 without -Wno-unused-local-typedefs,
+# and automake doesn't recognize the flag.
+# TODO(brenden): remove this when Boost has a resolution.
+if test "x$GCC" = "xyes"; then
+  CFLAGS="${CFLAGS} -Wno-unused-local-typedefs"
+  CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedefs"
+fi
+
 # Save the configure arguments so we can pass them to any third-party
 # libraries that we might run configure on (see
 # 3rdparty/Makefile.am). One downside of our strategy for shipping and
