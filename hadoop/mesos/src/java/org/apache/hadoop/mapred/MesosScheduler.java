@@ -375,9 +375,22 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         }
       }
 
+      // To ensure Hadoop jobs begin promptly, we can specify a minimum number
+      // of 'hot slots' to be available for use.  This addresses the
+      // TaskTracker spin up delay that exists with Hadoop on Mesos.  This can
+      // be a nuisance with lower latency applications, such as ad-hoc Hive
+      // queries.
+      int minimumMapSlots = conf.getInt("mapred.mesos.total.map.slots.minimum", 0);
+      int minimumReduceSlots =
+        conf.getInt("mapred.mesos.total.reduce.slots.minimum", 0);
+
       // Compute how many slots we need to allocate.
-      int neededMapSlots = Math.max(0, pendingMaps - (idleMapSlots + inactiveMapSlots));
-      int neededReduceSlots = Math.max(0, pendingReduces - (idleReduceSlots + inactiveReduceSlots));
+      int neededMapSlots = Math.max(
+          minimumMapSlots - (idleMapSlots + inactiveMapSlots),
+          pendingMaps - (idleMapSlots + inactiveMapSlots));
+      int neededReduceSlots = Math.max(
+          minimumReduceSlots  - (idleReduceSlots + inactiveReduceSlots),
+          pendingReduces - (idleReduceSlots + inactiveReduceSlots));
 
       LOG.info(join("\n", Arrays.asList(
               "JobTracker Status",
@@ -402,6 +415,10 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
           driver.declineOffer(offer.getId());
           continue;
         }
+
+        // Ensure these values aren't < 0.
+        neededMapSlots = Math.max(0, neededMapSlots);
+        neededReduceSlots = Math.max(0, neededReduceSlots);
 
         double cpus = -1.0;
         double mem = -1.0;
