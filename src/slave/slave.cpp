@@ -73,7 +73,12 @@ Slave::Slave(const Resources& _resources,
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     isolationModule(_isolationModule),
     files(_files),
-    monitor(isolationModule) {}
+    monitor(isolationModule)
+{
+  // Ensure slave work directory exists.
+  CHECK_SOME(os::mkdir(flags.work_dir))
+    << "Failed to create slave work directory '" << flags.work_dir << "'";
+}
 
 
 Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
@@ -88,6 +93,10 @@ Slave::Slave(const flags::Flags<logging::Flags, slave::Flags>& _flags,
     files(_files),
     monitor(isolationModule)
 {
+  // Ensure slave work directory exists.
+  CHECK_SOME(os::mkdir(flags.work_dir))
+    << "Failed to create slave work directory '" << flags.work_dir << "'";
+
   if (flags.resources.isNone()) {
     // TODO(benh): Move this computation into Flags as the "default".
     Try<long> cpus = os::cpus();
