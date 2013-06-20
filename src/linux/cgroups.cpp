@@ -1246,15 +1246,16 @@ private:
         return;
       }
 
-      // We don't need to worry about the race condition here as it is not
-      // possible to add new processes into this cgroup or remove processes from
-      // this cgroup when freezer.state is in FREEZING state.
+      // It appears possible for processes to go away while the cgroup
+      // is in the FREEZING state. We ignore such processes.
+      // See: https://issues.apache.org/jira/browse/MESOS-461
       foreach (pid_t pid, pids.get()) {
         Try<proc::ProcessStatus> status = proc::status(pid);
+
         if (status.isError()) {
-          promise.fail("Failed to get process statistics: " + status.error());
-          terminate(self());
-          return;
+          LOG(WARNING) << "Failed to get process status for pid " << pid
+                       << ": " << status.error();
+          continue;
         }
 
         // Check whether the process is in stopped/traced state.
