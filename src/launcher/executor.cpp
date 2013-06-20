@@ -87,6 +87,7 @@ class CommandExecutor : public Executor
 public:
   CommandExecutor()
     : launched(false),
+      killed(false),
       pid(-1) {}
 
   virtual ~CommandExecutor() {}
@@ -220,9 +221,13 @@ public:
 
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
-    // TODO(benh): Do kill escalation (i.e., after n seconds, kill -9).
-    if (pid > 0) {
-      os::killtree(pid, SIGTERM, true, true, &std::cerr);
+    std::cout << "Killing command at pid " << pid << std::endl;
+
+    // TODO(benh): Do kill escalation (begin with SIGTERM, after n
+    // seconds escalate to SIGKILL).
+    if (pid > 0 && !killed) {
+      os::killtree(pid, SIGKILL, true, true, &std::cerr);
+      killed = true;
     }
   }
 
@@ -230,9 +235,13 @@ public:
 
   virtual void shutdown(ExecutorDriver* driver)
   {
-    // TODO(benh): Do kill escalation (i.e., after n seconds, kill -9).
-    if (pid > 0) {
-      os::killtree(pid, SIGTERM, true, true, &std::cerr);
+    std::cout << "Shutting down" << std::endl;
+
+    // TODO(benh): Do kill escalation (begin with SIGTERM, after n
+    // seconds escalate to SIGKILL).
+    if (pid > 0 && !killed) {
+      os::killtree(pid, SIGKILL, true, true, &std::cout);
+      killed = true;
     }
   }
 
@@ -240,6 +249,7 @@ public:
 
 private:
   bool launched;
+  bool killed;
   pid_t pid;
 };
 
