@@ -74,11 +74,6 @@ struct Framework;
 class Slave : public ProtobufProcess<Slave>
 {
 public:
-  Slave(const Resources& resources,
-        bool local,
-        Isolator* isolator,
-        Files* files);
-
   Slave(const Flags& flags,
         bool local,
         Isolator *isolator,
