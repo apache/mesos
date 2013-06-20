@@ -76,23 +76,6 @@ namespace slave {
 
 using namespace state;
 
-Slave::Slave(const Resources& _resources,
-             bool _local,
-             Isolator* _isolator,
-             Files* _files)
-  : ProcessBase(ID::generate("slave")),
-    state(RECOVERING),
-    flags(),
-    local(_local),
-    resources(_resources),
-    completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
-    isolator(_isolator),
-    files(_files),
-    monitor(_isolator),
-    statusUpdateManager(new StatusUpdateManager()),
-    metaDir(paths::getMetaRootDir(flags.work_dir)) {}
-
-
 Slave::Slave(const slave::Flags& _flags,
              bool _local,
              Isolator* _isolator,
@@ -106,10 +89,35 @@ Slave::Slave(const slave::Flags& _flags,
     files(_files),
     monitor(_isolator),
     statusUpdateManager(new StatusUpdateManager()),
-    metaDir(paths::getMetaRootDir(flags.work_dir))
-{
-  // TODO(benh): Move this computation into Flags as the "default".
+    metaDir(paths::getMetaRootDir(flags.work_dir)) {}
 
+
+Slave::~Slave()
+{
+  // TODO(benh): Shut down frameworks?
+
+  // TODO(benh): Shut down executors? The executor should get an "exited"
+  // event and initiate a shut down itself.
+
+  foreachvalue (Framework* framework, frameworks) {
+    delete framework;
+  }
+
+  delete statusUpdateManager;
+}
+
+
+void Slave::initialize()
+{
+  LOG(INFO) << "Slave started on " << string(self()).substr(6);
+
+  // Ensure slave work directory exists.
+  CHECK_SOME(os::mkdir(flags.work_dir))
+    << "Failed to create slave work directory '" << flags.work_dir << "'";
+
+  // Properly set up resources.
+  // TODO(benh): Move this computation into Flags as the "default".
+  // TODO(vinod): Move some of this computation into Resources.
   resources = Resources::parse(
       flags.resources.isSome() ? flags.resources.get() : "");
 
@@ -190,31 +198,11 @@ Slave::Slave(const slave::Flags& _flags,
 
   resources = Resources::parse(defaults.get());
 
+  LOG(INFO) << "Slave resources: " << resources;
+
   if (flags.attributes.isSome()) {
     attributes = Attributes::parse(flags.attributes.get());
   }
-}
-
-
-Slave::~Slave()
-{
-  // TODO(benh): Shut down frameworks?
-
-  // TODO(benh): Shut down executors? The executor should get an "exited"
-  // event and initiate a shut down itself.
-
-  foreachvalue (Framework* framework, frameworks) {
-    delete framework;
-  }
-
-  delete statusUpdateManager;
-}
-
-
-void Slave::initialize()
-{
-  LOG(INFO) << "Slave started on " << string(self()).substr(6);
-  LOG(INFO) << "Slave resources: " << resources;
 
   // Determine our hostname.
   Try<string> result = os::hostname();
