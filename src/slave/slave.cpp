@@ -2045,19 +2045,28 @@ void _unwatch(
 void Slave::executorTerminated(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    int status,
+    const Option<int>& status_,
     bool destroyed,
     const string& message)
 {
-  LOG(INFO) << "Executor '" << executorId
-            << "' of framework " << frameworkId
-            << (WIFEXITED(status)
-                ? " has exited with status '"
-                : " has terminated with signal '")
-            << (WIFEXITED(status)
-                ? stringify(WEXITSTATUS(status))
-                : strsignal(WTERMSIG(status)))
-            << "'";
+  int status;
+  if (status_.isNone()) {
+    LOG(INFO) << "Executor '" << executorId
+              << "' of framework " << frameworkId
+              << " has terminated with unknown status";
+    // Set a special status for None.
+    status = -1;
+  } else {
+    status = status_.get();
+    LOG(INFO) << "Executor '" << executorId
+              << "' of framework " << frameworkId
+              << (WIFEXITED(status)
+                  ? " has exited with status "
+                  : " has terminated with signal ")
+              << (WIFEXITED(status)
+                  ? stringify(WEXITSTATUS(status))
+                  : strsignal(WTERMSIG(status)));
+  }
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
@@ -2106,18 +2115,18 @@ void Slave::executorTerminated(
         // Transition all live launched tasks.
         foreachvalue (Task* task, utils::copy(executor->launchedTasks)) {
           if (!protobuf::isTerminalState(task->state())) {
-            mesos::TaskState status;
+            mesos::TaskState taskState;
             isCommandExecutor = !task->has_executor_id();
             if (destroyed || isCommandExecutor.get()) {
-              status = TASK_FAILED;
+              taskState = TASK_FAILED;
             } else {
-              status = TASK_LOST;
+              taskState = TASK_LOST;
             }
             statusUpdate(protobuf::createStatusUpdate(
                 frameworkId,
                 info.id(),
                 task->task_id(),
-                status,
+                taskState,
                 message,
                 executorId));
           }
@@ -2126,18 +2135,18 @@ void Slave::executorTerminated(
         // Transition all queued tasks.
         foreachvalue (const TaskInfo& task,
                       utils::copy(executor->queuedTasks)) {
-          mesos::TaskState status;
+          mesos::TaskState taskState;
           isCommandExecutor = task.has_command();
           if (destroyed || isCommandExecutor.get()) {
-            status = TASK_FAILED;
+            taskState = TASK_FAILED;
           } else {
-            status = TASK_LOST;
+            taskState = TASK_LOST;
           }
           statusUpdate(protobuf::createStatusUpdate(
               frameworkId,
               info.id(),
               task.task_id(),
-              status,
+              taskState,
               message,
               executorId));
         }

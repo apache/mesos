@@ -801,25 +801,26 @@ Future<Nothing> CgroupsIsolator::recover(
 }
 
 
-void CgroupsIsolator::reaped(pid_t pid, const Future<int>& status)
+void CgroupsIsolator::reaped(pid_t pid, const Future<Option<int> >& status)
 {
-  if (status.isDiscarded()) {
-    LOG(ERROR) << "The status was discarded";
-    return;
-  }
-  if (status.isFailed()) {
-    LOG(ERROR) << status.failure();
-    return;
-  }
-
   CgroupInfo* info = findCgroupInfo(pid);
   if (info != NULL) {
     FrameworkID frameworkId = info->frameworkId;
     ExecutorID executorId = info->executorId;
 
+    if (!status.isReady()) {
+      LOG(ERROR) << "Failed to get the status for executor " << executorId
+                 << " of framework " << frameworkId << ": "
+                 << (status.isFailed() ? status.failure() : "discarded");
+      return;
+    }
+
     LOG(INFO) << "Executor " << executorId
               << " of framework " << frameworkId
-              << " terminated with status " << status.get();
+              << " terminated with status "
+              << (status.get().isSome()
+                  ? stringify(status.get().get())
+                  : "unknown");
 
     // Set the exit status, so that '_killExecutor()' can send it to the slave.
     info->status = status.get();

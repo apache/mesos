@@ -29,6 +29,7 @@
 #include <process/gtest.hpp>
 
 #include <stout/exit.hpp>
+#include <stout/gtest.hpp>
 #include <stout/os.hpp>
 
 #include "slave/reaper.hpp"
@@ -99,7 +100,7 @@ TEST(ReaperTest, NonChildProcess)
   Future<Nothing> monitor = FUTURE_DISPATCH(_, &ReaperProcess::monitor);
 
   // Ask the reaper to monitor the grand child process.
-  Future<int> status = reaper.monitor(pid);
+  Future<Option<int> > status = reaper.monitor(pid);
 
   AWAIT_READY(monitor);
 
@@ -120,8 +121,8 @@ TEST(ReaperTest, NonChildProcess)
   // Ensure the reaper notifies of the terminated process.
   AWAIT_READY(status);
 
-  // Status is -1 because pid is not an immediate child.
-  ASSERT_EQ(-1, status.get());
+  // Status is None because pid is not an immediate child.
+  ASSERT_NONE(status.get());
 
   Clock::resume();
 }
@@ -149,7 +150,7 @@ TEST(ReaperTest, ChildProcess)
   Future<Nothing> monitor = FUTURE_DISPATCH(_, &ReaperProcess::monitor);
 
   // Ask the reaper to monitor the grand child process.
-  Future<int> status = reaper.monitor(pid);
+  Future<Option<int> > status = reaper.monitor(pid);
 
   AWAIT_READY(monitor);
 
@@ -168,9 +169,10 @@ TEST(ReaperTest, ChildProcess)
   AWAIT_READY(status);
 
   // Check if the status is correct.
-  int stat = status.get();
-  ASSERT_TRUE(WIFSIGNALED(stat));
-  ASSERT_EQ(SIGKILL, WTERMSIG(stat));
+  ASSERT_SOME(status.get());
+  int status_ = status.get().get();
+  ASSERT_TRUE(WIFSIGNALED(status_));
+  ASSERT_EQ(SIGKILL, WTERMSIG(status_));
 
   Clock::resume();
 }
@@ -212,7 +214,7 @@ TEST(ReaperTest, TerminatedChildProcess)
   Future<Nothing> monitor = FUTURE_DISPATCH(_, &ReaperProcess::monitor);
 
   // Ask the reaper to monitor the child process.
-  Future<int> status = reaper.monitor(pid);
+  Future<Option<int> > status = reaper.monitor(pid);
 
   AWAIT_READY(monitor);
 
@@ -227,7 +229,7 @@ TEST(ReaperTest, TerminatedChildProcess)
 
   // Invalid status is returned because it is reaped before being
   // monitored.
-  ASSERT_EQ(-1, status.get());
+  ASSERT_NONE(status.get());
 
   Clock::resume();
 }

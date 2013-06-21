@@ -423,22 +423,20 @@ Future<ResourceStatistics> ProcessIsolator::usage(
 }
 
 
-void ProcessIsolator::reaped(pid_t pid, const Future<int>& status)
+void ProcessIsolator::reaped(pid_t pid, const Future<Option<int> >& status)
 {
-  if (status.isDiscarded()) {
-    LOG(ERROR) << "The status was discarded";
-    return;
-  }
-  if (status.isFailed()) {
-    LOG(ERROR) << status.failure();
-    return;
-  }
-
   foreachkey (const FrameworkID& frameworkId, infos) {
     foreachkey (const ExecutorID& executorId, infos[frameworkId]) {
       ProcessInfo* info = infos[frameworkId][executorId];
 
       if (info->pid.isSome() && info->pid.get() == pid) {
+        if (!status.isReady()) {
+          LOG(ERROR) << "Failed to get the status for executor '" << executorId
+                     << "' of framework " << frameworkId << ": "
+                     << (status.isFailed() ? status.failure() : "discarded");
+          return;
+        }
+
         LOG(INFO) << "Telling slave of terminated executor '" << executorId
                   << "' of framework " << frameworkId;
 

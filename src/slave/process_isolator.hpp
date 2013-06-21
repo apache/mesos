@@ -109,7 +109,7 @@ private:
   Reaper reaper;
   hashmap<FrameworkID, hashmap<ExecutorID, ProcessInfo*> > infos;
 
-  void reaped(pid_t pid, const Future<int>& status);
+  void reaped(pid_t pid, const Future<Option<int> >& status);
 };
 
 } // namespace slave {

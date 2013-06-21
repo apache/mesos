@@ -171,7 +171,7 @@ public:
   void executorTerminated(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      int status,
+      const Option<int>& status,
       bool destroyed,
       const std::string& message);
 

@@ -45,7 +45,7 @@ ReaperProcess::ReaperProcess()
   : ProcessBase(ID::generate("reaper")) {}
 
 
-Future<int> ReaperProcess::monitor(pid_t pid)
+Future<Option<int> > ReaperProcess::monitor(pid_t pid)
 {
   // Check to see if the current process has sufficient privileges to
   // monitor the liveness of this pid.
@@ -55,14 +55,14 @@ Future<int> ReaperProcess::monitor(pid_t pid)
     if (alive.get()) {
       // We have permissions to check the validity of the process
       // and it's alive, so add it to the promises map.
-      Owned<Promise<int> > promise(new Promise<int>());
+      Owned<Promise<Option<int> > > promise(new Promise<Option<int> >());
       promises.put(pid, promise);
       return promise->future();
     } else {
       // Process doesn't exist.
       LOG(WARNING) << "Cannot monitor process " << pid
                    << " because it doesn't exist";
-      return -1;
+      return None();
     }
   }
 
@@ -75,17 +75,17 @@ Future<int> ReaperProcess::monitor(pid_t pid)
     // The process terminated and the status was reaped.
     // Notify other listeners and return directly for this caller.
     notify(pid, status);
-    return status;
+    return Option<int>(status);
   } else if (result == 0) {
     // Child still active, add to the map.
-    Owned<Promise<int> > promise(new Promise<int>());
+    Owned<Promise<Option<int> > > promise(new Promise<Option<int> >());
     promises.put(pid, promise);
     return promise->future();
   } else {
     // Not a child nor do we have permission to for os::alive();
     // we cannot monitor this pid.
-    return Future<int>::failed("Failed to monitor process " +
-                               stringify(pid) + ": " + strerror(errno));
+    return Future<Option<int> >::failed(
+        "Failed to monitor process " + stringify(pid) + ": " + strerror(errno));
   }
 }
 
@@ -96,9 +96,9 @@ void ReaperProcess::initialize()
 }
 
 
-void ReaperProcess::notify(pid_t pid, int status)
+void ReaperProcess::notify(pid_t pid, Option<int> status)
 {
-  foreach (const Owned<Promise<int> >& promise, promises.get(pid)) {
+  foreach (const Owned<Promise<Option<int> > >& promise, promises.get(pid)) {
     promise->set(status);
   }
   promises.remove(pid);
@@ -120,7 +120,7 @@ void ReaperProcess::reap()
     // Notify the "listeners" only if they have requested to monitor
     // this pid. Otherwise the status is discarded.
     // This means if a child pid is registered via the monitor() call
-    // after it's reaped, an invalid status (-1) will be returned.
+    // after it's reaped, status 'None' will be returned.
     if (!WIFSTOPPED(status) && promises.contains(pid)) {
       notify(pid, status);
     }
@@ -145,7 +145,7 @@ void ReaperProcess::reap()
       LOG(WARNING) << "Cannot get the exit status of process " << pid
                    << " because it is not a child of the calling "
                    << "process: " << strerror(errno);
-      notify(pid, -1);
+      notify(pid, None());
     }
   }
 
@@ -168,7 +168,7 @@ Reaper::~Reaper()
 }
 
 
-Future<int> Reaper::monitor(pid_t pid)
+Future<Option<int> > Reaper::monitor(pid_t pid)
 {
   return dispatch(process, &ReaperProcess::monitor, pid);
 }

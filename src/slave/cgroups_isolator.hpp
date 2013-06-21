@@ -119,7 +119,7 @@ private:
   CgroupsIsolator(const CgroupsIsolator&);
   CgroupsIsolator& operator = (const CgroupsIsolator&);
 
-  void reaped(pid_t pid, const Future<int>& status);
+  void reaped(pid_t pid, const Future<Option<int> >& status);
 
   // The cgroup information for each live executor.
   struct CgroupInfo
@@ -163,7 +163,7 @@ private:
 
     std::string message; // The reason behind the destruction.
 
-    int status; // Exit status of the executor.
+    Option<int> status; // Exit status of the executor.
 
     Flags flags; // Slave flags.
 

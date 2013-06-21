@@ -60,8 +60,10 @@ public:
   //
   // The exit status of 'pid' can only be correctly captured if the
   // calling process is the parent of 'pid' and the process hasn't
-  // been reaped yet, otherwise -1 is returned.
-  process::Future<int> monitor(pid_t pid);
+  // been reaped yet, otherwise 'None' is returned.
+  // Note that an invalid pid does not cause a failed Future, but an
+  // empty result ('None').
+  process::Future<Option<int> > monitor(pid_t pid);
 
 private:
   ReaperProcess* process;
@@ -74,22 +76,21 @@ class ReaperProcess : public process::Process<ReaperProcess>
 public:
   ReaperProcess();
 
-  process::Future<int> monitor(pid_t pid);
+  process::Future<Option<int> > monitor(pid_t pid);
 
 protected:
   virtual void initialize();
 
   void reap();
 
-  // TODO(vinod): Make 'status' an option.
   // The notification is sent only if the pid is explicitly registered
   // via the monitor() call.
-  void notify(pid_t pid, int status);
+  void notify(pid_t pid, Option<int> status);
 
 private:
   // Mapping from the monitored pid to all promises the pid exit
   // status should be sent to.
-  multihashmap<pid_t, Owned<process::Promise<int> > > promises;
+  multihashmap<pid_t, Owned<process::Promise<Option<int> > > > promises;
 };
 
 
