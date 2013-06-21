@@ -2,10 +2,36 @@ Upgrading Mesos
 ===============
 This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
+Upgrading from 0.13.0 to 0.14.0.
+--------------------------------
+In order to upgrade a running cluster:
+  - Install the new master binaries and restart the masters.
+  - NOTE: /vars endpoint has been removed.
+  - Upgrade the executors by linking the latest native library and mesos jar (if necessary).
+  - Install the new slave binaries.
+  - Restart the slaves after adding --checkpoint flag to enable checkpointing.
+  - NOTE: /vars endpoint has been removed.
+  - Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
+  - Set FrameworkInfo.checkpoint in the scheduler if checkpointing is desired (recommended).
+  - Restart the schedulers.
+  - Restart the masters (to get rid of the cached FrameworkInfo).
+  - Restart the slaves (to get rid of the cached FrameworkInfo).
+
+Upgrading from 0.12.0 to 0.13.0.
+--------------------------------
+In order to upgrade a running cluster:
+  - Install the new master binaries and restart the masters.
+  - Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
+  - Restart the schedulers.
+  - Install the new slave binaries.
+  - NOTE: cgroups_hierarchy_root slave flag is renamed as cgroups_hierarchy
+  - Restart the slaves.
+  - Upgrade the executors by linking the latest native library and mesos jar (if necessary).
+
 Upgrading from 0.11.0 to 0.12.0.
 --------------------------------
 In order to upgrade a running cluster:
-  - First upgrade all of the slaves.
-  - Then, once all slaves are running 0.12.0, upgrade the masters.
+  - Install the new slave binaries and restart the slaves.
+  - Install the new master binaries and restart the masters.
 
 If you are a framework developer, you will want to examine the new 'source' field in the ExecutorInfo protobuf. This will allow you to take further advantage of the resource monitoring.
