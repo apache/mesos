@@ -1974,20 +1974,19 @@ void Master::removeSlave(Slave* slave)
     // Master::reregisterSlave.
     if (framework != NULL) {
       StatusUpdateMessage message;
-      StatusUpdate* update = message.mutable_update();
-      update->mutable_framework_id()->MergeFrom(task->framework_id());
+      message.mutable_update()->CopyFrom(
+          protobuf::createStatusUpdate(
+              task->framework_id(),
+              task->slave_id(),
+              task->task_id(),
+              TASK_LOST,
+              "Slave " + slave->info.hostname() + " removed",
+              (task->has_executor_id() ? task->executor_id() : None())));
 
-      if (task->has_executor_id()) {
-        update->mutable_executor_id()->MergeFrom(task->executor_id());
-      }
+      LOG(INFO) << "Sending status update " << message.update()
+                << " due to the removal of slave "
+                << slave->id << " (" << slave->info.hostname() << ")";
 
-      update->mutable_slave_id()->MergeFrom(task->slave_id());
-      TaskStatus* status = update->mutable_status();
-      status->mutable_task_id()->MergeFrom(task->task_id());
-      status->set_state(TASK_LOST);
-      status->set_message("Slave " + slave->info.hostname() + " removed");
-      update->set_timestamp(Clock::now().secs());
-      update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
     }
     removeTask(task);
