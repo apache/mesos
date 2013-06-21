@@ -119,4 +119,12 @@ template <typename T1, typename T2>
 #define EXPECT_ERROR(actual)                    \
   EXPECT_TRUE(actual.isError())
 
+
+#define ASSERT_NONE(actual)                     \
+  ASSERT_TRUE(actual.isNone())
+
+
+#define EXPECT_NONE(actual)                     \
+  EXPECT_TRUE(actual.isNone())
+
 #endif // __STOUT_GTEST_HPP__
