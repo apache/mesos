@@ -195,13 +195,7 @@ std::ostream& operator << (std::ostream& out, const Cpuset& cpuset)
 CgroupsIsolator::CgroupsIsolator()
   : ProcessBase(ID::generate("cgroups-isolator")),
     initialized(false),
-    lockFile(None())
-{
-  // Spawn the reaper, note that it might send us a message before we
-  // actually get spawned ourselves, but that's okay, the message will
-  // just get dropped.
-  reaper.addListener(this);
-}
+    lockFile(None()) {}
 
 
 void CgroupsIsolator::initialize(
@@ -540,6 +534,12 @@ void CgroupsIsolator::launchExecutor(
     // Store the pid of the leading process of the executor.
     info->pid = pid;
 
+    reaper.monitor(pid)
+      .onAny(defer(PID<CgroupsIsolator>(this),
+                   &CgroupsIsolator::reaped,
+                   pid,
+                   lambda::_1));
+
     // Tell the slave this executor has started.
     dispatch(slave,
              &Slave::executorStarted,
@@ -769,7 +769,11 @@ Future<Nothing> CgroupsIsolator::recover(
 
         // Add the pid to the reaper to monitor exit status.
         if (run.forkedPid.isSome()) {
-          reaper.monitor(run.forkedPid.get());
+          reaper.monitor(run.forkedPid.get())
+            .onAny(defer(PID<CgroupsIsolator>(this),
+                         &CgroupsIsolator::reaped,
+                         run.forkedPid.get(),
+                         lambda::_1));
         }
       }
     }
@@ -797,8 +801,17 @@ Future<Nothing> CgroupsIsolator::recover(
 }
 
 
-void CgroupsIsolator::processExited(pid_t pid, int status)
+void CgroupsIsolator::reaped(pid_t pid, const Future<int>& status)
 {
+  if (status.isDiscarded()) {
+    LOG(ERROR) << "The status was discarded";
+    return;
+  }
+  if (status.isFailed()) {
+    LOG(ERROR) << status.failure();
+    return;
+  }
+
   CgroupInfo* info = findCgroupInfo(pid);
   if (info != NULL) {
     FrameworkID frameworkId = info->frameworkId;
@@ -806,10 +819,10 @@ void CgroupsIsolator::processExited(pid_t pid, int status)
 
     LOG(INFO) << "Executor " << executorId
               << " of framework " << frameworkId
-              << " terminated with status " << status;
+              << " terminated with status " << status.get();
 
     // Set the exit status, so that '_killExecutor()' can send it to the slave.
-    info->status = status;
+    info->status = status.get();
 
     if (!info->killed) {
       killExecutor(frameworkId, executorId);

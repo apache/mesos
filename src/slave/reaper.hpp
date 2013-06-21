@@ -22,32 +22,59 @@
 #include <list>
 #include <set>
 
+#include <process/future.hpp>
 #include <process/process.hpp>
 
+#include <stout/multihashmap.hpp>
 #include <stout/nothing.hpp>
+#include <stout/owned.hpp>
 #include <stout/try.hpp>
-
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-class ProcessExitedListener : public process::Process<ProcessExitedListener>
+// Forward declaration.
+class ReaperProcess;
+
+
+// TODO(vinod): Refactor the Reaper into 2 components:
+// 1) Reaps the status of child processes.
+// 2) Checks the exit status of requested processes.
+class Reaper
 {
 public:
-  virtual void processExited(pid_t pid, int status) = 0;
+  Reaper();
+  virtual ~Reaper();
+
+  // Monitor the given process and notify the caller if it terminates
+  // via a Future of the exit status.
+  //
+  // NOTE: The termination of pid can only be monitored if the
+  // calling process:
+  //   1) has the same real or effective user ID as the real or saved
+  //      set-user-ID of 'pid', or
+  //   2) is run as a privileged user, or
+  //   3) pid is a child of the current process.
+  // Otherwise a failed Future is returned.
+  //
+  // The exit status of 'pid' can only be correctly captured if the
+  // calling process is the parent of 'pid' and the process hasn't
+  // been reaped yet, otherwise -1 is returned.
+  process::Future<int> monitor(pid_t pid);
+
+private:
+  ReaperProcess* process;
 };
 
 
-// Reaper implementation. See comments of the Reaper class.
+// Reaper implementation.
 class ReaperProcess : public process::Process<ReaperProcess>
 {
 public:
   ReaperProcess();
 
-  void addListener(const process::PID<ProcessExitedListener>&);
-
-  process::Future<Nothing> monitor(pid_t pid);
+  process::Future<int> monitor(pid_t pid);
 
 protected:
   virtual void initialize();
@@ -55,35 +82,14 @@ protected:
   void reap();
 
   // TODO(vinod): Make 'status' an option.
+  // The notification is sent only if the pid is explicitly registered
+  // via the monitor() call.
   void notify(pid_t pid, int status);
 
 private:
-  std::list<process::PID<ProcessExitedListener> > listeners;
-  std::set<pid_t> pids;
-};
-
-
-// TODO(vinod): Refactor the Reaper into 2 components:
-// 1) Reaps the status of child processes.
-// 2) Checks the exit status of requested processes.
-// Also, use Futures instead of callbacks to notify process exits.
-class Reaper
-{
-public:
-  Reaper();
-  virtual ~Reaper();
-
-  void addListener(const process::PID<ProcessExitedListener>&);
-
-  // Monitor the given process and notify the listener if it terminates.
-  // NOTE: A notification is only sent if the calling process:
-  // 1) is the parent of 'pid' or
-  // 2) has the same real/effective UID as that of 'pid' or
-  // 3) is run as a privileged user.
-  process::Future<Nothing> monitor(pid_t pid);
-
-private:
-  ReaperProcess* process;
+  // Mapping from the monitored pid to all promises the pid exit
+  // status should be sent to.
+  multihashmap<pid_t, Owned<process::Promise<int> > > promises;
 };
 
 

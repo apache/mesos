@@ -41,7 +41,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-class ProcessIsolator : public Isolator, public ProcessExitedListener
+class ProcessIsolator : public Isolator
 {
 public:
   ProcessIsolator();
@@ -77,7 +77,6 @@ public:
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
 
-  virtual void processExited(pid_t pid, int status);
 
 private:
   // No copying, no assigning.
@@ -109,6 +108,8 @@ private:
   bool initialized;
   Reaper reaper;
   hashmap<FrameworkID, hashmap<ExecutorID, ProcessInfo*> > infos;
+
+  void reaped(pid_t pid, const Future<int>& status);
 };
 
 } // namespace slave {

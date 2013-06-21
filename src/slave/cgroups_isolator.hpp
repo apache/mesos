@@ -76,7 +76,7 @@ private:
 };
 
 
-class CgroupsIsolator : public Isolator, public ProcessExitedListener
+class CgroupsIsolator : public Isolator
 {
 public:
   CgroupsIsolator();
@@ -114,12 +114,12 @@ public:
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
 
-  virtual void processExited(pid_t pid, int status);
-
 private:
   // No copying, no assigning.
   CgroupsIsolator(const CgroupsIsolator&);
   CgroupsIsolator& operator = (const CgroupsIsolator&);
+
+  void reaped(pid_t pid, const Future<int>& status);
 
   // The cgroup information for each live executor.
   struct CgroupInfo

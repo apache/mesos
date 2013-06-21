@@ -25,12 +25,14 @@
 #include <set>
 
 #include <process/clock.hpp>
+#include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
 #include <stout/check.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -48,6 +50,7 @@ using std::map;
 using std::set;
 using std::string;
 
+using process::defer;
 using process::wait; // Necessary on some OS's to disambiguate.
 
 namespace mesos {
@@ -63,13 +66,7 @@ using state::RunState;
 
 ProcessIsolator::ProcessIsolator()
   : ProcessBase(ID::generate("process-isolator")),
-    initialized(false)
-{
-  // Spawn the reaper, note that it might send us a message before we
-  // actually get spawned ourselves, but that's okay, the message will
-  // just get dropped.
-  reaper.addListener(this);
-}
+    initialized(false) {}
 
 
 void ProcessIsolator::initialize(
@@ -165,6 +162,12 @@ void ProcessIsolator::launchExecutor(
 
     // Record the pid (should also be the pgid since we setsid below).
     infos[frameworkId][executorId]->pid = pid;
+
+    reaper.monitor(pid)
+      .onAny(defer(PID<ProcessIsolator>(this),
+                   &ProcessIsolator::reaped,
+                   pid,
+                   lambda::_1));
 
     // Tell the slave this executor has started.
     dispatch(slave, &Slave::executorStarted, frameworkId, executorId, pid);
@@ -334,7 +337,11 @@ Future<Nothing> ProcessIsolator::recover(
 
       // Add the pid to the reaper to monitor exit status.
       if (run.forkedPid.isSome()) {
-        reaper.monitor(run.forkedPid.get());
+        reaper.monitor(run.forkedPid.get())
+          .onAny(defer(PID<ProcessIsolator>(this),
+                       &ProcessIsolator::reaped,
+                       run.forkedPid.get(),
+                       lambda::_1));
       }
     }
   }
@@ -416,8 +423,17 @@ Future<ResourceStatistics> ProcessIsolator::usage(
 }
 
 
-void ProcessIsolator::processExited(pid_t pid, int status)
+void ProcessIsolator::reaped(pid_t pid, const Future<int>& status)
 {
+  if (status.isDiscarded()) {
+    LOG(ERROR) << "The status was discarded";
+    return;
+  }
+  if (status.isFailed()) {
+    LOG(ERROR) << status.failure();
+    return;
+  }
+
   foreachkey (const FrameworkID& frameworkId, infos) {
     foreachkey (const ExecutorID& executorId, infos[frameworkId]) {
       ProcessInfo* info = infos[frameworkId][executorId];
@@ -430,7 +446,7 @@ void ProcessIsolator::processExited(pid_t pid, int status)
                  &Slave::executorTerminated,
                  frameworkId,
                  executorId,
-                 status,
+                 status.get(),
                  false,
                  "Executor terminated");
 

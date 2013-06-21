@@ -19,12 +19,17 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <sys/wait.h>
+
 #include <gtest/gtest.h>
 
 #include <process/clock.hpp>
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+
+#include <stout/exit.hpp>
+#include <stout/os.hpp>
 
 #include "slave/reaper.hpp"
 
@@ -37,13 +42,6 @@ using process::Future;
 
 using testing::_;
 using testing::DoDefault;
-
-
-class MockProcessListener : public ProcessExitedListener
-{
-public:
-  MOCK_METHOD2(processExited, void(pid_t, int));
-};
 
 
 // This test checks that the Reaper can monitor a non-child process.
@@ -93,48 +91,143 @@ TEST(ReaperTest, NonChildProcess)
     }
   }
 
+  // In parent process.
   LOG(INFO) << "Grand child process " << pid;
 
-  MockProcessListener listener;
-
-  // Spawn the listener.
-  spawn(listener);
-
-  // Spawn the reaper.
   Reaper reaper;
 
-  // Ignore the exit of the child process.
-  EXPECT_CALL(listener, processExited(_,_))
-    .WillRepeatedly(DoDefault());
-
-  reaper.addListener(listener.self());
+  Future<Nothing> monitor = FUTURE_DISPATCH(_, &ReaperProcess::monitor);
 
   // Ask the reaper to monitor the grand child process.
-  reaper.monitor(pid);
+  Future<int> status = reaper.monitor(pid);
 
-  // Catch the exit of the grand child process.
-  Future<Nothing> processExited;
-  EXPECT_CALL(listener, processExited(pid, _))
-    .WillOnce(FutureSatisfy(&processExited));
+  AWAIT_READY(monitor);
 
   // Now kill the grand child.
-  // NOTE: We send a SIGKILL here because sometimes the grand child process
-  // seems to be in a hung state and not responding to SIGTERM/SIGINT.
+  // NOTE: We send a SIGKILL here because sometimes the grand child
+  // process seems to be in a hung state and not responding to
+  // SIGTERM/SIGINT.
   EXPECT_EQ(0, kill(pid, SIGKILL));
 
   Clock::pause();
 
   // Now advance time until the reaper reaps the executor.
-  while (processExited.isPending()) {
+  while (status.isPending()) {
     Clock::advance(Seconds(1));
     Clock::settle();
   }
 
   // Ensure the reaper notifies of the terminated process.
-  AWAIT_READY(processExited);
+  AWAIT_READY(status);
 
-  terminate(listener);
-  wait(listener);
+  // Status is -1 because pid is not an immediate child.
+  ASSERT_EQ(-1, status.get());
+
+  Clock::resume();
+}
+
+
+// This test checks that the Reaper can monitor a child process with
+// accurate exit status returned.
+TEST(ReaperTest, ChildProcess)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  pid_t pid = fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process. Keep waiting till we get a signal.
+    while (true);
+  }
+
+  // In parent process.
+  LOG(INFO) << "Child process " << pid;
+
+  Reaper reaper;
+
+  Future<Nothing> monitor = FUTURE_DISPATCH(_, &ReaperProcess::monitor);
+
+  // Ask the reaper to monitor the grand child process.
+  Future<int> status = reaper.monitor(pid);
+
+  AWAIT_READY(monitor);
+
+  // Now kill the child.
+  EXPECT_EQ(0, kill(pid, SIGKILL));
+
+  Clock::pause();
+
+  // Now advance time until the reaper reaps the executor.
+  while (status.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  // Ensure the reaper notifies of the terminated process.
+  AWAIT_READY(status);
+
+  // Check if the status is correct.
+  int stat = status.get();
+  ASSERT_TRUE(WIFSIGNALED(stat));
+  ASSERT_EQ(SIGKILL, WTERMSIG(stat));
+
+  Clock::resume();
+}
+
+
+// Check that the Reaper can monitor a child process that exits
+// before monitor() is called on it.
+TEST(ReaperTest, TerminatedChildProcess)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  pid_t pid = fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process. Return directly
+    exit(EXIT_SUCCESS);
+  }
+
+  // In parent process.
+  LOG(INFO) << "Child process " << pid;
+
+  Reaper reaper;
+
+  Clock::pause();
+
+  ASSERT_SOME(os::alive(pid));
+
+  // Because reaper reaps all child processes even if they aren't
+  // registered, we advance time until that happens.
+  while (os::alive(pid).get()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  // Now we request to monitor the child process which is already
+  // reaped.
+
+  Future<Nothing> monitor = FUTURE_DISPATCH(_, &ReaperProcess::monitor);
+
+  // Ask the reaper to monitor the child process.
+  Future<int> status = reaper.monitor(pid);
+
+  AWAIT_READY(monitor);
+
+  // Now advance time until the reaper sends the notification.
+  while (status.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  // Ensure the reaper notifies of the terminated process.
+  AWAIT_READY(status);
+
+  // Invalid status is returned because it is reaped before being
+  // monitored.
+  ASSERT_EQ(-1, status.get());
 
   Clock::resume();
 }
