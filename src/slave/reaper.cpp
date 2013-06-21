@@ -41,28 +41,25 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Reaper::Reaper()
+ReaperProcess::ReaperProcess()
   : ProcessBase(ID::generate("reaper")) {}
 
 
-Reaper::~Reaper() {}
-
-
-void Reaper::addListener(
+void ReaperProcess::addListener(
     const PID<ProcessExitedListener>& listener)
 {
   listeners.push_back(listener);
 }
 
 
-Try<Nothing> Reaper::monitor(pid_t pid)
+Future<Nothing> ReaperProcess::monitor(pid_t pid)
 {
   // Check to see if the current process has sufficient privileges to
   // monitor the liveness of this pid.
   Try<bool> alive = os::alive(pid);
   if (alive.isError()) {
-    return Error("Failed to monitor process " + stringify(pid) +
-                  ": " + alive.error());
+    return Future<Nothing>::failed("Failed to monitor process " +
+                                   stringify(pid) + ": " + alive.error());
   } else {
     pids.insert(pid);
   }
@@ -70,13 +67,13 @@ Try<Nothing> Reaper::monitor(pid_t pid)
 }
 
 
-void Reaper::initialize()
+void ReaperProcess::initialize()
 {
   reap();
 }
 
 
-void Reaper::notify(pid_t pid, int status)
+void ReaperProcess::notify(pid_t pid, int status)
 {
   foreach (const PID<ProcessExitedListener>& listener, listeners) {
     dispatch(listener, &ProcessExitedListener::processExited, pid, status);
@@ -84,7 +81,7 @@ void Reaper::notify(pid_t pid, int status)
 }
 
 
-void Reaper::reap()
+void ReaperProcess::reap()
 {
   // Check whether any monitored process has exited.
   foreach (pid_t pid, utils::copy(pids)) {
@@ -117,7 +114,34 @@ void Reaper::reap()
       pids.erase(pid);
     }
   }
-  delay(Seconds(1), self(), &Reaper::reap); // Reap forever!
+  delay(Seconds(1), self(), &ReaperProcess::reap); // Reap forever!
+}
+
+
+Reaper::Reaper()
+{
+  process = new ReaperProcess();
+  spawn(process);
+}
+
+
+Reaper::~Reaper()
+{
+  terminate(process);
+  wait(process);
+  delete process;
+}
+
+
+void Reaper::addListener(const process::PID<ProcessExitedListener>& listener)
+{
+  dispatch(process, &ReaperProcess::addListener, listener);
+}
+
+
+Future<Nothing> Reaper::monitor(pid_t pid)
+{
+  return dispatch(process, &ReaperProcess::monitor, pid);
 }
 
 } // namespace slave {

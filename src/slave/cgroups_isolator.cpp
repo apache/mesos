@@ -200,18 +200,7 @@ CgroupsIsolator::CgroupsIsolator()
   // Spawn the reaper, note that it might send us a message before we
   // actually get spawned ourselves, but that's okay, the message will
   // just get dropped.
-  reaper = new Reaper();
-  spawn(reaper);
-  dispatch(reaper, &Reaper::addListener, this);
-}
-
-
-CgroupsIsolator::~CgroupsIsolator()
-{
-  CHECK(reaper != NULL);
-  terminate(reaper);
-  process::wait(reaper); // Necessary for disambiguation.
-  delete reaper;
+  reaper.addListener(this);
 }
 
 
@@ -780,7 +769,7 @@ Future<Nothing> CgroupsIsolator::recover(
 
         // Add the pid to the reaper to monitor exit status.
         if (run.forkedPid.isSome()) {
-          dispatch(reaper, &Reaper::monitor, run.forkedPid.get());
+          reaper.monitor(run.forkedPid.get());
         }
       }
     }

@@ -27,6 +27,7 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -38,11 +39,35 @@ public:
 };
 
 
+// Reaper implementation. See comments of the Reaper class.
+class ReaperProcess : public process::Process<ReaperProcess>
+{
+public:
+  ReaperProcess();
+
+  void addListener(const process::PID<ProcessExitedListener>&);
+
+  process::Future<Nothing> monitor(pid_t pid);
+
+protected:
+  virtual void initialize();
+
+  void reap();
+
+  // TODO(vinod): Make 'status' an option.
+  void notify(pid_t pid, int status);
+
+private:
+  std::list<process::PID<ProcessExitedListener> > listeners;
+  std::set<pid_t> pids;
+};
+
+
 // TODO(vinod): Refactor the Reaper into 2 components:
 // 1) Reaps the status of child processes.
 // 2) Checks the exit status of requested processes.
 // Also, use Futures instead of callbacks to notify process exits.
-class Reaper : public process::Process<Reaper>
+class Reaper
 {
 public:
   Reaper();
@@ -55,19 +80,10 @@ public:
   // 1) is the parent of 'pid' or
   // 2) has the same real/effective UID as that of 'pid' or
   // 3) is run as a privileged user.
-  Try<Nothing> monitor(pid_t pid);
-
-protected:
-  virtual void initialize();
-
-  void reap();
-
-  // TOOD(vinod): Make 'status' an option.
-  void notify(pid_t pid, int status);
+  process::Future<Nothing> monitor(pid_t pid);
 
 private:
-  std::list<process::PID<ProcessExitedListener> > listeners;
-  std::set<pid_t> pids;
+  ReaperProcess* process;
 };
 
 

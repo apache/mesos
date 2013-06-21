@@ -102,16 +102,15 @@ TEST(ReaperTest, NonChildProcess)
 
   // Spawn the reaper.
   Reaper reaper;
-  spawn(reaper);
 
   // Ignore the exit of the child process.
   EXPECT_CALL(listener, processExited(_,_))
     .WillRepeatedly(DoDefault());
 
-  dispatch(reaper, &Reaper::addListener, listener.self());
+  reaper.addListener(listener.self());
 
   // Ask the reaper to monitor the grand child process.
-  dispatch(reaper, &Reaper::monitor, pid);
+  reaper.monitor(pid);
 
   // Catch the exit of the grand child process.
   Future<Nothing> processExited;
@@ -133,9 +132,6 @@ TEST(ReaperTest, NonChildProcess)
 
   // Ensure the reaper notifies of the terminated process.
   AWAIT_READY(processExited);
-
-  terminate(reaper);
-  wait(reaper);
 
   terminate(listener);
   wait(listener);

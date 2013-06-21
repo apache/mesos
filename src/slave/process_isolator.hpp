@@ -46,8 +46,6 @@ class ProcessIsolator : public Isolator, public ProcessExitedListener
 public:
   ProcessIsolator();
 
-  virtual ~ProcessIsolator();
-
   virtual void initialize(
       const Flags& flags,
       const Resources& resources,
@@ -109,7 +107,7 @@ private:
   bool local;
   process::PID<Slave> slave;
   bool initialized;
-  Reaper* reaper;
+  Reaper reaper;
   hashmap<FrameworkID, hashmap<ExecutorID, ProcessInfo*> > infos;
 };
 
