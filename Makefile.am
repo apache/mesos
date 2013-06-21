@@ -18,7 +18,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = . 3rdparty src ec2 hadoop
+SUBDIRS = . 3rdparty src ec2 hadoop jenkins
 
 EXTRA_DIST =
 

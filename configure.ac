@@ -79,6 +79,7 @@ AC_CONFIG_SUBDIRS([3rdparty/libprocess])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([ec2/Makefile])
 AC_CONFIG_FILES([hadoop/Makefile])
+AC_CONFIG_FILES([jenkins/Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
 
