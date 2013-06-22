@@ -1983,7 +1983,8 @@ void Master::removeSlave(Slave* slave)
               task->task_id(),
               TASK_LOST,
               "Slave " + slave->info.hostname() + " removed",
-              (task->has_executor_id() ? task->executor_id() : None())));
+              (task->has_executor_id() ?
+                  Option<ExecutorID>(task->executor_id()) : None())));
 
       LOG(INFO) << "Sending status update " << message.update()
                 << " due to the removal of slave "
