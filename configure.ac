@@ -318,7 +318,17 @@ __EOF__
                     ["-I/System/Library/Frameworks/JavaVM.framework/Headers"]],
                    [JAVA_CPPFLAGS=java_cppflags
                     TRY_LINK_JNI([break])])
-        AC_MSG_ERROR([failed to build with JNI]) # Exhausted options.
+        # Exhausted options.
+        AC_MSG_ERROR([failed to build with JNI
+  -------------------------------------------------------------------
+  It appears we were unable to compile against the JNI. This is most
+  likely due to one of the following issues:
+    1. You do not have a JDK installed on your system.
+    2. All JDKs installed on your system have deprecated JNI headers.
+  It is advised to install OpenJDK on your system, as the JDK that
+  ships with OS X has deprecated JNI headers.
+  -------------------------------------------------------------------
+        ])
       done
     else
       while true; do # Loop until sucessful (via break) or exhausted options.
@@ -326,7 +336,8 @@ __EOF__
                    [["-I$JAVA_HOME/include -I$JAVA_HOME/include/$OS_NAME"]],
                    [JAVA_CPPFLAGS=java_cppflags
                     TRY_LINK_JNI([break])])
-        AC_MSG_ERROR([failed to build with JNI]) # Exhausted options.
+        # Exhausted options.
+        AC_MSG_ERROR([failed to build with JNI])
       done
     fi
   else
