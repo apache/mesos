@@ -1523,10 +1523,12 @@ TEST_F(FaultToleranceTest, ReconcileIncompleteTasks)
   AWAIT_READY(slaveReregisteredMessage);
 
   // The master should not send a TASK_LOST after the slave
-  // re-registers. We check this by advancing the clock so that
+  // re-registers. We check this by calling Clock::settle() so that
   // the only update the scheduler receives is the retried
   // TASK_FINISHED update.
-  Clock::advance(STATUS_UPDATE_RETRY_INTERVAL);
+  // NOTE: The status update manager resends the status update when
+  // it receives a NewMasterDetected message.
+  Clock::settle();
 
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FINISHED, status.get().state());
