@@ -612,7 +612,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   // Wait for session expiration and ensure we receive a
   // NewMasterDetected message.
-  AWAIT_READY(newMasterDetected4);
+  AWAIT_READY_FOR(newMasterDetected4, Seconds(10));
 
   process::terminate(slave);
   process::wait(slave);
