@@ -144,6 +144,40 @@ TEST(StringsTest, TokenizeDelimOnlyString)
 }
 
 
+TEST(StringsTest, TokenizeNullByteDelim)
+{
+  string s;
+  s.push_back('\0');
+  s.push_back('\0');
+  s.push_back('\0');
+  s.push_back('h');
+  s.push_back('e');
+  s.push_back('l');
+  s.push_back('l');
+  s.push_back('o');
+  s.push_back('\0');
+  s.push_back('\0');
+  s.push_back('\0');
+  s.push_back('\0');
+  s.push_back('\0');
+  s.push_back('\0');
+  s.push_back('w');
+  s.push_back('o');
+  s.push_back('r');
+  s.push_back('l');
+  s.push_back('d');
+  s.push_back('\0');
+  s.push_back('\0');
+  s.push_back('\0');
+
+  vector<string> tokens = strings::tokenize(s, string(1, '\0'));
+
+  ASSERT_EQ(2u, tokens.size());
+  EXPECT_EQ("hello", tokens[0]);
+  EXPECT_EQ("world", tokens[1]);
+}
+
+
 TEST(StringsTest, SplitEmptyString)
 {
   vector<string> tokens = strings::split("", ",");
