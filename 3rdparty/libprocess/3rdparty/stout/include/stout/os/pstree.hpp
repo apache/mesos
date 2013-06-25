@@ -12,6 +12,8 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/process.hpp>
+
 namespace os {
 
 // Forward declaration.

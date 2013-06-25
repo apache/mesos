@@ -407,6 +407,22 @@ TEST_F(OsTest, killtree)
 
   ASSERT_SOME(tree);
 
+  // The process tree we instantiate initially looks like this:
+  //
+  //  -+- child sleep 10
+  //   \-+- grandchild exit 0
+  //     \-+- greatGrandchild sleep 10
+  //       \--- greatGreatGrandchild sleep 10
+  //
+  // But becomes two process trees after the grandchild exits:
+  //
+  //  -+- child sleep 10
+  //   \--- grandchild (exit 0)
+  //
+  //  -+- greatGrandchild sleep 10
+  //   \--- greatGreatGrandchild sleep 10
+
+  // Grab the pids from the instantiated process tree.
   ASSERT_EQ(1u, tree.get().children.size());
   ASSERT_EQ(1u, tree.get().children.front().children.size());
   ASSERT_EQ(1u, tree.get().children.front().children.front().children.size());
@@ -417,11 +433,29 @@ TEST_F(OsTest, killtree)
   pid_t greatGreatGrandchild =
     tree.get().children.front().children.front().children.front();
 
-  // Kill the child process tree, this is expected to
-  // cross the broken link to the grandchild.
-  EXPECT_SOME(os::killtree(child, SIGKILL, true, true, &std::cout));
+  // Now wait for the grandchild to exit splitting the process tree.
+  os::sleep(Milliseconds(50));
 
-  // There is a delay for the process to move into the zombie state.
+  // Kill the process tree and follow sessions and groups to make sure
+  // we cross the broken link due to the grandchild.
+  Try<std::list<ProcessTree> > trees =
+    os::killtree(child, SIGKILL, true, true);
+
+  ASSERT_SOME(trees);
+
+  EXPECT_EQ(2u, trees.get().size());
+
+  foreach (const ProcessTree& tree, trees.get()) {
+    if (tree.process.pid == child) {
+      EXPECT_TRUE(tree.contains(grandchild)); // But zombied.
+      EXPECT_FALSE(tree.contains(greatGrandchild));
+      EXPECT_FALSE(tree.contains(greatGreatGrandchild));
+    } else if (tree.process.pid == greatGrandchild) {
+      EXPECT_TRUE(tree.contains(greatGreatGrandchild));
+    }
+  }
+
+  // There is a delay for processes to move into the zombie state.
   os::sleep(Milliseconds(50));
 
   // Expect the pids to be wiped!

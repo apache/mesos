@@ -12,14 +12,17 @@
 #include <sstream>
 #include <string>
 
+#include <stout/check.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
+
+#include <stout/os/pstree.hpp>
 
 namespace os {
 
 // Forward declarations from os.hpp.
-inline Try<std::set<pid_t> > children(pid_t pid, bool recursive);
-inline Try<std::set<pid_t> > pids(Option<pid_t> group, Option<pid_t> session);
+inline std::set<pid_t> children(pid_t, const std::list<Process>&, bool);
+inline Option<Process> process(pid_t, const std::list<Process>&);
 
 
 // Sends a signal to a process tree rooted at the specified pid.
@@ -27,89 +30,123 @@ inline Try<std::set<pid_t> > pids(Option<pid_t> group, Option<pid_t> session);
 // process groups.
 // If sessions is true, this also sends the signal to all encountered
 // process sessions.
-// It is advised to only set groups / sessions when the process tree
-// is guaranteed to be isolated via a setsid call.
-// Optionally, an output stream can be provided for debugging output.
-inline Try<Nothing> killtree(
+// Note that processes of the group and session of the parent of the
+// root process is not included unless they are part of the root
+// process tree.
+// Returns the process trees that were succesfully or unsuccessfully
+// signaled. Note that the process trees can be stringified.
+inline Try<std::list<ProcessTree> > killtree(
     pid_t pid,
     int signal,
     bool groups = false,
-    bool sessions = false,
-    std::ostream* os = NULL)
+    bool sessions = false)
 {
-  std::ostringstream output;
-  output << "Performing killtree operation on " << pid << std::endl;
+  Try<std::list<Process> > processes = os::processes();
 
-  // TODO(bmahler): Inspect parent session / group to ensure this
-  // doesn't kill up the tree?
+  if (processes.isError()) {
+    return Error(processes.error());
+  }
 
-  // First we collect and stop the full process tree via a
-  // breadth-first-search.
-  std::set<pid_t> visited;
+  Result<Process> process = os::process(pid, processes.get());
+
+  if (process.isNone()) {
+    return Error("Failed to find process " + stringify(pid));
+  }
+
+  struct {
+    std::set<pid_t> pids;
+    std::set<pid_t> groups;
+    std::set<pid_t> sessions;
+    std::list<Process> processes;
+  } visited;
+
+  // If we are following groups and/or sessions then we try and make
+  // the group and session of the parent process "already visited" so
+  // that we don't kill "up the tree".
+  if (groups || sessions) {
+    Option<Process> parent =
+      os::process(process.get().parent, processes.get());
+
+    if (parent.isSome()) {
+      if (groups) {
+        visited.groups.insert(parent.get().group);
+      }
+      if (sessions) {
+        visited.sessions.insert(parent.get().session);
+      }
+    }
+  }
+
   std::queue<pid_t> queue;
   queue.push(pid);
-  visited.insert(pid);
 
   while (!queue.empty()) {
     pid_t pid = queue.front();
     queue.pop();
 
+    if (visited.pids.count(pid) != 0) {
+      continue;
+    }
+
+    // Make sure this process still exists.
+    process = os::process(pid);
+
+    if (process.isError()) {
+      return Error(process.error());
+    } else if (process.isNone()) {
+      continue;
+    }
+
     // Stop the process to keep it from forking while we are killing
     // it since a forked child might get re-parented by init and
     // become impossible to find.
-    if (kill(pid, SIGSTOP) == -1) {
-      output << "Failed to stop " << pid << ": "
-             << strerror(errno) << std::endl;
-    } else {
-      output << "Stopped " << pid << std::endl;
+    kill(pid, SIGSTOP);
+
+    visited.pids.insert(pid);
+    visited.processes.push_back(process.get());
+
+    // Now refresh the process list knowing that the current process
+    // can't fork any more children (since it's stopped).
+    processes = os::processes();
+
+    if (processes.isError()) {
+      return Error(processes.error());
     }
 
-    // TODO(bmahler): Create and use sets::union here.
-    // Append all direct children to the queue.
-    const Try<std::set<pid_t> >& children = os::children(pid, false);
-    if (children.isSome()) {
-      output << "  Children of " << pid << ": "
-             << stringify(children.get()) << std::endl;
-      foreach (pid_t child, children.get()) {
-        if (visited.insert(child).second) {
-          queue.push(child);
-        }
-      }
+    // Enqueue the children for visiting.
+    foreach (pid_t child, os::children(pid, processes.get(), false)) {
+      queue.push(child);
     }
 
+    // Now "visit" the group and/or session of the current process.
     if (groups) {
-      // Append all group members to the queue.
-      const Try<std::set<pid_t> >& pids = os::pids(getpgid(pid), None());
-      if (pids.isSome()) {
-        output << "  Members of group " << getpgid(pid) << ": "
-               << stringify(pids.get()) << std::endl;
-        foreach (pid_t pid, pids.get()) {
-          if (visited.insert(pid).second) {
-            queue.push(pid);
+      pid_t group = process.get().group;
+      if (visited.groups.count(group) == 0) {
+        foreach (const Process& process, processes.get()) {
+          if (process.group == group) {
+            queue.push(process.pid);
           }
         }
+        visited.groups.insert(group);
       }
     }
 
     if (sessions) {
-      // Append all session members to the queue.
-      const Try<std::set<pid_t> >& pids = os::pids(None(), getsid(pid));
-      if (pids.isSome()) {
-        output << "  Members of session " << getsid(pid) << ": "
-               << stringify(pids.get()) << std::endl;
-        foreach (pid_t pid, pids.get()) {
-          if (visited.insert(pid).second) {
-            queue.push(pid);
+      pid_t session = process.get().session;
+      if (visited.sessions.count(session) == 0) {
+        foreach (const Process& process, processes.get()) {
+          if (process.session == session) {
+            queue.push(process.pid);
           }
         }
+        visited.sessions.insert(session);
       }
     }
   }
 
   // Now that all processes are stopped, we send the signal.
-  foreach (pid_t pid, visited) {
+  foreach (pid_t pid, visited.pids) {
     kill(pid, signal);
-    output << "Signaled " << pid << std::endl;
   }
 
   // There is a concern that even though some process is stopped,
@@ -131,15 +168,12 @@ inline Try<Nothing> killtree(
 
   // Try and continue the processes in case the signal is
   // non-terminating but doesn't continue the process.
-  foreach (pid_t pid, visited) {
+  foreach (pid_t pid, visited.pids) {
     kill(pid, SIGCONT);
   }
 
-  if (os != NULL) {
-    *os << output.str();
-  }
-
-  return Nothing();
+  // Return the process trees representing the visited pids.
+  return pstrees(visited.pids, visited.processes);
 }
 
 } // namespace os {
