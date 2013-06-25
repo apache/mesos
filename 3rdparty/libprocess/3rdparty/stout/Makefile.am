@@ -35,6 +35,7 @@ EXTRA_DIST =					\
   include/stout/option.hpp			\
   include/stout/os.hpp				\
   include/stout/os/exists.hpp			\
+  include/stout/os/fork.hpp			\
   include/stout/os/killtree.hpp			\
   include/stout/os/linux.hpp			\
   include/stout/os/ls.hpp			\

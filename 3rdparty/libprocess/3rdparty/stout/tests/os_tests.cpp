@@ -20,6 +20,11 @@
 #include <stout/os/sysctl.hpp>
 #endif
 
+using os::Exec;
+using os::Fork;
+using os::Process;
+using os::ProcessTree;
+
 using std::list;
 using std::set;
 using std::string;
@@ -285,63 +290,16 @@ TEST_F(OsTest, children)
   ASSERT_SOME(children);
   EXPECT_EQ(0u, children.get().size());
 
-  // Use pipes to determine the pids of the grandchild.
-  int childPipes[2];
-  int grandchildPipes[2];
-  ASSERT_NE(-1, pipe(childPipes));
-  ASSERT_NE(-1, pipe(grandchildPipes));
+  Try<ProcessTree> tree =
+    Fork(None(),                   // Child.
+         Fork(Exec("sleep 10")),   // Grandchild.
+         Exec("sleep 10"))();
 
-  pid_t grandchild;
-  pid_t child = fork();
-  ASSERT_NE(-1, child);
+  ASSERT_SOME(tree);
+  ASSERT_EQ(1u, tree.get().children.size());
 
-  if (child > 0) {
-    // In parent process.
-    close(childPipes[1]);
-    close(grandchildPipes[1]);
-
-    // Get the pids via the pipes.
-    ASSERT_NE(-1, read(childPipes[0], &child, sizeof(child)));
-    ASSERT_NE(-1, read(grandchildPipes[0], &grandchild, sizeof(grandchild)));
-
-    close(childPipes[0]);
-    close(grandchildPipes[0]);
-  } else {
-    // In child process.
-    close(childPipes[0]);
-    close(grandchildPipes[0]);
-
-    // Double fork!
-    if ((grandchild = fork()) == -1) {
-      perror("Failed to fork a grandchild process");
-      abort();
-    }
-
-    if (grandchild > 0) {
-      // Still in child process.
-      close(grandchildPipes[1]);
-
-      child = getpid();
-      if (write(childPipes[1], &child, sizeof(child)) != sizeof(child)) {
-        perror("Failed to write PID on pipe");
-        abort();
-      }
-      close(childPipes[1]);
-
-      while (true); // Keep waiting until we get a signal.
-    } else {
-      // In grandchild process.
-      grandchild = getpid();
-      if (write(grandchildPipes[1], &grandchild, sizeof(grandchild)) !=
-          sizeof(grandchild)) {
-        perror("Failed to write PID on pipe");
-        abort();
-      }
-      close(grandchildPipes[1]);
-
-      while (true); // Keep waiting until we get a signal.
-    }
-  }
+  pid_t child = tree.get().process.pid;
+  pid_t grandchild = tree.get().children.front().process.pid;
 
   // Ensure the non-recursive children does not include the
   // grandchild.
@@ -369,7 +327,7 @@ TEST_F(OsTest, children)
 
 TEST_F(OsTest, process)
 {
-  const Result<os::Process>& status = os::process(getpid());
+  const Result<Process>& status = os::process(getpid());
 
   ASSERT_SOME(status);
   EXPECT_EQ(getpid(), status.get().pid);
@@ -392,14 +350,14 @@ TEST_F(OsTest, process)
 
 TEST_F(OsTest, processes)
 {
-  const Try<list<os::Process> >& processes = os::processes();
+  const Try<list<Process> >& processes = os::processes();
 
   ASSERT_SOME(processes);
   ASSERT_GT(processes.get().size(), 2);
 
   // Look for ourselves in the table.
   bool found = false;
-  foreach (const os::Process& process, processes.get()) {
+  foreach (const Process& process, processes.get()) {
     if (process.pid == getpid()) {
       found = true;
       EXPECT_EQ(getpid(), process.pid);
@@ -426,166 +384,41 @@ TEST_F(OsTest, processes)
 }
 
 
-TEST_F(OsTest, killtree) {
-  // Use pipes to determine the pids of the child and grandchild.
-  int childPipes[2];
-  int grandchildPipes[2];
-  int greatGrandchildPipes[2];
-  int greatGreatGrandchildPipes[2];
-
-  ASSERT_NE(-1, pipe(childPipes));
-  ASSERT_NE(-1, pipe(grandchildPipes));
-  ASSERT_NE(-1, pipe(greatGrandchildPipes));
-  ASSERT_NE(-1, pipe(greatGreatGrandchildPipes));
-
-  pid_t child;
-  pid_t grandchild;
-  pid_t greatGrandchild;
-  pid_t greatGreatGrandchild;
-
-  child = fork();
-  ASSERT_NE(-1, child);
-
-  // To test killtree, we create the following process chain:
-  // 1: This process.
-  // 2: Child process having called setsid().
-  // X: Grandchild process, terminates immediately after forking!
-  // 4: Great-grandchild process.
-  // 5: Great-great-grandchild process, calls setsid()!
-  // We expect killtree to kill 4 via its session or group.
-  // We also expect killtree to kill 5 via its parent process,
-  // despite having called setsid().
-  if (child > 0) {
-    // Parent.
-    close(childPipes[1]);
-    close(grandchildPipes[1]);
-    close(greatGrandchildPipes[1]);
-    close(greatGreatGrandchildPipes[1]);
-
-    // Get the pids via the pipes.
-    ASSERT_NE(-1, read(childPipes[0], &child, sizeof(child)));
-    ASSERT_NE(
-        -1,
-        read(grandchildPipes[0], &grandchild, sizeof(grandchild)));
-    ASSERT_NE(
-        -1,
-        read(greatGrandchildPipes[0],
-             &greatGrandchild,
-             sizeof(greatGrandchild)));
-    ASSERT_NE(
-        -1,
-        read(greatGreatGrandchildPipes[0],
-             &greatGreatGrandchild,
-             sizeof(greatGreatGrandchild)));
-
-    close(childPipes[0]);
-    close(grandchildPipes[0]);
-    close(greatGrandchildPipes[0]);
-    close(greatGreatGrandchildPipes[0]);
-  } else {
-    // --------------------------------------------------------------
-    // Child: setsid().
-    // --------------------------------------------------------------
-    close(childPipes[0]);
-    close(grandchildPipes[0]);
-    close(greatGrandchildPipes[0]);
-    close(greatGreatGrandchildPipes[0]);
-
-    if (setsid() == -1) {
-      perror("Failed to setsid in great-great-grandchild process");
-      abort();
-    }
-
-    child = getpid();
-    if (write(childPipes[1], &child, sizeof(child)) != sizeof(child)) {
-      perror("Failed to write child PID on pipe");
-      abort();
-    }
-    close(childPipes[1]);
-
-    if ((grandchild = fork()) == -1) {
-      perror("Failed to fork a grandchild process");
-      abort();
-    }
-
-    if (grandchild > 0) {
-      close(grandchildPipes[1]);
-      close(greatGrandchildPipes[1]);
-      close(greatGreatGrandchildPipes[1]);
-      while (true); // Await signal.
-    }
-
-    // --------------------------------------------------------------
-    // Grandchild: terminate.
-    // --------------------------------------------------------------
-    // Send the grandchild pid over the pipe.
-    grandchild = getpid();
-    if (write(grandchildPipes[1], &grandchild, sizeof(grandchild)) !=
-        sizeof(grandchild)) {
-      perror("Failed to write grandchild PID on pipe");
-      abort();
-    }
-    close(grandchildPipes[1]);
-
-    if ((greatGrandchild = fork()) == -1) {
-      perror("Failed to fork a great-grandchild process");
-      abort();
-    }
-
-    if (greatGrandchild > 0) {
-      // Terminate to break the parent link.
-      close(greatGrandchildPipes[1]);
-      close(greatGreatGrandchildPipes[1]);
-      exit(0);
-    }
-
-    // --------------------------------------------------------------
-    // Great-grandchild.
-    // --------------------------------------------------------------
-    // Send the Great-grandchild pid over the pipe.
-    greatGrandchild = getpid();
-    if (write(greatGrandchildPipes[1],
-              &greatGrandchild,
-              sizeof(greatGrandchild)) != sizeof(greatGrandchild)) {
-      perror("Failed to write great-grandchild PID on pipe");
-      abort();
-    }
-    close(greatGrandchildPipes[1]);
-
-    if ((greatGreatGrandchild = fork()) == -1) {
-      perror("Failed to fork a great-great-grandchild process");
-      abort();
-    }
-
-    if (greatGreatGrandchild > 0) {
-      // Great-grandchild.
-      close(greatGreatGrandchildPipes[1]);
-      while (true); // Await signal.
-    }
-
-    // --------------------------------------------------------------
-    // Great-great-grandchild: setsid().
-    // --------------------------------------------------------------
-    if (setsid() == -1) {
-      perror("Failed to setsid in great-great-grandchild process");
-      abort();
-    }
-
-    // Send the Great-great-grandchild pid over the pipe.
-    greatGreatGrandchild = getpid();
-    if (write(greatGreatGrandchildPipes[1],
-              &greatGreatGrandchild,
-              sizeof(greatGreatGrandchild)) != sizeof(greatGreatGrandchild)) {
-      perror("Failed to write great-great-grandchild PID on pipe");
-      abort();
-    }
-    close(greatGreatGrandchildPipes[1]);
-
-    while (true); // Await signal.
+void dosetsid(void)
+{
+  if (::setsid() == -1) {
+    perror("Failed to setsid");
+    abort();
   }
+}
+
+
+TEST_F(OsTest, killtree)
+{
+  Try<ProcessTree> tree =
+    Fork(dosetsid,                         // Child.
+         Fork(None(),                      // Grandchild.
+              Fork(None(),                 // Great-grandchild.
+                   Fork(dosetsid,          // Great-great-granchild.
+                        Exec("sleep 10")),
+                   Exec("sleep 10")),
+              Exec("exit 0")),
+         Exec("sleep 10"))();
+
+  ASSERT_SOME(tree);
+
+  ASSERT_EQ(1u, tree.get().children.size());
+  ASSERT_EQ(1u, tree.get().children.front().children.size());
+  ASSERT_EQ(1u, tree.get().children.front().children.front().children.size());
+
+  pid_t child = tree.get();
+  pid_t grandchild = tree.get().children.front();
+  pid_t greatGrandchild = tree.get().children.front().children.front();
+  pid_t greatGreatGrandchild =
+    tree.get().children.front().children.front().children.front();
 
   // Kill the child process tree, this is expected to
-  // cross the broken link to the grandchild
+  // cross the broken link to the grandchild.
   EXPECT_SOME(os::killtree(child, SIGKILL, true, true, &std::cout));
 
   // There is a delay for the process to move into the zombie state.
@@ -605,78 +438,30 @@ TEST_F(OsTest, killtree) {
 
 TEST_F(OsTest, pstree)
 {
-  Try<os::ProcessTree> tree = os::pstree(0);
+  Try<ProcessTree> tree = os::pstree(getpid());
 
   ASSERT_SOME(tree);
   EXPECT_EQ(0u, tree.get().children.size());
 
-  // Use pipes to determine the pids of the grandchild.
-  int childPipes[2];
-  int grandchildPipes[2];
-  ASSERT_NE(-1, pipe(childPipes));
-  ASSERT_NE(-1, pipe(grandchildPipes));
-
-  pid_t grandchild;
-  pid_t child = fork();
-  ASSERT_NE(-1, child);
-
-  if (child > 0) {
-    // In parent process.
-    close(childPipes[1]);
-    close(grandchildPipes[1]);
-
-    // Get the pids via the pipes.
-    ASSERT_NE(-1, read(childPipes[0], &child, sizeof(child)));
-    ASSERT_NE(-1, read(grandchildPipes[0], &grandchild, sizeof(grandchild)));
-
-    close(childPipes[0]);
-    close(grandchildPipes[0]);
-  } else {
-    // In child process.
-    close(childPipes[0]);
-    close(grandchildPipes[0]);
-
-    // Double fork!
-    if ((grandchild = fork()) == -1) {
-      perror("Failed to fork a grandchild process");
-      abort();
-    }
-
-    if (grandchild > 0) {
-      // Still in child process.
-      close(grandchildPipes[1]);
-
-      child = getpid();
-      if (write(childPipes[1], &child, sizeof(child)) != sizeof(child)) {
-        perror("Failed to write PID on pipe");
-        abort();
-      }
-      close(childPipes[1]);
-
-      while (true); // Keep waiting until we get a signal.
-    } else {
-      // In grandchild process.
-      grandchild = getpid();
-      if (write(grandchildPipes[1], &grandchild, sizeof(grandchild)) !=
-          sizeof(grandchild)) {
-        perror("Failed to write PID on pipe");
-        abort();
-      }
-      close(grandchildPipes[1]);
-
-      while (true); // Keep waiting until we get a signal.
-    }
-  }
-
-  // Ensure the non-recursive children does not include the
-  // grandchild.
-  tree = os::pstree(0);
+  tree =
+    Fork(None(),                   // Child.
+         Fork(Exec("sleep 10")),   // Grandchild.
+         Exec("sleep 10"))();
 
   ASSERT_SOME(tree);
   ASSERT_EQ(1u, tree.get().children.size());
-  EXPECT_EQ(child, tree.get().children.front().process.pid);
-  ASSERT_EQ(1u, tree.get().children.front().children.size());
-  EXPECT_EQ(grandchild, tree.get().children.front().children.front().process.pid);
+
+  pid_t child = tree.get().process.pid;
+  pid_t grandchild = tree.get().children.front().process.pid;
+
+  // Now check pstree again.
+  tree = os::pstree(child);
+
+  ASSERT_SOME(tree);
+  EXPECT_EQ(child, tree.get().process.pid);
+
+  ASSERT_EQ(1u, tree.get().children.size());
+  EXPECT_EQ(grandchild, tree.get().children.front().process.pid);
 
   // Cleanup by killing the descendant processes.
   EXPECT_EQ(0, kill(grandchild, SIGKILL));

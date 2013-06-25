@@ -99,6 +99,7 @@ public:
   const std::list<ProcessTree> children;
 
 private:
+  friend struct Fork;
   friend Try<ProcessTree> pstree(pid_t, const std::list<Process>&);
 
   ProcessTree(

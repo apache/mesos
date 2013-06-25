@@ -51,6 +51,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/exists.hpp>
+#include <stout/os/fork.hpp>
 #include <stout/os/killtree.hpp>
 #ifdef __linux__
 #include <stout/os/linux.hpp>
