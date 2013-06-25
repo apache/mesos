@@ -31,9 +31,9 @@
   </mailingLists>
   <developers>
     <developer>
-      <id>benh</id>
-      <name>Benjamin Hindman</name>
-      <email>benh@apache.org</email>
+      <id>alig</id>
+      <name>Ali Ghodis</name>
+      <email>alig@apache.org</email>
     </developer>
     <developer>
       <id>andyk</id>
@@ -41,14 +41,39 @@
       <email>andrew@apache.org</email>
     </developer>
     <developer>
+      <id>benh</id>
+      <name>Benjamin Hindman</name>
+      <email>benh@apache.org</email>
+    </developer>
+    <developer>
+      <id>bmahler</id>
+      <name>Benjamin Mahler</name>
+      <email>bmahler@apache.org</email>
+    </developer>
+    <developer>
+      <id>brenden</id>
+      <name>Brenden Matthews</name>
+      <email>brenden@apache.org</email>
+    </developer>
+    <developer>
       <id>matei</id>
       <name>Matei Zaharia</name>
       <email>matei@apache.org</email>
     </developer>
     <developer>
-      <id>alig</id>
-      <name>Ali Ghodis</name>
-      <email>alig@apache.org</email>
+      <id>tmarshall</id>
+      <name>Thomas Marshall</name>
+      <email>tmarshall@apache.org</email>
+    </developer>
+    <developer>
+      <id>vinodkone</id>
+      <name>Vinod Kone</name>
+      <email>vinodkone@apache.org</email>
+    </developer>
+    <developer>
+      <id>woggle</id>
+      <name>Charles Reiss</name>
+      <email>woggle@apache.org</email>
     </developer>
   </developers>
   <dependencies>
@@ -70,6 +95,9 @@
            phase. -->
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <target>1.6</target>
+        </configuration>
         <executions>
           <execution>
             <id>default-compile</id>
