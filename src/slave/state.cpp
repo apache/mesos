@@ -28,7 +28,7 @@ using std::string;
 using std::max;
 
 
-Result<SlaveState> recover(const string& rootDir, bool safe)
+Result<SlaveState> recover(const string& rootDir, bool strict)
 {
   LOG(INFO) << "Recovering state from " << rootDir;
 
@@ -51,7 +51,7 @@ Result<SlaveState> recover(const string& rootDir, bool safe)
   SlaveID slaveId;
   slaveId.set_value(os::basename(directory.get()).get());
 
-  Try<SlaveState> state = SlaveState::recover(rootDir, slaveId, safe);
+  Try<SlaveState> state = SlaveState::recover(rootDir, slaveId, strict);
   if (state.isError()) {
     return Error(state.error());
   }
@@ -63,7 +63,7 @@ Result<SlaveState> recover(const string& rootDir, bool safe)
 Try<SlaveState> SlaveState::recover(
     const string& rootDir,
     const SlaveID& slaveId,
-    bool safe)
+    bool strict)
 {
   SlaveState state;
   state.id = slaveId;
@@ -75,7 +75,7 @@ Try<SlaveState> SlaveState::recover(
   if (!slaveInfo.isSome()) {
     const string& message = "Failed to read slave info from '" + path + "': " +
                             (slaveInfo.isError() ? slaveInfo.error() : " none");
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;
@@ -100,7 +100,7 @@ Try<SlaveState> SlaveState::recover(
     frameworkId.set_value(os::basename(path).get());
 
     const Try<FrameworkState>& framework =
-      FrameworkState::recover(rootDir, slaveId, frameworkId, safe);
+      FrameworkState::recover(rootDir, slaveId, frameworkId, strict);
 
     if (framework.isError()) {
       return Error("Failed to recover framework " + frameworkId.value() +
@@ -118,7 +118,7 @@ Try<FrameworkState> FrameworkState::recover(
     const string& rootDir,
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
-    bool safe)
+    bool strict)
 {
   FrameworkState state;
   state.id = frameworkId;
@@ -133,7 +133,7 @@ Try<FrameworkState> FrameworkState::recover(
     message = "Failed to read framework info from '" + path + "': " +
               (frameworkInfo.isError() ? frameworkInfo.error() : " none");
 
-      if (safe) {
+      if (strict) {
         return Error(message);
       } else {
         LOG(WARNING) << message;
@@ -151,7 +151,7 @@ Try<FrameworkState> FrameworkState::recover(
     message =
       "Failed to read framework pid from '" + path + "': " + pid.error();
 
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;
@@ -177,7 +177,7 @@ Try<FrameworkState> FrameworkState::recover(
     executorId.set_value(os::basename(path).get());
 
     const Try<ExecutorState>& executor =
-      ExecutorState::recover(rootDir, slaveId, frameworkId, executorId, safe);
+      ExecutorState::recover(rootDir, slaveId, frameworkId, executorId, strict);
 
     if (executor.isError()) {
       return Error("Failed to recover executor " + executorId.value() +
@@ -196,7 +196,7 @@ Try<ExecutorState> ExecutorState::recover(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    bool safe)
+    bool strict)
 {
   ExecutorState state;
   state.id = executorId;
@@ -214,7 +214,7 @@ Try<ExecutorState> ExecutorState::recover(
       "Failed to read executor info from '" + path +
       "': " + (executorInfo.isError() ? executorInfo.error() : " none");
 
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;
@@ -254,7 +254,7 @@ Try<ExecutorState> ExecutorState::recover(
       const UUID& uuid = UUID::fromString(os::basename(path).get());
 
       const Try<RunState>& run = RunState::recover(
-          rootDir, slaveId, frameworkId, executorId, uuid, safe);
+          rootDir, slaveId, frameworkId, executorId, uuid, strict);
 
       if (run.isError()) {
        return Error("Failed to recover run " + uuid.toString() +
@@ -271,7 +271,7 @@ Try<ExecutorState> ExecutorState::recover(
     message =
       "Failed to find the latest run of executor '" + executorId.value() + "'";
 
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;
@@ -289,7 +289,7 @@ Try<RunState> RunState::recover(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const UUID& uuid,
-    bool safe)
+    bool strict)
 {
   RunState state;
   state.id = uuid;
@@ -316,7 +316,7 @@ Try<RunState> RunState::recover(
     taskId.set_value(os::basename(path).get());
 
     const Try<TaskState>& task = TaskState::recover(
-        rootDir, slaveId, frameworkId, executorId, uuid, taskId, safe);
+        rootDir, slaveId, frameworkId, executorId, uuid, taskId, strict);
 
     if (task.isError()) {
       return Error(
@@ -336,7 +336,7 @@ Try<RunState> RunState::recover(
     message = "Failed to read executor's forked pid from '" + path +
               "': " + pid.error();
 
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;
@@ -362,7 +362,7 @@ Try<RunState> RunState::recover(
     message = "Failed to read executor's libprocess pid from '" + path +
               "': " + pid.error();
 
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;
@@ -383,7 +383,7 @@ Try<TaskState> TaskState::recover(
     const ExecutorID& executorId,
     const UUID& uuid,
     const TaskID& taskId,
-    bool safe)
+    bool strict)
 {
   TaskState state;
   state.id = taskId;
@@ -399,7 +399,7 @@ Try<TaskState> TaskState::recover(
     message = "Failed to read task info from '" + path +
               "': " + (task.isError() ? task.error() : " none");
 
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;
@@ -420,7 +420,7 @@ Try<TaskState> TaskState::recover(
     message = "Failed to open status updates file '" + path +
               "': " + fd.error();
 
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;
@@ -449,7 +449,7 @@ Try<TaskState> TaskState::recover(
     message = "Failed to read status updates file  '" + path +
               "': " + record.error();
 
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;
@@ -471,7 +471,7 @@ Try<TaskState> TaskState::recover(
     message = "Failed to close status updates file '" + path +
               "': " + close.error();
 
-    if (safe) {
+    if (strict) {
       return Error(message);
     } else {
       LOG(WARNING) << message;

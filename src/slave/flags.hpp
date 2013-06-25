@@ -135,13 +135,14 @@ public:
         "      and the slave registers with the master as a new slave.",
         "reconnect");
 
-    add(&Flags::safe,
-        "safe",
-        "Whether to ignore (safe=false) any ambiguous errors during recovery.\n"
-        "An ambiguous error is one where it is impossible to differentiate\n"
-        "between a safe error that can be ignored and an unsafe error that "
-        "cannot be.",
-        true);
+    add(&Flags::strict,
+        "strict",
+        "If strict=true, any and all recovery errors are considered fatal.\n"
+        "If strict=false, any expected errors (e.g., slave cannot recover\n"
+        "information about an executor, because the slave died right before\n"
+        "the executor registered.) during recovery are ignored and as much\n"
+        "state as possible is recovered.\n",
+        false);
 
 #ifdef __linux__
     add(&Flags::cgroups_hierarchy,
@@ -182,7 +183,7 @@ public:
   Duration resource_monitoring_interval;
   bool checkpoint;
   std::string recover;
-  bool safe;
+  bool strict;
 #ifdef __linux__
   std::string cgroups_hierarchy;
   std::string cgroups_root;

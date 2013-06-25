@@ -125,7 +125,7 @@ public:
     // Setup recovery slave flags.
     flags.checkpoint = true;
     flags.recover = "reconnect";
-    flags.safe = false;
+    flags.strict = false;
 
     return flags;
   }
