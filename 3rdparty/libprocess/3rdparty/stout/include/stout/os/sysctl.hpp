@@ -185,7 +185,10 @@ inline Try<std::string> sysctl::string() const
   // determined it's length above. We should really check that we
   // get back the same length and if not throw an error.
 
-  std::string result(temp);
+  // The "string" in 'temp' might include null bytes, so to get all of
+  // the data we need to create a string with 'size' (but we exclude
+  // the last null byte via 'size - 1').
+  std::string result(temp, size - 1);
   delete[] temp;
   return result;
 }
