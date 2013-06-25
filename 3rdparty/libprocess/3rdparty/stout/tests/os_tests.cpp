@@ -601,3 +601,87 @@ TEST_F(OsTest, killtree) {
   // We have to reap the child for running the tests in repetition.
   ASSERT_EQ(child, waitpid(child, NULL, 0));
 }
+
+
+TEST_F(OsTest, pstree)
+{
+  Try<os::ProcessTree> tree = os::pstree(0);
+
+  ASSERT_SOME(tree);
+  EXPECT_EQ(0u, tree.get().children.size());
+
+  // Use pipes to determine the pids of the grandchild.
+  int childPipes[2];
+  int grandchildPipes[2];
+  ASSERT_NE(-1, pipe(childPipes));
+  ASSERT_NE(-1, pipe(grandchildPipes));
+
+  pid_t grandchild;
+  pid_t child = fork();
+  ASSERT_NE(-1, child);
+
+  if (child > 0) {
+    // In parent process.
+    close(childPipes[1]);
+    close(grandchildPipes[1]);
+
+    // Get the pids via the pipes.
+    ASSERT_NE(-1, read(childPipes[0], &child, sizeof(child)));
+    ASSERT_NE(-1, read(grandchildPipes[0], &grandchild, sizeof(grandchild)));
+
+    close(childPipes[0]);
+    close(grandchildPipes[0]);
+  } else {
+    // In child process.
+    close(childPipes[0]);
+    close(grandchildPipes[0]);
+
+    // Double fork!
+    if ((grandchild = fork()) == -1) {
+      perror("Failed to fork a grandchild process");
+      abort();
+    }
+
+    if (grandchild > 0) {
+      // Still in child process.
+      close(grandchildPipes[1]);
+
+      child = getpid();
+      if (write(childPipes[1], &child, sizeof(child)) != sizeof(child)) {
+        perror("Failed to write PID on pipe");
+        abort();
+      }
+      close(childPipes[1]);
+
+      while (true); // Keep waiting until we get a signal.
+    } else {
+      // In grandchild process.
+      grandchild = getpid();
+      if (write(grandchildPipes[1], &grandchild, sizeof(grandchild)) !=
+          sizeof(grandchild)) {
+        perror("Failed to write PID on pipe");
+        abort();
+      }
+      close(grandchildPipes[1]);
+
+      while (true); // Keep waiting until we get a signal.
+    }
+  }
+
+  // Ensure the non-recursive children does not include the
+  // grandchild.
+  tree = os::pstree(0);
+
+  ASSERT_SOME(tree);
+  ASSERT_EQ(1u, tree.get().children.size());
+  EXPECT_EQ(child, tree.get().children.front().process.pid);
+  ASSERT_EQ(1u, tree.get().children.front().children.size());
+  EXPECT_EQ(grandchild, tree.get().children.front().children.front().process.pid);
+
+  // Cleanup by killing the descendant processes.
+  EXPECT_EQ(0, kill(grandchild, SIGKILL));
+  EXPECT_EQ(0, kill(child, SIGKILL));
+
+  // We have to reap the child for running the tests in repetition.
+  ASSERT_EQ(child, waitpid(child, NULL, 0));
+}

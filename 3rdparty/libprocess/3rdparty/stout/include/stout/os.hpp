@@ -64,6 +64,7 @@
 #ifdef __APPLE__
 #include <stout/os/sysctl.hpp>
 #endif // __APPLE__
+#include <stout/os/pstree.hpp>
 
 #ifdef __APPLE__
 // Assigning the result pointer to ret silences an unused var warning.
