@@ -52,10 +52,10 @@ struct RunState;
 struct TaskState;
 
 // Each of the structs below (recursively) recover the checkpointed
-// state. If the 'safe' flag is set, any errors encountered while
+// state. If the 'strict' flag is set, any errors encountered while
 // recovering a state are considered fatal and hence the recovery is
 // short-circuited and returns an error. There might be orphaned
-// executors that need to be manually cleaned up. If 'safe' flag is
+// executors that need to be manually cleaned up. If 'strict' flag is
 // not set, any errors encountered are considered  non-fatal and the
 // recovery continues by recovering as much of the state as possible.
 
@@ -64,7 +64,7 @@ struct SlaveState
   static Try<SlaveState> recover(
       const std::string& rootDir,
       const SlaveID& slaveId,
-      bool safe);
+      bool strict);
 
   SlaveID id;
   Option<SlaveInfo> info;
@@ -78,7 +78,7 @@ struct FrameworkState
       const std::string& rootDir,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
-      bool safe);
+      bool strict);
 
   FrameworkID id;
   Option<FrameworkInfo> info;
@@ -94,7 +94,7 @@ struct ExecutorState
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      bool safe);
+      bool strict);
 
   ExecutorID id;
   Option<ExecutorInfo> info;
@@ -111,7 +111,7 @@ struct RunState
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const UUID& uuid,
-      bool safe);
+      bool strict);
 
   Option<UUID> id;
   hashmap<TaskID, TaskState> tasks;
@@ -129,7 +129,7 @@ struct TaskState
       const ExecutorID& executorId,
       const UUID& uuid,
       const TaskID& taskId,
-      bool safe);
+      bool strict);
 
   TaskID id;
   Option<Task> info;
@@ -139,7 +139,7 @@ struct TaskState
 
 
 // This function performs recovery from the state stored at 'rootDir'.
-Result<SlaveState> recover(const std::string& rootDir, bool safe);
+Result<SlaveState> recover(const std::string& rootDir, bool strict);
 
 
 // Thin wrappers to checkpoint data to disk and perform the

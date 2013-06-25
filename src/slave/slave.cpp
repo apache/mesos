@@ -371,7 +371,7 @@ void Slave::initialize()
   }
 
   // Start recovery.
-  recover(flags.recover == "reconnect", flags.safe)
+  recover(flags.recover == "reconnect", flags.strict)
     .onAny(defer(self(), &Slave::_initialize, params::_1));
 }
 
@@ -2512,7 +2512,7 @@ void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
 }
 
 
-Future<Nothing> Slave::recover(bool reconnect, bool safe)
+Future<Nothing> Slave::recover(bool reconnect, bool strict)
 {
   const string& metaDir = paths::getMetaRootDir(flags.work_dir);
 
@@ -2526,7 +2526,7 @@ Future<Nothing> Slave::recover(bool reconnect, bool safe)
   }
 
   // First, recover the slave state.
-  Result<SlaveState> state = state::recover(metaDir, safe);
+  Result<SlaveState> state = state::recover(metaDir, strict);
   if (state.isError()) {
     EXIT(1) << "Failed to recover slave state: " << state.error();
   }
@@ -2859,7 +2859,7 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
 
   // Recover the libprocess PID if possible.
   if (run.libprocessPid.isSome()) {
-    // When recovering in unsafe mode, the assumption is that the
+    // When recovering in non-strict mode, the assumption is that the
     // slave can die after checkpointing the forked pid but before the
     // libprocess pid. So, it is not possible for the libprocess pid
     // to exist but not the forked pid. If so, it is a really bad

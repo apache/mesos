@@ -238,8 +238,8 @@ protected:
   // Reads the checkpointed data from a previous run and recovers state.
   // If 'reconnect' is true, the slave attempts to reconnect to any old
   // live executors. Otherwise, the slave attempts to shutdown/kill them.
-  // If 'safe' is true, any recovery errors are considered fatal.
-  Future<Nothing> recover(bool reconnect, bool safe);
+  // If 'strict' is true, any recovery errors are considered fatal.
+  Future<Nothing> recover(bool reconnect, bool strict);
   Future<Nothing> _recover(const state::SlaveState& state, bool reconnect);
 
   // Helper to recover a framework from the specified state.
