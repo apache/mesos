@@ -601,7 +601,12 @@ void Slave::registered(const SlaveID& slaveId)
       break;
     }
     case RUNNING:
-      // Already registered. Ignore registration.
+      // Already registered!
+      if (!(info.id() == slaveId)) {
+       EXIT(1) << "Registered but got wrong id: " << slaveId
+               << "(expected: " << info.id() << "). Committing suicide";
+      }
+      LOG(WARNING) << "Already registered with master " << master;
       break;
     case TERMINATING:
       LOG(WARNING) << "Ignoring registration because slave is terminating";
@@ -622,12 +627,17 @@ void Slave::reregistered(const SlaveID& slaveId)
 
       state = RUNNING;
       if (!(info.id() == slaveId)) {
-        LOG(FATAL) << "Slave re-registered but got wrong id: " << slaveId
-                   << "(expected: " << info.id() << ")";
+        EXIT(1) << "Re-registered but got wrong id: " << slaveId
+                << "(expected: " << info.id() << "). Committing suicide";
       }
       break;
     case RUNNING:
-      // Already registered. Ignore registration.
+      // Already re-registered!
+      if (!(info.id() == slaveId)) {
+        EXIT(1) << "Re-registered but got wrong id: " << slaveId
+                << "(expected: " << info.id() << "). Committing suicide";
+      }
+      LOG(WARNING) << "Already re-registered with master " << master;
       break;
     case TERMINATING:
       LOG(WARNING) << "Ignoring re-registration because slave is terminating";
@@ -729,8 +739,8 @@ void Slave::runTask(
   // the master when the slave re-registers.
 
   if (!(task.slave_id() == info.id())) {
-    LOG(WARNING) << "Ignoring task " << task.task_id()
-                 << " because it was intended for the old slave " << info.id();
+    LOG(WARNING) << "Slave " << info.id() << " ignoring task " << task.task_id()
+                 << " because it was intended for old slave " << task.slave_id();
     return;
   }
 
@@ -1675,7 +1685,7 @@ void Slave::reregisterExecutorTimeout()
 // 2) When slave generates task updates (e.g LOST/KILLED/FAILED).
 void Slave::statusUpdate(const StatusUpdate& update)
 {
-  LOG(INFO) << "Handling status update " << update;
+  LOG(INFO) << "Handling status update " << update << " from " << from;
 
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)

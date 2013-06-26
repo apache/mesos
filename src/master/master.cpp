@@ -455,7 +455,7 @@ void Master::exited(const UPID& pid)
   //         its tasks transitioned to LOST and resources recovered.
   foreachvalue (Slave* slave, slaves) {
     if (slave->pid == pid) {
-      LOG(INFO) << "Slave " << slave->id << "(" << slave->info.hostname()
+      LOG(INFO) << "Slave " << slave->id << " (" << slave->info.hostname()
                 << ") disconnected";
 
       // Remove the slave, if it is not checkpointing.
