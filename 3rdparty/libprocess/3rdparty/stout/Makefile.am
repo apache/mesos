@@ -40,6 +40,8 @@ EXTRA_DIST =					\
   include/stout/os/ls.hpp			\
   include/stout/os/osx.hpp			\
   include/stout/os/process.hpp			\
+  include/stout/os/sendfile.hpp			\
+  include/stout/os/signals.hpp			\
   include/stout/os/sysctl.hpp			\
   include/stout/owned.hpp			\
   include/stout/path.hpp			\
@@ -65,6 +67,8 @@ EXTRA_DIST =					\
   tests/multimap_tests.cpp			\
   tests/none_tests.cpp				\
   tests/os_tests.cpp				\
+  tests/os/sendfile_tests.cpp			\
+  tests/os/signals_tests.cpp			\
   tests/proc_tests.cpp				\
   tests/protobuf_tests.cpp			\
   tests/protobuf_tests.pb.cc			\

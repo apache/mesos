@@ -23,16 +23,13 @@
 
 #ifdef __linux__
 #include <linux/version.h>
-#endif
+#endif // __linux__
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#ifdef __APPLE__
-#include <sys/sysctl.h>
-#endif
 #ifdef __linux__
 #include <sys/sysinfo.h>
-#endif
+#endif // __linux__
 #include <sys/types.h>
 #include <sys/utsname.h>
 
@@ -57,11 +54,16 @@
 #include <stout/os/killtree.hpp>
 #ifdef __linux__
 #include <stout/os/linux.hpp>
-#endif
+#endif // __linux__
 #include <stout/os/ls.hpp>
 #ifdef __APPLE__
 #include <stout/os/osx.hpp>
-#endif
+#endif // __APPLE__
+#include <stout/os/sendfile.hpp>
+#include <stout/os/signals.hpp>
+#ifdef __APPLE__
+#include <stout/os/sysctl.hpp>
+#endif // __APPLE__
 
 #ifdef __APPLE__
 // Assigning the result pointer to ret silences an unused var warning.
