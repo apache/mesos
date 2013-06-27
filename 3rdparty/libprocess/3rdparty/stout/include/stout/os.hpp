@@ -53,6 +53,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/exists.hpp>
 #include <stout/os/killtree.hpp>
 #ifdef __linux__
 #include <stout/os/linux.hpp>
@@ -474,17 +475,6 @@ inline bool islink(const std::string& path)
     return false;
   }
   return S_ISLNK(s.st_mode);
-}
-
-
-inline bool exists(const std::string& path)
-{
-  struct stat s;
-
-  if (::lstat(path.c_str(), &s) < 0) {
-    return false;
-  }
-  return true;
 }
 
 
@@ -1020,14 +1010,12 @@ inline Try<std::list<Process> > processes()
 
   std::list<Process> result;
   foreach (pid_t pid, pids.get()) {
-    const Try<Process>& process = os::process(pid);
+    const Result<Process>& process = os::process(pid);
 
     // Ignore any processes that disappear.
-    if (process.isError()) {
-      continue;
+    if (process.isSome()) {
+      result.push_back(process.get());
     }
-
-    result.push_back(process.get());
   }
   return result;
 }
@@ -1107,32 +1095,6 @@ inline Try<std::set<pid_t> > pids(Option<pid_t> group, Option<pid_t> session)
   }
 
   return result;
-}
-
-
-inline Try<bool> alive(pid_t pid)
-{
-  if (pid <= 0) {
-    return Error("Invalid pid");
-  }
-
-  const Try<os::Process>& process = os::process(pid);
-
-  // When we can't get the process information, fall back
-  // to using kill.
-  if (process.isError()) {
-    if (::kill(pid, 0) == 0) {
-      return true;
-    }
-
-    if (errno == ESRCH) {
-      return false;
-    }
-
-    return Try<bool>::error(strerror(errno));
-  }
-
-  return !process.get().zombie;
 }
 
 } // namespace os {

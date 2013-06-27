@@ -19,7 +19,7 @@
 
 namespace os {
 
-inline Try<Process> process(pid_t pid)
+inline Result<Process> process(pid_t pid)
 {
   const Try<std::vector<kinfo_proc> >& processes =
     os::sysctl(CTL_KERN, KERN_PROC, KERN_PROC_PID, pid).table(1);
@@ -27,7 +27,7 @@ inline Try<Process> process(pid_t pid)
   if (processes.isError()) {
     return Error("Failed to get process via sysctl: " + processes.error());
   } else if (processes.get().size() != 1) {
-    return Error("No process found with pid " + stringify(pid));
+    return None();
   }
 
   // We use proc_pidinfo() as it provides memory and CPU usage.

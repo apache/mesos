@@ -15,13 +15,13 @@
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/proc.hpp>
-#include <stout/try.hpp>
+#include <stout/result.hpp>
 
 #include <stout/os/process.hpp>
 
 namespace os {
 
-inline Try<Process> process(pid_t pid)
+inline Result<Process> process(pid_t pid)
 {
   // Page size, used for memory accounting.
   // NOTE: This is more portable than using getpagesize().
@@ -36,10 +36,14 @@ inline Try<Process> process(pid_t pid)
     return Error("Failed to get sysconf(_SC_CLK_TCK)");
   }
 
-  const Try<proc::ProcessStatus>& status = proc::status(pid);
+  const Result<proc::ProcessStatus>& status = proc::status(pid);
 
   if (status.isError()) {
     return Error(status.error());
+  }
+
+  if (status.isNone()) {
+    return None();
   }
 
   return Process(status.get().pid,

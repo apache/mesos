@@ -369,7 +369,7 @@ TEST_F(OsTest, children)
 
 TEST_F(OsTest, process)
 {
-  const Try<os::Process>& status = os::process(getpid());
+  const Result<os::Process>& status = os::process(getpid());
 
   ASSERT_SOME(status);
   EXPECT_EQ(getpid(), status.get().pid);
@@ -584,11 +584,11 @@ TEST_F(OsTest, killtree) {
   os::sleep(Milliseconds(50));
 
   // Expect the pids to be wiped!
-  EXPECT_SOME_EQ(false, os::alive(greatGreatGrandchild));
-  EXPECT_SOME_EQ(false, os::alive(greatGreatGrandchild));
-  EXPECT_SOME_EQ(false, os::alive(greatGrandchild));
-  EXPECT_SOME_EQ(false, os::alive(grandchild));
-  EXPECT_SOME_EQ(false, os::alive(child));
+  EXPECT_NONE(os::process(greatGreatGrandchild));
+  EXPECT_NONE(os::process(greatGrandchild));
+  EXPECT_NONE(os::process(grandchild));
+  EXPECT_SOME(os::process(child));
+  EXPECT_TRUE(os::process(child).get().zombie);
 
   // We have to reap the child for running the tests in repetition.
   ASSERT_EQ(child, waitpid(child, NULL, 0));

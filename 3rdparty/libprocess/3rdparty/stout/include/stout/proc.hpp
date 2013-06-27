@@ -26,6 +26,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/exists.hpp>
 #include <stout/os/ls.hpp>
 
 namespace proc {
@@ -146,9 +147,14 @@ struct ProcessStatus
 
 
 // Returns the process statistics from /proc/[pid]/stat.
-inline Try<ProcessStatus> status(pid_t pid)
+// The return value is None if the process does not exist.
+inline Result<ProcessStatus> status(pid_t pid)
 {
   std::string path = "/proc/" + stringify(pid) + "/stat";
+
+  if (!os::exists(path)) {
+    return None();
+  }
 
   std::ifstream file(path.c_str());
 

@@ -46,7 +46,7 @@ TEST(ProcTest, SystemStatus)
 
 TEST(ProcTest, ProcessStatus)
 {
-  Try<ProcessStatus> status = proc::status(getpid());
+  Result<ProcessStatus> status = proc::status(getpid());
 
   ASSERT_SOME(status);
   EXPECT_EQ(getpid(), status.get().pid);
