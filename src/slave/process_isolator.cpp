@@ -380,10 +380,11 @@ Future<ResourceStatistics> ProcessIsolator::usage(
 
   CHECK_SOME(info->pid);
 
-  Try<os::Process> process = os::process(info->pid.get());
+  Result<os::Process> process = os::process(info->pid.get());
 
-  if (process.isError()) {
-    return Future<ResourceStatistics>::failed(process.error());
+  if (!process.isSome()) {
+    return Future<ResourceStatistics>::failed(
+        process.isError() ? process.error() : "Process does not exist");
   }
 
   result.set_timestamp(Clock::now().secs());

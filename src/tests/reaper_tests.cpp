@@ -199,11 +199,11 @@ TEST(ReaperTest, TerminatedChildProcess)
 
   Clock::pause();
 
-  ASSERT_SOME(os::alive(pid));
+  ASSERT_SOME(os::process(pid));
 
   // Because reaper reaps all child processes even if they aren't
   // registered, we advance time until that happens.
-  while (os::alive(pid).get()) {
+  while (os::process(pid).isSome()) {
     Clock::advance(Seconds(1));
     Clock::settle();
   }

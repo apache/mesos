@@ -47,45 +47,21 @@ ReaperProcess::ReaperProcess()
 
 Future<Option<int> > ReaperProcess::monitor(pid_t pid)
 {
-  // Check to see if the current process has sufficient privileges to
-  // monitor the liveness of this pid.
-  Try<bool> alive = os::alive(pid);
+  // Check to see if this pid exists.
+  const Result<os::Process>& process = os::process(pid);
 
-  if (alive.isSome()) {
-    if (alive.get()) {
-      // We have permissions to check the validity of the process
-      // and it's alive, so add it to the promises map.
-      Owned<Promise<Option<int> > > promise(new Promise<Option<int> >());
-      promises.put(pid, promise);
-      return promise->future();
-    } else {
-      // Process doesn't exist.
-      LOG(WARNING) << "Cannot monitor process " << pid
-                   << " because it doesn't exist";
-      return None();
-    }
-  }
-
-  // Now we know we don't have permission for alive(), but we can
-  // still monitor it if it is our child.
-  int status;
-  pid_t result = waitpid(pid, &status, WNOHANG);
-
-  if (result > 0) {
-    // The process terminated and the status was reaped.
-    // Notify other listeners and return directly for this caller.
-    notify(pid, status);
-    return Option<int>(status);
-  } else if (result == 0) {
-    // Child still active, add to the map.
+  if (process.isSome()) {
+    // The process exists, we add it to the promises map.
     Owned<Promise<Option<int> > > promise(new Promise<Option<int> >());
     promises.put(pid, promise);
     return promise->future();
+  } else if (process.isNone()) {
+    LOG(WARNING) << "Cannot monitor process " << pid
+                 << " because it doesn't exist";
+    return None();
   } else {
-    // Not a child nor do we have permission to for os::alive();
-    // we cannot monitor this pid.
     return Future<Option<int> >::failed(
-        "Failed to monitor process " + stringify(pid) + ": " + strerror(errno));
+        "Failed to monitor process " + stringify(pid) + ": " + process.error());
   }
 }
 
@@ -108,9 +84,10 @@ void ReaperProcess::notify(pid_t pid, Option<int> status)
 void ReaperProcess::reap()
 {
   // This method assumes that the registered PIDs are
-  // 1) children, or
-  // 2) non-children that we have permission to check liveness, or
-  // 3) nonexistent / reaped elsewhere.
+  // 1) children: we can reap their exit status when they are
+  //    terminated.
+  // 2) non-children: we cannot reap their exit status.
+  // 3) nonexistent: already reaped elsewhere.
 
   // Reap all child processes first.
   pid_t pid;
@@ -128,23 +105,24 @@ void ReaperProcess::reap()
 
   // Check whether any monitored process has exited and been reaped.
   // 1) If a child terminates before the foreach loop but after the
-  //    while loop, it won't be reaped until the next reap() cycle
-  //    and the alive() check below returns true.
+  //    while loop, it won't be reaped until the next reap() cycle.
   // 2) If a non-child process terminates and is reaped elsewhere,
-  //    e.g. by init, we notify the listeners. (We know we have
-  //    permission to check its liveness in this case.)
+  //    e.g. by init, we notify the listeners.
   // 3) If a non-child process terminates and is not yet reaped,
-  //    alive() returns true and no notification is sent.
+  //    no notification is sent.
   // 4) If a child terminates before the while loop above, then we've
   //    already reaped it and have the listeners notified!
   foreach (pid_t pid, utils::copy(promises.keys())) {
-    Try<bool> alive = os::alive(pid);
+    const Result<os::Process>& process = os::process(pid);
 
-    if (alive.isSome() && !alive.get()) {
+    if (process.isError()) {
+      LOG(ERROR) << "Failed to get process information for " << pid
+                 <<": " << process.error();
+      notify(pid, None());
+    } else if (process.isNone()) {
       // The process has been reaped.
       LOG(WARNING) << "Cannot get the exit status of process " << pid
-                   << " because it is not a child of the calling "
-                   << "process: " << strerror(errno);
+                   << " because it no longer exists";
       notify(pid, None());
     }
   }

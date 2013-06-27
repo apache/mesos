@@ -50,14 +50,6 @@ public:
   // Monitor the given process and notify the caller if it terminates
   // via a Future of the exit status.
   //
-  // NOTE: The termination of pid can only be monitored if the
-  // calling process:
-  //   1) has the same real or effective user ID as the real or saved
-  //      set-user-ID of 'pid', or
-  //   2) is run as a privileged user, or
-  //   3) pid is a child of the current process.
-  // Otherwise a failed Future is returned.
-  //
   // The exit status of 'pid' can only be correctly captured if the
   // calling process is the parent of 'pid' and the process hasn't
   // been reaped yet, otherwise 'None' is returned.

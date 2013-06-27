@@ -1250,11 +1250,12 @@ private:
       // is in the FREEZING state. We ignore such processes.
       // See: https://issues.apache.org/jira/browse/MESOS-461
       foreach (pid_t pid, pids.get()) {
-        Try<proc::ProcessStatus> status = proc::status(pid);
+        Result<proc::ProcessStatus> status = proc::status(pid);
 
-        if (status.isError()) {
-          LOG(WARNING) << "Failed to get process status for pid " << pid
-                       << ": " << status.error();
+        if (!status.isSome()) {
+          LOG(WARNING)
+            << "Failed to get process status for pid " << pid << ": "
+            << (status.isError() ? status.error() : "pid does not exist");
           continue;
         }
 
