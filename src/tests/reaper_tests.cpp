@@ -195,11 +195,11 @@ TEST(ReaperTest, TerminatedChildProcess)
   // In parent process.
   LOG(INFO) << "Child process " << pid;
 
-  Reaper reaper;
+  ASSERT_SOME(os::process(pid));
 
   Clock::pause();
 
-  ASSERT_SOME(os::process(pid));
+  Reaper reaper;
 
   // Because reaper reaps all child processes even if they aren't
   // registered, we advance time until that happens.
