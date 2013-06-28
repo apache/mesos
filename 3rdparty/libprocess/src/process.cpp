@@ -1093,7 +1093,7 @@ void send_file(struct ev_loop* loop, ev_io* watcher, int revents)
     fd = encoder->next(&offset, &size);
     CHECK(size > 0);
 
-    ssize_t length = sendfile(s, fd, offset, size);
+    ssize_t length = os::sendfile(s, fd, offset, size);
 
     if (length < 0 && (errno == EINTR)) {
       // Interrupted, try again now.
@@ -3609,6 +3609,7 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
   addr.sin_addr.s_addr = upid.ip;
 
   if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
+    os::close(s);
     return Future<Response>::failed(
         string("Failed to connect: ") + strerror(errno));
   }
@@ -3640,6 +3641,7 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
       if (errno == EINTR) {
         continue;
       }
+      os::close(s);
       return Future<Response>::failed(
           string("Failed to write: ") + strerror(errno));
     }
@@ -3649,6 +3651,7 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
 
   Try<Nothing> nonblock = os::nonblock(s);
   if (!nonblock.isSome()) {
+    os::close(s);
     return Future<Response>::failed(
         "Failed to set nonblock: " + nonblock.error());
   }
