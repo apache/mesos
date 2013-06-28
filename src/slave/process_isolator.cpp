@@ -405,6 +405,11 @@ Future<ResourceStatistics> ProcessIsolator::usage(
   foreach (pid_t child, children.get()) {
     process = os::process(child);
 
+    // Skip processes that disappear.
+    if (process.isNone()) {
+      continue;
+    }
+
     if (process.isError()) {
       LOG(WARNING) << "Failed to get status of descendant process " << child
                    << " of parent " << info->pid.get() << ": "
