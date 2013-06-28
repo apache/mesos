@@ -25,6 +25,7 @@
 #include <process/time.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/gtest.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -32,6 +33,9 @@
 #include "encoder.hpp"
 
 using namespace process;
+using namespace process::http;
+
+using std::string;
 
 using testing::_;
 using testing::Assign;
@@ -99,7 +103,7 @@ TEST(Process, onAny)
 }
 
 
-Future<std::string> itoa1(int* const& i)
+Future<string> itoa1(int* const& i)
 {
   std::ostringstream out;
   out << *i;
@@ -107,7 +111,7 @@ Future<std::string> itoa1(int* const& i)
 }
 
 
-std::string itoa2(int* const& i)
+string itoa2(int* const& i)
 {
   std::ostringstream out;
   out << *i;
@@ -123,7 +127,7 @@ TEST(Process, then)
 
   promise.set(&i);
 
-  Future<std::string> future = promise.future()
+  Future<string> future = promise.future()
     .then(std::tr1::bind(&itoa1, std::tr1::placeholders::_1));
 
   ASSERT_TRUE(future.isReady());
@@ -155,13 +159,13 @@ Future<bool> pendingFuture(Future<bool>* future)
 }
 
 
-Future<std::string> second(const bool& b)
+Future<string> second(const bool& b)
 {
-  return b ? std::string("true") : std::string("false");
+  return b ? string("true") : string("false");
 }
 
 
-Future<std::string> third(const std::string& s)
+Future<string> third(const string& s)
 {
   return s;
 }
@@ -171,7 +175,7 @@ TEST(Process, chain)
 {
   Promise<int*> promise;
 
-  Future<std::string> s = readyFuture()
+  Future<string> s = readyFuture()
     .then(std::tr1::bind(&second, std::tr1::placeholders::_1))
     .then(std::tr1::bind(&third, std::tr1::placeholders::_1));
 
@@ -358,25 +362,25 @@ TEST(Process, defer1)
 class DeferProcess : public Process<DeferProcess>
 {
 public:
-  Future<std::string> func1(const Future<int>& f)
+  Future<string> func1(const Future<int>& f)
   {
     return f.then(defer(self(), &Self::_func1, std::tr1::placeholders::_1));
   }
 
-  Future<std::string> func2(const Future<int>& f)
+  Future<string> func2(const Future<int>& f)
   {
     return f.then(defer(self(), &Self::_func2));
   }
 
 private:
-  Future<std::string> _func1(int i)
+  Future<string> _func1(int i)
   {
     return stringify(i);
   }
 
-  Future<std::string> _func2()
+  Future<string> _func2()
   {
-    return std::string("42");
+    return string("42");
   }
 };
 
@@ -389,7 +393,7 @@ TEST(Process, defer2)
 
   PID<DeferProcess> pid = spawn(process);
 
-  Future<std::string> f = dispatch(pid, &DeferProcess::func1, 41);
+  Future<string> f = dispatch(pid, &DeferProcess::func1, 41);
 
   f.await();
 
@@ -451,7 +455,7 @@ public:
     install("func", &HandlersProcess::func);
   }
 
-  MOCK_METHOD2(func, void(const UPID&, const std::string&));
+  MOCK_METHOD2(func, void(const UPID&, const string&));
 };
 
 
@@ -518,7 +522,7 @@ TEST(Process, action)
 
   ASSERT_FALSE(!pid);
 
-  Future<std::string> future1;
+  Future<string> future1;
   Future<Nothing> future2;
   EXPECT_CALL(process, func(_, _))
     .WillOnce(FutureArg<1>(&future1))
@@ -627,7 +631,7 @@ public:
     install("func", &DelegateeProcess::func);
   }
 
-  MOCK_METHOD2(func, void(const UPID&, const std::string&));
+  MOCK_METHOD2(func, void(const UPID&, const string&));
 };
 
 
@@ -970,7 +974,7 @@ class EventReceiver
 {
 public:
   MOCK_METHOD1(event1, void(int));
-  MOCK_METHOD1(event2, void(const std::string&));
+  MOCK_METHOD1(event2, void(const string&));
 };
 
 
@@ -998,7 +1002,7 @@ TEST(Process, executor)
 
   event1(42);
 
-  Deferred<void(const std::string&)> event2 =
+  Deferred<void(const string&)> event2 =
     executor.defer(std::tr1::bind(&EventReceiver::event2,
                                   &receiver,
                                   std::tr1::placeholders::_1));
@@ -1018,7 +1022,7 @@ public:
     install("handler", &RemoteProcess::handler);
   }
 
-  MOCK_METHOD2(handler, void(const UPID&, const std::string&));
+  MOCK_METHOD2(handler, void(const UPID&, const string&));
 };
 
 
@@ -1052,7 +1056,7 @@ TEST(Process, remote)
   message.from = UPID();
   message.to = process.self();
 
-  const std::string& data = MessageEncoder::encode(&message);
+  const string& data = MessageEncoder::encode(&message);
 
   ASSERT_EQ(data.size(), write(s, data.data(), data.size()));
 
@@ -1117,4 +1121,52 @@ TEST(Process, async)
 
   // Non-void function that returns a future.
   EXPECT_EQ("42", async(&itoa1, &i).get().get());
+}
+
+
+class FileServer : public Process<FileServer>
+{
+public:
+  FileServer(const string& _path)
+    : path(_path) {}
+
+  virtual void initialize()
+  {
+    provide("", path);
+  }
+
+  const string path;
+};
+
+
+TEST(Process, provide)
+{
+  const Try<string>& mkdtemp = os::mkdtemp();
+  ASSERT_SOME(mkdtemp);
+
+  const string LOREM_IPSUM =
+      "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do "
+      "eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad "
+      "minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip "
+      "ex ea commodo consequat. Duis aute irure dolor in reprehenderit in "
+      "voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur "
+      "sint occaecat cupidatat non proident, sunt in culpa qui officia "
+      "deserunt mollit anim id est laborum.";
+
+  const string path = path::join(mkdtemp.get(), "lorem.txt");
+  ASSERT_SOME(os::write(path, LOREM_IPSUM));
+
+  FileServer server(path);
+  PID<FileServer> pid = spawn(server);
+
+  Future<Response> response = http::get(pid);
+
+  AWAIT_READY(response);
+
+  ASSERT_EQ(LOREM_IPSUM, response.get().body);
+
+  terminate(server);
+  wait(server);
+
+  ASSERT_SOME(os::rmdir(path));
 }
