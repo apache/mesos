@@ -799,28 +799,48 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  // Launch 2 tasks from this offer.
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  Offer offer = offers.get()[0];
 
-  Future<Nothing> update;
+  Offer offer1 = offer;
+  offer1.mutable_resources()->CopyFrom(Resources::parse("cpus:1;mem:512"));
+  tasks.push_back(createTask(offer1, "sleep 1000")); // Long-running task
+
+  Offer offer2 = offer;
+  offer2.mutable_resources()->CopyFrom(Resources::parse("cpus:1;mem:512"));
+  tasks.push_back(createTask(offer2, "sleep 1000")); // Long-running task
+
+  ASSERT_LE(Resources(offer1.resources()) + Resources(offer2.resources()),
+            Resources(offer.resources()));
+
+  Future<Nothing> update1;
+  Future<Nothing> update2;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureSatisfy(&update));
+    .WillOnce(FutureSatisfy(&update1))
+    .WillOnce(FutureSatisfy(&update2));
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  // Wait for TASK_RUNNING update.
-  AWAIT_READY(update);
+  // Wait for TASK_RUNNING updates from the tasks.
+  AWAIT_READY(update1);
+  AWAIT_READY(update2);
 
-  Future<TaskStatus> status;
+  // The master should generate TASK_LOST updates once the slave is stopped.
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
 
   this->Stop(slave.get());
 
-  // Scheduler should receive the TASK_LOST update.
-  AWAIT_READY(status);
-  ASSERT_EQ(TASK_LOST, status.get().state());
+  // Scheduler should receive the TASK_LOST updates.
+  AWAIT_READY(status1);
+  ASSERT_EQ(TASK_LOST, status1.get().state());
+
+  AWAIT_READY(status2);
+  ASSERT_EQ(TASK_LOST, status2.get().state());
 
   driver.stop();
   driver.join();
