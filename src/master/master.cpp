@@ -470,19 +470,25 @@ void Master::exited(const UPID& pid)
       } else {
         // If a slave is checkpointing, remove all non-checkpointing
         // frameworks from the slave.
-        hashset<FrameworkID> ids;
-        foreachvalue (Task* task, utils::copy(slave->tasks)) {
-          if (!ids.contains(task->framework_id())) {
-            ids.insert(task->framework_id());
-            Framework* framework = getFramework(task->framework_id());
-            if (framework != NULL && !framework->info.checkpoint()) {
-              LOG(INFO) << "Removing non-checkpointing framework "
-                        << task->framework_id()
-                        << " from disconnected slave " << slave->id
-                        << "(" << slave->info.hostname() << ")";
 
-              removeFramework(slave, framework);
-            }
+        // First, collect all the frameworks running on this slave.
+        hashset<FrameworkID> frameworkIds;
+        foreachvalue (Task* task, slave->tasks) {
+          frameworkIds.insert(task->framework_id());
+        }
+        foreachkey (const FrameworkID& frameworkId, slave->executors) {
+          frameworkIds.insert(frameworkId);
+        }
+
+        // Now, remove all the non-checkpointing frameworks.
+        foreach (const FrameworkID& frameworkId, frameworkIds) {
+          Framework* framework = getFramework(frameworkId);
+          if (framework != NULL && !framework->info.checkpoint()) {
+            LOG(INFO) << "Removing non-checkpointing framework " << frameworkId
+                      << " from disconnected slave " << slave->id
+                      << "(" << slave->info.hostname() << ")";
+
+            removeFramework(slave, framework);
           }
         }
       }
@@ -1792,20 +1798,20 @@ void Master::removeFramework(Slave* slave, Framework* framework)
       // over and the framework hasn't reconnected yet. For more info
       // please see the comments in 'removeFramework(Framework*)'.
       StatusUpdateMessage message;
-      StatusUpdate* update = message.mutable_update();
-      update->mutable_framework_id()->MergeFrom(task->framework_id());
+      message.mutable_update()->CopyFrom(
+          protobuf::createStatusUpdate(
+              task->framework_id(),
+              task->slave_id(),
+              task->task_id(),
+              TASK_LOST,
+              "Slave " + slave->info.hostname() + " disconnected",
+              (task->has_executor_id() ?
+                  Option<ExecutorID>(task->executor_id()) : None())));
 
-      if (task->has_executor_id()) {
-        update->mutable_executor_id()->MergeFrom(task->executor_id());
-      }
+      LOG(INFO) << "Sending status update " << message.update()
+                << " due to disconnected slave " << slave->id
+                << " (" << slave->info.hostname() << ")";
 
-      update->mutable_slave_id()->MergeFrom(task->slave_id());
-      TaskStatus* status = update->mutable_status();
-      status->mutable_task_id()->MergeFrom(task->task_id());
-      status->set_state(TASK_LOST);
-      status->set_message("Slave " + slave->info.hostname() + " disconnected");
-      update->set_timestamp(Clock::now().secs());
-      update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
 
       // Remove the task from slave and framework.
