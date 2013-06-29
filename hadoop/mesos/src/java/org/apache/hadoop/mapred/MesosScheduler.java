@@ -482,8 +482,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
                   "  disk: offered " + disk + " needed " + containerDisk,
                   "  ports: " + (ports.size() < 2
                     ? " less than 2 offered"
-                    : " at least 2 (sufficient)"),
-                  offer.getResourcesList().toString())));
+                    : " at least 2 (sufficient)"))));
 
           driver.declineOffer(offer.getId());
           continue;
@@ -538,8 +537,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
                   "  cpus: offered " + cpus + " needed " + containerCpus,
                   "  mem : offered " + mem + " needed " + containerMem,
                   "  disk: offered " + disk + " needed " + containerDisk,
-                  "  ports: " + ports,
-                  offer.getResourcesList().toString())));
+                  "  ports: " + ports)));
 
           driver.declineOffer(offer.getId());
           continue;
