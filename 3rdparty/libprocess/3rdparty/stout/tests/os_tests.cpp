@@ -375,12 +375,16 @@ TEST_F(OsTest, process)
   EXPECT_EQ(getpid(), status.get().pid);
   EXPECT_EQ(getppid(), status.get().parent);
   EXPECT_EQ(getsid(getpid()), status.get().session);
-  EXPECT_GT(status.get().rss, 0);
+
+  ASSERT_SOME(status.get().rss);
+  EXPECT_GT(status.get().rss.get(), 0);
 
   // NOTE: On Linux /proc is a bit slow to update the CPU times,
   // hence we allow 0 in this test.
-  EXPECT_GE(status.get().utime, Nanoseconds(0));
-  EXPECT_GE(status.get().stime, Nanoseconds(0));
+  ASSERT_SOME(status.get().utime);
+  EXPECT_GE(status.get().utime.get(), Nanoseconds(0));
+  ASSERT_SOME(status.get().stime);
+  EXPECT_GE(status.get().stime.get(), Nanoseconds(0));
 
   EXPECT_FALSE(status.get().command.empty());
 }
@@ -401,12 +405,16 @@ TEST_F(OsTest, processes)
       EXPECT_EQ(getpid(), process.pid);
       EXPECT_EQ(getppid(), process.parent);
       EXPECT_EQ(getsid(getpid()), process.session);
-      EXPECT_GT(process.rss, 0);
+
+      ASSERT_SOME(process.rss);
+      EXPECT_GT(process.rss.get(), 0);
 
       // NOTE: On linux /proc is a bit slow to update the cpu times,
       // hence we allow 0 in this test.
-      EXPECT_GE(process.utime, Nanoseconds(0));
-      EXPECT_GE(process.stime, Nanoseconds(0));
+      ASSERT_SOME(process.utime);
+      EXPECT_GE(process.utime.get(), Nanoseconds(0));
+      ASSERT_SOME(process.stime);
+      EXPECT_GE(process.stime.get(), Nanoseconds(0));
 
       EXPECT_FALSE(process.command.empty());
 

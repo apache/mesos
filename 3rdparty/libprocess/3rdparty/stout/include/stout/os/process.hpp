@@ -7,6 +7,7 @@
 
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
+#include <stout/option.hpp>
 
 namespace os {
 
@@ -16,9 +17,9 @@ struct Process
           pid_t _parent,
           pid_t _group,
           pid_t _session,
-          const Bytes& _rss,
-          const Duration& _utime,
-          const Duration& _stime,
+          const Option<Bytes>& _rss,
+          const Option<Duration>& _utime,
+          const Option<Duration>& _stime,
           const std::string& _command,
           bool _zombie)
     : pid(_pid),
@@ -35,9 +36,9 @@ struct Process
   const pid_t parent;
   const pid_t group;
   const pid_t session;
-  const Bytes rss;
-  const Duration utime;
-  const Duration stime;
+  const Option<Bytes> rss;
+  const Option<Duration> utime;
+  const Option<Duration> stime;
   const std::string command;
   const bool zombie;
 

@@ -14,6 +14,9 @@
 #include <queue>
 #include <set>
 
+#include <stout/error.hpp>
+#include <stout/none.hpp>
+
 #include <stout/os/process.hpp>
 #include <stout/os/sysctl.hpp>
 
@@ -49,9 +52,9 @@ inline Result<Process> process(pid_t pid)
                    process.kp_eproc.e_ppid,
                    process.kp_eproc.e_pgid,
                    getsid(pid),
-                   Bytes(0),
-                   Nanoseconds(-1),
-                   Nanoseconds(-1),
+                   None(),
+                   None(),
+                   None(),
                    process.kp_proc.p_comm,
                    process.kp_proc.p_stat & SZOMB);
   } else {
