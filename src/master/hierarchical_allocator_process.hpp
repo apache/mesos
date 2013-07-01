@@ -47,7 +47,7 @@ class Filter;
 
 // We forward declare the hierarchical allocator process so that we
 // can typedef an instantiation of it with DRF sorters.
-template <typename UserSorter, typename FrameworkSorter>
+template <typename RoleSorter, typename FrameworkSorter>
 class HierarchicalAllocatorProcess;
 
 typedef HierarchicalAllocatorProcess<DRFSorter, DRFSorter>
@@ -106,7 +106,7 @@ struct Framework
   Framework(const FrameworkInfo& _info)
     : info(_info) {}
 
-  std::string user() const { return info.user(); }
+  std::string role() const { return info.role(); }
 
   // Filters that have been added by this framework.
   hashset<Filter*> filters;
@@ -116,9 +116,9 @@ private:
 };
 
 
-// Implements the basic allocator algorithm - first pick a user by
+// Implements the basic allocator algorithm - first pick a role by
 // some criteria, then pick one of their frameworks to allocate to.
-template <typename UserSorter, typename FrameworkSorter>
+template <typename RoleSorter, typename FrameworkSorter>
 class HierarchicalAllocatorProcess : public AllocatorProcess
 {
 public:
@@ -178,8 +178,8 @@ public:
 
 protected:
   // Useful typedefs for dispatch/delay/defer to self()/this.
-  typedef HierarchicalAllocatorProcess<UserSorter, FrameworkSorter> Self;
-  typedef HierarchicalAllocatorProcess<UserSorter, FrameworkSorter> This;
+  typedef HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> Self;
+  typedef HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> This;
 
   // Callback for doing batch allocations.
   void batch();
@@ -214,8 +214,8 @@ protected:
   // Contains all frameworks.
   hashmap<FrameworkID, Framework> frameworks;
 
-  // Maps user names to the Sorter object which contains
-  // all of that user's frameworks.
+  // Maps role names to the Sorter object which contains
+  // all of that role's frameworks.
   hashmap<std::string, FrameworkSorter*> sorters;
 
   // Contains all active slaves.
@@ -224,8 +224,8 @@ protected:
   // Slaves to send offers for.
   Option<hashset<std::string> > whitelist;
 
-  // Sorter containing all active users.
-  UserSorter* userSorter;
+  // Sorter containing all active roles.
+  RoleSorter* roleSorter;
 };
 
 
@@ -261,36 +261,36 @@ public:
 };
 
 
-template <class UserSorter, class FrameworkSorter>
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::HierarchicalAllocatorProcess()
+template <class RoleSorter, class FrameworkSorter>
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::HierarchicalAllocatorProcess()
   : ProcessBase(ID::generate("hierarchical-allocator")),
     initialized(false) {}
 
 
-template <class UserSorter, class FrameworkSorter>
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::~HierarchicalAllocatorProcess()
+template <class RoleSorter, class FrameworkSorter>
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::~HierarchicalAllocatorProcess()
 {}
 
 
-template <class UserSorter, class FrameworkSorter>
-process::PID<HierarchicalAllocatorProcess<UserSorter, FrameworkSorter> >
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::self()
+template <class RoleSorter, class FrameworkSorter>
+process::PID<HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> >
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::self()
 {
   return
-    process::PID<HierarchicalAllocatorProcess<UserSorter, FrameworkSorter> >(this);
+    process::PID<HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> >(this);
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::initialize(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
     const Flags& _flags,
     const process::PID<Master>& _master)
 {
   flags = _flags;
   master = _master;
   initialized = true;
-  userSorter = new UserSorter();
+  roleSorter = new RoleSorter();
 
   VLOG(1) << "Initializing hierarchical allocator process "
           << "with master : " << master;
@@ -299,28 +299,28 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::initialize(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkAdded(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkAdded(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const Resources& used)
 {
   CHECK(initialized);
 
-  const std::string& user = frameworkInfo.user();
-  if (!userSorter->contains(user)) {
-    userSorter->add(user);
-    sorters[user] = new FrameworkSorter();
+  const std::string& role = frameworkInfo.role();
+  if (!roleSorter->contains(role)) {
+    roleSorter->add(role);
+    sorters[role] = new FrameworkSorter();
   }
 
-  CHECK(!sorters[user]->contains(frameworkId.value()));
-  sorters[user]->add(frameworkId.value());
+  CHECK(!sorters[role]->contains(frameworkId.value()));
+  sorters[role]->add(frameworkId.value());
 
   // Update the allocation to this framework.
-  userSorter->allocated(user, used);
-  sorters[user]->add(used);
-  sorters[user]->allocated(frameworkId.value(), used);
+  roleSorter->allocated(role, used);
+  sorters[role]->add(used);
+  sorters[role]->allocated(frameworkId.value(), used);
 
   frameworks[frameworkId] = Framework(frameworkInfo);
 
@@ -330,23 +330,23 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkAdded(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkRemoved(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkRemoved(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
   CHECK(frameworks.contains(frameworkId));
-  const std::string& user = frameworks[frameworkId].user();
+  const std::string& role = frameworks[frameworkId].role();
 
-  // Might not be in 'sorters[user]' because it was previously
+  // Might not be in 'sorters[role]' because it was previously
   // deactivated and never re-added.
-  if (sorters[user]->contains(frameworkId.value())) {
-    Resources allocation = sorters[user]->allocation(frameworkId.value());
-    userSorter->unallocated(user, allocation);
-    sorters[user]->remove(allocation);
-    sorters[user]->remove(frameworkId.value());
+  if (sorters[role]->contains(frameworkId.value())) {
+    Resources allocation = sorters[role]->allocation(frameworkId.value());
+    roleSorter->unallocated(role, allocation);
+    sorters[role]->remove(allocation);
+    sorters[role]->remove(frameworkId.value());
   }
 
   // Do not delete the filters contained in this
@@ -355,29 +355,29 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkRemoved(
   // HierarchicalAllocatorProcess::expire.
   frameworks.erase(frameworkId);
 
-  // If this user doesn't have any more active frameworks, remove it.
-  if (sorters[user]->count() == 0) {
-    Sorter* s = sorters[user];
-    sorters.erase(user);
+  // If this role doesn't have any more active frameworks, remove it.
+  if (sorters[role]->count() == 0) {
+    Sorter* s = sorters[role];
+    sorters.erase(role);
     delete s;
 
-    userSorter->remove(user);
+    roleSorter->remove(role);
   }
 
   LOG(INFO) << "Removed framework " << frameworkId;
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkActivated(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkActivated(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo)
 {
   CHECK(initialized);
 
-  const std::string& user = frameworkInfo.user();
-  sorters[user]->activate(frameworkId.value());
+  const std::string& role = frameworkInfo.role();
+  sorters[role]->activate(frameworkId.value());
 
   LOG(INFO) << "Activated framework " << frameworkId;
 
@@ -385,17 +385,17 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkActivated(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkDeactivated(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkDeactivated(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
   CHECK(frameworks.contains(frameworkId));
-  const std::string& user = frameworks[frameworkId].user();
+  const std::string& role = frameworks[frameworkId].role();
 
-  sorters[user]->deactivate(frameworkId.value());
+  sorters[role]->deactivate(frameworkId.value());
 
   // Note that the Sorter *does not* remove the resources allocated
   // to this framework. For now, this is important because if the
@@ -413,9 +413,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::frameworkDeactivated(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveAdded(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveAdded(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
     const hashmap<FrameworkID, Resources>& used)
@@ -427,7 +427,7 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveAdded(
   slaves[slaveId] = Slave(slaveInfo);
   slaves[slaveId].whitelisted = isWhitelisted(slaveId);
 
-  userSorter->add(slaveInfo.resources());
+  roleSorter->add(slaveInfo.resources());
 
   Resources unused = slaveInfo.resources();
 
@@ -435,10 +435,10 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveAdded(
                const Resources& resources,
                used) {
     if (frameworks.contains(frameworkId)) {
-      const std::string& user = frameworks[frameworkId].user();
-      sorters[user]->add(resources);
-      sorters[user]->allocated(frameworkId.value(), resources);
-      userSorter->allocated(user, resources);
+      const std::string& role = frameworks[frameworkId].role();
+      sorters[role]->add(resources);
+      sorters[role]->allocated(frameworkId.value(), resources);
+      roleSorter->allocated(role, resources);
     }
 
     unused -= resources; // Only want to allocate resources that are not used!
@@ -456,16 +456,16 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveAdded(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveRemoved(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveRemoved(
     const SlaveID& slaveId)
 {
   CHECK(initialized);
 
   CHECK(slaves.contains(slaveId));
 
-  userSorter->remove(slaves[slaveId].resources());
+  roleSorter->remove(slaves[slaveId].resources());
 
   slaves.erase(slaveId);
 
@@ -478,9 +478,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::slaveRemoved(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::updateWhitelist(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateWhitelist(
     const Option<hashset<std::string> >& _whitelist)
 {
   CHECK(initialized);
@@ -497,9 +497,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::updateWhitelist(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesRequested(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRequested(
     const FrameworkID& frameworkId,
     const std::vector<Request>& requests)
 {
@@ -509,9 +509,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesRequested(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesUnused(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesUnused(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources,
@@ -528,16 +528,16 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesUnused(
           << " unused on slave " << slaveId;
 
   // Update resources allocated to framework. It is
-  // not possible for the user to not be in users
+  // not possible for the role to not be in roles
   // because resourcesUnused is only called as the
   // result of a valid task launch by an active
   // framework that doesn't use the entire offer.
   CHECK(frameworks.contains(frameworkId));
 
-  const std::string& user = frameworks[frameworkId].user();
-  sorters[user]->unallocated(frameworkId.value(), resources);
-  sorters[user]->remove(resources);
-  userSorter->unallocated(user, resources);
+  const std::string& role = frameworks[frameworkId].role();
+  sorters[role]->unallocated(frameworkId.value(), resources);
+  sorters[role]->remove(resources);
+  roleSorter->unallocated(role, resources);
 
   // Update resources allocatable on slave.
   CHECK(slaves.contains(slaveId));
@@ -581,9 +581,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesUnused(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesRecovered(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources)
@@ -600,11 +600,11 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesRecovered(
   // or AllocatorProcess::frameworkDeactivated, in which case we will
   // have already recovered all of its resources).
   if (frameworks.contains(frameworkId) &&
-      sorters[frameworks[frameworkId].user()]->contains(frameworkId.value())) {
-    const std::string& user = frameworks[frameworkId].user();
-    sorters[user]->unallocated(frameworkId.value(), resources);
-    sorters[user]->remove(resources);
-    userSorter->unallocated(user, resources);
+      sorters[frameworks[frameworkId].role()]->contains(frameworkId.value())) {
+    const std::string& role = frameworks[frameworkId].role();
+    sorters[role]->unallocated(frameworkId.value(), resources);
+    sorters[role]->remove(resources);
+    roleSorter->unallocated(role, resources);
   }
 
   // Update resources allocatable on slave (if slave still exists,
@@ -621,9 +621,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::resourcesRecovered(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::offersRevived(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::offersRevived(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
@@ -643,9 +643,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::offersRevived(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::batch()
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::batch()
 {
   CHECK(initialized);
   allocate();
@@ -653,9 +653,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::batch()
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate()
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate()
 {
   CHECK(initialized);
 
@@ -669,9 +669,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate()
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     const SlaveID& slaveId)
 {
   CHECK(initialized);
@@ -689,15 +689,15 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     const hashset<SlaveID>& slaveIds)
 {
   CHECK(initialized);
 
-  if (userSorter->count() == 0) {
-    VLOG(1) << "No users to allocate resources!";
+  if (roleSorter->count() == 0) {
+    VLOG(1) << "No roles to allocate resources!";
     return;
   }
 
@@ -706,8 +706,8 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
     return;
   }
 
-  foreach (const std::string& user, userSorter->sort()) {
-    foreach (const std::string& frameworkIdValue, sorters[user]->sort()) {
+  foreach (const std::string& role, roleSorter->sort()) {
+    foreach (const std::string& frameworkIdValue, sorters[role]->sort()) {
       FrameworkID frameworkId;
       frameworkId.set_value(frameworkIdValue);
 
@@ -737,9 +737,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
       }
 
       if (!offerable.empty()) {
-        sorters[user]->add(allocatedResources);
-        sorters[user]->allocated(frameworkIdValue, allocatedResources);
-        userSorter->allocated(user, allocatedResources);
+        sorters[role]->add(allocatedResources);
+        sorters[role]->allocated(frameworkIdValue, allocatedResources);
+        roleSorter->allocated(role, allocatedResources);
 
         dispatch(master, &Master::offer, frameworkId, offerable);
       }
@@ -748,9 +748,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::allocate(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::expire(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::expire(
     const FrameworkID& frameworkId,
     Filter* filter)
 {
@@ -768,9 +768,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::expire(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 bool
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::isWhitelisted(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::isWhitelisted(
     const SlaveID& slaveId)
 {
   CHECK(initialized);
@@ -782,9 +782,9 @@ HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::isWhitelisted(
 }
 
 
-template <class UserSorter, class FrameworkSorter>
+template <class RoleSorter, class FrameworkSorter>
 bool
-HierarchicalAllocatorProcess<UserSorter, FrameworkSorter>::isFiltered(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::isFiltered(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources)

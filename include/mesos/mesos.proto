@@ -95,6 +95,8 @@ message ExecutorID {
  * are checkpointed to disk.
  * Checkpointing allows a restarted slave to reconnect with old executors
  * and recover status updates, at the cost of disk I/O.
+ * The role field is used to group frameworks for allocation decisions,
+ * depending on the allocation policy being used.
  */
 message FrameworkInfo {
   required string user = 1;
@@ -102,6 +104,7 @@ message FrameworkInfo {
   optional FrameworkID id = 3;
   optional double failover_timeout = 4 [default = 0.0];
   optional bool checkpoint = 5 [default = false];
+  optional string role = 6 [default = "*"];
 }
 
 

@@ -91,6 +91,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   FrameworkInfo frameworkInfo1;
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
+  frameworkInfo1.set_role("role1");
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
@@ -115,6 +116,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   FrameworkInfo frameworkInfo2;
   frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_user("user2");
+  frameworkInfo2.set_role("role2");
+
   MockScheduler sched2;
   MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
 
@@ -177,7 +180,9 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 
   FrameworkInfo frameworkInfo3;
   frameworkInfo3.set_name("framework3");
-  frameworkInfo3.set_user("user1");
+  frameworkInfo3.set_user("user3");
+  frameworkInfo3.set_role("role1");
+
   MockScheduler sched3;
   MesosSchedulerDriver driver3(&sched3, frameworkInfo3, master.get());
 
