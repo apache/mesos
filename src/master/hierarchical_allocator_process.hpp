@@ -297,8 +297,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
   initialized = true;
 
   roleSorter = new RoleSorter();
-  foreachkey (const std::string& name, roles) {
-    roleSorter->add(name);
+  foreachpair (const std::string& name, const RoleInfo& roleInfo, roles) {
+    roleSorter->add(name, roleInfo.weight());
     sorters[name] = new FrameworkSorter();
   }
 

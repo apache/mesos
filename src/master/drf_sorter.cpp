@@ -41,7 +41,7 @@ bool DRFComparator::operator () (
 }
 
 
-void DRFSorter::add(const string& name)
+void DRFSorter::add(const string& name, double weight)
 {
   Client client;
   client.name = name;
@@ -49,6 +49,7 @@ void DRFSorter::add(const string& name)
   clients.insert(client);
 
   allocations[name] = Resources::parse("");
+  weights[name] = weight;
 }
 
 
@@ -61,6 +62,7 @@ void DRFSorter::remove(const string& name)
   }
 
   allocations.erase(name);
+  weights.erase(name);
 }
 
 
@@ -180,12 +182,15 @@ void DRFSorter::update(const string& name)
 {
   set<Client, DRFComparator>::iterator it;
   it = find(name);
-  clients.erase(it);
 
-  Client client;
-  client.name = name;
-  client.share = calculateShare(name);
-  clients.insert(client);
+  if (it != clients.end()) {
+    clients.erase(it);
+
+    Client client;
+    client.name = name;
+    client.share = calculateShare(name);
+    clients.insert(client);
+  }
 }
 
 
@@ -201,17 +206,17 @@ double DRFSorter::calculateShare(const string& name)
     if (resource.type() == Value::SCALAR) {
       double total = resource.scalar().value();
 
-    if (total > 0) {
-      Value::Scalar none;
-      const Value::Scalar& scalar =
-        allocations[name].get(resource.name(), none);
+      if (total > 0) {
+        Value::Scalar none;
+        const Value::Scalar& scalar =
+          allocations[name].get(resource.name(), none);
 
-      share = std::max(share, scalar.value() / total);
+        share = std::max(share, scalar.value() / total);
+      }
     }
   }
-}
 
-  return share;
+  return share / weights[name];
 }
 
 

@@ -57,7 +57,7 @@ class DRFSorter : public Sorter
 public:
   virtual ~DRFSorter() {}
 
-  virtual void add(const std::string& name);
+  virtual void add(const std::string& name, double weight = 1);
 
   virtual void remove(const std::string& name);
 
@@ -103,6 +103,9 @@ private:
 
   // Maps client names to the resources they have been allocated.
   hashmap<std::string, Resources> allocations;
+
+  // Maps client names to the weights that should be applied to their shares.
+  hashmap<std::string, double> weights;
 
   // Total resources.
   Resources resources;

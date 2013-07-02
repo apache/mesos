@@ -37,7 +37,7 @@ public:
 
   // Adds a client to allocate resources to. A client
   // may be a user or a framework.
-  virtual void add(const std::string& client) = 0;
+  virtual void add(const std::string& client, double weight = 1) = 0;
 
   // Removes a client.
   virtual void remove(const std::string& client) = 0;
