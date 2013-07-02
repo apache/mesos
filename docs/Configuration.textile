@@ -35,5 +35,4 @@ The following options are commonly configured for the master:
 |_. Parameter         |_. Description|
 |@url@                     | A ZooKeeper URL can be specified when "using ZooKeeper":Using-ZooKeeper.textile. |
 |@port@                 | Port to bind to for communication between master and slaves. |
-|@allocator@           | Which pluggable "allocation module":Allocation-module.textile to use. Currently there is only one, @simple@, that performs fair sharing between frameworks. |
 |@ip@                      | Which IP address to bind to (to make the master bind to a desired network interface if it does not do so by default). |
