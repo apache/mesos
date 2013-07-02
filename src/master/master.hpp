@@ -67,6 +67,7 @@ class WhitelistWatcher;
 
 struct Framework;
 struct Slave;
+struct Role;
 
 
 class Master : public ProtobufProcess<Master>
@@ -241,6 +242,8 @@ private:
   hashset<UPID> deactivatedSlaves;
 
   hashmap<OfferID, Offer*> offers;
+
+  hashmap<std::string, Role*> roles;
 
   boost::circular_buffer<std::tr1::shared_ptr<Framework> > completedFrameworks;
 
@@ -506,6 +509,28 @@ struct Framework
 private:
   Framework(const Framework&);              // No copying.
   Framework& operator = (const Framework&); // No assigning.
+};
+
+
+// Information about an active role.
+struct Role
+{
+  Role(const RoleInfo& _info)
+    : info(_info) {}
+
+  void addFramework(Framework* framework)
+  {
+    frameworks[framework->id] = framework;
+  }
+
+  void removeFramework(Framework* framework)
+  {
+    frameworks.erase(framework->id);
+  }
+
+  RoleInfo info;
+
+  hashmap<FrameworkID, Framework*> frameworks;
 };
 
 } // namespace master {

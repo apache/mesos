@@ -331,7 +331,7 @@ public:
 
     using ::testing::_;
 
-    ON_CALL(*this, initialize(_, _))
+    ON_CALL(*this, initialize(_, _, _))
       .WillByDefault(InvokeInitialize(this));
 
     ON_CALL(*this, frameworkAdded(_, _, _))
@@ -374,8 +374,9 @@ public:
     process::wait(real);
   }
 
-  MOCK_METHOD2(initialize, void(const master::Flags&,
-                                const process::PID<master::Master>&));
+  MOCK_METHOD3(initialize, void(const master::Flags&,
+                                const process::PID<master::Master>&,
+                                const hashmap<std::string, RoleInfo>&));
   MOCK_METHOD3(frameworkAdded, void(const FrameworkID&,
                                     const FrameworkInfo&,
                                     const Resources&));
@@ -419,7 +420,8 @@ ACTION_P(InvokeInitialize, allocator)
       allocator->real,
       &master::allocator::AllocatorProcess::initialize,
       arg0,
-      arg1);
+      arg1,
+      arg2);
 }
 
 

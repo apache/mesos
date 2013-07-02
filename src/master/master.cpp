@@ -244,8 +244,56 @@ void Master::initialize()
 
   LOG(INFO) << "Master ID: " << info.id();
 
+  hashmap<string, RoleInfo> roleInfos;
+
+  // Add the default role.
+  RoleInfo roleInfo;
+  roleInfo.set_name("*");
+  roleInfos["*"] = roleInfo;
+
+  // Add other roles.
+  if (flags.roles.isSome()) {
+    vector<string> tokens = strings::tokenize(flags.roles.get(), ",");
+
+    foreach (const std::string& role, tokens) {
+      RoleInfo roleInfo;
+      roleInfo.set_name(role);
+      roleInfos[role] = roleInfo;
+    }
+  }
+
+  // Add role weights.
+  if (flags.weights.isSome()) {
+    vector<string> tokens = strings::tokenize(flags.weights.get(), ",");
+
+    foreach (const std::string& token, tokens) {
+      vector<string> pair = strings::tokenize(token, "=");
+      if (pair.size() != 2) {
+        EXIT(1) << "Invalid weight: '" << token << "'. --weights should"
+          "be of the form 'role=weight,role=weight'\n";
+      } else if (!roles.contains(pair[0])) {
+        EXIT(1) << "Invalid weight: '" << token << "'. " << pair[0]
+                << " is not a valid role.";
+      }
+
+      double weight = atof(pair[1].c_str());
+      if (weight <= 0) {
+        EXIT(1) << "Invalid weight: '" << token
+                << "'. Weights must be positive.";
+      }
+
+      roleInfos[pair[0]].set_weight(weight);
+    }
+  }
+
+  foreachpair (const std::string& role,
+               const RoleInfo& roleInfo,
+               roleInfos) {
+    roles[role] = new Role(roleInfo);
+  }
+
   // Initialize the allocator.
-  allocator->initialize(flags, self());
+  allocator->initialize(flags, self(), roleInfos);
 
   // Parse the white list
   whitelistWatcher = new WhitelistWatcher(flags.whitelist, allocator);
@@ -558,6 +606,13 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
     return;
   }
 
+  if (!roles.contains(frameworkInfo.role())) {
+    FrameworkErrorMessage message;
+    message.set_message("Role '" + frameworkInfo.role() + "' is not valid.");
+    reply(message);
+    return;
+  }
+
   // Check if this framework is already registered (because it retries).
   foreachvalue (Framework* framework, frameworks) {
     if (framework->pid == from) {
@@ -605,6 +660,13 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     LOG(ERROR) << "Framework re-registering without an id!";
     FrameworkErrorMessage message;
     message.set_message("Framework reregistered without a framework id");
+    reply(message);
+    return;
+  }
+
+  if (!roles.contains(frameworkInfo.role())) {
+    FrameworkErrorMessage message;
+    message.set_message("Role '" + frameworkInfo.role() + "' is not valid.");
     reply(message);
     return;
   }
@@ -1662,6 +1724,10 @@ void Master::addFramework(Framework* framework, bool reregister)
 
   link(framework->pid);
 
+  // Enforced by Master::registerFramework.
+  CHECK(roles.contains(framework->info.role()));
+  roles[framework->info.role()]->addFramework(framework);
+
   if (reregister) {
     FrameworkReregisteredMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id);
@@ -1780,6 +1846,9 @@ void Master::removeFramework(Framework* framework)
 
   // The completedFramework buffer now owns the framework pointer.
   completedFrameworks.push_back(std::tr1::shared_ptr<Framework>(framework));
+
+  CHECK(roles.contains(framework->info.role()));
+  roles[framework->info.role()]->removeFramework(framework);
 
   // Remove it.
   frameworks.erase(framework->id);

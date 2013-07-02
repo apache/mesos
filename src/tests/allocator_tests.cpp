@@ -74,9 +74,11 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 {
   MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _));
+  EXPECT_CALL(allocator, initialize(_, _, _));
 
-  Try<PID<Master> > master = StartMaster(&allocator);
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.roles = Option<string>("role1,role2");
+  Try<PID<Master> > master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   slave::Flags flags1 = CreateSlaveFlags();
@@ -276,7 +278,7 @@ TYPED_TEST_CASE(AllocatorTest, AllocatorTypes);
 // the slave's resources are offered to the framework.
 TYPED_TEST(AllocatorTest, MockAllocator)
 {
-  EXPECT_CALL(this->allocator, initialize(_, _));
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
@@ -331,7 +333,7 @@ TYPED_TEST(AllocatorTest, MockAllocator)
 // reoffered appropriately.
 TYPED_TEST(AllocatorTest, ResourcesUnused)
 {
-  EXPECT_CALL(this->allocator, initialize(_, _));
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
@@ -441,7 +443,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
 // resourcesRecovered is called for an already removed framework.
 TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 {
-  EXPECT_CALL(this->allocator, initialize(_, _));
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
@@ -564,7 +566,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 // is running.
 TYPED_TEST(AllocatorTest, SchedulerFailover)
 {
-  EXPECT_CALL(this->allocator, initialize(_, _));
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
@@ -687,7 +689,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 // is killed, the tasks resources are returned and reoffered correctly.
 TYPED_TEST(AllocatorTest, FrameworkExited)
 {
-  EXPECT_CALL(this->allocator, initialize(_, _));
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -825,7 +827,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 // slave, never offered again.
 TYPED_TEST(AllocatorTest, SlaveLost)
 {
-  EXPECT_CALL(this->allocator, initialize(_, _));
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   Try<PID<Master> > master = this->StartMaster(&this->allocator);
   ASSERT_SOME(master);
@@ -929,7 +931,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 // resources and offered appropriately.
 TYPED_TEST(AllocatorTest, SlaveAdded)
 {
-  EXPECT_CALL(this->allocator, initialize(_, _));
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1029,7 +1031,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
 // resources are recovered and reoffered correctly.
 TYPED_TEST(AllocatorTest, TaskFinished)
 {
-  EXPECT_CALL(this->allocator, initialize(_, _));
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1145,7 +1147,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.whitelist = "file://" + path; // TODO(benh): Put in /tmp.
 
-  EXPECT_CALL(this->allocator, initialize(_, _));
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   Future<Nothing> updateWhitelist1;
   EXPECT_CALL(this->allocator, updateWhitelist(_))

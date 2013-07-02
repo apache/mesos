@@ -170,7 +170,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   MockAllocatorProcess<TypeParam> allocator2;
 
-  EXPECT_CALL(allocator2, initialize(_, _));
+  EXPECT_CALL(allocator2, initialize(_, _, _));
 
   Try<PID<Master> > master2 = this->StartMaster(&allocator2);
   ASSERT_SOME(master2);
@@ -292,7 +292,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 
   MockAllocatorProcess<TypeParam> allocator2;
 
-  EXPECT_CALL(allocator2, initialize(_, _));
+  EXPECT_CALL(allocator2, initialize(_, _, _));
 
   Try<PID<Master> > master2 = this->StartMaster(&allocator2);
   ASSERT_SOME(master2);

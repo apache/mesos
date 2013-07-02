@@ -130,7 +130,8 @@ public:
 
   void initialize(
       const Flags& flags,
-      const process::PID<Master>& _master);
+      const process::PID<Master>& _master,
+      const hashmap<std::string, RoleInfo>& _roles);
 
   void frameworkAdded(
       const FrameworkID& frameworkId,
@@ -221,6 +222,8 @@ protected:
   // Contains all active slaves.
   hashmap<SlaveID, Slave> slaves;
 
+  hashmap<std::string, RoleInfo> roles;
+
   // Slaves to send offers for.
   Option<hashset<std::string> > whitelist;
 
@@ -285,12 +288,19 @@ template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
     const Flags& _flags,
-    const process::PID<Master>& _master)
+    const process::PID<Master>& _master,
+    const hashmap<std::string, RoleInfo>& _roles)
 {
   flags = _flags;
   master = _master;
+  roles = _roles;
   initialized = true;
+
   roleSorter = new RoleSorter();
+  foreachkey (const std::string& name, roles) {
+    roleSorter->add(name);
+    sorters[name] = new FrameworkSorter();
+  }
 
   VLOG(1) << "Initializing hierarchical allocator process "
           << "with master : " << master;
@@ -309,10 +319,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkAdded(
   CHECK(initialized);
 
   const std::string& role = frameworkInfo.role();
-  if (!roleSorter->contains(role)) {
-    roleSorter->add(role);
-    sorters[role] = new FrameworkSorter();
-  }
+
+  CHECK(roles.contains(role));
 
   CHECK(!sorters[role]->contains(frameworkId.value()));
   sorters[role]->add(frameworkId.value());
@@ -354,15 +362,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkRemoved(
   // HierarchicalAllocatorProcess::offersRevived and
   // HierarchicalAllocatorProcess::expire.
   frameworks.erase(frameworkId);
-
-  // If this role doesn't have any more active frameworks, remove it.
-  if (sorters[role]->count() == 0) {
-    Sorter* s = sorters[role];
-    sorters.erase(role);
-    delete s;
-
-    roleSorter->remove(role);
-  }
 
   LOG(INFO) << "Removed framework " << frameworkId;
 }

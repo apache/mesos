@@ -83,6 +83,18 @@ public:
         "cluster",
         "Human readable name for the cluster,\n"
         "displayed in the webui");
+
+    add(&Flags::roles,
+        "roles",
+        "A comma seperated list of the allocation\n"
+        "roles that frameworks in this cluster may\n"
+        "belong to.");
+
+    add(&Flags::weights,
+        "weights",
+        "A comma seperated list of role/weight pairs\n"
+        "of the form 'role=weight,role=weight'. Weights\n"
+        "are used to indicate forms of priority.");
   }
 
   bool root_submissions;
@@ -93,6 +105,8 @@ public:
   std::string framework_sorter;
   Duration allocation_interval;
   Option<std::string> cluster;
+  Option<std::string> roles;
+  Option<std::string> weights;
 };
 
 } // namespace mesos {

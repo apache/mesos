@@ -59,7 +59,8 @@ public:
 
   virtual void initialize(
       const Flags& flags,
-      const process::PID<Master>& master) = 0;
+      const process::PID<Master>& master,
+      const hashmap<std::string, RoleInfo>& roles) = 0;
 
   virtual void frameworkAdded(
       const FrameworkID& frameworkId,
@@ -129,7 +130,8 @@ public:
 
   void initialize(
       const Flags& flags,
-      const process::PID<Master>& master);
+      const process::PID<Master>& master,
+      const hashmap<std::string, RoleInfo>& roles);
 
   void frameworkAdded(
       const FrameworkID& frameworkId,
@@ -199,13 +201,15 @@ inline Allocator::~Allocator()
 
 inline void Allocator::initialize(
     const Flags& flags,
-    const process::PID<Master>& master)
+    const process::PID<Master>& master,
+    const hashmap<std::string, RoleInfo>& roles)
 {
   process::dispatch(
       process,
       &AllocatorProcess::initialize,
       flags,
-      master);
+      master,
+      roles);
 }
 
 
