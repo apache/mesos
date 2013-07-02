@@ -21,6 +21,7 @@
 #include <stdio.h> // For perror.
 #include <string.h>
 
+#include <list>
 #include <map>
 #include <set>
 
@@ -258,7 +259,16 @@ void ProcessIsolator::killExecutor(
     // TODO(vinod): Call killtree on the pid of the actual executor process
     // that is running the tasks (stored in the local storage by the
     // executor module).
-    os::killtree(pid.get(), SIGKILL, true, true, &LOG(INFO));
+    Try<std::list<os::ProcessTree> > trees =
+      os::killtree(pid.get(), SIGKILL, true, true);
+
+    if (trees.isError()) {
+      LOG(WARNING) << "Failed to kill the process tree rooted at pid "
+                   << pid.get() << ": " << trees.error();
+    } else {
+      LOG(INFO) << "Killed the following process trees:\n"
+                << stringify(trees.get());
+    }
 
     // Also kill all processes that belong to the process group of the executor.
     // This is valuable in situations where the top level executor process

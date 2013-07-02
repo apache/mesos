@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 
 #include <iostream>
+#include <list>
 #include <string>
 
 #include <mesos/executor.hpp>
@@ -203,14 +204,7 @@ public:
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
-    std::cout << "Killing command at pid " << pid << std::endl;
-
-    // TODO(benh): Do kill escalation (begin with SIGTERM, after n
-    // seconds escalate to SIGKILL).
-    if (pid > 0 && !killed) {
-      os::killtree(pid, SIGKILL, true, true, &std::cerr);
-      killed = true;
-    }
+    shutdown(driver);
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
@@ -222,7 +216,19 @@ public:
     // TODO(benh): Do kill escalation (begin with SIGTERM, after n
     // seconds escalate to SIGKILL).
     if (pid > 0 && !killed) {
-      os::killtree(pid, SIGKILL, true, true, &std::cout);
+      std::cout << "Killing process tree at pid " << pid << std::endl;
+
+      Try<std::list<os::ProcessTree> > trees =
+        os::killtree(pid, SIGKILL, true, true);
+
+      if (trees.isError()) {
+        std::cerr << "Failed to kill the process tree rooted at pid "
+                  << pid << ": " << trees.error() << std::endl;
+      } else {
+        std::cout << "Killed the following process trees:\n"
+                  << stringify(trees.get()) << std::endl;
+      }
+
       killed = true;
     }
   }
