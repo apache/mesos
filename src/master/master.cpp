@@ -409,6 +409,7 @@ void Master::initialize()
   route("/vars", None(), bind(&Http::vars, http, params::_1));
   route("/stats.json", None(), bind(&Http::stats, http, params::_1));
   route("/state.json", None(), bind(&Http::state, http, params::_1));
+  route("/roles.json", None(), bind(&Http::roles, http, params::_1));
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the

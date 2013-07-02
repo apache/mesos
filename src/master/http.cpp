@@ -208,6 +208,27 @@ JSON::Object model(const Slave& slave)
   return object;
 }
 
+// Returns a JSON object modeled after a Role.
+JSON::Object model(const Role& role)
+{
+  JSON::Object object;
+  object.values["name"] = role.info.name();
+  object.values["weight"] = role.info.weight();
+  object.values["resources"] = model(role.resources());
+
+  {
+    JSON::Array array;
+
+    foreachkey (const FrameworkID& frameworkId, role.frameworks) {
+      array.values.push_back(frameworkId.value());
+    }
+
+    object.values["frameworks"] = array;
+  }
+
+  return object;
+}
+
 
 Future<Response> Master::Http::vars(const Request& request)
 {
@@ -359,6 +380,26 @@ Future<Response> Master::Http::state(const Request& request)
     }
 
     object.values["completed_frameworks"] = array;
+  }
+
+  return OK(object, request.query.get("jsonp"));
+}
+
+
+Future<Response> Master::Http::roles(const Request& request)
+{
+  VLOG(1) << "HTTP request for '" << request.path << "'";
+
+  JSON::Object object;
+
+  // Model all of the roles.
+  {
+    JSON::Array array;
+    foreachvalue (Role* role, master.roles) {
+      array.values.push_back(model(*role));
+    }
+
+    object.values["roles"] = array;
   }
 
   return OK(object, request.query.get("jsonp"));

@@ -214,6 +214,10 @@ private:
     process::Future<process::http::Response> state(
         const process::http::Request& request);
 
+    // /master/roles.json
+    process::Future<process::http::Response> roles(
+        const process::http::Request& request);
+
   private:
     const Master& master;
   } http;
@@ -526,6 +530,16 @@ struct Role
   void removeFramework(Framework* framework)
   {
     frameworks.erase(framework->id);
+  }
+
+  Resources resources() const
+  {
+    Resources resources;
+    foreachvalue (Framework* framework, frameworks) {
+      resources += framework->resources;
+    }
+
+    return resources;
   }
 
   RoleInfo info;
