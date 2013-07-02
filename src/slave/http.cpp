@@ -35,7 +35,6 @@
 #include "common/resources.hpp"
 #include "common/type_utils.hpp"
 
-#include "slave/http.hpp"
 #include "slave/slave.hpp"
 
 namespace mesos {
