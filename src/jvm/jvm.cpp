@@ -3,6 +3,7 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -21,7 +22,7 @@ Jvm* Jvm::instance = NULL;
 
 
 Try<Jvm*> Jvm::create(
-    const std::vector<std::string>& options,
+    const std::vector<std::string>& _options,
     JNI::Version version,
     bool exceptions)
 {
@@ -33,6 +34,20 @@ Try<Jvm*> Jvm::create(
   JavaVMInitArgs vmArgs;
   vmArgs.version = version;
   vmArgs.ignoreUnrecognized = false;
+
+  std::vector<std::string> options = _options;
+
+#ifdef __APPLE__
+  // The Apple JNI implementation requires the AWT thread to not
+  // be the main application thread. Enabling headless mode
+  // circumvents the issue. Further details:
+  // https://issues.apache.org/jira/browse/MESOS-524
+  // http://www.oracle.com/technetwork/articles/javase/headless-136834.html
+  if (std::find(options.begin(), options.end(), "-Djava.awt.headless=true")
+      == options.end()) {
+    options.push_back("-Djava.awt.headless=true");
+  }
+#endif
 
   JavaVMOption* opts = new JavaVMOption[options.size()];
   for (size_t i = 0; i < options.size(); i++) {
