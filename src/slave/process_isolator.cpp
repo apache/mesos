@@ -388,9 +388,17 @@ Future<ResourceStatistics> ProcessIsolator::usage(
   }
 
   result.set_timestamp(Clock::now().secs());
-  result.set_mem_rss_bytes(process.get().rss.bytes());
-  result.set_cpus_user_time_secs(process.get().utime.secs());
-  result.set_cpus_system_time_secs(process.get().stime.secs());
+
+  if (process.get().rss.isSome()) {
+    result.set_mem_rss_bytes(process.get().rss.get().bytes());
+  }
+
+  // We only show utime and stime when both are available, otherwise
+  // we're exposing a partial view of the CPU times.
+  if (process.get().utime.isSome() && process.get().stime.isSome()) {
+    result.set_cpus_user_time_secs(process.get().utime.get().secs());
+    result.set_cpus_system_time_secs(process.get().stime.get().secs());
+  }
 
   // Now aggregate all descendant process usage statistics.
   const Try<set<pid_t> >& children = os::children(info->pid.get(), true);
@@ -417,12 +425,19 @@ Future<ResourceStatistics> ProcessIsolator::usage(
       continue;
     }
 
-    result.set_mem_rss_bytes(
-        result.mem_rss_bytes() + process.get().rss.bytes());
-    result.set_cpus_user_time_secs(
-        result.cpus_user_time_secs() + process.get().utime.secs());
-    result.set_cpus_system_time_secs(
-        result.cpus_system_time_secs() + process.get().stime.secs());
+    if (process.get().rss.isSome()) {
+      result.set_mem_rss_bytes(
+          result.mem_rss_bytes() + process.get().rss.get().bytes());
+    }
+
+    // We only show utime and stime when both are available, otherwise
+    // we're exposing a partial view of the CPU times.
+    if (process.get().utime.isSome() && process.get().stime.isSome()) {
+      result.set_cpus_user_time_secs(
+          result.cpus_user_time_secs() + process.get().utime.get().secs());
+      result.set_cpus_system_time_secs(
+          result.cpus_system_time_secs() + process.get().stime.get().secs());
+    }
   }
 
   return result;
