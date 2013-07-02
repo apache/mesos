@@ -125,3 +125,52 @@ TEST(SorterTest, DRFSorter)
 
   checkSorter(sorter, 5, "e", "b", "d", "c", "f");
 }
+
+
+TEST(SorterTest, WDRFSorter)
+{
+  DRFSorter sorter;
+
+  sorter.add(Resources::parse("cpus:100;mem:100"));
+
+  sorter.add("a");
+
+  sorter.allocated("a", Resources::parse("cpus:5;mem:5"));
+
+  sorter.add("b", 2);
+  sorter.allocated("b", Resources::parse("cpus:6;mem:6"));
+
+  // shares: a = .05, b = .03
+  checkSorter(sorter, 2, "b", "a");
+
+  sorter.add("c");
+  sorter.allocated("c", Resources::parse("cpus:4;mem:4"));
+
+  // shares: a = .05, b = .03, c = .04
+  checkSorter(sorter, 3, "b", "c", "a");
+
+  sorter.add("d", 10);
+  sorter.allocated("d", Resources::parse("cpus:10;mem:20"));
+
+  // shares: a = .05, b = .03, c = .04, d = .02
+  checkSorter(sorter, 4, "d", "b", "c", "a");
+
+  sorter.remove("b");
+
+  checkSorter(sorter, 3, "d", "c", "a");
+
+  sorter.allocated("d", Resources::parse("cpus:10;mem:25"));
+
+  // shares: a = .05, c = .04, d = .045
+  checkSorter(sorter, 3, "c", "d", "a");
+
+  sorter.add("e", .1);
+  sorter.allocated("e", Resources::parse("cpus:1;mem:1"));
+
+  // shares: a = .05, c = .04, d = .045, e = .1
+  checkSorter(sorter, 4, "c", "d", "a", "e");
+
+  sorter.remove("a");
+
+  checkSorter(sorter, 3, "c", "d", "e");
+}

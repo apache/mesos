@@ -111,9 +111,10 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   AWAIT_READY(offers1);
 
   // framework1 will be offered all of slave1's resources since it is
-  // the only framework running so far, giving it cpus=2, mem=1024.
+  // the only framework running so far.
   EXPECT_THAT(offers1.get(), OfferEq(2, 1024));
-  // framework1 share = 1
+  // user1 share = 1 (cpus=2, mem=1024)
+  //   framework1 share = 1
 
   FrameworkInfo frameworkInfo2;
   frameworkInfo2.set_name("framework2");
@@ -146,16 +147,20 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   Try<PID<Slave> > slave2 = StartSlave(flags2);
   ASSERT_SOME(slave2);
   // Total cluster resources now cpus=3, mem=1536.
-  // framework1 share = 0.66
-  // framework2 share = 0
+  // user1 share = 0.66 (cpus=2, mem=1024)
+  //   framework1 share = 1
+  // user2 share = 0
+  //   framework2 share = 0
 
   AWAIT_READY(offers2);
 
-  // framework2 will be offered all of slave2's resources since
-  // it has the lowest share, giving it cpus=1, mem=512.
+  // framework2 will be offered all of slave2's resources since user2
+  // has the lowest user share, and framework2 is its only framework.
   EXPECT_THAT(offers2.get(), OfferEq(1, 512));
-  // framework1 share =  0.66
-  // framework2 share = 0.33
+  // user1 share = 0.67 (cpus=2, mem=1024)
+  //   framework1 share = 1
+  // user2 share = 0.33 (cpus=1, mem=512)
+  //   framework2 share = 1
 
   slave::Flags flags3 = CreateSlaveFlags();
   flags3.resources = Option<string>("cpus:3;mem:2048;disk:0");
@@ -169,16 +174,20 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   Try<PID<Slave> > slave3 = StartSlave(flags3);
   ASSERT_SOME(slave3);
   // Total cluster resources now cpus=6, mem=3584.
-  // framework1 share = 0.33
-  // framework2 share = 0.16
+  // user1 share = 0.33 (cpus=2, mem=1024)
+  //   framework1 share = 1
+  // user2 share = 0.16 (cpus=1, mem=512)
+  //   framework2 share = 1
 
   AWAIT_READY(offers3);
 
-  // framework2 will be offered all of slave3's resources since
-  // it has the lowest share, giving it cpus=4, mem=2560.
+  // framework2 will be offered all of slave3's resources since user2
+  // has the lowest share.
   EXPECT_THAT(offers3.get(), OfferEq(3, 2048));
-  // framework1 share = 0.33
-  // framework2 share = 0.71
+  // user1 share = 0.33 (cpus=2, mem=1024)
+  //   framework1 share = 1
+  // user2 share = 0.71 (cpus=4, mem=2560)
+  //   framework2 share = 1
 
   FrameworkInfo frameworkInfo3;
   frameworkInfo3.set_name("framework3");
@@ -211,25 +220,75 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   Try<PID<Slave> > slave4 = StartSlave(flags4);
   ASSERT_SOME(slave4);
   // Total cluster resources now cpus=10, mem=7680.
-  // framework1 share = 0.2
-  // framework2 share = 0.4
-  // framework3 share = 0
+  // user1 share = 0.2 (cpus=2, mem=1024)
+  //   framework1 share = 1
+  //   framework3 share = 0
+  // user2 share = 0.4 (cpus=4, mem=2560)
+  //   framework2 share = 1
 
   AWAIT_READY(offers4);
 
-  // framework3 will be offered all of slave4's resources since
-  // it has the lowest share.
+  // framework3 will be offered all of slave4's resources since user1
+  // has the lowest user share, and framework3 has the lowest share of
+  // user1's frameworks.
   EXPECT_THAT(offers4.get(), OfferEq(4, 4096));
+  // user1 share = 0.67 (cpus=6, mem=5120)
+  //   framework1 share = 0.33 (cpus=2, mem=1024)
+  //   framework3 share = 0.8 (cpus=4, mem=4096)
+  // user2 share = 0.4 (cpus=4, mem=2560)
+  //   framework2 share = 1
+
+  FrameworkInfo frameworkInfo4;
+  frameworkInfo4.set_name("framework4");
+  frameworkInfo4.set_user("user1");
+  frameworkInfo4.set_role("role1");
+  MockScheduler sched4;
+  MesosSchedulerDriver driver4(&sched4, frameworkInfo4, master.get());
+
+  Future<Nothing> frameworkAdded4;
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _))
+    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
+                    FutureSatisfy(&frameworkAdded4)));
+
+  EXPECT_CALL(sched4, registered(_, _, _));
+
+  driver4.start();
+
+  AWAIT_READY(frameworkAdded4);
+
+  slave::Flags flags5 = CreateSlaveFlags();
+  flags5.resources = Option<string>("cpus:1;mem:512;disk:0");
+
+  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+
+  Future<vector<Offer> > offers5;
+  EXPECT_CALL(sched2, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers5));
+
+  Try<PID<Slave> > slave5 = StartSlave(flags5);
+  ASSERT_SOME(slave5);
+  // Total cluster resources now cpus=11, mem=8192
+  // user1 share = 0.63 (cpus=6, mem=5120)
+  //   framework1 share = 0.33 (cpus=2, mem=1024)
+  //   framework3 share = 0.8 (cpus=4, mem=4096)
+  //   framework4 share = 0
+  // user2 share = 0.36 (cpus=4, mem=2560)
+  //   framework2 share = 1
+  AWAIT_READY(offers5);
+
+  // Even though framework4 doesn't have any resources, user2 has a
+  // lower share than user1, so framework2 receives slave4's resources
+  EXPECT_THAT(offers5.get(), OfferEq(1, 512));
 
   // Shut everything down.
   EXPECT_CALL(allocator, resourcesRecovered(_, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(allocator, frameworkDeactivated(_))
-    .Times(AtMost(3));
+    .Times(AtMost(4));
 
   EXPECT_CALL(allocator, frameworkRemoved(_))
-    .Times(AtMost(3));
+    .Times(AtMost(4));
 
   driver1.stop();
   driver1.join();
@@ -240,8 +299,11 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   driver3.stop();
   driver3.join();
 
+  driver4.stop();
+  driver4.join();
+
   EXPECT_CALL(allocator, slaveRemoved(_))
-    .Times(AtMost(4));
+    .Times(AtMost(5));
 
   Shutdown();
 }
@@ -1229,4 +1291,71 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   this->Shutdown();
 
   os::rm(path);
+}
+
+
+// Checks that a framework attempting to register with an invalid role
+// will receive an error message and that roles can be added through the
+// master's command line flags.
+TYPED_TEST(AllocatorTest, RoleTest)
+{
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
+
+  master::Flags masterFlags = this->CreateMasterFlags();
+  masterFlags.roles = Option<string>("role2");
+  Try<PID<Master> > master = StartMaster(&this->allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Launch a framework with a role that doesn't exist to see that it
+  // receives an error message.
+  FrameworkInfo frameworkInfo1;
+  frameworkInfo1.set_name("framework1");
+  frameworkInfo1.set_user("user1");
+  frameworkInfo1.set_role("role1");
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+
+  Future<FrameworkErrorMessage> errorMessage =
+    FUTURE_PROTOBUF(FrameworkErrorMessage(), _, _);
+
+  EXPECT_CALL(sched1, error(_, _));
+
+  driver1.start();
+
+  AWAIT_READY(errorMessage);
+
+  // Launch a framework under an existing role to see that it registers.
+  FrameworkInfo frameworkInfo2;
+  frameworkInfo2.set_name("framework2");
+  frameworkInfo2.set_user("user2");
+  frameworkInfo2.set_role("role2");
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+
+  Future<Nothing> registered2;
+  EXPECT_CALL(sched2, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&registered2));
+
+  EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
+
+  driver2.start();
+
+  AWAIT_READY(registered2);
+
+  // Shut everything down.
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .Times(AtMost(1));
+
+  driver2.stop();
+  driver2.join();
+
+  driver1.stop();
+  driver1.join();
+
+  this->Shutdown();
 }
