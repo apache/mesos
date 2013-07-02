@@ -3,6 +3,7 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -466,7 +467,7 @@ double Jvm::getStaticField<double>(const JField& field)
 }
 
 
-Jvm::Jvm(const std::vector<std::string>& options, JNIVersion jniVersion)
+Jvm::Jvm(const std::vector<std::string>& _options, JNIVersion jniVersion)
   : voidClass("V"),
     booleanClass("Z"),
     byteClass("B"),
@@ -483,6 +484,20 @@ Jvm::Jvm(const std::vector<std::string>& options, JNIVersion jniVersion)
   JavaVMInitArgs vmArgs;
   vmArgs.version = jniVersion;
   vmArgs.ignoreUnrecognized = false;
+
+  std::vector<std::string> options = _options;
+
+#ifdef __APPLE__
+  // The Apple JNI implementation requires the AWT thread to not
+  // be the main application thread. Enabling headless mode
+  // circumvents the issue. Further details:
+  // https://issues.apache.org/jira/browse/MESOS-524
+  // http://www.oracle.com/technetwork/articles/javase/headless-136834.html
+  if (std::find(options.begin(), options.end(), "-Djava.awt.headless=true")
+      == options.end()) {
+    options.push_back("-Djava.awt.headless=true");
+  }
+#endif
 
   JavaVMOption* opts = new JavaVMOption[options.size()];
   for (size_t i = 0; i < options.size(); i++) {
