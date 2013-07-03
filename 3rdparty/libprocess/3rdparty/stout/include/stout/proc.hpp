@@ -152,13 +152,15 @@ inline Result<ProcessStatus> status(pid_t pid)
 {
   std::string path = "/proc/" + stringify(pid) + "/stat";
 
-  if (!os::exists(path)) {
-    return None();
-  }
-
   std::ifstream file(path.c_str());
 
   if (!file.is_open()) {
+    // Need to check if file exists AFTER we open it to guarantee
+    // process hasn't terminated (or if it has, we at least have a
+    // file which the kernel _should_ respect until a close).
+    if (!os::exists(path)) {
+      return None();
+    }
     return Error("Failed to open '" + path + "'");
   }
 
