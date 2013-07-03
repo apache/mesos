@@ -327,24 +327,24 @@ TEST_F(OsTest, children)
 
 TEST_F(OsTest, process)
 {
-  const Result<Process>& status = os::process(getpid());
+  const Result<Process>& process = os::process(getpid());
 
-  ASSERT_SOME(status);
-  EXPECT_EQ(getpid(), status.get().pid);
-  EXPECT_EQ(getppid(), status.get().parent);
-  EXPECT_EQ(getsid(getpid()), status.get().session);
+  ASSERT_SOME(process);
+  EXPECT_EQ(getpid(), process.get().pid);
+  EXPECT_EQ(getppid(), process.get().parent);
+  EXPECT_EQ(getsid(getpid()), process.get().session);
 
-  ASSERT_SOME(status.get().rss);
-  EXPECT_GT(status.get().rss.get(), 0);
+  ASSERT_SOME(process.get().rss);
+  EXPECT_GT(process.get().rss.get(), 0);
 
   // NOTE: On Linux /proc is a bit slow to update the CPU times,
   // hence we allow 0 in this test.
-  ASSERT_SOME(status.get().utime);
-  EXPECT_GE(status.get().utime.get(), Nanoseconds(0));
-  ASSERT_SOME(status.get().stime);
-  EXPECT_GE(status.get().stime.get(), Nanoseconds(0));
+  ASSERT_SOME(process.get().utime);
+  EXPECT_GE(process.get().utime.get(), Nanoseconds(0));
+  ASSERT_SOME(process.get().stime);
+  EXPECT_GE(process.get().stime.get(), Nanoseconds(0));
 
-  EXPECT_FALSE(status.get().command.empty());
+  EXPECT_FALSE(process.get().command.empty());
 }
 
 
