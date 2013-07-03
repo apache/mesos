@@ -115,6 +115,7 @@ public:
         "resource usage (e.g., 10secs, 1min, etc)",
         RESOURCE_MONITORING_INTERVAL);
 
+    // TODO(vinod): Consider killing this flag and always checkpoint.
     add(&Flags::checkpoint,
         "checkpoint",
         "Whether to checkpoint slave and frameworks information\n"

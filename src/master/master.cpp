@@ -1276,6 +1276,18 @@ void Master::offer(const FrameworkID& frameworkId,
 
     Slave* slave = slaves[slaveId];
 
+    // Do not offer a non-checkpointing slave's resources to a checkpointing
+    // framework. This is a short term fix until the following is resolved:
+    // https://issues.apache.org/jira/browse/MESOS-444.
+    if (framework->info.checkpoint() && !slave->info.checkpoint()) {
+      LOG(WARNING) << "Master returning resources offered to checkpointing "
+                   << "framework " << frameworkId << " because slave "
+                   << slaveId << " is not checkpointing";
+
+      allocator->resourcesRecovered(frameworkId, slaveId, offered);
+      continue;
+    }
+
     Offer* offer = new Offer();
     offer->mutable_id()->MergeFrom(newOfferId());
     offer->mutable_framework_id()->MergeFrom(framework->id);

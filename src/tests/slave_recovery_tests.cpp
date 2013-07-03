@@ -929,6 +929,58 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 }
 
 
+// This test ensures that a non-checkpointing slave's resources are not offered
+// to a framework that requires checkpointing.
+TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator;
+
+  // Disable checkpointing for the slave.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.checkpoint = false;
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .Times(0); // No offers should be received!
+
+  Future<Nothing> offer = FUTURE_DISPATCH(_, &Master::offer);
+
+  Clock::pause();
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // Wait for an offer to be made. We do a Clock::settle() here
+  // to ensure that no offers are received by the scheduler.
+  AWAIT_READY(offer);
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+}
+
+
 // Scheduler asks a restarted slave to kill a task that has been
 // running before the slave restarted. This test ensures that a
 // restarted slave is able to communicate with all components
