@@ -15,6 +15,7 @@
 #include <list>
 #include <queue>
 #include <set>
+#include <sstream> // For 'std::stringbuf'.
 #include <string>
 #include <vector>
 
@@ -224,6 +225,12 @@ inline Result<ProcessStatus> status(pid_t pid)
     return Error("Failed to read/parse '" + path + "'");
   }
 
+  // Remove the parentheses that is wrapped around 'comm' (when
+  // printing out the process in a process tree we use parentheses to
+  // indicate "zombie" processes).
+  comm = strings::remove(comm, "(", strings::PREFIX);
+  comm = strings::remove(comm, ")", strings::SUFFIX);
+
   file.close();
 
   return ProcessStatus(pid, comm, state, ppid, pgrp, session, tty_nr,
@@ -232,6 +239,44 @@ inline Result<ProcessStatus> status(pid_t pid)
                        num_threads, itrealvalue, starttime, vsize, rss,
                        rsslim, startcode, endcode, startstack, kstkeip,
                        signal, blocked, sigcatch, wchan, nswap, cnswap);
+}
+
+
+inline Result<std::string> cmdline(const Option<pid_t>& pid = None())
+{
+  const std::string path = pid.isSome()
+    ? "/proc/" + stringify(pid.get()) + "/cmdline"
+    : "/proc/cmdline";
+
+  std::ifstream file(path.c_str());
+
+  if (!file.is_open()) {
+    // Need to check if file exists AFTER we open it to guarantee
+    // process hasn't terminated (or if it has, we at least have a
+    // file which the kernel _should_ respect until a close).
+    if (!os::exists(path)) {
+      return None();
+    }
+    return Error("Failed to open '" + path + "'");
+  }
+
+  std::stringbuf buffer;
+
+  do {
+    // Read each argument in "argv", separated by null bytes.
+    file.get(buffer, '\0');
+
+    // Check for any read errors.
+    if (file.fail() && !file.eof()) {
+      file.close();
+      return Error("Failed to read '" + path + "'");
+    } else if (!file.eof()) {
+      file.get(); // Read the null byte.
+      buffer.sputc(' '); // Put a space between each command line argument.
+    }
+  } while (!file.eof());
+
+  return buffer.str();
 }
 
 

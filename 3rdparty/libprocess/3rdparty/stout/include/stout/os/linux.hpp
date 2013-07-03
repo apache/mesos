@@ -60,6 +60,11 @@ inline Result<Process> process(pid_t pid)
   Try<Duration> utime = Duration::create(status.get().utime / (double) ticks);
   Try<Duration> stime = Duration::create(status.get().stime / (double) ticks);
 
+  // The command line from 'status.get().comm' is only "arg0" from
+  // "argv" (i.e., the canonical executable name). To get the entire
+  // command line we grab '/proc/[pid]/cmdline'.
+  Result<std::string> cmdline = proc::cmdline(pid);
+
   return Process(status.get().pid,
                  status.get().ppid,
                  status.get().pgrp,
@@ -67,7 +72,7 @@ inline Result<Process> process(pid_t pid)
                  Bytes(status.get().rss * pageSize),
                  utime.isSome() ? utime.get() : Option<Duration>::none(),
                  stime.isSome() ? stime.get() : Option<Duration>::none(),
-                 status.get().comm,
+                 cmdline.isSome() ? cmdline.get() : status.get().comm,
                  status.get().state == 'Z');
 }
 
