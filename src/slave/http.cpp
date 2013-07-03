@@ -281,6 +281,8 @@ Future<Response> Slave::Http::stats(const Request& request)
   object.values["lost_tasks"] = slave.stats.tasks[TASK_LOST];
   object.values["valid_status_updates"] = slave.stats.validStatusUpdates;
   object.values["invalid_status_updates"] = slave.stats.invalidStatusUpdates;
+  object.values["registered"] = slave.master ? "1" : "0";
+
 
   return OK(object, request.query.get("jsonp"));
 }
