@@ -408,8 +408,8 @@ nobase_dist_webui_DATA +=						\
 
 # Need to distribute/install bootstrap.
 nobase_dist_webui_DATA +=							  \
-  webui/master/static/bootstrap/css/bootstrap-responsive.css			  \
-  webui/master/static/bootstrap/css/bootstrap.css				  \
+  webui/master/static/bootstrap/css/bootstrap-responsive-2.3.2.min.css		  \
+  webui/master/static/bootstrap/css/bootstrap-2.3.2.min.css			  \
   webui/master/static/bootstrap/css/docs.css					  \
   webui/master/static/bootstrap/ico/favicon.ico					  \
   webui/master/static/bootstrap/img/bird.png					  \
