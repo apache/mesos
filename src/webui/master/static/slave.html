@@ -6,7 +6,7 @@
     <a href="#/slaves">Slaves</a> <span class="divider">/</span>
   </li>
   <li class="active">
-    <em>{{state.hostname}}</em>
+    {{slave_id}}
   </li>
 </ul>
 
@@ -31,10 +31,6 @@
   <div class="span3">
     <div class="well">
       <dl class="inline clearfix">
-        <dt>{{state.hostname}}</dt>
-      </dl>
-
-      <dl class="inline clearfix">
         <dt>Cluster:</dt>
         <dd>{{cluster}}</dd>
         <dt>Master:</dt>
@@ -51,11 +47,9 @@
             {{state.build_time * 1000 | relativeDate}}
           </a> by <i>{{state.build_user}}</i>
         </dd>
-        <dt>ID:</dt>
+        <dt>Host:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{slave_id}}" data-original-title="ID">
-            {{slave_id | truncateMesosID}}
-          </a>
+          {{state.hostname}}
         </dd>
       </dl>
       <p><a href="" ng-click="log($event)">LOG</a></p>
