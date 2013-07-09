@@ -232,7 +232,7 @@ JSON::Object model(const Role& role)
 
 Future<Response> Master::Http::vars(const Request& request)
 {
-  VLOG(1) << "HTTP request for '" << request.path << "'";
+  LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   // TODO(benh): Consider separating collecting the actual vars we
   // want to display from rendering them. Trying to just create a
@@ -253,7 +253,7 @@ Future<Response> Master::Http::vars(const Request& request)
 
 Future<Response> Master::Http::redirect(const Request& request)
 {
-  VLOG(1) << "HTTP request for '" << request.path << "'";
+  LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   // If there's no leader, redirect to this master's base url.
   UPID pid = master.leader != UPID() ? master.leader : master.self();
@@ -270,7 +270,7 @@ Future<Response> Master::Http::redirect(const Request& request)
 
 Future<Response> Master::Http::stats(const Request& request)
 {
-  VLOG(1) << "HTTP request for '" << request.path << "'";
+  LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   JSON::Object object;
   object.values["uptime"] = (Clock::now() - master.startTime).secs();
@@ -318,7 +318,7 @@ Future<Response> Master::Http::stats(const Request& request)
 
 Future<Response> Master::Http::state(const Request& request)
 {
-  VLOG(1) << "HTTP request for '" << request.path << "'";
+  LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   JSON::Object object;
   object.values["version"] = MESOS_VERSION;
@@ -388,7 +388,7 @@ Future<Response> Master::Http::state(const Request& request)
 
 Future<Response> Master::Http::roles(const Request& request)
 {
-  VLOG(1) << "HTTP request for '" << request.path << "'";
+  LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   JSON::Object object;
 
