@@ -7,10 +7,8 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <!-- styles -->
     <link href="/static/bootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="/static/bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
-
     <link href="/static/mesos.css" rel="stylesheet">
     <link href="/static/graph.css" rel="stylesheet">
 
@@ -19,14 +17,12 @@
       <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
 
-    <!-- fav and touch icons -->
     <link rel="shortcut icon" href="/static/bootstrap/ico/favicon.ico">
   </head>
 
   <body>
-    <div id="loading" align="center">
-      <img src="static/loading.gif" />
-      <p>Loading ...</p>
+    <div id="loading" style="width: 75px; margin: 0 auto; text-align: center;">
+      <img src="static/loading.gif" height="64" width="64" alt="">
     </div>
 
     <div ng-controller="MainCntl">
@@ -49,7 +45,7 @@
               <ul class="nav pull-right">
                 <li><p class="navbar-text">{{state.cluster}}</p></li>
               </ul>
-            </div><!--/.nav-collapse -->
+            </div>
           </div>
         </div>
       </div>
