@@ -1,25 +1,26 @@
 'use strict';
 
-// TODO(bmahler): Upgrade AngularJS past 1.0.0 in order to use the full
-// angular-ui.js suite of directives / filters. (Punting as there are breaking
-// changes to take care of).
 angular.module('mesos', []).
   config(['$routeProvider', function($routeProvider) {
     $routeProvider
-      .when('/', {template: 'static/home.html', controller: HomeCtrl})
-      .when('/dashboard', {template: 'static/dashboard.html', controller: DashboardCtrl})
-      .when('/frameworks', {template: 'static/frameworks.html', controller: FrameworksCtrl})
-      .when('/frameworks/:id', {template: 'static/framework.html', controller: FrameworkCtrl})
-      .when('/slaves', {template: 'static/slaves.html', controller: SlavesCtrl})
-      .when('/slaves/:slave_id', {template: 'static/slave.html', controller: SlaveCtrl})
-      .when('/slaves/:slave_id/frameworks/:framework_id', {template: 'static/slave_framework.html', controller: SlaveFrameworkCtrl})
-      .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id', {template: 'static/slave_executor.html', controller: SlaveExecutorCtrl})
-      .when('/slaves/:slave_id/browse', {template: 'static/browse.html', controller: BrowseCtrl})
+      .when('/', {templateUrl: 'static/home.html', controller: HomeCtrl})
+      .when('/dashboard', {templateUrl: 'static/dashboard.html', controller: DashboardCtrl})
+      .when('/frameworks', {templateUrl: 'static/frameworks.html', controller: FrameworksCtrl})
+      .when('/frameworks/:id', {templateUrl: 'static/framework.html', controller: FrameworkCtrl})
+      .when('/slaves', {templateUrl: 'static/slaves.html', controller: SlavesCtrl})
+      .when('/slaves/:slave_id', {templateUrl: 'static/slave.html', controller: SlaveCtrl})
+      .when('/slaves/:slave_id/frameworks/:framework_id', {templateUrl: 'static/slave_framework.html', controller: SlaveFrameworkCtrl})
+      .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id', {templateUrl: 'static/slave_executor.html', controller: SlaveExecutorCtrl})
+      .when('/slaves/:slave_id/browse', {templateUrl: 'static/browse.html', controller: BrowseCtrl})
       .otherwise({redirectTo: '/'});
   }])
   .filter('truncateMesosID', function() {
     return function(id) {
-      return '…' + id.split('-').splice(3, 3).join('-');
+      if (id) {
+        return '…' + id.split('-').splice(3, 3).join('-');
+      } else {
+        return '';
+      }
     }
   })
   .filter('truncateMesosState', function() {
@@ -101,7 +102,6 @@ angular.module('mesos', []).
       }
     };
   }]);
-
 
 function setNavbarActiveTab(tab_name) {
   $('#navbar li').removeClass('active');

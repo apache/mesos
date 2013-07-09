@@ -101,7 +101,7 @@ function updateInterval(num_slaves) {
 
 
 // Update the outermost scope with the new state.
-function update($scope, $defer, data) {
+function update($scope, $timeout, data) {
   // Don't do anything if the data hasn't changed.
   if ($scope.data == data) {
     return true; // Continue polling.
@@ -127,7 +127,7 @@ function update($scope, $defer, data) {
           window.location = 'http://' + $scope.leader;
         } else {
           $scope.redirect = $scope.redirect - 1000;
-          $defer(countdown, 1000);
+          $timeout(countdown, 1000);
         }
       }
       countdown();
@@ -253,7 +253,7 @@ function update($scope, $defer, data) {
 // In addition, the MainCntl encapsulates the "view", allowing the
 // active controller/view to easily access anything in scope (e.g.,
 // the state).
-function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
+function MainCntl($scope, $http, $route, $routeParams, $location, $timeout) {
   // Turn off the loading gif, turn on the navbar.
   $("#loading").hide();
   $("#navbar").show();
@@ -290,9 +290,9 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
     $http.get('master/state.json',
               {transformResponse: function(data) { return data; }})
       .success(function(data) {
-        if (update($scope, $defer, data)) {
+        if (update($scope, $timeout, data)) {
           $scope.delay = updateInterval(_.size($scope.slaves));
-          $defer(poll, $scope.delay);
+          $timeout(poll, $scope.delay);
         }
       })
       .error(function() {
@@ -307,7 +307,7 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
             $('#error-modal').modal('hide');
           } else {
             $scope.retry = $scope.retry - 1000;
-            $scope.countdown = $defer(countdown, 1000);
+            $scope.countdown = $timeout(countdown, 1000);
           }
         }
         countdown();
@@ -319,7 +319,7 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
   // countdown and restart the polling.
   $('#error-modal').on('hidden', function () {
     if ($scope.countdown != undefined) {
-      if ($defer.cancel($scope.countdown)) {
+      if ($timeout.cancel($scope.countdown)) {
         $scope.delay = 2000; // Restart since they cancelled the countdown.
       }
     }
@@ -327,7 +327,7 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $defer) {
     // Start polling again, but do it asynchronously (and wait at
     // least a second because otherwise the error-modal won't get
     // properly shown).
-    $defer(poll, 1000);
+    $timeout(poll, 1000);
   });
 
   poll();
