@@ -1,5 +1,16 @@
 body {
-  padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+  /* Add space for fixed position navbar. */
+  padding-top: 60px;
+}
+
+@media (max-width: 979px) {
+  body {
+    /* Mobile devices 979px and narrower use a statically positioned navbar */
+    /* and therefore need no padding for the <body>. */
+    /* */
+    /* @see http://twitter.github.io/bootstrap/scaffolding.html#responsive */
+    padding-top: 0;
+  }
 }
 
 dl.inline dt, dl.inline dd {
