@@ -447,6 +447,7 @@ MESOS_JAR_SOURCE =							\
 	$(srcdir)/java/src/org/apache/mesos/Scheduler.java		\
 	$(srcdir)/java/src/org/apache/mesos/state/AbstractState.java	\
 	$(srcdir)/java/src/org/apache/mesos/state/InMemoryState.java	\
+	$(srcdir)/java/src/org/apache/mesos/state/LevelDBState.java	\
 	$(srcdir)/java/src/org/apache/mesos/state/State.java		\
 	$(srcdir)/java/src/org/apache/mesos/state/Variable.java		\
 	$(srcdir)/java/src/org/apache/mesos/state/ZooKeeperState.java
@@ -522,6 +523,7 @@ libjava_la_SOURCES =							\
 	java/jni/org_apache_mesos_MesosSchedulerDriver.cpp		\
 	java/jni/org_apache_mesos_MesosExecutorDriver.cpp		\
 	java/jni/org_apache_mesos_state_AbstractState.cpp		\
+	java/jni/org_apache_mesos_state_LevelDBState.cpp		\
 	java/jni/org_apache_mesos_state_Variable.cpp			\
 	java/jni/org_apache_mesos_state_ZooKeeperState.cpp		\
 	jvm/jvm.cpp							\
@@ -560,6 +562,7 @@ nodist_libjava_la_SOURCES =						\
 	java/jni/org_apache_mesos_MesosExecutorDriver.h			\
 	java/jni/org_apache_mesos_Log.h					\
 	java/jni/org_apache_mesos_state_AbstractState.h			\
+	java/jni/org_apache_mesos_state_LevelDBState.h			\
 	java/jni/org_apache_mesos_state_Variable.h			\
 	java/jni/org_apache_mesos_state_ZooKeeperState.h
 
@@ -582,6 +585,10 @@ java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
 java/jni/org_apache_mesos_state_AbstractState.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.state.AbstractState
+
+java/jni/org_apache_mesos_state_LevelDBState.h: $(MESOS_JAR)
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+          $(PROTOBUF_JAR):java/classes org.apache.mesos.state.LevelDBState
 
 java/jni/org_apache_mesos_state_Variable.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\

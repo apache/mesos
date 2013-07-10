@@ -1,9 +1,6 @@
 #include <jni.h>
 
 #include <string>
-#include <vector>
-
-#include <process/future.hpp>
 
 #include <stout/duration.hpp>
 
@@ -15,10 +12,7 @@
 
 using namespace mesos::internal::state;
 
-using process::Future;
-
 using std::string;
-using std::vector;
 
 extern "C" {
 
