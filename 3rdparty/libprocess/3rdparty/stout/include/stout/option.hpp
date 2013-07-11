@@ -3,6 +3,8 @@
 
 #include <assert.h>
 
+#include <stout/result.hpp>
+
 template <typename T>
 class Option
 {
@@ -34,6 +36,15 @@ public:
   ~Option()
   {
     delete t;
+  }
+
+  operator Result<T> () const
+  {
+    if (isNone()) {
+      return Result<T>::none();
+    }
+
+    return Result<T>::some(get());
   }
 
   Option<T>& operator = (const Option<T>& that)
