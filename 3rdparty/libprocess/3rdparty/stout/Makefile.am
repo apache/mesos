@@ -66,6 +66,10 @@ EXTRA_DIST =					\
   tests/none_tests.cpp				\
   tests/os_tests.cpp				\
   tests/proc_tests.cpp				\
+  tests/protobuf_tests.cpp			\
+  tests/protobuf_tests.pb.cc			\
+  tests/protobuf_tests.pb.h			\
+  tests/protobuf_tests.proto			\
   tests/strings_tests.cpp			\
   tests/thread_tests.cpp			\
   tests/uuid_tests.cpp

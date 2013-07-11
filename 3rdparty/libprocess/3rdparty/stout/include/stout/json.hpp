@@ -58,7 +58,7 @@ struct String
 
 struct Number
 {
-  Number() {}
+  Number() : value(0) {}
   Number(double _value) : value(_value) {}
   double value;
 };

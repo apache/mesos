@@ -1,0 +1,63 @@
+package tests;
+
+// NOTE: The generated headers for this file have been included
+// in the tests folder to simplify the build process (no need to
+// have protoc available to compile this file). As a result, if
+// there are any changes to this file, the headers must be
+// re-generated and committed alongside changes to this file.
+// There is a TODO in protobuf_tests.cpp that demonstrates how
+// to avoid the need for this file entirely by generating a
+// dynamic message at run-time.
+
+enum Enum {
+  ONE = 1;
+  TWO = 2;
+}
+
+
+message Nested {
+  optional string str = 1;
+}
+
+
+// An elaborate message for testing Proto->JSON conversion.
+message Message {
+  required string str = 1;
+
+  required bytes bytes = 2;
+
+  optional int32 int32 = 3;
+  optional int64 int64 = 4;
+  optional uint32 uint32 = 5;
+  optional uint64 uint64 = 6;
+  optional sint32 sint32 = 7;
+  optional sint64 sint64 = 8;
+
+  required float f = 9;
+  required double d = 10;
+
+  required Enum e = 11;
+
+  required Nested nested = 12;
+
+  repeated string repeated_string = 13;
+
+  repeated bytes repeated_bytes = 14;
+
+  repeated int32 repeated_int32 = 15;
+  repeated int64 repeated_int64 = 16;
+  repeated uint32 repeated_uint32 = 17;
+  repeated uint64 repeated_uint64 = 18;
+  repeated sint32 repeated_sint32 = 19;
+  repeated sint64 repeated_sint64 = 20;
+
+  repeated float repeated_float = 21;
+  repeated double repeated_double = 22;
+
+  repeated Enum repeated_enum = 23;
+
+  repeated Nested repeated_nested = 24;
+
+  repeated string empty = 25;
+}
+
