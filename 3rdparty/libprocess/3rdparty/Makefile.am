@@ -127,6 +127,10 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/multimap_tests.cpp		\
   $(STOUT)/tests/none_tests.cpp			\
   $(STOUT)/tests/os_tests.cpp			\
+  $(STOUT)/tests/protobuf_tests.cpp		\
+  $(STOUT)/tests/protobuf_tests.pb.cc		\
+  $(STOUT)/tests/protobuf_tests.pb.h		\
+  $(STOUT)/tests/protobuf_tests.proto		\
   $(STOUT)/tests/strings_tests.cpp		\
   $(STOUT)/tests/thread_tests.cpp		\
   $(STOUT)/tests/uuid_tests.cpp
