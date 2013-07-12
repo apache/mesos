@@ -10,6 +10,13 @@
   </div>
 </div>
 
+<ul class="breadcrumb">
+  <li class="active">
+    <span class="badge badge-type">Master</span>
+    {{state.id}}
+  </li>
+</ul>
+
 <div class="row">
   <div class="span3">
     <div class="well">
@@ -28,12 +35,6 @@
         <dd>
           <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.start_time * 1000 | mesosDate}}" data-original-title="Started">
             {{state.start_time * 1000 | relativeDate}}
-          </a>
-        </dd>
-        <dt>ID:</dt>
-        <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.id}}" data-original-title="ID">
-            {{state.id | truncateMesosID}}
           </a>
         </dd>
       </dl>

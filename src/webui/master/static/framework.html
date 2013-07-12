@@ -1,12 +1,11 @@
 <ul class="breadcrumb">
   <li>
-    <a href="#">Home</a> <span class="divider">/</span>
-  </li>
-  <li>
-    <a href="#/frameworks">Frameworks</a> <span class="divider">/</span>
+    <a class="badge badge-type" href="#">Master</a>
+    <span class="divider">/</span>
   </li>
   <li class="active">
-    {{framework.name}}
+    <span class="badge badge-type">Framework</span>
+    {{framework.id}}
   </li>
 </ul>
 
@@ -21,12 +20,6 @@
       <dl class="inline clearfix">
         <dt>Name:</dt>
         <dd>{{framework.name}}</dd>
-        <dt>ID:</dt>
-        <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{framework.id}}" data-original-title="ID">
-            {{framework.id | truncateMesosID}}
-          </a>
-        </dd>
         <dt>User:</dt>
         <dd>{{framework.user}}</dd>
         <dt>Registered:</dt>

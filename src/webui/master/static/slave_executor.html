@@ -1,24 +1,21 @@
 <ul class="breadcrumb">
   <li>
-    <a href="#">Home</a>
+    <a class="badge badge-type" href="#">Master</a>
     <span class="divider">/</span>
   </li>
   <li>
-    <a href="#/slaves">Slaves</a>
+    <a class="badge badge-type" href="#/slaves/{{slave_id}}" title="{{slave_id}}">
+      Slave</a>
     <span class="divider">/</span>
   </li>
   <li>
-    <a href="#/slaves/{{slave_id}}">{{slave_id | truncateMesosID}}</a>
-    <span class="divider">/</span>
-  </li>
-  <li>
-    <a href="#/slaves/{{slave_id}}/frameworks/{{framework_id}}">
-      {{framework.name}}
-    </a>
+    <a class="badge badge-type" href="#/slaves/{{slave_id}}/frameworks/{{framework_id}}" title="{{framework_id}}">
+      Framework</a>
     <span class="divider">/</span>
   </li>
   <li class="active">
-    <em>{{executor_id}}</em>
+    <span class="badge badge-type">Executor</span>
+    {{executor_id}}
   </li>
 </ul>
 
@@ -31,8 +28,6 @@
   <div class="span3">
     <div class="well">
       <dl class="inline clearfix">
-        <dt>Executor ID:</dt>
-        <dd>{{executor_id}}</dd>
         <dt>Executor Name:</dt>
         <dd>{{executor.name}}</dd>
         <dt>Executor Source:</dt>
@@ -44,12 +39,6 @@
         <dd>{{cluster}}</dd>
         <dt>Master:</dt>
         <dd>{{state.master_hostname}}</dd>
-        <dt>Framework ID:</dt>
-        <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{framework_id}}" data-original-title="ID">
-            {{framework_id | truncateMesosID}}
-          </a>
-        </dd>
       </dl>
 
       <dl class="inline clearfix">
