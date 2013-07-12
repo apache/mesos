@@ -299,6 +299,52 @@ private:
 };
 
 
+// Helper for creating routes without a process.
+// TODO(benh): Move this into route.hpp.
+class Route
+{
+public:
+  Route(const string& name,
+        const lambda::function<Future<Response>(const Request&)>& handler)
+  {
+    process = new RouteProcess(name, handler);
+    spawn(process);
+  }
+
+  ~Route()
+  {
+    terminate(process);
+    wait(process);
+  }
+
+private:
+  class RouteProcess : public Process<RouteProcess>
+  {
+  public:
+    RouteProcess(
+        const string& name,
+        const lambda::function<Future<Response>(const Request&)>& _handler)
+      : ProcessBase(strings::remove(name, "/", strings::PREFIX)),
+        handler(_handler) {}
+
+  protected:
+    virtual void initialize()
+    {
+      route("/", &RouteProcess::handle);
+    }
+
+    Future<Response> handle(const Request& request)
+    {
+      return handler(request);
+    }
+
+    const lambda::function<Future<Response>(const Request&)> handler;
+  };
+
+  RouteProcess* process;
+};
+
+
 class SocketManager
 {
 public:
@@ -392,6 +438,9 @@ public:
   ProcessBase* dequeue();
 
   void settle();
+
+  // The /__processes__ route.
+  Future<Response> __processes__(const Request&);
 
 private:
   // Delegate process name to receive root HTTP requests.
@@ -1399,13 +1448,19 @@ void initialize(const string& delegate)
   // TODO(bmahler): Investigate memory implications of this window
   // size. We may also want to provide a maximum memory size rather than
   // time window. Or, offload older data to disk, etc.
-  process::statistics = new Statistics(Weeks(2));
+  statistics = new Statistics(Weeks(2));
 
   // Initialize the mime types.
   mime::initialize();
 
   // Initialize the response statuses.
   http::initialize();
+
+  // Add a route for getting process information.
+  lambda::function<Future<Response>(const Request&)> __processes__ =
+    lambda::bind(&ProcessManager::__processes__, process_manager, lambda::_1);
+
+  new Route("/__processes__", __processes__);
 
   char temp[INET_ADDRSTRLEN];
   if (inet_ntop(AF_INET, (in_addr*) &__ip__, temp, INET_ADDRSTRLEN) == NULL) {
@@ -2290,6 +2345,7 @@ bool ProcessManager::deliver(
   return true;
 }
 
+
 bool ProcessManager::deliver(
     const UPID& to,
     Event* event,
@@ -2679,6 +2735,86 @@ void ProcessManager::settle()
       }
     }
   } while (!done);
+}
+
+
+Future<Response> ProcessManager::__processes__(const Request&)
+{
+  JSON::Array array;
+
+  synchronized (processes) {
+    foreachvalue (const ProcessBase* process, process_manager->processes) {
+      JSON::Object object;
+      object.values["id"] = process->pid.id;
+
+      JSON::Array events;
+
+      struct JSONVisitor : EventVisitor
+      {
+        JSONVisitor(JSON::Array* _events) : events(_events) {}
+
+        virtual void visit(const MessageEvent& event)
+        {
+          JSON::Object object;
+          object.values["type"] = "MESSAGE";
+
+          const Message& message = *event.message;
+
+          object.values["name"] = message.name;
+          object.values["from"] = string(message.from);
+          object.values["to"] = string(message.to);
+          object.values["body"] = message.body;
+
+          events->values.push_back(object);
+        }
+
+        virtual void visit(const HttpEvent& event)
+        {
+          JSON::Object object;
+          object.values["type"] = "HTTP";
+
+          const Request& request = *event.request;
+
+          object.values["method"] = request.method;
+          object.values["url"] = request.url;
+
+          events->values.push_back(object);
+        }
+
+        virtual void visit(const DispatchEvent& event)
+        {
+          JSON::Object object;
+          object.values["type"] = "DISPATCH";
+          events->values.push_back(object);
+        }
+
+        virtual void visit(const ExitedEvent& event)
+        {
+          JSON::Object object;
+          object.values["type"] = "EXITED";
+          events->values.push_back(object);
+        }
+
+        virtual void visit(const TerminateEvent& event)
+        {
+          JSON::Object object;
+          object.values["type"] = "TERMINATE";
+          events->values.push_back(object);
+        }
+
+        JSON::Array* events;
+      } visitor(&events);
+
+      foreach (Event* event, process->events) {
+        event->visit(&visitor);
+      }
+
+      object.values["events"] = events;
+      array.values.push_back(object);
+    }
+  }
+
+  return OK(array);
 }
 
 
