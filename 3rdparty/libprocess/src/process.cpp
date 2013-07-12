@@ -301,10 +301,9 @@ class Route
 {
 public:
   Route(const string& name,
-        const Option<string>& help,
         const lambda::function<Future<Response>(const Request&)>& handler)
   {
-    process = new RouteProcess(name, help, handler);
+    process = new RouteProcess(name, handler);
     spawn(process);
   }
 
@@ -320,16 +319,14 @@ private:
   public:
     RouteProcess(
         const string& name,
-        const Option<string>& _help,
         const lambda::function<Future<Response>(const Request&)>& _handler)
       : ProcessBase(strings::remove(name, "/", strings::PREFIX)),
-        help(_help),
         handler(_handler) {}
 
   protected:
     virtual void initialize()
     {
-      route("/", help, &RouteProcess::handle);
+      route("/", &RouteProcess::handle);
     }
 
     Future<Response> handle(const Request& request)
@@ -337,7 +334,6 @@ private:
       return handler(request);
     }
 
-    const Option<string> help;
     const lambda::function<Future<Response>(const Request&)> handler;
   };
 
@@ -1475,7 +1471,7 @@ void initialize(const string& delegate)
   lambda::function<Future<Response>(const Request&)> __processes__ =
     lambda::bind(&ProcessManager::__processes__, process_manager, lambda::_1);
 
-  new Route("/__processes__", None(), __processes__);
+  new Route("/__processes__", __processes__);
 
   char temp[INET_ADDRSTRLEN];
   if (inet_ntop(AF_INET, (in_addr*) &__ip__, temp, INET_ADDRSTRLEN) == NULL) {
