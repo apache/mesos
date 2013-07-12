@@ -152,13 +152,13 @@ for i in range(len(shas)):
     if review_request_id is None:
         output = execute(['post-review',
                           '--repository-url=' + repository,
-                          '--tracking-branch=' + parent_branch,
+                          '--tracking-branch=incubator-mesos/master',
                           '--revision-range=' + revision_range] + sys.argv[1:]).strip()
     else:
         output = execute(['post-review',
                           '--review-request-id=' + review_request_id,
                           '--repository-url=' + repository,
-                          '--tracking-branch=' + parent_branch,
+                          '--tracking-branch=incubator-mesos/master',
                           '--revision-range=' + revision_range] + sys.argv[1:]).strip()
 
     print output
