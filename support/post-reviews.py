@@ -55,6 +55,14 @@ def execute(command, ignore_errors=False):
 
 
 # TODO(benh): Make sure this is a git repository, apologize if not.
+
+# Don't do anything if people have uncommitted changes.
+diff_stat = execute(['git', 'diff', '--shortstat']).strip()
+
+if diff_stat:
+  print 'Please commit or stash any changes before using post-reviews!'
+  sys.exit(1)
+
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
 repository = 'git://git.apache.org/incubator-mesos.git'
