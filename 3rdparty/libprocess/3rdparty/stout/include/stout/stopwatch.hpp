@@ -15,7 +15,14 @@
 class Stopwatch
 {
 public:
-  Stopwatch() : running(false) { started.tv_sec = 0; started.tv_nsec = 0; }
+  Stopwatch()
+    : running(false)
+  {
+    started.tv_sec = 0;
+    started.tv_nsec = 0;
+    stopped.tv_sec = 0;
+    stopped.tv_nsec = 0;
+  }
 
   void start()
   {
