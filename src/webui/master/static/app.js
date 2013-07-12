@@ -21,13 +21,13 @@ angular.module('mesos', []).
       } else {
         return '';
       }
-    }
+    };
   })
   .filter('truncateMesosState', function() {
     return function(state) {
       // Remove the "TASK_" prefix.
       return state.substring(5);
-    }
+    };
   })
   .filter('mesosDate', function($filter) {
     return function(date) {
@@ -37,7 +37,7 @@ angular.module('mesos', []).
   .filter('relativeDate', function() {
     return function(date) {
       return relativeDate(date);
-    }
+    };
   })
   .filter('unixDate', function($filter) {
     return function(date) {
@@ -46,7 +46,7 @@ angular.module('mesos', []).
       } else {
         return $filter('date')(date, 'MMM dd YYYY');
       }
-    }
+    };
   })
   .filter('dataSize', function() {
     return function(bytes) {

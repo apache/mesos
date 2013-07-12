@@ -515,7 +515,7 @@ function SlaveCtrl($scope, $routeParams, $http, $q) {
       $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
       $('#alert').show();
     });
-  }
+  };
 
   if ($scope.state) {
     update();
@@ -738,14 +738,14 @@ function BrowseCtrl($scope, $routeParams, $http) {
       var pid = $scope.slaves[$routeParams.slave_id].pid;
       var hostname = $scope.slaves[$routeParams.slave_id].hostname;
       var id = pid.substring(0, pid.indexOf('@'));
-      var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1)
+      var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
       var url = 'http://' + host + '/files/browse.json?jsonp=JSON_CALLBACK';
 
       $scope.slave_host = host;
 
       $scope.pail = function($event, path) {
         pailer(host, path, decodeURIComponent(path));
-      }
+      };
 
       // TODO(bmahler): Try to get the error code / body in the error callback.
       // This wasn't working with the current version of angular.
@@ -766,7 +766,7 @@ function BrowseCtrl($scope, $routeParams, $http) {
       }
       $('#alert').show();
     }
-  }
+  };
 
   if ($scope.state) {
     update();
