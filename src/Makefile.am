@@ -369,7 +369,6 @@ nobase_dist_webui_DATA +=						\
   webui/master/static/controllers.js					\
   webui/master/static/app.js						\
   webui/master/static/dashboard.js					\
-  webui/master/static/popovers.js					\
   webui/master/static/jquery.pailer.js
 
 # Need to distribute/install webui CSS.
@@ -398,6 +397,8 @@ nobase_dist_webui_DATA += webui/master/static/loading.gif
 nobase_dist_webui_DATA +=						\
   webui/master/static/angular-1.0.7.js					\
   webui/master/static/angular-1.0.7.min.js				\
+  webui/master/static/ui-bootstrap-tpls-0.4.0.js			\
+  webui/master/static/ui-bootstrap-tpls-0.4.0.min.js			\
   webui/master/static/underscore-1.4.3.js				\
   webui/master/static/underscore-1.4.3.min.js				\
   webui/master/static/cubism.v1.js					\
@@ -437,20 +438,6 @@ nobase_dist_webui_DATA +=							  \
   webui/master/static/bootstrap/img/less-small.png				  \
   webui/master/static/bootstrap/img/responsive-illustrations.png		  \
   webui/master/static/bootstrap/js/application.js				  \
-  webui/master/static/bootstrap/js/bootstrap-alert.js				  \
-  webui/master/static/bootstrap/js/bootstrap-button.js				  \
-  webui/master/static/bootstrap/js/bootstrap-carousel.js			  \
-  webui/master/static/bootstrap/js/bootstrap-collapse.js			  \
-  webui/master/static/bootstrap/js/bootstrap-dropdown.js			  \
-  webui/master/static/bootstrap/js/bootstrap-modal.js				  \
-  webui/master/static/bootstrap/js/bootstrap-popover.js				  \
-  webui/master/static/bootstrap/js/bootstrap-scrollspy.js			  \
-  webui/master/static/bootstrap/js/bootstrap-tab.js				  \
-  webui/master/static/bootstrap/js/bootstrap-tooltip.js				  \
-  webui/master/static/bootstrap/js/bootstrap-transition.js			  \
-  webui/master/static/bootstrap/js/bootstrap-typeahead.js			  \
-  webui/master/static/bootstrap/js/bootstrap.js					  \
-  webui/master/static/bootstrap/js/bootstrap.min.js				  \
   webui/master/static/bootstrap/js/google-code-prettify/prettify.css		  \
   webui/master/static/bootstrap/js/google-code-prettify/prettify.js		  \
   webui/master/static/bootstrap/js/jquery-1.7.1.js				  \

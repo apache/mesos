@@ -1,7 +1,7 @@
 'use strict';
 
-angular.module('mesos', []).
-  config(['$routeProvider', function($routeProvider) {
+angular.module('mesos', ['ui.bootstrap']).
+  config(['$dialogProvider', '$routeProvider', function($dialogProvider, $routeProvider) {
     $routeProvider
       .when('/', {templateUrl: 'static/home.html', controller: HomeCtrl})
       .when('/dashboard', {templateUrl: 'static/dashboard.html', controller: DashboardCtrl})
@@ -13,6 +13,9 @@ angular.module('mesos', []).
       .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id', {templateUrl: 'static/slave_executor.html', controller: SlaveExecutorCtrl})
       .when('/slaves/:slave_id/browse', {templateUrl: 'static/browse.html', controller: BrowseCtrl})
       .otherwise({redirectTo: '/'});
+
+    $dialogProvider.options({dialogFade: true});
+
   }])
   .filter('truncateMesosID', function() {
     return function(id) {

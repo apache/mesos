@@ -64,28 +64,25 @@
         <div ng-view></div>
       </div>
 
-      <div class="modal hide fade" style="display: none;" id="error-modal">
+      <div modal="errorModalOpen" style="display:none;">
         <div class="modal-header">
-          <button class="close" data-dismiss="modal">×</button>
           <h3>Failed to connect to {{$location.host()}}:{{$location.port()}}!</h3>
         </div>
         <div class="modal-body">
           <p>
-            Retrying in <b>{{retry / 1000}}</b> seconds ...
-            <a href="{{$location.path()}}" data-dismiss="modal">try now</a>.
+            Retrying in <b>{{retry / 1000}}</b> seconds...
           </p>
         </div>
         <div class="modal-footer">
+          <button class="btn" ng-click="errorModalClose()">Try now</button>
         </div>
       </div>
-
     </div>
 
     <script src="/static/bootstrap/js/jquery-1.7.1.min.js"></script>
-    <script src="/static/bootstrap/js/bootstrap.min.js"></script>
-
     <script src="/static/underscore-1.4.3.min.js"></script>
     <script src="/static/angular-1.0.7.min.js"></script>
+    <script src="/static/ui-bootstrap-tpls-0.4.0.min.js"></script>
 
     <script src="/static/d3.v2.min.js"></script>
     <script src="/static/cubism.v1.min.js"></script>
@@ -94,6 +91,5 @@
     <script src="/static/app.js"></script>
     <script src="/static/controllers.js"></script>
     <script src="/static/dashboard.js"></script>
-    <script src="/static/popovers.js"></script>
   </body>
 </html>

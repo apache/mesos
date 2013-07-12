@@ -1,15 +1,3 @@
-<div class="modal hide fade" style="display: none;" id="no-log-dir-modal">
-  <div class="modal-header">
-    <button class="close" data-dismiss="modal">×</button>
-    <h3>Logging to a file is not enabled!</h3>
-  </div>
-  <div class="modal-body">
-    <p>Set the 'log_dir' option if you wish to access the logs.</p>
-  </div>
-  <div class="modal-footer">
-  </div>
-</div>
-
 <ul class="breadcrumb">
   <li class="active">
     <span class="badge badge-type">Master</span>
@@ -27,13 +15,19 @@
         <dd>{{state.pid.split("@")[1]}}</dd>
         <dt>Built:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.build_time * 1000 | mesosDate}}" data-original-title="Built">
+          <a href="javascript:void(0)"
+              popover="{{state.build_time * 1000 | mesosDate}}"
+              popover-placement="right"
+              popover-title="Built">
             {{state.build_time * 1000 | relativeDate}}
           </a> by <i>{{state.build_user}}</i>
         </dd>
         <dt>Started:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.start_time * 1000 | mesosDate}}" data-original-title="Started">
+          <a href="javascript:void(0)"
+              popover="{{state.start_time * 1000 | mesosDate}}"
+              popover-placement="right"
+              popover-title="Started">
             {{state.start_time * 1000 | relativeDate}}
           </a>
         </dd>
@@ -171,7 +165,10 @@
       <tbody>
         <tr ng-repeat="framework in _.values(frameworks) | orderBy:tables['frameworks'].selected_column:tables['frameworks'].reverse">
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.id}}" data-original-title="ID">
+            <a href="javascript:void(0)"
+                popover="{{framework.id}}"
+                popover-placement="bottom"
+                popover-title="ID">
               {{framework.id | truncateMesosID}}
             </a>
           </td>
@@ -182,12 +179,18 @@
           <td>{{framework.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{framework.max_share * 100 | number}}%</td>
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
+            <a href="javascript:void(0)"
+                popover="{{framework.registered_time * 1000 | mesosDate}}"
+                popover-placement="bottom"
+                popover-title="Registered">
               {{framework.registered_time * 1000 | relativeDate}}
             </a>
           </td>
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.reregistered_time * 1000 | mesosDate}}" data-original-title="Reregistered">
+            <a href="javascript:void(0)"
+                popover="{{framework.reregistered_time * 1000 | mesosDate}}"
+                popover-placement="bottom"
+                popover-title="Reregistered">
               {{framework.reregistered_time * 1000 | relativeDate}}
             </a>
           </td>
@@ -230,7 +233,10 @@
       </thead>
       <tr ng-repeat="slave in _.values(slaves) | orderBy:tables['slaves'].selected_column:tables['slaves'].reverse">
         <td>
-          <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.id}}" data-original-title="ID">
+          <a href="javascript:void(0)"
+              popover="{{slave.id}}"
+              popover-placement="bottom"
+              popover-title="ID">
             {{slave.id | truncateMesosID}}
           </a>
         </td>
@@ -242,7 +248,10 @@
         <td>{{slave.resources.mem * (1024 * 1024) | dataSize}}</td>
         <td>{{slave.resources.disk * (1024 * 1024) | dataSize}}</td>
         <td>
-          <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
+          <a href="javascript:void(0)"
+              popover="{{slave.registered_time * 1000 | mesosDate}}"
+              popover-placement="bottom"
+              popover-title="Registered">
             {{slave.registered_time * 1000 | relativeDate}}
           </a>
         </td>
@@ -326,12 +335,18 @@
           <td>{{framework.user}}</td>
           <td><a href="{{'#/frameworks/' + framework.id}}">{{framework.name}}</a></td>
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
+            <a href="javascript:void(0)"
+                popover="{{framework.registered_time * 1000 | mesosDate}}"
+                popover-placement="bottom"
+                popover-title="Registered">
               {{framework.registered_time * 1000 | relativeDate}}
             </a>
           </td>
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.unregistered_time * 1000 | mesosDate}}" data-original-title="Unregistered">
+            <a href="javascript:void(0)"
+                popover="{{framework.unregistered_time * 1000 | mesosDate}}"
+                popover-placement="bottom"
+                popover-title="Unregistered">
               {{framework.unregistered_time * 1000 | relativeDate}}
             </a>
           </td>

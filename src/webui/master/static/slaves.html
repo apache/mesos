@@ -40,7 +40,10 @@
   </thead>
   <tr ng-repeat="slave in _.values(slaves) | orderBy:tables['slaves'].selected_column:tables['slaves'].reverse">
     <td>
-      <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.id}}" data-original-title="ID">
+      <a href="javascript:void(0)"
+          popover="{{slave.id}}"
+          popover-placement="bottom"
+          popover-title="ID">
         {{slave.id | truncateMesosID}}
       </a>
     </td>
@@ -49,7 +52,10 @@
     <td>{{slave.resources.mem * (1024 * 1024) | dataSize}}</td>
     <td>{{slave.resources.disk * (1024 * 1024) | dataSize}}</td>
     <td>
-      <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{slave.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
+      <a href="javascript:void(0)"
+          popover="{{slave.registered_time * 1000 | mesosDate}}"
+          popover-placement="bottom"
+          popover-title="Registered">
         {{slave.registered_time * 1000 | relativeDate}}
       </a>
     </td>

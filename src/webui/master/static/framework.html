@@ -24,13 +24,19 @@
         <dd>{{framework.user}}</dd>
         <dt>Registered:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{framework.registered_time * 1000 | mesosDate}}" data-original-title="Registered">
+          <a href="javascript:void(0)"
+              popover="{{framework.registered_time * 1000 | mesosDate}}"
+              popover-placement="bottom"
+              popover-title="Registered">
             {{framework.registered_time * 1000 | relativeDate}}
           </a>
         </dd>
         <dt>Re-registered:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.reregistered_time * 1000 | mesosDate}}" data-original-title="Reregistered">
+          <a href="javascript:void(0)"
+              popover="{{framework.reregistered_time * 1000 | mesosDate}}"
+              popover-placement="bottom"
+              popover-title="Reregistered">
             {{framework.reregistered_time * 1000 | relativeDate}}
           </a>
         </dd>

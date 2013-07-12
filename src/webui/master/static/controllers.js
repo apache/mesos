@@ -275,11 +275,7 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $timeout) {
       path = path.substr(0, path.length - 1);
     }
     return path.substr(path.lastIndexOf('/') + 1);
-  }
-
-  // Initialize popovers and bind the function used to show a popover.
-  Popovers.initialize();
-  $scope.popover = Popovers.show;
+  };
 
   $scope.$location = $location;
   $scope.delay = 2000;
@@ -301,26 +297,31 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $timeout) {
         } else {
           $scope.delay = $scope.delay * 2;
         }
+
         $scope.retry = $scope.delay;
         var countdown = function() {
-          if ($scope.retry == 0) {
-            $('#error-modal').modal('hide');
+          if ($scope.retry === 0) {
+            $scope.errorModalClose();
           } else {
             $scope.retry = $scope.retry - 1000;
             $scope.countdown = $timeout(countdown, 1000);
           }
-        }
+        };
+
         countdown();
-        $('#error-modal').modal('show');
+        $scope.errorModalOpen = true;
       });
-  }
+  };
 
   // Make it such that everytime we hide the error-modal, we stop the
   // countdown and restart the polling.
-  $('#error-modal').on('hidden', function () {
-    if ($scope.countdown != undefined) {
+  $scope.errorModalClose = function() {
+    $scope.errorModalOpen = false;
+
+    if ($scope.countdown != null) {
       if ($timeout.cancel($scope.countdown)) {
-        $scope.delay = 2000; // Restart since they cancelled the countdown.
+        // Restart since they cancelled the countdown.
+        $scope.delay = 2000;
       }
     }
 
@@ -328,13 +329,13 @@ function MainCntl($scope, $http, $route, $routeParams, $location, $timeout) {
     // least a second because otherwise the error-modal won't get
     // properly shown).
     $timeout(poll, 1000);
-  });
+  };
 
   poll();
 }
 
 
-function HomeCtrl($scope) {
+function HomeCtrl($dialog, $scope) {
   setNavbarActiveTab('home');
 
   $scope.tables = {};
@@ -348,14 +349,18 @@ function HomeCtrl($scope) {
 
   $scope.log = function($event) {
     if (!$scope.state.log_dir) {
-      $('#no-log-dir-modal').modal('show');
+      $dialog.messageBox(
+        'Logging to a file is not enabled',
+        "Set the 'log_dir' option if you wish to access the logs.",
+        [{label: 'Continue'}]
+      ).open();
     } else {
       pailer(
           $scope.$location.host() + ':' + $scope.$location.port(),
           '/master/log',
           'Mesos Master');
     }
-  }
+  };
 }
 
 
@@ -435,7 +440,7 @@ function SlavesCtrl($scope) {
 }
 
 
-function SlaveCtrl($scope, $routeParams, $http, $q) {
+function SlaveCtrl($dialog, $scope, $routeParams, $http, $q) {
   setNavbarActiveTab('slaves');
 
   $scope.slave_id = $routeParams.slave_id;
@@ -457,15 +462,19 @@ function SlaveCtrl($scope, $routeParams, $http, $q) {
     var pid = $scope.slaves[$routeParams.slave_id].pid;
     var hostname = $scope.slaves[$routeParams.slave_id].hostname;
     var id = pid.substring(0, pid.indexOf('@'));
-    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1)
+    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
 
     $scope.log = function($event) {
       if (!$scope.state.log_dir) {
-        $('#no-log-dir-modal').modal('show');
+        $dialog.messageBox(
+          'Logging to a file is not enabled',
+          "Set the 'log_dir' option if you wish to access the logs.",
+          [{label: 'Continue'}]
+        ).open();
       } else {
         pailer(host, '/slave/log', 'Mesos Slave');
       }
-    }
+    };
 
     var usageRequest = $http.jsonp(
         'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');

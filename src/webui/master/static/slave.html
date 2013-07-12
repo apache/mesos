@@ -14,18 +14,6 @@
   <strong>{{alert_message}}</strong>
 </div>
 
-<div class="modal hide fade" style="display: none;" id="no-log-dir-modal">
-  <div class="modal-header">
-    <button class="close" data-dismiss="modal">x</button>
-    <h3>Logging to a file is not enabled!</h3>
-  </div>
-  <div class="modal-body">
-    <p>Set the 'log_dir' option if you wish to access the logs.</p>
-  </div>
-  <div class="modal-footer">
-  </div>
-</div>
-
 <div class="row hide" id="slave">
   <div class="span3">
     <div class="well">
@@ -36,13 +24,19 @@
         <dd>{{state.master_hostname}}</dd>
         <dt>Started:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.start_time * 1000 | mesosDate}}" data-original-title="Started">
+          <a href="javascript:void(0)"
+              popover="{{state.start_time * 1000 | mesosDate}}"
+              popover-placement="right"
+              popover-title="Started">
             {{state.start_time * 1000 | relativeDate}}
           </a>
         </dd>
         <dt>Built:</dt>
         <dd>
-          <a href="" rel="popover" ng-click="popover($event, 'right')" data-content="{{state.build_time * 1000 | mesosDate}}" data-original-title="Built">
+          <a href="javascript:void(0)"
+              popover="{{state.build_time * 1000 | mesosDate}}"
+              popover-placement="right"
+              popover-title="Built">
             {{state.build_time * 1000 | relativeDate}}
           </a> by <i>{{state.build_user}}</i>
         </dd>
@@ -137,7 +131,10 @@
       <tbody>
         <tr ng-repeat="framework in _.values(slave.frameworks) | orderBy:tables['frameworks'].selected_column:tables['frameworks'].reverse">
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{framework.id}}" data-original-title="ID">
+            <a href="javascript:void(0)"
+                popover="{{framework.id}}"
+                popover-placement="bottom"
+                popover-title="ID">
               {{framework.id | truncateMesosID}}
             </a>
           </td>
@@ -187,7 +184,10 @@
       <tbody>
         <tr ng-repeat="completed_framework in _.values(slave.completed_frameworks) | orderBy:tables['completed_frameworks'].selected_column:tables['completed_frameworks'].reverse">
           <td>
-            <a href="" rel="popover" ng-click="popover($event, 'bottom')" data-content="{{completed_framework.id}}" data-original-title="ID">
+            <a href="javascript:void(0)"
+                popover="{{completed_framework.id}}"
+                popover-placement="bottom"
+                popover-title="ID">
               {{completed_framework.id | truncateMesosID}}
             </a>
           </td>
