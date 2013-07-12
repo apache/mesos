@@ -33,8 +33,8 @@ struct Request
   // Tracked by: https://issues.apache.org/jira/browse/MESOS-328.
   hashmap<std::string, std::string> headers;
   std::string method;
+  std::string url; // path/query#fragment
   std::string path;
-  std::string url;
   std::string fragment;
   hashmap<std::string, std::string> query;
   std::string body;
