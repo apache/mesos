@@ -31,20 +31,31 @@ EXTRA_DIST = pom.xml										\
 	src/main/resources/org/jenkinsci/plugins/mesos/TaskTemplate/config.jelly
 
 
-# Defines a target to build the Jenkins plugin.
+
+
+MESOS_JAR = mesos-$(PACKAGE_VERSION).jar
+
+
+$(MESOS_JAR):
+	@cd $(abs_top_builddir)/src && $(MAKE) $(AM_MAKEFLAGS) maven-install;
+
+
+# Defines a target to build the Jenkins plugin for Mesos.
 # This will create ./target/mesos.hpi that you can deploy to Jenkins.
-jenkins:
-	if test "$(top_srcdir)" != "$(top_builddir)"; then	\
-          cp -p $(srcdir)/pom.xml .;				\
-          cp -rp $(srcdir)/src .;				\
+jenkins: $(MESOS_JAR)
+	if test "$(top_srcdir)" != "$(top_builddir)"; then			\
+          cp -rp $(srcdir)/src .;						\
         fi
-	mvn install
+	mvn package
+
+
+all: jenkins
 
 
 clean-local:
-	if test "$(top_srcdir)" != "$(top_builddir)"; then	\
-          rm -f pom.xml;					\
-          rm -rf src target work;				\
+	if test "$(top_srcdir)" != "$(top_builddir)"; then		\
+          mvn clean;							\
+          rm -rf src work repo;						\
         fi
 
 

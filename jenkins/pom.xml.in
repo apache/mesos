@@ -17,11 +17,6 @@
       <id>repo.jenkins-ci.org</id>
       <url>http://repo.jenkins-ci.org/public/</url>
     </repository>
-    <repository>
-      <id>repository.apache.org</id>
-      <url>https://repository.apache.org/content/repositories/releases</url>
-    </repository>
-
   </repositories>
 
   <pluginRepositories>
@@ -39,14 +34,13 @@
     <maven-hpi-plugin.version>1.95</maven-hpi-plugin.version>
   </properties>
 
-  <!-- TODO(vinod): Use the mesos jar built from 'make maven-install' instead. -->
   <!-- NOTE: Need to run jenkins by providing the mesos lib path. -->
   <!-- $ MESOS_NATIVE_LIBRARY=/path/to/libmesos.dylib mvn hpi:run -->
   <dependencies>
       <dependency>
           <groupId>org.apache.mesos</groupId>
           <artifactId>mesos</artifactId>
-          <version>0.11.0-incubating</version>
+          <version>@PACKAGE_VERSION@</version>
       </dependency>
       <dependency>
           <groupId>com.google.protobuf</groupId>
@@ -74,6 +68,12 @@
                       </configuration>
                   </execution>
               </executions>
+          </plugin>
+          <plugin>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <configuration>
+                  <target>1.6</target>
+              </configuration>
           </plugin>
       </plugins>
   </build>
