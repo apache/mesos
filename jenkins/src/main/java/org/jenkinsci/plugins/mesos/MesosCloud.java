@@ -164,22 +164,22 @@ public class MesosCloud extends Cloud {
     }
 
     @Override
-    public boolean configure(StaplerRequest req, JSONObject o) throws FormException {
-      master = o.getString("master");
-      description = o.getString("description");
+    public boolean configure(StaplerRequest request, JSONObject object) throws FormException {
+      master = object.getString("master");
+      description = object.getString("description");
       save();
-      return super.configure(req, o);
+      return super.configure(request, object);
     }
 
     /**
      * Test connection from configuration page.
      */
-    public FormValidation doTestConnection(@QueryParameter String master) throws IOException,
-        ServletException {
+    public FormValidation doTestConnection(@QueryParameter String master)
+        throws IOException, ServletException {
       master = master.trim();
 
       if (master.equals("local")) {
-        return FormValidation.warning("'local' triggers a local mesos cluster");
+        return FormValidation.warning("'local' creates a local mesos cluster");
       }
 
       if (master.startsWith("zk://")) {
@@ -187,8 +187,14 @@ public class MesosCloud extends Cloud {
             "tested prior to saving this page.");
       }
 
+      if (master.startsWith("http://")) {
+        return FormValidation.error("Please omit 'http://'.");
+      }
+
       try {
-        HttpURLConnection urlConn = (HttpURLConnection) new URL(master).openConnection();
+        // URL requires the protocol to be explicitly specified.
+        HttpURLConnection urlConn =
+          (HttpURLConnection) new URL("http://" + master).openConnection();
         urlConn.connect();
         int code = urlConn.getResponseCode();
         urlConn.disconnect();
