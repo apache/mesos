@@ -43,6 +43,7 @@
 #include <stout/fatal.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/os.hpp>
+#include <stout/stopwatch.hpp>
 #include <stout/uuid.hpp>
 
 #include "configurator/configuration.hpp"
@@ -221,7 +222,14 @@ protected:
     connected = true;
     failover = false;
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     scheduler->registered(driver, frameworkId, masterInfo);
+
+    VLOG(1) << "Scheduler::registered took " << stopwatch.elapsed();
   }
 
   void reregistered(const FrameworkID& frameworkId, const MasterInfo& masterInfo)
@@ -245,7 +253,14 @@ protected:
     connected = true;
     failover = false;
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     scheduler->reregistered(driver, masterInfo);
+
+    VLOG(1) << "Scheduler::reregistered took " << stopwatch.elapsed();
   }
 
   void doReliableRegistration()
@@ -296,7 +311,14 @@ protected:
       }
     }
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     scheduler->resourceOffers(driver, offers);
+
+    VLOG(1) << "Scheduler::resourceOffers took " << stopwatch.elapsed();
   }
 
   void rescindOffer(const OfferID& offerId)
@@ -311,7 +333,14 @@ protected:
 
     savedOffers.erase(offerId);
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     scheduler->offerRescinded(driver, offerId);
+
+    VLOG(1) << "Scheduler::offerRescinded took " << stopwatch.elapsed();
   }
 
   void statusUpdate(const StatusUpdate& update, const UPID& pid)
@@ -339,7 +368,14 @@ protected:
     // multiple times (of course, if a scheduler re-uses a TaskID,
     // that could be bad.
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     scheduler->statusUpdate(driver, status);
+
+    VLOG(1) << "Scheduler::statusUpdate took " << stopwatch.elapsed();
 
     // Acknowledge the status update.
     // NOTE: We do a dispatch here instead of directly sending the ACK because,
@@ -385,7 +421,14 @@ protected:
 
     savedSlavePids.erase(slaveId);
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     scheduler->slaveLost(driver, slaveId);
+
+    VLOG(1) << "Scheduler::slaveLost took " << stopwatch.elapsed();
   }
 
   void frameworkMessage(const SlaveID& slaveId,
@@ -400,7 +443,14 @@ protected:
 
     VLOG(1) << "Received framework message";
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     scheduler->frameworkMessage(driver, executorId, slaveId, data);
+
+    VLOG(1) << "Scheduler::frameworkMessage took " << stopwatch.elapsed();
   }
 
   void error(const string& message)
@@ -414,7 +464,14 @@ protected:
 
     driver->abort();
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     scheduler->error(driver, message);
+
+    VLOG(1) << "Scheduler::error took " << stopwatch.elapsed();
   }
 
   void stop(bool failover)

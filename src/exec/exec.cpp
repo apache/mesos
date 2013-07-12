@@ -31,6 +31,11 @@
 #include <process/protobuf.hpp>
 
 #include <stout/fatal.hpp>
+#include <stout/numify.hpp>
+#include <stout/option.hpp>
+#include <stout/os.hpp>
+#include <stout/stopwatch.hpp>
+#include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/lock.hpp"
@@ -160,7 +165,15 @@ protected:
     VLOG(1) << "Executor registered on slave " << slaveId;
 
     this->slaveId = slaveId;
+
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     executor->registered(driver, executorInfo, frameworkInfo, slaveInfo);
+
+    VLOG(1) << "Executor::registered took " << stopwatch.elapsed();
   }
 
   void runTask(const TaskInfo& task)
@@ -173,7 +186,14 @@ protected:
 
     VLOG(1) << "Executor asked to run task '" << task.task_id() << "'";
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     executor->launchTask(driver, task);
+
+    VLOG(1) << "Executor::launchTask took " << stopwatch.elapsed();
   }
 
   void killTask(const TaskID& taskId)
@@ -186,7 +206,14 @@ protected:
 
     VLOG(1) << "Executor asked to kill task '" << taskId << "'";
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     executor->killTask(driver, taskId);
+
+    VLOG(1) << "Executor::killTask took " << stopwatch.elapsed();
   }
 
   void frameworkMessage(const SlaveID& slaveId,
@@ -201,7 +228,14 @@ protected:
 
     VLOG(1) << "Executor received framework message";
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     executor->frameworkMessage(driver, data);
+
+    VLOG(1) << "Executor::frameworkMessage took " << stopwatch.elapsed();
   }
 
   void shutdown()
@@ -218,8 +252,15 @@ protected:
       spawn(new ShutdownProcess(), true);
     }
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     // TODO(benh): Any need to invoke driver.stop?
     executor->shutdown(driver);
+
+    VLOG(1) << "Executor::shutdown took " << stopwatch.elapsed();
 
     if (local) {
       terminate(this);
@@ -246,8 +287,15 @@ protected:
       spawn(new ShutdownProcess(), true);
     }
 
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
     // TODO: Pass an argument to shutdown to tell it this is abnormal?
     executor->shutdown(driver);
+
+    VLOG(1) << "Executor::shutdown took " << stopwatch.elapsed();
 
     // This is a pretty bad state ... no slave is left. Rather
     // than exit lets kill our process group (which includes
@@ -270,7 +318,14 @@ protected:
 
       driver->abort();
 
+      Stopwatch stopwatch;
+      if (FLAGS_v >= 1) {
+        stopwatch.start();
+      }
+
       executor->error(driver, "Attempted to send TASK_STAGING status update");
+
+      VLOG(1) << "Executor::error took " << stopwatch.elapsed();
 
       return;
     }
