@@ -8,7 +8,10 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.logging.Logger;
 
+import jenkins.model.Jenkins;
+
 import org.apache.mesos.MesosSchedulerDriver;
+import org.apache.mesos.MesosNativeLibrary;
 import org.apache.mesos.Protos.CommandInfo;
 import org.apache.mesos.Protos.ExecutorID;
 import org.apache.mesos.Protos.Filters;
@@ -59,6 +62,20 @@ public class JenkinsScheduler implements Scheduler {
   }
 
   public synchronized void init() {
+    // Load the Mesos native library bundled with the plugin.
+    // TODO(vinod): Instead of loading the library here, it would
+    // be great if the plugin can dynamically set the MESOS_NATIVE_LIBRARY
+    // environment variable or java.library.path system property.
+    final String PLUGIN_DIR =
+        Jenkins.getInstance().getRootDir().getPath() + "/plugins/mesos";
+
+    String MESOS_NATIVE_LIBRARY = PLUGIN_DIR + "/libmesos.so";
+    if (System.getProperty("os.name").indexOf("Mac") >= 0) {
+      MESOS_NATIVE_LIBRARY = PLUGIN_DIR + "/libmesos.dylib";
+    }
+
+    MesosNativeLibrary.load(MESOS_NATIVE_LIBRARY);
+
     // Start the framework.
     new Thread(new Runnable() {
       @Override

@@ -31,6 +31,16 @@ EXTRA_DIST = pom.xml										\
 	src/main/resources/org/jenkinsci/plugins/mesos/TaskTemplate/config.jelly
 
 
+if OS_LINUX
+  MESOS_LIBRARY = libmesos.so
+else
+  MESOS_LIBRARY = libmesos.dylib
+endif
+TARGET_LIBS_DIR = src/main/webapp
+
+
+$(MESOS_LIBRARY):
+	@cd $(abs_top_builddir)/src && $(MAKE) $(AM_MAKEFLAGS);
 
 
 MESOS_JAR = mesos-$(PACKAGE_VERSION).jar
@@ -42,10 +52,12 @@ $(MESOS_JAR):
 
 # Defines a target to build the Jenkins plugin for Mesos.
 # This will create ./target/mesos.hpi that you can deploy to Jenkins.
-jenkins: $(MESOS_JAR)
+jenkins: $(MESOS_LIBRARY) $(MESOS_JAR)
 	if test "$(top_srcdir)" != "$(top_builddir)"; then			\
           cp -rp $(srcdir)/src .;						\
         fi
+	mkdir -p $(TARGET_LIBS_DIR) &&						\
+	cp $(abs_top_builddir)/src/.libs/$(MESOS_LIBRARY) $(TARGET_LIBS_DIR) && \
 	mvn package
 
 
