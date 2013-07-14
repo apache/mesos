@@ -5,12 +5,12 @@
   <groupId>org.apache.mesos</groupId>
   <artifactId>mesos</artifactId>
   <name>mesos</name>
-  <version>@PACKAGE_VERSION@-incubating</version>
+  <version>@PACKAGE_VERSION@</version>
   <description>The Apache Mesos Java API jar.</description>
-  <url>http://incubator.apache.org/mesos</url>
+  <url>http://mesos.apache.org</url>
   <scm>
-    <connection>scm:svn:https://svn.apache.org/repos/asf/incubator/mesos</connection>
-    <url>https://svn.apache.org/repos/asf/incubator/mesos</url>
+    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/mesos.git</connection>
+    <url>https://git-wip-us.apache.org/repos/asf/mesos.git</url>
   </scm>
   <!-- We inherit from the apache parent pom to use its repositories
        but since we don't use Maven as the primary build system for
@@ -23,10 +23,13 @@
   <mailingLists>
     <mailingList>
       <name>Mesos Dev List</name>
-      <subscribe>mesos-dev-subscribe@incubator.apache.org</subscribe>
-      <unsubscribe>mesos-dev-unsubscribe@incubator.apache.org</unsubscribe>
-      <post>mesos-dev@incubator.apache.org</post>
-      <archive>http://mail-archives.apache.org/mod_mbox/incubator-mesos-dev</archive>
+      <subscribe>dev-subscribe@mesos.apache.org</subscribe>
+      <unsubscribe>dev-unsubscribe@mesos.apache.org</unsubscribe>
+      <post>dev@mesos.apache.org</post>
+      <archive>http://mail-archives.apache.org/mod_mbox/mesos-dev</archive>
+      <otherArchives>
+        <otherArchive>http://mail-archives.apache.org/mod_mbox/incubator-mesos-dev</otherArchive>
+      </otherArchives>
     </mailingList>
   </mailingLists>
   <developers>
