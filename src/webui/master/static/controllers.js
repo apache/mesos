@@ -129,11 +129,15 @@ function update($scope, $timeout, data) {
           $scope.redirect = $scope.redirect - 1000;
           $timeout(countdown, 1000);
         }
-      }
+      };
       countdown();
       return false; // Don't continue polling.
     }
   }
+
+  // A cluster is named if the state returns a non-empty string name.
+  // Track whether this cluster is named in a Boolean for display purposes.
+  $scope.clusterNamed = !!$scope.state.cluster;
 
   // Check for selected text, and allow up to 20 seconds to pass before
   // potentially wiping the user highlighted text.

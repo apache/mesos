@@ -10,7 +10,15 @@
     <div class="well">
       <dl class="inline clearfix">
         <dt>Cluster:</dt>
-        <dd>{{state.cluster}}</dd>
+        <dd>
+          <span ng-show="clusterNamed">{{state.cluster}}</span>
+          <span ng-show="!clusterNamed">
+            (Unnamed)
+            <i class="icon-info-sign"
+              tooltip="To name this cluster, set the --cluster flag when starting the master."
+              tooltip-placement="right"></i>
+          </span>
+        </dd>
         <dt>Server:</dt>
         <dd>{{state.pid.split("@")[1]}}</dd>
         <dt>Built:</dt>
