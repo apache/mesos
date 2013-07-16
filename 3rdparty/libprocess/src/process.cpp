@@ -585,6 +585,7 @@ ThreadLocal<ProcessBase>* _process_ = new ThreadLocal<ProcessBase>();
 // Per thread executor pointer.
 ThreadLocal<Executor>* _executor_ = new ThreadLocal<Executor>();
 
+const Duration LIBPROCESS_STATISTICS_WINDOW = Days(1);
 
 // We namespace the clock related variables to keep them well
 // named. In the future we'll probably want to associate a clock with
@@ -1517,10 +1518,20 @@ void initialize(const string& delegate)
   spawn(new Profiler(), true);
 
   // Create the global statistics.
-  // TODO(bmahler): Investigate memory implications of this window
-  // size. We may also want to provide a maximum memory size rather than
-  // time window. Or, offload older data to disk, etc.
-  statistics = new Statistics(Weeks(2));
+  value = getenv("LIBPROCESS_STATISTICS_WINDOW");
+  if (value != NULL) {
+    Try<Duration> window = Duration::parse(string(value));
+    if (window.isError()) {
+      LOG(FATAL) << "LIBPROCESS_STATISTICS_WINDOW=" << value
+                 << " is not a valid duration: " << window.error();
+    }
+    statistics = new Statistics(window.get());
+  } else {
+    // TODO(bmahler): Investigate memory implications of this window
+    // size. We may also want to provide a maximum memory size rather than
+    // time window. Or, offload older data to disk, etc.
+    statistics = new Statistics(LIBPROCESS_STATISTICS_WINDOW);
+  }
 
   // Initialize the mime types.
   mime::initialize();
