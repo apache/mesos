@@ -65,7 +65,7 @@ if diff_stat:
 
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
-repository = 'git://git.apache.org/incubator-mesos.git'
+repository = 'git://git.apache.org/mesos.git'
 
 parent_branch = 'master'
 
@@ -157,36 +157,17 @@ for i in range(len(shas)):
 
     revision_range = previous + ':' + sha
 
-    #################################################################
-    # THIS IS A GIANT HACK FOR GETTING POST-REVIEWS TO WORK UNTIL
-    # APACHE INFRASTRUCTURE MANAGES TO FIX REVIEW BOARD!
-
-    # Create a temporary branch from incubator-mesos/master.
-    hack_temporary_branch = '_post-reviews_' + branch + '_' + str(i)
-    execute(['git', 'checkout', '--track', '-b', hack_temporary_branch, 'incubator-mesos/master'])
-    atexit.register(lambda: execute(['git', 'branch', '-D', hack_temporary_branch], True))
-
-    # Then 'cherry-pick' from 'git merge-base incubator-mesos/master
-    # master' to 'sha'. This assumes your branch's parent is 'master'.
-    hack_merge_base = execute(['git', 'merge-base', hack_temporary_branch, 'master']).strip()
-    execute(['git', 'cherry-pick', hack_merge_base + '..' + sha])
-
-    # Then post-review with '--tracking-branch=incubator-mesos/master'
-    # and '--revision-range=HEAD~1:HEAD'
     if review_request_id is None:
         output = execute(['post-review',
                           '--repository-url=' + repository,
-                          '--tracking-branch=incubator-mesos/master',
-                          '--revision-range=HEAD~1:HEAD'] + sys.argv[1:]).strip()
+                          '--tracking-branch=' + parent_branch,
+                          '--revision-range=' + revision_range] + sys.argv[1:]).strip()
     else:
         output = execute(['post-review',
                           '--review-request-id=' + review_request_id,
                           '--repository-url=' + repository,
-                          '--tracking-branch=incubator-mesos/master',
-                          '--revision-range=HEAD~1:HEAD'] + sys.argv[1:]).strip()
-    execute(['git', 'checkout', branch])
-    execute(['git', 'branch', '-D', hack_temporary_branch])
-    #################################################################
+                          '--tracking-branch=' + parent_branch,
+                          '--revision-range=' + revision_range] + sys.argv[1:]).strip()
 
     print output
 
