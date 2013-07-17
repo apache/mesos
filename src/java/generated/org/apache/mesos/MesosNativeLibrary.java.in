@@ -20,11 +20,21 @@ package org.apache.mesos;
 
 public class MesosNativeLibrary {
   /**
-   * Attempts to load the native library if it was not previously
-   * loaded (e.g., by either {@link System.load} or {@link
-   * System.loadLibrary}).
+   * Attempts to load the native library (if it was not previously loaded)
+   * from the given path. If the path is null 'java.library.path' is used to
+   * load the library.
    */
-  public static void load() {
+  public static void load(String path) {
+    // Our JNI library will actually set 'loaded' to true once it is
+    // loaded, that way the library can get loaded by a user via
+    // 'System.load' in the event that they want to specify an
+    // absolute path and we won't try and reload the library ourselves
+    // (which would probably fail because 'java.library.path' might
+    // not be set).
+    if (loaded) {
+      return;
+    }
+
     // In some circumstances, such as when sandboxed class loaders are used,
     // the current thread's context class loader will not be able to see
     // MesosNativeLibrary (even when executing this code!).
@@ -35,37 +45,23 @@ public class MesosNativeLibrary {
         Thread.currentThread().getContextClassLoader();
     Thread.currentThread().setContextClassLoader(
         MesosNativeLibrary.class.getClassLoader());
-
     try {
-      // Our JNI library will actually set 'loaded' to true once it is
-      // loaded, that way the library can get loaded by a user via
-      // 'System.load' in the event that they want to specify an
-      // absolute path and we won't try and reload the library ourselves
-      // (which would probably fail because 'java.library.path' might
-      // not be set).
-      if (!loaded) {
-        final String MESOS_NATIVE_LIBRARY = System.getenv("MESOS_NATIVE_LIBRARY");
-        if (MESOS_NATIVE_LIBRARY != null) {
-          try {
-            System.load(MESOS_NATIVE_LIBRARY);
-          } catch (UnsatisfiedLinkError error) {
-            System.err.println("Failed to load native Mesos library at " +
-                MESOS_NATIVE_LIBRARY);
-            throw error;
-          }
-        } else {
-          try {
-            System.loadLibrary("mesos");
-          } catch (UnsatisfiedLinkError error) {
-            System.err.println("Failed to load native Mesos library from " +
-                System.getProperty("java.library.path"));
-            throw error;
-          }
-        }
+      if (path != null) {
+        System.load(path);
+      } else {
+        System.loadLibrary("mesos");
       }
+    } catch (UnsatisfiedLinkError error) {
+      System.err.println("Failed to load native Mesos library from " +
+          (path != null ? path : System.getProperty("java.library.path")));
+      throw error;
     } finally {
       Thread.currentThread().setContextClassLoader(contextClassLoader);
     }
+  }
+
+  public static void load() {
+    load(System.getProperty("MESOS_NATIVE_LIBRARY"));
   }
 
   public static final String VERSION = "@PACKAGE_VERSION@";
