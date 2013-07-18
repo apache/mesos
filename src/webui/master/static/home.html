@@ -252,25 +252,39 @@
       <tbody>
         <tr ng-repeat="framework in _.values(completed_frameworks) | orderBy:tables['completed_frameworks'].selected_column:tables['completed_frameworks'].reverse">
           <td>
-            <abbr title="{{framework.id}}">{{framework.id | truncateMesosID}}</abbr>
+            <a href="{{'#/frameworks/' + framework.id}}" title="{{framework.id}}">
+              {{framework.id | truncateMesosID}}</a>
+            <button class="btn btn-mini"
+              clipboard
+              data-clipboard-text="{{framework.id}}"
+              tooltip="Copy ID"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+            </button>
           </td>
           <td>{{framework.user}}</td>
-          <td><a href="{{'#/frameworks/' + framework.id}}">{{framework.name}}</a></td>
+          <td>{{framework.name}}</td>
           <td>
-            <a href="javascript:void(0)"
-                popover="{{framework.registered_time * 1000 | mesosDate}}"
-                popover-placement="bottom"
-                popover-title="Registered">
-              {{framework.registered_time * 1000 | relativeDate}}
-            </a>
+            <abbr title="{{framework.registered_time * 1000 | mesosDate}}">
+              {{framework.registered_time * 1000 | relativeDate}}</abbr>
+            <button class="btn btn-mini"
+              clipboard
+              data-clipboard-text="{{framework.reregistered_time * 1000 | mesosDate}}"
+              tooltip="Copy timestamp"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+            </button>
           </td>
           <td>
-            <a href="javascript:void(0)"
-                popover="{{framework.unregistered_time * 1000 | mesosDate}}"
-                popover-placement="bottom"
-                popover-title="Unregistered">
-              {{framework.unregistered_time * 1000 | relativeDate}}
-            </a>
+            <abbr title="{{framework.unregistered_time * 1000 | mesosDate}}">
+              {{framework.unregistered_time * 1000 | relativeDate}}</abbr>
+            <button class="btn btn-mini"
+              clipboard
+              data-clipboard-text="{{framework.unregistered_time * 1000 | mesosDate}}"
+              tooltip="Copy timestamp"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+            </button>
           </td>
         </tr>
       </tbody>
