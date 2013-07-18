@@ -34,7 +34,7 @@
         <dd>
           <abbr title="{{state.start_time * 1000 | isoDate}}">
             {{state.start_time * 1000 | relativeDate}}</abbr>
-          <button class="btn btn-mini"
+          <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{state.start_time * 1000 | isoDate}}"
               tooltip="Copy timestamp"
@@ -47,7 +47,7 @@
           <abbr title="{{state.build_time * 1000 | isoDate}}">
             {{state.build_time * 1000 | relativeDate}}</abbr>
           by <i>{{state.build_user}}</i>
-          <button class="btn btn-mini"
+          <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{state.build_time * 1000 | isoDate}}"
               tooltip="Copy timestamp"
@@ -148,7 +148,7 @@
           <td>
             <a href="{{'#/slaves/' + slave_id + '/frameworks/' + framework.id}}">
               {{(framework.id | truncateMesosID) || framework.name}}</a>
-            <button class="btn btn-mini"
+            <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.id}}"
               tooltip="Copy ID"

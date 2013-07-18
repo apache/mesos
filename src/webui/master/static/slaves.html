@@ -41,7 +41,7 @@
   <tr ng-repeat="slave in _.values(slaves) | orderBy:tables['slaves'].selected_column:tables['slaves'].reverse">
     <td>
       <a href="#/slaves/{{slave.id}}">{{slave.id | truncateMesosID}}</a>
-      <button class="btn btn-mini"
+      <button class="btn btn-mini btn-toggle"
           clipboard
           data-clipboard-text="{{slave.id}}"
           tooltip="Copy ID"
@@ -57,7 +57,7 @@
     <td>
       <abbr title="{{slave.registered_time * 1000 | isoDate}}">
         {{slave.registered_time * 1000 | relativeDate}}</abbr>
-      <button class="btn btn-mini"
+      <button class="btn btn-mini btn-toggle"
           clipboard
           data-clipboard-text="{{slave.registered_time * 1000 | isoDate}}"
           tooltip="Copy timestamp"

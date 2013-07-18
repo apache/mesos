@@ -44,8 +44,8 @@ th.unselected:after {
   content: "　";
 }
 
-.inline .btn-mini,
-.table-condensed .btn-mini {
+.inline .btn-toggle,
+.table-condensed .btn-toggle {
   margin-bottom: -2px;
   margin-top: -5px;
   visibility: hidden;
@@ -53,8 +53,8 @@ th.unselected:after {
 
 .inline .zeroclipboard-is-hover,
 .table-condensed .zeroclipboard-is-hover,
-.flash dd:hover .btn-mini,
-.flash td:hover .btn-mini {
+.flash dd:hover .btn-toggle,
+.flash td:hover .btn-toggle {
   visibility: visible;
 }
 

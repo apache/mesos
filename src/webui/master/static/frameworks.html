@@ -57,7 +57,7 @@
           <td>
             <a href="{{'#/frameworks/' + framework.id}}">
               {{(framework.id | truncateMesosID) || framework.name}}</a>
-            <button class="btn btn-mini"
+            <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.id}}"
               tooltip="Copy ID"
@@ -74,7 +74,7 @@
           <td>
             <abbr title="{{framework.registered_time * 1000 | isoDate}}">
               {{framework.registered_time * 1000 | relativeDate}}</abbr>
-            <button class="btn btn-mini"
+            <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.registered_time * 1000 | isoDate}}"
               tooltip="Copy timestamp"
@@ -86,7 +86,7 @@
           <td ng-show="framework.reregistered_time">
             <abbr title="{{framework.reregistered_time * 1000 | isoDate}}">
               {{framework.reregistered_time * 1000 | relativeDate}}</abbr>
-            <button class="btn btn-mini"
+            <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.registered_time * 1000 | isoDate}}"
               tooltip="Copy timestamp"
