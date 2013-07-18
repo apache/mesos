@@ -132,3 +132,49 @@ TEST(HTTP, Encode)
   EXPECT_ERROR(http::decode("%;1"));
   EXPECT_ERROR(http::decode("%1;"));
 }
+
+
+TEST(HTTP, PathParse)
+{
+  const std::string pattern = "/books/{isbn}/chapters/{chapter}";
+
+  Try<hashmap<std::string, std::string> > parse =
+    http::path::parse(pattern, "/books/0304827484/chapters/3");
+
+  ASSERT_SOME(parse);
+  EXPECT_EQ(4, parse.get().size());
+  EXPECT_EQ("books", parse.get()["books"]);
+  EXPECT_EQ("0304827484", parse.get()["isbn"]);
+  EXPECT_EQ("chapters", parse.get()["chapters"]);
+  EXPECT_EQ("3", parse.get()["chapter"]);
+
+  parse = http::path::parse(pattern, "/books/0304827484");
+
+  ASSERT_SOME(parse);
+  EXPECT_EQ(2, parse.get().size());
+  EXPECT_EQ("books", parse.get()["books"]);
+  EXPECT_EQ("0304827484", parse.get()["isbn"]);
+
+  parse = http::path::parse(pattern, "/books/0304827484/chapters");
+
+  ASSERT_SOME(parse);
+  EXPECT_EQ(3, parse.get().size());
+  EXPECT_EQ("books", parse.get()["books"]);
+  EXPECT_EQ("0304827484", parse.get()["isbn"]);
+  EXPECT_EQ("chapters", parse.get()["chapters"]);
+
+  parse = http::path::parse(pattern, "/foo/0304827484/chapters");
+
+  EXPECT_ERROR(parse);
+  EXPECT_EQ("Expecting 'books' not 'foo'", parse.error());
+
+  parse = http::path::parse(pattern, "/books/0304827484/bar");
+
+  EXPECT_ERROR(parse);
+  EXPECT_EQ("Expecting 'chapters' not 'bar'", parse.error());
+
+  parse = http::path::parse(pattern, "/books/0304827484/chapters/3/foo/bar");
+
+  EXPECT_ERROR(parse);
+  EXPECT_EQ("Not expecting suffix 'foo/bar'", parse.error());
+}

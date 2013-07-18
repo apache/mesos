@@ -35,7 +35,6 @@
 #include "encoder.hpp"
 
 using namespace process;
-using namespace process::http;
 
 using std::string;
 
@@ -1239,7 +1238,7 @@ TEST(Process, provide)
   FileServer server(path);
   PID<FileServer> pid = spawn(server);
 
-  Future<Response> response = http::get(pid);
+  Future<http::Response> response = http::get(pid);
 
   AWAIT_READY(response);
 
