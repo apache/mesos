@@ -32,21 +32,28 @@
         <dd>{{state.master_hostname}}</dd>
         <dt>Started:</dt>
         <dd>
-          <a href="javascript:void(0)"
-              popover="{{state.start_time * 1000 | mesosDate}}"
-              popover-placement="right"
-              popover-title="Started">
-            {{state.start_time * 1000 | relativeDate}}
-          </a>
+          <abbr title="{{state.start_time * 1000 | mesosDate}}">
+            {{state.start_time * 1000 | relativeDate}}</abbr>
+          <button class="btn btn-mini"
+              clipboard
+              data-clipboard-text="{{state.start_time * 1000 | mesosDate}}"
+              tooltip="Copy timestamp"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+          </button>
         </dd>
         <dt>Built:</dt>
         <dd>
-          <a href="javascript:void(0)"
-              popover="{{state.build_time * 1000 | mesosDate}}"
-              popover-placement="right"
-              popover-title="Built">
-            {{state.build_time * 1000 | relativeDate}}
-          </a> by <i>{{state.build_user}}</i>
+          <abbr title="{{state.build_time * 1000 | mesosDate}}">
+            {{state.build_time * 1000 | relativeDate}}</abbr>
+          by <i>{{state.build_user}}</i>
+          <button class="btn btn-mini"
+              clipboard
+              data-clipboard-text="{{state.build_time * 1000 | mesosDate}}"
+              tooltip="Copy timestamp"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+          </button>
         </dd>
         <dt>Host:</dt>
         <dd>
@@ -139,19 +146,18 @@
       <tbody>
         <tr ng-repeat="framework in _.values(slave.frameworks) | orderBy:tables['frameworks'].selected_column:tables['frameworks'].reverse">
           <td>
-            <a href="javascript:void(0)"
-                popover="{{framework.id}}"
-                popover-placement="bottom"
-                popover-title="ID">
-              {{framework.id | truncateMesosID}}
-            </a>
+            <a href="{{'#/slaves/' + slave_id + '/frameworks/' + framework.id}}">
+              {{(framework.id | truncateMesosID) || framework.name}}</a>
+            <button class="btn btn-mini"
+              clipboard
+              data-clipboard-text="{{framework.id}}"
+              tooltip="Copy ID"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+            </button>
           </td>
           <td>{{framework.user}}</td>
-          <td>
-            <a href="{{'#/slaves/' + slave_id + '/frameworks/' + framework.id}}">
-              {{framework.name}}
-            </a>
-          </td>
+          <td>{{framework.name}}</td>
           <td>{{framework.num_tasks | number}}</td>
           <td>{{framework.cpus | number}}</td>
           <td>{{framework.mem * (1024 * 1024) | dataSize}}</td>

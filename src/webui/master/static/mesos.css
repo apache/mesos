@@ -43,6 +43,30 @@ th.unselected:after {
   padding-left: 5px;
   content: "　";
 }
+
+.inline .btn-mini,
+.table-condensed .btn-mini {
+  margin-bottom: -2px;
+  margin-top: -5px;
+  visibility: hidden;
+}
+
+.inline .zeroclipboard-is-hover,
+.table-condensed .zeroclipboard-is-hover,
+.flash dd:hover .btn-mini,
+.flash td:hover .btn-mini {
+  visibility: visible;
+}
+
+.zeroclipboard-is-hover {
+  background-color: #e6e6e6;
+  background-position: 0 -15px;
+}
+
+.zeroclipboard-is-active {
+  background-image: none;
+}
+
 .badge-type {
   -moz-border-radius: 3px;
   -webkit-border-radius: 3px;

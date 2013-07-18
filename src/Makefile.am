@@ -405,7 +405,10 @@ nobase_dist_webui_DATA +=						\
   webui/master/static/cubism.v1.min.js					\
   webui/master/static/d3.v2.js						\
   webui/master/static/d3.v2.min.js					\
-  webui/master/static/relative-date.js
+  webui/master/static/relative-date.js					\
+  webui/master/static/zeroclipboard-1.1.7.js				\
+  webui/master/static/zeroclipboard-1.1.7.min.js			\
+  webui/master/static/obj/zeroclipboard-1.1.7.swf
 
 # Need to distribute/install bootstrap.
 nobase_dist_webui_DATA +=							  \
