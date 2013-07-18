@@ -389,7 +389,7 @@
     horizons.create(context, "mem", random(context, "mem"), [0, 10], "mb");
 
     // Do any cleanup before we change the route.
-    $scope.$on('$beforeRouteChange', function() { context.stop(); });
+    $scope.$on('$routeChangeStart', function() { context.stop(); });
   });
 
 
@@ -434,7 +434,7 @@
     }
 
     $(document).on('state_updated', update);
-    $scope.$on('$beforeRouteChange', function() {
+    $scope.$on('$routeChangeStart', function() {
       $(document).off('state_updated', update);
     });
   });
@@ -542,7 +542,7 @@
     }
 
     $(document).on('state_updated', update);
-    $scope.$on('$beforeRouteChange', function() {
+    $scope.$on('$routeChangeStart', function() {
       $(document).off('state_updated', update);
     });
   });
@@ -649,7 +649,7 @@
     }
 
     $(document).on('state_updated', update);
-    $scope.$on('$beforeRouteChange', function() {
+    $scope.$on('$routeChangeStart', function() {
       $(document).off('state_updated', update);
     });
   });
@@ -741,7 +741,7 @@
     }
 
     $(document).on('state_updated', update);
-    $scope.$on('$beforeRouteChange', function() {
+    $scope.$on('$routeChangeStart', function() {
       $(document).off('state_updated', update);
     });
   });
@@ -793,7 +793,7 @@
     }
 
     $(document).on('state_updated', update);
-    $scope.$on('$beforeRouteChange', function() {
+    $scope.$on('$routeChangeStart', function() {
       $(document).off('state_updated', update);
     });
   });
