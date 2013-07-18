@@ -164,21 +164,6 @@
     $scope.offers = {};
     $scope.completed_frameworks = {};
 
-    _.each($scope.state.slaves, function(slave) {
-      $scope.slaves[slave.id] = slave;
-    });
-
-    _.each($scope.state.frameworks, function(framework) {
-      $scope.frameworks[framework.id] = framework;
-      _.each(framework.offers, function(offer) {
-        $scope.offers[offer.id] = offer;
-      });
-    });
-
-    _.each($scope.state.completed_frameworks, function(framework) {
-      $scope.completed_frameworks[framework.id] = framework;
-    });
-
     // Update the stats.
     $scope.cluster = $scope.state.cluster;
     $scope.total_cpus = 0;
@@ -198,43 +183,54 @@
     $scope.activated_slaves = $scope.state.activated_slaves;
     $scope.deactivated_slaves = $scope.state.deactivated_slaves;
 
-    _.each($scope.slaves, function(slave) {
+    _.each($scope.state.slaves, function(slave) {
+      $scope.slaves[slave.id] = slave;
       $scope.total_cpus += slave.resources.cpus;
       $scope.total_mem += slave.resources.mem;
     });
 
-    _.each($scope.frameworks, function(framework) {
-        $scope.used_cpus += framework.resources.cpus;
-        $scope.used_mem += framework.resources.mem;
-        $scope.active_tasks += framework.tasks.length;
-        $scope.completed_tasks += framework.completed_tasks.length;
+    _.each($scope.state.frameworks, function(framework) {
+      $scope.frameworks[framework.id] = framework;
 
-        framework.cpus_share = 0;
-        if ($scope.total_cpus > 0) {
-          framework.cpus_share = framework.resources.cpus / $scope.total_cpus;
+      _.each(framework.offers, function(offer) {
+        $scope.offers[offer.id] = offer;
+      });
+
+      $scope.used_cpus += framework.resources.cpus;
+      $scope.used_mem += framework.resources.mem;
+      $scope.active_tasks += framework.tasks.length;
+      $scope.completed_tasks += framework.completed_tasks.length;
+
+      framework.cpus_share = 0;
+      if ($scope.total_cpus > 0) {
+        framework.cpus_share = framework.resources.cpus / $scope.total_cpus;
+      }
+
+      framework.mem_share = 0;
+      if ($scope.total_mem > 0) {
+        framework.mem_share = framework.resources.mem / $scope.total_mem;
+      }
+
+      framework.max_share = Math.max(framework.cpus_share, framework.mem_share);
+
+      // If the executor ID is empty, this is a command executor with an
+      // internal executor ID generated from the task ID.
+      // TODO(brenden): Remove this once
+      // https://issues.apache.org/jira/browse/MESOS-527 is fixed.
+      _.each(framework.tasks, function(task) {
+        if (!task.executor_id) {
+          task.executor_id = task.id;
         }
-
-        framework.mem_share = 0;
-        if ($scope.total_mem > 0) {
-          framework.mem_share = framework.resources.mem / $scope.total_mem;
+      });
+      _.each(framework.completed_tasks, function(task) {
+        if (!task.executor_id) {
+          task.executor_id = task.id;
         }
+      });
+    });
 
-        framework.max_share = Math.max(framework.cpus_share, framework.mem_share);
-
-        // If the executor ID is empty, this is a command executor with an
-        // internal executor ID generated from the task ID.
-        // TODO(brenden): Remove this once
-        // https://issues.apache.org/jira/browse/MESOS-527 is fixed.
-        _.each(framework.tasks, function(task) {
-          if (!task.executor_id) {
-            task.executor_id = task.id;
-          }
-        });
-        _.each(framework.completed_tasks, function(task) {
-          if (!task.executor_id) {
-            task.executor_id = task.id;
-          }
-        });
+    _.each($scope.state.completed_frameworks, function(framework) {
+      $scope.completed_frameworks[framework.id] = framework;
     });
 
     _.each($scope.offers, function(offer) {
