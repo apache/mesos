@@ -145,36 +145,7 @@ TEST(MonitorTest, WatchUnwatch)
 
   process::UPID upid("monitor", process::ip(), process::port());
 
-  Future<Response> response = process::http::get(upid, "usage.json");
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
-      "application/json",
-      "Content-Type",
-      response);
-
-  // TODO(bmahler): Verify metering directly through statistics.
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(
-      strings::format(
-          "[{"
-              "\"executor_id\":\"executor\","
-              "\"executor_name\":\"name\","
-              "\"framework_id\":\"framework\","
-              "\"resource_usage\":{"
-                  "\"cpu_time\":%g,"
-                  "\"cpu_usage\":%g,"
-                  "\"memory_rss\":%lu"
-              "},"
-              "\"source\":\"source\""
-          "}]",
-          statistics.cpus_system_time_secs() + statistics.cpus_user_time_secs(),
-          (statistics.cpus_system_time_secs() +
-           statistics.cpus_user_time_secs()) /
-               slave::RESOURCE_MONITORING_INTERVAL.secs(),
-          statistics.mem_rss_bytes()).get(),
-      response);
-
-  response = process::http::get(upid, "statistics.json");
+  Future<Response> response = process::http::get(upid, "statistics.json");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
@@ -230,7 +201,7 @@ TEST(MonitorTest, WatchUnwatch)
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
   process::Clock::settle();
 
-  response = process::http::get(upid, "usage.json");
+  response = process::http::get(upid, "statistics.json");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
