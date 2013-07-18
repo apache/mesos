@@ -43,7 +43,8 @@ namespace process {
 Statistics* statistics = NULL;
 
 // TODO(bmahler): Move time series related logic into this struct.
-// TODO(bmahler): Investigate using google's btree implementation.
+// TODO(bmahler): Investigate using Google's sparse_hash_map.
+// Also investigate using Google's btree implementation.
 // This provides better insertion and lookup performance for large
 // containers. This _should_ also provide significant memory
 // savings, especially since:
@@ -81,11 +82,6 @@ public:
   Option<double> get(const string& context, const string& name);
 
   map<string, double> get(const string& context);
-
-  Try<Nothing> meter(
-      const string& context,
-      const string& name,
-      const Owned<meters::Meter>& meter);
 
   void set(
       const string& context,
@@ -137,10 +133,6 @@ private:
 
   // This maps from {context: {name: TimeSeries } }.
   hashmap<string, hashmap<string, TimeSeries> > statistics;
-
-  // Each statistic can have many meters.
-  // This maps from {context: {name: [meters] } }.
-  hashmap<string, hashmap<string, list<Owned<meters::Meter> > > > meters;
 };
 
 
@@ -168,33 +160,6 @@ const string StatisticsProcess::SNAPSHOT_HELP = HELP(
         "Query parameters:",
         "",
         ">        param=VALUE          Some description here"));
-
-
-Try<Nothing> StatisticsProcess::meter(
-    const string& context,
-    const string& name,
-    const Owned<meters::Meter>& meter)
-{
-  if (meter->name == name) {
-    return Error("Meter name must not match the statistic name");
-  }
-
-  // Check for a duplicate meter.
-  foreachkey (const string& context, meters) {
-    foreachkey (const string& name, meters[context]) {
-      foreach (Owned<meters::Meter>& existing, meters[context][name]) {
-        if (meter->name == existing->name) {
-          return Error("Meter name matched existing meter name");
-        }
-      }
-    }
-  }
-
-  // Add the meter.
-  meters[context][name].push_back(meter);
-
-  return Nothing();
-}
 
 
 map<Time, double> StatisticsProcess::timeseries(
@@ -262,19 +227,6 @@ void StatisticsProcess::set(
   statistics[context][name].archived = false;     // Unarchive.
 
   truncate(context, name);
-
-  // Update the metered values, if necessary.
-  if (meters.contains(context) && meters[context].contains(name)) {
-    foreach (Owned<meters::Meter>& meter, meters[context][name]) {
-      const Option<double>& update = meter->update(time, value);
-      statistics[context][meter->name].archived = false; // Unarchive.
-
-      if (update.isSome()) {
-        statistics[context][meter->name].values[time] = update.get();
-        truncate(context, meter->name);
-      }
-    }
-  }
 }
 
 
@@ -282,14 +234,6 @@ void StatisticsProcess::archive(const string& context, const string& name)
 {
   // Exclude the statistic from the snapshot.
   statistics[context][name].archived = true;
-
-  // Remove any meters as well.
-  if (meters.contains(context) && meters[context].contains(name)) {
-    foreach (const Owned<meters::Meter>& meter, meters[context][name]) {
-      statistics[context][meter->name].archived = true;
-    }
-    meters[context].erase(name);
-  }
 }
 
 
@@ -495,16 +439,6 @@ Future<Option<double> > Statistics::get(
 Future<map<string, double> > Statistics::get(const string& context)
 {
   return dispatch(process, &StatisticsProcess::get, context);
-}
-
-
-Future<Try<Nothing> > Statistics::meter(
-    const string& context,
-    const string& name,
-    Owned<meters::Meter> meter)
-{
-
-  return dispatch(process, &StatisticsProcess::meter, context, name, meter);
 }
 
 

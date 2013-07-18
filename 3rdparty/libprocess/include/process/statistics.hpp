@@ -17,12 +17,6 @@ namespace process {
 class Statistics;
 class StatisticsProcess;
 
-namespace meters {
-  class Meter;
-  class TimeRate;
-}
-
-
 // Libprocess statistics handle.
 // To be used from anywhere to manage statistics.
 //
@@ -67,16 +61,6 @@ public:
   process::Future<std::map<std::string, double> > get(
       const std::string& context);
 
-  // Adds a meter for the statistic with the provided context and name.
-  //   get(context, meter->name) will return the metered time series.
-  // Returns an error if:
-  //   -meter->name == name, or
-  //   -The meter already exists.
-  Future<Try<Nothing> > meter(
-      const std::string& context,
-      const std::string& name,
-      Owned<meters::Meter> meter);
-
   // Sets the current value of a statistic at the current clock time
   // or at a specified time.
   void set(
@@ -85,12 +69,11 @@ public:
       double value,
       const Time& time = Clock::now());
 
-  // Archives the provided statistic time series, and any meters associated
-  // with it. This means three things:
+  // Archives the provided statistic time series.
+  // This means two things:
   //   1. The statistic will no longer be part of the snapshot.
-  //   2. However, the time series will be retained until the window expiration.
-  //   3. All meters associated with this statistic will be removed, both
-  //      (1) and (2) will apply to the metered time series as well.
+  //   2. However, the time series will be retained until the window
+  //      expiration.
   void archive(const std::string& context, const std::string& name);
 
   // Increments the current value of a statistic. If no statistic was
@@ -105,56 +88,6 @@ private:
   StatisticsProcess* process;
 };
 
-
-namespace meters {
-
-// This is the interface for statistical meters.
-// Meters provide additional metering on top of the raw statistical
-// value. Ex: Track the maximum, average, rate, etc.
-class Meter
-{
-protected:
-  Meter(const std::string& _name) : name(_name) {}
-
-public:
-  virtual ~Meter() {}
-
-  // Updates the meter with another input value.
-  // Returns the new metered value, or none if no metered value can be produced.
-  virtual Option<double> update(const Time& time, double value) = 0;
-
-  const std::string name;
-};
-
-
-// Tracks the percent of time 'used' since the last update.
-// Input values to this meter must be in seconds.
-class TimeRate : public Meter
-{
-public:
-  TimeRate(const std::string& name)
-    : Meter(name), time(None()), value(0) {}
-
-  virtual ~TimeRate() {}
-
-  virtual Option<double> update(const Time& _time, double _value)
-  {
-    Option<double> rate;
-    if (time.isSome()) {
-      rate = (_value - value) / (_time - time.get()).secs();
-    }
-
-    time = _time;
-    value = _value;
-    return rate;
-  }
-
-private:
-  Option<Time> time;
-  double value;
-};
-
-} // namespace meters {
 } // namespace process {
 
 #endif // __PROCESS_STATISTICS_HPP__
