@@ -366,15 +366,17 @@ mesos_mesos_LDADD = libmesos.la
 
 # Need to distribute/install webui javascript.
 nobase_dist_webui_DATA +=						\
-  webui/master/static/controllers.js					\
-  webui/master/static/app.js						\
-  webui/master/static/dashboard.js					\
-  webui/master/static/jquery.pailer.js
+  webui/master/static/js/controllers.js				\
+  webui/master/static/js/app.js					\
+  webui/master/static/js/dashboard.js					\
+  webui/master/static/js/jquery.pailer.js
 
 # Need to distribute/install webui CSS.
 nobase_dist_webui_DATA +=						\
-  webui/master/static/graph.css						\
-  webui/master/static/mesos.css
+  webui/master/static/css/bootstrap-responsive-2.3.2.min.css		\
+  webui/master/static/css/bootstrap-2.3.2.min.css			\
+  webui/master/static/css/graph.css					\
+  webui/master/static/css/mesos.css
 
 # Need to distribute/install webui HTML.
 nobase_dist_webui_DATA +=						\
@@ -391,62 +393,30 @@ nobase_dist_webui_DATA +=						\
   webui/master/static/slaves.html
 
 # Need to distribute/install webui images.
-nobase_dist_webui_DATA += webui/master/static/loading.gif
+nobase_dist_webui_DATA +=						\
+  webui/master/static/img/loading.gif					\
+  webui/master/static/img/glyphicons-halflings-white.png		\
+  webui/master/static/img/glyphicons-halflings.png			\
+  webui/master/static/ico/favicon.ico
 
 # Need to distribute/install third-party javascript.
 nobase_dist_webui_DATA +=						\
-  webui/master/static/angular-1.0.7.js					\
-  webui/master/static/angular-1.0.7.min.js				\
-  webui/master/static/ui-bootstrap-tpls-0.4.0.js			\
-  webui/master/static/ui-bootstrap-tpls-0.4.0.min.js			\
-  webui/master/static/underscore-1.4.3.js				\
-  webui/master/static/underscore-1.4.3.min.js				\
-  webui/master/static/cubism.v1.js					\
-  webui/master/static/cubism.v1.min.js					\
-  webui/master/static/d3.v2.js						\
-  webui/master/static/d3.v2.min.js					\
-  webui/master/static/relative-date.js					\
-  webui/master/static/zeroclipboard-1.1.7.js				\
-  webui/master/static/zeroclipboard-1.1.7.min.js			\
+  webui/master/static/js/angular-1.0.7.js				\
+  webui/master/static/js/angular-1.0.7.min.js				\
+  webui/master/static/js/ui-bootstrap-tpls-0.4.0.js			\
+  webui/master/static/js/ui-bootstrap-tpls-0.4.0.min.js		\
+  webui/master/static/js/underscore-1.4.3.js				\
+  webui/master/static/js/underscore-1.4.3.min.js			\
+  webui/master/static/js/cubism.v1.js					\
+  webui/master/static/js/cubism.v1.min.js				\
+  webui/master/static/js/d3.v2.js					\
+  webui/master/static/js/d3.v2.min.js					\
+  webui/master/static/js/jquery-1.7.1.js				\
+  webui/master/static/js/jquery-1.7.1.min.js				\
+  webui/master/static/js/relative-date.js				\
+  webui/master/static/js/zeroclipboard-1.1.7.js			\
+  webui/master/static/js/zeroclipboard-1.1.7.min.js			\
   webui/master/static/obj/zeroclipboard-1.1.7.swf
-
-# Need to distribute/install bootstrap.
-nobase_dist_webui_DATA +=							  \
-  webui/master/static/bootstrap/css/bootstrap-responsive-2.3.2.min.css		  \
-  webui/master/static/bootstrap/css/bootstrap-2.3.2.min.css			  \
-  webui/master/static/bootstrap/css/docs.css					  \
-  webui/master/static/bootstrap/ico/favicon.ico					  \
-  webui/master/static/bootstrap/img/bird.png					  \
-  webui/master/static/bootstrap/img/bootstrap-mdo-sfmoma-01.jpg			  \
-  webui/master/static/bootstrap/img/bootstrap-mdo-sfmoma-02.jpg			  \
-  webui/master/static/bootstrap/img/bootstrap-mdo-sfmoma-03.jpg			  \
-  webui/master/static/bootstrap/img/browsers.png				  \
-  webui/master/static/bootstrap/img/github-16px.png				  \
-  webui/master/static/bootstrap/img/glyphicons/glyphicons_009_magic.png		  \
-  webui/master/static/bootstrap/img/glyphicons/glyphicons_042_group.png		  \
-  webui/master/static/bootstrap/img/glyphicons/glyphicons_079_podium.png	  \
-  webui/master/static/bootstrap/img/glyphicons/glyphicons_082_roundabout.png	  \
-  webui/master/static/bootstrap/img/glyphicons/glyphicons_155_show_thumbnails.png \
-  webui/master/static/bootstrap/img/glyphicons/glyphicons_163_iphone.png	  \
-  webui/master/static/bootstrap/img/glyphicons/glyphicons_214_resize_small.png	  \
-  webui/master/static/bootstrap/img/glyphicons/glyphicons_266_book_open.png	  \
-  webui/master/static/bootstrap/img/glyphicons-halflings-white.png		  \
-  webui/master/static/bootstrap/img/glyphicons-halflings.png			  \
-  webui/master/static/bootstrap/img/grid-18px-masked.png			  \
-  webui/master/static/bootstrap/img/icon-css3.png				  \
-  webui/master/static/bootstrap/img/icon-github.png				  \
-  webui/master/static/bootstrap/img/icon-html5.png				  \
-  webui/master/static/bootstrap/img/icon-twitter.png				  \
-  webui/master/static/bootstrap/img/less-logo-large.png				  \
-  webui/master/static/bootstrap/img/less-small.png				  \
-  webui/master/static/bootstrap/img/responsive-illustrations.png		  \
-  webui/master/static/bootstrap/js/application.js				  \
-  webui/master/static/bootstrap/js/google-code-prettify/prettify.css		  \
-  webui/master/static/bootstrap/js/google-code-prettify/prettify.js		  \
-  webui/master/static/bootstrap/js/jquery-1.7.1.js				  \
-  webui/master/static/bootstrap/js/jquery-1.7.1.min.js				  \
-  webui/master/static/bootstrap/js/README.md
-
 
 # And the deploy related stuff.
 nodist_sbin_SCRIPTS += deploy/mesos-daemon.sh			\
