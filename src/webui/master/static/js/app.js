@@ -3,15 +3,24 @@
 angular.module('mesos', ['ui.bootstrap']).
   config(['$dialogProvider', '$routeProvider', function($dialogProvider, $routeProvider) {
     $routeProvider
-      .when('/', {templateUrl: 'static/home.html', controller: HomeCtrl})
-      .when('/dashboard', {templateUrl: 'static/dashboard.html', controller: DashboardCtrl})
-      .when('/frameworks', {templateUrl: 'static/frameworks.html', controller: FrameworksCtrl})
-      .when('/frameworks/:id', {templateUrl: 'static/framework.html', controller: FrameworkCtrl})
-      .when('/slaves', {templateUrl: 'static/slaves.html', controller: SlavesCtrl})
-      .when('/slaves/:slave_id', {templateUrl: 'static/slave.html', controller: SlaveCtrl})
-      .when('/slaves/:slave_id/frameworks/:framework_id', {templateUrl: 'static/slave_framework.html', controller: SlaveFrameworkCtrl})
-      .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id', {templateUrl: 'static/slave_executor.html', controller: SlaveExecutorCtrl})
-      .when('/slaves/:slave_id/browse', {templateUrl: 'static/browse.html', controller: BrowseCtrl})
+      .when('/',
+            {templateUrl: 'static/home.html', controller: 'HomeCtrl'})
+      .when('/dashboard',
+            {templateUrl: 'static/dashboard.html', controller: 'DashboardCtrl'})
+      .when('/frameworks',
+            {templateUrl: 'static/frameworks.html', controller: 'FrameworksCtrl'})
+      .when('/frameworks/:id',
+            {templateUrl: 'static/framework.html', controller: 'FrameworkCtrl'})
+      .when('/slaves',
+            {templateUrl: 'static/slaves.html', controller: 'SlavesCtrl'})
+      .when('/slaves/:slave_id',
+            {templateUrl: 'static/slave.html', controller: 'SlaveCtrl'})
+      .when('/slaves/:slave_id/frameworks/:framework_id',
+            {templateUrl: 'static/slave_framework.html', controller: 'SlaveFrameworkCtrl'})
+      .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id',
+            {templateUrl: 'static/slave_executor.html', controller: 'SlaveExecutorCtrl'})
+      .when('/slaves/:slave_id/browse',
+            {templateUrl: 'static/browse.html', controller: 'BrowseCtrl'})
       .otherwise({redirectTo: '/'});
 
     $dialogProvider.options({dialogFade: true});
@@ -184,8 +193,3 @@ angular.module('mesos', ['ui.bootstrap']).
       }
     };
   }]);
-
-function setNavbarActiveTab(tab_name) {
-  $('#navbar li').removeClass('active');
-  $('#navbar li[data-tabname='+tab_name+']').addClass('active');
-}
