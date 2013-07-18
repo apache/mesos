@@ -35,10 +35,10 @@ angular.module('mesos', ['ui.bootstrap']).
       return state.substring(5);
     };
   })
-  .filter('mesosDate', function($filter) {
+  .filter('isoDate', function($filter) {
     return function(date) {
-      return $filter('date')(date, 'MM/dd/yyyy H:mm:ss');
-    }
+      return $filter('date')(date, 'yyyy-MM-dd H:mm:ss');
+    };
   })
   .filter('relativeDate', function() {
     return function(date) {
