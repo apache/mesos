@@ -41,7 +41,7 @@ function columnClass($scope) {
       }
     }
     return 'unselected';
-  }
+  };
 }
 
 
@@ -57,7 +57,7 @@ function selectColumn($scope) {
       $scope.tables[table].reverse = true;
     }
     $scope.tables[table].selected_column = column;
-  }
+  };
 }
 
 
@@ -72,7 +72,7 @@ function pailer(host, path, window_title) {
   // sure the title doesn't get overwritten.
   pailer.onload = function() {
     pailer.document.title = window_title + ' (' + host + ')';
-  }
+  };
 }
 
 
@@ -564,7 +564,7 @@ function SlaveFrameworkCtrl($scope, $routeParams, $http, $q) {
     var pid = $scope.slaves[$routeParams.slave_id].pid;
     var hostname = $scope.slaves[$routeParams.slave_id].hostname;
     var id = pid.substring(0, pid.indexOf('@'));
-    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1)
+    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
 
     var usageRequest = $http.jsonp(
         'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
@@ -635,7 +635,7 @@ function SlaveFrameworkCtrl($scope, $routeParams, $http, $q) {
       $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
       $('#alert').show();
     });
-  }
+  };
 
   if ($scope.state) {
     update();
@@ -673,7 +673,7 @@ function SlaveExecutorCtrl($scope, $routeParams, $http, $q) {
     var pid = $scope.slaves[$routeParams.slave_id].pid;
     var hostname = $scope.slaves[$routeParams.slave_id].hostname;
     var id = pid.substring(0, pid.indexOf('@'));
-    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1)
+    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
 
     var usageRequest = $http.jsonp(
         'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
@@ -727,7 +727,7 @@ function SlaveExecutorCtrl($scope, $routeParams, $http, $q) {
       $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
       $('#alert').show();
     });
-  }
+  };
 
   if ($scope.state) {
     update();

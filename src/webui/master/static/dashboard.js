@@ -96,7 +96,7 @@ var horizons = {
 
     return context;
   }
-}
+};
 
 
 function metric_cpus(context) {
