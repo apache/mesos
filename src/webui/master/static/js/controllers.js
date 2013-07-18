@@ -1,7 +1,6 @@
 (function() {
   'use strict';
 
-  var slaves = [];
   var mesosApp = angular.module('mesos');
 
   // Table Object.
