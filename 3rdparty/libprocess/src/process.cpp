@@ -3615,8 +3615,17 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
 
   std::ostringstream out;
 
-  // TODO(bmahler): Add the Host header for HTTP 1.1.
-  out << "GET /" << upid.id << "/" << path << "?" << query << " HTTP/1.1\r\n"
+  if (query.empty()) {
+    out << "GET /" << upid.id << "/" << path << " HTTP/1.1\r\n";
+  } else {
+    out << "GET /" << upid.id << "/" << path << "?" << query << " HTTP/1.1\r\n";
+  }
+
+  // Call inet_ntop since inet_ntoa is not thread-safe!
+  char ip[INET_ADDRSTRLEN];
+  PCHECK(inet_ntop(AF_INET, (in_addr *) &upid.ip, ip, INET_ADDRSTRLEN) != NULL);
+
+  out << "Host: " << ip << ":" << upid.port << "\r\n"
       << "Connection: close\r\n"
       << "\r\n";
 
