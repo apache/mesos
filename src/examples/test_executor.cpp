@@ -61,7 +61,7 @@ public:
 
     driver->sendStatusUpdate(status);
 
-    os::sleep(Seconds(1));
+    // This is where one would perform the requested task.
 
     cout << "Finishing task " << task.task_id().value() << endl;
 

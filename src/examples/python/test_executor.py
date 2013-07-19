@@ -35,7 +35,7 @@ class MyExecutor(mesos.Executor):
       update.data = 'data with a \0 byte'
       driver.sendStatusUpdate(update)
 
-      time.sleep(1)
+      # This is where one would perform the requested task.
 
       print "Sending status update..."
       update = mesos_pb2.TaskStatus()

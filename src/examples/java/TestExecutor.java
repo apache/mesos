@@ -49,11 +49,7 @@ public class TestExecutor implements Executor {
 
         System.out.println("Running task " + task.getTaskId());
 
-        if (task.hasData()) {
-          Thread.sleep(Integer.parseInt(task.getData().toStringUtf8()));
-        } else {
-          Thread.sleep(1000);
-        }
+        // This is where one would perform the requested task.
 
         status = TaskStatus.newBuilder()
           .setTaskId(task.getTaskId())

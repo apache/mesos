@@ -96,7 +96,7 @@ public:
         task.set_name("Task " + lexical_cast<string>(taskId));
         task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
-        task.mutable_command()->set_value("sleep 1");
+        task.mutable_command()->set_value("echo hello");
 
         Resource* resource;
 
