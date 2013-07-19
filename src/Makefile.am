@@ -156,9 +156,9 @@ $(PYTHON_PROTOS): $(MESOS_PROTO)
 # libraries themselves.
 noinst_LTLIBRARIES += libmesos_no_3rdparty.la
 
-nodist_libmesos_no_3rdparty_la_SOURCES = 	\
-  $(CXX_PROTOS) 				\
-  $(MESSAGES_PROTOS) 				\
+nodist_libmesos_no_3rdparty_la_SOURCES =				\
+  $(CXX_PROTOS)								\
+  $(MESSAGES_PROTOS)							\
   $(REGISTRY_PROTOS)
 
 libmesos_no_3rdparty_la_SOURCES =					\
@@ -257,8 +257,8 @@ libbuild_la_CPPFLAGS += -DBUILD_TIME="\"$$(date '+%s')\""
 libbuild_la_CPPFLAGS += -DBUILD_USER="\"$$USER\""
 
 # We need to escape the build flags properly.
-BUILD_FLAGS = $(echo $(MESOS_CPPFLAGS) $(CPPFLAGS) | sed 's/\"/\\\"/g') \
-              $(echo $(AM_CFLAGS) $(CFLAGS) | sed 's/\"/\\\"/g') \
+BUILD_FLAGS = $(echo $(MESOS_CPPFLAGS) $(CPPFLAGS) | sed 's/\"/\\\"/g')	\
+              $(echo $(AM_CFLAGS) $(CFLAGS) | sed 's/\"/\\\"/g')	\
               $(echo $(AM_CXXFLAGS) $(CXXFLAGS) | sed 's/\"/\\\"/g')
 
 # TODO(benh): Provide other build flags.
@@ -284,13 +284,13 @@ libmesos_no_3rdparty_la_LIBADD += liblog.la
 # include the leveldb headers.
 noinst_LTLIBRARIES += libstate.la
 libstate_la_SOURCES = state/leveldb.cpp state/zookeeper.cpp
-libstate_la_SOURCES += 			\
-  state/leveldb.hpp			\
-  state/protobuf.hpp			\
-  state/state.hpp 			\
-  state/storage.hpp 			\
-  state/zookeeper.hpp 			\
-  messages/state.hpp			\
+libstate_la_SOURCES +=							\
+  state/leveldb.hpp							\
+  state/protobuf.hpp							\
+  state/state.hpp							\
+  state/storage.hpp							\
+  state/zookeeper.hpp							\
+  messages/state.hpp							\
   messages/state.proto
 nodist_libstate_la_SOURCES = $(STATE_PROTOS)
 libstate_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
@@ -367,8 +367,8 @@ mesos_mesos_LDADD = libmesos.la
 
 # Need to distribute/install webui javascript.
 nobase_dist_webui_DATA +=						\
-  webui/master/static/js/controllers.js				\
-  webui/master/static/js/app.js					\
+  webui/master/static/js/controllers.js					\
+  webui/master/static/js/app.js						\
   webui/master/static/js/dashboard.js					\
   webui/master/static/js/jquery.pailer.js
 
@@ -405,7 +405,7 @@ nobase_dist_webui_DATA +=						\
   webui/master/static/js/angular-1.0.7.js				\
   webui/master/static/js/angular-1.0.7.min.js				\
   webui/master/static/js/ui-bootstrap-tpls-0.4.0.js			\
-  webui/master/static/js/ui-bootstrap-tpls-0.4.0.min.js		\
+  webui/master/static/js/ui-bootstrap-tpls-0.4.0.min.js			\
   webui/master/static/js/underscore-1.4.3.js				\
   webui/master/static/js/underscore-1.4.3.min.js			\
   webui/master/static/js/cubism.v1.js					\
@@ -415,24 +415,24 @@ nobase_dist_webui_DATA +=						\
   webui/master/static/js/jquery-1.7.1.js				\
   webui/master/static/js/jquery-1.7.1.min.js				\
   webui/master/static/js/relative-date.js				\
-  webui/master/static/js/zeroclipboard-1.1.7.js			\
+  webui/master/static/js/zeroclipboard-1.1.7.js				\
   webui/master/static/js/zeroclipboard-1.1.7.min.js			\
   webui/master/static/obj/zeroclipboard-1.1.7.swf
 
 # And the deploy related stuff.
-nodist_sbin_SCRIPTS += deploy/mesos-daemon.sh			\
-  deploy/mesos-start-cluster.sh deploy/mesos-start-masters.sh	\
-  deploy/mesos-start-slaves.sh deploy/mesos-stop-cluster.sh	\
+nodist_sbin_SCRIPTS += deploy/mesos-daemon.sh				\
+  deploy/mesos-start-cluster.sh deploy/mesos-start-masters.sh		\
+  deploy/mesos-start-slaves.sh deploy/mesos-stop-cluster.sh		\
   deploy/mesos-stop-masters.sh deploy/mesos-stop-slaves.sh
 
-nobase_pkglocalstate_DATA += deploy/mesos-deploy-env.sh.template \
-                             deploy/mesos-master-env.sh.template \
+nobase_pkglocalstate_DATA += deploy/mesos-deploy-env.sh.template	\
+                             deploy/mesos-master-env.sh.template	\
                              deploy/mesos-slave-env.sh.template
 
 # Need to explicitly add this because by default DATA files are not
 # included in distributions.
-EXTRA_DIST += deploy/mesos-deploy-env.sh.template \
-              deploy/mesos-master-env.sh.template \
+EXTRA_DIST += deploy/mesos-deploy-env.sh.template			\
+              deploy/mesos-master-env.sh.template			\
               deploy/mesos-slave-env.sh.template
 
 # Java related files are listed outside if HAS_JAVA so we can add them
@@ -475,12 +475,12 @@ PROTOBUF_JAR = ../protobuf-$(PROTOBUF_VERSION).jar
 $(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
 	@echo "Building protobuf-$(PROTOBUF_VERSION).jar ..."
 	$(MKDIR_P) ../$(PROTOBUF)/java/src/main/java
-	$(PROTOC) --java_out=../$(PROTOBUF)/java/src/main/java \
-          -I../$(PROTOBUF)/src \
+	$(PROTOC) --java_out=../$(PROTOBUF)/java/src/main/java		\
+          -I../$(PROTOBUF)/src						\
           ../$(PROTOBUF)/src/google/protobuf/descriptor.proto
-	$(JAVA_HOME)/bin/javac \
-          -d ../$(PROTOBUF)/java/src/main/java \
-          ../$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java \
+	$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6			\
+          -d ../$(PROTOBUF)/java/src/main/java				\
+          ../$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java	\
           ../$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java
 	$(JAVA_HOME)/bin/jar cf $@ -C ../$(PROTOBUF)/java/src/main/java com
 
@@ -491,8 +491,8 @@ $(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) $(PROTOBUF_JAR)
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
 	-rm -rf java/classes/org/apache/mesos
 	$(MKDIR_P) java/classes/org/apache/mesos
-	$(JAVA_HOME)/bin/javac \
-          -cp $(PROTOBUF_JAR) \
+	$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6			\
+          -cp $(PROTOBUF_JAR)						\
           -d java/classes $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED)
 	$(JAVA_HOME)/bin/jar cf $@ -C java/classes org
 
@@ -556,11 +556,11 @@ libmesos_la_LIBADD += $(JAVA_LDFLAGS)
 # that should not matter as libjava.la is just a convenience library
 # and should not get exposed.
 
-nodist_libjava_la_SOURCES =					\
-	java/jni/org_apache_mesos_MesosSchedulerDriver.h	\
-	java/jni/org_apache_mesos_MesosExecutorDriver.h		\
-	java/jni/org_apache_mesos_Log.h				\
-	java/jni/org_apache_mesos_state_Variable.h		\
+nodist_libjava_la_SOURCES =						\
+	java/jni/org_apache_mesos_MesosSchedulerDriver.h		\
+	java/jni/org_apache_mesos_MesosExecutorDriver.h			\
+	java/jni/org_apache_mesos_Log.h					\
+	java/jni/org_apache_mesos_state_Variable.h			\
 	java/jni/org_apache_mesos_state_ZooKeeperState.h
 
 BUILT_SOURCES += java/jni/org_apache_mesos_MesosSchedulerDriver.h	\
@@ -571,32 +571,32 @@ BUILT_SOURCES += java/jni/org_apache_mesos_MesosSchedulerDriver.h	\
 
 
 java/jni/org_apache_mesos_MesosSchedulerDriver.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath	\
-          $(PROTOBUF_JAR):java/classes			\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
+          $(PROTOBUF_JAR):java/classes					\
           org.apache.mesos.MesosSchedulerDriver
 
 java/jni/org_apache_mesos_MesosExecutorDriver.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath	\
-          $(PROTOBUF_JAR):java/classes			\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
+          $(PROTOBUF_JAR):java/classes					\
           org.apache.mesos.MesosExecutorDriver
 
 java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.Log
 
 java/jni/org_apache_mesos_state_Variable.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.state.Variable
 
 java/jni/org_apache_mesos_state_ZooKeeperState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.state.ZooKeeperState
 
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
 	$(MKDIR_P) examples/java
-	$(JAVA_HOME)/bin/javac -cp					\
-          $(PROTOBUF_JAR):$(MESOS_JAR):$(srcdir)/examples/java		\
+	$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6			\
+          -cp $(PROTOBUF_JAR):$(MESOS_JAR):$(srcdir)/examples/java	\
           -sourcepath $(srcdir)/examples/java -d examples/java	        \
           $(srcdir)/examples/java/*.java
 	$(JAVA_HOME)/bin/jar cf $@ -C examples/java .
@@ -604,7 +604,7 @@ $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 CLEANFILES += $(EXAMPLES_JAR)
 
 maven-install: $(MESOS_JAR) $(MESOS_SOURCES_JAR) java/mesos.pom
-	mvn install:install-file -Dfile=$(MESOS_JAR)	\
+	mvn install:install-file -Dfile=$(MESOS_JAR)			\
           -Dsources=$(MESOS_SOURCES_JAR) -DpomFile=java/mesos.pom
 
 PHONY_TARGETS += maven-install
@@ -623,15 +623,15 @@ PHONY_TARGETS += clean-java
 
 # Python files listed outside HAS_PYTHON so they are included with the
 # distribution unconditionally.
-EXTRA_DIST += python/src/mesos.py				\
-	      python/native/mesos_executor_driver_impl.cpp	\
-	      python/native/mesos_executor_driver_impl.hpp	\
-	      python/native/mesos_scheduler_driver_impl.cpp	\
-	      python/native/mesos_scheduler_driver_impl.hpp	\
-	      python/native/module.cpp python/native/module.hpp	\
-	      python/native/proxy_executor.cpp			\
-	      python/native/proxy_executor.hpp			\
-	      python/native/proxy_scheduler.cpp			\
+EXTRA_DIST += python/src/mesos.py					\
+	      python/native/mesos_executor_driver_impl.cpp		\
+	      python/native/mesos_executor_driver_impl.hpp		\
+	      python/native/mesos_scheduler_driver_impl.cpp		\
+	      python/native/mesos_scheduler_driver_impl.hpp		\
+	      python/native/module.cpp python/native/module.hpp		\
+	      python/native/proxy_executor.cpp				\
+	      python/native/proxy_executor.hpp				\
+	      python/native/proxy_scheduler.cpp				\
 	      python/native/proxy_scheduler.hpp
 
 if HAS_PYTHON
@@ -668,15 +668,15 @@ CLEANFILES += $(PROTOBUF_EGG)
 
 MESOS_EGG = python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
-$(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py	\
-              $(PYTHON_PROTOS) libmesos_no_3rdparty.la	\
+$(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py		\
+              $(PYTHON_PROTOS) libmesos_no_3rdparty.la			\
               $(PROTOBUF_EGG)
 	@echo "Building Mesos Python egg ..."
-	@if test "$(top_srcdir)" != "$(top_builddir)"; then \
-	  $(MKDIR_P) python/src; \
-	  cp -pf $(srcdir)/python/src/mesos.py python/src; \
+	@if test "$(top_srcdir)" != "$(top_builddir)"; then		\
+	  $(MKDIR_P) python/src;					\
+	  cp -pf $(srcdir)/python/src/mesos.py python/src;		\
 	fi
-	@LIBS="$(LIBS)" PYTHONPATH=$(DISTRIBUTE_EGG) \
+	@LIBS="$(LIBS)" PYTHONPATH=$(DISTRIBUTE_EGG)			\
 	  $(PYTHON) python/setup.py bdist_egg
 
 CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*
@@ -693,8 +693,8 @@ endif # HAS_PYTHON
 # We remove mesos-*.egg here to make sure any older versions of the
 # egg or versions for different architectures are removed.
 clean-python:
-	test "$(top_srcdir)" = "$(top_builddir)" || \
-	  (chmod -R u+w python/native; \
+	test "$(top_srcdir)" = "$(top_builddir)" ||			\
+	  (chmod -R u+w python/native;					\
 	   rm -rf python/src/mesos.py python/native)
 	-rm -rf python/src/mesos.egg-info python/build
 	-rm -f python/dist/mesos-*.egg
@@ -784,10 +784,10 @@ if OS_LINUX
 endif
 
 if HAS_JAVA
-  mesos_tests_SOURCES += tests/zookeeper.cpp			\
-                         tests/zookeeper_test_server.cpp	\
-                         tests/zookeeper_tests.cpp		\
-                         tests/group_tests.cpp			\
+  mesos_tests_SOURCES += tests/zookeeper.cpp				\
+                         tests/zookeeper_test_server.cpp		\
+                         tests/zookeeper_tests.cpp			\
+                         tests/group_tests.cpp				\
                          tests/allocator_zookeeper_tests.cpp
   mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)
   mesos_tests_CPPFLAGS += -DZOOKEEPER_VERSION=\"$(ZOOKEEPER_VERSION)\"
@@ -806,25 +806,25 @@ endif
 if HAS_PYTHON
   mesos_tests_DEPENDENCIES += $(MESOS_EGG)
 
-  EXAMPLESCRIPTSPYTHON = examples/python/test_framework.py	\
-			 examples/python/test-framework		\
-			 examples/python/test_executor.py	\
+  EXAMPLESCRIPTSPYTHON = examples/python/test_framework.py		\
+			 examples/python/test-framework			\
+			 examples/python/test_executor.py		\
 			 examples/python/test-executor
 
   check_SCRIPTS += $(EXAMPLESCRIPTSPYTHON)
   mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSPYTHON)
 endif
 
-EXTRA_DIST += examples/python/test_framework.py \
+EXTRA_DIST += examples/python/test_framework.py				\
 	      examples/python/test_executor.py
 
 
-dist_check_SCRIPTS +=				\
-  tests/balloon_framework_test.sh		\
-  tests/test_framework_test.sh			\
-  tests/no_executor_framework_test.sh		\
-  tests/java_exception_test.sh			\
-  tests/java_framework_test.sh			\
+dist_check_SCRIPTS +=							\
+  tests/balloon_framework_test.sh					\
+  tests/test_framework_test.sh						\
+  tests/no_executor_framework_test.sh					\
+  tests/java_exception_test.sh						\
+  tests/java_framework_test.sh						\
   tests/python_framework_test.sh
 
 # We use a check-local target for now to avoid the parallel test
