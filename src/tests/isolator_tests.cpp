@@ -195,9 +195,7 @@ TYPED_TEST(IsolatorTest, Usage)
 
   AWAIT_READY(status);
 
-  // TODO(bmahler): The command executor is buggy in that it does not
-  // send TASK_KILLED for a non-zero exit code due to a kill.
-  EXPECT_EQ(TASK_FAILED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status.get().state());
 
   driver.stop();
   driver.join();

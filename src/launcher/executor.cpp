@@ -253,8 +253,11 @@ private:
 
       if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         state = TASK_FINISHED;
+      } else if (killed) {
+        // Send TASK_KILLED if the task was killed as a result of
+        // killTask() or shutdown().
+        state = TASK_KILLED;
       } else {
-        // TODO(vinod): Send TASK_KILLED if 'killed' is true.
         state = TASK_FAILED;
       }
 

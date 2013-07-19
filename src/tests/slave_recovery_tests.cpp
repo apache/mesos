@@ -1068,9 +1068,9 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   // Kill the task.
   driver.killTask(task.task_id());
 
-  // Wait for TASK_FAILED update.
+  // Wait for TASK_KILLED update.
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_FAILED, status.get().state());
+  ASSERT_EQ(TASK_KILLED, status.get().state());
 
   // Advance the clock until the allocator allocates
   // the recovered resources.
