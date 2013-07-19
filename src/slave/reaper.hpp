@@ -38,9 +38,7 @@ namespace slave {
 class ReaperProcess;
 
 
-// TODO(vinod): Refactor the Reaper into 2 components:
-// 1) Reaps the status of child processes.
-// 2) Checks the exit status of requested processes.
+// TODO(vinod): Pull reaper into common or libprocess.
 class Reaper
 {
 public:
