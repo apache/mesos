@@ -522,7 +522,7 @@ $(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
 	@$(PROTOC) --java_out=../$(PROTOBUF)/java/src/main/java \
           -I../$(PROTOBUF)/src \
           ../$(PROTOBUF)/src/google/protobuf/descriptor.proto
-	@$(JAVA_HOME)/bin/javac \
+	@$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6 \
           -d ../$(PROTOBUF)/java/src/main/java \
           ../$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java \
           ../$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java
@@ -535,7 +535,7 @@ $(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) $(PROTOBUF_JAR)
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
 	@rm -rf java/classes/org/apache/mesos
 	@$(MKDIR_P) java/classes/org/apache/mesos
-	@$(JAVA_HOME)/bin/javac \
+	@$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6 \
           -cp $(PROTOBUF_JAR) \
           -d java/classes $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED)
 	@$(JAVA_HOME)/bin/jar cf $@ -C java/classes org
@@ -629,7 +629,7 @@ java/jni/org_apache_mesos_state_ZooKeeperState.h: $(MESOS_JAR)
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
 	@$(MKDIR_P) examples/java
-	@$(JAVA_HOME)/bin/javac -cp					\
+	@$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6 -cp		\
           $(PROTOBUF_JAR):$(MESOS_JAR):$(srcdir)/examples/java		\
           -sourcepath $(srcdir)/examples/java -d examples/java	        \
           $(srcdir)/examples/java/*.java
