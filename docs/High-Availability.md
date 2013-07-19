@@ -1,13 +1,27 @@
-Master Detection
+High Availability
 =========
+Mesos can run in high-availability mode, in which multiple Mesos masters run simultaneously. In this mode there is only one active master, and the others masters act as stand-by replacements. These non-active masters will take over if the active master fails.
+
+Mesos uses Apache ZooKeeper in to co-ordinate the leader election of masters.
+
+Running mesos in this mode requires ZooKeeper. Mesos is automatically built with an included ZooKeeper client library.
+
 Leader election and detection in Mesos is done via ZooKeeper. See: http://zookeeper.apache.org/doc/trunk/recipes.html#sc_leaderElection for more information how ZooKeeper leader election works.
 
 Use
----
+---------
+First, a ZooKeeper cluster must be running, and a znode should be created for exclusive use by Mesos:
+
+  - Ensure the ZooKeeper cluster is up and running.
+  - Create a znode for exclusive use by mesos. The znode path will need to be provided to all slaves / scheduler drivers.
+
 In order to spin up a Mesos cluster using multiple masters for fault-tolerance:
 
   - Start the mesos-master binaries using the `--zk` flag, e.g. `--zk=zk://host1:port1/path,host2:port2/path,...`
   - Start the mesos-slave binaries with `--master=zk://host1:port1/path,host2:port2/path,...`
+  - Start any framework schedulers using the same zk path, the SchedulerDriver must be constructed with this path.
+
+Refer to the Scheduler API for how to deal with leadership changes.
 
 Semantics
 ---------
