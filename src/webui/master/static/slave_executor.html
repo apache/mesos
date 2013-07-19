@@ -54,27 +54,38 @@
         <dd>{{executor.tasks.length | number}}</dd>
       </dl>
 
-      <h3>Resources</h3>
+      <h4>Resources</h4>
       <table class="table table-condensed">
-        <tbody>
-          <th>
-            <td>Used</td>
-            <td>Allocated</td>
-          </th>
+        <thead>
           <tr>
-            <th>CPUs</th>
-            <td>{{monitor[framework.id][executor.id].resource_usage.cpu_usage | number}}</td>
-            <td>{{executor.resources.cpus | number}}</td>
-          </tr>
-          <tr>
-            <th>Mem</th>
-            <td>{{monitor[framework.id][executor.id].resource_usage.memory_rss | dataSize}}</td>
-            <td>{{executor.resources.mem * (1024 * 1024) | dataSize}}</td>
-          </tr>
-          <tr>
-            <th>Disk</th>
             <td></td>
-            <td>{{executor.resources.disk * (1024 * 1024) | dataSize}}</td>
+            <td class="text-right">Used</td>
+            <td class="text-right">Allocated</td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CPUs</td>
+            <td class="text-right">
+              {{monitor[framework.id][executor.id].resource_usage.cpu_usage | number}}
+            </td>
+            <td class="text-right">{{executor.resources.cpus | number}}</td>
+          </tr>
+          <tr>
+            <td>Mem</td>
+            <td class="text-right">
+              {{monitor[framework.id][executor.id].resource_usage.memory_rss | dataSize}}
+            </td>
+            <td class="text-right">
+              {{executor.resources.mem * (1024 * 1024) | dataSize}}
+            </td>
+          </tr>
+          <tr>
+            <td>Disk</td>
+            <td class="text-right">-</td>
+            <td class="text-right">
+              {{(executor.resources.disk || 0) * (1024 * 1024) | dataSize}}
+            </td>
           </tr>
         </tbody>
       </table>

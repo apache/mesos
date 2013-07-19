@@ -62,50 +62,54 @@
       </dl>
       <p><a href="" ng-click="log($event)">LOG</a></p>
 
-      <h3>Tasks</h3>
+      <h4>Tasks</h4>
       <table class="table table-condensed">
         <tbody>
           <tr>
-            <th>Staged</th>
-            <td>{{state.staged_tasks | number}}</td>
+            <td>Staged</td>
+            <td class="text-right">{{state.staged_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Started</th>
-            <td>{{state.started_tasks | number}}</td>
+            <td>Started</td>
+            <td class="text-right">{{state.started_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Finished</th>
-            <td>{{state.finished_tasks | number}}</td>
+            <td>Finished</td>
+            <td class="text-right">{{state.finished_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Killed</th>
-            <td>{{state.killed_tasks | number}}</td>
+            <td>Killed</td>
+            <td class="text-right">{{state.killed_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Failed</th>
-            <td>{{state.failed_tasks | number}}</td>
+            <td>Failed</td>
+            <td class="text-right">{{state.failed_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Lost</th>
-            <td>{{state.lost_tasks | number}}</td>
+            <td>Lost</td>
+            <td class="text-right">{{state.lost_tasks | number}}</td>
           </tr>
         </tbody>
       </table>
 
-      <h3>Resources</h3>
+      <h4>Resources</h4>
       <table class="table table-condensed">
         <tbody>
           <tr>
-            <th>CPUs</th>
-            <td>{{state.resources.cpus | number}}</td>
+            <td>CPUs</td>
+            <td class="text-right">{{state.resources.cpus | number}}</td>
           </tr>
           <tr>
-            <th>Memory</th>
-            <td>{{state.resources.mem * (1024 * 1024) | dataSize}}</td>
+            <td>Memory</td>
+            <td class="text-right">
+              {{state.resources.mem * (1024 * 1024) | dataSize}}
+            </td>
           </tr>
           <tr>
-            <th>Disk</th>
-            <td>{{state.resources.disk * (1024 * 1024) | dataSize}}</td>
+            <td>Disk</td>
+            <td class="text-right">
+              {{state.resources.disk * (1024 * 1024) | dataSize}}
+            </td>
           </tr>
         </tbody>
       </table>

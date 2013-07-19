@@ -80,3 +80,16 @@ th.unselected:after {
 a.badge-type:hover {
   text-decoration: underline;
 }
+
+.table .text-right {
+  text-align: right;
+}
+
+.well .inline:first-child {
+  margin-top: 0;
+}
+
+.well .inline:last-child,
+.well .table:last-child {
+  margin-bottom: 0;
+}

@@ -50,80 +50,80 @@
 
       <p><a href="" ng-click="log($event)">LOG</a></p>
 
-      <h3>Slaves</h3>
+      <h4>Slaves</h4>
       <table class="table table-condensed">
         <tbody>
           <tr>
-            <th>Activated</th>
-            <td>{{activated_slaves | number}}</td>
+            <td>Activated</td>
+            <td class="text-right">{{activated_slaves | number}}</td>
           </tr>
           <tr>
-            <th>Deactivated</th>
-            <td>{{deactivated_slaves | number}}</td>
+            <td>Deactivated</td>
+            <td class="text-right">{{deactivated_slaves | number}}</td>
           </tr>
         </tbody>
       </table>
 
-      <h3>Tasks</h3>
+      <h4>Tasks</h4>
       <table class="table table-condensed">
 
         <tbody>
           <tr>
-            <th>Staged</th>
-            <td>{{staged_tasks | number}}</td>
+            <td>Staged</td>
+            <td class="text-right">{{staged_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Started</th>
-            <td>{{started_tasks | number}}</td>
+            <td>Started</td>
+            <td class="text-right">{{started_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Finished</th>
-            <td>{{finished_tasks | number}}</td>
+            <td>Finished</td>
+            <td class="text-right">{{finished_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Killed</th>
-            <td>{{killed_tasks | number}}</td>
+            <td>Killed</td>
+            <td class="text-right">{{killed_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Failed</th>
-            <td>{{failed_tasks | number}}</td>
+            <td>Failed</td>
+            <td class="text-right">{{failed_tasks | number}}</td>
           </tr>
           <tr>
-            <th>Lost</th>
-            <td>{{lost_tasks | number}}</td>
+            <td>Lost</td>
+            <td class="text-right">{{lost_tasks | number}}</td>
           </tr>
         </tbody>
       </table>
 
-      <h3>Resources</h3>
+      <h4>Resources</h4>
       <table class="table table-condensed">
         <thead>
           <tr>
-            <th></th>
-            <th>CPUs</th>
-            <th>Mem</th>
+            <td></td>
+            <td class="text-right">CPUs</td>
+            <td class="text-right">Mem</td>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <th>Total</th>
-            <td>{{total_cpus | number}}</td>
-            <td>{{total_mem * (1024 * 1024) | dataSize}}</td>
+            <td>Total</td>
+            <td class="text-right">{{total_cpus | number}}</td>
+            <td class="text-right">{{total_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
-            <th>Used</th>
-            <td>{{used_cpus | number}}</td>
-            <td>{{used_mem * (1024 * 1024) | dataSize}}</td>
+            <td>Used</td>
+            <td class="text-right">{{used_cpus | number}}</td>
+            <td class="text-right">{{used_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
-            <th>Offered</th>
-            <td>{{offered_cpus | number}}</td>
-            <td>{{offered_mem * (1024 * 1024) | dataSize}}</td>
+            <td>Offered</td>
+            <td class="text-right">{{offered_cpus | number}}</td>
+            <td class="text-right">{{offered_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
-            <th>Idle</th>
-            <td>{{idle_cpus | number}}</td>
-            <td>{{idle_mem * (1024 * 1024) | dataSize}}</td>
+            <td>Idle</td>
+            <td class="text-right">{{idle_cpus | number}}</td>
+            <td class="text-right">{{idle_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
         </tbody>
       </table>

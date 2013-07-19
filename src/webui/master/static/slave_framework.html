@@ -32,27 +32,38 @@
         <dd>{{framework.num_tasks | number}}</dd>
       </dl>
 
-      <h3>Resources</h3>
+      <h4>Resources</h4>
       <table class="table table-condensed">
-        <tbody>
-          <th>
-            <td>Used</td>
-            <td>Allocated</td>
-          </th>
+        <thead>
           <tr>
-            <th>CPUs</th>
-            <td>{{framework.resource_usage.cpu_usage | number}}</td>
-            <td>{{framework.cpus | number}}</td>
-          </tr>
-          <tr>
-            <th>Memory</th>
-            <td>{{framework.resource_usage.memory_rss | dataSize}}</td>
-            <td>{{framework.mem * (1024 * 1024) | dataSize}}</td>
-          </tr>
-          <tr>
-            <th>Disk</th>
             <td></td>
-            <td>{{framework.disk * (1024 * 1024) | dataSize}}</td>
+            <td class="text-right">Used</td>
+            <td class="text-right">Allocated</td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CPUs</td>
+            <td class="text-right">
+              {{framework.resource_usage.cpu_usage | number}}
+            </td>
+            <td class="text-right">{{framework.cpus | number}}</td>
+          </tr>
+          <tr>
+            <td>Memory</td>
+            <td class="text-right">
+              {{framework.resource_usage.memory_rss | dataSize}}
+            </td>
+            <td class="text-right">
+              {{framework.mem * (1024 * 1024) | dataSize}}
+            </td>
+          </tr>
+          <tr>
+            <td>Disk</td>
+            <td class="text-right">-</td>
+            <td class="text-right">
+              {{(framework.disk || 0) * (1024 * 1024) | dataSize}}
+            </td>
           </tr>
         </tbody>
       </table>
