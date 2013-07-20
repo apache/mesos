@@ -299,16 +299,27 @@ void CgroupsIsolator::initialize(
       << "Failed to create the '" << flags.cgroups_root << "' cgroup";
   }
 
-  // Make sure this kernel supports creating nested cgroups.
-  Try<Nothing> create =
-    cgroups::create(hierarchy, path::join(flags.cgroups_root, "test"));
+  // Create the nested test cgroup if it doesn't exist.
+  exists = cgroups::exists(
+      hierarchy, path::join(flags.cgroups_root, "test"));
+  CHECK_SOME(exists)
+    << "Failed to determine if '"<< flags.cgroups_root << "/test'"
+    << " nested cgroup already exists in the hierarchy at '"
+    << hierarchy << "'";
 
-  if (create.isError()) {
-    EXIT(1) << "Failed to create a nested 'test' cgroup. Your kernel "
-            << "might be too old to use the cgroups isolator: "
-            << create.error();
+  if (!exists.get()) {
+    // Make sure this kernel supports creating nested cgroups.
+    Try<Nothing> create =
+      cgroups::create(hierarchy, path::join(flags.cgroups_root, "test"));
+
+    if (create.isError()) {
+      EXIT(1) << "Failed to create a nested 'test' cgroup. Your kernel "
+        << "might be too old to use the cgroups isolator: "
+        << create.error();
+    }
   }
 
+  // Remove the nested 'test' cgroup.
   Try<Nothing> remove =
     cgroups::remove(hierarchy, path::join(flags.cgroups_root, "test"));
 
