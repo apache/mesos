@@ -260,9 +260,7 @@
   // active controller/view to easily access anything in scope (e.g.,
   // the state).
   mesosApp.controller('MainCntl', function($scope, $http, $route, $routeParams, $location, $timeout) {
-    // Turn off the loading gif, turn on the navbar.
-    $("#loading").hide();
-    $("#navbar").show();
+    $scope.doneLoading = true;
 
     // Adding bindings into scope so that they can be used from within
     // AngularJS expressions.
