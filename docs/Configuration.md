@@ -4,9 +4,9 @@ If you have special compilation requirements, please refer to `./configure --hel
 The Mesos master and slave can take a variety of configuration options through command-line arguments, or environment variables. A list of the available options can be seen by running `mesos-master --help` or `mesos-slave --help`. Each option can be set in three ways:
 
   - By passing it to the binary using `--option_name=value`.
-  - By setting the environment variable `MESOS_OPTION_NAME` (the option name in all caps with a `MESOS_` prefix added to it).
+  - By setting the environment variable `MESOS_OPTION_NAME` (the option name with a `MESOS_` prefix added to it).
 
-Configuration values are searched for first on the command line, then in the environment.
+Configuration values are searched for first in the environment, then on the command-line.
 
 ## Important Options ##
 
