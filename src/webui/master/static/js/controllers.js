@@ -575,11 +575,14 @@
 
         $scope.slave = {};
 
+        function matchFramework(framework) {
+          return $scope.framework_id === framework.id;
+        }
+
         // Find the framework; it's either active or completed.
-        $scope.framework = _.find($scope.state.frameworks.concat($scope.state.completed_frameworks),
-            function(framework) {
-              return $scope.framework_id === framework.id;
-            });
+        $scope.framework =
+            _.find($scope.state.frameworks, matchFramework) ||
+            _.find($scope.state.completed_frameworks, matchFramework);
 
         if (!$scope.framework) {
           $scope.alert_message = 'No framework found with ID: ' + $routeParams.framework_id;
