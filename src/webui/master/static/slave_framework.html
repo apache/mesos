@@ -108,7 +108,7 @@
       </thead>
 
       <tbody>
-        <tr ng-repeat="executor in _.values(framework.executors) | orderBy:tables['executors'].selected_column:tables['executors'].reverse">
+        <tr ng-repeat="executor in framework.executors | orderBy:tables['executors'].selected_column:tables['executors'].reverse">
           <td>
             <a href="{{'#/slaves/' + slave_id + '/frameworks/' + framework.id + '/executors/' + executor.id}}">
               {{executor.id}}
@@ -156,7 +156,7 @@
       </thead>
 
       <tbody>
-        <tr ng-repeat="completed_executor in _.values(framework.completed_executors) | orderBy:tables['completed_executors'].selected_column:tables['completed_executors'].reverse">
+        <tr ng-repeat="completed_executor in framework.completed_executors | orderBy:tables['completed_executors'].selected_column:tables['completed_executors'].reverse">
           <td>
             <a href="{{'#/slaves/' + slave_id + '/frameworks/' + framework.id + '/executors/' + completed_executor.id}}">
               {{completed_executor.id}}

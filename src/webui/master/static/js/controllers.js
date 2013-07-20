@@ -587,12 +587,6 @@
           return;
         }
 
-        // Construct maps of the executors.
-        $scope.framework.executors = _.object(
-            _.pluck($scope.framework.executors, 'id'), $scope.framework.executors);
-        $scope.framework.completed_executors = _.object(
-            _.pluck($scope.framework.completed_executors, 'id'), $scope.framework.completed_executors);
-
         // Compute the framework stats.
         $scope.framework.num_tasks = 0;
         $scope.framework.cpus = 0;
