@@ -188,7 +188,7 @@ Resource Resources::parse(const std::string& name, const std::string& text)
     } else {
       LOG(FATAL) << "Bad type for resource " << name
                  << " text " << text
-                 << " type " << value.type();
+                 << " type " << Value::Type_Name(value.type());
     }
   }
 
