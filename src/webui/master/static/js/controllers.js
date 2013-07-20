@@ -194,6 +194,10 @@
 
       _.each(framework.offers, function(offer) {
         $scope.offers[offer.id] = offer;
+        $scope.offered_cpus += offer.resources.cpus;
+        $scope.offered_mem += offer.resources.mem;
+        offer.framework_name = $scope.frameworks[offer.framework_id].name;
+        offer.hostname = $scope.slaves[offer.slave_id].hostname;
       });
 
       $scope.used_cpus += framework.resources.cpus;
@@ -231,13 +235,6 @@
 
     _.each($scope.state.completed_frameworks, function(framework) {
       $scope.completed_frameworks[framework.id] = framework;
-    });
-
-    _.each($scope.offers, function(offer) {
-      $scope.offered_cpus += offer.resources.cpus;
-      $scope.offered_mem += offer.resources.mem;
-      offer.framework_name = $scope.frameworks[offer.framework_id].name;
-      offer.hostname = $scope.slaves[offer.slave_id].hostname;
     });
 
     $scope.used_cpus -= $scope.offered_cpus;
