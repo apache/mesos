@@ -1,5 +1,7 @@
 package org.jenkinsci.plugins.mesos;
 
+import java.net.URL;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -66,12 +68,12 @@ public class JenkinsScheduler implements Scheduler {
     // TODO(vinod): Instead of loading the library here, it would
     // be great if the plugin can dynamically set the MESOS_NATIVE_LIBRARY
     // environment variable or java.library.path system property.
-    final String PLUGIN_DIR =
-        Jenkins.getInstance().getRootDir().getPath() + "/plugins/mesos";
+    final URL resourceURL =
+        Jenkins.getInstance().getPlugin("mesos").getWrapper().baseResourceURL;
 
-    String MESOS_NATIVE_LIBRARY = PLUGIN_DIR + "/libmesos.so";
+    String MESOS_NATIVE_LIBRARY = resourceURL.getPath() + "libmesos.so";
     if (System.getProperty("os.name").indexOf("Mac") >= 0) {
-      MESOS_NATIVE_LIBRARY = PLUGIN_DIR + "/libmesos.dylib";
+      MESOS_NATIVE_LIBRARY = resourceURL.getPath() + "libmesos.dylib";
     }
 
     MesosNativeLibrary.load(MESOS_NATIVE_LIBRARY);
