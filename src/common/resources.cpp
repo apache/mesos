@@ -205,6 +205,20 @@ Resources Resources::flatten(const string& role) const
 }
 
 
+Resources Resources::extract(const string& role) const
+{
+  Resources r;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.role() == role) {
+      r += resource;
+    }
+  }
+
+  return r;
+}
+
+
 Try<Resource> Resources::parse(
     const string& name,
     const string& text,

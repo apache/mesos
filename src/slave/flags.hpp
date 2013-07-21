@@ -41,7 +41,17 @@ public:
     // TODO(benh): Is there a way to specify units for the resources?
     add(&Flags::resources,
         "resources",
-        "Total consumable resources per slave");
+        "Total consumable resources per slave, in\n"
+        "the form 'name(role):value;name(role):value...'.");
+
+    add(&Flags::default_role,
+        "default_role",
+        "Any resources in the --resources flag that\n"
+        "omit a role, as well as any resources that\n"
+        "are not present in --resources but that are\n"
+        "automatically detected, will be assigned to\n"
+        "this role.",
+        "*");
 
     add(&Flags::attributes,
       "attributes",
@@ -170,6 +180,7 @@ public:
   }
 
   Option<std::string> resources;
+  std::string default_role;
   Option<std::string> attributes;
   std::string work_dir;
   std::string launcher_dir;

@@ -67,26 +67,6 @@ struct Slave
 
   std::string hostname() const { return info.hostname(); }
 
-  // Returns true iff this slave is whitelisted and has sufficient
-  // free resources to allocate.
-  bool allocatable() const
-  {
-    // TODO(benh): For now, only make offers when there is some cpu
-    // and memory left. This is an artifact of the original code that
-    // only offered when there was at least 1 cpu "unit" available,
-    // and without doing this a framework might get offered resources
-    // with only memory available (which it obviously will decline)
-    // and then end up waiting the default Filters::refuse_seconds
-    // (unless the framework set it to something different).
-
-    Value::Scalar none;
-    Value::Scalar cpus = available.get("cpus", none);
-    Value::Scalar mem = available.get("mem", none);
-
-    return (cpus.value() >= MIN_CPUS && mem.value() > MIN_MEM) &&
-      whitelisted;
-  }
-
   // Contains all of the resources currently free on this slave.
   Resources available;
 
@@ -206,6 +186,8 @@ protected:
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources);
+
+  bool allocatable(const Resources& resources);
 
   bool initialized;
 
@@ -449,9 +431,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveAdded(
             << ") with " << slaveInfo.resources() << " (and " << unused
             << " available)";
 
-  if (slaves[slaveId].allocatable()) {
-    allocate(slaveId);
-  }
+  allocate(slaveId);
 }
 
 
@@ -713,16 +693,19 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
       Resources allocatedResources;
       hashmap<SlaveID, Resources> offerable;
       foreach (const SlaveID& slaveId, slaveIds) {
-        if (!slaves[slaveId].allocatable()) {
-          continue;
-        }
+        Resources unreserved = slaves[slaveId].available.extract("*");
+        Resources resources = unreserved;
 
-        Resources resources = slaves[slaveId].available;
+        if (role != "*") {
+          resources += slaves[slaveId].available.extract(role);
+        }
 
         // Check whether or not this framework filters this slave.
         bool filtered = isFiltered(frameworkId, slaveId, resources);
 
-        if (!filtered) {
+        if (!filtered &&
+            slaves[slaveId].whitelisted &&
+            allocatable(resources)) {
           VLOG(1)
             << "Offering " << resources << " on slave " << slaveId
             << " to framework " << frameworkId;
@@ -731,7 +714,10 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
 
           // Update framework and slave resources.
           slaves[slaveId].available -= resources;
-          allocatedResources += resources;
+
+          // We only count resources not reserved for this role
+          // in the share the sorter considers.
+          allocatedResources += unreserved;
         }
       }
 
@@ -801,6 +787,30 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::isFiltered(
     }
   }
   return filtered;
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+bool
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
+    const Resources& resources)
+{
+  // TODO(benh): For now, only make offers when there is some cpu
+  // and memory left. This is an artifact of the original code that
+  // only offered when there was at least 1 cpu "unit" available,
+  // and without doing this a framework might get offered resources
+  // with only memory available (which it obviously will decline)
+  // and then end up waiting the default Filters::refuse_seconds
+  // (unless the framework set it to something different).
+
+  Option<double> cpus = resources.cpus();
+  Option<Bytes> mem = resources.mem();
+
+  if (cpus.isSome() && mem.isSome()) {
+    return cpus.get() >= MIN_CPUS && mem.get() > Megabytes(MIN_MEM);
+  }
+
+  return false;
 }
 
 } // namespace allocator {

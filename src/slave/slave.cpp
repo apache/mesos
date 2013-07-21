@@ -120,14 +120,14 @@ void Slave::initialize()
   // TODO(benh): Move this computation into Flags as the "default".
   // TODO(vinod): Move some of this computation into Resources.
   Try<Resources> parse = Resources::parse(
-      flags.resources.isSome() ? flags.resources.get() : "");
+      flags.resources.isSome() ? flags.resources.get() : "",
+      flags.default_role);
   CHECK_SOME(parse);
   resources = parse.get();
 
-  double cpus;
-  if (resources.cpus().isSome()) {
-    cpus = resources.cpus().get();
-  } else {
+  if (!resources.cpus().isSome()) {
+    double cpus;
+
     Try<long> cpus_ = os::cpus();
     if (!cpus_.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the number of cpus to use: '"
@@ -137,12 +137,18 @@ void Slave::initialize()
     } else {
       cpus = cpus_.get();
     }
+
+    Resource r = Resources::parse(
+        "cpus",
+        stringify(cpus),
+        flags.default_role).get();
+    resources += r;
   }
 
-  Bytes mem;
-  if (resources.mem().isSome()) {
-    mem = resources.mem().get();
-  } else {
+
+  if (!resources.mem().isSome()) {
+    Bytes mem;
+
     Try<Bytes> mem_ = os::memory();
     if (!mem_.isSome()) {
       LOG(WARNING) << "Failed to auto-detect the size of main memory: '"
@@ -159,12 +165,17 @@ void Slave::initialize()
         mem = mem - Gigabytes(1);
       }
     }
+
+    Resource r = Resources::parse(
+        "mem",
+        stringify(mem.megabytes()),
+        flags.default_role).get();
+    resources += r;
   }
 
-  Bytes disk;
-  if (resources.disk().isSome()) {
-    disk = resources.disk().get();
-  } else {
+  if (!resources.disk().isSome()) {
+    Bytes disk;
+
     // NOTE: We calculate disk availability of the file system on
     // which the slave work directory is mounted.
     Try<Bytes> disk_ = fs::available(flags.work_dir);
@@ -183,28 +194,21 @@ void Slave::initialize()
         disk = disk - Gigabytes(5);
       }
     }
+
+    Resource r = Resources::parse(
+        "disk",
+        stringify(disk.megabytes()),
+        flags.default_role).get();
+    resources += r;
   }
 
-  string ports;
-  if (resources.ports().isSome()) {
-    // TODO(vinod): Validate the ports range.
-    ports = stringify(resources.ports().get());
-  } else {
-    ports = DEFAULT_PORTS;
+  if (!resources.ports().isSome()) {
+    Resource r = Resources::parse(
+        "ports",
+        stringify(DEFAULT_PORTS),
+        flags.default_role).get();
+    resources += r;
   }
-
-  Try<string> defaults = strings::format(
-      "cpus:%f;mem:%lu;ports:%s;disk:%lu",
-      cpus,
-      mem.megabytes(),
-      ports,
-      disk.megabytes());
-
-  CHECK_SOME(defaults);
-
-  parse = Resources::parse(defaults.get());
-  CHECK_SOME(parse);
-  resources = parse.get();
 
   LOG(INFO) << "Slave resources: " << resources;
 

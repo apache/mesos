@@ -274,6 +274,10 @@ public:
   // type and all Resource object marked as the specified role.
   Resources flatten(const std::string& role = "*") const;
 
+  // Returns all resources in this object that are marked with the
+  // specified role.
+  Resources extract(const std::string& role) const;
+
   // Returns the Resource from these Resources that matches the argument
   // in name, type, and role, if it exists.
   Option<Resource> get(const Resource& r) const
@@ -292,10 +296,10 @@ public:
 
   // Helpers to get known resource types.
   // TODO(vinod): Fix this when we make these types as first class protobufs.
-  Option<double> cpus();
-  Option<Bytes> mem();
-  Option<Bytes> disk();
-  Option<Value::Ranges> ports(); // TODO(vinod): Provide a Ranges abstraction.
+  Option<double> cpus() const;
+  Option<Bytes> mem() const;
+  Option<Bytes> disk() const;
+  Option<Value::Ranges> ports() const; // TODO(vinod): Provide a Ranges abstraction.
 
   typedef google::protobuf::RepeatedPtrField<Resource>::iterator
   iterator;
@@ -484,7 +488,7 @@ inline Value::Set Resources::get(
 }
 
 
-inline Option<double> Resources::cpus()
+inline Option<double> Resources::cpus() const
 {
   double total= 0;
   bool found = false;
@@ -504,7 +508,7 @@ inline Option<double> Resources::cpus()
 }
 
 
-inline Option<Bytes> Resources::mem()
+inline Option<Bytes> Resources::mem() const
 {
   double total = 0;
   bool found = false;
@@ -525,7 +529,7 @@ inline Option<Bytes> Resources::mem()
 }
 
 
-inline Option<Bytes> Resources::disk()
+inline Option<Bytes> Resources::disk() const
 {
   double total = 0;
   bool found = false;
@@ -546,7 +550,7 @@ inline Option<Bytes> Resources::disk()
 }
 
 
-inline Option<Value::Ranges> Resources::ports()
+inline Option<Value::Ranges> Resources::ports() const
 {
   Value::Ranges total;
   bool found = false;
