@@ -71,6 +71,7 @@ namespace mesos {
 
 
 bool operator == (const Resource& left, const Resource& right);
+bool operator != (const Resource& left, const Resource& right);
 bool operator <= (const Resource& left, const Resource& right);
 Resource operator + (const Resource& left, const Resource& right);
 Resource operator - (const Resource& left, const Resource& right);
@@ -153,6 +154,11 @@ public:
     }
 
     return true;
+  }
+
+  bool operator != (const Resources& that) const
+  {
+    return !(*this == that);
   }
 
   bool operator <= (const Resources& that) const
@@ -303,8 +309,16 @@ public:
   const_iterator begin() const { return resources.begin(); }
   const_iterator end() const { return resources.end(); }
 
-  static Resource parse(const std::string& name, const std::string& value);
-  static Resources parse(const std::string& s);
+  static Try<Resource> parse(
+      const std::string& name,
+      const std::string& value,
+      const std::string& role);
+
+  // Parses resources in the form "name:value (role);name:value...".
+  // Any name/value pair that doesn't specify a role is assigned to defaultRole.
+  static Try<Resources> parse(
+      const std::string& s,
+      const std::string& defaultRole = "*");
 
   static bool isValid(const Resource& resource)
   {

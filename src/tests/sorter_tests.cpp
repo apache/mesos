@@ -50,25 +50,25 @@ TEST(SorterTest, DRFSorter)
 {
   DRFSorter sorter;
 
-  Resources totalResources = Resources::parse("cpus:100;mem:100");
+  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
   sorter.add(totalResources);
 
   sorter.add("a");
-  Resources aResources = Resources::parse("cpus:5;mem:5");
+  Resources aResources = Resources::parse("cpus:5;mem:5").get();
   sorter.allocated("a", aResources);
 
-  Resources bResources = Resources::parse("cpus:6;mem:6");
+  Resources bResources = Resources::parse("cpus:6;mem:6").get();
   sorter.add("b");
   sorter.allocated("b", bResources);
 
   // shares: a = .05, b = .06
   checkSorter(sorter, 2, "a", "b");
 
-  Resources cResources = Resources::parse("cpus:1;mem:1");
+  Resources cResources = Resources::parse("cpus:1;mem:1").get();
   sorter.add("c");
   sorter.allocated("c", cResources);
 
-  Resources dResources = Resources::parse("cpus:3;mem:1");
+  Resources dResources = Resources::parse("cpus:3;mem:1").get();
   sorter.add("d");
   sorter.allocated("d", dResources);
 
@@ -76,32 +76,32 @@ TEST(SorterTest, DRFSorter)
   checkSorter(sorter, 4, "c", "d", "a", "b");
 
   sorter.remove("a");
-  Resources bUnallocated = Resources::parse("cpus:4;mem:4");
+  Resources bUnallocated = Resources::parse("cpus:4;mem:4").get();
   sorter.unallocated("b", bUnallocated);
 
   // shares: b = .02, c = .01, d = .03
   checkSorter(sorter, 3, "c", "b", "d");
 
-  Resources eResources = Resources::parse("cpus:1;mem:5");
+  Resources eResources = Resources::parse("cpus:1;mem:5").get();
   sorter.add("e");
   sorter.allocated("e", eResources);
 
-  Resources removedResources = Resources::parse("cpus:50;mem:0");
+  Resources removedResources = Resources::parse("cpus:50;mem:0").get();
   sorter.remove(removedResources);
   // total resources is now cpus = 50, mem = 100
 
   // shares: b = .04, c = .02, d = .06, e = .05
   checkSorter(sorter, 4, "c", "b", "e", "d");
 
-  Resources addedResources = Resources::parse("cpus:0;mem:100");
+  Resources addedResources = Resources::parse("cpus:0;mem:100").get();
   sorter.add(addedResources);
   // total resources is now cpus = 50, mem = 200
 
-  Resources fResources = Resources::parse("cpus:5;mem:1");
+  Resources fResources = Resources::parse("cpus:5;mem:1").get();
   sorter.add("f");
   sorter.allocated("f", fResources);
 
-  Resources cResources2 = Resources::parse("cpus:0;mem:15");
+  Resources cResources2 = Resources::parse("cpus:0;mem:15").get();
   sorter.allocated("c", cResources2);
 
   // shares: b = .04, c = .08, d = .06, e = .025, f = .1
@@ -131,26 +131,26 @@ TEST(SorterTest, WDRFSorter)
 {
   DRFSorter sorter;
 
-  sorter.add(Resources::parse("cpus:100;mem:100"));
+  sorter.add(Resources::parse("cpus:100;mem:100").get());
 
   sorter.add("a");
 
-  sorter.allocated("a", Resources::parse("cpus:5;mem:5"));
+  sorter.allocated("a", Resources::parse("cpus:5;mem:5").get());
 
   sorter.add("b", 2);
-  sorter.allocated("b", Resources::parse("cpus:6;mem:6"));
+  sorter.allocated("b", Resources::parse("cpus:6;mem:6").get());
 
   // shares: a = .05, b = .03
   checkSorter(sorter, 2, "b", "a");
 
   sorter.add("c");
-  sorter.allocated("c", Resources::parse("cpus:4;mem:4"));
+  sorter.allocated("c", Resources::parse("cpus:4;mem:4").get());
 
   // shares: a = .05, b = .03, c = .04
   checkSorter(sorter, 3, "b", "c", "a");
 
   sorter.add("d", 10);
-  sorter.allocated("d", Resources::parse("cpus:10;mem:20"));
+  sorter.allocated("d", Resources::parse("cpus:10;mem:20").get());
 
   // shares: a = .05, b = .03, c = .04, d = .02
   checkSorter(sorter, 4, "d", "b", "c", "a");
@@ -159,13 +159,13 @@ TEST(SorterTest, WDRFSorter)
 
   checkSorter(sorter, 3, "d", "c", "a");
 
-  sorter.allocated("d", Resources::parse("cpus:10;mem:25"));
+  sorter.allocated("d", Resources::parse("cpus:10;mem:25").get());
 
   // shares: a = .05, c = .04, d = .045
   checkSorter(sorter, 3, "c", "d", "a");
 
   sorter.add("e", .1);
-  sorter.allocated("e", Resources::parse("cpus:1;mem:1"));
+  sorter.allocated("e", Resources::parse("cpus:1;mem:1").get());
 
   // shares: a = .05, c = .04, d = .045, e = .1
   checkSorter(sorter, 4, "c", "d", "a", "e");

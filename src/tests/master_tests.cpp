@@ -392,7 +392,7 @@ TEST_F(MasterTest, RecoverResources)
   executorInfo.MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   Resources executorResources =
-    Resources::parse("cpus:0.3;mem:200;ports:[5-8, 23-25]");
+    Resources::parse("cpus:0.3;mem:200;ports:[5-8, 23-25]").get();
   executorInfo.mutable_resources()->MergeFrom(executorResources);
 
   TaskID taskId;
@@ -467,7 +467,7 @@ TEST_F(MasterTest, RecoverResources)
 
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
-  Resources slaveResources = Resources::parse(flags.resources.get());
+  Resources slaveResources = Resources::parse(flags.resources.get()).get();
   EXPECT_EQ(slaveResources, offers.get()[0].resources());
 
   driver.stop();
@@ -604,7 +604,7 @@ TEST_F(MasterTest, MultipleExecutors)
   task1.set_name("");
   task1.mutable_task_id()->set_value("1");
   task1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
+  task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512").get());
   task1.mutable_executor()->MergeFrom(executor1);
 
   ExecutorInfo executor2; // Bug in gcc 4.1.*, must assign on next line.
@@ -614,7 +614,7 @@ TEST_F(MasterTest, MultipleExecutors)
   task2.set_name("");
   task2.mutable_task_id()->set_value("2");
   task2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task2.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
+  task2.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512").get());
   task2.mutable_executor()->MergeFrom(executor2);
 
   vector<TaskInfo> tasks;

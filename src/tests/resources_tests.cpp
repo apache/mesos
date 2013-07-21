@@ -37,22 +37,25 @@ using std::string;
 
 TEST(ResourcesTest, Parsing)
 {
-  Resource cpus = Resources::parse("cpus", "45.55");
+  Resource cpus = Resources::parse("cpus", "45.55", "*").get();
   ASSERT_EQ(Value::SCALAR, cpus.type());
   EXPECT_EQ(45.55, cpus.scalar().value());
 
-  Resource ports = Resources::parse("ports", "[10000-20000, 30000-50000]");
+  Resource ports = Resources::parse("ports",
+                                    "[10000-20000, 30000-50000]",
+                                    "*").get();
+
   ASSERT_EQ(Value::RANGES, ports.type());
   EXPECT_EQ(2, ports.ranges().range_size());
 
-  Resource disks = Resources::parse("disks", "{sda1}");
+  Resource disks = Resources::parse("disks", "{sda1}", "*").get();
   ASSERT_EQ(Value::SET, disks.type());
   ASSERT_EQ(1, disks.set().item_size());
   EXPECT_EQ("sda1", disks.set().item(0));
 
   Resources r1 = Resources::parse("cpus:45.55;"
                                   "ports:[10000-20000, 30000-50000];"
-                                  "disks:{sda1}");
+                                  "disks:{sda1}").get();
 
   Resources r2;
   r2 += cpus;
@@ -63,12 +66,80 @@ TEST(ResourcesTest, Parsing)
 }
 
 
+TEST(ResourcesTest, ParsingWithRoles)
+{
+  Resources parse1 = Resources::parse("cpus(role1):2;mem(role1):3").get();
+
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Value::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+  cpus.set_role("role1");
+
+  Resource mem;
+  mem.set_name("mem");
+  mem.set_type(Value::SCALAR);
+  mem.mutable_scalar()->set_value(3);
+  mem.set_role("role1");
+
+  Resources resources1;
+  resources1 += cpus;
+  resources1 += mem;
+
+  EXPECT_EQ(parse1, resources1);
+
+  EXPECT_EQ(resources1, Resources::parse(stringify(resources1)).get());
+
+  Resources parse2 =
+    Resources::parse("cpus(role1):2.5;ports(role2):[0-100]").get();
+
+  Resource cpus2;
+  cpus2.set_name("cpus");
+  cpus2.set_type(Value::SCALAR);
+  cpus2.mutable_scalar()->set_value(2.5);
+  cpus2.set_role("role1");
+
+  Resource ports;
+  ports.set_name("ports");
+  ports.set_type(Value::RANGES);
+  Value::Range* range = ports.mutable_ranges()->add_range();
+  range->set_begin(0);
+  range->set_end(100);
+  ports.set_role("role2");
+
+  Resources resources2;
+  resources2 += ports;
+  resources2 += cpus2;
+
+  EXPECT_EQ(parse2, resources2);
+
+  EXPECT_EQ(resources2, Resources::parse(stringify(resources2)).get());
+
+  Resources parse3 =
+    Resources::parse("cpus:2.5;ports(role2):[0-100]", "role1").get();
+
+  EXPECT_EQ(parse2, parse3);
+}
+
+
+TEST(ResourcesTest, ParseError)
+{
+  // Missing colon.
+  EXPECT_ERROR(Resources::parse("cpus(role1)"));
+
+  // Mismatched parentheses.
+  EXPECT_ERROR(Resources::parse("cpus(role1:1"));
+
+  EXPECT_ERROR(Resources::parse("cpus)(role1:1"));
+}
+
+
 TEST(ResourcesTest, Resources)
 {
   Resources r = Resources::parse("cpus:45.55;"
                                  "mem:1024;"
                                  "ports:[10000-20000, 30000-50000];"
-                                 "disk:512");
+                                 "disk:512").get();
 
   EXPECT_SOME_EQ(45.55, r.cpus());
   EXPECT_SOME_EQ(Megabytes(1024), r.mem());
@@ -80,7 +151,7 @@ TEST(ResourcesTest, Resources)
 
   EXPECT_EQ("[10000-20000, 30000-50000]", ports.str());
 
-  r = Resources::parse("cpus:45.55;disk:512");
+  r = Resources::parse("cpus:45.55;disk:512").get();
   EXPECT_SOME_EQ(45.55, r.cpus());
   EXPECT_SOME_EQ(Megabytes(512), r.disk());
   EXPECT_TRUE(r.mem().isNone());
@@ -92,7 +163,7 @@ TEST(ResourcesTest, Printing)
 {
   Resources r = Resources::parse("cpus:45.55;"
                                  "ports:[10000-20000, 30000-50000];"
-                                 "disks:{sda1}");
+                                 "disks:{sda1}").get();
 
   string output =
     "cpus(*):45.55; ports(*):[10000-20000, 30000-50000]; disks(*):{sda1}";
@@ -133,8 +204,8 @@ TEST(ResourcesTest, BadResourcesNotAllocatable)
 
 TEST(ResourcesTest, ScalarEquals)
 {
-  Resource cpus = Resources::parse("cpus", "3");
-  Resource mem =  Resources::parse("mem", "3072");
+  Resource cpus = Resources::parse("cpus", "3", "*").get();
+  Resource mem =  Resources::parse("mem", "3072", "*").get();
 
   Resources r1;
   r1 += cpus;
@@ -147,16 +218,20 @@ TEST(ResourcesTest, ScalarEquals)
   EXPECT_EQ(2u, r1.size());
   EXPECT_EQ(2u, r2.size());
   EXPECT_EQ(r1, r2);
+
+  Resource cpus1 = Resources::parse("cpus", "3", "role1").get();
+  Resource cpus2 = Resources::parse("cpus", "3", "role2").get();
+  EXPECT_NE(cpus1, cpus2);
 }
 
 
 TEST(ResourcesTest, ScalarSubset)
 {
-  Resource cpus1 = Resources::parse("cpus", "1");
-  Resource mem1 =  Resources::parse("mem", "3072");
+  Resource cpus1 = Resources::parse("cpus", "1", "*").get();
+  Resource mem1 =  Resources::parse("mem", "3072", "*").get();
 
-  Resource cpus2 = Resources::parse("cpus", "1");
-  Resource mem2 =  Resources::parse("mem", "4096");
+  Resource cpus2 = Resources::parse("cpus", "1", "*").get();
+  Resource mem2 =  Resources::parse("mem", "4096", "*").get();
 
   Resources r1;
   r1 += cpus1;
@@ -171,13 +246,39 @@ TEST(ResourcesTest, ScalarSubset)
 }
 
 
+TEST(ResourcesTest, ScalarSubset2)
+{
+  Resource cpus1 = Resources::parse("cpus", "1", "role1").get();
+  Resource cpus2 = Resources::parse("cpus", "1", "role2").get();
+
+  Resources r1;
+  r1 += cpus1;
+
+  Resources r2;
+  r2 += cpus2;
+
+  EXPECT_FALSE(cpus1 <= cpus2);
+  EXPECT_FALSE(cpus2 <= cpus1);
+
+  Resource cpus3 = Resources::parse("cpus", "3", "role1").get();
+
+  Resources r3;
+  r3 += cpus3;
+
+  EXPECT_FALSE(r3 <= r1);
+  EXPECT_FALSE(r3 <= r2);
+  EXPECT_FALSE(r2 <= r3);
+  EXPECT_LE(r1, r3);
+}
+
+
 TEST(ResourcesTest, ScalarAddition)
 {
-  Resource cpus1 = Resources::parse("cpus", "1");
-  Resource mem1 = Resources::parse("mem", "5");
+  Resource cpus1 = Resources::parse("cpus", "1", "*").get();
+  Resource mem1 = Resources::parse("mem", "5", "*").get();
 
-  Resource cpus2 = Resources::parse("cpus", "2");
-  Resource mem2 = Resources::parse("mem", "10");
+  Resource cpus2 = Resources::parse("cpus", "2", "*").get();
+  Resource mem2 = Resources::parse("mem", "10", "*").get();
 
   Resources r1;
   r1 += cpus1;
@@ -200,13 +301,33 @@ TEST(ResourcesTest, ScalarAddition)
 }
 
 
+TEST(ResourcesTest, ScalarAddition2)
+{
+  Resource cpus1 = Resources::parse("cpus", "1", "role1").get();
+  Resource cpus2 = Resources::parse("cpus", "3", "role2").get();
+  Resource cpus3 = Resources::parse("cpus", "5", "role1").get();
+
+  Resources r1;
+  r1 += cpus1;
+  r1 += cpus2;
+
+  Resources r2;
+  r2 += cpus3;
+
+  Resources sum = r1 + r2;
+  EXPECT_EQ(2u, sum.size());
+  EXPECT_EQ(9, sum.cpus().get());
+  EXPECT_EQ(sum, Resources::parse("cpus(role1):6;cpus(role2):3").get());
+}
+
+
 TEST(ResourcesTest, ScalarSubtraction)
 {
-  Resource cpus1 = Resources::parse("cpus", "50");
-  Resource mem1 = Resources::parse("mem", "4096");
+  Resource cpus1 = Resources::parse("cpus", "50", "*").get();
+  Resource mem1 = Resources::parse("mem", "4096", "*").get();
 
-  Resource cpus2 = Resources::parse("cpus", "0.5");
-  Resource mem2 = Resources::parse("mem", "1024");
+  Resource cpus2 = Resources::parse("cpus", "0.5", "*").get();
+  Resource mem2 = Resources::parse("mem", "1024", "*").get();
 
   Resources r1;
   r1 += cpus1;
@@ -232,10 +353,30 @@ TEST(ResourcesTest, ScalarSubtraction)
 }
 
 
+TEST(ResourcesTest, ScalarSubtraction2)
+{
+  Resource cpus1 = Resources::parse("cpus", "5", "role1").get();
+  Resource cpus2 = Resources::parse("cpus", "3", "role2").get();
+  Resource cpus3 = Resources::parse("cpus", "1", "role1").get();
+
+  Resources r1;
+  r1 += cpus1;
+  r1 += cpus2;
+
+  Resources r2;
+  r2 += cpus3;
+
+  Resources diff = r1 - r2;
+  EXPECT_EQ(2u, diff.size());
+  EXPECT_EQ(7, diff.cpus().get());
+  EXPECT_EQ(diff, Resources::parse("cpus(role1):4;cpus(role2):3").get());
+}
+
+
 TEST(ResourcesTest, RangesEquals)
 {
-  Resource ports1 = Resources::parse("ports", "[20-40]");
-  Resource ports2 = Resources::parse("ports", "[20-30, 31-39, 40-40]");
+  Resource ports1 = Resources::parse("ports", "[20-40]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[20-30, 31-39, 40-40]", "*").get();
 
   Resources r1;
   r1 += ports1;
@@ -249,11 +390,11 @@ TEST(ResourcesTest, RangesEquals)
 
 TEST(ResourcesTest, RangesSubset)
 {
-  Resource ports1 = Resources::parse("ports", "[2-2, 4-5]");
-  Resource ports2 = Resources::parse("ports", "[1-10]");
-  Resource ports3 = Resources::parse("ports", "[2-3]");
-  Resource ports4 = Resources::parse("ports", "[1-2, 4-6]");
-  Resource ports5 = Resources::parse("ports", "[1-4, 5-5]");
+  Resource ports1 = Resources::parse("ports", "[2-2, 4-5]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[1-10]", "*").get();
+  Resource ports3 = Resources::parse("ports", "[2-3]", "*").get();
+  Resource ports4 = Resources::parse("ports", "[1-2, 4-6]", "*").get();
+  Resource ports5 = Resources::parse("ports", "[1-4, 5-5]", "*").get();
 
   EXPECT_EQ(2, ports1.ranges().range_size());
   EXPECT_EQ(1, ports2.ranges().range_size());
@@ -291,8 +432,10 @@ TEST(ResourcesTest, RangesSubset)
 
 TEST(ResourcesTest, RangesAddition)
 {
-  Resource ports1 = Resources::parse("ports", "[20000-40000, 21000-38000]");
-  Resource ports2 = Resources::parse("ports", "[30000-50000, 10000-20000]");
+  Resource ports1 =
+    Resources::parse("ports", "[20000-40000, 21000-38000]", "*").get();
+  Resource ports2 =
+    Resources::parse("ports", "[30000-50000, 10000-20000]", "*").get();
 
   Resources r;
   r += ports1;
@@ -308,8 +451,8 @@ TEST(ResourcesTest, RangesAddition)
 
 TEST(ResourcesTest, RangesAddition2)
 {
-  Resource ports1 = Resources::parse("ports", "[1-10, 5-30, 50-60]");
-  Resource ports2 = Resources::parse("ports", "[1-65, 70-80]");
+  Resource ports1 = Resources::parse("ports", "[1-10, 5-30, 50-60]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[1-65, 70-80]", "*").get();
 
   Resources r;
   r += ports1;
@@ -325,10 +468,10 @@ TEST(ResourcesTest, RangesAddition2)
 
 TEST(ResourcesTest, RangesAdditon3)
 {
-  Resource ports1 = Resources::parse("ports", "[1-2]");
-  Resource ports2 = Resources::parse("ports", "[3-4]");
-  Resource ports3 = Resources::parse("ports", "[7-8]");
-  Resource ports4 = Resources::parse("ports", "[5-6]");
+  Resource ports1 = Resources::parse("ports", "[1-2]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[3-4]", "*").get();
+  Resource ports3 = Resources::parse("ports", "[7-8]", "*").get();
+  Resource ports4 = Resources::parse("ports", "[5-6]", "*").get();
 
   Resources r1;
   r1 += ports1;
@@ -362,8 +505,8 @@ TEST(ResourcesTest, RangesAdditon3)
 
 TEST(ResourcesTest, RangesAddition4)
 {
-  Resource ports1 = Resources::parse("ports", "[1-4, 9-10, 20-22, 26-30]");
-  Resource ports2 = Resources::parse("ports", "[5-8, 23-25]");
+  Resource ports1 = Resources::parse("ports", "[1-4, 9-10, 20-22, 26-30]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[5-8, 23-25]", "*").get();
 
   Resources r;
   r += ports1;
@@ -379,8 +522,8 @@ TEST(ResourcesTest, RangesAddition4)
 
 TEST(ResourcesTest, RangesSubtraction)
 {
-  Resource ports1 = Resources::parse("ports", "[20000-40000]");
-  Resource ports2 = Resources::parse("ports", "[10000-20000, 30000-50000]");
+  Resource ports1 = Resources::parse("ports", "[20000-40000]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[10000-20000, 30000-50000]", "*").get();
 
   Resources r;
   r += ports1;
@@ -396,8 +539,8 @@ TEST(ResourcesTest, RangesSubtraction)
 
 TEST(ResourcesTest, RangesSubtraction1)
 {
-  Resource ports1 = Resources::parse("ports", "[50000-60000]");
-  Resource ports2 = Resources::parse("ports", "[50000-50001]");
+  Resource ports1 = Resources::parse("ports", "[50000-60000]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[50000-50001]", "*").get();
 
   Resources r;
   r += ports1;
@@ -413,8 +556,8 @@ TEST(ResourcesTest, RangesSubtraction1)
 
 TEST(ResourcesTest, RangesSubtraction2)
 {
-  Resource ports1 = Resources::parse("ports", "[50000-60000]");
-  Resource ports2 = Resources::parse("ports", "[50000-50000]");
+  Resource ports1 = Resources::parse("ports", "[50000-60000]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[50000-50000]", "*").get();
 
   Resources r;
   r += ports1;
@@ -430,10 +573,10 @@ TEST(ResourcesTest, RangesSubtraction2)
 
 TEST(ResourcesTest, RangesSubtraction3)
 {
-  Resources resources = Resources::parse("ports:[50000-60000]");
+  Resources resources = Resources::parse("ports:[50000-60000]").get();
 
-  Resources resourcesOffered = Resources::parse("");
-  Resources resourcesInUse = Resources::parse("ports:[50000-50001]");
+  Resources resourcesOffered = Resources::parse("").get();
+  Resources resourcesInUse = Resources::parse("ports:[50000-50001]").get();
 
   Resources resourcesFree = resources - (resourcesOffered + resourcesInUse);
 
@@ -449,7 +592,7 @@ TEST(ResourcesTest, RangesSubtraction3)
 
 TEST(ResourcesTest, RangesSubtraction4)
 {
-  Resources resources = Resources::parse("ports:[50000-60000]");
+  Resources resources = Resources::parse("ports:[50000-60000]").get();
 
   Resources resourcesOffered;
 
@@ -467,8 +610,8 @@ TEST(ResourcesTest, RangesSubtraction4)
 
 TEST(ResourcesTest, RangesSubtraction5)
 {
-  Resource ports1 = Resources::parse("ports", "[1-10, 20-30, 40-50]");
-  Resource ports2 = Resources::parse("ports", "[2-9, 15-45, 48-50]");
+  Resource ports1 = Resources::parse("ports", "[1-10, 20-30, 40-50]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[2-9, 15-45, 48-50]", "*").get();
 
   Resources r;
   r += ports1;
@@ -484,8 +627,8 @@ TEST(ResourcesTest, RangesSubtraction5)
 
 TEST(ResourcesTest, RangesSubtraction6)
 {
-  Resource ports1 = Resources::parse("ports", "[1-10]");
-  Resource ports2 = Resources::parse("ports", "[11-20]");
+  Resource ports1 = Resources::parse("ports", "[1-10]", "*").get();
+  Resource ports2 = Resources::parse("ports", "[11-20]", "*").get();
 
   Resources r;
   r += ports1;
@@ -501,7 +644,7 @@ TEST(ResourcesTest, RangesSubtraction6)
 
 TEST(ResourcesTest, SetEquals)
 {
-  Resource disks = Resources::parse("disks", "{sda1}");
+  Resource disks = Resources::parse("disks", "{sda1}", "*").get();
 
   Resources r1;
   r1 += disks;
@@ -515,8 +658,8 @@ TEST(ResourcesTest, SetEquals)
 
 TEST(ResourcesTest, SetSubset)
 {
-  Resource disks1 = Resources::parse("disks", "{sda1,sda2}");
-  Resource disks2 = Resources::parse("disks", "{sda1,sda2,sda3,sda4}");
+  Resource disks1 = Resources::parse("disks", "{sda1,sda2}", "*").get();
+  Resource disks2 = Resources::parse("disks", "{sda1,sda2,sda3,sda4}", "*").get();
 
   Resources r1;
   r1 += disks1;
@@ -533,8 +676,8 @@ TEST(ResourcesTest, SetSubset)
 
 TEST(ResourcesTest, SetAddition)
 {
-  Resource disks1 = Resources::parse("disks", "{sda1,sda2,sda3}");
-  Resource disks2 = Resources::parse("disks", "{sda1,sda2,sda3,sda4}");
+  Resource disks1 = Resources::parse("disks", "{sda1,sda2,sda3}", "*").get();
+  Resource disks2 = Resources::parse("disks", "{sda1,sda2,sda3,sda4}", "*").get();
 
   Resources r;
   r += disks1;
@@ -550,8 +693,8 @@ TEST(ResourcesTest, SetAddition)
 
 TEST(ResourcesTest, SetSubtraction)
 {
-  Resource disks1 = Resources::parse("disks", "{sda1,sda2,sda3,sda4}");
-  Resource disks2 = Resources::parse("disks", "{sda2,sda3,sda4}");
+  Resource disks1 = Resources::parse("disks", "{sda1,sda2,sda3,sda4}", "*").get();
+  Resource disks2 = Resources::parse("disks", "{sda2,sda3,sda4}", "*").get();
 
   Resources r;
   r += disks1;
@@ -565,10 +708,26 @@ TEST(ResourcesTest, SetSubtraction)
   EXPECT_EQ("sda1", set.item(0));
 }
 
+
 TEST(ResourcesTest, EmptyUnequal)
 {
-  Resources empty = Resources::parse("");
-  Resources cpus2 = Resources::parse("cpus:2");
+  Resources empty = Resources::parse("").get();
+  Resources cpus2 = Resources::parse("cpus:2").get();
 
   EXPECT_FALSE(empty == cpus2);
+}
+
+
+TEST(ResourcesTest, FlattenRoles)
+{
+  Resource cpus1 = Resources::parse("cpus", "1", "role1").get();
+  Resource cpus2 = Resources::parse("cpus", "2", "role2").get();
+  Resource mem1 = Resources::parse("mem", "5", "role1").get();
+
+  Resources r;
+  r += cpus1;
+  r += cpus2;
+  r += mem1;
+
+  EXPECT_EQ(r.flatten(), Resources::parse("cpus:3;mem:5").get());
 }

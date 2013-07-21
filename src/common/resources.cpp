@@ -52,6 +52,12 @@ bool operator == (const Resource& left, const Resource& right)
 }
 
 
+bool operator != (const Resource& left, const Resource& right)
+{
+  return !(left == right);
+}
+
+
 bool matches(const Resource& left, const Resource& right)
 {
   return left.name() == right.name() &&
@@ -198,18 +204,23 @@ Resources Resources::flatten(const string& role) const
   return flattened;
 }
 
-Resource Resources::parse(const std::string& name, const std::string& text)
+
+Try<Resource> Resources::parse(
+    const string& name,
+    const string& text,
+    const string& role)
 {
   Resource resource;
   Try<Value> result = values::parse(text);
 
   if (result.isError()) {
-    LOG(FATAL) << "Failed to parse resource " << name
-               << " text " << text
-               << " error " << result.error();
+    return Error("Failed to parse resource " + name +
+                 " text " + text +
+                 " error " + result.error());
   } else{
     Value value = result.get();
     resource.set_name(name);
+    resource.set_role(role);
 
     if (value.type() == Value::RANGES) {
       resource.set_type(Value::RANGES);
@@ -221,34 +232,55 @@ Resource Resources::parse(const std::string& name, const std::string& text)
       resource.set_type(Value::SCALAR);
       resource.mutable_scalar()->MergeFrom(value.scalar());
     } else {
-      LOG(FATAL) << "Bad type for resource " << name
-                 << " text " << text
-                 << " type " << Value::Type_Name(value.type());
+      return Error("Bad type for resource " + name +
+                   " text " + text +
+                   " type " + Value::Type_Name(value.type()));
     }
   }
 
   return resource;
 }
 
-Resources Resources::parse(const string& s)
+
+Try<Resources> Resources::parse(const string& s, const string& defaultRole)
 {
-  // Tokenize and parse the value of "resources".
   Resources resources;
 
-  vector<string> tokens = strings::tokenize(s, ";\n");
+  vector<string> tokens = strings::tokenize(s, ";");
 
-  for (size_t i = 0; i < tokens.size(); i++) {
-    const vector<string>& pairs = strings::tokenize(tokens[i], ":");
-    if (pairs.size() != 2) {
-      LOG(FATAL) << "Bad value for resources, missing ':' within " << pairs[0];
+  foreach (const string& token, tokens) {
+    vector<string> pair = strings::tokenize(token, ":");
+    if (pair.size() != 2) {
+      return Error("Bad value for resources, missing or extra ':' in " + token);
     }
 
-    resources += parse(pairs[0], pairs[1]);
+    string name;
+    string role;
+    size_t openParen = pair[0].find("(");
+    if (openParen == string::npos) {
+      name = strings::trim(pair[0]);
+      role = defaultRole;
+    } else {
+      size_t closeParen = pair[0].find(")");
+      if (closeParen == string::npos || closeParen < openParen) {
+        return Error("Bad value for resources, mismatched parentheses in " +
+                     token);
+      }
+
+      name = strings::trim(pair[0].substr(0, openParen));
+      role = strings::trim(pair[0].substr(openParen + 1,
+                                          closeParen - openParen - 1));
+    }
+
+    Try<Resource> resource = Resources::parse(name, pair[1], role);
+    if (resource.isError()) {
+      return Error(resource.error());
+    }
+    resources += resource.get();
   }
 
   return resources;
 }
-
 
 } // namespace internal {
 } // namespace mesos {

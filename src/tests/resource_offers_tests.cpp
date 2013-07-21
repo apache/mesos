@@ -533,7 +533,7 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
   task1.set_name("");
   task1.mutable_task_id()->set_value("1");
   task1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
+  task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512").get());
   task1.mutable_executor()->MergeFrom(executor);
 
   executor.mutable_command()->set_value("exit 2");
@@ -542,7 +542,7 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
   task2.set_name("");
   task2.mutable_task_id()->set_value("2");
   task2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task2.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512"));
+  task2.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512").get());
   task2.mutable_executor()->MergeFrom(executor);
 
   vector<TaskInfo> tasks;

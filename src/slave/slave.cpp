@@ -119,8 +119,10 @@ void Slave::initialize()
   // Properly set up resources.
   // TODO(benh): Move this computation into Flags as the "default".
   // TODO(vinod): Move some of this computation into Resources.
-  resources = Resources::parse(
+  Try<Resources> parse = Resources::parse(
       flags.resources.isSome() ? flags.resources.get() : "");
+  CHECK_SOME(parse);
+  resources = parse.get();
 
   double cpus;
   if (resources.cpus().isSome()) {
@@ -200,7 +202,9 @@ void Slave::initialize()
 
   CHECK_SOME(defaults);
 
-  resources = Resources::parse(defaults.get());
+  parse = Resources::parse(defaults.get());
+  CHECK_SOME(parse);
+  resources = parse.get();
 
   LOG(INFO) << "Slave resources: " << resources;
 

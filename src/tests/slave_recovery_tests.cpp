@@ -803,11 +803,11 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   Offer offer = offers.get()[0];
 
   Offer offer1 = offer;
-  offer1.mutable_resources()->CopyFrom(Resources::parse("cpus:1;mem:512"));
+  offer1.mutable_resources()->CopyFrom(Resources::parse("cpus:1;mem:512").get());
   tasks.push_back(createTask(offer1, "sleep 1000")); // Long-running task
 
   Offer offer2 = offer;
-  offer2.mutable_resources()->CopyFrom(Resources::parse("cpus:1;mem:512"));
+  offer2.mutable_resources()->CopyFrom(Resources::parse("cpus:1;mem:512").get());
   tasks.push_back(createTask(offer2, "sleep 1000")); // Long-running task
 
   ASSERT_LE(Resources(offer1.resources()) + Resources(offer2.resources()),
