@@ -282,7 +282,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem))
+    .WillOnce(LaunchTasks(1, cpus, mem, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -383,7 +383,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem))
+    .WillOnce(LaunchTasks(1, cpus, mem, "*"))
     .WillRepeatedly(Return());
 
   // Executor expectations.
@@ -477,7 +477,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem))
+    .WillOnce(LaunchTasks(1, cpus, mem, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -569,7 +569,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem))
+    .WillOnce(LaunchTasks(1, cpus, mem, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -678,7 +678,7 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem));
+    .WillOnce(LaunchTasks(1, cpus, mem, "*"));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -732,7 +732,7 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 
   // We use the killed executor/tasks resources to run another task.
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem));
+    .WillOnce(LaunchTasks(1, cpus, mem, "*"));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 

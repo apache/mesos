@@ -309,6 +309,305 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 }
 
 
+class ReservationAllocatorTest : public MesosTest
+{};
+
+
+// Checks that resources on a slave that are statically reserved to
+// a role are only offered to frameworks in that role.
+TEST_F(ReservationAllocatorTest, ReservedResources)
+{
+  MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.roles = Option<string>("role1,role2,role3");
+  Try<PID<Master> > master = StartMaster(&allocator, masterFlags);
+
+  ASSERT_SOME(master);
+
+  Future<Nothing> slaveAdded;
+  EXPECT_CALL(allocator, slaveAdded(_, _, _))
+    .WillOnce(DoDefault())
+    .WillOnce(DoDefault())
+    .WillOnce(DoDefault())
+    .WillOnce(DoAll(InvokeSlaveAdded(&allocator),
+                    FutureSatisfy(&slaveAdded)));
+
+  slave::Flags flags1 = CreateSlaveFlags();
+  flags1.default_role = "role1";
+  flags1.resources = Option<string>("cpus:2;mem:1024;disk:0");
+  Try<PID<Slave> > slave1 = StartSlave(flags1);
+  ASSERT_SOME(slave1);
+
+  slave::Flags flags2 = CreateSlaveFlags();
+  flags2.resources =
+    Option<string>("cpus(role2):2;mem(role2):1024;cpus:1;mem:1024;disk:0");
+  Try<PID<Slave> > slave2 = StartSlave(flags2);
+  ASSERT_SOME(slave2);
+
+  slave::Flags flags3 = CreateSlaveFlags();
+  flags3.default_role = "role3";
+  flags3.resources = Option<string>("cpus:4;mem:4096;disk:0");
+  Try<PID<Slave> > slave3 = StartSlave(flags3);
+  ASSERT_SOME(slave3);
+
+  // This slave's resources should never be allocated,
+  // since there is no framework for role4.
+  slave::Flags flags4 = CreateSlaveFlags();
+  flags4.default_role = "role4";
+  flags4.resources = Option<string>("cpus:1;mem:1024;disk:0");
+  Try<PID<Slave> > slave4 = StartSlave(flags4);
+  ASSERT_SOME(slave4);
+
+  AWAIT_READY(slaveAdded);
+
+  FrameworkInfo frameworkInfo1;
+  frameworkInfo1.set_user("user1");
+  frameworkInfo1.set_name("framework1");
+  frameworkInfo1.set_role("role1");
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(sched1, registered(_, _, _));
+
+  Future<Nothing> resourceOffers1;
+  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 2048)))
+    .WillOnce(FutureSatisfy(&resourceOffers1));
+
+  driver1.start();
+
+  // framework1 gets all the resources from slave1, plus the
+  // unreserved resources on slave2.
+  AWAIT_READY(resourceOffers1);
+
+  FrameworkInfo frameworkInfo2;
+  frameworkInfo2.set_user("user2");
+  frameworkInfo2.set_name("framework2");
+  frameworkInfo2.set_role("role2");
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(sched2, registered(_, _, _));
+
+  Future<Nothing> resourceOffers2;
+  EXPECT_CALL(sched2, resourceOffers(_, OfferEq(2, 1024)))
+    .WillOnce(FutureSatisfy(&resourceOffers2));
+
+  driver2.start();
+
+  // framework2 gets all of its reserved resources on slave2.
+  AWAIT_READY(resourceOffers2);
+
+  FrameworkInfo frameworkInfo3;
+  frameworkInfo3.set_user("user2");
+  frameworkInfo3.set_name("framework3");
+  frameworkInfo3.set_role("role3");
+  MockScheduler sched3;
+  MesosSchedulerDriver driver3(&sched3, frameworkInfo3, master.get());
+
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(sched3, registered(_, _, _));
+
+  Future<Nothing> resourceOffers3;
+  EXPECT_CALL(sched3, resourceOffers(_, OfferEq(4, 4096)))
+    .WillOnce(FutureSatisfy(&resourceOffers3));
+
+  driver3.start();
+
+  // framework3 gets all the resources from slave3.
+  AWAIT_READY(resourceOffers3);
+
+  slave::Flags flags5 = CreateSlaveFlags();
+  flags5.default_role = "role1";
+  flags5.resources = Option<string>("cpus:1;mem:512;disk:0");
+
+  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+
+  Future<Nothing> resourceOffers4;
+  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(1, 512)))
+    .WillOnce(FutureSatisfy(&resourceOffers4));
+
+  Try<PID<Slave> > slave5 = StartSlave(flags5);
+  ASSERT_SOME(slave5);
+
+  // framework1 gets all the resources from slave5.
+  AWAIT_READY(resourceOffers4);
+
+  // Shut everything down.
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _))
+    .WillRepeatedly(DoDefault());
+
+  EXPECT_CALL(allocator, frameworkDeactivated(_))
+    .Times(AtMost(3));
+
+  EXPECT_CALL(allocator, frameworkRemoved(_))
+    .Times(AtMost(3));
+
+  driver3.stop();
+  driver2.stop();
+  driver1.stop();
+
+  EXPECT_CALL(allocator, slaveRemoved(_))
+    .Times(AtMost(5));
+
+  this->Shutdown();
+}
+
+
+// Checks that statically allocated resources that are returned
+// either unused or after a task finishes are statically reallocated
+// appropriately.
+TEST_F(ReservationAllocatorTest, ResourcesReturned)
+{
+  MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.roles = Option<string>("role1,role2");
+  masterFlags.allocation_interval = Milliseconds(50);
+  Try<PID<Master> > master = StartMaster(&allocator, masterFlags);
+
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  EXPECT_CALL(allocator, slaveAdded(_, _, _))
+    .Times(2);
+
+  slave::Flags flags1 = CreateSlaveFlags();
+  flags1.resources = Option<string>("cpus(role1):1;mem(role1):200;cpus(role2):2;"
+                                    "mem(role2):600;cpus:1;mem:200;disk:0");
+  Try<PID<Slave> > slave1 = StartSlave(&exec, flags1);
+  ASSERT_SOME(slave1);
+
+  // This slave's resources will never be offered to anyone,
+  // because there is no framework with role3 and the unreserved
+  // memory can't be offered without a cpu to go with it.
+  slave::Flags flags2 = CreateSlaveFlags();
+  flags2.resources = Option<string>("cpus(role3):4;mem:1024;disk:0");
+  Try<PID<Slave> > slave2 = StartSlave(flags2);
+  ASSERT_SOME(slave2);
+
+  FrameworkInfo frameworkInfo1;
+  frameworkInfo1.set_user("user1");
+  frameworkInfo1.set_name("framework1");
+  frameworkInfo1.set_role("role1");
+  FrameworkID frameworkId1;
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(sched1, registered(_, _, _));
+
+  // Initially, framework1 should be offered all of the resources on
+  // slave1 that aren't reserved to role2.
+  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 400)))
+    .WillOnce(LaunchTasks(1, 1, 100, "role1"));
+
+  EXPECT_CALL(allocator, resourcesUnused(_, _, _, _))
+    .WillOnce(InvokeUnusedWithFilters(&allocator, 0));
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  ExecutorDriver* execDriver;
+  TaskInfo taskInfo;
+  Future<Nothing> launchTask;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(DoAll(SaveArg<0>(&execDriver),
+                    SaveArg<1>(&taskInfo),
+                    SendStatusUpdateFromTask(TASK_RUNNING),
+                    FutureSatisfy(&launchTask)));
+
+  EXPECT_CALL(sched1, statusUpdate(_, _))
+    .WillRepeatedly(DoDefault());
+
+  // After framework1's task launches, it should be offered all resources
+  // not dedicatd to role2 and not used by its task.
+  Future<Nothing> resourceOffers1;
+  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(1, 300)))
+    .WillOnce(FutureSatisfy(&resourceOffers1));
+
+  driver1.start();
+
+  AWAIT_READY(launchTask);
+
+  AWAIT_READY(resourceOffers1);
+
+  FrameworkInfo frameworkInfo2;
+  frameworkInfo2.set_user("user2");
+  frameworkInfo2.set_name("framework2");
+  frameworkInfo2.set_role("role2");
+  FrameworkID frameworkId2;
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(sched2, registered(_, _, _));
+
+  // The first time framework2 is allocated to, it should be offered
+  // all of the resources on slave1 that are reserved to role2.
+  Future<Nothing> resourceOffers2;
+  EXPECT_CALL(sched2, resourceOffers(_, OfferEq(2, 600)))
+    .WillOnce(FutureSatisfy(&resourceOffers2));
+
+  driver2.start();
+
+  AWAIT_READY(resourceOffers2);
+
+  TaskStatus status;
+  status.mutable_task_id()->MergeFrom(taskInfo.task_id());
+  status.set_state(TASK_FINISHED);
+
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _));
+
+  // After the task finishes, its resources should be reoffered to
+  // framework1.
+  Future<Nothing> resourceOffers3;
+  EXPECT_CALL(sched1, resourceOffers(_, OfferEq(1, 100)))
+    .WillOnce(FutureSatisfy(&resourceOffers3));
+
+  execDriver->sendStatusUpdate(status);
+
+  AWAIT_READY(resourceOffers3);
+
+  // Shut everything down.
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _))
+    .WillRepeatedly(DoDefault());
+
+  EXPECT_CALL(allocator, frameworkDeactivated(_))
+    .Times(AtMost(2));
+
+  EXPECT_CALL(allocator, frameworkRemoved(_))
+    .Times(AtMost(2));
+
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
+
+  driver2.stop();
+  driver1.stop();
+
+  AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
+
+  EXPECT_CALL(allocator, slaveRemoved(_))
+    .Times(AtMost(2));
+
+  this->Shutdown();
+}
+
+
 template <typename T>
 class AllocatorTest : public MesosTest
 {
@@ -428,7 +727,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   // this is the only framework running so far. Launch a task that
   // uses less than that to leave some resources unused.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 1024)))
-    .WillOnce(LaunchTasks(1, 1, 512));
+    .WillOnce(LaunchTasks(1, 1, 512, "*"));
 
   Future<Nothing> resourcesUnused;
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
@@ -667,7 +966,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   // Initially, all of slave1's resources are avaliable.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(1, 1, 256));
+    .WillOnce(LaunchTasks(1, 1, 256, "*"));
 
   // We don't filter the unused resources to make sure that
   // they get offered to the framework as soon as it fails over.
@@ -788,7 +1087,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   // The first time the framework is offered resources, all of the
   // cluster's resources should be avaliable.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(1, 2, 512));
+    .WillOnce(LaunchTasks(1, 2, 512, "*"));
 
   // The framework does not use all the resources.
   Future<Nothing> resourcesUnused;
@@ -831,7 +1130,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   // The first time sched2 gets an offer, framework 1 has a task
   // running with 2 cpus and 512 mem, leaving 1 cpu and 512 mem.
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(1, 512)))
-    .WillOnce(LaunchTasks(1, 1, 256));
+    .WillOnce(LaunchTasks(1, 1, 256, "*"));
 
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
 
@@ -913,7 +1212,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   // Initially, all of slave1's resources are available.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 1024)))
-    .WillOnce(LaunchTasks(1, 2, 512));
+    .WillOnce(LaunchTasks(1, 2, 512, "*"));
 
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
 
@@ -1026,7 +1325,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
 
   // Initially, all of slave1's resources are avaliable.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(1, 2, 512));
+    .WillOnce(LaunchTasks(1, 2, 512, "*"));
 
   // We filter the first time so that the unused resources
   // on slave1 from the task launch won't get reoffered
@@ -1126,7 +1425,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
 
   // Initially, all of the slave's resources.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(2, 1, 256));
+    .WillOnce(LaunchTasks(2, 1, 256, "*"));
 
   // Some resources will be unused and we need to make sure that we
   // don't send the TASK_FINISHED status update below until after the

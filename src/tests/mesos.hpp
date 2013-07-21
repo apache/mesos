@@ -226,7 +226,7 @@ public:
 //   .WillOnce(LaunchTasks(TASKS, CPUS, MEM));
 // Launches up to TASKS no-op tasks, if possible,
 // each with CPUS cpus and MEM memory.
-ACTION_P3(LaunchTasks, tasks, cpus, mem)
+ACTION_P4(LaunchTasks, tasks, cpus, mem, role)
 {
   SchedulerDriver* driver = arg0;
   std::vector<Offer> offers = arg1;
@@ -254,7 +254,7 @@ ACTION_P3(LaunchTasks, tasks, cpus, mem)
       executor.mutable_command()->set_value(":");
       task.mutable_executor()->MergeFrom(executor);
 
-      Option<Resources> resources = remaining.find(TASK_RESOURCES, "*");
+      Option<Resources> resources = remaining.find(TASK_RESOURCES, role);
       CHECK_SOME(resources);
       task.mutable_resources()->MergeFrom(resources.get());
       remaining -= resources.get();
