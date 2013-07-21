@@ -216,7 +216,9 @@ void ProcessIsolator::launchExecutor(
 
     if (realpath.isError()) {
       EXIT(1) << "Failed to determine the canonical path "
-              << "for the mesos-launcher: " << realpath.error();
+              << "for the mesos-launcher '"
+              << path::join(flags.launcher_dir, "mesos-launcher")
+              << "': " << realpath.error();
     }
 
     // Grab a copy of the path so that we can reliably use 'c_str()'.
