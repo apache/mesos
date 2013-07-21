@@ -1,5 +1,7 @@
 package org.jenkinsci.plugins.mesos;
 
+import static hudson.util.TimeUnit2.MINUTES;
+
 import java.util.logging.Logger;
 
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -9,9 +11,7 @@ import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
 /**
- * This is basically a copy of the EC2 plugin's retention strategy.
- * https://github.com/jenkinsci/ec2-plugin/blob/master/src/main/java/hudson
- * /plugins/ec2/EC2RetentionStrategy.java
+ * This is inspired by {@link hudson.slaves.CloudRetentionStrategy}.
  */
 public class MesosRetentionStrategy extends RetentionStrategy<MesosComputer> {
 
@@ -22,16 +22,15 @@ public class MesosRetentionStrategy extends RetentionStrategy<MesosComputer> {
    */
   public final int idleTerminationMinutes;
 
+  // Since a Mesos task is fast to start/stop we use a default value of 1 min.
+  private final int IDLE_TERMINATION_MINUTES = 1;
+
   private static final Logger LOGGER = Logger
       .getLogger(MesosRetentionStrategy.class.getName());
 
-  public static boolean disabled = Boolean
-      .getBoolean(MesosRetentionStrategy.class.getName() + ".disabled");
-
   @DataBoundConstructor
   public MesosRetentionStrategy(String idleTerminationMinutes) {
-    // Since a Mesos node is fast to start/stop we default this value to 3 mins.
-    int value = 3;
+    int value = IDLE_TERMINATION_MINUTES;
     if (idleTerminationMinutes != null && idleTerminationMinutes.trim() != "") {
       try {
         value = Integer.parseInt(idleTerminationMinutes);
@@ -45,23 +44,33 @@ public class MesosRetentionStrategy extends RetentionStrategy<MesosComputer> {
 
   @Override
   public synchronized long check(MesosComputer c) {
-    // If we've been told never to terminate, then we're done.
-    if (idleTerminationMinutes == 0)
+    if (c.getNode() == null) {
       return 1;
+    }
 
-    final long idleMilliseconds1 = System.currentTimeMillis()
-        - c.getIdleStartMilliseconds();
+    // If we just launched this computer, check back after 1 min.
+    // NOTE: 'c.getConnectTime()' refers to when the Jenkins slave was launched.
+    if ((System.currentTimeMillis() - c.getConnectTime()) <
+        MINUTES.toMillis(idleTerminationMinutes)) {
+      return 1;
+    }
 
-    System.out.println(c.getName() + " idle: " + idleMilliseconds1);
+    // If the computer is offline, terminate it.
+    if (c.isOffline()) {
+      LOGGER.info("Disconnecting offline computer " + c.getName());
+      c.getNode().terminate();
+      return 1;
+    }
 
-    if (c.isIdle() && c.isOnline() && !disabled) {
-      final long idleMilliseconds = System.currentTimeMillis()
-          - c.getIdleStartMilliseconds();
+    // Terminate the computer if it is idle for longer than
+    // 'idleTerminationMinutes'.
+    if (c.isIdle()) {
+      final long idleMilliseconds =
+          System.currentTimeMillis() - c.getIdleStartMilliseconds();
 
-      if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
-        LOGGER.info("Idle timeout after " + idleTerminationMinutes + "mins: "
-            + c.getName());
-        c.getNode().idleTimeout();
+      if (idleMilliseconds > MINUTES.toMillis(idleTerminationMinutes)) {
+        LOGGER.info("Disconnecting idle computer " + c.getName());
+        c.getNode().terminate();
       }
     }
     return 1;
