@@ -23,7 +23,7 @@
 #include "master/drf_sorter.hpp"
 #include "master/sorter.hpp"
 
-using namespace mesos::internal;
+using namespace mesos;
 
 using mesos::internal::master::allocator::Sorter;
 using mesos::internal::master::allocator::DRFSorter;

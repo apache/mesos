@@ -24,6 +24,7 @@
 #include <string>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 
 #include <process/future.hpp>
 #include <process/process.hpp>
@@ -32,8 +33,6 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/uuid.hpp>
-
-#include "common/resources.hpp"
 
 #include "slave/flags.hpp"
 

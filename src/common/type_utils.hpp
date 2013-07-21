@@ -24,11 +24,11 @@
 #include <google/protobuf/descriptor.h>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 
 #include <stout/uuid.hpp>
 
 #include "common/attributes.hpp"
-#include "common/resources.hpp"
 
 #include "messages/messages.hpp"
 
@@ -253,8 +253,7 @@ inline bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
     (!left.has_framework_id() ||
     (left.framework_id() == right.framework_id())) &&
     left.command() == right.command() &&
-    internal::Resources(left.resources()) ==
-    internal::Resources(right.resources()) &&
+    Resources(left.resources()) == Resources(right.resources()) &&
     left.has_name() == right.has_name() &&
     (!left.has_name() || (left.name() == right.name())) &&
     left.has_source() == right.has_source() &&
@@ -268,8 +267,7 @@ inline bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 {
   return left.hostname() == right.hostname() &&
     left.webui_hostname() == right.webui_hostname() &&
-    internal::Resources(left.resources()) ==
-    internal::Resources(right.resources()) &&
+    Resources(left.resources()) == Resources(right.resources()) &&
     internal::Attributes(left.attributes()) ==
     internal::Attributes(right.attributes()) &&
     left.has_webui_port() == right.has_webui_port() &&

@@ -731,3 +731,42 @@ TEST(ResourcesTest, FlattenRoles)
 
   EXPECT_EQ(r.flatten(), Resources::parse("cpus:3;mem:5").get());
 }
+
+
+TEST(ResourcesTest, Find)
+{
+  Resources resources1 =
+    Resources::parse("cpus(role1):2;mem(role1):10;cpus:4;mem:20").get();
+  Resources toFind1 = Resources::parse("cpus:3;mem:15").get();
+
+  Resources found1 = resources1.find(toFind1, "role1").get();
+  Resources expected1 =
+    Resources::parse("cpus(role1):2;mem(role1):10;cpus:1;mem:5").get();
+  EXPECT_EQ(found1, expected1);
+
+  Resources resources2 =
+    Resources::parse("cpus(role1):1;mem(role1):5;cpus(role2):2;"
+                     "mem(role2):8;cpus:1;mem:7").get();
+  Resources toFind2 = Resources::parse("cpus:3;mem:15").get();
+
+  Resources found2 = resources2.find(toFind2, "role1").get();
+  Resources expected2 =
+    Resources::parse("cpus(role1):1;mem(role1):5;cpus:1;mem:7;"
+                     "cpus(role2):1;mem(role2):3").get();
+  EXPECT_EQ(found2, expected2);
+
+  Resources resources3 =
+    Resources::parse("cpus(role1):5;mem(role1):5;cpus:5;mem:5").get();
+  Resources toFind3 = Resources::parse("cpus:6;mem:6").get();
+
+  Resources found3 = resources3.find(toFind3).get();
+  Resources expected3 =
+    Resources::parse("cpus:5;mem:5;cpus(role1):1;mem(role1):1").get();
+
+  EXPECT_EQ(found3, expected3);
+
+  Resources resources4 = Resources::parse("cpus(role1):1;mem(role1):1").get();
+  Resources toFind4 = Resources::parse("cpus:2;mem:2").get();
+
+  EXPECT_NONE(resources4.find(toFind1, "role1"));
+}

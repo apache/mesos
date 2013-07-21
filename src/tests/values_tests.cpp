@@ -21,9 +21,9 @@
 
 #include <gtest/gtest.h>
 
-#include <stout/try.hpp>
+#include <mesos/values.hpp>
 
-#include "common/values.hpp"
+#include <stout/try.hpp>
 
 #include "master/master.hpp"
 

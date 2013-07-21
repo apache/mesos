@@ -22,9 +22,9 @@
 #include <set>
 #include <string>
 
-#include <stout/hashmap.hpp>
+#include <mesos/resources.hpp>
 
-#include "common/resources.hpp"
+#include <stout/hashmap.hpp>
 
 #include "master/sorter.hpp"
 

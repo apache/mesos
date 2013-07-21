@@ -235,24 +235,15 @@ ACTION_P3(LaunchTasks, tasks, cpus, mem)
   int launched = 0;
   for (size_t i = 0; i < offers.size(); i++) {
     const Offer& offer = offers[i];
-    double offeredCpus = 0;
-    double offeredMem = 0;
 
-    for (int j = 0; j < offer.resources_size(); j++) {
-      const Resource& resource = offer.resources(j);
-      if (resource.name() == "cpus" &&
-          resource.type() == Value::SCALAR) {
-        offeredCpus = resource.scalar().value();
-      } else if (resource.name() == "mem" &&
-                 resource.type() == Value::SCALAR) {
-        offeredMem = resource.scalar().value();
-      }
-    }
+    const Resources TASK_RESOURCES = Resources::parse(
+        "cpus:" + stringify(cpus) + ";mem:" + stringify(mem)).get();
 
     int nextTaskId = 0;
     std::vector<TaskInfo> tasks;
+    Resources remaining = offer.resources();
 
-    while (offeredCpus >= cpus && offeredMem >= mem && launched < numTasks) {
+    while (TASK_RESOURCES <= remaining.flatten() && launched < numTasks) {
       TaskInfo task;
       task.set_name("TestTask");
       task.mutable_task_id()->set_value(stringify(nextTaskId++));
@@ -263,21 +254,13 @@ ACTION_P3(LaunchTasks, tasks, cpus, mem)
       executor.mutable_command()->set_value(":");
       task.mutable_executor()->MergeFrom(executor);
 
-      Resource* resource;
-      resource = task.add_resources();
-      resource->set_name("cpus");
-      resource->set_type(Value::SCALAR);
-      resource->mutable_scalar()->set_value(cpus);
-
-      resource = task.add_resources();
-      resource->set_name("mem");
-      resource->set_type(Value::SCALAR);
-      resource->mutable_scalar()->set_value(mem);
+      Option<Resources> resources = remaining.find(TASK_RESOURCES, "*");
+      CHECK_SOME(resources);
+      task.mutable_resources()->MergeFrom(resources.get());
+      remaining -= resources.get();
 
       tasks.push_back(task);
       launched++;
-      offeredCpus -= cpus;
-      offeredMem -= mem;
     }
 
     driver->launchTasks(offer.id(), tasks);

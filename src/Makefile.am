@@ -197,6 +197,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
 
 pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\
 		     $(top_srcdir)/include/mesos/scheduler.hpp	\
+                     $(top_srcdir)/include/mesos/resources.hpp	\
+                     $(top_srcdir)/include/mesos/values.hpp	\
 		     $(top_srcdir)/include/mesos/mesos.proto
 
 nodist_pkginclude_HEADERS = ../include/mesos/mesos.hpp mesos.pb.h
@@ -214,9 +216,8 @@ endif
 libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
 	common/protobuf_utils.hpp					\
-	common/lock.hpp common/resources.hpp				\
+	common/lock.hpp							\
 	common/type_utils.hpp common/thread.hpp common/units.hpp	\
-	common/values.hpp						\
 	detector/detector.hpp examples/utils.hpp files/files.hpp	\
 	launcher/launcher.hpp linux/cgroups.hpp				\
 	linux/fs.hpp local/flags.hpp local/local.hpp			\

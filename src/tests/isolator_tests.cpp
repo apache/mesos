@@ -23,12 +23,12 @@
 #include <string>
 #include <vector>
 
+#include <mesos/resources.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/os.hpp>
 #include <stout/path.hpp>
-
-#include "common/resources.hpp"
 
 #include "detector/detector.hpp"
 

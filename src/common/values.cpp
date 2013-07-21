@@ -23,12 +23,13 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <mesos/resources.hpp>
+#include <mesos/values.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/strings.hpp>
 
-#include "common/resources.hpp"
-#include "common/values.hpp"
 
 using std::max;
 using std::min;

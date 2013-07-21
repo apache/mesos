@@ -19,6 +19,8 @@
 #ifndef __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
 #define __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
 
+#include <mesos/resources.hpp>
+
 #include <process/delay.hpp>
 #include <process/id.hpp>
 #include <process/timeout.hpp>
@@ -28,8 +30,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
-
-#include "common/resources.hpp"
 
 #include "master/allocator.hpp"
 #include "master/drf_sorter.hpp"

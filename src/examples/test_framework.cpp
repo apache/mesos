@@ -23,10 +23,15 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <stout/check.hpp>
+#include <stout/flags.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
+
+#include "logging/flags.hpp"
 
 using namespace mesos;
 
@@ -39,14 +44,17 @@ using std::flush;
 using std::string;
 using std::vector;
 
+using mesos::Resources;
+
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 32;
 
 class TestScheduler : public Scheduler
 {
 public:
-  TestScheduler(const ExecutorInfo& _executor)
+  TestScheduler(const ExecutorInfo& _executor, const string& _role)
     : executor(_executor),
+      role(_role),
       tasksLaunched(0),
       tasksFinished(0),
       totalTasks(5) {}
@@ -71,28 +79,16 @@ public:
     for (size_t i = 0; i < offers.size(); i++) {
       const Offer& offer = offers[i];
 
-      // Lookup resources we care about.
-      // TODO(benh): It would be nice to ultimately have some helper
-      // functions for looking up resources.
-      double cpus = 0;
-      double mem = 0;
+      static const Resources TASK_RESOURCES = Resources::parse(
+          "cpus:" + stringify(CPUS_PER_TASK) +
+          ";mem:" + stringify(MEM_PER_TASK)).get();
 
-      for (int i = 0; i < offer.resources_size(); i++) {
-        const Resource& resource = offer.resources(i);
-        if (resource.name() == "cpus" &&
-            resource.type() == Value::SCALAR) {
-          cpus = resource.scalar().value();
-        } else if (resource.name() == "mem" &&
-                   resource.type() == Value::SCALAR) {
-          mem = resource.scalar().value();
-        }
-      }
+      Resources remaining = offer.resources();
 
       // Launch tasks.
       vector<TaskInfo> tasks;
       while (tasksLaunched < totalTasks &&
-             cpus >= CPUS_PER_TASK &&
-             mem >= MEM_PER_TASK) {
+             TASK_RESOURCES <= remaining.flatten()) {
         int taskId = tasksLaunched++;
 
         cout << "Starting task " << taskId << " on "
@@ -104,22 +100,12 @@ public:
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
         task.mutable_executor()->MergeFrom(executor);
 
-        Resource* resource;
-
-        resource = task.add_resources();
-        resource->set_name("cpus");
-        resource->set_type(Value::SCALAR);
-        resource->mutable_scalar()->set_value(CPUS_PER_TASK);
-
-        resource = task.add_resources();
-        resource->set_name("mem");
-        resource->set_type(Value::SCALAR);
-        resource->mutable_scalar()->set_value(MEM_PER_TASK);
+        Option<Resources> resources = remaining.find(TASK_RESOURCES, role);
+        CHECK_SOME(resources);
+        task.mutable_resources()->MergeFrom(resources.get());
+        remaining -= resources.get();
 
         tasks.push_back(task);
-
-        cpus -= CPUS_PER_TASK;
-        mem -= MEM_PER_TASK;
       }
 
       driver->launchTasks(offer.id(), tasks);
@@ -161,24 +147,54 @@ public:
 
 private:
   const ExecutorInfo executor;
+  string role;
   int tasksLaunched;
   int tasksFinished;
   int totalTasks;
 };
 
 
+void usage(const char* argv0, const flags::FlagsBase& flags)
+{
+  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
+       << endl
+       << "Supported options:" << endl
+       << flags.usage();
+}
+
+
 int main(int argc, char** argv)
 {
-  if (argc != 2) {
-    cerr << "Usage: " << argv[0] << " <master>" << endl;
-    return -1;
-  }
-
   // Find this executable's directory to locate executor.
   string path = os::realpath(dirname(argv[0])).get();
   string uri = path + "/test-executor";
   if (getenv("MESOS_BUILD_DIR")) {
     uri = string(getenv("MESOS_BUILD_DIR")) + "/src/test-executor";
+  }
+
+  mesos::internal::logging::Flags flags;
+
+  string role;
+  flags.add(&role,
+            "role",
+            "Role to use when registering",
+            "*");
+
+  Option<string> master;
+  flags.add(&master,
+            "master",
+            "ip:port of master to connect");
+
+  Try<Nothing> load = flags.load(None(), argc, argv);
+
+  if (load.isError()) {
+    cerr << load.error() << endl;
+    usage(argv[0], flags);
+    exit(1);
+  } else if (master.isNone()) {
+    cerr << "Missing --master" << endl;
+    usage(argv[0], flags);
+    exit(1);
   }
 
   ExecutorInfo executor;
@@ -187,13 +203,14 @@ int main(int argc, char** argv)
   executor.set_name("Test Executor (C++)");
   executor.set_source("cpp_test");
 
-  TestScheduler scheduler(executor);
+  TestScheduler scheduler(executor, role);
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Test Framework (C++)");
+  framework.set_role(role);
 
-  MesosSchedulerDriver driver(&scheduler, framework, argv[1]);
+  MesosSchedulerDriver driver(&scheduler, framework, master.get());
 
   return driver.run() == DRIVER_STOPPED ? 0 : 1;
 }

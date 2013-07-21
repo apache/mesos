@@ -22,6 +22,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
@@ -32,7 +33,6 @@
 
 #include "common/attributes.hpp"
 #include "common/build.hpp"
-#include "common/resources.hpp"
 #include "common/type_utils.hpp"
 
 #include "slave/slave.hpp"

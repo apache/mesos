@@ -21,6 +21,8 @@
 
 #include <string>
 
+#include <mesos/resources.hpp>
+
 #include <process/future.hpp>
 #include <process/dispatch.hpp>
 #include <process/pid.hpp>
@@ -29,8 +31,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/option.hpp>
-
-#include "common/resources.hpp"
 
 #include "master/flags.hpp"
 

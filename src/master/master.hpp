@@ -27,6 +27,8 @@
 
 #include <boost/circular_buffer.hpp>
 
+#include <mesos/resources.hpp>
+
 #include <process/http.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -37,7 +39,6 @@
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 
-#include "common/resources.hpp"
 #include "common/type_utils.hpp"
 #include "common/units.hpp"
 

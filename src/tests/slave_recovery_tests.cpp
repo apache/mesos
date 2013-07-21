@@ -23,6 +23,7 @@
 #include <string>
 
 #include <mesos/executor.hpp>
+#include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
 #include <process/dispatch.hpp>
@@ -36,7 +37,6 @@
 #include <stout/uuid.hpp>
 
 #include "common/protobuf_utils.hpp"
-#include "common/resources.hpp"
 
 #include "detector/detector.hpp"
 

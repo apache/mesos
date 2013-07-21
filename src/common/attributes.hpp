@@ -23,12 +23,11 @@
 #include <string>
 
 #include <mesos/mesos.hpp>
+#include <mesos/values.hpp>
 
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
-
-#include "common/values.hpp"
 
 #include "logging/logging.hpp"
 
