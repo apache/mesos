@@ -39,7 +39,7 @@ public class MesosCloud extends Cloud {
 
   private String master;
   private String description;
-
+  private String labelString = "mesos";
   private static String staticMaster;
 
   private static final Logger LOGGER = Logger.getLogger(MesosCloud.class.getName());
@@ -108,11 +108,10 @@ public class MesosCloud extends Cloud {
   }
 
   private MesosSlave doProvision(int numExecutors) throws Descriptor.FormException, IOException {
-    String name = "mesos-" + UUID.randomUUID().toString();
-    String nodeDescription = "mesos";
+    String name = "mesos-jenkins-" + UUID.randomUUID().toString();
+    String nodeDescription = labelString;
     String remoteFS = "jenkins";
     Mode mode = Mode.NORMAL;
-    String labelString = "mesos";
     List<? extends NodeProperty<?>> nodeProperties = null;
 
     return new MesosSlave(name, nodeDescription, remoteFS, numExecutors, mode, labelString,
@@ -122,10 +121,11 @@ public class MesosCloud extends Cloud {
   @Override
   public boolean canProvision(Label label) {
     // Provisioning is simply creating a task for a jenkins slave.
-    // Therefore, we can always provision, however the framework may
-    // not have the resources necessary to start a task when it comes
-    // time to launch the slave.
-    return true;
+    // Therefore, we can always provision as long as the label
+    // matches "mesos".
+    // TODO(vinod): The framework may not have the resources necessary
+    // to start a task when it comes time to launch the slave.
+    return label.matches(Label.parse(labelString));
   }
 
   public String getMaster() {
