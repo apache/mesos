@@ -94,7 +94,8 @@ TEST(ResourcesTest, Printing)
                                  "ports:[10000-20000, 30000-50000];"
                                  "disks:{sda1}");
 
-  string output = "cpus=45.55; ports=[10000-20000, 30000-50000]; disks={sda1}";
+  string output =
+    "cpus(*):45.55; ports(*):[10000-20000, 30000-50000]; disks(*):{sda1}";
 
   ostringstream oss;
   oss << r;
@@ -456,7 +457,7 @@ TEST(ResourcesTest, RangesSubtraction4)
 
   resourcesOffered -= resources;
 
-  EXPECT_EQ(1u, resourcesOffered.size());
+  EXPECT_EQ(0u, resourcesOffered.size());
 
   const Value::Ranges& ranges = resourcesOffered.get("ports", Value::Ranges());
 

@@ -38,7 +38,7 @@ namespace mesos {
 
 bool operator == (const Resource& left, const Resource& right)
 {
-  if (left.name() == right.name() && left.type() == right.type()) {
+  if (matches(left, right)) {
     if (left.type() == Value::SCALAR) {
       return left.scalar() == right.scalar();
     } else if (left.type() == Value::RANGES) {
@@ -52,9 +52,17 @@ bool operator == (const Resource& left, const Resource& right)
 }
 
 
+bool matches(const Resource& left, const Resource& right)
+{
+  return left.name() == right.name() &&
+    left.type() == right.type() &&
+    left.role() == right.role();
+}
+
+
 bool operator <= (const Resource& left, const Resource& right)
 {
-  if (left.name() == right.name() && left.type() == right.type()) {
+  if (matches(left, right)) {
     if (left.type() == Value::SCALAR) {
       return left.scalar() <= right.scalar();
     } else if (left.type() == Value::RANGES) {
@@ -72,7 +80,7 @@ Resource operator + (const Resource& left, const Resource& right)
 {
   Resource result = left;
 
-  if (left.name() == right.name() && left.type() == right.type()) {
+  if (matches(left, right)) {
     if (left.type() == Value::SCALAR) {
       result.mutable_scalar()->MergeFrom(left.scalar() + right.scalar());
     } else if (left.type() == Value::RANGES) {
@@ -92,7 +100,7 @@ Resource operator - (const Resource& left, const Resource& right)
 {
   Resource result = left;
 
-  if (left.name() == right.name() && left.type() == right.type()) {
+  if (matches(left, right)) {
     if (left.type() == Value::SCALAR) {
       result.mutable_scalar()->MergeFrom(left.scalar() - right.scalar());
     } else if (left.type() == Value::RANGES) {
@@ -110,7 +118,7 @@ Resource operator - (const Resource& left, const Resource& right)
 
 Resource& operator += (Resource& left, const Resource& right)
 {
-  if (left.name() == right.name() && left.type() == right.type()) {
+  if (matches(left, right)) {
     if (left.type() == Value::SCALAR) {
       left.mutable_scalar()->MergeFrom(left.scalar() + right.scalar());
     } else if (left.type() == Value::RANGES) {
@@ -128,7 +136,7 @@ Resource& operator += (Resource& left, const Resource& right)
 
 Resource& operator -= (Resource& left, const Resource& right)
 {
-  if (left.name() == right.name() && left.type() == right.type()) {
+  if (matches(left, right)) {
     if (left.type() == Value::SCALAR) {
       left.mutable_scalar()->MergeFrom(left.scalar() - right.scalar());
     } else if (left.type() == Value::RANGES) {
@@ -146,7 +154,7 @@ Resource& operator -= (Resource& left, const Resource& right)
 
 ostream& operator << (ostream& stream, const Resource& resource)
 {
-  stream << resource.name() << "=";
+  stream << resource.name() << "(" << resource.role() << "):";
 
   switch (resource.type()) {
     case Value::SCALAR: stream << resource.scalar(); break;
@@ -162,6 +170,33 @@ ostream& operator << (ostream& stream, const Resource& resource)
 
 
 namespace internal {
+
+Resources Resources::flatten(const string& role) const
+{
+  Resources flattened;
+
+  foreach (const Resource& r, resources) {
+    Resource toRemove = r;
+    toRemove.set_role(role);
+
+    bool found = false;
+    for (int i = 0; i < flattened.resources.size(); i++) {
+      Resource removed = flattened.resources.Get(i);
+      if (toRemove.name() == removed.name() &&
+          toRemove.type() == removed.type()) {
+        flattened.resources.Mutable(i)->MergeFrom(toRemove + removed);
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      flattened.resources.Add()->MergeFrom(toRemove);
+    }
+  }
+
+  return flattened;
+}
 
 Resource Resources::parse(const std::string& name, const std::string& text)
 {

@@ -256,6 +256,7 @@ message Resource {
   optional Value.Scalar scalar = 3;
   optional Value.Ranges ranges = 4;
   optional Value.Set set = 5;
+  optional string role = 6 [default = "*"];
 }
 
 

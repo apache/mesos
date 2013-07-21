@@ -76,6 +76,8 @@ Resource operator + (const Resource& left, const Resource& right);
 Resource operator - (const Resource& left, const Resource& right);
 Resource& operator += (Resource& left, const Resource& right);
 Resource& operator -= (Resource& left, const Resource& right);
+// Return true iff both Resources have the same name, type, and role.
+bool matches(const Resource& left, const Resource& right);
 
 std::ostream& operator << (std::ostream& stream, const Resource& resource);
 
@@ -216,8 +218,7 @@ public:
     bool added = false;
 
     foreach (const Resource& resource, resources) {
-      if (resource.name() == that.name() &&
-          resource.type() == that.type()) {
+      if (matches(resource, that)) {
         result.resources.Add()->MergeFrom(resource + that);
         added = true;
       } else {
@@ -237,9 +238,11 @@ public:
     Resources result;
 
     foreach (const Resource& resource, resources) {
-      if (resource.name() == that.name() &&
-          resource.type() == that.type()) {
-        result.resources.Add()->MergeFrom(resource - that);
+      if (matches(resource, that)) {
+        Resource r = resource - that;
+        if (!isZero(r)) {
+          result.resources.Add()->MergeFrom(r);
+        }
       } else {
         result.resources.Add()->MergeFrom(resource);
       }
@@ -260,11 +263,17 @@ public:
     return *this;
   }
 
+  // Returns a Resources object with the same amount of each resource
+  // type as these Resources, but with only one Resource object per
+  // type and all Resource object marked as the specified role.
+  Resources flatten(const std::string& role = "*") const;
+
+  // Returns the Resource from these Resources that matches the argument
+  // in name, type, and role, if it exists.
   Option<Resource> get(const Resource& r) const
   {
     foreach (const Resource& resource, resources) {
-      if (resource.name() == r.name() &&
-          resource.type() == r.type()) {
+      if (matches(resource, r)) {
         return resource;
       }
     }
@@ -371,6 +380,19 @@ public:
     return false;
   }
 
+  static bool isZero(const Resource& resource)
+  {
+    if (resource.type() == Value::SCALAR) {
+      return resource.scalar().value() == 0;
+    } else if (resource.type() == Value::RANGES) {
+      return resource.ranges().range_size() == 0;
+    } else if (resource.type() == Value::SET) {
+      return resource.set().item_size() == 0;
+    }
+
+    return false;
+  }
+
 private:
   google::protobuf::RepeatedPtrField<Resource> resources;
 };
@@ -381,11 +403,19 @@ inline Value::Scalar Resources::get(
     const std::string& name,
     const Value::Scalar& scalar) const
 {
+  Value::Scalar total;
+  bool found = false;
+
   foreach (const Resource& resource, resources) {
     if (resource.name() == name &&
         resource.type() == Value::SCALAR) {
-      return resource.scalar();
+      total += resource.scalar();
+      found = true;
     }
+  }
+
+  if (found) {
+    return total;
   }
 
   return scalar;
@@ -397,11 +427,19 @@ inline Value::Ranges Resources::get(
     const std::string& name,
     const Value::Ranges& ranges) const
 {
+  Value::Ranges total;
+  bool found = false;
+
   foreach (const Resource& resource, resources) {
     if (resource.name() == name &&
         resource.type() == Value::RANGES) {
-      return resource.ranges();
+      total += resource.ranges();
+      found = true;
     }
+  }
+
+  if (found) {
+    return total;
   }
 
   return ranges;
@@ -413,11 +451,19 @@ inline Value::Set Resources::get(
     const std::string& name,
     const Value::Set& set) const
 {
+  Value::Set total;
+  bool found = false;
+
   foreach (const Resource& resource, resources) {
     if (resource.name() == name &&
         resource.type() == Value::SET) {
-      return resource.set();
+      total += resource.set();
+      found = true;
     }
+  }
+
+  if (found) {
+    return total;
   }
 
   return set;
@@ -426,47 +472,83 @@ inline Value::Set Resources::get(
 
 inline Option<double> Resources::cpus()
 {
+  double total= 0;
+  bool found = false;
+
   foreach (const Resource& resource, resources) {
     if (resource.name() == "cpus" && resource.type() == Value::SCALAR) {
-      return resource.scalar().value();
+      total += resource.scalar().value();
+      found = true;
     }
   }
+
+  if (found) {
+    return total;
+  }
+
   return None();
 }
 
 
 inline Option<Bytes> Resources::mem()
 {
+  double total = 0;
+  bool found = false;
+
   foreach (const Resource& resource, resources) {
     if (resource.name() == "mem" &&
         resource.type() == Value::SCALAR) {
-      return Megabytes(static_cast<uint64_t>(resource.scalar().value()));
+      total += resource.scalar().value();
+      found = true;
     }
   }
+
+  if (found) {
+    return Megabytes(static_cast<uint64_t>(total));
+  }
+
   return None();
 }
 
 
 inline Option<Bytes> Resources::disk()
 {
+  double total = 0;
+  bool found = false;
+
   foreach (const Resource& resource, resources) {
     if (resource.name() == "disk" &&
         resource.type() == Value::SCALAR) {
-      return Megabytes(static_cast<uint64_t>(resource.scalar().value()));
+      total += resource.scalar().value();
+      found = true;
     }
   }
+
+  if (found) {
+    return Megabytes(static_cast<uint64_t>(total));
+  }
+
   return None();
 }
 
 
 inline Option<Value::Ranges> Resources::ports()
 {
+  Value::Ranges total;
+  bool found = false;
+
   foreach (const Resource& resource, resources) {
     if (resource.name() == "ports" &&
         resource.type() == Value::RANGES) {
-      return resource.ranges();
+      total += resource.ranges();
+      found = true;
     }
   }
+
+  if (found) {
+    return total;
+  }
+
   return None();
 }
 
