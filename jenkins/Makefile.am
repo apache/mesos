@@ -22,13 +22,11 @@ EXTRA_DIST = pom.xml										\
 	src/main/java/org/jenkinsci/plugins/mesos/MesosComputerLauncher.java			\
 	src/main/java/org/jenkinsci/plugins/mesos/MesosRetentionStrategy.java			\
 	src/main/java/org/jenkinsci/plugins/mesos/MesosSlave.java				\
-	src/main/java/org/jenkinsci/plugins/mesos/TaskTemplate.java				\
 	src/main/resources/index.jelly								\
 	src/main/resources/org/jenkinsci/plugins/mesos/MesosCloud/computerSet.jelly		\
 	src/main/resources/org/jenkinsci/plugins/mesos/MesosCloud/config.jelly			\
 	src/main/resources/org/jenkinsci/plugins/mesos/MesosCloud/help-master.html		\
-	src/main/resources/org/jenkinsci/plugins/mesos/MesosSlave/configure-entries.jelly	\
-	src/main/resources/org/jenkinsci/plugins/mesos/TaskTemplate/config.jelly
+	src/main/resources/org/jenkinsci/plugins/mesos/MesosSlave/configure-entries.jelly
 
 
 if OS_LINUX
