@@ -495,28 +495,30 @@
         $scope.slave.starting_tasks = 0;
         $scope.slave.running_tasks = 0;
 
-        // Update the framework map.
+        // Computes framework stats by setting new attributes on the 'framework'
+        // object.
+        function computeFrameworkStats(framework) {
+          framework.num_tasks = 0;
+          framework.cpus = 0;
+          framework.mem = 0;
+
+          _.each(framework.executors, function(executor) {
+            framework.num_tasks += _.size(executor.tasks);
+            framework.cpus += executor.resources.cpus;
+            framework.mem += executor.resources.mem;
+          });
+        }
+
+        // Compute framework stats and update slave's mappings of those
+        // frameworks.
         _.each($scope.state.frameworks, function(framework) {
           $scope.slave.frameworks[framework.id] = framework;
+          computeFrameworkStats(framework);
         });
 
-        // Update the completed framework map.
         _.each($scope.state.completed_frameworks, function(framework) {
           $scope.slave.completed_frameworks[framework.id] = framework;
-        });
-
-        // Compute the framework stats.
-        _.each(_.values($scope.state.frameworks).concat(_.values($scope.state.completed_frameworks)),
-            function(framework) {
-              framework.num_tasks = 0;
-              framework.cpus = 0;
-              framework.mem = 0;
-
-              _.each(framework.executors, function(executor) {
-                framework.num_tasks += _.size(executor.tasks);
-                framework.cpus += executor.resources.cpus;
-                framework.mem += executor.resources.mem;
-              });
+          computeFrameworkStats(framework);
         });
 
         $('#slave').show();
