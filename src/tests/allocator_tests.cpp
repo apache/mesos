@@ -1602,7 +1602,7 @@ TYPED_TEST(AllocatorTest, RoleTest)
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.roles = Option<string>("role2");
-  Try<PID<Master> > master = StartMaster(&this->allocator, masterFlags);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
   // Launch a framework with a role that doesn't exist to see that it
