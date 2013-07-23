@@ -159,4 +159,6 @@ TEST(IO, BufferedRead)
   AWAIT_EXPECT_EQ(data, future);
 
   close(pipes[0]);
+
+  ASSERT_SOME(os::rm("file"));
 }
