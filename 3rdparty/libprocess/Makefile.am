@@ -108,6 +108,7 @@ tests_SOURCES =							\
   src/tests/process_tests.cpp					\
   src/tests/shared_tests.cpp					\
   src/tests/statistics_tests.cpp				\
+  src/tests/timeseries_tests.cpp				\
   src/tests/time_tests.cpp
 
 tests_CPPFLAGS =			\

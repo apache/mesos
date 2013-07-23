@@ -1,18 +1,28 @@
 #include <gmock/gmock.h>
 
-#include <map>
-
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/statistics.hpp>
 #include <process/time.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/foreach.hpp>
+#include <stout/list.hpp>
 
 using namespace process;
 
-using std::map;
+
+// Overload for testing time series equality.
+bool operator == (const List<double>& list, const TimeSeries<double>& series)
+{
+  List<double> result;
+  foreach (const TimeSeries<double>::Value& value, series.get()) {
+    result.push_back(value.data);
+  }
+  return list == result;
+}
 
 
 TEST(Statistics, set)
@@ -26,94 +36,59 @@ TEST(Statistics, set)
   Time now = Clock::now();
   statistics.set("test", "statistic", 4.0, now);
 
-  Future<map<Time, double> > values =
+  Future<TimeSeries<double> > values =
     statistics.timeseries("test", "statistic");
 
   AWAIT_ASSERT_READY(values);
 
-  EXPECT_EQ(2, values.get().size());
+  EXPECT_EQ(2, values.get().get().size());
 
-  EXPECT_GE(Clock::now(), values.get().begin()->first);
-  EXPECT_DOUBLE_EQ(3.0, values.get().begin()->second);
+  EXPECT_GE(Clock::now(), values.get().get().begin()->time);
+  EXPECT_DOUBLE_EQ(3.0, values.get().get().begin()->data);
 
-  EXPECT_EQ(1, values.get().count(now));
-  EXPECT_DOUBLE_EQ(4.0, values.get()[now]);
+  EXPECT_EQ(List<double>(3.0, 4.0), values.get());
 }
 
 
-TEST(Statistics, truncate)
+TEST(Statistics, increment)
 {
-  Clock::pause();
-
-  Statistics statistics(Days(1));
-
-  statistics.set("test", "statistic", 3.0);
-
-  Future<map<Time, double> > values =
-    statistics.timeseries("test", "statistic");
-
-  AWAIT_ASSERT_READY(values);
-
-  EXPECT_EQ(1, values.get().size());
-  EXPECT_GE(Clock::now(), values.get().begin()->first);
-  EXPECT_DOUBLE_EQ(3.0, values.get().begin()->second);
-
-  Clock::advance(Days(1) + Seconds(1));
-  Clock::settle();
+  Statistics statistics;
+  Future<TimeSeries<double> > values;
 
   statistics.increment("test", "statistic");
-
   values = statistics.timeseries("test", "statistic");
-
   AWAIT_ASSERT_READY(values);
+  EXPECT_EQ(List<double>(1.0), values.get());
 
-  EXPECT_EQ(1, values.get().size());
-  EXPECT_GE(Clock::now(), values.get().begin()->first);
-  EXPECT_DOUBLE_EQ(4.0, values.get().begin()->second);
+  statistics.increment("test", "statistic");
+  values = statistics.timeseries("test", "statistic");
+  AWAIT_ASSERT_READY(values);
+  EXPECT_EQ(List<double>(1.0, 2.0), values.get());
 
-  Clock::resume();
+  statistics.increment("test", "statistic");
+  values = statistics.timeseries("test", "statistic");
+  AWAIT_ASSERT_READY(values);
+  EXPECT_EQ(List<double>(1.0, 2.0, 3.0), values.get());
 }
 
 
-TEST(Statistics, archive)
+TEST(Statistics, decrement)
 {
-  Clock::pause();
+  Statistics statistics;
+  Future<TimeSeries<double> > values;
 
-  Statistics statistics(Seconds(10));
-
-  Time now = Clock::now();
-  statistics.set("test", "statistic", 1.0, now);
-  statistics.set("test", "statistic", 2.0, Time(now + Seconds(1)));
-
-  // Archive and ensure the following:
-  //   1. The statistic will no longer be part of the snapshot.
-  //   2. However, the time series will be retained until the window
-  //      expiration.
-  statistics.archive("test", "statistic");
-
-  // TODO(bmahler): Wait for JSON parsing to verify number 1.
-
-  // Ensure the raw time series is present.
-  Future<map<Time, double> > values =
-    statistics.timeseries("test", "statistic");
-  AWAIT_ASSERT_READY(values);
-  EXPECT_FALSE(values.get().empty());
-
-  // Expire the window and ensure the statistics were removed.
-  Clock::advance(STATISTICS_TRUNCATION_INTERVAL);
-  Clock::settle();
-
-  // Ensure the raw statistics are gone.
+  statistics.decrement("test", "statistic");
   values = statistics.timeseries("test", "statistic");
   AWAIT_ASSERT_READY(values);
-  EXPECT_TRUE(values.get().empty());
+  EXPECT_EQ(List<double>(-1.0), values.get());
 
-  // Reactivate the statistic, and make sure we can retrieve it.
-  statistics.set("test", "statistic", 1.0, now);
-
+  statistics.decrement("test", "statistic");
   values = statistics.timeseries("test", "statistic");
   AWAIT_ASSERT_READY(values);
-  EXPECT_FALSE(values.get().empty());
+  EXPECT_EQ(List<double>(-1.0, -2.0), values.get());
 
-  Clock::resume();
+  statistics.decrement("test", "statistic");
+  values = statistics.timeseries("test", "statistic");
+  AWAIT_ASSERT_READY(values);
+  EXPECT_EQ(List<double>(-1.0, -2.0, -3.0), values.get());
 }
