@@ -55,20 +55,22 @@
             <td>{{file.gid}}</td>
             <td class="text-right">{{file.size | dataSize}}</td>
             <td class="text-right">{{file.mtime * 1000 | unixDate}}</td>
-            <td ui-if="file.mode[0] == 'd'">
-              <i class="icon-folder-close"></i>
-              <a href="#/slaves/{{slave_id}}/browse?path={{encodeURIComponent(file.path)}}">
-                {{basename(file.path)}}
-              </a>
-            </td>
-            <td ui-if="file.mode[0] != 'd'">
-              <i class="icon-file" style="visibility: hidden;"></i>
-              <a href="" ng-click="pail($event, encodeURIComponent(file.path))">
-                {{basename(file.path)}}
-              </a>
+            <td>
+              <span data-ng-show="file.mode[0] == 'd'">
+                <i class="icon-folder-close"></i>
+                <a href="#/slaves/{{slave_id}}/browse?path={{encodeURIComponent(file.path)}}">
+                  {{basename(file.path)}}
+                </a>
+              </span>
+              <span data-ng-show="file.mode[0] != 'd'">
+                <i class="icon-file" style="visibility: hidden;"></i>
+                <a href="" ng-click="pail($event, encodeURIComponent(file.path))">
+                  {{basename(file.path)}}
+                </a>
+              </span>
             </td>
             <td>
-              <a ui-if="file.mode[0] != 'd'"
+              <a data-ng-show="file.mode[0] != 'd'"
                  href="http://{{slave_host}}/files/download.json?path={{encodeURIComponent(file.path)}}">
                 <button class="btn btn-mini" type="button">
                   Download
