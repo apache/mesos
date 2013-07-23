@@ -145,7 +145,7 @@
           var clip = new ZeroClipboard(element[0]);
 
           clip.on('mouseover', function() {
-            $(this).trigger('clipboardhover');
+            angular.element(this).triggerHandler('clipboardhover');
           });
 
           clip.on('mouseout', function() {
@@ -160,7 +160,7 @@
               delete elScope.tt_content_orig;
             }
 
-            $(this).trigger('clipboardhover');
+            angular.element(this).triggerHandler('clipboardhover');
           });
 
           clip.on('complete', function() {
@@ -189,7 +189,7 @@
             //
             // Browsers with no flash support will not append the 'flash' class
             // and will therefore not see the copy buttons.
-            $('html').addClass('flash');
+            angular.element('html').addClass('flash');
           });
         }
       };
