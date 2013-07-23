@@ -1,6 +1,8 @@
 package org.jenkinsci.plugins.mesos;
 
+import hudson.Extension;
 import hudson.model.Computer;
+import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Slave;
@@ -21,40 +23,22 @@ public class MesosSlave extends Slave {
   private static final Logger LOGGER = Logger.getLogger(MesosSlave.class
       .getName());
 
-  private final String idleTerminationMinutes;
-  private final String limitedBuildCount;
-  private final String clusterId;
-
   @DataBoundConstructor
-  public MesosSlave(String name, String description, String remoteFS,
-      int numExecutors, Mode mode, String labelString,
-      List<? extends NodeProperty<?>> nodeProperties,
-      String idleTerminationMinutes, String limitedBuildCount)
-      throws FormException, IOException {
-
-    this(name, description, remoteFS, numExecutors, Mode.NORMAL, labelString,
-        new MesosComputerLauncher(name), null, Collections
-            .<NodeProperty<?>> emptyList(), idleTerminationMinutes,
-        limitedBuildCount);
-  }
-
-  public MesosSlave(String name, String nodeDescription, String remoteFS,
-      int numExecutors, Mode mode, String labelString,
-      ComputerLauncher launcher,
-      RetentionStrategy<MesosComputer> retentionStrategy,
-      List<? extends NodeProperty<?>> nodeProperties,
-      String idleTerminationMinutes, String limitedBuildCount)
-      throws FormException, IOException {
-
-    super(name, nodeDescription, remoteFS, numExecutors, Mode.NORMAL,
-        labelString, launcher, new MesosRetentionStrategy(
-            idleTerminationMinutes), Collections.<NodeProperty<?>> emptyList());
+  public MesosSlave(
+      String name, String numExecutors, String labelString, String idleTerminationMinutes)
+      throws FormException, IOException
+  {
+    super(name,
+          labelString, // node description.
+          "jenkins",   // remoteFS.
+          numExecutors,
+          Mode.NORMAL,
+          labelString, // Label.
+          new MesosComputerLauncher(name),
+          new MesosRetentionStrategy(idleTerminationMinutes),
+          Collections.<NodeProperty<?>> emptyList());
 
     LOGGER.info("Constructing Mesos slave");
-
-    this.idleTerminationMinutes = idleTerminationMinutes;
-    this.limitedBuildCount = limitedBuildCount;
-    this.clusterId = null;
   }
 
   public void terminate() {
@@ -72,6 +56,19 @@ public class MesosSlave extends Slave {
     } catch (IOException e) {
       LOGGER.log(Level.WARNING, "Failed to terminate Mesos instance: "
           + getInstanceId(), e);
+    }
+  }
+
+  @Override
+  public DescriptorImpl getDescriptor() {
+    return (DescriptorImpl) super.getDescriptor();
+  }
+
+  @Extension
+  public static class DescriptorImpl extends SlaveDescriptor {
+    @Override
+    public String getDisplayName() {
+      return "Mesos Slave";
     }
   }
 

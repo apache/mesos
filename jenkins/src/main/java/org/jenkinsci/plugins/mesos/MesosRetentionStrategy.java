@@ -28,15 +28,13 @@ public class MesosRetentionStrategy extends RetentionStrategy<MesosComputer> {
   private static final Logger LOGGER = Logger
       .getLogger(MesosRetentionStrategy.class.getName());
 
-  @DataBoundConstructor
   public MesosRetentionStrategy(String idleTerminationMinutes) {
     int value = IDLE_TERMINATION_MINUTES;
     if (idleTerminationMinutes != null && idleTerminationMinutes.trim() != "") {
       try {
         value = Integer.parseInt(idleTerminationMinutes);
       } catch (NumberFormatException nfe) {
-        LOGGER.info("Malformed default idleTermination value: "
-            + idleTerminationMinutes);
+        LOGGER.info("Malformed idleTermination value: " + idleTerminationMinutes);
       }
     }
     this.idleTerminationMinutes = value;

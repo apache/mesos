@@ -40,6 +40,8 @@ public class MesosCloud extends Cloud {
   private String master;
   private String description;
   private String labelString = "mesos";
+  private String idleTerminationMinutes = "1"; // TODO(vinod): Make this configurable.
+
   private static String staticMaster;
 
   private static final Logger LOGGER = Logger.getLogger(MesosCloud.class.getName());
@@ -109,13 +111,7 @@ public class MesosCloud extends Cloud {
 
   private MesosSlave doProvision(int numExecutors) throws Descriptor.FormException, IOException {
     String name = "mesos-jenkins-" + UUID.randomUUID().toString();
-    String nodeDescription = labelString;
-    String remoteFS = "jenkins";
-    Mode mode = Mode.NORMAL;
-    List<? extends NodeProperty<?>> nodeProperties = null;
-
-    return new MesosSlave(name, nodeDescription, remoteFS, numExecutors, mode, labelString,
-        nodeProperties, "1", "0");
+    return new MesosSlave(name, ""+numExecutors, labelString, idleTerminationMinutes);
   }
 
   @Override
