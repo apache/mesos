@@ -202,19 +202,18 @@
       <tbody>
         <tr ng-repeat="completed_framework in _.values(slave.completed_frameworks) | orderBy:tables['completed_frameworks'].selected_column:tables['completed_frameworks'].reverse">
           <td>
-            <a href="javascript:void(0)"
-                popover="{{completed_framework.id}}"
-                popover-placement="bottom"
-                popover-title="ID">
-              {{completed_framework.id | truncateMesosID}}
-            </a>
+            <a href="{{'#/slaves/' + slave_id + '/frameworks/' + completed_framework.id}}">
+              {{completed_framework.id | truncateMesosID}}</a>
+            <button class="btn btn-mini btn-toggle"
+              clipboard
+              data-clipboard-text="{{framework.id}}"
+              tooltip="Copy ID"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+            </button>
           </td>
           <td>{{completed_framework.user}}</td>
-          <td>
-            <a href="{{'#/slaves/' + slave_id + '/frameworks/' + completed_framework.id}}">
-              {{completed_framework.name}}
-            </a>
-          </td>
+          <td>{{completed_framework.name}}</td>
           <td>{{completed_framework.num_tasks | number}}</td>
           <td>{{completed_framework.cpus | number}}</td>
           <td>{{completed_framework.mem * (1024 * 1024) | dataSize}}</td>
