@@ -59,14 +59,11 @@ jenkins: $(MESOS_LIBRARY) $(MESOS_JAR)
 	mvn package
 
 
-all: jenkins
-
-
 clean-local:
 	if test "$(top_srcdir)" != "$(top_builddir)"; then		\
-          mvn clean;							\
-          rm -rf src work repo;						\
+          rm -rf src;							\
         fi
+	rm -rf target work;
 
 
 .PHONY: jenkins
