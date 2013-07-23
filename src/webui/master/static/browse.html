@@ -14,9 +14,6 @@
 </ul>
 
 <ul class="breadcrumb">
-  <li>
-    <em>Path:</em>
-  </li>
   <li ng-repeat="dir in path.split('/')">
     <a href="#/slaves/{{slave_id}}/browse?path={{
              encodeURIComponent(path.split('/').slice(0, $index + 1).join('/'))}}">
@@ -34,48 +31,51 @@
 <div class="row hide" id="listing">
   <div class="span9">
     <div class="well">
-      <table class="table table-condensed">
+      <div data-ng-show="listing.length == 0">
+        No files in this directory.
+      </div>
+      <table class="table table-condensed" data-ng-show="listing.length > 0">
         <thead>
           <tr>
             <th>mode</th>
-            <th>nlink</th>
+            <th class="text-right">nlink</th>
             <th>uid</th>
             <th>gid</th>
-            <th>size</th>
-            <th>mtime</th>
-            <th>name</th>
+            <th class="text-right">size</th>
+            <th class="text-right">mtime</th>
+            <th></th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-        <tr ng-repeat="file in listing">
-          <td>{{file.mode}}</td>
-          <td>{{file.nlink}}</td>
-          <td>{{file.uid}}</td>
-          <td>{{file.gid}}</td>
-          <td>{{file.size | dataSize}}</td>
-          <td>{{file.mtime * 1000 | unixDate}}</td>
-          <td ui-if="file.mode[0] == 'd'" align="right">
-            <a href="#/slaves/{{slave_id}}/browse?path={{encodeURIComponent(file.path)}}">
-              {{basename(file.path)}}
-            </a>
-          </td>
-          <td ui-if="file.mode[0] != 'd'" align="right">
-            <a href="" ng-click="pail($event, encodeURIComponent(file.path))">
-              {{basename(file.path)}}
-            </a>
-          </td>
-          <td>
-            <a ui-if="file.mode[0] != 'd'"
-               href="http://{{slave_host}}/files/download.json?path={{encodeURIComponent(file.path)}}">
-              <button class="btn btn-mini" type="button">download</button>
-            </a>
-          </td>
-        </tr>
-        <!-- Add a row to the bottom for a consistent look. -->
-        <tr>
-          <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-        </tr>
+          <tr ng-repeat="file in listing | orderBy:['-mode', 'path']">
+            <td>{{file.mode}}</td>
+            <td class="text-right">{{file.nlink}}</td>
+            <td>{{file.uid}}</td>
+            <td>{{file.gid}}</td>
+            <td class="text-right">{{file.size | dataSize}}</td>
+            <td class="text-right">{{file.mtime * 1000 | unixDate}}</td>
+            <td ui-if="file.mode[0] == 'd'">
+              <i class="icon-folder-close"></i>
+              <a href="#/slaves/{{slave_id}}/browse?path={{encodeURIComponent(file.path)}}">
+                {{basename(file.path)}}
+              </a>
+            </td>
+            <td ui-if="file.mode[0] != 'd'">
+              <i class="icon-file" style="visibility: hidden;"></i>
+              <a href="" ng-click="pail($event, encodeURIComponent(file.path))">
+                {{basename(file.path)}}
+              </a>
+            </td>
+            <td>
+              <a ui-if="file.mode[0] != 'd'"
+                 href="http://{{slave_host}}/files/download.json?path={{encodeURIComponent(file.path)}}">
+                <button class="btn btn-mini" type="button">
+                  Download
+                </button>
+              </a>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
