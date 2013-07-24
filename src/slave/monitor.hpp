@@ -21,10 +21,14 @@
 
 #include <string>
 
+#include <boost/circular_buffer.hpp>
+
 #include <mesos/mesos.hpp>
 
 #include <process/future.hpp>
+#include <process/statistics.hpp>
 
+#include <stout/cache.hpp>
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
@@ -40,6 +44,13 @@ namespace slave {
 // Forward declarations.
 class Isolator;
 class ResourceMonitorProcess;
+
+
+const extern Duration MONITORING_TIME_SERIES_WINDOW;
+const extern size_t MONITORING_TIME_SERIES_CAPACITY;
+
+// Number of time series to maintain for completed executors.
+const extern size_t MONITORING_ARCHIVED_TIME_SERIES;
 
 
 // Provides resource monitoring for executors. Resource usage time
@@ -82,7 +93,9 @@ class ResourceMonitorProcess : public process::Process<ResourceMonitorProcess>
 {
 public:
   ResourceMonitorProcess(Isolator* _isolator)
-    : ProcessBase("monitor"), isolator(_isolator) {}
+    : ProcessBase("monitor"),
+      isolator(_isolator),
+      archive(MONITORING_ARCHIVED_TIME_SERIES) {}
 
   virtual ~ResourceMonitorProcess() {}
 
@@ -100,6 +113,10 @@ protected:
   virtual void initialize()
   {
     route("/statistics.json", None(), &ResourceMonitorProcess::statisticsJSON);
+
+    // TODO(bmahler): Add a archive.json endpoint that exposes
+    // historical information, once we have path parameters for
+    // routes.
   }
 
 private:
@@ -120,8 +137,24 @@ private:
 
   Isolator* isolator;
 
-  // The executor info is stored for each watched executor.
-  hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > watches;
+  // Monitoring information for an executor.
+  struct MonitoringInfo {
+    // boost::circular_buffer needs a default constructor.
+    MonitoringInfo() {}
+
+    MonitoringInfo(const ExecutorInfo& _executorInfo,
+                   const Duration& window,
+                   size_t capacity)
+      : executorInfo(_executorInfo), statistics(window, capacity) {}
+
+    ExecutorInfo executorInfo;   // Non-const for assignability.
+    process::TimeSeries<ResourceStatistics> statistics;
+  };
+
+  hashmap<FrameworkID, hashmap<ExecutorID, MonitoringInfo> > executors;
+
+  // Fixed-size history of monitoring information.
+  boost::circular_buffer<MonitoringInfo> archive;
 };
 
 } // namespace slave {

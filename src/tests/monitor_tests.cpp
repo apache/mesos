@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <limits>
 #include <map>
 
 #include <gmock/gmock.h>
@@ -48,6 +49,7 @@ using process::http::NotFound;
 using process::http::OK;
 using process::http::Response;
 
+using std::numeric_limits;
 using std::string;
 
 using testing::_;
@@ -55,9 +57,6 @@ using testing::DoAll;
 using testing::Return;
 
 
-// TODO(bmahler): Add additional tests:
-//   1. Check that the data has been published to statistics.
-//   2. Check that metering is occurring on subsequent resource data.
 TEST(MonitorTest, WatchUnwatch)
 {
   FrameworkID frameworkId;
@@ -73,8 +72,11 @@ TEST(MonitorTest, WatchUnwatch)
   executorInfo.set_source("source");
 
   ResourceStatistics initialStatistics;
+  initialStatistics.set_cpus_nr_periods(100);
+  initialStatistics.set_cpus_nr_throttled(2);
   initialStatistics.set_cpus_user_time_secs(0);
   initialStatistics.set_cpus_system_time_secs(0);
+  initialStatistics.set_cpus_throttled_time_secs(0.5);
   initialStatistics.set_cpus_limit(2.5);
   initialStatistics.set_mem_rss_bytes(0);
   initialStatistics.set_mem_file_bytes(0);
@@ -153,7 +155,8 @@ TEST(MonitorTest, WatchUnwatch)
       "Content-Type",
       response);
 
-  // TODO(bmahler): Verify metering directly through statistics.
+  // TODO(bmahler): Use JSON equality instead to avoid having to use
+  // numeric limits for double precision.
   AWAIT_EXPECT_RESPONSE_BODY_EQ(
       strings::format(
           "[{"
@@ -172,7 +175,9 @@ TEST(MonitorTest, WatchUnwatch)
                   "\"mem_file_bytes\":%lu,"
                   "\"mem_limit_bytes\":%lu,"
                   "\"mem_mapped_file_bytes\":%lu,"
-                  "\"mem_rss_bytes\":%lu"
+                  "\"mem_rss_bytes\":%lu,"
+                  "\"timestamp\":"
+                      "%." + stringify(numeric_limits<double>::digits10) + "g"
               "}"
           "}]",
           statistics.cpus_limit(),
@@ -185,7 +190,8 @@ TEST(MonitorTest, WatchUnwatch)
           statistics.mem_file_bytes(),
           statistics.mem_limit_bytes(),
           statistics.mem_mapped_file_bytes(),
-          statistics.mem_rss_bytes()).get(),
+          statistics.mem_rss_bytes(),
+          statistics.timestamp()).get(),
       response);
 
   // Ensure the monitor stops polling the isolator.
