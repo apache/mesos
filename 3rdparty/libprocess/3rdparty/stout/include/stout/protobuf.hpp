@@ -162,6 +162,8 @@ namespace JSON {
 
 struct Protobuf
 {
+  // TODO(bmahler): This currently uses the default value for optional
+  // fields but we may want to revisit this decision.
   Protobuf(const google::protobuf::Message& message)
   {
     const google::protobuf::Reflection* reflection = message.GetReflection();

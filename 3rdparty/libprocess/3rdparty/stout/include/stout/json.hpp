@@ -3,6 +3,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <list>
 #include <map>
 #include <string>
@@ -13,7 +14,7 @@
 
 // TODO(jsirois): Implement parsing that constructs JSON objects.
 
-
+// TODO(bmahler): Evaluate picojson / JSON_Spirit.
 namespace JSON {
 
 // Implementation of the JavaScript Object Notation (JSON) grammar
@@ -132,8 +133,10 @@ struct Renderer : boost::static_visitor<>
 
   void operator () (const Number& number) const
   {
-    out.precision(10);
-    out << number.value;
+    // Use the guaranteed accurate precision, see:
+    // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n2005.pdf
+    out << std::setprecision(std::numeric_limits<double>::digits10)
+        << number.value;
   }
 
   void operator () (const Object& object) const
