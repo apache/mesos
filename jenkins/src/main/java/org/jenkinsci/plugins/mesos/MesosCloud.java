@@ -44,6 +44,7 @@ public class MesosCloud extends Cloud {
   private int slaveCpus = 1;
   private int slaveMem = 512; // MB.
   private int executorCpus = 1;
+  private int maxExecutors = 2;
   private int executorMem = 128; // MB.
   private int idleTerminationMinutes = 3;
 
@@ -55,7 +56,7 @@ public class MesosCloud extends Cloud {
 
   @DataBoundConstructor
   public MesosCloud(String master, String description, int slaveCpus,
-      int slaveMem, int executorCpus, int executorMem, int idleTerminationMinutes)
+      int slaveMem, int maxExecutors, int executorCpus, int executorMem, int idleTerminationMinutes)
           throws NumberFormatException {
     super("MesosCloud");
 
@@ -63,6 +64,7 @@ public class MesosCloud extends Cloud {
     this.description = description;
     this.slaveCpus = slaveCpus;
     this.slaveMem = slaveMem;
+    this.maxExecutors = maxExecutors;
     this.executorCpus = executorCpus;
     this.executorMem = executorMem;
     this.idleTerminationMinutes = idleTerminationMinutes;
@@ -87,19 +89,21 @@ public class MesosCloud extends Cloud {
   @Override
   public Collection<PlannedNode> provision(Label label, int excessWorkload) {
     List<PlannedNode> list = new ArrayList<PlannedNode>();
-    final int numExecutors = excessWorkload;
     try {
-      list.add(new PlannedNode(this.getDisplayName(), Computer.threadPoolForRemoting
-          .submit(new Callable<Node>() {
-            public Node call() throws Exception {
-              // TODO(vinod): Instead of launching one slave with 'excessWorkload' executors,
-              // launch multiple slaves with fewer executors per slave.
-              MesosSlave s = doProvision(numExecutors);
-              Hudson.getInstance().addNode(s);
-              return s;
-            }
-          }), numExecutors));
-
+      while (excessWorkload > 0) {
+        final int numExecutors = Math.min(excessWorkload, maxExecutors);
+        excessWorkload -= numExecutors;
+        LOGGER.info("Provisioning Jenkins Slave on Mesos with " + numExecutors +
+                    " executors. Remaining excess workload: " + excessWorkload + " executors)");
+        list.add(new PlannedNode(this.getDisplayName(), Computer.threadPoolForRemoting
+            .submit(new Callable<Node>() {
+              public Node call() throws Exception {
+                MesosSlave s = doProvision(numExecutors);
+                Hudson.getInstance().addNode(s);
+                return s;
+              }
+            }), numExecutors));
+      }
     } catch (Exception e) {
       LOGGER.log(Level.WARNING, "Failed to create instances on Mesos", e);
       return Collections.emptyList();
