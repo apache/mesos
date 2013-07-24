@@ -13,11 +13,13 @@ public abstract class Mesos {
 
   public static class SlaveRequest {
     JenkinsSlave slave;
-    int executors;
+    final int cpus;
+    final int mem;
 
-    public SlaveRequest(JenkinsSlave _slave, int _executors) {
-      this.slave = _slave;
-      this.executors = _executors;
+    public SlaveRequest(JenkinsSlave slave, int cpus, int mem) {
+      this.slave = slave;
+      this.cpus = cpus;
+      this.mem = mem;
     }
   }
 

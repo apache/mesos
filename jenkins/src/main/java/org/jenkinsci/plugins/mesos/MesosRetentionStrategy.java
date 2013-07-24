@@ -22,22 +22,11 @@ public class MesosRetentionStrategy extends RetentionStrategy<MesosComputer> {
    */
   public final int idleTerminationMinutes;
 
-  // Since a Mesos task is fast to start/stop we use a default value of 1 min.
-  private final int IDLE_TERMINATION_MINUTES = 1;
-
   private static final Logger LOGGER = Logger
       .getLogger(MesosRetentionStrategy.class.getName());
 
-  public MesosRetentionStrategy(String idleTerminationMinutes) {
-    int value = IDLE_TERMINATION_MINUTES;
-    if (idleTerminationMinutes != null && idleTerminationMinutes.trim() != "") {
-      try {
-        value = Integer.parseInt(idleTerminationMinutes);
-      } catch (NumberFormatException nfe) {
-        LOGGER.info("Malformed idleTermination value: " + idleTerminationMinutes);
-      }
-    }
-    this.idleTerminationMinutes = value;
+  public MesosRetentionStrategy(int idleTerminationMinutes) {
+    this.idleTerminationMinutes = idleTerminationMinutes;
   }
 
   @Override

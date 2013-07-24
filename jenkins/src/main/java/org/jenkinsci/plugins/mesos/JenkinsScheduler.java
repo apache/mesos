@@ -33,13 +33,10 @@ import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 
 public class JenkinsScheduler implements Scheduler {
-  private static final int JENKINS_SLAVE_CPUS = 1;
-
-  // TODO(vinod): Revert these to real values when using in production.
-  private static final int JENKINS_SLAVE_MEM = 512;
-  private static final int JENKINS_EXECUTOR_MEM = 100;
-
   private static final String SLAVE_JAR_URI_SUFFIX = "jnlpJars/slave.jar";
+
+  // We allocate 10% more memory to the Mesos task to account for the JVM overhead.
+  private static final double JVM_MEM_OVERHEAD_FACTOR = 0.1;
 
   private static final String SLAVE_COMMAND_FORMAT =
       "java -DHUDSON_HOME=jenkins -server -Xmx%dm -Xms16m -XX:+UseConcMarkSweepGC " +
@@ -59,6 +56,7 @@ public class JenkinsScheduler implements Scheduler {
 
     this.jenkinsMaster = jenkinsMaster;
     this.mesosMaster = mesosMaster;
+
     requests = new LinkedList<Request>();
     results = new HashMap<TaskID, Result>();
   }
@@ -114,7 +112,7 @@ public class JenkinsScheduler implements Scheduler {
   }
 
   public void requestJenkinsSlave(Mesos.SlaveRequest request, Mesos.SlaveResult result) {
-    LOGGER.info("Enqueuing jenkins slave request " + request.executors);
+    LOGGER.info("Enqueuing jenkins slave request");
     requests.add(new Request(request, result));
   }
 
@@ -212,8 +210,8 @@ public class JenkinsScheduler implements Scheduler {
     if (mem < 0)  LOGGER.severe("No mem resource present");
 
     // Check for sufficient cpu and memory resources in the offer.
-    double requestedCpus = JENKINS_SLAVE_CPUS * request.request.executors;
-    double requestedMem = JENKINS_SLAVE_MEM + (request.request.executors * JENKINS_EXECUTOR_MEM);
+    double requestedCpus = request.request.cpus;
+    double requestedMem = (1 + JVM_MEM_OVERHEAD_FACTOR) * request.request.mem;
 
     if (requestedCpus <= cpus && requestedMem <= mem) {
       return true;
@@ -246,7 +244,7 @@ public class JenkinsScheduler implements Scheduler {
                 .setType(Value.Type.SCALAR)
                 .setScalar(
                     Value.Scalar.newBuilder()
-                        .setValue(JENKINS_SLAVE_CPUS + request.request.executors).build()).build())
+                        .setValue(request.request.cpus).build()).build())
         .addResources(
             Resource
                 .newBuilder()
@@ -255,14 +253,13 @@ public class JenkinsScheduler implements Scheduler {
                 .setScalar(
                     Value.Scalar
                         .newBuilder()
-                        .setValue(
-                            JENKINS_SLAVE_MEM + JENKINS_EXECUTOR_MEM * request.request.executors)
+                        .setValue((1 + JVM_MEM_OVERHEAD_FACTOR) * request.request.mem)
                         .build()).build())
         .setCommand(
             CommandInfo
                 .newBuilder()
                 .setValue(
-                    String.format(SLAVE_COMMAND_FORMAT, JENKINS_SLAVE_MEM,
+                    String.format(SLAVE_COMMAND_FORMAT, request.request.mem,
                         getJnlpUrl(request.request.slave.name)))
                 .addUris(
                     CommandInfo.URI.newBuilder().setValue(

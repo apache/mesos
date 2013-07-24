@@ -39,16 +39,33 @@ public class MesosCloud extends Cloud {
 
   private String master;
   private String description;
-  private String labelString = "mesos";
-  private String idleTerminationMinutes = "1"; // TODO(vinod): Make this configurable.
+
+  // TODO(vinod): Let the default values in MesosCloud/confg.jelly be inherited from here.
+  private int slaveCpus = 1;
+  private int slaveMem = 512; // MB.
+  private int executorCpus = 1;
+  private int executorMem = 128; // MB.
+  private int idleTerminationMinutes = 3;
+
+  private final String labelString = "mesos";
 
   private static String staticMaster;
 
   private static final Logger LOGGER = Logger.getLogger(MesosCloud.class.getName());
 
   @DataBoundConstructor
-  public MesosCloud(String master, String description) {
+  public MesosCloud(String master, String description, int slaveCpus,
+      int slaveMem, int executorCpus, int executorMem, int idleTerminationMinutes)
+          throws NumberFormatException {
     super("MesosCloud");
+
+    this.master = master;
+    this.description = description;
+    this.slaveCpus = slaveCpus;
+    this.slaveMem = slaveMem;
+    this.executorCpus = executorCpus;
+    this.executorMem = executorMem;
+    this.idleTerminationMinutes = idleTerminationMinutes;
 
     // Restart the scheduler if the master has changed or a scheduler is not up.
     if (!master.equals(staticMaster) || !Mesos.getInstance().isSchedulerRunning()) {
@@ -64,22 +81,19 @@ public class MesosCloud extends Cloud {
       LOGGER.info("Mesos master has not changed, leaving the scheduler running");
     }
 
-    this.master = master;
-    this.description = description;
-
-    staticMaster = this.master;
+    staticMaster = master;
   }
 
   @Override
   public Collection<PlannedNode> provision(Label label, int excessWorkload) {
-    final int numExecutors = 1;
     List<PlannedNode> list = new ArrayList<PlannedNode>();
-
+    final int numExecutors = excessWorkload;
     try {
       list.add(new PlannedNode(this.getDisplayName(), Computer.threadPoolForRemoting
           .submit(new Callable<Node>() {
             public Node call() throws Exception {
-              // TODO: record the output somewhere
+              // TODO(vinod): Instead of launching one slave with 'excessWorkload' executors,
+              // launch multiple slaves with fewer executors per slave.
               MesosSlave s = doProvision(numExecutors);
               Hudson.getInstance().addNode(s);
               return s;
@@ -94,24 +108,10 @@ public class MesosCloud extends Cloud {
     return list;
   }
 
-  public void doProvision(StaplerRequest req, StaplerResponse rsp) throws ServletException,
-      IOException, FormException {
-    checkPermission(PROVISION);
-    LOGGER.log(Level.INFO, "Create a new node by user request");
-
-    try {
-      MesosSlave node = doProvision(1);
-      Hudson.getInstance().addNode(node);
-
-      rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
-    } catch (Exception e) {
-      sendError(e.getMessage(), req, rsp);
-    }
-  }
-
   private MesosSlave doProvision(int numExecutors) throws Descriptor.FormException, IOException {
     String name = "mesos-jenkins-" + UUID.randomUUID().toString();
-    return new MesosSlave(name, ""+numExecutors, labelString, idleTerminationMinutes);
+    return new MesosSlave(name, numExecutors, labelString, slaveCpus, slaveMem,
+        executorCpus, executorMem, idleTerminationMinutes);
   }
 
   @Override

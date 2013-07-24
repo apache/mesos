@@ -1,15 +1,15 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
 
-        <f:entry title="${%# of executors}" field="numExecutors">
-          <f:readOnlyTextbox />
+        <f:entry title="${%# of executors}">
+          <f:readOnlyTextbox field="numExecutors" clazz="positive-number"/>
         </f:entry>
 
-        <f:entry title="${%Labels}" field="labelString">
-          <f:readOnlyTextbox />
+        <f:entry title="${%Labels}">
+          <f:readOnlyTextbox field="labelString"/>
         </f:entry>
 
-        <f:entry title="${%Idle Termination Minutes}" field="idleTerminationMinutes">
-          <f:readOnlyTextbox />
+        <f:entry title="${%Idle Termination Minutes}">
+          <f:readOnlyTextbox field="idleTerminationMinutes" clazz="positive-number"/>
         </f:entry>
 
 </j:jelly>

@@ -20,25 +20,39 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 public class MesosSlave extends Slave {
 
+  private final int cpus;
+  private final int mem;
+
   private static final Logger LOGGER = Logger.getLogger(MesosSlave.class
       .getName());
 
   @DataBoundConstructor
-  public MesosSlave(
-      String name, String numExecutors, String labelString, String idleTerminationMinutes)
-      throws FormException, IOException
+  public MesosSlave(String name, int numExecutors, String labelString,
+      int slaveCpus, int slaveMem, int executorCpus, int executorMem,
+      int idleTerminationMinutes) throws FormException, IOException
   {
     super(name,
           labelString, // node description.
           "jenkins",   // remoteFS.
-          numExecutors,
+          "" + numExecutors,
           Mode.NORMAL,
           labelString, // Label.
           new MesosComputerLauncher(name),
           new MesosRetentionStrategy(idleTerminationMinutes),
           Collections.<NodeProperty<?>> emptyList());
 
+    this.cpus = slaveCpus + (numExecutors * executorCpus);
+    this.mem = slaveMem + (numExecutors * executorMem);
+
     LOGGER.info("Constructing Mesos slave");
+  }
+
+  public int getCpus() {
+    return cpus;
+  }
+
+  public int getMem() {
+    return mem;
   }
 
   public void terminate() {

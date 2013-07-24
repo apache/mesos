@@ -55,8 +55,9 @@ public class MesosComputerLauncher extends ComputerLauncher {
     }
 
     // Create the request.
-    int numExecutors = computer.getNode().getNumExecutors();
-    Mesos.SlaveRequest request = new Mesos.SlaveRequest(new JenkinsSlave(name), numExecutors);
+    int cpus = computer.getNode().getCpus();
+    int mem = computer.getNode().getMem();
+    Mesos.SlaveRequest request = new Mesos.SlaveRequest(new JenkinsSlave(name), cpus, mem);
 
     // Launch the jenkins slave.
     final Lock lock = new ReentrantLock();

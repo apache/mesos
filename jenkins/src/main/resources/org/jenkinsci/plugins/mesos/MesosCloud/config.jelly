@@ -8,5 +8,25 @@
         <f:textbox field="description" />
     </f:entry>
 
+    <f:entry title="${%Jenkins Slave CPUs}">
+        <f:number field="slaveCpus" clazz="required positive-number"  value="1"/>
+    </f:entry>
+
+    <f:entry title="${%Jenkins Slave Memory in MB}">
+        <f:number field="slaveMem" clazz="required positive-number" value="512"/>
+    </f:entry>
+
+    <f:entry title="${%Jenkins Executor CPUs}">
+        <f:number field="executorCpus" clazz="required number" value="1"/>
+    </f:entry>
+
+    <f:entry title="${%Jenkins Executor Memory in MB}">
+        <f:number field="executorMem" clazz="required positive-number" value="128"/>
+    </f:entry>
+
+   <f:entry title="${%Idle Termination Minutes}">
+        <f:number field="idleTerminationMinutes" clazz="required positive-number" value="3"/>
+    </f:entry>
+
     <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="master"/>
 </j:jelly>
