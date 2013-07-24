@@ -40,13 +40,14 @@ public class MesosCloud extends Cloud {
   private String master;
   private String description;
 
-  // TODO(vinod): Let the default values in MesosCloud/confg.jelly be inherited from here.
-  private int slaveCpus = 1;
-  private int slaveMem = 512; // MB.
-  private int executorCpus = 1;
-  private int maxExecutors = 2;
-  private int executorMem = 128; // MB.
-  private int idleTerminationMinutes = 3;
+  // Find the default values for these variables in
+  // src/main/resources/org/jenkinsci/plugins/mesos/MesosCloud/config.jelly.
+  private final int slaveCpus;
+  private final int slaveMem; // MB.
+  private final int executorCpus;
+  private final int maxExecutors;
+  private final int executorMem; // MB.
+  private final int idleTerminationMinutes;
 
   private final String labelString = "mesos";
 
