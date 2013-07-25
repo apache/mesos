@@ -841,7 +841,7 @@ TEST(Process, collect)
   // First ensure an empty list functions correctly.
   std::list<Future<int> > empty;
   Future<std::list<int> > future = collect(empty);
-  EXPECT_TRUE(future.await());
+  AWAIT_ASSERT_READY(future);
   EXPECT_TRUE(future.get().empty());
 
   Promise<int> promise1;
@@ -863,8 +863,7 @@ TEST(Process, collect)
 
   future = collect(futures);
 
-  EXPECT_TRUE(future.await());
-  EXPECT_TRUE(future.isReady());
+  AWAIT_ASSERT_READY(future);
 
   std::list<int> values;
   values.push_back(1);
@@ -875,6 +874,49 @@ TEST(Process, collect)
   // We expect them to be returned in the same order as the
   // future list that was passed in.
   EXPECT_EQ(values, future.get());
+}
+
+
+TEST(Process, await)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  // First ensure an empty list functions correctly.
+  std::list<Future<int> > empty;
+  Future<std::list<Future<int> > > future = await(empty);
+  AWAIT_ASSERT_READY(future);
+  EXPECT_TRUE(future.get().empty());
+
+  Promise<int> promise1;
+  Promise<int> promise2;
+  Promise<int> promise3;
+  Promise<int> promise4;
+
+  std::list<Future<int> > futures;
+  futures.push_back(promise1.future());
+  futures.push_back(promise2.future());
+  futures.push_back(promise3.future());
+  futures.push_back(promise4.future());
+
+  // Set them out-of-order.
+  promise4.set(4);
+  promise2.set(2);
+  promise1.set(1);
+  promise3.set(3);
+
+  future = await(futures);
+
+  AWAIT_ASSERT_READY(future);
+
+  EXPECT_EQ(futures.size(), future.get().size());
+
+  // We expect them to be returned in the same order as the
+  // future list that was passed in.
+  int i = 1;
+  foreach (const Future<int>& result, future.get()) {
+    ASSERT_TRUE(result.isReady());
+    ASSERT_EQ(i++, result.get());
+  }
 }
 
 
