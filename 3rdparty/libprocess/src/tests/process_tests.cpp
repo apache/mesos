@@ -849,10 +849,11 @@ TEST(Process, collect)
   futures.push_back(promise3.future());
   futures.push_back(promise4.future());
 
-  promise1.set(1);
-  promise2.set(2);
-  promise3.set(3);
+  // Set them out-of-order.
   promise4.set(4);
+  promise2.set(2);
+  promise1.set(1);
+  promise3.set(3);
 
   Future<std::list<int> > future = collect(futures);
 
@@ -865,6 +866,8 @@ TEST(Process, collect)
   values.push_back(3);
   values.push_back(4);
 
+  // We expect them to be returned in the same order as the
+  // future list that was passed in.
   EXPECT_EQ(values, future.get());
 }
 

@@ -16,10 +16,10 @@
 
 namespace process {
 
-// Waits on each future in the specified set and returns the set of
-// resulting values. If any future is discarded then the result will
-// be a failure. Likewise, if any future fails than the result future
-// will be a failure.
+// Waits on each future in the specified list and returns the list of
+// resulting values in the same order. If any future is discarded then
+// the result will be a failure. Likewise, if any future fails then
+// the result future will be a failure.
 template <typename T>
 Future<std::list<T> > collect(
     std::list<Future<T> >& futures,
@@ -38,7 +38,8 @@ public:
       Promise<std::list<T> >* _promise)
     : futures(_futures),
       timeout(_timeout),
-      promise(_promise) {}
+      promise(_promise),
+      ready(0) {}
 
   virtual ~CollectProcess()
   {
@@ -92,8 +93,11 @@ private:
       terminate(this);
     } else {
       assert(future.isReady());
-      values.push_back(future.get());
-      if (futures.size() == values.size()) {
+      ready += 1;
+      if (futures.size() == ready) {
+        foreach (const Future<T>& future, futures) {
+          values.push_back(future.get());
+        }
         promise->set(values);
         terminate(this);
       }
@@ -104,6 +108,7 @@ private:
   const Option<Timeout> timeout;
   Promise<std::list<T> >* promise;
   std::list<T> values;
+  size_t ready;
 };
 
 } // namespace internal {
