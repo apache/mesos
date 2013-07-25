@@ -57,7 +57,7 @@ using testing::DoAll;
 using testing::Return;
 
 
-TEST(MonitorTest, WatchUnwatch)
+TEST(MonitorTest, Collection)
 {
   FrameworkID frameworkId;
   frameworkId.set_value("framework");
@@ -71,46 +71,43 @@ TEST(MonitorTest, WatchUnwatch)
   executorInfo.set_name("name");
   executorInfo.set_source("source");
 
-  ResourceStatistics initialStatistics;
-  initialStatistics.set_cpus_nr_periods(100);
-  initialStatistics.set_cpus_nr_throttled(2);
-  initialStatistics.set_cpus_user_time_secs(0);
-  initialStatistics.set_cpus_system_time_secs(0);
-  initialStatistics.set_cpus_throttled_time_secs(0.5);
-  initialStatistics.set_cpus_limit(2.5);
-  initialStatistics.set_mem_rss_bytes(0);
-  initialStatistics.set_mem_file_bytes(0);
-  initialStatistics.set_mem_anon_bytes(0);
-  initialStatistics.set_mem_mapped_file_bytes(0);
-  initialStatistics.set_mem_limit_bytes(2048);
-  initialStatistics.set_timestamp(Clock::now().secs());
+  ResourceStatistics statistics1;
+  statistics1.set_cpus_nr_periods(100);
+  statistics1.set_cpus_nr_throttled(2);
+  statistics1.set_cpus_user_time_secs(4);
+  statistics1.set_cpus_system_time_secs(1);
+  statistics1.set_cpus_throttled_time_secs(0.5);
+  statistics1.set_cpus_limit(1.0);
+  statistics1.set_mem_rss_bytes(1024);
+  statistics1.set_mem_file_bytes(0);
+  statistics1.set_mem_anon_bytes(0);
+  statistics1.set_mem_mapped_file_bytes(0);
+  statistics1.set_mem_limit_bytes(2048);
+  statistics1.set_timestamp(0);
 
-  ResourceStatistics statistics;
-  statistics.set_cpus_nr_periods(100);
-  statistics.set_cpus_nr_throttled(2);
-  statistics.set_cpus_user_time_secs(4);
-  statistics.set_cpus_system_time_secs(1);
-  statistics.set_cpus_throttled_time_secs(0.5);
-  statistics.set_cpus_limit(2.5);
-  statistics.set_mem_rss_bytes(1024);
-  statistics.set_mem_file_bytes(512);
-  statistics.set_mem_anon_bytes(512);
-  statistics.set_mem_mapped_file_bytes(256);
-  statistics.set_mem_limit_bytes(2048);
-  statistics.set_timestamp(
-      initialStatistics.timestamp() +
-      slave::RESOURCE_MONITORING_INTERVAL.secs());
+  ResourceStatistics statistics2;
+  statistics2.CopyFrom(statistics1);
+  statistics2.set_timestamp(
+      statistics2.timestamp() + slave::RESOURCE_MONITORING_INTERVAL.secs());
+
+  ResourceStatistics statistics3;
+  statistics3.CopyFrom(statistics2);
+  statistics3.set_timestamp(
+      statistics3.timestamp() + slave::RESOURCE_MONITORING_INTERVAL.secs());
 
   TestingIsolator isolator;
 
   process::spawn(isolator);
 
-  Future<Nothing> usage1, usage2;
+  Future<Nothing> usage1, usage2, usage3;
   EXPECT_CALL(isolator, usage(frameworkId, executorId))
     .WillOnce(DoAll(FutureSatisfy(&usage1),
-                    Return(initialStatistics)))
+                    Return(statistics1)))
     .WillOnce(DoAll(FutureSatisfy(&usage2),
-                    Return(statistics)));
+                    Return(statistics2)))
+    .WillOnce(DoAll(FutureSatisfy(&usage3),
+                    Return(statistics3)));
+
   slave::ResourceMonitor monitor(&isolator);
 
   // We pause the clock first in order to make sure that we can
@@ -136,7 +133,7 @@ TEST(MonitorTest, WatchUnwatch)
   // Wait until the isolator has finished returning the statistics.
   process::Clock::settle();
 
-  // The second collection will populate the cpus_usage.
+  // Expect a second collection to occur after the interval.
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
   process::Clock::settle();
 
@@ -145,9 +142,91 @@ TEST(MonitorTest, WatchUnwatch)
   // Wait until the isolator has finished returning the statistics.
   process::Clock::settle();
 
+  // Expect a third collection to occur after the interval.
+  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
+  process::Clock::settle();
+
+  AWAIT_READY(usage3);
+
+  // Wait until the isolator has finished returning the statistics.
+  process::Clock::settle();
+
+  // Ensure the monitor stops polling the isolator.
+  monitor.unwatch(frameworkId, executorId);
+
+  // Wait until ResourceMonitorProcess::unwatch has completed.
+  process::Clock::settle();
+
+  // This time, Isolator::usage should not get called.
+  EXPECT_CALL(isolator, usage(frameworkId, executorId))
+    .Times(0);
+
+  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
+  process::Clock::settle();
+}
+
+
+TEST(MonitorTest, Statistics)
+{
+  FrameworkID frameworkId;
+  frameworkId.set_value("framework");
+
+  ExecutorID executorId;
+  executorId.set_value("executor");
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_executor_id()->CopyFrom(executorId);
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+  executorInfo.set_name("name");
+  executorInfo.set_source("source");
+
+  ResourceStatistics statistics;
+  statistics.set_cpus_nr_periods(100);
+  statistics.set_cpus_nr_throttled(2);
+  statistics.set_cpus_user_time_secs(4);
+  statistics.set_cpus_system_time_secs(1);
+  statistics.set_cpus_throttled_time_secs(0.5);
+  statistics.set_cpus_limit(1.0);
+  statistics.set_mem_file_bytes(0);
+  statistics.set_mem_anon_bytes(0);
+  statistics.set_mem_mapped_file_bytes(0);
+  statistics.set_mem_rss_bytes(1024);
+  statistics.set_mem_limit_bytes(2048);
+  statistics.set_timestamp(0);
+
+  TestingIsolator isolator;
+
+  process::spawn(isolator);
+
+  Future<Nothing> usage;
+  EXPECT_CALL(isolator, usage(frameworkId, executorId))
+    .WillOnce(DoAll(FutureSatisfy(&usage),
+                    Return(statistics)));
+
+  slave::ResourceMonitor monitor(&isolator);
+
+  // We pause the clock first to ensure unexpected collections
+  // are avoided.
+  process::Clock::pause();
+
+  monitor.watch(
+      frameworkId,
+      executorId,
+      executorInfo,
+      slave::RESOURCE_MONITORING_INTERVAL);
+
+  // Now wait for ResouorceMonitorProcess::watch to finish.
+  process::Clock::settle();
+
   process::UPID upid("monitor", process::ip(), process::port());
 
+  // Request the statistics, this will ask the isolator.
   Future<Response> response = process::http::get(upid, "statistics.json");
+
+  AWAIT_READY(response);
+
+  // The collection should have occurred on the isolator.
+  ASSERT_TRUE(usage.isReady());
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
@@ -204,10 +283,11 @@ TEST(MonitorTest, WatchUnwatch)
   EXPECT_CALL(isolator, usage(frameworkId, executorId))
     .Times(0);
 
+  response = process::http::get(upid, "statistics.json");
+
+  // Ensure the rate limiter acquires its permit.
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
   process::Clock::settle();
-
-  response = process::http::get(upid, "statistics.json");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(

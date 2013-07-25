@@ -16,15 +16,18 @@
  * limitations under the License.
  */
 
+#include <list>
 #include <map>
 #include <string>
 
 #include <mesos/mesos.hpp>
 
 #include <process/clock.hpp>
+#include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/future.hpp>
+#include <process/help.hpp>
 #include <process/http.hpp>
 #include <process/process.hpp>
 #include <process/statistics.hpp>
@@ -38,6 +41,7 @@
 
 using namespace process;
 
+using std::list;
 using std::make_pair;
 using std::map;
 using std::string;
@@ -164,38 +168,112 @@ void ResourceMonitorProcess::_collect(
 }
 
 
-Future<http::Response> ResourceMonitorProcess::statisticsJSON(
+ResourceMonitorProcess::Usage ResourceMonitorProcess::usage(
+    const FrameworkID& frameworkId,
+    const ExecutorInfo& executorInfo)
+{
+  Usage usage;
+  usage.frameworkId = frameworkId;
+  usage.executorInfo = executorInfo;
+  usage.statistics = dispatch(
+      isolator, &Isolator::usage, frameworkId, executorInfo.executor_id());
+
+  return usage;
+}
+
+
+Future<http::Response> ResourceMonitorProcess::statistics(
+    const http::Request& request)
+{
+  return limiter.acquire()
+    .then(defer(self(), &Self::_statistics, request));
+}
+
+
+Future<http::Response> ResourceMonitorProcess::_statistics(
+    const http::Request& request)
+{
+  list<Usage> usages;
+  list<Future<ResourceStatistics> > futures;
+
+  foreachkey (const FrameworkID& frameworkId, executors) {
+    foreachvalue (const MonitoringInfo& info, executors[frameworkId]) {
+      // TODO(bmahler): Consider a batch usage API on the Isolator.
+      usages.push_back(usage(frameworkId, info.executorInfo));
+      futures.push_back(usages.back().statistics);
+    }
+  }
+
+  return process::await(futures)
+    .then(defer(self(), &Self::__statistics, usages, request));
+}
+
+
+Future<http::Response> ResourceMonitorProcess::__statistics(
+    const list<ResourceMonitorProcess::Usage>& usages,
     const http::Request& request)
 {
   JSON::Array result;
 
-  foreachkey (const FrameworkID& frameworkId, executors) {
-    foreachkey (const ExecutorID& executorId, executors[frameworkId]) {
-      const TimeSeries<ResourceStatistics>& timeseries =
-        executors[frameworkId][executorId].statistics;
-
-      if (timeseries.empty()) {
-        continue;
-      }
-
-      const ExecutorInfo& executorInfo =
-        executors[frameworkId][executorId].executorInfo;
-
-      JSON::Object entry;
-      entry.values["framework_id"] = frameworkId.value();
-      entry.values["executor_id"] = executorId.value();
-      entry.values["executor_name"] = executorInfo.name();
-      entry.values["source"] = executorInfo.source();
-
-      const ResourceStatistics& statistics = timeseries.latest().get().second;
-      entry.values["statistics"] = JSON::Protobuf(statistics);
-
-      result.values.push_back(entry);
+  foreach (const Usage& usage, usages) {
+    if (usage.statistics.isFailed()) {
+      LOG(WARNING) << "Failed to get resource usage for executor "
+                   << usage.executorInfo.executor_id()
+                   << " of framework " << usage.frameworkId
+                   << ": " << usage.statistics.failure();
+      continue;
+    } else if (usage.statistics.isDiscarded()) {
+      continue;
     }
+
+    JSON::Object entry;
+    entry.values["framework_id"] = usage.frameworkId.value();
+    entry.values["executor_id"] = usage.executorInfo.executor_id().value();
+    entry.values["executor_name"] = usage.executorInfo.name();
+    entry.values["source"] = usage.executorInfo.source();
+    entry.values["statistics"] = JSON::Protobuf(usage.statistics.get());
+
+    result.values.push_back(entry);
   }
 
   return http::OK(result, request.query.get("jsonp"));
 }
+
+
+const string ResourceMonitorProcess::STATISTICS_HELP = HELP(
+    TLDR(
+        "Retrieve resource monitoring information."),
+    USAGE(
+        "/statistics.json"),
+    DESCRIPTION(
+        "Returns the current resource consumption data for executors",
+        "running under this slave.",
+        "",
+        "Example:",
+        "",
+        "```",
+        "[{",
+        "    \"executor_id\":\"executor\",",
+        "    \"executor_name\":\"name\",",
+        "    \"framework_id\":\"framework\",",
+        "    \"source\":\"source\",",
+        "    \"statistics\":",
+        "    {",
+        "        \"cpus_limit\":8.25,",
+        "        \"cpus_nr_periods\":769021,",
+        "        \"cpus_nr_throttled\":1046,",
+        "        \"cpus_system_time_secs\":34501.45,",
+        "        \"cpus_throttled_time_secs\":352.597023453,",
+        "        \"cpus_user_time_secs\":96348.84,",
+        "        \"mem_anon_bytes\":4845449216,",
+        "        \"mem_file_bytes\":260165632,",
+        "        \"mem_limit_bytes\":7650410496,",
+        "        \"mem_mapped_file_bytes\":7159808,",
+        "        \"mem_rss_bytes\":5105614848,",
+        "        \"timestamp\":1388534400.0",
+        "    }",
+        "}]",
+        "```"));
 
 
 ResourceMonitor::ResourceMonitor(Isolator* isolator)

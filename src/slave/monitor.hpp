@@ -26,6 +26,7 @@
 #include <mesos/mesos.hpp>
 
 #include <process/future.hpp>
+#include <process/limiter.hpp>
 #include <process/statistics.hpp>
 
 #include <stout/cache.hpp>
@@ -95,6 +96,7 @@ public:
   ResourceMonitorProcess(Isolator* _isolator)
     : ProcessBase("monitor"),
       isolator(_isolator),
+      limiter(2, Seconds(1)), // 2 permits per second.
       archive(MONITORING_ARCHIVED_TIME_SERIES) {}
 
   virtual ~ResourceMonitorProcess() {}
@@ -112,7 +114,9 @@ public:
 protected:
   virtual void initialize()
   {
-    route("/statistics.json", None(), &ResourceMonitorProcess::statisticsJSON);
+    route("/statistics.json",
+          STATISTICS_HELP,
+          &ResourceMonitorProcess::statistics);
 
     // TODO(bmahler): Add a archive.json endpoint that exposes
     // historical information, once we have path parameters for
@@ -124,18 +128,41 @@ private:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const Duration& interval);
-
   void _collect(
       const process::Future<ResourceStatistics>& statistics,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const Duration& interval);
 
+  // This is a convenience struct for bundling usage information.
+  struct Usage
+  {
+    FrameworkID frameworkId;
+    ExecutorInfo executorInfo;
+    process::Future<ResourceStatistics> statistics;
+  };
+
+  // Helper for returning the usage for a particular executor.
+  Usage usage(
+      const FrameworkID& frameworkId,
+      const ExecutorInfo& executorInfo);
+
+  // HTTP Endpoints.
   // Returns the monitoring statistics. Requests have no parameters.
-  process::Future<process::http::Response> statisticsJSON(
+  process::Future<process::http::Response> statistics(
+      const process::http::Request& request);
+  process::Future<process::http::Response> _statistics(
+      const process::http::Request& request);
+  process::Future<process::http::Response> __statistics(
+      const std::list<Usage>& usages,
       const process::http::Request& request);
 
+  static const std::string STATISTICS_HELP;
+
   Isolator* isolator;
+
+  // Used to rate limit the statistics.json endpoint.
+  process::RateLimiter limiter;
 
   // Monitoring information for an executor.
   struct MonitoringInfo {
