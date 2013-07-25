@@ -64,14 +64,14 @@
           <tr>
             <td>CPUs</td>
             <td class="text-right">
-              {{monitor[framework.id][executor.id].resource_usage.cpu_usage | number}}
+              {{monitor.frameworks[framework.id].executors[executor.id].statistics.cpus_total_usage | number}}
             </td>
             <td class="text-right">{{executor.resources.cpus | number}}</td>
           </tr>
           <tr>
             <td>Mem</td>
             <td class="text-right">
-              {{monitor[framework.id][executor.id].resource_usage.memory_rss | dataSize}}
+              {{monitor.frameworks[framework.id].executors[executor.id].statistics.mem_rss_bytes | dataSize}}
             </td>
             <td class="text-right">
               {{executor.resources.mem * (1024 * 1024) | dataSize}}
@@ -79,7 +79,7 @@
           </tr>
           <tr>
             <td>Disk</td>
-            <td class="text-right">-</td>
+            <td class="text-right">{{0 | dataSize}}</td>
             <td class="text-right">
               {{(executor.resources.disk || 0) * (1024 * 1024) | dataSize}}
             </td>

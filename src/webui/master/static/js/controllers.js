@@ -381,7 +381,9 @@
   mesosApp.controller('SlavesCtrl', function() {});
 
 
-  mesosApp.controller('SlaveCtrl', function($dialog, $scope, $routeParams, $http, $q) {
+  mesosApp.controller('SlaveCtrl', [
+      '$dialog', '$scope', '$routeParams', '$http', '$q', '$timeout', 'top',
+      function($dialog, $scope, $routeParams, $http, $q, $timeout, $top) {
     $scope.slave_id = $routeParams.slave_id;
 
     var update = function() {
@@ -408,56 +410,55 @@
         }
       };
 
-      var usageRequest = $http.jsonp(
-          'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
+      // Set up polling for the monitor if this is the first update.
+      if (!$top.started()) {
+        $top.start(host, $scope);
+      }
 
-      var stateRequest = $http.jsonp(
-          'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK');
+      $http.jsonp('http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+        .success(function (response) {
+          $scope.state = response;
 
-      $q.all([usageRequest, stateRequest]).then(function (responses) {
-        $scope.monitor = responses[0].data;
-        $scope.state = responses[1].data;
+          $scope.slave = {};
+          $scope.slave.frameworks = {};
+          $scope.slave.completed_frameworks = {};
 
-        $scope.slave = {};
-        $scope.slave.frameworks = {};
-        $scope.slave.completed_frameworks = {};
+          $scope.slave.staging_tasks = 0;
+          $scope.slave.starting_tasks = 0;
+          $scope.slave.running_tasks = 0;
 
-        $scope.slave.staging_tasks = 0;
-        $scope.slave.starting_tasks = 0;
-        $scope.slave.running_tasks = 0;
+          // Computes framework stats by setting new attributes on the 'framework'
+          // object.
+          function computeFrameworkStats(framework) {
+            framework.num_tasks = 0;
+            framework.cpus = 0;
+            framework.mem = 0;
 
-        // Computes framework stats by setting new attributes on the 'framework'
-        // object.
-        function computeFrameworkStats(framework) {
-          framework.num_tasks = 0;
-          framework.cpus = 0;
-          framework.mem = 0;
+            _.each(framework.executors, function(executor) {
+              framework.num_tasks += _.size(executor.tasks);
+              framework.cpus += executor.resources.cpus;
+              framework.mem += executor.resources.mem;
+            });
+          }
 
-          _.each(framework.executors, function(executor) {
-            framework.num_tasks += _.size(executor.tasks);
-            framework.cpus += executor.resources.cpus;
-            framework.mem += executor.resources.mem;
+          // Compute framework stats and update slave's mappings of those
+          // frameworks.
+          _.each($scope.state.frameworks, function(framework) {
+            $scope.slave.frameworks[framework.id] = framework;
+            computeFrameworkStats(framework);
           });
-        }
 
-        // Compute framework stats and update slave's mappings of those
-        // frameworks.
-        _.each($scope.state.frameworks, function(framework) {
-          $scope.slave.frameworks[framework.id] = framework;
-          computeFrameworkStats(framework);
+          _.each($scope.state.completed_frameworks, function(framework) {
+            $scope.slave.completed_frameworks[framework.id] = framework;
+            computeFrameworkStats(framework);
+          });
+
+          $('#slave').show();
+        })
+        .error(function(reason) {
+          $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+          $('#alert').show();
         });
-
-        _.each($scope.state.completed_frameworks, function(framework) {
-          $scope.slave.completed_frameworks[framework.id] = framework;
-          computeFrameworkStats(framework);
-        });
-
-        $('#slave').show();
-      },
-      function (reason) {
-        $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
-        $('#alert').show();
-      });
     };
 
     if ($scope.state) {
@@ -466,10 +467,12 @@
 
     var removeListener = $scope.$on('state_updated', update);
     $scope.$on('$routeChangeStart', removeListener);
-  });
+  }]);
 
 
-  mesosApp.controller('SlaveFrameworkCtrl', function($scope, $routeParams, $http, $q) {
+  mesosApp.controller('SlaveFrameworkCtrl', [
+      '$scope', '$routeParams', '$http', '$q', '$timeout', 'top',
+      function($scope, $routeParams, $http, $q, $timeout, $top) {
     $scope.slave_id = $routeParams.slave_id;
     $scope.framework_id = $routeParams.framework_id;
 
@@ -485,72 +488,49 @@
       var id = pid.substring(0, pid.indexOf('@'));
       var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
 
-      var usageRequest = $http.jsonp(
-          'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
+      // Set up polling for the monitor if this is the first update.
+      if (!$top.started()) {
+        $top.start(host, $scope);
+      }
 
-      var stateRequest = $http.jsonp(
-          'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK');
+      $http.jsonp('http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+        .success(function (response) {
+          $scope.state = response;
 
-      $q.all([usageRequest, stateRequest]).then(function (responses) {
-        var monitor = responses[0].data;
-        $scope.state = responses[1].data;
+          $scope.slave = {};
 
-        $scope.slave = {};
-
-        function matchFramework(framework) {
-          return $scope.framework_id === framework.id;
-        }
-
-        // Find the framework; it's either active or completed.
-        $scope.framework =
-            _.find($scope.state.frameworks, matchFramework) ||
-            _.find($scope.state.completed_frameworks, matchFramework);
-
-        if (!$scope.framework) {
-          $scope.alert_message = 'No framework found with ID: ' + $routeParams.framework_id;
-          $('#alert').show();
-          return;
-        }
-
-        // Compute the framework stats.
-        $scope.framework.num_tasks = 0;
-        $scope.framework.cpus = 0;
-        $scope.framework.mem = 0;
-
-        _.each($scope.framework.executors, function(executor) {
-          $scope.framework.num_tasks += _.size(executor.tasks);
-          $scope.framework.cpus += executor.resources.cpus;
-          $scope.framework.mem += executor.resources.mem;
-        });
-
-        // Index the monitoring data.
-        $scope.monitor = {};
-
-        $scope.framework.resource_usage = {};
-        $scope.framework.resource_usage["cpu_time"] = 0.0;
-        $scope.framework.resource_usage["cpu_usage"] = 0.0;
-        $scope.framework.resource_usage["memory_rss"] = 0.0;
-
-        _.each(monitor, function(executor) {
-          if (!$scope.monitor[executor.framework_id]) {
-            $scope.monitor[executor.framework_id] = {};
+          function matchFramework(framework) {
+            return $scope.framework_id === framework.id;
           }
-          $scope.monitor[executor.framework_id][executor.executor_id] = executor;
 
-          $scope.framework.resource_usage["cpu_time"] +=
-            executor.resource_usage.cpu_time;
-          $scope.framework.resource_usage["cpu_usage"] +=
-            executor.resource_usage.cpu_usage;
-          $scope.framework.resource_usage["memory_rss"] +=
-            executor.resource_usage.memory_rss;
+          // Find the framework; it's either active or completed.
+          $scope.framework =
+              _.find($scope.state.frameworks, matchFramework) ||
+              _.find($scope.state.completed_frameworks, matchFramework);
+
+          if (!$scope.framework) {
+            $scope.alert_message = 'No framework found with ID: ' + $routeParams.framework_id;
+            $('#alert').show();
+            return;
+          }
+
+          // Compute the framework stats.
+          $scope.framework.num_tasks = 0;
+          $scope.framework.cpus = 0;
+          $scope.framework.mem = 0;
+
+          _.each($scope.framework.executors, function(executor) {
+            $scope.framework.num_tasks += _.size(executor.tasks);
+            $scope.framework.cpus += executor.resources.cpus;
+            $scope.framework.mem += executor.resources.mem;
+          });
+
+          $('#slave').show();
+        })
+        .error(function (reason) {
+          $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+          $('#alert').show();
         });
-
-        $('#slave').show();
-      },
-      function (reason) {
-        $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
-        $('#alert').show();
-      });
     };
 
     if ($scope.state) {
@@ -559,10 +539,12 @@
 
     var removeListener = $scope.$on('state_updated', update);
     $scope.$on('$routeChangeStart', removeListener);
-  });
+  }]);
 
 
-  mesosApp.controller('SlaveExecutorCtrl', function($scope, $routeParams, $http, $q) {
+  mesosApp.controller('SlaveExecutorCtrl', [
+      '$scope', '$routeParams', '$http', '$q', '$timeout', 'top',
+      function($scope, $routeParams, $http, $q, $timeout, $top) {
     $scope.slave_id = $routeParams.slave_id;
     $scope.framework_id = $routeParams.framework_id;
     $scope.executor_id = $routeParams.executor_id;
@@ -579,64 +561,53 @@
       var id = pid.substring(0, pid.indexOf('@'));
       var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
 
-      var usageRequest = $http.jsonp(
-          'http://' + host + '/monitor/usage.json?jsonp=JSON_CALLBACK');
+      // Set up polling for the monitor if this is the first update.
+      if (!$top.started()) {
+        $top.start(host, $scope);
+      }
 
-      var stateRequest = $http.jsonp(
-          'http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK');
+      $http.jsonp('http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+        .success(function (response) {
+          $scope.state = response;
 
-      $q.all([usageRequest, stateRequest]).then(function (responses) {
-        var monitor = responses[0].data;
-        $scope.state = responses[1].data;
+          $scope.slave = {};
 
-        $scope.slave = {};
-
-        function matchFramework(framework) {
-          return $scope.framework_id === framework.id;
-        }
-
-        // Find the framework; it's either active or completed.
-        $scope.framework =
-          _.find($scope.state.frameworks, matchFramework) ||
-          _.find($scope.state.completed_frameworks, matchFramework);
-
-        if (!$scope.framework) {
-          $scope.alert_message = 'No framework found with ID: ' + $routeParams.framework_id;
-          $('#alert').show();
-          return;
-        }
-
-        function matchExecutor(executor) {
-          return $scope.executor_id === executor.id;
-        }
-
-        // Look for the executor; it's either active or completed.
-        $scope.executor =
-          _.find($scope.framework.executors, matchExecutor) ||
-          _.find($scope.framework.completed_executors, matchExecutor);
-
-        if (!$scope.executor) {
-          $scope.alert_message = 'No executor found with ID: ' + $routeParams.executor_id;
-          $('#alert').show();
-          return;
-        }
-
-        // Index the monitoring data.
-        $scope.monitor = {};
-
-        _.each(monitor, function(executor) {
-          if (!$scope.monitor[executor.framework_id]) {
-            $scope.monitor[executor.framework_id] = {};
+          function matchFramework(framework) {
+            return $scope.framework_id === framework.id;
           }
-          $scope.monitor[executor.framework_id][executor.executor_id] = executor;
-        });
 
-        $('#slave').show();
-      },
-      function (reason) {
-        $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
-        $('#alert').show();
-      });
+          // Find the framework; it's either active or completed.
+          $scope.framework =
+            _.find($scope.state.frameworks, matchFramework) ||
+            _.find($scope.state.completed_frameworks, matchFramework);
+
+          if (!$scope.framework) {
+            $scope.alert_message = 'No framework found with ID: ' + $routeParams.framework_id;
+            $('#alert').show();
+            return;
+          }
+
+          function matchExecutor(executor) {
+            return $scope.executor_id === executor.id;
+          }
+
+          // Look for the executor; it's either active or completed.
+          $scope.executor =
+            _.find($scope.framework.executors, matchExecutor) ||
+            _.find($scope.framework.completed_executors, matchExecutor);
+
+          if (!$scope.executor) {
+            $scope.alert_message = 'No executor found with ID: ' + $routeParams.executor_id;
+            $('#alert').show();
+            return;
+          }
+
+          $('#slave').show();
+        })
+        .error(function (reason) {
+          $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+          $('#alert').show();
+        });
     };
 
     if ($scope.state) {
@@ -645,7 +616,7 @@
 
     var removeListener = $scope.$on('state_updated', update);
     $scope.$on('$routeChangeStart', removeListener);
-  });
+  }]);
 
 
   // Reroutes a request like

@@ -105,4 +105,190 @@
         }
       };
     }]);
+
+  function Statistics() {
+    this.cpus_user_time_secs = 0.0;
+    this.cpus_user_usage = 0.0;
+    this.cpus_system_time_secs = 0.0;
+    this.cpus_system_usage = 0.0;
+    this.cpus_limit = 0.0;
+    this.cpus_total_usage = 0.0;
+    this.mem_rss_bytes = 0.0;
+    this.mem_limit_bytes = 0.0;
+  }
+
+  Statistics.prototype.add = function(statistics) {
+    this.cpus_user_time_secs += statistics.cpus_user_time_secs;
+    this.cpus_system_time_secs += statistics.cpus_system_time_secs;
+    this.cpus_total_usage += statistics.cpus_total_usage;
+    this.cpus_limit += statistics.cpus_limit;
+    this.mem_rss_bytes += statistics.mem_rss_bytes;
+    this.mem_limit_bytes += statistics.mem_limit_bytes;
+
+    // Set instead of add the timestamp since this is an instantaneous view of
+    // CPU usage since the last poll.
+    this.timestamp = statistics.timestamp;
+  };
+
+  Statistics.prototype.diffUsage = function(statistics) {
+    this.cpus_user_usage =
+      (this.cpus_user_time_secs - statistics.cpus_user_time_secs) /
+      (this.timestamp - statistics.timestamp);
+    this.cpus_system_usage =
+      (this.cpus_system_time_secs - statistics.cpus_system_time_secs) /
+      (this.timestamp - statistics.timestamp);
+    this.cpus_total_usage = this.cpus_user_usage + this.cpus_system_usage;
+  };
+
+  Statistics.parseJSON = function(json) {
+    var statistics = new Statistics();
+    statistics.add(json);
+    return statistics;
+  };
+
+  // Top is an abstraction for polling a slave's monitoring endpoint to
+  // periodically update the monitoring data. It also computes CPU usage.
+  // This places the following data in scope.monitor:
+  //
+  //   $scope.monitor = {
+  //     "statistics": <stats>,
+  //     "frameworks": {
+  //       <framework_id>: {
+  //         "statistics": <stats>,
+  //         "executors": {
+  //           <executor_id>: {
+  //             "executor_id": <executor_id>,
+  //             "framework_id": <framework_id>,
+  //             "executor_name: <executor_name>,
+  //             "source": <source>,
+  //             "statistics": <stats>,
+  //           }
+  //         }
+  //       }
+  //     }
+  //    }
+  //
+  // To obtain slave statistics:
+  //   $scope.monitor.statistics
+  //
+  // To obtain a framework's statistics:
+  //   $scope.monitor.frameworks[<framework_id>].statistics
+  //
+  // To obtain an executor's statistics:
+  //   $scope.monitor.frameworks[<framework_id>].executors[<executor_id>].statistics
+  //
+  // In the above,  <stats> is the following object:
+  //
+  //   {
+  //     cpus_user_time_secs: value,
+  //     cpus_user_usage: value, // Once computed.
+  //     cpus_system_time_secs: value,
+  //     cpus_system_usage: value, // Once computed.
+  //     mem_limit_bytes: value,
+  //     mem_rss_bytes: value,
+  //   }
+  //
+  // TODO(bmahler): The complexity of the monitor object is mostly in place
+  // until we have path-params on the monitoring endpoint to request
+  // statistics for the slave, or for a specific framework / executor.
+  //
+  // Arguments:
+  //   http: $http service from Angular.
+  //   timeout: $timeout service from Angular.
+  function Top($http, $timeout) {
+    this.http = $http;
+    this.timeout = $timeout;
+  }
+
+  Top.prototype.poll = function() {
+    this.http.jsonp(this.endpoint)
+
+      // Success! Parse the response.
+      .success(angular.bind(this, this.parseResponse))
+
+      // Do not continue polling on error.
+      .error(angular.noop);
+  };
+
+  Top.prototype.parseResponse = function(response) {
+    var that = this;
+    var monitor = {
+      frameworks: {},
+      statistics: new Statistics()
+    };
+
+    response.forEach(function(executor) {
+      var executor_id = executor.executor_id;
+      var framework_id = executor.framework_id;
+      var current = executor.statistics =
+        Statistics.parseJSON(executor.statistics);
+
+      current.cpus_user_usage = 0.0;
+      current.cpus_system_usage = 0.0;
+
+      // Compute CPU usage if possible.
+      if (that.scope.monitor &&
+          that.scope.monitor.frameworks[framework_id] &&
+          that.scope.monitor.frameworks[framework_id].executors[executor_id]) {
+        var previous = that.scope.monitor.frameworks[framework_id].executors[executor_id].statistics;
+        current.diffUsage(previous);
+      }
+
+      // Index the data.
+      if (!monitor.frameworks[executor.framework_id]) {
+        monitor.frameworks[executor.framework_id] = {
+          executors: {},
+          statistics: new Statistics()
+        };
+      }
+
+      // Aggregate these statistics into the slave and framework statistics.
+      monitor.statistics.add(current);
+      monitor.frameworks[executor.framework_id].statistics.add(current);
+      monitor.frameworks[executor.framework_id].executors[executor.executor_id] = {
+        statistics: current
+      };
+    });
+
+    if (this.scope.monitor) {
+      // Continue polling.
+      this.polling = this.timeout(angular.bind(this, this.poll), 3000);
+    } else {
+      // Try to compute initial CPU usage more quickly than 3 seconds.
+      this.polling = this.timeout(angular.bind(this, this.poll), 500);
+    }
+
+    // Update the monitoring data.
+    this.scope.monitor = monitor;
+  };
+
+  // Arguments:
+  //   host: host of slave.
+  //   scope: $scope service from Angular.
+  Top.prototype.start = function(host, scope) {
+    if (this.started()) {
+      // TODO(bmahler): Consider logging a warning here.
+      return;
+    }
+
+    this.endpoint = 'http://' + host + '/monitor/statistics.json?jsonp=JSON_CALLBACK';
+    this.scope = scope;
+
+    // Initial poll is immediate.
+    this.polling = this.timeout(angular.bind(this, this.poll), 0);
+
+    // Stop when we leave the page.
+    scope.$on('$routeChangeStart', angular.bind(this, this.stop));
+  };
+
+  Top.prototype.started = function() {
+    return this.polling != null;
+  };
+
+  Top.prototype.stop = function() {
+    this.timeout.cancel(this.polling);
+    this.polling = null;
+  };
+
+  mesosServices.service('top', ['$http', '$timeout', Top]);
 })();

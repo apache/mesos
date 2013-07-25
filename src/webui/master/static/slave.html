@@ -76,19 +76,29 @@
 
       <h4>Resources</h4>
       <table class="table table-condensed">
+        <thead>
+          <tr>
+            <td></td>
+            <td class="text-right">Used</td>
+            <td class="text-right">Allocated</td>
+          </tr>
+        </thead>
         <tbody>
           <tr>
             <td>CPUs</td>
+            <td class="text-right">{{monitor.statistics.cpus_total_usage | number}}</td>
             <td class="text-right">{{state.resources.cpus | number}}</td>
           </tr>
           <tr>
             <td>Memory</td>
+            <td class="text-right">{{monitor.statistics.mem_rss_bytes | dataSize}}</td>
             <td class="text-right">
               {{state.resources.mem * (1024 * 1024) | dataSize}}
             </td>
           </tr>
           <tr>
             <td>Disk</td>
+            <td class="text-right">{{0 | dataSize}}</td>
             <td class="text-right">
               {{state.resources.disk * (1024 * 1024) | dataSize}}
             </td>
@@ -107,8 +117,8 @@
           <th data-key="user">User</th>
           <th data-key="name">Name</th>
           <th data-key="num_tasks">Active Tasks</th>
-          <th data-key="cpus">CPUs</th>
-          <th data-key="Mem">Mem</th>
+          <th data-key="cpus">CPUs (Used / Allocated)</th>
+          <th data-key="Mem">Mem (Used / Allocated)</th>
         </tr>
       </thead>
       <tbody>
@@ -127,8 +137,8 @@
           <td>{{framework.user}}</td>
           <td>{{framework.name}}</td>
           <td>{{framework.num_tasks | number}}</td>
-          <td>{{framework.cpus | number}}</td>
-          <td>{{framework.mem * (1024 * 1024) | dataSize}}</td>
+          <td>{{monitor.frameworks[framework.id].statistics.cpus_user_usage + monitor.frameworks[framework.id].statistics.cpus_system_usage | number}} / {{framework.cpus | number}}</td>
+          <td>{{monitor.frameworks[framework.id].statistics.mem_rss_bytes | dataSize}} / {{framework.mem * (1024 * 1024) | dataSize}}</td>
         </tr>
       </tbody>
     </table>
