@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-EXTRA_DIST = pom.xml										\
+EXTRA_DIST = README.md										\
+	pom.xml											\
 	src/main/java/org/jenkinsci/plugins/mesos/JenkinsScheduler.java				\
 	src/main/java/org/jenkinsci/plugins/mesos/Mesos.java					\
 	src/main/java/org/jenkinsci/plugins/mesos/MesosCloud.java				\
@@ -37,7 +38,7 @@ TARGET_LIBS_DIR = src/main/webapp
 
 
 $(MESOS_LIBRARY):
-	@cd $(abs_top_builddir)/src && $(MAKE) $(AM_MAKEFLAGS);
+	@cd $(abs_top_builddir) && $(MAKE) $(AM_MAKEFLAGS);
 
 
 MESOS_JAR = mesos-$(PACKAGE_VERSION).jar
