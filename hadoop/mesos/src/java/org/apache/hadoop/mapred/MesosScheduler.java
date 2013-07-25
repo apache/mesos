@@ -273,10 +273,11 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
   }
 
   // For some reason, pendingMaps() and pendingReduces() doesn't return the
-  // actual number we're looking for (presumably for some legacy
-  // backward-compat reasons).  Below is the algorithm that is used to
-  // calculate the pending tasks within the Hadoop JobTracker sources (see
-  // 'printTaskSummary' in src/org/apache/hadoop/mapred/jobdetails_jsp.java).
+  // values we expect. We observed negative values, which may be related to
+  // https://issues.apache.org/jira/browse/MAPREDUCE-1238. Below is the
+  // algorithm that is used to calculate the pending tasks within the Hadoop
+  // JobTracker sources (see 'printTaskSummary' in
+  // src/org/apache/hadoop/mapred/jobdetails_jsp.java).
   private int getPendingTasks(TaskInProgress[] tasks) {
     int totalTasks = tasks.length;
     int runningTasks = 0;
