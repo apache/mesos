@@ -61,7 +61,7 @@ public class MesosNativeLibrary {
   }
 
   public static void load() {
-    load(System.getProperty("MESOS_NATIVE_LIBRARY"));
+    load(System.getenv("MESOS_NATIVE_LIBRARY"));
   }
 
   public static final String VERSION = "@PACKAGE_VERSION@";
