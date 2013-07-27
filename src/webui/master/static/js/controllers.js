@@ -683,11 +683,14 @@
 
         $scope.slave = {};
 
+        function matchFramework(framework) {
+          return $scope.framework_id === framework.id;
+        }
+
         // Find the framework; it's either active or completed.
-        $scope.framework = _.find($scope.state.frameworks.concat($scope.state.completed_frameworks),
-            function(framework) {
-              return $scope.framework_id === framework.id;
-            });
+        $scope.framework =
+          _.find($scope.state.frameworks, matchFramework) ||
+          _.find($scope.state.completed_frameworks, matchFramework);
 
         if (!$scope.framework) {
           $scope.alert_message = 'No framework found with ID: ' + $routeParams.framework_id;
@@ -695,11 +698,14 @@
           return;
         }
 
+        function matchExecutor(executor) {
+          return $scope.executor_id === executor.id;
+        }
+
         // Look for the executor; it's either active or completed.
-        $scope.executor = _.find($scope.framework.executors.concat($scope.framework.completed_executors),
-            function(executor) {
-              return $scope.executor_id === executor.id;
-            });
+        $scope.executor =
+          _.find($scope.framework.executors, matchExecutor) ||
+          _.find($scope.framework.completed_executors, matchExecutor);
 
         if (!$scope.executor) {
           $scope.alert_message = 'No executor found with ID: ' + $routeParams.executor_id;
