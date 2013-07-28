@@ -20,6 +20,18 @@
           {templateUrl: 'static/slave_framework.html', controller: 'SlaveFrameworkCtrl'})
         .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id',
           {templateUrl: 'static/slave_executor.html', controller: 'SlaveExecutorCtrl'})
+
+        // Use a non-falsy template so the controller will still be executed.
+        // Since the controller is intended only to redirect, the blank template
+        // is fine.
+        //
+        // By design, controllers currently will not handle routes if the
+        // template is falsy. There is an issue open in Angular to add that
+        // feature:
+        //
+        //     https://github.com/angular/angular.js/issues/1838
+        .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id/browse',
+          {template: ' ', controller: 'SlaveExecutorRerouterCtrl'})
         .when('/slaves/:slave_id/browse',
           {templateUrl: 'static/browse.html', controller: 'BrowseCtrl'})
         .otherwise({redirectTo: '/'});

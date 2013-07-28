@@ -78,6 +78,7 @@
               ng-click="selectColumn('active_tasks', 'host')">
             Host
           </th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -90,6 +91,11 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>{{slaves[task.slave_id].hostname}}</td>
+          <td>
+            <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
+              Sandbox
+            </a>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -114,6 +120,8 @@
               ng-click="selectColumn('completed_tasks', 'host')">
             Host
           </th>
+          <th>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -124,6 +132,11 @@
           <td>
             <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
               {{slaves[task.slave_id].hostname}}
+            </a>
+          </td>
+          <td>
+            <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
+              Sandbox
             </a>
           </td>
         </tr>

@@ -742,6 +742,78 @@
   });
 
 
+  // Reroutes a request like
+  // '/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id/browse'
+  // to the executor's sandbox. This requires a second request because the
+  // directory to browse is known by the slave but not by the master. Request
+  // the directory from the slave, and then redirect to it.
+  //
+  // TODO(ssorallen): Add `executor.directory` to the state.json output so this
+  // controller of rerouting is no longer necessary.
+  mesosApp.controller('SlaveExecutorRerouterCtrl',
+      function($http, $location, $routeParams, $scope, $window) {
+
+    var pid = $scope.slaves[$routeParams.slave_id].pid;
+    var hostname = $scope.slaves[$routeParams.slave_id].hostname;
+    var id = pid.substring(0, pid.indexOf('@'));
+    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
+
+    // Request slave details to get access to the route executor's "directory"
+    // to navigate directly to the executor's sandbox.
+    $http.jsonp('http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+      .success(function(response) {
+
+        // TODO(ssorallen): Add error messaging on the following pageview should
+        // an error cause this function to be called.
+        function goBack() {
+          if ($window.history.length > 1) {
+            // If the browser has something in its history, just go back.
+            $window.history.back();
+          } else {
+            // Otherwise navigate to the framework page, which is likely the
+            // previous page anyway.
+            $location.path('/frameworks/' + $routeParms.framework_id).replace();
+          }
+        }
+
+        function matchFramework(framework) {
+          return $routeParams.framework_id === framework.id;
+        }
+
+        var framework =
+          _.find(response.frameworks, matchFramework) ||
+          _.find(response.completed_frameworks, matchFramework);
+
+        if (!framework) {
+          return goBack();
+        }
+
+        function matchExecutor(executor) {
+          return $routeParams.executor_id === executor.id;
+        }
+
+        var executor =
+          _.find(framework.executors, matchExecutor) ||
+          _.find(framework.completed_executors, matchExecutor);
+
+        if (!executor) {
+          return goBack();
+        }
+
+        // Navigate to a path like '/slaves/:id/browse?path=%2Ftmp%2F', the
+        // recognized "browse" endpoint for a slave.
+        $location.path('/slaves/' + $routeParams.slave_id + '/browse')
+          .search({path: executor.directory})
+          .replace();
+      })
+      .error(function(response) {
+        // Is the slave dead? Navigate home since returning to the slave might
+        // end up in an endless loop.
+        $location.path('/').replace();
+      });
+  });
+
+
   mesosApp.controller('BrowseCtrl', function($scope, $routeParams, $http) {
     setNavbarActiveTab('slaves');
 
