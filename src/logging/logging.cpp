@@ -49,9 +49,15 @@ string argv0;
 
 void handler(int signal)
 {
-  LOG(WARNING) << "Received signal '" << strsignal(signal)
-               << "', escalating to SIGABRT";
-  raise(SIGABRT);
+  if (signal == SIGTERM) {
+    EXIT(1) << "Received signal SIGTERM; exiting.";
+  } else if (signal == SIGPIPE) {
+    LOG(WARNING) << "Received signal SIGPIPE; escalating to SIGABRT";
+    raise(SIGABRT);
+  } else {
+    LOG(FATAL) << "Unexpected signal in signal handler: '"
+               << strsignal(signal) << "'";
+  }
 }
 
 
@@ -96,9 +102,7 @@ void initialize(
     // by default.
     google::InstallFailureSignalHandler();
 
-    // Set up the SIGPIPE signal handler to escalate to SIGABRT
-    // in order to have the glog handler catch it and print all
-    // of its lovely information.
+    // Set up our custom signal handlers.
     struct sigaction action;
     action.sa_handler = handler;
 
@@ -106,7 +110,17 @@ void initialize(
     sigemptyset(&action.sa_mask);
     action.sa_flags = 0;
 
+    // Set up the SIGPIPE signal handler to escalate to SIGABRT
+    // in order to have the glog handler catch it and print all
+    // of its lovely information.
     if (sigaction(SIGPIPE, &action, NULL) < 0) {
+      PLOG(FATAL) << "Failed to set sigaction";
+    }
+
+    // We also do not want SIGTERM to dump a stacktrace, as this
+    // can imply that we crashed, when we were in fact terminated
+    // by user request.
+    if (sigaction(SIGTERM, &action, NULL) < 0) {
       PLOG(FATAL) << "Failed to set sigaction";
     }
   }
