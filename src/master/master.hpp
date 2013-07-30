@@ -199,6 +199,10 @@ private:
   public:
     Http(const Master& _master) : master(_master) {}
 
+    // /master/health
+    process::Future<process::http::Response> health(
+        const process::http::Request& request);
+
     // /master/redirect
     process::Future<process::http::Response> redirect(
         const process::http::Request& request);
@@ -214,6 +218,8 @@ private:
     // /master/roles.json
     process::Future<process::http::Response> roles(
         const process::http::Request& request);
+
+    const static std::string HEALTH_HELP;
 
   private:
     const Master& master;

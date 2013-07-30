@@ -25,6 +25,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
+#include <process/help.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
 #include <stout/net.hpp>
@@ -46,6 +48,9 @@ namespace internal {
 namespace master {
 
 using process::Future;
+using process::HELP;
+using process::TLDR;
+using process::USAGE;
 
 using process::http::BadRequest;
 using process::http::InternalServerError;
@@ -227,6 +232,22 @@ JSON::Object model(const Role& role)
   }
 
   return object;
+}
+
+
+const string Master::Http::HEALTH_HELP = HELP(
+    TLDR(
+        "Health check of the Master."),
+    USAGE(
+        "/master/health"),
+    DESCRIPTION(
+        "Returns 200 OK iff the Master is healthy.",
+        "Delayed responses are also indicative of poor health."));
+
+
+Future<Response> Master::Http::health(const Request& request)
+{
+  return OK();
 }
 
 

@@ -24,6 +24,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
+#include <process/help.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
 #include <stout/net.hpp>
@@ -42,6 +44,9 @@ namespace internal {
 namespace slave {
 
 using process::Future;
+using process::HELP;
+using process::TLDR;
+using process::USAGE;
 
 using process::http::OK;
 using process::http::Response;
@@ -241,6 +246,22 @@ JSON::Object model(const Framework& framework)
   object.values["completed_executors"] = completedExecutors;
 
   return object;
+}
+
+
+const string Slave::Http::HEALTH_HELP = HELP(
+    TLDR(
+        "Health check of the Slave."),
+    USAGE(
+        "/slave(1)/health"),
+    DESCRIPTION(
+        "Returns 200 OK iff the Slave is healthy.",
+        "Delayed responses are also indicative of poor health."));
+
+
+Future<Response> Slave::Http::health(const Request& request)
+{
+  return OK();
 }
 
 

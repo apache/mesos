@@ -259,13 +259,19 @@ private:
   public:
     Http(const Slave& _slave) : slave(_slave) {}
 
+    // /slave/health
+    process::Future<process::http::Response> health(
+        const process::http::Request& request);
+
     // /slave/stats.json
     process::Future<process::http::Response> stats(
-      const process::http::Request& request);
+        const process::http::Request& request);
 
     // /slave/state.json
     process::Future<process::http::Response> state(
-      const process::http::Request& request);
+        const process::http::Request& request);
+
+    static const std::string HEALTH_HELP;
 
   private:
     const Slave& slave;
