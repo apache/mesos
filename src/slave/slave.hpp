@@ -259,10 +259,6 @@ private:
   public:
     Http(const Slave& _slave) : slave(_slave) {}
 
-    // /slave/vars
-    process::Future<process::http::Response> vars(
-      const process::http::Request& request);
-
     // /slave/stats.json
     process::Future<process::http::Response> stats(
       const process::http::Request& request);

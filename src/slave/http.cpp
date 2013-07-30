@@ -244,28 +244,6 @@ JSON::Object model(const Framework& framework)
 }
 
 
-Future<Response> Slave::Http::vars(const Request& request)
-{
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
-  // TODO(benh): Consider separating collecting the actual vars we
-  // want to display from rendering them. Trying to just create a
-  // map<string, string> required a lot of calls to stringify (or
-  // using an std::ostringstream) and didn't actually seem to be that
-  // much more clear than just rendering directly.
-  std::ostringstream out;
-
-  out <<
-    "version: " << MESOS_VERSION << "\n" <<
-    "build_date: " << build::DATE << "\n" <<
-    "build_user: " << build::USER << "\n" <<
-    "build_flags: " << build::FLAGS << "\n";
-
-  // TODO(benh): Output flags.
-  return OK(out.str(), request.query.get("jsonp"));
-}
-
-
 Future<Response> Slave::Http::stats(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";

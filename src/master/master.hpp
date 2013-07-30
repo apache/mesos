@@ -199,10 +199,6 @@ private:
   public:
     Http(const Master& _master) : master(_master) {}
 
-    // /master/vars
-    process::Future<process::http::Response> vars(
-        const process::http::Request& request);
-
     // /master/redirect
     process::Future<process::http::Response> redirect(
         const process::http::Request& request);
