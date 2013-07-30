@@ -65,12 +65,7 @@ public:
     add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
         "launcher_dir",
         "Location of Mesos binaries",
-        MESOS_LIBEXECDIR);
-
-    add(&Flags::webui_dir,
-        "webui_dir",
-        "Location of the webui files/assets",
-        MESOS_WEBUI_DIR);
+        PKGLIBEXECDIR);
 
     add(&Flags::hadoop_home,
         "hadoop_home",
@@ -184,7 +179,6 @@ public:
   Option<std::string> attributes;
   std::string work_dir;
   std::string launcher_dir;
-  std::string webui_dir;
   std::string hadoop_home; // TODO(benh): Make an Option.
   bool switch_user;
   std::string frameworks_home;  // TODO(benh): Make an Option.

@@ -42,15 +42,6 @@ PROTOBUF = $(LIBPROCESS)/3rdparty/protobuf-$(PROTOBUF_VERSION)
 pkglibexecdir = $(libexecdir)/$(PACKAGE)
 pkglocalstatedir = $(localstatedir)/$(PACKAGE)
 
-# Set install directory for webui artifacts (i.e., the location where
-# anything with the webui_ prefix in this file will get
-# installed). Also note that pkg*dir contains the package name in the
-# path (in our case 'mesos') which is valuable because we'd prefer
-# /path/to/mesos/webui versus something like /path/to/webui. Note that
-# datadir (e.g., /usr/local/share) is for read-only "data" and
-# localstatedir (e.g., /usr/local/var) is for modifiable "data".
-webuidir = $(pkgdatadir)
-
 # Protocol buffer compiler.
 PROTOC = ../$(PROTOBUF)/src/protoc
 PROTOCFLAGS = -I$(top_srcdir)/include/mesos -I$(srcdir)
@@ -62,7 +53,7 @@ sbin_PROGRAMS =
 bin_PROGRAMS =
 pkglibexec_PROGRAMS =
 dist_pkglibexec_SCRIPTS =
-nobase_dist_webui_DATA =
+nobase_dist_pkgdata_DATA =
 nodist_sbin_SCRIPTS =
 nobase_pkglocalstate_DATA =
 check_PROGRAMS =
@@ -80,8 +71,9 @@ AM_LIBS = $(PTHREAD_LIBS)
 # Setup CPPFLAGS that are used for most source files.
 MESOS_CPPFLAGS = $(AM_CPPFLAGS)
 MESOS_CPPFLAGS += -Wall -Werror
-MESOS_CPPFLAGS += -DMESOS_WEBUI_DIR=\"$(webuidir)/webui\"
-MESOS_CPPFLAGS += -DMESOS_LIBEXECDIR=\"$(pkglibexecdir)\"
+MESOS_CPPFLAGS += -DLIBDIR=\"$(libdir)\"
+MESOS_CPPFLAGS += -DPKGLIBEXECDIR=\"$(pkglibexecdir)\"
+MESOS_CPPFLAGS += -DPKGDATADIR=\"$(pkgdatadir)\"
 MESOS_CPPFLAGS += -I$(top_srcdir)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
@@ -365,22 +357,27 @@ mesos_mesos_SOURCES = mesos/main.cpp
 mesos_mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_mesos_LDADD = libmesos.la
 
-# Need to distribute/install webui javascript.
-nobase_dist_webui_DATA +=						\
+# Need to distribute/install webui javascript. We use 'pkgdatadir'
+# instead of 'datadir' as the install directory so we get the the
+# package name (i.e., 'mesos') as part of the path (i.e.,
+# /path/to/mesos/webui versus something like /path/to/webui). Note
+# that 'datadir' (e.g., /usr/local/share) is for read-only "data" and
+# 'localstatedir' (e.g., /usr/local/var) is for modifiable "data".
+nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/controllers.js					\
   webui/master/static/js/app.js						\
   webui/master/static/js/dashboard.js					\
   webui/master/static/js/jquery.pailer.js
 
 # Need to distribute/install webui CSS.
-nobase_dist_webui_DATA +=						\
+nobase_dist_pkgdata_DATA +=						\
   webui/master/static/css/bootstrap-responsive-2.3.2.min.css		\
   webui/master/static/css/bootstrap-2.3.2.min.css			\
   webui/master/static/css/graph.css					\
   webui/master/static/css/mesos.css
 
 # Need to distribute/install webui HTML.
-nobase_dist_webui_DATA +=						\
+nobase_dist_pkgdata_DATA +=						\
   webui/master/static/browse.html					\
   webui/master/static/dashboard.html					\
   webui/master/static/framework.html					\
@@ -394,14 +391,14 @@ nobase_dist_webui_DATA +=						\
   webui/master/static/slaves.html
 
 # Need to distribute/install webui images.
-nobase_dist_webui_DATA +=						\
+nobase_dist_pkgdata_DATA +=						\
   webui/master/static/img/loading.gif					\
   webui/master/static/img/glyphicons-halflings-white.png		\
   webui/master/static/img/glyphicons-halflings.png			\
   webui/master/static/ico/favicon.ico
 
 # Need to distribute/install third-party javascript.
-nobase_dist_webui_DATA +=						\
+nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/angular-1.0.7.js				\
   webui/master/static/js/angular-1.0.7.min.js				\
   webui/master/static/js/ui-bootstrap-tpls-0.4.0.js			\
