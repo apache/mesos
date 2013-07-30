@@ -374,6 +374,21 @@ void ExecutorLauncher::setupEnvironment()
   // the environment variables below in case it is included.
   os::setenv("LIBPROCESS_PORT", "0");
 
+  // Also add MESOS_NATIVE_LIBRARY if it's not already present (and
+  // like above, we do this before the environment variables below in
+  // case the framework wants to override).
+  if (!os::hasenv("MESOS_NATIVE_LIBRARY")) {
+    string path =
+#ifdef __APPLE__
+      LIBDIR "/libmesos-" VERSION ".dylib";
+#else
+      LIBDIR "/libmesos-" VERSION ".so";
+#endif
+    if (os::exists(path)) {
+      os::setenv("MESOS_NATIVE_LIBRARY", path);
+    }
+  }
+
   // Set up the environment as specified in the ExecutorInfo.
   if (commandInfo.has_environment()) {
     foreach (const Environment::Variable& variable,

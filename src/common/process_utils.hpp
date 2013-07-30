@@ -48,7 +48,7 @@ inline Try<int> killtree(
     cmdline = os::getenv("MESOS_SOURCE_DIR") +
       "/src/scripts/killtree.sh";
   } else {
-    cmdline = MESOS_LIBEXECDIR "/killtree.sh";
+    cmdline = PKGLIBEXECDIR "/killtree.sh";
   }
 
   // Add the arguments.

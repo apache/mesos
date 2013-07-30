@@ -49,7 +49,7 @@ public:
     add(&Flags::webui_dir,
         "webui_dir",
         "Location of the webui files/assets",
-        MESOS_WEBUI_DIR);
+        PKGDATADIR "/webui");
 
     add(&Flags::whitelist,
         "whitelist",
