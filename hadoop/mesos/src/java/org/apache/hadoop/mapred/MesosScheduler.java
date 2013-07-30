@@ -195,6 +195,7 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
       FrameworkInfo frameworkInfo = FrameworkInfo
         .newBuilder()
         .setUser("")
+        .setCheckpoint(conf.getBoolean("mapred.mesos.checkpoint", false))
         .setName("Hadoop: (RPC port: " + jobTracker.port + ","
             + " WebUI port: " + jobTracker.infoPort + ")").build();
 
