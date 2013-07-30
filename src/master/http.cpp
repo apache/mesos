@@ -251,6 +251,24 @@ Future<Response> Master::Http::health(const Request& request)
 }
 
 
+const string Master::Http::REDIRECT_HELP = HELP(
+    TLDR(
+        "Redirects to the leading Master."),
+    USAGE(
+        "/master/redirect"),
+    DESCRIPTION(
+        "This returns a 307 Temporary Redirect to the leading Master.",
+        "If no Master is leading (according to this Master), then the",
+        "Master will redirect to itself.",
+        "",
+        "**NOTES:**",
+        "1. This is the recommended way to bookmark the WebUI when",
+        "running multiple Masters.",
+        "2. This is broken currently \"on the cloud\" (e.g. EC2) as",
+        "this will attempt to redirect to the private IP address."));
+
+
+
 Future<Response> Master::Http::redirect(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";

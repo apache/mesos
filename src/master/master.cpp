@@ -405,11 +405,21 @@ void Master::initialize()
       &ExitedExecutorMessage::status);
 
   // Setup HTTP routes.
-  route("/health", Http::HEALTH_HELP, bind(&Http::health, http, params::_1));
-  route("/redirect", None(), bind(&Http::redirect, http, params::_1));
-  route("/stats.json", None(), bind(&Http::stats, http, params::_1));
-  route("/state.json", None(), bind(&Http::state, http, params::_1));
-  route("/roles.json", None(), bind(&Http::roles, http, params::_1));
+  route("/health",
+        Http::HEALTH_HELP,
+        bind(&Http::health, http, params::_1));
+  route("/redirect",
+        Http::REDIRECT_HELP,
+        bind(&Http::redirect, http, params::_1));
+  route("/stats.json",
+        None(),
+        bind(&Http::stats, http, params::_1));
+  route("/state.json",
+        None(),
+        bind(&Http::state, http, params::_1));
+  route("/roles.json",
+        None(),
+        bind(&Http::roles, http, params::_1));
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the

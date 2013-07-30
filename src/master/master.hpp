@@ -220,6 +220,7 @@ private:
         const process::http::Request& request);
 
     const static std::string HEALTH_HELP;
+    const static std::string REDIRECT_HELP;
 
   private:
     const Master& master;
