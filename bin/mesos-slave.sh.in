@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,8 +17,8 @@
 # limitations under the License.
 
 # This is a wrapper for running mesos-slave before it is installed
-# that first sets up environment variables as appropriate.
+# that sets up some flags environment variables.
 
-. @abs_top_builddir@/bin/mesos-build-env.sh
+. @abs_top_srcdir@/bin/mesos-slave-flags.sh
 
 @abs_top_builddir@/src/mesos-slave "${@}"

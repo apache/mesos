@@ -1,4 +1,4 @@
-# This file is meant to be sourced.
+#!/usr/bin/env bash
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,13 +16,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# It sets environment variables so Mesos will search for uninstalled
-# dependencies (such as the WebUI) rather than looking in installed locations.
+export MESOS_LAUNCHER_DIR=@abs_top_builddir@/src
+export MESOS_KILLTREE=@abs_top_srcdir@/src/scripts/killtree.sh
 
-MESOS_WEBUI_DIR=@abs_top_srcdir@/src/webui
-MESOS_LAUNCHER_DIR=@abs_top_builddir@/src
-MESOS_KILLTREE=@abs_top_srcdir@/src/scripts/killtree.sh
-
-export MESOS_WEBUI_DIR
-export MESOS_LAUNCHER_DIR
-export MESOS_KILLTREE
+# Add the native library so we can run JVM based executors without
+# them needing to figure this out for themselves.
+if test $(uname) = 'Darwin'; then
+  MESOS_NATIVE_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.dylib
+else
+  MESOS_NATIVE_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.so
+fi
+export MESOS_NATIVE_LIBRARY
