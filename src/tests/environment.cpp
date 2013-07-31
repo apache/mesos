@@ -29,6 +29,7 @@
 
 #include "tests/environment.hpp"
 #include "tests/filter.hpp"
+#include "tests/utils.hpp"
 
 namespace mesos {
 namespace internal {
@@ -136,6 +137,17 @@ void Environment::SetUp()
 
   listeners.Append(new FilterTestEventListener());
   listeners.Append(new ClockTestEventListener());
+
+  // Set the path to the native library for running JVM tests.
+  if (!os::hasenv("MESOS_NATIVE_LIBRARY")) {
+    std::string path = path::join(tests::flags.build_dir, "src", ".libs");
+#ifdef __APPLE__
+    path = path::join(path, "libmesos-" VERSION ".dylib");
+#else
+    path = path::join(path, "libmesos-" VERSION ".so");
+#endif
+    os::setenv("MESOS_NATIVE_LIBRARY", path);
+  }
 }
 
 
