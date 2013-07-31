@@ -203,6 +203,17 @@ void Environment::SetUp()
     }
   }
 
+  // Set the path to the native library for running JVM tests.
+  if (!os::hasenv("MESOS_NATIVE_LIBRARY")) {
+    string path = path::join(tests::flags.build_dir, "src", ".libs");
+#ifdef __APPLE__
+    path = path::join(path, "libmesos-" VERSION ".dylib");
+#else
+    path = path::join(path, "libmesos-" VERSION ".so");
+#endif
+    os::setenv("MESOS_NATIVE_LIBRARY", path);
+  }
+
   if (!GTEST_IS_THREADSAFE) {
     EXIT(1) << "Testing environment is not thread safe, bailing!";
   }
