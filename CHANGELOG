@@ -75,6 +75,37 @@ Release Notes - Mesos - Version 0.13.0
     * [MESOS-169] - Ability to for tests to catch in-flight messages that are dispatched
 
 
+Release Notes - Mesos - Version 0.12.1
+--------------------------------------
+* This release includes bug fixes and stability improvements.
+
+** Bug
+    * [MESOS-485] - Latest trunk fails on strict aliasing on CentOS
+    * [MESOS-515] - Slave fails to detect free disk space
+    * [MESOS-524] - JVM tests are flaky on OSX.
+    * [MESOS-587] - MesosNativeLibrary.java doesn't read environment
+                    variable "MESOS_NATIVE_LIBRARY".
+    * [MESOS-594] - Add CXXFLAGS='-fno-strict-aliasing' if using gcc
+                    4.4.*.
+    * [MESOS-597] - Set MESOS_NATIVE_LIBRARY or (DY)LD_LIBRARY_PATH
+                    before launching an executor in order to enable
+                    JVM based executors to easily find libmesos.so.
+    * [MESOS-599] - Make sure stderr/stdout get launcher output.
+    * [MESOS-604] - Slave should use the filesystem containing the
+                    work directory for disk usage calculation
+    * [MESOS-605] - Fix wrong compression for hadoop package
+
+** Improvement
+    * [MESOS-179] - Need to check for Python development headers
+    * [MESOS-346] - Improve OSX configure output when deprecated
+                    headers are present.
+    * [MESOS-360] - Mesos jar should be built for java 6
+    * [MESOS-602] - Allow Mesos native library to be loaded from an
+                    absolute path
+    * [MESOS-603] - Add support for better test output in newer
+                    versions of autools
+
+
 Release Notes - Mesos - Version 0.12.0
 --------------------------------------
 * This release includes bug fixes and stability improvements.
