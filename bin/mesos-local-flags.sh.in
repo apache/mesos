@@ -16,9 +16,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a wrapper for running mesos-local before it is installed
-# that sets up some flags via environment variables.
-
-. @abs_top_builddir@/bin/mesos-local-flags.sh
-
-exec @abs_top_builddir@/src/mesos-local "${@}"
+. @abs_top_builddir@/bin/mesos-master-flags.sh
+. @abs_top_builddir@/bin/mesos-slave-flags.sh

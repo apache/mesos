@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,8 +16,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a wrapper for running gdb on the mesos-master before it is
-# installed that first sets up environment variables as appropriate.
+# This is a wrapper for running gdb on mesos-master before it is
+# installed that first sets up some flags via environment variables.
 
 # Use colors for errors.
 . @abs_top_srcdir@/support/colors.sh
@@ -35,7 +35,7 @@ test $? != 0 && \
   echo "${RED}Generated libtool doesn't appear to support gdb${NORMAL}" && \
   exit 1
 
-. @abs_top_builddir@/bin/mesos-build-env.sh
+. @abs_top_builddir@/bin/mesos-master-flags.sh
 
 exec ${LIBTOOL} --mode=execute gdb --args \
   @abs_top_builddir@/src/mesos-master "${@}"
