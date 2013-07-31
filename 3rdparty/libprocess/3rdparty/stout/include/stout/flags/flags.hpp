@@ -34,9 +34,7 @@ public:
   // Load any flags from the environment given the variable prefix,
   // i.e., given prefix 'STOUT_' will load a flag named 'foo' via
   // environment variables 'STOUT_foo' or 'STOUT_FOO'.
-  virtual Try<Nothing> load(
-      const std::string& prefix,
-      bool unknowns = false);
+  virtual Try<Nothing> load(const std::string& prefix);
 
   // Load any flags from the environment given the variable prefix
   // (see above) followed by loading from the command line (via 'argc'
@@ -99,6 +97,10 @@ protected:
   void add(const Flag& flag);
 
 private:
+  // Extract environment variable "flags" with the specified prefix.
+  std::map<std::string, Option<std::string> > extract(
+      const std::string& prefix);
+
   std::map<std::string, Flag> flags;
 };
 
@@ -265,7 +267,7 @@ inline void FlagsBase::add(const Flag& flag)
 
 
 // Extract environment variable "flags" with the specified prefix.
-inline std::map<std::string, Option<std::string> > extract(
+inline std::map<std::string, Option<std::string> > FlagsBase::extract(
     const std::string& prefix)
 {
   char** environ = os::environ();
@@ -279,10 +281,16 @@ inline std::map<std::string, Option<std::string> > extract(
       if (eq == std::string::npos) {
         continue; // Not expecting a missing '=', but ignore anyway.
       }
+
       std::string name = variable.substr(prefix.size(), eq - prefix.size());
       name = strings::lower(name); // Allow PREFIX_NAME or PREFIX_name.
-      std::string value = variable.substr(eq + 1);
-      values[name] = Option<std::string>::some(value);
+
+      // Only add if it's a known flag.
+      if (flags.count(name) > 0 ||
+          (name.find("no-") == 0 && flags.count(name.substr(3)) > 0)) {
+        std::string value = variable.substr(eq + 1);
+        values[name] = Option<std::string>::some(value);
+      }
     }
   }
 
@@ -290,11 +298,9 @@ inline std::map<std::string, Option<std::string> > extract(
 }
 
 
-inline Try<Nothing> FlagsBase::load(
-    const std::string& prefix,
-    bool unknowns)
+inline Try<Nothing> FlagsBase::load(const std::string& prefix)
 {
-  return load(extract(prefix), unknowns);
+  return load(extract(prefix));
 }
 
 

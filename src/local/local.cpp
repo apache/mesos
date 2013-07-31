@@ -93,7 +93,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   {
     master::Flags flags;
-    Try<Nothing> load = flags.load("MESOS_", true); // Allow unknown flags.
+    Try<Nothing> load = flags.load("MESOS_");
     if (load.isError()) {
       EXIT(1) << "Failed to start a local cluster while loading "
               << "master flags from the environment: " << load.error();
@@ -110,7 +110,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     ProcessIsolator* isolator = new ProcessIsolator();
 
     slave::Flags flags;
-    Try<Nothing> load = flags.load("MESOS_", true); // Allow unknown flags.
+    Try<Nothing> load = flags.load("MESOS_");
     if (load.isError()) {
       EXIT(1) << "Failed to start a local cluster while loading "
               << "slave flags from the environment: " << load.error();

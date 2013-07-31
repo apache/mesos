@@ -743,15 +743,13 @@ MesosSchedulerDriver::MesosSchedulerDriver(
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   // Load any flags from the environment (we use local::Flags in the
-  // event we run in 'local' mode, since it inherits
-  // logging::Flags). In the future, just as the TODO in
-  // local/main.cpp discusses, we'll probably want a way to load
-  // master::Flags and slave::Flags as well. For now, we need to allow
-  // unknown flags in the event there are flags for the master/slave
-  // in the environment.
+  // event we run in 'local' mode, since it inherits logging::Flags).
+  // In the future, just as the TODO in local/main.cpp discusses,
+  // we'll probably want a way to load master::Flags and slave::Flags
+  // as well.
   local::Flags flags;
 
-  Try<Nothing> load = flags.load("MESOS_", true); // Allow unknown flags.
+  Try<Nothing> load = flags.load("MESOS_");
 
   if (load.isError()) {
     status = DRIVER_ABORTED;
