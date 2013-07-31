@@ -16,9 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a wrapper for running mesos-local before it is installed
-# that sets up some flags via environment variables.
+export MESOS_LAUNCHER_DIR=@abs_top_builddir@/src
 
-. @abs_top_builddir@/bin/mesos-local-flags.sh
-
-exec @abs_top_builddir@/src/mesos-local "${@}"
+# Add the native library so we can run JVM based executors without
+# them needing to figure this out for themselves.
+if test $(uname) = 'Darwin'; then
+  MESOS_NATIVE_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.dylib
+else
+  MESOS_NATIVE_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.so
+fi
+export MESOS_NATIVE_LIBRARY

@@ -1,4 +1,4 @@
-# This file is meant to be sourced.
+#!/usr/bin/env bash
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,13 +16,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# It sets environment variables so Mesos will search for uninstalled
-# dependencies (such as the WebUI) rather than looking in installed locations.
-
-MESOS_WEBUI_DIR=@abs_top_srcdir@/src/webui
-MESOS_LAUNCHER_DIR=@abs_top_builddir@/src
-MESOS_KILLTREE=@abs_top_srcdir@/src/scripts/killtree.sh
-
-export MESOS_WEBUI_DIR
-export MESOS_LAUNCHER_DIR
-export MESOS_KILLTREE
+export MESOS_WEBUI_DIR=@abs_top_srcdir@/src/webui

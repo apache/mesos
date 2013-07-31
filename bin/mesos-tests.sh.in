@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,9 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a wrapper for running mesos-master before it is installed
-# that first sets up environment variables as appropriate.
+# This is a wrapper for running mesos-tests from the build directory
+# that sets up some flags via environment variables.
 
-. @abs_top_builddir@/bin/mesos-build-env.sh
+. @abs_top_builddir@/bin/mesos-tests-flags.sh
 
 exec @abs_top_builddir@/src/mesos-tests "${@}"

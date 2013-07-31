@@ -41,7 +41,7 @@ inline Try<int> killtree(
 
   // TODO(Charles Reiss): Use a configuration option.
   if (os::hasenv("MESOS_KILLTREE")) {
-    // Set by mesos-build-env.sh.
+    // Set in mesos-slave-flags.sh.
     cmdline = os::getenv("MESOS_KILLTREE");
   } else if (os::hasenv("MESOS_SOURCE_DIR")) {
     // Set by test harness for external tests.
