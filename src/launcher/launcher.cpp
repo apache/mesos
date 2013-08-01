@@ -100,6 +100,20 @@ int ExecutorLauncher::setup()
     return -1;
   }
 
+  // Redirect output to files in working dir if required.
+  // TODO(bmahler): It would be best if instead of closing stderr /
+  // stdout and redirecting, we instead always output to stderr /
+  // stdout. Also tee'ing their output into the work directory files
+  // when redirection is desired.
+  if (redirectIO) {
+    if (freopen("stdout", "w", stdout) == NULL) {
+      fatalerror("freopen failed");
+    }
+    if (freopen("stderr", "w", stderr) == NULL) {
+      fatalerror("freopen failed");
+    }
+  }
+
   if (fetchExecutors() < 0) {
     cerr << "Failed to fetch executors" << endl;
     return -1;
@@ -124,16 +138,6 @@ int ExecutorLauncher::launch()
 
   if (shouldSwitchUser) {
     switchUser();
-  }
-
-  // Redirect output to files in working dir if required.
-  if (redirectIO) {
-    if (freopen("stdout", "w", stdout) == NULL) {
-      fatalerror("freopen failed");
-    }
-    if (freopen("stderr", "w", stderr) == NULL) {
-      fatalerror("freopen failed");
-    }
   }
 
   setupEnvironment();
