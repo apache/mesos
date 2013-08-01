@@ -246,10 +246,10 @@ protected:
   void recoverFramework(const state::FrameworkState& state, bool reconnect);
 
   // Removes and garbage collects the executor.
-  void remove(Framework* framework, Executor* executor);
+  void removeExecutor(Framework* framework, Executor* executor);
 
   // Removes and garbage collects the framework.
-  void remove(Framework* framework);
+  void removeFramework(Framework* framework);
 
 private:
   Slave(const Slave&);              // No copying.

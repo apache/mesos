@@ -902,8 +902,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   Clock::pause();
 
-  Future<Nothing> updateFramework =
-    FUTURE_DISPATCH(_, &Slave::updateFramework);
+  Future<Nothing> updateFramework = FUTURE_DISPATCH(_, &Slave::updateFramework);
 
   // Simulate a 'UpdateFrameworkMessage' to ensure framework pid is
   // not being checkpointed.

@@ -357,9 +357,6 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
       update.status().task_id(),
       update.uuid());
 
-  // TODO(vinod): It would've been great to introspect the first
-  // argument of '_statusUpdateAcknowledement()' and ensure that
-  // it is 'false'.
   AWAIT_READY(duplicateAck);
 
   Clock::resume();
@@ -451,9 +448,6 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
       update.status().task_id(),
       UUID::random().toBytes());
 
-  // TODO(vinod): It would've been great to introspect the first
-  // argument of '_statusUpdateAcknowledement()' and ensure that
-  // it is 'false'.
   AWAIT_READY(unexpectedAck);
 
   EXPECT_CALL(exec, shutdown(_))
