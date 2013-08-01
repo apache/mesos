@@ -1342,30 +1342,23 @@ void Slave::statusUpdateAcknowledgement(
 
 
 void Slave::_statusUpdateAcknowledgement(
-    const Future<Try<bool> >& future,
+    const Future<bool>& future,
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const UUID& uuid)
 {
+  // The future could fail if this is a duplicate status update acknowledgement.
   if (!future.isReady()) {
-    LOG(FATAL) << "Failed to handle status update acknowledgement " << uuid
-               << " for task " << taskId
+    LOG(ERROR) << "Failed to handle status update acknowledgement (UUID: "
+               << uuid << ") for task " << taskId
                << " of framework " << frameworkId << ": "
                << (future.isFailed() ? future.failure() : "future discarded");
     return;
   }
 
-  if (future.get().isError()) {
-    LOG(ERROR) << "Failed to handle the status update acknowledgement " << uuid
-               << " for task " << taskId
-               << " of framework " << frameworkId
-               << ": " << future.get().error();
-    return;
-  }
-
   VLOG(1) << "Status update manager successfully handled status update"
-          << " acknowledgement " << uuid
-          << " for task " << taskId
+          << " acknowledgement (UUID: " << uuid
+          << ") for task " << taskId
           << " of framework " << frameworkId;
 
   CHECK(state == RECOVERING || state == DISCONNECTED ||
@@ -1374,8 +1367,8 @@ void Slave::_statusUpdateAcknowledgement(
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    LOG(ERROR) << "Status update acknowledgement " << uuid
-               << " for task " << taskId
+    LOG(ERROR) << "Status update acknowledgement (UUID: " << uuid
+               << ") for task " << taskId
                << " of unknown framework " << frameworkId;
     return;
   }
@@ -1387,8 +1380,8 @@ void Slave::_statusUpdateAcknowledgement(
   // Find the executor that has this update.
   Executor* executor = framework->getExecutor(taskId);
   if (executor == NULL) {
-    LOG(ERROR) << "Status update acknowledgement " << uuid
-              << " for task " << taskId
+    LOG(ERROR) << "Status update acknowledgement (UUID: " << uuid
+              << ") for task " << taskId
                << " of unknown executor";
     return;
   }
@@ -1401,7 +1394,7 @@ void Slave::_statusUpdateAcknowledgement(
 
   // If the task has reached terminal state and all its updates have
   // been acknowledged, mark it completed.
-  if (executor->terminatedTasks.contains(taskId) && !future.get().get()) {
+  if (executor->terminatedTasks.contains(taskId) && !future.get()) {
     executor->completeTask(taskId);
   }
 
@@ -1809,19 +1802,13 @@ void Slave::statusUpdate(const StatusUpdate& update)
 
 
 void Slave::_statusUpdate(
-    const Future<Try<Nothing> >& future,
+    const Future<Nothing>& future,
     const StatusUpdate& update,
     const Option<UPID>& pid)
 {
   if (!future.isReady()) {
     LOG(FATAL) << "Failed to handle status update " << update << ": "
                << (future.isFailed() ? future.failure() : "future discarded");
-    return;
-  }
-
-  if (future.get().isError()) {
-    LOG(ERROR) << "Failed to handle the status update " << update
-               << ": " << future.get().error();
     return;
   }
 

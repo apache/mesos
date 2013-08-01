@@ -142,7 +142,7 @@ public:
   // handling the update. If the handling is successful, an
   // acknowledgment is sent to the executor.
   void _statusUpdate(
-      const Future<Try<Nothing> >& future,
+      const Future<Nothing>& future,
       const StatusUpdate& update,
       const Option<UPID>& pid);
 
@@ -153,7 +153,7 @@ public:
       const std::string& uuid);
 
   void _statusUpdateAcknowledgement(
-      const Future<Try<bool> >& future,
+      const Future<bool>& future,
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const UUID& uuid);

@@ -64,22 +64,24 @@ public:
       const Flags& flags,
       const PID<Slave>& slave);
 
-  Try<Nothing> update(
+  Future<Nothing> update(
       const StatusUpdate& update,
       const SlaveID& slaveId,
       const ExecutorID& executorId,
       const UUID& uuid);
 
-  Try<Nothing> update(
+  Future<Nothing> update(
       const StatusUpdate& update,
       const SlaveID& slaveId);
 
-  Try<bool> acknowledgement(
+  Future<bool> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const UUID& uuid);
 
-  Try<Nothing> recover(const string& rootDir, const SlaveState& state);
+  Future<Nothing> recover(
+      const string& rootDir,
+      const SlaveState& state);
 
   void newMasterDetected(const UPID& pid);
 
@@ -87,7 +89,7 @@ public:
 
 private:
   // Helper function to handle update.
-  Try<Nothing> _update(
+  Future<Nothing> _update(
       const StatusUpdate& update,
       const SlaveID& slaveId,
       bool checkpoint,
@@ -170,7 +172,7 @@ void StatusUpdateManagerProcess::newMasterDetected(const UPID& pid)
 }
 
 
-Try<Nothing> StatusUpdateManagerProcess::recover(
+Future<Nothing> StatusUpdateManagerProcess::recover(
     const string& rootDir,
     const SlaveState& state)
 {
@@ -220,7 +222,7 @@ Try<Nothing> StatusUpdateManagerProcess::recover(
         // Replay the stream.
         Try<Nothing> replay = stream->replay(task.updates, task.acks);
         if (replay.isError()) {
-          return Error(
+          return Future<Nothing>::failed(
               "Failed to replay status updates for task " + stringify(task.id) +
               " of framework " + stringify(framework.id) +
               ": " + replay.error());
@@ -259,7 +261,7 @@ void StatusUpdateManagerProcess::cleanup(const FrameworkID& frameworkId)
 }
 
 
-Try<Nothing> StatusUpdateManagerProcess::update(
+Future<Nothing> StatusUpdateManagerProcess::update(
     const StatusUpdate& update,
     const SlaveID& slaveId,
     const ExecutorID& executorId,
@@ -269,7 +271,7 @@ Try<Nothing> StatusUpdateManagerProcess::update(
 }
 
 
-Try<Nothing> StatusUpdateManagerProcess::update(
+Future<Nothing> StatusUpdateManagerProcess::update(
     const StatusUpdate& update,
     const SlaveID& slaveId)
 {
@@ -277,7 +279,7 @@ Try<Nothing> StatusUpdateManagerProcess::update(
 }
 
 
-Try<Nothing> StatusUpdateManagerProcess::_update(
+Future<Nothing> StatusUpdateManagerProcess::_update(
     const StatusUpdate& update,
     const SlaveID& slaveId,
     bool checkpoint,
@@ -301,7 +303,7 @@ Try<Nothing> StatusUpdateManagerProcess::_update(
   // Verify that we didn't get a non-checkpointable update for a
   // stream that is checkpointable, and vice-versa.
   if (stream->checkpoint != checkpoint) {
-    return Error(
+    return Future<Nothing>::failed(
         "Mismatched checkpoint value for status update " + stringify(update) +
         " (expected checkpoint=" + stringify(stream->checkpoint) +
         " actual checkpoint=" + stringify(checkpoint) + ")");
@@ -310,7 +312,7 @@ Try<Nothing> StatusUpdateManagerProcess::_update(
   // Handle the status update.
   Try<Nothing> result = stream->update(update);
   if (result.isError()) {
-    return result;
+    return Future<Nothing>::failed(result.error());
   }
 
   // Forward the status update to the master if this is the first in the stream.
@@ -319,7 +321,7 @@ Try<Nothing> StatusUpdateManagerProcess::_update(
     CHECK(stream->timeout.isNone());
     const Result<StatusUpdate>& next = stream->next();
     if (next.isError()) {
-      return Error(next.error());
+      return Future<Nothing>::failed(next.error());
     }
 
     CHECK_SOME(next);
@@ -352,13 +354,13 @@ Timeout StatusUpdateManagerProcess::forward(const StatusUpdate& update)
 }
 
 
-Try<bool> StatusUpdateManagerProcess::acknowledgement(
+Future<bool> StatusUpdateManagerProcess::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const UUID& uuid)
 {
-  LOG(INFO) << "Received status update acknowledgement " << uuid
-            << " for task " << taskId
+  LOG(INFO) << "Received status update acknowledgement (UUID: " << uuid
+            << ") for task " << taskId
             << " of framework " << frameworkId;
 
   StatusUpdateStream* stream = getStatusUpdateStream(taskId, frameworkId);
@@ -366,7 +368,7 @@ Try<bool> StatusUpdateManagerProcess::acknowledgement(
   // This might happen if we haven't completed recovery yet or if the
   // acknowledgement is for a stream that has been cleaned up.
   if (stream == NULL) {
-    return Error(
+    return Future<bool>::failed(
         "Cannot find the status update stream for task " + stringify(taskId) +
         " of framework " + stringify(frameworkId));
   }
@@ -374,15 +376,15 @@ Try<bool> StatusUpdateManagerProcess::acknowledgement(
   // Get the corresponding update for this ACK.
   const Result<StatusUpdate>& update = stream->next();
   if (update.isError()) {
-    return Error(update.error());
+    return Future<bool>::failed(update.error());
   }
 
   // This might happen if we retried a status update and got back
   // acknowledgments for both the original and the retried update.
   if (update.isNone()) {
-    return Error(
-        "Unexpected status update acknowledgment " + uuid.toString() +
-        " for task " + stringify(taskId) +
+    return Future<bool>::failed(
+        "Unexpected status update acknowledgment (UUID: " + uuid.toString() +
+        ") for task " + stringify(taskId) +
         " of framework " + stringify(frameworkId));
   }
 
@@ -391,7 +393,7 @@ Try<bool> StatusUpdateManagerProcess::acknowledgement(
     stream->acknowledgement(taskId, frameworkId, uuid, update.get());
 
   if (result.isError()) {
-    return result;
+    return Future<bool>::failed(result.error());
   }
 
   // Reset the timeout.
@@ -400,7 +402,7 @@ Try<bool> StatusUpdateManagerProcess::acknowledgement(
   // Get the next update in the queue.
   const Result<StatusUpdate>& next = stream->next();
   if (next.isError()) {
-    return Error(next.error());
+    return Future<bool>::failed(next.error());
   }
 
   if (stream->terminated) {
@@ -415,7 +417,7 @@ Try<bool> StatusUpdateManagerProcess::acknowledgement(
     stream->timeout = forward(next.get());
   }
 
-  return result;
+  return result.get();
 }
 
 
@@ -522,7 +524,7 @@ void StatusUpdateManager::initialize(
 }
 
 
-Future<Try<Nothing> > StatusUpdateManager::update(
+Future<Nothing> StatusUpdateManager::update(
     const StatusUpdate& update,
     const SlaveID& slaveId,
     const ExecutorID& executorId,
@@ -538,7 +540,7 @@ Future<Try<Nothing> > StatusUpdateManager::update(
 }
 
 
-Future<Try<Nothing> > StatusUpdateManager::update(
+Future<Nothing> StatusUpdateManager::update(
     const StatusUpdate& update,
     const SlaveID& slaveId)
 {
@@ -550,7 +552,7 @@ Future<Try<Nothing> > StatusUpdateManager::update(
 }
 
 
-Future<Try<bool> > StatusUpdateManager::acknowledgement(
+Future<bool> StatusUpdateManager::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const UUID& uuid)
@@ -564,7 +566,7 @@ Future<Try<bool> > StatusUpdateManager::acknowledgement(
 }
 
 
-Future<Try<Nothing> > StatusUpdateManager::recover(
+Future<Nothing> StatusUpdateManager::recover(
     const string& rootDir,
     const SlaveState& state)
 {

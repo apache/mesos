@@ -88,7 +88,7 @@ public:
   // update to the master (and hence the scheduler).
   // @return Whether the update is handled successfully
   // (e.g. checkpointed).
-  process::Future<Try<Nothing> > update(
+  process::Future<Nothing> update(
       const StatusUpdate& update,
       const SlaveID& slaveId,
       const ExecutorID& executorId,
@@ -97,7 +97,7 @@ public:
   // Retries the update to the master (as long as the slave is
   // alive), but does not checkpoint the update.
   // @return Whether the update is handled successfully.
-  process::Future<Try<Nothing> > update(
+  process::Future<Nothing> update(
       const StatusUpdate& update,
       const SlaveID& slaveId);
 
@@ -106,14 +106,14 @@ public:
   // @return true if the ACK is handled successfully (e.g., checkpointed)
   //              and the task's status update stream is not terminated.
   //         false same as above except the status update stream is terminated.
-  //         Error if there are any errors (e.g., duplicate, checkpointing).
-  process::Future<Try<bool> > acknowledgement(
+  //         Failed if there are any errors (e.g., duplicate, checkpointing).
+  process::Future<bool> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const UUID& uuid);
 
   // Recover status updates.
-  process::Future<Try<Nothing> > recover(
+  process::Future<Nothing> recover(
       const std::string& rootDir,
       const state::SlaveState& state);
 
@@ -238,8 +238,8 @@ struct StatusUpdateStream
     }
 
     if (acknowledged.contains(uuid)) {
-      return Error("Duplicate status update acknowledgment " + uuid.toString() +
-                   " for update " + stringify(update));
+      return Error("Duplicate status update acknowledgment (UUID: "
+                   + uuid.toString() + ") for update " + stringify(update));
     }
 
     // This might happen if we retried a status update and got back
