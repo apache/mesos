@@ -385,14 +385,38 @@ AM_CONDITIONAL([HAS_JAVA], [test "x$has_java" = "xyes"])
 
 # Perform necessary configuration for building with Python.
 if test "x$enable_python" = "xyes"; then
+  # If the user specified PYTHON_VERSION then assume that is the
+  # Python that they want and construct PYTHON using the canonical
+  # name (failing if PYTHON is also set since we can't easily check
+  # that PYTHON and PYTHON_VERSION are compatible). This bit of
+  # tomfoolery is mostly to match the semantics of AC_PYTHON_DEVEL
+  # (used below). If we don't do this then it's possible that a user
+  # will specify PYTHON_VERSION which will get ignored (and likely
+  # replaced) via AM_PATH_PYTHON.
+  # TODO(benh): Consolidate AM_PATH_PYTHON and AC_PYTHON_DEVEL into a
+  # single macro that both iterates through potential 'python' options
+  # looking for an acceptable version (i.e., AM_PATH_PYTHON) and
+  # checks for Python.h (i.e., AC_PYTHON_DEVEL).
+  if test -n "$PYTHON_VERSION"; then
+    if test -n "$PYTHON"; then
+      AC_MSG_ERROR([only specify one of PYTHON or PYTHON_VERSION])
+    fi
+    PYTHON=python$PYTHON_VERSION
+  fi
+
+  # Check if PYTHON is at least 2.6 or try and find one that is if
+  # PYTHON is not set (necessary to run our examples).
   AM_PATH_PYTHON([2.6],,
-                 [AC_MSG_ERROR([mesos requires Python >= 2.6 to be installed
+                 [AC_MSG_ERROR([mesos requires Python >= 2.6
   -------------------------------------------------------------------
-  If you already have Python 2.6 installed, please ensure you have
-  not set the PYTHON environment variable to point to an older
-  version of Python.
+  If you already have Python 2.6 installed (and it's on the path),
+  you might want to check if you have the PYTHON environment variable
+  set to an older version of Python.
   -------------------------------------------------------------------
   ])])
+
+  # Next we ensure we have the Python development libraries.
+  AC_PYTHON_DEVEL([>= '2.6'])
 
   # Determine how the generated Python egg's will get named, used in
   # the Makefile to keep the targets from being rerun.
